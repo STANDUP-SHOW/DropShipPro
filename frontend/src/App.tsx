@@ -1,0 +1,34 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './lib/auth'
+import Index from './pages/Index'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
+import ProductDetail from './pages/ProductDetail'
+import Orders from './pages/Orders'
+import Settings from './pages/Settings'
+
+function Protected({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="min-h-screen bg-app-gradient" />
+  if (!user) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
+          <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
+          <Route path="/orders" element={<Protected><Orders /></Protected>} />
+          <Route path="/settings" element={<Protected><Settings /></Protected>} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}

@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Platform {
+  OWN_SITE
+  LEBONCOIN
+  VINTED
+  EBAY
+  AMAZON
+}
+
+enum ProductStatus {
+  DRAFT
+  READY
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PublicationStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+enum OrderStatus {
+  NEW
+  ORDERED_FROM_SUPPLIER
+  SHIPPED
+  DELIVERED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  RELEASED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  shopName     String?
+  watermarkText String?
+  createdAt    DateTime @default(now())
+
+  products    Product[]
+  credentials PlatformCredential[]
+  orders      Order[]
+}
+
+model PlatformCredential {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform  Platform
+  label     String?
+  data      Json
+  connected Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, platform])
+}
+
+model Product {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sourceUrl      String
+  sourceSite     String?
+  sourceCategory String?
+
+  title       String
+  description String  @db.Text
+  aiTitle       String?
+  aiDescription String? @db.Text
+
+  price        Decimal @default(0) @db.Decimal(10, 2)
+  currency     String  @default("EUR")
+  markupPercent Int    @default(50)
+
+  images   Json
+  variants Json?
+
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+
+  status ProductStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  publications Publication[]
+  orders       Order[]
+}
+
+model Publication {
+  id        String             @id @default(cuid())
+  productId String
+  product   Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  platform  Platform
+  status    PublicationStatus  @default(PENDING)
+  targetCategory String?
+  externalUrl    String?
+  error          String?
+  publishedAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  @@unique([productId, platform])
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+
+  platform        Platform
+  externalOrderId String?
+
+  buyerName    String
+  buyerAddress Json
+
+  amount   Decimal @db.Decimal(10, 2)
+  currency String  @default("EUR")
+
+  status         OrderStatus  @default(NEW)
+  supplierOrderUrl String?
+  trackingNumber   String?
+  shippingLabelUrl String?
+  receiptUrl       String?
+  payoutStatus     PayoutStatus @default(PENDING)
+  platformBalance  Decimal?     @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

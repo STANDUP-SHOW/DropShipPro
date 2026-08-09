@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: droppost
+      POSTGRES_PASSWORD: droppost
+      POSTGRES_DB: droppost
+    ports:
+      - "5432:5432"
+    volumes:
+      - droppost_pgdata:/var/lib/postgresql/data
+
+volumes:
+  droppost_pgdata:
