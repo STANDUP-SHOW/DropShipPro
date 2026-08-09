@@ -1,7 +1,27 @@
 import { Router } from 'express'
+import archiver from 'archiver'
+import path from 'path'
+import { existsSync } from 'fs'
 import { prisma } from '../lib/prisma.js'
 
 export const publicRouter = Router()
+
+// Packages the Chrome extension folder on the fly so the app can offer it as a
+// download. Unauthenticated on purpose: it's just client code, and a plain <a>
+// link can't carry the Bearer token.
+publicRouter.get('/extension.zip', async (_req, res) => {
+  const extensionDir = path.resolve('..', 'extension')
+  if (!existsSync(extensionDir)) {
+    return res.status(404).json({ error: 'Extension introuvable sur le serveur' })
+  }
+
+  res.attachment('dropship-pro-extension.zip')
+  const archive = archiver('zip')
+  archive.on('error', () => res.destroy())
+  archive.pipe(res)
+  archive.directory(extensionDir, false)
+  await archive.finalize()
+})
 
 // Headless catalog API for the user's own future storefront ("mon site - que je
 // vais créer pour ça"): no auth required, only exposes products published to OWN_SITE.

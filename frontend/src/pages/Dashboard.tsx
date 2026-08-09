@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Link2, Loader2, Layers } from 'lucide-react'
+import { Link2, Loader2, Layers, Puzzle } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 
@@ -80,8 +80,20 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <h1 className="text-2xl font-bold">Produits</h1>
-      <p className="text-gray-400 text-sm mt-1">Collez l'URL d'un produit — Temu, JoyBuy, ou n'importe quel site.</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Produits</h1>
+          <p className="text-gray-400 text-sm mt-1">Collez l'URL d'un produit — Temu, JoyBuy, ou n'importe quel site.</p>
+        </div>
+        <a
+          href="/api/public/extension.zip"
+          download="dropship-pro-extension.zip"
+          className="inline-flex items-center gap-2 rounded-lg border border-purple-400/40 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 transition"
+          title="Remplit automatiquement les formulaires Vinted, Leboncoin et eBay"
+        >
+          <Puzzle size={16} className="text-purple-300" /> Extension Chrome
+        </a>
+      </div>
 
       <form onSubmit={onImport} className="mt-5 flex gap-2">
         <div className="relative flex-1">

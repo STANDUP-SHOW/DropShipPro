@@ -62,6 +62,28 @@ export const api = {
     request('/settings/credentials', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
+/**
+ * Downloads an authenticated endpoint. A plain <a href> can't carry the Bearer
+ * token, so fetch it with the header and hand the browser a blob URL instead.
+ */
+export async function downloadWithAuth(path: string, filename: string) {
+  const token = getToken()
+  const res = await fetch(`${BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error('Téléchargement impossible')
+
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export function setToken(token: string) {
   localStorage.setItem('droppost_token', token)
 }

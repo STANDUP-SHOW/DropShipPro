@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Download, Copy, Check, Trash2, ExternalLink } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { api } from '../lib/api'
+import { api, downloadWithAuth } from '../lib/api'
 
 const PLATFORMS = [
   { key: 'OWN_SITE', label: 'Mon site', auto: true, sellUrl: null as string | null },
@@ -105,12 +105,12 @@ export default function ProductDetail() {
               <img key={i} src={img} alt="" className="aspect-square rounded-lg object-cover bg-black/20" />
             ))}
           </div>
-          <a
-            href={`/api/products/${id}/photos.zip`}
+          <button
+            onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
             className="mt-3 inline-flex items-center gap-2 text-sm rounded-lg border border-white/10 px-3 py-2 hover:bg-white/5"
           >
             <Download size={15} /> Télécharger les photos (.zip)
-          </a>
+          </button>
         </div>
 
         <div className="space-y-4">
@@ -205,9 +205,12 @@ export default function ProductDetail() {
             <CopyField label="Description" value={product.aiDescription} />
             <CopyField label="Catégorie suggérée" value={categories[activeAssist.key] || ''} />
           </div>
-          <a href={`/api/products/${id}/photos.zip`} className="mt-3 inline-flex items-center gap-2 text-sm rounded-lg border border-white/10 px-3 py-2 hover:bg-white/5">
+          <button
+            onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
+            className="mt-3 inline-flex items-center gap-2 text-sm rounded-lg border border-white/10 px-3 py-2 hover:bg-white/5"
+          >
             <Download size={15} /> Télécharger les photos à glisser dans le formulaire
-          </a>
+          </button>
           <p className="text-xs text-gray-500 mt-3">
             Astuce : l'extension navigateur DropShip Pro (à venir) remplira ce formulaire automatiquement.
           </p>

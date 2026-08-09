@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Puzzle, Download } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -64,6 +65,38 @@ export default function Settings() {
         <button onClick={saveProfile} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold">
           {saved ? 'Enregistré ✓' : 'Enregistrer'}
         </button>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-purple-400/30 bg-purple-500/5 p-5 max-w-lg">
+        <div className="flex items-start gap-3">
+          <Puzzle className="text-purple-300 shrink-0 mt-0.5" size={22} />
+          <div className="flex-1">
+            <h2 className="font-bold">Extension Google Chrome</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Remplit automatiquement les formulaires de vente Vinted, Leboncoin et eBay
+              avec vos produits — titre, description, prix et photos filigranées.
+            </p>
+            <a
+              href="/api/public/extension.zip"
+              download="dropship-pro-extension.zip"
+              className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+            >
+              <Download size={15} /> Télécharger l'extension
+            </a>
+            <details className="mt-3">
+              <summary className="text-xs text-purple-300 cursor-pointer">Comment l'installer ?</summary>
+              <ol className="text-xs text-gray-400 mt-2 space-y-1 list-decimal list-inside">
+                <li>Décompressez le fichier .zip téléchargé.</li>
+                <li>
+                  Ouvrez <code className="text-gray-300">chrome://extensions</code> dans Chrome.
+                </li>
+                <li>Activez le « Mode développeur » en haut à droite.</li>
+                <li>Cliquez « Charger l'extension non empaquetée » et sélectionnez le dossier décompressé.</li>
+                <li>Épinglez l'icône, connectez-vous, et publiez en un clic.</li>
+              </ol>
+            </details>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
