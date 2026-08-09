@@ -9,9 +9,22 @@ import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
 
 const app = express()
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }))
+
+// The browser extension calls this API from a chrome-extension:// origin, and its
+// content scripts fetch product photos from the marketplace page's own origin.
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      const allowed = !origin || origin === process.env.FRONTEND_URL || origin.startsWith('chrome-extension://')
+      callback(null, allowed)
+    },
+  }),
+)
 app.use(express.json({ limit: '2mb' }))
-app.use('/storage', express.static(path.resolve('storage')))
+
+// Watermarked photos are public assets pulled into third-party listing forms, so
+// they're readable from any origin (unlike the authenticated API routes above).
+app.use('/storage', cors({ origin: '*' }), express.static(path.resolve('storage')))
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 app.use('/api/auth', authRouter)

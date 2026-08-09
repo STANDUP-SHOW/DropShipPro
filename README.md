@@ -61,6 +61,12 @@ npm run dev              # http://localhost:5173 (proxy /api -> :4000)
 | Leboncoin | 🟠 Pas d'API self-service — publication assistée (copier-coller + photos) |
 | Vinted | 🟠 Pas d'API publique — publication assistée, extension navigateur prévue |
 
+## Extension navigateur
+
+`extension/` contient une extension Chrome (Manifest V3) qui remplit automatiquement
+les formulaires de vente Vinted / Leboncoin / eBay avec vos produits, façon
+Vendoo ou Crosslist. Voir [extension/README.md](extension/README.md) pour l'installation.
+
 ## Mobile
 
 Le frontend est responsive mobile-first. Pour une appli installable iOS/Android sans
