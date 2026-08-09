@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { gotScraping } from 'got-scraping'
 
 export interface ScrapedProduct {
   title: string
@@ -35,16 +36,17 @@ function parsePrice(raw: string | undefined): number {
  * OG-tag fallback since those platforms still emit OG meta for share previews.
  */
 export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
-  const res = await fetch(url, {
-    headers: {
-      'user-agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-      'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8',
-    },
-    redirect: 'follow',
+  // gotScraping, not plain fetch: sites like Temu fingerprint the TLS handshake
+  // and serve Node an obfuscated anti-bot stub (2.9 KB) instead of the product page.
+  // gotScraping impersonates a real browser's TLS + header profile, which gets the
+  // full 455 KB page back.
+  const res = await gotScraping({
+    url,
+    timeout: { request: 30000 },
+    headers: { 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' },
   })
-  if (!res.ok) throw new Error(`Le site source a répondu ${res.status}`)
-  const html = await res.text()
+  if (res.statusCode >= 400) throw new Error(`Le site source a répondu ${res.statusCode}`)
+  const html = res.body
   const $ = cheerio.load(html)
   const site = new URL(url).hostname.replace('www.', '')
 
@@ -101,9 +103,15 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
       .get()
       .filter(Boolean)
       .slice(-1)[0] ||
+    // Temu ships its breadcrumb inside the embedded JSON rather than the DOM, so
+    // take the last "optName" entry (e.g. Accueil > Mode Enfant > Bijoux enfant).
+    [...html.replace(/\\u002F/gi, '/').matchAll(/"optName"\s*:\s*"([^"]{2,50})"/g)]
+      .map((m) => m[1])
+      .filter((name) => !/^(accueil|home)$/i.test(name))
+      .slice(-1)[0] ||
     null
 
-  return {
+  const result = {
     title: title.trim(),
     description: description.trim(),
     price,
@@ -114,5 +122,33 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     metaTitle: og('og:title') || null,
     metaDescription: $('meta[name="description"]').attr('content') || null,
     metaKeywords: $('meta[name="keywords"]').attr('content') || null,
+  }
+
+  // Sites like Temu and JoyBuy answer scrapers with a bot wall or an empty JS
+  // shell: HTTP 200, but no real product data. Creating a product from that would
+  // silently fill the back office with empty listings, so refuse it outright.
+  const looksLikeBotWall = /risk control|captcha|are you a robot|access denied/i.test(
+    `${result.title} ${$('body').text().slice(0, 400)}`,
+  )
+  // A title alone is enough to build on: sites like Temu load price and gallery
+  // by XHR after render, so a listing legitimately arrives without them and the
+  // user completes those fields in the back office.
+  const hasUsableData = result.title.length > 3 && (result.description.length > 20 || result.images.length > 0)
+
+  if (looksLikeBotWall || !hasUsableData) {
+    throw new ScrapeBlockedError(site)
+  }
+
+  return result
+}
+
+/** Thrown when the source site served a bot wall or an empty JS shell instead of the product. */
+export class ScrapeBlockedError extends Error {
+  constructor(public site: string) {
+    super(
+      `${site} bloque l'import automatique (protection anti-robot). ` +
+        `Utilisez l'import depuis l'extension Chrome, qui lit la page directement dans votre navigateur.`,
+    )
+    this.name = 'ScrapeBlockedError'
   }
 }

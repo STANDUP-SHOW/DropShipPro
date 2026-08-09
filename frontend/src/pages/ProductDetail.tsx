@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Download, Copy, Check, Trash2, ExternalLink } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { api, downloadWithAuth } from '../lib/api'
+import { api, downloadWithAuth, assetUrl } from '../lib/api'
 
 const PLATFORMS = [
   { key: 'OWN_SITE', label: 'Mon site', auto: true, sellUrl: null as string | null },
@@ -43,12 +43,21 @@ export default function ProductDetail() {
   const [selected, setSelected] = useState<string[]>([])
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [purchasePrice, setPurchasePrice] = useState(0)
+  const [shippingCost, setShippingCost] = useState(0)
+  const [sellingPrice, setSellingPrice] = useState(0)
+
+  const costPrice = purchasePrice + shippingCost
+  const grossMargin = sellingPrice - costPrice
 
   async function load() {
     if (!id) return
     const [p, cats] = await Promise.all([api.getProduct(id), api.categoryPreview(id)])
     setProduct(p)
     setCategories(cats)
+    setPurchasePrice(Number(p.price))
+    setShippingCost(Number(p.shippingCost ?? 0))
+    setSellingPrice(Number(p.sellingPrice ?? 0))
   }
 
   useEffect(() => {
@@ -81,7 +90,7 @@ export default function ProductDetail() {
 
   if (!product) return <Layout><p className="text-gray-400">Chargement...</p></Layout>
 
-  const finalPrice = (Number(product.price) * (1 + product.markupPercent / 100)).toFixed(2)
+  const finalPrice = sellingPrice.toFixed(2)
   const activeAssist = PLATFORMS.find((p) => p.key === assistPanel)
 
   return (
@@ -102,7 +111,7 @@ export default function ProductDetail() {
         <div>
           <div className="grid grid-cols-3 gap-2">
             {(product.images as string[]).map((img, i) => (
-              <img key={i} src={img} alt="" className="aspect-square rounded-lg object-cover bg-black/20" />
+              <img key={i} src={assetUrl(img)} alt="" className="aspect-square rounded-lg object-cover bg-black/20" />
             ))}
           </div>
           <button
@@ -131,24 +140,73 @@ export default function ProductDetail() {
               className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-400">Prix source</label>
-              <p className="mt-1 text-sm bg-black/20 rounded-lg px-3 py-2">{Number(product.price).toFixed(2)} {product.currency}</p>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-3">
+            <h3 className="text-sm font-bold">Calcul de marge</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400">Prix d'achat fournisseur</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={purchasePrice}
+                  onChange={(e) => setPurchasePrice(Number(e.target.value))}
+                  onBlur={(e) => saveField('price', Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Frais de transport</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={shippingCost}
+                  onChange={(e) => setShippingCost(Number(e.target.value))}
+                  onBlur={(e) => saveField('shippingCost', Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                />
+              </div>
             </div>
             <div>
-              <label className="text-xs text-gray-400">Marge (%)</label>
+              <label className="text-xs text-gray-400">Prix de revente (prix affiché sur l'annonce)</label>
               <input
                 type="number"
-                defaultValue={product.markupPercent}
-                onBlur={(e) => saveField('markupPercent', Number(e.target.value))}
-                className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                step="0.01"
+                value={sellingPrice}
+                onChange={(e) => setSellingPrice(Number(e.target.value))}
+                onBlur={(e) => saveField('sellingPrice', Number(e.target.value))}
+                className="mt-1 w-full rounded-lg bg-white/10 border border-purple-400/40 px-3 py-2 text-base font-bold text-purple-200 outline-none focus:border-purple-400"
               />
             </div>
+
+            <div className="border-t border-white/10 pt-3 space-y-1 text-sm">
+              <div className="flex justify-between text-gray-400">
+                <span>Coût de revient</span>
+                <span>{costPrice.toFixed(2)} {product.currency}</span>
+              </div>
+              <div className="flex justify-between font-bold">
+                <span>Marge brute</span>
+                <span className={grossMargin >= 0 ? 'text-emerald-300' : 'text-red-400'}>
+                  {grossMargin >= 0 ? '+' : ''}{grossMargin.toFixed(2)} {product.currency}
+                  {costPrice > 0 && (
+                    <span className="text-xs font-normal text-gray-400 ml-2">
+                      ({((grossMargin / costPrice) * 100).toFixed(0)} %)
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                const suggested = Number(((purchasePrice + shippingCost) * 1.5).toFixed(2))
+                setSellingPrice(suggested)
+                saveField('sellingPrice', suggested)
+              }}
+              className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5 w-full"
+            >
+              Appliquer une marge de +50 %
+            </button>
           </div>
-          <p className="text-sm">
-            Prix de vente final : <span className="font-bold text-purple-300">{finalPrice} {product.currency}</span>
-          </p>
           {saving && <p className="text-xs text-gray-500">Enregistrement...</p>}
         </div>
       </div>

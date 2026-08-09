@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Link2, Loader2, Layers, Puzzle } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { api } from '../lib/api'
+import { api, assetUrl } from '../lib/api'
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -86,7 +86,7 @@ export default function Dashboard() {
           <p className="text-gray-400 text-sm mt-1">Collez l'URL d'un produit — Temu, JoyBuy, ou n'importe quel site.</p>
         </div>
         <a
-          href="/api/public/extension.zip"
+          href={assetUrl('/api/public/extension.zip')}
           download="dropship-pro-extension.zip"
           className="inline-flex items-center gap-2 rounded-lg border border-purple-400/40 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 transition"
           title="Remplit automatiquement les formulaires Vinted, Leboncoin et eBay"
@@ -155,13 +155,13 @@ export default function Dashboard() {
                 className="rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:border-purple-400/50 transition"
               >
                 <div className="aspect-square bg-black/30">
-                  {p.images?.[0] && <img src={p.images[0]} alt="" className="w-full h-full object-cover" />}
+                  {p.images?.[0] && <img src={assetUrl(p.images[0])} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-medium line-clamp-2">{p.aiTitle || p.title}</p>
                   <div className="mt-2 flex items-center justify-between">
                     <span className="font-bold text-purple-300">
-                      {(Number(p.price) * (1 + p.markupPercent / 100)).toFixed(2)} {p.currency}
+                      {Number(p.sellingPrice ?? 0).toFixed(2)} {p.currency}
                     </span>
                     <span className={`text-xs rounded-full px-2 py-0.5 ${STATUS_COLOR[p.status]}`}>
                       {STATUS_LABEL[p.status]}

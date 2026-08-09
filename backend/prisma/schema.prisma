@@ -81,9 +81,14 @@ model Product {
   aiTitle       String?
   aiDescription String? @db.Text
 
-  price        Decimal @default(0) @db.Decimal(10, 2)
-  currency     String  @default("EUR")
-  markupPercent Int    @default(50)
+  // price = supplier cost (scraped when available, otherwise entered by hand).
+  // shippingCost is what the supplier charges to ship; sellingPrice is what the
+  // buyer pays. Gross margin = sellingPrice - price - shippingCost.
+  price         Decimal @default(0) @db.Decimal(10, 2)
+  shippingCost  Decimal @default(0) @db.Decimal(10, 2)
+  sellingPrice  Decimal @default(0) @db.Decimal(10, 2)
+  currency      String  @default("EUR")
+  markupPercent Int     @default(50)
 
   images   Json
   variants Json?

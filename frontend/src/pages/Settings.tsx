@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Puzzle, Download } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { api } from '../lib/api'
+import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 const PLATFORMS = [
@@ -77,7 +77,7 @@ export default function Settings() {
               avec vos produits — titre, description, prix et photos filigranées.
             </p>
             <a
-              href="/api/public/extension.zip"
+              href={assetUrl('/api/public/extension.zip')}
               download="dropship-pro-extension.zip"
               className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
             >

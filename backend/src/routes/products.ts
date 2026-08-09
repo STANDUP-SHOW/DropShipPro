@@ -4,7 +4,7 @@ import archiver from 'archiver'
 import path from 'path'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
-import { scrapeProduct } from '../services/scraper.js'
+import { scrapeProduct, ScrapeBlockedError } from '../services/scraper.js'
 import { enhanceListing } from '../services/aiEnhancer.js'
 import { watermarkImages } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
@@ -53,6 +53,9 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
     res.status(201).json(product)
   } catch (err) {
     console.error(err)
+    if (err instanceof ScrapeBlockedError) {
+      return res.status(422).json({ error: err.message })
+    }
     res.status(502).json({ error: "Impossible d'importer ce produit depuis l'URL fournie" })
   }
 })
@@ -89,6 +92,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
           aiTitle: enhanced.title,
           aiDescription: enhanced.description,
           price: scraped.price,
+          sellingPrice: scraped.price * 1.5,
           currency: scraped.currency,
           images: watermarked.length ? watermarked : scraped.images,
           metaTitle: enhanced.metaTitle,
@@ -100,7 +104,14 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
       results.push({ url, ok: true, product })
     } catch (err) {
       console.error(`import-batch failed for ${url}`, err)
-      results.push({ url, ok: false, error: "Échec de l'import (URL inaccessible ou page non reconnue)" })
+      results.push({
+        url,
+        ok: false,
+        error:
+          err instanceof ScrapeBlockedError
+            ? err.message
+            : "Échec de l'import (URL inaccessible ou page non reconnue)",
+      })
     }
   }
 
@@ -131,6 +142,8 @@ const updateSchema = z.object({
   aiTitle: z.string().optional(),
   aiDescription: z.string().optional(),
   price: z.number().optional(),
+  shippingCost: z.number().optional(),
+  sellingPrice: z.number().optional(),
   markupPercent: z.number().optional(),
   images: z.array(z.string()).optional(),
   variants: z.any().optional(),

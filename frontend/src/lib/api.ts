@@ -1,4 +1,16 @@
-const BASE = '/api'
+// In dev, Vite proxies /api to localhost:4000 (see vite.config.ts). In production
+// the frontend (Vercel) and backend (Railway) are on different hosts, so the
+// deployed build needs the absolute backend URL via VITE_API_URL.
+const API_ROOT = import.meta.env.VITE_API_URL?.replace(/\/$/, '') ?? ''
+const BASE = `${API_ROOT}/api`
+
+export const apiRoot = API_ROOT
+
+/** Resolves a backend-relative path (product photos, /api/public/*) to a full URL. */
+export function assetUrl(path: string) {
+  if (!path || path.startsWith('http')) return path
+  return `${API_ROOT}${path}`
+}
 
 function getToken() {
   return localStorage.getItem('droppost_token')
