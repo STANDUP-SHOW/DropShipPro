@@ -81,6 +81,61 @@ export default function ProductDetail() {
     }
   }
 
+  const variants: Record<string, string[]> = product?.variants ?? {}
+
+  /** Saves images and reflects the new order locally so the grid doesn't flicker. */
+  async function saveImages(next: string[]) {
+    setProduct({ ...product, images: next })
+    await saveField('images', next)
+  }
+
+  function moveImage(index: number, direction: -1 | 1) {
+    const next = [...(product.images as string[])]
+    const target = index + direction
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    saveImages(next)
+  }
+
+  function removeImage(index: number) {
+    saveImages((product.images as string[]).filter((_, i) => i !== index))
+  }
+
+  async function saveVariants(next: Record<string, string[]>) {
+    setProduct({ ...product, variants: next })
+    await saveField('variants', next)
+  }
+
+  function addVariantGroup() {
+    // Empty key would collide with an existing blank row, so number the new one.
+    const name = variants['Nouvelle option'] ? `Option ${Object.keys(variants).length + 1}` : 'Nouvelle option'
+    saveVariants({ ...variants, [name]: [] })
+  }
+
+  function removeVariantGroup(name: string) {
+    const next = { ...variants }
+    delete next[name]
+    saveVariants(next)
+  }
+
+  function renameVariantGroup(oldName: string, newName: string) {
+    const trimmed = newName.trim()
+    if (!trimmed || trimmed === oldName) return
+    // Rebuild in place so renaming doesn't reorder the rows under the user.
+    const next = Object.fromEntries(
+      Object.entries(variants).map(([k, v]) => (k === oldName ? [trimmed, v] : [k, v])),
+    )
+    saveVariants(next)
+  }
+
+  function setVariantValues(name: string, raw: string) {
+    const values = raw
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+    saveVariants({ ...variants, [name]: values })
+  }
+
   async function onPublish() {
     if (!id || !selected.length) return
     await api.publishProduct(id, selected)
@@ -118,15 +173,98 @@ export default function ProductDetail() {
         <div>
           <div className="grid grid-cols-3 gap-2">
             {(product.images as string[]).map((img, i) => (
-              <img key={i} src={assetUrl(img)} alt="" className="aspect-square rounded-lg object-cover bg-black/20" />
+              <div key={img + i} className="relative group">
+                <img src={assetUrl(img)} alt="" className="aspect-square w-full rounded-lg object-cover bg-black/20" />
+                {i === 0 && (
+                  <span className="absolute top-1 left-1 rounded bg-purple-600/90 px-1.5 py-0.5 text-[10px] font-semibold">
+                    Principale
+                  </span>
+                )}
+                {/* Controls stay visible on touch screens, where there is no hover. */}
+                <div className="absolute inset-x-1 bottom-1 flex justify-between gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition max-md:opacity-100">
+                  <button
+                    onClick={() => moveImage(i, -1)}
+                    disabled={i === 0}
+                    title="Déplacer vers la gauche"
+                    className="rounded bg-black/70 px-1.5 py-0.5 text-xs disabled:opacity-30 hover:bg-black/90"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => removeImage(i)}
+                    title="Supprimer cette photo"
+                    className="rounded bg-black/70 px-1.5 py-0.5 text-xs text-red-300 hover:bg-black/90"
+                  >
+                    ✕
+                  </button>
+                  <button
+                    onClick={() => moveImage(i, 1)}
+                    disabled={i === (product.images as string[]).length - 1}
+                    title="Déplacer vers la droite"
+                    className="rounded bg-black/70 px-1.5 py-0.5 text-xs disabled:opacity-30 hover:bg-black/90"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
+          <p className="mt-2 text-xs text-gray-500">
+            La première photo sert de vignette principale sur toutes les plateformes.
+          </p>
           <button
             onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
             className="mt-3 inline-flex items-center gap-2 text-sm rounded-lg border border-white/10 px-3 py-2 hover:bg-white/5"
           >
             <Download size={15} /> Télécharger les photos (.zip)
           </button>
+
+          <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold">Variantes disponibles</h3>
+              <button
+                onClick={addVariantGroup}
+                className="text-xs rounded-lg border border-white/10 px-2 py-1 hover:bg-white/5"
+              >
+                + Option
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Tailles, couleurs… reprises dans l'annonce. Séparez les valeurs par des virgules.
+            </p>
+
+            {Object.keys(variants).length === 0 ? (
+              <p className="text-xs text-gray-500 mt-3">
+                Aucune variante. L'extension les récupère automatiquement depuis la page fournisseur.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {Object.entries(variants).map(([name, values]) => (
+                  <div key={name} className="flex items-start gap-2">
+                    <input
+                      defaultValue={name}
+                      onBlur={(e) => renameVariantGroup(name, e.target.value)}
+                      placeholder="Taille"
+                      className="w-28 shrink-0 rounded-lg bg-white/10 border border-white/10 px-2 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                    <input
+                      defaultValue={values.join(', ')}
+                      onBlur={(e) => setVariantValues(name, e.target.value)}
+                      placeholder="S, M, L, XL"
+                      className="flex-1 rounded-lg bg-white/10 border border-white/10 px-2 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                    <button
+                      onClick={() => removeVariantGroup(name)}
+                      title="Supprimer cette option"
+                      className="shrink-0 rounded-lg border border-white/10 px-2 py-1.5 text-xs text-red-300 hover:bg-white/5"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -298,6 +436,14 @@ export default function ProductDetail() {
             <CopyField label="Prix" value={`${finalPrice} ${product.currency}`} />
             <CopyField label="Description" value={product.aiDescription} />
             <CopyField label="Catégorie suggérée" value={categories[activeAssist.id] || ''} />
+            {Object.keys(variants).length > 0 && (
+              <CopyField
+                label="Variantes"
+                value={Object.entries(variants)
+                  .map(([name, values]) => `${name} : ${values.join(', ')}`)
+                  .join('\n')}
+              />
+            )}
           </div>
           <button
             onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
