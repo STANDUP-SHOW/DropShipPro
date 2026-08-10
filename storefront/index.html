@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OGGUS — Vêtements, bijoux et accessoires pour homme</title>
+    <meta
+      name="description"
+      content="OGGUS : la marketplace masculine. Vêtements, bijoux, maroquinerie, chaussures, parfums et accessoires. 17 catégories, ateliers sélectionnés, gestion intégrale des commandes."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Palette lue directement sur le logo : bleu nuit profond + or. */
+      :root {
+        --navy: #1e2442;
+        --navy-deep: #171c34;
+        --navy-soft: #262d52;
+        --gold: #f0a81e;
+        --gold-soft: #f7c25c;
+        --paper: #f6f5f2;
+        --ink: #14182c;
+        --muted: #8a90ab;
+        --line: rgba(255, 255, 255, .1);
+        --display: 'Fraunces', Georgia, serif;
+        --sans: 'Jost', system-ui, sans-serif;
+        --radius: 14px;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--navy);
+        color: #fff;
+        font-family: var(--sans);
+        font-weight: 300;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      img { display: block; width: 100%; height: 100%; object-fit: cover; }
+      button { font: inherit; }
+
+      .wrap { width: min(1280px, 93vw); margin-inline: auto; }
+
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: .28em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin: 0;
+      }
+
+      /* ---------- Bandeau ---------- */
+      .ticker {
+        background: var(--gold);
+        color: var(--ink);
+        text-align: center;
+        padding: 9px 16px;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: .2em;
+        text-transform: uppercase;
+      }
+
+      /* ---------- En-tête ---------- */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 60;
+        background: rgba(30, 36, 66, .9);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        padding: 14px 0;
+      }
+
+      .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+      .brand-name {
+        font-family: var(--display);
+        font-size: 25px;
+        letter-spacing: .26em;
+        font-weight: 500;
+      }
+
+      .search {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, .07);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 10px 18px;
+        max-width: 460px;
+      }
+      .search input {
+        flex: 1;
+        background: none;
+        border: 0;
+        color: #fff;
+        font-size: 14px;
+        outline: none;
+      }
+      .search input::placeholder { color: var(--muted); }
+      .search svg { color: var(--muted); flex-shrink: 0; }
+
+      .nav-actions { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+      .icon-btn {
+        background: none;
+        border: 0;
+        color: #cdd2e4;
+        cursor: pointer;
+        padding: 9px;
+        line-height: 0;
+        border-radius: 10px;
+        transition: background .2s, color .2s;
+      }
+      .icon-btn:hover { background: rgba(255, 255, 255, .08); color: var(--gold); }
+      .cart { position: relative; }
+      .cart b {
+        position: absolute;
+        top: 2px; right: 2px;
+        background: var(--gold);
+        color: var(--ink);
+        font-size: 10px;
+        font-weight: 600;
+        border-radius: 999px;
+        min-width: 17px;
+        height: 17px;
+        display: grid;
+        place-items: center;
+      }
+
+      /* ---------- Barre de catégories ---------- */
+      .catbar {
+        border-top: 1px solid var(--line);
+        background: rgba(23, 28, 52, .7);
+      }
+      .catbar-inner {
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding: 8px 0;
+      }
+      .catbar-inner::-webkit-scrollbar { display: none; }
+      .catbar button {
+        flex-shrink: 0;
+        background: none;
+        border: 0;
+        color: #c3c9de;
+        font-size: 13px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .2s, color .2s;
+      }
+      .catbar button:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+      .catbar button[aria-current='true'] { background: var(--gold); color: var(--ink); font-weight: 500; }
+
+      /* ---------- Héros ---------- */
+      .hero { position: relative; overflow: hidden; }
+      .hero-media { position: absolute; inset: 0; }
+      .hero-media::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(100deg, var(--navy) 12%, rgba(30, 36, 66, .82) 46%, rgba(30, 36, 66, .3) 100%);
+      }
+      .hero-inner { position: relative; padding: clamp(64px, 9vw, 118px) 0; }
+      .hero-copy { max-width: 610px; }
+      .hero h1 {
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: clamp(42px, 6.4vw, 76px);
+        line-height: 1.04;
+        margin: 20px 0 0;
+      }
+      .hero h1 em { font-style: italic; color: var(--gold-soft); }
+      .hero p.lede { color: #c3c9de; font-size: 16px; line-height: 1.75; margin: 24px 0 0; max-width: 47ch; }
+
+      .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 14px 28px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: .05em;
+        text-decoration: none;
+        border: 1px solid var(--gold);
+        cursor: pointer;
+        transition: background .25s, color .25s, transform .25s;
+      }
+      .btn-solid { background: var(--gold); color: var(--ink); }
+      .btn-solid:hover { background: var(--gold-soft); transform: translateY(-1px); }
+      .btn-ghost { background: none; color: #fff; }
+      .btn-ghost:hover { background: rgba(240, 168, 30, .14); }
+
+      .stats { display: flex; gap: 46px; margin-top: 52px; flex-wrap: wrap; }
+      .stats b { font-family: var(--display); font-size: 38px; font-weight: 400; display: block; line-height: 1; }
+      .stats small { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+
+      /* ---------- Réassurance ---------- */
+      .assurances { border-block: 1px solid var(--line); background: var(--navy-deep); }
+      .assurances .wrap {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+        gap: 26px;
+        padding: 26px 0;
+      }
+      .assurance { display: flex; gap: 13px; align-items: flex-start; }
+      .assurance svg { color: var(--gold); flex-shrink: 0; margin-top: 1px; }
+      .assurance strong { display: block; font-weight: 400; font-size: 14px; }
+      .assurance span { font-size: 12px; color: var(--muted); }
+
+      /* ---------- Sections ---------- */
+      section { padding: clamp(60px, 8vw, 96px) 0; }
+      .section-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 34px;
+      }
+      .section-head h2 {
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: clamp(28px, 3.8vw, 44px);
+        margin: 9px 0 0;
+        line-height: 1.08;
+      }
+      .link-more {
+        color: #c3c9de;
+        font-size: 12px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        text-decoration: none;
+        border-bottom: 1px solid var(--gold);
+        padding-bottom: 3px;
+        white-space: nowrap;
+      }
+      .link-more:hover { color: var(--gold); }
+
+      /* ---------- Grille des univers ---------- */
+      .universe {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+        gap: 12px;
+      }
+      .tile {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        border: 0;
+        padding: 0;
+        overflow: hidden;
+        border-radius: var(--radius);
+        cursor: pointer;
+        text-align: left;
+        background: var(--navy-soft);
+      }
+      .tile::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(20, 24, 44, .93) 6%, rgba(20, 24, 44, .1) 68%);
+        transition: background .35s;
+      }
+      .tile:hover::after { background: linear-gradient(to top, rgba(20, 24, 44, .95) 22%, rgba(240, 168, 30, .26) 100%); }
+      .tile img { transition: transform .75s cubic-bezier(.2, .7, .3, 1); }
+      .tile:hover img { transform: scale(1.07); }
+      .tile-cap { position: absolute; left: 16px; right: 16px; bottom: 14px; z-index: 2; }
+      .tile-cap h3 { font-family: var(--display); font-weight: 400; font-size: 19px; margin: 0; color: #fff; }
+      .tile-cap p { margin: 3px 0 0; font-size: 11px; color: #b9bfd6; }
+      .tile-count {
+        position: absolute;
+        top: 12px; right: 12px;
+        z-index: 2;
+        background: rgba(20, 24, 44, .75);
+        backdrop-filter: blur(4px);
+        border-radius: 999px;
+        font-size: 11px;
+        padding: 4px 10px;
+        color: var(--gold);
+      }
+
+      /* ---------- Sous-catégories ---------- */
+      .subcats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; min-height: 34px; }
+      .subcats a {
+        font-size: 12px;
+        color: #c3c9de;
+        text-decoration: none;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 14px;
+        transition: border-color .2s, color .2s;
+      }
+      .subcats a:hover { border-color: var(--gold); color: var(--gold); }
+
+      /* ---------- Produits ---------- */
+      .grid-products {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+        gap: 26px 20px;
+      }
+      .card { text-decoration: none; color: inherit; display: block; cursor: pointer; }
+      .card-media {
+        position: relative;
+        aspect-ratio: 4 / 5;
+        overflow: hidden;
+        border-radius: var(--radius);
+        background: var(--navy-soft);
+      }
+      .card-media img { transition: transform .75s cubic-bezier(.2, .7, .3, 1); }
+      .card:hover .card-media img { transform: scale(1.06); }
+      .badge {
+        position: absolute;
+        top: 11px; left: 11px;
+        background: var(--gold);
+        color: var(--ink);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        padding: 5px 10px;
+        border-radius: 999px;
+      }
+      .wish {
+        position: absolute;
+        top: 9px; right: 9px;
+        background: rgba(20, 24, 44, .7);
+        backdrop-filter: blur(4px);
+        border: 0;
+        border-radius: 999px;
+        padding: 8px;
+        line-height: 0;
+        color: #fff;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity .25s, color .2s;
+      }
+      .card:hover .wish, .wish[aria-pressed='true'] { opacity: 1; }
+      .wish[aria-pressed='true'] { color: var(--gold); }
+      .card-cat { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin: 14px 0 0; }
+      .card h3 { font-family: var(--display); font-weight: 400; font-size: 18px; margin: 6px 0 0; line-height: 1.3; }
+      .card-foot { display: flex; align-items: baseline; gap: 9px; margin-top: 7px; }
+      .price { font-size: 15px; color: var(--gold-soft); font-weight: 500; }
+      .price-old { font-size: 12px; color: var(--muted); text-decoration: line-through; }
+      .empty { color: var(--muted); font-size: 14px; padding: 30px 0; }
+
+      /* ---------- Gestion intégrale ---------- */
+      .manage { background: var(--navy-deep); border-block: 1px solid var(--line); }
+      .manage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 22px; margin-top: 36px; }
+      .mcard { background: var(--navy-soft); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
+      .mcard svg { color: var(--gold); }
+      .mcard h3 { font-family: var(--display); font-weight: 400; font-size: 20px; margin: 16px 0 0; }
+      .mcard p { color: #b0b7d0; font-size: 14px; line-height: 1.7; margin: 9px 0 0; }
+
+      /* ---------- Newsletter ---------- */
+      .news { text-align: center; }
+      .news h2 { font-family: var(--display); font-weight: 400; font-size: clamp(28px, 3.8vw, 42px); margin: 12px 0 0; }
+      .news p { color: #b0b7d0; margin-top: 12px; }
+      .news form { display: flex; gap: 10px; max-width: 470px; margin: 30px auto 0; flex-wrap: wrap; }
+      .news input {
+        flex: 1 1 230px;
+        background: rgba(255, 255, 255, .06);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: #fff;
+        padding: 14px 20px;
+        font-family: inherit;
+        font-size: 14px;
+      }
+      .news input::placeholder { color: var(--muted); }
+      .news input:focus { outline: none; border-color: var(--gold); }
+
+      /* ---------- Pied de page ---------- */
+      footer { background: var(--navy-deep); border-top: 1px solid var(--line); padding: 64px 0 28px; }
+      .foot-cols { display: grid; grid-template-columns: 1.7fr repeat(3, 1fr); gap: 36px; }
+      .foot-cols h4 {
+        font-size: 10px;
+        letter-spacing: .22em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin: 0 0 16px;
+        font-weight: 500;
+      }
+      .foot-cols ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+      .foot-cols a { color: #b0b7d0; text-decoration: none; font-size: 13px; }
+      .foot-cols a:hover { color: #fff; }
+      .foot-blurb { color: #b0b7d0; font-size: 13px; line-height: 1.8; margin: 16px 0 0; max-width: 36ch; }
+      .foot-bottom {
+        margin-top: 46px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      /* ---------- Animation d'apparition ---------- */
+      .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+      .reveal.in { opacity: 1; transform: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .reveal { opacity: 1; transform: none; transition: none; }
+        .tile img, .card-media img { transition: none; }
+      }
+
+      @media (max-width: 900px) {
+        .search { display: none; }
+        .foot-cols { grid-template-columns: 1fr 1fr; }
+      }
+      @media (max-width: 560px) {
+        .universe { grid-template-columns: repeat(2, 1fr); }
+        .stats { gap: 28px; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="ticker">Livraison offerte dès 120 € · Retours sous 30 jours · Paiement 3× sans frais</div>
+
+    <header>
+      <div class="wrap nav">
+        <a class="brand" href="#" aria-label="OGGUS, accueil">
+          <!-- Monogramme O+G repris du logo : deux anneaux entrelacés, or sur bleu nuit. -->
+          <svg width="46" height="34" viewBox="0 0 104 68" aria-hidden="true">
+            <g fill="none" stroke="#f0a81e" stroke-width="7" stroke-linecap="square">
+              <circle cx="38" cy="34" r="23" />
+              <path d="M83.9 21.5 A23 23 0 1 0 83.9 46.5 L83.9 34 L69 34" />
+            </g>
+          </svg>
+          <span class="brand-name">OGGUS</span>
+        </a>
+
+        <label class="search">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.4-3.4" />
+          </svg>
+          <input id="q" type="search" placeholder="Rechercher un produit, une catégorie…" />
+        </label>
+
+        <div class="nav-actions">
+          <button class="icon-btn" aria-label="Mes favoris">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 20s-7-4.4-7-9.3A4 4 0 0 1 12 8a4 4 0 0 1 7 2.7C19 15.6 12 20 12 20Z" />
+            </svg>
+          </button>
+          <button class="icon-btn" aria-label="Mon compte">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="8" r="3.6" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+            </svg>
+          </button>
+          <button class="icon-btn cart" aria-label="Mon panier, 2 articles">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 7h12l-1.1 12.2a1.5 1.5 0 0 1-1.5 1.3H8.6a1.5 1.5 0 0 1-1.5-1.3Z" />
+              <path d="M9.2 7a2.8 2.8 0 0 1 5.6 0" />
+            </svg>
+            <b>2</b>
+          </button>
+        </div>
+      </div>
+
+      <div class="catbar">
+        <div class="wrap catbar-inner" id="catbar"></div>
+      </div>
+    </header>
+
+    <!-- ---------- Héros ---------- -->
+    <div class="hero">
+      <div class="hero-media"><img src="https://picsum.photos/seed/oggus-hero/1900/1080" alt="" /></div>
+      <div class="hero-inner wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">Nouvelle saison · Édition 01</p>
+          <h1>Le vestiaire masculin,<br /><em>rassemblé.</em></h1>
+          <p class="lede">
+            Vêtements, bijoux, maroquinerie, chaussant et parfums réunis en une seule marketplace.
+            Ateliers sélectionnés, commandes suivies de bout en bout.
+          </p>
+          <div class="cta-row">
+            <button class="btn btn-solid" onclick="document.getElementById('univers').scrollIntoView({behavior:'smooth'})">
+              Découvrir les catégories
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </button>
+            <a class="btn btn-ghost" href="#selection">Pièces signature</a>
+          </div>
+          <div class="stats">
+            <div><b>17</b><small>Catégories</small></div>
+            <div><b>120</b><small>Ateliers</small></div>
+            <div><b>48h</b><small>Livraison</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- Réassurance ---------- -->
+    <div class="assurances">
+      <div class="wrap">
+        <div class="assurance">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" /><circle cx="7.5" cy="18" r="1.7" /><circle cx="17" cy="18" r="1.7" />
+          </svg>
+          <div><strong>Livraison offerte</strong><span>Dès 120 € en France et UE</span></div>
+        </div>
+        <div class="assurance">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="4" y="10" width="16" height="10" rx="2.5" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          </svg>
+          <div><strong>Paiement sécurisé</strong><span>3× sans frais dès 150 €</span></div>
+        </div>
+        <div class="assurance">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z" /><path d="m9 12 2 2 4-4" />
+          </svg>
+          <div><strong>Pièces authentifiées</strong><span>Contrôle atelier OGGUS</span></div>
+        </div>
+        <div class="assurance">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M21 12a9 9 0 1 1-3.4-7" /><path d="M21 4v5h-5" />
+          </svg>
+          <div><strong>Retours 30 jours</strong><span>Sans justification</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- Univers ---------- -->
+    <section id="univers" class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Explorer</p>
+          <h2>Les 17 univers OGGUS</h2>
+        </div>
+        <a class="link-more" href="#selection">Voir toute la boutique</a>
+      </div>
+      <div class="universe" id="universe"></div>
+      <div class="subcats" id="subcats"></div>
+    </section>
+
+    <!-- ---------- Sélection ---------- -->
+    <section id="selection" class="wrap" style="padding-top: 0">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Sélection</p>
+          <h2 id="selection-title">Pièces signature</h2>
+        </div>
+        <a class="link-more" href="#" onclick="event.preventDefault(); selectCategory(null)">Réinitialiser le filtre</a>
+      </div>
+      <div class="grid-products" id="products"></div>
+    </section>
+
+    <!-- ---------- Gestion intégrale ---------- -->
+    <section class="manage">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Gestion intégrale</p>
+            <h2>De la commande à la livraison,<br />tout est suivi.</h2>
+          </div>
+        </div>
+        <div class="manage-grid">
+          <div class="mcard reveal">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="3" y="4" width="18" height="16" rx="2.5" /><path d="M3 9h18M8 4v5" />
+            </svg>
+            <h3>Catalogue centralisé</h3>
+            <p>Chaque pièce est référencée avec sa fiche complète : matière, tailles, coloris et atelier d'origine.</p>
+          </div>
+          <div class="mcard reveal">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" /><circle cx="7.5" cy="18" r="1.7" /><circle cx="17" cy="18" r="1.7" />
+            </svg>
+            <h3>Expéditions suivies</h3>
+            <p>Numéro de suivi transmis dès la remise au transporteur, avec notification à chaque étape.</p>
+          </div>
+          <div class="mcard reveal">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M12 3v18M8 7h6.5a2.7 2.7 0 0 1 0 5.4H9a2.7 2.7 0 0 0 0 5.4H16" />
+            </svg>
+            <h3>Paiements et retours</h3>
+            <p>Encaissement sécurisé, remboursement automatique sous 48 h après réception du retour.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Newsletter ---------- -->
+    <section class="wrap news reveal">
+      <p class="eyebrow">Le Journal</p>
+      <h2>Les nouveautés, avant tout le monde.</h2>
+      <p>Une lettre par mois : nouvelles pièces, coulisses d'atelier, ventes privées.</p>
+      <form onsubmit="event.preventDefault(); this.querySelector('button').textContent = 'Merci !';">
+        <input type="email" required placeholder="votre@email.fr" aria-label="Votre adresse email" />
+        <button class="btn btn-solid" type="submit">S'inscrire</button>
+      </form>
+    </section>
+
+    <!-- ---------- Pied de page ---------- -->
+    <footer>
+      <div class="wrap">
+        <div class="foot-cols">
+          <div>
+            <a class="brand" href="#">
+              <svg width="40" height="30" viewBox="0 0 104 68" aria-hidden="true">
+                <g fill="none" stroke="#f0a81e" stroke-width="7" stroke-linecap="square">
+                  <circle cx="38" cy="34" r="23" />
+                  <path d="M83.9 21.5 A23 23 0 1 0 83.9 46.5 L83.9 34 L69 34" />
+                </g>
+              </svg>
+              <span class="brand-name" style="font-size: 21px">OGGUS</span>
+            </a>
+            <p class="foot-blurb">
+              La marketplace masculine : vêtements, bijoux, maroquinerie et accessoires d'ateliers
+              sélectionnés. Gestion intégrale des commandes.
+            </p>
+          </div>
+          <div>
+            <h4>Boutique</h4>
+            <ul id="foot-cats"></ul>
+          </div>
+          <div>
+            <h4>Aide</h4>
+            <ul>
+              <li><a href="#">Livraison</a></li>
+              <li><a href="#">Retours &amp; remboursements</a></li>
+              <li><a href="#">Guide des tailles</a></li>
+              <li><a href="#">Suivre ma commande</a></li>
+              <li><a href="#">Nous contacter</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>La Maison</h4>
+            <ul>
+              <li><a href="#">Notre démarche</a></li>
+              <li><a href="#">Ateliers partenaires</a></li>
+              <li><a href="#">Devenir vendeur</a></li>
+              <li><a href="#">Mentions légales</a></li>
+              <li><a href="#">Confidentialité</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>© 2026 OGGUS — Tous droits réservés</span>
+          <span>Paris · Milan · Porto</span>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      /* Les 17 univers OGGUS. `sub` alimente les sous-catégories affichées sous la
+         grille quand un univers est sélectionné. En production, cette constante est
+         remplacée par un appel à /api/public/products de DropShip Pro, dont la
+         réponse porte déjà le champ `category`. */
+      const CATEGORIES = [
+        { id: 'lunettes', name: 'Lunettes', tag: 'Solaires & optique', count: 42 },
+        { id: 'ceintures', name: 'Ceintures', tag: 'Cuir pleine fleur', count: 28 },
+        { id: 'claquettes', name: 'Claquettes', tag: 'Confort estival', count: 19 },
+        { id: 'chaussures', name: 'Chaussures', tag: 'Ville & sneakers', count: 96 },
+        { id: 'chaussettes', name: 'Chaussettes', tag: "Fil d'Écosse", count: 34 },
+        {
+          id: 'maroquinerie',
+          name: 'Maroquinerie',
+          tag: 'Cuirs de maison',
+          count: 61,
+          sub: ['Portefeuilles', 'Sacoches', 'Sacs de voyage', 'Sacs de sport'],
+        },
+        {
+          id: 'bijoux',
+          name: 'Bijoux',
+          tag: 'Or, acier & pierres',
+          count: 88,
+          sub: ['Bracelets', 'Colliers', 'Bagues', 'Chevalières'],
+        },
+        {
+          id: 'accessoires',
+          name: 'Accessoires',
+          tag: 'Détails signature',
+          count: 73,
+          sub: ['Stylos', 'Boutons de manchette', 'Foulards', 'Écharpes', 'Gadgets'],
+        },
+        { id: 'casquettes', name: 'Casquettes', tag: 'Coton & laine', count: 26 },
+        { id: 'sous-vetements', name: 'Sous-vêtements', tag: 'Coton peigné', count: 45 },
+        { id: 'shorts', name: 'Shorts', tag: 'Été urbain', count: 31 },
+        { id: 'tshirts', name: 'T-shirts', tag: 'Mailles épaisses', count: 78 },
+        { id: 'pantalons', name: 'Pantalons', tag: 'Coupes nettes', count: 64 },
+        { id: 'gilets', name: 'Gilets', tag: 'Sans manches', count: 22 },
+        { id: 'pulls', name: 'Pulls', tag: 'Laine & cachemire', count: 53 },
+        { id: 'vestes', name: 'Vestes', tag: 'Tailoring & cuir', count: 67 },
+        { id: 'parfums', name: 'Parfums', tag: 'Extraits boisés', count: 38 },
+      ]
+
+      const PRODUCTS = [
+        { cat: 'bijoux', name: 'Chevalière OGGUS Or', price: 690, badge: 'Icône' },
+        { cat: 'maroquinerie', name: 'Sacoche Cuir Nuit', price: 420, badge: 'Nouveau' },
+        { cat: 'lunettes', name: 'Solaires Écaille OG', price: 240 },
+        { cat: 'parfums', name: 'Extrait Boisé N°1', price: 180, badge: 'Best-seller' },
+        { cat: 'ceintures', name: 'Ceinture Boucle Laiton', price: 150, old: 190 },
+        { cat: 'pulls', name: 'Pull Cachemire Ivoire', price: 320 },
+        { cat: 'bijoux', name: 'Bracelet Maillon Acier', price: 130 },
+        { cat: 'vestes', name: 'Veste Cuir Atelier', price: 890, badge: 'Édition' },
+        { cat: 'chaussures', name: 'Derby Cuir Patiné', price: 340 },
+        { cat: 'maroquinerie', name: 'Portefeuille Grainé', price: 120 },
+        { cat: 'tshirts', name: 'T-shirt Coton Épais', price: 65, old: 85 },
+        { cat: 'accessoires', name: 'Boutons de Manchette Onyx', price: 145 },
+      ]
+
+      const euros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
+      const byId = (id) => document.getElementById(id)
+      let activeCat = null
+
+      /* ---------- Rendu ---------- */
+      byId('catbar').innerHTML =
+        `<button data-cat="" aria-current="true">Tout</button>` +
+        CATEGORIES.map((c) => `<button data-cat="${c.id}">${c.name}</button>`).join('')
+
+      byId('universe').innerHTML = CATEGORIES.map(
+        (c) => `
+        <button class="tile reveal" data-cat="${c.id}" aria-label="Voir la catégorie ${c.name}">
+          <img src="https://picsum.photos/seed/oggus-${c.id}/500/500" alt="" loading="lazy" />
+          <span class="tile-count">${c.count}</span>
+          <span class="tile-cap"><h3>${c.name}</h3><p>${c.tag}</p></span>
+        </button>`,
+      ).join('')
+
+      byId('foot-cats').innerHTML = CATEGORIES.slice(0, 6)
+        .map((c) => `<li><a href="#" data-cat="${c.id}">${c.name}</a></li>`)
+        .join('')
+
+      function renderProducts() {
+        const needle = byId('q').value.trim().toLowerCase()
+        const list = PRODUCTS.filter((p) => !activeCat || p.cat === activeCat).filter(
+          (p) => !needle || p.name.toLowerCase().includes(needle),
+        )
+
+        byId('products').innerHTML = list.length
+          ? list
+              .map(
+                (p, i) => `
+          <a class="card" href="#" onclick="event.preventDefault()">
+            <div class="card-media">
+              <img src="https://picsum.photos/seed/oggus-p${p.cat}${i}/560/700" alt="${p.name}" loading="lazy" />
+              ${p.badge ? `<span class="badge">${p.badge}</span>` : ''}
+              <button class="wish" aria-pressed="false" aria-label="Ajouter aux favoris"
+                onclick="event.preventDefault(); event.stopPropagation(); this.setAttribute('aria-pressed', this.getAttribute('aria-pressed')==='true'?'false':'true')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M12 20s-7-4.4-7-9.3A4 4 0 0 1 12 8a4 4 0 0 1 7 2.7C19 15.6 12 20 12 20Z" />
+                </svg>
+              </button>
+            </div>
+            <p class="card-cat">${CATEGORIES.find((c) => c.id === p.cat).name}</p>
+            <h3>${p.name}</h3>
+            <div class="card-foot">
+              <span class="price">${euros.format(p.price)}</span>
+              ${p.old ? `<span class="price-old">${euros.format(p.old)}</span>` : ''}
+            </div>
+          </a>`,
+              )
+              .join('')
+          : `<p class="empty">Aucun article ne correspond à cette recherche.</p>`
+      }
+
+      function selectCategory(id) {
+        activeCat = id
+        const cat = CATEGORIES.find((c) => c.id === id)
+
+        byId('selection-title').textContent = cat ? cat.name : 'Pièces signature'
+        document.querySelectorAll('#catbar button').forEach((b) => {
+          b.setAttribute('aria-current', String((b.dataset.cat || null) === id))
+        })
+
+        // Les sous-catégories n'apparaissent que pour les univers qui en ont.
+        byId('subcats').innerHTML = cat?.sub
+          ? cat.sub.map((s) => `<a href="#" onclick="event.preventDefault()">${s}</a>`).join('')
+          : ''
+
+        renderProducts()
+      }
+
+      /* Une seule délégation d'événements couvre la barre, la grille et le pied de
+         page : les tuiles sont générées dynamiquement, donc pas d'écouteur par élément. */
+      document.addEventListener('click', (e) => {
+        const target = e.target.closest('[data-cat]')
+        if (!target) return
+        e.preventDefault()
+        selectCategory(target.dataset.cat || null)
+        byId('selection').scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+
+      byId('q').addEventListener('input', renderProducts)
+
+      renderProducts()
+
+      /* Apparition progressive au défilement. */
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue
+            entry.target.classList.add('in')
+            io.unobserve(entry.target)
+          }
+        },
+        { rootMargin: '0px 0px -6% 0px' },
+      )
+      document.querySelectorAll('.reveal').forEach((el, i) => {
+        el.style.transitionDelay = `${Math.min(i % 10, 7) * 45}ms`
+        io.observe(el)
+      })
+    </script>
+  </body>
+</html>
