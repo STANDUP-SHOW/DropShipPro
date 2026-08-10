@@ -58,6 +58,36 @@
     return Math.max(rect.width, img.width || 0) >= 120
   }
 
+  const JUNK = /sprite|icon|logo|avatar|pixel|badge|flag|placeholder|blank\.|1x1|thumb_|_50x50|_100x100/i
+
+  /**
+   * Second pass: pull image URLs out of the page source itself.
+   *
+   * A carousel usually keeps a single <img> and swaps its src, so scanning the DOM
+   * finds one photo however long you wait — this is why an import came back with
+   * a single image. The other shots are sitting in the inline JSON the gallery
+   * reads from, so they are matched there, with the escaped slashes those blobs use.
+   */
+  function collectImagesFromSource() {
+    const html = document.documentElement.innerHTML.replace(/\\u002F/gi, '/').replace(/\\\//g, '/')
+    const found = html.match(/https:\/\/[^"'\\\s)]+?\.(?:jpe?g|png|webp)/gi) || []
+
+    const counts = new Map()
+    for (const raw of found) {
+      const url = raw.split('?')[0]
+      if (JUNK.test(url)) continue
+      // Product CDNs serve the gallery from one host; counting hosts finds it
+      // without hard-coding a domain per supplier site.
+      const host = url.slice(0, url.indexOf('/', 8))
+      counts.set(host, (counts.get(host) ?? 0) + 1)
+    }
+
+    const mainHost = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    if (!mainHost) return []
+
+    return [...new Set(found.map((u) => u.split('?')[0]).filter((u) => u.startsWith(mainHost) && !JUNK.test(u)))]
+  }
+
   function collectImages() {
     const urls = new Set()
     for (const img of document.querySelectorAll('img')) {
@@ -67,6 +97,15 @@
       urls.add(src.split('?')[0])
       if (urls.size >= 10) break
     }
+
+    // The DOM alone rarely exposes a whole carousel; top it up from the source.
+    if (urls.size < 5) {
+      for (const url of collectImagesFromSource()) {
+        urls.add(url)
+        if (urls.size >= 10) break
+      }
+    }
+
     return [...urls]
   }
 

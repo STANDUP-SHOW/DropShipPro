@@ -127,6 +127,8 @@ async function startFill(productId, target, btn) {
   try {
     const product = await api(`/api/products/${productId}`)
     const categories = await api(`/api/products/${productId}/category-preview`)
+    // Resolved before the map: the callback below isn't async, so it can't await.
+    const apiBase = await getApiBase()
     await chrome.storage.local.set({
       pendingListing: {
         target,
@@ -134,7 +136,7 @@ async function startFill(productId, target, btn) {
         description: product.aiDescription || product.description,
         price: (Number(product.price) * (1 + product.markupPercent / 100)).toFixed(2),
         category: categories[target],
-        images: (product.images || []).map((img) => (img.startsWith('/') ? `${await getApiBase()}${img}` : img)),
+        images: (product.images || []).map((img) => (img.startsWith('/') ? `${apiBase}${img}` : img)),
       },
     })
     await chrome.tabs.create({ url: TARGETS[target].url })

@@ -130,6 +130,18 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
   const looksLikeBotWall = /risk control|captcha|are you a robot|access denied/i.test(
     `${result.title} ${$('body').text().slice(0, 400)}`,
   )
+
+  // Temu and friends serve a generic shell to a plain HTTP client: the title reads
+  // "cet article n'est plus au catalogue", the price is 0 and the gallery is empty.
+  // Creating a listing from that fills the back office with hollow, wrong products,
+  // so refuse and point at the extension, which reads the page already rendered.
+  const looksLikeShell =
+    /n[’']est plus au catalogue|no longer available|item unavailable|page not found/i.test(result.title)
+  const hasNothingUsable = result.price === 0 && result.images.length < 2
+
+  if (looksLikeShell || (hasNothingUsable && /temu|joybuy|aliexpress|shein|wish/i.test(site))) {
+    throw new ScrapeBlockedError(site)
+  }
   // A title alone is enough to build on: sites like Temu load price and gallery
   // by XHR after render, so a listing legitimately arrives without them and the
   // user completes those fields in the back office.
@@ -146,8 +158,10 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
 export class ScrapeBlockedError extends Error {
   constructor(public site: string) {
     super(
-      `${site} bloque l'import automatique (protection anti-robot). ` +
-        `Utilisez l'import depuis l'extension Chrome, qui lit la page directement dans votre navigateur.`,
+      `${site} ne livre ni prix ni photos à un import par URL : la fiche produit est construite ` +
+        `en JavaScript après l'affichage. Ouvrez la page du produit dans Chrome et cliquez sur ` +
+        `« + Ajouter à DropShip Pro » — l'extension lit la page déjà affichée, avec le prix, les ` +
+        `photos et les variantes.`,
     )
     this.name = 'ScrapeBlockedError'
   }

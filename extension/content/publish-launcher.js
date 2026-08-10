@@ -95,7 +95,9 @@
 
   async function queueAndFill(product) {
     const { token } = await chrome.storage.local.get('token')
-    const categories = await fetch(`${await getApiBase()}/api/products/${product.id}/category-preview`, {
+    // Resolved before the map further down: that callback isn't async.
+    const apiBase = await getApiBase()
+    const categories = await fetch(`${apiBase}/api/products/${product.id}/category-preview`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -108,7 +110,7 @@
         description: product.aiDescription || product.description,
         price: Number(product.sellingPrice ?? 0).toFixed(2),
         category: categories[PLATFORM],
-        images: (product.images || []).map((img) => (img.startsWith('/') ? `${await getApiBase()}${img}` : img)),
+        images: (product.images || []).map((img) => (img.startsWith('/') ? `${apiBase}${img}` : img)),
       },
     })
     closePicker()
