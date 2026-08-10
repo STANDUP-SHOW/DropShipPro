@@ -5,47 +5,68 @@ export interface CategoryEntry {
   id: string
   group: string
   label: string
+  /** Marketplaces whose category names are hand-picked per platform. */
   targets: Partial<Record<Platform, string>>
+  /**
+   * Google Product Taxonomy path. Used by Google Shopping, and by Facebook /
+   * Instagram which accept `google_product_category` in their catalog feeds —
+   * so one value covers three destinations instead of three hand-written ones.
+   */
+  google: string
+  /** Cdiscount marketplace category path (French). */
+  cdiscount: string
+  /** TikTok Shop category path. */
+  tiktok: string
 }
 
-/**
- * Men's fashion taxonomy, with the equivalent category on each marketplace.
- *
- * The destination names mirror what each platform actually calls the section in
- * its own listing form, so they can be pasted (or auto-filled by the extension)
- * into the category picker without translation.
- */
+const APPAREL = 'Apparel & Accessories'
+
 export const CATEGORY_CATALOG: CategoryEntry[] = [
   // ---------- Chaussures ----------
   {
     id: 'shoes-sneakers',
     group: 'Chaussures',
     label: 'Baskets / Sneakers',
-    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Baskets', EBAY: "Men's Sneakers", AMAZON: 'Chaussures homme › Baskets' },
+    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Baskets', EBAY: "Men's Sneakers", AMAZON: 'Chaussures homme › Baskets', FACEBOOK: 'Chaussures homme' },
+    google: `${APPAREL} > Shoes`,
+    cdiscount: 'Chaussures > Homme > Baskets',
+    tiktok: 'Shoes > Men Shoes > Sneakers',
   },
   {
     id: 'shoes-formal',
     group: 'Chaussures',
     label: 'Chaussures de ville',
-    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Chaussures de ville', EBAY: "Men's Dress Shoes", AMAZON: 'Chaussures homme › Ville' },
+    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Chaussures de ville', EBAY: "Men's Dress Shoes", AMAZON: 'Chaussures homme › Ville', FACEBOOK: 'Chaussures homme' },
+    google: `${APPAREL} > Shoes`,
+    cdiscount: 'Chaussures > Homme > Ville',
+    tiktok: 'Shoes > Men Shoes > Formal Shoes',
   },
   {
     id: 'shoes-boots',
     group: 'Chaussures',
     label: 'Bottes / Boots',
-    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Bottes', EBAY: "Men's Boots", AMAZON: 'Chaussures homme › Bottes' },
+    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Bottes', EBAY: "Men's Boots", AMAZON: 'Chaussures homme › Bottes', FACEBOOK: 'Chaussures homme' },
+    google: `${APPAREL} > Shoes`,
+    cdiscount: 'Chaussures > Homme > Boots',
+    tiktok: 'Shoes > Men Shoes > Boots',
   },
   {
     id: 'shoes-sandals',
     group: 'Chaussures',
     label: 'Sandales / Claquettes',
-    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Sandales', EBAY: "Men's Sandals", AMAZON: 'Chaussures homme › Sandales' },
+    targets: { LEBONCOIN: 'Chaussures', VINTED: 'Hommes › Chaussures › Sandales', EBAY: "Men's Sandals", AMAZON: 'Chaussures homme › Sandales', FACEBOOK: 'Chaussures homme' },
+    google: `${APPAREL} > Shoes`,
+    cdiscount: 'Chaussures > Homme > Sandales',
+    tiktok: 'Shoes > Men Shoes > Sandals',
   },
   {
     id: 'shoes-sport',
     group: 'Chaussures',
     label: 'Chaussures de sport',
-    targets: { LEBONCOIN: 'Sport & Plein Air', VINTED: 'Hommes › Chaussures › Sport', EBAY: "Men's Athletic Shoes", AMAZON: 'Chaussures homme › Sport' },
+    targets: { LEBONCOIN: 'Sport & Plein Air', VINTED: 'Hommes › Chaussures › Sport', EBAY: "Men's Athletic Shoes", AMAZON: 'Chaussures homme › Sport', FACEBOOK: 'Sport et loisirs' },
+    google: `${APPAREL} > Shoes`,
+    cdiscount: 'Sport > Chaussures de sport homme',
+    tiktok: 'Sports & Outdoor > Sports Shoes',
   },
 
   // ---------- Hauts ----------
@@ -53,31 +74,46 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     id: 'top-tshirt',
     group: 'Hauts',
     label: 'T-shirts',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › T-shirts', EBAY: "Men's T-Shirts", AMAZON: 'Vêtements homme › T-shirts' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › T-shirts', EBAY: "Men's T-Shirts", AMAZON: 'Vêtements homme › T-shirts', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Shirts & Tops`,
+    cdiscount: 'Mode > Homme > T-shirt',
+    tiktok: 'Menswear & Underwear > Tops > T-Shirts',
   },
   {
     id: 'top-shirt',
     group: 'Hauts',
     label: 'Chemises',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Chemises', EBAY: "Men's Casual Shirts", AMAZON: 'Vêtements homme › Chemises' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Chemises', EBAY: "Men's Casual Shirts", AMAZON: 'Vêtements homme › Chemises', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Shirts & Tops`,
+    cdiscount: 'Mode > Homme > Chemise',
+    tiktok: 'Menswear & Underwear > Tops > Shirts',
   },
   {
     id: 'top-polo',
     group: 'Hauts',
     label: 'Polos',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Polos', EBAY: "Men's Polos", AMAZON: 'Vêtements homme › Polos' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Polos', EBAY: "Men's Polos", AMAZON: 'Vêtements homme › Polos', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Shirts & Tops`,
+    cdiscount: 'Mode > Homme > Polo',
+    tiktok: 'Menswear & Underwear > Tops > Polo Shirts',
   },
   {
     id: 'top-sweater',
     group: 'Hauts',
     label: 'Pulls / Gilets',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Pulls', EBAY: "Men's Sweaters", AMAZON: 'Vêtements homme › Pulls' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Pulls', EBAY: "Men's Sweaters", AMAZON: 'Vêtements homme › Pulls', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Shirts & Tops`,
+    cdiscount: 'Mode > Homme > Pull',
+    tiktok: 'Menswear & Underwear > Tops > Sweaters',
   },
   {
     id: 'top-hoodie',
     group: 'Hauts',
     label: 'Sweats / Hoodies',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Sweats et sweats à capuche', EBAY: "Men's Hoodies & Sweatshirts", AMAZON: 'Vêtements homme › Sweats' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Sweats et sweats à capuche', EBAY: "Men's Hoodies & Sweatshirts", AMAZON: 'Vêtements homme › Sweats', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Shirts & Tops`,
+    cdiscount: 'Mode > Homme > Sweat',
+    tiktok: 'Menswear & Underwear > Tops > Hoodies & Sweatshirts',
   },
 
   // ---------- Vestes & Manteaux ----------
@@ -85,13 +121,19 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     id: 'outer-jacket',
     group: 'Vestes & Manteaux',
     label: 'Vestes / Blousons',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Vestes', EBAY: "Men's Coats & Jackets", AMAZON: 'Vêtements homme › Vestes' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Vestes', EBAY: "Men's Coats & Jackets", AMAZON: 'Vêtements homme › Vestes', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Outerwear > Coats & Jackets`,
+    cdiscount: 'Mode > Homme > Blouson',
+    tiktok: 'Menswear & Underwear > Outerwear > Jackets',
   },
   {
     id: 'outer-coat',
     group: 'Vestes & Manteaux',
     label: 'Manteaux / Parkas',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Manteaux', EBAY: "Men's Coats & Jackets", AMAZON: 'Vêtements homme › Manteaux' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Manteaux', EBAY: "Men's Coats & Jackets", AMAZON: 'Vêtements homme › Manteaux', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Outerwear > Coats & Jackets`,
+    cdiscount: 'Mode > Homme > Manteau',
+    tiktok: 'Menswear & Underwear > Outerwear > Coats',
   },
 
   // ---------- Bas ----------
@@ -99,31 +141,46 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     id: 'bottom-pants',
     group: 'Bas',
     label: 'Pantalons',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Pantalons', EBAY: "Men's Pants", AMAZON: 'Vêtements homme › Pantalons' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Pantalons', EBAY: "Men's Pants", AMAZON: 'Vêtements homme › Pantalons', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Pants`,
+    cdiscount: 'Mode > Homme > Pantalon',
+    tiktok: 'Menswear & Underwear > Bottoms > Pants',
   },
   {
     id: 'bottom-jeans',
     group: 'Bas',
     label: 'Jeans',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Jeans', EBAY: "Men's Jeans", AMAZON: 'Vêtements homme › Jeans' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Jeans', EBAY: "Men's Jeans", AMAZON: 'Vêtements homme › Jeans', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Pants`,
+    cdiscount: 'Mode > Homme > Jean',
+    tiktok: 'Menswear & Underwear > Bottoms > Jeans',
   },
   {
     id: 'bottom-shorts',
     group: 'Bas',
     label: 'Shorts / Bermudas',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Shorts', EBAY: "Men's Shorts", AMAZON: 'Vêtements homme › Shorts' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Shorts', EBAY: "Men's Shorts", AMAZON: 'Vêtements homme › Shorts', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Shorts`,
+    cdiscount: 'Mode > Homme > Short',
+    tiktok: 'Menswear & Underwear > Bottoms > Shorts',
   },
   {
     id: 'bottom-tracksuit',
     group: 'Bas',
     label: 'Survêtements / Joggings',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Survêtements', EBAY: "Men's Activewear", AMAZON: 'Vêtements homme › Survêtements' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Survêtements', EBAY: "Men's Activewear", AMAZON: 'Vêtements homme › Survêtements', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Activewear`,
+    cdiscount: 'Mode > Homme > Survêtement',
+    tiktok: 'Menswear & Underwear > Bottoms > Sweatpants',
   },
   {
     id: 'bottom-suit',
     group: 'Bas',
     label: 'Costumes / Ensembles',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Costumes', EBAY: "Men's Suits", AMAZON: 'Vêtements homme › Costumes' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Costumes', EBAY: "Men's Suits", AMAZON: 'Vêtements homme › Costumes', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Suits`,
+    cdiscount: 'Mode > Homme > Costume',
+    tiktok: 'Menswear & Underwear > Suits & Sets',
   },
 
   // ---------- Accessoires ----------
@@ -131,55 +188,82 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     id: 'acc-watch',
     group: 'Accessoires',
     label: 'Montres',
-    targets: { LEBONCOIN: 'Montres & Bijoux', VINTED: 'Hommes › Accessoires › Montres', EBAY: "Men's Watches", AMAZON: 'Montres homme' },
+    targets: { LEBONCOIN: 'Montres & Bijoux', VINTED: 'Hommes › Accessoires › Montres', EBAY: "Men's Watches", AMAZON: 'Montres homme', FACEBOOK: 'Bijoux et montres' },
+    google: `${APPAREL} > Jewelry > Watches`,
+    cdiscount: 'Bijouterie > Montre homme',
+    tiktok: 'Jewelry Accessories & Derivatives > Watches',
   },
   {
     id: 'acc-sunglasses',
     group: 'Accessoires',
     label: 'Lunettes de soleil',
-    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Lunettes de soleil', EBAY: "Men's Sunglasses", AMAZON: 'Lunettes de soleil homme' },
+    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Lunettes de soleil', EBAY: "Men's Sunglasses", AMAZON: 'Lunettes de soleil homme', FACEBOOK: 'Accessoires' },
+    google: `${APPAREL} > Clothing Accessories > Sunglasses`,
+    cdiscount: 'Mode > Accessoires > Lunettes de soleil',
+    tiktok: 'Fashion Accessories > Eyewear > Sunglasses',
   },
   {
     id: 'acc-belt',
     group: 'Accessoires',
     label: 'Ceintures',
-    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Ceintures', EBAY: "Men's Belts", AMAZON: 'Ceintures homme' },
+    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Ceintures', EBAY: "Men's Belts", AMAZON: 'Ceintures homme', FACEBOOK: 'Accessoires' },
+    google: `${APPAREL} > Clothing Accessories > Belts`,
+    cdiscount: 'Mode > Accessoires > Ceinture',
+    tiktok: 'Fashion Accessories > Belts',
   },
   {
     id: 'acc-cap',
     group: 'Accessoires',
     label: 'Casquettes / Chapeaux',
-    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Chapeaux et casquettes', EBAY: "Men's Hats", AMAZON: 'Chapeaux et casquettes homme' },
+    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Chapeaux et casquettes', EBAY: "Men's Hats", AMAZON: 'Chapeaux et casquettes homme', FACEBOOK: 'Accessoires' },
+    google: `${APPAREL} > Clothing Accessories > Hats`,
+    cdiscount: 'Mode > Accessoires > Casquette',
+    tiktok: 'Fashion Accessories > Hats & Caps',
   },
   {
     id: 'acc-scarf',
     group: 'Accessoires',
     label: 'Écharpes / Gants / Bonnets',
-    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Écharpes', EBAY: "Men's Scarves & Gloves", AMAZON: 'Écharpes et gants homme' },
+    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Écharpes', EBAY: "Men's Scarves & Gloves", AMAZON: 'Écharpes et gants homme', FACEBOOK: 'Accessoires' },
+    google: `${APPAREL} > Clothing Accessories > Scarves & Shawls`,
+    cdiscount: 'Mode > Accessoires > Écharpe',
+    tiktok: 'Fashion Accessories > Scarves & Gloves',
   },
   {
     id: 'acc-bag',
     group: 'Accessoires',
     label: 'Sacs / Sacoches',
-    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Sacs', EBAY: "Men's Bags & Briefcases", AMAZON: 'Sacs homme' },
+    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Sacs', EBAY: "Men's Bags & Briefcases", AMAZON: 'Sacs homme', FACEBOOK: 'Sacs et bagages' },
+    google: `${APPAREL} > Handbags, Wallets & Cases > Handbags`,
+    cdiscount: 'Bagagerie > Sac homme',
+    tiktok: 'Luggage & Bags > Men Bags',
   },
   {
     id: 'acc-wallet',
     group: 'Accessoires',
     label: 'Portefeuilles',
-    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Portefeuilles', EBAY: "Men's Wallets", AMAZON: 'Portefeuilles homme' },
+    targets: { LEBONCOIN: 'Accessoires & Bagagerie', VINTED: 'Hommes › Accessoires › Portefeuilles', EBAY: "Men's Wallets", AMAZON: 'Portefeuilles homme', FACEBOOK: 'Accessoires' },
+    google: `${APPAREL} > Handbags, Wallets & Cases > Wallets & Money Clips`,
+    cdiscount: 'Bagagerie > Portefeuille',
+    tiktok: 'Luggage & Bags > Wallets & Card Holders',
   },
   {
     id: 'acc-jewelry',
     group: 'Accessoires',
     label: 'Bijoux homme (colliers, bagues, bracelets)',
-    targets: { LEBONCOIN: 'Montres & Bijoux', VINTED: 'Hommes › Accessoires › Bijoux', EBAY: "Men's Jewelry", AMAZON: 'Bijoux homme' },
+    targets: { LEBONCOIN: 'Montres & Bijoux', VINTED: 'Hommes › Accessoires › Bijoux', EBAY: "Men's Jewelry", AMAZON: 'Bijoux homme', FACEBOOK: 'Bijoux et montres' },
+    google: `${APPAREL} > Jewelry`,
+    cdiscount: 'Bijouterie > Bijou homme',
+    tiktok: 'Jewelry Accessories & Derivatives > Fashion Jewelry',
   },
   {
     id: 'acc-tie',
     group: 'Accessoires',
     label: 'Cravates / Nœuds papillon',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Accessoires › Cravates', EBAY: "Men's Ties", AMAZON: 'Cravates homme' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Accessoires › Cravates', EBAY: "Men's Ties", AMAZON: 'Cravates homme', FACEBOOK: 'Accessoires' },
+    google: `${APPAREL} > Clothing Accessories > Neckties`,
+    cdiscount: 'Mode > Accessoires > Cravate',
+    tiktok: 'Fashion Accessories > Ties',
   },
 
   // ---------- Sous-vêtements ----------
@@ -187,13 +271,19 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     id: 'under-underwear',
     group: 'Sous-vêtements',
     label: 'Sous-vêtements',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Sous-vêtements', EBAY: "Men's Underwear", AMAZON: 'Sous-vêtements homme' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Sous-vêtements', EBAY: "Men's Underwear", AMAZON: 'Sous-vêtements homme', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Underwear & Socks > Underwear`,
+    cdiscount: 'Mode > Homme > Sous-vêtement',
+    tiktok: 'Menswear & Underwear > Underwear',
   },
   {
     id: 'under-socks',
     group: 'Sous-vêtements',
     label: 'Chaussettes',
-    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Chaussettes', EBAY: "Men's Socks", AMAZON: 'Chaussettes homme' },
+    targets: { LEBONCOIN: 'Vêtements', VINTED: 'Hommes › Vêtements › Chaussettes', EBAY: "Men's Socks", AMAZON: 'Chaussettes homme', FACEBOOK: 'Vêtements homme' },
+    google: `${APPAREL} > Clothing > Underwear & Socks > Socks`,
+    cdiscount: 'Mode > Homme > Chaussettes',
+    tiktok: 'Menswear & Underwear > Socks',
   },
 
   // ---------- Divers ----------
@@ -201,13 +291,32 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     id: 'other',
     group: 'Divers',
     label: 'Autre / Non classé',
-    targets: { LEBONCOIN: 'Autres', VINTED: 'Autres', EBAY: 'Everything Else', AMAZON: 'Divers' },
+    targets: { LEBONCOIN: 'Autres', VINTED: 'Autres', EBAY: 'Everything Else', AMAZON: 'Divers', FACEBOOK: 'Divers' },
+    google: 'Apparel & Accessories',
+    cdiscount: 'Divers',
+    tiktok: 'Others',
   },
 ]
 
 export function findCategory(id: string | null | undefined): CategoryEntry | undefined {
   if (!id) return undefined
   return CATEGORY_CATALOG.find((c) => c.id === id)
+}
+
+/** Resolves the destination category name for one platform. */
+export function categoryFor(entry: CategoryEntry, platform: Platform): string {
+  switch (platform) {
+    case 'OWN_SITE':
+      return entry.label
+    case 'GOOGLE_SHOPPING':
+      return entry.google
+    case 'CDISCOUNT':
+      return entry.cdiscount
+    case 'TIKTOK_SHOP':
+      return entry.tiktok
+    default:
+      return entry.targets[platform] || entry.label
+  }
 }
 
 /** Guesses a catalog entry from the free-text category scraped on the source site. */

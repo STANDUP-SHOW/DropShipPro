@@ -56,10 +56,24 @@ npm run dev              # http://localhost:5173 (proxy /api -> :4000)
 | Plateforme | Statut |
 |---|---|
 | Mon site (catalogue public `/api/public/products`) | ✅ Automatique |
-| eBay | ✅ Automatisable (Sell API) une fois connectée |
-| Amazon | ⚠️ Nécessite compte vendeur Pro + validation Amazon |
-| Leboncoin | 🟠 Pas d'API self-service — publication assistée (copier-coller + photos) |
-| Vinted | 🟠 Pas d'API publique — publication assistée, extension navigateur prévue |
+| eBay | ✅ Sell API en self-service |
+| Google Shopping | ✅ Content API for Shopping (Merchant Center gratuit) |
+| Amazon | ⚠️ Selling Partner API — compte vendeur Pro payant + validation Amazon |
+| Cdiscount | ⚠️ API Marketplace — compte vendeur validé requis |
+| TikTok Shop | ⚠️ Partner API — boutique approuvée requise |
+| Facebook Marketplace | 🟠 Pas d'API pour les annonces — extension navigateur |
+| Leboncoin | 🟠 API réservée aux partenaires pros — extension navigateur |
+| Vinted | 🟠 Pas d'API publique — extension navigateur |
+
+Les destinations sont déclarées à un seul endroit,
+[`backend/src/services/platforms.ts`](backend/src/services/platforms.ts) : les schémas de
+validation, le back-office et l'extension lisent tous cette liste. Ajouter une
+marketplace demande donc d'éditer ce fichier, les chemins de catégorie dans
+`categoryCatalog.ts`, et l'enum `Platform` de Prisma.
+
+Les catégories de destination utilisent la **taxonomie produit Google** pour Google
+Shopping et Facebook (qui acceptent `google_product_category`), et des chemins
+propres à chaque plateforme pour les autres.
 
 ## Extension navigateur
 

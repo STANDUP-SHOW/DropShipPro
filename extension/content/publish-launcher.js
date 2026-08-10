@@ -7,15 +7,17 @@
 ;(() => {
   const API = 'http://localhost:4000'
 
-  const PLATFORM = location.hostname.includes('vinted')
-    ? 'VINTED'
-    : location.hostname.includes('leboncoin')
-      ? 'LEBONCOIN'
-      : location.hostname.includes('ebay')
-        ? 'EBAY'
-        : location.hostname.includes('amazon')
-          ? 'AMAZON'
-          : null
+  const HOST_TO_PLATFORM = [
+    ['vinted', 'VINTED'],
+    ['leboncoin', 'LEBONCOIN'],
+    ['ebay', 'EBAY'],
+    ['amazon', 'AMAZON'],
+    ['facebook', 'FACEBOOK'],
+    ['cdiscount', 'CDISCOUNT'],
+    ['tiktokglobalshop', 'TIKTOK_SHOP'],
+    ['merchants.google', 'GOOGLE_SHOPPING'],
+  ]
+  const PLATFORM = HOST_TO_PLATFORM.find(([host]) => location.hostname.includes(host))?.[1] ?? null
 
   async function fetchProducts() {
     const { token } = await chrome.storage.local.get('token')

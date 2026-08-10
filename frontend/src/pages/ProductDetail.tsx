@@ -4,13 +4,13 @@ import { Download, Copy, Check, Trash2, ExternalLink } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, downloadWithAuth, assetUrl } from '../lib/api'
 
-const PLATFORMS = [
-  { key: 'OWN_SITE', label: 'Mon site', auto: true, sellUrl: null as string | null },
-  { key: 'EBAY', label: 'eBay', auto: true, sellUrl: 'https://www.ebay.fr/sl/sell' },
-  { key: 'LEBONCOIN', label: 'Leboncoin', auto: false, sellUrl: 'https://www.leboncoin.fr/deposer-une-annonce' },
-  { key: 'VINTED', label: 'Vinted', auto: false, sellUrl: 'https://www.vinted.fr/items/new' },
-  { key: 'AMAZON', label: 'Amazon', auto: true, sellUrl: 'https://sellercentral.amazon.fr' },
-]
+interface PlatformInfo {
+  id: string
+  label: string
+  automatable: boolean
+  sellUrl: string | null
+  note: string
+}
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
@@ -44,6 +44,7 @@ export default function ProductDetail() {
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
+  const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [purchasePrice, setPurchasePrice] = useState(0)
   const [shippingCost, setShippingCost] = useState(0)
   const [sellingPrice, setSellingPrice] = useState(0)
@@ -67,6 +68,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     api.listCategories().then(setCatalog)
+    api.listPlatforms().then(setPlatforms)
   }, [])
 
   async function saveField(field: string, value: unknown) {
@@ -82,7 +84,7 @@ export default function ProductDetail() {
   async function onPublish() {
     if (!id || !selected.length) return
     await api.publishProduct(id, selected)
-    const manualTarget = selected.find((s) => PLATFORMS.find((p) => p.key === s && !p.auto))
+    const manualTarget = selected.find((s) => platforms.find((p) => p.id === s && !p.automatable))
     if (manualTarget) setAssistPanel(manualTarget)
     await load()
   }
@@ -96,7 +98,7 @@ export default function ProductDetail() {
   if (!product) return <Layout><p className="text-gray-400">Chargement...</p></Layout>
 
   const finalPrice = sellingPrice.toFixed(2)
-  const activeAssist = PLATFORMS.find((p) => p.key === assistPanel)
+  const activeAssist = platforms.find((p) => p.id === assistPanel)
 
   return (
     <Layout>
@@ -251,20 +253,20 @@ export default function ProductDetail() {
           </select>
         </div>
         <div className="grid sm:grid-cols-2 gap-2 mt-4">
-          {PLATFORMS.map((p) => {
-            const pub = product.publications?.find((x: any) => x.platform === p.key)
+          {platforms.map((p) => {
+            const pub = product.publications?.find((x: any) => x.platform === p.id)
             return (
-              <label key={p.key} className="flex items-center gap-3 rounded-lg border border-white/10 px-3 py-2.5 cursor-pointer">
+              <label key={p.id} className="flex items-center gap-3 rounded-lg border border-white/10 px-3 py-2.5 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={selected.includes(p.key)}
+                  checked={selected.includes(p.id)}
                   onChange={(e) =>
-                    setSelected((s) => (e.target.checked ? [...s, p.key] : s.filter((x) => x !== p.key)))
+                    setSelected((s) => (e.target.checked ? [...s, p.id] : s.filter((x) => x !== p.id)))
                   }
                 />
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{p.label} {!p.auto && <span className="text-[10px] text-orange-300">(assisté)</span>}</p>
-                  <p className="text-xs text-gray-400">{categories[p.key]}</p>
+                  <p className="text-sm font-medium">{p.label} {!p.automatable && <span className="text-[10px] text-orange-300">(assisté)</span>}</p>
+                  <p className="text-xs text-gray-400">{categories[p.id]}</p>
                 </div>
                 {pub && (
                   <span className={`text-xs rounded-full px-2 py-0.5 ${pub.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-yellow-500/20 text-yellow-300'}`}>
@@ -295,7 +297,7 @@ export default function ProductDetail() {
             <CopyField label="Titre" value={product.aiTitle} />
             <CopyField label="Prix" value={`${finalPrice} ${product.currency}`} />
             <CopyField label="Description" value={product.aiDescription} />
-            <CopyField label="Catégorie suggérée" value={categories[activeAssist.key] || ''} />
+            <CopyField label="Catégorie suggérée" value={categories[activeAssist.id] || ''} />
           </div>
           <button
             onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}

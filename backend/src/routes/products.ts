@@ -10,6 +10,7 @@ import { watermarkImages } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.js'
+import { PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -234,7 +235,7 @@ productsRouter.delete('/:id', async (req: AuthedRequest, res) => {
 })
 
 const publishSchema = z.object({
-  platforms: z.array(z.enum(['OWN_SITE', 'LEBONCOIN', 'VINTED', 'EBAY', 'AMAZON'])).min(1),
+  platforms: z.array(z.enum(PLATFORM_IDS)).min(1),
 })
 
 productsRouter.post('/:id/publish', async (req: AuthedRequest, res) => {
@@ -272,11 +273,16 @@ productsRouter.get('/:id/photos.zip', async (req: AuthedRequest, res) => {
 productsRouter.get('/:id/category-preview', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
-  const platforms = ['OWN_SITE', 'LEBONCOIN', 'VINTED', 'EBAY', 'AMAZON'] as const
+  const platforms = PLATFORM_IDS
   res.json(Object.fromEntries(platforms.map((p) => [p, mapCategory(product.sourceCategory, p, product.categoryId)])))
 })
 
 /** The category taxonomy that powers the dropdown in the back office. */
 productsRouter.get('/meta/categories', (_req, res) => {
   res.json(CATEGORY_CATALOG.map(({ id, group, label }) => ({ id, group, label })))
+})
+
+/** Destination marketplaces, so the back office and extension share one list. */
+productsRouter.get('/meta/platforms', (_req, res) => {
+  res.json(PLATFORMS)
 })

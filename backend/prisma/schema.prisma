@@ -13,6 +13,10 @@ enum Platform {
   VINTED
   EBAY
   AMAZON
+  FACEBOOK
+  CDISCOUNT
+  GOOGLE_SHOPPING
+  TIKTOK_SHOP
 }
 
 enum ProductStatus {

@@ -7,6 +7,7 @@ const FILL_SCRIPTS = {
   VINTED: 'content/vinted.js',
   LEBONCOIN: 'content/leboncoin.js',
   EBAY: 'content/ebay.js',
+  FACEBOOK: 'content/facebook.js',
 }
 
 // The per-platform fill scripts only run once at page load. When the user picks a

@@ -62,6 +62,10 @@ export const api = {
     request(`/products/${id}/publish`, { method: 'POST', body: JSON.stringify({ platforms }) }),
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
   listCategories: () => request<Array<{ id: string; group: string; label: string }>>('/products/meta/categories'),
+  listPlatforms: () =>
+    request<Array<{ id: string; label: string; automatable: boolean; sellUrl: string | null; note: string }>>(
+      '/products/meta/platforms',
+    ),
 
   listOrders: () => request<any[]>('/orders'),
   createOrder: (data: Record<string, unknown>) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),

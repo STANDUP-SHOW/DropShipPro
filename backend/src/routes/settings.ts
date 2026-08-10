@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { PLATFORM_IDS } from '../services/platforms.js'
 
 export const settingsRouter = Router()
 settingsRouter.use(requireAuth)
@@ -24,7 +25,7 @@ settingsRouter.get('/credentials', async (req: AuthedRequest, res) => {
 })
 
 const credSchema = z.object({
-  platform: z.enum(['OWN_SITE', 'LEBONCOIN', 'VINTED', 'EBAY', 'AMAZON']),
+  platform: z.enum(PLATFORM_IDS),
   label: z.string().optional(),
   data: z.record(z.string()).default({}),
 })

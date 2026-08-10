@@ -21,12 +21,14 @@ const STATUS_COLOR: Record<string, string> = {
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
+  const [platforms, setPlatforms] = useState<Array<{ id: string; label: string }>>([])
   const [showForm, setShowForm] = useState(false)
 
   async function load() {
-    const [o, p] = await Promise.all([api.listOrders(), api.listProducts()])
+    const [o, p, pf] = await Promise.all([api.listOrders(), api.listProducts(), api.listPlatforms()])
     setOrders(o)
     setProducts(p)
+    setPlatforms(pf)
   }
 
   useEffect(() => {
@@ -87,11 +89,11 @@ export default function Orders() {
           </select>
           <select name="platform" required className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm">
             <option value="">Plateforme...</option>
-            <option value="OWN_SITE">Mon site</option>
-            <option value="LEBONCOIN">Leboncoin</option>
-            <option value="VINTED">Vinted</option>
-            <option value="EBAY">eBay</option>
-            <option value="AMAZON">Amazon</option>
+            {platforms.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
           </select>
           <input name="amount" type="number" step="0.01" required placeholder="Montant reçu (€)" className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm" />
           <input name="buyerName" required placeholder="Nom de l'acheteur" className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm" />

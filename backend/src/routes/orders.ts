@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { PLATFORM_IDS } from '../services/platforms.js'
 
 export const ordersRouter = Router()
 ordersRouter.use(requireAuth)
@@ -12,7 +13,7 @@ ordersRouter.use(requireAuth)
 // same way this endpoint does, and it will show up in the dashboard identically.
 const createSchema = z.object({
   productId: z.string(),
-  platform: z.enum(['OWN_SITE', 'LEBONCOIN', 'VINTED', 'EBAY', 'AMAZON']),
+  platform: z.enum(PLATFORM_IDS),
   externalOrderId: z.string().optional(),
   buyerName: z.string().min(1),
   buyerAddress: z.object({

@@ -4,22 +4,25 @@ import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-const PLATFORMS = [
-  { key: 'EBAY', label: 'eBay', note: 'API Sell disponible — connectez votre token OAuth eBay.' },
-  { key: 'AMAZON', label: 'Amazon', note: 'Selling Partner API — nécessite un compte vendeur Pro validé par Amazon.' },
-  { key: 'LEBONCOIN', label: 'Leboncoin', note: "Pas d'API self-service : publication assistée uniquement." },
-  { key: 'VINTED', label: 'Vinted', note: "Pas d'API publique : publication assistée uniquement." },
-]
+interface PlatformInfo {
+  id: string
+  label: string
+  automatable: boolean
+  sellUrl: string | null
+  note: string
+}
 
 export default function Settings() {
   const { user, refresh } = useAuth()
   const [shopName, setShopName] = useState(user?.shopName || '')
   const [watermarkText, setWatermarkText] = useState(user?.watermarkText || '')
   const [creds, setCreds] = useState<any[]>([])
+  const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     api.listCredentials().then(setCreds)
+    api.listPlatforms().then(setPlatforms)
   }, [])
 
   useEffect(() => {
@@ -73,8 +76,9 @@ export default function Settings() {
           <div className="flex-1">
             <h2 className="font-bold">Extension Google Chrome</h2>
             <p className="text-xs text-gray-400 mt-1">
-              Remplit automatiquement les formulaires de vente Vinted, Leboncoin et eBay
-              avec vos produits — titre, description, prix et photos filigranées.
+              Importe un produit depuis Temu ou JoyBuy en un clic, et remplit
+              automatiquement les formulaires de vente Vinted, Leboncoin, Facebook
+              Marketplace et eBay — titre, description, prix et photos filigranées.
             </p>
             <a
               href={assetUrl('/api/public/extension.zip')}
@@ -102,28 +106,38 @@ export default function Settings() {
       <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
         <h2 className="font-bold">Plateformes de vente</h2>
         <div className="mt-4 space-y-4">
-          {PLATFORMS.map((p) => {
-            const cred = creds.find((c) => c.platform === p.key)
+          {platforms.filter((p) => p.id !== 'OWN_SITE').map((p) => {
+            const cred = creds.find((c) => c.platform === p.id)
             return (
-              <div key={p.key} className="border-b border-white/10 pb-4 last:border-0 last:pb-0">
+              <div key={p.id} className="border-b border-white/10 pb-4 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-sm">{p.label}</p>
-                  <span className={`text-xs rounded-full px-2 py-0.5 ${cred?.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}>
-                    {cred?.connected ? 'Connecté' : 'Non connecté'}
-                  </span>
+                  {p.automatable ? (
+                    <span className={`text-xs rounded-full px-2 py-0.5 ${cred?.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}>
+                      {cred?.connected ? 'Connecté' : 'Non connecté'}
+                    </span>
+                  ) : (
+                    <span className="text-xs rounded-full px-2 py-0.5 bg-orange-500/20 text-orange-300">
+                      Via l'extension
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">{p.note}</p>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    const fd = new FormData(e.currentTarget)
-                    connectPlatform(p.key, String(fd.get('apiKey') || ''))
-                  }}
-                  className="mt-2 flex gap-2"
-                >
-                  <input name="apiKey" placeholder="Clé API / token" className="flex-1 rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400" />
-                  <button className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">Enregistrer</button>
-                </form>
+                {/* No API key field for platforms with no public seller API — the
+                    extension fills their form instead, so there is nothing to connect. */}
+                {p.automatable && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      const fd = new FormData(e.currentTarget)
+                      connectPlatform(p.id, String(fd.get('apiKey') || ''))
+                    }}
+                    className="mt-2 flex gap-2"
+                  >
+                    <input name="apiKey" placeholder="Clé API / token" className="flex-1 rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400" />
+                    <button className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">Enregistrer</button>
+                  </form>
+                )}
               </div>
             )
           })}
