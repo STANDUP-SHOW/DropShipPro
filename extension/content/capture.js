@@ -15,19 +15,73 @@
     return m ? parseFloat(m[1].replace(',', '.')) : 0
   }
 
+  /**
+   * Best available source for one <img>.
+   *
+   * Galleries lazy-load: thumbnails past the fold have no `src` yet and a
+   * naturalWidth of 0, which is why filtering on naturalWidth alone returned a
+   * single photo out of ten. The real URL sits in data-src / data-original, or in
+   * the largest candidate of a srcset.
+   */
+  function bestSource(img) {
+    const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset')
+    if (srcset) {
+      const widest = srcset
+        .split(',')
+        .map((part) => {
+          const [url, size] = part.trim().split(/\s+/)
+          return { url, width: parseInt(size) || 0 }
+        })
+        .sort((a, b) => b.width - a.width)[0]
+      if (widest?.url) return widest.url
+    }
+    return (
+      img.currentSrc ||
+      img.getAttribute('src') ||
+      img.getAttribute('data-src') ||
+      img.getAttribute('data-original') ||
+      img.getAttribute('data-lazy-src') ||
+      ''
+    )
+  }
+
+  /** Rejects sprites, icons and tracking pixels by URL and by rendered size. */
+  function looksLikeProductPhoto(img, url) {
+    if (!url || !url.startsWith('http')) return false
+    if (/sprite|icon|logo|avatar|pixel|badge|flag|placeholder|blank\.|1x1/i.test(url)) return false
+
+    // A loaded image is judged on its real size; a lazy one on the box it occupies,
+    // since its intrinsic dimensions aren't known yet.
+    const natural = img.naturalWidth
+    if (natural > 0) return natural >= 300
+    const rect = img.getBoundingClientRect()
+    return Math.max(rect.width, img.width || 0) >= 120
+  }
+
   function collectImages() {
     const urls = new Set()
-    // Product galleries use large images; skip icons, sprites and tracking pixels.
     for (const img of document.querySelectorAll('img')) {
-      const src = img.currentSrc || img.src
-      if (!src || !src.startsWith('http')) continue
-      const w = img.naturalWidth || img.width
-      if (w < 300) continue
-      if (/sprite|icon|logo|avatar|pixel/i.test(src)) continue
+      const src = bestSource(img)
+      if (!looksLikeProductPhoto(img, src)) continue
+      // Strip resize/quality parameters so the same photo isn't kept twice at two sizes.
       urls.add(src.split('?')[0])
-      if (urls.size >= 8) break
+      if (urls.size >= 10) break
     }
     return [...urls]
+  }
+
+  /**
+   * Scrolls the gallery so lazy images start loading, then waits briefly.
+   * Without this the page only ever exposes the photos already in view.
+   */
+  async function revealLazyImages() {
+    const start = window.scrollY
+    for (const y of [400, 900, 1500]) {
+      window.scrollTo({ top: y, behavior: 'instant' })
+      await new Promise((r) => setTimeout(r, 250))
+    }
+    window.scrollTo({ top: start, behavior: 'instant' })
+    await new Promise((r) => setTimeout(r, 200))
   }
 
   function collectPrice() {
@@ -72,7 +126,9 @@
     return Object.keys(variants).length ? variants : null
   }
 
-  function buildPayload() {
+  async function buildPayload() {
+    await revealLazyImages()
+
     return {
       sourceUrl: location.href,
       title:
@@ -98,14 +154,14 @@
       return
     }
 
-    const payload = buildPayload()
+    const payload = await buildPayload()
     if (!payload.title) {
       showBanner('Produit non reconnu sur cette page.', 'error')
       return
     }
 
     button.disabled = true
-    button.textContent = 'Import en cours…'
+    button.textContent = 'Lecture des photos…'
     try {
       const res = await fetch(`${await getApiBase()}/api/products/capture`, {
         method: 'POST',

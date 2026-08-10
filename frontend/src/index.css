@@ -29,3 +29,9 @@ body {
 .btn-gradient {
   background: linear-gradient(90deg, #a855f7, #ec4899);
 }
+
+/* Indeterminate progress: the import has no measurable steps to report. */
+@keyframes loading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

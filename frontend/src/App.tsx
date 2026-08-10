@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
+import { LoadingScreen } from './components/LoadingScreen'
 import Index from './pages/Index'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -13,7 +14,7 @@ import Settings from './pages/Settings'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
-  if (loading) return <div className="min-h-screen bg-app-gradient" />
+  if (loading) return <LoadingScreen message="Vérification de votre session…" />
   if (!user) return <Navigate to="/login" replace />
   return <>{children}</>
 }

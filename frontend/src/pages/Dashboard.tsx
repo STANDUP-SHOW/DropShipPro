@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Link2, Loader2, Layers, Puzzle } from 'lucide-react'
+import { Link2, Loader2, Layers, Puzzle, Trash2 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 
@@ -29,6 +29,8 @@ export default function Dashboard() {
   const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<any>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const labelById = new Map(catalog.map((c) => [c.id, c.label]))
 
@@ -97,8 +99,59 @@ export default function Dashboard() {
     }
   }
 
+  async function confirmDelete() {
+    if (!pendingDelete) return
+    setDeleting(true)
+    try {
+      await api.deleteProduct(pendingDelete.id)
+      setPendingDelete(null)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Suppression impossible')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <Layout>
+      {/* Deleting a listing can't be undone, so it goes through a confirmation
+          rather than firing on the thumbnail click. */}
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1b1633] p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-bold">Supprimer cette annonce ?</h2>
+            <p className="mt-2 text-sm text-gray-300 line-clamp-2">
+              {pendingDelete.aiTitle || pendingDelete.title}
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              L'annonce et ses photos filigranées seront définitivement effacées.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="rounded-lg bg-red-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {deleting ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Importer un produit</h1>
@@ -158,6 +211,25 @@ export default function Dashboard() {
         </form>
       )}
 
+      {/* An import runs 30 to 60 seconds — scraping, AI rewrite, then watermarking.
+          Without this the screen looks frozen and people assume it crashed. */}
+      {importing && (
+        <div className="mt-4 rounded-xl border border-purple-400/30 bg-purple-500/5 p-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="animate-spin text-purple-300 shrink-0" size={20} />
+            <div>
+              <p className="text-sm font-medium">Import en cours — laissez cette page ouverte</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Analyse de la page, réécriture par l'IA, puis filigrane sur les photos. Comptez 30 à 60 secondes.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full w-1/3 animate-[loading_1.4s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-purple-400 to-pink-400" />
+          </div>
+        </div>
+      )}
+
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
 
       <div className="mt-8">
@@ -213,11 +285,26 @@ export default function Dashboard() {
               <Link
                 key={p.id}
                 to={`/products/${p.id}`}
-                className="rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:border-purple-400/50 transition"
+                className="group relative rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:border-purple-400/50 transition"
               >
                 <div className="aspect-square bg-black/30">
                   {p.images?.[0] && <img src={assetUrl(p.images[0])} alt="" className="w-full h-full object-cover" />}
                 </div>
+
+                {/* Stays visible on touch screens, which have no hover state. */}
+                <button
+                  title="Supprimer cette annonce"
+                  aria-label={`Supprimer ${p.aiTitle || p.title}`}
+                  onClick={(e) => {
+                    // The card is a link: without this the click would navigate.
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setPendingDelete(p)
+                  }}
+                  className="absolute top-2 right-2 rounded-lg bg-black/70 p-1.5 text-gray-300 opacity-0 backdrop-blur transition hover:bg-red-500/80 hover:text-white group-hover:opacity-100 focus:opacity-100 max-md:opacity-100"
+                >
+                  <Trash2 size={15} />
+                </button>
                 <div className="p-3">
                   <p className="text-sm font-medium line-clamp-2">{p.aiTitle || p.title}</p>
                   <div className="mt-2 flex items-center justify-between">

@@ -61,6 +61,14 @@ model User {
   passwordHash String
   shopName     String?
   watermarkText String?
+  /// Chemin du logo servi via /storage ; prioritaire sur watermarkText quand il est défini.
+  watermarkImage String?
+  /// Largeur du filigrane en % de la largeur de la photo.
+  watermarkScale Int @default(22)
+  /// Opacité du filigrane, de 10 à 100.
+  watermarkOpacity Int @default(75)
+  /// Coin ou bord où poser le filigrane (south, southeast, center…).
+  watermarkPosition String @default("south")
   /// Null until the address is confirmed through the emailed link.
   emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())

@@ -23,10 +23,19 @@
     })
   })
 
-  // Announce the extension so the app can show the automated option instead of the
-  // manual copy-paste fallback.
-  window.postMessage(
-    { source: 'droppost-extension', type: 'dsp-extension-ready', version: chrome.runtime.getManifest().version },
-    window.location.origin,
-  )
+  const version = chrome.runtime.getManifest().version
+
+  // A marker on <html> the app can read at any moment. The announcement below is
+  // one-shot and usually fires before React has mounted its listener, so on its
+  // own it made the app report "extension non détectée" while installed.
+  document.documentElement.dataset.dropshipProExtension = version
+
+  // Answer late askers: a dialog opened long after page load can still check.
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return
+    if (event.data?.source !== 'droppost-app' || event.data?.type !== 'dsp-ping') return
+    window.postMessage({ source: 'droppost-extension', type: 'dsp-extension-ready', version }, window.location.origin)
+  })
+
+  window.postMessage({ source: 'droppost-extension', type: 'dsp-extension-ready', version }, window.location.origin)
 })()

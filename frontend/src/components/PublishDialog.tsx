@@ -51,12 +51,20 @@ export function PublishDialog({
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    // The bridge announces itself on load; it may also have fired before this
-    // dialog mounted, so keep listening rather than checking once.
+    // The bridge stamps <html> as soon as it runs, so this catches an extension
+    // that announced itself long before this dialog existed.
+    if (document.documentElement.dataset.dropshipProExtension) {
+      setExtensionReady(true)
+      return
+    }
+
     function onReady(event: MessageEvent) {
       if (event.source === window && event.data?.type === 'dsp-extension-ready') setExtensionReady(true)
     }
     window.addEventListener('message', onReady)
+    // Ask, in case the bridge loaded after the marker check above.
+    window.postMessage({ source: 'droppost-app', type: 'dsp-ping' }, window.location.origin)
+
     return () => window.removeEventListener('message', onReady)
   }, [])
 

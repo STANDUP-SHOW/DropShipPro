@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DropShip Pro — Import & publication assistée",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Ajoutez un produit à DropShip Pro depuis Temu ou JoyBuy, et publiez-le sur Vinted, Leboncoin, Facebook Marketplace, eBay, Amazon, Cdiscount, Google Shopping ou TikTok Shop.",
   "permissions": [
     "storage",
@@ -24,7 +24,10 @@
     "https://*.cdiscount.com/*",
     "https://*.tiktokglobalshop.com/*",
     "https://merchants.google.com/*",
-    "https://*/*"
+    "https://*/*",
+    "https://drop-shipper.fr/*",
+    "https://www.drop-shipper.fr/*",
+    "https://drop-ship-pro.vercel.app/*"
   ],
   "icons": {
     "16": "icon16.png",
@@ -46,7 +49,10 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost:5173/*"
+        "http://localhost:5173/*",
+        "https://drop-shipper.fr/*",
+        "https://www.drop-shipper.fr/*",
+        "https://drop-ship-pro.vercel.app/*"
       ],
       "js": [
         "config.js",

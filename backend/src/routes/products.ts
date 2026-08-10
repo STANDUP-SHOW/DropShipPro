@@ -6,7 +6,8 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { scrapeProduct, ScrapeBlockedError } from '../services/scraper.js'
 import { enhanceListing } from '../services/aiEnhancer.js'
-import { watermarkImages } from '../services/watermark.js'
+import { watermarkImages, type WatermarkOptions, type WatermarkPosition } from '../services/watermark.js'
+import type { User } from '@prisma/client'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.js'
@@ -15,6 +16,17 @@ import { buildFillPlan } from '../services/formFiller.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
+
+/** Reads the shop's watermark settings; the logo wins over the text when present. */
+function watermarkOptionsFor(user: User): WatermarkOptions {
+  return {
+    text: user.watermarkText || user.shopName || 'DropShip Pro',
+    imagePath: user.watermarkImage,
+    scale: user.watermarkScale,
+    opacity: user.watermarkOpacity,
+    position: user.watermarkPosition as WatermarkPosition,
+  }
+}
 
 const importSchema = z.object({ url: z.string().url() })
 
@@ -32,7 +44,7 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
       description: scraped.description,
       category: scraped.sourceCategory,
     })
-    const watermarked = await watermarkImages(scraped.images, user.watermarkText || user.shopName || 'DropShip Pro', enhanced.title)
+    const watermarked = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
 
     const product = await prisma.product.create({
       data: {
@@ -94,7 +106,7 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
       description: data.description,
       category: data.sourceCategory,
     })
-    const watermarked = await watermarkImages(data.images, user.watermarkText || user.shopName || 'DropShip Pro', enhanced.title)
+    const watermarked = await watermarkImages(data.images, watermarkOptionsFor(user), enhanced.title)
 
     const product = await prisma.product.create({
       data: {
@@ -146,7 +158,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
         description: scraped.description,
         category: scraped.sourceCategory,
       })
-      const watermarked = await watermarkImages(scraped.images, user.watermarkText || user.shopName || 'DropShip Pro', enhanced.title)
+      const watermarked = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
 
       const product = await prisma.product.create({
         data: {

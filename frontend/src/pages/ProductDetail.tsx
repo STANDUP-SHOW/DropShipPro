@@ -4,6 +4,8 @@ import { Download, Copy, Check, Trash2, ExternalLink, Radio } from 'lucide-react
 import { Layout } from '../components/Layout'
 import { api, downloadWithAuth, assetUrl } from '../lib/api'
 import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
+import { LoadingScreen } from '../components/LoadingScreen'
+import { PriceInput } from '../components/PriceInput'
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
@@ -137,7 +139,7 @@ export default function ProductDetail() {
     navigate('/dashboard')
   }
 
-  if (!product) return <Layout><p className="text-gray-400">Chargement...</p></Layout>
+  if (!product) return <LoadingScreen message="Ouverture de l'annonce…" />
 
   const finalPrice = sellingPrice.toFixed(2)
   const activeAssist = platforms.find((p) => p.id === assistPanel)
@@ -341,35 +343,26 @@ export default function ProductDetail() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-400">Prix d'achat fournisseur</label>
-                <input
-                  type="number"
-                  step="0.01"
+                <PriceInput
                   value={purchasePrice}
-                  onChange={(e) => setPurchasePrice(Number(e.target.value))}
-                  onBlur={(e) => saveField('price', Number(e.target.value))}
+                  onCommit={(v) => { setPurchasePrice(v); saveField('price', v) }}
                   className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
                 />
               </div>
               <div>
                 <label className="text-xs text-gray-400">Frais de transport</label>
-                <input
-                  type="number"
-                  step="0.01"
+                <PriceInput
                   value={shippingCost}
-                  onChange={(e) => setShippingCost(Number(e.target.value))}
-                  onBlur={(e) => saveField('shippingCost', Number(e.target.value))}
+                  onCommit={(v) => { setShippingCost(v); saveField('shippingCost', v) }}
                   className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
                 />
               </div>
             </div>
             <div>
               <label className="text-xs text-gray-400">Prix de revente (prix affiché sur l'annonce)</label>
-              <input
-                type="number"
-                step="0.01"
+              <PriceInput
                 value={sellingPrice}
-                onChange={(e) => setSellingPrice(Number(e.target.value))}
-                onBlur={(e) => saveField('sellingPrice', Number(e.target.value))}
+                onCommit={(v) => { setSellingPrice(v); saveField('sellingPrice', v) }}
                 className="mt-1 w-full rounded-lg bg-white/10 border border-purple-400/40 px-3 py-2 text-base font-bold text-purple-200 outline-none focus:border-purple-400"
               />
             </div>
