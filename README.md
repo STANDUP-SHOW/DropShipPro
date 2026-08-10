@@ -44,12 +44,42 @@ npm run dev              # http://localhost:5173 (proxy /api -> :4000)
 
 ## Déploiement
 
-- **Backend → Railway** : connectez le repo, dossier `backend/`, variables d'env
-  `DATABASE_URL` (Postgres Railway), `JWT_SECRET`, `ANTHROPIC_API_KEY`, `FRONTEND_URL`
-  (URL Vercel). `railway.json` gère build + migration au déploiement.
-- **Frontend → Vercel** : connectez le repo, dossier `frontend/`, ajoutez une variable
-  `VITE_API_URL` pointant vers le backend Railway, et un rewrite `/api/*` vers cette URL
-  (ou adaptez `src/lib/api.ts` pour appeler l'URL absolue en prod).
+### 1. Backend → Railway
+
+Dans le projet Railway qui héberge déjà votre Postgres : **New → GitHub Repo**,
+répertoire racine `backend`.
+
+Variables d'environnement à définir :
+
+| Variable | Valeur |
+|---|---|
+| `DATABASE_URL` | référencez le service Postgres (`${{Postgres.DATABASE_URL}}`) |
+| `JWT_SECRET` | une longue chaîne aléatoire |
+| `ANTHROPIC_API_KEY` | votre clé console.anthropic.com |
+| `FRONTEND_URL` | l'URL Vercel, une fois l'étape 2 faite |
+
+⚠️ **Montez un volume sur `/app/storage`.** Le système de fichiers de Railway est
+éphémère : sans volume, **toutes les photos filigranées sont perdues à chaque
+redéploiement**. Railway → service backend → *Variables* → *Volumes* → *Add volume*,
+point de montage `/app/storage`.
+
+`railway.json` lance déjà `prisma migrate deploy` avant le démarrage.
+
+### 2. Frontend → Vercel
+
+**Add New → Project**, répertoire racine `frontend`. Vercel détecte Vite tout seul.
+
+Une seule variable : `VITE_API_URL` = l'URL publique du backend Railway
+(ex. `https://droppost-backend-production.up.railway.app`).
+
+Revenez ensuite définir `FRONTEND_URL` côté Railway avec l'URL Vercel, sinon le
+navigateur bloquera les appels (CORS).
+
+### 3. Extension
+
+Ouvrez le popup de l'extension → **Configurer les adresses**, et renseignez les deux
+URL de production. L'extension enregistre aussi le pont vers le domaine de l'appli,
+ce qui autorise le bouton « Diffuser » à la piloter.
 
 ## État des intégrations plateformes (voir Réglages dans l'appli)
 

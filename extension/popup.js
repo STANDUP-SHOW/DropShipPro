@@ -1,4 +1,3 @@
-const API = 'http://localhost:4000'
 
 // Where each platform's "create listing" form lives. The content script for that
 // platform picks the pending listing back up from chrome.storage once the tab loads.
@@ -17,7 +16,7 @@ async function getToken() {
 
 async function api(path, options = {}) {
   const token = await getToken()
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${await getApiBase()}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -32,6 +31,27 @@ async function api(path, options = {}) {
   return res.json()
 }
 
+async function renderSettings() {
+  const [apiBase, appUrl] = await Promise.all([getApiBase(), getAppUrl()])
+  app.innerHTML = `
+    <p class="muted">Adresses de votre installation DropShip Pro.</p>
+    <label class="muted">API (backend)</label>
+    <input id="apiBase" type="url" value="${apiBase}" placeholder="https://xxx.up.railway.app" />
+    <label class="muted" style="margin-top:8px;display:block">Application (frontend)</label>
+    <input id="appUrl" type="url" value="${appUrl}" placeholder="https://xxx.vercel.app" />
+    <button class="primary" id="saveCfg">Enregistrer</button>
+    <p class="link" id="backCfg" style="margin-top:10px">Retour</p>
+  `
+  document.getElementById('saveCfg').addEventListener('click', async () => {
+    await setApiBase(document.getElementById('apiBase').value.trim())
+    await setAppUrl(document.getElementById('appUrl').value.trim())
+    // Drop the old session: a token issued by another backend isn't valid here.
+    await chrome.storage.local.remove('token')
+    renderLogin()
+  })
+  document.getElementById('backCfg').addEventListener('click', () => start())
+}
+
 function renderLogin(error) {
   app.innerHTML = `
     <p class="muted">Connectez-vous à votre compte DropShip Pro.</p>
@@ -39,8 +59,9 @@ function renderLogin(error) {
     <input id="password" type="password" placeholder="Mot de passe" />
     <button class="primary" id="loginBtn">Se connecter</button>
     ${error ? `<p class="error">${error}</p>` : ''}
-    <p class="muted" style="margin-top:10px">L'application doit tourner sur localhost:4000.</p>
+    <p class="link" id="openCfg" style="margin-top:10px">Configurer les adresses</p>
   `
+  document.getElementById('openCfg').addEventListener('click', renderSettings)
   document.getElementById('loginBtn').addEventListener('click', async () => {
     const email = document.getElementById('email').value
     const password = document.getElementById('password').value
@@ -86,7 +107,11 @@ async function renderProducts() {
             <div class="targets">${buttons}</div>
           </div>`
       })
-      .join('') + '<p class="link" id="logout">Déconnexion</p>'
+      .join('') +
+    '<p class="link" id="openCfg2">Configurer les adresses</p>' +
+    '<p class="link" id="logout">Déconnexion</p>'
+
+  document.getElementById('openCfg2').addEventListener('click', renderSettings)
 
   app.querySelectorAll('button[data-target]').forEach((btn) => {
     btn.addEventListener('click', () => startFill(btn.dataset.product, btn.dataset.target, btn))
@@ -109,7 +134,7 @@ async function startFill(productId, target, btn) {
         description: product.aiDescription || product.description,
         price: (Number(product.price) * (1 + product.markupPercent / 100)).toFixed(2),
         category: categories[target],
-        images: (product.images || []).map((img) => (img.startsWith('/') ? `${API}${img}` : img)),
+        images: (product.images || []).map((img) => (img.startsWith('/') ? `${await getApiBase()}${img}` : img)),
       },
     })
     await chrome.tabs.create({ url: TARGETS[target].url })
@@ -126,4 +151,8 @@ function escapeHtml(str) {
   return div.innerHTML
 }
 
-getToken().then((token) => (token ? renderProducts() : renderLogin()))
+function start() {
+  getToken().then((token) => (token ? renderProducts() : renderLogin()))
+}
+
+start()

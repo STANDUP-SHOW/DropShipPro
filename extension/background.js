@@ -1,9 +1,46 @@
-const API = 'http://localhost:4000'
+importScripts('config.js')
 
 // Clears any queued listing when the extension starts, so a listing selected in a
 // previous session never gets injected unexpectedly into a form opened later.
-chrome.runtime.onStartup.addListener(() => chrome.storage.local.remove(['pendingListing', 'session']))
-chrome.runtime.onInstalled.addListener(() => chrome.storage.local.remove(['pendingListing', 'session']))
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local.remove(['pendingListing', 'session'])
+  registerAppBridge()
+})
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.remove(['pendingListing', 'session'])
+  registerAppBridge()
+})
+
+/**
+ * The app↔extension bridge has to run on whatever origin the app is served from,
+ * which isn't known at build time (localhost in dev, the Vercel domain in prod).
+ * Manifest content_scripts can't take a runtime value, so it's registered here and
+ * re-registered whenever the user changes the app URL in the popup.
+ */
+async function registerAppBridge() {
+  const appUrl = await getAppUrl()
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: ['dsp-app-bridge'] })
+  } catch {
+    // Nothing registered yet on a fresh install.
+  }
+  try {
+    await chrome.scripting.registerContentScripts([
+      {
+        id: 'dsp-app-bridge',
+        matches: [`${appUrl}/*`],
+        js: ['config.js', 'content/app-bridge.js'],
+        runAt: 'document_idle',
+      },
+    ])
+  } catch (err) {
+    console.error('registerAppBridge failed', err)
+  }
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.appUrl) registerAppBridge()
+})
 
 const FILL_SCRIPTS = {
   VINTED: 'content/vinted.js',
@@ -14,7 +51,7 @@ const FILL_SCRIPTS = {
 
 async function api(path, options = {}) {
   const { token } = await chrome.storage.local.get('token')
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${await getApiBase()}${path}`, {
     ...options,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
   })
@@ -53,7 +90,8 @@ async function runSession({ productId, platforms }) {
     return
   }
 
-  const images = (product.images || []).map((img) => (img.startsWith('/') ? `${API}${img}` : img))
+  const apiBase = await getApiBase()
+  const images = (product.images || []).map((img) => (img.startsWith('/') ? `${apiBase}${img}` : img))
   const tabIds = []
 
   for (const target of targets) {
@@ -90,7 +128,7 @@ async function driveTab(tabId, job) {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ['content/fill-helpers.js', 'content/agent.js'],
+      files: ['config.js', 'content/fill-helpers.js', 'content/agent.js'],
     })
     const result = await chrome.tabs.sendMessage(tabId, { type: 'dsp-run-agent', job })
 
@@ -142,7 +180,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return
     }
     chrome.scripting
-      .executeScript({ target: { tabId }, files: ['content/fill-helpers.js', file] })
+      .executeScript({ target: { tabId }, files: ['config.js', 'content/fill-helpers.js', file] })
       .then(() => sendResponse({ ok: true }))
       .catch((err) => sendResponse({ ok: false, error: err.message }))
     return true

@@ -1,9 +1,15 @@
 {
   "manifest_version": 3,
   "name": "DropShip Pro — Import & publication assistée",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Ajoutez un produit à DropShip Pro depuis Temu ou JoyBuy, et publiez-le sur Vinted, Leboncoin, Facebook Marketplace, eBay, Amazon, Cdiscount, Google Shopping ou TikTok Shop.",
-  "permissions": ["storage", "tabs", "scripting", "notifications", "tabGroups"],
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "notifications",
+    "tabGroups"
+  ],
   "host_permissions": [
     "http://localhost:4000/*",
     "http://localhost:5173/*",
@@ -17,7 +23,8 @@
     "https://*.facebook.com/*",
     "https://*.cdiscount.com/*",
     "https://*.tiktokglobalshop.com/*",
-    "https://merchants.google.com/*"
+    "https://merchants.google.com/*",
+    "https://*/*"
   ],
   "icons": {
     "16": "icon16.png",
@@ -27,20 +34,37 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "DropShip Pro",
-    "default_icon": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:5173/*"],
-      "js": ["content/app-bridge.js"],
+      "matches": [
+        "http://localhost:5173/*"
+      ],
+      "js": [
+        "config.js",
+        "content/app-bridge.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.temu.com/*", "https://*.joybuy.com/*", "https://*.aliexpress.com/*"],
-      "js": ["content/fill-helpers.js", "content/capture.js"],
+      "matches": [
+        "https://*.temu.com/*",
+        "https://*.joybuy.com/*",
+        "https://*.aliexpress.com/*"
+      ],
+      "js": [
+        "config.js",
+        "content/fill-helpers.js",
+        "content/capture.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -54,27 +78,56 @@
         "https://*.tiktokglobalshop.com/*",
         "https://merchants.google.com/*"
       ],
-      "js": ["content/fill-helpers.js", "content/publish-launcher.js"],
+      "js": [
+        "config.js",
+        "content/fill-helpers.js",
+        "content/publish-launcher.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.vinted.fr/items/new*"],
-      "js": ["content/fill-helpers.js", "content/vinted.js"],
+      "matches": [
+        "https://*.vinted.fr/items/new*"
+      ],
+      "js": [
+        "config.js",
+        "content/fill-helpers.js",
+        "content/vinted.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.leboncoin.fr/deposer-une-annonce*"],
-      "js": ["content/fill-helpers.js", "content/leboncoin.js"],
+      "matches": [
+        "https://*.leboncoin.fr/deposer-une-annonce*"
+      ],
+      "js": [
+        "config.js",
+        "content/fill-helpers.js",
+        "content/leboncoin.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.ebay.fr/sl/sell*", "https://*.ebay.fr/lstng*"],
-      "js": ["content/fill-helpers.js", "content/ebay.js"],
+      "matches": [
+        "https://*.ebay.fr/sl/sell*",
+        "https://*.ebay.fr/lstng*"
+      ],
+      "js": [
+        "config.js",
+        "content/fill-helpers.js",
+        "content/ebay.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.facebook.com/marketplace/create/*"],
-      "js": ["content/fill-helpers.js", "content/facebook.js"],
+      "matches": [
+        "https://*.facebook.com/marketplace/create/*"
+      ],
+      "js": [
+        "config.js",
+        "content/fill-helpers.js",
+        "content/facebook.js"
+      ],
       "run_at": "document_idle"
     }
   ]

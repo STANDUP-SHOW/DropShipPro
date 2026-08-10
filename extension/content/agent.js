@@ -12,8 +12,7 @@
  * stays the one who publishes.
  */
 ;(() => {
-  const API = 'http://localhost:4000'
-
+  
   /** Labels a control by everything a human would read around it. */
   function describeField(el, index) {
     const id = el.id
@@ -70,7 +69,7 @@
 
   async function api(path, options = {}) {
     const { token } = await chrome.storage.local.get('token')
-    const res = await fetch(`${API}${path}`, {
+    const res = await fetch(`${await getApiBase()}${path}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
     })

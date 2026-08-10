@@ -5,8 +5,7 @@
  * platform's fill script, so the user never has to go back to the toolbar popup.
  */
 ;(() => {
-  const API = 'http://localhost:4000'
-
+  
   const HOST_TO_PLATFORM = [
     ['vinted', 'VINTED'],
     ['leboncoin', 'LEBONCOIN'],
@@ -22,7 +21,7 @@
   async function fetchProducts() {
     const { token } = await chrome.storage.local.get('token')
     if (!token) throw new Error('non-connecté')
-    const res = await fetch(`${API}/api/products`, { headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetch(`${await getApiBase()}/api/products`, { headers: { Authorization: `Bearer ${token}` } })
     if (!res.ok) throw new Error(`Erreur ${res.status}`)
     return res.json()
   }
@@ -96,7 +95,7 @@
 
   async function queueAndFill(product) {
     const { token } = await chrome.storage.local.get('token')
-    const categories = await fetch(`${API}/api/products/${product.id}/category-preview`, {
+    const categories = await fetch(`${await getApiBase()}/api/products/${product.id}/category-preview`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -109,7 +108,7 @@
         description: product.aiDescription || product.description,
         price: Number(product.sellingPrice ?? 0).toFixed(2),
         category: categories[PLATFORM],
-        images: (product.images || []).map((img) => (img.startsWith('/') ? `${API}${img}` : img)),
+        images: (product.images || []).map((img) => (img.startsWith('/') ? `${await getApiBase()}${img}` : img)),
       },
     })
     closePicker()

@@ -8,8 +8,7 @@
  * finished DOM and send the complete product to the API.
  */
 ;(() => {
-  const API = 'http://localhost:4000'
-
+  
   function parsePrice(text) {
     if (!text) return 0
     const m = text.replace(/\s/g, '').match(/(\d+[.,]?\d*)/)
@@ -108,7 +107,7 @@
     button.disabled = true
     button.textContent = 'Import en cours…'
     try {
-      const res = await fetch(`${API}/api/products/capture`, {
+      const res = await fetch(`${await getApiBase()}/api/products/capture`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),

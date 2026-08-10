@@ -33,7 +33,6 @@ export default function ProductDetail() {
   const navigate = useNavigate()
   const [product, setProduct] = useState<any>(null)
   const [categories, setCategories] = useState<Record<string, string>>({})
-  const [selected, setSelected] = useState<string[]>([])
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [publishOpen, setPublishOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -130,14 +129,6 @@ export default function ProductDetail() {
       .map((v) => v.trim())
       .filter(Boolean)
     saveVariants({ ...variants, [name]: values })
-  }
-
-  async function onPublish() {
-    if (!id || !selected.length) return
-    await api.publishProduct(id, selected)
-    const manualTarget = selected.find((s) => platforms.find((p) => p.id === s && !p.automatable))
-    if (manualTarget) setAssistPanel(manualTarget)
-    await load()
   }
 
   async function onDelete() {
