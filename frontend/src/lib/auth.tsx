@@ -6,6 +6,7 @@ interface AuthUser {
   email: string
   shopName?: string
   watermarkText?: string
+  emailVerified?: boolean
 }
 
 interface AuthContextValue {

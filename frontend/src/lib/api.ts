@@ -47,7 +47,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
-  me: () => request<{ id: string; email: string; shopName?: string; watermarkText?: string }>('/auth/me'),
+  me: () =>
+    request<{ id: string; email: string; shopName?: string; watermarkText?: string; emailVerified?: boolean }>(
+      '/auth/me',
+    ),
+
+  forgotPassword: (email: string) =>
+    request<{ ok: true; message: string }>('/auth/password/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    request<{ token: string; user: { id: string; email: string } }>('/auth/password/reset', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: true }>('/auth/password/change', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  verifyEmail: (token: string) =>
+    request<{ ok: true }>('/auth/email/verify', { method: 'POST', body: JSON.stringify({ token }) }),
+  resendVerification: () => request<{ ok: true }>('/auth/email/resend', { method: 'POST' }),
 
   importProduct: (url: string) => request('/products/import', { method: 'POST', body: JSON.stringify({ url }) }),
   importBatch: (urls: string[]) =>

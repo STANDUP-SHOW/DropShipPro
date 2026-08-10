@@ -61,11 +61,35 @@ model User {
   passwordHash String
   shopName     String?
   watermarkText String?
+  /// Null until the address is confirmed through the emailed link.
+  emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
 
   products    Product[]
   credentials PlatformCredential[]
   orders      Order[]
+  authTokens  AuthToken[]
+}
+
+enum AuthTokenType {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
+/// Single-use tokens for password reset and address confirmation.
+/// Only the SHA-256 hash is stored: a leaked database must not hand out
+/// working reset links.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String        @unique
+  type      AuthTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
 }
 
 model PlatformCredential {

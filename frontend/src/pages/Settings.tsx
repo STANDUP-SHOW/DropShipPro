@@ -21,6 +21,8 @@ export default function Settings() {
   const [creds, setCreds] = useState<any[]>([])
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [saved, setSaved] = useState(false)
+  const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [verifyMsg, setVerifyMsg] = useState<string | null>(null)
 
   useEffect(() => {
     api.listCredentials().then(setCreds)
@@ -70,6 +72,92 @@ export default function Settings() {
         <button onClick={saveProfile} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold">
           {saved ? 'Enregistré ✓' : 'Enregistrer'}
         </button>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
+        <h2 className="font-bold">Sécurité</h2>
+
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2.5">
+          <div>
+            <p className="text-sm">{user?.email}</p>
+            <p className="text-xs text-gray-500">
+              {user?.emailVerified ? 'Adresse confirmée' : 'Adresse non confirmée'}
+            </p>
+          </div>
+          {user?.emailVerified ? (
+            <span className="shrink-0 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
+              Vérifiée
+            </span>
+          ) : (
+            <button
+              onClick={async () => {
+                setVerifyMsg('Envoi…')
+                try {
+                  await api.resendVerification()
+                  setVerifyMsg('Email envoyé, vérifiez votre boîte.')
+                } catch (err) {
+                  setVerifyMsg(err instanceof Error ? err.message : 'Envoi impossible')
+                }
+              }}
+              className="shrink-0 text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5"
+            >
+              Envoyer le lien
+            </button>
+          )}
+        </div>
+        {verifyMsg && <p className="text-xs text-gray-400 mt-2">{verifyMsg}</p>}
+
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const fd = new FormData(e.currentTarget)
+            const form = e.currentTarget
+            setPwdMsg(null)
+            if (fd.get('next') !== fd.get('confirm')) {
+              return setPwdMsg({ ok: false, text: 'Les deux nouveaux mots de passe ne correspondent pas' })
+            }
+            try {
+              await api.changePassword(String(fd.get('current')), String(fd.get('next')))
+              setPwdMsg({ ok: true, text: 'Mot de passe modifié.' })
+              form.reset()
+            } catch (err) {
+              setPwdMsg({ ok: false, text: err instanceof Error ? err.message : 'Modification impossible' })
+            }
+          }}
+          className="mt-5 space-y-3"
+        >
+          <h3 className="text-sm font-medium">Changer le mot de passe</h3>
+          <input
+            name="current"
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder="Mot de passe actuel"
+            className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          />
+          <input
+            name="next"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            placeholder="Nouveau mot de passe (8 caractères min.)"
+            className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          />
+          <input
+            name="confirm"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            placeholder="Confirmez le nouveau mot de passe"
+            className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          />
+          <button className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold">Modifier</button>
+          {pwdMsg && (
+            <p className={`text-xs ${pwdMsg.ok ? 'text-emerald-300' : 'text-red-400'}`}>{pwdMsg.text}</p>
+          )}
+        </form>
       </div>
 
       <div className="mt-6 rounded-xl border border-purple-400/30 bg-purple-500/5 p-5 max-w-lg">

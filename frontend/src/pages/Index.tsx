@@ -8,13 +8,13 @@ const FEATURES = [
     icon: Zap,
     color: 'text-yellow-400',
     title: 'IA Intelligente',
-    text: "L'IA réécrit vos descriptions, génère des mots-clés SEO et optimise chaque annonce pour maximiser les ventes.",
+    text: "L'IA réécrit vos titres et vos descriptions, génère les attributs produit et les mots-clés SEO, et classe automatiquement l'article dans la bonne catégorie de chaque marketplace.",
   },
   {
     icon: Globe,
     color: 'text-blue-400',
     title: 'Multi-Plateforme',
-    text: 'Publiez simultanément sur Leboncoin, Vinted, Amazon, eBay et votre propre site en un seul clic.',
+    text: 'Amazon, eBay, Vinted, Leboncoin, Cdiscount, La Redoute, Google Shopping et plus de 15 marketplaces parmi les plus visitées — publiées en un seul clic.',
   },
   {
     icon: ShieldCheck,
@@ -42,8 +42,8 @@ export default function Index() {
           Automatisez votre <span className="text-gradient-brand">Dropshipping</span>
         </h1>
         <p className="mt-6 text-lg text-gray-300 max-w-2xl mx-auto">
-          Importez un produit depuis Temu ou JoyBuy, l'IA améliore l'annonce, ajoute votre filigrane, et publie sur
-          toutes les plateformes en un clic.
+          Importez un produit depuis n'importe quel site, l'IA améliore l'annonce pour les marketplaces, ajoute votre
+          filigrane, et publie sur toutes les plateformes en un clic.
         </p>
         <Link
           to={isAuthed() ? '/dashboard' : '/register'}

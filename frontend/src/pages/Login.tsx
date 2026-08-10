@@ -57,6 +57,9 @@ export default function Login() {
         <button disabled={busy} className="btn-gradient w-full rounded-lg py-2.5 font-semibold disabled:opacity-50">
           {busy ? 'Connexion...' : 'Se connecter'}
         </button>
+        <p className="text-sm text-center">
+          <Link to="/forgot-password" className="text-purple-300 hover:underline">Mot de passe oublié ?</Link>
+        </p>
         <p className="text-sm text-center text-gray-400">
           Pas de compte ?{' '}
           <Link to="/register" className="text-purple-300 hover:underline">
