@@ -10,6 +10,8 @@ interface PlatformInfo {
   automatable: boolean
   sellUrl: string | null
   note: string
+  warning?: string
+  unavailable?: boolean
 }
 
 function CopyField({ label, value }: { label: string; value: string }) {
@@ -82,6 +84,8 @@ export default function ProductDetail() {
   }
 
   const variants: Record<string, string[]> = product?.variants ?? {}
+  const bulletPoints: string[] = product?.bulletPoints ?? []
+  const attributes: Record<string, string> = product?.attributes ?? {}
 
   /** Saves images and reflects the new order locally so the grid doesn't flicker. */
   async function saveImages(next: string[]) {
@@ -285,6 +289,70 @@ export default function ProductDetail() {
               className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
             />
           </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <h3 className="text-sm font-bold">Arguments de vente</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Indexés par Amazon, Cdiscount et les marketplaces Mirakl. Une ligne par argument.
+            </p>
+            {bulletPoints.length === 0 ? (
+              <p className="text-xs text-gray-500 mt-3">Aucun argument généré.</p>
+            ) : (
+              <textarea
+                defaultValue={bulletPoints.join('\n')}
+                onBlur={(e) =>
+                  saveField(
+                    'bulletPoints',
+                    e.target.value.split('\n').map((l) => l.trim()).filter(Boolean),
+                  )
+                }
+                rows={Math.min(10, bulletPoints.length + 1)}
+                className="mt-2 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-xs outline-none focus:border-purple-400"
+              />
+            )}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold">Attributs produit</h3>
+              <span className="text-xs text-gray-500">{Object.keys(attributes).length} attribut(s)</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Convertis en filtres de recherche par les marketplaces — plus il y en a, mieux le produit ressort.
+            </p>
+            {Object.keys(attributes).length === 0 ? (
+              <p className="text-xs text-gray-500 mt-3">Aucun attribut généré.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {Object.entries(attributes).map(([name, value]) => (
+                  <div key={name} className="flex items-center gap-2">
+                    <span className="w-28 shrink-0 text-xs text-gray-400 truncate" title={name}>
+                      {name}
+                    </span>
+                    <input
+                      defaultValue={value}
+                      onBlur={(e) => saveField('attributes', { ...attributes, [name]: e.target.value })}
+                      className="flex-1 rounded-lg bg-white/10 border border-white/10 px-2 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <h3 className="text-sm font-bold">Mots-clés SEO</h3>
+            <textarea
+              defaultValue={product.metaKeywords ?? ''}
+              onBlur={(e) => saveField('metaKeywords', e.target.value)}
+              rows={3}
+              placeholder="mot-clé 1, mot-clé 2, …"
+              className="mt-2 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-xs outline-none focus:border-purple-400"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {(product.metaKeywords ?? '').split(',').filter((k: string) => k.trim()).length} mot(s)-clé(s)
+            </p>
+          </div>
+
           <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-3">
             <h3 className="text-sm font-bold">Calcul de marge</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -391,7 +459,7 @@ export default function ProductDetail() {
           </select>
         </div>
         <div className="grid sm:grid-cols-2 gap-2 mt-4">
-          {platforms.map((p) => {
+          {platforms.filter((p) => !p.unavailable).map((p) => {
             const pub = product.publications?.find((x: any) => x.platform === p.id)
             return (
               <label key={p.id} className="flex items-center gap-3 rounded-lg border border-white/10 px-3 py-2.5 cursor-pointer">
@@ -444,6 +512,16 @@ export default function ProductDetail() {
                   .join('\n')}
               />
             )}
+            {bulletPoints.length > 0 && <CopyField label="Arguments de vente" value={bulletPoints.join('\n')} />}
+            {Object.keys(attributes).length > 0 && (
+              <CopyField
+                label="Attributs"
+                value={Object.entries(attributes)
+                  .map(([k, v]) => `${k} : ${v}`)
+                  .join('\n')}
+              />
+            )}
+            {product.metaKeywords && <CopyField label="Mots-clés" value={product.metaKeywords} />}
           </div>
           <button
             onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}

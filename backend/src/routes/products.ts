@@ -51,6 +51,8 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,
+        bulletPoints: enhanced.bulletPoints,
+        attributes: enhanced.attributes,
         status: 'READY',
       },
     })
@@ -112,6 +114,8 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,
+        bulletPoints: enhanced.bulletPoints,
+        attributes: enhanced.attributes,
         status: 'READY',
       },
     })
@@ -161,6 +165,8 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
           metaTitle: enhanced.metaTitle,
           metaDescription: enhanced.metaDescription,
           metaKeywords: enhanced.metaKeywords,
+        bulletPoints: enhanced.bulletPoints,
+        attributes: enhanced.attributes,
           status: 'READY',
         },
       })
@@ -213,6 +219,8 @@ const updateSchema = z.object({
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   metaKeywords: z.string().optional(),
+  bulletPoints: z.array(z.string()).optional(),
+  attributes: z.record(z.string()).optional(),
   categoryId: z.string().nullable().optional(),
 })
 

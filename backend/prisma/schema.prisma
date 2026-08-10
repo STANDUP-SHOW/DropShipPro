@@ -17,6 +17,16 @@ enum Platform {
   CDISCOUNT
   GOOGLE_SHOPPING
   TIKTOK_SHOP
+  WISH
+  LA_REDOUTE
+  LECLERC
+  BHV
+  SPARTOO
+  ATLAS_FOR_MEN
+  KIABI
+  ETSY
+  BRANDALLEY
+  MIINTO
 }
 
 enum ProductStatus {
@@ -102,6 +112,10 @@ model Product {
   metaTitle       String?
   metaDescription String?
   metaKeywords    String?
+  /// Amazon-style selling points, one short line each.
+  bulletPoints    Json?
+  /// Structured product attributes (matière, coupe, saison…) that marketplaces index for filters.
+  attributes      Json?
 
   status ProductStatus @default(DRAFT)
 

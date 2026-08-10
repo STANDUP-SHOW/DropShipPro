@@ -9,6 +9,10 @@ export interface PlatformInfo {
   sellUrl: string | null
   /** Shown in Réglages so the user knows what to expect from each integration. */
   note: string
+  /** Set when there is a policy or eligibility caveat the seller must know before publishing. */
+  warning?: string
+  /** Listed for completeness but no publication path exists at all (not a marketplace). */
+  unavailable?: boolean
 }
 
 /**
@@ -59,6 +63,87 @@ export const PLATFORMS: PlatformInfo[] = [
     automatable: true,
     sellUrl: 'https://seller.tiktokglobalshop.com',
     note: 'Partner API — nécessite une boutique TikTok Shop approuvée.',
+  },
+  {
+    id: 'WISH',
+    label: 'Wish',
+    automatable: true,
+    sellUrl: 'https://merchant.wish.com',
+    note: 'Wish Merchant API — inscription vendeur en self-service.',
+  },
+  // La Redoute, Leclerc, BHV, Kiabi and BrandAlley all run their marketplace on
+  // Mirakl, so a single Mirakl connector covers them: only the operator's base URL
+  // and API key change from one to the next.
+  {
+    id: 'LA_REDOUTE',
+    label: 'La Redoute',
+    automatable: true,
+    sellUrl: 'https://www.laredoute.fr/vendre-sur-la-redoute',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par La Redoute.',
+  },
+  {
+    id: 'LECLERC',
+    label: 'E.Leclerc',
+    automatable: true,
+    sellUrl: 'https://www.e.leclerc/vendeurs',
+    note: 'Marketplace Mirakl — candidature vendeur à valider.',
+  },
+  {
+    id: 'BHV',
+    label: 'BHV Marais',
+    automatable: true,
+    sellUrl: 'https://www.bhv.fr',
+    note: 'Marketplace Mirakl — sélection éditoriale, candidature à valider.',
+  },
+  {
+    id: 'KIABI',
+    label: 'Kiabi',
+    automatable: true,
+    sellUrl: 'https://www.kiabi.com',
+    note: 'Marketplace Mirakl — mode uniquement, candidature à valider.',
+  },
+  {
+    id: 'BRANDALLEY',
+    label: 'BrandAlley',
+    automatable: true,
+    sellUrl: 'https://www.brandalley.fr',
+    note: 'Ventes privées — fonctionne par opérations de déstockage de marques.',
+    warning: 'Positionnement marques : les produits sans marque identifiée sont rarement acceptés.',
+  },
+  {
+    id: 'SPARTOO',
+    label: 'Spartoo',
+    automatable: true,
+    sellUrl: 'https://www.spartoo.com',
+    note: 'Marketplace spécialisée chaussures, maroquinerie et mode.',
+    warning: 'Catalogue limité à la chaussure et aux accessoires mode.',
+  },
+  {
+    id: 'MIINTO',
+    label: 'Miinto',
+    automatable: true,
+    sellUrl: 'https://www.miinto.fr',
+    note: 'Marketplace mode réservée aux boutiques et marques référencées.',
+    warning: 'Réservé aux boutiques physiques et marques établies — candidature exigeante.',
+  },
+  {
+    id: 'ETSY',
+    label: 'Etsy',
+    automatable: true,
+    sellUrl: 'https://www.etsy.com/sell',
+    note: 'API Etsy publique et self-service.',
+    warning:
+      "Etsy interdit la revente de produits manufacturés achetés en gros : seuls le fait main, le vintage de plus de 20 ans et les fournitures créatives sont autorisés. Publier des produits Temu ou JoyBuy expose à la fermeture de la boutique.",
+  },
+  {
+    id: 'ATLAS_FOR_MEN',
+    label: 'Atlas For Men',
+    automatable: false,
+    sellUrl: 'https://www.atlasformen.fr',
+    unavailable: true,
+    note: "Détaillant en marque propre — il n'existe pas d'espace vendeur tiers.",
+    warning:
+      "Atlas For Men n'est pas une marketplace : l'enseigne vend sa propre marque et n'accepte pas de vendeurs tiers. Aucune publication n'est possible.",
   },
   {
     id: 'FACEBOOK',

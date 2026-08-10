@@ -32,9 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await api.me()
       setUser(me)
-    } catch {
-      clearToken()
-      setUser(null)
+    } catch (err) {
+      // Only a rejected token means the session is really over. A network blip or
+      // a 5xx while the API restarts must not log the user out of a valid session.
+      const status = (err as { status?: number }).status
+      if (status === 401) {
+        clearToken()
+        setUser(null)
+      }
     } finally {
       setLoading(false)
     }

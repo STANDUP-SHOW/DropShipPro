@@ -10,6 +10,8 @@ interface PlatformInfo {
   automatable: boolean
   sellUrl: string | null
   note: string
+  warning?: string
+  unavailable?: boolean
 }
 
 export default function Settings() {
@@ -112,7 +114,9 @@ export default function Settings() {
               <div key={p.id} className="border-b border-white/10 pb-4 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-sm">{p.label}</p>
-                  {p.automatable ? (
+                  {p.unavailable ? (
+                    <span className="text-xs rounded-full px-2 py-0.5 bg-red-500/20 text-red-300">Indisponible</span>
+                  ) : p.automatable ? (
                     <span className={`text-xs rounded-full px-2 py-0.5 ${cred?.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}>
                       {cred?.connected ? 'Connecté' : 'Non connecté'}
                     </span>
@@ -123,6 +127,11 @@ export default function Settings() {
                   )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">{p.note}</p>
+                {p.warning && (
+                  <p className="mt-2 rounded-lg border border-orange-400/30 bg-orange-500/10 px-2 py-1.5 text-xs text-orange-200">
+                    ⚠️ {p.warning}
+                  </p>
+                )}
                 {/* No API key field for platforms with no public seller API — the
                     extension fills their form instead, so there is nothing to connect. */}
                 {p.automatable && (
