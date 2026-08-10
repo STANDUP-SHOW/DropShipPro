@@ -1,18 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Download, Copy, Check, Trash2, ExternalLink } from 'lucide-react'
+import { Download, Copy, Check, Trash2, ExternalLink, Radio } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, downloadWithAuth, assetUrl } from '../lib/api'
-
-interface PlatformInfo {
-  id: string
-  label: string
-  automatable: boolean
-  sellUrl: string | null
-  note: string
-  warning?: string
-  unavailable?: boolean
-}
+import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
@@ -44,6 +35,7 @@ export default function ProductDetail() {
   const [categories, setCategories] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<string[]>([])
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
+  const [publishOpen, setPublishOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
@@ -458,35 +450,46 @@ export default function ProductDetail() {
             ))}
           </select>
         </div>
-        <div className="grid sm:grid-cols-2 gap-2 mt-4">
-          {platforms.filter((p) => !p.unavailable).map((p) => {
-            const pub = product.publications?.find((x: any) => x.platform === p.id)
-            return (
-              <label key={p.id} className="flex items-center gap-3 rounded-lg border border-white/10 px-3 py-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(p.id)}
-                  onChange={(e) =>
-                    setSelected((s) => (e.target.checked ? [...s, p.id] : s.filter((x) => x !== p.id)))
-                  }
-                />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{p.label} {!p.automatable && <span className="text-[10px] text-orange-300">(assisté)</span>}</p>
-                  <p className="text-xs text-gray-400">{categories[p.id]}</p>
-                </div>
-                {pub && (
-                  <span className={`text-xs rounded-full px-2 py-0.5 ${pub.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-yellow-500/20 text-yellow-300'}`}>
-                    {pub.status === 'PUBLISHED' ? 'Publié' : 'En attente'}
+        {/* Existing publications, so the seller sees at a glance where the listing already went. */}
+        {product.publications?.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {product.publications.map((pub: any) => {
+              const info = platforms.find((p) => p.id === pub.platform)
+              return (
+                <span
+                  key={pub.platform}
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 text-xs"
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: info?.color ?? '#a855f7' }} />
+                  {info?.label ?? pub.platform}
+                  <span className={pub.status === 'PUBLISHED' ? 'text-emerald-300' : 'text-yellow-300'}>
+                    {pub.status === 'PUBLISHED' ? 'publié' : 'en attente'}
                   </span>
-                )}
-              </label>
-            )
-          })}
-        </div>
-        <button onClick={onPublish} disabled={!selected.length} className="btn-gradient mt-4 rounded-lg px-5 py-2.5 font-semibold disabled:opacity-50">
-          Publier sur {selected.length || '...'} plateforme(s)
+                </span>
+              )
+            })}
+          </div>
+        )}
+
+        <button
+          onClick={() => setPublishOpen(true)}
+          className="btn-gradient mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 font-semibold"
+        >
+          <Radio size={17} /> Publier cette annonce
         </button>
       </div>
+
+      {publishOpen && id && (
+        <PublishDialog
+          productId={id}
+          platforms={platforms}
+          onClose={() => setPublishOpen(false)}
+          onPublished={async (chosen) => {
+            await api.publishProduct(id, chosen)
+            await load()
+          }}
+        />
+      )}
 
       {activeAssist && (
         <div className="mt-6 rounded-xl border border-orange-400/30 bg-orange-500/5 p-5">

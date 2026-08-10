@@ -11,6 +11,7 @@ import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.js'
 import { PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
+import { buildFillPlan } from '../services/formFiller.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -288,6 +289,46 @@ productsRouter.get('/:id/category-preview', async (req: AuthedRequest, res) => {
 /** The category taxonomy that powers the dropdown in the back office. */
 productsRouter.get('/meta/categories', (_req, res) => {
   res.json(CATEGORY_CATALOG.map(({ id, group, label }) => ({ id, group, label })))
+})
+
+const fillPlanSchema = z.object({
+  platform: z.enum(PLATFORM_IDS),
+  fields: z
+    .array(
+      z.object({
+        ref: z.string(),
+        label: z.string(),
+        type: z.string(),
+        placeholder: z.string().optional(),
+        required: z.boolean().optional(),
+        maxLength: z.number().optional(),
+        options: z.array(z.string()).optional(),
+      }),
+    )
+    .min(1)
+    .max(120),
+})
+
+/**
+ * The extension describes the marketplace form it found; Claude maps the product
+ * onto it and returns what to type where. This is what lets one extension fill
+ * any marketplace without a hand-written selector map per site.
+ */
+productsRouter.post('/:id/fill-plan', async (req: AuthedRequest, res) => {
+  const parsed = fillPlanSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Description du formulaire invalide' })
+
+  const product = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+  if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+
+  try {
+    const targetCategory = mapCategory(product.sourceCategory, parsed.data.platform, product.categoryId)
+    const plan = await buildFillPlan(product, parsed.data.platform, targetCategory, parsed.data.fields)
+    res.json(plan)
+  } catch (err) {
+    console.error('fill-plan failed', err)
+    res.status(502).json({ error: "L'IA n'a pas pu analyser ce formulaire" })
+  }
 })
 
 /** Destination marketplaces, so the back office and extension share one list. */

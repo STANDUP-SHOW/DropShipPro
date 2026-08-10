@@ -13,6 +13,31 @@ export interface PlatformInfo {
   warning?: string
   /** Listed for completeness but no publication path exists at all (not a marketplace). */
   unavailable?: boolean
+  /** Brand colour, used for that platform's button in the diffusion dialog. */
+  color: string
+}
+
+/** Brand colours, kept next to the list so the UI never hard-codes them. */
+const COLORS: Record<string, string> = {
+  OWN_SITE: '#a855f7',
+  EBAY: '#e53238',
+  GOOGLE_SHOPPING: '#4285f4',
+  AMAZON: '#ff9900',
+  CDISCOUNT: '#e2001a',
+  TIKTOK_SHOP: '#000000',
+  WISH: '#2fb7ec',
+  LA_REDOUTE: '#e5004f',
+  LECLERC: '#0055a4',
+  BHV: '#e2001a',
+  KIABI: '#e5007d',
+  BRANDALLEY: '#1a1a1a',
+  SPARTOO: '#ff6600',
+  MIINTO: '#000000',
+  ETSY: '#f56400',
+  ATLAS_FOR_MEN: '#004b8d',
+  FACEBOOK: '#1877f2',
+  LEBONCOIN: '#ff6e14',
+  VINTED: '#007782',
 }
 
 /**
@@ -21,7 +46,7 @@ export interface PlatformInfo {
  * marketplace only has to be declared here (plus its category paths in
  * categoryCatalog.ts and the Prisma enum).
  */
-export const PLATFORMS: PlatformInfo[] = [
+const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color'>> = [
   {
     id: 'OWN_SITE',
     label: 'Mon site',
@@ -167,6 +192,10 @@ export const PLATFORMS: PlatformInfo[] = [
     note: "Pas d'API publique : publication assistée via l'extension.",
   },
 ]
+
+// Colours live in their own table so adding a platform above can't forget one:
+// anything missing falls back to the app's purple.
+export const PLATFORMS: PlatformInfo[] = PLATFORM_DEFS.map((p) => ({ ...p, color: COLORS[p.id] ?? '#a855f7' }))
 
 export const PLATFORM_IDS = PLATFORMS.map((p) => p.id) as [Platform, ...Platform[]]
 
