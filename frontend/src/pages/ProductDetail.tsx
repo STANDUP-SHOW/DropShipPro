@@ -43,6 +43,7 @@ export default function ProductDetail() {
   const [selected, setSelected] = useState<string[]>([])
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
   const [purchasePrice, setPurchasePrice] = useState(0)
   const [shippingCost, setShippingCost] = useState(0)
   const [sellingPrice, setSellingPrice] = useState(0)
@@ -63,6 +64,10 @@ export default function ProductDetail() {
   useEffect(() => {
     load()
   }, [id])
+
+  useEffect(() => {
+    api.listCategories().then(setCatalog)
+  }, [])
 
   async function saveField(field: string, value: unknown) {
     if (!id) return
@@ -213,9 +218,38 @@ export default function ProductDetail() {
 
       <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-5">
         <h2 className="font-bold">Publier</h2>
-        <p className="text-xs text-gray-400 mt-1">
-          Catégorie source : {product.sourceCategory || 'non détectée'}
-        </p>
+
+        <div className="mt-3">
+          <label className="text-xs text-gray-400">
+            Catégorie du produit
+            {product.sourceCategory && (
+              <span className="text-gray-500"> — détectée sur la source : « {product.sourceCategory} »</span>
+            )}
+          </label>
+          <select
+            value={product.categoryId ?? ''}
+            onChange={async (e) => {
+              const value = e.target.value || null
+              setProduct({ ...product, categoryId: value })
+              await saveField('categoryId', value)
+              if (id) setCategories(await api.categoryPreview(id))
+            }}
+            className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          >
+            <option value="">— Choisir une catégorie —</option>
+            {[...new Set(catalog.map((c) => c.group))].map((group) => (
+              <optgroup key={group} label={group}>
+                {catalog
+                  .filter((c) => c.group === group)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
         <div className="grid sm:grid-cols-2 gap-2 mt-4">
           {PLATFORMS.map((p) => {
             const pub = product.publications?.find((x: any) => x.platform === p.key)

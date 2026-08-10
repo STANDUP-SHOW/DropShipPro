@@ -1,4 +1,5 @@
 import type { Platform } from '@prisma/client'
+import { findCategory } from './categoryCatalog.js'
 
 /**
  * Best-effort mapping from a free-text source category (scraped from the origin
@@ -62,7 +63,13 @@ const DEFAULT_TARGETS: Partial<Record<Platform, string>> = {
   AMAZON: 'Divers',
 }
 
-export function mapCategory(sourceCategory: string | null, platform: Platform): string {
+export function mapCategory(sourceCategory: string | null, platform: Platform, categoryId?: string | null): string {
+  // An explicit pick in the back office always wins over the scraped free text.
+  const chosen = findCategory(categoryId)
+  if (chosen) {
+    return platform === 'OWN_SITE' ? chosen.label : chosen.targets[platform] || chosen.label
+  }
+
   if (platform === 'OWN_SITE') return sourceCategory || 'Divers'
   const normalized = (sourceCategory || '').toLowerCase()
   const rule = RULES.find((r) => r.keywords.some((k) => normalized.includes(k)))

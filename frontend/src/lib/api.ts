@@ -61,6 +61,7 @@ export const api = {
   publishProduct: (id: string, platforms: string[]) =>
     request(`/products/${id}/publish`, { method: 'POST', body: JSON.stringify({ platforms }) }),
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
+  listCategories: () => request<Array<{ id: string; group: string; label: string }>>('/products/meta/categories'),
 
   listOrders: () => request<any[]>('/orders'),
   createOrder: (data: Record<string, unknown>) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),

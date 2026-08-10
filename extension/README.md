@@ -14,14 +14,28 @@ Le backend doit tourner sur `http://localhost:4000` (voir le README racine).
 
 ## Utilisation
 
-1. Cliquez sur l'icône de l'extension → connectez-vous avec votre compte DropShip Pro.
-2. La liste de vos produits importés s'affiche.
-3. Cliquez sur **Vinted**, **Leboncoin** ou **eBay** sous le produit voulu.
-4. L'onglet de la plateforme s'ouvre et le formulaire se remplit tout seul :
-   titre, description, prix et photos filigranées.
-5. Un bandeau violet en haut de page indique ce qui a été rempli et ce qu'il reste
-   à compléter — typiquement **la catégorie**, qui se choisit à la main.
-6. Vous relisez et cliquez sur *Publier* vous-même sur la plateforme.
+Connectez-vous une fois via l'icône de l'extension dans la barre d'outils. Ensuite,
+un bouton violet apparaît automatiquement en bas à droite selon la page :
+
+### Sur une page produit (Temu, JoyBuy, AliExpress)
+
+Bouton **« + Ajouter à DropShip Pro »**. Il lit la page telle qu'elle s'affiche
+dans votre navigateur — donc **avec le prix, la galerie photo et les variantes
+(tailles, couleurs)**, que le serveur ne peut pas récupérer seul : ces sites les
+chargent en JavaScript après l'affichage. Le produit part directement dans votre
+back-office, passe par l'IA et reçoit votre filigrane.
+
+### Sur une page de vente (Vinted, Leboncoin, eBay, Amazon)
+
+Bouton **« ⚡ Publier avec DropShip Pro »**. Il ouvre la liste de vos produits ;
+vous en choisissez un et le formulaire se remplit aussitôt : titre, description,
+prix de revente et photos filigranées.
+
+Un bandeau en haut de page indique ce qui a été rempli et ce qu'il reste à
+compléter — typiquement **la catégorie**, qui se choisit à la main (la catégorie
+suggérée pour cette plateforme est affichée dans le bandeau).
+
+Vous relisez, puis cliquez sur *Publier* vous-même sur la plateforme.
 
 ## Limites connues
 

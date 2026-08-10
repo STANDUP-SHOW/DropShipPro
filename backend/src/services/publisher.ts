@@ -12,7 +12,7 @@ import { mapCategory } from './categoryMapping.js'
  */
 export async function publishToPlatform(productId: string, platform: Platform) {
   const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } })
-  const targetCategory = mapCategory(product.sourceCategory, platform)
+  const targetCategory = mapCategory(product.sourceCategory, platform, product.categoryId)
 
   const isReady = platform === 'OWN_SITE'
 

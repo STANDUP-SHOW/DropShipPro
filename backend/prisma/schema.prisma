@@ -75,6 +75,8 @@ model Product {
   sourceUrl      String
   sourceSite     String?
   sourceCategory String?
+  /// Catalog entry id (see categoryCatalog.ts) chosen by the user; overrides sourceCategory for mapping.
+  categoryId     String?
 
   title       String
   description String  @db.Text

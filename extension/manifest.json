@@ -1,14 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "DropShip Pro — Publication assistée",
-  "version": "0.1.0",
-  "description": "Remplit automatiquement les formulaires de vente Vinted, Leboncoin et eBay avec vos produits DropShip Pro.",
+  "name": "DropShip Pro — Import & publication assistée",
+  "version": "0.2.0",
+  "description": "Ajoutez un produit à DropShip Pro depuis Temu ou JoyBuy, et publiez-le sur Vinted, Leboncoin, eBay ou Amazon avec le formulaire pré-rempli.",
   "permissions": ["storage", "tabs", "scripting"],
   "host_permissions": [
     "http://localhost:4000/*",
+    "https://*.temu.com/*",
+    "https://*.joybuy.com/*",
+    "https://*.aliexpress.com/*",
     "https://*.vinted.fr/*",
     "https://*.leboncoin.fr/*",
-    "https://*.ebay.fr/*"
+    "https://*.ebay.fr/*",
+    "https://*.amazon.fr/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -18,6 +22,21 @@
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": ["https://*.temu.com/*", "https://*.joybuy.com/*", "https://*.aliexpress.com/*"],
+      "js": ["content/fill-helpers.js", "content/capture.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.vinted.fr/*",
+        "https://*.leboncoin.fr/*",
+        "https://*.ebay.fr/*",
+        "https://*.amazon.fr/*"
+      ],
+      "js": ["content/fill-helpers.js", "content/publish-launcher.js"],
+      "run_at": "document_idle"
+    },
     {
       "matches": ["https://*.vinted.fr/items/new*"],
       "js": ["content/fill-helpers.js", "content/vinted.js"],

@@ -9,6 +9,7 @@ import { enhanceListing } from '../services/aiEnhancer.js'
 import { watermarkImages } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
+import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -37,11 +38,13 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
         sourceUrl: parsed.data.url,
         sourceSite: scraped.sourceSite,
         sourceCategory: scraped.sourceCategory,
+        categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
         title: scraped.title,
         description: scraped.description,
         aiTitle: enhanced.title,
         aiDescription: enhanced.description,
         price: scraped.price,
+        sellingPrice: scraped.price * 1.5,
         currency: scraped.currency,
         images: watermarked.length ? watermarked : scraped.images,
         metaTitle: enhanced.metaTitle,
@@ -57,6 +60,64 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
       return res.status(422).json({ error: err.message })
     }
     res.status(502).json({ error: "Impossible d'importer ce produit depuis l'URL fournie" })
+  }
+})
+
+const captureSchema = z.object({
+  sourceUrl: z.string().url(),
+  title: z.string().min(1),
+  description: z.string().default(''),
+  price: z.number().default(0),
+  currency: z.string().default('EUR'),
+  images: z.array(z.string().url()).default([]),
+  sourceCategory: z.string().nullable().default(null),
+  variants: z.any().optional(),
+})
+
+// Import from the Chrome extension: the page is already rendered in the user's
+// browser, so price, gallery and variants arrive filled in — the things the
+// server-side scraper can't reach on Temu/JoyBuy. Everything after that (AI
+// remix, watermark, category guess) is the same pipeline as /import.
+productsRouter.post('/capture', async (req: AuthedRequest, res) => {
+  const parsed = captureSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
+
+  const data = parsed.data
+  try {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+    const enhanced = await enhanceListing({
+      title: data.title,
+      description: data.description,
+      category: data.sourceCategory,
+    })
+    const watermarked = await watermarkImages(data.images, user.watermarkText || user.shopName || 'DropShip Pro')
+
+    const product = await prisma.product.create({
+      data: {
+        userId: req.userId!,
+        sourceUrl: data.sourceUrl,
+        sourceSite: new URL(data.sourceUrl).hostname.replace('www.', ''),
+        sourceCategory: data.sourceCategory,
+        categoryId: guessCategoryId(data.sourceCategory) ?? guessCategoryId(data.title),
+        title: data.title,
+        description: data.description,
+        aiTitle: enhanced.title,
+        aiDescription: enhanced.description,
+        price: data.price,
+        sellingPrice: data.price * 1.5,
+        currency: data.currency,
+        images: watermarked.length ? watermarked : data.images,
+        variants: data.variants ?? undefined,
+        metaTitle: enhanced.metaTitle,
+        metaDescription: enhanced.metaDescription,
+        metaKeywords: enhanced.metaKeywords,
+        status: 'READY',
+      },
+    })
+    res.status(201).json(product)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: "Impossible d'enregistrer ce produit" })
   }
 })
 
@@ -87,6 +148,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
           sourceUrl: url,
           sourceSite: scraped.sourceSite,
           sourceCategory: scraped.sourceCategory,
+        categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
           title: scraped.title,
           description: scraped.description,
           aiTitle: enhanced.title,
@@ -150,6 +212,7 @@ const updateSchema = z.object({
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   metaKeywords: z.string().optional(),
+  categoryId: z.string().nullable().optional(),
 })
 
 productsRouter.patch('/:id', async (req: AuthedRequest, res) => {
@@ -210,5 +273,10 @@ productsRouter.get('/:id/category-preview', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
   const platforms = ['OWN_SITE', 'LEBONCOIN', 'VINTED', 'EBAY', 'AMAZON'] as const
-  res.json(Object.fromEntries(platforms.map((p) => [p, mapCategory(product.sourceCategory, p)])))
+  res.json(Object.fromEntries(platforms.map((p) => [p, mapCategory(product.sourceCategory, p, product.categoryId)])))
+})
+
+/** The category taxonomy that powers the dropdown in the back office. */
+productsRouter.get('/meta/categories', (_req, res) => {
+  res.json(CATEGORY_CATALOG.map(({ id, group, label }) => ({ id, group, label })))
 })
