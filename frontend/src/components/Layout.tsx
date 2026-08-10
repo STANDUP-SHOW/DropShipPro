@@ -4,7 +4,7 @@ import { Logo } from './Logo'
 import { useAuth } from '../lib/auth'
 
 const NAV = [
-  { to: '/dashboard', label: 'Produits', icon: Package },
+  { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/orders', label: 'Commandes', icon: ShoppingBag },
   { to: '/settings', label: 'Réglages', icon: SettingsIcon },
 ]

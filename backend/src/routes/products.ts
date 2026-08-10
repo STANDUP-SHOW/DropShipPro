@@ -32,7 +32,7 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
       description: scraped.description,
       category: scraped.sourceCategory,
     })
-    const watermarked = await watermarkImages(scraped.images, user.watermarkText || user.shopName || 'DropShip Pro')
+    const watermarked = await watermarkImages(scraped.images, user.watermarkText || user.shopName || 'DropShip Pro', enhanced.title)
 
     const product = await prisma.product.create({
       data: {
@@ -94,7 +94,7 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
       description: data.description,
       category: data.sourceCategory,
     })
-    const watermarked = await watermarkImages(data.images, user.watermarkText || user.shopName || 'DropShip Pro')
+    const watermarked = await watermarkImages(data.images, user.watermarkText || user.shopName || 'DropShip Pro', enhanced.title)
 
     const product = await prisma.product.create({
       data: {
@@ -146,7 +146,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
         description: scraped.description,
         category: scraped.sourceCategory,
       })
-      const watermarked = await watermarkImages(scraped.images, user.watermarkText || user.shopName || 'DropShip Pro')
+      const watermarked = await watermarkImages(scraped.images, user.watermarkText || user.shopName || 'DropShip Pro', enhanced.title)
 
       const product = await prisma.product.create({
         data: {

@@ -26,6 +26,24 @@ export default function Dashboard() {
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [batchSummary, setBatchSummary] = useState<string | null>(null)
+  const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [search, setSearch] = useState('')
+
+  const labelById = new Map(catalog.map((c) => [c.id, c.label]))
+
+  const usedCategories = [...new Set(products.map((p) => p.categoryId).filter(Boolean))]
+    .map((id) => ({
+      id: id as string,
+      label: labelById.get(id as string) ?? 'Non classé',
+      count: products.filter((p) => p.categoryId === id).length,
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  const needle = search.trim().toLowerCase()
+  const visible = products
+    .filter((p) => !categoryFilter || p.categoryId === categoryFilter)
+    .filter((p) => !needle || `${p.aiTitle ?? ''} ${p.title ?? ''}`.toLowerCase().includes(needle))
 
   async function load() {
     setLoading(true)
@@ -38,6 +56,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     load()
+    api.listCategories().then(setCatalog)
   }, [])
 
   async function onImport(e: FormEvent) {
@@ -82,7 +101,7 @@ export default function Dashboard() {
     <Layout>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">Produits</h1>
+          <h1 className="text-2xl font-bold">Importer un produit</h1>
           <p className="text-gray-400 text-sm mt-1">Collez l'URL d'un produit — Temu, JoyBuy, ou n'importe quel site.</p>
         </div>
         <a
@@ -142,13 +161,55 @@ export default function Dashboard() {
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
 
       <div className="mt-8">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-lg font-bold">Mes annonces</h2>
+          <span className="text-xs text-gray-400">
+            {visible.length} / {products.length} annonce(s)
+          </span>
+        </div>
+
+        {/* Category filter, built from the categories actually present so the bar
+            never offers a filter that would return nothing. */}
+        {usedCategories.length > 0 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            <button
+              onClick={() => setCategoryFilter('')}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                categoryFilter === '' ? 'btn-gradient text-white' : 'border border-white/10 text-gray-300 hover:bg-white/5'
+              }`}
+            >
+              Toutes
+            </button>
+            {usedCategories.map(({ id, label, count }) => (
+              <button
+                key={id}
+                onClick={() => setCategoryFilter(id)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  categoryFilter === id ? 'btn-gradient text-white' : 'border border-white/10 text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                {label} <span className="opacity-60">{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher dans mes annonces…"
+          className="mt-3 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+        />
+
         {loading ? (
-          <p className="text-gray-400 text-sm">Chargement...</p>
-        ) : products.length === 0 ? (
-          <p className="text-gray-400 text-sm">Aucun produit importé pour le moment.</p>
+          <p className="text-gray-400 text-sm mt-4">Chargement...</p>
+        ) : visible.length === 0 ? (
+          <p className="text-gray-400 text-sm mt-4">
+            {products.length === 0 ? 'Aucune annonce pour le moment.' : 'Aucune annonce ne correspond à ce filtre.'}
+          </p>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {products.map((p) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+            {visible.map((p) => (
               <Link
                 key={p.id}
                 to={`/products/${p.id}`}
