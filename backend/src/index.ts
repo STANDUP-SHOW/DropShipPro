@@ -10,12 +10,22 @@ import { publicRouter } from './routes/public.js'
 
 const app = express()
 
-// The browser extension calls this API from a chrome-extension:// origin, and its
-// content scripts fetch product photos from the marketplace page's own origin.
+// A deployed app is reached from several origins at once — the custom domain, its
+// www variant and the platform URL — so FRONTEND_URL accepts a comma-separated
+// list rather than a single value. The browser extension calls the API from a
+// chrome-extension:// origin, whose id differs per install.
+const ALLOWED_ORIGINS = (process.env.FRONTEND_URL ?? '')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean)
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowed = !origin || origin === process.env.FRONTEND_URL || origin.startsWith('chrome-extension://')
+      // No Origin header: same-origin call, curl or a health probe.
+      if (!origin) return callback(null, true)
+      const normalized = origin.replace(/\/$/, '')
+      const allowed = ALLOWED_ORIGINS.includes(normalized) || normalized.startsWith('chrome-extension://')
       callback(null, allowed)
     },
   }),
