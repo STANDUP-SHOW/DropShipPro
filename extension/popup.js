@@ -31,24 +31,51 @@ async function api(path, options = {}) {
   return res.json()
 }
 
-async function renderSettings() {
+async function renderSettings(error) {
   const [apiBase, appUrl] = await Promise.all([getApiBase(), getAppUrl()])
   app.innerHTML = `
-    <p class="muted">Adresses de votre installation DropShipper IA.</p>
-    <label class="muted">API (backend)</label>
+    <p class="muted">Deux adresses <b>différentes</b> : le serveur, et le site.</p>
+
+    <label class="muted" style="margin-top:8px;display:block">API — le serveur</label>
     <input id="apiBase" type="url" value="${apiBase}" placeholder="https://xxx.up.railway.app" />
-    <label class="muted" style="margin-top:8px;display:block">Application (frontend)</label>
-    <input id="appUrl" type="url" value="${appUrl}" placeholder="https://xxx.vercel.app" />
-    <button class="primary" id="saveCfg">Enregistrer</button>
+    <p class="muted" style="margin-top:3px">Ce n'est <b>pas</b> l'adresse de votre site : elle se termine en général par <b>.up.railway.app</b></p>
+
+    <label class="muted" style="margin-top:10px;display:block">Application — le site</label>
+    <input id="appUrl" type="url" value="${appUrl}" placeholder="https://www.mon-site.fr" />
+
+    <button class="primary" id="saveCfg">Vérifier et enregistrer</button>
+    ${error ? `<p class="error">${error}</p>` : ''}
     <p class="link" id="backCfg" style="margin-top:10px">Retour</p>
   `
+
   document.getElementById('saveCfg').addEventListener('click', async () => {
-    await setApiBase(document.getElementById('apiBase').value.trim())
-    await setAppUrl(document.getElementById('appUrl').value.trim())
+    const btn = document.getElementById('saveCfg')
+    const api = document.getElementById('apiBase').value.trim().replace(/\/$/, '')
+    const site = document.getElementById('appUrl').value.trim().replace(/\/$/, '')
+
+    btn.disabled = true
+    btn.textContent = 'Vérification…'
+
+    // The classic mistake is pasting the site address in the API field: the
+    // frontend host serves static files and answers 405 to every POST, which is
+    // impossible to diagnose from the outside. So the address is tested first.
+    try {
+      const res = await fetch(`${api}/api/health`)
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok || !body.ok) throw new Error('reponse inattendue')
+    } catch {
+      return renderSettings(
+        "Cette adresse ne répond pas comme l'API DropShipper IA. Avez-vous saisi l'adresse du site à la place de celle du serveur ?",
+      )
+    }
+
+    await setApiBase(api)
+    if (site) await setAppUrl(site)
     // Drop the old session: a token issued by another backend isn't valid here.
     await chrome.storage.local.remove('token')
     renderLogin()
   })
+
   document.getElementById('backCfg').addEventListener('click', () => start())
 }
 
