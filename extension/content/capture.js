@@ -200,15 +200,9 @@
     }
 
     button.disabled = true
-    button.textContent = 'Lecture des photos…'
+    button.textContent = 'Import en cours…'
     try {
-      const res = await fetch(`${await getApiBase()}/api/products/capture`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`)
+      await apiFetch('/api/products/capture', { method: 'POST', body: payload })
       showBanner(
         `Ajouté à DropShip Pro : ${payload.images.length} photo(s), prix ${payload.price || '—'} ${payload.currency}.`,
       )
@@ -220,8 +214,33 @@
     }
   }
 
+  /**
+   * Is this a product page?
+   *
+   * The script now runs on every site so any supplier can be imported, but the
+   * button must not appear on a home page, a search result or a blog post. These
+   * are the marks a real product page carries.
+   */
+  function looksLikeProductPage() {
+    const ogType = document.querySelector('meta[property="og:type"]')?.content ?? ''
+    if (/product/i.test(ogType)) return true
+
+    if (document.querySelector('meta[property="product:price:amount"]')) return true
+
+    for (const el of document.querySelectorAll('script[type="application/ld+json"]')) {
+      if (/"@type"\s*:\s*"?\[?[^]{0,40}Product/i.test(el.textContent || '')) return true
+    }
+
+    // Otherwise: a title, a visible price and an image large enough to be a photo.
+    const hasTitle = Boolean(document.querySelector('h1')?.textContent?.trim())
+    const hasPrice = collectPrice() > 0
+    const hasPhoto = [...document.querySelectorAll('img')].some((i) => (i.naturalWidth || i.width) >= 300)
+    return hasTitle && hasPrice && hasPhoto
+  }
+
   function mountButton() {
     if (document.getElementById('dsp-capture-btn')) return
+    if (!looksLikeProductPage()) return
     const button = document.createElement('button')
     button.id = 'dsp-capture-btn'
     button.textContent = '+ Ajouter à DropShip Pro'

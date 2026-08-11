@@ -21,9 +21,7 @@
   async function fetchProducts() {
     const { token } = await chrome.storage.local.get('token')
     if (!token) throw new Error('non-connecté')
-    const res = await fetch(`${await getApiBase()}/api/products`, { headers: { Authorization: `Bearer ${token}` } })
-    if (!res.ok) throw new Error(`Erreur ${res.status}`)
-    return res.json()
+    return apiFetch('/api/products')
   }
 
   function closePicker() {
@@ -97,11 +95,7 @@
     const { token } = await chrome.storage.local.get('token')
     // Resolved before the map further down: that callback isn't async.
     const apiBase = await getApiBase()
-    const categories = await fetch(`${apiBase}/api/products/${product.id}/category-preview`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .catch(() => ({}))
+    const categories = await apiFetch(`/api/products/${product.id}/category-preview`).catch(() => ({}))
 
     await chrome.storage.local.set({
       pendingListing: {

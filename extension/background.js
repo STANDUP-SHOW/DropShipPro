@@ -159,6 +159,36 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.local.remove(`job_${tabId}`))
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Proxy for content scripts: see apiFetch() in config.js for why they can't
+  // call the API themselves.
+  if (message?.type === 'dsp-api-fetch') {
+    ;(async () => {
+      try {
+        const { token } = await chrome.storage.local.get('token')
+        if (!token) return sendResponse({ ok: false, error: "Connectez-vous via l'icône DropShip Pro" })
+
+        const res = await fetch(`${await getApiBase()}${message.path}`, {
+          method: message.method,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: message.body ? JSON.stringify(message.body) : undefined,
+        })
+        const data = await res.json().catch(() => ({}))
+        sendResponse(
+          res.ok
+            ? { ok: true, data }
+            : { ok: false, status: res.status, error: data.error || `Erreur ${res.status}` },
+        )
+      } catch (err) {
+        // Almost always the API being unreachable: wrong address, or server down.
+        sendResponse({
+          ok: false,
+          error: `API injoignable (${await getApiBase()}). Vérifiez l'adresse dans le popup de l'extension.`,
+        })
+      }
+    })()
+    return true
+  }
+
   // Launched from the DropShip Pro web app (relayed by content/app-bridge.js).
   if (message?.type === 'dsp-start-session') {
     runSession(message.payload)

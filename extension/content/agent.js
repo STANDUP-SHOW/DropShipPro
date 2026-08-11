@@ -67,18 +67,7 @@
     return /connectez-vous|se connecter pour|veuillez vous connecter|sign in to continue/.test(text)
   }
 
-  async function api(path, options = {}) {
-    const { token } = await chrome.storage.local.get('token')
-    const res = await fetch(`${await getApiBase()}${path}`, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      throw new Error(body.error || `Erreur ${res.status}`)
-    }
-    return res.json()
-  }
+  const api = (path, options) => apiFetch(path, options)
 
   function applyPlan(plan, els) {
     let applied = 0
@@ -112,10 +101,7 @@
     const { els, fields } = collectFields()
     if (!fields.length) return { status: 'no-form' }
 
-    const plan = await api(`/api/products/${job.productId}/fill-plan`, {
-      method: 'POST',
-      body: JSON.stringify({ platform: job.platform, fields }),
-    })
+    const plan = await api(`/api/products/${job.productId}/fill-plan`, { method: 'POST', body: { platform: job.platform, fields } })
 
     const applied = applyPlan(plan, els)
     const fileInput = document.querySelector('input[type="file"]')
