@@ -34,7 +34,7 @@ async function api(path, options = {}) {
 async function renderSettings() {
   const [apiBase, appUrl] = await Promise.all([getApiBase(), getAppUrl()])
   app.innerHTML = `
-    <p class="muted">Adresses de votre installation DropShip Pro.</p>
+    <p class="muted">Adresses de votre installation DropShipper IA.</p>
     <label class="muted">API (backend)</label>
     <input id="apiBase" type="url" value="${apiBase}" placeholder="https://xxx.up.railway.app" />
     <label class="muted" style="margin-top:8px;display:block">Application (frontend)</label>
@@ -54,7 +54,7 @@ async function renderSettings() {
 
 function renderLogin(error) {
   app.innerHTML = `
-    <p class="muted">Connectez-vous à votre compte DropShip Pro.</p>
+    <p class="muted">Connectez-vous à votre compte DropShipper IA.</p>
     <input id="email" type="email" placeholder="Email" />
     <input id="password" type="password" placeholder="Mot de passe" />
     <button class="primary" id="loginBtn">Se connecter</button>
@@ -75,6 +75,62 @@ function renderLogin(error) {
   })
 }
 
+/**
+ * Panel offering to activate the capture button on the site currently open.
+ *
+ * The extension asks Chrome for that one origin rather than shipping a blanket
+ * permission on every site: the user sees which site is concerned, and grants it
+ * knowingly.
+ */
+async function renderSiteBox() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.url || !tab.url.startsWith('https://')) return ''
+
+  const origin = new URL(tab.url).origin
+  const host = new URL(tab.url).hostname.replace('www.', '')
+  const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
+  const already = approvedSites.includes(origin)
+
+  return `
+    <div class="site-box ${already ? 'on' : ''}">
+      ${
+        already
+          ? `<div class="site-title">✨ Bouton actif sur <b>${host}</b></div>
+             <p class="muted">Ouvrez une fiche produit : le bouton apparaît en bas à droite.</p>
+             <button class="ghost" id="siteOff" data-origin="${origin}">Retirer de ce site</button>`
+          : `<div class="site-title">✨ Ajouter le bouton à <b>${host}</b></div>
+             <p class="muted">Chrome vous demandera l'autorisation pour ce site : acceptez-la.
+             Un bouton apparaîtra alors en bas à droite de vos onglets pour envoyer le produit
+             consulté vers DropShipper IA, sans copier-coller.</p>
+             <button class="primary" id="siteOn" data-origin="${origin}">Ajouter le bouton à ce site</button>`
+      }
+    </div>`
+}
+
+function wireSiteBox() {
+  document.getElementById('siteOn')?.addEventListener('click', async (e) => {
+    const origin = e.target.dataset.origin
+    // Must be called straight from the click: Chrome refuses the prompt otherwise.
+    const granted = await chrome.permissions.request({ origins: [`${origin}/*`] })
+    if (!granted) return
+
+    const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
+    await chrome.storage.local.set({ approvedSites: [...new Set([...approvedSites, origin])] })
+
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (tab?.id) chrome.tabs.reload(tab.id)
+    window.close()
+  })
+
+  document.getElementById('siteOff')?.addEventListener('click', async (e) => {
+    const origin = e.target.dataset.origin
+    const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
+    await chrome.storage.local.set({ approvedSites: approvedSites.filter((o) => o !== origin) })
+    await chrome.permissions.remove({ origins: [`${origin}/*`] })
+    start()
+  })
+}
+
 async function renderProducts() {
   app.innerHTML = '<p class="muted">Chargement des produits…</p>'
   let products
@@ -89,11 +145,15 @@ async function renderProducts() {
   }
 
   if (!products.length) {
-    app.innerHTML = '<p class="muted">Aucun produit importé. Ajoutez-en depuis l\'application.</p>'
+    app.innerHTML = (await renderSiteBox()) + '<p class="muted">Aucune annonce pour le moment.</p>'
+    wireSiteBox()
     return
   }
 
+  const siteBox = await renderSiteBox()
+
   app.innerHTML =
+    siteBox +
     products
       .map((p) => {
         const finalPrice = (Number(p.price) * (1 + p.markupPercent / 100)).toFixed(2)
@@ -113,6 +173,7 @@ async function renderProducts() {
 
   document.getElementById('openCfg2').addEventListener('click', renderSettings)
 
+  wireSiteBox()
   app.querySelectorAll('button[data-target]').forEach((btn) => {
     btn.addEventListener('click', () => startFill(btn.dataset.product, btn.dataset.target, btn))
   })

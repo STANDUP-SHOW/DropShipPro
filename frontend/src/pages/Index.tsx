@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Zap, Globe, ShieldCheck, ArrowRight } from 'lucide-react'
 import { Logo } from '../components/Logo'
-import { isAuthed } from '../lib/api'
+import { isAuthed, assetUrl } from '../lib/api'
 
 const FEATURES = [
   {
@@ -45,12 +45,35 @@ export default function Index() {
           Importez un produit depuis n'importe quel site, l'IA améliore l'annonce pour les marketplaces, ajoute votre
           filigrane, et publie sur toutes les plateformes en un clic.
         </p>
-        <Link
-          to={isAuthed() ? '/dashboard' : '/register'}
-          className="btn-gradient inline-flex items-center gap-2 mt-8 rounded-xl px-6 py-3 font-semibold shadow-lg shadow-purple-900/40 hover:opacity-90 transition"
-        >
-          Commencer maintenant <ArrowRight size={18} />
-        </Link>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to={isAuthed() ? '/dashboard' : '/register'}
+            className="btn-gradient inline-flex items-center gap-2 rounded-xl px-6 py-3 font-semibold shadow-lg shadow-purple-900/40 hover:opacity-90 transition"
+          >
+            Commencer maintenant <ArrowRight size={18} />
+          </Link>
+
+          {/* Same visual weight as the primary action: the extension is the fullest
+              way to import, and it was previously buried in the settings page. */}
+          <a
+            href={assetUrl('/api/public/extension.zip')}
+            download="dropshipper-ia-extension.zip"
+            className="inline-flex items-center gap-2.5 rounded-xl border-2 border-white/20 bg-white/5 px-6 py-3 font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+          >
+            <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true">
+              <circle cx="24" cy="24" r="9" fill="#fff" />
+              <path d="M24 4a20 20 0 0 1 17.32 10H24a10 10 0 0 0-9.53 6.94L6.7 13.9A20 20 0 0 1 24 4Z" fill="#ea4335" />
+              <path d="M6.7 13.9 14.47 27.4A10 10 0 0 0 24 34c.7 0 1.37-.07 2.02-.2l-7.7 13.34A20 20 0 0 1 6.7 13.9Z" fill="#34a853" />
+              <path d="M41.32 14A20 20 0 0 1 26.02 47.8L33.7 34.4A10 10 0 0 0 34 14Z" fill="#fbbc05" />
+            </svg>
+            Télécharger l'extension Chrome
+          </a>
+        </div>
+
+        <p className="mt-3 text-xs text-gray-400">
+          Importez un produit d'un simple clic depuis n'importe quelle boutique, avec ses photos,
+          son prix et ses variantes.
+        </p>
 
         <div className="grid md:grid-cols-3 gap-5 mt-20 text-left">
           {FEATURES.map((f) => (

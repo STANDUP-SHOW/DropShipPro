@@ -1,5 +1,5 @@
 /**
- * "Ajouter à DropShip Pro" button, injected on supplier product pages
+ * "Ajouter à DropShipper IA" button, injected on supplier product pages
  * (Temu, JoyBuy, AliExpress…).
  *
  * This is what the server-side scraper can't do: those sites load price and the
@@ -189,7 +189,7 @@
   async function send(button) {
     const { token } = await chrome.storage.local.get('token')
     if (!token) {
-      showBanner("Connectez-vous d'abord via l'icône DropShip Pro dans la barre d'outils.", 'error')
+      showBanner("Connectez-vous d'abord via l'icône DropShipper IA dans la barre d'outils.", 'error')
       return
     }
 
@@ -202,11 +202,15 @@
     button.disabled = true
     button.textContent = 'Import en cours…'
     try {
-      await apiFetch('/api/products/capture', { method: 'POST', body: payload })
+      const product = await apiFetch('/api/products/capture', { method: 'POST', body: payload })
       showBanner(
-        `Ajouté à DropShip Pro : ${payload.images.length} photo(s), prix ${payload.price || '—'} ${payload.currency}.`,
+        `Ajouté à DropShipper IA : ${payload.images.length} photo(s), prix ${payload.price || '—'} ${payload.currency}. Ouverture de l'annonce…`,
       )
       button.textContent = '✓ Ajouté'
+
+      // Take the seller straight to the listing, which is the point of the button:
+      // no copying a link, no hunting for the product in the back office.
+      chrome.runtime.sendMessage({ type: 'dsp-open-product', productId: product?.id })
     } catch (err) {
       showBanner(`Échec de l'import : ${err.message}`, 'error')
       button.textContent = 'Réessayer'
@@ -238,18 +242,41 @@
     return hasTitle && hasPrice && hasPhoto
   }
 
-  function mountButton() {
-    if (document.getElementById('dsp-capture-btn')) return
+  /** Sites the user has silenced with "Jamais sur ce site". */
+  async function isMuted() {
+    const { mutedSites = [] } = await chrome.storage.local.get('mutedSites')
+    return mutedSites.includes(location.origin)
+  }
+
+  async function mute() {
+    const { mutedSites = [] } = await chrome.storage.local.get('mutedSites')
+    await chrome.storage.local.set({ mutedSites: [...new Set([...mutedSites, location.origin])] })
+    document.getElementById('dsp-capture-wrap')?.remove()
+  }
+
+  async function mountButton() {
+    if (document.getElementById('dsp-capture-wrap')) return
     if (!looksLikeProductPage()) return
-    const button = document.createElement('button')
-    button.id = 'dsp-capture-btn'
-    button.textContent = '+ Ajouter à DropShip Pro'
-    Object.assign(button.style, {
+    if (await isMuted()) return
+
+    const wrap = document.createElement('div')
+    wrap.id = 'dsp-capture-wrap'
+    Object.assign(wrap.style, {
       position: 'fixed',
       right: '20px',
       bottom: '20px',
       zIndex: '2147483646',
-      padding: '12px 18px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '6px',
+    })
+
+    const button = document.createElement('button')
+    button.id = 'dsp-capture-btn'
+    button.textContent = '✨ Ajouter à DropShipper IA'
+    Object.assign(button.style, {
+      padding: '12px 20px',
       border: '0',
       borderRadius: '10px',
       font: '600 14px system-ui, sans-serif',
@@ -259,7 +286,26 @@
       cursor: 'pointer',
     })
     button.addEventListener('click', () => send(button))
-    document.body.appendChild(button)
+
+    // Deliberately readable rather than a discreet cross: a floating button on
+    // someone's browsing needs an obvious way out.
+    const never = document.createElement('button')
+    never.textContent = 'Jamais sur ce site'
+    Object.assign(never.style, {
+      border: '0',
+      background: 'rgba(20,24,44,.82)',
+      color: '#cbd5e1',
+      font: '500 11px system-ui, sans-serif',
+      padding: '5px 12px',
+      borderRadius: '999px',
+      cursor: 'pointer',
+      backdropFilter: 'blur(4px)',
+      textDecoration: 'underline',
+    })
+    never.addEventListener('click', mute)
+
+    wrap.append(button, never)
+    document.body.appendChild(wrap)
   }
 
   // These pages are SPAs: the product view can mount well after load, and moving

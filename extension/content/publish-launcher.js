@@ -1,5 +1,5 @@
 /**
- * "Publier avec DropShip Pro" launcher, injected on marketplace listing forms.
+ * "Publier avec DropShipper IA" launcher, injected on marketplace listing forms.
  *
  * Opens a product picker in-page; choosing one queues it and immediately runs the
  * platform's fill script, so the user never has to go back to the toolbar popup.
@@ -58,13 +58,13 @@
     } catch (err) {
       panel.innerHTML =
         err.message === 'non-connecté'
-          ? '<b>DropShip Pro</b><p style="color:#f87171">Connectez-vous via l\'icône de l\'extension.</p>'
-          : `<b>DropShip Pro</b><p style="color:#f87171">${err.message}</p>`
+          ? '<b>DropShipper IA</b><p style="color:#f87171">Connectez-vous via l\'icône de l\'extension.</p>'
+          : `<b>DropShipper IA</b><p style="color:#f87171">${err.message}</p>`
       return
     }
 
     if (!products.length) {
-      panel.innerHTML = '<b>DropShip Pro</b><p style="color:#9ca3af">Aucun produit importé.</p>'
+      panel.innerHTML = '<b>DropShipper IA</b><p style="color:#9ca3af">Aucun produit importé.</p>'
       return
     }
 
@@ -116,7 +116,7 @@
     if (!PLATFORM || document.getElementById('dsp-publish-btn')) return
     const button = document.createElement('button')
     button.id = 'dsp-publish-btn'
-    button.textContent = '⚡ Publier avec DropShip Pro'
+    button.textContent = '⚡ Publier avec DropShipper IA'
     Object.assign(button.style, {
       position: 'fixed',
       right: '20px',

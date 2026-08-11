@@ -5,7 +5,7 @@
  * and would never cover 19 destinations), it:
  *   1. detects whether the user is logged in, and waits if not,
  *   2. serialises whatever form the page actually shows,
- *   3. asks the DropShip Pro API which value goes in which field,
+ *   3. asks the DropShipper IA API which value goes in which field,
  *   4. types the answers in and uploads the photos.
  *
  * It never fills credentials, and never clicks the final publish button: the seller
@@ -91,12 +91,12 @@
 
   async function run(job) {
     if (looksLoggedOut()) {
-      showBanner(`Connectez-vous à ${job.platformLabel}, DropShip Pro démarrera tout seul.`, 'error')
+      showBanner(`Connectez-vous à ${job.platformLabel}, DropShipper IA démarrera tout seul.`, 'error')
       chrome.runtime.sendMessage({ type: 'dsp-needs-login', platform: job.platform })
       return { status: 'awaiting-login' }
     }
 
-    showBanner(`DropShip Pro travaille sur ${job.platformLabel} — ne fermez pas cet onglet.`)
+    showBanner(`DropShipper IA travaille sur ${job.platformLabel} — ne fermez pas cet onglet.`)
 
     const { els, fields } = collectFields()
     if (!fields.length) return { status: 'no-form' }

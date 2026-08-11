@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard'
 import ProductDetail from './pages/ProductDetail'
 import Orders from './pages/Orders'
 import Settings from './pages/Settings'
+import Guide from './pages/Guide'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
+          <Route path="/guide" element={<Protected><Guide /></Protected>} />
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
         </Routes>
       </AuthProvider>

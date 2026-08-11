@@ -517,7 +517,7 @@ export default function ProductDetail() {
             <Download size={15} /> Télécharger les photos à glisser dans le formulaire
           </button>
           <p className="text-xs text-gray-500 mt-3">
-            Astuce : l'extension navigateur DropShip Pro (à venir) remplira ce formulaire automatiquement.
+            Astuce : l'extension navigateur DropShipper IA (à venir) remplira ce formulaire automatiquement.
           </p>
         </div>
       )}

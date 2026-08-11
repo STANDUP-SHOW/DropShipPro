@@ -9,7 +9,7 @@
   const listing = await consumePendingListing('LEBONCOIN')
   if (!listing) return
 
-  showBanner('DropShip Pro : remplissage en cours…')
+  showBanner('DropShipper IA : remplissage en cours…')
 
   await waitFor('input[name="subject"], input[name="title"], textarea[name="body"]')
 

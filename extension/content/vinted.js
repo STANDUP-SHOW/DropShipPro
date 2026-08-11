@@ -10,7 +10,7 @@
   const listing = await consumePendingListing('VINTED')
   if (!listing) return
 
-  showBanner('DropShip Pro : remplissage en cours…')
+  showBanner('DropShipper IA : remplissage en cours…')
 
   await waitFor('input[name="title"], input#title, [data-testid="title--input"]')
 

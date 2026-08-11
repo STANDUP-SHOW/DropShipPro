@@ -9,7 +9,7 @@
   const listing = await consumePendingListing('EBAY')
   if (!listing) return
 
-  showBanner('DropShip Pro : remplissage en cours…')
+  showBanner('DropShipper IA : remplissage en cours…')
 
   await waitFor('input[name="title"], input#s0-1-24-7-8-primaryTitle, textarea[name="description"]')
 

@@ -1,5 +1,5 @@
 /**
- * Bridge between the DropShip Pro web app and the extension.
+ * Bridge between the DropShipper IA web app and the extension.
  *
  * Runs only on the app's own origin. The app can't message the extension directly
  * without knowing its generated id, so it posts a window message and this relays it

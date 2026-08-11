@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../lib/auth'
 
 const NAV = [
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/orders', label: 'Commandes', icon: ShoppingBag },
+  { to: '/guide', label: 'Aide', icon: BookOpen },
   { to: '/settings', label: 'Réglages', icon: SettingsIcon },
 ]
 

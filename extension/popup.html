@@ -36,12 +36,25 @@
       }
       .targets button:hover { background: rgba(255,255,255,.14); }
       .muted { color: #9ca3af; font-size: 11px; }
+      .site-box {
+        border: 1px solid rgba(240,168,30,.45);
+        background: rgba(240,168,30,.10);
+        border-radius: 10px;
+        padding: 11px;
+        margin-bottom: 12px;
+      }
+      .site-box.on { border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.10); }
+      .site-title { font-weight: 600; font-size: 12.5px; margin-bottom: 5px; }
+      .site-box .muted { line-height: 1.5; }
+      .site-box button { width: 100%; margin-top: 9px; padding: 8px; border: 0; border-radius: 7px; font-weight: 600; font-size: 12px; cursor: pointer; }
+      .site-box .primary { background: linear-gradient(90deg,#a855f7,#ec4899); color: #fff; }
+      .site-box .ghost { background: rgba(255,255,255,.08); color: #e5e7eb; border: 1px solid rgba(255,255,255,.15); }
       .error { color: #f87171; font-size: 11px; margin-top: 6px; }
       .link { color: #d8b4fe; cursor: pointer; text-decoration: underline; font-size: 11px; }
     </style>
   </head>
   <body>
-    <header><span class="brand">DropShip Pro</span></header>
+    <header><span class="brand">DropShipper IA</span></header>
     <main id="app"><p class="muted">Chargement…</p></main>
     <script src="config.js"></script>
     <script src="popup.js"></script>

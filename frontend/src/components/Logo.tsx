@@ -16,7 +16,7 @@ export function Logo({ size = 28 }: { size?: number }) {
           </linearGradient>
         </defs>
       </svg>
-      DropShip Pro
+      DropShipper IA
     </div>
   )
 }

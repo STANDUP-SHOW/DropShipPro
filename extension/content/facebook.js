@@ -10,7 +10,7 @@
   const listing = await consumePendingListing('FACEBOOK')
   if (!listing) return
 
-  showBanner('DropShip Pro : remplissage en cours…')
+  showBanner('DropShipper IA : remplissage en cours…')
 
   await waitFor('input[type="text"], textarea, [role="textbox"]')
 

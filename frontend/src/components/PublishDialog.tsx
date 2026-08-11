@@ -82,7 +82,7 @@ export function PublishDialog({
       const result = await startExtensionSession(productId, selected)
       setMessage(
         result.ok
-          ? `Diffusion lancée : un onglet par plateforme vient de s'ouvrir. Ne les fermez pas, DropShip Pro remplit les annonces.`
+          ? `Diffusion lancée : un onglet par plateforme vient de s'ouvrir. Ne les fermez pas, DropShipper IA remplit les annonces.`
           : "Annonce enregistrée. Installez l'extension Chrome pour que le remplissage se fasse tout seul.",
       )
     } finally {

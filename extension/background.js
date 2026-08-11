@@ -5,10 +5,12 @@ importScripts('config.js')
 chrome.runtime.onStartup.addListener(() => {
   chrome.storage.local.remove(['pendingListing', 'session'])
   registerAppBridge()
+  registerApprovedSites()
 })
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.remove(['pendingListing', 'session'])
   registerAppBridge()
+  registerApprovedSites()
 })
 
 /**
@@ -40,6 +42,40 @@ async function registerAppBridge() {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.appUrl) registerAppBridge()
+})
+
+/**
+ * Re-registers the capture button on every site the user has approved.
+ *
+ * The extension no longer injects itself everywhere: each site is authorised from
+ * the popup, which asks Chrome for that origin only. Registrations don't survive a
+ * browser restart, so they are rebuilt from the stored list.
+ */
+async function registerApprovedSites() {
+  const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: ['dsp-capture'] })
+  } catch {
+    // Not registered yet.
+  }
+  if (!approvedSites.length) return
+
+  try {
+    await chrome.scripting.registerContentScripts([
+      {
+        id: 'dsp-capture',
+        matches: approvedSites.map((origin) => `${origin}/*`),
+        js: ['config.js', 'content/fill-helpers.js', 'content/capture.js'],
+        runAt: 'document_idle',
+      },
+    ])
+  } catch (err) {
+    console.error('enregistrement des sites autorisés impossible', err)
+  }
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.approvedSites) registerApprovedSites()
 })
 
 const FILL_SCRIPTS = {
@@ -86,7 +122,7 @@ async function runSession({ productId, platforms }) {
     .filter((p) => p && p.sellUrl && !p.unavailable)
 
   if (!targets.length) {
-    notify('DropShip Pro', "Aucune plateforme sélectionnée n'a de formulaire de dépôt.")
+    notify('DropShipper IA', "Aucune plateforme sélectionnée n'a de formulaire de dépôt.")
     return
   }
 
@@ -110,7 +146,7 @@ async function runSession({ productId, platforms }) {
   try {
     const groupId = await chrome.tabs.group({ tabIds })
     await chrome.tabGroups.update(groupId, {
-      title: `DropShip Pro — ${product.aiTitle || product.title}`.slice(0, 40),
+      title: `DropShipper IA — ${product.aiTitle || product.title}`.slice(0, 40),
       color: 'purple',
     })
   } catch {
@@ -119,7 +155,7 @@ async function runSession({ productId, platforms }) {
 
   notify(
     'Diffusion lancée',
-    `${targets.length} onglet(s) ouverts. Ne les fermez pas tant que DropShip Pro travaille.`,
+    `${targets.length} onglet(s) ouverts. Ne les fermez pas tant que DropShipper IA travaille.`,
   )
 }
 
@@ -165,7 +201,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     ;(async () => {
       try {
         const { token } = await chrome.storage.local.get('token')
-        if (!token) return sendResponse({ ok: false, error: "Connectez-vous via l'icône DropShip Pro" })
+        if (!token) return sendResponse({ ok: false, error: "Connectez-vous via l'icône DropShipper IA" })
 
         const res = await fetch(`${await getApiBase()}${message.path}`, {
           method: message.method,
@@ -189,7 +225,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true
   }
 
-  // Launched from the DropShip Pro web app (relayed by content/app-bridge.js).
+  // Launched from the DropShipper IA web app (relayed by content/app-bridge.js).
   if (message?.type === 'dsp-start-session') {
     runSession(message.payload)
       .then(() => sendResponse({ ok: true }))
@@ -213,6 +249,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .executeScript({ target: { tabId }, files: ['config.js', 'content/fill-helpers.js', file] })
       .then(() => sendResponse({ ok: true }))
       .catch((err) => sendResponse({ ok: false, error: err.message }))
+    return true
+  }
+
+  // Opens the freshly captured listing, reusing the app's tab when one is already
+  // open rather than piling up duplicates.
+  if (message?.type === 'dsp-open-product') {
+    ;(async () => {
+      const appUrl = await getAppUrl()
+      const target = message.productId ? `${appUrl}/products/${message.productId}` : `${appUrl}/dashboard`
+      const [existing] = await chrome.tabs.query({ url: `${appUrl}/*` })
+      if (existing?.id) {
+        await chrome.tabs.update(existing.id, { url: target, active: true })
+        await chrome.windows.update(existing.windowId, { focused: true })
+      } else {
+        await chrome.tabs.create({ url: target, active: true })
+      }
+      sendResponse({ ok: true })
+    })()
     return true
   }
 
