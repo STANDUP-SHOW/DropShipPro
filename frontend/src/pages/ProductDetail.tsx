@@ -437,6 +437,7 @@ export default function ProductDetail() {
                 <label className="text-xs text-gray-400">Prix d'achat</label>
                 <PriceInput
                   value={purchasePrice}
+                  onLiveChange={setPurchasePrice}
                   onCommit={(v) => {
                     setPurchasePrice(v)
                     saveField('price', v)
@@ -448,6 +449,7 @@ export default function ProductDetail() {
                 <label className="text-xs text-gray-400">Transport</label>
                 <PriceInput
                   value={shippingCost}
+                  onLiveChange={setShippingCost}
                   onCommit={(v) => {
                     setShippingCost(v)
                     saveField('shippingCost', v)
@@ -461,6 +463,7 @@ export default function ProductDetail() {
               <label className="text-xs text-gray-400">Prix de revente — affiché sur l'annonce</label>
               <PriceInput
                 value={sellingPrice}
+                onLiveChange={setSellingPrice}
                 onCommit={(v) => {
                   setSellingPrice(v)
                   saveField('sellingPrice', v)

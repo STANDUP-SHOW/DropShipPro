@@ -10,14 +10,24 @@ import { useEffect, useRef, useState } from 'react'
  *
  * The raw text is kept while typing and only converted on blur.
  */
+/** Reads a typed amount, tolerating a comma and stray characters. */
+function parseAmount(raw: string): number | null {
+  const parsed = parseFloat(raw.replace(',', '.').replace(/[^\d.-]/g, ''))
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) / 100 : null
+}
+
 export function PriceInput({
   value,
   onCommit,
+  onLiveChange,
   className = '',
   ...rest
 }: {
   value: number
+  /** Called when the field is left: the moment to persist. */
   onCommit: (value: number) => void
+  /** Called on every keystroke, so figures computed from this value follow along. */
+  onLiveChange?: (value: number) => void
   className?: string
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'onBlur' | 'type'>) {
   const ref = useRef<HTMLInputElement>(null)
@@ -30,8 +40,7 @@ export function PriceInput({
   }, [value])
 
   function commit() {
-    const parsed = parseFloat(text.replace(',', '.').replace(/[^\d.-]/g, ''))
-    const next = Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) / 100 : 0
+    const next = parseAmount(text) ?? 0
     setText(String(next))
     if (next !== value) onCommit(next)
   }
@@ -44,7 +53,13 @@ export function PriceInput({
       type="text"
       inputMode="decimal"
       value={text}
-      onChange={(e) => setText(e.target.value)}
+      onChange={(e) => {
+        setText(e.target.value)
+        // Anything derived from this amount — a margin, a total — must follow the
+        // typing instead of waiting for the field to lose focus.
+        const live = parseAmount(e.target.value)
+        if (live !== null) onLiveChange?.(live)
+      }}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') e.currentTarget.blur()
