@@ -1,11 +1,59 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Download, Copy, Check, Trash2, ExternalLink, Radio, ImagePlus } from 'lucide-react'
+import {
+  Download,
+  Copy,
+  Check,
+  Trash2,
+  ExternalLink,
+  Radio,
+  ImagePlus,
+  Sparkles,
+  Tags,
+  ListChecks,
+  Search,
+  Layers3,
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, downloadWithAuth, assetUrl, uploadProductImages } from '../lib/api'
 import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { PriceInput } from '../components/PriceInput'
+
+/** Section card — one visual container per topic, instead of one long column. */
+function Card({
+  icon: Icon,
+  title,
+  hint,
+  action,
+  children,
+}: {
+  icon: React.ElementType
+  title: string
+  hint?: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm">
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5">
+          <Icon size={17} className="mt-0.5 shrink-0 text-purple-300" />
+          <div>
+            <h2 className="text-sm font-semibold tracking-wide">{title}</h2>
+            {hint && <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{hint}</p>}
+          </div>
+        </div>
+        {action}
+      </header>
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
@@ -19,38 +67,49 @@ function CopyField({ label, value }: { label: string; value: string }) {
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
           }}
-          className="text-xs flex items-center gap-1 text-purple-300 hover:text-purple-200"
+          className="flex items-center gap-1 text-xs text-purple-300 hover:text-purple-200"
         >
           {copied ? <Check size={12} /> : <Copy size={12} />}
           {copied ? 'Copié' : 'Copier'}
         </button>
       </div>
-      <p className="mt-1 text-sm bg-black/20 rounded-lg p-2 max-h-24 overflow-y-auto whitespace-pre-wrap">{value}</p>
+      <p className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/25 p-2 text-sm">{value}</p>
     </div>
   )
 }
 
+const field =
+  'w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none transition focus:border-purple-400/70 focus:bg-white/[0.08]'
+
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+
   const [product, setProduct] = useState<any>(null)
   const [categories, setCategories] = useState<Record<string, string>>({})
+  const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
+  const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
+
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const [active, setActive] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [photoError, setPhotoError] = useState<string | null>(null)
+
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
-  const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
+
   const [purchasePrice, setPurchasePrice] = useState(0)
   const [shippingCost, setShippingCost] = useState(0)
   const [sellingPrice, setSellingPrice] = useState(0)
 
   const costPrice = purchasePrice + shippingCost
   const grossMargin = sellingPrice - costPrice
+  const marginRate = costPrice > 0 ? (grossMargin / costPrice) * 100 : null
 
   async function load() {
     if (!id) return
@@ -71,12 +130,12 @@ export default function ProductDetail() {
     api.listPlatforms().then(setPlatforms)
   }, [])
 
-  async function saveField(field: string, value: unknown) {
+  async function saveField(fieldName: string, value: unknown) {
     if (!id) return
     setSaving(true)
     setSaveError(null)
     try {
-      await api.updateProduct(id, { [field]: value })
+      await api.updateProduct(id, { [fieldName]: value })
       setSavedAt(new Date())
     } catch (err) {
       // Silent failure is the worst case here: the seller believes the change is
@@ -87,9 +146,14 @@ export default function ProductDetail() {
     }
   }
 
-  /** Forces a full save of every editable field, for the explicit button. */
+  const variants: Record<string, string[]> = product?.variants ?? {}
+  const bulletPoints: string[] = product?.bulletPoints ?? []
+  const attributes: Record<string, string> = product?.attributes ?? {}
+  const images: string[] = product?.images ?? []
+
+  /** Full save behind the explicit button. */
   async function saveAll() {
-    if (!id) return
+    if (!id || !product) return
     setSaving(true)
     setSaveError(null)
     try {
@@ -99,7 +163,7 @@ export default function ProductDetail() {
         price: purchasePrice,
         shippingCost,
         sellingPrice,
-        images: product.images,
+        images,
         variants,
         bulletPoints,
         attributes,
@@ -114,82 +178,45 @@ export default function ProductDetail() {
     }
   }
 
-  const variants: Record<string, string[]> = product?.variants ?? {}
-  const bulletPoints: string[] = product?.bulletPoints ?? []
-  const attributes: Record<string, string> = product?.attributes ?? {}
-
-  /** Saves images and reflects the new order locally so the grid doesn't flicker. */
   async function saveImages(next: string[]) {
     setProduct({ ...product, images: next })
+    setActive((i) => Math.min(i, Math.max(0, next.length - 1)))
     await saveField('images', next)
   }
 
   function moveImage(index: number, direction: -1 | 1) {
-    const next = [...(product.images as string[])]
+    const next = [...images]
     const target = index + direction
     if (target < 0 || target >= next.length) return
     ;[next[index], next[target]] = [next[target], next[index]]
+    setActive(target)
     saveImages(next)
   }
 
-  /** Sends chosen files, appends what came back, and reports what was refused. */
   async function addPhotos(files: File[]) {
     if (!id || !files.length) return
-    const images = files.filter((f) => f.type.startsWith('image/'))
-    if (!images.length) return setPhotoError('Seules des images sont acceptées')
+    const picked = files.filter((f) => f.type.startsWith('image/'))
+    if (!picked.length) return setPhotoError('Seules des images sont acceptées')
 
     setPhotoError(null)
     setUploading(true)
     try {
-      const res = await uploadProductImages(id, images)
+      const res = await uploadProductImages(id, picked)
       setProduct((p: any) => ({ ...p, images: res.images }))
-      if (res.added < images.length) {
-        setPhotoError(`${res.added} photo(s) ajoutée(s) sur ${images.length} — limite de 10 par annonce.`)
+      setSavedAt(new Date())
+      if (res.added < picked.length) {
+        setPhotoError(`${res.added} photo(s) ajoutée(s) sur ${picked.length} — limite de 10 par annonce.`)
       }
     } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : "Ajout impossible")
+      setPhotoError(err instanceof Error ? err.message : 'Ajout impossible')
     } finally {
       setUploading(false)
     }
   }
 
-  function removeImage(index: number) {
-    saveImages((product.images as string[]).filter((_, i) => i !== index))
-  }
-
   async function saveVariants(next: Record<string, string[]>) {
     setProduct({ ...product, variants: next })
     await saveField('variants', next)
-  }
-
-  function addVariantGroup() {
-    // Empty key would collide with an existing blank row, so number the new one.
-    const name = variants['Nouvelle option'] ? `Option ${Object.keys(variants).length + 1}` : 'Nouvelle option'
-    saveVariants({ ...variants, [name]: [] })
-  }
-
-  function removeVariantGroup(name: string) {
-    const next = { ...variants }
-    delete next[name]
-    saveVariants(next)
-  }
-
-  function renameVariantGroup(oldName: string, newName: string) {
-    const trimmed = newName.trim()
-    if (!trimmed || trimmed === oldName) return
-    // Rebuild in place so renaming doesn't reorder the rows under the user.
-    const next = Object.fromEntries(
-      Object.entries(variants).map(([k, v]) => (k === oldName ? [trimmed, v] : [k, v])),
-    )
-    saveVariants(next)
-  }
-
-  function setVariantValues(name: string, raw: string) {
-    const values = raw
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean)
-    saveVariants({ ...variants, [name]: values })
   }
 
   async function onDelete() {
@@ -200,27 +227,53 @@ export default function ProductDetail() {
 
   if (!product) return <LoadingScreen message="Ouverture de l'annonce…" />
 
-  const finalPrice = sellingPrice.toFixed(2)
   const activeAssist = platforms.find((p) => p.id === assistPanel)
+  const published = product.publications ?? []
 
   return (
     <Layout>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{product.aiTitle || product.title}</h1>
-          <a href={product.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-gray-400 hover:text-gray-300 flex items-center gap-1 mt-1">
-            Source : {product.sourceSite} <ExternalLink size={11} />
-          </a>
+      {/* ---------- En-tête ---------- */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold leading-snug">{product.aiTitle || product.title}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <a
+              href={product.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-gray-400 hover:text-gray-200"
+            >
+              {product.sourceSite} <ExternalLink size={11} />
+            </a>
+            {published.map((pub: any) => {
+              const info = platforms.find((p) => p.id === pub.platform)
+              return (
+                <span
+                  key={pub.platform}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: info?.color ?? '#a855f7' }} />
+                  {info?.label ?? pub.platform}
+                  <span className={pub.status === 'PUBLISHED' ? 'text-emerald-300' : 'text-yellow-300'}>
+                    {pub.status === 'PUBLISHED' ? 'publié' : 'en attente'}
+                  </span>
+                </span>
+              )
+            })}
+          </div>
         </div>
-        <button onClick={onDelete} className="text-red-400 hover:text-red-300 p-2" title="Supprimer">
-          <Trash2 size={18} />
+
+        <button
+          onClick={() => setConfirmDelete(true)}
+          title="Supprimer cette annonce"
+          className="rounded-xl border border-white/10 p-2.5 text-red-400 transition hover:border-red-400/40 hover:bg-red-500/10"
+        >
+          <Trash2 size={17} />
         </button>
       </div>
 
-      {/* Fields save when you leave them, but silently — which leaves the seller
-          unsure whether the change was recorded. This states it, and offers an
-          explicit save for reassurance. */}
-      <div className="sticky top-0 z-30 -mx-1 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#1b1633]/95 px-4 py-2.5 backdrop-blur">
+      {/* ---------- Barre d'état, collée en haut au défilement ---------- */}
+      <div className="sticky top-0 z-30 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#1b1633]/95 px-4 py-3 backdrop-blur">
         <span className="flex items-center gap-2 text-sm">
           {saving ? (
             <>
@@ -231,184 +284,258 @@ export default function ProductDetail() {
             <span className="text-red-400">⚠ {saveError}</span>
           ) : savedAt ? (
             <span className="text-emerald-300">
-              ✓ Modifications enregistrées à{' '}
-              {savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              ✓ Enregistré à {savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </span>
           ) : (
-            <span className="text-gray-400">Vos modifications sont enregistrées automatiquement</span>
+            <span className="text-gray-400">Enregistrement automatique à chaque modification</span>
           )}
         </span>
 
-        <button
-          onClick={saveAll}
-          disabled={saving}
-          className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-        >
-          Valider l'annonce
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={saveAll}
+            disabled={saving}
+            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-medium transition hover:bg-white/5 disabled:opacity-50"
+          >
+            Valider l'annonce
+          </button>
+          <button
+            onClick={() => setPublishOpen(true)}
+            className="btn-gradient inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold"
+          >
+            <Radio size={15} /> Publier
+          </button>
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 mt-6">
-        <div>
-          <div className="grid grid-cols-3 gap-2">
-            {(product.images as string[]).map((img, i) => (
-              <div key={img + i} className="relative group">
-                <img src={assetUrl(img)} alt="" className="aspect-square w-full rounded-lg object-cover bg-black/20" />
-                {i === 0 && (
-                  <span className="absolute top-1 left-1 rounded bg-purple-600/90 px-1.5 py-0.5 text-[10px] font-semibold">
-                    Principale
-                  </span>
-                )}
-                {/* Controls stay visible on touch screens, where there is no hover. */}
-                <div className="absolute inset-x-1 bottom-1 flex justify-between gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition max-md:opacity-100">
-                  <button
-                    onClick={() => moveImage(i, -1)}
-                    disabled={i === 0}
-                    title="Déplacer vers la gauche"
-                    className="rounded bg-black/70 px-1.5 py-0.5 text-xs disabled:opacity-30 hover:bg-black/90"
-                  >
-                    ‹
-                  </button>
-                  <button
-                    onClick={() => removeImage(i)}
-                    title="Supprimer cette photo"
-                    className="rounded bg-black/70 px-1.5 py-0.5 text-xs text-red-300 hover:bg-black/90"
-                  >
-                    ✕
-                  </button>
-                  <button
-                    onClick={() => moveImage(i, 1)}
-                    disabled={i === (product.images as string[]).length - 1}
-                    title="Déplacer vers la droite"
-                    className="rounded bg-black/70 px-1.5 py-0.5 text-xs disabled:opacity-30 hover:bg-black/90"
-                  >
-                    ›
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-gray-500">
-            La première photo sert de vignette principale sur toutes les plateformes.
-          </p>
-
-          {/* Manual control matters: supplier galleries are sometimes unreadable,
-              and a seller's own product has no source page at all. */}
-          <label
-            onDragOver={(e) => {
-              e.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDragging(false)
-              addPhotos([...e.dataTransfer.files])
-            }}
-            className={`mt-3 flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed p-4 text-center transition ${
-              dragging ? 'border-purple-400 bg-purple-500/10' : 'border-white/15 hover:border-white/30'
-            }`}
-          >
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                addPhotos([...(e.target.files ?? [])])
-                e.target.value = ''
-              }}
-            />
-            <ImagePlus size={20} className="text-purple-300" />
-            <span className="text-sm font-medium">
-              {uploading ? 'Traitement en cours…' : 'Ajouter mes propres photos'}
-            </span>
-            <span className="text-xs text-gray-400">
-              Glissez vos images ici ou cliquez — JPEG, PNG ou WebP, 8 Mo par photo, 10 au total.
-              Votre filigrane est appliqué automatiquement.
-            </span>
-          </label>
-          {photoError && <p className="mt-2 text-xs text-red-400">{photoError}</p>}
-          <button
-            onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
-            className="mt-3 inline-flex items-center gap-2 text-sm rounded-lg border border-white/10 px-3 py-2 hover:bg-white/5"
-          >
-            <Download size={15} /> Télécharger les photos (.zip)
-          </button>
-
-          <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold">Variantes disponibles</h3>
-              <button
-                onClick={addVariantGroup}
-                className="text-xs rounded-lg border border-white/10 px-2 py-1 hover:bg-white/5"
-              >
-                + Option
-              </button>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+        {/* ---------- Colonne visuelle ---------- */}
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+            <div className="relative overflow-hidden rounded-xl bg-black/30">
+              {images.length ? (
+                <>
+                  <img
+                    src={assetUrl(images[active] ?? images[0])}
+                    alt=""
+                    className="aspect-square w-full object-cover"
+                  />
+                  {active === 0 && (
+                    <span className="absolute left-3 top-3 rounded-full bg-purple-600/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide">
+                      PHOTO PRINCIPALE
+                    </span>
+                  )}
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActive((i) => (i - 1 + images.length) % images.length)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 backdrop-blur transition hover:bg-black/80"
+                        aria-label="Photo précédente"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <button
+                        onClick={() => setActive((i) => (i + 1) % images.length)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 backdrop-blur transition hover:bg-black/80"
+                        aria-label="Photo suivante"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="grid aspect-square place-items-center text-sm text-gray-500">Aucune photo</div>
+              )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Tailles, couleurs… reprises dans l'annonce. Séparez les valeurs par des virgules.
-            </p>
 
-            {Object.keys(variants).length === 0 ? (
-              <p className="text-xs text-gray-500 mt-3">
-                Aucune variante. L'extension les récupère automatiquement depuis la page fournisseur.
-              </p>
-            ) : (
-              <div className="mt-3 space-y-3">
-                {Object.entries(variants).map(([name, values]) => (
-                  <div key={name} className="flex items-start gap-2">
-                    <input
-                      defaultValue={name}
-                      onBlur={(e) => renameVariantGroup(name, e.target.value)}
-                      placeholder="Taille"
-                      className="w-28 shrink-0 rounded-lg bg-white/10 border border-white/10 px-2 py-1.5 text-xs outline-none focus:border-purple-400"
-                    />
-                    <input
-                      defaultValue={values.join(', ')}
-                      onBlur={(e) => setVariantValues(name, e.target.value)}
-                      placeholder="S, M, L, XL"
-                      className="flex-1 rounded-lg bg-white/10 border border-white/10 px-2 py-1.5 text-xs outline-none focus:border-purple-400"
-                    />
+            {images.length > 0 && (
+              <div className="mt-3 grid grid-cols-5 gap-2">
+                {images.map((img, i) => (
+                  <div key={img + i} className="group relative">
                     <button
-                      onClick={() => removeVariantGroup(name)}
-                      title="Supprimer cette option"
-                      className="shrink-0 rounded-lg border border-white/10 px-2 py-1.5 text-xs text-red-300 hover:bg-white/5"
+                      onClick={() => setActive(i)}
+                      className={`block w-full overflow-hidden rounded-lg border-2 transition ${
+                        i === active ? 'border-purple-400' : 'border-transparent hover:border-white/25'
+                      }`}
                     >
-                      ✕
+                      <img src={assetUrl(img)} alt="" className="aspect-square w-full object-cover" />
                     </button>
+                    <button
+                      onClick={() => saveImages(images.filter((_, index) => index !== i))}
+                      title="Supprimer cette photo"
+                      className="absolute -right-1 -top-1 rounded-full bg-red-500/90 p-1 text-white opacity-0 transition group-hover:opacity-100 max-md:opacity-100"
+                    >
+                      <X size={11} />
+                    </button>
+                    <div className="absolute inset-x-0 bottom-0 flex justify-between px-0.5 opacity-0 transition group-hover:opacity-100">
+                      <button
+                        onClick={() => moveImage(i, -1)}
+                        disabled={i === 0}
+                        className="rounded bg-black/70 px-1 text-[10px] disabled:opacity-25"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        onClick={() => moveImage(i, 1)}
+                        disabled={i === images.length - 1}
+                        className="rounded bg-black/70 px-1 text-[10px] disabled:opacity-25"
+                      >
+                        ›
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
+
+            <label
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragging(false)
+                addPhotos([...e.dataTransfer.files])
+              }}
+              className={`mt-3 flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed p-4 text-center transition ${
+                dragging ? 'border-purple-400 bg-purple-500/10' : 'border-white/12 hover:border-white/25'
+              }`}
+            >
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  addPhotos([...(e.target.files ?? [])])
+                  e.target.value = ''
+                }}
+              />
+              <ImagePlus size={19} className="text-purple-300" />
+              <span className="text-sm font-medium">{uploading ? 'Traitement…' : 'Ajouter mes photos'}</span>
+              <span className="text-xs text-gray-500">
+                Glissez-déposez ou cliquez · 10 photos max · filigrane automatique
+              </span>
+            </label>
+            {photoError && <p className="mt-2 text-xs text-red-400">{photoError}</p>}
+
+            <button
+              onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm transition hover:bg-white/5"
+            >
+              <Download size={15} /> Télécharger les photos (.zip)
+            </button>
           </div>
+
+          {/* ---------- Marge ---------- */}
+          <Card icon={Calculator} title="Calcul de marge">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400">Prix d'achat</label>
+                <PriceInput
+                  value={purchasePrice}
+                  onCommit={(v) => {
+                    setPurchasePrice(v)
+                    saveField('price', v)
+                  }}
+                  className={`${field} mt-1`}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Transport</label>
+                <PriceInput
+                  value={shippingCost}
+                  onCommit={(v) => {
+                    setShippingCost(v)
+                    saveField('shippingCost', v)
+                  }}
+                  className={`${field} mt-1`}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <label className="text-xs text-gray-400">Prix de revente — affiché sur l'annonce</label>
+              <PriceInput
+                value={sellingPrice}
+                onCommit={(v) => {
+                  setSellingPrice(v)
+                  saveField('sellingPrice', v)
+                }}
+                className="mt-1 w-full rounded-xl border border-purple-400/40 bg-purple-500/10 px-3 py-3 text-lg font-bold text-purple-100 outline-none focus:border-purple-400"
+              />
+            </div>
+
+            <div className="mt-4 rounded-xl bg-black/25 p-3.5">
+              <div className="flex items-baseline justify-between text-sm text-gray-400">
+                <span>Coût de revient</span>
+                <span className="tabular-nums">
+                  {costPrice.toFixed(2)} {product.currency}
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between border-t border-white/10 pt-2">
+                <span className="text-sm font-medium">Marge brute</span>
+                <span
+                  className={`text-lg font-bold tabular-nums ${grossMargin >= 0 ? 'text-emerald-300' : 'text-red-400'}`}
+                >
+                  {grossMargin >= 0 ? '+' : ''}
+                  {grossMargin.toFixed(2)} {product.currency}
+                  {marginRate !== null && (
+                    <span className="ml-2 text-xs font-normal text-gray-400">({marginRate.toFixed(0)} %)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                const suggested = Number((costPrice * 1.5).toFixed(2))
+                setSellingPrice(suggested)
+                saveField('sellingPrice', suggested)
+              }}
+              className="mt-3 w-full rounded-xl border border-white/10 px-3 py-2 text-xs transition hover:bg-white/5"
+            >
+              Appliquer une marge de +50 %
+            </button>
+          </Card>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs text-gray-400">Titre (remixé par l'IA)</label>
+        {/* ---------- Colonne contenu ---------- */}
+        <div className="space-y-5">
+          <Card icon={Sparkles} title="Annonce" hint="Rédigée par l'IA, modifiable librement.">
+            <label className="text-xs text-gray-400">Titre</label>
             <input
               defaultValue={product.aiTitle}
-              onBlur={(e) => saveField('aiTitle', e.target.value)}
-              className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+              onBlur={(e) => {
+                setProduct({ ...product, aiTitle: e.target.value })
+                saveField('aiTitle', e.target.value)
+              }}
+              className={`${field} mt-1`}
             />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400">Description (remixée par l'IA)</label>
+            <p className="mt-1 text-right text-xs text-gray-500">{(product.aiTitle ?? '').length} caractères</p>
+
+            <label className="mt-3 block text-xs text-gray-400">Description</label>
             <textarea
               defaultValue={product.aiDescription}
-              onBlur={(e) => saveField('aiDescription', e.target.value)}
-              rows={5}
-              className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+              onBlur={(e) => {
+                setProduct({ ...product, aiDescription: e.target.value })
+                saveField('aiDescription', e.target.value)
+              }}
+              rows={7}
+              className={`${field} mt-1 leading-relaxed`}
             />
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <h3 className="text-sm font-bold">Arguments de vente</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              Indexés par Amazon, Cdiscount et les marketplaces Mirakl. Une ligne par argument.
-            </p>
+          </Card>
+
+          <Card
+            icon={ListChecks}
+            title="Arguments de vente"
+            hint="Indexés par Amazon, Cdiscount et les marketplaces Mirakl. Une ligne par argument."
+          >
             {bulletPoints.length === 0 ? (
-              <p className="text-xs text-gray-500 mt-3">Aucun argument généré.</p>
+              <p className="text-xs text-gray-500">Aucun argument généré.</p>
             ) : (
               <textarea
                 defaultValue={bulletPoints.join('\n')}
@@ -418,206 +545,200 @@ export default function ProductDetail() {
                     e.target.value.split('\n').map((l) => l.trim()).filter(Boolean),
                   )
                 }
-                rows={Math.min(10, bulletPoints.length + 1)}
-                className="mt-2 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-xs outline-none focus:border-purple-400"
+                rows={Math.min(9, bulletPoints.length + 1)}
+                className={`${field} leading-relaxed`}
               />
             )}
-          </div>
+          </Card>
 
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold">Attributs produit</h3>
-              <span className="text-xs text-gray-500">{Object.keys(attributes).length} attribut(s)</span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Convertis en filtres de recherche par les marketplaces — plus il y en a, mieux le produit ressort.
-            </p>
+          <Card
+            icon={Tags}
+            title="Attributs produit"
+            hint="Convertis en filtres de recherche : plus il y en a, mieux le produit ressort."
+            action={
+              <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400">
+                {Object.keys(attributes).length}
+              </span>
+            }
+          >
             {Object.keys(attributes).length === 0 ? (
-              <p className="text-xs text-gray-500 mt-3">Aucun attribut généré.</p>
+              <p className="text-xs text-gray-500">Aucun attribut généré.</p>
             ) : (
-              <div className="mt-3 space-y-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {Object.entries(attributes).map(([name, value]) => (
-                  <div key={name} className="flex items-center gap-2">
-                    <span className="w-28 shrink-0 text-xs text-gray-400 truncate" title={name}>
-                      {name}
-                    </span>
+                  <div key={name}>
+                    <label className="text-xs text-gray-500">{name}</label>
                     <input
                       defaultValue={value}
                       onBlur={(e) => saveField('attributes', { ...attributes, [name]: e.target.value })}
-                      className="flex-1 rounded-lg bg-white/10 border border-white/10 px-2 py-1.5 text-xs outline-none focus:border-purple-400"
+                      className={`${field} mt-0.5 py-2`}
                     />
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </Card>
 
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <h3 className="text-sm font-bold">Mots-clés SEO</h3>
+          <Card
+            icon={Layers3}
+            title="Variantes disponibles"
+            hint="Tailles, couleurs… Séparez les valeurs par des virgules."
+            action={
+              <button
+                onClick={() => {
+                  const name = variants['Nouvelle option']
+                    ? `Option ${Object.keys(variants).length + 1}`
+                    : 'Nouvelle option'
+                  saveVariants({ ...variants, [name]: [] })
+                }}
+                className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-xs transition hover:bg-white/5"
+              >
+                + Option
+              </button>
+            }
+          >
+            {Object.keys(variants).length === 0 ? (
+              <p className="text-xs text-gray-500">
+                Aucune variante détectée. L'IA les extrait de la page fournisseur ; ajoutez-les à la
+                main si besoin.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {Object.entries(variants).map(([name, values]) => (
+                  <div key={name} className="flex items-start gap-2">
+                    <input
+                      defaultValue={name}
+                      onBlur={(e) => {
+                        const trimmed = e.target.value.trim()
+                        if (!trimmed || trimmed === name) return
+                        // Rebuilt in place so renaming doesn't reorder the rows.
+                        saveVariants(
+                          Object.fromEntries(
+                            Object.entries(variants).map(([k, v]) => (k === name ? [trimmed, v] : [k, v])),
+                          ),
+                        )
+                      }}
+                      placeholder="Taille"
+                      className={`${field} w-28 shrink-0 py-2 text-xs`}
+                    />
+                    <input
+                      defaultValue={values.join(', ')}
+                      onBlur={(e) =>
+                        saveVariants({
+                          ...variants,
+                          [name]: e.target.value.split(',').map((v) => v.trim()).filter(Boolean),
+                        })
+                      }
+                      placeholder="S, M, L, XL"
+                      className={`${field} flex-1 py-2 text-xs`}
+                    />
+                    <button
+                      onClick={() => {
+                        const next = { ...variants }
+                        delete next[name]
+                        saveVariants(next)
+                      }}
+                      className="shrink-0 rounded-lg border border-white/10 px-2.5 py-2 text-xs text-red-300 transition hover:bg-red-500/10"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card icon={Search} title="Référencement">
+            <label className="text-xs text-gray-400">Mots-clés</label>
             <textarea
               defaultValue={product.metaKeywords ?? ''}
-              onBlur={(e) => saveField('metaKeywords', e.target.value)}
+              onBlur={(e) => {
+                setProduct({ ...product, metaKeywords: e.target.value })
+                saveField('metaKeywords', e.target.value)
+              }}
               rows={3}
               placeholder="mot-clé 1, mot-clé 2, …"
-              className="mt-2 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-xs outline-none focus:border-purple-400"
+              className={`${field} mt-1 text-xs leading-relaxed`}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="mt-1 text-xs text-gray-500">
               {(product.metaKeywords ?? '').split(',').filter((k: string) => k.trim()).length} mot(s)-clé(s)
             </p>
-          </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-3">
-            <h3 className="text-sm font-bold">Calcul de marge</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-400">Prix d'achat fournisseur</label>
-                <PriceInput
-                  value={purchasePrice}
-                  onCommit={(v) => { setPurchasePrice(v); saveField('price', v) }}
-                  className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400">Frais de transport</label>
-                <PriceInput
-                  value={shippingCost}
-                  onCommit={(v) => { setShippingCost(v); saveField('shippingCost', v) }}
-                  className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-400">Prix de revente (prix affiché sur l'annonce)</label>
-              <PriceInput
-                value={sellingPrice}
-                onCommit={(v) => { setSellingPrice(v); saveField('sellingPrice', v) }}
-                className="mt-1 w-full rounded-lg bg-white/10 border border-purple-400/40 px-3 py-2 text-base font-bold text-purple-200 outline-none focus:border-purple-400"
-              />
-            </div>
-
-            <div className="border-t border-white/10 pt-3 space-y-1 text-sm">
-              <div className="flex justify-between text-gray-400">
-                <span>Coût de revient</span>
-                <span>{costPrice.toFixed(2)} {product.currency}</span>
-              </div>
-              <div className="flex justify-between font-bold">
-                <span>Marge brute</span>
-                <span className={grossMargin >= 0 ? 'text-emerald-300' : 'text-red-400'}>
-                  {grossMargin >= 0 ? '+' : ''}{grossMargin.toFixed(2)} {product.currency}
-                  {costPrice > 0 && (
-                    <span className="text-xs font-normal text-gray-400 ml-2">
-                      ({((grossMargin / costPrice) * 100).toFixed(0)} %)
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                const suggested = Number(((purchasePrice + shippingCost) * 1.5).toFixed(2))
-                setSellingPrice(suggested)
-                saveField('sellingPrice', suggested)
+            <label className="mt-3 block text-xs text-gray-400">
+              Catégorie
+              {product.sourceCategory && (
+                <span className="text-gray-600"> · détectée : « {product.sourceCategory} »</span>
+              )}
+            </label>
+            <select
+              value={product.categoryId ?? ''}
+              onChange={async (e) => {
+                const value = e.target.value || null
+                setProduct({ ...product, categoryId: value })
+                await saveField('categoryId', value)
+                if (id) setCategories(await api.categoryPreview(id))
               }}
-              className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5 w-full"
+              className={`${field} mt-1`}
             >
-              Appliquer une marge de +50 %
-            </button>
-          </div>
-        </div>
-      </div>
+              <option value="">— Choisir une catégorie —</option>
+              {[...new Set(catalog.map((c) => c.group))].map((group) => (
+                <optgroup key={group} label={group}>
+                  {catalog
+                    .filter((c) => c.group === group)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
 
-      <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-5">
-        <h2 className="font-bold">Publier</h2>
-
-        <div className="mt-3">
-          <label className="text-xs text-gray-400">
-            Catégorie du produit
-            {product.sourceCategory && (
-              <span className="text-gray-500"> — détectée sur la source : « {product.sourceCategory} »</span>
-            )}
-          </label>
-          <select
-            value={product.categoryId ?? ''}
-            onChange={async (e) => {
-              const value = e.target.value || null
-              setProduct({ ...product, categoryId: value })
-              await saveField('categoryId', value)
-              if (id) setCategories(await api.categoryPreview(id))
-            }}
-            className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-          >
-            <option value="">— Choisir une catégorie —</option>
-            {[...new Set(catalog.map((c) => c.group))].map((group) => (
-              <optgroup key={group} label={group}>
-                {catalog
-                  .filter((c) => c.group === group)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        </div>
-        {/* Existing publications, so the seller sees at a glance where the listing already went. */}
-        {product.publications?.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {product.publications.map((pub: any) => {
-              const info = platforms.find((p) => p.id === pub.platform)
-              return (
-                <span
-                  key={pub.platform}
-                  className="flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 text-xs"
-                >
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: info?.color ?? '#a855f7' }} />
-                  {info?.label ?? pub.platform}
-                  <span className={pub.status === 'PUBLISHED' ? 'text-emerald-300' : 'text-yellow-300'}>
-                    {pub.status === 'PUBLISHED' ? 'publié' : 'en attente'}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {platforms
+                .filter((p) => !p.unavailable && categories[p.id])
+                .map((p) => (
+                  <span
+                    key={p.id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 text-xs"
+                    title={categories[p.id]}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                    <span className="text-gray-400">{p.label}</span>
+                    <span className="max-w-[13rem] truncate text-gray-500">{categories[p.id]}</span>
                   </span>
-                </span>
-              )
-            })}
-          </div>
-        )}
-
-        <button
-          onClick={() => setPublishOpen(true)}
-          className="btn-gradient mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 font-semibold"
-        >
-          <Radio size={17} /> Publier cette annonce
-        </button>
+                ))}
+            </div>
+          </Card>
+        </div>
       </div>
 
-      {publishOpen && id && (
-        <PublishDialog
-          productId={id}
-          platforms={platforms}
-          onClose={() => setPublishOpen(false)}
-          onPublished={async (chosen) => {
-            await api.publishProduct(id, chosen)
-            await load()
-          }}
-        />
-      )}
-
+      {/* ---------- Assistant de publication manuelle ---------- */}
       {activeAssist && (
-        <div className="mt-6 rounded-xl border border-orange-400/30 bg-orange-500/5 p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold">Assistant {activeAssist.label} — pas d'API, à coller manuellement</h2>
+        <div className="mt-6 rounded-2xl border border-orange-400/30 bg-orange-500/5 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-bold">{activeAssist.label} — à coller manuellement</h2>
             <div className="flex items-center gap-2">
-              <a href={activeAssist.sellUrl!} target="_blank" rel="noreferrer" className="text-sm rounded-lg bg-white/10 px-3 py-1.5 hover:bg-white/20">
-                Ouvrir {activeAssist.label} ↗
-              </a>
-              <button onClick={() => setAssistPanel(null)} className="text-gray-400 hover:text-white text-sm">✕</button>
+              {activeAssist.sellUrl && (
+                <a
+                  href={activeAssist.sellUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg bg-white/10 px-3 py-1.5 text-sm hover:bg-white/20"
+                >
+                  Ouvrir {activeAssist.label} ↗
+                </a>
+              )}
+              <button onClick={() => setAssistPanel(null)} className="p-1 text-gray-400 hover:text-white">
+                <X size={16} />
+              </button>
             </div>
           </div>
-          <div className="grid sm:grid-cols-2 gap-3 mt-4">
-            <CopyField label="Titre" value={product.aiTitle} />
-            <CopyField label="Prix" value={`${finalPrice} ${product.currency}`} />
-            <CopyField label="Description" value={product.aiDescription} />
-            <CopyField label="Catégorie suggérée" value={categories[activeAssist.id] || ''} />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <CopyField label="Titre" value={product.aiTitle ?? ''} />
+            <CopyField label="Prix" value={`${sellingPrice.toFixed(2)} ${product.currency}`} />
+            <CopyField label="Description" value={product.aiDescription ?? ''} />
+            <CopyField label="Catégorie suggérée" value={categories[activeAssist.id] ?? ''} />
             {Object.keys(variants).length > 0 && (
               <CopyField
                 label="Variantes"
@@ -627,25 +748,53 @@ export default function ProductDetail() {
               />
             )}
             {bulletPoints.length > 0 && <CopyField label="Arguments de vente" value={bulletPoints.join('\n')} />}
-            {Object.keys(attributes).length > 0 && (
-              <CopyField
-                label="Attributs"
-                value={Object.entries(attributes)
-                  .map(([k, v]) => `${k} : ${v}`)
-                  .join('\n')}
-              />
-            )}
-            {product.metaKeywords && <CopyField label="Mots-clés" value={product.metaKeywords} />}
           </div>
-          <button
-            onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
-            className="mt-3 inline-flex items-center gap-2 text-sm rounded-lg border border-white/10 px-3 py-2 hover:bg-white/5"
+        </div>
+      )}
+
+      {publishOpen && id && (
+        <PublishDialog
+          productId={id}
+          platforms={platforms}
+          onClose={() => setPublishOpen(false)}
+          onPublished={async (chosen) => {
+            await api.publishProduct(id, chosen)
+            const manual = chosen.find((c) => platforms.find((p) => p.id === c && !p.automatable))
+            if (manual) setAssistPanel(manual)
+            await load()
+          }}
+        />
+      )}
+
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setConfirmDelete(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1b1633] p-5"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Download size={15} /> Télécharger les photos à glisser dans le formulaire
-          </button>
-          <p className="text-xs text-gray-500 mt-3">
-            Astuce : l'extension navigateur DropShipper IA (à venir) remplira ce formulaire automatiquement.
-          </p>
+            <h2 className="font-bold">Supprimer cette annonce ?</h2>
+            <p className="mt-2 text-sm text-gray-300">{product.aiTitle || product.title}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              L'annonce et ses photos filigranées seront définitivement effacées.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={onDelete}
+                className="rounded-lg bg-red-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </Layout>
