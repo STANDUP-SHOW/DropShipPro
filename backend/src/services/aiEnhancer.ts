@@ -52,20 +52,37 @@ export async function enhanceListing(input: {
   description: string
   category: string | null
 }): Promise<EnhancedListing> {
+  /** Keeps the scraped copy when the model can't be reached. */
+  const passthrough = (): EnhancedListing => ({
+    title: input.title,
+    description: input.description,
+    metaTitle: input.title,
+    metaDescription: input.description.slice(0, 155),
+    metaKeywords: '',
+    bulletPoints: [],
+    attributes: {},
+  })
+
   const anthropic = getClient()
-  if (!anthropic) {
-    // No API key configured: pass the scraped text through so the rest of the
-    // pipeline (watermark, publish) still works end to end.
-    return {
-      title: input.title,
-      description: input.description,
-      metaTitle: input.title,
-      metaDescription: input.description.slice(0, 155),
-      metaKeywords: '',
-      bulletPoints: [],
-      attributes: {},
-    }
+  // No API key configured: pass the scraped text through so the rest of the
+  // pipeline (watermark, publish) still works end to end.
+  if (!anthropic) return passthrough()
+
+  try {
+    return await callModel(anthropic, input)
+  } catch (err) {
+    // An expired, revoked or over-quota key must not destroy the import: the
+    // product is still worth keeping, and the seller can rewrite it by hand or
+    // relaunch the enhancement once the key is fixed.
+    console.error("amélioration IA indisponible, texte source conservé:", (err as Error).message)
+    return passthrough()
   }
+}
+
+async function callModel(
+  anthropic: Anthropic,
+  input: { title: string; description: string; category: string | null },
+): Promise<EnhancedListing> {
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-5',
