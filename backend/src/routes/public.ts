@@ -2,6 +2,7 @@ import { Router } from 'express'
 import archiver from 'archiver'
 import path from 'path'
 import { existsSync } from 'fs'
+import type { Product } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 
 export const publicRouter = Router()
@@ -15,7 +16,7 @@ publicRouter.get('/extension.zip', async (_req, res) => {
     return res.status(404).json({ error: 'Extension introuvable sur le serveur' })
   }
 
-  res.attachment('dropship-pro-extension.zip')
+  res.attachment('dropshipper-ia-extension.zip')
   const archive = archiver('zip')
   archive.on('error', () => res.destroy())
   archive.pipe(res)
@@ -23,48 +24,71 @@ publicRouter.get('/extension.zip', async (_req, res) => {
   await archive.finalize()
 })
 
-// Headless catalog API for the user's own future storefront ("mon site - que je
-// vais créer pour ça"): no auth required, only exposes products published to OWN_SITE.
-publicRouter.get('/products', async (_req, res) => {
+/**
+ * Shape returned to a storefront.
+ *
+ * `price` is the selling price, never the supplier cost: a shop wiring itself to
+ * this feed would otherwise sell everything at what it paid for it.
+ */
+function toCatalogItem(product: Product, category: string | null) {
+  return {
+    id: product.id,
+    title: product.aiTitle || product.title,
+    description: product.aiDescription || product.description,
+    price: Number(product.sellingPrice),
+    currency: product.currency,
+    images: product.images,
+    variants: product.variants ?? null,
+    bulletPoints: product.bulletPoints ?? [],
+    attributes: product.attributes ?? {},
+    metaTitle: product.metaTitle,
+    metaDescription: product.metaDescription,
+    metaKeywords: product.metaKeywords,
+    category,
+    updatedAt: product.updatedAt,
+  }
+}
+
+/**
+ * Headless catalog for a merchant's own storefront.
+ *
+ * Scoped by shopKey: without it the feed returned every account's products, so
+ * two merchants using the app would each display the other's catalogue.
+ */
+publicRouter.get('/shops/:shopKey/products', async (req, res) => {
+  const shop = await prisma.user.findUnique({ where: { shopKey: req.params.shopKey } })
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+
   const publications = await prisma.publication.findMany({
-    where: { platform: 'OWN_SITE', status: 'PUBLISHED' },
+    where: { platform: 'OWN_SITE', status: 'PUBLISHED', product: { userId: shop.id } },
     include: { product: true },
     orderBy: { publishedAt: 'desc' },
   })
-  res.json(
-    publications.map((p) => ({
-      id: p.product.id,
-      title: p.product.aiTitle || p.product.title,
-      description: p.product.aiDescription || p.product.description,
-      price: p.product.price,
-      currency: p.product.currency,
-      images: p.product.images,
-      variants: p.product.variants,
-      metaTitle: p.product.metaTitle,
-      metaDescription: p.product.metaDescription,
-      metaKeywords: p.product.metaKeywords,
-      category: p.targetCategory,
-    })),
-  )
+
+  // Cached briefly: a storefront may call this on every page view.
+  res.set('Cache-Control', 'public, max-age=60')
+  res.json({
+    shop: { name: shop.shopName ?? 'Ma boutique' },
+    count: publications.length,
+    products: publications.map((p) => toCatalogItem(p.product, p.targetCategory)),
+  })
 })
 
-publicRouter.get('/products/:id', async (req, res) => {
+publicRouter.get('/shops/:shopKey/products/:id', async (req, res) => {
+  const shop = await prisma.user.findUnique({ where: { shopKey: req.params.shopKey } })
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+
   const publication = await prisma.publication.findFirst({
-    where: { productId: req.params.id, platform: 'OWN_SITE', status: 'PUBLISHED' },
+    where: {
+      productId: req.params.id,
+      platform: 'OWN_SITE',
+      status: 'PUBLISHED',
+      product: { userId: shop.id },
+    },
     include: { product: true },
   })
   if (!publication) return res.status(404).json({ error: 'Produit introuvable' })
-  const p = publication.product
-  res.json({
-    id: p.id,
-    title: p.aiTitle || p.title,
-    description: p.aiDescription || p.description,
-    price: p.price,
-    currency: p.currency,
-    images: p.images,
-    variants: p.variants,
-    metaTitle: p.metaTitle,
-    metaDescription: p.metaDescription,
-    metaKeywords: p.metaKeywords,
-  })
+
+  res.set('Cache-Control', 'public, max-age=60')
+  res.json(toCatalogItem(publication.product, publication.targetCategory))
 })

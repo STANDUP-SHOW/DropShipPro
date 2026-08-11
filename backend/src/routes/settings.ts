@@ -23,7 +23,7 @@ settingsRouter.patch('/profile', async (req: AuthedRequest, res) => {
   const parsed = profileSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
   const user = await prisma.user.update({ where: { id: req.userId! }, data: parsed.data })
-  res.json({ id: user.id, email: user.email, shopName: user.shopName, watermarkText: user.watermarkText, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition })
+  res.json({ id: user.id, email: user.email, shopName: user.shopName, watermarkText: user.watermarkText, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, shopKey: user.shopKey })
 })
 
 // PNG for transparency, SVG for a crisp mark at any size. JPEG is refused on
