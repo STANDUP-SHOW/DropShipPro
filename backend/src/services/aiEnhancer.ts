@@ -44,6 +44,53 @@ Règles :
 - metaDescription : 150 à 160 caractères maximum.`
 
 /**
+ * Reads sizes and colours out of the page text.
+ *
+ * DOM heuristics fail on these sites: class names are obfuscated and the option
+ * pickers have no stable structure. The visible text does contain the choices, so
+ * the model extracts them from it. Returns null rather than guessing when the
+ * page shows no options.
+ */
+export async function extractVariants(pageText: string): Promise<Record<string, string[]> | null> {
+  const anthropic = getClient()
+  if (!anthropic || !pageText.trim()) return null
+
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 700,
+      system:
+        "Tu extrais les options d'achat d'une fiche produit à partir du texte visible de la page. " +
+        "Ne renvoie que des options réellement proposées à la sélection : tailles, couleurs, matières, " +
+        "capacités. N'invente rien, n'inclus pas les quantités, les prix, les avis ni les produits " +
+        'recommandés. Si la page ne propose aucune option, renvoie un objet vide.',
+      messages: [
+        {
+          role: 'user',
+          content: `Texte de la page :\n${pageText.slice(0, 4000)}\n\nRéponds UNIQUEMENT en JSON valide, sans texte autour :\n{"Taille": ["S", "M", "L"], "Couleur": ["Noir", "Blanc"]}`,
+        },
+      ],
+    })
+
+    const text = message.content.find((b) => b.type === 'text')?.text ?? '{}'
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) return null
+
+    const parsed = JSON.parse(match[0]) as Record<string, unknown>
+    const clean: Record<string, string[]> = {}
+    for (const [name, values] of Object.entries(parsed)) {
+      if (!Array.isArray(values)) continue
+      const list = values.filter((v): v is string => typeof v === 'string' && v.trim().length > 0).slice(0, 25)
+      if (list.length > 1) clean[name] = list
+    }
+    return Object.keys(clean).length ? clean : null
+  } catch (err) {
+    console.error('extraction des variantes indisponible:', (err as Error).message)
+    return null
+  }
+}
+
+/**
  * Rewrites the scraped listing with Claude and derives everything marketplaces rank
  * on: an SEO title, bullet points, structured attributes and long-tail keywords.
  */

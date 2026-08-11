@@ -259,13 +259,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         const appUrl = await getAppUrl()
         const target = message.productId ? `${appUrl}/products/${message.productId}` : `${appUrl}/dashboard`
-        const [existing] = await chrome.tabs.query({ url: `${appUrl}/*` })
-        if (existing?.id) {
-          await chrome.tabs.update(existing.id, { url: target, active: true })
-          await chrome.windows.update(existing.windowId, { focused: true })
-        } else {
-          await chrome.tabs.create({ url: target, active: true })
-        }
+
+        // Always a new tab, opened right beside the supplier page rather than
+        // replacing it or hijacking an app tab already showing another listing:
+        // the seller needs both side by side to compare.
+        await chrome.tabs.create({
+          url: target,
+          active: true,
+          index: sender.tab ? sender.tab.index + 1 : undefined,
+          openerTabId: sender.tab?.id,
+        })
         sendResponse({ ok: true })
       } catch (err) {
         sendResponse({ ok: false, error: err.message })

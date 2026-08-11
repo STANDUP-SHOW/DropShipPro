@@ -292,6 +292,8 @@ export default function Dashboard() {
                 </div>
 
                 {/* Stays visible on touch screens, which have no hover state. */}
+                {/* Always visible rather than revealed on hover: a delete control
+                    nobody can find is a delete control that doesn't exist. */}
                 <button
                   title="Supprimer cette annonce"
                   aria-label={`Supprimer ${p.aiTitle || p.title}`}
@@ -301,9 +303,9 @@ export default function Dashboard() {
                     e.stopPropagation()
                     setPendingDelete(p)
                   }}
-                  className="absolute top-2 right-2 rounded-lg bg-black/70 p-1.5 text-gray-300 opacity-0 backdrop-blur transition hover:bg-red-500/80 hover:text-white group-hover:opacity-100 focus:opacity-100 max-md:opacity-100"
+                  className="absolute top-2 right-2 rounded-lg bg-red-500/85 p-2 text-white shadow-lg backdrop-blur transition hover:bg-red-500 hover:scale-105"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={17} />
                 </button>
                 <div className="p-3">
                   <p className="text-sm font-medium line-clamp-2">{p.aiTitle || p.title}</p>

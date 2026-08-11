@@ -1,12 +1,13 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import archiver from 'archiver'
+import multer from 'multer'
 import path from 'path'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { scrapeProduct, ScrapeBlockedError } from '../services/scraper.js'
-import { enhanceListing } from '../services/aiEnhancer.js'
-import { watermarkImages, type WatermarkOptions, type WatermarkPosition } from '../services/watermark.js'
+import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
+import { watermarkImages, watermarkUploads, type WatermarkOptions, type WatermarkPosition } from '../services/watermark.js'
 import type { User } from '@prisma/client'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
@@ -88,6 +89,7 @@ const captureSchema = z.object({
   images: z.array(z.string().url()).default([]),
   sourceCategory: z.string().nullable().default(null),
   variants: z.any().optional(),
+  pageText: z.string().max(6000).optional(),
 })
 
 // Import from the Chrome extension: the page is already rendered in the user's
@@ -108,6 +110,11 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
     })
     const watermarked = await watermarkImages(data.images, watermarkOptionsFor(user), enhanced.title)
 
+    // The extension rarely finds the option pickers by structure, so the model
+    // reads them from the page text instead.
+    const variants =
+      data.variants ?? (data.pageText ? await extractVariants(data.pageText) : null)
+
     const product = await prisma.product.create({
       data: {
         userId: req.userId!,
@@ -123,7 +130,7 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
         sellingPrice: data.price * 1.5,
         currency: data.currency,
         images: watermarked.length ? watermarked : data.images,
-        variants: data.variants ?? undefined,
+        variants: variants ?? undefined,
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,
@@ -301,6 +308,49 @@ productsRouter.get('/:id/category-preview', async (req: AuthedRequest, res) => {
 /** The category taxonomy that powers the dropdown in the back office. */
 productsRouter.get('/meta/categories', (_req, res) => {
   res.json(CATEGORY_CATALOG.map(({ id, group, label }) => ({ id, group, label })))
+})
+
+// Photos the seller adds by hand: their own shots, or a rescue when the
+// extension fails to find the gallery on a hostile supplier page.
+const uploadPhotos = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 10 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(jpe?g|png|webp|avif)$/.test(file.mimetype)),
+}).array('photos', 10)
+
+productsRouter.post('/:id/images', (req: AuthedRequest, res) => {
+  uploadPhotos(req, res, async (err) => {
+    if (err) {
+      const tooBig = (err as { code?: string }).code === 'LIMIT_FILE_SIZE'
+      return res.status(400).json({ error: tooBig ? 'Photo trop lourde (8 Mo maximum)' : 'Envoi impossible' })
+    }
+    const files = (req.files as Express.Multer.File[]) ?? []
+    if (!files.length) return res.status(400).json({ error: 'Sélectionnez au moins une image (JPEG, PNG ou WebP)' })
+
+    const product = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+    if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+
+    try {
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+      const existing = (product.images as string[]) ?? []
+      const room = Math.max(0, 10 - existing.length)
+      if (!room) return res.status(400).json({ error: 'Cette annonce a déjà 10 photos' })
+
+      const saved = await watermarkUploads(
+        files.slice(0, room).map((f) => f.buffer),
+        watermarkOptionsFor(user),
+        product.aiTitle || product.title,
+        existing.length,
+      )
+
+      const images = [...existing, ...saved]
+      await prisma.product.update({ where: { id: product.id }, data: { images } })
+      res.json({ images, added: saved.length })
+    } catch (e) {
+      console.error('ajout de photos impossible', e)
+      res.status(500).json({ error: "Ces images n'ont pas pu être traitées" })
+    }
+  })
 })
 
 const fillPlanSchema = z.object({

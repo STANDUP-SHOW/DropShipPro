@@ -88,25 +88,77 @@
     return [...new Set(found.map((u) => u.split('?')[0]).filter((u) => u.startsWith(mainHost) && !JUNK.test(u)))]
   }
 
-  function collectImages() {
-    const urls = new Set()
+  /** Minimum side, in pixels, for a picture to count as a product shot. */
+  const MIN_SIDE = 500
+
+  /**
+   * Two URLs pointing at the same photo in different sizes share everything but
+   * the size marker suppliers append (`_800x800`, `-450x450`…). Normalising on
+   * that keeps one entry per actual photo.
+   */
+  function photoIdentity(url) {
+    return url
+      .split('?')[0]
+      .replace(/[_-]\d{2,4}x\d{2,4}(?=\.\w+$)/i, '')
+      .replace(/\/\d{2,4}x\d{2,4}\//, '/')
+  }
+
+  /** Loads a candidate just to read its real dimensions. */
+  function measure(url) {
+    return new Promise((resolve) => {
+      const img = new Image()
+      const done = (value) => {
+        img.onload = img.onerror = null
+        resolve(value)
+      }
+      img.onload = () => done({ url, width: img.naturalWidth, height: img.naturalHeight })
+      img.onerror = () => done(null)
+      // A stalled request must not hold the whole import.
+      setTimeout(() => done(null), 8000)
+      img.src = url
+    })
+  }
+
+  /**
+   * Picks the product gallery.
+   *
+   * Earlier versions kept whatever appeared first on the page, which on a Temu
+   * listing means the "you may also like" strip at the bottom: ten pictures, none
+   * of them the product. Candidates are now measured for real and only the large
+   * ones are kept — the gallery is shot at full size, recommendations are
+   * thumbnails. It is the same criterion as a "large images only" filter in an
+   * image-downloader extension.
+   */
+  async function collectImages() {
+    const candidates = new Set()
+
     for (const img of document.querySelectorAll('img')) {
       const src = bestSource(img)
-      if (!looksLikeProductPhoto(img, src)) continue
-      // Strip resize/quality parameters so the same photo isn't kept twice at two sizes.
-      urls.add(src.split('?')[0])
-      if (urls.size >= 10) break
+      if (src && src.startsWith('http') && !JUNK.test(src)) candidates.add(src)
     }
+    for (const url of collectImagesFromSource()) candidates.add(url)
 
-    // The DOM alone rarely exposes a whole carousel; top it up from the source.
-    if (urls.size < 5) {
-      for (const url of collectImagesFromSource()) {
-        urls.add(url)
-        if (urls.size >= 10) break
-      }
+    // Measuring costs a request each, so cap the pool before probing.
+    const measured = (await Promise.all([...candidates].slice(0, 40).map(measure))).filter(Boolean)
+
+    const large = measured
+      .filter((m) => Math.min(m.width, m.height) >= MIN_SIDE)
+      .sort((a, b) => b.width * b.height - a.width * a.height)
+
+    // Nothing big enough — a small gallery, or images blocked from measurement.
+    // Fall back to the biggest available rather than returning nothing.
+    const chosen = large.length ? large : measured.sort((a, b) => b.width * b.height - a.width * a.height)
+
+    const seen = new Set()
+    const result = []
+    for (const item of chosen) {
+      const identity = photoIdentity(item.url)
+      if (seen.has(identity)) continue
+      seen.add(identity)
+      result.push(item.url)
+      if (result.length >= 10) break
     }
-
-    return [...urls]
+    return result
   }
 
   /**
@@ -150,6 +202,22 @@
     return crumbs.slice(-1)[0] || null
   }
 
+  /**
+   * Visible text around the option pickers.
+   *
+   * DOM heuristics don't survive obfuscated class names, so the raw text goes to
+   * the API and the model extracts sizes and colours from it. Sending the whole
+   * page would be wasteful, so this keeps the region between the title and the
+   * description, where pickers live.
+   */
+  function collectPageText() {
+    const main =
+      document.querySelector('main') ||
+      document.querySelector('[class*="detail" i]') ||
+      document.body
+    return main.innerText.replace(/\n{2,}/g, '\n').slice(0, 4000)
+  }
+
   function collectVariants() {
     // Size/colour pickers are rendered as labelled option groups; capture the
     // visible choices so the user can carry them into the marketplace listing.
@@ -180,9 +248,10 @@
         '',
       price: collectPrice(),
       currency: /\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR',
-      images: collectImages(),
+      images: await collectImages(),
       sourceCategory: collectCategory(),
       variants: collectVariants(),
+      pageText: collectPageText(),
     }
   }
 

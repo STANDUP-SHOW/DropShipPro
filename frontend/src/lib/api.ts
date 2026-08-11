@@ -134,6 +134,22 @@ export async function downloadWithAuth(path: string, filename: string) {
   URL.revokeObjectURL(url)
 }
 
+/** Uploads photos to a listing. FormData, so no JSON Content-Type here. */
+export async function uploadProductImages(productId: string, files: File[]) {
+  const form = new FormData()
+  for (const file of files) form.append('photos', file)
+
+  const token = getToken()
+  const res = await fetch(`${BASE}/products/${productId}/images`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`)
+  return body as { images: string[]; added: number }
+}
+
 export function setToken(token: string) {
   localStorage.setItem('droppost_token', token)
 }

@@ -153,6 +153,50 @@ export async function watermarkImages(
 }
 
 /**
+ * Same treatment as a scraped photo, for files uploaded from the back office.
+ * `startIndex` continues the numbering so added photos don't overwrite the
+ * existing ones' SEO file names.
+ */
+export async function watermarkUploads(
+  buffers: Buffer[],
+  options: WatermarkOptions,
+  productTitle: string,
+  startIndex = 0,
+): Promise<string[]> {
+  await mkdir(STORAGE_DIR, { recursive: true })
+
+  const scale = options.scale ?? 22
+  const opacity = options.opacity ?? 75
+  const gravity = options.position ?? 'south'
+  const results: string[] = []
+  let logo: Buffer | null = null
+
+  for (const [offset, buffer] of buffers.entries()) {
+    try {
+      const image = sharp(buffer).rotate()
+      const meta = await image.metadata()
+      const width = meta.width ?? 800
+
+      if (options.imagePath && !logo) {
+        logo = await logoOverlay(options.imagePath, width, scale, opacity).catch(() => null as unknown as Buffer)
+      }
+
+      const filename = seoFileName(productTitle, startIndex + offset)
+      await image
+        .composite([{ input: logo ?? textOverlay(options.text, width, opacity), gravity }])
+        .jpeg({ quality: 88 })
+        .toFile(path.join(STORAGE_DIR, filename))
+
+      results.push(`/storage/products/${filename}`)
+    } catch {
+      // Skip an unreadable file rather than rejecting the whole batch.
+    }
+  }
+
+  return results
+}
+
+/**
  * Stores an uploaded logo and returns its public path. Re-encoded through sharp so
  * a malformed or hostile upload can't reach the compositing step later.
  */

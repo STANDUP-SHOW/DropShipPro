@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Download, Copy, Check, Trash2, ExternalLink, Radio } from 'lucide-react'
+import { Download, Copy, Check, Trash2, ExternalLink, Radio, ImagePlus } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { api, downloadWithAuth, assetUrl } from '../lib/api'
+import { api, downloadWithAuth, assetUrl, uploadProductImages } from '../lib/api'
 import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { PriceInput } from '../components/PriceInput'
@@ -37,7 +37,12 @@ export default function ProductDetail() {
   const [categories, setCategories] = useState<Record<string, string>>({})
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [purchasePrice, setPurchasePrice] = useState(0)
@@ -69,8 +74,41 @@ export default function ProductDetail() {
   async function saveField(field: string, value: unknown) {
     if (!id) return
     setSaving(true)
+    setSaveError(null)
     try {
       await api.updateProduct(id, { [field]: value })
+      setSavedAt(new Date())
+    } catch (err) {
+      // Silent failure is the worst case here: the seller believes the change is
+      // recorded and publishes the old text.
+      setSaveError(err instanceof Error ? err.message : 'Enregistrement impossible')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Forces a full save of every editable field, for the explicit button. */
+  async function saveAll() {
+    if (!id) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await api.updateProduct(id, {
+        aiTitle: product.aiTitle,
+        aiDescription: product.aiDescription,
+        price: purchasePrice,
+        shippingCost,
+        sellingPrice,
+        images: product.images,
+        variants,
+        bulletPoints,
+        attributes,
+        metaKeywords: product.metaKeywords ?? '',
+        categoryId: product.categoryId ?? null,
+      })
+      setSavedAt(new Date())
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Enregistrement impossible')
     } finally {
       setSaving(false)
     }
@@ -92,6 +130,27 @@ export default function ProductDetail() {
     if (target < 0 || target >= next.length) return
     ;[next[index], next[target]] = [next[target], next[index]]
     saveImages(next)
+  }
+
+  /** Sends chosen files, appends what came back, and reports what was refused. */
+  async function addPhotos(files: File[]) {
+    if (!id || !files.length) return
+    const images = files.filter((f) => f.type.startsWith('image/'))
+    if (!images.length) return setPhotoError('Seules des images sont acceptées')
+
+    setPhotoError(null)
+    setUploading(true)
+    try {
+      const res = await uploadProductImages(id, images)
+      setProduct((p: any) => ({ ...p, images: res.images }))
+      if (res.added < images.length) {
+        setPhotoError(`${res.added} photo(s) ajoutée(s) sur ${images.length} — limite de 10 par annonce.`)
+      }
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Ajout impossible")
+    } finally {
+      setUploading(false)
+    }
   }
 
   function removeImage(index: number) {
@@ -158,6 +217,37 @@ export default function ProductDetail() {
         </button>
       </div>
 
+      {/* Fields save when you leave them, but silently — which leaves the seller
+          unsure whether the change was recorded. This states it, and offers an
+          explicit save for reassurance. */}
+      <div className="sticky top-0 z-30 -mx-1 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#1b1633]/95 px-4 py-2.5 backdrop-blur">
+        <span className="flex items-center gap-2 text-sm">
+          {saving ? (
+            <>
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-purple-300/30 border-t-purple-300" />
+              <span className="text-gray-300">Enregistrement…</span>
+            </>
+          ) : saveError ? (
+            <span className="text-red-400">⚠ {saveError}</span>
+          ) : savedAt ? (
+            <span className="text-emerald-300">
+              ✓ Modifications enregistrées à{' '}
+              {savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          ) : (
+            <span className="text-gray-400">Vos modifications sont enregistrées automatiquement</span>
+          )}
+        </span>
+
+        <button
+          onClick={saveAll}
+          disabled={saving}
+          className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
+        >
+          Valider l'annonce
+        </button>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-6 mt-6">
         <div>
           <div className="grid grid-cols-3 gap-2">
@@ -201,6 +291,44 @@ export default function ProductDetail() {
           <p className="mt-2 text-xs text-gray-500">
             La première photo sert de vignette principale sur toutes les plateformes.
           </p>
+
+          {/* Manual control matters: supplier galleries are sometimes unreadable,
+              and a seller's own product has no source page at all. */}
+          <label
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragging(false)
+              addPhotos([...e.dataTransfer.files])
+            }}
+            className={`mt-3 flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed p-4 text-center transition ${
+              dragging ? 'border-purple-400 bg-purple-500/10' : 'border-white/15 hover:border-white/30'
+            }`}
+          >
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                addPhotos([...(e.target.files ?? [])])
+                e.target.value = ''
+              }}
+            />
+            <ImagePlus size={20} className="text-purple-300" />
+            <span className="text-sm font-medium">
+              {uploading ? 'Traitement en cours…' : 'Ajouter mes propres photos'}
+            </span>
+            <span className="text-xs text-gray-400">
+              Glissez vos images ici ou cliquez — JPEG, PNG ou WebP, 8 Mo par photo, 10 au total.
+              Votre filigrane est appliqué automatiquement.
+            </span>
+          </label>
+          {photoError && <p className="mt-2 text-xs text-red-400">{photoError}</p>}
           <button
             onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
             className="mt-3 inline-flex items-center gap-2 text-sm rounded-lg border border-white/10 px-3 py-2 hover:bg-white/5"
@@ -396,7 +524,6 @@ export default function ProductDetail() {
               Appliquer une marge de +50 %
             </button>
           </div>
-          {saving && <p className="text-xs text-gray-500">Enregistrement...</p>}
         </div>
       </div>
 
