@@ -256,16 +256,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // open rather than piling up duplicates.
   if (message?.type === 'dsp-open-product') {
     ;(async () => {
-      const appUrl = await getAppUrl()
-      const target = message.productId ? `${appUrl}/products/${message.productId}` : `${appUrl}/dashboard`
-      const [existing] = await chrome.tabs.query({ url: `${appUrl}/*` })
-      if (existing?.id) {
-        await chrome.tabs.update(existing.id, { url: target, active: true })
-        await chrome.windows.update(existing.windowId, { focused: true })
-      } else {
-        await chrome.tabs.create({ url: target, active: true })
+      try {
+        const appUrl = await getAppUrl()
+        const target = message.productId ? `${appUrl}/products/${message.productId}` : `${appUrl}/dashboard`
+        const [existing] = await chrome.tabs.query({ url: `${appUrl}/*` })
+        if (existing?.id) {
+          await chrome.tabs.update(existing.id, { url: target, active: true })
+          await chrome.windows.update(existing.windowId, { focused: true })
+        } else {
+          await chrome.tabs.create({ url: target, active: true })
+        }
+        sendResponse({ ok: true })
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message })
       }
-      sendResponse({ ok: true })
     })()
     return true
   }

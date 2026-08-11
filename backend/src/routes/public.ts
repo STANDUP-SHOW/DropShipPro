@@ -25,6 +25,23 @@ publicRouter.get('/extension.zip', async (_req, res) => {
 })
 
 /**
+ * Tells the extension where the app lives.
+ *
+ * Without this it kept its localhost default, so after an import it opened a tab
+ * on an address that doesn't exist on the user's machine and the listing never
+ * appeared. The server already knows the answer through FRONTEND_URL, so nobody
+ * has to configure it by hand.
+ */
+publicRouter.get('/config', (_req, res) => {
+  const appUrl = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
+    .split(',')[0]
+    .trim()
+    .replace(/\/$/, '')
+  res.set('Cache-Control', 'public, max-age=300')
+  res.json({ appUrl })
+})
+
+/**
  * Shape returned to a storefront.
  *
  * `price` is the selling price, never the supplier cost: a shop wiring itself to

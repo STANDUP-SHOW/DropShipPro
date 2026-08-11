@@ -18,9 +18,30 @@ async function setApiBase(url) {
 
 const DEFAULT_APP = 'http://localhost:5173'
 
+/**
+ * Where the web app lives.
+ *
+ * Asks the API when it isn't known yet, instead of falling back to localhost: an
+ * unconfigured extension used to open the freshly imported listing on an address
+ * that doesn't exist, and the tab never showed anything.
+ */
 async function getAppUrl() {
   const { appUrl } = await chrome.storage.local.get('appUrl')
-  return (appUrl || DEFAULT_APP).replace(/\/$/, '')
+  if (appUrl) return appUrl.replace(/\/$/, '')
+
+  try {
+    const res = await fetch(`${await getApiBase()}/api/public/config`)
+    if (res.ok) {
+      const { appUrl: fromServer } = await res.json()
+      if (fromServer) {
+        await chrome.storage.local.set({ appUrl: fromServer })
+        return fromServer.replace(/\/$/, '')
+      }
+    }
+  } catch {
+    // API unreachable: keep the default rather than blocking the caller.
+  }
+  return DEFAULT_APP
 }
 
 async function setAppUrl(url) {

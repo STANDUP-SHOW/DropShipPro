@@ -186,6 +186,74 @@
     }
   }
 
+  /**
+   * Progress panel shown above the button while the import runs.
+   *
+   * The whole thing takes 30 to 60 seconds — reading the page, AI rewrite, then
+   * watermarking. Without a visible timer the page looks frozen and people click
+   * again or leave.
+   */
+  function showProgress() {
+    document.getElementById('dsp-progress')?.remove()
+
+    const panel = document.createElement('div')
+    panel.id = 'dsp-progress'
+    Object.assign(panel.style, {
+      width: '270px',
+      padding: '12px 14px',
+      borderRadius: '10px',
+      background: 'rgba(20,24,44,.94)',
+      border: '1px solid rgba(168,85,247,.45)',
+      boxShadow: '0 8px 24px rgba(0,0,0,.4)',
+      color: '#fff',
+      font: '400 12px system-ui, sans-serif',
+      backdropFilter: 'blur(6px)',
+    })
+    panel.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px">
+        <span id="dsp-spin" style="display:inline-block;width:13px;height:13px;border:2px solid rgba(216,180,254,.3);border-top-color:#d8b4fe;border-radius:50%"></span>
+        <span id="dsp-step">Lecture de la page…</span>
+        <span id="dsp-timer" style="margin-left:auto;color:#d8b4fe;font-variant-numeric:tabular-nums">0 s</span>
+      </div>
+      <div style="margin-top:9px;height:3px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden">
+        <div id="dsp-bar" style="height:100%;width:8%;border-radius:999px;background:linear-gradient(90deg,#a855f7,#ec4899);transition:width .6s ease"></div>
+      </div>
+      <p style="margin:8px 0 0;color:#9ca3af;line-height:1.5">Ne fermez pas cet onglet. L'annonce s'ouvrira toute seule.</p>
+    `
+    document.getElementById('dsp-capture-wrap')?.prepend(panel)
+
+    const started = Date.now()
+    let spin = 0
+    const timer = setInterval(() => {
+      const seconds = Math.floor((Date.now() - started) / 1000)
+      panel.querySelector('#dsp-timer').textContent = `${seconds} s`
+      // The steps aren't measurable, so the bar advances on expected duration
+      // and stops short of the end rather than pretending to be finished.
+      panel.querySelector('#dsp-bar').style.width = `${Math.min(92, 8 + seconds * 2.2)}%`
+      panel.querySelector('#dsp-spin').style.transform = `rotate(${(spin += 45)}deg)`
+    }, 1000)
+
+    return {
+      step(label) {
+        const el = panel.querySelector('#dsp-step')
+        if (el) el.textContent = label
+      },
+      done(label) {
+        clearInterval(timer)
+        panel.querySelector('#dsp-bar').style.width = '100%'
+        panel.querySelector('#dsp-spin').remove()
+        panel.querySelector('#dsp-step').textContent = label
+      },
+      fail(label) {
+        clearInterval(timer)
+        panel.style.borderColor = 'rgba(248,113,113,.5)'
+        panel.querySelector('#dsp-spin').remove()
+        panel.querySelector('#dsp-step').textContent = label
+      },
+      remove: () => panel.remove(),
+    }
+  }
+
   async function send(button) {
     const { token } = await chrome.storage.local.get('token')
     if (!token) {
@@ -193,26 +261,40 @@
       return
     }
 
-    const payload = await buildPayload()
-    if (!payload.title) {
-      showBanner('Produit non reconnu sur cette page.', 'error')
-      return
-    }
-
     button.disabled = true
     button.textContent = 'Import en cours…'
+    const progress = showProgress()
+
     try {
+      const payload = await buildPayload()
+      if (!payload.title) {
+        progress.fail('Produit non reconnu sur cette page')
+        button.textContent = 'Réessayer'
+        button.disabled = false
+        return
+      }
+
+      progress.step(`${payload.images.length} photo(s) — rédaction par l'IA…`)
       const product = await apiFetch('/api/products/capture', { method: 'POST', body: payload })
-      showBanner(
-        `Ajouté à DropShipper IA : ${payload.images.length} photo(s), prix ${payload.price || '—'} ${payload.currency}. Ouverture de l'annonce…`,
-      )
+
+      progress.done('Annonce prête')
       button.textContent = '✓ Ajouté'
 
-      // Take the seller straight to the listing, which is the point of the button:
-      // no copying a link, no hunting for the product in the back office.
-      chrome.runtime.sendMessage({ type: 'dsp-open-product', productId: product?.id })
+      // Opened only once the listing is complete, and only announced once it
+      // actually happened: the previous version promised an opening that failed
+      // silently when the app address was wrong.
+      const opened = await chrome.runtime.sendMessage({
+        type: 'dsp-open-product',
+        productId: product?.id,
+      })
+
+      if (opened?.ok) {
+        setTimeout(() => progress.remove(), 2500)
+      } else {
+        progress.fail(`Annonce enregistrée — ouvrez DropShipper IA${opened?.error ? ` (${opened.error})` : ''}`)
+      }
     } catch (err) {
-      showBanner(`Échec de l'import : ${err.message}`, 'error')
+      progress.fail(`Échec : ${err.message}`)
       button.textContent = 'Réessayer'
       button.disabled = false
     }
