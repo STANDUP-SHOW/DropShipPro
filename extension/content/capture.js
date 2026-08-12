@@ -442,6 +442,10 @@
             sur Temu les photos produit font en général 800×800. 10 maximum.
           </div>
           <div id="dsp-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button id="dsp-none" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:8px;padding:5px 12px;cursor:pointer;font:500 12px system-ui,sans-serif">Tout désélectionner</button>
+            <button id="dsp-all" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:8px;padding:5px 12px;cursor:pointer;font:500 12px system-ui,sans-serif">Sélectionner ce filtre</button>
+          </div>
         </div>
         <div id="dsp-grid" style="flex:1 1 auto;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));grid-auto-rows:170px;align-content:start;gap:14px"></div>
         <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-shrink:0">
@@ -534,6 +538,26 @@
           grid.appendChild(cell)
         }
       }
+
+      /** Images currently listed, i.e. matching the active size filter. */
+      const visible = () => (filter ? sorted.filter((i) => `${i.width}×${i.height}` === filter) : sorted)
+
+      panel.querySelector('#dsp-none').addEventListener('click', () => {
+        preselected.clear()
+        drawGrid()
+        refreshCount()
+      })
+
+      // Selects what the filter shows rather than everything: with a size filter
+      // active this is the fastest way to take the whole gallery in one click.
+      panel.querySelector('#dsp-all').addEventListener('click', () => {
+        for (const item of visible()) {
+          if (preselected.size >= 10) break
+          preselected.add(item.url)
+        }
+        drawGrid()
+        refreshCount()
+      })
 
       drawFilters()
       drawGrid()
