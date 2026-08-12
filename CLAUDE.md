@@ -1,0 +1,123 @@
+# DropShipper IA — mémo projet
+
+Ce fichier est lu automatiquement au début de chaque session. Il remplace la
+mémoire d'une conversation : tout ce qui compte pour reprendre le travail est ici.
+
+---
+
+## Ce que fait l'application
+
+Import d'un produit depuis n'importe quelle boutique → l'IA réécrit l'annonce
+(titre, description, attributs, mots-clés) → filigrane sur les photos →
+publication vers des marketplaces.
+
+## Où ça tourne
+
+| Élément | Adresse |
+|---|---|
+| Site | https://www.drop-shipper.fr (l'apex `drop-shipper.fr` redirige vers `www`) |
+| API | https://dropshippro-production.up.railway.app |
+| Dépôt | https://github.com/STANDUP-SHOW/DropShipPro |
+| Base | PostgreSQL sur Railway (la même en local et en production) |
+
+**`localhost` n'est pas l'application du client** : c'est le serveur de
+développement, éteint hors session. Toujours tester sur `www.drop-shipper.fr`.
+
+## Structure
+
+```
+backend/     Node + Express + TypeScript + Prisma → Railway
+frontend/    React + Vite + Tailwind v4 → Vercel (Root Directory = frontend)
+extension/   Extension Chrome Manifest V3
+storefront/  Vitrine de démonstration OGGUS (HTML autonome)
+docs/        Documentation de l'API catalogue
+```
+
+---
+
+## Décisions à ne pas refaire
+
+- **Node, pas Python.** Python n'est pas installé sur la machine ; c'est pour ça
+  que le backend n'est pas en FastAPI. La skill `ui-ux-pro-max` est installée mais
+  inutilisable pour la même raison.
+- **Pas de connexion automatique aux marketplaces.** Rejouer des mots de passe
+  viole leurs CGU et fait suspendre les comptes vendeur. L'extension détecte la
+  session et attend que l'utilisateur se connecte.
+- **L'agent ne clique jamais sur « Publier »** sur un site tiers. Il remplit, le
+  vendeur valide.
+- **L'import par URL ne marche pas sur Temu, JoyBuy, AliExpress, Shein.** Ces
+  sites construisent leur fiche en JavaScript ; le serveur reçoit une coquille
+  vide. C'est refusé explicitement, avec renvoi vers l'extension.
+
+## Pièges vérifiés (ne pas retomber dedans)
+
+- **Le disque de Railway est éphémère.** Sans volume monté sur `/app/storage`,
+  toutes les photos filigranées disparaissent à chaque redéploiement.
+- **`FRONTEND_URL` accepte une liste** séparée par des virgules : les trois
+  origines (apex, www, vercel.app) doivent y figurer, sinon le CORS bloque.
+- **Les content scripts ne peuvent pas appeler l'API directement** : une page
+  https vers une API http est du contenu mixte, bloqué par Chrome. Tout passe par
+  le service worker via `apiFetch` (voir `extension/config.js`).
+- **Vercel répond 200 à un GET et 405 à un POST** sur `/api/*`. Une adresse d'API
+  mal réglée dans l'extension donne donc un 405 incompréhensible ; le popup la
+  vérifie désormais avant d'enregistrer.
+- **Toujours valider la syntaxe de l'extension avant de livrer.** Un `await` dans
+  un callback non-async avait empêché Chrome de charger toute l'extension :
+
+  ```bash
+  cd extension && node -e "const fs=require('fs'),vm=require('vm');for(const f of ['config.js','background.js','popup.js','content/fill-helpers.js','content/capture.js','content/agent.js','content/app-bridge.js','content/publish-launcher.js','content/vinted.js','content/leboncoin.js','content/ebay.js','content/facebook.js']){try{new vm.Script(fs.readFileSync(f,'utf8'),{filename:f})}catch(e){console.log('ERREUR',f,e.message)}}"
+  ```
+
+- **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne
+  vide : React perd la trace des nœuds et lève « removeChild: the node to be
+  removed is not a child ». Composer une seule chaîne.
+- **Un `type="number"` contrôlé par `Number()` casse à la virgule** du pavé
+  numérique français. D'où le composant `PriceInput`.
+
+---
+
+## État des intégrations
+
+**Fonctionne et vérifié en production** : comptes, mot de passe oublié,
+vérification d'email, import, IA (titre, description, 9 attributs, 6 arguments,
+20 mots-clés), filigrane, calcul de marge, API catalogue, extension.
+
+**Aucune marketplace n'est réellement connectée en API.** Publier crée une
+publication en statut « en attente ». Seul « Mon site » est immédiat, via
+`/api/public/shops/:shopKey/products`.
+
+- **Automatisable en self-service** : eBay (Sell API), Google Shopping (Merchant
+  Center gratuit), Wish
+- **Compte vendeur validé requis** : Amazon, Cdiscount, TikTok Shop, et les
+  opérateurs Mirakl (La Redoute, Leclerc, BHV, Kiabi, BrandAlley)
+- **Pas d'API, extension uniquement** : Vinted, Leboncoin, Facebook Marketplace
+- **Etsy** interdit la revente de produits manufacturés — risque de fermeture
+- **Atlas For Men** n'est pas une marketplace, aucune publication possible
+
+## Ce qui reste en chantier
+
+1. **Photos depuis Temu** : la détection automatique a échoué (CDN majoritaire,
+   mesure des dimensions, suffixe d'URL). Remplacée par un sélecteur manuel avec
+   filtre par dimensions, sur le modèle d'Imageye. À valider par l'utilisateur.
+2. **Shopify** demandé, pas commencé.
+3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
+4. Une **veille de disponibilité** des produits sources a été proposée.
+
+---
+
+## Conventions
+
+- Interface et messages d'erreur **en français**, commentaires de code en anglais.
+- Vérifier avant d'affirmer : lancer le build, tester l'endpoint, regarder la page.
+- Ne jamais annoncer qu'une chose fonctionne sans l'avoir constatée.
+- Les secrets vont dans `backend/.env` (exclu de git), jamais dans le dépôt ni
+  dans la conversation.
+
+## Commandes
+
+```bash
+cd backend && npm run dev      # API sur :4000
+cd frontend && npm run dev     # site sur :5173
+cd frontend && npm run build   # build de production, plus strict que le dev
+cd backend && npx tsc --noEmit # vérification des types
+```
