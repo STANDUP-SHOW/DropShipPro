@@ -152,6 +152,34 @@
     return out
   }
 
+  /**
+   * Product photos live under a recognisable path on every supplier CDN
+   * (`/product/`, `/goods/`, `/item/`…), while banners, logos and interface
+   * assets do not. Ranking on that puts the gallery ahead of the page furniture.
+   */
+  const PRODUCT_PATH = /\/(?:product|products|goods|item|items|sku|detail)\//i
+
+  /**
+   * Every image the browser actually downloaded for this page.
+   *
+   * This is the source that was missing. A carousel loads its photos then swaps
+   * them out of the DOM, so scanning `<img>` tags finds only the visible one and
+   * the page markup doesn't always carry the rest either. The resource timeline
+   * keeps them all — it is how an image-downloader extension reports hundreds of
+   * pictures on a page showing a handful.
+   */
+  function collectImagesFromNetwork() {
+    try {
+      return performance
+        .getEntriesByType('resource')
+        .filter((entry) => entry.initiatorType === 'img' || /\.(?:jpe?g|png|webp|avif)(?:\?|$)/i.test(entry.name))
+        .map((entry) => entry.name)
+        .filter((url) => url.startsWith('http') && !JUNK.test(url))
+    } catch {
+      return []
+    }
+  }
+
   async function collectImages() {
     const candidates = new Set()
 
@@ -159,11 +187,17 @@
       const src = bestSource(img)
       if (src && src.startsWith('http') && !JUNK.test(src)) candidates.add(src)
     }
+    for (const url of collectImagesFromNetwork()) candidates.add(url)
     for (const url of collectImagesFromSource()) candidates.add(url)
 
-    // Each candidate is probed at its own address and without the size marker;
-    // the largest working version wins.
-    const probes = [...candidates].slice(0, 30).flatMap(sizeVariants)
+    // Measuring costs one request each, so the pool is capped — but it must be
+    // ordered first. Previously the DOM images (ads, logos, neighbouring
+    // products) filled the whole quota and the real gallery, which comes from the
+    // page source, was never reached: an import returned fifteen pictures without
+    // one of the product.
+    const ranked = [...candidates].sort((a, b) => Number(PRODUCT_PATH.test(b)) - Number(PRODUCT_PATH.test(a)))
+
+    const probes = ranked.slice(0, 60).flatMap(sizeVariants)
     const measured = (await Promise.all([...new Set(probes)].map(measure))).filter(Boolean)
 
     const large = measured
