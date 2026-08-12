@@ -475,20 +475,21 @@ export default function ProductDetail() {
             <div className="mt-4 rounded-xl bg-black/25 p-3.5">
               <div className="flex items-baseline justify-between text-sm text-gray-400">
                 <span>Coût de revient</span>
-                <span className="tabular-nums">
-                  {costPrice.toFixed(2)} {product.currency}
-                </span>
+                <span className="tabular-nums">{`${costPrice.toFixed(2)} ${product.currency}`}</span>
               </div>
               <div className="mt-2 flex items-baseline justify-between border-t border-white/10 pt-2">
                 <span className="text-sm font-medium">Marge brute</span>
+                {/* One text node per element, built as a single string. Juxtaposing
+                    several expressions — one of them an empty string — made React
+                    add and remove text nodes on every keystroke, and it lost track
+                    of them: "removeChild: the node to be removed is not a child". */}
                 <span
                   className={`text-lg font-bold tabular-nums ${grossMargin >= 0 ? 'text-emerald-300' : 'text-red-400'}`}
                 >
-                  {grossMargin >= 0 ? '+' : ''}
-                  {grossMargin.toFixed(2)} {product.currency}
-                  {marginRate !== null && (
-                    <span className="ml-2 text-xs font-normal text-gray-400">({marginRate.toFixed(0)} %)</span>
-                  )}
+                  {`${grossMargin >= 0 ? '+' : ''}${grossMargin.toFixed(2)} ${product.currency}`}
+                  <span className="ml-2 text-xs font-normal text-gray-400">
+                    {marginRate === null ? '' : `(${marginRate.toFixed(0)} %)`}
+                  </span>
                 </span>
               </div>
             </div>

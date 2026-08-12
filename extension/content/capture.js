@@ -425,7 +425,11 @@
 
       // Biggest first: the gallery is shot at full size, the rest are thumbnails.
       const sorted = [...found].sort((a, b) => b.width * b.height - a.width * a.height)
-      const preselected = new Set(sorted.filter((i) => Math.min(i.width, i.height) >= 500).slice(0, 10).map((i) => i.url))
+
+      // Nothing pre-selected: size alone doesn't tell a product photo from a
+      // banner, and the largest images on these pages are often adverts. Starting
+      // empty is faster than unticking dozens of wrong guesses.
+      const preselected = new Set()
 
       // Sizes actually present, so the seller can isolate the gallery: on Temu the
       // product shots are all 800×800 while the surrounding clutter is not.
@@ -438,8 +442,9 @@
         <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0">
           <div style="font-weight:700;font-size:15px">Choisissez les photos du produit</div>
           <div style="color:#9ca3af;margin-top:3px">
-            ${sorted.length} image(s) trouvées. Filtrez par dimensions pour isoler la galerie —
-            sur Temu les photos produit font en général 800×800. 10 maximum.
+            ${sorted.length} image(s) trouvées, aucune présélectionnée. Filtrez par dimensions pour
+            isoler la galerie — sur Temu les photos produit font en général 800×800 — puis
+            « Sélectionner ce filtre ». 10 maximum.
           </div>
           <div id="dsp-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
           <div style="display:flex;gap:8px;margin-top:10px">
