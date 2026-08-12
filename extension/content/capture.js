@@ -427,16 +427,24 @@
       const sorted = [...found].sort((a, b) => b.width * b.height - a.width * a.height)
       const preselected = new Set(sorted.filter((i) => Math.min(i.width, i.height) >= 500).slice(0, 10).map((i) => i.url))
 
+      // Sizes actually present, so the seller can isolate the gallery: on Temu the
+      // product shots are all 800×800 while the surrounding clutter is not.
+      const sizes = [...new Set(sorted.map((i) => `${i.width}×${i.height}`))]
+        .map((label) => ({ label, count: sorted.filter((i) => `${i.width}×${i.height}` === label).length }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6)
+
       panel.innerHTML = `
-        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.1)">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0">
           <div style="font-weight:700;font-size:15px">Choisissez les photos du produit</div>
           <div style="color:#9ca3af;margin-top:3px">
-            ${sorted.length} image(s) trouvées, les plus grandes en premier. Les grandes sont
-            pré-cochées — décochez celles qui ne sont pas le produit. 10 maximum.
+            ${sorted.length} image(s) trouvées. Filtrez par dimensions pour isoler la galerie —
+            sur Temu les photos produit font en général 800×800. 10 maximum.
           </div>
+          <div id="dsp-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
         </div>
-        <div id="dsp-grid" style="flex:1;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px"></div>
-        <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div id="dsp-grid" style="flex:1 1 auto;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));grid-auto-rows:170px;align-content:start;gap:14px"></div>
+        <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-shrink:0">
           <span id="dsp-count" style="color:#9ca3af"></span>
           <span style="display:flex;gap:8px">
             <button id="dsp-cancel" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:9px;padding:9px 16px;cursor:pointer;font:inherit">Annuler</button>
@@ -449,46 +457,86 @@
 
       const grid = panel.querySelector('#dsp-grid')
       const counter = panel.querySelector('#dsp-count')
+      const filters = panel.querySelector('#dsp-filters')
+      let filter = null
+
       const refreshCount = () => {
         counter.textContent = `${preselected.size} photo(s) sélectionnée(s)`
       }
 
-      for (const item of sorted) {
-        const cell = document.createElement('button')
-        const selected = () => preselected.has(item.url)
-        Object.assign(cell.style, {
-          position: 'relative',
-          padding: '0',
-          border: '2px solid transparent',
-          borderRadius: '10px',
-          overflow: 'hidden',
-          cursor: 'pointer',
-          background: '#0f172a',
-          aspectRatio: '1',
-        })
-        cell.innerHTML = `
-          <img src="${item.url}" style="width:100%;height:100%;object-fit:cover;display:block" />
-          <span style="position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.72);border-radius:5px;padding:2px 6px;font-size:10px">${item.width}×${item.height}</span>
-          <span class="tick" style="position:absolute;right:5px;top:5px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700"></span>`
-
-        const paint = () => {
-          cell.style.borderColor = selected() ? '#a855f7' : 'transparent'
-          cell.style.opacity = selected() ? '1' : '.55'
-          const tick = cell.querySelector('.tick')
-          tick.style.background = selected() ? '#a855f7' : 'rgba(0,0,0,.6)'
-          tick.textContent = selected() ? '✓' : ''
+      function drawFilters() {
+        filters.innerHTML = ''
+        const make = (label, value, count) => {
+          const b = document.createElement('button')
+          b.textContent = count === null ? label : `${label} (${count})`
+          const on = filter === value
+          Object.assign(b.style, {
+            border: on ? '1px solid #a855f7' : '1px solid rgba(255,255,255,.15)',
+            background: on ? 'rgba(168,85,247,.25)' : 'none',
+            color: '#e5e7eb',
+            borderRadius: '999px',
+            padding: '5px 12px',
+            cursor: 'pointer',
+            font: '500 12px system-ui, sans-serif',
+          })
+          b.addEventListener('click', () => {
+            filter = value
+            drawFilters()
+            drawGrid()
+          })
+          filters.appendChild(b)
         }
-
-        cell.addEventListener('click', () => {
-          if (selected()) preselected.delete(item.url)
-          else if (preselected.size < 10) preselected.add(item.url)
-          paint()
-          refreshCount()
-        })
-
-        paint()
-        grid.appendChild(cell)
+        make('Toutes', null, sorted.length)
+        for (const s of sizes) make(s.label, s.label, s.count)
       }
+
+      function drawGrid() {
+        grid.innerHTML = ''
+        const shown = filter ? sorted.filter((i) => `${i.width}×${i.height}` === filter) : sorted
+
+        for (const item of shown) {
+          const cell = document.createElement('button')
+          const selected = () => preselected.has(item.url)
+          Object.assign(cell.style, {
+            position: 'relative',
+            padding: '0',
+            margin: '0',
+            border: '2px solid transparent',
+            borderRadius: '10px',
+            overflow: 'hidden',
+            cursor: 'pointer',
+            background: '#0f172a',
+            width: '100%',
+            height: '170px',
+            display: 'block',
+          })
+          cell.innerHTML = `
+            <img src="${item.url}" loading="lazy" style="width:100%;height:100%;object-fit:contain;display:block;background:#0f172a" />
+            <span style="position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.78);border-radius:5px;padding:2px 6px;font-size:10px;color:#fff">${item.width}×${item.height}</span>
+            <span class="tick" style="position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff"></span>`
+
+          const paint = () => {
+            cell.style.borderColor = selected() ? '#a855f7' : 'rgba(255,255,255,.08)'
+            cell.style.opacity = selected() ? '1' : '.6'
+            const tick = cell.querySelector('.tick')
+            tick.style.background = selected() ? '#a855f7' : 'rgba(0,0,0,.65)'
+            tick.textContent = selected() ? '✓' : ''
+          }
+
+          cell.addEventListener('click', () => {
+            if (selected()) preselected.delete(item.url)
+            else if (preselected.size < 10) preselected.add(item.url)
+            paint()
+            refreshCount()
+          })
+
+          paint()
+          grid.appendChild(cell)
+        }
+      }
+
+      drawFilters()
+      drawGrid()
       refreshCount()
 
       const close = (value) => {
