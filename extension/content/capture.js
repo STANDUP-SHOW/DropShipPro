@@ -129,6 +129,29 @@
    * thumbnails. It is the same criterion as a "large images only" filter in an
    * image-downloader extension.
    */
+  /**
+   * Variants of a URL that may serve the full-size original.
+   *
+   * Product CDNs encode the requested size in the path or the query
+   * (`xxx_100x100.jpg`, `/200x200/xxx.jpg`, `?imageView2/2/w/300`). The page only
+   * ever links the thumbnail, so measuring what is on the page finds nothing big
+   * enough. Dropping the size marker usually returns the original — this is what
+   * an image-downloader extension does to offer "large" versions.
+   */
+  function sizeVariants(url) {
+    const out = [url]
+    const bare = url.split('?')[0]
+    if (bare !== url) out.push(bare)
+
+    const stripped = bare
+      .replace(/[_-]\d{2,4}x\d{2,4}(?=\.\w+$)/i, '')
+      .replace(/\/\d{2,4}x\d{2,4}\//, '/')
+      .replace(/[_-](?:thumb|small|medium|mini)(?=\.\w+$)/i, '')
+    if (stripped !== bare) out.push(stripped)
+
+    return out
+  }
+
   async function collectImages() {
     const candidates = new Set()
 
@@ -138,8 +161,10 @@
     }
     for (const url of collectImagesFromSource()) candidates.add(url)
 
-    // Measuring costs a request each, so cap the pool before probing.
-    const measured = (await Promise.all([...candidates].slice(0, 40).map(measure))).filter(Boolean)
+    // Each candidate is probed at its own address and without the size marker;
+    // the largest working version wins.
+    const probes = [...candidates].slice(0, 30).flatMap(sizeVariants)
+    const measured = (await Promise.all([...new Set(probes)].map(measure))).filter(Boolean)
 
     const large = measured
       .filter((m) => Math.min(m.width, m.height) >= MIN_SIDE)
@@ -149,16 +174,16 @@
     // Fall back to the biggest available rather than returning nothing.
     const chosen = large.length ? large : measured.sort((a, b) => b.width * b.height - a.width * a.height)
 
+    // Deduplicate: the same photo often appears at several sizes.
     const seen = new Set()
-    const result = []
+    const unique = []
     for (const item of chosen) {
       const identity = photoIdentity(item.url)
       if (seen.has(identity)) continue
       seen.add(identity)
-      result.push(item.url)
-      if (result.length >= 10) break
+      unique.push(item)
     }
-    return result
+    return unique
   }
 
   /**
@@ -248,7 +273,7 @@
         '',
       price: collectPrice(),
       currency: /\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR',
-      images: await collectImages(),
+      images: [],
       sourceCategory: collectCategory(),
       variants: collectVariants(),
       pageText: collectPageText(),
@@ -323,6 +348,127 @@
     }
   }
 
+  /**
+   * Lets the seller pick the photos.
+   *
+   * Guessing which pictures belong to the product failed on every attempt: these
+   * pages hide the gallery behind obfuscated markup, and any rule that works on
+   * one shop breaks on the next. Showing every image found, biggest first, and
+   * letting the user tick them is the approach image-downloader extensions use —
+   * it cannot silently pick the wrong ones.
+   */
+  function choosePhotos(found) {
+    return new Promise((resolve) => {
+      document.getElementById('dsp-picker-photos')?.remove()
+
+      const overlay = document.createElement('div')
+      overlay.id = 'dsp-picker-photos'
+      Object.assign(overlay.style, {
+        position: 'fixed',
+        inset: '0',
+        zIndex: '2147483647',
+        background: 'rgba(10,12,24,.86)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        font: '400 13px system-ui, sans-serif',
+      })
+
+      const panel = document.createElement('div')
+      Object.assign(panel.style, {
+        width: 'min(920px, 100%)',
+        maxHeight: '86vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#1b1633',
+        border: '1px solid rgba(255,255,255,.12)',
+        borderRadius: '16px',
+        color: '#fff',
+        overflow: 'hidden',
+      })
+
+      // Biggest first: the gallery is shot at full size, the rest are thumbnails.
+      const sorted = [...found].sort((a, b) => b.width * b.height - a.width * a.height)
+      const preselected = new Set(sorted.filter((i) => Math.min(i.width, i.height) >= 500).slice(0, 10).map((i) => i.url))
+
+      panel.innerHTML = `
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.1)">
+          <div style="font-weight:700;font-size:15px">Choisissez les photos du produit</div>
+          <div style="color:#9ca3af;margin-top:3px">
+            ${sorted.length} image(s) trouvées, les plus grandes en premier. Les grandes sont
+            pré-cochées — décochez celles qui ne sont pas le produit. 10 maximum.
+          </div>
+        </div>
+        <div id="dsp-grid" style="flex:1;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px"></div>
+        <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <span id="dsp-count" style="color:#9ca3af"></span>
+          <span style="display:flex;gap:8px">
+            <button id="dsp-cancel" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:9px;padding:9px 16px;cursor:pointer;font:inherit">Annuler</button>
+            <button id="dsp-ok" style="border:0;background:linear-gradient(90deg,#a855f7,#ec4899);color:#fff;border-radius:9px;padding:9px 20px;cursor:pointer;font:inherit;font-weight:600">Importer</button>
+          </span>
+        </div>`
+
+      overlay.appendChild(panel)
+      document.body.appendChild(overlay)
+
+      const grid = panel.querySelector('#dsp-grid')
+      const counter = panel.querySelector('#dsp-count')
+      const refreshCount = () => {
+        counter.textContent = `${preselected.size} photo(s) sélectionnée(s)`
+      }
+
+      for (const item of sorted) {
+        const cell = document.createElement('button')
+        const selected = () => preselected.has(item.url)
+        Object.assign(cell.style, {
+          position: 'relative',
+          padding: '0',
+          border: '2px solid transparent',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          background: '#0f172a',
+          aspectRatio: '1',
+        })
+        cell.innerHTML = `
+          <img src="${item.url}" style="width:100%;height:100%;object-fit:cover;display:block" />
+          <span style="position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.72);border-radius:5px;padding:2px 6px;font-size:10px">${item.width}×${item.height}</span>
+          <span class="tick" style="position:absolute;right:5px;top:5px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700"></span>`
+
+        const paint = () => {
+          cell.style.borderColor = selected() ? '#a855f7' : 'transparent'
+          cell.style.opacity = selected() ? '1' : '.55'
+          const tick = cell.querySelector('.tick')
+          tick.style.background = selected() ? '#a855f7' : 'rgba(0,0,0,.6)'
+          tick.textContent = selected() ? '✓' : ''
+        }
+
+        cell.addEventListener('click', () => {
+          if (selected()) preselected.delete(item.url)
+          else if (preselected.size < 10) preselected.add(item.url)
+          paint()
+          refreshCount()
+        })
+
+        paint()
+        grid.appendChild(cell)
+      }
+      refreshCount()
+
+      const close = (value) => {
+        overlay.remove()
+        resolve(value)
+      }
+      panel.querySelector('#dsp-cancel').addEventListener('click', () => close(null))
+      panel.querySelector('#dsp-ok').addEventListener('click', () => close([...preselected]))
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close(null)
+      })
+    })
+  }
+
   async function send(button) {
     const { token } = await chrome.storage.local.get('token')
     if (!token) {
@@ -335,6 +481,9 @@
     const progress = showProgress()
 
     try {
+      progress.step('Recherche des photos…')
+      const found = await collectImages()
+
       const payload = await buildPayload()
       if (!payload.title) {
         progress.fail('Produit non reconnu sur cette page')
@@ -342,6 +491,18 @@
         button.disabled = false
         return
       }
+
+      // The seller confirms which pictures are the product: no rule reliably
+      // separates the gallery from the recommendation strip on these pages.
+      progress.step(`${found.length} image(s) trouvées — à vous de choisir`)
+      const picked = await choosePhotos(found)
+      if (picked === null) {
+        progress.remove()
+        button.textContent = '✨ Ajouter à DropShipper IA'
+        button.disabled = false
+        return
+      }
+      payload.images = picked
 
       progress.step(`${payload.images.length} photo(s) — rédaction par l'IA…`)
       const product = await apiFetch('/api/products/capture', { method: 'POST', body: payload })
