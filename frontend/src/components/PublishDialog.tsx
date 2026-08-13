@@ -1,16 +1,10 @@
-import { useEffect, useState } from 'react'
-import { Radio, X, Zap, AlertTriangle } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Radio, X, Zap, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react'
+import { PlatformBadge } from './PlatformBadge'
+import { INTEGRATION_LABEL, type PlatformInfo } from '../lib/platforms'
 
-export interface PlatformInfo {
-  id: string
-  label: string
-  automatable: boolean
-  sellUrl: string | null
-  note: string
-  color: string
-  warning?: string
-  unavailable?: boolean
-}
+export type { PlatformInfo }
 
 /** Posts a diffusion order to the extension and waits for it to acknowledge. */
 function startExtensionSession(productId: string, platforms: string[]): Promise<{ ok: boolean; error?: string }> {
@@ -34,6 +28,13 @@ function startExtensionSession(productId: string, platforms: string[]): Promise<
   })
 }
 
+export interface PublishOutcome {
+  platform: string
+  status: string
+  error: string | null
+  externalUrl: string | null
+}
+
 export function PublishDialog({
   productId,
   platforms,
@@ -43,12 +44,13 @@ export function PublishDialog({
   productId: string
   platforms: PlatformInfo[]
   onClose: () => void
-  onPublished: (selected: string[]) => Promise<void>
+  onPublished: (selected: string[]) => Promise<PublishOutcome[] | void>
 }) {
   const [selected, setSelected] = useState<string[]>([])
   const [extensionReady, setExtensionReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [outcomes, setOutcomes] = useState<PublishOutcome[]>([])
 
   useEffect(() => {
     // The bridge stamps <html> as soon as it runs, so this catches an extension
@@ -68,44 +70,78 @@ export function PublishDialog({
     return () => window.removeEventListener('message', onReady)
   }, [])
 
+  // Closing on Escape as well as on the backdrop: the dialog is now rendered in a
+  // portal, so it is no longer inside anything that could swallow the click.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const toggle = useCallback((id: string) => {
+    setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]))
+  }, [])
+
   const available = platforms.filter((p) => !p.unavailable)
   const warned = selected
     .map((id) => platforms.find((p) => p.id === id))
     .filter((p): p is PlatformInfo => Boolean(p?.warning))
+  const needsExtension = selected.some((id) => platforms.find((p) => p.id === id)?.integration === 'extension')
 
   async function diffuse() {
     if (!selected.length) return
     setBusy(true)
     setMessage(null)
+    setOutcomes([])
     try {
-      await onPublished(selected)
-      const result = await startExtensionSession(productId, selected)
-      setMessage(
-        result.ok
-          ? `Diffusion lancée : un onglet par plateforme vient de s'ouvrir. Ne les fermez pas, DropShipper IA remplit les annonces.`
-          : "Annonce enregistrée. Installez l'extension Chrome pour que le remplissage se fasse tout seul.",
-      )
+      const results = await onPublished(selected)
+      if (Array.isArray(results)) setOutcomes(results)
+
+      // The extension is only worth waking up when a manual marketplace is in the
+      // batch: an API destination is already done at this point.
+      if (needsExtension) {
+        const result = await startExtensionSession(productId, selected)
+        setMessage(
+          result.ok
+            ? "Diffusion lancée : un onglet par plateforme vient de s'ouvrir. Ne les fermez pas, DropShipper IA remplit les annonces."
+            : "Annonce enregistrée. Installez l'extension Chrome pour que le remplissage se fasse tout seul.",
+        )
+      } else {
+        setMessage('Annonce envoyée. Le détail par plateforme est ci-dessous.')
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Publication impossible')
     } finally {
       setBusy(false)
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#1b1633] p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
+  // Rendered at the end of <body>: inside the page, a sticky bar or a transformed
+  // ancestor can end up on top of the dialog and eat the clicks on the platform
+  // buttons — which is what made the selection counter stay at 0.
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 p-4"
+      // mousedown, not click: a click that starts inside the panel and ends on the
+      // backdrop (a drag over a label) would otherwise close the dialog.
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#1b1633] p-5">
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Radio size={18} className="text-purple-300" /> Diffuser votre annonce
             </h2>
             <p className="text-xs text-gray-400 mt-1">
-              Choisissez les marketplaces. Un onglet s'ouvrira pour chacune et l'IA remplira le formulaire.
+              Cochez vos destinations. Les plateformes en API publient tout de suite ; les autres
+              ouvrent un onglet que l'extension remplit pour vous.
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-1">
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white p-1">
             <X size={18} />
           </button>
         </div>
@@ -115,25 +151,23 @@ export function PublishDialog({
             const isSelected = selected.includes(p.id)
             return (
               <button
+                type="button"
                 key={p.id}
-                onClick={() =>
-                  setSelected((s) => (isSelected ? s.filter((x) => x !== p.id) : [...s, p.id]))
-                }
-                style={{
-                  backgroundColor: isSelected ? p.color : 'transparent',
-                  borderColor: p.color,
-                }}
+                aria-pressed={isSelected}
+                onClick={() => toggle(p.id)}
+                style={{ backgroundColor: isSelected ? p.color : 'transparent', borderColor: p.color }}
                 className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition ${
                   isSelected ? 'text-white' : 'text-gray-300 hover:bg-white/5'
                 }`}
               >
-                <span
-                  className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-[11px] font-bold text-white"
-                  style={{ backgroundColor: p.color }}
-                >
-                  {p.label.slice(0, 2).toUpperCase()}
+                <PlatformBadge label={p.label} color={p.color} size={24} />
+                <span className="text-left leading-tight">
+                  {p.label}
+                  <span className="block text-[10px] font-normal opacity-70">
+                    {INTEGRATION_LABEL[p.integration]}
+                  </span>
                 </span>
-                <span className="text-left leading-tight">Publier sur {p.label}</span>
+                {isSelected && <CheckCircle2 size={16} className="ml-auto shrink-0" />}
               </button>
             )
           })}
@@ -157,11 +191,47 @@ export function PublishDialog({
 
         {message && <p className="mt-4 rounded-lg bg-white/5 px-3 py-2 text-sm text-gray-200">{message}</p>}
 
+        {/* Per-destination result: a refused Shopify token has to be readable, not
+            hidden behind a generic "annonce enregistrée". */}
+        {outcomes.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {outcomes.map((o) => {
+              const info = platforms.find((p) => p.id === o.platform)
+              const tone =
+                o.status === 'PUBLISHED'
+                  ? 'text-emerald-300'
+                  : o.status === 'FAILED'
+                    ? 'text-red-400'
+                    : 'text-yellow-300'
+              return (
+                <li key={o.platform} className="rounded-lg bg-white/5 px-3 py-2 text-xs">
+                  <span className="font-semibold">{info?.label ?? o.platform}</span>{' '}
+                  <span className={tone}>
+                    {o.status === 'PUBLISHED' ? 'publié' : o.status === 'FAILED' ? 'échec' : 'en attente'}
+                  </span>
+                  {o.externalUrl && (
+                    <a
+                      href={o.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-2 inline-flex items-center gap-1 text-purple-300 hover:underline"
+                    >
+                      voir l'annonce <ExternalLink size={11} />
+                    </a>
+                  )}
+                  {o.error && <span className="block text-gray-400 mt-0.5">{o.error}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="text-xs text-gray-400">
-            {extensionReady ? '✓ Extension détectée' : "Extension non détectée — remplissage manuel"}
+            {extensionReady ? '✓ Extension détectée' : 'Extension non détectée — remplissage manuel'}
           </span>
           <button
+            type="button"
             onClick={diffuse}
             disabled={!selected.length || busy}
             className="btn-gradient inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold disabled:opacity-40"
@@ -170,7 +240,16 @@ export function PublishDialog({
             {busy ? 'Diffusion…' : `Diffuser votre annonce (${selected.length})`}
           </button>
         </div>
+
+        {/* One single string: juxtaposed text expressions in JSX have already cost
+            us a « removeChild » crash here. */}
+        <p className="mt-3 text-center text-xs text-gray-500">
+          {selected.length === 0
+            ? 'Aucune plateforme sélectionnée'
+            : `${selected.length} plateforme(s) sélectionnée(s)`}
+        </p>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -1,8 +1,24 @@
 import type { Platform } from '@prisma/client'
 
+/**
+ * How a destination actually receives a listing.
+ *
+ * - `live`      : the API really creates the product now (own catalogue, Shopify)
+ * - `api-ready` : an API exists but no seller account is connected yet — recorded as "en attente"
+ * - `extension` : no public API at all, the Chrome extension fills the form
+ * - `none`      : not a marketplace, nothing can be published
+ *
+ * Bulk publishing only makes sense for the first two: the extension drives one
+ * browser tab at a time, with the seller clicking « Publier » himself.
+ */
+export type PlatformIntegration = 'live' | 'api-ready' | 'extension' | 'none'
+
 export interface PlatformInfo {
   id: Platform
   label: string
+  integration: PlatformIntegration
+  /** True when this destination can be published to for many products at once. */
+  batchable: boolean
   /** true when publishing can go through an API once credentials are connected. */
   automatable: boolean
   /** Where the user creates a listing by hand (drives the extension's launcher). */
@@ -20,6 +36,7 @@ export interface PlatformInfo {
 /** Brand colours, kept next to the list so the UI never hard-codes them. */
 const COLORS: Record<string, string> = {
   OWN_SITE: '#a855f7',
+  SHOPIFY: '#95bf47',
   EBAY: '#e53238',
   GOOGLE_SHOPPING: '#4285f4',
   AMAZON: '#ff9900',
@@ -46,13 +63,23 @@ const COLORS: Record<string, string> = {
  * marketplace only has to be declared here (plus its category paths in
  * categoryCatalog.ts and the Prisma enum).
  */
-const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color'>> = [
+const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchable'>> = [
   {
     id: 'OWN_SITE',
     label: 'Mon site',
     automatable: true,
     sellUrl: null,
     note: 'Catalogue public servi par /api/public/products — publication immédiate.',
+  },
+  // Shopify is not a marketplace: it's the seller's own store, so there is no
+  // application to be accepted and no listing form to fill — sellUrl stays null so
+  // the extension never opens a tab for it.
+  {
+    id: 'SHOPIFY',
+    label: 'Shopify',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication réelle via l'API Admin. Créez une app personnalisée dans votre boutique (Réglages › Apps et canaux de vente › Développer des apps), autorisez write_products, et collez l'adresse .myshopify.com avec le jeton d'accès.",
   },
   {
     id: 'EBAY',
@@ -193,9 +220,29 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color'>> = [
   },
 ]
 
+/** The two destinations publisher.ts really pushes to today. */
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY']
+
+function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchable'>): PlatformIntegration {
+  if (p.unavailable) return 'none'
+  if (!p.automatable) return 'extension'
+  return LIVE.includes(p.id) ? 'live' : 'api-ready'
+}
+
 // Colours live in their own table so adding a platform above can't forget one:
 // anything missing falls back to the app's purple.
-export const PLATFORMS: PlatformInfo[] = PLATFORM_DEFS.map((p) => ({ ...p, color: COLORS[p.id] ?? '#a855f7' }))
+export const PLATFORMS: PlatformInfo[] = PLATFORM_DEFS.map((p) => {
+  const integration = integrationOf(p)
+  return {
+    ...p,
+    integration,
+    batchable: integration === 'live' || integration === 'api-ready',
+    color: COLORS[p.id] ?? '#a855f7',
+  }
+})
+
+/** Destinations a bulk publication may target. */
+export const BATCH_PLATFORM_IDS = PLATFORMS.filter((p) => p.batchable).map((p) => p.id) as [Platform, ...Platform[]]
 
 export const PLATFORM_IDS = PLATFORMS.map((p) => p.id) as [Platform, ...Platform[]]
 

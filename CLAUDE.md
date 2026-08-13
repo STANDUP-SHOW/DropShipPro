@@ -82,9 +82,20 @@ docs/        Documentation de l'API catalogue
 vérification d'email, import, IA (titre, description, 9 attributs, 6 arguments,
 20 mots-clés), filigrane, calcul de marge, API catalogue, extension.
 
-**Aucune marketplace n'est réellement connectée en API.** Publier crée une
-publication en statut « en attente ». Seul « Mon site » est immédiat, via
-`/api/public/shops/:shopKey/products`.
+**Deux destinations publient réellement** : « Mon site » (immédiat, via
+`/api/public/shops/:shopKey/products`) et **Shopify** (API Admin GraphQL, app
+personnalisée créée par le marchand, jeton `shpat_` saisi dans Réglages). Toutes
+les autres marketplaces créent une publication « en attente ».
+
+- Shopify : `backend/src/services/shopify.ts`, version d'API épinglée par
+  `SHOPIFY_API_VERSION` (défaut 2025-10). `productCreate` puis
+  `productVariantsBulkUpdate` (les variantes ne passent plus par productCreate
+  depuis 2024-04), puis `publishablePublish` en meilleur effort.
+- Shopify télécharge les photos lui-même : les chemins `/storage/...` doivent être
+  absolus, d'où `PUBLIC_API_URL` et `backend/src/lib/urls.ts`.
+- `PlatformInfo.integration` (`live` | `api-ready` | `extension` | `none`) est la
+  source unique côté UI : le guide, les réglages et la publication en lot en
+  dépendent au lieu de coder les plateformes en dur.
 
 - **Automatisable en self-service** : eBay (Sell API), Google Shopping (Merchant
   Center gratuit), Wish
@@ -99,9 +110,14 @@ publication en statut « en attente ». Seul « Mon site » est immédiat, via
 1. **Photos depuis Temu** : la détection automatique a échoué (CDN majoritaire,
    mesure des dimensions, suffixe d'URL). Remplacée par un sélecteur manuel avec
    filtre par dimensions, sur le modèle d'Imageye. À valider par l'utilisateur.
-2. **Shopify** demandé, pas commencé.
+2. **Shopify** : code écrit et compilé, jamais exécuté contre une vraie boutique.
+   À confirmer en production avec un jeton réel.
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
 4. Une **veille de disponibilité** des produits sources a été proposée.
+5. **Compteur de la fenêtre « Diffuser »** : signalé bloqué à 0. Non reproduit en
+   lisant le code ; la fenêtre a été déplacée dans un portail `document.body` avec
+   `type="button"` explicite (une barre collante ou un ancêtre transformé pouvait
+   intercepter les clics). À reconfirmer sur www.drop-shipper.fr.
 
 ---
 

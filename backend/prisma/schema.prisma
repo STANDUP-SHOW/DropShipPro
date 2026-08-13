@@ -27,6 +27,7 @@ enum Platform {
   ETSY
   BRANDALLEY
   MIINTO
+  SHOPIFY
 }
 
 enum ProductStatus {

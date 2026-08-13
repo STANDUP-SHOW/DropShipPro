@@ -83,7 +83,24 @@ export const api = {
     request(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteProduct: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
   publishProduct: (id: string, platforms: string[]) =>
-    request(`/products/${id}/publish`, { method: 'POST', body: JSON.stringify({ platforms }) }),
+    request<
+      Array<{ platform: string; status: string; error: string | null; externalUrl: string | null }>
+    >(`/products/${id}/publish`, { method: 'POST', body: JSON.stringify({ platforms }) }),
+  publishBatch: (productIds: string[], platforms: string[]) =>
+    request<{
+      results: Array<{
+        productId: string
+        title: string
+        platform: string
+        status: string
+        error: string | null
+        externalUrl: string | null
+      }>
+      published: number
+      pending: number
+      failed: number
+      missing: number
+    }>('/products/publish-batch', { method: 'POST', body: JSON.stringify({ productIds, platforms }) }),
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
   listCategories: () => request<Array<{ id: string; group: string; label: string }>>('/products/meta/categories'),
   listPlatforms: () =>
@@ -95,6 +112,8 @@ export const api = {
         sellUrl: string | null
         note: string
         color: string
+        integration: 'live' | 'api-ready' | 'extension' | 'none'
+        batchable: boolean
         warning?: string
         unavailable?: boolean
       }>

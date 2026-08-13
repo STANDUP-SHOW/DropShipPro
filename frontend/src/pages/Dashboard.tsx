@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Link2, Loader2, Layers, Puzzle, Trash2 } from 'lucide-react'
+import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { api, assetUrl } from '../lib/api'
+import type { PlatformInfo } from '../lib/platforms'
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -32,6 +34,14 @@ export default function Dashboard() {
   const [pendingDelete, setPendingDelete] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Kept between visits: someone who works in list mode expects to find it again.
+  const [view, setView] = useState<'grid' | 'list'>(
+    () => (localStorage.getItem('droppost_view') === 'list' ? 'list' : 'grid'),
+  )
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
+
   const labelById = new Map(catalog.map((c) => [c.id, c.label]))
 
   const usedCategories = [...new Set(products.map((p) => p.categoryId).filter(Boolean))]
@@ -50,7 +60,11 @@ export default function Dashboard() {
   async function load() {
     setLoading(true)
     try {
-      setProducts(await api.listProducts())
+      const list = await api.listProducts()
+      setProducts(list)
+      // A listing deleted from another tab must not stay in the selection and
+      // make the batch endpoint answer « annonce introuvable ».
+      setSelectedIds((current) => current.filter((id) => list.some((p: any) => p.id === id)))
     } finally {
       setLoading(false)
     }
@@ -59,7 +73,29 @@ export default function Dashboard() {
   useEffect(() => {
     load()
     api.listCategories().then(setCatalog)
+    api.listPlatforms().then(setPlatforms)
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('droppost_view', view)
+  }, [view])
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]))
+  }
+
+  // Selecting acts on what is on screen, not on the whole catalogue: a filter is
+  // there precisely to narrow what the next action will touch.
+  const allVisibleSelected = visible.length > 0 && visible.every((p) => selectedIds.includes(p.id))
+  function toggleAllVisible() {
+    setSelectedIds((current) => {
+      if (allVisibleSelected) {
+        const ids = new Set(visible.map((p) => p.id))
+        return current.filter((id) => !ids.has(id))
+      }
+      return [...new Set([...current, ...visible.map((p) => p.id)])]
+    })
+  }
 
   async function onImport(e: FormEvent) {
     e.preventDefault()
@@ -104,6 +140,7 @@ export default function Dashboard() {
     setDeleting(true)
     try {
       await api.deleteProduct(pendingDelete.id)
+      setSelectedIds((current) => current.filter((id) => id !== pendingDelete.id))
       setPendingDelete(null)
       await load()
     } catch (err) {
@@ -235,9 +272,31 @@ export default function Dashboard() {
       <div className="mt-8">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-lg font-bold">Mes annonces</h2>
-          <span className="text-xs text-gray-400">
-            {visible.length} / {products.length} annonce(s)
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400">
+              {`${visible.length} / ${products.length} annonce(s)`}
+            </span>
+            <div className="flex rounded-lg border border-white/10 p-0.5">
+              <button
+                type="button"
+                onClick={() => setView('grid')}
+                title="Vue grille"
+                aria-pressed={view === 'grid'}
+                className={`rounded-md p-1.5 ${view === 'grid' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                <LayoutGrid size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                title="Vue liste"
+                aria-pressed={view === 'list'}
+                className={`rounded-md p-1.5 ${view === 'list' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                <List size={15} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Category filter, built from the categories actually present so the bar
@@ -273,56 +332,167 @@ export default function Dashboard() {
           className="mt-3 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
         />
 
+        {/* Selection bar: shown as soon as there is something to act on, so the
+            bulk publish button never appears out of nowhere. */}
+        {visible.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <button
+              type="button"
+              onClick={toggleAllVisible}
+              className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-white"
+            >
+              {allVisibleSelected ? <CheckSquare size={15} className="text-purple-300" /> : <Square size={15} />}
+              {allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+            </button>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400">
+                {`${selectedIds.length} sélectionnée(s)`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setBulkOpen(true)}
+                disabled={!selectedIds.length}
+                className="btn-gradient inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              >
+                <Radio size={15} />
+                {`Publier en lot (${selectedIds.length})`}
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <p className="text-gray-400 text-sm mt-4">Chargement...</p>
         ) : visible.length === 0 ? (
           <p className="text-gray-400 text-sm mt-4">
             {products.length === 0 ? 'Aucune annonce pour le moment.' : 'Aucune annonce ne correspond à ce filtre.'}
           </p>
-        ) : (
+        ) : view === 'grid' ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-            {visible.map((p) => (
-              <Link
-                key={p.id}
-                to={`/products/${p.id}`}
-                className="group relative rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:border-purple-400/50 transition"
-              >
-                <div className="aspect-square bg-black/30">
-                  {p.images?.[0] && <img src={assetUrl(p.images[0])} alt="" className="w-full h-full object-cover" />}
-                </div>
-
-                {/* Stays visible on touch screens, which have no hover state. */}
-                {/* Always visible rather than revealed on hover: a delete control
-                    nobody can find is a delete control that doesn't exist. */}
-                <button
-                  title="Supprimer cette annonce"
-                  aria-label={`Supprimer ${p.aiTitle || p.title}`}
-                  onClick={(e) => {
-                    // The card is a link: without this the click would navigate.
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setPendingDelete(p)
-                  }}
-                  className="absolute top-2 right-2 rounded-lg bg-red-500/85 p-2 text-white shadow-lg backdrop-blur transition hover:bg-red-500 hover:scale-105"
+            {visible.map((p) => {
+              const isSelected = selectedIds.includes(p.id)
+              return (
+                <Link
+                  key={p.id}
+                  to={`/products/${p.id}`}
+                  className={`group relative rounded-xl overflow-hidden border bg-white/5 transition ${
+                    isSelected ? 'border-purple-400' : 'border-white/10 hover:border-purple-400/50'
+                  }`}
                 >
-                  <Trash2 size={17} />
-                </button>
-                <div className="p-3">
-                  <p className="text-sm font-medium line-clamp-2">{p.aiTitle || p.title}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="font-bold text-purple-300">
-                      {Number(p.sellingPrice ?? 0).toFixed(2)} {p.currency}
+                  <div className="aspect-square bg-black/30">
+                    {p.images?.[0] && <img src={assetUrl(p.images[0])} alt="" className="w-full h-full object-cover" />}
+                  </div>
+
+                  {/* The card is a link: every control on it has to stop the click
+                      from navigating. */}
+                  <button
+                    type="button"
+                    title="Sélectionner pour une publication en lot"
+                    aria-pressed={isSelected}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      toggleSelected(p.id)
+                    }}
+                    className={`absolute top-2 left-2 rounded-lg p-2 shadow-lg backdrop-blur transition ${
+                      isSelected ? 'bg-purple-500 text-white' : 'bg-black/60 text-gray-200 hover:bg-black/80'
+                    }`}
+                  >
+                    {isSelected ? <CheckSquare size={17} /> : <Square size={17} />}
+                  </button>
+
+                  {/* Stays visible on touch screens, which have no hover state. */}
+                  {/* Always visible rather than revealed on hover: a delete control
+                      nobody can find is a delete control that doesn't exist. */}
+                  <button
+                    type="button"
+                    title="Supprimer cette annonce"
+                    aria-label={`Supprimer ${p.aiTitle || p.title}`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setPendingDelete(p)
+                    }}
+                    className="absolute top-2 right-2 rounded-lg bg-red-500/85 p-2 text-white shadow-lg backdrop-blur transition hover:bg-red-500 hover:scale-105"
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                  <div className="p-3">
+                    <p className="text-sm font-medium line-clamp-2">{p.aiTitle || p.title}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="font-bold text-purple-300">
+                        {`${Number(p.sellingPrice ?? 0).toFixed(2)} ${p.currency}`}
+                      </span>
+                      <span className={`text-xs rounded-full px-2 py-0.5 ${STATUS_COLOR[p.status]}`}>
+                        {STATUS_LABEL[p.status]}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
+            {visible.map((p) => {
+              const isSelected = selectedIds.includes(p.id)
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-3 px-3 py-2.5 transition ${isSelected ? 'bg-purple-500/10' : ''}`}
+                >
+                  <button
+                    type="button"
+                    title="Sélectionner pour une publication en lot"
+                    aria-pressed={isSelected}
+                    onClick={() => toggleSelected(p.id)}
+                    className={isSelected ? 'text-purple-300' : 'text-gray-500 hover:text-gray-300'}
+                  >
+                    {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                  </button>
+
+                  <Link to={`/products/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                      {p.images?.[0] && (
+                        <img src={assetUrl(p.images[0])} alt="" className="h-full w-full object-cover" />
+                      )}
+                    </div>
+                    <p className="min-w-0 flex-1 truncate text-sm">{p.aiTitle || p.title}</p>
+                    <span className="shrink-0 text-sm font-bold text-purple-300">
+                      {`${Number(p.sellingPrice ?? 0).toFixed(2)} ${p.currency}`}
                     </span>
-                    <span className={`text-xs rounded-full px-2 py-0.5 ${STATUS_COLOR[p.status]}`}>
+                    <span
+                      className={`hidden shrink-0 rounded-full px-2 py-0.5 text-xs sm:inline ${STATUS_COLOR[p.status]}`}
+                    >
                       {STATUS_LABEL[p.status]}
                     </span>
-                  </div>
+                  </Link>
+
+                  <button
+                    type="button"
+                    title="Supprimer cette annonce"
+                    aria-label={`Supprimer ${p.aiTitle || p.title}`}
+                    onClick={() => setPendingDelete(p)}
+                    className="shrink-0 rounded-lg p-2 text-red-400 transition hover:bg-red-500/10"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-              </Link>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
+
+      {bulkOpen && (
+        <BulkPublishDialog
+          productIds={selectedIds}
+          platforms={platforms}
+          onClose={() => setBulkOpen(false)}
+          onDone={load}
+        />
+      )}
     </Layout>
   )
 }

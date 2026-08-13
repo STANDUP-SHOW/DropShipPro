@@ -1,18 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Puzzle, Download } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { PlatformBadge } from '../components/PlatformBadge'
 import { api, assetUrl, apiRoot } from '../lib/api'
 import { useAuth } from '../lib/auth'
-
-interface PlatformInfo {
-  id: string
-  label: string
-  automatable: boolean
-  sellUrl: string | null
-  note: string
-  warning?: string
-  unavailable?: boolean
-}
+import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 
 export default function Settings() {
   const { user, refresh } = useAuth()
@@ -42,9 +34,16 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 1500)
   }
 
-  async function connectPlatform(platform: string, apiKey: string) {
-    await api.saveCredential({ platform, data: apiKey ? { apiKey } : {} })
-    setCreds(await api.listCredentials())
+  const [credError, setCredError] = useState<{ platform: string; text: string } | null>(null)
+
+  async function saveCredential(platform: string, data: Record<string, string>) {
+    setCredError(null)
+    try {
+      await api.saveCredential({ platform, data })
+      setCreds(await api.listCredentials())
+    } catch (err) {
+      setCredError({ platform, text: err instanceof Error ? err.message : 'Enregistrement impossible' })
+    }
   }
 
   return (
@@ -239,40 +238,99 @@ export default function Settings() {
             const cred = creds.find((c) => c.platform === p.id)
             return (
               <div key={p.id} className="border-b border-white/10 pb-4 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">{p.label}</p>
-                  {p.unavailable ? (
-                    <span className="text-xs rounded-full px-2 py-0.5 bg-red-500/20 text-red-300">Indisponible</span>
-                  ) : p.automatable ? (
-                    <span className={`text-xs rounded-full px-2 py-0.5 ${cred?.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-2 font-medium text-sm">
+                    <PlatformBadge label={p.label} color={p.color} size={22} />
+                    {p.label}
+                  </p>
+                  {p.automatable && !p.unavailable ? (
+                    <span
+                      className={`text-xs rounded-full px-2 py-0.5 ${cred?.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}
+                    >
                       {cred?.connected ? 'Connecté' : 'Non connecté'}
                     </span>
                   ) : (
-                    <span className="text-xs rounded-full px-2 py-0.5 bg-orange-500/20 text-orange-300">
-                      Via l'extension
+                    <span className={`text-xs rounded-full px-2 py-0.5 ${INTEGRATION_STYLE[p.integration]}`}>
+                      {INTEGRATION_LABEL[p.integration]}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">{p.note}</p>
                 {p.warning && (
                   <p className="mt-2 rounded-lg border border-orange-400/30 bg-orange-500/10 px-2 py-1.5 text-xs text-orange-200">
-                    ⚠️ {p.warning}
+                    {`⚠️ ${p.warning}`}
                   </p>
                 )}
-                {/* No API key field for platforms with no public seller API — the
-                    extension fills their form instead, so there is nothing to connect. */}
-                {p.automatable && (
+
+                {/* Shopify needs two values, and they are the only credentials that
+                    are really used today — hence its own form rather than the
+                    generic "clé API" field. */}
+                {p.id === 'SHOPIFY' ? (
                   <form
                     onSubmit={(e) => {
                       e.preventDefault()
                       const fd = new FormData(e.currentTarget)
-                      connectPlatform(p.id, String(fd.get('apiKey') || ''))
+                      saveCredential('SHOPIFY', {
+                        shopDomain: String(fd.get('shopDomain') || ''),
+                        accessToken: String(fd.get('accessToken') || ''),
+                      })
                     }}
-                    className="mt-2 flex gap-2"
+                    className="mt-2 space-y-2"
                   >
-                    <input name="apiKey" placeholder="Clé API / token" className="flex-1 rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400" />
-                    <button className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">Enregistrer</button>
+                    <input
+                      name="shopDomain"
+                      defaultValue={cred?.hint ?? ''}
+                      placeholder="ma-boutique.myshopify.com"
+                      className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                    <input
+                      name="accessToken"
+                      type="password"
+                      placeholder="Jeton d'accès Admin (shpat_…)"
+                      className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">
+                        {cred?.connected ? 'Remplacer' : 'Connecter ma boutique'}
+                      </button>
+                      {cred?.connected && (
+                        <button
+                          type="button"
+                          onClick={() => saveCredential('SHOPIFY', {})}
+                          className="text-xs text-gray-400 hover:text-red-300"
+                        >
+                          Déconnecter
+                        </button>
+                      )}
+                    </div>
                   </form>
+                ) : (
+                  // No API key field for platforms with no public seller API — the
+                  // extension fills their form instead, so there is nothing to connect.
+                  p.automatable && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault()
+                        const fd = new FormData(e.currentTarget)
+                        const apiKey = String(fd.get('apiKey') || '')
+                        saveCredential(p.id, apiKey ? { apiKey } : {})
+                      }}
+                      className="mt-2 flex gap-2"
+                    >
+                      <input
+                        name="apiKey"
+                        placeholder="Clé API / token"
+                        className="flex-1 rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                      />
+                      <button className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">
+                        Enregistrer
+                      </button>
+                    </form>
+                  )
+                )}
+
+                {credError?.platform === p.id && (
+                  <p className="mt-2 text-xs text-red-400">{credError.text}</p>
                 )}
               </div>
             )

@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
+import { normalizeShopDomain } from '../services/shopify.js'
 
 export const settingsRouter = Router()
 settingsRouter.use(requireAuth)
@@ -65,8 +66,23 @@ settingsRouter.delete('/watermark-logo', async (req: AuthedRequest, res) => {
 
 settingsRouter.get('/credentials', async (req: AuthedRequest, res) => {
   const creds = await prisma.platformCredential.findMany({ where: { userId: req.userId! } })
-  res.json(creds.map((c) => ({ id: c.id, platform: c.platform, label: c.label, connected: c.connected })))
+  res.json(
+    creds.map((c) => ({
+      id: c.id,
+      platform: c.platform,
+      label: c.label,
+      connected: c.connected,
+      // Enough to show *which* shop is connected, never the token itself.
+      hint: shopDomainOf(c.data),
+    })),
+  )
 })
+
+function shopDomainOf(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+  const domain = (data as Record<string, unknown>).shopDomain
+  return typeof domain === 'string' ? domain : null
+}
 
 const credSchema = z.object({
   platform: z.enum(PLATFORM_IDS),
@@ -81,10 +97,31 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
   const parsed = credSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
 
+  let data = parsed.data.data
+
+  // Shopify is the one destination that really publishes, so its credentials are
+  // checked here rather than discovered as a failure at publication time.
+  if (parsed.data.platform === 'SHOPIFY' && Object.keys(data).length > 0) {
+    const shopDomain = normalizeShopDomain(data.shopDomain ?? '')
+    const accessToken = (data.accessToken ?? '').trim()
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Adresse de boutique invalide : attendu quelque chose comme ma-boutique.myshopify.com",
+      })
+    }
+    if (!accessToken) return res.status(400).json({ error: "Collez le jeton d'accès de l'app personnalisée" })
+    if (!/^shpat_/.test(accessToken)) {
+      return res.status(400).json({
+        error: "Ce jeton ne ressemble pas à un jeton d'accès Admin (il commence par shpat_).",
+      })
+    }
+    data = { shopDomain, accessToken }
+  }
+
   const cred = await prisma.platformCredential.upsert({
     where: { userId_platform: { userId: req.userId!, platform: parsed.data.platform } },
-    create: { ...parsed.data, userId: req.userId!, connected: Object.keys(parsed.data.data).length > 0 },
-    update: { ...parsed.data, connected: Object.keys(parsed.data.data).length > 0 },
+    create: { ...parsed.data, data, userId: req.userId!, connected: Object.keys(data).length > 0 },
+    update: { ...parsed.data, data, connected: Object.keys(data).length > 0 },
   })
   res.json({ id: cred.id, platform: cred.platform, label: cred.label, connected: cred.connected })
 })

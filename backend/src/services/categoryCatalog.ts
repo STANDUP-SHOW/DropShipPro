@@ -324,7 +324,10 @@ const FRENCH_MARKETPLACES: Platform[] = [
 /** Resolves the destination category name for one platform. */
 export function categoryFor(entry: CategoryEntry, platform: Platform): string {
   switch (platform) {
+    // Shopify's product_type is free text shown to the merchant's own customers,
+    // so the French label of the catalogue is exactly the right value.
     case 'OWN_SITE':
+    case 'SHOPIFY':
       return entry.label
     case 'GOOGLE_SHOPPING':
       return entry.google

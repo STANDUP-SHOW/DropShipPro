@@ -247,16 +247,33 @@ export default function ProductDetail() {
             </a>
             {published.map((pub: any) => {
               const info = platforms.find((p) => p.id === pub.platform)
+              const state =
+                pub.status === 'PUBLISHED' ? 'publié' : pub.status === 'FAILED' ? 'échec' : 'en attente'
+              const tone =
+                pub.status === 'PUBLISHED'
+                  ? 'text-emerald-300'
+                  : pub.status === 'FAILED'
+                    ? 'text-red-400'
+                    : 'text-yellow-300'
               return (
                 <span
                   key={pub.platform}
+                  title={pub.error ?? undefined}
                   className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1"
                 >
                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: info?.color ?? '#a855f7' }} />
                   {info?.label ?? pub.platform}
-                  <span className={pub.status === 'PUBLISHED' ? 'text-emerald-300' : 'text-yellow-300'}>
-                    {pub.status === 'PUBLISHED' ? 'publié' : 'en attente'}
-                  </span>
+                  <span className={tone}>{state}</span>
+                  {pub.externalUrl && (
+                    <a
+                      href={pub.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-purple-300 hover:underline"
+                    >
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
                 </span>
               )
             })}
@@ -762,10 +779,11 @@ export default function ProductDetail() {
           platforms={platforms}
           onClose={() => setPublishOpen(false)}
           onPublished={async (chosen) => {
-            await api.publishProduct(id, chosen)
+            const results = await api.publishProduct(id, chosen)
             const manual = chosen.find((c) => platforms.find((p) => p.id === c && !p.automatable))
             if (manual) setAssistPanel(manual)
             await load()
+            return results
           }}
         />
       )}

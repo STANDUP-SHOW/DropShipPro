@@ -1,7 +1,28 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Link2, Layers, PenLine, Puzzle, Download, MousePointerClick, Sparkles, ShieldCheck } from 'lucide-react'
+import {
+  Link2,
+  Layers,
+  PenLine,
+  Puzzle,
+  Download,
+  MousePointerClick,
+  Sparkles,
+  ShieldCheck,
+  Store,
+  Zap,
+  Hand,
+  ExternalLink,
+  Check,
+  X,
+  Copy,
+} from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { assetUrl } from '../lib/api'
+import { PlatformBadge } from '../components/PlatformBadge'
+import { api, assetUrl, apiRoot } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { PLATFORM_GUIDES } from '../lib/platformGuides'
+import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
@@ -17,16 +38,136 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   )
 }
 
+/** One destination: a button that unfolds its own connection instructions. */
+function PlatformCard({
+  platform,
+  open,
+  onToggle,
+}: {
+  platform: PlatformInfo
+  open: boolean
+  onToggle: () => void
+}) {
+  const guide = PLATFORM_GUIDES[platform.id]
+
+  return (
+    <div
+      className={`rounded-xl border bg-white/5 transition ${open ? 'border-purple-400/60' : 'border-white/10'}`}
+      style={open ? { borderColor: platform.color } : undefined}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+      >
+        <PlatformBadge label={platform.label} color={platform.color} size={30} />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">{platform.label}</span>
+          <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] ${INTEGRATION_STYLE[platform.integration]}`}>
+            {INTEGRATION_LABEL[platform.integration]}
+          </span>
+        </span>
+        <span className="shrink-0 text-xs text-gray-400">{open ? 'Fermer' : 'Comment connecter ?'}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-white/10 px-4 py-4 text-sm leading-relaxed text-gray-300">
+          <p>{guide?.summary ?? platform.note}</p>
+
+          {guide && (
+            <ol className="mt-3 list-inside list-decimal space-y-1.5 text-gray-400">
+              {guide.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          )}
+
+          {guide?.caution && (
+            <p className="mt-3 rounded-lg border border-orange-400/30 bg-orange-500/10 p-2.5 text-xs text-orange-200">
+              {guide.caution}
+            </p>
+          )}
+
+          {platform.warning && platform.warning !== guide?.caution && (
+            <p className="mt-2 rounded-lg border border-orange-400/30 bg-orange-500/10 p-2.5 text-xs text-orange-200">
+              {platform.warning}
+            </p>
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-3 text-xs">
+            {guide?.docUrl && (
+              <a
+                href={guide.docUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-purple-300 hover:underline"
+              >
+                {guide.docLabel ?? 'Ouvrir'} <ExternalLink size={11} />
+              </a>
+            )}
+            {platform.automatable && !platform.unavailable && (
+              <Link to="/settings" className="text-purple-300 hover:underline">
+                Saisir mes identifiants dans Réglages
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Guide() {
+  const { user } = useAuth()
+  const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    api.listPlatforms().then(setPlatforms)
+  }, [])
+
+  const catalogUrl = `${apiRoot || window.location.origin}/api/public/shops/${user?.shopKey ?? 'VOTRE-CLE'}/products`
+
+  const live = platforms.filter((p) => p.integration === 'live')
+  const apiReady = platforms.filter((p) => p.integration === 'api-ready')
+  const assisted = platforms.filter((p) => p.integration === 'extension')
+  const unavailable = platforms.filter((p) => p.integration === 'none')
+
+  const toggle = (id: string) => setOpenId((current) => (current === id ? null : id))
+
   return (
     <Layout>
-      <h1 className="text-2xl font-bold">Comment ça marche</h1>
+      <h1 className="text-2xl font-bold">Mode d'emploi</h1>
       <p className="mt-1 text-sm text-gray-400">
-        Trois façons de créer une annonce, puis une diffusion vers vos marketplaces.
+        Acquérir des produits, les préparer, puis les diffuser — une annonce à la fois ou tout un lot.
       </p>
 
-      {/* ---------- Les 3 méthodes ---------- */}
-      <h2 className="mt-9 text-lg font-bold">1. Créer une annonce</h2>
+      {/* Sommaire : la page est longue, elle mérite une entrée par section. */}
+      <nav className="mt-5 flex flex-wrap gap-2 text-xs">
+        {[
+          ['#acquisition', '1. Acquérir des produits'],
+          ['#extension', "2. L'extension Chrome"],
+          ['#boutique', '3. Brancher ma boutique'],
+          ['#plateformes', '4. Relier les plateformes'],
+          ['#lot', '5. Publier en lot'],
+        ].map(([href, label]) => (
+          <a
+            key={href}
+            href={href}
+            className="rounded-full border border-white/10 px-3 py-1.5 text-gray-300 hover:bg-white/5"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
+      {/* ---------- 1. Acquisition ---------- */}
+      <h2 id="acquisition" className="mt-10 text-lg font-bold">
+        1. Acquérir des produits
+      </h2>
+      <p className="mt-1 text-sm text-gray-400">Trois façons de faire entrer un produit dans votre catalogue.</p>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-white/10 bg-white/5 p-5">
@@ -39,8 +180,11 @@ export default function Guide() {
           </p>
           <p className="mt-3 flex items-start gap-2 text-xs text-gray-400">
             <Layers size={14} className="mt-0.5 shrink-0 text-purple-300" />
-            Le bouton <b className="text-gray-200">Lot</b> accepte jusqu'à <b className="text-gray-200">25 adresses</b>{' '}
-            d'un coup, une par ligne : les 25 annonces sont générées en une seule fois.
+            <span>
+              Le bouton <b className="text-gray-200">Lot</b> accepte jusqu'à{' '}
+              <b className="text-gray-200">25 adresses</b> d'un coup, une par ligne : les 25 annonces
+              sont générées en une seule fois.
+            </span>
           </p>
           <p className="mt-3 rounded-lg border border-orange-400/30 bg-orange-500/10 p-2.5 text-xs text-orange-200">
             Ne fonctionne pas sur Temu, JoyBuy, AliExpress ou Shein : ces sites construisent leur
@@ -78,20 +222,15 @@ export default function Guide() {
         </div>
       </div>
 
-      {/* ---------- Diffusion ---------- */}
-      <h2 className="mt-10 text-lg font-bold">2. Contrôler, puis diffuser</h2>
       <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5 text-sm leading-relaxed text-gray-300">
         Quelle que soit la méthode, l'annonce arrive dans <b className="text-gray-200">Mes annonces</b>, où vous
         contrôlez tout : photos et leur ordre, titre, description, arguments de vente, attributs,
-        mots-clés, variantes, et le calcul de marge. Puis le bouton{' '}
-        <b className="text-gray-200">Publier cette annonce</b> ouvre la liste des marketplaces :
-        vous cochez celles que vous voulez et vous validez avec{' '}
-        <b className="text-gray-200">Diffuser votre annonce</b>.
+        mots-clés, variantes, et le calcul de marge.
       </div>
 
-      {/* ---------- Manuel extension ---------- */}
+      {/* ---------- 2. Extension ---------- */}
       <h2 id="extension" className="mt-12 flex items-center gap-2 text-lg font-bold">
-        <Puzzle size={20} className="text-purple-300" /> Mode d'emploi de l'extension
+        <Puzzle size={20} className="text-purple-300" /> 2. L'extension Chrome
       </h2>
 
       <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-6">
@@ -153,11 +292,231 @@ export default function Guide() {
           </p>
           <p className="flex items-start gap-2 text-xs text-gray-400">
             <MousePointerClick size={14} className="mt-0.5 shrink-0 text-purple-300" />
-            Sous le bouton, « <b className="text-gray-200">Jamais sur ce site</b> » le fait disparaître
-            définitivement de cette boutique. Pour le rétablir, rouvrez le panneau de l'extension sur
-            ce site.
+            <span>
+              Sous le bouton, « <b className="text-gray-200">Jamais sur ce site</b> » le fait disparaître
+              définitivement de cette boutique. Pour le rétablir, rouvrez le panneau de l'extension
+              sur ce site.
+            </span>
           </p>
         </Step>
+
+        <Step n={5} title="Remplir un formulaire de vente">
+          <p>
+            L'extension sert aussi à l'autre bout de la chaîne : sur Vinted, Leboncoin, eBay ou
+            Facebook Marketplace, elle remplit le formulaire de dépôt avec votre annonce et vos
+            photos filigranées. Le détail plateforme par plateforme est en{' '}
+            <a href="#plateformes" className="text-purple-300 hover:underline">
+              section 4
+            </a>
+            .
+          </p>
+        </Step>
+      </div>
+
+      {/* ---------- 3. Brancher sa boutique ---------- */}
+      <h2 id="boutique" className="mt-12 flex items-center gap-2 text-lg font-bold">
+        <Store size={20} className="text-purple-300" /> 3. Brancher ma boutique à DropShipper IA
+      </h2>
+      <p className="mt-1 text-sm text-gray-400">
+        Deux cas : votre site à vous, ou une boutique Shopify.
+      </p>
+
+      <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5">
+        <h3 className="font-bold">A. Mon propre site — l'API catalogue</h3>
+        <p className="mt-2 text-sm leading-relaxed text-gray-300">
+          Chaque annonce publiée sur <b className="text-gray-200">Mon site</b> devient disponible sur une adresse
+          web qui renvoie vos produits en JSON. Votre site (ou votre développeur) n'a qu'à lire cette
+          adresse : pas de clé, pas de mot de passe, lecture seule.
+        </p>
+
+        <label className="mt-4 block text-xs text-gray-400">Adresse de votre catalogue</label>
+        <div className="mt-1 flex gap-2">
+          <input
+            readOnly
+            value={catalogUrl}
+            onFocus={(e) => e.target.select()}
+            className="flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(catalogUrl)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 1500)
+            }}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs hover:bg-white/5"
+          >
+            <Copy size={12} /> {copied ? 'Copié ✓' : 'Copier'}
+          </button>
+        </div>
+
+        <p className="mt-4 text-sm text-gray-300">Exemple, à donner tel quel à votre développeur :</p>
+        <pre className="mt-2 overflow-x-auto rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-gray-300">
+{`const res = await fetch('${catalogUrl}')
+const { shop, products } = await res.json()
+
+// products[] : id, title, description, price, currency, images[],
+// variants, bulletPoints[], attributes{}, metaTitle, metaDescription,
+// metaKeywords, category, updatedAt
+products.forEach((p) => console.log(p.title, p.price, p.currency))`}
+        </pre>
+
+        <p className="mt-3 text-xs text-gray-400">
+          Une fiche seule s'obtient en ajoutant l'identifiant du produit à la fin de l'adresse. La
+          documentation complète est dans le dossier <code className="rounded bg-black/30 px-1.5 py-0.5">docs/</code>{' '}
+          du dépôt.
+        </p>
+        <p className="mt-3 rounded-lg border border-emerald-400/25 bg-emerald-500/10 p-2.5 text-xs text-emerald-200">
+          Le prix renvoyé est votre <b>prix de vente</b>, jamais le prix fournisseur : votre marge
+          n'apparaît nulle part dans le flux public.
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5">
+        <h3 className="font-bold">B. Ma boutique Shopify</h3>
+        <p className="mt-2 text-sm leading-relaxed text-gray-300">
+          Shopify est la seule marketplace réellement branchée aujourd'hui : DropShipper IA y crée le
+          produit, ses photos, sa description et son prix. Le mode d'emploi détaillé est dans la
+          fiche Shopify de la section suivante.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setOpenId('SHOPIFY')
+            document.getElementById('plateformes')?.scrollIntoView({ behavior: 'smooth' })
+          }}
+          className="btn-gradient mt-3 inline-block rounded-lg px-4 py-2 text-sm font-semibold"
+        >
+          Voir la fiche Shopify ↓
+        </button>
+      </div>
+
+      {/* ---------- 4. Plateformes ---------- */}
+      <h2 id="plateformes" className="mt-12 text-lg font-bold">
+        4. Relier DropShipper IA aux plateformes
+      </h2>
+      <p className="mt-1 text-sm text-gray-400">
+        Cliquez sur une plateforme pour dérouler sa procédure de connexion.
+      </p>
+
+      <h3 className="mt-6 flex items-center gap-2 text-sm font-bold text-emerald-300">
+        <Zap size={16} /> Publication automatique — ça part tout seul
+      </h3>
+      <p className="mt-1 text-xs text-gray-400">
+        Vous cliquez, DropShipper IA publie. Ce sont aussi les seules destinations utilisables en
+        publication de masse.
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {live.map((p) => (
+          <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
+        ))}
+      </div>
+
+      <h3 className="mt-8 flex items-center gap-2 text-sm font-bold text-blue-300">
+        <Zap size={16} /> Marketplaces à API — compte vendeur requis
+      </h3>
+      <p className="mt-1 text-xs text-gray-400">
+        Ces plateformes possèdent une API, mais elles exigent un compte vendeur validé. Tant que vos
+        identifiants ne sont pas saisis, la publication est enregistrée « en attente » avec la bonne
+        catégorie : rien n'est perdu.
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {apiReady.map((p) => (
+          <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
+        ))}
+      </div>
+
+      <h3 className="mt-8 flex items-center gap-2 text-sm font-bold text-orange-300">
+        <Hand size={16} /> Publication assistée par l'extension
+      </h3>
+      <p className="mt-1 text-xs text-gray-400">
+        Aucune API publique : l'extension ouvre le formulaire de dépôt et le remplit. C'est vous qui
+        validez.
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {assisted.map((p) => (
+          <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
+        ))}
+      </div>
+
+      {unavailable.length > 0 && (
+        <>
+          <h3 className="mt-8 flex items-center gap-2 text-sm font-bold text-red-300">
+            <X size={16} /> Pas de publication possible
+          </h3>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {unavailable.map((p) => (
+              <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ---------- 5. Publication en lot ---------- */}
+      <h2 id="lot" className="mt-12 flex items-center gap-2 text-lg font-bold">
+        <Layers size={20} className="text-purple-300" /> 5. Publier plusieurs annonces d'un coup
+      </h2>
+
+      <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5 text-sm leading-relaxed text-gray-300">
+        <p>
+          Dans <b className="text-gray-200">Mes annonces</b>, chaque vignette porte une case à cocher en haut à
+          gauche — en <b className="text-gray-200">vue grille</b> comme en <b className="text-gray-200">vue liste</b>{' '}
+          (le sélecteur est à droite du compteur d'annonces). « Tout sélectionner » coche ce qui est
+          affiché à l'écran, filtre et recherche compris.
+        </p>
+        <p className="mt-2">
+          Le bouton <b className="text-gray-200">Publier en lot</b> ouvre alors la liste des destinations, et
+          l'envoi se fait annonce par annonce. Le résultat est affiché à la fin : publiées, en
+          attente, en échec — avec le motif de chaque échec.
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/5 p-5">
+          <h3 className="flex items-center gap-2 font-bold text-emerald-300">
+            <Check size={16} /> Fonctionne en lot
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm text-gray-300">
+            {[...live, ...apiReady].map((p) => (
+              <li key={p.id} className="flex items-center gap-2">
+                <PlatformBadge label={p.label} color={p.color} size={20} />
+                <span>
+                  {p.label}
+                  <span className="block text-[11px] text-gray-500">
+                    {p.integration === 'live'
+                      ? 'publication immédiate'
+                      : 'enregistré « en attente » jusqu\'à la connexion du compte vendeur'}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-xl border border-orange-400/25 bg-orange-500/5 p-5">
+          <h3 className="flex items-center gap-2 font-bold text-orange-300">
+            <X size={16} /> Impossible en lot
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm text-gray-300">
+            {[...assisted, ...unavailable].map((p) => (
+              <li key={p.id} className="flex items-center gap-2">
+                <PlatformBadge label={p.label} color={p.color} size={20} />
+                <span>
+                  {p.label}
+                  <span className="block text-[11px] text-gray-500">
+                    {p.integration === 'none'
+                      ? 'aucune publication possible'
+                      : 'un onglet à la fois, validé par vous'}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-gray-400">
+            Pour ces plateformes, ouvrez l'annonce et utilisez « Publier cette annonce » : l'extension
+            ouvre le formulaire, le remplit, et vous cliquez sur « Publier ».
+          </p>
+        </div>
       </div>
 
       <p className="mt-8 text-sm text-gray-400">
@@ -165,7 +524,7 @@ export default function Guide() {
         <Link to="/settings" className="text-purple-300 hover:underline">
           Vos réglages
         </Link>{' '}
-        regroupent la boutique, le filigrane et les connexions aux marketplaces.
+        regroupent la boutique, le filigrane et les connexions aux plateformes.
       </p>
     </Layout>
   )

@@ -72,7 +72,8 @@ export function mapCategory(sourceCategory: string | null, platform: Platform, c
   const chosen = findCategory(categoryId)
   if (chosen) return categoryFor(chosen, platform)
 
-  if (platform === 'OWN_SITE') return sourceCategory || 'Divers'
+  // Both serve the merchant's own storefront: the source wording is kept as is.
+  if (platform === 'OWN_SITE' || platform === 'SHOPIFY') return sourceCategory || 'Divers'
   const normalized = (sourceCategory || '').toLowerCase()
   const rule = RULES.find((r) => r.keywords.some((k) => normalized.includes(k)))
   return rule?.targets[platform] || DEFAULT_TARGETS[platform] || 'Divers'

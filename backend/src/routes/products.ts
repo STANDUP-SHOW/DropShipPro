@@ -12,8 +12,9 @@ import type { User } from '@prisma/client'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.js'
-import { PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
+import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { buildFillPlan } from '../services/formFiller.js'
+import { apiBaseUrl } from '../lib/urls.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -273,9 +274,92 @@ productsRouter.post('/:id/publish', async (req: AuthedRequest, res) => {
   const owned = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!owned) return res.status(404).json({ error: 'Produit introuvable' })
 
-  const publications = await Promise.all(parsed.data.platforms.map((p) => publishToPlatform(owned.id, p)))
-  await prisma.product.update({ where: { id: owned.id }, data: { status: 'PUBLISHED' } })
+  const base = apiBaseUrl(req)
+  const publications = await Promise.all(parsed.data.platforms.map((p) => publishToPlatform(owned.id, p, base)))
+  // A product whose every destination failed (a refused Shopify token, say) must
+  // not be shown as published.
+  if (publications.some((p) => p.status !== 'FAILED')) {
+    await prisma.product.update({ where: { id: owned.id }, data: { status: 'PUBLISHED' } })
+  }
   res.json(publications)
+})
+
+const publishBatchSchema = z.object({
+  productIds: z.array(z.string()).min(1).max(200),
+  // Only API destinations: the extension publishes one browser tab at a time and
+  // waits for the seller to press « Publier » himself, which cannot be batched.
+  platforms: z.array(z.enum(BATCH_PLATFORM_IDS)).min(1),
+})
+
+/**
+ * Publishes many listings at once — the "sélectionner puis publier en lot" flow.
+ *
+ * Runs sequentially on purpose: a hundred selected products would otherwise fire a
+ * hundred simultaneous Shopify calls and hit their rate limit. Each result is
+ * returned individually so the seller sees exactly what went through.
+ */
+productsRouter.post('/publish-batch', async (req: AuthedRequest, res) => {
+  const parsed = publishBatchSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Sélectionnez au moins une annonce et une plateforme connectable par API.",
+    })
+  }
+
+  const { productIds, platforms } = parsed.data
+  const owned = await prisma.product.findMany({
+    where: { id: { in: productIds }, userId: req.userId! },
+    select: { id: true, title: true, aiTitle: true },
+  })
+  if (!owned.length) return res.status(404).json({ error: 'Aucune de ces annonces ne vous appartient' })
+
+  const base = apiBaseUrl(req)
+  const results: Array<{
+    productId: string
+    title: string
+    platform: string
+    status: string
+    error: string | null
+    externalUrl: string | null
+  }> = []
+
+  for (const product of owned) {
+    let anyOk = false
+    for (const platform of platforms) {
+      try {
+        const publication = await publishToPlatform(product.id, platform, base)
+        if (publication.status !== 'FAILED') anyOk = true
+        results.push({
+          productId: product.id,
+          title: product.aiTitle || product.title,
+          platform,
+          status: publication.status,
+          error: publication.error,
+          externalUrl: publication.externalUrl,
+        })
+      } catch (e) {
+        // One unexpected failure must not abort the rest of the batch.
+        console.error('publication en lot', product.id, platform, e)
+        results.push({
+          productId: product.id,
+          title: product.aiTitle || product.title,
+          platform,
+          status: 'FAILED',
+          error: e instanceof Error ? e.message : 'Publication impossible',
+          externalUrl: null,
+        })
+      }
+    }
+    if (anyOk) await prisma.product.update({ where: { id: product.id }, data: { status: 'PUBLISHED' } })
+  }
+
+  res.json({
+    results,
+    published: results.filter((r) => r.status === 'PUBLISHED').length,
+    pending: results.filter((r) => r.status === 'PENDING').length,
+    failed: results.filter((r) => r.status === 'FAILED').length,
+    missing: productIds.filter((id) => !owned.some((p) => p.id === id)).length,
+  })
 })
 
 // Bundles the watermarked photos into a zip for the manual Leboncoin/Vinted flow
