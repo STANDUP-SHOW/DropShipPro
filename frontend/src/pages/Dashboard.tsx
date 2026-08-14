@@ -342,7 +342,10 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-white"
             >
               {allVisibleSelected ? <CheckSquare size={15} className="text-purple-300" /> : <Square size={15} />}
-              {allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+              {/* Wrapped in its own element: a bare text expression next to another
+                  expression is what makes React lose the node and throw
+                  « insertBefore / removeChild » when both change at once. */}
+              <span>{allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner'}</span>
             </button>
 
             <div className="flex items-center gap-3">

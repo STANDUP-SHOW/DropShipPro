@@ -8,8 +8,14 @@ import { Logo } from './Logo'
  * background and nothing else — the "black page" that gives the user no idea what
  * broke and nothing to report back.
  */
-export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state: { error: Error | null } = { error: null }
+interface State {
+  error: Error | null
+  /** Which components were rendering — the only thing that names the culprit. */
+  componentStack: string | null
+}
+
+export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
+  state: State = { error: null, componentStack: null }
 
   static getDerivedStateFromError(error: Error) {
     return { error }
@@ -17,10 +23,11 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Plantage de l\'interface :', error, info.componentStack)
+    this.setState({ componentStack: info.componentStack ?? null })
   }
 
   render() {
-    const { error } = this.state
+    const { error, componentStack } = this.state
     if (!error) return this.props.children
 
     return (
@@ -52,7 +59,11 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
               Retour à mes annonces
             </a>
             <button
-              onClick={() => navigator.clipboard.writeText(`${error.message}\n\n${error.stack ?? ''}`)}
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  `${error.message}\n\n${error.stack ?? ''}\n\nComposants :${componentStack ?? ' (inconnu)'}`,
+                )
+              }
               className="rounded-lg border border-white/15 px-4 py-2 text-sm hover:bg-white/5"
             >
               Copier le détail

@@ -103,7 +103,7 @@ function PlatformCard({
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-purple-300 hover:underline"
               >
-                {guide.docLabel ?? 'Ouvrir'} <ExternalLink size={11} />
+                <span>{guide.docLabel ?? 'Ouvrir'}</span> <ExternalLink size={11} />
               </a>
             )}
             {platform.automatable && !platform.unavailable && (
@@ -481,7 +481,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
               <li key={p.id} className="flex items-center gap-2">
                 <PlatformBadge label={p.label} color={p.color} size={20} />
                 <span>
-                  {p.label}
+                  <span className="block">{p.label}</span>
                   <span className="block text-[11px] text-gray-500">
                     {p.integration === 'live'
                       ? 'publication immédiate'
@@ -502,7 +502,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
               <li key={p.id} className="flex items-center gap-2">
                 <PlatformBadge label={p.label} color={p.color} size={20} />
                 <span>
-                  {p.label}
+                  <span className="block">{p.label}</span>
                   <span className="block text-[11px] text-gray-500">
                     {p.integration === 'none'
                       ? 'aucune publication possible'

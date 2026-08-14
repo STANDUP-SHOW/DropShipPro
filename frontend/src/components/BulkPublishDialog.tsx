@@ -116,7 +116,7 @@ export function BulkPublishDialog({
               >
                 <PlatformBadge label={p.label} color={p.color} size={24} />
                 <span className="text-left leading-tight">
-                  {p.label}
+                  <span className="block">{p.label}</span>
                   <span className="block text-[10px] font-normal opacity-70">
                     {INTEGRATION_LABEL[p.integration]}
                   </span>

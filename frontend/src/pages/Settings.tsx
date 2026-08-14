@@ -241,7 +241,7 @@ export default function Settings() {
                 <div className="flex items-center justify-between gap-2">
                   <p className="flex items-center gap-2 font-medium text-sm">
                     <PlatformBadge label={p.label} color={p.color} size={22} />
-                    {p.label}
+                    <span>{p.label}</span>
                   </p>
                   {p.automatable && !p.unavailable ? (
                     <span
