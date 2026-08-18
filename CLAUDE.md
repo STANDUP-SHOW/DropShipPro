@@ -52,7 +52,14 @@ docs/        Documentation de l'API catalogue
 ## Pièges vérifiés (ne pas retomber dedans)
 
 - **Le disque de Railway est éphémère.** Sans volume monté sur `/app/storage`,
-  toutes les photos filigranées disparaissent à chaque redéploiement.
+  toutes les photos filigranées disparaissent à chaque redéploiement. Le chemin
+  de montage doit être exactement `/app/storage` : le code écrit dans
+  `path.resolve('storage')` depuis `/app`. Monté ailleurs, le volume est
+  facturé, présent, et sans effet — aucun message ne le signale.
+- **L API de production est `dropshippro-production.up.railway.app`.** Un service
+  en double sans variables produit des centaines d erreurs P1012 par minute sans
+  rien servir : vérifier de quel service viennent les logs avant de chercher dans
+  le code.
 - **`FRONTEND_URL` accepte une liste** séparée par des virgules : les trois
   origines (apex, www, vercel.app) doivent y figurer, sinon le CORS bloque.
 - **Les content scripts ne peuvent pas appeler l'API directement** : une page
