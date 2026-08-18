@@ -218,14 +218,19 @@ export default function Settings() {
             <details className="mt-3">
               <summary className="text-xs text-purple-300 cursor-pointer">Comment l'installer ?</summary>
               <ol className="text-xs text-gray-400 mt-2 space-y-1 list-decimal list-inside">
-                <li>Décompressez le fichier .zip téléchargé.</li>
+                <li>Clic droit sur le .zip téléchargé › « Extraire tout… » › Extraire.</li>
                 <li>
                   Ouvrez <code className="text-gray-300">chrome://extensions</code> dans Chrome.
                 </li>
                 <li>Activez le « Mode développeur » en haut à droite.</li>
-                <li>Cliquez « Charger l'extension non empaquetée » et sélectionnez le dossier décompressé.</li>
+                <li>Cliquez « Charger l'extension non empaquetée » et sélectionnez le dossier extrait.</li>
                 <li>Épinglez l'icône, connectez-vous, et publiez en un clic.</li>
               </ol>
+              <p className="mt-2 rounded-lg border border-orange-400/30 bg-orange-500/10 p-2 text-xs text-orange-200">
+                Chrome ne trouve pas l'extension ? Le dossier choisi est encore l'intérieur du .zip —
+                Windows en affiche le contenu comme un dossier, sans rien extraire. Refaites
+                « Extraire tout… », ou faites glisser le dossier directement sur chrome://extensions.
+              </p>
             </details>
           </div>
         </div>

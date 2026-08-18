@@ -235,15 +235,29 @@ export default function Guide() {
 
       <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-6">
         <Step n={1} title="Installer l'extension">
-          <p>Téléchargez l'extension, décompressez le dossier, puis dans Chrome :</p>
+          <p>Téléchargez le fichier .zip, puis :</p>
           <ol className="list-inside list-decimal space-y-1 text-gray-400">
+            <li>
+              <b className="text-gray-200">Décompressez-le vraiment</b> : clic droit sur le .zip ›
+              « Extraire tout… » › Extraire
+            </li>
             <li>
               Ouvrez <code className="rounded bg-black/30 px-1.5 py-0.5 text-gray-200">chrome://extensions</code>
             </li>
             <li>Activez le « Mode développeur » en haut à droite</li>
-            <li>Cliquez « Charger l'extension non empaquetée » et choisissez le dossier décompressé</li>
+            <li>Cliquez « Charger l'extension non empaquetée » et choisissez le dossier extrait</li>
             <li>Épinglez l'icône DropShipper IA dans votre barre d'outils</li>
           </ol>
+          {/* The single most common failure on Windows: Explorer browses a .zip as
+              if it were a folder, so nothing is ever really extracted. */}
+          <p className="rounded-lg border border-orange-400/30 bg-orange-500/10 p-2.5 text-xs text-orange-200">
+            <b>Si Chrome répond qu'il ne trouve pas l'extension</b>, c'est que le dossier choisi est
+            encore l'intérieur du .zip : Windows en affiche le contenu comme un dossier normal, mais
+            rien n'y est réellement extrait. Refaites « Extraire tout… », et choisissez le dossier
+            qui contient directement le fichier <code className="rounded bg-black/30 px-1 py-0.5">manifest.json</code>.
+            Autre solution qui marche toujours : faites glisser ce dossier directement sur la page
+            chrome://extensions.
+          </p>
           <a
             href={assetUrl('/api/public/extension.zip')}
             download="dropshipper-ia-extension.zip"
