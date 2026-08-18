@@ -114,6 +114,11 @@ les autres marketplaces créent une publication « en attente ».
    À confirmer en production avec un jeton réel.
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
 4. Une **veille de disponibilité** des produits sources a été proposée.
+6. **Publication de l extension au Chrome Web Store** : paquet et fiche prêts
+   (`docs/chrome-web-store.md`, `node extension/build-store-zip.cjs`). Restent le
+   compte développeur à 5 $, les captures d écran et l envoi. Tant que ce n est
+   pas fait, aucune mise à jour automatique : le Mode développeur ne se met
+   jamais à jour tout seul.
 5. **Compteur de la fenêtre « Diffuser »** : signalé bloqué à 0. Non reproduit en
    lisant le code ; la fenêtre a été déplacée dans un portail `document.body` avec
    `type="button"` explicite (une barre collante ou un ancêtre transformé pouvait

@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard'
 import ProductDetail from './pages/ProductDetail'
 import Orders from './pages/Orders'
 import Settings from './pages/Settings'
+import Privacy from './pages/Privacy'
 import Guide from './pages/Guide'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,8 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          {/* Public on purpose: the Chrome Web Store listing links to it. */}
+          <Route path="/confidentialite" element={<Privacy />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
