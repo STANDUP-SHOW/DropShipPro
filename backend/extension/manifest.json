@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DropShipper IA",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Ajoutez un produit à DropShipper IA depuis n'importe quelle boutique, et publiez-le sur vos marketplaces.",
   "permissions": [
     "storage",
@@ -11,6 +11,7 @@
     "tabGroups"
   ],
   "host_permissions": [
+    "https://dropshippro-production.up.railway.app/*",
     "http://localhost:4000/*",
     "http://localhost:5173/*",
     "https://*.temu.com/*",

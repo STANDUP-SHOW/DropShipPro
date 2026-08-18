@@ -3,9 +3,10 @@
  *
  * Kept in chrome.storage rather than hard-coded so the same extension build works
  * against a local dev server and against the deployed backend: the user sets it
- * once in the popup. Falls back to localhost for a fresh install.
+ * once in the popup. A fresh install points at production: the customer never
+ * runs a dev server, and localhost defaults produced « Failed to fetch ».
  */
-const DEFAULT_API = 'http://localhost:4000'
+const DEFAULT_API = 'https://dropshippro-production.up.railway.app'
 
 async function getApiBase() {
   const { apiBase } = await chrome.storage.local.get('apiBase')
@@ -16,7 +17,7 @@ async function setApiBase(url) {
   await chrome.storage.local.set({ apiBase: url.replace(/\/$/, '') })
 }
 
-const DEFAULT_APP = 'http://localhost:5173'
+const DEFAULT_APP = 'https://www.drop-shipper.fr'
 
 /**
  * Where the web app lives.

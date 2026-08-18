@@ -7,11 +7,28 @@ chrome.runtime.onStartup.addListener(() => {
   registerAppBridge()
   registerApprovedSites()
 })
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   chrome.storage.local.remove(['pendingListing', 'session'])
+  await forgetLocalhostAddresses()
   registerAppBridge()
   registerApprovedSites()
 })
+
+/**
+ * Drops addresses left over from a dev machine.
+ *
+ * Older builds defaulted to http://localhost:4000 and stored it, so every call
+ * failed with "Failed to fetch" on a machine with no dev server running. Clearing
+ * the stored value lets the production default apply; the popup can always set a
+ * local address again for development.
+ */
+async function forgetLocalhostAddresses() {
+  const { apiBase, appUrl } = await chrome.storage.local.get(['apiBase', 'appUrl'])
+  const stale = []
+  if (apiBase && apiBase.includes('localhost')) stale.push('apiBase')
+  if (appUrl && appUrl.includes('localhost')) stale.push('appUrl')
+  if (stale.length) await chrome.storage.local.remove(stale)
+}
 
 /**
  * The app↔extension bridge has to run on whatever origin the app is served from,
