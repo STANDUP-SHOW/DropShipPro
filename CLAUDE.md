@@ -27,8 +27,8 @@ développement, éteint hors session. Toujours tester sur `www.drop-shipper.fr`.
 
 ```
 backend/     Node + Express + TypeScript + Prisma → Railway
+backend/extension/  Extension Chrome Manifest V3, servie par /api/public/extension.zip
 frontend/    React + Vite + Tailwind v4 → Vercel (Root Directory = frontend)
-extension/   Extension Chrome Manifest V3
 storefront/  Vitrine de démonstration OGGUS (HTML autonome)
 docs/        Documentation de l'API catalogue
 ```
@@ -65,7 +65,7 @@ docs/        Documentation de l'API catalogue
   un callback non-async avait empêché Chrome de charger toute l'extension :
 
   ```bash
-  cd extension && node -e "const fs=require('fs'),vm=require('vm');for(const f of ['config.js','background.js','popup.js','content/fill-helpers.js','content/capture.js','content/agent.js','content/app-bridge.js','content/publish-launcher.js','content/vinted.js','content/leboncoin.js','content/ebay.js','content/facebook.js']){try{new vm.Script(fs.readFileSync(f,'utf8'),{filename:f})}catch(e){console.log('ERREUR',f,e.message)}}"
+  cd backend/extension && node -e "const fs=require('fs'),vm=require('vm');for(const f of ['config.js','background.js','popup.js','content/fill-helpers.js','content/capture.js','content/agent.js','content/app-bridge.js','content/publish-launcher.js','content/vinted.js','content/leboncoin.js','content/ebay.js','content/facebook.js']){try{new vm.Script(fs.readFileSync(f,'utf8'),{filename:f})}catch(e){console.log('ERREUR',f,e.message)}}"
   ```
 
 - **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne

@@ -10,10 +10,28 @@ export const publicRouter = Router()
 // Packages the Chrome extension folder on the fly so the app can offer it as a
 // download. Unauthenticated on purpose: it's just client code, and a plain <a>
 // link can't carry the Bearer token.
+/**
+ * Where the extension folder can be, depending on who is running the API.
+ *
+ * Railway deploys with the service root set to backend/, so the repository's
+ * top-level extension/ is simply absent from the container and ../extension
+ * resolves to nothing — which is why the download returned a 404 in production.
+ */
+const EXTENSION_DIRS = ['extension', path.join('..', 'extension'), path.join('..', '..', 'extension')]
+
+function findExtensionDir(): string | null {
+  return EXTENSION_DIRS.map((dir) => path.resolve(dir)).find((dir) => existsSync(dir)) ?? null
+}
+
 publicRouter.get('/extension.zip', async (_req, res) => {
-  const extensionDir = path.resolve('..', 'extension')
-  if (!existsSync(extensionDir)) {
-    return res.status(404).json({ error: 'Extension introuvable sur le serveur' })
+  const extensionDir = findExtensionDir()
+  if (!extensionDir) {
+    // Logged with the paths tried: a bare « introuvable » says nothing about
+    // which deployment layout the server actually has.
+    console.error('extension introuvable, cherchee dans', EXTENSION_DIRS.map((d) => path.resolve(d)))
+    return res.status(404).json({
+      error: "L'extension n'est pas disponible sur ce serveur. Contactez le support.",
+    })
   }
 
   res.attachment('dropshipper-ia-extension.zip')
