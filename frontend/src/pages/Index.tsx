@@ -84,7 +84,43 @@ export default function Index() {
             </div>
           ))}
         </div>
+
+        {/* Crawl path to the static SEO pages: without a link from the home page,
+            Google only ever learns about them through the sitemap. Plain <a>, not
+            <Link>: these are real HTML files, not React routes. */}
+        <nav className="mt-20 border-t border-white/10 pt-8 text-left">
+          <h2 className="text-sm font-semibold text-gray-300">Vendre sur les marketplaces</h2>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-400">
+            {SEO_LINKS.map((link) => (
+              <a key={link.href} href={link.href} className="hover:text-purple-300">
+                {link.label}
+              </a>
+            ))}
+          </div>
+          <p className="mt-6 text-xs text-gray-500">
+            <a href="/confidentialite" className="hover:text-gray-300">
+              Politique de confidentialité
+            </a>
+          </p>
+        </nav>
       </main>
     </div>
   )
 }
+
+const SEO_LINKS = [
+  { href: '/vendre-sur-marketplaces/', label: 'Toutes les plateformes' },
+  { href: '/vendre-sur-vinted/', label: 'Vinted' },
+  { href: '/vendre-sur-leboncoin/', label: 'Leboncoin' },
+  { href: '/vendre-sur-shopify/', label: 'Shopify' },
+  { href: '/vendre-sur-ebay/', label: 'eBay' },
+  { href: '/vendre-sur-amazon/', label: 'Amazon' },
+  { href: '/vendre-sur-facebook-marketplace/', label: 'Facebook Marketplace' },
+  { href: '/vendre-sur-google-shopping/', label: 'Google Shopping' },
+  { href: '/dropshipping/', label: 'Le dropshipping expliqué' },
+  { href: '/logiciel-dropshipping/', label: 'Logiciel de dropshipping' },
+  { href: '/vendre-sans-stock/', label: 'Vendre sans stock' },
+  { href: '/importer-produits-temu-joybuy/', label: 'Importer depuis Temu' },
+  { href: '/publier-annonces-plusieurs-marketplaces/', label: 'Publier en lot' },
+  { href: '/filigrane-photos-produits/', label: 'Filigrane des photos' },
+]
