@@ -60,6 +60,30 @@ publicRouter.get('/config', (_req, res) => {
 })
 
 /**
+ * Published reviews, newest first.
+ *
+ * Public and unauthenticated: the home page and the reviews page are read by
+ * visitors who have no account. Only what is meant to be shown is selected — the
+ * email and the account id never leave the server.
+ */
+publicRouter.get('/reviews', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 100)
+
+  const reviews = await prisma.review.findMany({
+    where: { published: true },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: { id: true, displayName: true, rating: true, comment: true, createdAt: true },
+  })
+
+  const all = await prisma.review.findMany({ where: { published: true }, select: { rating: true } })
+  const average = all.length ? all.reduce((sum, r) => sum + r.rating, 0) / all.length : null
+
+  res.set('Cache-Control', 'public, max-age=60')
+  res.json({ reviews, count: all.length, average })
+})
+
+/**
  * Shape returned to a storefront.
  *
  * `price` is the selling price, never the supplier cost: a shop wiring itself to

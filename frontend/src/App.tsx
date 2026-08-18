@@ -13,6 +13,7 @@ import ProductDetail from './pages/ProductDetail'
 import Orders from './pages/Orders'
 import Settings from './pages/Settings'
 import Privacy from './pages/Privacy'
+import ReviewsPage from './pages/ReviewsPage'
 import Guide from './pages/Guide'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,8 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           {/* Public on purpose: the Chrome Web Store listing links to it. */}
           <Route path="/confidentialite" element={<Privacy />} />
+          {/* Public : un visiteur sans compte doit pouvoir lire les avis. */}
+          <Route path="/avis" element={<ReviewsPage />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />

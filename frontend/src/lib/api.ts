@@ -119,6 +119,21 @@ export const api = {
       }>
     >('/products/meta/platforms'),
 
+  // Reviews. The listing is public — the home page shows it to visitors with no
+  // account — while writing one requires being signed in, which is also what keeps
+  // the page from filling with spam.
+  listPublicReviews: (limit = 50) =>
+    request<{
+      reviews: Array<{ id: string; displayName: string; rating: number; comment: string; createdAt: string }>
+      count: number
+      average: number | null
+    }>(`/public/reviews?limit=${limit}`),
+  myReview: () =>
+    request<{ id: string; displayName: string; rating: number; comment: string } | null>('/reviews/mine'),
+  saveReview: (data: { rating: number; comment: string; displayName?: string }) =>
+    request('/reviews', { method: 'PUT', body: JSON.stringify(data) }),
+  deleteReview: () => request('/reviews', { method: 'DELETE' }),
+
   listOrders: () => request<any[]>('/orders'),
   createOrder: (data: Record<string, unknown>) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
   updateOrder: (id: string, data: Record<string, unknown>) =>

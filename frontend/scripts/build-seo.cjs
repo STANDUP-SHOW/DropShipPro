@@ -123,6 +123,7 @@ ${body}
   <a href="/">Accueil</a>
   <a href="/dropshipping/">Dropshipping</a>
   <a href="/vendre-sur-marketplaces/">Où vendre</a>
+  <a href="/avis">Avis</a>
   <a href="/confidentialite">Confidentialité</a>
 </div></footer>
 </body>
@@ -344,7 +345,7 @@ function main() {
 
   // The application's own public routes belong in the sitemap too, otherwise the
   // home page is the only entry point Google is told about.
-  const appUrls = ['/', '/confidentialite']
+  const appUrls = ['/', '/avis', '/confidentialite']
   const urls = [...appUrls, ...pages.map((p) => p.url)]
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>

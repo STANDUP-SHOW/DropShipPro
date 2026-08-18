@@ -7,6 +7,7 @@ import { productsRouter } from './routes/products.js'
 import { ordersRouter } from './routes/orders.js'
 import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
+import { reviewsRouter } from './routes/reviews.js'
 
 const app = express()
 
@@ -41,6 +42,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/settings', settingsRouter)
+app.use('/api/reviews', reviewsRouter)
 app.use('/api/public', publicRouter)
 
 const port = Number(process.env.PORT) || 4000

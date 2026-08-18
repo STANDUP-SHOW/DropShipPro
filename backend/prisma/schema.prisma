@@ -81,6 +81,7 @@ model User {
   credentials PlatformCredential[]
   orders      Order[]
   authTokens  AuthToken[]
+  review      Review?
 }
 
 enum AuthTokenType {
@@ -203,4 +204,20 @@ model Order {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Avis laisse par un utilisateur sur l application.
+/// Un seul par compte: un testeur qui revient corrige son avis au lieu d en empiler.
+model Review {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Nom affiche publiquement. Jamais l email, qui reste prive.
+  displayName String
+  rating      Int
+  comment     String   @db.Text
+  /// Permet de retirer un avis de la page publique sans le supprimer.
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

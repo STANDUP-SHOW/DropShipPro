@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Zap, Globe, ShieldCheck, ArrowRight } from 'lucide-react'
 import { Logo } from '../components/Logo'
-import { isAuthed, assetUrl } from '../lib/api'
+import { api, isAuthed, assetUrl } from '../lib/api'
+import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
 
 const FEATURES = [
   {
@@ -25,6 +27,25 @@ const FEATURES = [
 ]
 
 export default function Index() {
+  // The twelve most recent reviews, loaded client-side: the home page is served as
+  // a static shell, so this arrives just after paint rather than blocking it.
+  const [reviews, setReviews] = useState<PublicReview[]>([])
+  const [count, setCount] = useState(0)
+  const [average, setAverage] = useState<number | null>(null)
+
+  useEffect(() => {
+    api
+      .listPublicReviews(12)
+      .then((data) => {
+        setReviews(data.reviews)
+        setCount(data.count)
+        setAverage(data.average)
+      })
+      .catch(() => {
+        // The API being unreachable must not blank out the home page.
+      })
+  }, [])
+
   return (
     <div className="min-h-screen bg-app-gradient text-white">
       <header className="flex items-center justify-between px-6 py-5 max-w-6xl mx-auto">
@@ -85,6 +106,32 @@ export default function Index() {
           ))}
         </div>
 
+        {/* Les douze derniers avis. Masqué tant que personne ne s'est exprimé :
+            une section « Avis » vide inspire moins confiance que pas de section. */}
+        {reviews.length > 0 && (
+          <section className="mt-20 text-left">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">Ce qu'en disent les utilisateurs</h2>
+                {average !== null && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <Stars rating={Math.round(average)} size={16} />
+                    <span className="text-sm text-gray-400">
+                      {`${average.toFixed(1)} sur 5 — ${count} avis`}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Link to="/avis" className="text-sm text-purple-300 hover:underline">
+                {count > 12 ? `Voir les ${count} avis` : 'Donner mon avis'}
+              </Link>
+            </div>
+            <div className="mt-6">
+              <ReviewGrid reviews={reviews} />
+            </div>
+          </section>
+        )}
+
         {/* Crawl path to the static SEO pages: without a link from the home page,
             Google only ever learns about them through the sitemap. Plain <a>, not
             <Link>: these are real HTML files, not React routes. */}
@@ -98,6 +145,10 @@ export default function Index() {
             ))}
           </div>
           <p className="mt-6 text-xs text-gray-500">
+            <Link to="/avis" className="hover:text-gray-300">
+              Avis des utilisateurs
+            </Link>
+            {' · '}
             <a href="/confidentialite" className="hover:text-gray-300">
               Politique de confidentialité
             </a>
