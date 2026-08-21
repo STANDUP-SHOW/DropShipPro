@@ -20,6 +20,16 @@
  *   return nothing.
  */
 
+
+/*
+ * Wrapped like capture.js: Chrome can inject the same content script twice into
+ * one page (registration plus an explicit injection), and top-level `const`
+ * declarations then throw "Identifier has already been declared", which takes
+ * down the whole script. The IIFE keeps them private, and the guard makes a
+ * second injection a no-op instead of an error.
+ */
+if (typeof self.dspScanPageImages !== 'function') {
+  ;(() => {
 /** Attributes shops use to carry the real URL while `src` holds a placeholder. */
 const DSP_IMAGE_ATTRS = [
   'data-src',
@@ -285,4 +295,9 @@ async function dspScanPageImages() {
   for (const url of dspImagesFromScripts()) push(url)
 
   return [...found]
+}
+
+    // Only the entry point is published; every helper stays private.
+    self.dspScanPageImages = dspScanPageImages
+  })()
 }
