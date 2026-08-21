@@ -114,13 +114,13 @@ les autres marketplaces créent une publication « en attente ».
 
 ## Ce qui reste en chantier
 
-1. **Photos depuis Temu** : la détection automatique a échoué (CDN majoritaire,
-   mesure des dimensions, suffixe d'URL). Remplacée par un sélecteur manuel avec
-   filtre par dimensions, sur le modèle d'Imageye. Depuis, `content/image-scan.js`
-   ratisse tout le DOM (data-*, fonds CSS, ::before, picture, poster, shadow DOM
-   ouvert, iframes de même origine, JSON-LD et objets d'état lus dans le texte des
-   <script>, MutationObserver). Vérifié sur page de contrôle : 6 images par la
-   méthode naïve, 22 par le scan. À valider sur un vrai Temu par l'utilisateur.
+1. ~~**Photos depuis Temu**~~ **réglé.** `content/image-scan.js` ratisse tout le
+   DOM (data-*, fonds CSS, ::before, picture, poster, shadow DOM ouvert, iframes
+   de même origine, JSON-LD et objets d'état lus dans le texte des `<script>`,
+   MutationObserver). Page de contrôle : 6 images par la lecture naïve de
+   `img.src`, 22 par le scan. **Constaté en production le 18/08/2026 : 1 image
+   avant, 27 après, sur une vraie fiche produit.** Le sélecteur manuel reste, il
+   sert à écarter les vignettes de recommandation.
 2. **Shopify** : code écrit et compilé, jamais exécuté contre une vraie boutique.
    À confirmer en production avec un jeton réel.
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
