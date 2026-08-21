@@ -31,30 +31,63 @@ async function forgetLocalhostAddresses() {
 }
 
 /**
+ * Serialises content-script registrations.
+ *
+ * registerAppBridge runs from onInstalled, from onStartup and from every storage
+ * change — and forgetLocalhostAddresses itself writes to storage, so two calls
+ * could overlap. Both then passed the unregister step and both registered the
+ * same id, which Chrome rejects as a duplicate script ID. Chaining the calls
+ * makes the sequence unregister-then-register atomic in practice.
+ */
+let dspRegistrations = Promise.resolve()
+
+function dspQueue(task) {
+  dspRegistrations = dspRegistrations.then(task, task)
+  return dspRegistrations
+}
+
+/** Registers one content script, replacing any previous version of it. */
+async function dspRegister(script) {
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [script.id] })
+  } catch {
+    // Nothing registered yet, which is the normal case on a fresh install.
+  }
+  try {
+    await chrome.scripting.registerContentScripts([script])
+  } catch (err) {
+    // A duplicate can still slip through if two workers raced: drop it and retry
+    // once rather than leaving the page without its script.
+    if (String(err).includes('Duplicate script ID')) {
+      try {
+        await chrome.scripting.unregisterContentScripts({ ids: [script.id] })
+        await chrome.scripting.registerContentScripts([script])
+        return
+      } catch (retryErr) {
+        console.error(`enregistrement de ${script.id} impossible`, retryErr)
+        return
+      }
+    }
+    console.error(`enregistrement de ${script.id} impossible`, err)
+  }
+}
+
+/**
  * The app↔extension bridge has to run on whatever origin the app is served from,
  * which isn't known at build time (localhost in dev, the Vercel domain in prod).
  * Manifest content_scripts can't take a runtime value, so it's registered here and
  * re-registered whenever the user changes the app URL in the popup.
  */
-async function registerAppBridge() {
-  const appUrl = await getAppUrl()
-  try {
-    await chrome.scripting.unregisterContentScripts({ ids: ['dsp-app-bridge'] })
-  } catch {
-    // Nothing registered yet on a fresh install.
-  }
-  try {
-    await chrome.scripting.registerContentScripts([
-      {
-        id: 'dsp-app-bridge',
-        matches: [`${appUrl}/*`],
-        js: ['config.js', 'content/app-bridge.js'],
-        runAt: 'document_idle',
-      },
-    ])
-  } catch (err) {
-    console.error('registerAppBridge failed', err)
-  }
+function registerAppBridge() {
+  return dspQueue(async () => {
+    const appUrl = await getAppUrl()
+    await dspRegister({
+      id: 'dsp-app-bridge',
+      matches: [`${appUrl}/*`],
+      js: ['config.js', 'content/app-bridge.js'],
+      runAt: 'document_idle',
+    })
+  })
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -68,27 +101,25 @@ chrome.storage.onChanged.addListener((changes, area) => {
  * the popup, which asks Chrome for that origin only. Registrations don't survive a
  * browser restart, so they are rebuilt from the stored list.
  */
-async function registerApprovedSites() {
-  const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
-  try {
-    await chrome.scripting.unregisterContentScripts({ ids: ['dsp-capture'] })
-  } catch {
-    // Not registered yet.
-  }
-  if (!approvedSites.length) return
+function registerApprovedSites() {
+  return dspQueue(async () => {
+    const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
+    if (!approvedSites.length) {
+      try {
+        await chrome.scripting.unregisterContentScripts({ ids: ['dsp-capture'] })
+      } catch {
+        // Nothing to remove.
+      }
+      return
+    }
 
-  try {
-    await chrome.scripting.registerContentScripts([
-      {
-        id: 'dsp-capture',
-        matches: approvedSites.map((origin) => `${origin}/*`),
-        js: ['config.js', 'content/fill-helpers.js', 'content/image-scan.js', 'content/capture.js'],
-        runAt: 'document_idle',
-      },
-    ])
-  } catch (err) {
-    console.error('enregistrement des sites autorisés impossible', err)
-  }
+    await dspRegister({
+      id: 'dsp-capture',
+      matches: approvedSites.map((origin) => `${origin}/*`),
+      js: ['config.js', 'content/fill-helpers.js', 'content/image-scan.js', 'content/capture.js'],
+      runAt: 'document_idle',
+    })
+  })
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
