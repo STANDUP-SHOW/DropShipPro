@@ -82,7 +82,7 @@ async function registerApprovedSites() {
       {
         id: 'dsp-capture',
         matches: approvedSites.map((origin) => `${origin}/*`),
-        js: ['config.js', 'content/fill-helpers.js', 'content/capture.js'],
+        js: ['config.js', 'content/fill-helpers.js', 'content/image-scan.js', 'content/capture.js'],
         runAt: 'document_idle',
       },
     ])

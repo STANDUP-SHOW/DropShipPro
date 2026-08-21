@@ -116,7 +116,11 @@ les autres marketplaces créent une publication « en attente ».
 
 1. **Photos depuis Temu** : la détection automatique a échoué (CDN majoritaire,
    mesure des dimensions, suffixe d'URL). Remplacée par un sélecteur manuel avec
-   filtre par dimensions, sur le modèle d'Imageye. À valider par l'utilisateur.
+   filtre par dimensions, sur le modèle d'Imageye. Depuis, `content/image-scan.js`
+   ratisse tout le DOM (data-*, fonds CSS, ::before, picture, poster, shadow DOM
+   ouvert, iframes de même origine, JSON-LD et objets d'état lus dans le texte des
+   <script>, MutationObserver). Vérifié sur page de contrôle : 6 images par la
+   méthode naïve, 22 par le scan. À valider sur un vrai Temu par l'utilisateur.
 2. **Shopify** : code écrit et compilé, jamais exécuté contre une vraie boutique.
    À confirmer en production avec un jeton réel.
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.

@@ -183,6 +183,22 @@
   async function collectImages() {
     const candidates = new Set()
 
+    // Generic deep scan (see content/image-scan.js): every element, not only
+    // <img> — data-* attributes, CSS backgrounds, ::before/::after, <picture>,
+    // <video poster>, open shadow roots, same-origin frames, and the gallery as
+    // the page's own JSON describes it. This is what separates two photos from a
+    // full gallery on shops that lazy-load or swap a single carousel <img>.
+    try {
+      for (const url of await dspScanPageImages()) {
+        if (!JUNK.test(url)) candidates.add(url)
+      }
+    } catch (err) {
+      // Repli sur l'ancien chemin : au moins provoquer le chargement différé,
+      // que le scan approfondi aurait fait lui-même.
+      console.warn('DropShipper IA : scan approfondi indisponible', err)
+      await revealLazyImages()
+    }
+
     for (const img of document.querySelectorAll('img')) {
       const src = bestSource(img)
       if (src && src.startsWith('http') && !JUNK.test(src)) candidates.add(src)
@@ -197,7 +213,7 @@
     // one of the product.
     const ranked = [...candidates].sort((a, b) => Number(PRODUCT_PATH.test(b)) - Number(PRODUCT_PATH.test(a)))
 
-    const probes = ranked.slice(0, 60).flatMap(sizeVariants)
+    const probes = ranked.slice(0, 140).flatMap(sizeVariants)
     const measured = (await Promise.all([...new Set(probes)].map(measure))).filter(Boolean)
 
     const large = measured
@@ -293,8 +309,8 @@
   }
 
   async function buildPayload() {
-    await revealLazyImages()
-
+    // Pas de défilement ici : collectImages() vient de le faire, et le refaire
+    // coûtait une seconde et demie pour rien.
     return {
       sourceUrl: location.href,
       title:
