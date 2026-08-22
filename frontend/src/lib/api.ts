@@ -134,6 +134,25 @@ export const api = {
     request('/reviews', { method: 'PUT', body: JSON.stringify(data) }),
   deleteReview: () => request('/reviews', { method: 'DELETE' }),
 
+  // Facturation. /plans est public : la grille s'affiche avant toute connexion.
+  listPlans: () =>
+    request<{
+      signupCredits: number
+      packs: Array<{ id: string; label: string; amount: number; credits: number }>
+      premium: { id: string; label: string; amount: number; monthlyFairUse: number }
+      enabled: boolean
+    }>('/billing/plans'),
+  myBilling: () =>
+    request<{
+      credits: number
+      premium: boolean
+      premiumUntil: string | null
+      payments: Array<{ id: string; planId: string; amount: number; credits: number; createdAt: string }>
+    }>('/billing/me'),
+  startCheckout: (planId: string) =>
+    request<{ url: string }>('/billing/checkout', { method: 'POST', body: JSON.stringify({ planId }) }),
+  openBillingPortal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
+
   listOrders: () => request<any[]>('/orders'),
   createOrder: (data: Record<string, unknown>) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
   updateOrder: (id: string, data: Record<string, unknown>) =>

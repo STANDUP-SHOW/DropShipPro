@@ -77,8 +77,20 @@ model User {
   emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
 
+  /// Annonces importables restantes. 10 offertes à l'inscription.
+  /// La publication ne consomme rien : seul l'import est décompté.
+  credits Int @default(10)
+  /// FREE tant qu'aucun abonnement n'est actif, PREMIUM = imports illimités.
+  plan Plan @default(FREE)
+  /// Identifiants Stripe. Null tant que l'utilisateur n'a jamais payé.
+  stripeCustomerId String? @unique
+  stripeSubscriptionId String?
+  /// Fin de la période payée : l'abonnement reste actif jusque-là même résilié.
+  premiumUntil DateTime?
+
   products    Product[]
   credentials PlatformCredential[]
+  payments    Payment[]
   orders      Order[]
   authTokens  AuthToken[]
   review      Review?
@@ -220,4 +232,36 @@ model Review {
   published   Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum Plan {
+  FREE
+  PREMIUM
+}
+
+/// Historique des paiements, pour retrouver ce qui a été crédité et pourquoi.
+model Payment {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Identifiant du pack acheté, ou 'premium' pour l'abonnement.
+  planId   String
+  /// Montant réellement encaissé, en centimes, tel que Stripe le rapporte.
+  amount   Int
+  currency String @default("eur")
+  /// Crédits ajoutés par ce paiement. 0 pour un abonnement illimité.
+  credits  Int    @default(0)
+  stripeSessionId String? @unique
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Événements Stripe déjà traités.
+/// Stripe rejoue un webhook jusqu'à obtenir un 2xx : sans cette table, un
+/// rejeu créditerait le compte une seconde fois.
+model WebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
 }

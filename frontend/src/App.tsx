@@ -14,6 +14,7 @@ import Orders from './pages/Orders'
 import Settings from './pages/Settings'
 import Privacy from './pages/Privacy'
 import ReviewsPage from './pages/ReviewsPage'
+import BillingPage from './pages/Billing'
 import Guide from './pages/Guide'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/guide" element={<Protected><Guide /></Protected>} />
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
+          <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

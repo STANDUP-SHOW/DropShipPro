@@ -15,6 +15,7 @@ import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.j
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
+import { refundCredits, reserveCredits } from '../services/billing.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -37,6 +38,11 @@ const importSchema = z.object({ url: z.string().url() })
 productsRouter.post('/import', async (req: AuthedRequest, res) => {
   const parsed = importSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'URL invalide' })
+
+  // Reserved up front, refunded below if the import fails: the seller is charged
+  // for a listing they got, never for an attempt.
+  const credit = await reserveCredits(req.userId!, 1)
+  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   try {
     const scraped = await scrapeProduct(parsed.data.url)
@@ -73,6 +79,8 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
     })
     res.status(201).json(product)
   } catch (err) {
+    // Nothing was delivered, so nothing is charged.
+    await refundCredits(req.userId!, 1)
     console.error(err)
     if (err instanceof ScrapeBlockedError) {
       return res.status(422).json({ error: err.message })
@@ -102,6 +110,10 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
 
   const data = parsed.data
+
+  const credit = await reserveCredits(req.userId!, 1)
+  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+
   try {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
     const enhanced = await enhanceListing({
@@ -142,6 +154,7 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
     })
     res.status(201).json(product)
   } catch (err) {
+    await refundCredits(req.userId!, 1)
     console.error(err)
     res.status(500).json({ error: "Impossible d'enregistrer ce produit" })
   }
@@ -156,9 +169,19 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Envoyez entre 1 et 25 URLs valides' })
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
-  const results: Array<{ url: string; ok: boolean; product?: unknown; error?: string }> = []
 
-  for (const url of parsed.data.urls) {
+  // Partial coverage rather than refusal: with three credits left and ten URLs,
+  // the first three are imported and the rest are reported as not covered.
+  const credit = await reserveCredits(req.userId!, parsed.data.urls.length)
+  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+
+  const couvertes = parsed.data.urls.slice(0, credit.allowed)
+  const nonCouvertes = parsed.data.urls.slice(credit.allowed)
+  const results: Array<{ url: string; ok: boolean; product?: unknown; error?: string }> = nonCouvertes.map(
+    (url) => ({ url, ok: false, error: 'Solde insuffisant pour cette annonce' }),
+  )
+
+  for (const url of couvertes) {
     try {
       const scraped = await scrapeProduct(url)
       const enhanced = await enhanceListing({
@@ -193,6 +216,8 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
       })
       results.push({ url, ok: true, product })
     } catch (err) {
+      // Each failed URL gives its credit back individually.
+      await refundCredits(req.userId!, 1)
       console.error(`import-batch failed for ${url}`, err)
       results.push({
         url,

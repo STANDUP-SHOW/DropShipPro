@@ -1,11 +1,14 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../lib/auth'
+import { api } from '../lib/api'
 
 const NAV = [
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/orders', label: 'Commandes', icon: ShoppingBag },
+  { to: '/abonnement', label: 'Mon compte', icon: Coins },
   { to: '/guide', label: 'Aide', icon: BookOpen },
   { to: '/settings', label: 'Réglages', icon: SettingsIcon },
 ]
@@ -13,6 +16,16 @@ const NAV = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation()
   const { logout, user } = useAuth()
+  const [solde, setSolde] = useState<{ credits: number; premium: boolean } | null>(null)
+
+  useEffect(() => {
+    api
+      .myBilling()
+      .then((b) => setSolde({ credits: b.credits, premium: b.premium }))
+      .catch(() => {
+        // Ancienne session ou API indisponible : on n'affiche simplement rien.
+      })
+  }, [pathname])
 
   return (
     <div className="min-h-screen bg-app-gradient text-white flex">
@@ -32,12 +45,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 <item.icon size={16} />
-                {item.label}
+                <span>{item.label}</span>
               </Link>
             )
           })}
         </nav>
         <div className="border-t border-white/10 pt-3 text-xs text-gray-400">
+          {solde && (
+            <Link
+              to="/abonnement"
+              className="mb-2 flex items-center gap-1.5 rounded-lg bg-purple-500/15 px-2 py-1.5 text-purple-200 hover:bg-purple-500/25"
+            >
+              <Coins size={13} />
+              <span>{solde.premium ? 'Illimité' : `${solde.credits} annonce(s)`}</span>
+            </Link>
+          )}
           <p className="truncate">{user?.email}</p>
           <button onClick={logout} className="mt-2 flex items-center gap-1.5 text-gray-400 hover:text-white">
             <LogOut size={14} /> Déconnexion
@@ -55,7 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   pathname.startsWith(item.to) ? 'bg-white/10' : 'text-gray-400'
                 }`}
               >
-                <item.icon size={16} /> {item.label}
+                <item.icon size={16} /> <span>{item.label}</span>
               </Link>
             ))}
           </div>
