@@ -181,6 +181,29 @@ export const api = {
       '/billing/confirm',
       { method: 'POST', body: JSON.stringify({ sessionId }) },
     ),
+  // Factures, cartes et resiliation servies par notre API : le vendeur n a plus
+  // aucune raison d atterrir sur une page Stripe.
+  listInvoices: () =>
+    request<{
+      invoices: Array<{
+        id: string
+        number: string | null
+        createdAt: string
+        total: number
+        currency: string
+        status: string
+        paid: boolean
+      }>
+    }>('/billing/invoices'),
+  listCards: () =>
+    request<{
+      cards: Array<{ id: string; brand: string; last4: string; expMonth: number | null; expYear: number | null }>
+    }>('/billing/payment-methods'),
+  createSetupIntent: () => request<{ clientSecret: string }>('/billing/setup-intent', { method: 'POST' }),
+  deleteCard: (id: string) => request(`/billing/payment-methods/${id}`, { method: 'DELETE' }),
+  cancelSubscription: () =>
+    request<{ cancelled: boolean; activeUntil: string | null }>('/billing/cancel-subscription', { method: 'POST' }),
+
   openBillingPortal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
 
   listOrders: () => request<any[]>('/orders'),

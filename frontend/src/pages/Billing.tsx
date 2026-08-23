@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
-import { Coins, Check, Infinity as InfinityIcon, ExternalLink } from 'lucide-react'
+import { Coins, Check, Infinity as InfinityIcon } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
+import { Invoices, PaymentMethods } from '../components/BillingSections'
 
 /**
  * Publishable key — public by design, it identifies the account and can do
@@ -84,17 +85,6 @@ export default function BillingPage() {
     }
   }
 
-  async function openPortal() {
-    setBusy('portal')
-    try {
-      const { url } = await api.openBillingPortal()
-      window.location.href = url
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Portail indisponible')
-      setBusy(null)
-    }
-  }
-
   return (
     <Layout>
       <h1 className="text-2xl font-bold">Mon compte</h1>
@@ -134,15 +124,30 @@ export default function BillingPage() {
           </div>
         )}
 
-        {billing && billing.payments.length > 0 && (
+        {billing?.premium && (
           <button
             type="button"
-            onClick={openPortal}
-            disabled={busy === 'portal'}
-            className="mt-4 inline-flex items-center gap-1.5 text-xs text-purple-300 hover:underline"
+            onClick={async () => {
+              setBusy('cancel')
+              setError(null)
+              try {
+                const res = await api.cancelSubscription()
+                setConfirmation(
+                  res.activeUntil
+                    ? `Abonnement résilié. Il reste actif jusqu'au ${new Date(res.activeUntil).toLocaleDateString('fr-FR')}.`
+                    : 'Abonnement résilié.',
+                )
+                await load()
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Résiliation impossible')
+              } finally {
+                setBusy(null)
+              }
+            }}
+            disabled={busy === 'cancel'}
+            className="mt-4 text-xs text-gray-400 hover:text-red-300"
           >
-            <span>Factures, moyen de paiement, résiliation</span>
-            <ExternalLink size={12} />
+            {busy === 'cancel' ? 'Résiliation…' : "Résilier mon abonnement"}
           </button>
         )}
       </div>
@@ -250,6 +255,9 @@ export default function BillingPage() {
           </div>
         </div>
       )}
+
+      <PaymentMethods stripePromise={stripePromise} />
+      <Invoices />
 
       {/* Historique */}
       {billing && billing.payments.length > 0 && (
