@@ -108,6 +108,14 @@ les autres marketplaces créent une publication « en attente ».
   depuis 2024-04), puis `publishablePublish` en meilleur effort.
 - Shopify télécharge les photos lui-même : les chemins `/storage/...` doivent être
   absolus, d'où `PUBLIC_API_URL` et `backend/src/lib/urls.ts`.
+- **Une clé de catalogue par site, pas par compte.** Un vendeur branche plusieurs
+  boutiques (mode, high-tech) ; chacune a sa `Shop.shopKey` et ne reçoit que les
+  annonces rangées dedans. Le site de destination se choisit **au moment de
+  diffuser** (`ShopPicker`), pas dans un réglage. La migration a conservé les clés
+  existantes (`Shop.shopKey = User.shopKey`) : les boutiques déjà branchées lisent
+  toujours la même adresse. `User.shopKey` n'est plus la source de vérité, il ne
+  sert que de boutique par défaut affichée dans le guide.
+
 - `PlatformInfo.integration` (`live` | `api-ready` | `extension` | `none`) est la
   source unique côté UI : le guide, les réglages et la publication en lot en
   dépendent au lieu de coder les plateformes en dur.
