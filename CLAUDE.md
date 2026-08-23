@@ -65,6 +65,11 @@ docs/        Documentation de l'API catalogue
 - **Les content scripts ne peuvent pas appeler l'API directement** : une page
   https vers une API http est du contenu mixte, bloqué par Chrome. Tout passe par
   le service worker via `apiFetch` (voir `extension/config.js`).
+- **Perdre `VITE_API_URL` sur Vercel casse toute l application**, connexion
+  comprise : le bundle appelle alors son propre domaine, et Vercel repond 405.
+  Vite fige les `VITE_*` a la compilation, donc ajouter une variable exige un
+  redeploiement, et en ecraser une ne se voit qu au premier clic. `lib/api.ts`
+  retombe desormais sur l API connue plutot que sur une adresse impossible.
 - **Vercel répond 200 à un GET et 405 à un POST** sur `/api/*`. Une adresse d'API
   mal réglée dans l'extension donne donc un 405 incompréhensible ; le popup la
   vérifie désormais avant d'enregistrer.

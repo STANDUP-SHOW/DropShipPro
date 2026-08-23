@@ -1,7 +1,24 @@
 // In dev, Vite proxies /api to localhost:4000 (see vite.config.ts). In production
 // the frontend (Vercel) and backend (Railway) are on different hosts, so the
 // deployed build needs the absolute backend URL via VITE_API_URL.
-const API_ROOT = import.meta.env.VITE_API_URL?.replace(/\/$/, '') ?? ''
+const CONFIGURED_API = import.meta.env.VITE_API_URL?.replace(/\/$/, '') ?? ''
+
+/**
+ * Where the API lives when the build variable is missing.
+ *
+ * Vite freezes VITE_* at build time, so losing that variable ships a bundle that
+ * calls its own domain for everything — and Vercel answers 405 to any POST. The
+ * whole application dies, login included, behind an error code that explains
+ * nothing. It happened. A deployed build now falls back to the known API rather
+ * than to an address that cannot work.
+ */
+const FALLBACK_API = 'https://dropshippro-production.up.railway.app'
+
+const isLocal =
+  typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+
+// Empty on localhost so the Vite dev proxy keeps doing its job.
+const API_ROOT = CONFIGURED_API || (isLocal ? '' : FALLBACK_API)
 const BASE = `${API_ROOT}/api`
 
 export const apiRoot = API_ROOT
