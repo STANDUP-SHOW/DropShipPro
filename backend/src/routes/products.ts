@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type Response } from 'express'
 import { z } from 'zod'
 import archiver from 'archiver'
 import multer from 'multer'
@@ -15,6 +15,7 @@ import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.j
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
+import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 
@@ -32,11 +33,36 @@ function watermarkOptionsFor(user: User): WatermarkOptions {
   }
 }
 
+/**
+ * Runs a handler through the import queue.
+ *
+ * Wrapping the route rather than the work inside it means a saturated service
+ * answers before reserving a credit or touching a supplier site — the caller
+ * gets a clear refusal in milliseconds instead of a connection held open until
+ * it times out.
+ */
+function queued(handler: (req: AuthedRequest, res: Response) => Promise<unknown>) {
+  return async (req: AuthedRequest, res: Response) => {
+    try {
+      await importLimiter.run(() => handler(req, res))
+    } catch (err) {
+      if (err instanceof Saturated) {
+        res.setHeader('Retry-After', '60')
+        return res.status(429).json({ error: err.message })
+      }
+      console.error(err)
+      if (!res.headersSent) res.status(500).json({ error: "Erreur inattendue" })
+    }
+  }
+}
+
 const importSchema = z.object({ url: z.string().url() })
 
 // Paste any product URL: scrape it, remix the copy with AI, watermark the photos,
 // and land it in the back office as a DRAFT the user reviews before publishing.
-productsRouter.post('/import', async (req: AuthedRequest, res) => {
+productsRouter.post(
+  '/import',
+  queued(async (req, res) => {
   const parsed = importSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'URL invalide' })
 
@@ -93,8 +119,9 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
       return res.status(422).json({ error: err.message })
     }
     res.status(502).json({ error: "Impossible d'importer ce produit depuis l'URL fournie" })
-  }
-})
+    }
+  }),
+)
 
 const captureSchema = z.object({
   sourceUrl: z.string().url(),
@@ -112,7 +139,9 @@ const captureSchema = z.object({
 // browser, so price, gallery and variants arrive filled in — the things the
 // server-side scraper can't reach on Temu/JoyBuy. Everything after that (AI
 // remix, watermark, category guess) is the same pipeline as /import.
-productsRouter.post('/capture', async (req: AuthedRequest, res) => {
+productsRouter.post(
+  '/capture',
+  queued(async (req, res) => {
   const parsed = captureSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
 
@@ -167,8 +196,9 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
     await refundCredits(req.userId!, 1)
     console.error(err)
     res.status(500).json({ error: "Impossible d'enregistrer ce produit" })
-  }
-})
+    }
+  }),
+)
 
 const batchImportSchema = z.object({ urls: z.array(z.string().url()).min(1).max(25) })
 

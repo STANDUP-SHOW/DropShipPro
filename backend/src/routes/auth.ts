@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js'
 import { signToken, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { issueToken, consumeToken } from '../services/authTokens.js'
 import { sendMail, appUrl } from '../services/mailer.js'
+import { rateLimit } from '../middleware/rateLimit.js'
 
 export const authRouter = Router()
 
@@ -13,7 +14,7 @@ const credsSchema = z.object({
   password: z.string().min(8),
 })
 
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', rateLimit({ name: 'register', windowMs: 3600_000, max: 5 }), async (req, res) => {
   const parsed = credsSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Email ou mot de passe invalide (8 caractères min.)' })
 
@@ -45,7 +46,7 @@ async function sendVerificationEmail(userId: string, email: string) {
   })
 }
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', rateLimit({ name: 'login', windowMs: 900_000, max: 15 }), async (req, res) => {
   const parsed = credsSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Email ou mot de passe invalide' })
 
@@ -73,7 +74,7 @@ authRouter.get('/me', requireAuth, async (req: AuthedRequest, res) => {
  * Mot de passe oublié
  * ---------------------------------------------------------------- */
 
-authRouter.post('/password/forgot', async (req, res) => {
+authRouter.post('/password/forgot', rateLimit({ name: 'forgot', windowMs: 3600_000, max: 5 }), async (req, res) => {
   const parsed = z.object({ email: z.string().email() }).safeParse(req.body)
   // Always answer the same thing, valid address or not: a differing response
   // would let anyone test which emails have an account here.
