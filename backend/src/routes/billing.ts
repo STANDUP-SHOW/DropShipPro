@@ -90,13 +90,16 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     // Embedded rather than hosted: the payment form is mounted inside the app,
     // the seller never leaves drop-shipper.fr. Card data still goes straight to
     // Stripe from an iframe, so nothing sensitive touches our servers.
-    ui_mode: 'embedded',
+    ui_mode: 'embedded_page',
     line_items: [
       {
         quantity: 1,
         price_data: {
           currency: 'eur',
           unit_amount: isSubscription ? PREMIUM.amount : pack!.amount,
+          // Prices are advertised TTC, as French consumer law requires: the amount
+          // above is what the buyer pays, VAT included, not a base to add tax to.
+          tax_behavior: 'inclusive',
           product_data: {
             name: isSubscription ? PREMIUM.label : `DropShipper IA — ${pack!.label}`,
             // Required as soon as Managed Payments is on, which it is by default:
