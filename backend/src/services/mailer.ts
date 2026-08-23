@@ -1,10 +1,15 @@
+import nodemailer, { type Transporter } from 'nodemailer'
+
 /**
  * Transactional email.
  *
- * Uses Resend when RESEND_API_KEY is set. Without it, the message is written to
- * the server log instead of being dropped: password reset and address
- * confirmation stay testable on a fresh install, and a missing key never blocks
- * a user from signing up.
+ * Two ways out, tried in order: an SMTP mailbox (the OVH account, for instance)
+ * when SMTP_HOST is set, then Resend when its key is. Without either, the message
+ * is written to the log rather than dropped, so a fresh install stays testable
+ * and a missing key never blocks a signup.
+ *
+ * Password reset is the reason this matters: it is the one flow where a silent
+ * failure locks a user out of their own account for good.
  */
 const FROM = process.env.MAIL_FROM || 'DropShip Pro <onboarding@resend.dev>'
 
@@ -42,13 +47,64 @@ function render({ heading, body, actionLabel, actionUrl, footer }: Mail) {
 </body></html>`
 }
 
+/** Plain-text alternative: a message without one lands in spam far more often. */
+function plainText(mail: Mail): string {
+  // Built from char codes so no escape sequence has to survive tooling.
+  const saut = String.fromCharCode(10, 10)
+  return [mail.heading, mail.body, mail.actionLabel + ' : ' + mail.actionUrl, mail.footer].join(saut)
+}
+
+let smtp: Transporter | null | undefined
+
+/** Built once: opening a connection per email gets an account throttled. */
+function getSmtp(): Transporter | null {
+  if (smtp !== undefined) return smtp
+
+  const host = process.env.SMTP_HOST?.trim()
+  const user = process.env.SMTP_USER?.trim()
+  const pass = process.env.SMTP_PASSWORD?.trim()
+  if (!host || !user || !pass) {
+    smtp = null
+    return smtp
+  }
+
+  const port = Number(process.env.SMTP_PORT) || 465
+  smtp = nodemailer.createTransport({
+    host,
+    port,
+    // 465 is implicit TLS; 587 upgrades through STARTTLS.
+    secure: port === 465,
+    auth: { user, pass },
+  })
+  return smtp
+}
+
+/** True when a real message can leave the server. Read by the self-check. */
+export function mailIsConfigured(): boolean {
+  return Boolean(getSmtp() || process.env.RESEND_API_KEY?.trim())
+}
+
 export async function sendMail(mail: Mail): Promise<void> {
+  const transport = getSmtp()
+
+  if (transport) {
+    await transport.sendMail({
+      from: FROM,
+      to: mail.to,
+      subject: mail.subject,
+      html: render(mail),
+      // A message with no plain-text alternative lands in spam far more often.
+      text: plainText(mail),
+    })
+    return
+  }
+
   const key = process.env.RESEND_API_KEY
 
   if (!key) {
     console.warn(
-      `\n[email non configuré] RESEND_API_KEY absente — message destiné à ${mail.to} :\n` +
-        `  ${mail.subject}\n  ${mail.actionUrl}\n`,
+      "[email non configure] ni SMTP_HOST ni RESEND_API_KEY — message destine a " +
+        mail.to + " : " + mail.subject + " " + mail.actionUrl,
     )
     return
   }

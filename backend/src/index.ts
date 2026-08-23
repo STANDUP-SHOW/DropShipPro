@@ -10,6 +10,7 @@ import { publicRouter } from './routes/public.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { checkAi } from './services/aiHealth.js'
+import { selfCheck } from './services/selfCheck.js'
 
 const app = express()
 
@@ -49,6 +50,13 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }))
 // its own failures so an import never dies, which means a revoked key silently
 // returns un-rewritten listings — this is how that gets noticed. The probe is
 // cached five minutes, so it cannot be used to run up a bill.
+// One call that says whether the service can actually do its job: model, email,
+// storage, payments, database. Presence and reachability only, never a value.
+app.get('/api/health/services', async (_req, res) => {
+  const report = await selfCheck()
+  res.status(report.ok ? 200 : 503).json(report)
+})
+
 app.get('/api/health/ai', async (_req, res) => {
   const status = await checkAi()
   res.status(status === 'ok' ? 200 : 503).json({ ai: status })
