@@ -785,8 +785,8 @@ export default function ProductDetail() {
           productId={id}
           platforms={platforms}
           onClose={() => setPublishOpen(false)}
-          onPublished={async (chosen) => {
-            const results = await api.publishProduct(id, chosen)
+          onPublished={async (chosen, shopId) => {
+            const results = await api.publishProduct(id, chosen, shopId)
             const manual = chosen.find((c) => platforms.find((p) => p.id === c && !p.automatable))
             if (manual) setAssistPanel(manual)
             await load()

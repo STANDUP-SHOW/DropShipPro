@@ -326,6 +326,7 @@ const updateSchema = z.object({
   bulletPoints: z.array(z.string()).optional(),
   attributes: z.record(z.string()).optional(),
   categoryId: z.string().nullable().optional(),
+  shopId: z.string().nullable().optional(),
 })
 
 productsRouter.patch('/:id', async (req: AuthedRequest, res) => {
@@ -346,8 +347,26 @@ productsRouter.delete('/:id', async (req: AuthedRequest, res) => {
   res.status(204).send()
 })
 
+/**
+ * The shop a listing goes to when the seller did not pick one.
+ *
+ * Publishing to "Mon site" without a destination would file the listing nowhere,
+ * and it would then be served by no feed at all — invisible, with nothing saying
+ * why. The oldest shop is the account's default one.
+ */
+async function resolveShopId(userId: string, chosen: string | undefined) {
+  if (chosen) {
+    const shop = await prisma.shop.findFirst({ where: { id: chosen, userId } })
+    return shop ? shop.id : null
+  }
+  const fallback = await prisma.shop.findFirst({ where: { userId }, orderBy: { createdAt: 'asc' } })
+  return fallback ? fallback.id : null
+}
+
 const publishSchema = z.object({
   platforms: z.array(z.enum(PLATFORM_IDS)).min(1),
+  /** Which of the seller's sites this listing belongs to, when publishing to their own. */
+  shopId: z.string().optional(),
 })
 
 productsRouter.post('/:id/publish', async (req: AuthedRequest, res) => {
@@ -356,6 +375,19 @@ productsRouter.post('/:id/publish', async (req: AuthedRequest, res) => {
 
   const owned = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!owned) return res.status(404).json({ error: 'Produit introuvable' })
+
+  // Choosing the destination site is part of publishing, not a setting buried
+  // elsewhere: one catalogue feeds a menswear store and a tech store, and only
+  // the listings assigned to a shop appear in its feed.
+  if (parsed.data.platforms.includes('OWN_SITE')) {
+    const shopId = await resolveShopId(req.userId!, parsed.data.shopId)
+    if (parsed.data.shopId && !shopId) return res.status(400).json({ error: 'Boutique inconnue' })
+    // Only overwrite when a choice was made: a listing already filed in a shop
+    // must not silently move back to the default one on a re-publication.
+    if (shopId && (parsed.data.shopId || !owned.shopId)) {
+      await prisma.product.update({ where: { id: owned.id }, data: { shopId } })
+    }
+  }
 
   const base = apiBaseUrl(req)
   const publications = await Promise.all(parsed.data.platforms.map((p) => publishToPlatform(owned.id, p, base)))
@@ -369,6 +401,7 @@ productsRouter.post('/:id/publish', async (req: AuthedRequest, res) => {
 
 const publishBatchSchema = z.object({
   productIds: z.array(z.string()).min(1).max(200),
+  shopId: z.string().optional(),
   // Only API destinations: the extension publishes one browser tab at a time and
   // waits for the seller to press « Publier » himself, which cannot be batched.
   platforms: z.array(z.enum(BATCH_PLATFORM_IDS)).min(1),
@@ -395,6 +428,22 @@ productsRouter.post('/publish-batch', async (req: AuthedRequest, res) => {
     select: { id: true, title: true, aiTitle: true },
   })
   if (!owned.length) return res.status(404).json({ error: 'Aucune de ces annonces ne vous appartient' })
+
+  if (parsed.data.platforms.includes('OWN_SITE')) {
+    const shopId = await resolveShopId(req.userId!, parsed.data.shopId)
+    if (parsed.data.shopId && !shopId) return res.status(400).json({ error: 'Boutique inconnue' })
+    if (shopId) {
+      await prisma.product.updateMany({
+        // Without an explicit choice, only the listings that belong nowhere yet.
+        where: {
+          id: { in: owned.map((p) => p.id) },
+          userId: req.userId!,
+          ...(parsed.data.shopId ? {} : { shopId: null }),
+        },
+        data: { shopId },
+      })
+    }
+  }
 
   const base = apiBaseUrl(req)
   const results: Array<{

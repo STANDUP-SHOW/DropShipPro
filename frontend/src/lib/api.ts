@@ -120,11 +120,11 @@ export const api = {
   updateProduct: (id: string, data: Record<string, unknown>) =>
     request(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteProduct: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
-  publishProduct: (id: string, platforms: string[]) =>
+  publishProduct: (id: string, platforms: string[], shopId?: string) =>
     request<
       Array<{ platform: string; status: string; error: string | null; externalUrl: string | null }>
-    >(`/products/${id}/publish`, { method: 'POST', body: JSON.stringify({ platforms }) }),
-  publishBatch: (productIds: string[], platforms: string[]) =>
+    >(`/products/${id}/publish`, { method: 'POST', body: JSON.stringify({ platforms, shopId }) }),
+  publishBatch: (productIds: string[], platforms: string[], shopId?: string) =>
     request<{
       results: Array<{
         productId: string
@@ -138,7 +138,7 @@ export const api = {
       pending: number
       failed: number
       missing: number
-    }>('/products/publish-batch', { method: 'POST', body: JSON.stringify({ productIds, platforms }) }),
+    }>('/products/publish-batch', { method: 'POST', body: JSON.stringify({ productIds, platforms, shopId }) }),
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
   listCategories: () => request<Array<{ id: string; group: string; label: string }>>('/products/meta/categories'),
   listPlatforms: () =>
@@ -251,6 +251,20 @@ export const api = {
 
   updateProfile: (data: Record<string, unknown>) =>
     request('/settings/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+  // Sites du vendeur : un par boutique, chacun avec sa propre clé de catalogue.
+  listShops: () =>
+    request<
+      Array<{ id: string; name: string; shopKey: string; platform: string | null; products: number }>
+    >('/settings/shops'),
+  createShop: (data: { name: string; platform?: string }) =>
+    request<{ id: string; name: string; shopKey: string }>('/settings/shops', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  renameShop: (id: string, data: { name?: string; platform?: string }) =>
+    request(`/settings/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteShop: (id: string) => request(`/settings/shops/${id}`, { method: 'DELETE' }),
+
   listCredentials: () => request<any[]>('/settings/credentials'),
   saveCredential: (data: Record<string, unknown>) =>
     request('/settings/credentials', { method: 'PUT', body: JSON.stringify(data) }),

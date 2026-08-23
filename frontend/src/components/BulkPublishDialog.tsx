@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Layers, X, Zap, CheckCircle2, ExternalLink, Info } from 'lucide-react'
 import { PlatformBadge } from './PlatformBadge'
+import { ShopPicker } from './ShopPicker'
 import { api } from '../lib/api'
 import { INTEGRATION_LABEL, type PlatformInfo } from '../lib/platforms'
 
@@ -40,6 +41,7 @@ export function BulkPublishDialog({
   const [selected, setSelected] = useState<string[]>(
     batchable.filter((p) => p.integration === 'live').map((p) => p.id),
   )
+  const [shopId, setShopId] = useState('')
   const [busy, setBusy] = useState(false)
   const [summary, setSummary] = useState<{ published: number; pending: number; failed: number } | null>(null)
   const [results, setResults] = useState<BatchResult[]>([])
@@ -64,7 +66,7 @@ export function BulkPublishDialog({
     setResults([])
     setSummary(null)
     try {
-      const res = await api.publishBatch(productIds, selected)
+      const res = await api.publishBatch(productIds, selected, shopId || undefined)
       setSummary({ published: res.published, pending: res.pending, failed: res.failed })
       // Only the failures are worth listing one by one; the rest is a count.
       setResults(res.results.filter((r) => r.status === 'FAILED'))
@@ -164,6 +166,8 @@ export function BulkPublishDialog({
         )}
 
         {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+
+        {selected.includes('OWN_SITE') && <ShopPicker value={shopId} onChange={setShopId} />}
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="text-xs text-gray-400">

@@ -88,6 +88,7 @@ model User {
   /// Fin de la période payée : l'abonnement reste actif jusque-là même résilié.
   premiumUntil DateTime?
 
+  shops       Shop[]
   products    Product[]
   credentials PlatformCredential[]
   payments    Payment[]
@@ -140,6 +141,9 @@ model Product {
   sourceCategory String?
   /// Catalog entry id (see categoryCatalog.ts) chosen by the user; overrides sourceCategory for mapping.
   categoryId     String?
+  /// Boutique de destination pour le flux catalogue. Null = la boutique par defaut.
+  shopId         String?
+  shop           Shop?   @relation(fields: [shopId], references: [id], onDelete: SetNull)
 
   title       String
   description String  @db.Text
@@ -273,4 +277,25 @@ model WebhookEvent {
   id          String   @id
   type        String
   processedAt DateTime @default(now())
+}
+
+/// Une boutique du vendeur, avec sa propre cle de catalogue.
+///
+/// Un vendeur qui tient un site de mode et un site high-tech ne peut pas exposer
+/// le meme flux aux deux: chaque boutique a sa cle, et chaque annonce est rangee
+/// dans l une d elles.
+model Shop {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  /// Identifiant public, utilise dans l URL du flux. Jamais l id interne.
+  shopKey   String   @unique @default(cuid())
+  /// Type de site branche, a titre indicatif: wordpress, prestashop, magento...
+  platform  String?
+  createdAt DateTime @default(now())
+
+  products  Product[]
+
+  @@index([userId])
 }

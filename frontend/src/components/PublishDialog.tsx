@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { ShopPicker } from './ShopPicker'
 import { createPortal } from 'react-dom'
 import { Radio, X, Zap, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react'
 import { PlatformBadge } from './PlatformBadge'
@@ -44,9 +45,10 @@ export function PublishDialog({
   productId: string
   platforms: PlatformInfo[]
   onClose: () => void
-  onPublished: (selected: string[]) => Promise<PublishOutcome[] | void>
+  onPublished: (selected: string[], shopId?: string) => Promise<PublishOutcome[] | void>
 }) {
   const [selected, setSelected] = useState<string[]>([])
+  const [shopId, setShopId] = useState('')
   const [extensionReady, setExtensionReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -96,7 +98,7 @@ export function PublishDialog({
     setMessage(null)
     setOutcomes([])
     try {
-      const results = await onPublished(selected)
+      const results = await onPublished(selected, shopId || undefined)
       if (Array.isArray(results)) setOutcomes(results)
 
       // The extension is only worth waking up when a manual marketplace is in the
@@ -225,6 +227,8 @@ export function PublishDialog({
             })}
           </ul>
         )}
+
+        {selected.includes('OWN_SITE') && <ShopPicker value={shopId} onChange={setShopId} />}
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="text-xs text-gray-400">

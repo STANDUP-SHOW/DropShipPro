@@ -64,6 +64,75 @@ settingsRouter.delete('/watermark-logo', async (req: AuthedRequest, res) => {
   res.json({ ok: true })
 })
 
+/**
+ * The seller's shops.
+ *
+ * One key per shop, because one key for the whole account meant every site
+ * received every product: a menswear store and a tech store cannot share a feed.
+ * Each listing belongs to one shop, and a shop's key only ever exposes its own.
+ */
+settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
+  const shops = await prisma.shop.findMany({
+    where: { userId: req.userId! },
+    orderBy: { createdAt: 'asc' },
+    include: { _count: { select: { products: true } } },
+  })
+
+  res.json(
+    shops.map((s) => ({
+      id: s.id,
+      name: s.name,
+      shopKey: s.shopKey,
+      platform: s.platform,
+      products: s._count.products,
+      createdAt: s.createdAt,
+    })),
+  )
+})
+
+const shopSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  /** Indicative only: wordpress, prestashop, magento, shopify, autre. */
+  platform: z.string().trim().max(30).optional(),
+})
+
+settingsRouter.post('/shops', async (req: AuthedRequest, res) => {
+  const parsed = shopSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Donnez un nom de boutique' })
+
+  const shop = await prisma.shop.create({
+    data: { ...parsed.data, userId: req.userId! },
+  })
+  res.status(201).json({ id: shop.id, name: shop.name, shopKey: shop.shopKey, platform: shop.platform })
+})
+
+settingsRouter.patch('/shops/:id', async (req: AuthedRequest, res) => {
+  const parsed = shopSchema.partial().safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
+
+  const { count } = await prisma.shop.updateMany({
+    where: { id: req.params.id, userId: req.userId! },
+    data: parsed.data,
+  })
+  if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
+  res.json({ ok: true })
+})
+
+/**
+ * Deleting a shop leaves its listings alone: they lose their shop and stop being
+ * served by any feed, which is recoverable. Deleting them with it would not be.
+ */
+settingsRouter.delete('/shops/:id', async (req: AuthedRequest, res) => {
+  const shops = await prisma.shop.count({ where: { userId: req.userId! } })
+  if (shops <= 1) {
+    return res.status(400).json({ error: 'Gardez au moins une boutique.' })
+  }
+
+  const { count } = await prisma.shop.deleteMany({ where: { id: req.params.id, userId: req.userId! } })
+  if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
+  res.status(204).send()
+})
+
 settingsRouter.get('/credentials', async (req: AuthedRequest, res) => {
   const creds = await prisma.platformCredential.findMany({ where: { userId: req.userId! } })
   res.json(

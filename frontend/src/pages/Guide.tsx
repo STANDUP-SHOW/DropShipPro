@@ -343,6 +343,13 @@ export default function Guide() {
           adresse : pas de clé, pas de mot de passe, lecture seule.
         </p>
 
+        <p className="mt-2 text-sm leading-relaxed text-gray-300">
+          Vous pouvez brancher plusieurs sites — une boutique mode et une boutique high-tech, par
+          exemple. Chacun a sa propre adresse, listée dans <b className="text-gray-200">Réglages →
+          Mes sites</b>, et ne reçoit que les annonces que vous lui destinez au moment de diffuser.
+          Ci-dessous, l'adresse de votre site par défaut.
+        </p>
+
         <label className="mt-4 block text-xs text-gray-400">Adresse de votre catalogue</label>
         <div className="mt-1 flex gap-2">
           <input

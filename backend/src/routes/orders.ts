@@ -49,6 +49,75 @@ ordersRouter.get('/', async (req: AuthedRequest, res) => {
   res.json(orders)
 })
 
+/**
+ * Figures for the orders workspace: turnover, real margin, and how many orders
+ * sit in each state.
+ *
+ * Margin is computed against the product's current supplier cost, not the cost
+ * at the time of sale — nothing records the latter yet. It is therefore an
+ * indication, and it drifts if the seller edits a price afterwards. Said here so
+ * nobody mistakes it for accounting.
+ */
+ordersRouter.get('/summary', async (req: AuthedRequest, res) => {
+  const orders = await prisma.order.findMany({
+    where: { userId: req.userId! },
+    include: { product: { select: { price: true, shippingCost: true } } },
+  })
+
+  const parStatut: Record<string, number> = {}
+  const parPlateforme: Record<string, { commandes: number; chiffre: number }> = {}
+  let chiffre = 0
+  let cout = 0
+
+  for (const o of orders) {
+    parStatut[o.status] = (parStatut[o.status] ?? 0) + 1
+
+    // A refunded order is neither turnover nor margin: counting it would flatter
+    // the figures exactly when the seller needs them to be honest.
+    if (o.status === 'REFUNDED') continue
+
+    const montant = Number(o.amount)
+    chiffre += montant
+    cout += Number(o.product.price) + Number(o.product.shippingCost)
+
+    const p = (parPlateforme[o.platform] ??= { commandes: 0, chiffre: 0 })
+    p.commandes++
+    p.chiffre += montant
+  }
+
+  res.json({
+    commandes: orders.length,
+    chiffreAffaires: Number(chiffre.toFixed(2)),
+    coutFournisseur: Number(cout.toFixed(2)),
+    marge: Number((chiffre - cout).toFixed(2)),
+    parStatut,
+    parPlateforme,
+  })
+})
+
+const bulkSchema = z.object({
+  orderIds: z.array(z.string()).min(1).max(200),
+  status: z.enum(['NEW', 'ORDERED_FROM_SUPPLIER', 'SHIPPED', 'DELIVERED', 'REFUNDED']),
+})
+
+/**
+ * Moves several orders at once.
+ *
+ * Scoped by userId in the same statement rather than checked beforehand: a list
+ * of ids coming from the client must never be trusted to belong to the caller.
+ */
+ordersRouter.patch('/bulk/status', async (req: AuthedRequest, res) => {
+  const parsed = bulkSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Sélection invalide' })
+
+  const { count } = await prisma.order.updateMany({
+    where: { id: { in: parsed.data.orderIds }, userId: req.userId! },
+    data: { status: parsed.data.status },
+  })
+
+  res.json({ updated: count, ignored: parsed.data.orderIds.length - count })
+})
+
 const updateSchema = z.object({
   status: z.enum(['NEW', 'ORDERED_FROM_SUPPLIER', 'SHIPPED', 'DELIVERED', 'REFUNDED']).optional(),
   trackingNumber: z.string().optional(),

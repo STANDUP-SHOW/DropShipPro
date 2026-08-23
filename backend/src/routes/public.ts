@@ -115,11 +115,13 @@ function toCatalogItem(product: Product, category: string | null) {
  * two merchants using the app would each display the other's catalogue.
  */
 publicRouter.get('/shops/:shopKey/products', async (req, res) => {
-  const shop = await prisma.user.findUnique({ where: { shopKey: req.params.shopKey } })
+  // Keys created before shops existed were carried over onto the account's first
+  // shop, so an address already wired into a site keeps answering.
+  const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey } })
   if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
 
   const publications = await prisma.publication.findMany({
-    where: { platform: 'OWN_SITE', status: 'PUBLISHED', product: { userId: shop.id } },
+    where: { platform: 'OWN_SITE', status: 'PUBLISHED', product: { shopId: shop.id } },
     include: { product: true },
     orderBy: { publishedAt: 'desc' },
   })
@@ -127,14 +129,14 @@ publicRouter.get('/shops/:shopKey/products', async (req, res) => {
   // Cached briefly: a storefront may call this on every page view.
   res.set('Cache-Control', 'public, max-age=60')
   res.json({
-    shop: { name: shop.shopName ?? 'Ma boutique' },
+    shop: { name: shop.name },
     count: publications.length,
     products: publications.map((p) => toCatalogItem(p.product, p.targetCategory)),
   })
 })
 
 publicRouter.get('/shops/:shopKey/products/:id', async (req, res) => {
-  const shop = await prisma.user.findUnique({ where: { shopKey: req.params.shopKey } })
+  const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey } })
   if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
 
   const publication = await prisma.publication.findFirst({
@@ -142,7 +144,7 @@ publicRouter.get('/shops/:shopKey/products/:id', async (req, res) => {
       productId: req.params.id,
       platform: 'OWN_SITE',
       status: 'PUBLISHED',
-      product: { userId: shop.id },
+      product: { shopId: shop.id },
     },
     include: { product: true },
   })

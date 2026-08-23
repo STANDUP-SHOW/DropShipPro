@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Puzzle, Download } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { PlatformBadge } from '../components/PlatformBadge'
-import { api, assetUrl, apiRoot } from '../lib/api'
+import { MyShops } from '../components/MyShops'
+import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 
@@ -15,7 +16,6 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     api.listCredentials().then(setCreds)
@@ -74,43 +74,7 @@ export default function Settings() {
         </button>
       </div>
 
-      {/* Needed by anyone wiring an existing storefront to the catalogue feed. */}
-      {user?.shopKey && (
-        <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
-          <h2 className="font-bold">Brancher ma boutique</h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Vos annonces publiées sur « Mon site » sont accessibles à votre boutique via cette
-            adresse. À transmettre à votre développeur avec la documentation.
-          </p>
-
-          <label className="mt-3 block text-xs text-gray-400">Adresse du catalogue</label>
-          <div className="mt-1 flex gap-2">
-            <input
-              readOnly
-              value={`${apiRoot || window.location.origin}/api/public/shops/${user.shopKey}/products`}
-              onFocus={(e) => e.target.select()}
-              className="flex-1 rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-xs outline-none"
-            />
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(
-                  `${apiRoot || window.location.origin}/api/public/shops/${user.shopKey}/products`,
-                )
-                setCopied(true)
-                setTimeout(() => setCopied(false), 1500)
-              }}
-              className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-xs hover:bg-white/5"
-            >
-              {copied ? 'Copié ✓' : 'Copier'}
-            </button>
-          </div>
-
-          <p className="mt-2 text-xs text-gray-500">
-            Cette adresse n'expose que les annonces que vous publiez volontairement, en lecture
-            seule. Elle peut figurer dans le code de votre site.
-          </p>
-        </div>
-      )}
+      <MyShops />
 
       <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
         <h2 className="font-bold">Sécurité</h2>
