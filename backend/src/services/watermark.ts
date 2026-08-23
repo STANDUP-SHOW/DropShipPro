@@ -113,6 +113,43 @@ async function logoOverlay(imagePath: string, photoWidth: number, scale: number,
 }
 
 /**
+ * Downloads a source photo the way a browser would.
+ *
+ * A bare fetch is refused by most supplier CDNs — Temu and Banggood answer 403
+ * without a browser user agent and a referer from their own domain. The old code
+ * skipped the image silently, produced nothing, and the import fell back to the
+ * unwatermarked source URLs: the seller saw photos with no watermark and no
+ * explanation.
+ */
+async function fetchSourceImage(url: string): Promise<Buffer | null> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 20000)
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        // Hotlink protection accepts a referer from the image's own site.
+        Referer: new URL(url).origin + '/',
+      },
+    })
+    if (!res.ok) {
+      console.error(`filigrane : photo refusee (${res.status}) ${url.slice(0, 120)}`)
+      return null
+    }
+    return Buffer.from(await res.arrayBuffer())
+  } catch (err) {
+    console.error('filigrane : photo injoignable', url.slice(0, 120), (err as Error).message)
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
  * Downloads up to MAX_IMAGES source images and stamps the shop's watermark on each,
  * saving the result to disk. Returns the public paths served via /storage.
  */
@@ -125,7 +162,7 @@ export async function watermarkImages(
 
   const scale = options.scale ?? 22
   const opacity = options.opacity ?? 75
-  const gravity = options.position ?? 'south'
+  const gravity = options.position ?? 'southeast'
   const selected = imageUrls.slice(0, MAX_IMAGES)
   const results: string[] = []
 
@@ -134,9 +171,8 @@ export async function watermarkImages(
 
   for (const [index, url] of selected.entries()) {
     try {
-      const res = await fetch(url)
-      if (!res.ok) continue
-      const buffer = Buffer.from(await res.arrayBuffer())
+      const buffer = await fetchSourceImage(url)
+      if (!buffer) continue
       const image = sharp(buffer).rotate()
       const meta = await image.metadata()
       const width = meta.width ?? 800
@@ -184,7 +220,7 @@ export async function watermarkUploads(
 
   const scale = options.scale ?? 22
   const opacity = options.opacity ?? 75
-  const gravity = options.position ?? 'south'
+  const gravity = options.position ?? 'southeast'
   const results: string[] = []
   let logo: Buffer | null = null
 
@@ -222,10 +258,54 @@ export async function saveWatermarkLogo(buffer: Buffer, mimetype: string): Promi
 
   // SVG needs a density hint, otherwise it rasterises at its nominal size and
   // looks soft once scaled up onto a large photo.
-  const output = await sharp(buffer, { density: mimetype.includes('svg') ? 300 : undefined })
+  const resized = await sharp(buffer, { density: mimetype.includes('svg') ? 300 : undefined })
     .resize({ width: 1000, withoutEnlargement: true })
+    .ensureAlpha()
     .png()
     .toBuffer()
 
+  const output = await dropOpaqueBackground(resized)
   return putFile(`watermarks/${filename}`, output, 'image/png')
+}
+
+/**
+ * Makes a flat light background transparent.
+ *
+ * Sellers upload the logo they have — usually a JPEG or a PNG exported on white.
+ * Composited as is, it stamps an opaque rectangle across the photo. Near-white
+ * pixels are therefore cleared.
+ *
+ * Only when the image has no transparency at all: a logo that already carries an
+ * alpha channel was prepared on purpose, and eating its white areas would damage
+ * it. That check is what keeps this safe to run on every upload.
+ */
+async function dropOpaqueBackground(png: Buffer): Promise<Buffer> {
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const channels = info.channels
+
+  for (let i = 3; i < data.length; i += channels) {
+    // Anything already transparent means the logo was prepared: leave it alone.
+    if (data[i] < 250) return png
+  }
+
+  // 242 rather than 255: JPEG compression never leaves a background perfectly
+  // white, and antialiased edges sit just under it.
+  const SEUIL = 242
+  const out = Buffer.from(data)
+  let effaces = 0
+
+  for (let i = 0; i < out.length; i += channels) {
+    if (out[i] >= SEUIL && out[i + 1] >= SEUIL && out[i + 2] >= SEUIL) {
+      out[i + 3] = 0
+      effaces++
+    }
+  }
+
+  // Nothing light enough to be a background: the logo is dark on dark, and
+  // clearing nothing is the right answer.
+  if (effaces === 0) return png
+
+  return sharp(out, { raw: { width: info.width, height: info.height, channels } })
+    .png()
+    .toBuffer()
 }

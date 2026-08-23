@@ -27,9 +27,9 @@ settingsRouter.patch('/profile', async (req: AuthedRequest, res) => {
   res.json({ id: user.id, email: user.email, shopName: user.shopName, watermarkText: user.watermarkText, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, shopKey: user.shopKey })
 })
 
-// PNG for transparency, SVG for a crisp mark at any size. JPEG is refused on
-// purpose: it has no alpha channel, so it would paste an opaque rectangle.
-const ACCEPTED_LOGO = ['image/png', 'image/svg+xml']
+// JPEG is accepted now that a flat light background is cleared on upload: most
+// sellers only have their logo as a JPEG, and refusing it sent them away.
+const ACCEPTED_LOGO = ['image/png', 'image/svg+xml', 'image/jpeg', 'image/webp']
 
 const uploadLogo = multer({
   storage: multer.memoryStorage(),
@@ -45,7 +45,7 @@ settingsRouter.put('/watermark-logo', (req: AuthedRequest, res) => {
       const tooBig = (err as { code?: string }).code === 'LIMIT_FILE_SIZE'
       return res.status(400).json({ error: tooBig ? 'Fichier trop lourd (2 Mo maximum)' : "Envoi impossible" })
     }
-    if (!req.file) return res.status(400).json({ error: 'Envoyez un fichier PNG à fond transparent ou SVG' })
+    if (!req.file) return res.status(400).json({ error: 'Envoyez une image de logo (PNG, SVG, JPEG ou WebP)' })
 
     try {
       const watermarkImage = await saveWatermarkLogo(req.file.buffer, req.file.mimetype)

@@ -114,6 +114,9 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     ],
     // Read back in the webhook: the session is the only link between the payment
     // and the account once Stripe answers asynchronously.
+    // Without this a one-off payment leaves only a receipt; sellers need a real
+    // invoice, and they need it from us rather than from a Stripe page.
+    ...(isSubscription ? {} : { invoice_creation: { enabled: true } }),
     metadata: { userId: user.id, planId: parsed.data.planId },
     // Where the iframe sends the buyer once the payment is done. The session id
     // lets the page confirm the outcome instead of assuming it.
@@ -184,6 +187,119 @@ billingRouter.post('/confirm', async (req: AuthedRequest, res) => {
 
   await grantPack(req.userId!, pack, session.id, session.amount_total ?? pack.amount)
   res.json({ granted: true, credits: pack.credits })
+})
+
+/**
+ * Invoices, shown in our own interface.
+ *
+ * The seller should never have to land on a Stripe page to find a receipt: the
+ * list is served here, and the PDF is proxied below so the download stays on
+ * drop-shipper.fr.
+ */
+billingRouter.get('/invoices', async (req: AuthedRequest, res) => {
+  const stripe = getStripe()
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+  if (!stripe || !user.stripeCustomerId) return res.json({ invoices: [] })
+
+  const list = await stripe.invoices.list({ customer: user.stripeCustomerId, limit: 24 })
+  res.json({
+    invoices: list.data.map((i) => ({
+      id: i.id,
+      number: i.number,
+      createdAt: new Date(i.created * 1000).toISOString(),
+      total: i.total,
+      currency: i.currency,
+      status: i.status,
+      paid: i.status === 'paid',
+    })),
+  })
+})
+
+/** Streams the invoice PDF through our domain, after checking it is the caller's. */
+billingRouter.get('/invoices/:id/pdf', async (req: AuthedRequest, res) => {
+  const stripe = getStripe()
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+  if (!stripe || !user.stripeCustomerId) return res.status(404).json({ error: 'Facture introuvable' })
+
+  const invoice = await stripe.invoices.retrieve(req.params.id)
+  // An invoice id is guessable enough that ownership has to be checked.
+  if (invoice.customer !== user.stripeCustomerId || !invoice.invoice_pdf) {
+    return res.status(404).json({ error: 'Facture introuvable' })
+  }
+
+  const pdf = await fetch(invoice.invoice_pdf)
+  if (!pdf.ok) return res.status(502).json({ error: 'Facture momentanément indisponible' })
+
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `attachment; filename="facture-${invoice.number ?? invoice.id}.pdf"`)
+  res.send(Buffer.from(await pdf.arrayBuffer()))
+})
+
+/** Registered cards, listed in our interface rather than on a Stripe page. */
+billingRouter.get('/payment-methods', async (req: AuthedRequest, res) => {
+  const stripe = getStripe()
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+  if (!stripe || !user.stripeCustomerId) return res.json({ cards: [] })
+
+  const methods = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: 'card' })
+  res.json({
+    cards: methods.data.map((m) => ({
+      id: m.id,
+      brand: m.card?.brand ?? 'carte',
+      last4: m.card?.last4 ?? '••••',
+      expMonth: m.card?.exp_month ?? null,
+      expYear: m.card?.exp_year ?? null,
+    })),
+  })
+})
+
+/**
+ * Opens a card registration, mounted in our page.
+ *
+ * A SetupIntent stores a card without charging it — what "add a payment method"
+ * means. The number goes straight to Stripe from its iframe, as with payment.
+ */
+billingRouter.post('/setup-intent', async (req: AuthedRequest, res) => {
+  const stripe = getStripe()
+  if (!stripe) return res.status(503).json({ error: 'Paiement indisponible pour le moment.' })
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+  let customerId = user.stripeCustomerId
+  if (!customerId) {
+    const customer = await stripe.customers.create({ email: user.email, metadata: { userId: user.id } })
+    customerId = customer.id
+    await prisma.user.update({ where: { id: user.id }, data: { stripeCustomerId: customerId } })
+  }
+
+  const intent = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' })
+  res.json({ clientSecret: intent.client_secret })
+})
+
+billingRouter.delete('/payment-methods/:id', async (req: AuthedRequest, res) => {
+  const stripe = getStripe()
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+  if (!stripe || !user.stripeCustomerId) return res.status(404).json({ error: 'Carte introuvable' })
+
+  const method = await stripe.paymentMethods.retrieve(req.params.id)
+  if (method.customer !== user.stripeCustomerId) return res.status(403).json({ error: 'Carte introuvable' })
+
+  await stripe.paymentMethods.detach(req.params.id)
+  res.status(204).send()
+})
+
+/** Cancels at period end: the seller keeps what they paid for until it runs out. */
+billingRouter.post('/cancel-subscription', async (req: AuthedRequest, res) => {
+  const stripe = getStripe()
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+  if (!stripe || !user.stripeSubscriptionId) return res.status(400).json({ error: 'Aucun abonnement actif.' })
+
+  const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+    cancel_at_period_end: true,
+  })
+  res.json({
+    cancelled: true,
+    activeUntil: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
+  })
 })
 
 /** Stripe's own portal: card change, invoices, cancellation. */
