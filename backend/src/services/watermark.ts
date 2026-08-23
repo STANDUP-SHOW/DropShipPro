@@ -1,6 +1,7 @@
 import sharp from 'sharp'
 import { mkdir, readFile } from 'fs/promises'
 import path from 'path'
+import { putFile } from '../lib/storage.js'
 import { randomUUID } from 'crypto'
 
 const MAX_IMAGES = 10
@@ -69,6 +70,22 @@ function textOverlay(text: string, width: number, opacity: number) {
 }
 
 /**
+ * Reads the shop's logo, wherever it was stored.
+ *
+ * Once object storage is on, saveWatermarkLogo returns an absolute URL, and the
+ * old disk read would fail with ENOENT — silently, because the caller falls back
+ * to the text watermark. A seller would lose their logo without a word.
+ */
+async function readLogo(imagePath: string): Promise<Buffer> {
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    const res = await fetch(imagePath)
+    if (!res.ok) throw new Error(`logo injoignable (${res.status})`)
+    return Buffer.from(await res.arrayBuffer())
+  }
+  return readFile(path.join(LOGO_DIR, path.basename(imagePath)))
+}
+
+/**
  * Prepares the logo overlay: resized to the requested share of the photo width and
  * faded to the requested opacity.
  *
@@ -77,8 +94,7 @@ function textOverlay(text: string, width: number, opacity: number) {
  * background would turn opaque and box the logo in.
  */
 async function logoOverlay(imagePath: string, photoWidth: number, scale: number, opacity: number) {
-  const filename = path.basename(imagePath)
-  const buffer = await readFile(path.join(LOGO_DIR, filename))
+  const buffer = await readLogo(imagePath)
   const targetWidth = Math.max(40, Math.round((photoWidth * scale) / 100))
 
   return sharp(buffer, { density: 300 })
@@ -135,14 +151,15 @@ export async function watermarkImages(
 
       const overlay = logo ?? textOverlay(options.text, width, opacity)
       const filename = seoFileName(productTitle, index)
-      const filepath = path.join(STORAGE_DIR, filename)
 
-      await image
+      // Through a buffer rather than straight to disk: the same bytes go either
+      // to the container's volume or to object storage, decided by putFile.
+      const output = await image
         .composite([{ input: overlay, gravity }])
         .jpeg({ quality: 88 })
-        .toFile(filepath)
+        .toBuffer()
 
-      results.push(`/storage/products/${filename}`)
+      results.push(await putFile(`products/${filename}`, output, 'image/jpeg'))
     } catch {
       // If a given source image can't be fetched/processed, skip it rather than
       // fail the whole import — the user can still review/replace it in the back office.
@@ -182,12 +199,12 @@ export async function watermarkUploads(
       }
 
       const filename = seoFileName(productTitle, startIndex + offset)
-      await image
+      const output = await image
         .composite([{ input: logo ?? textOverlay(options.text, width, opacity), gravity }])
         .jpeg({ quality: 88 })
-        .toFile(path.join(STORAGE_DIR, filename))
+        .toBuffer()
 
-      results.push(`/storage/products/${filename}`)
+      results.push(await putFile(`products/${filename}`, output, 'image/jpeg'))
     } catch {
       // Skip an unreadable file rather than rejecting the whole batch.
     }
@@ -201,15 +218,14 @@ export async function watermarkUploads(
  * a malformed or hostile upload can't reach the compositing step later.
  */
 export async function saveWatermarkLogo(buffer: Buffer, mimetype: string): Promise<string> {
-  await mkdir(LOGO_DIR, { recursive: true })
   const filename = `${randomUUID()}.png`
 
   // SVG needs a density hint, otherwise it rasterises at its nominal size and
   // looks soft once scaled up onto a large photo.
-  await sharp(buffer, { density: mimetype.includes('svg') ? 300 : undefined })
+  const output = await sharp(buffer, { density: mimetype.includes('svg') ? 300 : undefined })
     .resize({ width: 1000, withoutEnlargement: true })
     .png()
-    .toFile(path.join(LOGO_DIR, filename))
+    .toBuffer()
 
-  return `/storage/watermarks/${filename}`
+  return putFile(`watermarks/${filename}`, output, 'image/png')
 }

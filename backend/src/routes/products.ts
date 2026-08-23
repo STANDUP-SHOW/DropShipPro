@@ -398,12 +398,27 @@ productsRouter.get('/:id/photos.zip', async (req: AuthedRequest, res) => {
   archive.pipe(res)
 
   const images = (product.images as string[]) || []
-  images.forEach((img, i) => {
-    if (img.startsWith('/storage/')) {
-      const filePath = path.resolve(img.replace(/^\//, ''))
-      archive.file(filePath, { name: `photo-${i + 1}${path.extname(filePath) || '.jpg'}` })
+
+  // Photos may sit on the container's disk or in object storage, depending on
+  // the deployment. Reading only local paths would have silently produced an
+  // empty zip the day storage moved — and this zip is what the seller drags
+  // into the Vinted and Leboncoin upload widgets.
+  for (const [i, img] of images.entries()) {
+    const name = `photo-${i + 1}.jpg`
+    try {
+      if (img.startsWith('http://') || img.startsWith('https://')) {
+        const remote = await fetch(img)
+        if (!remote.ok) continue
+        archive.append(Buffer.from(await remote.arrayBuffer()), { name })
+      } else if (img.startsWith('/storage/')) {
+        archive.file(path.resolve(img.slice(1)), { name })
+      }
+    } catch (err) {
+      // One unreachable photo must not empty the whole archive.
+      console.error('photo absente du zip', img, err)
     }
-  })
+  }
+
   await archive.finalize()
 })
 
