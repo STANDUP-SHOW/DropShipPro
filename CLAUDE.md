@@ -115,6 +115,10 @@ les autres marketplaces créent une publication « en attente ».
   existantes (`Shop.shopKey = User.shopKey`) : les boutiques déjà branchées lisent
   toujours la même adresse. `User.shopKey` n'est plus la source de vérité, il ne
   sert que de boutique par défaut affichée dans le guide.
+  **Avoir un site est facultatif** : beaucoup de vendeurs ne font que des
+  marketplaces. Un compte neuf n'a aucune boutique, le dernier site est
+  supprimable, et la boutique naît toute seule à la première publication sur
+  « Mon site » (`resolveShopId`).
 
 - `PlatformInfo.integration` (`live` | `api-ready` | `extension` | `none`) est la
   source unique côté UI : le guide, les réglages et la publication en lot en
