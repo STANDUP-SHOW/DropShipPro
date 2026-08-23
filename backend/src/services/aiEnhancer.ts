@@ -17,6 +17,14 @@ export interface EnhancedListing {
   bulletPoints: string[]
   /** Structured attributes marketplaces turn into search filters (matière, coupe, saison…). */
   attributes: Record<string, string>
+  /**
+   * False when the model could not be reached and the source text was kept.
+   *
+   * Without this the failure is invisible: the import succeeds, the listing looks
+   * finished, and the seller is charged a credit for a rewrite that never
+   * happened. The caller refunds on false and flags the listing.
+   */
+  enhanced: boolean
 }
 
 /**
@@ -147,6 +155,7 @@ export async function enhanceListing(input: {
     metaKeywords: '',
     bulletPoints: [],
     attributes: {},
+    enhanced: false,
   })
 
   const anthropic = getClient()
@@ -211,6 +220,8 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce f
   const description = typeof parsed.description === 'string' ? parsed.description : input.description
 
   return {
+    // The model answered and the JSON parsed: this is a real rewrite.
+    enhanced: true,
     title: typeof parsed.title === 'string' ? parsed.title : input.title,
     description,
     metaTitle: typeof parsed.metaTitle === 'string' ? parsed.metaTitle : (parsed.title as string) || input.title,

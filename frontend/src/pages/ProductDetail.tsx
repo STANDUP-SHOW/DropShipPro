@@ -289,6 +289,13 @@ export default function ProductDetail() {
         </button>
       </div>
 
+      {product.aiEnhanced === false && (
+        <p className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
+          La réécriture par l'IA n'a pas pu aboutir : le texte du site source a été conservé tel
+          quel. Aucune annonce n'a été décomptée. Relancez l'import pour réessayer.
+        </p>
+      )}
+
       {/* ---------- Barre d'état, collée en haut au défilement ---------- */}
       <div className="sticky top-0 z-30 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#1b1633]/95 px-4 py-3 backdrop-blur">
         <span className="flex items-center gap-2 text-sm">

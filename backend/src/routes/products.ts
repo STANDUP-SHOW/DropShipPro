@@ -75,9 +75,15 @@ productsRouter.post('/import', async (req: AuthedRequest, res) => {
         metaKeywords: enhanced.metaKeywords,
         bulletPoints: enhanced.bulletPoints,
         attributes: enhanced.attributes,
+        aiEnhanced: enhanced.enhanced,
         status: 'READY',
       },
     })
+    // The rewrite is what the credit pays for. When the model was unreachable the
+    // listing is still kept — the photos and the price are worth having — but it
+    // is given back for free and flagged as not rewritten.
+    if (!enhanced.enhanced) await refundCredits(req.userId!, 1)
+
     res.status(201).json(product)
   } catch (err) {
     // Nothing was delivered, so nothing is charged.
@@ -150,9 +156,12 @@ productsRouter.post('/capture', async (req: AuthedRequest, res) => {
         metaKeywords: enhanced.metaKeywords,
         bulletPoints: enhanced.bulletPoints,
         attributes: enhanced.attributes,
+        aiEnhanced: enhanced.enhanced,
         status: 'READY',
       },
     })
+    if (!enhanced.enhanced) await refundCredits(req.userId!, 1)
+
     res.status(201).json(product)
   } catch (err) {
     await refundCredits(req.userId!, 1)
@@ -212,9 +221,11 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
           metaKeywords: enhanced.metaKeywords,
         bulletPoints: enhanced.bulletPoints,
         attributes: enhanced.attributes,
-          status: 'READY',
+          aiEnhanced: enhanced.enhanced,
+        status: 'READY',
         },
       })
+      if (!enhanced.enhanced) await refundCredits(req.userId!, 1)
       results.push({ url, ok: true, product })
     } catch (err) {
       // Each failed URL gives its credit back individually.

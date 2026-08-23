@@ -166,6 +166,10 @@ model Product {
   /// Structured product attributes (matière, coupe, saison…) that marketplaces index for filters.
   attributes      Json?
 
+  /// Faux quand le modele n a pas repondu et que le texte source a ete conserve.
+  /// L annonce est alors signalee dans l interface et le credit n est pas pris.
+  aiEnhanced Boolean @default(true)
+
   /// Derniere analyse de marche (voir services/marketAnalysis.ts), telle quelle.
   /// Stockee pour ne pas la repayer a chaque affichage.
   marketAnalysis   Json?
