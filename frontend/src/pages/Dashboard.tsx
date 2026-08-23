@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { api, assetUrl } from '../lib/api'
@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkOpen, setBulkOpen] = useState(false)
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
+  const navigate = useNavigate()
 
   const labelById = new Map(catalog.map((c) => [c.id, c.label]))
 
@@ -352,6 +353,18 @@ export default function Dashboard() {
               <span className="text-xs text-gray-400">
                 {`${selectedIds.length} sélectionnée(s)`}
               </span>
+              {/* L'analyse consomme un crédit par produit : le libellé le dit,
+                  personne ne doit le découvrir sur sa facture. */}
+              <button
+                type="button"
+                onClick={() => navigate('/analyse-marche', { state: { productIds: selectedIds } })}
+                disabled={!selectedIds.length}
+                title="Un crédit par produit analysé"
+                className="inline-flex items-center gap-2 rounded-lg border border-purple-400/40 px-4 py-2 text-sm font-semibold text-purple-200 hover:bg-purple-500/10 disabled:opacity-40"
+              >
+                <TrendingUp size={15} />
+                {`Analyse de marché IA (${selectedIds.length})`}
+              </button>
               <button
                 type="button"
                 onClick={() => setBulkOpen(true)}

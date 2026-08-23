@@ -166,6 +166,11 @@ model Product {
   /// Structured product attributes (matière, coupe, saison…) that marketplaces index for filters.
   attributes      Json?
 
+  /// Derniere analyse de marche (voir services/marketAnalysis.ts), telle quelle.
+  /// Stockee pour ne pas la repayer a chaque affichage.
+  marketAnalysis   Json?
+  marketAnalysedAt DateTime?
+
   status ProductStatus @default(DRAFT)
 
   createdAt DateTime @default(now())

@@ -16,6 +16,7 @@ import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platfor
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
+import { analyseProduct } from '../services/marketAnalysis.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -385,6 +386,75 @@ productsRouter.post('/publish-batch', async (req: AuthedRequest, res) => {
     failed: results.filter((r) => r.status === 'FAILED').length,
     missing: productIds.filter((id) => !owned.some((p) => p.id === id)).length,
   })
+})
+
+const analysisSchema = z.object({ productIds: z.array(z.string()).min(1).max(25) })
+
+/**
+ * Market analysis for the selected listings.
+ *
+ * One credit per product, like an import: each analysis runs web searches and a
+ * long reasoning pass, so it costs real money — three to four times an import.
+ * A stored analysis is returned as is rather than paid for twice, unless the
+ * caller asks for a refresh.
+ *
+ * Sequential on purpose: five concurrent agents each running five web searches is
+ * how a rate limit is hit, and the seller would rather wait than get errors.
+ */
+productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
+  const parsed = analysisSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Sélectionnez entre 1 et 25 annonces' })
+
+  const owned = await prisma.product.findMany({
+    where: { id: { in: parsed.data.productIds }, userId: req.userId! },
+  })
+  if (!owned.length) return res.status(404).json({ error: 'Aucune de ces annonces ne vous appartient' })
+
+  const results: Array<{ productId: string; title: string; analysis: unknown; error?: string }> = []
+
+  for (const product of owned) {
+    // Already analysed: hand back what was paid for rather than charging again.
+    if (product.marketAnalysis && product.marketAnalysedAt) {
+      results.push({
+        productId: product.id,
+        title: product.aiTitle || product.title,
+        analysis: product.marketAnalysis,
+      })
+      continue
+    }
+
+    const credit = await reserveCredits(req.userId!, 1)
+    if (!credit.ok) {
+      results.push({
+        productId: product.id,
+        title: product.aiTitle || product.title,
+        analysis: null,
+        error: credit.reason,
+      })
+      continue
+    }
+
+    try {
+      const analysis = await analyseProduct(product)
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { marketAnalysis: analysis as object, marketAnalysedAt: new Date() },
+      })
+      results.push({ productId: product.id, title: product.aiTitle || product.title, analysis })
+    } catch (err) {
+      // Nothing produced, nothing charged.
+      await refundCredits(req.userId!, 1)
+      console.error('analyse de marché', product.id, err)
+      results.push({
+        productId: product.id,
+        title: product.aiTitle || product.title,
+        analysis: null,
+        error: err instanceof Error ? err.message : 'Analyse impossible',
+      })
+    }
+  }
+
+  res.json({ results })
 })
 
 // Bundles the watermarked photos into a zip for the manual Leboncoin/Vinted flow

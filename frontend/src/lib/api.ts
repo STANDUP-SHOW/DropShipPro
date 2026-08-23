@@ -134,6 +134,29 @@ export const api = {
     request('/reviews', { method: 'PUT', body: JSON.stringify(data) }),
   deleteReview: () => request('/reviews', { method: 'DELETE' }),
 
+  // Analyse de marché. Un crédit par produit analysé : chaque analyse lance de
+  // vraies recherches web, elle coûte trois à quatre fois un import.
+  marketAnalysis: (productIds: string[]) =>
+    request<{
+      results: Array<{
+        productId: string
+        title: string
+        error?: string
+        analysis: {
+          verdict: string
+          priceLow: number | null
+          priceHigh: number | null
+          suggestedPrice: number | null
+          deliveryTime: string | null
+          origin: string | null
+          competition: string | null
+          findings: Array<{ marketplace: string; price: number | null; url: string | null }>
+          reasoning: string
+          sources: string[]
+        } | null
+      }>
+    }>('/products/market-analysis', { method: 'POST', body: JSON.stringify({ productIds }) }),
+
   // Facturation. /plans est public : la grille s'affiche avant toute connexion.
   listPlans: () =>
     request<{

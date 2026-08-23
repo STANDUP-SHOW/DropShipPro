@@ -19,6 +19,45 @@ export interface EnhancedListing {
   attributes: Record<string, string>
 }
 
+/**
+ * Which model runs which task.
+ *
+ * The rewrite is what sells the product, so it keeps the stronger model by
+ * default. Extracting size and colour options out of page text is mechanical, and
+ * Haiku does it for a third of the price — measured cost is dominated by output
+ * tokens, so the task that writes least is also the one worth downgrading first.
+ *
+ * Both are overridable without a deploy: a bad surprise on quality is one
+ * environment variable away from being reverted.
+ */
+const MODEL_ENHANCE = process.env.AI_MODEL_ENHANCE?.trim() || 'claude-sonnet-4-5'
+const MODEL_EXTRACT = process.env.AI_MODEL_EXTRACT?.trim() || 'claude-haiku-4-5'
+
+/** Per-million token prices, to turn usage into euros in the logs. */
+const PRICES: Record<string, { in: number; out: number }> = {
+  'claude-opus-5': { in: 5, out: 25 },
+  'claude-sonnet-5': { in: 3, out: 15 },
+  'claude-sonnet-4-5': { in: 3, out: 15 },
+  'claude-haiku-4-5': { in: 1, out: 5 },
+}
+
+/**
+ * Logs what a call actually cost.
+ *
+ * The whole pricing model rests on this number, and it was estimated from
+ * character counts until now. Reading it from usage turns an estimate into a
+ * measurement, per import, in production.
+ */
+function logCost(task: string, model: string, usage: { input_tokens: number; output_tokens: number }) {
+  const price = PRICES[model]
+  if (!price) return console.log(`[ia] ${task} ${model} ${usage.input_tokens}+${usage.output_tokens} tokens`)
+
+  const dollars = (usage.input_tokens * price.in + usage.output_tokens * price.out) / 1e6
+  console.log(
+    `[ia] ${task} ${model} ${usage.input_tokens} entree + ${usage.output_tokens} sortie = ${dollars.toFixed(5)}`,
+  )
+}
+
 const SYSTEM_PROMPT = `Tu es un expert en référencement e-commerce sur les marketplaces françaises
 (Amazon, Cdiscount, La Redoute, Leclerc, Kiabi, Vinted, eBay, Google Shopping).
 
@@ -57,7 +96,7 @@ export async function extractVariants(pageText: string): Promise<Record<string, 
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: MODEL_EXTRACT,
       max_tokens: 700,
       system:
         "Tu extrais les options d'achat d'une fiche produit à partir du texte visible de la page. " +
@@ -132,7 +171,7 @@ async function callModel(
 ): Promise<EnhancedListing> {
 
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
+    model: MODEL_ENHANCE,
     max_tokens: 2500,
     system: SYSTEM_PROMPT,
     messages: [
@@ -155,6 +194,8 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce f
       },
     ],
   })
+
+  logCost('reecriture', MODEL_ENHANCE, message.usage)
 
   const text = message.content.find((b) => b.type === 'text')?.text ?? '{}'
   // The model occasionally wraps the JSON in prose or a code fence despite the
