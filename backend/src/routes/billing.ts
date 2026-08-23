@@ -87,6 +87,10 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     customer: customerId,
     mode: isSubscription ? 'subscription' : 'payment',
     locale: 'fr',
+    // Embedded rather than hosted: the payment form is mounted inside the app,
+    // the seller never leaves drop-shipper.fr. Card data still goes straight to
+    // Stripe from an iframe, so nothing sensitive touches our servers.
+    ui_mode: 'embedded',
     line_items: [
       {
         quantity: 1,
@@ -108,11 +112,75 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     // Read back in the webhook: the session is the only link between the payment
     // and the account once Stripe answers asynchronously.
     metadata: { userId: user.id, planId: parsed.data.planId },
-    success_url: `${appUrl()}/abonnement?paiement=ok`,
-    cancel_url: `${appUrl()}/abonnement?paiement=annule`,
+    // Where the iframe sends the buyer once the payment is done. The session id
+    // lets the page confirm the outcome instead of assuming it.
+    return_url: `${appUrl()}/abonnement?session_id={CHECKOUT_SESSION_ID}`,
   })
 
-  res.json({ url: session.url })
+  // The client secret is what mounts the form; there is no URL to redirect to.
+  res.json({ clientSecret: session.client_secret })
+})
+
+/**
+ * Grants a purchase from its session id, without waiting for the webhook.
+ *
+ * A webhook can be late, misconfigured or refused — it happened on the very first
+ * real payment here. Making the credit depend on it alone means a seller pays and
+ * gets nothing, which is the one failure a paid product cannot afford. The buyer
+ * comes back with the session id, and the truth is asked directly of Stripe.
+ *
+ * Safe to call repeatedly: Payment.stripeSessionId is unique, so a session
+ * already granted is reported as such instead of being credited twice.
+ */
+billingRouter.post('/confirm', async (req: AuthedRequest, res) => {
+  const stripe = getStripe()
+  if (!stripe) return res.status(503).json({ error: 'Paiement indisponible pour le moment.' })
+
+  const parsed = z.object({ sessionId: z.string().min(1) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Session inconnue' })
+
+  const session = await stripe.checkout.sessions.retrieve(parsed.data.sessionId)
+
+  // The session must belong to the caller: a session id is not a secret, and
+  // nobody should be able to credit their account with someone else's payment.
+  if (session.metadata?.userId !== req.userId) {
+    return res.status(403).json({ error: 'Ce paiement ne correspond pas à votre compte.' })
+  }
+  if (session.payment_status !== 'paid') {
+    return res.json({ granted: false, status: session.payment_status })
+  }
+
+  const existing = await prisma.payment.findUnique({ where: { stripeSessionId: session.id } })
+  if (existing) return res.json({ granted: true, alreadyGranted: true, credits: existing.credits })
+
+  const planId = session.metadata?.planId ?? ''
+
+  if (session.mode === 'subscription') {
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: {
+        plan: 'PREMIUM',
+        stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
+        premiumUntil: new Date(Date.now() + 32 * 24 * 3600 * 1000),
+      },
+    })
+    await prisma.payment.create({
+      data: {
+        userId: req.userId!,
+        planId: PREMIUM.id,
+        amount: session.amount_total ?? PREMIUM.amount,
+        credits: 0,
+        stripeSessionId: session.id,
+      },
+    })
+    return res.json({ granted: true, premium: true })
+  }
+
+  const pack = findPack(planId)
+  if (!pack) return res.status(400).json({ error: 'Formule inconnue sur ce paiement.' })
+
+  await grantPack(req.userId!, pack, session.id, session.amount_total ?? pack.amount)
+  res.json({ granted: true, credits: pack.credits })
 })
 
 /** Stripe's own portal: card change, invoices, cancellation. */

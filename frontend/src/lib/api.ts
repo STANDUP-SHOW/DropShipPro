@@ -172,8 +172,15 @@ export const api = {
       premiumUntil: string | null
       payments: Array<{ id: string; planId: string; amount: number; credits: number; createdAt: string }>
     }>('/billing/me'),
+  // Renvoie un clientSecret et non une URL : le formulaire de paiement est monte
+  // dans l'application, l'acheteur ne quitte jamais drop-shipper.fr.
   startCheckout: (planId: string) =>
-    request<{ url: string }>('/billing/checkout', { method: 'POST', body: JSON.stringify({ planId }) }),
+    request<{ clientSecret: string }>('/billing/checkout', { method: 'POST', body: JSON.stringify({ planId }) }),
+  confirmPayment: (sessionId: string) =>
+    request<{ granted: boolean; alreadyGranted?: boolean; credits?: number; premium?: boolean; status?: string }>(
+      '/billing/confirm',
+      { method: 'POST', body: JSON.stringify({ sessionId }) },
+    ),
   openBillingPortal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
 
   listOrders: () => request<any[]>('/orders'),

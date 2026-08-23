@@ -1,8 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { loadStripe } from '@stripe/stripe-js'
+import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import { Coins, Check, Infinity as InfinityIcon, ExternalLink } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
+
+/**
+ * Publishable key — public by design, it identifies the account and can do
+ * nothing on its own. Loaded once, outside the component, so a re-render never
+ * reloads Stripe.js.
+ */
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : null
 
 type Plans = Awaited<ReturnType<typeof api.listPlans>>
 type Billing = Awaited<ReturnType<typeof api.myBilling>>
@@ -18,10 +29,12 @@ export default function BillingPage() {
   const [plans, setPlans] = useState<Plans | null>(null)
   const [billing, setBilling] = useState<Billing | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [params] = useSearchParams()
 
-  const paiement = params.get('paiement')
+  const sessionId = params.get('session_id')
+  const [confirmation, setConfirmation] = useState<string | null>(null)
 
   async function load() {
     const [p, b] = await Promise.all([api.listPlans(), api.myBilling()])
@@ -33,13 +46,38 @@ export default function BillingPage() {
     load().catch((err) => setError(err instanceof Error ? err.message : 'Chargement impossible'))
   }, [])
 
+  // Retour de paiement : la vérité est demandée à Stripe plutôt que déduite de
+  // l'URL, et les annonces sont créditées ici même si le webhook a échoué.
+  const confirmer = useCallback(async (id: string) => {
+    try {
+      const res = await api.confirmPayment(id)
+      if (res.granted) {
+        setConfirmation(
+          res.premium
+            ? 'Abonnement Premium activé.'
+            : `Paiement reçu. ${res.credits ?? 0} annonces ajoutées à votre solde.`,
+        )
+        await load()
+      } else {
+        setConfirmation("Paiement non abouti — rien n'a été débité.")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Confirmation impossible')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (sessionId) confirmer(sessionId)
+  }, [sessionId, confirmer])
+
   async function buy(planId: string) {
     setBusy(planId)
     setError(null)
     try {
-      const { url } = await api.startCheckout(planId)
-      // Stripe hosts the payment page: we never see a card number.
-      window.location.href = url
+      const { clientSecret } = await api.startCheckout(planId)
+      // The form is mounted below: no redirection, the seller stays on the site.
+      // Card data still goes straight to Stripe from inside its iframe.
+      setClientSecret(clientSecret)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Paiement indisponible')
       setBusy(null)
@@ -61,15 +99,9 @@ export default function BillingPage() {
     <Layout>
       <h1 className="text-2xl font-bold">Mon compte</h1>
 
-      {paiement === 'ok' && (
+      {confirmation && (
         <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-          Paiement reçu. Vos annonces sont créditées — si le solde ci-dessous n'a pas encore bougé,
-          rechargez la page dans quelques secondes.
-        </p>
-      )}
-      {paiement === 'annule' && (
-        <p className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
-          Paiement annulé. Rien n'a été débité.
+          {confirmation}
         </p>
       )}
 
@@ -121,6 +153,38 @@ export default function BillingPage() {
         <p className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
           Les paiements ne sont pas encore activés sur ce serveur.
         </p>
+      )}
+
+      {/* Paiement, dans la page. Stripe monte son formulaire dans une iframe :
+          le numero de carte ne transite jamais par notre code ni nos serveurs. */}
+      {clientSecret && (
+        <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold">Paiement sécurisé</h2>
+            <button
+              type="button"
+              onClick={() => {
+                setClientSecret(null)
+                setBusy(null)
+              }}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              Annuler
+            </button>
+          </div>
+
+          {stripePromise ? (
+            <div className="mt-4">
+              <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                <EmbeddedCheckout />
+              </EmbeddedCheckoutProvider>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-orange-200">
+              Clé publique Stripe absente : ajoutez VITE_STRIPE_PUBLISHABLE_KEY dans Vercel.
+            </p>
+          )}
+        </section>
       )}
 
       {/* Packs */}
