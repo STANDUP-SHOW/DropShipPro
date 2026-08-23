@@ -9,6 +9,7 @@ import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
+import { checkAi } from './services/aiHealth.js'
 
 const app = express()
 
@@ -43,6 +44,15 @@ app.use(express.json({ limit: '2mb' }))
 app.use('/storage', cors({ origin: '*' }), express.static(path.resolve('storage')))
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
+
+// Deep check: says whether the AI key really works. The enhancement path hides
+// its own failures so an import never dies, which means a revoked key silently
+// returns un-rewritten listings — this is how that gets noticed. The probe is
+// cached five minutes, so it cannot be used to run up a bill.
+app.get('/api/health/ai', async (_req, res) => {
+  const status = await checkAi()
+  res.status(status === 'ok' ? 200 : 503).json({ ai: status })
+})
 app.use('/api/auth', authRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
