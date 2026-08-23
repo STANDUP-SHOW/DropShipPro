@@ -35,3 +35,19 @@ body {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(300%); }
 }
+
+/* Listes déroulantes natives.
+ *
+ * Sous Windows, Chrome peint la liste d'un <select> avec les couleurs du select
+ * lui-même. Nos selects ont un fond semi-transparent (bg-white/10) posé sur le
+ * blanc du menu natif, et héritent du texte clair de la page : chaque ligne
+ * s'affichait donc en blanc sur blanc, la liste paraissait vide, et seule la
+ * ligne survolée redevenait lisible grâce à son fond bleu.
+ *
+ * `color-scheme: dark` ne corrige pas ce cas précis, puisque la couleur de fond
+ * est imposée par la feuille de style. Les options reçoivent donc la leur. */
+option,
+optgroup {
+  background-color: #1b1633;
+  color: #e9e6f5;
+}
