@@ -47,6 +47,9 @@ billingRouter.get('/me', async (req: AuthedRequest, res) => {
   })
 })
 
+/** Stripe product tax code: « Software as a service (SaaS) - business use ». */
+const TAX_CODE = 'txcd_10103001'
+
 const checkoutSchema = z.object({ planId: z.string() })
 
 /**
@@ -92,6 +95,11 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
           unit_amount: isSubscription ? PREMIUM.amount : pack!.amount,
           product_data: {
             name: isSubscription ? PREMIUM.label : `DropShipper IA — ${pack!.label}`,
+            // Required as soon as Managed Payments is on, which it is by default:
+            // without it Stripe refuses the session outright. SaaS for business
+            // use is what this is — software reached over the internet, nothing
+            // downloaded, sold to sellers for their trade.
+            tax_code: TAX_CODE,
           },
           ...(isSubscription ? { recurring: { interval: 'month' as const } } : {}),
         },

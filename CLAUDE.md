@@ -78,6 +78,9 @@ docs/        Documentation de l'API catalogue
 - **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne
   vide : React perd la trace des nœuds et lève « removeChild: the node to be
   removed is not a child ». Composer une seule chaîne.
+- **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
+  un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
+  refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).
 - **Un `type="number"` contrôlé par `Number()` casse à la virgule** du pavé
   numérique français. D'où le composant `PriceInput`.
 
