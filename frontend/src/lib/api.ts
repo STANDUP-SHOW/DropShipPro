@@ -17,8 +17,29 @@ const FALLBACK_API = 'https://dropshippro-production.up.railway.app'
 const isLocal =
   typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
 
+/**
+ * A configured value is only trusted when it looks like an address.
+ *
+ * The variable was once overwritten with a Stripe publishable key, and the app
+ * cheerfully built every request on `pk_test_…/api/…` — a relative path that
+ * lands on the site itself, where Vercel answers 405 to any POST. Nothing
+ * worked, login included, and the error code pointed nowhere. A value that is
+ * not an http address is now ignored rather than used.
+ */
+const looksLikeUrl = (value: string) =>
+  value.startsWith('http://') || value.startsWith('https://')
+
+const usable = CONFIGURED_API && looksLikeUrl(CONFIGURED_API) ? CONFIGURED_API : ''
+
+if (CONFIGURED_API && !usable) {
+  console.error(
+    "VITE_API_URL ne ressemble pas à une adresse http, elle est ignorée. Valeur reçue :",
+    CONFIGURED_API.slice(0, 12) + '…',
+  )
+}
+
 // Empty on localhost so the Vite dev proxy keeps doing its job.
-const API_ROOT = CONFIGURED_API || (isLocal ? '' : FALLBACK_API)
+const API_ROOT = usable || (isLocal ? '' : FALLBACK_API)
 const BASE = `${API_ROOT}/api`
 
 export const apiRoot = API_ROOT
