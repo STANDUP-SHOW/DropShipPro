@@ -360,7 +360,13 @@ async function resolveShopId(userId: string, chosen: string | undefined) {
     return shop ? shop.id : null
   }
   const fallback = await prisma.shop.findFirst({ where: { userId }, orderBy: { createdAt: 'asc' } })
-  return fallback ? fallback.id : null
+  if (fallback) return fallback.id
+
+  // First publication to "Mon site" from an account that has no site yet: the
+  // shop is created here rather than imposed at sign-up, so sellers who only
+  // work through marketplaces never see one.
+  const created = await prisma.shop.create({ data: { userId, name: 'Ma boutique' } })
+  return created.id
 }
 
 const publishSchema = z.object({

@@ -20,7 +20,6 @@ import {
 import { Layout } from '../components/Layout'
 import { PlatformBadge } from '../components/PlatformBadge'
 import { api, assetUrl, apiRoot } from '../lib/api'
-import { useAuth } from '../lib/auth'
 import { PLATFORM_GUIDES } from '../lib/platformGuides'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 
@@ -119,16 +118,23 @@ function PlatformCard({
 }
 
 export default function Guide() {
-  const { user } = useAuth()
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [openId, setOpenId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
+  const [firstShopKey, setFirstShopKey] = useState<string | null>(null)
+
   useEffect(() => {
     api.listPlatforms().then(setPlatforms)
+    // Un compte sans site n'a pas de clé, et c'est un cas normal : le guide le dit
+    // plutôt que d'afficher une adresse qui répondrait 404.
+    api
+      .listShops()
+      .then((shops) => setFirstShopKey(shops[0]?.shopKey ?? null))
+      .catch(() => setFirstShopKey(null))
   }, [])
 
-  const catalogUrl = `${apiRoot || window.location.origin}/api/public/shops/${user?.shopKey ?? 'VOTRE-CLE'}/products`
+  const catalogUrl = `${apiRoot || window.location.origin}/api/public/shops/${firstShopKey ?? 'VOTRE-CLE'}/products`
 
   const live = platforms.filter((p) => p.integration === 'live')
   const apiReady = platforms.filter((p) => p.integration === 'api-ready')
@@ -341,6 +347,12 @@ export default function Guide() {
           Chaque annonce publiée sur <b className="text-gray-200">Mon site</b> devient disponible sur une adresse
           web qui renvoie vos produits en JSON. Votre site (ou votre développeur) n'a qu'à lire cette
           adresse : pas de clé, pas de mot de passe, lecture seule.
+        </p>
+
+        <p className="mt-2 text-sm leading-relaxed text-gray-300">
+          {firstShopKey
+            ? "Cette étape ne concerne que les vendeurs qui ont leur propre boutique en ligne. Si vous ne vendez que sur des marketplaces, passez à la suite."
+            : "Vous n'avez pas encore de site branché, et ce n'est pas un oubli : si vous vendez uniquement sur des marketplaces, cette étape ne vous concerne pas. Le jour où vous voudrez alimenter votre propre boutique, ajoutez-la dans Réglages → Mes sites, et son adresse apparaîtra ici."}
         </p>
 
         <p className="mt-2 text-sm leading-relaxed text-gray-300">

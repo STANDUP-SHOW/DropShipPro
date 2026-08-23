@@ -121,13 +121,12 @@ settingsRouter.patch('/shops/:id', async (req: AuthedRequest, res) => {
 /**
  * Deleting a shop leaves its listings alone: they lose their shop and stop being
  * served by any feed, which is recoverable. Deleting them with it would not be.
+ *
+ * The last one goes too. A seller who only publishes on Vinted and Leboncoin has
+ * no site to feed, and refusing to remove a shop they never wanted would be
+ * inventing an obligation.
  */
 settingsRouter.delete('/shops/:id', async (req: AuthedRequest, res) => {
-  const shops = await prisma.shop.count({ where: { userId: req.userId! } })
-  if (shops <= 1) {
-    return res.status(400).json({ error: 'Gardez au moins une boutique.' })
-  }
-
   const { count } = await prisma.shop.deleteMany({ where: { id: req.params.id, userId: req.userId! } })
   if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
   res.status(204).send()

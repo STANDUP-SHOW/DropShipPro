@@ -22,16 +22,11 @@ authRouter.post('/register', rateLimit({ name: 'register', windowMs: 3600_000, m
   if (existing) return res.status(409).json({ error: 'Un compte existe déjà avec cet email' })
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10)
-  // A first shop comes with the account. Publishing to "Mon site" needs somewhere
-  // to put the listing, and an account that starts with none would fail at the
-  // one step that is supposed to work out of the box.
-  const user = await prisma.user.create({
-    data: {
-      email: parsed.data.email,
-      passwordHash,
-      shops: { create: { name: 'Ma boutique' } },
-    },
-  })
+  // No shop is created here. Plenty of sellers only work through marketplaces
+  // and never run a site of their own; handing them a "Ma boutique" they did not
+  // ask for suggests they are missing a step they are not. A shop appears the
+  // first time one is actually needed — see resolveShopId in routes/products.ts.
+  const user = await prisma.user.create({ data: { email: parsed.data.email, passwordHash } })
 
   // The account is usable straight away; confirming the address is a follow-up
   // step, so a mail outage never blocks a sign-up.

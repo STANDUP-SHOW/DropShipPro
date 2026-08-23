@@ -74,10 +74,18 @@ export function MyShops() {
         <span>Mes sites</span>
       </h2>
       <p className="mt-1 text-xs text-gray-400">
-        Un site, une clé. Vos annonces publiées sur « Mon site » sont servies à la boutique que
-        vous choisissez au moment de diffuser. Adresse à transmettre à votre développeur, avec la
-        documentation.
+        Facultatif : si vous vendez uniquement sur des marketplaces, vous n'avez rien à faire ici.
+        Sinon, un site = une clé. Vos annonces publiées sur « Mon site » sont servies à la boutique
+        que vous choisissez au moment de diffuser, et l'adresse se transmet à votre développeur avec
+        la documentation.
       </p>
+
+      {!shops.length && (
+        <p className="mt-4 rounded-xl border border-dashed border-white/15 px-3 py-4 text-center text-xs text-gray-500">
+          Aucun site branché — c'est très bien ainsi si vous passez par Vinted, Leboncoin, eBay ou
+          Shopify. Ajoutez-en un seulement le jour où vous voudrez alimenter votre propre boutique.
+        </p>
+      )}
 
       <ul className="mt-4 space-y-3">
         {shops.map((shop) => (
