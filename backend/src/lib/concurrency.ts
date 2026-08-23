@@ -21,6 +21,14 @@ export class Saturated extends Error {
 
 export interface Limiter {
   run<T>(task: () => Promise<T>): Promise<T>
+  /**
+   * Takes a slot and hands back the release.
+   *
+   * For work that cannot be expressed as a single callback — a loop that must
+   * hold its slot across several awaits and keep its own error handling. The
+   * caller must release in a `finally`, or the slot is gone for good.
+   */
+  acquire(): Promise<() => void>
   /** For the health report: what the queue looks like right now. */
   stats(): { running: number; waiting: number }
 }
@@ -49,6 +57,22 @@ export function createLimiter({ max, queued }: { max: number; queued: number }):
       } finally {
         // In `finally` so a thrown task never leaks its slot — one leak per
         // failure and the service seizes up after a few dozen bad URLs.
+        release()
+      }
+    },
+
+    async acquire(): Promise<() => void> {
+      if (running >= max) {
+        if (waiting.length >= queued) throw new Saturated()
+        await new Promise<void>((resolve) => waiting.push(resolve))
+      }
+      running++
+
+      let released = false
+      return () => {
+        // Guarded: a double release would hand out a slot that was never taken.
+        if (released) return
+        released = true
         release()
       }
     },

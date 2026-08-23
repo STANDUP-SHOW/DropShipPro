@@ -222,6 +222,18 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
   )
 
   for (const url of couvertes) {
+    // A slot per URL, held for the whole job. One slot for the whole batch would
+    // starve everyone else for twenty minutes; no slot at all would let a batch
+    // walk past the queue.
+    let release: () => void
+    try {
+      release = await importLimiter.acquire()
+    } catch {
+      results.push({ url, ok: false, error: 'Service saturé, réessayez dans une minute.' })
+      await refundCredits(req.userId!, 1)
+      continue
+    }
+
     try {
       const scraped = await scrapeProduct(url)
       const enhanced = await enhanceListing({
@@ -265,10 +277,14 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
         url,
         ok: false,
         error:
-          err instanceof ScrapeBlockedError
+          err instanceof Saturated
             ? err.message
-            : "Échec de l'import (URL inaccessible ou page non reconnue)",
+            : err instanceof ScrapeBlockedError
+              ? err.message
+              : "Échec de l'import (URL inaccessible ou page non reconnue)",
       })
+    } finally {
+      release()
     }
   }
 
