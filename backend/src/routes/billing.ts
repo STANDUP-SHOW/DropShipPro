@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { AGENT_PLANS, findAgentPlan, extendDepartment } from '../services/agentBilling.js'
 import {
   PACKS,
   PREMIUM,
@@ -50,7 +51,14 @@ billingRouter.get('/me', async (req: AuthedRequest, res) => {
 /** Stripe product tax code: « Software as a service (SaaS) - business use ». */
 const TAX_CODE = 'txcd_10103001'
 
-const checkoutSchema = z.object({ planId: z.string() })
+const checkoutSchema = z.object({
+  planId: z.string(),
+  /** Le rayon à prolonger, quand la formule est celle d'un chef de rayon. */
+  departmentId: z.string().optional(),
+})
+
+/** Les formules « chef de rayon » se reconnaissent à leur préfixe. */
+const AGENT_PREFIX = 'agent:'
 
 /**
  * Opens a Stripe Checkout session.
@@ -67,9 +75,29 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Formule inconnue' })
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+
+  // Le salaire d'un chef de rayon : un paiement unique qui prolonge un rayon
+  // précis. Il faut donc vérifier que le rayon appartient bien à ce vendeur
+  // avant d'encaisser quoi que ce soit.
+  const agentPlan = parsed.data.planId.startsWith(AGENT_PREFIX)
+    ? findAgentPlan(parsed.data.planId.slice(AGENT_PREFIX.length))
+    : null
+
+  let department: { id: string; agentName: string; key: string } | null = null
+  if (agentPlan) {
+    if (!parsed.data.departmentId) return res.status(400).json({ error: 'Rayon manquant' })
+    department = await prisma.department.findFirst({
+      where: { id: parsed.data.departmentId, userId: user.id },
+      select: { id: true, agentName: true, key: true },
+    })
+    if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
+  } else if (parsed.data.planId.startsWith(AGENT_PREFIX)) {
+    return res.status(400).json({ error: 'Formule inconnue' })
+  }
+
   const isSubscription = parsed.data.planId === PREMIUM.id
-  const pack = isSubscription ? null : findPack(parsed.data.planId)
-  if (!isSubscription && !pack) return res.status(400).json({ error: 'Formule inconnue' })
+  const pack = isSubscription || agentPlan ? null : findPack(parsed.data.planId)
+  if (!isSubscription && !agentPlan && !pack) return res.status(400).json({ error: 'Formule inconnue' })
 
   // One Stripe customer per account, reused: without it every purchase creates a
   // new customer and the subscription portal shows an empty history.
@@ -96,12 +124,16 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
         quantity: 1,
         price_data: {
           currency: 'eur',
-          unit_amount: isSubscription ? PREMIUM.amount : pack!.amount,
+          unit_amount: agentPlan ? agentPlan.amount : isSubscription ? PREMIUM.amount : pack!.amount,
           // Prices are advertised TTC, as French consumer law requires: the amount
           // above is what the buyer pays, VAT included, not a base to add tax to.
           tax_behavior: 'inclusive',
           product_data: {
-            name: isSubscription ? PREMIUM.label : `DropShipper IA — ${pack!.label}`,
+            name: agentPlan
+              ? `Chef de rayon ${department!.agentName} — ${agentPlan.label}`
+              : isSubscription
+                ? PREMIUM.label
+                : `DropShipper IA — ${pack!.label}`,
             // Required as soon as Managed Payments is on, which it is by default:
             // without it Stripe refuses the session outright. SaaS for business
             // use is what this is — software reached over the internet, nothing
@@ -117,10 +149,18 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     // Without this a one-off payment leaves only a receipt; sellers need a real
     // invoice, and they need it from us rather than from a Stripe page.
     ...(isSubscription ? {} : { invoice_creation: { enabled: true } }),
-    metadata: { userId: user.id, planId: parsed.data.planId },
+    metadata: {
+      userId: user.id,
+      planId: parsed.data.planId,
+      ...(department ? { departmentId: department.id } : {}),
+    },
     // Where the iframe sends the buyer once the payment is done. The session id
     // lets the page confirm the outcome instead of assuming it.
-    return_url: `${appUrl()}/abonnement?session_id={CHECKOUT_SESSION_ID}`,
+    // Le vendeur revient là où il était : sur son rayon s'il vient d'embaucher,
+    // sur son compte sinon.
+    return_url: department
+      ? `${appUrl()}/rayon/${department.id}?session_id={CHECKOUT_SESSION_ID}`
+      : `${appUrl()}/abonnement?session_id={CHECKOUT_SESSION_ID}`,
   })
 
   // The client secret is what mounts the form; there is no URL to redirect to.
@@ -180,6 +220,32 @@ billingRouter.post('/confirm', async (req: AuthedRequest, res) => {
       },
     })
     return res.json({ granted: true, premium: true })
+  }
+
+  if (planId.startsWith(AGENT_PREFIX)) {
+    const plan = findAgentPlan(planId.slice(AGENT_PREFIX.length))
+    const departmentId = session.metadata?.departmentId
+    if (!plan || !departmentId) {
+      return res.status(400).json({ error: 'Formule inconnue sur ce paiement.' })
+    }
+
+    const owned = await prisma.department.findFirst({
+      where: { id: departmentId, userId: req.userId! },
+      select: { id: true, agentName: true },
+    })
+    if (!owned) return res.status(404).json({ error: 'Rayon introuvable' })
+
+    const updated = await extendDepartment(owned.id, plan)
+    await prisma.payment.create({
+      data: {
+        userId: req.userId!,
+        planId,
+        amount: session.amount_total ?? plan.amount,
+        credits: 0,
+        stripeSessionId: session.id,
+      },
+    })
+    return res.json({ granted: true, agent: owned.agentName, paidUntil: updated.paidUntil })
   }
 
   const pack = findPack(planId)

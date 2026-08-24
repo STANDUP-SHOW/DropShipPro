@@ -122,7 +122,7 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     const srcset = $(el).attr('srcset') || $(el).attr('data-srcset')
     if (srcset) {
       for (const part of srcset.split(',')) {
-        const candidate = part.trim().split(/s+/)[0]
+        const candidate = part.trim().split(/\s+/)[0]
         if (candidate) images.add(absoluteUrl(candidate, url))
       }
     }

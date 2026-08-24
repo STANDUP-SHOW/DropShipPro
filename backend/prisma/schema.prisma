@@ -473,7 +473,12 @@ model Department {
   /// Cle du rayon dans le catalogue (voir services/departments.ts).
   key       String
   agentName String
-  createdAt DateTime @default(now())
+  /// Fin de l abonnement. Passee cette date l agent ne travaille plus, mais ses
+  /// trouvailles restent : le vendeur peut le reprendre sans rien perdre.
+  paidUntil DateTime?
+  /// Formule choisie la derniere fois : jour, semaine ou mois.
+  plan      String?
+  createdAt DateTime  @default(now())
 
   opportunities Opportunity[]
   signals       Signal[]

@@ -212,8 +212,11 @@ export const api = {
     }>('/billing/me'),
   // Renvoie un clientSecret et non une URL : le formulaire de paiement est monte
   // dans l'application, l'acheteur ne quitte jamais drop-shipper.fr.
-  startCheckout: (planId: string) =>
-    request<{ clientSecret: string }>('/billing/checkout', { method: 'POST', body: JSON.stringify({ planId }) }),
+  startCheckout: (planId: string, departmentId?: string) =>
+    request<{ clientSecret: string }>('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ planId, departmentId }),
+    }),
   confirmPayment: (sessionId: string) =>
     request<{ granted: boolean; alreadyGranted?: boolean; credits?: number; premium?: boolean; status?: string }>(
       '/billing/confirm',
@@ -545,8 +548,8 @@ export const api = {
 
   // Chefs de rayon : un agent par secteur, embauché explicitement.
   departmentCatalogue: () =>
-    request<
-      Array<{
+    request<{
+      profiles: Array<{
         key: string
         label: string
         agentName: string
@@ -555,7 +558,8 @@ export const api = {
         covers: string[]
         hired: boolean
       }>
-    >('/departments/catalogue'),
+      plans: Array<{ id: string; label: string; amount: number; days: number; pitch: string }>
+    }>('/departments/catalogue'),
   listDepartments: () =>
     request<
       Array<{
@@ -569,6 +573,9 @@ export const api = {
         opportunities: number
         signals: number
         pending: number
+        paidUntil: string | null
+        plan: string | null
+        active: boolean
       }>
     >('/departments'),
   hireDepartment: (key: string) =>

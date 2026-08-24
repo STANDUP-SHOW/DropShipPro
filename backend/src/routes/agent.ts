@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireApiKey, type AgentRequest } from '../middleware/apiKey.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { findDepartment } from '../services/departments.js'
+import { isActive } from '../services/agentBilling.js'
 import { runAutopilot } from '../services/autopilot.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import type { Platform } from '@prisma/client'
@@ -45,6 +46,14 @@ async function resolveDepartment(userId: string, key: string | undefined) {
   const dept = await prisma.department.findUnique({ where: { userId_key: { userId, key: profile.key } } })
   if (!dept) {
     return { id: null, warning: `Rayon « ${profile.label} » non confié, dépôt rangé dans la veille générale.` }
+  }
+  // Un abonnement expiré arrête l'agent : sinon l'abonnement ne veut rien dire.
+  // Le dépôt n'est pas refusé pour autant — la trouvaille reste bonne.
+  if (!isActive(dept.paidUntil)) {
+    return {
+      id: null,
+      warning: `Abonnement de ${dept.agentName} expiré : dépôt rangé dans la veille générale.`,
+    }
   }
   return { id: dept.id, warning: null }
 }
@@ -100,7 +109,7 @@ function readDelivery(value: number | string | undefined): { days: number | null
   }
 
   const text = value.trim().slice(0, 120)
-  const numbers = text.match(/d+/g)
+  const numbers = text.match(/\d+/g)
   if (!numbers) return { days: null, text: text || null }
 
   const worst = Math.max(...numbers.map(Number))

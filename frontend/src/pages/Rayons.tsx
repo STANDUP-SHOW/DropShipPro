@@ -4,7 +4,9 @@ import { UserPlus, Radar, Search, Sparkles, Store, FileText, ShieldCheck, X } fr
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 
-type Profile = Awaited<ReturnType<typeof api.departmentCatalogue>>[number]
+type Catalogue = Awaited<ReturnType<typeof api.departmentCatalogue>>
+type Profile = Catalogue['profiles'][number]
+type Plan = Catalogue['plans'][number]
 type Hired = Awaited<ReturnType<typeof api.listDepartments>>[number]
 
 /** Ce que fait un chef de rayon, dit une fois, en haut de page. */
@@ -43,6 +45,7 @@ const MISSIONS = [
 
 export default function Rayons() {
   const [catalogue, setCatalogue] = useState<Profile[]>([])
+  const [plans, setPlans] = useState<Plan[]>([])
   const [hired, setHired] = useState<Hired[]>([])
   const [confirming, setConfirming] = useState<Profile | null>(null)
   const [busy, setBusy] = useState(false)
@@ -50,7 +53,13 @@ export default function Rayons() {
   const navigate = useNavigate()
 
   function load() {
-    api.departmentCatalogue().then(setCatalogue).catch(() => setError('Catalogue indisponible'))
+    api
+      .departmentCatalogue()
+      .then((c) => {
+        setCatalogue(c.profiles)
+        setPlans(c.plans)
+      })
+      .catch(() => setError('Catalogue indisponible'))
     api.listDepartments().then(setHired).catch(() => undefined)
   }
 
@@ -143,6 +152,16 @@ export default function Rayons() {
                     ? `${d.pending} produit(s) en attente de votre avis`
                     : 'Rien de nouveau à arbitrer'}
                 </p>
+
+                {/* L'échéance, dite clairement : un agent qui s'arrête sans
+                    prévenir passe pour une panne. */}
+                <p className={d.active ? 'mt-1 text-[11px] text-gray-500' : 'mt-1 text-[11px] text-amber-300'}>
+                  {d.active
+                    ? d.paidUntil
+                      ? `Travaille jusqu'au ${new Date(d.paidUntil).toLocaleDateString('fr-FR')}`
+                      : 'Actif'
+                    : `${d.agentName} est à l'arrêt — abonnement expiré`}
+                </p>
               </li>
             ))}
           </ul>
@@ -207,6 +226,26 @@ export default function Rayons() {
             <p className="mt-3 text-xs text-gray-500">
               {`Un onglet « ${confirming.label} » sera créé. ${confirming.agentName} y déposera ses trouvailles ; vous gardez la main sur tout ce qui est importé ou publié.`}
             </p>
+
+            <div className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
+              <p className="text-xs font-semibold text-emerald-300">
+                {`24 heures offertes : ${confirming.agentName} commence tout de suite.`}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Vous recevrez un premier rapport et une première liste de produits avant de décider.
+                Ensuite, son salaire :
+              </p>
+              <ul className="mt-2 space-y-1">
+                {plans.map((p) => (
+                  <li key={p.id} className="flex items-baseline gap-2 text-[11px] text-gray-400">
+                    <span className="font-semibold text-gray-200">
+                      {`${p.label} — ${(p.amount / 100).toFixed(2)} €`}
+                    </span>
+                    <span>{p.pitch}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             <div className="mt-5 flex justify-end gap-2">
               <button

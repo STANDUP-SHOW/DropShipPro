@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { DEPARTMENTS, DEPARTMENT_KEYS, findDepartment } from '../services/departments.js'
+import { AGENT_PLANS, isActive } from '../services/agentBilling.js'
 
 /**
  * Les chefs de rayon du vendeur.
@@ -22,7 +23,10 @@ departmentsRouter.get('/catalogue', async (req: AuthedRequest, res) => {
   })
   const taken = new Set(hired.map((h) => h.key))
 
-  res.json(DEPARTMENTS.map((d) => ({ ...d, hired: taken.has(d.key) })))
+  res.json({
+    profiles: DEPARTMENTS.map((d) => ({ ...d, hired: taken.has(d.key) })),
+    plans: AGENT_PLANS,
+  })
 })
 
 departmentsRouter.get('/', async (req: AuthedRequest, res) => {
@@ -56,6 +60,9 @@ departmentsRouter.get('/', async (req: AuthedRequest, res) => {
         opportunities: d._count.opportunities,
         signals: d._count.signals,
         pending: pendingBy.get(d.id) ?? 0,
+        paidUntil: d.paidUntil,
+        plan: d.plan,
+        active: isActive(d.paidUntil),
         createdAt: d.createdAt,
       }
     }),
@@ -75,8 +82,17 @@ departmentsRouter.post('/', async (req: AuthedRequest, res) => {
   })
   if (existing) return res.status(400).json({ error: `${existing.agentName} tient déjà ce rayon.` })
 
+  // Vingt-quatre heures offertes à l'embauche : de quoi recevoir un premier
+  // rapport et une première liste avant de décider. Sans cet essai, personne ne
+  // paie un agent qu'il n'a jamais vu travailler.
   const created = await prisma.department.create({
-    data: { userId: req.userId!, key: profile.key, agentName: profile.agentName },
+    data: {
+      userId: req.userId!,
+      key: profile.key,
+      agentName: profile.agentName,
+      plan: 'essai',
+      paidUntil: new Date(Date.now() + 24 * 3600 * 1000),
+    },
   })
 
   res.status(201).json({

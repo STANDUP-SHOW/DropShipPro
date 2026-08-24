@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { loadStripe } from '@stripe/stripe-js'
+import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare } from 'lucide-react'
 import { Layout } from '../components/Layout'
@@ -8,6 +10,15 @@ import { SignalList } from '../components/SignalList'
 import { ReportList } from '../components/ReportList'
 import { DepartmentChat } from '../components/DepartmentChat'
 import { api } from '../lib/api'
+
+/**
+ * Clé publiable — publique par nature, elle identifie le compte et ne permet
+ * rien seule. Chargée hors du composant pour qu'un rendu ne recharge pas
+ * Stripe.js.
+ */
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : null
 
 type Department = Awaited<ReturnType<typeof api.listDepartments>>[number]
 
@@ -33,6 +44,10 @@ export default function Rayon() {
   const [scope, setScope] = useState<'ALL' | 'PERSONAL'>('ALL')
   const [view, setView] = useState<'LIVE' | 'REPORTS'>('LIVE')
   const [missing, setMissing] = useState(false)
+  const [plans, setPlans] = useState<Array<{ id: string; label: string; amount: number; pitch: string }>>([])
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   useEffect(() => {
     api
@@ -43,7 +58,33 @@ export default function Rayon() {
         else setMissing(true)
       })
       .catch(() => setMissing(true))
+    api
+      .departmentCatalogue()
+      .then((c) => setPlans(c.plans))
+      .catch(() => undefined)
   }, [id])
+
+  /**
+   * Prolonger le rayon.
+   *
+   * Le paiement se fait dans l'application, comme le reste : le vendeur revient
+   * sur son rayon, pas sur une page de compte où il faudrait le retrouver.
+   */
+  async function renew(planId: string) {
+    if (!department) return
+    setPaying(true)
+    setPayError(null)
+    try {
+      const { clientSecret: secret } = await api.startCheckout(`agent:${planId}`, department.id)
+      // Le formulaire se monte plus bas : pas de redirection, le vendeur reste
+      // sur le rayon qu'il est en train de prolonger.
+      setClientSecret(secret)
+    } catch (e) {
+      setPayError((e as Error).message)
+    } finally {
+      setPaying(false)
+    }
+  }
 
   if (missing) {
     return (
@@ -94,6 +135,70 @@ export default function Rayon() {
       </div>
 
       <p className="mt-2 max-w-3xl text-sm text-gray-400">{department.focus}</p>
+
+      {/* L'état de l'abonnement, dit avant le travail : un agent arrêté qui
+          affiche une page vide passe pour une panne. */}
+      <div
+        className={
+          department.active
+            ? 'mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3'
+            : 'mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3'
+        }
+      >
+        <p className="text-xs text-gray-300">
+          {department.active
+            ? department.paidUntil
+              ? `${department.agentName} travaille jusqu'au ${new Date(department.paidUntil).toLocaleDateString('fr-FR')}.`
+              : `${department.agentName} est en poste.`
+            : `${department.agentName} est à l'arrêt : son abonnement a expiré. Ses trouvailles et vos échanges sont conservés.`}
+        </p>
+
+        <div className="ml-auto flex flex-wrap gap-2">
+          {plans.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => renew(p.id)}
+              disabled={paying}
+              title={p.pitch}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5 disabled:opacity-40"
+            >
+              {`${p.label} — ${(p.amount / 100).toFixed(2)} €`}
+            </button>
+          ))}
+        </div>
+
+        {payError && <p className="w-full text-xs text-red-400">{payError}</p>}
+      </div>
+
+      {clientSecret && (
+        <section className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold">Paiement sécurisé</h2>
+            <button
+              type="button"
+              onClick={() => setClientSecret(null)}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              Annuler
+            </button>
+          </div>
+
+          {/* Stripe monte son formulaire dans une iframe : le numéro de carte ne
+              passe ni par notre code ni par nos serveurs. */}
+          {stripePromise ? (
+            <div className="mt-4">
+              <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                <EmbeddedCheckout />
+              </EmbeddedCheckoutProvider>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-red-400">
+              Le paiement est momentanément indisponible.
+            </p>
+          )}
+        </section>
+      )}
 
       <div className="mt-5 flex flex-wrap gap-2">
         {TABS.map((t) => {
