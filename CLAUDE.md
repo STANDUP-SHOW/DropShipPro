@@ -5,6 +5,12 @@ mémoire d'une conversation : tout ce qui compte pour reprendre le travail est i
 
 ---
 
+**Reprise apres une conversation videe : lire .** Il dit ou on en
+est, ce qui bloque et ce qui reste a faire ; ce fichier-ci ne dit que les regles
+durables du projet.
+
+---
+
 ## Ce que fait l'application
 
 Import d'un produit depuis n'importe quelle boutique → l'IA réécrit l'annonce
