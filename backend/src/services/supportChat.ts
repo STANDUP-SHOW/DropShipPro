@@ -17,6 +17,25 @@ import { DEPARTMENTS } from './departments.js'
 
 const MODEL = 'claude-sonnet-4-5'
 
+/**
+ * Les agents qui doivent chercher plutôt que se souvenir.
+ *
+ * Le comptable et l'avocat répondent sur des règles datées : seuils de TVA,
+ * taux, délais légaux. De mémoire, le modèle se trompe — et pas à la marge :
+ * interrogé sur la franchise en base, il a d'abord cité le seuil des services
+ * pour celui des marchandises, puis, une fois le chiffre interdit, affirmé
+ * qu'aucune franchise n'existait. Deux réponses fausses, toutes deux
+ * plausibles, toutes deux coûteuses pour un vendeur qui les applique.
+ *
+ * Ils consultent donc les sources officielles avant de répondre. C'est plus
+ * lent et plus cher qu'une réponse de mémoire ; c'est aussi la différence entre
+ * un conseil et un piège.
+ */
+const AGENTS_QUI_CHERCHENT = ['comptable', 'avocat']
+
+/** Assez pour croiser deux sources, sans faire attendre une minute. */
+const MAX_RECHERCHES = 4
+
 /** Marqueur d'orientation : la hotline renvoie vers un collègue. */
 const ROUTE = /\[ORIENTER:([a-z-]+)\]/i
 
