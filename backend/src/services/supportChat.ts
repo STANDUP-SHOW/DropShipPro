@@ -77,6 +77,72 @@ async function contextFor(key: string, userId: string): Promise<string> {
     ].join('\n')
   }
 
+  if (key === 'comptable') {
+    const [user, payments, orders, products] = await Promise.all([
+      prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { credits: true, imageCredits: true, plan: true, premiumUntil: true },
+      }),
+      prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 20 }),
+      prisma.order.findMany({
+        where: { userId },
+        include: { product: { select: { price: true, shippingCost: true } } },
+      }),
+      prisma.product.count({ where: { userId } }),
+    ])
+
+    const vendus = orders.filter((o) => o.status !== 'REFUNDED')
+    const chiffre = vendus.reduce((n, o) => n + Number(o.amount), 0)
+    const achats = vendus.reduce(
+      (n, o) => n + Number(o.product.price) + Number(o.product.shippingCost),
+      0,
+    )
+    const rembourses = orders.filter((o) => o.status === 'REFUNDED')
+    const depense = payments.reduce((n, p) => n + p.amount, 0) / 100
+
+    const parPlateforme = new Map<string, { commandes: number; chiffre: number }>()
+    for (const o of vendus) {
+      const ligne = parPlateforme.get(o.platform) ?? { commandes: 0, chiffre: 0 }
+      ligne.commandes++
+      ligne.chiffre += Number(o.amount)
+      parPlateforme.set(o.platform, ligne)
+    }
+
+    return [
+      `Formule : ${user.plan}${user.premiumUntil ? ` jusqu'au ${user.premiumUntil.toLocaleDateString('fr-FR')}` : ''}`,
+      `Annonces au catalogue : ${products}`,
+      `Chiffre d'affaires : ${chiffre.toFixed(2)} € sur ${vendus.length} vente(s)`,
+      `Coût d'achat des produits vendus : ${achats.toFixed(2)} €`,
+      `Marge brute : ${(chiffre - achats).toFixed(2)} €`,
+      `Remboursements : ${rembourses.length} commande(s)`,
+      `Dépensé dans l'application : ${depense.toFixed(2)} € sur ${payments.length} paiement(s)`,
+      `Crédits restants : ${user.credits} annonce(s), ${user.imageCredits} image(s)`,
+      parPlateforme.size
+        ? `Par plateforme :\n${[...parPlateforme.entries()]
+            .map(([p, l]) => `- ${p} : ${l.commandes} vente(s), ${l.chiffre.toFixed(2)} €`)
+            .join('\n')}`
+        : 'Aucune vente enregistrée par plateforme.',
+      // Dit explicitement, sinon l'agent additionne des chiffres incomplets et
+      // le vendeur croit tenir sa comptabilité.
+      "Ces chiffres ne comptent ni la TVA, ni les frais de plateforme, ni les frais de port facturés à l'acheteur : rien de tout cela n'est encore saisi dans l'application.",
+    ].join('\n')
+  }
+
+  if (key === 'avocat') {
+    const [products, orders, conversations, shops] = await Promise.all([
+      prisma.product.count({ where: { userId } }),
+      prisma.order.count({ where: { userId } }),
+      prisma.conversation.count({ where: { userId, status: 'OPEN' } }),
+      prisma.shop.findMany({ where: { userId }, select: { name: true } }),
+    ])
+
+    return [
+      `Le vendeur exploite ${shops.length} boutique(s) : ${shops.map((s) => s.name).join(', ') || 'aucune déclarée'}.`,
+      `${products} annonce(s) au catalogue, ${orders} commande(s), ${conversations} litige(s) ou message(s) acheteur ouvert(s).`,
+      "Activité : revente de produits achetés à des fournisseurs, principalement hors Union européenne, expédiés directement à l'acheteur.",
+    ].join('\n')
+  }
+
   if (key === 'sav') {
     const orders = await prisma.order.findMany({
       where: { userId, status: { in: ['SHIPPED', 'DELIVERED', 'REFUNDED'] } },
@@ -137,6 +203,50 @@ function systemPrompt(key: string, context: string) {
       '[ORIENTER:livraisons] pour un colis, un délai, un numéro de suivi ;',
       `[ORIENTER:rayon] pour une question sur un produit ou un marché — précise alors quel chef de rayon parmi : ${rayons}.`,
       "N'oriente pas si tu peux répondre toi-même en une phrase.",
+    ].join('\n')
+  }
+
+  if (key === 'comptable') {
+    return [
+      ...commun,
+      '',
+      'Tu es comptable. Tu expliques des chiffres, tu prépares des documents, tu signales ce qui manque.',
+      "Rappelle les obligations d'un vendeur en ligne français : facture obligatoire pour toute vente à un",
+      'professionnel, mentions légales de la facture, conservation des pièces dix ans, TVA due dès le premier',
+      "euro pour une société et au-delà des seuils pour un micro-entrepreneur, guichet unique OSS pour les",
+      "ventes à distance dans l'Union européenne.",
+      '',
+      "Sur le dropshipping, insiste quand c'est utile : le vendeur est l'importateur, donc redevable de la TVA",
+      "à l'importation et des droits de douane, et il doit une facture à son acheteur même quand le colis part",
+      'de Chine.',
+      '',
+      'Termine toujours par un rappel court : tu prépares, tu ne certifies pas. Un bilan, une liasse fiscale ou',
+      "une déclaration de TVA doivent être validés par un expert-comptable inscrit à l'ordre.",
+    ].join('\n')
+  }
+
+  if (key === 'avocat') {
+    return [
+      ...commun,
+      '',
+      'Tu es avocat en droit des affaires, spécialisé dans la vente en ligne. Tu réponds en droit français et',
+      'européen.',
+      '',
+      'Tes sujets : conditions générales de vente, droit de rétractation de quatorze jours, garantie légale de',
+      "conformité de deux ans, garantie des vices cachés, obligation d'information précontractuelle, litige avec",
+      "un acheteur, contrefaçon et usage de marque, responsabilité du vendeur en dropshipping, choix du statut à",
+      'la création, mentions légales, protection des données personnelles des acheteurs.',
+      '',
+      "Sur le dropshipping, dis la vérité même quand elle dérange : en droit français le vendeur est responsable",
+      'de la conformité, de la livraison et du service après-vente, y compris quand le colis part d’un',
+      "fournisseur étranger, et il ne peut pas renvoyer son acheteur vers ce fournisseur. C'est le point qui",
+      'coûte le plus cher aux vendeurs mal informés.',
+      '',
+      'Cite les textes quand ils existent — Code de la consommation, Code civil, Code de commerce — et dis quand',
+      'un point demande vérification : le droit évolue, et tu réponds sans connaître le dossier complet.',
+      '',
+      'Termine toujours par un rappel court : tu informes, tu ne représentes pas. Un litige engagé, une mise en',
+      'demeure ou un contrat signé demandent un avocat inscrit au barreau.',
     ].join('\n')
   }
 

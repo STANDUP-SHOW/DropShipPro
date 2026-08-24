@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { AGENT_PLANS, findAgentPlan, extendDepartment } from '../services/agentBilling.js'
 import { findImagePack } from './visuals.js'
+import { findSupportAgent } from '../services/agentRoster.js'
 import {
   PACKS,
   PREMIUM,
@@ -64,6 +65,9 @@ const AGENT_PREFIX = 'agent:'
 /** Les recharges d'images des agents visuels. */
 const IMAGE_PREFIX = 'img-'
 
+/** L'embauche d'un agent de comptoir payant, au mois. */
+const HIRE_PREFIX = 'agent-hire:'
+
 /**
  * Opens a Stripe Checkout session.
  *
@@ -99,6 +103,13 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: 'Formule inconnue' })
   }
 
+  const hired = parsed.data.planId.startsWith(HIRE_PREFIX)
+    ? findSupportAgent(parsed.data.planId.slice(HIRE_PREFIX.length))
+    : null
+  if (parsed.data.planId.startsWith(HIRE_PREFIX) && (!hired || !hired.monthly)) {
+    return res.status(400).json({ error: 'Agent inconnu' })
+  }
+
   const imagePack = parsed.data.planId.startsWith(IMAGE_PREFIX)
     ? findImagePack(parsed.data.planId)
     : null
@@ -107,8 +118,8 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
   }
 
   const isSubscription = parsed.data.planId === PREMIUM.id
-  const pack = isSubscription || agentPlan || imagePack ? null : findPack(parsed.data.planId)
-  if (!isSubscription && !agentPlan && !imagePack && !pack) {
+  const pack = isSubscription || agentPlan || imagePack || hired ? null : findPack(parsed.data.planId)
+  if (!isSubscription && !agentPlan && !imagePack && !hired && !pack) {
     return res.status(400).json({ error: 'Formule inconnue' })
   }
 
@@ -137,7 +148,9 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
         quantity: 1,
         price_data: {
           currency: 'eur',
-          unit_amount: agentPlan
+          unit_amount: hired
+            ? hired.monthly!
+            : agentPlan
             ? agentPlan.amount
             : imagePack
               ? imagePack.amount
@@ -148,7 +161,9 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
           // above is what the buyer pays, VAT included, not a base to add tax to.
           tax_behavior: 'inclusive',
           product_data: {
-            name: agentPlan
+            name: hired
+              ? `${hired.role} ${hired.name} — 1 mois`
+              : agentPlan
               ? `Chef de rayon ${department!.agentName} — ${agentPlan.label}`
               : imagePack
                 ? `Agent visuel — ${imagePack.label}`
@@ -267,6 +282,35 @@ billingRouter.post('/confirm', async (req: AuthedRequest, res) => {
       },
     })
     return res.json({ granted: true, agent: owned.agentName, paidUntil: updated.paidUntil })
+  }
+
+  if (planId.startsWith(HIRE_PREFIX)) {
+    const agent = findSupportAgent(planId.slice(HIRE_PREFIX.length))
+    if (!agent || !agent.monthly) return res.status(400).json({ error: 'Agent inconnu sur ce paiement.' })
+
+    // La durée s'ajoute à ce qui reste : renouveler en avance ne doit pas
+    // faire perdre les jours déjà payés.
+    const existant = await prisma.agentSubscription.findUnique({
+      where: { userId_agentKey: { userId: req.userId!, agentKey: agent.key } },
+    })
+    const depart = existant && existant.paidUntil > new Date() ? existant.paidUntil : new Date()
+    const paidUntil = new Date(depart.getTime() + 30 * 24 * 3600 * 1000)
+
+    await prisma.agentSubscription.upsert({
+      where: { userId_agentKey: { userId: req.userId!, agentKey: agent.key } },
+      create: { userId: req.userId!, agentKey: agent.key, paidUntil, plan: 'mois' },
+      update: { paidUntil, plan: 'mois' },
+    })
+    await prisma.payment.create({
+      data: {
+        userId: req.userId!,
+        planId,
+        amount: session.amount_total ?? agent.monthly,
+        credits: 0,
+        stripeSessionId: session.id,
+      },
+    })
+    return res.json({ granted: true, agent: agent.name, paidUntil })
   }
 
   if (planId.startsWith(IMAGE_PREFIX)) {

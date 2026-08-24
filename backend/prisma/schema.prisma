@@ -95,22 +95,23 @@ model User {
   /// Fin de la période payée : l'abonnement reste actif jusque-là même résilié.
   premiumUntil         DateTime?
 
-  shops           Shop[]
-  products        Product[]
-  credentials     PlatformCredential[]
-  payments        Payment[]
-  orders          Order[]
-  authTokens      AuthToken[]
-  apiKeys         ApiKey[]
-  opportunities   Opportunity[]
-  signals         Signal[]
-  review          Review?
-  Department      Department[]
-  Report          Report[]
-  ChatMessage     ChatMessage[]
-  autopilot       Autopilot?
-  conversations   Conversation[]
-  generatedImages GeneratedImage[]
+  shops              Shop[]
+  products           Product[]
+  credentials        PlatformCredential[]
+  payments           Payment[]
+  orders             Order[]
+  authTokens         AuthToken[]
+  apiKeys            ApiKey[]
+  opportunities      Opportunity[]
+  signals            Signal[]
+  review             Review?
+  Department         Department[]
+  Report             Report[]
+  ChatMessage        ChatMessage[]
+  autopilot          Autopilot?
+  conversations      Conversation[]
+  generatedImages    GeneratedImage[]
+  agentSubscriptions AgentSubscription[]
 }
 
 enum AuthTokenType {
@@ -708,4 +709,27 @@ model GeneratedImage {
   createdAt DateTime @default(now())
 
   @@index([userId, productId])
+}
+
+/// L abonnement a un agent de comptoir payant.
+///
+/// Les chefs de rayon ont leur propre abonnement (voir Department) parce qu ils
+/// tiennent un secteur. Ceux-ci n en tiennent aucun : un vendeur en embauche un
+/// parce qu il a besoin d une expertise, pas d une veille.
+model AgentSubscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Cle de l agent : avocat, comptable...
+  agentKey  String
+  /// Fin de la periode payee. L agent se tait passe cette date, mais la
+  /// conversation reste : reprendre son avocat ne doit pas effacer ses conseils.
+  paidUntil DateTime
+  plan      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, agentKey])
 }

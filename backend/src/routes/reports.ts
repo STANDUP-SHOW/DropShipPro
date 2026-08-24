@@ -8,6 +8,21 @@ import { PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/a
 import { askSupportAgent } from '../services/supportChat.js'
 
 /**
+ * Vrai quand l'agent payant est effectivement payé.
+ *
+ * Un agent compris dans l'abonnement répond toujours. Les autres se taisent
+ * quand la période est passée — sans quoi le prix ne veut rien dire — mais la
+ * conversation reste : reprendre son avocat ne doit pas effacer ses conseils.
+ */
+async function agentActif(userId: string, agentKey: string, monthly?: number) {
+  if (!monthly) return true
+  const abo = await prisma.agentSubscription.findUnique({
+    where: { userId_agentKey: { userId, agentKey } },
+  })
+  return Boolean(abo && abo.paidUntil > new Date())
+}
+
+/**
  * Les rapports archivés et les échanges avec les chefs de rayon.
  *
  * Les deux tiennent dans le même fichier parce qu'ils partagent la même règle :
@@ -194,9 +209,24 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
     return { state: 'actif', note: null }
   }
 
+  const abonnements = await prisma.agentSubscription.findMany({ where: { userId: req.userId! } })
+  const paidUntil = new Map(abonnements.map((a) => [a.agentKey, a.paidUntil]))
+
   res.json({
     pipeline: PIPELINE_AGENTS.map((a) => ({ ...a, ...statusOf(a.key) })),
-    support: SUPPORT_AGENTS.map((a) => ({ ...a, ...statusOf(a.key) })),
+    support: SUPPORT_AGENTS.map((a) => {
+      const echeance = paidUntil.get(a.key) ?? null
+      const actif = !a.monthly || Boolean(echeance && echeance > new Date())
+      return {
+        ...a,
+        ...statusOf(a.key),
+        hired: actif,
+        paidUntil: echeance,
+        // Un agent payant non souscrit n'est pas « en panne » : il n'est pas
+        // embauché, ce qui n'est pas la même inquiétude.
+        ...(a.monthly && !actif ? { state: 'inactif' as const, note: 'Pas encore embauché.' } : {}),
+      }
+    }),
     departments,
   })
 })
@@ -226,6 +256,13 @@ chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
 
   const parsed = askSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Écrivez votre question' })
+
+  if (!(await agentActif(req.userId!, agent.key, agent.monthly))) {
+    return res.status(402).json({
+      error: `${agent.name} n'est pas encore embauché. Son abonnement est de ${((agent.monthly ?? 0) / 100).toFixed(2)} € par mois.`,
+      needsHire: true,
+    })
+  }
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.userId! },

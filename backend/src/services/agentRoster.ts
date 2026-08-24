@@ -31,6 +31,15 @@ export interface AgentProfile {
   where: string | null
   /** Adresse de la page concernée, quand il y en a une. */
   href: string | null
+  /**
+   * Prix mensuel TTC en centimes, quand l'agent se paie à part.
+   *
+   * Zéro veut dire compris dans l'abonnement : la plupart le sont, et un
+   * vendeur ne doit pas se demander devant chaque agent s'il va être facturé.
+   */
+  monthly?: number
+  /** Ce que l'agent ne fait pas, et pourquoi. Affiché avec ses fonctions. */
+  caveat?: string
 }
 
 /** Les agents de chaîne : ils produisent, ils ne discutent pas. */
@@ -118,6 +127,31 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
     does: "Les problèmes après vente : produit non conforme, colis abîmé, demande de remboursement. Il ouvre un litige avec vous et suit ceux en cours.",
     where: 'Agents → Discuter',
     href: '/agents/sav',
+  },
+  {
+    key: 'comptable',
+    name: 'Gérard',
+    role: 'Agent Comptable',
+    family: 'comptoir',
+    emoji: '📒',
+    does: "Vos chiffres et vos papiers : factures et devis, encaissements et remboursements, frais de plateforme, coût des livraisons, résultat par place de marché. Il tient aussi le compte de ce que l'application vous coûte, poste par poste.",
+    caveat:
+      "Il prépare, il ne certifie pas. Un bilan, une déclaration de TVA ou une liasse fiscale doivent être validés par un expert-comptable inscrit à l'ordre.",
+    where: 'Agents → Discuter',
+    href: '/agents/comptable',
+  },
+  {
+    key: 'avocat',
+    name: 'Maître Doré',
+    role: 'Agent Avocat',
+    family: 'comptoir',
+    emoji: '⚖️',
+    monthly: 1500,
+    does: "Droit des affaires appliqué à la vente en ligne : conditions générales, litiges acheteurs, garantie légale et droit de rétractation, contrefaçon, création d'entreprise et choix du statut, obligations d'un dropshippeur envers ses clients.",
+    caveat:
+      "Il informe, il ne représente pas. Aucun avis rendu ici n'est une consultation juridique : un litige engagé, une mise en demeure ou un contrat signé demandent un avocat inscrit au barreau.",
+    where: 'Agents → Discuter',
+    href: '/agents/avocat',
   },
   {
     key: 'livraisons',
