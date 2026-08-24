@@ -306,3 +306,63 @@ agentRouter.post('/signals', async (req: AgentRequest, res) => {
     avertissements: warnings,
   })
 })
+
+const reportSchema = z.object({
+  department: z.string().trim().max(40).optional(),
+  /** SOCIAL, SUPPLIERS ou MARKET. */
+  section: z.enum(['SOCIAL', 'SUPPLIERS', 'MARKET']),
+  /** Jour couvert, AAAA-MM-JJ. Aujourd'hui par défaut. */
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  title: z.string().trim().min(1).max(200),
+  /** Le corps du rapport, en Markdown simple. */
+  body: z.string().trim().min(1).max(60000),
+  summary: z.record(z.union([z.number(), z.string()])).optional(),
+})
+
+/**
+ * Le rapport du jour.
+ *
+ * Un redépôt le même jour, pour la même section et le même rayon, remplace le
+ * précédent : un agent qui repasse à 8h puis à 11h corrige son rapport, il n'en
+ * publie pas deux. Les jours passés, eux, ne sont jamais touchés.
+ */
+agentRouter.post('/reports', async (req: AgentRequest, res) => {
+  const parsed = reportSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Rapport invalide',
+      details: parsed.error.issues.slice(0, 10).map((i) => `${i.path.join('.')} : ${i.message}`),
+    })
+  }
+
+  const dept = await resolveDepartment(req.userId!, parsed.data.department)
+  const day = parsed.data.day ?? new Date().toISOString().slice(0, 10)
+
+  const data = {
+    section: parsed.data.section,
+    day,
+    title: parsed.data.title,
+    body: parsed.data.body,
+    summary: (parsed.data.summary ?? null) as never,
+    departmentId: dept.id,
+  }
+
+  // Lecture avant écriture plutôt qu'un upsert : la clé porte un departmentId
+  // qui peut être NULL, et Prisma ne sait pas viser une ligne par une clé nulle.
+  const existing = await prisma.report.findFirst({
+    where: { userId: req.userId!, departmentId: dept.id, section: data.section, day },
+    select: { id: true },
+  })
+
+  const report = existing
+    ? await prisma.report.update({ where: { id: existing.id }, data })
+    : await prisma.report.create({ data: { ...data, userId: req.userId! } })
+
+  res.status(201).json({
+    id: report.id,
+    jour: report.day,
+    section: report.section,
+    remplace: Boolean(existing),
+    avertissement: dept.warning,
+  })
+})

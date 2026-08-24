@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User } from 'lucide-react'
+import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { RecommendedProducts } from '../components/RecommendedProducts'
 import { OpportunityList } from '../components/OpportunityList'
 import { SignalList } from '../components/SignalList'
+import { ReportList } from '../components/ReportList'
+import { DepartmentChat } from '../components/DepartmentChat'
 import { api } from '../lib/api'
 
 type Department = Awaited<ReturnType<typeof api.listDepartments>>[number]
@@ -14,20 +16,22 @@ const TABS = [
   { id: 'SUPPLIERS' as const, label: 'Fournisseurs', icon: Truck },
   { id: 'SOCIAL' as const, label: 'Réseaux sociaux', icon: Share2 },
   { id: 'MARKET' as const, label: 'Places de marché', icon: Store },
+  { id: 'CHAT' as const, label: 'Discuter', icon: MessagesSquare },
 ]
 
 /**
  * Le bureau d'un chef de rayon.
  *
- * Quatre pages : ce qu'il conseille aujourd'hui, et les trois sources d'où ça
- * vient. La première est celle qu'on ouvre le matin ; les trois autres servent
- * quand on veut comprendre pourquoi il propose ça.
+ * Cinq pages : ce qu'il conseille aujourd'hui, les trois sources d'où ça vient,
+ * et de quoi lui parler. La première est celle qu'on ouvre le matin ; les autres
+ * servent quand on veut comprendre pourquoi il propose ça.
  */
 export default function Rayon() {
   const { id = '' } = useParams()
   const [department, setDepartment] = useState<Department | null>(null)
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>('ADVICE')
   const [scope, setScope] = useState<'ALL' | 'PERSONAL'>('ALL')
+  const [view, setView] = useState<'LIVE' | 'REPORTS'>('LIVE')
   const [missing, setMissing] = useState(false)
 
   useEffect(() => {
@@ -99,8 +103,33 @@ export default function Rayon() {
 
       {/* Le filtre global/personnel n'a de sens que sur les sources : la liste
           conseillée est par nature tournée vers ce qu'on ne vend pas encore. */}
-      {tab !== 'ADVICE' && (
+      {tab !== 'ADVICE' && tab !== 'CHAT' && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setView('LIVE')}
+            className={
+              view === 'LIVE'
+                ? 'rounded-full bg-white/15 px-3 py-1 text-xs font-semibold'
+                : 'rounded-full border border-white/10 px-3 py-1 text-xs text-gray-400 hover:bg-white/5'
+            }
+          >
+            Trouvailles
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('REPORTS')}
+            className={
+              view === 'REPORTS'
+                ? 'rounded-full bg-white/15 px-3 py-1 text-xs font-semibold'
+                : 'rounded-full border border-white/10 px-3 py-1 text-xs text-gray-400 hover:bg-white/5'
+            }
+          >
+            Rapports du jour
+          </button>
+
+          <span className="mx-1 h-4 w-px bg-white/10" />
+
           <button
             type="button"
             onClick={() => setScope('ALL')}
@@ -129,9 +158,28 @@ export default function Rayon() {
       )}
 
       {tab === 'ADVICE' && <RecommendedProducts department={department.id} />}
-      {tab === 'SUPPLIERS' && <OpportunityList scope={scope} department={department.id} />}
-      {tab === 'SOCIAL' && <SignalList kind="SOCIAL" scope={scope} department={department.id} />}
-      {tab === 'MARKET' && <SignalList kind="MARKET" scope={scope} department={department.id} />}
+      {tab === 'CHAT' && (
+        <DepartmentChat departmentId={department.id} agentName={department.agentName} />
+      )}
+
+      {tab === 'SUPPLIERS' &&
+        (view === 'REPORTS' ? (
+          <ReportList section="SUPPLIERS" department={department.id} />
+        ) : (
+          <OpportunityList scope={scope} department={department.id} />
+        ))}
+      {tab === 'SOCIAL' &&
+        (view === 'REPORTS' ? (
+          <ReportList section="SOCIAL" department={department.id} />
+        ) : (
+          <SignalList kind="SOCIAL" scope={scope} department={department.id} />
+        ))}
+      {tab === 'MARKET' &&
+        (view === 'REPORTS' ? (
+          <ReportList section="MARKET" department={department.id} />
+        ) : (
+          <SignalList kind="MARKET" scope={scope} department={department.id} />
+        ))}
     </Layout>
   )
 }

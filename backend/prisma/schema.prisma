@@ -99,6 +99,8 @@ model User {
   signals       Signal[]
   review        Review?
   Department    Department[]
+  Report        Report[]
+  ChatMessage   ChatMessage[]
 }
 
 enum AuthTokenType {
@@ -464,8 +466,66 @@ model Department {
 
   opportunities Opportunity[]
   signals       Signal[]
+  reports       Report[]
+  chatMessages  ChatMessage[]
 
   /// Un rayon n est confie qu une fois : deux « Albert » chez le meme vendeur
   /// rendraient chaque rapport ambigu.
   @@unique([userId, key])
+}
+
+/// Un rapport quotidien depose par un chef de rayon.
+///
+/// Archive tel quel : le vendeur doit pouvoir relire celui d il y a trois
+/// semaines et comparer. Un rapport n est jamais recrit, seulement remplace
+/// quand l agent redepose le meme jour pour la meme section.
+model Report {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  /// SOCIAL, SUPPLIERS ou MARKET : la section ou le rapport se range.
+  section String
+  /// Jour couvert par le rapport, au format AAAA-MM-JJ.
+  day     String
+  title   String
+  /// Le corps du rapport en Markdown simple, tel que l agent l a redige.
+  body    String @db.Text
+  /// Chiffres cles a afficher en tete, sans schema impose.
+  summary Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // L unicite « un rapport par jour, par section, par rayon » est posee en SQL
+  // par deux index partiels : un index unique ordinaire ignore les lignes ou
+  // departmentId est NULL, ce qui laisserait s empiler les rapports sans rayon.
+  // Prisma ne sait pas exprimer un index partiel, le code fait donc la lecture
+  // avant ecriture lui-meme.
+  @@index([userId, section])
+}
+
+/// Un echange avec un chef de rayon.
+///
+/// Conserve pour que la conversation reprenne la ou elle s est arretee, et pour
+/// que le vendeur retrouve un conseil donne la semaine derniere.
+model ChatMessage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  /// user ou agent.
+  role      String
+  content   String   @db.Text
+  /// Faux quand la question sortait du rayon : rien n a ete facture.
+  billed    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([userId, departmentId])
 }

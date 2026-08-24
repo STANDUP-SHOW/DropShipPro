@@ -314,6 +314,48 @@ export const api = {
         detectedAt: string
       }>
     }>(`/opportunities?${new URLSearchParams({ ...(status ? { status } : {}), ...(department ? { department } : {}) })}`),
+  // Rapports quotidiens archivés, et discussion avec le chef de rayon.
+  listReports: (section?: string, department?: string) =>
+    request<{
+      count: number
+      reports: Array<{
+        id: string
+        section: string
+        day: string
+        title: string
+        summary: Record<string, number | string> | null
+        createdAt: string
+      }>
+    }>(`/reports?${new URLSearchParams({ ...(section ? { section } : {}), ...(department ? { department } : {}) })}`),
+  getReport: (id: string) =>
+    request<{
+      id: string
+      section: string
+      day: string
+      title: string
+      body: string
+      summary: Record<string, number | string> | null
+    }>(`/reports/${id}`),
+  deleteReport: (id: string) => request(`/reports/${id}`, { method: 'DELETE' }),
+
+  chatHistory: (departmentId: string) =>
+    request<{
+      agentName: string
+      messages: Array<{
+        id: string
+        role: string
+        content: string
+        billed: boolean
+        createdAt: string
+      }>
+    }>(`/chat/${departmentId}`),
+  askDepartment: (departmentId: string, question: string) =>
+    request<{
+      message: { id: string; role: string; content: string; billed: boolean; createdAt: string }
+      billed: boolean
+      credits: number | null
+    }>(`/chat/${departmentId}`, { method: 'POST', body: JSON.stringify({ question }) }),
+
   // Chefs de rayon : un agent par secteur, embauché explicitement.
   departmentCatalogue: () =>
     request<
