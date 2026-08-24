@@ -20,6 +20,7 @@ import Veille from './pages/Veille'
 import Rayons from './pages/Rayons'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
+import Deliveries from './pages/Deliveries'
 import Rayon from './pages/Rayon'
 import Guide from './pages/Guide'
 
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/guide" element={<Protected><Guide /></Protected>} />
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
           <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
+          <Route path="/livraisons" element={<Protected><Deliveries /></Protected>} />
           <Route path="/messages" element={<Protected><Messages /></Protected>} />
           <Route path="/pilote" element={<Protected><Autopilot /></Protected>} />
           <Route path="/rayons" element={<Protected><Rayons /></Protected>} />

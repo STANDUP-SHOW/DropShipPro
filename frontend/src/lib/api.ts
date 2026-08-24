@@ -244,7 +244,50 @@ export const api = {
 
   openBillingPortal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
 
-  listOrders: () => request<any[]>('/orders'),
+  listOrders: () =>
+    request<
+      Array<{
+        id: string
+        platform: string
+        status: string
+        buyerName: string
+        amount: number | string
+        currency: string
+        trackingNumber: string | null
+        product: { id: string; title: string; aiTitle: string | null } | null
+      }>
+    >('/orders'),
+  getOrder: (id: string) =>
+    request<{
+      id: string
+      platform: string
+      status: string
+      buyerName: string
+      buyerEmail: string | null
+      buyerAddress: unknown
+      amount: number
+      currency: string
+      trackingNumber: string | null
+      carrier: string | null
+      supplierOrderUrl: string | null
+      externalOrderId: string | null
+      conversationId: string | null
+      tracking: {
+        number: string
+        carrier: string | null
+        carrierLabel: string
+        url: string
+        generic: boolean
+      } | null
+      events: Array<{ date: string; status: string; location: string | null }> | null
+    }>(`/orders/${id}`),
+  setTracking: (id: string, trackingNumber: string, carrier?: string) =>
+    request<{ ok: true }>(`/orders/${id}/tracking`, {
+      method: 'PUT',
+      body: JSON.stringify({ trackingNumber, carrier }),
+    }),
+  contactBuyer: (id: string) =>
+    request<{ id: string; created: boolean }>(`/orders/${id}/contact`, { method: 'POST' }),
   createOrder: (data: Record<string, unknown>) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
   updateOrder: (id: string, data: Record<string, unknown>) =>
     request(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
+import { identify, fetchEvents } from '../services/tracking.js'
 
 export const ordersRouter = Router()
 ordersRouter.use(requireAuth)
@@ -139,4 +140,93 @@ ordersRouter.patch('/:id', async (req: AuthedRequest, res) => {
 
   const order = await prisma.order.update({ where: { id: req.params.id }, data: parsed.data })
   res.json(order)
+})
+
+/**
+ * La fiche d'une commande : adresse, colis, et de quoi joindre l'acheteur.
+ *
+ * Le suivi détaillé n'arrive que si une clé 17TRACK est configurée ; sans elle,
+ * le lien vers le transporteur reste affiché, ce qui couvre l'essentiel du
+ * besoin sans imposer un abonnement à un vendeur qui débute.
+ */
+ordersRouter.get('/:id', async (req: AuthedRequest, res) => {
+  const order = await prisma.order.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: { product: { select: { id: true, title: true, aiTitle: true, images: true } } },
+  })
+  if (!order) return res.status(404).json({ error: 'Commande introuvable' })
+
+  const tracking = order.trackingNumber ? identify(order.trackingNumber, order.carrier) : null
+  const events = tracking ? await fetchEvents(tracking.number, tracking.carrier) : null
+
+  // Une conversation déjà ouverte pour cette commande : le bouton « contacter »
+  // doit y ramener au lieu d'en créer une deuxième.
+  const conversation = await prisma.conversation.findFirst({
+    where: { userId: req.userId!, orderId: order.id },
+    select: { id: true },
+  })
+
+  res.json({
+    ...order,
+    amount: Number(order.amount),
+    platformBalance: order.platformBalance === null ? null : Number(order.platformBalance),
+    tracking,
+    events,
+    conversationId: conversation?.id ?? null,
+  })
+})
+
+const trackingSchema = z.object({
+  trackingNumber: z.string().trim().min(3).max(60),
+  carrier: z.string().trim().max(40).optional(),
+})
+
+ordersRouter.put('/:id/tracking', async (req: AuthedRequest, res) => {
+  const parsed = trackingSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Numéro de suivi invalide' })
+
+  const { count } = await prisma.order.updateMany({
+    where: { id: req.params.id, userId: req.userId! },
+    data: { trackingNumber: parsed.data.trackingNumber, carrier: parsed.data.carrier ?? null },
+  })
+  if (!count) return res.status(404).json({ error: 'Commande introuvable' })
+
+  res.json({ ok: true, tracking: identify(parsed.data.trackingNumber, parsed.data.carrier) })
+})
+
+/**
+ * Contacter l'acheteur depuis la commande.
+ *
+ * Ouvre une conversation dans la messagerie, rattachée à la commande et au
+ * produit, et confiée au chef de rayon qui saura répondre. Rien n'est envoyé
+ * ici : le vendeur écrit, relit, et décide.
+ */
+ordersRouter.post('/:id/contact', async (req: AuthedRequest, res) => {
+  const order = await prisma.order.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: { product: { select: { id: true, title: true, aiTitle: true } } },
+  })
+  if (!order) return res.status(404).json({ error: 'Commande introuvable' })
+
+  const existing = await prisma.conversation.findFirst({
+    where: { userId: req.userId!, orderId: order.id },
+    select: { id: true },
+  })
+  if (existing) return res.json({ id: existing.id, created: false })
+
+  const conversation = await prisma.conversation.create({
+    data: {
+      userId: req.userId!,
+      platform: order.platform,
+      customerName: order.buyerName,
+      customerEmail: order.buyerEmail,
+      subject: `Commande ${order.externalOrderId ?? order.id.slice(0, 8)}`,
+      productId: order.productId,
+      orderId: order.id,
+      // Ouverte par le vendeur : rien à signaler comme non lu.
+      unread: false,
+    },
+  })
+
+  res.status(201).json({ id: conversation.id, created: true })
 })

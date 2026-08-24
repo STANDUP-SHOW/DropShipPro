@@ -231,6 +231,11 @@ model Order {
   status           OrderStatus  @default(NEW)
   supplierOrderUrl String?
   trackingNumber   String?
+  /// Transporteur, quand la plateforme le donne ou qu on le devine du numero.
+  carrier          String?
+  /// Adresse email de l acheteur, quand la plateforme la communique. Sans elle,
+  /// aucune reponse ne peut partir d ici.
+  buyerEmail       String?
   shippingLabelUrl String?
   receiptUrl       String?
   payoutStatus     PayoutStatus @default(PENDING)
