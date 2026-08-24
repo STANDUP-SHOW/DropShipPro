@@ -99,30 +99,53 @@ async function generate(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [...references, { text: params.prompt }] }],
-      generationConfig: { responseModalities: ['IMAGE'] },
+      // Les deux modalités, et non IMAGE seule : les modèles d'image de Google
+      // refusent une requête qui n'autorise pas aussi le texte, même quand on
+      // n'attend qu'une image en retour.
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
     }),
     signal: AbortSignal.timeout(90_000),
   })
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    console.error('génération d’image refusée', response.status, detail.slice(0, 400))
+    console.error('génération d’image refusée', response.status, detail.slice(0, 600))
+
+    // Le message de Google est repris tel quel : « quota dépassé », « modèle
+    // introuvable » et « clé restreinte » demandent trois gestes différents, et
+    // un message unique obligerait à fouiller les journaux pour les distinguer.
+    let raison = ''
+    try {
+      raison = JSON.parse(detail)?.error?.message ?? ''
+    } catch {
+      raison = detail.slice(0, 200)
+    }
+
     throw new ImageGenUnavailable(
-      response.status === 400 || response.status === 403
-        ? "La clé Google refuse la génération d'images. Vérifiez qu'elle est active et autorisée."
-        : "Le service de génération d'images ne répond pas.",
+      raison ? `Google a refusé la génération : ${raison}` : "Le service de génération d'images ne répond pas.",
     )
   }
 
   const payload = (await response.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string }; inline_data?: { data?: string } }> } }>
+    candidates?: Array<{
+      finishReason?: string
+      content?: { parts?: Array<{ inlineData?: { data?: string }; inline_data?: { data?: string } }> }
+    }>
   }
 
   const part = payload.candidates?.[0]?.content?.parts?.find(
     (p) => p.inlineData?.data || p.inline_data?.data,
   )
   const base64 = part?.inlineData?.data ?? part?.inline_data?.data
-  if (!base64) throw new ImageGenUnavailable("Le modèle n'a renvoyé aucune image.")
+  if (!base64) {
+    // Un refus de contenu se manifeste ainsi : réponse valide, mais sans image.
+    const raison = payload.candidates?.[0]?.finishReason
+    throw new ImageGenUnavailable(
+      raison && raison !== 'STOP'
+        ? `Le modèle n'a pas produit d'image (${raison}).`
+        : "Le modèle n'a renvoyé aucune image.",
+    )
+  }
 
   // Recadré au format demandé : le modèle rend rarement les dimensions exactes,
   // et une publicité au mauvais format est recadrée par la plateforme, souvent

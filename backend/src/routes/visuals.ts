@@ -158,7 +158,7 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
         where: { id: req.userId! },
         data: { imageCredits: { increment: 1 } },
       })
-      errors.push(err instanceof ImageGenUnavailable ? err.message : "Génération impossible.")
+      errors.push(err instanceof ImageGenUnavailable ? err.message : `Génération impossible : ${(err as Error).message}`)
       break
     }
   }
@@ -239,7 +239,7 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
           where: { id: req.userId! },
           data: { imageCredits: { increment: 1 } },
         })
-        errors.push(err instanceof ImageGenUnavailable ? err.message : 'Génération impossible.')
+        errors.push(err instanceof ImageGenUnavailable ? err.message : `Génération impossible : ${(err as Error).message}`)
         break outer
       }
     }
