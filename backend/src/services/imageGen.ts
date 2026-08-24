@@ -17,13 +17,19 @@ import { fetchSourceImage } from './watermark.js'
  */
 
 /**
- * Le modèle est configurable.
+ * Le modèle par défaut, et pourquoi celui-là.
  *
- * Les modèles d'image de Google changent de nom plus vite que le code ne se
- * redéploie. Le figer ici obligerait à une mise en production pour suivre une
- * simple renomination.
+ * Trois modèles d'image existent chez Google, au même usage mais pas au même
+ * prix : 0,0336 $ l'image en Flash Lite, 0,0672 $ en Flash, 0,134 $ en Pro. Sur
+ * une mise en situation de produit, l'écart de rendu ne justifie pas de payer
+ * quatre fois plus — et à quatre fois le prix, les gros paquets d'images se
+ * vendraient à perte.
+ *
+ * Le nom reste configurable : les modèles d'image de Google changent d'appellation
+ * plus vite que le code ne se redéploie, et un vendeur qui veut le rendu Pro sur
+ * un catalogue haut de gamme doit pouvoir le demander sans mise en production.
  */
-const MODEL = process.env.GOOGLE_IMAGE_MODEL?.trim() || 'gemini-3-pro-image-preview'
+const MODEL = process.env.GOOGLE_IMAGE_MODEL?.trim() || 'gemini-3.1-flash-lite-image'
 
 const ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
