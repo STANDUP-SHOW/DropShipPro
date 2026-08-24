@@ -18,20 +18,10 @@ import { apiBaseUrl } from '../lib/urls.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
+import { watermarkOptionsFor } from '../services/watermarkOptions.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
-
-/** Reads the shop's watermark settings; the logo wins over the text when present. */
-function watermarkOptionsFor(user: User): WatermarkOptions {
-  return {
-    text: user.watermarkText || user.shopName || 'DropShip Pro',
-    imagePath: user.watermarkImage,
-    scale: user.watermarkScale,
-    opacity: user.watermarkOpacity,
-    position: user.watermarkPosition as WatermarkPosition,
-  }
-}
 
 /**
  * Runs a handler through the import queue.

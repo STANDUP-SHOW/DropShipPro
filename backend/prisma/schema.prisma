@@ -101,6 +101,7 @@ model User {
   Department    Department[]
   Report        Report[]
   ChatMessage   ChatMessage[]
+  autopilot     Autopilot?
 }
 
 enum AuthTokenType {
@@ -528,4 +529,52 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@index([userId, departmentId])
+}
+
+/// Le pilote automatique d un vendeur.
+///
+/// Il importe et publie sans intervention, dans les limites que le vendeur
+/// fixe : chaque import coute un credit et remplit son catalogue, donc le
+/// plafond quotidien n est pas optionnel.
+model Autopilot {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  enabled        Boolean @default(false)
+  /// Imports maximum par jour. Le pilote s arrete net une fois atteint.
+  dailyLimit     Int     @default(5)
+  /// Publie apres import, sur les destinations a API uniquement.
+  autoPublish    Boolean @default(false)
+  /// Destinations retenues, parmi celles qui publient reellement.
+  destinations   Json?
+  /// Marge minimale exigee, en pourcentage du prix fournisseur.
+  minMargin      Int     @default(50)
+  /// N importe que ce dont le stock europeen est confirme.
+  requireEuStock Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  runs AutopilotRun[]
+}
+
+/// Le compte rendu d un passage du pilote automatique.
+model AutopilotRun {
+  id          String    @id @default(cuid())
+  userId      String
+  autopilotId String
+  autopilot   Autopilot @relation(fields: [autopilotId], references: [id], onDelete: Cascade)
+
+  day       String
+  imported  Int      @default(0)
+  published Int      @default(0)
+  skipped   Int      @default(0)
+  failed    Int      @default(0)
+  /// Ligne a ligne, ce qui a ete fait et pourquoi. Le vendeur doit pouvoir
+  /// comprendre une decision prise pendant qu il dormait.
+  log       Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, day])
 }

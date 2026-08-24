@@ -13,6 +13,7 @@ import { opportunitiesRouter } from './routes/opportunities.js'
 import { signalsRouter } from './routes/signals.js'
 import { departmentsRouter } from './routes/departments.js'
 import { reportsRouter, chatRouter } from './routes/reports.js'
+import { autopilotRouter } from './routes/autopilot.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
@@ -78,6 +79,7 @@ app.use('/api/signals', signalsRouter)
 app.use('/api/departments', departmentsRouter)
 app.use('/api/reports', reportsRouter)
 app.use('/api/chat', chatRouter)
+app.use('/api/autopilot', autopilotRouter)
 app.use('/api/public', publicRouter)
 
 const port = Number(process.env.PORT) || 4000

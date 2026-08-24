@@ -18,6 +18,7 @@ import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
 import Veille from './pages/Veille'
 import Rayons from './pages/Rayons'
+import Autopilot from './pages/Autopilot'
 import Rayon from './pages/Rayon'
 import Guide from './pages/Guide'
 
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/guide" element={<Protected><Guide /></Protected>} />
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
           <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
+          <Route path="/pilote" element={<Protected><Autopilot /></Protected>} />
           <Route path="/rayons" element={<Protected><Rayons /></Protected>} />
           <Route path="/rayon/:id" element={<Protected><Rayon /></Protected>} />
           <Route path="/veille" element={<Protected><Veille /></Protected>} />

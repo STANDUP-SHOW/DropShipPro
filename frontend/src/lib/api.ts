@@ -314,6 +314,47 @@ export const api = {
         detectedAt: string
       }>
     }>(`/opportunities?${new URLSearchParams({ ...(status ? { status } : {}), ...(department ? { department } : {}) })}`),
+  // Pilote automatique.
+  getAutopilot: () =>
+    request<{
+      settings: {
+        enabled: boolean
+        dailyLimit: number
+        autoPublish: boolean
+        destinations: string[]
+        minMargin: number
+        requireEuStock: boolean
+      }
+      destinations: Array<{ id: string; label: string; color: string }>
+    }>('/autopilot'),
+  saveAutopilot: (settings: {
+    enabled: boolean
+    dailyLimit: number
+    autoPublish: boolean
+    destinations: string[]
+    minMargin: number
+    requireEuStock: boolean
+  }) => request<{ ok: true }>('/autopilot', { method: 'PUT', body: JSON.stringify(settings) }),
+  runAutopilot: () =>
+    request<{ imported: number; published: number; skipped: number; failed: number }>(
+      '/autopilot/run',
+      { method: 'POST' },
+    ),
+  autopilotRuns: () =>
+    request<{
+      count: number
+      runs: Array<{
+        id: string
+        day: string
+        imported: number
+        published: number
+        skipped: number
+        failed: number
+        log: Array<{ titre: string; action: string; raison: string }> | null
+        createdAt: string
+      }>
+    }>('/autopilot/runs'),
+
   // Rapports quotidiens archivés, et discussion avec le chef de rayon.
   listReports: (section?: string, department?: string) =>
     request<{

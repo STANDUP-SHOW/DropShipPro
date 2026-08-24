@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireApiKey, type AgentRequest } from '../middleware/apiKey.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { findDepartment } from '../services/departments.js'
+import { runAutopilot } from '../services/autopilot.js'
 
 /**
  * La porte d'entrée des agents de veille.
@@ -365,4 +366,17 @@ agentRouter.post('/reports', async (req: AgentRequest, res) => {
     remplace: Boolean(existing),
     avertissement: dept.warning,
   })
+})
+
+/**
+ * Déclenchement du pilote automatique par un agent extérieur.
+ *
+ * C'est la seule route de /api/agent qui agit au lieu de déposer, et elle est
+ * volontairement sans paramètre : l'agent dit « c'est l'heure », le pilote fait
+ * ce que le vendeur a réglé. Un agent ne choisit ni le budget, ni les
+ * destinations, ni les seuils.
+ */
+agentRouter.post('/autopilot/run', async (req: AgentRequest, res) => {
+  const result = await runAutopilot(req.userId!)
+  res.json(result)
 })

@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Radar, UserPlus } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Radar, UserPlus, Plane } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
@@ -9,6 +9,7 @@ const NAV = [
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/rayons', label: 'Chefs de rayon', icon: UserPlus },
   { to: '/veille', label: 'Veille', icon: Radar },
+  { to: '/pilote', label: 'Pilote auto', icon: Plane },
   { to: '/orders', label: 'Commandes', icon: ShoppingBag },
   { to: '/abonnement', label: 'Mon compte', icon: Coins },
   { to: '/guide', label: 'Aide', icon: BookOpen },
