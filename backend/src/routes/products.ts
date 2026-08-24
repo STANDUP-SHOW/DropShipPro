@@ -71,10 +71,16 @@ productsRouter.post(
     })
     const watermarked = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
 
+    // Les options d'achat se lisent dans le texte de la page : aucune balise ne
+    // les déclare, et sans cette lecture un import par URL ne rendait jamais
+    // ni taille ni couleur — pour aucun produit.
+    const variants = await extractVariants(scraped.pageText)
+
     const product = await prisma.product.create({
       data: {
         userId: req.userId!,
         sourceUrl: parsed.data.url,
+        variants: variants ?? undefined,
         sourceSite: scraped.sourceSite,
         sourceCategory: scraped.sourceCategory,
         categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
@@ -112,6 +118,24 @@ productsRouter.post(
     }
   }),
 )
+
+/**
+ * Réunit les options relevées par l'extension et celles lues par le modèle.
+ *
+ * Le relevé de la page l'emporte sur celui du modèle quand les deux nomment le
+ * même groupe : il vient de ce que le site affiche vraiment, là où le modèle
+ * interprète. Mais tout groupe que seul le modèle a vu est conservé.
+ */
+function mergeVariants(
+  fromDom: Record<string, string[]> | null,
+  fromModel: Record<string, string[]> | null,
+): Record<string, string[]> | null {
+  const merged: Record<string, string[]> = { ...(fromModel ?? {}) }
+  for (const [name, values] of Object.entries(fromDom ?? {})) {
+    if (Array.isArray(values) && values.length > 1) merged[name] = values
+  }
+  return Object.keys(merged).length ? merged : null
+}
 
 const captureSchema = z.object({
   sourceUrl: z.string().url(),
@@ -151,8 +175,17 @@ productsRouter.post(
 
     // The extension rarely finds the option pickers by structure, so the model
     // reads them from the page text instead.
-    const variants =
-      data.variants ?? (data.pageText ? await extractVariants(data.pageText) : null)
+    /**
+     * Les deux relevés, fusionnés — et non l'un ou l'autre.
+     *
+     * Le relevé du DOM attrape des groupes d'options par leur classe, ce qui
+     * marche quand le site les nomme lisiblement et rate le reste. Laisser ce
+     * relevé l'emporter dès qu'il trouve quelque chose privait de la lecture par
+     * le modèle exactement là où elle sert : une fiche où il n'a ramené qu'un
+     * seul groupe sur trois. Le modèle complète donc ce qui manque.
+     */
+    const fromPage = data.pageText ? await extractVariants(data.pageText) : null
+    const variants = mergeVariants(data.variants as Record<string, string[]> | null, fromPage)
 
     const product = await prisma.product.create({
       data: {

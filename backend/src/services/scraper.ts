@@ -12,6 +12,15 @@ export interface ScrapedProduct {
   metaTitle: string | null
   metaDescription: string | null
   metaKeywords: string | null
+  /**
+   * Le texte visible de la fiche.
+   *
+   * Les options d achat — taille, couleur, capacite — ne se lisent pas dans une
+   * balise dediee : chaque site les rend a sa facon. Le texte permet de les
+   * extraire ensuite, et sans lui l import par URL ne rendait jamais aucune
+   * variante, quel que soit le produit.
+   */
+  pageText: string
 }
 
 function absoluteUrl(src: string, base: string): string {
@@ -122,6 +131,9 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     metaTitle: og('og:title') || null,
     metaDescription: $('meta[name="description"]').attr('content') || null,
     metaKeywords: $('meta[name="keywords"]').attr('content') || null,
+    // Le corps de la fiche, débarrassé des scripts et des styles : c'est là que
+    // se lisent les tailles et les couleurs, qu'aucune balise ne déclare.
+    pageText: $('main').text().trim() || $('body').text().trim(),
   }
 
   // Sites like Temu and JoyBuy answer scrapers with a bot wall or an empty JS

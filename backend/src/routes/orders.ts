@@ -243,3 +243,116 @@ ordersRouter.post('/:id/contact', async (req: AuthedRequest, res) => {
 
   res.status(201).json({ id: conversation.id, created: true })
 })
+
+/**
+ * Les achats à passer chez les fournisseurs.
+ *
+ * Une vente n'est pas une livraison : il faut encore acheter le produit. Ce qui
+ * fait perdre du temps ici n'est pas de cliquer, c'est de retrouver quelle
+ * commande correspond à quel produit, chez quel fournisseur, à quelle adresse.
+ * La liste est donc groupée par fournisseur — on passe une commande chez Temu,
+ * pas une commande par vente.
+ */
+ordersRouter.get('/purchases', async (req: AuthedRequest, res) => {
+  const orders = await prisma.order.findMany({
+    where: { userId: req.userId!, status: 'NEW' },
+    orderBy: { createdAt: 'asc' },
+    include: {
+      product: {
+        select: {
+          id: true,
+          title: true,
+          aiTitle: true,
+          sourceUrl: true,
+          sourceSite: true,
+          sourceCategory: true,
+          price: true,
+          shippingCost: true,
+          variants: true,
+          images: true,
+        },
+      },
+    },
+  })
+
+  // Groupé par fournisseur, puis par produit : deux ventes du même article chez
+  // le même fournisseur font une ligne de quantité 2, pas deux lignes.
+  const bySupplier = new Map<string, Map<string, {
+    product: (typeof orders)[number]['product']
+    quantity: number
+    orders: Array<{ id: string; buyerName: string; buyerAddress: unknown; platform: string; createdAt: Date }>
+  }>>()
+
+  for (const o of orders) {
+    const supplier = o.product.sourceSite || 'Fournisseur inconnu'
+    const forSupplier = bySupplier.get(supplier) ?? new Map()
+    bySupplier.set(supplier, forSupplier)
+
+    const line = forSupplier.get(o.product.id) ?? { product: o.product, quantity: 0, orders: [] }
+    line.quantity++
+    line.orders.push({
+      id: o.id,
+      buyerName: o.buyerName,
+      buyerAddress: o.buyerAddress,
+      platform: o.platform,
+      createdAt: o.createdAt,
+    })
+    forSupplier.set(o.product.id, line)
+  }
+
+  const suppliers = [...bySupplier.entries()].map(([supplier, lines]) => {
+    const items = [...lines.values()].map((l) => ({
+      productId: l.product.id,
+      title: l.product.aiTitle || l.product.title,
+      sourceUrl: l.product.sourceUrl,
+      category: l.product.sourceCategory,
+      variants: l.product.variants,
+      image: Array.isArray(l.product.images) ? l.product.images[0] ?? null : null,
+      unitCost: Number(l.product.price),
+      shippingCost: Number(l.product.shippingCost),
+      quantity: l.quantity,
+      total: Number(((Number(l.product.price) + Number(l.product.shippingCost)) * l.quantity).toFixed(2)),
+      orders: l.orders,
+    }))
+
+    return {
+      supplier,
+      items,
+      quantity: items.reduce((n, i) => n + i.quantity, 0),
+      total: Number(items.reduce((n, i) => n + i.total, 0).toFixed(2)),
+    }
+  })
+
+  res.json({
+    count: orders.length,
+    total: Number(suppliers.reduce((n, s) => n + s.total, 0).toFixed(2)),
+    suppliers,
+  })
+})
+
+const purchasedSchema = z.object({
+  orderIds: z.array(z.string()).min(1).max(200),
+  supplierOrderUrl: z.string().url().optional(),
+})
+
+/**
+ * Marquer des ventes comme achetées chez le fournisseur.
+ *
+ * Fait après coup, jamais avant : tant que le vendeur n'a pas payé, la commande
+ * reste à passer. Marquer d'avance ferait disparaître de la liste un achat que
+ * personne n'a fait, et le client attendrait un colis qui n'existe pas.
+ */
+ordersRouter.post('/purchases/done', async (req: AuthedRequest, res) => {
+  const parsed = purchasedSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Sélectionnez au moins une commande' })
+
+  const { count } = await prisma.order.updateMany({
+    where: { id: { in: parsed.data.orderIds }, userId: req.userId!, status: 'NEW' },
+    data: {
+      status: 'ORDERED_FROM_SUPPLIER',
+      ...(parsed.data.supplierOrderUrl ? { supplierOrderUrl: parsed.data.supplierOrderUrl } : {}),
+    },
+  })
+
+  res.json({ ok: true, updated: count })
+})
