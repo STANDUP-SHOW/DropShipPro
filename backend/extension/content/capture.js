@@ -211,7 +211,46 @@
     // products) filled the whole quota and the real gallery, which comes from the
     // page source, was never reached: an import returned fifteen pictures without
     // one of the product.
-    const ranked = [...candidates].sort((a, b) => Number(PRODUCT_PATH.test(b)) - Number(PRODUCT_PATH.test(a)))
+    /**
+     * L'hôte qui sert la galerie.
+     *
+     * Une fiche produit charge ses photos depuis un CDN dédié — aliexpress-media,
+     * kwcdn, cdn.shopify — et tout le reste (icônes, bannières, avatars) vient
+     * d'ailleurs. Le repérer sans coder un domaine par fournisseur : c'est celui
+     * qui sert le plus d'images sur la page.
+     */
+    const hostCount = new Map()
+    for (const url of candidates) {
+      if (NOT_A_PHOTO.test(url)) continue
+      try {
+        const host = new URL(url).host
+        hostCount.set(host, (hostCount.get(host) ?? 0) + 1)
+      } catch {
+        // Une adresse illisible ne compte pour aucun hôte.
+      }
+    }
+    const galleryHost = [...hostCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+
+    /**
+     * Le score décide de l'ordre, et donc de ce que le vendeur voit en premier.
+     *
+     * Sans lui, une page pouvait rendre cent quatre-vingts vignettes où les
+     * icônes d'interface passaient devant les photos du produit.
+     */
+    const score = (url) => {
+      if (NOT_A_PHOTO.test(url)) return -1000
+      let value = 0
+      try {
+        if (galleryHost && new URL(url).host === galleryHost) value += 1000
+      } catch {
+        // Adresse illisible : elle garde son score de base.
+      }
+      if (PRODUCT_PATH.test(url)) value += 200
+      if (OFF_TOPIC.test(url)) value -= 500
+      return value
+    }
+
+    const ranked = [...candidates].filter((u) => !NOT_A_PHOTO.test(u)).sort((a, b) => score(b) - score(a))
 
     const probes = ranked.slice(0, 140).flatMap(sizeVariants)
     const measured = (await Promise.all([...new Set(probes)].map(measure))).filter(Boolean)
@@ -442,11 +481,6 @@
       // Biggest first: the gallery is shot at full size, the rest are thumbnails.
       const sorted = [...found].sort((a, b) => b.width * b.height - a.width * a.height)
 
-      // Nothing pre-selected: size alone doesn't tell a product photo from a
-      // banner, and the largest images on these pages are often adverts. Starting
-      // empty is faster than unticking dozens of wrong guesses.
-      const preselected = new Set()
-
       // Sizes actually present, so the seller can isolate the gallery: on Temu the
       // product shots are all 800×800 while the surrounding clutter is not.
       const sizes = [...new Set(sorted.map((i) => `${i.width}×${i.height}`))]
@@ -454,13 +488,41 @@
         .sort((a, b) => b.count - a.count)
         .slice(0, 6)
 
+      /**
+       * Une présélection, plutôt qu'une grille vide.
+       *
+       * Partir de zéro se défendait tant que rien ne distinguait une photo
+       * produit d'une bannière. Ce n'est plus le cas : les images sont classées
+       * par l'hôte qui sert la galerie, et une fiche partage presque toujours un
+       * même format pour ses photos — huit cents sur huit cents chez Temu, mille
+       * sur mille chez AliExpress.
+       *
+       * On coche donc le format le plus représenté parmi les grandes images. Le
+       * vendeur corrige d'un clic ; il ne construit plus sa sélection de rien.
+       */
+      const dominant = sizes.find((s) => {
+        const [w, h] = s.label.split('×').map(Number)
+        return s.count >= 3 && Math.min(w, h) >= MIN_SIDE
+      })
+
+      const preselected = new Set(
+        dominant
+          ? sorted
+              .filter((i) => `${i.width}×${i.height}` === dominant.label)
+              .slice(0, 10)
+              .map((i) => i.url)
+          : [],
+      )
+
       panel.innerHTML = `
         <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0">
           <div style="font-weight:700;font-size:15px">Choisissez les photos du produit</div>
           <div style="color:#9ca3af;margin-top:3px">
-            ${sorted.length} image(s) trouvées, aucune présélectionnée. Filtrez par dimensions pour
-            isoler la galerie — sur Temu les photos produit font en général 800×800 — puis
-            « Sélectionner ce filtre ». 10 maximum.
+            ${sorted.length} image(s) trouvées. ${
+              preselected.size
+                ? `Les ${preselected.size} photos au format ${dominant.label} sont présélectionnées — c'est presque toujours la galerie.`
+                : 'Aucune présélection : aucun format ne se détache.'
+            } Corrigez d'un clic, ou filtrez par dimensions. 10 maximum.
           </div>
           <div id="dsp-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
           <div style="display:flex;gap:8px;margin-top:10px">
