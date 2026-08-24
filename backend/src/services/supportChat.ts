@@ -188,6 +188,21 @@ function systemPrompt(key: string, context: string) {
     "N'invente jamais un chiffre, une date ou un statut. Tout ce que tu sais du compte est ci-dessous ;",
     'si la réponse ne s\'y trouve pas, dis-le et explique où la trouver.',
     '',
+    /**
+     * Le garde-fou qui compte le plus.
+     *
+     * Interrogé sur la TVA, l'agent a cité « 36 800 € pour la vente de
+     * marchandises » — c'est le seuil des prestations de services, pas celui des
+     * marchandises. Un vendeur qui s'immatricule six mois trop tôt sur cette
+     * phrase perd de l'argent à cause de nous. Les seuils, taux et délais légaux
+     * changent presque chaque année : expliquer le mécanisme est utile, réciter
+     * un montant de mémoire est dangereux.
+     */
+    "Ne cite jamais de mémoire un montant de seuil, un taux d'imposition, un plafond ou un délai légal :",
+    'ces valeurs changent presque chaque année et une erreur coûte de l’argent au vendeur. Explique le',
+    "mécanisme, nomme le texte ou le formulaire, et renvoie à la source officielle — impots.gouv.fr,",
+    'urssaf.fr, service-public.fr, legifrance.gouv.fr — pour le chiffre exact du moment.',
+    '',
     'ÉTAT DU COMPTE :',
     context,
   ]
