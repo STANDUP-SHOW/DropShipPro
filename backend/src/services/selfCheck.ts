@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma.js'
-import { checkStorage, type StorageStatus } from '../lib/storage.js'
+import { checkStorage, storageError, type StorageStatus } from '../lib/storage.js'
 import { getStripe } from './billing.js'
 import { checkAi, type AiStatus } from './aiHealth.js'
 import { mailIsConfigured } from './mailer.js'
@@ -59,7 +59,7 @@ export async function selfCheck(): Promise<ServiceReport> {
 
   if (stockage === 'r2-refuse') {
     alertes.push(
-      "Stockage R2 : l'ecriture est refusee. Les filigranes ne sont pas appliques — les photos du fournisseur partent telles quelles — et les agents visuels ne peuvent rien enregistrer.",
+      "Stockage R2 : l'ecriture est refusee (" + (storageError() ?? "raison inconnue") + "). Les filigranes ne sont pas appliques — les photos du fournisseur partent telles quelles — et les agents visuels ne peuvent rien enregistrer.",
     )
   }
 

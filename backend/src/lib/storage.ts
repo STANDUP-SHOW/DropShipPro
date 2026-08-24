@@ -90,6 +90,14 @@ export async function putFile(key: string, body: Buffer, contentType: string): P
   return `${config.publicUrl}/${key}`
 }
 
+/** Le dernier refus du stockage, tel quel : « Access Denied » et « NoSuchBucket »
+ * demandent deux gestes differents. */
+let lastStorageError: string | null = null
+
+export function storageError() {
+  return lastStorageError
+}
+
 export type StorageStatus = 'r2' | 'r2-refuse' | 'disque-local'
 
 /**
@@ -110,7 +118,9 @@ export async function checkStorage(): Promise<StorageStatus> {
     await config.client.send(
       new PutObjectCommand({
         Bucket: config.bucket,
-        Key: 'health/write-test.txt',
+        // Le meme prefixe que les agents visuels : un jeton R2 peut etre limite
+        // a un prefixe, et tester ailleurs donnerait un vert trompeur.
+        Key: 'generated/health-write-test.txt',
         Body: Buffer.from('ok'),
         ContentType: 'text/plain',
         CacheControl: 'no-store',
@@ -119,6 +129,7 @@ export async function checkStorage(): Promise<StorageStatus> {
     return 'r2'
   } catch (err) {
     console.error('stockage R2 : écriture refusée', (err as Error).message)
+    lastStorageError = (err as Error).message
     return 'r2-refuse'
   }
 }
