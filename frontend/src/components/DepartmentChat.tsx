@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Send, Coins, Info } from 'lucide-react'
+import { Send, Coins, Info, Mic, MicOff } from 'lucide-react'
 import { api } from '../lib/api'
 
 type Message = Awaited<ReturnType<typeof api.chatHistory>>['messages'][number]
@@ -24,7 +24,51 @@ export function DepartmentChat({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [credits, setCredits] = useState<number | null>(null)
+  const [listening, setListening] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const recognition = useRef<any>(null)
+
+  /**
+   * La dictée, quand le navigateur sait le faire.
+   *
+   * Chrome expose la reconnaissance vocale, Firefox et Safari non. Le micro
+   * n'apparaît donc que là où il fonctionne : un bouton qui ne fait rien vaut
+   * moins que pas de bouton.
+   */
+  const voiceSupported =
+    typeof window !== 'undefined' &&
+    Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+
+  function toggleVoice() {
+    if (!voiceSupported) return
+
+    if (listening) {
+      recognition.current?.stop()
+      setListening(false)
+      return
+    }
+
+    const Recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const engine = new Recognition()
+    engine.lang = 'fr-FR'
+    engine.interimResults = true
+    engine.continuous = false
+
+    engine.onresult = (event: any) => {
+      // On recompose tout depuis le début : les moteurs renvoient des segments
+      // provisoires qu'ils corrigent ensuite, et concaténer donnerait des
+      // répétitions.
+      let texte = ''
+      for (let i = 0; i < event.results.length; i++) texte += event.results[i][0].transcript
+      setQuestion(texte)
+    }
+    engine.onerror = () => setListening(false)
+    engine.onend = () => setListening(false)
+
+    recognition.current = engine
+    engine.start()
+    setListening(true)
+  }
 
   useEffect(() => {
     api
@@ -121,9 +165,23 @@ export function DepartmentChat({
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
-          placeholder={`Une question pour ${agentName} ?`}
+          placeholder={listening ? "Parlez…" : `Une question pour ${agentName} ?`}
           className="flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
         />
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={toggleVoice}
+            title={listening ? 'Arrêter la dictée' : 'Dicter votre question'}
+            className={
+              listening
+                ? 'shrink-0 rounded-xl border border-red-400/40 bg-red-400/15 px-3 py-2 text-red-300'
+                : 'shrink-0 rounded-xl border border-white/10 px-3 py-2 text-gray-400 hover:bg-white/5'
+            }
+          >
+            {listening ? <MicOff size={14} /> : <Mic size={14} />}
+          </button>
+        )}
         <button
           type="button"
           onClick={ask}
