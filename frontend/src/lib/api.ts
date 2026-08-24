@@ -309,9 +309,37 @@ export const api = {
         status: 'NEW' | 'KEPT' | 'REJECTED' | 'IMPORTED'
         productId: string | null
         needsExtension: boolean
+        personal: boolean
+        matchedProducts: Array<{ id: string; title: string; on: string[] }>
         detectedAt: string
       }>
     }>(status ? `/opportunities?status=${status}` : '/opportunities'),
+  listSignals: (kind?: string) =>
+    request<{
+      count: number
+      signals: Array<{
+        id: string
+        kind: 'SOCIAL' | 'MARKET'
+        platform: string | null
+        title: string
+        summary: string | null
+        url: string | null
+        category: string | null
+        brand: string | null
+        metrics: Record<string, number | string> | null
+        engagementScore: number | null
+        trendScore: number | null
+        isNew: boolean
+        status: 'NEW' | 'KEPT' | 'REJECTED'
+        notes: string | null
+        detectedAt: string
+        personal: boolean
+        matchedProducts: Array<{ id: string; title: string; on: string[] }>
+      }>
+    }>(kind ? `/signals?kind=${kind}` : '/signals'),
+  setSignalStatus: (id: string, status: string) =>
+    request(`/signals/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
   setOpportunityStatus: (id: string, status: string, productId?: string) =>
     request(`/opportunities/${id}`, { method: 'PATCH', body: JSON.stringify({ status, productId }) }),
   deleteOpportunity: (id: string) => request(`/opportunities/${id}`, { method: 'DELETE' }),

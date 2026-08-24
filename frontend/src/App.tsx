@@ -16,7 +16,7 @@ import Privacy from './pages/Privacy'
 import ReviewsPage from './pages/ReviewsPage'
 import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
-import Opportunities from './pages/Opportunities'
+import Veille from './pages/Veille'
 import Guide from './pages/Guide'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -48,7 +48,7 @@ export default function App() {
           <Route path="/guide" element={<Protected><Guide /></Protected>} />
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
           <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
-          <Route path="/opportunites" element={<Protected><Opportunities /></Protected>} />
+          <Route path="/veille" element={<Protected><Veille /></Protected>} />
           <Route path="/analyse-marche" element={<Protected><MarketAnalysisPage /></Protected>} />
         </Routes>
       </AuthProvider>

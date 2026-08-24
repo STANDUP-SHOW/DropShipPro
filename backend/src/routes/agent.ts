@@ -165,3 +165,106 @@ agentRouter.get('/opportunities', async (req: AgentRequest, res) => {
 
   res.json({ count: items.length, opportunities: items })
 })
+
+const signalSchema = z.object({
+  /** SOCIAL : réseaux sociaux. MARKET : places de marché, prix, concurrence. */
+  kind: z.enum(['SOCIAL', 'MARKET']),
+  platform: z.string().trim().max(40).optional(),
+  title: z.string().trim().min(1).max(300),
+  summary: z.string().trim().max(4000).optional(),
+  url: z.string().url().max(2000).optional(),
+  category: z.string().trim().max(80).optional(),
+  brand: z.string().trim().max(120).optional(),
+  /**
+   * Chiffres libres : GMV, unités vendues, prix moyen, croissance. Aucun schéma
+   * imposé, parce qu'aucune plateforme ne publie les mêmes.
+   */
+  metrics: z.record(z.union([z.number(), z.string()])).optional(),
+  /**
+   * Scores de 0 à 100. Ce sont des estimations issues de signaux publics, pas
+   * des taux de conversion : les plateformes ne les publient pas.
+   */
+  engagementScore: z.number().int().min(0).max(100).optional(),
+  trendScore: z.number().int().min(0).max(100).optional(),
+  isNew: z.boolean().optional(),
+  notes: z.string().trim().max(4000).optional(),
+  raw: z.unknown().optional(),
+})
+
+const signalsBatchSchema = z.object({ signals: z.array(signalSchema).min(1).max(100) })
+
+/**
+ * Empreinte de déduplication.
+ *
+ * L'URL serait le choix évident, mais la plupart des signaux n'en ont pas : « les
+ * bagues connectées percent en France » ne pointe nulle part. Le titre normalisé
+ * fait le travail, et un même constat reformulé à la marge crée une ligne de
+ * plus — ce qui vaut mieux que d'écraser deux observations distinctes.
+ */
+function fingerprintOf(s: { kind: string; platform?: string; title: string }) {
+  const title = s.title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+  return `${s.kind}:${(s.platform ?? '').toLowerCase()}:${title}`.slice(0, 400)
+}
+
+agentRouter.post('/signals', async (req: AgentRequest, res) => {
+  const parsed = signalsBatchSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Lot invalide',
+      details: parsed.error.issues.slice(0, 10).map((i) => `${i.path.join('.')} : ${i.message}`),
+    })
+  }
+
+  let created = 0
+  let updated = 0
+  const rejected: Array<{ title: string; raison: string }> = []
+
+  for (const s of parsed.data.signals) {
+    const fingerprint = fingerprintOf(s)
+    const data = {
+      kind: s.kind,
+      platform: s.platform ?? null,
+      title: s.title,
+      summary: s.summary ?? null,
+      url: s.url ?? null,
+      category: s.category ?? null,
+      brand: s.brand ?? null,
+      metrics: (s.metrics ?? null) as never,
+      engagementScore: s.engagementScore ?? null,
+      trendScore: s.trendScore ?? null,
+      isNew: s.isNew ?? false,
+      notes: s.notes ?? null,
+      raw: (s.raw ?? null) as never,
+    }
+
+    try {
+      const existing = await prisma.signal.findUnique({
+        where: { userId_fingerprint: { userId: req.userId!, fingerprint } },
+        select: { id: true },
+      })
+
+      if (!existing) {
+        await prisma.signal.create({ data: { ...data, fingerprint, userId: req.userId! } })
+        created++
+      } else {
+        // Les chiffres sont rafraîchis, l'arbitrage du vendeur reste intact.
+        await prisma.signal.update({ where: { id: existing.id }, data })
+        updated++
+      }
+    } catch (e) {
+      rejected.push({ title: s.title, raison: (e as Error).message })
+    }
+  }
+
+  res.status(201).json({
+    recus: parsed.data.signals.length,
+    crees: created,
+    mis_a_jour: updated,
+    rejetes: rejected,
+  })
+})

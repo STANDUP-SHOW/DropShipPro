@@ -7,7 +7,7 @@ import { api } from '../lib/api'
 
 const NAV = [
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
-  { to: '/opportunites', label: 'Opportunités', icon: Radar },
+  { to: '/veille', label: 'Veille', icon: Radar },
   { to: '/orders', label: 'Commandes', icon: ShoppingBag },
   { to: '/abonnement', label: 'Mon compte', icon: Coins },
   { to: '/guide', label: 'Aide', icon: BookOpen },

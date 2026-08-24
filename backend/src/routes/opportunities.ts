@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { matchToCatalogue } from '../services/signalMatch.js'
 
 /**
  * La boîte à opportunités, côté vendeur.
@@ -44,9 +45,18 @@ opportunitiesRouter.get('/', async (req: AuthedRequest, res) => {
     take: 300,
   })
 
+  // Le même rapprochement que pour les signaux : une opportunité qui recoupe une
+  // annonce existante n'est pas une découverte, c'est une nouvelle sur un
+  // produit que le vendeur travaille déjà — et cela se lit autrement.
+  const matches = await matchToCatalogue(
+    req.userId!,
+    items.map((o) => ({ title: o.title, category: o.category })),
+  )
+  const matchList = [...matches.values()]
+
   res.json({
     count: items.length,
-    opportunities: items.map((o) => ({
+    opportunities: items.map((o, i) => ({
       ...o,
       sourcePrice: Number(o.sourcePrice),
       marketPrice: o.marketPrice === null ? null : Number(o.marketPrice),
@@ -56,6 +66,8 @@ opportunitiesRouter.get('/', async (req: AuthedRequest, res) => {
           ? Math.round(((Number(o.marketPrice) - Number(o.sourcePrice)) / Number(o.sourcePrice)) * 100)
           : null,
       needsExtension: needsExtension(o.sourceUrl),
+      matchedProducts: matchList[i] ?? [],
+      personal: (matchList[i] ?? []).length > 0,
       // Le delai lisible : le texte de la plateforme prime sur le nombre extrait.
       delivery: o.deliveryText ?? (o.deliveryDays === null ? null : String(o.deliveryDays) + " jours"),
     })),

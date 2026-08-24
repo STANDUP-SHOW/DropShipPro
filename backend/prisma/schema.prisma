@@ -96,6 +96,7 @@ model User {
   authTokens    AuthToken[]
   apiKeys       ApiKey[]
   opportunities Opportunity[]
+  signals       Signal[]
   review        Review?
 }
 
@@ -379,4 +380,61 @@ model Opportunity {
   /// Le meme produit repere deux fois ne fait pas deux lignes.
   @@unique([userId, sourceUrl])
   @@index([userId, status])
+}
+
+enum SignalKind {
+  SOCIAL
+  MARKET
+}
+
+enum SignalStatus {
+  NEW
+  KEPT
+  REJECTED
+}
+
+/// Un signal de marche repere par un agent de veille.
+///
+/// Distinct d Opportunity : une opportunite est un produit qu on peut importer,
+/// un signal est une information — une marque qui perce sur TikTok Shop, une
+/// categorie en croissance, un prix constate. On ne l importe pas, on en tient
+/// compte.
+model Signal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind     SignalKind
+  /// tiktok, instagram, facebook, amazon, cdiscount...
+  platform String?
+  title    String
+  summary  String?    @db.Text
+  url      String?
+  category String?
+  /// Marque ou boutique concernee, quand le signal en designe une.
+  brand    String?
+
+  /// Chiffres tels que l agent les rapporte, sans schema impose : le GMV, les
+  /// unites, la croissance et le prix moyen ne sont jamais tous disponibles.
+  metrics Json?
+
+  /// Scores de 0 a 100. Ce sont des estimations, jamais des taux de conversion
+  /// proprietaires — les plateformes ne les publient pas.
+  engagementScore Int?
+  trendScore      Int?
+
+  isNew  Boolean      @default(false)
+  status SignalStatus @default(NEW)
+  notes  String?      @db.Text
+  raw    Json?
+
+  /// Empreinte de deduplication : le meme signal revu a chaque scan ne fait pas
+  /// une ligne de plus.
+  fingerprint String
+  detectedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, fingerprint])
+  @@index([userId, kind, status])
 }

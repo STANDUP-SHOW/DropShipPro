@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Radar, Check, X, Download, ExternalLink, Puzzle, HelpCircle } from 'lucide-react'
-import { Layout } from '../components/Layout'
+import { Check, X, Download, ExternalLink, Puzzle, HelpCircle } from 'lucide-react'
 import { api } from '../lib/api'
 
 type Opportunity = Awaited<ReturnType<typeof api.listOpportunities>>['opportunities'][number]
@@ -28,7 +27,7 @@ function euro(value: number | null, currency: string) {
  * mieux qu'un « non » inventé — c'est ce qui a fait écarter à tort des produits
  * valables lors des premiers scans.
  */
-export default function Opportunities() {
+export function OpportunityList({ scope }: { scope: 'ALL' | 'PERSONAL' }) {
   const [items, setItems] = useState<Opportunity[]>([])
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>('NEW')
   const [loading, setLoading] = useState(true)
@@ -46,7 +45,10 @@ export default function Opportunities() {
 
   useEffect(load, [])
 
-  const shown = useMemo(() => items.filter((o) => o.status === tab), [items, tab])
+  const shown = useMemo(
+    () => items.filter((o) => o.status === tab && (scope === 'ALL' || o.personal)),
+    [items, tab, scope],
+  )
   const counts = useMemo(() => {
     const map: Record<string, number> = {}
     for (const o of items) map[o.status] = (map[o.status] ?? 0) + 1
@@ -82,16 +84,7 @@ export default function Opportunities() {
   }
 
   return (
-    <Layout>
-      <h1 className="flex items-center gap-2 text-2xl font-bold">
-        <Radar size={22} className="text-emerald-400" />
-        <span>Opportunités</span>
-      </h1>
-      <p className="mt-1 text-sm text-gray-400">
-        Ce que vos agents de veille ont repéré chez les fournisseurs. Vous gardez, vous écartez, et
-        vous importez ce qui vous intéresse — rien ne part tout seul.
-      </p>
-
+    <>
       <div className="mt-5 flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button
@@ -274,6 +267,6 @@ export default function Opportunities() {
           </li>
         ))}
       </ul>
-    </Layout>
+    </>
   )
 }
