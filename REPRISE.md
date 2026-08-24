@@ -30,14 +30,14 @@ Conséquences réelles, toutes observées :
   ranger ;
 - tout ce qui écrira des fichiers ensuite : factures, exports.
 
-**Cause identifiee** : le compartiment est dans la juridiction europeenne
-(« photos de droppost | UE »). R2 exige alors l adresse
-, et repond « Access Denied » — et non
-« compartiment introuvable » — quand on vise l adresse standard. Le jeton etait
-valide depuis le debut.
+**Cause identifiée** : le compartiment est dans la **juridiction européenne**
+(« photos de droppost | UE »). R2 exige alors l'adresse
+`<compte>.eu.r2.cloudflarestorage.com`, et répond « Access Denied » — et non
+« compartiment introuvable » — quand on vise l'adresse standard. Le jeton était
+valide depuis le début : il est bien en *Object Read & Write*.
 
-**A faire** : poser  dans Railway. Le code construit
-l adresse en consequence.
+**À faire** : poser `R2_JURISDICTION=eu` dans Railway. Le code construit
+l'adresse en conséquence.
 
 **Autres pistes, si cela ne suffit pas** — R2 → Manage API Tokens :
 
