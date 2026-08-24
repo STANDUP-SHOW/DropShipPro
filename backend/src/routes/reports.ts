@@ -4,6 +4,8 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { askDepartment } from '../services/departmentChat.js'
 import { reserveCredits } from '../services/billing.js'
+import { PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
+import { askSupportAgent } from '../services/supportChat.js'
 
 /**
  * Les rapports archivés et les échanges avec les chefs de rayon.
@@ -152,6 +154,120 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
   res.status(201).json({
     message: saved,
     billed: answer.billed && !unlimited,
+    credits: unlimited ? null : credits,
+  })
+})
+
+// --- Agents transverses ----------------------------------------------------
+
+/**
+ * L'équipe fournie d'office, avec l'état réel de chacun.
+ *
+ * Un agent « actif » l'est parce que le service derrière répond, pas parce que
+ * la liste le dit. Un vendeur qui voit « actif » sur un agent en panne perd sa
+ * confiance dans les huit autres.
+ */
+chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
+  const [user, departments] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: req.userId! },
+      select: { controlAgent: true },
+    }),
+    prisma.department.count({ where: { userId: req.userId! } }),
+  ])
+
+  const autopilot = await prisma.autopilot.findUnique({ where: { userId: req.userId! } })
+  const iaReady = Boolean(process.env.ANTHROPIC_API_KEY)
+
+  const statusOf = (key: string): { state: 'actif' | 'inactif' | 'indisponible'; note: string | null } => {
+    if (!iaReady && key !== 'scrapper' && key !== 'seller') {
+      return { state: 'indisponible', note: "Le service d'intelligence artificielle ne répond pas." }
+    }
+    if (key === 'control' && !user.controlAgent) {
+      return { state: 'inactif', note: 'Désactivé dans vos réglages.' }
+    }
+    if (key === 'autopilot') {
+      if (!autopilot?.enabled) return { state: 'inactif', note: 'Pilote automatique désactivé.' }
+      if (!departments) return { state: 'inactif', note: "Aucun chef de rayon : il n'a rien à traiter." }
+      return { state: 'actif', note: `Plafond de ${autopilot.dailyLimit} import(s) par jour.` }
+    }
+    return { state: 'actif', note: null }
+  }
+
+  res.json({
+    pipeline: PIPELINE_AGENTS.map((a) => ({ ...a, ...statusOf(a.key) })),
+    support: SUPPORT_AGENTS.map((a) => ({ ...a, ...statusOf(a.key) })),
+    departments,
+  })
+})
+
+chatRouter.get('/support/:key', async (req: AuthedRequest, res) => {
+  const agent = findSupportAgent(req.params.key)
+  if (!agent) return res.status(404).json({ error: 'Agent introuvable' })
+
+  const messages = await prisma.chatMessage.findMany({
+    where: { userId: req.userId!, supportAgent: agent.key },
+    orderBy: { createdAt: 'asc' },
+    take: 200,
+  })
+
+  res.json({ agent, messages })
+})
+
+/**
+ * Une question à un agent de comptoir.
+ *
+ * Facturée comme une question à un chef de rayon : c'est le même appel au
+ * modèle, avec en plus une lecture de l'état du compte.
+ */
+chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
+  const agent = findSupportAgent(req.params.key)
+  if (!agent) return res.status(404).json({ error: 'Agent introuvable' })
+
+  const parsed = askSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Écrivez votre question' })
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.userId! },
+    select: { credits: true, plan: true, premiumUntil: true },
+  })
+  const unlimited = user.plan === 'PREMIUM' && (!user.premiumUntil || user.premiumUntil > new Date())
+  if (!unlimited && user.credits < 1) {
+    return res.status(402).json({
+      error: "Il vous faut au moins un crédit pour poser une question à un agent.",
+      needsCredits: true,
+    })
+  }
+
+  const history = await prisma.chatMessage.findMany({
+    where: { userId: req.userId!, supportAgent: agent.key },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    select: { role: true, content: true },
+  })
+
+  const answer = await askSupportAgent(agent.key, req.userId!, history.reverse(), parsed.data.question)
+
+  // Une panne n'est pas une conversation : rien n'est enregistré ni facturé, et
+  // le vendeur peut reposer sa question à l'identique.
+  if (answer.failed) return res.status(503).json({ error: answer.content })
+
+  await prisma.chatMessage.create({
+    data: { userId: req.userId!, supportAgent: agent.key, role: 'user', content: parsed.data.question },
+  })
+  const saved = await prisma.chatMessage.create({
+    data: { userId: req.userId!, supportAgent: agent.key, role: 'agent', content: answer.content },
+  })
+
+  let credits = user.credits
+  if (!unlimited) {
+    const taken = await reserveCredits(req.userId!, 1)
+    if (taken.ok) credits = user.credits - 1
+  }
+
+  res.status(201).json({
+    message: saved,
+    route: answer.route,
     credits: unlimited ? null : credits,
   })
 })

@@ -529,8 +529,11 @@ model ChatMessage {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  departmentId String
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  /// Le rayon concerne, ou null pour un agent transverse.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  /// Cle de l agent transverse : hotline, commercial, sav, livraisons.
+  supportAgent String?
 
   /// user ou agent.
   role      String
@@ -540,6 +543,7 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@index([userId, departmentId])
+  @@index([userId, supportAgent])
 }
 
 /// Le pilote automatique d un vendeur.

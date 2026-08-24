@@ -18,6 +18,8 @@ import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
 import Veille from './pages/Veille'
 import Rayons from './pages/Rayons'
+import Agents from './pages/Agents'
+import SupportAgent from './pages/SupportAgent'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
 import Deliveries from './pages/Deliveries'
@@ -56,6 +58,8 @@ export default function App() {
           <Route path="/livraisons" element={<Protected><Deliveries /></Protected>} />
           <Route path="/messages" element={<Protected><Messages /></Protected>} />
           <Route path="/pilote" element={<Protected><Autopilot /></Protected>} />
+          <Route path="/agents" element={<Protected><Agents /></Protected>} />
+          <Route path="/agents/:key" element={<Protected><SupportAgent /></Protected>} />
           <Route path="/rayons" element={<Protected><Rayons /></Protected>} />
           <Route path="/rayon/:id" element={<Protected><Rayon /></Protected>} />
           <Route path="/veille" element={<Protected><Veille /></Protected>} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { UserPlus, Radar, Search, Sparkles, Package, ShieldCheck, X } from 'lucide-react'
+import { UserPlus, Radar, Search, Sparkles, Store, FileText, ShieldCheck, X } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 
@@ -11,28 +11,33 @@ type Hired = Awaited<ReturnType<typeof api.listDepartments>>[number]
 const MISSIONS = [
   {
     icon: Search,
-    title: 'Il surveille les fournisseurs',
-    text: "Temu, AliExpress, DHgate, Banggood et les autres. Il relève le prix source, le stock européen quand il est vérifiable, le délai, la garantie et le nombre de ventes affiché.",
+    title: 'Il explore les plateformes fournisseurs',
+    text: "Temu, AliExpress, DHgate, Banggood, JoyBuy. Il cherche les produits qui se vendent le plus, avec des critères précis : entrepôt européen, délai de livraison, garantie, prix d'achat, volume de ventes déjà réalisées, tendance à la hausse.",
   },
   {
     icon: Radar,
-    title: 'Il suit les réseaux et les places de marché',
-    text: "Ce qui perce sur TikTok, Instagram et Facebook, et les prix réellement constatés sur les marketplaces françaises. Il vous dit quand un produit que vous vendez déjà devient une tendance.",
+    title: 'Il explore les réseaux sociaux',
+    text: "Campagnes publicitaires qui tournent, formats qui marchent, retours et commentaires, produits qui percent sur TikTok Shop. Il relève ce qui attire les acheteurs avant que le marché ne sature.",
+  },
+  {
+    icon: Store,
+    title: 'Il explore vos places de marché',
+    text: "Ce qui s'y vend, à quel prix, avec quelle concurrence. C'est ce qui transforme un prix d'achat en marge réelle plutôt qu'en estimation.",
+  },
+  {
+    icon: FileText,
+    title: 'Il vous remet un rapport chaque jour',
+    text: "Un rapport par source et par secteur, archivé. Vous relisez celui d'il y a trois semaines et vous comparez.",
   },
   {
     icon: Sparkles,
-    title: 'Il en tire une liste de produits conseillés',
-    text: "Chaque jour, une liste courte : ce qu'il a trouvé, à quel prix, avec quelle marge estimée, et pourquoi il le propose.",
-  },
-  {
-    icon: Package,
-    title: 'Vous importez d’un clic',
-    text: "Depuis la liste, l'import lance la réécriture IA, le filigrane sur les photos et le calcul de marge. Sur Temu et AliExpress, l'extension prend le relais — ces sites ne se lisent pas côté serveur.",
+    title: 'Et une liste de produits gagnants, prêts à publier',
+    text: "Chaque jour : prix d'achat, prix de vente conseillé, marge, concurrence constatée, et sur quelles places de marché le vendre. Il ne vous reste qu'à valider.",
   },
   {
     icon: ShieldCheck,
     title: 'Il propose, vous décidez',
-    text: "Rien n'est importé ni publié sans votre geste. Un import consomme un crédit et remplit votre catalogue : ce n'est pas une décision de machine.",
+    text: "Rien n'est importé ni publié sans votre geste — sauf si vous confiez cela au pilote automatique, qui a besoin d'au moins un chef de rayon pour travailler.",
   },
 ]
 
@@ -84,8 +89,9 @@ export default function Rayons() {
         <span>Chefs de rayon IA</span>
       </h1>
       <p className="mt-1 text-sm text-gray-400">
-        Confiez un rayon à un agent. Il le surveille pour vous et vous propose chaque jour une liste
-        de produits à vendre.
+        Confiez un rayon à un agent. Il explore les fournisseurs, les réseaux sociaux et les places
+        de marché, vous remet un rapport chaque jour, et vous propose une liste de produits gagnants
+        prêts à publier.
       </p>
 
       <section className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5">

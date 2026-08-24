@@ -419,6 +419,47 @@ export const api = {
   setConversationStatus: (id: string, status: string) =>
     request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
+  // L'équipe fournie d'office, et les agents à qui l'on parle.
+  agentRoster: () =>
+    request<{
+      pipeline: Array<{
+        key: string
+        name: string
+        role: string
+        family: 'chaine' | 'comptoir'
+        emoji: string
+        does: string
+        where: string | null
+        href: string | null
+        state: 'actif' | 'inactif' | 'indisponible'
+        note: string | null
+      }>
+      support: Array<{
+        key: string
+        name: string
+        role: string
+        family: 'chaine' | 'comptoir'
+        emoji: string
+        does: string
+        where: string | null
+        href: string | null
+        state: 'actif' | 'inactif' | 'indisponible'
+        note: string | null
+      }>
+      departments: number
+    }>('/chat/agents/roster'),
+  supportHistory: (key: string) =>
+    request<{
+      agent: { key: string; name: string; role: string; emoji: string; does: string }
+      messages: Array<{ id: string; role: string; content: string; createdAt: string }>
+    }>(`/chat/support/${key}`),
+  askSupport: (key: string, question: string) =>
+    request<{
+      message: { id: string; role: string; content: string; createdAt: string }
+      route: string | null
+      credits: number | null
+    }>(`/chat/support/${key}`, { method: 'POST', body: JSON.stringify({ question }) }),
+
   // Pilote automatique.
   getAutopilot: () =>
     request<{
