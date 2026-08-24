@@ -8,6 +8,8 @@ import { ordersRouter } from './routes/orders.js'
 import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
 import { reviewsRouter } from './routes/reviews.js'
+import { agentRouter } from './routes/agent.js'
+import { opportunitiesRouter } from './routes/opportunities.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
@@ -67,6 +69,8 @@ app.use('/api/orders', ordersRouter)
 app.use('/api/settings', settingsRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/billing', billingRouter)
+app.use('/api/agent', agentRouter)
+app.use('/api/opportunities', opportunitiesRouter)
 app.use('/api/public', publicRouter)
 
 const port = Number(process.env.PORT) || 4000

@@ -6,6 +6,7 @@ import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
 import { normalizeShopDomain } from '../services/shopify.js'
+import { generateApiKey } from '../middleware/apiKey.js'
 
 export const settingsRouter = Router()
 settingsRouter.use(requireAuth)
@@ -192,4 +193,57 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
     update: { ...parsed.data, data, connected: Object.keys(data).length > 0 },
   })
   res.json({ id: cred.id, platform: cred.platform, label: cred.label, connected: cred.connected })
+})
+
+/**
+ * Les clés d'API du compte.
+ *
+ * Une clé sert à un agent extérieur, pas à un humain : elle n'ouvre que
+ * /api/agent, où l'on peut déposer des trouvailles et rien de plus.
+ */
+settingsRouter.get('/api-keys', async (req: AuthedRequest, res) => {
+  const keys = await prisma.apiKey.findMany({
+    where: { userId: req.userId! },
+    orderBy: { createdAt: 'desc' },
+  })
+  res.json(
+    keys.map((k) => ({
+      id: k.id,
+      name: k.name,
+      // Le début seulement : la clé entière n'est plus lisible après sa création.
+      prefix: k.prefix,
+      lastUsedAt: k.lastUsedAt,
+      revokedAt: k.revokedAt,
+      createdAt: k.createdAt,
+    })),
+  )
+})
+
+settingsRouter.post('/api-keys', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ name: z.string().trim().min(1).max(60) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Donnez un nom à cette clé' })
+
+  const active = await prisma.apiKey.count({ where: { userId: req.userId!, revokedAt: null } })
+  if (active >= 10) return res.status(400).json({ error: 'Dix clés actives au maximum' })
+
+  const { key, keyHash, prefix } = generateApiKey()
+  const record = await prisma.apiKey.create({
+    data: { userId: req.userId!, name: parsed.data.name, keyHash, prefix },
+  })
+
+  // La seule et unique fois où la clé en clair sort d'ici.
+  res.status(201).json({ id: record.id, name: record.name, prefix, key })
+})
+
+/**
+ * Révoquer plutôt que supprimer : une clé qui a servi laisse une trace, et
+ * savoir qu'un accès a existé vaut mieux que de le faire disparaître.
+ */
+settingsRouter.delete('/api-keys/:id', async (req: AuthedRequest, res) => {
+  const { count } = await prisma.apiKey.updateMany({
+    where: { id: req.params.id, userId: req.userId!, revokedAt: null },
+    data: { revokedAt: new Date() },
+  })
+  if (!count) return res.status(404).json({ error: 'Clé introuvable' })
+  res.status(204).send()
 })

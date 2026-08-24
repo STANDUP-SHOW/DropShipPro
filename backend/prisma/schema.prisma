@@ -57,44 +57,46 @@ enum PayoutStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  shopName     String?
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  shopName          String?
   /// Identifiant public de la boutique, utilisé dans l'URL du catalogue.
   /// Distinct de l'id du compte : il peut être publié sans exposer l'identité interne.
-  shopKey      String   @unique @default(cuid())
-  watermarkText String?
+  shopKey           String    @unique @default(cuid())
+  watermarkText     String?
   /// Chemin du logo servi via /storage ; prioritaire sur watermarkText quand il est défini.
-  watermarkImage String?
+  watermarkImage    String?
   /// Largeur du filigrane en % de la largeur de la photo.
-  watermarkScale Int @default(22)
+  watermarkScale    Int       @default(22)
   /// Opacité du filigrane, de 10 à 100.
-  watermarkOpacity Int @default(75)
+  watermarkOpacity  Int       @default(75)
   /// Coin ou bord où poser le filigrane (south, southeast, center…).
-  watermarkPosition String @default("southeast")
+  watermarkPosition String    @default("southeast")
   /// Null until the address is confirmed through the emailed link.
-  emailVerifiedAt DateTime?
-  createdAt    DateTime @default(now())
+  emailVerifiedAt   DateTime?
+  createdAt         DateTime  @default(now())
 
   /// Annonces importables restantes. 10 offertes à l'inscription.
   /// La publication ne consomme rien : seul l'import est décompté.
-  credits Int @default(10)
+  credits              Int       @default(10)
   /// FREE tant qu'aucun abonnement n'est actif, PREMIUM = imports illimités.
-  plan Plan @default(FREE)
+  plan                 Plan      @default(FREE)
   /// Identifiants Stripe. Null tant que l'utilisateur n'a jamais payé.
-  stripeCustomerId String? @unique
+  stripeCustomerId     String?   @unique
   stripeSubscriptionId String?
   /// Fin de la période payée : l'abonnement reste actif jusque-là même résilié.
-  premiumUntil DateTime?
+  premiumUntil         DateTime?
 
-  shops       Shop[]
-  products    Product[]
-  credentials PlatformCredential[]
-  payments    Payment[]
-  orders      Order[]
-  authTokens  AuthToken[]
-  review      Review?
+  shops         Shop[]
+  products      Product[]
+  credentials   PlatformCredential[]
+  payments      Payment[]
+  orders        Order[]
+  authTokens    AuthToken[]
+  apiKeys       ApiKey[]
+  opportunities Opportunity[]
+  review        Review?
 }
 
 enum AuthTokenType {
@@ -145,8 +147,8 @@ model Product {
   shopId         String?
   shop           Shop?   @relation(fields: [shopId], references: [id], onDelete: SetNull)
 
-  title       String
-  description String  @db.Text
+  title         String
+  description   String  @db.Text
   aiTitle       String?
   aiDescription String? @db.Text
 
@@ -189,26 +191,26 @@ model Product {
 }
 
 model Publication {
-  id        String             @id @default(cuid())
-  productId String
-  product   Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
-  platform  Platform
-  status    PublicationStatus  @default(PENDING)
+  id             String            @id @default(cuid())
+  productId      String
+  product        Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  platform       Platform
+  status         PublicationStatus @default(PENDING)
   targetCategory String?
   externalUrl    String?
   error          String?
   publishedAt    DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime          @default(now())
 
   @@unique([productId, platform])
 }
 
 model Order {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
 
   platform        Platform
   externalOrderId String?
@@ -219,7 +221,7 @@ model Order {
   amount   Decimal @db.Decimal(10, 2)
   currency String  @default("EUR")
 
-  status         OrderStatus  @default(NEW)
+  status           OrderStatus  @default(NEW)
   supplierOrderUrl String?
   trackingNumber   String?
   shippingLabelUrl String?
@@ -254,18 +256,18 @@ enum Plan {
 
 /// Historique des paiements, pour retrouver ce qui a été crédité et pourquoi.
 model Payment {
-  id       String @id @default(cuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Identifiant du pack acheté, ou 'premium' pour l'abonnement.
-  planId   String
+  planId          String
   /// Montant réellement encaissé, en centimes, tel que Stripe le rapporte.
-  amount   Int
-  currency String @default("eur")
+  amount          Int
+  currency        String   @default("eur")
   /// Crédits ajoutés par ce paiement. 0 pour un abonnement illimité.
-  credits  Int    @default(0)
-  stripeSessionId String? @unique
-  createdAt DateTime @default(now())
+  credits         Int      @default(0)
+  stripeSessionId String?  @unique
+  createdAt       DateTime @default(now())
 
   @@index([userId])
 }
@@ -295,7 +297,81 @@ model Shop {
   platform  String?
   createdAt DateTime @default(now())
 
-  products  Product[]
+  products Product[]
 
   @@index([userId])
+}
+
+/// Cle d API machine : un agent externe ecrit dans le catalogue sans mot de passe.
+///
+/// Seul le SHA-256 est stocke. La cle en clair n est montree qu une fois, a la
+/// creation : une base qui fuit ne doit pas distribuer des acces en etat de
+/// marche, et une cle qu on peut relire finit toujours par etre relue.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Ce que la cle pilote, en clair : « Agent high-tech base44 ».
+  name       String
+  keyHash    String    @unique
+  /// Debut de la cle, affiche pour reconnaitre laquelle est laquelle.
+  prefix     String
+  lastUsedAt DateTime?
+  /// Une cle revoquee est conservee : savoir qu elle a existe compte.
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+enum OpportunityStatus {
+  NEW
+  KEPT
+  REJECTED
+  IMPORTED
+}
+
+/// Un produit repere par un agent de veille, en attente d arbitrage humain.
+///
+/// L agent propose, le vendeur dispose : rien n est importe ni publie sans un
+/// geste de sa part. Un import coute un credit et engage son catalogue.
+model Opportunity {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Plateforme d origine, telle que l agent la nomme : temu, aliexpress...
+  source    String
+  sourceUrl String
+  title     String
+  image     String?
+  category  String?
+
+  /// Prix chez le fournisseur, et prix moyen constate sur les places de marche.
+  sourcePrice Decimal  @db.Decimal(10, 2)
+  marketPrice Decimal? @db.Decimal(10, 2)
+  currency    String   @default("EUR")
+
+  /// Compteur affiche par la plateforme source. Null quand elle n en publie pas
+  /// — ce qui est le cas d Amazon : l absence doit se voir, pas se deviner.
+  salesCount   Int?
+  euStock      Boolean @default(false)
+  deliveryDays Int?
+  warranty     String?
+  isNew        Boolean @default(false)
+
+  /// Ce que l agent en dit, et sa reponse brute pour pouvoir la relire.
+  notes String? @db.Text
+  raw   Json?
+
+  status     OpportunityStatus @default(NEW)
+  /// Renseigne quand l opportunite a donne lieu a un import.
+  productId  String?
+  detectedAt DateTime          @default(now())
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  /// Le meme produit repere deux fois ne fait pas deux lignes.
+  @@unique([userId, sourceUrl])
+  @@index([userId, status])
 }
