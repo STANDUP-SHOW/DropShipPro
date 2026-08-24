@@ -22,19 +22,22 @@ visualsRouter.use(requireAuth)
 /**
  * Recharges d'images. Prix TTC en centimes, comme partout ailleurs.
  *
- * La dégressivité s'arrête à cinq mille, et ce n'est pas un oubli : une image
- * coûte environ 0,032 € à produire, donc un paquet de dix mille à 300 € se
- * vendrait à perte, et un de vingt-cinq mille à 500 € coûterait près de trois
- * cents euros par client. Au-delà, on parle au vendeur : à ce volume, le prix
- * se négocie, il ne se lit pas dans un tableau.
+ * Une image coûte environ 0,032 € à produire. La dégressivité tient jusqu'à cinq
+ * mille — de 68 % à 45 % de marge — puis se resserre : 20 % sur dix mille, et
+ * seulement 1 % sur vingt-cinq mille, soit quatre euros de bénéfice sur une
+ * vente à huit cents. Ce dernier palier ne laisse aucune place à une hausse de
+ * tarif du fournisseur ; il est là parce qu'il a été décidé, pas parce qu'il est
+ * confortable.
  */
 export const IMAGE_PACKS = [
   { id: 'img-100', label: '100 images', amount: 1000, images: 100 },
-  { id: 'img-250', label: '250 images', amount: 2000, images: 250 },
-  { id: 'img-500', label: '500 images', amount: 3000, images: 500 },
-  { id: 'img-1000', label: '1 000 images', amount: 5000, images: 1000 },
-  { id: 'img-2500', label: '2 500 images', amount: 10000, images: 2500 },
-  { id: 'img-5000', label: '5 000 images', amount: 18000, images: 5000 },
+  { id: 'img-250', label: '250 images', amount: 2200, images: 250 },
+  { id: 'img-500', label: '500 images', amount: 4000, images: 500 },
+  { id: 'img-1000', label: '1 000 images', amount: 7000, images: 1000 },
+  { id: 'img-2500', label: '2 500 images', amount: 16000, images: 2500 },
+  { id: 'img-5000', label: '5 000 images', amount: 29000, images: 5000 },
+  { id: 'img-10000', label: '10 000 images', amount: 40000, images: 10000 },
+  { id: 'img-25000', label: '25 000 images', amount: 80000, images: 25000 },
 ]
 
 export function findImagePack(id: string) {
@@ -57,7 +60,7 @@ visualsRouter.get('/state', async (req: AuthedRequest, res) => {
     packs: IMAGE_PACKS,
     // Au-delà du plus gros paquet, le prix se négocie : le dire dans la réponse
     // évite à l'interface de deviner.
-    beyond: "Au-delà de 5 000 images, écrivez-nous : le tarif se négocie.",
+    beyond: "Au-delà de 25 000 images, écrivez-nous : le tarif se négocie.",
     formats: Object.entries(AD_FORMATS).map(([id, f]) => ({ id, ...f })),
   })
 })
