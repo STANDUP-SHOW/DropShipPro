@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma.js'
-import { usesObjectStorage } from '../lib/storage.js'
+import { checkStorage, type StorageStatus } from '../lib/storage.js'
 import { getStripe } from './billing.js'
 import { checkAi, type AiStatus } from './aiHealth.js'
 import { mailIsConfigured } from './mailer.js'
@@ -21,7 +21,7 @@ export interface ServiceReport {
     /** Can send a real email. Without it, password reset silently does nothing. */
     email: 'ok' | 'non-configure'
     /** Object storage, or the container disk that a redeploy wipes. */
-    stockage: 'r2' | 'disque-local'
+    stockage: StorageStatus
     /** Payments possible, and webhook signature verifiable. */
     stripe: 'ok' | 'sans-webhook' | 'non-configure'
     /** Database reachable and migrated. */
@@ -39,10 +39,9 @@ export interface ServiceReport {
 }
 
 export async function selfCheck(): Promise<ServiceReport> {
-  const [ia, images] = await Promise.all([checkAi(), checkImageGen()])
+  const [ia, images, stockage] = await Promise.all([checkAi(), checkImageGen(), checkStorage()])
 
   const email = mailIsConfigured() ? 'ok' : 'non-configure'
-  const stockage = usesObjectStorage() ? 'r2' : 'disque-local'
   const stripe = !getStripe()
     ? 'non-configure'
     : process.env.STRIPE_WEBHOOK_SECRET?.trim()
@@ -57,6 +56,12 @@ export async function selfCheck(): Promise<ServiceReport> {
   }
 
   const alertes: string[] = []
+
+  if (stockage === 'r2-refuse') {
+    alertes.push(
+      "Stockage R2 : l'ecriture est refusee. Les filigranes ne sont pas appliques — les photos du fournisseur partent telles quelles — et les agents visuels ne peuvent rien enregistrer.",
+    )
+  }
 
   if (images !== 'ok') {
     alertes.push(

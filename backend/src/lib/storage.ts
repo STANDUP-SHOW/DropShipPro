@@ -89,3 +89,36 @@ export async function putFile(key: string, body: Buffer, contentType: string): P
 
   return `${config.publicUrl}/${key}`
 }
+
+export type StorageStatus = 'r2' | 'r2-refuse' | 'disque-local'
+
+/**
+ * Vérifie que le stockage accepte réellement une écriture.
+ *
+ * « R2 est configuré » ne veut rien dire : des identifiants valides pour lire
+ * peuvent être refusés en écriture, et un nom de compartiment erroné répond la
+ * même chose. Or l'échec est silencieux — le filigrane retombe alors sur la
+ * photo d'origine du fournisseur, et le vendeur croit à un bug d'affichage.
+ *
+ * On écrit donc un objet minuscule, à un emplacement dédié, à chaque contrôle.
+ */
+export async function checkStorage(): Promise<StorageStatus> {
+  const config = getR2()
+  if (!config) return 'disque-local'
+
+  try {
+    await config.client.send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: 'health/write-test.txt',
+        Body: Buffer.from('ok'),
+        ContentType: 'text/plain',
+        CacheControl: 'no-store',
+      }),
+    )
+    return 'r2'
+  } catch (err) {
+    console.error('stockage R2 : écriture refusée', (err as Error).message)
+    return 'r2-refuse'
+  }
+}
