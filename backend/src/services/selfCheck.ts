@@ -3,6 +3,7 @@ import { usesObjectStorage } from '../lib/storage.js'
 import { getStripe } from './billing.js'
 import { checkAi, type AiStatus } from './aiHealth.js'
 import { mailIsConfigured } from './mailer.js'
+import { checkImageGen, type ImageGenStatus } from './imageGen.js'
 
 /**
  * One call that says whether the service is actually able to do its job.
@@ -25,13 +26,20 @@ export interface ServiceReport {
     stripe: 'ok' | 'sans-webhook' | 'non-configure'
     /** Database reachable and migrated. */
     base: 'ok' | 'injoignable'
+    /**
+     * La génération d'images, réellement testée.
+     *
+     * « Configuré » ne veut rien dire : une clé peut être présente et refusée.
+     * On appelle donc le modèle pour de vrai, et on rapporte ce qu'il répond.
+     */
+    images: ImageGenStatus
   }
   /** What would hurt a real user right now, in plain French. */
   alertes: string[]
 }
 
 export async function selfCheck(): Promise<ServiceReport> {
-  const ia = await checkAi()
+  const [ia, images] = await Promise.all([checkAi(), checkImageGen()])
 
   const email = mailIsConfigured() ? 'ok' : 'non-configure'
   const stockage = usesObjectStorage() ? 'r2' : 'disque-local'
@@ -49,6 +57,14 @@ export async function selfCheck(): Promise<ServiceReport> {
   }
 
   const alertes: string[] = []
+
+  if (images !== 'ok') {
+    alertes.push(
+      images === 'non-configure'
+        ? "Génération d'images indisponible : la variable GOOGLE_AI_API_KEY est absente. Les agents photo et publicité refusent de démarrer."
+        : "Génération d'images refusée par Google : la clé est présente mais rejetée. Vérifiez qu'elle est active et que la facturation du projet l'est aussi.",
+    )
+  }
 
   if (base === 'injoignable') alertes.push('Base de données injoignable : rien ne fonctionne.')
   if (ia !== 'ok') {
@@ -77,5 +93,5 @@ export async function selfCheck(): Promise<ServiceReport> {
     )
   }
 
-  return { ok: alertes.length === 0, services: { ia, email, stockage, stripe, base }, alertes }
+  return { ok: alertes.length === 0, services: { ia, email, stockage, stripe, base, images }, alertes }
 }

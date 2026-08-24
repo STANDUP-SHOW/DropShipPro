@@ -210,3 +210,34 @@ export async function generateAdVisual(params: {
   const path = await store(buffer, `ad-${params.platform}`)
   return { path, width: format.width, height: format.height, prompt }
 }
+
+export type ImageGenStatus = 'ok' | 'non-configure' | 'refuse'
+
+/**
+ * Teste réellement la génération d'images.
+ *
+ * « Une clé est configurée » ne dit rien : elle peut être présente et refusée —
+ * projet sans facturation, clé restreinte à un autre service, modèle indisponible
+ * dans la région. On interroge donc l'API pour de vrai, sur la liste des modèles,
+ * qui ne coûte rien et répond la même chose qu'une génération sur les erreurs
+ * d'authentification.
+ */
+export async function checkImageGen(): Promise<ImageGenStatus> {
+  const apiKey = process.env.GOOGLE_AI_API_KEY?.trim()
+  if (!apiKey) return 'non-configure'
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}?key=${encodeURIComponent(apiKey)}`,
+      { signal: AbortSignal.timeout(8000) },
+    )
+    if (res.ok) return 'ok'
+
+    const detail = await res.text().catch(() => '')
+    console.error('génération d’images indisponible', res.status, detail.slice(0, 300))
+    return 'refuse'
+  } catch (err) {
+    console.error('génération d’images injoignable', err)
+    return 'refuse'
+  }
+}
