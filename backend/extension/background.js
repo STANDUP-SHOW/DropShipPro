@@ -116,7 +116,15 @@ function registerApprovedSites() {
     await dspRegister({
       id: 'dsp-capture',
       matches: approvedSites.map((origin) => `${origin}/*`),
-      js: ['config.js', 'content/fill-helpers.js', 'content/image-scan.js', 'content/capture.js'],
+      // adapters.js avant capture.js : la capture demande a l adaptateur du site
+      // ce qu il sait, et retombe sur le scan generique quand il ne sait rien.
+      js: [
+        'config.js',
+        'content/fill-helpers.js',
+        'content/image-scan.js',
+        'content/adapters.js',
+        'content/capture.js',
+      ],
       runAt: 'document_idle',
     })
   })

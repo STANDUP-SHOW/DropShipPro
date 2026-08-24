@@ -197,6 +197,33 @@
   async function collectImages() {
     const candidates = new Set()
 
+    /**
+     * L'adaptateur du fournisseur, quand il en existe un.
+     *
+     * Chaque site range ses photos à un endroit précis et le fait toujours de la
+     * même façon. Un adaptateur écrit une fois donne un résultat juste à tous
+     * les coups, là où le scan générique devine — c'est ce qui ramenait des
+     * pictogrammes d'interface avant les photos du produit.
+     *
+     * Ses adresses passent devant tout le reste. S'il ne trouve rien, le scan
+     * générique reprend la main : un adaptateur muet ne doit pas vider la page.
+     */
+    const adapter = typeof dspAdapterFor === 'function' ? dspAdapterFor() : null
+    const fromAdapter = []
+    if (adapter) {
+      try {
+        for (const url of dspAdapterImages(adapter)) {
+          fromAdapter.push(url)
+          candidates.add(url)
+        }
+        console.info(
+          `DropShipper IA : adaptateur ${adapter.label} — ${fromAdapter.length} photo(s)`,
+        )
+      } catch (err) {
+        console.warn('DropShipper IA : adaptateur en échec, scan générique utilisé', err)
+      }
+    }
+
     // Generic deep scan (see content/image-scan.js): every element, not only
     // <img> — data-* attributes, CSS backgrounds, ::before/::after, <picture>,
     // <video poster>, open shadow roots, same-origin frames, and the gallery as
@@ -264,7 +291,14 @@
       return value
     }
 
-    const ranked = [...candidates].filter((u) => !NOT_A_PHOTO.test(u)).sort((a, b) => score(b) - score(a))
+    // Ce que l'adaptateur a désigné passe avant tout : il sait, le score devine.
+    const adapterSet = new Set(fromAdapter)
+    const ranked = [...candidates]
+      .filter((u) => !NOT_A_PHOTO.test(u))
+      .sort((a, b) => {
+        const byAdapter = Number(adapterSet.has(b)) - Number(adapterSet.has(a))
+        return byAdapter !== 0 ? byAdapter : score(b) - score(a)
+      })
 
     // Le plafond protège d'une page qui expose des milliers d'adresses, mais il
     // était atteint bien avant la fin du classement : des candidats n'étaient
