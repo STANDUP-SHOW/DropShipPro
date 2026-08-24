@@ -27,6 +27,24 @@ function AgentCard({ agent }: { agent: Agent }) {
       <p className="text-xs text-gray-400">{agent.role}</p>
       <p className="mt-2 flex-1 text-xs leading-relaxed text-gray-500">{agent.does}</p>
 
+      {/* Ce que l'agent ne fait pas : sur du conseil comptable ou juridique,
+          c'est aussi important que ce qu'il fait. */}
+      {agent.caveat && (
+        <p className="mt-2 rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] leading-relaxed text-gray-400">
+          {agent.caveat}
+        </p>
+      )}
+
+      {agent.monthly ? (
+        <p className="mt-2 text-[11px] font-semibold text-sky-300">
+          {agent.hired && agent.paidUntil
+            ? `Embauché jusqu'au ${new Date(agent.paidUntil).toLocaleDateString('fr-FR')}`
+            : `${(agent.monthly / 100).toFixed(2)} € par mois`}
+        </p>
+      ) : (
+        <p className="mt-2 text-[11px] text-gray-500">Compris dans votre abonnement</p>
+      )}
+
       {agent.note && <p className="mt-2 text-[11px] text-amber-300">{agent.note}</p>}
 
       {agent.where && (

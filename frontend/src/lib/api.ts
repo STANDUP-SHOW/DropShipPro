@@ -74,6 +74,26 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json()
 }
 
+/** Un agent tel que la page « Vos agents » l'affiche, quelle que soit sa famille. */
+export interface AgentCardData {
+  key: string
+  name: string
+  role: string
+  family: 'chaine' | 'comptoir'
+  emoji: string
+  does: string
+  where: string | null
+  href: string | null
+  state: 'actif' | 'inactif' | 'indisponible'
+  note: string | null
+  /** Prix mensuel en centimes, absent quand l'agent est compris dans l'abonnement. */
+  monthly?: number
+  /** Ce que l'agent ne fait pas — décisif sur du conseil comptable ou juridique. */
+  caveat?: string
+  hired?: boolean
+  paidUntil?: string | null
+}
+
 export const api = {
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {
@@ -495,30 +515,11 @@ export const api = {
   // L'équipe fournie d'office, et les agents à qui l'on parle.
   agentRoster: () =>
     request<{
-      pipeline: Array<{
-        key: string
-        name: string
-        role: string
-        family: 'chaine' | 'comptoir'
-        emoji: string
-        does: string
-        where: string | null
-        href: string | null
-        state: 'actif' | 'inactif' | 'indisponible'
-        note: string | null
-      }>
-      support: Array<{
-        key: string
-        name: string
-        role: string
-        family: 'chaine' | 'comptoir'
-        emoji: string
-        does: string
-        where: string | null
-        href: string | null
-        state: 'actif' | 'inactif' | 'indisponible'
-        note: string | null
-      }>
+      // Même forme des deux côtés : la carte d'agent est la même, et un champ
+      // absent d'une famille se lit comme absent plutôt que comme une erreur
+      // de type.
+      pipeline: AgentCardData[]
+      support: AgentCardData[]
       departments: number
     }>('/chat/agents/roster'),
   supportHistory: (key: string) =>
