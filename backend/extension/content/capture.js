@@ -70,7 +70,9 @@
    */
   function collectImagesFromSource() {
     const html = document.documentElement.innerHTML.replace(/\\u002F/gi, '/').replace(/\\\//g, '/')
-    const found = html.match(/https:\/\/[^"'\\\s)]+?\.(?:jpe?g|png|webp)/gi) || []
+    // AVIF et GIF compris : les galeries récentes ne servent plus que de l'AVIF,
+    // et l'omettre revenait à ne jamais voir les photos du produit dans le source.
+    const found = html.match(/https:\/\/[^"'\\\s)]+?\.(?:jpe?g|png|webp|avif|gif)/gi) || []
 
     const counts = new Map()
     for (const raw of found) {
@@ -88,8 +90,15 @@
     return [...new Set(found.map((u) => u.split('?')[0]).filter((u) => u.startsWith(mainHost) && !JUNK.test(u)))]
   }
 
-  /** Minimum side, in pixels, for a picture to count as a product shot. */
-  const MIN_SIDE = 500
+  /**
+   * Le côté minimum d'une photo retenue.
+   *
+   * Cinq cents pixels paraissait prudent et coupait exactement ce qu'on
+   * cherchait : la galerie d'AliExpress est servie en 480×480, et chacune de ses
+   * photos était donc écartée. Un import ramenait le mobilier de la page et pas
+   * un seul cliché du produit.
+   */
+  const MIN_SIDE = 400
 
   /**
    * Two URLs pointing at the same photo in different sizes share everything but
@@ -148,6 +157,11 @@
       .replace(/\/\d{2,4}x\d{2,4}\//, '/')
       .replace(/[_-](?:thumb|small|medium|mini)(?=\.\w+$)/i, '')
     if (stripped !== bare) out.push(stripped)
+
+    // Le même cliché est souvent servi en plusieurs formats. Tenter le jpg quand
+    // on tient l'avif coûte une requête et rattrape les cas où le navigateur
+    // refuse de mesurer le format récent.
+    if (/\.avif$/i.test(stripped)) out.push(stripped.replace(/\.avif$/i, '.jpg'))
 
     return out
   }
@@ -252,7 +266,11 @@
 
     const ranked = [...candidates].filter((u) => !NOT_A_PHOTO.test(u)).sort((a, b) => score(b) - score(a))
 
-    const probes = ranked.slice(0, 140).flatMap(sizeVariants)
+    // Le plafond protège d'une page qui expose des milliers d'adresses, mais il
+    // était atteint bien avant la fin du classement : des candidats n'étaient
+    // jamais mesurés, donc jamais proposés. Le classement met désormais les
+    // bonnes en tête, on peut en examiner davantage sans y perdre.
+    const probes = ranked.slice(0, 260).flatMap(sizeVariants)
     const measured = (await Promise.all([...new Set(probes)].map(measure))).filter(Boolean)
 
     const large = measured
