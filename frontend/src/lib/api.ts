@@ -422,6 +422,62 @@ export const api = {
   setConversationStatus: (id: string, status: string) =>
     request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
+  // Agents visuels : photos de produit et visuels publicitaires.
+  visualState: () =>
+    request<{
+      credits: number
+      produced: number
+      configured: boolean
+      packs: Array<{ id: string; label: string; amount: number; images: number }>
+      formats: Array<{ id: string; label: string; width: number; height: number; note: string }>
+    }>('/visuals/state'),
+  productVisuals: (productId: string) =>
+    request<{
+      product: { id: string; title: string; aiTitle: string | null }
+      generated: Array<{
+        id: string
+        kind: string
+        path: string
+        platform: string | null
+        width: number
+        height: number
+        kept: boolean
+        createdAt: string
+      }>
+    }>(`/visuals/product/${productId}`),
+  generatePhotos: (productId: string, count: number, hint?: string) =>
+    request<{
+      images: Array<{
+        id: string
+        kind: string
+        path: string
+        platform: string | null
+        width: number
+        height: number
+        kept: boolean
+        createdAt: string
+      }>
+      credits: number
+      errors: string[]
+    }>('/visuals/photos', { method: 'POST', body: JSON.stringify({ productId, count, hint }) }),
+  generateAds: (productId: string, platforms: string[], count: number, hint?: string) =>
+    request<{
+      images: Array<{
+        id: string
+        kind: string
+        path: string
+        platform: string | null
+        width: number
+        height: number
+        kept: boolean
+        createdAt: string
+      }>
+      credits: number
+      errors: string[]
+    }>('/visuals/ads', { method: 'POST', body: JSON.stringify({ productId, platforms, count, hint }) }),
+  keepImage: (id: string) => request<{ ok: true }>(`/visuals/${id}/keep`, { method: 'POST' }),
+  deleteImage: (id: string) => request(`/visuals/${id}`, { method: 'DELETE' }),
+
   // L'équipe fournie d'office, et les agents à qui l'on parle.
   agentRoster: () =>
     request<{

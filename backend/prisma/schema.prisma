@@ -86,27 +86,31 @@ model User {
   /// Identifiants Stripe. Null tant que l'utilisateur n'a jamais payé.
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?
+  /// Credits images restants, pour les agents visuels. Distincts des credits
+  /// d annonces : une image generee coute a chaque fois, une annonce non.
+  imageCredits         Int       @default(10)
   /// Agent de controle visuel des photos et des options, avant mise en ligne.
   /// Actif par defaut : c est lui qui rend le mode automatique fiable.
   controlAgent         Boolean   @default(true)
   /// Fin de la période payée : l'abonnement reste actif jusque-là même résilié.
   premiumUntil         DateTime?
 
-  shops         Shop[]
-  products      Product[]
-  credentials   PlatformCredential[]
-  payments      Payment[]
-  orders        Order[]
-  authTokens    AuthToken[]
-  apiKeys       ApiKey[]
-  opportunities Opportunity[]
-  signals       Signal[]
-  review        Review?
-  Department    Department[]
-  Report        Report[]
-  ChatMessage   ChatMessage[]
-  autopilot     Autopilot?
-  conversations Conversation[]
+  shops           Shop[]
+  products        Product[]
+  credentials     PlatformCredential[]
+  payments        Payment[]
+  orders          Order[]
+  authTokens      AuthToken[]
+  apiKeys         ApiKey[]
+  opportunities   Opportunity[]
+  signals         Signal[]
+  review          Review?
+  Department      Department[]
+  Report          Report[]
+  ChatMessage     ChatMessage[]
+  autopilot       Autopilot?
+  conversations   Conversation[]
+  generatedImages GeneratedImage[]
 }
 
 enum AuthTokenType {
@@ -196,8 +200,9 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  publications Publication[]
-  orders       Order[]
+  publications    Publication[]
+  orders          Order[]
+  generatedImages GeneratedImage[]
 }
 
 model Publication {
@@ -668,4 +673,34 @@ model CustomerMessage {
   createdAt DateTime @default(now())
 
   @@index([conversationId])
+}
+
+/// Une image produite par un agent visuel, gardee pour etre reutilisee.
+///
+/// Regenerer coute un credit image : le vendeur qui revient sur sa fiche doit
+/// retrouver ce qu il a paye, pas relancer la machine.
+model GeneratedImage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// photo : mise en situation du produit. ad : visuel publicitaire.
+  kind     String
+  /// Chemin servi par l application, filigrane compris quand il y en a un.
+  path     String
+  /// Plateforme visee pour une publicite, et donc son format.
+  platform String?
+  width    Int
+  height   Int
+  /// La consigne envoyee au modele, pour pouvoir refaire la meme.
+  prompt   String? @db.Text
+  /// Vrai quand le vendeur a retenu cette image pour son annonce.
+  kept     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, productId])
 }

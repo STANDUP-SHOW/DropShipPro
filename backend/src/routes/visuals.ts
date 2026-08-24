@@ -1,0 +1,280 @@
+import { Router } from 'express'
+import { z } from 'zod'
+import { prisma } from '../lib/prisma.js'
+import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import {
+  AD_FORMATS,
+  ImageGenUnavailable,
+  generateAdVisual,
+  imageGenConfigured,
+  regenerateProductPhoto,
+} from '../services/imageGen.js'
+
+/**
+ * Les agents visuels : photos de produit et visuels publicitaires.
+ *
+ * Un crédit image par image produite, décompté après coup. Une génération qui
+ * échoue ne se facture pas : le vendeur n'a rien reçu.
+ */
+export const visualsRouter = Router()
+visualsRouter.use(requireAuth)
+
+/** Recharges d'images. Prix TTC en centimes, comme partout ailleurs. */
+export const IMAGE_PACKS = [
+  { id: 'img-100', label: '100 images', amount: 1000, images: 100 },
+  { id: 'img-250', label: '250 images', amount: 2000, images: 250 },
+  { id: 'img-500', label: '500 images', amount: 3000, images: 500 },
+  { id: 'img-1000', label: '1 000 images', amount: 5000, images: 1000 },
+  { id: 'img-2500', label: '2 500 images', amount: 10000, images: 2500 },
+  { id: 'img-5000', label: '5 000 images', amount: 18000, images: 5000 },
+  { id: 'img-10000', label: '10 000 images', amount: 30000, images: 10000 },
+  { id: 'img-25000', label: '25 000 images', amount: 50000, images: 25000 },
+]
+
+export function findImagePack(id: string) {
+  return IMAGE_PACKS.find((p) => p.id === id) ?? null
+}
+
+visualsRouter.get('/state', async (req: AuthedRequest, res) => {
+  const [user, produced] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: req.userId! },
+      select: { imageCredits: true },
+    }),
+    prisma.generatedImage.count({ where: { userId: req.userId! } }),
+  ])
+
+  res.json({
+    credits: user.imageCredits,
+    produced,
+    configured: imageGenConfigured(),
+    packs: IMAGE_PACKS,
+    formats: Object.entries(AD_FORMATS).map(([id, f]) => ({ id, ...f })),
+  })
+})
+
+/** Les images déjà produites pour un produit : payées une fois, gardées. */
+visualsRouter.get('/product/:id', async (req: AuthedRequest, res) => {
+  const product = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    select: { id: true, title: true, aiTitle: true, images: true, sourceCategory: true },
+  })
+  if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const generated = await prisma.generatedImage.findMany({
+    where: { userId: req.userId!, productId: product.id },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  res.json({ product, generated })
+})
+
+const photoSchema = z.object({
+  productId: z.string(),
+  count: z.number().int().min(1).max(6).default(1),
+  hint: z.string().trim().max(300).optional(),
+})
+
+/**
+ * Prend un crédit image, ou refuse.
+ *
+ * Le décompte est conditionnel en base : deux générations lancées en même temps
+ * ne doivent pas passer avec un seul crédit restant.
+ */
+async function takeImageCredit(userId: string): Promise<boolean> {
+  const { count } = await prisma.user.updateMany({
+    where: { id: userId, imageCredits: { gte: 1 } },
+    data: { imageCredits: { decrement: 1 } },
+  })
+  return count > 0
+}
+
+visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
+  const parsed = photoSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Demande invalide' })
+
+  if (!imageGenConfigured()) {
+    return res.status(503).json({ error: "La génération d'images n'est pas encore configurée." })
+  }
+
+  const product = await prisma.product.findFirst({
+    where: { id: parsed.data.productId, userId: req.userId! },
+    select: { id: true, title: true, aiTitle: true, images: true, sourceCategory: true },
+  })
+  if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const sourceImages = (Array.isArray(product.images) ? product.images : []).filter(
+    (i): i is string => typeof i === 'string',
+  )
+  if (!sourceImages.length) {
+    return res.status(400).json({ error: "Ce produit n'a aucune photo à retravailler." })
+  }
+
+  const produced = []
+  const errors: string[] = []
+
+  for (let i = 0; i < parsed.data.count; i++) {
+    if (!(await takeImageCredit(req.userId!))) {
+      errors.push('Crédits images épuisés.')
+      break
+    }
+
+    try {
+      const result = await regenerateProductPhoto({
+        sourceImages,
+        title: product.aiTitle || product.title,
+        category: product.sourceCategory,
+        hint: parsed.data.hint,
+      })
+
+      produced.push(
+        await prisma.generatedImage.create({
+          data: {
+            userId: req.userId!,
+            productId: product.id,
+            kind: 'photo',
+            path: result.path,
+            width: result.width,
+            height: result.height,
+            prompt: result.prompt,
+          },
+        }),
+      )
+    } catch (err) {
+      // Rien produit, rien facturé.
+      await prisma.user.update({
+        where: { id: req.userId! },
+        data: { imageCredits: { increment: 1 } },
+      })
+      errors.push(err instanceof ImageGenUnavailable ? err.message : "Génération impossible.")
+      break
+    }
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.userId! },
+    select: { imageCredits: true },
+  })
+
+  res.status(produced.length ? 201 : 502).json({ images: produced, credits: user.imageCredits, errors })
+})
+
+const adSchema = z.object({
+  productId: z.string(),
+  platforms: z.array(z.string()).min(1).max(6),
+  count: z.number().int().min(1).max(4).default(1),
+  hint: z.string().trim().max(300).optional(),
+})
+
+visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
+  const parsed = adSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Demande invalide' })
+
+  if (!imageGenConfigured()) {
+    return res.status(503).json({ error: "La génération d'images n'est pas encore configurée." })
+  }
+
+  const platforms = parsed.data.platforms.filter((p) => AD_FORMATS[p])
+  if (!platforms.length) return res.status(400).json({ error: 'Aucune destination valable' })
+
+  const product = await prisma.product.findFirst({
+    where: { id: parsed.data.productId, userId: req.userId! },
+    select: { id: true, title: true, aiTitle: true, images: true },
+  })
+  if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const sourceImages = (Array.isArray(product.images) ? product.images : []).filter(
+    (i): i is string => typeof i === 'string',
+  )
+  if (!sourceImages.length) {
+    return res.status(400).json({ error: "Ce produit n'a aucune photo à utiliser." })
+  }
+
+  const produced = []
+  const errors: string[] = []
+
+  outer: for (const platform of platforms) {
+    for (let i = 0; i < parsed.data.count; i++) {
+      if (!(await takeImageCredit(req.userId!))) {
+        errors.push('Crédits images épuisés.')
+        break outer
+      }
+
+      try {
+        const result = await generateAdVisual({
+          sourceImages,
+          title: product.aiTitle || product.title,
+          platform,
+          hint: parsed.data.hint,
+        })
+
+        produced.push(
+          await prisma.generatedImage.create({
+            data: {
+              userId: req.userId!,
+              productId: product.id,
+              kind: 'ad',
+              platform,
+              path: result.path,
+              width: result.width,
+              height: result.height,
+              prompt: result.prompt,
+            },
+          }),
+        )
+      } catch (err) {
+        await prisma.user.update({
+          where: { id: req.userId! },
+          data: { imageCredits: { increment: 1 } },
+        })
+        errors.push(err instanceof ImageGenUnavailable ? err.message : 'Génération impossible.')
+        break outer
+      }
+    }
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.userId! },
+    select: { imageCredits: true },
+  })
+
+  res.status(produced.length ? 201 : 502).json({ images: produced, credits: user.imageCredits, errors })
+})
+
+/**
+ * Retenir une image générée pour l'annonce.
+ *
+ * Elle rejoint la galerie du produit : c'est le seul geste qui la fait sortir de
+ * l'atelier et arriver chez l'acheteur.
+ */
+visualsRouter.post('/:id/keep', async (req: AuthedRequest, res) => {
+  const image = await prisma.generatedImage.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!image) return res.status(404).json({ error: 'Image introuvable' })
+
+  const product = await prisma.product.findUniqueOrThrow({ where: { id: image.productId } })
+  const current = (Array.isArray(product.images) ? product.images : []).filter(
+    (i): i is string => typeof i === 'string',
+  )
+
+  if (!current.includes(image.path)) {
+    await prisma.product.update({
+      where: { id: product.id },
+      // En tête : une mise en situation vend mieux qu'un fond blanc, et la
+      // première photo est celle que voit l'acheteur dans les résultats.
+      data: { images: [image.path, ...current].slice(0, 12) },
+    })
+  }
+
+  await prisma.generatedImage.update({ where: { id: image.id }, data: { kept: true } })
+  res.json({ ok: true })
+})
+
+visualsRouter.delete('/:id', async (req: AuthedRequest, res) => {
+  const { count } = await prisma.generatedImage.deleteMany({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!count) return res.status(404).json({ error: 'Image introuvable' })
+  res.status(204).send()
+})

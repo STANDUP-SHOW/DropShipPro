@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { AGENT_PLANS, findAgentPlan, extendDepartment } from '../services/agentBilling.js'
+import { findImagePack } from './visuals.js'
 import {
   PACKS,
   PREMIUM,
@@ -60,6 +61,9 @@ const checkoutSchema = z.object({
 /** Les formules « chef de rayon » se reconnaissent à leur préfixe. */
 const AGENT_PREFIX = 'agent:'
 
+/** Les recharges d'images des agents visuels. */
+const IMAGE_PREFIX = 'img-'
+
 /**
  * Opens a Stripe Checkout session.
  *
@@ -95,9 +99,18 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: 'Formule inconnue' })
   }
 
+  const imagePack = parsed.data.planId.startsWith(IMAGE_PREFIX)
+    ? findImagePack(parsed.data.planId)
+    : null
+  if (parsed.data.planId.startsWith(IMAGE_PREFIX) && !imagePack) {
+    return res.status(400).json({ error: 'Formule inconnue' })
+  }
+
   const isSubscription = parsed.data.planId === PREMIUM.id
-  const pack = isSubscription || agentPlan ? null : findPack(parsed.data.planId)
-  if (!isSubscription && !agentPlan && !pack) return res.status(400).json({ error: 'Formule inconnue' })
+  const pack = isSubscription || agentPlan || imagePack ? null : findPack(parsed.data.planId)
+  if (!isSubscription && !agentPlan && !imagePack && !pack) {
+    return res.status(400).json({ error: 'Formule inconnue' })
+  }
 
   // One Stripe customer per account, reused: without it every purchase creates a
   // new customer and the subscription portal shows an empty history.
@@ -124,13 +137,21 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
         quantity: 1,
         price_data: {
           currency: 'eur',
-          unit_amount: agentPlan ? agentPlan.amount : isSubscription ? PREMIUM.amount : pack!.amount,
+          unit_amount: agentPlan
+            ? agentPlan.amount
+            : imagePack
+              ? imagePack.amount
+              : isSubscription
+                ? PREMIUM.amount
+                : pack!.amount,
           // Prices are advertised TTC, as French consumer law requires: the amount
           // above is what the buyer pays, VAT included, not a base to add tax to.
           tax_behavior: 'inclusive',
           product_data: {
             name: agentPlan
               ? `Chef de rayon ${department!.agentName} — ${agentPlan.label}`
+              : imagePack
+                ? `Agent visuel — ${imagePack.label}`
               : isSubscription
                 ? PREMIUM.label
                 : `DropShipper IA — ${pack!.label}`,
@@ -246,6 +267,26 @@ billingRouter.post('/confirm', async (req: AuthedRequest, res) => {
       },
     })
     return res.json({ granted: true, agent: owned.agentName, paidUntil: updated.paidUntil })
+  }
+
+  if (planId.startsWith(IMAGE_PREFIX)) {
+    const imagePack = findImagePack(planId)
+    if (!imagePack) return res.status(400).json({ error: 'Formule inconnue sur ce paiement.' })
+
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { imageCredits: { increment: imagePack.images } },
+    })
+    await prisma.payment.create({
+      data: {
+        userId: req.userId!,
+        planId,
+        amount: session.amount_total ?? imagePack.amount,
+        credits: 0,
+        stripeSessionId: session.id,
+      },
+    })
+    return res.json({ granted: true, images: imagePack.images })
   }
 
   const pack = findPack(planId)

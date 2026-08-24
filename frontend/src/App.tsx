@@ -19,6 +19,8 @@ import MarketAnalysisPage from './pages/MarketAnalysis'
 import Veille from './pages/Veille'
 import Rayons from './pages/Rayons'
 import Agents from './pages/Agents'
+import PhotoStudio from './pages/PhotoStudio'
+import AdStudio from './pages/AdStudio'
 import SupportAgent from './pages/SupportAgent'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
@@ -58,6 +60,8 @@ export default function App() {
           <Route path="/livraisons" element={<Protected><Deliveries /></Protected>} />
           <Route path="/messages" element={<Protected><Messages /></Protected>} />
           <Route path="/pilote" element={<Protected><Autopilot /></Protected>} />
+          <Route path="/marketing-photo" element={<Protected><PhotoStudio /></Protected>} />
+          <Route path="/publicite" element={<Protected><AdStudio /></Protected>} />
           <Route path="/agents" element={<Protected><Agents /></Protected>} />
           <Route path="/agents/:key" element={<Protected><SupportAgent /></Protected>} />
           <Route path="/rayons" element={<Protected><Rayons /></Protected>} />
