@@ -140,7 +140,14 @@ export const api = {
       missing: number
     }>('/products/publish-batch', { method: 'POST', body: JSON.stringify({ productIds, platforms, shopId }) }),
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
-  listCategories: () => request<Array<{ id: string; group: string; label: string }>>('/products/meta/categories'),
+  listCategories: (filter?: { sector?: string; shop?: string }) =>
+    request<{
+      categories: Array<{ id: string; group: string; label: string; sector: string }>
+      sectors: Array<{ sector: string; count: number }>
+    }>(`/products/meta/categories?${new URLSearchParams({
+      ...(filter?.sector ? { sector: filter.sector } : {}),
+      ...(filter?.shop ? { shop: filter.shop } : {}),
+    })}`),
   listPlatforms: () =>
     request<
       Array<{
@@ -300,14 +307,21 @@ export const api = {
   // Sites du vendeur : un par boutique, chacun avec sa propre clé de catalogue.
   listShops: () =>
     request<
-      Array<{ id: string; name: string; shopKey: string; platform: string | null; products: number }>
+      Array<{
+        id: string
+        name: string
+        shopKey: string
+        platform: string | null
+        sectors: string[]
+        products: number
+      }>
     >('/settings/shops'),
-  createShop: (data: { name: string; platform?: string }) =>
+  createShop: (data: { name: string; platform?: string; sectors?: string[] }) =>
     request<{ id: string; name: string; shopKey: string }>('/settings/shops', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  renameShop: (id: string, data: { name?: string; platform?: string }) =>
+  renameShop: (id: string, data: { name?: string; platform?: string; sectors?: string[] }) =>
     request(`/settings/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteShop: (id: string) => request(`/settings/shops/${id}`, { method: 'DELETE' }),
 

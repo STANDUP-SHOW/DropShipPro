@@ -1,6 +1,15 @@
 import type { Platform } from '@prisma/client'
+import { SECTOR_CATEGORIES, SECTOR_RULES } from './categorySectors.js'
 
 export interface CategoryEntry {
+  /**
+   * Le rayon auquel cette catégorie appartient.
+   *
+   * Le catalogue ne couvrait que la mode homme : un vendeur de high-tech ouvrait
+   * la liste et n'y trouvait que des chemises. Le secteur relie une catégorie au
+   * rayon correspondant (voir services/departments.ts) et permet de filtrer.
+   */
+  sector: string
   /** Stable id stored on the product — labels can be reworded without breaking data. */
   id: string
   group: string
@@ -21,9 +30,10 @@ export interface CategoryEntry {
 
 const APPAREL = 'Apparel & Accessories'
 
-export const CATEGORY_CATALOG: CategoryEntry[] = [
+const FASHION_CATALOG: CategoryEntry[] = [
   // ---------- Chaussures ----------
   {
+    sector: 'mode-homme',
     id: 'shoes-sneakers',
     group: 'Chaussures',
     label: 'Baskets / Sneakers',
@@ -33,6 +43,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Shoes > Men Shoes > Sneakers',
   },
   {
+    sector: 'mode-homme',
     id: 'shoes-formal',
     group: 'Chaussures',
     label: 'Chaussures de ville',
@@ -42,6 +53,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Shoes > Men Shoes > Formal Shoes',
   },
   {
+    sector: 'mode-homme',
     id: 'shoes-boots',
     group: 'Chaussures',
     label: 'Bottes / Boots',
@@ -51,6 +63,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Shoes > Men Shoes > Boots',
   },
   {
+    sector: 'mode-homme',
     id: 'shoes-sandals',
     group: 'Chaussures',
     label: 'Sandales / Claquettes',
@@ -60,6 +73,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Shoes > Men Shoes > Sandals',
   },
   {
+    sector: 'mode-homme',
     id: 'shoes-sport',
     group: 'Chaussures',
     label: 'Chaussures de sport',
@@ -71,6 +85,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
 
   // ---------- Hauts ----------
   {
+    sector: 'mode-homme',
     id: 'top-tshirt',
     group: 'Hauts',
     label: 'T-shirts',
@@ -80,6 +95,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Tops > T-Shirts',
   },
   {
+    sector: 'mode-homme',
     id: 'top-shirt',
     group: 'Hauts',
     label: 'Chemises',
@@ -89,6 +105,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Tops > Shirts',
   },
   {
+    sector: 'mode-homme',
     id: 'top-polo',
     group: 'Hauts',
     label: 'Polos',
@@ -98,6 +115,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Tops > Polo Shirts',
   },
   {
+    sector: 'mode-homme',
     id: 'top-sweater',
     group: 'Hauts',
     label: 'Pulls / Gilets',
@@ -107,6 +125,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Tops > Sweaters',
   },
   {
+    sector: 'mode-homme',
     id: 'top-hoodie',
     group: 'Hauts',
     label: 'Sweats / Hoodies',
@@ -118,6 +137,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
 
   // ---------- Vestes & Manteaux ----------
   {
+    sector: 'mode-homme',
     id: 'outer-jacket',
     group: 'Vestes & Manteaux',
     label: 'Vestes / Blousons',
@@ -127,6 +147,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Outerwear > Jackets',
   },
   {
+    sector: 'mode-homme',
     id: 'outer-coat',
     group: 'Vestes & Manteaux',
     label: 'Manteaux / Parkas',
@@ -138,6 +159,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
 
   // ---------- Bas ----------
   {
+    sector: 'mode-homme',
     id: 'bottom-pants',
     group: 'Bas',
     label: 'Pantalons',
@@ -147,6 +169,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Bottoms > Pants',
   },
   {
+    sector: 'mode-homme',
     id: 'bottom-jeans',
     group: 'Bas',
     label: 'Jeans',
@@ -156,6 +179,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Bottoms > Jeans',
   },
   {
+    sector: 'mode-homme',
     id: 'bottom-shorts',
     group: 'Bas',
     label: 'Shorts / Bermudas',
@@ -165,6 +189,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Bottoms > Shorts',
   },
   {
+    sector: 'mode-homme',
     id: 'bottom-tracksuit',
     group: 'Bas',
     label: 'Survêtements / Joggings',
@@ -174,6 +199,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Bottoms > Sweatpants',
   },
   {
+    sector: 'mode-homme',
     id: 'bottom-suit',
     group: 'Bas',
     label: 'Costumes / Ensembles',
@@ -185,6 +211,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
 
   // ---------- Accessoires ----------
   {
+    sector: 'mode-homme',
     id: 'acc-watch',
     group: 'Accessoires',
     label: 'Montres',
@@ -194,6 +221,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Jewelry Accessories & Derivatives > Watches',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-sunglasses',
     group: 'Accessoires',
     label: 'Lunettes de soleil',
@@ -203,6 +231,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Fashion Accessories > Eyewear > Sunglasses',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-belt',
     group: 'Accessoires',
     label: 'Ceintures',
@@ -212,6 +241,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Fashion Accessories > Belts',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-cap',
     group: 'Accessoires',
     label: 'Casquettes / Chapeaux',
@@ -221,6 +251,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Fashion Accessories > Hats & Caps',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-scarf',
     group: 'Accessoires',
     label: 'Écharpes / Gants / Bonnets',
@@ -230,6 +261,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Fashion Accessories > Scarves & Gloves',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-bag',
     group: 'Accessoires',
     label: 'Sacs / Sacoches',
@@ -239,6 +271,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Luggage & Bags > Men Bags',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-wallet',
     group: 'Accessoires',
     label: 'Portefeuilles',
@@ -248,6 +281,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Luggage & Bags > Wallets & Card Holders',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-jewelry',
     group: 'Accessoires',
     label: 'Bijoux homme (colliers, bagues, bracelets)',
@@ -257,6 +291,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Jewelry Accessories & Derivatives > Fashion Jewelry',
   },
   {
+    sector: 'mode-homme',
     id: 'acc-tie',
     group: 'Accessoires',
     label: 'Cravates / Nœuds papillon',
@@ -268,6 +303,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
 
   // ---------- Sous-vêtements ----------
   {
+    sector: 'mode-homme',
     id: 'under-underwear',
     group: 'Sous-vêtements',
     label: 'Sous-vêtements',
@@ -277,6 +313,7 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
     tiktok: 'Menswear & Underwear > Underwear',
   },
   {
+    sector: 'mode-homme',
     id: 'under-socks',
     group: 'Sous-vêtements',
     label: 'Chaussettes',
@@ -288,6 +325,9 @@ export const CATEGORY_CATALOG: CategoryEntry[] = [
 
   // ---------- Divers ----------
   {
+    // Sans rayon : c'est le refuge de ce qui n'entre nulle part, et il doit
+    // rester proposé quel que soit le secteur choisi par le vendeur.
+    sector: 'tous',
     id: 'other',
     group: 'Divers',
     label: 'Autre / Non classé',
@@ -320,6 +360,24 @@ const FRENCH_MARKETPLACES: Platform[] = [
   'MIINTO',
   'ATLAS_FOR_MEN',
 ]
+
+/**
+ * Le catalogue complet : la mode d'origine, puis les autres rayons.
+ *
+ * Réunis ici plutôt que dans un seul fichier de mille lignes : la mode a des
+ * chemins par place de marché écrits à la main, les autres rayons partent d'une
+ * taxonomie générique. Les mélanger rendrait les deux illisibles.
+ */
+export const CATEGORY_CATALOG: CategoryEntry[] = [...FASHION_CATALOG, ...SECTOR_CATEGORIES]
+
+/** Les secteurs réellement représentés, avec leur nombre de catégories. */
+export function categorySectors() {
+  const counts = new Map<string, number>()
+  for (const entry of CATEGORY_CATALOG) {
+    counts.set(entry.sector, (counts.get(entry.sector) ?? 0) + 1)
+  }
+  return [...counts.entries()].map(([sector, count]) => ({ sector, count }))
+}
 
 /** Resolves the destination category name for one platform. */
 export function categoryFor(entry: CategoryEntry, platform: Platform): string {
@@ -379,5 +437,5 @@ export function guessCategoryId(sourceCategory: string | null): string | null {
     [/sous-vêtement|sous-vetement|underwear|bo(x|xer)/, 'under-underwear'],
   ]
 
-  return RULES.find(([re]) => re.test(text))?.[1] ?? null
+  return SECTOR_RULES.find(([re]) => re.test(text))?.[1] ?? RULES.find(([re]) => re.test(text))?.[1] ?? null
 }

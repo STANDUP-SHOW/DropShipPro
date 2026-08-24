@@ -11,7 +11,7 @@ import { watermarkImages, watermarkUploads, type WatermarkOptions, type Watermar
 import type { User } from '@prisma/client'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
-import { CATEGORY_CATALOG, guessCategoryId } from '../services/categoryCatalog.js'
+import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/categoryCatalog.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
@@ -726,8 +726,35 @@ productsRouter.get('/:id/category-preview', async (req: AuthedRequest, res) => {
 })
 
 /** The category taxonomy that powers the dropdown in the back office. */
-productsRouter.get('/meta/categories', (_req, res) => {
-  res.json(CATEGORY_CATALOG.map(({ id, group, label }) => ({ id, group, label })))
+productsRouter.get('/meta/categories', async (req: AuthedRequest, res) => {
+  // Filtrées par rayon, ou par les rayons de la boutique visée.
+  //
+  // Un vendeur de high-tech ne doit pas dérouler quarante catégories de mode
+  // pour trouver « casque audio ». Sans filtre, tout est proposé : c'est le cas
+  // d'un vendeur qui n'a pas encore dit ce qu'il vend, et lui cacher des
+  // catégories serait pire que de lui en montrer trop.
+  let sectors: string[] | null = null
+
+  if (typeof req.query.sector === 'string' && req.query.sector) {
+    sectors = [req.query.sector]
+  } else if (typeof req.query.shop === 'string' && req.query.shop) {
+    const shop = await prisma.shop.findFirst({
+      where: { id: req.query.shop, userId: req.userId! },
+      select: { sectors: true },
+    })
+    const declared = Array.isArray(shop?.sectors) ? shop!.sectors : []
+    const clean = declared.filter((s): s is string => typeof s === 'string')
+    if (clean.length) sectors = clean
+  }
+
+  const filtered = sectors
+    ? CATEGORY_CATALOG.filter((c) => sectors!.includes(c.sector) || c.sector === 'tous')
+    : CATEGORY_CATALOG
+
+  res.json({
+    categories: filtered.map(({ id, group, label, sector }) => ({ id, group, label, sector })),
+    sectors: categorySectors(),
+  })
 })
 
 // Photos the seller adds by hand: their own shots, or a rescue when the

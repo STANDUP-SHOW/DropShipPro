@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Store, Plus, Trash2, Copy, Check } from 'lucide-react'
 import { api, apiRoot } from '../lib/api'
+import { ShopSectors } from './ShopSectors'
 import type { ShopOption } from './ShopPicker'
 
 /** Indicative, and deliberately not exhaustive: it only labels the card. */
@@ -116,6 +117,14 @@ export function MyShops() {
                 <Trash2 size={14} />
               </button>
             </div>
+
+            <ShopSectors
+              shopId={shop.id}
+              selected={shop.sectors ?? []}
+              onChange={(sectors) =>
+                setShops((list) => list.map((s) => (s.id === shop.id ? { ...s, sectors } : s)))
+              }
+            />
 
             {/* Les canaux qui viennent lire au lieu qu'on leur pousse. Une seule
                 adresse à coller chez eux, et le catalogue s'y met à jour seul. */}

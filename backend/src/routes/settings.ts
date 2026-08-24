@@ -87,6 +87,7 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
       name: s.name,
       shopKey: s.shopKey,
       platform: s.platform,
+      sectors: Array.isArray(s.sectors) ? s.sectors : [],
       products: s._count.products,
       createdAt: s.createdAt,
     })),
@@ -97,6 +98,14 @@ const shopSchema = z.object({
   name: z.string().trim().min(1).max(60),
   /** Indicative only: wordpress, prestashop, magento, shopify, autre. */
   platform: z.string().trim().max(30).optional(),
+  /**
+   * Les rayons vendus par cette boutique.
+   *
+   * C'est ce qui décide des catégories proposées à l'import : un vendeur de
+   * high-tech ne doit pas dérouler quarante catégories de mode. Vide veut dire
+   * « tous » — qui n'a rien déclaré doit tout voir, jamais rien.
+   */
+  sectors: z.array(z.string().trim().max(40)).max(20).optional(),
 })
 
 settingsRouter.post('/shops', async (req: AuthedRequest, res) => {

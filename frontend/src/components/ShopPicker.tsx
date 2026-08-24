@@ -7,6 +7,8 @@ export interface ShopOption {
   name: string
   shopKey: string
   platform: string | null
+  /** Les rayons vendus par cette boutique. Vide = toutes les categories. */
+  sectors: string[]
   products: number
 }
 

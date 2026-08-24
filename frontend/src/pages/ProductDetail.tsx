@@ -126,7 +126,7 @@ export default function ProductDetail() {
   }, [id])
 
   useEffect(() => {
-    api.listCategories().then(setCatalog)
+    api.listCategories().then((r) => setCatalog(r.categories))
     api.listPlatforms().then(setPlatforms)
   }, [])
 

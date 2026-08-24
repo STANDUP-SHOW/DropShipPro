@@ -73,7 +73,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     load()
-    api.listCategories().then(setCatalog)
+    api.listCategories().then((r) => setCatalog(r.categories))
     api.listPlatforms().then(setPlatforms)
   }, [])
 

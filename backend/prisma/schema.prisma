@@ -315,6 +315,11 @@ model Shop {
   shopKey   String   @unique @default(cuid())
   /// Type de site branche, a titre indicatif: wordpress, prestashop, magento...
   platform  String?
+  /// Les rayons vendus par cette boutique. Vide = tous.
+  ///
+  /// Un vendeur qui tient un site de mode et un site high-tech ne veut pas voir
+  /// les memes categories a l import : sans ce lien, la liste melange les deux.
+  sectors   Json?
   createdAt DateTime @default(now())
 
   products Product[]
