@@ -30,7 +30,16 @@ Conséquences réelles, toutes observées :
   ranger ;
 - tout ce qui écrira des fichiers ensuite : factures, exports.
 
-**À faire côté Cloudflare** — R2 → Manage API Tokens :
+**Cause identifiee** : le compartiment est dans la juridiction europeenne
+(« photos de droppost | UE »). R2 exige alors l adresse
+, et repond « Access Denied » — et non
+« compartiment introuvable » — quand on vise l adresse standard. Le jeton etait
+valide depuis le debut.
+
+**A faire** : poser  dans Railway. Le code construit
+l adresse en consequence.
+
+**Autres pistes, si cela ne suffit pas** — R2 → Manage API Tokens :
 
 - le jeton doit être en **Object Read & Write**, pas seulement Read. C'est la
   cause la plus fréquente et elle donne exactement ce message ;

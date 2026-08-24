@@ -39,13 +39,27 @@ function getR2(): R2Config | null {
     return r2
   }
 
+  /**
+   * La juridiction du compartiment, quand il en a une.
+   *
+   * Un compartiment créé dans la juridiction européenne ne répond pas à
+   * l'adresse standard : il faut viser `<compte>.eu.r2.cloudflarestorage.com`.
+   * Écrire à la mauvaise adresse ne donne pas « compartiment introuvable » mais
+   * « Access Denied » — ce qui envoie chercher un problème de permissions là où
+   * le jeton était parfaitement valide. Cela nous a coûté une demi-journée.
+   */
+  const jurisdiction = process.env.R2_JURISDICTION?.trim().toLowerCase()
+  const host = jurisdiction
+    ? `${accountId}.${jurisdiction}.r2.cloudflarestorage.com`
+    : `${accountId}.r2.cloudflarestorage.com`
+
   r2 = {
     bucket,
     publicUrl,
     client: new S3Client({
-      // R2 speaks the S3 protocol but has a single endpoint and no real region.
+      // R2 speaks the S3 protocol but has no real region.
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint: `https://${host}`,
       credentials: { accessKeyId, secretAccessKey },
     }),
   }

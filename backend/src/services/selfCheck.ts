@@ -59,7 +59,10 @@ export async function selfCheck(): Promise<ServiceReport> {
 
   if (stockage === 'r2-refuse') {
     alertes.push(
-      "Stockage R2 : l'ecriture est refusee (" + (storageError() ?? "raison inconnue") + "). Les filigranes ne sont pas appliques — les photos du fournisseur partent telles quelles — et les agents visuels ne peuvent rien enregistrer.",
+      "Stockage R2 : l ecriture est refusee (" +
+        (storageError() ?? "raison inconnue") +
+        "). Les filigranes ne sont pas appliques — les photos du fournisseur partent telles quelles — et les agents visuels ne peuvent rien enregistrer. " +
+        "Si le compartiment est dans une juridiction (UE), posez R2_JURISDICTION=eu : a la mauvaise adresse, R2 repond Access Denied et non compartiment introuvable.",
     )
   }
 
