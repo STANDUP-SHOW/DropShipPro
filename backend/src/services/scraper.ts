@@ -1,6 +1,15 @@
 import * as cheerio from 'cheerio'
 import { gotScraping } from 'got-scraping'
 
+/**
+ * Les adresses d'images présentes dans le source de la page.
+ *
+ * Une galerie est souvent décrite dans le JSON embarqué avant d'exister dans le
+ * DOM : la lire ici rattrape les fiches où le carrousel ne monte qu'une photo à
+ * la fois. AVIF compris — les galeries récentes ne servent plus que ça.
+ */
+const IMAGE_IN_SOURCE = /https:\/\/[^"'\\\s)]+?\.(?:jpe?g|png|webp|avif)/gi
+
 export interface ScrapedProduct {
   title: string
   description: string
@@ -98,11 +107,31 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     const c = $(el).attr('content')
     if (c) images.add(absoluteUrl(c, url))
   })
-  if (images.size === 0) {
-    $('img').slice(0, 10).each((_, el) => {
-      const src = $(el).attr('src') || $(el).attr('data-src')
-      if (src) images.add(absoluteUrl(src, url))
-    })
+  // Toutes les images de la page, et non les dix premières : les dix premières
+  // sont l'en-tête, le logo et le menu. Le tri se fait après, sur des critères
+  // qui désignent vraiment la galerie (voir services/imageSelect.ts).
+  $('img').each((_, el) => {
+    const src =
+      $(el).attr('src') ||
+      $(el).attr('data-src') ||
+      $(el).attr('data-original') ||
+      $(el).attr('data-lazy-src')
+    if (src) images.add(absoluteUrl(src, url))
+
+    // Le srcset porte souvent la version pleine taille que le src n'a pas.
+    const srcset = $(el).attr('srcset') || $(el).attr('data-srcset')
+    if (srcset) {
+      for (const part of srcset.split(',')) {
+        const candidate = part.trim().split(/s+/)[0]
+        if (candidate) images.add(absoluteUrl(candidate, url))
+      }
+    }
+  })
+
+  // Et les adresses présentes dans le source lui-même : une galerie est souvent
+  // décrite dans le JSON embarqué avant d'exister dans le DOM.
+  for (const match of html.replace(/\\u002F/gi, '/').matchAll(IMAGE_IN_SOURCE)) {
+    images.add(match[0])
   }
 
   const sourceCategory =
@@ -125,7 +154,8 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     description: description.trim(),
     price,
     currency,
-    images: Array.from(images).slice(0, 8),
+    // Brut : le choix des photos revient à selectProductImages, qui les mesure.
+    images: Array.from(images).slice(0, 60),
     sourceCategory,
     sourceSite: site,
     metaTitle: og('og:title') || null,

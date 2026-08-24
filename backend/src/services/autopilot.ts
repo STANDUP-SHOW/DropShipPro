@@ -9,6 +9,7 @@ import { reserveCredits, refundCredits } from './billing.js'
 import { guessCategoryId } from './categoryCatalog.js'
 import { watermarkOptionsFor } from './watermarkOptions.js'
 import { apiBaseUrl } from '../lib/urls.js'
+import { selectProductImages } from './imageSelect.js'
 
 /**
  * Le pilote automatique.
@@ -145,7 +146,11 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
         description: scraped.description,
         category: scraped.sourceCategory,
       })
-      const images = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
+      // Cinq photos, choisies sans personne pour rattraper : le tri doit être
+      // juste du premier coup, une bannière en photo principale fait refuser
+      // l'annonce ou tuer la vente.
+      const chosen = await selectProductImages(scraped.images, 5)
+      const images = await watermarkImages(chosen, watermarkOptionsFor(user), enhanced.title)
 
       const product = await prisma.product.create({
         data: {
@@ -161,7 +166,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           price: scraped.price,
           sellingPrice: market ?? scraped.price * 1.5,
           currency: scraped.currency,
-          images: images.length ? images : scraped.images,
+          images: images.length ? images : chosen,
           metaTitle: enhanced.metaTitle,
           metaDescription: enhanced.metaDescription,
           metaKeywords: enhanced.metaKeywords,

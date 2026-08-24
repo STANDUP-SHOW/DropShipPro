@@ -121,7 +121,7 @@ async function logoOverlay(imagePath: string, photoWidth: number, scale: number,
  * unwatermarked source URLs: the seller saw photos with no watermark and no
  * explanation.
  */
-async function fetchSourceImage(url: string): Promise<Buffer | null> {
+export async function fetchSourceImage(url: string): Promise<Buffer | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 20000)
 

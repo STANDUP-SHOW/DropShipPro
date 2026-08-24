@@ -19,6 +19,7 @@ import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 import { watermarkOptionsFor } from '../services/watermarkOptions.js'
+import { selectProductImages } from '../services/imageSelect.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -69,7 +70,10 @@ productsRouter.post(
       description: scraped.description,
       category: scraped.sourceCategory,
     })
-    const watermarked = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
+    // Les photos sont choisies, pas prises dans l'ordre d'apparition : cet ordre
+    // donne l'en-tête du site, pas la galerie.
+    const chosen = await selectProductImages(scraped.images, 8)
+    const watermarked = await watermarkImages(chosen, watermarkOptionsFor(user), enhanced.title)
 
     // Les options d'achat se lisent dans le texte de la page : aucune balise ne
     // les déclare, et sans cette lecture un import par URL ne rendait jamais
@@ -91,7 +95,7 @@ productsRouter.post(
         price: scraped.price,
         sellingPrice: scraped.price * 1.5,
         currency: scraped.currency,
-        images: watermarked.length ? watermarked : scraped.images,
+        images: watermarked.length ? watermarked : chosen,
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,
