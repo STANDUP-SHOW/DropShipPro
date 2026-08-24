@@ -265,6 +265,57 @@ export const api = {
     request(`/settings/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteShop: (id: string) => request(`/settings/shops/${id}`, { method: 'DELETE' }),
 
+  // Clés machine : un agent de veille extérieur dépose ses trouvailles avec.
+  listApiKeys: () =>
+    request<
+      Array<{
+        id: string
+        name: string
+        prefix: string
+        lastUsedAt: string | null
+        revokedAt: string | null
+        createdAt: string
+      }>
+    >('/settings/api-keys'),
+  createApiKey: (name: string) =>
+    request<{ id: string; name: string; prefix: string; key: string }>('/settings/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  revokeApiKey: (id: string) => request(`/settings/api-keys/${id}`, { method: 'DELETE' }),
+
+  // Boîte à opportunités : ce que les agents ont repéré, en attente d'arbitrage.
+  listOpportunities: (status?: string) =>
+    request<{
+      count: number
+      opportunities: Array<{
+        id: string
+        source: string
+        sourceUrl: string
+        title: string
+        image: string | null
+        category: string | null
+        sourcePrice: number
+        marketPrice: number | null
+        marginPercent: number | null
+        currency: string
+        salesCount: number | null
+        euStock: boolean | null
+        deliveryDays: number | null
+        delivery: string | null
+        warranty: string | null
+        isNew: boolean
+        notes: string | null
+        status: 'NEW' | 'KEPT' | 'REJECTED' | 'IMPORTED'
+        productId: string | null
+        needsExtension: boolean
+        detectedAt: string
+      }>
+    }>(status ? `/opportunities?status=${status}` : '/opportunities'),
+  setOpportunityStatus: (id: string, status: string, productId?: string) =>
+    request(`/opportunities/${id}`, { method: 'PATCH', body: JSON.stringify({ status, productId }) }),
+  deleteOpportunity: (id: string) => request(`/opportunities/${id}`, { method: 'DELETE' }),
+
   listCredentials: () => request<any[]>('/settings/credentials'),
   saveCredential: (data: Record<string, unknown>) =>
     request('/settings/credentials', { method: 'PUT', body: JSON.stringify(data) }),

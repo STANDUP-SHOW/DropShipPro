@@ -41,13 +41,46 @@ const opportunitySchema = z.object({
    * elle n'en publie pas — un zéro inventé se lirait comme « ne se vend pas ».
    */
   salesCount: z.number().int().nonnegative().optional(),
-  euStock: z.boolean().optional(),
-  deliveryDays: z.number().int().nonnegative().max(365).optional(),
+  /**
+   * Trois états. Omettre le champ veut dire « je n'ai pas pu vérifier », ce qui
+   * est le cas le plus fréquent d'une veille automatique — et ce n'est pas la
+   * même chose que « pas de stock en Europe ».
+   */
+  euStock: z.boolean().nullable().optional(),
+  /**
+   * Nombre de jours, ou le texte de la plateforme : « 3-5 jours ouvrés »,
+   * « sous 48h ». Un scan de trois heures ne doit pas être perdu parce que le
+   * délai est arrivé sous une forme inattendue.
+   */
+  deliveryDays: z.union([z.number(), z.string()]).optional(),
   warranty: z.string().trim().max(120).optional(),
   isNew: z.boolean().optional(),
   notes: z.string().trim().max(4000).optional(),
   raw: z.unknown().optional(),
 })
+
+/**
+ * Lit un délai de livraison quelle que soit sa forme.
+ *
+ * Le premier vrai lot déposé par un agent a été perdu en entier parce qu'il
+ * envoyait « 3-5 jours ouvrés » là où un entier était attendu. Le texte est donc
+ * conservé tel quel, et le nombre en est extrait quand il s'y trouve : la borne
+ * haute d'un intervalle, parce qu'un vendeur qui promet un délai doit annoncer
+ * le pire, pas le meilleur.
+ */
+function readDelivery(value: number | string | undefined): { days: number | null; text: string | null } {
+  if (value === undefined || value === null) return { days: null, text: null }
+  if (typeof value === 'number') {
+    return { days: Number.isFinite(value) ? Math.min(365, Math.max(0, Math.round(value))) : null, text: null }
+  }
+
+  const text = value.trim().slice(0, 120)
+  const numbers = text.match(/d+/g)
+  if (!numbers) return { days: null, text: text || null }
+
+  const worst = Math.max(...numbers.map(Number))
+  return { days: worst <= 365 ? worst : null, text }
+}
 
 const batchSchema = z.object({
   opportunities: z.array(opportunitySchema).min(1).max(100),
@@ -75,6 +108,7 @@ agentRouter.post('/opportunities', async (req: AgentRequest, res) => {
   const rejected: Array<{ sourceUrl: string; raison: string }> = []
 
   for (const o of parsed.data.opportunities) {
+    const delivery = readDelivery(o.deliveryDays)
     const data = {
       source: o.source,
       title: o.title,
@@ -84,8 +118,9 @@ agentRouter.post('/opportunities', async (req: AgentRequest, res) => {
       marketPrice: o.marketPrice ?? null,
       currency: o.currency?.toUpperCase() ?? 'EUR',
       salesCount: o.salesCount ?? null,
-      euStock: o.euStock ?? false,
-      deliveryDays: o.deliveryDays ?? null,
+      euStock: o.euStock ?? null,
+      deliveryDays: delivery.days,
+      deliveryText: delivery.text,
       warranty: o.warranty ?? null,
       isNew: o.isNew ?? false,
       notes: o.notes ?? null,

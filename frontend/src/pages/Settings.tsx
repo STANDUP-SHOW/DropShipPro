@@ -3,6 +3,7 @@ import { Puzzle, Download } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { PlatformBadge } from '../components/PlatformBadge'
 import { MyShops } from '../components/MyShops'
+import { ApiKeys } from '../components/ApiKeys'
 import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
@@ -75,6 +76,8 @@ export default function Settings() {
       </div>
 
       <MyShops />
+
+      <ApiKeys />
 
       <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
         <h2 className="font-bold">Sécurité</h2>

@@ -355,10 +355,15 @@ model Opportunity {
   /// Compteur affiche par la plateforme source. Null quand elle n en publie pas
   /// — ce qui est le cas d Amazon : l absence doit se voir, pas se deviner.
   salesCount   Int?
-  euStock      Boolean @default(false)
+  /// Trois etats : oui, non, et inconnu — qui est le cas le plus frequent.
+  /// « Pas confirme » n est pas « pas de stock » : confondre les deux fait jeter
+  /// des produits valables, ce qui est exactement ce qu on a constate.
+  euStock      Boolean?
   deliveryDays Int?
+  /// Le delai tel que la plateforme l ecrit, quand il n est pas un nombre.
+  deliveryText String?
   warranty     String?
-  isNew        Boolean @default(false)
+  isNew        Boolean  @default(false)
 
   /// Ce que l agent en dit, et sa reponse brute pour pouvoir la relire.
   notes String? @db.Text

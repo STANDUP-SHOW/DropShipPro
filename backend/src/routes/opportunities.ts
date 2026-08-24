@@ -56,6 +56,8 @@ opportunitiesRouter.get('/', async (req: AuthedRequest, res) => {
           ? Math.round(((Number(o.marketPrice) - Number(o.sourcePrice)) / Number(o.sourcePrice)) * 100)
           : null,
       needsExtension: needsExtension(o.sourceUrl),
+      // Le delai lisible : le texte de la plateforme prime sur le nombre extrait.
+      delivery: o.deliveryText ?? (o.deliveryDays === null ? null : String(o.deliveryDays) + " jours"),
     })),
   })
 })
