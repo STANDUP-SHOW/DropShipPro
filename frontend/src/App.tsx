@@ -17,6 +17,8 @@ import ReviewsPage from './pages/ReviewsPage'
 import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
 import Veille from './pages/Veille'
+import Rayons from './pages/Rayons'
+import Rayon from './pages/Rayon'
 import Guide from './pages/Guide'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -48,6 +50,8 @@ export default function App() {
           <Route path="/guide" element={<Protected><Guide /></Protected>} />
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
           <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
+          <Route path="/rayons" element={<Protected><Rayons /></Protected>} />
+          <Route path="/rayon/:id" element={<Protected><Rayon /></Protected>} />
           <Route path="/veille" element={<Protected><Veille /></Protected>} />
           <Route path="/analyse-marche" element={<Protected><MarketAnalysisPage /></Protected>} />
         </Routes>

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireApiKey, type AgentRequest } from '../middleware/apiKey.js'
 import { rateLimit } from '../middleware/rateLimit.js'
+import { findDepartment } from '../services/departments.js'
 
 /**
  * La porte d'entrée des agents de veille.
@@ -26,8 +27,29 @@ agentRouter.get('/me', async (req: AgentRequest, res) => {
   res.json({ ok: true, compte: user?.email, credits: user?.credits, plan: user?.plan, opportunitesEnAttente: waiting })
 })
 
+/**
+ * Traduit le rayon annoncé par l'agent en rayon réellement confié.
+ *
+ * Un agent peut se déclarer d'un rayon que le vendeur n'a pas ouvert. Le dépôt
+ * n'est pas refusé pour autant — la trouvaille reste bonne — mais elle atterrit
+ * dans la veille générale, et la réponse le dit plutôt que de le taire.
+ */
+async function resolveDepartment(userId: string, key: string | undefined) {
+  if (!key) return { id: null as string | null, warning: null as string | null }
+  const profile = findDepartment(key)
+  if (!profile) return { id: null, warning: `Rayon « ${key} » inconnu, dépôt rangé dans la veille générale.` }
+
+  const dept = await prisma.department.findUnique({ where: { userId_key: { userId, key: profile.key } } })
+  if (!dept) {
+    return { id: null, warning: `Rayon « ${profile.label} » non confié, dépôt rangé dans la veille générale.` }
+  }
+  return { id: dept.id, warning: null }
+}
+
 const opportunitySchema = z.object({
   source: z.string().trim().min(1).max(40),
+  /** Clé du rayon, quand l'agent en tient un : high-tech, jardinage… */
+  department: z.string().trim().max(40).optional(),
   sourceUrl: z.string().url().max(2000),
   title: z.string().trim().min(1).max(300),
   image: z.string().url().max(2000).optional(),
@@ -105,10 +127,13 @@ agentRouter.post('/opportunities', async (req: AgentRequest, res) => {
 
   let created = 0
   let updated = 0
+  const warnings: string[] = []
   const rejected: Array<{ sourceUrl: string; raison: string }> = []
 
   for (const o of parsed.data.opportunities) {
     const delivery = readDelivery(o.deliveryDays)
+    const dept = await resolveDepartment(req.userId!, o.department)
+    if (dept.warning && !warnings.includes(dept.warning)) warnings.push(dept.warning)
     const data = {
       source: o.source,
       title: o.title,
@@ -125,6 +150,7 @@ agentRouter.post('/opportunities', async (req: AgentRequest, res) => {
       isNew: o.isNew ?? false,
       notes: o.notes ?? null,
       raw: (o.raw ?? null) as never,
+      departmentId: dept.id,
     }
 
     try {
@@ -146,7 +172,13 @@ agentRouter.post('/opportunities', async (req: AgentRequest, res) => {
     }
   }
 
-  res.status(201).json({ recues: parsed.data.opportunities.length, creees: created, mises_a_jour: updated, rejetees: rejected })
+  res.status(201).json({
+    recues: parsed.data.opportunities.length,
+    creees: created,
+    mises_a_jour: updated,
+    rejetees: rejected,
+    avertissements: warnings,
+  })
 })
 
 /** Ce que l'agent a déjà déposé, pour qu'il sache où il en est entre deux passages. */
@@ -169,6 +201,7 @@ agentRouter.get('/opportunities', async (req: AgentRequest, res) => {
 const signalSchema = z.object({
   /** SOCIAL : réseaux sociaux. MARKET : places de marché, prix, concurrence. */
   kind: z.enum(['SOCIAL', 'MARKET']),
+  department: z.string().trim().max(40).optional(),
   platform: z.string().trim().max(40).optional(),
   title: z.string().trim().min(1).max(300),
   summary: z.string().trim().max(4000).optional(),
@@ -222,10 +255,13 @@ agentRouter.post('/signals', async (req: AgentRequest, res) => {
 
   let created = 0
   let updated = 0
+  const warnings: string[] = []
   const rejected: Array<{ title: string; raison: string }> = []
 
   for (const s of parsed.data.signals) {
     const fingerprint = fingerprintOf(s)
+    const dept = await resolveDepartment(req.userId!, s.department)
+    if (dept.warning && !warnings.includes(dept.warning)) warnings.push(dept.warning)
     const data = {
       kind: s.kind,
       platform: s.platform ?? null,
@@ -240,6 +276,7 @@ agentRouter.post('/signals', async (req: AgentRequest, res) => {
       isNew: s.isNew ?? false,
       notes: s.notes ?? null,
       raw: (s.raw ?? null) as never,
+      departmentId: dept.id,
     }
 
     try {
@@ -266,5 +303,6 @@ agentRouter.post('/signals', async (req: AgentRequest, res) => {
     crees: created,
     mis_a_jour: updated,
     rejetes: rejected,
+    avertissements: warnings,
   })
 })

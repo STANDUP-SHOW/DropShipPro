@@ -21,6 +21,7 @@ signalsRouter.get('/', async (req: AuthedRequest, res) => {
   const items = await prisma.signal.findMany({
     where: {
       userId: req.userId!,
+      ...(typeof req.query.department === 'string' ? { departmentId: req.query.department } : {}),
       ...(kind === 'SOCIAL' || kind === 'MARKET' ? { kind } : {}),
       ...(status === 'NEW' || status === 'KEPT' || status === 'REJECTED' ? { status } : {}),
     },

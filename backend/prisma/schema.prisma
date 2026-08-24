@@ -98,6 +98,7 @@ model User {
   opportunities Opportunity[]
   signals       Signal[]
   review        Review?
+  Department    Department[]
 }
 
 enum AuthTokenType {
@@ -370,6 +371,10 @@ model Opportunity {
   notes String? @db.Text
   raw   Json?
 
+  /// Le rayon dont l agent a repere ce produit. Null pour un depot sans rayon.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
   status     OpportunityStatus @default(NEW)
   /// Renseigne quand l opportunite a donne lieu a un import.
   productId  String?
@@ -423,6 +428,9 @@ model Signal {
   engagementScore Int?
   trendScore      Int?
 
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
   isNew  Boolean      @default(false)
   status SignalStatus @default(NEW)
   notes  String?      @db.Text
@@ -437,4 +445,27 @@ model Signal {
 
   @@unique([userId, fingerprint])
   @@index([userId, kind, status])
+}
+
+/// Un rayon confie a un agent, chez un vendeur donne.
+///
+/// Le prenom est fige a l embauche plutot que lu dans le catalogue : le vendeur
+/// qui parle d « Albert » depuis trois mois ne doit pas le voir changer de nom
+/// parce qu on a modifie une liste dans le code.
+model Department {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Cle du rayon dans le catalogue (voir services/departments.ts).
+  key       String
+  agentName String
+  createdAt DateTime @default(now())
+
+  opportunities Opportunity[]
+  signals       Signal[]
+
+  /// Un rayon n est confie qu une fois : deux « Albert » chez le meme vendeur
+  /// rendraient chaque rapport ambigu.
+  @@unique([userId, key])
 }

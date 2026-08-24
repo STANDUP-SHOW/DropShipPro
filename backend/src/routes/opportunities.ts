@@ -39,6 +39,7 @@ opportunitiesRouter.get('/', async (req: AuthedRequest, res) => {
   const items = await prisma.opportunity.findMany({
     where: {
       userId: req.userId!,
+      ...(typeof req.query.department === 'string' ? { departmentId: req.query.department } : {}),
       ...(status && valid.includes(status) ? { status: status as 'NEW' } : {}),
     },
     orderBy: [{ status: 'asc' }, { detectedAt: 'desc' }],

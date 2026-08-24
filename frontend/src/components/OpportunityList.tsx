@@ -27,7 +27,7 @@ function euro(value: number | null, currency: string) {
  * mieux qu'un « non » inventé — c'est ce qui a fait écarter à tort des produits
  * valables lors des premiers scans.
  */
-export function OpportunityList({ scope }: { scope: 'ALL' | 'PERSONAL' }) {
+export function OpportunityList({ scope, department }: { scope: 'ALL' | 'PERSONAL'; department?: string }) {
   const [items, setItems] = useState<Opportunity[]>([])
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>('NEW')
   const [loading, setLoading] = useState(true)
@@ -37,13 +37,14 @@ export function OpportunityList({ scope }: { scope: 'ALL' | 'PERSONAL' }) {
   function load() {
     setLoading(true)
     api
-      .listOpportunities()
+      .listOpportunities(undefined, department)
       .then((r) => setItems(r.opportunities))
       .catch(() => setError('Impossible de charger vos opportunités'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [department])
 
   const shown = useMemo(
     () => items.filter((o) => o.status === tab && (scope === 'ALL' || o.personal)),

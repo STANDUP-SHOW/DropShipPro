@@ -18,7 +18,15 @@ function metricLabel(key: string) {
   return known[key] ?? key
 }
 
-export function SignalList({ kind, scope }: { kind: 'SOCIAL' | 'MARKET'; scope: 'ALL' | 'PERSONAL' }) {
+export function SignalList({
+  kind,
+  scope,
+  department,
+}: {
+  kind: 'SOCIAL' | 'MARKET'
+  scope: 'ALL' | 'PERSONAL'
+  department?: string
+}) {
   const [signals, setSignals] = useState<Signal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -26,11 +34,11 @@ export function SignalList({ kind, scope }: { kind: 'SOCIAL' | 'MARKET'; scope: 
   useEffect(() => {
     setLoading(true)
     api
-      .listSignals(kind)
+      .listSignals(kind, department)
       .then((r) => setSignals(r.signals))
       .catch(() => setError('Impossible de charger la veille'))
       .finally(() => setLoading(false))
-  }, [kind])
+  }, [kind, department])
 
   const shown = useMemo(
     () => signals.filter((s) => s.status !== 'REJECTED' && (scope === 'ALL' || s.personal)),

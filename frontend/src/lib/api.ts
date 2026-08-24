@@ -285,7 +285,7 @@ export const api = {
   revokeApiKey: (id: string) => request(`/settings/api-keys/${id}`, { method: 'DELETE' }),
 
   // Boîte à opportunités : ce que les agents ont repéré, en attente d'arbitrage.
-  listOpportunities: (status?: string) =>
+  listOpportunities: (status?: string, department?: string) =>
     request<{
       count: number
       opportunities: Array<{
@@ -313,8 +313,43 @@ export const api = {
         matchedProducts: Array<{ id: string; title: string; on: string[] }>
         detectedAt: string
       }>
-    }>(status ? `/opportunities?status=${status}` : '/opportunities'),
-  listSignals: (kind?: string) =>
+    }>(`/opportunities?${new URLSearchParams({ ...(status ? { status } : {}), ...(department ? { department } : {}) })}`),
+  // Chefs de rayon : un agent par secteur, embauché explicitement.
+  departmentCatalogue: () =>
+    request<
+      Array<{
+        key: string
+        label: string
+        agentName: string
+        emoji: string
+        focus: string
+        covers: string[]
+        hired: boolean
+      }>
+    >('/departments/catalogue'),
+  listDepartments: () =>
+    request<
+      Array<{
+        id: string
+        key: string
+        agentName: string
+        label: string
+        emoji: string
+        focus: string
+        covers: string[]
+        opportunities: number
+        signals: number
+        pending: number
+      }>
+    >('/departments'),
+  hireDepartment: (key: string) =>
+    request<{ id: string; agentName: string; label: string }>('/departments', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+    }),
+  releaseDepartment: (id: string) => request(`/departments/${id}`, { method: 'DELETE' }),
+
+  listSignals: (kind?: string, department?: string) =>
     request<{
       count: number
       signals: Array<{
@@ -336,7 +371,7 @@ export const api = {
         personal: boolean
         matchedProducts: Array<{ id: string; title: string; on: string[] }>
       }>
-    }>(kind ? `/signals?kind=${kind}` : '/signals'),
+    }>(`/signals?${new URLSearchParams({ ...(kind ? { kind } : {}), ...(department ? { department } : {}) })}`),
   setSignalStatus: (id: string, status: string) =>
     request(`/signals/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
