@@ -3,6 +3,7 @@ import { mkdir, readFile } from 'fs/promises'
 import path from 'path'
 import { putFile } from '../lib/storage.js'
 import { randomUUID } from 'crypto'
+import { absoluteUrl } from '../lib/urls.js'
 
 const MAX_IMAGES = 10
 const STORAGE_DIR = path.resolve('storage', 'products')
@@ -121,7 +122,14 @@ async function logoOverlay(imagePath: string, photoWidth: number, scale: number,
  * unwatermarked source URLs: the seller saw photos with no watermark and no
  * explanation.
  */
-export async function fetchSourceImage(url: string): Promise<Buffer | null> {
+export async function fetchSourceImage(source: string): Promise<Buffer | null> {
+  // Une photo déjà traitée est rangée chez nous et référencée par un chemin
+  // relatif — `/storage/…`. Les agents visuels repartent de ces photos-là, et
+  // `fetch` ne sait pas quoi faire d'un chemin sans hôte : la génération
+  // échouait avec « aucune photo n'a pu être lue » alors que le fichier
+  // existait.
+  const url = absoluteUrl(source)
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 20000)
 
