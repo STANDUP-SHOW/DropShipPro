@@ -179,6 +179,15 @@ ordersRouter.get('/:id', async (req: AuthedRequest, res) => {
 const trackingSchema = z.object({
   trackingNumber: z.string().trim().min(3).max(60),
   carrier: z.string().trim().max(40).optional(),
+  /**
+   * Passer la commande en « expédié ».
+   *
+   * Saisir un numéro de suivi veut dire que le colis est parti : laisser la
+   * commande en « à commander » obligerait à faire deux gestes pour dire une
+   * seule chose. Le drapeau reste explicite pour les cas où le vendeur corrige
+   * seulement un numéro erroné.
+   */
+  markShipped: z.boolean().optional(),
 })
 
 ordersRouter.put('/:id/tracking', async (req: AuthedRequest, res) => {
@@ -187,7 +196,11 @@ ordersRouter.put('/:id/tracking', async (req: AuthedRequest, res) => {
 
   const { count } = await prisma.order.updateMany({
     where: { id: req.params.id, userId: req.userId! },
-    data: { trackingNumber: parsed.data.trackingNumber, carrier: parsed.data.carrier ?? null },
+    data: {
+      trackingNumber: parsed.data.trackingNumber,
+      carrier: parsed.data.carrier ?? null,
+      ...(parsed.data.markShipped ? { status: 'SHIPPED' as const } : {}),
+    },
   })
   if (!count) return res.status(404).json({ error: 'Commande introuvable' })
 

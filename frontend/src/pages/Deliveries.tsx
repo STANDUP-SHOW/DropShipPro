@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Truck, MapPin, ExternalLink, MessageSquare, Package, Save, HelpCircle } from 'lucide-react'
+import { Truck, MapPin, ExternalLink, MessageSquare, Package, Save, HelpCircle, Plus, X } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 
@@ -58,6 +58,10 @@ export default function Deliveries() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [newOrderId, setNewOrderId] = useState('')
+  const [newTracking, setNewTracking] = useState('')
+  const [added, setAdded] = useState<string | null>(null)
   const navigate = useNavigate()
 
   function load() {
@@ -83,6 +87,12 @@ export default function Deliveries() {
     })
   }, [openId])
 
+  // Ce qui peut être expédié : tout ce qui n'a pas encore de numéro et n'est ni
+  // livré ni remboursé. Proposer une commande déjà livrée n'aurait aucun sens.
+  const shippable = orders.filter(
+    (o) => !o.trackingNumber && o.status !== 'DELIVERED' && o.status !== 'REFUNDED',
+  )
+
   const shown = orders.filter((o) =>
     tab === 'ALL' ? true : tab === 'DELIVERED' ? o.status === 'DELIVERED' : o.status !== 'DELIVERED',
   )
@@ -96,6 +106,30 @@ export default function Deliveries() {
       const fresh = await api.getOrder(detail.id)
       setDetail(fresh)
       load()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function addShipment() {
+    if (!newOrderId || !newTracking.trim()) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await api.setTracking(newOrderId, newTracking.trim(), undefined, true)
+      setAdded(
+        res.tracking.generic
+          ? `Expédition enregistrée. Transporteur non reconnu : le suivi universel sera utilisé.`
+          : `Expédition enregistrée — ${res.tracking.carrierLabel}.`,
+      )
+      setNewTracking('')
+      setNewOrderId('')
+      setAdding(false)
+      load()
+      // La commande expédiée s'ouvre : le vendeur voit tout de suite le suivi.
+      setOpenId(res && newOrderId ? newOrderId : null)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -125,6 +159,71 @@ export default function Deliveries() {
       <p className="mt-1 text-sm text-gray-400">
         Vos commandes en cours, l'adresse de l'acheteur et le suivi de son colis.
       </p>
+
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAdding((v) => !v)}
+          className="btn-gradient inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold"
+        >
+          {adding ? <X size={14} /> : <Plus size={14} />}
+          <span>{adding ? 'Annuler' : 'Ajouter une expédition'}</span>
+        </button>
+        <span className="text-xs text-gray-500">
+          {shippable.length
+            ? `${shippable.length} commande(s) en attente d'expédition`
+            : 'Toutes vos commandes ont un numéro de suivi'}
+        </span>
+      </div>
+
+      {adding && (
+        <div className="mt-3 max-w-2xl rounded-xl border border-white/10 bg-white/5 p-4">
+          {!shippable.length ? (
+            <p className="text-sm text-gray-400">
+              Aucune commande n'attend d'expédition.
+            </p>
+          ) : (
+            <>
+              <label className="block text-xs text-gray-400">Commande à expédier</label>
+              <select
+                value={newOrderId}
+                onChange={(e) => setNewOrderId(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              >
+                <option value="">Choisissez une commande…</option>
+                {shippable.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {`${o.buyerName} — ${o.product?.aiTitle || o.product?.title || 'produit'} (${o.platform})`}
+                  </option>
+                ))}
+              </select>
+
+              <label className="mt-3 block text-xs text-gray-400">Numéro de suivi</label>
+              <input
+                value={newTracking}
+                onChange={(e) => setNewTracking(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addShipment()}
+                placeholder="Ex. 6A12345678901"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              />
+              <p className="mt-1 text-[11px] text-gray-500">
+                Le transporteur est reconnu automatiquement à partir du numéro.
+              </p>
+
+              <button
+                type="button"
+                onClick={addShipment}
+                disabled={busy || !newOrderId || !newTracking.trim()}
+                className="btn-gradient mt-3 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              >
+                {busy ? 'Enregistrement…' : "Enregistrer l'expédition"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {added && <p className="mt-3 text-xs text-emerald-300">{added}</p>}
 
       <div className="mt-5 flex flex-wrap gap-2">
         {TABS.map((t) => (

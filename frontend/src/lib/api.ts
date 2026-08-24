@@ -281,11 +281,11 @@ export const api = {
       } | null
       events: Array<{ date: string; status: string; location: string | null }> | null
     }>(`/orders/${id}`),
-  setTracking: (id: string, trackingNumber: string, carrier?: string) =>
-    request<{ ok: true }>(`/orders/${id}/tracking`, {
-      method: 'PUT',
-      body: JSON.stringify({ trackingNumber, carrier }),
-    }),
+  setTracking: (id: string, trackingNumber: string, carrier?: string, markShipped?: boolean) =>
+    request<{ ok: true; tracking: { carrierLabel: string; url: string; generic: boolean } }>(
+      `/orders/${id}/tracking`,
+      { method: 'PUT', body: JSON.stringify({ trackingNumber, carrier, markShipped }) },
+    ),
   contactBuyer: (id: string) =>
     request<{ id: string; created: boolean }>(`/orders/${id}/contact`, { method: 'POST' }),
   createOrder: (data: Record<string, unknown>) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
