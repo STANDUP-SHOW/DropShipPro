@@ -20,3 +20,15 @@ export function apiBaseUrl(req?: Request): string {
 
   return `http://localhost:${process.env.PORT || 4000}`
 }
+
+/**
+ * Rend absolue une adresse servie par cette API.
+ *
+ * Meta et Google téléchargent les photos eux-mêmes : un chemin `/storage/…` ne
+ * leur dit rien, et un article sans photo joignable est rejeté du catalogue.
+ */
+export function absoluteUrl(path: string): string {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  return `${apiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`
+}

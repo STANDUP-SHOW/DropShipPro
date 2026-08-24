@@ -3,6 +3,7 @@ import archiver from 'archiver'
 import path from 'path'
 import { existsSync } from 'fs'
 import type { Product } from '@prisma/client'
+import { metaCsv, googleRss } from '../services/productFeeds.js'
 import { prisma } from '../lib/prisma.js'
 
 export const publicRouter = Router()
@@ -152,4 +153,49 @@ publicRouter.get('/shops/:shopKey/products/:id', async (req, res) => {
 
   res.set('Cache-Control', 'public, max-age=60')
   res.json(toCatalogItem(publication.product, publication.targetCategory))
+})
+
+/**
+ * Les flux produits que Meta et Google viennent lire eux-mêmes.
+ *
+ * Instagram n'accepte pas qu'on lui « publie » une annonce : sa boutique et
+ * celle de Facebook s'alimentent du catalogue Meta, rempli par un flux relu
+ * plusieurs fois par jour. Le vendeur colle l'adresse une fois dans Commerce
+ * Manager, et tout ce qu'il publie sur « Mon site » y remonte ensuite tout seul.
+ */
+async function feedItems(shopKey: string) {
+  const shop = await prisma.shop.findUnique({ where: { shopKey } })
+  if (!shop) return null
+
+  const publications = await prisma.publication.findMany({
+    where: { platform: 'OWN_SITE', status: 'PUBLISHED', product: { shopId: shop.id } },
+    include: { product: true },
+    orderBy: { publishedAt: 'desc' },
+    take: 5000,
+  })
+
+  return {
+    shop,
+    items: publications.map((p) => ({ product: p.product, category: p.targetCategory })),
+  }
+}
+
+publicRouter.get('/shops/:shopKey/feed/meta.csv', async (req, res) => {
+  const data = await feedItems(req.params.shopKey)
+  if (!data) return res.status(404).json({ error: 'Boutique introuvable' })
+
+  // Meta relit le flux quelques fois par jour : un cache d'une heure suffit
+  // largement et évite de recalculer à chaque passage de leur robot.
+  res.set('Cache-Control', 'public, max-age=3600')
+  res.type('text/csv; charset=utf-8')
+  res.send(metaCsv(data.items, data.shop.shopKey, data.shop.name))
+})
+
+publicRouter.get('/shops/:shopKey/feed/google.xml', async (req, res) => {
+  const data = await feedItems(req.params.shopKey)
+  if (!data) return res.status(404).json({ error: 'Boutique introuvable' })
+
+  res.set('Cache-Control', 'public, max-age=3600')
+  res.type('application/xml; charset=utf-8')
+  res.send(googleRss(data.items, data.shop.shopKey, data.shop.name, data.shop.name))
 })

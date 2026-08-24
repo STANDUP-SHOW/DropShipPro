@@ -4,6 +4,9 @@ import type { Platform } from '@prisma/client'
  * How a destination actually receives a listing.
  *
  * - `live`      : the API really creates the product now (own catalogue, Shopify)
+ * - `feed`      : the channel reads a product feed we expose and refreshes itself
+ *                 (Instagram, boutique Facebook, Google Shopping). The seller pastes
+ *                 the address once ; there is no per-listing call to make.
  * - `api-ready` : an API exists but no seller account is connected yet — recorded as "en attente"
  * - `extension` : no public API at all, the Chrome extension fills the form
  * - `none`      : not a marketplace, nothing can be published
@@ -11,7 +14,7 @@ import type { Platform } from '@prisma/client'
  * Bulk publishing only makes sense for the first two: the extension drives one
  * browser tab at a time, with the seller clicking « Publier » himself.
  */
-export type PlatformIntegration = 'live' | 'api-ready' | 'extension' | 'none'
+export type PlatformIntegration = 'live' | 'feed' | 'api-ready' | 'extension' | 'none'
 
 export interface PlatformInfo {
   id: Platform
@@ -52,6 +55,7 @@ const COLORS: Record<string, string> = {
   MIINTO: '#000000',
   ETSY: '#f56400',
   ATLAS_FOR_MEN: '#004b8d',
+  INSTAGRAM: '#e1306c',
   FACEBOOK: '#1877f2',
   LEBONCOIN: '#ff6e14',
   VINTED: '#007782',
@@ -93,7 +97,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Google Shopping',
     automatable: true,
     sellUrl: 'https://merchants.google.com',
-    note: 'Content API for Shopping via un compte Merchant Center (gratuit). Utilise la taxonomie produit Google.',
+    note: "Alimenté par un flux produit : collez l'adresse une fois dans Merchant Center (gratuit), Google la relit tous les jours.",
   },
   {
     id: 'AMAZON',
@@ -198,6 +202,15 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
       "Atlas For Men n'est pas une marketplace : l'enseigne vend sa propre marque et n'accepte pas de vendeurs tiers. Aucune publication n'est possible.",
   },
   {
+    id: 'INSTAGRAM',
+    label: 'Instagram & boutique Facebook',
+    automatable: true,
+    sellUrl: 'https://business.facebook.com/commerce',
+    note: "Alimentées par un flux produit : collez l'adresse une fois dans Commerce Manager, Meta la relit plusieurs fois par jour.",
+    warning:
+      "Meta exige une boutique validée : compte professionnel, page Facebook liée et domaine vérifié. La validation prend quelques jours et ne dépend pas de nous.",
+  },
+  {
     id: 'FACEBOOK',
     label: 'Facebook Marketplace',
     automatable: false,
@@ -223,9 +236,18 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
 /** The two destinations publisher.ts really pushes to today. */
 const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY']
 
+/**
+ * Destinations qui viennent lire un flux au lieu qu'on leur pousse une annonce.
+ *
+ * C'est la seule voie propre vers Instagram : sa boutique n'a pas d'API de
+ * publication, elle se remplit du catalogue Meta, lui-même rempli par un flux.
+ */
+const FEED: Platform[] = ['INSTAGRAM', 'GOOGLE_SHOPPING']
+
 function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchable'>): PlatformIntegration {
   if (p.unavailable) return 'none'
   if (!p.automatable) return 'extension'
+  if (FEED.includes(p.id)) return 'feed'
   return LIVE.includes(p.id) ? 'live' : 'api-ready'
 }
 
@@ -236,7 +258,7 @@ export const PLATFORMS: PlatformInfo[] = PLATFORM_DEFS.map((p) => {
   return {
     ...p,
     integration,
-    batchable: integration === 'live' || integration === 'api-ready',
+    batchable: integration === 'live' || integration === 'feed' || integration === 'api-ready',
     color: COLORS[p.id] ?? '#a855f7',
   }
 })

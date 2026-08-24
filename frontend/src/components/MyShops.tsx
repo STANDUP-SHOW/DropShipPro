@@ -10,6 +10,14 @@ function feedUrl(shopKey: string) {
   return `${apiRoot || window.location.origin}/api/public/shops/${shopKey}/products`
 }
 
+function metaFeedUrl(shopKey: string) {
+  return `${apiRoot || window.location.origin}/api/public/shops/${shopKey}/feed/meta.csv`
+}
+
+function googleFeedUrl(shopKey: string) {
+  return `${apiRoot || window.location.origin}/api/public/shops/${shopKey}/feed/google.xml`
+}
+
 /**
  * Les sites du vendeur, une clé de catalogue par site.
  *
@@ -61,9 +69,9 @@ export function MyShops() {
     }
   }
 
-  function copy(shopKey: string) {
-    navigator.clipboard.writeText(feedUrl(shopKey))
-    setCopied(shopKey)
+  function copy(url: string) {
+    navigator.clipboard.writeText(url)
+    setCopied(url)
     setTimeout(() => setCopied(null), 1500)
   }
 
@@ -109,6 +117,41 @@ export function MyShops() {
               </button>
             </div>
 
+            {/* Les canaux qui viennent lire au lieu qu'on leur pousse. Une seule
+                adresse à coller chez eux, et le catalogue s'y met à jour seul. */}
+            <details className="mt-2 rounded-lg border border-white/10 bg-white/5 p-2">
+              <summary className="cursor-pointer text-xs text-gray-400">
+                Flux pour Instagram, boutique Facebook et Google Shopping
+              </summary>
+              <p className="mt-2 text-[11px] text-gray-500">
+                Collez ces adresses une fois — dans Commerce Manager pour Meta, dans Merchant Center
+                pour Google. Ils reviennent lire tout seuls plusieurs fois par jour.
+              </p>
+              {[
+                { label: 'Meta (Instagram + Facebook)', url: metaFeedUrl(shop.shopKey) },
+                { label: 'Google Merchant Center', url: googleFeedUrl(shop.shopKey) },
+              ].map((f) => (
+                <div key={f.label} className="mt-2">
+                  <p className="text-[11px] text-gray-400">{f.label}</p>
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      readOnly
+                      value={f.url}
+                      onFocus={(e) => e.target.select()}
+                      className="flex-1 rounded-lg border border-white/10 bg-white/10 px-2 py-1.5 text-[11px] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => copy(f.url)}
+                      className="shrink-0 rounded-lg border border-white/10 px-2 py-1.5 text-[11px] hover:bg-white/5"
+                    >
+                      {copied === f.url ? <Check size={12} /> : <Copy size={12} />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </details>
+
             <div className="mt-2 flex gap-2">
               <input
                 readOnly
@@ -118,10 +161,10 @@ export function MyShops() {
               />
               <button
                 type="button"
-                onClick={() => copy(shop.shopKey)}
+                onClick={() => copy(feedUrl(shop.shopKey))}
                 className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-xs hover:bg-white/5"
               >
-                {copied === shop.shopKey ? <Check size={14} /> : <Copy size={14} />}
+                {copied === feedUrl(shop.shopKey) ? <Check size={14} /> : <Copy size={14} />}
               </button>
             </div>
           </li>

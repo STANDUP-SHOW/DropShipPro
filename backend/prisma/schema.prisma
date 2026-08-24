@@ -28,6 +28,7 @@ enum Platform {
   BRANDALLEY
   MIINTO
   SHOPIFY
+  INSTAGRAM
 }
 
 enum ProductStatus {
