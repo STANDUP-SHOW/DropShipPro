@@ -5,6 +5,8 @@ import { requireApiKey, type AgentRequest } from '../middleware/apiKey.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { findDepartment } from '../services/departments.js'
 import { runAutopilot } from '../services/autopilot.js'
+import { PLATFORM_IDS } from '../services/platforms.js'
+import type { Platform } from '@prisma/client'
 
 /**
  * La porte d'entrée des agents de veille.
@@ -379,4 +381,94 @@ agentRouter.post('/reports', async (req: AgentRequest, res) => {
 agentRouter.post('/autopilot/run', async (req: AgentRequest, res) => {
   const result = await runAutopilot(req.userId!)
   res.json(result)
+})
+
+/**
+ * Ecrit a la main plutot que deduit du schema zod.
+ *
+ * z.infer rend unknown sur ce schema : la liste des plateformes est un tuple
+ * de vingt entrees, et l inference lache au-dela. Le type explicite coute deux
+ * lignes et rend les erreurs lisibles.
+ */
+interface InboundMessage {
+  platform: Platform
+  externalId?: string
+  customerName: string
+  customerEmail?: string
+  subject?: string
+  productId?: string
+  department?: string
+  body: string
+}
+
+const inboundSchema = z.object({
+  platform: z.enum(PLATFORM_IDS),
+  /** Identifiant de la conversation chez la plateforme, quand elle en donne un. */
+  externalId: z.string().trim().max(200).optional(),
+  customerName: z.string().trim().min(1).max(120),
+  customerEmail: z.string().email().optional(),
+  subject: z.string().trim().max(200).optional(),
+  productId: z.string().optional(),
+  department: z.string().trim().max(40).optional(),
+  body: z.string().trim().min(1).max(8000),
+})
+
+/**
+ * Un message d'acheteur récupéré par l'extension ou par un agent.
+ *
+ * Un identifiant externe évite de rouvrir une conversation à chaque relevé :
+ * sans lui, chaque passage créerait un fil de plus pour le même acheteur.
+ */
+agentRouter.post('/messages', async (req: AgentRequest, res) => {
+  const parsed = z.object({ messages: z.array(inboundSchema).min(1).max(50) }).safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Lot invalide',
+      details: parsed.error.issues.slice(0, 10).map((i) => `${i.path.join('.')} : ${i.message}`),
+    })
+  }
+
+  let created = 0
+  let appended = 0
+
+  // Type explicite : l inference de zod lache sur un schema imbrique de cette
+  // taille, et laisse les champs optionnels en unknown.
+  for (const m of parsed.data.messages as InboundMessage[]) {
+    const dept = await resolveDepartment(req.userId!, m.department)
+
+    const existing = m.externalId
+      ? await prisma.conversation.findFirst({
+          where: { userId: req.userId!, platform: m.platform, externalId: m.externalId },
+          select: { id: true },
+        })
+      : null
+
+    if (existing) {
+      await prisma.customerMessage.create({
+        data: { conversationId: existing.id, direction: 'IN', body: m.body, author: m.customerName },
+      })
+      await prisma.conversation.update({
+        where: { id: existing.id },
+        data: { lastMessageAt: new Date(), unread: true, status: 'OPEN' },
+      })
+      appended++
+    } else {
+      await prisma.conversation.create({
+        data: {
+          userId: req.userId!,
+          platform: m.platform,
+          externalId: m.externalId ?? null,
+          customerName: m.customerName,
+          customerEmail: m.customerEmail ?? null,
+          subject: m.subject ?? null,
+          productId: m.productId ?? null,
+          departmentId: dept.id,
+          messages: { create: { direction: 'IN', body: m.body, author: m.customerName } },
+        },
+      })
+      created++
+    }
+  }
+
+  res.status(201).json({ recus: parsed.data.messages.length, conversations_ouvertes: created, messages_ajoutes: appended })
 })

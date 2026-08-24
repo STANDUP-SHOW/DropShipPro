@@ -103,6 +103,7 @@ model User {
   Report        Report[]
   ChatMessage   ChatMessage[]
   autopilot     Autopilot?
+  conversations Conversation[]
 }
 
 enum AuthTokenType {
@@ -470,6 +471,7 @@ model Department {
   signals       Signal[]
   reports       Report[]
   chatMessages  ChatMessage[]
+  conversations Conversation[]
 
   /// Un rayon n est confie qu une fois : deux « Albert » chez le meme vendeur
   /// rendraient chaque rapport ambigu.
@@ -578,4 +580,75 @@ model AutopilotRun {
   createdAt DateTime @default(now())
 
   @@index([userId, day])
+}
+
+enum ConversationStatus {
+  OPEN
+  WAITING
+  CLOSED
+}
+
+/// Un echange avec un acheteur, quelle que soit la plateforme d origine.
+///
+/// Le but est que le vendeur n ait plus a ouvrir cinq back-offices pour repondre
+/// a cinq questions. Ce qui remonte ici depend de ce que chaque plateforme
+/// expose : certaines ont une API de messagerie, d autres rien du tout.
+model Conversation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform   Platform
+  /// Identifiant de la conversation chez la plateforme, quand elle en donne un.
+  externalId String?
+
+  customerName  String
+  /// Renseigne quand la plateforme le communique : sans lui, aucune reponse
+  /// automatique n est possible et le vendeur devra repondre chez elle.
+  customerEmail String?
+
+  subject   String?
+  productId String?
+  orderId   String?
+
+  /// Le rayon dont l agent sait repondre a cette question.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  status        ConversationStatus @default(OPEN)
+  /// Faux des que le vendeur a ouvert la conversation.
+  unread        Boolean            @default(true)
+  lastMessageAt DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+
+  messages CustomerMessage[]
+
+  // L unicite (userId, platform, externalId) est posee en SQL par un index
+  // partiel : la plupart des sources ne donnent aucun identifiant externe, et
+  // un index ordinaire considererait toutes ces lignes comme distinctes.
+  @@index([userId, status])
+  @@index([userId, platform])
+}
+
+/// Un message dans une conversation acheteur.
+model CustomerMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// IN : recu de l acheteur. OUT : envoye par le vendeur.
+  direction String
+  body      String  @db.Text
+  author    String?
+
+  /// Comment le message est parti : email, api, manuel, ou null a la reception.
+  /// « manuel » veut dire que le vendeur doit encore le coller chez la
+  /// plateforme — le dire evite de croire une reponse partie alors qu elle dort.
+  sentVia String?
+  /// Vrai quand le texte a ete redige par l agent du rayon.
+  drafted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
 }

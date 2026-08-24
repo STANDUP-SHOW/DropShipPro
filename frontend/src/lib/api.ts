@@ -314,6 +314,68 @@ export const api = {
         detectedAt: string
       }>
     }>(`/opportunities?${new URLSearchParams({ ...(status ? { status } : {}), ...(department ? { department } : {}) })}`),
+  // Messagerie acheteurs, toutes plateformes confondues.
+  listConversations: (status?: string) =>
+    request<{
+      count: number
+      unread: number
+      conversations: Array<{
+        id: string
+        platform: string
+        customerName: string
+        customerEmail: string | null
+        subject: string | null
+        status: 'OPEN' | 'WAITING' | 'CLOSED'
+        unread: boolean
+        agentName: string | null
+        lastMessageAt: string
+        preview: string
+        channel: 'email' | 'manuel'
+      }>
+    }>(status ? `/conversations?status=${status}` : '/conversations'),
+  getConversation: (id: string) =>
+    request<{
+      id: string
+      platform: string
+      customerName: string
+      customerEmail: string | null
+      subject: string | null
+      status: 'OPEN' | 'WAITING' | 'CLOSED'
+      agentName: string | null
+      channel: 'email' | 'manuel'
+      notice: string
+      messages: Array<{
+        id: string
+        direction: string
+        body: string
+        author: string | null
+        sentVia: string | null
+        drafted: boolean
+        createdAt: string
+      }>
+    }>(`/conversations/${id}`),
+  replyConversation: (id: string, body: string, drafted?: boolean) =>
+    request<{
+      message: {
+        id: string
+        direction: string
+        body: string
+        author: string | null
+        sentVia: string | null
+        drafted: boolean
+        createdAt: string
+      }
+      delivered: boolean
+      channel: 'email' | 'manuel'
+      notice: string
+    }>(`/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ body, drafted }) }),
+  draftConversation: (id: string) =>
+    request<{ text: string; agentName: string | null }>(`/conversations/${id}/draft`, {
+      method: 'POST',
+    }),
+  setConversationStatus: (id: string, status: string) =>
+    request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
   // Pilote automatique.
   getAutopilot: () =>
     request<{

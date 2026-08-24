@@ -18,28 +18,46 @@ interface Mail {
   subject: string
   heading: string
   body: string
-  actionLabel: string
-  actionUrl: string
+  /**
+   * Le bouton d'action, quand il y en a un.
+   *
+   * Une réponse d'un vendeur à son client n'en a pas : elle se lit comme un
+   * message, pas comme une notification d'application.
+   */
+  actionLabel?: string
+  actionUrl?: string
   footer: string
+  /**
+   * Le nom affiché en tête. Par défaut le nôtre, mais un vendeur qui répond à
+   * son acheteur écrit sous son enseigne : l'acheteur ne nous connaît pas, et
+   * recevoir « DropShip Pro » à la place de la boutique inquiète plus qu'il
+   * ne rassure.
+   */
+  brand?: string
 }
 
-function render({ heading, body, actionLabel, actionUrl, footer }: Mail) {
+function render({ heading, body, actionLabel, actionUrl, footer, brand }: Mail) {
+  const action =
+    actionUrl && actionLabel
+      ? `<p style="margin:30px 0 0">
+            <a href="${actionUrl}" style="display:inline-block;background:linear-gradient(90deg,#a855f7,#ec4899);color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 30px;border-radius:10px">${actionLabel}</a>
+          </p>
+          <p style="margin:22px 0 0;font-size:12px;color:#64748b;word-break:break-all">
+            Si le bouton ne fonctionne pas, copiez ce lien&nbsp;: ${actionUrl}
+          </p>`
+      : ''
+
   return `<!doctype html>
 <html lang="fr"><body style="margin:0;background:#0f172a;padding:32px 16px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:520px;background:#1e1b4b;border-radius:16px;padding:36px" cellpadding="0" cellspacing="0">
         <tr><td>
-          <p style="margin:0 0 26px;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:#c084fc">DropShip Pro</p>
+          <p style="margin:0 0 26px;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:#c084fc">${brand ?? 'DropShip Pro'}</p>
           <h1 style="margin:0;font-size:22px;line-height:1.3;color:#fff;font-weight:600">${heading}</h1>
           <p style="margin:16px 0 0;font-size:15px;line-height:1.7;color:#cbd5e1">${body}</p>
-          <p style="margin:30px 0 0">
-            <a href="${actionUrl}" style="display:inline-block;background:linear-gradient(90deg,#a855f7,#ec4899);color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 30px;border-radius:10px">${actionLabel}</a>
-          </p>
+          ${action}
           <p style="margin:26px 0 0;font-size:13px;line-height:1.6;color:#94a3b8">${footer}</p>
-          <p style="margin:22px 0 0;font-size:12px;color:#64748b;word-break:break-all">
-            Si le bouton ne fonctionne pas, copiez ce lien&nbsp;: ${actionUrl}
-          </p>
         </td></tr>
       </table>
     </td></tr>
@@ -51,7 +69,10 @@ function render({ heading, body, actionLabel, actionUrl, footer }: Mail) {
 function plainText(mail: Mail): string {
   // Built from char codes so no escape sequence has to survive tooling.
   const saut = String.fromCharCode(10, 10)
-  return [mail.heading, mail.body, mail.actionLabel + ' : ' + mail.actionUrl, mail.footer].join(saut)
+  const lignes = [mail.heading, mail.body]
+  if (mail.actionLabel && mail.actionUrl) lignes.push(mail.actionLabel + ' : ' + mail.actionUrl)
+  lignes.push(mail.footer)
+  return lignes.join(saut)
 }
 
 let smtp: Transporter | null | undefined
