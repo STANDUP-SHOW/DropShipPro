@@ -20,6 +20,7 @@ import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 import { watermarkOptionsFor } from '../services/watermarkOptions.js'
 import { selectProductImages } from '../services/imageSelect.js'
+import { scoreListing } from '../services/listingScore.js'
 import { reviewImages, applyVerdict } from '../services/controlAgent.js'
 
 export const productsRouter = Router()
@@ -334,7 +335,83 @@ productsRouter.get('/', async (req: AuthedRequest, res) => {
     orderBy: { createdAt: 'desc' },
     include: { publications: true },
   })
-  res.json(products)
+
+  // La note est calculée à la volée : ce sont des règles arithmétiques sur des
+  // champs déjà chargés. La stocker obligerait à la recalculer à chaque édition,
+  // et une note périmée vaut moins que pas de note.
+  res.json(
+    products.map((p) => {
+      const { score, level } = scoreListing(p)
+      return { ...p, score, scoreLevel: level }
+    }),
+  )
+})
+
+/**
+ * Le détail de la note, critère par critère.
+ *
+ * Séparé de la fiche : un vendeur ouvre ce détail quand il veut corriger, pas à
+ * chaque affichage.
+ */
+productsRouter.get('/:id/score', async (req: AuthedRequest, res) => {
+  const product = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+  res.json(scoreListing(product))
+})
+
+/**
+ * L'état du catalogue, en quelques chiffres.
+ *
+ * « Mes annonces » est une liste ; ceci en fait un tableau de bord. Un vendeur
+ * qui tient trois cents annonces ne les relit pas une par une : il veut savoir
+ * combien sont faibles et lesquelles reprendre en premier.
+ */
+productsRouter.get('/meta/catalogue', async (req: AuthedRequest, res) => {
+  const products = await prisma.product.findMany({
+    where: { userId: req.userId! },
+    include: { publications: true },
+  })
+
+  if (!products.length) {
+    return res.json({ count: 0, average: null, distribution: {}, worst: [], best: [], margin: null, published: 0 })
+  }
+
+  const scored = products.map((p) => ({ product: p, ...scoreListing(p) }))
+  const average = Math.round(scored.reduce((n, s) => n + s.score, 0) / scored.length)
+
+  const distribution = { bon: 0, moyen: 0, faible: 0 }
+  for (const s of scored) distribution[s.level]++
+
+  const margins = products
+    .map((p) => {
+      const cost = Number(p.price) + Number(p.shippingCost)
+      const selling = Number(p.sellingPrice)
+      return cost > 0 && selling > 0 ? Math.round(((selling - cost) / cost) * 100) : null
+    })
+    .filter((m): m is number => m !== null)
+
+  const brief = (s: (typeof scored)[number]) => ({
+    id: s.product.id,
+    title: s.product.aiTitle || s.product.title,
+    score: s.score,
+    level: s.level,
+    priorities: s.priorities,
+  })
+
+  res.json({
+    count: products.length,
+    average,
+    distribution,
+    // Les plus faibles d'abord : ce sont celles qui rapportent le plus à corriger.
+    worst: [...scored].sort((a, b) => a.score - b.score).slice(0, 8).map(brief),
+    best: [...scored].sort((a, b) => b.score - a.score).slice(0, 5).map(brief),
+    margin: margins.length
+      ? Math.round(margins.reduce((n, m) => n + m, 0) / margins.length)
+      : null,
+    published: products.filter((p) => p.publications.some((x) => x.status === 'PUBLISHED')).length,
+  })
 })
 
 productsRouter.get('/:id', async (req: AuthedRequest, res) => {
