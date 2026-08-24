@@ -86,6 +86,9 @@ model User {
   /// Identifiants Stripe. Null tant que l'utilisateur n'a jamais payé.
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?
+  /// Agent de controle visuel des photos et des options, avant mise en ligne.
+  /// Actif par defaut : c est lui qui rend le mode automatique fiable.
+  controlAgent         Boolean   @default(true)
   /// Fin de la période payée : l'abonnement reste actif jusque-là même résilié.
   premiumUntil         DateTime?
 

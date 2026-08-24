@@ -8,6 +8,8 @@ interface AuthUser {
   watermarkText?: string
   emailVerified?: boolean
   shopKey?: string
+  /** Agent de contrôle visuel : actif ou non. */
+  controlAgent?: boolean
 }
 
 interface AuthContextValue {

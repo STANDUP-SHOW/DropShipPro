@@ -16,6 +16,8 @@ const profileSchema = z.object({
   watermarkText: z.string().optional(),
   watermarkScale: z.number().int().min(5).max(60).optional(),
   watermarkOpacity: z.number().int().min(10).max(100).optional(),
+  /// Agent de controle visuel, actif ou non.
+  controlAgent: z.boolean().optional(),
   watermarkPosition: z
     .enum(['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'center'])
     .optional(),
@@ -25,7 +27,7 @@ settingsRouter.patch('/profile', async (req: AuthedRequest, res) => {
   const parsed = profileSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
   const user = await prisma.user.update({ where: { id: req.userId! }, data: parsed.data })
-  res.json({ id: user.id, email: user.email, shopName: user.shopName, watermarkText: user.watermarkText, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, shopKey: user.shopKey })
+  res.json({ id: user.id, email: user.email, controlAgent: user.controlAgent, shopName: user.shopName, watermarkText: user.watermarkText, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, shopKey: user.shopKey })
 })
 
 // JPEG is accepted now that a flat light background is cleared on upload: most

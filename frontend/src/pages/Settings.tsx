@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout'
 import { PlatformBadge } from '../components/PlatformBadge'
 import { MyShops } from '../components/MyShops'
 import { ApiKeys } from '../components/ApiKeys'
+import { ControlAgentToggle } from '../components/ControlAgentToggle'
 import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
@@ -74,6 +75,8 @@ export default function Settings() {
           {saved ? 'Enregistré ✓' : 'Enregistrer'}
         </button>
       </div>
+
+      <ControlAgentToggle />
 
       <MyShops />
 

@@ -71,6 +71,7 @@ authRouter.get('/me', requireAuth, async (req: AuthedRequest, res) => {
     watermarkText: user.watermarkText,
     emailVerified: Boolean(user.emailVerifiedAt),
     shopKey: user.shopKey,
+    controlAgent: user.controlAgent,
   })
 })
 

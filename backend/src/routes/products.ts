@@ -20,6 +20,7 @@ import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 import { watermarkOptionsFor } from '../services/watermarkOptions.js'
 import { selectProductImages } from '../services/imageSelect.js'
+import { reviewImages, applyVerdict } from '../services/controlAgent.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -72,13 +73,22 @@ productsRouter.post(
     })
     // Les photos sont choisies, pas prises dans l'ordre d'apparition : cet ordre
     // donne l'en-tête du site, pas la galerie.
-    const chosen = await selectProductImages(scraped.images, 8)
-    const watermarked = await watermarkImages(chosen, watermarkOptionsFor(user), enhanced.title)
+    const chosen = await selectProductImages(scraped.images, user.controlAgent ? 12 : 8)
 
     // Les options d'achat se lisent dans le texte de la page : aucune balise ne
     // les déclare, et sans cette lecture un import par URL ne rendait jamais
     // ni taille ni couleur — pour aucun produit.
-    const variants = await extractVariants(scraped.pageText)
+    const announced = await extractVariants(scraped.pageText)
+
+    // L'agent de contrôle regarde ce que les heuristiques ne peuvent pas voir :
+    // une bannière au bon format, sur le bon serveur, passe tous les filtres.
+    const verdict = user.controlAgent
+      ? await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
+      : null
+
+    const retained = verdict?.checked ? verdict.keep : chosen
+    const variants = verdict ? applyVerdict(announced, verdict) : announced
+    const watermarked = await watermarkImages(retained, watermarkOptionsFor(user), enhanced.title)
 
     const product = await prisma.product.create({
       data: {
@@ -95,7 +105,7 @@ productsRouter.post(
         price: scraped.price,
         sellingPrice: scraped.price * 1.5,
         currency: scraped.currency,
-        images: watermarked.length ? watermarked : chosen,
+        images: watermarked.length ? watermarked : retained,
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,

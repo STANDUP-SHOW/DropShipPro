@@ -10,6 +10,8 @@ import { guessCategoryId } from './categoryCatalog.js'
 import { watermarkOptionsFor } from './watermarkOptions.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { selectProductImages } from './imageSelect.js'
+import { reviewImages, applyVerdict } from './controlAgent.js'
+import { extractVariants } from './aiEnhancer.js'
 
 /**
  * Le pilote automatique.
@@ -149,8 +151,26 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       // Cinq photos, choisies sans personne pour rattraper : le tri doit être
       // juste du premier coup, une bannière en photo principale fait refuser
       // l'annonce ou tuer la vente.
-      const chosen = await selectProductImages(scraped.images, 5)
-      const images = await watermarkImages(chosen, watermarkOptionsFor(user), enhanced.title)
+      // Douze candidats plutôt que cinq : l'agent de contrôle décide combien
+      // valent la peine. Neuf s'il y a neuf bonnes photos, six s'il y en a six.
+      const chosen = await selectProductImages(scraped.images, user.controlAgent ? 12 : 5)
+      const announced = await extractVariants(scraped.pageText)
+
+      const verdict = user.controlAgent
+        ? await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
+        : null
+
+      if (verdict?.checked && verdict.rejected.length) {
+        log.push({
+          titre: o.title,
+          action: 'écarté',
+          raison: `Contrôle : ${verdict.rejected.length} image(s) écartée(s) — ${verdict.rejected[0].reason}`,
+        })
+      }
+
+      const retained = verdict?.checked ? verdict.keep : chosen
+      const variants = verdict ? applyVerdict(announced, verdict) : announced
+      const images = await watermarkImages(retained, watermarkOptionsFor(user), enhanced.title)
 
       const product = await prisma.product.create({
         data: {
@@ -166,7 +186,8 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           price: scraped.price,
           sellingPrice: market ?? scraped.price * 1.5,
           currency: scraped.currency,
-          images: images.length ? images : chosen,
+          images: images.length ? images : retained,
+          variants: variants ?? undefined,
           metaTitle: enhanced.metaTitle,
           metaDescription: enhanced.metaDescription,
           metaKeywords: enhanced.metaKeywords,
