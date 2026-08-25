@@ -191,7 +191,22 @@ conversationsRouter.post('/:id/draft', async (req: AuthedRequest, res) => {
   res.json(draft)
 })
 
-const statusSchema = z.object({ status: z.enum(['OPEN', 'WAITING', 'CLOSED']) })
+/**
+ * Le statut, et l'état lu ou non lu.
+ *
+ * Marquer non lu est un geste de boîte mail : on ouvre un message, on n'a pas
+ * le temps de le traiter, et on le remet dans la pile pour ce soir. Sans lui,
+ * ouvrir une conversation la faisait disparaître des non-lus définitivement —
+ * et c'est comme ça qu'on oublie de répondre à un acheteur.
+ */
+const statusSchema = z
+  .object({
+    status: z.enum(['OPEN', 'WAITING', 'CLOSED']).optional(),
+    unread: z.boolean().optional(),
+  })
+  .refine((v) => v.status !== undefined || v.unread !== undefined, {
+    message: 'Rien à changer',
+  })
 
 conversationsRouter.patch('/:id', async (req: AuthedRequest, res) => {
   const parsed = statusSchema.safeParse(req.body)
@@ -199,7 +214,10 @@ conversationsRouter.patch('/:id', async (req: AuthedRequest, res) => {
 
   const { count } = await prisma.conversation.updateMany({
     where: { id: req.params.id, userId: req.userId! },
-    data: { status: parsed.data.status },
+    data: {
+      ...(parsed.data.status ? { status: parsed.data.status } : {}),
+      ...(parsed.data.unread !== undefined ? { unread: parsed.data.unread } : {}),
+    },
   })
   if (!count) return res.status(404).json({ error: 'Conversation introuvable' })
   res.json({ ok: true })

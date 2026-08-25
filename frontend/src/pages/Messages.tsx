@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Inbox, Send, Sparkles, Copy, Check, MailWarning, Mail, CheckCheck } from 'lucide-react'
+import { Inbox, Send, Sparkles, Copy, Check, MailWarning, Mail, CheckCheck, Archive, MailPlus } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 
@@ -9,7 +9,7 @@ type Full = Awaited<ReturnType<typeof api.getConversation>>
 const TABS = [
   { id: 'OPEN', label: 'À traiter' },
   { id: 'WAITING', label: 'En attente du client' },
-  { id: 'CLOSED', label: 'Clôturées' },
+  { id: 'CLOSED', label: 'Archivées' },
 ] as const
 
 function when(iso: string) {
@@ -42,6 +42,9 @@ export default function Messages() {
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [platforme, setPlatforme] = useState('')
+  const [tri, setTri] = useState<'recent' | 'ancien'>('recent')
+  const [seulementNonLus, setSeulementNonLus] = useState(false)
 
   function load() {
     setLoading(true)
@@ -65,7 +68,38 @@ export default function Messages() {
     api.getConversation(openId).then(setFull).catch(() => setFull(null))
   }, [openId])
 
-  const shown = conversations.filter((c) => c.status === tab)
+  /**
+   * Le tri et les filtres d'une boîte mail.
+   *
+   * Une liste unique de toutes les plateformes se lit bien à dix messages et
+   * plus du tout à deux cents : on cherche « ce que Vinted a envoyé cette
+   * semaine », pas « le message numéro quarante ». D'où le filtre par
+   * plateforme, le tri, et les non-lus qu'on peut isoler.
+   */
+  const plateformes = [...new Set(conversations.map((c) => c.platform))].sort()
+
+  const shown = conversations
+    .filter((c) => c.status === tab)
+    .filter((c) => !platforme || c.platform === platforme)
+    .filter((c) => !seulementNonLus || c.unread)
+    .sort((a, b) => {
+      const da = new Date(a.lastMessageAt).getTime()
+      const db = new Date(b.lastMessageAt).getTime()
+      return tri === 'recent' ? db - da : da - db
+    })
+
+  /** Archiver : le geste de boîte mail, qui range sans rien effacer. */
+  async function archiver(id: string) {
+    await api.setConversationStatus(id, 'CLOSED').catch(() => undefined)
+    if (openId === id) setOpenId(null)
+    load()
+  }
+
+  async function remettreNonLu(id: string) {
+    await api.setConversationUnread(id, true).catch(() => undefined)
+    if (openId === id) setOpenId(null)
+    load()
+  }
 
   async function send() {
     if (!full || !reply.trim()) return
@@ -143,6 +177,45 @@ export default function Messages() {
         ))}
       </div>
 
+      {/* Tri et filtres : une liste de deux cents messages ne se lit pas
+          autrement, et l'on cherche « ce que Vinted a envoyé », pas le message
+          numéro quarante. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <select
+          value={platforme}
+          onChange={(e) => setPlatforme(e.target.value)}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none"
+        >
+          <option value="">Toutes les plateformes</option>
+          {plateformes.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={tri}
+          onChange={(e) => setTri(e.target.value as typeof tri)}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none"
+        >
+          <option value="recent">Plus récent d'abord</option>
+          <option value="ancien">Plus ancien d'abord</option>
+        </select>
+
+        <button
+          type="button"
+          onClick={() => setSeulementNonLus((v) => !v)}
+          className={
+            seulementNonLus
+              ? 'rounded-lg bg-emerald-400/20 px-3 py-1.5 text-sm font-semibold text-emerald-300'
+              : 'rounded-lg border border-white/10 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/5'
+          }
+        >
+          {`Non lus (${conversations.filter((c) => c.unread).length})`}
+        </button>
+      </div>
+
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
       {loading && <p className="mt-6 text-sm text-gray-500">Chargement…</p>}
 
@@ -183,6 +256,43 @@ export default function Messages() {
                   <span>{c.channel === 'email' ? 'réponse par e-mail' : 'réponse à coller'}</span>
                 </p>
               </button>
+
+              {/* Les deux gestes d'une boîte mail, sur la ligne elle-même :
+                  ranger sans effacer, et remettre dans la pile ce qu'on n'a pas
+                  le temps de traiter. */}
+              <div className="mt-1 flex gap-3 px-1">
+                {c.status !== 'CLOSED' ? (
+                  <button
+                    type="button"
+                    onClick={() => archiver(c.id)}
+                    className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300"
+                  >
+                    <Archive size={10} />
+                    <span>Archiver</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await api.setConversationStatus(c.id, 'OPEN').catch(() => undefined)
+                      load()
+                    }}
+                    className="text-[11px] text-gray-500 hover:text-gray-300"
+                  >
+                    Remettre en cours
+                  </button>
+                )}
+                {!c.unread ? (
+                  <button
+                    type="button"
+                    onClick={() => remettreNonLu(c.id)}
+                    className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300"
+                  >
+                    <MailPlus size={10} />
+                    <span>Marquer non lu</span>
+                  </button>
+                ) : null}
+              </div>
             </li>
           ))}
           {!shown.length && conversations.length > 0 && (

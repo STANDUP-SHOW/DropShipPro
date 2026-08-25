@@ -491,6 +491,9 @@ export const api = {
     }),
   setConversationStatus: (id: string, status: string) =>
     request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  /** Remettre un message dans la pile : on l'a ouvert, on le traitera ce soir. */
+  setConversationUnread: (id: string, unread: boolean) =>
+    request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ unread }) }),
 
   // Agents visuels : photos de produit et visuels publicitaires.
   visualState: () =>
