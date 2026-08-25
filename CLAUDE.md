@@ -85,13 +85,16 @@ docs/        Documentation de l'API catalogue
   cd backend && node extension/check.cjs
   ```
 
-  Elle fait trois passes, et chacune répond à une panne réellement survenue :
+  Elle fait quatre passes, et chacune répond à une panne réellement survenue :
   la **syntaxe** (un `await` dans un callback non-async avait empêché Chrome de
   charger toute l'extension) ; les **constantes utilisées mais jamais définies**
   (`NOT_A_PHOTO` était écrit à trois endroits de `capture.js` sans l'être nulle
   part — syntaxe parfaite, extension chargée, et chaque import s'arrêtait sur
   « NOT_A_PHOTO is not defined » à l'étape des images) ; les **filtres de
-  photos**, confrontés à vingt-six adresses réelles. La liste des fichiers n'est
+  photos**, confrontés à vingt-six adresses réelles ; et le **relevé d une fiche
+  produit** — description, caractéristiques techniques et variantes — sur une page
+  de montre bâtie comme les vraies, parce que « bracelet acier inoxydable » et
+  « 22 rubis » disparaissaient à chaque import. La liste des fichiers n'est
   plus écrite à la main : elle est parcourue, donc un fichier neuf est couvert
   sans que personne y pense.
 

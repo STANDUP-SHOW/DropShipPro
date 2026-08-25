@@ -147,6 +147,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
         title: scraped.title,
         description: scraped.description,
         category: scraped.sourceCategory,
+        pageText: scraped.pageText,
       })
       // Cinq photos, choisies sans personne pour rattraper : le tri doit être
       // juste du premier coup, une bannière en photo principale fait refuser

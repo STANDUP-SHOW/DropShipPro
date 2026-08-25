@@ -70,6 +70,7 @@ productsRouter.post(
       title: scraped.title,
       description: scraped.description,
       category: scraped.sourceCategory,
+      pageText: scraped.pageText,
     })
     // Les photos sont choisies, pas prises dans l'ordre d'apparition : cet ordre
     // donne l'en-tête du site, pas la galerie.
@@ -160,7 +161,7 @@ const captureSchema = z.object({
   images: z.array(z.string().url()).default([]),
   sourceCategory: z.string().nullable().default(null),
   variants: z.any().optional(),
-  pageText: z.string().max(6000).optional(),
+  pageText: z.string().max(20000).optional(),
 })
 
 // Import from the Chrome extension: the page is already rendered in the user's
@@ -184,6 +185,7 @@ productsRouter.post(
       title: data.title,
       description: data.description,
       category: data.sourceCategory,
+      pageText: data.pageText,
     })
     const watermarked = await watermarkImages(data.images, watermarkOptionsFor(user), enhanced.title)
 
@@ -277,6 +279,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
         title: scraped.title,
         description: scraped.description,
         category: scraped.sourceCategory,
+        pageText: scraped.pageText,
       })
       const watermarked = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
 

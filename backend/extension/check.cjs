@@ -368,9 +368,34 @@ function checkPhotoFilters() {
 
 problemes += checkPhotoFilters()
 
+/**
+ * Quatrième passe : ce que l'extension relève vraiment d'une fiche produit.
+ *
+ * Elle monte une page de montre bâtie comme les vraies — accroche courte en
+ * og:description, caractéristiques dans un tableau plus bas, avis clients en
+ * pavé — et vérifie que « 22 rubis » et « bracelet acier inoxydable »
+ * atteignent le serveur. C'est précisément ce qui disparaissait : la
+ * description venait d'une accroche de cent cinquante caractères et le texte de
+ * page était coupé avant le tableau.
+ *
+ * Demande jsdom. Absent, la passe se saute plutôt que d'échouer : un contrôle
+ * qui refuse de tourner faute d'outillage finit par être contourné.
+ */
+try {
+  require.resolve('jsdom')
+  const { execFileSync } = require('child_process')
+  execFileSync(process.execPath, [path.join(root, 'check-capture.cjs')], { stdio: 'inherit' })
+} catch (err) {
+  if (err && err.code === 'MODULE_NOT_FOUND') {
+    console.log("(relevé de fiche non vérifié : jsdom absent — npm install)")
+  } else {
+    problemes++
+  }
+}
+
 if (problemes) {
   console.log(`\n${problemes} problème(s). L'extension n'est pas livrable en l'état.`)
   process.exit(1)
 }
 
-console.log('Extension : syntaxe, constantes et filtres de photos vérifiés.')
+console.log("Extension : syntaxe, constantes, filtres de photos et relevé de fiche vérifiés.")

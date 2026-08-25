@@ -444,26 +444,133 @@
    * page would be wasteful, so this keeps the region between the title and the
    * description, where pickers live.
    */
+  /**
+   * Le texte de la fiche, caractéristiques techniques comprises.
+   *
+   * Quinze mille caractères et non quatre mille. La coupe précédente tombait
+   * avant le tableau des caractéristiques, qui est presque toujours sous la
+   * galerie et sous la description : « bracelet acier inoxydable » et « 22
+   * rubis sur le cadran » n'atteignaient donc jamais le serveur. Un import
+   * ramenait une annonce lisse, sans rien de ce qui fait acheter.
+   *
+   * Les tableaux sont relevés à part et remis en tête : ce sont eux qui portent
+   * les caractéristiques, et ils survivent ainsi à la coupe même sur une page
+   * bavarde.
+   */
   function collectPageText() {
     const main =
       document.querySelector('main') ||
       document.querySelector('[class*="detail" i]') ||
       document.body
-    return main.innerText.replace(/\n{2,}/g, '\n').slice(0, 4000)
+
+    const tableaux = []
+    for (const table of document.querySelectorAll('table, dl, [class*="spec" i], [class*="param" i], [class*="attribute" i]')) {
+      const texte = (table.innerText || '').replace(/\n{2,}/g, '\n').trim()
+      // Deux lignes au moins, sinon c'est une étiquette isolée ; et pas un
+      // pavé entier, qui serait la page elle-même reprise deux fois.
+      if (texte && texte.length > 20 && texte.length < 4000 && texte.includes('\n')) {
+        tableaux.push(texte)
+      }
+      if (tableaux.length >= 6) break
+    }
+
+    const corps = (main.innerText || '').replace(/\n{2,}/g, '\n')
+    const entete = tableaux.length ? `CARACTÉRISTIQUES\n${tableaux.join('\n\n')}\n\n` : ''
+    return `${entete}${corps}`.slice(0, 15000)
   }
 
-  function collectVariants() {
-    // Size/colour pickers are rendered as labelled option groups; capture the
-    // visible choices so the user can carry them into the marketplace listing.
-    const variants = {}
-    for (const group of document.querySelectorAll('[class*="sku" i], [class*="variant" i], [class*="option" i]')) {
-      const label = group.querySelector('label, [class*="title" i]')?.textContent?.trim()
-      if (!label || label.length > 30) continue
-      const values = [...group.querySelectorAll('button, li, [role="option"]')]
-        .map((el) => el.getAttribute('aria-label') || el.textContent.trim())
-        .filter((v) => v && v.length < 30)
-      if (values.length > 1) variants[label] = [...new Set(values)].slice(0, 20)
+  /**
+   * La description du fournisseur, la vraie.
+   *
+   * `og:description` est une accroche commerciale de cent cinquante caractères,
+   * et c'était tout ce que le serveur recevait : la réécriture partait donc
+   * d'un résumé publicitaire, sans une seule caractéristique technique. On
+   * cherche d'abord un vrai bloc de description dans la page, et l'accroche ne
+   * sert plus que de dernier recours.
+   */
+  function collectDescription() {
+    const candidats = [
+      '[class*="description" i]',
+      '[id*="description" i]',
+      '[class*="product-detail" i]',
+      '[class*="detail-content" i]',
+      '[itemprop="description"]',
+    ]
+
+    let meilleur = ''
+    for (const selecteur of candidats) {
+      for (const el of document.querySelectorAll(selecteur)) {
+        const texte = (el.innerText || '').replace(/\n{2,}/g, '\n').trim()
+        // Le plus long l'emporte : les sites imbriquent plusieurs conteneurs
+        // « description », dont le plus externe porte le texte complet.
+        if (texte.length > meilleur.length && texte.length < 20000) meilleur = texte
+      }
+      if (meilleur.length > 400) break
     }
+
+    if (meilleur.length > 120) return meilleur.slice(0, 8000)
+
+    return (
+      document.querySelector('meta[property="og:description"]')?.content ||
+      document.querySelector('meta[name="description"]')?.content ||
+      meilleur ||
+      ''
+    )
+  }
+
+  /** Ce qu'un sélecteur d'options s'appelle, d'un fournisseur à l'autre. */
+  const GROUPE_OPTIONS =
+    '[class*="sku" i], [class*="variant" i], [class*="option" i], [class*="swatch" i], [class*="choice" i], [class*="attribute" i], [data-testid*="sku" i], [data-testid*="variant" i]'
+
+  /** Ce qui porte le nom du groupe : « Taille », « Couleur », « Modèle ». */
+  const ETIQUETTE = 'label, legend, dt, [class*="title" i], [class*="label" i], [class*="name" i]'
+
+  /**
+   * Les options réellement proposées à la sélection.
+   *
+   * Relevé structurel, forcément imparfait : ces sites obfusquent leurs classes
+   * et changent de gabarit d'une catégorie à l'autre. Il ne se suffit pas à
+   * lui-même — le serveur relit le texte de la page avec le modèle et fusionne
+   * les deux relevés. Ici on ratisse plus large qu'avant, où seuls trois noms de
+   * classe étaient reconnus et où un `<select>` natif, le cas le plus simple,
+   * n'était pas regardé du tout.
+   */
+  function collectVariants() {
+    const variants = {}
+
+    const ajouter = (nom, valeurs) => {
+      const propres = [...new Set(valeurs.map((v) => (v || '').trim()).filter((v) => v && v.length < 40))]
+      if (propres.length > 1) variants[nom] = propres.slice(0, 25)
+    }
+
+    // Le cas simple, et le plus sûr : un <select> avec ses <option>.
+    for (const select of document.querySelectorAll('select')) {
+      const nom =
+        select.getAttribute('aria-label') ||
+        select.closest('label')?.textContent?.trim() ||
+        document.querySelector(`label[for="${CSS.escape(select.id)}"]`)?.textContent?.trim() ||
+        select.name
+      if (!nom || nom.length > 40) continue
+      const valeurs = [...select.options]
+        .map((o) => o.textContent.trim())
+        // « Choisir une taille » n'est pas une taille.
+        .filter((v) => v && !/^(choisir|s[ée]lection|please|select|--)/i.test(v))
+      ajouter(nom.replace(/\s*:\s*$/, ''), valeurs)
+    }
+
+    for (const group of document.querySelectorAll(GROUPE_OPTIONS)) {
+      const brut = group.querySelector(ETIQUETTE)?.textContent?.trim()
+      if (!brut || brut.length > 40) continue
+      // Le nom vient souvent avec la valeur choisie : « Couleur : Noir ».
+      const nom = brut.split(/[:：]/)[0].trim()
+      if (!nom) continue
+
+      const valeurs = [...group.querySelectorAll('button, li, [role="option"], [role="radio"], img[alt]')].map(
+        (el) => el.getAttribute('aria-label') || el.getAttribute('alt') || el.textContent.trim(),
+      )
+      ajouter(nom, valeurs)
+    }
+
     return Object.keys(variants).length ? variants : null
   }
 
@@ -476,10 +583,7 @@
         document.querySelector('meta[property="og:title"]')?.content ||
         document.querySelector('h1')?.textContent?.trim() ||
         document.title,
-      description:
-        document.querySelector('meta[property="og:description"]')?.content ||
-        document.querySelector('meta[name="description"]')?.content ||
-        '',
+      description: collectDescription(),
       price: collectPrice(),
       currency: /\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR',
       images: [],

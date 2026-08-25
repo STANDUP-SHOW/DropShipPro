@@ -82,10 +82,20 @@ Règles :
   intempestives, pas d'emoji, pas de nom de marque inventé.
 - Bullet points : 5 à 7 arguments de vente, un bénéfice concret par ligne, 80 à 200
   caractères chacun, commençant par 2-3 mots en capitales servant d'accroche.
-- Attributs : le maximum d'attributs factuels déductibles de la source (matière,
-  couleur principale, coupe, saison, style, public visé, type de col, entretien,
-  occasion, motif, longueur de manche…). Utilise UNIQUEMENT ce qui est déductible.
-  Si une information est absente, omets l'attribut plutôt que d'inventer.
+- Caractéristiques techniques : c'est le point le plus important. La fiche source
+  contient presque toujours des précisions qui font vendre — « bracelet acier
+  inoxydable », « 22 rubis sur le cadran », « mouvement automatique », « étanche
+  100 m », « 1200 tr/min », « batterie 5000 mAh », « certifié CE ». Elles sont
+  souvent noyées dans un texte mal traduit, en liste ou en tableau. Tu les
+  relèves TOUTES et tu les conserves : dans la description ET dans les attributs.
+  En perdre une, c'est perdre l'argument qui décidait l'acheteur, et c'est la
+  faute la plus grave que tu puisses commettre ici.
+- Attributs : entre six et quinze, adaptés au produit réel — pas une grille de
+  mode plaquée sur une montre ou une perceuse. Nomme-les avec les termes du
+  métier concerné (Mouvement, Étanchéité, Puissance, Capacité, Autonomie,
+  Matière du bracelet, Diamètre du boîtier, Compatibilité, Norme…). Utilise
+  UNIQUEMENT ce qui figure dans la source. Si une information est absente, omets
+  l'attribut plutôt que d'inventer.
 - Mots-clés : 15 à 25, en français, incluant les variantes orthographiques et les
   requêtes longue traîne que taperait un acheteur. Séparés par des virgules.
 - metaDescription : 150 à 160 caractères maximum.`
@@ -114,7 +124,10 @@ export async function extractVariants(pageText: string): Promise<Record<string, 
       messages: [
         {
           role: 'user',
-          content: `Texte de la page :\n${pageText.slice(0, 4000)}\n\nRéponds UNIQUEMENT en JSON valide, sans texte autour :\n{"Taille": ["S", "M", "L"], "Couleur": ["Noir", "Blanc"]}`,
+          // Huit mille caractères et non quatre mille : le sélecteur de tailles
+          // est souvent sous la galerie, la description et le tableau de
+          // caractéristiques — au-delà de la coupe précédente, donc invisible.
+          content: `Texte de la page :\n${pageText.slice(0, 8000)}\n\nRéponds UNIQUEMENT en JSON valide, sans texte autour :\n{"Taille": ["S", "M", "L"], "Couleur": ["Noir", "Blanc"]}`,
         },
       ],
     })
@@ -145,6 +158,16 @@ export async function enhanceListing(input: {
   title: string
   description: string
   category: string | null
+  /**
+   * Le texte de la page, d'où viennent les caractéristiques techniques.
+   *
+   * Sans lui, le modèle ne voyait que `og:description` — une accroche
+   * commerciale de cent cinquante caractères. « Bracelet acier inoxydable » et
+   * « 22 rubis sur le cadran » vivent dans le corps de la page, dans une liste
+   * ou un tableau, et disparaissaient donc à chaque import. Le texte était
+   * pourtant déjà relevé par l'extension : il ne servait qu'aux variantes.
+   */
+  pageText?: string | null
 }): Promise<EnhancedListing> {
   /** Keeps the scraped copy when the model can't be reached. */
   const passthrough = (): EnhancedListing => ({
@@ -176,7 +199,7 @@ export async function enhanceListing(input: {
 
 async function callModel(
   anthropic: Anthropic,
-  input: { title: string; description: string; category: string | null },
+  input: { title: string; description: string; category: string | null; pageText?: string | null },
 ): Promise<EnhancedListing> {
 
   const message = await anthropic.messages.create({
@@ -189,6 +212,11 @@ async function callModel(
         content: `Titre source : ${input.title}
 Catégorie : ${input.category ?? 'inconnue'}
 Description source : ${input.description || '(aucune description)'}
+${
+  input.pageText?.trim()
+    ? `\nTexte complet de la fiche fournisseur — c'est là que se trouvent les caractéristiques techniques, souvent en liste ou en tableau. Relève-les toutes :\n${input.pageText.slice(0, 12000)}\n`
+    : ''
+}
 
 Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce format exact :
 {
