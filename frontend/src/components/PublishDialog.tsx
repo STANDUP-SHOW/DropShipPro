@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ShopPicker } from './ShopPicker'
 import { createPortal } from 'react-dom'
-import { Radio, X, Zap, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react'
-import { PlatformBadge } from './PlatformBadge'
-import { INTEGRATION_LABEL, type PlatformInfo } from '../lib/platforms'
+import { Radio, X, Zap, AlertTriangle, ExternalLink } from 'lucide-react'
+import { PublishTargets } from './PublishTargets'
+import { type PlatformInfo } from '../lib/platforms'
 
 export type { PlatformInfo }
 
@@ -48,7 +47,15 @@ export function PublishDialog({
   onPublished: (selected: string[], shopId?: string) => Promise<PublishOutcome[] | void>
 }) {
   const [selected, setSelected] = useState<string[]>([])
-  const [shopId, setShopId] = useState('')
+  /**
+   * Les boutiques cochées, par leur identifiant.
+   *
+   * Plusieurs, et non une : un vendeur qui tient un site mode et un site
+   * high-tech veut parfois envoyer la même annonce aux deux. « Mon site » était
+   * une case unique, et le choix du site se faisait après, dans une liste
+   * déroulante — ce qui ne voulait plus rien dire dès qu'il y en avait deux.
+   */
+  const [shopIds, setShopIds] = useState<string[]>([])
   const [extensionReady, setExtensionReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -86,20 +93,36 @@ export function PublishDialog({
     setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]))
   }, [])
 
-  const available = platforms.filter((p) => !p.unavailable)
+  const toggleShop = useCallback((id: string) => {
+    setShopIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]))
+  }, [])
+
   const warned = selected
     .map((id) => platforms.find((p) => p.id === id))
     .filter((p): p is PlatformInfo => Boolean(p?.warning))
   const needsExtension = selected.some((id) => platforms.find((p) => p.id === id)?.integration === 'extension')
 
   async function diffuse() {
-    if (!selected.length) return
+    if (!selected.length && !shopIds.length) return
     setBusy(true)
     setMessage(null)
     setOutcomes([])
     try {
-      const results = await onPublished(selected, shopId || undefined)
-      if (Array.isArray(results)) setOutcomes(results)
+      const resultats: PublishOutcome[] = []
+
+      // Une publication par boutique cochée : le serveur range l'annonce dans
+      // une seule boutique à la fois, et deux sites veulent deux appels.
+      for (const shop of shopIds) {
+        const r = await onPublished(['OWN_SITE'], shop)
+        if (Array.isArray(r)) resultats.push(...r)
+      }
+
+      if (selected.length) {
+        const r = await onPublished(selected, undefined)
+        if (Array.isArray(r)) resultats.push(...r)
+      }
+
+      if (resultats.length) setOutcomes(resultats)
 
       // The extension is only worth waking up when a manual marketplace is in the
       // batch: an API destination is already done at this point.
@@ -147,33 +170,13 @@ export function PublishDialog({
             <X size={18} />
           </button>
         </div>
-
-        <div className="grid sm:grid-cols-2 gap-2 mt-4">
-          {available.map((p) => {
-            const isSelected = selected.includes(p.id)
-            return (
-              <button
-                type="button"
-                key={p.id}
-                aria-pressed={isSelected}
-                onClick={() => toggle(p.id)}
-                style={{ backgroundColor: isSelected ? p.color : 'transparent', borderColor: p.color }}
-                className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition ${
-                  isSelected ? 'text-white' : 'text-gray-300 hover:bg-white/5'
-                }`}
-              >
-                <PlatformBadge label={p.label} color={p.color} size={24} />
-                <span className="text-left leading-tight">
-                  <span className="block">{p.label}</span>
-                  <span className="block text-[10px] font-normal opacity-70">
-                    {INTEGRATION_LABEL[p.integration]}
-                  </span>
-                </span>
-                {isSelected && <CheckCircle2 size={16} className="ml-auto shrink-0" />}
-              </button>
-            )
-          })}
-        </div>
+        <PublishTargets
+          platforms={platforms}
+          selected={selected}
+          onToggle={toggle}
+          shopIds={shopIds}
+          onToggleShop={toggleShop}
+        />
 
         {warned.length > 0 && (
           <div className="mt-4 space-y-2">
@@ -228,8 +231,6 @@ export function PublishDialog({
           </ul>
         )}
 
-        {selected.includes('OWN_SITE') && <ShopPicker value={shopId} onChange={setShopId} />}
-
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="text-xs text-gray-400">
             {extensionReady ? '✓ Extension détectée' : 'Extension non détectée — remplissage manuel'}
@@ -237,20 +238,20 @@ export function PublishDialog({
           <button
             type="button"
             onClick={diffuse}
-            disabled={!selected.length || busy}
+            disabled={(!selected.length && !shopIds.length) || busy}
             className="btn-gradient inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold disabled:opacity-40"
           >
             <Zap size={16} />
-            {busy ? 'Diffusion…' : `Diffuser votre annonce (${selected.length})`}
+            {busy ? 'Diffusion…' : `Diffuser votre annonce (${selected.length + shopIds.length})`}
           </button>
         </div>
 
         {/* One single string: juxtaposed text expressions in JSX have already cost
             us a « removeChild » crash here. */}
         <p className="mt-3 text-center text-xs text-gray-500">
-          {selected.length === 0
-            ? 'Aucune plateforme sélectionnée'
-            : `${selected.length} plateforme(s) sélectionnée(s)`}
+          {selected.length + shopIds.length === 0
+            ? 'Aucune destination sélectionnée'
+            : `${selected.length + shopIds.length} destination(s) sélectionnée(s)`}
         </p>
       </div>
     </div>,
