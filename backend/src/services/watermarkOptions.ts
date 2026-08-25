@@ -15,5 +15,6 @@ export function watermarkOptionsFor(user: User): WatermarkOptions {
     scale: user.watermarkScale,
     opacity: user.watermarkOpacity,
     position: user.watermarkPosition as WatermarkPosition,
+    enabled: user.watermarkEnabled,
   }
 }

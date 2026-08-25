@@ -14,6 +14,7 @@ settingsRouter.use(requireAuth)
 const profileSchema = z.object({
   shopName: z.string().optional(),
   watermarkText: z.string().optional(),
+  watermarkEnabled: z.boolean().optional(),
   watermarkScale: z.number().int().min(5).max(60).optional(),
   watermarkOpacity: z.number().int().min(10).max(100).optional(),
   /// Agent de controle visuel, actif ou non.
@@ -23,11 +24,35 @@ const profileSchema = z.object({
     .optional(),
 })
 
+/**
+ * Les reglages du compte, filigrane compris.
+ *
+ * /auth/me ne renvoyait que le nom de boutique et le texte : l ecran ne pouvait
+ * donc pas afficher le logo depose, ni la position, ni l intensite, et le
+ * vendeur ne pouvait pas s en servir.
+ */
+settingsRouter.get('/profile', async (req: AuthedRequest, res) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+  res.json({
+    id: user.id,
+    email: user.email,
+    shopName: user.shopName,
+    controlAgent: user.controlAgent,
+    watermarkEnabled: user.watermarkEnabled,
+    watermarkText: user.watermarkText,
+    watermarkImage: user.watermarkImage,
+    watermarkScale: user.watermarkScale,
+    watermarkOpacity: user.watermarkOpacity,
+    watermarkPosition: user.watermarkPosition,
+    shopKey: user.shopKey,
+  })
+})
+
 settingsRouter.patch('/profile', async (req: AuthedRequest, res) => {
   const parsed = profileSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
   const user = await prisma.user.update({ where: { id: req.userId! }, data: parsed.data })
-  res.json({ id: user.id, email: user.email, controlAgent: user.controlAgent, shopName: user.shopName, watermarkText: user.watermarkText, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, shopKey: user.shopKey })
+  res.json({ id: user.id, email: user.email, controlAgent: user.controlAgent, shopName: user.shopName, watermarkText: user.watermarkText, watermarkEnabled: user.watermarkEnabled, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, shopKey: user.shopKey })
 })
 
 // JPEG is accepted now that a flat light background is cleared on upload: most

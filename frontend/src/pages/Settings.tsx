@@ -5,6 +5,7 @@ import { Layout } from '../components/Layout'
 import { MyShops } from '../components/MyShops'
 import { ApiKeys } from '../components/ApiKeys'
 import { PlatformCredentials } from '../components/PlatformCredentials'
+import { WatermarkSettings } from '../components/WatermarkSettings'
 import { ControlAgentToggle } from '../components/ControlAgentToggle'
 import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -12,18 +13,16 @@ import { useAuth } from '../lib/auth'
 export default function Settings() {
   const { user, refresh } = useAuth()
   const [shopName, setShopName] = useState(user?.shopName || '')
-  const [watermarkText, setWatermarkText] = useState(user?.watermarkText || '')
   const [saved, setSaved] = useState(false)
   const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null)
 
   useEffect(() => {
     setShopName(user?.shopName || '')
-    setWatermarkText(user?.watermarkText || '')
   }, [user])
 
   async function saveProfile() {
-    await api.updateProfile({ shopName, watermarkText })
+    await api.updateProfile({ shopName })
     await refresh()
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
@@ -43,19 +42,12 @@ export default function Settings() {
             className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
           />
         </div>
-        <div>
-          <label className="text-xs text-gray-400">Texte du filigrane</label>
-          <input
-            value={watermarkText}
-            onChange={(e) => setWatermarkText(e.target.value)}
-            placeholder="Ex : @maboutique"
-            className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-          />
-        </div>
         <button onClick={saveProfile} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold">
           {saved ? 'Enregistré ✓' : 'Enregistrer'}
         </button>
       </div>
+
+      <WatermarkSettings />
 
       <ControlAgentToggle />
 

@@ -31,6 +31,16 @@ export interface WatermarkOptions {
   /** 10 to 100. */
   opacity?: number
   position?: WatermarkPosition
+  /**
+   * Faux quand le vendeur ne veut aucun filigrane.
+   *
+   * Les photos passent quand meme par ici : elles sont telechargees, remises a
+   * l endroit et rangees chez nous sous un nom lisible pour le referencement.
+   * Seule la marque n est pas posee. Court-circuiter tout le traitement
+   * laisserait les annonces pointer vers les adresses du fournisseur, qui
+   * expirent ou bloquent le lien depuis un autre site.
+   */
+  enabled?: boolean
 }
 
 /**
@@ -193,13 +203,12 @@ export async function watermarkImages(
         })
       }
 
-      const overlay = logo ?? textOverlay(options.text, width, opacity)
       const filename = seoFileName(productTitle, index)
 
       // Through a buffer rather than straight to disk: the same bytes go either
       // to the container's volume or to object storage, decided by putFile.
-      const output = await image
-        .composite([{ input: overlay, gravity }])
+      const marque = options.enabled === false ? null : logo ?? textOverlay(options.text, width, opacity)
+      const output = await (marque ? image.composite([{ input: marque, gravity }]) : image)
         .jpeg({ quality: 88 })
         .toBuffer()
 
@@ -243,8 +252,8 @@ export async function watermarkUploads(
       }
 
       const filename = seoFileName(productTitle, startIndex + offset)
-      const output = await image
-        .composite([{ input: logo ?? textOverlay(options.text, width, opacity), gravity }])
+      const marque = options.enabled === false ? null : logo ?? textOverlay(options.text, width, opacity)
+      const output = await (marque ? image.composite([{ input: marque, gravity }]) : image)
         .jpeg({ quality: 88 })
         .toBuffer()
 

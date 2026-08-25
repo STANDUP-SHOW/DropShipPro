@@ -65,6 +65,8 @@ model User {
   /// Identifiant public de la boutique, utilisé dans l'URL du catalogue.
   /// Distinct de l'id du compte : il peut être publié sans exposer l'identité interne.
   shopKey           String    @unique @default(cuid())
+  /// Faux quand le vendeur ne veut aucun filigrane sur ses photos.
+  watermarkEnabled  Boolean   @default(true)
   watermarkText     String?
   /// Chemin du logo servi via /storage ; prioritaire sur watermarkText quand il est défini.
   watermarkImage    String?

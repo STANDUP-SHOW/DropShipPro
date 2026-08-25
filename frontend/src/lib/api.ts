@@ -358,6 +358,23 @@ export const api = {
   updateOrder: (id: string, data: Record<string, unknown>) =>
     request(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
+  /** Les reglages du compte, filigrane compris : /auth/me n en renvoie qu une part. */
+  settingsProfile: () =>
+    request<{
+      id: string
+      email: string
+      shopName: string | null
+      controlAgent: boolean
+      watermarkEnabled: boolean
+      watermarkText: string | null
+      watermarkImage: string | null
+      watermarkScale: number
+      watermarkOpacity: number
+      watermarkPosition: string
+      shopKey: string
+    }>('/settings/profile'),
+  deleteWatermarkLogo: () => request('/settings/watermark-logo', { method: 'DELETE' }),
+
   updateProfile: (data: Record<string, unknown>) =>
     request('/settings/profile', { method: 'PATCH', body: JSON.stringify(data) }),
   // Sites du vendeur : un par boutique, chacun avec sa propre clé de catalogue.
