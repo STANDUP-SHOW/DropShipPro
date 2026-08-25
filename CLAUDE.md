@@ -79,12 +79,21 @@ docs/        Documentation de l'API catalogue
 - **Vercel répond 200 à un GET et 405 à un POST** sur `/api/*`. Une adresse d'API
   mal réglée dans l'extension donne donc un 405 incompréhensible ; le popup la
   vérifie désormais avant d'enregistrer.
-- **Toujours valider la syntaxe de l'extension avant de livrer.** Un `await` dans
-  un callback non-async avait empêché Chrome de charger toute l'extension :
+- **Toujours contrôler l'extension avant de livrer**, avec cette commande :
 
   ```bash
-  cd backend/extension && node -e "const fs=require('fs'),vm=require('vm');for(const f of ['config.js','background.js','popup.js','content/fill-helpers.js','content/capture.js','content/agent.js','content/app-bridge.js','content/publish-launcher.js','content/vinted.js','content/leboncoin.js','content/ebay.js','content/facebook.js']){try{new vm.Script(fs.readFileSync(f,'utf8'),{filename:f})}catch(e){console.log('ERREUR',f,e.message)}}"
+  cd backend && node extension/check.cjs
   ```
+
+  Elle fait trois passes, et chacune répond à une panne réellement survenue :
+  la **syntaxe** (un `await` dans un callback non-async avait empêché Chrome de
+  charger toute l'extension) ; les **constantes utilisées mais jamais définies**
+  (`NOT_A_PHOTO` était écrit à trois endroits de `capture.js` sans l'être nulle
+  part — syntaxe parfaite, extension chargée, et chaque import s'arrêtait sur
+  « NOT_A_PHOTO is not defined » à l'étape des images) ; les **filtres de
+  photos**, confrontés à vingt-six adresses réelles. La liste des fichiers n'est
+  plus écrite à la main : elle est parcourue, donc un fichier neuf est couvert
+  sans que personne y pense.
 
 - **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne
   vide : React perd la trace des nœuds et lève « removeChild: the node to be

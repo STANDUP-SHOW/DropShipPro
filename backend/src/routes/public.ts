@@ -20,6 +20,9 @@ export const publicRouter = Router()
  */
 const EXTENSION_DIRS = ['extension', path.join('..', 'extension'), path.join('..', '..', 'extension')]
 
+/** Scripts de contrôle et de fabrication : utiles au dépôt, inutiles dans Chrome. */
+const EXTENSION_TOOLING = ['check.cjs', 'build-store-zip.cjs', 'README.md']
+
 function findExtensionDir(): string | null {
   return EXTENSION_DIRS.map((dir) => path.resolve(dir)).find((dir) => existsSync(dir)) ?? null
 }
@@ -39,7 +42,8 @@ publicRouter.get('/extension.zip', async (_req, res) => {
   const archive = archiver('zip')
   archive.on('error', () => res.destroy())
   archive.pipe(res)
-  archive.directory(extensionDir, false)
+  // L'outillage reste au dépôt : le vendeur charge un dossier, pas un atelier.
+  archive.glob('**/*', { cwd: extensionDir, ignore: EXTENSION_TOOLING })
   await archive.finalize()
 })
 

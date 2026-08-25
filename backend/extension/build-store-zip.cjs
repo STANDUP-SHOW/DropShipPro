@@ -52,7 +52,7 @@ async function main() {
   // Everything but the manifest and this script, then the rewritten manifest.
   archive.glob('**/*', {
     cwd: DIR,
-    ignore: ['manifest.json', 'build-store-zip.cjs', 'README.md'],
+    ignore: ['manifest.json', 'build-store-zip.cjs', 'check.cjs', 'README.md'],
   })
   archive.append(JSON.stringify(manifest, null, 2) + '\n', { name: 'manifest.json' })
   await archive.finalize()

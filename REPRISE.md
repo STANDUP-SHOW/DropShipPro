@@ -24,16 +24,33 @@ peuvent valoir une chaîne vide (`externalUrl`, `error`, `message`, `photoError`
 rend `null`. **Le motif reste présent ailleurs dans l'application** : chaque
 `{chaîne && …}` posé à côté de texte est un candidat.
 
-**b. L'import par l'extension bloquait à l'étape des images.** Cause trouvée
-dans `extension/content/capture.js` : `ranked.slice(0, 260).flatMap(sizeVariants)`
-donne jusqu'à un millier d'adresses, et un seul `Promise.all` lançait autant de
-téléchargements d'images d'un coup. Chrome n'ouvre que six connexions par hôte :
-la plupart atteignaient leur délai en file d'attente, et celles qui arrivaient
-étaient décodées en mémoire toutes ensemble — de quoi figer un mini-PC.
-Remplacé par une file de douze à la fois, budget global de trente secondes,
-`img.src = ''` après mesure pour libérer le bitmap, délai par image ramené à
-cinq secondes. Le scan des scripts d'`image-scan.js` reçoit son propre budget de
-cinq secondes au lieu de tourner sans limite.
+**b. L'import par l'extension bloquait à l'étape des images.** **La vraie cause,
+trouvée au deuxième essai : `NOT_A_PHOTO is not defined`.** La constante était
+utilisée trois fois dans `capture.js` — pour compter les hôtes, pour scorer, pour
+filtrer — et définie nulle part ; `OFF_TOPIC` non plus. Introduites ainsi par
+`572b3ff`, jamais définies depuis. Chaque import qui atteignait le classement des
+images levait une `ReferenceError` et s'arrêtait là, sur **tous** les sites. Rien
+à voir avec une machine lente.
+
+Les deux constantes sont écrites et éprouvées sur vingt-six adresses réelles.
+`NOT_A_PHOTO` écarte le mobilier de page (icônes, logos, pixels, vignettes) ;
+`OFF_TOPIC` pénalise sans exclure les photos de recommandation.
+
+Le premier essai avait corrigé, lui, un vrai défaut mais pas celui-là : un seul
+`Promise.all` lançait jusqu'à un millier de téléchargements d'images d'un coup,
+là où Chrome n'ouvre que six connexions par hôte. Remplacé par une file de douze,
+budget de trente secondes, bitmap libéré après mesure. Ça reste utile, ça ne
+débloquait rien.
+
+**La leçon, et le garde-fou.** Le contrôle de `CLAUDE.md` ne validait que la
+syntaxe : un identifiant inexistant compile parfaitement. `extension/check.cjs`
+le remplace et fait trois passes — syntaxe, constantes utilisées mais jamais
+définies, filtres de photos confrontés à des adresses réelles. Vérifié : passé
+sur la version fautive, il signale `NOT_A_PHOTO` et `OFF_TOPIC`.
+
+```bash
+cd backend && node extension/check.cjs
+```
 
 Pour constater : recharger l'extension en Mode développeur sur la machine qui
 bloquait, puis importer. Regarder la console du **service worker**, pas celle de

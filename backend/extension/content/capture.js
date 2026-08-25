@@ -214,6 +214,34 @@
   const PRODUCT_PATH = /\/(?:product|products|goods|item|items|sku|detail)\//i
 
   /**
+   * Ce qui n'est jamais une photo de produit.
+   *
+   * Écrit et utilisé trois fois, mais défini nulle part : chaque import qui
+   * arrivait au classement des images levait « NOT_A_PHOTO is not defined » et
+   * s'arrêtait là. C'est la panne « l'import bloque à l'étape des images, sur
+   * tous les sites » — elle n'avait rien d'une machine lente, et le contrôle de
+   * syntaxe ne pouvait pas la voir. D'où extension/check.cjs.
+   *
+   * Le mobilier de la page, en somme : icônes, logos, avatars, drapeaux, pixels
+   * de mesure, sprites, vignettes minuscules et formats qui ne servent jamais à
+   * une fiche produit.
+   */
+  const NOT_A_PHOTO =
+    /sprite|icon|logo|avatar|pixel|badge|flag|placeholder|blank\.|1x1|loading|spinner|banner|\.svg(?:[?#]|$)|\.gif(?:[?#]|$)|_(?:[1-9]\d?|1[0-4]\d)x(?:[1-9]\d?|1[0-4]\d)\.|\/(?:assets|static)\/(?:icons?|ui|common)\//i
+
+  /**
+   * Ce qui est bien une photo, mais pas celle du produit ouvert.
+   *
+   * Une fiche affiche aussi les articles conseillés, les articles vus récemment
+   * et les publicités : de vraies photos, au bon format, servies par le bon CDN.
+   * Le score ne peut les distinguer que par le chemin, d'où cette liste — elle
+   * pénalise sans exclure, car un fournisseur range parfois sa galerie sous
+   * « /recommend/ » sans arrière-pensée.
+   */
+  const OFF_TOPIC =
+    /recommend|related|similar|also-?(?:like|bought|viewed)|you-?may|cross-?sell|upsell|recently|sponsor|[-_\/](?:ads?|advert)[-_\/]/i
+
+  /**
    * Every image the browser actually downloaded for this page.
    *
    * This is the source that was missing. A carousel loads its photos then swaps
