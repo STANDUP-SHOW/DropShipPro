@@ -707,6 +707,32 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ url }),
     }),
+  /** Ce que le rayon a rapporté, plateforme par plateforme, et ce qui est en ligne. */
+  departmentSales: (departmentId: string) =>
+    request<{
+      rayon: { id: string; key: string; agentName: string }
+      annonces: number
+      parPlateforme: Array<{ platform: string; commandes: number; chiffre: number; marge: number }>
+      ventes: Array<{
+        id: string
+        platform: string
+        titre: string
+        montant: number
+        devise: string
+        status: string
+        createdAt: string
+      }>
+      publications: Array<{
+        productId: string
+        titre: string
+        platform: string
+        status: string
+        externalUrl: string | null
+        publishedAt: string | null
+        error: string | null
+      }>
+    }>(`/departments/${departmentId}/sales`),
+
   productInfoHistory: (departmentId: string) =>
     request<{ count: number; reviews: ProductReview[] }>(`/departments/${departmentId}/product-info`),
 

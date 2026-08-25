@@ -5,6 +5,7 @@ import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { DEPARTMENTS, DEPARTMENT_KEYS, findDepartment } from '../services/departments.js'
 import { AGENT_PLANS, isActive } from '../services/agentBilling.js'
 import { reserveCredits } from '../services/billing.js'
+import { SECTOR_CATEGORIES } from '../services/categorySectors.js'
 import {
   COUT_EN_CREDITS,
   FRAICHEUR_JOURS,
@@ -225,4 +226,93 @@ departmentsRouter.get('/:id/product-info', async (req: AuthedRequest, res) => {
     take: 40,
   })
   res.json({ count: reviews.length, reviews })
+})
+
+/**
+ * Ce que le rayon a rapporté, et ce qui bouge sur les boutiques.
+ *
+ * Un chef de rayon conseille des produits ; la seule question qui compte
+ * ensuite est de savoir si ceux-là se sont vendus. Le lien entre un rayon et
+ * une annonce passe par la catégorie : les entrées du catalogue portent leur
+ * secteur, et le secteur porte la clé du rayon.
+ *
+ * Les chiffres sont ceux des commandes réellement enregistrées. Rien n'est
+ * estimé ni extrapolé : une place de marché qui ne remonte pas ses ventes
+ * apparaît à zéro, et c'est dit.
+ */
+departmentsRouter.get('/:id/sales', async (req: AuthedRequest, res) => {
+  const department = await prisma.department.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
+
+  const categoryIds = SECTOR_CATEGORIES.filter((c) => c.sector === department.key).map((c) => c.id)
+
+  const products = await prisma.product.findMany({
+    where: { userId: req.userId!, categoryId: { in: categoryIds } },
+    select: { id: true, title: true, aiTitle: true, createdAt: true, publications: true },
+  })
+  const productIds = products.map((p) => p.id)
+
+  const orders = productIds.length
+    ? await prisma.order.findMany({
+        where: { userId: req.userId!, productId: { in: productIds } },
+        select: {
+          id: true,
+          platform: true,
+          amount: true,
+          currency: true,
+          status: true,
+          createdAt: true,
+          product: { select: { id: true, title: true, aiTitle: true, price: true, shippingCost: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      })
+    : []
+
+  const parPlateforme = new Map<string, { commandes: number; chiffre: number; marge: number }>()
+  for (const o of orders) {
+    if (o.status === 'REFUNDED') continue
+    const ligne = parPlateforme.get(o.platform) ?? { commandes: 0, chiffre: 0, marge: 0 }
+    const revient = Number(o.product.price) + Number(o.product.shippingCost)
+    ligne.commandes += 1
+    ligne.chiffre += Number(o.amount)
+    ligne.marge += Number(o.amount) - revient
+    parPlateforme.set(o.platform, ligne)
+  }
+
+  // Ce qui est en ligne, et où : c'est la « notification boutique » du rayon —
+  // ce qui vient d'être publié, et ce qui attend encore.
+  const publications = products.flatMap((p) =>
+    p.publications.map((pub) => ({
+      productId: p.id,
+      titre: p.aiTitle || p.title,
+      platform: pub.platform,
+      status: pub.status,
+      externalUrl: pub.externalUrl,
+      publishedAt: pub.publishedAt,
+      error: pub.error,
+    })),
+  )
+
+  res.json({
+    rayon: { id: department.id, key: department.key, agentName: department.agentName },
+    annonces: products.length,
+    parPlateforme: [...parPlateforme.entries()]
+      .map(([platform, l]) => ({ platform, ...l }))
+      .sort((a, b) => b.chiffre - a.chiffre),
+    ventes: orders.slice(0, 40).map((o) => ({
+      id: o.id,
+      platform: o.platform,
+      titre: o.product.aiTitle || o.product.title,
+      montant: Number(o.amount),
+      devise: o.currency,
+      status: o.status,
+      createdAt: o.createdAt,
+    })),
+    publications: publications
+      .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
+      .slice(0, 40),
+  })
 })

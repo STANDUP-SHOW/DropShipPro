@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare, Search } from 'lucide-react'
+import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare, Search, TrendingUp } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { RecommendedProducts } from '../components/RecommendedProducts'
 import { OpportunityList } from '../components/OpportunityList'
@@ -10,6 +10,7 @@ import { SignalList } from '../components/SignalList'
 import { ReportList } from '../components/ReportList'
 import { DepartmentChat } from '../components/DepartmentChat'
 import { ProductInfo } from '../components/ProductInfo'
+import { DepartmentSales } from '../components/DepartmentSales'
 import { api } from '../lib/api'
 
 /**
@@ -29,6 +30,7 @@ const TABS = [
   { id: 'SUPPLIERS' as const, label: 'Fournisseurs', icon: Truck },
   { id: 'SOCIAL' as const, label: 'Réseaux sociaux', icon: Share2 },
   { id: 'MARKET' as const, label: 'Places de marché', icon: Store },
+  { id: 'SALES' as const, label: 'Ses ventes', icon: TrendingUp },
   { id: 'CHAT' as const, label: 'Messagerie', icon: MessagesSquare },
 ]
 
@@ -280,6 +282,9 @@ export default function Rayon() {
       )}
 
       {tab === 'ADVICE' && <RecommendedProducts department={department.id} />}
+      {tab === 'SALES' && (
+        <DepartmentSales departmentId={department.id} agentName={department.agentName} />
+      )}
       {tab === 'INFO' && (
         <ProductInfo departmentId={department.id} agentName={department.agentName} />
       )}
