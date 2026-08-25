@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Users, ArrowRight, Plus, Store } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
+import { SupportChat } from '../components/SupportChat'
 
 type Roster = Awaited<ReturnType<typeof api.agentRoster>>
 type Agent = Roster['pipeline'][number]
@@ -13,7 +14,15 @@ const STATE_STYLE: Record<string, string> = {
   indisponible: 'bg-red-400/15 text-red-300',
 }
 
-function AgentCard({ agent }: { agent: Agent }) {
+function AgentCard({
+  agent,
+  ouvert,
+  onOuvrir,
+}: {
+  agent: Agent
+  ouvert: boolean
+  onOuvrir: (key: string) => void
+}) {
   const card = (
     <div className="flex h-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10">
       <div className="flex items-start justify-between gap-2">
@@ -49,12 +58,39 @@ function AgentCard({ agent }: { agent: Agent }) {
 
       {agent.where ? (
         <p className="mt-3 inline-flex items-center gap-1 text-[11px] text-gray-400">
-          <span>{agent.family === 'comptoir' ? 'Lui parler' : agent.where}</span>
+          <span>
+            {agent.family === 'comptoir' ? (ouvert ? 'Fermer la conversation' : 'Lui parler') : agent.where}
+          </span>
           <ArrowRight size={11} />
         </p>
       ) : null}
     </div>
   )
+
+  /*
+   * Un agent de comptoir ouvre sa conversation sous sa carte, sans quitter la
+   * page. Changer de page pour poser une question faisait perdre la liste, donc
+   * l'idée d'en essayer un autre. Les agents de chaîne, eux, mènent bien
+   * ailleurs : leur travail se voit dans une autre page.
+   */
+  if (agent.family === 'comptoir') {
+    return (
+      <li className={ouvert ? 'sm:col-span-2 lg:col-span-3' : undefined}>
+        <button
+          type="button"
+          onClick={() => onOuvrir(agent.key)}
+          className={`block w-full text-left ${ouvert ? '' : 'h-full'}`}
+        >
+          {card}
+        </button>
+        {ouvert ? (
+          <div className="mt-3">
+            <SupportChat agentKey={agent.key} onRoute={onOuvrir} />
+          </div>
+        ) : null}
+      </li>
+    )
+  }
 
   return agent.href ? (
     <li>
@@ -80,6 +116,8 @@ function AgentCard({ agent }: { agent: Agent }) {
 export default function Agents() {
   const [roster, setRoster] = useState<Roster | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** L agent dont la conversation est ouverte, une seule a la fois. */
+  const [ouvert, setOuvert] = useState<string | null>(null)
 
   useEffect(() => {
     api.agentRoster().then(setRoster).catch(() => setError("L'équipe n'a pas pu être chargée"))
@@ -111,7 +149,12 @@ export default function Agents() {
                 <p className="mt-1 text-xs text-gray-500">{cat.hint}</p>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {membres.map((a) => (
-                    <AgentCard key={a.key} agent={a} />
+                    <AgentCard
+                      key={a.key}
+                      agent={a}
+                      ouvert={ouvert === a.key}
+                      onOuvrir={(k) => setOuvert((actuel) => (actuel === k ? null : k))}
+                    />
                   ))}
                 </ul>
               </section>

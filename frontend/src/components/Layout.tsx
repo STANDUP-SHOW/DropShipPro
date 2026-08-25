@@ -13,7 +13,7 @@ const NAV = [
   { to: '/messages', label: 'Messages', icon: Inbox },
   { to: '/orders', label: 'Commandes', icon: ShoppingBag },
   { to: '/livraisons', label: 'Livraisons', icon: Truck },
-  { to: '/abonnement', label: 'Mon compte', icon: Coins },
+  { to: '/abonnement', label: 'Mes crédits', icon: Coins },
   { to: '/guide', label: 'Aide', icon: BookOpen },
   { to: '/settings', label: 'Réglages', icon: SettingsIcon },
 ]

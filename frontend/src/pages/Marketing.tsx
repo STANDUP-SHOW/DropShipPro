@@ -1,54 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Megaphone, Sparkles, Download, Trash2, Info, MessageSquare, Link2, BarChart3 } from 'lucide-react'
+import { Megaphone, Sparkles, Download, Trash2, Info, MessageSquare, BarChart3 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
+import { AdAccounts } from '../components/AdAccounts'
+import { AgentBook } from '../components/AgentBook'
 
 type State = Awaited<ReturnType<typeof api.visualState>>
 type Detail = Awaited<ReturnType<typeof api.productVisuals>>
 type Product = { id: string; title: string; aiTitle?: string | null }
-
-/**
- * Les régies auxquelles un vendeur voudra relier son compte.
- *
- * Rien n'est relié aujourd'hui, et la page le dit au lieu de le laisser croire.
- * Chaque ligne porte ce que le raccordement exigera réellement : ce ne sont pas
- * des détails d'implémentation mais des démarches que le vendeur devra faire
- * lui-même, souvent longues, et qu'il vaut mieux connaître avant de les
- * attendre.
- */
-const REGIES = [
-  {
-    id: 'meta',
-    label: 'Meta — Facebook et Instagram',
-    exige: "Un compte Business Manager, une page, et une application Meta validée par leur revue.",
-  },
-  {
-    id: 'google',
-    label: 'Google Ads',
-    exige: "Un compte Google Ads actif et un jeton de développeur, accordé après examen du compte.",
-  },
-  {
-    id: 'tiktok',
-    label: 'TikTok Ads',
-    exige: 'Un compte TikTok for Business et une application approuvée sur leur console développeur.',
-  },
-  {
-    id: 'x',
-    label: 'X Ads',
-    exige: "Un compte publicitaire X et un accès à l'API Ads, accordé au cas par cas.",
-  },
-  {
-    id: 'snapchat',
-    label: 'Snapchat Ads',
-    exige: 'Un compte Snap Business et une application enregistrée.',
-  },
-  {
-    id: 'pinterest',
-    label: 'Pinterest Ads',
-    exige: 'Un compte professionnel Pinterest et un accès API validé.',
-  },
-]
 
 /**
  * Le service marketing.
@@ -294,33 +254,9 @@ export default function Marketing() {
         </ul>
       )}
 
-      {/* ---------- Comptes publicitaires ---------- */}
-      <h2 className="mt-10 flex items-center gap-2 font-bold">
-        <Link2 size={16} className="text-purple-300" />
-        <span>Mes comptes publicitaires</span>
-      </h2>
-      <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
-        Relier un compte servira à deux choses : publier le visuel sans passer par un
-        téléchargement, et rapatrier ici les chiffres de vos campagnes. <b>Aucune régie n'est
-        reliée aujourd'hui</b>, et aucune ne peut l'être depuis cette page : chacune exige une
-        application validée par ses équipes, une démarche qui prend des semaines et qui se fait au
-        nom de votre entreprise, pas au nôtre. Ce qui suit dit ce que chaque raccordement
-        demandera, pour que vous puissiez commencer les démarches qui comptent pour vous.
-      </p>
+      {/* ---------- Comptes publicitaires, cliquables ---------- */}
+      <AdAccounts />
 
-      <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-        {REGIES.map((r) => (
-          <li key={r.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold">{r.label}</span>
-              <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-gray-400">
-                non relié
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{r.exige}</p>
-          </li>
-        ))}
-      </ul>
 
       {/* ---------- Suivi des campagnes ---------- */}
       <h2 className="mt-10 flex items-center gap-2 font-bold">
@@ -339,6 +275,11 @@ export default function Marketing() {
         si la campagne gagne ou perd de l'argent, et à partir de quel coût par acquisition il faut
         l'arrêter.
       </p>
+      <AgentBook
+        kind="ad"
+        titre="Les publicités de Nadia"
+        vide="Aucune publicité produite pour l'instant. Celles que vous ferez créer resteront ici, toutes annonces confondues."
+      />
     </Layout>
   )
 }

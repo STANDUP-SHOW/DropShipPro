@@ -4,6 +4,7 @@ import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe
 import { Camera, Sparkles, Check, Trash2, Download, ImageOff } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
+import { AgentBook } from '../components/AgentBook'
 
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
@@ -275,6 +276,11 @@ export default function PhotoStudio() {
           Importez d'abord une annonce : l'agent travaille à partir de ses photos.
         </p>
       )}
+      <AgentBook
+        kind="photo"
+        titre="Le book de Léa"
+        vide="Aucune photo produite pour l’instant. Celles que Léa fera resteront ici, toutes annonces confondues."
+      />
     </Layout>
   )
 }

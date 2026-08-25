@@ -290,3 +290,38 @@ visualsRouter.delete('/:id', async (req: AuthedRequest, res) => {
   if (!count) return res.status(404).json({ error: 'Image introuvable' })
   res.status(204).send()
 })
+
+/**
+ * Le book de l'agent : tout ce qu'il a produit, toutes annonces confondues.
+ *
+ * Les images étaient rangées par produit, donc invisibles tant qu'on n'ouvrait
+ * pas la bonne fiche. Un vendeur qui a payé trente visuels veut les revoir sans
+ * se rappeler pour quel article il les avait demandés — et retrouver celui qui
+ * avait bien marché pour le reprendre.
+ */
+visualsRouter.get('/gallery', async (req: AuthedRequest, res) => {
+  const kind = req.query.kind === 'ad' ? 'ad' : req.query.kind === 'photo' ? 'photo' : undefined
+
+  const images = await prisma.generatedImage.findMany({
+    where: { userId: req.userId!, ...(kind ? { kind } : {}) },
+    orderBy: { createdAt: 'desc' },
+    take: 120,
+    include: { product: { select: { id: true, title: true, aiTitle: true } } },
+  })
+
+  res.json({
+    count: images.length,
+    images: images.map((i) => ({
+      id: i.id,
+      kind: i.kind,
+      path: i.path,
+      platform: i.platform,
+      width: i.width,
+      height: i.height,
+      kept: i.kept,
+      createdAt: i.createdAt,
+      productId: i.product?.id ?? null,
+      productTitle: i.product ? i.product.aiTitle || i.product.title : null,
+    })),
+  })
+})

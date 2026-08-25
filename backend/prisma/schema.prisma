@@ -112,6 +112,7 @@ model User {
   conversations      Conversation[]
   generatedImages    GeneratedImage[]
   agentSubscriptions AgentSubscription[]
+  adAccounts         AdAccount[]
 }
 
 enum AuthTokenType {
@@ -732,4 +733,33 @@ model AgentSubscription {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, agentKey])
+}
+
+/// Un compte de regie publicitaire relie par le vendeur.
+///
+/// Separe de PlatformCredential, qui vise les places de marche : ce ne sont ni
+/// les memes identifiants, ni le meme usage. Ici on ne publie pas d annonce, on
+/// diffuse une publicite et on releve ce qu elle coute.
+///
+/// Ce que l application en fait aujourd hui : rien d autre que le conserver. La
+/// diffusion et le releve des campagnes ne sont pas ecrits, et l interface le
+/// dit au vendeur au moment ou il colle son jeton — le contraire lui ferait
+/// attendre des chiffres qui ne viendront pas.
+model AdAccount {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// meta, google, tiktok, x, snapchat, pinterest.
+  network String
+  /// L identifiant du compte publicitaire chez la regie, tel qu elle l affiche.
+  accountId String
+  /// Le jeton d acces. Jamais renvoye au navigateur une fois enregistre.
+  token     String  @db.Text
+  connected Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, network])
 }

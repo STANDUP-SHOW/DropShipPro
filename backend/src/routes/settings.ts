@@ -258,3 +258,59 @@ settingsRouter.delete('/api-keys/:id', async (req: AuthedRequest, res) => {
   if (!count) return res.status(404).json({ error: 'Clé introuvable' })
   res.status(204).send()
 })
+
+/**
+ * Les comptes de régie publicitaire.
+ *
+ * Ce que l'application fait de ces identifiants aujourd'hui : rien, sinon les
+ * conserver. Ni diffusion, ni relevé de campagne ne sont écrits. C'est dit au
+ * vendeur au moment où il colle son jeton, parce qu'un compte marqué « relié »
+ * qui ne remonte aucun chiffre se lit comme une panne, et qu'on cherche alors
+ * pendant des jours un défaut qui n'existe pas.
+ *
+ * Le jeton n'est jamais renvoyé au navigateur : on ne renvoie que sa présence,
+ * et l'identifiant de compte, qui n'est pas un secret.
+ */
+const AD_NETWORKS = ['meta', 'google', 'tiktok', 'x', 'snapchat', 'pinterest'] as const
+
+settingsRouter.get('/ad-accounts', async (req: AuthedRequest, res) => {
+  const comptes = await prisma.adAccount.findMany({ where: { userId: req.userId! } })
+  res.json(
+    comptes.map((c) => ({
+      network: c.network,
+      accountId: c.accountId,
+      connected: c.connected,
+      updatedAt: c.updatedAt,
+    })),
+  )
+})
+
+const adSchema = z.object({
+  network: z.enum(AD_NETWORKS),
+  accountId: z.string().trim().min(1).max(120),
+  token: z.string().trim().min(1).max(4000),
+})
+
+settingsRouter.put('/ad-accounts', async (req: AuthedRequest, res) => {
+  const parsed = adSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Renseignez l'identifiant du compte et le jeton d'accès." })
+  }
+
+  const { network, accountId, token } = parsed.data
+  const compte = await prisma.adAccount.upsert({
+    where: { userId_network: { userId: req.userId!, network } },
+    create: { userId: req.userId!, network, accountId, token, connected: true },
+    update: { accountId, token, connected: true },
+  })
+
+  res.json({ network: compte.network, accountId: compte.accountId, connected: compte.connected })
+})
+
+settingsRouter.delete('/ad-accounts/:network', async (req: AuthedRequest, res) => {
+  const { count } = await prisma.adAccount.deleteMany({
+    where: { userId: req.userId!, network: req.params.network },
+  })
+  if (!count) return res.status(404).json({ error: 'Compte introuvable' })
+  res.status(204).send()
+})

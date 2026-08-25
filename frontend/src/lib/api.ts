@@ -511,6 +511,23 @@ export const api = {
       credits: number
       errors: string[]
     }>('/visuals/ads', { method: 'POST', body: JSON.stringify({ productId, platforms, count, hint }) }),
+  /** Le book d'un agent visuel : tout ce qu'il a produit, toutes annonces confondues. */
+  visualGallery: (kind?: 'ad' | 'photo') =>
+    request<{
+      count: number
+      images: Array<{
+        id: string
+        kind: string
+        path: string
+        platform: string | null
+        width: number
+        height: number
+        kept: boolean
+        createdAt: string
+        productId: string | null
+        productTitle: string | null
+      }>
+    }>(`/visuals/gallery${kind ? `?kind=${kind}` : ''}`),
   keepImage: (id: string) => request<{ ok: true }>(`/visuals/${id}/keep`, { method: 'POST' }),
   deleteImage: (id: string) => request(`/visuals/${id}`, { method: 'DELETE' }),
 
@@ -701,6 +718,24 @@ export const api = {
   setOpportunityStatus: (id: string, status: string, productId?: string) =>
     request(`/opportunities/${id}`, { method: 'PATCH', body: JSON.stringify({ status, productId }) }),
   deleteOpportunity: (id: string) => request(`/opportunities/${id}`, { method: 'DELETE' }),
+
+  /**
+   * Les comptes de régie publicitaire.
+   *
+   * Le jeton n'est jamais relu : l'API ne renvoie que la présence du compte et
+   * son identifiant, qui n'est pas un secret.
+   */
+  listAdAccounts: () =>
+    request<Array<{ network: string; accountId: string; connected: boolean; updatedAt: string }>>(
+      '/settings/ad-accounts',
+    ),
+  saveAdAccount: (network: string, accountId: string, token: string) =>
+    request<{ network: string; accountId: string; connected: boolean }>('/settings/ad-accounts', {
+      method: 'PUT',
+      body: JSON.stringify({ network, accountId, token }),
+    }),
+  deleteAdAccount: (network: string) =>
+    request(`/settings/ad-accounts/${network}`, { method: 'DELETE' }),
 
   listCredentials: () => request<any[]>('/settings/credentials'),
   saveCredential: (data: Record<string, unknown>) =>

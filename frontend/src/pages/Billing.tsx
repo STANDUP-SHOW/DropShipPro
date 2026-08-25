@@ -6,6 +6,7 @@ import { Coins, Check, Infinity as InfinityIcon } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { Invoices, PaymentMethods } from '../components/BillingSections'
+import { AgentsCosts, TransparenceCredits, DepenseParMois } from '../components/CreditsSections'
 
 /**
  * Publishable key — public by design, it identifies the account and can do
@@ -26,7 +27,17 @@ function unitPrice(amount: number, credits: number) {
   return `${(amount / 100 / credits).toFixed(3).replace('.', ',')} € / annonce`
 }
 
+/** Les trois blocs de la page, dans l'ordre où l'on vient les chercher. */
+const BLOCS = [
+  { id: 'annonces', label: 'Annonces et formules' },
+  { id: 'agents', label: 'Agents' },
+  { id: 'graphique', label: 'Où part mon argent' },
+] as const
+
+type BlocId = (typeof BLOCS)[number]['id']
+
 export default function BillingPage() {
+  const [bloc, setBloc] = useState<BlocId>('annonces')
   const [plans, setPlans] = useState<Plans | null>(null)
   const [billing, setBilling] = useState<Billing | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -87,7 +98,28 @@ export default function BillingPage() {
 
   return (
     <Layout>
-      <h1 className="text-2xl font-bold">Mon compte</h1>
+      <h1 className="text-2xl font-bold">Mes crédits</h1>
+
+      {/* Trois blocs plutot qu une colonne : le vendeur vient pour une chose a la
+          fois — recharger, comprendre ce que coute un agent, ou voir ou part son
+          argent. Tout empiler obligeait a faire defiler cinq ecrans pour la
+          troisieme. */}
+      <div className="mt-5 flex flex-wrap gap-2">
+        {BLOCS.map((b) => (
+          <button
+            key={b.id}
+            type="button"
+            onClick={() => setBloc(b.id)}
+            className={
+              bloc === b.id
+                ? 'rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold'
+                : 'rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:bg-white/5'
+            }
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
 
       {confirmation && (
         <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
@@ -95,6 +127,8 @@ export default function BillingPage() {
         </p>
       )}
 
+      {bloc === 'annonces' ? (
+        <>
       {/* Solde */}
       <div className="mt-6 rounded-2xl border border-purple-400/30 bg-purple-500/5 p-5">
         {billing?.premium ? (
@@ -278,6 +312,29 @@ export default function BillingPage() {
           </div>
         </>
       )}
+        </>
+      ) : null}
+
+      {bloc === 'agents' ? (
+        <div className="mt-6">
+          <AgentsCosts />
+        </div>
+      ) : null}
+
+      {bloc === 'graphique' ? (
+        <div className="mt-6">
+          <h2 className="text-lg font-bold">Où part mon argent</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            Ce que vous avez réellement payé, mois par mois. Rien n'est estimé : ce sont vos
+            paiements encaissés.
+          </p>
+          <DepenseParMois payments={billing?.payments ?? []} />
+        </div>
+      ) : null}
+
+      {/* Le bloc noir reste visible quel que soit l onglet : c est la reponse a
+          « pourquoi mon solde a baisse », et cette question se pose partout. */}
+      <TransparenceCredits />
     </Layout>
   )
 }
