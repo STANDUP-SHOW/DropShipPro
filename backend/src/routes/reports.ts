@@ -4,8 +4,9 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { askDepartment } from '../services/departmentChat.js'
 import { reserveCredits } from '../services/billing.js'
-import { PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
+import { AGENT_CATEGORIES, PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
 import { askSupportAgent } from '../services/supportChat.js'
+import { findDepartment } from '../services/departments.js'
 
 /**
  * Vrai quand l'agent payant est effectivement payé.
@@ -212,7 +213,24 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
   const abonnements = await prisma.agentSubscription.findMany({ where: { userId: req.userId! } })
   const paidUntil = new Map(abonnements.map((a) => [a.agentKey, a.paidUntil]))
 
+  const rayons = await prisma.department.findMany({
+    where: { userId: req.userId! },
+    select: { id: true, key: true, agentName: true, paidUntil: true },
+    orderBy: { createdAt: 'asc' },
+  })
+
   res.json({
+    categories: AGENT_CATEGORIES,
+    // Les chefs de rayon sont nommés, pas seulement comptés : « 3 rayons
+    // confiés » ne dit pas lesquels, et le vendeur veut voir son équipe.
+    rayons: rayons.map((r) => ({
+      id: r.id,
+      key: r.key,
+      name: r.agentName,
+      label: findDepartment(r.key)?.label ?? r.key,
+      paidUntil: r.paidUntil,
+      active: Boolean(r.paidUntil && r.paidUntil > new Date()),
+    })),
     pipeline: PIPELINE_AGENTS.map((a) => ({ ...a, ...statusOf(a.key) })),
     support: SUPPORT_AGENTS.map((a) => {
       const echeance = paidUntil.get(a.key) ?? null

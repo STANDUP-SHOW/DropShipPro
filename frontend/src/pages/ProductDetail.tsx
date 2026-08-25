@@ -299,20 +299,33 @@ export default function ProductDetail() {
 
       {/* ---------- Barre d'état, collée en haut au défilement ---------- */}
       <div className="sticky top-0 z-30 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#1b1633]/95 px-4 py-3 backdrop-blur">
+        {/* Une seule chaîne, un seul nœud de texte, et une clé par état.
+            C'est ici que naissait « removeChild: the node to be removed is not a
+            child of this node » — la panne qui obligeait à recharger la page dès
+            qu'on touchait une annonce. Les quatre états rendaient un <span> à la
+            même position : React les réconciliait comme un seul élément, et
+            passait d'un enfant texte unique — posé par la voie rapide
+            textContent, qui vide les nœuds sans qu'il le sache — à deux enfants
+            texte (« ✓ Enregistré à » + l'heure). Au coup d'après il cherchait à
+            retirer un nœud qui n'existait plus.
+            La clé lui interdit la réconciliation, la chaîne unique lui interdit
+            le mélange. L'un des deux suffirait ; les deux coûtent une ligne. */}
         <span className="flex items-center gap-2 text-sm">
           {saving ? (
-            <>
+            <span key="saving" className="flex items-center gap-2">
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-purple-300/30 border-t-purple-300" />
               <span className="text-gray-300">Enregistrement…</span>
-            </>
+            </span>
           ) : saveError ? (
-            <span className="text-red-400">⚠ {saveError}</span>
+            <span key="error" className="text-red-400">{`⚠ ${saveError}`}</span>
           ) : savedAt ? (
-            <span className="text-emerald-300">
-              ✓ Enregistré à {savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            <span key="saved" className="text-emerald-300">
+              {`✓ Enregistré à ${savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
             </span>
           ) : (
-            <span className="text-gray-400">Enregistrement automatique à chaque modification</span>
+            <span key="idle" className="text-gray-400">
+              Enregistrement automatique à chaque modification
+            </span>
           )}
         </span>
 

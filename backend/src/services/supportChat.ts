@@ -199,6 +199,59 @@ async function contextFor(key: string, userId: string): Promise<string> {
     ].join('\n')
   }
 
+  if (key === 'marketing') {
+    /**
+     * Ce qu'il faut pour conseiller un budget : la marge et ce qui se vend.
+     *
+     * Une campagne se juge sur la marge unitaire, pas sur le prix de vente :
+     * un produit à 40 € qui en coûte 36 ne supporte aucun coût d'acquisition,
+     * et le dire d'avance évite de brûler un budget pour l'apprendre.
+     */
+    const [products, ventes] = await Promise.all([
+      prisma.product.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+        select: {
+          title: true,
+          aiTitle: true,
+          price: true,
+          shippingCost: true,
+          sellingPrice: true,
+          currency: true,
+        },
+      }),
+      prisma.order.findMany({
+        where: { userId },
+        select: { platform: true, product: { select: { title: true, aiTitle: true } } },
+      }),
+    ])
+
+    const parProduit = new Map<string, number>()
+    for (const o of ventes) {
+      const nom = o.product.aiTitle || o.product.title
+      parProduit.set(nom, (parProduit.get(nom) ?? 0) + 1)
+    }
+    const meilleurs = [...parProduit.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+
+    return [
+      products.length
+        ? `Catalogue (les 25 plus récents), avec la marge unitaire :\n${products
+            .map((p) => {
+              const revient = Number(p.price) + Number(p.shippingCost)
+              const marge = Number(p.sellingPrice) - revient
+              return `- ${p.aiTitle || p.title} · vendu ${Number(p.sellingPrice).toFixed(2)} ${p.currency}, revient à ${revient.toFixed(2)}, marge ${marge.toFixed(2)}`
+            })
+            .join('\n')}`
+        : 'Aucune annonce au catalogue : il n’y a rien à mettre en publicité pour l’instant.',
+      meilleurs.length
+        ? `Ce qui se vend déjà :\n${meilleurs.map(([nom, n]) => `- ${nom} : ${n} vente(s)`).join('\n')}`
+        : "Aucune vente enregistrée : personne ne sait encore ce qui marche sur ce catalogue.",
+      // Dit franchement, sinon l'agent raisonne sur un ROAS qu'il n'a pas.
+      "Aucune donnée de campagne n'est reliée : ni dépense publicitaire, ni impressions, ni clics, ni coût par acquisition. Ne raisonne jamais comme si tu les avais.",
+    ].join('\n')
+  }
+
   // Hotline : de quoi orienter, pas de quoi traiter.
   const [departments, orders, conversations, user] = await Promise.all([
     prisma.department.findMany({ where: { userId }, select: { key: true, agentName: true } }),
@@ -347,6 +400,34 @@ function systemPrompt(key: string, context: string) {
       "Rappelle les délais légaux français quand ils s'appliquent : quatorze jours de rétractation sur",
       'une vente à distance, deux ans de garantie légale de conformité.',
       "Tu ne décides jamais d'un remboursement à la place du vendeur.",
+    ].join('\n')
+  }
+
+  if (key === 'marketing') {
+    return [
+      ...commun,
+      '',
+      "Tu es responsable des campagnes payantes. Meta (Facebook et Instagram), TikTok Ads, Google Ads,",
+      'X Ads, Snapchat, Pinterest. Tu connais les formats, les enchères, les audiences et la mesure.',
+      '',
+      "Ce qui décide d'une campagne, dis-le dans cet ordre et sans le contourner :",
+      "1. La marge unitaire. Le coût par acquisition doit tenir dedans, sinon la campagne perd de",
+      "l'argent à chaque vente et le volume aggrave la perte. Refuse de conseiller un budget sur un",
+      'produit dont la marge ne le supporte pas, et dis-le clairement.',
+      "2. L'angle. Un problème résolu, une démonstration, un avant-après, une preuve sociale — pas une",
+      'fiche technique. Le produit doit se comprendre sans le son dans les trois premières secondes.',
+      "3. Le format. Vertical plein écran pour TikTok, Reels et stories ; carré pour le fil ; paysage",
+      'pour le display. Un visuel au mauvais format est rogné, et ce qui est rogné est le produit.',
+      '4. La mesure. Une campagne se juge sur le coût par acquisition et la marge nette, jamais sur les',
+      "impressions ni sur les mentions J'aime. Dis quand couper : un test qui n'a pas trouvé son coût",
+      "cible après un volume suffisant ne le trouvera pas en insistant.",
+      '',
+      "Tu ne promets aucun résultat chiffré et tu n'inventes aucun repère de marché : si tu ne connais",
+      "pas le coût par mille ou le taux de conversion d'un secteur, dis-le et explique comment le mesurer",
+      'sur un premier test à petit budget.',
+      '',
+      "Rappelle, quand c'est utile, que tu produis le visuel mais que le budget, le ciblage et les",
+      'enchères se règlent chez la régie : le vendeur doit voir ce qu’il dépense là où il le dépense.',
     ].join('\n')
   }
 

@@ -80,6 +80,8 @@ export interface AgentCardData {
   name: string
   role: string
   family: 'chaine' | 'comptoir'
+  /** Le service : c'est par lui que la page « Mes agents » est rangée. */
+  category: 'administratif' | 'production' | 'marketing' | 'logistique'
   emoji: string
   does: string
   where: string | null
@@ -518,8 +520,22 @@ export const api = {
       // Même forme des deux côtés : la carte d'agent est la même, et un champ
       // absent d'une famille se lit comme absent plutôt que comme une erreur
       // de type.
+      categories: Array<{
+        key: 'administratif' | 'production' | 'marketing' | 'logistique'
+        label: string
+        hint: string
+      }>
       pipeline: AgentCardData[]
       support: AgentCardData[]
+      /** Les chefs de rayon en poste, nommés : « 3 rayons » ne dit pas lesquels. */
+      rayons: Array<{
+        id: string
+        key: string
+        name: string
+        label: string
+        paidUntil: string | null
+        active: boolean
+      }>
       departments: number
     }>('/chat/agents/roster'),
   supportHistory: (key: string) =>

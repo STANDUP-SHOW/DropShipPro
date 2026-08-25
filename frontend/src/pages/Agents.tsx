@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, ArrowRight, Plus } from 'lucide-react'
+import { Users, ArrowRight, Plus, Store } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 
@@ -29,11 +29,11 @@ function AgentCard({ agent }: { agent: Agent }) {
 
       {/* Ce que l'agent ne fait pas : sur du conseil comptable ou juridique,
           c'est aussi important que ce qu'il fait. */}
-      {agent.caveat && (
+      {agent.caveat ? (
         <p className="mt-2 rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] leading-relaxed text-gray-400">
           {agent.caveat}
         </p>
-      )}
+      ) : null}
 
       {agent.monthly ? (
         <p className="mt-2 text-[11px] font-semibold text-sky-300">
@@ -45,14 +45,14 @@ function AgentCard({ agent }: { agent: Agent }) {
         <p className="mt-2 text-[11px] text-gray-500">Compris dans votre abonnement</p>
       )}
 
-      {agent.note && <p className="mt-2 text-[11px] text-amber-300">{agent.note}</p>}
+      {agent.note ? <p className="mt-2 text-[11px] text-amber-300">{agent.note}</p> : null}
 
-      {agent.where && (
+      {agent.where ? (
         <p className="mt-3 inline-flex items-center gap-1 text-[11px] text-gray-400">
           <span>{agent.family === 'comptoir' ? 'Lui parler' : agent.where}</span>
           <ArrowRight size={11} />
         </p>
-      )}
+      ) : null}
     </div>
   )
 
@@ -68,12 +68,14 @@ function AgentCard({ agent }: { agent: Agent }) {
 }
 
 /**
- * L'équipe.
+ * L'équipe, rangée par service.
  *
- * Un vendeur doit voir qui travaille pour lui, ce que chacun fait, et lequel est
- * en panne. Les agents fournis d'office viennent en premier : ils sont là dès
- * l'inscription et n'ont rien à embaucher. Les chefs de rayon suivent, parce
- * qu'ils dépendent des secteurs que le vendeur travaille vraiment.
+ * Elle était rangée par mécanique — « la chaîne de production », « le comptoir »
+ * — ce qui dit comment on s'en sert, pas à quoi ils servent. Un vendeur qui
+ * cherche quelqu'un pour ses photos ne se demande pas si l'agent discute ou
+ * produit. Les services suivent donc l'organigramme d'une vraie maison :
+ * administratif, production, marketing, logistique, puis les chefs de rayon,
+ * qui sont les seuls à s'embaucher un par un.
  */
 export default function Agents() {
   const [roster, setRoster] = useState<Roster | null>(null)
@@ -83,65 +85,96 @@ export default function Agents() {
     api.agentRoster().then(setRoster).catch(() => setError("L'équipe n'a pas pu être chargée"))
   }, [])
 
+  const tous: Agent[] = roster ? [...roster.pipeline, ...roster.support] : []
+
   return (
     <Layout>
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Users size={22} className="text-emerald-400" />
-        <span>Vos agents</span>
+        <span>Mes agents</span>
       </h1>
       <p className="mt-1 text-sm text-gray-400">
-        Une équipe fournie avec l'application : ils importent, réécrivent, contrôlent, publient et
-        répondent. Vous n'avez rien à installer.
+        Une équipe fournie avec l'application : ils importent, réécrivent, contrôlent, publient,
+        photographient et répondent. Vous n'avez rien à installer.
       </p>
 
-      {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
-      {!roster && !error && <p className="mt-6 text-sm text-gray-500">Chargement…</p>}
+      {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
+      {!roster && !error ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
 
-      {roster && (
-        <>
-          <section className="mt-7">
-            <h2 className="font-bold">La chaîne de production</h2>
-            <p className="mt-1 text-xs text-gray-500">
-              Ils travaillent, ils ne discutent pas. Chaque annonce passe entre leurs mains dans cet
-              ordre.
-            </p>
+      {roster
+        ? roster.categories.map((cat) => {
+            const membres = tous.filter((a) => a.category === cat.key)
+            if (!membres.length) return null
+            return (
+              <section key={cat.key} className="mt-8">
+                <h2 className="font-bold">Mes agents {cat.label}</h2>
+                <p className="mt-1 text-xs text-gray-500">{cat.hint}</p>
+                <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {membres.map((a) => (
+                    <AgentCard key={a.key} agent={a} />
+                  ))}
+                </ul>
+              </section>
+            )
+          })
+        : null}
+
+      {roster ? (
+        <section className="mt-8">
+          <h2 className="font-bold">Mes chefs de rayon</h2>
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
+            Les seuls agents qui s'embauchent un par un, parce qu'ils dépendent des secteurs que
+            vous travaillez vraiment. Un chef de rayon surveille son marché : il repère les produits
+            qui montent, vous en propose, dépose des rapports de veille et répond à vos questions sur
+            son domaine. C'est aussi lui qui alimente le pilote automatique — sans chef de rayon,
+            celui-ci n'a rien à importer. Il se paie à la journée, à la semaine ou au mois, et un
+            abonnement arrêté conserve toutes ses trouvailles.
+          </p>
+
+          {roster.rayons.length ? (
             <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {roster.pipeline.map((a) => (
-                <AgentCard key={a.key} agent={a} />
+              {roster.rayons.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    to={`/rayon/${r.id}`}
+                    className="flex h-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <Store size={20} className="text-purple-300" />
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] ${
+                          r.active ? STATE_STYLE.actif : STATE_STYLE.inactif
+                        }`}
+                      >
+                        {r.active ? 'actif' : 'abonnement expiré'}
+                      </span>
+                    </div>
+                    <p className="mt-2 font-semibold">{r.name}</p>
+                    <p className="text-xs text-gray-400">Chef du rayon {r.label}</p>
+                    <p className="mt-2 text-[11px] text-gray-500">
+                      {r.active && r.paidUntil
+                        ? `En poste jusqu'au ${new Date(r.paidUntil).toLocaleDateString('fr-FR')}`
+                        : 'Ses trouvailles sont conservées : vous pouvez le reprendre quand vous voulez.'}
+                    </p>
+                  </Link>
+                </li>
               ))}
             </ul>
-          </section>
-
-          <section className="mt-8">
-            <h2 className="font-bold">Le comptoir</h2>
-            <p className="mt-1 text-xs text-gray-500">
-              Ceux à qui l'on parle. Commencez par la hotline si vous ne savez pas qui appeler : elle
-              vous met en relation.
+          ) : (
+            <p className="mt-4 text-xs text-gray-500">
+              Aucun rayon confié pour l'instant.
             </p>
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {roster.support.map((a) => (
-                <AgentCard key={a.key} agent={a} />
-              ))}
-            </ul>
-          </section>
+          )}
 
-          <section className="mt-8">
-            <h2 className="font-bold">Vos chefs de rayon</h2>
-            <p className="mt-1 text-xs text-gray-500">
-              {roster.departments
-                ? `${roster.departments} rayon(s) confié(s). Chacun surveille son secteur et vous propose des produits.`
-                : "Aucun rayon confié pour l'instant. C'est eux qui alimentent le pilote automatique."}
-            </p>
-            <Link
-              to="/rayons"
-              className="btn-gradient mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-            >
-              <Plus size={14} />
-              <span>{roster.departments ? 'Gérer mes chefs de rayon' : 'Ajouter un chef de rayon'}</span>
-            </Link>
-          </section>
-        </>
-      )}
+          <Link
+            to="/rayons"
+            className="btn-gradient mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+          >
+            <Plus size={14} />
+            <span>{roster.rayons.length ? 'Gérer mes chefs de rayon' : 'Embaucher un chef de rayon'}</span>
+          </Link>
+        </section>
+      ) : null}
     </Layout>
   )
 }
