@@ -419,7 +419,31 @@
       seen.add(identity)
       unique.push(item)
     }
-    return unique
+
+    /*
+     * Le mobilier de page, mesuré à part plutôt qu'écarté sans retour.
+     *
+     * L'écarter du classement était juste : une bannière de soldes ne doit pas
+     * disputer la première place à une photo du produit. Mais le jeter tout à
+     * fait prive le vendeur d'un recours quand notre tri se trompe — et il se
+     * trompera. Il est donc mesuré aussi, et rangé dans une bande à part que
+     * l'on déplie si besoin. Rien n'est perdu, rien ne pollue.
+     */
+    const ecartes = [...candidates].filter((u) => !NOT_A_PHOTO.test(u) && score(u) < 0 && !adapterSet.has(u))
+    const mobilierMesure = []
+    if (ecartes.length) {
+      const mesures = await measureAll([...new Set(ecartes.slice(0, 24))])
+      const vus = new Set(unique.map((i) => photoIdentity(i.url)))
+      for (const m of mesures.sort((a, b) => b.width * b.height - a.width * a.height)) {
+        const identity = photoIdentity(m.url)
+        if (vus.has(identity)) continue
+        vus.add(identity)
+        mobilierMesure.push(m)
+        if (mobilierMesure.length >= 12) break
+      }
+    }
+
+    return { produits: unique, mobilier: mobilierMesure }
   }
 
   /**
@@ -689,6 +713,46 @@
   }
 
   /**
+   * Le format d'un fichier, lu dans son adresse.
+   *
+   * Les CDN servent la même photo en plusieurs formats, et l'AVIF d'aujourd'hui
+   * est le JPEG d'hier : afficher le format évite de télécharger dix fois le
+   * même cliché en croyant varier.
+   */
+  function formatOf(url) {
+    const m = url.split('?')[0].match(/\.(jpe?g|png|webp|avif|gif|bmp)$/i)
+    return m ? m[1].toUpperCase().replace('JPEG', 'JPG') : '?'
+  }
+
+  /**
+   * Le poids d'une image, quand le navigateur le sait déjà.
+   *
+   * Lu dans les mesures de performance de la page : l'image a été téléchargée
+   * pour être affichée, sa taille est donc connue et gratuite. Une requête HEAD
+   * par vignette donnerait le poids de toutes, au prix d'une centaine d'allers-
+   * retours réseau — trop cher pour un renseignement de confort.
+   */
+  function weightOf(url) {
+    try {
+      const entry = performance.getEntriesByName(url)[0]
+      const bytes = entry?.transferSize || entry?.encodedBodySize
+      if (!bytes) return null
+      return bytes >= 1024 * 1024
+        ? `${(bytes / 1024 / 1024).toFixed(1)} Mo`
+        : `${Math.round(bytes / 1024)} Ko`
+    } catch {
+      return null
+    }
+  }
+
+  /** Les trois tailles d'affichage de la grille, comme dans les outils du genre. */
+  const AFFICHAGES = [
+    { id: 'grand', label: 'Grand', colonne: '220px', hauteur: '240px' },
+    { id: 'moyen', label: 'Moyen', colonne: '140px', hauteur: '170px' },
+    { id: 'petit', label: 'Petit', colonne: '92px', hauteur: '110px' },
+  ]
+
+  /**
    * Lets the seller pick the photos.
    *
    * Guessing which pictures belong to the product failed on every attempt: these
@@ -696,8 +760,18 @@
    * one shop breaks on the next. Showing every image found, biggest first, and
    * letting the user tick them is the approach image-downloader extensions use —
    * it cannot silently pick the wrong ones.
+   *
+   * L'ergonomie reprend celle des extracteurs d'images qui font référence, parce
+   * qu'elle a fait ses preuves : le format et les dimensions écrits sur chaque
+   * vignette, des filtres qui annoncent leur nombre avant qu'on clique, un
+   * réglage de densité, et de quoi tout effacer. Ce que nous ajoutons et qu'ils
+   * n'ont pas : le tri met les photos du produit devant, et le mobilier de la
+   * page est rangé à part au lieu d'être mélangé.
    */
-  function choosePhotos(found) {
+  function choosePhotos(trouve) {
+    const produits = Array.isArray(trouve) ? trouve : (trouve?.produits ?? [])
+    const mobilier = Array.isArray(trouve) ? [] : (trouve?.mobilier ?? [])
+
     return new Promise((resolve) => {
       document.getElementById('dsp-picker-photos')?.remove()
 
@@ -718,8 +792,8 @@
 
       const panel = document.createElement('div')
       Object.assign(panel.style, {
-        width: 'min(920px, 100%)',
-        maxHeight: '86vh',
+        width: 'min(980px, 100%)',
+        maxHeight: '88vh',
         display: 'flex',
         flexDirection: 'column',
         background: '#1b1633',
@@ -730,7 +804,7 @@
       })
 
       // Biggest first: the gallery is shot at full size, the rest are thumbnails.
-      const sorted = [...found].sort((a, b) => b.width * b.height - a.width * a.height)
+      const sorted = [...produits].sort((a, b) => b.width * b.height - a.width * a.height)
 
       // Sizes actually present, so the seller can isolate the gallery: on Temu the
       // product shots are all 800×800 while the surrounding clutter is not.
@@ -738,6 +812,12 @@
         .map((label) => ({ label, count: sorted.filter((i) => `${i.width}×${i.height}` === label).length }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 6)
+
+      // Les formats présents, avec leur nombre : on sait ce qu'on obtiendra
+      // avant de cliquer, et un format absent ne s'affiche pas du tout.
+      const formats = [...new Set(sorted.map((i) => formatOf(i.url)))]
+        .map((label) => ({ label, count: sorted.filter((i) => formatOf(i.url) === label).length }))
+        .sort((a, b) => b.count - a.count)
 
       /**
        * Une présélection, plutôt qu'une grille vide.
@@ -767,21 +847,50 @@
 
       panel.innerHTML = `
         <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0">
-          <div style="font-weight:700;font-size:15px">Choisissez les photos du produit</div>
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <div style="font-weight:700;font-size:15px">Choisissez les photos du produit</div>
+            <div style="color:#9ca3af;font-size:12px">${sorted.length} image(s) trouvée(s)</div>
+          </div>
           <div style="color:#9ca3af;margin-top:3px">
-            ${sorted.length} image(s) trouvées. ${
+            ${
               preselected.size
                 ? `Les ${preselected.size} photos au format ${dominant.label} sont présélectionnées — c'est presque toujours la galerie.`
                 : 'Aucune présélection : aucun format ne se détache.'
-            } Corrigez d'un clic, ou filtrez par dimensions. 10 maximum.
+            } Corrigez d'un clic. 10 maximum.
           </div>
-          <div id="dsp-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:10px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="color:#6b7280;font-size:11px">Taille</span>
+              <span id="dsp-f-taille" style="display:flex;flex-wrap:wrap;gap:5px"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="color:#6b7280;font-size:11px">Format</span>
+              <span id="dsp-f-format" style="display:flex;flex-wrap:wrap;gap:5px"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="color:#6b7280;font-size:11px">Affichage</span>
+              <span id="dsp-f-vue" style="display:flex;gap:5px"></span>
+            </div>
+            <button id="dsp-clear" style="margin-left:auto;border:0;background:none;color:#a855f7;cursor:pointer;font:500 12px system-ui,sans-serif">Effacer les filtres</button>
+          </div>
+
           <div style="display:flex;gap:8px;margin-top:10px">
             <button id="dsp-none" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:8px;padding:5px 12px;cursor:pointer;font:500 12px system-ui,sans-serif">Tout désélectionner</button>
-            <button id="dsp-all" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:8px;padding:5px 12px;cursor:pointer;font:500 12px system-ui,sans-serif">Sélectionner ce filtre</button>
+            <button id="dsp-all" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:8px;padding:5px 12px;cursor:pointer;font:500 12px system-ui,sans-serif">Sélectionner ce qui est affiché</button>
           </div>
         </div>
-        <div id="dsp-grid" style="flex:1 1 auto;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));grid-auto-rows:170px;align-content:start;gap:14px"></div>
+
+        <div style="flex:1 1 auto;overflow-y:auto">
+          <div id="dsp-grid" style="padding:16px 20px;display:grid;align-content:start;gap:14px"></div>
+          <div id="dsp-mobilier-bloc" style="padding:0 20px 16px;display:${mobilier.length ? 'block' : 'none'}">
+            <button id="dsp-mobilier-toggle" style="border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#9ca3af;border-radius:8px;padding:7px 12px;cursor:pointer;font:500 12px system-ui,sans-serif;width:100%;text-align:left">
+              ▸ Mobilier de la page — ${mobilier.length} image(s) écartée(s) : en-tête, menu, pied, bannières
+            </button>
+            <div id="dsp-mobilier" style="display:none;margin-top:10px"></div>
+          </div>
+        </div>
+
         <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-shrink:0">
           <span id="dsp-count" style="color:#9ca3af"></span>
           <span style="display:flex;gap:8px">
@@ -795,91 +904,168 @@
 
       const grid = panel.querySelector('#dsp-grid')
       const counter = panel.querySelector('#dsp-count')
-      const filters = panel.querySelector('#dsp-filters')
-      let filter = null
+      let filtreTaille = null
+      let filtreFormat = null
+      let vue = AFFICHAGES[1]
 
       const refreshCount = () => {
-        counter.textContent = `${preselected.size} photo(s) sélectionnée(s)`
+        counter.textContent = `${preselected.size} photo(s) sélectionnée(s) sur 10`
+      }
+
+      /** Une pastille de filtre, allumée quand elle est active. */
+      function pastille(hote, label, actif, onClick, compte) {
+        const b = document.createElement('button')
+        b.textContent = compte === undefined ? label : `${label} (${compte})`
+        Object.assign(b.style, {
+          border: actif ? '1px solid #a855f7' : '1px solid rgba(255,255,255,.15)',
+          background: actif ? 'rgba(168,85,247,.25)' : 'none',
+          color: actif ? '#e9d5ff' : '#e5e7eb',
+          borderRadius: '999px',
+          padding: '4px 10px',
+          cursor: 'pointer',
+          font: '500 11px system-ui, sans-serif',
+        })
+        b.addEventListener('click', onClick)
+        hote.appendChild(b)
       }
 
       function drawFilters() {
-        filters.innerHTML = ''
-        const make = (label, value, count) => {
-          const b = document.createElement('button')
-          b.textContent = count === null ? label : `${label} (${count})`
-          const on = filter === value
-          Object.assign(b.style, {
-            border: on ? '1px solid #a855f7' : '1px solid rgba(255,255,255,.15)',
-            background: on ? 'rgba(168,85,247,.25)' : 'none',
-            color: '#e5e7eb',
-            borderRadius: '999px',
-            padding: '5px 12px',
-            cursor: 'pointer',
-            font: '500 12px system-ui, sans-serif',
-          })
-          b.addEventListener('click', () => {
-            filter = value
-            drawFilters()
-            drawGrid()
-          })
-          filters.appendChild(b)
+        const taille = panel.querySelector('#dsp-f-taille')
+        const format = panel.querySelector('#dsp-f-format')
+        const vueHote = panel.querySelector('#dsp-f-vue')
+        taille.innerHTML = ''
+        format.innerHTML = ''
+        vueHote.innerHTML = ''
+
+        pastille(taille, 'Toutes', filtreTaille === null, () => {
+          filtreTaille = null
+          redraw()
+        }, sorted.length)
+        for (const s of sizes) {
+          pastille(taille, s.label, filtreTaille === s.label, () => {
+            filtreTaille = filtreTaille === s.label ? null : s.label
+            redraw()
+          }, s.count)
         }
-        make('Toutes', null, sorted.length)
-        for (const s of sizes) make(s.label, s.label, s.count)
+
+        pastille(format, 'Tous', filtreFormat === null, () => {
+          filtreFormat = null
+          redraw()
+        }, sorted.length)
+        for (const f of formats) {
+          pastille(format, f.label, filtreFormat === f.label, () => {
+            filtreFormat = filtreFormat === f.label ? null : f.label
+            redraw()
+          }, f.count)
+        }
+
+        for (const a of AFFICHAGES) {
+          pastille(vueHote, a.label, vue.id === a.id, () => {
+            vue = a
+            redraw()
+          })
+        }
+      }
+
+      /** Ce que les filtres laissent passer. */
+      const visible = () =>
+        sorted
+          .filter((i) => !filtreTaille || `${i.width}×${i.height}` === filtreTaille)
+          .filter((i) => !filtreFormat || formatOf(i.url) === filtreFormat)
+
+      /** Une vignette, avec ses étiquettes de format, de dimensions et de poids. */
+      function vignette(item, cochable) {
+        const cell = document.createElement('button')
+        const selected = () => preselected.has(item.url)
+        Object.assign(cell.style, {
+          position: 'relative',
+          padding: '0',
+          margin: '0',
+          border: '2px solid transparent',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          background: '#0f172a',
+          width: '100%',
+          height: vue.hauteur,
+          display: 'block',
+        })
+
+        const poids = weightOf(item.url)
+        const etiquette = (texte) =>
+          `<span style="background:rgba(0,0,0,.78);border-radius:5px;padding:2px 6px;font-size:10px;color:#fff;white-space:nowrap">${texte}</span>`
+
+        cell.innerHTML = `
+          <img src="${item.url}" loading="lazy" style="width:100%;height:100%;object-fit:contain;display:block;background:#0f172a" />
+          <span style="position:absolute;left:5px;top:5px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 40px)">
+            ${etiquette(formatOf(item.url))}${etiquette(`${item.width}×${item.height}`)}${poids ? etiquette(poids) : ''}
+          </span>
+          <span class="tick" style="position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff"></span>`
+
+        const paint = () => {
+          cell.style.borderColor = selected() ? '#a855f7' : 'rgba(255,255,255,.08)'
+          cell.style.opacity = selected() ? '1' : '.6'
+          const tick = cell.querySelector('.tick')
+          tick.style.background = selected() ? '#a855f7' : 'rgba(0,0,0,.65)'
+          tick.textContent = selected() ? '✓' : ''
+        }
+
+        cell.addEventListener('click', () => {
+          if (selected()) preselected.delete(item.url)
+          else if (preselected.size < 10) preselected.add(item.url)
+          paint()
+          refreshCount()
+        })
+
+        paint()
+        return cell
       }
 
       function drawGrid() {
+        grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${vue.colonne}, 1fr))`
+        grid.style.gridAutoRows = vue.hauteur
         grid.innerHTML = ''
-        const shown = filter ? sorted.filter((i) => `${i.width}×${i.height}` === filter) : sorted
-
-        for (const item of shown) {
-          const cell = document.createElement('button')
-          const selected = () => preselected.has(item.url)
-          Object.assign(cell.style, {
-            position: 'relative',
-            padding: '0',
-            margin: '0',
-            border: '2px solid transparent',
-            borderRadius: '10px',
-            overflow: 'hidden',
-            cursor: 'pointer',
-            background: '#0f172a',
-            width: '100%',
-            height: '170px',
-            display: 'block',
-          })
-          cell.innerHTML = `
-            <img src="${item.url}" loading="lazy" style="width:100%;height:100%;object-fit:contain;display:block;background:#0f172a" />
-            <span style="position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.78);border-radius:5px;padding:2px 6px;font-size:10px;color:#fff">${item.width}×${item.height}</span>
-            <span class="tick" style="position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff"></span>`
-
-          const paint = () => {
-            cell.style.borderColor = selected() ? '#a855f7' : 'rgba(255,255,255,.08)'
-            cell.style.opacity = selected() ? '1' : '.6'
-            const tick = cell.querySelector('.tick')
-            tick.style.background = selected() ? '#a855f7' : 'rgba(0,0,0,.65)'
-            tick.textContent = selected() ? '✓' : ''
-          }
-
-          cell.addEventListener('click', () => {
-            if (selected()) preselected.delete(item.url)
-            else if (preselected.size < 10) preselected.add(item.url)
-            paint()
-            refreshCount()
-          })
-
-          paint()
-          grid.appendChild(cell)
-        }
+        for (const item of visible()) grid.appendChild(vignette(item, true))
       }
 
-      /** Images currently listed, i.e. matching the active size filter. */
-      const visible = () => (filter ? sorted.filter((i) => `${i.width}×${i.height}` === filter) : sorted)
+      function drawMobilier() {
+        const hote = panel.querySelector('#dsp-mobilier')
+        if (!hote) return
+        hote.style.display = hote.dataset.ouvert === '1' ? 'grid' : 'none'
+        hote.style.gridTemplateColumns = `repeat(auto-fill, minmax(${vue.colonne}, 1fr))`
+        hote.style.gridAutoRows = vue.hauteur
+        hote.style.gap = '14px'
+        hote.innerHTML = ''
+        for (const item of mobilier) hote.appendChild(vignette(item, true))
+      }
+
+      function redraw() {
+        drawFilters()
+        drawGrid()
+        drawMobilier()
+        refreshCount()
+      }
+
+      panel.querySelector('#dsp-clear').addEventListener('click', () => {
+        filtreTaille = null
+        filtreFormat = null
+        redraw()
+      })
+
+      const bascule = panel.querySelector('#dsp-mobilier-toggle')
+      if (bascule) {
+        bascule.addEventListener('click', () => {
+          const hote = panel.querySelector('#dsp-mobilier')
+          const ouvert = hote.dataset.ouvert === '1'
+          hote.dataset.ouvert = ouvert ? '0' : '1'
+          bascule.textContent = `${ouvert ? '▸' : '▾'} Mobilier de la page — ${mobilier.length} image(s) écartée(s) : en-tête, menu, pied, bannières`
+          drawMobilier()
+        })
+      }
 
       panel.querySelector('#dsp-none').addEventListener('click', () => {
         preselected.clear()
-        drawGrid()
-        refreshCount()
+        redraw()
       })
 
       // Selects what the filter shows rather than everything: with a size filter
@@ -889,13 +1075,10 @@
           if (preselected.size >= 10) break
           preselected.add(item.url)
         }
-        drawGrid()
-        refreshCount()
+        redraw()
       })
 
-      drawFilters()
-      drawGrid()
-      refreshCount()
+      redraw()
 
       const close = (value) => {
         overlay.remove()
@@ -908,6 +1091,7 @@
       })
     })
   }
+
 
   async function send(button) {
     const { token } = await chrome.storage.local.get('token')
@@ -934,7 +1118,10 @@
 
       // The seller confirms which pictures are the product: no rule reliably
       // separates the gallery from the recommendation strip on these pages.
-      progress.step(`${found.length} image(s) trouvées — à vous de choisir`)
+      // `found` porte désormais deux listes : les candidates du produit et le
+      // mobilier de page, rangé à part dans le sélecteur.
+      const combien = found?.produits?.length ?? (Array.isArray(found) ? found.length : 0)
+      progress.step(`${combien} image(s) trouvées — à vous de choisir`)
       const picked = await choosePhotos(found)
       if (picked === null) {
         progress.remove()
