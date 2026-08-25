@@ -161,39 +161,48 @@ vendeur indécis.
 
 ## Ce qui reste demandé et pas encore fait
 
-Par ordre de valeur, tel que discuté :
+Mis à jour le 25/08/2026 au soir. Ce qui est barré a été livré et poussé ;
+**rien de tout cela n a été constaté en production** — c est le travail de la
+prochaine session.
 
-1. **« Info sur un produit »** dans chaque chef de rayon : coller une URL,
-   l'agent rend un avis comparatif en trois volets — **avis fournisseurs**,
-   **avis réseaux** (TikTok, Facebook), **avis places de marché**. 3 crédits,
-   5 recherches, résultat gardé en cache par URL. *Rien d'écrit à ce jour.*
-2. **Clé de dépôt** : le bloc « Clés pour mes agents »
-   (`frontend/src/components/ApiKeys.tsx`) devient **« Vous avez vos propres
-   agents »**, avec « demandez votre clé de dépôt pour en profiter avec
-   DropShipper ». **Facturée 10 € une seule fois**, pas d'abonnement.
-3. **Structure complète d'un chef de rayon** : Discuter · Info sur un produit ·
-   Rapports de veille · Liste de produits gagnants · Notifications des boutiques
-   en ligne · Rapports de ses ventes sur les places de marché.
-4. **Page Mes marketplaces** — fournisseurs et destinations, chacune avec logo,
-   ce qu'on peut y faire, bouton Activer, pop-up de détail. Les **742 logos
-   exploitables** sont dans `frontend/public/logos/` avec leurs règles d'usage
-   dans le README du dossier. **Manquent : Vinted, Leboncoin, Shopify,
-   AliExpress, DHgate, Banggood, Wish** — prévoir une pastille typographique de
-   repli pour celles-là.
-5. **Pages SEO par plateforme** — « comment vendre sur … avec DropShipper ».
-6. **Page API Links** — clés par plateforme, pages Facebook et TikTok pour les
-   publicités.
-7. **Refonte de Mon compte** en trois blocs : annonces et formules, agents,
-   graphique. Plus le bloc noir « Transparence crédits IA », et le prix de
-   chaque agent.
-8. **Réglages** : blocs vendeur, filigrane (case à cocher + logo PNG/SVG en bas
-   à droite, 100 % d'intensité), plateformes fournisseurs, flux automatiques,
-   marketplaces à clé d'API, bloc des clés repliable. Plus un menu **Sécurité**.
-9. **Comptabilité et SAV** : tickets internes, litiges, chiffres par plateforme.
-10. **Messagerie type boîte mail** : tri par date et plateforme, archiver,
-    marquer non lu.
-11. **Renommages** : agent vendeur → **Olivier** ; « Mon compte » →
-    « Mes crédits ».
+1. ~~**Info sur un produit**~~ **fait.** Onglet dans chaque chef de rayon :
+   coller une URL, avis en trois volets (fournisseurs, réseaux, places de
+   marché). 3 crédits, 5 recherches, cache par adresse pendant une semaine.
+2. **Clé de dépôt** — *repoussé à la demande du client* : le but est que les
+   vendeurs consomment nos agents, pas qu ils branchent les leurs.
+3. ~~**Structure complète d un chef de rayon**~~ **fait.** Produits gagnants ·
+   Info sur un produit · Fournisseurs · Réseaux · Places de marché · **Ses
+   ventes** (chiffre, marge et commandes par plateforme, plus l état en ligne de
+   chaque annonce du rayon) · Messagerie.
+4. ~~**Page Mes marketplaces**~~ **fait, en deux pages** comme demandé :
+    (16 fournisseurs) et  (les 21
+   destinations, rangées par ce qu on peut en faire). Logos depuis les 742
+   fichiers, pastille typographique pour les marques absentes.
+5. ~~**Pages SEO par plateforme**~~ **déjà en ligne** avant cette session.
+6. ~~**Page API Links**~~ **fait** :  rassemble les clés de place de
+   marché, les comptes de régie publicitaire et les clés de dépôt.
+7. ~~**Refonte de Mon compte**~~ **fait** : « Mes crédits », trois blocs, prix de
+   chaque agent, bloc noir Transparence crédits IA.
+8. **Réglages** — *partiellement fait*. Le **filigrane** est réglable pour de
+   vrai (case à cocher, logo PNG/SVG/JPEG/WebP, coin sur une grille de neuf,
+   intensité, taille ; par défaut en bas à droite à 100 %), et le bloc Sécurité
+   existait déjà. **Restent** : les blocs plateformes fournisseurs et flux
+   automatiques, et le repli du bloc des clés.
+9. ~~**Comptabilité et SAV**~~ **fait**, sauf les tickets internes :
+    donne le chiffre, le coût et la marge mois par mois et
+   plateforme par plateforme, les remboursements et les litiges ouverts. Les
+   **tickets internes** ne sont pas écrits ; les litiges passent par les
+   conversations acheteurs.
+10. ~~**Messagerie type boîte mail**~~ **fait** : filtre par plateforme, tri par
+    date, isolement des non-lus, archiver, marquer non lu.
+11. ~~**Renommages**~~ **fait** : Olivier, « Mes crédits ».
+
+**Ajouté en cours de route et non terminé** : le **relevé des campagnes
+publicitaires**. Les comptes de régie se relient et sont conservés, mais aucun
+connecteur ne va lire les chiffres. Le client a raison sur le principe : avec le
+jeton du vendeur, les API de lecture de Meta, Google Ads et TikTok sont
+accessibles sans que nous ayons notre propre application validée. C est un
+connecteur par régie, à écrire.
 
 ---
 
