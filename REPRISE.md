@@ -2,17 +2,40 @@
 
 Ce fichier existe pour qu'une conversation puisse être vidée sans rien perdre.
 Il ne répète pas `CLAUDE.md` : il dit **où on en est**, **ce qui bloque**, et
-**ce qui reste à faire**.
+**ce qui reste à faire**. À lire en entier avant de reprendre.
 
 ---
 
 ## Ce qui bloque, à traiter en premier
 
-### 1. R2 refuse l'écriture — `Access Denied`
+### 1. Deux pannes signalées par l'utilisateur, non encore corrigées
 
-**C'est le blocage le plus coûteux : il casse trois fonctions à la fois.**
+**a. « removeChild » sur la fiche d'une annonce.** Dès qu'on touche une annonce :
 
-Constaté en production sur `/api/health/services` :
+```
+Échec de l'exécution de 'removeChild' sur 'Node' :
+le nœud à supprimer n'est pas un enfant de ce nœud.
+```
+
+et l'application demande de recharger la page. C'est le défaut déjà décrit dans
+`CLAUDE.md` : **en JSX, plusieurs expressions de texte juxtaposées dont une
+chaîne vide** font perdre à React la trace de ses nœuds. Il en reste au moins
+une sur la page produit. Chercher dans `frontend/src/pages/Product*.tsx` et les
+composants qu'elle monte les motifs `{a}{b}` et `{x && ''}` ; composer **une
+seule chaîne**.
+
+**b. L'import par l'extension bloque à l'étape des images, sur tous les sites.**
+Signalé sur un mini-PC. Non reproduit. Piste la plus probable : le scan
+d'images (`extension/content/image-scan.js`) ou un des neuf adaptateurs
+(`extension/content/adapters.js`) part en boucle ou attend un `await` qui ne
+revient jamais — sur une machine lente, un plafond de sondes trop haut suffit à
+figer. **Vérifier d'abord la syntaxe de l'extension** (commande dans
+`CLAUDE.md`), puis regarder la console du service worker, pas celle de la page.
+
+### 2. R2 refuse l'écriture — `Access Denied`
+
+**Ce blocage casse trois fonctions à la fois.** Constaté sur
+`/api/health/services` :
 
 ```
 stockage : r2-refuse
@@ -36,28 +59,26 @@ Conséquences réelles, toutes observées :
 « compartiment introuvable » — quand on vise l'adresse standard. Le jeton était
 valide depuis le début : il est bien en *Object Read & Write*.
 
-**À faire** : poser `R2_JURISDICTION=eu` dans Railway. Le code construit
-l'adresse en conséquence.
-
-**Autres pistes, si cela ne suffit pas** — R2 → Manage API Tokens :
-
-- le jeton doit être en **Object Read & Write**, pas seulement Read. C'est la
-  cause la plus fréquente et elle donne exactement ce message ;
-- `R2_BUCKET` doit contenir le seul nom du compartiment ;
-- le jeton doit porter sur **ce** compartiment — un jeton créé pour un autre
-  répond « Access Denied » et non « bucket introuvable ».
+**À faire, côté utilisateur** : poser `R2_JURISDICTION=eu` dans Railway. Le code
+construit l'adresse en conséquence (`backend/src/lib/storage.ts`).
 
 **Vérification** : `/api/health/services` passe de `r2-refuse` à `r2`. Le
 contrôle écrit sous le préfixe `generated/`, exactement là où l'application
 écrit — une première version testait un préfixe inutilisé et affichait un vert
 trompeur.
 
-### 2. Génération d'images : jamais vue fonctionner
+### 3. Génération d'images : jamais vue fonctionner
 
 `GOOGLE_AI_API_KEY` est en place et acceptée (`images: ok`). Le modèle est
 appelé, mais l'enregistrement du résultat butte sur le blocage R2 ci-dessus.
 **Rien ne prouve encore qu'une image sort correctement** — à retester dès que R2
 écrit.
+
+### 4. Deux secrets ont circulé en clair, à changer
+
+Le jeton R2 (clé d'accès + secret) et la clé Google ont été collés dans la
+conversation. **À révoquer et régénérer** dans Cloudflare et Google AI Studio,
+puis à reposer dans Railway. Rien à changer dans le code.
 
 ---
 
@@ -71,6 +92,8 @@ appelé, mais l'enregistrement du résultat butte sur le blocage R2 ci-dessus.
   5 000→290, 10 000→400, 25 000→800. Marges 68 % à 20 %, **sauf le dernier
   palier à 1 %** — 4,20 € de bénéfice sur 800 €, aucune marge de sécurité si
   Google augmente. Décision assumée, signalée dans le code.
+- **Publicités : tarif ads = tarif photo × 4**, l'agent rend **2 propositions**,
+  et la grille **s'arrête à 250 ads**.
 - **Chefs de rayon en abonnement** : 1 €/jour, 5 €/semaine, 15 €/mois, avec
   **24 h offertes à l'embauche**. Un abonnement expiré arrête l'agent mais
   conserve ses trouvailles.
@@ -84,30 +107,100 @@ appelé, mais l'enregistrement du résultat butte sur le blocage R2 ci-dessus.
 
 ---
 
+## Deux questions posées, deux réponses établies
+
+### Les clés de dépôt ne mettent en commun aucun agent
+
+Question : « nous serons nombreux à utiliser DropShipper, donc les clés de dépôt
+créent-elles un répertoire où tous les agents de tout le monde sont ensemble ? »
+
+**Non.** Vérifié dans le code :
+
+- la clé est stockée en SHA-256, jamais relisible, et porte un `userId` ;
+- `middleware/apiKey.ts` résout la clé vers **ce seul compte** et pose
+  `req.userId` ;
+- les **dix écritures** de `routes/agent.ts` utilisent `userId: req.userId!` —
+  aucune ne lit un identifiant fourni dans le corps de la requête ;
+- la lecture est filtrée pareil : un vendeur ne voit que ses opportunités, ses
+  signaux, ses rapports.
+
+Deux vendeurs qui brancheraient le même agent base44 ne verraient donc jamais
+les trouvailles l'un de l'autre. **Aucun répertoire commun n'existe.**
+
+### Ce que coûte un « avis sur un produit »
+
+Recherche web facturée 10 $ les mille, plus la lecture des résultats par Sonnet
+(3 $/M en entrée, 15 $/M en sortie) :
+
+| Profondeur | Coût unitaire | À 10 000 par jour |
+|---|---|---|
+| 3 recherches | 0,094 € | 938 €/jour — **28 000 €/mois** |
+| 5 recherches | 0,150 € | 1 495 €/jour — **45 000 €/mois** |
+| 8 recherches | 0,239 € | 2 392 €/jour — **72 000 €/mois** |
+
+Ce qu'un crédit rapporte : **0,25 €** au pack 5 €, **0,125 €** au pack 25 €,
+**0,08 €** au pack 100 €.
+
+**Un avis à 1 crédit se vendrait donc à perte** sur les deux plus gros paquets.
+**Décision retenue : 3 crédits l'avis, 5 recherches au maximum** — 0,24 €
+encaissés au pire pack contre 0,15 € de coût, soit 38 % de marge partout. Un
+avis déjà rendu sur la même URL doit être **resservi sans repayer** pendant
+quelques jours : c'est le garde-fou qui empêche la facture de tripler sur un
+vendeur indécis.
+
+---
+
 ## Ce qui reste demandé et pas encore fait
 
 Par ordre de valeur, tel que discuté :
 
-1. **Deux nouveaux agents** — *Le Comptable* (inclus dans l'abonnement) et
-   *L'Avocat* (15 €/mois) : experts, avec discussion, mention « à faire vérifier
-   par un professionnel », SIRET, factures, bilan.
-2. **Page Mes marketplaces** — fournisseurs et destinations, chacune avec logo,
+1. **« Info sur un produit »** dans chaque chef de rayon : coller une URL,
+   l'agent rend un avis comparatif en trois volets — **avis fournisseurs**,
+   **avis réseaux** (TikTok, Facebook), **avis places de marché**. 3 crédits,
+   5 recherches, résultat gardé en cache par URL. *Rien d'écrit à ce jour.*
+2. **Clé de dépôt** : le bloc « Clés pour mes agents »
+   (`frontend/src/components/ApiKeys.tsx`) devient **« Vous avez vos propres
+   agents »**, avec « demandez votre clé de dépôt pour en profiter avec
+   DropShipper ». **Facturée 10 € une seule fois**, pas d'abonnement.
+3. **Structure complète d'un chef de rayon** : Discuter · Info sur un produit ·
+   Rapports de veille · Liste de produits gagnants · Notifications des boutiques
+   en ligne · Rapports de ses ventes sur les places de marché.
+4. **Page Mes marketplaces** — fournisseurs et destinations, chacune avec logo,
    ce qu'on peut y faire, bouton Activer, pop-up de détail. Les **742 logos
-   exploitables** sont déjà dans `frontend/public/logos/` avec leurs règles
-   d'usage dans le README du dossier.
-3. **Pages SEO par plateforme** — « comment vendre sur … avec DropShipper ».
-4. **Page API Links** — clés par plateforme, pages Facebook et TikTok pour les
+   exploitables** sont dans `frontend/public/logos/` avec leurs règles d'usage
+   dans le README du dossier. **Manquent : Vinted, Leboncoin, Shopify,
+   AliExpress, DHgate, Banggood, Wish** — prévoir une pastille typographique de
+   repli pour celles-là.
+5. **Pages SEO par plateforme** — « comment vendre sur … avec DropShipper ».
+6. **Page API Links** — clés par plateforme, pages Facebook et TikTok pour les
    publicités.
-5. **Refonte de Mon compte** en trois blocs : annonces et formules, agents,
-   graphique. Plus le bloc noir « Transparence crédits IA ».
-6. **Réglages** : blocs vendeur, filigrane (case à cocher + logo PNG/SVG en bas
+7. **Refonte de Mon compte** en trois blocs : annonces et formules, agents,
+   graphique. Plus le bloc noir « Transparence crédits IA », et le prix de
+   chaque agent.
+8. **Réglages** : blocs vendeur, filigrane (case à cocher + logo PNG/SVG en bas
    à droite, 100 % d'intensité), plateformes fournisseurs, flux automatiques,
-   marketplaces à clé d'API. Bloc « Clés pour mes agents » à replier.
-7. **Comptabilité et SAV** : tickets internes, litiges, chiffres par plateforme.
-8. **Messagerie type boîte mail** : tri par date et plateforme, archiver,
-   marquer non lu.
-9. **Renommages demandés** : agent vendeur → **Olivier** ; « Mon compte » →
-   « Mes crédits ».
+   marketplaces à clé d'API, bloc des clés repliable. Plus un menu **Sécurité**.
+9. **Comptabilité et SAV** : tickets internes, litiges, chiffres par plateforme.
+10. **Messagerie type boîte mail** : tri par date et plateforme, archiver,
+    marquer non lu.
+11. **Renommages** : agent vendeur → **Olivier** ; « Mon compte » →
+    « Mes crédits ».
+
+---
+
+## Ce qui a été livré récemment (ne pas refaire)
+
+- **Le Comptable (Gérard)**, compris dans l'abonnement, et **L'Avocat (Maître
+  Doré)**, 15 €/mois — `services/agentRoster.ts`, `services/supportChat.ts`.
+  Tous deux **cherchent sur le web avant de répondre** (`web_search`, 4 requêtes
+  au plus, sources officielles citées avec leur date). C'est une correction :
+  le comptable annonçait de mémoire un seuil de TVA faux, puis, après une
+  première rustine trop brutale, niait l'existence de la franchise. Vérifié en
+  production, la troisième réponse était juste.
+- Chaque carte d'agent affiche **son prix et ses limites** (`pages/Agents.tsx`).
+- L'adresse R2 tient compte de la juridiction (`lib/storage.ts`).
+- Le catalogue de catégories couvre **les quinze rayons**, plus seulement la
+  mode homme.
 
 ---
 
@@ -115,8 +208,11 @@ Par ordre de valeur, tel que discuté :
 
 - Les regex écrites par script perdent leurs barres obliques inverses : `\d`
   devient `d`, `\b` devient un **caractère de recul invisible** qui ne
-  correspond jamais. Trois régressions déjà causées ainsi. **Écrire les regex
+  correspond jamais. Quatre régressions déjà causées ainsi. **Écrire les regex
   avec l'outil d'édition, jamais via un script shell**, et les tester.
+- **Un long texte écrit par `cat > fichier` se fait avaler par le shell** :
+  troncature, ou apostrophes qui cassent le document. Ce mémo lui-même en a été
+  victime deux fois. Passer par l'outil d'écriture.
 - Le catalogue de catégories compte **113 entrées sur 15 rayons**. Chaque
   boutique déclare ce qu'elle vend ; l'import ne propose que ces catégories.
   Rien de coché = tout proposé.
@@ -126,3 +222,6 @@ Par ordre de valeur, tel que discuté :
 - L'auto-contrôle `/api/health/services` teste **réellement** chaque service :
   il appelle le modèle, écrit dans le stockage, interroge la base. « Configuré »
   n'y veut jamais dire « fonctionne ».
+- **Avant de chercher un bug dans le code, regarder ce que le serveur renvoie
+  vraiment.** C'est ce qui a trouvé le 405 de Vercel, l'extension en 404, les
+  images AVIF manquées, la juridiction R2 et les chiffres faux du comptable.
