@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare } from 'lucide-react'
+import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare, Search } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { RecommendedProducts } from '../components/RecommendedProducts'
 import { OpportunityList } from '../components/OpportunityList'
 import { SignalList } from '../components/SignalList'
 import { ReportList } from '../components/ReportList'
 import { DepartmentChat } from '../components/DepartmentChat'
+import { ProductInfo } from '../components/ProductInfo'
 import { api } from '../lib/api'
 
 /**
@@ -24,6 +25,7 @@ type Department = Awaited<ReturnType<typeof api.listDepartments>>[number]
 
 const TABS = [
   { id: 'ADVICE' as const, label: 'Produits gagnants', icon: Sparkles },
+  { id: 'INFO' as const, label: 'Info sur un produit', icon: Search },
   { id: 'SUPPLIERS' as const, label: 'Fournisseurs', icon: Truck },
   { id: 'SOCIAL' as const, label: 'Réseaux sociaux', icon: Share2 },
   { id: 'MARKET' as const, label: 'Places de marché', icon: Store },
@@ -278,6 +280,9 @@ export default function Rayon() {
       )}
 
       {tab === 'ADVICE' && <RecommendedProducts department={department.id} />}
+      {tab === 'INFO' && (
+        <ProductInfo departmentId={department.id} agentName={department.agentName} />
+      )}
       {tab === 'CHAT' && (
         <DepartmentChat departmentId={department.id} agentName={department.agentName} />
       )}

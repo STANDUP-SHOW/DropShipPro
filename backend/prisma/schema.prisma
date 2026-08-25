@@ -113,6 +113,7 @@ model User {
   generatedImages    GeneratedImage[]
   agentSubscriptions AgentSubscription[]
   adAccounts         AdAccount[]
+  productReviews     ProductReview[]
 }
 
 enum AuthTokenType {
@@ -497,6 +498,7 @@ model Department {
   reports       Report[]
   chatMessages  ChatMessage[]
   conversations Conversation[]
+  productReviews ProductReview[]
 
   /// Un rayon n est confie qu une fois : deux « Albert » chez le meme vendeur
   /// rendraient chaque rapport ambigu.
@@ -762,4 +764,39 @@ model AdAccount {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, network])
+}
+
+/// L avis rendu sur un produit dont on a colle l adresse.
+///
+/// Garde en cache par adresse, et pour de bonnes raisons : l avis coute cinq
+/// recherches web et une lecture par le modele, soit trois credits au vendeur.
+/// Un vendeur indecis qui recolle la meme adresse quatre fois dans la journee
+/// paierait quatre fois pour la meme reponse, et notre facture triplerait avec
+/// la sienne. Passe le delai, l avis se refait : un produit peut passer de mode
+/// en quinze jours.
+model ProductReview {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Le rayon depuis lequel l avis a ete demande, pour le retrouver la-bas.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  /// L adresse normalisee : sans parametres de suivi, c est elle qui sert de cle.
+  url   String
+  title String?
+
+  /// Les trois volets, plus les sources. Sans schema impose : le modele rend ce
+  /// qu il a trouve, et un champ vide se lit comme « pas trouve ».
+  verdict     String  @db.Text
+  suppliers   Json?
+  social      Json?
+  marketplace Json?
+  sources     Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, url])
+  @@index([userId, departmentId])
 }

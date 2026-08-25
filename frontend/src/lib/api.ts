@@ -74,6 +74,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json()
 }
 
+/** L'avis d'un chef de rayon sur un produit, en trois volets. */
+export interface ProductReview {
+  id: string
+  url: string
+  title: string | null
+  verdict: string
+  suppliers: string | null
+  social: string | null
+  marketplace: string | null
+  sources: string[] | null
+  createdAt: string
+}
+
 /** Un agent tel que la page « Vos agents » l'affiche, quelle que soit sa famille. */
 export interface AgentCardData {
   key: string
@@ -658,6 +671,24 @@ export const api = {
         createdAt: string
       }>
     }>(`/chat/${departmentId}`),
+  /**
+   * L'avis d'un chef de rayon sur un produit dont on colle l'adresse.
+   *
+   * Resservi sans repayer pendant une semaine sur la même adresse : `billed`
+   * dit si le crédit est parti, pour que l'interface ne l'annonce pas à tort.
+   */
+  productInfo: (departmentId: string, url: string) =>
+    request<{
+      review: ProductReview
+      billed: boolean
+      credits: number | null
+    }>(`/departments/${departmentId}/product-info`, {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+  productInfoHistory: (departmentId: string) =>
+    request<{ count: number; reviews: ProductReview[] }>(`/departments/${departmentId}/product-info`),
+
   askDepartment: (departmentId: string, question: string) =>
     request<{
       message: { id: string; role: string; content: string; billed: boolean; createdAt: string }
