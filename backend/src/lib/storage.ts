@@ -20,6 +20,8 @@ interface R2Config {
   client: S3Client
   bucket: string
   publicUrl: string
+  /** L'hôte réellement visé, gardé tel quel pour le contrôle de santé. */
+  host: string
 }
 
 let r2: R2Config | null | undefined
@@ -56,6 +58,7 @@ function getR2(): R2Config | null {
   r2 = {
     bucket,
     publicUrl,
+    host,
     client: new S3Client({
       // R2 speaks the S3 protocol but has no real region.
       region: 'auto',
@@ -110,6 +113,20 @@ let lastStorageError: string | null = null
 
 export function storageError() {
   return lastStorageError
+}
+
+/**
+ * L'adresse réellement visée, et le compartiment.
+ *
+ * Sans elle, un « Access Denied » ne dit pas si la juridiction a été prise en
+ * compte : il faut relire les variables de Railway pour le savoir. L'afficher
+ * dans le contrôle évite de chercher dans le code un réglage absent du serveur.
+ * Aucun secret ici : ni la clé d'accès ni son secret n'apparaissent.
+ */
+export function storageTarget(): string | null {
+  const config = getR2()
+  if (!config) return null
+  return `${config.host} / ${config.bucket}`
 }
 
 export type StorageStatus = 'r2' | 'r2-refuse' | 'disque-local'

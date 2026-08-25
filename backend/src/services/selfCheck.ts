@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma.js'
-import { checkStorage, storageError, type StorageStatus } from '../lib/storage.js'
+import { checkStorage, storageError, storageTarget, type StorageStatus } from '../lib/storage.js'
 import { getStripe } from './billing.js'
 import { checkAi, type AiStatus } from './aiHealth.js'
 import { mailIsConfigured } from './mailer.js'
@@ -62,7 +62,9 @@ export async function selfCheck(): Promise<ServiceReport> {
       "Stockage R2 : l ecriture est refusee (" +
         (storageError() ?? "raison inconnue") +
         "). Les filigranes ne sont pas appliques — les photos du fournisseur partent telles quelles — et les agents visuels ne peuvent rien enregistrer. " +
-        "Si le compartiment est dans une juridiction (UE), posez R2_JURISDICTION=eu : a la mauvaise adresse, R2 repond Access Denied et non compartiment introuvable.",
+        "Adresse visee : " +
+        (storageTarget() ?? "aucune") +
+        ". Si le compartiment est dans une juridiction (UE), posez R2_JURISDICTION=eu : a la mauvaise adresse, R2 repond Access Denied et non compartiment introuvable.",
     )
   }
 
