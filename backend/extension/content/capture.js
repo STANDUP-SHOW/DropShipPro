@@ -346,9 +346,32 @@
      * Sans lui, une page pouvait rendre cent quatre-vingts vignettes où les
      * icônes d'interface passaient devant les photos du produit.
      */
+    /*
+     * Les deux signaux que le relevé du serveur avait et pas celui-ci.
+     *
+     * L'extension travaille sur Temu et AliExpress, c'est-à-dire là où l'on
+     * importe le plus, et elle triait avec un critère de moins. Deux relevés
+     * qui divergent finissent par se tromper différemment, ce qui est pire
+     * qu'un seul défaut.
+     *
+     * Comparés sur l'identité et non sur l'adresse : la page lie souvent la
+     * vignette là où og:image donne l'original, et ce sont bien les deux mêmes
+     * photos.
+     */
+    const meta = self.dspScanMeta ?? { declarees: [], mobilier: [] }
+    const declarees = new Set((meta.declarees ?? []).map(photoIdentity))
+    const mobilier = new Set((meta.mobilier ?? []).map(photoIdentity))
+
     const score = (url) => {
       if (NOT_A_PHOTO.test(url)) return -1000
       let value = 0
+      const identite = photoIdentity(url)
+      // Ce que le marchand déclare lui-même passe avant toute heuristique :
+      // elle sait, les autres critères devinent.
+      if (declarees.has(identite)) value += 5000
+      // Le mobilier n'est jamais le produit, sur aucun site — sauf si le
+      // marchand le déclare lui-même, ce que le bonus au-dessus rattrape.
+      if (mobilier.has(identite)) value -= 4000
       try {
         if (galleryHost && new URL(url).host === galleryHost) value += 1000
       } catch {
@@ -363,6 +386,10 @@
     const adapterSet = new Set(fromAdapter)
     const ranked = [...candidates]
       .filter((u) => !NOT_A_PHOTO.test(u))
+      // Le mobilier de page ne remonte pas dans le sélecteur : le vendeur
+      // choisit ensuite, mais il ne doit pas avoir à décocher la bannière de
+      // soldes du site à chaque import.
+      .filter((u) => score(u) >= 0 || adapterSet.has(u))
       .sort((a, b) => {
         const byAdapter = Number(adapterSet.has(b)) - Number(adapterSet.has(a))
         return byAdapter !== 0 ? byAdapter : score(b) - score(a)

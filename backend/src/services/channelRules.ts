@@ -38,6 +38,39 @@ const nombre = (v: unknown) => (Array.isArray(v) ? v.length : 0)
 const photos = (p: Product) =>
   Array.isArray(p.images) ? (p.images as unknown[]).filter((i) => typeof i === 'string').length : 0
 
+/**
+ * La longueur de titre acceptée par chaque destination.
+ *
+ * Sortie des règles pour être lisible d'ailleurs : c'est elle qui décide quel
+ * titre part sur quel canal. Enfermée dans une fermeture, elle obligeait à
+ * réécrire les mêmes chiffres à deux endroits — et deux endroits finissent
+ * toujours par diverger.
+ *
+ * Les écarts sont énormes et c'est tout le problème : Leboncoin coupe à
+ * cinquante caractères là où Amazon en veut au moins soixante pour le
+ * référencement. Aucun titre unique ne satisfait les deux.
+ */
+export const TITRE_MAX: Partial<Record<Platform, number>> = {
+  LEBONCOIN: 50,
+  VINTED: 70,
+  EBAY: 80,
+  FACEBOOK: 100,
+  LA_REDOUTE: 120,
+  LECLERC: 120,
+  BHV: 120,
+  KIABI: 120,
+  BRANDALLEY: 120,
+  SPARTOO: 120,
+  MIINTO: 120,
+  CDISCOUNT: 132,
+  ETSY: 140,
+  GOOGLE_SHOPPING: 150,
+  WISH: 150,
+  AMAZON: 200,
+  TIKTOK_SHOP: 255,
+  SHOPIFY: 255,
+}
+
 /** Le titre, longueur maximale imposée par la plateforme. */
 function titreMax(max: number, plateforme: string): RegleCanal {
   return {
@@ -164,34 +197,34 @@ const COMMUNES: RegleCanal[] = [DESCRIPTION, PRIX, MARGE, TITRE_COURT, photosMin
 export const REGLES_PAR_CANAL: Partial<Record<Platform, RegleCanal[]>> = {
   AMAZON: [
     ...COMMUNES,
-    titreMax(200, 'Amazon'),
+    titreMax(TITRE_MAX.AMAZON!, 'Amazon'),
     CATEGORIE,
     photosMin(1, 'Amazon'),
     argumentsMin(5, 'Amazon'),
     attributsMin(5, 'Amazon'),
   ],
-  CDISCOUNT: [...COMMUNES, titreMax(132, 'Cdiscount'), CATEGORIE, argumentsMin(3, 'Cdiscount')],
-  EBAY: [...COMMUNES, titreMax(80, 'eBay'), CATEGORIE, photosMin(1, 'eBay')],
-  ETSY: [...COMMUNES, titreMax(140, 'Etsy'), CATEGORIE],
+  CDISCOUNT: [...COMMUNES, titreMax(TITRE_MAX.CDISCOUNT!, 'Cdiscount'), CATEGORIE, argumentsMin(3, 'Cdiscount')],
+  EBAY: [...COMMUNES, titreMax(TITRE_MAX.EBAY!, 'eBay'), CATEGORIE, photosMin(1, 'eBay')],
+  ETSY: [...COMMUNES, titreMax(TITRE_MAX.ETSY!, 'Etsy'), CATEGORIE],
   GOOGLE_SHOPPING: [
     ...COMMUNES,
-    titreMax(150, 'Google Shopping'),
+    titreMax(TITRE_MAX.GOOGLE_SHOPPING!, 'Google Shopping'),
     CATEGORIE,
     photosMin(1, 'Google Shopping'),
   ],
-  VINTED: [...COMMUNES, titreMax(70, 'Vinted'), photosMin(1, 'Vinted'), CATEGORIE],
-  LEBONCOIN: [...COMMUNES, titreMax(50, 'Leboncoin'), photosMin(1, 'Leboncoin')],
-  FACEBOOK: [...COMMUNES, titreMax(100, 'Facebook Marketplace'), photosMin(1, 'Facebook Marketplace')],
-  TIKTOK_SHOP: [...COMMUNES, titreMax(255, 'TikTok Shop'), CATEGORIE, photosMin(3, 'TikTok Shop')],
-  SHOPIFY: [...COMMUNES, titreMax(255, 'Shopify')],
-  LA_REDOUTE: [...COMMUNES, titreMax(120, 'La Redoute'), CATEGORIE, attributsMin(4, 'La Redoute')],
-  LECLERC: [...COMMUNES, titreMax(120, 'E.Leclerc'), CATEGORIE],
-  BHV: [...COMMUNES, titreMax(120, 'BHV Marais'), CATEGORIE],
-  KIABI: [...COMMUNES, titreMax(120, 'Kiabi'), CATEGORIE, attributsMin(4, 'Kiabi')],
-  BRANDALLEY: [...COMMUNES, titreMax(120, 'BrandAlley'), CATEGORIE],
-  SPARTOO: [...COMMUNES, titreMax(120, 'Spartoo'), CATEGORIE],
-  MIINTO: [...COMMUNES, titreMax(120, 'Miinto'), CATEGORIE],
-  WISH: [...COMMUNES, titreMax(150, 'Wish'), CATEGORIE],
+  VINTED: [...COMMUNES, titreMax(TITRE_MAX.VINTED!, 'Vinted'), photosMin(1, 'Vinted'), CATEGORIE],
+  LEBONCOIN: [...COMMUNES, titreMax(TITRE_MAX.LEBONCOIN!, 'Leboncoin'), photosMin(1, 'Leboncoin')],
+  FACEBOOK: [...COMMUNES, titreMax(TITRE_MAX.FACEBOOK!, 'Facebook Marketplace'), photosMin(1, 'Facebook Marketplace')],
+  TIKTOK_SHOP: [...COMMUNES, titreMax(TITRE_MAX.TIKTOK_SHOP!, 'TikTok Shop'), CATEGORIE, photosMin(3, 'TikTok Shop')],
+  SHOPIFY: [...COMMUNES, titreMax(TITRE_MAX.SHOPIFY!, 'Shopify')],
+  LA_REDOUTE: [...COMMUNES, titreMax(TITRE_MAX.LA_REDOUTE!, 'La Redoute'), CATEGORIE, attributsMin(4, 'La Redoute')],
+  LECLERC: [...COMMUNES, titreMax(TITRE_MAX.LECLERC!, 'E.Leclerc'), CATEGORIE],
+  BHV: [...COMMUNES, titreMax(TITRE_MAX.BHV!, 'BHV Marais'), CATEGORIE],
+  KIABI: [...COMMUNES, titreMax(TITRE_MAX.KIABI!, 'Kiabi'), CATEGORIE, attributsMin(4, 'Kiabi')],
+  BRANDALLEY: [...COMMUNES, titreMax(TITRE_MAX.BRANDALLEY!, 'BrandAlley'), CATEGORIE],
+  SPARTOO: [...COMMUNES, titreMax(TITRE_MAX.SPARTOO!, 'Spartoo'), CATEGORIE],
+  MIINTO: [...COMMUNES, titreMax(TITRE_MAX.MIINTO!, 'Miinto'), CATEGORIE],
+  WISH: [...COMMUNES, titreMax(TITRE_MAX.WISH!, 'Wish'), CATEGORIE],
   OWN_SITE: [...COMMUNES],
   INSTAGRAM: [...COMMUNES, photosMin(1, 'Instagram')],
 }

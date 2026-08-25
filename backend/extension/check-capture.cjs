@@ -14,7 +14,16 @@ const { JSDOM } = require('jsdom')
 const HTML = `<!doctype html><html><head>
 <meta property="og:title" content="Montre automatique homme">
 <meta property="og:description" content="Une montre elegante pour toutes les occasions. Livraison rapide.">
-</head><body><main>
+<meta property="og:image" content="https://cdn.exemple.fr/product/montre-face.jpg">
+<script type="application/ld+json">{"@type":"Product","name":"Montre automatique homme","image":["https://cdn.exemple.fr/product/montre-face.jpg","https://cdn.exemple.fr/product/montre-profil.jpg"]}</script>
+</head><body>
+<header><img src="https://cdn.exemple.fr/product/banniere-soldes-ete.jpg" alt="Soldes"></header>
+<nav><img src="https://cdn.exemple.fr/product/menu-promo.jpg" alt="Promo"></nav>
+<main>
+  <div class="gallery">
+    <img src="https://cdn.exemple.fr/product/montre-face.jpg" alt="">
+    <img src="https://cdn.exemple.fr/product/montre-profil.jpg" alt="">
+  </div>
   <h1>Montre automatique homme</h1>
   <div class="price">129,90 €</div>
 
@@ -50,7 +59,9 @@ const HTML = `<!doctype html><html><head>
   </table>
 
   <div class="reviews">${'Tres bon produit, conforme a la description. '.repeat(200)}</div>
-</main></body></html>`
+</main>
+<footer><img src="https://cdn.exemple.fr/product/logo-pied.jpg" alt=""></footer>
+</body></html>`
 
 const dom = new JSDOM(HTML)
 
@@ -88,23 +99,86 @@ global.Image = dom.window.Image
 
 // Les trois fonctions sont extraites du fichier livré : tester une copie
 // testerait un code qui ne tourne pas.
-const source = fs.readFileSync(
-  'C:/Users/maxma/Downloads/DropPost/backend/extension/content/capture.js',
-  'utf8',
-)
+const source =
+  fs.readFileSync('C:/Users/maxma/Downloads/DropPost/backend/extension/content/capture.js', 'utf8') +
+  '\n' +
+  fs.readFileSync('C:/Users/maxma/Downloads/DropPost/backend/extension/content/image-scan.js', 'utf8')
 const morceaux = []
-for (const nom of ['collectPageText', 'collectDescription', 'collectVariants']) {
-  const debut = source.indexOf(`  function ${nom}(`)
-  if (debut === -1) throw new Error(`${nom} introuvable`)
-  // Jusqu'à l'accolade fermante de même indentation.
-  const fin = source.indexOf('\n  }\n', debut)
-  morceaux.push(source.slice(debut, fin + 4))
+for (const nom of ['collectPageText', 'collectDescription', 'collectVariants', 'dspDeclaredImages', 'dspChromeImages']) {
+  /*
+   * Les deux indentations, parce que les deux existent : capture.js met tout
+   * dans une IIFE indentée de deux espaces, image-scan.js n'indente pas.
+   * Chercher une seule forme faisait échouer l'extraction avec « introuvable »
+   * sur une fonction qui était bel et bien là.
+   */
+  const indente = source.indexOf(`  function ${nom}(`)
+  const brut = source.indexOf(`\nfunction ${nom}(`)
+  const debut = indente !== -1 ? indente : brut + 1
+  if (indente === -1 && brut === -1) throw new Error(`${nom} introuvable`)
+
+  // Jusqu'à l'accolade fermante de même indentation que la déclaration.
+  const fermeture = indente !== -1 ? '\n  }\n' : '\n}\n'
+  const fin = source.indexOf(fermeture, debut)
+  morceaux.push(source.slice(debut, fin + fermeture.length))
 }
 
 const constantes = source.match(/const GROUPE_OPTIONS =[\s\S]*?const ETIQUETTE = '[^']*'/)[0]
-const contexte = { document, window, CSS: global.CSS, console }
+/*
+ * `location` et `getComputedStyle` comptent autant que `document`.
+ *
+ * dspAbsoluteUrl résout chaque adresse contre `location.href` : sans lui, la
+ * référence lève, le try/catch l'avale, et la fonction rend une liste vide —
+ * un échec silencieux qui ressemble à un défaut du code testé.
+ */
+const contexte = {
+  document,
+  window,
+  location: dom.window.location,
+  getComputedStyle: dom.window.getComputedStyle,
+  CSS: global.CSS,
+  console,
+  /*
+   * `URL` est un global de Node, pas une primitive du langage : un contexte vm
+   * neuf ne l'a pas. Sans lui, `new URL(...)` lève ReferenceError, le try/catch
+   * de dspAbsoluteUrl l'avale, et chaque relevé rend une liste vide — le code
+   * testé passait pour fautif alors qu'il est parfaitement correct dans un
+   * navigateur. Même famille de défaut que « NOT_A_PHOTO is not defined » :
+   * un nom absent, masqué par un catch.
+   */
+  URL,
+  URLSearchParams,
+}
 vm.createContext(contexte)
-vm.runInContext(`${constantes}\n${morceaux.join('\n')}\nglobalThis.__t = { collectPageText, collectDescription, collectVariants }`, contexte)
+/*
+ * dspDeclaredImages et dspChromeImages s'appuient sur deux aides d'image-scan.js
+ * — l'une rend une adresse absolue, l'autre relève toutes les sources d'un
+ * élément. Elles sont reprises telles quelles plutôt que réécrites : une copie
+ * éprouverait un code qui ne tourne pas.
+ */
+const aides = ['dspAbsoluteUrl', 'dspWidestFromSrcset', 'dspUrlsFromCss', 'dspSourcesOfElement']
+  .map((nom) => {
+    const debut = source.indexOf(`\nfunction ${nom}(`)
+    if (debut === -1) throw new Error(`${nom} introuvable`)
+    const fin = source.indexOf('\n}\n', debut)
+    return source.slice(debut + 1, fin + 3)
+  })
+  .join('\n')
+
+const constantesScan = ['DSP_IMAGE_ATTRS', 'DSP_IMAGE_EXT']
+  .map((nom) => {
+    const debut = source.indexOf(`const ${nom} =`)
+    if (debut === -1) throw new Error(`${nom} introuvable`)
+    // Jusqu'à la ligne vide qui suit la déclaration.
+    const fin = source.indexOf('\n\n', debut)
+    return source.slice(debut, fin)
+  })
+  .join('\n')
+
+vm.runInContext(
+  `${constantes}\n${constantesScan}\n${aides}\n${morceaux.join('\n')}\n` +
+    'globalThis.__t = { collectPageText, collectDescription, collectVariants, dspDeclaredImages, dspChromeImages }',
+  contexte,
+)
 
 const { collectPageText, collectDescription, collectVariants } = contexte.__t
 
@@ -145,6 +219,25 @@ exige(
   'le libelle « Choisir une taille » a ete pris pour une taille',
 )
 
+const declarees = contexte.__t.dspDeclaredImages()
+const mobilier = contexte.__t.dspChromeImages()
+
+exige(
+  'declarees',
+  declarees.length === 2 && declarees.every((u) => /montre-(face|profil)/.test(u)),
+  `declarees : ${JSON.stringify(declarees)}`,
+)
+for (const attendu of ['banniere-soldes-ete', 'menu-promo', 'logo-pied']) {
+  exige('mobilier', mobilier.some((u) => u.includes(attendu)), `${attendu} n'est pas reconnu comme mobilier`)
+}
+exige(
+  'mobilier',
+  !mobilier.some((u) => /montre-(face|profil)/.test(u)),
+  'une photo du produit a ete classee dans le mobilier',
+)
+
+console.log(`declarees   : ${declarees.length}`)
+console.log(`mobilier    : ${mobilier.length}`)
 console.log(`\ndescription : ${description.length} caracteres`)
 console.log(`pageText    : ${texte.length} caracteres`)
 console.log(`variantes   : ${JSON.stringify(variantes)}`)

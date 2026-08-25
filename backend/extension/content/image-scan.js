@@ -299,7 +299,77 @@ async function dspScanPageImages() {
   // nowhere but in these blobs, so an exhausted DOM budget must not skip it.
   for (const url of dspImagesFromScripts(Date.now() + DSP_SCAN_LIMITS.scriptMillis)) push(url)
 
+  /*
+   * Ce que le tri a besoin de savoir, et qu'un simple lot d'adresses ne dit pas.
+   *
+   * Le relevé du serveur avait déjà ces deux signaux ; l'extension, non — et
+   * c'est elle qui travaille sur Temu et AliExpress. Deux relevés qui divergent
+   * finissent par se tromper différemment, ce qui est pire qu'un seul défaut.
+   *
+   * — ce que le marchand DÉCLARE comme photo du produit (og:image, JSON-LD) :
+   *   le seul signal certain de toute la page ;
+   * — ce qui appartient au MOBILIER (en-tête, menu, pied, colonne latérale) :
+   *   une bannière de soldes a le même CDN, le même chemin, une vraie balise
+   *   <img> et souvent une taille supérieure aux photos du produit. Ce qui la
+   *   distingue n'est pas son adresse, c'est l'endroit où elle est posée.
+   */
+  self.dspScanMeta = {
+    declarees: dspDeclaredImages(),
+    mobilier: dspChromeImages(),
+  }
+
   return [...found]
+}
+
+/** Les photos que la page déclare elle-même comme étant le produit. */
+function dspDeclaredImages() {
+  const out = new Set()
+
+  for (const el of document.querySelectorAll('meta[property="og:image"], meta[name="og:image"]')) {
+    const url = dspAbsoluteUrl(el.getAttribute('content'))
+    if (url) out.add(url)
+  }
+
+  for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try {
+      const parsed = JSON.parse(script.textContent || '{}')
+      const candidats = Array.isArray(parsed) ? parsed : [parsed, ...(parsed['@graph'] ?? [])]
+      for (const c of candidats) {
+        const type = c?.['@type']
+        const estProduit = type === 'Product' || (Array.isArray(type) && type.includes('Product'))
+        if (!estProduit || !c.image) continue
+        for (const i of Array.isArray(c.image) ? c.image : [c.image]) {
+          const url = dspAbsoluteUrl(typeof i === 'string' ? i : i?.url)
+          if (url) out.add(url)
+        }
+      }
+    } catch {
+      // Un JSON-LD mal formé est courant ; il ne doit pas emporter le relevé.
+    }
+  }
+
+  return [...out].slice(0, 12)
+}
+
+/** Le mobilier de page : jamais le produit, sur aucun site. */
+function dspChromeImages() {
+  const out = new Set()
+
+  for (const zone of document.querySelectorAll('header, nav, footer, aside')) {
+    for (const el of zone.querySelectorAll('img, source, [style*="background"]')) {
+      try {
+        dspSourcesOfElement(el, (value) => {
+          const url = dspAbsoluteUrl(value)
+          if (url) out.add(url)
+        })
+      } catch {
+        // Un élément hostile ne doit pas interrompre le relevé.
+      }
+    }
+    if (out.size > 200) break
+  }
+
+  return [...out]
 }
 
     // Only the entry point is published; every helper stays private.
