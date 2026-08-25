@@ -356,3 +356,108 @@ ordersRouter.post('/purchases/done', async (req: AuthedRequest, res) => {
 
   res.json({ ok: true, updated: count })
 })
+
+/**
+ * La comptabilité, mois par mois, et les litiges en cours.
+ *
+ * Deux choses que le vendeur cherchait dans deux écrans différents alors
+ * qu'elles se lisent ensemble : ce qui est entré, et ce qui menace d'en
+ * ressortir. Un remboursement n'est pas une commande de moins, c'est de la
+ * marge déjà dépensée qui revient en arrière.
+ *
+ * Aucune estimation : ce sont les commandes enregistrées. La marge se calcule
+ * sur le coût fournisseur actuel du produit, faute d'enregistrer celui du jour
+ * de la vente — c'est écrit dans la réponse pour que personne ne prenne ce
+ * chiffre pour de la comptabilité.
+ */
+ordersRouter.get('/accounting', async (req: AuthedRequest, res) => {
+  const [orders, litiges] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId: req.userId! },
+      include: { product: { select: { id: true, title: true, aiTitle: true, price: true, shippingCost: true } } },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.conversation.findMany({
+      where: { userId: req.userId!, status: { in: ['OPEN', 'WAITING'] } },
+      orderBy: { lastMessageAt: 'desc' },
+      take: 60,
+      select: {
+        id: true,
+        platform: true,
+        customerName: true,
+        subject: true,
+        status: true,
+        unread: true,
+        lastMessageAt: true,
+      },
+    }),
+  ])
+
+  const mois = new Map<string, { chiffre: number; cout: number; commandes: number; rembourses: number }>()
+  const plateformes = new Map<string, { chiffre: number; cout: number; commandes: number; rembourses: number }>()
+
+  for (const o of orders) {
+    const cle = o.createdAt.toISOString().slice(0, 7)
+    const ligneMois = mois.get(cle) ?? { chiffre: 0, cout: 0, commandes: 0, rembourses: 0 }
+    const lignePf = plateformes.get(o.platform) ?? { chiffre: 0, cout: 0, commandes: 0, rembourses: 0 }
+
+    if (o.status === 'REFUNDED') {
+      ligneMois.rembourses += 1
+      lignePf.rembourses += 1
+    } else {
+      const montant = Number(o.amount)
+      const revient = Number(o.product.price) + Number(o.product.shippingCost)
+      ligneMois.chiffre += montant
+      ligneMois.cout += revient
+      ligneMois.commandes += 1
+      lignePf.chiffre += montant
+      lignePf.cout += revient
+      lignePf.commandes += 1
+    }
+
+    mois.set(cle, ligneMois)
+    plateformes.set(o.platform, lignePf)
+  }
+
+  const arrondi = (v: number) => Number(v.toFixed(2))
+
+  res.json({
+    parMois: [...mois.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-12)
+      .map(([m, l]) => ({
+        mois: m,
+        commandes: l.commandes,
+        rembourses: l.rembourses,
+        chiffre: arrondi(l.chiffre),
+        cout: arrondi(l.cout),
+        marge: arrondi(l.chiffre - l.cout),
+      })),
+    parPlateforme: [...plateformes.entries()]
+      .map(([platform, l]) => ({
+        platform,
+        commandes: l.commandes,
+        rembourses: l.rembourses,
+        chiffre: arrondi(l.chiffre),
+        cout: arrondi(l.cout),
+        marge: arrondi(l.chiffre - l.cout),
+      }))
+      .sort((a, b) => b.chiffre - a.chiffre),
+    remboursements: orders
+      .filter((o) => o.status === 'REFUNDED')
+      .slice(0, 40)
+      .map((o) => ({
+        id: o.id,
+        platform: o.platform,
+        titre: o.product.aiTitle || o.product.title,
+        montant: Number(o.amount),
+        devise: o.currency,
+        createdAt: o.createdAt,
+      })),
+    litiges,
+    // Dit dans la réponse plutôt que dans un coin de l'interface : ces chiffres
+    // préparent une comptabilité, ils ne la remplacent pas.
+    avertissement:
+      "Ces chiffres ne comptent ni la TVA, ni les frais de plateforme, ni les frais de port facturés à l'acheteur : rien de tout cela n'est encore saisi. La marge se calcule sur le coût fournisseur actuel du produit, pas sur celui du jour de la vente.",
+  })
+})

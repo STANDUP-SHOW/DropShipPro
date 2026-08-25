@@ -489,6 +489,16 @@ export const api = {
     request<{ text: string; agentName: string | null }>(`/conversations/${id}/draft`, {
       method: 'POST',
     }),
+  /** Comptabilite et SAV : chiffres reels, litiges ouverts, remboursements. */
+  accounting: () =>
+    request<{
+      parMois: Array<{ mois: string; commandes: number; rembourses: number; chiffre: number; cout: number; marge: number }>
+      parPlateforme: Array<{ platform: string; commandes: number; rembourses: number; chiffre: number; cout: number; marge: number }>
+      remboursements: Array<{ id: string; platform: string; titre: string; montant: number; devise: string; createdAt: string }>
+      litiges: Array<{ id: string; platform: string; customerName: string; subject: string | null; status: string; unread: boolean; lastMessageAt: string }>
+      avertissement: string
+    }>('/orders/accounting'),
+
   setConversationStatus: (id: string, status: string) =>
     request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   /** Remettre un message dans la pile : on l'a ouvert, on le traitera ce soir. */
