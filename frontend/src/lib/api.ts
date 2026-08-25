@@ -496,7 +496,19 @@ export const api = {
       credits: number
       errors: string[]
     }>('/visuals/photos', { method: 'POST', body: JSON.stringify({ productId, count, hint }) }),
-  generateAds: (productId: string, platforms: string[], count: number, hint?: string) =>
+  /**
+   * Une publicité, pas une photo.
+   *
+   * Le titre, le prix et le logo ne se passent pas ici : le serveur les lit dans
+   * l'annonce et dans les réglages du vendeur. Un prix affiché sur une publicité
+   * est une promesse, et une promesse ne se saisit pas deux fois.
+   */
+  generateAds: (
+    productId: string,
+    platforms: string[],
+    count: number,
+    options?: { hint?: string; ctaLabel?: string; ctaUrl?: string; argument?: string },
+  ) =>
     request<{
       images: Array<{
         id: string
@@ -510,7 +522,10 @@ export const api = {
       }>
       credits: number
       errors: string[]
-    }>('/visuals/ads', { method: 'POST', body: JSON.stringify({ productId, platforms, count, hint }) }),
+    }>('/visuals/ads', {
+      method: 'POST',
+      body: JSON.stringify({ productId, platforms, count, ...options }),
+    }),
   /** Le book d'un agent visuel : tout ce qu'il a produit, toutes annonces confondues. */
   visualGallery: (kind?: 'ad' | 'photo') =>
     request<{

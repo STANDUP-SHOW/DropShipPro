@@ -29,13 +29,16 @@ const ROUTES: Record<string, { label: string; href: string }> = {
 export function SupportChat({
   agentKey,
   onRoute,
+  /** Question pré-remplie, non envoyée : le vendeur la relit et la complète. */
+  amorce,
 }: {
   agentKey: string
   onRoute?: (key: string) => void
+  amorce?: string
 }) {
   const [data, setData] = useState<History | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
-  const [question, setQuestion] = useState('')
+  const [question, setQuestion] = useState(amorce ?? '')
   const [busy, setBusy] = useState(false)
   const [credits, setCredits] = useState<number | null>(null)
   const [route, setRoute] = useState<string | null>(null)
@@ -43,6 +46,12 @@ export function SupportChat({
   const [missing, setMissing] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+
+  // Une nouvelle amorce remplace la précédente : demander l'avis sur un second
+  // produit sans que la question du premier reste dans le champ.
+  useEffect(() => {
+    if (amorce) setQuestion(amorce)
+  }, [amorce])
 
   useEffect(() => {
     setRoute(null)

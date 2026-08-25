@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Megaphone, Sparkles, Download, Trash2, Info, MessageSquare, BarChart3 } from 'lucide-react'
+import { Megaphone, Sparkles, Download, Trash2, Info, BarChart3 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { AdAccounts } from '../components/AdAccounts'
 import { AgentBook } from '../components/AgentBook'
+import { ProductPicker } from '../components/ProductPicker'
+import { SupportChat } from '../components/SupportChat'
 
 type State = Awaited<ReturnType<typeof api.visualState>>
 type Detail = Awaited<ReturnType<typeof api.productVisuals>>
-type Product = { id: string; title: string; aiTitle?: string | null }
 
 /**
  * Le service marketing.
  *
  * Trois choses au même endroit, parce qu'elles ne se décident pas séparément :
- * à qui parler avant de dépenser, quoi produire, et où le diffuser. L'atelier
+ * à qui demander avant de dépenser, quoi produire, et où le diffuser. L'atelier
  * publicité vivait seul dans son coin ; un visuel produit sans avoir regardé la
  * marge du produit est un visuel qu'on paiera deux fois.
  *
@@ -24,18 +24,20 @@ type Product = { id: string; title: string; aiTitle?: string | null }
  */
 export default function Marketing() {
   const [state, setState] = useState<State | null>(null)
-  const [products, setProducts] = useState<Product[]>([])
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<Detail | null>(null)
+  const [avis, setAvis] = useState<{ id: string; titre: string } | null>(null)
   const [chosen, setChosen] = useState<Set<string>>(new Set(['instagram']))
   const [count, setCount] = useState(1)
   const [hint, setHint] = useState('')
+  const [ctaLabel, setCtaLabel] = useState('Commander')
+  const [ctaUrl, setCtaUrl] = useState('')
+  const [argument, setArgument] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api.visualState().then(setState).catch(() => setError('Atelier indisponible'))
-    api.listProducts().then(setProducts).catch(() => undefined)
   }, [])
 
   useEffect(() => {
@@ -61,7 +63,12 @@ export default function Marketing() {
     setBusy(true)
     setError(null)
     try {
-      const res = await api.generateAds(openId, [...chosen], count, hint.trim() || undefined)
+      const res = await api.generateAds(openId, [...chosen], count, {
+        hint: hint.trim() || undefined,
+        ctaLabel: ctaLabel.trim() || undefined,
+        ctaUrl: ctaUrl.trim() || undefined,
+        argument: argument.trim() || undefined,
+      })
       if (res.errors.length) setError(res.errors.join(' · '))
       setDetail((d) => (d ? { ...d, generated: [...res.images, ...d.generated] } : d))
       setState((s) => (s ? { ...s, credits: res.credits } : s))
@@ -88,32 +95,14 @@ export default function Marketing() {
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-gray-400">
         Le service de Nadia : quel produit mérite un budget, quel angle convertit, quel format pour
-        quel réseau — et le visuel qui va avec, aux dimensions exactes de chaque régie.
+        quel réseau — et la publicité qui va avec, aux dimensions exactes de chaque régie.
       </p>
-
-      {/* ---------- Parler à la responsable avant de dépenser ---------- */}
-      <Link
-        to="/agents/marketing"
-        className="mt-5 flex max-w-3xl items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10"
-      >
-        <span className="text-2xl">📣</span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">Demander l'avis de Nadia</span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-gray-500">
-            Elle connaît votre catalogue et la marge de chaque produit. Avant de payer un visuel puis
-            un budget, demandez-lui si ce produit supporte un coût d'acquisition — c'est la question
-            qui décide, et elle refusera de vous conseiller un budget quand la marge ne suit pas.
-          </span>
-        </span>
-        <MessageSquare size={16} className="mt-0.5 shrink-0 text-purple-300" />
-      </Link>
 
       <div className="mt-4 flex max-w-3xl items-start gap-2 rounded-xl border border-sky-400/25 bg-sky-400/10 p-3">
         <Info size={14} className="mt-0.5 shrink-0 text-sky-300" />
         <p className="text-xs leading-relaxed text-sky-100">
-          Nous produisons <b>le visuel</b>, pas la campagne. Vous le téléchargez et vous le publiez
-          vous-même : c'est chez la régie que vous fixez le budget et le ciblage, et que vous voyez
-          ce que vous dépensez.
+          Nous produisons <b>la publicité</b>, pas la campagne. Le budget, le ciblage et les enchères
+          se règlent chez la régie, là où vous voyez ce que vous dépensez.
         </p>
       </div>
 
@@ -130,133 +119,161 @@ export default function Marketing() {
 
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
 
-      {/* ---------- Créer une publicité ---------- */}
-      <h2 className="mt-8 font-bold">Créer une publicité</h2>
+      {/* ---------- Les produits, et les deux gestes qui comptent ---------- */}
+      <h2 className="mt-8 font-bold">Mes produits</h2>
       <p className="mt-1 text-xs text-gray-500">
-        Choisissez le produit, puis les réseaux où la publicité sera diffusée.
+        Survolez une ligne pour revoir la fiche et sa marge. Demandez l'avis de Nadia avant de
+        dépenser, puis générez la publicité.
       </p>
 
-      {products.length === 0 ? (
-        <p className="mt-3 text-sm text-gray-500">
-          Aucune annonce au catalogue : importez un produit avant de lui faire une publicité.
-        </p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {products.map((p) => (
-            <li key={p.id}>
+      <ProductPicker
+        ouvert={openId}
+        onAvis={(p) => {
+          setAvis({ id: p.id, titre: p.aiTitle || p.title })
+          setOpenId(null)
+        }}
+        onGenerer={(p) => {
+          setAvis(null)
+          setOpenId((actuel) => (actuel === p.id ? null : p.id))
+        }}
+      />
+
+      {/* L'avis s'ouvre sous la liste, sur le produit désigné : aller le chercher
+          dans une autre page ferait perdre la comparaison en cours. */}
+      {avis ? (
+        <div className="mt-4">
+          <p className="mb-2 text-xs text-gray-400">{`Avis de Nadia sur « ${avis.titre} »`}</p>
+          <SupportChat
+            agentKey="marketing"
+            amorce={`Ce produit mérite-t-il un budget publicitaire : « ${avis.titre} » ? Regarde sa marge unitaire, dis-moi le coût par acquisition maximal à ne pas dépasser, et l'angle qui convertirait le mieux.`}
+          />
+        </div>
+      ) : null}
+
+      {openId && detail && detail.product.id === openId ? (
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+          <p className="text-xs text-gray-400">Où sera diffusée cette publicité ?</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {state?.formats.map((f) => (
               <button
+                key={f.id}
                 type="button"
-                onClick={() => setOpenId(openId === p.id ? null : p.id)}
+                onClick={() => toggle(f.id)}
+                title={f.note}
                 className={
-                  openId === p.id
-                    ? 'w-full rounded-xl border border-emerald-400/40 bg-emerald-400/5 p-3 text-left'
-                    : 'w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left hover:bg-white/10'
+                  chosen.has(f.id)
+                    ? 'rounded-full bg-emerald-400/20 px-3 py-1.5 text-xs font-semibold text-emerald-300'
+                    : 'rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5'
                 }
               >
-                <p className="truncate text-sm font-semibold">{p.aiTitle || p.title}</p>
-                <p className="text-xs text-gray-500">
-                  {openId === p.id ? 'Fermer' : 'Créer une publicité pour ce produit'}
-                </p>
+                {`${f.label} · ${f.width}×${f.height}`}
               </button>
+            ))}
+          </div>
 
-              {openId === p.id && detail && detail.product.id === p.id ? (
-                <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs text-gray-400">Où sera diffusée cette publicité ?</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {state?.formats.map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => toggle(f.id)}
-                        title={f.note}
-                        className={
-                          chosen.has(f.id)
-                            ? 'rounded-full bg-emerald-400/20 px-3 py-1.5 text-xs font-semibold text-emerald-300'
-                            : 'rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5'
-                        }
-                      >
-                        {`${f.label} · ${f.width}×${f.height}`}
-                      </button>
-                    ))}
-                  </div>
+          {/* Ce qui sera écrit sur la publicité. Le titre, le prix et le logo
+              viennent de l'annonce et de vos réglages : ils ne se saisissent pas
+              ici, pour qu'un prix affiché soit toujours le vrai. */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <label>
+              <span className="block text-xs text-gray-400">Texte du bouton</span>
+              <input
+                value={ctaLabel}
+                onChange={(e) => setCtaLabel(e.target.value)}
+                placeholder="Commander"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              />
+            </label>
+            <label>
+              <span className="block text-xs text-gray-400">Adresse affichée</span>
+              <input
+                value={ctaUrl}
+                onChange={(e) => setCtaUrl(e.target.value)}
+                placeholder="ma-boutique.fr"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              />
+            </label>
+            <label>
+              <span className="block text-xs text-gray-400">Argument court</span>
+              <input
+                value={argument}
+                onChange={(e) => setArgument(e.target.value)}
+                placeholder="Livraison offerte"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              />
+            </label>
+          </div>
 
-                  <div className="mt-4 flex flex-wrap items-end gap-3">
-                    <label className="flex-1">
-                      <span className="block text-xs text-gray-400">
-                        Informations supplémentaires (facultatif)
-                      </span>
-                      <input
-                        value={hint}
-                        onChange={(e) => setHint(e.target.value)}
-                        placeholder="Ex. angle rentrée, cible bricoleurs, ambiance chantier"
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
-                      />
-                    </label>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex-1">
+              <span className="block text-xs text-gray-400">Ambiance de la scène (facultatif)</span>
+              <input
+                value={hint}
+                onChange={(e) => setHint(e.target.value)}
+                placeholder="Ex. angle rentrée, cible bricoleurs, ambiance chantier"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              />
+            </label>
 
-                    <label>
-                      <span className="block text-xs text-gray-400">Visuels par format</span>
-                      <select
-                        value={count}
-                        onChange={(e) => setCount(Number(e.target.value))}
-                        className="mt-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
-                      >
-                        {[1, 2, 3, 4].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+            <label>
+              <span className="block text-xs text-gray-400">Visuels par format</span>
+              <select
+                value={count}
+                onChange={(e) => setCount(Number(e.target.value))}
+                className="mt-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              >
+                {[1, 2, 3, 4].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-                    <button
-                      type="button"
-                      onClick={generate}
-                      disabled={busy || !chosen.size || !state?.configured}
-                      className="btn-gradient inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
-                    >
-                      <Sparkles size={14} />
-                      <span>{busy ? 'Création…' : `Générer (${total} crédit(s))`}</span>
-                    </button>
-                  </div>
+            <button
+              type="button"
+              onClick={generate}
+              disabled={busy || !chosen.size || !state?.configured}
+              className="btn-gradient inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            >
+              <Sparkles size={14} />
+              <span>{busy ? 'Création…' : `Générer (${total} crédit(s))`}</span>
+            </button>
+          </div>
 
-                  <ul className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {ads.map((g) => (
-                      <li key={g.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
-                        <img src={assetUrl(g.path)} alt="" className="w-full rounded-lg object-cover" />
-                        <p className="mt-1 text-[11px] text-gray-500">
-                          {`${g.platform ?? ''} · ${g.width}×${g.height}`}
-                        </p>
-                        <div className="mt-1 flex gap-1">
-                          <a
-                            href={assetUrl(g.path)}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] hover:bg-white/5"
-                          >
-                            <Download size={11} />
-                            <span>Télécharger</span>
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => remove(g.id)}
-                            className="inline-flex items-center rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-400 hover:bg-white/5 hover:text-red-400"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {ads.map((g) => (
+              <li key={g.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                <img src={assetUrl(g.path)} alt="" className="w-full rounded-lg object-cover" />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  {`${g.platform ?? ''} · ${g.width}×${g.height}`}
+                </p>
+                <div className="mt-1 flex gap-1">
+                  <a
+                    href={assetUrl(g.path)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] hover:bg-white/5"
+                  >
+                    <Download size={11} />
+                    <span>Télécharger</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => remove(g.id)}
+                    className="inline-flex items-center rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-400 hover:bg-white/5 hover:text-red-400"
+                  >
+                    <Trash2 size={11} />
+                  </button>
                 </div>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {/* ---------- Comptes publicitaires, cliquables ---------- */}
       <AdAccounts />
-
 
       {/* ---------- Suivi des campagnes ---------- */}
       <h2 className="mt-10 flex items-center gap-2 font-bold">
@@ -275,6 +292,7 @@ export default function Marketing() {
         si la campagne gagne ou perd de l'argent, et à partir de quel coût par acquisition il faut
         l'arrêter.
       </p>
+
       <AgentBook
         kind="ad"
         titre="Les publicités de Nadia"

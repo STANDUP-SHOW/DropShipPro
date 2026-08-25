@@ -1,4 +1,5 @@
 import sharp from 'sharp'
+import { composeAd, type AdCopy } from './adComposer.js'
 import { randomUUID } from 'crypto'
 import { putFile } from '../lib/storage.js'
 import { fetchSourceImage } from './watermark.js'
@@ -205,6 +206,15 @@ export async function generateAdVisual(params: {
   title: string
   platform: string
   hint?: string
+  /**
+   * L'offre à poser sur la scène : logo, titre, prix, bouton.
+   *
+   * Absente, on ne rend que la scène — c'est ce que faisait la version
+   * précédente, et c'est précisément ce qui manquait : une belle photo n'est pas
+   * une publicité. Tout ce qui porte du sens est dessiné par adComposer, jamais
+   * demandé au modèle, qui écrit des prix faux avec un aplomb parfait.
+   */
+  copy?: AdCopy
 }): Promise<GeneratedResult> {
   const format = AD_FORMATS[params.platform]
   if (!format) throw new ImageGenUnavailable('Format inconnu.')
@@ -216,20 +226,30 @@ export async function generateAdVisual(params: {
     `Produit : ${params.title}.`,
     params.hint ? `Angle demandé par le vendeur : ${params.hint}` : '',
     '',
-    'Le produit doit occuper le centre de la composition et rester rigoureusement identique aux photos de référence :',
+    'Le produit doit rester rigoureusement identique aux photos de référence :',
     'même forme, mêmes couleurs, mêmes proportions, mêmes marquages.',
     "Compose une scène nette et lisible en petit format, avec un arrière-plan qui met le produit en valeur sans le masquer.",
-    "N'écris aucun texte, aucun prix, aucune mention de réduction : ils seront ajoutés séparément.",
+    // Le tiers bas reçoit le bandeau de l'offre : un produit centré s'y ferait
+    // couper en deux par le titre et le prix.
+    "Place le produit dans la moitié haute de l'image et garde le tiers inférieur dégagé — une zone simple,",
+    "sans détail important, qui recevra ensuite le texte de l'offre.",
+    "N'écris aucun texte, aucun prix, aucun logo, aucune mention de réduction : ils sont ajoutés ensuite, exactement,",
+    'à partir des vraies données de la boutique.',
   ]
     .filter(Boolean)
     .join('\n')
 
-  const buffer = await generate({
+  const scene = await generate({
     sourceImages: params.sourceImages,
     prompt,
     width: format.width,
     height: format.height,
   })
+
+  const buffer = params.copy
+    ? await composeAd(scene, format.width, format.height, params.copy)
+    : scene
+
   const path = await store(buffer, `ad-${params.platform}`)
   return { path, width: format.width, height: format.height, prompt }
 }

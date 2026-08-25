@@ -176,6 +176,10 @@ const adSchema = z.object({
   platforms: z.array(z.string()).min(1).max(6),
   count: z.number().int().min(1).max(4).default(1),
   hint: z.string().trim().max(300).optional(),
+  /** Le texte du bouton, son adresse et l argument : ils sont dessines, pas generes. */
+  ctaLabel: z.string().trim().max(30).optional(),
+  ctaUrl: z.string().trim().max(80).optional(),
+  argument: z.string().trim().max(60).optional(),
 })
 
 visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
@@ -189,10 +193,24 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
   const platforms = parsed.data.platforms.filter((p) => AD_FORMATS[p])
   if (!platforms.length) return res.status(400).json({ error: 'Aucune destination valable' })
 
-  const product = await prisma.product.findFirst({
-    where: { id: parsed.data.productId, userId: req.userId! },
-    select: { id: true, title: true, aiTitle: true, images: true },
-  })
+  const [product, vendeur] = await Promise.all([
+    prisma.product.findFirst({
+      where: { id: parsed.data.productId, userId: req.userId! },
+      select: {
+        id: true,
+        title: true,
+        aiTitle: true,
+        images: true,
+        sellingPrice: true,
+        currency: true,
+        shop: { select: { name: true } },
+      },
+    }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: req.userId! },
+      select: { shopName: true, watermarkImage: true },
+    }),
+  ])
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
 
   const sourceImages = (Array.isArray(product.images) ? product.images : []).filter(
@@ -200,6 +218,25 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
   )
   if (!sourceImages.length) {
     return res.status(400).json({ error: "Ce produit n'a aucune photo à utiliser." })
+  }
+
+  /**
+   * L'offre posée sur le visuel.
+   *
+   * Elle vient de l'annonce, jamais du modèle : le prix affiché sur une
+   * publicité est une promesse, et un prix inventé se paie en litiges. Le logo
+   * est celui du filigrane — le vendeur l'a déjà déposé, lui en redemander un
+   * second serait le même fichier à téléverser deux fois.
+   */
+  const prix = Number(product.sellingPrice)
+  const copy = {
+    title: product.aiTitle || product.title,
+    price: `${prix.toFixed(2).replace('.', ',')} ${product.currency}`,
+    shopName: product.shop?.name ?? vendeur.shopName ?? null,
+    logo: vendeur.watermarkImage ?? null,
+    ctaLabel: parsed.data.ctaLabel?.trim() || 'Commander',
+    ctaUrl: parsed.data.ctaUrl?.trim() || null,
+    argument: parsed.data.argument?.trim() || null,
   }
 
   const produced = []
@@ -218,6 +255,7 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
           title: product.aiTitle || product.title,
           platform,
           hint: parsed.data.hint,
+          copy,
         })
 
         produced.push(
