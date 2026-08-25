@@ -24,6 +24,7 @@ import Marketing from './pages/Marketing'
 import PlatformsSourcing from './pages/PlatformsSourcing'
 import PlatformsSelling from './pages/PlatformsSelling'
 import Accounting from './pages/Accounting'
+import ApiLinks from './pages/ApiLinks'
 import SupportAgent from './pages/SupportAgent'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/plateformes-acquisition" element={<Protected><PlatformsSourcing /></Protected>} />
           <Route path="/plateformes-vente" element={<Protected><PlatformsSelling /></Protected>} />
           <Route path="/comptabilite" element={<Protected><Accounting /></Protected>} />
+          <Route path="/api-links" element={<Protected><ApiLinks /></Protected>} />
           {/* Ancienne adresse de l atelier publicite : les liens deja envoyes doivent continuer de marcher. */}
           <Route path="/publicite" element={<Navigate to="/marketing" replace />} />
           <Route path="/agents" element={<Protected><Agents /></Protected>} />

@@ -1,28 +1,21 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Puzzle, Download } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { PlatformBadge } from '../components/PlatformBadge'
 import { MyShops } from '../components/MyShops'
 import { ApiKeys } from '../components/ApiKeys'
+import { PlatformCredentials } from '../components/PlatformCredentials'
 import { ControlAgentToggle } from '../components/ControlAgentToggle'
 import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 
 export default function Settings() {
   const { user, refresh } = useAuth()
   const [shopName, setShopName] = useState(user?.shopName || '')
   const [watermarkText, setWatermarkText] = useState(user?.watermarkText || '')
-  const [creds, setCreds] = useState<any[]>([])
-  const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [saved, setSaved] = useState(false)
   const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null)
-
-  useEffect(() => {
-    api.listCredentials().then(setCreds)
-    api.listPlatforms().then(setPlatforms)
-  }, [])
 
   useEffect(() => {
     setShopName(user?.shopName || '')
@@ -34,18 +27,6 @@ export default function Settings() {
     await refresh()
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
-  }
-
-  const [credError, setCredError] = useState<{ platform: string; text: string } | null>(null)
-
-  async function saveCredential(platform: string, data: Record<string, string>) {
-    setCredError(null)
-    try {
-      await api.saveCredential({ platform, data })
-      setCreds(await api.listCredentials())
-    } catch (err) {
-      setCredError({ platform, text: err instanceof Error ? err.message : 'Enregistrement impossible' })
-    }
   }
 
   return (
@@ -206,112 +187,15 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
-        <h2 className="font-bold">Plateformes de vente</h2>
-        <div className="mt-4 space-y-4">
-          {platforms.filter((p) => p.id !== 'OWN_SITE').map((p) => {
-            const cred = creds.find((c) => c.platform === p.id)
-            return (
-              <div key={p.id} className="border-b border-white/10 pb-4 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="flex items-center gap-2 font-medium text-sm">
-                    <PlatformBadge label={p.label} color={p.color} size={22} />
-                    <span>{p.label}</span>
-                  </p>
-                  {p.automatable && !p.unavailable ? (
-                    <span
-                      className={`text-xs rounded-full px-2 py-0.5 ${cred?.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}
-                    >
-                      {cred?.connected ? 'Connecté' : 'Non connecté'}
-                    </span>
-                  ) : (
-                    <span className={`text-xs rounded-full px-2 py-0.5 ${INTEGRATION_STYLE[p.integration]}`}>
-                      {INTEGRATION_LABEL[p.integration]}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{p.note}</p>
-                {p.warning && (
-                  <p className="mt-2 rounded-lg border border-orange-400/30 bg-orange-500/10 px-2 py-1.5 text-xs text-orange-200">
-                    {`⚠️ ${p.warning}`}
-                  </p>
-                )}
+      <PlatformCredentials />
 
-                {/* Shopify needs two values, and they are the only credentials that
-                    are really used today — hence its own form rather than the
-                    generic "clé API" field. */}
-                {p.id === 'SHOPIFY' ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      const fd = new FormData(e.currentTarget)
-                      saveCredential('SHOPIFY', {
-                        shopDomain: String(fd.get('shopDomain') || ''),
-                        accessToken: String(fd.get('accessToken') || ''),
-                      })
-                    }}
-                    className="mt-2 space-y-2"
-                  >
-                    <input
-                      name="shopDomain"
-                      defaultValue={cred?.hint ?? ''}
-                      placeholder="ma-boutique.myshopify.com"
-                      className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
-                    />
-                    <input
-                      name="accessToken"
-                      type="password"
-                      placeholder="Jeton d'accès Admin (shpat_…)"
-                      className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">
-                        {cred?.connected ? 'Remplacer' : 'Connecter ma boutique'}
-                      </button>
-                      {cred?.connected && (
-                        <button
-                          type="button"
-                          onClick={() => saveCredential('SHOPIFY', {})}
-                          className="text-xs text-gray-400 hover:text-red-300"
-                        >
-                          Déconnecter
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                ) : (
-                  // No API key field for platforms with no public seller API — the
-                  // extension fills their form instead, so there is nothing to connect.
-                  p.automatable && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault()
-                        const fd = new FormData(e.currentTarget)
-                        const apiKey = String(fd.get('apiKey') || '')
-                        saveCredential(p.id, apiKey ? { apiKey } : {})
-                      }}
-                      className="mt-2 flex gap-2"
-                    >
-                      <input
-                        name="apiKey"
-                        placeholder="Clé API / token"
-                        className="flex-1 rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
-                      />
-                      <button className="text-xs rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">
-                        Enregistrer
-                      </button>
-                    </form>
-                  )
-                )}
-
-                {credError?.platform === p.id && (
-                  <p className="mt-2 text-xs text-red-400">{credError.text}</p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      <p className="mt-4 max-w-lg text-xs text-gray-500">
+        Vos comptes publicitaires et vos clés de dépôt se règlent aussi depuis{' '}
+        <Link to="/api-links" className="text-purple-300 underline">
+          Mes clés et raccordements
+        </Link>
+        , qui les rassemble tous.
+      </p>
     </Layout>
   )
 }
