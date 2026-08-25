@@ -1,4 +1,4 @@
-# Mémo de reprise — 25 août 2026
+# Mémo de reprise — 25 août 2026 (mis à jour en fin de journée)
 
 Ce fichier existe pour qu'une conversation puisse être vidée sans rien perdre.
 Il ne répète pas `CLAUDE.md` : il dit **où on en est**, **ce qui bloque**, et
@@ -8,77 +8,69 @@ Il ne répète pas `CLAUDE.md` : il dit **où on en est**, **ce qui bloque**, et
 
 ## Ce qui bloque, à traiter en premier
 
-### 1. Deux pannes signalées par l'utilisateur, non encore corrigées
+### 1. Deux pannes corrigées le 25/08/2026, **à constater en production**
 
-**a. « removeChild » sur la fiche d'une annonce.** Dès qu'on touche une annonce :
+Le code est écrit, compilé et commité ; **rien n'est encore vérifié sur
+www.drop-shipper.fr ni sur la machine qui bloquait**. Ne pas rayer ces deux
+lignes avant de l'avoir vu.
 
-```
-Échec de l'exécution de 'removeChild' sur 'Node' :
-le nœud à supprimer n'est pas un enfant de ce nœud.
-```
+**a. « removeChild » sur la fiche d'une annonce.** Cause trouvée : dans
+`ProductDetail.tsx`, le libellé de catégorie s'écrivait
+`Catégorie{product.sourceCategory && (…)}`. Une `sourceCategory` vide rend la
+chaîne vide, donc un nœud de texte vide collé à du texte, et React en perd la
+trace. Le libellé est désormais **une seule chaîne**, et les conditions qui
+peuvent valoir une chaîne vide (`externalUrl`, `error`, `message`, `photoError`,
+`sourceSite`, dans la fiche et dans `PublishDialog`) passent par un ternaire qui
+rend `null`. **Le motif reste présent ailleurs dans l'application** : chaque
+`{chaîne && …}` posé à côté de texte est un candidat.
 
-et l'application demande de recharger la page. C'est le défaut déjà décrit dans
-`CLAUDE.md` : **en JSX, plusieurs expressions de texte juxtaposées dont une
-chaîne vide** font perdre à React la trace de ses nœuds. Il en reste au moins
-une sur la page produit. Chercher dans `frontend/src/pages/Product*.tsx` et les
-composants qu'elle monte les motifs `{a}{b}` et `{x && ''}` ; composer **une
-seule chaîne**.
+**b. L'import par l'extension bloquait à l'étape des images.** Cause trouvée
+dans `extension/content/capture.js` : `ranked.slice(0, 260).flatMap(sizeVariants)`
+donne jusqu'à un millier d'adresses, et un seul `Promise.all` lançait autant de
+téléchargements d'images d'un coup. Chrome n'ouvre que six connexions par hôte :
+la plupart atteignaient leur délai en file d'attente, et celles qui arrivaient
+étaient décodées en mémoire toutes ensemble — de quoi figer un mini-PC.
+Remplacé par une file de douze à la fois, budget global de trente secondes,
+`img.src = ''` après mesure pour libérer le bitmap, délai par image ramené à
+cinq secondes. Le scan des scripts d'`image-scan.js` reçoit son propre budget de
+cinq secondes au lieu de tourner sans limite.
 
-**b. L'import par l'extension bloque à l'étape des images, sur tous les sites.**
-Signalé sur un mini-PC. Non reproduit. Piste la plus probable : le scan
-d'images (`extension/content/image-scan.js`) ou un des neuf adaptateurs
-(`extension/content/adapters.js`) part en boucle ou attend un `await` qui ne
-revient jamais — sur une machine lente, un plafond de sondes trop haut suffit à
-figer. **Vérifier d'abord la syntaxe de l'extension** (commande dans
-`CLAUDE.md`), puis regarder la console du service worker, pas celle de la page.
+Pour constater : recharger l'extension en Mode développeur sur la machine qui
+bloquait, puis importer. Regarder la console du **service worker**, pas celle de
+la page.
 
-### 2. R2 refuse l'écriture — `Access Denied`
+### 2. ~~R2 refuse l'écriture~~ **réglé le 25/08/2026**
 
-**Ce blocage casse trois fonctions à la fois.** Constaté sur
-`/api/health/services` :
+Le compartiment est dans la **juridiction européenne** (« photos de droppost |
+UE »). R2 exige alors l'adresse `<compte>.eu.r2.cloudflarestorage.com`, et
+répond « Access Denied » — et non « compartiment introuvable » — quand on vise
+l'adresse standard. Le jeton était valide depuis le début.
 
-```
-stockage : r2-refuse
-Stockage R2 : l'ecriture est refusee (Access Denied).
-```
+`R2_JURISDICTION=eu` est posé dans Railway. **Constaté sur
+`/api/health/services` : `stockage: r2`, `ok: true`, aucune alerte.**
 
-Conséquences réelles, toutes observées :
+Le blocage cassait trois choses ; elles sont donc débloquées mais **pas encore
+constatées une par une** : le filigrane (qui retombait en silence sur la photo
+d'origine du fournisseur), les agents photo et publicité, et tout ce qui écrira
+des fichiers ensuite.
 
-- **le filigrane ne s'applique pas** — l'image est bien téléchargée et bien
-  filigranée, mais l'enregistrement échoue et le code retombe sur la photo
-  d'origine du fournisseur, sans message. C'est la cause du « filigrane qui ne
-  marche pas » signalé il y a plusieurs jours, et que j'avais mal diagnostiqué
-  la première fois (j'avais corrigé les en-têtes de téléchargement) ;
-- **les agents photo et publicité** génèrent l'image puis n'arrivent pas à la
-  ranger ;
-- tout ce qui écrira des fichiers ensuite : factures, exports.
-
-**Cause identifiée** : le compartiment est dans la **juridiction européenne**
-(« photos de droppost | UE »). R2 exige alors l'adresse
-`<compte>.eu.r2.cloudflarestorage.com`, et répond « Access Denied » — et non
-« compartiment introuvable » — quand on vise l'adresse standard. Le jeton était
-valide depuis le début : il est bien en *Object Read & Write*.
-
-**À faire, côté utilisateur** : poser `R2_JURISDICTION=eu` dans Railway. Le code
-construit l'adresse en conséquence (`backend/src/lib/storage.ts`).
-
-**Vérification** : `/api/health/services` passe de `r2-refuse` à `r2`. Le
-contrôle écrit sous le préfixe `generated/`, exactement là où l'application
-écrit — une première version testait un préfixe inutilisé et affichait un vert
-trompeur.
+À savoir pour la prochaine fois : le contrôle écrit sous le préfixe
+`generated/`, exactement là où l'application écrit — une première version
+testait un préfixe inutilisé et affichait un vert trompeur. Et l'alerte donne
+maintenant **l'hôte et le compartiment réellement visés**, pour qu'un « Access
+Denied » ne renvoie plus relire les variables de Railway.
 
 ### 3. Génération d'images : jamais vue fonctionner
 
 `GOOGLE_AI_API_KEY` est en place et acceptée (`images: ok`). Le modèle est
-appelé, mais l'enregistrement du résultat butte sur le blocage R2 ci-dessus.
-**Rien ne prouve encore qu'une image sort correctement** — à retester dès que R2
-écrit.
+appelé, et l'enregistrement du résultat ne bute plus sur R2. **Rien ne prouve
+encore qu'une image sort correctement** — reste à faire tourner un agent photo
+pour de vrai et à regarder l'image produite. C'est désormais possible.
 
-### 4. Deux secrets ont circulé en clair, à changer
+### 4. ~~Deux secrets ont circulé en clair~~ **fait le 24/08/2026**
 
-Le jeton R2 (clé d'accès + secret) et la clé Google ont été collés dans la
-conversation. **À révoquer et régénérer** dans Cloudflare et Google AI Studio,
-puis à reposer dans Railway. Rien à changer dans le code.
+Le jeton R2 et la clé Google ont été révoqués et régénérés, puis reposés dans
+Railway. Rien n'était à changer dans le code.
 
 ---
 
