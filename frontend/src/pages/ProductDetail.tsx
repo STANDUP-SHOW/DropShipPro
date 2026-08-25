@@ -23,6 +23,7 @@ import { api, downloadWithAuth, assetUrl, uploadProductImages } from '../lib/api
 import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { PriceInput } from '../components/PriceInput'
+import { PhotoAgentBlock } from '../components/PhotoAgentBlock'
 
 /** Section card — one visual container per topic, instead of one long column. */
 function Card({
@@ -468,6 +469,9 @@ export default function ProductDetail() {
             </button>
           </div>
 
+          {/* ---------- L'agent graphiste, là où les photos se regardent ---------- */}
+          {id ? <PhotoAgentBlock productId={id} onImagesChanged={load} /> : null}
+
           {/* ---------- Marge ---------- */}
           <Card icon={Calculator} title="Calcul de marge">
             <div className="grid grid-cols-2 gap-3">
@@ -771,7 +775,7 @@ export default function ProductDetail() {
                   rel="noreferrer"
                   className="rounded-lg bg-white/10 px-3 py-1.5 text-sm hover:bg-white/20"
                 >
-                  Ouvrir {activeAssist.label} ↗
+                  {`Ouvrir ${activeAssist.label} ↗`}
                 </a>
               )}
               <button onClick={() => setAssistPanel(null)} className="p-1 text-gray-400 hover:text-white">
