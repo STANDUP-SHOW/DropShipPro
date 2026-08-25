@@ -199,6 +199,27 @@ export const api = {
       }>
     >('/products/meta/platforms'),
 
+  /**
+   * Les plateformes d'acquisition, où l'on achète.
+   *
+   * Distinctes des destinations, où l'on vend : ni les mêmes comptes, ni les
+   * mêmes gestes, et une même marque peut être les deux.
+   */
+  listSuppliers: () =>
+    request<
+      Array<{
+        id: string
+        label: string
+        domain: string
+        origine: string
+        importPath: 'extension' | 'url' | 'les-deux'
+        quoi: string
+        attention?: string
+        adapte?: boolean
+        color: string
+      }>
+    >('/products/meta/suppliers'),
+
   // Reviews. The listing is public — the home page shows it to visitors with no
   // account — while writing one requires being signed in, which is also what keeps
   // the page from filling with spam.

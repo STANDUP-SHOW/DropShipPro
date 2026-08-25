@@ -12,6 +12,7 @@ import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/categoryCatalog.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
+import { SUPPLIERS } from '../services/suppliers.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
@@ -845,4 +846,15 @@ productsRouter.post('/:id/fill-plan', async (req: AuthedRequest, res) => {
 /** Destination marketplaces, so the back office and extension share one list. */
 productsRouter.get('/meta/platforms', (_req, res) => {
   res.json(PLATFORMS)
+})
+
+/**
+ * Les plateformes d'acquisition, où le vendeur va chercher ses produits.
+ *
+ * Séparées des destinations : ce ne sont ni les mêmes comptes, ni les mêmes
+ * gestes, et une même marque peut être les deux — on achète sur AliExpress, on
+ * vend sur eBay, et Etsy est les deux à la fois.
+ */
+productsRouter.get('/meta/suppliers', (_req, res) => {
+  res.json(SUPPLIERS)
 })

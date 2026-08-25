@@ -21,6 +21,8 @@ import Rayons from './pages/Rayons'
 import Agents from './pages/Agents'
 import PhotoStudio from './pages/PhotoStudio'
 import Marketing from './pages/Marketing'
+import PlatformsSourcing from './pages/PlatformsSourcing'
+import PlatformsSelling from './pages/PlatformsSelling'
 import SupportAgent from './pages/SupportAgent'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
@@ -62,6 +64,8 @@ export default function App() {
           <Route path="/pilote" element={<Protected><Autopilot /></Protected>} />
           <Route path="/marketing-photo" element={<Protected><PhotoStudio /></Protected>} />
           <Route path="/marketing" element={<Protected><Marketing /></Protected>} />
+          <Route path="/plateformes-acquisition" element={<Protected><PlatformsSourcing /></Protected>} />
+          <Route path="/plateformes-vente" element={<Protected><PlatformsSelling /></Protected>} />
           {/* Ancienne adresse de l atelier publicite : les liens deja envoyes doivent continuer de marcher. */}
           <Route path="/publicite" element={<Navigate to="/marketing" replace />} />
           <Route path="/agents" element={<Protected><Agents /></Protected>} />
