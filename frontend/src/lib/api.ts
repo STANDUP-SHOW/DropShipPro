@@ -217,6 +217,16 @@ export const api = {
         attention?: string
         adapte?: boolean
         color: string
+        api?: {
+          nom: string
+          console: string
+          exige: string
+          lectureCatalogue: boolean
+          stockTempsReel: boolean
+          commande: boolean
+          suivi: boolean
+          champs: Array<{ cle: string; label: string; secret?: boolean }>
+        }
       }>
     >('/products/meta/suppliers'),
 
@@ -859,6 +869,19 @@ export const api = {
     }),
   deleteAdAccount: (network: string) =>
     request(`/settings/ad-accounts/${network}`, { method: 'DELETE' }),
+
+  /** Les fournisseurs relies par leur API officielle. Les valeurs ne ressortent jamais. */
+  listSupplierLinks: () =>
+    request<Array<{ supplier: string; connected: boolean; champs: string[]; updatedAt: string }>>(
+      '/settings/supplier-links',
+    ),
+  saveSupplierLink: (supplier: string, data: Record<string, string>) =>
+    request<{ supplier: string; connected: boolean }>('/settings/supplier-links', {
+      method: 'PUT',
+      body: JSON.stringify({ supplier, data }),
+    }),
+  deleteSupplierLink: (supplier: string) =>
+    request(`/settings/supplier-links/${supplier}`, { method: 'DELETE' }),
 
   listCredentials: () => request<any[]>('/settings/credentials'),
   saveCredential: (data: Record<string, unknown>) =>

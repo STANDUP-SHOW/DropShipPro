@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
+import { findSupplier } from '../services/suppliers.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
@@ -337,5 +338,70 @@ settingsRouter.delete('/ad-accounts/:network', async (req: AuthedRequest, res) =
     where: { userId: req.userId!, network: req.params.network },
   })
   if (!count) return res.status(404).json({ error: 'Compte introuvable' })
+  res.status(204).send()
+})
+
+/**
+ * Les fournisseurs reliés par leur API officielle.
+ *
+ * Ce que l'application fait de ces identifiants aujourd'hui : rien de plus que
+ * les conserver. Aucun connecteur n'est écrit — ni lecture de catalogue, ni
+ * commande, ni suivi — et l'interface le dit avant la saisie. Un fournisseur
+ * marqué « relié » qui ne rapporte aucun produit se lit sinon comme une panne.
+ *
+ * Les valeurs ne ressortent jamais : on renvoie les noms des champs remplis,
+ * jamais leur contenu.
+ */
+settingsRouter.get('/supplier-links', async (req: AuthedRequest, res) => {
+  const liens = await prisma.supplierConnection.findMany({ where: { userId: req.userId! } })
+  res.json(
+    liens.map((l) => ({
+      supplier: l.supplier,
+      connected: l.connected,
+      champs: Object.keys((l.data ?? {}) as Record<string, unknown>),
+      updatedAt: l.updatedAt,
+    })),
+  )
+})
+
+const supplierLinkSchema = z.object({
+  supplier: z.string().trim().min(1).max(40),
+  data: z.record(z.string().trim().min(1).max(500)),
+})
+
+settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
+  const parsed = supplierLinkSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
+
+  const fournisseur = findSupplier(parsed.data.supplier)
+  if (!fournisseur?.api) {
+    return res.status(400).json({ error: "Ce fournisseur ne publie pas d'API officielle." })
+  }
+
+  // Les champs sont ceux que le fournisseur nomme : un formulaire qui enverrait
+  // autre chose se trompe de fournisseur.
+  const attendus = new Set(fournisseur.api.champs.map((c) => c.cle))
+  const data = Object.fromEntries(
+    Object.entries(parsed.data.data).filter(([cle]) => attendus.has(cle)),
+  )
+  const manquants = fournisseur.api.champs.filter((c) => !data[c.cle]).map((c) => c.label)
+  if (manquants.length) {
+    return res.status(400).json({ error: `Il manque : ${manquants.join(', ')}` })
+  }
+
+  const lien = await prisma.supplierConnection.upsert({
+    where: { userId_supplier: { userId: req.userId!, supplier: fournisseur.id } },
+    create: { userId: req.userId!, supplier: fournisseur.id, data, connected: true },
+    update: { data, connected: true },
+  })
+
+  res.json({ supplier: lien.supplier, connected: lien.connected })
+})
+
+settingsRouter.delete('/supplier-links/:supplier', async (req: AuthedRequest, res) => {
+  const { count } = await prisma.supplierConnection.deleteMany({
+    where: { userId: req.userId!, supplier: req.params.supplier },
+  })
+  if (!count) return res.status(404).json({ error: 'Fournisseur non relié' })
   res.status(204).send()
 })

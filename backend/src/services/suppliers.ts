@@ -35,6 +35,41 @@ export interface SupplierInfo {
   /** Vrai quand un adaptateur d'images lui est dédié dans l'extension. */
   adapte?: boolean
   color: string
+  /** L'API officielle du fournisseur, quand il en publie une. */
+  api?: SupplierApi
+}
+
+/**
+ * Ce que l'API officielle d'un fournisseur permet, et ce qu'elle exige.
+ *
+ * C'est la voie que prennent les quatre plateformes étudiées — DSers passe par
+ * l'API AliExpress, jamais par du scraping — et pour de bonnes raisons : les
+ * données arrivent en temps réel, la fiche est complète du premier coup, et
+ * personne ne se fait bannir. L'extension reste indispensable là où aucune API
+ * n'existe ; elle ne doit plus être le seul chemin.
+ *
+ * Chaque capacité est déclarée séparément parce qu'elles ne viennent pas
+ * ensemble : lire un catalogue est presque toujours accordé, passer une
+ * commande demande un contrat de revendeur, et rares sont ceux qui remontent le
+ * suivi du colis.
+ */
+export interface SupplierApi {
+  /** Le nom que le fournisseur lui donne, tel qu'on le cherchera dans sa doc. */
+  nom: string
+  /** L'adresse de sa documentation ou de sa console développeur. */
+  console: string
+  /** Ce qu'il faut obtenir, et ce que ça implique comme démarche. */
+  exige: string
+  /** Lire le catalogue et les fiches produit. */
+  lectureCatalogue: boolean
+  /** Voir le stock et le prix en temps réel. */
+  stockTempsReel: boolean
+  /** Passer la commande chez le fournisseur depuis DropShipper. */
+  commande: boolean
+  /** Récupérer le numéro de suivi du colis. */
+  suivi: boolean
+  /** Les champs à saisir pour se relier, dans l'ordre. */
+  champs: Array<{ cle: string; label: string; secret?: boolean }>
 }
 
 export const SUPPLIERS: SupplierInfo[] = [
@@ -49,6 +84,30 @@ export const SUPPLIERS: SupplierInfo[] = [
       "Les délais annoncés comptent rarement le dédouanement. Vérifiez qu'un entrepôt européen existe pour le produit : c'est ce qui fait passer la livraison de trente jours à cinq.",
     adapte: true,
     color: '#ff4747',
+    api: {
+          "nom": "AliExpress Open Platform — Dropshipping API",
+          "console": "https://openservice.aliexpress.com",
+          "exige": "Un compte AliExpress Affiliate ou Dropshipping validé, puis une application créée sur l'Open Platform : App Key et App Secret, et une autorisation OAuth du compte.",
+          "lectureCatalogue": true,
+          "stockTempsReel": true,
+          "commande": true,
+          "suivi": true,
+          "champs": [
+                {
+                      "cle": "appKey",
+                      "label": "App Key"
+                },
+                {
+                      "cle": "appSecret",
+                      "label": "App Secret",
+                      "secret": true
+                },
+                {
+                      "cle": "trackingId",
+                      "label": "Tracking ID d'affilié"
+                }
+          ]
+    },
   },
   {
     id: 'temu',
@@ -91,6 +150,26 @@ export const SUPPLIERS: SupplierInfo[] = [
     quoi: "Fournisseur pensé pour le dropshipping : fiches propres, photos exploitables, expédition à votre nom.",
     adapte: true,
     color: '#1f8ceb',
+    api: {
+          "nom": "CJ Dropshipping Open API",
+          "console": "https://developers.cjdropshipping.com",
+          "exige": "Un compte CJ, puis une clé d'API générée depuis votre espace : elle donne accès au catalogue, au stock et aux commandes sans validation préalable.",
+          "lectureCatalogue": true,
+          "stockTempsReel": true,
+          "commande": true,
+          "suivi": true,
+          "champs": [
+                {
+                      "cle": "email",
+                      "label": "E-mail du compte CJ"
+                },
+                {
+                      "cle": "apiKey",
+                      "label": "Clé d'API",
+                      "secret": true
+                }
+          ]
+    },
   },
   {
     id: 'bigbuy',
@@ -103,6 +182,22 @@ export const SUPPLIERS: SupplierInfo[] = [
       "L'accès au catalogue et aux tarifs demande un abonnement. En contrepartie, les délais sont européens.",
     adapte: true,
     color: '#00a3e0',
+    api: {
+          "nom": "BigBuy REST API",
+          "console": "https://api.bigbuy.eu/doc",
+          "exige": "Un abonnement BigBuy actif. La clé se trouve dans votre espace client, section API.",
+          "lectureCatalogue": true,
+          "stockTempsReel": true,
+          "commande": true,
+          "suivi": true,
+          "champs": [
+                {
+                      "cle": "apiKey",
+                      "label": "Clé d'API",
+                      "secret": true
+                }
+          ]
+    },
   },
   {
     id: 'zentrada',
@@ -166,6 +261,22 @@ export const SUPPLIERS: SupplierInfo[] = [
     quoi: 'Fournisseurs sélectionnés, majoritairement européens et américains : délais courts, qualité plus régulière.',
     attention: "Abonnement mensuel, et des prix d'achat plus élevés qu'en Chine — c'est le prix du délai.",
     color: '#7f56d9',
+    api: {
+          "nom": "Spocket Partner API",
+          "console": "https://www.spocket.co/developers",
+          "exige": "Un abonnement Spocket, puis une demande d'accès partenaire examinée par leurs équipes.",
+          "lectureCatalogue": true,
+          "stockTempsReel": true,
+          "commande": true,
+          "suivi": false,
+          "champs": [
+                {
+                      "cle": "apiKey",
+                      "label": "Clé d'API",
+                      "secret": true
+                }
+          ]
+    },
   },
   {
     id: 'printful',
@@ -177,6 +288,22 @@ export const SUPPLIERS: SupplierInfo[] = [
     attention:
       "La marge est mince par pièce, et le rendu dépend de votre visuel. Commandez un exemplaire avant de mettre en vente.",
     color: '#000000',
+    api: {
+          "nom": "Printful API v2",
+          "console": "https://developers.printful.com",
+          "exige": "Un compte Printful et un jeton d'accès personnel créé depuis le tableau de bord. Aucune validation à attendre.",
+          "lectureCatalogue": true,
+          "stockTempsReel": false,
+          "commande": true,
+          "suivi": true,
+          "champs": [
+                {
+                      "cle": "accessToken",
+                      "label": "Jeton d'accès",
+                      "secret": true
+                }
+          ]
+    },
   },
   {
     id: 'printify',
@@ -187,6 +314,26 @@ export const SUPPLIERS: SupplierInfo[] = [
     quoi: "Même principe que Printful, avec un réseau d'imprimeurs concurrents : à vous de choisir le vôtre.",
     attention: "La qualité varie d'un imprimeur à l'autre : le même produit n'est pas le même selon l'atelier.",
     color: '#29ab51',
+    api: {
+          "nom": "Printify API",
+          "console": "https://developers.printify.com",
+          "exige": "Un compte Printify et un jeton personnel créé dans Paramètres. Il faut aussi l'identifiant de votre boutique Printify.",
+          "lectureCatalogue": true,
+          "stockTempsReel": false,
+          "commande": true,
+          "suivi": true,
+          "champs": [
+                {
+                      "cle": "accessToken",
+                      "label": "Jeton d'accès",
+                      "secret": true
+                },
+                {
+                      "cle": "shopId",
+                      "label": "Shop ID Printify"
+                }
+          ]
+    },
   },
   {
     id: 'vidaxl',
@@ -197,6 +344,22 @@ export const SUPPLIERS: SupplierInfo[] = [
     quoi: 'Meuble, jardin, animalerie, en volume, depuis des entrepôts européens.',
     attention: "Produits volumineux : le transport pèse lourd dans la marge, calculez-le avant de fixer un prix.",
     color: '#e2001a',
+    api: {
+          "nom": "vidaXL Dropshipping API",
+          "console": "https://www.vidaxl.fr/dropshipping",
+          "exige": "Un compte dropshipping vidaXL validé. La clé est délivrée avec le contrat.",
+          "lectureCatalogue": true,
+          "stockTempsReel": true,
+          "commande": true,
+          "suivi": true,
+          "champs": [
+                {
+                      "cle": "apiKey",
+                      "label": "Clé d'API",
+                      "secret": true
+                }
+          ]
+    },
   },
   {
     id: 'ankorstore',

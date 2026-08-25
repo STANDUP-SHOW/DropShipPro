@@ -116,6 +116,7 @@ model User {
   agentSubscriptions AgentSubscription[]
   adAccounts         AdAccount[]
   productReviews     ProductReview[]
+  supplierLinks      SupplierConnection[]
 }
 
 enum AuthTokenType {
@@ -801,4 +802,32 @@ model ProductReview {
 
   @@unique([userId, url])
   @@index([userId, departmentId])
+}
+
+/// Un fournisseur relie par son API officielle.
+///
+/// C est la troisieme voie d acquisition, a cote de l extension et de l
+/// adresse collee — et la plus sure : les quatre plateformes du marche passent
+/// par la, jamais par du scraping. Les donnees arrivent completes et en temps
+/// reel, et personne ne se fait bannir.
+///
+/// Les identifiants sont conserves par fournisseur. Ce que l application en
+/// fait aujourd hui : rien de plus que les garder. Aucun connecteur n est
+/// ecrit, et l interface le dit avant la saisie.
+model SupplierConnection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// La cle du fournisseur dans services/suppliers.ts.
+  supplier String
+  /// Les champs demandes par ce fournisseur, tels qu il les nomme. Jamais
+  /// renvoyes au navigateur une fois enregistres.
+  data      Json
+  connected Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, supplier])
 }
