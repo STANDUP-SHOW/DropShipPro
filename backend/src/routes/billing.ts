@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
-import { AGENT_PLANS, findAgentPlan, extendDepartment } from '../services/agentBilling.js'
+import { findAgentPlan, extendDepartment } from '../services/agentBilling.js'
 import { findImagePack } from './visuals.js'
 import { findSupportAgent } from '../services/agentRoster.js'
 import {

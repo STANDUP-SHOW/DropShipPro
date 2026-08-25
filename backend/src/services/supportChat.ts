@@ -36,6 +36,26 @@ const AGENTS_QUI_CHERCHENT = ['comptable', 'avocat']
 /** Assez pour croiser deux sources, sans faire attendre une minute. */
 const MAX_RECHERCHES = 4
 
+/**
+ * L'outil de recherche, ou rien pour les agents qui n'en ont pas besoin.
+ *
+ * À vérifier de temps en temps : ces deux constantes ont d'abord été écrites
+ * sans jamais être branchées ici. Le commentaire annonçait la recherche, le
+ * mémo la disait livrée, et les deux agents continuaient de répondre de
+ * mémoire — exactement le défaut que la correction devait supprimer.
+ */
+function outilsPour(key: string): Anthropic.Messages.MessageCreateParams['tools'] {
+  if (!AGENTS_QUI_CHERCHENT.includes(key)) return undefined
+  return [
+    {
+      type: 'web_search_20260209',
+      name: 'web_search',
+      max_uses: MAX_RECHERCHES,
+      user_location: { type: 'approximate', country: 'FR' },
+    },
+  ]
+}
+
 /** Marqueur d'orientation : la hotline renvoie vers un collègue. */
 const ROUTE = /\[ORIENTER:([a-z-]+)\]/i
 
@@ -217,11 +237,33 @@ function systemPrompt(key: string, context: string) {
      * changent presque chaque année : expliquer le mécanisme est utile, réciter
      * un montant de mémoire est dangereux.
      */
-    "Ne cite jamais de mémoire un montant de seuil, un taux d'imposition, un plafond ou un délai légal :",
-    'ces valeurs changent presque chaque année et une erreur coûte de l’argent au vendeur. Explique le',
-    "mécanisme, nomme le texte ou le formulaire, et renvoie à la source officielle — impots.gouv.fr,",
-    'urssaf.fr, service-public.fr, legifrance.gouv.fr — pour le chiffre exact du moment.',
-    '',
+    ...(AGENTS_QUI_CHERCHENT.includes(key)
+      ? [
+          /**
+           * Interdire le chiffre sans donner le moyen de l'obtenir a produit le
+           * défaut inverse : l'agent a fini par nier l'existence de la franchise
+           * en base plutôt que d'en citer le seuil. D'où l'outil de recherche,
+           * et une consigne qui autorise le chiffre dès lors qu'il vient d'une
+           * source lue à l'instant.
+           */
+          "Ne cite jamais de mémoire un montant de seuil, un taux d'imposition, un plafond ou un délai légal :",
+          'ces valeurs changent presque chaque année et une erreur coûte de l’argent au vendeur.',
+          "Utilise ton outil de recherche AVANT de répondre dès que la question porte sur un chiffre daté,",
+          'et cherche en priorité sur impots.gouv.fr, urssaf.fr, service-public.fr, legifrance.gouv.fr,',
+          'entreprendre.service-public.fr et eur-lex.europa.eu.',
+          "Quand la recherche te donne le chiffre, donne-le, et cite la source et sa date de mise à jour.",
+          "Quand la recherche ne tranche pas, dis-le franchement : explique le mécanisme, nomme le texte ou le",
+          "formulaire, et renvoie le vendeur à la source officielle. Ne conclus jamais qu'un dispositif n'existe",
+          'pas au seul motif que tu ne trouves pas son montant.',
+          '',
+        ]
+      : [
+          "Ne cite jamais de mémoire un montant de seuil, un taux d'imposition, un plafond ou un délai légal :",
+          'ces valeurs changent presque chaque année et une erreur coûte de l’argent au vendeur. Explique le',
+          "mécanisme, nomme le texte ou le formulaire, et renvoie à la source officielle — impots.gouv.fr,",
+          'urssaf.fr, service-public.fr, legifrance.gouv.fr — pour le chiffre exact du moment.',
+          '',
+        ]),
     'ÉTAT DU COMPTE :',
     context,
   ]
@@ -340,8 +382,11 @@ export async function askSupportAgent(
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 900,
+      // La recherche allonge la réponse : les extraits cités et les sources
+      // datées ne tiennent pas dans le budget d'une réponse de mémoire.
+      max_tokens: outilsPour(key) ? 2000 : 900,
       system: systemPrompt(key, context),
+      tools: outilsPour(key),
       messages: [
         ...history.slice(-10).map((m) => ({
           role: m.role === 'user' ? ('user' as const) : ('assistant' as const),

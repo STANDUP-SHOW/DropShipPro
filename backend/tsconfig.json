@@ -7,6 +7,10 @@
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
+    // Une constante déclarée et jamais utilisée est le signe d'un mécanisme
+    // annoncé mais pas branché : le comptable et l'avocat ont gardé pendant un
+    // jour un outil de recherche déclaré, commenté, jamais passé au modèle.
+    "noUnusedLocals": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
