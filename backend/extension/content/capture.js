@@ -116,16 +116,56 @@
   function measure(url) {
     return new Promise((resolve) => {
       const img = new Image()
+      let settled = false
       const done = (value) => {
+        if (settled) return
+        settled = true
         img.onload = img.onerror = null
+        // Release the decoded bitmap at once: a few hundred product photos held
+        // in memory are enough to freeze a low-power machine.
+        img.src = ''
         resolve(value)
       }
       img.onload = () => done({ url, width: img.naturalWidth, height: img.naturalHeight })
       img.onerror = () => done(null)
       // A stalled request must not hold the whole import.
-      setTimeout(() => done(null), 8000)
+      setTimeout(() => done(null), 5000)
       img.src = url
     })
+  }
+
+  /** How many candidates are downloaded at once, and how long the whole step may take. */
+  const MEASURE_CONCURRENCY = 12
+  const MEASURE_BUDGET_MS = 30000
+
+  /**
+   * Measures candidates a few at a time, with a budget for the whole step.
+   *
+   * A single `Promise.all` over the full list fired up to a thousand image
+   * downloads simultaneously. The browser decodes each one into memory, and on a
+   * small machine the tab stops responding — the import looked stuck on the
+   * images step, on every site. The pool keeps the number of live requests low,
+   * and the budget guarantees the step ends even when the CDN never answers.
+   */
+  async function measureAll(urls) {
+    const deadline = Date.now() + MEASURE_BUDGET_MS
+    const queue = [...urls]
+    const measured = []
+
+    const worker = async () => {
+      while (queue.length) {
+        if (Date.now() > deadline) return
+        const url = queue.shift()
+        const result = await measure(url)
+        if (result) measured.push(result)
+      }
+    }
+
+    const workers = []
+    for (let i = 0; i < Math.min(MEASURE_CONCURRENCY, queue.length); i++) workers.push(worker())
+    await Promise.all(workers)
+
+    return measured
   }
 
   /**
@@ -305,7 +345,7 @@
     // jamais mesurés, donc jamais proposés. Le classement met désormais les
     // bonnes en tête, on peut en examiner davantage sans y perdre.
     const probes = ranked.slice(0, 260).flatMap(sizeVariants)
-    const measured = (await Promise.all([...new Set(probes)].map(measure))).filter(Boolean)
+    const measured = await measureAll([...new Set(probes)])
 
     const large = measured
       .filter((m) => Math.min(m.width, m.height) >= MIN_SIDE)

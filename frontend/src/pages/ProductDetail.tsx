@@ -243,7 +243,8 @@ export default function ProductDetail() {
               rel="noreferrer"
               className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-gray-400 hover:text-gray-200"
             >
-              {product.sourceSite} <ExternalLink size={11} />
+              <span>{product.sourceSite || 'Source'}</span>
+              <ExternalLink size={11} />
             </a>
             {published.map((pub: any) => {
               const info = platforms.find((p) => p.id === pub.platform)
@@ -264,7 +265,7 @@ export default function ProductDetail() {
                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: info?.color ?? '#a855f7' }} />
                   <span>{info?.label ?? pub.platform}</span>
                   <span className={tone}>{state}</span>
-                  {pub.externalUrl && (
+                  {pub.externalUrl ? (
                     <a
                       href={pub.externalUrl}
                       target="_blank"
@@ -273,7 +274,7 @@ export default function ProductDetail() {
                     >
                       <ExternalLink size={11} />
                     </a>
-                  )}
+                  ) : null}
                 </span>
               )
             })}
@@ -444,7 +445,7 @@ export default function ProductDetail() {
                 Glissez-déposez ou cliquez · 10 photos max · filigrane automatique
               </span>
             </label>
-            {photoError && <p className="mt-2 text-xs text-red-400">{photoError}</p>}
+            {photoError ? <p className="mt-2 text-xs text-red-400">{photoError}</p> : null}
 
             <button
               onClick={() => downloadWithAuth(`/products/${id}/photos.zip`, `photos-${id}.zip`)}
@@ -692,11 +693,14 @@ export default function ProductDetail() {
               {(product.metaKeywords ?? '').split(',').filter((k: string) => k.trim()).length} mot(s)-clé(s)
             </p>
 
+            {/* One single string per text node. A bare `{value && …}` next to plain
+                text renders an empty text node when the value is an empty string;
+                React then loses track of it — "removeChild: the node to be removed
+                is not a child". */}
             <label className="mt-3 block text-xs text-gray-400">
-              Catégorie
-              {product.sourceCategory && (
-                <span className="text-gray-600"> · détectée : « {product.sourceCategory} »</span>
-              )}
+              {product.sourceCategory
+                ? `Catégorie · détectée : « ${product.sourceCategory} »`
+                : 'Catégorie'}
             </label>
             <select
               value={product.categoryId ?? ''}

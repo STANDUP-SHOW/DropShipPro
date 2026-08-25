@@ -191,7 +191,7 @@ export function PublishDialog({
           </div>
         )}
 
-        {message && <p className="mt-4 rounded-lg bg-white/5 px-3 py-2 text-sm text-gray-200">{message}</p>}
+        {message ? <p className="mt-4 rounded-lg bg-white/5 px-3 py-2 text-sm text-gray-200">{message}</p> : null}
 
         {/* Per-destination result: a refused Shopify token has to be readable, not
             hidden behind a generic "annonce enregistrée". */}
@@ -211,7 +211,7 @@ export function PublishDialog({
                   <span className={tone}>
                     {o.status === 'PUBLISHED' ? 'publié' : o.status === 'FAILED' ? 'échec' : 'en attente'}
                   </span>
-                  {o.externalUrl && (
+                  {o.externalUrl ? (
                     <a
                       href={o.externalUrl}
                       target="_blank"
@@ -220,8 +220,8 @@ export function PublishDialog({
                     >
                       voir l'annonce <ExternalLink size={11} />
                     </a>
-                  )}
-                  {o.error && <span className="block text-gray-400 mt-0.5">{o.error}</span>}
+                  ) : null}
+                  {o.error ? <span className="block text-gray-400 mt-0.5">{o.error}</span> : null}
                 </li>
               )
             })}

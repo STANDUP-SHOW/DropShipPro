@@ -49,7 +49,7 @@ const DSP_IMAGE_ATTRS = [
 ]
 
 /** Safety rails: a huge page must not freeze the tab or flood the picker. */
-const DSP_SCAN_LIMITS = { elements: 6000, urls: 1200, millis: 10000 }
+const DSP_SCAN_LIMITS = { elements: 6000, urls: 1200, millis: 10000, scriptMillis: 5000 }
 
 const DSP_IMAGE_EXT = /\.(?:jpe?g|png|webp|avif|gif|bmp)(?:[?#]|$)/i
 
@@ -192,10 +192,13 @@ function dspUrlsFromJson(value, out, depth = 0) {
  * other shots exist. Read from script text rather than from window: a content
  * script cannot see the page's global variables.
  */
-function dspImagesFromScripts() {
+function dspImagesFromScripts(deadline = Infinity) {
   const out = []
 
   for (const script of document.querySelectorAll('script')) {
+    // Same rail as the DOM walk: a page whose bundles weigh several megabytes
+    // must not hold the import while the regex chews through them.
+    if (Date.now() > deadline) break
     const type = (script.getAttribute('type') || '').toLowerCase()
     const text = script.textContent
     if (!text || text.length > 4_000_000) continue
@@ -292,7 +295,9 @@ async function dspScanPageImages() {
   await dspRevealLazyImages(push)
 
   dspWalkRoot(document, push, state)
-  for (const url of dspImagesFromScripts()) push(url)
+  // A budget of its own: the gallery of a JavaScript-built page often exists
+  // nowhere but in these blobs, so an exhausted DOM budget must not skip it.
+  for (const url of dspImagesFromScripts(Date.now() + DSP_SCAN_LIMITS.scriptMillis)) push(url)
 
   return [...found]
 }
