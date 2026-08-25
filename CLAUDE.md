@@ -98,6 +98,21 @@ docs/        Documentation de l'API catalogue
   plus écrite à la main : elle est parcourue, donc un fichier neuf est couvert
   sans que personne y pense.
 
+- **Le tri automatique des photos se contrôle aussi**, sur une page marchande
+  montée pour l occasion et servie en local :
+
+  ```bash
+  cd backend && npx tsx check-photos.ts
+  ```
+
+  Quatre signaux decident, dans cet ordre : ce que le site declare lui-meme
+  (JSON-LD, og:image), la presence dans une vraie balise <img>, le CDN dominant,
+  le chemin. Et le mobilier de page — en-tete, menu, pied, colonne laterale — est
+  ecarte d office : une banniere de soldes est servie par le meme CDN, sous le
+  meme chemin, souvent plus grande que les photos du produit. **Le plafond de
+  cinq photos n est pas une cible** : mieux vaut trois vraies photos que cinq
+  dont une banniere.
+
 - **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne
   vide : React perd la trace des nœuds et lève « removeChild: the node to be
   removed is not a child ». Composer une seule chaîne.

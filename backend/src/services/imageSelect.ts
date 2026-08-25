@@ -96,9 +96,50 @@ async function measure(url: string): Promise<SelectedImage | null> {
  * @param candidates adresses trouvées sur la page, dans n'importe quel ordre
  * @param limit combien en garder — cinq pour une annonce
  */
-export async function selectProductImages(candidates: string[], limit = 5): Promise<string[]> {
+export async function selectProductImages(
+  candidates: string[],
+  limit = 5,
+  /**
+   * Ce que le site déclare lui-même comme photo du produit : JSON-LD et
+   * og:image, écrits par le marchand pour Google et pour les réseaux.
+   *
+   * C'est le seul signal certain de la liste, et il était jeté : le tri
+   * mélangeait ces adresses aux soixante images de la page, où elles ne pesaient
+   * pas plus qu'une icône. D'où des annonces automatiques illustrées par
+   * l'en-tête du site — une déclaration explicite du marchand perdait contre une
+   * heuristique de chemin.
+   */
+  declared: string[] = [],
+  /**
+   * Celles qui sont vraiment affichées dans une balise `<img>` de la page.
+   *
+   * Le reste du lot vient d'un ratissage du source, qui attrape aussi les
+   * produits conseillés et les bannières cachés dans le JSON embarqué. Servis
+   * par le même CDN, avec le même chemin `/product/`, ils obtenaient exactement
+   * le même score que la galerie — et sortaient devant quand ils étaient plus
+   * grands. Une image affichée dans le document a été choisie par le marchand
+   * pour cette page ; une adresse trouvée dans un blob ne l'a pas forcément été.
+   */
+  inDom: string[] = [],
+  /**
+   * Le mobilier de page : en-tete, menu, pied, colonne laterale.
+   *
+   * Une banniere de soldes est servie par le meme CDN que la galerie, sous le
+   * meme chemin, dans une vraie balise <img>, et souvent plus grande que les
+   * photos du produit : elle gagnait a tous les criteres. Ce qui la distingue
+   * n est pas son adresse mais l endroit ou elle est posee — et une image du
+   * mobilier n est jamais le produit, sur aucun site.
+   */
+  chrome: string[] = [],
+): Promise<string[]> {
   const clean = [...new Set(candidates.filter((u) => u.startsWith('http') && !NOT_A_PHOTO.test(u)))]
   if (!clean.length) return []
+
+  // Comparé sur l'identité, pas sur l'adresse : la page lie souvent la vignette
+  // là où og:image donne l'original, et ce sont bien les deux mêmes photos.
+  const declaredIds = new Set(declared.filter((u) => u.startsWith('http')).map(identity))
+  const domIds = new Set(inDom.filter((u) => u.startsWith('http')).map(identity))
+  const chromeIds = new Set(chrome.filter((u) => u.startsWith('http')).map(identity))
 
   // L'hôte qui sert le plus d'images est le CDN produit.
   const counts = new Map<string, number>()
@@ -110,6 +151,13 @@ export async function selectProductImages(candidates: string[], limit = 5): Prom
 
   const score = (url: string) => {
     let value = 0
+    // La déclaration du marchand passe avant toute heuristique : elle sait, les
+    // autres critères devinent.
+    if (declaredIds.has(identity(url))) value += 5000
+    if (domIds.has(identity(url))) value += 600
+    // Ecartee, sauf si le marchand la declare lui-meme comme photo du produit :
+    // certains sites posent leur galerie dans un <aside>.
+    if (chromeIds.has(identity(url))) value -= 4000
     if (galleryHost && hostOf(url) === galleryHost) value += 1000
     if (PRODUCT_PATH.test(url)) value += 200
     if (OFF_TOPIC.test(url)) value -= 500
@@ -160,8 +208,18 @@ export async function selectProductImages(candidates: string[], limit = 5): Prom
     if (!kept || m.width * m.height > kept.width * kept.height) best.set(id, m)
   }
 
-  return [...best.values()]
+  /**
+   * Mieux vaut trois photos que cinq dont une bannière.
+   *
+   * Le plafond était une cible : quand la galerie ne comptait que trois photos,
+   * les deux places restantes étaient comblées par ce qui traînait, mobilier
+   * compris — un score négatif ne suffisait pas à écarter tant qu'il restait un
+   * trou à remplir. Une annonce à trois vraies photos se vend ; une annonce à
+   * cinq dont une bannière de soldes se fait refuser.
+   */
+  const retenues = [...best.values()]
+    .filter((m) => score(m.url) >= 0)
     .sort((a, b) => score(b.url) - score(a.url) || b.width * b.height - a.width * a.height)
-    .slice(0, limit)
-    .map((m) => m.url)
+
+  return retenues.slice(0, limit).map((m) => m.url)
 }

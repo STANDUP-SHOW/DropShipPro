@@ -75,7 +75,7 @@ productsRouter.post(
     })
     // Les photos sont choisies, pas prises dans l'ordre d'apparition : cet ordre
     // donne l'en-tête du site, pas la galerie.
-    const chosen = await selectProductImages(scraped.images, user.controlAgent ? 12 : 8)
+    const chosen = await selectProductImages(scraped.images, user.controlAgent ? 12 : 8, scraped.declaredImages, scraped.domImages, scraped.chromeImages)
 
     // Les options d'achat se lisent dans le texte de la page : aucune balise ne
     // les déclare, et sans cette lecture un import par URL ne rendait jamais

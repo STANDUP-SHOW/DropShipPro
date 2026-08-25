@@ -154,7 +154,13 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       // l'annonce ou tuer la vente.
       // Douze candidats plutôt que cinq : l'agent de contrôle décide combien
       // valent la peine. Neuf s'il y a neuf bonnes photos, six s'il y en a six.
-      const chosen = await selectProductImages(scraped.images, user.controlAgent ? 12 : 5)
+      const chosen = await selectProductImages(
+        scraped.images,
+        user.controlAgent ? 12 : 5,
+        scraped.declaredImages,
+        scraped.domImages,
+        scraped.chromeImages,
+      )
       const announced = await extractVariants(scraped.pageText)
 
       const verdict = user.controlAgent
@@ -172,6 +178,29 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       const retained = verdict?.checked ? verdict.keep : chosen
       const variants = verdict ? applyVerdict(announced, verdict) : announced
       const images = await watermarkImages(retained, watermarkOptionsFor(user), enhanced.title)
+
+      /**
+       * Le compromis du mode automatique, sur les photos.
+       *
+       * Le tri se trompe encore, et il se trompe différemment d'un site à
+       * l'autre : parfois la galerie entière, parfois l'en-tête du site. En
+       * mode manuel le vendeur coche et ça lui coûte trois secondes ; ici
+       * personne ne rattrape, et une bannière en photo principale part sur une
+       * place de marché, où elle fait refuser l'annonce ou tuer la vente.
+       *
+       * On ne cherche donc pas à avoir toujours raison — on refuse de publier
+       * quand on n'est pas sûr. Deux conditions suffisent à douter : le
+       * contrôle visuel n'a pas pu se faire, ou il ne retient pas au moins deux
+       * photos. L'annonce est alors importée quand même, en brouillon, avec la
+       * raison écrite : le vendeur la corrige en trois secondes, ce qui vaut
+       * infiniment mieux qu'une annonce publiée qu'il faudra retirer.
+       */
+      const photosSures = Boolean(verdict?.checked) && retained.length >= 2
+      const raisonDoute = !verdict?.checked
+        ? "photos non contrôlées : à vérifier avant publication"
+        : retained.length < 2
+          ? `photos douteuses : ${retained.length} image(s) retenue(s) sur ${chosen.length}`
+          : null
 
       const product = await prisma.product.create({
         data: {
@@ -195,7 +224,9 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           bulletPoints: enhanced.bulletPoints,
           attributes: enhanced.attributes,
           aiEnhanced: enhanced.enhanced,
-          status: 'READY',
+          // Brouillon quand le doute subsiste : le pilote importe, il ne publie
+          // pas a l aveugle.
+          status: photosSures ? 'READY' : 'DRAFT',
         },
       })
 
@@ -209,9 +240,17 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       })
 
       result.imported++
-      log.push({ titre: o.title, action: 'importé', raison: `Marge estimée ${margin} %` })
+      log.push({
+        titre: o.title,
+        action: 'importé',
+        raison: photosSures
+          ? `Marge estimée ${margin} %`
+          : `Marge estimée ${margin} % — gardé en brouillon, ${raisonDoute}`,
+      })
 
-      if (settings.autoPublish && destinations.length) {
+      // Le doute n'arrête pas l'import, il arrête la publication : l'annonce
+      // attend le vendeur au lieu de partir illustrée n'importe comment.
+      if (settings.autoPublish && destinations.length && photosSures) {
         if (destinations.includes('OWN_SITE')) {
           // Une annonce sans boutique n'est servie par aucun flux. La boutique
           // naît ici comme elle naîtrait à la première publication manuelle.

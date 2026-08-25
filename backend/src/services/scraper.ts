@@ -16,6 +16,12 @@ export interface ScrapedProduct {
   price: number
   currency: string
   images: string[]
+  /** Ce que le site declare comme photo du produit : le signal le plus sur. */
+  declaredImages: string[]
+  /** Celles qui sont vraiment affichees dans une balise <img> de la page. */
+  domImages: string[]
+  /** Le mobilier : en-tete, menu, pied, colonne laterale. Jamais le produit. */
+  chromeImages: string[]
   sourceCategory: string | null
   sourceSite: string
   metaTitle: string | null
@@ -98,32 +104,79 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
   }
   const currency = offer?.priceCurrency || og('product:price:currency') || 'EUR'
 
+  /**
+   * Les images que le site declare lui-meme comme etant le produit.
+   *
+   * JSON-LD et og:image sont ecrits par le marchand pour Google et pour les
+   * reseaux : ce sont les seules adresses dont on sait qu elles montrent le
+   * produit, et non une banniere ou un article conseille. Le tri les melangeait
+   * jusqu ici aux soixante images de la page, ou elles ne pesaient pas plus
+   * qu une icone — d ou des annonces automatiques illustrees par l en-tete du
+   * site.
+   */
+  const declared = new Set<string>()
+  /**
+   * Les adresses lues dans une vraie balise <img> de la page.
+   *
+   * Le reste du lot vient d un ratissage du source, qui attrape aussi les
+   * produits conseilles et les bannieres caches dans le JSON embarque : servis
+   * par le meme CDN, ils obtenaient exactement le meme score que la galerie.
+   * Une image affichee dans le document a ete choisie par le marchand pour
+   * cette page ; une adresse trouvee dans un blob ne l a pas forcement ete.
+   */
+  const inDom = new Set<string>()
+  /**
+   * Les images du mobilier de page : en-tete, menu, pied, colonne laterale.
+   *
+   * C est le signal qui manquait, et le plus simple de tous : une banniere de
+   * soldes est servie par le meme CDN que la galerie, sous le meme chemin
+   * /product/, dans une vraie balise <img>, et souvent plus grande que les
+   * photos du produit — elle gagnait donc a tous les criteres. Ce qui la
+   * distingue n est pas son adresse, c est l endroit ou elle est posee.
+   */
+  const chrome = new Set<string>()
   const images = new Set<string>()
   if (jsonLdProduct?.image) {
     const imgs = Array.isArray(jsonLdProduct.image) ? jsonLdProduct.image : [jsonLdProduct.image]
-    imgs.forEach((i: string) => images.add(absoluteUrl(i, url)))
+    imgs.forEach((i: string) => {
+      const abs = absoluteUrl(i, url)
+      declared.add(abs)
+      images.add(abs)
+    })
   }
   $('meta[property="og:image"]').each((_, el) => {
     const c = $(el).attr('content')
-    if (c) images.add(absoluteUrl(c, url))
+    if (c) {
+      declared.add(absoluteUrl(c, url))
+      images.add(absoluteUrl(c, url))
+    }
   })
   // Toutes les images de la page, et non les dix premières : les dix premières
   // sont l'en-tête, le logo et le menu. Le tri se fait après, sur des critères
   // qui désignent vraiment la galerie (voir services/imageSelect.ts).
   $('img').each((_, el) => {
+    const mobilier = $(el).closest('header, nav, footer, aside').length > 0
     const src =
       $(el).attr('src') ||
       $(el).attr('data-src') ||
       $(el).attr('data-original') ||
       $(el).attr('data-lazy-src')
-    if (src) images.add(absoluteUrl(src, url))
+    if (src) {
+      const abs = absoluteUrl(src, url)
+      ;(mobilier ? chrome : inDom).add(abs)
+      images.add(abs)
+    }
 
     // Le srcset porte souvent la version pleine taille que le src n'a pas.
     const srcset = $(el).attr('srcset') || $(el).attr('data-srcset')
     if (srcset) {
       for (const part of srcset.split(',')) {
         const candidate = part.trim().split(/\s+/)[0]
-        if (candidate) images.add(absoluteUrl(candidate, url))
+        if (candidate) {
+          const abs = absoluteUrl(candidate, url)
+          ;(mobilier ? chrome : inDom).add(abs)
+          images.add(abs)
+        }
       }
     }
   })
@@ -156,6 +209,9 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     currency,
     // Brut : le choix des photos revient à selectProductImages, qui les mesure.
     images: Array.from(images).slice(0, 60),
+    declaredImages: Array.from(declared).slice(0, 12),
+    domImages: Array.from(inDom).slice(0, 60),
+    chromeImages: Array.from(chrome).slice(0, 40),
     sourceCategory,
     sourceSite: site,
     metaTitle: og('og:title') || null,
