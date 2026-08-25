@@ -296,6 +296,89 @@ comptable, avocat → agent de liaison fournisseur.
 
 ---
 
+## Le comparatif, écart par écart
+
+Dépouillé des cinq rapports de `CLAUDE-CODE-INFORMATIONS` : DSers, Syncee,
+Koongo, Channable, AutoDS, Dropship.io, Shoppingfeed. Chacune dépasse le million
+d'utilisateurs. Écrit une fois pour qu'on cesse de raisonner de mémoire.
+
+### Ce qu'ils ont et que nous n'avons pas
+
+Par ordre d'importance telle que les rapports la donnent, pas par facilité.
+
+1. **Surveillance du prix et du stock fournisseur, répercutée en direct.**
+   Citée comme *la* fonction sans laquelle une application de dropshipping n'est
+   pas complète aux yeux d'un utilisateur d'AutoDS. Nous n'avons rien. Elle
+   dépend des API fournisseurs — d'où API Sourcing Connect.
+2. **Commande automatique chez le fournisseur dès la vente, et numéro de suivi
+   remonté au client.** Deuxième fonction la plus attendue. Rien non plus.
+3. **Moteur de conformité par canal.** C'est l'actif défendable de
+   Shoppingfeed, pas leur « 1000+ canaux » : un référentiel de règles par
+   marketplace (champs obligatoires, longueurs, catégories autorisées, règles
+   d'image), vérifié **avant** publication, avec un tableau d'erreurs par
+   produit × canal et un blocage configurable. Nous publions sans rien vérifier.
+4. **Modèle produit canonique et adaptateurs déclaratifs.** Un produit existe
+   une fois ; chaque canal a un mapping déclaratif. Ajouter un canal = ajouter
+   un adaptateur, pas toucher au cœur. Chez nous, chaque plateforme est écrite
+   en dur.
+5. **Repricing et veille des prix concurrents**, avec prix plancher et plafond
+   fixés par le marchand.
+6. **Flux dérivés** : le même catalogue diffusé différemment par canal, par
+   partenaire ou par campagne.
+7. **Synchronisation du stock entre canaux** — pour ne pas vendre une rupture,
+   et pour ne pas brûler du budget publicitaire sur un produit indisponible.
+8. **Outils gratuits d'acquisition** : calculateur BEROAS, ROAS, coût par
+   acquisition, calculateur de profit par plateforme (frais eBay, Etsy, Amazon
+   compris), détecteur de thème Shopify. Peu coûteux, forte valeur perçue, et
+   ils amènent du référencement.
+9. **Notation des produits** : marge estimée, saturation publicitaire, tendance
+   de recherche. Nous avons l'analyse de marché, pas la note.
+10. **Espionnage publicitaire** (bibliothèque d'annonces, suivi d'annonceurs).
+    Très demandé, vendu en supplément chez AutoDS — donc payé volontiers.
+    **À garder refusé sous sa forme scraping** : la décision de ne pas ratisser
+    la bibliothèque Meta ni les boutiques concurrentes tient toujours, et les
+    rapports eux-mêmes signalent le risque de CGU. À ne reprendre que par API
+    officielle, si elle existe.
+11. **Rôles et permissions par équipe, SSO.** Sujet entreprise, pas urgent.
+
+### Ce que nous avons et qu'ils n'ont pas
+
+À défendre, parce que c'est là que nous sommes déjà devant.
+
+- **Une équipe d'agents native, pas un connecteur.** AutoDS a constaté que ses
+  utilisateurs préfèrent piloter par conversation, et a construit un connecteur
+  vers Claude plutôt qu'un agent maison. Nous avons douze agents dans le
+  produit, avec leur conversation, leur périmètre et leur prix affiché. Le
+  rapport AutoDS nomme précisément cet axe comme notre avantage structurel.
+- **Des chefs de rayon par secteur**, avec veille, rapports, produits gagnants
+  et avis sur un produit. Aucune des sept n'a d'équivalent.
+- **Un comptable et un avocat qui cherchent leurs sources** avant de répondre.
+- **La composition de vraies publicités** — photo, logo, prix réel, bouton — et
+  la remise en situation des photos produit. Syncee fait de la découverte par
+  IA ; personne ne compose l'annonce publicitaire.
+- **Le filigrane réglable**, logo compris.
+- **La transparence des crédits.** Le reproche le plus récurrent contre AutoDS
+  est commercial : suppléments cachés sur des fonctions jugées essentielles,
+  facturation opaque. Notre bloc noir répond exactement à ça.
+- **Le refus de publier dans le doute.** AutoDS est reproché pour des blocages
+  d'automatisation de plusieurs jours *sans notification*. Notre pilote garde
+  l'annonce en brouillon et écrit la raison.
+- **L'import par extension sur les sites bâtis en JavaScript** (Temu,
+  AliExpress), là où aucune API ne va.
+
+### Ce que les rapports disent de la méthode
+
+- **Aucune des quatre plateformes du comparatif ne scrape.** API officielle,
+  webhooks, flux CSV/XML, connexion base à base. Le scraping est classé
+  « risque moyen à élevé, CGU et bannissement d'IP ».
+- **La boucle reste fermée par un humain** : détection d'écart → correction
+  proposée par l'IA → tableau de revue → validation → publication. L'IA
+  accélère, elle ne retire pas la main.
+- **La valeur vient de la qualité du mapping, pas du nombre de connecteurs.**
+  Cinq à dix canaux bien faits valent mieux qu'un catalogue de logos.
+
+---
+
 ## Repères techniques
 
 - Les regex écrites par script perdent leurs barres obliques inverses : `\d`
