@@ -175,11 +175,11 @@ prochaine session.
    ventes** (chiffre, marge et commandes par plateforme, plus l état en ligne de
    chaque annonce du rayon) · Messagerie.
 4. ~~**Page Mes marketplaces**~~ **fait, en deux pages** comme demandé :
-    (16 fournisseurs) et  (les 21
+   `/plateformes-acquisition` (16 fournisseurs) et `/plateformes-vente` (les 21
    destinations, rangées par ce qu on peut en faire). Logos depuis les 742
    fichiers, pastille typographique pour les marques absentes.
 5. ~~**Pages SEO par plateforme**~~ **déjà en ligne** avant cette session.
-6. ~~**Page API Links**~~ **fait** :  rassemble les clés de place de
+6. ~~**Page API Links**~~ **fait** : `/api-links` rassemble les clés de place de
    marché, les comptes de régie publicitaire et les clés de dépôt.
 7. ~~**Refonte de Mon compte**~~ **fait** : « Mes crédits », trois blocs, prix de
    chaque agent, bloc noir Transparence crédits IA.
@@ -189,7 +189,7 @@ prochaine session.
    existait déjà. **Restent** : les blocs plateformes fournisseurs et flux
    automatiques, et le repli du bloc des clés.
 9. ~~**Comptabilité et SAV**~~ **fait**, sauf les tickets internes :
-    donne le chiffre, le coût et la marge mois par mois et
+   `/comptabilite` donne le chiffre, le coût et la marge mois par mois et
    plateforme par plateforme, les remboursements et les litiges ouverts. Les
    **tickets internes** ne sont pas écrits ; les litiges passent par les
    conversations acheteurs.
@@ -219,6 +219,80 @@ connecteur par régie, à écrire.
 - L'adresse R2 tient compte de la juridiction (`lib/storage.ts`).
 - Le catalogue de catégories couvre **les quinze rayons**, plus seulement la
   mode homme.
+
+---
+
+## Le cap donné le 25/08/2026 au soir — acquisition et diffusion par API
+
+Demandé après lecture des rapports de `C:\Users\maxma\Downloads\CLAUDE-CODE-INFORMATIONS`
+(les deux derniers : `RESUME_EXECUTIF.md` et `rapport_dropshipping_platforms.html`,
+sur DSers, Syncee, Koongo et Channable). **Rien de cette section n'est écrit à ce
+jour, sauf le point 1.**
+
+Ce que disent les rapports, et qui change la direction : les quatre plateformes
+étudiées **n'utilisent pas de scraping**. Elles passent par l'**API officielle**
+du fournisseur — c'est explicitement ce que fait DSers avec AliExpress — parce
+que c'est plus fiable, temps réel, et sans risque de bannissement. Notre
+extension reste indispensable là où aucune API n'existe, mais elle ne doit plus
+être le seul chemin.
+
+### 1. La fenêtre « Diffuser », rangée par mode de diffusion
+
+Quand le vendeur clique sur Publier, la fenêtre présente **ses cases à cocher
+dans cet ordre**, chaque groupe séparé :
+
+1. **Mes boutiques**, nommées une par une — `boutique-machin.fr`,
+   `boutique-machin.com`. C'est pour ça que **le vendeur doit nommer ses
+   boutiques** au moment de les ajouter.
+2. **Les boutiques à flux** — Google, Facebook, TikTok…
+3. **Les boutiques à API**.
+4. **Les boutiques assistées par extension**.
+5. **En bas, celles où il ne peut pas diffuser**, et pourquoi.
+
+Puis : « **Votre boutique n'est pas dans la liste ? Ajoutez-la** », qui mène à
+`/plateformes-vente`, l'annuaire complet avec logos, encadrés cliquables et
+pop-up d'information par plateforme.
+
+### 2. Deux pages de raccordement, distinctes
+
+- **API Connect** — relier les **sites et places de marché** où l'on vend.
+- **API Sourcing Connect** — relier DropShipper **aux fournisseurs**, et les
+  fournisseurs à DropShipper. C'est ce qui ouvrira le reste : commande
+  automatique, stock temps réel, suivi.
+
+### 3. Acquisition d'une annonce par API officielle du fournisseur
+
+Une page qui lui est consacrée, à côté de l'import par extension et de l'import
+par adresse. C'est la troisième voie d'acquisition, et la plus sûre.
+
+### 4. Le mapping, et l'agent qui en a la charge
+
+Le **mappage des catégories vers la plateforme de destination** est un chantier à
+part entière, à confier à un agent. Il existe déjà en partie
+(`categoryMapping.ts`, `categorySectors.ts`) mais doit devenir un poste tenu.
+
+### 5. Gestion fournisseur, dans le menu
+
+Un **agent de liaison inter-plateforme** : notre lien avec les plateformes
+fournisseurs, avec sa messagerie et de quoi **commander les produits en face**.
+La rubrique « Gestion fournisseur » réunira commandes, factures, chiffre
+d'affaires fournisseur. À faire quand les API seront branchées.
+
+### 6. Sélection de produits gagnants via compte affilié
+
+Le client ouvre des comptes affiliés (type AliExpress) pour obtenir des **API de
+revendeur**, et proposer une sélection de *mining products* aux utilisateurs.
+
+### 7. Le mode d'emploi à refaire
+
+Il décrit un fonctionnement qui n'est plus le nôtre. À reprendre entièrement :
+agents, mode automatique, publication par extension, publication par API,
+publication par flux.
+
+**La chaîne complète visée**, telle qu'énoncée : acquisition par extension, par
+API, par corporate → transformation IA du titre, de la description, du SEO et
+des images → mappage des catégories par destination → agent de contrôle →
+comptable, avocat → agent de liaison fournisseur.
 
 ---
 
