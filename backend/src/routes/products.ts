@@ -13,6 +13,7 @@ import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/categoryCatalog.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS } from '../services/suppliers.js'
+import { verifierCanaux } from '../services/channelRules.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
@@ -512,14 +513,49 @@ productsRouter.post('/:id/publish', async (req: AuthedRequest, res) => {
     }
   }
 
+  /**
+   * Le contrôle de conformité, avant l'envoi.
+   *
+   * Sans lui, l'annonce partait, la place de marché la refusait, et le vendeur
+   * découvrait le rejet dans le back-office de la plateforme — sans savoir quel
+   * champ corriger. Un titre de 210 caractères sur Amazon est un rejet certain :
+   * autant le dire ici, où l'on sait quoi faire.
+   *
+   * Seuls les écarts bloquants arrêtent la publication ; les avertissements
+   * partent avec elle et remontent dans la réponse. Tout bloquer ferait
+   * contourner le contrôle.
+   */
+  const verdicts = verifierCanaux(owned, parsed.data.platforms)
+  const refusees = verdicts.filter((v) => !v.publiable)
+  const retenues = parsed.data.platforms.filter((p) => !refusees.some((r) => r.platform === p))
+
+  if (!retenues.length) {
+    return res.status(422).json({
+      error: "Aucune destination ne peut recevoir cette annonce en l'état.",
+      conformite: verdicts,
+    })
+  }
+
   const base = apiBaseUrl(req)
-  const publications = await Promise.all(parsed.data.platforms.map((p) => publishToPlatform(owned.id, p, base)))
+  const publications = await Promise.all(retenues.map((p) => publishToPlatform(owned.id, p, base)))
   // A product whose every destination failed (a refused Shopify token, say) must
   // not be shown as published.
   if (publications.some((p) => p.status !== 'FAILED')) {
     await prisma.product.update({ where: { id: owned.id }, data: { status: 'PUBLISHED' } })
   }
-  res.json(publications)
+  /*
+   * Les destinations refusees sortent comme des publications en echec, avec la
+   * raison : elles doivent apparaitre dans la liste des resultats, sinon le
+   * vendeur croit avoir publie partout ou il avait coche.
+   */
+  const echecs = refusees.map((v) => ({
+    platform: v.platform,
+    status: 'FAILED' as const,
+    error: v.ecarts.find((e) => e.severite === 'bloquant')?.message ?? 'Annonce non conforme',
+    externalUrl: null,
+  }))
+
+  res.json([...publications, ...echecs])
 })
 
 const publishBatchSchema = z.object({
@@ -857,4 +893,27 @@ productsRouter.get('/meta/platforms', (_req, res) => {
  */
 productsRouter.get('/meta/suppliers', (_req, res) => {
   res.json(SUPPLIERS)
+})
+
+/**
+ * Ce qui bloque, destination par destination, avant même de cliquer.
+ *
+ * Le contrôle existe aussi à la publication, mais découvrir le refus au moment
+ * de diffuser est trop tard : le vendeur a déjà coché, déjà attendu. Ici il
+ * voit l'écart pendant qu'il rédige, et sait quoi corriger.
+ */
+productsRouter.get('/:id/conformite', async (req: AuthedRequest, res) => {
+  const product = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const cibles = PLATFORMS.filter((p) => !p.unavailable).map((p) => p.id)
+  const verdicts = verifierCanaux(product, cibles)
+
+  res.json({
+    verdicts,
+    publiables: verdicts.filter((v) => v.publiable).length,
+    total: verdicts.length,
+  })
 })
