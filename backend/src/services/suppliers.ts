@@ -391,3 +391,65 @@ export function supplierOfUrl(url: string): SupplierInfo | null {
     return null
   }
 }
+
+/**
+ * L'identifiant du produit chez son fournisseur, lu dans l'adresse.
+ *
+ * C'est ce qui manque pour surveiller un prix : l'adresse source suffit à
+ * rouvrir la fiche dans un navigateur, pas à interroger une API. Chaque
+ * fournisseur range cet identifiant à sa façon, d'où une règle par site.
+ *
+ * Rien n'est deviné : un site dont on ne connaît pas la forme rend `null`, et le
+ * produit n'est simplement pas surveillé. Inventer une référence ferait
+ * interroger le fournisseur sur un produit qui n'est pas le bon — et un prix
+ * relevé sur le mauvais article est pire qu'un prix périmé.
+ */
+const REFERENCES: Record<string, RegExp[]> = {
+  aliexpress: [/\/item\/(\d{6,})/],
+  bigbuy: [/\/(?:product|producto)\/([A-Za-z0-9_-]{3,})/, /[?&]sku=([A-Za-z0-9_-]{3,})/],
+  cjdropshipping: [/\/product\/[^/]*-p-([A-Za-z0-9-]{6,})\.html/, /[?&]pid=([A-Za-z0-9-]{6,})/],
+  dhgate: [/\/product\/[^/]+\/(\d{6,})\.html/],
+  banggood: [/-p-(\d{4,})\.html/],
+  vidaxl: [/\/e\/(\d{8,})\//],
+  printful: [/\/products\/(\d{3,})/],
+  printify: [/\/products\/(\d{3,})/],
+}
+
+export function supplierRefFromUrl(url: string): { supplier: string; ref: string } | null {
+  const fournisseur = supplierOfUrl(url)
+  if (!fournisseur) return null
+
+  const regles = REFERENCES[fournisseur.id]
+  if (!regles) return null
+
+  for (const regle of regles) {
+    const trouve = url.match(regle)
+    if (trouve?.[1]) return { supplier: fournisseur.id, ref: trouve[1] }
+  }
+
+  return null
+}
+
+/**
+ * Les champs fournisseur à écrire à la création d'un produit.
+ *
+ * Séparé de `supplierRefFromUrl` parce que les deux ne vont pas toujours
+ * ensemble : on reconnaît le fournisseur bien plus souvent qu'on ne sait lire sa
+ * référence. Enregistrer le fournisseur seul reste utile — l'écran de veille
+ * peut alors dire « AliExpress reconnu, référence introuvable » plutôt que de
+ * laisser le produit invisible.
+ */
+export function supplierFields(url: string | null | undefined): {
+  supplierId?: string
+  supplierRef?: string
+} {
+  if (!url) return {}
+
+  const fournisseur = supplierOfUrl(url)
+  if (!fournisseur) return {}
+
+  const reference = supplierRefFromUrl(url)
+  return reference
+    ? { supplierId: fournisseur.id, supplierRef: reference.ref }
+    : { supplierId: fournisseur.id }
+}

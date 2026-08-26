@@ -12,7 +12,7 @@ import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/categoryCatalog.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
-import { SUPPLIERS } from '../services/suppliers.js'
+import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
 import { verifierCanaux } from '../services/channelRules.js'
 import { titlesByChannel } from '../services/channelCopy.js'
 import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
@@ -101,6 +101,7 @@ productsRouter.post(
         sourceUrl: parsed.data.url,
         variants: variants ?? undefined,
         sourceSite: scraped.sourceSite,
+        ...supplierFields(parsed.data.url),
         sourceCategory: scraped.sourceCategory,
         categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
         title: scraped.title,
@@ -213,6 +214,7 @@ productsRouter.post(
         userId: req.userId!,
         sourceUrl: data.sourceUrl,
         sourceSite: new URL(data.sourceUrl).hostname.replace('www.', ''),
+        ...supplierFields(data.sourceUrl),
         sourceCategory: data.sourceCategory,
         categoryId: guessCategoryId(data.sourceCategory) ?? guessCategoryId(data.title),
         title: data.title,
@@ -294,6 +296,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
           userId: req.userId!,
           sourceUrl: url,
           sourceSite: scraped.sourceSite,
+          ...supplierFields(url),
           sourceCategory: scraped.sourceCategory,
         categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
           title: scraped.title,

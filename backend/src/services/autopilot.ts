@@ -12,6 +12,7 @@ import { apiBaseUrl } from '../lib/urls.js'
 import { selectProductImages } from './imageSelect.js'
 import { reviewImages, applyVerdict } from './controlAgent.js'
 import { extractVariants } from './aiEnhancer.js'
+import { supplierFields } from './suppliers.js'
 
 /**
  * Le pilote automatique.
@@ -207,6 +208,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           userId,
           sourceUrl: o.sourceUrl,
           sourceSite: scraped.sourceSite,
+          ...supplierFields(o.sourceUrl),
           sourceCategory: scraped.sourceCategory,
           categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
           title: scraped.title,

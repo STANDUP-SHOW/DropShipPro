@@ -904,6 +904,43 @@ export const api = {
   deleteSupplierLink: (supplier: string) =>
     request(`/settings/supplier-links/${supplier}`, { method: 'DELETE' }),
 
+  /** Les produits reliés à un fournisseur, et leur dernier relevé de prix. */
+  supplierWatch: () =>
+    request<{
+      surveilles: number
+      total: number
+      produits: Array<{
+        id: string
+        title: string
+        aiTitle: string | null
+        supplierId: string | null
+        supplierRef: string | null
+        supplierPrice: number | null
+        supplierStock: number | null
+        supplierCheckedAt: string | null
+        price: number
+        sellingPrice: number
+        currency: string
+        status: string
+      }>
+    }>('/settings/supplier-watch'),
+
+  /** Relève prix et stock chez les fournisseurs reliés. Peut durer. */
+  runSupplierWatch: () =>
+    request<{
+      verifies: number
+      erreurs: string[]
+      changements: Array<{
+        productId: string
+        titre: string
+        supplier: string
+        genre: 'prix' | 'rupture' | 'retour' | 'echec'
+        avant: string
+        apres: string
+        conseil: string | null
+      }>
+    }>('/settings/supplier-watch', { method: 'POST' }),
+
   listCredentials: () => request<any[]>('/settings/credentials'),
   saveCredential: (data: Record<string, unknown>) =>
     request('/settings/credentials', { method: 'PUT', body: JSON.stringify(data) }),

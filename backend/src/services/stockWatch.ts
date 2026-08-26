@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { SupplierError, findConnector } from './supplierConnectors.js'
+import { supplierFields } from './suppliers.js'
 
 /**
  * La veille sur le prix et le stock du fournisseur.
@@ -41,8 +42,42 @@ export interface ResultatVeille {
  * Groupé par fournisseur : chaque connecteur s'authentifie une fois et traite
  * son lot, au lieu de rouvrir une session par produit.
  */
+/**
+ * Renseigne le fournisseur des produits importés avant que ce champ existe.
+ *
+ * Sans ça, la veille ne verrait que les produits importés après aujourd'hui —
+ * autant dire aucun chez les vendeurs qui utilisent déjà l'application. La
+ * lecture se fait sur l'adresse source, déjà en base : rien à redemander au
+ * vendeur, rien à rescraper.
+ *
+ * Elle tourne à chaque relevé plutôt qu'une fois dans une migration : une
+ * migration ne rattraperait pas les règles de lecture ajoutées plus tard, quand
+ * un nouveau fournisseur entre dans la liste.
+ */
+export async function rattraperReferences(userId: string): Promise<number> {
+  const orphelins = await prisma.product.findMany({
+    where: { userId, supplierId: null, sourceUrl: { not: '' } },
+    select: { id: true, sourceUrl: true },
+    take: 500,
+  })
+
+  let rattrapes = 0
+  for (const produit of orphelins) {
+    const champs = supplierFields(produit.sourceUrl)
+    if (!champs.supplierId) continue
+    await prisma.product.update({ where: { id: produit.id }, data: champs })
+    rattrapes++
+  }
+
+  return rattrapes
+}
+
 export async function veillerFournisseurs(userId: string): Promise<ResultatVeille> {
   const resultat: ResultatVeille = { verifies: 0, changements: [], erreurs: [] }
+
+  // Les produits importés avant que ce champ existe : sans ce rattrapage, la
+  // veille ne verrait rien chez un vendeur déjà installé.
+  await rattraperReferences(userId)
 
   const produits = await prisma.product.findMany({
     where: { userId, supplierId: { not: null }, supplierRef: { not: null } },

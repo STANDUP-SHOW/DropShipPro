@@ -26,6 +26,7 @@ import PlatformsSelling from './pages/PlatformsSelling'
 import Accounting from './pages/Accounting'
 import ApiLinks from './pages/ApiLinks'
 import ApiSourcing from './pages/ApiSourcing'
+import SupplierWatch from './pages/SupplierWatch'
 import SupportAgent from './pages/SupportAgent'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="/api-links" element={<Protected><ApiLinks /></Protected>} />
           {/* API Connect : le meme ecran, sous le nom que le client lui donne. */}
           <Route path="/api-connect" element={<Protected><ApiLinks /></Protected>} />
+          <Route path="/gestion-fournisseur" element={<Protected><SupplierWatch /></Protected>} />
           <Route path="/api-sourcing-connect" element={<Protected><ApiSourcing /></Protected>} />
           {/* Ancienne adresse de l atelier publicite : les liens deja envoyes doivent continuer de marcher. */}
           <Route path="/publicite" element={<Navigate to="/marketing" replace />} />

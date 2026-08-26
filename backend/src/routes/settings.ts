@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
 import { findSupplier } from '../services/suppliers.js'
-import { veillerFournisseurs } from '../services/stockWatch.js'
+import { veillerFournisseurs, rattraperReferences } from '../services/stockWatch.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
@@ -421,6 +421,8 @@ settingsRouter.post('/supplier-watch', async (req: AuthedRequest, res) => {
 
 /** Les produits reliés à un fournisseur, et leur dernier relevé. */
 settingsRouter.get('/supplier-watch', async (req: AuthedRequest, res) => {
+  await rattraperReferences(req.userId!)
+
   const produits = await prisma.product.findMany({
     where: { userId: req.userId!, supplierId: { not: null } },
     select: {
