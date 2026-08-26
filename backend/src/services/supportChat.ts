@@ -15,7 +15,7 @@ import { DEPARTMENTS } from './departments.js'
  * qui répète à son acheteur une information fausse.
  */
 
-const MODEL = 'claude-sonnet-4-5'
+import { choisirModele, messagesPour, systemeCachable } from './chatBudget.js'
 
 /**
  * Les agents qui doivent chercher plutôt que se souvenir.
@@ -462,19 +462,15 @@ export async function askSupportAgent(
     const context = await contextFor(key, userId)
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
-      model: MODEL,
+      // Sonnet des qu un outil est branche : croiser des sources est ce qu un
+      // petit modele fait le moins bien. Haiku sur les questions de fait.
+      model: choisirModele(question, Boolean(outilsPour(key))),
       // La recherche allonge la réponse : les extraits cités et les sources
       // datées ne tiennent pas dans le budget d'une réponse de mémoire.
       max_tokens: outilsPour(key) ? 2000 : 900,
-      system: systemPrompt(key, context),
+      system: systemeCachable(systemPrompt(key, context)),
       tools: outilsPour(key),
-      messages: [
-        ...history.slice(-10).map((m) => ({
-          role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
-          content: m.content,
-        })),
-        { role: 'user' as const, content: question },
-      ],
+      messages: messagesPour(history, question),
     })
 
     const text = response.content

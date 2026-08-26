@@ -160,6 +160,29 @@ docs/        Documentation de l'API catalogue
   « Autoriser le developpement d applications personnalisees » doit etre active
   une fois, et seul le proprietaire de la boutique peut le faire.
 
+- **Ce qui est vendu au forfait doit avoir un plafond.** L application revend une
+  intelligence qu elle achete et ne fabrique pas. Le danger n est pas le nombre
+  d utilisateurs, c est le pire d entre eux : a Sonnet une reponse coute ~0,024 EUR,
+  donc un abonnement d agent a 15 EUR/mois tenait 21 questions par jour. Un seul
+  vendeur a 300 questions/jour coutait 220 EUR pour 15 encaisses.
+
+  Quatre leviers dans `services/chatBudget.ts`, du plus rentable au plus visible :
+  **contexte taille** (6 echanges gardes, le reste reduit a la trace des questions
+  -- 60 % de caracteres en moins), **instructions mises en cache** (identiques a
+  chaque tour, relues au dixieme), **Haiku sur les questions de fait** et Sonnet
+  des qu il faut arbitrer ou qu un outil est branche, **plafond de 30 reponses par
+  agent et par jour** annonce d avance et affiche des la moitie. Mesure :
+  **21 reponses/jour -> 101** pour le meme prix. Banc `npx tsx check-chat-budget.ts`.
+
+  **Les enquetes quotidiennes ne coutent rien** : rapports, opportunites et
+  signaux arrivent par `POST /agent/*`, deposes par un agent exterieur que le
+  vendeur branche avec sa cle. Ce n est pas notre API Anthropic qui paie.
+
+- **Une image coute 0,0336 $ (~0,031 EUR)**, pas 0,33. Les credits graphiques sont
+  le meilleur produit : 47 a 69 % de marge sur les six premiers paliers. Les deux
+  derniers sont fragiles -- 23 % a 10 000 images, **3 % a 25 000** (27 EUR de
+  benefice sur 800). A repricer avant toute hausse de Google.
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).

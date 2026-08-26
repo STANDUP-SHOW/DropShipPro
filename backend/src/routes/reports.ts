@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { askDepartment } from '../services/departmentChat.js'
+import { etatPlafond, messagePlafond, PLAFOND_JOUR } from '../services/chatBudget.js'
 import { reserveCredits } from '../services/billing.js'
 import { AGENT_CATEGORIES, PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
 import { askSupportAgent } from '../services/supportChat.js'
@@ -122,10 +123,26 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
     })
   }
 
+  /*
+   * Le plafond du jour, verifie avant l appel.
+   *
+   * L abonnement d un chef de rayon vaut quinze euros par mois pour un nombre
+   * de questions qui n etait borne par rien. Trente reponses par jour, c est le
+   * double de ce que l abonnement couvre : invisible pour qui travaille
+   * normalement, et le seul garde-fou contre le cas ou un seul vendeur coute
+   * plus que ce que cent rapportent.
+   */
+  const quota = await etatPlafond(req.userId!, { departmentId: department.id })
+  if (!quota.reste) {
+    return res.status(429).json({ error: messagePlafond(department.agentName), quotaAtteint: true })
+  }
+
   const history = await prisma.chatMessage.findMany({
     where: { userId: req.userId!, departmentId: department.id },
     orderBy: { createdAt: 'desc' },
-    take: 10,
+    // Trente plutot que dix : le resume des anciens echanges a besoin de
+    // matiere, et il ne coute presque rien puisqu il est reduit avant l envoi.
+    take: 30,
     select: { role: true, content: true },
   })
 
@@ -171,6 +188,9 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
     message: saved,
     billed: answer.billed && !unlimited,
     credits: unlimited ? null : credits,
+    // Le compteur voyage avec la reponse : le vendeur voit venir le plafond au
+    // lieu de le decouvrir sur un refus.
+    quota: { utilise: quota.utilise + (answer.billed ? 1 : 0), plafond: PLAFOND_JOUR },
   })
 })
 
@@ -294,10 +314,15 @@ chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
     })
   }
 
+  const quota = await etatPlafond(req.userId!, { supportAgent: agent.key })
+  if (!quota.reste) {
+    return res.status(429).json({ error: messagePlafond(agent.name), quotaAtteint: true })
+  }
+
   const history = await prisma.chatMessage.findMany({
     where: { userId: req.userId!, supportAgent: agent.key },
     orderBy: { createdAt: 'desc' },
-    take: 10,
+    take: 30,
     select: { role: true, content: true },
   })
 
@@ -324,5 +349,6 @@ chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
     message: saved,
     route: answer.route,
     credits: unlimited ? null : credits,
+    quota: { utilise: quota.utilise + (answer.failed ? 0 : 1), plafond: PLAFOND_JOUR },
   })
 })

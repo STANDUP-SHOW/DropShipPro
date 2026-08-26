@@ -41,6 +41,8 @@ export function SupportChat({
   const [question, setQuestion] = useState(amorce ?? '')
   const [busy, setBusy] = useState(false)
   const [credits, setCredits] = useState<number | null>(null)
+  /** Ce que l agent a deja repondu aujourd hui, et son plafond. */
+  const [quota, setQuota] = useState<{ utilise: number; plafond: number } | null>(null)
   const [route, setRoute] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [missing, setMissing] = useState(false)
@@ -90,6 +92,7 @@ export function SupportChat({
       const res = await api.askSupport(agentKey, text)
       setMessages((list) => [...list, res.message])
       if (res.credits !== null) setCredits(res.credits)
+      if (res.quota) setQuota(res.quota)
       if (res.route) setRoute(res.route)
     } catch (e) {
       setMessages((list) => list.filter((m) => m.id !== pending.id))
@@ -109,6 +112,21 @@ export function SupportChat({
     <div className="rounded-xl border border-white/10 bg-white/5">
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
         <p className="text-xs text-gray-400">Une question posée coûte un crédit.</p>
+        {/*
+          Le compteur du jour, annonce d avance.
+          Un plafond decouvert au moment du refus se lit comme une panne. Le
+          meme plafond affiche des la troisieme reponse se lit comme une regle.
+        */}
+        {quota && quota.utilise >= quota.plafond / 2 ? (
+          <span
+            className={`inline-flex items-center gap-1 text-xs ${
+              quota.utilise >= quota.plafond ? 'text-amber-300' : 'text-gray-500'
+            }`}
+            title={`Chaque agent répond ${quota.plafond} fois par jour dans son abonnement.`}
+          >
+            {`${quota.utilise}/${quota.plafond} aujourd'hui`}
+          </span>
+        ) : null}
         {credits !== null ? (
           <span className="ml-auto inline-flex items-center gap-1 text-xs text-gray-400">
             <Coins size={13} />

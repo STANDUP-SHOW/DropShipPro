@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { DEPARTMENTS, findDepartment, type DepartmentProfile } from './departments.js'
+import { choisirModele, messagesPour, systemeCachable } from './chatBudget.js'
 
 /**
  * La conversation avec un chef de rayon.
@@ -76,18 +77,14 @@ export async function askDepartment(
   try {
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5',
+      // Le petit modèle sur les questions de fait, le grand sur celles qui
+      // demandent d'arbitrer. Voir chatBudget.ts pour le pourquoi.
+      model: choisirModele(question, false),
       max_tokens: 900,
       // Le prénom est celui figé à l'embauche, pas celui du catalogue : le
       // vendeur ne doit pas voir son interlocuteur changer de nom.
-      system: systemPrompt({ ...profile, agentName }),
-      messages: [
-        ...history.slice(-10).map((t) => ({
-          role: t.role === 'user' ? ('user' as const) : ('assistant' as const),
-          content: t.content,
-        })),
-        { role: 'user' as const, content: question },
-      ],
+      system: systemeCachable(systemPrompt({ ...profile, agentName })),
+      messages: messagesPour(history, question),
     })
 
     const text = response.content

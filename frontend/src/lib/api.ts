@@ -684,6 +684,8 @@ export const api = {
       message: { id: string; role: string; content: string; createdAt: string }
       route: string | null
       credits: number | null
+      /** Reponses deja donnees aujourdhui par cet agent, et le plafond compris dans son abonnement. */
+      quota: { utilise: number; plafond: number }
     }>(`/chat/support/${key}`, { method: 'POST', body: JSON.stringify({ question }) }),
 
   // Pilote automatique.
@@ -811,6 +813,8 @@ export const api = {
       message: { id: string; role: string; content: string; billed: boolean; createdAt: string }
       billed: boolean
       credits: number | null
+      /** Reponses deja donnees aujourdhui par cet agent, et le plafond compris dans son abonnement. */
+      quota: { utilise: number; plafond: number }
     }>(`/chat/${departmentId}`, { method: 'POST', body: JSON.stringify({ question }) }),
 
   // Chefs de rayon : un agent par secteur, embauché explicitement.
