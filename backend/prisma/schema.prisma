@@ -187,6 +187,18 @@ model Product {
   metaTitle       String?
   metaDescription String?
   metaKeywords    String?
+  /// Le fournisseur d ou vient ce produit, quand il est relie par API.
+  ///
+  /// Sans cette reference, rien ne dit quoi interroger : l adresse source suffit
+  /// a rouvrir la fiche dans un navigateur, pas a demander son stock a une API.
+  supplierId      String?
+  /// L identifiant du produit chez le fournisseur, tel que son API l attend.
+  supplierRef     String?
+  /// Dernier releve de prix et de stock, et quand.
+  supplierPrice   Decimal?  @db.Decimal(10, 2)
+  supplierStock   Int?
+  supplierCheckedAt DateTime?
+
   /// Le titre en trois longueurs : court, moyen, long.
   ///
   /// Aucun titre unique ne satisfait toutes les destinations. Amazon accepte

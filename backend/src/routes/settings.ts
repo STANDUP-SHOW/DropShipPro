@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
 import { findSupplier } from '../services/suppliers.js'
+import { veillerFournisseurs } from '../services/stockWatch.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
@@ -404,4 +405,52 @@ settingsRouter.delete('/supplier-links/:supplier', async (req: AuthedRequest, re
   })
   if (!count) return res.status(404).json({ error: 'Fournisseur non relié' })
   res.status(204).send()
+})
+
+/**
+ * Lance la veille sur les prix et les stocks fournisseurs.
+ *
+ * Déclenchée à la main pour l'instant. Ce n'est pas un oubli : mieux vaut un
+ * relevé que le vendeur demande et regarde qu'un relevé nocturne dont personne
+ * ne lit le rapport. La programmation viendra quand on saura ce qu'il en fait.
+ */
+settingsRouter.post('/supplier-watch', async (req: AuthedRequest, res) => {
+  const resultat = await veillerFournisseurs(req.userId!)
+  res.json(resultat)
+})
+
+/** Les produits reliés à un fournisseur, et leur dernier relevé. */
+settingsRouter.get('/supplier-watch', async (req: AuthedRequest, res) => {
+  const produits = await prisma.product.findMany({
+    where: { userId: req.userId!, supplierId: { not: null } },
+    select: {
+      id: true,
+      title: true,
+      aiTitle: true,
+      supplierId: true,
+      supplierRef: true,
+      supplierPrice: true,
+      supplierStock: true,
+      supplierCheckedAt: true,
+      price: true,
+      sellingPrice: true,
+      currency: true,
+      status: true,
+    },
+    orderBy: { supplierCheckedAt: 'asc' },
+    take: 200,
+  })
+
+  const total = await prisma.product.count({ where: { userId: req.userId! } })
+
+  res.json({
+    surveilles: produits.length,
+    total,
+    produits: produits.map((p) => ({
+      ...p,
+      price: Number(p.price),
+      sellingPrice: Number(p.sellingPrice),
+      supplierPrice: p.supplierPrice === null ? null : Number(p.supplierPrice),
+    })),
+  })
 })
