@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Images, Download, Trash2 } from 'lucide-react'
+import { Images, Download, Trash2, Eye } from 'lucide-react'
 import { api, assetUrl } from '../lib/api'
+import { ImageViewer, telechargerImage } from './ImageViewer'
 
 type Image = Awaited<ReturnType<typeof api.visualGallery>>['images'][number]
 
@@ -28,6 +29,11 @@ export function AgentBook({
 }) {
   const [images, setImages] = useState<Image[]>([])
   const [chargement, setChargement] = useState(true)
+  const [ouverte, setOuverte] = useState<Image | null>(null)
+
+  // Le nom du fichier telecharge : celui de l annonce, pas un identifiant.
+  const etiquetteDe = (img: Image) =>
+    [img.kind === 'ad' ? 'pub' : 'photo', img.platform, img.productTitle].filter(Boolean).join('-')
 
   useEffect(() => {
     api
@@ -82,15 +88,22 @@ export function AgentBook({
               </div>
 
               <div className="absolute inset-x-0 top-0 flex justify-end gap-1 p-1 opacity-0 transition group-hover:opacity-100 max-md:opacity-100">
-                <a
-                  href={assetUrl(img.path)}
-                  target="_blank"
-                  rel="noreferrer noopener"
+                <button
+                  type="button"
                   title="Ouvrir en grand"
+                  onClick={() => setOuverte(img)}
+                  className="rounded bg-black/70 p-1.5 text-gray-200 hover:bg-black/90"
+                >
+                  <Eye size={12} />
+                </button>
+                <button
+                  type="button"
+                  title="Télécharger"
+                  onClick={() => telechargerImage(assetUrl(img.path), etiquetteDe(img))}
                   className="rounded bg-black/70 p-1.5 text-gray-200 hover:bg-black/90"
                 >
                   <Download size={12} />
-                </a>
+                </button>
                 <button
                   type="button"
                   title="Jeter"
@@ -119,6 +132,14 @@ export function AgentBook({
           ))}
         </ul>
       )}
+      {ouverte ? (
+        <ImageViewer
+          url={assetUrl(ouverte.path)}
+          etiquette={etiquetteDe(ouverte)}
+          sousTitre={[ouverte.platform, `${ouverte.width}x${ouverte.height}`].filter(Boolean).join(' - ')}
+          onClose={() => setOuverte(null)}
+        />
+      ) : null}
     </section>
   )
 }

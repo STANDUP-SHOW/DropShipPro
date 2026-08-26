@@ -82,20 +82,29 @@ model User {
 
   /// Annonces importables restantes. 10 offertes à l'inscription.
   /// La publication ne consomme rien : seul l'import est décompté.
-  credits              Int       @default(10)
+  credits              Int     @default(10)
   /// FREE tant qu'aucun abonnement n'est actif, PREMIUM = imports illimités.
-  plan                 Plan      @default(FREE)
+  plan                 Plan    @default(FREE)
   /// Identifiants Stripe. Null tant que l'utilisateur n'a jamais payé.
-  stripeCustomerId     String?   @unique
+  stripeCustomerId     String? @unique
   stripeSubscriptionId String?
   /// Credits images restants, pour les agents visuels. Distincts des credits
   /// d annonces : une image generee coute a chaque fois, une annonce non.
-  imageCredits         Int       @default(10)
+  imageCredits         Int     @default(10)
   /// Agent de controle visuel des photos et des options, avant mise en ligne.
   /// Actif par defaut : c est lui qui rend le mode automatique fiable.
-  controlAgent         Boolean   @default(true)
+  controlAgent         Boolean @default(true)
+
+  /// Passer la commande chez le fournisseur sans demander, des qu une vente
+  /// tombe. Faux par defaut : engager l argent du vendeur sans son accord n est
+  /// pas un reglage qu on active a sa place.
+  autoOrder    Boolean   @default(false)
+  /// Le plafond au-dela duquel la commande est preparee mais pas envoyee, meme
+  /// en mode automatique. Un prix fournisseur qui s emballe est le symptome le
+  /// plus courant d une erreur de reference.
+  autoOrderMax Decimal?  @db.Decimal(10, 2)
   /// Fin de la période payée : l'abonnement reste actif jusque-là même résilié.
-  premiumUntil         DateTime?
+  premiumUntil DateTime?
 
   shops              Shop[]
   products           Product[]
@@ -184,19 +193,19 @@ model Product {
   images   Json
   variants Json?
 
-  metaTitle       String?
-  metaDescription String?
-  metaKeywords    String?
+  metaTitle         String?
+  metaDescription   String?
+  metaKeywords      String?
   /// Le fournisseur d ou vient ce produit, quand il est relie par API.
   ///
   /// Sans cette reference, rien ne dit quoi interroger : l adresse source suffit
   /// a rouvrir la fiche dans un navigateur, pas a demander son stock a une API.
-  supplierId      String?
+  supplierId        String?
   /// L identifiant du produit chez le fournisseur, tel que son API l attend.
-  supplierRef     String?
+  supplierRef       String?
   /// Dernier releve de prix et de stock, et quand.
-  supplierPrice   Decimal?  @db.Decimal(10, 2)
-  supplierStock   Int?
+  supplierPrice     Decimal?  @db.Decimal(10, 2)
+  supplierStock     Int?
   supplierCheckedAt DateTime?
 
   /// Le titre en trois longueurs : court, moyen, long.
@@ -208,11 +217,11 @@ model Product {
   ///
   /// Ecrites par le redacteur dans le meme appel que la reecriture, donc sans
   /// cout supplementaire. Chaque canal recoit ensuite la plus longue qui tient.
-  titleVariants   Json?
+  titleVariants Json?
   /// Amazon-style selling points, one short line each.
-  bulletPoints    Json?
+  bulletPoints  Json?
   /// Structured product attributes (matière, coupe, saison…) that marketplaces index for filters.
-  attributes      Json?
+  attributes    Json?
 
   /// Faux quand le modele n a pas repondu et que le texte source a ete conserve.
   /// L annonce est alors signalee dans l interface et le credit n est pas pris.
@@ -264,18 +273,39 @@ model Order {
   amount   Decimal @db.Decimal(10, 2)
   currency String  @default("EUR")
 
-  status           OrderStatus  @default(NEW)
+  status           OrderStatus @default(NEW)
   supplierOrderUrl String?
-  trackingNumber   String?
+
+  /// La commande passee chez le fournisseur, quand elle l a ete.
+  ///
+  /// Sa presence sert d abord de garde-fou : tant qu elle est renseignee, aucune
+  /// seconde commande ne part pour la meme vente. Commander deux fois coute
+  /// deux fois, et le second colis ne se reprend pas.
+  supplierOrderId     String?
+  /// L etat que le fournisseur donne a sa commande, dans ses propres mots.
+  supplierOrderStatus String?
+  /// Ce que la commande a reellement coute chez le fournisseur, port compris.
+  supplierOrderCost   Decimal?     @db.Decimal(10, 2)
+  supplierOrderedAt   DateTime?
+  /// Pourquoi la derniere tentative a echoue, en clair pour le vendeur.
+  supplierOrderError  String?      @db.Text
+  /// La variante a commander chez le fournisseur : une taille, une couleur.
+  ///
+  /// Separee de la reference produit parce qu on ne commande pas un produit, on
+  /// commande une variante. Elle se devine quand il n y en a qu une, et se
+  /// demande au vendeur des qu il y a un choix -- deviner une taille reviendrait
+  /// a expedier au hasard.
+  supplierVariantRef  String?
+  trackingNumber      String?
   /// Transporteur, quand la plateforme le donne ou qu on le devine du numero.
-  carrier          String?
+  carrier             String?
   /// Adresse email de l acheteur, quand la plateforme la communique. Sans elle,
   /// aucune reponse ne peut partir d ici.
-  buyerEmail       String?
-  shippingLabelUrl String?
-  receiptUrl       String?
-  payoutStatus     PayoutStatus @default(PENDING)
-  platformBalance  Decimal?     @db.Decimal(10, 2)
+  buyerEmail          String?
+  shippingLabelUrl    String?
+  receiptUrl          String?
+  payoutStatus        PayoutStatus @default(PENDING)
+  platformBalance     Decimal?     @db.Decimal(10, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -518,11 +548,11 @@ model Department {
   plan      String?
   createdAt DateTime  @default(now())
 
-  opportunities Opportunity[]
-  signals       Signal[]
-  reports       Report[]
-  chatMessages  ChatMessage[]
-  conversations Conversation[]
+  opportunities  Opportunity[]
+  signals        Signal[]
+  reports        Report[]
+  chatMessages   ChatMessage[]
+  conversations  Conversation[]
   productReviews ProductReview[]
 
   /// Un rayon n est confie qu une fois : deux « Albert » chez le meme vendeur
@@ -778,7 +808,7 @@ model AdAccount {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// meta, google, tiktok, x, snapchat, pinterest.
-  network String
+  network   String
   /// L identifiant du compte publicitaire chez la regie, tel qu elle l affiche.
   accountId String
   /// Le jeton d acces. Jamais renvoye au navigateur une fois enregistre.
@@ -814,7 +844,7 @@ model ProductReview {
 
   /// Les trois volets, plus les sources. Sans schema impose : le modele rend ce
   /// qu il a trouve, et un champ vide se lit comme « pas trouve ».
-  verdict     String  @db.Text
+  verdict     String @db.Text
   suppliers   Json?
   social      Json?
   marketplace Json?
@@ -842,7 +872,7 @@ model SupplierConnection {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// La cle du fournisseur dans services/suppliers.ts.
-  supplier String
+  supplier  String
   /// Les champs demandes par ce fournisseur, tels qu il les nomme. Jamais
   /// renvoyes au navigateur une fois enregistres.
   data      Json

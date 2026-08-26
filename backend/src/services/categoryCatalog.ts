@@ -358,7 +358,6 @@ const FRENCH_MARKETPLACES: Platform[] = [
   'BRANDALLEY',
   'SPARTOO',
   'MIINTO',
-  'ATLAS_FOR_MEN',
 ]
 
 /**

@@ -11,14 +11,20 @@
  * du rapport Shoppingfeed appliquée au sourcing — la valeur vient de la qualité
  * du mapping, pas du nombre de connecteurs.
  *
- * Ce que ces connecteurs ne font pas encore : commander. Le passage de commande
- * engage de l'argent chez un tiers ; il aura son propre passage, avec ses
- * propres garde-fous.
+ * Commander est possible depuis, mais **jamais payer** : la commande est déposée
+ * chez le fournisseur et attend le règlement du vendeur. C'est la même règle que
+ * pour la publication — l'application remplit, l'humain valide — appliquée là où
+ * elle compte le plus, puisqu'ici c'est de l'argent.
  */
 
 export * from './supplierTypes.js'
 
-import { SupplierError, type SupplierConnector, type SupplierPrice } from './supplierTypes.js'
+import {
+  SupplierError,
+  type SupplierConnector,
+  type SupplierPrice,
+  type SupplierTracking,
+} from './supplierTypes.js'
 
 /** Base d'appel, surchargeable pour les essais. */
 const BASES: Record<string, string> = {
@@ -105,24 +111,32 @@ const bigbuy: SupplierConnector = {
  * veille tourne au plus une fois par jour, et un jeton périmé en base coûterait
  * un relevé entier.
  */
+async function jetonCj(credentials: Record<string, string>): Promise<string> {
+  const email = credentials.email?.trim()
+  const key = credentials.apiKey?.trim()
+  if (!email || !key) throw new SupplierError('Identifiants CJ Dropshipping incomplets.', true)
+
+  const auth = (await appel(`${BASES.cjdropshipping}/authentication/getAccessToken`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: key }),
+  })) as { data?: { accessToken?: string }; message?: string }
+
+  const jeton = auth.data?.accessToken
+  if (!jeton) {
+    throw new SupplierError(auth.message || 'CJ Dropshipping a refusé les identifiants.', true)
+  }
+  return jeton
+}
+
+/** Les en-têtes d'un appel CJ authentifié. */
+const enTetesCj = (jeton: string) => ({ 'CJ-Access-Token': jeton, Accept: 'application/json' })
+
 const cj: SupplierConnector = {
   id: 'cjdropshipping',
   label: 'CJ Dropshipping',
   async fetchPrices(refs, credentials) {
-    const email = credentials.email?.trim()
-    const key = credentials.apiKey?.trim()
-    if (!email || !key) throw new SupplierError('Identifiants CJ Dropshipping incomplets.', true)
-
-    const auth = (await appel(`${BASES.cjdropshipping}/authentication/getAccessToken`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: key }),
-    })) as { data?: { accessToken?: string }; message?: string }
-
-    const jeton = auth.data?.accessToken
-    if (!jeton) {
-      throw new SupplierError(auth.message || 'CJ Dropshipping a refusé les identifiants.', true)
-    }
+    const jeton = await jetonCj(credentials)
 
     const sortie: SupplierPrice[] = []
     for (const ref of refs) {
@@ -148,6 +162,114 @@ const cj: SupplierConnector = {
         stock: null,
         available: variantes.length > 0,
       })
+    }
+
+    return sortie
+  },
+
+  async fetchVariants(ref, credentials) {
+    const jeton = await jetonCj(credentials)
+    const reponse = (await appel(
+      `${BASES.cjdropshipping}/product/variant/query?pid=${encodeURIComponent(ref)}`,
+      { headers: enTetesCj(jeton) },
+    )) as {
+      data?: Array<{
+        vid?: string
+        variantSellPrice?: number
+        variantKey?: string
+        variantNameEn?: string
+      }>
+    }
+
+    return (reponse.data ?? [])
+      .filter((v) => v.vid)
+      .map((v) => ({
+        ref: v.vid!,
+        // `variantKey` est ce que CJ affiche au vendeur — « Noir-XL ». Le nom
+        // complet ne sert que si la clé manque.
+        label: v.variantKey || v.variantNameEn || v.vid!,
+        price: typeof v.variantSellPrice === 'number' ? v.variantSellPrice : null,
+        stock: null,
+      }))
+  },
+
+  /**
+   * Dépose la commande chez CJ **sans la payer**.
+   *
+   * `payType: 3` veut dire « créer la commande seulement » : elle apparaît dans
+   * l'espace CJ du vendeur, en attente de règlement. C'est exactement la règle
+   * qu'on s'est donnée pour la publication — l'application remplit, l'humain
+   * valide — appliquée là où elle compte le plus, puisqu'ici c'est de l'argent.
+   */
+  async placeOrder(commande, credentials) {
+    const jeton = await jetonCj(credentials)
+
+    const reponse = (await appel(`${BASES.cjdropshipping}/shopping/order/createOrderV2`, {
+      method: 'POST',
+      headers: { ...enTetesCj(jeton), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderNumber: commande.reference,
+        shippingCustomerName: commande.destinataire.nom,
+        shippingCountryCode: commande.destinataire.paysCode,
+        shippingCountry: commande.destinataire.pays,
+        shippingProvince: commande.destinataire.region,
+        shippingCity: commande.destinataire.ville,
+        shippingAddress: commande.destinataire.adresse,
+        shippingAddress2: commande.destinataire.complement,
+        shippingZip: commande.destinataire.codePostal,
+        shippingPhone: commande.destinataire.telephone,
+        email: commande.destinataire.email,
+        // 3 = créer la commande sans la payer. Ne jamais mettre 2 (paiement sur
+        // le solde) : ce serait débiter le vendeur sans son accord.
+        payType: 3,
+        products: [{ vid: commande.variantRef, quantity: commande.quantity }],
+      }),
+    })) as {
+      data?: { orderId?: string; orderStatus?: string; orderAmount?: number; cjPayUrl?: string }
+      message?: string
+    }
+
+    const id = reponse.data?.orderId
+    if (!id) {
+      throw new SupplierError(
+        reponse.message || "CJ Dropshipping n'a pas créé la commande.",
+        true,
+      )
+    }
+
+    return {
+      supplierOrderId: id,
+      status: reponse.data?.orderStatus ?? null,
+      cost: typeof reponse.data?.orderAmount === 'number' ? reponse.data.orderAmount : null,
+      currency: 'USD',
+      url: reponse.data?.cjPayUrl ?? null,
+    }
+  },
+
+  async fetchTracking(ids, credentials) {
+    const jeton = await jetonCj(credentials)
+    const sortie: SupplierTracking[] = []
+
+    for (const id of ids) {
+      try {
+        const reponse = (await appel(
+          `${BASES.cjdropshipping}/shopping/order/getOrderDetail?orderId=${encodeURIComponent(id)}`,
+          { headers: enTetesCj(jeton) },
+        )) as { data?: { orderStatus?: string; trackNumber?: string; logisticName?: string } }
+
+        const statut = reponse.data?.orderStatus ?? null
+        sortie.push({
+          supplierOrderId: id,
+          status: statut,
+          trackingNumber: reponse.data?.trackNumber || null,
+          carrier: reponse.data?.logisticName || null,
+          expedie: statut === 'SHIPPED' || statut === 'DELIVERED',
+        })
+      } catch (err) {
+        // Une commande introuvable ne doit pas masquer le suivi des autres :
+        // c'est souvent une commande annulée côté CJ, pas une panne.
+        if (err instanceof SupplierError && err.actionnable) throw err
+      }
     }
 
     return sortie

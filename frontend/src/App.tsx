@@ -27,6 +27,7 @@ import Accounting from './pages/Accounting'
 import ApiLinks from './pages/ApiLinks'
 import ApiSourcing from './pages/ApiSourcing'
 import SupplierWatch from './pages/SupplierWatch'
+import MyAds from './pages/MyAds'
 import SupportAgent from './pages/SupportAgent'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/messages" element={<Protected><Messages /></Protected>} />
           <Route path="/pilote" element={<Protected><Autopilot /></Protected>} />
           <Route path="/marketing-photo" element={<Protected><PhotoStudio /></Protected>} />
+          <Route path="/mes-pubs" element={<Protected><MyAds /></Protected>} />
           <Route path="/marketing" element={<Protected><Marketing /></Protected>} />
           <Route path="/plateformes-acquisition" element={<Protected><PlatformsSourcing /></Protected>} />
           <Route path="/plateformes-vente" element={<Protected><PlatformsSelling /></Protected>} />

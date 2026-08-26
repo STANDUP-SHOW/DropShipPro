@@ -180,7 +180,12 @@ les autres marketplaces créent une publication « en attente ».
   opérateurs Mirakl (La Redoute, Leclerc, BHV, Kiabi, BrandAlley)
 - **Pas d'API, extension uniquement** : Vinted, Leboncoin, Facebook Marketplace
 - **Etsy** interdit la revente de produits manufacturés — risque de fermeture
-- **Atlas For Men** n'est pas une marketplace, aucune publication possible
+- **Atlas For Men a été retiré de la liste** le 26/08/2026 : détaillant en marque
+  propre, pas de marketplace, donc une ligne qui ne servait qu'à dire non. La
+  valeur `ATLAS_FOR_MEN` reste dans l'enum Prisma — Postgres ne sait pas retirer
+  une valeur d'enum sans reconstruire le type. La page SEO
+  `/vendre-sur-atlas-for-men/` reste en ligne : elle répond à une vraie recherche
+  et renvoie vers les alternatives.
 
 ## Ce qui reste en chantier
 

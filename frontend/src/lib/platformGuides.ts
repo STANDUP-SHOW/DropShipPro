@@ -191,8 +191,3 @@ const EXTENSION_GUIDE = (label: string, sellPage: string): PlatformGuide => ({
 PLATFORM_GUIDES.VINTED = EXTENSION_GUIDE('Vinted', 'vinted.fr/items/new')
 PLATFORM_GUIDES.LEBONCOIN = EXTENSION_GUIDE('Leboncoin', 'leboncoin.fr/deposer-une-annonce')
 PLATFORM_GUIDES.FACEBOOK = EXTENSION_GUIDE('Facebook Marketplace', 'facebook.com/marketplace/create/item')
-
-PLATFORM_GUIDES.ATLAS_FOR_MEN = {
-  summary: "Atlas For Men n'est pas une marketplace : l'enseigne vend sa propre marque et n'accepte pas de vendeurs tiers.",
-  steps: ["Aucune publication n'est possible, ni par API ni par l'extension."],
-}

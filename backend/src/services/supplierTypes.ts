@@ -30,6 +30,49 @@ export interface SupplierContext {
   saveCredentials(patch: Record<string, string>): Promise<void>
 }
 
+/** Ce qu'il faut savoir pour commander : quoi, combien, et où l'envoyer. */
+export interface SupplierOrderRequest {
+  /** Notre propre numéro de commande, renvoyé au fournisseur pour s'y retrouver. */
+  reference: string
+  /** La variante à commander chez le fournisseur. */
+  variantRef: string
+  quantity: number
+  destinataire: {
+    nom: string
+    /** Le pays en deux lettres — la plupart des fournisseurs n'acceptent que ça. */
+    paysCode: string
+    pays?: string
+    region?: string
+    ville?: string
+    adresse: string
+    complement?: string
+    codePostal?: string
+    telephone?: string
+    email?: string
+  }
+}
+
+export interface SupplierOrderResult {
+  /** L'identifiant de la commande chez le fournisseur. */
+  supplierOrderId: string
+  /** L'état donné par le fournisseur, dans ses propres mots. */
+  status: string | null
+  /** Ce que la commande coûte, port compris, quand le fournisseur le dit. */
+  cost: number | null
+  currency: string
+  /** Où le vendeur va la payer ou la consulter. */
+  url: string | null
+}
+
+export interface SupplierTracking {
+  supplierOrderId: string
+  status: string | null
+  trackingNumber: string | null
+  carrier: string | null
+  /** Vrai quand le fournisseur déclare le colis parti. */
+  expedie: boolean
+}
+
 export interface SupplierConnector {
   id: string
   label: string
@@ -39,6 +82,38 @@ export interface SupplierConnector {
     credentials: Record<string, string>,
     ctx?: SupplierContext,
   ): Promise<SupplierPrice[]>
+
+  /**
+   * Dépose la commande chez le fournisseur, **sans la payer**.
+   *
+   * Facultatif : tous les fournisseurs ne l'autorisent pas, et un connecteur qui
+   * ne sait pas commander doit le dire en ne l'implémentant pas plutôt qu'en
+   * levant une erreur au dernier moment, quand la vente est déjà encaissée.
+   *
+   * Le paiement reste au vendeur. C'est la même règle que pour la publication :
+   * l'application remplit, l'humain valide. Un logiciel qui débite un compte
+   * fournisseur tout seul sur une référence mal lue peut commander cent fois le
+   * mauvais article avant que quiconque s'en aperçoive.
+   */
+  placeOrder?(
+    commande: SupplierOrderRequest,
+    credentials: Record<string, string>,
+    ctx?: SupplierContext,
+  ): Promise<SupplierOrderResult>
+
+  /** Relève l'état et le numéro de suivi de commandes déjà passées. */
+  fetchTracking?(
+    supplierOrderIds: string[],
+    credentials: Record<string, string>,
+    ctx?: SupplierContext,
+  ): Promise<SupplierTracking[]>
+
+  /** Les variantes commandables d'un produit, pour savoir laquelle envoyer. */
+  fetchVariants?(
+    ref: string,
+    credentials: Record<string, string>,
+    ctx?: SupplierContext,
+  ): Promise<Array<{ ref: string; label: string; price: number | null; stock: number | null }>>
 }
 
 /**

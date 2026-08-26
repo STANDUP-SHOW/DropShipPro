@@ -4,6 +4,8 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { identify, fetchEvents } from '../services/tracking.js'
+import { commanderChezFournisseur, releverSuiviFournisseur } from '../services/supplierOrders.js'
+import { findConnector } from '../services/supplierConnectors.js'
 
 export const ordersRouter = Router()
 ordersRouter.use(requireAuth)
@@ -149,7 +151,20 @@ ordersRouter.patch('/:id', async (req: AuthedRequest, res) => {
  * le lien vers le transporteur reste affiché, ce qui couvre l'essentiel du
  * besoin sans imposer un abonnement à un vendeur qui débute.
  */
-ordersRouter.get('/:id', async (req: AuthedRequest, res) => {
+/**
+ * Les chemins qui ressemblent à un identifiant sans en être un.
+ *
+ * `/:id` est déclarée avant `/purchases` et `/accounting`, donc elle les
+ * capturait toutes les deux : les deux écrans recevaient « Commande introuvable »
+ * au lieu de leurs données, sans qu'aucune erreur ne soit levée nulle part. La
+ * liste vit ici plutôt qu'ailleurs pour qu'un futur `/orders/quelque-chose`
+ * n'ait qu'un endroit à mettre à jour.
+ */
+const CHEMINS_RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking'])
+
+ordersRouter.get('/:id', async (req: AuthedRequest, res, next) => {
+  if (CHEMINS_RESERVES.has(req.params.id)) return next('route')
+
   const order = await prisma.order.findFirst({
     where: { id: req.params.id, userId: req.userId! },
     include: { product: { select: { id: true, title: true, aiTitle: true, images: true } } },
@@ -460,4 +475,78 @@ ordersRouter.get('/accounting', async (req: AuthedRequest, res) => {
     avertissement:
       "Ces chiffres ne comptent ni la TVA, ni les frais de plateforme, ni les frais de port facturés à l'acheteur : rien de tout cela n'est encore saisi. La marge se calcule sur le coût fournisseur actuel du produit, pas sur celui du jour de la vente.",
   })
+})
+
+/**
+ * Dépose une commande chez le fournisseur — sans la payer.
+ *
+ * Déclenché par le vendeur, jamais par la vente elle-même : le mode automatique
+ * existe dans les réglages, mais même lui s'arrête au plafond. L'application
+ * remplit, l'humain valide, y compris quand c'est de l'argent.
+ */
+ordersRouter.post('/:id/supplier-order', async (req: AuthedRequest, res) => {
+  try {
+    const resultat = await commanderChezFournisseur(req.userId!, req.params.id, {
+      forcer: req.body?.forcer === true,
+    })
+    res.json(resultat)
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Commande impossible.' })
+  }
+})
+
+/** Les variantes commandables d'une vente, quand il faut en choisir une. */
+ordersRouter.get('/:id/supplier-variants', async (req: AuthedRequest, res) => {
+  const commande = await prisma.order.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: { product: { select: { supplierId: true, supplierRef: true } } },
+  })
+  if (!commande) return res.status(404).json({ error: 'Commande introuvable' })
+
+  const { supplierId, supplierRef } = commande.product
+  const connecteur = supplierId ? findConnector(supplierId) : null
+  if (!supplierId || !supplierRef || !connecteur?.fetchVariants) {
+    return res.json({ variantes: [], choisie: commande.supplierVariantRef })
+  }
+
+  const lien = await prisma.supplierConnection.findFirst({
+    where: { userId: req.userId!, supplier: supplierId, connected: true },
+  })
+  if (!lien) return res.json({ variantes: [], choisie: commande.supplierVariantRef })
+
+  try {
+    const variantes = await connecteur.fetchVariants(
+      supplierRef,
+      (lien.data ?? {}) as Record<string, string>,
+    )
+    res.json({ variantes, choisie: commande.supplierVariantRef })
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Fournisseur injoignable.' })
+  }
+})
+
+/** Fixe la variante à commander : ce que l'application refuse de deviner. */
+ordersRouter.put('/:id/supplier-variant', async (req: AuthedRequest, res) => {
+  const ref = typeof req.body?.ref === 'string' ? req.body.ref.trim() : ''
+  if (!ref) return res.status(400).json({ error: 'Référence de variante manquante' })
+
+  const { count } = await prisma.order.updateMany({
+    where: { id: req.params.id, userId: req.userId! },
+    data: { supplierVariantRef: ref },
+  })
+  if (!count) return res.status(404).json({ error: 'Commande introuvable' })
+
+  res.json({ ok: true, ref })
+})
+
+/**
+ * Relève l'état et le numéro de suivi des commandes déjà déposées.
+ *
+ * Lecture seule : c'est la moitié sans risque du raccordement fournisseur, et
+ * celle qui fait gagner le plus de temps — un numéro de suivi remonté tout seul,
+ * c'est un message de moins à écrire à chaque acheteur.
+ */
+ordersRouter.post('/supplier-tracking', async (req: AuthedRequest, res) => {
+  const resultat = await releverSuiviFournisseur(req.userId!)
+  res.json(resultat)
 })
