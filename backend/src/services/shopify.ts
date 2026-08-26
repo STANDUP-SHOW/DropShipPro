@@ -48,6 +48,127 @@ export function readShopifyCredentials(data: unknown): ShopifyCredentials | null
   return { shopDomain, accessToken }
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * La seconde voie : le Dev Dashboard.
+ * ---------------------------------------------------------------------------
+ *
+ * Shopify a deux consoles, et elles ne délivrent pas la même chose.
+ *
+ * L'administration de la boutique donne un jeton `shpat_` permanent, qu'on colle
+ * une fois. C'est le chemin le plus simple, et il reste le chemin conseillé.
+ *
+ * Le Dev Dashboard, lui, ne montre plus aucun jeton : il donne un Client ID et
+ * un Client Secret, qu'on échange soi-même contre un jeton qui vit vingt-quatre
+ * heures. Plus de travail pour nous, mais mieux pour le marchand — rien à
+ * recopier, rien affiché « une seule fois », et un secret qui se change sans
+ * revenir dans l'application.
+ *
+ * Le marchand qui monte son app dans le Dev Dashboard n'a aucun moyen d'obtenir
+ * un `shpat_` : lui refuser cette voie reviendrait à lui dire de tout refaire
+ * ailleurs. D'où les deux.
+ */
+
+export interface ShopifyOAuthCredentials {
+  shopDomain: string
+  clientId: string
+  clientSecret: string
+}
+
+export function readShopifyOAuthCredentials(data: unknown): ShopifyOAuthCredentials | null {
+  if (!data || typeof data !== 'object') return null
+  const raw = data as Record<string, unknown>
+  const shopDomain = typeof raw.shopDomain === 'string' ? normalizeShopDomain(raw.shopDomain) : null
+  const clientId = typeof raw.clientId === 'string' ? raw.clientId.trim() : ''
+  const clientSecret = typeof raw.clientSecret === 'string' ? raw.clientSecret.trim() : ''
+  if (!shopDomain || !clientId || !clientSecret) return null
+  return { shopDomain, clientId, clientSecret }
+}
+
+/**
+ * Les jetons échangés, gardés en mémoire le temps de leur vie.
+ *
+ * Shopify les donne pour 86 399 secondes. Les redemander à chaque publication
+ * marcherait, mais publier trente annonces ferait trente échanges pour rien, et
+ * chacun compte dans les limites de débit. Une marge de cinq minutes évite le
+ * cas désagréable : un jeton obtenu valide qui expire pendant l'appel suivant.
+ *
+ * En mémoire et pas en base : ces jetons vivent moins longtemps qu'un
+ * redéploiement, et les écrire ajouterait un secret de plus à protéger pour
+ * gagner un seul appel réseau par jour.
+ */
+const jetonsEchanges = new Map<string, { token: string; expire: number }>()
+const MARGE_MS = 5 * 60 * 1000
+
+/**
+ * Échange le Client ID et le Client Secret contre un jeton d'accès.
+ *
+ * Ne marche que si l'app et la boutique appartiennent à la même organisation
+ * Shopify — ce qui est le cas d'un marchand qui monte son app pour sa propre
+ * boutique, et seulement de celui-là. Le message le dit, parce que le refus de
+ * Shopify, lui, ne le dit pas.
+ */
+export async function jetonParClientCredentials(
+  creds: ShopifyOAuthCredentials,
+): Promise<ShopifyCredentials> {
+  const cle = `${creds.shopDomain}:${creds.clientId}`
+  const garde = jetonsEchanges.get(cle)
+  if (garde && garde.expire > Date.now() + MARGE_MS) {
+    return { shopDomain: creds.shopDomain, accessToken: garde.token }
+  }
+
+  let res: Response
+  try {
+    res = await fetch(`https://${creds.shopDomain}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+      }),
+      signal: AbortSignal.timeout(20000),
+    })
+  } catch {
+    throw new ShopifyError("Boutique Shopify injoignable : vérifiez l'adresse .myshopify.com")
+  }
+
+  if (res.status === 400 || res.status === 401) {
+    throw new ShopifyError(
+      "Shopify refuse le Client ID ou le Client Secret. Vérifiez-les dans le Dev Dashboard, et surtout que l'app et la boutique sont bien dans la même organisation : cet échange ne marche pas autrement.",
+    )
+  }
+  if (!res.ok) throw new ShopifyError(`Shopify a répondu ${res.status} à la demande de jeton.`)
+
+  const corps = (await res.json()) as { access_token?: string; expires_in?: number }
+  if (!corps.access_token) {
+    throw new ShopifyError("Shopify n'a pas délivré de jeton pour ces identifiants.")
+  }
+
+  jetonsEchanges.set(cle, {
+    token: corps.access_token,
+    expire: Date.now() + (corps.expires_in ?? 86399) * 1000,
+  })
+
+  return { shopDomain: creds.shopDomain, accessToken: corps.access_token }
+}
+
+/**
+ * Rend de quoi appeler l'API, quelle que soit la voie choisie par le marchand.
+ *
+ * Le reste du connecteur ne sait pas laquelle a servi, et n'a pas à le savoir :
+ * il reçoit un domaine et un jeton, comme avant.
+ */
+export async function resoudreCredentialsShopify(data: unknown): Promise<ShopifyCredentials | null> {
+  const direct = readShopifyCredentials(data)
+  if (direct) return direct
+
+  const oauth = readShopifyOAuthCredentials(data)
+  if (oauth) return jetonParClientCredentials(oauth)
+
+  return null
+}
+
 class ShopifyError extends Error {}
 
 async function graphql<T>(creds: ShopifyCredentials, query: string, variables: Record<string, unknown>): Promise<T> {

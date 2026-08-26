@@ -142,6 +142,15 @@ docs/        Documentation de l'API catalogue
   controle refusait ce prefixe-la, pourtant valide). Diagnostic par prefixe dans
   `services/shopifyToken.ts`, banc `npx tsx check-shopify-token.ts`.
 
+  **Les deux voies sont acceptees depuis le 26/08/2026.** Le Dev Dashboard ne
+  delivre plus aucun jeton : il donne un Client ID et un Client Secret qu on
+  echange soi-meme (`POST /admin/oauth/access_token`, grant_type
+  client_credentials) contre un jeton qui vit 24 h. Cet echange **ne marche que
+  si l app et la boutique sont dans la meme organisation Shopify** -- Shopify ne
+  le dit pas dans son refus, notre message si. Le jeton echange est garde en
+  memoire le temps de sa vie : le redemander a chaque publication ferait trente
+  echanges pour trente annonces. Banc `npx tsx check-shopify-oauth.ts`.
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).

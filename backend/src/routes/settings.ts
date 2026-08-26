@@ -7,7 +7,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
-import { normalizeShopDomain } from '../services/shopify.js'
+import { normalizeShopDomain, jetonParClientCredentials } from '../services/shopify.js'
 import { diagnostiquerJetonShopify } from '../services/shopifyToken.js'
 import { generateApiKey } from '../middleware/apiKey.js'
 
@@ -217,11 +217,57 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
         error: "Adresse de boutique invalide : attendu quelque chose comme ma-boutique.myshopify.com",
       })
     }
-    if (!accessToken) return res.status(400).json({ error: "Collez le jeton d'accès de l'app personnalisée" })
+    /*
+     * Deux voies, et le vendeur en choisit une.
+     *
+     * Le jeton `shpat_` vient de l'administration de la boutique ; le couple
+     * Client ID / Client Secret vient du Dev Dashboard, qui ne délivre plus
+     * aucun jeton. Exiger le premier revenait à dire au marchand qui a monté son
+     * app dans le Dev Dashboard de tout refaire ailleurs.
+     */
+    const clientId = (data.clientId ?? '').trim()
+    const clientSecret = (data.clientSecret ?? '').trim()
 
-    const probleme = diagnostiquerJetonShopify(accessToken)
-    if (probleme) return res.status(400).json({ error: probleme })
-    data = { shopDomain, accessToken }
+    if (!accessToken && !(clientId && clientSecret)) {
+      return res.status(400).json({
+        error:
+          "Donnez soit le jeton d'accès Admin (shpat_…, depuis l'administration de votre boutique), soit le Client ID et le Client Secret (depuis le Dev Dashboard).",
+      })
+    }
+
+    if (accessToken) {
+      const probleme = diagnostiquerJetonShopify(accessToken)
+      if (probleme) return res.status(400).json({ error: probleme })
+      data = { shopDomain, accessToken }
+    } else {
+      /*
+       * Éprouvé tout de suite plutôt qu'à la première publication.
+       *
+       * Un Client Secret faux ne se voit nulle part : l'écran dirait « connecté »
+       * et la première diffusion échouerait, des jours plus tard, sur trente
+       * annonces à la fois. Un échange coûte un appel — le faire maintenant.
+       */
+      try {
+        await jetonParClientCredentials({ shopDomain, clientId, clientSecret })
+      } catch (err) {
+        return res
+          .status(400)
+          .json({ error: err instanceof Error ? err.message : 'Shopify a refusé ces identifiants.' })
+      }
+      data = { shopDomain, clientId, clientSecret }
+    }
+
+    const cred = await prisma.platformCredential.upsert({
+      where: { userId_platform: { userId: req.userId!, platform: 'SHOPIFY' } },
+      create: { ...parsed.data, data, userId: req.userId!, connected: true },
+      update: { ...parsed.data, data, connected: true },
+    })
+    return res.json({
+      id: cred.id,
+      platform: cred.platform,
+      label: cred.label,
+      connected: cred.connected,
+    })
   }
 
   const cred = await prisma.platformCredential.upsert({

@@ -18,6 +18,8 @@ export function PlatformCredentials() {
   const [creds, setCreds] = useState<any[]>([])
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [credError, setCredError] = useState<{ platform: string; text: string } | null>(null)
+  /** Laquelle des deux consoles Shopify le vendeur utilise. */
+  const [voieShopify, setVoieShopify] = useState<'jeton' | 'oauth'>('jeton')
 
   useEffect(() => {
     api.listCredentials().then(setCreds).catch(() => undefined)
@@ -83,10 +85,19 @@ export function PlatformCredentials() {
                     onSubmit={(e) => {
                       e.preventDefault()
                       const fd = new FormData(e.currentTarget)
-                      saveCredential('SHOPIFY', {
-                        shopDomain: String(fd.get('shopDomain') || ''),
-                        accessToken: String(fd.get('accessToken') || ''),
-                      })
+                      saveCredential(
+                        'SHOPIFY',
+                        voieShopify === 'jeton'
+                          ? {
+                              shopDomain: String(fd.get('shopDomain') || ''),
+                              accessToken: String(fd.get('accessToken') || ''),
+                            }
+                          : {
+                              shopDomain: String(fd.get('shopDomain') || ''),
+                              clientId: String(fd.get('clientId') || ''),
+                              clientSecret: String(fd.get('clientSecret') || ''),
+                            },
+                      )
                     }}
                     className="mt-2 space-y-2"
                   >
@@ -96,12 +107,67 @@ export function PlatformCredentials() {
                       placeholder="ma-boutique.myshopify.com"
                       className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                     />
-                    <input
-                      name="accessToken"
-                      type="password"
-                      placeholder="Jeton d'accès Admin (shpat_… — pas atkn_)"
-                      className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
-                    />
+
+                    {/*
+                      Shopify a deux consoles, et elles ne donnent pas la même
+                      chose. Un vendeur qui ne trouve pas de jeton `shpat_` n'est
+                      pas perdu : il est simplement dans le Dev Dashboard, qui
+                      n'en délivre plus. Lui montrer les deux voies évite la
+                      soirée passée à relire un jeton qui n'était pas le bon.
+                    */}
+                    <div className="flex gap-1 rounded-lg bg-black/30 p-1 text-[11px]">
+                      {(
+                        [
+                          ['jeton', "Jeton d'accès Admin"],
+                          ['oauth', 'Client ID / Secret'],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setVoieShopify(id)}
+                          className={`flex-1 rounded px-2 py-1 transition ${
+                            voieShopify === id ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {voieShopify === 'jeton' ? (
+                      <>
+                        <input
+                          name="accessToken"
+                          type="password"
+                          placeholder="Jeton d'accès Admin (shpat_… — pas atkn_)"
+                          className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                        />
+                        <p className="text-[11px] leading-relaxed text-gray-500">
+                          Depuis <b>admin.shopify.com</b> : Paramètres › Applications et canaux de
+                          vente › Développer des applications › votre app › API Admin.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          name="clientId"
+                          placeholder="Client ID"
+                          className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                        />
+                        <input
+                          name="clientSecret"
+                          type="password"
+                          placeholder="Client Secret"
+                          className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                        />
+                        <p className="text-[11px] leading-relaxed text-gray-500">
+                          Depuis <b>dev.shopify.com</b> : Apps › votre app › Settings › Credentials.
+                          Rien à recopier ensuite, le jeton est renouvelé tout seul. L'app et la
+                          boutique doivent appartenir à la même organisation Shopify.
+                        </p>
+                      </>
+                    )}
                     <div className="flex items-center gap-2">
                       <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
                         {cred?.connected ? 'Remplacer' : 'Connecter ma boutique'}

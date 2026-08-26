@@ -2,7 +2,7 @@ import { PLATFORMS } from './platforms.js'
 import type { Platform, Product } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { mapCategory } from './categoryMapping.js'
-import { publishToShopify, readShopifyCredentials } from './shopify.js'
+import { publishToShopify, resoudreCredentialsShopify } from './shopify.js'
 
 /**
  * Records a publication, and actually pushes the product where that is possible.
@@ -66,7 +66,27 @@ async function publishShopify(product: Product, targetCategory: string, apiBaseU
     }),
   ])
 
-  const creds = credential?.connected ? readShopifyCredentials(credential.data) : null
+  /*
+   * Deux voies possibles, et l'échange peut échouer.
+   *
+   * Avec un jeton `shpat_`, la lecture est immédiate. Avec un Client ID et un
+   * Client Secret, il faut aller chercher un jeton chez Shopify — et ce
+   * déplacement peut être refusé. Le refus doit devenir une publication en
+   * attente avec sa raison écrite, pas une exception : sinon un secret changé
+   * dans le Dev Dashboard ferait échouer toute une diffusion en lot sans dire
+   * lequel des trente produits a manqué, ni pourquoi.
+   */
+  let creds: Awaited<ReturnType<typeof resoudreCredentialsShopify>> = null
+  let raison = 'Boutique Shopify non connectée : ajoutez le jeton dans Réglages.'
+
+  if (credential?.connected) {
+    try {
+      creds = await resoudreCredentialsShopify(credential.data)
+    } catch (err) {
+      raison = err instanceof Error ? err.message : 'Shopify a refusé les identifiants.'
+    }
+  }
+
   if (!creds) {
     // Not connected yet: same "en attente" behaviour as the marketplaces.
     return prisma.publication.upsert({
@@ -76,12 +96,12 @@ async function publishShopify(product: Product, targetCategory: string, apiBaseU
         platform: 'SHOPIFY',
         targetCategory,
         status: 'PENDING',
-        error: 'Boutique Shopify non connectée : ajoutez le jeton dans Réglages.',
+        error: raison,
       },
       update: {
         targetCategory,
         status: 'PENDING',
-        error: 'Boutique Shopify non connectée : ajoutez le jeton dans Réglages.',
+        error: raison,
         publishedAt: null,
       },
     })
