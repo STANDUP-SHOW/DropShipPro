@@ -6,7 +6,7 @@ import { watermarkImages } from './watermark.js'
 import { publishToPlatform } from './publisher.js'
 import { PLATFORMS } from './platforms.js'
 import { reserveCredits, refundCredits } from './billing.js'
-import { guessCategoryId } from './categoryCatalog.js'
+import { resoudreCategorie } from './categories.js'
 import { watermarkOptionsFor } from './watermarkOptions.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { selectProductImages } from './imageSelect.js'
@@ -203,6 +203,13 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           ? `photos douteuses : ${retained.length} image(s) retenue(s) sur ${chosen.length}`
           : null
 
+      const rangement = await resoudreCategorie({
+        sourceCategory: scraped.sourceCategory,
+        supplierId: supplierFields(o.sourceUrl).supplierId,
+        title: scraped.title,
+        pageText: scraped.pageText,
+      })
+
       const product = await prisma.product.create({
         data: {
           userId,
@@ -210,7 +217,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           sourceSite: scraped.sourceSite,
           ...supplierFields(o.sourceUrl),
           sourceCategory: scraped.sourceCategory,
-          categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
+          categoryId: rangement.categoryId,
           title: scraped.title,
           description: scraped.description,
           aiTitle: enhanced.title,

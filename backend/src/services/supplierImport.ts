@@ -3,7 +3,7 @@ import { SupplierError, findConnector } from './supplierConnectors.js'
 import { enhanceListing } from './aiEnhancer.js'
 import { watermarkImages } from './watermark.js'
 import { watermarkOptionsFor } from './watermarkOptions.js'
-import { guessCategoryId } from './categoryCatalog.js'
+import { resoudreCategorie } from './categories.js'
 import { reserveCredits } from './billing.js'
 
 /**
@@ -117,6 +117,20 @@ export async function importerDepuisFournisseurs(
           enrichi.title,
         )
 
+        /*
+         * L'identifiant de catégorie du fournisseur est la clé la plus sûre :
+         * chez un fournisseur donné, il ne désigne jamais deux choses. Il vaut
+         * mieux que n'importe quel rapprochement de libellé, et il évite un
+         * appel au modèle dès le deuxième produit de la même famille.
+         */
+        const rangement = await resoudreCategorie({
+          sourceCategory: fiche.category,
+          supplierCategoryId: fiche.category,
+          supplierId,
+          title: fiche.title,
+          pageText: fiche.pageText,
+        })
+
         await prisma.product.create({
           data: {
             userId,
@@ -127,7 +141,7 @@ export async function importerDepuisFournisseurs(
             supplierPrice: fiche.price || undefined,
             supplierCheckedAt: new Date(),
             sourceCategory: fiche.category,
-            categoryId: guessCategoryId(fiche.category) ?? guessCategoryId(fiche.title),
+            categoryId: rangement.categoryId,
             title: fiche.title,
             description: fiche.description,
             aiTitle: enrichi.title,

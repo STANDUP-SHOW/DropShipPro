@@ -954,6 +954,29 @@ export const api = {
       }>
     }>('/settings/supplier-watch', { method: 'POST' }),
 
+  /** L arbre du referentiel : rayons a gros blocs, sous-categories dessous. */
+  categoryTree: () =>
+    request<{
+      rayons: number
+      sousCategories: number
+      apprises: number
+      arbre: Array<{
+        id: string
+        label: string
+        sector: string
+        icone: string | null
+        uses: number
+        enfants: Array<{ id: string; label: string; path: string; uses: number; origin: string }>
+      }>
+    }>('/products/meta/category-tree'),
+
+  /** Range une annonce a la main : le geste est retenu comme alias. */
+  setProductCategory: (id: string, categoryId: string) =>
+    request<{ ok: true; categoryId: string; path: string }>(`/products/${id}/category`, {
+      method: 'PUT',
+      body: JSON.stringify({ categoryId }),
+    }),
+
   listCredentials: () => request<any[]>('/settings/credentials'),
   saveCredential: (data: Record<string, unknown>) =>
     request('/settings/credentials', { method: 'PUT', body: JSON.stringify(data) }),

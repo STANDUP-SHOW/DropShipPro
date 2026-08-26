@@ -10,7 +10,8 @@ import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
 import { watermarkImages, watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
-import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/categoryCatalog.js'
+import { CATEGORY_CATALOG, categorySectors } from '../services/categoryCatalog.js'
+import { resoudreCategorie, arbreCategories, apprendreCategorie } from '../services/categories.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
 import { lireClasseur, colonneAdresses, XlsxIllisible } from '../services/xlsx.js'
@@ -97,6 +98,21 @@ productsRouter.post(
     const variants = verdict ? applyVerdict(announced, verdict) : announced
     const watermarked = await watermarkImages(retained, watermarkOptionsFor(user), enhanced.title)
 
+    /*
+     * Le rangement, avant la creation.
+     *
+     * Une annonce sans categorie se vend mal sur toutes les plateformes a la
+     * fois, et personne ne s en apercoit avant des semaines. Le referentiel
+     * apprend ce qu il ne connait pas ; s il n y arrive pas, l annonce reste en
+     * brouillon avec la raison ecrite plutot que rangee dans « Divers ».
+     */
+    const rangement = await resoudreCategorie({
+      sourceCategory: scraped.sourceCategory,
+      supplierId: supplierFields(parsed.data.url).supplierId,
+      title: scraped.title,
+      pageText: scraped.pageText,
+    })
+
     const product = await prisma.product.create({
       data: {
         userId: req.userId!,
@@ -105,7 +121,7 @@ productsRouter.post(
         sourceSite: scraped.sourceSite,
         ...supplierFields(parsed.data.url),
         sourceCategory: scraped.sourceCategory,
-        categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
+        categoryId: rangement.categoryId,
         title: scraped.title,
         description: scraped.description,
         aiTitle: enhanced.title,
@@ -211,6 +227,13 @@ productsRouter.post(
     const fromPage = data.pageText ? await extractVariants(data.pageText) : null
     const variants = mergeVariants(data.variants as Record<string, string[]> | null, fromPage)
 
+    const rangement = await resoudreCategorie({
+      sourceCategory: data.sourceCategory,
+      supplierId: supplierFields(data.sourceUrl).supplierId,
+      title: data.title,
+      pageText: data.pageText,
+    })
+
     const product = await prisma.product.create({
       data: {
         userId: req.userId!,
@@ -218,7 +241,7 @@ productsRouter.post(
         sourceSite: new URL(data.sourceUrl).hostname.replace('www.', ''),
         ...supplierFields(data.sourceUrl),
         sourceCategory: data.sourceCategory,
-        categoryId: guessCategoryId(data.sourceCategory) ?? guessCategoryId(data.title),
+        categoryId: rangement.categoryId,
         title: data.title,
         description: data.description,
         aiTitle: enhanced.title,
@@ -293,6 +316,13 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
       })
       const watermarked = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
 
+      const rangement = await resoudreCategorie({
+        sourceCategory: scraped.sourceCategory,
+        supplierId: supplierFields(url).supplierId,
+        title: scraped.title,
+        pageText: scraped.pageText,
+      })
+
       const product = await prisma.product.create({
         data: {
           userId: req.userId!,
@@ -300,7 +330,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
           sourceSite: scraped.sourceSite,
           ...supplierFields(url),
           sourceCategory: scraped.sourceCategory,
-        categoryId: guessCategoryId(scraped.sourceCategory) ?? guessCategoryId(scraped.title),
+        categoryId: rangement.categoryId,
           title: scraped.title,
           description: scraped.description,
           aiTitle: enhanced.title,
@@ -1031,4 +1061,51 @@ productsRouter.post('/import-list', (req: AuthedRequest, res) => {
 
     res.json({ ...resultats, lues: classeur.lignes.length, ignorees: ignorees.length })
   })
+})
+
+/**
+ * L'arbre du référentiel : rayons à gros blocs, sous-catégories dessous.
+ *
+ * Public au sens du compte — tous les vendeurs partagent le même référentiel —
+ * mais servi derrière l'authentification comme le reste de cette route. Le
+ * référentiel s'enrichit de ce que tout le monde importe : c'est ce qui le rend
+ * meilleur pour chacun.
+ */
+productsRouter.get('/meta/category-tree', async (_req: AuthedRequest, res) => {
+  const arbre = await arbreCategories()
+  res.json({
+    rayons: arbre.length,
+    sousCategories: arbre.reduce((n, r) => n + r.enfants.length, 0),
+    // Les catégories apprises se comptent à part : c'est la mesure de ce que le
+    // référentiel a gagné depuis sa livraison.
+    apprises: arbre.reduce((n, r) => n + r.enfants.filter((e) => e.origin === 'learned').length, 0),
+    arbre,
+  })
+})
+
+/**
+ * Range une annonce à la main, et l'apprend.
+ *
+ * Le geste du vendeur vaut mieux que n'importe quelle heuristique : il voit le
+ * produit. Il est donc enregistré comme alias, et le prochain produit annoncé
+ * de la même façon partira au bon endroit sans rien demander à personne.
+ */
+productsRouter.put('/:id/category', async (req: AuthedRequest, res) => {
+  const categoryId = typeof req.body?.categoryId === 'string' ? req.body.categoryId.trim() : ''
+  if (!categoryId) return res.status(400).json({ error: 'Catégorie manquante' })
+
+  const [produit, categorie] = await Promise.all([
+    prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } }),
+    prisma.category.findUnique({ where: { id: categoryId } }),
+  ])
+  if (!produit) return res.status(404).json({ error: 'Annonce introuvable' })
+  if (!categorie) return res.status(400).json({ error: 'Catégorie inconnue' })
+
+  await prisma.product.update({ where: { id: produit.id }, data: { categoryId } })
+
+  if (produit.sourceCategory) {
+    await apprendreCategorie(produit.sourceCategory, categoryId, produit.supplierId ?? 'manuel')
+  }
+
+  res.json({ ok: true, categoryId, path: categorie.path })
 })

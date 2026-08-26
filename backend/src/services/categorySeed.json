@@ -1,0 +1,5706 @@
+{
+ "categories": [
+  {
+   "id": "automobile",
+   "parentId": null,
+   "sector": "auto-moto",
+   "label": "Automobile",
+   "path": "Automobile",
+   "google": "Vehicles & Parts",
+   "icone": "🚗",
+   "targets": {
+    "AMAZON": "Auto et Moto"
+   }
+  },
+  {
+   "id": "automobile-systemes-de-conduite-intelligents",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Systèmes de conduite intelligents",
+   "path": "Automobile > Systèmes de conduite intelligents",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Électronique auto > GPS et navigation / Caméras embarquées"
+   },
+   "note": "Dashcams, GPS, caméras de recul"
+  },
+  {
+   "id": "automobile-accessoires-et-appareils-pour-voiture",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Accessoires et appareils pour voiture",
+   "path": "Automobile > Accessoires et appareils pour voiture",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Accessoires intérieur > Accessoires électroniques"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-style-et-parties-du-corps",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Style et parties du corps",
+   "path": "Automobile > Style et parties du corps",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Carrosserie et pièces extérieures"
+   },
+   "note": "Kits carrosserie, pare-chocs"
+  },
+  {
+   "id": "automobile-decoration-et-amenagement-interieur",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Décoration et aménagement intérieur",
+   "path": "Automobile > Décoration et aménagement intérieur",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Accessoires intérieur > Décoration"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-habillage-autocollants-et-films-pour-voitures",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Habillage, autocollants et films pour voitures",
+   "path": "Automobile > Habillage, autocollants et films pour voitures",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Habillage et films de protection"
+   },
+   "note": "Covering, vinyle, stickers"
+  },
+  {
+   "id": "automobile-gadgets-interieurs",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Gadgets intérieurs",
+   "path": "Automobile > Gadgets intérieurs",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Accessoires intérieur > Gadgets"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-rangement-et-organisation",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Rangement et organisation",
+   "path": "Automobile > Rangement et organisation",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Rangement habitacle et coffre"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-roues-et-pneus",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Roues et pneus",
+   "path": "Automobile > Roues et pneus",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Pneus et roues"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-desodorisants",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Désodorisants",
+   "path": "Automobile > Désodorisants",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Entretien intérieur > Désodorisants"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-systemes-de-cles-et-de-telecommandes",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Systèmes de clés et de télécommandes",
+   "path": "Automobile > Systèmes de clés et de télécommandes",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Serrures, clés et télécommandes"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-tapis-et-moquettes-de-voiture",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Tapis et moquettes de voiture",
+   "path": "Automobile > Tapis et moquettes de voiture",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Tapis de sol et protections"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-systemes-de-securite-et-de-surete",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Systèmes de sécurité et de sûreté",
+   "path": "Automobile > Systèmes de sécurité et de sûreté",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Sécurité et alarmes auto"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-gadgets-de-voyage-et-de-road-trip",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Gadgets de voyage et de road trip",
+   "path": "Automobile > Gadgets de voyage et de road trip",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Accessoires de voyage auto"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-filtres",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Filtres",
+   "path": "Automobile > Filtres",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Pièces détachées > Filtres (air/huile/habitacle)"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-housses-de-siege-et-de-volant",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Housses de siège et de volant",
+   "path": "Automobile > Housses de siège et de volant",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Housses de sièges et volants"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-crics-et-levage",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Crics et levage",
+   "path": "Automobile > Crics et levage",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Outillage garage > Crics et chandelles"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-lumieres-decoratives-et-personnalisees",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Lumières décoratives et personnalisées",
+   "path": "Automobile > Lumières décoratives et personnalisées",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Éclairage auto > LED décoratif"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-jauges-et-moniteurs",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Jauges et moniteurs",
+   "path": "Automobile > Jauges et moniteurs",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Instruments et jauges"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-spoilers-et-ailes",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Spoilers et ailes",
+   "path": "Automobile > Spoilers et ailes",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Carrosserie > Spoilers et ailerons"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-demarreurs-de-secours-et-alimentation-par-batterie",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Démarreurs de secours et alimentation par batterie",
+   "path": "Automobile > Démarreurs de secours et alimentation par batterie",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Batteries et démarreurs de secours"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-urgence-et-securite",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Urgence et sécurité",
+   "path": "Automobile > Urgence et sécurité",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Kits d'urgence et sécurité routière"
+   },
+   "note": "Triangle, gilet, trousse"
+  },
+  {
+   "id": "automobile-garnitures-de-protection-et-decoratives",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Garnitures de protection et décoratives",
+   "path": "Automobile > Garnitures de protection et décoratives",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Protections carrosserie"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-supports-et-fixations",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Supports et fixations",
+   "path": "Automobile > Supports et fixations",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Supports téléphone/GPS auto"
+   },
+   "note": null
+  },
+  {
+   "id": "automobile-systemes-de-freinage",
+   "parentId": "automobile",
+   "sector": "auto-moto",
+   "label": "Systèmes de freinage",
+   "path": "Automobile > Systèmes de freinage",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Pièces détachées > Freinage"
+   },
+   "note": null
+  },
+  {
+   "id": "appareils-electromenagers",
+   "parentId": null,
+   "sector": "electromenager",
+   "label": "Appareils électroménagers",
+   "path": "Appareils électroménagers",
+   "google": "Home & Garden > Household Appliances",
+   "icone": "🍳",
+   "targets": {
+    "AMAZON": "Cuisine et Maison"
+   }
+  },
+  {
+   "id": "appareils-electromenagers-gros-electromenager-refrigerateurs-machines-a-laver",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Gros électroménager (réfrigérateurs, machines à laver)",
+   "path": "Appareils électroménagers > Gros électroménager (réfrigérateurs, machines à laver)",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Gros électroménager"
+   },
+   "note": null
+  },
+  {
+   "id": "appareils-electromenagers-petit-electromenager-de-cuisine",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Petit électroménager de cuisine",
+   "path": "Appareils électroménagers > Petit électroménager de cuisine",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Petit électroménager cuisine"
+   },
+   "note": "Blenders, grille-pain, friteuses"
+  },
+  {
+   "id": "appareils-electromenagers-preparation-culinaire-robots-mixeurs",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Préparation culinaire (robots, mixeurs)",
+   "path": "Appareils électroménagers > Préparation culinaire (robots, mixeurs)",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Petit électroménager > Robots culinaires"
+   },
+   "note": null
+  },
+  {
+   "id": "appareils-electromenagers-cafetieres-et-theieres-electriques",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Cafetières et théières électriques",
+   "path": "Appareils électroménagers > Cafetières et théières électriques",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Petit électroménager > Café et thé"
+   },
+   "note": null
+  },
+  {
+   "id": "appareils-electromenagers-cuiseurs-et-appareils-de-cuisson",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Cuiseurs et appareils de cuisson",
+   "path": "Appareils électroménagers > Cuiseurs et appareils de cuisson",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Petit électroménager > Cuisson"
+   },
+   "note": "Autocuiseurs, cuiseurs vapeur"
+  },
+  {
+   "id": "appareils-electromenagers-refrigeration-et-congelation-portable",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Réfrigération et congélation portable",
+   "path": "Appareils électroménagers > Réfrigération et congélation portable",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Réfrigérateurs et caves"
+   },
+   "note": "Mini-frigos, glacières électriques"
+  },
+  {
+   "id": "appareils-electromenagers-climatisation-chauffage-et-qualite-de-l-air",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Climatisation, chauffage et qualité de l'air",
+   "path": "Appareils électroménagers > Climatisation, chauffage et qualité de l'air",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Chauffage, climatisation et qualité de l'air"
+   },
+   "note": "Ventilateurs, purificateurs, radiateurs"
+  },
+  {
+   "id": "appareils-electromenagers-entretien-du-linge-repassage-couture",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Entretien du linge (repassage, couture)",
+   "path": "Appareils électroménagers > Entretien du linge (repassage, couture)",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Entretien du linge"
+   },
+   "note": "Fers, machines à coudre"
+  },
+  {
+   "id": "appareils-electromenagers-aspirateurs-et-nettoyage",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Aspirateurs et nettoyage",
+   "path": "Appareils électroménagers > Aspirateurs et nettoyage",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Entretien de la maison > Aspirateurs"
+   },
+   "note": null
+  },
+  {
+   "id": "appareils-electromenagers-pieces-detachees-electromenager",
+   "parentId": "appareils-electromenagers",
+   "sector": "electromenager",
+   "label": "Pièces détachées électroménager",
+   "path": "Appareils électroménagers > Pièces détachées électroménager",
+   "google": "Home & Garden > Household Appliances",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Pièces détachées électroménager"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes",
+   "parentId": null,
+   "sector": "mode-femme",
+   "label": "Vêtements pour femmes",
+   "path": "Vêtements pour femmes",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": "👗",
+   "targets": {
+    "AMAZON": "Mode Femme"
+   }
+  },
+  {
+   "id": "vetements-pour-femmes-robes",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Robes",
+   "path": "Vêtements pour femmes > Robes",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Robes"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-hauts-et-t-shirts",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Hauts et T-shirts",
+   "path": "Vêtements pour femmes > Hauts et T-shirts",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Hauts, T-shirts et blouses"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-pantalons-et-leggings",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Pantalons et leggings",
+   "path": "Vêtements pour femmes > Pantalons et leggings",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Pantalons"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-jeans",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Jeans",
+   "path": "Vêtements pour femmes > Jeans",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Jeans"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-jupes",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Jupes",
+   "path": "Vêtements pour femmes > Jupes",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Jupes"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-manteaux-et-vestes",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Manteaux et vestes",
+   "path": "Vêtements pour femmes > Manteaux et vestes",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Manteaux et blousons"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-pulls-et-sweats",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Pulls et sweats",
+   "path": "Vêtements pour femmes > Pulls et sweats",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Pulls et sweats"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-sous-vetements-et-lingerie",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Sous-vêtements et lingerie",
+   "path": "Vêtements pour femmes > Sous-vêtements et lingerie",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Lingerie, pyjamas et vêtements d'intérieur"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-maillots-de-bain",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Maillots de bain",
+   "path": "Vêtements pour femmes > Maillots de bain",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Maillots de bain"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-ensembles-et-combinaisons",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Ensembles et combinaisons",
+   "path": "Vêtements pour femmes > Ensembles et combinaisons",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Ensembles et combinaisons"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-grande-taille",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Grande taille",
+   "path": "Vêtements pour femmes > Grande taille",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Grandes tailles"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-vetements-de-sport-femme",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Vêtements de sport femme",
+   "path": "Vêtements pour femmes > Vêtements de sport femme",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Sport > Vêtements de sport femme"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-femmes-vetements-traditionnels-et-culturels",
+   "parentId": "vetements-pour-femmes",
+   "sector": "mode-femme",
+   "label": "Vêtements traditionnels et culturels",
+   "path": "Vêtements pour femmes > Vêtements traditionnels et culturels",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Femme > Vêtements > Vêtements traditionnels"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes",
+   "parentId": null,
+   "sector": "mode-homme",
+   "label": "Vêtements pour hommes",
+   "path": "Vêtements pour hommes",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": "👔",
+   "targets": {
+    "AMAZON": "Mode Homme"
+   }
+  },
+  {
+   "id": "vetements-pour-hommes-t-shirts-et-debardeurs",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "T-shirts et débardeurs",
+   "path": "Vêtements pour hommes > T-shirts et débardeurs",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > T-shirts, polos et chemises"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-chemises",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Chemises",
+   "path": "Vêtements pour hommes > Chemises",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Chemises"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-pantalons",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Pantalons",
+   "path": "Vêtements pour hommes > Pantalons",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Pantalons"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-jeans",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Jeans",
+   "path": "Vêtements pour hommes > Jeans",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Jeans"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-costumes-et-blazers",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Costumes et blazers",
+   "path": "Vêtements pour hommes > Costumes et blazers",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Costumes et vestons"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-manteaux-et-blousons",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Manteaux et blousons",
+   "path": "Vêtements pour hommes > Manteaux et blousons",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Manteaux et blousons"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-pulls-et-sweats-a-capuche",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Pulls et sweats à capuche",
+   "path": "Vêtements pour hommes > Pulls et sweats à capuche",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Pulls et sweats"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-sous-vetements",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Sous-vêtements",
+   "path": "Vêtements pour hommes > Sous-vêtements",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Sous-vêtements et vêtements de nuit"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-shorts",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Shorts",
+   "path": "Vêtements pour hommes > Shorts",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Shorts"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-vetements-de-sport-homme",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Vêtements de sport homme",
+   "path": "Vêtements pour hommes > Vêtements de sport homme",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Sport > Vêtements de sport homme"
+   },
+   "note": null
+  },
+  {
+   "id": "vetements-pour-hommes-vetements-traditionnels-et-culturels",
+   "parentId": "vetements-pour-hommes",
+   "sector": "mode-homme",
+   "label": "Vêtements traditionnels et culturels",
+   "path": "Vêtements pour hommes > Vêtements traditionnels et culturels",
+   "google": "Apparel & Accessories > Clothing",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Mode Homme > Vêtements > Vêtements traditionnels"
+   },
+   "note": null
+  },
+  {
+   "id": "meubles",
+   "parentId": null,
+   "sector": "maison-deco",
+   "label": "Meubles",
+   "path": "Meubles",
+   "google": "Furniture",
+   "icone": "🛋️",
+   "targets": {
+    "AMAZON": "Cuisine et Maison"
+   }
+  },
+  {
+   "id": "meubles-canapes-et-fauteuils",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Canapés et fauteuils",
+   "path": "Meubles > Canapés et fauteuils",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Meubles > Salon"
+   },
+   "note": null
+  },
+  {
+   "id": "meubles-tables-salle-a-manger-basse-bureau",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Tables (salle à manger, basse, bureau)",
+   "path": "Meubles > Tables (salle à manger, basse, bureau)",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Meubles > Tables"
+   },
+   "note": null
+  },
+  {
+   "id": "meubles-chaises-et-tabourets",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Chaises et tabourets",
+   "path": "Meubles > Chaises et tabourets",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Meubles > Chaises"
+   },
+   "note": null
+  },
+  {
+   "id": "meubles-meubles-de-chambre-lits-armoires",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Meubles de chambre (lits, armoires)",
+   "path": "Meubles > Meubles de chambre (lits, armoires)",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Meubles > Chambre"
+   },
+   "note": null
+  },
+  {
+   "id": "meubles-meubles-de-rangement",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Meubles de rangement",
+   "path": "Meubles > Meubles de rangement",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Meubles > Rangement"
+   },
+   "note": "Étagères, commodes"
+  },
+  {
+   "id": "meubles-meubles-de-jardin-et-exterieur",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Meubles de jardin et extérieur",
+   "path": "Meubles > Meubles de jardin et extérieur",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Jardin > Meubles de jardin"
+   },
+   "note": null
+  },
+  {
+   "id": "meubles-meubles-de-bureau",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Meubles de bureau",
+   "path": "Meubles > Meubles de bureau",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Fournitures de bureau > Meubles de bureau"
+   },
+   "note": null
+  },
+  {
+   "id": "meubles-mobilier-d-appoint-et-deco",
+   "parentId": "meubles",
+   "sector": "maison-deco",
+   "label": "Mobilier d'appoint et déco",
+   "path": "Meubles > Mobilier d'appoint et déco",
+   "google": "Furniture",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Meubles > Petits meubles d'appoint"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux",
+   "parentId": null,
+   "sector": "jeux-consoles",
+   "label": "Jouets et jeux",
+   "path": "Jouets et jeux",
+   "google": "Toys & Games",
+   "icone": "🧸",
+   "targets": {
+    "AMAZON": "Jeux et Jouets"
+   }
+  },
+  {
+   "id": "jouets-et-jeux-jouets-educatifs-et-stem",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Jouets éducatifs et STEM",
+   "path": "Jouets et jeux > Jouets éducatifs et STEM",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Jeux éducatifs"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-figurines-et-jouets-d-action",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Figurines et jouets d'action",
+   "path": "Jouets et jeux > Figurines et jouets d'action",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Figurines et univers imaginaires"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-peluches",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Peluches",
+   "path": "Jouets et jeux > Peluches",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Peluches"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-jeux-de-construction",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Jeux de construction",
+   "path": "Jouets et jeux > Jeux de construction",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Jeux de construction"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-jouets-telecommandes-et-vehicules-rc",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Jouets télécommandés et véhicules RC",
+   "path": "Jouets et jeux > Jouets télécommandés et véhicules RC",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Véhicules radiocommandés"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-puzzles-et-jeux-de-societe",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Puzzles et jeux de société",
+   "path": "Jouets et jeux > Puzzles et jeux de société",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Jeux de société et puzzles"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-jouets-pour-bebe-et-premier-age",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Jouets pour bébé et premier âge",
+   "path": "Jouets et jeux > Jouets pour bébé et premier âge",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Bébés et Puériculture > Éveil bébé"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-jouets-exterieurs-trottinettes-piscines",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Jouets extérieurs (trottinettes, piscines)",
+   "path": "Jouets et jeux > Jouets extérieurs (trottinettes, piscines)",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Jeux de plein air"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-costumes-et-deguisements",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Costumes et déguisements",
+   "path": "Jouets et jeux > Costumes et déguisements",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Déguisements"
+   },
+   "note": null
+  },
+  {
+   "id": "jouets-et-jeux-jeux-de-fete-et-farces",
+   "parentId": "jouets-et-jeux",
+   "sector": "jeux-consoles",
+   "label": "Jeux de fête et farces",
+   "path": "Jouets et jeux > Jeux de fête et farces",
+   "google": "Toys & Games",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Jeux et Jouets > Articles de fête"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante",
+   "parentId": null,
+   "sector": "beaute",
+   "label": "Beauté et santé",
+   "path": "Beauté et santé",
+   "google": "Health & Beauty",
+   "icone": "💄",
+   "targets": {
+    "AMAZON": "Beauté et Parfum"
+   }
+  },
+  {
+   "id": "beaute-et-sante-maquillage",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Maquillage",
+   "path": "Beauté et santé > Maquillage",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Maquillage"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-soins-du-visage",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Soins du visage",
+   "path": "Beauté et santé > Soins du visage",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin du visage"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-soins-de-la-peau-et-du-corps",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Soins de la peau et du corps",
+   "path": "Beauté et santé > Soins de la peau et du corps",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin du corps"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-soins-capillaires",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Soins capillaires",
+   "path": "Beauté et santé > Soins capillaires",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin des cheveux"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-parfums",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Parfums",
+   "path": "Beauté et santé > Parfums",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Parfums"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-outils-et-accessoires-beaute",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Outils et accessoires beauté",
+   "path": "Beauté et santé > Outils et accessoires beauté",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Accessoires beauté > Outils de coiffure et maquillage"
+   },
+   "note": "Sèche-cheveux, lisseurs, pinceaux"
+  },
+  {
+   "id": "beaute-et-sante-manucure-et-pedicure",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Manucure et pédicure",
+   "path": "Beauté et santé > Manucure et pédicure",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Ongles"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-sante-et-bien-etre-appareils-de-massage",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Santé et bien-être (appareils de massage)",
+   "path": "Beauté et santé > Santé et bien-être (appareils de massage)",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Hygiène et Santé > Appareils de massage"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-materiel-medical-et-diagnostic",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Matériel médical et diagnostic",
+   "path": "Beauté et santé > Matériel médical et diagnostic",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Hygiène et Santé > Matériel médical"
+   },
+   "note": "Tensiomètres, thermomètres"
+  },
+  {
+   "id": "beaute-et-sante-epilation",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Épilation",
+   "path": "Beauté et santé > Épilation",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Épilation"
+   },
+   "note": null
+  },
+  {
+   "id": "beaute-et-sante-hygiene-personnelle",
+   "parentId": "beaute-et-sante",
+   "sector": "beaute",
+   "label": "Hygiène personnelle",
+   "path": "Beauté et santé > Hygiène personnelle",
+   "google": "Health & Beauty",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Hygiène et Santé > Hygiène corporelle"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures",
+   "parentId": null,
+   "sector": "mode-homme",
+   "label": "Chaussures",
+   "path": "Chaussures",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": "👟",
+   "targets": {
+    "AMAZON": "Chaussures et Sacs"
+   }
+  },
+  {
+   "id": "chaussures-chaussures-femme-talons-ballerines",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Chaussures femme (talons, ballerines)",
+   "path": "Chaussures > Chaussures femme (talons, ballerines)",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Chaussures femme"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures-chaussures-homme-ville-mocassins",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Chaussures homme (ville, mocassins)",
+   "path": "Chaussures > Chaussures homme (ville, mocassins)",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Chaussures homme"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures-baskets-et-sneakers",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Baskets et sneakers",
+   "path": "Chaussures > Baskets et sneakers",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Chaussures > Baskets mode"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures-chaussures-de-sport",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Chaussures de sport",
+   "path": "Chaussures > Chaussures de sport",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Sport > Chaussures de sport"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures-bottes-et-bottines",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Bottes et bottines",
+   "path": "Chaussures > Bottes et bottines",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Chaussures > Bottes"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures-sandales-et-tongs",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Sandales et tongs",
+   "path": "Chaussures > Sandales et tongs",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Chaussures > Sandales"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures-chaussures-enfant",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Chaussures enfant",
+   "path": "Chaussures > Chaussures enfant",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Chaussures enfant"
+   },
+   "note": null
+  },
+  {
+   "id": "chaussures-accessoires-chaussures-semelles-lacets",
+   "parentId": "chaussures",
+   "sector": "mode-homme",
+   "label": "Accessoires chaussures (semelles, lacets)",
+   "path": "Chaussures > Accessoires chaussures (semelles, lacets)",
+   "google": "Apparel & Accessories > Shoes",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Accessoires chaussures"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires",
+   "parentId": null,
+   "sector": "high-tech",
+   "label": "Téléphones portables et accessoires",
+   "path": "Téléphones portables et accessoires",
+   "google": "Electronics > Communications > Telephony",
+   "icone": "📱",
+   "targets": {
+    "AMAZON": "Informatique et High-Tech"
+   }
+  },
+  {
+   "id": "telephones-portables-et-accessoires-smartphones",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Smartphones",
+   "path": "Téléphones portables et accessoires > Smartphones",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Smartphones"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-coques-et-housses",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Coques et housses",
+   "path": "Téléphones portables et accessoires > Coques et housses",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Coques et étuis"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-protections-d-ecran",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Protections d'écran",
+   "path": "Téléphones portables et accessoires > Protections d'écran",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Protections d'écran"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-chargeurs-et-cables",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Chargeurs et câbles",
+   "path": "Téléphones portables et accessoires > Chargeurs et câbles",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Chargeurs et câbles"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-batteries-externes-powerbanks",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Batteries externes (powerbanks)",
+   "path": "Téléphones portables et accessoires > Batteries externes (powerbanks)",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Batteries externes"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-supports-et-accessoires-photo-mobile",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Supports et accessoires photo mobile",
+   "path": "Téléphones portables et accessoires > Supports et accessoires photo mobile",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Supports et trépieds"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-ecouteurs-et-oreillettes",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Écouteurs et oreillettes",
+   "path": "Téléphones portables et accessoires > Écouteurs et oreillettes",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > High-Tech > Écouteurs et casques"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-montres-et-bracelets-connectes",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Montres et bracelets connectés",
+   "path": "Téléphones portables et accessoires > Montres et bracelets connectés",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > High-Tech > Objets connectés"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-pieces-detachees-telephonie",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Pièces détachées téléphonie",
+   "path": "Téléphones portables et accessoires > Pièces détachées téléphonie",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Pièces détachées"
+   },
+   "note": null
+  },
+  {
+   "id": "telephones-portables-et-accessoires-cartes-sim-et-accessoires-reseau",
+   "parentId": "telephones-portables-et-accessoires",
+   "sector": "high-tech",
+   "label": "Cartes SIM et accessoires réseau",
+   "path": "Téléphones portables et accessoires > Cartes SIM et accessoires réseau",
+   "google": "Electronics > Communications > Telephony",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Téléphones et accessoires > Accessoires réseau"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique",
+   "parentId": null,
+   "sector": "high-tech",
+   "label": "Électronique",
+   "path": "Électronique",
+   "google": "Electronics",
+   "icone": "💻",
+   "targets": {
+    "AMAZON": "Informatique et High-Tech"
+   }
+  },
+  {
+   "id": "electronique-audio-enceintes-casques",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Audio (enceintes, casques)",
+   "path": "Électronique > Audio (enceintes, casques)",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > High-Tech > Son et Hi-Fi"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-informatique-et-accessoires-pc",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Informatique et accessoires PC",
+   "path": "Électronique > Informatique et accessoires PC",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Informatique > Accessoires PC"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-composants-et-pieces-electroniques",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Composants et pièces électroniques",
+   "path": "Électronique > Composants et pièces électroniques",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Informatique > Composants"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-appareils-photo-et-cameras",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Appareils photo et caméras",
+   "path": "Électronique > Appareils photo et caméras",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Photo et caméscopes"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-televisions-et-videoprojecteurs",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Télévisions et vidéoprojecteurs",
+   "path": "Électronique > Télévisions et vidéoprojecteurs",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > TV et Vidéo"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-objets-connectes-et-domotique",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Objets connectés et domotique",
+   "path": "Électronique > Objets connectés et domotique",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > High-Tech > Maison connectée"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-jeux-video-et-consoles",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Jeux vidéo et consoles",
+   "path": "Électronique > Jeux vidéo et consoles",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Jeux vidéo"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-drones-et-modelisme-electronique",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Drones et modélisme électronique",
+   "path": "Électronique > Drones et modélisme électronique",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > High-Tech > Drones"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-eclairage-et-led",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Éclairage et LED",
+   "path": "Électronique > Éclairage et LED",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Cuisine et Maison > Luminaires et Éclairage"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-piles-et-chargeurs",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Piles et chargeurs",
+   "path": "Électronique > Piles et chargeurs",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > High-Tech > Piles et accus"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-cables-et-adaptateurs",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Câbles et adaptateurs",
+   "path": "Électronique > Câbles et adaptateurs",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > Informatique > Câbles et connectique"
+   },
+   "note": null
+  },
+  {
+   "id": "electronique-sonorisation-et-micros",
+   "parentId": "electronique",
+   "sector": "high-tech",
+   "label": "Sonorisation et micros",
+   "path": "Électronique > Sonorisation et micros",
+   "google": "Electronics",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Informatique et High-Tech > High-Tech > Microphones et sonorisation"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie",
+   "parentId": null,
+   "sector": "animalerie",
+   "label": "Fournitures pour animaux de compagnie",
+   "path": "Fournitures pour animaux de compagnie",
+   "google": "Animals & Pet Supplies",
+   "icone": "🐾",
+   "targets": {
+    "AMAZON": "Animalerie"
+   }
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-alimentation-pour-chiens-et-chats",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Alimentation pour chiens et chats",
+   "path": "Fournitures pour animaux de compagnie > Alimentation pour chiens et chats",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Alimentation"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-jouets-pour-animaux",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Jouets pour animaux",
+   "path": "Fournitures pour animaux de compagnie > Jouets pour animaux",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Jouets"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-habillage-et-accessoires-laisses-colliers",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Habillage et accessoires (laisses, colliers)",
+   "path": "Fournitures pour animaux de compagnie > Habillage et accessoires (laisses, colliers)",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Habillage et accessoires"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-toilettage",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Toilettage",
+   "path": "Fournitures pour animaux de compagnie > Toilettage",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Toilettage"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-couchages-et-transport",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Couchages et transport",
+   "path": "Fournitures pour animaux de compagnie > Couchages et transport",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Couchages et transport"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-litieres-et-hygiene",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Litières et hygiène",
+   "path": "Fournitures pour animaux de compagnie > Litières et hygiène",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Hygiène et litières"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-aquariophilie",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Aquariophilie",
+   "path": "Fournitures pour animaux de compagnie > Aquariophilie",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Aquariophilie"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-pour-animaux-de-compagnie-basse-cour-et-animaux-de-ferme",
+   "parentId": "fournitures-pour-animaux-de-compagnie",
+   "sector": "animalerie",
+   "label": "Basse-cour et animaux de ferme",
+   "path": "Fournitures pour animaux de compagnie > Basse-cour et animaux de ferme",
+   "google": "Animals & Pet Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Animalerie > Animalerie > Basse-cour"
+   },
+   "note": null
+  },
+  {
+   "id": "extensions-de-cheveux-et-perruques",
+   "parentId": null,
+   "sector": "beaute",
+   "label": "Extensions de cheveux et perruques",
+   "path": "Extensions de cheveux et perruques",
+   "google": "Health & Beauty > Personal Care > Hair Care",
+   "icone": "💇",
+   "targets": {
+    "AMAZON": "Beauté et Parfum"
+   }
+  },
+  {
+   "id": "extensions-de-cheveux-et-perruques-perruques-synthetiques",
+   "parentId": "extensions-de-cheveux-et-perruques",
+   "sector": "beaute",
+   "label": "Perruques synthétiques",
+   "path": "Extensions de cheveux et perruques > Perruques synthétiques",
+   "google": "Health & Beauty > Personal Care > Hair Care",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin des cheveux > Perruques"
+   },
+   "note": null
+  },
+  {
+   "id": "extensions-de-cheveux-et-perruques-perruques-cheveux-naturels-lace-wig",
+   "parentId": "extensions-de-cheveux-et-perruques",
+   "sector": "beaute",
+   "label": "Perruques cheveux naturels (lace wig)",
+   "path": "Extensions de cheveux et perruques > Perruques cheveux naturels (lace wig)",
+   "google": "Health & Beauty > Personal Care > Hair Care",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin des cheveux > Perruques cheveux naturels"
+   },
+   "note": null
+  },
+  {
+   "id": "extensions-de-cheveux-et-perruques-extensions-a-clips-et-tissages",
+   "parentId": "extensions-de-cheveux-et-perruques",
+   "sector": "beaute",
+   "label": "Extensions à clips et tissages",
+   "path": "Extensions de cheveux et perruques > Extensions à clips et tissages",
+   "google": "Health & Beauty > Personal Care > Hair Care",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin des cheveux > Extensions"
+   },
+   "note": null
+  },
+  {
+   "id": "extensions-de-cheveux-et-perruques-postiches-et-queues-de-cheval",
+   "parentId": "extensions-de-cheveux-et-perruques",
+   "sector": "beaute",
+   "label": "Postiches et queues de cheval",
+   "path": "Extensions de cheveux et perruques > Postiches et queues de cheval",
+   "google": "Health & Beauty > Personal Care > Hair Care",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin des cheveux > Postiches"
+   },
+   "note": null
+  },
+  {
+   "id": "extensions-de-cheveux-et-perruques-accessoires-de-pose-colle-bonnets",
+   "parentId": "extensions-de-cheveux-et-perruques",
+   "sector": "beaute",
+   "label": "Accessoires de pose (colle, bonnets)",
+   "path": "Extensions de cheveux et perruques > Accessoires de pose (colle, bonnets)",
+   "google": "Health & Beauty > Personal Care > Hair Care",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Beauté et Parfum > Soin des cheveux > Accessoires de pose"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires",
+   "parentId": null,
+   "sector": "bijoux-montres",
+   "label": "Bijoux et accessoires",
+   "path": "Bijoux et accessoires",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": "💍",
+   "targets": {
+    "AMAZON": "Bijoux"
+   }
+  },
+  {
+   "id": "bijoux-et-accessoires-colliers-et-pendentifs",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Colliers et pendentifs",
+   "path": "Bijoux et accessoires > Colliers et pendentifs",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Bijoux > Colliers"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-bagues",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Bagues",
+   "path": "Bijoux et accessoires > Bagues",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Bijoux > Bagues"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-boucles-d-oreilles",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Boucles d'oreilles",
+   "path": "Bijoux et accessoires > Boucles d'oreilles",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Bijoux > Boucles d'oreilles"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-bracelets",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Bracelets",
+   "path": "Bijoux et accessoires > Bracelets",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Bijoux > Bracelets"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-montres",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Montres",
+   "path": "Bijoux et accessoires > Montres",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Montres"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-ensembles-et-coffrets-bijoux",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Ensembles et coffrets bijoux",
+   "path": "Bijoux et accessoires > Ensembles et coffrets bijoux",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Bijoux > Coffrets et ensembles"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-accessoires-cheveux-barrettes-bandeaux",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Accessoires cheveux (barrettes, bandeaux)",
+   "path": "Bijoux et accessoires > Accessoires cheveux (barrettes, bandeaux)",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Accessoires > Accessoires cheveux"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-lunettes-de-soleil-et-montures",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Lunettes de soleil et montures",
+   "path": "Bijoux et accessoires > Lunettes de soleil et montures",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Accessoires > Lunettes de soleil"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-echarpes-gants-et-chapeaux",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Écharpes, gants et chapeaux",
+   "path": "Bijoux et accessoires > Écharpes, gants et chapeaux",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Accessoires > Écharpes et chapeaux"
+   },
+   "note": null
+  },
+  {
+   "id": "bijoux-et-accessoires-ceintures",
+   "parentId": "bijoux-et-accessoires",
+   "sector": "bijoux-montres",
+   "label": "Ceintures",
+   "path": "Bijoux et accessoires > Ceintures",
+   "google": "Apparel & Accessories > Jewelry",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bijoux > Accessoires > Ceintures"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage",
+   "parentId": null,
+   "sector": "bricolage",
+   "label": "Outils et bricolage",
+   "path": "Outils et bricolage",
+   "google": "Hardware > Tools",
+   "icone": "🔧",
+   "targets": {
+    "AMAZON": "Bricolage"
+   }
+  },
+  {
+   "id": "outils-et-bricolage-outillage-a-main",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Outillage à main",
+   "path": "Outils et bricolage > Outillage à main",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Outillage à main"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-outillage-electroportatif",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Outillage électroportatif",
+   "path": "Outils et bricolage > Outillage électroportatif",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Outillage électroportatif"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-quincaillerie-et-fixations",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Quincaillerie et fixations",
+   "path": "Outils et bricolage > Quincaillerie et fixations",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Quincaillerie"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-peinture-et-revetements",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Peinture et revêtements",
+   "path": "Outils et bricolage > Peinture et revêtements",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Peinture"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-plomberie",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Plomberie",
+   "path": "Outils et bricolage > Plomberie",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Plomberie"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-electricite-et-eclairage-technique",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Électricité et éclairage technique",
+   "path": "Outils et bricolage > Électricité et éclairage technique",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Électricité"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-mesure-et-instruments-de-precision",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Mesure et instruments de précision",
+   "path": "Outils et bricolage > Mesure et instruments de précision",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Outils de mesure"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-securite-et-protection-epi",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Sécurité et protection (EPI)",
+   "path": "Outils et bricolage > Sécurité et protection (EPI)",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Équipements de protection"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-serrurerie",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Serrurerie",
+   "path": "Outils et bricolage > Serrurerie",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Serrurerie"
+   },
+   "note": null
+  },
+  {
+   "id": "outils-et-bricolage-soudure",
+   "parentId": "outils-et-bricolage",
+   "sector": "bricolage",
+   "label": "Soudure",
+   "path": "Outils et bricolage > Soudure",
+   "google": "Hardware > Tools",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bricolage > Bricolage > Soudure"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air",
+   "parentId": null,
+   "sector": "sport",
+   "label": "Sports et loisirs de plein air",
+   "path": "Sports et loisirs de plein air",
+   "google": "Sporting Goods",
+   "icone": "🏋️",
+   "targets": {
+    "AMAZON": "Sports et Loisirs"
+   }
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-fitness-et-musculation",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Fitness et musculation",
+   "path": "Sports et loisirs de plein air > Fitness et musculation",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Fitness et musculation"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-camping-et-randonnee",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Camping et randonnée",
+   "path": "Sports et loisirs de plein air > Camping et randonnée",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Camping et randonnée"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-cyclisme",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Cyclisme",
+   "path": "Sports et loisirs de plein air > Cyclisme",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Cyclisme"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-peche",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Pêche",
+   "path": "Sports et loisirs de plein air > Pêche",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Pêche"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-sports-nautiques",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Sports nautiques",
+   "path": "Sports et loisirs de plein air > Sports nautiques",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Sports nautiques"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-sports-de-raquette",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Sports de raquette",
+   "path": "Sports et loisirs de plein air > Sports de raquette",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Sports de raquette"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-sports-collectifs",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Sports collectifs",
+   "path": "Sports et loisirs de plein air > Sports collectifs",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Sports collectifs"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-chasse-et-tir-sportif",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Chasse et tir sportif",
+   "path": "Sports et loisirs de plein air > Chasse et tir sportif",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Chasse"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-yoga-et-fitness-doux",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Yoga et fitness doux",
+   "path": "Sports et loisirs de plein air > Yoga et fitness doux",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Yoga et Pilates"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-sports-d-hiver",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Sports d'hiver",
+   "path": "Sports et loisirs de plein air > Sports d'hiver",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Sports d'hiver"
+   },
+   "note": null
+  },
+  {
+   "id": "sports-et-loisirs-de-plein-air-optique-de-plein-air-jumelles-lunettes",
+   "parentId": "sports-et-loisirs-de-plein-air",
+   "sector": "sport",
+   "label": "Optique de plein air (jumelles, lunettes)",
+   "path": "Sports et loisirs de plein air > Optique de plein air (jumelles, lunettes)",
+   "google": "Sporting Goods",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Sports et Loisirs > Sport > Optique"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages",
+   "parentId": null,
+   "sector": "mode-femme",
+   "label": "Sacs et bagages",
+   "path": "Sacs et bagages",
+   "google": "Luggage & Bags",
+   "icone": "👜",
+   "targets": {
+    "AMAZON": "Chaussures et Sacs"
+   }
+  },
+  {
+   "id": "sacs-et-bagages-sacs-a-main",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Sacs à main",
+   "path": "Sacs et bagages > Sacs à main",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Sacs > Sacs à main femme"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages-sacs-a-dos",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Sacs à dos",
+   "path": "Sacs et bagages > Sacs à dos",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Sacs > Sacs à dos"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages-valises-et-bagages-rigides",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Valises et bagages rigides",
+   "path": "Sacs et bagages > Valises et bagages rigides",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Bagages > Valises"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages-sacs-de-voyage-souples",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Sacs de voyage souples",
+   "path": "Sacs et bagages > Sacs de voyage souples",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Bagages > Sacs de voyage"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages-portefeuilles-et-petite-maroquinerie",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Portefeuilles et petite maroquinerie",
+   "path": "Sacs et bagages > Portefeuilles et petite maroquinerie",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Sacs > Portefeuilles"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages-sacs-de-sport",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Sacs de sport",
+   "path": "Sacs et bagages > Sacs de sport",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Sacs > Sacs de sport"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages-sacs-scolaires",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Sacs scolaires",
+   "path": "Sacs et bagages > Sacs scolaires",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Sacs > Cartables et sacs scolaires"
+   },
+   "note": null
+  },
+  {
+   "id": "sacs-et-bagages-accessoires-de-voyage-organiseurs-etiquettes",
+   "parentId": "sacs-et-bagages",
+   "sector": "mode-femme",
+   "label": "Accessoires de voyage (organiseurs, étiquettes)",
+   "path": "Sacs et bagages > Accessoires de voyage (organiseurs, étiquettes)",
+   "google": "Luggage & Bags",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Bagages > Accessoires de voyage"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin",
+   "parentId": null,
+   "sector": "jardinage",
+   "label": "Terrasse, pelouse et jardin",
+   "path": "Terrasse, pelouse et jardin",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": "🌱",
+   "targets": {
+    "AMAZON": "Jardin"
+   }
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-outillage-de-jardin",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Outillage de jardin",
+   "path": "Terrasse, pelouse et jardin > Outillage de jardin",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Outils et équipements"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-arrosage-et-irrigation",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Arrosage et irrigation",
+   "path": "Terrasse, pelouse et jardin > Arrosage et irrigation",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Arrosage"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-mobilier-d-exterieur",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Mobilier d'extérieur",
+   "path": "Terrasse, pelouse et jardin > Mobilier d'extérieur",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Meubles de jardin"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-decoration-exterieure",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Décoration extérieure",
+   "path": "Terrasse, pelouse et jardin > Décoration extérieure",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Décoration de jardin"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-piscines-et-spas",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Piscines et spas",
+   "path": "Terrasse, pelouse et jardin > Piscines et spas",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Piscines et spas"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-barbecue-et-cuisine-exterieure",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Barbecue et cuisine extérieure",
+   "path": "Terrasse, pelouse et jardin > Barbecue et cuisine extérieure",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Barbecues"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-serres-et-jardinage",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Serres et jardinage",
+   "path": "Terrasse, pelouse et jardin > Serres et jardinage",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Serres et jardinières"
+   },
+   "note": null
+  },
+  {
+   "id": "terrasse-pelouse-et-jardin-eclairage-exterieur-solaire",
+   "parentId": "terrasse-pelouse-et-jardin",
+   "sector": "jardinage",
+   "label": "Éclairage extérieur solaire",
+   "path": "Terrasse, pelouse et jardin > Éclairage extérieur solaire",
+   "google": "Home & Garden > Lawn & Garden",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jardin > Jardin > Éclairage solaire"
+   },
+   "note": null
+  },
+  {
+   "id": "nouveaute-et-usage-special",
+   "parentId": null,
+   "sector": "maison-deco",
+   "label": "Nouveauté et usage spécial",
+   "path": "Nouveauté et usage spécial",
+   "google": "Arts & Entertainment",
+   "icone": "✨",
+   "targets": {
+    "AMAZON": "Jeux et Jouets"
+   }
+  },
+  {
+   "id": "nouveaute-et-usage-special-deguisements-et-costumes-a-theme",
+   "parentId": "nouveaute-et-usage-special",
+   "sector": "maison-deco",
+   "label": "Déguisements et costumes à thème",
+   "path": "Nouveauté et usage spécial > Déguisements et costumes à thème",
+   "google": "Arts & Entertainment",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Déguisements"
+   },
+   "note": null
+  },
+  {
+   "id": "nouveaute-et-usage-special-articles-de-fete-et-anniversaire",
+   "parentId": "nouveaute-et-usage-special",
+   "sector": "maison-deco",
+   "label": "Articles de fête et anniversaire",
+   "path": "Nouveauté et usage spécial > Articles de fête et anniversaire",
+   "google": "Arts & Entertainment",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Articles de fête et décoration événementielle"
+   },
+   "note": null
+  },
+  {
+   "id": "nouveaute-et-usage-special-gadgets-insolites-et-nouveautes",
+   "parentId": "nouveaute-et-usage-special",
+   "sector": "maison-deco",
+   "label": "Gadgets insolites et nouveautés",
+   "path": "Nouveauté et usage spécial > Gadgets insolites et nouveautés",
+   "google": "Arts & Entertainment",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Divers > Selon fonction du produit"
+   },
+   "note": "Catégorie fourre-tout — reclasser produit par produit"
+  },
+  {
+   "id": "nouveaute-et-usage-special-cosplay-et-accessoires",
+   "parentId": "nouveaute-et-usage-special",
+   "sector": "maison-deco",
+   "label": "Cosplay et accessoires",
+   "path": "Nouveauté et usage spécial > Cosplay et accessoires",
+   "google": "Arts & Entertainment",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Jeux et Jouets > Déguisements > Cosplay"
+   },
+   "note": null
+  },
+  {
+   "id": "nouveaute-et-usage-special-articles-religieux-et-spirituels",
+   "parentId": "nouveaute-et-usage-special",
+   "sector": "maison-deco",
+   "label": "Articles religieux et spirituels",
+   "path": "Nouveauté et usage spécial > Articles religieux et spirituels",
+   "google": "Arts & Entertainment",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Décoration > Articles religieux"
+   },
+   "note": null
+  },
+  {
+   "id": "motos-et-sports-motorises",
+   "parentId": null,
+   "sector": "auto-moto",
+   "label": "Motos et sports motorisés",
+   "path": "Motos et sports motorisés",
+   "google": "Vehicles & Parts",
+   "icone": "🏍️",
+   "targets": {
+    "AMAZON": "Auto et Moto"
+   }
+  },
+  {
+   "id": "motos-et-sports-motorises-equipement-pilote-casques-gants-blousons",
+   "parentId": "motos-et-sports-motorises",
+   "sector": "auto-moto",
+   "label": "Équipement pilote (casques, gants, blousons)",
+   "path": "Motos et sports motorisés > Équipement pilote (casques, gants, blousons)",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Moto > Équipement pilote"
+   },
+   "note": null
+  },
+  {
+   "id": "motos-et-sports-motorises-pieces-detachees-moto",
+   "parentId": "motos-et-sports-motorises",
+   "sector": "auto-moto",
+   "label": "Pièces détachées moto",
+   "path": "Motos et sports motorisés > Pièces détachées moto",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Moto > Pièces détachées"
+   },
+   "note": null
+  },
+  {
+   "id": "motos-et-sports-motorises-accessoires-moto-retroviseurs-protections",
+   "parentId": "motos-et-sports-motorises",
+   "sector": "auto-moto",
+   "label": "Accessoires moto (rétroviseurs, protections)",
+   "path": "Motos et sports motorisés > Accessoires moto (rétroviseurs, protections)",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Moto > Accessoires"
+   },
+   "note": null
+  },
+  {
+   "id": "motos-et-sports-motorises-trottinettes-et-velos-electriques",
+   "parentId": "motos-et-sports-motorises",
+   "sector": "auto-moto",
+   "label": "Trottinettes et vélos électriques",
+   "path": "Motos et sports motorisés > Trottinettes et vélos électriques",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Moto > Mobilité électrique"
+   },
+   "note": null
+  },
+  {
+   "id": "motos-et-sports-motorises-quads-et-sports-motorises-tout-terrain",
+   "parentId": "motos-et-sports-motorises",
+   "sector": "auto-moto",
+   "label": "Quads et sports motorisés tout-terrain",
+   "path": "Motos et sports motorisés > Quads et sports motorisés tout-terrain",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Moto > Quad et tout-terrain"
+   },
+   "note": null
+  },
+  {
+   "id": "motos-et-sports-motorises-eclairage-et-electronique-moto",
+   "parentId": "motos-et-sports-motorises",
+   "sector": "auto-moto",
+   "label": "Éclairage et électronique moto",
+   "path": "Motos et sports motorisés > Éclairage et électronique moto",
+   "google": "Vehicles & Parts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Auto et Moto > Moto > Éclairage et électronique"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite",
+   "parentId": null,
+   "sector": "bebe",
+   "label": "Bébé et maternité",
+   "path": "Bébé et maternité",
+   "google": "Baby & Toddler",
+   "icone": "🍼",
+   "targets": {
+    "AMAZON": "Bébés et Puériculture"
+   }
+  },
+  {
+   "id": "bebe-et-maternite-vetements-bebe",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Vêtements bébé",
+   "path": "Bébé et maternité > Vêtements bébé",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Vêtements bébé"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-poussettes-et-sieges-auto",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Poussettes et sièges auto",
+   "path": "Bébé et maternité > Poussettes et sièges auto",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Puériculture > Poussettes et sièges auto"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-alimentation-bebe-biberons-tire-lait",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Alimentation bébé (biberons, tire-lait)",
+   "path": "Bébé et maternité > Alimentation bébé (biberons, tire-lait)",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Puériculture > Alimentation"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-couches-et-toilette-bebe",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Couches et toilette bébé",
+   "path": "Bébé et maternité > Couches et toilette bébé",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Puériculture > Toilette et change"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-mobilier-et-couchage-bebe",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Mobilier et couchage bébé",
+   "path": "Bébé et maternité > Mobilier et couchage bébé",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Puériculture > Chambre bébé"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-jouets-et-eveil",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Jouets et éveil",
+   "path": "Bébé et maternité > Jouets et éveil",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Jeux et Jouets > Éveil bébé"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-securite-bebe-babyphones-barrieres",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Sécurité bébé (babyphones, barrières)",
+   "path": "Bébé et maternité > Sécurité bébé (babyphones, barrières)",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Puériculture > Sécurité"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-vetements-et-accessoires-de-grossesse",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Vêtements et accessoires de grossesse",
+   "path": "Bébé et maternité > Vêtements et accessoires de grossesse",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Mode Femme > Grossesse"
+   },
+   "note": null
+  },
+  {
+   "id": "bebe-et-maternite-portage-bebe",
+   "parentId": "bebe-et-maternite",
+   "sector": "bebe",
+   "label": "Portage bébé",
+   "path": "Bébé et maternité > Portage bébé",
+   "google": "Baby & Toddler",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Bébés et Puériculture > Puériculture > Portage"
+   },
+   "note": null
+  },
+  {
+   "id": "livres-et-medias",
+   "parentId": null,
+   "sector": "maison-deco",
+   "label": "Livres et médias",
+   "path": "Livres et médias",
+   "google": "Media > Books",
+   "icone": "📚",
+   "targets": {
+    "AMAZON": "Livres"
+   }
+  },
+  {
+   "id": "livres-et-medias-livres-papier",
+   "parentId": "livres-et-medias",
+   "sector": "maison-deco",
+   "label": "Livres papier",
+   "path": "Livres et médias > Livres papier",
+   "google": "Media > Books",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Livres > Livres"
+   },
+   "note": null
+  },
+  {
+   "id": "livres-et-medias-papeterie-creative-et-carnets",
+   "parentId": "livres-et-medias",
+   "sector": "maison-deco",
+   "label": "Papeterie créative et carnets",
+   "path": "Livres et médias > Papeterie créative et carnets",
+   "google": "Media > Books",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Fournitures de bureau > Papeterie"
+   },
+   "note": null
+  },
+  {
+   "id": "livres-et-medias-supports-audio-video-et-accessoires",
+   "parentId": "livres-et-medias",
+   "sector": "maison-deco",
+   "label": "Supports audio/vidéo et accessoires",
+   "path": "Livres et médias > Supports audio/vidéo et accessoires",
+   "google": "Media > Books",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Musique / DVD & Blu-ray > Musique et Vidéo"
+   },
+   "note": null
+  },
+  {
+   "id": "livres-et-medias-affiches-et-posters",
+   "parentId": "livres-et-medias",
+   "sector": "maison-deco",
+   "label": "Affiches et posters",
+   "path": "Livres et médias > Affiches et posters",
+   "google": "Media > Books",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Décoration > Affiches et posters"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-de-bureau-et-scolaires",
+   "parentId": null,
+   "sector": "maison-deco",
+   "label": "Fournitures de bureau et scolaires",
+   "path": "Fournitures de bureau et scolaires",
+   "google": "Office Supplies",
+   "icone": "✏️",
+   "targets": {
+    "AMAZON": "Fournitures de bureau"
+   }
+  },
+  {
+   "id": "fournitures-de-bureau-et-scolaires-papeterie-cahiers-stylos",
+   "parentId": "fournitures-de-bureau-et-scolaires",
+   "sector": "maison-deco",
+   "label": "Papeterie (cahiers, stylos)",
+   "path": "Fournitures de bureau et scolaires > Papeterie (cahiers, stylos)",
+   "google": "Office Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Fournitures de bureau > Papeterie"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-de-bureau-et-scolaires-fournitures-scolaires",
+   "parentId": "fournitures-de-bureau-et-scolaires",
+   "sector": "maison-deco",
+   "label": "Fournitures scolaires",
+   "path": "Fournitures de bureau et scolaires > Fournitures scolaires",
+   "google": "Office Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Fournitures de bureau > Fournitures scolaires"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-de-bureau-et-scolaires-materiel-de-bureau-classement-archivage",
+   "parentId": "fournitures-de-bureau-et-scolaires",
+   "sector": "maison-deco",
+   "label": "Matériel de bureau (classement, archivage)",
+   "path": "Fournitures de bureau et scolaires > Matériel de bureau (classement, archivage)",
+   "google": "Office Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Fournitures de bureau > Matériel de bureau"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-de-bureau-et-scolaires-calculatrices-et-petite-electronique-de-burea",
+   "parentId": "fournitures-de-bureau-et-scolaires",
+   "sector": "maison-deco",
+   "label": "Calculatrices et petite électronique de bureau",
+   "path": "Fournitures de bureau et scolaires > Calculatrices et petite électronique de bureau",
+   "google": "Office Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Fournitures de bureau > Équipement de bureau"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-de-bureau-et-scolaires-mobilier-de-bureau",
+   "parentId": "fournitures-de-bureau-et-scolaires",
+   "sector": "maison-deco",
+   "label": "Mobilier de bureau",
+   "path": "Fournitures de bureau et scolaires > Mobilier de bureau",
+   "google": "Office Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Meubles > Bureau"
+   },
+   "note": null
+  },
+  {
+   "id": "fournitures-de-bureau-et-scolaires-cartables-et-sacs-scolaires",
+   "parentId": "fournitures-de-bureau-et-scolaires",
+   "sector": "maison-deco",
+   "label": "Cartables et sacs scolaires",
+   "path": "Fournitures de bureau et scolaires > Cartables et sacs scolaires",
+   "google": "Office Supplies",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Chaussures et Sacs > Sacs > Cartables"
+   },
+   "note": null
+  },
+  {
+   "id": "arts-artisanat-et-couture",
+   "parentId": null,
+   "sector": "maison-deco",
+   "label": "Arts, artisanat et couture",
+   "path": "Arts, artisanat et couture",
+   "google": "Arts & Entertainment > Hobbies & Creative Arts",
+   "icone": "🎨",
+   "targets": {
+    "AMAZON": "Loisirs créatifs"
+   }
+  },
+  {
+   "id": "arts-artisanat-et-couture-peinture-et-dessin",
+   "parentId": "arts-artisanat-et-couture",
+   "sector": "maison-deco",
+   "label": "Peinture et dessin",
+   "path": "Arts, artisanat et couture > Peinture et dessin",
+   "google": "Arts & Entertainment > Hobbies & Creative Arts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Loisirs créatifs > Beaux-arts > Peinture et dessin"
+   },
+   "note": null
+  },
+  {
+   "id": "arts-artisanat-et-couture-couture-et-mercerie",
+   "parentId": "arts-artisanat-et-couture",
+   "sector": "maison-deco",
+   "label": "Couture et mercerie",
+   "path": "Arts, artisanat et couture > Couture et mercerie",
+   "google": "Arts & Entertainment > Hobbies & Creative Arts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Loisirs créatifs > Couture et tricot > Mercerie"
+   },
+   "note": null
+  },
+  {
+   "id": "arts-artisanat-et-couture-tricot-et-laine",
+   "parentId": "arts-artisanat-et-couture",
+   "sector": "maison-deco",
+   "label": "Tricot et laine",
+   "path": "Arts, artisanat et couture > Tricot et laine",
+   "google": "Arts & Entertainment > Hobbies & Creative Arts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Loisirs créatifs > Couture et tricot > Laine et fils"
+   },
+   "note": null
+  },
+  {
+   "id": "arts-artisanat-et-couture-scrapbooking-et-loisirs-creatifs-papier",
+   "parentId": "arts-artisanat-et-couture",
+   "sector": "maison-deco",
+   "label": "Scrapbooking et loisirs créatifs papier",
+   "path": "Arts, artisanat et couture > Scrapbooking et loisirs créatifs papier",
+   "google": "Arts & Entertainment > Hobbies & Creative Arts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Loisirs créatifs > Loisirs créatifs papier"
+   },
+   "note": null
+  },
+  {
+   "id": "arts-artisanat-et-couture-perles-et-bijoux-diy",
+   "parentId": "arts-artisanat-et-couture",
+   "sector": "maison-deco",
+   "label": "Perles et bijoux DIY",
+   "path": "Arts, artisanat et couture > Perles et bijoux DIY",
+   "google": "Arts & Entertainment > Hobbies & Creative Arts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Loisirs créatifs > Création de bijoux"
+   },
+   "note": null
+  },
+  {
+   "id": "arts-artisanat-et-couture-machines-a-coudre-et-broder",
+   "parentId": "arts-artisanat-et-couture",
+   "sector": "maison-deco",
+   "label": "Machines à coudre et broder",
+   "path": "Arts, artisanat et couture > Machines à coudre et broder",
+   "google": "Arts & Entertainment > Hobbies & Creative Arts",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Cuisine et Maison > Entretien du linge > Machines à coudre"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science",
+   "parentId": null,
+   "sector": "bricolage",
+   "label": "Commerce, industrie et science",
+   "path": "Commerce, industrie et science",
+   "google": "Business & Industrial",
+   "icone": "🏭",
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science"
+   }
+  },
+  {
+   "id": "commerce-industrie-et-science-machines-agricoles-et-forestieres",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Machines agricoles et forestières",
+   "path": "Commerce, industrie et science > Machines agricoles et forestières",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Agriculture"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-machines-de-construction-et-btp",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Machines de construction et BTP",
+   "path": "Commerce, industrie et science > Machines de construction et BTP",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Construction"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-equipement-d-impression",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Équipement d'impression",
+   "path": "Commerce, industrie et science > Équipement d'impression",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Impression et arts graphiques"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-etageres-et-stockage-industriel",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Étagères et stockage industriel",
+   "path": "Commerce, industrie et science > Étagères et stockage industriel",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Stockage et manutention"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-produits-chimiques-industriels",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Produits chimiques industriels",
+   "path": "Commerce, industrie et science > Produits chimiques industriels",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Chimie industrielle"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-equipement-de-securite-epi-professionnels",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Équipement de sécurité (EPI professionnels)",
+   "path": "Commerce, industrie et science > Équipement de sécurité (EPI professionnels)",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Sécurité au travail"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-machines-outils-et-metallurgie",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Machines-outils et métallurgie",
+   "path": "Commerce, industrie et science > Machines-outils et métallurgie",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Travail des métaux"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-robotique-et-vision-industrielle",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Robotique et vision industrielle",
+   "path": "Commerce, industrie et science > Robotique et vision industrielle",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Automatisation"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-manutention-et-levage",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Manutention et levage",
+   "path": "Commerce, industrie et science > Manutention et levage",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Manutention"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-materiel-scientifique-et-de-laboratoire",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Matériel scientifique et de laboratoire",
+   "path": "Commerce, industrie et science > Matériel scientifique et de laboratoire",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Science > Laboratoire"
+   },
+   "note": null
+  },
+  {
+   "id": "commerce-industrie-et-science-emballage-commercial",
+   "parentId": "commerce-industrie-et-science",
+   "sector": "bricolage",
+   "label": "Emballage commercial",
+   "path": "Commerce, industrie et science > Emballage commercial",
+   "google": "Business & Industrial",
+   "icone": null,
+   "targets": {
+    "AMAZON": "Commerce, Industrie et Science > Industrie > Emballage"
+   },
+   "note": null
+  }
+ ],
+ "alias": [
+  {
+   "key": "automobile",
+   "categoryId": "automobile",
+   "source": "seed"
+  },
+  {
+   "key": "systemes-de-conduite-intelligents",
+   "categoryId": "automobile-systemes-de-conduite-intelligents",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-systemes-de-conduite-intelligents",
+   "categoryId": "automobile-systemes-de-conduite-intelligents",
+   "source": "seed"
+  },
+  {
+   "key": "dashcams",
+   "categoryId": "automobile-systemes-de-conduite-intelligents",
+   "source": "seed"
+  },
+  {
+   "key": "cameras-de-recul",
+   "categoryId": "automobile-systemes-de-conduite-intelligents",
+   "source": "seed"
+  },
+  {
+   "key": "accessoires-et-appareils-pour-voiture",
+   "categoryId": "automobile-accessoires-et-appareils-pour-voiture",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-accessoires-et-appareils-pour-voiture",
+   "categoryId": "automobile-accessoires-et-appareils-pour-voiture",
+   "source": "seed"
+  },
+  {
+   "key": "style-et-parties-du-corps",
+   "categoryId": "automobile-style-et-parties-du-corps",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-style-et-parties-du-corps",
+   "categoryId": "automobile-style-et-parties-du-corps",
+   "source": "seed"
+  },
+  {
+   "key": "kits-carrosserie",
+   "categoryId": "automobile-style-et-parties-du-corps",
+   "source": "seed"
+  },
+  {
+   "key": "pare-chocs",
+   "categoryId": "automobile-style-et-parties-du-corps",
+   "source": "seed"
+  },
+  {
+   "key": "decoration-et-amenagement-interieur",
+   "categoryId": "automobile-decoration-et-amenagement-interieur",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-decoration-et-amenagement-interieur",
+   "categoryId": "automobile-decoration-et-amenagement-interieur",
+   "source": "seed"
+  },
+  {
+   "key": "habillage-autocollants-et-films-pour-voitures",
+   "categoryId": "automobile-habillage-autocollants-et-films-pour-voitures",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-habillage-autocollants-et-films-pour-voitures",
+   "categoryId": "automobile-habillage-autocollants-et-films-pour-voitures",
+   "source": "seed"
+  },
+  {
+   "key": "covering",
+   "categoryId": "automobile-habillage-autocollants-et-films-pour-voitures",
+   "source": "seed"
+  },
+  {
+   "key": "vinyle",
+   "categoryId": "automobile-habillage-autocollants-et-films-pour-voitures",
+   "source": "seed"
+  },
+  {
+   "key": "stickers",
+   "categoryId": "automobile-habillage-autocollants-et-films-pour-voitures",
+   "source": "seed"
+  },
+  {
+   "key": "gadgets-interieurs",
+   "categoryId": "automobile-gadgets-interieurs",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-gadgets-interieurs",
+   "categoryId": "automobile-gadgets-interieurs",
+   "source": "seed"
+  },
+  {
+   "key": "rangement-et-organisation",
+   "categoryId": "automobile-rangement-et-organisation",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-rangement-et-organisation",
+   "categoryId": "automobile-rangement-et-organisation",
+   "source": "seed"
+  },
+  {
+   "key": "roues-et-pneus",
+   "categoryId": "automobile-roues-et-pneus",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-roues-et-pneus",
+   "categoryId": "automobile-roues-et-pneus",
+   "source": "seed"
+  },
+  {
+   "key": "desodorisants",
+   "categoryId": "automobile-desodorisants",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-desodorisants",
+   "categoryId": "automobile-desodorisants",
+   "source": "seed"
+  },
+  {
+   "key": "systemes-de-cles-et-de-telecommandes",
+   "categoryId": "automobile-systemes-de-cles-et-de-telecommandes",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-systemes-de-cles-et-de-telecommandes",
+   "categoryId": "automobile-systemes-de-cles-et-de-telecommandes",
+   "source": "seed"
+  },
+  {
+   "key": "tapis-et-moquettes-de-voiture",
+   "categoryId": "automobile-tapis-et-moquettes-de-voiture",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-tapis-et-moquettes-de-voiture",
+   "categoryId": "automobile-tapis-et-moquettes-de-voiture",
+   "source": "seed"
+  },
+  {
+   "key": "systemes-de-securite-et-de-surete",
+   "categoryId": "automobile-systemes-de-securite-et-de-surete",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-systemes-de-securite-et-de-surete",
+   "categoryId": "automobile-systemes-de-securite-et-de-surete",
+   "source": "seed"
+  },
+  {
+   "key": "gadgets-de-voyage-et-de-road-trip",
+   "categoryId": "automobile-gadgets-de-voyage-et-de-road-trip",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-gadgets-de-voyage-et-de-road-trip",
+   "categoryId": "automobile-gadgets-de-voyage-et-de-road-trip",
+   "source": "seed"
+  },
+  {
+   "key": "filtres",
+   "categoryId": "automobile-filtres",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-filtres",
+   "categoryId": "automobile-filtres",
+   "source": "seed"
+  },
+  {
+   "key": "housses-de-siege-et-de-volant",
+   "categoryId": "automobile-housses-de-siege-et-de-volant",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-housses-de-siege-et-de-volant",
+   "categoryId": "automobile-housses-de-siege-et-de-volant",
+   "source": "seed"
+  },
+  {
+   "key": "crics-et-levage",
+   "categoryId": "automobile-crics-et-levage",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-crics-et-levage",
+   "categoryId": "automobile-crics-et-levage",
+   "source": "seed"
+  },
+  {
+   "key": "lumieres-decoratives-et-personnalisees",
+   "categoryId": "automobile-lumieres-decoratives-et-personnalisees",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-lumieres-decoratives-et-personnalisees",
+   "categoryId": "automobile-lumieres-decoratives-et-personnalisees",
+   "source": "seed"
+  },
+  {
+   "key": "jauges-et-moniteurs",
+   "categoryId": "automobile-jauges-et-moniteurs",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-jauges-et-moniteurs",
+   "categoryId": "automobile-jauges-et-moniteurs",
+   "source": "seed"
+  },
+  {
+   "key": "spoilers-et-ailes",
+   "categoryId": "automobile-spoilers-et-ailes",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-spoilers-et-ailes",
+   "categoryId": "automobile-spoilers-et-ailes",
+   "source": "seed"
+  },
+  {
+   "key": "demarreurs-de-secours-et-alimentation-par-batterie",
+   "categoryId": "automobile-demarreurs-de-secours-et-alimentation-par-batterie",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-demarreurs-de-secours-et-alimentation-par-batteri",
+   "categoryId": "automobile-demarreurs-de-secours-et-alimentation-par-batterie",
+   "source": "seed"
+  },
+  {
+   "key": "urgence-et-securite",
+   "categoryId": "automobile-urgence-et-securite",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-urgence-et-securite",
+   "categoryId": "automobile-urgence-et-securite",
+   "source": "seed"
+  },
+  {
+   "key": "triangle",
+   "categoryId": "automobile-urgence-et-securite",
+   "source": "seed"
+  },
+  {
+   "key": "gilet",
+   "categoryId": "automobile-urgence-et-securite",
+   "source": "seed"
+  },
+  {
+   "key": "trousse",
+   "categoryId": "automobile-urgence-et-securite",
+   "source": "seed"
+  },
+  {
+   "key": "garnitures-de-protection-et-decoratives",
+   "categoryId": "automobile-garnitures-de-protection-et-decoratives",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-garnitures-de-protection-et-decoratives",
+   "categoryId": "automobile-garnitures-de-protection-et-decoratives",
+   "source": "seed"
+  },
+  {
+   "key": "supports-et-fixations",
+   "categoryId": "automobile-supports-et-fixations",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-supports-et-fixations",
+   "categoryId": "automobile-supports-et-fixations",
+   "source": "seed"
+  },
+  {
+   "key": "systemes-de-freinage",
+   "categoryId": "automobile-systemes-de-freinage",
+   "source": "seed"
+  },
+  {
+   "key": "automobile-systemes-de-freinage",
+   "categoryId": "automobile-systemes-de-freinage",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers",
+   "categoryId": "appareils-electromenagers",
+   "source": "seed"
+  },
+  {
+   "key": "gros-electromenager-refrigerateurs-machines-a-laver",
+   "categoryId": "appareils-electromenagers-gros-electromenager-refrigerateurs-machines-a-laver",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-gros-electromenager-refrigerateurs",
+   "categoryId": "appareils-electromenagers-gros-electromenager-refrigerateurs-machines-a-laver",
+   "source": "seed"
+  },
+  {
+   "key": "petit-electromenager-de-cuisine",
+   "categoryId": "appareils-electromenagers-petit-electromenager-de-cuisine",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-petit-electromenager-de-cuisine",
+   "categoryId": "appareils-electromenagers-petit-electromenager-de-cuisine",
+   "source": "seed"
+  },
+  {
+   "key": "blenders",
+   "categoryId": "appareils-electromenagers-petit-electromenager-de-cuisine",
+   "source": "seed"
+  },
+  {
+   "key": "grille-pain",
+   "categoryId": "appareils-electromenagers-petit-electromenager-de-cuisine",
+   "source": "seed"
+  },
+  {
+   "key": "friteuses",
+   "categoryId": "appareils-electromenagers-petit-electromenager-de-cuisine",
+   "source": "seed"
+  },
+  {
+   "key": "preparation-culinaire-robots-mixeurs",
+   "categoryId": "appareils-electromenagers-preparation-culinaire-robots-mixeurs",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-preparation-culinaire-robots-mixeu",
+   "categoryId": "appareils-electromenagers-preparation-culinaire-robots-mixeurs",
+   "source": "seed"
+  },
+  {
+   "key": "cafetieres-et-theieres-electriques",
+   "categoryId": "appareils-electromenagers-cafetieres-et-theieres-electriques",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-cafetieres-et-theieres-electriques",
+   "categoryId": "appareils-electromenagers-cafetieres-et-theieres-electriques",
+   "source": "seed"
+  },
+  {
+   "key": "cuiseurs-et-appareils-de-cuisson",
+   "categoryId": "appareils-electromenagers-cuiseurs-et-appareils-de-cuisson",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-cuiseurs-et-appareils-de-cuisson",
+   "categoryId": "appareils-electromenagers-cuiseurs-et-appareils-de-cuisson",
+   "source": "seed"
+  },
+  {
+   "key": "autocuiseurs",
+   "categoryId": "appareils-electromenagers-cuiseurs-et-appareils-de-cuisson",
+   "source": "seed"
+  },
+  {
+   "key": "cuiseurs-vapeur",
+   "categoryId": "appareils-electromenagers-cuiseurs-et-appareils-de-cuisson",
+   "source": "seed"
+  },
+  {
+   "key": "refrigeration-et-congelation-portable",
+   "categoryId": "appareils-electromenagers-refrigeration-et-congelation-portable",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-refrigeration-et-congelation-porta",
+   "categoryId": "appareils-electromenagers-refrigeration-et-congelation-portable",
+   "source": "seed"
+  },
+  {
+   "key": "mini-frigos",
+   "categoryId": "appareils-electromenagers-refrigeration-et-congelation-portable",
+   "source": "seed"
+  },
+  {
+   "key": "glacieres-electriques",
+   "categoryId": "appareils-electromenagers-refrigeration-et-congelation-portable",
+   "source": "seed"
+  },
+  {
+   "key": "climatisation-chauffage-et-qualite-de-l-air",
+   "categoryId": "appareils-electromenagers-climatisation-chauffage-et-qualite-de-l-air",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-climatisation-chauffage-et-qualite",
+   "categoryId": "appareils-electromenagers-climatisation-chauffage-et-qualite-de-l-air",
+   "source": "seed"
+  },
+  {
+   "key": "ventilateurs",
+   "categoryId": "appareils-electromenagers-climatisation-chauffage-et-qualite-de-l-air",
+   "source": "seed"
+  },
+  {
+   "key": "purificateurs",
+   "categoryId": "appareils-electromenagers-climatisation-chauffage-et-qualite-de-l-air",
+   "source": "seed"
+  },
+  {
+   "key": "radiateurs",
+   "categoryId": "appareils-electromenagers-climatisation-chauffage-et-qualite-de-l-air",
+   "source": "seed"
+  },
+  {
+   "key": "entretien-du-linge-repassage-couture",
+   "categoryId": "appareils-electromenagers-entretien-du-linge-repassage-couture",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-entretien-du-linge-repassage-coutu",
+   "categoryId": "appareils-electromenagers-entretien-du-linge-repassage-couture",
+   "source": "seed"
+  },
+  {
+   "key": "fers",
+   "categoryId": "appareils-electromenagers-entretien-du-linge-repassage-couture",
+   "source": "seed"
+  },
+  {
+   "key": "machines-a-coudre",
+   "categoryId": "appareils-electromenagers-entretien-du-linge-repassage-couture",
+   "source": "seed"
+  },
+  {
+   "key": "aspirateurs-et-nettoyage",
+   "categoryId": "appareils-electromenagers-aspirateurs-et-nettoyage",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-aspirateurs-et-nettoyage",
+   "categoryId": "appareils-electromenagers-aspirateurs-et-nettoyage",
+   "source": "seed"
+  },
+  {
+   "key": "pieces-detachees-electromenager",
+   "categoryId": "appareils-electromenagers-pieces-detachees-electromenager",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-electromenagers-pieces-detachees-electromenager",
+   "categoryId": "appareils-electromenagers-pieces-detachees-electromenager",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes",
+   "categoryId": "vetements-pour-femmes",
+   "source": "seed"
+  },
+  {
+   "key": "robes",
+   "categoryId": "vetements-pour-femmes-robes",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-robes",
+   "categoryId": "vetements-pour-femmes-robes",
+   "source": "seed"
+  },
+  {
+   "key": "hauts-et-t-shirts",
+   "categoryId": "vetements-pour-femmes-hauts-et-t-shirts",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-hauts-et-t-shirts",
+   "categoryId": "vetements-pour-femmes-hauts-et-t-shirts",
+   "source": "seed"
+  },
+  {
+   "key": "pantalons-et-leggings",
+   "categoryId": "vetements-pour-femmes-pantalons-et-leggings",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-pantalons-et-leggings",
+   "categoryId": "vetements-pour-femmes-pantalons-et-leggings",
+   "source": "seed"
+  },
+  {
+   "key": "jeans",
+   "categoryId": "vetements-pour-femmes-jeans",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-jeans",
+   "categoryId": "vetements-pour-femmes-jeans",
+   "source": "seed"
+  },
+  {
+   "key": "jupes",
+   "categoryId": "vetements-pour-femmes-jupes",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-jupes",
+   "categoryId": "vetements-pour-femmes-jupes",
+   "source": "seed"
+  },
+  {
+   "key": "manteaux-et-vestes",
+   "categoryId": "vetements-pour-femmes-manteaux-et-vestes",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-manteaux-et-vestes",
+   "categoryId": "vetements-pour-femmes-manteaux-et-vestes",
+   "source": "seed"
+  },
+  {
+   "key": "pulls-et-sweats",
+   "categoryId": "vetements-pour-femmes-pulls-et-sweats",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-pulls-et-sweats",
+   "categoryId": "vetements-pour-femmes-pulls-et-sweats",
+   "source": "seed"
+  },
+  {
+   "key": "sous-vetements-et-lingerie",
+   "categoryId": "vetements-pour-femmes-sous-vetements-et-lingerie",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-sous-vetements-et-lingerie",
+   "categoryId": "vetements-pour-femmes-sous-vetements-et-lingerie",
+   "source": "seed"
+  },
+  {
+   "key": "maillots-de-bain",
+   "categoryId": "vetements-pour-femmes-maillots-de-bain",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-maillots-de-bain",
+   "categoryId": "vetements-pour-femmes-maillots-de-bain",
+   "source": "seed"
+  },
+  {
+   "key": "ensembles-et-combinaisons",
+   "categoryId": "vetements-pour-femmes-ensembles-et-combinaisons",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-ensembles-et-combinaisons",
+   "categoryId": "vetements-pour-femmes-ensembles-et-combinaisons",
+   "source": "seed"
+  },
+  {
+   "key": "grande-taille",
+   "categoryId": "vetements-pour-femmes-grande-taille",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-grande-taille",
+   "categoryId": "vetements-pour-femmes-grande-taille",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-de-sport-femme",
+   "categoryId": "vetements-pour-femmes-vetements-de-sport-femme",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-vetements-de-sport-femme",
+   "categoryId": "vetements-pour-femmes-vetements-de-sport-femme",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-traditionnels-et-culturels",
+   "categoryId": "vetements-pour-femmes-vetements-traditionnels-et-culturels",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-femmes-vetements-traditionnels-et-culturels",
+   "categoryId": "vetements-pour-femmes-vetements-traditionnels-et-culturels",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes",
+   "categoryId": "vetements-pour-hommes",
+   "source": "seed"
+  },
+  {
+   "key": "t-shirts-et-debardeurs",
+   "categoryId": "vetements-pour-hommes-t-shirts-et-debardeurs",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-t-shirts-et-debardeurs",
+   "categoryId": "vetements-pour-hommes-t-shirts-et-debardeurs",
+   "source": "seed"
+  },
+  {
+   "key": "chemises",
+   "categoryId": "vetements-pour-hommes-chemises",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-chemises",
+   "categoryId": "vetements-pour-hommes-chemises",
+   "source": "seed"
+  },
+  {
+   "key": "pantalons",
+   "categoryId": "vetements-pour-hommes-pantalons",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-pantalons",
+   "categoryId": "vetements-pour-hommes-pantalons",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-jeans",
+   "categoryId": "vetements-pour-hommes-jeans",
+   "source": "seed"
+  },
+  {
+   "key": "costumes-et-blazers",
+   "categoryId": "vetements-pour-hommes-costumes-et-blazers",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-costumes-et-blazers",
+   "categoryId": "vetements-pour-hommes-costumes-et-blazers",
+   "source": "seed"
+  },
+  {
+   "key": "manteaux-et-blousons",
+   "categoryId": "vetements-pour-hommes-manteaux-et-blousons",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-manteaux-et-blousons",
+   "categoryId": "vetements-pour-hommes-manteaux-et-blousons",
+   "source": "seed"
+  },
+  {
+   "key": "pulls-et-sweats-a-capuche",
+   "categoryId": "vetements-pour-hommes-pulls-et-sweats-a-capuche",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-pulls-et-sweats-a-capuche",
+   "categoryId": "vetements-pour-hommes-pulls-et-sweats-a-capuche",
+   "source": "seed"
+  },
+  {
+   "key": "sous-vetements",
+   "categoryId": "vetements-pour-hommes-sous-vetements",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-sous-vetements",
+   "categoryId": "vetements-pour-hommes-sous-vetements",
+   "source": "seed"
+  },
+  {
+   "key": "shorts",
+   "categoryId": "vetements-pour-hommes-shorts",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-shorts",
+   "categoryId": "vetements-pour-hommes-shorts",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-de-sport-homme",
+   "categoryId": "vetements-pour-hommes-vetements-de-sport-homme",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-vetements-de-sport-homme",
+   "categoryId": "vetements-pour-hommes-vetements-de-sport-homme",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-pour-hommes-vetements-traditionnels-et-culturels",
+   "categoryId": "vetements-pour-hommes-vetements-traditionnels-et-culturels",
+   "source": "seed"
+  },
+  {
+   "key": "meubles",
+   "categoryId": "meubles",
+   "source": "seed"
+  },
+  {
+   "key": "canapes-et-fauteuils",
+   "categoryId": "meubles-canapes-et-fauteuils",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-canapes-et-fauteuils",
+   "categoryId": "meubles-canapes-et-fauteuils",
+   "source": "seed"
+  },
+  {
+   "key": "tables-salle-a-manger-basse-bureau",
+   "categoryId": "meubles-tables-salle-a-manger-basse-bureau",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-tables-salle-a-manger-basse-bureau",
+   "categoryId": "meubles-tables-salle-a-manger-basse-bureau",
+   "source": "seed"
+  },
+  {
+   "key": "chaises-et-tabourets",
+   "categoryId": "meubles-chaises-et-tabourets",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-chaises-et-tabourets",
+   "categoryId": "meubles-chaises-et-tabourets",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-de-chambre-lits-armoires",
+   "categoryId": "meubles-meubles-de-chambre-lits-armoires",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-meubles-de-chambre-lits-armoires",
+   "categoryId": "meubles-meubles-de-chambre-lits-armoires",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-de-rangement",
+   "categoryId": "meubles-meubles-de-rangement",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-meubles-de-rangement",
+   "categoryId": "meubles-meubles-de-rangement",
+   "source": "seed"
+  },
+  {
+   "key": "etageres",
+   "categoryId": "meubles-meubles-de-rangement",
+   "source": "seed"
+  },
+  {
+   "key": "commodes",
+   "categoryId": "meubles-meubles-de-rangement",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-de-jardin-et-exterieur",
+   "categoryId": "meubles-meubles-de-jardin-et-exterieur",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-meubles-de-jardin-et-exterieur",
+   "categoryId": "meubles-meubles-de-jardin-et-exterieur",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-de-bureau",
+   "categoryId": "meubles-meubles-de-bureau",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-meubles-de-bureau",
+   "categoryId": "meubles-meubles-de-bureau",
+   "source": "seed"
+  },
+  {
+   "key": "mobilier-d-appoint-et-deco",
+   "categoryId": "meubles-mobilier-d-appoint-et-deco",
+   "source": "seed"
+  },
+  {
+   "key": "meubles-mobilier-d-appoint-et-deco",
+   "categoryId": "meubles-mobilier-d-appoint-et-deco",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux",
+   "categoryId": "jouets-et-jeux",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-educatifs-et-stem",
+   "categoryId": "jouets-et-jeux-jouets-educatifs-et-stem",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-jouets-educatifs-et-stem",
+   "categoryId": "jouets-et-jeux-jouets-educatifs-et-stem",
+   "source": "seed"
+  },
+  {
+   "key": "figurines-et-jouets-d-action",
+   "categoryId": "jouets-et-jeux-figurines-et-jouets-d-action",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-figurines-et-jouets-d-action",
+   "categoryId": "jouets-et-jeux-figurines-et-jouets-d-action",
+   "source": "seed"
+  },
+  {
+   "key": "peluches",
+   "categoryId": "jouets-et-jeux-peluches",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-peluches",
+   "categoryId": "jouets-et-jeux-peluches",
+   "source": "seed"
+  },
+  {
+   "key": "jeux-de-construction",
+   "categoryId": "jouets-et-jeux-jeux-de-construction",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-jeux-de-construction",
+   "categoryId": "jouets-et-jeux-jeux-de-construction",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-telecommandes-et-vehicules-rc",
+   "categoryId": "jouets-et-jeux-jouets-telecommandes-et-vehicules-rc",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-jouets-telecommandes-et-vehicules-rc",
+   "categoryId": "jouets-et-jeux-jouets-telecommandes-et-vehicules-rc",
+   "source": "seed"
+  },
+  {
+   "key": "puzzles-et-jeux-de-societe",
+   "categoryId": "jouets-et-jeux-puzzles-et-jeux-de-societe",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-puzzles-et-jeux-de-societe",
+   "categoryId": "jouets-et-jeux-puzzles-et-jeux-de-societe",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-pour-bebe-et-premier-age",
+   "categoryId": "jouets-et-jeux-jouets-pour-bebe-et-premier-age",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-jouets-pour-bebe-et-premier-age",
+   "categoryId": "jouets-et-jeux-jouets-pour-bebe-et-premier-age",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-exterieurs-trottinettes-piscines",
+   "categoryId": "jouets-et-jeux-jouets-exterieurs-trottinettes-piscines",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-jouets-exterieurs-trottinettes-piscines",
+   "categoryId": "jouets-et-jeux-jouets-exterieurs-trottinettes-piscines",
+   "source": "seed"
+  },
+  {
+   "key": "costumes-et-deguisements",
+   "categoryId": "jouets-et-jeux-costumes-et-deguisements",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-costumes-et-deguisements",
+   "categoryId": "jouets-et-jeux-costumes-et-deguisements",
+   "source": "seed"
+  },
+  {
+   "key": "jeux-de-fete-et-farces",
+   "categoryId": "jouets-et-jeux-jeux-de-fete-et-farces",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-jeux-jeux-de-fete-et-farces",
+   "categoryId": "jouets-et-jeux-jeux-de-fete-et-farces",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante",
+   "categoryId": "beaute-et-sante",
+   "source": "seed"
+  },
+  {
+   "key": "maquillage",
+   "categoryId": "beaute-et-sante-maquillage",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-maquillage",
+   "categoryId": "beaute-et-sante-maquillage",
+   "source": "seed"
+  },
+  {
+   "key": "soins-du-visage",
+   "categoryId": "beaute-et-sante-soins-du-visage",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-soins-du-visage",
+   "categoryId": "beaute-et-sante-soins-du-visage",
+   "source": "seed"
+  },
+  {
+   "key": "soins-de-la-peau-et-du-corps",
+   "categoryId": "beaute-et-sante-soins-de-la-peau-et-du-corps",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-soins-de-la-peau-et-du-corps",
+   "categoryId": "beaute-et-sante-soins-de-la-peau-et-du-corps",
+   "source": "seed"
+  },
+  {
+   "key": "soins-capillaires",
+   "categoryId": "beaute-et-sante-soins-capillaires",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-soins-capillaires",
+   "categoryId": "beaute-et-sante-soins-capillaires",
+   "source": "seed"
+  },
+  {
+   "key": "parfums",
+   "categoryId": "beaute-et-sante-parfums",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-parfums",
+   "categoryId": "beaute-et-sante-parfums",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-accessoires-beaute",
+   "categoryId": "beaute-et-sante-outils-et-accessoires-beaute",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-outils-et-accessoires-beaute",
+   "categoryId": "beaute-et-sante-outils-et-accessoires-beaute",
+   "source": "seed"
+  },
+  {
+   "key": "seche-cheveux",
+   "categoryId": "beaute-et-sante-outils-et-accessoires-beaute",
+   "source": "seed"
+  },
+  {
+   "key": "lisseurs",
+   "categoryId": "beaute-et-sante-outils-et-accessoires-beaute",
+   "source": "seed"
+  },
+  {
+   "key": "pinceaux",
+   "categoryId": "beaute-et-sante-outils-et-accessoires-beaute",
+   "source": "seed"
+  },
+  {
+   "key": "manucure-et-pedicure",
+   "categoryId": "beaute-et-sante-manucure-et-pedicure",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-manucure-et-pedicure",
+   "categoryId": "beaute-et-sante-manucure-et-pedicure",
+   "source": "seed"
+  },
+  {
+   "key": "sante-et-bien-etre-appareils-de-massage",
+   "categoryId": "beaute-et-sante-sante-et-bien-etre-appareils-de-massage",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-sante-et-bien-etre-appareils-de-massage",
+   "categoryId": "beaute-et-sante-sante-et-bien-etre-appareils-de-massage",
+   "source": "seed"
+  },
+  {
+   "key": "materiel-medical-et-diagnostic",
+   "categoryId": "beaute-et-sante-materiel-medical-et-diagnostic",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-materiel-medical-et-diagnostic",
+   "categoryId": "beaute-et-sante-materiel-medical-et-diagnostic",
+   "source": "seed"
+  },
+  {
+   "key": "tensiometres",
+   "categoryId": "beaute-et-sante-materiel-medical-et-diagnostic",
+   "source": "seed"
+  },
+  {
+   "key": "thermometres",
+   "categoryId": "beaute-et-sante-materiel-medical-et-diagnostic",
+   "source": "seed"
+  },
+  {
+   "key": "epilation",
+   "categoryId": "beaute-et-sante-epilation",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-epilation",
+   "categoryId": "beaute-et-sante-epilation",
+   "source": "seed"
+  },
+  {
+   "key": "hygiene-personnelle",
+   "categoryId": "beaute-et-sante-hygiene-personnelle",
+   "source": "seed"
+  },
+  {
+   "key": "beaute-et-sante-hygiene-personnelle",
+   "categoryId": "beaute-et-sante-hygiene-personnelle",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures",
+   "categoryId": "chaussures",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-femme-talons-ballerines",
+   "categoryId": "chaussures-chaussures-femme-talons-ballerines",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-chaussures-femme-talons-ballerines",
+   "categoryId": "chaussures-chaussures-femme-talons-ballerines",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-homme-ville-mocassins",
+   "categoryId": "chaussures-chaussures-homme-ville-mocassins",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-chaussures-homme-ville-mocassins",
+   "categoryId": "chaussures-chaussures-homme-ville-mocassins",
+   "source": "seed"
+  },
+  {
+   "key": "baskets-et-sneakers",
+   "categoryId": "chaussures-baskets-et-sneakers",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-baskets-et-sneakers",
+   "categoryId": "chaussures-baskets-et-sneakers",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-de-sport",
+   "categoryId": "chaussures-chaussures-de-sport",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-chaussures-de-sport",
+   "categoryId": "chaussures-chaussures-de-sport",
+   "source": "seed"
+  },
+  {
+   "key": "bottes-et-bottines",
+   "categoryId": "chaussures-bottes-et-bottines",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-bottes-et-bottines",
+   "categoryId": "chaussures-bottes-et-bottines",
+   "source": "seed"
+  },
+  {
+   "key": "sandales-et-tongs",
+   "categoryId": "chaussures-sandales-et-tongs",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-sandales-et-tongs",
+   "categoryId": "chaussures-sandales-et-tongs",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-enfant",
+   "categoryId": "chaussures-chaussures-enfant",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-chaussures-enfant",
+   "categoryId": "chaussures-chaussures-enfant",
+   "source": "seed"
+  },
+  {
+   "key": "accessoires-chaussures-semelles-lacets",
+   "categoryId": "chaussures-accessoires-chaussures-semelles-lacets",
+   "source": "seed"
+  },
+  {
+   "key": "chaussures-accessoires-chaussures-semelles-lacets",
+   "categoryId": "chaussures-accessoires-chaussures-semelles-lacets",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires",
+   "categoryId": "telephones-portables-et-accessoires",
+   "source": "seed"
+  },
+  {
+   "key": "smartphones",
+   "categoryId": "telephones-portables-et-accessoires-smartphones",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-smartphones",
+   "categoryId": "telephones-portables-et-accessoires-smartphones",
+   "source": "seed"
+  },
+  {
+   "key": "coques-et-housses",
+   "categoryId": "telephones-portables-et-accessoires-coques-et-housses",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-coques-et-housses",
+   "categoryId": "telephones-portables-et-accessoires-coques-et-housses",
+   "source": "seed"
+  },
+  {
+   "key": "protections-d-ecran",
+   "categoryId": "telephones-portables-et-accessoires-protections-d-ecran",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-protections-d-ecran",
+   "categoryId": "telephones-portables-et-accessoires-protections-d-ecran",
+   "source": "seed"
+  },
+  {
+   "key": "chargeurs-et-cables",
+   "categoryId": "telephones-portables-et-accessoires-chargeurs-et-cables",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-chargeurs-et-cables",
+   "categoryId": "telephones-portables-et-accessoires-chargeurs-et-cables",
+   "source": "seed"
+  },
+  {
+   "key": "batteries-externes-powerbanks",
+   "categoryId": "telephones-portables-et-accessoires-batteries-externes-powerbanks",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-batteries-externes-power",
+   "categoryId": "telephones-portables-et-accessoires-batteries-externes-powerbanks",
+   "source": "seed"
+  },
+  {
+   "key": "supports-et-accessoires-photo-mobile",
+   "categoryId": "telephones-portables-et-accessoires-supports-et-accessoires-photo-mobile",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-supports-et-accessoires-",
+   "categoryId": "telephones-portables-et-accessoires-supports-et-accessoires-photo-mobile",
+   "source": "seed"
+  },
+  {
+   "key": "ecouteurs-et-oreillettes",
+   "categoryId": "telephones-portables-et-accessoires-ecouteurs-et-oreillettes",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-ecouteurs-et-oreillettes",
+   "categoryId": "telephones-portables-et-accessoires-ecouteurs-et-oreillettes",
+   "source": "seed"
+  },
+  {
+   "key": "montres-et-bracelets-connectes",
+   "categoryId": "telephones-portables-et-accessoires-montres-et-bracelets-connectes",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-montres-et-bracelets-con",
+   "categoryId": "telephones-portables-et-accessoires-montres-et-bracelets-connectes",
+   "source": "seed"
+  },
+  {
+   "key": "pieces-detachees-telephonie",
+   "categoryId": "telephones-portables-et-accessoires-pieces-detachees-telephonie",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-pieces-detachees-telepho",
+   "categoryId": "telephones-portables-et-accessoires-pieces-detachees-telephonie",
+   "source": "seed"
+  },
+  {
+   "key": "cartes-sim-et-accessoires-reseau",
+   "categoryId": "telephones-portables-et-accessoires-cartes-sim-et-accessoires-reseau",
+   "source": "seed"
+  },
+  {
+   "key": "telephones-portables-et-accessoires-cartes-sim-et-accessoire",
+   "categoryId": "telephones-portables-et-accessoires-cartes-sim-et-accessoires-reseau",
+   "source": "seed"
+  },
+  {
+   "key": "electronique",
+   "categoryId": "electronique",
+   "source": "seed"
+  },
+  {
+   "key": "audio-enceintes-casques",
+   "categoryId": "electronique-audio-enceintes-casques",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-audio-enceintes-casques",
+   "categoryId": "electronique-audio-enceintes-casques",
+   "source": "seed"
+  },
+  {
+   "key": "informatique-et-accessoires-pc",
+   "categoryId": "electronique-informatique-et-accessoires-pc",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-informatique-et-accessoires-pc",
+   "categoryId": "electronique-informatique-et-accessoires-pc",
+   "source": "seed"
+  },
+  {
+   "key": "composants-et-pieces-electroniques",
+   "categoryId": "electronique-composants-et-pieces-electroniques",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-composants-et-pieces-electroniques",
+   "categoryId": "electronique-composants-et-pieces-electroniques",
+   "source": "seed"
+  },
+  {
+   "key": "appareils-photo-et-cameras",
+   "categoryId": "electronique-appareils-photo-et-cameras",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-appareils-photo-et-cameras",
+   "categoryId": "electronique-appareils-photo-et-cameras",
+   "source": "seed"
+  },
+  {
+   "key": "televisions-et-videoprojecteurs",
+   "categoryId": "electronique-televisions-et-videoprojecteurs",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-televisions-et-videoprojecteurs",
+   "categoryId": "electronique-televisions-et-videoprojecteurs",
+   "source": "seed"
+  },
+  {
+   "key": "objets-connectes-et-domotique",
+   "categoryId": "electronique-objets-connectes-et-domotique",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-objets-connectes-et-domotique",
+   "categoryId": "electronique-objets-connectes-et-domotique",
+   "source": "seed"
+  },
+  {
+   "key": "jeux-video-et-consoles",
+   "categoryId": "electronique-jeux-video-et-consoles",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-jeux-video-et-consoles",
+   "categoryId": "electronique-jeux-video-et-consoles",
+   "source": "seed"
+  },
+  {
+   "key": "drones-et-modelisme-electronique",
+   "categoryId": "electronique-drones-et-modelisme-electronique",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-drones-et-modelisme-electronique",
+   "categoryId": "electronique-drones-et-modelisme-electronique",
+   "source": "seed"
+  },
+  {
+   "key": "eclairage-et-led",
+   "categoryId": "electronique-eclairage-et-led",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-eclairage-et-led",
+   "categoryId": "electronique-eclairage-et-led",
+   "source": "seed"
+  },
+  {
+   "key": "piles-et-chargeurs",
+   "categoryId": "electronique-piles-et-chargeurs",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-piles-et-chargeurs",
+   "categoryId": "electronique-piles-et-chargeurs",
+   "source": "seed"
+  },
+  {
+   "key": "cables-et-adaptateurs",
+   "categoryId": "electronique-cables-et-adaptateurs",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-cables-et-adaptateurs",
+   "categoryId": "electronique-cables-et-adaptateurs",
+   "source": "seed"
+  },
+  {
+   "key": "sonorisation-et-micros",
+   "categoryId": "electronique-sonorisation-et-micros",
+   "source": "seed"
+  },
+  {
+   "key": "electronique-sonorisation-et-micros",
+   "categoryId": "electronique-sonorisation-et-micros",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie",
+   "categoryId": "fournitures-pour-animaux-de-compagnie",
+   "source": "seed"
+  },
+  {
+   "key": "alimentation-pour-chiens-et-chats",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-alimentation-pour-chiens-et-chats",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-alimentation-pour-chie",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-alimentation-pour-chiens-et-chats",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-pour-animaux",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-jouets-pour-animaux",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-jouets-pour-animaux",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-jouets-pour-animaux",
+   "source": "seed"
+  },
+  {
+   "key": "habillage-et-accessoires-laisses-colliers",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-habillage-et-accessoires-laisses-colliers",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-habillage-et-accessoir",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-habillage-et-accessoires-laisses-colliers",
+   "source": "seed"
+  },
+  {
+   "key": "toilettage",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-toilettage",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-toilettage",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-toilettage",
+   "source": "seed"
+  },
+  {
+   "key": "couchages-et-transport",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-couchages-et-transport",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-couchages-et-transport",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-couchages-et-transport",
+   "source": "seed"
+  },
+  {
+   "key": "litieres-et-hygiene",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-litieres-et-hygiene",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-litieres-et-hygiene",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-litieres-et-hygiene",
+   "source": "seed"
+  },
+  {
+   "key": "aquariophilie",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-aquariophilie",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-aquariophilie",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-aquariophilie",
+   "source": "seed"
+  },
+  {
+   "key": "basse-cour-et-animaux-de-ferme",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-basse-cour-et-animaux-de-ferme",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-pour-animaux-de-compagnie-basse-cour-et-animaux-",
+   "categoryId": "fournitures-pour-animaux-de-compagnie-basse-cour-et-animaux-de-ferme",
+   "source": "seed"
+  },
+  {
+   "key": "extensions-de-cheveux-et-perruques",
+   "categoryId": "extensions-de-cheveux-et-perruques",
+   "source": "seed"
+  },
+  {
+   "key": "perruques-synthetiques",
+   "categoryId": "extensions-de-cheveux-et-perruques-perruques-synthetiques",
+   "source": "seed"
+  },
+  {
+   "key": "extensions-de-cheveux-et-perruques-perruques-synthetiques",
+   "categoryId": "extensions-de-cheveux-et-perruques-perruques-synthetiques",
+   "source": "seed"
+  },
+  {
+   "key": "perruques-cheveux-naturels-lace-wig",
+   "categoryId": "extensions-de-cheveux-et-perruques-perruques-cheveux-naturels-lace-wig",
+   "source": "seed"
+  },
+  {
+   "key": "extensions-de-cheveux-et-perruques-perruques-cheveux-naturel",
+   "categoryId": "extensions-de-cheveux-et-perruques-perruques-cheveux-naturels-lace-wig",
+   "source": "seed"
+  },
+  {
+   "key": "extensions-a-clips-et-tissages",
+   "categoryId": "extensions-de-cheveux-et-perruques-extensions-a-clips-et-tissages",
+   "source": "seed"
+  },
+  {
+   "key": "extensions-de-cheveux-et-perruques-extensions-a-clips-et-tis",
+   "categoryId": "extensions-de-cheveux-et-perruques-extensions-a-clips-et-tissages",
+   "source": "seed"
+  },
+  {
+   "key": "postiches-et-queues-de-cheval",
+   "categoryId": "extensions-de-cheveux-et-perruques-postiches-et-queues-de-cheval",
+   "source": "seed"
+  },
+  {
+   "key": "extensions-de-cheveux-et-perruques-postiches-et-queues-de-ch",
+   "categoryId": "extensions-de-cheveux-et-perruques-postiches-et-queues-de-cheval",
+   "source": "seed"
+  },
+  {
+   "key": "accessoires-de-pose-colle-bonnets",
+   "categoryId": "extensions-de-cheveux-et-perruques-accessoires-de-pose-colle-bonnets",
+   "source": "seed"
+  },
+  {
+   "key": "extensions-de-cheveux-et-perruques-accessoires-de-pose-colle",
+   "categoryId": "extensions-de-cheveux-et-perruques-accessoires-de-pose-colle-bonnets",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires",
+   "categoryId": "bijoux-et-accessoires",
+   "source": "seed"
+  },
+  {
+   "key": "colliers-et-pendentifs",
+   "categoryId": "bijoux-et-accessoires-colliers-et-pendentifs",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-colliers-et-pendentifs",
+   "categoryId": "bijoux-et-accessoires-colliers-et-pendentifs",
+   "source": "seed"
+  },
+  {
+   "key": "bagues",
+   "categoryId": "bijoux-et-accessoires-bagues",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-bagues",
+   "categoryId": "bijoux-et-accessoires-bagues",
+   "source": "seed"
+  },
+  {
+   "key": "boucles-d-oreilles",
+   "categoryId": "bijoux-et-accessoires-boucles-d-oreilles",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-boucles-d-oreilles",
+   "categoryId": "bijoux-et-accessoires-boucles-d-oreilles",
+   "source": "seed"
+  },
+  {
+   "key": "bracelets",
+   "categoryId": "bijoux-et-accessoires-bracelets",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-bracelets",
+   "categoryId": "bijoux-et-accessoires-bracelets",
+   "source": "seed"
+  },
+  {
+   "key": "montres",
+   "categoryId": "bijoux-et-accessoires-montres",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-montres",
+   "categoryId": "bijoux-et-accessoires-montres",
+   "source": "seed"
+  },
+  {
+   "key": "ensembles-et-coffrets-bijoux",
+   "categoryId": "bijoux-et-accessoires-ensembles-et-coffrets-bijoux",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-ensembles-et-coffrets-bijoux",
+   "categoryId": "bijoux-et-accessoires-ensembles-et-coffrets-bijoux",
+   "source": "seed"
+  },
+  {
+   "key": "accessoires-cheveux-barrettes-bandeaux",
+   "categoryId": "bijoux-et-accessoires-accessoires-cheveux-barrettes-bandeaux",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-accessoires-cheveux-barrettes-bandeaux",
+   "categoryId": "bijoux-et-accessoires-accessoires-cheveux-barrettes-bandeaux",
+   "source": "seed"
+  },
+  {
+   "key": "lunettes-de-soleil-et-montures",
+   "categoryId": "bijoux-et-accessoires-lunettes-de-soleil-et-montures",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-lunettes-de-soleil-et-montures",
+   "categoryId": "bijoux-et-accessoires-lunettes-de-soleil-et-montures",
+   "source": "seed"
+  },
+  {
+   "key": "echarpes-gants-et-chapeaux",
+   "categoryId": "bijoux-et-accessoires-echarpes-gants-et-chapeaux",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-echarpes-gants-et-chapeaux",
+   "categoryId": "bijoux-et-accessoires-echarpes-gants-et-chapeaux",
+   "source": "seed"
+  },
+  {
+   "key": "ceintures",
+   "categoryId": "bijoux-et-accessoires-ceintures",
+   "source": "seed"
+  },
+  {
+   "key": "bijoux-et-accessoires-ceintures",
+   "categoryId": "bijoux-et-accessoires-ceintures",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage",
+   "categoryId": "outils-et-bricolage",
+   "source": "seed"
+  },
+  {
+   "key": "outillage-a-main",
+   "categoryId": "outils-et-bricolage-outillage-a-main",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-outillage-a-main",
+   "categoryId": "outils-et-bricolage-outillage-a-main",
+   "source": "seed"
+  },
+  {
+   "key": "outillage-electroportatif",
+   "categoryId": "outils-et-bricolage-outillage-electroportatif",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-outillage-electroportatif",
+   "categoryId": "outils-et-bricolage-outillage-electroportatif",
+   "source": "seed"
+  },
+  {
+   "key": "quincaillerie-et-fixations",
+   "categoryId": "outils-et-bricolage-quincaillerie-et-fixations",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-quincaillerie-et-fixations",
+   "categoryId": "outils-et-bricolage-quincaillerie-et-fixations",
+   "source": "seed"
+  },
+  {
+   "key": "peinture-et-revetements",
+   "categoryId": "outils-et-bricolage-peinture-et-revetements",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-peinture-et-revetements",
+   "categoryId": "outils-et-bricolage-peinture-et-revetements",
+   "source": "seed"
+  },
+  {
+   "key": "plomberie",
+   "categoryId": "outils-et-bricolage-plomberie",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-plomberie",
+   "categoryId": "outils-et-bricolage-plomberie",
+   "source": "seed"
+  },
+  {
+   "key": "electricite-et-eclairage-technique",
+   "categoryId": "outils-et-bricolage-electricite-et-eclairage-technique",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-electricite-et-eclairage-technique",
+   "categoryId": "outils-et-bricolage-electricite-et-eclairage-technique",
+   "source": "seed"
+  },
+  {
+   "key": "mesure-et-instruments-de-precision",
+   "categoryId": "outils-et-bricolage-mesure-et-instruments-de-precision",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-mesure-et-instruments-de-precision",
+   "categoryId": "outils-et-bricolage-mesure-et-instruments-de-precision",
+   "source": "seed"
+  },
+  {
+   "key": "securite-et-protection-epi",
+   "categoryId": "outils-et-bricolage-securite-et-protection-epi",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-securite-et-protection-epi",
+   "categoryId": "outils-et-bricolage-securite-et-protection-epi",
+   "source": "seed"
+  },
+  {
+   "key": "serrurerie",
+   "categoryId": "outils-et-bricolage-serrurerie",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-serrurerie",
+   "categoryId": "outils-et-bricolage-serrurerie",
+   "source": "seed"
+  },
+  {
+   "key": "soudure",
+   "categoryId": "outils-et-bricolage-soudure",
+   "source": "seed"
+  },
+  {
+   "key": "outils-et-bricolage-soudure",
+   "categoryId": "outils-et-bricolage-soudure",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air",
+   "categoryId": "sports-et-loisirs-de-plein-air",
+   "source": "seed"
+  },
+  {
+   "key": "fitness-et-musculation",
+   "categoryId": "sports-et-loisirs-de-plein-air-fitness-et-musculation",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-fitness-et-musculation",
+   "categoryId": "sports-et-loisirs-de-plein-air-fitness-et-musculation",
+   "source": "seed"
+  },
+  {
+   "key": "camping-et-randonnee",
+   "categoryId": "sports-et-loisirs-de-plein-air-camping-et-randonnee",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-camping-et-randonnee",
+   "categoryId": "sports-et-loisirs-de-plein-air-camping-et-randonnee",
+   "source": "seed"
+  },
+  {
+   "key": "cyclisme",
+   "categoryId": "sports-et-loisirs-de-plein-air-cyclisme",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-cyclisme",
+   "categoryId": "sports-et-loisirs-de-plein-air-cyclisme",
+   "source": "seed"
+  },
+  {
+   "key": "peche",
+   "categoryId": "sports-et-loisirs-de-plein-air-peche",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-peche",
+   "categoryId": "sports-et-loisirs-de-plein-air-peche",
+   "source": "seed"
+  },
+  {
+   "key": "sports-nautiques",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-nautiques",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-sports-nautiques",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-nautiques",
+   "source": "seed"
+  },
+  {
+   "key": "sports-de-raquette",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-de-raquette",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-sports-de-raquette",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-de-raquette",
+   "source": "seed"
+  },
+  {
+   "key": "sports-collectifs",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-collectifs",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-sports-collectifs",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-collectifs",
+   "source": "seed"
+  },
+  {
+   "key": "chasse-et-tir-sportif",
+   "categoryId": "sports-et-loisirs-de-plein-air-chasse-et-tir-sportif",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-chasse-et-tir-sportif",
+   "categoryId": "sports-et-loisirs-de-plein-air-chasse-et-tir-sportif",
+   "source": "seed"
+  },
+  {
+   "key": "yoga-et-fitness-doux",
+   "categoryId": "sports-et-loisirs-de-plein-air-yoga-et-fitness-doux",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-yoga-et-fitness-doux",
+   "categoryId": "sports-et-loisirs-de-plein-air-yoga-et-fitness-doux",
+   "source": "seed"
+  },
+  {
+   "key": "sports-d-hiver",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-d-hiver",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-sports-d-hiver",
+   "categoryId": "sports-et-loisirs-de-plein-air-sports-d-hiver",
+   "source": "seed"
+  },
+  {
+   "key": "optique-de-plein-air-jumelles-lunettes",
+   "categoryId": "sports-et-loisirs-de-plein-air-optique-de-plein-air-jumelles-lunettes",
+   "source": "seed"
+  },
+  {
+   "key": "sports-et-loisirs-de-plein-air-optique-de-plein-air-jumelles",
+   "categoryId": "sports-et-loisirs-de-plein-air-optique-de-plein-air-jumelles-lunettes",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages",
+   "categoryId": "sacs-et-bagages",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-a-main",
+   "categoryId": "sacs-et-bagages-sacs-a-main",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-sacs-a-main",
+   "categoryId": "sacs-et-bagages-sacs-a-main",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-a-dos",
+   "categoryId": "sacs-et-bagages-sacs-a-dos",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-sacs-a-dos",
+   "categoryId": "sacs-et-bagages-sacs-a-dos",
+   "source": "seed"
+  },
+  {
+   "key": "valises-et-bagages-rigides",
+   "categoryId": "sacs-et-bagages-valises-et-bagages-rigides",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-valises-et-bagages-rigides",
+   "categoryId": "sacs-et-bagages-valises-et-bagages-rigides",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-de-voyage-souples",
+   "categoryId": "sacs-et-bagages-sacs-de-voyage-souples",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-sacs-de-voyage-souples",
+   "categoryId": "sacs-et-bagages-sacs-de-voyage-souples",
+   "source": "seed"
+  },
+  {
+   "key": "portefeuilles-et-petite-maroquinerie",
+   "categoryId": "sacs-et-bagages-portefeuilles-et-petite-maroquinerie",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-portefeuilles-et-petite-maroquinerie",
+   "categoryId": "sacs-et-bagages-portefeuilles-et-petite-maroquinerie",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-de-sport",
+   "categoryId": "sacs-et-bagages-sacs-de-sport",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-sacs-de-sport",
+   "categoryId": "sacs-et-bagages-sacs-de-sport",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-scolaires",
+   "categoryId": "sacs-et-bagages-sacs-scolaires",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-sacs-scolaires",
+   "categoryId": "sacs-et-bagages-sacs-scolaires",
+   "source": "seed"
+  },
+  {
+   "key": "accessoires-de-voyage-organiseurs-etiquettes",
+   "categoryId": "sacs-et-bagages-accessoires-de-voyage-organiseurs-etiquettes",
+   "source": "seed"
+  },
+  {
+   "key": "sacs-et-bagages-accessoires-de-voyage-organiseurs-etiquettes",
+   "categoryId": "sacs-et-bagages-accessoires-de-voyage-organiseurs-etiquettes",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin",
+   "categoryId": "terrasse-pelouse-et-jardin",
+   "source": "seed"
+  },
+  {
+   "key": "outillage-de-jardin",
+   "categoryId": "terrasse-pelouse-et-jardin-outillage-de-jardin",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-outillage-de-jardin",
+   "categoryId": "terrasse-pelouse-et-jardin-outillage-de-jardin",
+   "source": "seed"
+  },
+  {
+   "key": "arrosage-et-irrigation",
+   "categoryId": "terrasse-pelouse-et-jardin-arrosage-et-irrigation",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-arrosage-et-irrigation",
+   "categoryId": "terrasse-pelouse-et-jardin-arrosage-et-irrigation",
+   "source": "seed"
+  },
+  {
+   "key": "mobilier-d-exterieur",
+   "categoryId": "terrasse-pelouse-et-jardin-mobilier-d-exterieur",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-mobilier-d-exterieur",
+   "categoryId": "terrasse-pelouse-et-jardin-mobilier-d-exterieur",
+   "source": "seed"
+  },
+  {
+   "key": "decoration-exterieure",
+   "categoryId": "terrasse-pelouse-et-jardin-decoration-exterieure",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-decoration-exterieure",
+   "categoryId": "terrasse-pelouse-et-jardin-decoration-exterieure",
+   "source": "seed"
+  },
+  {
+   "key": "piscines-et-spas",
+   "categoryId": "terrasse-pelouse-et-jardin-piscines-et-spas",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-piscines-et-spas",
+   "categoryId": "terrasse-pelouse-et-jardin-piscines-et-spas",
+   "source": "seed"
+  },
+  {
+   "key": "barbecue-et-cuisine-exterieure",
+   "categoryId": "terrasse-pelouse-et-jardin-barbecue-et-cuisine-exterieure",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-barbecue-et-cuisine-exterieure",
+   "categoryId": "terrasse-pelouse-et-jardin-barbecue-et-cuisine-exterieure",
+   "source": "seed"
+  },
+  {
+   "key": "serres-et-jardinage",
+   "categoryId": "terrasse-pelouse-et-jardin-serres-et-jardinage",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-serres-et-jardinage",
+   "categoryId": "terrasse-pelouse-et-jardin-serres-et-jardinage",
+   "source": "seed"
+  },
+  {
+   "key": "eclairage-exterieur-solaire",
+   "categoryId": "terrasse-pelouse-et-jardin-eclairage-exterieur-solaire",
+   "source": "seed"
+  },
+  {
+   "key": "terrasse-pelouse-et-jardin-eclairage-exterieur-solaire",
+   "categoryId": "terrasse-pelouse-et-jardin-eclairage-exterieur-solaire",
+   "source": "seed"
+  },
+  {
+   "key": "nouveaute-et-usage-special",
+   "categoryId": "nouveaute-et-usage-special",
+   "source": "seed"
+  },
+  {
+   "key": "deguisements-et-costumes-a-theme",
+   "categoryId": "nouveaute-et-usage-special-deguisements-et-costumes-a-theme",
+   "source": "seed"
+  },
+  {
+   "key": "nouveaute-et-usage-special-deguisements-et-costumes-a-theme",
+   "categoryId": "nouveaute-et-usage-special-deguisements-et-costumes-a-theme",
+   "source": "seed"
+  },
+  {
+   "key": "articles-de-fete-et-anniversaire",
+   "categoryId": "nouveaute-et-usage-special-articles-de-fete-et-anniversaire",
+   "source": "seed"
+  },
+  {
+   "key": "nouveaute-et-usage-special-articles-de-fete-et-anniversaire",
+   "categoryId": "nouveaute-et-usage-special-articles-de-fete-et-anniversaire",
+   "source": "seed"
+  },
+  {
+   "key": "gadgets-insolites-et-nouveautes",
+   "categoryId": "nouveaute-et-usage-special-gadgets-insolites-et-nouveautes",
+   "source": "seed"
+  },
+  {
+   "key": "nouveaute-et-usage-special-gadgets-insolites-et-nouveautes",
+   "categoryId": "nouveaute-et-usage-special-gadgets-insolites-et-nouveautes",
+   "source": "seed"
+  },
+  {
+   "key": "categorie-fourre-tout-reclasser-produit-par-produit",
+   "categoryId": "nouveaute-et-usage-special-gadgets-insolites-et-nouveautes",
+   "source": "seed"
+  },
+  {
+   "key": "cosplay-et-accessoires",
+   "categoryId": "nouveaute-et-usage-special-cosplay-et-accessoires",
+   "source": "seed"
+  },
+  {
+   "key": "nouveaute-et-usage-special-cosplay-et-accessoires",
+   "categoryId": "nouveaute-et-usage-special-cosplay-et-accessoires",
+   "source": "seed"
+  },
+  {
+   "key": "articles-religieux-et-spirituels",
+   "categoryId": "nouveaute-et-usage-special-articles-religieux-et-spirituels",
+   "source": "seed"
+  },
+  {
+   "key": "nouveaute-et-usage-special-articles-religieux-et-spirituels",
+   "categoryId": "nouveaute-et-usage-special-articles-religieux-et-spirituels",
+   "source": "seed"
+  },
+  {
+   "key": "motos-et-sports-motorises",
+   "categoryId": "motos-et-sports-motorises",
+   "source": "seed"
+  },
+  {
+   "key": "equipement-pilote-casques-gants-blousons",
+   "categoryId": "motos-et-sports-motorises-equipement-pilote-casques-gants-blousons",
+   "source": "seed"
+  },
+  {
+   "key": "motos-et-sports-motorises-equipement-pilote-casques-gants-bl",
+   "categoryId": "motos-et-sports-motorises-equipement-pilote-casques-gants-blousons",
+   "source": "seed"
+  },
+  {
+   "key": "pieces-detachees-moto",
+   "categoryId": "motos-et-sports-motorises-pieces-detachees-moto",
+   "source": "seed"
+  },
+  {
+   "key": "motos-et-sports-motorises-pieces-detachees-moto",
+   "categoryId": "motos-et-sports-motorises-pieces-detachees-moto",
+   "source": "seed"
+  },
+  {
+   "key": "accessoires-moto-retroviseurs-protections",
+   "categoryId": "motos-et-sports-motorises-accessoires-moto-retroviseurs-protections",
+   "source": "seed"
+  },
+  {
+   "key": "motos-et-sports-motorises-accessoires-moto-retroviseurs-prot",
+   "categoryId": "motos-et-sports-motorises-accessoires-moto-retroviseurs-protections",
+   "source": "seed"
+  },
+  {
+   "key": "trottinettes-et-velos-electriques",
+   "categoryId": "motos-et-sports-motorises-trottinettes-et-velos-electriques",
+   "source": "seed"
+  },
+  {
+   "key": "motos-et-sports-motorises-trottinettes-et-velos-electriques",
+   "categoryId": "motos-et-sports-motorises-trottinettes-et-velos-electriques",
+   "source": "seed"
+  },
+  {
+   "key": "quads-et-sports-motorises-tout-terrain",
+   "categoryId": "motos-et-sports-motorises-quads-et-sports-motorises-tout-terrain",
+   "source": "seed"
+  },
+  {
+   "key": "motos-et-sports-motorises-quads-et-sports-motorises-tout-ter",
+   "categoryId": "motos-et-sports-motorises-quads-et-sports-motorises-tout-terrain",
+   "source": "seed"
+  },
+  {
+   "key": "eclairage-et-electronique-moto",
+   "categoryId": "motos-et-sports-motorises-eclairage-et-electronique-moto",
+   "source": "seed"
+  },
+  {
+   "key": "motos-et-sports-motorises-eclairage-et-electronique-moto",
+   "categoryId": "motos-et-sports-motorises-eclairage-et-electronique-moto",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite",
+   "categoryId": "bebe-et-maternite",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-bebe",
+   "categoryId": "bebe-et-maternite-vetements-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-vetements-bebe",
+   "categoryId": "bebe-et-maternite-vetements-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "poussettes-et-sieges-auto",
+   "categoryId": "bebe-et-maternite-poussettes-et-sieges-auto",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-poussettes-et-sieges-auto",
+   "categoryId": "bebe-et-maternite-poussettes-et-sieges-auto",
+   "source": "seed"
+  },
+  {
+   "key": "alimentation-bebe-biberons-tire-lait",
+   "categoryId": "bebe-et-maternite-alimentation-bebe-biberons-tire-lait",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-alimentation-bebe-biberons-tire-lait",
+   "categoryId": "bebe-et-maternite-alimentation-bebe-biberons-tire-lait",
+   "source": "seed"
+  },
+  {
+   "key": "couches-et-toilette-bebe",
+   "categoryId": "bebe-et-maternite-couches-et-toilette-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-couches-et-toilette-bebe",
+   "categoryId": "bebe-et-maternite-couches-et-toilette-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "mobilier-et-couchage-bebe",
+   "categoryId": "bebe-et-maternite-mobilier-et-couchage-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-mobilier-et-couchage-bebe",
+   "categoryId": "bebe-et-maternite-mobilier-et-couchage-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "jouets-et-eveil",
+   "categoryId": "bebe-et-maternite-jouets-et-eveil",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-jouets-et-eveil",
+   "categoryId": "bebe-et-maternite-jouets-et-eveil",
+   "source": "seed"
+  },
+  {
+   "key": "securite-bebe-babyphones-barrieres",
+   "categoryId": "bebe-et-maternite-securite-bebe-babyphones-barrieres",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-securite-bebe-babyphones-barrieres",
+   "categoryId": "bebe-et-maternite-securite-bebe-babyphones-barrieres",
+   "source": "seed"
+  },
+  {
+   "key": "vetements-et-accessoires-de-grossesse",
+   "categoryId": "bebe-et-maternite-vetements-et-accessoires-de-grossesse",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-vetements-et-accessoires-de-grossesse",
+   "categoryId": "bebe-et-maternite-vetements-et-accessoires-de-grossesse",
+   "source": "seed"
+  },
+  {
+   "key": "portage-bebe",
+   "categoryId": "bebe-et-maternite-portage-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "bebe-et-maternite-portage-bebe",
+   "categoryId": "bebe-et-maternite-portage-bebe",
+   "source": "seed"
+  },
+  {
+   "key": "livres-et-medias",
+   "categoryId": "livres-et-medias",
+   "source": "seed"
+  },
+  {
+   "key": "livres-papier",
+   "categoryId": "livres-et-medias-livres-papier",
+   "source": "seed"
+  },
+  {
+   "key": "livres-et-medias-livres-papier",
+   "categoryId": "livres-et-medias-livres-papier",
+   "source": "seed"
+  },
+  {
+   "key": "papeterie-creative-et-carnets",
+   "categoryId": "livres-et-medias-papeterie-creative-et-carnets",
+   "source": "seed"
+  },
+  {
+   "key": "livres-et-medias-papeterie-creative-et-carnets",
+   "categoryId": "livres-et-medias-papeterie-creative-et-carnets",
+   "source": "seed"
+  },
+  {
+   "key": "supports-audio-video-et-accessoires",
+   "categoryId": "livres-et-medias-supports-audio-video-et-accessoires",
+   "source": "seed"
+  },
+  {
+   "key": "livres-et-medias-supports-audio-video-et-accessoires",
+   "categoryId": "livres-et-medias-supports-audio-video-et-accessoires",
+   "source": "seed"
+  },
+  {
+   "key": "affiches-et-posters",
+   "categoryId": "livres-et-medias-affiches-et-posters",
+   "source": "seed"
+  },
+  {
+   "key": "livres-et-medias-affiches-et-posters",
+   "categoryId": "livres-et-medias-affiches-et-posters",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-de-bureau-et-scolaires",
+   "categoryId": "fournitures-de-bureau-et-scolaires",
+   "source": "seed"
+  },
+  {
+   "key": "papeterie-cahiers-stylos",
+   "categoryId": "fournitures-de-bureau-et-scolaires-papeterie-cahiers-stylos",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-de-bureau-et-scolaires-papeterie-cahiers-stylos",
+   "categoryId": "fournitures-de-bureau-et-scolaires-papeterie-cahiers-stylos",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-scolaires",
+   "categoryId": "fournitures-de-bureau-et-scolaires-fournitures-scolaires",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-de-bureau-et-scolaires-fournitures-scolaires",
+   "categoryId": "fournitures-de-bureau-et-scolaires-fournitures-scolaires",
+   "source": "seed"
+  },
+  {
+   "key": "materiel-de-bureau-classement-archivage",
+   "categoryId": "fournitures-de-bureau-et-scolaires-materiel-de-bureau-classement-archivage",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-de-bureau-et-scolaires-materiel-de-bureau-classe",
+   "categoryId": "fournitures-de-bureau-et-scolaires-materiel-de-bureau-classement-archivage",
+   "source": "seed"
+  },
+  {
+   "key": "calculatrices-et-petite-electronique-de-bureau",
+   "categoryId": "fournitures-de-bureau-et-scolaires-calculatrices-et-petite-electronique-de-burea",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-de-bureau-et-scolaires-calculatrices-et-petite-e",
+   "categoryId": "fournitures-de-bureau-et-scolaires-calculatrices-et-petite-electronique-de-burea",
+   "source": "seed"
+  },
+  {
+   "key": "mobilier-de-bureau",
+   "categoryId": "fournitures-de-bureau-et-scolaires-mobilier-de-bureau",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-de-bureau-et-scolaires-mobilier-de-bureau",
+   "categoryId": "fournitures-de-bureau-et-scolaires-mobilier-de-bureau",
+   "source": "seed"
+  },
+  {
+   "key": "cartables-et-sacs-scolaires",
+   "categoryId": "fournitures-de-bureau-et-scolaires-cartables-et-sacs-scolaires",
+   "source": "seed"
+  },
+  {
+   "key": "fournitures-de-bureau-et-scolaires-cartables-et-sacs-scolair",
+   "categoryId": "fournitures-de-bureau-et-scolaires-cartables-et-sacs-scolaires",
+   "source": "seed"
+  },
+  {
+   "key": "arts-artisanat-et-couture",
+   "categoryId": "arts-artisanat-et-couture",
+   "source": "seed"
+  },
+  {
+   "key": "peinture-et-dessin",
+   "categoryId": "arts-artisanat-et-couture-peinture-et-dessin",
+   "source": "seed"
+  },
+  {
+   "key": "arts-artisanat-et-couture-peinture-et-dessin",
+   "categoryId": "arts-artisanat-et-couture-peinture-et-dessin",
+   "source": "seed"
+  },
+  {
+   "key": "couture-et-mercerie",
+   "categoryId": "arts-artisanat-et-couture-couture-et-mercerie",
+   "source": "seed"
+  },
+  {
+   "key": "arts-artisanat-et-couture-couture-et-mercerie",
+   "categoryId": "arts-artisanat-et-couture-couture-et-mercerie",
+   "source": "seed"
+  },
+  {
+   "key": "tricot-et-laine",
+   "categoryId": "arts-artisanat-et-couture-tricot-et-laine",
+   "source": "seed"
+  },
+  {
+   "key": "arts-artisanat-et-couture-tricot-et-laine",
+   "categoryId": "arts-artisanat-et-couture-tricot-et-laine",
+   "source": "seed"
+  },
+  {
+   "key": "scrapbooking-et-loisirs-creatifs-papier",
+   "categoryId": "arts-artisanat-et-couture-scrapbooking-et-loisirs-creatifs-papier",
+   "source": "seed"
+  },
+  {
+   "key": "arts-artisanat-et-couture-scrapbooking-et-loisirs-creatifs-p",
+   "categoryId": "arts-artisanat-et-couture-scrapbooking-et-loisirs-creatifs-papier",
+   "source": "seed"
+  },
+  {
+   "key": "perles-et-bijoux-diy",
+   "categoryId": "arts-artisanat-et-couture-perles-et-bijoux-diy",
+   "source": "seed"
+  },
+  {
+   "key": "arts-artisanat-et-couture-perles-et-bijoux-diy",
+   "categoryId": "arts-artisanat-et-couture-perles-et-bijoux-diy",
+   "source": "seed"
+  },
+  {
+   "key": "machines-a-coudre-et-broder",
+   "categoryId": "arts-artisanat-et-couture-machines-a-coudre-et-broder",
+   "source": "seed"
+  },
+  {
+   "key": "arts-artisanat-et-couture-machines-a-coudre-et-broder",
+   "categoryId": "arts-artisanat-et-couture-machines-a-coudre-et-broder",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science",
+   "categoryId": "commerce-industrie-et-science",
+   "source": "seed"
+  },
+  {
+   "key": "machines-agricoles-et-forestieres",
+   "categoryId": "commerce-industrie-et-science-machines-agricoles-et-forestieres",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-machines-agricoles-et-forestie",
+   "categoryId": "commerce-industrie-et-science-machines-agricoles-et-forestieres",
+   "source": "seed"
+  },
+  {
+   "key": "machines-de-construction-et-btp",
+   "categoryId": "commerce-industrie-et-science-machines-de-construction-et-btp",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-machines-de-construction-et-bt",
+   "categoryId": "commerce-industrie-et-science-machines-de-construction-et-btp",
+   "source": "seed"
+  },
+  {
+   "key": "equipement-d-impression",
+   "categoryId": "commerce-industrie-et-science-equipement-d-impression",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-equipement-d-impression",
+   "categoryId": "commerce-industrie-et-science-equipement-d-impression",
+   "source": "seed"
+  },
+  {
+   "key": "etageres-et-stockage-industriel",
+   "categoryId": "commerce-industrie-et-science-etageres-et-stockage-industriel",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-etageres-et-stockage-industrie",
+   "categoryId": "commerce-industrie-et-science-etageres-et-stockage-industriel",
+   "source": "seed"
+  },
+  {
+   "key": "produits-chimiques-industriels",
+   "categoryId": "commerce-industrie-et-science-produits-chimiques-industriels",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-produits-chimiques-industriels",
+   "categoryId": "commerce-industrie-et-science-produits-chimiques-industriels",
+   "source": "seed"
+  },
+  {
+   "key": "equipement-de-securite-epi-professionnels",
+   "categoryId": "commerce-industrie-et-science-equipement-de-securite-epi-professionnels",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-equipement-de-securite-epi-pro",
+   "categoryId": "commerce-industrie-et-science-equipement-de-securite-epi-professionnels",
+   "source": "seed"
+  },
+  {
+   "key": "machines-outils-et-metallurgie",
+   "categoryId": "commerce-industrie-et-science-machines-outils-et-metallurgie",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-machines-outils-et-metallurgie",
+   "categoryId": "commerce-industrie-et-science-machines-outils-et-metallurgie",
+   "source": "seed"
+  },
+  {
+   "key": "robotique-et-vision-industrielle",
+   "categoryId": "commerce-industrie-et-science-robotique-et-vision-industrielle",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-robotique-et-vision-industriel",
+   "categoryId": "commerce-industrie-et-science-robotique-et-vision-industrielle",
+   "source": "seed"
+  },
+  {
+   "key": "manutention-et-levage",
+   "categoryId": "commerce-industrie-et-science-manutention-et-levage",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-manutention-et-levage",
+   "categoryId": "commerce-industrie-et-science-manutention-et-levage",
+   "source": "seed"
+  },
+  {
+   "key": "materiel-scientifique-et-de-laboratoire",
+   "categoryId": "commerce-industrie-et-science-materiel-scientifique-et-de-laboratoire",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-materiel-scientifique-et-de-la",
+   "categoryId": "commerce-industrie-et-science-materiel-scientifique-et-de-laboratoire",
+   "source": "seed"
+  },
+  {
+   "key": "emballage-commercial",
+   "categoryId": "commerce-industrie-et-science-emballage-commercial",
+   "source": "seed"
+  },
+  {
+   "key": "commerce-industrie-et-science-emballage-commercial",
+   "categoryId": "commerce-industrie-et-science-emballage-commercial",
+   "source": "seed"
+  }
+ ]
+}

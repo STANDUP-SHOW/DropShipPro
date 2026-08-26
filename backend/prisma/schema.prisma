@@ -883,3 +883,70 @@ model SupplierConnection {
 
   @@unique([userId, supplier])
 }
+
+/// Une categorie du referentiel produit, partagee par tous les vendeurs.
+///
+/// En base et non dans un tableau TypeScript, parce qu un referentiel fige ne
+/// peut pas apprendre. L ancien couvrait 29 categories dont 28 de mode homme :
+/// une souris gamer n avait aucune place ou aller, et finissait en « Divers »
+/// sur toutes les plateformes.
+///
+/// Le pivot est la taxonomie produit de Google. Faire correspondre chaque
+/// fournisseur a chaque place de marche demanderait n x n tables ; passer par un
+/// pivot en demande n. C est la meme lecon que pour les canaux de vente : un
+/// modele canonique, des adaptateurs autour.
+model Category {
+  /// Slug stable, jamais traduit : « high-tech-peripheriques-souris ».
+  id       String     @id
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+
+  /// Le rayon de services/departments.ts auquel elle se rattache.
+  sector String
+  label  String
+  /// Le chemin lisible complet : « High-tech > Peripheriques > Souris ».
+  path   String
+
+  /// Le pivot : chemin dans la taxonomie produit de Google.
+  google  String
+  /// Les correspondances etablies a la main, par plateforme.
+  targets Json?
+
+  /// core : livree avec l application. learned : apprise a l import.
+  origin String @default("core")
+  /// Combien de produits y ont atterri. Une categorie apprise sans usage est
+  /// une erreur d apprentissage, et le compteur permet de la reperer.
+  uses   Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aliases CategoryAlias[]
+
+  @@index([sector])
+  @@index([origin])
+}
+
+/// Ce qu on a deja vu ecrit pour designer une categorie.
+///
+/// La memoire de l apprentissage, et le garde-fou de son cout. Sans elle, la
+/// meme categorie fournisseur repartirait au modele a chaque import : mille
+/// produits d une meme boutique feraient mille appels pour une seule reponse.
+model CategoryAlias {
+  id String @id @default(cuid())
+
+  /// Le texte source normalise, ou une reference qualifiee du fournisseur :
+  /// « gaming mouse », « aliexpress:200215024 ».
+  key        String   @unique
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  /// D ou vient l alias : « seed », « ia », « manuel », ou la cle fournisseur.
+  source String @default("ia")
+  uses   Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([categoryId])
+}

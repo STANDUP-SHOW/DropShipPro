@@ -26,6 +26,18 @@ export interface Classeur {
 /** Le message d'un fichier qu'on n'a pas su ouvrir, dit au vendeur. */
 export class XlsxIllisible extends Error {}
 
+/** Les feuilles d un classeur, dans l ordre ou Excel les numerote. */
+function nomsFeuilles(fichiers: Record<string, Buffer>): string[] {
+  return Object.keys(fichiers)
+    .filter((n) => /worksheets\/sheet\d+\.xml$/.test(n))
+    .sort((a, b) => Number(a.match(/(\d+)/)![1]) - Number(b.match(/(\d+)/)![1]))
+}
+
+/** Combien de feuilles ce classeur porte. */
+export function compterFeuilles(fichier: Buffer): number {
+  return nomsFeuilles(entrees(fichier)).length
+}
+
 function entrees(buf: Buffer): Record<string, Buffer> {
   let eocd = -1
   for (let i = buf.length - 22; i >= 0; i--) {
@@ -83,7 +95,7 @@ const decoder = (s: string) =>
  * producteur choisit de les écrire en ligne — les deux formes existent, et
  * AliExpress n'utilise pas la même que Google Sheets. Les deux sont lues.
  */
-export function lireClasseur(fichier: Buffer, maxLignes = 2000): Classeur {
+export function lireClasseur(fichier: Buffer, maxLignes = 2000, feuille = 0): Classeur {
   const fichiers = entrees(fichier)
   const texte = (nom: string) => (fichiers[nom] ? fichiers[nom].toString('utf8') : '')
 
@@ -98,7 +110,7 @@ export function lireClasseur(fichier: Buffer, maxLignes = 2000): Classeur {
     )
   }
 
-  const nomFeuille = Object.keys(fichiers).find((n) => /worksheets\/sheet\d+\.xml$/.test(n))
+  const nomFeuille = nomsFeuilles(fichiers)[feuille]
   if (!nomFeuille) throw new XlsxIllisible('Ce classeur ne contient aucune feuille.')
 
   const brutes: Array<Record<string, string>> = []

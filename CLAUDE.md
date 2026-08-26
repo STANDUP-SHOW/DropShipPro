@@ -183,6 +183,28 @@ docs/        Documentation de l'API catalogue
   derniers sont fragiles -- 23 % a 10 000 images, **3 % a 25 000** (27 EUR de
   benefice sur 800). A repricer avant toute hausse de Google.
 
+- **Le referentiel de categories est en base, et il apprend.** L ancien etait un
+  tableau TypeScript de 29 entrees dont 28 de mode homme : une souris gamer
+  n avait aucune place ou aller. Le socle vient du classeur de correspondances
+  AliExpress/Amazon : **24 rayons, 224 sous-categories, 500 alias de depart**.
+
+  `build-categories.cjs` transforme le classeur en `services/categorySeed.json`
+  -- a relancer quand le classeur est enrichi. Le semis tourne au demarrage,
+  idempotent, **en lots** : 800 allers-retours un par un prenaient plus de deux
+  minutes contre une base distante.
+
+  `resoudreCategorie()` essaie dans l ordre du moins cher au plus cher : choix du
+  vendeur, memoire des alias, rapprochement de libelle, puis le modele. **Un
+  texte source deja rencontre ne repart jamais au modele** -- mille produits
+  d une meme boutique coutent un appel, pas mille. Le modele choisit dans une
+  liste fermee ; il ne peut creer une categorie qu en la rattachant a un rayon
+  existant, sinon le referentiel grossit en categories jumelles (« Souris »,
+  « Souris PC », « Souris d ordinateur ») sans gagner en precision.
+
+  **Rien ne tombe dans « Divers »** : sans categorie, l annonce reste en
+  brouillon avec la raison ecrite. Banc `npx tsx check-categories.ts` (il tourne
+  contre la vraie base : c est le seul moyen de verifier que la memoire retient).
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).

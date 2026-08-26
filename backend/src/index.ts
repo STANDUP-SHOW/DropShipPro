@@ -20,6 +20,7 @@ import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
+import { semerCategories } from './services/categories.js'
 const app = express()
 
 // A deployed app is reached from several origins at once — the custom domain, its
@@ -88,3 +89,16 @@ app.use('/api/public', publicRouter)
 
 const port = Number(process.env.PORT) || 4000
 app.listen(port, () => console.log(`DropShip Pro API sur http://localhost:${port}`))
+
+/*
+ * Le referentiel de categories est seme au demarrage.
+ *
+ * Idempotent : il ne cree que ce qui manque et ne touche jamais a ce qui a ete
+ * appris. Lance apres l ecoute plutot qu avant, pour qu une base lente ne
+ * retarde pas la mise en service -- et rate en silence plutot que d empecher
+ * l API de demarrer, parce qu un referentiel absent degrade l import quand une
+ * API morte l arrete tout net.
+ */
+semerCategories()
+  .then((r) => console.log(`Référentiel : ${r.categories} catégories, ${r.alias} alias ajoutés`))
+  .catch((e) => console.error('semis du referentiel impossible', e))
