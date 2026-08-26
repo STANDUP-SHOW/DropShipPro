@@ -3,6 +3,7 @@ import type { Platform, Product } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { mapCategory } from './categoryMapping.js'
 import { publishToShopify, resoudreCredentialsShopify } from './shopify.js'
+import { imagesPourExport } from './exportImages.js'
 
 /**
  * Records a publication, and actually pushes the product where that is possible.
@@ -109,7 +110,17 @@ async function publishShopify(product: Product, targetCategory: string, apiBaseU
   }
 
   try {
-    const { externalUrl, notes } = await publishToShopify(product, user, targetCategory, creds, apiBaseUrl)
+    // Les photos sont marquees ici, au moment de partir : l original reste
+    // intact en base, et changer de logo ne demande aucun reimport.
+    const marquees = await imagesPourExport(product)
+    const { externalUrl, notes } = await publishToShopify(
+      product,
+      user,
+      targetCategory,
+      creds,
+      apiBaseUrl,
+      marquees,
+    )
     const data = {
       targetCategory,
       status: 'PUBLISHED' as const,

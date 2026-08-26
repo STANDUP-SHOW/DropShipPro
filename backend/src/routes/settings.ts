@@ -14,6 +14,7 @@ import {
 } from '../services/shopify.js'
 import { diagnostiquerJetonShopify } from '../services/shopifyToken.js'
 import { generateApiKey } from '../middleware/apiKey.js'
+import { oublierImagesExport } from '../services/exportImages.js'
 
 export const settingsRouter = Router()
 settingsRouter.use(requireAuth)
@@ -85,6 +86,8 @@ settingsRouter.put('/watermark-logo', (req: AuthedRequest, res) => {
     try {
       const watermarkImage = await saveWatermarkLogo(req.file.buffer, req.file.mimetype)
       await prisma.user.update({ where: { id: req.userId! }, data: { watermarkImage } })
+      // Les photos deja marquees portent l ancien logo : elles sont oubliees.
+      await oublierImagesExport(req.userId!)
       res.json({ watermarkImage })
     } catch (e) {
       console.error('logo de filigrane illisible', e)
@@ -119,6 +122,7 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
       name: s.name,
       shopKey: s.shopKey,
       platform: s.platform,
+      logo: s.logo,
       sectors: Array.isArray(s.sectors) ? s.sectors : [],
       products: s._count.products,
       createdAt: s.createdAt,
@@ -512,4 +516,49 @@ settingsRouter.get('/supplier-watch', async (req: AuthedRequest, res) => {
       supplierPrice: p.supplierPrice === null ? null : Number(p.supplierPrice),
     })),
   })
+})
+
+/**
+ * Le logo d'une boutique.
+ *
+ * Un vendeur qui tient un site de mode et un site high-tech ne signe pas ses
+ * photos de la même façon. Le logo du compte reste le défaut ; celui-ci le
+ * remplace pour les annonces rangées dans cette boutique.
+ */
+settingsRouter.put('/shops/:id/logo', (req: AuthedRequest, res) => {
+  uploadLogo(req, res, async (err) => {
+    if (err) {
+      const tropGros = (err as { code?: string }).code === 'LIMIT_FILE_SIZE'
+      return res.status(400).json({ error: tropGros ? 'Fichier trop lourd (2 Mo maximum)' : 'Envoi impossible' })
+    }
+    if (!req.file) return res.status(400).json({ error: 'Envoyez une image (PNG, SVG, JPEG ou WebP)' })
+
+    const boutique = await prisma.shop.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+    if (!boutique) return res.status(404).json({ error: 'Boutique introuvable' })
+
+    try {
+      const logo = await saveWatermarkLogo(req.file.buffer, req.file.mimetype)
+      await prisma.shop.update({ where: { id: boutique.id }, data: { logo } })
+
+      // Les photos deja marquees avec l ancien logo doivent etre refaites. La
+      // signature s en chargerait au prochain export ; vider tout de suite rend
+      // le changement visible sans attendre une publication.
+      await oublierImagesExport(req.userId!)
+
+      res.json({ logo })
+    } catch (e) {
+      console.error('logo de boutique illisible', e)
+      res.status(400).json({ error: "Ce fichier n'a pas pu être lu comme une image" })
+    }
+  })
+})
+
+settingsRouter.delete('/shops/:id/logo', async (req: AuthedRequest, res) => {
+  const { count } = await prisma.shop.updateMany({
+    where: { id: req.params.id, userId: req.userId! },
+    data: { logo: null },
+  })
+  if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
+  await oublierImagesExport(req.userId!)
+  res.json({ ok: true })
 })

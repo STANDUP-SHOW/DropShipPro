@@ -2,12 +2,11 @@ import type { Platform } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { scrapeProduct, ScrapeBlockedError } from './scraper.js'
 import { enhanceListing } from './aiEnhancer.js'
-import { watermarkImages } from './watermark.js'
+import { rapatrierImages } from './watermark.js'
 import { publishToPlatform } from './publisher.js'
 import { PLATFORMS } from './platforms.js'
 import { reserveCredits, refundCredits } from './billing.js'
 import { resoudreCategorie } from './categories.js'
-import { watermarkOptionsFor } from './watermarkOptions.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { selectProductImages } from './imageSelect.js'
 import { reviewImages, applyVerdict } from './controlAgent.js'
@@ -178,7 +177,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
 
       const retained = verdict?.checked ? verdict.keep : chosen
       const variants = verdict ? applyVerdict(announced, verdict) : announced
-      const images = await watermarkImages(retained, watermarkOptionsFor(user), enhanced.title)
+      const images = await rapatrierImages(retained, enhanced.title)
 
       /**
        * Le compromis du mode automatique, sur les photos.
@@ -226,6 +225,8 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           sellingPrice: market ?? scraped.price * 1.5,
           currency: scraped.currency,
           images: images.length ? images : retained,
+          // La marque se pose a l export : ces fichiers sont les originaux.
+          imagesWatermarked: false,
           variants: variants ?? undefined,
           metaTitle: enhanced.metaTitle,
           metaDescription: enhanced.metaDescription,

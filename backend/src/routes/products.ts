@@ -7,7 +7,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { scrapeProduct, ScrapeBlockedError } from '../services/scraper.js'
 import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
-import { watermarkImages, watermarkUploads } from '../services/watermark.js'
+import { rapatrierImages, watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, categorySectors } from '../services/categoryCatalog.js'
@@ -96,7 +96,7 @@ productsRouter.post(
 
     const retained = verdict?.checked ? verdict.keep : chosen
     const variants = verdict ? applyVerdict(announced, verdict) : announced
-    const watermarked = await watermarkImages(retained, watermarkOptionsFor(user), enhanced.title)
+    const watermarked = await rapatrierImages(retained, enhanced.title)
 
     /*
      * Le rangement, avant la creation.
@@ -130,6 +130,8 @@ productsRouter.post(
         sellingPrice: scraped.price * 1.5,
         currency: scraped.currency,
         images: watermarked.length ? watermarked : retained,
+        // La marque se pose a l export : ces fichiers sont les originaux.
+        imagesWatermarked: false,
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,
@@ -204,14 +206,13 @@ productsRouter.post(
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   try {
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
     const enhanced = await enhanceListing({
       title: data.title,
       description: data.description,
       category: data.sourceCategory,
       pageText: data.pageText,
     })
-    const watermarked = await watermarkImages(data.images, watermarkOptionsFor(user), enhanced.title)
+    const watermarked = await rapatrierImages(data.images, enhanced.title)
 
     // The extension rarely finds the option pickers by structure, so the model
     // reads them from the page text instead.
@@ -280,7 +281,6 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
   const parsed = batchImportSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Envoyez entre 1 et 25 URLs valides' })
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
 
   // Partial coverage rather than refusal: with three credits left and ten URLs,
   // the first three are imported and the rest are reported as not covered.
@@ -314,7 +314,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
         category: scraped.sourceCategory,
         pageText: scraped.pageText,
       })
-      const watermarked = await watermarkImages(scraped.images, watermarkOptionsFor(user), enhanced.title)
+      const watermarked = await rapatrierImages(scraped.images, enhanced.title)
 
       const rangement = await resoudreCategorie({
         sourceCategory: scraped.sourceCategory,

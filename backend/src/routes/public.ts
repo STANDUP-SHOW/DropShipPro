@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { imagesPourExport } from '../services/exportImages.js'
 import archiver from 'archiver'
 import path from 'path'
 import { existsSync } from 'fs'
@@ -94,14 +95,16 @@ publicRouter.get('/reviews', async (req, res) => {
  * `price` is the selling price, never the supplier cost: a shop wiring itself to
  * this feed would otherwise sell everything at what it paid for it.
  */
-function toCatalogItem(product: Product, category: string | null) {
+async function toCatalogItem(product: Product, category: string | null) {
   return {
     id: product.id,
     title: product.aiTitle || product.title,
     description: product.aiDescription || product.description,
     price: Number(product.sellingPrice),
     currency: product.currency,
-    images: product.images,
+    // Le flux sert les photos marquees : c est une sortie de DropShipper au
+    // meme titre qu une publication, et le filigrane se pose au depart.
+    images: await imagesPourExport(product),
     variants: product.variants ?? null,
     bulletPoints: product.bulletPoints ?? [],
     attributes: product.attributes ?? {},
@@ -136,7 +139,9 @@ publicRouter.get('/shops/:shopKey/products', async (req, res) => {
   res.json({
     shop: { name: shop.name },
     count: publications.length,
-    products: publications.map((p) => toCatalogItem(p.product, p.targetCategory)),
+    products: await Promise.all(
+      publications.map((p) => toCatalogItem(p.product, p.targetCategory)),
+    ),
   })
 })
 
@@ -156,7 +161,7 @@ publicRouter.get('/shops/:shopKey/products/:id', async (req, res) => {
   if (!publication) return res.status(404).json({ error: 'Produit introuvable' })
 
   res.set('Cache-Control', 'public, max-age=60')
-  res.json(toCatalogItem(publication.product, publication.targetCategory))
+  res.json(await toCatalogItem(publication.product, publication.targetCategory))
 })
 
 /**

@@ -1,8 +1,7 @@
 import { prisma } from '../lib/prisma.js'
 import { SupplierError, findConnector } from './supplierConnectors.js'
 import { enhanceListing } from './aiEnhancer.js'
-import { watermarkImages } from './watermark.js'
-import { watermarkOptionsFor } from './watermarkOptions.js'
+import { rapatrierImages } from './watermark.js'
 import { resoudreCategorie } from './categories.js'
 import { reserveCredits } from './billing.js'
 
@@ -40,10 +39,7 @@ export async function importerDepuisFournisseurs(
 ): Promise<ResultatImport> {
   const resultat: ResultatImport = { importes: 0, echecs: [], deja: 0, nonRelies: [] }
 
-  const [user, liens] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId } }),
-    prisma.supplierConnection.findMany({ where: { userId, connected: true } }),
-  ])
+  const liens = await prisma.supplierConnection.findMany({ where: { userId, connected: true } })
 
   for (const [supplierId, refs] of parFournisseur) {
     const connecteur = findConnector(supplierId)
@@ -111,11 +107,7 @@ export async function importerDepuisFournisseurs(
           pageText: fiche.pageText,
         })
 
-        const filigranees = await watermarkImages(
-          fiche.images.slice(0, 8),
-          watermarkOptionsFor(user),
-          enrichi.title,
-        )
+        const filigranees = await rapatrierImages(fiche.images.slice(0, 8), enrichi.title)
 
         /*
          * L'identifiant de catégorie du fournisseur est la clé la plus sûre :
@@ -151,6 +143,8 @@ export async function importerDepuisFournisseurs(
             sellingPrice: fiche.price * 1.5,
             currency: fiche.currency,
             images: filigranees.length ? filigranees : fiche.images,
+            // La marque se pose a l export : ces fichiers sont les originaux.
+            imagesWatermarked: false,
             variants: fiche.variants ?? undefined,
             metaTitle: enrichi.metaTitle,
             metaDescription: enrichi.metaDescription,

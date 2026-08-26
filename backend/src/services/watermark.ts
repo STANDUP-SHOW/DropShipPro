@@ -326,3 +326,112 @@ async function dropOpaqueBackground(png: Buffer): Promise<Buffer> {
     .png()
     .toBuffer()
 }
+
+/**
+ * Rapatrie les photos sans les marquer.
+ *
+ * C'est la moitié de `watermarkImages` qu'il faut faire à l'import : les
+ * adresses d'un fournisseur meurent, celles d'AliExpress plus vite que les
+ * autres. Rapatrier est donc obligatoire et définitif.
+ *
+ * Poser la marque, non. Une photo marquée à l'import est marquée pour toujours :
+ * le vendeur qui change de logo doit tout réimporter, l'agent photo travaille
+ * sur une image déjà signée, et la publicité se retrouve avec deux marques
+ * superposées. La marque se pose donc à l'export, sur l'original conservé.
+ */
+export async function rapatrierImages(
+  imageUrls: string[],
+  productTitle = 'produit',
+): Promise<string[]> {
+  await mkdir(STORAGE_DIR, { recursive: true })
+
+  const resultats: string[] = []
+  for (const [index, url] of imageUrls.slice(0, MAX_IMAGES).entries()) {
+    try {
+      const buffer = await fetchSourceImage(url)
+      if (!buffer) continue
+
+      // Réorienté et recompressé, mais rien d'autre : c'est l'original de
+      // travail. `rotate()` applique l'orientation EXIF, sans quoi une photo de
+      // téléphone arrive couchée.
+      const sortie = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer()
+      resultats.push(await putFile(`products/${seoFileName(productTitle, index)}`, sortie, 'image/jpeg'))
+    } catch {
+      // Une photo illisible ne fait pas perdre les autres.
+    }
+  }
+
+  return resultats
+}
+
+/**
+ * La signature des réglages de marque.
+ *
+ * Deux exports produits avec les mêmes réglages donnent la même signature, donc
+ * le second réutilise le premier. Un logo changé, une position déplacée, et la
+ * signature change : les images sont refaites au prochain export, sans que
+ * personne ait à vider quoi que ce soit à la main.
+ */
+export function signatureFiligrane(options: WatermarkOptions): string {
+  return [
+    options.enabled === false ? 'off' : 'on',
+    options.imagePath ?? '',
+    options.text ?? '',
+    options.scale ?? 22,
+    options.opacity ?? 75,
+    options.position ?? 'southeast',
+  ].join('|')
+}
+
+/**
+ * Pose la marque sur des images déjà rapatriées.
+ *
+ * Rend les chemins des fichiers marqués. Les originaux restent intacts : c'est
+ * ce qui permet de changer de logo, de refaire une publicité ou de laisser
+ * l'agent photo travailler sur une image propre.
+ */
+export async function marquerPourExport(
+  images: string[],
+  options: WatermarkOptions,
+  productTitle = 'produit',
+): Promise<string[]> {
+  if (options.enabled === false) return images
+  await mkdir(STORAGE_DIR, { recursive: true })
+
+  const scale = options.scale ?? 22
+  const opacity = options.opacity ?? 75
+  const gravity = options.position ?? 'southeast'
+
+  let logo: Buffer | null = null
+  const resultats: string[] = []
+
+  for (const [index, url] of images.entries()) {
+    try {
+      const buffer = await fetchSourceImage(url)
+      if (!buffer) continue
+
+      const image = sharp(buffer).rotate()
+      const largeur = (await image.metadata()).width ?? 800
+
+      if (options.imagePath && !logo) {
+        logo = await logoOverlay(options.imagePath, largeur, scale, opacity).catch((err) => {
+          console.error('logo de filigrane illisible, repli sur le texte', err)
+          return null as unknown as Buffer
+        })
+      }
+
+      const marque = logo ?? textOverlay(options.text, largeur, opacity)
+      const sortie = await image.composite([{ input: marque, gravity }]).jpeg({ quality: 88 }).toBuffer()
+
+      resultats.push(
+        await putFile(`export/${seoFileName(productTitle, index)}`, sortie, 'image/jpeg'),
+      )
+    } catch {
+      // Une photo qui résiste part sans marque plutôt que de ne pas partir :
+      // une annonce publiée sans filigrane vaut mieux qu'une annonce absente.
+      resultats.push(url)
+    }
+  }
+
+  return resultats
+}

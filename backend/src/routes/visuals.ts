@@ -188,6 +188,13 @@ const adSchema = z.object({
    * qui vend une gamme a prix variables, doit pouvoir le retirer.
    */
   showPrice: z.boolean().optional(),
+  /**
+   * La boutique dont le logo signe la publicite.
+   *
+   * Un vendeur qui tient deux sites ne signe pas ses pubs du meme logo. Absent,
+   * on prend celui de la boutique du produit, puis celui du compte.
+   */
+  shopId: z.string().trim().optional(),
 })
 
 visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
@@ -211,7 +218,7 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
         images: true,
         sellingPrice: true,
         currency: true,
-        shop: { select: { name: true } },
+        shop: { select: { name: true, logo: true } },
       },
     }),
     prisma.user.findUniqueOrThrow({
@@ -236,13 +243,25 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
    * est celui du filigrane — le vendeur l'a déjà déposé, lui en redemander un
    * second serait le même fichier à téléverser deux fois.
    */
+  /*
+   * Le logo, dans l ordre ou le vendeur l attend.
+   *
+   * Celui qu il a choisi pour cette publicite, sinon celui de la boutique ou
+   * l annonce est rangee, sinon celui du compte. Aucun n existe : la publicite
+   * part sans logo plutot que de ne pas partir.
+   */
+  const boutiquePub = parsed.data.shopId
+    ? await prisma.shop.findFirst({ where: { id: parsed.data.shopId, userId: req.userId! } })
+    : null
+  const logoPub = boutiquePub?.logo ?? product.shop?.logo ?? vendeur.watermarkImage ?? null
+
   const prix = Number(product.sellingPrice)
   const copy = {
     title: product.aiTitle || product.title,
     price:
       parsed.data.showPrice === false ? '' : `${prix.toFixed(2).replace('.', ',')} ${product.currency}`,
     shopName: product.shop?.name ?? vendeur.shopName ?? null,
-    logo: vendeur.watermarkImage ?? null,
+    logo: logoPub,
     ctaLabel: parsed.data.ctaLabel?.trim() || 'Commander',
     ctaUrl: parsed.data.ctaUrl?.trim() || null,
     argument: parsed.data.argument?.trim() || null,

@@ -411,6 +411,18 @@ export const api = {
   updateProfile: (data: Record<string, unknown>) =>
     request('/settings/profile', { method: 'PATCH', body: JSON.stringify(data) }),
   // Sites du vendeur : un par boutique, chacun avec sa propre clé de catalogue.
+  /** Depose le logo d une boutique : il prime sur celui du compte. */
+  uploadShopLogo: (shopId: string, file: File) => {
+    const form = new FormData()
+    form.append('logo', file)
+    return request<{ logo: string }>(`/settings/shops/${shopId}/logo`, {
+      method: 'PUT',
+      body: form,
+      // Le navigateur pose lui-meme la frontiere multipart : l imposer la casse.
+      headers: {},
+    })
+  },
+
   listShops: () =>
     request<
       Array<{
@@ -611,6 +623,8 @@ export const api = {
       argument?: string
       /** Faux retire le prix du visuel : un prix affiche est une promesse. */
       showPrice?: boolean
+      /** La boutique dont le logo signe la publicite. */
+      shopId?: string
     },
   ) =>
     request<{

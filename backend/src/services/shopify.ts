@@ -270,8 +270,10 @@ function escapeHtml(text: string): string {
  * URLs. Watermarked files are stored as /storage/… paths, which only mean
  * something relative to this API.
  */
-function imageUrls(product: Product, apiBaseUrl: string | undefined): string[] {
-  const images = Array.isArray(product.images) ? (product.images as unknown[]) : []
+function imageUrls(product: Product, apiBaseUrl: string | undefined, marquees?: string[]): string[] {
+  // Les images marquees pour l export quand elles existent : Shopify recoit
+  // la photo signee, pas l original de travail.
+  const images: unknown[] = marquees ?? (Array.isArray(product.images) ? (product.images as unknown[]) : [])
   return images
     .filter((img): img is string => typeof img === 'string')
     .map((img) => (img.startsWith('/') ? (apiBaseUrl ? `${apiBaseUrl}${img}` : '') : img))
@@ -353,6 +355,8 @@ export async function publishToShopify(
   targetCategory: string | null,
   creds: ShopifyCredentials,
   apiBaseUrl?: string,
+  /** Les photos marquees pour l export, quand la marque se pose au depart. */
+  marquees?: string[],
 ): Promise<ShopifyPublishResult> {
   const notes: string[] = []
 
@@ -367,7 +371,7 @@ export async function publishToShopify(
     .filter(Boolean)
     .slice(0, 40)
 
-  const urls = imageUrls(product, apiBaseUrl)
+  const urls = imageUrls(product, apiBaseUrl, marquees)
   const totalImages = Array.isArray(product.images) ? (product.images as unknown[]).length : 0
   if (totalImages && !urls.length) {
     notes.push("Photos non transmises : elles ne sont pas accessibles depuis Internet (PUBLIC_API_URL absent ?).")

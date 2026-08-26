@@ -190,8 +190,17 @@ model Product {
   currency      String  @default("EUR")
   markupPercent Int     @default(50)
 
-  images   Json
-  variants Json?
+  images            Json
+  /// Vrai quand les images portent deja le filigrane dans le fichier.
+  ///
+  /// Faux pour tout ce qui est importe depuis que la marque se pose a l export.
+  /// Vrai pour l existant, qu on ne peut pas demarquer -- et le distinguer evite
+  /// de poser une seconde marque par-dessus la premiere.
+  imagesWatermarked Boolean @default(true)
+  /// Les images marquees, et la signature des reglages qui les a produites.
+  exportImages      Json?
+  exportSignature   String?
+  variants          Json?
 
   metaTitle         String?
   metaDescription   String?
@@ -365,19 +374,29 @@ model WebhookEvent {
 /// le meme flux aux deux: chaque boutique a sa cle, et chaque annonce est rangee
 /// dans l une d elles.
 model Shop {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
   /// Identifiant public, utilise dans l URL du flux. Jamais l id interne.
-  shopKey   String   @unique @default(cuid())
+  shopKey  String  @unique @default(cuid())
   /// Type de site branche, a titre indicatif: wordpress, prestashop, magento...
-  platform  String?
+  platform String?
   /// Les rayons vendus par cette boutique. Vide = tous.
   ///
   /// Un vendeur qui tient un site de mode et un site high-tech ne veut pas voir
   /// les memes categories a l import : sans ce lien, la liste melange les deux.
-  sectors   Json?
+  sectors  Json?
+
+  /// Le logo de cette boutique, servi via /storage. Prioritaire sur celui du
+  /// compte : un vendeur qui tient deux sites ne les signe pas pareil.
+  logo              String?
+  watermarkText     String?
+  watermarkEnabled  Boolean @default(true)
+  watermarkScale    Int?
+  watermarkOpacity  Int?
+  watermarkPosition String?
+
   createdAt DateTime @default(now())
 
   products Product[]
