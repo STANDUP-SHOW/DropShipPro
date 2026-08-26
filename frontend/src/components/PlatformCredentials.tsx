@@ -163,8 +163,14 @@ export function PlatformCredentials() {
                         />
                         <p className="text-[11px] leading-relaxed text-gray-500">
                           Depuis <b>dev.shopify.com</b> : Apps › votre app › Settings › Credentials.
-                          Rien à recopier ensuite, le jeton est renouvelé tout seul. L'app et la
-                          boutique doivent appartenir à la même organisation Shopify.
+                          Rien à recopier ensuite, le jeton est renouvelé tout seul.
+                        </p>
+                        <p className="rounded-lg border border-orange-400/30 bg-orange-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-orange-200">
+                          Deux conditions, et elles bloquent tant qu'elles ne sont pas remplies :
+                          l'app doit être <b>déjà installée sur la boutique</b> — ce qui demande un
+                          déploiement au Shopify CLI — et l'app et la boutique doivent appartenir à
+                          la <b>même organisation</b>. Si l'une des deux manque, prenez plutôt le
+                          jeton d'accès Admin : rien à déployer.
                         </p>
                       </>
                     )}

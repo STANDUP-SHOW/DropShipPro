@@ -34,8 +34,9 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
     summary:
       "Publication réelle et immédiate : DropShipper IA crée le produit, ses photos filigranées, sa description et son prix dans votre boutique Shopify.",
     steps: [
-      "Partez de l'administration de votre boutique — admin.shopify.com — et non du Dev Dashboard (dev.shopify.com) : ce dernier ne délivre pas de jeton d'accès Admin.",
+      "Partez de l'administration de votre boutique — admin.shopify.com — et non du Dev Dashboard (dev.shopify.com) : ce dernier ne délivre aucun jeton, et son app doit être déployée au CLI avant de pouvoir servir.",
       'Dans votre admin Shopify, ouvrez Réglages › Apps et canaux de vente › Développer des apps.',
+      "Si un bouton « Autoriser le développement d'applications personnalisées » apparaît, cliquez-le : c'est une autorisation à donner une seule fois, et seul le propriétaire de la boutique peut le faire.",
       'Cliquez « Créer une app », donnez-lui un nom (par exemple « DropShipper IA »).',
       "Onglet « Configuration » › Admin API : cochez l'autorisation write_products. Ajoutez write_publications pour que le produit soit mis en ligne tout seul.",
       'Cliquez « Installer l\'app », puis copiez le jeton d\'accès Admin API (il commence par shpat_).',

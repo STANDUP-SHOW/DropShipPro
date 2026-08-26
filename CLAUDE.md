@@ -151,6 +151,15 @@ docs/        Documentation de l'API catalogue
   memoire le temps de sa vie : le redemander a chaque publication ferait trente
   echanges pour trente annonces. Banc `npx tsx check-shopify-oauth.ts`.
 
+  **Mais cette voie n est pas la voie conseillee**, et c est contre-intuitif :
+  l echange suppose l app **deja installee sur la boutique**, et une app creee
+  dans le Dev Dashboard ne s installe qu avec `shopify app deploy` ou une
+  distribution configuree. Un marchand sans projet local est bloque la. La voie
+  a conseiller reste l app personnalisee depuis admin.shopify.com : aucun CLI,
+  aucun deploiement, un `shpat_` permanent en trois minutes. Piege associe :
+  « Autoriser le developpement d applications personnalisees » doit etre active
+  une fois, et seul le proprietaire de la boutique peut le faire.
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).
