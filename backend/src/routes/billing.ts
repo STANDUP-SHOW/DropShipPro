@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { findAgentPlan, extendDepartment } from '../services/agentBilling.js'
-import { findImagePack } from './visuals.js'
+import { findImagePack, IMAGE_PACKS } from './visuals.js'
 import { findSupportAgent } from '../services/agentRoster.js'
 import {
   PACKS,
@@ -24,6 +24,10 @@ billingRouter.get('/plans', (_req, res) => {
   res.json({
     signupCredits: SIGNUP_CREDITS,
     packs: PACKS,
+    // Les credits graphiques sont une reserve a part, et ils s achetaient
+    // uniquement depuis l atelier photo : invisibles pour qui ne l avait jamais
+    // ouvert. Ils figurent donc dans la grille publique, avec les autres.
+    imagePacks: IMAGE_PACKS,
     premium: PREMIUM,
     /** False when no Stripe key is set: the UI then hides the buy buttons. */
     enabled: Boolean(getStripe()),

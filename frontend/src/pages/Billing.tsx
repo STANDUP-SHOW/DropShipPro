@@ -250,6 +250,41 @@ export default function BillingPage() {
         ))}
       </div>
 
+      {/*
+        Les crédits graphiques.
+        Ils étaient achetables dans l'atelier photo, donc invisibles pour qui ne
+        l'avait jamais ouvert. Or ce sont deux réserves différentes et le vendeur
+        doit le comprendre d'un coup d'œil : les crédits annonces paient
+        l'écriture, les crédits graphiques paient les images. Les mélanger ferait
+        croire qu'un import consomme une image.
+      */}
+      <h2 className="mt-10 text-lg font-bold">Crédits graphiques</h2>
+      <p className="mt-1 max-w-2xl text-sm text-gray-400">
+        Une réserve à part, pour les images. <b>Léa et Nadia sont gratuites</b> — aucun
+        abonnement, aucune embauche : elles puisent dans ces crédits quand elles travaillent. Une
+        mise en situation coûte un crédit, une publicité coûte un crédit par format.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {(plans?.imagePacks ?? []).map((pack) => (
+          <div key={pack.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xl font-bold">{euros(pack.amount)}</p>
+            <p className="mt-1 text-sm font-semibold text-emerald-200">{pack.label}</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {`${(pack.amount / 100 / pack.images).toFixed(3).replace('.', ',')} € l'image`}
+            </p>
+            <button
+              type="button"
+              onClick={() => buy(pack.id)}
+              disabled={!plans?.enabled || busy !== null}
+              className="mt-3 w-full rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/10 disabled:opacity-40"
+            >
+              {busy === pack.id ? 'Ouverture…' : 'Acheter'}
+            </button>
+          </div>
+        ))}
+      </div>
+
       {/* Premium */}
       {plans && (
         <div className="mt-8 rounded-2xl border border-purple-400/40 bg-gradient-to-br from-purple-500/15 to-pink-500/10 p-6">

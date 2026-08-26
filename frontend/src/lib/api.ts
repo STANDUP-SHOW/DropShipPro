@@ -294,6 +294,8 @@ export const api = {
     request<{
       signupCredits: number
       packs: Array<{ id: string; label: string; amount: number; credits: number }>
+      /** Les credits graphiques : une reserve a part, pour les images. */
+      imagePacks: Array<{ id: string; label: string; amount: number; images: number }>
       premium: { id: string; label: string; amount: number; monthlyFairUse: number }
       enabled: boolean
     }>('/billing/plans'),
