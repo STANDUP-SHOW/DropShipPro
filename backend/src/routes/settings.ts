@@ -8,6 +8,7 @@ import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
 import { normalizeShopDomain } from '../services/shopify.js'
+import { diagnostiquerJetonShopify } from '../services/shopifyToken.js'
 import { generateApiKey } from '../middleware/apiKey.js'
 
 export const settingsRouter = Router()
@@ -217,11 +218,9 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
       })
     }
     if (!accessToken) return res.status(400).json({ error: "Collez le jeton d'accès de l'app personnalisée" })
-    if (!/^shpat_/.test(accessToken)) {
-      return res.status(400).json({
-        error: "Ce jeton ne ressemble pas à un jeton d'accès Admin (il commence par shpat_).",
-      })
-    }
+
+    const probleme = diagnostiquerJetonShopify(accessToken)
+    if (probleme) return res.status(400).json({ error: probleme })
     data = { shopDomain, accessToken }
   }
 

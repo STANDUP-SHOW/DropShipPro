@@ -34,6 +34,7 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
     summary:
       "Publication réelle et immédiate : DropShipper IA crée le produit, ses photos filigranées, sa description et son prix dans votre boutique Shopify.",
     steps: [
+      "Partez de l'administration de votre boutique — admin.shopify.com — et non du Dev Dashboard (dev.shopify.com) : ce dernier ne délivre pas de jeton d'accès Admin.",
       'Dans votre admin Shopify, ouvrez Réglages › Apps et canaux de vente › Développer des apps.',
       'Cliquez « Créer une app », donnez-lui un nom (par exemple « DropShipper IA »).',
       "Onglet « Configuration » › Admin API : cochez l'autorisation write_products. Ajoutez write_publications pour que le produit soit mis en ligne tout seul.",
@@ -42,7 +43,7 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
       'Sélectionnez vos annonces et publiez : elles apparaissent dans Shopify avec leurs photos.',
     ],
     caution:
-      "Le jeton n'est affiché qu'une seule fois par Shopify : copiez-le tout de suite. Sans write_publications, le produit est créé mais reste à activer à la main dans le canal « Boutique en ligne ».",
+      "Le jeton n'est affiché qu'une seule fois par Shopify : copiez-le tout de suite. Attention à ne pas confondre avec le « jeton d'automatisation d'appli » du Dev Dashboard, qui commence par atkn_ : il ne sert qu'aux flux CI/CD et ne donne aucun accès à votre catalogue. Sans write_publications, le produit est créé mais reste à activer à la main dans le canal « Boutique en ligne ».",
     docUrl: 'https://admin.shopify.com',
     docLabel: 'Ouvrir mon admin Shopify',
   },

@@ -99,7 +99,7 @@ export function PlatformCredentials() {
                     <input
                       name="accessToken"
                       type="password"
-                      placeholder="Jeton d'accès Admin (shpat_…)"
+                      placeholder="Jeton d'accès Admin (shpat_… — pas atkn_)"
                       className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                     />
                     <div className="flex items-center gap-2">

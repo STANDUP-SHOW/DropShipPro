@@ -133,6 +133,15 @@ docs/        Documentation de l'API catalogue
 - **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne
   vide : React perd la trace des nœuds et lève « removeChild: the node to be
   removed is not a child ». Composer une seule chaîne.
+- **Shopify : quatre sortes de jetons, une seule qui publie.** Le Dev Dashboard
+  (dev.shopify.com) propose un « jeton d automatisation d appli » en `atkn_` :
+  c est un jeton CI/CD, il ne donne aucun acces au catalogue. Le bon jeton se
+  prend dans l administration de la boutique (admin.shopify.com), Parametres ›
+  Applications et canaux de vente › Developper des applications › API Admin, et
+  commence par `shpat_` (ou `shpca_` pour une app personnalisee -- l ancien
+  controle refusait ce prefixe-la, pourtant valide). Diagnostic par prefixe dans
+  `services/shopifyToken.ts`, banc `npx tsx check-shopify-token.ts`.
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).
