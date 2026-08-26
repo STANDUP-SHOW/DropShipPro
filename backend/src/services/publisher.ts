@@ -77,7 +77,8 @@ async function publishShopify(product: Product, targetCategory: string, apiBaseU
    * lequel des trente produits a manqué, ni pourquoi.
    */
   let creds: Awaited<ReturnType<typeof resoudreCredentialsShopify>> = null
-  let raison = 'Boutique Shopify non connectée : ajoutez le jeton dans Réglages.'
+  let raison =
+    "Boutique Shopify non connectée : aucune clé n'est enregistrée. Réglages › Shopify — soit le jeton d'accès Admin (shpat_…) depuis admin.shopify.com, soit le Client ID et le Client Secret du Dev Dashboard."
 
   if (credential?.connected) {
     try {

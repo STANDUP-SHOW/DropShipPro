@@ -34,9 +34,23 @@ export function PublishTargets({
   onToggleShop: (id: string) => void
 }) {
   const [shops, setShops] = useState<Shop[]>([])
+  /** Les plateformes dont la cle est reellement enregistree. */
+  const [reliees, setReliees] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     api.listShops().then(setShops).catch(() => undefined)
+    /*
+     * L etat reel des liaisons, pas seulement le mode de diffusion.
+     *
+     * La fenetre proposait Shopify de la meme facon qu aucun jeton ne soit
+     * enregistre : le vendeur cochait, publiait, et decouvrait « en attente »
+     * apres coup. Constate le 26/08/2026 -- quinze publications en attente pour
+     * une liaison qui n avait jamais ete enregistree.
+     */
+    api
+      .listCredentials()
+      .then((c) => setReliees(new Set(c.filter((x: any) => x.connected).map((x: any) => x.platform))))
+      .catch(() => undefined)
   }, [])
 
   // « Mon site » n'est plus une case : ce sont les boutiques du vendeur, une par
@@ -161,26 +175,45 @@ export function PublishTargets({
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {g.liste.map((p) => {
                 const coche = selected.includes(p.id)
+                /*
+                 * Une destination qui publie vraiment mais dont la clé manque.
+                 *
+                 * Elle reste cochable — le vendeur peut vouloir enregistrer son
+                 * intention — mais elle le dit, et donne le chemin. La cocher
+                 * sans savoir produisait une publication « en attente » que
+                 * personne ne relisait.
+                 */
+                const manqueLaCle = p.integration === 'live' && !reliees.has(p.id)
                 return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={coche}
-                    onClick={() => onToggle(p.id)}
-                    style={{ backgroundColor: coche ? p.color : 'transparent', borderColor: p.color }}
-                    className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition ${
-                      coche ? 'text-white' : 'text-gray-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <PlatformBadge label={p.label} color={p.color} size={24} />
-                    <span className="min-w-0 text-left leading-tight">
-                      <span className="block truncate">{p.label}</span>
-                      <span className="block text-[10px] font-normal opacity-70">
-                        {INTEGRATION_LABEL[p.integration]}
+                  <div key={p.id}>
+                    <button
+                      type="button"
+                      aria-pressed={coche}
+                      onClick={() => onToggle(p.id)}
+                      style={{ backgroundColor: coche ? p.color : 'transparent', borderColor: p.color }}
+                      className={`flex w-full items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition ${
+                        coche ? 'text-white' : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <PlatformBadge label={p.label} color={p.color} size={24} />
+                      <span className="min-w-0 text-left leading-tight">
+                        <span className="block truncate">{p.label}</span>
+                        <span className="block text-[10px] font-normal opacity-70">
+                          {manqueLaCle ? 'Aucune clé enregistrée' : INTEGRATION_LABEL[p.integration]}
+                        </span>
                       </span>
-                    </span>
-                    {coche ? <CheckCircle2 size={16} className="ml-auto shrink-0" /> : null}
-                  </button>
+                      {coche ? <CheckCircle2 size={16} className="ml-auto shrink-0" /> : null}
+                    </button>
+
+                    {manqueLaCle ? (
+                      <Link
+                        to="/settings"
+                        className="mt-1 block text-[11px] leading-snug text-amber-300 underline-offset-2 hover:underline"
+                      >
+                        {`${p.label} ne recevra rien tant que sa clé n'est pas enregistrée — la saisir dans Réglages`}
+                      </Link>
+                    ) : null}
+                  </div>
                 )
               })}
             </div>
