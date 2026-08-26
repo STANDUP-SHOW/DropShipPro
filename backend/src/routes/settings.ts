@@ -385,7 +385,9 @@ settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
   const data = Object.fromEntries(
     Object.entries(parsed.data.data).filter(([cle]) => attendus.has(cle)),
   )
-  const manquants = fournisseur.api.champs.filter((c) => !data[c.cle]).map((c) => c.label)
+  const manquants = fournisseur.api.champs
+    .filter((c) => !c.optionnel && !data[c.cle])
+    .map((c) => c.label)
   if (manquants.length) {
     return res.status(400).json({ error: `Il manque : ${manquants.join(', ')}` })
   }

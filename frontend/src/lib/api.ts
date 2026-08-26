@@ -246,7 +246,7 @@ export const api = {
           stockTempsReel: boolean
           commande: boolean
           suivi: boolean
-          champs: Array<{ cle: string; label: string; secret?: boolean }>
+          champs: Array<{ cle: string; label: string; secret?: boolean; optionnel?: boolean }>
         }
       }>
     >('/products/meta/suppliers'),

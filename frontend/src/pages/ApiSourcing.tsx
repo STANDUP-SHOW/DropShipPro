@@ -255,7 +255,9 @@ function Fenetre({
               <span className="text-xs text-gray-400">
                 {lien?.champs.includes(champ.cle) && champ.secret
                   ? `${champ.label} (laissez vide pour garder l'actuel)`
-                  : champ.label}
+                  : champ.optionnel
+                    ? `${champ.label} (facultatif)`
+                    : champ.label}
               </span>
               <input
                 type={champ.secret ? 'password' : 'text'}

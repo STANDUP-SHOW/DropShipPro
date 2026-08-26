@@ -126,6 +126,15 @@ export async function veillerFournisseurs(userId: string): Promise<ResultatVeill
       releves = await connecteur.fetchPrices(
         lot.map((p) => p.supplierRef!),
         (lien.data ?? {}) as Record<string, string>,
+        {
+          // Un jeton renouvelé en cours de relevé doit survivre au relevé.
+          async saveCredentials(patch) {
+            await prisma.supplierConnection.update({
+              where: { id: lien.id },
+              data: { data: { ...((lien.data ?? {}) as Record<string, string>), ...patch } },
+            })
+          },
+        },
       )
     } catch (err) {
       const message = err instanceof SupplierError ? err.message : `${connecteur.label} injoignable.`

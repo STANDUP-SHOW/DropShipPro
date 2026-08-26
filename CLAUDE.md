@@ -113,6 +113,23 @@ docs/        Documentation de l'API catalogue
   cinq photos n est pas une cible** : mieux vaut trois vraies photos que cinq
   dont une banniere.
 
+- **Les connecteurs fournisseurs se contrôlent contre de faux serveurs** :
+
+  ```bash
+  cd backend && npx tsx check-fournisseurs.ts && npx tsx check-aliexpress.ts && npx tsx check-refs.ts
+  ```
+
+  Le premier couvre BigBuy et CJ, le troisième la lecture de la référence
+  fournisseur dans l adresse. Le deuxième est le plus important : **AliExpress
+  repond 200 meme quand il refuse**, l echec est dans le corps sous
+  `error_response`. Une signature fausse ressemble donc a un produit sans prix,
+  c est-a-dire a une rupture — l annonce passerait en brouillon toute seule sans
+  qu aucune erreur ne s affiche. Le faux serveur recalcule donc la signature de
+  son cote et refuse tout ce qui ne correspond pas. Il verifie aussi qu un refus
+  portant sur **un produit** (fiche supprimee) n arrete pas le releve des autres,
+  alors qu un refus portant sur **la liaison** (signature, cle, quota) l arrete
+  tout de suite : continuer ferait cent appels voues au meme echec.
+
 - **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne
   vide : React perd la trace des nœuds et lève « removeChild: the node to be
   removed is not a child ». Composer une seule chaîne.

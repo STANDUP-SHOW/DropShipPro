@@ -16,42 +16,9 @@
  * propres garde-fous.
  */
 
-export interface SupplierPrice {
-  /** L'identifiant du produit chez le fournisseur. */
-  ref: string
-  /** Prix d'achat hors port, dans la devise du fournisseur. */
-  price: number | null
-  currency: string
-  /** Quantité disponible. Zéro veut dire rupture, null veut dire « non dit ». */
-  stock: number | null
-  /** Vrai quand le fournisseur déclare le produit vendable. */
-  available: boolean
-}
+export * from './supplierTypes.js'
 
-export interface SupplierConnector {
-  id: string
-  label: string
-  /** Relève prix et stock pour un lot de références. */
-  fetchPrices(refs: string[], credentials: Record<string, string>): Promise<SupplierPrice[]>
-}
-
-/**
- * Une erreur qui dit ce qu'il faut faire.
- *
- * « 401 » ne répare rien. Le vendeur doit savoir si sa clé est refusée, si son
- * abonnement a expiré, ou si le fournisseur est simplement en panne — les trois
- * appellent trois gestes différents.
- */
-export class SupplierError extends Error {
-  constructor(
-    message: string,
-    /** Vrai quand le vendeur peut corriger lui-même (clé, abonnement). */
-    readonly actionnable = false,
-  ) {
-    super(message)
-    this.name = 'SupplierError'
-  }
-}
+import { SupplierError, type SupplierConnector, type SupplierPrice } from './supplierTypes.js'
 
 /** Base d'appel, surchargeable pour les essais. */
 const BASES: Record<string, string> = {
@@ -187,7 +154,9 @@ const cj: SupplierConnector = {
   },
 }
 
-export const CONNECTEURS: SupplierConnector[] = [bigbuy, cj]
+import { aliexpress } from './supplierAliexpress.js'
+
+export const CONNECTEURS: SupplierConnector[] = [aliexpress, bigbuy, cj]
 
 export function findConnector(id: string): SupplierConnector | null {
   return CONNECTEURS.find((c) => c.id === id) ?? null

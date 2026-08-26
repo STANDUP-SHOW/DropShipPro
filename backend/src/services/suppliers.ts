@@ -68,8 +68,8 @@ export interface SupplierApi {
   commande: boolean
   /** Récupérer le numéro de suivi du colis. */
   suivi: boolean
-  /** Les champs à saisir pour se relier, dans l'ordre. */
-  champs: Array<{ cle: string; label: string; secret?: boolean }>
+  /** Les champs à saisir pour se relier, dans l'ordre. Un champ `optionnel` peut rester vide. */
+  champs: Array<{ cle: string; label: string; secret?: boolean; optionnel?: boolean }>
 }
 
 export const SUPPLIERS: SupplierInfo[] = [
@@ -85,28 +85,23 @@ export const SUPPLIERS: SupplierInfo[] = [
     adapte: true,
     color: '#ff4747',
     api: {
-          "nom": "AliExpress Open Platform — Dropshipping API",
-          "console": "https://openservice.aliexpress.com",
-          "exige": "Un compte AliExpress Affiliate ou Dropshipping validé, puis une application créée sur l'Open Platform : App Key et App Secret, et une autorisation OAuth du compte.",
-          "lectureCatalogue": true,
-          "stockTempsReel": true,
-          "commande": true,
-          "suivi": true,
-          "champs": [
-                {
-                      "cle": "appKey",
-                      "label": "App Key"
-                },
-                {
-                      "cle": "appSecret",
-                      "label": "App Secret",
-                      "secret": true
-                },
-                {
-                      "cle": "trackingId",
-                      "label": "Tracking ID d'affilié"
-                }
-          ]
+      nom: 'AliExpress Open Platform — Dropshipping API',
+      console: 'https://openservice.aliexpress.com',
+      exige:
+        "Un compte AliExpress Affiliate ou Dropshipping validé, puis une application créée sur l'Open Platform. La demande passe en revue : comptez deux à cinq jours ouvrés avant d'obtenir l'App Key et l'App Secret. Le jeton d'accès s'obtient ensuite en autorisant l'application depuis votre compte.",
+      lectureCatalogue: true,
+      stockTempsReel: true,
+      commande: true,
+      suivi: true,
+      champs: [
+        { cle: 'appKey', label: 'App Key' },
+        { cle: 'appSecret', label: 'App Secret', secret: true },
+        { cle: 'accessToken', label: "Jeton d'accès", secret: true },
+        // Facultatif, et pourtant c'est lui qui évite la panne : sans jeton de
+        // rafraîchissement, la veille s'arrête le jour où l'accès expire et il
+        // faut réautoriser l'application à la main.
+        { cle: 'refreshToken', label: 'Jeton de rafraîchissement', secret: true, optionnel: true },
+      ],
     },
   },
   {
