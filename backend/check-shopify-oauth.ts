@@ -35,7 +35,11 @@ const serveur = http.createServer((req, res) => {
     if (!(req.url ?? '').includes('/admin/oauth/access_token')) return repondre(404, {})
     if (dernier.client_secret !== 'bon-secret') return repondre(401, { error: 'invalid_client' })
 
-    repondre(200, { access_token: 'shpat_echange', scope: 'write_products', expires_in: 86399 })
+    repondre(200, {
+      access_token: 'shpat_echange',
+      scope: dernier.client_id === 'sans-droits' ? 'read_products' : 'write_products',
+      expires_in: 86399,
+    })
   })
 })
 
@@ -101,6 +105,15 @@ try {
     /organisation/i.test((refus as Error)?.message ?? ''),
     `le message ne parle pas de l'organisation : « ${(refus as Error)?.message} »`,
   )
+
+  // L'autorisation manquante doit se voir a la liaison, pas a la premiere
+  // publication : un jeton valide sans write_products publie zero annonce.
+  const { autorisationManquante } = await import('./src/services/shopify.js')
+  exige(autorisationManquante('write_products,read_orders') === null, 'write_products accorde doit passer')
+  const plainte = autorisationManquante('read_products')
+  exige(plainte !== null, 'une app sans write_products doit etre refusee a la liaison')
+  exige(/read_products/.test(plainte ?? ''), "le message doit dire ce que l app a reellement")
+  exige(/write_products/.test(autorisationManquante('') ?? ''), 'une app sans aucun droit doit nommer write_products')
 
   console.log(echecs === 0 ? 'Échange Shopify : tout passe.' : `${echecs} échec(s).`)
   process.exitCode = echecs === 0 ? 0 : 1

@@ -7,7 +7,11 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
-import { normalizeShopDomain, jetonParClientCredentials } from '../services/shopify.js'
+import {
+  normalizeShopDomain,
+  jetonParClientCredentials,
+  autorisationManquante,
+} from '../services/shopify.js'
 import { diagnostiquerJetonShopify } from '../services/shopifyToken.js'
 import { generateApiKey } from '../middleware/apiKey.js'
 
@@ -248,7 +252,13 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
        * annonces à la fois. Un échange coûte un appel — le faire maintenant.
        */
       try {
-        await jetonParClientCredentials({ shopDomain, clientId, clientSecret })
+        const echange = await jetonParClientCredentials({ shopDomain, clientId, clientSecret })
+
+        // L'échange ne demande pas d'autorisation : il rend celles que l'app
+        // déclare déjà. Un jeton valide sans write_products publierait zéro
+        // annonce, et l'écran dirait « Connecté ».
+        const manque = autorisationManquante(echange.scope)
+        if (manque) return res.status(400).json({ error: manque })
       } catch (err) {
         return res
           .status(400)

@@ -97,7 +97,7 @@ export function readShopifyOAuthCredentials(data: unknown): ShopifyOAuthCredenti
  * redéploiement, et les écrire ajouterait un secret de plus à protéger pour
  * gagner un seul appel réseau par jour.
  */
-const jetonsEchanges = new Map<string, { token: string; expire: number }>()
+const jetonsEchanges = new Map<string, { token: string; expire: number; scope: string }>()
 const MARGE_MS = 5 * 60 * 1000
 
 /**
@@ -110,11 +110,11 @@ const MARGE_MS = 5 * 60 * 1000
  */
 export async function jetonParClientCredentials(
   creds: ShopifyOAuthCredentials,
-): Promise<ShopifyCredentials> {
+): Promise<ShopifyCredentials & { scope: string }> {
   const cle = `${creds.shopDomain}:${creds.clientId}`
   const garde = jetonsEchanges.get(cle)
   if (garde && garde.expire > Date.now() + MARGE_MS) {
-    return { shopDomain: creds.shopDomain, accessToken: garde.token }
+    return { shopDomain: creds.shopDomain, accessToken: garde.token, scope: garde.scope }
   }
 
   let res: Response
@@ -140,17 +140,49 @@ export async function jetonParClientCredentials(
   }
   if (!res.ok) throw new ShopifyError(`Shopify a répondu ${res.status} à la demande de jeton.`)
 
-  const corps = (await res.json()) as { access_token?: string; expires_in?: number }
+  const corps = (await res.json()) as {
+    access_token?: string
+    expires_in?: number
+    scope?: string
+  }
   if (!corps.access_token) {
     throw new ShopifyError("Shopify n'a pas délivré de jeton pour ces identifiants.")
   }
 
+  const scope = corps.scope ?? ''
   jetonsEchanges.set(cle, {
     token: corps.access_token,
     expire: Date.now() + (corps.expires_in ?? 86399) * 1000,
+    scope,
   })
 
-  return { shopDomain: creds.shopDomain, accessToken: corps.access_token }
+  return { shopDomain: creds.shopDomain, accessToken: corps.access_token, scope }
+}
+
+/**
+ * L'autorisation sans laquelle rien ne se publiera, vérifiée dès la liaison.
+ *
+ * Cet échange ne demande aucune autorisation : il rend celles que l'app déclare
+ * déjà. Une app montée sans `write_products` donne donc un jeton parfaitement
+ * valide, avec lequel toute publication échoue en 403. L'écran dirait
+ * « Connecté », et le vendeur chercherait du côté de sa clé pendant que le
+ * problème est dans la configuration de son app.
+ */
+export function autorisationManquante(scope: string): string | null {
+  const accordees = new Set(
+    scope
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  )
+  if (accordees.has('write_products')) return null
+
+  const suite =
+    "Ajoutez write_products dans le Dev Dashboard, publiez une nouvelle version de l'app, puis acceptez la mise à jour sur la boutique."
+
+  return accordees.size
+    ? `Ces identifiants fonctionnent, mais l'app n'a pas l'autorisation write_products — elle a : ${[...accordees].join(', ')}. ${suite}`
+    : `Ces identifiants fonctionnent, mais l'app n'a aucune autorisation sur le catalogue. ${suite}`
 }
 
 /**
