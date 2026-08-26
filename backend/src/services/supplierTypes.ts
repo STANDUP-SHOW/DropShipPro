@@ -64,6 +64,31 @@ export interface SupplierOrderResult {
   url: string | null
 }
 
+/**
+ * Une fiche produit telle que le fournisseur la donne.
+ *
+ * Volontairement proche de ce que rend le scraper : le reste de la chaîne —
+ * réécriture, filigrane, choix des photos — ne doit pas savoir d'où la fiche
+ * vient. Les images sont des adresses chez le fournisseur ; elles seront
+ * téléchargées et réhébergées comme celles d'un import ordinaire.
+ */
+export interface SupplierProduct {
+  ref: string
+  title: string
+  description: string
+  /** Prix d'achat hors port, dans la devise rendue. */
+  price: number
+  currency: string
+  /** Adresses des photos, encore hébergées chez le fournisseur. */
+  images: string[]
+  /** Options déclarées : taille, couleur… */
+  variants: Record<string, string[]> | null
+  /** Ce que le fournisseur dit du produit, pour l'IA : specs, catégorie. */
+  pageText: string
+  category: string | null
+  available: boolean
+}
+
 export interface SupplierTracking {
   supplierOrderId: string
   status: string | null
@@ -107,6 +132,20 @@ export interface SupplierConnector {
     credentials: Record<string, string>,
     ctx?: SupplierContext,
   ): Promise<SupplierTracking[]>
+
+  /**
+   * Ramène une fiche complète depuis l'API du fournisseur.
+   *
+   * C'est la troisième voie d'acquisition, à côté de l'adresse et de
+   * l'extension, et la seule qui marche sur une liste : AliExpress Business
+   * exporte des identifiants, pas des fiches, et son site ne se laisse pas lire
+   * par un client HTTP ordinaire. Avec l'API, un identifiant suffit.
+   */
+  fetchProduct?(
+    ref: string,
+    credentials: Record<string, string>,
+    ctx?: SupplierContext,
+  ): Promise<SupplierProduct>
 
   /** Les variantes commandables d'un produit, pour savoir laquelle envoyer. */
   fetchVariants?(

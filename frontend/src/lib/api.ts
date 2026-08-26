@@ -997,6 +997,37 @@ export async function uploadProductImages(productId: string, files: File[]) {
   return body as { images: string[]; added: number }
 }
 
+/**
+ * Importe une liste exportée par un fournisseur — AliExpress Business et les
+ * autres.
+ *
+ * Le fichier ne porte que des identifiants et des titres : les fiches et les
+ * photos sont demandées à l'API du fournisseur, qui doit donc être reliée. Sans
+ * elle, ces adresses ne mènent nulle part — une page AliExpress se construit en
+ * JavaScript et ne se laisse pas lire par un serveur.
+ */
+export async function importSupplierList(fichier: File) {
+  const form = new FormData()
+  form.append('fichier', fichier)
+
+  const token = getToken()
+  const res = await fetch(`${BASE}/products/import-list`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`)
+  return body as {
+    importes: number
+    deja: number
+    lues: number
+    ignorees: number
+    nonRelies: string[]
+    echecs: Array<{ ref: string; raison: string }>
+  }
+}
+
 export function setToken(token: string) {
   localStorage.setItem('droppost_token', token)
 }

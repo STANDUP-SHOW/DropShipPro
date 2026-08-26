@@ -13,6 +13,8 @@ import { mapCategory } from '../services/categoryMapping.js'
 import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/categoryCatalog.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
+import { lireClasseur, colonneAdresses, XlsxIllisible } from '../services/xlsx.js'
+import { importerDepuisFournisseurs } from '../services/supplierImport.js'
 import { verifierCanaux } from '../services/channelRules.js'
 import { titlesByChannel } from '../services/channelCopy.js'
 import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
@@ -945,5 +947,88 @@ productsRouter.get('/meta/channels', (_req, res) => {
     types: TYPES_CANAL,
     canaux: CANAUX.map((c) => ({ ...c, integre: integrees.has(c.label.toLowerCase()) })),
     total: CANAUX.length,
+  })
+})
+
+/**
+ * Importer une liste de produits depuis un export fournisseur.
+ *
+ * AliExpress Business permet de cocher des produits et d'exporter la sélection.
+ * Le fichier obtenu ne contient que trois colonnes : identifiant, titre,
+ * adresse. **Aucune image, aucun prix, aucune description** — c'est une liste de
+ * courses, pas un catalogue.
+ *
+ * C'est pourtant tout ce qu'il faut, à une condition : que le fournisseur soit
+ * relié par son API. L'identifiant suffit alors à demander la fiche complète,
+ * photos comprises. Sans API, ces adresses ne mènent nulle part : AliExpress
+ * construit ses pages en JavaScript et un client HTTP ordinaire reçoit une
+ * coquille vide — c'est écrit dans le mémo depuis le début, et c'est pour ça que
+ * l'extension existe.
+ */
+const listeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+}).single('fichier')
+
+productsRouter.post('/import-list', (req: AuthedRequest, res) => {
+  listeUpload(req, res, async (err) => {
+    if (err) {
+      const trop = (err as { code?: string }).code === 'LIMIT_FILE_SIZE'
+      return res.status(400).json({ error: trop ? 'Fichier trop lourd (5 Mo maximum)' : 'Envoi impossible' })
+    }
+    if (!req.file) return res.status(400).json({ error: 'Joignez le fichier exporté par votre fournisseur.' })
+
+    let classeur
+    try {
+      classeur = lireClasseur(req.file.buffer)
+    } catch (e) {
+      return res.status(400).json({
+        error: e instanceof XlsxIllisible ? e.message : "Ce fichier n'a pas pu être lu.",
+      })
+    }
+
+    const colonne = colonneAdresses(classeur)
+    if (!colonne) {
+      return res.status(400).json({
+        error: `Aucune colonne d'adresses trouvée. Colonnes lues : ${classeur.entetes.join(', ')}.`,
+      })
+    }
+
+    /*
+     * Les références, dédoublonnées et rangées par fournisseur.
+     *
+     * Un même produit peut figurer deux fois dans un export — le vendeur l'a
+     * coché puis recoché. L'importer deux fois coûterait deux crédits pour deux
+     * annonces identiques.
+     */
+    const parFournisseur = new Map<string, Map<string, string>>()
+    const ignorees: string[] = []
+
+    for (const ligne of classeur.lignes) {
+      const url = ligne[colonne]
+      if (!url) continue
+      const champs = supplierFields(url)
+      if (!champs.supplierId || !champs.supplierRef) {
+        ignorees.push(url)
+        continue
+      }
+      const lot = parFournisseur.get(champs.supplierId) ?? new Map()
+      lot.set(champs.supplierRef, url)
+      parFournisseur.set(champs.supplierId, lot)
+    }
+
+    const total = [...parFournisseur.values()].reduce((n, m) => n + m.size, 0)
+    if (!total) {
+      return res.status(400).json({
+        error: "Aucune adresse produit reconnue dans ce fichier.",
+        ignorees: ignorees.slice(0, 5),
+      })
+    }
+
+    const resultats = await importerDepuisFournisseurs(req.userId!, parFournisseur, {
+      apiBaseUrl: apiBaseUrl(req),
+    })
+
+    res.json({ ...resultats, lues: classeur.lignes.length, ignorees: ignorees.length })
   })
 })

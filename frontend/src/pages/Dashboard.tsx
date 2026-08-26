@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
-import { api, assetUrl } from '../lib/api'
+import { api, assetUrl, importSupplierList } from '../lib/api'
 import type { PlatformInfo } from '../lib/platforms'
 import { PublishedBadges } from '../components/PublishedBadges'
 
@@ -246,6 +246,57 @@ export default function Dashboard() {
               Importer le lot
             </button>
             {batchSummary && <span className="text-sm text-gray-400">{batchSummary}</span>}
+          </div>
+
+          {/*
+            L'import d'un export fournisseur.
+            AliExpress Business, comme ses concurrents, exporte une sélection en
+            classeur — identifiants et titres, rien d'autre. Les fiches et les
+            photos sont ensuite demandées à l'API du fournisseur : c'est le seul
+            chemin qui marche sur une liste, puisque ces adresses ne se laissent
+            pas lire par un serveur et que l'extension travaille page par page.
+          */}
+          <div className="border-t border-white/10 pt-3">
+            <p className="text-sm font-medium">Ou importez un fichier exporté par votre fournisseur</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              AliExpress Business, BigBuy, CJ… Le fournisseur doit être relié dans{' '}
+              <Link to="/api-sourcing-connect" className="text-purple-300 underline underline-offset-2">
+                API fournisseurs
+              </Link>{' '}
+              : le fichier ne contient que des références, les photos viennent de son API.
+            </p>
+
+            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm hover:bg-white/10">
+              <input
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={async (e) => {
+                  const fichier = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!fichier) return
+                  setError(null)
+                  setBatchSummary(null)
+                  setImporting(true)
+                  try {
+                    const r = await importSupplierList(fichier)
+                    const morceaux = [`${r.importes} importé(s) sur ${r.lues} ligne(s)`]
+                    if (r.deja) morceaux.push(`${r.deja} déjà en catalogue`)
+                    if (r.ignorees) morceaux.push(`${r.ignorees} adresse(s) non reconnue(s)`)
+                    if (r.nonRelies.length) morceaux.push(`non relié : ${r.nonRelies.join(', ')}`)
+                    setBatchSummary(morceaux.join(' · '))
+                    // Une raison d'échec vaut mieux qu'un compte : elle dit quoi faire.
+                    if (r.echecs.length) setError(r.echecs[0].raison)
+                    await load()
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Import du fichier impossible')
+                  } finally {
+                    setImporting(false)
+                  }
+                }}
+              />
+              <span>Choisir un fichier .xlsx</span>
+            </label>
           </div>
         </form>
       )}

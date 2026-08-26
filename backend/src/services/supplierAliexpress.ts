@@ -204,6 +204,55 @@ function lireFiche(json: unknown, ref: string): SupplierPrice {
   }
 }
 
+/** Les champs de la fiche complète, au-delà du prix et du stock. */
+interface FicheComplete {
+  aliexpress_ds_product_get_response?: {
+    result?: {
+      ae_item_base_info_dto?: {
+        subject?: string
+        detail?: string
+        category_id?: number | string
+        product_status_type?: string
+        currency_code?: string
+      }
+      ae_multimedia_info_dto?: { image_urls?: string }
+      ae_item_properties?: {
+        ae_item_property?: Array<{ attr_name?: string; attr_value?: string }>
+      }
+      ae_item_sku_info_dtos?: {
+        ae_item_sku_info_d_t_o?: Array<{
+          offer_sale_price?: string
+          sku_price?: string
+          currency_code?: string
+          ae_sku_property_dtos?: {
+            ae_sku_property_d_t_o?: Array<{ sku_property_name?: string; sku_property_value?: string }>
+          }
+        }>
+      }
+    }
+  }
+}
+
+/**
+ * Retire le balisage d'une description AliExpress.
+ *
+ * Leur `detail` est du HTML de boutique : des tableaux, des images en dur, des
+ * styles en ligne. L'IA n'en fait rien de bon et il pollue la fiche. Le texte
+ * seul est gardé, les images de la description restent hors du lot — celles qui
+ * comptent sont dans la galerie.
+ */
+function texteSeul(html: string): string {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export const aliexpress: SupplierConnector = {
   id: 'aliexpress',
   label: 'AliExpress',
@@ -280,5 +329,94 @@ export const aliexpress: SupplierConnector = {
     }
 
     return sortie
+  },
+
+  /**
+   * Ramène la fiche complète d'un identifiant.
+   *
+   * C'est ce qui rend exploitable un export d'AliExpress Business : ce fichier
+   * ne contient que des identifiants et des titres, aucune image, aucun prix.
+   * L'API rend tout le reste — et les photos sont des adresses chez eux, que la
+   * chaîne d'import télécharge et réhéberge ensuite comme celles d'un import
+   * ordinaire.
+   */
+  async fetchProduct(ref, credentials) {
+    const appKey = credentials.appKey?.trim()
+    const appSecret = credentials.appSecret?.trim()
+    const accessToken = credentials.accessToken?.trim()
+
+    if (!appKey || !appSecret || !accessToken) {
+      throw new SupplierError(
+        "Liaison AliExpress incomplète : il faut l'App Key, l'App Secret et le jeton d'accès.",
+        true,
+      )
+    }
+
+    const json = (await appelSigne(
+      {
+        method: 'aliexpress.ds.product.get',
+        app_key: appKey,
+        access_token: accessToken,
+        product_id: ref,
+        ship_to_country: credentials.shipTo?.trim() || 'FR',
+        target_currency: credentials.currency?.trim() || 'EUR',
+        target_language: 'fr',
+      },
+      appSecret,
+      undefined,
+    )) as FicheComplete
+
+    const resultat = json.aliexpress_ds_product_get_response?.result
+    const base = resultat?.ae_item_base_info_dto
+    if (!base?.subject) {
+      throw new SupplierError(`AliExpress ne rend aucune fiche pour la référence ${ref}.`)
+    }
+
+    // Les images arrivent en une seule chaîne séparée par des points-virgules.
+    const images = (resultat?.ae_multimedia_info_dto?.image_urls ?? '')
+      .split(';')
+      .map((u) => u.trim())
+      .filter((u) => /^https?:\/\//i.test(u))
+
+    const variantes = resultat?.ae_item_sku_info_dtos?.ae_item_sku_info_d_t_o ?? []
+
+    const prix = variantes
+      .map((v) => Number(v.offer_sale_price ?? v.sku_price))
+      .filter((p) => Number.isFinite(p) && p > 0)
+      .sort((a, b) => a - b)[0]
+
+    // Les options, regroupées par nom : « Couleur » -> Noir, Argent…
+    const options: Record<string, Set<string>> = {}
+    for (const v of variantes) {
+      for (const prop of v.ae_sku_property_dtos?.ae_sku_property_d_t_o ?? []) {
+        const nom = prop.sku_property_name?.trim()
+        const valeur = prop.sku_property_value?.trim()
+        if (!nom || !valeur) continue
+        ;(options[nom] ??= new Set()).add(valeur)
+      }
+    }
+
+    // Les caractéristiques déclarées : c'est de là que viennent « bracelet acier
+    // inoxydable » et « 22 rubis », que la lecture d'une page perd si souvent.
+    const proprietes = (resultat?.ae_item_properties?.ae_item_property ?? [])
+      .map((p) => (p.attr_name && p.attr_value ? `${p.attr_name} : ${p.attr_value}` : ''))
+      .filter(Boolean)
+
+    const description = texteSeul(base.detail ?? '')
+
+    return {
+      ref,
+      title: base.subject.trim(),
+      description: description.slice(0, 4000),
+      price: prix ?? 0,
+      currency: variantes[0]?.currency_code ?? base.currency_code ?? 'EUR',
+      images,
+      variants: Object.keys(options).length
+        ? Object.fromEntries(Object.entries(options).map(([k, v]) => [k, [...v]]))
+        : null,
+      pageText: [base.subject, ...proprietes, description].join('\n').slice(0, 15000),
+      category: base.category_id ? String(base.category_id) : null,
+      available: base.product_status_type === undefined || base.product_status_type === 'onSelling',
+    }
   },
 }
