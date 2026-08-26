@@ -5,9 +5,15 @@ import { api, assetUrl } from '../lib/api'
 
 type Visual = Awaited<ReturnType<typeof api.productVisuals>>['generated'][number]
 
-/** Cinq mises en situation et un visuel publicitaire : les six annoncés sur le bouton. */
-const MISES_EN_SITUATION = 5
-const FORMAT_PUB = 'instagram'
+/**
+ * Six mises en situation, et rien d autre.
+ *
+ * Lea produisait aussi un visuel publicitaire. C etait une erreur de metier :
+ * elle compose une image, elle n ecrit pas d accroche, et la pub sortait sans
+ * texte -- un credit depense pour un visuel inutilisable. La publicite est le
+ * metier de Nadia, qui pose le logo, le prix et le bouton. Chacune la sienne.
+ */
+const MISES_EN_SITUATION = 6
 
 /**
  * Le bloc de Léa sur la fiche d'une annonce.
@@ -49,7 +55,7 @@ export function PhotoAgentBlock({
       .catch(() => undefined)
   }, [productId])
 
-  const cout = MISES_EN_SITUATION + 1
+  const cout = MISES_EN_SITUATION
 
   async function regenerate() {
     setBusy(true)
@@ -57,18 +63,10 @@ export function PhotoAgentBlock({
     const problemes: string[] = []
 
     try {
-      // Les deux appels sont séparés parce que ce sont deux métiers : la mise en
-      // situation garde le cadre du produit, le visuel publicitaire compose au
-      // format du réseau. Le second part même si le premier a manqué de crédits.
       const photos = await api.generatePhotos(productId, MISES_EN_SITUATION)
       if (photos.errors.length) problemes.push(...photos.errors)
       setCredits(photos.credits)
       setVisuals((v) => [...photos.images, ...v])
-
-      const pub = await api.generateAds(productId, [FORMAT_PUB], 1)
-      if (pub.errors.length) problemes.push(...pub.errors)
-      setCredits(pub.credits)
-      setVisuals((v) => [...pub.images, ...v])
     } catch (err) {
       problemes.push(err instanceof Error ? err.message : 'Génération impossible')
     } finally {
@@ -99,8 +97,7 @@ export function PhotoAgentBlock({
           <h2 className="text-sm font-semibold tracking-wide">Léa — Agent Graphiste</h2>
           <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
             Je peux refaire les photos de ce produit si vous le souhaitez : le même article, mais en
-            situation d'utilisation, éclairé comme une publicité — et un visuel au format des
-            réseaux.
+            situation d'utilisation, éclairé comme en studio. Je ne fais que de la photo.
           </p>
         </div>
       </header>
@@ -117,8 +114,23 @@ export function PhotoAgentBlock({
 
       <p className="mt-2 text-center text-[11px] text-gray-500">
         {credits === null
-          ? `${cout} crédits images · ${MISES_EN_SITUATION} mises en situation et 1 visuel publicitaire`
-          : `${cout} crédits images sur les ${credits} qui vous restent · ${MISES_EN_SITUATION} mises en situation et 1 visuel publicitaire`}
+          ? `${cout} crédits images · ${MISES_EN_SITUATION} mises en situation`
+          : `${cout} crédits images sur les ${credits} qui vous restent · ${MISES_EN_SITUATION} mises en situation`}
+      </p>
+
+      {/*
+        Le renvoi vers Nadia, et la raison.
+        Léa composait aussi la publicité, et la sortait sans accroche : un crédit
+        dépensé pour un visuel inutilisable. Poser le logo, le prix et le bouton
+        est un autre métier — autant le dire ici plutôt que de laisser le vendeur
+        redemander la même chose à la mauvaise personne.
+      */}
+      <p className="mt-2 text-center text-[11px] text-gray-500">
+        Besoin d'une publicité — logo, prix, bouton vers la boutique ?{' '}
+        <Link to="/marketing" className="text-purple-300 underline underline-offset-2">
+          C'est Nadia qui s'en charge
+        </Link>
+        .
       </p>
 
       {credits === 0 ? (

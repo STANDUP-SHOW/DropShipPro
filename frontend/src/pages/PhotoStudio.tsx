@@ -98,9 +98,10 @@ export default function PhotoStudio() {
         <span>Marketing photo</span>
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        L'agent reprend les photos de votre produit et les remet en situation, comme un photographe
-        publicitaire. Il ne crée pas d'autre visuel et n'invente jamais un produit : celui de la
-        photo est celui que recevra l'acheteur.
+        Léa reprend les photos de votre produit et les remet en situation, comme un photographe en
+        studio. Elle ne fait que de la photo, et n'invente jamais un produit : celui de la photo est
+        celui que recevra l'acheteur. Pour une publicité — logo, prix, bouton vers la boutique —
+        c'est Nadia, dans Marketing.
       </p>
 
       {state && (

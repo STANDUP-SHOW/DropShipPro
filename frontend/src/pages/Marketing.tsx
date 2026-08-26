@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { AdAccounts } from '../components/AdAccounts'
 import { AgentBook } from '../components/AgentBook'
+import { AdDialog } from '../components/AdDialog'
 import { ProductPicker } from '../components/ProductPicker'
 import { SupportChat } from '../components/SupportChat'
 
@@ -34,6 +35,7 @@ export default function Marketing() {
   const [ctaUrl, setCtaUrl] = useState('')
   const [argument, setArgument] = useState('')
   const [busy, setBusy] = useState(false)
+  const [adCible, setAdCible] = useState<{ id: string; titre: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -134,7 +136,9 @@ export default function Marketing() {
         }}
         onGenerer={(p) => {
           setAvis(null)
-          setOpenId((actuel) => (actuel === p.id ? null : p.id))
+          // Une fenetre au milieu de l ecran, pas un panneau deplie plus bas :
+          // le vendeur cliquait et ne voyait rien bouger.
+          setAdCible({ id: p.id, titre: p.aiTitle || p.title })
         }}
       />
 
@@ -292,6 +296,23 @@ export default function Marketing() {
         si la campagne gagne ou perd de l'argent, et à partir de quel coût par acquisition il faut
         l'arrêter.
       </p>
+
+      {adCible ? (
+        <AdDialog
+          productId={adCible.id}
+          productTitle={adCible.titre}
+          credits={state?.credits ?? null}
+          onClose={() => setAdCible(null)}
+          onGenerated={(images, credits) => {
+            setState((s) => (s ? { ...s, credits } : s))
+            // Le book en bas de page se remplit tout de suite : la pub existe,
+            // elle doit se voir sans recharger.
+            setDetail((d) =>
+              d ? { ...d, generated: [...(images as typeof d.generated), ...d.generated] } : d,
+            )
+          }}
+        />
+      ) : null}
 
       <AgentBook
         kind="ad"

@@ -180,6 +180,14 @@ const adSchema = z.object({
   ctaLabel: z.string().trim().max(30).optional(),
   ctaUrl: z.string().trim().max(80).optional(),
   argument: z.string().trim().max(60).optional(),
+  /**
+   * Afficher le prix de vente sur le visuel.
+   *
+   * Vrai par defaut, parce qu une publicite sans prix convertit moins. Mais un
+   * prix affiche est une promesse : le vendeur qui teste un positionnement, ou
+   * qui vend une gamme a prix variables, doit pouvoir le retirer.
+   */
+  showPrice: z.boolean().optional(),
 })
 
 visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
@@ -231,7 +239,8 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
   const prix = Number(product.sellingPrice)
   const copy = {
     title: product.aiTitle || product.title,
-    price: `${prix.toFixed(2).replace('.', ',')} ${product.currency}`,
+    price:
+      parsed.data.showPrice === false ? '' : `${prix.toFixed(2).replace('.', ',')} ${product.currency}`,
     shopName: product.shop?.name ?? vendeur.shopName ?? null,
     logo: vendeur.watermarkImage ?? null,
     ctaLabel: parsed.data.ctaLabel?.trim() || 'Commander',

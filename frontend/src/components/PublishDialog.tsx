@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Radio, X, Zap, AlertTriangle, ExternalLink } from 'lucide-react'
 import { PublishTargets } from './PublishTargets'
+import { PublishResult } from './PublishResult'
 import { type PlatformInfo } from '../lib/platforms'
 
 export type { PlatformInfo }
@@ -102,6 +103,8 @@ export function PublishDialog({
     .filter((p): p is PlatformInfo => Boolean(p?.warning))
   const needsExtension = selected.some((id) => platforms.find((p) => p.id === id)?.integration === 'extension')
 
+  const [recap, setRecap] = useState<PublishOutcome[] | null>(null)
+
   async function diffuse() {
     if (!selected.length && !shopIds.length) return
     setBusy(true)
@@ -122,7 +125,12 @@ export function PublishDialog({
         if (Array.isArray(r)) resultats.push(...r)
       }
 
-      if (resultats.length) setOutcomes(resultats)
+      if (resultats.length) {
+        setOutcomes(resultats)
+        // Le recapitulatif s ouvre par-dessus : « publier » doit se terminer par
+        // une reponse claire, pas par un tableau a faire defiler.
+        setRecap(resultats)
+      }
 
       // The extension is only worth waking up when a manual marketplace is in the
       // batch: an API destination is already done at this point.
@@ -254,6 +262,17 @@ export function PublishDialog({
             : `${selected.length + shopIds.length} destination(s) sélectionnée(s)`}
         </p>
       </div>
+
+      {recap ? (
+        <PublishResult
+          resultats={recap}
+          platforms={platforms}
+          onClose={() => {
+            setRecap(null)
+            onClose()
+          }}
+        />
+      ) : null}
     </div>,
     document.body,
   )

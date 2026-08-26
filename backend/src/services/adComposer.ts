@@ -135,15 +135,27 @@ export async function composeAd(
     ? `<text x="${marge}" y="${argBase}" font-family="Helvetica, Arial, sans-serif" font-size="${tailleArg}" fill="#d1d5db">${xml(copy.argument)}</text>`
     : ''
 
+  /*
+   * Le prix est facultatif, et son absence doit se refermer.
+   *
+   * Un vendeur peut choisir de ne pas l'afficher — gamme à prix variables, test
+   * de positionnement. Dessiner un texte vide laisserait la place réservée : un
+   * trou entre le titre et l'argument, qui se voit d'autant plus que le reste
+   * est aligné. La ligne est donc retirée, et le titre redescend.
+   */
+  const aPrix = Boolean(copy.price?.trim())
   const prixBase = argBase - (copy.argument ? tailleArg + interligne : 0)
-  const prixSvg = `<text x="${marge}" y="${prixBase}" font-family="Helvetica, Arial, sans-serif" font-size="${taillePrix}" font-weight="800" fill="#ffffff">${xml(copy.price)}</text>`
-
-  const largeurPrix = copy.price.length * taillePrix * 0.58
-  const barreSvg = copy.priceBefore
-    ? `<text x="${Math.round(marge + largeurPrix + taillePrix * 0.28)}" y="${prixBase}" font-family="Helvetica, Arial, sans-serif" font-size="${Math.round(taillePrix * 0.5)}" fill="#cbd5e1" text-decoration="line-through">${xml(copy.priceBefore)}</text>`
+  const prixSvg = aPrix
+    ? `<text x="${marge}" y="${prixBase}" font-family="Helvetica, Arial, sans-serif" font-size="${taillePrix}" font-weight="800" fill="#ffffff">${xml(copy.price)}</text>`
     : ''
 
-  const titreBas = prixBase - Math.round(taillePrix * 0.82) - interligne
+  const largeurPrix = aPrix ? copy.price.length * taillePrix * 0.58 : 0
+  const barreSvg =
+    aPrix && copy.priceBefore
+      ? `<text x="${Math.round(marge + largeurPrix + taillePrix * 0.28)}" y="${prixBase}" font-family="Helvetica, Arial, sans-serif" font-size="${Math.round(taillePrix * 0.5)}" fill="#cbd5e1" text-decoration="line-through">${xml(copy.priceBefore)}</text>`
+      : ''
+
+  const titreBas = aPrix ? prixBase - Math.round(taillePrix * 0.82) - interligne : prixBase
   const hauteurLigne = Math.round(tailleTitre * 1.18)
   const titreHaut = titreBas - (lignes.length - 1) * hauteurLigne
 

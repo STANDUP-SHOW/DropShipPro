@@ -159,7 +159,15 @@ export default function MyAds() {
 
                 {deplie && (
                   <div className="border-t border-white/10 p-4">
-                    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {/*
+                      Une mosaïque en colonnes, pas une grille à cases égales.
+                      Les formats vont du carré 1080 à la story 1080×1920 : les
+                      forcer dans la même case rognerait les stories ou laisserait
+                      des bandes noires autour des bannières. En colonnes, chaque
+                      visuel garde ses proportions et les autres se referment
+                      dessus.
+                    */}
+                    <ul className="columns-1 gap-3 sm:columns-2 lg:columns-3 [&>li]:mb-3 [&>li]:break-inside-avoid">
                       {groupe.pubs.map((img) => {
                         const gestionnaire = img.platform ? GESTIONNAIRES[img.platform] : null
                         return (
@@ -174,7 +182,7 @@ export default function MyAds() {
                                 src={assetUrl(img.path)}
                                 alt=""
                                 loading="lazy"
-                                className="aspect-video w-full object-contain"
+                                className="w-full"
                               />
                             </button>
 

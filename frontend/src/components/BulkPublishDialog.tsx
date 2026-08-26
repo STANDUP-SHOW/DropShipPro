@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { PublishResult } from './PublishResult'
 import { Layers, X, Zap, CheckCircle2, ExternalLink, Info } from 'lucide-react'
 import { PlatformBadge } from './PlatformBadge'
 import { ShopPicker } from './ShopPicker'
@@ -59,6 +60,8 @@ export function BulkPublishDialog({
     setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]))
   }, [])
 
+  const [recap, setRecap] = useState<Awaited<ReturnType<typeof api.publishBatch>>['results'] | null>(null)
+
   async function run() {
     if (!selected.length || busy) return
     setBusy(true)
@@ -68,6 +71,9 @@ export function BulkPublishDialog({
     try {
       const res = await api.publishBatch(productIds, selected, shopId || undefined)
       setSummary({ published: res.published, pending: res.pending, failed: res.failed })
+      // Le recapitulatif complet, pas seulement les echecs : un lot dont rien
+      // n echoue mais dont tout attend ne doit pas passer pour une reussite.
+      setRecap(res.results)
       // Only the failures are worth listing one by one; the rest is a count.
       setResults(res.results.filter((r) => r.status === 'FAILED'))
       await onDone()
@@ -184,6 +190,17 @@ export function BulkPublishDialog({
           </button>
         </div>
       </div>
+
+      {recap ? (
+        <PublishResult
+          resultats={recap}
+          platforms={platforms}
+          onClose={() => {
+            setRecap(null)
+            onClose()
+          }}
+        />
+      ) : null}
     </div>,
     document.body,
   )

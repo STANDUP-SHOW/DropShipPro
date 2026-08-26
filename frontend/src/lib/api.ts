@@ -602,7 +602,14 @@ export const api = {
     productId: string,
     platforms: string[],
     count: number,
-    options?: { hint?: string; ctaLabel?: string; ctaUrl?: string; argument?: string },
+    options?: {
+      hint?: string
+      ctaLabel?: string
+      ctaUrl?: string
+      argument?: string
+      /** Faux retire le prix du visuel : un prix affiche est une promesse. */
+      showPrice?: boolean
+    },
   ) =>
     request<{
       images: Array<{

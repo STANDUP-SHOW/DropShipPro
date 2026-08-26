@@ -5,6 +5,7 @@ import { Layout } from '../components/Layout'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { api, assetUrl } from '../lib/api'
 import type { PlatformInfo } from '../lib/platforms'
+import { PublishedBadges } from '../components/PublishedBadges'
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -444,6 +445,11 @@ export default function Dashboard() {
                         {STATUS_LABEL[p.status]}
                       </span>
                     </div>
+
+                    {/* Où elle est réellement en ligne, sans ouvrir la fiche. */}
+                    <div className="mt-2">
+                      <PublishedBadges publications={p.publications ?? []} platforms={platforms} />
+                    </div>
                   </div>
                 </Link>
               )
@@ -475,6 +481,9 @@ export default function Dashboard() {
                       )}
                     </div>
                     <p className="min-w-0 flex-1 truncate text-sm">{p.aiTitle || p.title}</p>
+                    <div className="hidden shrink-0 sm:block">
+                      <PublishedBadges publications={p.publications ?? []} platforms={platforms} max={5} />
+                    </div>
                     <span className="shrink-0 text-sm font-bold text-purple-300">
                       {`${Number(p.sellingPrice ?? 0).toFixed(2)} ${p.currency}`}
                     </span>
