@@ -24,6 +24,7 @@ import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { PriceInput } from '../components/PriceInput'
 import { PhotoAgentBlock } from '../components/PhotoAgentBlock'
+import { ChannelReadiness } from '../components/ChannelReadiness'
 
 /** Section card — one visual container per topic, instead of one long column. */
 function Card({
@@ -471,6 +472,9 @@ export default function ProductDetail() {
 
           {/* ---------- L'agent graphiste, là où les photos se regardent ---------- */}
           {id ? <PhotoAgentBlock productId={id} onImagesChanged={load} /> : null}
+
+          {/* ---------- Ce que chaque destination acceptera ---------- */}
+          {id ? <ChannelReadiness productId={id} /> : null}
 
           {/* ---------- Marge ---------- */}
           <Card icon={Calculator} title="Calcul de marge">

@@ -14,6 +14,7 @@ import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS } from '../services/suppliers.js'
 import { verifierCanaux } from '../services/channelRules.js'
+import { titlesByChannel } from '../services/channelCopy.js'
 import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
@@ -113,6 +114,7 @@ productsRouter.post(
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,
+        titleVariants: enhanced.titleVariants,
         bulletPoints: enhanced.bulletPoints,
         attributes: enhanced.attributes,
         aiEnhanced: enhanced.enhanced,
@@ -225,6 +227,7 @@ productsRouter.post(
         metaTitle: enhanced.metaTitle,
         metaDescription: enhanced.metaDescription,
         metaKeywords: enhanced.metaKeywords,
+        titleVariants: enhanced.titleVariants,
         bulletPoints: enhanced.bulletPoints,
         attributes: enhanced.attributes,
         aiEnhanced: enhanced.enhanced,
@@ -304,6 +307,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
           metaTitle: enhanced.metaTitle,
           metaDescription: enhanced.metaDescription,
           metaKeywords: enhanced.metaKeywords,
+          titleVariants: enhanced.titleVariants,
         bulletPoints: enhanced.bulletPoints,
         attributes: enhanced.attributes,
           aiEnhanced: enhanced.enhanced,
@@ -914,6 +918,11 @@ productsRouter.get('/:id/conformite', async (req: AuthedRequest, res) => {
 
   res.json({
     verdicts,
+    // Le titre que chaque destination recevra vraiment : le vendeur voit d un
+    // coup d oeil que son titre de cent trente caracteres devient autre chose
+    // sur Leboncoin, au lieu de le decouvrir en comparant deux annonces en
+    // ligne.
+    titres: titlesByChannel(product),
     publiables: verdicts.filter((v) => v.publiable).length,
     total: verdicts.length,
   })

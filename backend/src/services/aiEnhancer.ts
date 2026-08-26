@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { trimToWords } from './channelCopy.js'
 
 let client: Anthropic | null = null
 function getClient() {
@@ -17,6 +18,11 @@ export interface EnhancedListing {
   bulletPoints: string[]
   /** Structured attributes marketplaces turn into search filters (matière, coupe, saison…). */
   attributes: Record<string, string>
+  /**
+   * Le titre en trois longueurs, pour que chaque destination recoive la plus
+   * longue qui tient chez elle. Ecrites dans le meme appel : aucun cout de plus.
+   */
+  titleVariants: { court: string; moyen: string; long: string }
   /**
    * False when the model could not be reached and the source text was kept.
    *
@@ -98,7 +104,17 @@ Règles :
   l'attribut plutôt que d'inventer.
 - Mots-clés : 15 à 25, en français, incluant les variantes orthographiques et les
   requêtes longue traîne que taperait un acheteur. Séparés par des virgules.
-- metaDescription : 150 à 160 caractères maximum.`
+- metaDescription : 150 à 160 caractères maximum.
+- Titres courts : en plus du titre principal, écris-en deux versions raccourcies.
+  Aucune destination n'accepte la même longueur — Amazon en prend deux cents et en
+  veut soixante au minimum, Leboncoin coupe à cinquante — et un titre tronqué au
+  milieu d'un mot perd justement le mot-clé qui fait vendre.
+  • titleMedium : 80 caractères STRICTEMENT au maximum. Le type de produit, sa
+    caractéristique décisive, son public.
+  • titleShort : 50 caractères STRICTEMENT au maximum. Le type de produit et ce
+    qui le distingue, rien d'autre. Pas de marque inventée, pas d'abréviation
+    obscure : ce titre doit rester une phrase qu'un acheteur taperait.
+  Compte les caractères. Un titre trop long est refusé par la plateforme.`
 
 /**
  * Reads sizes and colours out of the page text.
@@ -178,6 +194,11 @@ export async function enhanceListing(input: {
     metaKeywords: '',
     bulletPoints: [],
     attributes: {},
+    titleVariants: {
+      long: input.title,
+      moyen: trimToWords(input.title, 80),
+      court: trimToWords(input.title, 50),
+    },
     enhanced: false,
   })
 
@@ -221,6 +242,8 @@ ${
 Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce format exact :
 {
   "title": "...",
+  "titleMedium": "80 caracteres au plus",
+  "titleShort": "50 caracteres au plus",
   "description": "3 à 5 paragraphes courts",
   "bulletPoints": ["MATIÈRE PREMIUM : ...", "..."],
   "attributes": {"Matière": "...", "Couleur": "...", "Coupe": "...", "Saison": "...", "Style": "...", "Public": "..."},
@@ -247,10 +270,28 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce f
 
   const description = typeof parsed.description === 'string' ? parsed.description : input.description
 
+  const titreLong = typeof parsed.title === 'string' ? parsed.title : input.title
+
+  /**
+   * Les longueurs sont vérifiées ici, pas seulement demandées.
+   *
+   * « 50 caractères STRICTEMENT » ne suffit pas : un modèle compte mal, et un
+   * titre de 54 caractères serait refusé par Leboncoin après avoir traversé
+   * toute la chaîne. On raccourcit donc par mots — jamais au milieu d'un mot,
+   * qui perdrait justement le mot-clé qui fait vendre.
+   */
+  const variante = (valeur: unknown, max: number, repli: string) =>
+    trimToWords(typeof valeur === 'string' && valeur.trim() ? valeur : repli, max)
+
   return {
     // The model answered and the JSON parsed: this is a real rewrite.
     enhanced: true,
-    title: typeof parsed.title === 'string' ? parsed.title : input.title,
+    title: titreLong,
+    titleVariants: {
+      long: titreLong,
+      moyen: variante(parsed.titleMedium, 80, titreLong),
+      court: variante(parsed.titleShort, 50, titreLong),
+    },
     description,
     metaTitle: typeof parsed.metaTitle === 'string' ? parsed.metaTitle : (parsed.title as string) || input.title,
     metaDescription:

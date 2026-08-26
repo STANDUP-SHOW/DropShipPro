@@ -174,6 +174,19 @@ export const api = {
       failed: number
       missing: number
     }>('/products/publish-batch', { method: 'POST', body: JSON.stringify({ productIds, platforms, shopId }) }),
+  /** Ce que chaque destination acceptera, et le titre qu elle recevra. */
+  conformite: (id: string) =>
+    request<{
+      verdicts: Array<{
+        platform: string
+        publiable: boolean
+        ecarts: Array<{ regle: string; quoi: string; severite: 'bloquant' | 'avertissement'; message: string }>
+      }>
+      titres: Array<{ platform: string; max: number; titre: string; raccourci: boolean }>
+      publiables: number
+      total: number
+    }>(`/products/${id}/conformite`),
+
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
   listCategories: (filter?: { sector?: string; shop?: string }) =>
     request<{

@@ -221,6 +221,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
           metaTitle: enhanced.metaTitle,
           metaDescription: enhanced.metaDescription,
           metaKeywords: enhanced.metaKeywords,
+          titleVariants: enhanced.titleVariants,
           bulletPoints: enhanced.bulletPoints,
           attributes: enhanced.attributes,
           aiEnhanced: enhanced.enhanced,

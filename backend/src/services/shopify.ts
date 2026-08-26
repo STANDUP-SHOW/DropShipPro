@@ -1,4 +1,5 @@
 import type { Product, User } from '@prisma/client'
+import { titleForChannel } from './channelCopy.js'
 
 /**
  * Shopify Admin API connector.
@@ -202,7 +203,10 @@ export async function publishToShopify(
 ): Promise<ShopifyPublishResult> {
   const notes: string[] = []
 
-  const title = product.aiTitle || product.title
+  // Shopify accepte deux cent cinquante-cinq caracteres : la variante longue
+  // passe toujours, mais on demande quand meme celle du canal pour que la
+  // regle vive a un seul endroit.
+  const title = titleForChannel(product, 'SHOPIFY')
   const bulletPoints = Array.isArray(product.bulletPoints) ? (product.bulletPoints as unknown[]) : []
   const tags = (product.metaKeywords || '')
     .split(',')

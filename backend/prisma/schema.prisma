@@ -187,6 +187,16 @@ model Product {
   metaTitle       String?
   metaDescription String?
   metaKeywords    String?
+  /// Le titre en trois longueurs : court, moyen, long.
+  ///
+  /// Aucun titre unique ne satisfait toutes les destinations. Amazon accepte
+  /// deux cents caracteres et en veut au moins soixante pour le referencement ;
+  /// Leboncoin coupe a cinquante. Un titre optimise pour l un est refuse par l
+  /// autre — c est le moteur de conformite qui l a mis en evidence.
+  ///
+  /// Ecrites par le redacteur dans le meme appel que la reecriture, donc sans
+  /// cout supplementaire. Chaque canal recoit ensuite la plus longue qui tient.
+  titleVariants   Json?
   /// Amazon-style selling points, one short line each.
   bulletPoints    Json?
   /// Structured product attributes (matière, coupe, saison…) that marketplaces index for filters.

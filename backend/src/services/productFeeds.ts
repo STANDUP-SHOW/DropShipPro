@@ -1,4 +1,5 @@
 import type { Product } from '@prisma/client'
+import { titleForChannel } from './channelCopy.js'
 import { absoluteUrl } from '../lib/urls.js'
 
 /**
@@ -42,8 +43,16 @@ function descriptionOf(product: Product) {
   return text.replace(/\s+/g, ' ').trim().slice(0, 9000)
 }
 
+/**
+ * Le titre du flux, coupe par mots et non par lettres.
+ *
+ * Google Shopping accepte cent cinquante caracteres. Couper au cent
+ * cinquantieme donnait « Montre automatique homme acier inoxyd », qui ne se
+ * cherche plus. La variante longue tient presque toujours ; sinon on retire des
+ * mots par la fin.
+ */
 function titleOf(product: Product) {
-  return (product.aiTitle || product.title).slice(0, 150)
+  return titleForChannel(product, 'GOOGLE_SHOPPING')
 }
 
 /** Échappe une valeur CSV : guillemets doublés, champ toujours entouré. */
