@@ -205,6 +205,25 @@ docs/        Documentation de l'API catalogue
   brouillon avec la raison ecrite. Banc `npx tsx check-categories.ts` (il tourne
   contre la vraie base : c est le seul moyen de verifier que la memoire retient).
 
+- **Aucune police sur le serveur : toute publicite sort en carres.** L image par
+  defaut de Nixpacks n embarque aucune police. `sharp` compose ses textes par
+  librsvg, qui en demande une a fontconfig, n en trouve aucune, et dessine **un
+  carre vide par caractere**. Le visuel sort parfaitement compose -- cadre,
+  degrade, bouton a sa place -- et totalement illisible.
+
+  **Le piege est qu il ne se voit pas en developpement** : Windows et macOS ont
+  des polices. Constate le 26/08/2026, en production, sur trois publicites deja
+  facturees. `nixpacks.toml` installe DejaVu et Liberation ; `policeDisponible()`
+  refuse de composer quand il n y en a aucune, et le credit est rendu.
+
+- **Le titre d une annonce n est pas une accroche publicitaire.** Le composeur
+  tamponnait `aiTitle` sur la photo : trois publicites demandees donnaient trois
+  fois la meme image, sans force de vente. `adCopywriter.ts` fait ecrire
+  l accroche, avec un **angle impose et different a chaque demande** (probleme,
+  benefice, preuve, urgence, identite, comparaison) -- demander de la variete
+  sans dire de quoi elle est faite donne trois formulations du meme argument.
+  Ce que le vendeur dicte lui-meme n est jamais ecrase.
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).

@@ -1,4 +1,6 @@
 import { Router } from 'express'
+import { ecrireAccroche } from '../services/adCopywriter.js'
+import { SansPolice } from '../services/adComposer.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
@@ -219,6 +221,12 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
         sellingPrice: true,
         currency: true,
         shop: { select: { name: true, logo: true } },
+        // De quoi ecrire l accroche : le composeur n en avait pas besoin, la
+        // redactrice si.
+        description: true,
+        aiDescription: true,
+        bulletPoints: true,
+        sourceCategory: true,
       },
     }),
     prisma.user.findUniqueOrThrow({
@@ -270,6 +278,10 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
   const produced = []
   const errors: string[] = []
 
+  // Les angles deja servis pour ce produit, pour que la deuxieme publicite ne
+  // soit pas la copie de la premiere.
+  const anglesServis: string[] = []
+
   outer: for (const platform of platforms) {
     for (let i = 0; i < parsed.data.count; i++) {
       if (!(await takeImageCredit(req.userId!))) {
@@ -278,12 +290,48 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
       }
 
       try {
+        /*
+         * L accroche, ecrite avant de composer.
+         *
+         * Le titre d une annonce n est pas une accroche : « Montre automatique
+         * acier inoxydable 22 rubis » se cherche et se compare, mais ne dit rien
+         * a qui ne cherchait pas deja une montre. Trois publicites tamponnees du
+         * meme titre donnaient trois fois la meme image.
+         *
+         * Ce que le vendeur a dicte lui-meme n est jamais ecrase : il a vu son
+         * produit, la machine non.
+         */
+        const accroche = parsed.data.argument?.trim()
+          ? null
+          : await ecrireAccroche({
+              titre: product.aiTitle || product.title,
+              description: product.aiDescription || product.description,
+              arguments: Array.isArray(product.bulletPoints)
+                ? (product.bulletPoints as unknown[]).filter((b): b is string => typeof b === 'string')
+                : [],
+              prix: copy.price || 'non affiché',
+              categorie: product.sourceCategory,
+              platform,
+              dejaVus: anglesServis,
+            })
+
+        if (accroche) anglesServis.push(accroche.angle)
+
+        const copyEcrit = accroche
+          ? {
+              ...copy,
+              title: accroche.titre,
+              argument: accroche.argument || copy.argument,
+              ctaLabel: parsed.data.ctaLabel?.trim() || accroche.bouton,
+            }
+          : copy
+
         const result = await generateAdVisual({
           sourceImages,
           title: product.aiTitle || product.title,
           platform,
           hint: parsed.data.hint,
-          copy,
+          copy: copyEcrit,
         })
 
         produced.push(
@@ -305,7 +353,13 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
           where: { id: req.userId! },
           data: { imageCredits: { increment: 1 } },
         })
-        errors.push(err instanceof ImageGenUnavailable ? err.message : `Génération impossible : ${(err as Error).message}`)
+        errors.push(
+          err instanceof SansPolice || err instanceof ImageGenUnavailable
+            ? err.message
+            : `Génération impossible : ${(err as Error).message}`,
+        )
+        // Sans police, les suivantes echoueront pareil : inutile de les tenter.
+        if (err instanceof SansPolice) break outer
         break outer
       }
     }

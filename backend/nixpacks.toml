@@ -1,0 +1,11 @@
+# Les polices, sans lesquelles toute publicité sort en carrés.
+#
+# L'image par défaut de Nixpacks n'embarque aucune police. `sharp` compose ses
+# textes en passant par librsvg, qui demande une police à fontconfig, n'en
+# trouve aucune, et dessine un carré vide par caractère. Le visuel est
+# parfaitement composé — cadre, bouton, dégradé — et illisible.
+#
+# Le défaut ne se voit pas en développement : Windows et macOS ont des polices.
+# Il n'apparaît qu'une fois déployé, sur des images déjà payées.
+[phases.setup]
+nixPkgs = ['...', 'dejavu_fonts', 'liberation_ttf', 'fontconfig']

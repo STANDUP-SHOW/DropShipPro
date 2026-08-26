@@ -89,6 +89,10 @@ export async function composeAd(
   height: number,
   copy: AdCopy,
 ): Promise<Buffer> {
+  // Sans police, tout le texte sortirait en carrés : on refuse plutôt que de
+  // livrer — et de facturer — un fichier inutilisable.
+  if (!(await policeDisponible())) throw new SansPolice()
+
   const fond = await sharp(base)
     .resize(width, height, { fit: 'cover', position: 'attention' })
     .toBuffer()
@@ -122,17 +126,17 @@ export async function composeAd(
 
   const ctaSvg = `
     <rect x="${boutonX}" y="${boutonY}" width="${largeurBouton}" height="${hauteurBouton}" rx="${Math.round(hauteurBouton / 2)}" fill="url(#bouton)"/>
-    <text x="${boutonX + largeurBouton / 2}" y="${boutonY + hauteurBouton / 2 + tailleCta * 0.36}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="${tailleCta}" font-weight="700" fill="#ffffff">${xml(copy.ctaLabel)}</text>`
+    <text x="${boutonX + largeurBouton / 2}" y="${boutonY + hauteurBouton / 2 + tailleCta * 0.36}" text-anchor="middle" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleCta}" font-weight="700" fill="#ffffff">${xml(copy.ctaLabel)}</text>`
 
   // L'adresse se pose à droite du bouton, sur sa ligne : au-dessus elle heurtait
   // le titre, au-dessous elle sortait de l'image.
   const urlSvg = copy.ctaUrl
-    ? `<text x="${boutonX + largeurBouton + Math.round(tailleCta * 0.6)}" y="${boutonY + hauteurBouton / 2 + tailleArg * 0.36}" font-family="Helvetica, Arial, sans-serif" font-size="${tailleArg}" fill="#cbd5e1">${xml(copy.ctaUrl)}</text>`
+    ? `<text x="${boutonX + largeurBouton + Math.round(tailleCta * 0.6)}" y="${boutonY + hauteurBouton / 2 + tailleArg * 0.36}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleArg}" fill="#cbd5e1">${xml(copy.ctaUrl)}</text>`
     : ''
 
   const argBase = boutonY - interligne
   const argSvg = copy.argument
-    ? `<text x="${marge}" y="${argBase}" font-family="Helvetica, Arial, sans-serif" font-size="${tailleArg}" fill="#d1d5db">${xml(copy.argument)}</text>`
+    ? `<text x="${marge}" y="${argBase}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleArg}" fill="#d1d5db">${xml(copy.argument)}</text>`
     : ''
 
   /*
@@ -146,13 +150,13 @@ export async function composeAd(
   const aPrix = Boolean(copy.price?.trim())
   const prixBase = argBase - (copy.argument ? tailleArg + interligne : 0)
   const prixSvg = aPrix
-    ? `<text x="${marge}" y="${prixBase}" font-family="Helvetica, Arial, sans-serif" font-size="${taillePrix}" font-weight="800" fill="#ffffff">${xml(copy.price)}</text>`
+    ? `<text x="${marge}" y="${prixBase}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${taillePrix}" font-weight="800" fill="#ffffff">${xml(copy.price)}</text>`
     : ''
 
   const largeurPrix = aPrix ? copy.price.length * taillePrix * 0.58 : 0
   const barreSvg =
     aPrix && copy.priceBefore
-      ? `<text x="${Math.round(marge + largeurPrix + taillePrix * 0.28)}" y="${prixBase}" font-family="Helvetica, Arial, sans-serif" font-size="${Math.round(taillePrix * 0.5)}" fill="#cbd5e1" text-decoration="line-through">${xml(copy.priceBefore)}</text>`
+      ? `<text x="${Math.round(marge + largeurPrix + taillePrix * 0.28)}" y="${prixBase}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${Math.round(taillePrix * 0.5)}" fill="#cbd5e1" text-decoration="line-through">${xml(copy.priceBefore)}</text>`
       : ''
 
   const titreBas = aPrix ? prixBase - Math.round(taillePrix * 0.82) - interligne : prixBase
@@ -162,7 +166,7 @@ export async function composeAd(
   const titreSvg = lignes
     .map((l, i) => {
       const ligneY = titreHaut + i * hauteurLigne
-      return `<text x="${marge}" y="${ligneY}" font-family="Helvetica, Arial, sans-serif" font-size="${tailleTitre}" font-weight="700" fill="#ffffff">${xml(l)}</text>`
+      return `<text x="${marge}" y="${ligneY}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleTitre}" font-weight="700" fill="#ffffff">${xml(l)}</text>`
     })
     .join('')
 
@@ -176,7 +180,7 @@ export async function composeAd(
   // font doublon et mangent la photo.
   const nomSvg =
     !copy.logo && copy.shopName
-      ? `<text x="${marge}" y="${marge + Math.round(tailleArg * 1.1)}" font-family="Helvetica, Arial, sans-serif" font-size="${Math.round(tailleArg * 1.1)}" font-weight="700" fill="#ffffff" opacity="0.95">${xml(copy.shopName)}</text>`
+      ? `<text x="${marge}" y="${marge + Math.round(tailleArg * 1.1)}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${Math.round(tailleArg * 1.1)}" font-weight="700" fill="#ffffff" opacity="0.95">${xml(copy.shopName)}</text>`
       : ''
 
   const calque = Buffer.from(`
@@ -222,4 +226,67 @@ export async function composeAd(
   }
 
   return sharp(fond).composite(couches).jpeg({ quality: 90 }).toBuffer()
+}
+
+/**
+ * Y a-t-il seulement une police sur cette machine ?
+ *
+ * Question qui paraît absurde et qui ne l'est pas : l'image par défaut d'un
+ * hébergeur n'embarque aucune police. `sharp` compose ses textes par librsvg,
+ * qui en demande une à fontconfig, n'en trouve aucune, et dessine **un carré
+ * vide par caractère**. Le visuel sort parfaitement composé — cadre, dégradé,
+ * bouton à sa place — et totalement illisible.
+ *
+ * Le pire est qu'on ne le voit pas en développement : Windows et macOS ont des
+ * polices. Le défaut n'apparaît qu'en production, sur des images déjà payées.
+ * Constaté le 26/08/2026 : trois publicités facturées, trois publicités en
+ * carrés.
+ *
+ * D'où ce contrôle, fait une fois et gardé : mieux vaut refuser de produire que
+ * facturer un fichier inutilisable.
+ */
+let policesVues: boolean | null = null
+
+export async function policeDisponible(): Promise<boolean> {
+  if (policesVues !== null) return policesVues
+
+  // Hors Linux, le système en fournit toujours.
+  if (process.platform !== 'linux') {
+    policesVues = true
+    return true
+  }
+
+  const { readdir } = await import('fs/promises')
+  const dossiers = [
+    '/usr/share/fonts',
+    '/usr/local/share/fonts',
+    '/nix/var/nix/profiles/default/share/fonts',
+    `${process.env.HOME ?? ''}/.fonts`,
+  ]
+
+  for (const dossier of dossiers) {
+    try {
+      // Récursif : les distributions rangent par famille, jamais à plat.
+      const entrees = await readdir(dossier, { recursive: true } as never)
+      if ((entrees as string[]).some((f) => /\.(ttf|otf|ttc|pfb)$/i.test(f))) {
+        policesVues = true
+        return true
+      }
+    } catch {
+      // Dossier absent : on essaie le suivant.
+    }
+  }
+
+  policesVues = false
+  return false
+}
+
+/** Le message d'un serveur sans police, dit au vendeur et pas au journal. */
+export class SansPolice extends Error {
+  constructor() {
+    super(
+      "La composition de publicités est momentanément indisponible sur le serveur (aucune police installée). Aucun crédit n'a été débité.",
+    )
+    this.name = 'SansPolice'
+  }
 }
