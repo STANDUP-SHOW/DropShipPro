@@ -14,6 +14,7 @@ import { CATEGORY_CATALOG, categorySectors, guessCategoryId } from '../services/
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS } from '../services/suppliers.js'
 import { verifierCanaux } from '../services/channelRules.js'
+import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
@@ -915,5 +916,22 @@ productsRouter.get('/:id/conformite', async (req: AuthedRequest, res) => {
     verdicts,
     publiables: verdicts.filter((v) => v.publiable).length,
     total: verdicts.length,
+  })
+})
+
+/**
+ * L'annuaire complet des canaux connus.
+ *
+ * Séparé des destinations réellement intégrées : être dans l'annuaire ne veut
+ * pas dire qu'on y publie. C'est assumé — le vendeur doit voir le paysage
+ * entier et nous dire ce qu'il veut, plutôt que de repartir parce que sa
+ * plateforme n'apparaît nulle part.
+ */
+productsRouter.get('/meta/channels', (_req, res) => {
+  const integrees = new Set(PLATFORMS.filter((p) => !p.unavailable).map((p) => p.label.toLowerCase()))
+  res.json({
+    types: TYPES_CANAL,
+    canaux: CANAUX.map((c) => ({ ...c, integre: integrees.has(c.label.toLowerCase()) })),
+    total: CANAUX.length,
   })
 })

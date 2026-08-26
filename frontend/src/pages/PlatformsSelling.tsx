@@ -4,6 +4,7 @@ import { Store, X, ExternalLink, AlertTriangle, Search, Check } from 'lucide-rea
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { PlatformLogo } from '../components/PlatformLogo'
+import { ChannelDirectory } from '../components/ChannelDirectory'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 
 /** Ce que chaque mode d'intégration veut dire, en clair et pour un vendeur. */
@@ -139,6 +140,8 @@ export default function PlatformsSelling() {
           </ul>
         </section>
       ))}
+
+      <ChannelDirectory />
 
       {ouvert ? (
         <div

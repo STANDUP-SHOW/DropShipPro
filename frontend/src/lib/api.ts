@@ -205,6 +205,14 @@ export const api = {
    * Distinctes des destinations, où l'on vend : ni les mêmes comptes, ni les
    * mêmes gestes, et une même marque peut être les deux.
    */
+  /** L annuaire complet des canaux connus : etre liste ne veut pas dire integre. */
+  listChannels: () =>
+    request<{
+      types: Array<{ id: string; label: string; aide: string }>
+      canaux: Array<{ id: string; label: string; logo: string; type: string; integre: boolean }>
+      total: number
+    }>('/products/meta/channels'),
+
   listSuppliers: () =>
     request<
       Array<{
