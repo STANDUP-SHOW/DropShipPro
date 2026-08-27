@@ -20,6 +20,7 @@ import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
+import { ticketsRouter } from './routes/tickets.js'
 import { semerCategories } from './services/categories.js'
 const app = express()
 
@@ -85,6 +86,7 @@ app.use('/api/chat', chatRouter)
 app.use('/api/autopilot', autopilotRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/visuals', visualsRouter)
+app.use('/api/tickets', ticketsRouter)
 app.use('/api/public', publicRouter)
 
 const port = Number(process.env.PORT) || 4000

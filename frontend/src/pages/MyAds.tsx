@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Megaphone, Eye, Download, Trash2, ExternalLink, ChevronRight, Loader2 } from 'lucide-react'
+import { Megaphone, Eye, Download, Trash2, ExternalLink, ChevronRight, Loader2, LifeBuoy } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { ImageViewer, telechargerImage } from '../components/ImageViewer'
+import { TicketDialog } from '../components/TicketDialog'
 import { api, assetUrl } from '../lib/api'
 
 type Image = Awaited<ReturnType<typeof api.visualGallery>>['images'][number]
@@ -46,6 +47,8 @@ export default function MyAds() {
   const [ouvert, setOuvert] = useState<string | null>(null)
   const [affichee, setAffichee] = useState<Image | null>(null)
   const [enCours, setEnCours] = useState<string | null>(null)
+  /** La pub que le vendeur signale : le ticket porte son identifiant. */
+  const [signalee, setSignalee] = useState<Image | null>(null)
 
   useEffect(() => {
     api
@@ -220,6 +223,21 @@ export default function MyAds() {
                                   <Trash2 size={14} />
                                 </button>
 
+                                {/*
+                                  Signaler, plutôt qu'un bouton qui recrédite.
+                                  Un remboursement automatique se presse par
+                                  réflexe et n'apprend rien : ni ce qui rate, ni
+                                  sur quoi, ni à quelle fréquence.
+                                */}
+                                <button
+                                  type="button"
+                                  onClick={() => setSignalee(img)}
+                                  title="Signaler : cette publicité est inutilisable"
+                                  className="rounded-lg bg-white/10 p-2 text-amber-300 hover:bg-amber-500/20"
+                                >
+                                  <LifeBuoy size={14} />
+                                </button>
+
                                 {gestionnaire ? (
                                   <button
                                     type="button"
@@ -275,6 +293,16 @@ export default function MyAds() {
             .filter(Boolean)
             .join(' · ')}
           onClose={() => setAffichee(null)}
+        />
+      ) : null}
+
+      {signalee ? (
+        <TicketDialog
+          kind="pub"
+          generatedImageId={signalee.id}
+          productId={signalee.productId ?? undefined}
+          sujetPropose={`Publicité inutilisable — ${signalee.productTitle ?? 'annonce'}`}
+          onClose={() => setSignalee(null)}
         />
       ) : null}
     </Layout>

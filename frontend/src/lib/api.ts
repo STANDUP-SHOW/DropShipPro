@@ -109,6 +109,26 @@ export interface AgentCardData {
   paidUntil?: string | null
 }
 
+/** Un ticket avec tout son fil, tel que l ecran l affiche. */
+export interface TicketComplet {
+  id: string
+  subject: string
+  kind: string
+  status: string
+  creditsSpent: number | null
+  creditKind: string
+  refundedCredits: number | null
+  refundedBy: string | null
+  createdAt: string
+  messages: Array<{
+    id: string
+    author: string
+    agentKey: string | null
+    body: string
+    createdAt: string
+  }>
+}
+
 export const api = {
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {
@@ -990,6 +1010,47 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ categoryId }),
     }),
+
+  /**
+   * Les tickets : le vendeur signale, les agents repondent.
+   *
+   * Pas de bouton qui recredite tout seul : il se presserait par reflexe et
+   * n apprendrait rien a personne. Un ticket laisse une trace et une decision.
+   */
+  listTickets: () =>
+    request<
+      Array<{
+        id: string
+        subject: string
+        kind: string
+        status: string
+        creditsSpent: number | null
+        creditKind: string
+        refundedCredits: number | null
+        messages: number
+        extrait: string
+        createdAt: string
+        updatedAt: string
+      }>
+    >('/tickets'),
+
+  getTicket: (id: string) => request<TicketComplet>(`/tickets/${id}`),
+
+  openTicket: (data: {
+    subject: string
+    body: string
+    kind?: string
+    productId?: string
+    generatedImageId?: string
+  }) => request<TicketComplet>('/tickets', { method: 'POST', body: JSON.stringify(data) }),
+
+  replyTicket: (id: string, body: string) =>
+    request<TicketComplet>(`/tickets/${id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+
+  closeTicket: (id: string) => request<{ ok: true }>(`/tickets/${id}/close`, { method: 'POST' }),
 
   listCredentials: () => request<any[]>('/settings/credentials'),
   saveCredential: (data: Record<string, unknown>) =>

@@ -126,6 +126,7 @@ model User {
   adAccounts         AdAccount[]
   productReviews     ProductReview[]
   supplierLinks      SupplierConnection[]
+  tickets            Ticket[]
 }
 
 enum AuthTokenType {
@@ -968,4 +969,63 @@ model CategoryAlias {
   createdAt DateTime @default(now())
 
   @@index([categoryId])
+}
+
+/// Un ticket ouvert par le vendeur, auquel les agents repondent.
+///
+/// Le rendu de credit automatique a ete ecarte volontairement : un bouton qui
+/// recredite tout seul se presse par reflexe et n apprend rien a personne -- ni
+/// pourquoi le resultat etait mauvais, ni combien de fois ca arrive. Un ticket
+/// laisse une trace, une reponse, et une decision prise par quelqu un.
+model Ticket {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject String
+
+  /// pub, image, import, publication, facturation, autre.
+  kind   String @default("autre")
+  /// OUVERT, EN_COURS, RESOLU, REFUSE.
+  status String @default("OUVERT")
+
+  /// Ce dont on parle, pour que l agent voie l objet du litige.
+  productId        String?
+  generatedImageId String?
+
+  /// Ce que l objet a coute au vendeur.
+  ///
+  /// Il borne l avoir : un agent ne peut pas rendre plus que ce qui a ete pris.
+  /// Sans cette borne, un vendeur insistant obtiendrait ce qu il demande.
+  creditsSpent Int?
+  /// Le genre de credit concerne : image ou annonce.
+  creditKind   String @default("image")
+
+  /// L avoir accorde, quand il l a ete, et par quel agent.
+  refundedCredits Int?
+  refundedAt      DateTime?
+  refundedBy      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages TicketMessage[]
+
+  @@index([userId, status])
+}
+
+/// Un message dans un ticket : du vendeur, ou d un agent.
+model TicketMessage {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  /// vendeur ou agent.
+  author   String
+  /// La cle de l agent qui repond : hotline, sav, comptable.
+  agentKey String?
+  body     String  @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
 }

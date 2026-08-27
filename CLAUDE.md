@@ -224,6 +224,18 @@ docs/        Documentation de l'API catalogue
   sans dire de quoi elle est faite donne trois formulations du meme argument.
   Ce que le vendeur dicte lui-meme n est jamais ecrase.
 
+- **Pas de bouton qui recredite tout seul : un ticket.** Un remboursement
+  automatique se presse par reflexe et n apprend rien -- ni ce qui rate, ni sur
+  quoi, ni a quelle frequence. Le vendeur signale depuis l objet concerne (une
+  pub, un import), Camille repond dans la foulee et oriente vers Marc (SAV) ou
+  Beatrice (comptable), qui seuls accordent l avoir.
+
+  **La borne de l avoir est dans le code, pas dans la consigne au modele** : une
+  consigne est une suggestion et elle cede quand le vendeur insiste. Un agent ne
+  peut jamais rendre plus que ce que l objet a reellement coute, ni rendre deux
+  fois. Credits annonce et credits image ne se melangent pas. Banc
+  `npx tsx check-tickets.ts` (compte jetable cree et detruit dans le banc).
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).

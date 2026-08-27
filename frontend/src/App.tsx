@@ -29,6 +29,7 @@ import ApiSourcing from './pages/ApiSourcing'
 import SupplierWatch from './pages/SupplierWatch'
 import MyAds from './pages/MyAds'
 import Categories from './pages/Categories'
+import Tickets from './pages/Tickets'
 import SupportAgent from './pages/SupportAgent'
 import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/messages" element={<Protected><Messages /></Protected>} />
           <Route path="/pilote" element={<Protected><Autopilot /></Protected>} />
           <Route path="/marketing-photo" element={<Protected><PhotoStudio /></Protected>} />
+          <Route path="/tickets" element={<Protected><Tickets /></Protected>} />
           <Route path="/categories" element={<Protected><Categories /></Protected>} />
           <Route path="/mes-pubs" element={<Protected><MyAds /></Protected>} />
           <Route path="/marketing" element={<Protected><Marketing /></Protected>} />
