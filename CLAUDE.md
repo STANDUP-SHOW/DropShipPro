@@ -236,6 +236,25 @@ docs/        Documentation de l'API catalogue
   fois. Credits annonce et credits image ne se melangent pas. Banc
   `npx tsx check-tickets.ts` (compte jetable cree et detruit dans le banc).
 
+- **Le raccordement social passe par une passerelle, jamais en direct.** Sept
+  regies publicitaires reconstruites a la main, c est plusieurs mois -- et nous
+  avons passe une soiree sur Shopify, la plus simple des sept. Le moteur tiers
+  (Zernio) est donc un adaptateur derriere `socialGateway.ts`, comme les
+  connecteurs fournisseurs.
+
+  **Deux choses restent chez nous quoi qu il arrive** : la correspondance
+  vendeur ↔ profil ↔ comptes en base -- changer de moteur revient a reecrire un
+  adaptateur, pas a redemander a mille vendeurs de reconnecter leurs comptes --
+  et l isolation. **Le moteur valide les comptes contre toute l equipe, pas
+  contre le profil** : publier sur le compte d un autre client passerait de son
+  cote. Le refus est dans `verifierAppartenance()`, et le banc le prouve.
+
+  Idempotence par `x-request-id` : sans lui, un double clic publie deux fois sur
+  le compte du client. Banc `npx tsx check-social.ts` (faux moteur local).
+  **Jamais confronte au vrai service** : pas de cle, et le droit de marque
+  blanche multi-clients n est pas confirme -- a obtenir par ecrit avant de batir
+  un produit commercial dessus.
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).

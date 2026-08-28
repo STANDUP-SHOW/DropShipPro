@@ -21,6 +21,7 @@ import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
 import { ticketsRouter } from './routes/tickets.js'
+import { socialRouter } from './routes/social.js'
 import { semerCategories } from './services/categories.js'
 const app = express()
 
@@ -87,6 +88,7 @@ app.use('/api/autopilot', autopilotRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/visuals', visualsRouter)
 app.use('/api/tickets', ticketsRouter)
+app.use('/api/social', socialRouter)
 app.use('/api/public', publicRouter)
 
 const port = Number(process.env.PORT) || 4000

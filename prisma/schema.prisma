@@ -1,0 +1,45 @@
+
+/// Le profil d un vendeur chez le moteur social.
+///
+/// La correspondance vit chez nous et non chez le fournisseur : c est elle qui
+/// rend la decision reversible. Changer de moteur revient a reecrire un
+/// adaptateur, pas a redemander a mille vendeurs de reconnecter leurs comptes.
+model SocialProfile {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Le moteur qui tient la liaison : zernio, ou natif plus tard.
+  provider String
+  /// L identifiant du profil chez ce moteur.
+  externalId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+}
+
+/// Un compte social ou publicitaire raccorde par le vendeur.
+model SocialAccount {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider   String
+  externalId String
+  /// facebook, instagram, tiktok, meta-ads, google-ads...
+  platform   String
+  /// Le nom que le vendeur reconnait.
+  label      String?
+  /// Faux des que le jeton est revoque cote plateforme.
+  connected  Boolean @default(true)
+  /// Un compte publicitaire ne publie pas de post, et inversement.
+  isAdAccount Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider, externalId])
+  @@index([userId, platform])
+}
