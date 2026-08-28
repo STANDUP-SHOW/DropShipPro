@@ -5,6 +5,7 @@ import { Camera, Sparkles, Check, Trash2, Download, ImageOff } from 'lucide-reac
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { AgentBook } from '../components/AgentBook'
+import { AgentBar } from '../components/AgentBar'
 
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
@@ -93,6 +94,13 @@ export default function PhotoStudio() {
 
   return (
     <Layout>
+      <AgentBar
+        agentKey="marketing"
+        nom="Lea"
+        emoji="📸"
+        exemple="Demandez : quelle mise en situation pour ce produit ?"
+      />
+
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Camera size={22} className="text-emerald-400" />
         <span>Marketing photo</span>

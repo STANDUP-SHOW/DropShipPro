@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Calculator, AlertTriangle, RotateCcw, MessageSquare, Info } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 
 type Data = Awaited<ReturnType<typeof api.accounting>>
@@ -68,6 +69,13 @@ export default function Accounting() {
 
   return (
     <Layout>
+      <AgentBar
+        agentKey="comptable"
+        nom="Beatrice"
+        emoji="🧮"
+        exemple="Demandez a Beatrice : quelle TVA sur une vente hors UE ?"
+      />
+
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Calculator size={22} className="text-emerald-400" />
         <span>Comptabilité et SAV</span>

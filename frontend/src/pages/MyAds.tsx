@@ -4,6 +4,7 @@ import { Megaphone, Eye, Download, Trash2, ExternalLink, ChevronRight, Loader2, 
 import { Layout } from '../components/Layout'
 import { ImageViewer, telechargerImage } from '../components/ImageViewer'
 import { TicketDialog } from '../components/TicketDialog'
+import { AgentBar } from '../components/AgentBar'
 import { api, assetUrl } from '../lib/api'
 
 type Image = Awaited<ReturnType<typeof api.visualGallery>>['images'][number]
@@ -177,6 +178,15 @@ export default function MyAds() {
 
   return (
     <Layout>
+      {/* Nadia reste la, en haut : une question sur une pub se pose devant la
+          pub, pas dans un autre ecran. */}
+      <AgentBar
+        agentKey="marketing"
+        nom="Nadia"
+        emoji="📣"
+        exemple="Demandez a Nadia : quel format marche le mieux sur TikTok ?"
+      />
+
       <div className="mb-6">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <Megaphone size={22} className="text-purple-300" />

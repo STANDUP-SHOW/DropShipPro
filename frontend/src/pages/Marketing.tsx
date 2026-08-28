@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { AdAccounts } from '../components/AdAccounts'
 import { SocialConnect } from '../components/SocialConnect'
+import { AgentBar } from '../components/AgentBar'
 import { AgentBook } from '../components/AgentBook'
 import { AdDialog } from '../components/AdDialog'
 import { ProductPicker } from '../components/ProductPicker'
@@ -92,6 +93,13 @@ export default function Marketing() {
 
   return (
     <Layout>
+      <AgentBar
+        agentKey="marketing"
+        nom="Nadia"
+        emoji="📣"
+        exemple="Demandez a Nadia : quel budget pour un CPA de douze euros ?"
+      />
+
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Megaphone size={22} className="text-emerald-400" />
         <span>Marketing</span>
