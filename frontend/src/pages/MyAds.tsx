@@ -49,6 +49,14 @@ export default function MyAds() {
   const [enCours, setEnCours] = useState<string | null>(null)
   /** La pub que le vendeur signale : le ticket porte son identifiant. */
   const [signalee, setSignalee] = useState<Image | null>(null)
+  /**
+   * Les comptes publicitaires reellement relies.
+   *
+   * Ils decident de ce que « Diffuser » veut dire. Sans compte relie, la regie
+   * n accepte aucun depot : le bouton telecharge et ouvre le gestionnaire, ce
+   * qui est honnete. Avec un compte relie, il depose vraiment.
+   */
+  const [comptesPub, setComptesPub] = useState<Array<{ externalId: string; platform: string; label: string | null }>>([])
 
   useEffect(() => {
     api
@@ -56,6 +64,17 @@ export default function MyAds() {
       .then((r) => setImages(r.images))
       .catch(() => undefined)
       .finally(() => setChargement(false))
+
+    api
+      .socialState()
+      .then((e) =>
+        setComptesPub(
+          e.configure
+            ? e.comptes.filter((c) => c.isAdAccount && c.connected)
+            : [],
+        ),
+      )
+      .catch(() => undefined)
   }, [])
 
   /**
@@ -89,13 +108,70 @@ export default function MyAds() {
     setImages((v) => v.filter((i) => i.id !== id))
   }
 
+  /** Le compte publicitaire qui correspond au format de cette pub, s'il existe. */
+  function comptePour(platform: string | null) {
+    if (!platform) return null
+    // Une story Instagram se dépose depuis Meta Ads, comme un post Facebook :
+    // le format n'est pas la régie.
+    const regie = platform.startsWith('instagram') || platform === 'facebook'
+      ? 'meta-ads'
+      : `${platform}-ads`
+    return comptesPub.find((c) => c.platform === regie) ?? null
+  }
+
+  /**
+   * Diffuser, et le mot veut dire deux choses selon ce qui est branché.
+   *
+   * **Compte publicitaire relié** : la campagne part vraiment, en revue chez la
+   * régie. Aucune ne diffuse à la création — annoncer « en ligne » ferait croire
+   * à une diffusion qui n'a pas commencé.
+   *
+   * **Rien de relié** : le fichier est téléchargé et le gestionnaire s'ouvre.
+   * C'est le comportement honnête, et il reste : écrire « Publier » sur un
+   * bouton qui ne publie pas est le meilleur moyen qu'un vendeur ne surveille
+   * pas une campagne qui n'existe pas.
+   */
   async function diffuser(img: Image, titre: string) {
-    const gestionnaire = img.platform ? GESTIONNAIRES[img.platform] : null
     setEnCours(img.id)
+    const compte = comptePour(img.platform)
+
+    if (compte) {
+      try {
+        const campagne = await api.socialCampaign({
+          compte: compte.externalId,
+          nom: `${titre} — ${img.platform ?? 'pub'}`,
+          objectif: 'trafic',
+          // Un budget de départ modeste, que le vendeur ajuste chez la régie :
+          // deviner un budget à sa place engagerait son argent.
+          budgetJour: 500,
+          creative: {
+            image: assetUrl(img.path),
+            titre: titre.slice(0, 120),
+            texte: titre.slice(0, 600),
+            url: window.location.origin,
+          },
+        })
+        setEnCours(null)
+        window.alert(
+          `Campagne déposée chez ${compte.label ?? compte.platform} — état : ${campagne.etat}. Elle passe en revue chez la régie avant de diffuser ; ajustez son budget et son ciblage depuis leur gestionnaire.`,
+        )
+        return
+      } catch (e) {
+        setEnCours(null)
+        window.alert(
+          e instanceof Error
+            ? `${e.message} La créative reste téléchargeable.`
+            : 'Le dépôt a échoué. La créative reste téléchargeable.',
+        )
+        return
+      }
+    }
+
     // Le fichier d'abord : ouvrir la régie sans avoir la créative sous la main
     // oblige à revenir, et c'est là qu'on abandonne.
     await telechargerImage(assetUrl(img.path), etiquetteDe(img, titre))
     setEnCours(null)
+    const gestionnaire = img.platform ? GESTIONNAIRES[img.platform] : null
     if (gestionnaire) window.open(gestionnaire.url, '_blank', 'noopener,noreferrer')
   }
 
@@ -255,9 +331,20 @@ export default function MyAds() {
                                 ) : null}
                               </div>
 
-                              {gestionnaire ? (
+                              {/*
+                                Ce que le bouton fait vraiment, dit sous le
+                                bouton. Le même mot recouvre deux gestes très
+                                différents selon ce qui est branché, et laisser
+                                le vendeur deviner lequel serait le pire des
+                                deux mondes.
+                              */}
+                              {comptePour(img.platform) ? (
+                                <p className="mt-2 text-[11px] leading-relaxed text-emerald-300/80">
+                                  {`« Diffuser » dépose la campagne sur ${comptePour(img.platform)?.label ?? 'votre compte publicitaire'}. Elle passe en revue chez la régie avant de diffuser.`}
+                                </p>
+                              ) : gestionnaire ? (
                                 <p className="mt-2 text-[11px] leading-relaxed text-gray-600">
-                                  {`« Diffuser » télécharge le fichier et ouvre ${gestionnaire.label} : la régie n'accepte pas de dépôt automatique sans compte publicitaire validé.`}
+                                  {`« Diffuser » télécharge le fichier et ouvre ${gestionnaire.label} : aucun compte publicitaire n'est relié. Reliez-le depuis Marketing pour déposer directement.`}
                                 </p>
                               ) : null}
                             </div>

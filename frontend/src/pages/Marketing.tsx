@@ -3,6 +3,7 @@ import { Megaphone, Sparkles, Download, Trash2, Info, BarChart3 } from 'lucide-r
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { AdAccounts } from '../components/AdAccounts'
+import { SocialConnect } from '../components/SocialConnect'
 import { AgentBook } from '../components/AgentBook'
 import { AdDialog } from '../components/AdDialog'
 import { ProductPicker } from '../components/ProductPicker'
@@ -277,6 +278,8 @@ export default function Marketing() {
       ) : null}
 
       {/* ---------- Comptes publicitaires, cliquables ---------- */}
+      <SocialConnect />
+
       <AdAccounts />
 
       {/* ---------- Suivi des campagnes ---------- */}

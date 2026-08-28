@@ -129,6 +129,13 @@ export interface TicketComplet {
   }>
 }
 
+const SOCIAL_STATE = '/social/state'
+const SOCIAL_SYNC = '/social/sync'
+const SOCIAL_CONNECT = '/social/connect'
+const SOCIAL_CAMPAIGNS = '/social/campaigns'
+const CREDENTIALS_P = '/settings/credentials'
+const POST_M = 'POST'
+
 export const api = {
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {
@@ -1052,7 +1059,48 @@ export const api = {
 
   closeTicket: (id: string) => request<{ ok: true }>(`/tickets/${id}/close`, { method: 'POST' }),
 
-  listCredentials: () => request<any[]>('/settings/credentials'),
+  /**
+   * Le raccordement aux reseaux et aux regies, par la passerelle.
+   *
+   * Le vendeur s authentifie chez Meta ou TikTok, jamais chez le moteur : le
+   * jeton ne passe jamais par nous.
+   */
+  socialState: () =>
+    request<{
+      configure: boolean
+      reseaux: string[]
+      regies: string[]
+      comptes: Array<{
+        id: string
+        externalId: string
+        platform: string
+        label: string | null
+        connected: boolean
+        isAdAccount: boolean
+      }>
+    }>(SOCIAL_STATE),
+
+  socialSync: () => request<{ comptes: number }>(SOCIAL_SYNC, { method: POST_M }),
+
+  socialConnect: (platform: string, retour: string) =>
+    request<{ url: string }>(SOCIAL_CONNECT, {
+      method: POST_M,
+      body: JSON.stringify({ platform, retour }),
+    }),
+
+  socialCampaign: (data: {
+    compte: string
+    nom: string
+    objectif: string
+    budgetJour: number
+    creative: { image: string; titre: string; texte: string; url: string; boutonLabel?: string }
+  }) =>
+    request<{ externalId: string; etat: string; url: string | null }>(SOCIAL_CAMPAIGNS, {
+      method: POST_M,
+      body: JSON.stringify(data),
+    }),
+
+  listCredentials: () => request<any[]>(CREDENTIALS_P),
   saveCredential: (data: Record<string, unknown>) =>
     request('/settings/credentials', { method: 'PUT', body: JSON.stringify(data) }),
 }
