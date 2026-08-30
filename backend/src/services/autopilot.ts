@@ -1,4 +1,5 @@
 import type { Platform } from '@prisma/client'
+import { reparerVariantes } from './variantRepair.js'
 import { prisma } from '../lib/prisma.js'
 import { scrapeProduct, ScrapeBlockedError } from './scraper.js'
 import { enhanceListing } from './aiEnhancer.js'
@@ -176,7 +177,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       }
 
       const retained = verdict?.checked ? verdict.keep : chosen
-      const variants = verdict ? applyVerdict(announced, verdict) : announced
+      const variants = reparerVariantes(verdict ? applyVerdict(announced, verdict) : announced).variantes
       const images = await rapatrierImages(retained, enhanced.title)
 
       /**

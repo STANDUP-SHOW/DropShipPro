@@ -1,4 +1,5 @@
 import { Router, type Response } from 'express'
+import { reparerVariantes } from '../services/variantRepair.js'
 import { z } from 'zod'
 import archiver from 'archiver'
 import multer from 'multer'
@@ -95,7 +96,9 @@ productsRouter.post(
       : null
 
     const retained = verdict?.checked ? verdict.keep : chosen
-    const variants = verdict ? applyVerdict(announced, verdict) : announced
+    // Les fournisseurs rangent tout sous « Color » : capacites, tailles,
+    // modeles. La reparation est deterministe et ne coute aucun appel.
+    const variants = reparerVariantes(verdict ? applyVerdict(announced, verdict) : announced).variantes
     const watermarked = await rapatrierImages(retained, enhanced.title)
 
     /*
@@ -226,7 +229,9 @@ productsRouter.post(
      * seul groupe sur trois. Le modèle complète donc ce qui manque.
      */
     const fromPage = data.pageText ? await extractVariants(data.pageText) : null
-    const variants = mergeVariants(data.variants as Record<string, string[]> | null, fromPage)
+    const variants = reparerVariantes(
+      mergeVariants(data.variants as Record<string, string[]> | null, fromPage),
+    ).variantes
 
     const rangement = await resoudreCategorie({
       sourceCategory: data.sourceCategory,

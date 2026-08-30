@@ -314,6 +314,24 @@ const UPDATE_VARIANT = /* GraphQL */ `
   }
 `
 
+const CREATE_VARIANTS = /* GraphQL */ `
+  mutation dropshipperAddVariants($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+    productVariantsBulkCreate(
+      productId: $productId
+      variants: $variants
+      strategy: REMOVE_STANDALONE_VARIANT
+    ) {
+      productVariants {
+        id
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`
+
 const ONLINE_STORE_PUBLICATION = /* GraphQL */ `
   query dropshipperPublications {
     publications(first: 25) {
@@ -371,6 +389,8 @@ export async function publishToShopify(
     .filter(Boolean)
     .slice(0, 40)
 
+  const options = optionsShopify(product.variants)
+  const metachamps = metachampsShopify(product.attributes)
   const urls = imageUrls(product, apiBaseUrl, marquees)
   const totalImages = Array.isArray(product.images) ? (product.images as unknown[]).length : 0
   if (totalImages && !urls.length) {
@@ -391,6 +411,18 @@ export async function publishToShopify(
       ),
       vendor: user.shopName || undefined,
       productType: targetCategory || undefined,
+      /*
+       * Les options d'achat, enfin transmises.
+       *
+       * Sans elles, Shopify crée un produit à variante unique : l'acheteur voit
+       * une fiche sans choix, et le vendeur croit que ses couleurs sont montées
+       * parce que Shopify affiche son option par défaut. Constaté le 27/08/2026
+       * sur la première publication réelle.
+       */
+      productOptions: options.length ? options : undefined,
+      // Les attributs structures : exploitables par un filtre et par un flux,
+      // ce que la description ne sera jamais.
+      metafields: metachamps.length ? metachamps : undefined,
       tags,
       status: 'ACTIVE',
       seo: {
@@ -421,6 +453,45 @@ export async function publishToShopify(
     notes.push('Prix de vente à 0 € : le produit est créé sans prix dans Shopify.')
   }
 
+  /*
+   * Les combinaisons, créées explicitement.
+   *
+   * `productCreate` avec des options ne crée qu'une seule variante : celle de la
+   * première valeur de chaque option. Les onze autres d'un « trois couleurs ×
+   * quatre capacités » n'existent pas tant qu'on ne les demande pas.
+   *
+   * `REMOVE_STANDALONE_VARIANT` retire la variante par défaut que Shopify a
+   * posée : sans elle, la fiche garde un choix fantôme sans nom.
+   *
+   * Un refus ici ne perd pas le produit — il est déjà créé, avec ses photos et
+   * sa description. La note le dit, et le vendeur complète à la main plutôt que
+   * de tout réimporter.
+   */
+  const combos = combinaisons(options)
+  if (combos.length > 1) {
+    try {
+      const ajout = await graphql<{
+        productVariantsBulkCreate: { userErrors: Array<{ field?: string[] | null; message: string }> }
+      }>(creds, CREATE_VARIANTS, {
+        productId: shopifyProduct.id,
+        variants: combos.map((valeurs) => ({
+          price: price > 0 ? price.toFixed(2) : undefined,
+          // Le fournisseur expédie à la demande : sans CONTINUE, Shopify refuse
+          // la commande pour rupture de stock.
+          inventoryPolicy: 'CONTINUE',
+          optionValues: valeurs.map((v, i) => ({ name: v, optionName: options[i].name })),
+        })),
+      })
+      assertNoUserErrors(ajout.productVariantsBulkCreate.userErrors, 'Variantes refusées')
+      notes.push(`${combos.length} variantes créées.`)
+    } catch (e) {
+      notes.push(
+        `Variantes non transmises (${e instanceof Error ? e.message : 'refus Shopify'}) : le produit est en ligne, ses options sont à compléter dans Shopify.`,
+      )
+    }
+  }
+
+
   // Optional: needs read_publications/write_publications, which a minimal custom
   // app may not have. A failure here leaves a perfectly valid draft in the admin.
   try {
@@ -445,4 +516,142 @@ export async function publishToShopify(
   }
 
   return { externalUrl: `https://${creds.shopDomain}/products/${shopifyProduct.handle}`, notes }
+}
+
+/**
+ * Les options d'achat, telles que Shopify les attend.
+ *
+ * Shopify accepte **trois options au plus**, et cent valeurs par option. Au-delà
+ * il refuse le produit entier — pas l'option en trop, le produit. Un disque dur
+ * qui arrive avec Couleur, Capacité, Modèle et Prise perdrait donc tout s'il
+ * n'était pas borné ici.
+ *
+ * L'ordre compte pour l'acheteur : la couleur d'abord, parce que c'est ce qu'il
+ * regarde ; la taille ensuite, parce que c'est ce qu'il vérifie.
+ */
+const ORDRE_OPTIONS = ['Couleur', 'Taille', 'Pointure', 'Capacité', 'Modèle', 'Longueur', 'Puissance', 'Prise']
+
+export interface OptionShopify {
+  name: string
+  values: Array<{ name: string }>
+}
+
+export function optionsShopify(variants: unknown): OptionShopify[] {
+  if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return []
+
+  const entrees = Object.entries(variants as Record<string, unknown>)
+    .map(([nom, valeurs]) => ({
+      nom,
+      valeurs: Array.isArray(valeurs)
+        ? [...new Set(valeurs.filter((v): v is string => typeof v === 'string' && v.trim().length > 0))]
+        : [],
+    }))
+    // Une option à une seule valeur affiche un sélecteur qui ne sélectionne
+    // rien : Shopify l'accepte, l'acheteur ne comprend pas.
+    .filter((e) => e.valeurs.length > 1)
+    .sort((a, b) => {
+      const ra = ORDRE_OPTIONS.indexOf(a.nom)
+      const rb = ORDRE_OPTIONS.indexOf(b.nom)
+      return (ra === -1 ? 99 : ra) - (rb === -1 ? 99 : rb)
+    })
+    .slice(0, 3)
+
+  return entrees.map((e) => ({
+    name: e.nom.slice(0, 255),
+    values: e.valeurs.slice(0, 100).map((v) => ({ name: v.slice(0, 255) })),
+  }))
+}
+
+/**
+ * Toutes les combinaisons d'options, à plat.
+ *
+ * Shopify ne les déduit pas : `productCreate` avec des options crée **une seule**
+ * variante, celle de la première valeur de chaque option. Les autres doivent
+ * être créées explicitement.
+ *
+ * Le produit est borné à cent variantes — trois couleurs × quatre capacités font
+ * douze, mais dix couleurs × dix tailles × dix capacités en feraient mille, et
+ * Shopify refuserait tout le lot.
+ */
+export function combinaisons(options: OptionShopify[], max = 100): string[][] {
+  if (!options.length) return []
+
+  let sortie: string[][] = [[]]
+  for (const option of options) {
+    const suivant: string[][] = []
+    for (const debut of sortie) {
+      for (const valeur of option.values) {
+        if (suivant.length >= max) break
+        suivant.push([...debut, valeur.name])
+      }
+    }
+    sortie = suivant
+  }
+  return sortie
+}
+
+/**
+ * Les attributs structurés, en métachamps Shopify.
+ *
+ * L'IA produit neuf attributs par annonce — matière, dimensions, compatibilité,
+ * garantie. Ils partaient dans la description, noyés dans le texte : illisibles
+ * pour un filtre, pour un flux Google, pour un thème qui sait afficher un
+ * tableau de caractéristiques.
+ *
+ * Un métachamp les rend exploitables. Le namespace est le nôtre : `custom` est
+ * partagé avec toutes les autres applications de la boutique, et deux
+ * applications qui écrivent la même clé se marchent dessus.
+ *
+ * Shopify accepte au plus **deux cent cinquante métachamps par produit** ; on
+ * s'arrête bien avant, parce qu'au-delà d'une vingtaine plus personne ne les
+ * lit.
+ */
+export function metachampsShopify(attributs: unknown): Array<{
+  namespace: string
+  key: string
+  type: string
+  value: string
+}> {
+  if (!attributs || typeof attributs !== 'object' || Array.isArray(attributs)) return []
+
+  const sortie: Array<{ namespace: string; key: string; type: string; value: string }> = []
+
+  for (const [nom, valeur] of Object.entries(attributs as Record<string, unknown>)) {
+    const texte =
+      typeof valeur === 'string'
+        ? valeur
+        : Array.isArray(valeur)
+          ? valeur.filter((v) => typeof v === 'string').join(', ')
+          : typeof valeur === 'number' || typeof valeur === 'boolean'
+            ? String(valeur)
+            : ''
+    if (!texte.trim()) continue
+
+    /*
+     * La clé Shopify n'accepte que des minuscules, des chiffres et des tirets
+     * bas, et trente caractères au plus. « Matière du bracelet » devient
+     * `matiere_du_bracelet` — et le libellé lisible reste dans la valeur, pas
+     * dans la clé.
+     */
+    const cle = nom
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 30)
+    if (!cle) continue
+
+    sortie.push({
+      namespace: 'dropshipper',
+      key: cle,
+      type: 'single_line_text_field',
+      value: texte.trim().slice(0, 255),
+    })
+    if (sortie.length >= 20) break
+  }
+
+  // Une clé en double fait refuser le produit entier.
+  const vues = new Set<string>()
+  return sortie.filter((m) => (vues.has(m.key) ? false : (vues.add(m.key), true)))
 }

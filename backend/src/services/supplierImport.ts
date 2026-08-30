@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { reparerVariantes } from './variantRepair.js'
 import { SupplierError, findConnector } from './supplierConnectors.js'
 import { enhanceListing } from './aiEnhancer.js'
 import { rapatrierImages } from './watermark.js'
@@ -145,7 +146,7 @@ export async function importerDepuisFournisseurs(
             images: filigranees.length ? filigranees : fiche.images,
             // La marque se pose a l export : ces fichiers sont les originaux.
             imagesWatermarked: false,
-            variants: fiche.variants ?? undefined,
+            variants: reparerVariantes(fiche.variants).variantes,
             metaTitle: enrichi.metaTitle,
             metaDescription: enrichi.metaDescription,
             metaKeywords: enrichi.metaKeywords,
