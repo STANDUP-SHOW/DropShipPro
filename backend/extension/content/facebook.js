@@ -7,12 +7,10 @@
  * aria attributes rather than on selectors that change between deploys.
  */
 ;(async () => {
-  const listing = await consumePendingListing('FACEBOOK')
+  const listing = await peekPendingListing('FACEBOOK')
   if (!listing) return
 
-  showBanner('DropShipper IA : remplissage en cours…')
-
-  await waitFor('input[type="text"], textarea, [role="textbox"]')
+  const dejaFait = new Set()
 
   /** Finds the input whose surrounding label matches one of the given words. */
   function fieldByLabel(words) {
@@ -32,34 +30,47 @@
     return null
   }
 
-  const filled = []
-  const missed = []
+  async function remplirCettePage() {
+    const rempli = []
+    const manque = []
 
-  const titleEl = fieldByLabel(['titre', 'title'])
-  if (titleEl) {
-    setNativeValue(titleEl, listing.title)
-    filled.push('titre')
-  } else missed.push('titre')
+    const essayer = (nom, mots, valeur) => {
+      if (!valeur || dejaFait.has(nom)) return
+      const el = fieldByLabel(mots)
+      if (!el) return manque.push(nom)
+      setNativeValue(el, valeur)
+      dejaFait.add(nom)
+      rempli.push(nom)
+    }
 
-  const priceEl = fieldByLabel(['prix', 'price'])
-  if (priceEl) {
-    setNativeValue(priceEl, listing.price)
-    filled.push('prix')
-  } else missed.push('prix')
+    essayer('titre', ['titre', 'title'], listing.title)
+    essayer('prix', ['prix', 'price'], listing.price)
+    essayer('description', ['description', 'détails', 'details'], listing.description)
 
-  const descEl = fieldByLabel(['description', 'détails', 'details'])
-  if (descEl) {
-    setNativeValue(descEl, listing.description)
-    filled.push('description')
-  } else missed.push('description')
+    if (!dejaFait.has('photos') && listing.images?.length) {
+      const fileInput = document.querySelector('input[type="file"]')
+      if (fileInput) {
+        const n = await attachImages(fileInput, listing.images)
+        if (n) {
+          dejaFait.add('photos')
+          rempli.push(`${n} photo(s)`)
+        } else manque.push('photos')
+      } else manque.push('photos')
+    }
 
-  const fileInput = document.querySelector('input[type="file"]')
-  const imageCount = await attachImages(fileInput, listing.images)
-  imageCount ? filled.push(`${imageCount} photo(s)`) : missed.push('photos')
+    return { rempli, manque }
+  }
 
-  const note = listing.category ? ` Catégorie suggérée : ${listing.category}.` : ''
-  showBanner(
-    `Rempli : ${filled.join(', ') || 'rien'}.${missed.length ? ` À compléter : ${missed.join(', ')}, catégorie.` : ' Choisissez la catégorie.'}${note}`,
-    missed.length ? 'error' : 'info',
+  const widget = monterBoutonRemplissage({
+    titre: 'Remplir cette étape',
+    remplir: remplirCettePage,
+    listing,
+    onFermer: releasePendingListing,
+  })
+
+  const categorie = listing.category ? ` Catégorie suggérée : ${listing.category}.` : ''
+  widget.dire(
+    `« ${listing.title?.slice(0, 60) ?? 'Votre annonce'} » est prête.${categorie} ` +
+      "Cliquez à chaque étape ; choisissez la catégorie vous-même. C'est vous qui publiez.",
   )
 })()
