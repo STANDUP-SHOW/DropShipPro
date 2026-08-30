@@ -22,6 +22,7 @@ import { titlesByChannel } from '../services/channelCopy.js'
 import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
+import { imagesPourExport } from '../services/exportImages.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
@@ -1113,4 +1114,42 @@ productsRouter.put('/:id/category', async (req: AuthedRequest, res) => {
   }
 
   res.json({ ok: true, categoryId, path: categorie.path })
+})
+
+/**
+ * Ce qu'une place de marché doit recevoir pour cette annonce.
+ *
+ * L'extension assemblait sa charge utile elle-même, à partir des champs bruts
+ * du produit. C'est devenu faux le jour où le filigrane est passé à l'export :
+ * `product.images` rend désormais les originaux, et l'extension serait allée
+ * poser des photos **sans marque** sur Leboncoin, Vinted et Facebook.
+ *
+ * La marque se pose donc ici, comme pour Shopify et pour le flux. Une seule
+ * route rend tout ce qu'il faut, plutôt que deux appels et un assemblage côté
+ * navigateur — l'endroit où l'on oublie le plus facilement une règle.
+ */
+productsRouter.get('/:id/publish-payload', async (req: AuthedRequest, res) => {
+  const produit = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!produit) return res.status(404).json({ error: 'Annonce introuvable' })
+
+  const [images, categorie] = await Promise.all([
+    imagesPourExport(produit),
+    produit.categoryId
+      ? prisma.category.findUnique({ where: { id: produit.categoryId }, select: { path: true } })
+      : Promise.resolve(null),
+  ])
+
+  const base = apiBaseUrl(req)
+  res.json({
+    title: produit.aiTitle || produit.title,
+    description: produit.aiDescription || produit.description,
+    price: Number(produit.sellingPrice).toFixed(2),
+    currency: produit.currency,
+    category: categorie?.path ?? produit.sourceCategory ?? null,
+    // Absolues : une adresse relative ne veut rien dire dans un onglet Leboncoin.
+    images: images.map((i: string) => (i.startsWith('/') ? `${base}${i}` : i)),
+    variants: produit.variants ?? null,
+  })
 })

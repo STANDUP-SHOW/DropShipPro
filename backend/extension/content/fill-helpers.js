@@ -392,3 +392,70 @@ function releverChampsVisibles() {
 
   return champs
 }
+
+/**
+ * Renseigne un champ **et le quitte**, comme le ferait une main.
+ *
+ * Certains formulaires n'agissent qu'au départ du curseur, pas à la frappe. Sur
+ * Leboncoin, les suggestions de catégorie n'apparaissent qu'une fois le champ
+ * titre quitté : rempli sans `blur`, le titre est bien là et l'étape reste
+ * bloquée, sans que rien n'explique pourquoi.
+ */
+function setNativeValueAndBlur(el, value) {
+  el.focus()
+  setNativeValue(el, value)
+  el.dispatchEvent(new Event('blur', { bubbles: true }))
+  el.blur?.()
+}
+
+/**
+ * Remplit un champ à autocomplétion et choisit dans la liste.
+ *
+ * Une combobox n'accepte pas la saisie libre : le texte reste à l'écran, la
+ * valeur n'est pas retenue, et le formulaire refuse à la validation en désignant
+ * un champ qui a pourtant l'air rempli. Il faut frapper, attendre la liste, et
+ * cliquer une option.
+ *
+ * Rend `false` quand aucune suggestion n'est venue — au vendeur de choisir. On
+ * ne prétend pas avoir rempli ce qu'on n'a pas rempli.
+ */
+async function remplirCombobox(el, value, attente = 2500) {
+  if (!el || !value) return false
+
+  el.focus()
+  setNativeValue(el, value)
+  el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'a' }))
+  el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }))
+
+  const debut = Date.now()
+  while (Date.now() - debut < attente) {
+    // Les listes d'un formulaire React portent presque toujours un rôle ARIA :
+    // c'est ce qui bouge le moins d'une refonte à l'autre.
+    const option = document.querySelector(
+      '[role="option"], [role="listbox"] li, [role="listbox"] [role="button"]',
+    )
+    if (option) {
+      option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+      option.click()
+      return true
+    }
+    await new Promise((r) => setTimeout(r, 120))
+  }
+  return false
+}
+
+/** Choisit une valeur dans un `<select>` par son texte, sans casse ni accent. */
+function choisirDansSelect(select, textes) {
+  if (!select) return false
+  const nu = (s) =>
+    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+  for (const attendu of textes) {
+    const option = [...select.options].find((o) => nu(o.textContent).includes(nu(attendu)))
+    if (option) {
+      select.value = option.value
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+      return true
+    }
+  }
+  return false
+}

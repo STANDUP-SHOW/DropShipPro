@@ -92,20 +92,21 @@
   }
 
   async function queueAndFill(product) {
-    const { token } = await chrome.storage.local.get('token')
-    // Resolved before the map further down: that callback isn't async.
-    const apiBase = await getApiBase()
-    const categories = await apiFetch(`/api/products/${product.id}/category-preview`).catch(() => ({}))
+    /*
+     * La charge utile vient du serveur, pas d'un assemblage fait ici.
+     *
+     * Assemblée dans le navigateur à partir des champs bruts du produit, elle
+     * est devenue fausse le jour où le filigrane est passé à l'export :
+     * `product.images` rend désormais les originaux, et l'extension serait allée
+     * poser des photos **sans marque** sur Leboncoin, Vinted et Facebook.
+     *
+     * Le serveur sait, lui, ce qui doit sortir — c'est le même chemin que pour
+     * Shopify et pour le flux catalogue.
+     */
+    const charge = await apiFetch(`/api/products/${product.id}/publish-payload`)
 
     await chrome.storage.local.set({
-      pendingListing: {
-        target: PLATFORM,
-        title: product.aiTitle || product.title,
-        description: product.aiDescription || product.description,
-        price: Number(product.sellingPrice ?? 0).toFixed(2),
-        category: categories[PLATFORM],
-        images: (product.images || []).map((img) => (img.startsWith('/') ? `${apiBase}${img}` : img)),
-      },
+      pendingListing: { target: PLATFORM, ...charge },
     })
     closePicker()
     // The platform fill script only runs at page load, so re-run it now.
