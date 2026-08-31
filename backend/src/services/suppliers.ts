@@ -366,6 +366,123 @@ export const SUPPLIERS: SupplierInfo[] = [
     attention: "Réservé aux professionnels, avec un minimum de commande par marque et un compte à faire valider.",
     color: '#1a1a1a',
   },
+  /*
+   * ---------------------------------------------------------------------------
+   * Ajoutés le 31/08/2026, sur une liste relevée dans les forums.
+   * ---------------------------------------------------------------------------
+   *
+   * Huit noms sur vingt-deux sont de vrais fournisseurs. Les autres ont été
+   * écartés, et la raison est écrite dans le message qui accompagne cet ajout :
+   * un réseau social, un agrégateur de prospectus, quatre places de marché de
+   * revente entre particuliers, des détaillants grand public — et un agent
+   * chinois dont le métier est la contrefaçon.
+   *
+   * Une fiche fournisseur est une recommandation. Y faire figurer une plateforme
+   * qui n'en est pas envoie le vendeur acheter au prix de détail ; y faire
+   * figurer un vendeur de répliques lui fait fermer ses comptes.
+   */
+  {
+    id: 'sunsky',
+    label: 'SUNSKY',
+    domain: 'sunsky-online.com',
+    origine: 'Shenzhen, Chine',
+    importPath: 'les-deux',
+    quoi: "Grossiste d'électronique et d'accessoires : coques, câbles, éclairage LED, accessoires auto, périphériques. Des millions de références, à l'unité comme au carton.",
+    attention:
+      "Les photos du site portent son propre filigrane. Le programme grossiste donne accès aux versions sans marque — sans lui, vos annonces afficheraient le logo d'un autre.",
+    color: '#0d6efd',
+    api: {
+      nom: 'SUNSKY Open API',
+      console: 'https://www.sunsky-online.com/base/doc!view.do?code=wholesale',
+      exige:
+        "Un compte grossiste validé sur sunsky-online.com, puis la demande d'accès API depuis l'espace Wholesale. La clé est délivrée après vérification du compte.",
+      lectureCatalogue: true,
+      stockTempsReel: true,
+      commande: true,
+      suivi: true,
+      champs: [
+        { cle: 'appKey', label: 'App Key' },
+        { cle: 'appSecret', label: 'App Secret', secret: true },
+      ],
+    },
+  },
+  {
+    id: 'supdropshipping',
+    label: 'SUP Dropshipping',
+    domain: 'supdropshipping.com',
+    origine: 'Chine, sourcing sur 1688, Taobao et Tmall',
+    importPath: 'les-deux',
+    quoi: "Un agent plutôt qu'un catalogue : vous envoyez une photo ou un lien, il retrouve l'usine, achète, contrôle et expédie sous votre marque.",
+    attention:
+      "Le prix se négocie produit par produit : aucune grille publique, donc aucune marge calculable avant d'avoir demandé un devis.",
+    color: '#ff6b35',
+  },
+  {
+    id: 'lightinthebox',
+    label: 'LightInTheBox',
+    domain: 'lightinthebox.com',
+    origine: 'Chine, entrepôts multiples',
+    importPath: 'les-deux',
+    quoi: "Mode, mariage, maison et gadgets. Le rayon robes de cérémonie est le plus solide, et le plus rentable.",
+    attention:
+      "C'est un détaillant avant d'être un grossiste : le prix affiché est un prix client. Le programme revendeur donne la remise, sans lui la marge est nulle.",
+    color: '#e64c3c',
+  },
+  {
+    id: 'joom',
+    label: 'Joom',
+    domain: 'joom.com',
+    origine: 'Chine et Europe',
+    importPath: 'les-deux',
+    quoi: "Place de marché grand public, doublée d'un service de sourcing B2B (Joom Pro) qui achète en Chine et livre en Europe.",
+    attention:
+      "Deux services sous un même nom : acheter sur la boutique revient à payer le prix de détail. C'est Joom Pro qu'il faut, et il demande un compte professionnel.",
+    color: '#5c39d1',
+  },
+  {
+    id: 'faire',
+    label: 'Faire',
+    domain: 'faire.com',
+    origine: 'Marques indépendantes, Europe et Amérique du Nord',
+    importPath: 'les-deux',
+    quoi: "Vente en gros entre marques indépendantes et détaillants : de quoi vendre autre chose que ce que tout le monde vend, avec des marques identifiables.",
+    attention:
+      "Ce n'est pas du dropshipping : vous achetez le stock, avec un minimum par marque. Le premier achat est souvent payable à soixante jours, ce qui aide, mais l'invendu reste le vôtre.",
+    color: '#111111',
+  },
+  {
+    id: 'fashiongo',
+    label: 'FashionGo',
+    domain: 'fashiongo.net',
+    origine: 'Los Angeles, grossistes du quartier de la mode',
+    importPath: 'les-deux',
+    quoi: "Gros de la mode américaine : des centaines de grossistes indépendants sur une même plateforme, avec des collections renouvelées chaque semaine.",
+    attention:
+      "Réservé aux professionnels avec un numéro de revendeur américain, et l'expédition part des États-Unis : ajoutez le port et les droits de douane avant de calculer une marge.",
+    color: '#e6007e',
+  },
+  {
+    id: 'amazon-business',
+    label: 'Amazon Business',
+    domain: 'business.amazon.fr',
+    origine: 'Europe',
+    importPath: 'les-deux',
+    quoi: "L'achat professionnel chez Amazon : prix dégressifs, factures avec TVA, livraison rapide depuis l'Europe.",
+    attention:
+      "**Pas d'expédition en marque blanche.** Le colis arrive dans un carton Amazon avec son bordereau, et faire livrer directement chez un acheteur d'une autre place de marché est interdit par la plupart d'entre elles. Utile pour constituer du stock, pas pour du dropshipping.",
+    color: '#ff9900',
+  },
+  {
+    id: 'meesho',
+    label: 'Meesho',
+    domain: 'meesho.com',
+    origine: 'Inde',
+    importPath: 'les-deux',
+    quoi: "Plateforme de revente indienne, très large sur le textile et les accessoires, à des prix qu'aucun grossiste européen n'approche.",
+    attention:
+      "**Livre en Inde seulement.** Aucune expédition internationale : sans transitaire à vous, elle ne sert à rien depuis la France.",
+    color: '#f43397',
+  },
 ]
 
 export function findSupplier(id: string) {
