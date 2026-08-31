@@ -76,6 +76,12 @@ model User {
   watermarkOpacity  Int       @default(75)
   /// Coin ou bord où poser le filigrane (south, southeast, center…).
   watermarkPosition String    @default("southeast")
+  /// Ce qui est appose par defaut : « texte » ou « logo ».
+  ///
+  /// Sans ce champ, le logo l emportait des qu il existait : un vendeur qui
+  /// deposait un logo voyait ses photos signees avec, sans pouvoir revenir au
+  /// texte autrement qu en supprimant le fichier.
+  watermarkMode     String    @default("logo")
   /// Null until the address is confirmed through the emailed link.
   emailVerifiedAt   DateTime?
   createdAt         DateTime  @default(now())
@@ -399,6 +405,14 @@ model Shop {
   watermarkScale    Int?
   watermarkOpacity  Int?
   watermarkPosition String?
+  /// Ce qui est appose : « texte » ou « logo ».
+  ///
+  /// Sans ce champ, le logo l emportait toujours des qu il existait : un vendeur
+  /// qui deposait un logo pour sa fiche boutique voyait ses photos signees avec,
+  /// sans avoir rien demande et sans pouvoir revenir au texte.
+  ///
+  /// Null veut dire « comme le compte ».
+  watermarkMode     String?
 
   createdAt DateTime @default(now())
 

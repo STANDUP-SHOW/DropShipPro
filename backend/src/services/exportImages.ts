@@ -27,9 +27,23 @@ import type { WatermarkOptions, WatermarkPosition } from './watermark.js'
  * compte — une boutique qui n'a réglé que sa position garde le logo du compte.
  */
 export function reglagesFiligrane(user: User, shop?: Shop | null): WatermarkOptions {
+  /*
+   * Texte ou logo : un choix, plus une consequence de ce qui existe.
+   *
+   * Le logo l'emportait des qu'il etait present. Un vendeur qui deposait un
+   * logo pour sa fiche boutique voyait ses photos signees avec, sans l'avoir
+   * demande, et ne pouvait revenir au texte qu'en supprimant le fichier.
+   *
+   * La boutique decide pour elle-meme, ou s'en remet au compte.
+   */
+  const mode = shop?.watermarkMode ?? user.watermarkMode ?? 'logo'
+  const logo = shop?.logo || user.watermarkImage
+
   return {
     text: shop?.watermarkText || user.watermarkText || shop?.name || user.shopName || 'DropShip Pro',
-    imagePath: shop?.logo || user.watermarkImage,
+    // En mode texte, aucun logo n'est transmis : le composeur pose le logo des
+    // qu'il en recoit un.
+    imagePath: mode === 'logo' ? logo : null,
     scale: shop?.watermarkScale ?? user.watermarkScale,
     opacity: shop?.watermarkOpacity ?? user.watermarkOpacity,
     position: (shop?.watermarkPosition ?? user.watermarkPosition) as WatermarkPosition,

@@ -141,6 +141,9 @@ function BlocSite({
   const [taille, setTaille] = useState<number | null>(shop?.watermarkScale ?? null)
   const [opacite, setOpacite] = useState<number | null>(shop?.watermarkOpacity ?? null)
   const [position, setPosition] = useState<string | null>(shop?.watermarkPosition ?? null)
+  const [mode, setMode] = useState<'texte' | 'logo' | null>(
+    (shop?.watermarkMode as 'texte' | 'logo' | null) ?? null,
+  )
 
   const basculer = (id: string) =>
     setRayons((r) => (r.includes(id) ? r.filter((x) => x !== id) : [...r, id]))
@@ -165,6 +168,7 @@ function BlocSite({
           platform: plateforme || undefined,
           sectors: rayons,
           watermarkEnabled: actif,
+          watermarkMode: mode,
           // Une chaîne vide veut dire « reprends celui du compte », et c'est
           // différent d'un texte volontairement vide : `null` le dit.
           watermarkText: texte.trim() || null,
@@ -317,7 +321,15 @@ function BlocSite({
             />
             <span className="text-sm font-medium">Filigrane des photos</span>
             <span className="ml-auto text-[11px] text-gray-500">
-              {actif ? (texte || 'signé comme le compte') : 'désactivé'}
+              {!actif
+                ? 'désactivé'
+                : mode === 'logo'
+                  ? logo
+                    ? 'signé par le logo'
+                    : 'logo manquant'
+                  : mode === 'texte'
+                    ? texte || 'signé par le texte du compte'
+                    : 'comme le compte'}
             </span>
           </button>
 
@@ -333,17 +345,83 @@ function BlocSite({
                 <span>Signer les photos de cette boutique</span>
               </label>
 
+              {/*
+                Texte ou logo, et c'est un choix.
+
+                Le logo l'emportait dès qu'il existait : déposer un logo pour la
+                fiche boutique signait les photos avec, sans l'avoir demandé, et
+                revenir au texte imposait de supprimer le fichier.
+              */}
               <div>
-                <label className="text-xs text-gray-400">
-                  Texte du filigrane — vide pour reprendre celui du compte
-                </label>
-                <input
-                  value={texte}
-                  onChange={(e) => setTexte(e.target.value)}
-                  placeholder={shop.name}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-                />
+                <label className="text-xs text-gray-400">Ce qui est apposé</label>
+                <div className="mt-1 flex gap-1 rounded-lg bg-black/30 p-1 text-xs">
+                  {(
+                    [
+                      [null, 'Comme le compte'],
+                      ['texte', 'Le texte'],
+                      ['logo', 'Le logo'],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setMode(id)}
+                      className={`flex-1 rounded px-2 py-1.5 transition ${
+                        mode === id ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {mode === 'logo' || (mode === null && logo) ? (
+                <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/40">
+                    {logo ? (
+                      <img src={assetUrl(logo)} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                      <ImagePlus size={16} className="text-gray-500" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {logo ? (
+                      <p className="text-xs text-gray-400">
+                        C'est le logo de la boutique qui signera ses photos.
+                      </p>
+                    ) : (
+                      /*
+                        Choisir « le logo » sans en avoir déposé un donnerait des
+                        photos signées du texte, sans que rien ne l'explique. On
+                        le demande ici, à l'endroit où le choix se fait.
+                      */
+                      <p className="text-xs text-amber-200">
+                        Aucun logo pour cette boutique : déposez-en un, sinon le texte sera utilisé.
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fichier.current?.click()}
+                    className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+                  >
+                    {logo ? 'Changer' : 'Déposer un logo'}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs text-gray-400">
+                    Texte du filigrane — vide pour reprendre celui du compte
+                  </label>
+                  <input
+                    value={texte}
+                    onChange={(e) => setTexte(e.target.value)}
+                    placeholder={shop.name}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-xs text-gray-400">Position</label>

@@ -483,6 +483,7 @@ export const api = {
       watermarkScale: number
       watermarkOpacity: number
       watermarkPosition: string
+      watermarkMode: string
       shopKey: string
     }>('/settings/profile'),
   deleteWatermarkLogo: () => request('/settings/watermark-logo', { method: 'DELETE' }),
@@ -519,6 +520,8 @@ export const api = {
          * quatre ne recopie pas trois fois la même chose.
          */
         watermarkEnabled: boolean
+        /** « texte » ou « logo ». Null : comme le compte. */
+        watermarkMode: string | null
         watermarkText: string | null
         watermarkScale: number | null
         watermarkOpacity: number | null
@@ -537,6 +540,7 @@ export const api = {
       platform?: string
       sectors?: string[]
       watermarkEnabled?: boolean
+      watermarkMode?: 'texte' | 'logo' | null
       watermarkText?: string | null
       watermarkScale?: number | null
       watermarkOpacity?: number | null

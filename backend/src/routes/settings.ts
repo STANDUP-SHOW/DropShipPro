@@ -28,6 +28,8 @@ const profileSchema = z.object({
   watermarkOpacity: z.number().int().min(10).max(100).optional(),
   /// Agent de controle visuel, actif ou non.
   controlAgent: z.boolean().optional(),
+  /// Ce qui est appose : le texte, ou le logo depose.
+  watermarkMode: z.enum(['texte', 'logo']).optional(),
   watermarkPosition: z
     .enum(['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'center'])
     .optional(),
@@ -53,6 +55,7 @@ settingsRouter.get('/profile', async (req: AuthedRequest, res) => {
     watermarkScale: user.watermarkScale,
     watermarkOpacity: user.watermarkOpacity,
     watermarkPosition: user.watermarkPosition,
+    watermarkMode: user.watermarkMode,
     shopKey: user.shopKey,
   })
 })
@@ -61,7 +64,7 @@ settingsRouter.patch('/profile', async (req: AuthedRequest, res) => {
   const parsed = profileSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
   const user = await prisma.user.update({ where: { id: req.userId! }, data: parsed.data })
-  res.json({ id: user.id, email: user.email, controlAgent: user.controlAgent, shopName: user.shopName, watermarkText: user.watermarkText, watermarkEnabled: user.watermarkEnabled, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, shopKey: user.shopKey })
+  res.json({ id: user.id, email: user.email, controlAgent: user.controlAgent, shopName: user.shopName, watermarkText: user.watermarkText, watermarkEnabled: user.watermarkEnabled, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, watermarkMode: user.watermarkMode, shopKey: user.shopKey })
 })
 
 // JPEG is accepted now that a flat light background is cleared on upload: most
@@ -140,6 +143,7 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
        * chose pour celui qui en a quatre.
        */
       watermarkEnabled: s.watermarkEnabled,
+      watermarkMode: s.watermarkMode,
       watermarkText: s.watermarkText,
       watermarkScale: s.watermarkScale,
       watermarkOpacity: s.watermarkOpacity,
@@ -169,6 +173,8 @@ const shopSchema = z.object({
    * rien obligerait à tout ressaisir pour changer un détail.
    */
   watermarkEnabled: z.boolean().optional(),
+  /// Null veut dire « comme le compte ».
+  watermarkMode: z.enum(['texte', 'logo']).nullable().optional(),
   watermarkText: z.string().trim().max(60).nullable().optional(),
   watermarkScale: z.number().int().min(5).max(60).nullable().optional(),
   watermarkOpacity: z.number().int().min(5).max(100).nullable().optional(),

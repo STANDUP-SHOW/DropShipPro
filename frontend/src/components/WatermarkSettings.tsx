@@ -6,6 +6,8 @@ type Reglages = {
   watermarkEnabled: boolean
   watermarkText: string | null
   watermarkImage: string | null
+  /** « texte » ou « logo » : ce qui est réellement apposé. */
+  watermarkMode: string
   watermarkScale: number
   watermarkOpacity: number
   watermarkPosition: string
@@ -129,7 +131,41 @@ export function WatermarkSettings() {
       </label>
 
       <div className={r.watermarkEnabled ? 'mt-4 space-y-4' : 'mt-4 space-y-4 opacity-40'}>
+        {/*
+          Texte ou logo, et c'est un choix.
+
+          Le logo l'emportait dès qu'il existait : un vendeur qui en déposait un
+          voyait ses photos signées avec, et ne pouvait revenir au texte qu'en
+          supprimant le fichier — donc en le perdant.
+        */}
         <div>
+          <p className="text-xs text-gray-400">Ce qui est apposé sur vos photos</p>
+          <div className="mt-1 flex gap-1 rounded-lg bg-black/30 p-1 text-xs">
+            {(
+              [
+                ['logo', 'Mon logo'],
+                ['texte', 'Un texte'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                disabled={!r.watermarkEnabled}
+                onClick={() => {
+                  setR({ ...r, watermarkMode: id })
+                  enregistrer({ watermarkMode: id })
+                }}
+                className={`flex-1 rounded px-2 py-1.5 transition disabled:opacity-50 ${
+                  r.watermarkMode === id ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={r.watermarkMode === 'logo' ? '' : 'hidden'}>
           <p className="text-xs text-gray-400">Logo (PNG, SVG, JPEG ou WebP — 2 Mo maximum)</p>
           <div className="mt-2 flex items-center gap-3">
             {r.watermarkImage ? (
@@ -174,12 +210,14 @@ export function WatermarkSettings() {
               </button>
             ) : null}
           </div>
-          <p className="mt-1 text-[11px] text-gray-500">
-            Sans logo, c'est le texte ci-dessous qui est posé.
-          </p>
+          {r.watermarkImage ? null : (
+            <p className="mt-1 text-[11px] text-amber-200">
+              Aucun logo déposé : tant qu'il manque, c'est le texte qui sera posé.
+            </p>
+          )}
         </div>
 
-        <div>
+        <div className={r.watermarkMode === 'texte' ? '' : 'hidden'}>
           <label className="text-xs text-gray-400">Texte du filigrane</label>
           <input
             value={r.watermarkText ?? ''}

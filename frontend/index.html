@@ -1,9 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Importez un produit depuis n'importe quelle boutique, laissez l'IA réécrire l'annonce et publiez-la sur vos marketplaces." />
+
+    <!--
+      Le site est en français, et il faut le dire trois fois.
+
+      `lang="en"` traînait depuis le gabarit de Vite : Chrome concluait que la
+      page était anglaise, proposait de la traduire, et rendait une traduction
+      automatique du français vers le français — c'est-à-dire un charabia, sur
+      une application par ailleurs parfaitement lisible.
+
+      `lang` suffit à Chrome. Les deux autres balises servent aux réseaux
+      sociaux et aux moteurs, qui ne lisent pas l'attribut de `<html>`.
+    -->
+    <meta property="og:locale" content="fr_FR" />
+    <meta http-equiv="Content-Language" content="fr" />
+
     <title>DropShipper IA</title>
   </head>
   <body>
