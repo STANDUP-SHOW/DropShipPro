@@ -7,6 +7,7 @@ import {
   Trash2,
   ExternalLink,
   Radio,
+  Share2,
   ImagePlus,
   Sparkles,
   Tags,
@@ -26,6 +27,7 @@ import { PriceInput } from '../components/PriceInput'
 import { PhotoAgentBlock } from '../components/PhotoAgentBlock'
 import { ChannelReadiness } from '../components/ChannelReadiness'
 import { GooglePreview } from '../components/GooglePreview'
+import { SocialPublishDialog } from '../components/SocialPublishDialog'
 
 /** Section card — one visual container per topic, instead of one long column. */
 function Card({
@@ -95,6 +97,7 @@ export default function ProductDetail() {
 
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [socialOpen, setSocialOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const [active, setActive] = useState(0)
@@ -339,6 +342,18 @@ export default function ProductDetail() {
             className="rounded-xl border border-white/15 px-4 py-2 text-sm font-medium transition hover:bg-white/5 disabled:opacity-50"
           >
             Valider l'annonce
+          </button>
+          {/*
+            Deux boutons et non un, parce que ce sont deux gestes différents.
+            « Diffuser » met l'annonce en vente sur une place de marché ou une
+            boutique ; « Réseaux » la fait connaître sur la page du vendeur. Les
+            confondre ferait publier un post là où il voulait vendre.
+          */}
+          <button
+            onClick={() => setSocialOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-medium transition hover:bg-white/5"
+          >
+            <Share2 size={15} /> Réseaux
           </button>
           <button
             onClick={() => setPublishOpen(true)}
@@ -853,6 +868,10 @@ export default function ProductDetail() {
           }}
         />
       )}
+
+      {socialOpen && id ? (
+        <SocialPublishDialog productId={id} onClose={() => setSocialOpen(false)} />
+      ) : null}
 
       {confirmDelete && (
         <div

@@ -1091,6 +1091,22 @@ export const api = {
 
   socialSync: () => request<{ comptes: number }>(SOCIAL_SYNC, { method: POST_M }),
 
+  /** Le brouillon prêt à relire pour une annonce, un message par réseau. */
+  socialDraft: (productId: string) =>
+    request<{
+      comptes: Array<{ externalId: string; platform: string; label: string | null; connected: boolean }>
+      medias: string[]
+      lien: string | null
+      brouillons: Array<{ platform: string; texte: string; note: string | null }>
+    }>(`/products/${productId}/social-draft`),
+
+  socialPost: (data: { comptes: string[]; texte: string; medias?: string[] }) =>
+    request<{
+      externalId: string
+      etat: string
+      parCompte: Array<{ compte: string; etat: string; url: string | null; erreur: string | null }>
+    }>('/social/posts', { method: POST_M, body: JSON.stringify(data) }),
+
   socialConnect: (platform: string, retour: string) =>
     request<{ url: string }>(SOCIAL_CONNECT, {
       method: POST_M,

@@ -23,6 +23,8 @@ import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { imagesPourExport } from '../services/exportImages.js'
+import { brouillonPour } from '../services/socialDraft.js'
+import { comptesDe } from '../services/socialGateway.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
@@ -1263,5 +1265,64 @@ productsRouter.get('/:id/publish-payload', async (req: AuthedRequest, res) => {
     // Absolues : une adresse relative ne veut rien dire dans un onglet Leboncoin.
     images: images.map((i: string) => (i.startsWith('/') ? `${base}${i}` : i)),
     variants: produit.variants ?? null,
+  })
+})
+
+/**
+ * Le brouillon de publication sociale pour cette annonce.
+ *
+ * Composé à partir de ce qui est déjà écrit — titre réécrit, arguments de
+ * vente, prix, mots-clés — et **sans appeler le modèle** : ouvrir la fenêtre
+ * coûterait sinon un appel payant à chaque clic, y compris quand le vendeur la
+ * referme sans rien envoyer.
+ *
+ * Un message par réseau : le même texte partout se voit tout de suite, et
+ * Instagram ne rend aucun lien cliquable là où Facebook les accepte.
+ *
+ * Les photos sont **celles de l'export**, marquées. C'est le même piège que
+ * pour l'extension : depuis que le filigrane se pose au départ, `product.images`
+ * rend les originaux, et publier ces fichiers-là enverrait des photos sans
+ * marque sur la page du vendeur.
+ */
+productsRouter.get('/:id/social-draft', async (req: AuthedRequest, res) => {
+  const produit = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: { shop: { select: { shopKey: true, name: true } } },
+  })
+  if (!produit) return res.status(404).json({ error: 'Annonce introuvable' })
+
+  const [images, comptes] = await Promise.all([
+    imagesPourExport(produit),
+    comptesDe(req.userId!, { publicitaires: false }),
+  ])
+
+  const base = apiBaseUrl(req)
+  /*
+   * Le lien n'existe que si l'annonce est publiée sur un site.
+   *
+   * Inviter à cliquer vers une adresse qui n'existe pas est pire que ne pas
+   * inviter : le vendeur ne s'en aperçoit qu'en voyant les premiers messages
+   * d'acheteurs perdus.
+   */
+  const publiee = await prisma.publication.findFirst({
+    where: { productId: produit.id, status: 'PUBLISHED' },
+    select: { externalUrl: true },
+    orderBy: { publishedAt: 'desc' },
+  })
+
+  const reseaux = [...new Set(comptes.map((c) => c.platform))]
+  res.json({
+    // Sans compte raccordé, l'écran doit le dire plutôt que de proposer une
+    // fenêtre vide avec un bouton qui ne peut rien faire.
+    comptes: comptes.map((c) => ({
+      externalId: c.externalId,
+      platform: c.platform,
+      label: c.label,
+      connected: c.connected,
+    })),
+    // Absolues : Meta télécharge les photos lui-même.
+    medias: images.map((i: string) => (i.startsWith('/') ? `${base}${i}` : i)),
+    lien: publiee?.externalUrl ?? null,
+    brouillons: reseaux.map((r) => brouillonPour(produit, r, publiee?.externalUrl ?? null)),
   })
 })
