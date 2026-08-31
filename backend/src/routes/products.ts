@@ -11,7 +11,7 @@ import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
 import { rapatrierImages, watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
-import { CATEGORY_CATALOG, categorySectors } from '../services/categoryCatalog.js'
+import { categorySectors } from '../services/categoryCatalog.js'
 import { resoudreCategorie, arbreCategories, apprendreCategorie } from '../services/categories.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
@@ -467,10 +467,24 @@ productsRouter.get('/meta/catalogue', async (req: AuthedRequest, res) => {
 productsRouter.get('/:id', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({
     where: { id: req.params.id, userId: req.userId! },
-    include: { publications: true },
+    include: {
+      publications: true,
+      // Le nom de la boutique et le chemin de categorie servent a l apercu
+      // Google : sans eux, il montrerait un fil d Ariane invente.
+      shop: { select: { name: true } },
+    },
   })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
-  res.json(product)
+
+  // `categoryId` n est pas une cle etrangere -- il a porte des identifiants de
+  // l ancien catalogue avant le referentiel en base. La lecture est donc
+  // separee, et un identifiant orphelin rend simplement `null`.
+  const categorie = product.categoryId
+    ? await prisma.category.findUnique({ where: { id: product.categoryId }, select: { path: true } })
+    : null
+
+  const { shop, ...reste } = product
+  res.json({ ...reste, shopName: shop?.name ?? null, categoryPath: categorie?.path ?? null })
 })
 
 const updateSchema = z.object({
@@ -832,14 +846,30 @@ productsRouter.get('/meta/categories', async (req: AuthedRequest, res) => {
     if (clean.length) sectors = clean
   }
 
-  const filtered = sectors
-    ? CATEGORY_CATALOG.filter((c) => sectors!.includes(c.sector) || c.sector === 'tous')
-    : CATEGORY_CATALOG
+  /*
+   * Le référentiel en base, pas l'ancien tableau.
+   *
+   * Ce menu servait encore `CATEGORY_CATALOG` : vingt-neuf entrées dont
+   * vingt-huit de mode homme, celui que le référentiel en base a remplacé.
+   * Une souris gamer n'avait aucune place où aller, et surtout : une annonce
+   * rangée depuis ce menu recevait un identifiant de l'ancien catalogue, que
+   * la table `Category` ne connaît pas. La publication Shopify cherchait alors
+   * la ligne correspondante, ne la trouvait pas, et partait sans catégorie ni
+   * collection — sans que rien ne le signale.
+   */
+  const arbre = await arbreCategories()
+  const categories = arbre
+    .filter((rayon) => !sectors || sectors.includes(rayon.sector))
+    .flatMap((rayon) =>
+      rayon.enfants.map((enfant) => ({
+        id: enfant.id,
+        group: rayon.label,
+        label: enfant.label,
+        sector: rayon.sector,
+      })),
+    )
 
-  res.json({
-    categories: filtered.map(({ id, group, label, sector }) => ({ id, group, label, sector })),
-    sectors: categorySectors(),
-  })
+  res.json({ categories, sectors: categorySectors() })
 })
 
 // Photos the seller adds by hand: their own shots, or a rescue when the

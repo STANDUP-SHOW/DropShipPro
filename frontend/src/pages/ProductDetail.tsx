@@ -25,6 +25,7 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { PriceInput } from '../components/PriceInput'
 import { PhotoAgentBlock } from '../components/PhotoAgentBlock'
 import { ChannelReadiness } from '../components/ChannelReadiness'
+import { GooglePreview } from '../components/GooglePreview'
 
 /** Section card — one visual container per topic, instead of one long column. */
 function Card({
@@ -727,8 +728,20 @@ export default function ProductDetail() {
               value={product.categoryId ?? ''}
               onChange={async (e) => {
                 const value = e.target.value || null
-                setProduct({ ...product, categoryId: value })
-                await saveField('categoryId', value)
+                /*
+                 * Le geste du vendeur est enregistré comme alias, pas seulement
+                 * comme valeur : il voit le produit, et le prochain annoncé de la
+                 * même façon partira au bon endroit sans rien demander à
+                 * personne. C'est ce que fait `setProductCategory` et que le
+                 * simple enregistrement de champ ne faisait pas.
+                 */
+                if (value) {
+                  const { path } = await api.setProductCategory(product.id, value)
+                  setProduct({ ...product, categoryId: value, categoryPath: path })
+                } else {
+                  setProduct({ ...product, categoryId: null, categoryPath: null })
+                  await saveField('categoryId', null)
+                }
                 if (id) setCategories(await api.categoryPreview(id))
               }}
               className={`${field} mt-1`}
@@ -764,6 +777,27 @@ export default function ProductDetail() {
             </div>
           </Card>
         </div>
+      </div>
+
+      {/*
+        L'aperçu Google en pleine largeur, sous les deux colonnes.
+        Le titre et la méta-description s'écrivent juste au-dessus, en aveugle :
+        deux champs de texte sans rien qui dise ce qu'ils deviennent une fois
+        coupés. Le voir là, immédiatement après les avoir écrits, est tout
+        l'intérêt — placé ailleurs, il faudrait faire l'aller-retour.
+      */}
+      <div className="mt-6">
+        <GooglePreview
+          title={product.aiTitle || product.title}
+          description={product.aiDescription || product.description || ''}
+          metaTitle={product.metaTitle}
+          metaDescription={product.metaDescription}
+          price={sellingPrice}
+          currency={product.currency}
+          image={images[0]}
+          boutique={product.shopName ?? null}
+          categorie={product.categoryPath ?? product.sourceCategory ?? null}
+        />
       </div>
 
       {/* ---------- Assistant de publication manuelle ---------- */}
