@@ -10,12 +10,6 @@ const NAV = [
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
   { to: '/messages', label: 'Messages', icon: Inbox },
-  { to: '/comptabilite', label: 'Comptabilité', icon: Calculator },
-  { to: '/abonnement', label: 'Mes crédits', icon: Coins },
-  { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
-  { to: '/guide', label: 'Aide', icon: BookOpen },
-  { to: '/mes-sites', label: 'Mes sites', icon: Store },
-  { to: '/settings', label: 'Réglages', icon: SettingsIcon },
 ]
 
 /**
@@ -43,6 +37,10 @@ const SECTIONS: Array<{
       { to: '/categories', label: 'Catégories', icon: FolderTree },
       { to: '/orders', label: 'Commandes', icon: ShoppingBag },
       { to: '/livraisons', label: 'Livraisons', icon: Truck },
+      // Les boutiques sont une destination de vente comme une autre : les
+      // ranger ailleurs obligeait à sortir de la section pour régler celle
+      // qu'on vient d'alimenter.
+      { to: '/mes-sites', label: 'Mes sites', icon: Store },
     ],
   },
   {
@@ -50,6 +48,26 @@ const SECTIONS: Array<{
     entrees: [
       { to: '/marketing', label: 'Commercialisation', icon: Megaphone },
       { to: '/mes-pubs', label: 'Mes pubs', icon: Images },
+    ],
+  },
+  {
+    titre: 'Comptabilité',
+    entrees: [{ to: '/comptabilite', label: 'Comptabilité', icon: Calculator }],
+  },
+  {
+    /*
+     * L'application elle-même, en dernier.
+     *
+     * Réglages, crédits, tickets et aide ne parlent pas du métier du vendeur
+     * mais de son outil. Mélangés au reste, ils coupaient la chaîne
+     * sourcing → vente → marketing en son milieu.
+     */
+    titre: 'DropShipper',
+    entrees: [
+      { to: '/settings', label: 'Réglages', icon: SettingsIcon },
+      { to: '/abonnement', label: 'Mes crédits', icon: Coins },
+      { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
+      { to: '/guide', label: 'Aide', icon: BookOpen },
     ],
   },
 ]
