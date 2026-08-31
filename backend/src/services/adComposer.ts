@@ -245,83 +245,25 @@ export async function composeAd(
  * D'où ce contrôle, fait une fois et gardé : mieux vaut refuser de produire que
  * facturer un fichier inutilisable.
  */
-let policesVues: boolean | null = null
-
+/**
+ * Vrai quand une publicité peut être composée lisiblement.
+ *
+ * Ce contrôle cherchait un fichier `.ttf` et s'arrêtait là. Il répondait donc
+ * « tout va bien » sur un serveur où les polices existaient sans que fontconfig
+ * les connaisse — et les publicités sortaient quand même en carrés, cette fois
+ * sans avertissement et avec les crédits débités. Trouver une police ne suffit
+ * pas : encore faut-il l'avoir déclarée. Voir `services/fonts.ts`.
+ */
 export async function policeDisponible(): Promise<boolean> {
-  if (policesVues !== null) return policesVues
-
-  // Hors Linux, le système en fournit toujours.
-  if (process.platform !== 'linux') {
-    policesVues = true
-    return true
-  }
-
-  const { readdir } = await import('fs/promises')
-  /*
-   * Les endroits ou une police peut se trouver, du plus courant au plus exotique.
-   *
-   * Sur Nixpacks, rien n est a la place habituelle : les paquets vivent dans
-   * /nix/store sous un nom hache, et le profil qui les expose n est pas toujours
-   * celui par defaut. Chercher au seul endroit standard revenait a conclure
-   * « aucune police » sur un serveur qui en avait.
-   */
-  const dossiers = [
-    '/usr/share/fonts',
-    '/usr/local/share/fonts',
-    '/nix/var/nix/profiles/default/share/fonts',
-    '/root/.nix-profile/share/fonts',
-    `${process.env.HOME ?? ''}/.nix-profile/share/fonts`,
-    `${process.env.HOME ?? ''}/.fonts`,
-  ]
-
-  for (const dossier of dossiers) {
-    try {
-      // Récursif : les distributions rangent par famille, jamais à plat.
-      const entrees = await readdir(dossier, { recursive: true } as never)
-      if ((entrees as string[]).some((f) => /\.(ttf|otf|ttc|pfb)$/i.test(f))) {
-        policesVues = true
-        return true
-      }
-    } catch {
-      // Dossier absent : on essaie le suivant.
-    }
-  }
-
-  /*
-   * Dernier recours : /nix/store, ou Nixpacks depose reellement les paquets.
-   *
-   * Balaye a un seul niveau et seulement les dossiers dont le nom parle de
-   * polices — le magasin contient des milliers d entrees, et le parcourir en
-   * entier bloquerait le demarrage.
-   */
-  try {
-    const { readdir } = await import('fs/promises')
-    const magasin = await readdir('/nix/store')
-    for (const entree of magasin) {
-      if (!/font|dejavu|liberation|noto/i.test(entree)) continue
-      try {
-        const contenu = await readdir(`/nix/store/${entree}/share/fonts`, { recursive: true } as never)
-        if ((contenu as string[]).some((f) => /.(ttf|otf|ttc|pfb)$/i.test(f))) {
-          policesVues = true
-          return true
-        }
-      } catch {
-        // Ce paquet-la n en contient pas : on continue.
-      }
-    }
-  } catch {
-    // Pas de /nix/store : ce n est pas un serveur Nixpacks.
-  }
-
-  policesVues = false
-  return false
+  const { preparerPolices } = await import('./fonts.js')
+  return (await preparerPolices()).pretes
 }
 
 /** Le message d'un serveur sans police, dit au vendeur et pas au journal. */
 export class SansPolice extends Error {
   constructor() {
     super(
-      "La composition de publicités est momentanément indisponible sur le serveur (aucune police installée). Aucun crédit n'a été débité.",
+      "La composition de publicités est indisponible : aucune police n'est installée sur le serveur. Aucun crédit n'a été débité. Le diagnostic (Réglages › état des services) dit où elles sont cherchées.",
     )
     this.name = 'SansPolice'
   }

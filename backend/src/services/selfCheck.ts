@@ -1,4 +1,4 @@
-import { policeDisponible } from './adComposer.js'
+import { preparerPolices } from './fonts.js'
 import { prisma } from '../lib/prisma.js'
 import { checkStorage, storageError, storageTarget, type StorageStatus } from '../lib/storage.js'
 import { getStripe } from './billing.js'
@@ -42,6 +42,15 @@ export interface ServiceReport {
      * visuel sortait alors parfaitement composé et totalement illisible.
      */
     polices: 'ok' | 'absentes'
+    /*
+     * Les dossiers réellement retenus, et ce qui a manqué.
+     *
+     * « absentes » sans plus rien à dire envoyait le vendeur — ou moi — lire le
+     * journal de l'hébergeur pour deviner où le serveur avait cherché. La
+     * réponse tient en trois lignes : autant les donner.
+     */
+    policesDossiers?: string[]
+    policesRaison?: string | null
   }
   /** What would hurt a real user right now, in plain French. */
   alertes: string[]
@@ -54,7 +63,7 @@ export async function selfCheck(): Promise<ServiceReport> {
     checkStorage(),
     // Le seul defaut qui se voit uniquement en production : Windows et macOS
     // ont des polices, l image par defaut de Nixpacks n en a aucune.
-    policeDisponible(),
+    preparerPolices(),
   ])
 
   const email = mailIsConfigured() ? 'ok' : 'non-configure'
@@ -92,12 +101,15 @@ export async function selfCheck(): Promise<ServiceReport> {
     )
   }
 
-  if (!polices) {
+  if (!polices.pretes) {
     alertes.push(
-      "Aucune police sur le serveur : la génération de publicités refuse de composer, et rend le crédit. " +
-        "Sans ce refus, chaque texte sortirait en carrés vides sur une image déjà facturée. " +
-        "Vérifiez que nixpacks.toml est bien pris en compte au déploiement.",
+      polices.raison ??
+        "Aucune police sur le serveur : la génération de publicités refuse de composer, et rend le crédit.",
     )
+  } else if (polices.raison) {
+    // Polices trouvées mais fontconfig non configuré : ça peut marcher, ça peut
+    // sortir en carrés. Le dire vaut mieux que se taire ou que refuser.
+    alertes.push(polices.raison)
   }
 
   if (base === 'injoignable') alertes.push('Base de données injoignable : rien ne fonctionne.')
@@ -127,5 +139,19 @@ export async function selfCheck(): Promise<ServiceReport> {
     )
   }
 
-  return { ok: alertes.length === 0, services: { ia, email, stockage, stripe, base, images, polices: polices ? 'ok' : 'absentes' }, alertes }
+  return {
+    ok: alertes.length === 0,
+    services: {
+      ia,
+      email,
+      stockage,
+      stripe,
+      base,
+      images,
+      polices: polices.pretes ? 'ok' : 'absentes',
+      policesDossiers: polices.dossiers,
+      policesRaison: polices.raison,
+    },
+    alertes,
+  }
 }
