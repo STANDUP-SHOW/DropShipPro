@@ -34,6 +34,23 @@ export interface PlatformInfo {
   unavailable?: boolean
   /** Brand colour, used for that platform's button in the diffusion dialog. */
   color: string
+  /**
+   * Le domaine de la marque, d'où l'interface tire son logo.
+   *
+   * Déduit de `sellUrl` : le déclarer une seconde fois ferait deux vérités à
+   * tenir, et c'est toujours la seconde qu'on oublie de corriger.
+   */
+  domain: string | null
+}
+
+/** Le domaine d'une adresse, ou `null` quand il n'y en a pas. */
+function domaineDe(url: string | null): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).hostname.replace(/^www./, '')
+  } catch {
+    return null
+  }
 }
 
 /** Brand colours, kept next to the list so the UI never hard-codes them. */
@@ -66,7 +83,7 @@ const COLORS: Record<string, string> = {
  * marketplace only has to be declared here (plus its category paths in
  * categoryCatalog.ts and the Prisma enum).
  */
-const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchable'>> = [
+const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchable' | 'domain'>> = [
   {
     id: 'OWN_SITE',
     label: 'Mon site',
@@ -220,6 +237,20 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     sellUrl: 'https://www.vinted.fr/items/new',
     note: "Pas d'API publique : publication assistée via l'extension.",
   },
+  {
+    /*
+     * Allegro figurait dans une liste de « fournisseurs » relevée sur un forum.
+     * C'en est l'inverse : la première place de marché de Pologne, quarante
+     * millions d'acheteurs, et très peu de vendeurs français dessus.
+     */
+    id: 'ALLEGRO',
+    label: 'Allegro',
+    automatable: true,
+    sellUrl: 'https://allegro.pl/moje-allegro/sprzedaz/oferty',
+    note: "Première place de marché de Pologne, avec une API vendeur ouverte (REST + OAuth).",
+    warning:
+      "Le compte vendeur exige une entreprise enregistrée dans l'Union européenne et une validation d'identité. Les annonces, le service client et les retours se font en polonais.",
+  },
 ]
 
 /** The two destinations publisher.ts really pushes to today. */
@@ -233,7 +264,7 @@ const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY']
  */
 const FEED: Platform[] = ['INSTAGRAM', 'GOOGLE_SHOPPING']
 
-function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchable'>): PlatformIntegration {
+function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchable' | 'domain'>): PlatformIntegration {
   if (p.unavailable) return 'none'
   if (!p.automatable) return 'extension'
   if (FEED.includes(p.id)) return 'feed'
@@ -247,6 +278,7 @@ export const PLATFORMS: PlatformInfo[] = PLATFORM_DEFS.map((p) => {
   return {
     ...p,
     integration,
+    domain: domaineDe(p.sellUrl),
     batchable: integration === 'live' || integration === 'feed' || integration === 'api-ready',
     color: COLORS[p.id] ?? '#a855f7',
   }

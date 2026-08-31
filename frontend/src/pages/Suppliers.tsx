@@ -117,7 +117,7 @@ export default function Suppliers() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <PlatformLogo id={s.id} label={s.label} color={s.color} />
+                  <PlatformLogo id={s.id} label={s.label} color={s.color} domain={s.domain} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{s.label}</p>
                     <p className="truncate text-[11px] text-gray-500">{s.origine}</p>

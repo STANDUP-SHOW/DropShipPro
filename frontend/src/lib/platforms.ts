@@ -14,6 +14,8 @@ export interface PlatformInfo {
   sellUrl: string | null
   note: string
   color: string
+  /** Le domaine de la marque, d'où l'interface tire son logo. */
+  domain?: string | null
   warning?: string
   unavailable?: boolean
 }

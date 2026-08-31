@@ -122,7 +122,7 @@ export function BulkPublishDialog({
                   isSelected ? 'text-white' : 'text-gray-300 hover:bg-white/5'
                 }`}
               >
-                <PlatformBadge label={p.label} color={p.color} size={24} />
+                <PlatformBadge id={p.id} label={p.label} color={p.color} size={24} domain={p.domain} />
                 <span className="text-left leading-tight">
                   <span className="block">{p.label}</span>
                   <span className="block text-[10px] font-normal opacity-70">

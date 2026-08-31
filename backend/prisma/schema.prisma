@@ -29,6 +29,7 @@ enum Platform {
   MIINTO
   SHOPIFY
   INSTAGRAM
+  ALLEGRO
 }
 
 enum ProductStatus {

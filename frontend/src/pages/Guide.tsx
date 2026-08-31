@@ -60,7 +60,7 @@ function PlatformCard({
         aria-expanded={open}
         className="flex w-full items-center gap-3 px-4 py-3 text-left"
       >
-        <PlatformBadge label={platform.label} color={platform.color} size={30} />
+        <PlatformBadge id={platform.id} label={platform.label} color={platform.color} size={30} domain={platform.domain} />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">{platform.label}</span>
           <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] ${INTEGRATION_STYLE[platform.integration]}`}>
@@ -512,7 +512,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
           <ul className="mt-3 space-y-2 text-sm text-gray-300">
             {[...live, ...apiReady].map((p) => (
               <li key={p.id} className="flex items-center gap-2">
-                <PlatformBadge label={p.label} color={p.color} size={20} />
+                <PlatformBadge id={p.id} label={p.label} color={p.color} size={20} domain={p.domain} />
                 <span>
                   <span className="block">{p.label}</span>
                   <span className="block text-[11px] text-gray-500">
@@ -533,7 +533,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
           <ul className="mt-3 space-y-2 text-sm text-gray-300">
             {[...assisted, ...unavailable].map((p) => (
               <li key={p.id} className="flex items-center gap-2">
-                <PlatformBadge label={p.label} color={p.color} size={20} />
+                <PlatformBadge id={p.id} label={p.label} color={p.color} size={20} domain={p.domain} />
                 <span>
                   <span className="block">{p.label}</span>
                   <span className="block text-[11px] text-gray-500">

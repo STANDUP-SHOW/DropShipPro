@@ -1,30 +1,34 @@
+import { PlatformLogo } from './PlatformLogo'
+
 /**
- * Square brand mark for a destination.
+ * La marque d'une destination, en petit.
  *
- * Deliberately not the real logos: redistributing marketplace logos inside the app
- * is a trademark question we don't need to answer, and a coloured monogram in each
- * brand's own colour is recognisable enough in a list of twenty.
+ * **Ce composant dessinait un monogramme, et jamais le vrai logo** — la note
+ * d'origine invoquait la question de marque. Elle se répond : afficher le logo
+ * d'une place de marché pour désigner cette place de marché, dans un outil qui
+ * sert à y publier, est un usage nominatif. Ce que le droit des marques
+ * interdit, c'est de laisser croire à une affiliation ; une liste de
+ * destinations ne le fait pas.
+ *
+ * Le vrai motif était plus prosaïque : nous n'avions pas les fichiers. L'icône
+ * que chaque site publie lui-même les remplace.
+ *
+ * Il ne reste ici qu'une différence de forme avec `PlatformLogo` — un coin
+ * moins arrondi, parce qu'il vit dans des listes serrées. Dupliquer la
+ * mécanique de repli pour ça aurait fait deux endroits à corriger.
  */
 export function PlatformBadge({
   label,
   color,
   size = 28,
+  domain,
+  id,
 }: {
   label: string
   color: string
   size?: number
+  domain?: string | null
+  id?: string
 }) {
-  // "La Redoute" → LR, "eBay" → EB: initials of the words, else the first letters.
-  const words = label.split(/[\s'’-]+/).filter(Boolean)
-  const mark = (words.length > 1 ? words.map((w) => w[0]).join('') : label.slice(0, 2)).slice(0, 2).toUpperCase()
-
-  return (
-    <span
-      aria-hidden
-      className="grid shrink-0 place-items-center rounded-md font-bold text-white"
-      style={{ backgroundColor: color, width: size, height: size, fontSize: Math.round(size * 0.4) }}
-    >
-      {mark}
-    </span>
-  )
+  return <PlatformLogo id={id} label={label} color={color} size={size} domain={domain} arrondi="md" />
 }

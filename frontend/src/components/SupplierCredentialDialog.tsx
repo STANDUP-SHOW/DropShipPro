@@ -70,7 +70,7 @@ export function Fenetre({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <PlatformLogo id={supplier.id} label={supplier.label} color={supplier.color} size={44} />
+            <PlatformLogo id={supplier.id} label={supplier.label} color={supplier.color} size={44} domain={supplier.domain} />
             <div>
               <h2 className="font-bold">{supplier.label}</h2>
               <p className="text-xs text-gray-500">{api_.nom}</p>

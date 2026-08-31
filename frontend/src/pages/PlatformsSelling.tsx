@@ -120,7 +120,7 @@ export default function PlatformsSelling() {
                   className="flex h-full w-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10"
                 >
                   <div className="flex items-start gap-3">
-                    <PlatformLogo id={p.id} label={p.label} color={p.color} />
+                    <PlatformLogo id={p.id} label={p.label} color={p.color} domain={p.domain} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{p.label}</p>
                       <span
@@ -161,7 +161,7 @@ export default function PlatformsSelling() {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <PlatformLogo id={ouvert.id} label={ouvert.label} color={ouvert.color} size={44} />
+                <PlatformLogo id={ouvert.id} label={ouvert.label} color={ouvert.color} size={44} domain={ouvert.domain} />
                 <div>
                   <h2 className="font-bold">{ouvert.label}</h2>
                   <span

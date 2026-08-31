@@ -195,7 +195,7 @@ export function PublishTargets({
                         coche ? 'text-white' : 'text-gray-300 hover:bg-white/5'
                       }`}
                     >
-                      <PlatformBadge label={p.label} color={p.color} size={24} />
+                      <PlatformBadge id={p.id} label={p.label} color={p.color} size={24} domain={p.domain} />
                       <span className="min-w-0 text-left leading-tight">
                         <span className="block truncate">{p.label}</span>
                         <span className="block text-[10px] font-normal opacity-70">

@@ -94,7 +94,7 @@ export function PlatformCredentialForm({
 <div>
             <div className="flex items-center justify-between gap-2">
               <p className="flex items-center gap-2 text-sm font-medium">
-                <PlatformBadge label={platform.label} color={platform.color} size={22} />
+                <PlatformBadge id={platform.id} label={platform.label} color={platform.color} size={22} domain={platform.domain} />
                 <span>{platform.label}</span>
               </p>
               {platform.automatable && !platform.unavailable ? (
