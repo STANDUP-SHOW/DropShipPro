@@ -255,6 +255,70 @@ docs/        Documentation de l'API catalogue
   blanche multi-clients n est pas confirme -- a obtenir par ecrit avant de batir
   un produit commercial dessus.
 
+- **Un alias de catégorie mal posé contamine tout, et ne se corrigeait jamais.**
+  Relevé le 31/08/2026 : la clé `la-categorie-maison` — du texte de gabarit
+  ramassé sur AliExpress — pointait vers « Figurines et jouets d'action » avec
+  **31 usages**. Une seule décision, prise sur un produit qui était bien une
+  figurine, avait rangé quinze produits sans rapport : souris, mini-PC,
+  perceuses, un aspirateur. Le référentiel n'y était pour rien.
+
+  Trois corrections, et la première est la plus importante : **le titre est
+  désormais le premier signal**, pas le dernier. Un lexique déterministe
+  (`categoryLexicon.ts`) range **152 annonces sur 154 sans appeler le modèle**.
+  C'est ce que font Vinted, Leboncoin et eBay quand ils proposent une catégorie
+  dès la frappe. Ensuite : une source sans valeur (« Accueil », « Divers »,
+  « Tous les produits ») ne devient jamais une clé ; et titre et mémoire sont
+  confrontés — s'ils se contredisent le titre gagne et l'alias fautif est
+  effacé, **sauf celui que le vendeur a posé lui-même**.
+
+  **Le genre est un attribut, pas une catégorie.** Le référentiel sépare les
+  vêtements et les chaussures par genre parce que la taxonomie Google le fait ;
+  il ne sépare ni bijoux, ni montres, ni parfums, parce qu'elle ne le fait pas
+  — y ajouter un niveau casserait le pivot. Vinted et Leboncoin le demandent :
+  il vit donc dans les caractéristiques. Bancs `check-lexique.ts`,
+  `purger-alias.ts --sec`, bouton « Reprendre » sur la page Catégories.
+
+- **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
+  pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
+  et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou
+  non. L'API Graph de Meta ne facture **rien** à l'appel : notre coût par
+  publicité redevient l'accroche et l'image, ~0,055 €.
+
+  `socialMeta.ts` implémente `SocialProvider` comme l'adaptateur Zernio ;
+  `SOCIAL_PROVIDER=meta` bascule sans qu'aucun vendeur ne reconnecte quoi que
+  ce soit — c'est ce pour quoi la passerelle avait été faite. **Organique
+  seulement** : le vendeur paie ses campagnes chez Meta, donc aucune permission
+  publicitaire n'est demandée, ce qui allège l'examen.
+
+  Piège à connaître : **Instagram n'est publiable que depuis un compte Business
+  ou Créateur relié à une page**, et il exige une image — le refus est posé
+  avant l'appel. Et le jeton vit chez nous : `comptesDe` choisit ses colonnes
+  explicitement, sinon un `findMany` l'enverrait au navigateur. Banc
+  `check-meta.ts`. **Jamais confronté au vrai Meta** : il manque l'app, la
+  vérification d'entreprise et l'App Review.
+
+- **Une erreur expliquée dans `errors` au pluriel n'était jamais lue.** Le
+  client ne regardait que `error` au singulier : « générer ad » affichait
+  « Erreur 502 » alors que le serveur disait précisément quoi. `GET
+  /settings/diagnostic` rend désormais l'état réel des services — le journal de
+  l'hébergeur n'est pas un endroit où l'on envoie un vendeur.
+
+- **Le tri des photos jetait son propre classement.** Les images mesurées
+  étaient retriées par surface décroissante, ce qui effaçait le chemin produit
+  et l'adaptateur fournisseur : une bannière de 1600×900 passait devant une
+  photo de 800×800. La surface ne départage plus que des candidats de même
+  rang. Deux causes au « dix photos au lieu de cent » : le budget de mesure
+  était atteint avant la fin, et les images sous 400 px disparaissaient sans
+  retour au lieu de rejoindre la bande dépliable.
+
+- **Un panneau injecté dans la page ne survit pas à un dépôt.** Leboncoin en
+  fait quatre écrans. Le panneau latéral de Chrome vit à côté de l'onglet et
+  survit à la navigation. `sidePanel.open()` doit partir du geste de
+  l'utilisateur : le clic envoie son message **sans `await`**, un aller-retour
+  intercalé sortirait de la fenêtre autorisée. Et le panneau n'est pas un
+  onglet — `sender.tab` y vaut `undefined`, d'où `dsp-fill-tab` qui reçoit
+  l'identifiant.
+
 - **Stripe : « Managed Payments » est activé par défaut** sur le compte, et exige
   un `tax_code` sur chaque `product_data`. Sans lui, toute session Checkout est
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).
