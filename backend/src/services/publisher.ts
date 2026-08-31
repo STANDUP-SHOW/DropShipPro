@@ -113,14 +113,40 @@ async function publishShopify(product: Product, targetCategory: string, apiBaseU
     // Les photos sont marquees ici, au moment de partir : l original reste
     // intact en base, et changer de logo ne demande aucun reimport.
     const marquees = await imagesPourExport(product)
-    const { externalUrl, notes } = await publishToShopify(
-      product,
+
+    /*
+     * La catégorie du référentiel maison, pas seulement son libellé.
+     *
+     * `targetCategory` est du texte : il remplit le champ « type de produit » de
+     * Shopify et ne range rien. C'est la ligne du référentiel qui porte le
+     * chemin Google — le pivot avec lequel on retrouve la vraie catégorie de
+     * Shopify — et le chemin lisible dont on tire les collections.
+     */
+    const categorie = product.categoryId
+      ? await prisma.category.findUnique({ where: { id: product.categoryId } })
+      : null
+
+    const { externalUrl, notes } = await publishToShopify(product, {
       user,
       targetCategory,
+      categorie,
       creds,
       apiBaseUrl,
       marquees,
-    )
+      // La correspondance trouvée est écrite dans le référentiel : mille
+      // produits d'une même catégorie coûtent une recherche, pas mille.
+      memoriser: async (correspondance) => {
+        if (!categorie) return
+        const targets =
+          categorie.targets && typeof categorie.targets === 'object' && !Array.isArray(categorie.targets)
+            ? (categorie.targets as Record<string, unknown>)
+            : {}
+        await prisma.category.update({
+          where: { id: categorie.id },
+          data: { targets: { ...targets, shopify: correspondance } },
+        })
+      },
+    })
     const data = {
       targetCategory,
       status: 'PUBLISHED' as const,

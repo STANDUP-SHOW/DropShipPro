@@ -1,5 +1,7 @@
 import type { Product, User } from '@prisma/client'
 import { titleForChannel } from './channelCopy.js'
+import { rangerDansShopify, type CategorieSource } from './shopifyCatalog.js'
+import { codeBarresDe, codeDouanierDe, handleDe, paysOrigineDe, poidsDe, ugsDe } from './productFacts.js'
 
 /**
  * Shopify Admin API connector.
@@ -360,22 +362,48 @@ export interface ShopifyPublishResult {
   notes: string[]
 }
 
+/** Tout ce dont la publication a besoin, autour du produit lui-même. */
+export interface ContextePublicationShopify {
+  user: Pick<User, 'shopName'>
+  /** Le libellé de catégorie, tel qu'il est enregistré sur la publication. */
+  targetCategory: string | null
+  /** La catégorie du référentiel maison : taxonomie officielle et collections. */
+  categorie: CategorieSource | null
+  creds: ShopifyCredentials
+  apiBaseUrl?: string
+  /** Les photos marquées pour l'export, quand la marque se pose au départ. */
+  marquees?: string[]
+  /** Mémorise la correspondance de taxonomie, pour ne pas la rechercher demain. */
+  memoriser?: (correspondance: { id: string; fullName: string }) => Promise<void>
+}
+
 /**
  * Creates the product in the merchant's Shopify store and returns its storefront URL.
  *
  * Three calls rather than one: since API 2024-04 `productCreate` no longer takes
  * variants, so the price goes in a second mutation on the default variant, and
  * putting the product on the Online Store channel is a third, optional one.
+ *
+ * **La fiche part remplie, pas ébauchée.** Le reproche du 31/08/2026 était
+ * qu'il fallait tout reprendre à la main dans Shopify. Ce qui manquait n'était
+ * pas dans le modèle mais dans l'envoi : la catégorie officielle, les
+ * collections, l'UGS, le coût d'achat, le poids, le pays d'origine, le code
+ * douanier, le code-barres et l'adresse de la fiche existaient déjà en base et
+ * ne partaient nulle part.
+ *
+ * Deux champs restent volontairement vides, et c'est une décision :
+ *
+ * - **Le prix barré** ne s'invente pas. En France, un prix de référence doit
+ *   avoir été pratiqué ; en afficher un qui ne l'a jamais été est une pratique
+ *   commerciale trompeuse. C'est au vendeur de le poser s'il a de quoi.
+ * - **Le pays d'origine et le code douanier** ne sont envoyés que quand la fiche
+ *   source les nomme. Les deviner écrirait une mention légale fausse.
  */
 export async function publishToShopify(
   product: Product,
-  user: Pick<User, 'shopName'>,
-  targetCategory: string | null,
-  creds: ShopifyCredentials,
-  apiBaseUrl?: string,
-  /** Les photos marquees pour l export, quand la marque se pose au depart. */
-  marquees?: string[],
+  ctx: ContextePublicationShopify,
 ): Promise<ShopifyPublishResult> {
+  const { user, targetCategory, creds, apiBaseUrl, marquees } = ctx
   const notes: string[] = []
 
   // Shopify accepte deux cent cinquante-cinq caracteres : la variante longue
@@ -392,25 +420,80 @@ export async function publishToShopify(
   const options = optionsShopify(product.variants)
   const metachamps = metachampsShopify(product.attributes)
   const urls = imageUrls(product, apiBaseUrl, marquees)
+
+  /*
+   * Les faits de stock et d'expédition, lus dans les caractéristiques.
+   *
+   * Ils y étaient depuis le début, en toutes lettres — « Poids : 450 g »,
+   * « Fabriqué en Chine » — et ne remplissaient aucun champ. Écrits dans la
+   * description ils se lisent ; rangés ici, ils calculent le port et remplissent
+   * la déclaration douanière.
+   */
+  const poids = poidsDe(product)
+  const paysOrigine = paysOrigineDe(product)
+  const codeDouanier = codeDouanierDe(product)
+  const codeBarres = codeBarresDe(product)
+  const ugs = ugsDe(product)
+  const cout = Number(product.price)
+
+  /*
+   * Le rangement : catégorie officielle de Shopify et collections de la
+   * boutique. C'est le reproche principal — « catégories et collections ne
+   * montent pas ». `productType` seul est du texte libre : il s'affiche et ne
+   * range rien, aucun canal ne le lit.
+   */
+  const rangement = await rangerDansShopify(
+    (query, variables) => graphql(creds, query, variables),
+    ctx.categorie,
+  )
+  notes.push(...rangement.notes)
+  if (rangement.aRetenir && ctx.memoriser) {
+    // Mémoriser ne doit jamais faire échouer une publication réussie.
+    await ctx.memoriser(rangement.aRetenir).catch(() => {})
+  }
+
+  /**
+   * Ce qui vaut pour chaque variante : d'où elle vient, ce qu'elle coûte, ce
+   * qu'elle pèse. Le stock n'est pas suivi — le fournisseur expédie à la
+   * demande, et un produit suivi à zéro se refuse tout seul à la commande.
+   */
+  const inventaire = (sku: string) => ({
+    sku,
+    cost: cout > 0 ? cout.toFixed(2) : undefined,
+    tracked: false,
+    requiresShipping: true,
+    countryCodeOfOrigin: paysOrigine,
+    harmonizedSystemCode: codeDouanier,
+    measurement: poids ? { weight: { value: poids.value, unit: poids.unit } } : undefined,
+  })
   const totalImages = Array.isArray(product.images) ? (product.images as unknown[]).length : 0
   if (totalImages && !urls.length) {
     notes.push("Photos non transmises : elles ne sont pas accessibles depuis Internet (PUBLIC_API_URL absent ?).")
   }
 
-  const created = await graphql<{
-    productCreate: {
-      product: { id: string; handle: string; variants: { nodes: Array<{ id: string }> } } | null
-      userErrors: Array<{ field?: string[] | null; message: string }>
-    }
-  }>(creds, CREATE_PRODUCT, {
-    product: {
+  const entree: Record<string, unknown> = {
       title,
+      // Sans lui, Shopify fabrique l'adresse à partir d'un titre de deux cents
+      // caractères : illisible dans un partage, et impossible à changer une fois
+      // qu'elle a des liens entrants.
+      handle: handleDe(product.metaTitle || title),
       descriptionHtml: toHtml(
         product.aiDescription || product.description || '',
         bulletPoints.filter((b): b is string => typeof b === 'string'),
       ),
       vendor: user.shopName || undefined,
       productType: targetCategory || undefined,
+      /*
+       * La vraie catégorie, celle qui a un identifiant.
+       *
+       * `productType` est du texte libre : il s'affiche dans l'administration et
+       * ne range rien. C'est `category` qui décide des attributs proposés, de la
+       * TVA suggérée et de ce que Shopify transmet à Google, Meta et TikTok.
+       */
+      category: rangement.categoryId,
+      // Les rayons de la boutique : sans eux, trois cents produits tiennent sur
+      // une seule page et le vendeur crée ses collections une par une.
+      collectionsToJoin: rangement.collections.length ? rangement.collections : undefined,
       /*
        * Les options d'achat, enfin transmises.
        *
@@ -429,9 +512,36 @@ export async function publishToShopify(
         title: product.metaTitle || undefined,
         description: product.metaDescription || undefined,
       },
-    },
-    media: urls.map((src) => ({ originalSource: src, mediaContentType: 'IMAGE', alt: title })),
-  })
+  }
+
+  const media = urls.map((src) => ({ originalSource: src, mediaContentType: 'IMAGE', alt: title }))
+
+  type ReponseCreation = {
+    productCreate: {
+      product: { id: string; handle: string; variants: { nodes: Array<{ id: string }> } } | null
+      userErrors: Array<{ field?: string[] | null; message: string }>
+    }
+  }
+
+  let created = await graphql<ReponseCreation>(creds, CREATE_PRODUCT, { product: entree, media })
+
+  /*
+   * L'adresse choisie peut être déjà prise, et ce refus-là ne doit rien perdre.
+   *
+   * Shopify n'ajoute de suffixe que sur les adresses qu'il fabrique lui-même :
+   * celle qu'on lui impose, il la refuse quand elle existe. Deux montres du même
+   * modèle, ou une simple republication, feraient donc échouer toute la fiche
+   * pour un morceau d'URL. On repart sans handle : Shopify reprend la main et
+   * numérote.
+   */
+  const refusHandle = created.productCreate.userErrors.some(
+    // Le champ est parfois nul selon le refus : le message sert de second signe.
+    (e) => e.field?.includes('handle') || /handle/i.test(e.message),
+  )
+  if (refusHandle) {
+    delete entree.handle
+    created = await graphql<ReponseCreation>(creds, CREATE_PRODUCT, { product: entree, media })
+  }
 
   assertNoUserErrors(created.productCreate.userErrors, 'Création du produit refusée')
   const shopifyProduct = created.productCreate.product
@@ -446,7 +556,19 @@ export async function publishToShopify(
       productId: shopifyProduct.id,
       // CONTINUE: no stock is tracked here, the supplier ships on demand — without
       // it Shopify would refuse the order as out of stock.
-      variants: [{ id: variantId, price: price.toFixed(2), inventoryPolicy: 'CONTINUE' }],
+      variants: [
+        {
+          id: variantId,
+          price: price.toFixed(2),
+          inventoryPolicy: 'CONTINUE',
+          taxable: true,
+          // Le code-barres n'est posé que sur une fiche à variante unique : un
+          // EAN identifie un article précis, le recopier sur douze combinaisons
+          // en ferait douze fois une donnée fausse.
+          barcode: combinaisons(options).length > 1 ? undefined : codeBarres,
+          inventoryItem: inventaire(ugs),
+        },
+      ],
     })
     assertNoUserErrors(updated.productVariantsBulkUpdate.userErrors, 'Prix refusé')
   } else if (!(price > 0)) {
@@ -479,6 +601,11 @@ export async function publishToShopify(
           // Le fournisseur expédie à la demande : sans CONTINUE, Shopify refuse
           // la commande pour rupture de stock.
           inventoryPolicy: 'CONTINUE',
+          taxable: true,
+          // Une UGS par combinaison, dérivée de la référence fournisseur : c'est
+          // ce que le vendeur lit sur son bon de commande, et douze variantes
+          // partageant la même UGS rendent la préparation impossible.
+          inventoryItem: inventaire(`${ugs}-${valeurs.map(codeValeur).join('-')}`.slice(0, 60)),
           optionValues: valeurs.map((v, i) => ({ name: v, optionName: options[i].name })),
         })),
       })
@@ -654,4 +781,19 @@ export function metachampsShopify(attributs: unknown): Array<{
   // Une clé en double fait refuser le produit entier.
   const vues = new Set<string>()
   return sortie.filter((m) => (vues.has(m.key) ? false : (vues.add(m.key), true)))
+}
+
+/**
+ * Le morceau d'UGS qui désigne une valeur d'option.
+ *
+ * « Bleu ciel » devient `BLEUCIEL`, « 128 To » devient `128TO`. Court et sans
+ * espace, parce qu'une UGS se lit sur un bon de commande et se tape à la main.
+ */
+export function codeValeur(valeur: string): string {
+  return valeur
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 8)
 }
