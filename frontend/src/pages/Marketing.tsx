@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Megaphone, Sparkles, Download, Trash2, Info, BarChart3 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
@@ -8,7 +8,6 @@ import { AgentBar } from '../components/AgentBar'
 import { AgentBook } from '../components/AgentBook'
 import { AdDialog } from '../components/AdDialog'
 import { ProductPicker } from '../components/ProductPicker'
-import { SupportChat } from '../components/SupportChat'
 
 type State = Awaited<ReturnType<typeof api.visualState>>
 type Detail = Awaited<ReturnType<typeof api.productVisuals>>
@@ -30,6 +29,9 @@ export default function Marketing() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<Detail | null>(null)
   const [avis, setAvis] = useState<{ id: string; titre: string } | null>(null)
+  // La liste se recharge apres un avis paye, sinon le bouton reste gris et le
+  // vendeur reclique en croyant que rien n a marche.
+  const rechargerProduits = useRef<(() => void) | null>(null)
   const [chosen, setChosen] = useState<Set<string>>(new Set(['instagram']))
   const [count, setCount] = useState(1)
   const [hint, setHint] = useState('')
@@ -143,6 +145,7 @@ export default function Marketing() {
           setAvis({ id: p.id, titre: p.aiTitle || p.title })
           setOpenId(null)
         }}
+        onChange={(fn) => (rechargerProduits.current = fn)}
         onGenerer={(p) => {
           setAvis(null)
           // Une fenetre au milieu de l ecran, pas un panneau deplie plus bas :
@@ -154,13 +157,11 @@ export default function Marketing() {
       {/* L'avis s'ouvre sous la liste, sur le produit désigné : aller le chercher
           dans une autre page ferait perdre la comparaison en cours. */}
       {avis ? (
-        <div className="mt-4">
-          <p className="mb-2 text-xs text-gray-400">{`Avis de Nadia sur « ${avis.titre} »`}</p>
-          <SupportChat
-            agentKey="marketing"
-            amorce={`Ce produit mérite-t-il un budget publicitaire : « ${avis.titre} » ? Regarde sa marge unitaire, dis-moi le coût par acquisition maximal à ne pas dépasser, et l'angle qui convertirait le mieux.`}
-          />
-        </div>
+        <AvisNadia
+          produit={avis}
+          onFerme={() => setAvis(null)}
+          onEcrit={() => rechargerProduits.current?.()}
+        />
       ) : null}
 
       {openId && detail && detail.product.id === openId ? (
@@ -331,5 +332,89 @@ export default function Marketing() {
         vide="Aucune publicité produite pour l'instant. Celles que vous ferez créer resteront ici, toutes annonces confondues."
       />
     </Layout>
+  )
+}
+
+/**
+ * L'avis de Nadia sur un produit, payé une fois et relu autant qu'on veut.
+ *
+ * Ce que ça remplace : une conversation pré-remplie. Le vendeur lisait la
+ * réponse, fermait l'écran, et l'avis disparaissait — le lendemain il repayait
+ * la même réponse sur le même produit sans s'en apercevoir.
+ *
+ * L'avis existant est donc servi sans rien facturer. « Refaire » est un geste
+ * distinct, et il annonce son prix : c'est celui du vendeur qui a changé son
+ * prix d'achat et veut un avis sur les nouveaux chiffres.
+ */
+function AvisNadia({
+  produit,
+  onFerme,
+  onEcrit,
+}: {
+  produit: { id: string; titre: string }
+  onFerme: () => void
+  onEcrit: () => void
+}) {
+  const [texte, setTexte] = useState<string | null>(null)
+  const [quand, setQuand] = useState<string | null>(null)
+  const [busy, setBusy] = useState(true)
+  const [erreur, setErreur] = useState<string | null>(null)
+
+  const demander = useCallback(
+    async (refaire: boolean) => {
+      setBusy(true)
+      setErreur(null)
+      try {
+        const r = await api.adAdvice(produit.id, refaire)
+        setTexte(r.avis)
+        setQuand(r.at)
+        if (r.facture) onEcrit()
+      } catch (e) {
+        setErreur(e instanceof Error ? e.message : "Nadia n'a pas pu répondre.")
+      } finally {
+        setBusy(false)
+      }
+    },
+    [produit.id, onEcrit],
+  )
+
+  useEffect(() => {
+    demander(false)
+  }, [demander])
+
+  return (
+    <section className="mt-4 rounded-xl border border-pink-400/30 bg-pink-500/5 p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-semibold">{`Avis de Nadia sur « ${produit.titre} »`}</p>
+        <button type="button" onClick={onFerme} className="text-xs text-gray-400 hover:text-white">
+          Fermer
+        </button>
+      </div>
+
+      {busy ? <p className="mt-3 text-sm text-gray-400">Nadia regarde vos chiffres…</p> : null}
+      {erreur ? <p className="mt-3 text-sm text-red-300">{erreur}</p> : null}
+
+      {texte ? (
+        <>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-gray-100">{texte}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {quand ? (
+              <span className="text-[11px] text-gray-500">
+                {`Rendu le ${new Date(quand).toLocaleDateString('fr-FR')} — relisez-le autant que vous voulez.`}
+              </span>
+            ) : null}
+            {/* Le prix est annoncé avant le clic, jamais découvert après. */}
+            <button
+              type="button"
+              onClick={() => demander(true)}
+              disabled={busy}
+              className="ml-auto rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/5 disabled:opacity-50"
+            >
+              Refaire l'avis (1 crédit)
+            </button>
+          </div>
+        </>
+      ) : null}
+    </section>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MessageSquare, Sparkles, Search } from 'lucide-react'
 import { api, assetUrl } from '../lib/api'
 
@@ -15,6 +15,9 @@ type Product = {
   categoryId?: string | null
   sourceSite?: string | null
   createdAt?: string
+  /** L avis de Nadia, garde sur l annonce : paye une fois, relu autant de fois. */
+  adAdvice?: string | null
+  adAdvisedAt?: string | null
 }
 
 const euros = (v: unknown, devise = 'EUR') =>
@@ -109,10 +112,19 @@ export function ProductPicker({
   onAvis,
   onGenerer,
   ouvert,
+  onChange,
 }: {
   onAvis: (product: Product) => void
   onGenerer: (product: Product) => void
   ouvert: string | null
+  /**
+   * Rend la fonction qui recharge la liste.
+   *
+   * Sans elle, un avis fraichement paye n apparait pas : le bouton reste gris
+   * jusqu au rechargement de la page, et le vendeur reclique en croyant que
+   * rien n a marche.
+   */
+  onChange?: (recharger: () => void) => void
 }) {
   const [products, setProducts] = useState<Product[]>([])
   const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
@@ -120,11 +132,22 @@ export function ProductPicker({
   const [tri, setTri] = useState<'recent' | 'ancien' | 'marge'>('recent')
   const [recherche, setRecherche] = useState('')
   const [survol, setSurvol] = useState<string | null>(null)
+  // Distinct du survol de la ligne : l apercu produit et la bulle d avis ne
+  // s ouvrent pas au meme endroit et ne disent pas la meme chose.
+  const [avisSurvole, setAvisSurvole] = useState<string | null>(null)
+
+  const recharger = useCallback(() => {
+    api.listProducts().then(setProducts).catch(() => undefined)
+  }, [])
 
   useEffect(() => {
-    api.listProducts().then(setProducts).catch(() => undefined)
+    recharger()
     api.listCategories().then((r) => setCatalog(r.categories)).catch(() => undefined)
-  }, [])
+  }, [recharger])
+
+  useEffect(() => {
+    onChange?.(recharger)
+  }, [onChange, recharger])
 
   const labelCategorie = useMemo(() => {
     const m = new Map(catalog.map((c) => [c.id, c.label]))
@@ -235,14 +258,36 @@ export function ProductPicker({
                   {euros(p.sellingPrice, p.currency)}
                 </span>
 
+                {/*
+                  Deux etats pour un meme geste, et la difference se voit.
+
+                  Un avis est paye un credit et **garde sur l annonce** : une
+                  fois rendu, le bouton ne demande plus, il consulte. Sans cette
+                  distinction le vendeur reclique et repaie une reponse qu il a
+                  deja eue, sans s en apercevoir autrement qu au releve.
+                */}
                 <button
                   type="button"
                   onClick={() => onAvis(p)}
-                  title="Demander à Nadia si ce produit mérite un budget"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs transition hover:bg-white/10"
+                  onMouseEnter={() => p.adAdvice && setAvisSurvole(p.id)}
+                  onMouseLeave={() => setAvisSurvole((a) => (a === p.id ? null : a))}
+                  title={
+                    p.adAdvice
+                      ? "Relire l'avis de Nadia — deja paye"
+                      : 'Demander a Nadia si ce produit merite un budget (1 credit)'
+                  }
+                  className={
+                    p.adAdvice
+                      ? 'relative inline-flex shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-pink-500 to-fuchsia-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:brightness-110'
+                      : 'inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs transition hover:bg-white/10'
+                  }
                 >
                   <MessageSquare size={12} />
-                  <span className="max-sm:hidden">Avis Nadia</span>
+                  <span className="max-sm:hidden">
+                    {p.adAdvice ? 'Consulter avis Nadia' : 'Avis Nadia'}
+                  </span>
+
+                  {avisSurvole === p.id && p.adAdvice ? <BulleAvis texte={p.adAdvice} /> : null}
                 </button>
 
                 <button
@@ -262,5 +307,30 @@ export function ProductPicker({
         </ul>
       )}
     </>
+  )
+}
+
+/**
+ * L'avis de Nadia, lu au survol.
+ *
+ * Au survol et non au clic : le vendeur qui compare quatre produits veut relire
+ * sans changer d'écran. Le clic reste disponible et ouvre l'avis en grand.
+ *
+ * `pointer-events-none` est indispensable : sans lui, la bulle passe sous le
+ * curseur, déclenche son propre `mouseleave` sur le bouton, et clignote.
+ */
+function BulleAvis({ texte }: { texte: string }) {
+  return (
+    <span className="pointer-events-none absolute bottom-full right-0 z-30 mb-2 w-80 rounded-xl border border-pink-400/30 bg-[#1b1633] p-3 text-left shadow-2xl">
+      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-pink-300">
+        Avis de Nadia
+      </span>
+      <span className="block max-h-56 overflow-hidden whitespace-pre-wrap text-[11px] font-normal leading-relaxed text-gray-200">
+        {texte}
+      </span>
+      <span className="mt-1.5 block text-[10px] font-normal text-gray-500">
+        Cliquez pour le lire en entier.
+      </span>
+    </span>
   )
 }

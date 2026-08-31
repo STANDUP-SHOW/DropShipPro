@@ -22,6 +22,7 @@ import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { imagesPourExport } from '../services/exportImages.js'
+import { avisEncoreFrais, redigerAvisPublicitaire, COUT_EN_CREDITS as COUT_AVIS } from '../services/adAdvice.js'
 import { brouillonPour } from '../services/socialDraft.js'
 import { comptesDe } from '../services/socialGateway.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
@@ -1347,4 +1348,60 @@ productsRouter.get('/:id/social-draft', async (req: AuthedRequest, res) => {
     lien: publiee?.externalUrl ?? null,
     brouillons: reseaux.map((r) => brouillonPour(produit, r, publiee?.externalUrl ?? null)),
   })
+})
+
+/**
+ * L'avis de Nadia sur l'opportunité publicitaire d'une annonce.
+ *
+ * Gardé sur l'annonce, et resservi tant qu'il est frais. Le vendeur cliquait,
+ * lisait, fermait — et l'avis disparaissait ; le lendemain il repayait la même
+ * réponse sur le même produit, sans s'en apercevoir autrement qu'au relevé.
+ *
+ * Le crédit est pris avant l'appel et rendu si le modèle ne répond pas :
+ * facturer un avis qu'on n'a pas rendu est la seule chose à ne jamais faire.
+ */
+productsRouter.post('/:id/ad-advice', async (req: AuthedRequest, res) => {
+  const produit = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!produit) return res.status(404).json({ error: 'Annonce introuvable' })
+
+  // `refaire` est le geste du vendeur qui a changé son prix : lui seul peut
+  // décider qu'un avis frais est périmé.
+  if (!req.body?.refaire && avisEncoreFrais(produit)) {
+    return res.json({ avis: produit.adAdvice, at: produit.adAdvisedAt, facture: false })
+  }
+
+  const credit = await reserveCredits(req.userId!, COUT_AVIS)
+  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+
+  const categorie = produit.categoryId
+    ? await prisma.category.findUnique({ where: { id: produit.categoryId }, select: { path: true } })
+    : null
+
+  const avis = await redigerAvisPublicitaire({
+    titre: produit.aiTitle || produit.title,
+    description: produit.aiDescription || produit.description,
+    prixAchat: Number(produit.price),
+    port: Number(produit.shippingCost),
+    prixVente: Number(produit.sellingPrice),
+    devise: produit.currency,
+    categorie: categorie?.path ?? produit.sourceCategory,
+    arguments: (Array.isArray(produit.bulletPoints) ? produit.bulletPoints : []).filter(
+      (b): b is string => typeof b === 'string',
+    ),
+  })
+
+  if (!avis) {
+    await refundCredits(req.userId!, COUT_AVIS)
+    return res.status(502).json({ error: "Nadia n'a pas pu répondre. Votre crédit est rendu." })
+  }
+
+  const at = new Date()
+  await prisma.product.update({
+    where: { id: produit.id },
+    data: { adAdvice: avis, adAdvisedAt: at },
+  })
+
+  res.json({ avis, at, facture: true })
 })

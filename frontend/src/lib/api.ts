@@ -278,6 +278,18 @@ export const api = {
       total: number
     }>('/products/meta/channels'),
 
+  /**
+   * L'avis de Nadia sur l'opportunité publicitaire d'une annonce.
+   *
+   * Payé un crédit et **gardé sur l'annonce** : rappeler la route sans
+   * `refaire` resert l'avis existant sans refacturer.
+   */
+  adAdvice: (productId: string, refaire = false) =>
+    request<{ avis: string; at: string; facture: boolean }>(`/products/${productId}/ad-advice`, {
+      method: POST_M,
+      body: JSON.stringify({ refaire }),
+    }),
+
   /** Ce qui demande une réponse après la vente, avant que le client écrive. */
   savOverview: () =>
     request<{

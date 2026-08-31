@@ -251,6 +251,14 @@ model Product {
   marketAnalysis   Json?
   marketAnalysedAt DateTime?
 
+  /// L avis de Nadia : ce produit merite-t-il un budget publicitaire.
+  ///
+  /// Garde comme l analyse de marche, et pour la meme raison : il est paye un
+  /// credit. Le perdre a la fermeture de l ecran ferait repayer le vendeur pour
+  /// une reponse qu il a deja eue -- et il ne s en apercevrait qu au releve.
+  adAdvice   String?   @db.Text
+  adAdvisedAt DateTime?
+
   status ProductStatus @default(DRAFT)
 
   createdAt DateTime @default(now())
