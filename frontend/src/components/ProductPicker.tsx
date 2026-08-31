@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MessageSquare, Sparkles, Search } from 'lucide-react'
 import { api, assetUrl } from '../lib/api'
+import { VoirPlus, useVoirPlus } from './VoirPlus'
 
 type Product = {
   id: string
@@ -161,7 +162,7 @@ export function ProductPicker({
     return catalog.filter((c) => vues.has(c.id))
   }, [products, catalog])
 
-  const visibles = useMemo(() => {
+  const filtres = useMemo(() => {
     const terme = recherche.trim().toLowerCase()
     const liste = products.filter((p) => {
       if (categorie && p.categoryId !== categorie) return false
@@ -179,6 +180,8 @@ export function ProductPicker({
       return tri === 'recent' ? db - da : da - db
     })
   }, [products, categorie, recherche, tri])
+
+  const { visibles, reste, plus, tout } = useVoirPlus(filtres)
 
   return (
     <>
@@ -306,6 +309,8 @@ export function ProductPicker({
           })}
         </ul>
       )}
+
+      <VoirPlus reste={reste} onPlus={plus} onTout={tout} />
     </>
   )
 }

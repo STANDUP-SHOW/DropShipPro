@@ -233,22 +233,54 @@ export function AdDialog({
               ))}
             </div>
 
+            {/*
+              Deux zones de texte, et non deux lignes.
+
+              Soixante caractères pour l'accroche et trois cents pour l'image
+              suffisaient à « sur un bureau en bois » — pas à une vraie consigne.
+              Un vendeur qui sait ce qu'il veut décrit le cadrage, la lumière, le
+              décor, et surtout ce qu'il ne veut pas voir. Un champ d'une ligne
+              le décourage avant même la borne.
+            */}
             {source === 'moi' ? (
-              <div className="mt-2 space-y-2">
-                <input
-                  value={argument}
-                  onChange={(e) => setArgument(e.target.value)}
-                  maxLength={60}
-                  placeholder="Ce qu'il faut mettre en avant — « Livraison offerte »"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs outline-none focus:border-purple-400/70"
-                />
-                <input
-                  value={hint}
-                  onChange={(e) => setHint(e.target.value)}
-                  maxLength={300}
-                  placeholder="Ambiance de l'image — « sur un bureau en bois, lumière du matin »"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs outline-none focus:border-purple-400/70"
-                />
+              <div className="mt-2 space-y-3">
+                <label className="block">
+                  <span className="text-[11px] text-gray-400">Ce qu'il faut mettre en avant</span>
+                  <textarea
+                    value={argument}
+                    onChange={(e) => setArgument(e.target.value)}
+                    rows={2}
+                    maxLength={300}
+                    placeholder="« Livraison offerte dès 39 € », « Le seul modèle étanche à ce prix »…"
+                    className="mt-1 w-full resize-y rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs leading-relaxed outline-none focus:border-purple-400/70"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] text-gray-400">
+                    Consigne pour l'image — décrivez ce que vous voulez, en détail
+                  </span>
+                  <textarea
+                    value={hint}
+                    onChange={(e) => setHint(e.target.value)}
+                    rows={5}
+                    maxLength={2000}
+                    placeholder={
+                      "Décor, lumière, cadrage, ambiance, ce qu'il ne faut surtout pas voir.\n\n" +
+                      '« Posée sur un établi en chêne brut, lumière rasante de fin de journée, ' +
+                      "arrière-plan flou d'atelier, aucun texte ni logo sur la photo, cadrage " +
+                      'serré à 45°. »'
+                    }
+                    className="mt-1 w-full resize-y rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs leading-relaxed outline-none focus:border-purple-400/70"
+                  />
+                  {/* Le compteur n apparait qu en approchant, pour ne pas
+                      suggerer une contrainte a qui ecrit trois lignes. */}
+                  {hint.length > 1500 ? (
+                    <span className="mt-1 block text-right text-[10px] text-gray-500">
+                      {`${hint.length} / 2000`}
+                    </span>
+                  ) : null}
+                </label>
               </div>
             ) : (
               <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
@@ -263,14 +295,14 @@ export function AdDialog({
               <input
                 value={ctaLabel}
                 onChange={(e) => setCtaLabel(e.target.value)}
-                maxLength={30}
+                maxLength={40}
                 placeholder="Texte du bouton"
                 className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs outline-none focus:border-purple-400/70"
               />
               <input
                 value={ctaUrl}
                 onChange={(e) => setCtaUrl(e.target.value)}
-                maxLength={80}
+                maxLength={300}
                 placeholder="Adresse de la boutique (facultatif)"
                 className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs outline-none focus:border-purple-400/70"
               />

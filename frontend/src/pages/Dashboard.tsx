@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { VoirPlus, useVoirPlus } from '../components/VoirPlus'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { api, assetUrl, importSupplierList } from '../lib/api'
 import type { PlatformInfo } from '../lib/platforms'
@@ -55,9 +56,19 @@ export default function Dashboard() {
     .sort((a, b) => b.count - a.count)
 
   const needle = search.trim().toLowerCase()
-  const visible = products
+  const filtres = products
     .filter((p) => !categoryFilter || p.categoryId === categoryFilter)
     .filter((p) => !needle || `${p.aiTitle ?? ''} ${p.title ?? ''}`.toLowerCase().includes(needle))
+
+  /*
+   * Dix d'abord, la suite a la demande.
+   *
+   * Trois cents annonces d un coup ne se parcourent pas -- on fait defiler en
+   * esperant reconnaitre un titre, et le navigateur peine sur autant de photos.
+   * `visible` reste le nom lu partout ailleurs dans cette page : la selection
+   * en lot et les compteurs portent sur ce qui est a l ecran.
+   */
+  const { visibles: visible, reste, plus, tout } = useVoirPlus(filtres)
 
   async function load() {
     setLoading(true)
@@ -505,6 +516,9 @@ export default function Dashboard() {
                 </Link>
               )
             })}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <VoirPlus reste={reste} onPlus={plus} onTout={tout} />
+            </div>
           </div>
         ) : (
           <div className="mt-4 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">

@@ -86,7 +86,21 @@ visualsRouter.get('/product/:id', async (req: AuthedRequest, res) => {
 const photoSchema = z.object({
   productId: z.string(),
   count: z.number().int().min(1).max(6).default(1),
-  hint: z.string().trim().max(300).optional(),
+  /*
+   * Deux mille caractères, et non trois cents.
+   *
+   * Trois cents suffisaient à « sur un bureau en bois, lumière du matin » et
+   * pas à une vraie consigne — un vendeur qui sait ce qu'il veut décrit le
+   * cadrage, la lumière, le décor, ce qu'il ne veut surtout pas voir. La borne
+   * ne protège plus de rien à ce prix-là : elle empêche seulement de s'en
+   * servir.
+   *
+   * Un plafond demeure, parce qu'un champ sans borne est un champ dont on ne
+   * connaît pas le coût — la consigne part au modèle d'image à chaque
+   * publicité. Deux mille caractères, c'est trois écrans de dictée : personne
+   * ne les atteint.
+   */
+  hint: z.string().trim().max(2000).optional(),
 })
 
 /**
@@ -177,11 +191,29 @@ const adSchema = z.object({
   productId: z.string(),
   platforms: z.array(z.string()).min(1).max(6),
   count: z.number().int().min(1).max(4).default(1),
-  hint: z.string().trim().max(300).optional(),
+  /*
+   * Deux mille caractères, et non trois cents.
+   *
+   * Trois cents suffisaient à « sur un bureau en bois, lumière du matin » et
+   * pas à une vraie consigne — un vendeur qui sait ce qu'il veut décrit le
+   * cadrage, la lumière, le décor, ce qu'il ne veut surtout pas voir. La borne
+   * ne protège plus de rien à ce prix-là : elle empêche seulement de s'en
+   * servir.
+   *
+   * Un plafond demeure, parce qu'un champ sans borne est un champ dont on ne
+   * connaît pas le coût — la consigne part au modèle d'image à chaque
+   * publicité. Deux mille caractères, c'est trois écrans de dictée : personne
+   * ne les atteint.
+   */
+  hint: z.string().trim().max(2000).optional(),
   /** Le texte du bouton, son adresse et l argument : ils sont dessines, pas generes. */
-  ctaLabel: z.string().trim().max(30).optional(),
-  ctaUrl: z.string().trim().max(80).optional(),
-  argument: z.string().trim().max(60).optional(),
+  ctaLabel: z.string().trim().max(40).optional(),
+  // Une adresse de boutique avec sa catégorie et son slug dépasse largement
+  // quatre-vingts caractères.
+  ctaUrl: z.string().trim().max(300).optional(),
+  // L'accroche dictée par le vendeur : elle remplace celle que Nadia écrirait,
+  // donc elle mérite la même longueur qu'une vraie phrase de vente.
+  argument: z.string().trim().max(300).optional(),
   /**
    * Afficher le prix de vente sur le visuel.
    *
