@@ -148,6 +148,19 @@ const SOCIAL_CAMPAIGNS = '/social/campaigns'
 const CREDENTIALS_P = '/settings/credentials'
 const POST_M = 'POST'
 
+/** Une commande qui demande une réponse, et pourquoi. */
+export interface SavLigne {
+  id: string
+  platform: string
+  status: string
+  buyerName: string
+  amount: number
+  currency: string
+  jours: number
+  raison: string
+  produit: { id: string; titre: string; image: string | null }
+}
+
 export const api = {
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {
@@ -264,6 +277,23 @@ export const api = {
       canaux: Array<{ id: string; label: string; logo: string; type: string; integre: boolean }>
       total: number
     }>('/products/meta/channels'),
+
+  /** Ce qui demande une réponse après la vente, avant que le client écrive. */
+  savOverview: () =>
+    request<{
+      sansSuivi: SavLigne[]
+      tropLong: SavLigne[]
+      jamaisCommande: SavLigne[]
+      conversations: Array<{
+        id: string
+        platform: string
+        customerName: string
+        subject: string | null
+        unread: boolean
+        lastMessageAt: string
+      }>
+      aTraiter: number
+    }>('/orders/sav'),
 
   /** Les ventes à commander, regroupées par fournisseur. */
   ordersBySupplier: () =>

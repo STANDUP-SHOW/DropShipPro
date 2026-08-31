@@ -9,7 +9,6 @@ const NAV = [
   { to: '/pilote', label: 'Pilote auto', icon: Plane },
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
-  { to: '/messages', label: 'Messages', icon: Inbox },
 ]
 
 /**
@@ -41,6 +40,10 @@ const SECTIONS: Array<{
       // ranger ailleurs obligeait à sortir de la section pour régler celle
       // qu'on vient d'alimenter.
       { to: '/mes-sites', label: 'Mes sites', icon: Store },
+      // Ce sont les messages des acheteurs des places de marché reliées : leur
+      // place est ici, pas dans une liste générale où ils voisinaient avec les
+      // réglages.
+      { to: '/messages', label: 'Messages', icon: Inbox },
     ],
   },
   {
@@ -53,6 +56,17 @@ const SECTIONS: Array<{
   {
     titre: 'Comptabilité',
     entrees: [{ to: '/comptabilite', label: 'Comptabilité', icon: Calculator }],
+  },
+  {
+    /*
+     * Le SAV est séparé de la comptabilité, et c'est délibéré.
+     *
+     * Un litige et une facture ne se traitent ni au même moment, ni dans le
+     * même état d'esprit. Les réunir sous « administratif » faisait chercher
+     * l'un en ouvrant l'autre.
+     */
+    titre: 'SAV',
+    entrees: [{ to: '/sav', label: 'Service après-vente', icon: LifeBuoy }],
   },
   {
     /*

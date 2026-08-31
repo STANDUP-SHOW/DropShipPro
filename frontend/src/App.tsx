@@ -14,6 +14,7 @@ import Orders from './pages/Orders'
 import Settings from './pages/Settings'
 import MySites from './pages/MySites'
 import Suppliers from './pages/Suppliers'
+import AfterSales from './pages/AfterSales'
 import Privacy from './pages/Privacy'
 import ReviewsPage from './pages/ReviewsPage'
 import BillingPage from './pages/Billing'
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
           <Route path="/mes-sites" element={<Protected><MySites /></Protected>} />
           <Route path="/fournisseurs" element={<Protected><Suppliers /></Protected>} />
+          <Route path="/sav" element={<Protected><AfterSales /></Protected>} />
           <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
           <Route path="/livraisons" element={<Protected><Deliveries /></Protected>} />
           <Route path="/messages" element={<Protected><Messages /></Protected>} />

@@ -161,7 +161,7 @@ ordersRouter.patch('/:id', async (req: AuthedRequest, res) => {
  * liste vit ici plutôt qu'ailleurs pour qu'un futur `/orders/quelque-chose`
  * n'ait qu'un endroit à mettre à jour.
  */
-const CHEMINS_RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking', 'by-supplier'])
+const CHEMINS_RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking', 'by-supplier', 'sav'])
 
 ordersRouter.get('/:id', async (req: AuthedRequest, res, next) => {
   if (CHEMINS_RESERVES.has(req.params.id)) return next('route')
@@ -628,5 +628,96 @@ ordersRouter.get('/by-supplier', async (req: AuthedRequest, res) => {
         })),
       }
     }),
+  })
+})
+
+/**
+ * Le service après-vente : ce qui va mal, et ce qui va mal bientôt.
+ *
+ * Pas une liste de commandes de plus. La page des commandes montre tout, par
+ * date ; celle-ci ne montre que ce qui demande une réponse — et surtout, elle
+ * montre **avant que le client écrive**. Un colis parti sans numéro de suivi
+ * n'est pas encore un litige : il le devient au troisième message resté sans
+ * réponse, et il aurait suffi de s'en apercevoir.
+ *
+ * Quatre familles, dans l'ordre où elles coûtent cher :
+ *
+ * - **Expédié sans suivi** : impossible de répondre « où est mon colis ». C'est
+ *   le premier motif de litige sur toutes les places de marché.
+ * - **En route depuis trop longtemps** : au-delà de trois semaines, la fenêtre
+ *   de réclamation approche et l'acheteur va ouvrir un litige de lui-même.
+ * - **Vendu mais jamais commandé** : la vente est encaissée et rien n'a été
+ *   commandé chez le fournisseur. Personne ne le voit avant la réclamation.
+ * - **Conversations ouvertes** : ce que le client a déjà écrit.
+ */
+ordersRouter.get('/sav', async (req: AuthedRequest, res) => {
+  const maintenant = Date.now()
+  const jours = (d: Date) => Math.floor((maintenant - d.getTime()) / 86400000)
+
+  const [commandes, conversations] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId: req.userId!, status: { notIn: ['DELIVERED', 'REFUNDED'] } },
+      include: { product: { select: { id: true, title: true, aiTitle: true, images: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.conversation.findMany({
+      where: { userId: req.userId!, status: 'OPEN' },
+      orderBy: { lastMessageAt: 'desc' },
+      take: 30,
+      select: {
+        id: true,
+        platform: true,
+        customerName: true,
+        subject: true,
+        unread: true,
+        lastMessageAt: true,
+      },
+    }),
+  ])
+
+  const ligne = (o: (typeof commandes)[number], raison: string) => ({
+    id: o.id,
+    platform: o.platform,
+    status: o.status,
+    buyerName: o.buyerName,
+    amount: Number(o.amount),
+    currency: o.currency,
+    jours: jours(o.createdAt),
+    raison,
+    produit: {
+      id: o.product.id,
+      titre: o.product.aiTitle || o.product.title,
+      image: Array.isArray(o.product.images) ? ((o.product.images as string[])[0] ?? null) : null,
+    },
+  })
+
+  const sansSuivi = commandes
+    .filter((o) => o.status === 'SHIPPED' && !o.trackingNumber)
+    .map((o) => ligne(o, "Expédiée sans numéro de suivi : vous ne pouvez pas répondre « où est mon colis »."))
+
+  /*
+   * Vingt et un jours, et pas trente.
+   *
+   * Les fenêtres de réclamation des places de marché s'ouvrent autour de
+   * trente jours. Alerter à trente reviendrait à l'apprendre en même temps que
+   * l'acheteur ; à vingt et un, il reste une semaine pour agir.
+   */
+  const tropLong = commandes
+    .filter((o) => o.status === 'SHIPPED' && o.trackingNumber && jours(o.createdAt) >= 21)
+    .map((o) => ligne(o, `En route depuis ${jours(o.createdAt)} jours : la fenêtre de réclamation approche.`))
+
+  const jamaisCommande = commandes
+    .filter((o) => o.status === 'NEW' && !o.supplierOrderId && jours(o.createdAt) >= 2)
+    .map((o) =>
+      ligne(o, `Vendue il y a ${jours(o.createdAt)} jours et jamais commandée chez le fournisseur.`),
+    )
+
+  res.json({
+    sansSuivi,
+    tropLong,
+    jamaisCommande,
+    conversations,
+    // Le total sert au menu et au bandeau : un chiffre qu'on lit sans ouvrir.
+    aTraiter: sansSuivi.length + tropLong.length + jamaisCommande.length + conversations.filter((c) => c.unread).length,
   })
 })
