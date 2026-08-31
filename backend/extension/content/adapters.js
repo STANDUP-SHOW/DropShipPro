@@ -96,10 +96,21 @@
        * domaine : le même CDN sert les avatars et les bandeaux.
        */
       fromJson: () => [],
-      domSelectors: ['img[src*="product/fancy"]'],
+      // Deux selecteurs : le chemin connu, et toute image du CDN produit. Le
+      // second attrape ce que le premier rate quand Temu renomme un dossier.
+      domSelectors: ['img[src*="product/fancy"]', 'img[src*="img.kwcdn.com"]'],
       imageHost: /^img\.kwcdn\.com$/i,
       excludeHosts: [/^aimg\./i, /^commimg\./i, /^avatar-eu\./i, /^img-eu\./i],
-      pathHint: '/product/fancy/',
+      /*
+       * Plusieurs chemins, et non un seul.
+       *
+       * Temu renomme ses dossiers d images sans prevenir. Avec un litteral
+       * unique, le jour ou il change, l adaptateur ne rend rien -- et le scan
+       * generique reprend la main en ramassant l en-tete et les bannieres. Ces
+       * trois-la couvrent ce qu on a vu ; si aucun ne correspond, l adaptateur
+       * elargit au domaine seul en le disant dans la console.
+       */
+      pathHint: ['/product/fancy/', '/product/', '/goods/'],
       fullSize: (url) => url.replace(/\/w\/\d+/i, '/w/1300').replace(/\/q\/\d+/i, '/q/90'),
       variantSelector: 'div[role="radio"][aria-label]',
     },
@@ -279,6 +290,8 @@
     if (!adapter) return []
 
     const out = []
+    /** Les adresses du bon domaine que le chemin attendu a ecartees. */
+    const ecartes = []
     const push = (raw) => {
       if (typeof raw !== 'string' || !raw) return
       let url = raw.startsWith('//') ? `https:${raw}` : raw
@@ -293,7 +306,24 @@
 
       if (adapter.excludeHosts?.some((rx) => rx.test(host))) return
       if (adapter.imageHost && !adapter.imageHost.test(host)) return
-      if (adapter.pathHint && !url.includes(adapter.pathHint)) return
+      /*
+       * Le chemin attendu, qui peut etre plusieurs.
+       *
+       * Un seul litteral rendait l adaptateur fragile : le jour ou le
+       * fournisseur renomme son dossier, plus rien ne passe, le scan generique
+       * reprend la main et ramasse les bannieres. On accepte donc une liste.
+       */
+      const chemins = adapter.pathHint
+        ? Array.isArray(adapter.pathHint)
+          ? adapter.pathHint
+          : [adapter.pathHint]
+        : null
+      if (chemins && !chemins.some((c) => url.includes(c))) {
+        // Retenu a part : si aucun chemin ne correspond nulle part, c est que
+        // le fournisseur a change, et le savoir vaut mieux que se taire.
+        ecartes.push(url)
+        return
+      }
 
       try {
         url = adapter.fullSize(url)
@@ -317,9 +347,96 @@
       }
     }
 
+    /*
+     * Un adaptateur qui ne rend rien alors que le domaine repondait.
+     *
+     * C est le signe que le fournisseur a renomme ses chemins. Se taire laissait
+     * le scan generique ramasser l en-tete et les bannieres, sans que rien
+     * n explique pourquoi les photos etaient mauvaises. On elargit au domaine
+     * seul -- moins precis, mais toujours le bon serveur d images -- et on le
+     * dit assez fort pour que ca remonte.
+     */
+    if (!out.length && ecartes.length) {
+      console.warn(
+        `DropShipper IA : ${adapter.label} — le chemin attendu ne correspond plus a rien. ` +
+          `${ecartes.length} adresse(s) du bon domaine ont ete ecartees. Chemins vus : ` +
+          [...new Set(ecartes.map((u) => cheminCourt(u)))].slice(0, 8).join(', '),
+      )
+      for (const url of ecartes) {
+        let large = url
+        try {
+          large = adapter.fullSize(url)
+        } catch {
+          // L adresse d origine fait l affaire.
+        }
+        if (!out.includes(large)) out.push(large)
+      }
+    }
+
     return out
   }
 
+  /** Les deux premiers segments d une adresse : « /product/fancy ». */
+  function cheminCourt(url) {
+    try {
+      return new URL(url).pathname.split('/').slice(0, 3).join('/')
+    } catch {
+      return '?'
+    }
+  }
+
+  /**
+   * Ce que la page offre comme images, groupe par domaine et par chemin.
+   *
+   * A copier dans la console quand une selection est mauvaise. Un adaptateur se
+   * corrige avec les vrais chemins du jour, pas avec ceux d il y a trois mois --
+   * et personne ici ne voit la page du fournisseur.
+   */
+  function dspDiagnosticImages() {
+    const adapter = dspAdapterFor()
+    const vues = new Map()
+    for (const img of document.querySelectorAll('img')) {
+      const src = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || ''
+      if (!src.startsWith('http') && !src.startsWith('//')) continue
+      const url = src.startsWith('//') ? `https:${src}` : src
+      let cle
+      try {
+        const u = new URL(url)
+        cle = `${u.hostname}${cheminCourt(url)}`
+      } catch {
+        continue
+      }
+      const vu = vues.get(cle) ?? { nombre: 0, exemple: url, largeur: 0 }
+      vu.nombre++
+      // La plus grande de chaque groupe : c est elle qui dit si ce sont des
+      // photos produit ou des vignettes d interface.
+      if (img.naturalWidth > vu.largeur) {
+        vu.largeur = img.naturalWidth
+        vu.exemple = url
+      }
+      vues.set(cle, vu)
+    }
+
+    const lignes = [...vues.entries()]
+      .sort((a, b) => b[1].largeur - a[1].largeur)
+      .map(([cle, v]) => `${String(v.nombre).padStart(3)} img  ${String(v.largeur).padStart(5)} px  ${cle}`)
+
+    const rapport = [
+      `Adaptateur : ${adapter ? adapter.label : 'aucun (scan generique)'}`,
+      adapter?.pathHint ? `Chemin attendu : ${[].concat(adapter.pathHint).join(', ')}` : '',
+      adapter ? `Retenues par l adaptateur : ${dspAdapterImages(adapter).length}` : '',
+      '',
+      'Domaines et chemins vus sur la page :',
+      ...lignes,
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    console.log(rapport)
+    return rapport
+  }
+
+  self.dspDiagnosticImages = dspDiagnosticImages
   self.dspAdapterFor = dspAdapterFor
   self.dspAdapterImages = dspAdapterImages
 })()
