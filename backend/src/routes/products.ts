@@ -10,7 +10,7 @@ import { scrapeProduct, ScrapeBlockedError } from '../services/scraper.js'
 import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
 import { rapatrierImages, watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
-import { mapCategory } from '../services/categoryMapping.js'
+import { mapCategory, mapCategories } from '../services/categoryMapping.js'
 import { categorySectors } from '../services/categoryCatalog.js'
 import { resoudreCategorie, arbreCategories, apprendreCategorie, avecGenre } from '../services/categories.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
@@ -823,7 +823,12 @@ productsRouter.get('/:id/category-preview', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
   const platforms = PLATFORM_IDS
-  res.json(Object.fromEntries(platforms.map((p) => [p, mapCategory(product.sourceCategory, p, product.categoryId)])))
+  res.json(
+    await mapCategories(
+      { sourceCategory: product.sourceCategory, categoryId: product.categoryId },
+      platforms,
+    ),
+  )
 })
 
 /** The category taxonomy that powers the dropdown in the back office. */
@@ -948,7 +953,10 @@ productsRouter.post('/:id/fill-plan', async (req: AuthedRequest, res) => {
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
 
   try {
-    const targetCategory = mapCategory(product.sourceCategory, parsed.data.platform, product.categoryId)
+    const targetCategory = await mapCategory(
+      { sourceCategory: product.sourceCategory, categoryId: product.categoryId },
+      parsed.data.platform,
+    )
     const plan = await buildFillPlan(product, parsed.data.platform, targetCategory, parsed.data.fields)
     res.json(plan)
   } catch (err) {

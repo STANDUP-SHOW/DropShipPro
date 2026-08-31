@@ -24,7 +24,10 @@ const FEED_PLATFORMS = PLATFORMS.filter((p) => p.integration === 'feed').map((p)
 
 export async function publishToPlatform(productId: string, platform: Platform, apiBaseUrl?: string) {
   const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } })
-  const targetCategory = mapCategory(product.sourceCategory, platform, product.categoryId)
+  const targetCategory = await mapCategory(
+    { sourceCategory: product.sourceCategory, categoryId: product.categoryId },
+    platform,
+  )
 
   if (platform === 'SHOPIFY') return publishShopify(product, targetCategory, apiBaseUrl)
 
