@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { PlatformLogo } from '../components/PlatformLogo'
-import { Fenetre } from './ApiSourcing'
+import { Fenetre } from '../components/SupplierCredentialDialog'
 import { api, assetUrl } from '../lib/api'
 
 /**

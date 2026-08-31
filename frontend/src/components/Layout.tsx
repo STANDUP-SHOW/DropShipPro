@@ -10,8 +10,6 @@ const NAV = [
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
   { to: '/plateformes-vente', label: 'Vente', icon: Store },
-  { to: '/marketing', label: 'Marketing', icon: Megaphone },
-  { to: '/mes-pubs', label: 'Mes pubs', icon: Images },
   { to: '/categories', label: 'Catégories', icon: FolderTree },
   { to: '/messages', label: 'Messages', icon: Inbox },
   { to: '/orders', label: 'Commandes', icon: ShoppingBag },
@@ -76,6 +74,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
+
+          <div className="mt-6">
+            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Marketing
+            </p>
+            {[
+              { to: '/marketing', label: 'Commercialisation', icon: Megaphone },
+              { to: '/mes-pubs', label: 'Mes pubs', icon: Images },
+            ].map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                  pathname === item.to
+                    ? 'bg-purple-500/20 text-white'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
 
           <div className="mt-6">
             <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">

@@ -6,7 +6,7 @@ import { api } from '../lib/api'
 import { PlatformLogo } from '../components/PlatformLogo'
 import { ChannelDirectory } from '../components/ChannelDirectory'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
-import { PlatformCredentials } from '../components/PlatformCredentials'
+import { PlatformCredentialForm } from '../components/PlatformCredentials'
 
 /** Ce que chaque mode d'intégration veut dire, en clair et pour un vendeur. */
 const EXPLICATION: Record<string, string> = {
@@ -36,12 +36,18 @@ export default function PlatformsSelling() {
   const [ouvert, setOuvert] = useState<PlatformInfo | null>(null)
   const [recherche, setRecherche] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [creds, setCreds] = useState<Array<{ platform: string; connected: boolean; hint?: string | null }>>([])
+
+  const chargerCles = () => {
+    api.listCredentials().then(setCreds).catch(() => undefined)
+  }
 
   useEffect(() => {
     api
       .listPlatforms()
       .then((p) => setPlatforms(p as PlatformInfo[]))
       .catch(() => setError("L'annuaire n'a pas pu être chargé"))
+    chargerCles()
   }, [])
 
   const rang: Record<string, number> = {
@@ -201,6 +207,23 @@ export default function PlatformsSelling() {
               </div>
             ) : null}
 
+            {/*
+              Les identifiants, dans le bloc de la plateforme et pas ailleurs.
+
+              Ils vivaient dans un second bloc en bas de page, qui repetait le
+              nom et la couleur : deux fois la meme plateforme, et le champ loin
+              de l explication qui dit ou aller le chercher.
+            */}
+            {ouvert.automatable && !ouvert.unavailable ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                <PlatformCredentialForm
+                  platform={ouvert}
+                  cred={creds.find((c) => c.platform === ouvert.id)}
+                  onSaved={chargerCles}
+                />
+              </div>
+            ) : null}
+
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               {ouvert.sellUrl ? (
                 <a
@@ -220,11 +243,7 @@ export default function PlatformsSelling() {
 
               {/* « Activer » ne promet rien : il mène là où le raccordement se
                   fait réellement, Réglages pour une clé d'API, le guide sinon. */}
-              {ouvert.integration === 'api-ready' || ouvert.integration === 'live' ? (
-                <Link to="/settings" className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold">
-                  Activer
-                </Link>
-              ) : ouvert.integration === 'extension' ? (
+              {ouvert.integration === 'extension' ? (
                 <Link to="/guide" className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold">
                   Installer l'extension
                 </Link>
@@ -234,16 +253,6 @@ export default function PlatformsSelling() {
         </div>
       ) : null}
 
-      {/*
-        Les identifiants, sur la page qui les explique.
-        Ils vivaient dans Réglages : le vendeur lisait ici « Shopify — jeton
-        shpat_ » puis partait chercher le champ ailleurs. Restreints aux
-        plateformes de vente, parce que les fournisseurs n'ont rien à y faire.
-      */}
-      <PlatformCredentials
-        titre="Vos clés de vente"
-        only={platforms.filter((p) => !p.unavailable).map((p) => p.id)}
-      />
     </Layout>
   )
 }

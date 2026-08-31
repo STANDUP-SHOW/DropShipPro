@@ -23,11 +23,9 @@ import Rayons from './pages/Rayons'
 import Agents from './pages/Agents'
 import PhotoStudio from './pages/PhotoStudio'
 import Marketing from './pages/Marketing'
-import PlatformsSourcing from './pages/PlatformsSourcing'
 import PlatformsSelling from './pages/PlatformsSelling'
 import Accounting from './pages/Accounting'
 import ApiLinks from './pages/ApiLinks'
-import ApiSourcing from './pages/ApiSourcing'
 import SupplierWatch from './pages/SupplierWatch'
 import MyAds from './pages/MyAds'
 import Categories from './pages/Categories'
@@ -78,14 +76,21 @@ export default function App() {
           <Route path="/categories" element={<Protected><Categories /></Protected>} />
           <Route path="/mes-pubs" element={<Protected><MyAds /></Protected>} />
           <Route path="/marketing" element={<Protected><Marketing /></Protected>} />
-          <Route path="/plateformes-acquisition" element={<Protected><PlatformsSourcing /></Protected>} />
+          {/*
+            Les deux anciennes adresses menent a la page fusionnee.
+
+            Elles sont dans des favoris, dans le guide, dans d anciens messages.
+            Les laisser vivre montrerait la moitie de la verite : « Acquisition »
+            sans les cles, « API Sourcing » sans le catalogue.
+          */}
+          <Route path="/plateformes-acquisition" element={<Navigate to="/fournisseurs" replace />} />
           <Route path="/plateformes-vente" element={<Protected><PlatformsSelling /></Protected>} />
           <Route path="/comptabilite" element={<Protected><Accounting /></Protected>} />
           <Route path="/api-links" element={<Protected><ApiLinks /></Protected>} />
           {/* API Connect : le meme ecran, sous le nom que le client lui donne. */}
           <Route path="/api-connect" element={<Protected><ApiLinks /></Protected>} />
           <Route path="/gestion-fournisseur" element={<Protected><SupplierWatch /></Protected>} />
-          <Route path="/api-sourcing-connect" element={<Protected><ApiSourcing /></Protected>} />
+          <Route path="/api-sourcing-connect" element={<Navigate to="/fournisseurs" replace />} />
           {/* Ancienne adresse de l atelier publicite : les liens deja envoyes doivent continuer de marcher. */}
           <Route path="/publicite" element={<Navigate to="/marketing" replace />} />
           <Route path="/agents" element={<Protected><Agents /></Protected>} />
