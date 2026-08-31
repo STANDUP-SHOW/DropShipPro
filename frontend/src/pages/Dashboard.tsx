@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { CategoryMenu } from '../components/CategoryMenu'
 import { AgentBar } from '../components/AgentBar'
 import { VoirPlus, useVoirPlus } from '../components/VoirPlus'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
@@ -31,7 +32,6 @@ export default function Dashboard() {
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [batchSummary, setBatchSummary] = useState<string | null>(null)
-  const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
   const [pendingDelete, setPendingDelete] = useState<any>(null)
@@ -46,15 +46,20 @@ export default function Dashboard() {
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const navigate = useNavigate()
 
-  const labelById = new Map(catalog.map((c) => [c.id, c.label]))
 
-  const usedCategories = [...new Set(products.map((p) => p.categoryId).filter(Boolean))]
-    .map((id) => ({
-      id: id as string,
-      label: labelById.get(id as string) ?? 'Non classé',
-      count: products.filter((p) => p.categoryId === id).length,
-    }))
-    .sort((a, b) => b.count - a.count)
+  /*
+   * Ce que le menu doit savoir : quelles categories existent au catalogue, et
+   * combien d annonces chacune porte.
+   *
+   * Calcule ici plutot que dans le menu : lui donner la liste des annonces
+   * l obligerait a connaitre leur forme, et il ne sert pas qu a cet ecran.
+   */
+  const presentsCategories = [...new Set(products.map((p) => p.categoryId).filter(Boolean))] as string[]
+  const comptePar = new Map<string, number>()
+  for (const p of products) {
+    if (p.categoryId) comptePar.set(p.categoryId, (comptePar.get(p.categoryId) ?? 0) + 1)
+  }
+
 
   const needle = search.trim().toLowerCase()
   const filtres = products
@@ -86,7 +91,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     load()
-    api.listCategories().then((r) => setCatalog(r.categories))
     api.listPlatforms().then(setPlatforms)
   }, [])
 
@@ -372,38 +376,28 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Category filter, built from the categories actually present so the bar
-            never offers a filter that would return nothing. */}
-        {usedCategories.length > 0 && (
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            <button
-              onClick={() => setCategoryFilter('')}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                categoryFilter === '' ? 'btn-gradient text-white' : 'border border-white/10 text-gray-300 hover:bg-white/5'
-              }`}
-            >
-              Toutes
-            </button>
-            {usedCategories.map(({ id, label, count }) => (
-              <button
-                key={id}
-                onClick={() => setCategoryFilter(id)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                  categoryFilter === id ? 'btn-gradient text-white' : 'border border-white/10 text-gray-300 hover:bg-white/5'
-                }`}
-              >
-                {label} <span className="opacity-60">{count}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {/*
+          Le filtre, en menu deroulant plutot qu en bandeau a defilement.
 
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher dans mes annonces…"
-          className="mt-3 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-        />
+          La file de pastilles obligeait a faire glisser horizontalement pour
+          atteindre la moitie des rayons -- un geste qui n existe nulle part
+          ailleurs dans l application, et que rien n annoncait. Le menu montre
+          les rayons avec leur icone, puis les sous-categories du rayon ouvert.
+        */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <CategoryMenu
+            presents={presentsCategories}
+            compte={comptePar}
+            valeur={categoryFilter || null}
+            onChange={(c) => setCategoryFilter(c.id ?? '')}
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher dans mes annonces…"
+            className="min-w-[12rem] flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          />
+        </div>
 
         {/* Selection bar: shown as soon as there is something to act on, so the
             bulk publish button never appears out of nowhere. */}

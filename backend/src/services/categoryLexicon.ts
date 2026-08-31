@@ -124,9 +124,23 @@ const REGLES: Regle[] = [
   // --- Bijoux et accessoires ---------------------------------------------
   { mots: ['bague', 'alliance', 'chevaliere', 'anneau bijou'], vers: 'Bijoux et accessoires > Bagues', poids: 3, sauf: ['bague connectee', 'smart ring'] },
   { mots: ['collier', 'pendentif', 'chaine bijou', 'ras de cou'], vers: 'Bijoux et accessoires > Colliers et pendentifs', poids: 3 },
-  { mots: ['bracelet', 'gourmette', 'jonc'], vers: 'Bijoux et accessoires > Bracelets', poids: 3, sauf: ['bracelet connecte', 'bracelet de montre connectee'] },
+  /*
+   * Le bracelet cede a la montre, et c est un cas reel.
+   *
+   * « Montre Homme Analogique Quartz Cadran Rond Bracelet Acier » contient les
+   * deux mots. A poids egal, la departageuse retenait le motif le plus long --
+   * « bracelet » fait huit lettres, « montre » six -- et sept montres du
+   * catalogue se sont retrouvees rangees en bijouterie de poignet.
+   *
+   * Un titre qui dit « montre » designe une montre, meme s il decrit son
+   * bracelet. L inverse n est presque jamais vrai.
+   */
+  { mots: ['bracelet', 'gourmette', 'jonc'], vers: 'Bijoux et accessoires > Bracelets', poids: 3, sauf: ['bracelet connecte', 'bracelet de montre connectee', 'montre'] },
   { mots: ['boucle d oreille', 'boucles d oreilles', 'creole', 'puce d oreille'], vers: 'Bijoux et accessoires > Boucles d\'oreilles', poids: 4 },
-  { mots: ['montre', 'chronographe', 'montre automatique', 'montre quartz'], vers: 'Bijoux et accessoires > Montres', poids: 3, sauf: ['montre connectee', 'smartwatch', 'montre intelligente'] },
+  // Poids 4 : une montre reste une montre quand le titre detaille son bracelet,
+  // son cadran ou son verre. « bracelet de montre » vise la piece detachee, et
+  // c est le seul cas ou le bracelet l emporte.
+  { mots: ['montre', 'chronographe', 'montre automatique', 'montre quartz'], vers: 'Bijoux et accessoires > Montres', poids: 4, sauf: ['montre connectee', 'smartwatch', 'montre intelligente', 'bracelet de montre'] },
   { mots: ['lunettes de soleil', 'lunettes de vue', 'monture', 'lunettes anti lumiere bleue'], vers: 'Bijoux et accessoires > Lunettes de soleil et montures', poids: 4 },
   { mots: ['ceinture'], vers: 'Bijoux et accessoires > Ceintures', poids: 3, sauf: ['ceinture de securite', 'ceinture abdominale', 'ceinture lombaire'] },
   { mots: ['echarpe', 'gants', 'bonnet', 'casquette', 'chapeau', 'foulard'], vers: 'Bijoux et accessoires > Écharpes, gants et chapeaux', poids: 3, sauf: ['gants de moto', 'gants de travail', 'gants de boxe'] },

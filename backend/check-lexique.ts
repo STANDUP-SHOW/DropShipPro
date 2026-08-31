@@ -127,6 +127,24 @@ for (const bonne of ['Montres homme', 'Électronique > Souris', 'Bijoux', 'Chaus
 console.log('\nCe que le lexique refuse de trancher :')
 exige(lireTitre('Article non spécifié') === null, 'un titre vide de sens ne range rien')
 exige(lireTitre('Coffret cadeau surprise') === null, 'un titre sans objet identifiable ne range rien')
+// --- Le bracelet qui n en est pas un ----------------------------------------
+//
+// Sept montres du catalogue etaient rangees en bijouterie de poignet : leur
+// titre decrivait le bracelet de la montre. A poids egal, la departageuse
+// retenait le motif le plus long -- « bracelet » fait huit lettres, « montre »
+// six. Un titre qui dit « montre » designe une montre, meme s il detaille son
+// bracelet.
+
+console.log('\nMontres dont le titre parle de leur bracelet :')
+range('Montre Homme Analogique Quartz Cadran Rond Bracelet Acier Inoxydable', 'Bijoux et accessoires > Montres')
+range('Montre Homme en Bois Naturel Chronographe Design', 'Bijoux et accessoires > Montres')
+range('Montre Automatique Squelette Homme Conrad Heritor', 'Bijoux et accessoires > Montres')
+// Et le bracelet seul reste un bracelet.
+range('Bracelet Homme Acier Inoxydable 316L Motif Arbre de Vie', 'Bijoux et accessoires > Bracelets')
+// La piece detachee ne se tranche pas : les deux regles s ecartent, et le
+// modele decide. Mieux vaut passer la main que ranger de travers.
+exige(lireTitre('Bracelet de Montre Cuir Italien 22 mm') === null, 'un bracelet de montre est ambigu et doit passer au modele')
+
 // --- Le pluriel, qui traversait les gardes ----------------------------------
 
 console.log('\nLe pluriel, a l interieur des expressions :')
