@@ -1,8 +1,8 @@
 import { Store } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { MyShops } from '../components/MyShops'
-import { WatermarkSettings } from '../components/WatermarkSettings'
 import { ControlAgentToggle } from '../components/ControlAgentToggle'
+import { WatermarkSettings } from '../components/WatermarkSettings'
 
 /**
  * Mes sites : tout ce qui décrit une boutique, au même endroit.
@@ -41,6 +41,13 @@ export default function MySites() {
 
       <MyShops />
 
+      {/*
+        Le filigrane par défaut du compte, sous les boutiques.
+
+        Il ne disparaît pas : c'est lui que reprend une boutique qui n'a rien
+        réglé, et le vendeur qui n'a qu'un site ne veut pas descendre dans un
+        bloc pour signer ses photos.
+      */}
       <WatermarkSettings />
 
       <ControlAgentToggle />

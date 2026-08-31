@@ -11,7 +11,6 @@ import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
 import { rapatrierImages, watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory, mapCategories } from '../services/categoryMapping.js'
-import { categorySectors } from '../services/categoryCatalog.js'
 import { resoudreCategorie, arbreCategories, apprendreCategorie, avecGenre } from '../services/categories.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
@@ -865,8 +864,17 @@ productsRouter.get('/meta/categories', async (req: AuthedRequest, res) => {
    * collection — sans que rien ne le signale.
    */
   const arbre = await arbreCategories()
+
+  /*
+   * Une boutique déclare ses rayons, et l'ancien réglage déclarait des secteurs.
+   *
+   * Les deux doivent répondre : le vendeur qui a coché « high-tech » avant le
+   * référentiel ne doit pas se retrouver devant une liste vide. Un identifiant
+   * de rayon est plus précis — c'est celui que l'écran « Mes sites » propose
+   * maintenant — mais rien n'oblige à convertir l'existant pour ça.
+   */
   const categories = arbre
-    .filter((rayon) => !sectors || sectors.includes(rayon.sector))
+    .filter((rayon) => !sectors || sectors.includes(rayon.id) || sectors.includes(rayon.sector))
     .flatMap((rayon) =>
       rayon.enfants.map((enfant) => ({
         id: enfant.id,
@@ -876,7 +884,13 @@ productsRouter.get('/meta/categories', async (req: AuthedRequest, res) => {
       })),
     )
 
-  res.json({ categories, sectors: categorySectors() })
+  res.json({
+    categories,
+    // Les rayons réels, avec leur libellé : ce sont eux que « Mes sites »
+    // propose de cocher. `categorySectors()` rendait les secteurs de l'ancien
+    // catalogue, que le référentiel ne connaît plus.
+    sectors: arbre.map((r) => ({ id: r.id, label: r.label, count: r.enfants.length })),
+  })
 })
 
 // Photos the seller adds by hand: their own shots, or a rescue when the

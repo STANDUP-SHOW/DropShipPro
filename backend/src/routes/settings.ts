@@ -127,6 +127,23 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
       sectors: Array.isArray(s.sectors) ? s.sectors : [],
       products: s._count.products,
       createdAt: s.createdAt,
+      /*
+       * Le filigrane de cette boutique, et non celui du compte.
+       *
+       * Un vendeur qui tient un site high-tech, un site de mode homme et un
+       * site de cuisine ne les signe pas de la même façon : trois noms, trois
+       * logos. Le modèle le portait déjà ; l'écran ne le lisait pas, et
+       * proposait un seul réglage pour tout le monde.
+       *
+       * `null` veut dire « comme le compte » : c'est ce qu'attend un vendeur
+       * qui n'a qu'une boutique, et ça évite de recopier trois fois la même
+       * chose pour celui qui en a quatre.
+       */
+      watermarkEnabled: s.watermarkEnabled,
+      watermarkText: s.watermarkText,
+      watermarkScale: s.watermarkScale,
+      watermarkOpacity: s.watermarkOpacity,
+      watermarkPosition: s.watermarkPosition,
     })),
   )
 })
@@ -143,6 +160,24 @@ const shopSchema = z.object({
    * « tous » — qui n'a rien déclaré doit tout voir, jamais rien.
    */
   sectors: z.array(z.string().trim().max(40)).max(20).optional(),
+
+  /*
+   * Le filigrane, boutique par boutique.
+   *
+   * Chaque champ retombe séparément sur celui du compte quand il vaut `null` :
+   * une boutique qui n'a réglé que sa position garde le logo du compte. Tout ou
+   * rien obligerait à tout ressaisir pour changer un détail.
+   */
+  watermarkEnabled: z.boolean().optional(),
+  watermarkText: z.string().trim().max(60).nullable().optional(),
+  watermarkScale: z.number().int().min(5).max(60).nullable().optional(),
+  watermarkOpacity: z.number().int().min(5).max(100).nullable().optional(),
+  // Les ancrages de sharp, pas des noms inventes : une valeur hors de cette
+  // liste ferait echouer la composition au moment de l export, pas ici.
+  watermarkPosition: z
+    .enum(['northwest','north','northeast','west','center','east','southwest','south','southeast'])
+    .nullable()
+    .optional(),
 })
 
 settingsRouter.post('/shops', async (req: AuthedRequest, res) => {

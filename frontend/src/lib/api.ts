@@ -230,7 +230,7 @@ export const api = {
   listCategories: (filter?: { sector?: string; shop?: string }) =>
     request<{
       categories: Array<{ id: string; group: string; label: string; sector: string }>
-      sectors: Array<{ sector: string; count: number }>
+      sectors: Array<{ id: string; label: string; count: number }>
     }>(`/products/meta/categories?${new URLSearchParams({
       ...(filter?.sector ? { sector: filter.sector } : {}),
       ...(filter?.shop ? { shop: filter.shop } : {}),
@@ -511,6 +511,18 @@ export const api = {
         platform: string | null
         sectors: string[]
         products: number
+        logo: string | null
+        createdAt: string
+        /*
+         * Le filigrane de cette boutique. `null` veut dire « comme le compte » :
+         * un vendeur qui n'a qu'une boutique ne règle rien, celui qui en a
+         * quatre ne recopie pas trois fois la même chose.
+         */
+        watermarkEnabled: boolean
+        watermarkText: string | null
+        watermarkScale: number | null
+        watermarkOpacity: number | null
+        watermarkPosition: string | null
       }>
     >('/settings/shops'),
   createShop: (data: { name: string; platform?: string; sectors?: string[] }) =>
@@ -518,7 +530,19 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  renameShop: (id: string, data: { name?: string; platform?: string; sectors?: string[] }) =>
+  renameShop: (
+    id: string,
+    data: {
+      name?: string
+      platform?: string
+      sectors?: string[]
+      watermarkEnabled?: boolean
+      watermarkText?: string | null
+      watermarkScale?: number | null
+      watermarkOpacity?: number | null
+      watermarkPosition?: string | null
+    },
+  ) =>
     request(`/settings/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteShop: (id: string) => request(`/settings/shops/${id}`, { method: 'DELETE' }),
 
