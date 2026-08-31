@@ -120,8 +120,25 @@ try {
 // --- Un serveur sans aucune police ------------------------------------------
 
 console.log('\n--- chemin Linux forcé, sans aucune police ---')
+/*
+ * On se déplace dans un dossier vide.
+ *
+ * `assets/fonts` est résolu depuis le répertoire courant. Depuis que les
+ * polices y sont réellement déposées, ce cas n'était plus atteignable — le banc
+ * a commencé à échouer, ce qui était la bonne nouvelle. Changer de répertoire
+ * courant le rejoue sans rien retirer du dépôt.
+ */
+const { mkdtempSync } = await import('fs')
+const { tmpdir } = await import('os')
+const { join } = await import('path')
+
+const ici = process.cwd()
+process.chdir(mkdtempSync(join(tmpdir(), 'sans-police-')))
+
 oublierPolices()
 const nu = await preparerPolices()
+process.chdir(ici)
+
 exige(!nu.pretes, 'sans police nulle part, la composition doit être refusée')
 exige(
   Boolean(nu.raison) && nu.raison!.includes('nixpacks'),

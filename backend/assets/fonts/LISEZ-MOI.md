@@ -10,7 +10,17 @@ renommé, une image de base qui change, et les publicités repartent en carrés.
 Déposer un fichier `.ttf` ici rend la composition indépendante du serveur :
 `services/fonts.ts` place ce dossier en tête de sa configuration fontconfig.
 
-## Quelle police
+## Ce qui est ici
+
+**DejaVu Sans** et **DejaVu Sans Bold**, version 2.37, pris sur la page de
+publication officielle du projet. Licence dans `LICENCE-DejaVu.txt` : polices
+Bitstream Vera, modifications DejaVu dans le domaine public — redistribution
+autorisee, y compris dans un logiciel commercial.
+
+Deux fichiers et pas dix : le regulier et le gras suffisent a composer une
+publicite, et chaque variante en plus pese 700 Ko dans le depot pour rien.
+
+## Remplacer
 
 **DejaVu Sans** (`DejaVuSans.ttf` et `DejaVuSans-Bold.ttf`) fait l'affaire :
 licence permissive qui autorise la redistribution, et un jeu de caractères qui
