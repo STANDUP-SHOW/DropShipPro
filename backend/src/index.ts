@@ -21,7 +21,7 @@ import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
 import { ticketsRouter } from './routes/tickets.js'
-import { socialRouter } from './routes/social.js'
+import { socialRouter, socialPublicRouter } from './routes/social.js'
 import { semerCategories } from './services/categories.js'
 const app = express()
 
@@ -87,6 +87,9 @@ app.use('/api/chat', chatRouter)
 app.use('/api/autopilot', autopilotRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/visuals', visualsRouter)
+// Hors authentification : c est Facebook qui appelle ces adresses, en
+// redirigeant le navigateur du vendeur ou en signant sa requete.
+app.use('/api/public/social', express.urlencoded({ extended: false }), socialPublicRouter)
 app.use('/api/tickets', ticketsRouter)
 app.use('/api/social', socialRouter)
 app.use('/api/public', publicRouter)

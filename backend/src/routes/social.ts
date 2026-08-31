@@ -11,6 +11,10 @@ import {
   synchroniserComptes,
 } from '../services/socialGateway.js'
 import { REGIES, RESEAUX, SocialError } from '../services/socialTypes.js'
+import { createHmac, timingSafeEqual } from 'crypto'
+import { prisma } from '../lib/prisma.js'
+import { enregistrerComptesMeta, oublierMeta } from '../services/socialMeta.js'
+import { callbackMeta, frontendUrl } from '../lib/urls.js'
 
 /**
  * Le raccordement aux réseaux sociaux et aux régies publicitaires.
@@ -147,4 +151,96 @@ socialRouter.get('/campaigns', async (req: AuthedRequest, res) => {
   } catch (err) {
     repondreErreur(res, err)
   }
+})
+
+/*
+ * ---------------------------------------------------------------------------
+ * Le retour d'autorisation Meta.
+ * ---------------------------------------------------------------------------
+ *
+ * Hors `requireAuth` : c'est Facebook qui appelle cette adresse en redirigeant
+ * le navigateur, sans notre en-tête d'authentification. L'identité du vendeur
+ * vient donc du paramètre `state`, posé par nous au départ — et c'est aussi ce
+ * qui protège du rejeu : sans lui, faire aboutir une autorisation sur le compte
+ * d'un autre rattacherait sa page Facebook au mauvais vendeur.
+ */
+export const socialPublicRouter = Router()
+
+socialPublicRouter.get('/meta/callback', async (req, res) => {
+  const code = typeof req.query.code === 'string' ? req.query.code : ''
+  const state = typeof req.query.state === 'string' ? req.query.state : ''
+  const retour = `${frontendUrl()}/reglages?onglet=social`
+
+  // Le vendeur a refusé sur l'écran de Meta : ce n'est pas une erreur.
+  if (typeof req.query.error === 'string') {
+    return res.redirect(`${retour}&meta=refus`)
+  }
+  if (!code || !state) return res.redirect(`${retour}&meta=incomplet`)
+
+  const vendeur = await prisma.user.findUnique({ where: { id: state }, select: { id: true } })
+  if (!vendeur) return res.redirect(`${retour}&meta=inconnu`)
+
+  try {
+    const n = await enregistrerComptesMeta(vendeur.id, code, callbackMeta())
+    res.redirect(`${retour}&meta=ok&comptes=${n}`)
+  } catch (err) {
+    console.error('retour Meta', err)
+    const message = err instanceof SocialError ? err.message : 'Raccordement impossible.'
+    res.redirect(`${retour}&meta=erreur&message=${encodeURIComponent(message)}`)
+  }
+})
+
+/**
+ * La suppression de données, exigée par Meta pour valider l'application.
+ *
+ * Meta l'appelle quand un utilisateur retire l'application depuis ses réglages
+ * Facebook. Sans cette adresse, l'examen est refusé — et surtout nous
+ * garderions des jetons pour un accès qui n'existe plus.
+ *
+ * La requête est signée : `signed_request` porte l'identifiant Facebook et une
+ * signature HMAC calculée avec le secret de l'app. La vérifier n'est pas
+ * facultatif — sans elle, n'importe qui pourrait déconnecter n'importe quel
+ * vendeur en devinant un identifiant.
+ */
+socialPublicRouter.post('/meta/data-deletion', async (req, res) => {
+  const signe = typeof req.body?.signed_request === 'string' ? req.body.signed_request : ''
+  const secret = process.env.META_APP_SECRET?.trim()
+  if (!signe || !secret) return res.status(400).json({ error: 'Requête invalide' })
+
+  const [signature, charge] = signe.split('.')
+  if (!signature || !charge) return res.status(400).json({ error: 'Requête invalide' })
+
+  const attendue = createHmac('sha256', secret).update(charge).digest('base64url')
+  // Comparaison à temps constant : une comparaison naïve laisse deviner la
+  // signature octet par octet.
+  const a = Buffer.from(signature)
+  const b = Buffer.from(attendue)
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return res.status(401).json({ error: 'Signature invalide' })
+  }
+
+  const { user_id: facebookId } = JSON.parse(Buffer.from(charge, 'base64url').toString()) as {
+    user_id?: string
+  }
+
+  /*
+   * Meta donne son identifiant à lui, que nous ne stockons pas comme clé de
+   * vendeur. Le lien se fait par les comptes raccordés : le jeton de page a été
+   * délivré au nom de cet utilisateur, donc ses comptes portent sa trace.
+   */
+  const comptes = facebookId
+    ? await prisma.socialAccount.findMany({
+        where: { provider: 'meta', meta: { path: ['facebookUserId'], equals: facebookId } },
+        select: { userId: true },
+      })
+    : []
+
+  for (const { userId } of new Map(comptes.map((c) => [c.userId, c])).values()) {
+    await oublierMeta(userId)
+  }
+
+  // Meta attend une URL de suivi et un code : c'est ce qu'il montre à
+  // l'utilisateur pour qu'il vérifie que la demande a bien été traitée.
+  const code = facebookId ?? 'inconnu'
+  res.json({ url: `${frontendUrl()}/confidentialite?suppression=${code}`, confirmation_code: code })
 })

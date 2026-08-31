@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { zernio } from './socialZernio.js'
+import { meta, metaConfigure } from './socialMeta.js'
 import {
   SocialError,
   estRegie,
@@ -27,7 +28,7 @@ import {
  * plante ressemble à un module cassé.
  */
 
-const MOTEURS: SocialProvider[] = [zernio]
+const MOTEURS: SocialProvider[] = [zernio, meta]
 
 /** Le moteur en service, réglable sans redéploiement. */
 function moteur(): SocialProvider {
@@ -39,6 +40,11 @@ function moteur(): SocialProvider {
 
 /** Vrai quand le module est réellement utilisable. */
 export function socialConfigure(): boolean {
+  // Chaque moteur a sa propre condition : le natif tient a une app Meta, le
+  // moteur tiers a une cle. Repondre pour le mauvais ferait afficher
+  // « pas encore active » sur un module parfaitement branche.
+  const choisi = process.env.SOCIAL_PROVIDER?.trim() || 'zernio'
+  if (choisi === 'meta') return metaConfigure()
   return Boolean(process.env.ZERNIO_API_KEY?.trim())
 }
 
@@ -122,6 +128,23 @@ export function comptesDe(userId: string, options: { publicitaires?: boolean } =
     where: {
       userId,
       ...(options.publicitaires === undefined ? {} : { isAdAccount: options.publicitaires }),
+    },
+    /*
+     * Les colonnes sont choisies, jamais prises en bloc.
+     *
+     * Depuis que le moteur natif garde les jetons chez nous, un `findMany`
+     * sans `select` les enverrait au navigateur avec le reste de la ligne. Un jeton
+     * de page Facebook publie au nom du vendeur : il ne sort pas du serveur.
+     */
+    select: {
+      id: true,
+      externalId: true,
+      platform: true,
+      label: true,
+      connected: true,
+      isAdAccount: true,
+      provider: true,
+      createdAt: true,
     },
     orderBy: [{ isAdAccount: 'asc' }, { platform: 'asc' }],
   })

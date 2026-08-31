@@ -32,3 +32,27 @@ export function absoluteUrl(path: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path
   return `${apiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`
 }
+
+/**
+ * L'adresse du site, pour y renvoyer le vendeur après une autorisation.
+ *
+ * `FRONTEND_URL` accepte une liste séparée par des virgules — les trois
+ * origines doivent y figurer pour le CORS. La première est l'adresse
+ * canonique : c'est celle vers laquelle on redirige.
+ */
+export function frontendUrl(): string {
+  const brut = process.env.FRONTEND_URL?.split(',')[0]?.trim().replace(/\/$/, '')
+  return brut || 'https://www.drop-shipper.fr'
+}
+
+/**
+ * L'adresse de retour de l'autorisation Meta.
+ *
+ * Elle doit être **identique au caractère près** entre la demande et l'échange
+ * du code, et déclarée telle quelle dans les réglages de l'app Meta : une barre
+ * oblique de différence fait échouer l'échange avec un message qui ne l'explique
+ * pas. La calculer à un seul endroit évite d'avoir à s'en souvenir.
+ */
+export function callbackMeta(): string {
+  return `${apiBaseUrl()}/api/public/social/meta/callback`
+}

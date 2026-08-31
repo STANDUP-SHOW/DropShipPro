@@ -1070,6 +1070,16 @@ model SocialAccount {
   /// Un compte publicitaire ne publie pas de post, et inversement.
   isAdAccount Boolean @default(false)
 
+  /// Le jeton d acces au compte, quand nous tenons la liaison nous-memes.
+  ///
+  /// Vide avec un moteur tiers, qui garde le jeton chez lui. En natif il vit
+  /// ici, et **ne sort jamais vers le navigateur** : la lecture des comptes
+  /// choisit ses colonnes explicitement pour cette raison.
+  token        String?   @db.Text
+  tokenExpires DateTime?
+  /// Ce que la plateforme rattache au compte : compte Instagram lie, page mere.
+  meta         Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
