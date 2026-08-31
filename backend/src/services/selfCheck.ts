@@ -1,3 +1,4 @@
+import { policeDisponible } from './adComposer.js'
 import { prisma } from '../lib/prisma.js'
 import { checkStorage, storageError, storageTarget, type StorageStatus } from '../lib/storage.js'
 import { getStripe } from './billing.js'
@@ -33,13 +34,28 @@ export interface ServiceReport {
      * On appelle donc le modèle pour de vrai, et on rapporte ce qu'il répond.
      */
     images: ImageGenStatus
+    /**
+     * Les polices du serveur, sans lesquelles aucune publicité ne se compose.
+     *
+     * Le seul défaut du lot qui ne se voit qu'en production : Windows et macOS
+     * en fournissent toujours, l'image par défaut de Nixpacks n'en a aucune. Le
+     * visuel sortait alors parfaitement composé et totalement illisible.
+     */
+    polices: 'ok' | 'absentes'
   }
   /** What would hurt a real user right now, in plain French. */
   alertes: string[]
 }
 
 export async function selfCheck(): Promise<ServiceReport> {
-  const [ia, images, stockage] = await Promise.all([checkAi(), checkImageGen(), checkStorage()])
+  const [ia, images, stockage, polices] = await Promise.all([
+    checkAi(),
+    checkImageGen(),
+    checkStorage(),
+    // Le seul defaut qui se voit uniquement en production : Windows et macOS
+    // ont des polices, l image par defaut de Nixpacks n en a aucune.
+    policeDisponible(),
+  ])
 
   const email = mailIsConfigured() ? 'ok' : 'non-configure'
   const stripe = !getStripe()
@@ -76,6 +92,14 @@ export async function selfCheck(): Promise<ServiceReport> {
     )
   }
 
+  if (!polices) {
+    alertes.push(
+      "Aucune police sur le serveur : la génération de publicités refuse de composer, et rend le crédit. " +
+        "Sans ce refus, chaque texte sortirait en carrés vides sur une image déjà facturée. " +
+        "Vérifiez que nixpacks.toml est bien pris en compte au déploiement.",
+    )
+  }
+
   if (base === 'injoignable') alertes.push('Base de données injoignable : rien ne fonctionne.')
   if (ia !== 'ok') {
     alertes.push(
@@ -103,5 +127,5 @@ export async function selfCheck(): Promise<ServiceReport> {
     )
   }
 
-  return { ok: alertes.length === 0, services: { ia, email, stockage, stripe, base, images }, alertes }
+  return { ok: alertes.length === 0, services: { ia, email, stockage, stripe, base, images, polices: polices ? 'ok' : 'absentes' }, alertes }
 }

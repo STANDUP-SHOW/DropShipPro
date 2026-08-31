@@ -257,10 +257,20 @@ export async function policeDisponible(): Promise<boolean> {
   }
 
   const { readdir } = await import('fs/promises')
+  /*
+   * Les endroits ou une police peut se trouver, du plus courant au plus exotique.
+   *
+   * Sur Nixpacks, rien n est a la place habituelle : les paquets vivent dans
+   * /nix/store sous un nom hache, et le profil qui les expose n est pas toujours
+   * celui par defaut. Chercher au seul endroit standard revenait a conclure
+   * « aucune police » sur un serveur qui en avait.
+   */
   const dossiers = [
     '/usr/share/fonts',
     '/usr/local/share/fonts',
     '/nix/var/nix/profiles/default/share/fonts',
+    '/root/.nix-profile/share/fonts',
+    `${process.env.HOME ?? ''}/.nix-profile/share/fonts`,
     `${process.env.HOME ?? ''}/.fonts`,
   ]
 
@@ -275,6 +285,32 @@ export async function policeDisponible(): Promise<boolean> {
     } catch {
       // Dossier absent : on essaie le suivant.
     }
+  }
+
+  /*
+   * Dernier recours : /nix/store, ou Nixpacks depose reellement les paquets.
+   *
+   * Balaye a un seul niveau et seulement les dossiers dont le nom parle de
+   * polices — le magasin contient des milliers d entrees, et le parcourir en
+   * entier bloquerait le demarrage.
+   */
+  try {
+    const { readdir } = await import('fs/promises')
+    const magasin = await readdir('/nix/store')
+    for (const entree of magasin) {
+      if (!/font|dejavu|liberation|noto/i.test(entree)) continue
+      try {
+        const contenu = await readdir(`/nix/store/${entree}/share/fonts`, { recursive: true } as never)
+        if ((contenu as string[]).some((f) => /.(ttf|otf|ttc|pfb)$/i.test(f))) {
+          policesVues = true
+          return true
+        }
+      } catch {
+        // Ce paquet-la n en contient pas : on continue.
+      }
+    }
+  } catch {
+    // Pas de /nix/store : ce n est pas un serveur Nixpacks.
   }
 
   policesVues = false

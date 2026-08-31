@@ -66,7 +66,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    const error = new Error(body.error || `Erreur ${res.status}`) as Error & { status?: number }
+    /*
+     * `errors` au pluriel compte autant que `error`.
+     *
+     * La génération de publicités échoue lot par lot et rend le détail dans
+     * `errors` — « aucune police sur le serveur », « crédits épuisés », ce que
+     * le vendeur doit lire. Ne lire que `error` affichait « Erreur 502 » et
+     * jetait l'explication : il voyait un code, et ses crédits rendus sans
+     * savoir pourquoi.
+     */
+    const detail = Array.isArray(body.errors) ? body.errors.filter(Boolean).join(' ') : ''
+    const error = new Error(body.error || detail || `Erreur ${res.status}`) as Error & {
+      status?: number
+    }
     error.status = res.status
     throw error
   }

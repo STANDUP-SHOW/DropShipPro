@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { selfCheck } from '../services/selfCheck.js'
 import { z } from 'zod'
 import multer from 'multer'
 import { findSupplier } from '../services/suppliers.js'
@@ -561,4 +562,19 @@ settingsRouter.delete('/shops/:id/logo', async (req: AuthedRequest, res) => {
   if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
   await oublierImagesExport(req.userId!)
   res.json({ ok: true })
+})
+
+/**
+ * L'état réel des services, lisible sans ouvrir les journaux de l'hébergeur.
+ *
+ * Le déclencheur : « générer ad — erreur 502 ». Le serveur disait déjà pourquoi
+ * — police absente, clé refusée, crédits épuisés — mais l'explication vivait
+ * dans un champ que le navigateur ne lisait pas, et le journal Railway n'est
+ * pas un endroit où l'on envoie un vendeur.
+ *
+ * Réservé au compte connecté : la liste dit ce qui manque à l'installation,
+ * c'est-à-dire exactement ce qu'il faut savoir pour l'attaquer.
+ */
+settingsRouter.get('/diagnostic', async (_req: AuthedRequest, res) => {
+  res.json(await selfCheck())
 })

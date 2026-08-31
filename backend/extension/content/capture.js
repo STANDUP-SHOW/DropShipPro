@@ -135,8 +135,19 @@
   }
 
   /** How many candidates are downloaded at once, and how long the whole step may take. */
-  const MEASURE_CONCURRENCY = 12
-  const MEASURE_BUDGET_MS = 30000
+  /*
+   * Le budget etait atteint avant la fin de la mesure.
+   *
+   * 260 candidats fois leurs variantes font jusqu a huit cents adresses a
+   * mesurer. A douze de front et trente secondes, un CDN lent en laissait la
+   * moitie non mesuree — donc jamais proposee. Le vendeur voyait dix photos la
+   * ou la page en portait cent, et rien ne le lui disait.
+   *
+   * Le plafond de securite reste : il protege d une page qui expose des
+   * milliers d adresses, et la boucle s arrete toujours.
+   */
+  const MEASURE_CONCURRENCY = 24
+  const MEASURE_BUDGET_MS = 45000
 
   /**
    * Measures candidates a few at a time, with a budget for the whole step.
@@ -402,13 +413,38 @@
     const probes = ranked.slice(0, 260).flatMap(sizeVariants)
     const measured = await measureAll([...new Set(probes)])
 
+    /*
+     * Le classement survit à la mesure.
+     *
+     * Trier les images mesurées par surface décroissante jetait tout le travail
+     * de score : le chemin produit, l'adaptateur du fournisseur, le CDN
+     * dominant. Une bannière de 1600×900 passait donc devant une photo de
+     * produit de 800×800, et le vendeur voyait « du mauvais » en tête alors que
+     * le tri, lui, avait vu juste.
+     *
+     * La surface ne départage plus que des candidats de même rang — ce qu'elle
+     * sait faire, et la seule chose qu'elle sache.
+     */
+    const rang = new Map(ranked.map((u, i) => [photoIdentity(u), i]))
+    const rangDe = (url) => {
+      const direct = rang.get(photoIdentity(url))
+      if (direct !== undefined) return direct
+      // Une variante pleine taille hérite du rang de l'adresse dont elle vient.
+      return rang.has(photoIdentity(url.split('?')[0])) ? rang.get(photoIdentity(url.split('?')[0])) : 9999
+    }
+
+    const parRang = (a, b) => {
+      const ecart = rangDe(a.url) - rangDe(b.url)
+      return ecart !== 0 ? ecart : b.width * b.height - a.width * a.height
+    }
+
     const large = measured
       .filter((m) => Math.min(m.width, m.height) >= MIN_SIDE)
-      .sort((a, b) => b.width * b.height - a.width * a.height)
+      .sort(parRang)
 
     // Nothing big enough — a small gallery, or images blocked from measurement.
     // Fall back to the biggest available rather than returning nothing.
-    const chosen = large.length ? large : measured.sort((a, b) => b.width * b.height - a.width * a.height)
+    const chosen = large.length ? large : measured.sort(parRang)
 
     // Deduplicate: the same photo often appears at several sizes.
     const seen = new Set()
@@ -429,6 +465,19 @@
      * trompera. Il est donc mesuré aussi, et rangé dans une bande à part que
      * l'on déplie si besoin. Rien n'est perdu, rien ne pollue.
      */
+    /*
+     * Ce qui est mis de cote, et qui ne doit pas disparaitre.
+     *
+     * Deux populations, et une seule etait recuperable : le mobilier de page
+     * (score negatif), et les images **trop petites** pour le seuil. Les
+     * secondes etaient jetees sans retour — or une fiche dont toutes les photos
+     * font 350 px n a rien d anormal, et le vendeur se retrouvait devant une
+     * liste vide sans comprendre.
+     */
+    const gardees = new Set(measured.map((m) => photoIdentity(m.url)))
+    const petites = measured
+      .filter((m) => Math.min(m.width, m.height) < MIN_SIDE)
+      .sort(parRang)
     const ecartes = [...candidates].filter((u) => !NOT_A_PHOTO.test(u) && score(u) < 0 && !adapterSet.has(u))
     const mobilierMesure = []
     if (ecartes.length) {
@@ -442,6 +491,18 @@
         if (mobilierMesure.length >= 12) break
       }
     }
+
+    // Les trop petites rejoignent la meme bande : rien n est perdu, rien ne
+    // pollue la selection par defaut.
+    const vusFinal = new Set([...unique, ...mobilierMesure].map((i) => photoIdentity(i.url)))
+    for (const m of petites) {
+      const identity = photoIdentity(m.url)
+      if (vusFinal.has(identity)) continue
+      vusFinal.add(identity)
+      mobilierMesure.push(m)
+      if (mobilierMesure.length >= 40) break
+    }
+    void gardees
 
     return { produits: unique, mobilier: mobilierMesure }
   }
