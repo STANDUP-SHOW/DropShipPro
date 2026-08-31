@@ -1,59 +1,44 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Puzzle, Download } from 'lucide-react'
+import { Puzzle, Download, Settings as SettingsIcon } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { MyShops } from '../components/MyShops'
-import { ApiKeys } from '../components/ApiKeys'
-import { PlatformCredentials } from '../components/PlatformCredentials'
-import { WatermarkSettings } from '../components/WatermarkSettings'
-import { ControlAgentToggle } from '../components/ControlAgentToggle'
 import { api, assetUrl } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
+/**
+ * Réglages : deux choses qu'on fait une fois.
+ *
+ * La sécurité du compte, et l'extension. Tout le reste est parti là où il se
+ * décide — les boutiques et le filigrane dans « Mes sites », les identifiants
+ * de places de marché à côté de la plateforme concernée, dans Vente et
+ * Acquisition.
+ *
+ * Un écran de réglages qui rassemble tout ce qui n'a pas trouvé sa place finit
+ * par n'avoir aucune place lui-même : le vendeur le parcourt en entier chaque
+ * fois qu'il cherche un seul champ.
+ */
+
 export default function Settings() {
-  const { user, refresh } = useAuth()
-  const [shopName, setShopName] = useState(user?.shopName || '')
-  const [saved, setSaved] = useState(false)
+  const { user } = useAuth()
   const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null)
 
-  useEffect(() => {
-    setShopName(user?.shopName || '')
-  }, [user])
-
-  async function saveProfile() {
-    await api.updateProfile({ shopName })
-    await refresh()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
-  }
-
   return (
     <Layout>
-      <h1 className="text-2xl font-bold">Réglages</h1>
-
-      <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 space-y-4 max-w-lg">
-        <h2 className="font-bold">Boutique</h2>
-        <div>
-          <label className="text-xs text-gray-400">Nom de la boutique</label>
-          <input
-            value={shopName}
-            onChange={(e) => setShopName(e.target.value)}
-            className="mt-1 w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-          />
-        </div>
-        <button onClick={saveProfile} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold">
-          {saved ? 'Enregistré ✓' : 'Enregistrer'}
-        </button>
+      <div className="mb-6">
+        <h1 className="flex items-center gap-2 text-2xl font-bold">
+          <SettingsIcon size={22} className="text-purple-300" />
+          <span>Réglages</span>
+        </h1>
+        <p className="mt-1 max-w-3xl text-sm text-gray-400">
+          Vos boutiques, leur logo et leur filigrane se règlent dans{' '}
+          <Link to="/mes-sites" className="text-purple-300 underline">
+            Mes sites
+          </Link>
+          . Les identifiants d'une place de marché se saisissent sur sa fiche, dans Vente ou
+          Acquisition.
+        </p>
       </div>
-
-      <WatermarkSettings />
-
-      <ControlAgentToggle />
-
-      <MyShops />
-
-      <ApiKeys />
 
       <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5 max-w-lg">
         <h2 className="font-bold">Sécurité</h2>
@@ -179,15 +164,6 @@ export default function Settings() {
         </div>
       </div>
 
-      <PlatformCredentials />
-
-      <p className="mt-4 max-w-lg text-xs text-gray-500">
-        Vos comptes publicitaires et vos clés de dépôt se règlent aussi depuis{' '}
-        <Link to="/api-links" className="text-purple-300 underline">
-          Mes clés et raccordements
-        </Link>
-        , qui les rassemble tous.
-      </p>
     </Layout>
   )
 }

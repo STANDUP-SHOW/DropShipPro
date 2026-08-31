@@ -186,6 +186,29 @@ export default function PlatformsSourcing() {
           </div>
         </div>
       ) : null}
+
+      {/*
+        Le raccordement des fournisseurs, annoncé ici plutôt que caché ailleurs.
+
+        L'équivalent des clés de vente, pour l'acquisition — mais ce n'est pas le
+        même bloc : un fournisseur se relie par une clé d'API qui lui est propre,
+        pas par les identifiants d'une place de marché. L'écran de saisie est
+        dédié, et le dire évite au vendeur de le chercher.
+      */}
+      <div className="mt-8 max-w-2xl rounded-xl border border-white/10 bg-white/5 p-5">
+        <h2 className="font-bold">Relier un fournisseur</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          BigBuy, CJ Dropshipping et AliExpress publient une API : une fois reliés, leurs fiches
+          s'importent par lot et leurs prix se relèvent tout seuls. Les autres s'importent une par
+          une, par adresse ou par l'extension.
+        </p>
+        <Link
+          to="/api-sourcing-connect"
+          className="btn-gradient mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+        >
+          Saisir mes clés fournisseurs
+        </Link>
+      </div>
     </Layout>
   )
 }

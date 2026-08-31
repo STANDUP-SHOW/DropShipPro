@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { PlatformLogo } from '../components/PlatformLogo'
 import { ChannelDirectory } from '../components/ChannelDirectory'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
+import { PlatformCredentials } from '../components/PlatformCredentials'
 
 /** Ce que chaque mode d'intégration veut dire, en clair et pour un vendeur. */
 const EXPLICATION: Record<string, string> = {
@@ -232,6 +233,17 @@ export default function PlatformsSelling() {
           </div>
         </div>
       ) : null}
+
+      {/*
+        Les identifiants, sur la page qui les explique.
+        Ils vivaient dans Réglages : le vendeur lisait ici « Shopify — jeton
+        shpat_ » puis partait chercher le champ ailleurs. Restreints aux
+        plateformes de vente, parce que les fournisseurs n'ont rien à y faire.
+      */}
+      <PlatformCredentials
+        titre="Vos clés de vente"
+        only={platforms.filter((p) => !p.unavailable).map((p) => p.id)}
+      />
     </Layout>
   )
 }

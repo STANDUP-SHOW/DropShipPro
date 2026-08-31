@@ -14,7 +14,15 @@ import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/
  * c'est l'extension qui remplit son formulaire. Afficher un champ vide
  * laisserait croire à un raccordement possible.
  */
-export function PlatformCredentials() {
+/**
+ * `only` restreint le bloc aux plateformes d'un onglet.
+ *
+ * Les identifiants se réglaient loin des fiches qui les expliquent : le vendeur
+ * lisait « Shopify — jeton shpat_ » sur la page Vente, puis allait chercher le
+ * champ dans Réglages. Chaque onglet porte désormais les siens, et la page qui
+ * les rassemble tous reste pour qui veut tout voir.
+ */
+export function PlatformCredentials({ only, titre }: { only?: string[]; titre?: string } = {}) {
   const [creds, setCreds] = useState<any[]>([])
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [credError, setCredError] = useState<{ platform: string; text: string } | null>(null)
@@ -37,8 +45,8 @@ export function PlatformCredentials() {
   }
 
   return (
-    <div className="mt-6 max-w-lg rounded-xl border border-white/10 bg-white/5 p-5">
-      <h2 className="font-bold">Clés des places de marché</h2>
+    <div className="mt-6 max-w-2xl rounded-xl border border-white/10 bg-white/5 p-5">
+      <h2 className="font-bold">{titre ?? 'Clés des places de marché'}</h2>
       <p className="mt-1 text-xs text-gray-500">
         Une plateforme sans API vendeur n'a pas de champ : il n'y a rien à connecter, l'extension
         remplit son formulaire à votre place.
@@ -47,6 +55,7 @@ export function PlatformCredentials() {
       <div className="mt-4 space-y-4">
         {platforms
           .filter((p) => p.id !== 'OWN_SITE')
+          .filter((p) => !only || only.includes(p.id))
           .map((p) => {
             const cred = creds.find((c) => c.platform === p.id)
             return (

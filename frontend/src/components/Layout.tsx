@@ -8,7 +8,7 @@ import { api } from '../lib/api'
 const NAV = [
   { to: '/pilote', label: 'Pilote auto', icon: Plane },
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
-  { to: '/agents', label: 'Mes agents', icon: Users },
+  { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
   { to: '/plateformes-acquisition', label: 'Acquisition', icon: PackageSearch },
   { to: '/api-sourcing-connect', label: 'API fournisseurs', icon: Plug },
   { to: '/gestion-fournisseur', label: 'Gestion fournisseur', icon: Boxes },
@@ -23,6 +23,7 @@ const NAV = [
   { to: '/abonnement', label: 'Mes crédits', icon: Coins },
   { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
   { to: '/guide', label: 'Aide', icon: BookOpen },
+  { to: '/mes-sites', label: 'Mes sites', icon: Store },
   { to: '/settings', label: 'Réglages', icon: SettingsIcon },
 ]
 

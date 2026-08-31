@@ -3,7 +3,6 @@ import { KeyRound, Info } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { PlatformCredentials } from '../components/PlatformCredentials'
 import { AdAccounts } from '../components/AdAccounts'
-import { ApiKeys } from '../components/ApiKeys'
 
 /**
  * Toutes les clés, au même endroit.
@@ -51,7 +50,6 @@ export default function ApiLinks() {
       </div>
 
       {/* ---------- Clés de dépôt du catalogue ---------- */}
-      <ApiKeys />
     </Layout>
   )
 }

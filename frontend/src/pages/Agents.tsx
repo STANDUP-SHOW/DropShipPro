@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, ArrowRight, Plus, Store } from 'lucide-react'
+import { Users, ArrowRight } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { SupportChat } from '../components/SupportChat'
@@ -129,11 +129,19 @@ export default function Agents() {
     <Layout>
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Users size={22} className="text-emerald-400" />
-        <span>Mes agents</span>
+        <span>Mes agents ADMIN</span>
       </h1>
-      <p className="mt-1 text-sm text-gray-400">
-        Une équipe fournie avec l'application : ils importent, réécrivent, contrôlent, publient,
-        photographient et répondent. Vous n'avez rien à installer.
+      <p className="mt-1 max-w-3xl text-sm text-gray-400">
+        L'équipe fournie avec l'application : elle importe, réécrit, contrôle, publie, photographie
+        et répond. Vous n'avez rien à installer, et rien à embaucher.
+      </p>
+      <p className="mt-1 max-w-3xl text-sm text-gray-400">
+        Les <b>chefs de rayon</b> sont ailleurs, dans{' '}
+        <Link to="/rayons" className="text-purple-300 underline">
+          Mes rayons
+        </Link>{' '}
+        : ils s'embauchent un par un, dépendent des rayons que vous travaillez vraiment, et se
+        paient à part. Les mélanger ici laissait croire qu'ils étaient inclus.
       </p>
 
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
@@ -162,62 +170,6 @@ export default function Agents() {
           })
         : null}
 
-      {roster ? (
-        <section className="mt-8">
-          <h2 className="font-bold">Mes chefs de rayon</h2>
-          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
-            Les seuls agents qui s'embauchent un par un, parce qu'ils dépendent des secteurs que
-            vous travaillez vraiment. Un chef de rayon surveille son marché : il repère les produits
-            qui montent, vous en propose, dépose des rapports de veille et répond à vos questions sur
-            son domaine. C'est aussi lui qui alimente le pilote automatique — sans chef de rayon,
-            celui-ci n'a rien à importer. Il se paie à la journée, à la semaine ou au mois, et un
-            abonnement arrêté conserve toutes ses trouvailles.
-          </p>
-
-          {roster.rayons.length ? (
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {roster.rayons.map((r) => (
-                <li key={r.id}>
-                  <Link
-                    to={`/rayon/${r.id}`}
-                    className="flex h-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <Store size={20} className="text-purple-300" />
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] ${
-                          r.active ? STATE_STYLE.actif : STATE_STYLE.inactif
-                        }`}
-                      >
-                        {r.active ? 'actif' : 'abonnement expiré'}
-                      </span>
-                    </div>
-                    <p className="mt-2 font-semibold">{r.name}</p>
-                    <p className="text-xs text-gray-400">Chef du rayon {r.label}</p>
-                    <p className="mt-2 text-[11px] text-gray-500">
-                      {r.active && r.paidUntil
-                        ? `En poste jusqu'au ${new Date(r.paidUntil).toLocaleDateString('fr-FR')}`
-                        : 'Ses trouvailles sont conservées : vous pouvez le reprendre quand vous voulez.'}
-                    </p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-xs text-gray-500">
-              Aucun rayon confié pour l'instant.
-            </p>
-          )}
-
-          <Link
-            to="/rayons"
-            className="btn-gradient mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-          >
-            <Plus size={14} />
-            <span>{roster.rayons.length ? 'Gérer mes chefs de rayon' : 'Embaucher un chef de rayon'}</span>
-          </Link>
-        </section>
-      ) : null}
     </Layout>
   )
 }
