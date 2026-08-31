@@ -996,6 +996,15 @@ export const api = {
     }>('/settings/supplier-watch', { method: 'POST' }),
 
   /** L arbre du referentiel : rayons a gros blocs, sous-categories dessous. */
+  /** Reprend les annonces qui ne pointent vers aucune catégorie du référentiel. */
+  recategoriser: () =>
+    request<{
+      examinees: number
+      dejaRangees: number
+      rangees: number
+      restants: Array<{ id: string; titre: string }>
+    }>('/products/meta/recategoriser', { method: 'POST' }),
+
   categoryTree: () =>
     request<{
       rayons: number

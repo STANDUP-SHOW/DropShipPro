@@ -1107,6 +1107,69 @@ productsRouter.post('/import-list', (req: AuthedRequest, res) => {
  * référentiel s'enrichit de ce que tout le monde importe : c'est ce qui le rend
  * meilleur pour chacun.
  */
+/**
+ * Reprend les annonces qui ne sont rangées nulle part.
+ *
+ * Deux populations, et aucune ne se voyait : celles importées avant que le
+ * référentiel existe, et celles rangées à la main depuis un menu qui servait
+ * encore l'ancien catalogue — leur `categoryId` (`ht-laptop`, `acc-watch`) n'a
+ * jamais désigné une ligne de `Category`. Relevé le 31/08/2026 : 151 annonces
+ * sur 154.
+ *
+ * Le rangement passe par `resoudreCategorie`, du moins cher au plus cher :
+ * mémoire des alias d'abord, modèle en dernier. Deux cents annonces d'une même
+ * boutique coûtent donc quelques appels, pas deux cents — et ce qui est appris
+ * ici sert aux imports suivants.
+ *
+ * Rien ne tombe dans « Divers » : ce qui résiste est rendu en clair, à ranger
+ * à la main depuis la fiche.
+ */
+productsRouter.post('/meta/recategoriser', async (req: AuthedRequest, res) => {
+  const [produits, categories] = await Promise.all([
+    prisma.product.findMany({
+      where: { userId: req.userId! },
+      select: { id: true, categoryId: true, sourceCategory: true, title: true, aiTitle: true, supplierId: true },
+    }),
+    prisma.category.findMany({ select: { id: true } }),
+  ])
+
+  const connues = new Set(categories.map((c) => c.id))
+  const aRanger = produits.filter((p) => !p.categoryId || !connues.has(p.categoryId))
+
+  let ranges = 0
+  const restants: Array<{ id: string; titre: string }> = []
+
+  for (const produit of aRanger) {
+    const titre = produit.aiTitle || produit.title
+    try {
+      const resolution = await resoudreCategorie({
+        sourceCategory: produit.sourceCategory,
+        supplierId: produit.supplierId,
+        title: titre,
+      })
+      if (!resolution.categoryId) {
+        restants.push({ id: produit.id, titre })
+        continue
+      }
+      await prisma.product.update({
+        where: { id: produit.id },
+        data: { categoryId: resolution.categoryId },
+      })
+      ranges++
+    } catch {
+      restants.push({ id: produit.id, titre })
+    }
+  }
+
+  res.json({
+    examinees: aRanger.length,
+    dejaRangees: produits.length - aRanger.length,
+    rangees: ranges,
+    // Rendus pour être cliqués : une liste de titres sans lien ne se traite pas.
+    restants: restants.slice(0, 50),
+  })
+})
+
 productsRouter.get('/meta/category-tree', async (_req: AuthedRequest, res) => {
   const arbre = await arbreCategories()
   res.json({

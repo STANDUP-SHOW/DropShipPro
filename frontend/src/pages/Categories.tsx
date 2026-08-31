@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search, Sparkles, ChevronLeft, FolderTree } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
@@ -76,6 +77,8 @@ export default function Categories() {
           <Chiffre valeur={arbre.apprises} libelle="apprises à l'usage" accent />
         </div>
       ) : null}
+
+      <Reprise />
 
       <label className="relative mb-6 block">
         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -190,5 +193,82 @@ function Chiffre({ valeur, libelle, accent }: { valeur: number; libelle: string;
       <p className="text-2xl font-bold tabular-nums">{valeur}</p>
       <p className="mt-0.5 text-xs text-gray-400">{libelle}</p>
     </div>
+  )
+}
+
+/**
+ * Reprend les annonces qui ne sont rangées nulle part.
+ *
+ * Deux populations, et aucune ne se voyait : celles importées avant que le
+ * référentiel existe, et celles rangées à la main depuis un menu qui servait
+ * encore l'ancien catalogue. Leur catégorie s'affichait, le vendeur les croyait
+ * rangées, et la publication Shopify partait sans catégorie ni collection.
+ *
+ * Le bouton est ici plutôt qu'au fond des réglages : c'est la page où l'on
+ * regarde le référentiel, donc celle où l'on se demande ce qu'il range vraiment.
+ */
+function Reprise() {
+  const [encours, setEncours] = useState(false)
+  const [bilan, setBilan] = useState<Awaited<ReturnType<typeof api.recategoriser>> | null>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+
+  const lancer = async () => {
+    setEncours(true)
+    setErreur(null)
+    try {
+      setBilan(await api.recategoriser())
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Reprise impossible')
+    } finally {
+      setEncours(false)
+    }
+  }
+
+  return (
+    <section className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">Reprendre les annonces non rangées</h2>
+          <p className="mt-0.5 max-w-2xl text-xs text-gray-400">
+            Une annonce sans catégorie part sans catégorie ni collection sur Shopify, et sans que
+            rien ne le signale. La reprise range ce qui peut l'être et vous rend le reste.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={lancer}
+          disabled={encours}
+          className="shrink-0 rounded-lg bg-purple-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-400 disabled:opacity-50"
+        >
+          {encours ? 'Reprise en cours…' : 'Reprendre'}
+        </button>
+      </div>
+
+      {erreur ? <p className="mt-3 text-xs text-red-300">{erreur}</p> : null}
+
+      {bilan ? (
+        <div className="mt-3 border-t border-white/10 pt-3 text-xs">
+          <p className="text-gray-300">
+            {`${bilan.rangees} rangée(s) sur ${bilan.examinees} examinée(s) — ${bilan.dejaRangees} l'étaient déjà.`}
+          </p>
+          {bilan.restants.length ? (
+            <>
+              <p className="mt-2 text-gray-400">
+                À ranger à la main depuis la fiche — le produit décide, pas nous :
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {bilan.restants.map((r) => (
+                  <li key={r.id}>
+                    <Link to={`/products/${r.id}`} className="text-purple-300 hover:underline">
+                      {r.titre}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
   )
 }
