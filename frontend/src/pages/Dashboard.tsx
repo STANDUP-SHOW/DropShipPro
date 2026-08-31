@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { AgentBar } from '../components/AgentBar'
 import { VoirPlus, useVoirPlus } from '../components/VoirPlus'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { api, assetUrl, importSupplierList } from '../lib/api'
@@ -165,6 +166,14 @@ export default function Dashboard() {
 
   return (
     <Layout>
+      {/* L'agent en charge de ce qui se decide ici : une question posee devant
+          l ecran ne devrait pas obliger a quitter l ecran. */}
+      <AgentBar
+        agentKey="writer"
+        nom="Romain"
+        emoji="✍️"
+        exemple="Demandez à Romain : réécris ce titre pour Leboncoin, il est trop long."
+      />
       {/* Deleting a listing can't be undone, so it goes through a confirmation
           rather than firing on the thumbnail click. */}
       {pendingDelete && (

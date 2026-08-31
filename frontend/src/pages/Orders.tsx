@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { PackageCheck, Truck, ExternalLink, Plus } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -67,6 +68,14 @@ export default function Orders() {
 
   return (
     <Layout>
+      {/* L'agent en charge de ce qui se decide ici : une question posee devant
+          l ecran ne devrait pas obliger a quitter l ecran. */}
+      <AgentBar
+        agentKey="seller"
+        nom="Olivier"
+        emoji="🛒"
+        exemple="Demandez à Olivier : cette commande est en attente depuis trois jours, pourquoi ?"
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Commandes</h1>

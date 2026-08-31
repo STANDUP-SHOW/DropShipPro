@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Store, X, ExternalLink, AlertTriangle, Search, Check } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 import { PlatformLogo } from '../components/PlatformLogo'
 import { ChannelDirectory } from '../components/ChannelDirectory'
@@ -77,6 +78,14 @@ export default function PlatformsSelling() {
 
   return (
     <Layout>
+      {/* L'agent en charge de ce qui se decide ici : une question posee devant
+          l ecran ne devrait pas obliger a quitter l ecran. */}
+      <AgentBar
+        agentKey="seller"
+        nom="Olivier"
+        emoji="🛒"
+        exemple="Demandez à Olivier : sur quelle place de marché ce produit se vend le mieux ?"
+      />
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Store size={22} className="text-emerald-400" />
         <span>Market places</span>

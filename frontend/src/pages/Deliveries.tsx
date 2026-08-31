@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Truck, MapPin, ExternalLink, MessageSquare, Package, Save, HelpCircle, Plus, X } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 
 type Order = Awaited<ReturnType<typeof api.listOrders>>[number]
@@ -152,6 +153,14 @@ export default function Deliveries() {
 
   return (
     <Layout>
+      {/* L'agent en charge de ce qui se decide ici : une question posee devant
+          l ecran ne devrait pas obliger a quitter l ecran. */}
+      <AgentBar
+        agentKey="livraisons"
+        nom="Yann"
+        emoji="🚚"
+        exemple="Demandez à Yann : ce colis n'a pas bougé depuis huit jours, je réponds quoi ?"
+      />
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Truck size={22} className="text-emerald-400" />
         <span>Livraisons</span>

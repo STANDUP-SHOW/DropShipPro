@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LifeBuoy, Send, Loader2, Check, ChevronRight } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { AgentBar } from '../components/AgentBar'
 import { TicketDialog } from '../components/TicketDialog'
 import { api, type TicketComplet } from '../lib/api'
 
@@ -69,6 +70,14 @@ export default function Tickets() {
 
   return (
     <Layout>
+      {/* L'agent en charge de ce qui se decide ici : une question posee devant
+          l ecran ne devrait pas obliger a quitter l ecran. */}
+      <AgentBar
+        agentKey="hotline"
+        nom="Camille"
+        emoji="☎️"
+        exemple="Demandez à Camille : ma publicité est sortie illisible, que faire ?"
+      />
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">

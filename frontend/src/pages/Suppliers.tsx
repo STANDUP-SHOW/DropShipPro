@@ -12,6 +12,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { AgentBar } from '../components/AgentBar'
 import { PlatformLogo } from '../components/PlatformLogo'
 import { Fenetre } from '../components/SupplierCredentialDialog'
 import { api, assetUrl } from '../lib/api'
@@ -81,6 +82,14 @@ export default function Suppliers() {
 
   return (
     <Layout>
+      {/* L'agent en charge de ce qui se decide ici : une question posee devant
+          l ecran ne devrait pas obliger a quitter l ecran. */}
+      <AgentBar
+        agentKey="scrapper"
+        nom="Sacha"
+        emoji="🔎"
+        exemple="Demandez à Sacha : ce fournisseur est-il fiable pour de l'électronique ?"
+      />
       <div className="mb-6">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <Boxes size={22} className="text-emerald-400" />
