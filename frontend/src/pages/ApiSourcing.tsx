@@ -153,7 +153,7 @@ export default function ApiSourcing() {
   )
 }
 
-function Fenetre({
+export function Fenetre({
   supplier,
   lien,
   onClose,

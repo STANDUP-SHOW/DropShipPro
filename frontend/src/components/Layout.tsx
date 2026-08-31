@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, PackageSearch, Store, Calculator, Plug, Boxes, Images, FolderTree, LifeBuoy } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
@@ -9,9 +9,6 @@ const NAV = [
   { to: '/pilote', label: 'Pilote auto', icon: Plane },
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
-  { to: '/plateformes-acquisition', label: 'Acquisition', icon: PackageSearch },
-  { to: '/api-sourcing-connect', label: 'API fournisseurs', icon: Plug },
-  { to: '/gestion-fournisseur', label: 'Gestion fournisseur', icon: Boxes },
   { to: '/plateformes-vente', label: 'Vente', icon: Store },
   { to: '/marketing', label: 'Marketing', icon: Megaphone },
   { to: '/mes-pubs', label: 'Mes pubs', icon: Images },
@@ -79,6 +76,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
+
+          <div className="mt-6">
+            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Sourcing
+            </p>
+            <Link
+              to="/fournisseurs"
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                pathname === '/fournisseurs'
+                  ? 'bg-purple-500/20 text-white'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <Boxes size={18} />
+              <span>Fournisseurs</span>
+            </Link>
+          </div>
 
           {rayons.length > 0 && (
             <div className="pt-3">

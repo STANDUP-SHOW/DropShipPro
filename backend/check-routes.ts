@@ -9,7 +9,7 @@ import http from 'http'
  * restait vide sans que rien n'apparaisse dans les journaux. C'est exactement le
  * genre de panne qu'un banc attrape et qu'une relecture manque.
  */
-const RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking'])
+const RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking', 'by-supplier'])
 
 const app = express()
 const routeur = express.Router()
@@ -23,6 +23,10 @@ routeur.get('/:id', (req, res, next) => {
 })
 routeur.get('/purchases', (_req, res) => res.json({ route: 'purchases' }))
 routeur.get('/accounting', (_req, res) => res.json({ route: 'accounting' }))
+// Ajoutée le 31/08/2026, et déclarée après `/:id` dans le vrai fichier : sans
+// sa place dans la liste réservée, l'écran Fournisseurs aurait reçu
+// « Commande introuvable » pour toute réponse.
+routeur.get('/by-supplier', (_req, res) => res.json({ route: 'by-supplier' }))
 app.use('/orders', routeur)
 
 const serveur = http.createServer(app)
@@ -41,6 +45,7 @@ const exige = async (chemin: string, attendu: string) => {
 try {
   await exige('/orders/purchases', 'purchases')
   await exige('/orders/accounting', 'accounting')
+  await exige('/orders/by-supplier', 'by-supplier')
   await exige('/orders/summary', 'summary')
   // Un vrai identifiant doit continuer à passer par `/:id`.
   await exige('/orders/clx1a2b3c4d5e6f7g8h9i0j1k', 'id')

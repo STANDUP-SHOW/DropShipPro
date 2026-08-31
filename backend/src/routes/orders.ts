@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { SUPPLIERS } from '../services/suppliers.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
@@ -160,7 +161,7 @@ ordersRouter.patch('/:id', async (req: AuthedRequest, res) => {
  * liste vit ici plutôt qu'ailleurs pour qu'un futur `/orders/quelque-chose`
  * n'ait qu'un endroit à mettre à jour.
  */
-const CHEMINS_RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking'])
+const CHEMINS_RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking', 'by-supplier'])
 
 ordersRouter.get('/:id', async (req: AuthedRequest, res, next) => {
   if (CHEMINS_RESERVES.has(req.params.id)) return next('route')
@@ -549,4 +550,83 @@ ordersRouter.put('/:id/supplier-variant', async (req: AuthedRequest, res) => {
 ordersRouter.post('/supplier-tracking', async (req: AuthedRequest, res) => {
   const resultat = await releverSuiviFournisseur(req.userId!)
   res.json(resultat)
+})
+
+/**
+ * Les ventes à commander, regroupées par fournisseur.
+ *
+ * C'est la question que le vendeur se pose vraiment le matin : « qu'est-ce que
+ * je dois commander, et chez qui ». Rangées par vente, les commandes obligent à
+ * rouvrir le site d'un fournisseur, puis d'un autre, puis à revenir au premier
+ * — et c'est là que se perdent les colis.
+ *
+ * Chaque ligne porte l'adresse de l'acheteur : c'est elle qui part chez le
+ * fournisseur, et c'est une faute de frappe dedans qui coûte un colis.
+ */
+ordersRouter.get('/by-supplier', async (req: AuthedRequest, res) => {
+  const commandes = await prisma.order.findMany({
+    // Un remboursement n a plus rien a commander : le garder ferait proposer un
+    // achat pour une vente qui n existe plus.
+    where: { userId: req.userId!, status: { not: 'REFUNDED' } },
+    include: {
+      product: {
+        select: { id: true, title: true, aiTitle: true, images: true, supplierId: true, supplierRef: true, price: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const [liens, connecteurs] = await Promise.all([
+    prisma.supplierConnection.findMany({ where: { userId: req.userId!, connected: true } }),
+    Promise.resolve(SUPPLIERS),
+  ])
+  const relies = new Set(liens.map((l) => l.supplier))
+
+  /*
+   * Les ventes sans fournisseur reconnu forment un groupe à part.
+   *
+   * Les cacher laisserait croire que tout est commandable ; les mêler aux
+   * autres ferait chercher un bouton « Commander » qui ne peut rien faire.
+   */
+  type Vente = (typeof commandes)[number]
+  const groupes = new Map<string, Vente[]>()
+  for (const commande of commandes) {
+    const cle = commande.product.supplierId ?? '—'
+    groupes.set(cle, [...(groupes.get(cle) ?? []), commande])
+  }
+
+  res.json({
+    fournisseurs: [...groupes].map(([supplierId, ventes]) => {
+      const connu = connecteurs.find((s) => s.id === supplierId)
+      return {
+        supplierId,
+        label: connu?.label ?? (supplierId === '—' ? 'Fournisseur non reconnu' : supplierId),
+        relie: relies.has(supplierId),
+        // Ce qui reste à commander : le chiffre qui décide de l'ordre du jour.
+        aCommander: ventes.filter((v) => !v.supplierOrderId).length,
+        ventes: ventes.map((v) => ({
+          id: v.id,
+          platform: v.platform,
+          status: v.status,
+          amount: Number(v.amount),
+          currency: v.currency,
+          createdAt: v.createdAt,
+          buyerName: v.buyerName,
+          buyerAddress: v.buyerAddress,
+          supplierOrderId: v.supplierOrderId,
+          supplierOrderStatus: v.supplierOrderStatus,
+          supplierOrderError: v.supplierOrderError,
+          supplierOrderUrl: v.supplierOrderUrl,
+          trackingNumber: v.trackingNumber,
+          produit: {
+            id: v.product.id,
+            titre: v.product.aiTitle || v.product.title,
+            image: Array.isArray(v.product.images) ? (v.product.images as string[])[0] ?? null : null,
+            supplierRef: v.product.supplierRef,
+            cout: Number(v.product.price),
+          },
+        })),
+      }
+    }),
+  })
 })

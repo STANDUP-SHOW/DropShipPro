@@ -265,6 +265,46 @@ export const api = {
       total: number
     }>('/products/meta/channels'),
 
+  /** Les ventes à commander, regroupées par fournisseur. */
+  ordersBySupplier: () =>
+    request<{
+      fournisseurs: Array<{
+        supplierId: string
+        label: string
+        relie: boolean
+        aCommander: number
+        ventes: Array<{
+          id: string
+          platform: string
+          status: string
+          amount: number
+          currency: string
+          createdAt: string
+          buyerName: string
+          buyerAddress: unknown
+          supplierOrderId: string | null
+          supplierOrderStatus: string | null
+          supplierOrderError: string | null
+          supplierOrderUrl: string | null
+          trackingNumber: string | null
+          produit: {
+            id: string
+            titre: string
+            image: string | null
+            supplierRef: string | null
+            cout: number
+          }
+        }>
+      }>
+    }>('/orders/by-supplier'),
+
+  /** Dépose la commande chez le fournisseur — sans la payer. */
+  orderFromSupplier: (orderId: string, forcer = false) =>
+    request<{ orderId: string; etat: string; message: string; url?: string; cout?: number }>(
+      `/orders/${orderId}/supplier-order`,
+      { method: POST_M, body: JSON.stringify({ forcer }) },
+    ),
+
   listSuppliers: () =>
     request<
       Array<{
