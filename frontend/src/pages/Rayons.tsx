@@ -135,8 +135,16 @@ export default function Rayons() {
                 <div className="flex items-start justify-between gap-2">
                   <Link to={`/rayon/${d.id}`} className="min-w-0 flex-1">
                     <p className="text-2xl">{d.emoji}</p>
-                    <p className="mt-1 font-semibold">{d.agentName}</p>
-                    <p className="text-xs text-gray-400">{d.label}</p>
+                    {/*
+                      Le rayon en titre, l'agent en dessous.
+
+                      Le vendeur cherche « Électronique » quand il veut voir ses
+                      montres connectées ; il ne se souvient pas que c'est Malik
+                      qui s'en occupe. Le prénom garde toute son utilité au
+                      moment de lui parler — pas au moment de le trouver.
+                    */}
+                    <p className="mt-1 font-semibold leading-tight">{d.label}</p>
+                    <p className="mt-0.5 text-xs text-gray-400">{`Tenu par ${d.agentName}`}</p>
                   </Link>
                   <button
                     type="button"
@@ -185,8 +193,8 @@ export default function Rayons() {
               }
             >
               <p className="text-3xl">{p.emoji}</p>
-              <p className="mt-2 font-semibold">{p.agentName}</p>
-              <p className="text-xs text-gray-400">{p.label}</p>
+              <p className="mt-2 font-semibold leading-tight">{p.label}</p>
+              <p className="mt-0.5 text-xs text-gray-400">{`${p.agentName} le tiendrait`}</p>
               <p className="mt-2 flex-1 text-xs leading-relaxed text-gray-500">{p.focus}</p>
 
               <div className="mt-3 flex flex-wrap gap-1">

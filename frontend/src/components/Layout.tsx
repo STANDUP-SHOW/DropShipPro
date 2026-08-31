@@ -158,13 +158,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Link
                     key={r.id}
                     to={`/rayon/${r.id}`}
-                    title={r.label}
+                    /*
+                      Le rayon, pas l'agent qui le tient.
+                      Le vendeur cherche « Électronique » quand il veut voir ses
+                      montres connectées ; il ne se souvient pas que c'est Malik
+                      qui s'en occupe. Le prénom reste au survol, et sur la page
+                      du rayon où il a un sens : c'est là qu'on lui parle.
+                    */
+                    title={`${r.label} — ${r.agentName}`}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
                       active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
                     }`}
                   >
                     <span className="text-base leading-none">{r.emoji}</span>
-                    <span className="truncate">{r.agentName}</span>
+                    <span className="truncate">{r.label}</span>
                     {r.pending > 0 && (
                       <span className="ml-auto rounded-full bg-emerald-400/20 px-1.5 text-[11px] text-emerald-300">
                         {r.pending}
