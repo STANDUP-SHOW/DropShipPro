@@ -95,6 +95,36 @@ publicRouter.get('/reviews', async (req, res) => {
  * `price` is the selling price, never the supplier cost: a shop wiring itself to
  * this feed would otherwise sell everything at what it paid for it.
  */
+
+/**
+ * Les chemins de catégorie d'un lot d'annonces, tels qu'ils sont **aujourd'hui**.
+ *
+ * `Publication.targetCategory` est une copie, figée au moment de la
+ * publication. Relevé le 31/08/2026 sur le flux d'OGGUS : 137 produits pour
+ * **39 étiquettes**, dont « Divers » neuf fois, quatre vides, « Montres » et
+ * « Montre » côte à côte, et deux fois `« la catégorie Maison »` — du texte de
+ * gabarit ramassé sur AliExpress. La boutique en héritait une page par
+ * étiquette.
+ *
+ * Ranger une annonce dans DropShipper ne changeait rien à ce que la vitrine
+ * affichait : il aurait fallu republier les cent trente-sept. Le chemin est
+ * donc relu à chaque passage — une requête pour tout le lot, et la boutique
+ * suit le référentiel sans que personne n'y touche.
+ *
+ * La copie figée reste le repli : une annonce d'avant le référentiel n'a pas de
+ * catégorie à retrouver, et son ancienne étiquette vaut mieux que rien.
+ */
+async function cheminsCategories(produits: Array<{ categoryId: string | null }>) {
+  const ids = [...new Set(produits.map((p) => p.categoryId).filter((id): id is string => Boolean(id)))]
+  if (!ids.length) return new Map<string, string>()
+
+  const categories = await prisma.category.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, path: true },
+  })
+  return new Map(categories.map((c) => [c.id, c.path]))
+}
+
 async function toCatalogItem(product: Product, category: string | null) {
   return {
     id: product.id,
@@ -134,13 +164,17 @@ publicRouter.get('/shops/:shopKey/products', async (req, res) => {
     orderBy: { publishedAt: 'desc' },
   })
 
+  const chemins = await cheminsCategories(publications.map((p) => p.product))
+
   // Cached briefly: a storefront may call this on every page view.
   res.set('Cache-Control', 'public, max-age=60')
   res.json({
     shop: { name: shop.name },
     count: publications.length,
     products: await Promise.all(
-      publications.map((p) => toCatalogItem(p.product, p.targetCategory)),
+      publications.map((p) =>
+        toCatalogItem(p.product, chemins.get(p.product.categoryId ?? '') ?? p.targetCategory),
+      ),
     ),
   })
 })
@@ -160,8 +194,15 @@ publicRouter.get('/shops/:shopKey/products/:id', async (req, res) => {
   })
   if (!publication) return res.status(404).json({ error: 'Produit introuvable' })
 
+  const chemins = await cheminsCategories([publication.product])
+
   res.set('Cache-Control', 'public, max-age=60')
-  res.json(await toCatalogItem(publication.product, publication.targetCategory))
+  res.json(
+    await toCatalogItem(
+      publication.product,
+      chemins.get(publication.product.categoryId ?? '') ?? publication.targetCategory,
+    ),
+  )
 })
 
 /**
@@ -183,9 +224,16 @@ async function feedItems(shopKey: string) {
     take: 5000,
   })
 
+  const chemins = await cheminsCategories(publications.map((p) => p.product))
+
   return {
     shop,
-    items: publications.map((p) => ({ product: p.product, category: p.targetCategory })),
+    items: publications.map((p) => ({
+      product: p.product,
+      // Meta et Google rangent leur catalogue avec cette valeur : une étiquette
+      // figée y vieillit aussi mal que sur la vitrine.
+      category: chemins.get(p.product.categoryId ?? '') ?? p.targetCategory,
+    })),
   }
 }
 
