@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
+import { accorderAuGenre, genreDe, lireTitre, sourceSansValeur, type Genre } from './categoryLexicon.js'
 import graine from './categorySeed.json' with { type: 'json' }
 
 /**
@@ -153,7 +154,9 @@ export interface Resolution {
   categoryId: string | null
   path: string | null
   /** Comment on est arrivé là : utile pour mesurer ce que l'apprentissage rend. */
-  par: 'choix' | 'alias' | 'libelle' | 'ia' | 'aucune'
+  par: 'choix' | 'titre' | 'alias' | 'libelle' | 'ia' | 'aucune'
+  /** Le genre lu dans le titre, à ranger dans les caractéristiques du produit. */
+  genre?: Genre | null
   /** Renseigné quand rien n'a été trouvé, pour l'écrire sur l'annonce. */
   raison?: string
 }
@@ -166,15 +169,49 @@ function clesCandidates(d: DemandeCategorie): string[] {
     // fournisseur donné ne veut jamais dire deux choses.
     sortie.push(`${d.supplierId}:${d.supplierCategoryId}`)
   }
-  if (d.sourceCategory) {
+  /*
+   * Une catégorie source sans valeur ne devient jamais une clé.
+   *
+   * `« la catégorie Maison »` est du texte de gabarit ramassé sur AliExpress.
+   * Gravée comme alias, elle a rangé seize produits sans rapport — souris,
+   * mini-PC, perceuses, aspirateur — dans « Figurines et jouets d'action », et
+   * elle comptait trente-et-un usages avant qu'on la voie. Le mal n'était pas
+   * la décision initiale mais la clé : elle rassemblait des produits qui n'ont
+   * rien en commun.
+   */
+  if (d.sourceCategory && !sourceSansValeur(d.sourceCategory)) {
     const brut = d.sourceCategory.trim()
     sortie.push(cle(brut))
     // Un chemin « Électronique > Périphériques > Souris » : la feuille est plus
     // précise que la racine, on essaie de droite à gauche.
     const morceaux = brut.split(/[>›|/]/).map((m) => m.trim()).filter(Boolean)
-    for (const m of morceaux.reverse()) sortie.push(cle(m))
+    for (const m of morceaux.reverse()) {
+      if (!sourceSansValeur(m)) sortie.push(cle(m))
+    }
   }
   return [...new Set(sortie.filter(Boolean))]
+}
+
+/**
+ * La catégorie que le titre désigne, résolue contre le référentiel réel.
+ *
+ * Le lexique rend un chemin lisible ; un chemin qui n'existe plus en base est
+ * ignoré plutôt que rangé de travers.
+ */
+async function parLeTitre(titre: string): Promise<{ id: string; path: string; genre: Genre | null } | null> {
+  const lecture = lireTitre(titre)
+  if (!lecture) return null
+
+  const genre = genreDe(titre)
+  const chemin = accorderAuGenre(lecture.chemin, genre)
+
+  const trouvee =
+    (await prisma.category.findFirst({ where: { path: chemin } })) ??
+    // Le chemin accordé au genre peut ne pas exister : on retombe sur celui que
+    // le lexique désignait, qui lui a été écrit contre le référentiel.
+    (chemin !== lecture.chemin ? await prisma.category.findFirst({ where: { path: lecture.chemin } }) : null)
+
+  return trouvee ? { id: trouvee.id, path: trouvee.path, genre } : null
 }
 
 /**
@@ -194,20 +231,63 @@ export async function resoudreCategorie(d: DemandeCategorie): Promise<Resolution
     }
   }
 
-  // --- 2. La mémoire --------------------------------------------------------
+  /*
+   * --- 2. Le titre, et la mémoire, confrontés ------------------------------
+   *
+   * C'est le changement du 31/08/2026, et il vient d'un constat : toute la
+   * décision reposait sur la catégorie annoncée par la source, et le titre
+   * n'était lu qu'en dernier recours, par le modèle. Or le titre est le signal
+   * le plus fiable — c'est celui que lisent Vinted, Leboncoin et eBay pour
+   * proposer une catégorie dès la frappe.
+   *
+   * Les deux sont donc lus, puis confrontés :
+   *
+   * - **Ils s'accordent**, ou l'un des deux manque : rien à arbitrer.
+   * - **Ils se contredisent** : le titre gagne, et l'alias est effacé. C'est ce
+   *   qui manquait le plus — `apprendreCategorie` n'écrase jamais, ce qui
+   *   protégeait le choix d'un vendeur mais protégeait aussi une erreur, à
+   *   jamais. Un alias posé par le modèle ou par une source douteuse doit
+   *   pouvoir être corrigé ; celui que le vendeur a posé lui-même, non.
+   */
   const candidates = clesCandidates(d)
-  if (candidates.length) {
-    const trouve = await prisma.categoryAlias.findFirst({
-      where: { key: { in: candidates } },
-      include: { category: true },
-    })
-    if (trouve) {
-      await Promise.all([
-        prisma.categoryAlias.update({ where: { id: trouve.id }, data: { uses: { increment: 1 } } }),
-        prisma.category.update({ where: { id: trouve.categoryId }, data: { uses: { increment: 1 } } }),
-      ])
-      return { categoryId: trouve.categoryId, path: trouve.category.path, par: 'alias' }
+  const [titre, memoire] = await Promise.all([
+    parLeTitre(d.title),
+    candidates.length
+      ? prisma.categoryAlias.findFirst({ where: { key: { in: candidates } }, include: { category: true } })
+      : null,
+  ])
+
+  if (memoire && (!titre || titre.id === memoire.categoryId)) {
+    await Promise.all([
+      prisma.categoryAlias.update({ where: { id: memoire.id }, data: { uses: { increment: 1 } } }),
+      prisma.category.update({ where: { id: memoire.categoryId }, data: { uses: { increment: 1 } } }),
+    ])
+    return {
+      categoryId: memoire.categoryId,
+      path: memoire.category.path,
+      par: 'alias',
+      genre: titre?.genre ?? genreDe(d.title),
     }
+  }
+
+  if (titre) {
+    // L'alias fautif est retiré, sauf s'il porte le geste d'un vendeur.
+    if (memoire && memoire.source !== 'manuel' && memoire.source !== 'seed') {
+      await prisma.categoryAlias.delete({ where: { id: memoire.id } }).catch(() => {})
+    }
+    if (!memoire || memoire.source !== 'manuel') {
+      for (const c of candidates) await apprendreCategorie(c, titre.id, 'titre')
+    }
+    await prisma.category.update({ where: { id: titre.id }, data: { uses: { increment: 1 } } })
+    return { categoryId: titre.id, path: titre.path, par: 'titre', genre: titre.genre }
+  }
+
+  if (memoire) {
+    await Promise.all([
+      prisma.categoryAlias.update({ where: { id: memoire.id }, data: { uses: { increment: 1 } } }),
+      prisma.category.update({ where: { id: memoire.categoryId }, data: { uses: { increment: 1 } } }),
+    ])
+    return { categoryId: memoire.categoryId, path: memoire.category.path, par: 'alias', genre: genreDe(d.title) }
   }
 
   // --- 3. Le rapprochement de libellés --------------------------------------
@@ -401,4 +481,28 @@ export async function arbreCategories(): Promise<
         .map((c) => ({ id: c.id, label: c.label, path: c.path, uses: c.uses, origin: c.origin })),
     }
   })
+}
+
+/**
+ * Range le genre dans les caractéristiques, sans écraser ce qui s'y trouve.
+ *
+ * Le genre n'est pas une catégorie chez nous, et c'est un choix : la taxonomie
+ * produit de Google — notre pivot vers Shopify, Google et Meta — sépare les
+ * vêtements et les chaussures par genre, mais pas les bijoux, les montres ni les
+ * parfums. Y ajouter un niveau casserait le pivot, et la catégorie ne
+ * correspondrait plus à rien chez la destination.
+ *
+ * Vinted et Leboncoin, eux, demandent le genre. Il vit donc dans les
+ * caractéristiques, où chaque destination va le chercher si elle en a besoin —
+ * et où le vendeur peut le corriger.
+ */
+export function avecGenre(attributs: unknown, genre: Genre | null | undefined): Record<string, string> | undefined {
+  const base =
+    attributs && typeof attributs === 'object' && !Array.isArray(attributs)
+      ? (attributs as Record<string, string>)
+      : {}
+  if (!genre) return Object.keys(base).length ? base : undefined
+  // Ce que le modèle ou le vendeur a déjà écrit l'emporte : il a vu le produit.
+  if (base.Genre) return base
+  return { ...base, Genre: genre }
 }

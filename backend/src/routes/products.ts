@@ -12,7 +12,7 @@ import { rapatrierImages, watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory } from '../services/categoryMapping.js'
 import { categorySectors } from '../services/categoryCatalog.js'
-import { resoudreCategorie, arbreCategories, apprendreCategorie } from '../services/categories.js'
+import { resoudreCategorie, arbreCategories, apprendreCategorie, avecGenre } from '../services/categories.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
 import { lireClasseur, colonneAdresses, XlsxIllisible } from '../services/xlsx.js'
@@ -1125,18 +1125,27 @@ productsRouter.post('/import-list', (req: AuthedRequest, res) => {
  * à la main depuis la fiche.
  */
 productsRouter.post('/meta/recategoriser', async (req: AuthedRequest, res) => {
-  const [produits, categories] = await Promise.all([
-    prisma.product.findMany({
-      where: { userId: req.userId! },
-      select: { id: true, categoryId: true, sourceCategory: true, title: true, aiTitle: true, supplierId: true },
-    }),
-    prisma.category.findMany({ select: { id: true } }),
-  ])
+  const produits = await prisma.product.findMany({
+    where: { userId: req.userId! },
+    select: { id: true, categoryId: true, sourceCategory: true, title: true, aiTitle: true, supplierId: true, attributes: true },
+  })
 
-  const connues = new Set(categories.map((c) => c.id))
-  const aRanger = produits.filter((p) => !p.categoryId || !connues.has(p.categoryId))
+  /*
+   * Toutes les annonces sont reprises, pas seulement les orphelines.
+   *
+   * Une annonce peut porter une catégorie qui existe et qui est fausse : seize
+   * l'étaient, rangées dans « Figurines et jouets d'action » par un alias
+   * empoisonné. Ne reprendre que celles sans catégorie les aurait laissées
+   * telles quelles, et le vendeur aurait vu « 3 rangées » en croyant que le
+   * reste allait bien.
+   *
+   * Le geste du vendeur, lui, n'est pas touché : `resoudreCategorie` ne
+   * contredit jamais un alias posé à la main.
+   */
+  const aRanger = produits
 
   let ranges = 0
+  let inchanges = 0
   const restants: Array<{ id: string; titre: string }> = []
 
   for (const produit of aRanger) {
@@ -1151,11 +1160,21 @@ productsRouter.post('/meta/recategoriser', async (req: AuthedRequest, res) => {
         restants.push({ id: produit.id, titre })
         continue
       }
+      if (resolution.categoryId === produit.categoryId && !resolution.genre) {
+        inchanges++
+        continue
+      }
       await prisma.product.update({
         where: { id: produit.id },
-        data: { categoryId: resolution.categoryId },
+        data: {
+          categoryId: resolution.categoryId,
+          // Le genre lu dans le titre : Vinted et Leboncoin le demandent, la
+          // taxonomie de Google ne le porte pas.
+          attributes: avecGenre(produit.attributes, resolution.genre),
+        },
       })
-      ranges++
+      if (resolution.categoryId !== produit.categoryId) ranges++
+      else inchanges++
     } catch {
       restants.push({ id: produit.id, titre })
     }
@@ -1163,7 +1182,7 @@ productsRouter.post('/meta/recategoriser', async (req: AuthedRequest, res) => {
 
   res.json({
     examinees: aRanger.length,
-    dejaRangees: produits.length - aRanger.length,
+    dejaRangees: inchanges,
     rangees: ranges,
     // Rendus pour être cliqués : une liste de titres sans lien ne se traite pas.
     restants: restants.slice(0, 50),
