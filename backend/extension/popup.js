@@ -1,12 +1,5 @@
-
 // Where each platform's "create listing" form lives. The content script for that
 // platform picks the pending listing back up from chrome.storage once the tab loads.
-const TARGETS = {
-  VINTED: { label: 'Vinted', url: 'https://www.vinted.fr/items/new' },
-  LEBONCOIN: { label: 'Leboncoin', url: 'https://www.leboncoin.fr/deposer-une-annonce' },
-  EBAY: { label: 'eBay', url: 'https://www.ebay.fr/sl/sell' },
-}
-
 const app = document.getElementById('app')
 
 async function getToken() {
@@ -95,7 +88,7 @@ function renderLogin(error) {
     try {
       const res = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       await chrome.storage.local.set({ token: res.token })
-      renderProducts()
+      renderAccueil()
     } catch (err) {
       renderLogin(err.message)
     }
@@ -158,81 +151,52 @@ function wireSiteBox() {
   })
 }
 
-async function renderProducts() {
-  app.innerHTML = '<p class="muted">Chargement des produits…</p>'
-  let products
-  try {
-    products = await api('/api/products')
-  } catch (err) {
-    if (err.message.includes('401') || err.message.toLowerCase().includes('authenti')) {
-      await chrome.storage.local.remove('token')
-      return renderLogin()
-    }
-    return (app.innerHTML = `<p class="error">${err.message}</p>`)
-  }
-
-  if (!products.length) {
-    app.innerHTML = (await renderSiteBox()) + '<p class="muted">Aucune annonce pour le moment.</p>'
-    wireSiteBox()
-    return
-  }
-
-  const siteBox = await renderSiteBox()
-
+/**
+ * L'accueil du popup : se connecter, autoriser un site, ouvrir le panneau.
+ *
+ * **La liste des annonces n'est plus ici.** Elle exigeait un appel réseau avant
+ * le moindre affichage : le popup restait sur « Chargement des produits… »
+ * pendant une seconde, à chaque clic sur l'icône, y compris quand le vendeur
+ * venait simplement autoriser un site. Elle vit maintenant dans le panneau
+ * latéral, là où elle sert — devant le formulaire de dépôt, et à côté de lui.
+ */
+async function renderAccueil() {
   app.innerHTML =
-    siteBox +
-    products
-      .map((p) => {
-        const finalPrice = (Number(p.price) * (1 + p.markupPercent / 100)).toFixed(2)
-        const buttons = Object.entries(TARGETS)
-          .map(([key, t]) => `<button data-product="${p.id}" data-target="${key}">${t.label}</button>`)
-          .join('')
-        return `
-          <div class="product">
-            <div class="product-title">${escapeHtml(p.aiTitle || p.title)}</div>
-            <span class="price">${finalPrice} ${p.currency}</span>
-            <div class="targets">${buttons}</div>
-          </div>`
-      })
-      .join('') +
-    '<p class="link" id="openCfg2">Configurer les adresses</p>' +
-    '<p class="link" id="logout">Déconnexion</p>'
-
-  document.getElementById('openCfg2').addEventListener('click', renderSettings)
+    (await renderSiteBox()) +
+    `<button class="primary" id="ouvrirPanneau">Ouvrir le panneau des annonces</button>
+     <p class="muted" style="margin-top:6px">
+       Le panneau s'ouvre à côté de la page et y reste : vous voyez votre annonce
+       pendant que vous remplissez le formulaire.
+     </p>
+     <p class="link" id="openCfg2" style="margin-top:12px">Configurer les adresses</p>
+     <p class="link" id="logout">Déconnexion</p>`
 
   wireSiteBox()
-  app.querySelectorAll('button[data-target]').forEach((btn) => {
-    btn.addEventListener('click', () => startFill(btn.dataset.product, btn.dataset.target, btn))
+
+  document.getElementById('ouvrirPanneau').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id) return
+    /*
+     * Ouvert d'ici et non par un message : Chrome exige que l'appel parte du
+     * geste de l'utilisateur, et le popup en est un. Passer par le worker
+     * ajouterait un aller-retour qui ferait sortir de la fenêtre autorisée.
+     */
+    try {
+      await chrome.sidePanel.open({ tabId: tab.id })
+      window.close()
+    } catch (err) {
+      app.insertAdjacentHTML(
+        'beforeend',
+        `<p class="error">Panneau indisponible : ${err.message}</p>`,
+      )
+    }
   })
+
+  document.getElementById('openCfg2').addEventListener('click', () => renderSettings())
   document.getElementById('logout').addEventListener('click', async () => {
     await chrome.storage.local.remove('token')
     renderLogin()
   })
-}
-
-async function startFill(productId, target, btn) {
-  btn.textContent = '…'
-  try {
-    const product = await api(`/api/products/${productId}`)
-    const categories = await api(`/api/products/${productId}/category-preview`)
-    // Resolved before the map: the callback below isn't async, so it can't await.
-    const apiBase = await getApiBase()
-    await chrome.storage.local.set({
-      pendingListing: {
-        target,
-        title: product.aiTitle || product.title,
-        description: product.aiDescription || product.description,
-        price: (Number(product.price) * (1 + product.markupPercent / 100)).toFixed(2),
-        category: categories[target],
-        images: (product.images || []).map((img) => (img.startsWith('/') ? `${apiBase}${img}` : img)),
-      },
-    })
-    await chrome.tabs.create({ url: TARGETS[target].url })
-    window.close()
-  } catch (err) {
-    btn.textContent = 'Erreur'
-    console.error(err)
-  }
 }
 
 function escapeHtml(str) {
@@ -242,7 +206,7 @@ function escapeHtml(str) {
 }
 
 function start() {
-  getToken().then((token) => (token ? renderProducts() : renderLogin()))
+  getToken().then((token) => (token ? renderAccueil() : renderLogin()))
 }
 
 start()

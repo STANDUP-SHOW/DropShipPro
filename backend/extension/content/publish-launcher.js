@@ -1,12 +1,15 @@
 /**
- * "Publier avec DropShipper IA" launcher, injected on marketplace listing forms.
+ * Le bouton « Publier avec DropShipper IA », posé sur les formulaires de dépôt.
  *
- * Opens a product picker in-page; choosing one queues it and immediately runs the
- * platform's fill script, so the user never has to go back to the toolbar popup.
+ * Il n'ouvre plus de panneau dans la page. Un panneau injecté disparaît au
+ * premier changement d'écran, et un dépôt Leboncoin en fait quatre : le vendeur
+ * choisissait son annonce, passait à l'étape suivante, et tout avait disparu.
+ *
+ * Le panneau latéral de Chrome vit **à côté** de l'onglet, survit à la
+ * navigation, et laisse voir l'annonce et le formulaire en même temps.
  */
 ;(() => {
-  
-  const HOST_TO_PLATFORM = [
+  const HOTES = [
     ['vinted', 'VINTED'],
     ['leboncoin', 'LEBONCOIN'],
     ['ebay', 'EBAY'],
@@ -16,109 +19,16 @@
     ['tiktokglobalshop', 'TIKTOK_SHOP'],
     ['merchants.google', 'GOOGLE_SHOPPING'],
   ]
-  const PLATFORM = HOST_TO_PLATFORM.find(([host]) => location.hostname.includes(host))?.[1] ?? null
+  const PLATEFORME = HOTES.find(([hote]) => location.hostname.includes(hote))?.[1] ?? null
 
-  async function fetchProducts() {
-    const { token } = await chrome.storage.local.get('token')
-    if (!token) throw new Error('non-connecté')
-    return apiFetch('/api/products')
-  }
+  function monter() {
+    if (!PLATEFORME || document.getElementById('dsp-publish-btn')) return
 
-  function closePicker() {
-    document.getElementById('dsp-picker')?.remove()
-  }
-
-  async function openPicker() {
-    closePicker()
-
-    const panel = document.createElement('div')
-    panel.id = 'dsp-picker'
-    Object.assign(panel.style, {
-      position: 'fixed',
-      right: '20px',
-      bottom: '76px',
-      zIndex: '2147483646',
-      width: '330px',
-      maxHeight: '60vh',
-      overflowY: 'auto',
-      padding: '14px',
-      borderRadius: '12px',
-      background: '#1e1b4b',
-      color: '#e5e7eb',
-      font: '13px system-ui, sans-serif',
-      boxShadow: '0 10px 30px rgba(0,0,0,.5)',
-      border: '1px solid rgba(255,255,255,.12)',
-    })
-    panel.innerHTML = '<b>Choisir un produit</b><p style="color:#9ca3af">Chargement…</p>'
-    document.body.appendChild(panel)
-
-    let products
-    try {
-      products = await fetchProducts()
-    } catch (err) {
-      panel.innerHTML =
-        err.message === 'non-connecté'
-          ? '<b>DropShipper IA</b><p style="color:#f87171">Connectez-vous via l\'icône de l\'extension.</p>'
-          : `<b>DropShipper IA</b><p style="color:#f87171">${err.message}</p>`
-      return
-    }
-
-    if (!products.length) {
-      panel.innerHTML = '<b>DropShipper IA</b><p style="color:#9ca3af">Aucun produit importé.</p>'
-      return
-    }
-
-    panel.innerHTML = '<b>Choisir un produit à publier</b>'
-    for (const product of products) {
-      const row = document.createElement('button')
-      Object.assign(row.style, {
-        display: 'block',
-        width: '100%',
-        textAlign: 'left',
-        margin: '8px 0 0',
-        padding: '8px',
-        borderRadius: '8px',
-        border: '1px solid rgba(255,255,255,.12)',
-        background: 'rgba(255,255,255,.06)',
-        color: '#e5e7eb',
-        cursor: 'pointer',
-        font: '13px system-ui, sans-serif',
-      })
-      row.innerHTML = `<div style="font-weight:600">${(product.aiTitle || product.title).slice(0, 60)}</div>
-        <div style="color:#d8b4fe;font-weight:700">${Number(product.sellingPrice ?? 0).toFixed(2)} ${product.currency}</div>`
-      row.addEventListener('click', () => queueAndFill(product))
-      panel.appendChild(row)
-    }
-  }
-
-  async function queueAndFill(product) {
-    /*
-     * La charge utile vient du serveur, pas d'un assemblage fait ici.
-     *
-     * Assemblée dans le navigateur à partir des champs bruts du produit, elle
-     * est devenue fausse le jour où le filigrane est passé à l'export :
-     * `product.images` rend désormais les originaux, et l'extension serait allée
-     * poser des photos **sans marque** sur Leboncoin, Vinted et Facebook.
-     *
-     * Le serveur sait, lui, ce qui doit sortir — c'est le même chemin que pour
-     * Shopify et pour le flux catalogue.
-     */
-    const charge = await apiFetch(`/api/products/${product.id}/publish-payload`)
-
-    await chrome.storage.local.set({
-      pendingListing: { target: PLATFORM, ...charge },
-    })
-    closePicker()
-    // The platform fill script only runs at page load, so re-run it now.
-    chrome.runtime.sendMessage({ type: 'dsp-fill-now', platform: PLATFORM })
-  }
-
-  function mountButton() {
-    if (!PLATFORM || document.getElementById('dsp-publish-btn')) return
-    const button = document.createElement('button')
-    button.id = 'dsp-publish-btn'
-    button.textContent = '⚡ Publier avec DropShipper IA'
-    Object.assign(button.style, {
+    const bouton = document.createElement('button')
+    bouton.id = 'dsp-publish-btn'
+    bouton.type = 'button'
+    bouton.textContent = '⚡ Publier avec DropShipper IA'
+    Object.assign(bouton.style, {
       position: 'fixed',
       right: '20px',
       bottom: '20px',
@@ -132,10 +42,16 @@
       boxShadow: '0 8px 24px rgba(0,0,0,.35)',
       cursor: 'pointer',
     })
-    button.addEventListener('click', () => (document.getElementById('dsp-picker') ? closePicker() : openPicker()))
-    document.body.appendChild(button)
+
+    bouton.addEventListener('click', () => {
+      // Envoyé sans attendre : Chrome n'accepte l'ouverture du panneau que dans
+      // la foulée immédiate du clic, et un `await` intercalé la ferait refuser.
+      chrome.runtime.sendMessage({ type: 'dsp-open-panel' })
+    })
+
+    document.body.appendChild(bouton)
   }
 
-  mountButton()
-  new MutationObserver(mountButton).observe(document.documentElement, { childList: true, subtree: true })
+  monter()
+  new MutationObserver(monter).observe(document.documentElement, { childList: true, subtree: true })
 })()

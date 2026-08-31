@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "DropShipper IA",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "Ajoutez un produit à DropShipper IA depuis n'importe quelle boutique, et publiez-le sur vos marketplaces.",
   "permissions": [
     "storage",
     "tabs",
     "scripting",
     "notifications",
-    "tabGroups"
+    "tabGroups",
+    "sidePanel"
   ],
   "host_permissions": [
     "https://dropshippro-production.up.railway.app/*",
@@ -126,5 +127,8 @@
   ],
   "optional_host_permissions": [
     "https://*/*"
-  ]
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
 }

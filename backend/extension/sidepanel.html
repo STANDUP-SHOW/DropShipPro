@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DropShipper IA</title>
+    <style>
+      /*
+        Le panneau latéral vit à côté du formulaire de la marketplace, pas
+        par-dessus. C'est tout l'intérêt : le vendeur voit son annonce et le
+        formulaire en même temps, et le panneau survit aux changements de page
+        d'un dépôt en quatre écrans — ce qu'un panneau injecté dans la page ne
+        fait pas.
+      */
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 13px/1.45 system-ui, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 55%, #3b1163 100%);
+        background-attachment: fixed;
+        color: #e5e7eb;
+        min-height: 100vh;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px;
+        background: rgba(15, 23, 42, 0.82);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-weight: 700;
+      }
+      .brand {
+        background: linear-gradient(90deg, #f472b6, #fb923c);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      main { padding: 12px 14px 24px; }
+
+      .muted { color: #9ca3af; font-size: 11.5px; }
+      .error { color: #fca5a5; font-size: 12px; }
+
+      /* --- La recherche : trente annonces ne se parcourent pas à l'œil --- */
+      #search {
+        width: 100%;
+        padding: 7px 10px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.07);
+        color: #fff;
+        outline: none;
+      }
+      #search:focus { border-color: #c084fc; }
+
+      /* --- Une annonce dans la liste --- */
+      .card {
+        display: flex;
+        gap: 10px;
+        padding: 8px;
+        margin-bottom: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .card:hover { border-color: rgba(192, 132, 252, 0.5); }
+      .thumb {
+        width: 56px;
+        height: 56px;
+        flex: 0 0 56px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: rgba(0, 0, 0, 0.35);
+      }
+      .thumb.vide {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: #6b7280;
+      }
+      .body { min-width: 0; flex: 1; }
+      .title {
+        font-weight: 600;
+        font-size: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .price { color: #d8b4fe; font-weight: 700; font-size: 12px; margin-top: 2px; }
+      .row { display: flex; gap: 6px; margin-top: 7px; }
+
+      button {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e5e7eb;
+        border-radius: 7px;
+        padding: 5px 9px;
+        font-size: 11.5px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      button:hover { background: rgba(255, 255, 255, 0.14); }
+      button.primary {
+        border: 0;
+        background: linear-gradient(90deg, #a855f7, #ec4899);
+        color: #fff;
+        font-weight: 600;
+      }
+      button.primary:hover { filter: brightness(1.08); }
+      button.wide { width: 100%; padding: 10px; font-size: 13px; }
+      button:disabled { opacity: 0.5; cursor: default; }
+
+      /* --- L'annonce en cours, en grand --- */
+      .grande { text-align: center; }
+      .grande .photo {
+        width: 100%;
+        max-height: 220px;
+        object-fit: contain;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.3);
+      }
+      .grande h2 {
+        font-size: 15px;
+        line-height: 1.35;
+        margin: 12px 0 4px;
+        text-align: left;
+      }
+      .grande .price { font-size: 17px; text-align: left; }
+      .vignettes { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+      .vignettes img {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        object-fit: cover;
+        border: 2px solid transparent;
+        cursor: pointer;
+      }
+      .vignettes img.on { border-color: #c084fc; }
+
+      .bandeau {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 11px;
+        margin-bottom: 12px;
+        border-radius: 9px;
+        border: 1px solid rgba(240, 168, 30, 0.4);
+        background: rgba(240, 168, 30, 0.1);
+        font-size: 11.5px;
+        color: #fde68a;
+      }
+      .detail { margin-top: 12px; text-align: left; }
+      .detail h3 {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9ca3af;
+        margin: 0 0 4px;
+        font-weight: 600;
+      }
+      .detail p {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: #d1d5db;
+        max-height: 6.5em;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+      .link {
+        color: #c084fc;
+        cursor: pointer;
+        font-size: 11.5px;
+        text-align: center;
+        margin-top: 14px;
+      }
+      .link:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <header><span>⚡</span><span class="brand">DropShipper IA</span></header>
+    <main id="app"><p class="muted">Chargement…</p></main>
+    <script src="config.js"></script>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

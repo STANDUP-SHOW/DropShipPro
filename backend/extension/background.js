@@ -333,7 +333,62 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true
   }
 
+  /*
+   * Ouvre le panneau latéral sur l'onglet d'où vient la demande.
+   *
+   * Chrome exige que `sidePanel.open()` parte d'un geste de l'utilisateur, et un
+   * script de page n'a pas accès à cette API. Le clic du bouton dans la page
+   * envoie donc ce message, et le worker ouvre — c'est le seul chemin que Chrome
+   * accepte.
+   */
+  if (message?.type === 'dsp-open-panel') {
+    const tabId = message.tabId ?? sender.tab?.id
+    if (tabId === undefined) {
+      sendResponse({ ok: false, error: 'Onglet inconnu' })
+      return
+    }
+    chrome.sidePanel
+      .open({ tabId })
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }))
+    return true
+  }
+
+  /*
+   * Injecte le script de remplissage dans un onglet désigné.
+   *
+   * `dsp-fill-now` déduisait l'onglet de l'expéditeur, ce qui marche depuis une
+   * page mais pas depuis le panneau latéral : lui n'est pas un onglet, et
+   * `sender.tab` y vaut `undefined`. Le panneau passe donc l'identifiant.
+   */
+  if (message?.type === 'dsp-fill-tab') {
+    const file = FILL_SCRIPTS[message.platform]
+    if (!file || message.tabId === undefined) {
+      sendResponse({ ok: false, error: 'Plateforme ou onglet inconnu' })
+      return
+    }
+    chrome.scripting
+      .executeScript({
+        target: { tabId: message.tabId },
+        files: ['config.js', 'content/fill-helpers.js', file],
+      })
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }))
+    return true
+  }
+
   if (message?.type === 'dsp-needs-login') {
     sendResponse({ ok: true })
   }
+})
+
+/*
+ * Le panneau ne s'ouvre pas tout seul au clic sur l'icône.
+ *
+ * Le popup garde ce rôle : c'est là que le vendeur se connecte et autorise un
+ * site, deux gestes qui n'ont rien à voir avec un dépôt en cours. Le panneau
+ * s'ouvre depuis le bouton « Publier » de la page, quand il a une raison d'être.
+ */
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: false }).catch(() => {})
 })
