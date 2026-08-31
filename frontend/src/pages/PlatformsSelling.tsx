@@ -79,7 +79,7 @@ export default function PlatformsSelling() {
     <Layout>
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Store size={22} className="text-emerald-400" />
-        <span>Plateformes de vente</span>
+        <span>Market places</span>
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-gray-400">
         Où vos annonces peuvent partir. Rangées par ce que vous pouvez en faire aujourd'hui, et non

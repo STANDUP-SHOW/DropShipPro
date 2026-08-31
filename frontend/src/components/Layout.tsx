@@ -9,17 +9,49 @@ const NAV = [
   { to: '/pilote', label: 'Pilote auto', icon: Plane },
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
-  { to: '/plateformes-vente', label: 'Vente', icon: Store },
-  { to: '/categories', label: 'Catégories', icon: FolderTree },
   { to: '/messages', label: 'Messages', icon: Inbox },
-  { to: '/orders', label: 'Commandes', icon: ShoppingBag },
-  { to: '/livraisons', label: 'Livraisons', icon: Truck },
   { to: '/comptabilite', label: 'Comptabilité', icon: Calculator },
   { to: '/abonnement', label: 'Mes crédits', icon: Coins },
   { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
   { to: '/guide', label: 'Aide', icon: BookOpen },
   { to: '/mes-sites', label: 'Mes sites', icon: Store },
   { to: '/settings', label: 'Réglages', icon: SettingsIcon },
+]
+
+/**
+ * Les sections du menu, dans l'ordre du travail : on source un produit, on le
+ * met en vente, on le fait connaître.
+ *
+ * Trois blocs quasi identiques vivaient recopiés dans le rendu, ce qui rendait
+ * l'ajout d'un quatrième mécanique et l'oubli d'un détail probable. Une table,
+ * un rendu.
+ */
+const SECTIONS: Array<{
+  titre: string
+  entrees: Array<{ to: string; label: string; icon: React.ElementType }>
+}> = [
+  {
+    titre: 'Sourcing',
+    entrees: [{ to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes }],
+  },
+  {
+    titre: 'Vente',
+    entrees: [
+      // « Market places » et non « Vente » : le titre de la section dit déjà
+      // qu'on vend, et l'écran liste bien des places de marché.
+      { to: '/plateformes-vente', label: 'Market places', icon: Store },
+      { to: '/categories', label: 'Catégories', icon: FolderTree },
+      { to: '/orders', label: 'Commandes', icon: ShoppingBag },
+      { to: '/livraisons', label: 'Livraisons', icon: Truck },
+    ],
+  },
+  {
+    titre: 'Marketing',
+    entrees: [
+      { to: '/marketing', label: 'Commercialisation', icon: Megaphone },
+      { to: '/mes-pubs', label: 'Mes pubs', icon: Images },
+    ],
+  },
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -75,45 +107,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )
           })}
 
-          <div className="mt-6">
-            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-              Marketing
-            </p>
-            {[
-              { to: '/marketing', label: 'Commercialisation', icon: Megaphone },
-              { to: '/mes-pubs', label: 'Mes pubs', icon: Images },
-            ].map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                  pathname === item.to
-                    ? 'bg-purple-500/20 text-white'
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <item.icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-6">
-            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-              Sourcing
-            </p>
-            <Link
-              to="/fournisseurs"
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                pathname === '/fournisseurs'
-                  ? 'bg-purple-500/20 text-white'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <Boxes size={18} />
-              <span>Fournisseurs</span>
-            </Link>
-          </div>
+          {SECTIONS.map((section) => (
+            <div key={section.titre} className="mt-6">
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {section.titre}
+              </p>
+              {section.entrees.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                    pathname === item.to
+                      ? 'bg-purple-500/20 text-white'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <item.icon size={18} />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
 
           {rayons.length > 0 && (
             <div className="pt-3">
