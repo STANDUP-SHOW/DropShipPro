@@ -113,6 +113,28 @@ function BlocSite({
   const [copie, setCopie] = useState(false)
   const fichier = useRef<HTMLInputElement>(null)
 
+  /*
+   * Le logo d'une boutique qui n'existe pas encore.
+   *
+   * L'envoi vise `/settings/shops/:id/logo` : sans identifiant, il ne peut pas
+   * partir. Le bloc neuf affichait donc un emplacement grisé, et le vendeur
+   * devait créer la boutique, la retrouver, puis y revenir pour son logo —
+   * alors qu'il l'avait sous la main au moment de la décrire.
+   *
+   * Le fichier est donc retenu ici, avec un aperçu local, et envoyé juste après
+   * la création.
+   */
+  const [enAttente, setEnAttente] = useState<File | null>(null)
+  const [apercu, setApercu] = useState<string | null>(null)
+
+  // L'aperçu local occupe de la mémoire tant qu'on ne le libère pas.
+  useEffect(() => {
+    if (!enAttente) return setApercu(null)
+    const url = URL.createObjectURL(enAttente)
+    setApercu(url)
+    return () => URL.revokeObjectURL(url)
+  }, [enAttente])
+
   // Le filigrane : `null` veut dire « comme le compte ».
   const [actif, setActif] = useState(shop?.watermarkEnabled ?? true)
   const [texte, setTexte] = useState(shop?.watermarkText ?? '')
@@ -129,7 +151,14 @@ function BlocSite({
     setMessage(null)
     try {
       if (neuf) {
-        await api.createShop({ name: nom.trim(), platform: plateforme || undefined, sectors: rayons })
+        const creee = await api.createShop({
+          name: nom.trim(),
+          platform: plateforme || undefined,
+          sectors: rayons,
+        })
+        // Le logo choisi avant l'enregistrement part maintenant qu'il a une
+        // boutique où aller.
+        if (enAttente) await api.uploadShopLogo(creee.id, enAttente)
       } else {
         await api.renameShop(shop!.id, {
           name: nom.trim(),
@@ -176,14 +205,12 @@ function BlocSite({
       <div className="flex items-start gap-4">
         <button
           type="button"
-          onClick={() => (shop ? fichier.current?.click() : undefined)}
-          title={shop ? 'Changer le logo' : "Enregistrez d'abord la boutique"}
-          className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/30 ${
-            shop ? 'hover:border-purple-400/50' : 'opacity-50'
-          }`}
+          onClick={() => fichier.current?.click()}
+          title="Logo de la boutique"
+          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/30 transition hover:border-purple-400/50"
         >
-          {logo ? (
-            <img src={assetUrl(logo)} alt="" className="h-full w-full object-contain" />
+          {apercu || logo ? (
+            <img src={apercu ?? assetUrl(logo!)} alt="" className="h-full w-full object-contain" />
           ) : (
             <ImagePlus size={20} className="text-gray-500" />
           )}
@@ -195,7 +222,9 @@ function BlocSite({
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0]
-            if (f) deposerLogo(f)
+            // Une boutique existante reçoit son logo tout de suite ; une
+            // boutique en cours de création le garde jusqu'à l'enregistrement.
+            if (f) (shop ? deposerLogo(f) : setEnAttente(f))
             e.target.value = ''
           }}
         />
@@ -408,7 +437,11 @@ function BlocSite({
         ) : (
           <span className="ml-auto flex items-center gap-1.5 text-[11px] text-gray-500">
             <Store size={12} />
-            <span>Le logo et le filigrane se règlent une fois la boutique créée.</span>
+            <span>
+              {enAttente
+                ? 'Le logo partira avec la création.'
+                : 'Le filigrane se règle une fois la boutique créée.'}
+            </span>
           </span>
         )}
       </div>
