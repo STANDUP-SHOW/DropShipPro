@@ -45,8 +45,10 @@ docs/        Documentation de l'API catalogue
 ## Décisions à ne pas refaire
 
 - **Node, pas Python.** Python n'est pas installé sur la machine ; c'est pour ça
-  que le backend n'est pas en FastAPI. La skill `ui-ux-pro-max` est installée mais
-  inutilisable pour la même raison.
+  que le backend n'est pas en FastAPI. La skill `ui-ux-pro-max` a un script de
+  recherche en Python, **mais sa valeur est dans ses CSV** : 192 palettes déjà
+  écrites en jetons sémantiques, 74 appariements de polices, 84 styles. Ils se
+  lisent très bien en Node, et c'est ce que fait `build-themes.cjs`.
 - **Pas de connexion automatique aux marketplaces.** Rejouer des mots de passe
   viole leurs CGU et fait suspendre les comptes vendeur. L'extension détecte la
   session et attend que l'utilisateur se connecte.
