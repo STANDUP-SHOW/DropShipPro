@@ -136,9 +136,25 @@ async function toCatalogItem(product: Product, category: string | null) {
     description: product.aiDescription || product.description,
     price: Number(product.sellingPrice),
     currency: product.currency,
-    // Le flux sert les photos marquees : c est une sortie de DropShipper au
-    // meme titre qu une publication, et le filigrane se pose au depart.
-    images: await imagesPourExport(product),
+    /*
+     * Le flux sert les photos marquees, et **en adresses absolues**.
+     *
+     * Le filigrane se pose au depart : c est une sortie de DropShipper au meme
+     * titre qu une publication.
+     *
+     * Mais elles partaient en `/storage/…`, c est-a-dire en chemins qui ne
+     * veulent rien dire hors de ce serveur. Une vitrine hebergee ailleurs ne
+     * pouvait donc afficher aucune photo -- sauf celles des produits recents,
+     * dont l adresse est celle du fournisseur et se trouve deja absolue. D ou
+     * le symptome signale le 02/09/2026 : « les anciens produits n ont pas de
+     * photos, les nouveaux oui ».
+     *
+     * La vitrine d OGGUS n en souffrait pas parce qu elle prefixe elle-meme,
+     * avec l adresse de notre API ecrite en dur dans son code. C est justement
+     * ce qu un flux ne doit pas demander a ses lecteurs : chaque nouvelle
+     * boutique aurait eu a redecouvrir la regle, et a la coder.
+     */
+    images: (await imagesPourExport(product)).map(absoluteUrl),
     variants: product.variants ?? null,
     bulletPoints: product.bulletPoints ?? [],
     attributes: product.attributes ?? {},
@@ -303,7 +319,9 @@ publicRouter.get('/print/:shopKey/products', async (req, res) => {
         name: f.name,
         description: f.description,
         category: f.category,
-        images: Array.isArray(f.images) ? f.images : [],
+        // Absolues, comme le catalogue : une vitrine hebergee ailleurs ne sait
+        // pas ou nos chemins commencent.
+        images: (Array.isArray(f.images) ? (f.images as string[]) : []).map(absoluteUrl),
         dimensions: Array.isArray(f.dimensions) ? f.dimensions : [],
         aPartirDe: prixDAppel(rows, f.marginPercent),
         // Les prix de vente, marge comprise. Le prix fournisseur ne sort jamais
