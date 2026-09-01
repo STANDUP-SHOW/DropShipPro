@@ -661,30 +661,31 @@ export const SUPPLIERS: SupplierInfo[] = [
   },
   {
     /*
-     * Pixartprinting : l'imprimeur, pas le fournisseur de produits.
+     * Pixartprinting : quatre millions de produits, et une question ouverte.
      *
      * Vingt-cinq ans de web-to-print, une usine à Quarto d'Altino près de
-     * Venise, présent dans treize pays et livrant dans plus de cinquante. C'est
-     * l'imprimeur de référence des professionnels européens.
+     * Venise, treize pays, livraison dans plus de cinquante. C'est l'imprimeur
+     * de référence des professionnels européens.
      *
-     * **Mais il imprime ce que vous lui donnez, il ne vend pas de catalogue.**
-     * Sa place ici est celle de votre propre matériel : cartons d'expédition à
-     * votre marque, cartes de remerciement glissées dans le colis, étiquettes,
-     * stickers. C'est ce qui fait qu'un colis venu de Chine ressemble à une
-     * boutique et non à une revente.
+     * Vérifié sur leur site le 01/09/2026 : ils annoncent bien « plus de
+     * 4 millions de produits », et ils publient une section « Solutions API »
+     * ainsi qu'un programme « pour les professionnels, pour la vente au détail
+     * et le franchisage ».
      *
-     * Ce que je n'ai pas pu vérifier, et qui déciderait de tout pour du
-     * dropshipping : l'existence d'un programme revendeur avec expédition en
-     * marque blanche. Sans elle, on ne peut pas livrer directement un acheteur.
+     * **Ce qui reste inconnu décide pourtant de tout** : l'expédition neutre. La
+     * page d'accueil n'en dit rien, les pages d'API répondent 404 sans compte, et
+     * aucune source publique ne la confirme. Sans elle, le colis arrive chez
+     * l'acheteur au nom de l'imprimeur — et c'est la fin du dropshipping. La
+     * fiche pose donc la question au lieu de trancher.
      */
     id: 'pixartprinting',
     label: 'Pixartprinting',
     domain: 'pixartprinting.fr',
     origine: 'Italie, usine près de Venise',
     importPath: 'les-deux',
-    quoi: "Imprimeur en ligne européen : packaging, étiquettes, cartes, flyers, affiches, textile. Vingt-cinq ans de métier, livraison dans plus de cinquante pays.",
+    quoi: "Imprimeur en ligne européen annonçant plus de quatre millions de produits personnalisables : packaging, étiquettes, cartes, flyers, panneaux, textile, gadgets. Vingt-cinq ans de métier, livraison dans plus de cinquante pays.",
     attention:
-      "**Ce n'est pas un catalogue de produits à revendre** : il imprime ce que vous lui fournissez. Sa vraie place est votre propre matériel — cartons à votre marque, cartes glissées dans le colis, étiquettes — ce qui fait la différence entre une boutique et une revente visible. Pour imprimer à la demande et livrer directement l'acheteur, regardez plutôt Gelato : je n'ai pas trouvé de programme revendeur en marque blanche chez Pixartprinting.",
+      "Les quatre millions comptent les configurations — format, support, finition, quantité — et non quatre millions d'articles distincts : c'est un imprimeur, pas un catalogue à revendre. Il publie une offre API et un programme professionnel, mais **l'expédition neutre n'est confirmée nulle part** : demandez-la avant tout, car sans elle le colis arrive à leur nom chez votre acheteur. Sa place la plus sûre reste votre propre matériel de marque — cartons, étiquettes, cartes glissées dans le colis.",
     color: '#e4002b',
   },
 ]
