@@ -549,6 +549,48 @@ export const SUPPLIERS: SupplierInfo[] = [
       "Compte revendeur professionnel exigé, et l'essentiel de sa logistique est en Italie et en Espagne. Intéressant pour ces marchés, moins pour une expédition depuis la France.",
     color: '#c8102e',
   },
+  {
+    /*
+     * Syncee n'est pas un fournisseur : c'est un annuaire de fournisseurs.
+     *
+     * Douze mille marques des États-Unis, du Canada, du Royaume-Uni, d'Australie
+     * et surtout d'Europe, réunies derrière une seule inscription. Pour un
+     * vendeur français, c'est la façon la plus rapide de trouver du stock
+     * européen sans ouvrir dix comptes chez dix grossistes.
+     */
+    id: 'syncee',
+    label: 'Syncee',
+    domain: 'syncee.com',
+    origine: 'Europe, Royaume-Uni, Amérique du Nord, Australie',
+    importPath: 'les-deux',
+    quoi: "Un annuaire de plus de douze mille marques en gros et en dropshipping, filtrables par pays d'expédition. Une seule inscription donne accès à tous ses fournisseurs.",
+    attention:
+      "Son intérêt est l'expédition depuis l'Europe : filtrez sur ce critère, sinon vous retombez sur des délais chinois avec une commission en plus. L'abonnement est mensuel et compte le nombre de références synchronisées — au-delà de quelques centaines de produits, il pèse sur la marge.",
+    color: '#0f9d58',
+  },
+  {
+    /*
+     * Busyx Pro : entrepôt français, catalogue adulte.
+     *
+     * L'atout est réel et rare — Avignon, expédition le jour même en Colissimo,
+     * aucune commande minimum. Sur un marché où « livré en trois semaines » est
+     * la norme, c'est un argument de vente à lui seul.
+     *
+     * Mais la contrainte l'est tout autant, et elle ne se voit pas avant d'être
+     * sanctionné : **presque aucune place de marché n'accepte ces produits**, et
+     * aucune régie n'accepte de les mettre en publicité. Un vendeur qui importe
+     * ce catalogue sans le savoir fait suspendre ses comptes.
+     */
+    id: 'busyx-pro',
+    label: 'Busyx Pro',
+    domain: 'busyx-pro.com',
+    origine: 'France, entrepôt à Avignon',
+    importPath: 'les-deux',
+    quoi: "Grossiste français pour boutiques adultes : lingerie, jouets intimes, cosmétiques érotiques, massage. Distributeur exclusif de plusieurs marques françaises.",
+    attention:
+      "**Ces produits sont interdits ou restreints sur presque toutes les destinations** : Amazon, Vinted, Leboncoin, Facebook, Instagram, Google Shopping et TikTok Shop les refusent, et aucune régie publicitaire ne les accepte. Ils ne se vendent que sur votre propre site — et la publicité passe par le référencement, jamais par une annonce payante. L'entrepôt d'Avignon, lui, expédie le jour même en Colissimo, sans commande minimum : c'est ce qui le rend intéressant.",
+    color: '#d81b60',
+  },
 ]
 
 export function findSupplier(id: string) {

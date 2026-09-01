@@ -239,6 +239,23 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
   },
   {
     /*
+     * Bol, comme Allegro, est une destination de vente et non un fournisseur.
+     *
+     * Onze millions de clients actifs aux Pays-Bas et en Belgique, ouverte aux
+     * vendeurs tiers depuis 2011, et une API vendeur documentée. Le marché
+     * néerlandophone est proche, solvable, et très peu travaillé depuis la
+     * France.
+     */
+    id: 'BOL',
+    label: 'Bol',
+    automatable: true,
+    sellUrl: 'https://partnerplatform.bol.com/',
+    note: "Première place de marché des Pays-Bas et de Belgique, avec une API vendeur (Retailer API).",
+    warning:
+      "Les annonces, le service client et les retours se font en néerlandais. Un numéro de TVA européen et un compte bancaire SEPA sont exigés, et Bol impose ses propres délais de livraison — les tenir depuis un fournisseur chinois est impossible.",
+  },
+  {
+    /*
      * Allegro figurait dans une liste de « fournisseurs » relevée sur un forum.
      * C'en est l'inverse : la première place de marché de Pologne, quarante
      * millions d'acheteurs, et très peu de vendeurs français dessus.

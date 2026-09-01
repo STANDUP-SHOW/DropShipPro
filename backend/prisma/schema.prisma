@@ -30,6 +30,7 @@ enum Platform {
   SHOPIFY
   INSTAGRAM
   ALLEGRO
+  BOL
 }
 
 enum ProductStatus {
