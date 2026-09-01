@@ -1,402 +1,215 @@
-# Mémo de reprise — 25 août 2026 (mis à jour en fin de journée)
+# Mémo de reprise — 1er septembre 2026
 
 Ce fichier existe pour qu'une conversation puisse être vidée sans rien perdre.
-Il ne répète pas `CLAUDE.md` : il dit **où on en est**, **ce qui bloque**, et
-**ce qui reste à faire**. À lire en entier avant de reprendre.
+Il ne répète pas `CLAUDE.md`, qui garde les **règles durables** et les **pièges
+vérifiés** : celui-ci dit **où on en est**, **ce qui bloque**, et **ce qui reste
+à faire**. À lire en entier avant de reprendre.
+
+---
+
+## La règle qui compte plus que le reste
+
+**Rien n'est « fait » tant que ça n'a pas été constaté.** Compilé, commité et
+poussé ne veut pas dire vu fonctionner. Ce mémo distingue partout les deux, et
+la prochaine session doit continuer de le faire — c'est la seule protection
+contre une liste de fonctions qui grossit pendant que l'application recule.
 
 ---
 
 ## Ce qui bloque, à traiter en premier
 
-### 1. Deux pannes corrigées le 25/08/2026, **à constater en production**
+### 1. Les variantes ne sont pas importées — non diagnostiqué
 
-Le code est écrit, compilé et commité ; **rien n'est encore vérifié sur
-www.drop-shipper.fr ni sur la machine qui bloquait**. Ne pas rayer ces deux
-lignes avant de l'avoir vu.
+Signalé par le client le 01/09/2026. **L'édition manuelle est réglée** (voir plus
+bas), mais la cause du non-import n'a pas été trouvée. Le banc de l'extension
+relève correctement `{"Taille du bracelet":[…],"Couleur":[…]}` sur sa page de
+contrôle, donc le relevé fonctionne en laboratoire.
 
-**a. « removeChild » sur la fiche d'une annonce.** Cause trouvée : dans
-`ProductDetail.tsx`, le libellé de catégorie s'écrivait
-`Catégorie{product.sourceCategory && (…)}`. Une `sourceCategory` vide rend la
-chaîne vide, donc un nœud de texte vide collé à du texte, et React en perd la
-trace. Le libellé est désormais **une seule chaîne**, et les conditions qui
-peuvent valoir une chaîne vide (`externalUrl`, `error`, `message`, `photoError`,
-`sourceSite`, dans la fiche et dans `PublishDialog`) passent par un ternaire qui
-rend `null`. **Le motif reste présent ailleurs dans l'application** : chaque
-`{chaîne && …}` posé à côté de texte est un candidat.
+**Ce qu'il faut pour avancer : une vraie adresse de produit qui échoue.**
+Chercher la cause en lisant le code n'a rien donné, et continuer à le faire est
+du temps perdu. Demander l'URL, rejouer l'import, regarder ce que le serveur
+reçoit réellement.
 
-**b. L'import par l'extension bloquait à l'étape des images.** **La vraie cause,
-trouvée au deuxième essai : `NOT_A_PHOTO is not defined`.** La constante était
-utilisée trois fois dans `capture.js` — pour compter les hôtes, pour scorer, pour
-filtrer — et définie nulle part ; `OFF_TOPIC` non plus. Introduites ainsi par
-`572b3ff`, jamais définies depuis. Chaque import qui atteignait le classement des
-images levait une `ReferenceError` et s'arrêtait là, sur **tous** les sites. Rien
-à voir avec une machine lente.
+Fichiers concernés : `services/aiEnhancer.ts` (`extractVariants`),
+`services/variantRepair.ts`, `extension/content/capture.js`.
 
-Les deux constantes sont écrites et éprouvées sur vingt-six adresses réelles.
-`NOT_A_PHOTO` écarte le mobilier de page (icônes, logos, pixels, vignettes) ;
-`OFF_TOPIC` pénalise sans exclure les photos de recommandation.
+### 2. Le compteur de la fenêtre « Diffuser », bloqué à 0
 
-Le premier essai avait corrigé, lui, un vrai défaut mais pas celui-là : un seul
-`Promise.all` lançait jusqu'à un millier de téléchargements d'images d'un coup,
-là où Chrome n'ouvre que six connexions par hôte. Remplacé par une file de douze,
-budget de trente secondes, bitmap libéré après mesure. Ça reste utile, ça ne
-débloquait rien.
+Signalé, **non reproduit** en lisant le code. La fenêtre a été déplacée dans un
+portail `document.body` avec `type="button"` explicite — une barre collante ou un
+ancêtre transformé pouvait intercepter les clics. **À reconfirmer sur
+www.drop-shipper.fr**, pas en local.
 
-**La leçon, et le garde-fou.** Le contrôle de `CLAUDE.md` ne validait que la
-syntaxe : un identifiant inexistant compile parfaitement. `extension/check.cjs`
-le remplace et fait trois passes — syntaxe, constantes utilisées mais jamais
-définies, filtres de photos confrontés à des adresses réelles. Vérifié : passé
-sur la version fautive, il signale `NOT_A_PHOTO` et `OFF_TOPIC`.
+### 3. Ce qui est écrit mais n'a jamais tourné en vrai
 
-```bash
-cd backend && node extension/check.cjs
-```
+Par ordre de risque :
 
-Pour constater : recharger l'extension en Mode développeur sur la machine qui
-bloquait, puis importer. Regarder la console du **service worker**, pas celle de
-la page.
+- **Shopify** au-delà du socle : le code de publication complète (catégorie
+  taxonomique, collections, métachamps, variantes en masse) est compilé, jamais
+  exécuté contre une vraie boutique. Il faut un jeton `shpat_` réel.
+- **Meta** (`services/socialMeta.ts`) : jamais confronté au vrai Meta. Il manque
+  l'app, la vérification d'entreprise et l'App Review.
+- **Zernio** (`services/socialGateway.ts`) : jamais confronté au vrai service.
+  Pas de clé, et le droit de marque blanche multi-clients n'est pas confirmé.
+  De toute façon supplanté par Meta natif — 6 $/mois et par compte raccordé
+  couraient sur les vendeurs dormants.
+- **Tous les connecteurs fournisseurs** : éprouvés contre de faux serveurs
+  (`check-fournisseurs.ts`, `check-aliexpress.ts`, `check-refs.ts`), jamais
+  contre les vrais.
+- **Le remplissage Leboncoin** : jamais vu aller au bout des quatre écrans.
+- **La vitrine OGGUS** (`oguss-flux-boutique`, dépôt séparé) : le lecteur de flux
+  a été corrigé et un back-office écrit, mais le projet est en Bun et
+  `node_modules` est absent — **jamais construit**.
 
-### 2. ~~R2 refuse l'écriture~~ **réglé le 25/08/2026**
+### 4. `RESEND_API_KEY` absente
 
-Le compartiment est dans la **juridiction européenne** (« photos de droppost |
-UE »). R2 exige alors l'adresse `<compte>.eu.r2.cloudflarestorage.com`, et
-répond « Access Denied » — et non « compartiment introuvable » — quand on vise
-l'adresse standard. Le jeton était valide depuis le début.
-
-`R2_JURISDICTION=eu` est posé dans Railway. **Constaté sur
-`/api/health/services` : `stockage: r2`, `ok: true`, aucune alerte.**
-
-Le blocage cassait trois choses ; elles sont donc débloquées mais **pas encore
-constatées une par une** : le filigrane (qui retombait en silence sur la photo
-d'origine du fournisseur), les agents photo et publicité, et tout ce qui écrira
-des fichiers ensuite.
-
-À savoir pour la prochaine fois : le contrôle écrit sous le préfixe
-`generated/`, exactement là où l'application écrit — une première version
-testait un préfixe inutilisé et affichait un vert trompeur. Et l'alerte donne
-maintenant **l'hôte et le compartiment réellement visés**, pour qu'un « Access
-Denied » ne renvoie plus relire les variables de Railway.
-
-### 3. Génération d'images : jamais vue fonctionner
-
-`GOOGLE_AI_API_KEY` est en place et acceptée (`images: ok`). Le modèle est
-appelé, et l'enregistrement du résultat ne bute plus sur R2. **Rien ne prouve
-encore qu'une image sort correctement** — reste à faire tourner un agent photo
-pour de vrai et à regarder l'image produite. C'est désormais possible.
-
-### 4. ~~Deux secrets ont circulé en clair~~ **fait le 24/08/2026**
-
-Le jeton R2 et la clé Google ont été révoqués et régénérés, puis reposés dans
-Railway. Rien n'était à changer dans le code.
+Sans elle, **aucun email ne part réellement** : ni vérification d'adresse, ni mot
+de passe oublié. Le code est bon, il lui manque la clé.
 
 ---
 
-## Décisions prises, à ne pas refaire
+## Ce qui a été fait le 01/09/2026
 
-- **Modèle d'image : `gemini-3.1-flash-lite-image`** (Nano Banana 2 Lite), pas
-  Pro. 0,0336 $ l'image contre 0,134 $ : au tarif Pro, **les huit paquets
-  d'images se seraient vendus à perte**, jusqu'à 2 766 € sur le plus gros.
-  Réglable par `GOOGLE_IMAGE_MODEL` sans redéploiement.
-- **Grille images validée** : 100→10 €, 250→22, 500→40, 1 000→70, 2 500→160,
-  5 000→290, 10 000→400, 25 000→800. Marges 68 % à 20 %, **sauf le dernier
-  palier à 1 %** — 4,20 € de bénéfice sur 800 €, aucune marge de sécurité si
-  Google augmente. Décision assumée, signalée dans le code.
-- **Publicités : tarif ads = tarif photo × 4**, l'agent rend **2 propositions**,
-  et la grille **s'arrête à 250 ads**.
-- **Chefs de rayon en abonnement** : 1 €/jour, 5 €/semaine, 15 €/mois, avec
-  **24 h offertes à l'embauche**. Un abonnement expiré arrête l'agent mais
-  conserve ses trouvailles.
-- **Le pilote automatique ne publie que sur les destinations à vraie API.**
-  Vinted, Leboncoin et Facebook exigent le clic du vendeur : publier à sa place
-  ferait suspendre son compte.
-- **Aucun scraping d'Amazon, de Cdiscount, de la bibliothèque publicitaire Meta
-  ni des boutiques concurrentes.** Refusé et à garder refusé.
-- **Jamais d'identifiants marketplace confiés à un agent tiers.** Un agent
-  extérieur l'a demandé ; c'est non.
+Tout est poussé sur `main`. Rien n'est constaté en production.
 
----
+**`9c6cadf` — variantes et état du produit.**
+`components/VariantEditor.tsx` : dix dimensions proposées (Couleur, Taille,
+Pointure, Capacité, Modèle, Longueur, Puissance, Prise, Matière, Contenance)
+avec leurs valeurs suggérées, pastilles retirables, bouton `+`. Le bug
+d'affichage venait de `defaultValue` + `onBlur` : React ne réécrit jamais un
+champ après son montage, donc renommer une dimension faisait revenir les
+anciennes valeurs. Tout est contrôlé désormais.
+`services/productCondition.ts` : trois états (neuf / reconditionné / occasion),
+traduits à la publication — « Très bon état » chez Leboncoin, « Neuf sans
+étiquette » chez Vinted, `refurbished` dans les flux Google et Meta. L'extension
+cochait « Neuf » d'office, ce qui est un motif de retrait dès qu'on revend du
+reconditionné.
 
-## Deux questions posées, deux réponses établies
-
-### Les clés de dépôt ne mettent en commun aucun agent
-
-Question : « nous serons nombreux à utiliser DropShipper, donc les clés de dépôt
-créent-elles un répertoire où tous les agents de tout le monde sont ensemble ? »
-
-**Non.** Vérifié dans le code :
-
-- la clé est stockée en SHA-256, jamais relisible, et porte un `userId` ;
-- `middleware/apiKey.ts` résout la clé vers **ce seul compte** et pose
-  `req.userId` ;
-- les **dix écritures** de `routes/agent.ts` utilisent `userId: req.userId!` —
-  aucune ne lit un identifiant fourni dans le corps de la requête ;
-- la lecture est filtrée pareil : un vendeur ne voit que ses opportunités, ses
-  signaux, ses rapports.
-
-Deux vendeurs qui brancheraient le même agent base44 ne verraient donc jamais
-les trouvailles l'un de l'autre. **Aucun répertoire commun n'existe.**
-
-### Ce que coûte un « avis sur un produit »
-
-Recherche web facturée 10 $ les mille, plus la lecture des résultats par Sonnet
-(3 $/M en entrée, 15 $/M en sortie) :
-
-| Profondeur | Coût unitaire | À 10 000 par jour |
-|---|---|---|
-| 3 recherches | 0,094 € | 938 €/jour — **28 000 €/mois** |
-| 5 recherches | 0,150 € | 1 495 €/jour — **45 000 €/mois** |
-| 8 recherches | 0,239 € | 2 392 €/jour — **72 000 €/mois** |
-
-Ce qu'un crédit rapporte : **0,25 €** au pack 5 €, **0,125 €** au pack 25 €,
-**0,08 €** au pack 100 €.
-
-**Un avis à 1 crédit se vendrait donc à perte** sur les deux plus gros paquets.
-**Décision retenue : 3 crédits l'avis, 5 recherches au maximum** — 0,24 €
-encaissés au pire pack contre 0,15 € de coût, soit 38 % de marge partout. Un
-avis déjà rendu sur la même URL doit être **resservi sans repayer** pendant
-quelques jours : c'est le garde-fou qui empêche la facture de tripler sur un
-vendeur indécis.
+**`27a474c` puis `c7875e8` — la boutique d'imprimerie, un autre projet.**
+Section « Autorisation spéciale » (code `123456`, `BETA_CODE`),
+`PrintProduct` en base, `services/printPricing.ts`, `routes/beta.ts`, flux
+`/api/public/print/:shopKey/products`, et la vitrine autonome **Print34**
+(`storefront-imprimerie/`). **Le client a explicitement mis ce sujet de côté** :
+c'est un projet à part, sans doute une boutique isolée. Ne pas y revenir sans
+qu'il le demande. Tout est décrit dans `docs/boutique-imprimerie.md`.
 
 ---
 
 ## Ce qui reste demandé et pas encore fait
 
-Mis à jour le 25/08/2026 au soir. Ce qui est barré a été livré et poussé ;
-**rien de tout cela n a été constaté en production** — c est le travail de la
-prochaine session.
+Par ordre de ce qui a été demandé le plus récemment.
 
-1. ~~**Info sur un produit**~~ **fait.** Onglet dans chaque chef de rayon :
-   coller une URL, avis en trois volets (fournisseurs, réseaux, places de
-   marché). 3 crédits, 5 recherches, cache par adresse pendant une semaine.
-2. **Clé de dépôt** — *repoussé à la demande du client* : le but est que les
-   vendeurs consomment nos agents, pas qu ils branchent les leurs.
-3. ~~**Structure complète d un chef de rayon**~~ **fait.** Produits gagnants ·
-   Info sur un produit · Fournisseurs · Réseaux · Places de marché · **Ses
-   ventes** (chiffre, marge et commandes par plateforme, plus l état en ligne de
-   chaque annonce du rayon) · Messagerie.
-4. ~~**Page Mes marketplaces**~~ **fait, en deux pages** comme demandé :
-   `/plateformes-acquisition` (16 fournisseurs) et `/plateformes-vente` (les 21
-   destinations, rangées par ce qu on peut en faire). Logos depuis les 742
-   fichiers, pastille typographique pour les marques absentes.
-5. ~~**Pages SEO par plateforme**~~ **déjà en ligne** avant cette session.
-6. ~~**Page API Links**~~ **fait** : `/api-links` rassemble les clés de place de
-   marché, les comptes de régie publicitaire et les clés de dépôt.
-7. ~~**Refonte de Mon compte**~~ **fait** : « Mes crédits », trois blocs, prix de
-   chaque agent, bloc noir Transparence crédits IA.
-8. **Réglages** — *partiellement fait*. Le **filigrane** est réglable pour de
-   vrai (case à cocher, logo PNG/SVG/JPEG/WebP, coin sur une grille de neuf,
-   intensité, taille ; par défaut en bas à droite à 100 %), et le bloc Sécurité
-   existait déjà. **Restent** : les blocs plateformes fournisseurs et flux
-   automatiques, et le repli du bloc des clés.
-9. ~~**Comptabilité et SAV**~~ **fait**, sauf les tickets internes :
-   `/comptabilite` donne le chiffre, le coût et la marge mois par mois et
-   plateforme par plateforme, les remboursements et les litiges ouverts. Les
-   **tickets internes** ne sont pas écrits ; les litiges passent par les
-   conversations acheteurs.
-10. ~~**Messagerie type boîte mail**~~ **fait** : filtre par plateforme, tri par
-    date, isolement des non-lus, archiver, marquer non lu.
-11. ~~**Renommages**~~ **fait** : Olivier, « Mes crédits ».
-
-**Ajouté en cours de route et non terminé** : le **relevé des campagnes
-publicitaires**. Les comptes de régie se relient et sont conservés, mais aucun
-connecteur ne va lire les chiffres. Le client a raison sur le principe : avec le
-jeton du vendeur, les API de lecture de Meta, Google Ads et TikTok sont
-accessibles sans que nous ayons notre propre application validée. C est un
-connecteur par régie, à écrire.
+1. **La page d'un rayon, enrichie.** Demandé et jamais livré : articles
+   dépliables avec aperçu de l'annonce au survol, nombre de ventes, nombre de
+   publicités, chiffre d'affaires du rayon, places de marché où les produits
+   sont en vente, statistiques d'efficacité, et sélection cliquable pour lancer
+   une analyse de marché. Le bloc « Agents chefs de rayons » en bas de `/rayons`
+   n'est pas fait non plus.
+2. **Le tableau de bord en glassmorphism**, et une **animation de cerveau IA en
+   boucle** à un endroit précis. Le client a dit « on fera ça après » ; il avait
+   demandé quel format m'arrange (SVG monté, aperçus JPG ; vidéo ou GIF pour
+   l'animation). **La réponse n'a jamais été donnée** — la donner avant de
+   commencer.
+3. **Le relevé des campagnes publicitaires.** Les comptes de régie se relient et
+   sont conservés, mais aucun connecteur ne va lire les chiffres. Avec le jeton
+   du vendeur, les API de lecture de Meta, Google Ads et TikTok sont accessibles
+   sans notre propre application validée. C'est un connecteur par régie.
+4. **Une veille de disponibilité** des produits sources — proposée, jamais
+   écrite.
+5. **Le mode d'emploi** décrit un fonctionnement qui n'est plus le nôtre. À
+   reprendre entièrement : agents, mode automatique, publication par extension,
+   par API, par flux.
+6. **Gestion fournisseur** : le client a demandé de la retirer pour l'instant.
+   À rouvrir quand les API fournisseurs seront branchées — commandes, factures,
+   chiffre d'affaires par fournisseur.
+7. **Sélection de produits gagnants via compte affilié** (type AliExpress), pour
+   proposer une sélection aux utilisateurs.
 
 ---
 
-## Ce qui a été livré récemment (ne pas refaire)
+## Ce que le client doit faire lui-même
 
-- **Le Comptable (Gérard)**, compris dans l'abonnement, et **L'Avocat (Maître
-  Doré)**, 15 €/mois — `services/agentRoster.ts`, `services/supportChat.ts`.
-  Tous deux **cherchent sur le web avant de répondre** (`web_search`, 4 requêtes
-  au plus, sources officielles citées avec leur date). C'est une correction :
-  le comptable annonçait de mémoire un seuil de TVA faux, puis, après une
-  première rustine trop brutale, niait l'existence de la franchise. Vérifié en
-  production, la troisième réponse était juste.
-- Chaque carte d'agent affiche **son prix et ses limites** (`pages/Agents.tsx`).
-- L'adresse R2 tient compte de la juridiction (`lib/storage.ts`).
-- Le catalogue de catégories couvre **les quinze rayons**, plus seulement la
-  mode homme.
+Rien de tout cela ne peut être fait depuis le code.
 
----
-
-## Le cap donné le 25/08/2026 au soir — acquisition et diffusion par API
-
-Demandé après lecture des rapports de `C:\Users\maxma\Downloads\CLAUDE-CODE-INFORMATIONS`
-(les deux derniers : `RESUME_EXECUTIF.md` et `rapport_dropshipping_platforms.html`,
-sur DSers, Syncee, Koongo et Channable). **Rien de cette section n'est écrit à ce
-jour, sauf le point 1.**
-
-Ce que disent les rapports, et qui change la direction : les quatre plateformes
-étudiées **n'utilisent pas de scraping**. Elles passent par l'**API officielle**
-du fournisseur — c'est explicitement ce que fait DSers avec AliExpress — parce
-que c'est plus fiable, temps réel, et sans risque de bannissement. Notre
-extension reste indispensable là où aucune API n'existe, mais elle ne doit plus
-être le seul chemin.
-
-### 1. La fenêtre « Diffuser », rangée par mode de diffusion
-
-Quand le vendeur clique sur Publier, la fenêtre présente **ses cases à cocher
-dans cet ordre**, chaque groupe séparé :
-
-1. **Mes boutiques**, nommées une par une — `boutique-machin.fr`,
-   `boutique-machin.com`. C'est pour ça que **le vendeur doit nommer ses
-   boutiques** au moment de les ajouter.
-2. **Les boutiques à flux** — Google, Facebook, TikTok…
-3. **Les boutiques à API**.
-4. **Les boutiques assistées par extension**.
-5. **En bas, celles où il ne peut pas diffuser**, et pourquoi.
-
-Puis : « **Votre boutique n'est pas dans la liste ? Ajoutez-la** », qui mène à
-`/plateformes-vente`, l'annuaire complet avec logos, encadrés cliquables et
-pop-up d'information par plateforme.
-
-### 2. Deux pages de raccordement, distinctes
-
-- **API Connect** — relier les **sites et places de marché** où l'on vend.
-- **API Sourcing Connect** — relier DropShipper **aux fournisseurs**, et les
-  fournisseurs à DropShipper. C'est ce qui ouvrira le reste : commande
-  automatique, stock temps réel, suivi.
-
-### 3. Acquisition d'une annonce par API officielle du fournisseur
-
-Une page qui lui est consacrée, à côté de l'import par extension et de l'import
-par adresse. C'est la troisième voie d'acquisition, et la plus sûre.
-
-### 4. Le mapping, et l'agent qui en a la charge
-
-Le **mappage des catégories vers la plateforme de destination** est un chantier à
-part entière, à confier à un agent. Il existe déjà en partie
-(`categoryMapping.ts`, `categorySectors.ts`) mais doit devenir un poste tenu.
-
-### 5. Gestion fournisseur, dans le menu
-
-Un **agent de liaison inter-plateforme** : notre lien avec les plateformes
-fournisseurs, avec sa messagerie et de quoi **commander les produits en face**.
-La rubrique « Gestion fournisseur » réunira commandes, factures, chiffre
-d'affaires fournisseur. À faire quand les API seront branchées.
-
-### 6. Sélection de produits gagnants via compte affilié
-
-Le client ouvre des comptes affiliés (type AliExpress) pour obtenir des **API de
-revendeur**, et proposer une sélection de *mining products* aux utilisateurs.
-
-### 7. Le mode d'emploi à refaire
-
-Il décrit un fonctionnement qui n'est plus le nôtre. À reprendre entièrement :
-agents, mode automatique, publication par extension, publication par API,
-publication par flux.
-
-**La chaîne complète visée**, telle qu'énoncée : acquisition par extension, par
-API, par corporate → transformation IA du titre, de la description, du SEO et
-des images → mappage des catégories par destination → agent de contrôle →
-comptable, avocat → agent de liaison fournisseur.
+- **`RESEND_API_KEY`** dans les variables Railway. Sans elle, aucun email.
+- **Un jeton Shopify `shpat_`** depuis admin.shopify.com (Paramètres ›
+  Applications et canaux de vente › Développer des applications › API Admin).
+  C'est la voie à conseiller, pas le Dev Dashboard — voir `CLAUDE.md`.
+- **L'app Meta** : création, vérification d'entreprise, App Review. C'est long,
+  et c'est le seul chemin vers la publication organique native.
+- **Chrome Web Store** : compte développeur à 5 $, captures d'écran, envoi. Le
+  paquet et la fiche sont prêts (`docs/chrome-web-store.md`,
+  `node extension/build-store-zip.cjs`). **Tant que ce n'est pas fait, aucune
+  mise à jour automatique** : le Mode développeur ne se met jamais à jour.
+- **Dans `oguss-flux-boutique`** : `git rm --cached .env` (il est commité), et
+  les trois variables d'environnement du back-office.
 
 ---
 
-## Le comparatif, écart par écart
+## Décisions prises, à ne pas rouvrir
 
-Dépouillé des cinq rapports de `CLAUDE-CODE-INFORMATIONS` : DSers, Syncee,
-Koongo, Channable, AutoDS, Dropship.io, Shoppingfeed. Chacune dépasse le million
-d'utilisateurs. Écrit une fois pour qu'on cesse de raisonner de mémoire.
+Celles qui reviennent le plus souvent dans les conversations. Les autres sont
+dans `CLAUDE.md`.
 
-### Ce qu'ils ont et que nous n'avons pas
-
-Par ordre d'importance telle que les rapports la donnent, pas par facilité.
-
-1. **Surveillance du prix et du stock fournisseur, répercutée en direct.**
-   Citée comme *la* fonction sans laquelle une application de dropshipping n'est
-   pas complète aux yeux d'un utilisateur d'AutoDS. Nous n'avons rien. Elle
-   dépend des API fournisseurs — d'où API Sourcing Connect.
-2. **Commande automatique chez le fournisseur dès la vente, et numéro de suivi
-   remonté au client.** Deuxième fonction la plus attendue. Rien non plus.
-3. **Moteur de conformité par canal.** C'est l'actif défendable de
-   Shoppingfeed, pas leur « 1000+ canaux » : un référentiel de règles par
-   marketplace (champs obligatoires, longueurs, catégories autorisées, règles
-   d'image), vérifié **avant** publication, avec un tableau d'erreurs par
-   produit × canal et un blocage configurable. Nous publions sans rien vérifier.
-4. **Modèle produit canonique et adaptateurs déclaratifs.** Un produit existe
-   une fois ; chaque canal a un mapping déclaratif. Ajouter un canal = ajouter
-   un adaptateur, pas toucher au cœur. Chez nous, chaque plateforme est écrite
-   en dur.
-5. **Repricing et veille des prix concurrents**, avec prix plancher et plafond
-   fixés par le marchand.
-6. **Flux dérivés** : le même catalogue diffusé différemment par canal, par
-   partenaire ou par campagne.
-7. **Synchronisation du stock entre canaux** — pour ne pas vendre une rupture,
-   et pour ne pas brûler du budget publicitaire sur un produit indisponible.
-8. **Outils gratuits d'acquisition** : calculateur BEROAS, ROAS, coût par
-   acquisition, calculateur de profit par plateforme (frais eBay, Etsy, Amazon
-   compris), détecteur de thème Shopify. Peu coûteux, forte valeur perçue, et
-   ils amènent du référencement.
-9. **Notation des produits** : marge estimée, saturation publicitaire, tendance
-   de recherche. Nous avons l'analyse de marché, pas la note.
-10. **Espionnage publicitaire** (bibliothèque d'annonces, suivi d'annonceurs).
-    Très demandé, vendu en supplément chez AutoDS — donc payé volontiers.
-    **À garder refusé sous sa forme scraping** : la décision de ne pas ratisser
-    la bibliothèque Meta ni les boutiques concurrentes tient toujours, et les
-    rapports eux-mêmes signalent le risque de CGU. À ne reprendre que par API
-    officielle, si elle existe.
-11. **Rôles et permissions par équipe, SSO.** Sujet entreprise, pas urgent.
-
-### Ce que nous avons et qu'ils n'ont pas
-
-À défendre, parce que c'est là que nous sommes déjà devant.
-
-- **Une équipe d'agents native, pas un connecteur.** AutoDS a constaté que ses
-  utilisateurs préfèrent piloter par conversation, et a construit un connecteur
-  vers Claude plutôt qu'un agent maison. Nous avons douze agents dans le
-  produit, avec leur conversation, leur périmètre et leur prix affiché. Le
-  rapport AutoDS nomme précisément cet axe comme notre avantage structurel.
-- **Des chefs de rayon par secteur**, avec veille, rapports, produits gagnants
-  et avis sur un produit. Aucune des sept n'a d'équivalent.
-- **Un comptable et un avocat qui cherchent leurs sources** avant de répondre.
-- **La composition de vraies publicités** — photo, logo, prix réel, bouton — et
-  la remise en situation des photos produit. Syncee fait de la découverte par
-  IA ; personne ne compose l'annonce publicitaire.
-- **Le filigrane réglable**, logo compris.
-- **La transparence des crédits.** Le reproche le plus récurrent contre AutoDS
-  est commercial : suppléments cachés sur des fonctions jugées essentielles,
-  facturation opaque. Notre bloc noir répond exactement à ça.
-- **Le refus de publier dans le doute.** AutoDS est reproché pour des blocages
-  d'automatisation de plusieurs jours *sans notification*. Notre pilote garde
-  l'annonce en brouillon et écrit la raison.
-- **L'import par extension sur les sites bâtis en JavaScript** (Temu,
-  AliExpress), là où aucune API ne va.
-
-### Ce que les rapports disent de la méthode
-
-- **Aucune des quatre plateformes du comparatif ne scrape.** API officielle,
-  webhooks, flux CSV/XML, connexion base à base. Le scraping est classé
-  « risque moyen à élevé, CGU et bannissement d'IP ».
-- **La boucle reste fermée par un humain** : détection d'écart → correction
-  proposée par l'IA → tableau de revue → validation → publication. L'IA
-  accélère, elle ne retire pas la main.
-- **La valeur vient de la qualité du mapping, pas du nombre de connecteurs.**
-  Cinq à dix canaux bien faits valent mieux qu'un catalogue de logos.
+- **Pas de connexion automatique aux marketplaces**, et **l'agent ne clique
+  jamais sur « Publier »** chez un tiers. Il remplit, le vendeur valide.
+- **Pas de scraping** d'Amazon, de Cdiscount, de la bibliothèque publicitaire de
+  Meta ni des boutiques concurrentes.
+- **Les identifiants de place de marché ne sont jamais confiés à un agent
+  tiers**, et un jeton stocké ne repart jamais vers le navigateur.
+- **Pas de bouton qui recrédite tout seul : un ticket.** La borne de l'avoir est
+  dans le code, jamais dans la consigne au modèle — une consigne cède quand le
+  vendeur insiste.
+- **Le genre est un attribut, pas une catégorie**, sauf pour les vêtements et
+  les chaussures, parce que la taxonomie Google le fait là et pas ailleurs.
+- **La boutique d'imprimerie est un projet à part.** Mise de côté par le client
+  le 01/09/2026.
 
 ---
 
-## Repères techniques
+## Repères techniques — ce qui fait perdre du temps
 
-- Les regex écrites par script perdent leurs barres obliques inverses : `\d`
-  devient `d`, `\b` devient un **caractère de recul invisible** qui ne
-  correspond jamais. Quatre régressions déjà causées ainsi. **Écrire les regex
-  avec l'outil d'édition, jamais via un script shell**, et les tester.
-- **Un long texte écrit par `cat > fichier` se fait avaler par le shell** :
-  troncature, ou apostrophes qui cassent le document. Ce mémo lui-même en a été
-  victime deux fois. Passer par l'outil d'écriture.
-- Le catalogue de catégories compte **113 entrées sur 15 rayons**. Chaque
-  boutique déclare ce qu'elle vend ; l'import ne propose que ces catégories.
-  Rien de coché = tout proposé.
-- Neuf **adaptateurs d'images par fournisseur** (`extension/content/adapters.js`)
-  écrits d'après une inspection en direct. Un adaptateur muet s'efface et le
-  scan générique reprend la main.
-- L'auto-contrôle `/api/health/services` teste **réellement** chaque service :
-  il appelle le modèle, écrit dans le stockage, interroge la base. « Configuré »
-  n'y veut jamais dire « fonctionne ».
+- **Ne pas écrire de fichier par le shell.** Un long texte passé en `cat >` ou en
+  `node -e` se fait avaler : gabarits, `${}`, accents graves et `\n` disparaissent.
+  Ce mémo lui-même en a été victime deux fois, et cette session a cassé
+  `adapters.js`, `check-lexique.ts`, `AdDialog.tsx` et `Suppliers.tsx` de cette
+  façon. **Passer par l'outil d'écriture**, et garder les scripts de correction
+  dans des fichiers `.cjs`.
+- **Les regex écrites par script perdent leurs barres obliques inverses** : `\d`
+  devient `d`, `\b` devient un caractère de recul invisible qui ne correspond
+  jamais. Quatre régressions causées ainsi.
 - **Avant de chercher un bug dans le code, regarder ce que le serveur renvoie
-  vraiment.** C'est ce qui a trouvé le 405 de Vercel, l'extension en 404, les
-  images AVIF manquées, la juridiction R2 et les chiffres faux du comptable.
+  vraiment.** C'est ce qui a trouvé le 405 de Vercel, l'extension en 404, la
+  juridiction R2 et les chiffres faux du comptable.
+- **Une vérification qui ne peut pas échouer ne vérifie rien.** Le premier
+  contrôle des polices comparait deux textes fins et concluait « suspect » ; il a
+  fallu le remplacer par le rapport d'encre entre `i` et `M` (2,99 avec une vraie
+  police, 1 avec des carrés vides).
+- `check-routes.ts` a attrapé deux fois un `/orders/:id` déclaré avant
+  `/orders/by-supplier`. Le lancer après toute route neuve.
+
+### Les bancs à lancer avant de livrer
+
+```bash
+cd backend && npx tsc --noEmit
+cd frontend && npm run build          # plus strict que le dev
+cd backend && node extension/check.cjs
+cd backend && npx tsx check-routes.ts
+```
+
+Et selon ce qui a été touché : `check-photos.ts`, `check-lexique.ts`,
+`check-categories.ts` (vraie base), `check-chat-budget.ts`, `check-tickets.ts`,
+`check-social.ts`, `check-meta.ts`, `check-shopify-token.ts`,
+`check-shopify-oauth.ts`, `check-fournisseurs.ts`, `check-aliexpress.ts`,
+`check-refs.ts`, `check-polices.ts`, `check-imprimerie.ts`.
+
+### À savoir sur la machine
+
+- **La clé `ANTHROPIC_API_KEY` locale est invalide.** Tout banc qui appelle le
+  modèle échoue ici sans que le code soit en cause. C'est pour cette raison que
+  le bouton « Reprendre » a été ajouté sur la page Catégories : il fait tourner
+  le rangement là où la clé est valide.
+- **Python n'est pas installé** — d'où Node plutôt que FastAPI, et la skill
+  `ui-ux-pro-max` inutilisable.
+- **La base est la même en local et en production.** Une migration jouée en
+  local touche la production.
