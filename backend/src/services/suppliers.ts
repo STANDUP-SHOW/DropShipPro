@@ -591,6 +591,38 @@ export const SUPPLIERS: SupplierInfo[] = [
       "**Ces produits sont interdits ou restreints sur presque toutes les destinations** : Amazon, Vinted, Leboncoin, Facebook, Instagram, Google Shopping et TikTok Shop les refusent, et aucune régie publicitaire ne les accepte. Ils ne se vendent que sur votre propre site — et la publicité passe par le référencement, jamais par une annonce payante. L'entrepôt d'Avignon, lui, expédie le jour même en Colissimo, sans commande minimum : c'est ce qui le rend intéressant.",
     color: '#d81b60',
   },
+  {
+    /*
+     * Matterhorn : le seul de la liste dont la clé d'API se prend en trois clics.
+     *
+     * Partout ailleurs — AliExpress, BigBuy, CJ — il faut un dossier, une revue,
+     * parfois plusieurs jours d'attente. Ici la clé se génère depuis l'espace
+     * client, gratuitement, dès l'inscription. Pour éprouver un connecteur c'est
+     * décisif : on peut vérifier que la chaîne tient sans attendre personne.
+     */
+    id: 'matterhorn',
+    label: 'Matterhorn',
+    domain: 'matterhorn-wholesale.com',
+    origine: 'Pologne, fabrication majoritairement européenne',
+    importPath: 'les-deux',
+    quoi: "Grossiste de mode féminine depuis 2004 : plus de trente mille modèles — vêtements, lingerie, chaussures — fabriqués pour l'essentiel en Europe. Réservé aux professionnels du commerce en ligne.",
+    attention:
+      "Le vêtement se retourne : la taille est le premier motif de renvoi, et une fiche sans guide des tailles coûte plus cher qu'elle ne rapporte. Reprenez les mensurations du fournisseur telles quelles plutôt que de convertir. Expédition depuis la Pologne, donc trois à cinq jours vers la France et aucune douane.",
+    color: '#1a2b4c',
+    api: {
+      nom: 'Matterhorn REST API',
+      console: 'https://matterhorn-wholesale.com/?str=api-help',
+      exige:
+        "Un compte professionnel Matterhorn, puis la génération de la clé depuis l'espace client — gratuite et immédiate, sans dossier ni validation préalable.",
+      lectureCatalogue: true,
+      stockTempsReel: true,
+      commande: true,
+      // Le suivi n'est pas confirmé par leur documentation publique : l'annoncer
+      // ferait promettre un numéro de colis que nous ne saurions pas remonter.
+      suivi: false,
+      champs: [{ cle: 'apiKey', label: 'Clé API', secret: true }],
+    },
+  },
 ]
 
 export function findSupplier(id: string) {
