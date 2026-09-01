@@ -1,5 +1,6 @@
 import sharp from 'sharp'
 import { composeAd, type AdCopy } from './adComposer.js'
+import { briefEnConsigne, type Brief } from './photoBriefer.js'
 import { randomUUID } from 'crypto'
 import { putFile } from '../lib/storage.js'
 import { fetchSourceImage } from './watermark.js'
@@ -173,14 +174,27 @@ export async function regenerateProductPhoto(params: {
   title: string
   category: string | null
   hint?: string
-}): Promise<GeneratedResult> {
+  /**
+   * Le brief de cette photo-ci.
+   *
+   * Sans lui, six photos demandees recevaient six fois le meme prompt et
+   * rendaient six fois la meme image -- il n y avait aucune raison qu il en
+   * soit autrement. C est lui qui porte la mise en scene, et elle change a
+   * chaque fois.
+   */
+  brief?: Brief
+}): Promise<GeneratedResult & { partiPris?: string }> {
   const prompt = [
-    "Reprends exactement le produit montré sur les photos de référence et place-le dans une mise en situation réaliste,",
-    "photographiée comme une publicité professionnelle : lumière naturelle, profondeur de champ, décor plausible pour ce produit.",
+    "Reprends exactement le produit montré sur les photos de référence et place-le dans la scène décrite ci-dessous,",
+    'photographiée comme une image de catalogue professionnelle.',
     '',
     `Produit : ${params.title}.`,
     params.category ? `Catégorie : ${params.category}.` : '',
-    params.hint ? `Consigne du vendeur : ${params.hint}` : '',
+    '',
+    // Le brief est ce qui distingue cette photo de la précédente. Sans lui, le
+    // reste du prompt est identique d'une image à l'autre — et le rendu aussi.
+    params.brief ? briefEnConsigne(params.brief) : '',
+    params.hint ? `\nConsigne du vendeur, prioritaire : ${params.hint}` : '',
     '',
     "Le produit doit rester rigoureusement identique : même forme, mêmes couleurs, mêmes proportions, mêmes marquages.",
     "N'ajoute aucun texte, aucun logo, aucune mention de prix ou de promotion.",
@@ -191,7 +205,7 @@ export async function regenerateProductPhoto(params: {
 
   const buffer = await generate({ sourceImages: params.sourceImages, prompt, width: 1080, height: 1080 })
   const path = await store(buffer, 'photo')
-  return { path, width: 1080, height: 1080, prompt }
+  return { path, width: 1080, height: 1080, prompt, partiPris: params.brief?.partiPris }
 }
 
 /**
@@ -215,7 +229,9 @@ export async function generateAdVisual(params: {
    * demandé au modèle, qui écrit des prix faux avec un aplomb parfait.
    */
   copy?: AdCopy
-}): Promise<GeneratedResult> {
+  /** Le brief de cette publicité-ci : c'est lui qui la distingue de la précédente. */
+  brief?: Brief
+}): Promise<GeneratedResult & { partiPris?: string }> {
   const format = AD_FORMATS[params.platform]
   if (!format) throw new ImageGenUnavailable('Format inconnu.')
 
@@ -224,7 +240,8 @@ export async function generateAdVisual(params: {
     `Destination : ${format.label}.`,
     '',
     `Produit : ${params.title}.`,
-    params.hint ? `Angle demandé par le vendeur : ${params.hint}` : '',
+    params.brief ? briefEnConsigne(params.brief) : '',
+    params.hint ? `Angle demandé par le vendeur, prioritaire : ${params.hint}` : '',
     '',
     'Le produit doit rester rigoureusement identique aux photos de référence :',
     'même forme, mêmes couleurs, mêmes proportions, mêmes marquages.',
@@ -251,7 +268,7 @@ export async function generateAdVisual(params: {
     : scene
 
   const path = await store(buffer, `ad-${params.platform}`)
-  return { path, width: format.width, height: format.height, prompt }
+  return { path, width: format.width, height: format.height, prompt, partiPris: params.brief?.partiPris }
 }
 
 export type ImageGenStatus = 'ok' | 'non-configure' | 'refuse'

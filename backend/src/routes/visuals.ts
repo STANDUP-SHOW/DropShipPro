@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { ecrireAccroche } from '../services/adCopywriter.js'
+import { ecrireBrief } from '../services/photoBriefer.js'
 import { SansPolice } from '../services/adComposer.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
@@ -71,7 +72,20 @@ visualsRouter.get('/state', async (req: AuthedRequest, res) => {
 visualsRouter.get('/product/:id', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({
     where: { id: req.params.id, userId: req.userId! },
-    select: { id: true, title: true, aiTitle: true, images: true, sourceCategory: true },
+    // La description, les arguments et les caracteristiques sont lus : c est
+    // d eux que le brief tire un decor precis. Le titre seul donnait « mise en
+    // situation realiste », c est-a-dire rien.
+    select: {
+      id: true,
+      title: true,
+      aiTitle: true,
+      images: true,
+      sourceCategory: true,
+      description: true,
+      aiDescription: true,
+      bulletPoints: true,
+      attributes: true,
+    },
   })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
 
@@ -127,7 +141,26 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
 
   const product = await prisma.product.findFirst({
     where: { id: parsed.data.productId, userId: req.userId! },
-    select: { id: true, title: true, aiTitle: true, images: true, sourceCategory: true },
+    /*
+     * L'annonce entière, et non son seul titre.
+     *
+     * C'est d'elle que le brief tire un décor précis : les arguments de vente et
+     * les caractéristiques disent l'usage, la matière et le milieu du produit.
+     * « Étanche 5 ATM » ou « bois de noyer massif » suffisent à décider d'une
+     * scène — le titre, jamais. Avec lui seul, la consigne se réduisait à « mise
+     * en situation réaliste », c'est-à-dire à rien.
+     */
+    select: {
+      id: true,
+      title: true,
+      aiTitle: true,
+      images: true,
+      sourceCategory: true,
+      description: true,
+      aiDescription: true,
+      bulletPoints: true,
+      attributes: true,
+    },
   })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
 
@@ -141,6 +174,16 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
   const produced = []
   const errors: string[] = []
 
+  /*
+   * Les partis pris deja servis, pour que la deuxieme photo ne soit pas la
+   * copie de la premiere.
+   *
+   * Sans cette liste, la boucle envoyait six fois le meme prompt -- meme texte,
+   * memes images de reference -- et le modele rendait six fois la meme image.
+   * Il n y avait aucune raison qu il en soit autrement.
+   */
+  const partisServis: string[] = []
+
   for (let i = 0; i < parsed.data.count; i++) {
     if (!(await takeImageCredit(req.userId!))) {
       errors.push('Crédits images épuisés.')
@@ -148,11 +191,25 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
     }
 
     try {
+      const brief = await ecrireBrief({
+        titre: product.aiTitle || product.title,
+        description: product.aiDescription || product.description,
+        arguments: Array.isArray(product.bulletPoints)
+          ? (product.bulletPoints as unknown[]).filter((x): x is string => typeof x === 'string')
+          : [],
+        attributs: (product.attributes ?? {}) as Record<string, string>,
+        categorie: product.sourceCategory,
+        hint: parsed.data.hint,
+        dejaVus: partisServis,
+      })
+      partisServis.push(brief.partiPris)
+
       const result = await regenerateProductPhoto({
         sourceImages,
         title: product.aiTitle || product.title,
         category: product.sourceCategory,
         hint: parsed.data.hint,
+        brief,
       })
 
       produced.push(
@@ -258,6 +315,7 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
         description: true,
         aiDescription: true,
         bulletPoints: true,
+        attributes: true,
         sourceCategory: true,
       },
     }),
@@ -313,6 +371,9 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
   // Les angles deja servis pour ce produit, pour que la deuxieme publicite ne
   // soit pas la copie de la premiere.
   const anglesServis: string[] = []
+  // Et les mises en scene deja servies : l accroche et l image doivent varier
+  // toutes les deux, sinon deux publicites se ressemblent encore a moitie.
+  const partisPubServis: string[] = []
 
   outer: for (const platform of platforms) {
     for (let i = 0; i < parsed.data.count; i++) {
@@ -358,12 +419,27 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
             }
           : copy
 
+        const briefPub = await ecrireBrief({
+          titre: product.aiTitle || product.title,
+          description: product.aiDescription || product.description,
+          arguments: Array.isArray(product.bulletPoints)
+            ? (product.bulletPoints as unknown[]).filter((x): x is string => typeof x === 'string')
+            : [],
+          attributs: (product.attributes ?? {}) as Record<string, string>,
+          categorie: product.sourceCategory,
+          hint: parsed.data.hint,
+          dejaVus: partisPubServis,
+          pourPublicite: true,
+        })
+        partisPubServis.push(briefPub.partiPris)
+
         const result = await generateAdVisual({
           sourceImages,
           title: product.aiTitle || product.title,
           platform,
           hint: parsed.data.hint,
           copy: copyEcrit,
+          brief: briefPub,
         })
 
         produced.push(
