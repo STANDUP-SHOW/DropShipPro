@@ -158,17 +158,77 @@
    * images step, on every site. The pool keeps the number of live requests low,
    * and the budget guarantees the step ends even when the CDN never answers.
    */
+  /**
+   * Ce que la page connait deja de ses propres images.
+   *
+   * **C est la difference avec ImageEye**, et elle explique « il les prend, nous
+   * non ». Il ne mesure rien : il lit `naturalWidth` sur les images que le
+   * navigateur a deja chargees pour afficher la page. Nous, nous rechargions
+   * chacune par le reseau -- et une photo que le CDN sert lentement, refuse en
+   * cross-origin ou fait expirer disparaissait purement et simplement, alors
+   * qu elle etait affichee a l ecran avec ses dimensions connues.
+   *
+   * Les images du DOM sont donc mesurees d avance, gratuitement et sans echec
+   * possible. Le reseau ne sert plus qu a ce que la page n a pas charge.
+   */
+  function tailleDejaConnues() {
+    const connues = new Map()
+    const noter = (url, w, h) => {
+      if (!url || !w || !h) return
+      const absolue = url.startsWith('//') ? `https:${url}` : url
+      if (!absolue.startsWith('http')) return
+      const vue = connues.get(absolue)
+      // La plus grande vue l emporte : la meme adresse peut servir une vignette
+      // et un agrandissement.
+      if (!vue || w * h > vue.width * vue.height) connues.set(absolue, { url: absolue, width: w, height: h })
+    }
+
+    for (const img of document.querySelectorAll('img')) {
+      noter(img.currentSrc || img.getAttribute('src'), img.naturalWidth, img.naturalHeight)
+    }
+    return connues
+  }
+
   async function measureAll(urls) {
     const deadline = Date.now() + MEASURE_BUDGET_MS
-    const queue = [...urls]
+    const connues = tailleDejaConnues()
     const measured = []
+    const queue = []
 
+    for (const url of urls) {
+      const deja = connues.get(url)
+      // Une image de moins de deux pixels de cote n est pas chargee : la mesurer
+      // pour de vrai reste necessaire.
+      if (deja && deja.width > 1 && deja.height > 1) measured.push(deja)
+      else queue.push(url)
+    }
+
+    if (measured.length) {
+      console.info(
+        `DropShipper IA : ${measured.length} image(s) deja mesurees par la page, ${queue.length} a charger`,
+      )
+    }
+
+    /*
+     * Une mesure qui echoue ne fait plus disparaitre la photo.
+     *
+     * Un CDN lent, un refus cross-origin, un delai depasse : l adresse etait
+     * jetee sans retour, et le vendeur voyait dix photos la ou la page en
+     * portait cent. Elle est desormais rendue avec une taille inconnue -- zero --
+     * ce qui la range dans la bande depliable au lieu de la selection par
+     * defaut. Rien n est perdu, rien ne pollue.
+     */
     const worker = async () => {
       while (queue.length) {
-        if (Date.now() > deadline) return
+        if (Date.now() > deadline) {
+          // Le budget est atteint : le reste n a pas ete tente, mais on le rend
+          // quand meme plutot que de faire comme s il n existait pas.
+          while (queue.length) measured.push({ url: queue.shift(), width: 0, height: 0, mesuree: false })
+          return
+        }
         const url = queue.shift()
         const result = await measure(url)
-        if (result) measured.push(result)
+        measured.push(result ?? { url, width: 0, height: 0, mesuree: false })
       }
     }
 
@@ -442,9 +502,23 @@
       .filter((m) => Math.min(m.width, m.height) >= MIN_SIDE)
       .sort(parRang)
 
+    /*
+     * Les adresses non mesurees, gardees a part.
+     *
+     * Elles ne peuvent pas etre selectionnees par defaut -- on ignore leur
+     * taille, et proposer une banniere en premiere photo est le defaut qu on
+     * corrige depuis le debut. Mais les jeter revient a faire mieux que le
+     * navigateur ne sait faire : elles rejoignent la bande depliable, ou le
+     * vendeur decide.
+     */
+    const nonMesurees = measured.filter((m) => m.mesuree === false)
+
     // Nothing big enough — a small gallery, or images blocked from measurement.
     // Fall back to the biggest available rather than returning nothing.
-    const chosen = large.length ? large : measured.sort(parRang)
+    // Le repli ne prend que ce qui a ete reellement mesure : proposer par
+    // defaut une adresse dont on ignore la taille, c est reproduire le defaut
+    // qu on corrige -- une banniere en premiere photo.
+    const chosen = large.length ? large : measured.filter((m) => m.mesuree !== false).sort(parRang)
 
     // Deduplicate: the same photo often appears at several sizes.
     const seen = new Set()
@@ -476,8 +550,10 @@
      */
     const gardees = new Set(measured.map((m) => photoIdentity(m.url)))
     const petites = measured
-      .filter((m) => Math.min(m.width, m.height) < MIN_SIDE)
+      .filter((m) => m.mesuree !== false && Math.min(m.width, m.height) < MIN_SIDE)
       .sort(parRang)
+      // Les non mesurees ferment la marche : ce sont les moins sures de toutes.
+      .concat(nonMesurees.sort(parRang).slice(0, 40))
     const ecartes = [...candidates].filter((u) => !NOT_A_PHOTO.test(u) && score(u) < 0 && !adapterSet.has(u))
     const mobilierMesure = []
     if (ecartes.length) {
