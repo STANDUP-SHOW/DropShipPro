@@ -572,6 +572,11 @@ export const api = {
         watermarkScale: number | null
         watermarkOpacity: number | null
         watermarkPosition: string | null
+        /** L adresse lisible de la vitrine : /b/<slug>. */
+        slug: string | null
+        themeId: string
+        themeTokens: Record<string, string> | null
+        storefront: Record<string, string | number> | null
       }>
     >('/settings/shops'),
   createShop: (data: { name: string; platform?: string; sectors?: string[] }) =>
@@ -591,10 +596,35 @@ export const api = {
       watermarkScale?: number | null
       watermarkOpacity?: number | null
       watermarkPosition?: string | null
+      themeId?: string
+      themeTokens?: Record<string, string> | null
+      storefront?: Record<string, string | number> | null
     },
   ) =>
     request(`/settings/shops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteShop: (id: string) => request(`/settings/shops/${id}`, { method: 'DELETE' }),
+
+  /** Les 21 thèmes de la bibliothèque, pour l écran de choix. */
+  listThemes: () =>
+    request<
+      Array<{
+        id: string
+        nom: string
+        structure: { id: string; nom: string; pour: string }
+        secteurs: string[]
+        polices: { titre: string; texte: string }
+        apercu: { background: string; foreground: string; primary: string; accent: string; card: string }
+      }>
+    >('/settings/themes'),
+
+  /** Un crédit : le modèle choisit un thème et écrit les textes. Rendu si rien ne sort. */
+  genererVitrine: (id: string, description: string) =>
+    request<{
+      themeId: string
+      contenu: { accroche: string; accrocheSuite: string; sousTitre: string; annonce: string }
+      raison: string
+      rayonsRetenus: string[]
+    }>(`/settings/shops/${id}/vitrine`, { method: 'POST', body: JSON.stringify({ description }) }),
 
   // Clés machine : un agent de veille extérieur dépose ses trouvailles avec.
   listApiKeys: () =>

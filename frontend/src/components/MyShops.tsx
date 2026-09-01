@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Copy, Check, ImagePlus, ChevronDown, Store } from 'lucide-react'
 import { api, apiRoot, assetUrl } from '../lib/api'
+import { VitrineBlock } from './VitrineBlock'
 
 /**
  * Mes sites : un grand bloc par boutique, qui contient tout ce qui la décrit.
@@ -304,6 +305,13 @@ function BlocSite({
           <p className="mt-1 text-[11px] text-gray-500">
             {`${shop!.products} annonce(s) rangée(s) dans cette boutique.`}
           </p>
+        </div>
+      ) : null}
+
+      {/* ---------- L apparence de la vitrine ---------- */}
+      {shop ? (
+        <div className="mt-4">
+          <VitrineBlock shop={shop} onSaved={onChange} />
         </div>
       ) : null}
 

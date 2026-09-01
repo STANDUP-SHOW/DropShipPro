@@ -8,6 +8,8 @@ import { prisma } from '../lib/prisma.js'
 import { Prisma } from '@prisma/client'
 import { catalogueThemes, themeConnu } from '../services/themes.js'
 import { adresseLibre } from '../services/shopSlug.js'
+import { composerVitrine, VitrineImpossible } from '../services/shopGenerator.js'
+import { reserveCredits, refundCredits } from '../services/billing.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
@@ -695,4 +697,70 @@ settingsRouter.delete('/shops/:id/logo', async (req: AuthedRequest, res) => {
  */
 settingsRouter.get('/diagnostic', async (_req: AuthedRequest, res) => {
   res.json(await selfCheck())
+})
+
+/**
+ * Habille la vitrine d une boutique a partir de ce que le vendeur en dit.
+ *
+ * Un credit, parce qu il y a un appel au modele derriere -- et **rendu des que
+ * rien n est ecrit** : un vendeur qui paie pour une panne ne recommence pas.
+ *
+ * Rien n est enregistre ici. La proposition est rendue, le vendeur la regarde
+ * sur sa boutique avec `?theme=`, et c est un second geste qui l applique. Une
+ * generation qui ecrit directement remplacerait des textes que le marchand
+ * avait peut-etre passe une heure a ecrire.
+ */
+const vitrineSchema = z.object({
+  description: z.string().trim().min(10, 'Dites en quelques mots ce que vous vendez').max(1500),
+})
+
+settingsRouter.post('/shops/:id/vitrine', async (req: AuthedRequest, res) => {
+  const parsed = vitrineSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Champs invalides' })
+  }
+
+  const boutique = await prisma.shop.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    select: { id: true, name: true },
+  })
+  if (!boutique) return res.status(404).json({ error: 'Boutique introuvable' })
+
+  /*
+   * Les rayons viennent du catalogue reel, pas de ce que le vendeur declare.
+   *
+   * Il ecrit « bijoux et high-tech » alors que son catalogue est a 80 % des
+   * montres : ce sont les produits qui disent ce qu il vend vraiment, et c est
+   * sur eux que le theme doit etre choisi.
+   */
+  const produits = await prisma.product.findMany({
+    where: { userId: req.userId!, shopId: boutique.id },
+    select: { categoryId: true },
+    take: 300,
+  })
+  const ids = [...new Set(produits.map((p) => p.categoryId).filter((x): x is string => Boolean(x)))]
+  const categories = ids.length
+    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { path: true } })
+    : []
+  const rayons = [...new Set(categories.map((c) => c.path.split('>')[0].trim()))]
+
+  const credit = await reserveCredits(req.userId!, 1)
+  if (!credit.ok) return res.status(402).json({ error: credit.reason })
+
+  try {
+    const propose = await composerVitrine({
+      description: parsed.data.description,
+      nom: boutique.name,
+      rayons,
+    })
+    if (!propose) {
+      await refundCredits(req.userId!, 1)
+      return res.status(502).json({ error: "L'écriture n'a rien rendu de lisible. Crédit rendu, réessayez." })
+    }
+    res.json({ ...propose, rayonsRetenus: rayons })
+  } catch (err) {
+    await refundCredits(req.userId!, 1)
+    const message = err instanceof VitrineImpossible ? err.message : "L'écriture a échoué. Crédit rendu."
+    res.status(502).json({ error: message })
+  }
 })
