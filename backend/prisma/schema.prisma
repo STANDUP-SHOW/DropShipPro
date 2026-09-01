@@ -409,6 +409,16 @@ model Shop {
   name     String
   /// Identifiant public, utilise dans l URL du flux. Jamais l id interne.
   shopKey  String  @unique @default(cuid())
+  /// L adresse lisible de la vitrine : `/b/ma-boutique`.
+  ///
+  /// Distinct de `shopKey`, et c est le point : la cle est un secret de
+  /// raccordement qu on regenere si elle fuit, l adresse est publique et se
+  /// donne a des clients. Les confondre voudrait dire qu on ne peut plus changer
+  /// l une sans casser l autre.
+  ///
+  /// Nul tant que le vendeur n a pas de vitrine chez nous -- beaucoup n en
+  /// veulent pas et ne font que des places de marche.
+  slug     String? @unique
   /// Type de site branche, a titre indicatif: wordpress, prestashop, magento...
   platform String?
   /// Les rayons vendus par cette boutique. Vide = tous.
