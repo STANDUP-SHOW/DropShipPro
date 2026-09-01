@@ -96,9 +96,30 @@ async function measure(url: string): Promise<SelectedImage | null> {
  * @param candidates adresses trouvées sur la page, dans n'importe quel ordre
  * @param limit combien en garder — cinq pour une annonce
  */
+/**
+ * Combien de photos une annonce garde, à l'import comme à la main.
+ *
+ * **Une seule valeur, et c'est le vrai changement.** Il y en avait quatre, et
+ * elles se contredisaient : cinq par défaut dans le tri, huit à l'import, douze
+ * avec l'agent de contrôle, dix à l'ajout manuel. Un vendeur pouvait donc
+ * importer douze photos puis s'entendre dire que son annonce en avait « déjà
+ * dix » en essayant d'en ajouter une treizième.
+ *
+ * Quinze, à la demande du vendeur le 02/09/2026.
+ *
+ * **Ce n'est pas une cible.** Le tri rend ce qu'il a de bon : trois vraies
+ * photos valent mieux que quinze dont douze sont des bannières de soldes ou des
+ * vignettes de recommandation.
+ *
+ * À savoir pour la publication : les places de marché ont leurs propres bornes,
+ * plus basses — une annonce qui en porte quinze n'en enverra que ce que la
+ * destination accepte.
+ */
+export const PHOTOS_PAR_ANNONCE = 15
+
 export async function selectProductImages(
   candidates: string[],
-  limit = 5,
+  limit = PHOTOS_PAR_ANNONCE,
   /**
    * Ce que le site déclare lui-même comme photo du produit : JSON-LD et
    * og:image, écrits par le marchand pour Google et pour les réseaux.

@@ -1321,7 +1321,9 @@ export async function uploadProductImages(productId: string, files: File[]) {
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`)
-  return body as { images: string[]; added: number }
+  // `max` vient du serveur : le plafond etait ecrit en dur dans l ecran, et les
+  // deux valeurs ont diverge des que le serveur a change.
+  return body as { images: string[]; added: number; max?: number }
 }
 
 /**

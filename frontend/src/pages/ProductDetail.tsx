@@ -216,7 +216,7 @@ export default function ProductDetail() {
       setProduct((p: any) => ({ ...p, images: res.images }))
       setSavedAt(new Date())
       if (res.added < picked.length) {
-        setPhotoError(`${res.added} photo(s) ajoutée(s) sur ${picked.length} — limite de 10 par annonce.`)
+        setPhotoError(`${res.added} photo(s) ajoutée(s) sur ${picked.length} — limite de ${res.max ?? 15} par annonce.`)
       }
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : 'Ajout impossible')

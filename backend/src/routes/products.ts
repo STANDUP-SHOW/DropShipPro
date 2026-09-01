@@ -30,7 +30,7 @@ import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 import { watermarkOptionsFor } from '../services/watermarkOptions.js'
-import { selectProductImages } from '../services/imageSelect.js'
+import { selectProductImages, PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
 import { scoreListing } from '../services/listingScore.js'
 import { reviewImages, applyVerdict } from '../services/controlAgent.js'
 
@@ -86,7 +86,7 @@ productsRouter.post(
     })
     // Les photos sont choisies, pas prises dans l'ordre d'apparition : cet ordre
     // donne l'en-tête du site, pas la galerie.
-    const chosen = await selectProductImages(scraped.images, user.controlAgent ? 12 : 8, scraped.declaredImages, scraped.domImages, scraped.chromeImages)
+    const chosen = await selectProductImages(scraped.images, PHOTOS_PAR_ANNONCE, scraped.declaredImages, scraped.domImages, scraped.chromeImages)
 
     // Les options d'achat se lisent dans le texte de la page : aucune balise ne
     // les déclare, et sans cette lecture un import par URL ne rendait jamais
@@ -902,9 +902,9 @@ productsRouter.get('/meta/categories', async (req: AuthedRequest, res) => {
 // extension fails to find the gallery on a hostile supplier page.
 const uploadPhotos = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 10 },
+  limits: { fileSize: 8 * 1024 * 1024, files: PHOTOS_PAR_ANNONCE },
   fileFilter: (_req, file, cb) => cb(null, /^image\/(jpe?g|png|webp|avif)$/.test(file.mimetype)),
-}).array('photos', 10)
+}).array('photos', PHOTOS_PAR_ANNONCE)
 
 productsRouter.post('/:id/images', (req: AuthedRequest, res) => {
   uploadPhotos(req, res, async (err) => {
@@ -921,8 +921,8 @@ productsRouter.post('/:id/images', (req: AuthedRequest, res) => {
     try {
       const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
       const existing = (product.images as string[]) ?? []
-      const room = Math.max(0, 10 - existing.length)
-      if (!room) return res.status(400).json({ error: 'Cette annonce a déjà 10 photos' })
+      const room = Math.max(0, PHOTOS_PAR_ANNONCE - existing.length)
+      if (!room) return res.status(400).json({ error: `Cette annonce a déjà ${PHOTOS_PAR_ANNONCE} photos` })
 
       const saved = await watermarkUploads(
         files.slice(0, room).map((f) => f.buffer),
@@ -933,7 +933,9 @@ productsRouter.post('/:id/images', (req: AuthedRequest, res) => {
 
       const images = [...existing, ...saved]
       await prisma.product.update({ where: { id: product.id }, data: { images } })
-      res.json({ images, added: saved.length })
+      // Le plafond est rendu avec la reponse : l ecran l affichait en dur, et
+      // les deux valeurs ont diverge des que le serveur a change.
+      res.json({ images, added: saved.length, max: PHOTOS_PAR_ANNONCE })
     } catch (e) {
       console.error('ajout de photos impossible', e)
       res.status(500).json({ error: "Ces images n'ont pas pu être traitées" })

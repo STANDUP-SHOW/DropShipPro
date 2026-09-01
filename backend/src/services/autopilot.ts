@@ -9,7 +9,7 @@ import { PLATFORMS } from './platforms.js'
 import { reserveCredits, refundCredits } from './billing.js'
 import { resoudreCategorie } from './categories.js'
 import { apiBaseUrl } from '../lib/urls.js'
-import { selectProductImages } from './imageSelect.js'
+import { selectProductImages, PHOTOS_PAR_ANNONCE } from './imageSelect.js'
 import { reviewImages, applyVerdict } from './controlAgent.js'
 import { extractVariants } from './aiEnhancer.js'
 import { supplierFields } from './suppliers.js'
@@ -157,7 +157,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       // valent la peine. Neuf s'il y a neuf bonnes photos, six s'il y en a six.
       const chosen = await selectProductImages(
         scraped.images,
-        user.controlAgent ? 12 : 5,
+        PHOTOS_PAR_ANNONCE,
         scraped.declaredImages,
         scraped.domImages,
         scraped.chromeImages,
