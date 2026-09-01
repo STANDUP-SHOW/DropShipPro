@@ -22,19 +22,58 @@
        * Le contraire d'une boutique de mode, où la photo porte tout — ici il n'y
        * a presque rien à photographier, et c'est le prix qui doit être lisible.
        */
+      /*
+       * Ce qui est écrit ici n'est pas un choix, c'est un repli.
+       *
+       * Le serveur envoie les jetons du thème de la boutique — `--background`,
+       * `--foreground`, `--primary`, `--police-titre` — dans une feuille de
+       * style posée après celle-ci, qui les remplace tous. Ces valeurs ne
+       * servent que si le thème ne répond pas : une boutique aux couleurs
+       * d'usine vaut mieux qu'une page blanche.
+       *
+       * Les anciens noms (`--paper`, `--ink`) sont conservés en alias plutôt que
+       * remplacés partout : un renommage sur trois cents lignes de CSS pour n'y
+       * gagner que la cohérence des noms est exactement le genre de changement
+       * qui casse une mise en page sans qu'on sache où.
+       */
       :root {
-        --paper: #faf8f4;
-        --paper-warm: #f2eee6;
-        --ink: #191713;
-        --ink-soft: #5c564c;
-        --muted: #8f887c;
+        --background: #faf8f4;
+        --card: #ffffff;
+        --muted: #f2eee6;
+        --foreground: #191713;
+        --muted-foreground: #5c564c;
+        --primary: #b3401f;
+        --on-primary: #ffffff;
         --accent: #b3401f;
-        --accent-soft: #d9663f;
-        --line: rgba(25, 23, 19, 0.12);
-        --serif: 'Instrument Serif', Georgia, serif;
-        --sans: 'Inter', system-ui, -apple-system, sans-serif;
+        --border: rgba(25, 23, 19, 0.12);
+        --police-titre: 'Instrument Serif';
+        --police-texte: 'Inter';
+
+        --paper: var(--background);
+        --paper-warm: var(--muted);
+        /* `--muted` est une SURFACE, jamais une couleur de texte : le texte
+           secondaire prend `--muted-foreground`. Confondre les deux passait
+           inapercu sur un theme clair et effacait le texte sur un theme
+           sombre -- six declarations etaient dans ce cas. */
+        --ink: var(--foreground);
+        --ink-soft: var(--muted-foreground);
+        --accent-soft: color-mix(in srgb, var(--accent) 70%, white);
+        --line: var(--border);
+        --serif: var(--police-titre), Georgia, serif;
+        --sans: var(--police-texte), system-ui, -apple-system, sans-serif;
         --radius: 10px;
       }
+
+      /* Le bandeau d'annonce, absent tant que le vendeur n'écrit rien. */
+      .annonce {
+        margin: 0;
+        padding: 10px 24px;
+        text-align: center;
+        font-size: 13px;
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+      .annonce[hidden] { display: none; }
 
       * { box-sizing: border-box; }
 
@@ -58,7 +97,7 @@
         border-bottom: 1px solid var(--line);
         position: sticky;
         top: 0;
-        background: rgba(250, 248, 244, 0.92);
+        background: color-mix(in srgb, var(--background) 92%, transparent);
         backdrop-filter: blur(8px);
         z-index: 20;
       }
@@ -81,7 +120,7 @@
       }
       .brand em { font-style: italic; color: var(--accent); }
 
-      .site-note { font-size: 13px; color: var(--muted); }
+      .site-note { font-size: 13px; color: var(--muted-foreground); }
 
       /* --- Bandeau ---------------------------------------------------------- */
 
@@ -109,7 +148,7 @@
       .card {
         border: 1px solid var(--line);
         border-radius: var(--radius);
-        background: #fff;
+        background: var(--card);
         overflow: hidden;
         cursor: pointer;
         transition: border-color .18s, transform .18s, box-shadow .18s;
@@ -134,10 +173,10 @@
         overflow: hidden;
       }
       .card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .card-img span { font-family: var(--serif); font-size: 30px; color: var(--muted); }
+      .card-img span { font-family: var(--serif); font-size: 30px; color: var(--muted-foreground); }
 
       .card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-      .card-cat { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+      .card-cat { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted-foreground); }
       .card-name { font-family: var(--serif); font-size: 21px; line-height: 1.2; }
       .card-price { margin-top: auto; padding-top: 8px; font-size: 14px; color: var(--ink-soft); }
       .card-price strong { font-size: 20px; color: var(--ink); font-weight: 600; }
@@ -206,7 +245,7 @@
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: .09em;
-        color: var(--muted);
+        color: var(--muted-foreground);
         margin-bottom: 7px;
         display: block;
       }
@@ -214,7 +253,7 @@
 
       .opt {
         border: 1px solid var(--line);
-        background: #fff;
+        background: var(--card);
         border-radius: 999px;
         padding: 6px 14px;
         font: inherit;
@@ -224,9 +263,9 @@
       }
       .opt:hover:not(:disabled) { border-color: var(--accent-soft); }
       .opt[aria-pressed='true'] {
-        border-color: var(--accent);
-        background: var(--accent);
-        color: #fff;
+        border-color: var(--primary);
+        background: var(--primary);
+        color: var(--on-primary);
       }
       /*
        * Une option qu'aucune ligne de la grille ne peut servir.
@@ -244,16 +283,16 @@
       }
       .price-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
       .price-big { font-family: var(--serif); font-size: 40px; line-height: 1; }
-      .price-unit { font-size: 13px; color: var(--muted); }
-      .price-note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+      .price-unit { font-size: 13px; color: var(--muted-foreground); }
+      .price-note { font-size: 12px; color: var(--muted-foreground); margin-top: 6px; }
 
       .cta {
         display: block;
         width: 100%;
         margin-top: 16px;
         border: none;
-        background: var(--ink);
-        color: var(--paper);
+        background: var(--primary);
+        color: var(--on-primary);
         border-radius: var(--radius);
         padding: 13px;
         font: inherit;
@@ -263,20 +302,20 @@
         text-decoration: none;
         transition: background .15s;
       }
-      .cta:hover { background: var(--accent); }
+      .cta:hover { background: var(--accent); color: var(--on-accent, #fff); }
       .cta[aria-disabled='true'] { background: var(--muted); pointer-events: none; }
 
       .empty, .loading, .fail {
         padding: 64px 0;
         text-align: center;
-        color: var(--muted);
+        color: var(--muted-foreground);
       }
       .fail { color: var(--accent); }
       .fail code {
         display: block;
         margin-top: 8px;
         font-size: 12px;
-        color: var(--muted);
+        color: var(--muted-foreground);
         word-break: break-all;
       }
 
@@ -284,23 +323,25 @@
         border-top: 1px solid var(--line);
         padding: 32px 0;
         font-size: 13px;
-        color: var(--muted);
+        color: var(--muted-foreground);
       }
     </style>
   </head>
 
   <body>
+    <p class="annonce" id="annonce" hidden></p>
+
     <header class="site">
       <div class="site-inner">
-        <a class="brand" href="#">Print<em>34</em></a>
+        <a class="brand" id="enseigne" href="#">Print<em>34</em></a>
         <span class="site-note" id="site-note"></span>
       </div>
     </header>
 
     <main>
       <section class="hero wrap">
-        <h1>Imprimé, <em>livré</em>,<br />au prix que vous choisissez.</h1>
-        <p>
+        <h1 id="accroche">Imprimé, <em>livré</em>,<br />au prix que vous choisissez.</h1>
+        <p id="sous-titre">
           Le prix dépend du support, de la quantité et du délai. Choisissez, il s'affiche
           immédiatement — pas de devis à attendre.
         </p>
@@ -387,6 +428,74 @@
         return 'Livré en ' + jours + ' jours ouvrés'
       }
 
+      // --- L'apparence, qui vient du serveur ---------------------------------
+
+      /**
+       * Applique le thème de la boutique.
+       *
+       * **Rien n'est en dur ici, et c'est le point de tout ce fichier.** Les
+       * couleurs, les polices et les textes ne sont plus une décision de la
+       * vitrine mais un réglage de la boutique. La même page sert donc autant de
+       * boutiques qu'on veut, et changer l'apparence de l'une ne demande ni
+       * construction ni déploiement — c'est ce qui sépare une plateforme d'un
+       * générateur de code.
+       *
+       * Le serveur envoie ses variables déjà composées : la vitrine n'invente
+       * aucun nom de variable, sans quoi la structure suivante en inventerait un
+       * autre et le thème ne suivrait plus.
+       */
+      function appliquerTheme(t) {
+        if (!t) return
+
+        var style = document.getElementById('theme-boutique') || document.createElement('style')
+        style.id = 'theme-boutique'
+        style.textContent = t.css || ''
+        document.head.appendChild(style)
+
+        /*
+         * Les polices sont demandées à Google ici, et **ce n'est que provisoire**.
+         *
+         * Une boutique française qui charge sa police depuis
+         * `fonts.googleapis.com` envoie l'adresse IP de chaque visiteur aux
+         * États-Unis — ce qu'un tribunal allemand a sanctionné, et ce sera notre
+         * responsabilité, pas celle du vendeur. Les fichiers devront être servis
+         * depuis chez nous avant la première vraie boutique.
+         */
+        if (t.polices && t.polices.familles && t.polices.familles.length) {
+          var lien = document.createElement('link')
+          lien.rel = 'stylesheet'
+          lien.href =
+            'https://fonts.googleapis.com/css2?' +
+            t.polices.familles
+              .map(function (f) {
+                return 'family=' + encodeURIComponent(f) + ':wght@400;500;600;700'
+              })
+              .join('&') +
+            '&display=swap'
+          document.head.appendChild(lien)
+        }
+
+        var c = t.contenu || {}
+        if (c.accroche || c.accrocheSuite) {
+          document.getElementById('accroche').innerHTML =
+            texte(c.accroche || '') + '<br /><em>' + texte(c.accrocheSuite || '') + '</em>'
+        }
+        if (c.sousTitre) document.getElementById('sous-titre').textContent = c.sousTitre
+
+        // Le bandeau n'apparaît que s'il y a quelque chose à annoncer : un
+        // bandeau vide occupe la première ligne de la page pour ne rien dire.
+        var bandeau = document.getElementById('annonce')
+        if (c.annonce) {
+          bandeau.textContent = c.annonce
+          bandeau.hidden = false
+        }
+
+        if (t.boutique && t.boutique.nom) {
+          enseigne.textContent = t.boutique.nom
+          document.title = t.boutique.nom + ' — Imprimerie en ligne'
+        }
+      }
+
       // --- Chargement --------------------------------------------------------
 
       function charger() {
@@ -397,6 +506,38 @@
         }
 
         catalogue.innerHTML = '<p class="loading">Chargement du catalogue…</p>'
+
+        /*
+         * L'apparence est demandée à part du catalogue, et sans bloquer.
+         *
+         * Le catalogue est ce qu'on vient voir ; l'apparence est un confort. Si
+         * le thème ne répond pas, la boutique s'affiche dans ses couleurs
+         * d'usine plutôt que de ne pas s'afficher.
+         */
+        /*
+         * `?theme=onyx` sur l'adresse de la page essaie un thème sans
+         * l'enregistrer.
+         *
+         * C'est ce qui permettra au vendeur de regarder un thème sur **sa**
+         * boutique, avec ses vrais produits, avant de le choisir — une vignette
+         * ne dit pas si un thème tient sur un catalogue réel. Rien n'est écrit :
+         * le paramètre ne vit que dans l'onglet de celui qui l'a tapé.
+         */
+        var apercu = params.get('theme')
+        fetch(
+          API +
+            '/api/public/shops/' +
+            encodeURIComponent(SHOP) +
+            '/theme' +
+            (apercu ? '?theme=' + encodeURIComponent(apercu) : ''),
+        )
+          .then(function (r) {
+            return r.ok ? r.json() : null
+          })
+          .then(appliquerTheme)
+          .catch(function () {
+            /* couleurs d'usine : mieux qu'une page blanche */
+          })
 
         fetch(API + '/api/public/print/' + encodeURIComponent(SHOP) + '/products')
           .then(function (r) {

@@ -5,6 +5,8 @@ import multer from 'multer'
 import { findSupplier } from '../services/suppliers.js'
 import { veillerFournisseurs, rattraperReferences } from '../services/stockWatch.js'
 import { prisma } from '../lib/prisma.js'
+import { Prisma } from '@prisma/client'
+import { catalogueThemes, themeConnu } from '../services/themes.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
@@ -148,6 +150,18 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
       watermarkScale: s.watermarkScale,
       watermarkOpacity: s.watermarkOpacity,
       watermarkPosition: s.watermarkPosition,
+
+      /*
+       * L'apparence de la vitrine.
+       *
+       * Rendue ici plutôt que par un appel séparé : l'écran « Mes sites »
+       * affiche déjà un bloc par boutique, et le thème y a sa place. Une
+       * requête de plus par boutique pour trois champs ferait quatre allers
+       * pour un vendeur qui en a quatre.
+       */
+      themeId: s.themeId,
+      themeTokens: s.themeTokens ?? null,
+      storefront: s.storefront ?? null,
     })),
   )
 })
@@ -184,25 +198,79 @@ const shopSchema = z.object({
     .enum(['northwest','north','northeast','west','center','east','southwest','south','southeast'])
     .nullable()
     .optional(),
+
+  /*
+   * L apparence de la vitrine.
+   *
+   *  est verifie contre la bibliotheque et non simplement stocke : un
+   * identifiant inconnu ne casserait rien -- la resolution retombe sur le
+   * defaut -- mais le vendeur croirait avoir choisi un theme et verrait toujours
+   * l autre, sans qu aucun message ne le lui dise.
+   */
+  themeId: z.string().refine(themeConnu, { message: 'Theme inconnu' }).optional(),
+  themeTokens: z.record(z.string()).nullable().optional(),
+  storefront: z
+    .object({
+      annonce: z.string().max(200).optional(),
+      accroche: z.string().max(120).optional(),
+      accrocheSuite: z.string().max(120).optional(),
+      sousTitre: z.string().max(400).optional(),
+      fraisPort: z.number().min(0).max(999).optional(),
+      portOffertDes: z.number().min(0).max(9999).optional(),
+    })
+    .nullable()
+    .optional(),
 })
+
+/**
+ * La bibliotheque, pour l ecran de choix.
+ *
+ * Servie plutot que recopiee dans le front : c est la meme liste que celle qui
+ * resout l apparence, et deux listes censees rester identiques finissent
+ * toujours par diverger.
+ */
+settingsRouter.get('/themes', (_req: AuthedRequest, res) => {
+  res.json(catalogueThemes())
+})
+
+/**
+ * Prisma refuse `undefined` dans un champ Json, et `null` y a un sens.
+ *
+ * `null` veut dire « efface », `undefined` veut dire « ne touche pas ». Les
+ * confondre ferait qu'une modification du seul nom de boutique effacerait ses
+ * couleurs et ses textes — le genre de perte qu'on ne remarque qu'en regardant
+ * sa vitrine le lendemain.
+ */
+function avecJson(champs: Record<string, unknown>) {
+  const data: Record<string, unknown> = { ...champs }
+  for (const cle of ['themeTokens', 'storefront']) {
+    if (!(cle in champs)) continue
+    data[cle] = champs[cle] === null ? Prisma.DbNull : (champs[cle] as Prisma.InputJsonValue)
+  }
+  return data as never
+}
 
 settingsRouter.post('/shops', async (req: AuthedRequest, res) => {
   const parsed = shopSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Donnez un nom de boutique' })
 
   const shop = await prisma.shop.create({
-    data: { ...parsed.data, userId: req.userId! },
+    data: avecJson({ ...parsed.data, userId: req.userId! }),
   })
   res.status(201).json({ id: shop.id, name: shop.name, shopKey: shop.shopKey, platform: shop.platform })
 })
 
 settingsRouter.patch('/shops/:id', async (req: AuthedRequest, res) => {
   const parsed = shopSchema.partial().safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
+  if (!parsed.success) {
+    // Le message du schema est rendu : « Theme inconnu » se corrige,
+    // « Champs invalides » envoie chercher lequel.
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Champs invalides' })
+  }
 
   const { count } = await prisma.shop.updateMany({
     where: { id: req.params.id, userId: req.userId! },
-    data: parsed.data,
+    data: avecJson(parsed.data),
   })
   if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
   res.json({ ok: true })

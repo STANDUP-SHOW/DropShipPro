@@ -434,6 +434,26 @@ model Shop {
   /// Null veut dire « comme le compte ».
   watermarkMode     String?
 
+  /// L apparence de la vitrine.
+  ///
+  /// **La bibliotheque de themes n est pas en base, et c est deliberé.** Elle
+  /// est livree avec le code (`services/themeSeed.json`, fabrique par
+  /// `build-themes.cjs`) : 192 palettes et 7 structures qui ne changent que
+  /// lorsqu on redeploie. Les semer en base creerait un second exemplaire a
+  /// tenir a jour, et la question « laquelle des deux fait foi ? » -- alors que
+  /// la reponse est toujours « le code ».
+  ///
+  /// Ce qui vit ici, c est le **choix** du vendeur. Une ligne, pas un catalogue.
+  themeId     String @default("comptoir")
+  /// Ce que le vendeur a change du theme : jetons de couleur, polices.
+  ///
+  /// Un fragment, jamais la palette entiere. Recopier les seize jetons figerait
+  /// la boutique le jour ou une palette est corrigee -- et elles le sont : le
+  /// banc a deja rattrape cinquante-deux contrastes insuffisants.
+  themeTokens Json?
+  /// Les textes de la vitrine : banniere, accroche, livraison.
+  storefront  Json?
+
   createdAt DateTime @default(now())
 
   products Product[]

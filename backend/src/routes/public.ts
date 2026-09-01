@@ -7,6 +7,8 @@ import type { Product } from '@prisma/client'
 import { metaCsv, googleRss } from '../services/productFeeds.js'
 import { etatPour } from '../services/productCondition.js'
 import { prixDAppel, prixDeVente, type LigneTarif } from '../services/printPricing.js'
+import { resoudre, enVariablesCss, themeConnu } from '../services/themes.js'
+import { absoluteUrl } from '../lib/urls.js'
 import { prisma } from '../lib/prisma.js'
 
 export const publicRouter = Router()
@@ -315,5 +317,45 @@ publicRouter.get('/print/:shopKey/products', async (req, res) => {
         updatedAt: f.updatedAt,
       }
     }),
+  })
+})
+
+/**
+ * L apparence d une boutique : theme, couleurs, polices, textes.
+ *
+ * Servie a part du catalogue, et volontairement : une vitrine appelle le
+ * catalogue a chaque page et l apparence une seule fois. Les melanger ferait
+ * transiter seize couleurs et sept blocs a chaque changement de page.
+ *
+ * Tout est deja resolu -- theme inconnu retombe sur le defaut, jeton absent
+ * prend celui de la palette, texte vide prend le repli. La vitrine n a aucune
+ * decision a prendre, ce qui est la seule facon d eviter une page d accueil
+ * sans titre le jour ou un reglage manque.
+ */
+publicRouter.get('/shops/:shopKey/theme', async (req, res) => {
+  const shop = await prisma.shop.findUnique({
+    where: { shopKey: req.params.shopKey },
+    select: { name: true, logo: true, themeId: true, themeTokens: true, storefront: true },
+  })
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+
+  /*
+   * `?theme=` essaie un theme sans l enregistrer.
+   *
+   * C est ce qui permet au vendeur de regarder un theme sur **sa** boutique,
+   * avec ses vrais produits, avant de le choisir : une vignette ne dit pas si
+   * un theme tient sur un catalogue reel. Rien n est ecrit, et un identifiant
+   * inconnu est ignore plutot que refuse -- une adresse mal recopiee doit
+   * montrer la boutique, pas une erreur.
+   */
+  const essai = typeof req.query.theme === 'string' && themeConnu(req.query.theme) ? req.query.theme : null
+  const apparence = resoudre(essai ? { ...shop, themeId: essai } : shop)
+  res.set('Cache-Control', 'public, max-age=60')
+  res.json({
+    ...apparence,
+    // Le logo est servi depuis /storage : une adresse relative ne veut rien
+    // dire dans un onglet ouvert sur le domaine du vendeur.
+    boutique: { ...apparence.boutique, logo: apparence.boutique.logo ? absoluteUrl(apparence.boutique.logo) : null },
+    css: enVariablesCss(apparence),
   })
 })

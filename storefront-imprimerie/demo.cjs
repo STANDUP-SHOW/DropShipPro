@@ -110,6 +110,19 @@ for (const p of FLUX.products) {
 http
   .createServer((req, res) => {
     const url = req.url.split('?')[0]
+    const requete = new URLSearchParams(req.url.split('?')[1] || '')
+
+    // L apparence, telle que le serveur la sert : le theme « Presse » de la
+    // bibliotheque, structure configurateur.
+    if (url.includes('/theme')) {
+      const { resoudre, enVariablesCss } = require('./theme-demo.cjs')
+      // `?theme=onyx` rejoue la meme page avec un autre theme de la
+      // bibliotheque : c est la seule facon de voir d un coup si un theme tient
+      // sur une vraie structure, plutot que sur une vignette.
+      const a = resoudre(requete.get('theme'))
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+      return res.end(JSON.stringify({ ...a, css: enVariablesCss(a) }))
+    }
 
     if (url.startsWith('/api/public/print/')) {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
