@@ -623,6 +623,70 @@ export const SUPPLIERS: SupplierInfo[] = [
       champs: [{ cle: 'apiKey', label: 'Clé API', secret: true }],
     },
   },
+  {
+    /*
+     * Gelato : imprimé près de l'acheteur, pas expédié depuis l'autre bout.
+     *
+     * C'est le seul modèle de cette liste où **il n'y a rien à sourcer**. Vous
+     * fournissez un visuel, la commande part chez l'imprimeur le plus proche du
+     * client — Italie, France, Allemagne, trente-deux pays — et le colis fait
+     * cent kilomètres au lieu de dix mille. Ni stock, ni invendu, ni douane.
+     *
+     * En contrepartie, la marge se joue sur le visuel et non sur le prix
+     * d'achat : un même t-shirt blanc coûte le même prix à tout le monde.
+     */
+    id: 'gelato',
+    label: 'Gelato',
+    domain: 'gelato.com',
+    origine: 'Impression locale dans 32 pays, dont l’Italie et la France',
+    importPath: 'les-deux',
+    quoi: "Impression à la demande sur un réseau de plus de cent imprimeurs : textile, affiches, mugs, coques, papeterie. La commande part chez l'imprimeur le plus proche de l'acheteur.",
+    attention:
+      "Vous ne vendez pas un produit trouvé, vous vendez un visuel : la marge se fait sur le graphisme, pas sur le prix d'achat. Vérifiez les droits de ce que vous imprimez — un motif sous licence fait fermer la boutique plus vite qu'il ne rapporte.",
+    color: '#ff5a5f',
+    api: {
+      nom: 'Gelato Order Flow API',
+      console: 'https://dashboard.gelato.com',
+      exige:
+        "Un compte Gelato, puis la clé d'API depuis le tableau de bord. Gratuite, sans validation préalable.",
+      lectureCatalogue: true,
+      // Rien n'est stocké : chaque exemplaire est imprimé à la commande. Annoncer
+      // un stock en direct laisserait croire à une rupture possible, qui n'existe
+      // pas ici.
+      stockTempsReel: false,
+      commande: true,
+      suivi: true,
+      champs: [{ cle: 'apiKey', label: 'Clé API', secret: true }],
+    },
+  },
+  {
+    /*
+     * Pixartprinting : l'imprimeur, pas le fournisseur de produits.
+     *
+     * Vingt-cinq ans de web-to-print, une usine à Quarto d'Altino près de
+     * Venise, présent dans treize pays et livrant dans plus de cinquante. C'est
+     * l'imprimeur de référence des professionnels européens.
+     *
+     * **Mais il imprime ce que vous lui donnez, il ne vend pas de catalogue.**
+     * Sa place ici est celle de votre propre matériel : cartons d'expédition à
+     * votre marque, cartes de remerciement glissées dans le colis, étiquettes,
+     * stickers. C'est ce qui fait qu'un colis venu de Chine ressemble à une
+     * boutique et non à une revente.
+     *
+     * Ce que je n'ai pas pu vérifier, et qui déciderait de tout pour du
+     * dropshipping : l'existence d'un programme revendeur avec expédition en
+     * marque blanche. Sans elle, on ne peut pas livrer directement un acheteur.
+     */
+    id: 'pixartprinting',
+    label: 'Pixartprinting',
+    domain: 'pixartprinting.fr',
+    origine: 'Italie, usine près de Venise',
+    importPath: 'les-deux',
+    quoi: "Imprimeur en ligne européen : packaging, étiquettes, cartes, flyers, affiches, textile. Vingt-cinq ans de métier, livraison dans plus de cinquante pays.",
+    attention:
+      "**Ce n'est pas un catalogue de produits à revendre** : il imprime ce que vous lui fournissez. Sa vraie place est votre propre matériel — cartons à votre marque, cartes glissées dans le colis, étiquettes — ce qui fait la différence entre une boutique et une revente visible. Pour imprimer à la demande et livrer directement l'acheteur, regardez plutôt Gelato : je n'ai pas trouvé de programme revendeur en marque blanche chez Pixartprinting.",
+    color: '#e4002b',
+  },
 ]
 
 export function findSupplier(id: string) {
