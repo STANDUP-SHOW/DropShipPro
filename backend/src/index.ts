@@ -8,6 +8,7 @@ import { ordersRouter } from './routes/orders.js'
 import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
 import { betaRouter } from './routes/beta.js'
+import { vitrineRouter } from './routes/vitrine.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
 import { opportunitiesRouter } from './routes/opportunities.js'
@@ -95,6 +96,8 @@ app.use('/api/tickets', ticketsRouter)
 app.use('/api/social', socialRouter)
 app.use('/api/beta', betaRouter)
 app.use('/api/public', publicRouter)
+// Les vitrines vivent hors de /api : c est une page, pas une ressource d API.
+app.use('/b', vitrineRouter)
 
 const port = Number(process.env.PORT) || 4000
 app.listen(port, () => console.log(`DropShip Pro API sur http://localhost:${port}`))

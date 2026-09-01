@@ -7,6 +7,7 @@ import { veillerFournisseurs, rattraperReferences } from '../services/stockWatch
 import { prisma } from '../lib/prisma.js'
 import { Prisma } from '@prisma/client'
 import { catalogueThemes, themeConnu } from '../services/themes.js'
+import { adresseLibre } from '../services/shopSlug.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
@@ -127,6 +128,7 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
       id: s.id,
       name: s.name,
       shopKey: s.shopKey,
+      slug: s.slug,
       platform: s.platform,
       logo: s.logo,
       sectors: Array.isArray(s.sectors) ? s.sectors : [],
@@ -255,7 +257,14 @@ settingsRouter.post('/shops', async (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Donnez un nom de boutique' })
 
   const shop = await prisma.shop.create({
-    data: avecJson({ ...parsed.data, userId: req.userId! }),
+    data: avecJson({
+      ...parsed.data,
+      userId: req.userId!,
+      // L adresse de la vitrine est posee des la creation : la reclamer plus
+      // tard obligerait le vendeur a la demander, et personne ne demande ce
+      // qu il ne sait pas exister.
+      slug: await adresseLibre(parsed.data.name),
+    }),
   })
   res.status(201).json({ id: shop.id, name: shop.name, shopKey: shop.shopKey, platform: shop.platform })
 })

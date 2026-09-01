@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Boutique</title>
+    <style>
+      /*
+       * La vitrine générique : une page, six structures, tous les thèmes.
+       *
+       * Elle ne connaît aucune boutique en particulier. Elle reçoit un thème
+       * (couleurs, polices, textes) et une structure (une liste de blocs), et
+       * compose la page à partir de ça. C'est ce qui permet d'avoir une
+       * bibliothèque de thèmes sans avoir une bibliothèque de sites à
+       * maintenir.
+       *
+       * Ce qui est écrit ici n'est qu'un repli : le serveur envoie les jetons
+       * du thème dans une feuille posée après celle-ci, et ils remplacent tout.
+       * Une boutique aux couleurs d'usine vaut mieux qu'une page blanche.
+       */
+      :root {
+        --background: #ffffff;
+        --foreground: #0f172a;
+        --card: #ffffff;
+        --card-foreground: #0f172a;
+        --muted: #f1f5f9;
+        --muted-foreground: #475569;
+        --primary: #0f172a;
+        --on-primary: #ffffff;
+        --secondary: #e2e8f0;
+        --on-secondary: #0f172a;
+        --accent: #2563eb;
+        --on-accent: #ffffff;
+        --border: #e2e8f0;
+        --ring: #2563eb;
+        --police-titre: 'Inter';
+        --police-texte: 'Inter';
+        /* Le rapport d'image vient de la structure : c'est lui qui empêche une
+           vitrine de se disloquer sur des photos ramassées chez vingt
+           fournisseurs. */
+        --photo-rapport: 1 / 1;
+        --photo-recadrage: cover;
+        --rayon: 12px;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: var(--police-texte), system-ui, -apple-system, sans-serif;
+        font-size: 15px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      h1, h2, h3 { font-family: var(--police-titre), Georgia, serif; font-weight: 600; line-height: 1.15; }
+      a { color: inherit; }
+      img { display: block; max-width: 100%; }
+
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+      /* --- Bandeau et en-tête ------------------------------------------------ */
+
+      .annonce {
+        margin: 0;
+        padding: 9px 24px;
+        text-align: center;
+        font-size: 13px;
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+      .annonce[hidden] { display: none; }
+
+      header.site {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid var(--border);
+        background: color-mix(in srgb, var(--background) 92%, transparent);
+        backdrop-filter: blur(8px);
+      }
+      .site-inner {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .enseigne { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
+      .enseigne img { height: 34px; width: auto; }
+      .enseigne span { font-family: var(--police-titre); font-size: 21px; font-weight: 600; }
+      .site-note { font-size: 13px; color: var(--muted-foreground); }
+
+      /* --- Accroche ---------------------------------------------------------- */
+
+      .hero { padding: 56px 0 36px; }
+      .hero h1 { font-size: clamp(32px, 5.5vw, 54px); margin: 0 0 14px; letter-spacing: -0.02em; }
+      .hero h1 em { font-style: normal; color: var(--accent); }
+      .hero p { max-width: 56ch; margin: 0; color: var(--muted-foreground); font-size: 17px; }
+
+      /* --- Sections ---------------------------------------------------------- */
+
+      section.bloc { padding: 8px 0 44px; }
+      .titre-bloc {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        margin: 0 0 18px;
+      }
+      .titre-bloc h2 { font-size: 24px; margin: 0; }
+      .titre-bloc span { font-size: 13px; color: var(--muted-foreground); }
+
+      /* --- Grilles ----------------------------------------------------------- */
+
+      .grille { display: grid; gap: 22px; }
+      /* Aérée : peu de produits, mis en scène. */
+      .grille.aeree { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+      /* Dense : beaucoup de références, on en veut le plus possible à l'écran. */
+      .grille.dense { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+
+      .carte {
+        border: 1px solid var(--border);
+        border-radius: var(--rayon);
+        background: var(--card);
+        color: var(--card-foreground);
+        overflow: hidden;
+        cursor: pointer;
+        text-align: left;
+        padding: 0;
+        font: inherit;
+        display: flex;
+        flex-direction: column;
+        transition: border-color .16s, transform .16s, box-shadow .16s;
+      }
+      .carte:hover { border-color: var(--accent); transform: translateY(-2px); }
+      .carte:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+      /*
+       * Le cadre photo, imposé par la structure.
+       *
+       * C'est la pièce qui décide si une bibliothèque de thèmes tient en vrai.
+       * Les photos viennent de vingt fournisseurs : fonds blancs, fonds de
+       * studio, captures de téléphone, formats incohérents. Sans rapport fixe,
+       * chaque carte a sa hauteur et la grille se disloque à la première fiche
+       * importée de Temu.
+       */
+      .photo {
+        aspect-ratio: var(--photo-rapport);
+        background: var(--muted);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .photo img { width: 100%; height: 100%; object-fit: var(--photo-recadrage); }
+      .photo .initiale { font-family: var(--police-titre); font-size: 30px; color: var(--muted-foreground); }
+
+      .corps { padding: 14px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+      .rayon-etiquette {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--muted-foreground);
+      }
+      .nom { font-family: var(--police-titre); font-size: 16px; line-height: 1.25; }
+      .prix { margin-top: auto; padding-top: 8px; font-size: 18px; font-weight: 600; }
+      .etat { font-size: 11px; color: var(--muted-foreground); font-weight: 400; }
+
+      /* --- Mise en avant ------------------------------------------------------ */
+
+      .avant { display: grid; grid-template-columns: 1.2fr 1fr; gap: 28px; align-items: center; }
+      @media (max-width: 800px) { .avant { grid-template-columns: 1fr; } }
+      .avant .photo { border-radius: var(--rayon); }
+      .avant h2 { font-size: clamp(24px, 3.4vw, 38px); margin: 0 0 10px; }
+      .avant p { color: var(--muted-foreground); margin: 0 0 18px; }
+
+      /* --- Tuiles de rayon ---------------------------------------------------- */
+
+      .tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+      .tuile {
+        border: 1px solid var(--border);
+        border-radius: var(--rayon);
+        background: var(--muted);
+        color: var(--foreground);
+        padding: 18px;
+        text-align: left;
+        cursor: pointer;
+        font: inherit;
+        transition: border-color .16s;
+      }
+      .tuile:hover { border-color: var(--accent); }
+      .tuile strong { display: block; font-family: var(--police-titre); font-size: 16px; }
+      .tuile span { font-size: 12.5px; color: var(--muted-foreground); }
+
+      /* --- Recherche et filtres ----------------------------------------------- */
+
+      .barre { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+      .champ {
+        flex: 1;
+        min-width: 220px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--card-foreground);
+        padding: 10px 16px;
+        font: inherit;
+        outline: none;
+      }
+      .champ:focus { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 25%, transparent); }
+
+      .deroulant { flex: 0 1 300px; min-width: 200px; cursor: pointer; }
+
+      .puces { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
+      .puce {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--card-foreground);
+        border-radius: 999px;
+        padding: 6px 13px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .puce[aria-pressed='true'] { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+
+      /* --- Tableau ------------------------------------------------------------ */
+
+      .cadre-table { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--rayon); }
+      table { border-collapse: collapse; width: 100%; font-size: 14px; }
+      th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+      th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); }
+      tbody tr { cursor: pointer; }
+      tbody tr:hover { background: var(--muted); }
+      td.montant { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+      /* --- Boutons ------------------------------------------------------------ */
+
+      .bouton {
+        display: inline-block;
+        border: none;
+        border-radius: var(--rayon);
+        background: var(--primary);
+        color: var(--on-primary);
+        padding: 12px 22px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .bouton.secondaire { background: var(--secondary); color: var(--on-secondary); }
+      .bouton:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+      .voir-plus { display: flex; justify-content: center; padding: 8px 0 0; }
+
+      /* --- Fiche produit ------------------------------------------------------ */
+
+      .voile {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: none;
+        overflow-y: auto;
+        padding: 28px 16px;
+        background: rgba(0, 0, 0, .5);
+      }
+      .voile.ouvert { display: block; }
+      .fiche {
+        max-width: 960px;
+        margin: 0 auto;
+        background: var(--background);
+        border-radius: 16px;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      @media (max-width: 800px) { .fiche { grid-template-columns: 1fr; } }
+      .fiche-visuel { background: var(--muted); }
+      .fiche-visuel .photo { aspect-ratio: 1 / 1; }
+      .vignettes { display: flex; gap: 6px; padding: 8px; overflow-x: auto; }
+      .vignettes button {
+        flex: 0 0 54px;
+        height: 54px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        padding: 0;
+        background: var(--card);
+        cursor: pointer;
+      }
+      .vignettes button[aria-pressed='true'] { border-color: var(--accent); }
+      .vignettes img { width: 100%; height: 100%; object-fit: cover; }
+
+      .fiche-panneau { padding: 26px; position: relative; }
+      .fiche-panneau h2 { font-size: 26px; margin: 0 44px 6px 0; }
+      .fermer {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--card-foreground);
+        cursor: pointer;
+        font-size: 17px;
+        line-height: 1;
+      }
+      .fiche-prix { font-size: 30px; font-weight: 700; margin: 12px 0 4px; }
+      .arguments { margin: 14px 0; padding-left: 18px; color: var(--muted-foreground); font-size: 14px; }
+      .arguments li { margin-bottom: 4px; }
+      .caracteristiques { width: 100%; font-size: 13px; margin-top: 14px; }
+      .caracteristiques td { padding: 6px 0; border-bottom: 1px solid var(--border); }
+      .caracteristiques td:first-child { color: var(--muted-foreground); width: 45%; }
+      .description { font-size: 14px; color: var(--muted-foreground); white-space: pre-wrap; margin-top: 14px; }
+
+      /* --- États -------------------------------------------------------------- */
+
+      .vide, .chargement, .panne { padding: 60px 0; text-align: center; color: var(--muted-foreground); }
+      .panne { color: var(--accent); }
+      .panne code { display: block; margin-top: 8px; font-size: 12px; color: var(--muted-foreground); word-break: break-all; }
+
+      footer.site {
+        border-top: 1px solid var(--border);
+        padding: 30px 0;
+        font-size: 13px;
+        color: var(--muted-foreground);
+      }
+      footer .colonnes { display: flex; flex-wrap: wrap; gap: 32px; justify-content: space-between; }
+    </style>
+  </head>
+
+  <body>
+    <p class="annonce" id="annonce" hidden></p>
+
+    <header class="site">
+      <div class="site-inner">
+        <a class="enseigne" href="#" id="enseigne"><span>Boutique</span></a>
+        <span class="site-note" id="note"></span>
+      </div>
+    </header>
+
+    <main id="page"><p class="chargement">Chargement…</p></main>
+
+    <footer class="site">
+      <div class="wrap colonnes" id="pied"></div>
+    </footer>
+
+    <div class="voile" id="voile"><div class="fiche" id="fiche"></div></div>
+
+    <script>
+      /*
+       * Une page, six structures.
+       *
+       * ## Ce qui rend la chose tenable
+       *
+       * Une structure n'est pas un fichier, c'est **une liste de blocs**. Le
+       * serveur envoie `structure.blocs` — par exemple `['banniere',
+       * 'tuiles-rayons', 'nouveautes', 'grille-par-rayon', 'pied']` — et la page
+       * appelle une fonction par bloc, dans cet ordre. Sept structures ne font
+       * donc pas sept sites à maintenir, mais une quinzaine de fonctions
+       * réutilisées différemment.
+       *
+       * Un bloc inconnu ne rend rien plutôt que de lever : une structure ajoutée
+       * côté serveur ne doit pas casser les vitrines déjà déployées, et une
+       * vitrine morte est bien pire qu'une vitrine à laquelle il manque une
+       * section.
+       *
+       * ## Ce que la page ne fait pas
+       *
+       * Elle n'encaisse rien. Afficher un bouton « Payer » qui ne prend pas
+       * d'argent serait la seule façon sûre de perdre un client : la commande
+       * part par message, avec la référence et le prix.
+       */
+
+      var CFG = window.BOUTIQUE || {}
+      var params = new URLSearchParams(location.search)
+      var API = (CFG.api || params.get('api') || '').replace(/\/$/, '')
+      var CLE = CFG.shopKey || params.get('shop') || ''
+      var CONTACT = CFG.contact || params.get('contact') || ''
+
+      var page = document.getElementById('page')
+      var voile = document.getElementById('voile')
+      var fiche = document.getElementById('fiche')
+
+      var produits = []
+      var apparence = null
+      var filtre = { texte: '', rayon: null, sous: null }
+      var montres = 12
+
+      // --- Petits outils ------------------------------------------------------
+
+      function texte(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        })
+      }
+
+      /**
+       * Une photo, rendue absolue.
+       *
+       * Le flux sert des chemins relatifs — `/storage/products/…` — parce qu'il
+       * ne sait pas d'où il sera lu. Servie à l'adresse `/b/…`, la page est sur
+       * la même origine que l'API et ils marchent tels quels ; ouverte depuis un
+       * autre hébergement avec `?api=`, ils pointeraient vers un dossier qui
+       * n'existe pas là-bas, et la boutique n'aurait plus une seule image.
+       */
+      function photo(u) {
+        if (!u) return u
+        return u.startsWith('http') || u.startsWith('data:') ? u : API + u
+      }
+
+      function prix(p) {
+        var n = Number(p.price)
+        if (!isFinite(n)) return ''
+        return n.toFixed(2).replace('.', ',') + ' ' + (p.currency === 'USD' ? '$' : '€')
+      }
+
+      /** L'état, dit en français. Le flux le porte en anglais normalisé. */
+      var ETATS = { new: 'Neuf', refurbished: 'Reconditionné', used: 'Occasion' }
+
+      /**
+       * L'icône d'un rayon, pour que le déroulant se parcoure à l'œil.
+       *
+       * Vingt-quatre lignes de texte se lisent une par une ; vingt-quatre lignes
+       * précédées d'un pictogramme se balaient. Ce sont les mêmes emoji que ceux
+       * des chefs de rayon dans l'application — la vitrine et le back-office
+       * doivent désigner un rayon de la même façon.
+       */
+      var EMOJI = {
+        'Électronique': '💻',
+        'Téléphones portables et accessoires': '📱',
+        'Appareils électroménagers': '🍳',
+        'Vêtements pour femmes': '👗',
+        'Vêtements pour hommes': '👔',
+        'Chaussures': '👟',
+        'Bijoux et accessoires': '⌚',
+        'Sacs et bagages': '👜',
+        'Beauté et santé': '💄',
+        'Extensions de cheveux et perruques': '💇',
+        'Outils et bricolage': '🔧',
+        'Terrasse, pelouse et jardin': '🌱',
+        'Meubles': '🛋️',
+        'Arts, artisanat et couture': '🧵',
+        'Livres et médias': '📚',
+        'Fournitures de bureau et scolaires': '✏️',
+        'Jouets et jeux': '🎮',
+        'Bébé et maternité': '🍼',
+        'Fournitures pour animaux de compagnie': '🐾',
+        'Sports et loisirs de plein air': '🏋️',
+        'Automobile': '🚗',
+        'Motos et sports motorisés': '🏍️',
+        'Commerce, industrie et science': '🏭',
+        'Nouveauté et usage spécial': '🎁',
+      }
+
+      /**
+       * Le rayon d'un produit, c'est-à-dire le premier segment de son chemin.
+       *
+       * Le flux rend « Bijoux et accessoires > Bracelets ». Regrouper sur le
+       * chemin entier donnerait quarante rayons d'un article ; regrouper sur le
+       * premier segment donne les vingt-quatre du référentiel.
+       */
+      function rayonDe(p) {
+        if (!p.category) return null
+        return String(p.category).split('>')[0].trim() || null
+      }
+
+      function sousRayonDe(p) {
+        if (!p.category) return null
+        var bouts = String(p.category).split('>')
+        return bouts.length > 1 ? bouts[bouts.length - 1].trim() : null
+      }
+
+      function rayons() {
+        var compte = new Map()
+        produits.forEach(function (p) {
+          var r = rayonDe(p)
+          if (r) compte.set(r, (compte.get(r) || 0) + 1)
+        })
+        return [...compte].sort(function (a, b) { return b[1] - a[1] })
+      }
+
+      /** Les produits après recherche et filtre de rayon. */
+      function filtres() {
+        var t = filtre.texte.toLowerCase().trim()
+        return produits.filter(function (p) {
+          if (filtre.rayon && rayonDe(p) !== filtre.rayon) return false
+          if (filtre.sous && sousRayonDe(p) !== filtre.sous) return false
+          if (!t) return true
+          return (
+            (p.title || '').toLowerCase().includes(t) ||
+            (p.category || '').toLowerCase().includes(t) ||
+            (p.metaKeywords || '').toLowerCase().includes(t)
+          )
+        })
+      }
+
+      // --- Les briques réutilisées -------------------------------------------
+
+      function visuel(p) {
+        var img = (p.images || [])[0]
+        return (
+          '<span class="photo">' +
+          (img
+            ? '<img src="' + texte(photo(img)) + '" alt="' + texte(p.title) + '" loading="lazy" />'
+            : '<span class="initiale">' + texte((p.title || '?').slice(0, 1).toUpperCase()) + '</span>') +
+          '</span>'
+        )
+      }
+
+      function carte(p, i) {
+        var sous = sousRayonDe(p)
+        return (
+          '<button class="carte" data-i="' + i + '">' +
+          visuel(p) +
+          '<span class="corps">' +
+          (sous ? '<span class="rayon-etiquette">' + texte(sous) + '</span>' : '') +
+          '<span class="nom">' + texte(p.title) + '</span>' +
+          '<span class="prix">' + prix(p) +
+          (p.condition && p.condition !== 'new'
+            ? ' <span class="etat">· ' + texte(ETATS[p.condition] || '') + '</span>'
+            : '') +
+          '</span></span></button>'
+        )
+      }
+
+      function grille(liste, densite) {
+        if (!liste.length) return '<p class="vide">Aucun article ne correspond.</p>'
+        return (
+          '<div class="grille ' + densite + '">' +
+          liste.map(function (p) { return carte(p, produits.indexOf(p)) }).join('') +
+          '</div>'
+        )
+      }
+
+      function entete(titre, note) {
+        return (
+          '<div class="titre-bloc"><h2>' + texte(titre) + '</h2>' +
+          (note ? '<span>' + texte(note) + '</span>' : '') +
+          '</div>'
+        )
+      }
+
+      // --- Les blocs ----------------------------------------------------------
+
+      var BLOCS = {
+        banniere: function () {
+          var c = apparence.contenu
+          return (
+            '<section class="hero wrap"><h1>' +
+            texte(c.accroche) + '<br /><em>' + texte(c.accrocheSuite) + '</em></h1>' +
+            '<p>' + texte(c.sousTitre) + '</p></section>'
+          )
+        },
+
+        // La une d'un magazine : le premier article prend toute la place.
+        une: function () {
+          var p = produits[0]
+          if (!p) return BLOCS.banniere()
+          return (
+            '<section class="bloc wrap"><div class="avant">' +
+            '<button class="carte" data-i="0" style="border:none;background:none">' + visuel(p) + '</button>' +
+            '<div><h2>' + texte(apparence.contenu.accroche) + ' ' + texte(apparence.contenu.accrocheSuite) + '</h2>' +
+            '<p>' + texte(apparence.contenu.sousTitre) + '</p>' +
+            '<button class="bouton" data-i="0">' + texte(p.title.slice(0, 40)) + '</button>' +
+            '</div></div></section>'
+          )
+        },
+
+        'mise-en-avant': function () {
+          var p = produits[0]
+          if (!p) return ''
+          return (
+            '<section class="bloc wrap"><div class="avant">' +
+            '<button class="carte" data-i="0" style="border:none;background:none">' + visuel(p) + '</button>' +
+            '<div><h2>' + texte(p.title) + '</h2>' +
+            '<p>' + texte((p.description || '').slice(0, 220)) + '</p>' +
+            '<p class="fiche-prix">' + prix(p) + '</p>' +
+            '<button class="bouton" data-i="0">Voir l\'article</button></div>' +
+            '</div></section>'
+          )
+        },
+
+        'article-mis-en-avant': function () { return BLOCS['mise-en-avant']() },
+
+        'barre-recherche': function () {
+          return (
+            '<section class="bloc wrap"><div class="barre">' +
+            '<input class="champ" id="recherche" type="search" placeholder="Rechercher un article…" value="' +
+            texte(filtre.texte) + '" />' +
+            '</div></section>'
+          )
+        },
+
+        /*
+         * Les rayons, dans un menu déroulant.
+         *
+         * Le référentiel en compte vingt-quatre. En pastilles, ça fait trois
+         * lignes qui poussent le catalogue sous la ligne de flottaison, et sur
+         * téléphone un ruban qu'on fait défiler à l'aveugle. Un déroulant tient
+         * sur une ligne, se lit d'un coup, et le navigateur en fait une liste
+         * native sur mobile.
+         *
+         * La sous-catégorie n'apparaît **qu'une fois le rayon choisi**. La
+         * proposer d'emblée voudrait dire dérouler deux cent vingt-quatre
+         * lignes, ce qui est le problème qu'on corrige, en pire.
+         */
+        'filtres-rayons': function () {
+          var rs = rayons()
+          if (rs.length < 2) return ''
+
+          var sous = []
+          if (filtre.rayon) {
+            var compte = new Map()
+            produits.forEach(function (p) {
+              if (rayonDe(p) !== filtre.rayon) return
+              var s = sousRayonDe(p)
+              if (s) compte.set(s, (compte.get(s) || 0) + 1)
+            })
+            sous = [...compte].sort(function (a, b) { return b[1] - a[1] })
+          }
+
+          return (
+            '<section class="bloc wrap"><div class="barre">' +
+            '<select class="champ deroulant" id="choix-rayon" aria-label="Rayon">' +
+            '<option value=""' + (!filtre.rayon ? ' selected' : '') + '>Tous les rayons (' + produits.length + ')</option>' +
+            rs.map(function (r) {
+              return (
+                '<option value="' + texte(r[0]) + '"' + (filtre.rayon === r[0] ? ' selected' : '') + '>' +
+                texte(EMOJI[r[0]] || '•') + '  ' + texte(r[0]) + ' (' + r[1] + ')</option>'
+              )
+            }).join('') +
+            '</select>' +
+            (sous.length > 1
+              ? '<select class="champ deroulant" id="choix-sous" aria-label="Sous-catégorie">' +
+                '<option value=""' + (!filtre.sous ? ' selected' : '') + '>Tout le rayon</option>' +
+                sous.map(function (s) {
+                  return (
+                    '<option value="' + texte(s[0]) + '"' + (filtre.sous === s[0] ? ' selected' : '') + '>' +
+                    texte(s[0]) + ' (' + s[1] + ')</option>'
+                  )
+                }).join('') +
+                '</select>'
+              : '') +
+            '</div></section>'
+          )
+        },
+
+        'tuiles-rayons': function () {
+          var rs = rayons()
+          if (!rs.length) return ''
+          return (
+            '<section class="bloc wrap">' + entete('Nos rayons', rs.length + ' rayons') +
+            '<div class="tuiles">' +
+            rs.map(function (r) {
+              return (
+                '<button class="tuile" data-rayon="' + texte(r[0]) + '">' +
+                '<strong>' + texte(r[0]) + '</strong><span>' + r[1] + ' article' + (r[1] > 1 ? 's' : '') + '</span></button>'
+              )
+            }).join('') +
+            '</div></section>'
+          )
+        },
+
+        nouveautes: function () {
+          var liste = produits.slice(0, 4)
+          if (!liste.length) return ''
+          return '<section class="bloc wrap">' + entete('Nouveautés') + grille(liste, 'aeree') + '</section>'
+        },
+
+        'grille-aeree': function () {
+          var liste = filtres()
+          return (
+            '<section class="bloc wrap">' +
+            entete(filtre.rayon || 'La sélection', liste.length + ' article(s)') +
+            grille(liste.slice(0, montres), 'aeree') +
+            (liste.length > montres ? '<div class="voir-plus"><button class="bouton secondaire" id="plus">Voir plus</button></div>' : '') +
+            '</section>'
+          )
+        },
+
+        'grille-dense': function () {
+          var liste = filtres()
+          return (
+            '<section class="bloc wrap">' +
+            entete(filtre.rayon || 'Catalogue', liste.length + ' article(s)') +
+            grille(liste.slice(0, montres), 'dense') +
+            (liste.length > montres ? '<div class="voir-plus"><button class="bouton secondaire" id="plus">Voir plus</button></div>' : '') +
+            '</section>'
+          )
+        },
+
+        'produits-lies': function () { return BLOCS['grille-aeree']() },
+
+        /*
+         * Un bloc par rayon, chacun avec ses articles.
+         *
+         * Limité à quatre rayons et six articles chacun : c'est une page
+         * d'accueil, pas le catalogue entier. Trois cents cartes rendues d'un
+         * coup mettent une seconde à s'afficher sur un téléphone.
+         */
+        'grille-par-rayon': function () {
+          var rs = rayons().slice(0, 4)
+          if (!rs.length) return ''
+          return rs.map(function (r) {
+            var liste = produits.filter(function (p) { return rayonDe(p) === r[0] }).slice(0, 6)
+            return (
+              '<section class="bloc wrap">' + entete(r[0], r[1] + ' article(s)') +
+              grille(liste, 'aeree') + '</section>'
+            )
+          }).join('')
+        },
+
+        tableau: function () {
+          var liste = filtres().slice(0, montres)
+          if (!liste.length) return '<section class="bloc wrap"><p class="vide">Aucun article.</p></section>'
+          return (
+            '<section class="bloc wrap"><div class="cadre-table"><table>' +
+            '<thead><tr><th>Article</th><th>Rayon</th><th>État</th><th style="text-align:right">Prix</th></tr></thead><tbody>' +
+            liste.map(function (p) {
+              return (
+                '<tr data-i="' + produits.indexOf(p) + '"><td>' + texte(p.title) + '</td>' +
+                '<td>' + texte(sousRayonDe(p) || '—') + '</td>' +
+                '<td>' + texte(ETATS[p.condition] || 'Neuf') + '</td>' +
+                '<td class="montant">' + prix(p) + '</td></tr>'
+              )
+            }).join('') +
+            '</tbody></table></div>' +
+            (filtres().length > montres ? '<div class="voir-plus" style="padding-top:16px"><button class="bouton secondaire" id="plus">Voir plus</button></div>' : '') +
+            '</section>'
+          )
+        },
+
+        'fiche-laterale': function () { return '' },
+        pagination: function () { return '' },
+
+        // --- Les blocs de la structure « produit unique » ---------------------
+
+        accroche: function () { return BLOCS.une() },
+
+        preuve: function () {
+          var p = produits[0]
+          if (!p || !(p.bulletPoints || []).length) return ''
+          return (
+            '<section class="bloc wrap">' + entete('Pourquoi celui-là') +
+            '<ul class="arguments">' + p.bulletPoints.map(function (b) { return '<li>' + texte(b) + '</li>' }).join('') + '</ul>' +
+            '</section>'
+          )
+        },
+
+        arguments: function () { return BLOCS.preuve() },
+
+        objections: function () {
+          var c = apparence.contenu
+          return (
+            '<section class="bloc wrap">' + entete('Livraison et retours') +
+            '<p style="color:var(--muted-foreground);max-width:60ch">' +
+            (c.portOffertDes > 0
+              ? 'Livraison ' + c.fraisPort.toFixed(2).replace('.', ',') + ' €, offerte dès ' + c.portOffertDes + ' € d\'achat. '
+              : 'Livraison offerte. ') +
+            'Retours sous 14 jours.</p></section>'
+          )
+        },
+
+        achat: function () {
+          var p = produits[0]
+          if (!p) return ''
+          return (
+            '<section class="bloc wrap"><p class="fiche-prix">' + prix(p) + '</p>' +
+            '<button class="bouton" data-i="0">Commander</button></section>'
+          )
+        },
+
+        'a-propos': function () {
+          var c = apparence.contenu
+          if (!c.sousTitre) return ''
+          return (
+            '<section class="bloc wrap">' + entete('La boutique') +
+            '<p style="max-width:62ch;color:var(--muted-foreground)">' + texte(c.sousTitre) + '</p></section>'
+          )
+        },
+
+        pied: function () { return '' },
+      }
+
+      // --- Rendu --------------------------------------------------------------
+
+      function rendre() {
+        if (!apparence) return
+
+        var blocs = apparence.structure.blocs || ['banniere', 'grille-dense']
+        page.innerHTML = blocs
+          .map(function (b) {
+            // Un bloc inconnu ne rend rien : une structure ajoutée côté serveur
+            // ne doit pas casser les vitrines déjà en ligne.
+            try { return BLOCS[b] ? BLOCS[b]() : '' } catch (e) { return '' }
+          })
+          .join('')
+
+        brancher()
+      }
+
+      function brancher() {
+        page.querySelectorAll('[data-i]').forEach(function (el) {
+          el.addEventListener('click', function () { ouvrir(produits[Number(el.dataset.i)]) })
+        })
+        page.querySelectorAll('[data-rayon]').forEach(function (el) {
+          el.addEventListener('click', function () {
+            filtre.rayon = el.dataset.rayon || null
+            // Changer de rayon efface la sous-categorie : garder « Bracelets »
+            // en passant a l Automobile ne montrerait aucun article, sans dire
+            // pourquoi.
+            filtre.sous = null
+            montres = 12
+            rendre()
+          })
+        })
+        var choixRayon = document.getElementById('choix-rayon')
+        if (choixRayon) {
+          choixRayon.addEventListener('change', function () {
+            filtre.rayon = choixRayon.value || null
+            filtre.sous = null
+            montres = 12
+            rendre()
+          })
+        }
+
+        var choixSous = document.getElementById('choix-sous')
+        if (choixSous) {
+          choixSous.addEventListener('change', function () {
+            filtre.sous = choixSous.value || null
+            montres = 12
+            rendre()
+          })
+        }
+
+        var plus = document.getElementById('plus')
+        if (plus) plus.addEventListener('click', function () { montres += 12; rendre() })
+
+        var recherche = document.getElementById('recherche')
+        if (recherche) {
+          recherche.addEventListener('input', function () {
+            filtre.texte = recherche.value
+            montres = 12
+            rendre()
+            // Le champ est reconstruit à chaque frappe : sans ça, le curseur
+            // saute et l'on ne peut pas écrire deux lettres de suite.
+            var neuf = document.getElementById('recherche')
+            if (neuf) { neuf.focus(); neuf.setSelectionRange(neuf.value.length, neuf.value.length) }
+          })
+        }
+      }
+
+      // --- La fiche produit ---------------------------------------------------
+
+      var courant = null
+      var imageActive = 0
+
+      function ouvrir(p) {
+        if (!p) return
+        courant = p
+        imageActive = 0
+        voile.classList.add('ouvert')
+        document.body.style.overflow = 'hidden'
+        rendreFiche()
+      }
+
+      function fermer() {
+        voile.classList.remove('ouvert')
+        document.body.style.overflow = ''
+        courant = null
+      }
+
+      function rendreFiche() {
+        var p = courant
+        var images = p.images || []
+        var attrs = Object.entries(p.attributes || {})
+
+        fiche.innerHTML =
+          '<div class="fiche-visuel">' +
+          '<span class="photo">' +
+          (images[imageActive]
+            ? '<img src="' + texte(photo(images[imageActive])) + '" alt="' + texte(p.title) + '" />'
+            : '<span class="initiale">' + texte((p.title || '?').slice(0, 1).toUpperCase()) + '</span>') +
+          '</span>' +
+          (images.length > 1
+            ? '<div class="vignettes">' +
+              images.map(function (u, i) {
+                return (
+                  '<button data-img="' + i + '" aria-pressed="' + (i === imageActive) + '">' +
+                  '<img src="' + texte(photo(u)) + '" alt="" loading="lazy" /></button>'
+                )
+              }).join('') +
+              '</div>'
+            : '') +
+          '</div>' +
+          '<div class="fiche-panneau">' +
+          '<button class="fermer" id="fermer" aria-label="Fermer">×</button>' +
+          (sousRayonDe(p) ? '<p class="rayon-etiquette">' + texte(p.category) + '</p>' : '') +
+          '<h2>' + texte(p.title) + '</h2>' +
+          '<p class="fiche-prix">' + prix(p) + '</p>' +
+          '<p class="etat">' + texte(ETATS[p.condition] || 'Neuf') + '</p>' +
+          ((p.bulletPoints || []).length
+            ? '<ul class="arguments">' + p.bulletPoints.map(function (b) { return '<li>' + texte(b) + '</li>' }).join('') + '</ul>'
+            : '') +
+          commander(p) +
+          (attrs.length
+            ? '<table class="caracteristiques">' +
+              attrs.map(function (a) { return '<tr><td>' + texte(a[0]) + '</td><td>' + texte(a[1]) + '</td></tr>' }).join('') +
+              '</table>'
+            : '') +
+          (p.description ? '<p class="description">' + texte(p.description) + '</p>' : '') +
+          '</div>'
+
+        document.getElementById('fermer').addEventListener('click', fermer)
+        fiche.querySelectorAll('[data-img]').forEach(function (el) {
+          el.addEventListener('click', function () { imageActive = Number(el.dataset.img); rendreFiche() })
+        })
+        var copier = document.getElementById('copier')
+        if (copier) {
+          copier.addEventListener('click', function () {
+            navigator.clipboard.writeText(resume(p))
+            copier.textContent = 'Copié — collez-le dans votre message'
+            setTimeout(function () { copier.textContent = 'Copier cette commande' }, 2500)
+          })
+        }
+      }
+
+      function resume(p) {
+        return [p.title, '', 'Prix : ' + prix(p), 'Référence : ' + p.id].join('\n')
+      }
+
+      /**
+       * La commande.
+       *
+       * Un message pré-rempli, jamais un paiement : rien ici n'encaisse, et un
+       * bouton « Payer » qui ne prend pas d'argent est la seule façon sûre de
+       * perdre un client. Sans destinataire, on copie plutôt que d'ouvrir un
+       * courriel vide adressé à personne.
+       */
+      function commander(p) {
+        if (!CONTACT) return '<button class="bouton" id="copier">Copier cette commande</button>'
+        var lien =
+          'mailto:' + encodeURIComponent(CONTACT) +
+          '?subject=' + encodeURIComponent('Commande — ' + p.title) +
+          '&body=' + encodeURIComponent(resume(p))
+        return '<a class="bouton" href="' + texte(lien) + '">Commander</a>'
+      }
+
+      voile.addEventListener('click', function (e) { if (e.target === voile) fermer() })
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && courant) fermer() })
+
+      // --- Chargement ---------------------------------------------------------
+
+      function appliquerTheme(t) {
+        apparence = t
+
+        var style = document.createElement('style')
+        style.textContent = t.css || ''
+        document.head.appendChild(style)
+
+        /*
+         * Les polices sont demandées à Google ici, et ce n'est que provisoire.
+         *
+         * Une boutique française qui charge sa police depuis
+         * `fonts.googleapis.com` envoie l'adresse IP de chaque visiteur aux
+         * États-Unis — ce qu'un tribunal allemand a sanctionné, et ce sera notre
+         * responsabilité, pas celle du vendeur. Les fichiers devront être servis
+         * depuis chez nous avant la première vraie boutique.
+         */
+        var familles = (t.polices && t.polices.familles) || []
+        if (familles.length) {
+          var lien = document.createElement('link')
+          lien.rel = 'stylesheet'
+          lien.href =
+            'https://fonts.googleapis.com/css2?' +
+            familles.map(function (f) { return 'family=' + encodeURIComponent(f) + ':wght@400;500;600;700' }).join('&') +
+            '&display=swap'
+          document.head.appendChild(lien)
+        }
+
+        var nom = (t.boutique && t.boutique.nom) || 'Boutique'
+        document.title = nom
+        var enseigne = document.getElementById('enseigne')
+        enseigne.innerHTML =
+          (t.boutique && t.boutique.logo ? '<img src="' + texte(t.boutique.logo) + '" alt="' + texte(nom) + '" />' : '') +
+          '<span>' + texte(nom) + '</span>'
+
+        var bandeau = document.getElementById('annonce')
+        if (t.contenu && t.contenu.annonce) {
+          bandeau.textContent = t.contenu.annonce
+          bandeau.hidden = false
+        }
+
+        var c = t.contenu || {}
+        document.getElementById('pied').innerHTML =
+          '<div><strong>' + texte(nom) + '</strong><br />' + texte(c.sousTitre || '') + '</div>' +
+          '<div>' +
+          (c.portOffertDes > 0
+            ? 'Livraison ' + Number(c.fraisPort).toFixed(2).replace('.', ',') + ' €<br />Offerte dès ' + c.portOffertDes + ' €'
+            : 'Livraison offerte') +
+          '<br />Retours sous 14 jours</div>'
+      }
+
+      function charger() {
+        if (!CLE || !API) {
+          page.innerHTML =
+            '<p class="panne">Boutique non configurée.<code>Il manque l\'adresse de l\'API ou la clé de boutique.</code></p>'
+          return
+        }
+
+        var essai = params.get('theme')
+        var base = API + '/api/public/shops/' + encodeURIComponent(CLE)
+
+        /*
+         * Le thème et le catalogue sont demandés ensemble.
+         *
+         * Le thème seul afficherait une page vide aux bonnes couleurs ; le
+         * catalogue seul afficherait les produits en couleurs d'usine puis les
+         * repeindrait sous les yeux du visiteur. Les deux d'un coup évitent ce
+         * clignotement.
+         */
+        Promise.all([
+          fetch(base + '/theme' + (essai ? '?theme=' + encodeURIComponent(essai) : '')).then(function (r) {
+            return r.ok ? r.json() : null
+          }),
+          fetch(base + '/products').then(function (r) {
+            if (!r.ok) throw new Error('Le catalogue répond ' + r.status)
+            return r.json()
+          }),
+        ])
+          .then(function (res) {
+            if (res[0]) appliquerTheme(res[0])
+            produits = (res[1] && res[1].products) || []
+            document.getElementById('note').textContent =
+              produits.length + ' article' + (produits.length > 1 ? 's' : '')
+            if (!apparence) {
+              apparence = { structure: { blocs: ['banniere', 'grille-dense'] }, contenu: { accroche: 'Notre sélection,', accrocheSuite: 'choisie pour vous.', sousTitre: '', fraisPort: 0, portOffertDes: 0 } }
+            }
+            rendre()
+          })
+          .catch(function (err) {
+            /*
+             * L'erreur est montrée avec l'adresse appelée.
+             *
+             * « Catalogue indisponible » tout seul envoie chercher au mauvais
+             * endroit : neuf fois sur dix c'est la clé de boutique qui est
+             * fausse, et l'adresse le dit d'un coup d'œil.
+             */
+            page.innerHTML =
+              '<p class="panne">Catalogue indisponible. ' + texte(err.message) +
+              '<code>' + texte(base + '/products') + '</code></p>'
+          })
+      }
+
+      charger()
+    </script>
+  </body>
+</html>

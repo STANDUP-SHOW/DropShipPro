@@ -18,6 +18,16 @@
         "storefront-imprimerie/demo.cjs"
       ],
       "port": 4321
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 4000,
+      "cwd": "backend"
     }
   ]
 }

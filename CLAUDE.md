@@ -37,6 +37,7 @@ backend/extension/  Extension Chrome Manifest V3, servie par /api/public/extensi
 frontend/    React + Vite + Tailwind v4 → Vercel (Root Directory = frontend)
 storefront/  Vitrine de démonstration OGGUS (HTML autonome)
 storefront-imprimerie/  Print34, boutique d'imprimerie autonome (voir docs/boutique-imprimerie.md)
+storefront-boutique/    La vitrine generique, servie a /b/<adresse> — une page pour toutes les boutiques
 docs/        Documentation de l'API catalogue
 ```
 
@@ -57,6 +58,42 @@ docs/        Documentation de l'API catalogue
 - **L'import par URL ne marche pas sur Temu, JoyBuy, AliExpress, Shein.** Ces
   sites construisent leur fiche en JavaScript ; le serveur reçoit une coquille
   vide. C'est refusé explicitement, avec renvoi vers l'extension.
+
+## La règle qui prime sur toutes les autres
+
+**Aucune commande qui prend une base « jetable » ne reçoit jamais
+`DATABASE_URL`.** En tête : `prisma migrate diff --shadow-database-url`, dont le
+rôle est précisément de **vider** la base qu'on lui désigne avant d'y rejouer les
+migrations.
+
+Le 01/09/2026, cette commande a été lancée avec l'adresse de la base de
+production en base fantôme. Toutes les tables ont été supprimées et recréées
+vides : comptes, produits, publications, commandes, crédits, avis. La sauvegarde
+de l'hébergeur existait mais était verrouillée derrière l'offre payante, et
+datait de dix jours — dix jours de données perdus pour de bon.
+
+Ce qui aurait dû arrêter le geste était déjà écrit dans ce fichier : *« Base :
+PostgreSQL sur Railway (la même en local et en production) »*.
+
+Trois conséquences, toutes appliquées :
+
+1. **Une migration se génère sans base fantôme** ou s'écrit à la main, puis
+   s'applique avec `npx prisma migrate deploy` — qui n'avance que vers l'avant et
+   ne réinitialise rien. Si `migrate dev` devient interactif, c'est un signal à
+   lire, pas un obstacle à contourner.
+2. **Sauvegarder avant de toucher au schéma**, et pas seulement en comptant sur
+   l'hébergeur :
+
+   ```bash
+   cd backend && npm run sauvegarde
+   ```
+
+   Écrit une copie complète en JSON dans `backend/sauvegardes/<horodatage>/`
+   (hors dépôt), garde les copies précédentes, et **signale une chute brutale du
+   nombre de lignes** — une sauvegarde qui enregistre un désastre sans le dire le
+   rend définitif.
+3. **Un script qui touche la base n'écrit rien sans `--ecrire`.** Il montre
+   d'abord ce qu'il ferait. Voir `reembaucher-rayons.ts`, `poser-adresses.ts`.
 
 ## Pièges vérifiés (ne pas retomber dedans)
 

@@ -1,3 +1,6 @@
 
 # Paquet genere pour le Chrome Web Store
 extension-store.zip
+
+# Copies locales de la base : des donnees clientes, jamais du code.
+sauvegardes/
