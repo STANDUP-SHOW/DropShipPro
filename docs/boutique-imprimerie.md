@@ -44,6 +44,62 @@ Le **réceptacle** et le **flux**. C'est-à-dire tout sauf le relevé lui-même.
    boutique, la mise en ligne est refusée par le serveur, et l'écran dit ce qui
    manque.
 
+## La vitrine — `storefront-imprimerie/`
+
+**Print34**, boutique autonome. Un seul fichier HTML, aucune dépendance, aucun
+serveur propre : elle lit le flux et compose tout à partir de lui. On la dépose
+sur n'importe quel hébergement statique.
+
+```
+storefront-imprimerie/index.html?api=https://…&shop=VOTRE_CLE&contact=commandes@…
+```
+
+C'est le configurateur — le morceau qu'aucune boutique standard ne sait faire,
+puisque Shopify plafonne à trois options et que ni la quantité ni le délai n'en
+sont.
+
+**Le point qui décide de tout : les options viennent de la grille, jamais de la
+liste des dimensions.** C'est contre-intuitif — la liste existe et semble faite
+pour ça — mais elle décrit ce que le fournisseur propose, pas ce que la grille
+contient. Or on ne relève jamais la matrice entière : c'est ce qui rend le
+relevé tenable. Un configurateur bâti sur les dimensions offrirait donc des
+combinaisons sans prix, et l'acheteur tomberait sur « — » après avoir tout
+choisi. Chaque option est confrontée aux lignes réellement disponibles compte
+tenu des autres choix, et **barrée** — pas retirée : une option qui disparaît
+se lit comme un bug, une option barrée dit « ce grammage existe, mais pas dans
+cette quantité ».
+
+Trois autres choses tenues par le code :
+
+- **La fiche s'ouvre sur la ligne la moins chère**, celle qui a été annoncée sur
+  la carte. Ouvrir sur une combinaison vide obligerait à tout choisir avant de
+  voir un prix — or c'est le prix qu'on vient regarder — et passer de « dès
+  27,86 € » à un autre chiffre en ouvrant la fiche se lit comme une hausse.
+- **Un choix qui en invalide un autre le rattrape.** Passer de 100 à 7 500
+  exemplaires ferme le délai le plus court : sans rattrapage la fiche
+  afficherait « — » et l'acheteur croirait s'être trompé.
+- **Sans destinataire (`?contact=`), le bouton copie au lieu d'ouvrir un
+  courriel.** `mailto:` sans adresse ouvre bien le client de messagerie — sur un
+  message vide, adressé à personne. Rien n'encaisse ici : afficher un bouton
+  « Payer » qui ne prend pas d'argent serait la seule façon sûre de perdre un
+  client.
+
+Démonstration sans base ni API :
+
+```bash
+node storefront-imprimerie/demo.cjs
+```
+
+Le faux flux n'est pas décoratif : sa grille est **volontairement trouée** — le
+400 g n'existe qu'en petites quantités, l'express ferme au-delà de 1 000
+exemplaires — parce que c'est ce que produit un relevé partiel. Une démo à
+grille complète ne prouverait rien.
+
+**Vérifié le 01/09/2026** dans le navigateur : ouverture sur 16,50 € les 100,
+choix du 400 g barrant 1 000 / 2 500 / 7 500 et portant le prix à 24,50 €,
+choix de 7 500 barrant le 400 g et l'express, bouton de commande portant la
+sélection complète, aucune erreur console.
+
 ## Ce qui n'existe pas : le relevé
 
 Aucun code ne va chercher quoi que ce soit chez Pixartprinting. Le dépôt se fait

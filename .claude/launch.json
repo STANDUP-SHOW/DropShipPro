@@ -4,9 +4,20 @@
     {
       "name": "droppost-frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173,
       "cwd": "frontend"
+    },
+    {
+      "name": "print34",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "storefront-imprimerie/demo.cjs"
+      ],
+      "port": 4321
     }
   ]
 }

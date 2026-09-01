@@ -36,6 +36,7 @@ backend/     Node + Express + TypeScript + Prisma → Railway
 backend/extension/  Extension Chrome Manifest V3, servie par /api/public/extension.zip
 frontend/    React + Vite + Tailwind v4 → Vercel (Root Directory = frontend)
 storefront/  Vitrine de démonstration OGGUS (HTML autonome)
+storefront-imprimerie/  Print34, boutique d'imprimerie autonome (voir docs/boutique-imprimerie.md)
 docs/        Documentation de l'API catalogue
 ```
 

@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Print34 — Imprimerie en ligne</title>
+    <meta
+      name="description"
+      content="Print34, imprimerie en ligne : cartes de visite, flyers, affiches et étiquettes. Prix immédiat selon le support, la quantité et le délai."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /*
+       * Une vitrine d'imprimerie, et pas une boutique de plus.
+       *
+       * Le papier est le sujet : fond crème, encre profonde, un seul accent.
+       * Le contraire d'une boutique de mode, où la photo porte tout — ici il n'y
+       * a presque rien à photographier, et c'est le prix qui doit être lisible.
+       */
+      :root {
+        --paper: #faf8f4;
+        --paper-warm: #f2eee6;
+        --ink: #191713;
+        --ink-soft: #5c564c;
+        --muted: #8f887c;
+        --accent: #b3401f;
+        --accent-soft: #d9663f;
+        --line: rgba(25, 23, 19, 0.12);
+        --serif: 'Instrument Serif', Georgia, serif;
+        --sans: 'Inter', system-ui, -apple-system, sans-serif;
+        --radius: 10px;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a { color: inherit; }
+
+      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+      /* --- En-tête ---------------------------------------------------------- */
+
+      header.site {
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        background: rgba(250, 248, 244, 0.92);
+        backdrop-filter: blur(8px);
+        z-index: 20;
+      }
+
+      .site-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 16px 24px;
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+
+      .brand {
+        font-family: var(--serif);
+        font-size: 26px;
+        letter-spacing: -0.01em;
+        text-decoration: none;
+      }
+      .brand em { font-style: italic; color: var(--accent); }
+
+      .site-note { font-size: 13px; color: var(--muted); }
+
+      /* --- Bandeau ---------------------------------------------------------- */
+
+      .hero { padding: 64px 0 40px; }
+      .hero h1 {
+        font-family: var(--serif);
+        font-size: clamp(38px, 6vw, 62px);
+        line-height: 1.05;
+        margin: 0 0 16px;
+        letter-spacing: -0.02em;
+        font-weight: 400;
+      }
+      .hero h1 em { font-style: italic; color: var(--accent); }
+      .hero p { max-width: 52ch; color: var(--ink-soft); margin: 0; font-size: 17px; }
+
+      /* --- Grille produits -------------------------------------------------- */
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 20px;
+        padding-bottom: 72px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #fff;
+        overflow: hidden;
+        cursor: pointer;
+        transition: border-color .18s, transform .18s, box-shadow .18s;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+      }
+      .card:hover {
+        border-color: var(--accent-soft);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(25, 23, 19, 0.07);
+      }
+
+      .card-img {
+        aspect-ratio: 4 / 3;
+        background: var(--paper-warm);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .card-img span { font-family: var(--serif); font-size: 30px; color: var(--muted); }
+
+      .card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+      .card-cat { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+      .card-name { font-family: var(--serif); font-size: 21px; line-height: 1.2; }
+      .card-price { margin-top: auto; padding-top: 8px; font-size: 14px; color: var(--ink-soft); }
+      .card-price strong { font-size: 20px; color: var(--ink); font-weight: 600; }
+
+      /* --- Fiche produit ---------------------------------------------------- */
+
+      .sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(25, 23, 19, 0.45);
+        z-index: 30;
+        display: none;
+        overflow-y: auto;
+        padding: 32px 16px;
+      }
+      .sheet-backdrop.open { display: block; }
+
+      .sheet {
+        max-width: 940px;
+        margin: 0 auto;
+        background: var(--paper);
+        border-radius: 14px;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      @media (max-width: 760px) { .sheet { grid-template-columns: 1fr; } }
+
+      .sheet-visual { background: var(--paper-warm); min-height: 260px; }
+      /*
+       * Sans photo, pas de colonne.
+       *
+       * Un imprimeur a peu de visuels, et une fiche sans photo montrait un
+       * grand carre creme occupant la moitie de l ecran avant le premier
+       * choix -- sur telephone, il fallait faire defiler pour voir le prix.
+       */
+      .sheet.sans-visuel { grid-template-columns: 1fr; }
+      .sheet.sans-visuel .sheet-visual { display: none; }
+      .sheet-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+      .sheet-panel { padding: 28px; position: relative; }
+      /* Le bouton fermer est au-dessus du titre : sans cette reserve il mordait
+         dessus des que le nom depassait une ligne. */
+      .sheet-panel h2 { font-family: var(--serif); font-size: 32px; margin: 0 44px 4px 0; font-weight: 400; line-height: 1.15; }
+      .sheet-desc { color: var(--ink-soft); font-size: 14px; margin: 0 0 20px; }
+
+      .close {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        border-radius: 999px;
+        width: 34px;
+        height: 34px;
+        cursor: pointer;
+        font-size: 17px;
+        line-height: 1;
+        color: var(--ink);
+      }
+
+      /* --- Le configurateur ------------------------------------------------- */
+
+      .dim { margin-bottom: 18px; }
+      .dim-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .09em;
+        color: var(--muted);
+        margin-bottom: 7px;
+        display: block;
+      }
+      .opts { display: flex; flex-wrap: wrap; gap: 7px; }
+
+      .opt {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 999px;
+        padding: 6px 14px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color .15s, background .15s;
+      }
+      .opt:hover:not(:disabled) { border-color: var(--accent-soft); }
+      .opt[aria-pressed='true'] {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+      }
+      /*
+       * Une option qu'aucune ligne de la grille ne peut servir.
+       *
+       * Elle reste affichée plutôt que retirée : la voir barrée dit « ce
+       * grammage existe mais pas dans cette quantité », alors qu'une option qui
+       * disparaît laisse croire à un bug.
+       */
+      .opt:disabled { opacity: .35; cursor: not-allowed; text-decoration: line-through; }
+
+      .quote {
+        border-top: 1px solid var(--line);
+        margin-top: 22px;
+        padding-top: 18px;
+      }
+      .price-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+      .price-big { font-family: var(--serif); font-size: 40px; line-height: 1; }
+      .price-unit { font-size: 13px; color: var(--muted); }
+      .price-note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+      .cta {
+        display: block;
+        width: 100%;
+        margin-top: 16px;
+        border: none;
+        background: var(--ink);
+        color: var(--paper);
+        border-radius: var(--radius);
+        padding: 13px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        transition: background .15s;
+      }
+      .cta:hover { background: var(--accent); }
+      .cta[aria-disabled='true'] { background: var(--muted); pointer-events: none; }
+
+      .empty, .loading, .fail {
+        padding: 64px 0;
+        text-align: center;
+        color: var(--muted);
+      }
+      .fail { color: var(--accent); }
+      .fail code {
+        display: block;
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        word-break: break-all;
+      }
+
+      footer.site {
+        border-top: 1px solid var(--line);
+        padding: 32px 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="site">
+      <div class="site-inner">
+        <a class="brand" href="#">Print<em>34</em></a>
+        <span class="site-note" id="site-note"></span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <h1>Imprimé, <em>livré</em>,<br />au prix que vous choisissez.</h1>
+        <p>
+          Le prix dépend du support, de la quantité et du délai. Choisissez, il s'affiche
+          immédiatement — pas de devis à attendre.
+        </p>
+      </section>
+
+      <section class="wrap">
+        <div id="catalogue" class="grid"></div>
+      </section>
+    </main>
+
+    <div class="sheet-backdrop" id="backdrop">
+      <div class="sheet" id="sheet"></div>
+    </div>
+
+    <footer class="site">
+      <div class="wrap">
+        Impression sous-traitée. Les délais sont donnés en jours ouvrés à partir de la validation du
+        bon à tirer.
+      </div>
+    </footer>
+
+    <script>
+      /*
+       * La vitrine d'imprimerie, autonome.
+       *
+       * Un seul fichier, aucune dépendance, aucun serveur propre : elle lit le
+       * flux `/api/public/print/:shopKey/products` et compose tout à partir de
+       * lui. On la dépose n'importe où — un hébergement statique suffit.
+       *
+       * ## Pourquoi une boutique à part
+       *
+       * Un article d'imprimerie n'a pas un prix. Il a une grille
+       * `(combinaison d'options × quantité × délai) → prix`, et c'est justement
+       * ce qu'aucune boutique standard ne sait afficher : Shopify plafonne à
+       * trois options, et ni la quantité ni le délai n'en sont. Cette page est
+       * ce configurateur.
+       *
+       * ## Le point qui décide de tout
+       *
+       * **Les options viennent de la grille, jamais de la liste des
+       * dimensions.** C'est contre-intuitif — la liste des dimensions existe et
+       * semble faite pour ça — mais elle décrit ce que le fournisseur propose,
+       * pas ce que la grille contient. Or on ne relève jamais la matrice
+       * entière : c'est ce qui rend le relevé tenable. Un configurateur bâti
+       * sur les dimensions offrirait donc des combinaisons sans prix, et
+       * l'acheteur tomberait sur « — » après avoir tout choisi.
+       *
+       * Chaque option est donc confrontée aux lignes réellement disponibles,
+       * compte tenu des autres choix, et barrée quand aucune ne répond.
+       */
+
+      /* --- D'où vient le flux ------------------------------------------------
+       *
+       * Réglable par l'adresse (`?api=…&shop=…`) pour qu'une même page serve la
+       * recette et la production sans être recompilée, et pour qu'on puisse la
+       * pointer sur une autre boutique sans y toucher.
+       */
+      var params = new URLSearchParams(location.search)
+      var API = (params.get('api') || 'https://dropshippro-production.up.railway.app').replace(/\/$/, '')
+      var SHOP = params.get('shop') || ''
+      var CONTACT = params.get('contact') || ''
+
+      var catalogue = document.getElementById('catalogue')
+      var backdrop = document.getElementById('backdrop')
+      var sheet = document.getElementById('sheet')
+      var siteNote = document.getElementById('site-note')
+
+      var produits = []
+
+      function texte(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        })
+      }
+
+      function euros(n) {
+        return Number(n).toFixed(2).replace('.', ',') + ' €'
+      }
+
+      /** « 5 jours ouvrés », et « lendemain » pour un délai d'un jour. */
+      function delai(jours) {
+        if (jours <= 0) return 'Retrait immédiat'
+        if (jours === 1) return 'Livré le lendemain'
+        return 'Livré en ' + jours + ' jours ouvrés'
+      }
+
+      // --- Chargement --------------------------------------------------------
+
+      function charger() {
+        if (!SHOP) {
+          catalogue.innerHTML =
+            '<p class="fail">Aucune boutique indiquée.<code>Ajoutez ?shop=VOTRE_CLE à l\'adresse de cette page.</code></p>'
+          return
+        }
+
+        catalogue.innerHTML = '<p class="loading">Chargement du catalogue…</p>'
+
+        fetch(API + '/api/public/print/' + encodeURIComponent(SHOP) + '/products')
+          .then(function (r) {
+            if (!r.ok) throw new Error('Le flux répond ' + r.status)
+            return r.json()
+          })
+          .then(function (data) {
+            produits = data.products || []
+            // Le nom de la boutique, sauf quand il repete l enseigne : « Print34
+            // — Print34 » n apprend rien et occupe la seule ligne libre.
+            siteNote.textContent = data.shop && data.shop !== 'Print34' ? data.shop : 'Devis immédiat, sans compte'
+            rendreCatalogue()
+          })
+          .catch(function (err) {
+            /*
+             * L'erreur est montrée avec l'adresse appelée.
+             *
+             * « Catalogue indisponible » tout seul envoie chercher dans le
+             * mauvais endroit : neuf fois sur dix c'est la clé de boutique qui
+             * est fausse, et l'adresse le dit d'un coup d'œil.
+             */
+            catalogue.innerHTML =
+              '<p class="fail">Catalogue indisponible. ' +
+              texte(err.message) +
+              '<code>' +
+              texte(API + '/api/public/print/' + SHOP + '/products') +
+              '</code></p>'
+          })
+      }
+
+      function rendreCatalogue() {
+        if (!produits.length) {
+          catalogue.innerHTML =
+            '<p class="empty">Aucun article en ligne pour le moment.</p>'
+          return
+        }
+
+        catalogue.innerHTML = produits
+          .map(function (p, i) {
+            var img = (p.images && p.images[0]) || ''
+            var visuel = img
+              ? '<img src="' + texte(img) + '" alt="' + texte(p.name) + '" loading="lazy" />'
+              : '<span>' + texte((p.name || '?').slice(0, 1).toUpperCase()) + '</span>'
+
+            /*
+             * Le prix d'appel est affiché avec sa quantité, toujours.
+             *
+             * « À partir de 19,90 € » sans dire qu'il vaut pour 7 500
+             * exemplaires est la promesse qui se retourne en litige au moment
+             * du paiement.
+             */
+            var prix = p.aPartirDe
+              ? '<span>dès </span><strong>' +
+                euros(p.aPartirDe.prix) +
+                '</strong><span> les ' +
+                p.aPartirDe.quantite +
+                '</span>'
+              : '<span>Sur devis</span>'
+
+            return (
+              '<button class="card" data-i="' +
+              i +
+              '">' +
+              '<span class="card-img">' + visuel + '</span>' +
+              '<span class="card-body">' +
+              (p.category ? '<span class="card-cat">' + texte(p.category) + '</span>' : '') +
+              '<span class="card-name">' + texte(p.name) + '</span>' +
+              '<span class="card-price">' + prix + '</span>' +
+              '</span>' +
+              '</button>'
+            )
+          })
+          .join('')
+
+        Array.prototype.forEach.call(catalogue.querySelectorAll('.card'), function (el) {
+          el.addEventListener('click', function () {
+            ouvrir(produits[Number(el.dataset.i)])
+          })
+        })
+      }
+
+      // --- Le configurateur --------------------------------------------------
+
+      /** Les clés de dimension réellement présentes dans la grille, dans l'ordre. */
+      function clesDe(produit) {
+        var vues = []
+        ;(produit.dimensions || []).forEach(function (d) {
+          if (d && d.cle) vues.push(d.cle)
+        })
+        // Une grille peut porter une clé que les dimensions n'annoncent pas :
+        // c'est la grille qui fait foi, pas la déclaration.
+        ;(produit.grille || []).forEach(function (r) {
+          Object.keys(r.combo || {}).forEach(function (k) {
+            if (vues.indexOf(k) === -1) vues.push(k)
+          })
+        })
+        return vues
+      }
+
+      function libelleDim(produit, cle) {
+        var d = (produit.dimensions || []).filter(function (x) {
+          return x.cle === cle
+        })[0]
+        return (d && d.libelle) || cle
+      }
+
+      /** Les lignes qui satisfont une sélection partielle. */
+      function lignesPour(produit, choix, ignorer) {
+        return (produit.grille || []).filter(function (r) {
+          return Object.keys(choix).every(function (k) {
+            if (k === ignorer) return true
+            if (k === 'quantite') return r.quantite === choix.quantite
+            if (k === 'delaiJours') return r.delaiJours === choix.delaiJours
+            return (r.combo || {})[k] === choix[k]
+          })
+        })
+      }
+
+      /** Les valeurs distinctes d'un axe, parmi les lignes candidates. */
+      function valeursDe(lignes, cle) {
+        var vues = []
+        lignes.forEach(function (r) {
+          var v = cle === 'quantite' ? r.quantite : cle === 'delaiJours' ? r.delaiJours : (r.combo || {})[cle]
+          if (v !== undefined && vues.indexOf(v) === -1) vues.push(v)
+        })
+        return vues.sort(function (a, b) {
+          return typeof a === 'number' ? a - b : String(a).localeCompare(String(b), 'fr', { numeric: true })
+        })
+      }
+
+      var courant = null
+      var choix = {}
+
+      function ouvrir(produit) {
+        courant = produit
+        choix = {}
+
+        /*
+         * La sélection de départ est la ligne la moins chère.
+         *
+         * Ouvrir sur une combinaison vide obligerait à tout choisir avant de
+         * voir un prix — or c'est le prix qu'on vient regarder. Et la moins
+         * chère est celle qui a été annoncée sur la carte : passer de « dès
+         * 27,86 € » à un autre chiffre en ouvrant la fiche se lit comme une
+         * hausse.
+         */
+        var lignes = produit.grille || []
+        if (lignes.length) {
+          var mini = lignes.reduce(function (a, b) {
+            return b.prix < a.prix ? b : a
+          })
+          Object.keys(mini.combo || {}).forEach(function (k) {
+            choix[k] = mini.combo[k]
+          })
+          choix.quantite = mini.quantite
+          choix.delaiJours = mini.delaiJours
+        }
+
+        backdrop.classList.add('open')
+        document.body.style.overflow = 'hidden'
+        rendreFiche()
+      }
+
+      function fermer() {
+        backdrop.classList.remove('open')
+        document.body.style.overflow = ''
+        courant = null
+      }
+
+      /** La ligne exactement choisie, si elle existe. */
+      function ligneChoisie() {
+        var exact = lignesPour(courant, choix)
+        return exact.length ? exact[0] : null
+      }
+
+      function rendreFiche() {
+        var p = courant
+        var img = (p.images && p.images[0]) || ''
+        var axes = clesDe(p).concat(['quantite', 'delaiJours'])
+
+        var blocs = axes
+          .map(function (cle) {
+            /*
+             * Les valeurs proposées sur cet axe : toutes celles que la grille
+             * connaît. Chacune est ensuite testée contre les *autres* choix —
+             * c'est ce test qui barre les combinaisons inexistantes au lieu de
+             * les laisser mener à un prix vide.
+             */
+            var toutes = valeursDe(p.grille || [], cle)
+            if (toutes.length <= 1 && cle !== 'quantite') return ''
+
+            var possibles = valeursDe(lignesPour(p, choix, cle), cle)
+
+            var boutons = toutes
+              .map(function (v) {
+                var dispo = possibles.indexOf(v) !== -1
+                var libelle =
+                  cle === 'quantite' ? String(v) : cle === 'delaiJours' ? delai(v) : texte(v)
+                return (
+                  '<button class="opt" data-cle="' +
+                  texte(cle) +
+                  '" data-val="' +
+                  texte(v) +
+                  '" aria-pressed="' +
+                  (choix[cle] === v) +
+                  '"' +
+                  (dispo ? '' : ' disabled') +
+                  '>' +
+                  libelle +
+                  '</button>'
+                )
+              })
+              .join('')
+
+            var titre =
+              cle === 'quantite'
+                ? 'Quantité'
+                : cle === 'delaiJours'
+                  ? 'Délai de livraison'
+                  : libelleDim(p, cle)
+
+            return (
+              '<div class="dim"><span class="dim-label">' +
+              texte(titre) +
+              '</span><div class="opts">' +
+              boutons +
+              '</div></div>'
+            )
+          })
+          .join('')
+
+        var ligne = ligneChoisie()
+        var devis = ligne
+          ? '<div class="price-line"><span class="price-big">' +
+            euros(ligne.prix) +
+            '</span><span class="price-unit">' +
+            euros(ligne.prix / ligne.quantite) +
+            ' l\'unité</span></div>' +
+            '<p class="price-note">' +
+            texte(delai(ligne.delaiJours)) +
+            ' — ' +
+            ligne.quantite +
+            ' exemplaires. Prix TTC, livraison comprise.</p>'
+          : '<div class="price-line"><span class="price-big">—</span></div>' +
+            '<p class="price-note">Cette combinaison n\'est pas au tarif. Changez un choix ci-dessus.</p>'
+
+        /*
+         * Sans destinataire, le bouton copie au lieu d'ouvrir un courriel.
+         *
+         * `mailto:` sans adresse ouvre bien le client de messagerie — sur un
+         * message vide, adressé à personne. Un bouton qui a l'air de marcher et
+         * ne mène nulle part est pire qu'un bouton absent : c'est là qu'on perd
+         * la commande.
+         */
+        var bouton = !ligne
+          ? '<span class="cta" aria-disabled="true">Choisissez une combinaison disponible</span>'
+          : CONTACT
+            ? '<a class="cta" href="' + texte(lienDevis(p, ligne)) + '">Commander ' + ligne.quantite + ' exemplaires</a>'
+            : '<button class="cta" id="copier">Copier cette commande</button>'
+
+        sheet.className = 'sheet' + (img ? '' : ' sans-visuel')
+        sheet.innerHTML =
+          '<div class="sheet-visual">' +
+          (img ? '<img src="' + texte(img) + '" alt="' + texte(p.name) + '" />' : '') +
+          '</div>' +
+          '<div class="sheet-panel">' +
+          '<button class="close" id="close" aria-label="Fermer">×</button>' +
+          '<h2>' + texte(p.name) + '</h2>' +
+          (p.description ? '<p class="sheet-desc">' + texte(p.description) + '</p>' : '') +
+          blocs +
+          '<div class="quote">' + devis + bouton + '</div>' +
+          '</div>'
+
+        document.getElementById('close').addEventListener('click', fermer)
+
+        var copier = document.getElementById('copier')
+        if (copier) {
+          copier.addEventListener('click', function () {
+            navigator.clipboard.writeText(resumeCommande(p, ligne))
+            copier.textContent = 'Commande copiée — collez-la dans votre message'
+            setTimeout(function () {
+              copier.textContent = 'Copier cette commande'
+            }, 2500)
+          })
+        }
+
+        Array.prototype.forEach.call(sheet.querySelectorAll('.opt'), function (el) {
+          el.addEventListener('click', function () {
+            var cle = el.dataset.cle
+            var brut = el.dataset.val
+            choix[cle] = cle === 'quantite' || cle === 'delaiJours' ? Number(brut) : brut
+
+            /*
+             * Un choix peut invalider les autres.
+             *
+             * Passer de 100 à 7 500 exemplaires peut fermer le délai le plus
+             * court : sans rattrapage, la fiche afficherait « — » et
+             * l'acheteur croirait s'être trompé. Les axes devenus impossibles
+             * sont donc ramenés sur leur première valeur encore servie.
+             */
+            var axes = clesDe(courant).concat(['quantite', 'delaiJours'])
+            axes.forEach(function (autre) {
+              if (autre === cle) return
+              var possibles = valeursDe(lignesPour(courant, choix, autre), autre)
+              if (possibles.length && possibles.indexOf(choix[autre]) === -1) {
+                choix[autre] = possibles[0]
+              }
+            })
+
+            rendreFiche()
+          })
+        })
+      }
+
+      /**
+       * La commande.
+       *
+       * Un message pré-rempli, et pas un paiement : rien ici n'encaisse, et
+       * afficher un bouton « Payer » qui ne prend pas d'argent serait la seule
+       * façon sûre de perdre un client. Le message porte la sélection complète,
+       * pour que la commande soit exploitable telle quelle.
+       */
+      function resumeCommande(produit, ligne) {
+        var lignes = [
+          produit.name,
+          '',
+          'Quantité : ' + ligne.quantite,
+          'Délai : ' + delai(ligne.delaiJours),
+        ]
+        Object.keys(ligne.combo || {}).forEach(function (k) {
+          lignes.push(libelleDim(produit, k) + ' : ' + ligne.combo[k])
+        })
+        lignes.push('', 'Prix : ' + euros(ligne.prix) + ' TTC', '', 'Référence : ' + produit.id)
+        return lignes.join('\n')
+      }
+
+      function lienDevis(produit, ligne) {
+        var sujet = 'Commande — ' + produit.name + ' (' + ligne.quantite + ')'
+        return (
+          'mailto:' +
+          encodeURIComponent(CONTACT) +
+          '?subject=' +
+          encodeURIComponent(sujet) +
+          '&body=' +
+          encodeURIComponent(resumeCommande(produit, ligne))
+        )
+      }
+
+      backdrop.addEventListener('click', function (e) {
+        if (e.target === backdrop) fermer()
+      })
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && courant) fermer()
+      })
+
+      charger()
+    </script>
+  </body>
+</html>
