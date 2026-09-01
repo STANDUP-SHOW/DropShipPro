@@ -1,6 +1,7 @@
 import type { Product } from '@prisma/client'
 import { titleForChannel } from './channelCopy.js'
 import { absoluteUrl } from '../lib/urls.js'
+import { etatPour } from './productCondition.js'
 
 /**
  * Les flux produits lus par Meta et par Google.
@@ -94,7 +95,7 @@ export function metaCsv(items: FeedItem[], shopKey: string, brandFallback: strin
         titleOf(product),
         descriptionOf(product),
         'in stock',
-        'new',
+        etatPour(product.condition, 'flux'),
         priceOf(product),
         absoluteUrl(`/api/public/shops/${shopKey}/products/${product.id}`),
         images[0],
@@ -144,7 +145,7 @@ export function googleRss(items: FeedItem[], shopKey: string, shopName: string, 
         extra,
         `      <g:price>${xmlText(priceOf(product))}</g:price>`,
         '      <g:availability>in stock</g:availability>',
-        '      <g:condition>new</g:condition>',
+        `      <g:condition>${etatPour(product.condition, 'flux')}</g:condition>`,
         `      <g:brand>${xmlText(brandFallback)}</g:brand>`,
         category ? `      <g:product_type>${xmlText(category)}</g:product_type>` : '',
         '    </item>',

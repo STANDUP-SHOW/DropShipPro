@@ -248,6 +248,10 @@ export const api = {
       ...(filter?.sector ? { sector: filter.sector } : {}),
       ...(filter?.shop ? { shop: filter.shop } : {}),
     })}`),
+  /** Les trois états, servis par le serveur — la même liste que celle qui se traduit à la publication. */
+  listConditions: () =>
+    request<Array<{ id: string; label: string; aide: string }>>('/products/meta/conditions'),
+
   listPlatforms: () =>
     request<
       Array<{

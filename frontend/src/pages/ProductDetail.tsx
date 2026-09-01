@@ -14,6 +14,7 @@ import {
   ListChecks,
   Search,
   Layers3,
+  BadgeCheck,
   Calculator,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ import { PhotoAgentBlock } from '../components/PhotoAgentBlock'
 import { ChannelReadiness } from '../components/ChannelReadiness'
 import { GooglePreview } from '../components/GooglePreview'
 import { SocialPublishDialog } from '../components/SocialPublishDialog'
+import { VariantEditor } from '../components/VariantEditor'
 
 /** Section card — one visual container per topic, instead of one long column. */
 function Card({
@@ -94,6 +96,7 @@ export default function ProductDetail() {
   const [categories, setCategories] = useState<Record<string, string>>({})
   const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
+  const [etats, setEtats] = useState<Array<{ id: string; label: string; aide: string }>>([])
 
   const [assistPanel, setAssistPanel] = useState<string | null>(null)
   const [publishOpen, setPublishOpen] = useState(false)
@@ -134,6 +137,7 @@ export default function ProductDetail() {
   useEffect(() => {
     api.listCategories().then((r) => setCatalog(r.categories))
     api.listPlatforms().then(setPlatforms)
+    api.listConditions().then(setEtats)
   }, [])
 
   async function saveField(fieldName: string, value: unknown) {
@@ -175,6 +179,7 @@ export default function ProductDetail() {
         attributes,
         metaKeywords: product.metaKeywords ?? '',
         categoryId: product.categoryId ?? null,
+        condition: product.condition ?? 'neuf',
       })
       setSavedAt(new Date())
     } catch (err) {
@@ -647,71 +652,47 @@ export default function ProductDetail() {
 
           <Card
             icon={Layers3}
-            title="Variantes disponibles"
-            hint="Tailles, couleurs… Séparez les valeurs par des virgules."
-            action={
-              <button
-                onClick={() => {
-                  const name = variants['Nouvelle option']
-                    ? `Option ${Object.keys(variants).length + 1}`
-                    : 'Nouvelle option'
-                  saveVariants({ ...variants, [name]: [] })
-                }}
-                className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-xs transition hover:bg-white/5"
-              >
-                + Option
-              </button>
-            }
+            title="Options d'achat"
+            hint="Ce que l'acheteur choisit : couleur, taille, capacité…"
           >
-            {Object.keys(variants).length === 0 ? (
-              <p className="text-xs text-gray-500">
-                Aucune variante détectée. L'IA les extrait de la page fournisseur ; ajoutez-les à la
-                main si besoin.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {Object.entries(variants).map(([name, values]) => (
-                  <div key={name} className="flex items-start gap-2">
-                    <input
-                      defaultValue={name}
-                      onBlur={(e) => {
-                        const trimmed = e.target.value.trim()
-                        if (!trimmed || trimmed === name) return
-                        // Rebuilt in place so renaming doesn't reorder the rows.
-                        saveVariants(
-                          Object.fromEntries(
-                            Object.entries(variants).map(([k, v]) => (k === name ? [trimmed, v] : [k, v])),
-                          ),
-                        )
-                      }}
-                      placeholder="Taille"
-                      className={`${field} w-28 shrink-0 py-2 text-xs`}
-                    />
-                    <input
-                      defaultValue={values.join(', ')}
-                      onBlur={(e) =>
-                        saveVariants({
-                          ...variants,
-                          [name]: e.target.value.split(',').map((v) => v.trim()).filter(Boolean),
-                        })
-                      }
-                      placeholder="S, M, L, XL"
-                      className={`${field} flex-1 py-2 text-xs`}
-                    />
-                    <button
-                      onClick={() => {
-                        const next = { ...variants }
-                        delete next[name]
-                        saveVariants(next)
-                      }}
-                      className="shrink-0 rounded-lg border border-white/10 px-2.5 py-2 text-xs text-red-300 transition hover:bg-red-500/10"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <VariantEditor variants={variants} onChange={saveVariants} />
+          </Card>
+
+          {/*
+            L'état, avant la description : il change le prix qu'on peut demander
+            et il est obligatoire sur toutes les places de marché d'occasion.
+            Le laisser deviner revenait à déclarer « neuf » partout, y compris
+            sur du reconditionné — motif de retrait de l'annonce.
+          */}
+          <Card icon={BadgeCheck} title="État du produit">
+            <div className="grid gap-2 sm:grid-cols-3">
+              {etats.map((e) => {
+                const choisi = (product.condition ?? 'neuf') === e.id
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => {
+                      setProduct({ ...product, condition: e.id })
+                      saveField('condition', e.id)
+                    }}
+                    className={`rounded-xl border p-3 text-left transition ${
+                      choisi
+                        ? 'border-purple-400/70 bg-purple-500/15'
+                        : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.07]'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{e.label}</p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-gray-400">{e.aide}</p>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+              Chaque place de marché a son propre vocabulaire : « Très bon état » sur Leboncoin,
+              « Neuf sans étiquette » sur Vinted, « refurbished » dans les flux Google et Meta. La
+              traduction se fait à la publication.
+            </p>
           </Card>
 
           <Card icon={Search} title="Référencement">

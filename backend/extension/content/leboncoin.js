@@ -86,15 +86,21 @@
     }
 
     // --- Étape 2 : l'état, une liste fermée de cinq valeurs -----------------
-    // Un produit importé est neuf : c'est vrai, et ça évite au vendeur de
-    // choisir cinq fois la même chose.
+    //
+    // « Neuf » était coché d'office. C'est vrai d'un produit importé de Chine,
+    // faux dès qu'on revend du reconditionné — et une annonce dont l'état est
+    // faux se retire, quand elle ne finit pas en litige. L'état vient donc de
+    // l'annonce, déjà traduit dans le vocabulaire de Leboncoin par le serveur.
     if (!dejaFait.has('état')) {
       const select = [...document.querySelectorAll('select')].find((s) =>
         [...s.options].some((o) => /état neuf|tres bon état|très bon état/i.test(o.textContent)),
       )
-      if (select && choisirDansSelect(select, ['État neuf', 'Etat neuf', 'neuf'])) {
+      const voulu = listing.conditionLabel || 'État neuf'
+      // Sans accent en second : la liste de Leboncoin les porte, une copie
+      // collée d'ailleurs pas toujours.
+      if (select && choisirDansSelect(select, [voulu, voulu.replace('É', 'E')])) {
         dejaFait.add('état')
-        rempli.push('état (neuf)')
+        rempli.push(`état (${voulu})`)
       }
     }
 

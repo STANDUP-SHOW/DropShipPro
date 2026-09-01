@@ -22,6 +22,7 @@ import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { imagesPourExport } from '../services/exportImages.js'
+import { ETATS, etatPour } from '../services/productCondition.js'
 import { avisEncoreFrais, redigerAvisPublicitaire, COUT_EN_CREDITS as COUT_AVIS } from '../services/adAdvice.js'
 import { brouillonPour } from '../services/socialDraft.js'
 import { comptesDe } from '../services/socialGateway.js'
@@ -507,6 +508,9 @@ const updateSchema = z.object({
   attributes: z.record(z.string()).optional(),
   categoryId: z.string().nullable().optional(),
   shopId: z.string().nullable().optional(),
+  // A closed list, not free text : the value is recopied word for word into the
+  // marketplaces' own dropdowns, which reject anything they don't know.
+  condition: z.enum(['neuf', 'reconditionne', 'occasion']).optional(),
 })
 
 productsRouter.patch('/:id', async (req: AuthedRequest, res) => {
@@ -980,6 +984,17 @@ productsRouter.post('/:id/fill-plan', async (req: AuthedRequest, res) => {
   }
 })
 
+/**
+ * Les trois états d'un produit, et l'aide qui va avec.
+ *
+ * Servis plutôt que recopiés dans le front : la liste est la même que celle qui
+ * se traduit à la publication, et deux listes qui doivent rester identiques
+ * finissent toujours par diverger.
+ */
+productsRouter.get('/meta/conditions', (_req, res) => {
+  res.json(ETATS)
+})
+
 /** Destination marketplaces, so the back office and extension share one list. */
 productsRouter.get('/meta/platforms', (_req, res) => {
   res.json(PLATFORMS)
@@ -1288,6 +1303,11 @@ productsRouter.get('/:id/publish-payload', async (req: AuthedRequest, res) => {
     // Absolues : une adresse relative ne veut rien dire dans un onglet Leboncoin.
     images: images.map((i: string) => (i.startsWith('/') ? `${base}${i}` : i)),
     variants: produit.variants ?? null,
+    // Deux formes : la nôtre, pour décider ; celle de Leboncoin, à recopier
+    // telle quelle dans sa liste déroulante — « Très bon état » n'est pas
+    // « Très bon », et un libellé approché ne sélectionne rien.
+    condition: produit.condition,
+    conditionLabel: etatPour(produit.condition, 'LEBONCOIN'),
   })
 })
 

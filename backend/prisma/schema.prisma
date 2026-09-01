@@ -213,6 +213,15 @@ model Product {
   exportSignature   String?
   variants          Json?
 
+  /// L etat du produit : neuf, reconditionne, occasion.
+  ///
+  /// Chaque place de marche a son propre vocabulaire -- Vinted distingue « neuf
+  /// avec etiquette » et « neuf sans etiquette », eBay parle de reconditionne,
+  /// Google veut « new / refurbished / used ». Une valeur unique ici, traduite
+  /// a la publication : sans elle, le remplissage cochait « etat neuf » d office
+  /// sur Leboncoin, ce qui est faux des qu on revend du reconditionne.
+  condition         String    @default("neuf")
+
   metaTitle         String?
   metaDescription   String?
   metaKeywords      String?

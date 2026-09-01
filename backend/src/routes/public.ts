@@ -5,6 +5,7 @@ import path from 'path'
 import { existsSync } from 'fs'
 import type { Product } from '@prisma/client'
 import { metaCsv, googleRss } from '../services/productFeeds.js'
+import { etatPour } from '../services/productCondition.js'
 import { prisma } from '../lib/prisma.js'
 
 export const publicRouter = Router()
@@ -142,6 +143,10 @@ async function toCatalogItem(product: Product, category: string | null) {
     metaDescription: product.metaDescription,
     metaKeywords: product.metaKeywords,
     category,
+    // `new` / `refurbished` / `used` : le vocabulaire de Google Shopping et du
+    // catalogue Meta, que la boutique du vendeur peut reverser tel quel dans
+    // son propre flux. « Neuf » y serait refusé.
+    condition: etatPour(product.condition, 'flux'),
     updatedAt: product.updatedAt,
   }
 }
