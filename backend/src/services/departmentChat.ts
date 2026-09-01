@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { DEPARTMENTS, findDepartment, type DepartmentProfile } from './departments.js'
 import { choisirModele, messagesPour, systemeCachable } from './chatBudget.js'
+import { catalogueDuRayon, catalogueEnTexte } from './departmentCatalog.js'
 
 /**
  * La conversation avec un chef de rayon.
@@ -31,7 +32,7 @@ export interface ChatAnswer {
   failed: boolean
 }
 
-function systemPrompt(profile: DepartmentProfile) {
+function systemPrompt(profile: DepartmentProfile, catalogue: string) {
   const others = DEPARTMENTS.filter((d) => d.key !== profile.key)
     .map((d) => `${d.agentName} (${d.label})`)
     .join(', ')
@@ -59,6 +60,8 @@ export async function askDepartment(
   agentName: string,
   history: ChatTurn[],
   question: string,
+  /** Le vendeur, pour lui mettre son catalogue sous les yeux. */
+  userId?: string,
 ): Promise<ChatAnswer> {
   const profile = findDepartment(departmentKey)
   if (!profile) {
@@ -74,6 +77,25 @@ export async function askDepartment(
     }
   }
 
+  /*
+   * Le catalogue du rayon, avant d'écrire la consigne.
+   *
+   * Sans lui, le chef répondait « je n'ai aucun accès à votre catalogue » —
+   * et il disait vrai. On lui demandait un avis de chef de rayon en lui cachant
+   * le rayon.
+   */
+  let catalogue = ''
+  if (userId) {
+    try {
+      const lignes = await catalogueDuRayon(userId, profile.key)
+      catalogue = catalogueEnTexte(lignes, profile.label)
+    } catch {
+      // Une base lente ne doit pas empêcher de répondre : il conseillera sans
+      // le catalogue, comme avant.
+      catalogue = ''
+    }
+  }
+
   try {
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
@@ -83,7 +105,7 @@ export async function askDepartment(
       max_tokens: 900,
       // Le prénom est celui figé à l'embauche, pas celui du catalogue : le
       // vendeur ne doit pas voir son interlocuteur changer de nom.
-      system: systemeCachable(systemPrompt({ ...profile, agentName })),
+      system: systemeCachable(systemPrompt({ ...profile, agentName }, catalogue)),
       messages: messagesPour(history, question),
     })
 

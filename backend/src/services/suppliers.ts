@@ -483,6 +483,72 @@ export const SUPPLIERS: SupplierInfo[] = [
       "**Livre en Inde seulement.** Aucune expédition internationale : sans transitaire à vous, elle ne sert à rien depuis la France.",
     color: '#f43397',
   },
+
+  /*
+   * ---------------------------------------------------------------------------
+   * La distribution informatique européenne.
+   * ---------------------------------------------------------------------------
+   *
+   * Ajoutés le 01/09/2026, et c'est un agent qui les a nommés : interrogé sur le
+   * rayon électronique, le chef de rayon a conseillé Ingram Micro, Tech Data,
+   * ALSO et Esprinet — quatre distributeurs absents de notre liste. Il avait
+   * raison : ce sont les grossistes qui alimentent la quasi-totalité des
+   * revendeurs informatiques européens.
+   *
+   * **Ce n'est pas le même métier que le dropshipping chinois**, et les
+   * confondre ferait perdre du temps à tout le monde. Marges de 2 à 8 % au lieu
+   * de 40, compte revendeur à obtenir avec un numéro de TVA et parfois des
+   * références commerciales, volumes minimaux fréquents. En échange :
+   * marchandise authentique, garantie constructeur, livraison européenne en deux
+   * à trois jours, et aucune douane.
+   *
+   * C'est la voie d'un vendeur qui veut sortir du gadget à dix euros, pas celle
+   * d'un débutant.
+   */
+  {
+    id: 'ingram-micro',
+    label: 'Ingram Micro',
+    domain: 'ingrammicro.com',
+    origine: 'Europe, entrepôts nationaux',
+    importPath: 'les-deux',
+    quoi: "Le premier distributeur informatique mondial : ordinateurs, périphériques, réseau, logiciels, téléphonie. Des centaines de milliers de références de marques authentiques.",
+    attention:
+      "Compte revendeur obligatoire : société enregistrée, numéro de TVA, et souvent un dossier de solvabilité. Les marges sont celles de la distribution — 2 à 8 % — pas celles du dropshipping. En échange, garantie constructeur et livraison européenne en deux à trois jours.",
+    color: '#0072ce',
+  },
+  {
+    id: 'td-synnex',
+    label: 'TD SYNNEX',
+    domain: 'tdsynnex.com',
+    origine: 'Europe, entrepôts nationaux',
+    importPath: 'les-deux',
+    quoi: "L'autre géant de la distribution informatique, né de la fusion de Tech Data et SYNNEX. Même catalogue de marques, même modèle : matériel professionnel et grand public.",
+    attention:
+      "**Tech Data n'existe plus sous ce nom** depuis sa fusion en 2021 : c'est ici qu'il faut ouvrir un compte. Mêmes exigences qu'Ingram Micro — société, TVA, dossier revendeur — et mêmes marges de distribution.",
+    color: '#00539b',
+  },
+  {
+    id: 'also',
+    label: 'ALSO',
+    domain: 'also.com',
+    origine: 'Suisse, fort en Europe du Nord et germanophone',
+    importPath: 'les-deux',
+    quoi: "Distributeur informatique européen, particulièrement implanté en Allemagne, en Suisse et dans les pays nordiques. Matériel, logiciels et services cloud.",
+    attention:
+      "Compte revendeur professionnel exigé. La couverture française est plus mince que celle d'Ingram ou de TD SYNNEX : à regarder surtout si vous vendez vers l'Allemagne ou la Scandinavie.",
+    color: '#e2001a',
+  },
+  {
+    id: 'esprinet',
+    label: 'Esprinet',
+    domain: 'esprinet.com',
+    origine: 'Italie et Espagne',
+    importPath: 'les-deux',
+    quoi: "Le grand distributeur informatique du sud de l'Europe : informatique, téléphonie, électroménager et électronique grand public.",
+    attention:
+      "Compte revendeur professionnel exigé, et l'essentiel de sa logistique est en Italie et en Espagne. Intéressant pour ces marchés, moins pour une expédition depuis la France.",
+    color: '#c8102e',
+  },
 ]
 
 export function findSupplier(id: string) {

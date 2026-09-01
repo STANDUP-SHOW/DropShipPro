@@ -151,6 +151,7 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
     department.agentName,
     history.reverse().map((m) => ({ role: m.role as 'user' | 'agent', content: m.content })),
     parsed.data.question,
+    req.userId!,
   )
 
   // Une panne du modèle n'est pas une conversation : rien n'est enregistré, et
