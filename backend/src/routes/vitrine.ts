@@ -24,11 +24,22 @@ import { apiBaseUrl } from '../lib/urls.js'
  */
 export const vitrineRouter = Router()
 
-/** Là où la page peut être, selon qui exécute le serveur. */
+/**
+ * Là où la page peut être, selon qui exécute le serveur.
+ *
+ * **Elle vit sous `backend/`, et c'est obligatoire.** Railway déploie avec
+ * `backend/` pour racine : un dossier au niveau du dépôt est simplement absent
+ * du conteneur. C'est le piège qui avait déjà mis l'extension en 404 — ici il
+ * donnait un 500 et une boutique injoignable, alors que la page existait sur la
+ * machine de développement et que tous les bancs passaient.
+ *
+ * La règle qui s'en dégage : **une page servie par l'API vit avec l'API**. Les
+ * vitrines autonomes (`storefront/`, `storefront-imprimerie/`) restent à la
+ * racine, parce que personne ne les sert — on les dépose ailleurs.
+ */
 const CHEMINS = [
-  path.join('..', 'storefront-boutique', 'index.html'),
   path.join('storefront-boutique', 'index.html'),
-  path.join('..', '..', 'storefront-boutique', 'index.html'),
+  path.join('..', 'storefront-boutique', 'index.html'),
 ]
 
 function pageVitrine(): string | null {

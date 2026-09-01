@@ -37,7 +37,7 @@ backend/extension/  Extension Chrome Manifest V3, servie par /api/public/extensi
 frontend/    React + Vite + Tailwind v4 → Vercel (Root Directory = frontend)
 storefront/  Vitrine de démonstration OGGUS (HTML autonome)
 storefront-imprimerie/  Print34, boutique d'imprimerie autonome (voir docs/boutique-imprimerie.md)
-storefront-boutique/    La vitrine generique, servie a /b/<adresse> — une page pour toutes les boutiques
+backend/storefront-boutique/  La vitrine generique, servie a /b/<adresse> — sous backend/ parce que Railway y a sa racine
 docs/        Documentation de l'API catalogue
 ```
 
