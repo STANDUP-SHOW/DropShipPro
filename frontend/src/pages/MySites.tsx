@@ -1,4 +1,5 @@
-import { Store } from 'lucide-react'
+import { useState } from 'react'
+import { Store, ChevronDown } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { MyShops } from '../components/MyShops'
 import { ControlAgentToggle } from '../components/ControlAgentToggle'
@@ -42,15 +43,58 @@ export default function MySites() {
       <MyShops />
 
       {/*
-        Le filigrane par défaut du compte, sous les boutiques.
+        Le filigrane par défaut du compte, replié.
 
-        Il ne disparaît pas : c'est lui que reprend une boutique qui n'a rien
-        réglé, et le vendeur qui n'a qu'un site ne veut pas descendre dans un
-        bloc pour signer ses photos.
+        Il faisait doublon : chaque bloc de boutique porte déjà son propre
+        filigrane, et celui-ci s'étalait en dessous comme s'il fallait le régler
+        aussi. Le retirer tout à fait aurait pourtant coûté quelque chose — c'est
+        lui que reprend une boutique dont un champ vaut « comme le compte », et
+        sans écran pour le poser cette valeur ne serait plus réglable nulle part.
+
+        Replié, donc : présent pour qui le cherche, absent pour qui ne le
+        cherche pas.
       */}
-      <WatermarkSettings />
+      <FiligranePorDefaut />
 
       <ControlAgentToggle />
     </Layout>
+  )
+}
+
+/**
+ * Le filigrane du compte, derrière un dépli.
+ *
+ * Ce n'est pas un réglage qu'on ouvre : c'est la valeur de repli des boutiques
+ * qui n'ont rien posé. Un vendeur qui n'a qu'une boutique la règle dans son
+ * bloc et ne viendra jamais ici ; celui qui en a quatre y passe une fois pour
+ * ne pas recopier la même signature quatre fois.
+ */
+function FiligranePorDefaut() {
+  const [ouvert, setOuvert] = useState(false)
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+      <button
+        type="button"
+        onClick={() => setOuvert((o) => !o)}
+        className="flex w-full items-center gap-2 p-4 text-left transition hover:bg-white/[0.05]"
+      >
+        <ChevronDown
+          size={15}
+          className={`shrink-0 text-gray-400 transition ${ouvert ? '' : '-rotate-90'}`}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Filigrane par défaut du compte</p>
+          <p className="text-[11px] text-gray-500">
+            Repris par les boutiques dont un réglage vaut « comme le compte ».
+          </p>
+        </div>
+      </button>
+      {ouvert ? (
+        <div className="border-t border-white/10">
+          <WatermarkSettings />
+        </div>
+      ) : null}
+    </section>
   )
 }

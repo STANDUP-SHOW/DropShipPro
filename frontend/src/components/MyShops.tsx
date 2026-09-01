@@ -106,6 +106,16 @@ function BlocSite({
 }) {
   const [nom, setNom] = useState(shop?.name ?? '')
   const [plateforme, setPlateforme] = useState(shop?.platform ?? '')
+  /**
+   * Cette boutique est-elle hebergee chez nous ?
+   * 
+   * Deduit de `platform` plutot que stocke a part : une boutique dont la
+   * plateforme est 'dropshipper' est la notre, toute autre valeur -- ou
+   * l absence de valeur, cas des boutiques d avant -- designe un site du
+   * vendeur. Ajouter une colonne pour une information deja portee par une
+   * autre est le meilleur moyen de les voir se contredire.
+   */
+  const [heberge, setHeberge] = useState((shop?.platform ?? '') === 'dropshipper')
   const [rayons, setRayons] = useState<string[]>(shop?.sectors ?? [])
   const [logo, setLogo] = useState<string | null>(shop?.logo ?? null)
   const [filigraneOuvert, setFiligraneOuvert] = useState(false)
@@ -157,7 +167,7 @@ function BlocSite({
       if (neuf) {
         const creee = await api.createShop({
           name: nom.trim(),
-          platform: plateforme || undefined,
+          platform: heberge ? 'dropshipper' : plateforme || undefined,
           sectors: rayons,
         })
         // Le logo choisi avant l'enregistrement part maintenant qu'il a une
@@ -166,7 +176,7 @@ function BlocSite({
       } else {
         await api.renameShop(shop!.id, {
           name: nom.trim(),
-          platform: plateforme || undefined,
+          platform: heberge ? 'dropshipper' : plateforme || undefined,
           sectors: rayons,
           watermarkEnabled: actif,
           watermarkMode: mode,
@@ -245,15 +255,56 @@ function BlocSite({
             />
           </div>
 
+          {/*
+            Où vit cette boutique — et les deux réponses restent possibles.
+
+            Beaucoup de vendeurs ont déjà leur site : WordPress, PrestaShop,
+            Shopify. Ils ne veulent pas d'une vitrine chez nous, seulement le
+            flux à brancher dedans. Depuis que l'apparence est réglable, le bloc
+            « thème » laissait croire le contraire — et les réglages qui les
+            concernent, eux, se perdaient au milieu.
+
+            Le choix ne retire jamais rien : une boutique qui bascule d'un côté
+            garde son adresse de vitrine, son thème et ses textes. Elle cesse
+            seulement de les montrer.
+          */}
           <div>
-            <label className="text-xs text-gray-400">Plateforme du site</label>
-            <input
-              value={plateforme}
-              onChange={(e) => setPlateforme(e.target.value)}
-              placeholder="WordPress, PrestaShop, Shopify…"
-              className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-            />
+            <label className="text-xs text-gray-400">Où est cette boutique ?</label>
+            <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  ['externe', 'Un site à moi, ailleurs', 'Vous branchez le flux dans WordPress, PrestaShop, Shopify…'],
+                  ['vitrine', 'Une vitrine hébergée ici', 'DropShipper la publie et vous choisissez son thème.'],
+                ] as const
+              ).map(([id, titre, aide]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setHeberge(id === 'vitrine')}
+                  className={`rounded-xl border p-2.5 text-left transition ${
+                    (id === 'vitrine') === heberge
+                      ? 'border-purple-400/70 bg-purple-500/15'
+                      : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
+                  }`}
+                >
+                  <p className="text-xs font-semibold">{titre}</p>
+                  <p className="mt-0.5 text-[10.5px] leading-snug text-gray-400">{aide}</p>
+                </button>
+              ))}
+            </div>
           </div>
+
+          {!heberge ? (
+            <div>
+              <label className="text-xs text-gray-400">Plateforme du site</label>
+              <input
+                value={plateforme}
+                onChange={(e) => setPlateforme(e.target.value)}
+                placeholder="WordPress, PrestaShop, Shopify…"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -309,7 +360,7 @@ function BlocSite({
       ) : null}
 
       {/* ---------- L apparence de la vitrine ---------- */}
-      {shop ? (
+      {shop && heberge ? (
         <div className="mt-4">
           <VitrineBlock shop={shop} onSaved={onChange} />
         </div>
