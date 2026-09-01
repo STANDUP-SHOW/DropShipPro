@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, KeyRound } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
@@ -83,6 +83,21 @@ const SECTIONS: Array<{
       { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
       { to: '/guide', label: 'Aide', icon: BookOpen },
     ],
+  },
+  {
+    /*
+     * Les chantiers ouverts, derrière un code.
+     *
+     * En bas et à part, parce que ce qui est derrière n'est pas fini : la
+     * boutique d'imprimerie repose sur un modèle de prix jamais éprouvé en
+     * vrai. Mêlé au reste du menu, il se prendrait pour une fonction livrée.
+     *
+     * L'entrée reste visible sans le code : cacher le lien ne protège rien —
+     * l'adresse s'atteint quand même — et la porte est de toute façon côté
+     * serveur. La montrer dit au moins qu'il y a une porte.
+     */
+    titre: 'Autorisation spéciale',
+    entrees: [{ to: '/autorisation-speciale', label: 'Bêta', icon: KeyRound }],
   },
 ]
 

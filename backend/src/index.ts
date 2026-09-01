@@ -7,6 +7,7 @@ import { productsRouter } from './routes/products.js'
 import { ordersRouter } from './routes/orders.js'
 import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
+import { betaRouter } from './routes/beta.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
 import { opportunitiesRouter } from './routes/opportunities.js'
@@ -92,6 +93,7 @@ app.use('/api/visuals', visualsRouter)
 app.use('/api/public/social', express.urlencoded({ extended: false }), socialPublicRouter)
 app.use('/api/tickets', ticketsRouter)
 app.use('/api/social', socialRouter)
+app.use('/api/beta', betaRouter)
 app.use('/api/public', publicRouter)
 
 const port = Number(process.env.PORT) || 4000

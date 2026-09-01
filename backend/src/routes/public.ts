@@ -6,6 +6,7 @@ import { existsSync } from 'fs'
 import type { Product } from '@prisma/client'
 import { metaCsv, googleRss } from '../services/productFeeds.js'
 import { etatPour } from '../services/productCondition.js'
+import { prixDAppel, prixDeVente, type LigneTarif } from '../services/printPricing.js'
 import { prisma } from '../lib/prisma.js'
 
 export const publicRouter = Router()
@@ -260,4 +261,59 @@ publicRouter.get('/shops/:shopKey/feed/google.xml', async (req, res) => {
   res.set('Cache-Control', 'public, max-age=3600')
   res.type('application/xml; charset=utf-8')
   res.send(googleRss(data.items, data.shop.shopKey, data.shop.name, data.shop.name))
+})
+
+/**
+ * Le catalogue d imprimerie d une boutique.
+ *
+ * Servi a part du catalogue ordinaire, et c est le point important : un article
+ * d imprimerie n a pas un prix mais une grille. Le mettre dans le meme flux
+ * obligerait a choisir une ligne de la grille et a jeter le reste, ou a changer
+ * la forme du flux pour tous les vendeurs afin d en servir un seul.
+ *
+ * Chaque article porte donc les deux : un **prix d appel** — le seul chiffre
+ * qu un flux sait porter, donne avec la quantite et le delai qui le produisent,
+ * parce qu un « a partir de » sans sa quantite se retourne en litige — et la
+ * **grille complete**, que la boutique peut brancher sur son configurateur.
+ *
+ * La marge est appliquee ici : la base ne garde que les prix fournisseur, si
+ * bien qu un nouveau releve n ecrase jamais la politique de prix du vendeur.
+ */
+publicRouter.get('/print/:shopKey/products', async (req, res) => {
+  const shop = await prisma.shop.findUnique({
+    where: { shopKey: req.params.shopKey },
+    select: { id: true, name: true },
+  })
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+
+  const fiches = await prisma.printProduct.findMany({
+    where: { shopId: shop.id, active: true },
+    orderBy: { updatedAt: 'desc' },
+  })
+
+  res.json({
+    shop: shop.name,
+    count: fiches.length,
+    products: fiches.map((f) => {
+      const rows = (Array.isArray(f.priceRows) ? f.priceRows : []) as unknown as LigneTarif[]
+      return {
+        id: f.id,
+        name: f.name,
+        description: f.description,
+        category: f.category,
+        images: Array.isArray(f.images) ? f.images : [],
+        dimensions: Array.isArray(f.dimensions) ? f.dimensions : [],
+        aPartirDe: prixDAppel(rows, f.marginPercent),
+        // Les prix de vente, marge comprise. Le prix fournisseur ne sort jamais
+        // du back-office : un flux public le rendrait lisible par un client.
+        grille: rows.map((r) => ({
+          combo: r.combo,
+          quantite: r.quantite,
+          delaiJours: r.delaiJours,
+          prix: prixDeVente(r, f.marginPercent),
+        })),
+        updatedAt: f.updatedAt,
+      }
+    }),
+  })
 })

@@ -137,6 +137,7 @@ model User {
   tickets            Ticket[]
   socialProfiles     SocialProfile[]
   socialAccounts     SocialAccount[]
+  printProducts      PrintProduct[]
 }
 
 enum AuthTokenType {
@@ -438,6 +439,7 @@ model Shop {
   products Product[]
 
   @@index([userId])
+  printProducts PrintProduct[]
 }
 
 /// Cle d API machine : un agent externe ecrit dans le catalogue sans mot de passe.
@@ -1118,4 +1120,74 @@ model SocialAccount {
 
   @@unique([userId, provider, externalId])
   @@index([userId, platform])
+}
+
+/// Une fiche relevee chez un imprimeur, avec sa grille tarifaire complete.
+///
+/// **Une table a part, et c est deliberé.** Un produit d imprimerie n est pas un
+/// produit du catalogue : il n a pas un prix mais une matrice
+/// `(combinaison d options x quantite x delai) -> prix`. Le faire entrer dans
+/// `Product`, qui porte un prix unique, forcerait a choisir une ligne de la
+/// matrice et a jeter le reste — ou a tordre `Product` pour tout le monde afin
+/// de servir un seul fournisseur.
+///
+/// Elle vit donc a cote, derriere l autorisation speciale, tant que le modele
+/// n est pas eprouve.
+model PrintProduct {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Le fournisseur d origine. Un seul aujourd hui, mais la grille tarifaire
+  /// n a rien de propre a lui : Vistaprint et Onlineprinters marchent pareil.
+  source    String  @default("pixartprinting")
+  /// L adresse de la fiche chez le fournisseur. Sert de cle de mise a jour :
+  /// relever deux fois la meme page corrige la grille au lieu de la dupliquer.
+  sourceUrl String
+  /// La reference interne du fournisseur, quand elle est lisible.
+  sourceRef String?
+
+  /// Ce qui est publie : nos textes et nos photos.
+  ///
+  /// Les visuels et les descriptions du fournisseur sont proteges. La grille de
+  /// prix, elle, est une donnee de fait. Le champ est donc notre redaction, pas
+  /// une copie — et il est vide tant que personne ne l a ecrit.
+  name        String
+  description String? @db.Text
+  category    String?
+  images      Json?
+
+  /// Les dimensions du configurateur, dans l ordre ou il les pose.
+  /// `[{ cle, libelle, options: [{ valeur, libelle }] }]`
+  dimensions Json?
+
+  /// La grille : une ligne par (combinaison, quantite, delai).
+  /// `[{ combo, quantite, delaiJours, date, prixHt, remisePct, port }]`
+  ///
+  /// En JSON et non en table : elle se remplace en bloc a chaque releve, ne se
+  /// requete jamais ligne a ligne, et une fiche de cartes de visite en compte
+  /// plusieurs centaines.
+  priceRows Json?
+
+  /// La marge appliquee au prix fournisseur, en pourcentage.
+  ///
+  /// Rangee ici et appliquee au flux, jamais ecrite dans `priceRows` : sinon un
+  /// nouveau releve ecraserait les prix de vente, et changer de marge
+  /// obligerait a tout relever.
+  marginPercent Float @default(40)
+
+  /// La boutique qui publie cette fiche. Sans elle, la fiche n est dans aucun flux.
+  shopId String?
+  shop   Shop?   @relation(fields: [shopId], references: [id], onDelete: SetNull)
+
+  /// Une fiche relevee mais pas encore redigee ne doit pas partir au flux.
+  active Boolean @default(false)
+
+  capturedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([userId, sourceUrl])
+  @@index([userId, source])
+  @@index([shopId])
 }

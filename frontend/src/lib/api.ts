@@ -50,7 +50,7 @@ export function assetUrl(path: string) {
   return `${API_ROOT}${path}`
 }
 
-function getToken() {
+export function getToken() {
   return localStorage.getItem('droppost_token')
 }
 
