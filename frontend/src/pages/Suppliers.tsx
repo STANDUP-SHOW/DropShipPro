@@ -3,18 +3,13 @@ import { Link } from 'react-router-dom'
 import {
   Boxes,
   Check,
-  Package,
-  RefreshCw,
   ShoppingCart,
-  Truck,
   ExternalLink,
-  AlertTriangle,
   ChevronDown,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { AgentBar } from '../components/AgentBar'
-import { PlatformLogo } from '../components/PlatformLogo'
-import { Fenetre } from '../components/SupplierCredentialDialog'
+import { SupplierBlock } from '../components/SupplierBlock'
 import { api, assetUrl } from '../lib/api'
 
 /**
@@ -33,18 +28,9 @@ import { api, assetUrl } from '../lib/api'
  * perdent les colis.
  */
 
-const CAPACITES = [
-  { cle: 'lectureCatalogue' as const, icone: Package, titre: 'Lire le catalogue' },
-  { cle: 'stockTempsReel' as const, icone: RefreshCw, titre: 'Stock et prix en direct' },
-  { cle: 'commande' as const, icone: ShoppingCart, titre: 'Commander depuis ici' },
-  { cle: 'suivi' as const, icone: Truck, titre: 'Numéro de suivi' },
-]
 
-const CHEMIN: Record<string, string> = {
-  extension: 'Extension seulement',
-  url: 'Adresse collée',
-  'les-deux': 'Adresse ou extension',
-}
+
+
 
 type Supplier = Awaited<ReturnType<typeof api.listSuppliers>>[number]
 type Lien = Awaited<ReturnType<typeof api.listSupplierLinks>>[number]
@@ -53,7 +39,7 @@ type ParFournisseur = Awaited<ReturnType<typeof api.ordersBySupplier>>['fourniss
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [liens, setLiens] = useState<Lien[]>([])
-  const [ouvert, setOuvert] = useState<Supplier | null>(null)
+  const [ouvert, setOuvert] = useState<string | null>(null)
   const [ventes, setVentes] = useState<ParFournisseur[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -111,81 +97,27 @@ export default function Suppliers() {
         </div>
       ) : null}
 
-      {/* ---------- Les fiches ---------- */}
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {classes.map((s) => {
-          const lien = lienDe(s.id)
-          const groupe = ventes.find((v) => v.supplierId === s.id)
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => (s.api ? setOuvert(s) : undefined)}
-                className={`flex h-full w-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 text-left transition ${
-                  s.api ? 'hover:border-emerald-400/40 hover:bg-white/10' : 'cursor-default'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <PlatformLogo id={s.id} label={s.label} color={s.color} domain={s.domain} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{s.label}</p>
-                    <p className="truncate text-[11px] text-gray-500">{s.origine}</p>
-                  </div>
-                  {s.api ? (
-                    lien?.connected ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] text-emerald-300">
-                        <Check size={10} />
-                        <span>relié</span>
-                      </span>
-                    ) : (
-                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-gray-400">
-                        non relié
-                      </span>
-                    )
-                  ) : (
-                    <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-gray-500">
-                      sans API
-                    </span>
-                  )}
-                </div>
+      {/*
+        Une liste depliable, et non une grille de cartes.
 
-                <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-gray-400">{s.quoi}</p>
-
-                {/* Comment on importe : la seconde moitié, celle qui manquait ici. */}
-                <p className="mt-2 text-[11px] text-gray-500">{CHEMIN[s.importPath] ?? s.importPath}</p>
-
-                {s.attention ? (
-                  <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-200/90">
-                    <AlertTriangle size={11} className="mt-0.5 shrink-0" />
-                    <span>{s.attention}</span>
-                  </p>
-                ) : null}
-
-                {s.api ? (
-                  <div className="mt-3 flex flex-1 flex-wrap items-end gap-1.5">
-                    {CAPACITES.filter((c) => s.api![c.cle]).map((c) => (
-                      <span
-                        key={c.cle}
-                        className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300"
-                      >
-                        <c.icone size={9} />
-                        <span>{c.titre}</span>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex-1" />
-                )}
-
-                {groupe?.aCommander ? (
-                  <p className="mt-3 rounded-lg bg-amber-400/10 px-2 py-1 text-[11px] text-amber-200">
-                    {`${groupe.aCommander} à commander`}
-                  </p>
-                ) : null}
-              </button>
-            </li>
-          )
-        })}
+        La carte tronquait la description a deux lignes et cachait la mise en
+        garde -- celle qui dit « livre en Inde seulement » ou « aucune place de
+        marche n accepte ces produits ». Il fallait ouvrir une fenetre pour la
+        lire, et la fenetre cachait a son tour la fiche pendant qu on collait sa
+        cle. Tout tient desormais au meme endroit.
+      */}
+      <ul className="space-y-2">
+        {classes.map((s) => (
+          <SupplierBlock
+            key={s.id}
+            supplier={s}
+            lien={lienDe(s.id)}
+            aCommander={ventes.find((v) => v.supplierId === s.id)?.aCommander ?? 0}
+            ouvert={ouvert === s.id}
+            onBasculer={() => setOuvert((o) => (o === s.id ? null : s.id))}
+            onSaved={recharger}
+          />
+        ))}
       </ul>
 
       {/* ---------- Les ventes à commander, fournisseur par fournisseur ---------- */}
@@ -212,14 +144,6 @@ export default function Suppliers() {
         </div>
       </section>
 
-      {ouvert?.api ? (
-        <Fenetre
-          supplier={ouvert}
-          lien={lienDe(ouvert.id)}
-          onClose={() => setOuvert(null)}
-          onSaved={recharger}
-        />
-      ) : null}
     </Layout>
   )
 }

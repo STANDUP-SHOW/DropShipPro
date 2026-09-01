@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Check, ExternalLink, Package, RefreshCw, ShoppingCart, Truck, X } from 'lucide-react'
-import { PlatformLogo } from './PlatformLogo'
+import { Check, ExternalLink, Package, RefreshCw, ShoppingCart, Truck } from 'lucide-react'
 import { api } from '../lib/api'
 
 /**
@@ -20,15 +19,21 @@ const CAPACITES = [
   { cle: 'suivi' as const, icone: Truck, titre: 'Numéro de suivi' },
 ]
 
-export function Fenetre({
+/**
+ * Le corps du raccordement, sans cadre.
+ *
+ * Il vivait dans une fenêtre modale. Le dépliage sur place le rend plus simple à
+ * lire : le vendeur garde la fiche du fournisseur sous les yeux — ce qu'il vend,
+ * ses mises en garde — pendant qu'il colle sa clé. Une fenêtre les lui cachait
+ * au moment précis où il en avait besoin.
+ */
+export function FormulaireFournisseur({
   supplier,
   lien,
-  onClose,
   onSaved,
 }: {
   supplier: Supplier
   lien: Lien | undefined
-  onClose: () => void
   onSaved: () => void
 }) {
   const api_ = supplier.api!
@@ -42,8 +47,7 @@ export function Fenetre({
     try {
       await api.saveSupplierLink(supplier.id, valeurs)
       onSaved()
-      onClose()
-    } catch (err) {
+          } catch (err) {
       setError(err instanceof Error ? err.message : 'Enregistrement impossible')
     } finally {
       setBusy(false)
@@ -56,31 +60,13 @@ export function Fenetre({
     try {
       await api.deleteSupplierLink(supplier.id)
       onSaved()
-      onClose()
-    } finally {
+          } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#1b1633] p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <PlatformLogo id={supplier.id} label={supplier.label} color={supplier.color} size={44} domain={supplier.domain} />
-            <div>
-              <h2 className="font-bold">{supplier.label}</h2>
-              <p className="text-xs text-gray-500">{api_.nom}</p>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} className="p-1 text-gray-400 hover:text-white">
-            <X size={16} />
-          </button>
-        </div>
-
+    <>
         <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
           Ce raccordement sera <b>conservé, rien de plus</b>. Le connecteur qui lira le catalogue,
           passera les commandes et remontera le suivi n'est pas encore écrit.
@@ -166,7 +152,6 @@ export function Fenetre({
             {busy ? 'Enregistrement…' : 'Relier'}
           </button>
         </div>
-      </div>
-    </div>
+    </>
   )
 }
