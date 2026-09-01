@@ -102,6 +102,13 @@ Trois conséquences, toutes appliquées :
   de montage doit être exactement `/app/storage` : le code écrit dans
   `path.resolve('storage')` depuis `/app`. Monté ailleurs, le volume est
   facturé, présent, et sans effet — aucun message ne le signale.
+- **Une page servie par l'API doit vivre sous `backend/`.** Railway déploie avec
+  `backend/` pour racine : `storefront-boutique/` placé à la racine du dépôt
+  n'arrivait simplement jamais dans le conteneur, et `/b/<adresse>` répondait 500
+  — alors que la page existait en local, que `tsc` passait et que tous les bancs
+  passaient. Même piège que l'extension en 404, déjà écrit ici, et retombé dedans
+  en créant le dossier. Les vitrines autonomes (`storefront/`,
+  `storefront-imprimerie/`) restent à la racine : personne ne les sert.
 - **L API de production est `dropshippro-production.up.railway.app`.** Un service
   en double sans variables produit des centaines d erreurs P1012 par minute sans
   rien servir : vérifier de quel service viennent les logs avant de chercher dans
