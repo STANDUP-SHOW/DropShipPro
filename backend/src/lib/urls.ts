@@ -9,7 +9,27 @@ import type { Request } from 'express'
  * protocol reads as http and Shopify refuses the mixed-content image.
  */
 export function apiBaseUrl(req?: Request): string {
-  const configured = process.env.PUBLIC_API_URL?.trim().replace(/\/$/, '')
+  /*
+   * Une liste séparée par des virgules est ramenée à sa première adresse, et
+   * une valeur qui ne ressemble pas à une adresse est ignorée.
+   *
+   * **Constaté en production le 02/09/2026** : `PUBLIC_API_URL` portait la même
+   * liste que `FRONTEND_URL` — « https://drop-shipper.fr, https://www… » — et
+   * tout ce qui compose une adresse absolue produisait cette chaîne collée à un
+   * chemin. La vitrine ne chargeait aucun produit, et surtout **les flux Meta et
+   * Google servaient des adresses de photos impossibles** depuis le premier
+   * jour, sans que rien ne le signale : un article sans photo joignable est
+   * rejeté du catalogue, en silence.
+   *
+   * Les deux variables se ressemblent, on les remplit à la suite, et la faute ne
+   * se voit nulle part. Le code la corrige donc plutôt que de compter dessus —
+   * c'est la même leçon que `VITE_API_URL` écrasée par une clé Stripe.
+   */
+  const brut = process.env.PUBLIC_API_URL?.split(',')[0]?.trim().replace(/\/$/, '')
+  const configured = brut && /^https?:\/\//.test(brut) ? brut : ''
+  if (brut && !configured) {
+    console.error("PUBLIC_API_URL ne ressemble pas à une adresse http, elle est ignorée :", brut.slice(0, 40))
+  }
   if (configured) return configured
 
   if (req) {
