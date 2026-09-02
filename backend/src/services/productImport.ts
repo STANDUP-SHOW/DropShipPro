@@ -229,6 +229,22 @@ export async function importerAdresse(
     notes.push("Aucune catégorie sûre : l'annonce reste en brouillon.")
   }
 
+  /*
+   * Un prix absent se dit, il ne se devine pas.
+   *
+   * `sellingPrice` vaut `price * 1.5` : sans prix d'achat, l'annonce arrive à
+   * zéro euro, avec une marge de zéro et une note amputée — et rien à l'écran
+   * n'explique pourquoi. Le vendeur croit avoir importé un produit vendable.
+   *
+   * Cela arrive sur les pages qui chargent leur prix après l'affichage. Le
+   * refus est déjà posé pour les fournisseurs connus pour ça (voir
+   * `scraper.ts`) ; ailleurs, mieux vaut garder l'annonce — les photos et le
+   * texte valent d'être pris — et dire ce qu'il manque.
+   */
+  if (!(scraped.price > 0)) {
+    notes.push("Aucun prix trouvé sur la page : renseignez le prix d'achat pour calculer votre marge.")
+  }
+
   const produit = await prisma.product.create({
     data: {
       userId,
