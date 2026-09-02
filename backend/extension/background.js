@@ -125,6 +125,9 @@ function registerApprovedSites() {
         'content/adapters.js',
         // Avant la capture : elle appelle le releveur, qui doit exister.
         'content/aliexpress-sku.js',
+        // Avant capture.js : le sélecteur lui demande l'ordre et les cases
+        // cochées dès son ouverture.
+        'content/photo-preselect.js',
         'content/capture.js',
       ],
       runAt: 'document_idle',

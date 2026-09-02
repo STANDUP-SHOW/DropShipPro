@@ -970,22 +970,18 @@
       })
 
       /*
-       * L'ordre reçu est gardé tel quel. Surtout ne pas retrier par surface.
+       * L'ordre affiché et les cases cochées viennent de `photo-preselect.js`.
        *
-       * **C'est le défaut qui faisait « taper à côté des vraies photos ».** Les
-       * candidats arrivent déjà classés par ce que le site déclare lui-même
-       * (JSON-LD, og:image), puis par leur présence dans une vraie balise
-       * `<img>`, puis par le CDN dominant, la surface ne départageant que des
-       * candidats de même rang. Ce tri-là avait été corrigé côté mesure — et le
-       * sélecteur le refaisait à zéro, par surface seule, quarante lignes plus
-       * loin. Une bannière de 1600×900 repassait donc devant une photo de
-       * galerie de 800×800, en tête de grille, présélectionnée.
-       *
-       * La même erreur avait déjà été commise une fois, corrigée, écrite dans
-       * les notes du projet — et refaite ici. Le tri du sélecteur n'existe plus :
-       * il n'y a qu'un classement, celui d'en amont.
+       * La règle a régressé deux fois en vivant ici, au milieu de la
+       * construction de l'interface : aucun banc ne pouvait l'atteindre. Elle
+       * est maintenant dans un fichier à part, éprouvé par
+       * `check-preselection.cjs` sur une page qui mélange galerie, produits
+       * recommandés et bannières.
        */
-      const sorted = produits
+      const { ordre: sorted, coches } = window.__dspPreselectionnerPhotos(produits, {
+        max: PHOTOS_MAX,
+        coteMin: MIN_SIDE,
+      })
 
       // Sizes actually present, so the seller can isolate the gallery: on Temu the
       // product shots are all 800×800 while the surrounding clutter is not.
@@ -1012,23 +1008,7 @@
        * On coche donc le format le plus représenté parmi les grandes images. Le
        * vendeur corrige d'un clic ; il ne construit plus sa sélection de rien.
        */
-      /*
-       * On coche les mieux classées, et non le format le plus représenté.
-       *
-       * Le format dominant se défendait mal : sur une fiche entourée de vingt
-       * produits recommandés, ce sont **les recommandations** qui sont les plus
-       * nombreuses à un même format, pas les six photos de la galerie. La
-       * présélection cochait donc systématiquement les voisines du produit.
-       *
-       * Le classement, lui, sait ce que le site a déclaré comme photo de sa
-       * fiche. C'est un signal de nature différente : il ne compte pas, il lit.
-       */
-      const preselected = new Set(
-        sorted
-          .filter((i) => Math.min(i.width, i.height) >= MIN_SIDE)
-          .slice(0, PHOTOS_MAX)
-          .map((i) => i.url),
-      )
+      const preselected = new Set(coches)
 
       // Gardé pour la phrase d'explication : dire quel format domine reste utile
       // au vendeur qui veut filtrer d'un clic.
