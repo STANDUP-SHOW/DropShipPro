@@ -760,6 +760,20 @@ export default function Dashboard() {
                 </div>
               )
             })}
+
+            {/*
+              Le « voir plus » manquait ici, et seulement ici.
+              La vue grille l'a toujours eu ; la liste s'arrêtait à dix annonces
+              sans rien pour aller plus loin — un catalogue de cent cinquante
+              paraissait en compter dix. Il est dans le conteneur bordé, séparé
+              par un filet, pour qu'on le lise comme la fin de la liste et non
+              comme une ligne de plus.
+            */}
+            {reste > 0 && (
+              <div className="px-3 py-3">
+                <VoirPlus reste={reste} onPlus={plus} onTout={tout} />
+              </div>
+            )}
           </div>
         )}
       </div>

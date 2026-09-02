@@ -612,7 +612,30 @@
     }
     void gardees
 
-    return { produits: unique, mobilier: mobilierMesure }
+    /*
+     * On dit d'où viennent les photos, pas seulement lesquelles.
+     *
+     * Un import en lot n'a personne pour relire : il prenait les quinze
+     * premières du classement, quelle que soit leur origine. Sur une fiche où
+     * l'adaptateur du site n'a rien trouvé — Temu renomme ses dossiers d'images
+     * sans prévenir — ces quinze-là sont ce que le scan générique a ramassé,
+     * c'est-à-dire souvent le voisinage de la page.
+     *
+     * Signalé le 02/09/2026 : sur trente produits Temu, quinze avec une seule
+     * photo et quinze avec quinze mauvaises. Le compte était bon, les photos
+     * non — et rien ne distinguait les deux cas.
+     */
+    const surs = new Set([...adapterSet].map(photoIdentity))
+    const certaines = unique.filter((i) => surs.has(photoIdentity(i.url)))
+
+    return {
+      produits: unique,
+      mobilier: mobilierMesure,
+      /** Celles que l'adaptateur du site a reconnues : le seul signal sûr. */
+      certaines,
+      /** Le nom de l'adaptateur, ou `null` quand le scan générique a tout fait. */
+      adaptateur: adapter?.label ?? null,
+    }
   }
 
   /**
@@ -1415,20 +1438,40 @@
 
     const trouve = await collectImages()
     const produits = Array.isArray(trouve) ? trouve : (trouve?.produits ?? [])
-    payload.images = produits.slice(0, PHOTOS_MAX).map((i) => i.url)
+    const certaines = Array.isArray(trouve) ? [] : (trouve?.certaines ?? [])
+    const adaptateur = Array.isArray(trouve) ? null : (trouve?.adaptateur ?? null)
 
     /*
-     * Une seule photo relevée est un échec, pas un résultat.
+     * Les photos reconnues par l'adaptateur du site d'abord, et elles seules
+     * si elles suffisent.
      *
-     * Une fiche marchande en porte toujours plusieurs ; une seule veut dire que
-     * la galerie n'était pas encore montée au moment du relevé. Le dire permet
-     * de réessayer, plutôt que d'ajouter à la liste un produit qui arrivera
-     * borgne dans le catalogue — et de ne le découvrir qu'après l'import.
+     * L'adaptateur sait où ce site range sa galerie ; le scan générique devine.
+     * Mélanger les deux fait entrer le voisinage de la page dans un lot que
+     * personne ne relit. Quand l'adaptateur en trouve au moins trois, on s'en
+     * tient à lui.
+     */
+    const retenues = certaines.length >= 3 ? certaines : produits
+    payload.images = retenues.slice(0, PHOTOS_MAX).map((i) => i.url)
+
+    /*
+     * Un relevé trop maigre ou trop incertain est refusé, pas ajouté.
+     *
+     * Deux cas, une seule conduite : dire non maintenant plutôt que de laisser
+     * une annonce borgne — ou pleine d'images étrangères — entrer dans le
+     * catalogue et n'être découverte qu'après l'import.
      */
     if (payload.images.length <= 1) {
       throw new Error(
-        `Une seule photo trouvée sur cette page : la galerie n'est probablement pas encore chargée. ` +
-          `Faites défiler la fiche, puis réessayez.`,
+        "Une seule photo trouvée : la galerie n'est probablement pas encore chargée. " +
+          'Faites défiler la fiche jusqu’aux photos, puis réessayez.',
+      )
+    }
+
+    if (adaptateur && certaines.length < 3) {
+      throw new Error(
+        `Les photos de ce site ne sont pas reconnues avec certitude (${certaines.length} sûre(s) sur ` +
+          `${produits.length} trouvée(s)) : elles risquent de ne pas être celles du produit. ` +
+          'Importez cette fiche avec le bouton de la page, qui vous laisse les choisir.',
       )
     }
 
