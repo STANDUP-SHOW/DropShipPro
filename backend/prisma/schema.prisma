@@ -214,6 +214,24 @@ model Product {
   exportSignature   String?
   variants          Json?
 
+  /// Les combinaisons d achat, avec ce qui les distingue vraiment.
+  ///
+  /// `variants` ne porte que des noms d options et des listes de valeurs --
+  /// « Couleur : Noir, Blanc ». C est ce qui s affiche, et ca ne suffit pas :
+  /// chez AliExpress chaque combinaison a **son prix, sa photo, son stock et sa
+  /// reference**. Ne stockant que les libelles, la publication Shopify envoyait
+  /// le meme prix pour toutes les variantes et aucune image -- non pas par
+  /// defaut d appel, mais parce qu on n avait rien a transmettre.
+  ///
+  /// Une ligne par combinaison :
+  /// `[{ combo, prix, prixOriginal, image, sku, stock, disponible }]`
+  ///
+  /// En JSON et non en table : la matrice se remplace en bloc a chaque releve,
+  /// ne se requete jamais ligne a ligne, et une fiche depasse rarement quelques
+  /// dizaines de combinaisons. `variants` en reste derive, pour que l affichage
+  /// et les places de marche continuent de lire ce qu ils lisaient.
+  combinations      Json?
+
   /// L etat du produit : neuf, reconditionne, occasion.
   ///
   /// Chaque place de marche a son propre vocabulaire -- Vinted distingue « neuf

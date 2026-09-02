@@ -8,6 +8,8 @@ import { reviewImages, applyVerdict } from './controlAgent.js'
 import { resoudreCategorie } from './categories.js'
 import { rapatrierImages } from './watermark.js'
 import { supplierFields } from './suppliers.js'
+import { lireSkuAliExpress, type ModulesAliExpress } from './aliexpressSku.js'
+import { optionsDepuisCombinaisons, validerMatrice, type Combinaison } from './variantMatrix.js'
 
 /**
  * L'import d'une annonce, en un seul endroit.
@@ -52,6 +54,15 @@ export interface OptionsImport {
   releve?: {
     images?: string[]
     variantes?: Record<string, string[]>
+    /**
+     * Les combinaisons, avec leur prix, leur photo et leur stock.
+     *
+     * C est ce qui manquait : `variantes` ne porte que des libelles, et une
+     * publication ne peut pas transmettre un prix par variante qu elle n a pas.
+     */
+    combinaisons?: unknown
+    /** Les modules bruts d une fiche AliExpress, a joindre nous-memes. */
+    skuAliExpress?: ModulesAliExpress | null
   } | null
 }
 
@@ -113,9 +124,38 @@ export async function importerAdresse(
 
   // Les fournisseurs rangent tout sous « Color » : capacités, tailles, modèles.
   // La réparation est déterministe et ne coûte aucun appel.
-  const variants = reparerVariantes(verdict ? applyVerdict(annoncees, verdict) : annoncees).variantes
+  const reparees = reparerVariantes(verdict ? applyVerdict(annoncees, verdict) : annoncees).variantes
+
+  /*
+   * La matrice des combinaisons, quand la page l'a donnée.
+   *
+   * C'est elle qui porte le prix, la photo, le stock et la référence de chaque
+   * choix — tout ce que `variants` ne sait pas dire. Sans elle, publier une
+   * fiche à douze couleurs envoie douze fois le même prix et aucune image, non
+   * par défaut d'appel mais faute d'avoir quoi que ce soit à transmettre.
+   *
+   * Et quand elle existe, **les options d'affichage en sont dérivées**. Garder
+   * les deux listes en parallèle finirait par les voir se contredire : une
+   * valeur proposée à l'acheteur qui ne mène à aucun prix.
+   */
+  const combinaisons = lireCombinaisons(options.releve, notes)
+  const variants = combinaisons ? optionsDepuisCombinaisons(combinaisons) : reparees
 
   const watermarked = await rapatrierImages(retenues, enhanced.title)
+
+  /*
+   * Les photos de variante sont rapatriées elles aussi.
+   *
+   * Elles arrivent avec l'adresse du fournisseur. Les publier telles quelles
+   * marcherait — et **contournerait le filigrane** : tout le reste de
+   * l'application pose la marque au départ, ces photos-là partiraient nues sur
+   * Shopify et sur la vitrine. Elles finiraient aussi par disparaître le jour où
+   * AliExpress retire la fiche, laissant douze variantes sans image.
+   *
+   * Elles sont donc stockées chez nous comme les autres, et la matrice pointe
+   * vers notre copie.
+   */
+  const combinaisonsStockees = await rapatrierPhotosDeVariante(combinaisons, enhanced.title, notes)
 
   const rangement = await resoudreCategorie({
     sourceCategory: scraped.sourceCategory,
@@ -144,6 +184,7 @@ export async function importerAdresse(
       sellingPrice: scraped.price * 1.5,
       currency: scraped.currency,
       variants: variants ?? undefined,
+      combinations: (combinaisonsStockees ?? undefined) as object | undefined,
       images: watermarked.length ? watermarked : retenues,
       /*
        * Les fichiers rapatriés sont les **originaux**.
@@ -166,6 +207,82 @@ export async function importerAdresse(
   })
 
   return { produit, reecrit: enhanced.enhanced, notes }
+}
+
+/**
+ * Rapatrie les photos de variante et reecrit la matrice vers nos copies.
+ *
+ * Une seule passe pour toutes les adresses distinctes : douze combinaisons de
+ * trois couleurs ne font que trois photos, et les telecharger douze fois
+ * couterait neuf allers-retours pour rien.
+ *
+ * Un echec ne perd pas la combinaison : elle garde l adresse du fournisseur,
+ * qui vaut mieux que pas d image du tout. C est dit dans les notes.
+ */
+async function rapatrierPhotosDeVariante(
+  combos: Combinaison[] | null,
+  titre: string,
+  notes: string[],
+): Promise<Combinaison[] | null> {
+  if (!combos?.length) return combos
+
+  const adresses = [...new Set(combos.map((c) => c.image).filter((u): u is string => Boolean(u)))]
+  if (!adresses.length) return combos
+
+  const stockees = await rapatrierImages(adresses, titre)
+  // `rapatrierImages` saute silencieusement ce qu il n a pas pu lire : sans
+  // cette garde, la correspondance se decalerait et une couleur porterait la
+  // photo d une autre.
+  if (stockees.length !== adresses.length) {
+    notes.push(
+      `${adresses.length - stockees.length} photo(s) de variante non rapatriée(s) : adresses du fournisseur conservées.`,
+    )
+    return combos
+  }
+
+  const parAdresse = new Map(adresses.map((u, i) => [u, stockees[i]]))
+  return combos.map((c) => (c.image ? { ...c, image: parAdresse.get(c.image) ?? c.image } : c))
+}
+
+/**
+ * Lit la matrice de combinaisons du releve, quelle que soit sa forme.
+ *
+ * Deux sources possibles : une matrice deja construite par l extension, ou les
+ * modules bruts d une fiche AliExpress qu on joint nous-memes. La seconde est
+ * preferee quand les deux sont la -- elle vient de la page, la premiere d une
+ * interpretation.
+ *
+ * Ne leve jamais : une matrice illisible fait une annonce sans combinaisons,
+ * pas un import perdu. Le vendeur a quand meme ses photos, son texte et son
+ * prix, et la raison est ecrite dans les notes.
+ */
+function lireCombinaisons(
+  releve: OptionsImport['releve'],
+  notes: string[],
+): Combinaison[] | null {
+  if (!releve) return null
+
+  if (releve.skuAliExpress) {
+    try {
+      const lues = lireSkuAliExpress(releve.skuAliExpress)
+      if (lues.length) {
+        notes.push(`${lues.length} combinaison(s) relevée(s) avec leur prix et leur photo.`)
+        return lues
+      }
+    } catch (e) {
+      notes.push('Les options de la page n ont pas pu être lues : annonce sans variantes.')
+    }
+  }
+
+  if (releve.combinaisons) {
+    try {
+      return validerMatrice(releve.combinaisons)
+    } catch (e) {
+      notes.push(e instanceof Error ? e.message : 'Matrice de variantes illisible.')
+    }
+  }
+
+  return null
 }
 
 /**

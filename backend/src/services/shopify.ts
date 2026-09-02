@@ -1,4 +1,6 @@
 import type { Product, User } from '@prisma/client'
+import { prixDeVenteDe, type Combinaison } from './variantMatrix.js'
+import { absoluteUrl } from '../lib/urls.js'
 import { titleForChannel } from './channelCopy.js'
 import { rangerDansShopify, type CategorieSource } from './shopifyCatalog.js'
 import { codeBarresDe, codeDouanierDe, handleDe, paysOrigineDe, poidsDe, ugsDe } from './productFacts.js'
@@ -283,6 +285,21 @@ function imageUrls(product: Product, apiBaseUrl: string | undefined, marquees?: 
     // A localhost URL is reachable from this machine only: Shopify would fail to
     // fetch it and reject the whole product, so the photos are simply left out.
     .filter((url) => !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/.test(url))
+}
+
+/**
+ * La cle d une combinaison : ses valeurs, triees et normalisees.
+ *
+ * Triees parce que l ordre des options du produit cartesien et celui du releve
+ * n ont aucune raison de coincider. Normalisees parce que « Bleu » et « bleu  »
+ * designent la meme couleur -- et qu une jointure ratee rend le prix du produit,
+ * c est-a-dire le defaut qu on corrige, en silence.
+ */
+function cleValeurs(valeurs: string[]): string {
+  return valeurs
+    .map((v) => String(v).trim().toLowerCase())
+    .sort()
+    .join('|')
 }
 
 const CREATE_PRODUCT = /* GraphQL */ `
@@ -589,6 +606,21 @@ export async function publishToShopify(
    * sa description. La note le dit, et le vendeur complète à la main plutôt que
    * de tout réimporter.
    */
+  /*
+   * La matrice relevee, indexee par sa combinaison de valeurs.
+   *
+   * Le produit cartesien des options et la matrice decrivent les memes choix
+   * mais pas dans le meme ordre : la jointure se fait donc sur les valeurs
+   * elles-memes, jamais sur une position.
+   */
+  const matrice = new Map<string, Combinaison>()
+  for (const c of (Array.isArray(product.combinations)
+    ? product.combinations
+    : []) as unknown as Combinaison[]) {
+    if (c?.combo) matrice.set(cleValeurs(Object.values(c.combo)), c)
+  }
+  const prixAchat = Number(product.price) || 0
+
   const combos = combinaisons(options)
   if (combos.length > 1) {
     try {
@@ -596,18 +628,49 @@ export async function publishToShopify(
         productVariantsBulkCreate: { userErrors: Array<{ field?: string[] | null; message: string }> }
       }>(creds, CREATE_VARIANTS, {
         productId: shopifyProduct.id,
-        variants: combos.map((valeurs) => ({
-          price: price > 0 ? price.toFixed(2) : undefined,
-          // Le fournisseur expédie à la demande : sans CONTINUE, Shopify refuse
-          // la commande pour rupture de stock.
-          inventoryPolicy: 'CONTINUE',
-          taxable: true,
-          // Une UGS par combinaison, dérivée de la référence fournisseur : c'est
-          // ce que le vendeur lit sur son bon de commande, et douze variantes
-          // partageant la même UGS rendent la préparation impossible.
-          inventoryItem: inventaire(`${ugs}-${valeurs.map(codeValeur).join('-')}`.slice(0, 60)),
-          optionValues: valeurs.map((v, i) => ({ name: v, optionName: options[i].name })),
-        })),
+        variants: combos.map((valeurs) => {
+          /*
+           * Le prix et la photo de **cette** combinaison.
+           *
+           * Ils partaient identiques pour toutes : le prix du produit, et
+           * aucune image. Non pas parce que l'appel était mal écrit — Shopify
+           * accepte `price` et `mediaSrc` par variante depuis toujours — mais
+           * parce que nous n'avions rien à transmettre : `variants` ne portait
+           * que des libellés. C'est la matrice de combinaisons qui a comblé ça.
+           *
+           * `mediaSrc` plutôt que `mediaId` : Shopify télécharge l'adresse
+           * lui-même, ce qui évite de créer les médias, d'attendre leur
+           * traitement, puis de faire correspondre douze identifiants à douze
+           * combinaisons — une correspondance qui se décale à la première photo
+           * refusée.
+           */
+          const ligne = matrice.get(cleValeurs(valeurs))
+          const prixVariante = ligne ? prixDeVenteDe(ligne, prixAchat, price) : price
+
+          return {
+            price: prixVariante > 0 ? prixVariante.toFixed(2) : undefined,
+            // L'adresse est la nôtre : la photo a été rapatriée et marquée à
+            // l'import, comme les autres.
+            mediaSrc: ligne?.image ? [absoluteUrl(ligne.image)] : undefined,
+            // Le fournisseur expédie à la demande : sans CONTINUE, Shopify
+            // refuse la commande pour rupture de stock.
+            inventoryPolicy: 'CONTINUE',
+            taxable: true,
+            /*
+             * Une UGS par combinaison.
+             *
+             * Celle du fournisseur quand la matrice la porte — c'est elle que le
+             * vendeur recopie sur son bon de commande, et le seul moyen de savoir
+             * quelle couleur commander. À défaut, une UGS dérivée des valeurs :
+             * douze variantes partageant la même rendent la préparation
+             * impossible.
+             */
+            inventoryItem: inventaire(
+              (ligne?.sku ? `${ugs}-${ligne.sku}` : `${ugs}-${valeurs.map(codeValeur).join('-')}`).slice(0, 60),
+            ),
+            optionValues: valeurs.map((v, i) => ({ name: v, optionName: options[i].name })),
+          }
+        }),
       })
       assertNoUserErrors(ajout.productVariantsBulkCreate.userErrors, 'Variantes refusées')
       notes.push(`${combos.length} variantes créées.`)
