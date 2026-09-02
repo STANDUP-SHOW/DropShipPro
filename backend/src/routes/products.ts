@@ -31,6 +31,7 @@ import { watermarkOptionsFor } from '../services/watermarkOptions.js'
 import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
 import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
+import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -274,6 +275,140 @@ productsRouter.get('/', async (req: AuthedRequest, res) => {
  * Séparé de la fiche : un vendeur ouvre ce détail quand il veut corriger, pas à
  * chaque affichage.
  */
+
+/**
+ * Les actions sur un lot d annonces cochees.
+ *
+ * **Une seule route pour quatre gestes**, et non quatre routes : elles partagent
+ * la meme selection, la meme verification de propriete et le meme compte-rendu.
+ * Quatre routes auraient donne quatre facons de dire « trois annonces sur cinq
+ * ont ete traitees », et quatre endroits ou oublier le filtre `userId`.
+ *
+ * Chaque annonce est traitee independamment : une qui echoue n arrete pas les
+ * autres, et le vendeur recoit la liste de ce qui n a pas marche. Sur un lot de
+ * vingt-cinq, tout perdre pour une seule serait le pire des comportements.
+ */
+const lotSchema = z.object({
+  ids: z.array(z.string()).min(1).max(200),
+  action: z.enum(['categorie', 'supprimer', 'options', 'boutique']),
+  /** Pour « categorie » : la categorie de destination. */
+  categoryId: z.string().optional(),
+  /** Pour « options » : le jeu a poser -- pointure, taille, couleur. */
+  jeu: z.string().optional(),
+  /** Pour « boutique » : ou ranger les annonces. */
+  shopId: z.string().nullable().optional(),
+})
+
+productsRouter.post('/lot', async (req: AuthedRequest, res) => {
+  const parsed = lotSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Demande invalide' })
+  const { ids, action } = parsed.data
+
+  /*
+   * Les annonces sont relues avec le filtre du compte, jamais prises sur parole.
+   *
+   * Les identifiants viennent du navigateur : sans ce filtre, un identifiant
+   * devine suffirait a supprimer l annonce d un autre vendeur.
+   */
+  const annonces = await prisma.product.findMany({
+    where: { id: { in: ids }, userId: req.userId! },
+    select: { id: true, title: true, aiTitle: true, variants: true },
+  })
+  if (!annonces.length) return res.status(404).json({ error: 'Aucune de ces annonces ne vous appartient.' })
+
+  const echecs: Array<{ id: string; titre: string; raison: string }> = []
+  let faites = 0
+
+  if (action === 'supprimer') {
+    const { count } = await prisma.product.deleteMany({
+      where: { id: { in: annonces.map((a) => a.id) }, userId: req.userId! },
+    })
+    return res.json({ demandees: ids.length, faites: count, inchangees: 0, echecs: [] })
+  }
+
+  if (action === 'categorie') {
+    if (!parsed.data.categoryId) return res.status(400).json({ error: 'Choisissez une catégorie.' })
+    // La categorie doit exister : un identifiant invente rangerait les annonces
+    // nulle part, et le referentiel est la seule liste qui fasse foi.
+    const categorie = await prisma.category.findUnique({
+      where: { id: parsed.data.categoryId },
+      select: { id: true, path: true },
+    })
+    if (!categorie) return res.status(400).json({ error: 'Cette catégorie n existe pas.' })
+
+    const { count } = await prisma.product.updateMany({
+      where: { id: { in: annonces.map((a) => a.id) }, userId: req.userId! },
+      data: { categoryId: categorie.id },
+    })
+    return res.json({
+      demandees: ids.length,
+      faites: count,
+      inchangees: 0,
+      echecs: [],
+      message: `Rangées dans « ${categorie.path} ».`,
+    })
+  }
+
+  if (action === 'boutique') {
+    if (parsed.data.shopId) {
+      const sienne = await prisma.shop.findFirst({
+        where: { id: parsed.data.shopId, userId: req.userId! },
+        select: { id: true },
+      })
+      if (!sienne) return res.status(400).json({ error: 'Cette boutique ne vous appartient pas.' })
+    }
+    const { count } = await prisma.product.updateMany({
+      where: { id: { in: annonces.map((a) => a.id) }, userId: req.userId! },
+      data: { shopId: parsed.data.shopId ?? null },
+    })
+    return res.json({ demandees: ids.length, faites: count, inchangees: 0, echecs: [] })
+  }
+
+  // --- Les options tout pretes ----------------------------------------------
+
+  const jeu = trouverJeu(parsed.data.jeu ?? '')
+  if (!jeu) return res.status(400).json({ error: 'Jeu d options inconnu.' })
+
+  let inchangees = 0
+  for (const annonce of annonces) {
+    const suivantes = poserJeu(annonce.variants as Record<string, string[]> | null, jeu)
+    // `null` veut dire « elle avait deja cette option » : ce n est pas un echec,
+    // et le compter comme tel ferait croire a une panne sur un lot deja rangé.
+    if (!suivantes) {
+      inchangees++
+      continue
+    }
+    try {
+      await prisma.product.update({
+        where: { id: annonce.id },
+        data: { variants: suivantes as object },
+      })
+      faites++
+    } catch (e) {
+      echecs.push({
+        id: annonce.id,
+        titre: annonce.aiTitle || annonce.title,
+        raison: e instanceof Error ? e.message : 'Enregistrement impossible',
+      })
+    }
+  }
+
+  res.json({
+    demandees: ids.length,
+    faites,
+    inchangees,
+    echecs,
+    message: jeu.valeurs.length
+      ? `Option « ${jeu.nom} » ajoutée avec ${jeu.valeurs.length} valeurs.`
+      : `Option « ${jeu.nom} » ajoutée, vide : les valeurs restent à renseigner sur chaque annonce.`,
+  })
+})
+
+/** Les jeux d options tout prets, pour l ecran de lot. */
+productsRouter.get('/meta/jeux-options', (_req: AuthedRequest, res) => {
+  res.json(JEUX_OPTIONS)
+})
+
 productsRouter.get('/:id/score', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({
     where: { id: req.params.id, userId: req.userId! },

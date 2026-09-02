@@ -6,6 +6,7 @@ import { CategoryMenu } from '../components/CategoryMenu'
 import { AgentBar } from '../components/AgentBar'
 import { VoirPlus, useVoirPlus } from '../components/VoirPlus'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
+import { BulkActions } from '../components/BulkActions'
 import { api, assetUrl, importSupplierList } from '../lib/api'
 import type { PlatformInfo } from '../lib/platforms'
 import { PublishedBadges } from '../components/PublishedBadges'
@@ -32,6 +33,13 @@ export default function Dashboard() {
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [batchSummary, setBatchSummary] = useState<string | null>(null)
+  /** Le détail des échecs, adresse par adresse — le serveur le donnait déjà, personne ne l'affichait. */
+  const [batchEchecs, setBatchEchecs] = useState<Array<{ url: string; error: string }>>([])
+  /** Le compte-rendu d'une action en lot. Une action muette laisse croire qu'il ne s'est rien passé. */
+  const [avis, setAvis] = useState<string | null>(null)
+  const [tri, setTri] = useState<'date' | 'categorie' | 'prix' | 'fournisseur'>('date')
+  const [statut, setStatut] = useState<'tous' | 'publie' | 'nonPublie'>('tous')
+  const [fournisseurFiltre, setFournisseurFiltre] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
   const [pendingDelete, setPendingDelete] = useState<any>(null)
@@ -61,10 +69,49 @@ export default function Dashboard() {
   }
 
 
+  /*
+   * Les fournisseurs présents, tirés des annonces elles-mêmes.
+   *
+   * Pas d'une liste écrite à la main : le vendeur importe d'où il veut, et une
+   * liste figée proposerait des sources qu'il n'utilise pas tout en oubliant
+   * celles qu'il utilise.
+   */
+  const fournisseurs = [...new Set(products.map((p) => p.sourceSite).filter(Boolean))].sort() as string[]
+
   const needle = search.trim().toLowerCase()
   const filtres = products
     .filter((p) => !categoryFilter || p.categoryId === categoryFilter)
     .filter((p) => !needle || `${p.aiTitle ?? ''} ${p.title ?? ''}`.toLowerCase().includes(needle))
+    .filter((p) => !fournisseurFiltre || p.sourceSite === fournisseurFiltre)
+    .filter((p) => {
+      if (statut === 'tous') return true
+      const publiee = (p.publications ?? []).length > 0
+      return statut === 'publie' ? publiee : !publiee
+    })
+    /*
+     * Trié sur une copie, jamais sur `products`.
+     *
+     * `Array.sort` trie en place : appliqué au tableau d'état, il le réordonne
+     * sans que React s'en aperçoive, et l'ordre change alors sous les autres
+     * écrans qui lisent la même liste. Les `.filter` ci-dessus rendent déjà une
+     * copie, mais s'y fier tient à leur présence — ce qui ne se voit pas.
+     */
+    .slice()
+    .sort((a, b) => {
+      switch (tri) {
+        case 'prix':
+          return Number(b.sellingPrice ?? 0) - Number(a.sellingPrice ?? 0)
+        case 'categorie':
+          // Sans catégorie en dernier : ce sont celles à reprendre, et les
+          // noyer au milieu de l'alphabet revient à ne pas les signaler.
+          return (a.categoryId ? 0 : 1) - (b.categoryId ? 0 : 1) ||
+            String(a.categoryId ?? '').localeCompare(String(b.categoryId ?? ''))
+        case 'fournisseur':
+          return String(a.sourceSite ?? '').localeCompare(String(b.sourceSite ?? ''))
+        default:
+          return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+      }
+    })
 
   /*
    * Dix d'abord, la suite a la demande.
@@ -130,27 +177,75 @@ export default function Dashboard() {
     }
   }
 
+  /**
+   * L'import en lot, une adresse par requête.
+   *
+   * **Deux défauts, et le second faisait tout échouer.**
+   *
+   * Le premier : le serveur rendait une erreur *par adresse*, et l'écran n'en
+   * affichait aucune — « 0 importés, 25 échoués » sans dire pourquoi, ce qui ne
+   * laisse rien à corriger.
+   *
+   * Le second : les vingt-cinq adresses partaient dans **une seule requête**.
+   * Un import prend trente à soixante secondes ; vingt-cinq à la suite font un
+   * quart d'heure, et aucun proxy ne tient une requête ouverte aussi longtemps.
+   * La connexion tombait donc systématiquement — « failed to fetch » — alors
+   * que le serveur, lui, continuait d'importer. Exactement la panne du bouton
+   * « Reprendre », découverte quinze jours plus tôt et corrigée de la même
+   * façon : découper côté client.
+   *
+   * Une adresse par requête tient largement dans le délai, montre l'avancement
+   * pendant que ça tourne, et rend chaque échec lisible avec son adresse.
+   */
   async function onBatchImport(e: FormEvent) {
     e.preventDefault()
     setError(null)
     setBatchSummary(null)
+    setBatchEchecs([])
     const urls = batchUrls
       .split('\n')
       .map((u) => u.trim())
       .filter(Boolean)
       .slice(0, 25)
     if (!urls.length) return
+
     setImporting(true)
-    try {
-      const res = await api.importBatch(urls)
-      setBatchSummary(`${res.imported} importés, ${res.failed} échoués sur ${urls.length}`)
-      setBatchUrls('')
+    const echecs: Array<{ url: string; error: string }> = []
+    let reussies = 0
+
+    for (const [i, u] of urls.entries()) {
+      setBatchSummary(`Import ${i + 1} sur ${urls.length}…`)
+      try {
+        const res = await api.importBatch([u])
+        const ligne = res.results[0]
+        if (ligne?.ok) reussies++
+        else echecs.push({ url: u, error: ligne?.error || 'Échec sans détail' })
+      } catch (err) {
+        /*
+         * Une adresse qui échoue n'arrête pas le lot.
+         *
+         * Un solde épuisé, lui, l'arrête : les suivantes échoueraient toutes
+         * pour la même raison, et vingt-quatre lignes rouges identiques
+         * cachent la seule qui compte.
+         */
+        const message = err instanceof Error ? err.message : "Échec de l'import"
+        echecs.push({ url: u, error: message })
+        if (/crédit|credit|solde/i.test(message)) {
+          setBatchSummary(`Arrêté à ${i + 1} sur ${urls.length} : ${message}`)
+          break
+        }
+      }
+      // Rechargée au fur et à mesure : le vendeur voit ses annonces arriver au
+      // lieu d'attendre devant une liste inchangée.
       await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Échec de l'import par lot")
-    } finally {
-      setImporting(false)
     }
+
+    setBatchEchecs(echecs)
+    setBatchSummary(`${reussies} importée(s), ${echecs.length} en échec sur ${urls.length}.`)
+    // Seules les adresses en échec restent dans le champ : le vendeur corrige
+    // et relance sans retrier à la main celles qui sont déjà passées.
+    setBatchUrls(echecs.map((e) => e.url).join('\n'))
+    setImporting(false)
   }
 
   async function confirmDelete() {
@@ -271,6 +366,22 @@ export default function Dashboard() {
             </button>
             {batchSummary && <span className="text-sm text-gray-400">{batchSummary}</span>}
           </div>
+
+          {/*
+            Chaque échec avec son adresse et sa raison.
+            « 25 échoués » ne se corrige pas ; « cette adresse est une fiche
+            AliExpress, passez par l'extension » se corrige.
+          */}
+          {batchEchecs.length > 0 && (
+            <ul className="space-y-1.5 rounded-lg border border-red-400/25 bg-red-500/5 p-3">
+              {batchEchecs.map((e) => (
+                <li key={e.url} className="text-xs">
+                  <span className="block truncate text-gray-400">{e.url}</span>
+                  <span className="text-red-200">{e.error}</span>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {/*
             L'import d'un export fournisseur.
@@ -397,6 +508,49 @@ export default function Dashboard() {
             placeholder="Rechercher dans mes annonces…"
             className="min-w-[12rem] flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400"
           />
+
+          {/* Trier et filtrer. Trois cents annonces ne se retrouvent pas en
+              faisant défiler : elles se retrouvent en réduisant la liste. */}
+          <select
+            value={tri}
+            onChange={(e) => setTri(e.target.value as typeof tri)}
+            title="Trier les annonces"
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          >
+            <option value="date">Tri : plus récentes</option>
+            <option value="prix">Tri : prix décroissant</option>
+            <option value="categorie">Tri : catégorie</option>
+            <option value="fournisseur">Tri : fournisseur</option>
+          </select>
+
+          <select
+            value={statut}
+            onChange={(e) => setStatut(e.target.value as typeof statut)}
+            title="Publiées ou non"
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          >
+            <option value="tous">Toutes</option>
+            <option value="publie">Publiées</option>
+            <option value="nonPublie">Non publiées</option>
+          </select>
+
+          {/* Affiché seulement s'il y a un choix à faire : un menu à une seule
+              entrée occupe la barre sans rien trancher. */}
+          {fournisseurs.length > 1 && (
+            <select
+              value={fournisseurFiltre}
+              onChange={(e) => setFournisseurFiltre(e.target.value)}
+              title="Filtrer par fournisseur"
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400"
+            >
+              <option value="">Tous les fournisseurs</option>
+              {fournisseurs.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Selection bar: shown as soon as there is something to act on, so the
@@ -419,6 +573,16 @@ export default function Dashboard() {
               <span className="text-xs text-gray-400">
                 {`${selectedIds.length} sélectionnée(s)`}
               </span>
+              {/* Ranger, poser une option, supprimer — les trois gestes qui se
+                  faisaient sinon annonce par annonce. */}
+              <BulkActions
+                ids={selectedIds}
+                onFait={async (message) => {
+                  setAvis(message)
+                  setSelectedIds([])
+                  await load()
+                }}
+              />
               {/* L'analyse consomme un crédit par produit : le libellé le dit,
                   personne ne doit le découvrir sur sa facture. */}
               <button
@@ -442,6 +606,12 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+        )}
+
+        {avis && (
+          <p className="mt-2 rounded-xl border border-emerald-400/25 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-100">
+            {avis}
+          </p>
         )}
 
         {loading ? (

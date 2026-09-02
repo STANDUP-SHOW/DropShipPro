@@ -252,6 +252,33 @@ export const api = {
   listConditions: () =>
     request<Array<{ id: string; label: string; aide: string }>>('/products/meta/conditions'),
 
+  /** Les jeux d'options tout prêts (pointure, taille, couleur), définis côté serveur. */
+  jeuxOptions: () =>
+    request<Array<{ id: string; nom: string; valeurs: string[]; aide: string }>>(
+      '/products/meta/jeux-options',
+    ),
+  /*
+   * Une action sur un lot d'annonces cochées.
+   *
+   * Le serveur rend trois chiffres et non un simple succès : ce qui a bougé, ce
+   * qui était déjà dans cet état, et ce qui a échoué. Sur vingt annonces, « 12
+   * traitées » sans le reste laisse chercher les huit autres.
+   */
+  actionLot: (corps: {
+    ids: string[]
+    action: 'categorie' | 'supprimer' | 'options' | 'boutique'
+    categoryId?: string
+    jeu?: string
+    shopId?: string | null
+  }) =>
+    request<{
+      demandees: number
+      faites: number
+      inchangees: number
+      echecs: Array<{ id: string; titre: string; raison: string }>
+      message?: string
+    }>('/products/lot', { method: 'POST', body: JSON.stringify(corps) }),
+
   listPlatforms: () =>
     request<
       Array<{

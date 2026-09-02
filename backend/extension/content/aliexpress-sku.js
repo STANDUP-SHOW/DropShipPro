@@ -53,20 +53,47 @@
    * `window._d_c_`… Les noms changent d'une refonte à l'autre, alors on ne les
    * énumère pas : on cherche ce qui **ressemble** aux modules attendus.
    */
+  /**
+   * Lecture d'une propriété qui a le droit de refuser.
+   *
+   * **`window` n'est pas seulement un objet à nous.** Chaque iframe de la page y
+   * ajoute une propriété portant son `name` — AliExpress en charge plusieurs,
+   * pour la publicité et le suivi. Ces propriétés sont des fenêtres d'une autre
+   * origine : les énumérer est permis, les lire lève une `SecurityError`
+   * (« Blocked a frame … Failed to read a named property … from 'Window' »).
+   *
+   * Constaté le 02/09/2026 : l'erreur remontait jusqu'au relevé et faisait
+   * échouer l'import entier, alors qu'il s'agissait d'une iframe publicitaire
+   * qui n'avait évidemment rien à voir avec les variantes.
+   */
+  function lire(objet, cle) {
+    try {
+      return objet[cle]
+    } catch {
+      return undefined
+    }
+  }
+
   function depuisGlobales() {
     for (const cle of Object.keys(window)) {
-      let valeur
-      try {
-        valeur = window[cle]
-      } catch {
-        // Certaines propriétés lèvent à la lecture : on passe.
-        continue
-      }
+      const valeur = lire(window, cle)
       if (!valeur || typeof valeur !== 'object') continue
 
-      if (MODULES.some((m) => valeur[m]?.skuPaths || valeur[m]?.skuIdStrPriceInfoMap)) return valeur
-      const data = valeur.data
-      if (data && typeof data === 'object' && MODULES.some((m) => data[m])) return data
+      /*
+       * Les fenêtres sont écartées d'emblée, pas seulement protégées.
+       *
+       * Une fenêtre de même origine se lirait sans erreur mais n'a jamais porté
+       * les modules d'une fiche produit ; et parcourir les frames reviendrait à
+       * relever les variantes d'une page qui n'est pas celle que le vendeur
+       * regarde.
+       */
+      if (lire(valeur, 'window') === valeur || lire(valeur, 'self') === valeur) continue
+
+      if (MODULES.some((m) => { const v = lire(valeur, m); return v?.skuPaths || v?.skuIdStrPriceInfoMap })) {
+        return valeur
+      }
+      const data = lire(valeur, 'data')
+      if (data && typeof data === 'object' && MODULES.some((m) => lire(data, m))) return data
     }
     return null
   }
@@ -107,6 +134,20 @@
     }
   }
 
-  // Exposé au reste des scripts de contenu, qui tournent dans le même monde.
-  window.__dspReleverSkuAliExpress = relever
+  /*
+   * Exposé au reste des scripts de contenu, et **incapable de lever**.
+   *
+   * Les variantes sont un supplément : une fiche relevée sans elles reste une
+   * fiche importable, avec ses photos, son titre et son prix. Laisser une
+   * exception remonter ferait perdre tout l'import pour un détail — c'est
+   * exactement ce qui s'est passé avec l'iframe publicitaire.
+   */
+  window.__dspReleverSkuAliExpress = () => {
+    try {
+      return relever()
+    } catch (e) {
+      console.warn('[DropShipper] relevé des variantes AliExpress abandonné :', e?.message || e)
+      return null
+    }
+  }
 })()
