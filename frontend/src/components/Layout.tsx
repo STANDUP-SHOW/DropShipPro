@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, KeyRound, ChevronRight } from 'lucide-react'
 import { Logo } from './Logo'
+import { ExtensionVersion } from './ExtensionVersion'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 
@@ -247,6 +248,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
       <main className="flex-1 p-6 md:p-8 overflow-x-hidden">
         <div className="mx-auto max-w-5xl">
+          {/*
+            Dans la mise en page, donc sur tous les écrans.
+            Une extension en retard fausse ce que le vendeur voit partout — pas
+            seulement dans la fenêtre de publication, seul endroit qui la
+            détectait jusqu'ici. Le bandeau ne s'affiche que si une extension
+            est installée ET qu'elle est antérieure.
+          */}
+          <ExtensionVersion />
           <div className="md:hidden flex items-center gap-1 mb-6 -mx-2 overflow-x-auto">
             {NAV.map((item) => (
               <Link

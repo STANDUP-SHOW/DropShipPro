@@ -3,6 +3,7 @@ import { imagesPourExport } from '../services/exportImages.js'
 import archiver from 'archiver'
 import path from 'path'
 import { existsSync } from 'fs'
+import { readFile } from 'fs/promises'
 import type { Product } from '@prisma/client'
 import { metaCsv, googleRss } from '../services/productFeeds.js'
 import { etatPour } from '../services/productCondition.js'
@@ -31,6 +32,31 @@ const EXTENSION_TOOLING = ['check.cjs', 'build-store-zip.cjs', 'README.md']
 function findExtensionDir(): string | null {
   return EXTENSION_DIRS.map((dir) => path.resolve(dir)).find((dir) => existsSync(dir)) ?? null
 }
+
+/**
+ * La version d'extension que ce serveur distribue.
+ *
+ * **Sans elle, une correction ne parvient jamais au vendeur.** L'extension
+ * n'est pas au Chrome Web Store : elle s'installe en chargeant un dossier, et
+ * rien ne la met à jour toute seule. Le vendeur peut donc faire tourner une
+ * version de six mois pendant qu'on corrige la même panne trois fois — c'est
+ * arrivé le 02/09/2026, quatre allers-retours sur un plafond déjà corrigé.
+ *
+ * Elle est lue dans le `manifest.json` livré, jamais recopiée : une constante
+ * écrite ici divergerait du fichier le jour où l'on oublie de la changer, et ce
+ * contrôle-là mentirait comme les autres.
+ */
+publicRouter.get('/extension-version', async (_req, res) => {
+  const dossier = findExtensionDir()
+  if (!dossier) return res.json({ version: null })
+
+  try {
+    const brut = await readFile(path.join(dossier, 'manifest.json'), 'utf8')
+    res.json({ version: String(JSON.parse(brut).version ?? '') || null })
+  } catch {
+    res.json({ version: null })
+  }
+})
 
 publicRouter.get('/extension.zip', async (_req, res) => {
   const extensionDir = findExtensionDir()

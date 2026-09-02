@@ -276,6 +276,14 @@ export const api = {
   listConditions: () =>
     request<Array<{ id: string; label: string; aide: string }>>('/products/meta/conditions'),
 
+  /**
+   * La version d'extension que le serveur distribue.
+   *
+   * Publique : c'est du code client, et l'avertissement doit s'afficher sur
+   * chaque écran, y compris avant qu'une session soit chargée.
+   */
+  versionExtension: () => request<{ version: string | null }>('/public/extension-version'),
+
   /** Les jeux d'options tout prêts (pointure, taille, couleur), définis côté serveur. */
   jeuxOptions: () =>
     request<Array<{ id: string; nom: string; valeurs: string[]; aide: string }>>(
