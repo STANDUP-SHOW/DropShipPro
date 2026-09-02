@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, KeyRound } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, KeyRound, ChevronRight } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
@@ -112,6 +112,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
    * cherche ce que Karim a trouvé, pas la section veille numéro trois.
    */
   const [rayons, setRayons] = useState<Array<{ id: string; agentName: string; label: string; emoji: string; pending: number }>>([])
+  /** Le rayon ouvert, s'il y en a un : la liste se déplie alors d'elle-même. */
+  const rayonActif = rayons.find((r) => pathname.startsWith(`/rayon/${r.id}`))?.id ?? null
+  /** Ce qui attend, tous rayons confondus — affiché sur le titre replié. */
+  const enAttente = rayons.reduce((n, r) => n + r.pending, 0)
 
   useEffect(() => {
     api
@@ -177,10 +181,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ))}
 
           {rayons.length > 0 && (
-            <div className="pt-3">
-              <p className="px-3 pb-1 text-[11px] uppercase tracking-wide text-gray-600">
-                Mes rayons
-              </p>
+            /*
+              Replié par défaut, et c'est le point.
+              Vingt-quatre rayons déroulés à la verticale poussaient le solde de
+              crédits et l'adresse du compte hors de l'écran : le bas du menu
+              n'existait plus. Un rayon actif rouvre la liste tout seul — s'y
+              trouver et ne pas la voir serait pire que la longueur.
+            */
+            <details className="group pt-3" open={rayonActif !== null}>
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 pb-1 text-[11px] uppercase tracking-wide text-gray-600 hover:text-gray-400">
+                <ChevronRight size={11} className="transition-transform group-open:rotate-90" />
+                <span>Mes rayons</span>
+                <span className="ml-auto normal-case tracking-normal text-gray-600">
+                  {/* Le compte, et les fiches en attente : de quoi savoir s'il
+                      faut ouvrir, sans avoir à ouvrir. */}
+                  {enAttente > 0 ? `${rayons.length} · ${enAttente} en attente` : rayons.length}
+                </span>
+              </summary>
               {rayons.map((r) => {
                 const active = pathname.startsWith(`/rayon/${r.id}`)
                 return (
@@ -209,7 +226,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </Link>
                 )
               })}
-            </div>
+            </details>
           )}
         </nav>
         <div className="border-t border-white/10 pt-3 text-xs text-gray-400">
