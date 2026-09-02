@@ -6,7 +6,7 @@ import multer from 'multer'
 import path from 'path'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
-import { scrapeProduct, ScrapeBlockedError } from '../services/scraper.js'
+import { ScrapeBlockedError } from '../services/scraper.js'
 import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
 import { rapatrierImages, watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
@@ -30,9 +30,9 @@ import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 import { watermarkOptionsFor } from '../services/watermarkOptions.js'
-import { selectProductImages, PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
+import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
+import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
-import { reviewImages, applyVerdict } from '../services/controlAgent.js'
 
 export const productsRouter = Router()
 productsRouter.use(requireAuth)
@@ -67,102 +67,31 @@ const importSchema = z.object({ url: z.string().url() })
 productsRouter.post(
   '/import',
   queued(async (req, res) => {
-  const parsed = importSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'URL invalide' })
+    const parsed = importSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'URL invalide' })
 
-  // Reserved up front, refunded below if the import fails: the seller is charged
-  // for a listing they got, never for an attempt.
-  const credit = await reserveCredits(req.userId!, 1)
-  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+    // Reserve d avance, rendu plus bas si l import echoue : le vendeur paie une
+    // annonce qu il a recue, jamais une tentative.
+    const credit = await reserveCredits(req.userId!, 1)
+    if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
-  try {
-    const scraped = await scrapeProduct(parsed.data.url)
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
-    const enhanced = await enhanceListing({
-      title: scraped.title,
-      description: scraped.description,
-      category: scraped.sourceCategory,
-      pageText: scraped.pageText,
-    })
-    // Les photos sont choisies, pas prises dans l'ordre d'apparition : cet ordre
-    // donne l'en-tête du site, pas la galerie.
-    const chosen = await selectProductImages(scraped.images, PHOTOS_PAR_ANNONCE, scraped.declaredImages, scraped.domImages, scraped.chromeImages)
+    try {
+      const { produit, reecrit, notes } = await importerAdresse(req.userId!, parsed.data.url)
 
-    // Les options d'achat se lisent dans le texte de la page : aucune balise ne
-    // les déclare, et sans cette lecture un import par URL ne rendait jamais
-    // ni taille ni couleur — pour aucun produit.
-    const announced = await extractVariants(scraped.pageText)
+      // La reecriture est ce que le credit paie. Modele injoignable : l annonce
+      // est gardee -- les photos et le prix valent d etre pris -- mais elle est
+      // rendue gratuite et signalee comme non reecrite.
+      if (!reecrit) await refundCredits(req.userId!, 1)
 
-    // L'agent de contrôle regarde ce que les heuristiques ne peuvent pas voir :
-    // une bannière au bon format, sur le bon serveur, passe tous les filtres.
-    const verdict = user.controlAgent
-      ? await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
-      : null
-
-    const retained = verdict?.checked ? verdict.keep : chosen
-    // Les fournisseurs rangent tout sous « Color » : capacites, tailles,
-    // modeles. La reparation est deterministe et ne coute aucun appel.
-    const variants = reparerVariantes(verdict ? applyVerdict(announced, verdict) : announced).variantes
-    const watermarked = await rapatrierImages(retained, enhanced.title)
-
-    /*
-     * Le rangement, avant la creation.
-     *
-     * Une annonce sans categorie se vend mal sur toutes les plateformes a la
-     * fois, et personne ne s en apercoit avant des semaines. Le referentiel
-     * apprend ce qu il ne connait pas ; s il n y arrive pas, l annonce reste en
-     * brouillon avec la raison ecrite plutot que rangee dans « Divers ».
-     */
-    const rangement = await resoudreCategorie({
-      sourceCategory: scraped.sourceCategory,
-      supplierId: supplierFields(parsed.data.url).supplierId,
-      title: scraped.title,
-      pageText: scraped.pageText,
-    })
-
-    const product = await prisma.product.create({
-      data: {
-        userId: req.userId!,
-        sourceUrl: parsed.data.url,
-        variants: variants ?? undefined,
-        sourceSite: scraped.sourceSite,
-        ...supplierFields(parsed.data.url),
-        sourceCategory: scraped.sourceCategory,
-        categoryId: rangement.categoryId,
-        title: scraped.title,
-        description: scraped.description,
-        aiTitle: enhanced.title,
-        aiDescription: enhanced.description,
-        price: scraped.price,
-        sellingPrice: scraped.price * 1.5,
-        currency: scraped.currency,
-        images: watermarked.length ? watermarked : retained,
-        // La marque se pose a l export : ces fichiers sont les originaux.
-        imagesWatermarked: false,
-        metaTitle: enhanced.metaTitle,
-        metaDescription: enhanced.metaDescription,
-        metaKeywords: enhanced.metaKeywords,
-        titleVariants: enhanced.titleVariants,
-        bulletPoints: enhanced.bulletPoints,
-        attributes: enhanced.attributes,
-        aiEnhanced: enhanced.enhanced,
-        status: 'READY',
-      },
-    })
-    // The rewrite is what the credit pays for. When the model was unreachable the
-    // listing is still kept — the photos and the price are worth having — but it
-    // is given back for free and flagged as not rewritten.
-    if (!enhanced.enhanced) await refundCredits(req.userId!, 1)
-
-    res.status(201).json(product)
-  } catch (err) {
-    // Nothing was delivered, so nothing is charged.
-    await refundCredits(req.userId!, 1)
-    console.error(err)
-    if (err instanceof ScrapeBlockedError) {
-      return res.status(422).json({ error: err.message })
-    }
-    res.status(502).json({ error: "Impossible d'importer ce produit depuis l'URL fournie" })
+      res.status(201).json({ ...produit, notes })
+    } catch (err) {
+      // Rien livre, rien facture.
+      await refundCredits(req.userId!, 1)
+      console.error(err)
+      if (err instanceof ScrapeBlockedError) {
+        return res.status(422).json({ error: err.message })
+      }
+      res.status(502).json({ error: "Impossible d'importer ce produit depuis l'URL fournie" })
     }
   }),
 )
@@ -282,30 +211,42 @@ productsRouter.post(
   }),
 )
 
-const batchImportSchema = z.object({ urls: z.array(z.string().url()).min(1).max(25) })
+const batchImportSchema = z.object({
+  urls: z.array(z.string().url()).min(1).max(25),
+  /** La boutique de destination, quand le vendeur en a designe une. */
+  shopId: z.string().optional(),
+})
 
 // Same pipeline as /import but for up to 25 URLs at once. Processed sequentially
 // and each URL succeeds/fails independently so one bad link doesn't drop the batch.
+/**
+ * L import en lot.
+ *
+ * Il faisait le meme travail que l import simple **dans un bloc recopie**, et il
+ * avait pris du retard : ni tri des photos, ni variantes, ni agent de controle,
+ * et `imagesWatermarked` laisse a sa valeur par defaut -- donc des annonces
+ * reputees deja marquees, dont le filigrane n a jamais ete pose. Aucun de ces
+ * quatre defauts ne se voyait en lisant ce bloc : ils ne se voyaient qu en le
+ * comparant a l autre. Les deux passent desormais par `importerAdresse`.
+ */
 productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
   const parsed = batchImportSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Envoyez entre 1 et 25 URLs valides' })
 
-
-  // Partial coverage rather than refusal: with three credits left and ten URLs,
-  // the first three are imported and the rest are reported as not covered.
+  // Couverture partielle plutot que refus : avec trois credits et dix adresses,
+  // les trois premieres passent et le reste est signale comme non couvert.
   const credit = await reserveCredits(req.userId!, parsed.data.urls.length)
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   const couvertes = parsed.data.urls.slice(0, credit.allowed)
   const nonCouvertes = parsed.data.urls.slice(credit.allowed)
-  const results: Array<{ url: string; ok: boolean; product?: unknown; error?: string }> = nonCouvertes.map(
-    (url) => ({ url, ok: false, error: 'Solde insuffisant pour cette annonce' }),
-  )
+  const results: Array<{ url: string; ok: boolean; product?: unknown; error?: string; notes?: string[] }> =
+    nonCouvertes.map((url) => ({ url, ok: false, error: 'Solde insuffisant pour cette annonce' }))
 
   for (const url of couvertes) {
-    // A slot per URL, held for the whole job. One slot for the whole batch would
-    // starve everyone else for twenty minutes; no slot at all would let a batch
-    // walk past the queue.
+    // Une place par adresse, tenue le temps du travail. Une seule place pour
+    // tout le lot affamerait les autres vingt minutes ; aucune place laisserait
+    // un lot passer devant la file.
     let release: () => void
     try {
       release = await importLimiter.acquire()
@@ -316,52 +257,13 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
     }
 
     try {
-      const scraped = await scrapeProduct(url)
-      const enhanced = await enhanceListing({
-        title: scraped.title,
-        description: scraped.description,
-        category: scraped.sourceCategory,
-        pageText: scraped.pageText,
+      const { produit, reecrit, notes } = await importerAdresse(req.userId!, url, {
+        shopId: parsed.data.shopId,
       })
-      const watermarked = await rapatrierImages(scraped.images, enhanced.title)
-
-      const rangement = await resoudreCategorie({
-        sourceCategory: scraped.sourceCategory,
-        supplierId: supplierFields(url).supplierId,
-        title: scraped.title,
-        pageText: scraped.pageText,
-      })
-
-      const product = await prisma.product.create({
-        data: {
-          userId: req.userId!,
-          sourceUrl: url,
-          sourceSite: scraped.sourceSite,
-          ...supplierFields(url),
-          sourceCategory: scraped.sourceCategory,
-        categoryId: rangement.categoryId,
-          title: scraped.title,
-          description: scraped.description,
-          aiTitle: enhanced.title,
-          aiDescription: enhanced.description,
-          price: scraped.price,
-          sellingPrice: scraped.price * 1.5,
-          currency: scraped.currency,
-          images: watermarked.length ? watermarked : scraped.images,
-          metaTitle: enhanced.metaTitle,
-          metaDescription: enhanced.metaDescription,
-          metaKeywords: enhanced.metaKeywords,
-          titleVariants: enhanced.titleVariants,
-        bulletPoints: enhanced.bulletPoints,
-        attributes: enhanced.attributes,
-          aiEnhanced: enhanced.enhanced,
-        status: 'READY',
-        },
-      })
-      if (!enhanced.enhanced) await refundCredits(req.userId!, 1)
-      results.push({ url, ok: true, product })
+      if (!reecrit) await refundCredits(req.userId!, 1)
+      results.push({ url, ok: true, product: produit, notes })
     } catch (err) {
-      // Each failed URL gives its credit back individually.
+      // Chaque adresse en echec rend son credit, individuellement.
       await refundCredits(req.userId!, 1)
       console.error(`import-batch failed for ${url}`, err)
       results.push({
@@ -379,7 +281,11 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
     }
   }
 
-  res.status(207).json({ results, imported: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length })
+  res.status(207).json({
+    results,
+    imported: results.filter((r) => r.ok).length,
+    failed: results.filter((r) => !r.ok).length,
+  })
 })
 
 productsRouter.get('/', async (req: AuthedRequest, res) => {
