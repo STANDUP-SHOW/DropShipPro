@@ -331,38 +331,7 @@ async function main() {
     notesImport.length ? notesImport.join(' · ') : 'aucune remarque',
   )
 
-  // --- 4. Images et publicité (payant) -------------------------------------
-  if (complet) {
-    titre('Génération de 3 images')
-    const photos = await appel('/visuals/photos', {
-      methode: 'POST',
-      corps: { productId: annonce.id, count: 3 },
-      delai: 300_000,
-    })
-    exige(
-      photos.statut === 201 && photos.corps.images?.length === 3,
-      'trois images produites',
-      `${photos.corps?.images?.length ?? 0} image(s)${photos.corps?.errors?.length ? ` · ${photos.corps.errors.join(' ')}` : ''}`,
-    )
-    // Trois fois la même image est un échec silencieux : c'est le défaut qui
-    // avait été signalé, et seul un chemin différent le prouve.
-    const chemins = new Set((photos.corps?.images ?? []).map((i: any) => i.path))
-    exige(chemins.size === (photos.corps?.images?.length ?? 0), 'les trois images diffèrent', `${chemins.size} distinctes`)
-
-    titre("Génération d'une publicité")
-    const pub = await appel('/visuals/ads', {
-      methode: 'POST',
-      corps: { productId: annonce.id, platforms: ['instagram'], count: 1 },
-      delai: 300_000,
-    })
-    exige(
-      pub.statut === 201 && pub.corps.images?.length === 1,
-      'une publicité produite',
-      pub.corps?.errors?.length ? pub.corps.errors.join(' ') : `statut ${pub.statut}`,
-    )
-  }
-
-  // --- 5. Import par adresse -----------------------------------------------
+  // --- 4. Import par adresse -----------------------------------------------
   titre('Import par adresse')
   const parUrl = await appel('/products/import', {
     methode: 'POST',
@@ -389,6 +358,9 @@ async function main() {
       'avec ses photos',
       `${parUrl.corps.images?.length ?? 0}`,
     )
+    // Les visuels se font sur cette annonce-là, pas sur la capture : voir
+    // `eprouverVisuels`.
+    annonceAvecVraiesPhotos = parUrl.corps.id
   }
 
   const refuse = await appel('/products/import', { methode: 'POST', corps: { url: URL_REFUSEE } })
@@ -402,6 +374,9 @@ async function main() {
     "le refus renvoie vers l'extension",
     String(refuse.corps?.error ?? '').slice(0, 70),
   )
+
+  // --- 5. Images et publicité (payant) -------------------------------------
+  if (complet) await eprouverVisuels()
 
   // --- 6. Import en lot ----------------------------------------------------
   for (const taille of tailles) {
@@ -456,6 +431,63 @@ async function main() {
 
 /** L'identifiant du compte jetable, gardé pour le détruire à la fin. */
 let compteId = ''
+
+/**
+ * L'annonce sur laquelle les visuels sont éprouvés.
+ *
+ * **Pas celle de la capture**, et c'est une leçon du banc lui-même : sa charge
+ * d'essai porte des adresses de photos inventées, qui ne mènent nulle part. La
+ * génération d'images échouait donc sur « aucune photo du produit n'a pu être
+ * lue » — un échec parfaitement juste, sur une annonce d'essai, qui accusait un
+ * service qui marche. On prend l'annonce importée depuis une vraie boutique :
+ * elle a de vraies photos, donc l'échec, s'il vient, dira quelque chose.
+ */
+let annonceAvecVraiesPhotos = ''
+
+/** Trois images puis une publicité, sur une annonce dont les photos existent. */
+async function eprouverVisuels() {
+  titre('Génération de 3 images')
+  if (!annonceAvecVraiesPhotos) {
+    rate('aucune annonce à de vraies photos', "l'import par adresse a échoué plus haut")
+    return
+  }
+
+  const photos = await appel('/visuals/photos', {
+    methode: 'POST',
+    corps: { productId: annonceAvecVraiesPhotos, count: 3 },
+    delai: 300_000,
+  })
+  const produites = photos.corps?.images?.length ?? 0
+  exige(
+    photos.statut === 201 && produites === 3,
+    'trois images produites',
+    `${produites} image(s)${photos.corps?.errors?.length ? ` · ${photos.corps.errors.join(' ')}` : ''}`,
+  )
+
+  /*
+   * Trois fois la même image est un échec silencieux — c'est le défaut qui
+   * avait été signalé, et seul un chemin différent le prouve.
+   *
+   * Le `produites > 1` n'est pas une précaution de style : sans lui, zéro image
+   * satisfait « toutes différentes » et le banc affichait « ok » sous une ligne
+   * qui venait de rater. Une attente qu'un ensemble vide contente ne vérifie
+   * rien.
+   */
+  const chemins = new Set((photos.corps?.images ?? []).map((i: any) => i.path))
+  exige(produites > 1 && chemins.size === produites, 'les images diffèrent entre elles', `${chemins.size} distincte(s) sur ${produites}`)
+
+  titre("Génération d'une publicité")
+  const pub = await appel('/visuals/ads', {
+    methode: 'POST',
+    corps: { productId: annonceAvecVraiesPhotos, platforms: ['instagram'], count: 1 },
+    delai: 300_000,
+  })
+  exige(
+    pub.statut === 201 && pub.corps.images?.length === 1,
+    'une publicité produite',
+    pub.corps?.errors?.length ? pub.corps.errors.join(' ') : `statut ${pub.statut}`,
+  )
+}
 
 /**
  * Crée le compte du passage, avec de quoi travailler, et se connecte.
