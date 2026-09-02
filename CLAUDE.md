@@ -64,6 +64,23 @@ docs/        Documentation de l'API catalogue
   l'extension. Un banc local ne pouvait pas le voir ; le navigateur piloté sur
   `www.drop-shipper.fr` l'a montré en deux minutes. 401, 403, 405, 429, 503 et
   un délai dépassé sont désormais le même refus explicite.
+- **Un lot AliExpress ne peut passer que par le panneau latéral.** Sondé le
+  02/09/2026 : la fiche répond 200 avec le titre et treize photos, et **aucun
+  prix** — ni JSON-LD, ni balise meta, ni rien dans le DOM. Il arrive après
+  l'affichage. Aucun serveur n'y verra jamais de prix, donc aucun import par
+  adresse ne marchera, quel que soit le travail investi dessus.
+
+  D'où `extension/lot.js` : le vendeur navigue de fiche en fiche, le panneau
+  reste ouvert à côté, et chaque « Ajouter » **relève la page pendant qu'elle
+  est affichée**. L'import n'envoie ensuite que des fiches déjà lues. Une
+  requête par produit, comme côté site. Banc `node check-lot.cjs`.
+
+  Piège associé, découvert en écrivant ce banc : **un faux qui ne respecte pas
+  le contrat de ce qu'il remplace invente une panne.** Le faux `apiFetch` y
+  faisait `JSON.parse` d'un corps qui est déjà un objet, levait avant
+  d'enregistrer l'appel, et rapportait « 0 requête » sur un volet qui en
+  envoyait trois.
+
 - **L'import par URL ne marche pas sur Temu, JoyBuy, AliExpress, Shein.** Ces
   sites construisent leur fiche en JavaScript ; le serveur reçoit une coquille
   vide. C'est refusé explicitement, avec renvoi vers l'extension.
