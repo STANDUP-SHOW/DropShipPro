@@ -90,7 +90,20 @@ productsRouter.post(
       if (err instanceof ScrapeBlockedError) {
         return res.status(422).json({ error: err.message })
       }
-      res.status(502).json({ error: "Impossible d'importer ce produit depuis l'URL fournie" })
+      /*
+       * Le message dit la suite, pas seulement l'échec.
+       *
+       * « Impossible d'importer ce produit depuis l'URL fournie » est vrai et
+       * sans usage : le vendeur ne sait ni pourquoi ni quoi faire. La cause
+       * réelle est presque toujours la même — une page bâtie en JavaScript —
+       * et il existe un chemin qui marche.
+       */
+      res.status(502).json({
+        error:
+          "Cette page n'a pas pu être lue depuis notre serveur. Si le produit s'affiche bien " +
+          'dans votre navigateur, ouvrez-le dans Chrome et utilisez le bouton de ' +
+          "l'extension : elle lit la page déjà affichée, avec le prix, les photos et les variantes.",
+      })
     }
   }),
 )

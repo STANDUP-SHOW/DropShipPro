@@ -64,15 +64,44 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
   // and serve Node an obfuscated anti-bot stub (2.9 KB) instead of the product page.
   // gotScraping impersonates a real browser's TLS + header profile, which gets the
   // full 455 KB page back.
-  const res = await gotScraping({
-    url,
-    timeout: { request: 30000 },
-    headers: { 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' },
-  })
+  const site0 = new URL(url).hostname.replace('www.', '')
+
+  /*
+   * Un refus du site est un refus, pas une panne.
+   *
+   * Constaté le 02/09/2026 en production, en pilotant le navigateur : une fiche
+   * AliExpress donnait « Impossible d'importer ce produit depuis l'URL
+   * fournie » -- un message qui ne dit rien et ne se corrige pas. En local, la
+   * même adresse rendait le bon refus, celui qui renvoie vers l'extension.
+   *
+   * La différence est l'adresse IP : depuis une machine personnelle AliExpress
+   * sert une coquille, depuis un hébergeur il sert un mur anti-robot. Le mur
+   * arrivait ici sous forme de code HTTP, donc **avant** les contrôles qui
+   * savent expliquer, et l'explication était perdue au profit du message
+   * générique. Le vendeur n'apprenait jamais qu'il fallait passer par
+   * l'extension.
+   *
+   * Un délai dépassé compte pareil : trente secondes sans réponse sur un site
+   * qui répond en une, c'est qu'on n'est pas le bienvenu.
+   */
+  let res
+  try {
+    res = await gotScraping({
+      url,
+      timeout: { request: 30000 },
+      headers: { 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' },
+    })
+  } catch (e) {
+    throw new ScrapeBlockedError(site0)
+  }
+
+  // 401/403 : refus net. 405 : méthode refusée par le pare-feu. 429 : trop de
+  // demandes. 503 : la page d'attente d'un service anti-robot.
+  if ([401, 403, 405, 429, 503].includes(res.statusCode)) throw new ScrapeBlockedError(site0)
   if (res.statusCode >= 400) throw new Error(`Le site source a répondu ${res.statusCode}`)
   const html = res.body
   const $ = cheerio.load(html)
-  const site = new URL(url).hostname.replace('www.', '')
+  const site = site0
 
   let jsonLdProduct: any = null
   $('script[type="application/ld+json"]').each((_, el) => {
