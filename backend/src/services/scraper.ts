@@ -266,7 +266,25 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     /n[’']est plus au catalogue|no longer available|item unavailable|page not found/i.test(result.title)
   const hasNothingUsable = result.price === 0 && result.images.length < 2
 
-  if (looksLikeShell || (hasNothingUsable && /temu|joybuy|aliexpress|shein|wish/i.test(site))) {
+  /*
+   * Sur ces sites-là, **un prix absent suffit à refuser**.
+   *
+   * Constaté le 02/09/2026 en sondant une vraie fiche : AliExpress répond 200
+   * avec le bon titre et treize photos, et **aucun prix** — ni JSON-LD, ni
+   * balise meta, ni rien dans le DOM. Le prix est chargé après l'affichage.
+   *
+   * L'ancien contrôle exigeait « prix à zéro ET moins de deux photos » : avec
+   * treize photos il ne se déclenchait pas, et l'import créait une annonce sans
+   * prix, sans un mot. C'est pire qu'un refus — une annonce sans prix d'achat
+   * n'a pas de marge, pas de prix de vente, et se retrouve en brouillon sans
+   * que personne sache pourquoi. Le vendeur croit avoir importé.
+   *
+   * La règle est donc : sur un site qui bâtit sa fiche en JavaScript, pas de
+   * prix veut dire pas d'import, et on renvoie vers l'extension — qui lit la
+   * page affichée, prix compris.
+   */
+  const siteEnJavaScript = /temu|joybuy|aliexpress|shein|wish/i.test(site)
+  if (looksLikeShell || ((hasNothingUsable || result.price === 0) && siteEnJavaScript)) {
     throw new ScrapeBlockedError(site)
   }
   // A title alone is enough to build on: sites like Temu load price and gallery
