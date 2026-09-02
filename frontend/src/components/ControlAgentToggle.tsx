@@ -44,10 +44,24 @@ export function ControlAgentToggle() {
         <span>Agent de contrôle</span>
       </h2>
       <p className="mt-1 text-xs leading-relaxed text-gray-400">
-        Avant chaque mise en ligne, il regarde les photos et écarte ce qui n'est pas le produit :
-        bannières, tableaux de tailles, visuels d'un autre article. Il garde toutes les vraies
-        photos — neuf s'il y en a neuf — relève les couleurs réellement visibles et vérifie que les
-        tailles vont avec le produit.
+        Avant chaque mise en ligne, il regarde les photos que vous avez retenues et signale ce qui
+        ne semble pas être le produit : bannières, tableaux de tailles, visuels d'un autre article.
+        Il relève aussi les couleurs réellement visibles et vérifie que les tailles vont avec le
+        produit.
+      </p>
+      {/*
+        Dit franchement, parce que le contraire s'est vu.
+        L'écran promettait un tri qui écarte tout seul le hors-sujet ; à l'usage,
+        des tondeuses arrivaient sur une fiche de souris. Une promesse tenue à
+        moitié coûte plus cher qu'une limite annoncée : le vendeur qui sait que
+        la sélection lui revient la fait, celui à qui on a promis un tri
+        découvre le problème après la mise en ligne.
+      */}
+      <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-100">
+        <strong>La sélection des photos reste la vôtre.</strong> À l'import, l'extension propose
+        toutes les images trouvées sur la page et n'en coche aucune : nous ne savons pas encore
+        distinguer à coup sûr les photos d'une fiche des bannières et des produits recommandés qui
+        l'entourent. Cet agent relit après vous, il ne choisit pas à votre place.
       </p>
 
       <label className="mt-4 flex cursor-pointer items-start gap-3">

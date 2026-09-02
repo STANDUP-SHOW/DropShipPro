@@ -1,71 +1,41 @@
 /**
  * Relève les combinaisons d'une fiche AliExpress, dans la page affichée.
  *
- * **Pourquoi ça ne peut pas se faire côté serveur.** Sur la version React du
- * site, les données ne sont dans aucune balise `<script>` parsable : elles
- * vivent dans l'état du composant client, sous `props.data`, réparti en modules
- * — `SKU`, `PRICE`, `HEADER_IMAGE_PC`. Il n'y a plus d'objet `skuModule` global
- * comme sur l'ancien AliExpress. Un serveur qui va lire la page ne reçoit qu'une
- * coquille.
+ * **Ce fichier tourne dans le monde principal de la page (`world: 'MAIN'`), et
+ * c'est la condition pour qu'il fonctionne.** Un script de contenu ordinaire
+ * partage le DOM mais pas le tas JavaScript : les propriétés que React pose sur
+ * les nœuds — `__reactInternalInstance$…` — lui sont **invisibles**. La première
+ * version vivait dans le monde isolé, ne trouvait donc jamais rien, et rendait
+ * `null` sans erreur. Vérifié le 02/09/2026 sur une vraie fiche : zéro
+ * combinaison relevée, alors que la page en portait quatre avec leurs prix.
  *
- * Ce que ça rapporte, et qui manquait entièrement : **le prix, la photo, le
- * stock et la référence de chaque combinaison**. Sans eux, publier une fiche à
- * douze couleurs envoie douze fois le même prix et aucune image — non par défaut
- * d'appel, mais faute d'avoir quoi que ce soit à transmettre.
+ * **Ce qui a été relevé sur la page réelle**, et qui corrige trois suppositions :
  *
- * La jointure elle-même est faite par le serveur (`services/aliexpressSku.ts`) :
- * ici on se contente de **trouver et de rendre les deux modules**. C'est la
- * bonne répartition — trouver l'objet demande d'explorer le DOM, le joindre
- * demande des règles qu'on veut pouvoir corriger sans republier l'extension.
+ * - La clé React est `__reactInternalInstance$…` (React 16), pas
+ *   `__reactFiber$` ni `__reactProps$` (React 18). La racine `#root` porte
+ *   `__reactContainere$…`, encore un autre nom.
+ * - Les données ne sont pas atteignables depuis la racine : il faut partir d'un
+ *   nœud du bloc des variantes (`[class*="sku"]`) et **remonter** onze niveaux
+ *   de `return` jusqu'au composant qui porte `props.data`.
+ * - `props.data.SKU.skuPaths` et `props.data.PRICE.skuIdStrPriceInfoMap`
+ *   existent bien, et la jointure se fait par `skuIdStr` — `skuId` vaut ici
+ *   `skuIdStr + 1`, donc s'y fier donnerait le même prix partout.
+ *
+ * Le résultat repart vers le script de capture par un évènement du DOM, en
+ * **texte JSON** : c'est le seul passage sûr entre les deux mondes, un objet
+ * franchissant mal la frontière.
  */
 ;(() => {
-  /** Les modules qui nous intéressent. Le reste de `props.data` est ignoré. */
-  const MODULES = ['SKU', 'PRICE']
+  /** Les préfixes que React a utilisés au fil de ses versions. Tous acceptés. */
+  const PREFIXES_REACT = [
+    '__reactInternalInstance$',
+    '__reactFiber$',
+    '__reactProps$',
+    '__reactContainere$',
+    '__reactEventHandlers$',
+  ]
 
-  /**
-   * Cherche l'objet `data` dans l'arbre React de la page.
-   *
-   * React accroche son état à des propriétés dont le nom porte un suffixe
-   * aléatoire — `__reactProps$abc123`. On ne peut donc pas les nommer : il faut
-   * les reconnaître à leur préfixe, puis descendre.
-   */
-  function depuisReact(racine) {
-    const cle = Object.keys(racine).find(
-      (k) => k.startsWith('__reactProps$') || k.startsWith('__reactFiber$'),
-    )
-    if (!cle) return null
-
-    let noeud = racine[cle]
-    // Une centaine de niveaux : l'arbre d'une fiche produit en fait plusieurs
-    // dizaines, et une boucle sans borne sur un graphe cyclique ne s'arrête pas.
-    for (let i = 0; i < 100 && noeud; i++) {
-      const data = noeud?.memoizedProps?.data ?? noeud?.props?.data ?? noeud?.data
-      if (data && typeof data === 'object' && MODULES.some((m) => data[m])) return data
-      noeud = noeud.return ?? noeud.child ?? null
-    }
-    return null
-  }
-
-  /**
-   * Le même objet, cherché dans les variables globales de la page.
-   *
-   * Certaines versions le posent sur `window` — `window.runParams`,
-   * `window._d_c_`… Les noms changent d'une refonte à l'autre, alors on ne les
-   * énumère pas : on cherche ce qui **ressemble** aux modules attendus.
-   */
-  /**
-   * Lecture d'une propriété qui a le droit de refuser.
-   *
-   * **`window` n'est pas seulement un objet à nous.** Chaque iframe de la page y
-   * ajoute une propriété portant son `name` — AliExpress en charge plusieurs,
-   * pour la publicité et le suivi. Ces propriétés sont des fenêtres d'une autre
-   * origine : les énumérer est permis, les lire lève une `SecurityError`
-   * (« Blocked a frame … Failed to read a named property … from 'Window' »).
-   *
-   * Constaté le 02/09/2026 : l'erreur remontait jusqu'au relevé et faisait
-   * échouer l'import entier, alors qu'il s'agissait d'une iframe publicitaire
-   * qui n'avait évidemment rien à voir avec les variantes.
-   */
+  /** Lecture qui a le droit d'échouer — une fenêtre d'une autre origine lève. */
   function lire(objet, cle) {
     try {
       return objet[cle]
@@ -74,28 +44,45 @@
     }
   }
 
-  function depuisGlobales() {
-    for (const cle of Object.keys(window)) {
-      const valeur = lire(window, cle)
-      if (!valeur || typeof valeur !== 'object') continue
+  function cleReact(noeud) {
+    return Object.keys(noeud).find((k) => PREFIXES_REACT.some((p) => k.startsWith(p)))
+  }
 
-      /*
-       * Les fenêtres sont écartées d'emblée, pas seulement protégées.
-       *
-       * Une fenêtre de même origine se lirait sans erreur mais n'a jamais porté
-       * les modules d'une fiche produit ; et parcourir les frames reviendrait à
-       * relever les variantes d'une page qui n'est pas celle que le vendeur
-       * regarde.
-       */
-      if (lire(valeur, 'window') === valeur || lire(valeur, 'self') === valeur) continue
+  /**
+   * Remonte depuis un nœud du DOM jusqu'au composant qui porte `props.data`.
+   *
+   * On remonte, on ne descend pas : les données vivent chez un ancêtre, et
+   * descendre depuis la racine traverse des centaines de fibres sans jamais
+   * croiser celle-là — c'est ce que faisait la version précédente.
+   */
+  function depuisNoeud(noeud) {
+    const cle = cleReact(noeud)
+    if (!cle) return null
 
-      if (MODULES.some((m) => { const v = lire(valeur, m); return v?.skuPaths || v?.skuIdStrPriceInfoMap })) {
-        return valeur
+    let fibre = lire(noeud, cle)
+    // Quinze niveaux suffisent largement : le composant cherché est à onze sur
+    // la fiche relevée. Une borne évite la boucle sur un graphe cyclique.
+    for (let i = 0; i < 30 && fibre; i++) {
+      for (const champ of ['memoizedProps', 'pendingProps', 'props']) {
+        const data = lire(lire(fibre, champ) ?? {}, 'data')
+        if (data && typeof data === 'object' && (data.SKU || data.PRICE)) return data
       }
-      const data = lire(valeur, 'data')
-      if (data && typeof data === 'object' && MODULES.some((m) => lire(data, m))) return data
+      fibre = lire(fibre, 'return') ?? null
     }
     return null
+  }
+
+  /**
+   * Les nœuds par lesquels commencer, du plus sûr au plus large.
+   *
+   * Le bloc des variantes d'abord : c'est lui qui reçoit `props.data` en
+   * héritage direct. Les racines ensuite, au cas où la page changerait de
+   * gabarit — mieux vaut une seconde chance qu'un relevé vide.
+   */
+  function noeudsDepart() {
+    const bloc = [...document.querySelectorAll('[class*="sku--wrap"], [class*="sku-item--"], [class*="sku" i]')]
+    const racines = [...document.querySelectorAll('#root, #ice-container, body > div')]
+    return [...bloc.slice(0, 12), ...racines]
   }
 
   /**
@@ -109,11 +96,10 @@
     if (!/aliexpress\./i.test(location.hostname)) return null
 
     let data = null
-    for (const noeud of document.querySelectorAll('#root, #ice-container, body > div')) {
-      data = depuisReact(noeud)
+    for (const noeud of noeudsDepart()) {
+      data = depuisNoeud(noeud)
       if (data) break
     }
-    if (!data) data = depuisGlobales()
     if (!data) return null
 
     const sku = data.SKU
@@ -124,9 +110,9 @@
      * Seuls les deux modules partent, et allégés.
      *
      * `props.data` porte la page entière — avis, recommandations, vendeur,
-     * livraison. L'envoyer ferait des centaines de kilo-octets par produit, et
-     * vingt-cinq produits d'un lot en feraient plusieurs mégaoctets pour trois
-     * champs utiles.
+     * livraison, vingt autres blocs. L'envoyer ferait des centaines de
+     * kilo-octets par produit, et vingt-cinq produits d'un lot en feraient
+     * plusieurs mégaoctets pour trois champs utiles.
      */
     return {
       SKU: sku ? { skuPaths: sku.skuPaths, skuProperties: sku.skuProperties } : undefined,
@@ -134,15 +120,8 @@
     }
   }
 
-  /*
-   * Exposé au reste des scripts de contenu, et **incapable de lever**.
-   *
-   * Les variantes sont un supplément : une fiche relevée sans elles reste une
-   * fiche importable, avec ses photos, son titre et son prix. Laisser une
-   * exception remonter ferait perdre tout l'import pour un détail — c'est
-   * exactement ce qui s'est passé avec l'iframe publicitaire.
-   */
-  window.__dspReleverSkuAliExpress = () => {
+  /** Ne lève jamais : une fiche sans variantes reste une fiche importable. */
+  function releverSansLever() {
     try {
       return relever()
     } catch (e) {
@@ -150,4 +129,27 @@
       return null
     }
   }
+
+  /*
+   * Le pont entre les deux mondes.
+   *
+   * Le script de capture vit dans le monde isolé et ne peut pas appeler une
+   * fonction d'ici. Il demande par un évènement, on répond par un autre, et la
+   * charge voyage en **texte** : un objet passe mal la frontière des mondes,
+   * silencieusement, en arrivant vide de l'autre côté.
+   */
+  window.addEventListener('dsp-sku-demande', () => {
+    let charge = null
+    try {
+      charge = JSON.stringify(releverSansLever())
+    } catch {
+      // Structure circulaire ou trop grande : on répond « rien » plutôt que de
+      // laisser l'attente expirer.
+      charge = null
+    }
+    window.dispatchEvent(new CustomEvent('dsp-sku-reponse', { detail: charge }))
+  })
+
+  // Gardé pour les pages où ce fichier tourne déjà dans le monde principal.
+  window.__dspReleverSkuAliExpress = releverSansLever
 })()

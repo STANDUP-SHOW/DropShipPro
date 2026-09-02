@@ -1,20 +1,23 @@
 /**
- * Ce que le sélecteur de photos coche, sur une fiche qui ressemble aux vraies.
+ * Ce que le sélecteur de photos propose, et ce qu'il ne coche pas.
  *
  *   cd backend && node check-preselection.cjs
  *
- * **Le défaut que ce banc empêche de revenir.** « On tape tout le temps à côté
- * des images réelles du produit », signalé trois jours de suite. Deux causes,
- * toutes deux dans le sélecteur : un `sort` par surface qui effaçait le
- * classement d'amont, et une présélection fondée sur le format le plus
- * représenté — donc sur les produits recommandés, toujours plus nombreux que
- * les photos de la fiche.
+ * **Décision du 02/09/2026 : plus aucune présélection.** Trois règles avaient
+ * été essayées en trois jours — le format le plus représenté, puis le classement
+ * d'amont — et toutes trois cochaient des images qui n'étaient pas le produit :
+ * des tondeuses sur une fiche de souris Bluetooth. Chacune se défendait en
+ * théorie ; aucune ne tenait sur une vraie page.
  *
- * La règle vit maintenant dans `content/photo-preselect.js`, seule, et ce banc
- * la confronte à une page bâtie comme celles qui posaient problème : six photos
- * de galerie, vingt recommandations au même format, trois bannières plus
- * grandes que tout le reste, et des vignettes de navigation servies par le même
- * CDN.
+ * Ce n'est pas seulement du décochage : c'est un import qui part avec les photos
+ * d'un autre article quand le vendeur ne relit pas. Une aide qui se trompe coûte
+ * plus qu'une absence d'aide.
+ *
+ * **Ce qui reste, et que ce banc protège :** l'ordre. Les candidats arrivent
+ * classés — ce que la page déclare comme photos de sa fiche, puis les vraies
+ * balises `<img>`, puis le CDN dominant — et un `sort` par surface le détruisait
+ * en remontant la bannière de soldes en tête de grille. Proposer dans le bon
+ * ordre reste une aide honnête.
  *
  * **Le banc charge le fichier livré**, jamais une copie de la règle : une copie
  * éprouverait ce qu'on aurait aimé écrire, pas ce qui tourne dans le navigateur.
@@ -39,11 +42,6 @@ function verifier(nom, condition, detail = '') {
 
 // ---------------------------------------------------------------------------
 // La page d'essai, dans l'ordre où l'étape de mesure la rend.
-//
-// Cet ordre n'est pas décoratif : il porte le travail de classement — d'abord
-// ce que la page déclare comme photos de sa fiche, puis les vraies balises
-// <img>, puis le CDN dominant. C'est précisément ce qu'un tri par surface
-// détruisait.
 // ---------------------------------------------------------------------------
 
 const galerie = Array.from({ length: 6 }, (_, i) => ({
@@ -72,8 +70,6 @@ const vignettes = Array.from({ length: 8 }, (_, i) => ({
   height: 120,
 }))
 
-// L'ordre rendu par la mesure : galerie d'abord (déclarée par la page), puis
-// les vignettes de sa propre galerie, puis le voisinage, puis le mobilier.
 const classes = [...galerie, ...vignettes, ...recommandations, ...bannieres]
 
 const { ordre, coches } = preselectionner(classes, { max: 15, coteMin: 400 })
@@ -89,94 +85,32 @@ verifier(
   ordre[ordre.length - 1].url.includes('banniere'),
   ordre[ordre.length - 1].url.split('/').pop(),
 )
+verifier('toutes les images restent proposées', ordre.length === classes.length, `${ordre.length}`)
 
-// --- Ce qui est coché ------------------------------------------------------
-console.log('\nLes cases cochées')
-const cochees = new Set(coches)
-verifier(
-  'les six photos de la galerie sont cochées',
-  galerie.every((g) => cochees.has(g.url)),
-  `${galerie.filter((g) => cochees.has(g.url)).length} sur 6`,
-)
-verifier(
-  'aucune bannière n’est cochée',
-  bannieres.every((b) => !cochees.has(b.url)),
-)
-verifier(
-  'aucune vignette de navigation n’est cochée',
-  vignettes.every((v) => !cochees.has(v.url)),
-)
-verifier('le plafond de quinze est tenu', coches.length <= 15, `${coches.length} cochée(s)`)
+// --- Rien n'est coché ------------------------------------------------------
+console.log('\nLa sélection')
+verifier('aucune case cochée', coches.length === 0, `${coches.length} cochée(s)`)
 
-/*
- * Les recommandations complètent, elles ne remplacent pas.
- *
- * Six photos ne remplissent pas quinze cases, et le reste du classement est
- * cohérent : mieux vaut proposer les voisines en fin de sélection — le vendeur
- * décoche — que de laisser neuf cases vides. Ce qui comptait était l'ordre :
- * la galerie d'abord, toujours.
- */
-verifier(
-  'la galerie occupe les six premières cases',
-  coches.slice(0, 6).join('|') === galerie.map((g) => g.url).join('|'),
-)
-
-// ---------------------------------------------------------------------------
-// Le cas qui cassait vraiment : la galerie n'a pas le format majoritaire.
-//
-// C'est la situation d'AliExpress, et c'est elle qu'il fallait éprouver. La
-// fiche sert ses photos en 480×480 ; les vingt produits recommandés autour sont
-// en 800×800. « Le format le plus représenté parmi les grandes images » désigne
-// alors les recommandations, et **pas une seule photo du produit** n'était
-// cochée — le vendeur cochait à la main, à chaque import, en se demandant à
-// quoi servait la présélection.
-//
-// Vérifié : sur cette page, l'ancienne règle cochait 0 photo de galerie et
-// 10 recommandations.
-// ---------------------------------------------------------------------------
-console.log('\nLa galerie est minoritaire (le cas AliExpress)')
-{
-  const galerie480 = Array.from({ length: 6 }, (_, i) => ({
-    url: `https://ae01.alicdn.com/kf/fiche-${i + 1}.jpg`,
-    width: 480,
-    height: 480,
-  }))
-  const voisines800 = Array.from({ length: 20 }, (_, i) => ({
-    url: `https://ae01.alicdn.com/kf/voisine-${i + 1}.jpg`,
-    width: 800,
-    height: 800,
-  }))
-
-  const r = preselectionner([...galerie480, ...voisines800], { max: 15, coteMin: 400 })
-  const prises = new Set(r.coches)
-  verifier(
-    'les six photos de la fiche sont cochées malgré leur format minoritaire',
-    galerie480.every((g) => prises.has(g.url)),
-    `${galerie480.filter((g) => prises.has(g.url)).length} sur 6`,
-  )
-  verifier(
-    'et elles passent avant les voisines',
-    r.coches.slice(0, 6).every((u) => u.includes('fiche-')),
-  )
+// Et sur les pages qui piégeaient les anciennes règles, toujours rien.
+for (const [nom, page] of [
+  ['une galerie majoritaire', classes],
+  ['une galerie minoritaire (le cas AliExpress)', [
+    ...Array.from({ length: 6 }, (_, i) => ({ url: `fiche-${i}`, width: 480, height: 480 })),
+    ...Array.from({ length: 20 }, (_, i) => ({ url: `voisine-${i}`, width: 800, height: 800 })),
+  ]],
+  ['une page sans grande photo', vignettes],
+  ['aucun candidat', []],
+]) {
+  const r = preselectionner(page, { max: 15, coteMin: 400 })
+  verifier(`rien de coché sur ${nom}`, r.coches.length === 0, `${r.coches.length}`)
+  verifier(`tout reste proposé sur ${nom}`, r.ordre.length === page.length, `${r.ordre.length}`)
 }
 
-// --- Le cas d'une page pauvre ----------------------------------------------
-console.log('\nUne page sans grande photo')
-const petit = preselectionner(vignettes, { max: 15, coteMin: 400 })
+// --- Le cas dégénéré -------------------------------------------------------
+console.log('\nUne entrée invalide')
 verifier(
-  'rien n’est coché plutôt que n’importe quoi',
-  petit.coches.length === 0,
-  `${petit.coches.length} cochée(s)`,
-)
-verifier('mais tout reste proposé', petit.ordre.length === vignettes.length)
-
-// --- Et le cas dégénéré ----------------------------------------------------
-console.log('\nAucun candidat')
-const vide = preselectionner([], { max: 15, coteMin: 400 })
-verifier('ni erreur ni sélection', vide.coches.length === 0 && vide.ordre.length === 0)
-verifier(
-  'une entrée invalide ne fait pas tomber le sélecteur',
-  preselectionner(null, {}).ordre.length === 0,
+  'ne fait pas tomber le sélecteur',
+  preselectionner(null, {}).ordre.length === 0 && preselectionner(undefined, {}).coches.length === 0,
 )
 
 console.log(echecs ? `\n${echecs} échec(s).` : '\nTout passe.')

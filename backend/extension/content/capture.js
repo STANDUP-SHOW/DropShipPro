@@ -778,6 +778,53 @@
     return Object.keys(variants).length ? variants : null
   }
 
+  /**
+   * Demande le relevé des variantes au script qui vit dans la page.
+   *
+   * **Il ne peut pas être appelé directement.** Ce fichier tourne dans le monde
+   * isolé du script de contenu ; le releveur doit tourner dans celui de la page,
+   * seul endroit d'où les propriétés React sont visibles. Deux mondes, deux tas
+   * JavaScript : il n'y a pas de fonction commune, seulement le DOM.
+   *
+   * La charge revient en **texte JSON** : un objet passé dans le `detail` d'un
+   * évènement franchit mal la frontière et arrive vide de l'autre côté, sans
+   * erreur — le genre de panne qu'on met des heures à voir.
+   */
+  function releverSkuAliExpress() {
+    if (!/aliexpress\./i.test(location.hostname)) return Promise.resolve(null)
+
+    return new Promise((resolve) => {
+      let repondu = false
+      const fini = (valeur) => {
+        if (repondu) return
+        repondu = true
+        window.removeEventListener('dsp-sku-reponse', surReponse)
+        resolve(valeur)
+      }
+
+      const surReponse = (e) => {
+        try {
+          fini(e.detail ? JSON.parse(e.detail) : null)
+        } catch {
+          fini(null)
+        }
+      }
+
+      window.addEventListener('dsp-sku-reponse', surReponse)
+      window.dispatchEvent(new CustomEvent('dsp-sku-demande'))
+
+      /*
+       * Deux secondes, puis on continue sans les variantes.
+       *
+       * Le releveur peut ne pas être là — site non autorisé, page qui vient de
+       * changer, enregistrement pas encore pris. Attendre indéfiniment
+       * bloquerait tout l'import pour un supplément : les photos, le titre et
+       * le prix valent d'être pris même sans la matrice.
+       */
+      setTimeout(() => fini(null), 2000)
+    })
+  }
+
   async function buildPayload() {
     // Pas de défilement ici : collectImages() vient de le faire, et le refaire
     // coûtait une seconde et demie pour rien.
@@ -802,10 +849,7 @@
        * transmettre. La jointure est faite par le serveur, qu on peut corriger
        * sans republier l extension.
        */
-      skuAliExpress:
-        typeof window.__dspReleverSkuAliExpress === 'function'
-          ? window.__dspReleverSkuAliExpress()
-          : null,
+      skuAliExpress: await releverSkuAliExpress(),
       pageText: collectPageText(),
     }
   }
@@ -1024,11 +1068,15 @@
             <div style="color:#9ca3af;font-size:12px">${sorted.length} image(s) trouvée(s)</div>
           </div>
           <div style="color:#9ca3af;margin-top:3px">
-            ${
-              preselected.size
-                ? `Les ${preselected.size} images les mieux classées sont présélectionnées — celles que la page déclare comme photos du produit passent devant.${dominant ? ` Le format le plus présent est ${dominant.label} : filtrez dessus si la galerie s'y trouve.` : ''}`
-                : 'Aucune présélection : aucun format ne se détache.'
-            } Corrigez d'un clic. ${PHOTOS_MAX} maximum.
+            <b style="color:#e5e7eb">Cochez les photos du produit</b> — rien n'est
+            présélectionné. Nous ne savons pas encore reconnaître à coup sûr les
+            photos d'une fiche parmi les bannières et les produits recommandés :
+            cocher à votre place ferait partir des images qui ne sont pas les
+            vôtres. ${PHOTOS_MAX} maximum.${
+              dominant
+                ? ` Repère utile : le format le plus présent est ${dominant.label}, filtrez dessus si la galerie s'y trouve.`
+                : ''
+            }
           </div>
 
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:10px">

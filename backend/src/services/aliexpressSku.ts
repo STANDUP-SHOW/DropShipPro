@@ -66,10 +66,21 @@ export function lirePrix(valeur: unknown): number | undefined {
   if (typeof valeur === 'number' && Number.isFinite(valeur) && valeur > 0) return valeur
   if (typeof valeur !== 'string') return undefined
 
+  /*
+   * Le champ `salePriceLocal` n'est pas un prix : c'est trois champs collés.
+   *
+   * Relevé sur une vraie fiche le 02/09/2026 : `"67,39€|67|33"` — l'affichage,
+   * puis la partie entière, puis les centimes. Sans cette coupe, le nettoyage
+   * gardait tous les chiffres et rendait **67,396739**. Le prix était donc faux
+   * sans être vide, ce qui est pire : rien ne se plaint, la marge se calcule
+   * dessus, et l'annonce part avec un prix inventé.
+   */
+  const brut = valeur.split('|')[0]
+
   // On garde chiffres, points et virgules, puis on tranche le séparateur
   // décimal : le dernier des deux est celui qui compte (« 1.299,90 » comme
   // « 1,299.90 » existent selon la place de marché).
-  const nettoye = valeur.replace(/[^\d.,]/g, '')
+  const nettoye = brut.replace(/[^\d.,]/g, '')
   if (!nettoye) return undefined
 
   const dernierPoint = nettoye.lastIndexOf('.')

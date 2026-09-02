@@ -106,7 +106,9 @@ function registerApprovedSites() {
     const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
     if (!approvedSites.length) {
       try {
-        await chrome.scripting.unregisterContentScripts({ ids: ['dsp-capture'] })
+        // Les deux enregistrements partent ensemble : en oublier un laisserait
+        // le relevé actif sur un site que le vendeur vient de retirer.
+        await chrome.scripting.unregisterContentScripts({ ids: ['dsp-capture', 'dsp-sku-page'] })
       } catch {
         // Nothing to remove.
       }
@@ -123,13 +125,33 @@ function registerApprovedSites() {
         'content/fill-helpers.js',
         'content/image-scan.js',
         'content/adapters.js',
-        // Avant la capture : elle appelle le releveur, qui doit exister.
-        'content/aliexpress-sku.js',
         // Avant capture.js : le sélecteur lui demande l'ordre et les cases
         // cochées dès son ouverture.
         'content/photo-preselect.js',
         'content/capture.js',
       ],
+      runAt: 'document_idle',
+    })
+
+    /*
+     * Le relevé des variantes AliExpress, dans le monde de la page.
+     *
+     * **C'est un enregistrement à part, et il le faut.** Un script de contenu
+     * ordinaire partage le DOM mais pas le tas JavaScript : les propriétés que
+     * React pose sur les nœuds — `__reactInternalInstance$…` — lui sont
+     * invisibles. Rangé avec les autres, le relevé ne trouvait donc jamais
+     * rien, et rendait `null` sans la moindre erreur. Constaté le 02/09/2026
+     * sur une vraie fiche : zéro combinaison, alors que la page en portait
+     * quatre avec leurs prix.
+     *
+     * Il répond au script de capture par un évènement du DOM, seul passage sûr
+     * entre les deux mondes.
+     */
+    await dspRegister({
+      id: 'dsp-sku-page',
+      matches: approvedSites.map((origin) => `${origin}/*`),
+      js: ['content/aliexpress-sku.js'],
+      world: 'MAIN',
       runAt: 'document_idle',
     })
   })

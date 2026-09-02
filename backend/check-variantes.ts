@@ -273,6 +273,56 @@ exige(
   'deux combinaisons distinctes ont fusionne',
 )
 
+/*
+ * La forme exacte relevée sur une fiche réelle, le 02/09/2026.
+ *
+ * Le reste de ce banc travaille sur une charge reconstituée, donc sur ce qu'on
+ * croyait de la page. Ces trois lignes-là viennent d'une lecture faite dans le
+ * navigateur, sur `fr.aliexpress.com/item/1005012232149510.html`, et elles
+ * corrigent une supposition coûteuse : **`salePriceLocal` n'est pas un prix**,
+ * c'est trois champs collés par des barres verticales — l'affichage, la partie
+ * entière, les centimes.
+ *
+ * Sans la coupe, le nettoyage gardait tous les chiffres et rendait 67,396739 au
+ * lieu de 67,39. Un prix faux et non pas vide : rien ne se plaint, la marge se
+ * calcule dessus, et l'annonce part à un prix inventé.
+ */
+console.log('\nLa forme réellement servie par AliExpress :')
+const RELEVE_REEL = {
+  SKU: {
+    skuPaths: [
+      { path: '14:771;200007763:201336104', skuAttr: '14:771;200007763:201336104', skuIdStr: '12000057817555615', skuId: 12000057817555616, skuStock: 100, salable: true },
+    ],
+    skuProperties: [
+      {
+        skuPropertyId: 14,
+        skuPropertyName: 'Color',
+        skuPropertyValues: [
+          { propertyValueIdLong: 771, propertyValueName: 'Beige', propertyValueDisplayName: 'Beige', skuPropertyImagePath: 'https://ae-pic-a1.aliexpress-media.com/kf/Sc4388418.jpg' },
+        ],
+      },
+      {
+        skuPropertyId: 200007763,
+        skuPropertyName: 'Size',
+        skuPropertyValues: [{ propertyValueIdLong: 201336104, propertyValueDisplayName: 'M' }],
+      },
+    ],
+  },
+  PRICE: {
+    skuIdStrPriceInfoMap: {
+      // Le champ tel quel : affichage, entier, centimes.
+      '12000057817555615': { salePriceLocal: '67,39€|67|39', salePriceString: '67,39€' },
+    },
+  },
+}
+const reelles = lireSkuAliExpress(RELEVE_REEL)
+exige(reelles.length === 1, `1 combinaison attendue, ${reelles.length} lue(s)`)
+exige(reelles[0]?.prix === 67.39, `prix attendu 67.39, obtenu ${reelles[0]?.prix}`)
+exige(reelles[0]?.combo.Color === 'Beige', 'la couleur est lue')
+exige(reelles[0]?.combo.Size === 'M', 'la taille aussi, sur la seconde propriété')
+// `skuId` vaut ici `skuIdStr + 1` : s y fier donnerait le meme prix partout.
+exige(reelles[0]?.sku === '12000057817555615', 'la cle retenue est skuIdStr')
+
 console.log('\nUne combinaison absente de la matrice retombe sur le prix du produit :')
 const absente = matrice.get(cleValeurs(['Vert']))
 exige(absente === undefined, 'une couleur inconnue ne doit rien rendre')
