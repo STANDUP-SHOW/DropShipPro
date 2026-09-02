@@ -359,6 +359,23 @@ Trois conséquences, toutes appliquées :
   /settings/diagnostic` rend désormais l'état réel des services — le journal de
   l'hébergeur n'est pas un endroit où l'on envoie un vendeur.
 
+- **Tout se contrôle en une commande**, et c'est celle-là qu'il faut lancer :
+
+  ```bash
+  cd backend && npm run controle          # les 33 bancs locaux
+  cd backend && npm run controle -- --tout # + le parcours en production
+  ```
+
+  Les bancs sont **découverts dans le dossier**, jamais listés à la main : un
+  banc neuf couvre la panne la plus fraîche, et c'est précisément celui qu'une
+  liste écrite oublie. Rien ne s'arrête au premier échec — un banc qui tombe
+  cacherait tous les suivants.
+
+  Piège rencontré en l'écrivant : **`spawnSync` ne sait pas lancer `npx` sous
+  Windows** (c'est un `.cmd`), et les trente-trois bancs sont sortis « aucune
+  sortie » alors que tous passaient. Un lanceur qui se trompe sur tout est pire
+  qu'un lanceur absent. On lance `process.execPath` avec `--import tsx`.
+
 - **Le circuit complet se rejoue en une commande**, sur un compte jetable créé
   et détruit par le banc — le catalogue du vendeur n'est jamais touché :
 
