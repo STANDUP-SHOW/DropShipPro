@@ -164,7 +164,17 @@ export function lireSkuAliExpress(modules: ModulesAliExpress): Combinaison[] {
 
     // `skuIdStr` et non `skuId` : voir l'en-tête de ce fichier.
     const cle = String(sku.skuIdStr ?? '').trim()
-    const chemin = String(sku.path ?? '').trim()
+    /*
+     * `path`, et `skuAttr` s'il n'y a pas de `path`.
+     *
+     * Les deux décrivent la même combinaison, sous deux formes qui coexistent
+     * selon la version de la page : « 14:193;5:361386 » d'un côté,
+     * « 14:193#Noir;5:361386#M » de l'autre. Ne lire que `path` fait rendre
+     * **zéro combinaison sans la moindre erreur** sur les fiches qui ne
+     * portent que l'autre — le pire des échecs, celui qui ressemble à un
+     * produit sans options.
+     */
+    const chemin = String(sku.path ?? sku.skuAttr ?? '').trim()
     if (!chemin) continue
 
     const combo: Record<string, string> = {}
@@ -172,7 +182,10 @@ export function lireSkuAliExpress(modules: ModulesAliExpress): Combinaison[] {
 
     // Plusieurs propriétés se séparent par des points-virgules : « 14:175;5:100 ».
     for (const morceau of chemin.split(';')) {
-      const trouve = proprietes.get(morceau.trim())
+      // Le nom lisible est parfois collé derrière un dièse — « 14:193#Noir ».
+      // Il n'ajoute rien : le nom se lit dans `skuProperties`, et le garder
+      // ferait manquer la clé.
+      const trouve = proprietes.get(morceau.trim().split('#')[0].trim())
       if (!trouve) continue
       combo[trouve.option] = trouve.valeur
       // La première image rencontrée fait la photo de la combinaison : c'est

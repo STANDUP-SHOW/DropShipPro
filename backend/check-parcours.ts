@@ -21,16 +21,22 @@
  * vérifier à la main le seul maillon amont : que la page rende bien ces
  * données. Le banc le dit à la fin plutôt que de le laisser croire couvert.
  *
- * **Il travaille sur un vrai compte, en production, et il nettoie.** Les
- * annonces qu'il crée portent un marqueur dans leur adresse source ; il les
- * supprime en partant, y compris celles d'un passage précédent interrompu. Sans
- * ce ménage, dix passages laisseraient deux cents annonces d'essai dans le
- * catalogue du vendeur.
+ * **Il travaille sur un compte jetable, créé et détruit ici.** Aucun identifiant
+ * à fournir, et surtout : le catalogue du vendeur n'est jamais touché. Un banc
+ * qui importe vingt-cinq annonces d'essai dans le vrai catalogue, puis les
+ * supprime, finit un jour par en supprimer une vraie — il suffit d'une
+ * interruption au mauvais moment. Un compte à part rend ce risque impossible
+ * plutôt qu'improbable.
  *
- * Identifiants : `PARCOURS_EMAIL` et `PARCOURS_MDP` dans `backend/.env`. Le
- * banc ne les écrit jamais, ni dans sa sortie ni dans ses erreurs.
+ * Le compte est créé en base plutôt que par `/auth/register` : l'inscription
+ * est limitée à cinq par heure, ce qui bloquerait le sixième passage du banc
+ * pour une raison sans rapport avec ce qu'il éprouve. Le jeton, lui, s'obtient
+ * bien par l'API — c'est le vrai chemin, et il vérifie au passage que la
+ * connexion fonctionne.
  */
 import 'dotenv/config'
+import bcrypt from 'bcryptjs'
+import { prisma } from './src/lib/prisma.js'
 
 const API = process.env.PARCOURS_API || 'https://dropshippro-production.up.railway.app'
 
@@ -132,15 +138,28 @@ function capturePayload(indice: number) {
       'Livraison depuis la France. Composition : 100 % polyester recyclé.',
     skuAliExpress: {
       SKU: {
+        /*
+         * Les six combinaisons, sous **les deux formes** qui existent.
+         *
+         * Trois portent `path` dépouillé (« 14:193;5:361386 »), trois ne
+         * portent que `skuAttr` avec le nom collé derrière un dièse
+         * (« 14:193#Noir;5:361386#M »). AliExpress sert l'une ou l'autre selon
+         * la version de la page, et n'en lire qu'une rendait zéro combinaison
+         * sans la moindre erreur — un produit sans options, ce qui ressemble à
+         * un produit qui n'en a pas.
+         *
+         * Et un objet indexé, pas un tableau : c'est ainsi que la
+         * sérialisation de la page les rend.
+         */
         skuPaths: [
-          '14:193#Noir;5:361386#M',
-          '14:193#Noir;5:361385#L',
-          '14:193#Noir;5:361384#XL',
-          '14:175#Bleu;5:361386#M',
-          '14:175#Bleu;5:361385#L',
-          '14:175#Bleu;5:361384#XL',
+          { path: '14:193;5:361386' },
+          { path: '14:193;5:361385' },
+          { path: '14:193;5:361384' },
+          { skuAttr: '14:175#Bleu;5:361386#M' },
+          { skuAttr: '14:175#Bleu;5:361385#L' },
+          { skuAttr: '14:175#Bleu;5:361384#XL' },
         ]
-          .map((p, i) => ({ skuIdStr: `900${i}`, skuAttr: p, path: p }))
+          .map((s, i) => ({ ...s, skuIdStr: `900${i}`, skuStock: 20, salable: true }))
           .reduce((acc, s, i) => ({ ...acc, [i]: s }), {}),
         skuProperties: [
           {
@@ -163,10 +182,19 @@ function capturePayload(indice: number) {
         ],
       },
       PRICE: {
+        /*
+         * Les prix sous la forme que le lecteur attend réellement.
+         *
+         * Première version de ce banc : `skuVal.skuActivityAmount.value`, de
+         * mémoire. Le lecteur n'en voulait pas, les six combinaisons sortaient
+         * sans prix — et le banc accusait le code. Une charge d'essai inventée
+         * n'éprouve que l'imagination de qui l'a écrite : celle-ci suit le
+         * contrat documenté dans `aliexpressSku.ts`.
+         */
         skuIdStrPriceInfoMap: Object.fromEntries(
           [24.9, 24.9, 26.9, 25.9, 25.9, 27.9].map((p, i) => [
             `900${i}`,
-            { skuVal: { skuActivityAmount: { value: p }, skuAmount: { value: p + 8 } } },
+            { salePriceLocal: p, originalPrice: { value: p + 8 } },
           ]),
         ),
       },
@@ -180,30 +208,9 @@ async function main() {
   console.log(`Parcours complet — ${API}`)
   console.log(complet ? 'Mode complet : images et publicité comprises (payant).' : "Mode sobre : ni image ni publicité (--complet pour les ajouter).")
 
-  // --- Connexion -----------------------------------------------------------
-  titre('Connexion')
-  const email = process.env.PARCOURS_EMAIL
-  const mdp = process.env.PARCOURS_MDP
-  if (!email || !mdp) {
-    console.log('  RATE  PARCOURS_EMAIL et PARCOURS_MDP manquants dans backend/.env')
-    process.exit(1)
-  }
-  const connexion = await appel<{ token: string }>('/auth/login', {
-    methode: 'POST',
-    corps: { email, password: mdp },
-  })
-  if (connexion.statut !== 200 || !connexion.corps?.token) {
-    // Le mot de passe ne doit pas se retrouver dans une sortie de banc, même
-    // en cas d'échec : on ne rapporte que le code.
-    console.log(`  RATE  connexion refusée (${connexion.statut})`)
-    process.exit(1)
-  }
-  jeton = connexion.corps.token
-  ok('connecté')
-
-  // --- Ménage d'entrée -----------------------------------------------------
-  titre("Ménage des essais précédents")
-  await menage()
+  // --- Compte jetable ------------------------------------------------------
+  titre('Compte jetable')
+  await creerCompte()
 
   const creees: string[] = []
 
@@ -281,11 +288,19 @@ async function main() {
       ? `        à reprendre : ${faibles.map((c: any) => `${c.label} ${c.points}/${c.max}`).join(' · ')}`
       : '        rien à reprendre',
   )
-  const reglages = (await appel('/settings')).corps
+  /*
+   * Ce que l'agent de contrôle a dit, et non ce que les réglages promettent.
+   *
+   * Le compte du banc l'a activé : vérifier le réglage reviendrait à vérifier
+   * ce que le banc vient d'écrire. Ce qui s'observe, ce sont les notes rendues
+   * par l'import — c'est par là que l'agent parle, et c'est le seul endroit où
+   * son travail est visible aujourd'hui.
+   */
+  const notesImport: string[] = Array.isArray(annonce.notes) ? annonce.notes : []
   exige(
-    reglages.controlAgent === true,
-    "l'agent de contrôle est actif sur ce compte",
-    reglages.controlAgent === false ? 'désactivé dans les réglages' : 'inconnu',
+    Array.isArray(annonce.notes),
+    "l'import rend un compte-rendu",
+    notesImport.length ? notesImport.join(' · ') : 'aucune remarque',
   )
 
   // --- 4. Images et publicité (payant) -------------------------------------
@@ -369,7 +384,9 @@ async function main() {
         passees++
         if (ligne.product?.id) creees.push(ligne.product.id)
       } else if (ligne?.error) {
-        raisons.add(ligne.error.slice(0, 60))
+        // Gardée entière : tronquer à soixante caractères coupait avant le mot
+        // qu'on cherche, et le banc s'accusait lui-même d'un échec inexistant.
+        raisons.add(ligne.error)
       }
     }
 
@@ -384,7 +401,7 @@ async function main() {
     exige(
       [...raisons].every((r) => /extension|javascript/i.test(r)),
       'et la réponse est le bon refus',
-      [...raisons][0] ?? '',
+      ([...raisons][0] ?? '').slice(0, 70),
     )
     if (passees) console.log(`        ${passees} import(s) réellement passé(s)`)
   }
@@ -392,32 +409,74 @@ async function main() {
   await conclure(creees)
 }
 
-/** Supprime tout ce que le banc a créé, y compris d'un passage interrompu. */
-async function menage() {
-  const liste = (await appel('/products')).corps
-  const notres = (Array.isArray(liste) ? liste : []).filter(
-    (p: any) => typeof p.sourceUrl === 'string' && p.sourceUrl.includes(MARQUEUR),
-  )
-  if (!notres.length) return ok('rien à nettoyer')
+/** L'identifiant du compte jetable, gardé pour le détruire à la fin. */
+let compteId = ''
 
-  const suppression = await appel('/products/lot', {
-    methode: 'POST',
-    corps: { ids: notres.map((p: any) => p.id), action: 'supprimer' },
+/**
+ * Crée le compte du passage, avec de quoi travailler, et se connecte.
+ *
+ * L'adresse porte l'horodatage : deux passages simultanés ne se marchent pas
+ * dessus, et un compte oublié par une interruption se reconnaît au premier coup
+ * d'œil dans la base.
+ */
+async function creerCompte() {
+  const marque = `${MARQUEUR}-${Date.now()}`
+  const email = `${marque}@exemple.test`
+  // Le mot de passe est jeté avec le compte : il n'a pas à être secret, mais il
+  // doit satisfaire la règle des huit caractères que l'API applique.
+  const motDePasse = `${marque}-mdp`
+
+  const compte = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: await bcrypt.hash(motDePasse, 10),
+      // De quoi importer trente annonces et produire une dizaine de visuels
+      // sans que le banc échoue pour une raison de solde.
+      credits: 200,
+      imageCredits: 50,
+      // L'agent de contrôle fait partie du parcours : sans lui, le banc
+      // éprouverait un chemin que le vendeur n'emprunte pas.
+      controlAgent: true,
+    },
   })
-  ok('essais précédents supprimés', `${suppression.corps?.faites ?? 0} annonce(s)`)
+  compteId = compte.id
+  ok('compte créé', email)
+
+  const connexion = await appel<{ token: string }>('/auth/login', {
+    methode: 'POST',
+    corps: { email, password: motDePasse },
+  })
+  if (connexion.statut !== 200 || !connexion.corps?.token) {
+    rate('connexion au compte jetable', `statut ${connexion.statut}`)
+    await detruireCompte()
+    process.exit(1)
+  }
+  jeton = connexion.corps.token
+  ok('connecté par l’API')
 }
 
-async function conclure(creees: string[]) {
-  titre('Ménage de sortie')
-  if (creees.length) {
-    const suppression = await appel('/products/lot', {
-      methode: 'POST',
-      corps: { ids: [...new Set(creees)], action: 'supprimer' },
-    })
-    ok('annonces du banc supprimées', `${suppression.corps?.faites ?? 0} sur ${new Set(creees).size}`)
-  } else {
-    ok('rien à supprimer')
+/**
+ * Détruit le compte, et tout ce qui y pend.
+ *
+ * C'est la seule raison pour laquelle ce banc peut se permettre d'importer
+ * vingt-cinq annonces : elles disparaissent avec leur propriétaire, sans qu'un
+ * script ait à choisir lesquelles supprimer. Un ménage qui trie est un ménage
+ * qui peut se tromper de cible.
+ */
+async function detruireCompte() {
+  if (!compteId) return
+  try {
+    await prisma.user.delete({ where: { id: compteId } })
+    ok('compte jetable détruit')
+  } catch (e) {
+    rate('destruction du compte jetable', e instanceof Error ? e.message.slice(0, 120) : '')
+    console.log(`        à supprimer à la main : ${compteId}`)
   }
+}
+
+async function conclure(_creees: string[]) {
+  titre('Ménage de sortie')
+  await detruireCompte()
 
   console.log(
     '\nNon couvert par ce banc : le relevé de la page par l\'extension — elle vit\n' +
