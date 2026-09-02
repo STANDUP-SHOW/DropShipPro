@@ -189,6 +189,15 @@ async function ouvrirPopup({ jeton = null, urlOnglet = 'https://fr.aliexpress.co
     verifier('le bouton du site est proposé', /ajouter le bouton/i.test(t))
     verifier('le site concerné est nommé', /aliexpress/i.test(t))
     verifier('le panneau des annonces reste accessible', /panneau des annonces/i.test(t))
+    /*
+     * L'import groupé se trouve depuis l'icône, pas seulement dans le panneau.
+     *
+     * Signalé le 02/09/2026 : « aucun bouton créer une liste ». Il existait —
+     * dans le panneau latéral, que l'on n'ouvre pas par réflexe. Une fonction
+     * qu'on ne trouve pas n'existe pas, et aucun banc ne le voyait puisqu'ils
+     * éprouvaient chacun leur écran.
+     */
+    verifier("l'import groupé est proposé dès le popup", /liste d'import group/i.test(t))
   }
 
   // --- Connecté, mais sur une page interne de Chrome ---------------------------

@@ -280,6 +280,20 @@ async function renderAccueil() {
        Le panneau s'ouvre à côté de la page et y reste : vous voyez votre annonce
        pendant que vous remplissez le formulaire.
      </p>
+
+     <!--
+       L'entrée du lot est ici aussi, et pas seulement dans le panneau.
+       Le popup est ce qu'on ouvre en cliquant l'icône : c'est là qu'on cherche
+       une fonction dont on a entendu parler. La reléguer derrière « ouvrir le
+       panneau » revenait à la cacher — signalé le 02/09/2026, « aucun bouton
+       créer une liste ».
+     -->
+     <button class="primary" id="ouvrirLot" style="margin-top:10px">📦 Créer une liste d'import groupé</button>
+     <p class="muted" style="margin-top:6px">
+       Pour importer plusieurs produits d'un coup depuis AliExpress ou Temu :
+       vous naviguez de fiche en fiche, le panneau reste ouvert et chaque produit
+       s'ajoute à la liste.
+     </p>
      <p class="link" id="openCfg2" style="margin-top:12px">Configurer les adresses</p>
      <p class="link" id="logout">Déconnexion</p>`
 
@@ -301,6 +315,27 @@ async function renderAccueil() {
         'beforeend',
         `<p class="error">Panneau indisponible : ${err.message}</p>`,
       )
+    }
+  })
+
+  /*
+   * Ouvre le panneau **déjà sur la liste**.
+   *
+   * Le drapeau est posé avant l'ouverture, sinon le panneau s'affiche sur la
+   * liste des annonces et il faut cliquer une seconde fois. Et `sidePanel.open`
+   * part d'ici sans détour : Chrome exige que l'appel vienne du geste de
+   * l'utilisateur, un aller-retour par le service worker sortirait de la
+   * fenêtre autorisée.
+   */
+  document.getElementById('ouvrirLot').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id) return
+    await chrome.storage.local.set({ lotOuvert: true })
+    try {
+      await chrome.sidePanel.open({ tabId: tab.id })
+      window.close()
+    } catch (err) {
+      app.insertAdjacentHTML('beforeend', `<p class="error">Panneau indisponible : ${err.message}</p>`)
     }
   })
 
