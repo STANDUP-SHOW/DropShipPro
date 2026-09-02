@@ -32,6 +32,7 @@ import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
 import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
 import { optimiserAnnonce } from '../services/listingOptimizer.js'
+import { reecrireAnnonce } from '../services/listingRewrite.js'
 import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
 
 export const productsRouter = Router()
@@ -304,7 +305,7 @@ productsRouter.get('/', async (req: AuthedRequest, res) => {
  */
 const lotSchema = z.object({
   ids: z.array(z.string()).min(1).max(200),
-  action: z.enum(['categorie', 'supprimer', 'options', 'boutique']),
+  action: z.enum(['categorie', 'supprimer', 'options', 'boutique', 'reecrire']),
   /** Pour « categorie » : la categorie de destination. */
   categoryId: z.string().optional(),
   /** Pour « options » : le jeu a poser -- pointure, taille, couleur. */
@@ -332,6 +333,64 @@ productsRouter.post('/lot', async (req: AuthedRequest, res) => {
 
   const echecs: Array<{ id: string; titre: string; raison: string }> = []
   let faites = 0
+
+  /*
+   * Refaire la réécriture d'un lot d'annonces ratées.
+   *
+   * Après une panne d'IA, ce sont des dizaines d'annonces qui portent le texte
+   * brut du fournisseur — trente le 02/09/2026. Les reprendre une par une,
+   * c'est trente allers-retours, donc en pratique aucune.
+   *
+   * Un crédit par annonce, rendu à chaque échec individuellement : une annonce
+   * qui n'a pas été réécrite ne se facture pas, même si les autres du lot le
+   * sont.
+   */
+  if (action === 'reecrire') {
+    for (const resume of annonces) {
+      const credit = await reserveCredits(req.userId!, 1)
+      if (!credit.ok) {
+        echecs.push({
+          id: resume.id,
+          titre: resume.aiTitle || resume.title,
+          raison: credit.reason ?? 'Crédits épuisés.',
+        })
+        // Le solde ne se rechargera pas au milieu du lot : inutile de tenter
+        // les suivantes pour leur donner le même refus.
+        break
+      }
+
+      try {
+        const produit = await prisma.product.findUniqueOrThrow({ where: { id: resume.id } })
+        const { reecrit, champs } = await reecrireAnnonce(produit)
+        if (!reecrit || !champs) {
+          await refundCredits(req.userId!, 1)
+          echecs.push({
+            id: resume.id,
+            titre: resume.aiTitle || resume.title,
+            raison: "L'IA n'a pas répondu.",
+          })
+          continue
+        }
+        await prisma.product.update({ where: { id: resume.id }, data: champs })
+        faites++
+      } catch (e) {
+        await refundCredits(req.userId!, 1)
+        echecs.push({
+          id: resume.id,
+          titre: resume.aiTitle || resume.title,
+          raison: e instanceof Error ? e.message : 'Réécriture impossible',
+        })
+      }
+    }
+
+    return res.json({
+      demandees: ids.length,
+      faites,
+      inchangees: 0,
+      echecs,
+      message: `${faites} annonce(s) réécrite(s) par l'IA.`,
+    })
+  }
 
   if (action === 'supprimer') {
     const { count } = await prisma.product.deleteMany({
@@ -442,6 +501,46 @@ productsRouter.get('/:id/score', async (req: AuthedRequest, res) => {
  * le crédit paie ; une reprise qui ne change rien parce que tout allait déjà
  * bien ne se facture pas non plus.
  */
+/**
+ * Refaire la réécriture d'une annonce ratée.
+ *
+ * **Le remède à une panne d'IA.** Quand le modèle ne répond pas,
+ * `enhanceListing` rend le texte du fournisseur plutôt que d'échouer — sans
+ * quoi un import perdrait aussi ses photos et son prix. L'annonce arrive donc
+ * complète et inutilisable, et le crédit est rendu. Il fallait ensuite tout
+ * réimporter à la main.
+ *
+ * Ne retourne pas sur la page source : le titre et la description d'origine
+ * sont conservés, et c'est exactement ce que le premier import avait envoyé au
+ * modèle. Une fiche AliExpress se reprend donc aussi bien qu'une autre.
+ */
+productsRouter.post('/:id/reecrire', async (req: AuthedRequest, res) => {
+  const produit = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const credit = await reserveCredits(req.userId!, 1)
+  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+
+  try {
+    const { reecrit, champs, changements } = await reecrireAnnonce(produit)
+    if (!reecrit || !champs) {
+      await refundCredits(req.userId!, 1)
+      return res.status(503).json({
+        error: "L'IA ne répond pas pour le moment. Rien n'a été modifié, aucun crédit n'a été pris.",
+      })
+    }
+
+    await prisma.product.update({ where: { id: produit.id }, data: champs })
+    res.json({ ok: true, changements })
+  } catch (err) {
+    await refundCredits(req.userId!, 1)
+    console.error('réécriture impossible', err)
+    res.status(502).json({ error: "La réécriture n'a pas abouti. Réessayez dans un instant." })
+  }
+})
+
 productsRouter.post('/:id/optimiser', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({
     where: { id: req.params.id, userId: req.userId! },

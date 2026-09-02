@@ -263,6 +263,16 @@ export const api = {
       reecrit: boolean
     }>(`/products/${id}/optimiser`, { method: 'POST' }),
 
+  /**
+   * Refaire la réécriture d'une annonce ratée.
+   *
+   * Ne repasse pas par la page source : le titre et la description d'origine
+   * sont conservés dans l'annonce. Une fiche AliExpress se reprend donc comme
+   * une autre, alors qu'un réimport par adresse y serait refusé.
+   */
+  reecrireAnnonce: (id: string) =>
+    request<{ ok: true; changements: string[] }>(`/products/${id}/reecrire`, { method: 'POST' }),
+
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
   listCategories: (filter?: { sector?: string; shop?: string }) =>
     request<{
@@ -298,7 +308,7 @@ export const api = {
    */
   actionLot: (corps: {
     ids: string[]
-    action: 'categorie' | 'supprimer' | 'options' | 'boutique'
+    action: 'categorie' | 'supprimer' | 'options' | 'boutique' | 'reecrire'
     categoryId?: string
     jeu?: string
     shopId?: string | null

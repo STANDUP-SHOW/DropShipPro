@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FolderTree, Layers3, Trash2, Loader2, AlertTriangle } from 'lucide-react'
+import { FolderTree, Layers3, Trash2, Loader2, AlertTriangle, Wand2 } from 'lucide-react'
 import { api } from '../lib/api'
 
 /**
@@ -26,7 +26,7 @@ export function BulkActions({
   /** Rechargement de la liste, plus le message à afficher. */
   onFait: (message: string) => void
 }) {
-  const [ouvert, setOuvert] = useState<'categorie' | 'options' | 'supprimer' | null>(null)
+  const [ouvert, setOuvert] = useState<'categorie' | 'options' | 'supprimer' | 'reecrire' | null>(null)
   const [categories, setCategories] = useState<Categorie[]>([])
   const [jeux, setJeux] = useState<Jeu[]>([])
   const [choixCategorie, setChoixCategorie] = useState('')
@@ -67,6 +67,17 @@ export function BulkActions({
 
   return (
     <>
+      {/*
+        Refaire la réécriture, en lot.
+        Né d'une panne : quand l'IA ne répond pas, l'import garde le texte du
+        fournisseur plutôt que d'échouer, et rend le crédit. Des dizaines
+        d'annonces arrivent alors complètes et inutilisables — trente le
+        02/09/2026 — et les reprendre une par une, c'est trente allers-retours.
+      */}
+      <button type="button" disabled={!ids.length} onClick={() => setOuvert('reecrire')} className={bouton}>
+        <Wand2 size={14} />
+        <span>Refaire la réécriture IA</span>
+      </button>
       <button type="button" disabled={!ids.length} onClick={() => setOuvert('categorie')} className={bouton}>
         <FolderTree size={14} />
         <span>Changer de catégorie</span>
@@ -152,6 +163,27 @@ export function BulkActions({
               </>
             ) : null}
 
+            {/* --- Refaire la réécriture -------------------------------------- */}
+            {ouvert === 'reecrire' ? (
+              <>
+                <h2 className="text-base font-bold">{`Refaire la réécriture de ${ids.length} annonce(s)`}</h2>
+                <p className="mt-2 text-xs leading-relaxed text-gray-400">
+                  L'IA repart du <strong className="text-gray-200">titre et de la description
+                  d'origine</strong>, conservés dans l'annonce, et réécrit titre, description,
+                  arguments de vente, attributs et mots-clés. Elle ne retourne pas sur la page du
+                  fournisseur : une fiche AliExpress se reprend donc comme une autre.
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-gray-400">
+                  Vos photos, votre prix et votre rangement ne sont pas touchés. Ce que vous avez
+                  saisi vous-même dans les attributs et les arguments n'est remplacé que si l'IA en
+                  rend davantage.
+                </p>
+                <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-400">
+                  {`1 crédit annonce par annonce, soit ${ids.length} au total. Une annonce que l'IA ne réécrit pas n'est pas facturée.`}
+                </p>
+              </>
+            ) : null}
+
             {/* --- Supprimer ------------------------------------------------- */}
             {ouvert === 'supprimer' ? (
               <>
@@ -194,6 +226,17 @@ export function BulkActions({
                 >
                   {busy ? <Loader2 size={12} className="animate-spin" /> : null}
                   <span>Ranger</span>
+                </button>
+              ) : null}
+              {ouvert === 'reecrire' ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => lancer({ ids, action: 'reecrire' })}
+                  className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50"
+                >
+                  {busy ? <Loader2 size={12} className="animate-spin" /> : null}
+                  <span>{busy ? 'Réécriture en cours…' : `Réécrire les ${ids.length}`}</span>
                 </button>
               ) : null}
               {ouvert === 'supprimer' ? (

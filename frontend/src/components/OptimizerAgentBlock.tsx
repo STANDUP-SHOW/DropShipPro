@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Gauge, Loader2, Check, AlertTriangle } from 'lucide-react'
+import { Gauge, Loader2, Check, AlertTriangle, Wand2 } from 'lucide-react'
 import { api } from '../lib/api'
 
 /**
@@ -41,6 +41,24 @@ export function OptimizerAgentBlock({
   useEffect(() => {
     api.noteAnnonce(productId).then(setNote).catch(() => undefined)
   }, [productId])
+
+  /** Refaire la réécriture depuis le texte du fournisseur. */
+  async function reecrire() {
+    setBusy(true)
+    setErreur(null)
+    try {
+      const r = await api.reecrireAnnonce(productId)
+      // La note est recalculée par le serveur : on la relit plutôt que de la
+      // déduire ici, où elle finirait par diverger.
+      setNote(await api.noteAnnonce(productId))
+      setRapport({ gain: 0, changements: r.changements, aVous: [], complet: false })
+      onOptimise()
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Réécriture impossible')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function reprendre() {
     setBusy(true)
@@ -127,12 +145,44 @@ export function OptimizerAgentBlock({
         </>
       )}
 
+      {/*
+        Refaire la réécriture à partir du texte d'origine.
+        Distinct de l'optimisation : celle-ci reprend ce qui manque, celle-là
+        repart de zéro. Nécessaire quand l'annonce a été importée pendant une
+        panne d'IA — elle porte alors le texte brut du fournisseur, et il n'y a
+        rien à « améliorer », il faut tout réécrire.
+      */}
+      <div className="mt-3 border-t border-white/10 pt-3">
+        <button
+          type="button"
+          onClick={reecrire}
+          disabled={busy}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm transition hover:bg-white/5 disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
+          <span>Refaire entièrement la réécriture</span>
+        </button>
+        <p className="mt-2 text-center text-[11px] leading-relaxed text-gray-500">
+          Repart du titre et de la description du fournisseur, conservés dans l'annonce. Pour une
+          annonce importée pendant une panne de l'IA. Photos, prix et rangement ne bougent pas.
+        </p>
+      </div>
+
       {rapport ? (
         <div className="mt-3 space-y-2">
           <p className="rounded-lg border border-emerald-400/25 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-100">
+            {/*
+              Trois cas, et non deux.
+              Une réécriture complète ne rapporte parfois aucun point — les
+              critères étaient déjà remplis, c'est la qualité du texte qui
+              change — et annoncer « rien à reprendre » sur un travail qui vient
+              d'être fait et facturé serait faux.
+            */}
             {rapport.gain > 0
               ? `+${rapport.gain} points. ${rapport.changements.join(' · ')}`
-              : 'Rien à reprendre côté rédaction : la note ne bouge pas.'}
+              : rapport.changements.length
+                ? rapport.changements.join(' · ')
+                : 'Rien à reprendre côté rédaction : la note ne bouge pas.'}
           </p>
           {/*
             Ce qui reste, et pourquoi il ne pouvait pas le faire.
