@@ -1378,6 +1378,46 @@
   }
 
   /**
+   * Relève la fiche sans rien publier, pour la liste d'import groupé.
+   *
+   * **Le relevé se fait ici, à l'ajout, et non au moment de l'import.** Une
+   * fiche AliExpress n'existe que dans le navigateur : son prix et ses
+   * variantes sont chargés après l'affichage, et personne ne peut les relire
+   * plus tard depuis un serveur. Garder l'adresse seule ferait une liste de
+   * vingt-cinq adresses toutes inimportables.
+   *
+   * Les photos sont prises dans l'ordre du classement, sans demander. C'est
+   * assumé et dit à l'écran : sur vingt-cinq produits, ouvrir vingt-cinq
+   * sélecteurs n'est pas un lot. Le vendeur reprend ses photos annonce par
+   * annonce ensuite, là où il reprend déjà ses prix.
+   */
+  async function releverPourLot() {
+    const payload = await buildPayload()
+    if (!payload.title) throw new Error('Produit non reconnu sur cette page')
+
+    const trouve = await collectImages()
+    const produits = Array.isArray(trouve) ? trouve : (trouve?.produits ?? [])
+    payload.images = produits.slice(0, PHOTOS_MAX).map((i) => i.url)
+
+    return payload
+  }
+
+  /*
+   * Le panneau latéral demande, le script de contenu répond.
+   *
+   * `sendResponse` asynchrone impose de rendre `true` : sans lui, Chrome ferme
+   * le canal dès la fin du gestionnaire et la réponse n'arrive jamais — panne
+   * classique, silencieuse, et qui ressemble à un script absent.
+   */
+  chrome.runtime.onMessage.addListener((message, _expediteur, repondre) => {
+    if (message?.type !== 'dsp-relever-pour-lot') return
+    releverPourLot()
+      .then((payload) => repondre({ ok: true, payload }))
+      .catch((e) => repondre({ ok: false, error: e?.message || 'Relevé impossible' }))
+    return true
+  })
+
+  /**
    * Is this a product page?
    *
    * The script now runs on every site so any supplier can be imported, but the

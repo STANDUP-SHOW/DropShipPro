@@ -181,6 +181,15 @@ function montrerListe(plateforme) {
         : `<div class="bandeau"><span>ℹ️</span><span>Ouvrez un formulaire de dépôt (Vinted, Leboncoin, eBay) pour remplir une annonce. Vous pouvez déjà la regarder ici.</span></div>`
     }
 
+    <!--
+      L'entrée vers le lot, en haut du panneau.
+      C'est le seul chemin possible pour importer plusieurs fiches AliExpress :
+      chacune doit être lue dans le navigateur pendant qu'elle est affichée.
+    -->
+    <button class="primary" id="ouvrir-lot" style="margin-bottom:10px">
+      📦 Créer une liste d'import groupé
+    </button>
+
     <input id="search" type="search" placeholder="Chercher une annonce…" value="${echapper(filtre)}" />
 
     ${
@@ -216,6 +225,16 @@ function montrerListe(plateforme) {
             .join('')
     }
   `
+
+  document.getElementById('ouvrir-lot').addEventListener('click', async () => {
+    // Retenu en mémoire : le panneau doit rouvrir sur le lot à chaque onglet,
+    // sans quoi le vendeur le rouvre à la main vingt-cinq fois.
+    await chrome.storage.local.set({ lotOuvert: true })
+    montrerLot(app, async () => {
+      await chrome.storage.local.remove('lotOuvert')
+      demarrer()
+    })
+  })
 
   const recherche = document.getElementById('search')
   recherche.addEventListener('input', () => {
@@ -288,6 +307,21 @@ async function demarrer() {
   // en train de faire.
   const { pendingListing } = await chrome.storage.local.get('pendingListing')
   if (pendingListing) return montrerEnCours(pendingListing)
+
+  /*
+   * La liste d'import groupé prime sur la liste des annonces.
+   *
+   * Elle n'a de sens que pendant qu'on navigue de fiche en fiche : rouvrir le
+   * panneau sur la liste des annonces obligerait à retrouver le bouton à chaque
+   * onglet. Tant qu'un lot est en cours, c'est lui qu'on voit.
+   */
+  const { lotOuvert } = await chrome.storage.local.get('lotOuvert')
+  if (lotOuvert) {
+    return montrerLot(app, async () => {
+      await chrome.storage.local.remove('lotOuvert')
+      demarrer()
+    })
+  }
 
   const plateforme = await plateformeCourante()
 

@@ -400,6 +400,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
    * envoie donc ce message, et le worker ouvre — c'est le seul chemin que Chrome
    * accepte.
    */
+  /*
+   * Relève la fiche d'un onglet, pour la liste d'import groupé.
+   *
+   * Le panneau latéral n'est pas un onglet : il ne peut pas parler au script de
+   * contenu directement, et `sender.tab` y vaut `undefined`. Il passe donc par
+   * ici, avec l'identifiant de l'onglet à lire.
+   *
+   * Le script de contenu peut ne pas être là — site non autorisé, onglet ouvert
+   * avant l'autorisation. On l'injecte alors une fois plutôt que de renvoyer un
+   * échec que le vendeur ne saurait pas corriger.
+   */
+  if (message?.type === 'dsp-relever-onglet') {
+    const tabId = message.tabId
+    const demander = () =>
+      chrome.tabs.sendMessage(tabId, { type: 'dsp-relever-pour-lot' })
+
+    demander()
+      .catch(async () => {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: [
+            'config.js',
+            'content/fill-helpers.js',
+            'content/image-scan.js',
+            'content/adapters.js',
+            'content/photo-preselect.js',
+            'content/capture.js',
+          ],
+        })
+        // Le monde de la page, pour les variantes : même raison qu'à
+        // l'enregistrement permanent.
+        await chrome.scripting
+          .executeScript({ target: { tabId }, files: ['content/aliexpress-sku.js'], world: 'MAIN' })
+          .catch(() => undefined)
+        return demander()
+      })
+      .then((reponse) => sendResponse(reponse ?? { ok: false, error: 'Page muette' }))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || 'Relevé impossible' }))
+    return true
+  }
+
   if (message?.type === 'dsp-open-panel') {
     const tabId = message.tabId ?? sender.tab?.id
     if (tabId === undefined) {
