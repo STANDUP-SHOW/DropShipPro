@@ -87,7 +87,35 @@ function titre(t: string) {
 
 let jeton = ''
 
+/**
+ * Un appel, avec une seconde chance quand c'est l'hébergeur qui répond.
+ *
+ * **Le piège, tombé dedans à la première utilisation :** un banc se lance
+ * naturellement juste après un envoi de code, et Railway redémarre l'API à
+ * chaque envoi — y compris pour un changement qui ne touche que le site. Son
+ * proxy répond alors 502 pendant une minute. Le banc a rapporté trois échecs
+ * d'import parfaitement imaginaires, et j'ai cherché la panne dans le scraper.
+ *
+ * Un 502, 503 ou 504 sans corps JSON ne vient pas de notre code : personne chez
+ * nous ne répond ça sans message. On patiente et on refait une fois, en le
+ * disant — un banc qui masque une indisponibilité ment autant qu'un banc qui
+ * l'appelle une panne.
+ */
 async function appel<T = any>(
+  chemin: string,
+  options: { methode?: string; corps?: unknown; delai?: number } = {},
+): Promise<{ statut: number; corps: T }> {
+  const premier = await appelUnique<T>(chemin, options)
+  const passerelle =
+    [502, 503, 504].includes(premier.statut) && !(premier.corps as any)?.error?.includes(' ')
+  if (!passerelle) return premier
+
+  console.log(`        (API indisponible — ${premier.statut} — nouvel essai dans 30 s)`)
+  await new Promise((r) => setTimeout(r, 30_000))
+  return appelUnique<T>(chemin, options)
+}
+
+async function appelUnique<T = any>(
   chemin: string,
   options: { methode?: string; corps?: unknown; delai?: number } = {},
 ): Promise<{ statut: number; corps: T }> {
@@ -341,7 +369,20 @@ async function main() {
     corps: { url: URL_LISIBLE },
     delai: 300_000,
   })
-  if (exige(parUrl.statut === 201, 'une boutique lisible passe', `statut ${parUrl.statut}`)) {
+  /*
+   * Le statut **et** la raison.
+   *
+   * Une première version disait « statut 502 » et s'arrêtait là — exactement le
+   * défaut que ce banc sert à débusquer dans l'application. Un contrôle qui
+   * cache la cause oblige à refaire à la main ce qu'il venait d'automatiser.
+   */
+  if (
+    exige(
+      parUrl.statut === 201,
+      'une boutique lisible passe',
+      `statut ${parUrl.statut}${parUrl.corps?.error ? ` · ${parUrl.corps.error}` : ''}`,
+    )
+  ) {
     creees.push(parUrl.corps.id)
     exige(
       Array.isArray(parUrl.corps.images) && parUrl.corps.images.length > 0,
@@ -351,11 +392,15 @@ async function main() {
   }
 
   const refuse = await appel('/products/import', { methode: 'POST', corps: { url: URL_REFUSEE } })
-  exige(refuse.statut === 422, 'une fiche construite en JavaScript est refusée', `statut ${refuse.statut}`)
+  exige(
+    refuse.statut === 422,
+    'une fiche construite en JavaScript est refusée',
+    `statut ${refuse.statut}${refuse.corps?.error ? ` · ${String(refuse.corps.error).slice(0, 90)}` : ''}`,
+  )
   exige(
     typeof refuse.corps?.error === 'string' && /extension/i.test(refuse.corps.error),
     "le refus renvoie vers l'extension",
-    refuse.corps?.error?.slice(0, 70),
+    String(refuse.corps?.error ?? '').slice(0, 70),
   )
 
   // --- 6. Import en lot ----------------------------------------------------
