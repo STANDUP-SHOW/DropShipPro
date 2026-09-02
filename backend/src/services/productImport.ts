@@ -117,33 +117,52 @@ export async function importerAdresse(
     : await scrapeProduct(url)
   const user: User = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
 
-  const enhanced = await enhanceListing({
-    title: scraped.title,
-    description: scraped.description,
-    category: scraped.sourceCategory,
-    pageText: scraped.pageText,
-  })
-
   /*
-   * Les photos sont choisies, jamais prises dans l'ordre d'apparition.
+   * Trois travaux qui ne s'attendent pas — et qui s'attendaient.
    *
-   * Cet ordre donne l'en-tête du site, pas la galerie. C'est la première chose
-   * que l'import en lot avait perdue.
+   * La réécriture, la lecture des options et le tri des photos ne dépendent que
+   * de la page : aucun des trois n'a besoin du résultat des deux autres. Ils
+   * étaient pourtant lancés l'un après l'autre, donc **leurs durées
+   * s'additionnaient** — deux appels au modèle et une série de mesures d'images
+   * en file indienne, pour rien.
+   *
+   * Signalé le 02/09/2026 : « pourquoi c'est aussi long, entre 60 et 120
+   * secondes ». La cause n'était pas la lenteur d'une étape, c'était leur mise
+   * bout à bout. Ensemble, l'import ne coûte plus que la plus lente des trois.
+   *
+   * `Promise.all` et non `allSettled` : chacun de ces trois-là gère déjà son
+   * propre échec et rend une valeur de repli — un modèle injoignable rend le
+   * texte source, pas une exception.
    */
   const releveesParExtension = (options.releve?.images ?? options.capture?.images ?? []).filter(Boolean)
-  const chosen = releveesParExtension.length
-    ? releveesParExtension.slice(0, PHOTOS_PAR_ANNONCE)
-    : await selectProductImages(
-        scraped.images,
-        PHOTOS_PAR_ANNONCE,
-        scraped.declaredImages,
-        scraped.domImages,
-        scraped.chromeImages,
-      )
 
-  // Les options d'achat se lisent dans le texte de la page : aucune balise ne
-  // les déclare, et sans cette lecture un import ne rend ni taille ni couleur.
-  const luesParLeModele = await extractVariants(scraped.pageText ?? '')
+  const [enhanced, luesParLeModele, chosen] = await Promise.all([
+    enhanceListing({
+      title: scraped.title,
+      description: scraped.description,
+      category: scraped.sourceCategory,
+      pageText: scraped.pageText,
+    }),
+    // Les options d'achat se lisent dans le texte de la page : aucune balise ne
+    // les déclare, et sans cette lecture un import ne rend ni taille ni couleur.
+    extractVariants(scraped.pageText ?? ''),
+    /*
+     * Les photos sont choisies, jamais prises dans l'ordre d'apparition.
+     *
+     * Cet ordre donne l'en-tête du site, pas la galerie. C'est la première
+     * chose que l'import en lot avait perdue.
+     */
+    releveesParExtension.length
+      ? Promise.resolve(releveesParExtension.slice(0, PHOTOS_PAR_ANNONCE))
+      : selectProductImages(
+          scraped.images,
+          PHOTOS_PAR_ANNONCE,
+          scraped.declaredImages,
+          scraped.domImages,
+          scraped.chromeImages,
+        ),
+  ])
+
   const annoncees = fusionnerVariantes(options.releve?.variantes, luesParLeModele)
 
   // L'agent de contrôle voit ce que les heuristiques ne peuvent pas voir : une
@@ -190,14 +209,22 @@ export async function importerAdresse(
    * Elles sont donc stockées chez nous comme les autres, et la matrice pointe
    * vers notre copie.
    */
-  const combinaisonsStockees = await rapatrierPhotosDeVariante(combinaisons, enhanced.title, notes)
-
-  const rangement = await resoudreCategorie({
-    sourceCategory: scraped.sourceCategory,
-    supplierId: supplierFields(url).supplierId,
-    title: scraped.title,
-    pageText: scraped.pageText,
-  })
+  /*
+   * Le rangement part en même temps que les photos de variante.
+   *
+   * Il ne dépend que du titre et de la page — jamais des photos — et il peut
+   * appeler le modèle. L'attendre après le rapatriement ajoutait sa durée à
+   * celle des téléchargements alors que les deux peuvent courir ensemble.
+   */
+  const [combinaisonsStockees, rangement] = await Promise.all([
+    rapatrierPhotosDeVariante(combinaisons, enhanced.title, notes),
+    resoudreCategorie({
+      sourceCategory: scraped.sourceCategory,
+      supplierId: supplierFields(url).supplierId,
+      title: scraped.title,
+      pageText: scraped.pageText,
+    }),
+  ])
   if (!rangement.categoryId) {
     notes.push("Aucune catégorie sûre : l'annonce reste en brouillon.")
   }

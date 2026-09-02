@@ -182,44 +182,93 @@ export async function watermarkImages(
   const opacity = options.opacity ?? 75
   const gravity = options.position ?? 'southeast'
   const selected = imageUrls.slice(0, MAX_IMAGES)
-  const results: string[] = []
 
-  // Built once: the logo is identical on every photo of the batch.
-  let logo: Buffer | null = null
+  /*
+   * Le logo, construit une fois par largeur rencontrée.
+   *
+   * Il dépend de la largeur de la photo — un logo de 22 % n'a pas la même
+   * taille sur une photo de 800 et sur une de 1600. Une seule variable
+   * partagée suffisait tant que les photos étaient traitées l'une après
+   * l'autre ; en parallèle, deux photos de largeurs différentes se
+   * disputeraient la même. Une promesse par largeur les sert toutes sans
+   * refaire le travail.
+   */
+  const logos = new Map<number, Promise<Buffer | null>>()
+  function logoPour(width: number): Promise<Buffer | null> {
+    if (!options.imagePath) return Promise.resolve(null)
+    let attendu = logos.get(width)
+    if (!attendu) {
+      attendu = logoOverlay(options.imagePath, width, scale, opacity).catch((err) => {
+        // A missing or corrupt logo must not lose the whole import: fall back to text.
+        console.error('logo de filigrane illisible, repli sur le texte', err)
+        return null
+      })
+      logos.set(width, attendu)
+    }
+    return attendu
+  }
 
-  for (const [index, url] of selected.entries()) {
+  async function traiter(url: string, index: number): Promise<{ index: number; chemin: string } | null> {
     try {
       const buffer = await fetchSourceImage(url)
-      if (!buffer) continue
+      if (!buffer) return null
       const image = sharp(buffer).rotate()
       const meta = await image.metadata()
       const width = meta.width ?? 800
-
-      if (options.imagePath && !logo) {
-        logo = await logoOverlay(options.imagePath, width, scale, opacity).catch((err) => {
-          // A missing or corrupt logo must not lose the whole import: fall back to text.
-          console.error('logo de filigrane illisible, repli sur le texte', err)
-          return null as unknown as Buffer
-        })
-      }
 
       const filename = seoFileName(productTitle, index)
 
       // Through a buffer rather than straight to disk: the same bytes go either
       // to the container's volume or to object storage, decided by putFile.
-      const marque = options.enabled === false ? null : logo ?? textOverlay(options.text, width, opacity)
+      const marque =
+        options.enabled === false
+          ? null
+          : (await logoPour(width)) ?? textOverlay(options.text, width, opacity)
       const output = await (marque ? image.composite([{ input: marque, gravity }]) : image)
         .jpeg({ quality: 88 })
         .toBuffer()
 
-      results.push(await putFile(`products/${filename}`, output, 'image/jpeg'))
+      return { index, chemin: await putFile(`products/${filename}`, output, 'image/jpeg') }
     } catch {
       // If a given source image can't be fetched/processed, skip it rather than
       // fail the whole import — the user can still review/replace it in the back office.
+      return null
     }
   }
 
-  return results
+  /*
+   * Quatre photos de front, et pas quinze.
+   *
+   * **C'était le poste le plus cher d'un import.** Quinze photos téléchargées
+   * depuis un CDN lointain puis décodées, marquées et réencodées, l'une après
+   * l'autre : deux à quatre secondes chacune, soit trente à soixante secondes
+   * pour un travail qui attend le réseau presque tout du long. Signalé le
+   * 02/09/2026 — « pourquoi c'est aussi long ».
+   *
+   * Quatre et pas quinze parce que `sharp` décode en mémoire : quinze images
+   * de trois mille pixels ouvertes ensemble tiennent plusieurs centaines de
+   * mégaoctets, et le conteneur n'en a pas tant. Quatre couvre l'attente réseau
+   * sans mettre la mémoire en danger.
+   */
+  const CONCURRENCE = 4
+  const sorties: Array<{ index: number; chemin: string } | null> = []
+  for (let i = 0; i < selected.length; i += CONCURRENCE) {
+    sorties.push(...(await Promise.all(selected.slice(i, i + CONCURRENCE).map((u, k) => traiter(u, i + k)))))
+  }
+
+  /*
+   * Remises dans l'ordre d'origine.
+   *
+   * Il porte le choix du vendeur : la première photo est celle qui s'affiche
+   * partout. Un traitement en parallèle rend les résultats dans l'ordre où ils
+   * finissent, c'est-à-dire dans celui des vitesses de CDN — la photo
+   * principale se retrouverait en quatrième position pour avoir mis une seconde
+   * de plus à arriver.
+   */
+  return sorties
+    .filter((s): s is { index: number; chemin: string } => s !== null)
+    .sort((a, b) => a.index - b.index)
+    .map((s) => s.chemin)
 }
 
 /**
