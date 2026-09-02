@@ -111,18 +111,40 @@ function renderLogin(error) {
 
     ${error ? `<p class="error">${error}</p>` : ''}
 
+    <p class="link" id="mdpOublie" style="margin-top:8px">Mot de passe oublié ?</p>
+
     <p class="muted" style="margin-top:12px">
-      Pas encore de compte ? L'extension a besoin d'un compte DropShipper IA pour
-      ranger vos produits.
+      L'extension utilise le compte de <b>drop-shipper.fr</b>. Connectez-vous sur
+      le site dans ce navigateur et elle reprendra la session toute seule — vous
+      n'aurez rien à saisir ici.
     </p>
+    <button id="ouvrirSite" style="width:100%;margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;border-radius:7px;font-size:12px;cursor:pointer">
+      Ouvrir drop-shipper.fr et se connecter
+    </button>
     <button id="creerCompte" style="width:100%;margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;border-radius:7px;font-size:12px;cursor:pointer">
-      Créer un compte sur drop-shipper.fr
+      Créer un compte
     </button>
 
     <p class="link" id="openCfg" style="margin-top:10px">Configurer les adresses</p>
   `
 
   document.getElementById('openCfg').addEventListener('click', renderSettings)
+
+  /*
+   * Le mot de passe se récupère sur le site, pas ici.
+   *
+   * Refaire l'écran d'oubli dans le popup demanderait de recevoir un courriel,
+   * de cliquer un lien, et de revenir — le lien ouvre le navigateur de toute
+   * façon. Il manquait simplement la porte : le vendeur qui avait oublié son
+   * mot de passe était devant un formulaire qui refuse, sans sortie.
+   */
+  document.getElementById('mdpOublie').addEventListener('click', async () => {
+    chrome.tabs.create({ url: `${await getAppUrl()}/forgot-password` })
+  })
+
+  document.getElementById('ouvrirSite').addEventListener('click', async () => {
+    chrome.tabs.create({ url: `${await getAppUrl()}/login` })
+  })
 
   document.getElementById('creerCompte').addEventListener('click', async () => {
     chrome.tabs.create({ url: `${await getAppUrl()}/register` })
@@ -174,7 +196,27 @@ function renderLogin(error) {
  */
 async function renderSiteBox() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (!tab?.url || !tab.url.startsWith('https://')) return ''
+
+  /*
+   * Quand le bouton ne peut pas être proposé, le dire.
+   *
+   * L'encadré disparaissait sans un mot dès que l'onglet actif n'était pas une
+   * page https — `chrome://extensions` juste après un rechargement de
+   * l'extension, une page d'accueil, un onglet vide. Le vendeur venait
+   * précisément d'ouvrir le popup pour ajouter le bouton, et lisait à la place
+   * un panneau où l'option n'existait plus : impossible d'en conclure autre
+   * chose qu'une panne.
+   */
+  if (!tab?.url || !tab.url.startsWith('https://')) {
+    return `
+      <div class="site-box">
+        <div class="site-title">✨ Ajouter le bouton à un site</div>
+        <p class="muted">Cet onglet n'est pas une page marchande — c'est
+        ${tab?.url?.startsWith('chrome') ? 'une page interne de Chrome' : 'une page sans adresse https'}.
+        Ouvrez la fiche du produit qui vous intéresse, puis rouvrez ce panneau :
+        le bouton se propose là.</p>
+      </div>`
+  }
 
   const origin = new URL(tab.url).origin
   const host = new URL(tab.url).hostname.replace('www.', '')
