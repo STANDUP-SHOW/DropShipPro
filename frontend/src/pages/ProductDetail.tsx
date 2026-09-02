@@ -26,6 +26,7 @@ import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { PriceInput } from '../components/PriceInput'
 import { PhotoAgentBlock } from '../components/PhotoAgentBlock'
+import { OptimizerAgentBlock } from '../components/OptimizerAgentBlock'
 import { ChannelReadiness } from '../components/ChannelReadiness'
 import { GooglePreview } from '../components/GooglePreview'
 import { SocialPublishDialog } from '../components/SocialPublishDialog'
@@ -500,6 +501,9 @@ export default function ProductDetail() {
               onImagesChanged={load}
             />
           ) : null}
+
+          {/* ---------- L'agent qualité, là où l'annonce se relit ---------- */}
+          {id ? <OptimizerAgentBlock productId={id} onOptimise={load} /> : null}
 
           {/* ---------- Ce que chaque destination acceptera ---------- */}
           {id ? <ChannelReadiness productId={id} /> : null}

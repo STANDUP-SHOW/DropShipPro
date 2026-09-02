@@ -31,6 +31,7 @@ import { watermarkOptionsFor } from '../services/watermarkOptions.js'
 import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
 import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
+import { optimiserAnnonce } from '../services/listingOptimizer.js'
 import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
 
 export const productsRouter = Router()
@@ -428,6 +429,44 @@ productsRouter.get('/:id/score', async (req: AuthedRequest, res) => {
   })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
   res.json(scoreListing(product))
+})
+
+/**
+ * Reprendre une annonce sur ce qui lui manque.
+ *
+ * La note disait déjà quoi corriger, critère par critère, et personne ne le
+ * faisait : le vendeur lisait un bulletin sans bouton pour le suivre. Sur trois
+ * cents annonces, un diagnostic qu'il faut exécuter à la main n'existe pas.
+ *
+ * **Un crédit, et seulement si le modèle a répondu.** La réécriture est ce que
+ * le crédit paie ; une reprise qui ne change rien parce que tout allait déjà
+ * bien ne se facture pas non plus.
+ */
+productsRouter.post('/:id/optimiser', async (req: AuthedRequest, res) => {
+  const product = await prisma.product.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!product) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const credit = await reserveCredits(req.userId!, 1)
+  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+
+  try {
+    const { optimisation, champs } = await optimiserAnnonce(product)
+
+    // Rien réécrit — modèle injoignable, ou rien à reprendre : le crédit est rendu.
+    if (!optimisation.reecrit || !champs) {
+      await refundCredits(req.userId!, 1)
+      return res.json(optimisation)
+    }
+
+    await prisma.product.update({ where: { id: product.id }, data: champs })
+    res.json(optimisation)
+  } catch (err) {
+    await refundCredits(req.userId!, 1)
+    console.error('optimisation impossible', err)
+    res.status(502).json({ error: "La reprise de l'annonce n'a pas abouti. Réessayez dans un instant." })
+  }
 })
 
 /**

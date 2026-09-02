@@ -239,6 +239,30 @@ export const api = {
       total: number
     }>(`/products/${id}/conformite`),
 
+  /** La note d'une annonce, critère par critère, avec la correction de chacun. */
+  noteAnnonce: (id: string) =>
+    request<{
+      score: number
+      level: 'bon' | 'moyen' | 'faible'
+      checks: Array<{ label: string; points: number; max: number; fix: string | null }>
+      priorities: string[]
+    }>(`/products/${id}/score`),
+  /*
+   * Reprendre l'annonce sur ce qui lui manque.
+   *
+   * Un crédit, rendu si le modèle n'a pas répondu ou s'il n'y avait rien à
+   * reprendre : le vendeur paie une réécriture qu'il a reçue.
+   */
+  optimiserAnnonce: (id: string) =>
+    request<{
+      avant: { score: number }
+      apres: { score: number; checks: Array<{ label: string; points: number; max: number; fix: string | null }> }
+      changements: string[]
+      aVous: string[]
+      complet: boolean
+      reecrit: boolean
+    }>(`/products/${id}/optimiser`, { method: 'POST' }),
+
   categoryPreview: (id: string) => request<Record<string, string>>(`/products/${id}/category-preview`),
   listCategories: (filter?: { sector?: string; shop?: string }) =>
     request<{
