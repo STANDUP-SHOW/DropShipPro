@@ -777,6 +777,19 @@
       images: [],
       sourceCategory: collectCategory(),
       variants: collectVariants(),
+      /*
+       * Les combinaisons d AliExpress, avec leur prix et leur photo.
+       *
+       * `variants` ne porte que des libelles. Sans ces deux modules, une fiche
+       * a douze couleurs se publie avec douze fois le meme prix et aucune
+       * image -- non par defaut d appel, mais faute d avoir quoi que ce soit a
+       * transmettre. La jointure est faite par le serveur, qu on peut corriger
+       * sans republier l extension.
+       */
+      skuAliExpress:
+        typeof window.__dspReleverSkuAliExpress === 'function'
+          ? window.__dspReleverSkuAliExpress()
+          : null,
       pageText: collectPageText(),
     }
   }

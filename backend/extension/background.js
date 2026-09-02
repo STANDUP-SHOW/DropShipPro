@@ -123,6 +123,8 @@ function registerApprovedSites() {
         'content/fill-helpers.js',
         'content/image-scan.js',
         'content/adapters.js',
+        // Avant la capture : elle appelle le releveur, qui doit exister.
+        'content/aliexpress-sku.js',
         'content/capture.js',
       ],
       runAt: 'document_idle',

@@ -1,5 +1,4 @@
 import { Router, type Response } from 'express'
-import { reparerVariantes } from '../services/variantRepair.js'
 import { z } from 'zod'
 import archiver from 'archiver'
 import multer from 'multer'
@@ -7,8 +6,7 @@ import path from 'path'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
-import { enhanceListing, extractVariants } from '../services/aiEnhancer.js'
-import { rapatrierImages, watermarkUploads } from '../services/watermark.js'
+import { watermarkUploads } from '../services/watermark.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory, mapCategories } from '../services/categoryMapping.js'
 import { resoudreCategorie, arbreCategories, apprendreCategorie, avecGenre } from '../services/categories.js'
@@ -96,24 +94,6 @@ productsRouter.post(
   }),
 )
 
-/**
- * Réunit les options relevées par l'extension et celles lues par le modèle.
- *
- * Le relevé de la page l'emporte sur celui du modèle quand les deux nomment le
- * même groupe : il vient de ce que le site affiche vraiment, là où le modèle
- * interprète. Mais tout groupe que seul le modèle a vu est conservé.
- */
-function mergeVariants(
-  fromDom: Record<string, string[]> | null,
-  fromModel: Record<string, string[]> | null,
-): Record<string, string[]> | null {
-  const merged: Record<string, string[]> = { ...(fromModel ?? {}) }
-  for (const [name, values] of Object.entries(fromDom ?? {})) {
-    if (Array.isArray(values) && values.length > 1) merged[name] = values
-  }
-  return Object.keys(merged).length ? merged : null
-}
-
 const captureSchema = z.object({
   sourceUrl: z.string().url(),
   title: z.string().min(1),
@@ -123,6 +103,14 @@ const captureSchema = z.object({
   images: z.array(z.string().url()).default([]),
   sourceCategory: z.string().nullable().default(null),
   variants: z.any().optional(),
+  /**
+   * Les modules SKU et PRICE d une fiche AliExpress, tels que la page les porte.
+   *
+   * \`z.any()\` parce que leur forme appartient a AliExpress et change a chaque
+   * refonte : la valider ici ferait refuser un releve valide le jour ou ils
+   * ajoutent un champ. La lecture, elle, ne prend que ce qu elle reconnait.
+   */
+  skuAliExpress: z.any().optional(),
   pageText: z.string().max(20000).optional(),
 })
 
@@ -130,86 +118,60 @@ const captureSchema = z.object({
 // browser, so price, gallery and variants arrive filled in — the things the
 // server-side scraper can't reach on Temu/JoyBuy. Everything after that (AI
 // remix, watermark, category guess) is the same pipeline as /import.
+/**
+ * L import depuis l extension.
+ *
+ * La page est deja lue : le navigateur du vendeur a rendu la fiche, l extension
+ * en a tire le titre, le prix, la galerie et les options. Sur Temu, AliExpress
+ * ou Shein, c est la seule voie -- un serveur qui va lire la page n en recoit
+ * qu une coquille.
+ *
+ * **C etait une troisieme copie de la meme chaine**, apres l import par adresse
+ * et l import en lot, et elle avait ses propres oublis : pas de
+ * \`imagesWatermarked: false\`, donc des annonces reputees deja marquees dont le
+ * filigrane n a jamais ete pose. Le meme defaut que le lot, decouvert le meme
+ * jour, dans un troisieme bloc recopie. Les trois entrees appellent desormais
+ * \`importerAdresse\`.
+ */
 productsRouter.post(
   '/capture',
   queued(async (req, res) => {
-  const parsed = captureSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
+    const parsed = captureSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
 
-  const data = parsed.data
+    const data = parsed.data
 
-  const credit = await reserveCredits(req.userId!, 1)
-  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+    const credit = await reserveCredits(req.userId!, 1)
+    if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
-  try {
-    const enhanced = await enhanceListing({
-      title: data.title,
-      description: data.description,
-      category: data.sourceCategory,
-      pageText: data.pageText,
-    })
-    const watermarked = await rapatrierImages(data.images, enhanced.title)
+    try {
+      const { produit, reecrit, notes } = await importerAdresse(req.userId!, data.sourceUrl, {
+        capture: {
+          title: data.title,
+          description: data.description,
+          price: data.price,
+          currency: data.currency,
+          images: data.images,
+          sourceCategory: data.sourceCategory,
+          pageText: data.pageText,
+        },
+        releve: {
+          images: data.images,
+          variantes: data.variants as Record<string, string[]> | undefined,
+          skuAliExpress: data.skuAliExpress ?? null,
+        },
+      })
 
-    // The extension rarely finds the option pickers by structure, so the model
-    // reads them from the page text instead.
-    /**
-     * Les deux relevés, fusionnés — et non l'un ou l'autre.
-     *
-     * Le relevé du DOM attrape des groupes d'options par leur classe, ce qui
-     * marche quand le site les nomme lisiblement et rate le reste. Laisser ce
-     * relevé l'emporter dès qu'il trouve quelque chose privait de la lecture par
-     * le modèle exactement là où elle sert : une fiche où il n'a ramené qu'un
-     * seul groupe sur trois. Le modèle complète donc ce qui manque.
-     */
-    const fromPage = data.pageText ? await extractVariants(data.pageText) : null
-    const variants = reparerVariantes(
-      mergeVariants(data.variants as Record<string, string[]> | null, fromPage),
-    ).variantes
-
-    const rangement = await resoudreCategorie({
-      sourceCategory: data.sourceCategory,
-      supplierId: supplierFields(data.sourceUrl).supplierId,
-      title: data.title,
-      pageText: data.pageText,
-    })
-
-    const product = await prisma.product.create({
-      data: {
-        userId: req.userId!,
-        sourceUrl: data.sourceUrl,
-        sourceSite: new URL(data.sourceUrl).hostname.replace('www.', ''),
-        ...supplierFields(data.sourceUrl),
-        sourceCategory: data.sourceCategory,
-        categoryId: rangement.categoryId,
-        title: data.title,
-        description: data.description,
-        aiTitle: enhanced.title,
-        aiDescription: enhanced.description,
-        price: data.price,
-        sellingPrice: data.price * 1.5,
-        currency: data.currency,
-        images: watermarked.length ? watermarked : data.images,
-        variants: variants ?? undefined,
-        metaTitle: enhanced.metaTitle,
-        metaDescription: enhanced.metaDescription,
-        metaKeywords: enhanced.metaKeywords,
-        titleVariants: enhanced.titleVariants,
-        bulletPoints: enhanced.bulletPoints,
-        attributes: enhanced.attributes,
-        aiEnhanced: enhanced.enhanced,
-        status: 'READY',
-      },
-    })
-    if (!enhanced.enhanced) await refundCredits(req.userId!, 1)
-
-    res.status(201).json(product)
-  } catch (err) {
-    await refundCredits(req.userId!, 1)
-    console.error(err)
-    res.status(500).json({ error: "Impossible d'enregistrer ce produit" })
+      if (!reecrit) await refundCredits(req.userId!, 1)
+      res.status(201).json({ ...produit, notes })
+    } catch (err) {
+      await refundCredits(req.userId!, 1)
+      console.error(err)
+      res.status(500).json({ error: "Impossible d'enregistrer ce produit" })
     }
   }),
 )
+
 
 const batchImportSchema = z.object({
   urls: z.array(z.string().url()).min(1).max(25),

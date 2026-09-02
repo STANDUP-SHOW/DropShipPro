@@ -42,6 +42,24 @@ export interface ResultatImport {
   notes: string[]
 }
 
+/**
+ * Une fiche deja relevee par l extension, qui remplace le scraping.
+ *
+ * Sur les sites batis en JavaScript -- Temu, AliExpress, Shein -- le serveur ne
+ * recoit qu une coquille vide. L extension, elle, lit la page affichee. Le reste
+ * de la chaine est identique, et c est tout l interet : la capture etait une
+ * **troisieme** copie du meme travail, et elle avait ses propres oublis.
+ */
+export interface FicheRelevee {
+  title: string
+  description: string
+  price: number
+  currency: string
+  images: string[]
+  sourceCategory: string | null
+  pageText?: string
+}
+
 export interface OptionsImport {
   /** La boutique de destination, quand le vendeur en a désigné une. */
   shopId?: string | null
@@ -64,6 +82,8 @@ export interface OptionsImport {
     /** Les modules bruts d une fiche AliExpress, a joindre nous-memes. */
     skuAliExpress?: ModulesAliExpress | null
   } | null
+  /** La fiche relevee par l extension. Presente : on ne va pas lire la page. */
+  capture?: FicheRelevee | null
 }
 
 /**
@@ -79,7 +99,22 @@ export async function importerAdresse(
 ): Promise<ResultatImport> {
   const notes: string[] = []
 
-  const scraped = await scrapeProduct(url)
+  /*
+   * La page est lue seulement si personne ne l a deja lue.
+   *
+   * L extension envoie ce qu elle a vu a l ecran ; aller le rechercher cote
+   * serveur donnerait une coquille vide sur les sites qui construisent leur
+   * fiche en JavaScript, et ecraserait un bon releve par un mauvais.
+   */
+  const scraped = options.capture
+    ? {
+        ...options.capture,
+        sourceSite: new URL(url).hostname.replace('www.', ''),
+        declaredImages: [] as string[],
+        domImages: [] as string[],
+        chromeImages: [] as string[],
+      }
+    : await scrapeProduct(url)
   const user: User = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
 
   const enhanced = await enhanceListing({
@@ -95,7 +130,7 @@ export async function importerAdresse(
    * Cet ordre donne l'en-tête du site, pas la galerie. C'est la première chose
    * que l'import en lot avait perdue.
    */
-  const releveesParExtension = (options.releve?.images ?? []).filter(Boolean)
+  const releveesParExtension = (options.releve?.images ?? options.capture?.images ?? []).filter(Boolean)
   const chosen = releveesParExtension.length
     ? releveesParExtension.slice(0, PHOTOS_PAR_ANNONCE)
     : await selectProductImages(
@@ -108,7 +143,7 @@ export async function importerAdresse(
 
   // Les options d'achat se lisent dans le texte de la page : aucune balise ne
   // les déclare, et sans cette lecture un import ne rend ni taille ni couleur.
-  const luesParLeModele = await extractVariants(scraped.pageText)
+  const luesParLeModele = await extractVariants(scraped.pageText ?? '')
   const annoncees = fusionnerVariantes(options.releve?.variantes, luesParLeModele)
 
   // L'agent de contrôle voit ce que les heuristiques ne peuvent pas voir : une
