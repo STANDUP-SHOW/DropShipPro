@@ -15,7 +15,7 @@ import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
 import { lireClasseur, colonneAdresses, XlsxIllisible } from '../services/xlsx.js'
 import { importerDepuisFournisseurs } from '../services/supplierImport.js'
 import { verifierCanaux } from '../services/channelRules.js'
-import { titlesByChannel } from '../services/channelCopy.js'
+import { titlesByChannel, titleForChannel } from '../services/channelCopy.js'
 import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
@@ -1393,8 +1393,30 @@ productsRouter.get('/:id/publish-payload', async (req: AuthedRequest, res) => {
   ])
 
   const base = apiBaseUrl(req)
+
+  /*
+   * Le titre est raccourci pour la destination, ici et pas ailleurs.
+   *
+   * **Il partait brut.** L'écran de conformité affichait « Leboncoin refuse un
+   * titre de plus de 50 caractères » pendant que l'extension en déposait 200 —
+   * et `titleForChannel()`, qui sait choisir la bonne longueur parmi les trois
+   * variantes écrites à l'import, n'était appelé que pour Google Shopping et
+   * Shopify. Un titre de 130 caractères, la longueur normale que l'IA produit,
+   * arrivait donc entier dans le champ de Leboncoin, qui le refuse ou le coupe
+   * au milieu d'un mot. Même trou pour Vinted (70) et Facebook (100).
+   *
+   * La plateforme arrive en paramètre : sans elle on ne peut pas savoir quelle
+   * longueur viser, et le titre brut reste rendu tel quel — c'est le
+   * comportement des appelants qui ne la passent pas encore.
+   */
+  const plateforme = String(req.query.platform ?? '').toUpperCase()
+  const titre =
+    plateforme && PLATFORM_IDS.includes(plateforme as never)
+      ? titleForChannel(produit, plateforme as never)
+      : produit.aiTitle || produit.title
+
   res.json({
-    title: produit.aiTitle || produit.title,
+    title: titre,
     description: produit.aiDescription || produit.description,
     price: Number(produit.sellingPrice).toFixed(2),
     currency: produit.currency,

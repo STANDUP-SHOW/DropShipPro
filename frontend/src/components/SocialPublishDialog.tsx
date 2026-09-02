@@ -89,11 +89,32 @@ export function SocialPublishDialog({
     [comptes, choisis],
   )
 
+  /**
+   * Dix photos au plus dans un carrousel — la limite d'Instagram.
+   *
+   * Elle est écrite trois fois : ici, dans le schéma de `POST /social/publish`
+   * (`.max(10)`) et dans l'adaptateur Meta (`medias.slice(0, 10)`). Une seule
+   * des trois était visible du vendeur, et ce n'était pas celle-ci : la fenêtre
+   * laissait cocher les quinze photos de l'annonce, puis le serveur répondait
+   * 400 sur son schéma — sans dire quelle limite avait sauté, puisqu'aucun
+   * message n'existe pour ce cas.
+   */
+  const MEDIAS_MAX = 10
+
   const basculer = (ensemble: Set<string>, valeur: string, poser: (s: Set<string>) => void) => {
     const suivant = new Set(ensemble)
     if (suivant.has(valeur)) suivant.delete(valeur)
     else suivant.add(valeur)
     poser(suivant)
+  }
+
+  /** Le même geste, borné : cocher une onzième photo ne doit rien casser. */
+  const basculerPhoto = (valeur: string) => {
+    const suivant = new Set(photos)
+    if (suivant.has(valeur)) suivant.delete(valeur)
+    else if (suivant.size >= MEDIAS_MAX) return
+    else suivant.add(valeur)
+    setPhotos(suivant)
   }
 
   async function envoyer() {
@@ -271,7 +292,7 @@ export function SocialPublishDialog({
                 {donnees.medias.length > 0 ? (
                   <section>
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Photos — {photos.size} choisie(s)
+                      {`Photos — ${photos.size} choisie(s) sur ${MEDIAS_MAX} au plus`}
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {donnees.medias.map((m) => {
@@ -280,7 +301,7 @@ export function SocialPublishDialog({
                           <button
                             key={m}
                             type="button"
-                            onClick={() => basculer(photos, m, setPhotos)}
+                            onClick={() => basculerPhoto(m)}
                             className={`relative h-16 w-16 overflow-hidden rounded-lg border-2 transition ${
                               actif ? 'border-purple-400' : 'border-transparent opacity-40'
                             }`}

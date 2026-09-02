@@ -1,6 +1,7 @@
 import sharp from 'sharp'
 import Anthropic from '@anthropic-ai/sdk'
 import { fetchSourceImage } from './watermark.js'
+import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
 
 /**
  * L'agent de contrôle.
@@ -27,8 +28,25 @@ import { fetchSourceImage } from './watermark.js'
 
 const MODEL = 'claude-sonnet-4-5'
 
-/** Au-delà, l'appel coûte plus qu'il ne rapporte et ralentit chaque import. */
-const MAX_IMAGES = 12
+/**
+ * L'agent regarde toutes les photos de l'annonce, pas les douze premières.
+ *
+ * **C'était `12`, et son verdict devient la galerie.** `productImport.ts` lui
+ * passe les quinze photos choisies ; il n'en miniaturisait que douze, et
+ * `keep` ne pouvait donc contenir que des adresses prises dans ces douze-là.
+ * Les photos 13, 14 et 15 disparaissaient de l'annonce **sans avoir jamais été
+ * regardées**.
+ *
+ * Pire que la perte : le message. L'import écrivait alors « 3 photo(s)
+ * écartée(s) par l'agent de contrôle » — le vendeur croyait que l'IA avait jugé
+ * ses photos mauvaises, alors qu'elle ne les avait pas vues. Un défaut qui
+ * accuse quelqu'un d'autre est le plus coûteux de tous : on cherche la panne là
+ * où elle n'est pas.
+ *
+ * Le coût suit le nombre de photos, et c'est le bon compromis : un vendeur qui
+ * en met quinze veut qu'on les regarde toutes.
+ */
+const MAX_IMAGES = PHOTOS_PAR_ANNONCE
 
 /** Assez pour juger d'un coup d'œil, sans transporter des méga-octets. */
 const THUMB_SIDE = 512
@@ -171,7 +189,20 @@ export async function reviewImages(params: {
       return { ...untouched, note: "Contrôle sans résultat exploitable : photos conservées telles quelles." }
     }
 
-    const keep = indexes.map((n) => thumbs[n - 1].url)
+    /*
+     * Une photo non miniaturisée est gardée, pas jugée.
+     *
+     * `thumbs` ne contient que les photos que l'on a réussi à télécharger et à
+     * réduire. Une adresse refusée par le CDN — hotlink, lenteur, 403 — n'y
+     * figure pas, donc `keep` ne pouvait pas la contenir, et
+     * `productImport.ts` la supprimait de l'annonce : **une photo parfaitement
+     * bonne effacée parce que notre serveur n'a pas su la lire.**
+     *
+     * Un contrôle ne peut écarter que ce qu'il a vu. Ce qu'il n'a pas vu reste.
+     */
+    const vues = new Set(thumbs.map((t) => t.url))
+    const nonVues = params.images.filter((u) => !vues.has(u))
+    const keep = [...indexes.map((n) => thumbs[n - 1].url), ...nonVues]
 
     const rejected = Array.isArray(parsed.rejected)
       ? parsed.rejected

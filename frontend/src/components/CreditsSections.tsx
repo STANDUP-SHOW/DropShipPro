@@ -138,10 +138,19 @@ export function TransparenceCredits() {
     { quoi: 'Filigraner les photos', combien: 'offert', gratuit: true },
     { quoi: 'Poser une question à un chef de rayon, dans son rayon', combien: '1 annonce' },
     { quoi: 'Poser une question hors du rayon de cet agent', combien: 'rien, la réponse est refusée', gratuit: true },
-    { quoi: "Parler aux agents du comptoir — hotline, commercial, SAV, livraisons, comptable", combien: 'offert', gratuit: true },
+    /*
+     * « Offert » était faux, et c'est le pire endroit pour l'être.
+     *
+     * `POST /chat/support/:key` (routes/reports.ts) prélève un crédit annonce
+     * par question, sauf abonnement illimité — exactement comme un chef de
+     * rayon. Ce tableau s'appelle « Transparence » : une ligne fausse ici coûte
+     * plus que la ligne elle-même.
+     */
+    { quoi: "Parler aux agents du comptoir — hotline, commercial, SAV, livraisons, comptable", combien: '1 annonce' },
     { quoi: 'Analyser le marché d’un produit', combien: '1 annonce' },
     { quoi: 'Faire refaire une photo par Léa', combien: '1 image' },
-    { quoi: 'Produire un visuel publicitaire, par format demandé', combien: '1 image' },
+    // Deux depuis le 02/09/2026 : une accroche écrite, puis un visuel composé.
+    { quoi: 'Produire un visuel publicitaire, par format demandé', combien: '2 images' },
   ]
 
   return (

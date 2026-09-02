@@ -103,6 +103,65 @@ console.log('\nLes nombres nus dans le sélecteur de photos')
   )
 }
 
+// --- Toutes les copies du plafond de photos ---------------------------------
+console.log('\nLes autres endroits qui décident du nombre de photos')
+{
+  /*
+   * Une passe exhaustive du 02/09/2026 a trouvé **six copies** de ce nombre au
+   * lieu d'une : l'agent de contrôle en regardait 12 et supprimait le reste de
+   * l'annonce sans l'avoir vu, la reprise d'une image générée recoupait à 12,
+   * l'import par liste fournisseur plafonnait à 8, et l'étiquette de la zone de
+   * dépôt du site annonçait encore 10.
+   *
+   * Chacune était invisible : rien n'échoue, des photos disparaissent.
+   */
+  const attendus = [
+    ['src/services/controlAgent.ts', /const MAX_IMAGES = PHOTOS_PAR_ANNONCE/, "l'agent de contrôle regarde toutes les photos"],
+    ['src/routes/visuals.ts', /\.slice\(0, PHOTOS_PAR_ANNONCE\)/, 'garder une image générée ne recoupe pas la galerie'],
+    ['src/services/supplierImport.ts', /slice\(0, PHOTOS_PAR_ANNONCE\)/, "l'import par liste fournisseur suit le même plafond"],
+  ]
+  for (const [fichier, motif, nom] of attendus) {
+    verifier(nom, motif.test(lire(fichier)), fichier)
+  }
+
+  // Et le site, que ce banc ne regardait pas du tout.
+  const fiche = fs.readFileSync(
+    path.join(__dirname, '..', 'frontend', 'src', 'pages', 'ProductDetail.tsx'),
+    'utf8',
+  )
+  verifier(
+    "la zone de dépôt du site n'écrit pas le plafond à la main",
+    !/\d+ photos max/.test(fiche),
+    (fiche.match(/\d+ photos max/) ?? ['—'])[0],
+  )
+}
+
+// --- Le carrousel social -----------------------------------------------------
+console.log('\nLes photos d’une publication sociale')
+{
+  const route = lire('src/routes/social.ts')
+  const serveur = Number((route.match(/medias:\s*z\.array\([\s\S]{0,80}?\.max\((\d+)\)/) ?? [])[1] ?? NaN)
+  const dialogue = fs.readFileSync(
+    path.join(__dirname, '..', 'frontend', 'src', 'components', 'SocialPublishDialog.tsx'),
+    'utf8',
+  )
+  const ecran = nombreDe(dialogue, 'MEDIAS_MAX')
+
+  verifier('le serveur déclare sa limite', Number.isFinite(serveur), String(serveur))
+  verifier("l'écran la déclare aussi", ecran !== null, String(ecran))
+  verifier('les deux disent le même nombre', ecran === serveur, `écran ${ecran}, serveur ${serveur}`)
+  /*
+   * Et l'écran doit la faire respecter, pas seulement l'afficher.
+   *
+   * Il laissait cocher les quinze photos de l'annonce puis le serveur répondait
+   * 400 sur son schéma — sans message, puisqu'aucun n'existe pour ce cas.
+   */
+  verifier(
+    "l'écran empêche de dépasser au lieu de laisser le serveur refuser",
+    /size >= MEDIAS_MAX/.test(dialogue),
+  )
+}
+
 // --- La taille d'un lot ------------------------------------------------------
 console.log("\nLa taille d'un lot d'import")
 {

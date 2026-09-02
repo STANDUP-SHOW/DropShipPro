@@ -108,6 +108,16 @@ export default function ProductDetail() {
   const [dragging, setDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [photoError, setPhotoError] = useState<string | null>(null)
+  /**
+   * Le plafond de photos, appris du serveur.
+   *
+   * Écrit en dur dans l'étiquette de la zone de dépôt, il a survécu au passage
+   * de dix à quinze — pendant que le message d'erreur, quelques lignes plus
+   * bas, annonçait déjà quinze. Deux nombres contradictoires sur le même écran.
+   * La première réponse du serveur le corrige ; quinze est la valeur du jour, et
+   * elle ne sert que le temps d'un envoi.
+   */
+  const [plafondPhotos, setPlafondPhotos] = useState(15)
 
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
@@ -216,8 +226,21 @@ export default function ProductDetail() {
       const res = await uploadProductImages(id, picked)
       setProduct((p: any) => ({ ...p, images: res.images }))
       setSavedAt(new Date())
+      if (res.max) setPlafondPhotos(res.max)
       if (res.added < picked.length) {
-        setPhotoError(`${res.added} photo(s) ajoutée(s) sur ${picked.length} — limite de ${res.max ?? 15} par annonce.`)
+        /*
+         * La limite n'est pas la seule raison d'un envoi partiel.
+         *
+         * Une photo peut aussi être illisible ou refusée au traitement. Dire
+         * « limite atteinte » dans ce cas envoie chercher une place qui existe,
+         * et le vrai échec ne laisse aucune trace.
+         */
+        const dejaPleine = (res.images?.length ?? 0) >= (res.max ?? plafondPhotos)
+        setPhotoError(
+          dejaPleine
+            ? `${res.added} photo(s) ajoutée(s) sur ${picked.length} — limite de ${res.max ?? plafondPhotos} par annonce atteinte.`
+            : `${res.added} photo(s) ajoutée(s) sur ${picked.length} — ${picked.length - res.added} n'ont pas pu être lues (format ou fichier abîmé).`,
+        )
       }
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : 'Ajout impossible')
@@ -479,7 +502,13 @@ export default function ProductDetail() {
               <ImagePlus size={19} className="text-purple-300" />
               <span className="text-sm font-medium">{uploading ? 'Traitement…' : 'Ajouter mes photos'}</span>
               <span className="text-xs text-gray-500">
-                Glissez-déposez ou cliquez · 10 photos max · filigrane automatique
+                {/*
+                  Le plafond vient du serveur, il ne s'écrit plus à la main.
+                  L'étiquette disait 10 et le message d'erreur, 260 lignes plus
+                  bas, disait 15 : le vendeur s'arrêtait à dix et n'utilisait
+                  jamais les cinq places qu'il avait.
+                */}
+                {`Glissez-déposez ou cliquez · ${plafondPhotos} photos max · filigrane automatique`}
               </span>
             </label>
             {photoError ? <p className="mt-2 text-xs text-red-400">{photoError}</p> : null}

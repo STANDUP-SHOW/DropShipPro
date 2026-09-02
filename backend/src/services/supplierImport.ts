@@ -3,6 +3,7 @@ import { reparerVariantes } from './variantRepair.js'
 import { SupplierError, findConnector } from './supplierConnectors.js'
 import { enhanceListing } from './aiEnhancer.js'
 import { rapatrierImages } from './watermark.js'
+import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
 import { resoudreCategorie } from './categories.js'
 import { reserveCredits } from './billing.js'
 
@@ -108,7 +109,18 @@ export async function importerDepuisFournisseurs(
           pageText: fiche.pageText,
         })
 
-        const filigranees = await rapatrierImages(fiche.images.slice(0, 8), enrichi.title)
+        /*
+         * Le même plafond que partout ailleurs, pas huit.
+         *
+         * `8` était écrit ici à la main : un import par liste fournisseur
+         * rendait donc des annonces à huit photos quand les deux autres voies
+         * en rendent quinze, sans que rien ne distingue les deux cas pour le
+         * vendeur. Quatrième valeur d'un nombre qui ne devait en avoir qu'une.
+         */
+        const filigranees = await rapatrierImages(
+          fiche.images.slice(0, PHOTOS_PAR_ANNONCE),
+          enrichi.title,
+        )
 
         /*
          * L'identifiant de catégorie du fournisseur est la clé la plus sûre :
@@ -150,6 +162,17 @@ export async function importerDepuisFournisseurs(
             metaTitle: enrichi.metaTitle,
             metaDescription: enrichi.metaDescription,
             metaKeywords: enrichi.metaKeywords,
+            /*
+             * Les arguments et les caractéristiques étaient jetés.
+             *
+             * `enhanceListing` les écrit dans le même appel que le titre et la
+             * description — ils sont donc **déjà payés**. Ne pas les enregistrer
+             * revenait à facturer un travail puis à le mettre à la poubelle, et
+             * l'annonce arrivait avec une note amputée de vingt-deux points sur
+             * cent (Attributs 12, Arguments 10) sans raison lisible.
+             */
+            bulletPoints: enrichi.bulletPoints?.length ? enrichi.bulletPoints : undefined,
+            attributes: Object.keys(enrichi.attributes ?? {}).length ? enrichi.attributes : undefined,
             /*
              * En brouillon, toujours.
              *

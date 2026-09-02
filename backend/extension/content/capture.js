@@ -384,15 +384,31 @@
     // <video poster>, open shadow roots, same-origin frames, and the gallery as
     // the page's own JSON describes it. This is what separates two photos from a
     // full gallery on shops that lazy-load or swap a single carousel <img>.
+    /*
+     * On fait défiler la page **avant** de scanner, toujours.
+     *
+     * C'était un repli, joué seulement quand le scan échouait. Il manquait
+     * précisément là où il compte : Temu et AliExpress ne montent leur galerie
+     * qu'au défilement, et gardent un seul `<img>` dans le carrousel tant que
+     * personne n'a bougé.
+     *
+     * Sans importance tant que le vendeur importait produit par produit — il
+     * avait regardé la fiche, donc défilé. Signalé le 02/09/2026 sur le lot :
+     * « Temu ne scrape qu'une seule image par produit ». Dans un lot, l'onglet
+     * s'ouvre et le relevé part aussitôt, sur une page qui n'a encore rien
+     * affiché.
+     *
+     * Une seconde par produit, contre une galerie entière. Le calcul est vite
+     * fait.
+     */
+    await revealLazyImages()
+
     try {
       for (const url of await dspScanPageImages()) {
         if (!JUNK.test(url)) candidates.add(url)
       }
     } catch (err) {
-      // Repli sur l'ancien chemin : au moins provoquer le chargement différé,
-      // que le scan approfondi aurait fait lui-même.
       console.warn('DropShipper IA : scan approfondi indisponible', err)
-      await revealLazyImages()
     }
 
     for (const img of document.querySelectorAll('img')) {
@@ -1400,6 +1416,21 @@
     const trouve = await collectImages()
     const produits = Array.isArray(trouve) ? trouve : (trouve?.produits ?? [])
     payload.images = produits.slice(0, PHOTOS_MAX).map((i) => i.url)
+
+    /*
+     * Une seule photo relevée est un échec, pas un résultat.
+     *
+     * Une fiche marchande en porte toujours plusieurs ; une seule veut dire que
+     * la galerie n'était pas encore montée au moment du relevé. Le dire permet
+     * de réessayer, plutôt que d'ajouter à la liste un produit qui arrivera
+     * borgne dans le catalogue — et de ne le découvrir qu'après l'import.
+     */
+    if (payload.images.length <= 1) {
+      throw new Error(
+        `Une seule photo trouvée sur cette page : la galerie n'est probablement pas encore chargée. ` +
+          `Faites défiler la fiche, puis réessayez.`,
+      )
+    }
 
     return payload
   }

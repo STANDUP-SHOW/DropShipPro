@@ -194,10 +194,21 @@ function notify(title, message) {
  * Tabs are opened inactive: the run must not steal focus while the user works.
  */
 async function runSession({ productId, platforms }) {
-  const [product, platformList] = await Promise.all([
-    api(`/api/products/${productId}`),
-    api('/api/products/meta/platforms'),
-  ])
+  /*
+   * La charge de publication, et non l'annonce brute.
+   *
+   * **`GET /products/:id` rend `Product.images` : les originaux, sans
+   * filigrane.** Depuis que la marque se pose à l'export, ces adresses-là sont
+   * les photos nues du fournisseur — et ce chemin les déposait telles quelles
+   * sur Vinted, Leboncoin et Facebook Marketplace. Rien ne le signalait : les
+   * annonces partaient, elles étaient acceptées, et le vendeur ne le découvrait
+   * qu'en regardant une de ses annonces en ligne.
+   *
+   * `/publish-payload` passe par `imagesPourExport()`, donc par le filigrane.
+   * Le panneau latéral l'utilisait déjà, avec un commentaire qui décrivait
+   * exactement ce piège ; la correction n'avait jamais été faite ici.
+   */
+  const platformList = await api('/api/products/meta/platforms')
 
   const infoById = new Map(platformList.map((p) => [p.id, p]))
   const targets = platforms
@@ -209,11 +220,23 @@ async function runSession({ productId, platforms }) {
     return
   }
 
-  const apiBase = await getApiBase()
-  const images = (product.images || []).map((img) => (img.startsWith('/') ? `${apiBase}${img}` : img))
   const tabIds = []
+  let titreGroupe = ''
 
   for (const target of targets) {
+    /*
+     * Une charge par destination, et non une seule pour toutes.
+     *
+     * Le titre dépend de la place de marché — Leboncoin en refuse plus de 50
+     * caractères, Vinted plus de 70, Facebook plus de 100. Une charge unique
+     * obligerait à prendre le plus petit dénominateur pour tout le monde, ou à
+     * dépasser chez l'un pour satisfaire l'autre.
+     */
+    const charge = await api(
+      `/api/products/${productId}/publish-payload?platform=${encodeURIComponent(target.id)}`,
+    )
+    titreGroupe = titreGroupe || charge.title
+
     const tab = await chrome.tabs.create({ url: target.sellUrl, active: false })
     tabIds.push(tab.id)
     await chrome.storage.local.set({
@@ -221,7 +244,9 @@ async function runSession({ productId, platforms }) {
         productId,
         platform: target.id,
         platformLabel: target.label,
-        images,
+        // Déjà absolues et déjà filigranées : la route s'en charge.
+        images: charge.images ?? [],
+        titre: charge.title,
       },
     })
   }
@@ -229,7 +254,9 @@ async function runSession({ productId, platforms }) {
   try {
     const groupId = await chrome.tabs.group({ tabIds })
     await chrome.tabGroups.update(groupId, {
-      title: `DropShipper IA — ${product.aiTitle || product.title}`.slice(0, 40),
+      // `charge.title` : la charge de publication n'a pas de `aiTitle`, elle
+      // porte déjà le titre retenu.
+      title: `DropShipper IA — ${titreGroupe}`.slice(0, 40),
       color: 'purple',
     })
   } catch {

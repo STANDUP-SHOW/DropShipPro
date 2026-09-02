@@ -30,16 +30,26 @@ const CIBLES = {
   FACEBOOK: { label: 'Facebook', url: 'https://www.facebook.com/marketplace/create/item' },
 }
 
-/** L'hôte de l'onglet actif décide de la plateforme visée. */
+/**
+ * L'hôte de l'onglet actif décide de la plateforme visée.
+ *
+ * **Seules celles que le service worker sait remplir.** La liste en comptait
+ * huit — Amazon, Cdiscount, TikTok Shop et Merchant Center en plus — alors que
+ * `FILL_SCRIPTS` n'a que quatre scripts. Sur les quatre autres, le panneau
+ * proposait « Publier ici », basculait en « Dépôt en cours sur AMAZON » (libellé
+ * brut, puisque `CIBLES` n'a pas l'entrée), puis le bouton ne remplissait rien
+ * et ne disait rien.
+ *
+ * Sur ces sites-là, le panneau montre maintenant l'annonce à recopier sans
+ * promettre un remplissage qui n'existe pas. Ajouter une plateforme ici sans
+ * ajouter son script de remplissage reproduirait la panne : les deux listes
+ * doivent grandir ensemble.
+ */
 const HOTES = [
   ['vinted', 'VINTED'],
   ['leboncoin', 'LEBONCOIN'],
   ['ebay', 'EBAY'],
   ['facebook', 'FACEBOOK'],
-  ['amazon', 'AMAZON'],
-  ['cdiscount', 'CDISCOUNT'],
-  ['tiktokglobalshop', 'TIKTOK_SHOP'],
-  ['merchants.google', 'GOOGLE_SHOPPING'],
 ]
 
 let annonces = null
@@ -142,11 +152,35 @@ function montrerEnCours(listing) {
     bouton.textContent = 'Remplissage…'
     try {
       const [onglet] = await chrome.tabs.query({ active: true, currentWindow: true })
-      await chrome.runtime.sendMessage({
+      const reponse = await chrome.runtime.sendMessage({
         type: 'dsp-fill-tab',
         platform: listing.target,
         tabId: onglet?.id,
       })
+
+      /*
+       * Le refus du service worker était jeté sans être lu.
+       *
+       * Il répond `{ok:false, error:'Plateforme ou onglet inconnu'}` quand il
+       * n'a pas de script de remplissage pour ce site — quatre existent,
+       * VINTED, LEBONCOIN, EBAY et FACEBOOK. Le panneau remettait simplement le
+       * libellé du bouton : le vendeur cliquait, le bouton clignotait, rien ne
+       * se remplissait, aucun message. Sur Amazon, Cdiscount, TikTok Shop ou
+       * Merchant Center, c'était systématique.
+       */
+      if (reponse && reponse.ok === false) {
+        bouton.textContent = 'Remplissage impossible ici'
+        app.insertAdjacentHTML(
+          'beforeend',
+          `<p class="error">${echapper(
+            reponse.error === 'Plateforme ou onglet inconnu'
+              ? `Le remplissage automatique n'existe pas encore pour ${CIBLES[listing.target]?.label ?? listing.target}. Copiez les champs depuis ce panneau.`
+              : reponse.error,
+          )}</p>`,
+        )
+        return
+      }
+
       bouton.textContent = 'Remplir cette étape'
     } catch (err) {
       bouton.textContent = 'Échec — réessayer'
@@ -278,7 +312,11 @@ async function choisir(productId, plateforme, bouton, ouvrirOnglet = false) {
   bouton.disabled = true
   bouton.textContent = '…'
   try {
-    const charge = await appel(`/api/products/${productId}/publish-payload`)
+    // La plateforme voyage avec la demande : c'est elle qui décide de la
+    // longueur du titre — Leboncoin en refuse plus de 50, Vinted plus de 70.
+    const charge = await appel(
+      `/api/products/${productId}/publish-payload?platform=${encodeURIComponent(plateforme)}`,
+    )
     await chrome.storage.local.set({ pendingListing: { target: plateforme, ...charge } })
 
     if (ouvrirOnglet) {

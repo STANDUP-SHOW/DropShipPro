@@ -4,6 +4,7 @@ import { ecrireBrief } from '../services/photoBriefer.js'
 import { enseignePour } from '../services/adBrand.js'
 import { SansPolice } from '../services/adComposer.js'
 import { COUT_PHOTO, COUT_PUB, PHOTOS_MAX, TARIF_VISUELS } from '../services/visualTariff.js'
+import { PHOTOS_PAR_ANNONCE } from '../services/photoLimits.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
@@ -539,9 +540,17 @@ visualsRouter.post('/:id/keep', async (req: AuthedRequest, res) => {
   if (!current.includes(image.path)) {
     await prisma.product.update({
       where: { id: product.id },
-      // En tête : une mise en situation vend mieux qu'un fond blanc, et la
-      // première photo est celle que voit l'acheteur dans les résultats.
-      data: { images: [image.path, ...current].slice(0, 12) },
+      /*
+       * En tête : une mise en situation vend mieux qu'un fond blanc, et la
+       * première photo est celle que voit l'acheteur dans les résultats.
+       *
+       * **Le plafond était `12`, écrit à la main**, alors qu'une annonce en
+       * porte quinze. Un vendeur qui avait quinze photos et gardait une image
+       * de Léa en perdait trois : la nouvelle passait devant, la coupe emportait
+       * les trois dernières — les originales rapatriées, qu'on ne retrouve pas.
+       * Aucun message.
+       */
+      data: { images: [image.path, ...current].slice(0, PHOTOS_PAR_ANNONCE) },
     })
   }
 

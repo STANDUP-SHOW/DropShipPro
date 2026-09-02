@@ -262,7 +262,12 @@ export default function BillingPage() {
       <p className="mt-1 max-w-2xl text-sm text-gray-400">
         Une réserve à part, pour les images. <b>Léa et Nadia sont gratuites</b> — aucun
         abonnement, aucune embauche : elles puisent dans ces crédits quand elles travaillent. Une
-        mise en situation coûte un crédit, une publicité coûte un crédit par format.
+        {/*
+          Deux crédits, pas un — le serveur en prélève deux depuis le 02/09/2026.
+          Une page qui annonce la moitié du prix se découvre sur le solde, et
+          c'est la pire façon de l'apprendre.
+        */}
+        mise en situation coûte un crédit, une publicité en coûte deux par format.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
