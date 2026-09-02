@@ -14,6 +14,8 @@ type Product = {
   sellingPrice?: unknown
   currency?: string
   categoryId?: string | null
+  /** La boutique ou l annonce est rangee : sert a preselectionner l enseigne d une publicite. */
+  shopId?: string | null
   sourceSite?: string | null
   createdAt?: string
   /** L avis de Nadia, garde sur l annonce : paye une fois, relu autant de fois. */

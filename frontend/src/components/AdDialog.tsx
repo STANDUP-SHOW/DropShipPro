@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Sparkles, X, Check, ArrowRight, Loader2 } from 'lucide-react'
-import { api } from '../lib/api'
+import { api, assetUrl } from '../lib/api'
 
 /**
  * Créer une publicité : la fenêtre qui pose les six questions qui comptent.
@@ -38,16 +38,30 @@ const RESEAUX = [
 export function AdDialog({
   productId,
   productTitle,
+  shopId,
   credits,
   onClose,
   onGenerated,
 }: {
   productId: string
   productTitle: string
+  /** La boutique ou l annonce est rangee : c est la proposition par defaut. */
+  shopId?: string | null
   credits: number | null
   onClose: () => void
   onGenerated: (images: unknown[], credits: number) => void
 }) {
+  /**
+   * La boutique dont la publicite porte le nom et le logo.
+   *
+   * Elle n etait pas demandee : la publicite prenait la boutique ou l annonce
+   * etait rangee, et le vendeur qui en tient quatre recevait le mauvais nom
+   * sous le mauvais logo. Une publicite qui ne correspond a aucune de ses
+   * enseignes ne se publie pas -- elle se jette.
+   */
+  const [boutiques, setBoutiques] = useState<Array<{ id: string; name: string; logo: string | null }>>([])
+  const [boutique, setBoutique] = useState<string>(shopId ?? '')
+
   const [choisis, setChoisis] = useState<Set<string>>(new Set(['instagram']))
   const [avecPrix, setAvecPrix] = useState(true)
   /** L'IA lit l'annonce, ou le vendeur dicte son message. */
@@ -59,6 +73,18 @@ export function AdDialog({
   const [busy, setBusy] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [fini, setFini] = useState<number | null>(null)
+
+  useEffect(() => {
+    api
+      .listShops()
+      .then((liste) => {
+        setBoutiques(liste.map((b) => ({ id: b.id, name: b.name, logo: b.logo })))
+        // Une seule boutique : la question ne se pose pas, on la retient sans
+        // rien demander.
+        setBoutique((actuel) => actuel || (liste.length === 1 ? liste[0].id : ''))
+      })
+      .catch(() => undefined)
+  }, [])
 
   const basculer = (id: string) =>
     setChoisis((actuel) => {
@@ -82,6 +108,7 @@ export function AdDialog({
         hint: source === 'moi' && hint.trim() ? hint.trim() : undefined,
         ctaLabel: ctaLabel.trim() || undefined,
         ctaUrl: ctaUrl.trim() || undefined,
+        shopId: boutique || undefined,
       })
       if (res.errors.length) setErreur(res.errors.join(' · '))
       onGenerated(res.images, res.credits)
@@ -145,6 +172,56 @@ export function AdDialog({
                 <X size={18} />
               </button>
             </div>
+
+            {/*
+              --- L'enseigne ------------------------------------------------
+
+              Demandée en premier, avant même la destination : c'est elle qui
+              décide du nom et du logo posés sur le visuel. Elle ne l'était pas,
+              et la publicité prenait la boutique où l'annonce est rangée — un
+              vendeur qui en tient quatre recevait le mauvais nom sous le
+              mauvais logo, c'est-à-dire une publicité à jeter.
+
+              La question disparaît quand elle n'a qu'une réponse : un vendeur
+              avec une seule boutique n'a rien à choisir.
+            */}
+            {boutiques.length > 1 ? (
+              <>
+                <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Au nom de quelle boutique ?
+                </h3>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {boutiques.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setBoutique(b.id)}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${
+                        boutique === b.id
+                          ? 'border-purple-400/60 bg-purple-500/15 text-white'
+                          : 'border-white/10 bg-white/[0.03] text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {b.logo ? (
+                        <img
+                          src={assetUrl(b.logo)}
+                          alt=""
+                          className="h-6 w-6 shrink-0 rounded object-contain"
+                        />
+                      ) : (
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-white/10 text-[10px]">
+                          {b.name.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="truncate">{b.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-gray-500">
+                  Son nom et son logo seront posés sur le visuel.
+                </p>
+              </>
+            ) : null}
 
             {/* --- Les réseaux : éteints, on les allume au clic --------------- */}
             <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-400">

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { ecrireAccroche } from '../services/adCopywriter.js'
 import { ecrireBrief } from '../services/photoBriefer.js'
+import { enseignePour } from '../services/adBrand.js'
 import { SansPolice } from '../services/adComposer.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
@@ -309,7 +310,9 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
         images: true,
         sellingPrice: true,
         currency: true,
-        shop: { select: { name: true, logo: true } },
+        // `id` en plus du nom : l ecran doit pouvoir preselectionner la
+        // boutique ou l annonce est rangee.
+        shop: { select: { id: true, name: true, logo: true } },
         // De quoi ecrire l accroche : le composeur n en avait pas besoin, la
         // redactrice si.
         description: true,
@@ -342,24 +345,40 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
    * second serait le même fichier à téléverser deux fois.
    */
   /*
-   * Le logo, dans l ordre ou le vendeur l attend.
+   * L'enseigne de la publicité : le nom ET le logo, de la même boutique.
    *
-   * Celui qu il a choisi pour cette publicite, sinon celui de la boutique ou
-   * l annonce est rangee, sinon celui du compte. Aucun n existe : la publicite
-   * part sans logo plutot que de ne pas partir.
+   * **Ils se dissociaient**, signalé le 02/09/2026 : choisir une boutique
+   * changeait le logo, mais le nom restait celui de la boutique où l'annonce
+   * était rangée. Un vendeur qui tient quatre sites recevait donc le logo de
+   * l'un sous le nom d'un autre — une publicité qui ne correspond à aucune de
+   * ses enseignes, et qu'il ne peut pas publier.
+   *
+   * L'ordre : la boutique choisie pour cette publicité, sinon celle où l'annonce
+   * est rangée, sinon le compte. Et **on ne mélange jamais deux niveaux** : si
+   * une boutique est retenue, son nom et son logo viennent d'elle, même quand
+   * l'un des deux manque. Retomber sur le compte pour le seul logo remettrait
+   * exactement le défaut qu'on corrige.
    */
   const boutiquePub = parsed.data.shopId
     ? await prisma.shop.findFirst({ where: { id: parsed.data.shopId, userId: req.userId! } })
     : null
-  const logoPub = boutiquePub?.logo ?? product.shop?.logo ?? vendeur.watermarkImage ?? null
+  if (parsed.data.shopId && !boutiquePub) {
+    return res.status(400).json({ error: 'Cette boutique ne vous appartient pas.' })
+  }
+
+  const enseigne = enseignePour({
+    choisie: boutiquePub,
+    duProduit: product.shop,
+    compte: vendeur,
+  })
 
   const prix = Number(product.sellingPrice)
   const copy = {
     title: product.aiTitle || product.title,
     price:
       parsed.data.showPrice === false ? '' : `${prix.toFixed(2).replace('.', ',')} ${product.currency}`,
-    shopName: product.shop?.name ?? vendeur.shopName ?? null,
-    logo: logoPub,
+    shopName: enseigne.nom,
+    logo: enseigne.logo,
     ctaLabel: parsed.data.ctaLabel?.trim() || 'Commander',
     ctaUrl: parsed.data.ctaUrl?.trim() || null,
     argument: parsed.data.argument?.trim() || null,

@@ -39,7 +39,7 @@ export default function Marketing() {
   const [ctaUrl, setCtaUrl] = useState('')
   const [argument, setArgument] = useState('')
   const [busy, setBusy] = useState(false)
-  const [adCible, setAdCible] = useState<{ id: string; titre: string } | null>(null)
+  const [adCible, setAdCible] = useState<{ id: string; titre: string; shopId?: string | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -150,7 +150,9 @@ export default function Marketing() {
           setAvis(null)
           // Une fenetre au milieu de l ecran, pas un panneau deplie plus bas :
           // le vendeur cliquait et ne voyait rien bouger.
-          setAdCible({ id: p.id, titre: p.aiTitle || p.title })
+          // La boutique ou l annonce est rangee est la proposition par defaut :
+          // le vendeur la confirme au lieu de la deviner.
+          setAdCible({ id: p.id, titre: p.aiTitle || p.title, shopId: p.shopId ?? null })
         }}
       />
 
@@ -313,6 +315,7 @@ export default function Marketing() {
         <AdDialog
           productId={adCible.id}
           productTitle={adCible.titre}
+          shopId={adCible.shopId}
           credits={state?.credits ?? null}
           onClose={() => setAdCible(null)}
           onGenerated={(images, credits) => {
