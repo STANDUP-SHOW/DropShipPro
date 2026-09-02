@@ -212,13 +212,49 @@ function Reprise() {
   const [bilan, setBilan] = useState<Awaited<ReturnType<typeof api.recategoriser>> | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
+  /**
+   * La reprise, lot par lot jusqu'au bout.
+   *
+   * Elle se faisait d'un seul appel : quatre-vingt-onze annonces, chacune
+   * pouvant demander un appel au modèle, et la requête coupée par le proxy bien
+   * avant la fin. Le vendeur voyait « failed to fetch » — une panne réseau, qui
+   * ne dit rien de ce qui avait été rangé, et qui laissait croire que la reprise
+   * n'avait rien fait alors qu'elle avait travaillé une minute.
+   *
+   * Le bilan s'additionne à mesure : ce qui est rangé l'est déjà en base, même
+   * si un lot suivant échoue. L'erreur ne remplace donc pas le compte, elle s'y
+   * ajoute.
+   */
   const lancer = async () => {
     setEncours(true)
     setErreur(null)
+
+    const cumul = { examinees: 0, dejaRangees: 0, rangees: 0, restants: [] as Array<{ id: string; titre: string }>, suivant: null as string | null }
+    let apres: string | undefined
+
     try {
-      setBilan(await api.recategoriser())
+      // Une borne dure : cent lots font deux mille cinq cents annonces, et une
+      // boucle sans borne sur un curseur qui n'avance pas tournerait sans fin.
+      for (let lot = 0; lot < 100; lot++) {
+        const bilanLot = await api.recategoriser(apres)
+
+        cumul.examinees += bilanLot.examinees
+        cumul.dejaRangees += bilanLot.dejaRangees
+        cumul.rangees += bilanLot.rangees
+        cumul.restants = [...cumul.restants, ...bilanLot.restants].slice(0, 50)
+        setBilan({ ...cumul })
+
+        if (!bilanLot.suivant) break
+        apres = bilanLot.suivant
+      }
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Reprise impossible')
+      setErreur(
+        cumul.examinees
+          ? `${cumul.rangees} annonce(s) rangée(s) avant l'interruption : ${e instanceof Error ? e.message : 'reprise interrompue'}. Relancez pour continuer.`
+          : e instanceof Error
+            ? e.message
+            : 'Reprise impossible',
+      )
     } finally {
       setEncours(false)
     }

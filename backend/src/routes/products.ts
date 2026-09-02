@@ -1072,9 +1072,43 @@ productsRouter.post('/import-list', (req: AuthedRequest, res) => {
  * Rien ne tombe dans « Divers » : ce qui résiste est rendu en clair, à ranger
  * à la main depuis la fiche.
  */
+/**
+ * Le lot repris en un appel.
+ *
+ * **La reprise se faisait d un seul tenant, et elle etait coupee en route.**
+ * Quatre-vingt-onze annonces, chacune pouvant demander un appel au modele : la
+ * requete depassait le delai du proxy bien avant la fin, et le navigateur
+ * rendait « failed to fetch » -- une panne reseau, sans rien dire de ce qui
+ * avait ete range. Signale le 02/09/2026.
+ *
+ * Vingt-cinq est un compromis : assez pour que la reprise avance vite, assez
+ * court pour tenir largement sous le delai meme si chaque annonce appelle le
+ * modele. L ecran rappelle jusqu a ce qu il n y ait plus de suite.
+ */
+const REPRISE_PAR_LOT = 25
+
+const repriseSchema = z.object({
+  /** L identifiant apres lequel reprendre. Absent : on repart du debut. */
+  apres: z.string().optional(),
+})
+
 productsRouter.post('/meta/recategoriser', async (req: AuthedRequest, res) => {
+  const parsed = repriseSchema.safeParse(req.body ?? {})
+  if (!parsed.success) return res.status(400).json({ error: 'Demande invalide' })
+
+  /*
+   * Ordonnees par identifiant, et non par date.
+   *
+   * Le curseur doit porter sur un champ stable et unique : trier par date de
+   * creation laisserait deux annonces creees dans la meme seconde se depasser
+   * d un appel a l autre, donc sauter l une et reprendre l autre deux fois.
+   */
   const produits = await prisma.product.findMany({
     where: { userId: req.userId! },
+    orderBy: { id: 'asc' },
+    cursor: parsed.data.apres ? { id: parsed.data.apres } : undefined,
+    skip: parsed.data.apres ? 1 : 0,
+    take: REPRISE_PAR_LOT,
     select: { id: true, categoryId: true, sourceCategory: true, title: true, aiTitle: true, supplierId: true, attributes: true },
   })
 
@@ -1134,6 +1168,14 @@ productsRouter.post('/meta/recategoriser', async (req: AuthedRequest, res) => {
     rangees: ranges,
     // Rendus pour être cliqués : une liste de titres sans lien ne se traite pas.
     restants: restants.slice(0, 50),
+    /*
+     * L identifiant a partir duquel continuer, ou  quand tout est vu.
+     *
+     * Un lot plein ne veut pas dire qu il reste quelque chose -- il peut tomber
+     * pile sur la fin. Le prochain appel rendra zero examinee et s arretera : un
+     * aller-retour de trop vaut mieux qu une reprise qui s arrete avant la fin.
+     */
+    suivant: produits.length === REPRISE_PAR_LOT ? produits[produits.length - 1].id : null,
   })
 })
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DropShipper IA",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "Ajoutez un produit à DropShipper IA depuis n'importe quelle boutique, et publiez-le sur vos marketplaces.",
   "permissions": [
     "storage",
@@ -57,7 +57,8 @@
       ],
       "js": [
         "config.js",
-        "content/app-bridge.js"
+        "content/app-bridge.js",
+        "content/session-bridge.js"
       ],
       "run_at": "document_idle"
     },

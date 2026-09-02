@@ -1153,13 +1153,22 @@ export const api = {
 
   /** L arbre du referentiel : rayons a gros blocs, sous-categories dessous. */
   /** Reprend les annonces qui ne pointent vers aucune catégorie du référentiel. */
-  recategoriser: () =>
+  /**
+   * Reprend un lot d annonces, et rend le curseur du suivant.
+   *
+   * La reprise se faisait d un seul tenant : quatre-vingt-onze annonces,
+   * chacune pouvant appeler le modele, et la requete coupee par le proxy bien
+   * avant la fin -- « failed to fetch », sans rien dire de ce qui avait ete
+   * range. L ecran rappelle desormais tant que `suivant` n est pas nul.
+   */
+  recategoriser: (apres?: string) =>
     request<{
       examinees: number
       dejaRangees: number
       rangees: number
       restants: Array<{ id: string; titre: string }>
-    }>('/products/meta/recategoriser', { method: 'POST' }),
+      suivant: string | null
+    }>('/products/meta/recategoriser', { method: 'POST', body: JSON.stringify(apres ? { apres } : {}) }),
 
   categoryTree: () =>
     request<{

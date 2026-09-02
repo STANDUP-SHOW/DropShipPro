@@ -72,19 +72,89 @@ async function renderSettings(error) {
   document.getElementById('backCfg').addEventListener('click', () => start())
 }
 
+/**
+ * L'écran de connexion.
+ *
+ * Quatre défauts signalés le 02/09/2026, et le dernier explique les trois
+ * autres :
+ *
+ * - **Pas d'œil** pour relire son mot de passe avant d'appuyer.
+ * - **La suggestion d'adresse ne se cliquait pas.** Ce n'était pas une liste à
+ *   nous : c'est l'autocomplétion de Chrome, et elle ne s'insère que dans un
+ *   champ qui déclare `autocomplete` et porte un `name`. Sans eux, elle propose
+ *   et refuse d'écrire.
+ * - **Rien à enregistrer.** Un gestionnaire de mots de passe ne retient que ce
+ *   qui est envoyé par un vrai `<form>` qu'on soumet. Un bouton qui appelle du
+ *   JavaScript ne déclenche jamais la proposition d'enregistrement.
+ * - **Rien pour dire qu'il faut un compte.** Celui qui installe l'extension sans
+ *   compte se heurte à un formulaire qui refuse, sans lui dire où aller.
+ *
+ * Et surtout : quand une session est déjà ouverte sur drop-shipper.fr dans le
+ * même navigateur, `content/session-bridge.js` la reprend et cet écran ne
+ * s'affiche même pas.
+ */
 function renderLogin(error) {
   app.innerHTML = `
     <p class="muted">Connectez-vous à votre compte DropShipper IA.</p>
-    <input id="email" type="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Mot de passe" />
-    <button class="primary" id="loginBtn">Se connecter</button>
+
+    <form id="loginForm" autocomplete="on">
+      <input id="email" name="username" type="email" autocomplete="username"
+             placeholder="Email" autofocus />
+      <div class="champ-mdp">
+        <input id="password" name="password" type="password" autocomplete="current-password"
+               placeholder="Mot de passe" />
+        <button type="button" id="voirMdp" class="oeil" title="Afficher le mot de passe"
+                aria-label="Afficher le mot de passe">👁</button>
+      </div>
+      <button class="primary" type="submit" id="loginBtn">Se connecter</button>
+    </form>
+
     ${error ? `<p class="error">${error}</p>` : ''}
+
+    <p class="muted" style="margin-top:12px">
+      Pas encore de compte ? L'extension a besoin d'un compte DropShipper IA pour
+      ranger vos produits.
+    </p>
+    <button id="creerCompte" style="width:100%;margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;border-radius:7px;font-size:12px;cursor:pointer">
+      Créer un compte sur drop-shipper.fr
+    </button>
+
     <p class="link" id="openCfg" style="margin-top:10px">Configurer les adresses</p>
   `
+
   document.getElementById('openCfg').addEventListener('click', renderSettings)
-  document.getElementById('loginBtn').addEventListener('click', async () => {
+
+  document.getElementById('creerCompte').addEventListener('click', async () => {
+    chrome.tabs.create({ url: `${await getAppUrl()}/register` })
+  })
+
+  const champMdp = document.getElementById('password')
+  document.getElementById('voirMdp').addEventListener('click', (e) => {
+    const cache = champMdp.type === 'password'
+    champMdp.type = cache ? 'text' : 'password'
+    e.currentTarget.textContent = cache ? '🙈' : '👁'
+    e.currentTarget.title = cache ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+    champMdp.focus()
+  })
+
+  /*
+   * Un vrai `submit`, et non un clic sur un bouton.
+   *
+   * C'est ce qui déclenche la proposition d'enregistrement du gestionnaire de
+   * mots de passe — celui de Chrome, celui de Google, ou n'importe quel autre.
+   * Un `click` sur un bouton ne la déclenche jamais, quel que soit le reste du
+   * formulaire.
+   *
+   * La touche Entrée marche par la même occasion, ce qui n'était pas le cas.
+   */
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const bouton = document.getElementById('loginBtn')
+    bouton.disabled = true
+    bouton.textContent = 'Connexion…'
+
     const email = document.getElementById('email').value
-    const password = document.getElementById('password').value
+    const password = champMdp.value
     try {
       const res = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       await chrome.storage.local.set({ token: res.token })

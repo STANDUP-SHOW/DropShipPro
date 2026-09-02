@@ -251,6 +251,38 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.local.remove(`job_${tabId}`))
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  /*
+   * La session ouverte sur le site, reprise telle quelle.
+   *
+   * Le vendeur se connectait deux fois : une fois sur drop-shipper.fr, une fois
+   * dans l extension, avec le meme mot de passe et dans le meme navigateur.
+   * Rien ne l expliquait, et c etait le premier ecran qu il voyait.
+   *
+   * **Le message n est accepte que de nos propres pages.** `sender.url` est
+   * pose par Chrome, pas par la page : un site tiers qui enverrait un jeton ne
+   * passerait pas. Sans cette garde, n importe quelle page pourrait faire
+   * travailler l extension au nom de quelqu un d autre.
+   */
+  if (message?.type === 'dsp-session-offerte') {
+    ;(async () => {
+      const origine = String(sender?.url || '')
+      const notre = await getAppUrl()
+      const permises = [notre, 'https://drop-shipper.fr', 'https://www.drop-shipper.fr']
+      if (!permises.some((u) => u && origine.startsWith(u))) return sendResponse({ ok: false })
+
+      const jeton = typeof message.jeton === 'string' ? message.jeton : ''
+      if (jeton.length < 20) return sendResponse({ ok: false })
+
+      // Remplace seulement si ca a change : le vendeur peut s etre reconnecte
+      // sous un autre compte, et garder le premier jeton ferait travailler
+      // l extension pour quelqu un d autre.
+      const { token } = await chrome.storage.local.get('token')
+      if (token !== jeton) await chrome.storage.local.set({ token: jeton })
+      sendResponse({ ok: true })
+    })()
+    return true
+  }
+
   // Proxy for content scripts: see apiFetch() in config.js for why they can't
   // call the API themselves.
   if (message?.type === 'dsp-api-fetch') {
