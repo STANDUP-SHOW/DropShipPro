@@ -55,6 +55,15 @@ docs/        Documentation de l'API catalogue
   session et attend que l'utilisateur se connecte.
 - **L'agent ne clique jamais sur « Publier »** sur un site tiers. Il remplit, le
   vendeur valide.
+- **Un site ne refuse pas de la même façon en local et en production.** Depuis
+  une machine personnelle, AliExpress sert une coquille — le contrôle « ni prix
+  ni photos » la reconnaît et rend le bon refus. Depuis un hébergeur, il sert un
+  mur anti-robot, qui arrivait sous forme de **code HTTP**, donc avant les
+  contrôles qui savent expliquer : le vendeur voyait « Impossible d'importer ce
+  produit depuis l'URL fournie » et n'apprenait jamais qu'il fallait passer par
+  l'extension. Un banc local ne pouvait pas le voir ; le navigateur piloté sur
+  `www.drop-shipper.fr` l'a montré en deux minutes. 401, 403, 405, 429, 503 et
+  un délai dépassé sont désormais le même refus explicite.
 - **L'import par URL ne marche pas sur Temu, JoyBuy, AliExpress, Shein.** Ces
   sites construisent leur fiche en JavaScript ; le serveur reçoit une coquille
   vide. C'est refusé explicitement, avec renvoi vers l'extension.
