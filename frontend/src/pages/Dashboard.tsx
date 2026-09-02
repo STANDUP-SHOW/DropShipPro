@@ -40,6 +40,15 @@ export default function Dashboard() {
   const [tri, setTri] = useState<'date' | 'categorie' | 'prix' | 'fournisseur'>('date')
   const [statut, setStatut] = useState<'tous' | 'publie' | 'nonPublie'>('tous')
   const [fournisseurFiltre, setFournisseurFiltre] = useState('')
+  /**
+   * N'afficher que les annonces dont le texte n'a pas été réécrit.
+   *
+   * `aiEnhanced` vaut faux quand le modèle n'a pas répondu : l'annonce garde
+   * alors le texte du fournisseur, et rien ne la distinguait des autres. Le
+   * 02/09/2026, vingt-deux annonces sur vingt-cinq étaient dans ce cas et il a
+   * fallu les ouvrir une par une pour s'en apercevoir.
+   */
+  const [seulementNonReecrites, setSeulementNonReecrites] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('')
   /** Les identifiants que le choix de catégorie recouvre. Vide = toutes. */
   const [categoryIds, setCategoryIds] = useState<string[]>([])
@@ -80,6 +89,9 @@ export default function Dashboard() {
    */
   const fournisseurs = [...new Set(products.map((p) => p.sourceSite).filter(Boolean))].sort() as string[]
 
+  /** Combien d'annonces portent encore le texte du fournisseur. */
+  const nonReecrites = products.filter((p) => p.aiEnhanced === false).length
+
   const needle = search.trim().toLowerCase()
   const filtres = products
     /*
@@ -94,6 +106,7 @@ export default function Dashboard() {
     .filter((p) => !categoryIds.length || categoryIds.includes(p.categoryId))
     .filter((p) => !needle || `${p.aiTitle ?? ''} ${p.title ?? ''}`.toLowerCase().includes(needle))
     .filter((p) => !fournisseurFiltre || p.sourceSite === fournisseurFiltre)
+    .filter((p) => !seulementNonReecrites || p.aiEnhanced === false)
     .filter((p) => {
       if (statut === 'tous') return true
       const publiee = (p.publications ?? []).length > 0
@@ -549,6 +562,27 @@ export default function Dashboard() {
             <option value="publie">Publiées</option>
             <option value="nonPublie">Non publiées</option>
           </select>
+
+          {/*
+            Affiché seulement s'il y en a — et alors impossible à manquer.
+            Une annonce non réécrite ressemble en tout point à une bonne dans la
+            liste : même vignette, même prix, même badge. Le seul moyen de les
+            retrouver était de les ouvrir une par une.
+          */}
+          {nonReecrites > 0 && (
+            <button
+              type="button"
+              onClick={() => setSeulementNonReecrites((v) => !v)}
+              aria-pressed={seulementNonReecrites}
+              className={`rounded-xl border px-3 py-2 text-sm transition ${
+                seulementNonReecrites
+                  ? 'border-amber-400/60 bg-amber-500/20 text-amber-100'
+                  : 'border-amber-400/30 bg-amber-500/5 text-amber-200 hover:bg-amber-500/10'
+              }`}
+            >
+              {`⚠ ${nonReecrites} sans réécriture`}
+            </button>
+          )}
 
           {/* Affiché seulement s'il y a un choix à faire : un menu à une seule
               entrée occupe la barre sans rien trancher. */}

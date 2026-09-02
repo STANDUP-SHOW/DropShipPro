@@ -32,6 +32,15 @@ export interface EnhancedListing {
    * happened. The caller refunds on false and flags the listing.
    */
   enhanced: boolean
+  /**
+   * Pourquoi la réécriture n'a pas eu lieu, quand elle n'a pas eu lieu.
+   *
+   * Absent quand tout va bien. L'import l'écrit dans les remarques de l'annonce :
+   * sans elle, vingt-cinq imports « réussis » peuvent tous porter le texte du
+   * fournisseur sans que rien ne le dise — le crédit étant rendu, même le solde
+   * ne trahit pas la panne.
+   */
+  raison?: string
 }
 
 /**
@@ -84,6 +93,17 @@ les moteurs de recherche internes des marketplaces.
 Règles :
 - Garde exactement le même produit et les mêmes caractéristiques réelles. N'invente
   jamais une matière, une dimension, une certification ou une marque absente de la source.
+- **Ne mentionne JAMAIS le nom de la place de marché d'où vient la fiche** — Temu,
+  AliExpress, Shein, Wish, JoyBuy, Alibaba, DHgate, Banggood — ni dans le titre, ni
+  dans la description, ni dans les attributs, ni dans les mots-clés. Le vendeur
+  revend ce produit sous sa propre enseigne : afficher le nom de son fournisseur
+  lui coûte la vente et lui apprend à ses clients où acheter moins cher. Si la
+  source en contient un, retire-le sans le remplacer par un autre.
+- Écarte de la même façon tout ce qui appartient à la plateforme source et non au
+  produit : ses garanties, ses délais de livraison, ses codes promotionnels, ses
+  mentions « livraison gratuite », ses libellés de navigation. Le vendeur a ses
+  propres conditions, et une promesse qui n'est pas la sienne se retourne contre
+  lui au premier litige.
 - Reformule entièrement : les marketplaces pénalisent le contenu dupliqué.
 - Titre : 60 à 130 caractères, structure "Type de produit + caractéristiques clés +
   matière + public". Les mots les plus recherchés en premier. Pas de MAJUSCULES
@@ -117,6 +137,33 @@ Règles :
     qui le distingue, rien d'autre. Pas de marque inventée, pas d'abréviation
     obscure : ce titre doit rester une phrase qu'un acheteur taperait.
   Compte les caractères. Un titre trop long est refusé par la plateforme.`
+
+/**
+ * L'annonce telle quelle, quand la réécriture n'a pas eu lieu.
+ *
+ * **Au niveau du module, et non dans une fermeture**, parce que `callModel` en a
+ * besoin lui aussi : c'est là que se décide si une réponse tronquée ou illisible
+ * doit être traitée comme un échec. Tant que ce repli n'existait qu'à
+ * l'intérieur de `enhanceListing`, `callModel` n'avait pas d'autre choix que de
+ * rendre `enhanced: true` sur une réponse qu'il n'avait pas su lire.
+ */
+function passthroughDe(input: { title: string; description: string }): EnhancedListing {
+  return {
+    title: input.title,
+    description: input.description,
+    metaTitle: input.title,
+    metaDescription: input.description.slice(0, 155),
+    metaKeywords: '',
+    bulletPoints: [],
+    attributes: {},
+    titleVariants: {
+      long: input.title,
+      moyen: trimToWords(input.title, 80),
+      court: trimToWords(input.title, 50),
+    },
+    enhanced: false,
+  }
+}
 
 /**
  * Reads sizes and colours out of the page text.
@@ -188,21 +235,7 @@ export async function enhanceListing(input: {
   pageText?: string | null
 }): Promise<EnhancedListing> {
   /** Keeps the scraped copy when the model can't be reached. */
-  const passthrough = (): EnhancedListing => ({
-    title: input.title,
-    description: input.description,
-    metaTitle: input.title,
-    metaDescription: input.description.slice(0, 155),
-    metaKeywords: '',
-    bulletPoints: [],
-    attributes: {},
-    titleVariants: {
-      long: input.title,
-      moyen: trimToWords(input.title, 80),
-      court: trimToWords(input.title, 50),
-    },
-    enhanced: false,
-  })
+  const passthrough = () => passthroughDe(input)
 
   const anthropic = getClient()
   // No API key configured: pass the scraped text through so the rest of the
@@ -215,8 +248,23 @@ export async function enhanceListing(input: {
     // An expired, revoked or over-quota key must not destroy the import: the
     // product is still worth keeping, and the seller can rewrite it by hand or
     // relaunch the enhancement once the key is fixed.
-    console.error("amélioration IA indisponible, texte source conservé:", (err as Error).message)
-    return passthrough()
+    const statut = (err as { status?: number }).status
+    const message = (err as Error).message?.slice(0, 200) ?? 'sans message'
+    console.error(`amélioration IA indisponible (statut ${statut ?? 'aucun'}), texte source conservé: ${message}`)
+
+    /*
+     * Le repli garde la raison, au lieu de la perdre.
+     *
+     * Le 02/09/2026, vingt-deux annonces sur vingt-cinq sont sorties avec le
+     * texte brut de Temu. Le vendeur voyait vingt-cinq imports réussis ; rien,
+     * nulle part, ne disait qu'aucune n'avait été réécrite. Le crédit était
+     * rendu — donc même le solde ne trahissait pas la panne.
+     *
+     * Un repli silencieux est pire qu'un échec : il produit un objet qui
+     * ressemble au bon. La raison remonte donc jusqu'à l'import, qui l'écrit
+     * dans les remarques de l'annonce.
+     */
+    return { ...passthrough(), raison: `${statut ? `erreur ${statut}` : 'appel impossible'} — ${message}` }
   }
 }
 
@@ -227,7 +275,25 @@ async function callModel(
 
   const message = await anthropic.messages.create({
     model: MODEL_ENHANCE,
-    max_tokens: 2500,
+    /*
+     * Huit mille, et non deux mille cinq cents.
+     *
+     * Ce que la consigne demande, compté : un titre, deux variantes, une
+     * description de trois à cinq paragraphes (600 caractères au minimum, souvent
+     * 1 500), sept arguments de 80 à 200 caractères, jusqu'à quinze attributs,
+     * une méta-description et vingt-cinq mots-clés. En français, où un mot coûte
+     * plus de jetons qu'en anglais, l'ensemble dépasse régulièrement trois mille
+     * jetons — et le plafond était à deux mille cinq cents.
+     *
+     * La réponse se faisait donc couper au milieu du JSON. Le plafond était la
+     * cause ; l'absence de contrôle sur `stop_reason` est ce qui l'a rendue
+     * invisible pendant des semaines.
+     *
+     * Huit mille laisse de la marge sans risquer le délai d'attente d'une
+     * requête non diffusée en flux : la réécriture la plus longue mesurée
+     * atteint la moitié de ce plafond.
+     */
+    max_tokens: 8000,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -264,10 +330,52 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce f
   // instruction, so take the outermost object rather than parsing the raw reply.
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   let parsed: Record<string, unknown> = {}
+  let echec: string | null = null
+
+  /*
+   * Une réponse tronquée est un échec, pas un résultat.
+   *
+   * **C'est la panne du 02/09/2026, et elle était invisible par construction.**
+   * `max_tokens` valait 2 500 pour une consigne qui demande un titre, deux
+   * variantes, une description de trois à cinq paragraphes, sept arguments de
+   * 80 à 200 caractères, jusqu'à quinze attributs et vingt-cinq mots-clés. La
+   * réponse dépassait, se faisait couper au milieu du JSON, `JSON.parse` levait,
+   * et chaque champ retombait sur sa valeur de repli — c'est-à-dire sur le texte
+   * du fournisseur.
+   *
+   * Le tout était rendu avec `enhanced: true`. Vingt-deux annonces sur
+   * vingt-cinq sont donc sorties avec le texte brut de Temu, zéro attribut, zéro
+   * argument, zéro mot-clé — **facturées, et déclarées réussies**. Ni note, ni
+   * alerte, ni crédit rendu : rien ne distinguait ces annonces des bonnes.
+   *
+   * `stop_reason` le dit sans ambiguïté, et c'est le seul signal fiable : un
+   * JSON coupé peut parfois se parser quand même, s'il l'est juste après une
+   * accolade fermante.
+   */
+  if (message.stop_reason === 'max_tokens') {
+    echec = `réponse tronquée à ${message.usage.output_tokens} jetons de sortie`
+  }
+
   try {
     parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
-  } catch {
-    parsed = {}
+  } catch (err) {
+    echec = echec ?? `réponse illisible (${(err as Error).message.slice(0, 80)})`
+  }
+
+  /*
+   * Et une réponse vide de tout contenu utile en est un aussi.
+   *
+   * Le modèle peut répondre un objet valide mais sans titre ni description —
+   * refus, malentendu, page illisible. Les replis produiraient alors la même
+   * annonce non réécrite, avec le même air de réussite.
+   */
+  if (!echec && typeof parsed.title !== 'string' && typeof parsed.description !== 'string') {
+    echec = 'réponse sans titre ni description'
+  }
+
+  if (echec) {
+    console.error(`[ia] reecriture ratee : ${echec}`)
+    return { ...passthroughDe(input), raison: echec }
   }
 
   const description = typeof parsed.description === 'string' ? parsed.description : input.description

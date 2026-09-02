@@ -245,6 +245,26 @@ export async function importerAdresse(
     notes.push("Aucun prix trouvé sur la page : renseignez le prix d'achat pour calculer votre marge.")
   }
 
+  /*
+   * Une annonce non réécrite le dit, en tête des remarques.
+   *
+   * C'est le défaut le plus coûteux du 02/09/2026 : vingt-deux annonces sur
+   * vingt-cinq sorties avec le texte brut de Temu, et **vingt-cinq imports
+   * annoncés comme réussis**. Le crédit étant rendu, même le solde ne trahissait
+   * rien. Le vendeur l'a découvert en ouvrant ses fiches, une par une.
+   *
+   * La raison vient du modèle lui-même — code HTTP et message — parce que
+   * « l'IA n'a pas répondu » ne se corrige pas, alors qu'un quota dépassé ou une
+   * limite de débit se corrige.
+   */
+  if (!enhanced.enhanced) {
+    notes.unshift(
+      `Texte non réécrit : l'annonce porte le texte du fournisseur${
+        enhanced.raison ? ` (${enhanced.raison})` : ''
+      }. Aucun crédit n'a été pris — relancez la réécriture depuis la fiche.`,
+    )
+  }
+
   const produit = await prisma.product.create({
     data: {
       userId,
