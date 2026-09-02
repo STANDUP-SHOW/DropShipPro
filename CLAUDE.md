@@ -359,6 +359,55 @@ Trois conséquences, toutes appliquées :
   /settings/diagnostic` rend désormais l'état réel des services — le journal de
   l'hébergeur n'est pas un endroit où l'on envoie un vendeur.
 
+- **Le circuit complet se rejoue en une commande**, sur un compte jetable créé
+  et détruit par le banc — le catalogue du vendeur n'est jamais touché :
+
+  ```bash
+  cd backend && npx tsx check-parcours.ts --complet --lots 15
+  ```
+
+  Capture façon extension (charge AliExpress réelle : six combinaisons, prix et
+  photo par combinaison), contrôle de l'annonce produite, note, import par
+  adresse, refus explicite, trois images **différentes**, une publicité, import
+  en lot. Il a trouvé deux vraies pannes dès son premier lancement. Ce qu'il ne
+  couvre pas : le relevé de la page par l'extension, qui vit dans le navigateur.
+
+  Deux pièges appris en l'écrivant. **Railway redémarre l'API à chaque envoi de
+  code**, y compris pour un changement qui ne touche que le site : son proxy
+  répond alors 502 et le banc rapportait des pannes imaginaires (il patiente et
+  refait une fois). Et **une attente qu'un ensemble vide contente ne vérifie
+  rien** : « les trois images sont différentes » passait avec zéro image, sous
+  une ligne qui venait de rater.
+
+- **Le popup de l'extension a son propre banc**, parce qu'il vit derrière une
+  adresse `chrome-extension://` inaccessible à tout outil :
+
+  ```bash
+  cd backend && node check-popup.cjs
+  ```
+
+  Il monte le popup avec un faux `chrome` et vérifie ce que le vendeur **voit** :
+  œil du mot de passe, lien d'oubli, mention du site, encadré du bouton dans les
+  trois situations. `extension/check.cjs` ne voyait que le fichier ; d'où trois
+  allers-retours sur le même écran. Éprouvé contre la version précédente :
+  7 manques. Piège : les scripts injectés dans `<body>` font partie de son
+  `textContent`, donc une phrase écrite dans un **commentaire** validait une
+  attente — ils vont dans `<head>`, et seul `#app` est lu.
+
+- **Le tri des photos jetait son propre classement — et le sélecteur de
+  l'extension le refaisait.** Corrigé côté mesure, la même faute vivait quarante
+  lignes plus loin dans `choosePhotos` : un `sort` par surface sur des candidats
+  déjà classés. Le vendeur voyait donc « à côté des vraies photos » malgré la
+  correction. **Et la présélection cochait le format le plus représenté** : sur
+  une fiche entourée de vingt produits recommandés, les plus nombreux à un même
+  format sont les recommandations. Elle prend maintenant les mieux classées,
+  c'est-à-dire d'abord ce que la page déclare elle-même.
+
+  Corollaire : **un nombre partagé entre l'application et l'extension doit être
+  écrit des deux côtés avec mention de l'autre.** Le plafond de photos est passé
+  à 15 partout sauf dans `capture.js`, où 10 restait écrit en dur à trois
+  endroits — le vendeur lisait 15 et n'en cochait que 10.
+
 - **Le tri des photos jetait son propre classement.** Les images mesurées
   étaient retriées par surface décroissante, ce qui effaçait le chemin produit
   et l'adaptateur fournisseur : une bannière de 1600×900 passait devant une
