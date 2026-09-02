@@ -4,8 +4,18 @@ import path from 'path'
 import { putFile } from '../lib/storage.js'
 import { randomUUID } from 'crypto'
 import { absoluteUrl } from '../lib/urls.js'
+import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
 
-const MAX_IMAGES = 10
+/**
+ * Le plafond de photos, pris à sa source unique.
+ *
+ * **C'était `10` en dur ici**, alors que le reste de l'application accepte 15
+ * depuis le 02/09/2026. Le vendeur cochait quinze photos et n'en retrouvait
+ * dix : rien n'échouait, cinq disparaissaient en silence au rapatriement. Le
+ * même nombre était écrit en dur à quatre endroits du sélecteur de l'extension
+ * et ici — cinq copies d'une décision unique.
+ */
+const MAX_IMAGES = PHOTOS_PAR_ANNONCE
 const STORAGE_DIR = path.resolve('storage', 'products')
 const LOGO_DIR = path.resolve('storage', 'watermarks')
 

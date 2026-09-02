@@ -115,7 +115,8 @@ async function measure(url: string): Promise<SelectedImage | null> {
  * plus basses — une annonce qui en porte quinze n'en enverra que ce que la
  * destination accepte.
  */
-export const PHOTOS_PAR_ANNONCE = 15
+export { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
+import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
 
 export async function selectProductImages(
   candidates: string[],

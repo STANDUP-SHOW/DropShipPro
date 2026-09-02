@@ -1232,7 +1232,9 @@
 
         cell.addEventListener('click', () => {
           if (selected()) preselected.delete(item.url)
-          else if (preselected.size < 10) preselected.add(item.url)
+          // `PHOTOS_MAX`, pas 10 : c'était le quatrième endroit où ce nombre
+          // était écrit en dur, et celui qui bloquait réellement les clics.
+          else if (preselected.size < PHOTOS_MAX) preselected.add(item.url)
           paint()
           refreshCount()
         })
@@ -1292,7 +1294,7 @@
       // active this is the fastest way to take the whole gallery in one click.
       panel.querySelector('#dsp-all').addEventListener('click', () => {
         for (const item of visible()) {
-          if (preselected.size >= 10) break
+          if (preselected.size >= PHOTOS_MAX) break
           preselected.add(item.url)
         }
         redraw()
