@@ -38,6 +38,26 @@ export function raisonIa(): string | null {
 }
 
 /**
+ * De quelle clé le serveur se sert, sans jamais la révéler.
+ *
+ * **Le cas qui a rendu ceci nécessaire.** Le 02/09/2026, le solde Anthropic a
+ * été rechargé, la console l'affichait, et l'API continuait de répondre « credit
+ * balance is too low ». Une clé appartient à une organisation **et** à un
+ * espace de travail, chacun avec sa propre limite de dépense : recharger l'un
+ * ne lève pas celle de l'autre. Impossible de trancher sans savoir de quelle
+ * clé on parle — et personne ne doit lire la clé pour ça.
+ *
+ * Quatre derniers caractères et longueur : assez pour la reconnaître dans la
+ * liste de la console, rien pour s'en servir. C'est la façon dont les
+ * hébergeurs affichent les leurs, et pour la même raison.
+ */
+export function empreinteCle(): string | null {
+  const cle = process.env.ANTHROPIC_API_KEY?.trim()
+  if (!cle) return null
+  return `${cle.slice(0, 7)}…${cle.slice(-4)} (${cle.length} caractères)`
+}
+
+/**
  * Cached for five minutes.
  *
  * The probe spends real tokens, so an unauthenticated health endpoint must not be
