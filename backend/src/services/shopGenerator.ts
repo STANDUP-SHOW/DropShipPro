@@ -1,4 +1,4 @@
-import { MODELE_RAPIDE } from './aiModels.js'
+import { MODELE_RAPIDE, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { catalogueThemes, themesPour, themeConnu, THEME_PAR_DEFAUT } from './themes.js'
 
@@ -121,7 +121,7 @@ export async function composerVitrine(d: DemandeVitrine): Promise<VitrinePropose
   const reponse = await client.messages.create({
     // Haiku suffit : un choix dans une liste fermée et quatre phrases sous
     // contrainte. Les instructions ne changent jamais, donc mises en cache.
-    model: process.env.AI_MODEL_VITRINE?.trim() || MODELE_RAPIDE,
+    model: modele('AI_MODEL_VITRINE', MODELE_RAPIDE),
     max_tokens: 500,
     system: [{ type: 'text' as const, text: CONSIGNE, cache_control: { type: 'ephemeral' as const } }],
     messages: [{ role: 'user', content: fiche }],

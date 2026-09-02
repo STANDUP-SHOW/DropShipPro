@@ -1,4 +1,4 @@
-import { MODELE_REDACTION } from './aiModels.js'
+import { MODELE_REDACTION, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { systemeCachable } from './chatBudget.js'
@@ -211,7 +211,7 @@ export async function repondre(ticketId: string, agent: CleAgent): Promise<void>
     const reponse = await client.messages.create({
       // Sonnet : il s'agit d'arbitrer, pas de renseigner. C'est exactement le
       // cas où le petit modèle coûterait moins cher et déciderait moins bien.
-      model: process.env.AI_MODEL_TICKET?.trim() || MODELE_REDACTION,
+      model: modele('AI_MODEL_TICKET', MODELE_REDACTION),
       max_tokens: 700,
       system: systemeCachable(consigne),
       messages: [{ role: 'user', content: contexte }],

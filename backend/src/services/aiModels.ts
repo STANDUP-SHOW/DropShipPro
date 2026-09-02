@@ -52,6 +52,64 @@ export const MODELE_PUISSANT = 'claude-opus-5'
  * une table qui ne connaît pas le modèle réellement appelé rend un budget faux,
  * donc une marge fausse.
  */
+/**
+ * Les modèles réellement servis par l'API Anthropic.
+ *
+ * Liste tenue à la main — c'est le geste normal quand Anthropic publie une
+ * génération. Elle sert à deux choses : `check-modeles.cjs` refuse tout nom
+ * absent d'ici, et `modele()` ci-dessous refuse qu'une variable
+ * d'environnement périmée casse l'application.
+ */
+export const MODELES_SERVIS = new Set([
+  'claude-fable-5-1',
+  'claude-fable-5',
+  'claude-opus-5',
+  'claude-opus-4-8',
+  'claude-opus-4-7',
+  'claude-opus-4-6',
+  'claude-sonnet-5',
+  'claude-sonnet-4-6',
+  'claude-haiku-4-5',
+])
+
+/**
+ * Le modèle d'une tâche, en tenant compte d'une éventuelle variable
+ * d'environnement — mais jamais au point de tomber en panne.
+ *
+ * **Le piège, constaté le 02/09/2026.** Neuf tâches acceptent un modèle
+ * imposé par l'environnement, pour pouvoir changer sans redéployer. Une de ces
+ * variables portait encore `claude-sonnet-4-5`, retiré depuis. La sonde de
+ * santé, qui n'en tient pas compte, répondait « ok » pendant que la réécriture
+ * échouait : les annonces sortaient avec le texte du fournisseur, note 38 sur
+ * 100, sans attributs ni arguments — et le diagnostic disait que tout allait
+ * bien.
+ *
+ * Une valeur inconnue est donc **ignorée**, bruyamment. Un réglage périmé dans
+ * une console d'hébergeur ne doit pas pouvoir arrêter le produit : il doit
+ * ralentir une décision, pas la casser.
+ */
+export function modele(variable: string, defaut: string): string {
+  const impose = process.env[variable]?.trim()
+  if (!impose) return defaut
+  if (MODELES_SERVIS.has(impose)) return impose
+
+  console.error(
+    `[ia] ${variable}="${impose}" n'est pas un modèle servi : ignorée, ${defaut} utilisé à la place.`,
+  )
+  return defaut
+}
+
+/** Ce que chaque tâche appelle réellement, pour le diagnostic. */
+export function modelesEffectifs(): Record<string, string> {
+  return {
+    reecriture: modele('AI_MODEL_ENHANCE', MODELE_REDACTION),
+    options: modele('AI_MODEL_EXTRACT', MODELE_RAPIDE),
+    conversation: modele('AI_MODEL_CHAT', MODELE_REDACTION),
+    categories: modele('AI_MODEL_CATEGORY', MODELE_RAPIDE),
+    analyse: modele('AI_MODEL_ANALYSIS', MODELE_PUISSANT),
+  }
+}
+
 export const TARIFS: Record<string, { in: number; out: number }> = {
   'claude-sonnet-5': { in: 2, out: 10 },
   'claude-haiku-4-5': { in: 1, out: 5 },

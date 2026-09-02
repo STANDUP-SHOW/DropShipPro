@@ -1,4 +1,4 @@
-import { MODELE_REDACTION, MODELE_RAPIDE, TARIFS } from './aiModels.js'
+import { MODELE_REDACTION, MODELE_RAPIDE, TARIFS, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { trimToWords } from './channelCopy.js'
 
@@ -45,8 +45,8 @@ export interface EnhancedListing {
  * Both are overridable without a deploy: a bad surprise on quality is one
  * environment variable away from being reverted.
  */
-const MODEL_ENHANCE = process.env.AI_MODEL_ENHANCE?.trim() || MODELE_REDACTION
-const MODEL_EXTRACT = process.env.AI_MODEL_EXTRACT?.trim() || MODELE_RAPIDE
+const MODEL_ENHANCE = modele('AI_MODEL_ENHANCE', MODELE_REDACTION)
+const MODEL_EXTRACT = modele('AI_MODEL_EXTRACT', MODELE_RAPIDE)
 
 /**
  * Per-million token prices, to turn usage into euros in the logs.

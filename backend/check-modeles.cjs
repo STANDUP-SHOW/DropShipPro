@@ -22,23 +22,28 @@ const fs = require('fs')
 const path = require('path')
 
 /**
- * Les modèles actuellement servis par l'API Anthropic.
+ * Les modèles actuellement servis, lus dans `aiModels.ts`.
  *
- * À mettre à jour quand Anthropic publie une nouvelle génération — c'est le
- * geste normal, et il est visible. Ce qui ne doit jamais arriver, c'est qu'un
- * nom retiré survive dans le code sans que personne le sache.
+ * **Jamais recopiés ici.** Deux listes divergeraient le jour où l'on ajoute une
+ * génération : ce banc refuserait alors un nom parfaitement valide — ou pire,
+ * laisserait passer un nom retiré. La liste s'écrit à un endroit, et c'est
+ * celui que le serveur utilise vraiment.
  */
-const SERVIS = new Set([
-  'claude-fable-5-1',
-  'claude-fable-5',
-  'claude-opus-5',
-  'claude-opus-4-8',
-  'claude-opus-4-7',
-  'claude-opus-4-6',
-  'claude-sonnet-5',
-  'claude-sonnet-4-6',
-  'claude-haiku-4-5',
-])
+const SOURCE_MODELES = fs.readFileSync(
+  path.join(__dirname, 'src', 'services', 'aiModels.ts'),
+  'utf8',
+)
+
+const BLOC_SERVIS = SOURCE_MODELES.match(
+  /export const MODELES_SERVIS = new Set\(\[([\s\S]*?)\]\)/,
+)
+
+const SERVIS = new Set(
+  (BLOC_SERVIS?.[1] ?? '')
+    .split(',')
+    .map((ligne) => ligne.trim().replace(/^'|'$/g, ''))
+    .filter(Boolean),
+)
 
 /** Le seul fichier qui a le droit de nommer un modèle. */
 const SOURCE_UNIQUE = path.join('src', 'services', 'aiModels.ts')
@@ -126,6 +131,39 @@ console.log('\nLes constantes exportées')
       m?.[1] ?? '',
     )
   }
+}
+
+// --- Aucun réglage d'environnement ne peut casser l'application --------------
+console.log("\nLes modèles imposables par l'environnement")
+{
+  /*
+   * Neuf tâches acceptent un modèle imposé par une variable, pour pouvoir en
+   * changer sans redéployer. Le 02/09/2026, l'une d'elles portait encore
+   * `claude-sonnet-4-5`, retiré : la sonde de santé, qui ne les lit pas,
+   * répondait « ok » pendant que la réécriture échouait en silence — annonces
+   * sans attributs, note 38 sur 100, et un diagnostic qui disait que tout allait
+   * bien.
+   *
+   * Un réglage périmé doit ralentir une décision, jamais arrêter le produit.
+   */
+  const services = fichiers(path.join(__dirname, 'src'))
+    .map((f) => ({ f: path.relative(__dirname, f), s: fs.readFileSync(f, 'utf8') }))
+    .filter((x) => x.s.includes('AI_MODEL_'))
+
+  const brutes = services.flatMap((x) =>
+    [...x.s.matchAll(/process\.env\.(AI_MODEL_[A-Z_]+)/g)].map((m) => `${x.f} → ${m[1]}`),
+  )
+
+  verifier(
+    "aucune variable de modèle n'est lue sans être validée",
+    brutes.length === 0,
+    brutes.join(' · '),
+  )
+  verifier(
+    'le validateur existe et ignore une valeur inconnue',
+    /export function modele\(/.test(SOURCE_MODELES) &&
+      /MODELES_SERVIS\.has\(impose\)/.test(SOURCE_MODELES),
+  )
 }
 
 console.log(echecs ? `\n${echecs} échec(s).` : '\nTout passe.')

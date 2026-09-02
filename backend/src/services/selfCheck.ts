@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { checkStorage, storageError, storageTarget, type StorageStatus } from '../lib/storage.js'
 import { getStripe } from './billing.js'
 import { checkAi, raisonIa, empreinteCle, type AiStatus } from './aiHealth.js'
+import { modelesEffectifs } from './aiModels.js'
 import { mailIsConfigured } from './mailer.js'
 import { checkImageGen, type ImageGenStatus } from './imageGen.js'
 
@@ -61,6 +62,8 @@ export interface ServiceReport {
      * de travail qui n'est pas le sien.
      */
     iaCle?: string | null
+    /** Le modele reellement appele par chaque tache, variables d environnement comprises. */
+    iaModeles?: Record<string, string>
   }
   /** What would hurt a real user right now, in plain French. */
   alertes: string[]
@@ -163,6 +166,7 @@ export async function selfCheck(): Promise<ServiceReport> {
       policesRaison: polices.raison,
       iaRaison: raisonIa(),
       iaCle: empreinteCle(),
+      iaModeles: modelesEffectifs(),
     },
     alertes,
   }

@@ -1,4 +1,4 @@
-import { MODELE_RAPIDE } from './aiModels.js'
+import { MODELE_RAPIDE, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 
 /**
@@ -185,7 +185,7 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
     const reponse = await client.messages.create({
       // Haiku suffit : quatre phrases sous contrainte. La consigne ne change
       // jamais, donc mise en cache — six photos ne la relisent qu'une fois.
-      model: process.env.AI_MODEL_BRIEF?.trim() || MODELE_RAPIDE,
+      model: modele('AI_MODEL_BRIEF', MODELE_RAPIDE),
       max_tokens: 400,
       system: [{ type: 'text' as const, text: CONSIGNE, cache_control: { type: 'ephemeral' as const } }],
       messages: [{ role: 'user', content: fiche }],
