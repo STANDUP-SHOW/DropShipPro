@@ -41,6 +41,8 @@ export default function Dashboard() {
   const [statut, setStatut] = useState<'tous' | 'publie' | 'nonPublie'>('tous')
   const [fournisseurFiltre, setFournisseurFiltre] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  /** Les identifiants que le choix de catégorie recouvre. Vide = toutes. */
+  const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [pendingDelete, setPendingDelete] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
@@ -80,7 +82,16 @@ export default function Dashboard() {
 
   const needle = search.trim().toLowerCase()
   const filtres = products
-    .filter((p) => !categoryFilter || p.categoryId === categoryFilter)
+    /*
+     * Le filtre porte sur ce que le choix recouvre, pas sur un seul identifiant.
+     *
+     * Comparer `p.categoryId === categoryFilter` marchait pour une
+     * sous-catégorie et jamais pour un rayon : une annonce est rangée dans
+     * « Électronique › Écouteurs », pas dans « Électronique ». Le menu
+     * annonçait vingt annonces, la liste en affichait zéro, et il fallait
+     * entrer dans une sous-catégorie pour voir quoi que ce soit.
+     */
+    .filter((p) => !categoryIds.length || categoryIds.includes(p.categoryId))
     .filter((p) => !needle || `${p.aiTitle ?? ''} ${p.title ?? ''}`.toLowerCase().includes(needle))
     .filter((p) => !fournisseurFiltre || p.sourceSite === fournisseurFiltre)
     .filter((p) => {
@@ -500,7 +511,12 @@ export default function Dashboard() {
             presents={presentsCategories}
             compte={comptePar}
             valeur={categoryFilter || null}
-            onChange={(c) => setCategoryFilter(c.id ?? '')}
+            onChange={(c) => {
+              setCategoryFilter(c.id ?? '')
+              // Ce que le choix recouvre, calculé par le menu qui seul connaît
+              // l'arbre : un rayon vaut pour toutes ses sous-catégories.
+              setCategoryIds(c.ids)
+            }}
           />
           <input
             value={search}

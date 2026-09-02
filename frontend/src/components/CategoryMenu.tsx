@@ -24,6 +24,20 @@ export interface ChoixCategorie {
   /** L'identifiant retenu — rayon ou sous-catégorie — ou `null` pour « toutes ». */
   id: string | null
   label: string
+  /**
+   * Les identifiants qu'une annonce doit porter pour entrer dans ce filtre.
+   *
+   * **C'est ce qui manquait, et le filtre ne renvoyait rien.** Choisir
+   * « Électronique » annonçait vingt annonces puis n'en affichait aucune : le
+   * menu rendait l'identifiant du rayon, la liste comparait à `categoryId`, et
+   * une annonce est toujours rangée dans une **sous-catégorie**. Les deux
+   * n'étaient jamais égaux.
+   *
+   * Le menu est le seul à connaître l'arbre : c'est donc à lui de dire ce que
+   * son choix recouvre, plutôt que de laisser chaque écran le redécouvrir — et
+   * se tromper de la même façon. Vide veut dire « toutes ».
+   */
+  ids: string[]
 }
 
 export function CategoryMenu({
@@ -115,8 +129,22 @@ export function CategoryMenu({
     return 'Catégorie'
   }, [valeur, rayons])
 
+  /**
+   * Ce qu'un identifiant recouvre : lui-même, et ses sous-catégories s'il en a.
+   *
+   * Un rayon peut aussi porter des annonces directement — quand le rangement
+   * s'est arrêté au rayon faute de sous-catégorie évidente. Il figure donc dans
+   * sa propre liste : l'oublier ferait disparaître ces annonces-là du filtre du
+   * rayon, c'est-à-dire du seul endroit où on les cherchera.
+   */
+  const couvre = (id: string | null): string[] => {
+    if (!id) return []
+    const rayon = rayons.find((r) => r.id === id)
+    return rayon ? [rayon.id, ...rayon.enfants.map((e) => e.id)] : [id]
+  }
+
   const choisir = (id: string | null, label: string) => {
-    onChange({ id, label })
+    onChange({ id, label, ids: couvre(id) })
     setOuvert(false)
     setRayonOuvert(null)
     setRecherche('')
@@ -242,9 +270,11 @@ export function CategoryMenu({
                     nombre={r.total}
                     fleche={r.enfants.length > 0}
                     actif={valeur === r.id}
-                    onClick={() =>
-                      r.enfants.length ? setRayonOuvert(r) : choisir(r.id, r.label)
-                    }
+                    // Le clic choisit le rayon entier ; la flèche, elle seule,
+                    // ouvre ses sous-catégories. Affiner reste possible, ce
+                    // n'est plus un passage obligé.
+                    onClick={() => choisir(r.id, r.label)}
+                    onAffiner={() => setRayonOuvert(r)}
                   />
                 ))}
               </>
@@ -264,6 +294,7 @@ function Ligne({
   actif,
   fleche,
   onClick,
+  onAffiner,
 }: {
   icone?: string | null
   titre: string
@@ -272,15 +303,23 @@ function Ligne({
   actif?: boolean
   fleche?: boolean
   onClick: () => void
+  /** Ouvrir les sous-catégories, quand il y en a. Séparé du choix lui-même. */
+  onAffiner?: () => void
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${
-        actif ? 'bg-purple-500/20 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'
-      }`}
-    >
+  /*
+   * Deux gestes distincts sur une même ligne, et c'est le fond du problème.
+   *
+   * Cliquer « Électronique » entrait dans le rayon au lieu de le choisir : il
+   * fallait ensuite prendre une sous-catégorie, faute de quoi rien ne
+   * s'affichait. Choisir un rayon entier est pourtant le geste le plus courant,
+   * et affiner n'est qu'une option.
+   *
+   * La ligne choisit donc le rayon ; la flèche, et elle seule, ouvre le détail.
+   * Deux `<button>` imbriqués sont interdits en HTML — d'où un conteneur et
+   * deux boutons côte à côte plutôt qu'un bouton dans un bouton.
+   */
+  const contenu = (
+    <>
       <span className="w-5 shrink-0 text-center text-base leading-none">{icone ?? ''}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm">{titre}</span>
@@ -291,7 +330,43 @@ function Ligne({
           {nombre}
         </span>
       ) : null}
-      {fleche ? <ChevronDown size={13} className="shrink-0 -rotate-90 text-gray-500" /> : null}
-    </button>
+    </>
+  )
+
+  const fond = actif
+    ? 'bg-purple-500/20 text-white'
+    : 'text-gray-300 hover:bg-white/5 hover:text-white'
+
+  if (!fleche || !onAffiner) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${fond}`}
+      >
+        {contenu}
+      </button>
+    )
+  }
+
+  return (
+    <div className={`flex w-full items-center rounded-lg transition ${fond}`}>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 text-left"
+      >
+        {contenu}
+      </button>
+      <button
+        type="button"
+        onClick={onAffiner}
+        title={`Affiner dans ${titre}`}
+        aria-label={`Affiner dans ${titre}`}
+        className="shrink-0 rounded-r-lg px-2 py-2.5 text-gray-500 transition hover:bg-white/10 hover:text-white"
+      >
+        <ChevronDown size={13} className="-rotate-90" />
+      </button>
+    </div>
   )
 }
