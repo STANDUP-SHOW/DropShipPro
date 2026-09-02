@@ -40,6 +40,7 @@ export function AdDialog({
   productTitle,
   shopId,
   credits,
+  coutParPub = 2,
   onClose,
   onGenerated,
 }: {
@@ -48,6 +49,8 @@ export function AdDialog({
   /** La boutique ou l annonce est rangee : c est la proposition par defaut. */
   shopId?: string | null
   credits: number | null
+  /** Ce que coûte une publicité, servi par `/visuals/state`. Jamais recalculé ici. */
+  coutParPub?: number
   onClose: () => void
   onGenerated: (images: unknown[], credits: number) => void
 }) {
@@ -120,7 +123,15 @@ export function AdDialog({
     }
   }
 
-  const cout = choisis.size
+  /*
+   * Le coût, réseau par réseau, au tarif du serveur.
+   *
+   * C'était `choisis.size` : un crédit par visuel, parce que c'était vrai à
+   * l'époque. Une publicité en coûte deux — une accroche écrite, puis un visuel
+   * composé — et cette ligne aurait continué d'annoncer la moitié du prix sans
+   * que rien ne la contredise. Le tarif arrive donc de `/visuals/state`.
+   */
+  const cout = choisis.size * coutParPub
 
   return createPortal(
     <div
@@ -391,20 +402,28 @@ export function AdDialog({
               </p>
             ) : null}
 
+            {/*
+              Refusé d'avance quand le solde ne couvre pas la demande : lancer
+              pour recevoir « crédits insuffisants » fait perdre le temps de
+              composition, et l'écran connaît déjà les deux chiffres.
+            */}
             <button
               type="button"
               onClick={generer}
-              disabled={!choisis.size || busy || credits === 0}
+              disabled={!choisis.size || busy || (credits !== null && credits < cout)}
               className="btn-gradient mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-              <span>{busy ? 'Nadia compose…' : `Générer ${cout || 0} publicité(s)`}</span>
+              {/* Le nombre de publicités, pas le nombre de crédits : depuis que
+                  les deux diffèrent, « Générer 4 publicité(s) » pour deux
+                  réseaux serait un mensonge. */}
+              <span>{busy ? 'Nadia compose…' : `Générer ${choisis.size} publicité(s)`}</span>
             </button>
 
             <p className="mt-2 text-center text-[11px] text-gray-500">
               {credits === null
-                ? `${cout} crédit(s) image`
-                : `${cout} crédit(s) image sur les ${credits} qui vous restent`}
+                ? `${cout} crédit(s) image · ${coutParPub} par publicité`
+                : `${cout} crédit(s) image sur les ${credits} qui vous restent · ${coutParPub} par publicité`}
             </p>
           </>
         )}

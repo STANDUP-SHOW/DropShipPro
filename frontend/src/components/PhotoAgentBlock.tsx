@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles, Check, Trash2, Download } from 'lucide-react'
+import { Sparkles, Check, Trash2, Download, Megaphone } from 'lucide-react'
 import { api, assetUrl } from '../lib/api'
+import { AdDialog } from './AdDialog'
 
 type Visual = Awaited<ReturnType<typeof api.productVisuals>>['generated'][number]
 
 /**
- * Six mises en situation, et rien d autre.
+ * Le nombre proposé par défaut, quand le vendeur n'a pas encore choisi.
  *
- * Lea produisait aussi un visuel publicitaire. C etait une erreur de metier :
- * elle compose une image, elle n ecrit pas d accroche, et la pub sortait sans
- * texte -- un credit depense pour un visuel inutilisable. La publicite est le
- * metier de Nadia, qui pose le logo, le prix et le bouton. Chacune la sienne.
+ * Il n'y avait pas de choix du tout : le bouton disait « Régénérer 6 photos »
+ * et en faisait six, à prendre ou à laisser. Six est cher pour essayer un angle
+ * et court pour refaire une fiche. Le curseur va de 1 à 10 ; trois est ce
+ * qu'on prend pour voir.
  */
-const MISES_EN_SITUATION = 6
+const PAR_DEFAUT = 3
 
 /**
  * Le bloc de Léa sur la fiche d'une annonce.
@@ -29,17 +30,26 @@ const MISES_EN_SITUATION = 6
  */
 export function PhotoAgentBlock({
   productId,
+  productTitle,
+  shopId,
   onImagesChanged,
 }: {
   productId: string
+  /** Le titre de l'annonce, que la fenêtre de publicité affiche pour situer. */
+  productTitle: string
+  /** La boutique où l'annonce est rangée : la publicité la propose par défaut. */
+  shopId?: string | null
   onImagesChanged: () => void
 }) {
   const [credits, setCredits] = useState<number | null>(null)
+  const [tarif, setTarif] = useState({ photo: 1, pub: 2, photosMax: 10 })
   const [configured, setConfigured] = useState(true)
   const [visuals, setVisuals] = useState<Visual[]>([])
+  const [combien, setCombien] = useState(PAR_DEFAUT)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [kept, setKept] = useState<Set<string>>(new Set())
+  const [pubOuverte, setPubOuverte] = useState(false)
 
   useEffect(() => {
     api
@@ -47,6 +57,7 @@ export function PhotoAgentBlock({
       .then((s) => {
         setCredits(s.credits)
         setConfigured(s.configured)
+        if (s.tarif) setTarif(s.tarif)
       })
       .catch(() => setConfigured(false))
     api
@@ -55,7 +66,7 @@ export function PhotoAgentBlock({
       .catch(() => undefined)
   }, [productId])
 
-  const cout = MISES_EN_SITUATION
+  const cout = combien * tarif.photo
 
   async function regenerate() {
     setBusy(true)
@@ -63,7 +74,7 @@ export function PhotoAgentBlock({
     const problemes: string[] = []
 
     try {
-      const photos = await api.generatePhotos(productId, MISES_EN_SITUATION)
+      const photos = await api.generatePhotos(productId, combien)
       if (photos.errors.length) problemes.push(...photos.errors)
       setCredits(photos.credits)
       setVisuals((v) => [...photos.images, ...v])
@@ -97,41 +108,83 @@ export function PhotoAgentBlock({
           <h2 className="text-sm font-semibold tracking-wide">Léa — Agent Graphiste</h2>
           <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
             Je peux refaire les photos de ce produit si vous le souhaitez : le même article, mais en
-            situation d'utilisation, éclairé comme en studio. Je ne fais que de la photo.
+            situation d'utilisation, éclairé comme en studio. Je ne fais que de la photo — la
+            publicité, c'est Nadia, juste en dessous.
           </p>
         </div>
       </header>
+
+      {/*
+        Combien d'images, choisi avant de payer.
+        Le bouton en faisait six, à prendre ou à laisser. Une seule suffit pour
+        essayer un angle ; dix pour refaire une fiche entière.
+      */}
+      <div className="mt-4 flex items-center gap-3">
+        <label htmlFor="combien-photos" className="shrink-0 text-xs text-gray-400">
+          Combien d'images
+        </label>
+        <input
+          id="combien-photos"
+          type="range"
+          min={1}
+          max={tarif.photosMax}
+          step={1}
+          value={combien}
+          onChange={(e) => setCombien(Number(e.target.value))}
+          className="h-1.5 flex-1 cursor-pointer accent-purple-400"
+        />
+        <span className="w-6 text-right text-sm font-semibold tabular-nums">{combien}</span>
+      </div>
 
       <button
         type="button"
         onClick={regenerate}
         disabled={busy || credits === 0}
-        className="btn-gradient mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+        className="btn-gradient mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
       >
         <Sparkles size={15} />
-        <span>{busy ? 'Léa travaille…' : 'Régénérer 6 photos'}</span>
+        <span>{busy ? 'Léa travaille…' : `Générer ${combien} image${combien > 1 ? 's' : ''}`}</span>
       </button>
 
       <p className="mt-2 text-center text-[11px] text-gray-500">
+        {/*
+          Le prix unitaire, et pas seulement le total.
+          « 7 crédits » ne se vérifie pas ; « 1 crédit par image » se vérifie et
+          se retient — le vendeur sait d'avance ce que coûtera la fois d'après.
+        */}
         {credits === null
-          ? `${cout} crédits images · ${MISES_EN_SITUATION} mises en situation`
-          : `${cout} crédits images sur les ${credits} qui vous restent · ${MISES_EN_SITUATION} mises en situation`}
+          ? `${cout} crédit(s) · ${tarif.photo} crédit par image`
+          : `${cout} crédit(s) sur les ${credits} qui vous restent · ${tarif.photo} crédit par image`}
       </p>
 
       {/*
-        Le renvoi vers Nadia, et la raison.
-        Léa composait aussi la publicité, et la sortait sans accroche : un crédit
-        dépensé pour un visuel inutilisable. Poser le logo, le prix et le bouton
-        est un autre métier — autant le dire ici plutôt que de laisser le vendeur
-        redemander la même chose à la mauvaise personne.
+        La publicité se demande ici, plus seulement depuis la page Marketing.
+        Le vendeur qui regarde ses photos est exactement celui qui veut en faire
+        une publicité : l'envoyer chercher son produit dans une autre liste, c'est
+        le perdre en route. C'est la même fenêtre, donc les mêmes questions et le
+        même résultat, où qu'on parte.
       */}
-      <p className="mt-2 text-center text-[11px] text-gray-500">
-        Besoin d'une publicité — logo, prix, bouton vers la boutique ?{' '}
-        <Link to="/marketing" className="text-purple-300 underline underline-offset-2">
-          C'est Nadia qui s'en charge
-        </Link>
-        .
-      </p>
+      <div className="mt-3 border-t border-white/10 pt-3">
+        <button
+          type="button"
+          onClick={() => setPubOuverte(true)}
+          disabled={credits !== null && credits < tarif.pub}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-purple-400/40 px-4 py-2.5 text-sm font-semibold text-purple-200 transition hover:bg-purple-500/10 disabled:opacity-40"
+        >
+          <Megaphone size={15} />
+          <span>Créer une publicité</span>
+        </button>
+        <p className="mt-2 text-center text-[11px] text-gray-500">
+          {`${tarif.pub} crédits la publicité — Nadia écrit l'accroche, pose votre logo, le prix et le bouton.`}
+        </p>
+        <p className="mt-1 text-center text-[11px] text-gray-500">
+          Vos publicités se retrouvent aussi dans{' '}
+          <Link to="/marketing" className="text-purple-300 underline underline-offset-2">
+            Commercialisation
+          </Link>
+          .
+        </p>
+      </div>
 
       {credits === 0 ? (
         <p className="mt-2 text-center text-[11px] text-amber-300">
@@ -193,6 +246,24 @@ export function PhotoAgentBlock({
             </div>
           ))}
         </div>
+      ) : null}
+
+      {pubOuverte ? (
+        <AdDialog
+          productId={productId}
+          productTitle={productTitle}
+          shopId={shopId}
+          credits={credits}
+          coutParPub={tarif.pub}
+          onClose={() => setPubOuverte(false)}
+          onGenerated={(images, restants) => {
+            setCredits(restants)
+            // Les publicités rejoignent la même galerie que les photos : elles
+            // portent leur étiquette « PUB », et le vendeur les garde ou les
+            // jette avec les mêmes boutons.
+            setVisuals((v) => [...(images as Visual[]), ...v])
+          }}
+        />
       ) : null}
     </section>
   )

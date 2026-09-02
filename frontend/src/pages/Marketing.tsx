@@ -317,6 +317,7 @@ export default function Marketing() {
           productTitle={adCible.titre}
           shopId={adCible.shopId}
           credits={state?.credits ?? null}
+          coutParPub={state?.tarif?.pub}
           onClose={() => setAdCible(null)}
           onGenerated={(images, credits) => {
             setState((s) => (s ? { ...s, credits } : s))

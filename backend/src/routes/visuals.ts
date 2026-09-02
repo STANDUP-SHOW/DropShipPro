@@ -3,6 +3,7 @@ import { ecrireAccroche } from '../services/adCopywriter.js'
 import { ecrireBrief } from '../services/photoBriefer.js'
 import { enseignePour } from '../services/adBrand.js'
 import { SansPolice } from '../services/adComposer.js'
+import { COUT_PHOTO, COUT_PUB, PHOTOS_MAX, TARIF_VISUELS } from '../services/visualTariff.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
@@ -66,6 +67,16 @@ visualsRouter.get('/state', async (req: AuthedRequest, res) => {
     // évite à l'interface de deviner.
     beyond: "Au-delà de 25 000 images, écrivez-nous : le tarif se négocie.",
     formats: Object.entries(AD_FORMATS).map(([id, f]) => ({ id, ...f })),
+    /*
+     * Le tarif part au client au lieu d'être réécrit par lui.
+     *
+     * L'écran affichait « 6 crédits images » parce qu'il savait qu'il demandait
+     * six photos à un crédit pièce. Le jour où le prix d'une publicité passe à
+     * deux, ce raisonnement devient faux sans que rien ne le signale, et le
+     * vendeur lit un chiffre avant de cliquer puis en voit un autre sur son
+     * solde.
+     */
+    tarif: TARIF_VISUELS,
   })
 })
 
@@ -100,7 +111,9 @@ visualsRouter.get('/product/:id', async (req: AuthedRequest, res) => {
 
 const photoSchema = z.object({
   productId: z.string(),
-  count: z.number().int().min(1).max(6).default(1),
+  // Le vendeur choisit : une seule pour essayer un angle, dix pour refaire une
+  // fiche entière. Le plafond vient de `visualTariff.ts`.
+  count: z.number().int().min(1).max(PHOTOS_MAX).default(1),
   /*
    * Deux mille caractères, et non trois cents.
    *
@@ -119,17 +132,27 @@ const photoSchema = z.object({
 })
 
 /**
- * Prend un crédit image, ou refuse.
+ * Prend des crédits images, ou refuse.
  *
  * Le décompte est conditionnel en base : deux générations lancées en même temps
- * ne doivent pas passer avec un seul crédit restant.
+ * ne doivent pas passer avec un seul crédit restant. Le `gte: combien` est ce
+ * qui rend le prélèvement de deux crédits sûr autant que celui d'un seul —
+ * lire le solde puis décrémenter laisserait passer une publicité à découvert.
  */
-async function takeImageCredit(userId: string): Promise<boolean> {
+async function takeImageCredit(userId: string, combien = COUT_PHOTO): Promise<boolean> {
   const { count } = await prisma.user.updateMany({
-    where: { id: userId, imageCredits: { gte: 1 } },
-    data: { imageCredits: { decrement: 1 } },
+    where: { id: userId, imageCredits: { gte: combien } },
+    data: { imageCredits: { decrement: combien } },
   })
   return count > 0
+}
+
+/** Rend ce qui a été pris quand rien n'a été produit. Le pendant exact du prélèvement. */
+async function rendreCredits(userId: string, combien: number) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { imageCredits: { increment: combien } },
+  })
 }
 
 visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
@@ -228,10 +251,7 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
       )
     } catch (err) {
       // Rien produit, rien facturé.
-      await prisma.user.update({
-        where: { id: req.userId! },
-        data: { imageCredits: { increment: 1 } },
-      })
+      await rendreCredits(req.userId!, COUT_PHOTO)
       errors.push(err instanceof ImageGenUnavailable ? err.message : `Génération impossible : ${(err as Error).message}`)
       break
     }
@@ -396,8 +416,10 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
 
   outer: for (const platform of platforms) {
     for (let i = 0; i < parsed.data.count; i++) {
-      if (!(await takeImageCredit(req.userId!))) {
-        errors.push('Crédits images épuisés.')
+      // Deux crédits : l'accroche est écrite, puis le visuel est composé —
+      // logo, prix, bouton, format du réseau. Voir `visualTariff.ts`.
+      if (!(await takeImageCredit(req.userId!, COUT_PUB))) {
+        errors.push(`Crédits images insuffisants : une publicité en coûte ${COUT_PUB}.`)
         break outer
       }
 
@@ -476,10 +498,7 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
           }),
         )
       } catch (err) {
-        await prisma.user.update({
-          where: { id: req.userId! },
-          data: { imageCredits: { increment: 1 } },
-        })
+        await rendreCredits(req.userId!, COUT_PUB)
         errors.push(
           err instanceof SansPolice || err instanceof ImageGenUnavailable
             ? err.message

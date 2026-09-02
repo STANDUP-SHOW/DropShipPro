@@ -492,7 +492,14 @@ export default function ProductDetail() {
           </div>
 
           {/* ---------- L'agent graphiste, là où les photos se regardent ---------- */}
-          {id ? <PhotoAgentBlock productId={id} onImagesChanged={load} /> : null}
+          {id ? (
+            <PhotoAgentBlock
+              productId={id}
+              productTitle={product.aiTitle || product.title}
+              shopId={product.shopId}
+              onImagesChanged={load}
+            />
+          ) : null}
 
           {/* ---------- Ce que chaque destination acceptera ---------- */}
           {id ? <ChannelReadiness productId={id} /> : null}

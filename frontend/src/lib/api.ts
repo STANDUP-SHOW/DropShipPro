@@ -785,6 +785,14 @@ export const api = {
       configured: boolean
       packs: Array<{ id: string; label: string; amount: number; images: number }>
       formats: Array<{ id: string; label: string; width: number; height: number; note: string }>
+      /*
+       * Le tarif vient du serveur, il ne se recalcule pas ici.
+       *
+       * L'écran multipliait le nombre d'images par un crédit, parce que c'était
+       * vrai. Ça ne l'est plus pour une publicité, et un prix affiché qui ne
+       * correspond pas au prélèvement est pire qu'un prix absent.
+       */
+      tarif: { photo: number; pub: number; photosMax: number }
     }>('/visuals/state'),
   productVisuals: (productId: string) =>
     request<{
