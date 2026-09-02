@@ -163,7 +163,6 @@ export async function selfCheck(): Promise<ServiceReport> {
       policesRaison: polices.raison,
       iaRaison: raisonIa(),
       iaCle: empreinteCle(),
-      iaCle: empreinteCle(),
     },
     alertes,
   }
