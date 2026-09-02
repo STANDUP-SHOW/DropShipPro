@@ -1,3 +1,4 @@
+import { MODELE_REDACTION } from './aiModels.js'
 import type { Platform } from '@prisma/client'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
@@ -131,7 +132,7 @@ export async function draftReply(
   try {
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: MODELE_REDACTION,
       max_tokens: 600,
       system,
       messages: conversation.messages.length

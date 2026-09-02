@@ -1,3 +1,4 @@
+import { MODELE_REDACTION } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Product } from '@prisma/client'
 
@@ -100,7 +101,7 @@ export async function buildFillPlan(
   }
 
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
+    model: MODELE_REDACTION,
     max_tokens: 4000,
     system: SYSTEM_PROMPT,
     messages: [

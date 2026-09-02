@@ -1,3 +1,4 @@
+import { MODELE_RAPIDE } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { accorderAuGenre, genreDe, lireTitre, sourceSansValeur, type Genre } from './categoryLexicon.js'
@@ -394,7 +395,7 @@ async function placerParIA(d: DemandeCategorie): Promise<{ id: string; path: str
       // Haiku suffit : c'est un choix dans une liste fermée, pas un
       // raisonnement. Et le référentiel, long, est mis en cache — il est
       // identique d'un produit à l'autre.
-      model: process.env.AI_MODEL_CATEGORY?.trim() || 'claude-haiku-4-5',
+      model: process.env.AI_MODEL_CATEGORY?.trim() || MODELE_RAPIDE,
       max_tokens: 200,
       system: [{ type: 'text' as const, text: consigne, cache_control: { type: 'ephemeral' as const } }],
       messages: [{ role: 'user', content: question }],

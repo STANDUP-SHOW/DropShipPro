@@ -1,3 +1,4 @@
+import { MODELE_RAPIDE } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 
 /**
@@ -121,7 +122,7 @@ export async function ecrireAccroche(d: DemandeAccroche): Promise<Accroche | nul
     const reponse = await client.messages.create({
       // Haiku suffit : trois phrases courtes sous contrainte. Les instructions
       // sont identiques d'une publicité à l'autre, donc mises en cache.
-      model: process.env.AI_MODEL_ADCOPY?.trim() || 'claude-haiku-4-5',
+      model: process.env.AI_MODEL_ADCOPY?.trim() || MODELE_RAPIDE,
       max_tokens: 300,
       system: [{ type: 'text' as const, text: consigne, cache_control: { type: 'ephemeral' as const } }],
       messages: [{ role: 'user', content: fiche }],

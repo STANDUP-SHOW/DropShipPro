@@ -1,3 +1,5 @@
+import { MODELE_RAPIDE } from './aiModels.js'
+import { MODELE_REDACTION } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 
@@ -149,8 +151,8 @@ export function choisirModele(question: string, avecOutils: boolean): string {
   return MODELE_SIMPLE
 }
 
-export const MODELE_RAISONNEMENT = process.env.AI_MODEL_CHAT?.trim() || 'claude-sonnet-4-5'
-export const MODELE_SIMPLE = process.env.AI_MODEL_CHAT_SIMPLE?.trim() || 'claude-haiku-4-5'
+export const MODELE_RAISONNEMENT = process.env.AI_MODEL_CHAT?.trim() || MODELE_REDACTION
+export const MODELE_SIMPLE = process.env.AI_MODEL_CHAT_SIMPLE?.trim() || MODELE_RAPIDE
 
 /**
  * Les instructions système, marquées pour le cache.

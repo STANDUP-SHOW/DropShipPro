@@ -1,3 +1,4 @@
+import { MODELE_REDACTION, MODELE_RAPIDE, TARIFS } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { trimToWords } from './channelCopy.js'
 
@@ -44,16 +45,17 @@ export interface EnhancedListing {
  * Both are overridable without a deploy: a bad surprise on quality is one
  * environment variable away from being reverted.
  */
-const MODEL_ENHANCE = process.env.AI_MODEL_ENHANCE?.trim() || 'claude-sonnet-4-5'
-const MODEL_EXTRACT = process.env.AI_MODEL_EXTRACT?.trim() || 'claude-haiku-4-5'
+const MODEL_ENHANCE = process.env.AI_MODEL_ENHANCE?.trim() || MODELE_REDACTION
+const MODEL_EXTRACT = process.env.AI_MODEL_EXTRACT?.trim() || MODELE_RAPIDE
 
-/** Per-million token prices, to turn usage into euros in the logs. */
-const PRICES: Record<string, { in: number; out: number }> = {
-  'claude-opus-5': { in: 5, out: 25 },
-  'claude-sonnet-5': { in: 3, out: 15 },
-  'claude-sonnet-4-5': { in: 3, out: 15 },
-  'claude-haiku-4-5': { in: 1, out: 5 },
-}
+/**
+ * Per-million token prices, to turn usage into euros in the logs.
+ *
+ * Prise de `aiModels.ts` : une table écrite ici ne connaît pas le modèle
+ * réellement appelé le jour où il change, et rend alors un coût faux — donc une
+ * marge fausse, ce qui est pire qu'un coût absent.
+ */
+const PRICES = TARIFS
 
 /**
  * Logs what a call actually cost.

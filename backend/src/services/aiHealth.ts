@@ -1,3 +1,4 @@
+import { MODELE_REDACTION } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 
 /**
@@ -41,7 +42,7 @@ async function probe(): Promise<AiStatus> {
   try {
     const client = new Anthropic({ apiKey: key })
     await client.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: MODELE_REDACTION,
       max_tokens: 4,
       messages: [{ role: 'user', content: 'ok' }],
     })
@@ -51,6 +52,23 @@ async function probe(): Promise<AiStatus> {
     // 401 revoked or mistyped, 403 blocked, 402 out of credit — all mean the same
     // thing for the seller: no listing will be rewritten.
     if (status === 401 || status === 403 || status === 402) return 'cle-refusee'
+
+    /*
+     * Le motif est écrit dans le journal, pas résumé en un mot.
+     *
+     * Le 02/09/2026, toute l'IA s'est arrêtée et le diagnostic disait
+     * « injoignable ». C'était un **404** : `claude-sonnet-4-5` n'est plus
+     * servi. La clé était bonne, le réseau aussi, et le seul mot rendu envoyait
+     * chercher une panne de connexion qui n'existait pas.
+     *
+     * « Injoignable » est un fourre-tout : modèle retiré, quota dépassé, panne
+     * de réseau, service surchargé. Les quatre demandent quatre gestes
+     * différents. Le code et le message partent donc au journal, où on les lit
+     * avant de chercher.
+     */
+    console.error(
+      `[ia] sonde en échec — statut ${status ?? 'aucun'} : ${(err as Error)?.message?.slice(0, 200)}`,
+    )
     return 'injoignable'
   }
 }

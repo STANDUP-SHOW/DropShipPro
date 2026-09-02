@@ -1,3 +1,4 @@
+import { MODELE_REDACTION } from './aiModels.js'
 import sharp from 'sharp'
 import Anthropic from '@anthropic-ai/sdk'
 import { fetchSourceImage } from './watermark.js'
@@ -26,7 +27,7 @@ import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
  * qui importe à la main n'en a pas besoin, et chaque appel coûte.
  */
 
-const MODEL = 'claude-sonnet-4-5'
+const MODEL = MODELE_REDACTION
 
 /**
  * L'agent regarde toutes les photos de l'annonce, pas les douze premières.

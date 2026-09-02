@@ -1,3 +1,4 @@
+import { MODELE_PUISSANT } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Product } from '@prisma/client'
 
@@ -13,7 +14,7 @@ import type { Product } from '@prisma/client'
  * them anyway is how an account gets closed. The consequence is stated plainly to
  * the seller — these are dated observations, not a price list.
  */
-const MODEL = process.env.AI_MODEL_ANALYSIS?.trim() || 'claude-opus-5'
+const MODEL = process.env.AI_MODEL_ANALYSIS?.trim() || MODELE_PUISSANT
 
 /** Caps the bill: each search is billed, and a runaway agent is a runaway invoice. */
 const MAX_SEARCHES = 5

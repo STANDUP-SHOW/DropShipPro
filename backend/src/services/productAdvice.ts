@@ -1,3 +1,4 @@
+import { MODELE_REDACTION } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 
 /**
@@ -16,7 +17,7 @@ import Anthropic from '@anthropic-ai/sdk'
  * recherches au maximum — 38 % de marge sur tous les paquets.
  */
 
-const MODEL = 'claude-sonnet-4-5'
+const MODEL = MODELE_REDACTION
 
 /** Assez pour croiser fournisseurs, réseaux et places de marché. Pas plus. */
 export const MAX_RECHERCHES = 5
