@@ -101,6 +101,8 @@ export function PhotoAgentBlock({
   if (!configured) return null
 
   return (
+    <>
+    {/* ================= Léa — les photos, et rien d'autre ================= */}
     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
       <header className="flex items-start gap-2.5">
         <span className="text-xl">📸</span>
@@ -157,35 +159,6 @@ export function PhotoAgentBlock({
           : `${cout} crédit(s) sur les ${credits} qui vous restent · ${tarif.photo} crédit par image`}
       </p>
 
-      {/*
-        La publicité se demande ici, plus seulement depuis la page Marketing.
-        Le vendeur qui regarde ses photos est exactement celui qui veut en faire
-        une publicité : l'envoyer chercher son produit dans une autre liste, c'est
-        le perdre en route. C'est la même fenêtre, donc les mêmes questions et le
-        même résultat, où qu'on parte.
-      */}
-      <div className="mt-3 border-t border-white/10 pt-3">
-        <button
-          type="button"
-          onClick={() => setPubOuverte(true)}
-          disabled={credits !== null && credits < tarif.pub}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-purple-400/40 px-4 py-2.5 text-sm font-semibold text-purple-200 transition hover:bg-purple-500/10 disabled:opacity-40"
-        >
-          <Megaphone size={15} />
-          <span>Créer une publicité</span>
-        </button>
-        <p className="mt-2 text-center text-[11px] text-gray-500">
-          {`${tarif.pub} crédits la publicité — Nadia écrit l'accroche, pose votre logo, le prix et le bouton.`}
-        </p>
-        <p className="mt-1 text-center text-[11px] text-gray-500">
-          Vos publicités se retrouvent aussi dans{' '}
-          <Link to="/marketing" className="text-purple-300 underline underline-offset-2">
-            Commercialisation
-          </Link>
-          .
-        </p>
-      </div>
-
       {credits === 0 ? (
         <p className="mt-2 text-center text-[11px] text-amber-300">
           <Link to="/marketing-photo" className="underline">
@@ -195,7 +168,57 @@ export function PhotoAgentBlock({
       ) : null}
 
       {error ? <p className="mt-3 text-xs text-red-400">{error}</p> : null}
+    </section>
 
+    {/* ================= Nadia — la publicité, un autre métier =================
+      Les deux étaient dans le même encadré, sous le nom de Léa : le vendeur
+      croyait demander une photo à la graphiste et recevait une publicité, ou
+      l'inverse. Ce ne sont pas les mêmes gestes, ni le même prix, ni le même
+      résultat — un visuel de vente porte un logo, un prix et un bouton, une
+      mise en situation n'en porte aucun. Deux encadrés, deux signatures.
+    */}
+    <section className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+      <header className="flex items-start gap-2.5">
+        <span className="text-xl">📣</span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold tracking-wide">Nadia — Agent Marketing</h2>
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+            Je transforme ce produit en publicité : j'écris l'accroche, je pose le nom et le logo de
+            votre boutique, le prix et le bouton, au format du réseau choisi. Je ne retouche pas les
+            photos — ça, c'est Léa juste au-dessus.
+          </p>
+        </div>
+      </header>
+
+      <button
+        type="button"
+        onClick={() => setPubOuverte(true)}
+        disabled={credits !== null && credits < tarif.pub}
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-purple-400/40 px-4 py-2.5 text-sm font-semibold text-purple-200 transition hover:bg-purple-500/10 disabled:opacity-40"
+      >
+        <Megaphone size={15} />
+        <span>Créer une publicité</span>
+      </button>
+
+      <p className="mt-2 text-center text-[11px] text-gray-500">
+        {credits === null
+          ? `${tarif.pub} crédits la publicité`
+          : `${tarif.pub} crédits la publicité, sur les ${credits} qui vous restent`}
+      </p>
+      <p className="mt-1 text-center text-[11px] text-gray-500">
+        Vos publicités se retrouvent aussi dans{' '}
+        <Link to="/marketing" className="text-purple-300 underline underline-offset-2">
+          Commercialisation
+        </Link>
+        .
+      </p>
+    </section>
+
+    {/* ============ Ce que les deux ont produit, au même endroit ============
+      Une seule galerie, parce que le vendeur choisit parmi tout ce qu'il a :
+      l'étiquette « PUB » dit de qui vient chaque visuel.
+    */}
+    <section className="mt-4">
       {visuals.length ? (
         <div className="mt-4 grid grid-cols-3 gap-2">
           {visuals.map((v) => (
@@ -266,5 +289,6 @@ export function PhotoAgentBlock({
         />
       ) : null}
     </section>
+    </>
   )
 }
