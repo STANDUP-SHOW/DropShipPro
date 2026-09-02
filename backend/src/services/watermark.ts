@@ -239,11 +239,10 @@ export async function watermarkImages(
   /*
    * Quatre photos de front, et pas quinze.
    *
-   * **C'était le poste le plus cher d'un import.** Quinze photos téléchargées
-   * depuis un CDN lointain puis décodées, marquées et réencodées, l'une après
-   * l'autre : deux à quatre secondes chacune, soit trente à soixante secondes
-   * pour un travail qui attend le réseau presque tout du long. Signalé le
-   * 02/09/2026 — « pourquoi c'est aussi long ».
+   * **Ceci est le chemin de l'export, pas celui de l'import** — la marque se
+   * pose au moment de publier, sur l'original conservé (voir `rapatrierImages`).
+   * Le gain se voit donc à la publication et à l'export, pas sur le compteur
+   * d'un import.
    *
    * Quatre et pas quinze parce que `sharp` décode en mémoire : quinze images
    * de trois mille pixels ouvertes ensemble tiennent plusieurs centaines de
@@ -394,23 +393,59 @@ export async function rapatrierImages(
 ): Promise<string[]> {
   await mkdir(STORAGE_DIR, { recursive: true })
 
-  const resultats: string[] = []
-  for (const [index, url] of imageUrls.slice(0, MAX_IMAGES).entries()) {
+  const selection = imageUrls.slice(0, MAX_IMAGES)
+
+  async function rapatrier(url: string, index: number) {
     try {
       const buffer = await fetchSourceImage(url)
-      if (!buffer) continue
+      if (!buffer) return null
 
       // Réorienté et recompressé, mais rien d'autre : c'est l'original de
       // travail. `rotate()` applique l'orientation EXIF, sans quoi une photo de
       // téléphone arrive couchée.
       const sortie = await sharp(buffer).rotate().jpeg({ quality: 90 }).toBuffer()
-      resultats.push(await putFile(`products/${seoFileName(productTitle, index)}`, sortie, 'image/jpeg'))
+      return {
+        index,
+        chemin: await putFile(`products/${seoFileName(productTitle, index)}`, sortie, 'image/jpeg'),
+      }
     } catch {
       // Une photo illisible ne fait pas perdre les autres.
+      return null
     }
   }
 
-  return resultats
+  /*
+   * Quatre de front. **C'est ici que se joue la durée d'un import.**
+   *
+   * Signalé le 02/09/2026 : « pourquoi c'est aussi long, entre 60 et 120
+   * secondes ». Quinze photos téléchargées depuis un CDN lointain puis
+   * décodées et réencodées l'une après l'autre, deux à quatre secondes
+   * chacune, pour un travail qui attend le réseau presque tout du long.
+   *
+   * Quatre et pas quinze parce que `sharp` décode en mémoire : quinze images
+   * de trois mille pixels ouvertes ensemble tiennent plusieurs centaines de
+   * mégaoctets, et le conteneur n'en a pas tant.
+   */
+  const CONCURRENCE = 4
+  const sorties: Array<{ index: number; chemin: string } | null> = []
+  for (let i = 0; i < selection.length; i += CONCURRENCE) {
+    sorties.push(
+      ...(await Promise.all(selection.slice(i, i + CONCURRENCE).map((u, k) => rapatrier(u, i + k)))),
+    )
+  }
+
+  /*
+   * Remises dans l'ordre d'origine.
+   *
+   * Il porte le choix du vendeur : la première photo est celle qui s'affiche
+   * partout. En parallèle, les résultats reviennent dans l'ordre des vitesses
+   * de CDN — la photo principale se retrouverait quatrième pour avoir mis une
+   * seconde de plus à arriver.
+   */
+  return sorties
+    .filter((s): s is { index: number; chemin: string } => s !== null)
+    .sort((a, b) => a.index - b.index)
+    .map((s) => s.chemin)
 }
 
 /**
