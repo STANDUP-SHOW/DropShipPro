@@ -19,6 +19,25 @@ interface Probe {
 let cached: Probe | null = null
 
 /**
+ * La dernière raison d'échec, telle que l'API l'a donnée.
+ *
+ * **« Injoignable » est un fourre-tout.** Modèle retiré, quota dépassé, panne
+ * de réseau, service surchargé : quatre causes, quatre gestes différents, un
+ * seul mot. Le 02/09/2026, toute l'IA était à l'arrêt et ce mot a envoyé
+ * chercher une panne de connexion qui n'existait pas.
+ *
+ * Le motif part au journal **et** dans le diagnostic. Celui-ci demande une
+ * session : c'est le vendeur qui le lit, sur son propre compte, et il a le
+ * droit de savoir pourquoi son produit ne marche pas. Rien d'autre que le code
+ * et le message de l'API n'y figure — jamais la clé.
+ */
+let derniereRaison: string | null = null
+
+export function raisonIa(): string | null {
+  return derniereRaison
+}
+
+/**
  * Cached for five minutes.
  *
  * The probe spends real tokens, so an unauthenticated health endpoint must not be
@@ -46,6 +65,7 @@ async function probe(): Promise<AiStatus> {
       max_tokens: 4,
       messages: [{ role: 'user', content: 'ok' }],
     })
+    derniereRaison = null
     return 'ok'
   } catch (err) {
     const status = (err as { status?: number }).status
@@ -66,9 +86,8 @@ async function probe(): Promise<AiStatus> {
      * différents. Le code et le message partent donc au journal, où on les lit
      * avant de chercher.
      */
-    console.error(
-      `[ia] sonde en échec — statut ${status ?? 'aucun'} : ${(err as Error)?.message?.slice(0, 200)}`,
-    )
+    derniereRaison = `statut ${status ?? 'aucun'} — ${(err as Error)?.message?.slice(0, 300) ?? 'sans message'}`
+    console.error(`[ia] sonde en échec — ${derniereRaison}`)
     return 'injoignable'
   }
 }

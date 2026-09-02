@@ -2,7 +2,7 @@ import { preparerPolices } from './fonts.js'
 import { prisma } from '../lib/prisma.js'
 import { checkStorage, storageError, storageTarget, type StorageStatus } from '../lib/storage.js'
 import { getStripe } from './billing.js'
-import { checkAi, type AiStatus } from './aiHealth.js'
+import { checkAi, raisonIa, type AiStatus } from './aiHealth.js'
 import { mailIsConfigured } from './mailer.js'
 import { checkImageGen, type ImageGenStatus } from './imageGen.js'
 
@@ -51,6 +51,8 @@ export interface ServiceReport {
      */
     policesDossiers?: string[]
     policesRaison?: string | null
+    /** Pourquoi l IA ne repond pas : le code et le message rendus par l API. */
+    iaRaison?: string | null
   }
   /** What would hurt a real user right now, in plain French. */
   alertes: string[]
@@ -151,6 +153,7 @@ export async function selfCheck(): Promise<ServiceReport> {
       polices: polices.pretes ? 'ok' : 'absentes',
       policesDossiers: polices.dossiers,
       policesRaison: polices.raison,
+      iaRaison: raisonIa(),
     },
     alertes,
   }
