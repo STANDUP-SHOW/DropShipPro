@@ -189,13 +189,20 @@ function attributsMin(min: number, plateforme: string): RegleCanal {
 }
 
 /**
- * L'EAN, exigé par Kaufland — et la raison de le vérifier avant de publier.
+ * L'EAN — le mur commun à six destinations sur vingt-trois.
  *
  * Kaufland n'accepte pas une fiche libre : chaque offre est **appariée à sa
  * fiche catalogue par le code-barres**, et cet EAN doit venir du fabricant ou
- * de GS1. Sans lui, l'offre est refusée, point. C'est la contrainte la plus
- * dure de toute la liste des destinations, et celle qui touche le plus un
- * catalogue importé : un produit venu de Temu ou d'AliExpress n'en a
+ * de GS1. Découvert le 03/09/2026 en lisant leur guide de données produit.
+ *
+ * **Le même jour, en écrivant le connecteur Mirakl, la même contrainte est
+ * apparue chez les cinq opérateurs** — La Redoute, E.Leclerc, BHV, Kiabi,
+ * BrandAlley : leur import d'offres exige `product-id` et `product-id-type`,
+ * c'est-à-dire un identifiant de catalogue. Ce n'est donc pas une bizarrerie
+ * allemande, c'est le modèle de la place de marché à catalogue partagé.
+ *
+ * C'est la contrainte la plus dure de toute la liste, et celle qui touche le
+ * plus un catalogue importé : un produit venu de Temu ou d'AliExpress n'en a
  * généralement aucun.
  *
  * Cherché dans les attributs plutôt que dans une colonne dédiée : le vendeur
@@ -219,7 +226,7 @@ const EAN: RegleCanal = {
       if (/^\d{8}$|^\d{12,14}$/.test(String(valeur).replace(/\s/g, ''))) return null
     }
 
-    return "Kaufland apparie chaque offre à sa fiche catalogue par l'EAN, qui doit venir du fabricant ou de GS1. Ajoutez un attribut « EAN » à l'annonce ; sans lui l'offre sera refusée."
+    return "Cette destination apparie chaque offre à sa fiche catalogue par l’EAN, qui doit venir du fabricant ou de GS1. Ajoutez un attribut « EAN » à l’annonce ; sans lui l’offre sera refusée."
   },
 }
 
@@ -280,11 +287,11 @@ export const REGLES_PAR_CANAL: Partial<Record<Platform, RegleCanal[]>> = {
   FACEBOOK: [...COMMUNES, titreMax(TITRE_MAX.FACEBOOK!, 'Facebook Marketplace'), photosMin(1, 'Facebook Marketplace')],
   TIKTOK_SHOP: [...COMMUNES, titreMax(TITRE_MAX.TIKTOK_SHOP!, 'TikTok Shop'), CATEGORIE, photosMin(3, 'TikTok Shop')],
   SHOPIFY: [...COMMUNES, titreMax(TITRE_MAX.SHOPIFY!, 'Shopify')],
-  LA_REDOUTE: [...COMMUNES, titreMax(TITRE_MAX.LA_REDOUTE!, 'La Redoute'), CATEGORIE, attributsMin(4, 'La Redoute')],
-  LECLERC: [...COMMUNES, titreMax(TITRE_MAX.LECLERC!, 'E.Leclerc'), CATEGORIE],
-  BHV: [...COMMUNES, titreMax(TITRE_MAX.BHV!, 'BHV Marais'), CATEGORIE],
-  KIABI: [...COMMUNES, titreMax(TITRE_MAX.KIABI!, 'Kiabi'), CATEGORIE, attributsMin(4, 'Kiabi')],
-  BRANDALLEY: [...COMMUNES, titreMax(TITRE_MAX.BRANDALLEY!, 'BrandAlley'), CATEGORIE],
+  LA_REDOUTE: [...COMMUNES, titreMax(TITRE_MAX.LA_REDOUTE!, 'La Redoute'), CATEGORIE, EAN, attributsMin(4, 'La Redoute')],
+  LECLERC: [...COMMUNES, titreMax(TITRE_MAX.LECLERC!, 'E.Leclerc'), CATEGORIE, EAN],
+  BHV: [...COMMUNES, titreMax(TITRE_MAX.BHV!, 'BHV Marais'), CATEGORIE, EAN],
+  KIABI: [...COMMUNES, titreMax(TITRE_MAX.KIABI!, 'Kiabi'), CATEGORIE, EAN, attributsMin(4, 'Kiabi')],
+  BRANDALLEY: [...COMMUNES, titreMax(TITRE_MAX.BRANDALLEY!, 'BrandAlley'), CATEGORIE, EAN],
   /*
    * Kaufland est la destination la plus exigeante de la liste, et il vaut mieux
    * le découvrir ici qu'après avoir payé un abonnement vendeur : EAN officiel,

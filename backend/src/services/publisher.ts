@@ -3,6 +3,7 @@ import type { Platform, Product } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { mapCategory } from './categoryMapping.js'
 import { publishToShopify, resoudreCredentialsShopify } from './shopify.js'
+import { deposerOffreMirakl, estMirakl, readMiraklCredentials } from './mirakl.js'
 import { imagesPourExport } from './exportImages.js'
 
 /**
@@ -31,6 +32,8 @@ export async function publishToPlatform(productId: string, platform: Platform, a
 
   if (platform === 'SHOPIFY') return publishShopify(product, targetCategory, apiBaseUrl)
 
+  if (estMirakl(platform)) return publierMirakl(product, platform, targetCategory)
+
   if (FEED_PLATFORMS.includes(platform)) {
     return publishToFeedChannel(productId, platform, product.userId)
   }
@@ -52,6 +55,66 @@ export async function publishToPlatform(productId: string, platform: Platform, a
       publishedAt: isReady ? new Date() : null,
     },
   })
+}
+
+/**
+ * Le dépôt chez un opérateur Mirakl — un chemin pour cinq destinations.
+ *
+ * Même forme que Shopify, et pour les mêmes raisons : sans clé enregistrée, la
+ * publication reste « en attente » **avec sa raison écrite** plutôt que de
+ * lever. Un refus qui remonte en exception ferait échouer une diffusion en lot
+ * sans dire lequel des trente produits a manqué, ni pourquoi.
+ *
+ * Ce que le dépôt ne dit pas : Mirakl relit le fichier de son côté, en
+ * différé. Un dépôt accepté n'est donc pas une offre en ligne — c'est un
+ * fichier pris en charge. La remarque le dit au vendeur, qui sinon irait
+ * chercher son offre sur le site dans la minute.
+ */
+async function publierMirakl(product: Product, platform: Platform, targetCategory: string) {
+  const where = { productId_platform: { productId: product.id, platform } }
+
+  const credential = await prisma.platformCredential.findUnique({
+    where: { userId_platform: { userId: product.userId, platform } },
+  })
+
+  const creds = credential?.connected ? readMiraklCredentials(credential.data) : null
+  if (!creds) {
+    const raison =
+      "Aucune clé enregistrée pour cet opérateur. Réglages › Plateformes de vente : collez l'adresse de l'opérateur et la clé API lue dans votre back-office vendeur Mirakl (Mon compte › Paramètres › API)."
+    return prisma.publication.upsert({
+      where,
+      create: { productId: product.id, platform, targetCategory, status: 'PENDING', error: raison },
+      update: { targetCategory, status: 'PENDING', error: raison, publishedAt: null },
+    })
+  }
+
+  try {
+    const { importId } = await deposerOffreMirakl(creds, product)
+    return prisma.publication.upsert({
+      where,
+      create: {
+        productId: product.id,
+        platform,
+        targetCategory,
+        status: 'PUBLISHED',
+        publishedAt: new Date(),
+        error: `Offre déposée (import ${importId}). L'opérateur relit le fichier de son côté : l'offre paraît en ligne dans l'heure.`,
+      },
+      update: {
+        targetCategory,
+        status: 'PUBLISHED',
+        publishedAt: new Date(),
+        error: `Offre déposée (import ${importId}). L'opérateur relit le fichier de son côté : l'offre paraît en ligne dans l'heure.`,
+      },
+    })
+  } catch (err) {
+    const raison = err instanceof Error ? err.message : "L'opérateur a refusé le dépôt."
+    return prisma.publication.upsert({
+      where,
+      create: { productId: product.id, platform, targetCategory, status: 'FAILED', error: raison },
+      update: { targetCategory, status: 'FAILED', error: raison, publishedAt: null },
+    })
+  }
 }
 
 /**

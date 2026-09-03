@@ -302,8 +302,17 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
   },
 ]
 
-/** The two destinations publisher.ts really pushes to today. */
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY']
+/**
+ * Les destinations vers lesquelles `publisher.ts` pousse réellement.
+ *
+ * Les cinq opérateurs Mirakl rejoignent la liste le 03/09/2026 : même API,
+ * mêmes chemins, un seul connecteur. Ce que « live » veut dire ici, et il faut
+ * l'entendre exactement : **l'appel part**. Il peut être refusé — clé absente,
+ * EAN manquant, compte vendeur pas encore activé — et la publication porte
+ * alors la raison. C'est déjà le cas de Shopify, dont le connecteur n'a jamais
+ * été confronté à une vraie boutique.
+ */
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'LA_REDOUTE', 'LECLERC', 'BHV', 'KIABI', 'BRANDALLEY']
 
 /**
  * Destinations qui viennent lire un flux au lieu qu'on leur pousse une annonce.
