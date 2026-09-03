@@ -72,17 +72,23 @@ function valeurDemo(tuile: TuileData, r: () => number): Pick<TuileData, 'valeur'
 
   const evolution = Math.round((r() * 70 - 25) * 10) / 10
 
-  if (tuile.unite === '/100') return { valeur: Math.round(55 + r() * 40), evolution }
-  if (tuile.unite === '%') return { valeur: Math.round((8 + r() * 80) * 10) / 10, evolution }
-  if (tuile.unite === 'j') return { valeur: Math.round((1.5 + r() * 6) * 10) / 10, evolution }
-  if (tuile.unite === 'h') return { valeur: Math.round((1 + r() * 8) * 10) / 10, evolution }
+  /*
+   * Toutes les tuiles numériques reçoivent une série : les vingt-six formes
+   * doivent toutes pouvoir se montrer, c'est l'objet même de la démo. Une
+   * tuile sans série cantonnait le tirage aux mêmes ornements — c'est ce qui
+   * faisait revenir le même dessin deux ou trois fois par bloc.
+   */
+  if (tuile.unite === '/100') return { valeur: Math.round(55 + r() * 40), evolution, serie: serieDemo(r, evolution) }
+  if (tuile.unite === '%') return { valeur: Math.round((8 + r() * 80) * 10) / 10, evolution, serie: serieDemo(r, evolution) }
+  if (tuile.unite === 'j') return { valeur: Math.round((1.5 + r() * 6) * 10) / 10, evolution, serie: serieDemo(r, evolution) }
+  if (tuile.unite === 'h') return { valeur: Math.round((1 + r() * 8) * 10) / 10, evolution, serie: serieDemo(r, evolution) }
   if (tuile.unite === '€') {
     const montant = Math.round((800 + r() * 60000) * 100) / 100
     return { valeur: montant, evolution, serie: serieDemo(r, evolution) }
   }
 
   const compte = Math.round(6 + r() * r() * 2800)
-  return { valeur: compte, evolution, serie: r() > 0.35 ? serieDemo(r, evolution) : undefined }
+  return { valeur: compte, evolution, serie: serieDemo(r, evolution) }
 }
 
 /** Le tableau entier, rempli de chiffres de démonstration — étiquetés ailleurs. */
@@ -92,9 +98,10 @@ export function blocsDemo(blocs: BlocData[]): BlocData[] {
     tuiles: bloc.tuiles.map((tuile) => {
       const r = alea(graineDe(`${bloc.id}/${tuile.id}`))
       const rempli = { ...tuile, raison: undefined, ...valeurDemo(tuile, r) }
-      // Une repartition sur une tuile sur deux environ : de quoi faire vivre
-      // camemberts, anneaux, radars et curseurs sans les mettre partout.
-      if (!rempli.parts && r() > 0.45) rempli.parts = partsDemo(bloc.id, r)
+      // Chaque tuile reçoit aussi sa répartition : camemberts, cylindres,
+      // jalons et radars doivent tous pouvoir être tirés — la variété du
+      // tirage sans remise en dépend.
+      if (!rempli.parts) rempli.parts = partsDemo(bloc.id, r)
       return rempli
     }),
   }))
@@ -143,28 +150,36 @@ function partsDemo(blocId: string, r: () => number): Array<{ label: string; vale
   })
 }
 
-/** La carte de démonstration : la géographie typique d'un vendeur français. */
+/**
+ * La carte de démonstration : un vendeur français qui vend au monde entier.
+ *
+ * « Montrer des clients sur toute la planète, et fournisseurs également ; pour
+ * livraisons, de grandes flèches qui partent de France vers les pays du
+ * monde. » La démo couvre donc les cinq continents — l'Europe domine, comme
+ * dans la vraie vie d'un vendeur français, mais le Japon, le Brésil et
+ * l'Australie s'allument aussi.
+ */
 export function carteDemo(): Record<'ventes' | 'clients' | 'fournisseurs' | 'livraisons', Array<{ pays: string; n: number }>> {
-  const r = alea(graineDe('carte'))
-  const europe = (base: number) =>
-    [
-      ['France', base],
-      ['Belgique', Math.round(base * (0.14 + r() * 0.08))],
-      ['Allemagne', Math.round(base * (0.1 + r() * 0.08))],
-      ['Espagne', Math.round(base * (0.08 + r() * 0.06))],
-      ['Italie', Math.round(base * (0.06 + r() * 0.06))],
-      ['Suisse', Math.round(base * (0.04 + r() * 0.04))],
-    ].map(([pays, n]) => ({ pays: pays as string, n: n as number }))
+  const r = alea(graineDe('carte-monde'))
+  const monde = (base: number, parts: Array<[string, number]>) =>
+    parts
+      .map(([pays, poids]) => ({ pays, n: Math.max(1, Math.round(base * poids * (0.85 + r() * 0.3))) }))
+      .sort((x, y) => y.n - x.n)
+
+  const REPARTITION_CLIENTS: Array<[string, number]> = [
+    ['France', 1], ['Belgique', 0.16], ['Allemagne', 0.13], ['Espagne', 0.1],
+    ['Italie', 0.08], ['Royaume-Uni', 0.07], ['Suisse', 0.05], ['Canada', 0.05],
+    ['États-Unis', 0.06], ['Maroc', 0.04], ['Japon', 0.025], ['Brésil', 0.02],
+    ['Australie', 0.018], ['Sénégal', 0.015], ['Inde', 0.012],
+  ]
 
   return {
-    ventes: europe(742),
-    clients: europe(519),
-    fournisseurs: [
-      { pays: 'Chine', n: 121 },
-      { pays: 'Espagne', n: 24 },
-      { pays: 'France', n: 11 },
-      { pays: 'Allemagne', n: 7 },
-    ],
-    livraisons: europe(686),
+    ventes: monde(690, REPARTITION_CLIENTS),
+    clients: monde(486, REPARTITION_CLIENTS),
+    fournisseurs: monde(60, [
+      ['Chine', 1], ['Espagne', 0.2], ['France', 0.12], ['Allemagne', 0.08],
+      ['Vietnam', 0.07], ['Turquie', 0.06], ['Inde', 0.05], ['États-Unis', 0.04],
+    ]),
+    livraisons: monde(640, REPARTITION_CLIENTS),
   }
 }

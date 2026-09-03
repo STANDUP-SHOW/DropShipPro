@@ -1,21 +1,25 @@
 import { useMemo, useState } from 'react'
 import { Globe2 } from 'lucide-react'
+import { CENTRES_ISO, MONDE_D } from './monde-trace'
 
 /**
  * La grande carte du monde du tableau de bord.
  *
- * **Demandée avec les références** : « on peut mettre une grande carte du
- * monde et on affiche au choix nos ventes, nos clients, nos fournisseurs, nos
- * livraisons. » Quatre vues, un commutateur, une seule carte.
+ * **Deuxième version, sur retour du 03/09/2026** : « je voudrais une carte du
+ * monde réelle, pas en pointillés ; montrer des clients sur toute la planète
+ * et fournisseurs également ; et pour livraisons, de grandes flèches qui
+ * partent de France vers les pays du monde. »
  *
- * La carte est un semis de points, comme sur les maquettes néon : un masque de
- * terre de 64 × 28 cases suffit à dessiner des continents reconnaissables, et
- * pèse moins d'un kilo-octet là où un vrai fond de carte en pèserait deux
- * cents. C'est une géographie de tableau de bord — elle situe, elle ne
- * navigue pas.
+ * Le tracé vient de Natural Earth (domaine public) : les vrais contours de
+ * 178 pays, projetés une fois pour toutes par `genere-monde.cjs`, avec le
+ * centre de chacun. Tous les pays de la planète sont donc plaçables — un
+ * client au Japon s'allume au Japon, pas dans une liste de six pays écrite à
+ * la main.
  *
- * Les pays s'allument par un halo dimensionné au compte ; la liste de droite
- * donne les chiffres exacts, parce qu'un halo se compare mal à un autre halo.
+ * Trois langages selon la vue, parce que les données ne disent pas la même
+ * chose : ventes, clients et fournisseurs sont des **présences** — des halos
+ * posés sur les pays ; les livraisons sont des **trajets** — de grandes
+ * flèches courbes qui partent de la France, épaisses comme leur volume.
  */
 
 export interface PointCarte {
@@ -25,65 +29,39 @@ export interface PointCarte {
 
 export type CarteData = Record<'ventes' | 'clients' | 'fournisseurs' | 'livraisons', PointCarte[]>
 
-/*
- * Le masque de terre : « # » = continent. Grossier à dessein — à cette taille,
- * l'œil reconnaît les silhouettes, pas les côtes.
+/**
+ * Du nom français au code ISO3 du tracé.
+ *
+ * Les données portent des noms en français (« France » est la valeur par
+ * défaut du formulaire de commande). La table couvre large et tolère les
+ * graphies sans accent ; un pays absent reste compté dans la liste de droite,
+ * avec la mention « non placé ».
  */
-const TERRE = [
-  '................................................................',
-  '......####..............................########################',
-  '...########..........##.............############################',
-  '..###########.......####..........##############################',
-  '..############.......##.........###############################.',
-  '...###########................#################################.',
-  '....#########.......###.....######################.############.',
-  '.....########......#####.#########################..#########...',
-  '......#######.....################################...#######....',
-  '.......#####......###############################.....#####.....',
-  '........####.......#############################........###.....',
-  '.........###........###########.###############.........##......',
-  '..........##.........#########...#############...####...........',
-  '...........#..........########....###########....######.........',
-  '.......................#######.....#########......#####..#......',
-  '.........###...........######.......#######.......###...........',
-  '........######..........#####........#####......................',
-  '.......########..........####.........###............####.......',
-  '......##########..........###..........#............#######.....',
-  '......#########............##........................########...',
-  '.......########............##.........................#######...',
-  '........######..............#..........................####.##..',
-  '........#####...........................................##......',
-  '.........###...................................................',
-  '..........##....................................................',
-  '................................................................',
-]
+const ISO: Record<string, string> = {
+  france: 'FRA', belgique: 'BEL', allemagne: 'DEU', espagne: 'ESP', italie: 'ITA',
+  suisse: 'CHE', 'pays-bas': 'NLD', 'pays bas': 'NLD', portugal: 'PRT',
+  'royaume-uni': 'GBR', 'royaume uni': 'GBR', angleterre: 'GBR', pologne: 'POL',
+  autriche: 'AUT', luxembourg: 'LUX', irlande: 'IRL', suède: 'SWE', suede: 'SWE',
+  norvège: 'NOR', norvege: 'NOR', danemark: 'DNK', finlande: 'FIN', grèce: 'GRC',
+  grece: 'GRC', roumanie: 'ROU', tchéquie: 'CZE', tchequie: 'CZE', hongrie: 'HUN',
+  croatie: 'HRV', bulgarie: 'BGR', slovaquie: 'SVK', slovénie: 'SVN', slovenie: 'SVN',
+  chine: 'CHN', 'états-unis': 'USA', 'etats-unis': 'USA', usa: 'USA', canada: 'CAN',
+  brésil: 'BRA', bresil: 'BRA', mexique: 'MEX', japon: 'JPN', inde: 'IND',
+  australie: 'AUS', 'nouvelle-zélande': 'NZL', 'nouvelle-zelande': 'NZL',
+  maroc: 'MAR', algérie: 'DZA', algerie: 'DZA', tunisie: 'TUN', sénégal: 'SEN',
+  senegal: 'SEN', "côte d'ivoire": 'CIV', "cote d'ivoire": 'CIV', cameroun: 'CMR',
+  turquie: 'TUR', vietnam: 'VNM', 'viêt nam': 'VNM', thaïlande: 'THA', thailande: 'THA',
+  'corée du sud': 'KOR', 'coree du sud': 'KOR', russie: 'RUS', ukraine: 'UKR',
+  'émirats arabes unis': 'ARE', 'emirats arabes unis': 'ARE', 'arabie saoudite': 'SAU',
+  égypte: 'EGY', egypte: 'EGY', 'afrique du sud': 'ZAF', argentine: 'ARG', chili: 'CHL',
+  colombie: 'COL', pérou: 'PER', perou: 'PER', indonésie: 'IDN', indonesie: 'IDN',
+  malaisie: 'MYS', philippines: 'PHL', israël: 'ISR', israel: 'ISR',
+}
 
-/** Les centres approchés des pays que les données citent, en cases du masque. */
-const CENTRES: Record<string, [number, number]> = {
-  france: [31.5, 6.5],
-  allemagne: [33.5, 5.5],
-  espagne: [30.5, 8],
-  italie: [33.5, 7.5],
-  belgique: [31.8, 5.5],
-  suisse: [32.5, 6.5],
-  'pays-bas': [32, 5],
-  portugal: [29.8, 8],
-  'royaume-uni': [30.5, 5],
-  pologne: [35, 5],
-  autriche: [34, 6],
-  chine: [50, 8],
-  'états-unis': [12, 7.5],
-  'etats-unis': [12, 7.5],
-  canada: [12, 4.5],
-  brésil: [20, 15],
-  bresil: [20, 15],
-  japon: [57, 7.5],
-  inde: [45, 10],
-  australie: [55, 18],
-  maroc: [30, 9.5],
-  algérie: [32, 10],
-  algerie: [32, 10],
-  tunisie: [33, 9],
+function centreDe(pays: string): [number, number] | undefined {
+  const propre = pays.toLowerCase().trim()
+  const iso = ISO[propre] ?? (propre.length === 3 ? propre.toUpperCase() : undefined)
+  return iso ? CENTRES_ISO[iso] : undefined
 }
 
 const VUES = [
@@ -100,24 +78,62 @@ const COULEURS: Record<(typeof VUES)[number]['id'], [string, string]> = {
   livraisons: ['#a78bfa', '#ec4899'],
 }
 
+/**
+ * Une grande flèche courbe de la France vers un pays.
+ *
+ * Quadratique, bombée vers le haut : la corde d'un vol long-courrier, pas un
+ * trait d'arpenteur. La pointe est calculée sur la tangente d'arrivée pour
+ * regarder dans le sens du voyage, et l'épaisseur suit le volume.
+ */
+function Fleche({ de, vers, poids, couleur }: { de: [number, number]; vers: [number, number]; poids: number; couleur: string }) {
+  const [x1, y1] = de
+  const [x2, y2] = vers
+  const dist = Math.hypot(x2 - x1, y2 - y1)
+  const cx = (x1 + x2) / 2
+  const cy = Math.min(y1, y2) - Math.max(4, dist * 0.22)
+
+  // La tangente au point d'arrivée d'une quadratique : P2 - C.
+  const angle = Math.atan2(y2 - cy, x2 - cx)
+  const t = 2.4 + poids
+  const pointe = [
+    [x2, y2],
+    [x2 - t * Math.cos(angle - 0.42), y2 - t * Math.sin(angle - 0.42)],
+    [x2 - t * Math.cos(angle + 0.42), y2 - t * Math.sin(angle + 0.42)],
+  ]
+    .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
+    .join(' ')
+
+  return (
+    <g>
+      <path
+        d={`M${x1} ${y1} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${x2} ${y2}`}
+        fill="none"
+        stroke={couleur}
+        strokeWidth={0.7 + poids * 0.9}
+        strokeLinecap="round"
+        opacity="0.85"
+        style={{ filter: `drop-shadow(0 0 1.5px ${couleur})` }}
+      />
+      <polygon points={pointe} fill={couleur} />
+    </g>
+  )
+}
+
 export function CarteMonde({ carte }: { carte: CarteData }) {
   const [vue, setVue] = useState<(typeof VUES)[number]['id']>('ventes')
   const points = carte[vue] ?? []
   const [de, a] = COULEURS[vue]
   const max = Math.max(...points.map((p) => p.n), 1)
 
-  const cases = useMemo(() => {
-    const out: Array<[number, number]> = []
-    TERRE.forEach((ligne, y) => {
-      for (let x = 0; x < ligne.length; x++) if (ligne[x] === '#') out.push([x, y])
-    })
-    return out
-  }, [])
-
-  const situes = points
-    .map((p) => ({ ...p, centre: CENTRES[p.pays.toLowerCase().trim()] }))
-    .filter((p): p is PointCarte & { centre: [number, number] } => Boolean(p.centre))
-  const nonSitues = points.filter((p) => !CENTRES[p.pays.toLowerCase().trim()])
+  const situes = useMemo(
+    () =>
+      points
+        .map((p) => ({ ...p, centre: centreDe(p.pays) }))
+        .filter((p): p is PointCarte & { centre: [number, number] } => Boolean(p.centre)),
+    [points],
+  )
+  const nonSitues = points.filter((p) => !centreDe(p.pays))
+  const france = CENTRES_ISO.FRA
 
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
@@ -148,23 +164,33 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
       </header>
 
       <div className="@container mt-3">
-        <div className="grid gap-3 @3xl:grid-cols-[1fr_220px]">
-          <svg viewBox="0 0 128 52" className="w-full" aria-hidden>
-            {/* Le semis de terre. */}
-            {cases.map(([x, y]) => (
-              <circle key={`${x}-${y}`} cx={x * 2 + 1} cy={y * 2 + 1} r="0.55" fill="rgba(255,255,255,0.13)" />
-            ))}
-            {/* Les pays allumés, halo puis cœur. */}
-            {situes.map((p) => {
-              const ray = 1.6 + (p.n / max) * 4.5
-              const [cx, cy] = [p.centre[0] * 2 + 1, p.centre[1] * 2 + 1]
-              return (
-                <g key={p.pays}>
-                  <circle cx={cx} cy={cy} r={ray} fill={`${de}2e`} />
-                  <circle cx={cx} cy={cy} r={ray * 0.45} fill={a} style={{ filter: `drop-shadow(0 0 3px ${de})` }} />
-                </g>
-              )
-            })}
+        <div className="grid gap-3 @3xl:grid-cols-[1fr_230px]">
+          {/* 8..150 : l'essentiel des terres habitées, sans les mers australes. */}
+          <svg viewBox="0 8 360 142" className="w-full" aria-hidden>
+            <path d={MONDE_D} fill="rgba(148, 121, 255, 0.10)" stroke="rgba(255,255,255,0.16)" strokeWidth="0.28" strokeLinejoin="round" />
+
+            {vue === 'livraisons' ? (
+              <>
+                {/* Le point de départ : la France, allumée en permanence. */}
+                <circle cx={france[0]} cy={france[1]} r="2.6" fill={`${de}44`} />
+                <circle cx={france[0]} cy={france[1]} r="1.2" fill={a} style={{ filter: `drop-shadow(0 0 2px ${de})` }} />
+                {situes
+                  .filter((p) => p.pays.toLowerCase().trim() !== 'france')
+                  .map((p) => (
+                    <Fleche key={p.pays} de={france} vers={p.centre} poids={(p.n / max) * 1.6} couleur={a} />
+                  ))}
+              </>
+            ) : (
+              situes.map((p) => {
+                const ray = 1.8 + (p.n / max) * 5
+                return (
+                  <g key={p.pays}>
+                    <circle cx={p.centre[0]} cy={p.centre[1]} r={ray} fill={`${de}30`} />
+                    <circle cx={p.centre[0]} cy={p.centre[1]} r={ray * 0.4} fill={a} style={{ filter: `drop-shadow(0 0 2.5px ${de})` }} />
+                  </g>
+                )
+              })
+            )}
           </svg>
 
           <div>
@@ -175,15 +201,15 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
               </p>
             ) : (
               <ul className="space-y-1.5">
-                {points.slice(0, 6).map((p, i) => (
+                {points.slice(0, 8).map((p, i) => (
                   <li key={p.pays} className="flex items-center gap-2">
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: `linear-gradient(90deg, ${de}, ${a})`, opacity: 1 - i * 0.12 }}
+                      style={{ background: `linear-gradient(90deg, ${de}, ${a})`, opacity: 1 - i * 0.1 }}
                     />
                     <span className="min-w-0 flex-1 truncate text-xs text-gray-300">{p.pays}</span>
                     <span className="text-xs font-bold text-gray-200">{p.n.toLocaleString('fr-FR')}</span>
-                    <span className="h-1 w-16 overflow-hidden rounded-full bg-white/10">
+                    <span className="h-1 w-14 overflow-hidden rounded-full bg-white/10">
                       <span
                         className="block h-full rounded-full"
                         style={{ width: `${(p.n / max) * 100}%`, background: `linear-gradient(90deg, ${de}, ${a})` }}
