@@ -1,4 +1,5 @@
 import type { Platform, Product } from '@prisma/client'
+import { OPERATEURS_MIRAKL } from './mirakl.js'
 
 /**
  * Le référentiel de conformité, canal par canal.
@@ -313,6 +314,18 @@ export const REGLES_PAR_CANAL: Partial<Record<Platform, RegleCanal[]>> = {
   WISH: [...COMMUNES, titreMax(TITRE_MAX.WISH!, 'Wish'), CATEGORIE],
   OWN_SITE: [...COMMUNES],
   INSTAGRAM: [...COMMUNES, photosMin(1, 'Instagram')],
+}
+
+/*
+ * Tout opérateur Mirakl sans règles écrites reçoit le socle Mirakl : titre à
+ * cent vingt caractères (la valeur des cinq premiers opérateurs), catégorie,
+ * et l'EAN — le mur commun du modèle à catalogue partagé. En boucle et non
+ * recopié trente-six fois : la trente-septième enseigne sera couverte sans
+ * que personne y pense.
+ */
+for (const operateur of OPERATEURS_MIRAKL) {
+  TITRE_MAX[operateur] ??= 120
+  REGLES_PAR_CANAL[operateur] ??= [...COMMUNES, titreMax(120, 'Cet opérateur Mirakl'), CATEGORIE, EAN]
 }
 
 export interface Ecart {

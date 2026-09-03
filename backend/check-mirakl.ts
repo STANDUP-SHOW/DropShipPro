@@ -123,14 +123,20 @@ async function main() {
 
   // --- Les cinq opérateurs -------------------------------------------------
   console.log('\nLes cinq destinations couvertes')
-  verifier('cinq opérateurs, pas un de plus', OPERATEURS_MIRAKL.length === 5, OPERATEURS_MIRAKL.join(', '))
+  /*
+   * Quarante et un depuis le recensement du 03/09/2026 : les cinq d origine
+   * plus les trente-six trouves en croisant la liste Mirakl de Shoppingfeed
+   * avec notre annuaire. Le compte est exact, pas un minimum : une enseigne
+   * ajoutee sans passer par le recensement doit se voir ici.
+   */
+  verifier('quarante et un opérateurs, le compte du recensement', OPERATEURS_MIRAKL.length === 41, String(OPERATEURS_MIRAKL.length))
   verifier('Shopify n’en fait pas partie', !estMirakl('SHOPIFY'))
   verifier(
-    'les cinq publient réellement depuis l’application',
+    'les quarante et un publient réellement depuis l’application',
     OPERATEURS_MIRAKL.every((id) => PLATFORMS.find((p) => p.id === id)?.integration === 'live'),
   )
   verifier(
-    'et les cinq exigent un EAN avant de publier',
+    'et tous exigent un EAN avant de publier',
     OPERATEURS_MIRAKL.every((id) => (REGLES_PAR_CANAL[id] ?? []).some((r) => r.id === 'ean')),
     'même mur que Kaufland : une offre se greffe sur une fiche catalogue',
   )

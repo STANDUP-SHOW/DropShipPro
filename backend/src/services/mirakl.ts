@@ -69,7 +69,11 @@ export function readMiraklCredentials(data: unknown): MiraklCredentials | null {
 }
 
 /** Les cinq opérateurs qui tournent sur Mirakl, et rien d'autre. */
-export const OPERATEURS_MIRAKL: Platform[] = ['LA_REDOUTE', 'LECLERC', 'BHV', 'KIABI', 'BRANDALLEY']
+export const OPERATEURS_MIRAKL: Platform[] = [
+  'LA_REDOUTE', 'LECLERC', 'BHV', 'KIABI', 'BRANDALLEY',
+  // Les trente-six du recensement du 03/09/2026 — même API, même connecteur.
+  'ALLTRICKS', 'AUCHAN', 'BOULANGER', 'BRICOMARCHE', 'BUT', 'CARREFOUR', 'CONRAD', 'CREAVEA', 'CULTURA', 'EL_CORTE_INGLES', 'EPRICE', 'GALERIA_INNO', 'GALERIES_LAFAYETTE', 'GREENWEEZ', 'HOME24', 'HUDSONS_BAY', 'IBS', 'LAPOSTE', 'LDLC', 'LEROY_MERLIN', 'MAISONS_DU_MONDE', 'MANOR', 'MEDIAMARKT', 'METRO', 'NATURE_DECOUVERTES', 'PCCOMPONENTES', 'PHONEHOUSE', 'PLACE_DES_TENDANCES', 'RETIF', 'SECRETSALES', 'SHOWROOMPRIVE', 'TRUFFAUT', 'TWIL', 'UBALDI', 'WORTEN', 'FNAC',
+]
 
 export function estMirakl(platform: Platform): boolean {
   return OPERATEURS_MIRAKL.includes(platform)

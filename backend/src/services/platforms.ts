@@ -1,4 +1,5 @@
 import type { Platform } from '@prisma/client'
+import { OPERATEURS_MIRAKL } from './mirakl.js'
 
 /**
  * How a destination actually receives a listing.
@@ -214,6 +215,339 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     warning:
       "EAN/GTIN officiel obligatoire : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres, et il doit venir du fabricant ou de GS1. Un produit importé sans EAN sera refusé.",
   },
+  /*
+   * Les trente-six opérateurs Mirakl recensés le 03/09/2026.
+   *
+   * Sources croisées : la liste des places de marché sous Mirakl publiée par
+   * Shoppingfeed, intersectée avec notre annuaire. Un seul connecteur les sert
+   * tous — l'adresse de l'opérateur et la clé sont saisies par le vendeur,
+   * rien n'est codé par enseigne. C'est la réponse à « pourquoi choisir ? » :
+   * quand des enseignes partagent un moteur, on ne choisit pas, on déclare.
+   */
+  {
+    id: 'ALLTRICKS',
+    label: "Alltricks",
+    automatable: true,
+    sellUrl: 'https://www.alltricks.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'AUCHAN',
+    label: "Auchan",
+    automatable: true,
+    sellUrl: 'https://www.auchan.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'BOULANGER',
+    label: "Boulanger",
+    automatable: true,
+    sellUrl: 'https://www.boulanger.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'BRICOMARCHE',
+    label: "Bricomarché",
+    automatable: true,
+    sellUrl: 'https://www.bricomarche.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'BUT',
+    label: "But",
+    automatable: true,
+    sellUrl: 'https://www.but.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'CARREFOUR',
+    label: "Carrefour",
+    automatable: true,
+    sellUrl: 'https://www.carrefour.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'CONRAD',
+    label: "Conrad",
+    automatable: true,
+    sellUrl: 'https://www.conrad.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'CREAVEA',
+    label: "Creavea",
+    automatable: true,
+    sellUrl: 'https://www.creavea.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'CULTURA',
+    label: "Cultura",
+    automatable: true,
+    sellUrl: 'https://www.cultura.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'EL_CORTE_INGLES',
+    label: "El Corte Inglés",
+    automatable: true,
+    sellUrl: 'https://www.elcorteingles.es',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'EPRICE',
+    label: "ePrice",
+    automatable: true,
+    sellUrl: 'https://www.eprice.it',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'GALERIA_INNO',
+    label: "Galeria Inno",
+    automatable: true,
+    sellUrl: 'https://www.inno.be',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'GALERIES_LAFAYETTE',
+    label: "Galeries Lafayette",
+    automatable: true,
+    sellUrl: 'https://www.galerieslafayette.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'GREENWEEZ',
+    label: "Greenweez",
+    automatable: true,
+    sellUrl: 'https://www.greenweez.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'HOME24',
+    label: "Home24",
+    automatable: true,
+    sellUrl: 'https://www.home24.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'HUDSONS_BAY',
+    label: "Hudson's Bay",
+    automatable: true,
+    sellUrl: 'https://www.thebay.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'IBS',
+    label: "IBS.it",
+    automatable: true,
+    sellUrl: 'https://www.ibs.it',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'LAPOSTE',
+    label: "La Poste",
+    automatable: true,
+    sellUrl: 'https://www.laposte.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'LDLC',
+    label: "LDLC",
+    automatable: true,
+    sellUrl: 'https://www.ldlc.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'LEROY_MERLIN',
+    label: "Leroy Merlin",
+    automatable: true,
+    sellUrl: 'https://www.leroymerlin.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'MAISONS_DU_MONDE',
+    label: "Maisons du Monde",
+    automatable: true,
+    sellUrl: 'https://www.maisonsdumonde.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'MANOR',
+    label: "Manor",
+    automatable: true,
+    sellUrl: 'https://www.manor.ch',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'MEDIAMARKT',
+    label: "MediaMarkt",
+    automatable: true,
+    sellUrl: 'https://www.mediamarkt.de',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'METRO',
+    label: "Metro",
+    automatable: true,
+    sellUrl: 'https://www.metro.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'NATURE_DECOUVERTES',
+    label: "Nature & Découvertes",
+    automatable: true,
+    sellUrl: 'https://www.natureetdecouvertes.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'PCCOMPONENTES',
+    label: "PcComponentes",
+    automatable: true,
+    sellUrl: 'https://www.pccomponentes.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'PHONEHOUSE',
+    label: "Phone House",
+    automatable: true,
+    sellUrl: 'https://www.phonehouse.es',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'PLACE_DES_TENDANCES',
+    label: "Place des Tendances",
+    automatable: true,
+    sellUrl: 'https://www.placedestendances.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'RETIF',
+    label: "Retif",
+    automatable: true,
+    sellUrl: 'https://www.retif.eu',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'SECRETSALES',
+    label: "Secret Sales",
+    automatable: true,
+    sellUrl: 'https://www.secretsales.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'SHOWROOMPRIVE',
+    label: "Showroomprivé",
+    automatable: true,
+    sellUrl: 'https://www.showroomprive.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'TRUFFAUT',
+    label: "Truffaut",
+    automatable: true,
+    sellUrl: 'https://www.truffaut.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'TWIL',
+    label: "Twil",
+    automatable: true,
+    sellUrl: 'https://www.twil.fr',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'UBALDI',
+    label: "Ubaldi",
+    automatable: true,
+    sellUrl: 'https://www.ubaldi.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'WORTEN',
+    label: "Worten",
+    automatable: true,
+    sellUrl: 'https://www.worten.pt',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
+  {
+    id: 'FNAC',
+    label: "Fnac Marketplace",
+    automatable: true,
+    sellUrl: 'https://www.fnac.com',
+    note: 'Marketplace Mirakl — candidature vendeur à valider par l\'enseigne, puis adresse de l\'opérateur et clé API dans Réglages.',
+    warning:
+      "EAN officiel obligatoire : Mirakl rattache chaque offre à une fiche du catalogue de l'opérateur par le code-barres.",
+  },
   {
     id: 'SPARTOO',
     label: 'Spartoo',
@@ -312,7 +646,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
  * alors la raison. C'est déjà le cas de Shopify, dont le connecteur n'a jamais
  * été confronté à une vraie boutique.
  */
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'LA_REDOUTE', 'LECLERC', 'BHV', 'KIABI', 'BRANDALLEY']
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', ...OPERATEURS_MIRAKL]
 
 /**
  * Destinations qui viennent lire un flux au lieu qu'on leur pousse une annonce.
