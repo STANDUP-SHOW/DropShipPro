@@ -29,16 +29,32 @@ const PERIODES = [
   { id: '365', label: '1 an', jours: 365 },
 ]
 
-/** Les rangées de la maquette : pleine largeur, moitiés, tiers. */
+/**
+ * L'empilage suit LE MENU, pas la numérotation de la maquette.
+ *
+ * Corrigé le 03/09/2026 : « l'accueil reprend celui de chaque partie du menu,
+ * empilées ». La maquette donnait le style ; l'ordre, c'est la découpe --
+ * Dashboard, Acquisition, Sourcing, Produits (annonces + catégories côte à
+ * côte), Diffusion, Rayons IA, Ventes, Livraisons, SAV clients (avec sa
+ * messagerie), SAV fournisseurs, Comptabilité, DropShipper. Marketing n'a pas
+ * encore de bloc de statistiques : il entrera ici le jour où il en aura un.
+ *
+ * Une seule liste à modifier pour réordonner : chaque ligne est une rangée,
+ * deux identifiants sur la même ligne se partagent la largeur.
+ */
 const RANGEES: string[][] = [
-  ['vue-generale'],
-  ['acquisition', 'fournisseurs'],
-  ['catalogue', 'marketplaces'],
-  ['ventes', 'livraisons', 'messagerie'],
-  ['sav-clients', 'sav-fournisseurs'],
-  ['finances'],
-  ['rayons', 'marche'],
-  ['plateforme'],
+  ['vue-generale'], // Dashboard
+  ['acquisition'], // Acquisition produits
+  ['fournisseurs'], // Sourcing
+  ['catalogue', 'rayons'], // Produits : mes annonces + catégories
+  ['marketplaces'], // Diffusion
+  ['marche'], // Mes rayons IA : analyses de marché (bloc 13)
+  ['ventes'], // Ventes
+  ['livraisons'], // Livraisons — la carte du monde suit
+  ['sav-clients', 'messagerie'], // SAV clients + messagerie market places
+  ['sav-fournisseurs'], // SAV fournisseurs
+  ['finances'], // Comptabilité
+  ['plateforme'], // DropShipper
 ]
 
 export default function Statistiques() {
@@ -165,7 +181,7 @@ export default function Statistiques() {
                   messagerie : c'est là que la maquette place ses deux cartes,
                   et une seule à quatre vues les remplace toutes les deux.
                 */}
-                {rangee[0] === 'ventes' && (carte || demo) ? (
+                {rangee[0] === 'livraisons' && (carte || demo) ? (
                   <CarteMonde carte={demo ? carteDemo() : carte!} />
                 ) : null}
               </div>
