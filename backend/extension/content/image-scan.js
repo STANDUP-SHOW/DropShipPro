@@ -272,6 +272,31 @@ async function dspRevealLazyImages(onUrl) {
   window.scrollTo({ top: start, behavior: 'instant' })
   await new Promise((r) => setTimeout(r, 250))
 
+  /*
+   * On attend que la page cesse d'en ajouter, au lieu d'un délai fixe.
+   *
+   * Les quatre pauses ci-dessus font 1,1 seconde en tout. C'est assez sur une
+   * fibre, et pas du tout sur une ligne lente : la galerie de Temu est montée
+   * en JavaScript **après** que les données arrivent, donc le relevé partait
+   * sur une page où les balises `<img>` du produit n'existaient pas encore. Le
+   * lot est le plus exposé — l'onglet s'ouvre et la capture part aussitôt.
+   *
+   * Deux mesures identiques à 300 ms d'intervalle valent mieux qu'un délai
+   * choisi au jugé : sur une ligne rapide on repart au bout de 300 ms, sur une
+   * ligne lente on laisse à la galerie le temps d'apparaître. Le plafond de
+   * quatre secondes garantit que l'import se termine quoi qu'il arrive —
+   * l'observateur reste branché pendant l'attente, donc rien n'est perdu.
+   */
+  const compter = () => document.querySelectorAll('img[src], img[srcset], source[srcset]').length
+  let precedent = -1
+  const limite = Date.now() + 4000
+  while (Date.now() < limite) {
+    const actuel = compter()
+    if (actuel === precedent) break
+    precedent = actuel
+    await new Promise((r) => setTimeout(r, 300))
+  }
+
   observer.disconnect()
 }
 

@@ -562,7 +562,35 @@
     // Le repli ne prend que ce qui a ete reellement mesure : proposer par
     // defaut une adresse dont on ignore la taille, c est reproduire le defaut
     // qu on corrige -- une banniere en premiere photo.
-    const chosen = large.length ? large : measured.filter((m) => m.mesuree !== false).sort(parRang)
+    const base = large.length ? large : measured.filter((m) => m.mesuree !== false).sort(parRang)
+
+    /*
+     * Une photo que l'adaptateur a désignée n'est pas jetée faute d'avoir pu
+     * être mesurée.
+     *
+     * **Ce que révèle une connexion lente**, question posée le 03/09/2026 :
+     * « un problème de connexion lente qui a du mal à afficher les images du
+     * produit peut-il influer ? » Oui, et le mécanisme est mécanique, pas
+     * aléatoire.
+     *
+     * La mesure charge chaque candidat par le réseau et abandonne à cinq
+     * secondes. Une photo de galerie fait 800 à 1 200 px et n'a jamais été
+     * demandée avant : sur une ligne lente elle expire. Une vignette de panier
+     * ou de recommandation fait 100 à 300 px **et se trouve déjà dans le cache
+     * du navigateur** — le panier est sur toutes les fiches du site. Elle
+     * répond donc instantanément.
+     *
+     * La lenteur ne brouille pas le classement au hasard : elle **élimine
+     * systématiquement les vraies photos et conserve le mobilier**. Une photo
+     * non mesurée était reléguée dans la bande dépliable, donc jamais reprise
+     * par le lot, qui n'a personne pour la déplier.
+     *
+     * Ce que l'adaptateur désigne, on le sait par la structure de la page, pas
+     * par le réseau. Ce savoir-là ne doit pas dépendre du débit.
+     */
+    const designees = new Set([...adapterSet].map(photoIdentity))
+    const rattrapees = nonMesurees.filter((m) => designees.has(photoIdentity(m.url)))
+    const chosen = rattrapees.length ? [...base, ...rattrapees].sort(parRang) : base
 
     // Deduplicate: the same photo often appears at several sizes.
     const seen = new Set()
@@ -649,6 +677,16 @@
       adaptateur: adapter?.label ?? null,
     }
   }
+
+  /*
+   * Exposé pour le banc, comme `__dspPreselectionnerPhotos` l'est déjà.
+   *
+   * C'est la fonction qui décide des photos de chaque annonce, donc celle dont
+   * les erreurs coûtent le plus cher — et elle n'était éprouvée par aucun banc
+   * parce qu'elle n'était accessible de nulle part. Un banc qui recopierait la
+   * règle éprouverait ce qu'on aurait aimé écrire, pas ce qui tourne.
+   */
+  self.__dspCollecterImages = collectImages
 
   /**
    * Scrolls the gallery so lazy images start loading, then waits briefly.
