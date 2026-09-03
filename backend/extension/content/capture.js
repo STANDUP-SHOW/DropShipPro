@@ -1089,22 +1089,66 @@
       panel.querySelector('#dsp-spin').style.transform = `rotate(${(spin += 45)}deg)`
     }, 1000)
 
+    /*
+     * Chaque geste supporte d'être joué deux fois, ou après un autre.
+     *
+     * **La panne du 03/09/2026 :** « annonce prête, censé ouvrir l'annonce
+     * automatiquement, reste sur annonce prête sans ouvrir ». `done()`
+     * supprimait `#dsp-spin` ; `fail()`, appelé juste après quand l'ouverture
+     * échouait, refaisait `panel.querySelector('#dsp-spin').remove()` sur un
+     * élément **déjà retiré** — donc `.remove()` de `null`, donc une exception.
+     *
+     * Elle remontait au `catch` de l'import, qui appelait `fail()` une seconde
+     * fois, qui relevait la même exception, cette fois sans personne pour
+     * l'attraper. Résultat : le panneau restait figé sur « Annonce prête », et
+     * **la vraie raison de l'échec n'était jamais affichée** — ni l'ouverture
+     * ratée, ni ce qui l'avait fait rater.
+     *
+     * Un panneau d'avancement est du décor : il ne doit jamais pouvoir faire
+     * échouer ce dont il rend compte.
+     */
+    const poser = (selecteur, action) => {
+      const el = panel.querySelector(selecteur)
+      if (el) action(el)
+    }
+
     return {
       step(label) {
-        const el = panel.querySelector('#dsp-step')
-        if (el) el.textContent = label
+        poser('#dsp-step', (el) => (el.textContent = label))
       },
       done(label) {
         clearInterval(timer)
-        panel.querySelector('#dsp-bar').style.width = '100%'
-        panel.querySelector('#dsp-spin').remove()
-        panel.querySelector('#dsp-step').textContent = label
+        poser('#dsp-bar', (el) => (el.style.width = '100%'))
+        poser('#dsp-spin', (el) => el.remove())
+        poser('#dsp-step', (el) => (el.textContent = label))
       },
       fail(label) {
         clearInterval(timer)
         panel.style.borderColor = 'rgba(248,113,113,.5)'
-        panel.querySelector('#dsp-spin').remove()
-        panel.querySelector('#dsp-step').textContent = label
+        poser('#dsp-spin', (el) => el.remove())
+        poser('#dsp-step', (el) => (el.textContent = label))
+      },
+      /**
+       * Le lien vers l'annonce, quand l'ouverture automatique n'a pas eu lieu.
+       *
+       * « Ouvrez DropShipper IA » demande au vendeur de retrouver lui-même une
+       * annonce dont il ne connaît pas l'adresse. Un lien la lui donne, et il
+       * reste utile même si l'ouverture automatique casse à nouveau.
+       */
+      lien(url, libelle) {
+        const a = document.createElement('a')
+        a.href = url
+        a.target = '_blank'
+        a.rel = 'noopener'
+        a.textContent = libelle
+        Object.assign(a.style, {
+          display: 'block',
+          marginTop: '8px',
+          color: '#d8b4fe',
+          fontWeight: '600',
+          textDecoration: 'underline',
+        })
+        panel.appendChild(a)
       },
       remove: () => panel.remove(),
     }
@@ -1550,15 +1594,31 @@
       // Opened only once the listing is complete, and only announced once it
       // actually happened: the previous version promised an opening that failed
       // silently when the app address was wrong.
-      const opened = await chrome.runtime.sendMessage({
-        type: 'dsp-open-product',
-        productId: product?.id,
-      })
+      /*
+       * L'ouverture ne peut plus emporter l'import avec elle.
+       *
+       * L'annonce est enregistrée et payée à ce stade : que le worker soit
+       * endormi, que la réponse n'arrive jamais ou que `tabs.create` refuse,
+       * rien de tout cela ne doit ressembler à un échec d'import. On rattrape
+       * donc, et on donne le lien.
+       */
+      let opened = null
+      try {
+        opened = await chrome.runtime.sendMessage({
+          type: 'dsp-open-product',
+          productId: product?.id,
+        })
+      } catch (err) {
+        opened = { ok: false, error: err?.message ?? 'le service de l’extension n’a pas répondu' }
+      }
 
       if (opened?.ok) {
         setTimeout(() => progress.remove(), 2500)
       } else {
-        progress.fail(`Annonce enregistrée — ouvrez DropShipper IA${opened?.error ? ` (${opened.error})` : ''}`)
+        progress.fail(`Annonce enregistrée${opened?.error ? ` — ${opened.error}` : ''}`)
+        // Un lien vaut mieux que « ouvrez DropShipper IA » : le vendeur ne
+        // connaît pas l'adresse de l'annonce qui vient de naître.
+        if (opened?.url) progress.lien(opened.url, "Ouvrir l'annonce →")
       }
     } catch (err) {
       progress.fail(`Échec : ${err.message}`)

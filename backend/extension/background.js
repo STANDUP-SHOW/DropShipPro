@@ -398,9 +398,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // open rather than piling up duplicates.
   if (message?.type === 'dsp-open-product') {
     ;(async () => {
+      // Hors du `try` : le `catch` s en sert, et une `const` de bloc n y serait
+      // pas visible -- l echec d ouverture se transformerait en ReferenceError.
+      let target = null
       try {
         const appUrl = await getAppUrl()
-        const target = message.productId ? `${appUrl}/products/${message.productId}` : `${appUrl}/dashboard`
+        target = message.productId ? `${appUrl}/products/${message.productId}` : `${appUrl}/dashboard`
 
         // Always a new tab, opened right beside the supplier page rather than
         // replacing it or hijacking an app tab already showing another listing:
@@ -411,9 +414,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           index: sender.tab ? sender.tab.index + 1 : undefined,
           openerTabId: sender.tab?.id,
         })
-        sendResponse({ ok: true })
+        // L adresse est rendue meme en cas de succes : si l ouverture rate plus
+        // tard -- ou si le vendeur ferme l onglet par reflexe -- le panneau a de
+        // quoi lui offrir un lien plutot que « ouvrez DropShipper IA ».
+        sendResponse({ ok: true, url: target })
       } catch (err) {
-        sendResponse({ ok: false, error: err.message })
+        sendResponse({ ok: false, error: err.message, url: target })
       }
     })()
     return true
