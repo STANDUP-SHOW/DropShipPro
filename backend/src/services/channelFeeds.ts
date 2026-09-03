@@ -46,24 +46,42 @@ const FAMILLES_A_FLUX: TypeCanal[] = ['comparateur', 'affiliation']
 /**
  * Les exceptions vérifiées, par identifiant d'annuaire.
  *
- * On n'y met que ce qu'on a lu, jamais ce qu'on suppose. Les places de marché
- * listées ici sont celles dont on sait qu'elles se nourrissent d'un flux plutôt
- * que d'un dépôt annonce par annonce.
+ * On n'y met que ce qu'on a lu, jamais ce qu'on suppose. Et **les clés sont
+ * les identifiants réels de `channelDirectory.ts`**, pas des noms plausibles :
+ * la première version portait `facebook`, `google-ads`, `meta-ads` — aucun
+ * n'existe dans l'annuaire, l'écran disait « pas encore reliée » sur des
+ * canaux que nos flux servaient déjà, et le banc vérifiait les mêmes noms
+ * fantômes, donc rien ne tombait. Le banc confronte désormais chaque clé à
+ * l'annuaire.
+ *
+ * Les régies publicitaires ont leur place ici, et ce n'est pas un mélange
+ * avec la passerelle sociale : la passerelle **publie** (des posts, au nom du
+ * vendeur), le catalogue **nourrit** (les publicités dynamiques piochent
+ * dedans). Meta Ads, Snapchat Ads et TikTok Ads se branchent tous sur un flux
+ * produit — c'est leur mode normal, documenté chez chacun.
  */
 const EXCEPTIONS: Record<string, Omit<FluxCanal, 'ou'>> = {
-  // La famille Meta lit le CSV de catalogue : boutique Facebook, Instagram
-  // Shopping et les publicités dynamiques partagent le même fichier.
-  facebook: META,
+  // La famille Meta lit le CSV de catalogue : Instagram Shopping, la boutique
+  // Facebook et les publicités dynamiques partagent le même fichier.
   instagram: META,
-  'facebook-ads': META,
-  'meta-ads': META,
+  facebookads: META,
+  // Snapchat : catalogue en CSV aux mêmes colonnes que Meta, taxonomie
+  // Google — lu dans les docs des outils de flux (le centre d'aide Snap ne se
+  // rend pas côté serveur), concordantes entre quatre éditeurs.
+  snapchat: META,
   // Google Merchant Center est la destination d'origine du format `g:`.
-  google: GOOGLE,
-  'google-shopping': GOOGLE,
-  'google-ads': GOOGLE,
+  googleshoppingads: GOOGLE,
+  // TikTok Ads Manager avale un flux planifié par URL (CSV, XML RSS/Atom) et
+  // importe tel quel un flux Google Merchant — doc officielle
+  // ads.tiktok.com/help/article/create-manage-catalogs. La carte combinée
+  // « Google, Instagram & TikTok Ads » est donc servie par le flux Google.
+  'ads-google-instagram-tiktok': GOOGLE,
   // Pinterest : son catalogue accepte le même flux que Google Shopping.
   pinterest: GOOGLE,
 }
+
+/** Exporté pour le banc : chaque clé doit exister dans l'annuaire. */
+export const IDS_EXCEPTIONS_FLUX = Object.keys(EXCEPTIONS)
 
 /**
  * Le flux qui nourrit ce canal, ou `null` quand il lui faut un vrai connecteur.
@@ -77,6 +95,8 @@ export function fluxPour(canal: CanalAnnuaire): FluxCanal | null {
       ? "Collez l'adresse dans votre espace annonceur, à l'endroit où la plateforme demande votre catalogue produit."
       : canal.type === 'comparateur'
         ? "Collez l'adresse dans votre espace marchand, à la ligne « flux produit » ou « catalogue »."
+        : canal.type === 'regie'
+        ? "Collez l'adresse dans le gestionnaire de catalogue de la régie (Commerce Manager chez Meta, Snap Business Manager, TikTok Ads Manager) : ses publicités dynamiques piochent dedans."
         : "Collez l'adresse dans le gestionnaire de catalogue de la plateforme."
 
   return { ...choisi, ou }

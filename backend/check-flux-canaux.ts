@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { CANAUX } from './src/services/channelDirectory.js'
-import { canauxAFlux, fluxPour, FORMATS_FLUX } from './src/services/channelFeeds.js'
+import { canauxAFlux, fluxPour, FORMATS_FLUX, IDS_EXCEPTIONS_FLUX } from './src/services/channelFeeds.js'
 
 /**
  * Ce qu'un simple flux produit suffit à nourrir.
@@ -59,22 +59,46 @@ console.log("\nCe qu'on ne doit surtout pas annoncer")
    * dire — exactement le défaut qu'on corrige partout ailleurs.
    */
   const marketplacesServies = CANAUX.filter((c) => c.type === 'marketplace' && fluxPour(c) !== null)
-  const attendues = ['facebook', 'instagram', 'google', 'pinterest']
-  const inattendues = marketplacesServies.filter((c) => !attendues.includes(c.id))
-
   verifier(
-    'aucune place de marché ne se dit servie par un flux, sauf les boutiques sociales',
-    inattendues.length === 0,
-    inattendues.length ? inattendues.map((c) => c.label).join(', ') : 'les exceptions sont vérifiées une par une',
+    'aucune place de marché ne se dit servie par un flux',
+    marketplacesServies.length === 0,
+    marketplacesServies.length
+      ? marketplacesServies.map((c) => c.label).join(', ')
+      : 'un dépôt annonce par annonce ne se remplace pas par une adresse',
   )
   verifier(
     'les outils ne sont jamais des destinations',
     CANAUX.filter((c) => c.type === 'outil').every((c) => fluxPour(c) === null),
   )
+
+  /*
+   * **La leçon de ce banc, apprise le 03/09/2026.** La première version des
+   * exceptions portait des identifiants plausibles — `facebook`, `google-ads`,
+   * `meta-ads` — qu'aucune carte de l'annuaire ne porte. Et ce banc vérifiait
+   * la même liste : code et banc partageaient la constante fausse, donc tout
+   * passait pendant que l'écran disait « pas encore reliée » sur Facebook Ads
+   * et Google Shopping Ads. Chaque clé est désormais confrontée à l'annuaire,
+   * la seule source qui ne peut pas se tromper sur ses propres identifiants.
+   */
+  const idsAnnuaire = new Set(CANAUX.map((c) => c.id))
+  const fantomes = IDS_EXCEPTIONS_FLUX.filter((id) => !idsAnnuaire.has(id))
   verifier(
-    'les régies publicitaires non plus',
-    CANAUX.filter((c) => c.type === 'regie' && !attendues.includes(c.id)).every((c) => fluxPour(c) === null),
-    'une régie se branche par la passerelle sociale, pas par un catalogue',
+    "chaque exception de flux existe dans l'annuaire",
+    fantomes.length === 0,
+    fantomes.length ? `identifiants fantômes : ${fantomes.join(', ')}` : `${IDS_EXCEPTIONS_FLUX.length} exceptions, toutes réelles`,
+  )
+
+  /*
+   * Les régies servies le sont par leur gestionnaire de catalogue (publicités
+   * dynamiques) — celles qui n'ont pas de catalogue documenté ne doivent
+   * jamais hériter d'un flux par accident.
+   */
+  const regiesServies = CANAUX.filter((c) => c.type === 'regie' && fluxPour(c) !== null)
+  const horsListe = regiesServies.filter((c) => !IDS_EXCEPTIONS_FLUX.includes(c.id))
+  verifier(
+    'seules les régies à catalogue vérifié sont servies',
+    horsListe.length === 0,
+    regiesServies.map((c) => c.label).join(', '),
   )
 }
 
