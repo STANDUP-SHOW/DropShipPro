@@ -1,6 +1,7 @@
 import { MODELE_REDACTION, MODELE_RAPIDE, TARIFS, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { trimToWords } from './channelCopy.js'
+import { substanceSource } from './sourceQuality.js'
 
 let client: Anthropic | null = null
 function getClient() {
@@ -242,8 +243,39 @@ export async function enhanceListing(input: {
   // pipeline (watermark, publish) still works end to end.
   if (!anthropic) return passthrough()
 
+  /*
+   * On regarde ce qu'on a avant de payer un appel — et avant d'inventer.
+   *
+   * Le 03/09/2026, vingt-six annonces Temu sont sorties écrites à partir du
+   * seul titre : `collectDescription()` ne peut pas trouver le bloc de
+   * description sur un site qui obfusque ses noms de classe, et retombait sur
+   * la balise SEO (« Trouvez des offres incroyables sur… »). Le modèle a fait
+   * ce qu'on lui demandait — sept arguments de vente, neuf attributs — tous
+   * déduits du titre et présentés comme des caractéristiques du produit.
+   *
+   * Une annonce inventée est pire qu'une annonce absente : elle a l'air bonne,
+   * elle est facturée, et ce sont des affirmations fausses au nom du vendeur.
+   */
+  const substance = substanceSource(input)
+  if (!substance.assezPourEcrire) {
+    console.error(`[ia] reecriture refusee : ${substance.raison}`)
+    return { ...passthrough(), raison: substance.raison ?? 'relevé sans matière' }
+  }
+
   try {
-    return await callModel(anthropic, input)
+    // L'accroche SEO n'est pas transmise : présentée comme la parole du
+    // fournisseur, elle induit le modèle en erreur au lieu de le laisser lire
+    // le corps de la page.
+    const resultat = await callModel(anthropic, { ...input, description: substance.description ?? '' })
+
+    /*
+     * Le repli reprend le texte d'origine, pas celui qu'on a nettoyé.
+     *
+     * `callModel` se rabat sur ce qu'on lui a donné quand il ne sait pas lire la
+     * réponse. Lui avoir retiré l'accroche laisserait alors une annonce sans
+     * aucune description : le vendeur perdrait même le peu que la page portait.
+     */
+    return resultat.enhanced ? resultat : { ...passthrough(), raison: resultat.raison }
   } catch (err) {
     // An expired, revoked or over-quota key must not destroy the import: the
     // product is still worth keeping, and the seller can rewrite it by hand or

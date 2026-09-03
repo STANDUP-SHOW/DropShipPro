@@ -341,6 +341,21 @@
 
     for (const selector of adapter.domSelectors ?? []) {
       for (const img of document.querySelectorAll(selector)) {
+        /*
+         * Le carrousel « vous aimerez aussi » n est pas la galerie.
+         *
+         * Sur Temu, ses vignettes sortent du meme CDN (`img.kwcdn.com`), sous
+         * le meme chemin (`/product/`), dans une vraie balise `<img>` : aucun
+         * critere d adresse ne les separe, et le selecteur du domaine les
+         * prenait toutes. Le 03/09/2026, une bague masonnique est arrivee avec
+         * un pendentif boussole en premiere photo et un sac kaki en neuvieme.
+         *
+         * Ce qui les distingue est le lien qui les enveloppe, et le verdict
+         * vient de `image-scan.js` pour qu il n existe qu en un seul endroit.
+         */
+        if (typeof self.dspPointeVersUneAutreFiche === 'function' && self.dspPointeVersUneAutreFiche(img)) {
+          continue
+        }
         push(img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src'))
         const srcset = img.getAttribute('srcset')
         if (srcset) for (const part of srcset.split(',')) push(part.trim().split(/\s+/)[0])

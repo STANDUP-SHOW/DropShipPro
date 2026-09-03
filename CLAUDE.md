@@ -186,6 +186,62 @@ Trois conséquences, toutes appliquées :
   cinq photos n est pas une cible** : mieux vaut trois vraies photos que cinq
   dont une banniere.
 
+- **Une vignette de recommandation est indiscernable d'une photo produit — sauf
+  par le lien qui l'enveloppe.** Relevé le 03/09/2026 sur une vraie annonce du
+  catalogue : une bague maçonnique importée depuis Temu portait un **pendentif
+  boussole** en première photo et un **sac besace kaki « Tokyo Japan »** en
+  neuvième. Vingt-six annonces du même lot dans le même état.
+
+  Aucun filtre ne pouvait les écarter, et ce n'était pas un oubli : sur Temu la
+  vignette du carrousel sort du **même CDN** que la galerie (`img.kwcdn.com`),
+  sous le **même chemin** (`/product/`), dans une **vraie balise `<img>`**, et
+  souvent **plus grande** que les photos du produit. Les quatre signaux du tri
+  disaient « photo de produit », et ils avaient raison : c'en est une, mais d'un
+  autre produit. L'adaptateur Temu les *certifiait* donc — et ce qu'un
+  adaptateur désigne passe devant tout, précisément parce qu'on le croit.
+
+  Le seul signal qui les sépare est **structurel** : une vignette de
+  recommandation est cliquable vers une autre fiche, c'est sa raison d'être ;
+  une photo de galerie ne l'est jamais. `dspPointeVersUneAutreFiche()` vit dans
+  `image-scan.js` et sert aussi à `adapters.js` — la recopier ferait deux
+  versions qui divergeraient. Deux exceptions vérifiées avant de conclure
+  « ailleurs » : un lien vers le fichier image (c'est une loupe) et un lien vers
+  la même page avec d'autres paramètres (c'est un choix de variante). Écartées
+  mais pas perdues : elles rejoignent la bande dépliable. Banc
+  `node check-recommandations.cjs`, éprouvé contre la version fautive —
+  **20 voisins sur 28 retenues** sans la règle, 0 avec.
+
+- **Une balise SEO n'est pas une description, et le modèle ne peut pas le
+  deviner.** Même jour, même lot, et c'est le plus grave des deux :
+  `collectDescription()` cherche un bloc par nom de classe
+  (`[class*="description"]`). **Temu obfusque tous ses noms de classe** : aucun
+  sélecteur ne peut correspondre, jamais. Le relevé retombait donc sur
+  `og:description`, qui dit toujours la même chose — « Trouvez des offres
+  incroyables sur *titre* sur Temu. Magasinez sur Temu pour économiser. »
+
+  Le modèle recevait ça comme « Description source ». Il n'avait donc que les
+  mots du titre, et il a fait ce qu'on lui demandait : il a écrit. Sept
+  arguments de vente, neuf attributs, vingt mots-clés, **tous déduits du
+  titre** et présentés comme des caractéristiques du produit — « matériau
+  aéré », « conception durable pensée pour un usage intensif ». Personne n'avait
+  vu le produit.
+
+  **Une annonce inventée est pire qu'une annonce absente** : elle a l'air bonne,
+  elle est facturée, et ce sont des affirmations commerciales fausses au nom du
+  vendeur. `sourceQuality.ts` mesure donc la matière **avant** de payer l'appel :
+  l'accroche SEO n'est pas transmise (présentée comme la parole du fournisseur,
+  elle égare le modèle au lieu de le laisser lire le corps de la page), et sans
+  matière du tout la réécriture est refusée — texte source gardé, `aiEnhanced`
+  à faux, crédit rendu, raison écrite sur la fiche. Le faux positif est le vrai
+  danger : la moitié du banc `npx tsx check-substance.ts` sert à vérifier qu'une
+  description réelle, même courte, n'est jamais refusée. Ses textes sont **les
+  vraies chaînes relues en base**, pas des imitations commodes.
+
+  Corollaire : **`reecrireAnnonce()` ne peut pas réparer ces annonces-là.** Elle
+  repart du texte source stocké, qui est justement l'accroche SEO. Elle refuse
+  désormais explicitement au lieu d'inventer une seconde fois. Ces fiches se
+  réparent en **réimportant depuis la page**, pas en réécrivant.
+
 - **Les connecteurs fournisseurs se contrôlent contre de faux serveurs** :
 
   ```bash
@@ -379,7 +435,7 @@ Trois conséquences, toutes appliquées :
 - **Tout se contrôle en une commande**, et c'est celle-là qu'il faut lancer :
 
   ```bash
-  cd backend && npm run controle          # les 33 bancs locaux
+  cd backend && npm run controle          # les 40 bancs locaux
   cd backend && npm run controle -- --tout # + le parcours en production
   ```
 

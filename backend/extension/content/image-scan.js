@@ -316,6 +316,7 @@ async function dspScanPageImages() {
   self.dspScanMeta = {
     declarees: dspDeclaredImages(),
     mobilier: dspChromeImages(),
+    voisinage: dspVoisinageImages(),
   }
 
   return [...found]
@@ -351,6 +352,78 @@ function dspDeclaredImages() {
   return [...out].slice(0, 12)
 }
 
+/**
+ * Une image enfermée dans un lien qui mène ailleurs qu'à cette fiche.
+ *
+ * **Le défaut du 03/09/2026, et il était invisible à tous les filtres.** Une
+ * annonce « bague maçonnique » importée depuis Temu portait quinze photos :
+ * en première, un pendentif boussole ; en neuvième, un sac besace kaki
+ * « Tokyo Japan ». Aucun contrôle ne pouvait les écarter — elles sont servies
+ * par le même CDN que la galerie (`img.kwcdn.com`), sous le même chemin
+ * (`/product/`), dans une vraie balise `<img>`, et souvent plus grandes que
+ * les photos du produit. L'adaptateur Temu les *certifiait* donc, et le lot,
+ * qui n'a personne pour relire, les importait toutes.
+ *
+ * Ce qui les distingue n'est ni leur adresse, ni leur taille, ni leur
+ * position : **c'est le lien qui les enveloppe**. Une vignette de
+ * recommandation est toujours cliquable vers une autre fiche — c'est sa raison
+ * d'être. Une photo de galerie ne l'est jamais : elle ouvre un agrandissement,
+ * change de variante, ou ne fait rien.
+ *
+ * Le signal est structurel, donc il survit à l'obfuscation des noms de classe
+ * — la raison pour laquelle aucun sélecteur ne marche durablement sur Temu — et
+ * il vaut pour tous les sites d'un coup : AliExpress, Banggood et DHgate
+ * entourent leur carrousel « vous aimerez aussi » exactement de la même façon.
+ *
+ * Deux exceptions, toutes deux vérifiées avant de conclure « ailleurs » :
+ * un lien vers le fichier image lui-même (c'est un agrandissement), et un lien
+ * vers la même page avec d'autres paramètres (c'est un choix de variante).
+ */
+function dspPointeVersUneAutreFiche(el) {
+  const lien = typeof el?.closest === 'function' ? el.closest('a[href]') : null
+  if (!lien) return false
+
+  const brut = lien.getAttribute('href') || ''
+  if (!brut || brut.startsWith('#') || /^javascript:/i.test(brut)) return false
+
+  let cible
+  try {
+    cible = new URL(lien.href || brut, location.href)
+  } catch {
+    return false
+  }
+
+  // Un lien vers l'image elle-même est une loupe, pas un voisin.
+  if (/\.(?:jpe?g|png|webp|avif|gif)$/i.test(cible.pathname)) return false
+
+  // Un autre domaine est toujours ailleurs. Sur le même domaine, seul le chemin
+  // tranche : `?sku=2` reste cette fiche, `/autre-produit.html` ne l'est plus.
+  if (cible.origin !== location.origin) return true
+  return cible.pathname !== location.pathname
+}
+
+/** Les produits recommandés autour de la fiche : jamais celui qu'on importe. */
+function dspVoisinageImages() {
+  const out = new Set()
+
+  for (const lien of document.querySelectorAll('a[href]')) {
+    if (!dspPointeVersUneAutreFiche(lien)) continue
+    for (const el of lien.querySelectorAll('img, source, [style*="background"]')) {
+      try {
+        dspSourcesOfElement(el, (value) => {
+          const url = dspAbsoluteUrl(value)
+          if (url) out.add(url)
+        })
+      } catch {
+        // Un élément hostile ne doit pas interrompre le relevé.
+      }
+    }
+    if (out.size > 300) break
+  }
+
+  return [...out]
+}
+
 /** Le mobilier de page : jamais le produit, sur aucun site. */
 function dspChromeImages() {
   const out = new Set()
@@ -374,5 +447,16 @@ function dspChromeImages() {
 
     // Only the entry point is published; every helper stays private.
     self.dspScanPageImages = dspScanPageImages
+    /*
+     * Une exception : l'adaptateur du site en a besoin lui aussi.
+     *
+     * `adapters.js` interroge le DOM avec ses propres sélecteurs, donc il
+     * ramassait le carrousel de recommandations avant que le tri générique
+     * n'ait son mot à dire — et ce qu'un adaptateur désigne passe devant tout.
+     * Recopier la règle là-bas ferait deux versions qui divergeraient au
+     * premier ajustement. `image-scan.js` est chargé en premier (voir
+     * `background.js`), donc elle est disponible quand il en a besoin.
+     */
+    self.dspPointeVersUneAutreFiche = dspPointeVersUneAutreFiche
   })()
 }

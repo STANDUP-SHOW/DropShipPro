@@ -461,9 +461,18 @@
      * vignette là où og:image donne l'original, et ce sont bien les deux mêmes
      * photos.
      */
-    const meta = self.dspScanMeta ?? { declarees: [], mobilier: [] }
+    const meta = self.dspScanMeta ?? { declarees: [], mobilier: [], voisinage: [] }
     const declarees = new Set((meta.declarees ?? []).map(photoIdentity))
     const mobilier = new Set((meta.mobilier ?? []).map(photoIdentity))
+    /*
+     * Les produits recommandes autour de la fiche.
+     *
+     * Le mobilier couvrait l en-tete, le menu, le pied et la colonne laterale.
+     * Il ne couvrait pas le carrousel « vous aimerez aussi », qui vit au milieu
+     * du contenu principal, porte de vraies photos de produits, et remplissait
+     * donc les quinze places sans qu aucun filtre bronche.
+     */
+    const voisinage = new Set((meta.voisinage ?? []).map(photoIdentity))
 
     const score = (url) => {
       if (NOT_A_PHOTO.test(url)) return -1000
@@ -475,6 +484,9 @@
       // Le mobilier n'est jamais le produit, sur aucun site — sauf si le
       // marchand le déclare lui-même, ce que le bonus au-dessus rattrape.
       if (mobilier.has(identite)) value -= 4000
+      // Un produit recommandé non plus. Même clause de sauvegarde : si la page
+      // la déclare comme sa propre photo, le bonus de +5000 l'emporte.
+      if (voisinage.has(identite)) value -= 4000
       try {
         if (galleryHost && new URL(url).host === galleryHost) value += 1000
       } catch {
