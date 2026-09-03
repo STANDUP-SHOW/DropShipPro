@@ -232,8 +232,59 @@ function dspImagesFromScripts(deadline = Infinity) {
  * loaders rely on, and a MutationObserver picks up the nodes that arrive while
  * we are scrolling, which a single snapshot afterwards would miss.
  */
+/** Ce qui déplie une galerie, et ce qui déplie autre chose. */
+const DSP_DEPLIER = /^(?:voir|afficher|charger)\s+(?:plus|tout|toutes)|^(?:see|view|show|load)\s+(?:more|all)|plus de photos|more photos|toutes les photos/i
+/** Un « voir plus » qui parle d'autres produits n'ouvre pas la galerie. */
+const DSP_PAS_LA_GALERIE = /similaire|recommand|aussi|avis|review|comment|vendeur|boutique|offre/i
+
+/**
+ * Déplie ce que la fiche garde replié, avant de la lire.
+ *
+ * **Constaté par le vendeur le 03/09/2026 :** « import extension, choix images
+ * OK **à condition que** la page soit intégralement chargée et les photos
+ * dépliées ; tant qu'on n'a pas déplié (option voir plus), les photos du bas ne
+ * sont pas chargées ».
+ *
+ * À l'unité, il déplie lui-même avant de cliquer. **Dans un lot, personne ne le
+ * fait** — l'onglet s'ouvre, la capture part, et la moitié basse de la galerie
+ * n'existe pas encore dans le DOM. C'est une des raisons pour lesquelles le lot
+ * rendait moins que l'import à l'unité sur la même fiche.
+ *
+ * Le geste est étroit par construction : un `<button>` visible, au libellé
+ * court et explicite, jamais un lien — un « voir plus » qui navigue quitterait
+ * la fiche — et jamais celui qui ouvre les avis ou les produits similaires,
+ * qui ne feraient qu'ajouter du bruit. Trois au maximum.
+ *
+ * Rien ici ne valide, n'achète ni ne publie : ces boutons-là ne portent aucun
+ * des libellés reconnus, et la règle du projet — l'agent ne clique jamais sur
+ * « Publier » chez un tiers — reste entière.
+ */
+function dspDeplierGaleries() {
+  let clics = 0
+  for (const el of document.querySelectorAll('button, [role="button"]')) {
+    if (clics >= 3) break
+    const texte = (el.textContent || '').trim()
+    if (!texte || texte.length > 40) continue
+    if (!DSP_DEPLIER.test(texte) || DSP_PAS_LA_GALERIE.test(texte)) continue
+    if (typeof el.closest === 'function' && el.closest('a[href]')) continue
+    try {
+      const rect = el.getBoundingClientRect()
+      if (!rect.width || !rect.height) continue
+      el.click()
+      clics++
+    } catch {
+      // Un gestionnaire hostile ne doit pas interrompre le relevé.
+    }
+  }
+  return clics
+}
+
 async function dspRevealLazyImages(onUrl) {
   const start = window.scrollY
+
+  // Déplier d'abord : ce qui est replié n'a pas de balise, donc ni le défilement
+  // ni l'observateur ci-dessous ne peuvent le voir.
+  if (dspDeplierGaleries()) await new Promise((r) => setTimeout(r, 600))
   const observer = new MutationObserver((records) => {
     for (const record of records) {
       for (const node of record.addedNodes) {
@@ -557,5 +608,12 @@ function dspChromeImages() {
      * endroit, avant que l'adaptateur ne « certifie » quoi que ce soit.
      */
     self.dspHorsFiche = (el) => dspPointeVersUneAutreFiche(el) || dspDansUnPanneauFlottant(el)
+
+    /*
+     * Exposé pour le banc : c'est le seul geste du relevé qui **agisse** sur la
+     * page du fournisseur au lieu de la lire. Ce qu'il clique — et surtout ce
+     * qu'il refuse de cliquer — doit être éprouvé, pas supposé.
+     */
+    self.dspDeplierGaleries = dspDeplierGaleries
   })()
 }

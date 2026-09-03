@@ -205,6 +205,58 @@
     return connues
   }
 
+  /**
+   * La taille **à l'écran**, qui n'est pas la taille du fichier.
+   *
+   * **Ce qu'ImageEye fait mieux que nous, constaté le 03/09/2026 sur les mêmes
+   * fiches Temu : « il sélectionne bien les images produits en premier sans
+   * pollution ».** La raison tient en une ligne : nous classions sur
+   * `naturalWidth`, c'est-à-dire sur le poids du fichier.
+   *
+   * Or sur Temu, la galerie, le panier et les recommandations sont **tous**
+   * servis en 800 à 1200 px. Ce critère ne les sépare pas — il les mélange, et
+   * une vignette de recommandation servie en 1200 px passe même devant une
+   * photo de galerie servie en 800.
+   *
+   * Ce qui les sépare est ce que la page en fait : la galerie occupe 600 px de
+   * large au milieu de l'écran — c'est le sujet de la page — une vignette de
+   * panier en fait 60, une carte de recommandation 200. Le rapport est de un à
+   * dix, et il ne dépend d'aucun nom de classe.
+   *
+   * Le seuil est **relatif à la plus grande image affichée**, jamais absolu :
+   * une fiche rendue dans une fenêtre étroite affiche tout plus petit, et un
+   * seuil en pixels y écarterait la galerie elle-même.
+   *
+   * Une image que la page n'affiche pas — diapositive de carrousel repliée,
+   * adresse trouvée dans un JSON — a une taille nulle. Elle est alors
+   * **inconnue**, pas petite : la pénaliser jetterait précisément les photos
+   * que le scan profond est allé chercher.
+   */
+  function taillesAffichees() {
+    const vues = new Map()
+    for (const img of document.querySelectorAll('img')) {
+      const brut = img.currentSrc || img.getAttribute('src')
+      if (!brut) continue
+      const url = brut.startsWith('//') ? `https:${brut}` : brut
+      if (!url.startsWith('http')) continue
+
+      let rect
+      try {
+        rect = img.getBoundingClientRect()
+      } catch {
+        continue
+      }
+      const aire = (rect.width || 0) * (rect.height || 0)
+      if (!aire) continue
+
+      const identite = photoIdentity(url)
+      // La plus grande vue l'emporte : la même photo peut servir la galerie et
+      // sa bande de vignettes, et c'est la galerie qui dit ce qu'elle est.
+      if ((vues.get(identite) ?? 0) < aire) vues.set(identite, aire)
+    }
+    return vues
+  }
+
   async function measureAll(urls) {
     const deadline = Date.now() + MEASURE_BUDGET_MS
     const connues = tailleDejaConnues()
@@ -474,6 +526,20 @@
      */
     const voisinage = new Set((meta.voisinage ?? []).map(photoIdentity))
 
+    /*
+     * Ce que la page affiche en grand est le sujet de la page.
+     *
+     * Seuils **relatifs** à la plus grande image affichée : une fiche rendue
+     * dans une fenêtre étroite affiche tout plus petit, et un seuil en pixels y
+     * écarterait la galerie elle-même. Un quart de l'aire de la plus grande
+     * (soit la moitié de son côté) sépare proprement une galerie de 600 px des
+     * cartes de recommandation de 200 et des vignettes de panier de 60.
+     */
+    const affichees = taillesAffichees()
+    const afficheeMax = affichees.size ? Math.max(...affichees.values()) : 0
+    const AIRE_SUJET = afficheeMax * 0.25
+    const AIRE_VIGNETTE = afficheeMax * 0.2
+
     const score = (url) => {
       if (NOT_A_PHOTO.test(url)) return -1000
       let value = 0
@@ -494,6 +560,21 @@
       }
       if (PRODUCT_PATH.test(url)) value += 200
       if (OFF_TOPIC.test(url)) value -= 500
+
+      /*
+       * La taille à l'écran, le signal qui manquait — celui qu'ImageEye exploite.
+       *
+       * La pénalité reste modérée (−800) là où le mobilier prend −4000 : une
+       * vignette affichée petite peut être une vraie photo du produit, dans la
+       * bande de miniatures sous la galerie. Elle doit descendre dans la liste,
+       * pas en sortir. Une image que la page n'affiche pas du tout garde son
+       * score : inconnue n'est pas petite.
+       */
+      const aireAffichee = affichees.get(identite)
+      if (aireAffichee && afficheeMax) {
+        if (aireAffichee >= AIRE_SUJET) value += 1500
+        else if (aireAffichee < AIRE_VIGNETTE) value -= 800
+      }
       return value
     }
 
@@ -666,7 +747,25 @@
      * non — et rien ne distinguait les deux cas.
      */
     const surs = new Set([...adapterSet].map(photoIdentity))
-    const certaines = unique.filter((i) => surs.has(photoIdentity(i.url)))
+    /*
+     * Une photo affichée en vignette n'est pas la galerie, même désignée.
+     *
+     * Le lot n'a personne pour relire : sa liste doit être stricte là où le
+     * sélecteur peut se permettre d'être large. L'adaptateur dit « cette
+     * adresse appartient au CDN produit de ce site » — c'est vrai du panier et
+     * des recommandations aussi. La taille à l'écran tranche ce que l'adresse
+     * ne peut pas trancher.
+     *
+     * Le filtre ne porte que sur ce qui est **connu** : une diapositive de
+     * carrousel repliée n'est pas affichée, donc pas mesurable, et l'écarter
+     * viderait la galerie sur les fiches qui n'en montrent qu'une à la fois.
+     */
+    const certaines = unique.filter((i) => {
+      const identite = photoIdentity(i.url)
+      if (!surs.has(identite)) return false
+      const aire = affichees.get(identite)
+      return !aire || !afficheeMax || aire >= AIRE_VIGNETTE
+    })
 
     return {
       produits: unique,
