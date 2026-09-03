@@ -95,7 +95,7 @@ const SECTIONS: Array<{
    */
 ]
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children, large = false }: { children: React.ReactNode; large?: boolean }) {
   const { pathname } = useLocation()
   const { logout, user } = useAuth()
   const [solde, setSolde] = useState<{ credits: number; premium: boolean } | null>(null)
@@ -240,7 +240,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <main className="flex-1 p-6 md:p-8 overflow-x-hidden">
-        <div className="mx-auto max-w-5xl">
+        {/*
+          Le tableau de bord occupe tout l'écran, comme la maquette : cent
+          vingt-six tuiles dans un couloir de 1024 px n'auraient jamais leurs
+          neuf colonnes. Les autres pages gardent leur colonne de lecture.
+        */}
+        <div className={large ? 'mx-auto max-w-[1800px]' : 'mx-auto max-w-5xl'}>
           {/*
             Dans la mise en page, donc sur tous les écrans.
             Une extension en retard fausse ce que le vendeur voit partout — pas

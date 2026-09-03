@@ -78,7 +78,7 @@ export default function Statistiques() {
   const parId = useMemo(() => new Map((affiches ?? []).map((b) => [b.id, b])), [affiches])
 
   return (
-    <Layout>
+    <Layout large>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-extrabold tracking-wide">STATISTIQUES</h1>
