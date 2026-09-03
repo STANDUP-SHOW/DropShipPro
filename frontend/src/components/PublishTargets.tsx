@@ -125,7 +125,7 @@ export function PublishTargets({
             {selected.includes('OWN_SITE') ? <CheckCircle2 size={16} className="ml-auto shrink-0" /> : null}
           </button>
         ) : (
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <div className="@container mt-2 grid gap-2 @sm:grid-cols-2">
             {shops.map((s) => {
               const coche = shopIds.includes(s.id)
               return (
@@ -172,7 +172,24 @@ export function PublishTargets({
             </p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">{g.aide}</p>
 
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {/*
+              Deux colonnes selon la largeur du DIALOGUE, pas de l'écran.
+
+              Signalé le 03/09/2026 sur un écran vertical : « quand on déplie une
+              case marketplace reliée, ça affiche mal, ça conserve une case vide à
+              côté ». `sm:` est un point de rupture de **fenêtre** : sur un écran
+              vertical la fenêtre dépasse 640 px, donc deux colonnes s'installaient
+              dans une boîte de 512 px — des cases de 245 px où le libellé passe à
+              la ligne, des hauteurs qui divergent, et la voisine qui garde la
+              sienne. D'où le trou.
+
+              `@container` mesure la boîte elle-même. Et `h-full` sur la cellule
+              avec `flex-1` sur le bouton fait que deux cases d'une même rangée ont
+              toujours la même hauteur : même si l'une porte un avertissement de
+              deux lignes, l'autre s'étire au lieu de laisser un vide.
+            */}
+            <div className="@container mt-2">
+              <div className="grid gap-2 @sm:grid-cols-2">
               {g.liste.map((p) => {
                 const coche = selected.includes(p.id)
                 /*
@@ -185,13 +202,13 @@ export function PublishTargets({
                  */
                 const manqueLaCle = p.integration === 'live' && !reliees.has(p.id)
                 return (
-                  <div key={p.id}>
+                  <div key={p.id} className="flex h-full flex-col">
                     <button
                       type="button"
                       aria-pressed={coche}
                       onClick={() => onToggle(p.id)}
                       style={{ backgroundColor: coche ? p.color : 'transparent', borderColor: p.color }}
-                      className={`flex w-full items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition ${
+                      className={`flex w-full flex-1 items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition ${
                         coche ? 'text-white' : 'text-gray-300 hover:bg-white/5'
                       }`}
                     >
@@ -216,6 +233,7 @@ export function PublishTargets({
                   </div>
                 )
               })}
+              </div>
             </div>
           </section>
         ) : null,
