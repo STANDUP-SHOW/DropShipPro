@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { mapCategory } from './categoryMapping.js'
 import { publishToShopify, resoudreCredentialsShopify } from './shopify.js'
 import { deposerOffreMirakl, estMirakl, readMiraklCredentials } from './mirakl.js'
+import { publierSurEbay, readEbayCredentials } from './ebay.js'
 import { imagesPourExport } from './exportImages.js'
 
 /**
@@ -31,6 +32,8 @@ export async function publishToPlatform(productId: string, platform: Platform, a
   )
 
   if (platform === 'SHOPIFY') return publishShopify(product, targetCategory, apiBaseUrl)
+
+  if (platform === 'EBAY') return publierEbay(product, targetCategory, apiBaseUrl)
 
   if (estMirakl(platform)) return publierMirakl(product, platform, targetCategory)
 
@@ -114,6 +117,87 @@ async function publierMirakl(product: Product, platform: Platform, targetCategor
       create: { productId: product.id, platform, targetCategory, status: 'FAILED', error: raison },
       update: { targetCategory, status: 'FAILED', error: raison, publishedAt: null },
     })
+  }
+}
+
+/**
+ * La publication eBay — même forme que Shopify, mêmes raisons.
+ *
+ * Sans jeton enregistré : « en attente » avec le geste à faire. Un refus
+ * d'eBay : « échec » avec le message d'eBay, pas une exception qui ferait
+ * tomber la diffusion en lot sans dire quel produit a manqué.
+ *
+ * La catégorie eBay (un identifiant numérique de leur taxonomie) est demandée
+ * à leur API de suggestions à partir du libellé du référentiel, puis mémorisée
+ * dans `Category.targets` sous `EBAY_ID` — distinct du libellé lisible `EBAY`
+ * posé à la main. Mille produits d'un même rayon coûtent une recherche.
+ */
+async function publierEbay(product: Product, targetCategory: string, apiBaseUrl?: string) {
+  const where = { productId_platform: { productId: product.id, platform: 'EBAY' as const } }
+
+  const credential = await prisma.platformCredential.findUnique({
+    where: { userId_platform: { userId: product.userId, platform: 'EBAY' } },
+  })
+  const creds = credential?.connected ? readEbayCredentials(credential.data) : null
+
+  if (!creds) {
+    const raison =
+      "Compte eBay non connecté : aucun jeton n'est enregistré. Réglages › Plateformes de vente › eBay — collez le jeton utilisateur OAuth (portées sell.inventory et sell.account) généré sur developer.ebay.com."
+    return prisma.publication.upsert({
+      where,
+      create: { productId: product.id, platform: 'EBAY', targetCategory, status: 'PENDING', error: raison },
+      update: { targetCategory, status: 'PENDING', error: raison, publishedAt: null },
+    })
+  }
+
+  try {
+    // Les photos partent marquées, en adresses absolues : eBay les télécharge
+    // lui-même, comme Shopify.
+    const marquees = await imagesPourExport(product)
+    const images = marquees
+      .map((img) => (img.startsWith('/') ? (apiBaseUrl ? `${apiBaseUrl}${img}` : '') : img))
+      .filter(Boolean)
+
+    const categorie = product.categoryId
+      ? await prisma.category.findUnique({ where: { id: product.categoryId } })
+      : null
+    const memorisee =
+      categorie?.targets && typeof categorie.targets === 'object' && !Array.isArray(categorie.targets)
+        ? (categorie.targets as Record<string, unknown>).EBAY_ID
+        : null
+
+    const { externalUrl, notes } = await publierSurEbay(product, creds, {
+      images,
+      // Le libellé du référentiel guide la suggestion ; à défaut, le titre —
+      // qui n'est alors pas mémorisé, il n'appartient qu'à ce produit.
+      categorie: categorie?.label ?? product.aiTitle ?? product.title,
+      categorieMemorisee: typeof memorisee === 'string' ? memorisee : null,
+      memoriser: async (categoryId) => {
+        if (!categorie) return
+        const targets =
+          categorie.targets && typeof categorie.targets === 'object' && !Array.isArray(categorie.targets)
+            ? (categorie.targets as Record<string, unknown>)
+            : {}
+        await prisma.category.update({
+          where: { id: categorie.id },
+          data: { targets: { ...targets, EBAY_ID: categoryId } },
+        })
+      },
+    })
+
+    const data = {
+      targetCategory,
+      status: 'PUBLISHED' as const,
+      externalUrl,
+      error: notes.length ? notes.join(' ') : null,
+      publishedAt: new Date(),
+    }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform: 'EBAY', ...data }, update: data })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Publication eBay impossible'
+    console.error('publication eBay', e)
+    const data = { targetCategory, status: 'FAILED' as const, error: message, publishedAt: null }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform: 'EBAY', ...data }, update: data })
   }
 }
 

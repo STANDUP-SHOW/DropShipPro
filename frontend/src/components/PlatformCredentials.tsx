@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { PlatformBadge } from './PlatformBadge'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
+import { MIRAKL_IDS } from '../lib/platformGuides'
 
 /**
  * Les clés d'accès aux places de marché.
@@ -79,6 +80,8 @@ export function PlatformCredentialForm({
   const [credError, setCredError] = useState<{ platform: string; text: string } | null>(null)
   /** Laquelle des deux consoles Shopify le vendeur utilise. */
   const [voieShopify, setVoieShopify] = useState<'jeton' | 'oauth'>('jeton')
+  /** eBay : le trio de renouvellement est replié tant qu'on ne le demande pas. */
+  const [renouvellementEbay, setRenouvellementEbay] = useState(false)
 
   async function saveCredential(id: string, data: Record<string, string>) {
     setCredError(null)
@@ -223,6 +226,133 @@ export function PlatformCredentialForm({
                     <button
                       type="button"
                       onClick={() => saveCredential('SHOPIFY', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'EBAY' ? (
+              /*
+               * eBay publie réellement : le champ nomme ce qu'il attend — un
+               * jeton utilisateur, pas une « clé API » qui n'existe pas chez
+               * eux. Le trio de renouvellement est facultatif et replié : un
+               * jeton seul marche deux heures, et le message d'échec explique
+               * quoi ajouter le moment venu.
+               */
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const accessToken = String(fd.get('accessToken') || '').trim()
+                  const data: Record<string, string> = accessToken ? { accessToken } : {}
+                  for (const cle of ['refreshToken', 'clientId', 'clientSecret'] as const) {
+                    const valeur = String(fd.get(cle) || '').trim()
+                    if (valeur) data[cle] = valeur
+                  }
+                  saveCredential('EBAY', data)
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  name="accessToken"
+                  type="password"
+                  placeholder="Jeton utilisateur OAuth (v^1.1#…)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">
+                  Depuis <b>developer.ebay.com</b> : votre application › User Tokens › Sign in to
+                  Production, avec les portées <b>sell.inventory</b> et <b>sell.account</b>.
+                </p>
+                {renouvellementEbay ? (
+                  <>
+                    <input
+                      name="refreshToken"
+                      type="password"
+                      placeholder="Refresh token"
+                      className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                    <input
+                      name="clientId"
+                      placeholder="Client ID (App ID)"
+                      className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                    <input
+                      name="clientSecret"
+                      type="password"
+                      placeholder="Client Secret (Cert ID)"
+                      className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                    />
+                    <p className="text-[11px] leading-relaxed text-gray-500">
+                      Les trois ensemble : le jeton est alors renouvelé tout seul, sans rien
+                      recoller toutes les deux heures.
+                    </p>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setRenouvellementEbay(true)}
+                    className="text-[11px] text-gray-400 underline hover:text-white"
+                  >
+                    Ajouter le renouvellement automatique (le jeton seul expire au bout de 2 h)
+                  </button>
+                )}
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter mon compte eBay'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('EBAY', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : MIRAKL_IDS.includes(platform.id) ? (
+              /*
+               * Un opérateur Mirakl demande deux valeurs, et le champ générique
+               * n'en portait qu'une : le connecteur était branché côté serveur
+               * et injoignable depuis l'écran — un compte « connecté » sans
+               * adresse n'aurait su appeler personne.
+               */
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const baseUrl = String(fd.get('baseUrl') || '').trim()
+                  const apiKey = String(fd.get('apiKey') || '').trim()
+                  saveCredential(platform.id, baseUrl || apiKey ? { baseUrl, apiKey } : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  name="baseUrl"
+                  placeholder="Adresse du back-office (https://marchand.mirakl.net)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  name="apiKey"
+                  type="password"
+                  placeholder="Clé API"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">
+                  L'adresse est celle de votre espace vendeur une fois connecté ; la clé se lit
+                  dans <b>Mon compte › Paramètres › API</b>.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential(platform.id, {})}
                       className="text-xs text-gray-400 hover:text-red-300"
                     >
                       Déconnecter

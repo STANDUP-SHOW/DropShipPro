@@ -12,6 +12,7 @@ import { composerVitrine, VitrineImpossible } from '../services/shopGenerator.js
 import { reserveCredits, refundCredits } from '../services/billing.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
+import { estMirakl, normaliserBaseUrl } from '../services/mirakl.js'
 import { saveWatermarkLogo } from '../services/watermark.js'
 import {
   normalizeShopDomain,
@@ -403,6 +404,54 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
       label: cred.label,
       connected: cred.connected,
     })
+  }
+
+  /*
+   * eBay : le jeton est vérifié dans sa forme au moment du collage.
+   *
+   * Un trio de renouvellement incomplet est le piège silencieux : l'écran
+   * dirait « connecté », la publication marcherait deux heures, puis chaque
+   * diffusion échouerait sur « jeton expiré » alors que le vendeur croit le
+   * renouvellement en place.
+   */
+  if (parsed.data.platform === 'EBAY' && Object.keys(data).length > 0) {
+    const accessToken = (data.accessToken ?? data.apiKey ?? '').trim()
+    if (!accessToken) {
+      return res.status(400).json({
+        error: "Collez le jeton utilisateur OAuth généré sur developer.ebay.com (portées sell.inventory et sell.account).",
+      })
+    }
+    const refreshToken = (data.refreshToken ?? '').trim()
+    const clientId = (data.clientId ?? '').trim()
+    const clientSecret = (data.clientSecret ?? '').trim()
+    const trio = [refreshToken, clientId, clientSecret].filter(Boolean).length
+    if (trio > 0 && trio < 3) {
+      return res.status(400).json({
+        error:
+          'Le renouvellement automatique demande les trois valeurs ensemble : refresh token, Client ID et Client Secret. Remplissez les trois, ou aucun.',
+      })
+    }
+    data = trio === 3 ? { accessToken, refreshToken, clientId, clientSecret } : { accessToken }
+  }
+
+  /*
+   * Mirakl : l'adresse de l'opérateur est indispensable — un seul connecteur
+   * sert quarante enseignes, et c'est elle qui les distingue. Une clé seule
+   * ferait un compte « connecté » qui ne saurait appeler personne.
+   */
+  if (estMirakl(parsed.data.platform) && Object.keys(data).length > 0) {
+    const baseUrl = normaliserBaseUrl(data.baseUrl ?? '')
+    const apiKey = (data.apiKey ?? '').trim()
+    if (!baseUrl) {
+      return res.status(400).json({
+        error:
+          "Donnez l'adresse de votre back-office Mirakl (https://…), lisible dans la barre du navigateur une fois connecté à votre espace vendeur.",
+      })
+    }
+    if (!apiKey) {
+      return res.status(400).json({ error: 'Donnez la clé API lue dans Mon compte › Paramètres › API.' })
+    }
+    data = data.shopId?.trim() ? { baseUrl, apiKey, shopId: data.shopId.trim() } : { baseUrl, apiKey }
   }
 
   const cred = await prisma.platformCredential.upsert({

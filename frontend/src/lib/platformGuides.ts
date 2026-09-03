@@ -50,15 +50,16 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
   },
 
   EBAY: {
-    summary: "eBay ouvre ses API de vente en self-service : un compte développeur suffit, sans validation commerciale.",
+    summary:
+      "eBay ouvre ses API de vente en self-service : un compte développeur gratuit suffit, sans validation commerciale — et la diffusion crée alors l'annonce directement sur eBay.fr.",
     steps: [
-      'Créez un compte vendeur eBay si vous n\'en avez pas.',
+      "Créez un compte vendeur eBay si vous n'en avez pas, et vérifiez qu'il a ses politiques de vente (livraison, paiement, retours) et un emplacement d'expédition — le Seller Hub les crée en quelques minutes.",
       'Inscrivez-vous sur developer.ebay.com et créez une application (keyset de production).',
-      'Générez un jeton utilisateur OAuth avec les autorisations Sell (inventory, account).',
-      'Collez ce jeton dans Réglages › Plateformes de vente › eBay.',
+      'Générez un jeton utilisateur OAuth avec les portées sell.inventory et sell.account (User Tokens › Sign in to Production).',
+      "Collez ce jeton en face d'eBay — et, pour ne pas le recoller toutes les deux heures, ajoutez le refresh token avec le Client ID et le Client Secret : le renouvellement se fait alors tout seul.",
     ],
     caution:
-      "Le champ de connexion existe déjà, mais l'envoi automatique vers l'API Sell n'est pas encore branché : la publication reste « en attente ». En attendant, l'extension remplit le formulaire de vente eBay pour vous.",
+      "Un jeton utilisateur seul expire au bout de deux heures : sans le trio de renouvellement, il faudra en recoller un avant chaque session de diffusion. Et eBay refuse toute offre tant que les politiques de vente et l'emplacement d'expédition manquent sur le compte — le message d'échec vous dira lequel.",
     docUrl: 'https://developer.ebay.com',
     docLabel: 'developer.ebay.com',
   },
@@ -145,7 +146,7 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
  * La Redoute, Leclerc, BHV, Kiabi et BrandAlley tournent tous sur Mirakl : la
  * procédure est la même, seul l'opérateur change.
  */
-const MIRAKL_IDS = [
+export const MIRAKL_IDS = [
   'LA_REDOUTE', 'LECLERC', 'BHV', 'KIABI', 'BRANDALLEY',
   'ALLTRICKS', 'AUCHAN', 'BOULANGER', 'BRICOMARCHE', 'BUT', 'CARREFOUR', 'CONRAD', 'CREAVEA', 'CULTURA', 'EL_CORTE_INGLES', 'EPRICE', 'GALERIA_INNO', 'GALERIES_LAFAYETTE', 'GREENWEEZ', 'HOME24', 'HUDSONS_BAY', 'IBS', 'LAPOSTE', 'LDLC', 'LEROY_MERLIN', 'MAISONS_DU_MONDE', 'MANOR', 'MEDIAMARKT', 'METRO', 'NATURE_DECOUVERTES', 'PCCOMPONENTES', 'PHONEHOUSE', 'PLACE_DES_TENDANCES', 'RETIF', 'SECRETSALES', 'SHOWROOMPRIVE', 'TRUFFAUT', 'TWIL', 'UBALDI', 'WORTEN', 'FNAC',
 ]
@@ -158,10 +159,10 @@ for (const id of MIRAKL_IDS) {
       "Déposez une candidature vendeur sur le site de l'enseigne (SIRET, assurance, catalogue, délais d'expédition).",
       "Attendez la validation : l'enseigne sélectionne ses vendeurs, le délai va de quelques jours à plusieurs semaines.",
       'Une fois accepté, ouvrez votre back-office Mirakl › Mon compte › Paramètres API et copiez la clé.',
-      "Collez-la dans Réglages › Plateformes de vente, en face de l'enseigne.",
+      "Collez l'adresse de votre back-office et la clé en face de l'enseigne : la diffusion dépose alors l'offre directement par l'API Mirakl.",
     ],
     caution:
-      "L'envoi automatique n'est pas encore branché : la publication est enregistrée « en attente » avec la bonne catégorie, prête à partir dès le branchement.",
+      "Le dépôt part tout de suite, mais l'opérateur relit le fichier de son côté : l'offre paraît en ligne dans l'heure. Et la plupart des enseignes apparient les offres par EAN — un produit importé de Temu ou d'AliExpress n'en a généralement pas.",
   }
 }
 

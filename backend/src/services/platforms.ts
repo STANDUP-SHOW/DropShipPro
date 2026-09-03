@@ -118,7 +118,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'eBay',
     automatable: true,
     sellUrl: 'https://www.ebay.fr/sl/sell',
-    note: 'API Sell disponible en self-service — connectez votre token OAuth eBay.',
+    note: "Publication directe par l'API Sell : collez votre jeton utilisateur OAuth (portées sell.inventory et sell.account), la diffusion crée l'annonce sur eBay.fr.",
   },
   {
     id: 'GOOGLE_SHOPPING',
@@ -646,7 +646,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
  * alors la raison. C'est déjà le cas de Shopify, dont le connecteur n'a jamais
  * été confronté à une vraie boutique.
  */
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', ...OPERATEURS_MIRAKL]
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', ...OPERATEURS_MIRAKL]
 
 /**
  * Destinations qui viennent lire un flux au lieu qu'on leur pousse une annonce.
