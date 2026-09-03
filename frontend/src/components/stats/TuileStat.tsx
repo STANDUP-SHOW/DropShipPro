@@ -304,13 +304,22 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
     return forme
   })
 
+  /*
+   * La presentation de la maquette : chaque section a SA couleur d accent --
+   * pastille numerotee pleine, titre teinte, filet discret sous l en-tete.
+   * Quatorze pastilles violettes identiques ne s epelaient pas ; le vendeur
+   * doit reconnaitre sa section a sa couleur autant qu a sa silhouette.
+   */
+  const ACCENTS = ['#fb923c', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#22d3ee', '#fb7185', '#a3e635', '#60a5fa', '#ec4899', '#2dd4bf', '#c084fc', '#f87171', '#818cf8']
+  const accent = ACCENTS[(graine - 1 + ACCENTS.length) % ACCENTS.length]
+
   return (
     <section id={`stats-${bloc.id}`} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
-      <header className="flex items-center gap-2.5">
-        <span className="rounded-md bg-gradient-to-br from-purple-500 to-fuchsia-500 px-1.5 py-0.5 text-[11px] font-bold text-white">
+      <header className="flex items-center gap-2.5 border-b pb-2" style={{ borderColor: `${accent}33` }}>
+        <span className="rounded-md px-1.5 py-0.5 text-[11px] font-bold text-black/80" style={{ backgroundColor: accent }}>
           {bloc.numero}
         </span>
-        <h2 className="text-sm font-bold uppercase tracking-widest text-gray-200">{bloc.titre}</h2>
+        <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: accent }}>{bloc.titre}</h2>
       </header>
       <div className="@container mt-3">
         <div className="grid grid-cols-2 gap-2 @md:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-6 @6xl:grid-cols-9">
