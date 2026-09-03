@@ -313,6 +313,66 @@ export function PlatformCredentialForm({
                   ) : null}
                 </div>
               </form>
+            ) : platform.id === 'KAUFLAND' ? (
+              /*
+               * Kaufland signe chaque requête avec deux clés aux longueurs
+               * connues (32 et 64) : deux champs nommés comme le portail les
+               * nomme, et le pays de vente — la France par défaut.
+               */
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const clientKey = String(fd.get('clientKey') || '').trim()
+                  const secretKey = String(fd.get('secretKey') || '').trim()
+                  const storefront = String(fd.get('storefront') || 'fr')
+                  saveCredential('KAUFLAND', clientKey || secretKey ? { clientKey, secretKey, storefront } : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  name="clientKey"
+                  placeholder="Client Key (32 caractères)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  name="secretKey"
+                  type="password"
+                  placeholder="Secret Key (64 caractères)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <select
+                  name="storefront"
+                  defaultValue="fr"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                >
+                  <option value="fr">Kaufland.fr — France</option>
+                  <option value="de">Kaufland.de — Allemagne</option>
+                  <option value="it">Kaufland.it — Italie</option>
+                  <option value="pl">Kaufland.pl — Pologne</option>
+                  <option value="at">Kaufland.at — Autriche</option>
+                  <option value="cz">Kaufland.cz — Tchéquie</option>
+                  <option value="sk">Kaufland.sk — Slovaquie</option>
+                </select>
+                <p className="text-[11px] leading-relaxed text-gray-500">
+                  Les deux clés se génèrent dans votre portail vendeur Kaufland, réglages <b>API</b>.
+                  L'EAN reste obligatoire sur chaque produit déposé.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('KAUFLAND', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
             ) : MIRAKL_IDS.includes(platform.id) ? (
               /*
                * Un opérateur Mirakl demande deux valeurs, et le champ générique

@@ -185,7 +185,7 @@ PLATFORM_GUIDES.KAUFLAND = {
     'Collez-les dans Réglages › Plateformes de vente, en face de Kaufland.',
   ],
   caution:
-    "L'EAN est obligatoire et doit venir du fabricant ou de GS1 : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres. Un produit importé de Temu ou d'AliExpress n'en a généralement aucun, et en acheter un chez GS1 ne se justifie que si vous vendez sous votre propre marque. L'envoi automatique n'est pas encore branché : la publication est enregistrée « en attente ».",
+    "L'EAN est obligatoire et doit venir du fabricant ou de GS1 : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres. Un produit importé de Temu ou d'AliExpress n'en a généralement aucun — en acheter chez GS1 ne se justifie que si vous vendez sous votre propre marque. Le dépôt automatique est branché : clés collées, chaque diffusion dépose l'offre par la Seller API, et un EAN absent ou invalide est refusé avec la raison écrite.",
 }
 
 const SPECIALIST_IDS = ['SPARTOO', 'MIINTO']

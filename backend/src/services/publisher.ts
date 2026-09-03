@@ -5,6 +5,7 @@ import { mapCategory } from './categoryMapping.js'
 import { publishToShopify, resoudreCredentialsShopify } from './shopify.js'
 import { deposerOffreMirakl, estMirakl, readMiraklCredentials } from './mirakl.js'
 import { publierSurEbay, readEbayCredentials } from './ebay.js'
+import { deposerOffreKaufland, readKauflandCredentials } from './kaufland.js'
 import { imagesPourExport } from './exportImages.js'
 
 /**
@@ -34,6 +35,8 @@ export async function publishToPlatform(productId: string, platform: Platform, a
   if (platform === 'SHOPIFY') return publishShopify(product, targetCategory, apiBaseUrl)
 
   if (platform === 'EBAY') return publierEbay(product, targetCategory, apiBaseUrl)
+
+  if (platform === 'KAUFLAND') return publierKaufland(product, targetCategory)
 
   if (estMirakl(platform)) return publierMirakl(product, platform, targetCategory)
 
@@ -117,6 +120,38 @@ async function publierMirakl(product: Product, platform: Platform, targetCategor
       create: { productId: product.id, platform, targetCategory, status: 'FAILED', error: raison },
       update: { targetCategory, status: 'FAILED', error: raison, publishedAt: null },
     })
+  }
+}
+
+/**
+ * Le dépôt Kaufland — même forme que Mirakl : même modèle de catalogue à EAN.
+ */
+async function publierKaufland(product: Product, targetCategory: string) {
+  const where = { productId_platform: { productId: product.id, platform: 'KAUFLAND' as const } }
+
+  const credential = await prisma.platformCredential.findUnique({
+    where: { userId_platform: { userId: product.userId, platform: 'KAUFLAND' } },
+  })
+  const creds = credential?.connected ? readKauflandCredentials(credential.data) : null
+
+  if (!creds) {
+    const raison =
+      "Compte Kaufland non connecté : générez la Client Key et la Secret Key dans votre portail vendeur (réglages API), puis collez-les dans Réglages › Plateformes de vente › Kaufland."
+    return prisma.publication.upsert({
+      where,
+      create: { productId: product.id, platform: 'KAUFLAND', targetCategory, status: 'PENDING', error: raison },
+      update: { targetCategory, status: 'PENDING', error: raison, publishedAt: null },
+    })
+  }
+
+  try {
+    const { note } = await deposerOffreKaufland(creds, product)
+    const data = { targetCategory, status: 'PUBLISHED' as const, error: note, publishedAt: new Date() }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform: 'KAUFLAND', ...data }, update: data })
+  } catch (err) {
+    const raison = err instanceof Error ? err.message : 'Kaufland a refusé le dépôt.'
+    const data = { targetCategory, status: 'FAILED' as const, error: raison, publishedAt: null }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform: 'KAUFLAND', ...data }, update: data })
   }
 }
 

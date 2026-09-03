@@ -211,7 +211,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Kaufland',
     automatable: true,
     sellUrl: 'https://www.kauflandglobalmarketplace.com/fr/seller-registration/',
-    note: "Seller API documentée (sellerapi.kaufland.com), inscription vendeur en self-service. Une seule inscription ouvre les sept pays du groupe, dont Kaufland.fr.",
+    note: "Dépôt d'offres direct par la Seller API : collez la Client Key et la Secret Key de votre portail vendeur, la diffusion dépose l'offre. Une seule inscription ouvre les sept pays du groupe, dont Kaufland.fr.",
     warning:
       "EAN/GTIN officiel obligatoire : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres, et il doit venir du fabricant ou de GS1. Un produit importé sans EAN sera refusé.",
   },
@@ -646,7 +646,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
  * alors la raison. C'est déjà le cas de Shopify, dont le connecteur n'a jamais
  * été confronté à une vraie boutique.
  */
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', ...OPERATEURS_MIRAKL]
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', ...OPERATEURS_MIRAKL]
 
 /**
  * Destinations qui viennent lire un flux au lieu qu'on leur pousse une annonce.

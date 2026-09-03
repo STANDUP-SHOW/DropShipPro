@@ -435,6 +435,24 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
   }
 
   /*
+   * Kaufland : le contrat nomme les longueurs — Client Key 32, Secret Key 64.
+   * Une clé tronquée au collage signerait tout de travers, et chaque dépôt
+   * échouerait en « signature invalide » sans dire pourquoi.
+   */
+  if (parsed.data.platform === 'KAUFLAND' && Object.keys(data).length > 0) {
+    const clientKey = (data.clientKey ?? '').trim()
+    const secretKey = (data.secretKey ?? '').trim()
+    if (clientKey.length !== 32 || secretKey.length !== 64) {
+      return res.status(400).json({
+        error:
+          'Clés Kaufland incomplètes : la Client Key fait 32 caractères et la Secret Key 64, telles que le portail vendeur les génère (réglages API). Recollez-les entières.',
+      })
+    }
+    const storefront = (data.storefront ?? 'fr').trim().toLowerCase()
+    data = { clientKey, secretKey, storefront }
+  }
+
+  /*
    * Mirakl : l'adresse de l'opérateur est indispensable — un seul connecteur
    * sert quarante enseignes, et c'est elle qui les distingue. Une clé seule
    * ferait un compte « connecté » qui ne saurait appeler personne.
