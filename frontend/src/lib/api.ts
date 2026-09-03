@@ -207,6 +207,9 @@ export const api = {
   updateProduct: (id: string, data: Record<string, unknown>) =>
     request(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteProduct: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
+  /** Une copie de l'annonce, en brouillon et sans crédit : rien n'est réécrit. */
+  dupliquerProduit: (id: string) =>
+    request<{ id: string; aiTitle: string | null }>(`/products/${id}/dupliquer`, { method: 'POST' }),
   publishProduct: (id: string, platforms: string[], shopId?: string) =>
     request<
       Array<{ platform: string; status: string; error: string | null; externalUrl: string | null }>

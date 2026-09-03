@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Link2, Loader2, Layers, Puzzle, Trash2, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
+import { Link2, Loader2, Layers, Puzzle, Trash2, Copy, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { CategoryMenu } from '../components/CategoryMenu'
 import { AgentBar } from '../components/AgentBar'
@@ -157,6 +157,34 @@ export default function Dashboard() {
       setSelectedIds((current) => current.filter((id) => list.some((p: any) => p.id === id)))
     } finally {
       setLoading(false)
+    }
+  }
+
+  /**
+   * Dupliquer une annonce, sans repasser par un import.
+   *
+   * Ce que ça évite : refaire une capture — donc repayer un crédit et rouvrir
+   * la fiche du fournisseur — pour vendre le même produit dans un second
+   * coloris, sur une seconde boutique, ou pour garder l'original avant de
+   * tailler dedans.
+   *
+   * La copie naît en brouillon et n'hérite d'aucune publication : reprendre
+   * l'état « Publié » ferait croire à une annonce en ligne qu'aucune place de
+   * marché ne connaît.
+   */
+  const [duplication, setDuplication] = useState<string | null>(null)
+
+  async function dupliquer(p: any) {
+    setDuplication(p.id)
+    setError(null)
+    try {
+      const copie = await api.dupliquerProduit(p.id)
+      setAvis(`Copie créée : « ${copie.aiTitle ?? 'Annonce'} ». Aucun crédit — rien n'a été réécrit.`)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Duplication impossible')
+    } finally {
+      setDuplication(null)
     }
   }
 
@@ -736,6 +764,24 @@ export default function Dashboard() {
                   >
                     <Trash2 size={17} />
                   </button>
+
+                  {/* Sous la suppression, et pas à côté : deux boutons de même
+                      taille collés se confondent, et l'un des deux est
+                      irréversible. */}
+                  <button
+                    type="button"
+                    title="Dupliquer cette annonce (aucun crédit)"
+                    aria-label={`Dupliquer ${p.aiTitle || p.title}`}
+                    disabled={duplication === p.id}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      dupliquer(p)
+                    }}
+                    className="absolute top-14 right-2 rounded-lg bg-black/60 p-2 text-gray-200 shadow-lg backdrop-blur transition hover:bg-black/80 hover:scale-105 disabled:opacity-50"
+                  >
+                    {duplication === p.id ? <Loader2 size={17} className="animate-spin" /> : <Copy size={17} />}
+                  </button>
                   <div className="p-3">
                     <p className="text-sm font-medium line-clamp-2">{p.aiTitle || p.title}</p>
                     <div className="mt-2 flex items-center justify-between">
@@ -797,6 +843,17 @@ export default function Dashboard() {
                       {STATUS_LABEL[p.status]}
                     </span>
                   </Link>
+
+                  <button
+                    type="button"
+                    title="Dupliquer cette annonce (aucun crédit)"
+                    aria-label={`Dupliquer ${p.aiTitle || p.title}`}
+                    disabled={duplication === p.id}
+                    onClick={() => dupliquer(p)}
+                    className="shrink-0 rounded-lg p-2 text-gray-400 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                  >
+                    {duplication === p.id ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
+                  </button>
 
                   <button
                     type="button"

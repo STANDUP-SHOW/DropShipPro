@@ -3,6 +3,7 @@ import { z } from 'zod'
 import archiver from 'archiver'
 import multer from 'multer'
 import path from 'path'
+import { dupliquerAnnonce } from '../services/listingDuplicate.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
@@ -683,6 +684,21 @@ productsRouter.delete('/:id', async (req: AuthedRequest, res) => {
   if (!owned) return res.status(404).json({ error: 'Produit introuvable' })
   await prisma.product.delete({ where: { id: req.params.id } })
   res.status(204).send()
+})
+
+/**
+ * Une copie de l'annonce, à soi.
+ *
+ * La règle vit dans `services/listingDuplicate.ts` : une route ne s'éprouve
+ * qu'avec un serveur debout, et ce qui décide de ce qui est recopié — ou pas —
+ * mérite un banc.
+ *
+ * Aucun appel au modèle, donc **aucun crédit** : tout est déjà écrit.
+ */
+productsRouter.post('/:id/dupliquer', async (req: AuthedRequest, res) => {
+  const copie = await dupliquerAnnonce(req.userId!, req.params.id)
+  if (!copie) return res.status(404).json({ error: 'Produit introuvable' })
+  res.status(201).json(copie)
 })
 
 /**
