@@ -254,11 +254,14 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   )
 
   return (
-    // Sans cadre ni fond propre — demandé le 04/09/2026 : seule la section
-    // porte un bloc, les données se posent dessus à nu.
+    // Sans cadre au repos — seule la section porte un bloc. Le liseré néon ne
+    // s'allume qu'au survol (demandé le 04/09/2026), dans la couleur de la
+    // tuile ; la bordure transparente évite tout déplacement au premier hover.
     <div
       data-forme={choisie}
-      className="@container flex h-full flex-col overflow-hidden rounded-xl p-3 transition hover:bg-white/[0.03]"
+      className="@container flex h-full flex-col overflow-hidden rounded-xl border border-transparent p-3 transition hover:bg-white/[0.02]"
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${de}66`; e.currentTarget.style.boxShadow = `0 0 16px ${de}26` }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = 'none' }}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{tuile.label}</p>
