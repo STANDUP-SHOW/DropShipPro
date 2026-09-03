@@ -23,9 +23,8 @@ export function FondVivant() {
       <span className="blob blob-d" />
       <span className="blob blob-e" />
       <span className="blob blob-f" />
-      {/* Deux anneaux fins, discrets, en dérive lente. */}
-      <span className="anneau anneau-a" />
-      <span className="anneau anneau-b" />
+      {/* Les anneaux ont été retirés le 04/09/2026 : leurs bordures à moitié
+          transparentes faisaient des « demi-cercles volants » qui dérangeaient. */}
     </div>
   )
 }

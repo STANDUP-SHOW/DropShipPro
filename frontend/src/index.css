@@ -69,15 +69,6 @@ optgroup {
   opacity: 0.42;
   will-change: transform, opacity;
 }
-.anneau {
-  position: absolute;
-  border-radius: 50%;
-  border-style: solid;
-  filter: blur(2px);
-  opacity: 0.28;
-  will-change: transform, opacity;
-}
-
 /* Les gouttes : petites, chacune sa colonne, chacune son rythme. */
 .blob-a {
   width: 150px; height: 170px; left: 6%; bottom: -12%;
@@ -117,19 +108,6 @@ optgroup {
   animation: lave-c 60s ease-in-out infinite;
   animation-delay: -20s;
 }
-.anneau-a {
-  width: 160px; height: 160px; left: 12%; top: 10%;
-  border-width: 14px;
-  border-color: transparent #fb923c #ff5c8a transparent;
-  animation: rotation-a 90s linear infinite;
-}
-.anneau-b {
-  width: 120px; height: 120px; right: 14%; top: 58%;
-  border-width: 10px;
-  border-color: #60a5fa transparent transparent #e879f9;
-  animation: rotation-b 110s linear infinite;
-}
-
 /* La montée d'une lampe à lave : la goutte s'étire en partant, se tasse en
  * haut, redescend en se balançant. Chaque trajet traverse tout l'écran. */
 @keyframes lave-a {
@@ -156,21 +134,9 @@ optgroup {
   70%  { transform: translateY(-56vh) rotate(140deg) scaleY(1.12) translateX(-3vw); }
   100% { transform: translateY(0) rotate(180deg) scale(1); }
 }
-@keyframes rotation-a {
-  0%   { transform: rotate(0deg) translateY(0); }
-  50%  { transform: rotate(180deg) translateY(8vh); }
-  100% { transform: rotate(360deg) translateY(0); }
-}
-@keyframes rotation-b {
-  0%   { transform: rotate(0deg); }
-  50%  { transform: rotate(-180deg) translateY(-10vh); }
-  100% { transform: rotate(-360deg); }
-}
-
 /* Le décor se fige pour qui a demandé moins de mouvement. */
 @media (prefers-reduced-motion: reduce) {
-  .fond-vivant .blob,
-  .fond-vivant .anneau {
+  .fond-vivant .blob {
     animation: none;
     bottom: auto;
     top: 30%;
