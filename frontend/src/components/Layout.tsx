@@ -46,12 +46,11 @@ const SECTIONS: Array<{
     // La zone Sourcing telle que la découpe la voulait (précisée le
     // 04/09/2026) : les fournisseurs, puis leurs commandes par état.
     titre: 'Sourcing',
+    // Les états (en cours, terminées, en SAV) sont des pilules SUR la page :
+    // les répéter dans le menu le doublait pour rien (retirés le 04/09/2026).
     entrees: [
       { to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes },
       { to: '/commandes-fournisseurs', label: 'Commandes fournisseurs', icon: ShoppingBag },
-      { to: '/commandes-fournisseurs?etat=en-cours', label: 'En cours', icon: Truck },
-      { to: '/commandes-fournisseurs?etat=terminees', label: 'Terminées', icon: Package },
-      { to: '/commandes-fournisseurs?etat=sav', label: 'En SAV', icon: LifeBuoy },
     ],
   },
   {
@@ -82,17 +81,10 @@ const SECTIONS: Array<{
     entrees: [{ to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp }],
   },
   {
-    /*
-     * Les trois états d'une vente, chacun sa porte : un vendeur qui vient
-     * expédier ne veut pas revoir les commandes terminées, et inversement.
-     * `?etat=` est lu par la page, qui filtre.
-     */
+    // Une seule porte : les états (nouvelles, en cours, terminées) sont des
+    // pilules sur la page Commandes elle-même.
     titre: 'Ventes',
-    entrees: [
-      { to: '/orders?etat=nouvelles', label: 'Nouvelles commandes', icon: ShoppingBag },
-      { to: '/orders?etat=en-cours', label: 'En cours', icon: ShoppingBag },
-      { to: '/orders?etat=terminees', label: 'Terminées', icon: ShoppingBag },
-    ],
+    entrees: [{ to: '/orders', label: 'Commandes', icon: ShoppingBag }],
   },
   {
     titre: 'Livraisons',

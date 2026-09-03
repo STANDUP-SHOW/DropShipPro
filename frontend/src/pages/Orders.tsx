@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { PackageCheck, Truck, ExternalLink, Plus } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
@@ -29,12 +29,12 @@ export default function Orders() {
    */
   const [params] = useSearchParams()
   const etat = params.get('etat')
-  const filtrees = orders.filter((o) => {
-    if (etat === 'nouvelles') return o.status === 'NEW'
-    if (etat === 'en-cours') return o.status === 'ORDERED_FROM_SUPPLIER' || o.status === 'SHIPPED'
-    if (etat === 'terminees') return o.status === 'DELIVERED' || o.status === 'REFUNDED'
-    return true
-  })
+  const etatDe = (o: any): string => {
+    if (o.status === 'NEW') return 'nouvelles'
+    if (o.status === 'ORDERED_FROM_SUPPLIER' || o.status === 'SHIPPED') return 'en-cours'
+    return 'terminees'
+  }
+  const filtrees = orders.filter((o) => !etat || etatDe(o) === etat)
   const [products, setProducts] = useState<any[]>([])
   const [platforms, setPlatforms] = useState<Array<{ id: string; label: string }>>([])
   const [showForm, setShowForm] = useState(false)
@@ -128,7 +128,33 @@ export default function Orders() {
         </form>
       )}
 
-      <div className="mt-6 space-y-3">
+      {/* Les portes d'état vivent ICI, en pilules — plus dans le menu
+          principal, qui les doublait (retirées le 04/09/2026). */}
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {(
+          [
+            [null, 'Toutes'],
+            ['nouvelles', 'Nouvelles'],
+            ['en-cours', 'En cours'],
+            ['terminees', 'Terminées'],
+          ] as const
+        ).map(([cle, label]) => (
+          <Link
+            key={label}
+            to={cle ? `/orders?etat=${cle}` : '/orders'}
+            className={`rounded-full border px-3 py-1 text-[11px] ${
+              etat === cle || (!etat && !cle)
+                ? 'border-purple-400/50 bg-purple-500/20 text-white'
+                : 'border-white/10 text-gray-400 hover:bg-white/5'
+            }`}
+          >
+            {label}
+            {cle ? <span className="ml-1 text-gray-500">{orders.filter((o) => etatDe(o) === cle).length}</span> : null}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-4 space-y-3">
         {orders.length === 0 && <p className="text-gray-400 text-sm">Aucune commande pour le moment.</p>}
         {filtrees.length === 0 && orders.length > 0 ? (
           <p className="mt-4 text-sm text-gray-500">Aucune commande dans cet état.</p>
