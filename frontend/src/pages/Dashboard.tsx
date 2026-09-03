@@ -606,23 +606,39 @@ export default function Dashboard() {
         {/* Selection bar: shown as soon as there is something to act on, so the
             bulk publish button never appears out of nowhere. */}
         {visible.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-            <button
-              type="button"
-              onClick={toggleAllVisible}
-              className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-white"
-            >
-              {allVisibleSelected ? <CheckSquare size={15} className="text-purple-300" /> : <Square size={15} />}
-              {/* Wrapped in its own element: a bare text expression next to another
-                  expression is what makes React lose the node and throw
-                  « insertBefore / removeChild » when both change at once. */}
-              <span>{allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner'}</span>
-            </button>
+          /*
+           * Deux rangées, et non une seule qui déborde.
+           *
+           * Signalé le 03/09/2026 : « je ne vois pas les boutons à droite », sur
+           * un écran vertical. Le groupe de droite était un `flex` **sans
+           * `flex-wrap`** : six boutons — réécrire, ranger, options, supprimer,
+           * analyse, publier — tenus sur une ligne qui ne pouvait pas se replier.
+           * Les deux derniers sortaient du cadre, et ce sont les deux qui
+           * coûtent des crédits.
+           *
+           * `justify-between` masquait le défaut sur un écran large : la ligne
+           * paraissait équilibrée tant qu'elle tenait. Elle ne tenait qu'au-delà
+           * d'environ 1 100 px.
+           */
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+              <button
+                type="button"
+                onClick={toggleAllVisible}
+                className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-white"
+              >
+                {allVisibleSelected ? <CheckSquare size={15} className="text-purple-300" /> : <Square size={15} />}
+                {/* Wrapped in its own element: a bare text expression next to another
+                    expression is what makes React lose the node and throw
+                    « insertBefore / removeChild » when both change at once. */}
+                <span>{allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner'}</span>
+              </button>
+              <span className="text-xs text-gray-400">{`${selectedIds.length} sélectionnée(s)`}</span>
+            </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400">
-                {`${selectedIds.length} sélectionnée(s)`}
-              </span>
+            {/* Tous les gestes du lot sur la même rangée, à la même taille : des
+                boutons de tailles différentes se lisent mal une fois repliés. */}
+            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/10 pt-2">
               {/* Ranger, poser une option, supprimer — les trois gestes qui se
                   faisaient sinon annonce par annonce. */}
               <BulkActions
@@ -640,19 +656,19 @@ export default function Dashboard() {
                 onClick={() => navigate('/analyse-marche', { state: { productIds: selectedIds } })}
                 disabled={!selectedIds.length}
                 title="Un crédit par produit analysé"
-                className="inline-flex items-center gap-2 rounded-lg border border-purple-400/40 px-4 py-2 text-sm font-semibold text-purple-200 hover:bg-purple-500/10 disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-purple-400/40 px-3 py-2 text-xs font-semibold text-purple-200 transition hover:bg-purple-500/10 disabled:opacity-40"
               >
-                <TrendingUp size={15} />
-                {`Analyse de marché IA (${selectedIds.length})`}
+                <TrendingUp size={14} />
+                <span>{`Analyse de marché (${selectedIds.length})`}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setBulkOpen(true)}
                 disabled={!selectedIds.length}
-                className="btn-gradient inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
+                className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-40"
               >
-                <Radio size={15} />
-                {`Publier en lot (${selectedIds.length})`}
+                <Radio size={14} />
+                <span>{`Publier en lot (${selectedIds.length})`}</span>
               </button>
             </div>
           </div>

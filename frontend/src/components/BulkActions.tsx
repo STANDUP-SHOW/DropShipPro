@@ -62,8 +62,15 @@ export function BulkActions({
     }
   }
 
+  /*
+   * `whitespace-nowrap` : un bouton se replie entier, jamais en son milieu.
+   *
+   * Sans lui, « Refaire la réécriture IA » se coupe sur deux lignes dès que la
+   * barre se resserre, et les quatre boutons prennent des hauteurs différentes.
+   * C'est la rangée qui doit se replier, pas le libellé.
+   */
   const bouton =
-    'inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs transition hover:bg-white/5 disabled:opacity-40'
+    'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/15 px-3 py-2 text-xs transition hover:bg-white/5 disabled:opacity-40'
 
   return (
     <>
