@@ -1,20 +1,24 @@
-import { useEffect, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Eye, FlaskConical, RefreshCw } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocStats, type BlocData } from '../components/stats/TuileStat'
+import { blocsDemo, compteVide } from '../lib/statsDemo'
 import { api } from '../lib/api'
 
 /**
- * L'accueil statistiques : les quatorze blocs de la maquette, empilés.
+ * L'accueil statistiques : les quatorze blocs de la maquette, en mosaïque.
  *
- * Chaque bloc reprend une partie du menu — vue générale, acquisition,
- * fournisseurs, catalogue, marketplaces, ventes, livraisons, messagerie, SAV
- * clients, SAV fournisseurs, finances, rayons, marché, plateforme — et chaque
- * partie retrouvera son bloc en tête de sa propre page : même adresse, même
- * calcul, jamais deux chiffres différents pour la même chose selon l'écran.
+ * **L'empilage suit la photo fournie**, pas une colonne uniforme : la vue
+ * générale s'étale seule sur toute la largeur, acquisition et fournisseurs se
+ * partagent une rangée, ventes, livraisons et messagerie en tiennent une à
+ * trois, et la plateforme ferme la page. C'est ce dessin-là qui donne au
+ * tableau son air de poste de pilotage.
  *
- * La période se choisit en tête : les évolutions comparent toujours à la
- * période précédente de même durée, c'est le serveur qui fait ce calcul.
+ * **Le mode démonstration**, demandé en toutes lettres : tant que le compte
+ * n'a pas vendu, les tuiles montrent des chiffres de démonstration — semés,
+ * donc identiques à chaque visite — pour que le graphisme se voie. Un bandeau
+ * le dit sans détour et la bascule rend les vraies données en un clic : jamais
+ * un chiffre de démonstration sans son étiquette.
  */
 
 const PERIODES = [
@@ -24,11 +28,25 @@ const PERIODES = [
   { id: '365', label: '1 an', jours: 365 },
 ]
 
+/** Les rangées de la maquette : pleine largeur, moitiés, tiers. */
+const RANGEES: string[][] = [
+  ['vue-generale'],
+  ['acquisition', 'fournisseurs'],
+  ['catalogue', 'marketplaces'],
+  ['ventes', 'livraisons', 'messagerie'],
+  ['sav-clients', 'sav-fournisseurs'],
+  ['finances'],
+  ['rayons', 'marche'],
+  ['plateforme'],
+]
+
 export default function Statistiques() {
   const [blocs, setBlocs] = useState<BlocData[] | null>(null)
   const [periode, setPeriode] = useState('30')
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  /** `null` tant qu'on n'a pas vu les données : c'est elles qui décident. */
+  const [demo, setDemo] = useState<boolean | null>(null)
 
   async function charger(jours: number) {
     setChargement(true)
@@ -38,6 +56,9 @@ export default function Statistiques() {
       const du = new Date(au.getTime() - jours * 86400000)
       const r = await api.tableauStats(du, au)
       setBlocs(r.blocs)
+      // Le premier chargement choisit le mode ; les suivants respectent le choix
+      // du vendeur — une bascule qui se remet toute seule n'est pas une bascule.
+      setDemo((actuel) => (actuel === null ? compteVide(r.blocs) : actuel))
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Statistiques indisponibles')
     } finally {
@@ -48,6 +69,13 @@ export default function Statistiques() {
   useEffect(() => {
     charger(PERIODES.find((p) => p.id === periode)?.jours ?? 30)
   }, [periode])
+
+  const affiches = useMemo(() => {
+    if (!blocs) return null
+    return demo ? blocsDemo(blocs) : blocs
+  }, [blocs, demo])
+
+  const parId = useMemo(() => new Map((affiches ?? []).map((b) => [b.id, b])), [affiches])
 
   return (
     <Layout>
@@ -72,6 +100,23 @@ export default function Statistiques() {
               {p.label}
             </button>
           ))}
+
+          {/* La bascule démo / réel, toujours visible dès que les blocs sont là. */}
+          {blocs ? (
+            <button
+              type="button"
+              onClick={() => setDemo((d) => !d)}
+              className={
+                demo
+                  ? 'inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-200'
+                  : 'inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5'
+              }
+            >
+              {demo ? <FlaskConical size={12} /> : <Eye size={12} />}
+              <span>{demo ? 'Démonstration' : 'Mes données'}</span>
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={() => charger(PERIODES.find((p) => p.id === periode)?.jours ?? 30)}
@@ -83,25 +128,42 @@ export default function Statistiques() {
         </div>
       </div>
 
+      {demo ? (
+        <p className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2 text-xs leading-relaxed text-amber-100">
+          <b>Aperçu de démonstration.</b> Ces chiffres ne sont pas les vôtres : ils laissent voir le
+          graphisme du tableau tant que vos ventes n'ont pas commencé. Dès la première commande, vos
+          vraies données prennent la place — et le bouton « Démonstration » ci-dessus bascule quand
+          vous voulez.
+        </p>
+      ) : null}
+
       {erreur ? (
         <p className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">{erreur}</p>
       ) : null}
 
-      {!blocs && !erreur ? <p className="mt-6 text-sm text-gray-500">Calcul en cours…</p> : null}
+      {!affiches && !erreur ? <p className="mt-6 text-sm text-gray-500">Calcul en cours…</p> : null}
 
-      {blocs ? (
-        <div className={`mt-4 space-y-4 transition ${chargement ? 'opacity-60' : ''}`}>
-          {blocs.map((bloc) => (
-            <BlocStats key={bloc.id} bloc={bloc} />
-          ))}
-          {/*
-            Ce que ce tableau ne dit pas, dit une fois plutôt que caché : une
-            tuile en retrait n'est pas en panne, sa donnée n'existe pas encore
-            et la raison est écrite dessus. Un chiffre inventé serait pire.
-          */}
-          <p className="pb-2 text-center text-[11px] text-gray-600">
-            Les tuiles en retrait attendent leur donnée — la raison est écrite dessus. Aucun chiffre n'est estimé.
-          </p>
+      {affiches ? (
+        <div className={`mt-4 space-y-3 transition ${chargement ? 'opacity-60' : ''}`}>
+          {RANGEES.map((rangee) => {
+            const presents = rangee.map((id) => parId.get(id)).filter((b): b is BlocData => Boolean(b))
+            if (!presents.length) return null
+            return (
+              <div
+                key={rangee.join('-')}
+                className={`grid gap-3 ${presents.length === 2 ? 'xl:grid-cols-2' : presents.length === 3 ? 'xl:grid-cols-3' : ''}`}
+              >
+                {presents.map((bloc) => (
+                  <BlocStats key={bloc.id} bloc={bloc} />
+                ))}
+              </div>
+            )
+          })}
+          {demo ? null : (
+            <p className="pb-2 text-center text-[11px] text-gray-600">
+              Les tuiles en retrait attendent leur donnée — la raison est écrite dessus. Aucun chiffre n'est estimé.
+            </p>
+          )}
         </div>
       ) : null}
     </Layout>

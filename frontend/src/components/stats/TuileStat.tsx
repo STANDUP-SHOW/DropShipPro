@@ -460,7 +460,7 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
         <h2 className="text-sm font-bold uppercase tracking-widest text-gray-200">{bloc.titre}</h2>
       </header>
       <div className="@container mt-3">
-        <div className="grid grid-cols-2 gap-2.5 @lg:grid-cols-3 @2xl:grid-cols-4 @5xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 @md:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-6 @6xl:grid-cols-9">
           {bloc.tuiles.map((t, i) => (
             <TuileStat key={t.id} tuile={t} rang={i} graine={Number(bloc.numero)} />
           ))}
