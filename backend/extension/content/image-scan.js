@@ -402,6 +402,48 @@ function dspPointeVersUneAutreFiche(el) {
   return cible.pathname !== location.pathname
 }
 
+/**
+ * Un panneau qui flotte au-dessus de la page n'est jamais la fiche.
+ *
+ * **Le cas qui a rendu ceci nécessaire, et il était invisible autrement.**
+ * Le 03/09/2026 : « il trouve cette photo récurrente car elle est dans mon
+ * panier Temu affiché constamment à droite, c'est la première de la liste ».
+ * Un collier boussole se retrouvait en photo n°1 de dizaines d'annonces — une
+ * bague, un parfum, un sac — parce que le panier du vendeur est présent sur
+ * **toutes** les fiches du site.
+ *
+ * Aucun filtre ne pouvait le voir : la photo d'un article en panier est une
+ * vraie photo de produit, sur le CDN produit, sous le chemin produit, à la
+ * bonne taille. Et `dspChromeImages()` ne regardait que `header, nav, footer,
+ * aside` — un panneau panier est un `<div>` de plus, aux classes obfusquées.
+ *
+ * Ce qui le distingue est sa **position** : un panneau qui reste à l'écran
+ * quand la page défile est du mobilier, par construction. La galerie d'une
+ * fiche, elle, défile avec la fiche.
+ *
+ * `fixed` seulement, jamais `sticky` : plusieurs marchands rendent la colonne
+ * de la galerie collante pendant qu'on lit la description — l'exclure jetterait
+ * les vraies photos. `fixed` ne sert qu'aux panneaux, bandeaux et fenêtres
+ * flottantes.
+ */
+function dspDansUnPanneauFlottant(el) {
+  let n = el
+  // Douze niveaux : au-delà on est dans la charpente de la page, et le coût de
+  // `getComputedStyle` se paie sur chacune des deux cents images candidates.
+  for (let profondeur = 0; n && n.nodeType === 1 && profondeur < 12; n = n.parentElement, profondeur++) {
+    const role = typeof n.getAttribute === 'function' ? n.getAttribute('role') : null
+    if (role === 'complementary' || role === 'banner' || role === 'contentinfo' || role === 'navigation') {
+      return true
+    }
+    try {
+      if (getComputedStyle(n).position === 'fixed') return true
+    } catch {
+      // Un élément détaché n'a pas de style calculé ; il ne prouve rien.
+    }
+  }
+  return false
+}
+
 /** Les produits recommandés autour de la fiche : jamais celui qu'on importe. */
 function dspVoisinageImages() {
   const out = new Set()
@@ -442,6 +484,28 @@ function dspChromeImages() {
     if (out.size > 200) break
   }
 
+  /*
+   * Les panneaux flottants, que les quatre balises ci-dessus ne couvrent pas.
+   *
+   * Le panier permanent de Temu en est un, et c'est lui qui posait un collier
+   * boussole en première photo de dizaines d'annonces. Les fenêtres de
+   * discussion, les bandeaux de consentement et les barres d'achat collées en
+   * bas de l'écran en sont aussi.
+   */
+  let examinees = 0
+  for (const el of document.querySelectorAll('img, source')) {
+    if (examinees++ > 400 || out.size > 400) break
+    try {
+      if (!dspDansUnPanneauFlottant(el)) continue
+      dspSourcesOfElement(el, (value) => {
+        const url = dspAbsoluteUrl(value)
+        if (url) out.add(url)
+      })
+    } catch {
+      // Même clause : un élément hostile ne doit pas interrompre le relevé.
+    }
+  }
+
   return [...out]
 }
 
@@ -458,5 +522,15 @@ function dspChromeImages() {
      * `background.js`), donc elle est disponible quand il en a besoin.
      */
     self.dspPointeVersUneAutreFiche = dspPointeVersUneAutreFiche
+
+    /**
+     * Les deux façons d'être sur la page sans appartenir à la fiche.
+     *
+     * L'adaptateur les demande ensemble : un carrousel de recommandations et un
+     * panier flottant produisent le même dégât — une photo de produit
+     * irréprochable, mais d'un autre produit — et ils se corrigent au même
+     * endroit, avant que l'adaptateur ne « certifie » quoi que ce soit.
+     */
+    self.dspHorsFiche = (el) => dspPointeVersUneAutreFiche(el) || dspDansUnPanneauFlottant(el)
   })()
 }

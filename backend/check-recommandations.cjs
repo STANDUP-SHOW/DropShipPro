@@ -69,10 +69,37 @@ function pageTemu() {
     )
     .join('')
 
+  /*
+   * Le panier permanent, colle a droite de l ecran.
+   *
+   * Signale le 03/09/2026 : « il trouve cette photo recurrente car elle est
+   * dans mon panier Temu affiche constamment a droite, c est la premiere de la
+   * liste — collier boussole ». Ce n est pas une recommandation : c est un
+   * panneau flottant, present sur toutes les fiches du site, donc dans tous les
+   * imports. La photo d un article en panier est une vraie photo de produit,
+   * sur le bon CDN, sous le bon chemin, a la bonne taille : rien d autre que sa
+   * position ne la trahit.
+   *
+   * Sans lien autour d elle, volontairement — la regle du lien ne l attrape
+   * pas, c est tout l objet de ce cas.
+   */
+  const panier = `<div id="panier" style="position: fixed; right: 0; top: 0">
+    <img src="${CDN}/collier-boussole.jpg" width="800" height="800">
+    <img src="${CDN}/panier-2.jpg" width="800" height="800">
+  </div>`
+
+  // Une barre d achat collee en bas : `sticky`, et elle doit rester toleree —
+  // plusieurs marchands rendent la colonne de la galerie collante.
+  const collante = `<div id="collante" style="position: sticky; bottom: 0">
+    <img src="${CDN}/bague-collante.jpg" width="800" height="800">
+  </div>`
+
   return `<!doctype html><html><head></head><body>
     <div id="galerie">${galerie}</div>
     <div id="variantes">${variantes}</div>
     <div id="recommandations">${recommandations}</div>
+    ${panier}
+    ${collante}
   </body></html>`
 }
 
@@ -127,6 +154,22 @@ console.log('\nUne fiche Temu, galerie et recommandations sur le même CDN')
     'le choix de variante reste une photo du produit',
     retenues.some((u) => u.includes('bague-sku-')),
     'un lien vers la même fiche avec ?sku= ne sort pas la photo',
+  )
+
+  /*
+   * Le cas signalé par le vendeur, et le plus coûteux des deux : le panier
+   * flottant est sur TOUTES les fiches, donc il polluait TOUS les imports —
+   * alors qu'une recommandation change d'une fiche à l'autre.
+   */
+  verifier(
+    'le panier flottant est écarté',
+    !retenues.some((u) => u.includes('collier-boussole') || u.includes('panier-2')),
+    retenues.filter((u) => /collier-boussole|panier-2/.test(u)).length + ' photo(s) de panier retenue(s)',
+  )
+  verifier(
+    "une colonne « sticky » n'est pas confondue avec un panneau flottant",
+    retenues.some((u) => u.includes('bague-collante')),
+    'la galerie de plusieurs marchands est collante pendant la lecture',
   )
 }
 
@@ -194,6 +237,22 @@ async function verifierLeScan() {
     voisinage.every((u) => !/bague-\d\.jpg/.test(u)),
   )
   verifier('le scan trouve tout de même toutes les images', scan.length >= 26, `${scan.length} adresse(s)`)
+
+  /*
+   * Le panier passe par le mobilier, pas par le voisinage : ce sont deux
+   * populations distinctes, et les confondre ferait disparaître la distinction
+   * le jour où l'une des deux règles doit changer.
+   */
+  const mobilier = meta.mobilier ?? []
+  verifier(
+    'le panier flottant est rangé dans le mobilier',
+    mobilier.some((u) => u.includes('collier-boussole')),
+    `${mobilier.length} élément(s) de mobilier`,
+  )
+  verifier(
+    'et la galerie n’y est pas',
+    mobilier.every((u) => !/bague-\d\.jpg/.test(u)),
+  )
 }
 
 // --- Le tri générique les écarte aussi ---------------------------------------
@@ -208,8 +267,8 @@ function verifierLeTri() {
 
   const adapters = fs.readFileSync(path.join(__dirname, 'extension', 'content', 'adapters.js'), 'utf8')
   verifier(
-    "l'adaptateur applique la règle avant de retenir une image",
-    /dspPointeVersUneAutreFiche\(img\)/.test(adapters),
+    "l'adaptateur applique les deux règles avant de retenir une image",
+    /dspHorsFiche\(img\)/.test(adapters),
   )
 }
 

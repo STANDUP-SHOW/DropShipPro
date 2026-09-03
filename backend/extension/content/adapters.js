@@ -353,9 +353,15 @@
          * Ce qui les distingue est le lien qui les enveloppe, et le verdict
          * vient de `image-scan.js` pour qu il n existe qu en un seul endroit.
          */
-        if (typeof self.dspPointeVersUneAutreFiche === 'function' && self.dspPointeVersUneAutreFiche(img)) {
-          continue
-        }
+        /*
+         * Et le panier permanent du vendeur non plus.
+         *
+         * Signale le 03/09/2026 : « il trouve cette photo recurrente car elle
+         * est dans mon panier Temu affiche constamment a droite ». Un collier
+         * boussole en premiere photo d une bague, d un parfum, d un sac -- le
+         * panier est sur toutes les fiches du site, donc dans tous les imports.
+         */
+        if (typeof self.dspHorsFiche === 'function' && self.dspHorsFiche(img)) continue
         push(img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src'))
         const srcset = img.getAttribute('srcset')
         if (srcset) for (const part of srcset.split(',')) push(part.trim().split(/\s+/)[0])
