@@ -234,7 +234,11 @@ export function ChannelDirectory() {
                       <span>par votre flux</span>
                     </span>
                   ) : (
-                    <span className="text-[10px] text-gray-500">pas encore reliée</span>
+                    <span className="text-[10px] text-gray-500">
+                      {c.demandes > 0
+                        ? `demandée par ${c.demandes} vendeur${c.demandes > 1 ? 's' : ''}`
+                        : 'pas encore reliée'}
+                    </span>
                   )}
                 </span>
               </button>
@@ -276,9 +280,17 @@ export function ChannelDirectory() {
             </div>
 
             {demande.integre ? (
+              /*
+                « API Connect » était une mention périmée : la page n'a plus
+                d'entrée au menu depuis la découpe du 03/09/2026, et le vendeur
+                la cherchait pour rien. La clé se règle là où on l'avait dit —
+                le bloc cliquable de l'enseigne, plus haut sur cette page, qui
+                ouvre les explications et le champ de clé.
+              */
               <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-xs leading-relaxed text-emerald-100">
-                Cette destination est déjà reliée : vous la retrouvez dans la fenêtre « Diffuser »,
-                et sa clé se règle dans API Connect.
+                Cette destination est déjà reliée. Sa clé se règle en cliquant sur son bloc dans la
+                liste des places de marché ci-dessus : la fenêtre explique où la trouver et où la
+                coller. Pour publier, passez par la fenêtre « Diffuser » d'une annonce.
               </p>
             ) : demande.flux ? (
               /*
@@ -336,17 +348,46 @@ export function ChannelDirectory() {
                   plateforme par principe.
                 </p>
 
-                <a
-                  href={`mailto:contact@drop-shipper.fr?subject=${encodeURIComponent(
-                    `Demande de canal : ${demande.label}`,
-                  )}&body=${encodeURIComponent(
-                    `Bonjour,\n\nJe souhaite diffuser mes annonces sur ${demande.label}.\n\nMon compte vendeur : (précisez si vous en avez déjà un)\nCe que je vends : \n\nMerci.`,
-                  )}`}
-                  className="btn-gradient mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold"
+                {/*
+                  Un clic compte, pas un e-mail : la demande s'enregistre et le
+                  vendeur voit le compte monter. C'est ce compte qui ordonne la
+                  file de construction — le client choisit ce qu'on code.
+                */}
+                <button
+                  type="button"
+                  disabled={demande.demandee}
+                  onClick={async () => {
+                    try {
+                      const r = await api.demanderCanal(demande.id)
+                      setData((d) =>
+                        d
+                          ? {
+                              ...d,
+                              canaux: d.canaux.map((c) =>
+                                c.id === demande.id ? { ...c, demandes: r.demandes, demandee: true } : c,
+                              ),
+                            }
+                          : d,
+                      )
+                      setDemande((x) => (x ? { ...x, demandes: r.demandes, demandee: true } : x))
+                    } catch {
+                      // Un échec laisse le bouton actif : le vendeur réessaie.
+                    }
+                  }}
+                  className="btn-gradient mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
                 >
                   <Send size={14} />
-                  <span>{`Je veux ${demande.label}`}</span>
-                </a>
+                  <span>
+                    {demande.demandee
+                      ? `Demandée — ${demande.demandes} vendeur${demande.demandes > 1 ? 's' : ''} la veulent`
+                      : `Je veux ${demande.label}`}
+                  </span>
+                </button>
+                {demande.demandes > 0 && !demande.demandee ? (
+                  <p className="mt-2 text-center text-[11px] text-gray-500">
+                    {`Déjà demandée par ${demande.demandes} vendeur${demande.demandes > 1 ? 's' : ''}.`}
+                  </p>
+                ) : null}
               </>
             )}
           </div>

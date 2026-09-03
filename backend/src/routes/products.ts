@@ -1300,6 +1300,19 @@ productsRouter.get('/meta/channels', async (req: AuthedRequest, res) => {
   })
   const base = `${apiBaseUrl(req)}/api/public/shops`
 
+  /*
+   * Les demandes, comptees par canal et rappelees au demandeur.
+   *
+   * C est le client qui choisit ce qu on code ensuite : le compte s affiche
+   * sur la carte du canal, et le vendeur voit que son clic a compte.
+   */
+  const [demandes, miennes] = await Promise.all([
+    prisma.channelRequest.groupBy({ by: ['canalId'], _count: { canalId: true } }),
+    prisma.channelRequest.findMany({ where: { userId: req.userId! }, select: { canalId: true } }),
+  ])
+  const compteDemandes = new Map(demandes.map((d) => [d.canalId, d._count.canalId]))
+  const demandesAMoi = new Set(miennes.map((m) => m.canalId))
+
   const canaux = CANAUX.map((c) => {
     const flux = fluxPour(c)
     return {
@@ -1307,6 +1320,9 @@ productsRouter.get('/meta/channels', async (req: AuthedRequest, res) => {
       integre: integrees.has(c.label.toLowerCase()),
       /** Le format de flux qui suffit à le nourrir, quand il en existe un. */
       flux: flux ? { format: flux.format, ou: flux.ou } : null,
+      /** Combien de vendeurs la veulent, et si celui-ci l a deja demandee. */
+      demandes: compteDemandes.get(c.id) ?? 0,
+      demandee: demandesAMoi.has(c.id),
     }
   })
 
@@ -1323,6 +1339,27 @@ productsRouter.get('/meta/channels', async (req: AuthedRequest, res) => {
       adresses: Object.fromEntries(FORMATS_FLUX.map((f) => [f.id, `${base}/${b.shopKey}/${f.fichier}`])),
     })),
   })
+})
+
+/**
+ * « Je veux celle-la » : la demande d un canal, comptee.
+ *
+ * Idempotente par construction -- l unicite (userId, canalId) est dans le
+ * schema, pas dans une verification qui laisserait passer deux clics
+ * simultanes. Redemander rend le meme etat, sans erreur : marteler le bouton
+ * ne fait ni monter la file ni afficher un echec.
+ */
+productsRouter.post('/meta/channels/:canalId/demande', async (req: AuthedRequest, res) => {
+  const canal = CANAUX.find((c) => c.id === req.params.canalId)
+  if (!canal) return res.status(404).json({ error: 'Canal inconnu.' })
+
+  await prisma.channelRequest.upsert({
+    where: { userId_canalId: { userId: req.userId!, canalId: canal.id } },
+    create: { userId: req.userId!, canalId: canal.id },
+    update: {},
+  })
+  const demandes = await prisma.channelRequest.count({ where: { canalId: canal.id } })
+  res.json({ ok: true, canal: canal.label, demandes })
 })
 
 /**

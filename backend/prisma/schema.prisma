@@ -175,6 +175,7 @@ model User {
   socialProfiles     SocialProfile[]
   socialAccounts     SocialAccount[]
   printProducts      PrintProduct[]
+  channelRequests    ChannelRequest[]
 }
 
 enum AuthTokenType {
@@ -1287,4 +1288,27 @@ model PrintProduct {
   @@unique([userId, sourceUrl])
   @@index([userId, source])
   @@index([shopId])
+}
+
+/// Une demande de canal : « je veux celle-la », comptee.
+///
+/// C est le client qui choisit ce qu on code ensuite -- principe pose le
+/// 03/09/2026. L annuaire montre 314 canaux ; quand un vendeur demande le
+/// sien, la demande s enregistre ici, et le compte ordonne la file de
+/// construction. Un vendeur ne compte qu une fois par canal : marteler le
+/// bouton ne fait pas monter la file.
+model ChannelRequest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// L identifiant du canal dans l annuaire (channelDirectory.ts) -- une
+  /// chaine et non l enum Platform : on demande justement ce qui n est pas
+  /// encore une destination.
+  canalId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, canalId])
+  @@index([canalId])
 }

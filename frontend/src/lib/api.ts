@@ -354,6 +354,9 @@ export const api = {
    * mêmes gestes, et une même marque peut être les deux.
    */
   /** L annuaire complet des canaux connus : etre liste ne veut pas dire integre. */
+  /** « Je veux celle-la » : enregistre la demande, rend le nouveau compte. */
+  demanderCanal: (canalId: string) =>
+    request<{ ok: true; canal: string; demandes: number }>(`/products/meta/channels/${canalId}/demande`, { method: 'POST' }),
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>
@@ -371,6 +374,9 @@ export const api = {
          * et les deux formats sont déjà servis.
          */
         flux: { format: 'google' | 'meta'; ou: string } | null
+        /** Combien de vendeurs la veulent, et si celui-ci l'a déjà demandée. */
+        demandes: number
+        demandee: boolean
       }>
       total: number
       /** Combien de canaux un simple flux suffirait à servir. */
