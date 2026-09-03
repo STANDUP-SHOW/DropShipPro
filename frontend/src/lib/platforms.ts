@@ -13,6 +13,14 @@ export interface PlatformInfo {
   batchable: boolean
   sellUrl: string | null
   note: string
+  /**
+   * Vrai quand la vidéo de l'annonce part réellement vers cette destination.
+   *
+   * Pas « la place de marché accepte les vidéos » : eBay et Facebook les
+   * acceptent tous les deux, et nous n'y publions pas encore. Ce drapeau dit ce
+   * que le vendeur obtiendra en cliquant.
+   */
+  video: boolean
   color: string
   /** Le domaine de la marque, d'où l'interface tire son logo. */
   domain?: string | null

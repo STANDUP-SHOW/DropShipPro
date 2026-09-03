@@ -25,6 +25,7 @@ import { api, downloadWithAuth, assetUrl, uploadProductImages } from '../lib/api
 import { PublishDialog, type PlatformInfo } from '../components/PublishDialog'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { PriceInput } from '../components/PriceInput'
+import { ProductVideo } from '../components/ProductVideo'
 import { PhotoAgentBlock } from '../components/PhotoAgentBlock'
 import { OptimizerAgentBlock } from '../components/OptimizerAgentBlock'
 import { ChannelReadiness } from '../components/ChannelReadiness'
@@ -520,6 +521,11 @@ export default function ProductDetail() {
               <Download size={15} /> Télécharger les photos (.zip)
             </button>
           </div>
+
+          {/* ---------- La vidéo, juste sous les photos ---------- */}
+          {id ? (
+            <ProductVideo productId={id} videoUrl={product.videoUrl ?? null} onChange={load} />
+          ) : null}
 
           {/* ---------- L'agent graphiste, là où les photos se regardent ---------- */}
           {id ? (

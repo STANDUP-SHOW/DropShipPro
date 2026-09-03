@@ -181,6 +181,16 @@ async function toCatalogItem(product: Product, category: string | null) {
      * boutique aurait eu a redecouvrir la regle, et a la coder.
      */
     images: (await imagesPourExport(product)).map(absoluteUrl),
+    /*
+     * La vidéo du vendeur, quand il en a mis une.
+     *
+     * Absolue comme les photos, et pour la même raison : c'est une boutique
+     * tierce qui lit ce flux, et elle n'a pas à connaître l'adresse de notre
+     * API pour préfixer un chemin. `null` quand il n'y en a pas, plutôt que le
+     * champ absent — un lecteur qui teste `"video" in produit` ne doit pas
+     * changer de comportement d'une annonce à l'autre.
+     */
+    video: product.videoUrl ? absoluteUrl(product.videoUrl) : null,
     variants: product.variants ?? null,
     bulletPoints: product.bulletPoints ?? [],
     attributes: product.attributes ?? {},

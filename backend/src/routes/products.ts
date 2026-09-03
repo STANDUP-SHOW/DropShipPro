@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
 import { watermarkUploads } from '../services/watermark.js'
+import { enregistrerVideo, refusVideo, VIDEO_MAX_OCTETS } from '../services/productVideo.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory, mapCategories } from '../services/categoryMapping.js'
 import { resoudreCategorie, arbreCategories, apprendreCategorie, avecGenre } from '../services/categories.js'
@@ -1111,6 +1112,67 @@ productsRouter.post('/:id/images', (req: AuthedRequest, res) => {
       res.status(500).json({ error: "Ces images n'ont pas pu être traitées" })
     }
   })
+})
+
+/*
+ * La video du vendeur, televersee a la main.
+ *
+ * Le filtre laisse passer large et le refus est rendu ensuite par
+ * `refusVideo()` : `fileFilter` de multer ne sait dire que oui ou non, et un
+ * fichier ecarte la disparait sans que personne puisse dire pourquoi. Le
+ * vendeur doit lire « format non accepte (video/avi) », pas « envoi
+ * impossible ».
+ */
+const uploadVideo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: VIDEO_MAX_OCTETS, files: 1 },
+}).single('video')
+
+productsRouter.post('/:id/video', (req: AuthedRequest, res) => {
+  uploadVideo(req, res, async (err) => {
+    if (err) {
+      const tropLourde = (err as { code?: string }).code === 'LIMIT_FILE_SIZE'
+      return res.status(400).json({
+        error: tropLourde
+          ? `Vidéo trop lourde — ${Math.round(VIDEO_MAX_OCTETS / (1024 * 1024))} Mo au maximum.`
+          : 'Envoi impossible',
+      })
+    }
+
+    const fichier = req.file
+    if (!fichier) return res.status(400).json({ error: 'Sélectionnez une vidéo (MP4, WebM ou MOV)' })
+
+    const refus = refusVideo(fichier.mimetype, fichier.size)
+    if (refus) return res.status(400).json({ error: refus })
+
+    const produit = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+    if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+
+    try {
+      const videoUrl = await enregistrerVideo(fichier.buffer, fichier.mimetype, produit.aiTitle || produit.title)
+      await prisma.product.update({ where: { id: produit.id }, data: { videoUrl } })
+      // Les destinations sont rendues avec la reponse : le vendeur vient de
+      // televerser, c est le moment ou il veut savoir ou elle servira.
+      res.json({ videoUrl, destinations: PLATFORMS.filter((p) => p.video).map((p) => p.label) })
+    } catch (e) {
+      console.error('enregistrement de la video impossible', e)
+      res.status(500).json({ error: "Cette vidéo n'a pas pu être enregistrée" })
+    }
+  })
+})
+
+/**
+ * Retire la vidéo de l'annonce.
+ *
+ * Le fichier reste sur le stockage, comme les photos d'une annonce supprimée :
+ * une autre annonce peut le désigner — une duplication partage l'adresse — et
+ * l'effacer casserait la copie sans que rien ne le dise.
+ */
+productsRouter.delete('/:id/video', async (req: AuthedRequest, res) => {
+  const produit = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+  await prisma.product.update({ where: { id: produit.id }, data: { videoUrl: null } })
+  res.json({ ok: true })
 })
 
 const fillPlanSchema = z.object({

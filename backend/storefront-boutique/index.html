@@ -281,6 +281,8 @@
       .fiche-visuel { background: var(--muted); }
       .fiche-visuel .photo { aspect-ratio: 1 / 1; }
       .vignettes { display: flex; gap: 6px; padding: 8px; overflow-x: auto; }
+      /* La vidéo du vendeur, quand l'annonce en porte une. */
+      .video-produit { display: block; width: 100%; margin: 8px 0 0; border-radius: 10px; background: #000; }
       .vignettes button {
         flex: 0 0 54px;
         height: 54px;
@@ -897,6 +899,17 @@
                 )
               }).join('') +
               '</div>'
+            : '') +
+          /*
+           * La vidéo du vendeur, sous la galerie.
+           *
+           * `preload="metadata"` et non `auto` : une fiche ouverte par
+           * curiosité ne doit pas coûter cinquante mégaoctets au visiteur.
+           * Le flux la rend absolue, donc rien à préfixer ici.
+           */
+          (p.video
+            ? '<video class="video-produit" src="' + texte(p.video) +
+              '" controls playsinline preload="metadata"></video>'
             : '') +
           '</div>' +
           '<div class="fiche-panneau">' +

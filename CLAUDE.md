@@ -456,7 +456,7 @@ Trois conséquences, toutes appliquées :
 - **Tout se contrôle en une commande**, et c'est celle-là qu'il faut lancer :
 
   ```bash
-  cd backend && npm run controle          # les 44 bancs locaux
+  cd backend && npm run controle          # les 45 bancs locaux
   cd backend && npm run controle -- --tout # + le parcours en production
   ```
 

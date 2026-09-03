@@ -274,17 +274,23 @@ function escapeHtml(text: string): string {
  * URLs. Watermarked files are stored as /storage/… paths, which only mean
  * something relative to this API.
  */
+function urlTelechargeable(brut: unknown, apiBaseUrl: string | undefined): string | null {
+  if (typeof brut !== 'string' || !brut) return null
+  const url = brut.startsWith('/') ? (apiBaseUrl ? `${apiBaseUrl}${brut}` : '') : brut
+  if (!/^https?:\/\//.test(url)) return null
+  // A localhost URL is reachable from this machine only: Shopify would fail to
+  // fetch it and reject the media, so it is simply left out.
+  if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/.test(url)) return null
+  return url
+}
+
 function imageUrls(product: Product, apiBaseUrl: string | undefined, marquees?: string[]): string[] {
   // Les images marquees pour l export quand elles existent : Shopify recoit
   // la photo signee, pas l original de travail.
   const images: unknown[] = marquees ?? (Array.isArray(product.images) ? (product.images as unknown[]) : [])
   return images
-    .filter((img): img is string => typeof img === 'string')
-    .map((img) => (img.startsWith('/') ? (apiBaseUrl ? `${apiBaseUrl}${img}` : '') : img))
-    .filter((url) => /^https?:\/\//.test(url))
-    // A localhost URL is reachable from this machine only: Shopify would fail to
-    // fetch it and reject the whole product, so the photos are simply left out.
-    .filter((url) => !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/.test(url))
+    .map((img) => urlTelechargeable(img, apiBaseUrl))
+    .filter((url): url is string => url !== null)
 }
 
 /**
@@ -357,6 +363,23 @@ const ONLINE_STORE_PUBLICATION = /* GraphQL */ `
       nodes {
         id
         name
+      }
+    }
+  }
+`
+
+/**
+ * Ajoute un média à un produit déjà créé.
+ *
+ * Séparé de `productCreate` à dessein : un média refusé dans la création fait
+ * refuser le produit entier, pas le média. Ici, un refus coûte une remarque.
+ */
+const CREATE_MEDIA = /* GraphQL */ `
+  mutation dropshipperCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+    productCreateMedia(productId: $productId, media: $media) {
+      userErrors {
+        field
+        message
       }
     }
   }
@@ -681,6 +704,46 @@ export async function publishToShopify(
     }
   }
 
+
+  /*
+   * La vidéo, envoyée après coup et jamais dans `productCreate`.
+   *
+   * La glisser dans le `media` de la création ferait porter au produit entier
+   * le risque d'un média refusé : Shopify rejette l'appel, pas seulement le
+   * fichier, et une annonce parfaitement valide ne partirait plus parce qu'une
+   * vidéo de trop est arrivée. Ici, un refus coûte une remarque.
+   *
+   * Shopify va chercher le fichier lui-même à l'adresse donnée — d'où
+   * `PUBLIC_API_URL` et `lib/urls.ts`, comme pour les photos. Le traitement est
+   * asynchrone de leur côté : la vidéo apparaît dans l'admin quelques minutes
+   * après la publication.
+   *
+   * **Jamais confronté à une vraie boutique**, comme le reste de l'intégration
+   * Shopify. Le meilleur effort n'est pas une précaution de style ici.
+   */
+  const videoUrl = urlTelechargeable(product.videoUrl, apiBaseUrl)
+  if (videoUrl) {
+    try {
+      const result = await graphql<{
+        productCreateMedia: { userErrors: Array<{ field?: string[] | null; message: string }> }
+      }>(creds, CREATE_MEDIA, {
+        productId: shopifyProduct.id,
+        media: [
+          {
+            originalSource: videoUrl,
+            mediaContentType: 'VIDEO',
+            alt: (product.aiTitle || product.title).slice(0, 120),
+          },
+        ],
+      })
+      assertNoUserErrors(result.productCreateMedia.userErrors, 'Vidéo refusée')
+      notes.push('Vidéo transmise — Shopify la traite en quelques minutes.')
+    } catch (e) {
+      notes.push(
+        `Vidéo non transmise (${e instanceof Error ? e.message : 'refus Shopify'}) : le produit est en ligne, la vidéo est à ajouter à la main.`,
+      )
+    }
+  }
 
   // Optional: needs read_publications/write_publications, which a minimal custom
   // app may not have. A failure here leaves a perfectly valid draft in the admin.

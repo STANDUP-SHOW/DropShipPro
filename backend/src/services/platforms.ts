@@ -30,6 +30,16 @@ export interface PlatformInfo {
   note: string
   /** Set when there is a policy or eligibility caveat the seller must know before publishing. */
   warning?: string
+  /**
+   * Vrai quand **nous** savons y envoyer la vidéo de l'annonce aujourd'hui.
+   *
+   * Pas « la place de marché accepte les vidéos » : eBay et Facebook les
+   * acceptent tous les deux, et nous ne publions encore chez eux ni l'un ni
+   * l'autre. Ce drapeau dit ce que le vendeur obtiendra en cliquant, ce qui est
+   * la seule chose qu'il puisse vérifier — et la seule que nous ayons le droit
+   * de lui promettre.
+   */
+  video: boolean
   /** Listed for completeness but no publication path exists at all (not a marketplace). */
   unavailable?: boolean
   /** Brand colour, used for that platform's button in the diffusion dialog. */
@@ -83,7 +93,7 @@ const COLORS: Record<string, string> = {
  * marketplace only has to be declared here (plus its category paths in
  * categoryCatalog.ts and the Prisma enum).
  */
-const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchable' | 'domain'>> = [
+const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchable' | 'domain' | 'video'>> = [
   {
     id: 'OWN_SITE',
     label: 'Mon site',
@@ -281,12 +291,27 @@ const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY']
  */
 const FEED: Platform[] = ['INSTAGRAM', 'GOOGLE_SHOPPING']
 
-function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchable' | 'domain'>): PlatformIntegration {
+function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchable' | 'domain' | 'video'>): PlatformIntegration {
   if (p.unavailable) return 'none'
   if (!p.automatable) return 'extension'
   if (FEED.includes(p.id)) return 'feed'
   return LIVE.includes(p.id) ? 'live' : 'api-ready'
 }
+
+/**
+ * Où la vidéo de l'annonce part réellement aujourd'hui.
+ *
+ * Liste courte, et volontairement : elle ne dit pas qui *accepte* les vidéos —
+ * eBay et Facebook les acceptent, nous ne publions encore chez eux ni l'un ni
+ * l'autre — mais où nous savons l'envoyer. Une ligne s'ajoute ici le jour où le
+ * chemin est écrit **et** constaté, pas le jour où il est espéré.
+ *
+ * `OWN_SITE` : le flux catalogue la porte, notre vitrine la joue. Éprouvé.
+ * `SHOPIFY` : envoyée après la création du produit, en meilleur effort — comme
+ * la mise en ligne l'est déjà. Écrite, jamais confrontée à une vraie boutique,
+ * exactement comme le reste de l'intégration Shopify.
+ */
+const ACCEPTE_VIDEO: Platform[] = ['OWN_SITE', 'SHOPIFY']
 
 // Colours live in their own table so adding a platform above can't forget one:
 // anything missing falls back to the app's purple.
@@ -298,6 +323,7 @@ export const PLATFORMS: PlatformInfo[] = PLATFORM_DEFS.map((p) => {
     domain: domaineDe(p.sellUrl),
     batchable: integration === 'live' || integration === 'feed' || integration === 'api-ready',
     color: COLORS[p.id] ?? '#a855f7',
+    video: ACCEPTE_VIDEO.includes(p.id),
   }
 })
 

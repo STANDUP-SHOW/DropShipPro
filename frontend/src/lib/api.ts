@@ -1,3 +1,4 @@
+import type { PlatformInfo } from './platforms'
 // In dev, Vite proxies /api to localhost:4000 (see vite.config.ts). In production
 // the frontend (Vercel) and backend (Railway) are on different hosts, so the
 // deployed build needs the absolute backend URL via VITE_API_URL.
@@ -210,6 +211,8 @@ export const api = {
   /** Une copie de l'annonce, en brouillon et sans crédit : rien n'est réécrit. */
   dupliquerProduit: (id: string) =>
     request<{ id: string; aiTitle: string | null }>(`/products/${id}/dupliquer`, { method: 'POST' }),
+  /** Retire la vidéo de l'annonce. Le fichier reste sur le stockage, comme les photos. */
+  supprimerVideo: (id: string) => request<{ ok: true }>(`/products/${id}/video`, { method: 'DELETE' }),
   publishProduct: (id: string, platforms: string[], shopId?: string) =>
     request<
       Array<{ platform: string; status: string; error: string | null; externalUrl: string | null }>
@@ -324,21 +327,15 @@ export const api = {
       message?: string
     }>('/products/lot', { method: 'POST', body: JSON.stringify(corps) }),
 
-  listPlatforms: () =>
-    request<
-      Array<{
-        id: string
-        label: string
-        automatable: boolean
-        sellUrl: string | null
-        note: string
-        color: string
-        integration: 'live' | 'api-ready' | 'extension' | 'none'
-        batchable: boolean
-        warning?: string
-        unavailable?: boolean
-      }>
-    >('/products/meta/platforms'),
+  /*
+   * La forme est celle de `lib/platforms.ts`, pas une copie.
+   *
+   * Elle était recopiée ici, champ par champ, et les deux ont divergé au
+   * premier ajout : `domain` manquait, `feed` manquait dans l'union, et
+   * ajouter `video` a fait échouer la compilation de quatre écrans qui
+   * n'avaient rien demandé. Une seule déclaration, celle que le serveur rend.
+   */
+  listPlatforms: () => request<PlatformInfo[]>('/products/meta/platforms'),
 
   /**
    * Les plateformes d'acquisition, où l'on achète.
@@ -1413,6 +1410,30 @@ export async function uploadProductImages(productId: string, files: File[]) {
   // `max` vient du serveur : le plafond etait ecrit en dur dans l ecran, et les
   // deux valeurs ont diverge des que le serveur a change.
   return body as { images: string[]; added: number; max?: number }
+}
+
+/**
+ * Téléverse la vidéo de l'annonce. FormData, donc pas de Content-Type ici.
+ *
+ * Celle du vendeur, jamais celle d'un fournisseur : le relevé de l'extension
+ * reste strictement photo, et c'est une décision, pas un manque.
+ */
+export async function uploadProductVideo(productId: string, file: File) {
+  const form = new FormData()
+  form.append('video', file)
+
+  const token = getToken()
+  const res = await fetch(`${BASE}/products/${productId}/video`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`)
+  // `destinations` vient du serveur : le vendeur vient de téléverser, c'est le
+  // moment où il veut savoir où sa vidéo servira — et l'écrire en dur ici ferait
+  // deux vérités à tenir.
+  return body as { videoUrl: string; destinations: string[] }
 }
 
 /**

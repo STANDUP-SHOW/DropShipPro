@@ -203,6 +203,18 @@ model Product {
   markupPercent Int     @default(50)
 
   images            Json
+  /// La video du vendeur, televersee a la main. Jamais celle d un fournisseur.
+  ///
+  /// Decision du 03/09/2026, et elle tient a deux raisons. Une video de fiche
+  /// Temu ou AliExpress est servie en flux (blob:, HLS) et non en fichier : la
+  /// capter demanderait un chantier a part, incertain. Et surtout, la revendre
+  /// sous sa propre enseigne pose une question de droits que personne n a
+  /// tranchee. Le relevé reste donc strictement photo -- c est verifie par un
+  /// banc, pas seulement ecrit ici.
+  ///
+  /// Une seule par annonce : aucune destination n en accepte plusieurs.
+  videoUrl String?
+
   /// Vrai quand les images portent deja le filigrane dans le fichier.
   ///
   /// Faux pour tout ce qui est importe depuis que la marque se pose a l export.
