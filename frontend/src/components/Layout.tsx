@@ -168,7 +168,7 @@ export function Layout({ children, large = false, sombre = false }: { children: 
     // verre. `relative` sur l'aside et le main les fait peindre au-dessus.
     <div className={`min-h-screen text-white flex ${sombre ? '' : 'bg-app-gradient'}`}>
       {sombre ? <FondVivant /> : null}
-      <aside className="relative w-56 shrink-0 border-r border-white/10 p-4 flex flex-col">
+      <aside className={`relative w-56 shrink-0 border-r border-white/10 p-4 flex flex-col ${sombre ? 'bg-black/35 backdrop-blur-xl' : ''}`}>
         <Link to="/dashboard" className="mb-8 block">
           <Logo size={22} />
         </Link>
