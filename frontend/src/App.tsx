@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { LoadingScreen } from './components/LoadingScreen'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -49,11 +50,43 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * Fait défiler jusqu'à l'ancre de l'adresse — ce que le navigateur ferait
+ * tout seul sur un site classique, et que React Router ne fait jamais.
+ *
+ * Sans lui, « Extension Chrome » (/acquisition#extension) et « Aide & contact »
+ * (/guide#contact) changeaient l'adresse et laissaient la page en haut : le
+ * vendeur voyait « Comment acquérir » et concluait que le bouton ne menait à
+ * rien. Le petit délai réessaie le temps que la page async pose ses blocs.
+ */
+function DefileVersAncre() {
+  const { hash, key, search } = useLocation()
+  useEffect(() => {
+    if (!hash) {
+      // Les liens ?etat= changent d'onglet sur place : on n'y touche pas.
+      if (!search) window.scrollTo(0, 0)
+      return
+    }
+    const cible = hash.slice(1)
+    let essais = 0
+    const tenter = () => {
+      const el = document.getElementById(cible)
+      if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      else if (++essais < 10) setTimeout(tenter, 100)
+    }
+    tenter()
+    // `key` change à chaque navigation, même vers la même adresse : recliquer
+    // sur « Extension Chrome » depuis la page refait défiler.
+  }, [key, hash, search])
+  return null
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
     <BrowserRouter>
       <AuthProvider>
+        <DefileVersAncre />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
