@@ -199,7 +199,7 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
 
   if (tuile.valeur === null) {
     return (
-      <div className="flex h-full flex-col rounded-2xl border border-white/[0.05] bg-[#12101c] p-3">
+      <div className="flex h-full flex-col rounded-xl p-3">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{tuile.label}</p>
         <p className="mt-1 text-xl font-bold text-gray-600">—</p>
         <p className="mt-auto pt-1 text-[10px] leading-snug text-gray-600">{tuile.raison}</p>
@@ -254,12 +254,11 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   )
 
   return (
+    // Sans cadre ni fond propre — demandé le 04/09/2026 : seule la section
+    // porte un bloc, les données se posent dessus à nu.
     <div
       data-forme={choisie}
-      className="@container flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-[#161325] p-3 transition"
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${de}55`; e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,0.05), 0 0 14px ${de}22` }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.05)' }}
+      className="@container flex h-full flex-col overflow-hidden rounded-xl p-3 transition hover:bg-white/[0.03]"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{tuile.label}</p>
