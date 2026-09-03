@@ -79,7 +79,7 @@ function DefileVersAncre() {
     const tenter = () => {
       const el = document.getElementById(cible)
       if (el) el.scrollIntoView({ block: 'start', behavior: essais === 0 ? 'smooth' : 'auto' })
-      if (++essais < 14) setTimeout(tenter, 180)
+      if (++essais < 25) setTimeout(tenter, 180)
     }
     tenter()
     // `key` change à chaque navigation, même vers la même adresse : recliquer
