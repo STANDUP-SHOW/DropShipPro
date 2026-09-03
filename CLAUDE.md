@@ -549,7 +549,7 @@ Trois conséquences, toutes appliquées :
 vérification d'email, import, IA (titre, description, 9 attributs, 6 arguments,
 20 mots-clés), filigrane, calcul de marge, API catalogue, extension.
 
-**Quatre familles de destinations publient réellement** (44 « live » au
+**Cinq familles de destinations publient réellement** (45 « live » au
 registre) : « Mon site » (immédiat, via `/api/public/shops/:shopKey/products`),
 **Shopify** (API Admin GraphQL, jeton `shpat_` saisi dans Réglages), **eBay**
 (API Sell, jeton utilisateur OAuth) et les **41 opérateurs Mirakl** (dépôt
@@ -569,6 +569,19 @@ publication « en attente ».
   **Jamais confronté à un vrai compte eBay** — mais vérifié en production le
   03/09/2026 avec un jeton invalide : le 401 du vrai api.ebay.com revient en
   refus lisible sur la publication.
+- Kaufland : `backend/src/services/kaufland.ts`, banc `npx tsx
+  check-kaufland.ts`. Seller API signée HMAC-SHA256 **hex** sur
+  `MÉTHODE\nURI\ncorps\ntimestamp` (en-têtes Shop-Client-Key/Timestamp/
+  Signature), `POST /units/` avec **prix en centimes entiers**, 201 à corps
+  vide et unité dans l'en-tête `Location`. Clés : Client Key 32 caractères,
+  Secret Key 64 — longueurs vérifiées au collage. L'EAN est obligatoire
+  (même modèle que Mirakl) et sa **clé de contrôle GS1 est vérifiée chez
+  nous** : un EAN faux grefferait l'offre sur la fiche d'un autre produit.
+  Vérifié en production le 04/09/2026 avec des clés bidon : le 401 du vrai
+  sellerapi.kaufland.com revient en refus lisible. **Leçon du banc, à ne pas
+  reperdre : le faux serveur recalculait d'abord la signature avec la
+  fonction du connecteur — une faute aurait été des deux côtés et la
+  contre-épreuve ne tombait pas. Un faux serveur écrit le contrat EN DUR.**
 - **Un connecteur branché côté serveur peut être injoignable depuis l'écran.**
   Découvert en branchant le formulaire eBay : le champ générique « Clé API »
   n'envoyait qu'une clé, alors que `readMiraklCredentials` exige aussi
