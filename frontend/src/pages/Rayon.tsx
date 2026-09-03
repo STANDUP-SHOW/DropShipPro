@@ -52,8 +52,9 @@ export default function Rayon() {
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState<string | null>(null)
 
-  useEffect(() => {
+  function chargerRayon() {
     api
       .listDepartments()
       .then((list) => {
@@ -62,10 +63,42 @@ export default function Rayon() {
         else setMissing(true)
       })
       .catch(() => setMissing(true))
+  }
+
+  useEffect(() => {
+    chargerRayon()
     api
       .departmentCatalogue()
       .then((c) => setPlans(c.plans))
       .catch(() => undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  /*
+   * Le retour de Stripe atterrit ICI, pas sur la page Facturation : le
+   * paiement d'un chef de rayon renvoie vers son rayon. Sans cette
+   * confirmation, l'argent était encaissé et l'abonnement jamais prolongé —
+   * « je paie, il reste à l'arrêt », constaté le 04/09/2026.
+   */
+  useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get('session_id')
+    if (!sessionId) return
+    api
+      .confirmPayment(sessionId)
+      .then((res: { granted?: boolean; agent?: string; paidUntil?: string }) => {
+        if (res.granted) {
+          setConfirmation(
+            `Paiement reçu : ${res.agent ?? 'le chef de rayon'} travaille${res.paidUntil ? ` jusqu'au ${new Date(res.paidUntil).toLocaleDateString('fr-FR')}` : ''}.`,
+          )
+          chargerRayon()
+        }
+      })
+      .catch((err) => setPayError(err instanceof Error ? err.message : 'Paiement non confirmé — contactez le support.'))
+      .finally(() => {
+        // Le paramètre ne doit pas survivre : un rechargement reconfirmerait.
+        window.history.replaceState({}, '', window.location.pathname)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   /**
@@ -139,6 +172,12 @@ export default function Rayon() {
       </div>
 
       <p className="mt-2 max-w-3xl text-sm text-gray-400">{department.focus}</p>
+
+      {confirmation ? (
+        <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+          {confirmation}
+        </p>
+      ) : null}
 
       {/* L'état de l'abonnement, dit avant le travail : un agent arrêté qui
           affiche une page vide passe pour une panne. */}

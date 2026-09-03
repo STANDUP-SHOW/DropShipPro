@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { DEPARTMENTS, findDepartment, type DepartmentProfile } from './departments.js'
 import { choisirModele, messagesPour, systemeCachable } from './chatBudget.js'
 import { catalogueDuRayon, catalogueEnTexte } from './departmentCatalog.js'
+import { executerOutilChef, OUTILS_CHEF } from './chefOutils.js'
 
 /**
  * La conversation avec un chef de rayon.
@@ -45,6 +46,10 @@ function systemPrompt(profile: DepartmentProfile, catalogue: string) {
     'Tu réponds en français, brièvement et concrètement, comme un professionnel du secteur qui parle à un vendeur.',
     "Tu peux parler sourcing, marges, saisonnalité, concurrence, conformité, choix de marketplace et façon de présenter une annonce.",
     '',
+    "Tu as de vrais outils : la recherche chez les fournisseurs reliés du vendeur, le sondage des prix pratiqués dans son catalogue, et la liste des produits gagnants repérés par les enquêtes. Sers-t'en dès que la question s'y prête — pour du sourcing, des produits phares, une estimation de prix — au lieu de dire que tu n'as pas accès.",
+    "Quand le vendeur donne des critères (entrepôt Europe, livraison rapide ou gratuite, prix maximum), applique-les au tri des résultats et dis clairement ce que la source ne précise pas, sans le deviner.",
+    "Si un outil répond qu'aucun fournisseur n'est relié ou qu'une liaison est refusée, transmets le geste exact au vendeur — c'est une vraie réponse, pas un échec.",
+    '',
     "Si la question sort de ton rayon, commence ta réponse par le marqueur exact " +
       OUT_OF_SCOPE +
       ", puis dis en une phrase que tu ne t'occupes que de ton rayon, et nomme le collègue à embaucher.",
@@ -60,8 +65,10 @@ export async function askDepartment(
   agentName: string,
   history: ChatTurn[],
   question: string,
-  /** Le vendeur, pour lui mettre son catalogue sous les yeux. */
+  /** Le vendeur, pour lui mettre son catalogue sous les yeux — et ses outils. */
   userId?: string,
+  /** Le rayon en base, pour relire ses opportunités. */
+  departmentId?: string,
 ): Promise<ChatAnswer> {
   const profile = findDepartment(departmentKey)
   if (!profile) {
@@ -98,16 +105,54 @@ export async function askDepartment(
 
   try {
     const client = new Anthropic({ apiKey })
-    const response = await client.messages.create({
-      // Le petit modèle sur les questions de fait, le grand sur celles qui
-      // demandent d'arbitrer. Voir chatBudget.ts pour le pourquoi.
-      model: choisirModele(question, false),
-      max_tokens: 900,
+    const outils = userId ? OUTILS_CHEF : []
+    const messages: Anthropic.MessageParam[] = messagesPour(history, question)
+
+    /*
+     * La boucle d'outils : le chef cherche, lit le résultat, puis répond.
+     *
+     * Trois tours au plus — un chef qui enchaîne les recherches sans conclure
+     * coûte sans répondre. Chaque résultat d'outil vient du réel (fournisseurs
+     * reliés, catalogue, opportunités déposées) : la règle « rien n'est
+     * inventé » tient, chaque chiffre a désormais une source.
+     */
+    let response = await client.messages.create({
+      // Le grand modèle dès que les outils sont branchés : arbitrer des
+      // résultats de recherche n'est pas une question de fait.
+      model: choisirModele(question, outils.length > 0),
+      max_tokens: 1200,
       // Le prénom est celui figé à l'embauche, pas celui du catalogue : le
       // vendeur ne doit pas voir son interlocuteur changer de nom.
       system: systemeCachable(systemPrompt({ ...profile, agentName }, catalogue)),
-      messages: messagesPour(history, question),
+      ...(outils.length ? { tools: outils } : {}),
+      messages,
     })
+
+    for (let tour = 0; tour < 3 && response.stop_reason === 'tool_use'; tour++) {
+      const resultats: Anthropic.ToolResultBlockParam[] = []
+      for (const bloc of response.content) {
+        if (bloc.type !== 'tool_use') continue
+        resultats.push({
+          type: 'tool_result',
+          tool_use_id: bloc.id,
+          content: await executerOutilChef(
+            userId!,
+            departmentId ?? null,
+            bloc.name,
+            (bloc.input ?? {}) as Record<string, unknown>,
+          ),
+        })
+      }
+      messages.push({ role: 'assistant', content: response.content })
+      messages.push({ role: 'user', content: resultats })
+      response = await client.messages.create({
+        model: choisirModele(question, true),
+        max_tokens: 1200,
+        system: systemeCachable(systemPrompt({ ...profile, agentName }, catalogue)),
+        tools: outils,
+        messages,
+      })
+    }
 
     const text = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === 'text')

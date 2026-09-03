@@ -22,6 +22,7 @@ export * from './supplierTypes.js'
 import {
   SupplierError,
   type SupplierConnector,
+  type SupplierListing,
   type SupplierPrice,
   type SupplierTracking,
 } from './supplierTypes.js'
@@ -165,6 +166,37 @@ const cj: SupplierConnector = {
     }
 
     return sortie
+  },
+
+  /**
+   * La recherche par mots-clés du catalogue CJ.
+   *
+   * C'est elle qui répond à « trouve-moi cinq produits » : `product/list`
+   * accepte le nom en anglais et rend prix, image et identifiant. CJ vend
+   * surtout depuis la Chine mais tient des entrepôts européens ; cet appel ne
+   * dit pas lequel sert un produit donné — on répond « inconnu » plutôt que
+   * d'inventer, et le chef renvoie vers la fiche pour le vérifier.
+   */
+  async searchProducts(motsCles, credentials) {
+    const jeton = await jetonCj(credentials)
+    const reponse = (await appel(
+      `${BASES.cjdropshipping}/product/list?productNameEn=${encodeURIComponent(motsCles)}&pageNum=1&pageSize=10`,
+      { headers: enTetesCj(jeton) },
+    )) as {
+      data?: { list?: Array<{ pid?: string; productNameEn?: string; sellPrice?: number | string; productImage?: string }> }
+    }
+
+    return (reponse.data?.list ?? [])
+      .filter((p) => p.pid)
+      .map((p): SupplierListing => ({
+        ref: p.pid!,
+        titre: p.productNameEn || p.pid!,
+        prix: Number(p.sellPrice) || null,
+        devise: 'USD',
+        image: p.productImage || null,
+        url: `https://www.cjdropshipping.com/product/-p-${p.pid}.html`,
+        entrepot: null,
+      }))
   },
 
   async fetchVariants(ref, credentials) {

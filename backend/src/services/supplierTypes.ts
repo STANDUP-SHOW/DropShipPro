@@ -153,6 +153,38 @@ export interface SupplierConnector {
     credentials: Record<string, string>,
     ctx?: SupplierContext,
   ): Promise<Array<{ ref: string; label: string; price: number | null; stock: number | null }>>
+
+  /**
+   * Cherche dans le catalogue du fournisseur par mots-clés.
+   *
+   * C'est ce qui permet aux chefs de rayon de **sonder réellement** un
+   * fournisseur au lieu de répondre « je n'ai pas accès » : la capacité vit
+   * dans le connecteur, pas dans l'agent, et un fournisseur sans recherche
+   * documentée ne l'implémente pas — le dire vaut mieux que simuler.
+   */
+  searchProducts?(
+    motsCles: string,
+    credentials: Record<string, string>,
+    ctx?: SupplierContext,
+  ): Promise<SupplierListing[]>
+
+  /** Les produits mis en avant par le fournisseur lui-même (meilleures ventes). */
+  winningProducts?(
+    credentials: Record<string, string>,
+    ctx?: SupplierContext,
+  ): Promise<SupplierListing[]>
+}
+
+/** Une ligne de catalogue fournisseur, telle qu'un chef de rayon la présente. */
+export interface SupplierListing {
+  ref: string
+  titre: string
+  prix: number | null
+  devise: string
+  image: string | null
+  url: string | null
+  /** Ce qu'on SAIT de l'entrepôt : 'europe', 'chine', ou null pour inconnu. */
+  entrepot: 'europe' | 'chine' | null
 }
 
 /**

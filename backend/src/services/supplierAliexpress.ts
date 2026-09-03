@@ -257,6 +257,63 @@ export const aliexpress: SupplierConnector = {
   id: 'aliexpress',
   label: 'AliExpress',
 
+  /**
+   * Les produits mis en avant par AliExpress lui-même.
+   *
+   * `aliexpress.ds.recommend.feed.get` est le flux « meilleures ventes » de
+   * l'API dropshipping — c'est la réponse honnête à « cinq produits phares
+   * sur AliExpress » : ce que la plateforme met en avant, pas une invention.
+   * Si l'application du vendeur n'a pas ce droit, AliExpress refuse dans
+   * `error_response` et le refus remonte lisible, comme partout ailleurs.
+   */
+  async winningProducts(credentials) {
+    const appKey = credentials.appKey?.trim()
+    const appSecret = credentials.appSecret?.trim()
+    const accessToken = credentials.accessToken?.trim()
+    if (!appKey || !appSecret || !accessToken) {
+      throw new SupplierError(
+        "Liaison AliExpress incomplète : il faut l'App Key, l'App Secret et le jeton d'accès.",
+        true,
+      )
+    }
+
+    const reponse = (await appelSigne(
+      {
+        method: 'aliexpress.ds.recommend.feed.get',
+        app_key: appKey,
+        access_token: accessToken,
+        feed_name: 'DS bestseller',
+        target_currency: credentials.currency?.trim() || 'EUR',
+        target_language: 'FR',
+        country: credentials.shipTo?.trim() || 'FR',
+        page_no: '1',
+        page_size: '10',
+      },
+      appSecret,
+      undefined,
+    )) as {
+      aliexpress_ds_recommend_feed_get_response?: {
+        result?: { products?: { traffic_product_d_t_o?: Array<Record<string, unknown>> } | Array<Record<string, unknown>> }
+      }
+    }
+
+    const resultat = reponse.aliexpress_ds_recommend_feed_get_response?.result?.products
+    const lignes = Array.isArray(resultat) ? resultat : resultat?.traffic_product_d_t_o ?? []
+    return lignes
+      .map((p) => ({
+        ref: String(p.product_id ?? ''),
+        titre: String(p.product_title ?? p.subject ?? ''),
+        prix: Number(p.target_sale_price ?? p.sale_price ?? '') || null,
+        devise: String(p.target_sale_price_currency ?? 'EUR'),
+        image: typeof p.product_main_image_url === 'string' ? p.product_main_image_url : null,
+        url: typeof p.product_detail_url === 'string' ? p.product_detail_url : `https://www.aliexpress.com/item/${p.product_id}.html`,
+        // Le flux ne dit pas l'entrepôt : la plupart partent de Chine, mais
+        // « inconnu » reste la seule réponse honnête ligne par ligne.
+        entrepot: null as null,
+      }))
+      .filter((p) => p.ref && p.titre)
+  },
+
   async fetchPrices(refs, credentials, ctx) {
     const appKey = credentials.appKey?.trim()
     const appSecret = credentials.appSecret?.trim()

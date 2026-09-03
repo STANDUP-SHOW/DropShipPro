@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { askDepartment } from '../services/departmentChat.js'
+import { isActive } from '../services/agentBilling.js'
 import { etatPlafond, messagePlafond, PLAFOND_JOUR } from '../services/chatBudget.js'
 import { reserveCredits } from '../services/billing.js'
 import { AGENT_CATEGORIES, PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
@@ -109,6 +110,21 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
   })
   if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
 
+  /*
+   * L'abonnement d'abord : un rayon à l'arrêt ne répond pas.
+   *
+   * Constaté le 04/09/2026 : le chat vérifiait crédits et plafond mais jamais
+   * `paidUntil` — un agent « à l'arrêt » discutait comme si de rien n'était,
+   * et l'abonnement ne voulait plus rien dire. Ses rapports et ses trouvailles
+   * restent lisibles ; c'est la conversation qui reprend avec l'abonnement.
+   */
+  if (!isActive(department.paidUntil)) {
+    return res.status(402).json({
+      error: `${department.agentName} est à l'arrêt : son abonnement est terminé. Ses rapports et ses trouvailles restent lisibles ; réabonnez le rayon pour reprendre la conversation.`,
+      reabonner: true,
+    })
+  }
+
   // Le solde est vérifié avant d'appeler le modèle : payer un appel pour
   // annoncer ensuite qu'il n'y avait pas de crédit serait absurde.
   const user = await prisma.user.findUniqueOrThrow({
@@ -152,6 +168,7 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
     history.reverse().map((m) => ({ role: m.role as 'user' | 'agent', content: m.content })),
     parsed.data.question,
     req.userId!,
+    department.id,
   )
 
   // Une panne du modèle n'est pas une conversation : rien n'est enregistré, et
