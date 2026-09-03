@@ -347,8 +347,26 @@ export const api = {
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>
-      canaux: Array<{ id: string; label: string; logo: string; type: string; integre: boolean }>
+      canaux: Array<{
+        id: string
+        label: string
+        logo: string
+        type: string
+        integre: boolean
+        /**
+         * Le flux qui suffit à nourrir ce canal, quand il en existe un.
+         *
+         * Un comparateur ne veut pas d'API : il veut une adresse à relire
+         * chaque nuit. Quatre-vingt-une entrées de l'annuaire sont dans ce cas,
+         * et les deux formats sont déjà servis.
+         */
+        flux: { format: 'google' | 'meta'; ou: string } | null
+      }>
       total: number
+      /** Combien de canaux un simple flux suffirait à servir. */
+      aFlux: number
+      formats: Array<{ id: 'google' | 'meta'; fichier: string; label: string; aide: string }>
+      boutiques: Array<{ id: string; name: string; adresses: Record<string, string> }>
     }>('/products/meta/channels'),
 
   /**

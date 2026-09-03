@@ -4,6 +4,7 @@ import archiver from 'archiver'
 import multer from 'multer'
 import path from 'path'
 import { dupliquerAnnonce } from '../services/listingDuplicate.js'
+import { fluxPour, FORMATS_FLUX } from '../services/channelFeeds.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
@@ -1281,12 +1282,46 @@ productsRouter.get('/:id/conformite', async (req: AuthedRequest, res) => {
  * entier et nous dire ce qu'il veut, plutôt que de repartir parce que sa
  * plateforme n'apparaît nulle part.
  */
-productsRouter.get('/meta/channels', (_req, res) => {
+productsRouter.get('/meta/channels', async (req: AuthedRequest, res) => {
   const integrees = new Set(PLATFORMS.filter((p) => !p.unavailable).map((p) => p.label.toLowerCase()))
+
+  /*
+   * Les adresses de flux du vendeur, avec l'annuaire.
+   *
+   * Sans elles, dire « ce comparateur se nourrit d'un flux » n'avance à rien :
+   * le vendeur devrait aller chercher l'adresse ailleurs, dans un autre écran,
+   * et revenir. Les clés de boutique partent donc ici — elles sont publiques
+   * par construction, c'est tout leur objet.
+   */
+  const boutiques = await prisma.shop.findMany({
+    where: { userId: req.userId! },
+    select: { id: true, name: true, shopKey: true },
+    orderBy: { createdAt: 'asc' },
+  })
+  const base = `${apiBaseUrl(req)}/api/public/shops`
+
+  const canaux = CANAUX.map((c) => {
+    const flux = fluxPour(c)
+    return {
+      ...c,
+      integre: integrees.has(c.label.toLowerCase()),
+      /** Le format de flux qui suffit à le nourrir, quand il en existe un. */
+      flux: flux ? { format: flux.format, ou: flux.ou } : null,
+    }
+  })
+
   res.json({
     types: TYPES_CANAL,
-    canaux: CANAUX.map((c) => ({ ...c, integre: integrees.has(c.label.toLowerCase()) })),
+    canaux,
     total: CANAUX.length,
+    /** Combien de canaux un simple flux suffirait à servir. */
+    aFlux: canaux.filter((c) => c.flux).length,
+    formats: FORMATS_FLUX,
+    boutiques: boutiques.map((b) => ({
+      id: b.id,
+      name: b.name,
+      adresses: Object.fromEntries(FORMATS_FLUX.map((f) => [f.id, `${base}/${b.shopKey}/${f.fichier}`])),
+    })),
   })
 })
 

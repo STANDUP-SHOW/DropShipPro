@@ -1,9 +1,92 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, Check, Send, X } from 'lucide-react'
+import { Search, Check, Send, X, Rss, Copy } from 'lucide-react'
 import { api } from '../lib/api'
 
 type Data = Awaited<ReturnType<typeof api.listChannels>>
 type Canal = Data['canaux'][number]
+
+/**
+ * Vos flux produit, et ce qu'ils suffisent à nourrir.
+ *
+ * **Le raisonnement, posé le 03/09/2026.** L'annuaire compte 314 marques, et le
+ * vendeur en déduisait 314 chantiers. C'est faux pour quatre-vingt-une d'entre
+ * elles : un comparateur ou une plateforme d'affiliation ne veut pas d'API, il
+ * veut une adresse à relire chaque nuit. Nous servons déjà les deux formats
+ * qu'ils attendent.
+ *
+ * Ces adresses vivaient dans un autre écran. Les mettre ici, juste au-dessus de
+ * l'annuaire, c'est la différence entre « ce comparateur se nourrit d'un flux »
+ * — une information qui n'avance à rien — et « voici l'adresse, copiez-la ».
+ */
+function FluxProduit({ data }: { data: Data }) {
+  const [copie, setCopie] = useState<string | null>(null)
+
+  if (!data.boutiques.length) {
+    return (
+      <>
+        <h2 className="mt-12 font-bold">Vos flux produit</h2>
+        <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
+          {`${data.aFlux} canaux de l'annuaire ne demandent aucun connecteur : ils lisent un flux produit. `}
+          Créez d'abord une boutique dans Réglages — c'est elle qui porte l'adresse du flux.
+        </p>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <h2 className="mt-12 font-bold">Vos flux produit</h2>
+      <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
+        {`${data.aFlux} canaux de l'annuaire ne demandent aucun connecteur : comparateurs, plateformes d'affiliation et boutiques sociales lisent un flux produit et se mettent à jour seuls. `}
+        <b>Les deux adresses ci-dessous suffisent à les servir tous.</b> Elles sont publiques et en
+        lecture seule : elles peuvent figurer dans n'importe quel espace marchand.
+      </p>
+
+      <div className="mt-4 space-y-4">
+        {data.boutiques.map((b) => (
+          <div key={b.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-semibold">{b.name}</p>
+            <div className="mt-3 space-y-3">
+              {data.formats.map((f) => {
+                const adresse = b.adresses[f.id]
+                if (!adresse) return null
+                const cle = `${b.id}-${f.id}`
+                return (
+                  <div key={f.id}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className="text-xs font-semibold text-purple-200">{f.label}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(adresse)
+                          setCopie(cle)
+                          setTimeout(() => setCopie((c) => (c === cle ? null : c)), 1800)
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] text-purple-300 hover:text-purple-200"
+                      >
+                        {copie === cle ? <Check size={11} /> : <Copy size={11} />}
+                        <span>{copie === cle ? 'Copiée' : "Copier l'adresse"}</span>
+                      </button>
+                    </div>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">{f.aide}</p>
+                    {/*
+                      L'adresse est longue et ne doit pas élargir la page : elle
+                      défile dans sa propre boîte plutôt que de pousser la mise
+                      en page — le défaut qu'on vient de corriger ailleurs.
+                    */}
+                    <p className="mt-1 overflow-x-auto whitespace-nowrap rounded-lg bg-black/30 px-2 py-1.5 font-mono text-[11px] text-gray-300">
+                      {adresse}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
 
 /**
  * L'annuaire complet des canaux connus.
@@ -15,7 +98,8 @@ type Canal = Data['canaux'][number]
  * dit quoi coder ensuite.
  *
  * Ce que l'annuaire n'est pas : une promesse. Être listé ne veut pas dire être
- * intégré, et la pastille verte le dit sans détour.
+ * intégré, et les pastilles le disent sans détour — trois états, parce qu'il y
+ * en a trois : reliée, servie par votre flux, ou pas encore branchée.
  */
 export function ChannelDirectory() {
   const [data, setData] = useState<Data | null>(null)
@@ -33,7 +117,19 @@ export function ChannelDirectory() {
     return data.canaux
       .filter((c) => !type || c.type === type)
       .filter((c) => !terme || c.label.toLowerCase().includes(terme))
-      .sort((a, b) => Number(b.integre) - Number(a.integre) || a.label.localeCompare(b.label))
+      /*
+       * Ce qui est utilisable aujourd'hui remonte : les reliées d'abord, puis
+       * celles que le flux du vendeur suffit à servir, puis le reste. Trier
+       * seulement sur `integre` enterrait quatre-vingt-une destinations
+       * exploitables le jour même au milieu de deux cent trente qui ne le sont
+       * pas.
+       */
+      .sort(
+        (a, b) =>
+          Number(b.integre) - Number(a.integre) ||
+          Number(Boolean(b.flux)) - Number(Boolean(a.flux)) ||
+          a.label.localeCompare(b.label),
+      )
   }, [data, recherche, type])
 
   if (!data) return null
@@ -42,6 +138,8 @@ export function ChannelDirectory() {
 
   return (
     <>
+      <FluxProduit data={data} />
+
       <h2 className="mt-12 font-bold">L'annuaire complet</h2>
       <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
         {`${data.total} canaux connus : places de marché, comparateurs, plateformes d'affiliation, régies publicitaires et outils du commerce en ligne. `}
@@ -116,10 +214,24 @@ export function ChannelDirectory() {
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-semibold">{c.label}</span>
+                  {/*
+                    Trois états, et non deux.
+
+                    « Pas encore reliée » était faux pour quatre-vingt-une
+                    entrées : elles n'attendent aucun connecteur, elles
+                    attendent que le vendeur colle l'adresse de son flux. Les
+                    ranger avec celles qui demandent des mois de travail lui
+                    cachait ce qu'il pouvait faire le jour même.
+                  */}
                   {c.integre ? (
                     <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300">
                       <Check size={9} />
                       <span>reliée</span>
+                    </span>
+                  ) : c.flux ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-sky-300">
+                      <Rss size={9} />
+                      <span>par votre flux</span>
                     </span>
                   ) : (
                     <span className="text-[10px] text-gray-500">pas encore reliée</span>
@@ -168,6 +280,51 @@ export function ChannelDirectory() {
                 Cette destination est déjà reliée : vous la retrouvez dans la fenêtre « Diffuser »,
                 et sa clé se règle dans API Connect.
               </p>
+            ) : demande.flux ? (
+              /*
+                Ce canal ne demande rien à coder : il demande une adresse.
+                Le vendeur peut donc s'en servir aujourd'hui, sans nous attendre
+                — et le lui dire ici évite qu'il demande un développement dont il
+                n'a pas besoin.
+              */
+              <>
+                <p className="mt-4 text-xs leading-relaxed text-gray-400">
+                  {data.types.find((t) => t.id === demande.type)?.aide}
+                </p>
+                <p className="mt-3 rounded-xl border border-sky-400/30 bg-sky-400/10 p-3 text-xs leading-relaxed text-sky-100">
+                  <b>Rien à coder de notre côté : ce canal lit un flux produit.</b> {demande.flux.ou}
+                </p>
+                {data.boutiques.length ? (
+                  <div className="mt-3 space-y-2">
+                    {data.boutiques.map((b) => {
+                      const adresse = b.adresses[demande.flux!.format]
+                      if (!adresse) return null
+                      return (
+                        <div key={b.id}>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-[11px] font-semibold text-gray-300">{b.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => navigator.clipboard.writeText(adresse)}
+                              className="inline-flex items-center gap-1 text-[11px] text-purple-300 hover:text-purple-200"
+                            >
+                              <Copy size={11} />
+                              <span>Copier</span>
+                            </button>
+                          </div>
+                          <p className="mt-0.5 overflow-x-auto whitespace-nowrap rounded-lg bg-black/30 px-2 py-1.5 font-mono text-[11px] text-gray-300">
+                            {adresse}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-gray-500">
+                    Créez une boutique dans Réglages : c'est elle qui porte l'adresse du flux.
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <p className="mt-4 text-xs leading-relaxed text-gray-400">
