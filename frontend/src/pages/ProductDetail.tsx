@@ -542,8 +542,38 @@ export default function ProductDetail() {
 
           {/* ---------- Ce que chaque destination acceptera ---------- */}
           {id ? <ChannelReadiness productId={id} /> : null}
+        </div>
 
-          {/* ---------- Marge ---------- */}
+        {/* ---------- Colonne contenu ---------- */}
+        <div className="space-y-5">
+          <Card icon={Sparkles} title="Annonce" hint="Rédigée par l'IA, modifiable librement.">
+            <label className="text-xs text-gray-400">Titre</label>
+            <input
+              defaultValue={product.aiTitle}
+              onBlur={(e) => {
+                setProduct({ ...product, aiTitle: e.target.value })
+                saveField('aiTitle', e.target.value)
+              }}
+              className={`${field} mt-1`}
+            />
+            <p className="mt-1 text-right text-xs text-gray-500">{(product.aiTitle ?? '').length} caractères</p>
+
+            <label className="mt-3 block text-xs text-gray-400">Description</label>
+            <textarea
+              defaultValue={product.aiDescription}
+              onBlur={(e) => {
+                setProduct({ ...product, aiDescription: e.target.value })
+                saveField('aiDescription', e.target.value)
+              }}
+              rows={7}
+              className={`${field} mt-1 leading-relaxed`}
+            />
+          </Card>
+
+          {/* ---------- Prix, tout de suite apres le titre et la description —
+              demande le 04/09/2026 : photos, titre, description, prix, et la
+              suite. Le vendeur lit l'annonce puis decide du prix, dans cet
+              ordre. ---------- */}
           <Card icon={Calculator} title="Calcul de marge">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -617,33 +647,6 @@ export default function ProductDetail() {
             >
               Appliquer une marge de +50 %
             </button>
-          </Card>
-        </div>
-
-        {/* ---------- Colonne contenu ---------- */}
-        <div className="space-y-5">
-          <Card icon={Sparkles} title="Annonce" hint="Rédigée par l'IA, modifiable librement.">
-            <label className="text-xs text-gray-400">Titre</label>
-            <input
-              defaultValue={product.aiTitle}
-              onBlur={(e) => {
-                setProduct({ ...product, aiTitle: e.target.value })
-                saveField('aiTitle', e.target.value)
-              }}
-              className={`${field} mt-1`}
-            />
-            <p className="mt-1 text-right text-xs text-gray-500">{(product.aiTitle ?? '').length} caractères</p>
-
-            <label className="mt-3 block text-xs text-gray-400">Description</label>
-            <textarea
-              defaultValue={product.aiDescription}
-              onBlur={(e) => {
-                setProduct({ ...product, aiDescription: e.target.value })
-                saveField('aiDescription', e.target.value)
-              }}
-              rows={7}
-              className={`${field} mt-1 leading-relaxed`}
-            />
           </Card>
 
           <Card
