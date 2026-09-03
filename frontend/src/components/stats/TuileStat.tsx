@@ -336,7 +336,14 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
   const accent = ACCENTS[(graine - 1 + ACCENTS.length) % ACCENTS.length]
 
   return (
-    <section id={`stats-${bloc.id}`} className="rounded-2xl border border-white/[0.06] bg-[#0e0c17] p-4">
+    // Le verre dépoli des références glassmorphism : fond presque transparent,
+    // flou d'arrière-plan épais, arête haute éclairée — les formes du fond
+    // vivant se devinent au travers.
+    <section
+      id={`stats-${bloc.id}`}
+      className="rounded-2xl border border-white/[0.12] bg-white/[0.05] p-4 backdrop-blur-2xl"
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 40px rgba(0,0,0,0.35)' }}
+    >
       <header className="flex items-center gap-2.5 border-b pb-2" style={{ borderColor: `${accent}33` }}>
         <span className="rounded-md px-1.5 py-0.5 text-[11px] font-bold text-black/80" style={{ backgroundColor: accent }}>
           {bloc.numero}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp } from 'lucide-react'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
+import { FondVivant } from './FondVivant'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 
@@ -162,10 +163,12 @@ export function Layout({ children, large = false, sombre = false }: { children: 
   }, [pathname])
 
   return (
-    // Mode sombre du tableau de bord : le fond noir des planches, pour que
-    // les néons des graphiques ressortent.
-    <div className={`min-h-screen text-white flex ${sombre ? 'bg-[#08070f]' : 'bg-app-gradient'}`}>
-      <aside className="w-56 shrink-0 border-r border-white/10 p-4 flex flex-col">
+    // Mode sombre du tableau de bord : le fond vivant du thème glassmorphism
+    // — noir profond, formes multicolores qui dérivent — sous des blocs en
+    // verre. `relative` sur l'aside et le main les fait peindre au-dessus.
+    <div className={`min-h-screen text-white flex ${sombre ? '' : 'bg-app-gradient'}`}>
+      {sombre ? <FondVivant /> : null}
+      <aside className="relative w-56 shrink-0 border-r border-white/10 p-4 flex flex-col">
         <Link to="/dashboard" className="mb-8 block">
           <Logo size={22} />
         </Link>
@@ -273,7 +276,7 @@ export function Layout({ children, large = false, sombre = false }: { children: 
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-6 md:p-8 overflow-x-hidden">
+      <main className="relative flex-1 p-6 md:p-8 overflow-x-hidden">
         {/*
           Le tableau de bord occupe tout l'écran, comme la maquette : cent
           vingt-six tuiles dans un couloir de 1024 px n'auraient jamais leurs

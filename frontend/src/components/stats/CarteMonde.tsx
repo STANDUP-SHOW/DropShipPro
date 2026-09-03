@@ -136,7 +136,10 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
   const france = CENTRES_ISO.FRA
 
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+    <section
+      className="rounded-2xl border border-white/[0.12] bg-white/[0.05] p-4 backdrop-blur-2xl"
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 40px rgba(0,0,0,0.35)' }}
+    >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span className="rounded-md bg-gradient-to-br from-purple-500 to-fuchsia-500 px-1.5 py-0.5 text-[11px] font-bold text-white">
