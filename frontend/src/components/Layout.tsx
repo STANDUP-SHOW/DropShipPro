@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, KeyRound, ChevronRight } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard } from 'lucide-react'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 
 const NAV = [
+  // Le tableau de bord d abord : l accueil du vendeur, ce sont ses chiffres.
+  { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/pilote', label: 'Pilote auto', icon: Plane },
   { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
@@ -85,21 +87,12 @@ const SECTIONS: Array<{
       { to: '/guide', label: 'Aide', icon: BookOpen },
     ],
   },
-  {
-    /*
-     * Les chantiers ouverts, derrière un code.
-     *
-     * En bas et à part, parce que ce qui est derrière n'est pas fini : la
-     * boutique d'imprimerie repose sur un modèle de prix jamais éprouvé en
-     * vrai. Mêlé au reste du menu, il se prendrait pour une fonction livrée.
-     *
-     * L'entrée reste visible sans le code : cacher le lien ne protège rien —
-     * l'adresse s'atteint quand même — et la porte est de toute façon côté
-     * serveur. La montrer dit au moins qu'il y a une porte.
-     */
-    titre: 'Autorisation spéciale',
-    entrees: [{ to: '/autorisation-speciale', label: 'Bêta', icon: KeyRound }],
-  },
+  /*
+   * « Autorisation spéciale » est sortie du menu le 03/09/2026, à la demande :
+   * « on fera un truc à part pour ça ». La route `/autorisation-speciale`
+   * reste servie — cacher le lien ne ferme rien, la porte est côté serveur —
+   * mais l'imprimerie n'a plus sa place dans un menu produits.
+   */
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {

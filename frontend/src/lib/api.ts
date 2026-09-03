@@ -204,6 +204,11 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ urls }) },
     ),
   listProducts: () => request<any[]>('/products'),
+  /** Les quatorze blocs du tableau de bord statistiques, sur la periode donnee. */
+  tableauStats: (du: Date, au: Date) =>
+    request<{ du: string; au: string; blocs: import('../components/stats/TuileStat').BlocData[] }>(
+      `/stats/tableau?du=${du.toISOString()}&au=${au.toISOString()}`,
+    ),
   getProduct: (id: string) => request<any>(`/products/${id}`),
   updateProduct: (id: string, data: Record<string, unknown>) =>
     request(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
