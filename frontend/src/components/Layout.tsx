@@ -76,8 +76,8 @@ const SECTIONS: Array<{
     ],
   },
   {
-    // Les rayons confiés aux agents se déplient juste sous cette section —
-    // leur liste est vivante, elle vient de l'API.
+    // Les chefs de rayon et leurs rayons dépliables vivent plus haut, sous
+    // « Mes sites » (déplacés le 04/09/2026) : ici ne reste que l'analyse.
     titre: 'Mes rayons IA',
     entrees: [{ to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp }],
   },
@@ -216,57 +216,70 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
                   <span>{item.label}</span>
                 </Link>
               ))}
+
+              {/* La page des chefs de rayon — leurs missions, leurs
+                  automatismes, l'embauche — avait perdu son lien à la
+                  recomposition du menu (retrouvée le 04/09/2026). Elle vit
+                  après « Mes sites », et les rayons embauchés se déplient
+                  juste dessous. */}
+              {section.titre === 'Diffusion' ? (
+                <>
+                  <Link
+                    to="/rayons"
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                      estActive('/rayons')
+                        ? 'bg-purple-500/20 text-white'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <Users size={18} />
+                    <span>Mes chefs de rayon</span>
+                  </Link>
+
+                  {rayons.length > 0 && (
+                    /*
+                      Replié par défaut, et c'est le point.
+                      Vingt-quatre rayons déroulés à la verticale poussaient le
+                      solde de crédits et l'adresse du compte hors de l'écran.
+                      Un rayon actif rouvre la liste tout seul — s'y trouver et
+                      ne pas la voir serait pire que la longueur.
+                    */
+                    <details className="group" open={rayonActif !== null}>
+                      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1 text-[11px] uppercase tracking-wide text-gray-600 hover:text-gray-400">
+                        <ChevronRight size={11} className="transition-transform group-open:rotate-90" />
+                        <span>Mes rayons</span>
+                        <span className="ml-auto normal-case tracking-normal text-gray-600">
+                          {enAttente > 0 ? `${rayons.length} · ${enAttente} en attente` : rayons.length}
+                        </span>
+                      </summary>
+                      {rayons.map((r) => {
+                        const active = pathname.startsWith(`/rayon/${r.id}`)
+                        return (
+                          <Link
+                            key={r.id}
+                            to={`/rayon/${r.id}`}
+                            title={`${r.label} — ${r.agentName}`}
+                            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                              active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <span className="text-base leading-none">{r.emoji}</span>
+                            <span className="truncate">{r.label}</span>
+                            {r.pending > 0 && (
+                              <span className="ml-auto rounded-full bg-emerald-400/20 px-1.5 text-[11px] text-emerald-300">
+                                {r.pending}
+                              </span>
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </details>
+                  )}
+                </>
+              ) : null}
             </div>
           ))}
 
-          {rayons.length > 0 && (
-            /*
-              Replié par défaut, et c'est le point.
-              Vingt-quatre rayons déroulés à la verticale poussaient le solde de
-              crédits et l'adresse du compte hors de l'écran : le bas du menu
-              n'existait plus. Un rayon actif rouvre la liste tout seul — s'y
-              trouver et ne pas la voir serait pire que la longueur.
-            */
-            <details className="group pt-3" open={rayonActif !== null}>
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 pb-1 text-[11px] uppercase tracking-wide text-gray-600 hover:text-gray-400">
-                <ChevronRight size={11} className="transition-transform group-open:rotate-90" />
-                <span>Mes rayons</span>
-                <span className="ml-auto normal-case tracking-normal text-gray-600">
-                  {/* Le compte, et les fiches en attente : de quoi savoir s'il
-                      faut ouvrir, sans avoir à ouvrir. */}
-                  {enAttente > 0 ? `${rayons.length} · ${enAttente} en attente` : rayons.length}
-                </span>
-              </summary>
-              {rayons.map((r) => {
-                const active = pathname.startsWith(`/rayon/${r.id}`)
-                return (
-                  <Link
-                    key={r.id}
-                    to={`/rayon/${r.id}`}
-                    /*
-                      Le rayon, pas l'agent qui le tient.
-                      Le vendeur cherche « Électronique » quand il veut voir ses
-                      montres connectées ; il ne se souvient pas que c'est Malik
-                      qui s'en occupe. Le prénom reste au survol, et sur la page
-                      du rayon où il a un sens : c'est là qu'on lui parle.
-                    */
-                    title={`${r.label} — ${r.agentName}`}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                      active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <span className="text-base leading-none">{r.emoji}</span>
-                    <span className="truncate">{r.label}</span>
-                    {r.pending > 0 && (
-                      <span className="ml-auto rounded-full bg-emerald-400/20 px-1.5 text-[11px] text-emerald-300">
-                        {r.pending}
-                      </span>
-                    )}
-                  </Link>
-                )
-              })}
-            </details>
-          )}
         </nav>
         <div className="border-t border-white/10 pt-3 text-xs text-gray-400">
           {solde && (
