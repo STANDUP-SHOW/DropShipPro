@@ -549,10 +549,34 @@ Trois conséquences, toutes appliquées :
 vérification d'email, import, IA (titre, description, 9 attributs, 6 arguments,
 20 mots-clés), filigrane, calcul de marge, API catalogue, extension.
 
-**Deux destinations publient réellement** : « Mon site » (immédiat, via
-`/api/public/shops/:shopKey/products`) et **Shopify** (API Admin GraphQL, app
-personnalisée créée par le marchand, jeton `shpat_` saisi dans Réglages). Toutes
-les autres marketplaces créent une publication « en attente ».
+**Quatre familles de destinations publient réellement** (44 « live » au
+registre) : « Mon site » (immédiat, via `/api/public/shops/:shopKey/products`),
+**Shopify** (API Admin GraphQL, jeton `shpat_` saisi dans Réglages), **eBay**
+(API Sell, jeton utilisateur OAuth) et les **41 opérateurs Mirakl** (dépôt
+d'offres CSV, adresse + clé du back-office). Les autres marketplaces créent une
+publication « en attente ».
+
+- eBay : `backend/src/services/ebay.ts`, banc `npx tsx check-ebay.ts` (faux
+  serveur). Triptyque imposé par l'API Inventory : fiche (`inventory_item`),
+  offre, `publish`. La **catégorie est demandée à la taxonomie d'eBay**
+  (suggestions) puis mémorisée dans `Category.targets.EBAY_ID` — jamais de table
+  maison. Trois prérequis côté compte, traduits en gestes précis quand ils
+  manquent : politiques de vente (livraison, paiement, retours) et emplacement
+  marchand. **Le jeton utilisateur vit deux heures** : seul, il marche puis
+  expire ; avec le trio refresh token + Client ID + Client Secret, il se
+  renouvelle tout seul (`avecRenouvellement`, rejoué une fois sur 401
+  uniquement). Stock prudent (10, pas 100) : eBay sanctionne les annulations.
+  **Jamais confronté à un vrai compte eBay** — mais vérifié en production le
+  03/09/2026 avec un jeton invalide : le 401 du vrai api.ebay.com revient en
+  refus lisible sur la publication.
+- **Un connecteur branché côté serveur peut être injoignable depuis l'écran.**
+  Découvert en branchant le formulaire eBay : le champ générique « Clé API »
+  n'envoyait qu'une clé, alors que `readMiraklCredentials` exige aussi
+  l'adresse du back-office — aucun opérateur Mirakl n'était connectable depuis
+  l'interface, et aucun banc ne le voyait (ils appellent le service, pas le
+  formulaire). Formulaires dédiés dans `PlatformCredentials.tsx`, validation au
+  collage dans `routes/settings.ts` (trio eBay complet ou rien ; adresse Mirakl
+  obligatoire).
 
 - Shopify : `backend/src/services/shopify.ts`, version d'API épinglée par
   `SHOPIFY_API_VERSION` (défaut 2025-10). `productCreate` puis
@@ -576,10 +600,11 @@ les autres marketplaces créent une publication « en attente ».
   source unique côté UI : le guide, les réglages et la publication en lot en
   dépendent au lieu de coder les plateformes en dur.
 
-- **Automatisable en self-service** : eBay (Sell API), Google Shopping (Merchant
-  Center gratuit), Wish
-- **Compte vendeur validé requis** : Amazon, Cdiscount, TikTok Shop, et les
-  opérateurs Mirakl (La Redoute, Leclerc, BHV, Kiabi, BrandAlley)
+- **Automatisable en self-service** : Google Shopping (Merchant Center
+  gratuit), Wish
+- **Compte vendeur validé requis** : Amazon, Cdiscount, TikTok Shop (les
+  opérateurs Mirakl demandent aussi d'être accepté vendeur, mais le connecteur
+  est branché)
 - **Pas d'API, extension uniquement** : Vinted, Leboncoin, Facebook Marketplace
 - **Etsy** interdit la revente de produits manufacturés — risque de fermeture
 - **Atlas For Men a été retiré de la liste** le 26/08/2026 : détaillant en marque

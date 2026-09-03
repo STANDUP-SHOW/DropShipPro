@@ -47,6 +47,13 @@ Par ordre de risque :
 - **Shopify** au-delà du socle : le code de publication complète (catégorie
   taxonomique, collections, métachamps, variantes en masse) est compilé, jamais
   exécuté contre une vraie boutique. Il faut un jeton `shpat_` réel.
+- **eBay** (`services/ebay.ts`, 03/09/2026) : banc contre faux serveur, et le
+  circuit **est** vérifié déployé — un jeton invalide a fait l'aller-retour
+  jusqu'au vrai api.ebay.com et le 401 revient en refus lisible. Mais aucune
+  annonce n'a jamais été réellement créée : il faut un vrai jeton vendeur avec
+  les portées sell.inventory et sell.account.
+- **Mirakl** : même état — connecteur et formulaire (adresse + clé) en place,
+  jamais confronté à un vrai opérateur.
 - **Meta** (`services/socialMeta.ts`) : jamais confronté au vrai Meta. Il manque
   l'app, la vérification d'entreprise et l'App Review.
 - **Zernio** (`services/socialGateway.ts`) : jamais confronté au vrai service.
