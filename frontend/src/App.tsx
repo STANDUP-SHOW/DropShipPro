@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard'
 import Statistiques from './pages/Statistiques'
 import Acquisition from './pages/Acquisition'
 import Extension from './pages/Extension'
+import CommandesFournisseurs from './pages/CommandesFournisseurs'
 import SavFournisseurs from './pages/SavFournisseurs'
 import ProductDetail from './pages/ProductDetail'
 import Orders from './pages/Orders'
@@ -110,6 +111,7 @@ export default function App() {
           <Route path="/statistiques" element={<Protected><Statistiques /></Protected>} />
           <Route path="/acquisition" element={<Protected><Acquisition /></Protected>} />
           <Route path="/extension" element={<Protected><Extension /></Protected>} />
+          <Route path="/commandes-fournisseurs" element={<Protected><CommandesFournisseurs /></Protected>} />
           <Route path="/sav-fournisseurs" element={<Protected><SavFournisseurs /></Protected>} />
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />

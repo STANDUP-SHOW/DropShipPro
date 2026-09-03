@@ -43,8 +43,16 @@ const SECTIONS: Array<{
     ],
   },
   {
+    // La zone Sourcing telle que la découpe la voulait (précisée le
+    // 04/09/2026) : les fournisseurs, puis leurs commandes par état.
     titre: 'Sourcing',
-    entrees: [{ to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes }],
+    entrees: [
+      { to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes },
+      { to: '/commandes-fournisseurs', label: 'Commandes fournisseurs', icon: ShoppingBag },
+      { to: '/commandes-fournisseurs?etat=en-cours', label: 'En cours', icon: Truck },
+      { to: '/commandes-fournisseurs?etat=terminees', label: 'Terminées', icon: Package },
+      { to: '/commandes-fournisseurs?etat=sav', label: 'En SAV', icon: LifeBuoy },
+    ],
   },
   {
     titre: 'Produits',
