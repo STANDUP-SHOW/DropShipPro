@@ -26,6 +26,7 @@ import { selfCheck } from './services/selfCheck.js'
 import { ticketsRouter } from './routes/tickets.js'
 import { socialRouter, socialPublicRouter } from './routes/social.js'
 import { semerCategories } from './services/categories.js'
+import { tourneeEnquetes } from './services/enqueteFournisseurs.js'
 const app = express()
 
 // A deployed app is reached from several origins at once — the custom domain, its
@@ -116,3 +117,22 @@ app.listen(port, () => console.log(`DropShip Pro API sur http://localhost:${port
 semerCategories()
   .then((r) => console.log(`Référentiel : ${r.categories} catégories, ${r.alias} alias ajoutés`))
   .catch((e) => console.error('semis du referentiel impossible', e))
+
+/*
+ * L'enquête fournisseurs quotidienne — la liste de gagnants qui se remplit
+ * toute seule pour les vendeurs à rayon actif et clé AliExpress reliée.
+ *
+ * Toutes les six heures plutôt qu'à heure fixe : Railway redémarre l'API à
+ * chaque déploiement, un rendez-vous de sept heures du matin serait manqué un
+ * jour sur deux. La garde des vingt heures, côté service, fait qu'un vendeur
+ * n'est servi qu'une fois par jour quel que soit le nombre de passages. Le
+ * premier tour part deux minutes après le démarrage, pour que le déploiement
+ * du matin serve la liste du matin.
+ */
+setTimeout(() => {
+  tourneeEnquetes().catch((e) => console.error('tournée des enquêtes impossible', e))
+  setInterval(
+    () => tourneeEnquetes().catch((e) => console.error('tournée des enquêtes impossible', e)),
+    6 * 3600 * 1000,
+  )
+}, 2 * 60 * 1000)

@@ -53,6 +53,8 @@ export default function Rayon() {
   const [payError, setPayError] = useState<string | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
+  /** L'état de l'enquête lancée à la main : 'en-cours', ou le résultat dit. */
+  const [enquete, setEnquete] = useState<string | null>(null)
 
   function chargerRayon() {
     api
@@ -195,6 +197,33 @@ export default function Rayon() {
               : `${department.agentName} est en poste.`
             : `${department.agentName} est à l'arrêt : son abonnement a expiré. Ses trouvailles et vos échanges sont conservés.`}
         </p>
+
+        {department.active ? (
+          <button
+            type="button"
+            disabled={enquete === 'en-cours'}
+            onClick={() => {
+              setEnquete('en-cours')
+              api
+                .lancerEnquete(department.id)
+                .then((r) =>
+                  setEnquete(
+                    r.raison ??
+                      (r.deposees
+                        ? `${r.deposees} produit(s) gagnant(s) déposé(s) — regardez l'onglet des trouvailles.`
+                        : `Rien de neuf : les ${r.relevees} produits du flux étaient déjà repérés.`),
+                  ),
+                )
+                .catch((err) => setEnquete(err instanceof Error ? err.message : "L'enquête a échoué."))
+            }}
+            className="rounded-lg border border-purple-400/40 px-3 py-1.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/10 disabled:opacity-50"
+          >
+            {enquete === 'en-cours' ? 'Enquête en cours…' : "Lancer l'enquête du jour"}
+          </button>
+        ) : null}
+        {enquete && enquete !== 'en-cours' ? (
+          <span className="max-w-xs text-xs leading-snug text-emerald-200">{enquete}</span>
+        ) : null}
 
         <div className="ml-auto flex flex-wrap gap-2">
           {plans.map((p) => (

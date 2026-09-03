@@ -1139,6 +1139,12 @@ export const api = {
       }>
       plans: Array<{ id: string; label: string; amount: number; days: number; pitch: string }>
     }>('/departments/catalogue'),
+  /** Lance l'enquête fournisseurs du jour sans attendre la tournée. */
+  lancerEnquete: (departmentId: string) =>
+    request<{ deposees: number; relevees: number; raison?: string }>(`/api/departments/${departmentId}/enquete`, {
+      method: 'POST',
+    }),
+
   listDepartments: () =>
     request<
       Array<{

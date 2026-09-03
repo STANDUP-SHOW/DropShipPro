@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { DEPARTMENTS, DEPARTMENT_KEYS, findDepartment } from '../services/departments.js'
 import { AGENT_PLANS, isActive } from '../services/agentBilling.js'
+import { enqueteAliExpress } from '../services/enqueteFournisseurs.js'
 import { reserveCredits } from '../services/billing.js'
 import { SECTOR_CATEGORIES } from '../services/categorySectors.js'
 import {
@@ -110,6 +111,26 @@ departmentsRouter.post('/', async (req: AuthedRequest, res) => {
     label: profile.label,
     emoji: profile.emoji,
   })
+})
+
+/**
+ * Lance l'enquête fournisseurs sans attendre la tournée.
+ *
+ * Le vendeur qui vient de relier sa clé AliExpress veut voir la liste tout de
+ * suite, pas demain matin. La garde des vingt heures s'applique quand même :
+ * relancer dix fois ne relève pas dix fois.
+ */
+departmentsRouter.post('/:id/enquete', async (req: AuthedRequest, res) => {
+  const department = await prisma.department.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
+  if (!isActive(department.paidUntil)) {
+    return res.status(402).json({ error: `${department.agentName} est à l'arrêt : réabonnez le rayon pour lancer une enquête.` })
+  }
+
+  const resultat = await enqueteAliExpress(req.userId!)
+  res.json(resultat)
 })
 
 /**
