@@ -310,6 +310,25 @@ Trois conséquences, toutes appliquées :
   « Autoriser le developpement d applications personnalisees » doit etre active
   une fois, et seul le proprietaire de la boutique peut le faire.
 
+- **Un agent sans outils est un chatbot, et le vendeur le voit tout de suite.**
+  Constaté le 04/09/2026 : « je lui demande 5 produits phares sur AliExpress,
+  il me répond qu'il n'a pas accès ni aux fournisseurs ni aux marketplaces ».
+  Les chefs de rayon ont désormais trois outils (`chefOutils.ts`, banc
+  `check-chef-outils.ts`) : recherche chez les fournisseurs **reliés** (CJ par
+  mots-clés, meilleures ventes AliExpress), sondage des prix réellement
+  pratiqués dans le catalogue, opportunités déposées par les enquêtes. Rien
+  n'est inventé : chaque chiffre a une source, un fournisseur non relié rend
+  le geste (Sourcing › Fournisseurs), un refus fournisseur est transmis tel
+  quel. Boucle d'outils bornée à trois tours, Sonnet dès qu'un outil est là.
+
+- **Le retour de Stripe atterrit là où `return_url` pointe — et cette page
+  doit confirmer.** Le paiement d'un chef de rayon renvoyait vers
+  `/rayon/:id?session_id=…` où personne ne lisait `session_id` : l'argent
+  était encaissé et l'abonnement jamais prolongé. Toute nouvelle formule qui
+  choisit son `return_url` doit embarquer la confirmation sur la page cible.
+  Et l'abonnement doit être **vérifié là où il donne accès** : le chat des
+  rayons contrôlait crédits et plafond mais jamais `paidUntil`.
+
 - **Ce qui est vendu au forfait doit avoir un plafond.** L application revend une
   intelligence qu elle achete et ne fabrique pas. Le danger n est pas le nombre
   d utilisateurs, c est le pire d entre eux : a Sonnet une reponse coute ~0,024 EUR,
