@@ -60,6 +60,12 @@ export interface TuileData {
   evolution?: number | null
   serie?: number[]
   parts?: Array<{ label: string; valeur: number }>
+  /**
+   * La forme epinglee pour cette tuile, quand quelqu un l a choisie a la main
+   * -- le scenario de demonstration le fait pour marier chaque donnee a son
+   * dessin. Le tirage la respecte et la sort du chapeau en premier.
+   */
+  forme?: Forme
   raison?: string
 }
 
@@ -224,7 +230,7 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   }
 
   const valeurEnDegrade = (taille: string) => (
-    <p className={`bg-gradient-to-r bg-clip-text font-extrabold text-transparent ${taille}`} style={{ backgroundImage: `linear-gradient(90deg, ${de}, ${a})` }}>
+    <p className={`break-words bg-gradient-to-r bg-clip-text font-extrabold leading-tight text-transparent ${taille}`} style={{ backgroundImage: `linear-gradient(90deg, ${de}, ${a})` }}>
       {formatValeur(tuile.valeur!, tuile.unite)}
     </p>
   )
@@ -232,7 +238,7 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   return (
     <div
       data-forme={choisie}
-      className="flex h-full flex-col rounded-xl border border-white/[0.08] bg-white/[0.04] p-3 transition hover:border-white/[0.16]"
+      className="@container flex h-full flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] p-3 transition hover:border-white/[0.16]"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -242,13 +248,15 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
 
       {RONDES.includes(choisie) ? (
         <div className="mt-1 flex flex-1 items-center justify-between gap-2">
-          {valeurEnDegrade('text-2xl')}
-          <div className="-my-1 shrink-0">{dessin}</div>
+          <div className="min-w-0">{valeurEnDegrade('@[13rem]:text-2xl text-lg')}</div>
+          {/* Le dessin retrecit avec la tuile : sorti de son cadre, il ecrasait
+              la tuile voisine -- signale le 03/09/2026. */}
+          <div className="-my-1 w-12 shrink-0 @[13rem]:w-16 [&_svg]:h-auto [&_svg]:w-full">{dessin}</div>
         </div>
       ) : (
         <>
-          <div className="mt-1">{valeurEnDegrade('text-2xl')}</div>
-          <div className="mt-auto pt-2">{dessin}</div>
+          <div className="mt-1 min-w-0">{valeurEnDegrade('@[13rem]:text-2xl text-lg')}</div>
+          <div className="mt-auto w-full pt-2">{dessin}</div>
         </>
       )}
     </div>
@@ -275,7 +283,8 @@ function capacitesDe(tuile: TuileData): Capacites {
  */
 export function BlocStats({ bloc }: { bloc: BlocData }) {
   const graine = Number(bloc.numero) || 0
-  const prises = new Set<Forme>()
+  // Les formes epinglees sortent du chapeau avant le tirage : elles priment.
+  const prises = new Set<Forme>(bloc.tuiles.map((t) => t.forme).filter((f): f is Forme => Boolean(f)))
   /*
    * L empreinte de la tuile entre dans le depart du tirage : sans elle, les
    * memes rangs tiraient les memes regions du chapeau et six formes ne
@@ -289,6 +298,7 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
   }
   const attribution = bloc.tuiles.map((tuile, i) => {
     if (tuile.valeur === null) return undefined
+    if (tuile.forme) return tuile.forme
     const forme = tirerForme(i * 5 + graine * 13 + empreinte(tuile.id), capacitesDe(tuile), prises)
     prises.add(forme)
     return forme
