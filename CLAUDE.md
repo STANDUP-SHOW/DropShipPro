@@ -211,6 +211,27 @@ Trois conséquences, toutes appliquées :
   `node check-recommandations.cjs`, éprouvé contre la version fautive —
   **20 voisins sur 28 retenues** sans la règle, 0 avec.
 
+- **Le panier du vendeur est affiché sur toutes les fiches Temu.** Même jour,
+  et c'était la cause principale : un **collier boussole** arrivait en photo
+  n°1 de dizaines d'annonces — une bague, un parfum, un sac. Ce n'était pas le
+  carrousel, qui change d'une fiche à l'autre, mais un **panneau flottant**
+  présent partout, donc dans tous les imports et toujours en tête.
+
+  Invisible à tous les filtres : la photo d'un article en panier est une vraie
+  photo de produit, sur le bon CDN, sous le bon chemin, à la bonne taille. Et
+  `dspChromeImages()` ne regardait que `header, nav, footer, aside` — un
+  panneau panier est un `<div>` de plus, aux classes obfusquées.
+
+  Ce qui le distingue est sa **position** : ce qui reste à l'écran quand la
+  page défile est du mobilier par construction ; la galerie défile avec la
+  fiche. **`fixed` seulement, jamais `sticky`** — plusieurs marchands rendent
+  la colonne de la galerie collante pendant qu'on lit la description, et
+  l'exclure jetterait les vraies photos. Le banc vérifie les deux sens.
+
+  Leçon plus large : **la photo parasite qui coûte le plus cher est celle qui
+  ne change pas d'une fiche à l'autre.** Une mauvaise recommandation abîme une
+  annonce ; un élément d'interface persistant les abîme toutes.
+
 - **Une balise SEO n'est pas une description, et le modèle ne peut pas le
   deviner.** Même jour, même lot, et c'est le plus grave des deux :
   `collectDescription()` cherche un bloc par nom de classe
