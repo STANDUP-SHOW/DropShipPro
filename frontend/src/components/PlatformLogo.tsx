@@ -28,6 +28,7 @@ const FICHIERS: Record<string, string> = {
   EBAY: 'ebay.png',
   ETSY: 'etsy.png',
   LA_REDOUTE: 'laredoute.png',
+  KAUFLAND: 'kaufland_marketplace.png',
   LECLERC: 'eleclerc.png',
   BHV: 'bhvmarais.png',
   KIABI: 'kiabi_logo.png',

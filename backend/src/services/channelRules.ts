@@ -54,6 +54,9 @@ export const TITRE_MAX: Partial<Record<Platform, number>> = {
   LEBONCOIN: 50,
   VINTED: 70,
   EBAY: 80,
+  // Kaufland recommande 50 a 80 caracteres et raccourcit au-dela : 80 est donc
+  // la limite utile, pas une borne technique.
+  KAUFLAND: 80,
   FACEBOOK: 100,
   LA_REDOUTE: 120,
   LECLERC: 120,
@@ -185,6 +188,66 @@ function attributsMin(min: number, plateforme: string): RegleCanal {
   }
 }
 
+/**
+ * L'EAN, exigé par Kaufland — et la raison de le vérifier avant de publier.
+ *
+ * Kaufland n'accepte pas une fiche libre : chaque offre est **appariée à sa
+ * fiche catalogue par le code-barres**, et cet EAN doit venir du fabricant ou
+ * de GS1. Sans lui, l'offre est refusée, point. C'est la contrainte la plus
+ * dure de toute la liste des destinations, et celle qui touche le plus un
+ * catalogue importé : un produit venu de Temu ou d'AliExpress n'en a
+ * généralement aucun.
+ *
+ * Cherché dans les attributs plutôt que dans une colonne dédiée : le vendeur
+ * les édite déjà sur la fiche, et l'IA en remplit parfois un quand la page
+ * source le porte. Le jour où un EAN devient une donnée de premier plan — parce
+ * que plusieurs destinations l'exigent — il méritera sa colonne.
+ */
+const EAN: RegleCanal = {
+  id: 'ean',
+  quoi: 'EAN / code-barres officiel',
+  severite: 'bloquant',
+  verifie: (p) => {
+    const attributs =
+      p.attributes && typeof p.attributes === 'object' && !Array.isArray(p.attributes)
+        ? (p.attributes as Record<string, unknown>)
+        : {}
+
+    for (const [cle, valeur] of Object.entries(attributs)) {
+      if (!/ean|gtin|barcode|code.?barres?/i.test(cle)) continue
+      // Huit à quatorze chiffres : EAN-8, UPC-12, EAN-13, GTIN-14.
+      if (/^\d{8}$|^\d{12,14}$/.test(String(valeur).replace(/\s/g, ''))) return null
+    }
+
+    return "Kaufland apparie chaque offre à sa fiche catalogue par l'EAN, qui doit venir du fabricant ou de GS1. Ajoutez un attribut « EAN » à l'annonce ; sans lui l'offre sera refusée."
+  },
+}
+
+/**
+ * Le fabricant, l'autre attribut obligatoire de Kaufland.
+ *
+ * Il figure dans leurs six champs requis, au même titre que l'EAN et la
+ * catégorie. Un produit sans marque identifiée n'a rien à y mettre — c'est le
+ * même mur que chez BrandAlley, dit autrement.
+ */
+const FABRICANT: RegleCanal = {
+  id: 'fabricant',
+  quoi: 'Fabricant ou marque',
+  severite: 'bloquant',
+  verifie: (p) => {
+    const attributs =
+      p.attributes && typeof p.attributes === 'object' && !Array.isArray(p.attributes)
+        ? (p.attributes as Record<string, unknown>)
+        : {}
+    const trouve = Object.entries(attributs).some(
+      ([cle, valeur]) => /fabricant|marque|brand|manufacturer/i.test(cle) && texte(valeur).length > 1,
+    )
+    return trouve
+      ? null
+      : "Kaufland exige un fabricant : ajoutez un attribut « Marque » ou « Fabricant » à l'annonce."
+  },
+}
+
 /** Les règles que toute destination partage. */
 const COMMUNES: RegleCanal[] = [DESCRIPTION, PRIX, MARGE, TITRE_COURT, photosMin(1, 'Toute destination')]
 
@@ -222,6 +285,22 @@ export const REGLES_PAR_CANAL: Partial<Record<Platform, RegleCanal[]>> = {
   BHV: [...COMMUNES, titreMax(TITRE_MAX.BHV!, 'BHV Marais'), CATEGORIE],
   KIABI: [...COMMUNES, titreMax(TITRE_MAX.KIABI!, 'Kiabi'), CATEGORIE, attributsMin(4, 'Kiabi')],
   BRANDALLEY: [...COMMUNES, titreMax(TITRE_MAX.BRANDALLEY!, 'BrandAlley'), CATEGORIE],
+  /*
+   * Kaufland est la destination la plus exigeante de la liste, et il vaut mieux
+   * le découvrir ici qu'après avoir payé un abonnement vendeur : EAN officiel,
+   * fabricant, catégorie, cinq photos et un titre de quatre-vingts caractères.
+   */
+  KAUFLAND: [
+    ...COMMUNES,
+    titreMax(TITRE_MAX.KAUFLAND!, 'Kaufland'),
+    CATEGORIE,
+    EAN,
+    FABRICANT,
+    // Cinq a dix vues, resolution minimale de 1024 px : c est ce que leur guide
+    // de donnees produit demande.
+    photosMin(5, 'Kaufland'),
+    attributsMin(4, 'Kaufland'),
+  ],
   SPARTOO: [...COMMUNES, titreMax(TITRE_MAX.SPARTOO!, 'Spartoo'), CATEGORIE],
   MIINTO: [...COMMUNES, titreMax(TITRE_MAX.MIINTO!, 'Miinto'), CATEGORIE],
   WISH: [...COMMUNES, titreMax(TITRE_MAX.WISH!, 'Wish'), CATEGORIE],

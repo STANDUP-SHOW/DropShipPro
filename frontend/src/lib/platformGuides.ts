@@ -162,6 +162,28 @@ for (const id of MIRAKL_IDS) {
   }
 }
 
+/*
+ * Kaufland — la porte d'entrée européenne la moins chère, et la plus exigeante.
+ *
+ * Une seule inscription ouvre sept pays, dont la France depuis 2026. Mais son
+ * modèle n'est pas celui d'une place de marché à fiches libres : chaque offre
+ * se greffe sur une fiche catalogue existante, retrouvée **par l'EAN**. C'est
+ * la première chose à dire, avant même la clé d'API — un vendeur qui découvre
+ * la contrainte après avoir payé son abonnement a perdu son argent.
+ */
+PLATFORM_GUIDES.KAUFLAND = {
+  summary:
+    "Kaufland Global Marketplace ouvre sept pays (Allemagne, France, Italie, Pologne, Autriche, Tchéquie, Slovaquie) avec une seule inscription, et documente une Seller API en self-service.",
+  steps: [
+    'Vérifiez d\'abord que vos produits ont un EAN officiel : sans lui, rien ne peut être publié (voir la mise en garde ci-dessous).',
+    "Inscrivez-vous comme vendeur sur kauflandglobalmarketplace.com — SIRET, TVA intracommunautaire et coordonnées bancaires.",
+    'Une fois le compte validé, ouvrez Seller Portal › Paramètres › API et générez votre clé et votre secret.',
+    'Collez-les dans Réglages › Plateformes de vente, en face de Kaufland.',
+  ],
+  caution:
+    "L'EAN est obligatoire et doit venir du fabricant ou de GS1 : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres. Un produit importé de Temu ou d'AliExpress n'en a généralement aucun, et en acheter un chez GS1 ne se justifie que si vous vendez sous votre propre marque. L'envoi automatique n'est pas encore branché : la publication est enregistrée « en attente ».",
+}
+
 const SPECIALIST_IDS = ['SPARTOO', 'MIINTO']
 
 for (const id of SPECIALIST_IDS) {

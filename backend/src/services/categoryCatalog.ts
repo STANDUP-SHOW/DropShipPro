@@ -356,6 +356,7 @@ const FRENCH_MARKETPLACES: Platform[] = [
   'BHV',
   'KIABI',
   'BRANDALLEY',
+  'KAUFLAND',
   'SPARTOO',
   'MIINTO',
 ]

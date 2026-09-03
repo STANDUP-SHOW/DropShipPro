@@ -78,6 +78,7 @@ const COLORS: Record<string, string> = {
   BHV: '#e2001a',
   KIABI: '#e5007d',
   BRANDALLEY: '#1a1a1a',
+  KAUFLAND: '#e10915',
   SPARTOO: '#ff6600',
   MIINTO: '#000000',
   ETSY: '#f56400',
@@ -191,6 +192,27 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     sellUrl: 'https://www.brandalley.fr',
     note: 'Ventes privées — fonctionne par opérations de déstockage de marques.',
     warning: 'Positionnement marques : les produits sans marque identifiée sont rarement acceptés.',
+  },
+  /*
+   * Kaufland Global Marketplace — allemande, presente en France depuis 2026.
+   *
+   * Une seule inscription ouvre les sept vitrines du groupe (DE, AT, PL, CZ,
+   * SK, FR, IT), ce qui en fait la porte d entree la moins chere vers l Europe
+   * pour un vendeur francais.
+   *
+   * Le `warning` n est pas decoratif : c est la seule chose qui compte avant de
+   * payer un abonnement vendeur. Kaufland apparie chaque offre a sa fiche
+   * catalogue **par l EAN**, et l EAN doit venir du fabricant ou de GS1. Un
+   * produit importe de Temu ou d AliExpress n en a generalement aucun.
+   */
+  {
+    id: 'KAUFLAND',
+    label: 'Kaufland',
+    automatable: true,
+    sellUrl: 'https://www.kauflandglobalmarketplace.com/fr/seller-registration/',
+    note: "Seller API documentée (sellerapi.kaufland.com), inscription vendeur en self-service. Une seule inscription ouvre les sept pays du groupe, dont Kaufland.fr.",
+    warning:
+      "EAN/GTIN officiel obligatoire : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres, et il doit venir du fabricant ou de GS1. Un produit importé sans EAN sera refusé.",
   },
   {
     id: 'SPARTOO',

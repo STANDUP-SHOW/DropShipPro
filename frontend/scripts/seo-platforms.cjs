@@ -8,6 +8,35 @@
  */
 module.exports = [
   {
+    slug: 'kaufland',
+    name: 'Kaufland',
+    color: '#e10915',
+    integration: 'api-ready',
+    title: 'Vendre sur Kaufland : sept pays, une seule inscription',
+    description:
+      "Vendre sur Kaufland Global Marketplace depuis la France : une inscription pour sept pays, une Seller API documentée — et l'EAN obligatoire, qui décide de tout.",
+    intro:
+      "Kaufland Global Marketplace est la place de marché du groupe allemand Schwarz, née du rachat de real.de. Elle a ouvert sa vitrine française en 2026, et son intérêt tient en une phrase : une seule inscription donne accès à sept pays — Allemagne, France, Italie, Pologne, Autriche, Tchéquie, Slovaquie — avec la traduction des fiches et l'encaissement dans la monnaie de chaque marché.",
+    audience:
+      "Le cœur de l'audience reste allemand, et c'est là que se fait le volume : l'Allemagne est le second marché e-commerce d'Europe, largement sous-exploité par les vendeurs français. Le catalogue est généraliste — maison, jardin, bricolage, high-tech, puériculture, sport. Les acheteurs y viennent pour une enseigne qu'ils connaissent en magasin, ce qui joue en faveur des produits du quotidien plutôt que des achats d'impulsion.",
+    constraints:
+      "La contrainte décisive est l'EAN. Kaufland ne fonctionne pas par fiches libres : chaque offre se greffe sur une fiche catalogue existante, retrouvée par le code-barres. L'EAN doit venir du fabricant ou de GS1 — un code inventé ou repris d'un autre produit fait refuser l'offre. Concrètement, un produit importé d'une place de marché asiatique n'en a généralement aucun, et acheter un préfixe GS1 ne se justifie que si l'on vend sous sa propre marque. Le guide de données produit demande par ailleurs un titre de 50 à 80 caractères, une description d'au moins 150 caractères, cinq à dix photos d'au moins 1024 pixels, et un fabricant identifié. La Seller API, elle, est documentée publiquement et s'ouvre en self-service une fois le compte vendeur validé.",
+    faq: [
+      {
+        q: 'Faut-il un EAN pour vendre sur Kaufland ?',
+        a: "Oui, sans exception pour créer une fiche. Kaufland apparie les offres à son catalogue par le code-barres, et il doit être officiel — attribué par le fabricant ou acheté auprès de GS1. Si la fiche existe déjà, vous n'avez plus qu'à ajouter votre prix et votre stock ; si elle n'existe pas, vous la créez, mais toujours avec un EAN valide.",
+      },
+      {
+        q: "Une seule inscription suffit-elle pour l'Allemagne et la France ?",
+        a: "Oui. C'est l'argument principal de Kaufland face à ses concurrents : un compte, sept vitrines nationales, la traduction des fiches et des tickets prise en charge, et le paiement dans la monnaie locale. Un vendeur français y touche le marché allemand sans monter une structure sur place.",
+      },
+      {
+        q: 'Faut-il parler allemand ?',
+        a: "Non. Kaufland traduit les données produit et les messages du service client. Cela dit, une fiche traduite automatiquement reste une fiche traduite : sur un produit technique, une relecture par quelqu'un qui parle la langue fait la différence entre une annonce lue et une annonce ignorée.",
+      },
+    ],
+  },
+  {
     slug: 'vinted',
     name: 'Vinted',
     color: '#007782',
