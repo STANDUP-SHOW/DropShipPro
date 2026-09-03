@@ -124,7 +124,7 @@ const SECTIONS: Array<{
   },
 ]
 
-export function Layout({ children, large = false }: { children: React.ReactNode; large?: boolean }) {
+export function Layout({ children, large = false, sombre = false }: { children: React.ReactNode; large?: boolean; sombre?: boolean }) {
   const { pathname, search, hash } = useLocation()
   /** Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte. */
   const estActive = (to: string) =>
@@ -162,7 +162,9 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
   }, [pathname])
 
   return (
-    <div className="min-h-screen bg-app-gradient text-white flex">
+    // Mode sombre du tableau de bord : le fond noir des planches, pour que
+    // les néons des graphiques ressortent.
+    <div className={`min-h-screen text-white flex ${sombre ? 'bg-[#08070f]' : 'bg-app-gradient'}`}>
       <aside className="w-56 shrink-0 border-r border-white/10 p-4 flex flex-col">
         <Link to="/dashboard" className="mb-8 block">
           <Logo size={22} />

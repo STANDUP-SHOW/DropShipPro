@@ -189,7 +189,7 @@ type Scene = Partial<Pick<TuileData, 'valeur' | 'evolution' | 'serie' | 'parts'>
 const SCENARIO: Record<string, Scene> = {
   // 01 · Vue générale — le bloc que la démo raconte en premier.
   'vue-generale/ca': { valeur: CA, evolution: EVOL_CA, serie: serieSommant(CA, 'ca'), forme: 'aires' },
-  'vue-generale/commandes': { valeur: COMMANDES, evolution: EVOL_COMMANDES, serie: serieSommant(COMMANDES, 'commandes'), forme: 'batons' },
+  'vue-generale/commandes': { valeur: COMMANDES, evolution: EVOL_COMMANDES, serie: serieSommant(COMMANDES, 'commandes'), forme: 'troislignes' },
   'vue-generale/marge': { valeur: MARGE_NETTE, evolution: 2.6, forme: 'jauge' },
   'vue-generale/benefice': { valeur: BENEFICE, evolution: 22.1, serie: serieSommant(BENEFICE, 'benefice'), forme: 'etincelle' },
   'vue-generale/panier': { valeur: PANIER, evolution: -3.2, forme: 'barre' },
@@ -203,7 +203,7 @@ const SCENARIO: Record<string, Scene> = {
   'acquisition/nouveaux': { valeur: 84, evolution: 11.1, serie: serieSommant(84, 'nouveaux'), forme: 'etincelle' },
   'acquisition/publiables': { valeur: 296, evolution: 7.2, forme: 'rayures' },
   'acquisition/publies': { valeur: 264, evolution: 18.7, forme: 'pastilles' },
-  'acquisition/sources': { valeur: FOURNISSEURS_ACTIFS, parts: ACQUIS_PAR_SOURCE, forme: 'barresh' },
+  'acquisition/sources': { valeur: FOURNISSEURS_ACTIFS, parts: ACQUIS_PAR_SOURCE, forme: 'rangeespilules' },
   'acquisition/categories': { valeur: CATEGORIES, evolution: 3, forme: 'segments' },
   'acquisition/evolution': { valeur: 9.4, forme: 'vague', serie: serieSommant(ACQUIS, 'acquis') },
   'acquisition/potentiel': { valeur: ANALYSES, evolution: 24.6, forme: 'anneaupastille' },
@@ -234,7 +234,7 @@ const SCENARIO: Record<string, Scene> = {
   // 05 · Marketplaces — le CA se découpe, il ne se répète pas au hasard.
   'marketplaces/actives': { valeur: 8, forme: 'crante' },
   'marketplaces/annonces': { valeur: ANNONCES_DIFFUSEES, evolution: 12.1, forme: 'barre' },
-  'marketplaces/ca': { valeur: CA, evolution: EVOL_CA, parts: CA_PAR_MARKETPLACE, forme: 'camembert' },
+  'marketplaces/ca': { valeur: CA, evolution: EVOL_CA, parts: CA_PAR_MARKETPLACE, forme: 'secteurs' },
   'marketplaces/commandes': { valeur: COMMANDES, evolution: EVOL_COMMANDES, serie: serieSommant(COMMANDES, 'commandes'), forme: 'batons' },
   'marketplaces/marge': { valeur: MARGE_NETTE, evolution: 2.6, forme: 'jauge' },
   'marketplaces/meilleure': { valeur: 'Amazon' },
@@ -244,7 +244,7 @@ const SCENARIO: Record<string, Scene> = {
 
   // 06 · Ventes — mêmes mesures que le bloc 01 : mêmes chiffres, autres habits.
   'ventes/ca': { valeur: CA, evolution: EVOL_CA, serie: serieSommant(CA, 'ca'), forme: 'etincelle' },
-  'ventes/commandes': { valeur: COMMANDES, evolution: EVOL_COMMANDES, serie: serieSommant(COMMANDES, 'commandes'), forme: 'egaliseur' },
+  'ventes/commandes': { valeur: COMMANDES, evolution: EVOL_COMMANDES, serie: serieSommant(COMMANDES, 'commandes'), forme: 'ecarts' },
   'ventes/vendus': { valeur: PRODUITS_VENDUS, evolution: 11.8, forme: 'cylindres', parts: CA_PAR_RAYON.slice(0, 4) },
   'ventes/panier': { valeur: PANIER, evolution: -3.2, forme: 'barre' },
   'ventes/clients': { valeur: CLIENTS, evolution: 15.7, serie: serieSommant(CLIENTS, 'clients'), forme: 'points' },
@@ -265,13 +265,13 @@ const SCENARIO: Record<string, Scene> = {
   'livraisons/taux': { valeur: TAUX_LIVRAISON, evolution: 2.1, forme: 'jauge' },
 
   // 08 · Messagerie.
-  'messagerie/recus': { valeur: 2842, evolution: 9.6, serie: serieSommant(2842, 'recus'), forme: 'egaliseur' },
+  'messagerie/recus': { valeur: 2842, evolution: 9.6, serie: serieSommant(2842, 'recus'), forme: 'onde' },
   'messagerie/envoyes': { valeur: 2156, evolution: 8.1, serie: serieSommant(2156, 'envoyes'), forme: 'vague' },
-  'messagerie/conversations': { valeur: CONVERSATIONS, evolution: 7.3, forme: 'camembert', parts: CONVERSATIONS_PAR_PLATEFORME },
+  'messagerie/conversations': { valeur: CONVERSATIONS, evolution: 7.3, forme: 'secteurs', parts: CONVERSATIONS_PAR_PLATEFORME },
   'messagerie/attente': { valeur: 156, forme: 'barre' },
   'messagerie/temps': { valeur: 2.3, evolution: -18, forme: 'demijauge' },
   'messagerie/taux': { valeur: 96.4, evolution: 2.1, forme: 'anneaupastille' },
-  'messagerie/plateformes': { valeur: 8, parts: CONVERSATIONS_PAR_PLATEFORME, forme: 'barresh' },
+  'messagerie/plateformes': { valeur: 8, parts: CONVERSATIONS_PAR_PLATEFORME, forme: 'matricepoints' },
   'messagerie/resolues': { valeur: 943, forme: 'pastilles' },
   'messagerie/redigees': { valeur: 1024, evolution: 31, forme: 'batons', serie: serieSommant(1024, 'redigees') },
 
@@ -306,7 +306,7 @@ const SCENARIO: Record<string, Scene> = {
   'finances/ia': { valeur: 1248, evolution: 6.7, forme: 'batons', serie: serieSommant(1248, 'images') },
   'finances/marge-brute': { valeur: MARGE_BRUTE, evolution: 20.1, serie: serieSommant(MARGE_BRUTE, 'margebrute'), forme: 'etincelle' },
   'finances/marge-nette': { valeur: MARGE_NETTE, evolution: 2.6, forme: 'jauge' },
-  'finances/benefice': { valeur: BENEFICE, evolution: 22.1, forme: 'vague', serie: serieSommant(BENEFICE, 'benefice') },
+  'finances/benefice': { valeur: BENEFICE, evolution: 22.1, forme: 'ecarts', serie: serieSommant(BENEFICE, 'benefice') },
 
   // 12 · Rayons.
   'rayons/rayons': { valeur: 9, forme: 'crante' },
@@ -325,7 +325,7 @@ const SCENARIO: Record<string, Scene> = {
   'marche/gagnants': { valeur: 12, forme: 'pastilles' },
   'marche/tendances': { valeur: 'En hausse' },
   'marche/saisonnalite': { valeur: 'Été' },
-  'marche/prevision-ventes': { valeur: 1420, evolution: 10.6, forme: 'lignes', serie: serieSommant(1420, 'prevventes') },
+  'marche/prevision-ventes': { valeur: 1420, evolution: 10.6, forme: 'troislignes', serie: serieSommant(1420, 'prevventes') },
   'marche/prevision-ca': { valeur: 74980, evolution: 10.5, forme: 'etincelle', serie: serieSommant(74980, 'prevca') },
   'marche/porteurs': { valeur: 4, forme: 'cylindres', parts: CA_PAR_RAYON.slice(0, 4) },
   'marche/risque': { valeur: RUPTURES, evolution: -8, forme: 'barre' },
@@ -334,7 +334,7 @@ const SCENARIO: Record<string, Scene> = {
   'plateforme/credits': { valeur: 8456, forme: 'rayures' },
   'plateforme/credits-image': { valeur: 12456, evolution: 10, forme: 'segments' },
   'plateforme/annonces-ia': { valeur: PRODUITS_RANGES, evolution: 8.7, forme: 'batons', serie: serieSommant(PRODUITS_RANGES, 'annoncesia') },
-  'plateforme/images': { valeur: 1248, evolution: 6.7, forme: 'egaliseur', serie: serieSommant(1248, 'images') },
+  'plateforme/images': { valeur: 1248, evolution: 6.7, forme: 'onde', serie: serieSommant(1248, 'images') },
   'plateforme/pubs': { valeur: 124, forme: 'pastilles' },
   'plateforme/agents': { valeur: 'actif' },
   'plateforme/automatisations': { valeur: 'active' },

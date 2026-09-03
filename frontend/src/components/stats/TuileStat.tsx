@@ -14,17 +14,23 @@ import {
   Cylindres,
   DemiCamembert,
   DemiJauge,
+  Ecarts,
   Egaliseur,
   Empilees,
   Etincelle,
   Jalons,
   Jauge,
   Lignes,
+  MatricePoints,
+  Onde,
   Pastilles,
   Points,
   Radar,
+  RangeesPilules,
   Rayures,
+  Secteurs,
   Segments,
+  TroisLignes,
   Vague,
 } from './formes'
 
@@ -39,8 +45,8 @@ import {
  * D'où deux garanties, tenues par construction et non par chance :
  *
  * 1. **Sans remise dans un bloc** : l'attribution retire chaque forme du
- *    chapeau une fois servie. Neuf tuiles, neuf dessins différents — vingt-six
- *    formes au chapeau, il en reste toujours.
+ *    chapeau une fois servie. Neuf tuiles, neuf dessins différents —
+ *    trente-deux formes au chapeau, il en reste toujours.
  * 2. **Dispersées entre les blocs** : le point de départ du tirage combine le
  *    rang et le numéro du bloc par des pas premiers, et la palette (dix
  *    dégradés) tourne sur un autre pas. Deux blocs ne présentent jamais la
@@ -76,18 +82,18 @@ export interface BlocData {
   tuiles: TuileData[]
 }
 
-/** Les dix dégradés des planches. */
+/** Les dix dégradés néon des planches — saturés, jamais ternes. */
 const PALETTES: Array<[string, string]> = [
-  ['#f472b6', '#fb923c'],
-  ['#22d3ee', '#6366f1'],
-  ['#a78bfa', '#ec4899'],
-  ['#34d399', '#22d3ee'],
-  ['#fbbf24', '#f97316'],
-  ['#60a5fa', '#c084fc'],
+  ['#ff5c8a', '#fb923c'],
+  ['#22d3ee', '#818cf8'],
+  ['#e879f9', '#f472b6'],
+  ['#a3e635', '#22d3ee'],
+  ['#fbbf24', '#fb923c'],
+  ['#60a5fa', '#e879f9'],
   ['#2dd4bf', '#a3e635'],
-  ['#f87171', '#f472b6'],
-  ['#818cf8', '#22d3ee'],
   ['#fb7185', '#fbbf24'],
+  ['#a78bfa', '#22d3ee'],
+  ['#f472b6', '#a78bfa'],
 ]
 
 const FORMES = [
@@ -95,24 +101,30 @@ const FORMES = [
   'camembert',
   'jauge',
   'vague',
+  'rangeespilules',
   'anneaux',
   'anneaupastille',
   'batons',
+  'troislignes',
   'cylindres',
   'arcs',
   'aires',
   'barresh',
   'demijauge',
   'points',
+  'secteurs',
   'jalons',
   'crante',
   'barresligne',
+  'ecarts',
   'radar',
   'pastilles',
   'egaliseur',
+  'matricepoints',
   'demicamembert',
   'rayures',
   'lignes',
+  'onde',
   'curseurs',
   'barre',
   'empilees',
@@ -121,8 +133,8 @@ const FORMES = [
 
 export type Forme = (typeof FORMES)[number]
 
-const AVEC_SERIE: Forme[] = ['etincelle', 'vague', 'batons', 'aires', 'points', 'barresligne', 'egaliseur', 'lignes', 'empilees']
-const AVEC_PARTS: Forme[] = ['camembert', 'anneaux', 'barresh', 'jalons', 'radar', 'demicamembert', 'curseurs', 'cylindres']
+const AVEC_SERIE: Forme[] = ['etincelle', 'vague', 'batons', 'aires', 'points', 'barresligne', 'egaliseur', 'lignes', 'empilees', 'ecarts', 'onde', 'troislignes']
+const AVEC_PARTS: Forme[] = ['camembert', 'anneaux', 'barresh', 'jalons', 'radar', 'demicamembert', 'curseurs', 'cylindres', 'secteurs', 'rangeespilules', 'matricepoints']
 /** Les formes à proportion : une vraie valeur sur cent, ou l'ornement plein. */
 const AVEC_PART: Forme[] = ['jauge', 'anneaupastille', 'arcs', 'demijauge', 'crante', 'pastilles', 'rayures', 'barre', 'segments']
 
@@ -137,7 +149,7 @@ interface Capacites {
 /**
  * Le tirage sans remise : la première forme compatible non encore servie.
  *
- * Le pas de sept est premier avec vingt-six, donc le parcours visite toutes
+ * Le pas de sept est premier avec trente-deux, donc le parcours visite toutes
  * les formes ; `prises` garantit qu'aucune ne sert deux fois dans le bloc.
  */
 function tirerForme(depart: number, capacites: Capacites, prises: Set<Forme>): Forme {
@@ -179,7 +191,7 @@ function Evolution({ valeur }: { valeur: number }) {
 }
 
 /** Les formes carrées se posent à droite de la valeur ; les larges dessous. */
-const RONDES: Forme[] = ['jauge', 'anneaupastille', 'arcs', 'crante', 'camembert', 'anneaux', 'radar', 'curseurs', 'demijauge', 'cylindres', 'demicamembert']
+const RONDES: Forme[] = ['jauge', 'anneaupastille', 'arcs', 'crante', 'camembert', 'anneaux', 'radar', 'curseurs', 'demijauge', 'cylindres', 'demicamembert', 'secteurs']
 
 export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData; rang: number; graine?: number; forme?: Forme }) {
   const [de, a] = PALETTES[(rang + graine * 3) % PALETTES.length]
@@ -187,7 +199,7 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
 
   if (tuile.valeur === null) {
     return (
-      <div className="flex h-full flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+      <div className="flex h-full flex-col rounded-2xl border border-white/[0.05] bg-[#12101c] p-3">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{tuile.label}</p>
         <p className="mt-1 text-xl font-bold text-gray-600">—</p>
         <p className="mt-auto pt-1 text-[10px] leading-snug text-gray-600">{tuile.raison}</p>
@@ -203,16 +215,22 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   switch (choisie) {
     case 'etincelle': dessin = <Etincelle serie={tuile.serie!} encre={encre} />; break
     case 'vague': dessin = <Vague serie={tuile.serie!} encre={encre} />; break
-    case 'batons': dessin = <Batons serie={tuile.serie!} encre={encre} graine={graine} />; break
+    case 'batons': dessin = <Batons serie={tuile.serie!} graine={graine + rang} />; break
     case 'aires': dessin = <Aires serie={tuile.serie!} graine={graine + rang} />; break
-    case 'points': dessin = <Points serie={tuile.serie!} encre={encre} />; break
-    case 'barresligne': dessin = <BarresLigne serie={tuile.serie!} encre={encre} />; break
-    case 'egaliseur': dessin = <Egaliseur serie={tuile.serie!} encre={encre} graine={graine} />; break
+    case 'points': dessin = <Points serie={tuile.serie!} graine={graine + rang} />; break
+    case 'barresligne': dessin = <BarresLigne serie={tuile.serie!} encre={encre} graine={graine + rang} />; break
+    case 'egaliseur': dessin = <Egaliseur serie={tuile.serie!} graine={graine + rang} />; break
     case 'lignes': dessin = <Lignes serie={tuile.serie!} encre={encre} />; break
-    case 'empilees': dessin = <Empilees serie={tuile.serie!} encre={encre} graine={graine} />; break
+    case 'empilees': dessin = <Empilees serie={tuile.serie!} graine={graine + rang} />; break
+    case 'ecarts': dessin = <Ecarts serie={tuile.serie!} graine={graine + rang} />; break
+    case 'onde': dessin = <Onde serie={tuile.serie!} graine={graine + rang} />; break
+    case 'troislignes': dessin = <TroisLignes serie={tuile.serie!} graine={graine + rang} />; break
     case 'camembert': dessin = <Camembert parts={tuile.parts!} graine={graine + rang} />; break
+    case 'secteurs': dessin = <Secteurs parts={tuile.parts!} graine={graine + rang} />; break
     case 'anneaux': dessin = <Anneaux parts={tuile.parts!} graine={graine + rang} />; break
     case 'barresh': dessin = <BarresH parts={tuile.parts!} graine={graine + rang} />; break
+    case 'rangeespilules': dessin = <RangeesPilules parts={tuile.parts!} graine={graine + rang} />; break
+    case 'matricepoints': dessin = <MatricePoints parts={tuile.parts!} graine={graine + rang} />; break
     case 'jalons': dessin = <Jalons parts={tuile.parts!} graine={graine + rang} />; break
     case 'radar': dessin = <Radar parts={tuile.parts!} encre={encre} />; break
     case 'demicamembert': dessin = <DemiCamembert parts={tuile.parts!} graine={graine + rang} />; break
@@ -220,10 +238,10 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
     case 'cylindres': dessin = <Cylindres parts={tuile.parts!} graine={graine + rang} />; break
     case 'jauge': dessin = <Jauge part={part} encre={encre} />; break
     case 'anneaupastille': dessin = <AnneauPastille part={part} encre={encre} />; break
-    case 'arcs': dessin = <Arcs part={part} encre={encre} />; break
-    case 'demijauge': dessin = <DemiJauge part={part} encre={encre} />; break
-    case 'crante': dessin = <Crante part={part} encre={encre} graine={graine} />; break
-    case 'pastilles': dessin = <Pastilles part={part} encre={encre} graine={graine} />; break
+    case 'arcs': dessin = <Arcs part={part} graine={graine + rang} />; break
+    case 'demijauge': dessin = <DemiJauge part={part} encre={encre} graine={graine + rang} />; break
+    case 'crante': dessin = <Crante part={part} graine={graine + rang} />; break
+    case 'pastilles': dessin = <Pastilles part={part} graine={graine + rang} />; break
     case 'rayures': dessin = <Rayures part={part} encre={encre} />; break
     case 'barre': dessin = <Barre part={part} encre={encre} />; break
     default: dessin = <Segments part={part} encre={encre} graine={graine} />
@@ -238,8 +256,10 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   return (
     <div
       data-forme={choisie}
-      className="@container flex h-full flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] p-3 transition hover:border-white/[0.16]"
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}
+      className="@container flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-[#161325] p-3 transition"
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${de}55`; e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,0.05), 0 0 14px ${de}22` }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.05)' }}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{tuile.label}</p>
@@ -314,7 +334,7 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
   const accent = ACCENTS[(graine - 1 + ACCENTS.length) % ACCENTS.length]
 
   return (
-    <section id={`stats-${bloc.id}`} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+    <section id={`stats-${bloc.id}`} className="rounded-2xl border border-white/[0.06] bg-[#0e0c17] p-4">
       <header className="flex items-center gap-2.5 border-b pb-2" style={{ borderColor: `${accent}33` }}>
         <span className="rounded-md px-1.5 py-0.5 text-[11px] font-bold text-black/80" style={{ backgroundColor: accent }}>
           {bloc.numero}
