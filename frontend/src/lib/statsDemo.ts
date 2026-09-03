@@ -91,7 +91,11 @@ export function blocsDemo(blocs: BlocData[]): BlocData[] {
     ...bloc,
     tuiles: bloc.tuiles.map((tuile) => {
       const r = alea(graineDe(`${bloc.id}/${tuile.id}`))
-      return { ...tuile, raison: undefined, ...valeurDemo(tuile, r) }
+      const rempli = { ...tuile, raison: undefined, ...valeurDemo(tuile, r) }
+      // Une repartition sur une tuile sur deux environ : de quoi faire vivre
+      // camemberts, anneaux, radars et curseurs sans les mettre partout.
+      if (!rempli.parts && r() > 0.45) rempli.parts = partsDemo(bloc.id, r)
+      return rempli
     }),
   }))
 }
@@ -107,4 +111,60 @@ export function blocsDemo(blocs: BlocData[]): BlocData[] {
 export function compteVide(blocs: BlocData[]): boolean {
   const ventes = blocs.find((b) => b.id === 'vue-generale')?.tuiles.find((t) => t.id === 'commandes')
   return !ventes || ventes.valeur === 0 || ventes.valeur === null
+}
+
+/** Les libellés plausibles des répartitions de démonstration, par bloc. */
+const PARTS_DEMO: Record<string, string[]> = {
+  acquisition: ['AliExpress', 'BigBuy', 'Temu', 'CJ Dropshipping'],
+  fournisseurs: ['AliExpress', 'BigBuy', 'Temu', 'CJ Dropshipping'],
+  'sav-fournisseurs': ['AliExpress', 'BigBuy', 'Temu'],
+  catalogue: ['High-tech', 'Maison', 'Mode', 'Sport', 'Beauté'],
+  rayons: ['High-tech', 'Maison', 'Mode', 'Sport', 'Beauté'],
+  marche: ['High-tech', 'Maison', 'Mode', 'Sport'],
+  finances: ['Produits', 'Livraison', 'Commissions', 'Publicité'],
+  plateforme: ['Annonces', 'Images', 'Pubs', 'Analyses'],
+}
+const PARTS_DEFAUT = ['Amazon', 'eBay', 'Cdiscount', 'Shopify']
+
+/**
+ * Une répartition de démonstration : décroissante, comme les vraies.
+ *
+ * Ajoutée quand la vraie manque : les camemberts, anneaux, radars et curseurs
+ * des références ne se voient qu'avec plusieurs parts.
+ */
+function partsDemo(blocId: string, r: () => number): Array<{ label: string; valeur: number }> {
+  const libelles = PARTS_DEMO[blocId] ?? PARTS_DEFAUT
+  const n = Math.min(libelles.length, 3 + Math.floor(r() * 2))
+  let restant = 100
+  return libelles.slice(0, n).map((label, i) => {
+    const part = i === n - 1 ? restant : Math.round(restant * (0.35 + r() * 0.3))
+    restant -= part
+    return { label, valeur: Math.max(3, part) }
+  })
+}
+
+/** La carte de démonstration : la géographie typique d'un vendeur français. */
+export function carteDemo(): Record<'ventes' | 'clients' | 'fournisseurs' | 'livraisons', Array<{ pays: string; n: number }>> {
+  const r = alea(graineDe('carte'))
+  const europe = (base: number) =>
+    [
+      ['France', base],
+      ['Belgique', Math.round(base * (0.14 + r() * 0.08))],
+      ['Allemagne', Math.round(base * (0.1 + r() * 0.08))],
+      ['Espagne', Math.round(base * (0.08 + r() * 0.06))],
+      ['Italie', Math.round(base * (0.06 + r() * 0.06))],
+      ['Suisse', Math.round(base * (0.04 + r() * 0.04))],
+    ].map(([pays, n]) => ({ pays: pays as string, n: n as number }))
+
+  return {
+    ventes: europe(742),
+    clients: europe(519),
+    fournisseurs: [
+      { pays: 'Chine', n: 121 },
+      { pays: 'Espagne', n: 24 },
+      { pays: 'France', n: 11 },
+      { pays: 'Allemagne', n: 7 },
+    ],
+    livraisons: europe(686),
+  }
 }

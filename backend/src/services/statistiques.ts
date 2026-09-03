@@ -32,7 +32,23 @@ export interface Tuile {
   evolution?: number | null
   /** La petite courbe : une valeur par jour de la période. */
   serie?: number[]
+  /**
+   * Une répartition réelle — c'est elle qui nourrit camemberts, anneaux et
+   * barres multiples. Fournie seulement quand la donnée existe vraiment :
+   * produits par fournisseur, CA par place de marché, tickets par motif. Un
+   * camembert sans répartition derrière serait un dessin qui ment.
+   */
+  parts?: Array<{ label: string; valeur: number }>
   raison?: string
+}
+
+/** Une répartition, gardée aux cinq plus gros pour rester lisible en tuile. */
+function repartition(entrees: Array<[string, number]>): Array<{ label: string; valeur: number }> | undefined {
+  const utiles = entrees.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
+  if (utiles.length < 2) return undefined
+  const tete = utiles.slice(0, 5).map(([label, valeur]) => ({ label, valeur }))
+  const reste = utiles.slice(5).reduce((s, [, v]) => s + v, 0)
+  return reste > 0 ? [...tete, { label: 'Autres', valeur: reste }] : tete
 }
 
 export interface Bloc {
@@ -226,7 +242,12 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
         { id: 'nouveaux', label: 'Nouveaux (7 jours)', valeur: produits.filter((p) => +p.createdAt >= au.getTime() - 7 * 86400000).length },
         { id: 'publiables', label: 'Produits publiables', valeur: publiables.length },
         { id: 'publies', label: 'Produits publiés', valeur: idsPublies.size },
-        { id: 'sources', label: 'Fournisseurs sources', valeur: new Set(produits.map((p) => p.sourceSite).filter(Boolean)).size },
+        {
+          id: 'sources',
+          label: 'Fournisseurs sources',
+          valeur: new Set(produits.map((p) => p.sourceSite).filter(Boolean)).size,
+          parts: repartition([...produits.reduce((m, p) => (p.sourceSite ? m.set(p.sourceSite, (m.get(p.sourceSite) ?? 0) + 1) : m), new Map<string, number>()).entries()]),
+        },
         { id: 'categories', label: 'Catégories', valeur: new Set(produits.map((p) => p.categoryId).filter(Boolean)).size },
         { id: 'evolution', label: 'Évolution acquisition', valeur: evolution(acquis.length, acquisAvant.length), unite: '%', ...(acquisAvant.length ? {} : pasEncore('Pas de période précédente à comparer.')) },
         { id: 'potentiel', label: 'Produits analysés', valeur: produits.filter((p) => p.marketAnalysedAt).length },
@@ -318,7 +339,14 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
       tuiles: [
         { id: 'actives', label: 'Marketplaces actives', valeur: actives.size },
         { id: 'annonces', label: 'Annonces diffusées', valeur: publiees.length },
-        { id: 'ca', label: 'CA marketplaces', valeur: arrondi(ca, 2), unite: '€', evolution: evolution(ca, caAvant) },
+        {
+          id: 'ca',
+          label: 'CA marketplaces',
+          valeur: arrondi(ca, 2),
+          unite: '€',
+          evolution: evolution(ca, caAvant),
+          parts: repartition([...parPlateforme.entries()].map(([p, l]) => [libelle(p), arrondi(l.ca, 2)])),
+        },
         { id: 'commandes', label: 'Commandes', valeur: commandes.length },
         { id: 'marge', label: 'Marge', valeur: ca ? arrondi((marge / ca) * 100, 1) : null, unite: '%', ...(ca ? {} : pasEncore('Aucune vente sur la période.')) },
         { id: 'meilleure', label: 'Meilleure marketplace', valeur: meilleurePlateforme ? libelle(meilleurePlateforme[0]) : null, ...(meilleurePlateforme ? {} : pasEncore('Aucune vente sur la période.')) },
@@ -408,7 +436,12 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
         { id: 'attente', label: 'En attente', valeur: conversations.filter((c) => c.status === 'OPEN' && c.unread).length },
         { id: 'temps', label: 'Temps de réponse moyen', valeur: tempsMoyenH !== null ? arrondi(tempsMoyenH, 1) : null, unite: 'h', ...(tempsMoyenH !== null ? {} : pasEncore('Aucune conversation répondue.')) },
         { id: 'taux', label: 'Taux de réponse', valeur: attendues.length ? arrondi((reponses.length / attendues.length) * 100, 1) : null, unite: '%', ...(attendues.length ? {} : pasEncore('Aucun message reçu.')) },
-        { id: 'plateformes', label: 'Plateformes en conversation', valeur: new Set(conversations.map((c) => c.platform)).size },
+        {
+          id: 'plateformes',
+          label: 'Plateformes en conversation',
+          valeur: new Set(conversations.map((c) => c.platform)).size,
+          parts: repartition([...conversations.reduce((m, c) => m.set(libelle(c.platform), (m.get(libelle(c.platform)) ?? 0) + 1), new Map<string, number>()).entries()]),
+        },
         { id: 'resolues', label: 'Fermées', valeur: conversations.filter((c) => c.status === 'CLOSED').length },
         { id: 'redigees', label: 'Réponses rédigées par l’agent', valeur: null, raison: 'Compté à partir des brouillons d’agent — bientôt.' },
       ],
@@ -434,7 +467,13 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
         { id: 'delai', label: 'Temps de résolution', valeur: delaiResolution.length ? arrondi(delaiResolution.reduce((a, b) => a + b, 0) / delaiResolution.length, 1) : null, unite: 'j', ...(delaiResolution.length ? {} : pasEncore('Aucun ticket résolu.')) },
         { id: 'avoirs', label: 'Crédits rendus', valeur: tickets.reduce((s, t) => s + (t.refundedCredits ?? 0), 0) },
         { id: 'retours', label: 'Commandes remboursées', valeur: commandes.filter((o) => o.status === 'REFUNDED').length },
-        { id: 'motif', label: 'Motif principal', valeur: motifPrincipal?.[0] ?? null, ...(motifPrincipal ? {} : pasEncore('Aucun ticket.')) },
+        {
+          id: 'motif',
+          label: 'Motif principal',
+          valeur: motifPrincipal?.[0] ?? null,
+          parts: repartition([...motifs.entries()]),
+          ...(motifPrincipal ? {} : pasEncore('Aucun ticket.')),
+        },
         { id: 'conversations-sav', label: 'Conversations acheteurs', valeur: conversations.length },
         { id: 'problematiques', label: 'Produits à tickets', valeur: null, raison: 'Rattachement ticket → produit encore trop rare pour compter.' },
       ],
@@ -517,7 +556,12 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
         { id: 'dominant', label: 'Rayon dominant', valeur: dominant?.[0] ?? null, ...(dominant ? {} : pasEncore('Aucun produit rangé.')) },
         { id: 'rentable', label: 'Rayon le plus vendeur', valeur: rentable && rentable[1].ca > 0 ? rentable[0] : null, ...(rentable && rentable[1].ca > 0 ? {} : pasEncore('Aucune vente rangée.')) },
         { id: 'sans-rayon', label: 'Produits sans rayon', valeur: produits.filter((p) => !p.categoryId).length },
-        { id: 'repartition', label: 'Catégories distinctes', valeur: new Set(produits.map((p) => p.categoryId).filter(Boolean)).size },
+        {
+          id: 'repartition',
+          label: 'Catégories distinctes',
+          valeur: new Set(produits.map((p) => p.categoryId).filter(Boolean)).size,
+          parts: repartition([...parRayon.entries()].filter(([r]) => r !== 'Sans rayon').map(([r, l]) => [r, l.produits])),
+        },
       ],
     })
   }
@@ -574,4 +618,84 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
   }
 
   return blocs
+}
+
+/**
+ * La carte du monde : où sont les ventes, les clients, les fournisseurs et
+ * les livraisons.
+ *
+ * **Demandée avec les références** : « on peut mettre une grande carte du
+ * monde et on affiche au choix nos ventes, nos clients, nos fournisseurs, nos
+ * livraisons. » Quatre vues, une seule carte, un commutateur.
+ *
+ * Les pays viennent des données réelles : l'adresse de l'acheteur porte un
+ * champ `country` (« France » par défaut dans le formulaire), et le pays d'un
+ * fournisseur se déduit de son enseigne — AliExpress, Temu et Shein expédient
+ * de Chine, BigBuy d'Espagne, Zentrada d'Allemagne. C'est une géographie de
+ * tableau de bord, pas de douane : elle situe, elle ne certifie pas.
+ */
+export interface PointCarte {
+  pays: string
+  n: number
+}
+
+export type VueCarte = 'ventes' | 'clients' | 'fournisseurs' | 'livraisons'
+
+const PAYS_FOURNISSEUR: Array<[RegExp, string]> = [
+  [/aliexpress|temu|shein|dhgate|banggood|joybuy|alibaba|wish|cj/i, 'Chine'],
+  [/bigbuy/i, 'Espagne'],
+  [/zentrada/i, 'Allemagne'],
+  [/webdrop/i, 'France'],
+  [/etsy|amazon/i, 'États-Unis'],
+]
+
+function paysDuFournisseur(site: string): string {
+  for (const [motif, pays] of PAYS_FOURNISSEUR) if (motif.test(site)) return pays
+  return 'Autre'
+}
+
+function paysDeLAdresse(adresse: unknown): string {
+  if (adresse && typeof adresse === 'object' && !Array.isArray(adresse)) {
+    const brut = (adresse as Record<string, unknown>).country ?? (adresse as Record<string, unknown>).pays
+    if (typeof brut === 'string' && brut.trim()) return brut.trim()
+  }
+  return 'France'
+}
+
+function compter(entrees: string[]): PointCarte[] {
+  const m = new Map<string, number>()
+  for (const pays of entrees) m.set(pays, (m.get(pays) ?? 0) + 1)
+  return [...m.entries()].map(([pays, n]) => ({ pays, n })).sort((a, b) => b.n - a.n)
+}
+
+export async function carteMonde(
+  userId: string,
+  du: Date,
+  au: Date,
+): Promise<Record<VueCarte, PointCarte[]>> {
+  const [commandes, produits] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId, createdAt: { gte: du, lte: au } },
+      select: { buyerAddress: true, buyerEmail: true, buyerName: true, status: true },
+    }),
+    prisma.product.findMany({ where: { userId }, select: { sourceSite: true } }),
+  ])
+
+  // Un client compte une fois par pays, même avec trois commandes.
+  const clientsVus = new Map<string, string>()
+  for (const o of commandes) {
+    const cle = o.buyerEmail || o.buyerName
+    if (!clientsVus.has(cle)) clientsVus.set(cle, paysDeLAdresse(o.buyerAddress))
+  }
+
+  return {
+    ventes: compter(commandes.map((o) => paysDeLAdresse(o.buyerAddress))),
+    clients: compter([...clientsVus.values()]),
+    fournisseurs: compter(
+      produits.map((p) => (p.sourceSite ? paysDuFournisseur(p.sourceSite) : 'Autre')).filter((p) => p !== 'Autre'),
+    ),
+    livraisons: compter(
+      commandes.filter((o) => o.status === 'SHIPPED' || o.status === 'DELIVERED').map((o) => paysDeLAdresse(o.buyerAddress)),
+    ),
+  }
 }

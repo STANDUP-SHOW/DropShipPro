@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, FlaskConical, RefreshCw } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocStats, type BlocData } from '../components/stats/TuileStat'
-import { blocsDemo, compteVide } from '../lib/statsDemo'
+import { CarteMonde, type CarteData } from '../components/stats/CarteMonde'
+import { blocsDemo, carteDemo, compteVide } from '../lib/statsDemo'
 import { api } from '../lib/api'
 
 /**
@@ -42,6 +43,7 @@ const RANGEES: string[][] = [
 
 export default function Statistiques() {
   const [blocs, setBlocs] = useState<BlocData[] | null>(null)
+  const [carte, setCarte] = useState<CarteData | null>(null)
   const [periode, setPeriode] = useState('30')
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -56,6 +58,7 @@ export default function Statistiques() {
       const du = new Date(au.getTime() - jours * 86400000)
       const r = await api.tableauStats(du, au)
       setBlocs(r.blocs)
+      setCarte(r.carte)
       // Le premier chargement choisit le mode ; les suivants respectent le choix
       // du vendeur — une bascule qui se remet toute seule n'est pas une bascule.
       setDemo((actuel) => (actuel === null ? compteVide(r.blocs) : actuel))
@@ -149,13 +152,22 @@ export default function Statistiques() {
             const presents = rangee.map((id) => parId.get(id)).filter((b): b is BlocData => Boolean(b))
             if (!presents.length) return null
             return (
-              <div
-                key={rangee.join('-')}
-                className={`grid gap-3 ${presents.length === 2 ? 'xl:grid-cols-2' : presents.length === 3 ? 'xl:grid-cols-3' : ''}`}
-              >
-                {presents.map((bloc) => (
-                  <BlocStats key={bloc.id} bloc={bloc} />
-                ))}
+              <div key={rangee.join('-')} className="space-y-3">
+                <div
+                  className={`grid gap-3 ${presents.length === 2 ? 'xl:grid-cols-2' : presents.length === 3 ? 'xl:grid-cols-3' : ''}`}
+                >
+                  {presents.map((bloc) => (
+                    <BlocStats key={bloc.id} bloc={bloc} />
+                  ))}
+                </div>
+                {/*
+                  La grande carte, juste sous la rangée ventes / livraisons /
+                  messagerie : c'est là que la maquette place ses deux cartes,
+                  et une seule à quatre vues les remplace toutes les deux.
+                */}
+                {rangee[0] === 'ventes' && (carte || demo) ? (
+                  <CarteMonde carte={demo ? carteDemo() : carte!} />
+                ) : null}
               </div>
             )
           })}

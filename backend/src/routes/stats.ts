@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
-import { tableauDeBord } from '../services/statistiques.js'
+import { carteMonde, tableauDeBord } from '../services/statistiques.js'
 
 /**
  * Le tableau de bord statistiques.
@@ -27,8 +27,8 @@ statsRouter.get('/tableau', async (req: AuthedRequest, res) => {
   if (du >= au) return res.status(400).json({ error: 'La date de début doit précéder la date de fin.' })
 
   try {
-    const blocs = await tableauDeBord(req.userId!, du, au)
-    res.json({ du: du.toISOString(), au: au.toISOString(), blocs })
+    const [blocs, carte] = await Promise.all([tableauDeBord(req.userId!, du, au), carteMonde(req.userId!, du, au)])
+    res.json({ du: du.toISOString(), au: au.toISOString(), blocs, carte })
   } catch (err) {
     console.error('tableau de bord impossible', err)
     res.status(500).json({ error: "Les statistiques n'ont pas pu être calculées." })

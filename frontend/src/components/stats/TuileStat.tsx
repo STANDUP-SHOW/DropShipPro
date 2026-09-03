@@ -30,6 +30,8 @@ export interface TuileData {
   unite?: string
   evolution?: number | null
   serie?: number[]
+  /** Une répartition réelle : camemberts, anneaux, radars et barres multiples. */
+  parts?: Array<{ label: string; valeur: number }>
   raison?: string
 }
 
@@ -48,6 +50,10 @@ const PALETTES: Array<[string, string]> = [
   ['#34d399', '#22d3ee'], // vert → cyan
   ['#fbbf24', '#f97316'], // ambre → orange
   ['#60a5fa', '#c084fc'], // bleu → mauve
+  ['#2dd4bf', '#a3e635'], // sarcelle → citron
+  ['#f87171', '#f472b6'], // rouge → rose
+  ['#818cf8', '#22d3ee'], // indigo → cyan
+  ['#fb7185', '#fbbf24'], // framboise → ambre
 ]
 
 function formatValeur(v: number | string, unite?: string): string {
@@ -312,6 +318,179 @@ function Segments({ part, encre, graine = 0 }: { part: number; encre: Encre; gra
   )
 }
 
+// --- Les formes à répartition (camemberts, anneaux, radars, barres) ---------
+
+/** Une couleur par segment, piochée dans toutes les palettes. */
+const SEGMENTS_COULEURS = ['#f472b6', '#22d3ee', '#a78bfa', '#34d399', '#fbbf24', '#fb923c', '#60a5fa', '#ec4899']
+
+type Part = { label: string; valeur: number }
+
+/** Le camembert coloré des références — un anneau épais, un secteur par part. */
+function Camembert({ parts, graine = 0 }: { parts: Part[]; graine?: number }) {
+  const total = parts.reduce((s, p) => s + p.valeur, 0) || 1
+  const epaisseur = 9 + (graine % 3) * 2
+  const r = 22
+  const tour = 2 * Math.PI * r
+  let depart = 0
+  return (
+    <svg viewBox="0 0 64 64" className="h-16 w-16" aria-hidden>
+      {parts.map((p, i) => {
+        const longueur = (p.valeur / total) * tour
+        const cercle = (
+          <circle
+            key={p.label + i}
+            cx="32"
+            cy="32"
+            r={r}
+            fill="none"
+            stroke={SEGMENTS_COULEURS[(i + graine) % SEGMENTS_COULEURS.length]}
+            strokeWidth={epaisseur}
+            strokeDasharray={`${Math.max(0.8, longueur - 1.6).toFixed(1)} ${tour.toFixed(1)}`}
+            strokeDashoffset={(-depart).toFixed(1)}
+            transform="rotate(-90 32 32)"
+          />
+        )
+        depart += longueur
+        return cercle
+      })}
+    </svg>
+  )
+}
+
+/** Les anneaux concentriques multicolores — une part par rayon. */
+function Anneaux({ parts, graine = 0 }: { parts: Part[]; graine?: number }) {
+  const max = Math.max(...parts.map((p) => p.valeur), 1)
+  return (
+    <svg viewBox="0 0 64 64" className="h-16 w-16" aria-hidden>
+      {parts.slice(0, 4).map((p, i) => {
+        const r = 27 - i * 7
+        const tour = 2 * Math.PI * r
+        const visible = Math.max(0.07, p.valeur / max)
+        return (
+          <g key={p.label + i}>
+            <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4.5" />
+            <circle
+              cx="32"
+              cy="32"
+              r={r}
+              fill="none"
+              stroke={SEGMENTS_COULEURS[(i + graine) % SEGMENTS_COULEURS.length]}
+              strokeWidth="4.5"
+              strokeLinecap="round"
+              strokeDasharray={`${(visible * tour).toFixed(1)} ${tour.toFixed(1)}`}
+              transform="rotate(-90 32 32)"
+            />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+/** Les barres horizontales multiples des références, une couleur chacune. */
+function BarresH({ parts, graine = 0 }: { parts: Part[]; graine?: number }) {
+  const max = Math.max(...parts.map((p) => p.valeur), 1)
+  const lignes = parts.slice(0, 4)
+  const h = 32 / lignes.length
+  return (
+    <svg viewBox="0 0 100 32" preserveAspectRatio="none" className="h-8 w-full" aria-hidden>
+      {lignes.map((p, i) => (
+        <g key={p.label + i}>
+          <rect x="0" y={i * h + h * 0.25} width="100" height={h * 0.5} rx={h * 0.25} fill="rgba(255,255,255,0.07)" />
+          <rect
+            x="0"
+            y={i * h + h * 0.25}
+            width={Math.max(5, (p.valeur / max) * 100)}
+            height={h * 0.5}
+            rx={h * 0.25}
+            fill={SEGMENTS_COULEURS[(i + graine) % SEGMENTS_COULEURS.length]}
+          />
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+/** Le radar des références : la toile, puis le polygone des parts. */
+function Radar({ parts, encre }: { parts: Part[]; encre: Encre }) {
+  const gid = useId()
+  const axes = Math.max(3, Math.min(6, parts.length))
+  const max = Math.max(...parts.map((p) => p.valeur), 1)
+  const point = (i: number, ray: number) => {
+    const angle = (i / axes) * 2 * Math.PI - Math.PI / 2
+    return [32 + Math.cos(angle) * ray, 32 + Math.sin(angle) * ray] as const
+  }
+  const toile = [10, 18, 26].map(
+    (ray) => Array.from({ length: axes }, (_, i) => point(i, ray).map((v) => v.toFixed(1)).join(',')).join(' '),
+  )
+  const forme = Array.from({ length: axes }, (_, i) => {
+    const v = parts[i % parts.length].valeur / max
+    return point(i, 6 + v * 20).map((x) => x.toFixed(1)).join(',')
+  }).join(' ')
+  return (
+    <svg viewBox="0 0 64 64" className="h-16 w-16" aria-hidden>
+      <defs>
+        <Degrade id={gid} {...encre} />
+      </defs>
+      {toile.map((points, i) => (
+        <polygon key={i} points={points} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="0.8" />
+      ))}
+      <polygon points={forme} fill={`${encre.de}33`} stroke={`url(#${gid})`} strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Les curseurs verticaux à pastille lumineuse des références. */
+function Curseurs({ parts, graine = 0 }: { parts: Part[]; graine?: number }) {
+  const max = Math.max(...parts.map((p) => p.valeur), 1)
+  const lignes = parts.slice(0, 3 + (graine % 2))
+  const pas = 64 / lignes.length
+  return (
+    <svg viewBox="0 0 64 64" className="h-16 w-16" aria-hidden>
+      {lignes.map((p, i) => {
+        const x = pas / 2 + i * pas
+        const y = 58 - (p.valeur / max) * 48
+        const couleur = SEGMENTS_COULEURS[(i + graine) % SEGMENTS_COULEURS.length]
+        return (
+          <g key={p.label + i}>
+            <line x1={x} y1="6" x2={x} y2="58" stroke="rgba(255,255,255,0.12)" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1={x} y1={y} x2={x} y2="58" stroke={couleur} strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx={x} cy={y} r="3.4" fill={couleur} style={{ filter: `drop-shadow(0 0 3px ${couleur})` }} />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+/** La demi-jauge « compteur » de la maquette, aiguille comprise. */
+function DemiJauge({ part, encre }: { part: number; encre: Encre }) {
+  const gid = useId()
+  const r = 24
+  const demi = Math.PI * r
+  const angle = Math.PI * (1 - part)
+  const aiguille = [32 + Math.cos(angle) * (r - 7), 36 - Math.sin(angle) * (r - 7)] as const
+  return (
+    <svg viewBox="0 0 64 42" className="h-11 w-16" aria-hidden>
+      <defs>
+        <Degrade id={gid} {...encre} />
+      </defs>
+      <path d={`M ${32 - r} 36 A ${r} ${r} 0 0 1 ${32 + r} 36`} fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="6" strokeLinecap="round" />
+      <path
+        d={`M ${32 - r} 36 A ${r} ${r} 0 0 1 ${32 + r} 36`}
+        fill="none"
+        stroke={`url(#${gid})`}
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeDasharray={`${(part * demi).toFixed(1)} ${demi.toFixed(1)}`}
+        style={{ filter: `drop-shadow(0 0 4px ${encre.de}55)` }}
+      />
+      <line x1="32" y1="36" x2={aiguille[0].toFixed(1)} y2={aiguille[1].toFixed(1)} stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="32" cy="36" r="2.4" fill="#fff" />
+    </svg>
+  )
+}
+
 /** L'écusson d'évolution : vert quand ça monte, rouge quand ça descend. */
 function Evolution({ valeur }: { valeur: number }) {
   const monte = valeur >= 0
@@ -335,17 +514,44 @@ function Evolution({ valeur }: { valeur: number }) {
  * mot : une tuile sans série ne recevra jamais une courbe, elle glisse vers la
  * forme suivante jusqu'à l'ornement plein.
  */
-const FORMES = ['etincelle', 'jauge', 'batons', 'arcs', 'points', 'crante', 'egaliseur', 'barre', 'segments'] as const
+/*
+ * Quinze formes, dispersées et non tournées.
+ *
+ * La première version faisait tourner la liste d'un cran par tuile et d'un
+ * cran par bloc : chaque bloc ressemblait au précédent décalé d'une case —
+ * « des blocs identiques entre les blocs », dit le retour du 03/09/2026, et
+ * c'était exact. La dispersion multiplie par des pas premiers avec quinze :
+ * deux blocs ne présentent plus jamais la même suite.
+ */
+const FORMES = [
+  'etincelle',
+  'camembert',
+  'jauge',
+  'batons',
+  'anneaux',
+  'arcs',
+  'points',
+  'demijauge',
+  'egaliseur',
+  'barresh',
+  'crante',
+  'radar',
+  'barre',
+  'curseurs',
+  'segments',
+] as const
 
 type Forme = (typeof FORMES)[number]
 const AVEC_SERIE: Forme[] = ['etincelle', 'batons', 'points', 'egaliseur']
-const AVEC_PART: Forme[] = ['jauge', 'arcs', 'crante']
+const AVEC_PART: Forme[] = ['jauge', 'arcs', 'crante', 'demijauge']
+const AVEC_PARTS: Forme[] = ['camembert', 'anneaux', 'barresh', 'radar', 'curseurs']
 
-function choisirForme(rang: number, aSerie: boolean, aPart: boolean): Forme {
+function choisirForme(depart: number, aSerie: boolean, aPart: boolean, aParts: boolean): Forme {
   for (let i = 0; i < FORMES.length; i++) {
-    const forme = FORMES[(rang + i) % FORMES.length]
+    const forme = FORMES[(depart + i * 7) % FORMES.length]
     if (AVEC_SERIE.includes(forme) && !aSerie) continue
     if (AVEC_PART.includes(forme) && !aPart) continue
+    if (AVEC_PARTS.includes(forme) && !aParts) continue
     return forme
   }
   return 'segments'
@@ -375,10 +581,11 @@ export function TuileStat({ tuile, rang, graine = 0 }: { tuile: TuileData; rang:
   const aPart =
     typeof tuile.valeur === 'number' && (tuile.unite === '/100' || tuile.unite === '%') && tuile.valeur >= 0 && tuile.valeur <= 100
   const aSerie = Boolean(tuile.serie && tuile.serie.length > 1 && tuile.serie.some((v) => v !== 0))
-  const forme = choisirForme(rang + graine, aSerie, aPart)
+  const aParts = Boolean(tuile.parts && tuile.parts.length >= 2)
+  const forme = choisirForme(rang * 4 + graine * 11, aSerie, aPart, aParts)
   const part = aPart ? (tuile.valeur as number) / 100 : 1 // 1 = ornement plein
 
-  const rondes: Forme[] = ['jauge', 'arcs', 'crante']
+  const rondes: Forme[] = ['jauge', 'arcs', 'crante', 'camembert', 'anneaux', 'radar', 'curseurs', 'demijauge']
   let dessin: ReactNode
   switch (forme) {
     case 'etincelle':
@@ -401,6 +608,24 @@ export function TuileStat({ tuile, rang, graine = 0 }: { tuile: TuileData; rang:
       break
     case 'crante':
       dessin = <Crante part={part} encre={encre} graine={graine} />
+      break
+    case 'demijauge':
+      dessin = <DemiJauge part={part} encre={encre} />
+      break
+    case 'camembert':
+      dessin = <Camembert parts={tuile.parts!} graine={graine} />
+      break
+    case 'anneaux':
+      dessin = <Anneaux parts={tuile.parts!} graine={graine} />
+      break
+    case 'barresh':
+      dessin = <BarresH parts={tuile.parts!} graine={graine} />
+      break
+    case 'radar':
+      dessin = <Radar parts={tuile.parts!} encre={encre} />
+      break
+    case 'curseurs':
+      dessin = <Curseurs parts={tuile.parts!} graine={graine} />
       break
     case 'barre':
       dessin = <Barre part={part} encre={encre} />
