@@ -10,6 +10,7 @@ import {
   Check,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { SupportChat } from '../components/SupportChat'
 import { api, assetUrl } from '../lib/api'
 
@@ -50,6 +51,7 @@ export default function AfterSales() {
 
   return (
     <Layout>
+      <BlocSection id="sav-clients" />
       <div className="mb-4">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <LifeBuoy size={22} className="text-amber-300" />

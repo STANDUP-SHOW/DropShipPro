@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { TrendingUp, ExternalLink, Loader2, ArrowLeft, Info } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { api } from '../lib/api'
 
 type Result = Awaited<ReturnType<typeof api.marketAnalysis>>['results'][number]
@@ -45,6 +46,7 @@ export default function MarketAnalysisPage() {
 
   return (
     <Layout>
+      <BlocSection id="marche" />
       <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white">
         <ArrowLeft size={15} />
         <span>Retour à mes annonces</span>

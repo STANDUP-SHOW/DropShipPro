@@ -10,6 +10,8 @@ import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
 import Statistiques from './pages/Statistiques'
+import Acquisition from './pages/Acquisition'
+import SavFournisseurs from './pages/SavFournisseurs'
 import ProductDetail from './pages/ProductDetail'
 import Orders from './pages/Orders'
 import Settings from './pages/Settings'
@@ -65,6 +67,8 @@ export default function App() {
           <Route path="/avis" element={<ReviewsPage />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
           <Route path="/statistiques" element={<Protected><Statistiques /></Protected>} />
+          <Route path="/acquisition" element={<Protected><Acquisition /></Protected>} />
+          <Route path="/sav-fournisseurs" element={<Protected><SavFournisseurs /></Protected>} />
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/guide" element={<Protected><Guide /></Protected>} />

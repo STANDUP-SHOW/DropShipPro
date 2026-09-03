@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Inbox, Send, Sparkles, Copy, Check, MailWarning, Mail, CheckCheck, Archive, MailPlus } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { api } from '../lib/api'
 
 type Summary = Awaited<ReturnType<typeof api.listConversations>>['conversations'][number]
@@ -148,6 +149,7 @@ export default function Messages() {
 
   return (
     <Layout>
+      <BlocSection id="messagerie" />
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <Inbox size={22} className="text-emerald-400" />
         <span>Messages</span>

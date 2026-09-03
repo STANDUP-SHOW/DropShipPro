@@ -8,6 +8,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { SupplierBlock } from '../components/SupplierBlock'
 import { api, assetUrl } from '../lib/api'
@@ -68,6 +69,7 @@ export default function Suppliers() {
 
   return (
     <Layout>
+      <BlocSection id="fournisseurs" />
       {/* L'agent en charge de ce qui se decide ici : une question posee devant
           l ecran ne devrait pas obliger a quitter l ecran. */}
       <AgentBar

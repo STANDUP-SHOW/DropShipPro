@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Store, X, ExternalLink, AlertTriangle, Search, Check } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 import { PlatformLogo } from '../components/PlatformLogo'
@@ -78,6 +79,7 @@ export default function PlatformsSelling() {
 
   return (
     <Layout>
+      <BlocSection id="marketplaces" />
       {/* L'agent en charge de ce qui se decide ici : une question posee devant
           l ecran ne devrait pas obliger a quitter l ecran. */}
       <AgentBar

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Calculator, AlertTriangle, RotateCcw, MessageSquare, Info } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 
@@ -69,6 +70,7 @@ export default function Accounting() {
 
   return (
     <Layout>
+      <BlocSection id="finances" />
       <AgentBar
         agentKey="comptable"
         nom="Beatrice"

@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PackageCheck, Truck, ExternalLink, Plus } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 
@@ -21,6 +23,18 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([])
+  /*
+   * Le menu Ventes a trois portes -- nouvelles, en cours, terminees -- et
+   * chacune arrive ici avec son ?etat=. La page filtre, le menu promet.
+   */
+  const [params] = useSearchParams()
+  const etat = params.get('etat')
+  const filtrees = orders.filter((o) => {
+    if (etat === 'nouvelles') return o.status === 'NEW'
+    if (etat === 'en-cours') return o.status === 'ORDERED_FROM_SUPPLIER' || o.status === 'SHIPPED'
+    if (etat === 'terminees') return o.status === 'DELIVERED' || o.status === 'REFUNDED'
+    return true
+  })
   const [products, setProducts] = useState<any[]>([])
   const [platforms, setPlatforms] = useState<Array<{ id: string; label: string }>>([])
   const [showForm, setShowForm] = useState(false)
@@ -68,6 +82,7 @@ export default function Orders() {
 
   return (
     <Layout>
+      <BlocSection id="ventes" />
       {/* L'agent en charge de ce qui se decide ici : une question posee devant
           l ecran ne devrait pas obliger a quitter l ecran. */}
       <AgentBar
@@ -115,7 +130,10 @@ export default function Orders() {
 
       <div className="mt-6 space-y-3">
         {orders.length === 0 && <p className="text-gray-400 text-sm">Aucune commande pour le moment.</p>}
-        {orders.map((o) => (
+        {filtrees.length === 0 && orders.length > 0 ? (
+          <p className="mt-4 text-sm text-gray-500">Aucune commande dans cet état.</p>
+        ) : null}
+        {filtrees.map((o) => (
           <div key={o.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-start justify-between gap-4">
               <div>

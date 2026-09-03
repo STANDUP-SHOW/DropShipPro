@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { Truck, MapPin, ExternalLink, MessageSquare, Package, Save, HelpCircle, Plus, X } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
 
@@ -52,7 +54,14 @@ function address(value: unknown) {
  */
 export default function Deliveries() {
   const [orders, setOrders] = useState<Order[]>([])
-  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('EN_COURS')
+  /* Le menu Livraisons ouvre l onglet demande : ?etat=terminees arrive ici. */
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<(typeof TABS)[number]['id']>(params.get('etat') === 'terminees' ? 'DELIVERED' : 'EN_COURS')
+  useEffect(() => {
+    const voulu = params.get('etat')
+    if (voulu === 'terminees') setTab('DELIVERED')
+    else if (voulu === 'en-cours') setTab('EN_COURS')
+  }, [params])
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<Detail | null>(null)
   const [tracking, setTracking] = useState('')
@@ -153,6 +162,7 @@ export default function Deliveries() {
 
   return (
     <Layout>
+      <BlocSection id="livraisons" />
       {/* L'agent en charge de ce qui se decide ici : une question posee devant
           l ecran ne devrait pas obliger a quitter l ecran. */}
       <AgentBar

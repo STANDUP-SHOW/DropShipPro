@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp } from 'lucide-react'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
 import { useAuth } from '../lib/auth'
@@ -10,7 +10,6 @@ const NAV = [
   // Le tableau de bord d abord : l accueil du vendeur, ce sont ses chiffres.
   { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/pilote', label: 'Pilote auto', icon: Plane },
-  { to: '/dashboard', label: 'Mes annonces', icon: Package },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
 ]
 
@@ -22,31 +21,42 @@ const NAV = [
  * l'ajout d'un quatrième mécanique et l'oubli d'un détail probable. Une table,
  * un rendu.
  */
+/*
+ * La découpe du 03/09/2026, appliquée telle quelle : acquisition, sourcing,
+ * produits, diffusion, marketing, rayons IA, ventes en trois états,
+ * livraisons, deux SAV séparés, comptabilité, puis l'outil lui-même.
+ *
+ * « Autorisation spéciale » en est sortie à la demande — la route reste
+ * servie, la porte est côté serveur. L'imprimerie n'apparaît pas : produits
+ * seulement.
+ */
 const SECTIONS: Array<{
   titre: string
   entrees: Array<{ to: string; label: string; icon: React.ElementType }>
 }> = [
   {
+    titre: 'Acquisition produits',
+    entrees: [
+      { to: '/acquisition', label: 'Comment acquérir', icon: Link2 },
+      { to: '/acquisition#extension', label: 'Extension Chrome', icon: Puzzle },
+    ],
+  },
+  {
     titre: 'Sourcing',
     entrees: [{ to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes }],
   },
   {
-    titre: 'Vente',
+    titre: 'Produits',
     entrees: [
-      // « Market places » et non « Vente » : le titre de la section dit déjà
-      // qu'on vend, et l'écran liste bien des places de marché.
-      { to: '/plateformes-vente', label: 'Market places', icon: Store },
+      { to: '/dashboard', label: 'Mes annonces', icon: Package },
       { to: '/categories', label: 'Catégories', icon: FolderTree },
-      { to: '/orders', label: 'Commandes', icon: ShoppingBag },
-      { to: '/livraisons', label: 'Livraisons', icon: Truck },
-      // Les boutiques sont une destination de vente comme une autre : les
-      // ranger ailleurs obligeait à sortir de la section pour régler celle
-      // qu'on vient d'alimenter.
+    ],
+  },
+  {
+    titre: 'Diffusion',
+    entrees: [
+      { to: '/plateformes-vente', label: 'Market places', icon: Store },
       { to: '/mes-sites', label: 'Mes sites', icon: Store },
-      // Ce sont les messages des acheteurs des places de marché reliées : leur
-      // place est ici, pas dans une liste générale où ils voisinaient avec les
-      // réglages.
-      { to: '/messages', label: 'Messages', icon: Inbox },
     ],
   },
   {
@@ -57,46 +67,68 @@ const SECTIONS: Array<{
     ],
   },
   {
+    // Les rayons confiés aux agents se déplient juste sous cette section —
+    // leur liste est vivante, elle vient de l'API.
+    titre: 'Mes rayons IA',
+    entrees: [{ to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp }],
+  },
+  {
+    /*
+     * Les trois états d'une vente, chacun sa porte : un vendeur qui vient
+     * expédier ne veut pas revoir les commandes terminées, et inversement.
+     * `?etat=` est lu par la page, qui filtre.
+     */
+    titre: 'Ventes',
+    entrees: [
+      { to: '/orders?etat=nouvelles', label: 'Nouvelles commandes', icon: ShoppingBag },
+      { to: '/orders?etat=en-cours', label: 'En cours', icon: ShoppingBag },
+      { to: '/orders?etat=terminees', label: 'Terminées', icon: ShoppingBag },
+    ],
+  },
+  {
+    titre: 'Livraisons',
+    entrees: [
+      { to: '/livraisons?etat=en-cours', label: 'En cours', icon: Truck },
+      { to: '/livraisons?etat=terminees', label: 'Terminées', icon: Truck },
+    ],
+  },
+  {
+    titre: 'SAV clients',
+    entrees: [
+      { to: '/sav', label: 'Service après-vente', icon: LifeBuoy },
+      { to: '/messages', label: 'Messagerie market places', icon: Inbox },
+    ],
+  },
+  {
+    /*
+     * Séparé du SAV clients, et c'est la découpe qui le veut : un litige avec
+     * un acheteur et un litige avec un fournisseur ne se traitent ni au même
+     * moment ni avec les mêmes armes.
+     */
+    titre: 'SAV fournisseurs',
+    entrees: [{ to: '/sav-fournisseurs', label: 'Service après-vente', icon: LifeBuoy }],
+  },
+  {
     titre: 'Comptabilité',
     entrees: [{ to: '/comptabilite', label: 'Comptabilité', icon: Calculator }],
   },
   {
-    /*
-     * Le SAV est séparé de la comptabilité, et c'est délibéré.
-     *
-     * Un litige et une facture ne se traitent ni au même moment, ni dans le
-     * même état d'esprit. Les réunir sous « administratif » faisait chercher
-     * l'un en ouvrant l'autre.
-     */
-    titre: 'SAV',
-    entrees: [{ to: '/sav', label: 'Service après-vente', icon: LifeBuoy }],
-  },
-  {
-    /*
-     * L'application elle-même, en dernier.
-     *
-     * Réglages, crédits, tickets et aide ne parlent pas du métier du vendeur
-     * mais de son outil. Mélangés au reste, ils coupaient la chaîne
-     * sourcing → vente → marketing en son milieu.
-     */
     titre: 'DropShipper',
     entrees: [
       { to: '/settings', label: 'Réglages', icon: SettingsIcon },
       { to: '/abonnement', label: 'Mes crédits', icon: Coins },
       { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
-      { to: '/guide', label: 'Aide', icon: BookOpen },
+      { to: '/guide', label: "Mode d'emploi", icon: BookOpen },
+      { to: '/guide#contact', label: 'Aide & contact', icon: LifeBuoy },
     ],
   },
-  /*
-   * « Autorisation spéciale » est sortie du menu le 03/09/2026, à la demande :
-   * « on fera un truc à part pour ça ». La route `/autorisation-speciale`
-   * reste servie — cacher le lien ne ferme rien, la porte est côté serveur —
-   * mais l'imprimerie n'a plus sa place dans un menu produits.
-   */
 ]
 
 export function Layout({ children, large = false }: { children: React.ReactNode; large?: boolean }) {
-  const { pathname } = useLocation()
+  const { pathname, search, hash } = useLocation()
+  /** Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte. */
+  const estActive = (to: string) =>
+    to.includes('?') || to.includes('#') ? pathname + search + hash === to : pathname === to
   const { logout, user } = useAuth()
   const [solde, setSolde] = useState<{ credits: number; premium: boolean } | null>(null)
   /**
@@ -162,7 +194,7 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
                   key={item.to}
                   to={item.to}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                    pathname === item.to
+                    estActive(item.to)
                       ? 'bg-purple-500/20 text-white'
                       : 'text-gray-400 hover:bg-white/5 hover:text-white'
                   }`}

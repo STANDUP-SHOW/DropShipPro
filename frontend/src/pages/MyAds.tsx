@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Megaphone, Eye, Download, Trash2, ExternalLink, ChevronRight, Loader2, LifeBuoy } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { ImageViewer, telechargerImage } from '../components/ImageViewer'
 import { TicketDialog } from '../components/TicketDialog'
 import { AgentBar } from '../components/AgentBar'
@@ -178,6 +179,7 @@ export default function MyAds() {
 
   return (
     <Layout>
+      <BlocSection id="plateforme" />
       {/* Nadia reste la, en haut : une question sur une pub se pose devant la
           pub, pas dans un autre ecran. */}
       <AgentBar

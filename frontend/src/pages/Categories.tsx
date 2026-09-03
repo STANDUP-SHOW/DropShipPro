@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Sparkles, ChevronLeft, FolderTree } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BlocSection } from '../components/stats/BlocSection'
 import { api } from '../lib/api'
 
 type Arbre = Awaited<ReturnType<typeof api.categoryTree>>
@@ -59,6 +60,7 @@ export default function Categories() {
 
   return (
     <Layout>
+      <BlocSection id="rayons" />
       <div className="mb-6">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <FolderTree size={22} className="text-purple-300" />
