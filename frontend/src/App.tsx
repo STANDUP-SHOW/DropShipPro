@@ -68,11 +68,18 @@ function DefileVersAncre() {
       return
     }
     const cible = hash.slice(1)
+    /*
+     * Viser une fois ne suffit pas : les blocs asynchrones du haut de page
+     * (statistiques de section, listes) arrivent après le premier défilement
+     * et poussent l'ancre de plusieurs centaines de pixels. On re-vise donc
+     * pendant deux secondes et demie — premier mouvement fluide, corrections
+     * sèches — jusqu'à ce que la page ait fini de bouger.
+     */
     let essais = 0
     const tenter = () => {
       const el = document.getElementById(cible)
-      if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      else if (++essais < 10) setTimeout(tenter, 100)
+      if (el) el.scrollIntoView({ block: 'start', behavior: essais === 0 ? 'smooth' : 'auto' })
+      if (++essais < 14) setTimeout(tenter, 180)
     }
     tenter()
     // `key` change à chaque navigation, même vers la même adresse : recliquer
