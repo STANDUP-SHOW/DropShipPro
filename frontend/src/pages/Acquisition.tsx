@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { Puzzle, Link2, ListPlus, Plug, FileSpreadsheet, Download } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
-import { apiRoot } from '../lib/api'
 
 /**
  * L'accueil de la section Acquisition : ses statistiques, puis ses voies.
@@ -84,31 +83,24 @@ export default function Acquisition() {
         ))}
       </div>
 
-      {/* ---------- L'extension, avec son téléchargement ---------- */}
+      {/* L'installation détaillée a sa propre page depuis le 04/09/2026 ;
+          l'ancre reste pour les anciens liens /acquisition#extension. */}
       <section id="extension" className="mt-5 rounded-2xl border border-purple-400/25 bg-purple-500/[0.06] p-4">
         <div className="flex items-start gap-3">
           <Puzzle size={18} className="mt-0.5 shrink-0 text-purple-300" />
           <div>
             <h2 className="text-sm font-bold">Installer l'extension Chrome</h2>
-            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-gray-400">
-              <li>Téléchargez l'archive ci-dessous et décompressez-la dans un dossier que vous gardez.</li>
-              <li>
-                Ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, activez le « Mode développeur » en haut à droite.
-              </li>
-              <li>« Charger l'extension non empaquetée », puis désignez le dossier décompressé.</li>
-              <li>Connectez-vous avec votre compte DropShipper IA dans la fenêtre de l'extension.</li>
-            </ol>
-            <a
-              href={`${apiRoot}/api/public/extension.zip`}
+            <p className="mt-1 text-xs leading-relaxed text-gray-400">
+              Téléchargement, installation pas à pas et mode d'emploi complet — import à l'unité, volet des lots,
+              remplissage des formulaires de vente — sur la page dédiée.
+            </p>
+            <Link
+              to="/extension"
               className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
             >
               <Download size={15} />
-              <span>Télécharger l'extension (.zip)</span>
-            </a>
-            <p className="mt-2 text-[11px] text-gray-500">
-              En mode développeur, l'extension ne se met pas à jour toute seule : retéléchargez-la quand une nouvelle
-              version est annoncée dans l'application.
-            </p>
+              <span>Ouvrir la page de l'extension</span>
+            </Link>
           </div>
         </div>
       </section>

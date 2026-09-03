@@ -10,13 +10,16 @@ html {
 
 body {
   margin: 0;
-  background: #0f0a1f;
+  background: #08070f;
   color: #e5e7eb;
   font-family: var(--font-sans);
 }
 
+/* Le thème glassmorphism vaut pour toute l'application (04/09/2026) : les
+ * pages publiques, qui n'ont pas le fond vivant animé, reçoivent le même noir
+ * profond avec une lueur violette à peine perceptible. */
 .bg-app-gradient {
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #581c87 100%);
+  background: radial-gradient(1100px 700px at 75% -10%, #16102a, #08070f 60%);
 }
 
 .text-gradient-brand {
@@ -53,15 +56,17 @@ optgroup {
 }
 
 /* ── Le fond vivant du thème glassmorphism ─────────────────────────────────
- * Des formes multicolores qui naissent, dérivent et se défont sur le noir,
- * d'après les références fournies. Animées au compositeur uniquement
- * (transform + opacity) : le flou est posé une fois, le mouvement est gratuit.
+ * Version lampe à lave, réglée le 04/09/2026 : « plus de noir et des couleurs
+ * plus petites qui circulent — type lampe magma, lave, huile et eau ». Le
+ * noir domine, les gouttes sont petites, elles montent lentement en se
+ * déformant comme dans l'huile, redescendent, se croisent. Tout est animé au
+ * compositeur (transform + opacity) et prefers-reduced-motion fige le décor.
  */
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(46px);
-  opacity: 0.55;
+  filter: blur(28px);
+  opacity: 0.42;
   will-change: transform, opacity;
 }
 .anneau {
@@ -69,89 +74,96 @@ optgroup {
   border-radius: 50%;
   border-style: solid;
   filter: blur(2px);
-  opacity: 0.5;
+  opacity: 0.28;
   will-change: transform, opacity;
 }
 
+/* Les gouttes : petites, chacune sa colonne, chacune son rythme. */
 .blob-a {
-  width: 420px; height: 420px; left: -6%; top: 55%;
-  background: radial-gradient(circle at 35% 30%, #fbbf24, #fb923c 55%, #ff5c8a00 78%);
-  animation: derive-a 46s ease-in-out infinite;
+  width: 150px; height: 170px; left: 6%; bottom: -12%;
+  background: radial-gradient(circle at 38% 32%, #fbbf24, #fb923c 55%, #fb923c00 78%);
+  border-radius: 52% 48% 55% 45% / 60% 55% 45% 40%;
+  animation: lave-a 74s ease-in-out infinite;
 }
 .blob-b {
-  width: 300px; height: 300px; right: -4%; top: 8%;
-  background: radial-gradient(circle at 40% 35%, #22d3ee, #818cf8 60%, #818cf800 80%);
-  animation: derive-b 58s ease-in-out infinite;
+  width: 110px; height: 120px; left: 30%; bottom: -10%;
+  background: radial-gradient(circle at 40% 35%, #22d3ee, #818cf8 60%, #818cf800 82%);
+  animation: lave-b 92s ease-in-out infinite;
+  animation-delay: -30s;
 }
 .blob-c {
-  width: 360px; height: 340px; left: 34%; top: -10%;
-  background: radial-gradient(circle at 60% 40%, #e879f9, #f472b6 45%, #a78bfa 70%, #a78bfa00 85%);
+  width: 180px; height: 160px; left: 52%; bottom: -14%;
+  background: radial-gradient(circle at 60% 40%, #e879f9, #f472b6 50%, #a78bfa00 80%);
   border-radius: 58% 42% 55% 45% / 48% 60% 40% 52%;
-  animation: derive-c 52s ease-in-out infinite;
+  animation: lave-c 84s ease-in-out infinite;
+  animation-delay: -55s;
 }
 .blob-d {
-  width: 260px; height: 280px; right: 16%; bottom: -8%;
+  width: 95px; height: 105px; left: 74%; bottom: -9%;
   background: radial-gradient(circle at 45% 45%, #a3e635, #2dd4bf 55%, #2dd4bf00 80%);
-  border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
-  animation: derive-d 44s ease-in-out infinite;
+  animation: lave-b 68s ease-in-out infinite;
+  animation-delay: -12s;
 }
 .blob-e {
-  width: 220px; height: 220px; left: 58%; top: 62%;
+  width: 130px; height: 140px; left: 88%; bottom: -12%;
   background: radial-gradient(circle at 40% 35%, #fb7185, #e879f9 55%, #e879f900 80%);
-  animation: naissance 36s ease-in-out infinite;
+  border-radius: 45% 55% 42% 58% / 55% 45% 58% 42%;
+  animation: lave-a 100s ease-in-out infinite;
+  animation-delay: -70s;
+}
+.blob-f {
+  width: 80px; height: 85px; left: 18%; bottom: -8%;
+  background: radial-gradient(circle at 42% 38%, #60a5fa, #a78bfa 58%, #a78bfa00 80%);
+  animation: lave-c 60s ease-in-out infinite;
+  animation-delay: -20s;
 }
 .anneau-a {
-  width: 340px; height: 340px; left: 10%; top: 6%;
-  border-width: 30px;
+  width: 160px; height: 160px; left: 12%; top: 10%;
+  border-width: 14px;
   border-color: transparent #fb923c #ff5c8a transparent;
-  transform: rotate(35deg);
-  animation: rotation-a 70s linear infinite;
+  animation: rotation-a 90s linear infinite;
 }
 .anneau-b {
-  width: 240px; height: 240px; right: 26%; bottom: 16%;
-  border-width: 22px;
+  width: 120px; height: 120px; right: 14%; top: 58%;
+  border-width: 10px;
   border-color: #60a5fa transparent transparent #e879f9;
-  animation: rotation-b 90s linear infinite;
+  animation: rotation-b 110s linear infinite;
 }
 
-@keyframes derive-a {
-  0%   { transform: translate(0, 0) scale(1); }
-  33%  { transform: translate(16vw, -18vh) scale(1.18); }
-  66%  { transform: translate(30vw, 6vh) scale(0.85); }
-  100% { transform: translate(0, 0) scale(1); }
+/* La montée d'une lampe à lave : la goutte s'étire en partant, se tasse en
+ * haut, redescend en se balançant. Chaque trajet traverse tout l'écran. */
+@keyframes lave-a {
+  0%   { transform: translateY(0) scale(1); }
+  12%  { transform: translateY(-28vh) scaleY(1.25) scaleX(0.88) translateX(2vw); }
+  38%  { transform: translateY(-78vh) scaleY(1.05) translateX(-2vw); }
+  50%  { transform: translateY(-96vh) scale(0.92) translateX(1vw); }
+  62%  { transform: translateY(-74vh) scaleY(1.18) translateX(3vw); }
+  88%  { transform: translateY(-18vh) scale(1.02) translateX(-1vw); }
+  100% { transform: translateY(0) scale(1); }
 }
-@keyframes derive-b {
-  0%   { transform: translate(0, 0) scale(1); }
-  40%  { transform: translate(-24vw, 22vh) scale(1.25); }
-  70%  { transform: translate(-8vw, 42vh) scale(0.9); }
-  100% { transform: translate(0, 0) scale(1); }
+@keyframes lave-b {
+  0%   { transform: translateY(0) scale(0.9); }
+  18%  { transform: translateY(-40vh) scaleY(1.3) scaleX(0.85) translateX(-3vw); }
+  46%  { transform: translateY(-100vh) scale(1); }
+  58%  { transform: translateY(-88vh) scaleY(1.15) translateX(2vw); }
+  84%  { transform: translateY(-24vh) scale(0.95) translateX(-2vw); }
+  100% { transform: translateY(0) scale(0.9); }
 }
-@keyframes derive-c {
-  0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
-  50%  { transform: translate(-14vw, 30vh) rotate(140deg) scale(1.3); }
-  100% { transform: translate(0, 0) rotate(360deg) scale(1); }
-}
-@keyframes derive-d {
-  0%   { transform: translate(0, 0) rotate(0deg); }
-  45%  { transform: translate(-20vw, -26vh) rotate(-120deg) scale(1.35); }
-  100% { transform: translate(0, 0) rotate(-360deg); }
-}
-/* Une forme qui se crée puis se défait : opacité nulle aux deux bouts. */
-@keyframes naissance {
-  0%   { transform: scale(0.2); opacity: 0; }
-  20%  { transform: scale(1) translate(-6vw, -8vh); opacity: 0.6; }
-  55%  { transform: scale(1.4) translate(-16vw, -20vh); opacity: 0.45; }
-  80%  { transform: scale(0.5) translate(-24vw, -30vh); opacity: 0; }
-  100% { transform: scale(0.2); opacity: 0; }
+@keyframes lave-c {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); }
+  25%  { transform: translateY(-52vh) rotate(40deg) scaleY(1.2) translateX(3vw); }
+  48%  { transform: translateY(-104vh) rotate(80deg) scale(0.9); }
+  70%  { transform: translateY(-56vh) rotate(140deg) scaleY(1.12) translateX(-3vw); }
+  100% { transform: translateY(0) rotate(180deg) scale(1); }
 }
 @keyframes rotation-a {
-  0%   { transform: rotate(0deg) translate(0, 0); }
-  50%  { transform: rotate(180deg) translate(6vw, 10vh); }
-  100% { transform: rotate(360deg) translate(0, 0); }
+  0%   { transform: rotate(0deg) translateY(0); }
+  50%  { transform: rotate(180deg) translateY(8vh); }
+  100% { transform: rotate(360deg) translateY(0); }
 }
 @keyframes rotation-b {
   0%   { transform: rotate(0deg); }
-  50%  { transform: rotate(-180deg) translate(-8vw, -6vh) scale(1.2); }
+  50%  { transform: rotate(-180deg) translateY(-10vh); }
   100% { transform: rotate(-360deg); }
 }
 
@@ -160,5 +172,7 @@ optgroup {
   .fond-vivant .blob,
   .fond-vivant .anneau {
     animation: none;
+    bottom: auto;
+    top: 30%;
   }
 }

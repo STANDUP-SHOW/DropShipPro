@@ -39,7 +39,7 @@ const SECTIONS: Array<{
     titre: 'Acquisition produits',
     entrees: [
       { to: '/acquisition', label: 'Comment acquérir', icon: Link2 },
-      { to: '/acquisition#extension', label: 'Extension Chrome', icon: Puzzle },
+      { to: '/extension', label: 'Extension Chrome', icon: Puzzle },
     ],
   },
   {
@@ -125,7 +125,7 @@ const SECTIONS: Array<{
   },
 ]
 
-export function Layout({ children, large = false, sombre = false }: { children: React.ReactNode; large?: boolean; sombre?: boolean }) {
+export function Layout({ children, large = false }: { children: React.ReactNode; large?: boolean }) {
   const { pathname, search, hash } = useLocation()
   /** Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte. */
   const estActive = (to: string) =>
@@ -163,12 +163,12 @@ export function Layout({ children, large = false, sombre = false }: { children: 
   }, [pathname])
 
   return (
-    // Mode sombre du tableau de bord : le fond vivant du thème glassmorphism
-    // — noir profond, formes multicolores qui dérivent — sous des blocs en
+    // Le thème glassmorphism vaut pour toute l'application (04/09/2026) :
+    // fond noir vivant — les gouttes de la lampe à lave — sous des blocs en
     // verre. `relative` sur l'aside et le main les fait peindre au-dessus.
-    <div className={`min-h-screen text-white flex ${sombre ? '' : 'bg-app-gradient'}`}>
-      {sombre ? <FondVivant /> : null}
-      <aside className={`relative w-56 shrink-0 border-r border-white/10 p-4 flex flex-col ${sombre ? 'bg-black/35 backdrop-blur-xl' : ''}`}>
+    <div className="min-h-screen text-white flex">
+      <FondVivant />
+      <aside className="relative w-56 shrink-0 border-r border-white/10 bg-black/35 p-4 backdrop-blur-xl flex flex-col">
         <Link to="/dashboard" className="mb-8 block">
           <Logo size={22} />
         </Link>

@@ -15,17 +15,17 @@
 export function FondVivant() {
   return (
     <div aria-hidden className="fond-vivant fixed inset-0 z-0 overflow-hidden bg-[#08070f]">
-      {/* Les sphères dégradées de la première référence. */}
+      {/* Les gouttes de la lampe : elles partent du bas, montent en s'étirant,
+          redescendent — chacune sa colonne, son rythme et son retard. */}
       <span className="blob blob-a" />
       <span className="blob blob-b" />
-      {/* Les gouttes liquides de la deuxième — elles changent de silhouette. */}
       <span className="blob blob-c" />
       <span className="blob blob-d" />
-      {/* Les anneaux de la troisième. */}
+      <span className="blob blob-e" />
+      <span className="blob blob-f" />
+      {/* Deux anneaux fins, discrets, en dérive lente. */}
       <span className="anneau anneau-a" />
       <span className="anneau anneau-b" />
-      {/* Une naissance : elle apparaît, grossit, se dissout, recommence. */}
-      <span className="blob blob-e" />
     </div>
   )
 }
