@@ -186,7 +186,16 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
         <div className="grid gap-3 @3xl:grid-cols-[1fr_230px]">
           {/* 8..150 : l'essentiel des terres habitées, sans les mers australes. */}
           <svg viewBox="0 8 360 142" className="w-full" aria-hidden>
-            <path d={MONDE_D} fill="rgba(148, 121, 255, 0.10)" stroke="rgba(255,255,255,0.16)" strokeWidth="0.28" strokeLinejoin="round" />
+            {/* Les contours en blanc néon (06/09/2026) : un trait vif doublé
+                d'un halo — à 16 % d'opacité, les continents disparaissaient. */}
+            <path
+              d={MONDE_D}
+              fill="rgba(148, 121, 255, 0.10)"
+              stroke="rgba(255,255,255,0.9)"
+              strokeWidth="0.38"
+              strokeLinejoin="round"
+              style={{ filter: 'drop-shadow(0 0 1.6px rgba(255,255,255,0.75))' }}
+            />
 
             {/* La France, cœur du trafic, allumée en permanence. */}
             <circle cx={france[0]} cy={france[1]} r="2.6" fill={`${de}44`} />
