@@ -98,7 +98,8 @@ export async function genererAnalyse(dep: Department, label: string): Promise<An
     'Deux volets obligatoires :',
     '1. **Fournisseurs** — les produits phares du rayon en ce moment chez les fournisseurs (AliExpress, Temu, BigBuy, CJ…) : quoi, à quel prix d\'achat constaté.',
     '2. **Places de marché** — ce qui se vend et se cherche en France dans ce rayon : tendances, saisonnalité, fourchettes de prix constatées.',
-    'Utilise la recherche web pour appuyer tes affirmations et cite tes sources. Rien d\'inventé : un chiffre sans source se dit « à vérifier ».',
+    "Utilise la recherche web pour appuyer tes affirmations et cite au moins trois sources avec leur adresse web complète (https://…). Rien d'inventé : un chiffre sans source se dit « à vérifier ».",
+    'Si la recherche web ne répond pas, dis-le en une phrase et arrête-toi là : ne rédige PAS une analyse non sourcée.',
     'Termine par une courte synthèse actionnable pour un vendeur.',
   ].join('\n')
 
@@ -128,7 +129,17 @@ export async function genererAnalyse(dep: Department, label: string): Promise<An
   const abouties = analyse.content.filter(
     (b): b is Anthropic.WebSearchToolResultBlock => b.type === 'web_search_tool_result' && Array.isArray(b.content),
   ).length
-  if (abouties === 0) {
+  /*
+   * Second filet, indépendant de la forme des blocs : le premier comptage n'a
+   * pas suffi en production (04/09/2026, un rapport « quota dépassé » est
+   * passé quand même). La consigne exige des adresses complètes ; une analyse
+   * qui n'en cite aucune n'a consulté personne, quelle que soit la mécanique.
+   */
+  const sourcee = /https?:\/\//.test(corps)
+  if (abouties === 0 || !sourcee) {
+    console.error(
+      `auto-mode ${label} : analyse refusée (recherches abouties : ${abouties}, lien dans le corps : ${sourcee}) — blocs : ${analyse.content.map((b) => b.type).join(',')}`,
+    )
     throw new Error("La recherche web n'a pas répondu : l'analyse repassera au prochain tour plutôt que de paraître sans source.")
   }
 

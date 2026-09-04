@@ -467,6 +467,18 @@ Trois conséquences, toutes appliquées :
   C'est le poste dominant du salaire du chef : conseillé de passer le salaire
   à 20 €/mois, l'AUTO-MODE étant l'argument de la hausse.
 
+  Deux pannes vues au premier passage réel (04/09/2026), corrigées :
+  **la recherche web peut répondre « limite serveur dépassée » sur toutes les
+  tentatives** — le modèle rédige alors une analyse entière marquée « à
+  vérifier », sans une seule source, et elle était consignée telle quelle.
+  Un passage sans recherche aboutie **échoue** désormais (rien de consigné,
+  la garde ne bloque pas, le prochain réveil refait), et la tournée espace
+  les rayons de 20 s — c'est la rafale qui déclenche la limite. Et **avec la
+  recherche web en `tool_choice: auto`, le modèle peut finir en prose sans
+  jamais appeler l'outil de livraison** : la liste des gagnants sortait vide
+  en silence ; un secours rejoue la livraison sans recherche, outil imposé,
+  liens du texte sourcé uniquement.
+
 - **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
   pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
   et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou
