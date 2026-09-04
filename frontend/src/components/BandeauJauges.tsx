@@ -94,7 +94,7 @@ export function BandeauJauges() {
    * détail passant dans l'infobulle. Jamais deux lignes.
    */
   const cellule =
-    'flex min-w-0 flex-1 items-center justify-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-2 py-2 backdrop-blur-xl lg:justify-start lg:px-3'
+    'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
 
   return (
     <div className="sticky top-0 z-30 -mx-6 mb-5 border-b border-white/[0.06] bg-[#08070f]/80 px-6 py-2.5 backdrop-blur-xl md:-mx-8 md:px-8">
@@ -109,8 +109,8 @@ export function BandeauJauges() {
             <span className="w-9 shrink-0 [&_svg]:h-auto [&_svg]:w-full">{b.dessin}</span>
             {/* Le titre reste écrit, en blanc, même compressé (05/09/2026) ;
                 seuls la valeur et le geste s'effacent sur écran étroit. */}
-            <span className="min-w-0">
-              <span className="block truncate text-[9px] font-bold uppercase tracking-wider text-white">{b.label}</span>
+            <span className="min-w-0 text-center lg:text-left">
+              <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">{b.label}</span>
               <span className="hidden truncate text-sm font-bold leading-tight lg:block">{b.valeur}</span>
               <span className="hidden truncate text-[10px] text-purple-300 lg:block">{b.action}</span>
             </span>
@@ -123,8 +123,8 @@ export function BandeauJauges() {
           <span className="w-9 shrink-0 [&_svg]:h-auto [&_svg]:w-full">
             <Jauge part={Math.max(jauges.utilisation > 0 ? 0 : 0.42, jauges.utilisation / 100)} encre={{ de: '#fbbf24', a: '#fb7185' }} />
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[9px] font-bold uppercase tracking-wider text-white">Plateforme</span>
+          <span className="min-w-0 text-center lg:text-left">
+            <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">Plateforme</span>
             <span className="hidden text-sm font-bold leading-tight lg:block">{jauges.utilisation} %</span>
             <span className="hidden truncate text-[10px] text-gray-500 lg:block">du potentiel utilisé</span>
           </span>
