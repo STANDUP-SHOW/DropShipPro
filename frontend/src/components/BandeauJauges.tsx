@@ -94,11 +94,11 @@ export function BandeauJauges() {
    * détail passant dans l'infobulle. Jamais deux lignes.
    */
   const cellule =
-    'flex min-w-0 flex-1 flex-col items-center gap-1 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
+    'flex min-w-[68px] flex-1 shrink-0 flex-col items-center gap-1 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
 
   return (
     <div className="sticky top-0 z-30 -mx-6 mb-5 border-b border-white/[0.06] bg-[#08070f]/80 px-6 py-2.5 backdrop-blur-xl md:-mx-8 md:px-8">
-      <div className="flex flex-nowrap gap-2">
+      <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
         {blocs.map((b) => (
           <Link
             key={b.label}
