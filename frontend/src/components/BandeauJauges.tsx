@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { AnneauPastille, Barre, DemiJauge, Jauge, Pastilles, Segments } from './stats/formes'
+import { Arcs, Barre, Crante, DemiJauge, Jauge, Segments } from './stats/formes'
 
 /**
  * Le bandeau fixe des six jauges — en tête de chaque page (04/09/2026).
@@ -55,7 +55,7 @@ export function BandeauJauges() {
       valeur: `${nombre(jauges.annonces.fait)} / ${nombre(jauges.annonces.total)}`,
       action: 'Publiez des annonces',
       to: '/dashboard',
-      dessin: <AnneauPastille part={part(jauges.annonces.fait, jauges.annonces.total, 0.35)} encre={{ de: '#ff5c8a', a: '#fb923c' }} />,
+      dessin: <Crante part={part(jauges.annonces.fait, jauges.annonces.total, 0.35)} graine={1} />,
     },
     {
       label: 'Fournisseurs',
@@ -76,7 +76,7 @@ export function BandeauJauges() {
       valeur: `${jauges.agents.fait} / ${jauges.agents.total}`,
       action: 'Ajoutez des chefs de rayon',
       to: '/rayons',
-      dessin: <Pastilles part={part(jauges.agents.fait, jauges.agents.total, 0.4)} graine={3} />,
+      dessin: <Arcs part={part(jauges.agents.fait, jauges.agents.total, 0.4)} graine={2} />,
     },
     {
       label: 'Réseaux sociaux',
@@ -106,10 +106,10 @@ export function BandeauJauges() {
             title={`${b.label} : ${b.valeur} — ${b.action}`}
             className={`${cellule} transition hover:border-white/[0.18]`}
           >
-            <span className="w-9 shrink-0 [&_svg]:h-auto [&_svg]:w-full">{b.dessin}</span>
+            <span className="order-2 w-9 shrink-0 lg:order-1 [&_svg]:h-auto [&_svg]:w-full">{b.dessin}</span>
             {/* Le titre reste écrit, en blanc, même compressé (05/09/2026) ;
                 seuls la valeur et le geste s'effacent sur écran étroit. */}
-            <span className="w-full min-w-0 text-center lg:w-auto lg:text-left">
+            <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
               <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">{b.label}</span>
               <span className="hidden truncate text-sm font-bold leading-tight lg:block">{b.valeur}</span>
               <span className="hidden truncate text-[10px] text-purple-300 lg:block">{b.action}</span>
@@ -120,10 +120,10 @@ export function BandeauJauges() {
         {/* Le sixième bloc : la jauge d'ensemble, sans porte — c'est un état,
             pas un geste. */}
         <div className={cellule} title={`Utilisation : ${jauges.utilisation} % du potentiel de l'appli`}>
-          <span className="w-9 shrink-0 [&_svg]:h-auto [&_svg]:w-full">
+          <span className="order-2 w-9 shrink-0 lg:order-1 [&_svg]:h-auto [&_svg]:w-full">
             <Jauge part={Math.max(jauges.utilisation > 0 ? 0 : 0.42, jauges.utilisation / 100)} encre={{ de: '#fbbf24', a: '#fb7185' }} />
           </span>
-          <span className="w-full min-w-0 text-center lg:w-auto lg:text-left">
+          <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
             <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">Plateforme</span>
             <span className="hidden text-sm font-bold leading-tight lg:block">{jauges.utilisation} %</span>
             <span className="hidden truncate text-[10px] text-gray-500 lg:block">du potentiel utilisé</span>
