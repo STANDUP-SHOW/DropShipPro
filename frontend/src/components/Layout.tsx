@@ -33,6 +33,19 @@ function IconeAutoShipper({ size = 16 }: { size?: number }) {
   )
 }
 
+/** Le badge IA vert de l'entrée « Créez votre boutique en ligne ». */
+function IconeBoutiqueIA({ size = 16 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden
+      className="flex shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-400 to-green-600 font-black text-white"
+      style={{ width: size + 2, height: size + 2, fontSize: size * 0.5, boxShadow: '0 0 8px rgba(52,211,153,0.6)' }}
+    >
+      IA
+    </span>
+  )
+}
+
 const NAV = [
   // Le tableau de bord d abord : l accueil du vendeur, ce sont ses chiffres.
   { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
@@ -93,6 +106,9 @@ const SECTIONS: Array<{
     entrees: [
       { to: '/plateformes-vente', label: 'Market places', icon: Store },
       { to: '/mes-sites', label: 'Mes sites', icon: Store },
+      // La création de boutique, à part de Mes sites (06/09/2026) : elle sera
+      // facturée en crédits — son entrée porte l'icône IA et le vert.
+      { to: '/creer-boutique', label: 'Créez votre boutique en ligne', icon: IconeBoutiqueIA },
     ],
   },
   {
@@ -338,7 +354,15 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
                   }`}
                 >
                   <item.icon size={18} />
-                  <span>{item.label}</span>
+                  {/* La création de boutique porte son dégradé vert → blanc,
+                      en gras — comme Auto-Shipper porte le sien. */}
+                  {item.to === '/creer-boutique' ? (
+                    <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text font-bold text-transparent">
+                      {item.label}
+                    </span>
+                  ) : (
+                    <span>{item.label}</span>
+                  )}
                 </Link>
               ))}
             </div>

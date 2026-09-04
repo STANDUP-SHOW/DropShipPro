@@ -27,6 +27,7 @@ import ReviewsPage from './pages/ReviewsPage'
 import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
 import ProduitsGagnants from './pages/ProduitsGagnants'
+import CreerBoutique from './pages/CreerBoutique'
 import Veille from './pages/Veille'
 import Rayons from './pages/Rayons'
 import Agents from './pages/Agents'
@@ -155,6 +156,7 @@ export default function App() {
           <Route path="/veille" element={<Protected><Veille /></Protected>} />
           <Route path="/analyse-marche" element={<Protected><MarketAnalysisPage /></Protected>} />
           <Route path="/produits-gagnants" element={<Protected><ProduitsGagnants /></Protected>} />
+          <Route path="/creer-boutique" element={<Protected><CreerBoutique /></Protected>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
