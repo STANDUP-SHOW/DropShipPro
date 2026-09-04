@@ -110,7 +110,7 @@ export function BandeauJauges() {
             {/* Le titre reste écrit, en blanc, même compressé (05/09/2026) ;
                 seuls la valeur et le geste s'effacent sur écran étroit. */}
             <span className="w-full min-w-0 text-center lg:w-auto lg:text-left">
-              <span className="block break-words text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">{b.label}</span>
+              <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">{b.label}</span>
               <span className="hidden truncate text-sm font-bold leading-tight lg:block">{b.valeur}</span>
               <span className="hidden truncate text-[10px] text-purple-300 lg:block">{b.action}</span>
             </span>
@@ -124,7 +124,7 @@ export function BandeauJauges() {
             <Jauge part={Math.max(jauges.utilisation > 0 ? 0 : 0.42, jauges.utilisation / 100)} encre={{ de: '#fbbf24', a: '#fb7185' }} />
           </span>
           <span className="w-full min-w-0 text-center lg:w-auto lg:text-left">
-            <span className="block break-words text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">Plateforme</span>
+            <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">Plateforme</span>
             <span className="hidden text-sm font-bold leading-tight lg:block">{jauges.utilisation} %</span>
             <span className="hidden truncate text-[10px] text-gray-500 lg:block">du potentiel utilisé</span>
           </span>
