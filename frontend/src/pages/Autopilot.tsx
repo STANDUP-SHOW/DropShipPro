@@ -251,7 +251,9 @@ export default function Autopilot() {
       {/* Le titre de la fiche : AUTO-SHIPPER AI, du bleu au rouge, en gras. */}
       <h1 className="flex items-center justify-center gap-3 text-center text-3xl font-black tracking-tight">
         <Bot size={30} className="text-sky-400" />
-        <span className="bg-gradient-to-r from-sky-400 via-violet-500 to-red-500 bg-clip-text text-transparent">
+        {/* Le dégradé du titre reprend l'animation : la glace du noyau vers
+            le feu de l'anneau — bleu → jaune (06/09/2026). */}
+        <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text text-transparent">
           AUTO-SHIPPER AI
         </span>
       </h1>
