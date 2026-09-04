@@ -4,6 +4,7 @@ import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
 import { FondVivant } from './FondVivant'
+import { BandeauJauges } from './BandeauJauges'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 
@@ -287,7 +288,10 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
           </button>
         </div>
       </aside>
-      <main className="relative flex-1 p-6 md:p-8 overflow-x-hidden">
+      <main className="relative flex-1 px-6 pb-6 md:px-8 md:pb-8 overflow-x-hidden">
+        {/* Les six jauges, fixes en tête de chaque page : fait sur possible,
+            et la porte vers l'endroit où on agit (04/09/2026). */}
+        <BandeauJauges />
         {/*
           Le tableau de bord occupe tout l'écran, comme la maquette : cent
           vingt-six tuiles dans un couloir de 1024 px n'auraient jamais leurs

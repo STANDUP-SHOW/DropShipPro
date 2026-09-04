@@ -1139,6 +1139,17 @@ export const api = {
       }>
       plans: Array<{ id: string; label: string; amount: number; days: number; pitch: string }>
     }>('/departments/catalogue'),
+  /** Les six jauges du bandeau fixe : fait sur possible, par catégorie. */
+  jauges: () =>
+    request<{
+      annonces: { fait: number; total: number }
+      fournisseurs: { fait: number; total: number }
+      marketplaces: { fait: number; total: number }
+      agents: { fait: number; total: number }
+      sociaux: { fait: number; total: number }
+      utilisation: number
+    }>('/api/stats/jauges'),
+
   /** Lance l'enquête fournisseurs du jour sans attendre la tournée. */
   lancerEnquete: (departmentId: string) =>
     request<{ deposees: number; relevees: number; raison?: string }>(`/api/departments/${departmentId}/enquete`, {
