@@ -213,7 +213,7 @@ export default function Deliveries() {
       </div>
 
       {adding && (
-        <div className="mt-3 max-w-2xl rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-4">
           {!shippable.length ? (
             <p className="text-sm text-gray-400">
               Aucune commande n'attend d'expédition.

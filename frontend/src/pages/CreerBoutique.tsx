@@ -70,7 +70,7 @@ export default function CreerBoutique() {
       </p>
 
       {/* ---------- Étape 1 : nommer et créer ---------- */}
-      <section className="mt-6 max-w-2xl rounded-2xl border border-white/10 bg-white/[0.05] p-5 backdrop-blur">
+      <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.05] p-5 backdrop-blur">
         <h2 className="flex items-center gap-2 font-bold">
           <Store size={16} className="text-emerald-300" />
           <span>1. Nommez votre boutique</span>
@@ -120,7 +120,7 @@ export default function CreerBoutique() {
 
       {/* ---------- Étape 2 : la vitrine, composée par l'IA ---------- */}
       {active ? (
-        <section className="mt-6 max-w-2xl">
+        <section className="mt-6">
           <h2 className="flex items-center gap-2 font-bold">
             <Sparkles size={16} className="text-emerald-300" />
             <span>{`2. Composez la vitrine de ${active.name}`}</span>

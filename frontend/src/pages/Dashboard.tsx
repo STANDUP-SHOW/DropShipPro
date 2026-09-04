@@ -715,7 +715,8 @@ export default function Dashboard() {
             {products.length === 0 ? 'Aucune annonce pour le moment.' : 'Aucune annonce ne correspond à ce filtre.'}
           </p>
         ) : view === 'grid' ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+          // Quatre annonces par ligne sur un écran 16/9 (06/09/2026).
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
             {visible.map((p) => {
               const isSelected = selectedIds.includes(p.id)
               return (

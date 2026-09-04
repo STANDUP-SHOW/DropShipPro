@@ -194,7 +194,7 @@ function JaugeMax({ taille = 14 }: { taille?: number }) {
   )
 }
 
-export function Layout({ children, large = false }: { children: React.ReactNode; large?: boolean }) {
+export function Layout({ children }: { children: React.ReactNode; large?: boolean }) {
   const { pathname, search, hash } = useLocation()
   /** Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte. */
   const estActive = (to: string) =>
@@ -390,11 +390,13 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
             et la porte vers l'endroit où on agit (04/09/2026). */}
         <BandeauJauges />
         {/*
-          Le tableau de bord occupe tout l'écran, comme la maquette : cent
-          vingt-six tuiles dans un couloir de 1024 px n'auraient jamais leurs
-          neuf colonnes. Les autres pages gardent leur colonne de lecture.
+          Toutes les pages partagent le cadre du bandeau des six jauges —
+          demandé le 06/09/2026 : « tous les affichages justifiés autour des
+          six boutons du haut ». Le couloir de lecture à 1024 px laissait un
+          tiers d'écran vide en 16/9 pendant que les jauges s'étendaient ;
+          `large` ne distingue plus rien, il reste pour ne rien casser.
         */}
-        <div className={large ? 'mx-auto max-w-[1800px]' : 'mx-auto max-w-5xl'}>
+        <div className="mx-auto max-w-[1800px]">
           {/*
             Dans la mise en page, donc sur tous les écrans.
             Une extension en retard fausse ce que le vendeur voit partout — pas
