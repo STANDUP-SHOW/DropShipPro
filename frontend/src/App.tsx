@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './lib/auth'
+import { isAuthed } from './lib/api'
 import { LoadingScreen } from './components/LoadingScreen'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import Index from './pages/Index'
@@ -50,7 +51,14 @@ import Guide from './pages/Guide'
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   if (loading) return <LoadingScreen message="Vérification de votre session…" />
-  if (!user) return <Navigate to="/login" replace />
+  /*
+   * On n'expulse que SANS jeton. Un jeton présent avec un profil pas encore
+   * chargé, c'est l'API qui redémarre (Railway redéploie à chaque envoi) —
+   * renvoyer au login jetait alors des sessions parfaitement valides : le
+   * « rebond /login » constaté depuis des jours, y compris chez Max. La page
+   * s'affiche, et le profil arrive au réessai automatique.
+   */
+  if (!user && !isAuthed()) return <Navigate to="/login" replace />
   return <>{children}</>
 }
 

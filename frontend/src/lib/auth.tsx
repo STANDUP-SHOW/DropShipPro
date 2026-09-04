@@ -43,6 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (status === 401) {
         clearToken()
         setUser(null)
+      } else {
+        // The API is down or restarting (Railway redeploys on every push): the
+        // token is still good, so retry until it answers instead of leaving the
+        // session in limbo — this is what bounced valid users to /login.
+        setTimeout(() => {
+          refresh()
+        }, 4000)
       }
     } finally {
       setLoading(false)
