@@ -146,6 +146,20 @@ ordersRouter.patch('/:id', async (req: AuthedRequest, res) => {
 })
 
 /**
+ * Supprimer une commande — demandé le 06/09/2026 : une vente de test ou une
+ * saisie ratée n'a pas à polluer la liste ni la comptabilité. Le deleteMany
+ * borné au compte fait office de garde : on ne supprime jamais la commande
+ * d'un autre vendeur, et un identifiant inconnu rend un 404, pas un silence.
+ */
+ordersRouter.delete('/:id', async (req: AuthedRequest, res) => {
+  const { count } = await prisma.order.deleteMany({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!count) return res.status(404).json({ error: 'Commande introuvable' })
+  res.status(204).send()
+})
+
+/**
  * La fiche d'une commande : adresse, colis, et de quoi joindre l'acheteur.
  *
  * Le suivi détaillé n'arrive que si une clé 17TRACK est configurée ; sans elle,

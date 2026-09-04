@@ -620,6 +620,7 @@ export const api = {
   createOrder: (data: Record<string, unknown>) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
   updateOrder: (id: string, data: Record<string, unknown>) =>
     request(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteOrder: (id: string) => request(`/orders/${id}`, { method: 'DELETE' }),
 
   /** Les reglages du compte, filigrane compris : /auth/me n en renvoie qu une part. */
   settingsProfile: () =>

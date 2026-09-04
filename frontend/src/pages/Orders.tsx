@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { PackageCheck, Truck, ExternalLink, Plus } from 'lucide-react'
+import { PackageCheck, Truck, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
@@ -79,6 +79,14 @@ export default function Orders() {
   async function markShipped(id: string) {
     if (id.startsWith('demo-')) return
     await api.updateOrder(id, { status: 'SHIPPED' })
+    await load()
+  }
+
+  async function supprimer(o: any) {
+    // Une ligne de démonstration ne se supprime pas ; une vraie se confirme.
+    if (String(o.id).startsWith('demo-')) return
+    if (!window.confirm(`Supprimer la commande de ${o.buyerName} (${o.amount} ${o.currency}) ? Elle disparaîtra aussi de la comptabilité.`)) return
+    await api.deleteOrder(o.id).catch(() => undefined)
     await load()
   }
 
@@ -179,7 +187,17 @@ export default function Orders() {
                   {o.buyerAddress?.street}, {o.buyerAddress?.zip} {o.buyerAddress?.city}
                 </p>
               </div>
-              <span className={`text-xs rounded-full px-2 py-1 shrink-0 ${STATUS_COLOR[o.status]}`}>{STATUS_LABEL[o.status]}</span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className={`text-xs rounded-full px-2 py-1 ${STATUS_COLOR[o.status]}`}>{STATUS_LABEL[o.status]}</span>
+                <button
+                  type="button"
+                  onClick={() => supprimer(o)}
+                  title="Supprimer cette commande"
+                  className="rounded-lg border border-white/10 p-1.5 text-gray-500 hover:bg-white/5 hover:text-red-400"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-3">
               <a
