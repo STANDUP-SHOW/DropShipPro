@@ -28,6 +28,7 @@ import { socialRouter, socialPublicRouter } from './routes/social.js'
 import { semerCategories } from './services/categories.js'
 import { tourneeEnquetes } from './services/enqueteFournisseurs.js'
 import { tourneeAutoMode } from './services/autoAnalyste.js'
+import { tourneeAutopilot } from './services/autopilot.js'
 const app = express()
 
 // A deployed app is reached from several origins at once — the custom domain, its
@@ -152,3 +153,17 @@ setTimeout(() => {
     3 * 3600 * 1000,
   )
 }, 4 * 60 * 1000)
+
+/*
+ * L'AUTO-SHIPPER : un passage du pilote automatique visé par tranche de
+ * douze heures et par vendeur activé. Décalé après l'enquête (2 min) et
+ * l'auto-mode (4 min) pour que les trois tournées ne partagent jamais la
+ * même rafale de recherches et d'appels.
+ */
+setTimeout(() => {
+  tourneeAutopilot().catch((e) => console.error('tournée auto-shipper impossible', e))
+  setInterval(
+    () => tourneeAutopilot().catch((e) => console.error('tournée auto-shipper impossible', e)),
+    3 * 3600 * 1000,
+  )
+}, 6 * 60 * 1000)

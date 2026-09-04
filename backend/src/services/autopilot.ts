@@ -311,3 +311,62 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
 
   return result
 }
+
+/**
+ * Le prix d'une tranche de 12 h de mode automatique : il couvre
+ * l'orchestration — reprise des produits gagnants, sélection, publication,
+ * archivage du passage. Chaque import continue de consommer son crédit
+ * d'annonce, comme partout ailleurs : cinq crédits ne couvriront jamais
+ * cinquante réécritures.
+ */
+export const CREDITS_TRANCHE_AUTO = 5
+
+export type PassageAutopilot = (userId: string) => Promise<RunResult>
+
+/**
+ * La tournée AUTO-SHIPPER : chaque pilote activé, au plus une fois par
+ * tranche de douze heures — « il récupère chaque matin la liste des produits
+ * gagnants », et chaque soir. La garde vit en base (`lastAutoRunAt`), donc
+ * un redéploiement Railway ne rejoue ni ne double aucun passage.
+ */
+export async function tourneeAutopilot(passage: PassageAutopilot = runAutopilot, pauseMs = 5_000): Promise<void> {
+  const actifs = await prisma.autopilot.findMany({
+    where: {
+      enabled: true,
+      OR: [{ lastAutoRunAt: null }, { lastAutoRunAt: { lt: new Date(Date.now() - 11 * 3600 * 1000) } }],
+    },
+  })
+
+  let dejaUnPassage = false
+  for (const pilote of actifs) {
+    try {
+      if (dejaUnPassage && pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs))
+      dejaUnPassage = true
+
+      // La tranche se paie d'avance ; sans crédits, rien n'est marqué servi
+      // et le prochain réveil retentera — le vendeur recharge, ça repart.
+      // reserveCredits sait débiter PARTIELLEMENT (fait pour les lots) ; une
+      // tranche a un prix fixe : moins que le plein tarif se rend aussitôt.
+      const credit = await reserveCredits(pilote.userId, CREDITS_TRANCHE_AUTO)
+      if (!credit.ok || credit.allowed < CREDITS_TRANCHE_AUTO) {
+        if (credit.ok && credit.allowed > 0) await refundCredits(pilote.userId, credit.allowed)
+        console.error(`auto-shipper : tranche refusée pour ${pilote.userId} — ${credit.reason ?? 'crédits insuffisants'}`)
+        continue
+      }
+
+      // Marqué servi AVANT le passage : un passage qui plante à mi-course ne
+      // doit pas être rejoué (et l'utilisateur re-débité) au réveil suivant.
+      await prisma.autopilot.update({ where: { id: pilote.id }, data: { lastAutoRunAt: new Date() } })
+
+      const fait = await passage(pilote.userId)
+      console.log(
+        `auto-shipper : ${pilote.userId} — ${fait.imported} import(s), ${fait.published} publication(s), ${fait.skipped} écarté(s), ${fait.failed} échec(s)`,
+      )
+    } catch (err) {
+      // Le passage n'a rien produit : la tranche est rendue. La marque reste,
+      // le pilote retentera à la tranche suivante plutôt qu'en boucle.
+      await refundCredits(pilote.userId, CREDITS_TRANCHE_AUTO).catch(() => undefined)
+      console.error(`auto-shipper en échec pour ${pilote.userId}`, err instanceof Error ? err.message : err)
+    }
+  }
+}

@@ -479,6 +479,23 @@ Trois conséquences, toutes appliquées :
   en silence ; un secours rejoue la livraison sans recherche, outil imposé,
   liens du texte sourcé uniquement.
 
+- **L'AUTO-SHIPPER est une tournée, et sa tranche a un prix fixe.** La page
+  « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (fiche de recadrage du
+  06/09/2026). Le moteur d'import/publication existait mais n'était jamais
+  planifié : `tourneeAutopilot()` (services/autopilot.ts) vise désormais un
+  passage par tranche de 12 h et par pilote activé, garde en base
+  (`Autopilot.lastAutoRunAt`) donc insensible aux redéploiements. **La tranche
+  coûte 5 crédits payés d'avance et couvre l'orchestration seulement** —
+  chaque import continue de consommer son crédit d'annonce : cinq crédits ne
+  couvriront jamais cinquante réécritures. Piège attrapé par le banc :
+  **`reserveCredits(userId, 5)` débite PARTIELLEMENT** (fait pour les lots) —
+  avec 2 crédits il prend 2 et dit ok ; un prix fixe doit vérifier
+  `allowed === demandé` et rendre le partiel. En panne de passage, la tranche
+  est rendue mais la marque reste : pas de rejeu en boucle. Plafond de version :
+  50 annonces/jour (clamp zod côté serveur). Banc `npx tsx check-autoshipper.ts`.
+  L'animation de la page est un SVG d'attente : à remplacer par l'animation
+  JSON tirée des 4 MP4 choisis par Max (chemins à recevoir).
+
 - **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
   pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
   et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou

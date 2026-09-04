@@ -792,6 +792,8 @@ model Autopilot {
   enabled        Boolean @default(false)
   /// Imports maximum par jour. Le pilote s arrete net une fois atteint.
   dailyLimit     Int     @default(5)
+  /// Dernier passage automatique servi : la garde de la tranche de 12 h.
+  lastAutoRunAt  DateTime?
   /// Publie apres import, sur les destinations a API uniquement.
   autoPublish    Boolean @default(false)
   /// Destinations retenues, parmi celles qui publient reellement.

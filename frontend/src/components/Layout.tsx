@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
+import { Bot, Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
 import { FondVivant } from './FondVivant'
@@ -11,7 +11,8 @@ import { api } from '../lib/api'
 const NAV = [
   // Le tableau de bord d abord : l accueil du vendeur, ce sont ses chiffres.
   { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/pilote', label: 'Pilote auto', icon: Plane },
+  // La page « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (06/09/2026).
+  { to: '/pilote', label: 'Auto-Shipper AI', icon: Bot },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
 ]
 
