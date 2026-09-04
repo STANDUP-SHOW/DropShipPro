@@ -39,7 +39,14 @@ export function BandeauJauges() {
 
   if (!jauges) return null
 
-  const part = (fait: number, total: number) => Math.min(1, total > 0 ? fait / total : 0)
+  /*
+   * PROVISOIRE (05/09/2026) : tant que le compte est à zéro, la jauge
+   * s'amorce entre 30 et 50 % pour montrer le rendu — « sinon cases
+   * noires ». Les chiffres écrits restent les vrais ; seul le dessin est
+   * amorcé. À retirer quand le rendu sera validé : supprimer `plancher`.
+   */
+  const part = (fait: number, total: number, plancher = 0) =>
+    Math.max(fait > 0 ? 0 : plancher, Math.min(1, total > 0 ? fait / total : 0))
   const nombre = (n: number) => n.toLocaleString('fr-FR')
 
   const blocs = [
@@ -48,35 +55,35 @@ export function BandeauJauges() {
       valeur: `${nombre(jauges.annonces.fait)} / ${nombre(jauges.annonces.total)}`,
       action: 'Publiez des annonces',
       to: '/dashboard',
-      dessin: <AnneauPastille part={part(jauges.annonces.fait, jauges.annonces.total)} encre={{ de: '#ff5c8a', a: '#fb923c' }} />,
+      dessin: <AnneauPastille part={part(jauges.annonces.fait, jauges.annonces.total, 0.35)} encre={{ de: '#ff5c8a', a: '#fb923c' }} />,
     },
     {
       label: 'Fournisseurs',
       valeur: `${jauges.fournisseurs.fait} / ${jauges.fournisseurs.total}`,
       action: 'Ajoutez des fournisseurs',
       to: '/fournisseurs',
-      dessin: <DemiJauge part={part(jauges.fournisseurs.fait, jauges.fournisseurs.total)} encre={{ de: '#a3e635', a: '#2dd4bf' }} graine={1} />,
+      dessin: <DemiJauge part={part(jauges.fournisseurs.fait, jauges.fournisseurs.total, 0.5)} encre={{ de: '#a3e635', a: '#2dd4bf' }} graine={1} />,
     },
     {
       label: 'Market places',
       valeur: `${jauges.marketplaces.fait} / ${jauges.marketplaces.total}`,
       action: 'Ajoutez des market places',
       to: '/plateformes-vente',
-      dessin: <Segments part={part(jauges.marketplaces.fait, jauges.marketplaces.total)} encre={{ de: '#22d3ee', a: '#818cf8' }} graine={2} />,
+      dessin: <Segments part={part(jauges.marketplaces.fait, jauges.marketplaces.total, 0.3)} encre={{ de: '#22d3ee', a: '#818cf8' }} graine={2} />,
     },
     {
       label: 'Agents IA',
       valeur: `${jauges.agents.fait} / ${jauges.agents.total}`,
       action: 'Ajoutez des chefs de rayon',
       to: '/rayons',
-      dessin: <Pastilles part={part(jauges.agents.fait, jauges.agents.total)} graine={3} />,
+      dessin: <Pastilles part={part(jauges.agents.fait, jauges.agents.total, 0.4)} graine={3} />,
     },
     {
       label: 'Réseaux sociaux',
       valeur: `${jauges.sociaux.fait} / ${jauges.sociaux.total}`,
       action: 'Ajoutez vos réseaux',
       to: '/marketing',
-      dessin: <Barre part={part(jauges.sociaux.fait, jauges.sociaux.total)} encre={{ de: '#e879f9', a: '#f472b6' }} />,
+      dessin: <Barre part={part(jauges.sociaux.fait, jauges.sociaux.total, 0.45)} encre={{ de: '#e879f9', a: '#f472b6' }} />,
     },
   ]
 
@@ -100,10 +107,12 @@ export function BandeauJauges() {
             className={`${cellule} transition hover:border-white/[0.18]`}
           >
             <span className="w-9 shrink-0 [&_svg]:h-auto [&_svg]:w-full">{b.dessin}</span>
-            <span className="hidden min-w-0 lg:block">
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-gray-500">{b.label}</span>
-              <span className="block truncate text-sm font-bold leading-tight">{b.valeur}</span>
-              <span className="block truncate text-[10px] text-purple-300">{b.action}</span>
+            {/* Le titre reste écrit, en blanc, même compressé (05/09/2026) ;
+                seuls la valeur et le geste s'effacent sur écran étroit. */}
+            <span className="min-w-0">
+              <span className="block truncate text-[9px] font-bold uppercase tracking-wider text-white">{b.label}</span>
+              <span className="hidden truncate text-sm font-bold leading-tight lg:block">{b.valeur}</span>
+              <span className="hidden truncate text-[10px] text-purple-300 lg:block">{b.action}</span>
             </span>
           </Link>
         ))}
@@ -112,12 +121,12 @@ export function BandeauJauges() {
             pas un geste. */}
         <div className={cellule} title={`Utilisation : ${jauges.utilisation} % du potentiel de l'appli`}>
           <span className="w-9 shrink-0 [&_svg]:h-auto [&_svg]:w-full">
-            <Jauge part={jauges.utilisation / 100} encre={{ de: '#fbbf24', a: '#fb7185' }} />
+            <Jauge part={Math.max(jauges.utilisation > 0 ? 0 : 0.42, jauges.utilisation / 100)} encre={{ de: '#fbbf24', a: '#fb7185' }} />
           </span>
-          <span className="hidden min-w-0 lg:block">
-            <span className="block text-[9px] font-semibold uppercase tracking-wider text-gray-500">Utilisation</span>
-            <span className="block text-sm font-bold leading-tight">{jauges.utilisation} %</span>
-            <span className="block truncate text-[10px] text-gray-500">du potentiel de l'appli</span>
+          <span className="min-w-0">
+            <span className="block truncate text-[9px] font-bold uppercase tracking-wider text-white">Plateforme</span>
+            <span className="hidden text-sm font-bold leading-tight lg:block">{jauges.utilisation} %</span>
+            <span className="hidden truncate text-[10px] text-gray-500 lg:block">du potentiel utilisé</span>
           </span>
         </div>
       </div>

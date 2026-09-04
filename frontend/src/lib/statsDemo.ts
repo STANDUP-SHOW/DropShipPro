@@ -383,21 +383,36 @@ export function carteDemo(): Record<'ventes' | 'clients' | 'fournisseurs' | 'liv
     return parts.map(([pays, n]) => ({ pays, n }))
   }
 
+  /*
+   * Une vingtaine de pays par vue — demandé le 05/09/2026 : la carte animée
+   * doit montrer des flèches sur toute la planète. Les sommes restent
+   * exactes. La vue fournisseurs compte les produits ACQUIS par pays
+   * d'origine (341) : six comptes reliés ne feraient que six flèches, alors
+   * que la provenance des produits, elle, couvre le monde.
+   */
   return {
     ventes: exacte(COMMANDES, [
       ['France', 902], ['Belgique', 118], ['Allemagne', 86], ['Espagne', 62], ['Italie', 44],
       ['Royaume-Uni', 28], ['Suisse', 16], ['Canada', 12], ['États-Unis', 8], ['Maroc', 5], ['Japon', 3],
     ]),
     clients: exacte(CLIENTS, [
-      ['France', 618], ['Belgique', 82], ['Allemagne', 58], ['Espagne', 42], ['Italie', 30],
-      ['Royaume-Uni', 20], ['Suisse', 12], ['Canada', 8], ['États-Unis', 5], ['Maroc', 3], ['Japon', 1],
+      ['France', 522], ['Belgique', 74], ['Allemagne', 52], ['Espagne', 38], ['Italie', 30],
+      ['Royaume-Uni', 24], ['Suisse', 20], ['Pays-Bas', 18], ['Portugal', 15], ['Pologne', 13],
+      ['Suède', 11], ['Canada', 10], ['États-Unis', 9], ['Irlande', 8], ['Danemark', 7],
+      ['Norvège', 7], ['Maroc', 6], ['Autriche', 5], ['Japon', 4], ['Australie', 3], ['Brésil', 3],
     ]),
-    fournisseurs: exacte(FOURNISSEURS_ACTIFS, [
-      ['Chine', 3], ['Espagne', 1], ['France', 1], ['Allemagne', 1],
+    fournisseurs: exacte(ACQUIS, [
+      ['Chine', 128], ['Espagne', 34], ['Allemagne', 22], ['France', 20], ['Vietnam', 18],
+      ['Inde', 16], ['Turquie', 14], ['Italie', 12], ['Pologne', 11], ['Pays-Bas', 10],
+      ['États-Unis', 9], ['Corée du Sud', 8], ['Japon', 7], ['Thaïlande', 7], ['Indonésie', 6],
+      ['Malaisie', 5], ['Portugal', 4], ['Royaume-Uni', 4], ['Tchéquie', 3], ['Mexique', 3],
     ]),
     livraisons: exacte(LIVREES, [
-      ['France', 738], ['Belgique', 97], ['Allemagne', 71], ['Espagne', 51], ['Italie', 36],
-      ['Royaume-Uni', 23], ['Suisse', 13], ['Canada', 10], ['États-Unis', 7], ['Maroc', 4], ['Japon', 2],
+      ['France', 598], ['Belgique', 88], ['Allemagne', 62], ['Espagne', 45], ['Italie', 36],
+      ['Royaume-Uni', 28], ['Suisse', 24], ['Pays-Bas', 20], ['Portugal', 17], ['Pologne', 15],
+      ['Suède', 13], ['Canada', 12], ['États-Unis', 11], ['Irlande', 10], ['Danemark', 9],
+      ['Norvège', 8], ['Maroc', 7], ['Autriche', 6], ['Japon', 5], ['Australie', 4],
+      ['Brésil', 18], ['Mexique', 16],
     ]),
   }
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Globe2 } from 'lucide-react'
 import { CENTRES_ISO, MONDE_D } from './monde-trace'
 
@@ -64,18 +64,23 @@ function centreDe(pays: string): [number, number] | undefined {
   return iso ? CENTRES_ISO[iso] : undefined
 }
 
+/*
+ * Trois vues — retour du 05/09/2026 : « ventes » sortait la même statistique
+ * que « clients », elle est retirée. Tout est en flèches désormais, chacune
+ * sa couleur : clients en bleu (le monde achète, les flèches arrivent en
+ * France), fournisseurs en jaune (les sources convergent vers la France),
+ * livraisons en orange (elles partent de France vers le monde).
+ */
 const VUES = [
-  { id: 'ventes', label: 'Ventes' },
-  { id: 'clients', label: 'Clients' },
-  { id: 'fournisseurs', label: 'Fournisseurs' },
-  { id: 'livraisons', label: 'Livraisons' },
+  { id: 'clients', label: 'Clients', sens: 'vers-france' },
+  { id: 'fournisseurs', label: 'Fournisseurs', sens: 'vers-france' },
+  { id: 'livraisons', label: 'Livraisons', sens: 'depuis-france' },
 ] as const
 
 const COULEURS: Record<(typeof VUES)[number]['id'], [string, string]> = {
-  ventes: ['#f472b6', '#fb923c'],
-  clients: ['#22d3ee', '#6366f1'],
-  fournisseurs: ['#34d399', '#22d3ee'],
-  livraisons: ['#a78bfa', '#ec4899'],
+  clients: ['#3b82f6', '#60a5fa'],
+  fournisseurs: ['#eab308', '#fbbf24'],
+  livraisons: ['#f97316', '#fb923c'],
 }
 
 /**
@@ -120,7 +125,18 @@ function Fleche({ de, vers, poids, couleur }: { de: [number, number]; vers: [num
 }
 
 export function CarteMonde({ carte }: { carte: CarteData }) {
-  const [vue, setVue] = useState<(typeof VUES)[number]['id']>('ventes')
+  /*
+   * La carte est animée : elle bascule toute seule toutes les deux secondes
+   * entre clients, fournisseurs et livraisons (05/09/2026). Un clic sur une
+   * pastille saute à sa vue ; la ronde reprend de là.
+   */
+  const [indexVue, setIndexVue] = useState(0)
+  useEffect(() => {
+    const ronde = setInterval(() => setIndexVue((i) => (i + 1) % VUES.length), 2000)
+    return () => clearInterval(ronde)
+  }, [])
+  const vue = VUES[indexVue].id
+  const sens = VUES[indexVue].sens
   const points = carte[vue] ?? []
   const [de, a] = COULEURS[vue]
   const max = Math.max(...points.map((p) => p.n), 1)
@@ -148,11 +164,11 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
           <h2 className="text-sm font-bold uppercase tracking-widest text-gray-200">Carte du monde</h2>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {VUES.map((v) => (
+          {VUES.map((v, i) => (
             <button
               key={v.id}
               type="button"
-              onClick={() => setVue(v.id)}
+              onClick={() => setIndexVue(i)}
               className={
                 vue === v.id
                   ? 'rounded-full px-3 py-1 text-[11px] font-semibold text-white'
@@ -172,28 +188,23 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
           <svg viewBox="0 8 360 142" className="w-full" aria-hidden>
             <path d={MONDE_D} fill="rgba(148, 121, 255, 0.10)" stroke="rgba(255,255,255,0.16)" strokeWidth="0.28" strokeLinejoin="round" />
 
-            {vue === 'livraisons' ? (
-              <>
-                {/* Le point de départ : la France, allumée en permanence. */}
-                <circle cx={france[0]} cy={france[1]} r="2.6" fill={`${de}44`} />
-                <circle cx={france[0]} cy={france[1]} r="1.2" fill={a} style={{ filter: `drop-shadow(0 0 2px ${de})` }} />
-                {situes
-                  .filter((p) => p.pays.toLowerCase().trim() !== 'france')
-                  .map((p) => (
-                    <Fleche key={p.pays} de={france} vers={p.centre} poids={(p.n / max) * 1.6} couleur={a} />
-                  ))}
-              </>
-            ) : (
-              situes.map((p) => {
-                const ray = 1.8 + (p.n / max) * 5
-                return (
-                  <g key={p.pays}>
-                    <circle cx={p.centre[0]} cy={p.centre[1]} r={ray} fill={`${de}30`} />
-                    <circle cx={p.centre[0]} cy={p.centre[1]} r={ray * 0.4} fill={a} style={{ filter: `drop-shadow(0 0 2.5px ${de})` }} />
-                  </g>
-                )
-              })
-            )}
+            {/* La France, cœur du trafic, allumée en permanence. */}
+            <circle cx={france[0]} cy={france[1]} r="2.6" fill={`${de}44`} />
+            <circle cx={france[0]} cy={france[1]} r="1.2" fill={a} style={{ filter: `drop-shadow(0 0 2px ${de})` }} />
+
+            {/* Tout est trajet : les clients et les fournisseurs convergent
+                vers la France, les livraisons en partent — chacun sa couleur. */}
+            {situes
+              .filter((p) => p.pays.toLowerCase().trim() !== 'france')
+              .map((p) => (
+                <Fleche
+                  key={`${vue}-${p.pays}`}
+                  de={sens === 'depuis-france' ? france : p.centre}
+                  vers={sens === 'depuis-france' ? p.centre : france}
+                  poids={(p.n / max) * 1.6}
+                  couleur={a}
+                />
+              ))}
           </svg>
 
           <div>

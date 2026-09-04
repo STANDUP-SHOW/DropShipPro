@@ -1,5 +1,21 @@
 import type { ReactNode } from 'react'
 import {
+  Boxes,
+  Calculator,
+  FolderTree,
+  Inbox,
+  LayoutDashboard,
+  LifeBuoy,
+  Link2,
+  Package,
+  Settings,
+  ShoppingBag,
+  Store,
+  TrendingUp,
+  Truck,
+  Wrench,
+} from 'lucide-react'
+import {
   Aires,
   AnneauPastille,
   Anneaux,
@@ -335,6 +351,29 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
   const ACCENTS = ['#fb923c', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#22d3ee', '#fb7185', '#a3e635', '#60a5fa', '#ec4899', '#2dd4bf', '#c084fc', '#f87171', '#818cf8']
   const accent = ACCENTS[(graine - 1 + ACCENTS.length) % ACCENTS.length]
 
+  /*
+   * L'icône du sujet, à la place du numéro — demandé le 05/09/2026 : un
+   * chiffre dans une pastille ne disait rien, l'icône dit le bloc d'un
+   * coup d'œil, dans le même petit bloc coloré.
+   */
+  const ICONES: Record<string, React.ElementType> = {
+    'vue-generale': LayoutDashboard,
+    acquisition: Link2,
+    fournisseurs: Boxes,
+    catalogue: Package,
+    rayons: FolderTree,
+    marketplaces: Store,
+    marche: TrendingUp,
+    ventes: ShoppingBag,
+    livraisons: Truck,
+    'sav-clients': LifeBuoy,
+    messagerie: Inbox,
+    'sav-fournisseurs': Wrench,
+    finances: Calculator,
+    plateforme: Settings,
+  }
+  const Icone = ICONES[bloc.id] ?? LayoutDashboard
+
   return (
     // Le verre dépoli des références glassmorphism : fond presque transparent,
     // flou d'arrière-plan épais, arête haute éclairée — les formes du fond
@@ -345,8 +384,8 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 40px rgba(0,0,0,0.35)' }}
     >
       <header className="flex items-center gap-2.5 border-b pb-2" style={{ borderColor: `${accent}33` }}>
-        <span className="rounded-md px-1.5 py-0.5 text-[11px] font-bold text-black/80" style={{ backgroundColor: accent }}>
-          {bloc.numero}
+        <span className="grid h-6 w-6 place-items-center rounded-md text-black/80" style={{ backgroundColor: accent }}>
+          <Icone size={14} />
         </span>
         <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: accent }}>{bloc.titre}</h2>
       </header>
