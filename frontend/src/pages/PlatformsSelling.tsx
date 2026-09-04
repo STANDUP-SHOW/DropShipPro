@@ -33,6 +33,100 @@ const EXPLICATION: Record<string, string> = {
  * en dernier. Un annuaire alphabétique mettrait Amazon — compte vendeur validé,
  * plusieurs semaines — devant « Mon site », qui marche dans la minute.
  */
+/**
+ * SOCIAL PLACES — le bloc dissocié demandé le 06/09/2026 : les réseaux
+ * sociaux sortent de la masse des market places, en deux familles qui ne se
+ * branchent pas pareil.
+ *
+ * **Social markets (liens)** : on y VEND le catalogue — chaque entrée se
+ * nourrit du flux produit (l'adresse à coller dans son gestionnaire de
+ * catalogue) ou passe par l'extension pour Facebook Marketplace.
+ *
+ * **Social links (pages)** : on y PARLE — publier au nom de ses pages, ce qui
+ * demande de connecter ses comptes dans Commercialisation.
+ */
+function SocialPlaces() {
+  const MARKETS: Array<{ label: string; mode: 'flux' | 'extension'; detail: string }> = [
+    { label: 'Facebook Marketplace', mode: 'extension', detail: "L'extension remplit l'annonce, vous validez — leurs conditions interdisent de publier à votre place." },
+    { label: 'Boutique Facebook', mode: 'flux', detail: 'Flux catalogue format Meta, collé dans Commerce Manager.' },
+    { label: 'Instagram Shopping', mode: 'flux', detail: 'Le même flux Meta : la boutique Instagram pioche dedans.' },
+    { label: 'Pinterest — catalogue', mode: 'flux', detail: 'Flux format Google, collé dans le catalogue Pinterest.' },
+    { label: 'Snapchat — catalogue', mode: 'flux', detail: 'Flux format Meta, collé dans Snap Business Manager.' },
+    { label: 'TikTok — catalogue', mode: 'flux', detail: 'Flux format Google, collé dans TikTok Ads Manager.' },
+  ]
+  const PAGES = ['Facebook page', 'Instagram page', 'Pinterest page', 'TikTok', 'X (Twitter)', 'YouTube', 'Snapchat']
+
+  return (
+    <section className="mt-12 overflow-hidden rounded-3xl border border-white/15 bg-white/[0.06] p-6 backdrop-blur-2xl">
+      <h2 className="text-xl font-black tracking-wide">
+        <span className="bg-gradient-to-r from-fuchsia-400 via-pink-400 to-sky-400 bg-clip-text text-transparent">
+          SOCIAL PLACES
+        </span>
+      </h2>
+      <p className="mt-1 max-w-3xl text-xs text-gray-400">
+        Les réseaux sociaux, à part : on y vend le catalogue (social markets) et on y publie au nom
+        de ses pages (social links) — deux branchements différents.
+      </p>
+
+      <div className="mt-5 grid gap-6 lg:grid-cols-2">
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-sky-300">
+            <span>Social markets</span>
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-normal normal-case text-gray-400">liens</span>
+          </h3>
+          <ul className="mt-3 space-y-2">
+            {MARKETS.map((m) => (
+              <li key={m.label} className="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{m.label}</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">{m.detail}</p>
+                </div>
+                {m.mode === 'flux' ? (
+                  <span className="shrink-0 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
+                    par votre flux
+                  </span>
+                ) : (
+                  <Link to="/extension" className="shrink-0 rounded-full bg-amber-400/15 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-amber-400/25">
+                    via l'extension
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-gray-500">
+            L'adresse de votre flux vit sur chaque boutique de{' '}
+            <Link to="/mes-sites" className="text-purple-300 underline">Mes sites</Link> ; les formats sont détaillés dans « Vos flux produit » ci-dessous.
+          </p>
+        </div>
+
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-fuchsia-300">
+            <span>Social links</span>
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-normal normal-case text-gray-400">pages</span>
+          </h3>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {PAGES.map((p) => (
+              <li key={p} className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-gray-300">
+                {p}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs leading-relaxed text-gray-400">
+            Publier au nom de vos pages — annonces, nouveautés, promotions — passe par la connexion
+            de vos comptes.
+          </p>
+          <Link
+            to="/marketing"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+          >
+            Connecter mes pages
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function PlatformsSelling() {
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [ouvert, setOuvert] = useState<PlatformInfo | null>(null)
@@ -158,6 +252,8 @@ export default function PlatformsSelling() {
           </ul>
         </section>
       ))}
+
+      <SocialPlaces />
 
       <ChannelDirectory />
 
