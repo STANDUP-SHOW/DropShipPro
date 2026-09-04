@@ -32,55 +32,116 @@ const SYSTEME = [
 
 /**
  * L'animation d'accueil de l'agent — posée nue sur le fond, sans bordure ni
- * cadre, comme demandé. Version d'attente en SVG + CSS : elle sera remplacée
- * par l'animation JSON tirée des quatre vidéos retenues par Max, dès que les
- * fichiers sont fournis. Le conteneur et l'emplacement ne bougeront pas.
+ * cadre. Recréée EN CODE d'après la vidéo retenue par Max le 06/09/2026
+ * (la « a30 » : un monogramme AI au cœur d'anneaux segmentés multicolores
+ * contrarotatifs) : les MP4 d'origine portent un filigrane et ne pouvaient
+ * pas être posés tels quels. Zéro fichier, zéro filigrane — du SVG animé.
  */
 function AnimationAutoShipper() {
   return (
-    <div className="relative mx-auto my-2 flex h-52 w-52 items-center justify-center" aria-hidden>
+    <div className="relative mx-auto my-2 flex h-56 w-56 items-center justify-center" aria-hidden>
       <style>{`
-        @keyframes dsp-as-orbite { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-        @keyframes dsp-as-pouls { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.08); opacity: 1 } }
-        @media (prefers-reduced-motion: reduce) {
-          .dsp-as-anime { animation: none !important }
-        }
+        @keyframes dsp-as-rot { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+        @keyframes dsp-as-pouls { 0%,100% { opacity: .85 } 50% { opacity: 1 } }
+        @media (prefers-reduced-motion: reduce) { .dsp-as-anime { animation: none !important } }
+        .dsp-as-anime { transform-origin: 130px 130px }
       `}</style>
+      <svg viewBox="0 0 260 260" className="h-full w-full">
+        <defs>
+          <linearGradient id="as-feu" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#fbbf24" />
+            <stop offset="1" stopColor="#f97316" />
+          </linearGradient>
+          <linearGradient id="as-glace" x1="1" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#38bdf8" />
+            <stop offset="1" stopColor="#818cf8" />
+          </linearGradient>
+          <radialGradient id="as-noyau" cx="0.38" cy="0.32" r="0.9">
+            <stop offset="0" stopColor="#7dd3fc" />
+            <stop offset="0.55" stopColor="#2563eb" />
+            <stop offset="1" stopColor="#1e1b4b" />
+          </radialGradient>
+        </defs>
 
-      {/* Le cœur : l'orbe IA, du bleu au rouge comme le titre. */}
-      <div
-        className="dsp-as-anime absolute h-24 w-24 rounded-full"
-        style={{
-          background: 'radial-gradient(circle at 35% 30%, #60a5fa, #7c3aed 55%, #ef4444)',
-          filter: 'blur(0.5px) drop-shadow(0 0 26px rgba(124,58,237,0.55))',
-          animation: 'dsp-as-pouls 2.6s ease-in-out infinite',
-        }}
-      />
+        {/* Le halo, puis le noyau : la boule d'énergie derrière le monogramme. */}
+        <circle cx="130" cy="130" r="62" fill="#38bdf8" opacity="0.14" style={{ filter: 'blur(14px)' }} />
+        <circle
+          className="dsp-as-anime"
+          cx="130"
+          cy="130"
+          r="46"
+          fill="url(#as-noyau)"
+          style={{ animation: 'dsp-as-pouls 2.8s ease-in-out infinite', filter: 'drop-shadow(0 0 18px rgba(56,189,248,0.55))' }}
+        />
 
-      {/* Deux orbites de pastilles — les huit métiers qui tournent autour. */}
-      {[0, 1].map((n) => (
-        <div
-          key={n}
-          className="dsp-as-anime absolute inset-0"
-          style={{
-            animation: `dsp-as-orbite ${n ? 13 : 8}s linear infinite${n ? ' reverse' : ''}`,
-          }}
+        {/* L'anneau de feu : gros segments, sens horaire. */}
+        <g className="dsp-as-anime" style={{ animation: 'dsp-as-rot 9s linear infinite' }}>
+          <circle
+            cx="130"
+            cy="130"
+            r="72"
+            fill="none"
+            stroke="url(#as-feu)"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray="34 22 12 30 46 18"
+            style={{ filter: 'drop-shadow(0 0 6px rgba(249,115,22,0.8))' }}
+          />
+        </g>
+
+        {/* L'anneau de glace : segments fins, sens inverse. */}
+        <g className="dsp-as-anime" style={{ animation: 'dsp-as-rot 6.5s linear infinite reverse' }}>
+          <circle
+            cx="130"
+            cy="130"
+            r="86"
+            fill="none"
+            stroke="url(#as-glace)"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeDasharray="52 16 8 24 30 40"
+            opacity="0.9"
+            style={{ filter: 'drop-shadow(0 0 5px rgba(56,189,248,0.8))' }}
+          />
+        </g>
+
+        {/* Le liseré technique : pointillés serrés, rotation lente. */}
+        <g className="dsp-as-anime" style={{ animation: 'dsp-as-rot 22s linear infinite' }}>
+          <circle cx="130" cy="130" r="98" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.4" strokeDasharray="2 7" />
+        </g>
+
+        {/* Les huit métiers en satellites, chacun sa couleur. */}
+        <g className="dsp-as-anime" style={{ animation: 'dsp-as-rot 15s linear infinite reverse' }}>
+          {SYSTEME.map((s, i) => {
+            const a = (i / SYSTEME.length) * 2 * Math.PI
+            return (
+              <circle
+                key={s.label}
+                cx={130 + Math.cos(a) * 112}
+                cy={130 + Math.sin(a) * 112}
+                r="3.4"
+                fill={s.couleur}
+                style={{ filter: `drop-shadow(0 0 5px ${s.couleur})` }}
+              />
+            )
+          })}
+        </g>
+
+        {/* Le monogramme, net et lumineux par-dessus tout. */}
+        <text
+          x="130"
+          y="130"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontFamily="system-ui, sans-serif"
+          fontSize="52"
+          fontWeight="900"
+          fill="#f8fafc"
+          style={{ filter: 'drop-shadow(0 0 10px rgba(125,211,252,0.9))', letterSpacing: '2px' }}
         >
-          {SYSTEME.slice(n * 4, n * 4 + 4).map((s, i) => (
-            <span
-              key={s.label}
-              className="absolute h-2.5 w-2.5 rounded-full"
-              style={{
-                background: s.couleur,
-                boxShadow: `0 0 8px ${s.couleur}`,
-                top: '50%',
-                left: '50%',
-                transform: `rotate(${i * 90 + n * 45}deg) translateX(${n ? 92 : 66}px)`,
-              }}
-            />
-          ))}
-        </div>
-      ))}
+          AI
+        </text>
+      </svg>
     </div>
   )
 }
