@@ -4,7 +4,7 @@ import { Layout } from '../components/Layout'
 import { BlocStats, type BlocData } from '../components/stats/TuileStat'
 import { CarteMonde, type CarteData } from '../components/stats/CarteMonde'
 import { blocsDemo, carteDemo, compteVide } from '../lib/statsDemo'
-import { demoActif, poserDemo } from '../lib/demo'
+import { demoActif, demoChoisi, poserDemo } from '../lib/demo'
 import { api } from '../lib/api'
 
 /**
@@ -82,7 +82,16 @@ export default function Statistiques() {
       setCarte(r.carte)
       // Le premier chargement choisit le mode ; les suivants respectent le choix
       // du vendeur — une bascule qui se remet toute seule n'est pas une bascule.
-      setDemo((actuel) => (actuel === null ? compteVide(r.blocs) : actuel))
+      // Et l'automatisme du compte vide lève le mode GLOBALEMENT, sinon la
+      // pilule s'affichait allumée avec le site éteint : le premier clic
+      // coupait au lieu d'étendre (constaté en production le 06/09/2026).
+      setDemo((actuel) => {
+        if (actuel !== null) return actuel
+        if (demoChoisi()) return demoActif()
+        const decide = compteVide(r.blocs)
+        if (decide) poserDemo(true)
+        return decide
+      })
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Statistiques indisponibles')
     } finally {

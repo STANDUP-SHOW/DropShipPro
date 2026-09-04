@@ -25,6 +25,19 @@ export function demoActif(): boolean {
   }
 }
 
+/**
+ * Vrai si un choix a déjà été posé — pilule cliquée, ou automatisme du compte
+ * vide. Il départage « jamais décidé » (l'automatisme peut choisir) de
+ * « coupé exprès » (l'automatisme n'a plus voix au chapitre).
+ */
+export function demoChoisi(): boolean {
+  try {
+    return localStorage.getItem(CLE) !== null
+  } catch {
+    return false
+  }
+}
+
 export function useDemo(): [boolean, () => void] {
   const [actif, setActif] = useState(demoActif)
 
