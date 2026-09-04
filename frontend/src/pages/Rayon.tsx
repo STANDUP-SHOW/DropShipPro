@@ -374,7 +374,7 @@ export default function Rayon() {
       )}
       {tab === 'CHAT' && (
         <>
-          <DepartmentChat departmentId={department.id} agentName={department.agentName} />
+          <DepartmentChat departmentId={department.id} agentName={department.agentName} emoji={department.emoji} role={department.label} />
 
           {/* Les analyses de l'AUTO-MODE, sous la conversation : la même ligne
               que la page Analyses de marché lit — une écriture, deux vitrines. */}

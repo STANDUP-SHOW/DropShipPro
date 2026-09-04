@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Send, Coins, ArrowRight } from 'lucide-react'
 import { api } from '../lib/api'
+import { photoAgent } from '../lib/agentsPhotos'
+import { FicheAgentChat } from './VignetteProfil'
 
 type History = Awaited<ReturnType<typeof api.supportHistory>>
 type Message = History['messages'][number]
@@ -110,6 +112,8 @@ export function SupportChat({
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5">
+      {/* La fiche de l'agent, en tete de la conversation (06/09/2026). */}
+      <FicheAgentChat prenom={data.agent.name} role={data.agent.role} emoji={data.agent.emoji} photo={photoAgent(data.agent.key)} />
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
         <p className="text-xs text-gray-400">Une question posée coûte un crédit.</p>
         {/*

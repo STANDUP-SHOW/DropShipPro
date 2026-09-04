@@ -1,3 +1,4 @@
+import { FicheAgentChat } from './VignetteProfil'
 import { useEffect, useRef, useState } from 'react'
 import { Send, Coins, Info, Mic, MicOff } from 'lucide-react'
 import { api } from '../lib/api'
@@ -15,9 +16,14 @@ type Message = Awaited<ReturnType<typeof api.chatHistory>>['messages'][number]
 export function DepartmentChat({
   departmentId,
   agentName,
+  emoji = '🛍️',
+  role = 'Chef de rayon',
 }: {
   departmentId: string
   agentName: string
+  emoji?: string
+  /** Le rayon tenu, montre dans la fiche en tete du tchat. */
+  role?: string
 }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
@@ -114,6 +120,8 @@ export function DepartmentChat({
 
   return (
     <div className="mt-5 rounded-xl border border-white/10 bg-white/5">
+      {/* La fiche du chef, en tete de la conversation (06/09/2026). */}
+      <FicheAgentChat prenom={agentName} role={role} emoji={emoji} />
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
         <Info size={14} className="shrink-0 text-gray-500" />
         <p className="text-xs text-gray-400">

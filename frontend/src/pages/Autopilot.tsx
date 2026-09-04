@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Bot, Play, AlertTriangle, Info, Plus, Store, ArrowRight } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
+import { photoAgent } from '../lib/agentsPhotos'
 import { api } from '../lib/api'
 
 type Config = Awaited<ReturnType<typeof api.getAutopilot>>
@@ -308,7 +309,9 @@ export default function Autopilot() {
             {agents.map((a) => (
               <li key={a.key} className="flex flex-col rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{a.emoji}</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-xl ring-1 ring-white/30">
+                    {photoAgent(a.key) ? <img src={photoAgent(a.key)!} alt={a.name} className="h-full w-full object-cover" /> : <span aria-hidden>{a.emoji}</span>}
+                  </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{a.name}</p>
                     <p className="truncate text-[11px] text-gray-500">{a.role}</p>

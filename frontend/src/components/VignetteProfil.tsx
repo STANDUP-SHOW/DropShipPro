@@ -77,10 +77,10 @@ export function VignetteProfil({
         style={{ background: `radial-gradient(circle at 40% 35%, ${orbeA1}, ${orbeB2})` }}
       />
 
-      {/* La photo ronde, cerclée de blanc comme le modèle. */}
+      {/* La photo — carrée à coins ronds, comme nos blocs (06/09/2026). */}
       <div className="relative mx-auto">
         <span
-          className={`relative mx-auto flex ${cercle} items-center justify-center overflow-hidden rounded-full ring-2 ring-white/80 ring-offset-2 ring-offset-transparent`}
+          className={`relative mx-auto flex ${cercle} items-center justify-center overflow-hidden rounded-2xl ring-2 ring-white/80 ring-offset-2 ring-offset-transparent`}
           style={
             photo
               ? undefined
@@ -123,6 +123,43 @@ export function VignetteProfil({
       {coin ? <span className="absolute right-3 top-3">{coin}</span> : null}
 
       {children ? <div className="relative mt-4 text-left">{children}</div> : null}
+    </div>
+  )
+}
+
+/**
+ * La fiche d'agent des fenêtres de tchat (06/09/2026) : posée en tête de la
+ * conversation — le portrait carré à coins ronds, le prénom badgé, le rôle.
+ * La même identité que la vignette profil, au format bandeau.
+ */
+export function FicheAgentChat({
+  prenom,
+  role,
+  emoji,
+  photo = null,
+}: {
+  prenom: string
+  role: string
+  emoji: string
+  photo?: string | null
+}) {
+  return (
+    <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
+      <span
+        className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-2xl ring-1 ring-white/40"
+        style={photo ? undefined : { background: 'linear-gradient(135deg, #8b5cf633, #38bdf855)' }}
+      >
+        {photo ? <img src={photo} alt={prenom} className="h-full w-full object-cover" /> : <span aria-hidden>{emoji}</span>}
+      </span>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 font-bold leading-tight">
+          <span>{prenom}</span>
+          <BadgeCheck size={14} className="shrink-0 text-amber-400" />
+        </p>
+        <p className="mt-0.5 inline-block rounded-lg bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900">
+          {role}
+        </p>
+      </div>
     </div>
   )
 }

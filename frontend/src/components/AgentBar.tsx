@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send, Mic, MicOff, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { photoAgent } from '../lib/agentsPhotos'
 import { api } from '../lib/api'
 
 /**
@@ -122,8 +123,9 @@ export function AgentBar({
   return (
     <section className="mb-6 rounded-2xl border border-purple-400/20 bg-purple-500/[0.07] p-3">
       <div className="flex items-center gap-2">
-        <span className="shrink-0 text-xl leading-none" title={nom}>
-          {emoji}
+        {/* Le portrait carre a coins ronds, comme partout (06/09/2026). */}
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg text-xl ring-1 ring-white/30" title={nom}>
+          {photoAgent(agentKey) ? <img src={photoAgent(agentKey)!} alt={nom} className="h-full w-full object-cover" /> : <span aria-hidden>{emoji}</span>}
         </span>
 
         <input

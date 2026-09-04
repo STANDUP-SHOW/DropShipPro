@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { SupportChat } from '../components/SupportChat'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
 import { VignetteProfil } from '../components/VignetteProfil'
+import { photoAgent } from '../lib/agentsPhotos'
 
 type Roster = Awaited<ReturnType<typeof api.agentRoster>>
 type Agent = Roster['pipeline'][number]
@@ -38,6 +39,7 @@ function AgentCard({
       prenom={agent.name}
       role={agent.role}
       emoji={agent.emoji}
+      photo={photoAgent(agent.key)}
       coin={
         <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATE_STYLE[agent.state]}`}>
           {agent.state}
