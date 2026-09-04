@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BlocStats, type BlocData } from './TuileStat'
 import { blocsDemo, compteVide } from '../../lib/statsDemo'
+import { useDemo } from '../../lib/demo'
 import { api } from '../../lib/api'
 
 /**
@@ -20,6 +21,13 @@ import { api } from '../../lib/api'
 export function BlocSection({ id }: { id: string }) {
   const [bloc, setBloc] = useState<BlocData | null>(null)
   const [demo, setDemo] = useState(false)
+  /*
+   * Le mode DEMO global (la pilule du tableau de bord) prime : un vendeur qui
+   * fait le contrôle visuel veut le graphique rempli sur CHAQUE page, même
+   * avec de vraies données derrière — « les graphiques ne donnent pas les
+   * démo sur les pages » (06/09/2026). L'automatisme du compte vide reste.
+   */
+  const [demoGlobal] = useDemo()
 
   useEffect(() => {
     const au = new Date()
@@ -27,7 +35,7 @@ export function BlocSection({ id }: { id: string }) {
     api
       .tableauStats(du, au)
       .then((r) => {
-        const enDemo = compteVide(r.blocs)
+        const enDemo = demoGlobal || compteVide(r.blocs)
         const blocs = enDemo ? blocsDemo(r.blocs) : r.blocs
         setBloc(blocs.find((b) => b.id === id) ?? null)
         setDemo(enDemo)
@@ -36,7 +44,7 @@ export function BlocSection({ id }: { id: string }) {
         // Les statistiques sont un bandeau, pas la page : leur panne ne doit
         // jamais empêcher de travailler en dessous.
       })
-  }, [id])
+  }, [id, demoGlobal])
 
   if (!bloc) return null
 
