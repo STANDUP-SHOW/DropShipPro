@@ -102,21 +102,6 @@ export default function Autopilot() {
         passent vos critères, et les publie.
       </p>
 
-      <div className="mt-5 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
-        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
-        <div className="text-xs leading-relaxed text-amber-100">
-          <p>
-            <b>Chaque import consomme un crédit</b> et remplit votre catalogue. Le plafond quotidien
-            est la seule chose qui vous protège d'un agent trop généreux : commencez bas.
-          </p>
-          <p className="mt-1">
-            La publication automatique ne concerne que <b>votre site et Shopify</b>. Vinted,
-            Leboncoin et Facebook Marketplace exigent que vous validiez vous-même — publier à votre
-            place enfreindrait leurs conditions et ferait suspendre votre compte vendeur.
-          </p>
-        </div>
-      </div>
-
       <section className="mt-6 max-w-2xl rounded-xl border border-white/10 bg-white/5 p-5">
         <label className="flex cursor-pointer items-center gap-3">
           <input
@@ -308,6 +293,27 @@ export default function Autopilot() {
         </Link>
         . Sans agent embauché, le pilote n'a rien à traiter.
       </p>
+
+      {/*
+        L'avertissement vit SOUS les blocs, pas avant — demandé le 05/09/2026 :
+        un encart jaune en tête de page fait de l'anti-vente. La phrase « la
+        publication automatique ne concerne que votre site et Shopify » était
+        devenue fausse (45 destinations live et 87 canaux servis par flux) :
+        retirée. Ne reste que la seule mise en garde qui protège le vendeur.
+      */}
+      <div className="mt-5 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+        <div className="text-xs leading-relaxed text-amber-100">
+          <p>
+            <b>Chaque import consomme un crédit</b> et remplit votre catalogue. Le plafond quotidien
+            est la seule chose qui vous protège d'un agent trop généreux : commencez bas.
+          </p>
+          <p className="mt-1">
+            Vinted, Leboncoin et Facebook Marketplace exigent que vous validiez vous-même — publier
+            à votre place enfreindrait leurs conditions et ferait suspendre votre compte vendeur.
+          </p>
+        </div>
+      </div>
     </Layout>
   )
 }
