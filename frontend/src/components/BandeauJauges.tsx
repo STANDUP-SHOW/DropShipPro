@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
 import { Arcs, Barre, Crante, DemiJauge, Jauge, Segments } from './stats/formes'
 
 /**
@@ -21,8 +22,23 @@ type Jauges = Awaited<ReturnType<typeof api.jauges>>
 
 let cache: { valeur: Jauges; horodatage: number } | null = null
 
+/**
+ * Les six jauges du mode DEMO — mêmes ordres de grandeur que les chiffres du
+ * tableau de bord de démonstration, pour qu'une démo en ligne soit cohérente
+ * d'un bout à l'autre du site (06/09/2026).
+ */
+const JAUGES_DEMO: Jauges = {
+  annonces: { fait: 384, total: 20000 },
+  fournisseurs: { fait: 6, total: 33 },
+  marketplaces: { fait: 12, total: 314 },
+  agents: { fait: 8, total: 24 },
+  sociaux: { fait: 5, total: 8 },
+  utilisation: 46,
+} as Jauges
+
 export function BandeauJauges() {
-  const [jauges, setJauges] = useState<Jauges | null>(cache?.valeur ?? null)
+  const [charges, setCharges] = useState<Jauges | null>(cache?.valeur ?? null)
+  const [demo] = useDemo()
 
   useEffect(() => {
     if (cache && Date.now() - cache.horodatage < 60_000) return
@@ -30,13 +46,14 @@ export function BandeauJauges() {
       .jauges()
       .then((j) => {
         cache = { valeur: j, horodatage: Date.now() }
-        setJauges(j)
+        setCharges(j)
       })
       .catch(() => {
         // Session expirée ou API muette : le bandeau s'efface, il ne bloque pas.
       })
   }, [])
 
+  const jauges = demo ? JAUGES_DEMO : charges
   if (!jauges) return null
 
   /*
