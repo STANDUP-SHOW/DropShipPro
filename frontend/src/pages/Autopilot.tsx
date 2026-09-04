@@ -202,11 +202,15 @@ export default function Autopilot() {
 
   const s = config.settings
   /*
-   * L'avocat (Maître Doré) ne figure pas ici : l'autonomie d'Auto-Shipper ne
-   * passe par aucun geste juridique, et un conseil de droit ne s'exécute pas
-   * « en mode auto ». Sa fiche reste sur la page Mes agents ADMIN.
+   * L'avocat, la graphiste et l'agent marketing ne figurent pas ici :
+   * l'autonomie d'Auto-Shipper n'a besoin ni d'un conseil de droit, ni de
+   * photos refaites, ni de publicités pour tourner (06/09/2026). Leurs
+   * fiches restent sur la page Mes agents ADMIN.
    */
-  const agents: Agent[] = roster ? [...roster.pipeline, ...roster.support].filter((a) => a.key !== 'avocat') : []
+  const HORS_AUTONOMIE = ['avocat', 'photo', 'marketing']
+  const agents: Agent[] = roster
+    ? [...roster.pipeline, ...roster.support].filter((a) => !HORS_AUTONOMIE.includes(a.key))
+    : []
   const enPoste = rayons.filter((r) => r.active)
 
   function update(patch: Partial<typeof s>) {
@@ -253,65 +257,72 @@ export default function Autopilot() {
 
   return (
     <Layout>
-      {/* Le titre de la fiche : AUTO-SHIPPER AI, du bleu au rouge, en gras. */}
-      <h1 className="flex items-center justify-center gap-3 text-center text-3xl font-black tracking-tight">
-        <Bot size={30} className="text-sky-400" />
-        {/* Le dégradé du titre reprend l'animation : la glace du noyau vers
-            le feu de l'anneau — bleu → jaune (06/09/2026). */}
-        <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text text-transparent">
-          AUTO-SHIPPER AI
-        </span>
-      </h1>
-      <p className="mt-1 text-center text-sm font-semibold uppercase tracking-widest text-gray-400">
-        Le pilote automatique
-      </p>
+      {/*
+        Le haut de page en deux colonnes (06/09/2026) : le bloc principal
+        d'Auto-Shipper justifié à gauche, la grille des neuf agents en 3 × 3 à
+        sa droite — l'empilement ne revient qu'en affichage vertical.
+      */}
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+        {/* ---------- Le bloc principal, à gauche ---------- */}
+        <div>
+          <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight">
+            <Bot size={30} className="text-sky-400" />
+            {/* Le dégradé du titre reprend l'animation : la glace du noyau vers
+                le feu de l'anneau — bleu → jaune (06/09/2026). */}
+            <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text text-transparent">
+              AUTO-SHIPPER AI
+            </span>
+          </h1>
+          <p className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-400">
+            Le pilote automatique
+          </p>
 
-      <AnimationAutoShipper />
+          <AnimationAutoShipper />
 
-      {/* L'agent se présente, dans ses mots. */}
-      <div className="mx-auto max-w-xl text-center">
-        <p className="text-sm leading-relaxed text-sky-300">
-          Salut, je suis Auto-Shipper.
-          <br />
-          Je suis capable de gérer pour toi intégralement mon système.
-        </p>
-        <ul className="mx-auto mt-4 inline-flex flex-col items-start gap-1.5">
-          {SYSTEME.map((ligne) => (
-            <li key={ligne.label} className="flex items-center gap-2.5 text-sm text-gray-200">
-              <span
-                className="h-3 w-3 shrink-0 rounded-full"
-                style={{ background: ligne.couleur, boxShadow: `0 0 6px ${ligne.couleur}` }}
-              />
-              <span>{ligne.label}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+          {/* L'agent se présente, dans ses mots. */}
+          <p className="text-sm leading-relaxed text-sky-300">
+            Salut, je suis Auto-Shipper.
+            <br />
+            Je suis capable de gérer pour toi intégralement mon système.
+          </p>
+          <ul className="mt-4 flex flex-col items-start gap-1.5">
+            {SYSTEME.map((ligne) => (
+              <li key={ligne.label} className="flex items-center gap-2.5 text-sm text-gray-200">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ background: ligne.couleur, boxShadow: `0 0 6px ${ligne.couleur}` }}
+                />
+                <span>{ligne.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-      {/* 1. Les agents ADMIN en mode auto. */}
-      <section className="mt-10">
-        <p className="text-center text-sm text-gray-300">
-          Pour travailler en totale autonomie, je dois travailler avec :{' '}
-          <b>mes agents ADMIN</b> <span className="font-semibold text-sky-300">en mode auto</span>.
-        </p>
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {agents.map((a) => (
-            <li key={a.key} className="flex flex-col rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{a.emoji}</span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{a.name}</p>
-                  <p className="truncate text-[11px] text-gray-500">{a.role}</p>
+        {/* ---------- Les neuf agents ADMIN, 3 × 3, à droite ---------- */}
+        <section>
+          <p className="text-sm text-gray-300">
+            Pour travailler en totale autonomie, je dois travailler avec :{' '}
+            <b>mes agents ADMIN</b> <span className="font-semibold text-sky-300">en mode auto</span>.
+          </p>
+          <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {agents.map((a) => (
+              <li key={a.key} className="flex flex-col rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{a.emoji}</span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{a.name}</p>
+                    <p className="truncate text-[11px] text-gray-500">{a.role}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-2">
-                <BoutonAutoMode compact actif={Boolean(a.autoMode)} onBascule={(enabled) => basculerAgent(a.key, enabled)} />
-              </div>
-            </li>
-          ))}
-          {!agents.length && <li className="text-center text-xs text-gray-500 sm:col-span-2 lg:col-span-4">Chargement de l'équipe…</li>}
-        </ul>
-      </section>
+                <div className="mt-2">
+                  <BoutonAutoMode compact actif={Boolean(a.autoMode)} onBascule={(enabled) => basculerAgent(a.key, enabled)} />
+                </div>
+              </li>
+            ))}
+            {!agents.length && <li className="text-center text-xs text-gray-500 sm:col-span-2 lg:col-span-3">Chargement de l'équipe…</li>}
+          </ul>
+        </section>
+      </div>
 
       {/* 2. Les acquisitions : au moins un chef de rayon. */}
       <section className="mt-10">
