@@ -1,5 +1,6 @@
 import { MODELE_PUISSANT, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
+import { systemeCachable } from './chatBudget.js'
 import type { Product } from '@prisma/client'
 
 /**
@@ -102,7 +103,7 @@ export async function analyseProduct(product: Product): Promise<MarketAnalysis> 
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 4000,
-    system: SYSTEM_PROMPT,
+    system: systemeCachable(SYSTEM_PROMPT),
     tools: [
       {
         type: 'web_search_20260209',

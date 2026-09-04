@@ -1,6 +1,7 @@
 import { MODELE_REDACTION } from './aiModels.js'
 import sharp from 'sharp'
 import Anthropic from '@anthropic-ai/sdk'
+import { systemeCachable } from './chatBudget.js'
 import { fetchSourceImage } from './watermark.js'
 import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
 
@@ -135,7 +136,7 @@ export async function reviewImages(params: {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 1200,
-      system: systemPrompt(),
+      system: systemeCachable(systemPrompt()),
       messages: [
         {
           role: 'user',

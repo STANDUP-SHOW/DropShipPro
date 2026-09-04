@@ -1,5 +1,6 @@
 import { MODELE_REDACTION } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
+import { systemeCachable } from './chatBudget.js'
 import type { Product } from '@prisma/client'
 
 let client: Anthropic | null = null
@@ -103,7 +104,7 @@ export async function buildFillPlan(
   const message = await anthropic.messages.create({
     model: MODELE_REDACTION,
     max_tokens: 4000,
-    system: SYSTEM_PROMPT,
+    system: systemeCachable(SYSTEM_PROMPT),
     messages: [
       {
         role: 'user',

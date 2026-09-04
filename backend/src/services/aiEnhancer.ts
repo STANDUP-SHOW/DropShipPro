@@ -2,6 +2,7 @@ import { MODELE_REDACTION, MODELE_RAPIDE, TARIFS, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { trimToWords } from './channelCopy.js'
 import { substanceSource } from './sourceQuality.js'
+import { systemeCachable } from './chatBudget.js'
 
 let client: Anthropic | null = null
 function getClient() {
@@ -326,7 +327,9 @@ async function callModel(
      * atteint la moitié de ce plafond.
      */
     max_tokens: 8000,
-    system: SYSTEM_PROMPT,
+    // Le meme preambule part a chaque annonce : mis en cache, il est relu
+    // au dixieme du prix a partir du deuxieme import de la session.
+    system: systemeCachable(SYSTEM_PROMPT),
     messages: [
       {
         role: 'user',

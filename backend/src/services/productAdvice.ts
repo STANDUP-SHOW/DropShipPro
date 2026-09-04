@@ -1,5 +1,6 @@
 import { MODELE_REDACTION } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
+import { systemeCachable } from './chatBudget.js'
 
 /**
  * « Info sur un produit » : l'avis d'un chef de rayon sur une adresse collée.
@@ -115,7 +116,7 @@ export async function adviseOnProduct(url: string, rayon: string): Promise<Produ
   const message = await client.messages.create({
     model: MODEL,
     max_tokens: 3000,
-    system: SYSTEM,
+    system: systemeCachable(SYSTEM),
     tools: [
       {
         type: 'web_search_20260209',
