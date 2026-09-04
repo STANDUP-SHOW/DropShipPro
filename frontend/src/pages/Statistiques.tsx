@@ -179,11 +179,11 @@ export default function Statistiques() {
                   ))}
                 </div>
                 {/*
-                  La grande carte, juste sous la rangée ventes / livraisons /
-                  messagerie : c'est là que la maquette place ses deux cartes,
-                  et une seule à quatre vues les remplace toutes les deux.
+                  La carte animée, en position 2 — juste sous la Vue générale
+                  (05/09/2026). Elle balaie clients, fournisseurs et livraisons
+                  toute seule, toutes les deux secondes.
                 */}
-                {rangee[0] === 'livraisons' && (carte || demo) ? (
+                {rangee[0] === 'vue-generale' && (carte || demo) ? (
                   <CarteMonde carte={demo ? carteDemo() : carte!} />
                 ) : null}
               </div>

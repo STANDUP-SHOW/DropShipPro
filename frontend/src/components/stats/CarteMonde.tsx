@@ -161,7 +161,7 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
           <span className="rounded-md bg-gradient-to-br from-purple-500 to-fuchsia-500 px-1.5 py-0.5 text-[11px] font-bold text-white">
             <Globe2 size={12} className="inline -mt-0.5" />
           </span>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-200">Carte du monde</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-200">Business international</h2>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {VUES.map((v, i) => (

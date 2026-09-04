@@ -89,15 +89,6 @@ export default function Suppliers() {
         </p>
       </div>
 
-      {/* ---------- Ce qu'il reste à commander ---------- */}
-      {aCommander > 0 ? (
-        <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4">
-          <ShoppingCart size={16} className="mt-0.5 shrink-0 text-amber-300" />
-          <p className="text-sm text-amber-100">
-            {`${aCommander} vente(s) attendent d'être commandées chez leur fournisseur.`}
-          </p>
-        </div>
-      ) : null}
 
       {/*
         Une liste depliable, et non une grille de cartes.
@@ -146,6 +137,17 @@ export default function Suppliers() {
         </div>
       </section>
 
+
+      {/* En bas, jamais avant les blocs — règle du 05/09/2026. */}
+      {/* ---------- Ce qu'il reste à commander ---------- */}
+      {aCommander > 0 ? (
+        <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4">
+          <ShoppingCart size={16} className="mt-0.5 shrink-0 text-amber-300" />
+          <p className="text-sm text-amber-100">
+            {`${aCommander} vente(s) attendent d'être commandées chez leur fournisseur.`}
+          </p>
+        </div>
+      ) : null}
     </Layout>
   )
 }
