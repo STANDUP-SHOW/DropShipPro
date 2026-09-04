@@ -172,7 +172,7 @@ export function demoDetailCommande(id: string) {
 /* Messagerie market places                                            */
 /* ------------------------------------------------------------------ */
 
-export const DEMO_CONVERSATIONS = [
+const CONVERSATIONS_SIGNATURE = [
   {
     id: 'demo-m1',
     platform: 'EBAY',
@@ -239,6 +239,57 @@ export const DEMO_CONVERSATIONS = [
     channel: 'manuel' as const,
   },
 ]
+
+/*
+ * La boîte pleine — demandé le 06/09/2026 : « remplis les boîtes de
+ * messagerie market places de 100 messages ». Les cinq fils écrits à la main
+ * restent en tête ; les quatre-vingt-quinze suivants sont composés de façon
+ * déterministe (mêmes conversations à chaque visite) à partir de vrais
+ * motifs de SAV e-commerce. Une boîte de démonstration à cinq messages ne
+ * ressemble pas à un commerce qui tourne ; à cent, si.
+ */
+const PRENOMS = ['Emma', 'Louis', 'Chloé', 'Nathan', 'Léa', 'Gabriel', 'Manon', 'Jules', 'Camille', 'Hugo', 'Sarah', 'Tom', 'Inès', 'Théo', 'Jade', 'Lucas', 'Zoé', 'Adam', 'Alice', 'Raphaël']
+const NOMS = ['Bernard', 'Petit', 'Robert', 'Richard', 'Durand', 'Dubois', 'Moreau', 'Laurent', 'Simon', 'Michel', 'Lefebvre', 'Leroy', 'Roux', 'David', 'Bertrand', 'Morel', 'Fournier', 'Girard', 'Bonnet', 'Dupont']
+const PLATEFORMES_DEMO = ['EBAY', 'KAUFLAND', 'OWN_SITE', 'SHOPIFY', 'LEBONCOIN', 'VINTED'] as const
+const SUJETS: Array<[string, string]> = [
+  ['Délai de livraison', 'Bonjour, ma commande est-elle expédiée ? Je n\'ai pas encore de nouvelles…'],
+  ['Numéro de suivi', 'Pouvez-vous me donner le numéro de suivi de mon colis ?'],
+  ['Question de taille', 'Taille-t-il normalement ou faut-il prendre au-dessus ?'],
+  ['Demande de retour', 'L\'article ne me convient pas, comment faire le retour ?'],
+  ['Facture demandée', 'Pouvez-vous m\'envoyer la facture de ma commande ? Merci.'],
+  ['Produit conforme ?', 'La couleur est-elle bien la même que sur les photos ?'],
+  ['Annulation', 'Je souhaite annuler ma commande passée ce matin, est-ce possible ?'],
+  ['Changement d\'adresse', 'Je me suis trompé d\'adresse, on peut corriger avant l\'envoi ?'],
+  ['Remboursement', 'Le remboursement a-t-il bien été effectué de votre côté ?'],
+  ['Garantie', 'Le produit est tombé en panne, que couvre la garantie ?'],
+  ['Colis endommagé', 'Le carton est arrivé abîmé, le produit semble intact mais je préfère signaler.'],
+  ['Très satisfait', 'Juste un mot pour dire que tout est parfait, merci !'],
+]
+
+const CONVERSATIONS_GENEREES = Array.from({ length: 95 }, (_, i) => {
+  const [sujet, preview] = SUJETS[i % SUJETS.length]
+  const platform = PLATEFORMES_DEMO[i % PLATEFORMES_DEMO.length]
+  const channel = platform === 'LEBONCOIN' || platform === 'VINTED' ? ('manuel' as const) : ('email' as const)
+  // Répartition : ~35 à traiter (dont un tiers non lus), ~25 en attente, ~35 archivées.
+  const status = i % 3 === 0 ? ('OPEN' as const) : i % 3 === 1 ? ('WAITING' as const) : ('CLOSED' as const)
+  const customerName = `${PRENOMS[i % PRENOMS.length]} ${NOMS[(i * 7) % NOMS.length]}`
+  return {
+    id: `demo-mg${i}`,
+    platform,
+    customerName,
+    customerEmail: channel === 'email' ? `${PRENOMS[i % PRENOMS.length].toLowerCase()}.${NOMS[(i * 7) % NOMS.length].toLowerCase()}@example.com` : null,
+    subject: sujet,
+    status,
+    unread: status === 'OPEN' && i % 9 < 3,
+    agentName: status === 'OPEN' ? null : 'Camille',
+    lastMessageAt: il_y_a(Math.floor(i / 4), (i * 5) % 24),
+    preview,
+    channel,
+  }
+})
+
+/** La boîte complète : les fils signature d'abord, la masse ensuite. */
+export const DEMO_CONVERSATIONS = [...CONVERSATIONS_SIGNATURE, ...CONVERSATIONS_GENEREES]
 
 /** Le fil ouvert d'une conversation de démonstration. */
 export function demoFilConversation(id: string) {
