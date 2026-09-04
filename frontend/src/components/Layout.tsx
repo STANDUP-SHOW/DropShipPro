@@ -128,6 +128,29 @@ const SECTIONS: Array<{
   },
 ]
 
+/**
+ * Une jauge à son maximum, en dégradé multicolore — l'icône de la ligne
+ * « MES RAYONS BOOST ». Lucide ne sait pas peindre un trait en dégradé,
+ * d'où ce SVG à nous : l'arc et l'aiguille prennent le même dégradé
+ * violet → fuchsia → ambre que le mot BOOST.
+ */
+function JaugeMax({ taille = 14 }: { taille?: number }) {
+  return (
+    <svg width={taille} height={taille} viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+      <defs>
+        <linearGradient id="jauge-boost" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#8b5cf6" />
+          <stop offset="0.5" stopColor="#e879f9" />
+          <stop offset="1" stopColor="#fbbf24" />
+        </linearGradient>
+      </defs>
+      {/* L'arc du cadran, et l'aiguille collée à droite : plein régime. */}
+      <path d="M4 18a8.5 8.5 0 1 1 17 0" stroke="url(#jauge-boost)" strokeWidth="2.6" strokeLinecap="round" />
+      <line x1="12.5" y1="18" x2="19" y2="12" stroke="url(#jauge-boost)" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function Layout({ children, large = false }: { children: React.ReactNode; large?: boolean }) {
   const { pathname, search, hash } = useLocation()
   /** Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte. */
@@ -228,9 +251,17 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
                       ne pas la voir serait pire que la longueur.
                     */
                     <details className="group" open={rayonActif !== null}>
-                      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1 text-[11px] uppercase tracking-wide text-gray-600 hover:text-gray-400">
-                        <ChevronRight size={11} className="transition-transform group-open:rotate-90" />
-                        <span>Mes rayons</span>
+                      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1 text-[11px] uppercase tracking-wide text-gray-500 hover:text-gray-300">
+                        {/* La jauge au maximum, multicolore : c'est la promesse
+                            de la ligne — des rayons poussés à fond. */}
+                        <JaugeMax />
+                        <span>
+                          {'Mes rayons '}
+                          <b className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-amber-300 bg-clip-text font-black text-transparent">
+                            BOOST
+                          </b>
+                        </span>
+                        <ChevronRight size={10} className="transition-transform group-open:rotate-90" />
                         <span className="ml-auto normal-case tracking-normal text-gray-600">
                           {enAttente > 0 ? `${rayons.length} · ${enAttente} en attente` : rayons.length}
                         </span>

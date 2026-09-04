@@ -43,6 +43,46 @@ const MISSIONS = [
   },
 ]
 
+/**
+ * Le gros badge néon des fiches (demande du 05/09/2026) : vert fluo
+ * « EMBAUCHÉ » quand le chef est en poste, rouge néon « INACTIF » sinon.
+ * L'état se lit de loin, sans déchiffrer une date d'échéance. Cliquable vers
+ * la fiche du rayon quand elle existe — c'est là qu'on embauche ou réabonne.
+ */
+function BadgeEmbauche({ actif, to }: { actif: boolean; to?: string }) {
+  const contenu = (
+    <span
+      className={
+        (actif
+          ? 'border-emerald-400/70 bg-emerald-400/10 text-emerald-300'
+          : 'border-red-500/70 bg-red-500/10 text-red-400') +
+        ' flex w-full items-center justify-center gap-2 rounded-xl border-2 px-3 py-2 text-sm font-black uppercase tracking-widest'
+      }
+      style={
+        actif
+          ? {
+              textShadow: '0 0 8px rgba(52,211,153,0.9)',
+              boxShadow: '0 0 14px rgba(52,211,153,0.45), inset 0 0 10px rgba(52,211,153,0.12)',
+            }
+          : {
+              textShadow: '0 0 8px rgba(248,113,113,0.9)',
+              boxShadow: '0 0 14px rgba(239,68,68,0.4), inset 0 0 10px rgba(239,68,68,0.12)',
+            }
+      }
+    >
+      <span className={(actif ? 'bg-emerald-300' : 'bg-red-400') + ' h-2 w-2 animate-pulse rounded-full'} />
+      <span>{actif ? 'Embauché' : 'Inactif'}</span>
+    </span>
+  )
+  return to ? (
+    <Link to={to} className="block">
+      {contenu}
+    </Link>
+  ) : (
+    contenu
+  )
+}
+
 export default function Rayons() {
   const [catalogue, setCatalogue] = useState<Profile[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
@@ -168,8 +208,24 @@ export default function Rayons() {
                     ? d.paidUntil
                       ? `Travaille jusqu'au ${new Date(d.paidUntil).toLocaleDateString('fr-FR')}`
                       : 'Actif'
-                    : `${d.agentName} est à l'arrêt — abonnement expiré`}
+                    : d.paidUntil
+                      ? `${d.agentName} est à l'arrêt — abonnement expiré`
+                      : `${d.agentName} attend sa formule pour se mettre au travail`}
                 </p>
+
+                <div className="mt-3 space-y-2">
+                  <BadgeEmbauche actif={d.active} to={`/rayon/${d.id}`} />
+                  {/* Sous l'INACTIF, le geste qui répare : la formule se
+                      choisit sur la fiche du rayon. */}
+                  {!d.active && (
+                    <Link
+                      to={`/rayon/${d.id}`}
+                      className="btn-gradient block w-full rounded-lg px-3 py-2 text-center text-sm font-semibold"
+                    >
+                      Embaucher
+                    </Link>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -206,15 +262,28 @@ export default function Rayons() {
               </div>
 
               {p.hired ? (
-                <p className="mt-3 text-center text-xs text-emerald-400">Déjà en poste</p>
+                /* Le rayon est confié : l'état réel (payé ou non) vient de la
+                   liste des rayons, et le badge mène à la fiche. */
+                <div className="mt-3">
+                  <BadgeEmbauche
+                    actif={hired.find((h) => h.key === p.key)?.active ?? false}
+                    to={(() => {
+                      const h = hired.find((r) => r.key === p.key)
+                      return h ? `/rayon/${h.id}` : undefined
+                    })()}
+                  />
+                </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirming(p)}
-                  className="btn-gradient mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold"
-                >
-                  Ajouter cet agent
-                </button>
+                <div className="mt-3 space-y-2">
+                  <BadgeEmbauche actif={false} />
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(p)}
+                    className="btn-gradient w-full rounded-lg px-3 py-2 text-sm font-semibold"
+                  >
+                    Embaucher
+                  </button>
+                </div>
               )}
             </li>
           ))}

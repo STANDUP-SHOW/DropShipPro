@@ -64,7 +64,7 @@ async function main() {
 
     console.log('\nLa garde des onze heures')
     const avant = generations
-    await tourneeAutoMode(fauxGenerateur)
+    await tourneeAutoMode(fauxGenerateur, 0)
     verifier('une tournée juste après ne régénère rien pour ce rayon', generations === avant)
 
     console.log('\nQui la tournée sert, et qui elle ignore')
@@ -77,7 +77,7 @@ async function main() {
       data: { userId: user.id, key: 'maison-et-jardin', agentName: 'Nora', autoMode: true, paidUntil: demain, plan: 'mensuel' },
     })
     const avantTournee = generations
-    await tourneeAutoMode(fauxGenerateur)
+    await tourneeAutoMode(fauxGenerateur, 0)
     verifier('la tournée ne sert que le rayon éligible', generations === avantTournee + 1)
     const rapportNora = await prisma.report.findFirst({ where: { departmentId: eligible.id } })
     verifier('et son rapport existe', Boolean(rapportNora))
@@ -89,7 +89,7 @@ async function main() {
     await prisma.report.updateMany({ where: { departmentId: eligible.id }, data: { createdAt: new Date(Date.now() - 12 * 3600 * 1000) } })
     await prisma.report.updateMany({ where: { departmentId: rayon.id }, data: { createdAt: new Date(Date.now() - 12 * 3600 * 1000) } })
     // Le générateur tombe sur tous : la tournée doit finir sans lever.
-    await tourneeAutoMode(enPanne)
+    await tourneeAutoMode(enPanne, 0)
     verifier('la tournée survit à un générateur en panne', true)
     const rapportsApresPanne = await prisma.report.count({ where: { userId: user.id } })
     verifier('et ne consigne rien de vide', rapportsApresPanne === 2)

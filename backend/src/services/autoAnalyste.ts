@@ -51,6 +51,41 @@ export interface AnalyseProduite {
   }>
 }
 
+/*
+ * L'outil de livraison et sa consigne, partagés entre l'appel normal et le
+ * secours : deux copies divergeraient.
+ */
+const OUTIL_LISTE = {
+  name: 'livrer_liste',
+  description: 'Livre la liste finale des dix produits gagnants.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      produits: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            titre: { type: 'string' },
+            lien: { type: 'string' },
+            prixBas: { type: 'number' },
+            prixVente: { type: 'number' },
+            plateformes: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['titre', 'lien', 'prixBas', 'prixVente', 'plateformes'],
+        },
+      },
+    },
+    required: ['produits'],
+  },
+}
+
+const CONSIGNE_LISTE =
+  "Tu transformes une analyse de marché en liste de dix produits gagnants pour un dropshippeur français. " +
+  'Chaque lien doit venir de tes recherches web (page produit ou recherche fournisseur réelle), jamais composé de mémoire. ' +
+  "prixBas est le prix d'achat le plus bas constaté, prixVente un prix de revente réaliste en France, tous deux en euros. " +
+  'plateformes liste deux ou trois places de vente conseillées parmi : eBay, Kaufland, La Redoute, Leclerc, Carrefour, Vinted, Leboncoin, Google Shopping, Instagram, votre site.'
+
 /** Le générateur réel : Sonnet avec la recherche web. Injectable au banc. */
 export async function genererAnalyse(dep: Department, label: string): Promise<AnalyseProduite> {
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -82,45 +117,33 @@ export async function genererAnalyse(dep: Department, label: string): Promise<An
   if (!corps) throw new Error("L'analyse est revenue vide.")
 
   /*
+   * Constaté en production le 04/09/2026 : la recherche web peut répondre
+   * « limite dépassée » sur toutes les tentatives — le modèle rédige alors une
+   * analyse entière marquée « à vérifier », sans une seule source, et elle
+   * était consignée telle quelle. Une analyse sans source ne vaut rien et le
+   * vendeur la paie dans le salaire : mieux vaut échouer franchement — rien
+   * n'est consigné, la garde des onze heures ne bloque pas, le prochain
+   * réveil refait le passage.
+   */
+  const abouties = analyse.content.filter(
+    (b): b is Anthropic.WebSearchToolResultBlock => b.type === 'web_search_tool_result' && Array.isArray(b.content),
+  ).length
+  if (abouties === 0) {
+    throw new Error("La recherche web n'a pas répondu : l'analyse repassera au prochain tour plutôt que de paraître sans source.")
+  }
+
+  /*
    * La liste des dix, en JSON forcé par un outil : un tableau exigé par
    * schéma ne revient pas en prose. Les liens doivent sortir des résultats
    * de recherche — un lien composé de tête est un lien mort.
    */
   const liste = await client.messages.create({
     model: modele('MODELE_REDACTION', MODELE_REDACTION),
-    max_tokens: 1600,
-    system: systemeCachable(
-      "Tu transformes une analyse de marché en liste de dix produits gagnants pour un dropshippeur français. " +
-        'Chaque lien doit venir de tes recherches web (page produit ou recherche fournisseur réelle), jamais composé de mémoire. ' +
-        'prixBas est le prix d\'achat le plus bas constaté, prixVente un prix de revente réaliste en France, tous deux en euros. ' +
-        'plateformes liste deux ou trois places de vente conseillées parmi : eBay, Kaufland, La Redoute, Leclerc, Carrefour, Vinted, Leboncoin, Google Shopping, Instagram, votre site.',
-    ),
+    max_tokens: 2000,
+    system: systemeCachable(CONSIGNE_LISTE),
     tools: [
       { type: 'web_search_20260209', name: 'web_search', max_uses: 2, user_location: { type: 'approximate', country: 'FR' } },
-      {
-        name: 'livrer_liste',
-        description: 'Livre la liste finale des dix produits gagnants.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            produits: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  titre: { type: 'string' },
-                  lien: { type: 'string' },
-                  prixBas: { type: 'number' },
-                  prixVente: { type: 'number' },
-                  plateformes: { type: 'array', items: { type: 'string' } },
-                },
-                required: ['titre', 'lien', 'prixBas', 'prixVente', 'plateformes'],
-              },
-            },
-          },
-          required: ['produits'],
-        },
-      },
+      OUTIL_LISTE,
     ],
     tool_choice: { type: 'auto' },
     messages: [
@@ -128,7 +151,38 @@ export async function genererAnalyse(dep: Department, label: string): Promise<An
     ],
   })
 
-  const bloc = liste.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'livrer_liste')
+  let bloc = liste.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'livrer_liste')
+
+  /*
+   * Deuxième leçon du même passage : avec la recherche web en auto, le modèle
+   * peut finir en prose sans jamais appeler l'outil — et la liste sortait
+   * vide en silence. Le secours rejoue la livraison SANS recherche, outil
+   * imposé : un schéma exigé ne revient pas en texte. Ses liens ne peuvent
+   * venir que du texte déjà sourcé, jamais de mémoire.
+   */
+  if (!bloc) {
+    const prose = liste.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n')
+    const secours = await client.messages.create({
+      model: modele('MODELE_REDACTION', MODELE_REDACTION),
+      max_tokens: 1600,
+      system: systemeCachable(
+        CONSIGNE_LISTE +
+          " Ne livre que des liens présents dans le texte fourni ; s'il n'y a aucun lien réel, livre un tableau produits vide.",
+      ),
+      tools: [OUTIL_LISTE],
+      tool_choice: { type: 'tool', name: 'livrer_liste' },
+      messages: [
+        {
+          role: 'user',
+          content: `Analyse du rayon ${label} :\n\n${corps.slice(0, 5000)}\n\nNotes de recherche :\n\n${prose.slice(0, 3000)}\n\nLivre la liste avec l'outil livrer_liste.`,
+        },
+      ],
+    })
+    bloc = secours.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'livrer_liste')
+  }
   const gagnants = ((bloc?.input as { produits?: AnalyseProduite['gagnants'] })?.produits ?? [])
     .filter((p) => p.titre && p.lien && p.prixBas > 0 && p.prixVente > p.prixBas)
     .slice(0, 10)
@@ -202,15 +256,23 @@ async function dejaServi(depId: string): Promise<boolean> {
   return Boolean(recent)
 }
 
-/** La tournée : chaque rayon en poste, interrupteur levé, au plus une fois par demi-journée. */
-export async function tourneeAutoMode(generer: Generateur = genererAnalyse): Promise<void> {
+/**
+ * La tournée : chaque rayon en poste, interrupteur levé, au plus une fois par
+ * demi-journée. Les passages sont espacés : six recherches web par rayon en
+ * rafale, c'est comme ça que la limite « serveur dépassée » du 04/09/2026 a
+ * été atteinte — et un passage sans recherche échoue exprès.
+ */
+export async function tourneeAutoMode(generer: Generateur = genererAnalyse, pauseMs = 20_000): Promise<void> {
   const rayons = await prisma.department.findMany({
     where: { autoMode: true, paidUntil: { gt: new Date() }, NOT: { plan: 'essai' } },
   })
 
+  let dejaUnPassage = false
   for (const dep of rayons) {
     try {
       if (await dejaServi(dep.id)) continue
+      if (dejaUnPassage && pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs))
+      dejaUnPassage = true
       const fait = await passageAutoMode(dep, generer)
       console.log(`auto-mode : ${dep.agentName} — rapport ${fait.rapportId}, ${fait.gagnants} gagnant(s)`)
     } catch (err) {

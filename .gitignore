@@ -4,3 +4,4 @@ dist/
 backend/storage/
 frontend/dist/
 *.log
+backend/banc-prod-*.ts
