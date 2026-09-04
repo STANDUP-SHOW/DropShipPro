@@ -40,15 +40,18 @@ function Card({
   hint,
   action,
   children,
+  className = '',
 }: {
   icon: React.ElementType
   title: string
   hint?: string
   action?: React.ReactNode
   children: React.ReactNode
+  /** Notamment le rang d'empilement en affichage vertical (max-lg:order-N). */
+  className?: string
 }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm">
+    <section className={`rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm ${className}`}>
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
           <Icon size={17} className="mt-0.5 shrink-0 text-purple-300" />
@@ -394,10 +397,17 @@ export default function ProductDetail() {
         </div>
       </div>
 
+      {/*
+        Deux colonnes en large ; en vertical, les colonnes s'effacent
+        (max-lg:contents) et chaque bloc reprend le rang du plan demandé le
+        06/09/2026 : photos, annonce (titre + description), tarif, variantes,
+        puis la suite. Sans cela, toute la colonne visuelle — vidéo et studio
+        compris — s'empilait avant même le titre.
+      */}
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         {/* ---------- Colonne visuelle ---------- */}
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+        <div className="flex flex-col gap-5 max-lg:contents">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 max-lg:order-1">
             <div className="relative overflow-hidden rounded-xl bg-black/30">
               {images.length ? (
                 <>
@@ -522,31 +532,44 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          {/* ---------- La vidéo, juste sous les photos ---------- */}
+          {/* ---------- La vidéo, juste sous les photos (en vertical : après
+              le plan photos → annonce → tarif → variantes → état) ---------- */}
           {id ? (
-            <ProductVideo productId={id} videoUrl={product.videoUrl ?? null} onChange={load} />
+            <div className="max-lg:order-6">
+              <ProductVideo productId={id} videoUrl={product.videoUrl ?? null} onChange={load} />
+            </div>
           ) : null}
 
           {/* ---------- L'agent graphiste, là où les photos se regardent ---------- */}
           {id ? (
-            <PhotoAgentBlock
-              productId={id}
-              productTitle={product.aiTitle || product.title}
-              shopId={product.shopId}
-              onImagesChanged={load}
-            />
+            <div className="max-lg:order-10">
+              <PhotoAgentBlock
+                productId={id}
+                productTitle={product.aiTitle || product.title}
+                shopId={product.shopId}
+                onImagesChanged={load}
+              />
+            </div>
           ) : null}
 
           {/* ---------- L'agent qualité, là où l'annonce se relit ---------- */}
-          {id ? <OptimizerAgentBlock productId={id} onOptimise={load} /> : null}
+          {id ? (
+            <div className="max-lg:order-11">
+              <OptimizerAgentBlock productId={id} onOptimise={load} />
+            </div>
+          ) : null}
 
           {/* ---------- Ce que chaque destination acceptera ---------- */}
-          {id ? <ChannelReadiness productId={id} /> : null}
+          {id ? (
+            <div className="max-lg:order-12">
+              <ChannelReadiness productId={id} />
+            </div>
+          ) : null}
         </div>
 
         {/* ---------- Colonne contenu ---------- */}
-        <div className="space-y-5">
-          <Card icon={Sparkles} title="Annonce" hint="Rédigée par l'IA, modifiable librement.">
+        <div className="flex flex-col gap-5 max-lg:contents">
+          <Card icon={Sparkles} title="Annonce" hint="Rédigée par l'IA, modifiable librement." className="max-lg:order-2">
             <label className="text-xs text-gray-400">Titre</label>
             <input
               defaultValue={product.aiTitle}
@@ -574,7 +597,7 @@ export default function ProductDetail() {
               demande le 04/09/2026 : photos, titre, description, prix, et la
               suite. Le vendeur lit l'annonce puis decide du prix, dans cet
               ordre. ---------- */}
-          <Card icon={Calculator} title="Calcul de marge">
+          <Card icon={Calculator} title="Calcul de marge" className="max-lg:order-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-400">Prix d'achat</label>
@@ -650,6 +673,7 @@ export default function ProductDetail() {
           </Card>
 
           <Card
+            className="max-lg:order-7"
             icon={ListChecks}
             title="Arguments de vente"
             hint="Indexés par Amazon, Cdiscount et les marketplaces Mirakl. Une ligne par argument."
@@ -672,6 +696,7 @@ export default function ProductDetail() {
           </Card>
 
           <Card
+            className="max-lg:order-8"
             icon={Tags}
             title="Attributs produit"
             hint="Convertis en filtres de recherche : plus il y en a, mieux le produit ressort."
@@ -700,6 +725,7 @@ export default function ProductDetail() {
           </Card>
 
           <Card
+            className="max-lg:order-4"
             icon={Layers3}
             title="Options d'achat"
             hint="Ce que l'acheteur choisit : couleur, taille, capacité…"
@@ -713,7 +739,7 @@ export default function ProductDetail() {
             Le laisser deviner revenait à déclarer « neuf » partout, y compris
             sur du reconditionné — motif de retrait de l'annonce.
           */}
-          <Card icon={BadgeCheck} title="État du produit">
+          <Card icon={BadgeCheck} title="État du produit" className="max-lg:order-5">
             <div className="grid gap-2 sm:grid-cols-3">
               {etats.map((e) => {
                 const choisi = (product.condition ?? 'neuf') === e.id
@@ -744,7 +770,7 @@ export default function ProductDetail() {
             </p>
           </Card>
 
-          <Card icon={Search} title="Référencement">
+          <Card icon={Search} title="Référencement" className="max-lg:order-9">
             <label className="text-xs text-gray-400">Mots-clés</label>
             <textarea
               defaultValue={product.metaKeywords ?? ''}
