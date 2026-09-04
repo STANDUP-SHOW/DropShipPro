@@ -18,7 +18,7 @@ type Product = {
   shopId?: string | null
   sourceSite?: string | null
   createdAt?: string
-  /** L avis de Nadia, garde sur l annonce : paye une fois, relu autant de fois. */
+  /** L avis de Laurence, garde sur l annonce : paye une fois, relu autant de fois. */
   adAdvice?: string | null
   adAdvisedAt?: string | null
 }
@@ -278,8 +278,8 @@ export function ProductPicker({
                   onMouseLeave={() => setAvisSurvole((a) => (a === p.id ? null : a))}
                   title={
                     p.adAdvice
-                      ? "Relire l'avis de Nadia — deja paye"
-                      : 'Demander a Nadia si ce produit merite un budget (1 credit)'
+                      ? "Relire l'avis de Laurence — deja paye"
+                      : 'Demander a Laurence si ce produit merite un budget (1 credit)'
                   }
                   className={
                     p.adAdvice
@@ -289,7 +289,7 @@ export function ProductPicker({
                 >
                   <MessageSquare size={12} />
                   <span className="max-sm:hidden">
-                    {p.adAdvice ? 'Consulter avis Nadia' : 'Avis Nadia'}
+                    {p.adAdvice ? 'Consulter avis Laurence' : 'Avis Laurence'}
                   </span>
 
                   {avisSurvole === p.id && p.adAdvice ? <BulleAvis texte={p.adAdvice} /> : null}
@@ -318,7 +318,7 @@ export function ProductPicker({
 }
 
 /**
- * L'avis de Nadia, lu au survol.
+ * L'avis de Laurence, lu au survol.
  *
  * Au survol et non au clic : le vendeur qui compare quatre produits veut relire
  * sans changer d'écran. Le clic reste disponible et ouvre l'avis en grand.
@@ -330,7 +330,7 @@ function BulleAvis({ texte }: { texte: string }) {
   return (
     <span className="pointer-events-none absolute bottom-full right-0 z-30 mb-2 w-80 rounded-xl border border-pink-400/30 bg-[#1b1633] p-3 text-left shadow-2xl">
       <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-pink-300">
-        Avis de Nadia
+        Avis de Laurence
       </span>
       <span className="block max-h-56 overflow-hidden whitespace-pre-wrap text-[11px] font-normal leading-relaxed text-gray-200">
         {texte}

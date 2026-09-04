@@ -109,7 +109,7 @@ export default function PhotoStudio() {
         Léa reprend les photos de votre produit et les remet en situation, comme un photographe en
         studio. Elle ne fait que de la photo, et n'invente jamais un produit : celui de la photo est
         celui que recevra l'acheteur. Pour une publicité — logo, prix, bouton vers la boutique —
-        c'est Nadia, dans Marketing.
+        c'est Laurence, dans Marketing.
       </p>
 
       {state && (

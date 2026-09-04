@@ -302,7 +302,7 @@ export function AdDialog({
             <div className="mt-2 flex gap-2">
               {(
                 [
-                  ['ia', "Laisser Nadia lire l'annonce"],
+                  ['ia', "Laisser Laurence lire l'annonce"],
                   ['moi', 'Je dicte mon message'],
                 ] as const
               ).map(([valeur, label]) => (
@@ -372,7 +372,7 @@ export function AdDialog({
               </div>
             ) : (
               <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-                Nadia reprend le titre, les arguments et le prix de l'annonce telle qu'elle est
+                Laurence reprend le titre, les arguments et le prix de l'annonce telle qu'elle est
                 enregistrée. Rien n'est inventé : un prix ou une promesse qui ne viennent pas de la
                 fiche se paient en litiges.
               </p>
@@ -417,7 +417,7 @@ export function AdDialog({
               {/* Le nombre de publicités, pas le nombre de crédits : depuis que
                   les deux diffèrent, « Générer 4 publicité(s) » pour deux
                   réseaux serait un mensonge. */}
-              <span>{busy ? 'Nadia compose…' : `Générer ${choisis.size} publicité(s)`}</span>
+              <span>{busy ? 'Laurence compose…' : `Générer ${choisis.size} publicité(s)`}</span>
             </button>
 
             <p className="mt-2 text-center text-[11px] text-gray-500">

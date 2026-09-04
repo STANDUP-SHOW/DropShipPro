@@ -111,7 +111,7 @@ export function PhotoAgentBlock({
           <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
             Je peux refaire les photos de ce produit si vous le souhaitez : le même article, mais en
             situation d'utilisation, éclairé comme en studio. Je ne fais que de la photo — la
-            publicité, c'est Nadia, juste en dessous.
+            publicité, c'est Laurence, juste en dessous.
           </p>
         </div>
       </header>
@@ -170,7 +170,7 @@ export function PhotoAgentBlock({
       {error ? <p className="mt-3 text-xs text-red-400">{error}</p> : null}
     </section>
 
-    {/* ================= Nadia — la publicité, un autre métier =================
+    {/* ================= Laurence — la publicité, un autre métier =================
       Les deux étaient dans le même encadré, sous le nom de Léa : le vendeur
       croyait demander une photo à la graphiste et recevait une publicité, ou
       l'inverse. Ce ne sont pas les mêmes gestes, ni le même prix, ni le même
@@ -181,7 +181,7 @@ export function PhotoAgentBlock({
       <header className="flex items-start gap-2.5">
         <span className="text-xl">📣</span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold tracking-wide">Nadia — Agent Marketing</h2>
+          <h2 className="text-sm font-semibold tracking-wide">Laurence — Agent Marketing</h2>
           <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
             Je transforme ce produit en publicité : j'écris l'accroche, je pose le nom et le logo de
             votre boutique, le prix et le bouton, au format du réseau choisi. Je ne retouche pas les

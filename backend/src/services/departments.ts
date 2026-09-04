@@ -19,7 +19,7 @@
  * pour qu'il ne change jamais sous les yeux du vendeur.
  *
  * **Aucun prénom n'est repris d'un agent d'administration.** Léa photographie,
- * Nadia écrit les publicités, Camille tient la hotline — trois prénoms qui
+ * Laurence écrit les publicités, Camille tient la hotline — trois prénoms qui
  * servaient aussi de chefs de rayon, et le vendeur ne pouvait plus savoir à qui
  * il parlait. Les chefs de rayon concernés ont été renommés.
  */
@@ -39,7 +39,7 @@ export const DEPARTMENTS: DepartmentProfile[] = [
   {
     key: 'electronique',
     label: 'Électronique',
-    agentName: 'Malik',
+    agentName: 'Mika',
     emoji: '💻',
     focus:
       "Informatique, audio, photo, télévisions, drones et éclairage. Surveille les sorties, les baisses de prix et les marques absentes du marché français.",
@@ -102,7 +102,7 @@ export const DEPARTMENTS: DepartmentProfile[] = [
   {
     key: 'sacs-et-bagages',
     label: 'Sacs et bagages',
-    agentName: 'Laurence',
+    agentName: 'Laury',
     emoji: '👜',
     focus:
       "Sacs à main, sacs à dos, valises et maroquinerie. Rayon très sensible à la saison des départs, et à la contrefaçon de maroquinerie de luxe.",

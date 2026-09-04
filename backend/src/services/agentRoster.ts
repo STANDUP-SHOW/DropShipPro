@@ -120,7 +120,7 @@ export const PIPELINE_AGENTS: AgentProfile[] = [
   },
   {
     key: 'autopilot',
-    name: 'Automate',
+    name: 'Auto-Shipper',
     role: 'Agent Pilote automatique',
     family: 'chaine',
     category: 'production',
@@ -136,7 +136,7 @@ export const PIPELINE_AGENTS: AgentProfile[] = [
     family: 'chaine',
     category: 'marketing',
     emoji: '📸',
-    does: "Refait les photos d'un produit : le même article, mais en situation, éclairé comme en studio. Une fois embauchée, elle apparaît sur chaque fiche d'annonce avec un bouton qui produit six mises en situation d'un coup. Elle ne fait que de la photo — la publicité, avec son logo, son prix et son bouton, est le métier de Nadia.",
+    does: "Refait les photos d'un produit : le même article, mais en situation, éclairé comme en studio. Une fois embauchée, elle apparaît sur chaque fiche d'annonce avec un bouton qui produit six mises en situation d'un coup. Elle ne fait que de la photo — la publicité, avec son logo, son prix et son bouton, est le métier de Laurence.",
     caveat:
       "Elle ne dessine jamais un produit qui n'existe pas : elle repart de vos photos et garde la forme, les couleurs et les marquages. Publier l'image d'un objet que le fournisseur ne livre pas, c'est un litige puis une suspension.",
     where: 'Atelier photo, et chaque fiche produit',
@@ -219,7 +219,7 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
   },
   {
     key: 'marketing',
-    name: 'Nadia',
+    name: 'Laurence',
     role: 'Responsable marketing',
     family: 'comptoir',
     category: 'marketing',

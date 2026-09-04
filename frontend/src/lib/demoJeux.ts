@@ -48,8 +48,8 @@ export const DEMO_COMMANDES = [
     id: 'demo-c3',
     status: 'ORDERED_FROM_SUPPLIER',
     platform: 'OWN_SITE',
-    buyerName: 'Nadia Benali',
-    buyerEmail: 'nadia.b@example.com',
+    buyerName: 'Laurence Benali',
+    buyerEmail: 'laurence.b@example.com',
     amount: 89.0,
     currency: 'EUR',
     createdAt: il_y_a(1, 3),
@@ -302,7 +302,7 @@ const savLigne = (n: number, raison: string, jours: number, statut: string, nom:
 
 export const DEMO_SAV = {
   sansSuivi: [
-    savLigne(3, 'Commandée au fournisseur il y a 2 jours, toujours aucun numéro de suivi.', 2, 'ORDERED_FROM_SUPPLIER', 'Nadia Benali', 89, 'Aspirateur robot laser 3000 Pa'),
+    savLigne(3, 'Commandée au fournisseur il y a 2 jours, toujours aucun numéro de suivi.', 2, 'ORDERED_FROM_SUPPLIER', 'Laurence Benali', 89, 'Aspirateur robot laser 3000 Pa'),
     savLigne(9, 'Le fournisseur a signalé une rupture sur la variante commandée.', 4, 'ORDERED_FROM_SUPPLIER', 'Hugo Fontaine', 42, 'Baskets running légères'),
   ],
   tropLong: [
@@ -384,12 +384,12 @@ const gagnant = (n: number, titre: string, bas: number, vente: number, plateform
 })
 
 export const DEMO_GAGNANTS = [
-  gagnant(1, 'Montre connectée AMOLED 1,43" — 100 modes sport', 11.2, 39.9, ['eBay', 'Kaufland'], 'Malik', 0),
-  gagnant(2, 'Mini projecteur portable WiFi 1080p', 38.5, 109.0, ['eBay', 'votre site'], 'Malik', 0),
+  gagnant(1, 'Montre connectée AMOLED 1,43" — 100 modes sport', 11.2, 39.9, ['eBay', 'Kaufland'], 'Mika', 0),
+  gagnant(2, 'Mini projecteur portable WiFi 1080p', 38.5, 109.0, ['eBay', 'votre site'], 'Mika', 0),
   gagnant(3, 'Gourde isotherme 1 L à affichage de température', 6.8, 24.9, ['Kaufland', 'Carrefour'], 'Nora', 0),
   gagnant(4, 'Organiseur de voyage 7 pièces pour valise', 8.4, 27.9, ['Vinted', 'Leboncoin', 'votre site'], 'Nora', 1),
   gagnant(5, 'Lampe de chevet tactile RGB avec chargeur induction', 13.9, 44.9, ['eBay', 'La Redoute'], 'Nora', 1),
-  gagnant(6, 'Ceinture de course avec porte-téléphone réfléchissant', 4.2, 17.9, ['Google Shopping', 'Instagram'], 'Malik', 1),
+  gagnant(6, 'Ceinture de course avec porte-téléphone réfléchissant', 4.2, 17.9, ['Google Shopping', 'Instagram'], 'Mika', 1),
 ]
 
 /* ------------------------------------------------------------------ */
@@ -402,7 +402,7 @@ export const DEMO_RAPPORTS = [
     section: 'MARKET',
     day: new Date().toISOString().slice(0, 10),
     title: 'Analyse Électronique — matin',
-    summary: { auto: 'analyse-12h', rayon: 'Électronique', redacteur: 'Malik' },
+    summary: { auto: 'analyse-12h', rayon: 'Électronique', redacteur: 'Mika' },
     createdAt: il_y_a(0, 4),
   },
   {

@@ -13,7 +13,7 @@ type Image = Awaited<ReturnType<typeof api.visualGallery>>['images'][number]
 /**
  * Mes pubs — les publicités rangées par annonce.
  *
- * Le book de Nadia les montre toutes à la suite, par date : bien pour retrouver
+ * Le book de Laurence les montre toutes à la suite, par date : bien pour retrouver
  * celle d'hier, mauvais pour un vendeur qui en a soixante. Ici c'est l'annonce
  * qui commande : on ouvre un produit, on voit ses visuels, on les récupère.
  *
@@ -180,13 +180,13 @@ export default function MyAds() {
   return (
     <Layout>
       <BlocSection id="plateforme" />
-      {/* Nadia reste la, en haut : une question sur une pub se pose devant la
+      {/* Laurence reste la, en haut : une question sur une pub se pose devant la
           pub, pas dans un autre ecran. */}
       <AgentBar
         agentKey="marketing"
-        nom="Nadia"
+        nom="Laurence"
         emoji="📣"
-        exemple="Demandez a Nadia : quel format marche le mieux sur TikTok ?"
+        exemple="Demandez a Laurence : quel format marche le mieux sur TikTok ?"
       />
 
       <div className="mb-6">
@@ -195,7 +195,7 @@ export default function MyAds() {
           <span>Mes pubs</span>
         </h1>
         <p className="mt-1 text-sm text-gray-400">
-          Les publicités créées par Nadia, rangées par annonce. Elles sont déjà payées : les revoir
+          Les publicités créées par Laurence, rangées par annonce. Elles sont déjà payées : les revoir
           et les télécharger ne coûte rien.
         </p>
       </div>
@@ -206,7 +206,7 @@ export default function MyAds() {
         <div className="rounded-xl border border-white/10 bg-white/5 p-6">
           <h2 className="font-semibold">Aucune publicité pour l'instant</h2>
           <p className="mt-2 text-sm text-gray-400">
-            Ouvrez une annonce et demandez à Nadia de créer une publicité : photo du produit, logo
+            Ouvrez une annonce et demandez à Laurence de créer une publicité : photo du produit, logo
             de la boutique, prix de vente et bouton vers la boutique.
           </p>
           <Link

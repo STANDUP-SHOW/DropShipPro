@@ -97,9 +97,9 @@ export default function Marketing() {
     <Layout>
       <AgentBar
         agentKey="marketing"
-        nom="Nadia"
+        nom="Laurence"
         emoji="📣"
-        exemple="Demandez a Nadia : quel budget pour un CPA de douze euros ?"
+        exemple="Demandez a Laurence : quel budget pour un CPA de douze euros ?"
       />
 
       <h1 className="flex items-center gap-2 text-2xl font-bold">
@@ -107,7 +107,7 @@ export default function Marketing() {
         <span>Marketing</span>
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        Le service de Nadia : quel produit mérite un budget, quel angle convertit, quel format pour
+        Le service de Laurence : quel produit mérite un budget, quel angle convertit, quel format pour
         quel réseau — et la publicité qui va avec, aux dimensions exactes de chaque régie.
       </p>
 
@@ -135,7 +135,7 @@ export default function Marketing() {
       {/* ---------- Les produits, et les deux gestes qui comptent ---------- */}
       <h2 className="mt-8 font-bold">Mes produits</h2>
       <p className="mt-1 text-xs text-gray-500">
-        Survolez une ligne pour revoir la fiche et sa marge. Demandez l'avis de Nadia avant de
+        Survolez une ligne pour revoir la fiche et sa marge. Demandez l'avis de Laurence avant de
         dépenser, puis générez la publicité.
       </p>
 
@@ -159,7 +159,7 @@ export default function Marketing() {
       {/* L'avis s'ouvre sous la liste, sur le produit désigné : aller le chercher
           dans une autre page ferait perdre la comparaison en cours. */}
       {avis ? (
-        <AvisNadia
+        <AvisLaurence
           produit={avis}
           onFerme={() => setAvis(null)}
           onEcrit={() => rechargerProduits.current?.()}
@@ -305,7 +305,7 @@ export default function Marketing() {
         puisque c'est sur eux qu'on décide de couper une campagne ou de la doubler.
       </p>
       <p className="mt-3 max-w-3xl rounded-xl border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-gray-400">
-        En attendant, Nadia sait lire les chiffres que vous lui recopiez depuis le gestionnaire de
+        En attendant, Laurence sait lire les chiffres que vous lui recopiez depuis le gestionnaire de
         la régie : donnez-lui la dépense, le nombre de ventes et le produit concerné, elle vous dira
         si la campagne gagne ou perd de l'argent, et à partir de quel coût par acquisition il faut
         l'arrêter.
@@ -332,7 +332,7 @@ export default function Marketing() {
 
       <AgentBook
         kind="ad"
-        titre="Les publicités de Nadia"
+        titre="Les publicités de Laurence"
         vide="Aucune publicité produite pour l'instant. Celles que vous ferez créer resteront ici, toutes annonces confondues."
       />
     </Layout>
@@ -340,7 +340,7 @@ export default function Marketing() {
 }
 
 /**
- * L'avis de Nadia sur un produit, payé une fois et relu autant qu'on veut.
+ * L'avis de Laurence sur un produit, payé une fois et relu autant qu'on veut.
  *
  * Ce que ça remplace : une conversation pré-remplie. Le vendeur lisait la
  * réponse, fermait l'écran, et l'avis disparaissait — le lendemain il repayait
@@ -350,7 +350,7 @@ export default function Marketing() {
  * distinct, et il annonce son prix : c'est celui du vendeur qui a changé son
  * prix d'achat et veut un avis sur les nouveaux chiffres.
  */
-function AvisNadia({
+function AvisLaurence({
   produit,
   onFerme,
   onEcrit,
@@ -374,7 +374,7 @@ function AvisNadia({
         setQuand(r.at)
         if (r.facture) onEcrit()
       } catch (e) {
-        setErreur(e instanceof Error ? e.message : "Nadia n'a pas pu répondre.")
+        setErreur(e instanceof Error ? e.message : "Laurence n'a pas pu répondre.")
       } finally {
         setBusy(false)
       }
@@ -389,13 +389,13 @@ function AvisNadia({
   return (
     <section className="mt-4 rounded-xl border border-pink-400/30 bg-pink-500/5 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold">{`Avis de Nadia sur « ${produit.titre} »`}</p>
+        <p className="text-sm font-semibold">{`Avis de Laurence sur « ${produit.titre} »`}</p>
         <button type="button" onClick={onFerme} className="text-xs text-gray-400 hover:text-white">
           Fermer
         </button>
       </div>
 
-      {busy ? <p className="mt-3 text-sm text-gray-400">Nadia regarde vos chiffres…</p> : null}
+      {busy ? <p className="mt-3 text-sm text-gray-400">Laurence regarde vos chiffres…</p> : null}
       {erreur ? <p className="mt-3 text-sm text-red-300">{erreur}</p> : null}
 
       {texte ? (

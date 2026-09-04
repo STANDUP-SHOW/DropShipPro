@@ -3,10 +3,10 @@ import type { Product } from '@prisma/client'
 import { MODELE_RAISONNEMENT } from './chatBudget.js'
 
 /**
- * L'avis de Nadia : ce produit mérite-t-il un budget publicitaire ?
+ * L'avis de Laurence : ce produit mérite-t-il un budget publicitaire ?
  *
  * Ce que ça remplace : une conversation pré-remplie. Le vendeur cliquait
- * « demander l'avis de Nadia », lisait la réponse, fermait l'écran — et
+ * « demander l'avis de Laurence », lisait la réponse, fermait l'écran — et
  * **l'avis disparaissait**. Le lendemain, il repayait pour la même réponse sur
  * le même produit, sans s'en apercevoir autrement qu'au relevé de crédits.
  *
@@ -39,7 +39,7 @@ export function avisEncoreFrais(produit: Pick<Product, 'adAdvice' | 'adAdvisedAt
 }
 
 const CONSIGNE = [
-  "Tu es Nadia, responsable marketing d'un vendeur en dropshipping.",
+  "Tu es Laurence, responsable marketing d'un vendeur en dropshipping.",
   '',
   'On te donne une annonce et ses chiffres. Tu réponds à une seule question :',
   'ce produit mérite-t-il un budget publicitaire, et si oui à quelles conditions.',

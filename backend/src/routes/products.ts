@@ -1775,7 +1775,7 @@ productsRouter.get('/:id/social-draft', async (req: AuthedRequest, res) => {
 })
 
 /**
- * L'avis de Nadia sur l'opportunité publicitaire d'une annonce.
+ * L'avis de Laurence sur l'opportunité publicitaire d'une annonce.
  *
  * Gardé sur l'annonce, et resservi tant qu'il est frais. Le vendeur cliquait,
  * lisait, fermait — et l'avis disparaissait ; le lendemain il repayait la même
@@ -1818,7 +1818,7 @@ productsRouter.post('/:id/ad-advice', async (req: AuthedRequest, res) => {
 
   if (!avis) {
     await refundCredits(req.userId!, COUT_AVIS)
-    return res.status(502).json({ error: "Nadia n'a pas pu répondre. Votre crédit est rendu." })
+    return res.status(502).json({ error: "Laurence n'a pas pu répondre. Votre crédit est rendu." })
   }
 
   const at = new Date()

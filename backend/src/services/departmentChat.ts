@@ -106,7 +106,7 @@ export async function askDepartment(
   try {
     const client = new Anthropic({ apiKey })
     /*
-     * L'inspection web, en plus des outils maison — la capacité que Malik
+     * L'inspection web, en plus des outils maison — la capacité que Mika
      * avait montrée dans ses rapports (analyse de marché, avis produit) sans
      * jamais l'avoir en conversation : « pourquoi n'en est-il plus capable ? »
      * (05/09/2026). Trois recherches au plus par question : le plafond

@@ -388,7 +388,7 @@ export const api = {
     }>('/products/meta/channels'),
 
   /**
-   * L'avis de Nadia sur l'opportunité publicitaire d'une annonce.
+   * L'avis de Laurence sur l'opportunité publicitaire d'une annonce.
    *
    * Payé un crédit et **gardé sur l'annonce** : rappeler la route sans
    * `refaire` resert l'avis existant sans refacturer.

@@ -284,7 +284,7 @@ export default function Deliveries() {
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
       {loading && <p className="mt-6 text-sm text-gray-500">Chargement…</p>}
 
-      {!loading && !orders.length && (
+      {!loading && !sourceCommandes.length && (
         <div className="mt-6 rounded-xl border border-dashed border-white/15 p-8 text-center">
           <p className="text-sm text-gray-400">Aucune commande pour l'instant.</p>
           <p className="mt-2 text-xs text-gray-500">

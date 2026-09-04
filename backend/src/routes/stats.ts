@@ -42,7 +42,7 @@ statsRouter.get('/jauges', async (req: AuthedRequest, res) => {
     prisma.supplierConnection.count({ where: { userId, connected: true } }),
     prisma.platformCredential.count({ where: { userId, connected: true } }),
     // Les chefs EN POSTE — embauchés et payés — pas les rayons simplement
-    // créés : « je n'ai embauché que Malik, la jauge doit dire 1 sur 24 ».
+    // créés : « je n'ai embauché que Mika, la jauge doit dire 1 sur 24 ».
     prisma.department.count({ where: { userId, paidUntil: { gt: new Date() } } }),
     prisma.socialAccount.count({ where: { userId } }),
   ])

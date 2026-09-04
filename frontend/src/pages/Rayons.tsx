@@ -179,7 +179,7 @@ export default function Rayons() {
                       Le rayon en titre, l'agent en dessous.
 
                       Le vendeur cherche « Électronique » quand il veut voir ses
-                      montres connectées ; il ne se souvient pas que c'est Malik
+                      montres connectées ; il ne se souvient pas que c'est Mika
                       qui s'en occupe. Le prénom garde toute son utilité au
                       moment de lui parler — pas au moment de le trouver.
                     */}

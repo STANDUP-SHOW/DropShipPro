@@ -290,7 +290,7 @@ const adSchema = z.object({
   // Une adresse de boutique avec sa catégorie et son slug dépasse largement
   // quatre-vingts caractères.
   ctaUrl: z.string().trim().max(300).optional(),
-  // L'accroche dictée par le vendeur : elle remplace celle que Nadia écrirait,
+  // L'accroche dictée par le vendeur : elle remplace celle que Laurence écrirait,
   // donc elle mérite la même longueur qu'une vraie phrase de vente.
   argument: z.string().trim().max(300).optional(),
   /**

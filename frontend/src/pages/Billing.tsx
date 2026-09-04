@@ -268,7 +268,7 @@ export default function BillingPage() {
       */}
       <h2 className="mt-10 text-lg font-bold">Crédits graphiques</h2>
       <p className="mt-1 max-w-2xl text-sm text-gray-400">
-        Une réserve à part, pour les images. <b>Léa et Nadia sont gratuites</b> — aucun
+        Une réserve à part, pour les images. <b>Léa et Laurence sont gratuites</b> — aucun
         abonnement, aucune embauche : elles puisent dans ces crédits quand elles travaillent. Une
         {/*
           Deux crédits, pas un — le serveur en prélève deux depuis le 02/09/2026.
