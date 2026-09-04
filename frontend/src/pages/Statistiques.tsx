@@ -4,7 +4,8 @@ import { Layout } from '../components/Layout'
 import { BlocStats, type BlocData } from '../components/stats/TuileStat'
 import { CarteMonde, type CarteData } from '../components/stats/CarteMonde'
 import { blocsDemo, carteDemo, compteVide } from '../lib/statsDemo'
-import { demoActif, demoChoisi, poserDemo } from '../lib/demo'
+import { demoActif, demoAutorise, demoChoisi, poserDemo } from '../lib/demo'
+import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 
 /**
@@ -64,12 +65,19 @@ export default function Statistiques() {
   const [periode, setPeriode] = useState('30')
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  /*
+   * Le mode démo global n'appartient qu'au compte de démonstration : pour
+   * tout autre vendeur, la pilule n'existe pas et la démo du tableau de bord
+   * reste ce qu'elle a toujours été — locale, pour les comptes vides.
+   */
+  const { user } = useAuth()
+  const autorise = demoAutorise(user?.email)
   /**
    * `null` tant qu'on n'a pas vu les données : c'est elles qui décident —
    * sauf si le mode démo GLOBAL est déjà levé : cette pilule est le seul
    * interrupteur du site (06/09/2026), elle reprend son état au retour.
    */
-  const [demo, setDemo] = useState<boolean | null>(demoActif() ? true : null)
+  const [demo, setDemo] = useState<boolean | null>(autorise && demoActif() ? true : null)
 
   async function charger(jours: number) {
     setChargement(true)
@@ -87,6 +95,9 @@ export default function Statistiques() {
       // coupait au lieu d'étendre (constaté en production le 06/09/2026).
       setDemo((actuel) => {
         if (actuel !== null) return actuel
+        // Hors du compte de démonstration, l'automatisme reste LOCAL : les
+        // chiffres semés s'affichent ici, étiquetés, sans toucher au site.
+        if (!autorise) return compteVide(r.blocs)
         if (demoChoisi()) return demoActif()
         const decide = compteVide(r.blocs)
         if (decide) poserDemo(true)
@@ -137,7 +148,7 @@ export default function Statistiques() {
         </button>
       ))}
 
-      {blocs ? (
+      {blocs && autorise ? (
         <button
           type="button"
           onClick={() =>

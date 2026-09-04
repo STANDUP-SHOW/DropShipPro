@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from './auth'
 
 /**
  * Le mode DÉMO — un habillage d'écran, jamais des données.
@@ -16,6 +17,18 @@ import { useEffect, useState } from 'react'
 
 const CLE = 'dsp-demo'
 const EVENEMENT = 'dsp-demo-bascule'
+
+/**
+ * Le seul compte qui possède le mode démo (06/09/2026) : c'est l'outil de
+ * démonstration commerciale de Max, pas une fonction du produit. Pour tout
+ * autre compte la pilule n'existe pas, et un drapeau posé à la main dans le
+ * navigateur ne montre rien.
+ */
+export const COMPTE_DEMO = 'maxmartinel34@gmail.com'
+
+export function demoAutorise(email: string | null | undefined): boolean {
+  return email === COMPTE_DEMO
+}
 
 export function demoActif(): boolean {
   try {
@@ -39,17 +52,20 @@ export function demoChoisi(): boolean {
 }
 
 export function useDemo(): [boolean, () => void] {
-  const [actif, setActif] = useState(demoActif)
+  const [drapeau, setDrapeau] = useState(demoActif)
+  const { user } = useAuth()
 
   useEffect(() => {
-    const relire = () => setActif(demoActif())
+    const relire = () => setDrapeau(demoActif())
     window.addEventListener(EVENEMENT, relire)
     return () => window.removeEventListener(EVENEMENT, relire)
   }, [])
 
   const basculer = () => poserDemo(!demoActif())
 
-  return [actif, basculer]
+  // Le verrou est ICI, au centre : chaque page qui consomme le hook est
+  // couverte sans rien savoir du compte.
+  return [drapeau && demoAutorise(user?.email), basculer]
 }
 
 /** Lève ou abaisse le mode pour tout le site — seul le tableau de bord appelle. */
