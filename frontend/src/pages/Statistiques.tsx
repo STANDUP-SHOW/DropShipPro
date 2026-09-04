@@ -149,14 +149,6 @@ export default function Statistiques() {
 
   return (
     <Layout large>
-      {demo ? (
-        <p className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2 text-xs leading-relaxed text-amber-100">
-          <b>Aperçu de démonstration.</b> Ces chiffres ne sont pas les vôtres : ils laissent voir le
-          graphisme du tableau tant que vos ventes n'ont pas commencé. Dès la première commande, vos
-          vraies données prennent la place — et le bouton « DEMO » du bloc Vue générale bascule quand
-          vous voulez.
-        </p>
-      ) : null}
 
       {erreur ? (
         <p className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">{erreur}</p>
@@ -195,6 +187,16 @@ export default function Statistiques() {
             </p>
           )}
         </div>
+      ) : null}
+
+      {/* En bas, sous les stats — comme tous les encarts jaunes (05/09/2026). */}
+      {demo ? (
+        <p className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2 text-xs leading-relaxed text-amber-100">
+          <b>Aperçu de démonstration.</b> Ces chiffres ne sont pas les vôtres : ils laissent voir le
+          graphisme du tableau tant que vos ventes n'ont pas commencé. Dès la première commande, vos
+          vraies données prennent la place — et le bouton « DEMO » du bloc Vue générale bascule quand
+          vous voulez.
+        </p>
       ) : null}
     </Layout>
   )
