@@ -235,14 +235,14 @@ export default function Rayons() {
               {`Un onglet « ${confirming.label} » sera créé. ${confirming.agentName} y déposera ses trouvailles ; vous gardez la main sur tout ce qui est importé ou publié.`}
             </p>
 
+            {/* Pas d'essai gratuit — décision du 05/09/2026 : un chef
+                travaille quand il est embauché. La formule se choisit sur la
+                page du rayon, juste après. */}
             <div className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
               <p className="text-xs font-semibold text-emerald-300">
-                {`24 heures offertes : ${confirming.agentName} commence tout de suite.`}
+                {`${confirming.agentName} se met au travail dès sa formule choisie — à partir de 1 € la journée.`}
               </p>
-              <p className="mt-1 text-[11px] text-gray-400">
-                Vous recevrez un premier rapport et une première liste de produits avant de décider.
-                Ensuite, son salaire :
-              </p>
+              <p className="mt-1 text-[11px] text-gray-400">Son salaire :</p>
               <ul className="mt-2 space-y-1">
                 {plans.map((p) => (
                   <li key={p.id} className="flex items-baseline gap-2 text-[11px] text-gray-400">

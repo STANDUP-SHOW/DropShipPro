@@ -118,9 +118,16 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
    * et l'abonnement ne voulait plus rien dire. Ses rapports et ses trouvailles
    * restent lisibles ; c'est la conversation qui reprend avec l'abonnement.
    */
-  if (!isActive(department.paidUntil)) {
+  /*
+   * Il n'y a pas d'essai gratuit — décision du 05/09/2026 : un chef travaille
+   * s'il est embauché, point. `plan === 'essai'` couvre les rayons créés
+   * avant cette règle, tant que leurs vingt-quatre heures n'ont pas expiré :
+   * eux non plus ne discutent pas sans formule payée. La borne est dans le
+   * code, pas dans une consigne au modèle.
+   */
+  if (!isActive(department.paidUntil) || department.plan === 'essai') {
     return res.status(402).json({
-      error: `${department.agentName} est à l'arrêt : son abonnement est terminé. Ses rapports et ses trouvailles restent lisibles ; réabonnez le rayon pour reprendre la conversation.`,
+      error: `${department.agentName} n'est pas en poste : choisissez sa formule (à partir de 1 € la journée, sur la page du rayon) pour qu'il se mette au travail. Ses rapports et trouvailles éventuels restent lisibles.`,
       reabonner: true,
     })
   }

@@ -91,16 +91,19 @@ departmentsRouter.post('/', async (req: AuthedRequest, res) => {
   })
   if (existing) return res.status(400).json({ error: `${existing.agentName} tient déjà ce rayon.` })
 
-  // Vingt-quatre heures offertes à l'embauche : de quoi recevoir un premier
-  // rapport et une première liste avant de décider. Sans cet essai, personne ne
-  // paie un agent qu'il n'a jamais vu travailler.
+  /*
+   * Pas d'essai gratuit — décision du 05/09/2026 : « un chef de rayon doit
+   * être embauché pour travailler, point ». L'embauche crée le rayon à
+   * l'arrêt ; il se met au travail quand sa formule est payée (1 jour,
+   * 1 semaine ou 1 mois), et c'est la page du rayon qui la propose.
+   */
   const created = await prisma.department.create({
     data: {
       userId: req.userId!,
       key: profile.key,
       agentName: profile.agentName,
-      plan: 'essai',
-      paidUntil: new Date(Date.now() + 24 * 3600 * 1000),
+      plan: null,
+      paidUntil: null,
     },
   })
 
@@ -125,8 +128,10 @@ departmentsRouter.post('/:id/enquete', async (req: AuthedRequest, res) => {
     where: { id: req.params.id, userId: req.userId! },
   })
   if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
-  if (!isActive(department.paidUntil)) {
-    return res.status(402).json({ error: `${department.agentName} est à l'arrêt : réabonnez le rayon pour lancer une enquête.` })
+  if (!isActive(department.paidUntil) || department.plan === 'essai') {
+    return res.status(402).json({
+      error: `${department.agentName} n'est pas en poste : choisissez sa formule pour lancer une enquête — un chef travaille quand il est embauché.`,
+    })
   }
 
   const resultat = await enqueteAliExpress(req.userId!)

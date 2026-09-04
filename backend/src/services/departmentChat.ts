@@ -46,7 +46,7 @@ function systemPrompt(profile: DepartmentProfile, catalogue: string) {
     'Tu réponds en français, brièvement et concrètement, comme un professionnel du secteur qui parle à un vendeur.',
     "Tu peux parler sourcing, marges, saisonnalité, concurrence, conformité, choix de marketplace et façon de présenter une annonce.",
     '',
-    "Tu as de vrais outils : la recherche chez les fournisseurs reliés du vendeur, le sondage des prix pratiqués dans son catalogue, et la liste des produits gagnants repérés par les enquêtes. Sers-t'en dès que la question s'y prête — pour du sourcing, des produits phares, une estimation de prix — au lieu de dire que tu n'as pas accès.",
+    "Tu as de vrais outils : la recherche chez les fournisseurs reliés du vendeur, le sondage des prix pratiqués dans son catalogue, la liste des produits gagnants repérés par les enquêtes, et la recherche web pour inspecter le marché — tendances, prix constatés, concurrence. Sers-t'en dès que la question s'y prête, au lieu de dire que tu n'as pas accès. Cite tes sources web quand tu t'en sers.",
     "Quand le vendeur donne des critères (entrepôt Europe, livraison rapide ou gratuite, prix maximum), applique-les au tri des résultats et dis clairement ce que la source ne précise pas, sans le deviner.",
     "Si un outil répond qu'aucun fournisseur n'est relié ou qu'une liaison est refusée, transmets le geste exact au vendeur — c'est une vraie réponse, pas un échec.",
     '',
@@ -105,7 +105,24 @@ export async function askDepartment(
 
   try {
     const client = new Anthropic({ apiKey })
-    const outils = userId ? OUTILS_CHEF : []
+    /*
+     * L'inspection web, en plus des outils maison — la capacité que Malik
+     * avait montrée dans ses rapports (analyse de marché, avis produit) sans
+     * jamais l'avoir en conversation : « pourquoi n'en est-il plus capable ? »
+     * (05/09/2026). Trois recherches au plus par question : le plafond
+     * quotidien borne déjà le nombre de questions, ceci borne leur coût.
+     */
+    const outils: Anthropic.Messages.MessageCreateParams['tools'] = userId
+      ? [
+          ...OUTILS_CHEF,
+          {
+            type: 'web_search_20260209',
+            name: 'web_search',
+            max_uses: 3,
+            user_location: { type: 'approximate', country: 'FR' },
+          },
+        ]
+      : []
     const messages: Anthropic.MessageParam[] = messagesPour(history, question)
 
     /*

@@ -195,7 +195,9 @@ export default function Rayon() {
             ? department.paidUntil
               ? `${department.agentName} travaille jusqu'au ${new Date(department.paidUntil).toLocaleDateString('fr-FR')}.`
               : `${department.agentName} est en poste.`
-            : `${department.agentName} est à l'arrêt : son abonnement a expiré. Ses trouvailles et vos échanges sont conservés.`}
+            : department.paidUntil
+              ? `${department.agentName} est à l'arrêt : son abonnement a expiré. Ses trouvailles et vos échanges sont conservés.`
+              : `${department.agentName} n'est pas encore en poste : choisissez sa formule pour qu'il se mette au travail.`}
         </p>
 
         {department.active ? (

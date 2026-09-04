@@ -135,7 +135,7 @@ model User {
   stripeSubscriptionId String?
   /// Credits images restants, pour les agents visuels. Distincts des credits
   /// d annonces : une image generee coute a chaque fois, une annonce non.
-  imageCredits         Int     @default(10)
+  imageCredits         Int     @default(9)
   /// Agent de controle visuel des photos et des options, avant mise en ligne.
   /// Actif par defaut : c est lui qui rend le mode automatique fiable.
   controlAgent         Boolean @default(true)

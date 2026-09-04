@@ -154,6 +154,14 @@ export default function BillingPage() {
                 Une annonce est décomptée à l'import. La publication est offerte, sur toutes les
                 destinations, autant de fois que vous voulez.
               </p>
+              {/* L'essai gratuit, dit tel que le produit le définit
+                  (05/09/2026) : ce qui est offert, et que tout le reste des
+                  fonctions gratuites est ouvert. */}
+              <p className="mt-1 text-[11px] text-gray-500">
+                L'essai gratuit comprend 10 annonces, 5 images et 2 publicités, les agents
+                d'administration, et des liaisons illimitées — fournisseurs, market places, réseaux.
+                Quota atteint : rechargez ci-dessous.
+              </p>
             </div>
           </div>
         )}
