@@ -55,7 +55,8 @@ export function BandeauJauges() {
       valeur: `${nombre(jauges.annonces.fait)} / ${nombre(jauges.annonces.total)}`,
       action: 'Publiez des annonces',
       to: '/dashboard',
-      dessin: <Crante part={part(jauges.annonces.fait, jauges.annonces.total, 0.35)} graine={1} />,
+      // Les trois teintes de la planche fournie le 06/09/2026 : orange, cyan, lime.
+      dessin: <Crante part={part(jauges.annonces.fait, jauges.annonces.total, 0.35)} graine={1} teintes={['#fb923c', '#38bdf8', '#a3e635']} />,
     },
     {
       label: 'Fournisseurs',

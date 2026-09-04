@@ -777,15 +777,31 @@ export function Arcs({ part, graine = 0 }: { part: number; encre?: Encre; graine
   )
 }
 
-export function Crante({ part, graine = 0 }: { part: number; encre?: Encre; graine?: number }) {
+export function Crante({
+  part,
+  graine = 0,
+  teintes,
+}: {
+  part: number
+  encre?: Encre
+  graine?: number
+  /** Les trois couleurs des tiers, pour caler l'anneau sur une planche. */
+  teintes?: [string, string, string]
+}) {
   const crans = 18 + (graine % 4) * 4
-  const pleins = Math.round(part * crans)
+  /*
+   * Au moins un cran vif dès qu'il y a quelque chose : 30 annonces sur
+   * 20 000 arrondissaient à zéro cran et l'anneau disparaissait — « vide
+   * et donc invisible » (06/09/2026).
+   */
+  const pleins = Math.max(part > 0 ? 1 : 0, Math.round(part * crans))
   return (
     <svg viewBox="0 0 64 64" className="h-16 w-16" aria-hidden>
       {Array.from({ length: crans }, (_, i) => {
         const angle = (i / crans) * 2 * Math.PI - Math.PI / 2
         // Trois couleurs par tiers, comme les compteurs segmentés des planches.
-        const c = neon(Math.floor((i / crans) * 3) * 2 + graine)
+        const tiers = Math.floor((i / crans) * 3)
+        const c = teintes ? teintes[tiers] : neon(tiers * 2 + graine)
         return (
           <line
             key={i}
@@ -793,7 +809,11 @@ export function Crante({ part, graine = 0 }: { part: number; encre?: Encre; grai
             y1={32 + Math.sin(angle) * 21}
             x2={32 + Math.cos(angle) * 28}
             y2={32 + Math.sin(angle) * 28}
-            stroke={i < pleins ? c : 'rgba(255,255,255,0.10)'}
+            stroke={c}
+            // L'anneau reste dessiné en entier : les crans restants gardent
+            // leur couleur, simplement éteinte — jamais noirs.
+            opacity={i < pleins ? 1 : 0.28}
+            style={i < pleins ? { filter: `drop-shadow(0 0 3px ${c})` } : undefined}
             strokeWidth="3"
             strokeLinecap="round"
           />
