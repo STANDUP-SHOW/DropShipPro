@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { Trophy, ExternalLink, Trash2 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_GAGNANTS } from '../lib/demoJeux'
 
 type Gagnant = Awaited<ReturnType<typeof api.listOpportunities>>['opportunities'][number]
 
@@ -24,6 +27,12 @@ export default function ProduitsGagnants() {
   const [lignes, setLignes] = useState<Gagnant[]>([])
   const [chargement, setChargement] = useState(true)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [demo] = useDemo()
+  /* Les lignes écartées en mode démo ne le sont que pour l'écran. */
+  const [ecartees, setEcartees] = useState<Set<string>>(new Set())
+  const affichees: Gagnant[] = demo
+    ? (DEMO_GAGNANTS as unknown as Gagnant[]).filter((g) => !ecartees.has(g.id))
+    : lignes
 
   useEffect(() => {
     api
@@ -34,6 +43,10 @@ export default function ProduitsGagnants() {
   }, [])
 
   async function ecarter(id: string) {
+    if (id.startsWith('demo-')) {
+      setEcartees((s) => new Set(s).add(id))
+      return
+    }
     await api.deleteOpportunity(id).catch(() => undefined)
     setLignes((l) => l.filter((g) => g.id !== id))
   }
@@ -50,10 +63,10 @@ export default function ProduitsGagnants() {
         plateformes conseillées.
       </p>
 
-      {erreur ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
-      {chargement ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
+      {erreur && !demo ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
+      {chargement && !demo ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
 
-      {!chargement && !erreur && lignes.length === 0 ? (
+      {!chargement && !erreur && affichees.length === 0 ? (
         <div className="mt-6 rounded-xl border border-dashed border-white/15 p-8 text-center">
           <p className="text-sm text-gray-400">Aucun produit gagnant déposé pour l'instant.</p>
           <p className="mt-2 text-xs text-gray-500">
@@ -66,7 +79,7 @@ export default function ProduitsGagnants() {
         </div>
       ) : null}
 
-      {lignes.length > 0 && (
+      {affichees.length > 0 && (
         <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
@@ -81,7 +94,7 @@ export default function ProduitsGagnants() {
               </tr>
             </thead>
             <tbody>
-              {lignes.map((g) => (
+              {affichees.map((g) => (
                 <tr key={g.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03]">
                   <td className="max-w-xs px-4 py-3">
                     <a
@@ -146,6 +159,8 @@ export default function ProduitsGagnants() {
           </table>
         </div>
       )}
+
+      <BandeauDemo />
     </Layout>
   )
 }

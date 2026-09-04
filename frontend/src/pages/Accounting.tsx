@@ -5,6 +5,9 @@ import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_COMPTA } from '../lib/demoJeux'
 
 type Data = Awaited<ReturnType<typeof api.accounting>>
 
@@ -31,6 +34,7 @@ const moisLisible = (cle: string) => {
  */
 export default function Accounting() {
   const [data, setData] = useState<Data | null>(null)
+  const [demo] = useDemo()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -40,7 +44,8 @@ export default function Accounting() {
       .catch(() => setError('Les chiffres n’ont pas pu être chargés'))
   }, [])
 
-  if (error) {
+  // En mode demo, le jeu d'exemple s'affiche meme si le vrai chargement rate.
+  if (error && !demo) {
     return (
       <Layout>
         <p className="text-sm text-red-400">{error}</p>
@@ -48,7 +53,7 @@ export default function Accounting() {
     )
   }
 
-  if (!data) {
+  if (!data && !demo) {
     return (
       <Layout>
         <p className="text-sm text-gray-500">Chargement…</p>
@@ -56,7 +61,9 @@ export default function Accounting() {
     )
   }
 
-  const total = data.parPlateforme.reduce(
+  const affiche = demo ? (DEMO_COMPTA as unknown as Data) : (data as Data)
+
+  const total = affiche.parPlateforme.reduce(
     (s, p) => ({
       commandes: s.commandes + p.commandes,
       rembourses: s.rembourses + p.rembourses,
@@ -66,7 +73,7 @@ export default function Accounting() {
     { commandes: 0, rembourses: 0, chiffre: 0, marge: 0 },
   )
 
-  const plafond = Math.max(1, ...data.parMois.map((m) => m.chiffre))
+  const plafond = Math.max(1, ...affiche.parMois.map((m) => m.chiffre))
 
   return (
     <Layout>
@@ -89,7 +96,7 @@ export default function Accounting() {
 
       <div className="mt-4 flex max-w-3xl items-start gap-2 rounded-xl border border-sky-400/25 bg-sky-400/10 p-3">
         <Info size={14} className="mt-0.5 shrink-0 text-sky-300" />
-        <p className="text-xs leading-relaxed text-sky-100">{data.avertissement}</p>
+        <p className="text-xs leading-relaxed text-sky-100">{affiche.avertissement}</p>
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-4">
@@ -121,12 +128,12 @@ export default function Accounting() {
 
       {/* ---------- Mois par mois ---------- */}
       <h2 className="mt-8 font-bold">Mois par mois</h2>
-      {data.parMois.length === 0 ? (
+      {affiche.parMois.length === 0 ? (
         <p className="mt-3 text-sm text-gray-500">Aucune commande enregistrée.</p>
       ) : (
         <>
           <div className="mt-3 flex items-end gap-2 rounded-xl border border-white/10 bg-white/5 p-4">
-            {data.parMois.map((m) => (
+            {affiche.parMois.map((m) => (
               <div key={m.mois} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <span className="text-[10px] tabular-nums text-gray-400">{euros(m.chiffre)}</span>
                 <div
@@ -140,7 +147,7 @@ export default function Accounting() {
           </div>
 
           <div className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
-            {[...data.parMois].reverse().map((m) => (
+            {[...affiche.parMois].reverse().map((m) => (
               <div key={m.mois} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                 <span className="font-medium">{moisLisible(m.mois)}</span>
                 <span className="flex items-center gap-4 text-xs">
@@ -161,11 +168,11 @@ export default function Accounting() {
 
       {/* ---------- Par plateforme ---------- */}
       <h2 className="mt-8 font-bold">Par plateforme</h2>
-      {data.parPlateforme.length === 0 ? (
+      {affiche.parPlateforme.length === 0 ? (
         <p className="mt-3 text-sm text-gray-500">Aucune vente enregistrée.</p>
       ) : (
         <div className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
-          {data.parPlateforme.map((p) => (
+          {affiche.parPlateforme.map((p) => (
             <div key={p.platform} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <span className="font-medium">{p.platform}</span>
               <span className="flex items-center gap-4 text-xs">
@@ -195,15 +202,15 @@ export default function Accounting() {
         <section>
           <p className="flex items-center gap-1.5 text-sm font-semibold">
             <MessageSquare size={14} className="text-purple-300" />
-            <span>{`Litiges et questions ouverts (${data.litiges.length})`}</span>
+            <span>{`Litiges et questions ouverts (${affiche.litiges.length})`}</span>
           </p>
-          {data.litiges.length === 0 ? (
+          {affiche.litiges.length === 0 ? (
             <p className="mt-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-500">
               Aucun échange acheteur en cours.
             </p>
           ) : (
             <ul className="mt-2 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
-              {data.litiges.map((l) => (
+              {affiche.litiges.map((l) => (
                 <li key={l.id} className="flex items-center gap-3 px-3 py-2.5 text-xs">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{l.customerName}</span>
@@ -223,15 +230,15 @@ export default function Accounting() {
         <section>
           <p className="flex items-center gap-1.5 text-sm font-semibold">
             <RotateCcw size={14} className="text-amber-300" />
-            <span>{`Remboursements (${data.remboursements.length})`}</span>
+            <span>{`Remboursements (${affiche.remboursements.length})`}</span>
           </p>
-          {data.remboursements.length === 0 ? (
+          {affiche.remboursements.length === 0 ? (
             <p className="mt-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-500">
               Aucun remboursement enregistré.
             </p>
           ) : (
             <ul className="mt-2 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
-              {data.remboursements.map((r) => (
+              {affiche.remboursements.map((r) => (
                 <li key={r.id} className="flex items-center gap-3 px-3 py-2.5 text-xs">
                   <span className="min-w-0 flex-1 truncate">{r.titre}</span>
                   <span className="shrink-0 text-gray-500">{r.platform}</span>
@@ -250,6 +257,8 @@ export default function Accounting() {
           </Link>
         </section>
       </div>
+
+      <BandeauDemo />
     </Layout>
   )
 }

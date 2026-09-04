@@ -4,6 +4,9 @@ import { AlertTriangle, PackageX } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_COMMANDES } from '../lib/demoJeux'
 
 /**
  * Le SAV fournisseurs : ce qui coince entre vous et vos fournisseurs.
@@ -18,6 +21,8 @@ import { api } from '../lib/api'
  */
 export default function SavFournisseurs() {
   const [enEchec, setEnEchec] = useState<any[] | null>(null)
+  const [demo] = useDemo()
+  const lignes: any[] | null = demo ? DEMO_COMMANDES.filter((o: any) => o.supplierOrderError) : enEchec
 
   useEffect(() => {
     api
@@ -41,9 +46,9 @@ export default function SavFournisseurs() {
           <span>Commandes fournisseur en échec</span>
         </h2>
 
-        {enEchec === null ? (
+        {lignes === null ? (
           <p className="mt-3 text-xs text-gray-500">Lecture…</p>
-        ) : enEchec.length === 0 ? (
+        ) : lignes.length === 0 ? (
           <p className="mt-3 text-xs leading-relaxed text-gray-500">
             Aucune commande fournisseur en échec. Quand une commande automatique rate — rupture, variante
             introuvable, refus du fournisseur — elle apparaît ici avec sa raison, telle que le connecteur l'a
@@ -51,7 +56,7 @@ export default function SavFournisseurs() {
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {enEchec.map((o) => (
+            {lignes.map((o) => (
               <li key={o.id} className="rounded-xl border border-red-400/20 bg-red-500/[0.05] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-semibold">{o.buyerName}</p>
@@ -76,6 +81,8 @@ export default function SavFournisseurs() {
           . La messagerie fournisseurs sera rangée ici quand elle sera reliée.
         </p>
       </section>
+
+      <BandeauDemo />
     </Layout>
   )
 }

@@ -3,6 +3,9 @@ import { Inbox, Send, Sparkles, Copy, Check, MailWarning, Mail, CheckCheck, Arch
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_CONVERSATIONS, demoFilConversation } from '../lib/demoJeux'
 
 type Summary = Awaited<ReturnType<typeof api.listConversations>>['conversations'][number]
 type Full = Awaited<ReturnType<typeof api.getConversation>>
@@ -33,6 +36,7 @@ function when(iso: string) {
  */
 export default function Messages() {
   const [conversations, setConversations] = useState<Summary[]>([])
+  const [demo] = useDemo()
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>('OPEN')
   const [openId, setOpenId] = useState<string | null>(null)
   const [full, setFull] = useState<Full | null>(null)
@@ -66,6 +70,11 @@ export default function Messages() {
     setReply('')
     setDrafted(false)
     setNotice(null)
+    // Un fil de demonstration se sert depuis le jeu : rien ne part.
+    if (openId.startsWith('demo-')) {
+      setFull(demoFilConversation(openId) as unknown as Full)
+      return
+    }
     api.getConversation(openId).then(setFull).catch(() => setFull(null))
   }, [openId])
 
@@ -77,9 +86,10 @@ export default function Messages() {
    * semaine », pas « le message numéro quarante ». D'où le filtre par
    * plateforme, le tri, et les non-lus qu'on peut isoler.
    */
-  const plateformes = [...new Set(conversations.map((c) => c.platform))].sort()
+  const sourceConversations: Summary[] = demo ? (DEMO_CONVERSATIONS as unknown as Summary[]) : conversations
+  const plateformes = [...new Set(sourceConversations.map((c) => c.platform))].sort()
 
-  const shown = conversations
+  const shown = sourceConversations
     .filter((c) => c.status === tab)
     .filter((c) => !platforme || c.platform === platforme)
     .filter((c) => !seulementNonLus || c.unread)
@@ -91,19 +101,21 @@ export default function Messages() {
 
   /** Archiver : le geste de boîte mail, qui range sans rien effacer. */
   async function archiver(id: string) {
+    if (id.startsWith('demo-')) return
     await api.setConversationStatus(id, 'CLOSED').catch(() => undefined)
     if (openId === id) setOpenId(null)
     load()
   }
 
   async function remettreNonLu(id: string) {
+    if (id.startsWith('demo-')) return
     await api.setConversationUnread(id, true).catch(() => undefined)
     if (openId === id) setOpenId(null)
     load()
   }
 
   async function send() {
-    if (!full || !reply.trim()) return
+    if (!full || !reply.trim() || full.id.startsWith('demo-')) return
     setBusy(true)
     setError(null)
     try {
@@ -121,6 +133,7 @@ export default function Messages() {
   }
 
   async function draft() {
+    if (full?.id.startsWith('demo-')) return
     if (!full) return
     setBusy(true)
     setError(null)
@@ -141,6 +154,7 @@ export default function Messages() {
   }
 
   async function close() {
+    if (full?.id.startsWith('demo-')) return
     if (!full) return
     await api.setConversationStatus(full.id, 'CLOSED').catch(() => undefined)
     setOpenId(null)
@@ -174,7 +188,7 @@ export default function Messages() {
                 : 'rounded-full border border-white/10 px-4 py-1.5 text-sm text-gray-400 hover:bg-white/5'
             }
           >
-            {`${t.label} (${conversations.filter((c) => c.status === t.id).length})`}
+            {`${t.label} (${sourceConversations.filter((c) => c.status === t.id).length})`}
           </button>
         ))}
       </div>
@@ -214,14 +228,14 @@ export default function Messages() {
               : 'rounded-lg border border-white/10 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/5'
           }
         >
-          {`Non lus (${conversations.filter((c) => c.unread).length})`}
+          {`Non lus (${sourceConversations.filter((c) => c.unread).length})`}
         </button>
       </div>
 
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
       {loading && <p className="mt-6 text-sm text-gray-500">Chargement…</p>}
 
-      {!loading && !conversations.length && (
+      {!loading && !sourceConversations.length && (
         <div className="mt-6 rounded-xl border border-dashed border-white/15 p-8 text-center">
           <p className="text-sm text-gray-400">Aucun message pour l'instant.</p>
           <p className="mt-2 text-xs text-gray-500">
@@ -276,6 +290,7 @@ export default function Messages() {
                   <button
                     type="button"
                     onClick={async () => {
+                      if (c.id.startsWith('demo-')) return
                       await api.setConversationStatus(c.id, 'OPEN').catch(() => undefined)
                       load()
                     }}
@@ -297,7 +312,7 @@ export default function Messages() {
               </div>
             </li>
           ))}
-          {!shown.length && conversations.length > 0 && (
+          {!shown.length && sourceConversations.length > 0 && (
             <li className="text-sm text-gray-500">Rien dans cet onglet.</li>
           )}
         </ul>
@@ -420,6 +435,8 @@ export default function Messages() {
           </div>
         )}
       </div>
+
+      <BandeauDemo />
     </Layout>
   )
 }

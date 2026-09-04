@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout'
 import { BlocStats, type BlocData } from '../components/stats/TuileStat'
 import { CarteMonde, type CarteData } from '../components/stats/CarteMonde'
 import { blocsDemo, carteDemo, compteVide } from '../lib/statsDemo'
+import { demoActif, poserDemo } from '../lib/demo'
 import { api } from '../lib/api'
 
 /**
@@ -63,8 +64,12 @@ export default function Statistiques() {
   const [periode, setPeriode] = useState('30')
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
-  /** `null` tant qu'on n'a pas vu les données : c'est elles qui décident. */
-  const [demo, setDemo] = useState<boolean | null>(null)
+  /**
+   * `null` tant qu'on n'a pas vu les données : c'est elles qui décident —
+   * sauf si le mode démo GLOBAL est déjà levé : cette pilule est le seul
+   * interrupteur du site (06/09/2026), elle reprend son état au retour.
+   */
+  const [demo, setDemo] = useState<boolean | null>(demoActif() ? true : null)
 
   async function charger(jours: number) {
     setChargement(true)
@@ -126,7 +131,19 @@ export default function Statistiques() {
       {blocs ? (
         <button
           type="button"
-          onClick={() => setDemo((d) => !d)}
+          onClick={() =>
+            setDemo((d) => {
+              // La pilule commande tout le site : messages, commandes,
+              // livraisons, rapports… suivent, jusqu'au retour ici.
+              poserDemo(!d)
+              return !d
+            })
+          }
+          title={
+            demo
+              ? 'Mode démo activé sur tout le site — cliquez pour retrouver vos vraies données partout.'
+              : 'Voir toute l\'application remplie de données de démonstration.'
+          }
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-white transition ${
             demo ? 'bg-orange-500' : 'bg-orange-500/60 hover:bg-orange-500/80'
           }`}

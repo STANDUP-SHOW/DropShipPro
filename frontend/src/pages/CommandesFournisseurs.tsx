@@ -4,6 +4,9 @@ import { AlertTriangle, ExternalLink, PackageCheck, ShoppingCart, Truck } from '
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_COMMANDES } from '../lib/demoJeux'
 
 /**
  * Les commandes fournisseur — la vente vue du côté sourcing.
@@ -51,6 +54,7 @@ function fournisseurDe(o: any): string {
 
 export default function CommandesFournisseurs() {
   const [commandes, setCommandes] = useState<any[] | null>(null)
+  const [demo] = useDemo()
   const [params] = useSearchParams()
   const etat = params.get('etat')
 
@@ -62,11 +66,12 @@ export default function CommandesFournisseurs() {
   }, [])
 
   async function commanderChezFournisseur(id: string) {
+    if (id.startsWith('demo-')) return
     await api.updateOrder(id, { status: 'ORDERED_FROM_SUPPLIER' })
     await charger()
   }
 
-  const toutes = commandes ?? []
+  const toutes: any[] = demo ? DEMO_COMMANDES : (commandes ?? [])
   const filtrees = etat ? toutes.filter((o) => etatDe(o) === etat) : toutes
   const compte = (cle: string) => toutes.filter((o) => etatDe(o) === cle).length
 
@@ -181,6 +186,8 @@ export default function CommandesFournisseurs() {
           )
         })}
       </div>
+
+      <BandeauDemo />
     </Layout>
   )
 }

@@ -5,6 +5,9 @@ import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_COMMANDES } from '../lib/demoJeux'
 
 const STATUS_LABEL: Record<string, string> = {
   NEW: 'Nouvelle vente',
@@ -23,6 +26,8 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([])
+  // Le mode demo montre la page remplie ; aucun geste ne part sur ces lignes.
+  const [demo] = useDemo()
   /*
    * Le menu Ventes a trois portes -- nouvelles, en cours, terminees -- et
    * chacune arrive ici avec son ?etat=. La page filtre, le menu promet.
@@ -34,7 +39,8 @@ export default function Orders() {
     if (o.status === 'ORDERED_FROM_SUPPLIER' || o.status === 'SHIPPED') return 'en-cours'
     return 'terminees'
   }
-  const filtrees = orders.filter((o) => !etat || etatDe(o) === etat)
+  const source: any[] = demo ? DEMO_COMMANDES : orders
+  const filtrees = source.filter((o) => !etat || etatDe(o) === etat)
   const [products, setProducts] = useState<any[]>([])
   const [platforms, setPlatforms] = useState<Array<{ id: string; label: string }>>([])
   const [showForm, setShowForm] = useState(false)
@@ -71,11 +77,13 @@ export default function Orders() {
   }
 
   async function markShipped(id: string) {
+    if (id.startsWith('demo-')) return
     await api.updateOrder(id, { status: 'SHIPPED' })
     await load()
   }
 
   async function markOrderedFromSupplier(id: string) {
+    if (id.startsWith('demo-')) return
     await api.updateOrder(id, { status: 'ORDERED_FROM_SUPPLIER' })
     await load()
   }
@@ -149,14 +157,14 @@ export default function Orders() {
             }`}
           >
             {label}
-            {cle ? <span className="ml-1 text-gray-500">{orders.filter((o) => etatDe(o) === cle).length}</span> : null}
+            {cle ? <span className="ml-1 text-gray-500">{source.filter((o) => etatDe(o) === cle).length}</span> : null}
           </Link>
         ))}
       </div>
 
       <div className="mt-4 space-y-3">
-        {orders.length === 0 && <p className="text-gray-400 text-sm">Aucune commande pour le moment.</p>}
-        {filtrees.length === 0 && orders.length > 0 ? (
+        {source.length === 0 && <p className="text-gray-400 text-sm">Aucune commande pour le moment.</p>}
+        {filtrees.length === 0 && source.length > 0 ? (
           <p className="mt-4 text-sm text-gray-500">Aucune commande dans cet état.</p>
         ) : null}
         {filtrees.map((o) => (
@@ -201,6 +209,8 @@ export default function Orders() {
           </div>
         ))}
       </div>
+
+      <BandeauDemo />
     </Layout>
   )
 }

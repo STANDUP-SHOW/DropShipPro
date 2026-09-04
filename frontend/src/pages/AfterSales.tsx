@@ -13,6 +13,9 @@ import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { SupportChat } from '../components/SupportChat'
 import { api, assetUrl } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_SAV } from '../lib/demoJeux'
 
 /**
  * Le service après-vente : ce qui va mal, et ce qui va mal bientôt.
@@ -33,6 +36,7 @@ type Data = Awaited<ReturnType<typeof api.savOverview>>
 
 export default function AfterSales() {
   const [data, setData] = useState<Data | null>(null)
+  const [demo] = useDemo()
   const [erreur, setErreur] = useState<string | null>(null)
 
   useEffect(() => {
@@ -42,12 +46,14 @@ export default function AfterSales() {
       .catch(() => setErreur('Impossible de charger le service après-vente.'))
   }, [])
 
+  // Le mode demo sert le jeu d'exemple ; les vraies donnees reviennent en le coupant.
+  const affiche = demo ? (DEMO_SAV as unknown as Data) : data
   const rien =
-    data &&
-    !data.sansSuivi.length &&
-    !data.tropLong.length &&
-    !data.jamaisCommande.length &&
-    !data.conversations.length
+    affiche &&
+    !affiche.sansSuivi.length &&
+    !affiche.tropLong.length &&
+    !affiche.jamaisCommande.length &&
+    !affiche.conversations.length
 
   return (
     <Layout>
@@ -72,7 +78,7 @@ export default function AfterSales() {
       </div>
 
       {erreur ? <p className="mt-4 text-sm text-red-300">{erreur}</p> : null}
-      {!data && !erreur ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
+      {!affiche && !erreur ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
 
       {rien ? (
         <div className="mt-6 rounded-xl border border-emerald-400/25 bg-emerald-400/5 px-4 py-8 text-center">
@@ -84,14 +90,14 @@ export default function AfterSales() {
         </div>
       ) : null}
 
-      {data ? (
+      {affiche ? (
         <div className="mt-6 space-y-6">
           <Bloc
             titre="Expédiées sans numéro de suivi"
             explication="C'est le premier motif de litige sur toutes les places de marché : sans numéro, vous ne pouvez pas répondre « où est mon colis ». Renseignez-le depuis Livraisons."
             icone={PackageX}
             couleur="border-red-400/30 bg-red-400/5"
-            lignes={data.sansSuivi}
+            lignes={affiche.sansSuivi}
           />
 
           <Bloc
@@ -99,7 +105,7 @@ export default function AfterSales() {
             explication="Au-delà de trois semaines, la fenêtre de réclamation approche. Prendre les devants coûte un message ; l'attendre coûte le litige."
             icone={Clock}
             couleur="border-amber-400/30 bg-amber-400/5"
-            lignes={data.tropLong}
+            lignes={affiche.tropLong}
           />
 
           <Bloc
@@ -107,23 +113,23 @@ export default function AfterSales() {
             explication="La vente est encaissée et rien n'est parti chez le fournisseur. Personne ne s'en aperçoit avant la réclamation de l'acheteur."
             icone={ShoppingCart}
             couleur="border-purple-400/30 bg-purple-400/5"
-            lignes={data.jamaisCommande}
+            lignes={affiche.jamaisCommande}
             action={{ to: '/fournisseurs', label: 'Commander' }}
           />
 
-          {data.conversations.length ? (
+          {affiche.conversations.length ? (
             <section className="rounded-xl border border-white/10 bg-white/5 p-5">
               <h2 className="flex items-center gap-2 font-bold">
                 <MessageSquare size={16} className="text-purple-300" />
                 <span>Conversations ouvertes</span>
                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-normal text-gray-400">
-                  {data.conversations.length}
+                  {affiche.conversations.length}
                 </span>
               </h2>
               <p className="mt-1 text-xs text-gray-500">Ce que vos clients ont déjà écrit.</p>
 
               <ul className="mt-4 divide-y divide-white/5">
-                {data.conversations.map((c) => (
+                {affiche.conversations.map((c) => (
                   <li key={c.id}>
                     <Link
                       to={`/messages?conversation=${c.id}`}
@@ -154,6 +160,8 @@ export default function AfterSales() {
           ) : null}
         </div>
       ) : null}
+
+      <BandeauDemo />
     </Layout>
   )
 }

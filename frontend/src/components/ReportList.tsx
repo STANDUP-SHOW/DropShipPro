@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FileText, Trash2, Printer, Share2, MessageCircle, Send, Mail, Link2, Check } from 'lucide-react'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from './ModeDemo'
+import { DEMO_RAPPORTS, demoCorpsRapport } from '../lib/demoJeux'
 
 type Summary = Awaited<ReturnType<typeof api.listReports>>['reports'][number]
 type Full = Awaited<ReturnType<typeof api.getReport>>
@@ -65,19 +68,31 @@ export function ReportList({ section, department }: { section: string; departmen
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const [demo] = useDemo()
+
   useEffect(() => {
     setLoading(true)
     setOpenId(null)
     setFull(null)
+    // Le mode démo sert son jeu d'analyses MARKET ; rien ne part ni ne s'écrit.
+    if (demo && section === 'MARKET') {
+      setReports(DEMO_RAPPORTS as unknown as Summary[])
+      setLoading(false)
+      return
+    }
     api
       .listReports(section, department)
       .then((r) => setReports(r.reports))
       .catch(() => setReports([]))
       .finally(() => setLoading(false))
-  }, [section, department])
+  }, [section, department, demo])
 
   useEffect(() => {
     if (!openId) return
+    if (openId.startsWith('demo-')) {
+      setFull(demoCorpsRapport(openId) as unknown as Full)
+      return
+    }
     api.getReport(openId).then(setFull).catch(() => setFull(null))
   }, [openId])
 
@@ -94,7 +109,8 @@ export function ReportList({ section, department }: { section: string; departmen
 
   async function removeSelection() {
     if (!window.confirm(`Supprimer ${selected.length} rapport(s) ?`)) return
-    for (const r of selected) await api.deleteReport(r.id).catch(() => undefined)
+    // Les rapports de démonstration ne s'effacent qu'à l'écran.
+    for (const r of selected.filter((x) => !x.id.startsWith('demo-'))) await api.deleteReport(r.id).catch(() => undefined)
     setReports((list) => list.filter((r) => !chosen.has(r.id)))
     if (openId && chosen.has(openId)) {
       setOpenId(null)
@@ -292,6 +308,8 @@ export function ReportList({ section, department }: { section: string; departmen
           </li>
         ))}
       </ul>
+
+      <BandeauDemo />
     </div>
   )
 }

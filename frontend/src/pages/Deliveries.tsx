@@ -6,6 +6,9 @@ import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
+import { BandeauDemo } from '../components/ModeDemo'
+import { DEMO_COMMANDES, demoDetailCommande } from '../lib/demoJeux'
 
 type Order = Awaited<ReturnType<typeof api.listOrders>>[number]
 type Detail = Awaited<ReturnType<typeof api.getOrder>>
@@ -54,6 +57,7 @@ function address(value: unknown) {
  */
 export default function Deliveries() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [demo] = useDemo()
   /* Le menu Livraisons ouvre l onglet demande : ?etat=terminees arrive ici. */
   const [params] = useSearchParams()
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>(params.get('etat') === 'terminees' ? 'DELIVERED' : 'EN_COURS')
@@ -91,6 +95,15 @@ export default function Deliveries() {
       return
     }
     setError(null)
+    // Une ligne de demonstration sert son detail depuis le jeu : rien ne part.
+    if (openId.startsWith('demo-')) {
+      const d = demoDetailCommande(openId) as unknown as Detail
+      if (d) {
+        setDetail(d)
+        setTracking(d.trackingNumber ?? '')
+      }
+      return
+    }
     api.getOrder(openId).then((d) => {
       setDetail(d)
       setTracking(d.trackingNumber ?? '')
@@ -99,15 +112,17 @@ export default function Deliveries() {
 
   // Ce qui peut être expédié : tout ce qui n'a pas encore de numéro et n'est ni
   // livré ni remboursé. Proposer une commande déjà livrée n'aurait aucun sens.
-  const shippable = orders.filter(
+  const sourceCommandes: Order[] = demo ? (DEMO_COMMANDES as unknown as Order[]) : orders
+  const shippable = sourceCommandes.filter(
     (o) => !o.trackingNumber && o.status !== 'DELIVERED' && o.status !== 'REFUNDED',
   )
 
-  const shown = orders.filter((o) =>
+  const shown = sourceCommandes.filter((o) =>
     tab === 'ALL' ? true : tab === 'DELIVERED' ? o.status === 'DELIVERED' : o.status !== 'DELIVERED',
   )
 
   async function saveTracking() {
+    if (detail?.id.startsWith('demo-')) return
     if (!detail || !tracking.trim()) return
     setBusy(true)
     setError(null)
@@ -124,6 +139,7 @@ export default function Deliveries() {
   }
 
   async function addShipment() {
+    if (newOrderId.startsWith('demo-')) return
     if (!newOrderId || !newTracking.trim()) return
     setBusy(true)
     setError(null)
@@ -151,6 +167,7 @@ export default function Deliveries() {
     if (!detail) return
     setBusy(true)
     try {
+      if (detail.id.startsWith('demo-')) return
       const res = await api.contactBuyer(detail.id)
       navigate(`/messages?conversation=${res.id}`)
     } catch (e) {
@@ -420,6 +437,8 @@ export default function Deliveries() {
           </li>
         ))}
       </ul>
+
+      <BandeauDemo />
     </Layout>
   )
 }
