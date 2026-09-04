@@ -126,8 +126,11 @@ export async function genererAnalyse(dep: Department, label: string): Promise<An
    * n'est consigné, la garde des onze heures ne bloque pas, le prochain
    * réveil refait le passage.
    */
+  // Un tableau VIDE n'est pas une recherche aboutie : Array.isArray([]) est
+  // vrai, et c'est par là qu'un « quota dépassé » est passé une fois.
   const abouties = analyse.content.filter(
-    (b): b is Anthropic.WebSearchToolResultBlock => b.type === 'web_search_tool_result' && Array.isArray(b.content),
+    (b): b is Anthropic.WebSearchToolResultBlock =>
+      b.type === 'web_search_tool_result' && Array.isArray(b.content) && b.content.length > 0,
   ).length
   /*
    * Second filet, indépendant de la forme des blocs : le premier comptage n'a
