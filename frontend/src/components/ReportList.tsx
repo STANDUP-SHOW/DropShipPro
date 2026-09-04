@@ -192,7 +192,16 @@ export function ReportList({ section, department }: { section: string; departmen
                 className="min-w-0 flex-1 text-left"
               >
                 <p className="truncate text-sm font-semibold">{r.title}</p>
-                <p className="text-xs text-gray-500">{frenchDay(r.day)}</p>
+                {/* Date, rayon et rédacteur se lisent sans ouvrir la ligne. */}
+                <p className="text-xs text-gray-500">
+                  {[
+                    frenchDay(r.day),
+                    typeof r.summary?.rayon === 'string' ? r.summary.rayon : null,
+                    typeof r.summary?.redacteur === 'string' ? `rédigé par ${r.summary.redacteur}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' — ')}
+                </p>
               </button>
               <FileText size={15} className="shrink-0 text-gray-500" />
             </div>

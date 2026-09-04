@@ -4,6 +4,7 @@ import { Users, ArrowRight } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { SupportChat } from '../components/SupportChat'
+import { BoutonAutoMode } from '../components/BoutonAutoMode'
 
 type Roster = Awaited<ReturnType<typeof api.agentRoster>>
 type Agent = Roster['pipeline'][number]
@@ -18,10 +19,12 @@ function AgentCard({
   agent,
   ouvert,
   onOuvrir,
+  onAuto,
 }: {
   agent: Agent
   ouvert: boolean
   onOuvrir: (key: string) => void
+  onAuto: (key: string, enabled: boolean) => Promise<void>
 }) {
   const card = (
     <div className="flex h-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10">
@@ -73,16 +76,28 @@ function AgentCard({
    * l'idée d'en essayer un autre. Les agents de chaîne, eux, mènent bien
    * ailleurs : leur travail se voit dans une autre page.
    */
+  /*
+   * L'interrupteur AUTO-MODE vit SOUS la carte, jamais dedans : la carte est
+   * elle-même un bouton (comptoir) ou un lien (chaîne), et un bouton imbriqué
+   * dans l'un ou l'autre est du HTML invalide au clavier imprévisible.
+   */
+  const interrupteur = (
+    <div className="mt-2">
+      <BoutonAutoMode compact actif={Boolean(agent.autoMode)} onBascule={(enabled) => onAuto(agent.key, enabled)} />
+    </div>
+  )
+
   if (agent.family === 'comptoir') {
     return (
-      <li className={ouvert ? 'sm:col-span-2 lg:col-span-3' : undefined}>
+      <li className={ouvert ? 'sm:col-span-2 lg:col-span-3' : 'flex flex-col'}>
         <button
           type="button"
           onClick={() => onOuvrir(agent.key)}
-          className={`block w-full text-left ${ouvert ? '' : 'h-full'}`}
+          className={`block w-full text-left ${ouvert ? '' : 'flex-1'}`}
         >
           {card}
         </button>
+        {interrupteur}
         {ouvert ? (
           <div className="mt-3">
             <SupportChat agentKey={agent.key} onRoute={onOuvrir} />
@@ -93,13 +108,17 @@ function AgentCard({
   }
 
   return agent.href ? (
-    <li>
-      <Link to={agent.href} className="block h-full">
+    <li className="flex flex-col">
+      <Link to={agent.href} className="block flex-1">
         {card}
       </Link>
+      {interrupteur}
     </li>
   ) : (
-    <li>{card}</li>
+    <li className="flex flex-col">
+      <div className="flex-1">{card}</div>
+      {interrupteur}
+    </li>
   )
 }
 
@@ -124,6 +143,16 @@ export default function Agents() {
   }, [])
 
   const tous: Agent[] = roster ? [...roster.pipeline, ...roster.support] : []
+
+  /** Bascule l'AUTO-MODE d'un agent et reflète la réponse du serveur. */
+  async function basculerAuto(key: string, enabled: boolean) {
+    const r = await api.setAgentAuto(key, enabled)
+    setRoster((actuel) => {
+      if (!actuel) return actuel
+      const maj = (liste: Agent[]) => liste.map((a) => (a.key === key ? { ...a, autoMode: r.autoMode } : a))
+      return { ...actuel, pipeline: maj(actuel.pipeline), support: maj(actuel.support) }
+    })
+  }
 
   return (
     <Layout>
@@ -162,6 +191,7 @@ export default function Agents() {
                       agent={a}
                       ouvert={ouvert === a.key}
                       onOuvrir={(k) => setOuvert((actuel) => (actuel === k ? null : k))}
+                      onAuto={basculerAuto}
                     />
                   ))}
                 </ul>

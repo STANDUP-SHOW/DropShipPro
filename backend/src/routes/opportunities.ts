@@ -41,6 +41,8 @@ opportunitiesRouter.get('/', async (req: AuthedRequest, res) => {
       userId: req.userId!,
       ...(typeof req.query.department === 'string' ? { departmentId: req.query.department } : {}),
       ...(status && valid.includes(status) ? { status: status as 'NEW' } : {}),
+      // The Produits gagnants page only shows what the 12h auto-mode marked.
+      ...(req.query.gagnants === '1' ? { raw: { path: ['gagnant12h'], equals: true } } : {}),
     },
     orderBy: [{ status: 'asc' }, { detectedAt: 'desc' }],
     take: 300,

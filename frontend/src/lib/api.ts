@@ -120,6 +120,8 @@ export interface AgentCardData {
   caveat?: string
   hired?: boolean
   paidUntil?: string | null
+  /** L'interrupteur IA AUTO-MODE : ses tâches s'exécutent en autonomie. */
+  autoMode?: boolean
 }
 
 /** Un ticket avec tout son fil, tel que l ecran l affiche. */
@@ -749,7 +751,7 @@ export const api = {
   revokeApiKey: (id: string) => request(`/settings/api-keys/${id}`, { method: 'DELETE' }),
 
   // Boîte à opportunités : ce que les agents ont repéré, en attente d'arbitrage.
-  listOpportunities: (status?: string, department?: string) =>
+  listOpportunities: (status?: string, department?: string, gagnants?: boolean) =>
     request<{
       count: number
       opportunities: Array<{
@@ -776,8 +778,10 @@ export const api = {
         personal: boolean
         matchedProducts: Array<{ id: string; title: string; on: string[] }>
         detectedAt: string
+        /** Détails hors schéma ; les gagnants 12 h y portent plateformes et rédacteur. */
+        raw: { gagnant12h?: boolean; plateformes?: string[]; redacteur?: string } | null
       }>
-    }>(`/opportunities?${new URLSearchParams({ ...(status ? { status } : {}), ...(department ? { department } : {}) })}`),
+    }>(`/opportunities?${new URLSearchParams({ ...(status ? { status } : {}), ...(department ? { department } : {}), ...(gagnants ? { gagnants: '1' } : {}) })}`),
   // Messagerie acheteurs, toutes plateformes confondues.
   listConversations: (status?: string) =>
     request<{
@@ -979,9 +983,16 @@ export const api = {
         label: string
         paidUntil: string | null
         active: boolean
+        autoMode: boolean
       }>
       departments: number
     }>('/chat/agents/roster'),
+  /** L'interrupteur IA AUTO-MODE d'un agent d'administration. */
+  setAgentAuto: (key: string, enabled: boolean) =>
+    request<{ agentKey: string; autoMode: boolean }>(`/chat/support/${key}/auto`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }),
   supportHistory: (key: string) =>
     request<{
       agent: { key: string; name: string; role: string; emoji: string; does: string }
@@ -1172,6 +1183,7 @@ export const api = {
         paidUntil: string | null
         plan: string | null
         active: boolean
+        autoMode: boolean
       }>
     >('/departments'),
   hireDepartment: (key: string) =>
@@ -1180,6 +1192,12 @@ export const api = {
       body: JSON.stringify({ key }),
     }),
   releaseDepartment: (id: string) => request(`/departments/${id}`, { method: 'DELETE' }),
+  /** L'interrupteur IA AUTO-MODE d'un chef de rayon : analyse + gagnants toutes les 12 h. */
+  setRayonAuto: (id: string, enabled: boolean) =>
+    request<{ id: string; autoMode: boolean }>(`/departments/${id}/auto`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }),
 
   listSignals: (kind?: string, department?: string) =>
     request<{

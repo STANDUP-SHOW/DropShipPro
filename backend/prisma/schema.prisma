@@ -168,6 +168,7 @@ model User {
   conversations      Conversation[]
   generatedImages    GeneratedImage[]
   agentSubscriptions AgentSubscription[]
+  agentAutoSettings  AgentAutoSetting[]
   adAccounts         AdAccount[]
   productReviews     ProductReview[]
   supplierLinks      SupplierConnection[]
@@ -696,6 +697,9 @@ model Department {
   /// Cle du rayon dans le catalogue (voir services/departments.ts).
   key       String
   agentName String
+  /// Le mode automatique : toutes les douze heures, une analyse de marche et
+  /// dix produits gagnants. Inclus dans le salaire du chef.
+  autoMode  Boolean @default(false)
   /// Fin de l abonnement. Passee cette date l agent ne travaille plus, mais ses
   /// trouvailles restent : le vendeur peut le reprendre sans rien perdre.
   paidUntil DateTime?
@@ -929,6 +933,21 @@ model GeneratedImage {
 /// Les chefs de rayon ont leur propre abonnement (voir Department) parce qu ils
 /// tiennent un secteur. Ceux-ci n en tiennent aucun : un vendeur en embauche un
 /// parce qu il a besoin d une expertise, pas d une veille.
+/// L'interrupteur IA AUTO-MODE d'un agent d'administration : la tâche de
+/// l'agent (réponses aux messages, comptabilité, factures) s'exécute en
+/// autonomie quand il est levé. Un rang par agent et par vendeur.
+model AgentAutoSetting {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentKey String
+  enabled  Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, agentKey])
+}
+
 model AgentSubscription {
   id     String @id @default(cuid())
   userId String

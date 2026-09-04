@@ -72,6 +72,7 @@ departmentsRouter.get('/', async (req: AuthedRequest, res) => {
         paidUntil: d.paidUntil,
         plan: d.plan,
         active: isActive(d.paidUntil),
+        autoMode: d.autoMode,
         createdAt: d.createdAt,
       }
     }),
@@ -136,6 +137,32 @@ departmentsRouter.post('/:id/enquete', async (req: AuthedRequest, res) => {
 
   const resultat = await enqueteAliExpress(req.userId!)
   res.json(resultat)
+})
+
+/**
+ * L'interrupteur IA AUTO-MODE du rayon (05/09/2026) : toutes les douze
+ * heures, une analyse de marché et dix produits gagnants. Inclus dans le
+ * salaire — mais un chef qui n'est pas en poste n'a pas d'automatismes.
+ */
+departmentsRouter.patch('/:id/auto', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ enabled: z.boolean() }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
+
+  const department = await prisma.department.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  })
+  if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
+  if (parsed.data.enabled && (!isActive(department.paidUntil) || department.plan === 'essai')) {
+    return res.status(402).json({
+      error: `${department.agentName} n'est pas en poste : choisissez sa formule pour activer son mode automatique.`,
+    })
+  }
+
+  const maj = await prisma.department.update({
+    where: { id: department.id },
+    data: { autoMode: parsed.data.enabled },
+  })
+  res.json({ id: maj.id, autoMode: maj.autoMode })
 })
 
 /**

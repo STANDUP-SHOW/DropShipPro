@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { TrendingUp, ExternalLink, Loader2, ArrowLeft, Info } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
+import { ReportList } from '../components/ReportList'
 import { api } from '../lib/api'
 
 type Result = Awaited<ReturnType<typeof api.marketAnalysis>>['results'][number]
@@ -196,6 +197,19 @@ export default function MarketAnalysisPage() {
           </span>
         </p>
       )}
+
+      {/* Toutes les analyses consignées : celles des chefs de rayon en
+          IA AUTO-MODE et celles lancées depuis Mes annonces (nommées
+          produits-date-utilisateur). Même table que la rubrique « Mes
+          analyses » de chaque rayon — une écriture, deux vitrines. */}
+      <section className="mt-10">
+        <h2 className="font-bold">Mes analyses</h2>
+        <p className="mt-1 text-xs text-gray-500">
+          Les analyses rédigées par vos chefs de rayon en IA AUTO-MODE, et celles lancées depuis
+          vos annonces. Cliquez une ligne pour la lire, l'exporter ou la partager.
+        </p>
+        <ReportList section="MARKET" />
+      </section>
     </Layout>
   )
 }

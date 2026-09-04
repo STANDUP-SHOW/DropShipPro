@@ -27,6 +27,7 @@ import { ticketsRouter } from './routes/tickets.js'
 import { socialRouter, socialPublicRouter } from './routes/social.js'
 import { semerCategories } from './services/categories.js'
 import { tourneeEnquetes } from './services/enqueteFournisseurs.js'
+import { tourneeAutoMode } from './services/autoAnalyste.js'
 const app = express()
 
 // A deployed app is reached from several origins at once — the custom domain, its
@@ -136,3 +137,18 @@ setTimeout(() => {
     6 * 3600 * 1000,
   )
 }, 2 * 60 * 1000)
+
+/*
+ * L'AUTO-MODE des chefs de rayon : un passage visé toutes les douze heures
+ * par rayon dont l'interrupteur est levé. Le réveil est plus fréquent que le
+ * pas — Railway redémarre à chaque envoi de code, et un réveil raté à minuit
+ * décalerait tout ; la garde des onze heures, côté service, fait qu'aucun
+ * rayon n'est servi deux fois dans la même demi-journée.
+ */
+setTimeout(() => {
+  tourneeAutoMode().catch((e) => console.error('tournée auto-mode impossible', e))
+  setInterval(
+    () => tourneeAutoMode().catch((e) => console.error('tournée auto-mode impossible', e)),
+    3 * 3600 * 1000,
+  )
+}, 4 * 60 * 1000)

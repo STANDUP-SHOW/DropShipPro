@@ -957,6 +957,40 @@ productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
     }
   }
 
+  /*
+   * The analyses the seller just paid for also land on the Analyses de marché
+   * page, as one report named after the batch: produits-<date>-<utilisateur>.
+   * Same table as the auto-mode reports, so both vitrines read one list.
+   * A failed consignation never fails the analyses themselves.
+   */
+  const reussies = results.filter((r) => r.analysis)
+  if (reussies.length) {
+    try {
+      const moi = await prisma.user.findUnique({ where: { id: req.userId! }, select: { email: true } })
+      const utilisateur = (moi?.email ?? 'vendeur').split('@')[0]
+      const jour = new Date().toISOString().slice(0, 10)
+      const corps = reussies
+        .map((r) => {
+          const a = r.analysis as { verdict?: string; suggestedPrice?: number | null; reasoning?: string }
+          const prix = typeof a.suggestedPrice === 'number' ? ` — prix conseillé ${a.suggestedPrice.toFixed(2)} €` : ''
+          return `## ${r.title}${prix}\n\n${a.verdict ?? ''}\n\n${a.reasoning ?? ''}`.trim()
+        })
+        .join('\n\n')
+      await prisma.report.create({
+        data: {
+          userId: req.userId!,
+          section: 'MARKET',
+          day: jour,
+          title: `produits-${jour}-${utilisateur}`,
+          body: corps,
+          summary: { redacteur: utilisateur, produits: reussies.length },
+        },
+      })
+    } catch (err) {
+      console.error('consignation des analyses produits', err)
+    }
+  }
+
   res.json({ results })
 })
 

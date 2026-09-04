@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins , Plane, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
 import { FondVivant } from './FondVivant'
@@ -79,7 +79,10 @@ const SECTIONS: Array<{
     // Les chefs de rayon et leurs rayons dépliables vivent plus haut, sous
     // « Mes sites » (déplacés le 04/09/2026) : ici ne reste que l'analyse.
     titre: 'Mes rayons IA',
-    entrees: [{ to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp }],
+    entrees: [
+      { to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp },
+      { to: '/produits-gagnants', label: 'Produits gagnants', icon: Trophy },
+    ],
   },
   {
     // Une seule porte : les états (nouvelles, en cours, terminées) sont des

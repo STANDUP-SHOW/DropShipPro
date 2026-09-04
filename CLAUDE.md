@@ -447,6 +447,26 @@ Trois conséquences, toutes appliquées :
   il vit donc dans les caractéristiques. Bancs `check-lexique.ts`,
   `purger-alias.ts --sec`, bouton « Reprendre » sur la page Catégories.
 
+- **L'AUTO-MODE des chefs de rayon écrit une fois, montre deux fois.** Toutes
+  les douze heures, un rayon en poste à interrupteur levé produit une analyse
+  de marché (`Report` section MARKET, summary `{auto:'analyse-12h', rayon,
+  redacteur}`) et dix produits gagnants (`Opportunity` raw `{gagnant12h}`).
+  La rubrique « Mes analyses » du rayon, la page Analyses de marché et la page
+  Produits gagnants **lisent ces mêmes lignes** — pas de table dédiée. La marge
+  n'est jamais stockée : elle se déduit des deux prix. La garde des onze heures
+  (rapport récent) fait qu'un redéploiement Railway ne double aucun passage.
+  **La borne de validité vit dans `passageAutoMode`, pas dans le générateur** :
+  le banc l'a prouvé dès son premier passage — un gagnant sans lien ou à marge
+  négative passait quand le générateur était remplacé. Les interrupteurs :
+  `Department.autoMode` (rayons) et `AgentAutoSetting` (agents admin, tous —
+  chaîne comprise). Banc `npx tsx check-automode.ts` (faux générateur, vraie
+  base, compte jetable).
+
+  **Coût réel : ~0,13 € le passage** (6 recherches web + ~4 000 tokens Sonnet),
+  soit **~8 €/mois par rayon** à plein régime — pas « quelques centimes ».
+  C'est le poste dominant du salaire du chef : conseillé de passer le salaire
+  à 20 €/mois, l'AUTO-MODE étant l'argument de la hausse.
+
 - **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
   pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
   et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou

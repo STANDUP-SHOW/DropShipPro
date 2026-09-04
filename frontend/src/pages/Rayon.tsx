@@ -8,6 +8,7 @@ import { RecommendedProducts } from '../components/RecommendedProducts'
 import { OpportunityList } from '../components/OpportunityList'
 import { SignalList } from '../components/SignalList'
 import { ReportList } from '../components/ReportList'
+import { BoutonAutoMode } from '../components/BoutonAutoMode'
 import { DepartmentChat } from '../components/DepartmentChat'
 import { ProductInfo } from '../components/ProductInfo'
 import { DepartmentSales } from '../components/DepartmentSales'
@@ -227,6 +228,17 @@ export default function Rayon() {
           <span className="max-w-xs text-xs leading-snug text-emerald-200">{enquete}</span>
         ) : null}
 
+        {/* L'interrupteur AUTO-MODE : analyse de marché + dix gagnants toutes
+            les douze heures, compris dans le salaire. Le refus (rayon pas en
+            poste) est affiché par le bouton lui-même. */}
+        <BoutonAutoMode
+          actif={department.autoMode}
+          onBascule={async (enabled) => {
+            const r = await api.setRayonAuto(department.id, enabled)
+            setDepartment((d) => (d ? { ...d, autoMode: r.autoMode } : d))
+          }}
+        />
+
         <div className="ml-auto flex flex-wrap gap-2">
           {plans.map((p) => (
             <button
@@ -359,7 +371,22 @@ export default function Rayon() {
         <ProductInfo departmentId={department.id} agentName={department.agentName} />
       )}
       {tab === 'CHAT' && (
-        <DepartmentChat departmentId={department.id} agentName={department.agentName} />
+        <>
+          <DepartmentChat departmentId={department.id} agentName={department.agentName} />
+
+          {/* Les analyses de l'AUTO-MODE, sous la conversation : la même ligne
+              que la page Analyses de marché lit — une écriture, deux vitrines. */}
+          <section className="mt-8">
+            <h2 className="flex items-center gap-2 font-bold">
+              <TrendingUp size={16} className="text-purple-300" />
+              <span>Mes analyses</span>
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              {`Les analyses de marché rédigées par ${department.agentName} — en IA AUTO-MODE, une par demi-journée.`}
+            </p>
+            <ReportList section="MARKET" department={department.id} />
+          </section>
+        </>
       )}
 
       {tab === 'SUPPLIERS' &&

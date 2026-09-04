@@ -6,7 +6,7 @@ import { askDepartment } from '../services/departmentChat.js'
 import { isActive } from '../services/agentBilling.js'
 import { etatPlafond, messagePlafond, PLAFOND_JOUR } from '../services/chatBudget.js'
 import { reserveCredits } from '../services/billing.js'
-import { AGENT_CATEGORIES, PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
+import { AGENT_CATEGORIES, ALL_AGENTS, PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
 import { askSupportAgent } from '../services/supportChat.js'
 import { findDepartment } from '../services/departments.js'
 
@@ -256,11 +256,13 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
   }
 
   const abonnements = await prisma.agentSubscription.findMany({ where: { userId: req.userId! } })
+  const autos = await prisma.agentAutoSetting.findMany({ where: { userId: req.userId! } })
+  const autoPar = new Map(autos.map((a) => [a.agentKey, a.enabled]))
   const paidUntil = new Map(abonnements.map((a) => [a.agentKey, a.paidUntil]))
 
   const rayons = await prisma.department.findMany({
     where: { userId: req.userId! },
-    select: { id: true, key: true, agentName: true, paidUntil: true },
+    select: { id: true, key: true, agentName: true, paidUntil: true, autoMode: true },
     orderBy: { createdAt: 'asc' },
   })
 
@@ -275,8 +277,9 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
       label: findDepartment(r.key)?.label ?? r.key,
       paidUntil: r.paidUntil,
       active: Boolean(r.paidUntil && r.paidUntil > new Date()),
+      autoMode: r.autoMode,
     })),
-    pipeline: PIPELINE_AGENTS.map((a) => ({ ...a, ...statusOf(a.key) })),
+    pipeline: PIPELINE_AGENTS.map((a) => ({ ...a, ...statusOf(a.key), autoMode: autoPar.get(a.key) ?? false })),
     support: SUPPORT_AGENTS.map((a) => {
       const echeance = paidUntil.get(a.key) ?? null
       const actif = !a.monthly || Boolean(echeance && echeance > new Date())
@@ -285,6 +288,7 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
         ...statusOf(a.key),
         hired: actif,
         paidUntil: echeance,
+        autoMode: autoPar.get(a.key) ?? false,
         // Un agent payant non souscrit n'est pas « en panne » : il n'est pas
         // embauché, ce qui n'est pas la même inquiétude.
         ...(a.monthly && !actif ? { state: 'inactif' as const, note: 'Pas encore embauché.' } : {}),
@@ -292,6 +296,33 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
     }),
     departments,
   })
+})
+
+/**
+ * L'interrupteur IA AUTO-MODE d'un agent d'administration : sa tâche —
+ * réponses aux messages, comptabilité, factures — s'exécute en autonomie
+ * quand il est levé. Le réglage est posé ici ; chaque automatisme d'agent
+ * vient le lire avant d'agir.
+ */
+chatRouter.patch('/support/:key/auto', async (req: AuthedRequest, res) => {
+  // Every admin agent carries the switch — chain agents included, their key
+  // lives in the same registry and the same settings table.
+  const agent = ALL_AGENTS.find((a) => a.key === req.params.key) ?? null
+  if (!agent) return res.status(404).json({ error: 'Agent introuvable' })
+
+  const parsed = z.object({ enabled: z.boolean() }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
+
+  if (parsed.data.enabled && !(await agentActif(req.userId!, agent.key, agent.monthly))) {
+    return res.status(402).json({ error: `${agent.name} n'est pas embauché : son mode automatique viendra avec.` })
+  }
+
+  const maj = await prisma.agentAutoSetting.upsert({
+    where: { userId_agentKey: { userId: req.userId!, agentKey: agent.key } },
+    create: { userId: req.userId!, agentKey: agent.key, enabled: parsed.data.enabled },
+    update: { enabled: parsed.data.enabled },
+  })
+  res.json({ agentKey: agent.key, autoMode: maj.enabled })
 })
 
 chatRouter.get('/support/:key', async (req: AuthedRequest, res) => {
