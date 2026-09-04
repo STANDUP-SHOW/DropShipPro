@@ -306,19 +306,8 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
             est installée ET qu'elle est antérieure.
           */}
           <ExtensionVersion />
-          <div className="md:hidden flex items-center gap-1 mb-6 -mx-2 overflow-x-auto">
-            {NAV.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm mx-2 ${
-                  pathname.startsWith(item.to) ? 'bg-white/10' : 'text-gray-400'
-                }`}
-              >
-                <item.icon size={16} /> <span>{item.label}</span>
-              </Link>
-            ))}
-          </div>
+          {/* Le menu horizontal mobile (Dashboard / Pilote auto / Agents)
+              doublait le menu latéral : retiré le 05/09/2026 à la demande. */}
           {children}
         </div>
       </main>
