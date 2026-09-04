@@ -76,8 +76,9 @@ const SECTIONS: Array<{
     ],
   },
   {
-    // Les chefs de rayon et leurs rayons dépliables vivent plus haut, sous
-    // « Mes sites » (déplacés le 04/09/2026) : ici ne reste que l'analyse.
+    // La maison des rayons (réunie le 05/09/2026) : « Mes chefs de rayon »
+    // et le déroulant des rayons embauchés sont rendus en tête de section,
+    // avant ces deux entrées — voir le bloc conditionnel du rendu.
     titre: 'Mes rayons IA',
     entrees: [
       { to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp },
@@ -158,7 +159,9 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
   useEffect(() => {
     api
       .listDepartments()
-      .then(setRayons)
+      // Seuls les rayons dont le chef est embauché (en poste) : un rayon à
+      // l'arrêt se retrouve par « Mes chefs de rayon », pas dans le déroulant.
+      .then((list) => setRayons(list.filter((r) => r.active)))
       .catch(() => {
         // Session expirée ou API muette : le menu se passe des rayons.
       })
@@ -196,27 +199,13 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
               <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                 {section.titre}
               </p>
-              {section.entrees.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                    estActive(item.to)
-                      ? 'bg-purple-500/20 text-white'
-                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <item.icon size={18} />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
 
-              {/* La page des chefs de rayon — leurs missions, leurs
-                  automatismes, l'embauche — avait perdu son lien à la
-                  recomposition du menu (retrouvée le 04/09/2026). Elle vit
-                  après « Mes sites », et les rayons embauchés se déplient
-                  juste dessous. */}
-              {section.titre === 'Diffusion' ? (
+              {/* Toute l'équipe des rayons au même endroit (05/09/2026) :
+                  « Mes chefs de rayon » en première ligne, le déroulant des
+                  rayons au chef embauché juste dessous — chaque rayon ouvre
+                  sa fiche sur le tchat du chef, ses analyses listées sous la
+                  conversation —, puis les deux pages transverses. */}
+              {section.titre === 'Mes rayons IA' ? (
                 <>
                   <Link
                     to="/rayons"
@@ -271,6 +260,21 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
                   )}
                 </>
               ) : null}
+
+              {section.entrees.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                    estActive(item.to)
+                      ? 'bg-purple-500/20 text-white'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <item.icon size={18} />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
             </div>
           ))}
 

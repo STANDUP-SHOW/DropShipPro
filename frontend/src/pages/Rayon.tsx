@@ -45,7 +45,9 @@ const TABS = [
 export default function Rayon() {
   const { id = '' } = useParams()
   const [department, setDepartment] = useState<Department | null>(null)
-  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('ADVICE')
+  // Le rayon s'ouvre sur son chef : le tchat, avec « Mes analyses » listées
+  // dessous (05/09/2026) — les autres onglets restent à un clic.
+  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('CHAT')
   const [scope, setScope] = useState<'ALL' | 'PERSONAL'>('ALL')
   const [view, setView] = useState<'LIVE' | 'REPORTS'>('LIVE')
   const [missing, setMissing] = useState(false)
