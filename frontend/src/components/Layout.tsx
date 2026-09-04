@@ -87,11 +87,9 @@ const SECTIONS: Array<{
     entrees: [{ to: '/orders', label: 'Commandes', icon: ShoppingBag }],
   },
   {
+    // Une seule porte, comme Ventes : les états sont des onglets sur la page.
     titre: 'Livraisons',
-    entrees: [
-      { to: '/livraisons?etat=en-cours', label: 'En cours', icon: Truck },
-      { to: '/livraisons?etat=terminees', label: 'Terminées', icon: Truck },
-    ],
+    entrees: [{ to: '/livraisons', label: 'Livraisons', icon: Truck }],
   },
   {
     titre: 'SAV clients',
