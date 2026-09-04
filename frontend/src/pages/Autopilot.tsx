@@ -201,7 +201,12 @@ export default function Autopilot() {
   }
 
   const s = config.settings
-  const agents: Agent[] = roster ? [...roster.pipeline, ...roster.support] : []
+  /*
+   * L'avocat (Maître Doré) ne figure pas ici : l'autonomie d'Auto-Shipper ne
+   * passe par aucun geste juridique, et un conseil de droit ne s'exécute pas
+   * « en mode auto ». Sa fiche reste sur la page Mes agents ADMIN.
+   */
+  const agents: Agent[] = roster ? [...roster.pipeline, ...roster.support].filter((a) => a.key !== 'avocat') : []
   const enPoste = rayons.filter((r) => r.active)
 
   function update(patch: Partial<typeof s>) {
