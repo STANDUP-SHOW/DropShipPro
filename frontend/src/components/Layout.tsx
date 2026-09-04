@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Bot, Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
 import { FondVivant } from './FondVivant'
@@ -8,11 +8,37 @@ import { BandeauJauges } from './BandeauJauges'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 
+/**
+ * L'icône d'Auto-Shipper : l'animation de sa page en miniature — le noyau
+ * bleu et les anneaux segmentés feu et glace. Pas de « AI » au centre, il
+ * serait illisible à seize pixels.
+ */
+function IconeAutoShipper({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+      <defs>
+        <linearGradient id="ico-as-feu" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fbbf24" />
+          <stop offset="1" stopColor="#f97316" />
+        </linearGradient>
+        <radialGradient id="ico-as-noyau" cx="0.38" cy="0.32" r="0.9">
+          <stop offset="0" stopColor="#7dd3fc" />
+          <stop offset="1" stopColor="#2563eb" />
+        </radialGradient>
+      </defs>
+      <circle cx="12" cy="12" r="4.2" fill="url(#ico-as-noyau)" />
+      <circle cx="12" cy="12" r="7" stroke="url(#ico-as-feu)" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="5 3 2 4" fill="none" />
+      <circle cx="12" cy="12" r="9.6" stroke="#38bdf8" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="6 3 1 5" opacity="0.85" fill="none" />
+    </svg>
+  )
+}
+
 const NAV = [
   // Le tableau de bord d abord : l accueil du vendeur, ce sont ses chiffres.
   { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
-  // La page « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (06/09/2026).
-  { to: '/pilote', label: 'Auto-Shipper AI', icon: Bot },
+  // La page « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (06/09/2026) ;
+  // son entrée porte l'icône et le dégradé bleu → jaune de son animation.
+  { to: '/pilote', label: 'Auto-Shipper AI', icon: IconeAutoShipper },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
 ]
 
@@ -213,7 +239,15 @@ export function Layout({ children, large = false }: { children: React.ReactNode;
                 }`}
               >
                 <item.icon size={16} />
-                <span>{item.label}</span>
+                {/* Auto-Shipper porte les couleurs de son animation : bold,
+                    du bleu du noyau au jaune de l'anneau de feu. */}
+                {item.to === '/pilote' ? (
+                  <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text font-bold text-transparent">
+                    {item.label}
+                  </span>
+                ) : (
+                  <span>{item.label}</span>
+                )}
               </Link>
             )
           })}
