@@ -1148,11 +1148,11 @@ export const api = {
       agents: { fait: number; total: number }
       sociaux: { fait: number; total: number }
       utilisation: number
-    }>('/api/stats/jauges'),
+    }>('/stats/jauges'),
 
   /** Lance l'enquête fournisseurs du jour sans attendre la tournée. */
   lancerEnquete: (departmentId: string) =>
-    request<{ deposees: number; relevees: number; raison?: string }>(`/api/departments/${departmentId}/enquete`, {
+    request<{ deposees: number; relevees: number; raison?: string }>(`/departments/${departmentId}/enquete`, {
       method: 'POST',
     }),
 
