@@ -319,7 +319,7 @@ function capacitesDe(tuile: TuileData): Capacites {
  * forme, tirée sans remise. C'est ici que la garantie « jamais deux fois dans
  * le même bloc » est tenue, parce que c'est ici qu'on voit les neuf ensemble.
  */
-export function BlocStats({ bloc }: { bloc: BlocData }) {
+export function BlocStats({ bloc, enTete }: { bloc: BlocData; enTete?: ReactNode }) {
   const graine = Number(bloc.numero) || 0
   // Les formes epinglees sortent du chapeau avant le tirage : elles priment.
   const prises = new Set<Forme>(bloc.tuiles.map((t) => t.forme).filter((f): f is Forme => Boolean(f)))
@@ -388,6 +388,9 @@ export function BlocStats({ bloc }: { bloc: BlocData }) {
           <Icone size={14} />
         </span>
         <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: accent }}>{bloc.titre}</h2>
+        {/* Les commandes de la page (périodes, démo) se posent ici, justifiées
+            à droite du titre — demandé le 05/09/2026 pour la Vue générale. */}
+        {enTete ? <div className="ml-auto">{enTete}</div> : null}
       </header>
       <div className="@container mt-3">
         <div className="grid grid-cols-2 gap-2 @md:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-6 @6xl:grid-cols-9">

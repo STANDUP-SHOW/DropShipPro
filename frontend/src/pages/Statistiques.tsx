@@ -96,62 +96,64 @@ export default function Statistiques() {
 
   const parId = useMemo(() => new Map((affiches ?? []).map((b) => [b.id, b])), [affiches])
 
+  /*
+   * Les commandes vivent dans l'en-tête du bloc Vue générale, justifiées à
+   * droite — demandé le 05/09/2026, sans titre de page. Des pastilles
+   * colorées, une par période ; en vue étroite le libellé se raccourcit
+   * (7 · 30 · 90 · 365). Le bouton DÉMO est à part, orange, écrit blanc.
+   */
+  const TEINTES: Record<string, string> = { '7': '#a78bfa', '30': '#22d3ee', '90': '#34d399', '365': '#fbbf24' }
+  const controles = (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {PERIODES.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => setPeriode(p.id)}
+          title={p.label}
+          className="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
+          style={
+            periode === p.id
+              ? { backgroundColor: `${TEINTES[p.id]}33`, color: TEINTES[p.id], boxShadow: `inset 0 0 0 1px ${TEINTES[p.id]}88` }
+              : { color: '#9ca3af', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)' }
+          }
+        >
+          <span className="hidden md:inline">{p.label}</span>
+          <span className="md:hidden">{p.id}</span>
+        </button>
+      ))}
+
+      {blocs ? (
+        <button
+          type="button"
+          onClick={() => setDemo((d) => !d)}
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-white transition ${
+            demo ? 'bg-orange-500' : 'bg-orange-500/60 hover:bg-orange-500/80'
+          }`}
+        >
+          {demo ? <FlaskConical size={11} /> : <Eye size={11} />}
+          <span>DEMO</span>
+        </button>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => charger(PERIODES.find((p) => p.id === periode)?.jours ?? 30)}
+        title="Recalculer"
+        className="rounded-full border border-white/10 p-1.5 text-gray-400 hover:bg-white/5"
+      >
+        <RefreshCw size={12} className={chargement ? 'animate-spin' : ''} />
+      </button>
+    </div>
+  )
+
   return (
     <Layout large>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-wide">STATISTIQUES</h1>
-          <p className="mt-0.5 text-xs text-gray-500">Vue complète de votre activité</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {PERIODES.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setPeriode(p.id)}
-              className={
-                periode === p.id
-                  ? 'rounded-full bg-purple-500/25 px-3 py-1.5 text-xs font-semibold text-purple-200'
-                  : 'rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5'
-              }
-            >
-              {p.label}
-            </button>
-          ))}
-
-          {/* La bascule démo / réel, toujours visible dès que les blocs sont là. */}
-          {blocs ? (
-            <button
-              type="button"
-              onClick={() => setDemo((d) => !d)}
-              className={
-                demo
-                  ? 'inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-200'
-                  : 'inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5'
-              }
-            >
-              {demo ? <FlaskConical size={12} /> : <Eye size={12} />}
-              <span>{demo ? 'Démonstration' : 'Mes données'}</span>
-            </button>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={() => charger(PERIODES.find((p) => p.id === periode)?.jours ?? 30)}
-            title="Recalculer"
-            className="rounded-full border border-white/10 p-2 text-gray-400 hover:bg-white/5"
-          >
-            <RefreshCw size={13} className={chargement ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
       {demo ? (
         <p className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2 text-xs leading-relaxed text-amber-100">
           <b>Aperçu de démonstration.</b> Ces chiffres ne sont pas les vôtres : ils laissent voir le
           graphisme du tableau tant que vos ventes n'ont pas commencé. Dès la première commande, vos
-          vraies données prennent la place — et le bouton « Démonstration » ci-dessus bascule quand
+          vraies données prennent la place — et le bouton « DEMO » du bloc Vue générale bascule quand
           vous voulez.
         </p>
       ) : null}
@@ -173,7 +175,7 @@ export default function Statistiques() {
                   className={`grid gap-3 ${presents.length === 2 ? 'xl:grid-cols-2' : presents.length === 3 ? 'xl:grid-cols-3' : ''}`}
                 >
                   {presents.map((bloc) => (
-                    <BlocStats key={bloc.id} bloc={bloc} />
+                    <BlocStats key={bloc.id} bloc={bloc} enTete={bloc.id === 'vue-generale' ? controles : undefined} />
                   ))}
                 </div>
                 {/*
