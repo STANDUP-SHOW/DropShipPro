@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus, Radar, Search, Sparkles, Store, FileText, ShieldCheck, X } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
+import { VignetteProfil } from '../components/VignetteProfil'
 
 type Catalogue = Awaited<ReturnType<typeof api.departmentCatalogue>>
 type Profile = Catalogue['profiles'][number]
@@ -168,38 +169,31 @@ export default function Rayons() {
           <h2 className="font-bold">Vos rayons</h2>
           <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {hired.map((d) => (
-              <li
-                key={d.id}
-                className="rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-4"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Link to={`/rayon/${d.id}`} className="min-w-0 flex-1">
-                    <p className="text-2xl">{d.emoji}</p>
-                    {/*
-                      Le rayon en titre, l'agent en dessous.
-
-                      Le vendeur cherche « Électronique » quand il veut voir ses
-                      montres connectées ; il ne se souvient pas que c'est Mika
-                      qui s'en occupe. Le prénom garde toute son utilité au
-                      moment de lui parler — pas au moment de le trouver.
-                    */}
-                    <p className="mt-1 font-semibold leading-tight">{d.label}</p>
-                    <p className="mt-0.5 text-xs text-gray-400">{`Tenu par ${d.agentName}`}</p>
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => release(d)}
-                    title="Rendre ce rayon"
-                    className="shrink-0 rounded-lg border border-white/10 p-1.5 text-gray-500 hover:bg-white/5 hover:text-red-400"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-                <p className="mt-3 text-xs text-gray-500">
-                  {d.pending > 0
-                    ? `${d.pending} produit(s) en attente de votre avis`
-                    : 'Rien de nouveau à arbitrer'}
-                </p>
+              <li key={d.id}>
+                {/* La vignette profil (modèle du 06/09/2026) : le prénom en
+                    vedette, le RAYON dans la pilule — le vendeur cherche
+                    « Électronique », et c'est la pilule qui le lui dit. */}
+                <VignetteProfil
+                  prenom={d.agentName}
+                  role={d.label}
+                  emoji={d.emoji}
+                  compact
+                  stats={[
+                    { valeur: String(d.pending), libelle: 'à arbitrer' },
+                    { valeur: String(d.opportunities ?? 0), libelle: 'trouvailles' },
+                    { valeur: String(d.signals ?? 0), libelle: 'signaux' },
+                  ]}
+                  coin={
+                    <button
+                      type="button"
+                      onClick={() => release(d)}
+                      title="Rendre ce rayon"
+                      className="rounded-lg border border-white/10 p-1.5 text-gray-500 hover:bg-white/5 hover:text-red-400"
+                    >
+                      <X size={13} />
+                    </button>
+                  }
+                >
 
                 {/* L'échéance, dite clairement : un agent qui s'arrête sans
                     prévenir passe pour une panne. */}
@@ -225,7 +219,14 @@ export default function Rayons() {
                       Embaucher
                     </Link>
                   )}
+                  <Link
+                    to={`/rayon/${d.id}`}
+                    className="block text-center text-[11px] text-gray-400 hover:text-white"
+                  >
+                    Ouvrir le rayon →
+                  </Link>
                 </div>
+                </VignetteProfil>
               </li>
             ))}
           </ul>
@@ -240,18 +241,9 @@ export default function Rayons() {
 
         <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {catalogue.map((p) => (
-            <li
-              key={p.key}
-              className={
-                p.hired
-                  ? 'rounded-xl border border-white/10 bg-black/20 p-4 opacity-50'
-                  : 'flex flex-col rounded-xl border border-white/10 bg-white/5 p-4'
-              }
-            >
-              <p className="text-3xl">{p.emoji}</p>
-              <p className="mt-2 font-semibold leading-tight">{p.label}</p>
-              <p className="mt-0.5 text-xs text-gray-400">{`${p.agentName} le tiendrait`}</p>
-              <p className="mt-2 flex-1 text-xs leading-relaxed text-gray-500">{p.focus}</p>
+            <li key={p.key} className={p.hired ? 'opacity-60' : undefined}>
+              <VignetteProfil prenom={p.agentName} role={p.label} emoji={p.emoji} compact>
+              <p className="text-xs leading-relaxed text-gray-500">{p.focus}</p>
 
               <div className="mt-3 flex flex-wrap gap-1">
                 {p.covers.slice(0, 4).map((c) => (
@@ -285,6 +277,7 @@ export default function Rayons() {
                   </button>
                 </div>
               )}
+              </VignetteProfil>
             </li>
           ))}
         </ul>

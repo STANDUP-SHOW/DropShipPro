@@ -5,6 +5,7 @@ import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { SupportChat } from '../components/SupportChat'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
+import { VignetteProfil } from '../components/VignetteProfil'
 
 type Roster = Awaited<ReturnType<typeof api.agentRoster>>
 type Agent = Roster['pipeline'][number]
@@ -26,18 +27,24 @@ function AgentCard({
   onOuvrir: (key: string) => void
   onAuto: (key: string, enabled: boolean) => Promise<void>
 }) {
+  /*
+   * La vignette profil du modèle « social media » (06/09/2026) : la photo
+   * ronde — l'emoji tant que la planche des portraits n'est pas livrée —, le
+   * prénom badgé, le rôle en pilule blanche. Le reste de la fiche (mission,
+   * limites, salaire) vit dessous, dans la même carte de verre.
+   */
   const card = (
-    <div className="flex h-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-2xl">{agent.emoji}</span>
+    <VignetteProfil
+      prenom={agent.name}
+      role={agent.role}
+      emoji={agent.emoji}
+      coin={
         <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATE_STYLE[agent.state]}`}>
           {agent.state}
         </span>
-      </div>
-
-      <p className="mt-2 font-semibold">{agent.name}</p>
-      <p className="text-xs text-gray-400">{agent.role}</p>
-      <p className="mt-2 flex-1 text-xs leading-relaxed text-gray-500">{agent.does}</p>
+      }
+    >
+      <p className="text-xs leading-relaxed text-gray-500">{agent.does}</p>
 
       {/* Ce que l'agent ne fait pas : sur du conseil comptable ou juridique,
           c'est aussi important que ce qu'il fait. */}
@@ -67,7 +74,7 @@ function AgentCard({
           <ArrowRight size={11} />
         </p>
       ) : null}
-    </div>
+    </VignetteProfil>
   )
 
   /*
