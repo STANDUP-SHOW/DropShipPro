@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles, Store, ArrowRight } from 'lucide-react'
+import { Sparkles, Store, ArrowRight, Server, KeyRound, Link2, Globe } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
 import { api } from '../lib/api'
@@ -68,6 +68,51 @@ export default function CreerBoutique() {
         nommez, l'IA compose sa vitrine — thème, couleurs, textes — et elle est en ligne à sa propre
         adresse. Vos annonces s'y rangent par boutique, comme sur Mes sites.
       </p>
+
+      {/* ---------- Comment ça marche ---------- */}
+      <section className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-emerald-100">
+          <Server size={16} className="text-emerald-300" />
+          <span>Comment ça marche</span>
+        </h2>
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+          <li className="flex gap-3">
+            <Store size={16} className="mt-0.5 shrink-0 text-emerald-300" />
+            <span className="text-xs leading-relaxed text-gray-300">
+              <b className="text-gray-100">Hébergée ici, rien à installer.</b> Pas de logiciel, pas
+              d'hébergement à payer : votre boutique est en ligne dès sa création et se remplit toute
+              seule des annonces que vous y rangez.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <KeyRound size={16} className="mt-0.5 shrink-0 text-emerald-300" />
+            <span className="text-xs leading-relaxed text-gray-300">
+              <b className="text-gray-100">Pas d'admin séparé à retenir.</b> Vous gérez tout depuis
+              DropShipper, avec ce compte : l'apparence et les logos ici, vos produits à l'import, vos
+              commandes dans Commandes. Votre boutique n'a pas de mot de passe à elle.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <Link2 size={16} className="mt-0.5 shrink-0 text-emerald-300" />
+            <span className="text-xs leading-relaxed text-gray-300">
+              <b className="text-gray-100">Une adresse publique à partager.</b> Votre boutique vit à{' '}
+              <code className="rounded bg-black/30 px-1 py-0.5 text-[11px] text-emerald-200">
+                drop-shipper.fr/b/votre-boutique
+              </code>{' '}
+              — copiable et partageable tout de suite depuis Mes sites.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <Globe size={16} className="mt-0.5 shrink-0 text-emerald-300" />
+            <span className="text-xs leading-relaxed text-gray-300">
+              <b className="text-gray-100">Votre propre nom de domaine ?</b> Pas encore :{' '}
+              <code className="rounded bg-black/30 px-1 py-0.5 text-[11px] text-emerald-200">maboutique.fr</code>{' '}
+              qui afficherait la vitrine est prévu pour une prochaine version. En attendant, l'adresse
+              ci-dessus fonctionne partout.
+            </span>
+          </li>
+        </ul>
+      </section>
 
       {/* ---------- Étape 1 : nommer et créer ---------- */}
       <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.05] p-5 backdrop-blur">
