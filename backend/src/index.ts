@@ -126,6 +126,23 @@ app.use('/api/public', publicRouter)
 // Les vitrines vivent hors de /api : c est une page, pas une ressource d API.
 app.use('/b', vitrineRouter)
 
+/*
+ * Le dernier filet : une erreur qui remonte jusqu'ici répond, elle ne pend pas.
+ *
+ * Express 4 n'attrape pas ce qu'un handler `async` lève de lui-même — c'est ce
+ * qui a fait pendre les requêtes le 05/09/2026 (voir requireAuth). Ce
+ * gestionnaire ne rattrape que les erreurs transmises par `next(err)`, donc il
+ * ne suffit pas seul ; mais couplé au refus des jetons fantômes au portique, il
+ * garantit qu'une erreur connue ne laisse jamais un client attendre. Signature
+ * à quatre arguments : c'est ce qui, pour Express, en fait un gestionnaire
+ * d'erreurs et non une route.
+ */
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('erreur non gérée dans une route', err instanceof Error ? err.stack : err)
+  if (res.headersSent) return
+  res.status(500).json({ error: 'Une erreur interne est survenue.' })
+})
+
 const port = Number(process.env.PORT) || 4000
 app.listen(port, () => console.log(`DropShip Pro API sur http://localhost:${port}`))
 
