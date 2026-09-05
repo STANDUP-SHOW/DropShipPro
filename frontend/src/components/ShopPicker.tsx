@@ -37,10 +37,20 @@ export function ShopPicker({
     api
       .listShops()
       .then((list) => {
-        setShops(list)
+        /*
+         * La plus récente d'abord — leçon du 05/09/2026 : Max crée « France
+         * ROBOTIQUE » le matin, publie dans la foulée, et la présélection sur
+         * la PREMIÈRE boutique de la liste envoyait ses annonces dans une
+         * boutique d'il y a un mois. La boutique qu'on vient de créer est
+         * presque toujours celle vers laquelle on publie.
+         */
+        const triees = [...list].sort(
+          (a, b) => new Date((b as { createdAt?: string }).createdAt ?? 0).getTime() - new Date((a as { createdAt?: string }).createdAt ?? 0).getTime(),
+        )
+        setShops(triees)
         // Preselect so a seller with one shop never has to answer an obvious
         // question, and so the choice is never silently empty.
-        if (list.length && !value) onChange(list[0].id)
+        if (triees.length && !value) onChange(triees[0].id)
       })
       .catch(() => setFailed(true))
     // eslint-disable-next-line react-hooks/exhaustive-deps

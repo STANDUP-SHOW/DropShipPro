@@ -38,7 +38,9 @@ export function PublishTargets({
   const [reliees, setReliees] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    api.listShops().then(setShops).catch(() => undefined)
+    // La plus recente d'abord : la boutique qu'on vient de creer est celle
+    // vers laquelle on publie (lecon du 05/09/2026).
+    api.listShops().then((l) => setShops([...l].sort((a, b) => new Date((b as { createdAt?: string }).createdAt ?? 0).getTime() - new Date((a as { createdAt?: string }).createdAt ?? 0).getTime()))).catch(() => undefined)
     /*
      * L etat reel des liaisons, pas seulement le mode de diffusion.
      *
