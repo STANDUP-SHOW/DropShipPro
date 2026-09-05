@@ -48,6 +48,10 @@ backend/storefront-boutique/  La vitrine generique, servie a /b/<adresse> — so
                     Jamais de typo hors Google Fonts (appariements 20 et 39 : Satoshi, Clash Display, General Sans).
                     Les textes de vitrine s editent champ par champ dans VitrineBlock ; PATCH /settings/shops/:id
                     REMPLACE le JSON storefront en entier — toujours renvoyer l objet complet fusionne.
+                    Deux logos de vitrine (Shop.vitrineLogoEntete = barre de titre, vitrineLogoAccueil = accueil ~500 px
+                    au-dessus du titre), SEPARES du logo de filigrane : saveVitrineLogo garde le SVG tel quel et ne
+                    detoure pas (le filigrane fait l inverse). Un SVG portant du script est refuse au televersement
+                    (adresse /storage ouvrable en direct). Bancs check-logos-vitrine.ts + check-vitrine.cjs.
 docs/        Documentation de l'API catalogue
 ```
 

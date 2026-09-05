@@ -90,6 +90,10 @@ de passe oublié. Le code est bon, il lui manque la clé.
   gagne un éditeur de textes (accroche/sous-titre/annonce/frais de port, PATCH
   fusionnant) + une bibliothèque filtrable (pastilles par structure, recherche
   nom/secteurs). Constaté sur un compte jetable : édition → base → vitrine.
+- **Deux logos de vitrine téléversables** (en-tête + accueil 500 px), PNG ou
+  SVG, dédiés et séparés du logo de filigrane. Vu en production : SVG servi
+  en `image/svg+xml`, PNG plafonné sans détourage, SVG piégé refusé, les deux
+  affichés sur la vitrine, en-tête qui s'enroule sur mobile sans déborder.
 
 
 - **La vitrine `/b/<slug>` vend.** Refondue sur le modèle d'oguss.fr : héro et
