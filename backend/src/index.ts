@@ -29,6 +29,28 @@ import { semerCategories } from './services/categories.js'
 import { tourneeEnquetes } from './services/enqueteFournisseurs.js'
 import { tourneeAutoMode } from './services/autoAnalyste.js'
 import { tourneeAutopilot } from './services/autopilot.js'
+/*
+ * Un processus qui meurt doit dire pourquoi.
+ *
+ * Panne du 05/09/2026 : le service tombait quelques minutes après chaque
+ * démarrage, sans une ligne de journal — toutes les tournées ont pourtant leur
+ * .catch. Un rejet non géré ou une exception dans un rappel tue Node en
+ * silence, et Railway cesse de redémarrer après une dizaine d'échecs : la
+ * boutique de chaque vendeur devient injoignable pour une erreur d'arrière-plan.
+ *
+ * Un rejet non géré est journalisé et le service CONTINUE : aucune requête en
+ * cours n'en dépend, et mourir pour une promesse orpheline coûte plus cher que
+ * de la consigner. Une exception non attrapée est journalisée puis le processus
+ * sort — l'état est potentiellement corrompu, Railway relance proprement.
+ */
+process.on('unhandledRejection', (raison) => {
+  console.error('REJET NON GÉRÉ (service maintenu) :', raison instanceof Error ? raison.stack : raison)
+})
+process.on('uncaughtException', (erreur) => {
+  console.error('EXCEPTION NON ATTRAPÉE (arrêt propre) :', erreur.stack ?? erreur)
+  process.exit(1)
+})
+
 const app = express()
 
 // A deployed app is reached from several origins at once — the custom domain, its
