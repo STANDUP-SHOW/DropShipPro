@@ -37,7 +37,10 @@ backend/extension/  Extension Chrome Manifest V3, servie par /api/public/extensi
 frontend/    React + Vite + Tailwind v4 → Vercel (Root Directory = frontend)
 storefront/  Vitrine de démonstration OGGUS (HTML autonome)
 storefront-imprimerie/  Print34, boutique d'imprimerie autonome (voir docs/boutique-imprimerie.md)
-backend/storefront-boutique/  La vitrine generique, servie a /b/<adresse> — sous backend/ parce que Railway y a sa racine
+backend/storefront-boutique/  La vitrine generique, servie a /b/<adresse> — sous backend/ parce que Railway y a sa racine.
+                    Refondue le 05/09/2026 sur le modele d oguss.fr : 4 modes visiteur [data-theme], panier localStorage
+                    par boutique, commande vers POST /api/public/shops/:shopKey/orders (prix relus serveur, Order.quantity).
+                    Banc node check-vitrine.cjs (faux fetch, attentes de visiteur, contrat de commande ecrit en dur).
 docs/        Documentation de l'API catalogue
 ```
 
@@ -478,6 +481,19 @@ Trois conséquences, toutes appliquées :
   jamais appeler l'outil de livraison** : la liste des gagnants sortait vide
   en silence ; un secours rejoue la livraison sans recherche, outil imposé,
   liens du texte sourcé uniquement.
+
+  **Une tournée lancée par un banc se borne toujours à ses comptes jetables.**
+  Constaté le 05/09/2026 : `tourneeAutoMode(fauxGenerateur, 0)` dans
+  check-automode balaye TOUS les rayons éligibles de la base — les trois
+  rayons réels passés en AUTO-MODE le matin ont reçu chacun une fausse
+  analyse (« Les écouteurs Bluetooth dominent le rayon… »), consignée dans le
+  compte du vendeur et armant la garde des onze heures contre la vraie
+  tournée. check-autoshipper portait la même faute et n'y a échappé que parce
+  que le pilote réel était dans sa fenêtre — hors fenêtre, cinq vrais crédits
+  débités. Les deux tournées prennent un 3ᵉ paramètre de périmètre (userId ou
+  liste) : la production ne le passe jamais, un banc le passe toujours. Le
+  nettoyage s'est fait **par signature** (corps du faux générateur, liens
+  `exemple.test`), jamais par date.
 
 - **L'AUTO-SHIPPER est une tournée, et sa tranche a un prix fixe.** La page
   « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (fiche de recadrage du

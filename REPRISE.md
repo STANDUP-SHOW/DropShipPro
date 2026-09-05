@@ -75,6 +75,25 @@ de passe oublié. Le code est bon, il lui manque la clé.
 
 ---
 
+## Ce qui a été fait le 05/09/2026 — vu fonctionner en production
+
+- **La vitrine `/b/<slug>` vend.** Refondue sur le modèle d'oguss.fr : héro et
+  catégories créées depuis le flux, fiche produit, panier localStorage par
+  boutique, 4 modes visiteur `[data-theme]` teintés par l'accent du thème
+  marchand, commande postée à `POST /api/public/shops/:shopKey/orders` (prix
+  relus côté serveur, `Order.quantity` migré, une ligne par produit, dispo
+  vérifiée sur les publications OWN_SITE). **Constaté sur
+  `/b/france-robotique`** (3 robots, photo, modes) et **une commande réelle a
+  fait l'aller-retour complet** sur une boutique jetable — Order NEW à 39,80 €,
+  quantité 2 — jetable détruit ensuite. Banc `node check-vitrine.cjs`.
+  À savoir : le port affiché au client (4,90 € sous 79 €) n'est **pas** inclus
+  dans `Order.amount` — les lignes portent le prix des produits seuls.
+- **FRANCE ROBOTIQUE réparée** : 2 des 3 produits du matin partaient dans la
+  mauvaise boutique (présélection `list[0]` = la plus ancienne). Données
+  rangées, `ShopPicker` et `PublishTargets` présélectionnent la plus récente.
+- **Les tournées de banc sont bornées** : voir le piège du 05/09 dans
+  `CLAUDE.md` (fausses analyses déposées dans le compte réel — nettoyées).
+
 ## Ce qui a été fait le 01/09/2026
 
 Tout est poussé sur `main`. Rien n'est constaté en production.
