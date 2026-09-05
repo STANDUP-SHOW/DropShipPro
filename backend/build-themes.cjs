@@ -465,6 +465,61 @@ const THEMES = [
   { id: 'chronique', nom: 'Chronique', structure: 'magazine', palette: 67, typo: 14, secteurs: ['niche', 'marque', 'contenu'] },
   { id: 'cave', nom: 'Cave', structure: 'magazine', palette: 64, typo: 4, secteurs: ['vin', 'spiritueux', 'epicerie-fine'] },
   { id: 'dressing', nom: 'Dressing', structure: 'magazine', palette: 133, typo: 18, secteurs: ['mode', 'tendance', 'seconde-main'] },
+
+  /*
+   * Deuxieme fournee (05/09/2026) : le catalogue passe de 21 a 50.
+   *
+   * Meme regle que la premiere : chaque ligne est CHOISIE — palette dont le nom
+   * et la note designent le commerce vise, typo accordee a l ambiance, secteurs
+   * ecrits dans les mots d un vendeur. Les 21 identifiants d origine ne bougent
+   * jamais : des boutiques en base les referencent. Et pas de typo hors Google
+   * Fonts (Satoshi, Clash Display, General Sans — appariements 20 et 39) : la
+   * vitrine charge ses polices chez fonts.googleapis.com, une famille absente
+   * y retombe en silence sur la police systeme.
+   */
+
+  // --- Vitrine, suite ------------------------------------------------------
+  { id: 'escale', nom: 'Escale', structure: 'vitrine', palette: 37, typo: 2, secteurs: ['voyage', 'bagagerie', 'plein-air'] },
+  { id: 'riviera', nom: 'Riviera', structure: 'vitrine', palette: 38, typo: 12, secteurs: ['maison', 'linge-de-maison', 'hotellerie'] },
+  { id: 'ceremonie', nom: 'Cérémonie', structure: 'vitrine', palette: 39, typo: 1, secteurs: ['mariage', 'fete', 'bijoux'] },
+  { id: 'argentique', nom: 'Argentique', structure: 'vitrine', palette: 53, typo: 5, secteurs: ['photo', 'art', 'affiches'] },
+  { id: 'terracotta', nom: 'Terracotta', structure: 'vitrine', palette: 161, typo: 8, secteurs: ['decoration', 'mobilier', 'cocooning'] },
+  { id: 'nocturne', nom: 'Nocturne', structure: 'vitrine', palette: 142, typo: 50, secteurs: ['literie', 'sommeil', 'cocooning'] },
+
+  // --- Catalogue, suite ----------------------------------------------------
+  { id: 'compagnon', nom: 'Compagnon', structure: 'catalogue', palette: 23, typo: 45, secteurs: ['animalerie', 'chiens', 'chats'] },
+  { id: 'volt', nom: 'Volt', structure: 'catalogue', palette: 25, typo: 3, secteurs: ['mobilite', 'trottinettes', 'velos'] },
+  { id: 'marmite', nom: 'Marmite', structure: 'catalogue', palette: 97, typo: 1, secteurs: ['cuisine', 'ustensiles', 'gourmandise'] },
+  { id: 'foulee', nom: 'Foulée', structure: 'catalogue', palette: 140, typo: 49, secteurs: ['running', 'musculation', 'sport'] },
+  { id: 'forge', nom: 'Forge', structure: 'catalogue', palette: 116, typo: 7, secteurs: ['outillage', 'bricolage', 'atelier'] },
+  { id: 'drone', nom: 'Drone', structure: 'catalogue', palette: 87, typo: 37, secteurs: ['drones', 'fpv', 'modelisme'] },
+  { id: 'brocante', nom: 'Brocante', structure: 'catalogue', palette: 171, typo: 40, secteurs: ['occasion', 'reconditionne', 'bonnes-affaires'] },
+
+  // --- Rayons, suite -------------------------------------------------------
+  { id: 'berceau', nom: 'Berceau', structure: 'rayons', palette: 56, typo: 19, secteurs: ['bebe', 'puericulture', 'naissance'] },
+  { id: 'ruban', nom: 'Ruban', structure: 'rayons', palette: 139, typo: 2, secteurs: ['cadeaux', 'fetes', 'saisonnier'] },
+  { id: 'terroir', nom: 'Terroir', structure: 'rayons', palette: 50, typo: 4, secteurs: ['terroir', 'produits-fermiers', 'nature'] },
+  { id: 'pupitre', nom: 'Pupitre', structure: 'rayons', palette: 54, typo: 16, secteurs: ['bureau', 'papeterie', 'fournitures'] },
+
+  // --- Produit unique, suite -----------------------------------------------
+  { id: 'coffret', nom: 'Coffret', structure: 'mono', palette: 26, typo: 43, secteurs: ['box', 'coffrets', 'abonnement'] },
+  { id: 'quantum', nom: 'Quantum', structure: 'mono', palette: 85, typo: 37, secteurs: ['gaming', 'setup', 'sci-fi'] },
+  { id: 'arcade', nom: 'Arcade', structure: 'mono', palette: 125, typo: 52, secteurs: ['retrogaming', 'arcade', 'collection'] },
+  { id: 'vitale', nom: 'Vitale', structure: 'mono', palette: 8, typo: 30, secteurs: ['sante', 'massage', 'recuperation'] },
+
+  // --- Liste sobre, suite --------------------------------------------------
+  { id: 'pixel', nom: 'Pixel', structure: 'liste', palette: 73, typo: 31, secteurs: ['numerique', 'telechargement', 'licences'] },
+  { id: 'collection', nom: 'Collection', structure: 'liste', palette: 168, typo: 14, secteurs: ['collection', 'rare', 'encheres'] },
+  { id: 'papier', nom: 'Papier', structure: 'liste', palette: 135, typo: 4, secteurs: ['livres', 'lecture', 'occasion'] },
+
+  // --- Magazine, suite -----------------------------------------------------
+  { id: 'cinema', nom: 'Cinéma', structure: 'magazine', palette: 46, typo: 43, secteurs: ['pop-culture', 'goodies', 'cinema'] },
+  { id: 'vinyle', nom: 'Vinyle', structure: 'magazine', palette: 45, typo: 67, secteurs: ['musique', 'vinyles', 'instruments'] },
+  { id: 'bitume', nom: 'Bitume', structure: 'magazine', palette: 15, typo: 63, secteurs: ['streetwear', 'sneakers', 'jeune'] },
+  { id: 'fabrique', nom: 'Fabrique', structure: 'magazine', palette: 173, typo: 18, secteurs: ['createurs', 'fait-main', 'artisanat'] },
+
+  // --- Configurateur, suite ------------------------------------------------
+  { id: 'gabarit', nom: 'Gabarit', structure: 'configurateur', palette: 84, typo: 58, secteurs: ['mobilier', 'sur-mesure', 'agencement'] },
 ]
 
 // --- Fabrication ------------------------------------------------------------
@@ -478,10 +533,14 @@ function fabriquer() {
 
   const erreurs = []
 
+  const dejaVus = new Set()
   for (const t of THEMES) {
     if (!structureParId.has(t.structure)) erreurs.push(`${t.id} : structure « ${t.structure} » inconnue`)
     if (!parId.has(t.palette)) erreurs.push(`${t.id} : palette ${t.palette} inconnue`)
     if (!typoParId.has(t.typo)) erreurs.push(`${t.id} : appariement de polices ${t.typo} inconnu`)
+    // A duplicated id would silently shadow the earlier theme at runtime.
+    if (dejaVus.has(t.id)) erreurs.push(`${t.id} : identifiant en double`)
+    dejaVus.add(t.id)
   }
 
   if (erreurs.length) {

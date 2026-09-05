@@ -54,7 +54,14 @@ async function attendre(condition, delaiMs = 1500) {
 
 const THEME = {
   theme: 'comptoir',
-  jetons: { primary: '#e11d48', accent: '#f59e0b', background: '#0b0b10' },
+  // Les 16 jetons, comme resoudre() les sert : le mode « Boutique » les pose
+  // tous en variables --m-* et c'est lui qui rend le thème marchand visible.
+  jetons: {
+    primary: '#e11d48', onPrimary: '#ffffff', secondary: '#1f2937', onSecondary: '#ffffff',
+    accent: '#f59e0b', onAccent: '#1c1917', background: '#fdf8f3', foreground: '#231a12',
+    card: '#ffffff', cardForeground: '#231a12', muted: '#f3e8dc', mutedForeground: '#7a6a58',
+    border: '#e5d5c5', destructive: '#dc2626', onDestructive: '#ffffff', ring: '#e11d48',
+  },
   polices: { titre: 'Fraunces', texte: 'Inter', familles: ['Fraunces', 'Inter'] },
   contenu: {
     accroche: 'La robotique française',
@@ -164,7 +171,15 @@ async function main() {
     w.PIEGE === undefined && !d.getElementById('page').querySelector('script'))
 
   console.log('— Modes visiteur —')
-  for (const mode of ['clair', 'gradient', 'colorful', 'noir']) {
+  verifierSansLever('le défaut est le thème du marchand, jetons posés en --m-*', () =>
+    d.documentElement.getAttribute('data-theme') === 'boutique' &&
+    d.documentElement.style.getPropertyValue('--m-background') === '#fdf8f3' &&
+    d.documentElement.style.getPropertyValue('--m-muted-foreground') === '#7a6a58')
+  verifierSansLever('les cinq modes sont proposés, Boutique en tête', () => {
+    const boutons = Array.from(d.querySelectorAll('#modes button')).map((b) => b.getAttribute('data-mode'))
+    return boutons.join(',') === 'boutique,noir,clair,gradient,colorful'
+  })
+  for (const mode of ['clair', 'gradient', 'colorful', 'noir', 'boutique']) {
     const bouton = d.querySelector(`#modes button[data-mode="${mode}"]`)
     bouton.click()
     verifier(`le mode ${mode} s'applique et se retient`, d.documentElement.getAttribute('data-theme') === mode && w.localStorage.getItem('vitrine-mode') === mode)

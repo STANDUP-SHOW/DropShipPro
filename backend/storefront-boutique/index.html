@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr" data-theme="noir">
+<html lang="fr" data-theme="boutique">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -65,6 +65,23 @@
         --text: #241a10;
         --muted: #8a7a66;
         --hero: linear-gradient(120deg, color-mix(in srgb, var(--accent) 30%, #fdf7ef), color-mix(in srgb, var(--accent-2) 35%, #fdf7ef));
+      }
+      /*
+       * Le cinquième mode est le thème du marchand, et c'est le défaut : les 16
+       * jetons servis par /theme, posés en variables --m-* au chargement. C'est
+       * lui qui rend visibles les 50 thèmes de la bibliothèque — sans lui, un
+       * thème ne changerait que l'accent et les polices. Les replis valent le
+       * mode noir : tant que le thème n'est pas chargé, rien ne cligne.
+       */
+      [data-theme='boutique'] {
+        --bg: var(--m-background, #0b0b10);
+        --bg-2: var(--m-card, #12121a);
+        --surface: var(--m-card, rgba(255, 255, 255, 0.05));
+        --surface-2: var(--m-muted, rgba(255, 255, 255, 0.09));
+        --line: var(--m-border, rgba(255, 255, 255, 0.12));
+        --text: var(--m-foreground, #f4f4f6);
+        --muted: var(--m-muted-foreground, #9a9aad);
+        --hero: linear-gradient(150deg, color-mix(in srgb, var(--accent) 20%, var(--m-background, #0b0b10)), var(--m-background, #0b0b10) 60%);
       }
 
       * { box-sizing: border-box; }
@@ -260,6 +277,7 @@
       ;(function () {
         var CONF = window.BOUTIQUE || { api: '', shopKey: '' }
         var MODES = [
+          ['boutique', 'Boutique'],
           ['noir', 'Noir'],
           ['clair', 'Clair'],
           ['gradient', 'Gradient'],
@@ -288,7 +306,12 @@
 
         /* ---------- Modes visiteur ---------- */
         function modeActuel() {
-          try { return localStorage.getItem(CLE_MODE) || 'noir' } catch (e) { return 'noir' }
+          // Le défaut est le thème choisi par le marchand ; un mode retenu qui
+          // n'existe plus retombe dessus aussi.
+          try {
+            var m = localStorage.getItem(CLE_MODE)
+            return MODES.some(function (x) { return x[0] === m }) ? m : 'boutique'
+          } catch (e) { return 'boutique' }
         }
         function poserMode(m) {
           document.documentElement.setAttribute('data-theme', m)
@@ -642,10 +665,16 @@
             nomBoutique = (apparence.boutique && apparence.boutique.nom) || (res[1].shop && res[1].shop.name) || 'Boutique'
             document.title = nomBoutique
 
-            // L'accent du thème marchand teinte les quatre modes visiteur.
+            // L'accent du thème marchand teinte les quatre modes visiteur, et
+            // ses 16 jetons complets habillent le mode « Boutique ».
             var jetons = apparence.jetons || {}
             if (jetons.primary) document.documentElement.style.setProperty('--accent', jetons.primary)
             if (jetons.accent) document.documentElement.style.setProperty('--accent-2', jetons.accent)
+            Object.keys(jetons).forEach(function (k) {
+              if (typeof jetons[k] !== 'string') return
+              var nom = '--m-' + k.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase() })
+              document.documentElement.style.setProperty(nom, jetons[k])
+            })
 
             // Les polices du thème, demandées à Google.
             var familles = (apparence.polices && apparence.polices.familles) || []
