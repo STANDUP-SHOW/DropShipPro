@@ -11,6 +11,8 @@ import { prixDAppel, prixDeVente, type LigneTarif } from '../services/printPrici
 import { resoudre, enVariablesCss, themeConnu } from '../services/themes.js'
 import { absoluteUrl } from '../lib/urls.js'
 import { prisma } from '../lib/prisma.js'
+import { rateLimit } from '../middleware/rateLimit.js'
+import { z } from 'zod'
 
 export const publicRouter = Router()
 
@@ -413,3 +415,95 @@ publicRouter.get('/shops/:shopKey/theme', async (req, res) => {
     css: enVariablesCss(apparence),
   })
 })
+
+/*
+ * La commande passée depuis la vitrine — ce qui fait d'une vitrine une
+ * boutique (refonte du 07/09/2026, sur le modèle d'oguss.fr).
+ *
+ * Publique par nature : l'acheteur n'a pas de compte chez nous. Trois
+ * gardes, parce que tout ce qui est public est attaqué un jour :
+ * le débit est limité par adresse, chaque produit doit être publié sur
+ * CETTE boutique (sinon l'adresse permettrait de commander le catalogue
+ * d'autrui), et les prix sont relus en base — jamais ceux du navigateur.
+ */
+const ligneCommandeSchema = z.object({
+  productId: z.string().min(1),
+  quantity: z.number().int().min(1).max(20),
+})
+
+const commandeVitrineSchema = z.object({
+  buyer: z.object({
+    name: z.string().trim().min(2).max(120),
+    email: z.string().trim().email().max(200).optional(),
+    street: z.string().trim().min(3).max(200),
+    zip: z.string().trim().min(2).max(20),
+    city: z.string().trim().min(1).max(120),
+    country: z.string().trim().max(80).default('France'),
+    phone: z.string().trim().max(30).optional(),
+  }),
+  lignes: z.array(ligneCommandeSchema).min(1).max(20),
+})
+
+publicRouter.post(
+  '/shops/:shopKey/orders',
+  rateLimit({ name: 'commande-vitrine', windowMs: 3600_000, max: 20 }),
+  async (req, res) => {
+    const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey } })
+    if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+
+    const parsed = commandeVitrineSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Commande incomplète : vérifiez vos coordonnées et votre panier.' })
+    }
+
+    // Seuls les produits réellement en vitrine de CETTE boutique se commandent.
+    const publiees = await prisma.publication.findMany({
+      where: {
+        platform: 'OWN_SITE',
+        status: 'PUBLISHED',
+        productId: { in: parsed.data.lignes.map((l) => l.productId) },
+        product: { shopId: shop.id },
+      },
+      include: { product: true },
+    })
+    const parProduit = new Map(publiees.map((p) => [p.productId, p.product]))
+    const introuvable = parsed.data.lignes.find((l) => !parProduit.has(l.productId))
+    if (introuvable) {
+      return res.status(400).json({ error: "Un article du panier n'est plus disponible dans cette boutique." })
+    }
+
+    const { buyer } = parsed.data
+    const adresse = {
+      street: buyer.street,
+      zip: buyer.zip,
+      city: buyer.city,
+      country: buyer.country || 'France',
+      ...(buyer.phone ? { phone: buyer.phone } : {}),
+      ...(buyer.email ? { email: buyer.email } : {}),
+    }
+
+    const creees = await prisma.$transaction(
+      parsed.data.lignes.map((l) => {
+        const produit = parProduit.get(l.productId)!
+        // Le prix vient de la base : celui affiché par la vitrine au moment T.
+        const unitaire = Number(produit.sellingPrice ?? produit.price)
+        return prisma.order.create({
+          data: {
+            userId: shop.userId,
+            productId: l.productId,
+            platform: 'OWN_SITE',
+            status: 'NEW',
+            buyerName: buyer.name,
+            buyerAddress: adresse,
+            amount: Math.round(unitaire * l.quantity * 100) / 100,
+            currency: produit.currency ?? 'EUR',
+            quantity: l.quantity,
+          },
+          select: { id: true },
+        })
+      }),
+    )
+
+    res.status(201).json({ ok: true, commandes: creees.length })
+  },
+)

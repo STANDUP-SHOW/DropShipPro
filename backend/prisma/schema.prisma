@@ -379,6 +379,8 @@ model Order {
 
   amount   Decimal @db.Decimal(10, 2)
   currency String  @default("EUR")
+  /// Nombre d unites de cette ligne. La vitrine publique le remplit.
+  quantity Int     @default(1)
 
   status           OrderStatus @default(NEW)
   supplierOrderUrl String?
