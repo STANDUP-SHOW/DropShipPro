@@ -391,7 +391,15 @@ publicRouter.get('/print/:shopKey/products', async (req, res) => {
 publicRouter.get('/shops/:shopKey/theme', async (req, res) => {
   const shop = await prisma.shop.findUnique({
     where: { shopKey: req.params.shopKey },
-    select: { name: true, logo: true, themeId: true, themeTokens: true, storefront: true },
+    select: {
+      name: true,
+      logo: true,
+      vitrineLogoEntete: true,
+      vitrineLogoAccueil: true,
+      themeId: true,
+      themeTokens: true,
+      storefront: true,
+    },
   })
   if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
 
@@ -407,11 +415,17 @@ publicRouter.get('/shops/:shopKey/theme', async (req, res) => {
   const essai = typeof req.query.theme === 'string' && themeConnu(req.query.theme) ? req.query.theme : null
   const apparence = resoudre(essai ? { ...shop, themeId: essai } : shop)
   res.set('Cache-Control', 'public, max-age=60')
+  const absolu = (v: string | null) => (v ? absoluteUrl(v) : null)
   res.json({
     ...apparence,
-    // Le logo est servi depuis /storage : une adresse relative ne veut rien
+    // Les logos sont servis depuis /storage : une adresse relative ne veut rien
     // dire dans un onglet ouvert sur le domaine du vendeur.
-    boutique: { ...apparence.boutique, logo: apparence.boutique.logo ? absoluteUrl(apparence.boutique.logo) : null },
+    boutique: {
+      ...apparence.boutique,
+      logo: absolu(apparence.boutique.logo),
+      logoEntete: absolu(apparence.boutique.logoEntete),
+      logoAccueil: absolu(apparence.boutique.logoAccueil),
+    },
     css: enVariablesCss(apparence),
   })
 })

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Palette, Sparkles, ExternalLink, Copy, Check, Loader2, PenLine, Search } from 'lucide-react'
-import { api, apiRoot } from '../lib/api'
+import { useEffect, useRef, useState } from 'react'
+import { Palette, Sparkles, ExternalLink, Copy, Check, Loader2, PenLine, Search, ImagePlus, Trash2 } from 'lucide-react'
+import { api, apiRoot, assetUrl } from '../lib/api'
 import { PriceInput } from './PriceInput'
 
 /**
@@ -29,7 +29,15 @@ export function VitrineBlock({
   shop,
   onSaved,
 }: {
-  shop: { id: string; name: string; slug: string | null; themeId: string; storefront: Record<string, string | number> | null }
+  shop: {
+    id: string
+    name: string
+    slug: string | null
+    themeId: string
+    storefront: Record<string, string | number> | null
+    vitrineLogoEntete?: string | null
+    vitrineLogoAccueil?: string | null
+  }
   onSaved: () => void
 }) {
   const [themes, setThemes] = useState<Theme[]>([])
@@ -178,6 +186,26 @@ export function VitrineBlock({
           Cette boutique n'a pas encore d'adresse de vitrine. Renommez-la pour qu'elle en reçoive une.
         </p>
       )}
+
+      {/* --- Les logos de la vitrine ---------------------------------------- */}
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <LogoVitrine
+          shopId={shop.id}
+          emplacement="entete"
+          titre="Logo de l'en-tête"
+          aide="Dans la barre de titre, à côté du nom. Petit, PNG ou SVG."
+          actuel={shop.vitrineLogoEntete ?? null}
+          onSaved={onSaved}
+        />
+        <LogoVitrine
+          shopId={shop.id}
+          emplacement="accueil"
+          titre="Logo d'accueil"
+          aide="Au-dessus du titre, sur la page d'accueil. Grand (~500 px), PNG ou SVG."
+          actuel={shop.vitrineLogoAccueil ?? null}
+          onSaved={onSaved}
+        />
+      </div>
 
       {/* --- Le générateur -------------------------------------------------- */}
       <div>
@@ -521,6 +549,121 @@ function Vignette({
           ) : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Un logo de vitrine, téléversable et effaçable.
+ *
+ * PNG ou SVG, gardé tel quel côté serveur (pas le traitement du filigrane). La
+ * vignette montre ce qui est en place sur un damier, pour qu'un logo transparent
+ * se voie ; l'aperçu se rafraîchit par un compteur anti-cache, parce que
+ * l'adresse peut ne pas changer si le serveur réécrit au même endroit.
+ */
+function LogoVitrine({
+  shopId,
+  emplacement,
+  titre,
+  aide,
+  actuel,
+  onSaved,
+}: {
+  shopId: string
+  emplacement: 'entete' | 'accueil'
+  titre: string
+  aide: string
+  actuel: string | null
+  onSaved: () => void
+}) {
+  const entree = useRef<HTMLInputElement>(null)
+  const [enCours, setEnCours] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [version, setVersion] = useState(0)
+
+  async function choisir(fichier: File | undefined) {
+    if (!fichier) return
+    setErreur(null)
+    setEnCours(true)
+    try {
+      await api.uploadVitrineLogo(shopId, emplacement, fichier)
+      setVersion((v) => v + 1)
+      onSaved()
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : 'Envoi impossible')
+    } finally {
+      setEnCours(false)
+      if (entree.current) entree.current.value = ''
+    }
+  }
+
+  async function effacer() {
+    setErreur(null)
+    setEnCours(true)
+    try {
+      await api.deleteVitrineLogo(shopId, emplacement)
+      onSaved()
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : 'Suppression impossible')
+    } finally {
+      setEnCours(false)
+    }
+  }
+
+  const apercu = actuel ? `${assetUrl(actuel)}${actuel.includes('?') ? '&' : '?'}v=${version}` : null
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+      <p className="text-xs font-medium text-gray-300">{titre}</p>
+      <p className="mt-0.5 text-[11px] text-gray-500">{aide}</p>
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => entree.current?.click()}
+          disabled={enCours}
+          className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-[conic-gradient(#0000_90deg,#ffffff14_0_180deg,#0000_0_270deg,#ffffff14_0)] bg-[length:14px_14px] disabled:opacity-50"
+          title="Choisir un fichier"
+        >
+          {enCours ? (
+            <Loader2 size={16} className="animate-spin text-gray-400" />
+          ) : apercu ? (
+            <img src={apercu} alt="" className="max-h-full max-w-full object-contain" />
+          ) : (
+            <ImagePlus size={18} className="text-gray-500" />
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => entree.current?.click()}
+              disabled={enCours}
+              className="rounded-lg border border-white/15 px-2.5 py-1 text-[11px] hover:bg-white/5 disabled:opacity-50"
+            >
+              {actuel ? 'Remplacer' : 'Téléverser'}
+            </button>
+            {actuel ? (
+              <button
+                type="button"
+                onClick={effacer}
+                disabled={enCours}
+                className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-gray-400 hover:bg-white/5 disabled:opacity-50"
+              >
+                <Trash2 size={11} />
+                <span>Retirer</span>
+              </button>
+            ) : null}
+          </div>
+          {erreur ? <p className="mt-1 text-[11px] text-red-300">{erreur}</p> : null}
+        </div>
+      </div>
+      <input
+        ref={entree}
+        type="file"
+        accept="image/png,image/svg+xml,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => choisir(e.target.files?.[0])}
+      />
     </div>
   )
 }

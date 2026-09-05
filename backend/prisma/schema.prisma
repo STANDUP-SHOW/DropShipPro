@@ -500,7 +500,18 @@ model Shop {
 
   /// Le logo de cette boutique, servi via /storage. Prioritaire sur celui du
   /// compte : un vendeur qui tient deux sites ne les signe pas pareil.
+  ///
+  /// C'est le logo du FILIGRANE : rasterisé, fond blanc détouré, plafonné. Il
+  /// sert aussi de repli dans l'en-tête de la vitrine, mais un logo de vitrine
+  /// propre (PNG ou SVG gardé tel quel) vit dans les deux champs ci-dessous.
   logo              String?
+  /// Le logo de l'en-tête de la vitrine — barre de titre, petit. PNG ou SVG
+  /// gardé tel quel, sans le traitement du filigrane. Repli sur `logo` puis sur
+  /// le nom quand il est absent.
+  vitrineLogoEntete String?
+  /// Le logo d'accueil de la vitrine — au-dessus du titre du héros, ~500 px.
+  /// PNG ou SVG gardé tel quel. Absent = pas de logo, juste le titre.
+  vitrineLogoAccueil String?
   watermarkText     String?
   watermarkEnabled  Boolean @default(true)
   watermarkScale    Int?

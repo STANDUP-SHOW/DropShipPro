@@ -13,7 +13,7 @@ import { reserveCredits, refundCredits } from '../services/billing.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { estMirakl, normaliserBaseUrl } from '../services/mirakl.js'
-import { saveWatermarkLogo } from '../services/watermark.js'
+import { saveWatermarkLogo, saveVitrineLogo } from '../services/watermark.js'
 import {
   normalizeShopDomain,
   jetonParClientCredentials,
@@ -134,6 +134,8 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
       slug: s.slug,
       platform: s.platform,
       logo: s.logo,
+      vitrineLogoEntete: s.vitrineLogoEntete,
+      vitrineLogoAccueil: s.vitrineLogoAccueil,
       sectors: Array.isArray(s.sectors) ? s.sectors : [],
       products: s._count.products,
       createdAt: s.createdAt,
@@ -748,6 +750,57 @@ settingsRouter.delete('/shops/:id/logo', async (req: AuthedRequest, res) => {
   })
   if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
   await oublierImagesExport(req.userId!)
+  res.json({ ok: true })
+})
+
+/**
+ * Les deux logos de la vitrine — en-tête et accueil.
+ *
+ * Distincts du logo de filigrane (`/logo` ci-dessus) : celui-là est rasterisé
+ * et détouré pour se poser sur une photo, ceux-ci sont gardés tels quels pour
+ * s'afficher net sur la boutique, SVG compris. `emplacement` dit lequel ; sa
+ * valeur borne aussi la taille — l'accueil accepte 500 px, l'en-tête 400.
+ */
+const EMPLACEMENTS_LOGO = {
+  entete: { champ: 'vitrineLogoEntete', cote: 400 },
+  accueil: { champ: 'vitrineLogoAccueil', cote: 500 },
+} as const
+
+settingsRouter.put('/shops/:id/vitrine-logo/:emplacement', (req: AuthedRequest, res) => {
+  const reglage = EMPLACEMENTS_LOGO[req.params.emplacement as keyof typeof EMPLACEMENTS_LOGO]
+  if (!reglage) return res.status(400).json({ error: 'Emplacement de logo inconnu' })
+
+  uploadLogo(req, res, async (err) => {
+    if (err) {
+      const tropGros = (err as { code?: string }).code === 'LIMIT_FILE_SIZE'
+      return res.status(400).json({ error: tropGros ? 'Fichier trop lourd (2 Mo maximum)' : 'Envoi impossible' })
+    }
+    if (!req.file) return res.status(400).json({ error: 'Envoyez une image (PNG ou SVG)' })
+
+    const boutique = await prisma.shop.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+    if (!boutique) return res.status(404).json({ error: 'Boutique introuvable' })
+
+    try {
+      const chemin = await saveVitrineLogo(req.file.buffer, req.file.mimetype, reglage.cote)
+      await prisma.shop.update({ where: { id: boutique.id }, data: { [reglage.champ]: chemin } })
+      // Pas d'oublierImagesExport : un logo de vitrine ne touche pas au filigrane.
+      res.json({ logo: chemin })
+    } catch (e) {
+      // Le refus d'un SVG piégé est un message pour le vendeur, pas une 500.
+      const message = e instanceof Error && /SVG/.test(e.message) ? e.message : "Ce fichier n'a pas pu être lu comme une image"
+      res.status(400).json({ error: message })
+    }
+  })
+})
+
+settingsRouter.delete('/shops/:id/vitrine-logo/:emplacement', async (req: AuthedRequest, res) => {
+  const reglage = EMPLACEMENTS_LOGO[req.params.emplacement as keyof typeof EMPLACEMENTS_LOGO]
+  if (!reglage) return res.status(400).json({ error: 'Emplacement de logo inconnu' })
+  const { count } = await prisma.shop.updateMany({
+    where: { id: req.params.id, userId: req.userId! },
+    data: { [reglage.champ]: null },
+  })
+  if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
   res.json({ ok: true })
 })
 

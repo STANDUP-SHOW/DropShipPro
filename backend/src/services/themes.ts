@@ -123,7 +123,14 @@ export interface Apparence {
   jetons: JetonsTheme
   polices: { titre: string; texte: string; familles: string[] }
   contenu: ContenuVitrine
-  boutique: { nom: string; logo: string | null }
+  boutique: {
+    nom: string
+    logo: string | null
+    /** Logo de l'en-tête de la vitrine, ou repli sur `logo`. */
+    logoEntete: string | null
+    /** Grand logo posé au-dessus du titre de l'accueil. */
+    logoAccueil: string | null
+  }
 }
 
 /** Ce que la bibliothèque propose, pour l'écran de choix. */
@@ -189,6 +196,8 @@ export function themeConnu(id: string): boolean {
 export function resoudre(boutique: {
   name: string
   logo?: string | null
+  vitrineLogoEntete?: string | null
+  vitrineLogoAccueil?: string | null
   themeId?: string | null
   themeTokens?: unknown
   storefront?: unknown
@@ -233,7 +242,14 @@ export function resoudre(boutique: {
       familles: [...new Set([typo.titre, typo.texte])],
     },
     contenu,
-    boutique: { nom: boutique.name, logo: boutique.logo ?? null },
+    boutique: {
+      nom: boutique.name,
+      logo: boutique.logo ?? null,
+      // L'en-tête préfère son logo dédié, puis retombe sur le logo de filigrane
+      // (déjà servi là aujourd'hui) : personne ne perd son logo actuel.
+      logoEntete: boutique.vitrineLogoEntete ?? boutique.logo ?? null,
+      logoAccueil: boutique.vitrineLogoAccueil ?? null,
+    },
   }
 }
 

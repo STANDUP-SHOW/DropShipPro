@@ -655,6 +655,19 @@ export const api = {
     })
   },
 
+  /** Les deux logos de la vitrine : 'entete' (barre de titre) ou 'accueil' (grand, ~500 px). */
+  uploadVitrineLogo: (shopId: string, emplacement: 'entete' | 'accueil', file: File) => {
+    const form = new FormData()
+    form.append('logo', file)
+    return request<{ logo: string }>(`/settings/shops/${shopId}/vitrine-logo/${emplacement}`, {
+      method: 'PUT',
+      body: form,
+      headers: {},
+    })
+  },
+  deleteVitrineLogo: (shopId: string, emplacement: 'entete' | 'accueil') =>
+    request<{ ok: true }>(`/settings/shops/${shopId}/vitrine-logo/${emplacement}`, { method: 'DELETE' }),
+
   listShops: () =>
     request<
       Array<{
@@ -665,6 +678,9 @@ export const api = {
         sectors: string[]
         products: number
         logo: string | null
+        /** Logos dédiés de la vitrine : en-tête et accueil (PNG ou SVG). */
+        vitrineLogoEntete: string | null
+        vitrineLogoAccueil: string | null
         createdAt: string
         /*
          * Le filigrane de cette boutique. `null` veut dire « comme le compte » :

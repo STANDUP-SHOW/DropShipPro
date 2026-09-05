@@ -71,7 +71,13 @@ const THEME = {
     fraisPort: 4.9,
     portOffertDes: 79,
   },
-  boutique: { nom: 'France ROBOTIQUE', logo: null },
+  boutique: {
+    nom: 'France ROBOTIQUE',
+    logo: null,
+    // Ce que la route publique sert : logos absolutisés (ou repli déjà résolu).
+    logoEntete: 'https://api.test/storage/logos/entete.svg',
+    logoAccueil: 'https://api.test/storage/logos/accueil.png',
+  },
   css: ':root{}',
 }
 
@@ -169,6 +175,18 @@ async function main() {
   })
   verifierSansLever('un titre venu d\'un site tiers ne s\'exécute jamais', () =>
     w.PIEGE === undefined && !d.getElementById('page').querySelector('script'))
+  verifierSansLever('le logo d\'en-tête est dans la barre de titre', () => {
+    const img = d.getElementById('enseigne').querySelector('img')
+    return img && img.getAttribute('src') === 'https://api.test/storage/logos/entete.svg'
+  })
+  verifierSansLever('le grand logo d\'accueil est posé au-dessus du titre', () => {
+    const logo = d.querySelector('.hero .logo-accueil')
+    const h1 = d.querySelector('.hero h1')
+    if (!logo || !h1) return false
+    // Au-dessus : dans l'ordre du document, le logo précède le titre.
+    return logo.getAttribute('src') === 'https://api.test/storage/logos/accueil.png' &&
+      (logo.compareDocumentPosition(h1) & 4) === 4
+  })
 
   console.log('— Modes visiteur —')
   verifierSansLever('le défaut est le thème du marchand, jetons posés en --m-*', () =>

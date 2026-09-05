@@ -126,6 +126,8 @@
       /* ---------- Héro ---------- */
       .hero { background: var(--hero); border-bottom: 1px solid var(--line); }
       .hero-in { padding: 64px 0 46px; text-align: center; }
+      /* Le logo d'accueil : jusqu'à 500 px, centré, au-dessus du surtitre. */
+      .logo-accueil { width: min(500px, 62vw); height: auto; margin: 0 auto 22px; object-fit: contain; }
       .hero .sur { font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
       .hero h1 { margin: 12px auto 0; max-width: 18em; font-size: clamp(30px, 5vw, 52px); line-height: 1.08; font-family: var(--display); font-weight: 800; }
       .hero p { margin: 16px auto 0; max-width: 42em; color: var(--muted); font-size: 15px; line-height: 1.6; }
@@ -380,11 +382,17 @@
           )
         }
 
+        function logos() {
+          return (apparence && apparence.boutique) || {}
+        }
+
         function pageAccueil() {
           var c = (apparence && apparence.contenu) || {}
           var lesRayons = rayons()
+          var accueil = logos().logoAccueil
           return (
             '<div class="hero"><div class="wrap hero-in">' +
+            (accueil ? '<img class="logo-accueil" src="' + texte(accueil) + '" alt="' + texte(nomBoutique) + '" />' : '') +
             '<p class="sur">' + texte(nomBoutique) + '</p>' +
             '<h1>' + texte(c.accroche || '') + ' ' + texte(c.accrocheSuite || '') + '</h1>' +
             '<p>' + texte(c.sousTitre || '') + '</p>' +
@@ -688,7 +696,8 @@
             }
 
             var enseigne = document.getElementById('enseigne')
-            var logo = apparence.boutique && apparence.boutique.logo
+            // Le logo d'en-tête, avec repli serveur sur le logo de filigrane.
+            var logo = apparence.boutique && apparence.boutique.logoEntete
             enseigne.innerHTML = (logo ? '<img src="' + texte(logo) + '" alt="" />' : '') + '<span>' + texte(nomBoutique) + '</span>'
 
             if (apparence.contenu && apparence.contenu.annonce) {

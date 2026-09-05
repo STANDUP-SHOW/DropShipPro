@@ -344,6 +344,49 @@ export async function saveWatermarkLogo(buffer: Buffer, mimetype: string): Promi
 }
 
 /**
+ * Enregistre un logo de VITRINE — l'en-tête ou l'accueil — sans le traitement
+ * du filigrane.
+ *
+ * Un logo de vitrine n'est pas un logo de filigrane, et les traiter pareil
+ * abîme les deux : `saveWatermarkLogo` rasterise le SVG en PNG (une vitrine
+ * veut du SVG net à toutes les tailles) et détoure le fond blanc (un logo posé
+ * volontairement sur cartouche blanc y perdrait son fond). Ici, le SVG est
+ * gardé tel quel après contrôle, le raster est seulement plafonné à `cote` px
+ * sans jamais manger de pixels.
+ *
+ * `cote` : le plus grand côté toléré — ~400 pour l'en-tête, 500 pour l'accueil.
+ */
+export async function saveVitrineLogo(
+  buffer: Buffer,
+  mimetype: string,
+  cote: number,
+): Promise<string> {
+  if (mimetype.includes('svg')) {
+    /*
+     * Un SVG est du texte, et un SVG téléversé peut porter du script. Servi via
+     * `<img>` sur la vitrine il ne s'exécuterait pas, mais l'adresse
+     * `/storage/...` est ouvrable en direct : on refuse donc tout SVG qui
+     * embarque du script, un gestionnaire d'événement ou un objet étranger,
+     * plutôt que de parier sur la façon dont il sera un jour affiché.
+     */
+    const texte = buffer.toString('utf8')
+    const dangereux = /<script[\s>]|<foreignObject[\s>]|javascript:|\son\w+\s*=/i
+    if (dangereux.test(texte)) {
+      throw new Error('Ce SVG contient du script et ne peut pas être utilisé comme logo.')
+    }
+    return putFile(`logos/${randomUUID()}.svg`, buffer, 'image/svg+xml')
+  }
+
+  // PNG/JPEG/WebP : on garde la transparence si elle existe et on plafonne, sans
+  // toucher aux pixels — pas de détourage, pas de fond forcé.
+  const png = await sharp(buffer)
+    .resize({ width: cote, height: cote, fit: 'inside', withoutEnlargement: true })
+    .png()
+    .toBuffer()
+  return putFile(`logos/${randomUUID()}.png`, png, 'image/png')
+}
+
+/**
  * Makes a flat light background transparent.
  *
  * Sellers upload the logo they have — usually a JPEG or a PNG exported on white.
