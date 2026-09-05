@@ -92,6 +92,8 @@
         color: var(--text);
         font-family: var(--sans);
         -webkit-font-smoothing: antialiased;
+        /* Garde-fou : la page ne défile jamais horizontalement, quoi qu'il arrive. */
+        overflow-x: hidden;
       }
       img { display: block; max-width: 100%; }
       button { font: inherit; cursor: pointer; }
@@ -105,14 +107,16 @@
         backdrop-filter: blur(14px);
         border-bottom: 1px solid var(--line);
       }
-      .barre { display: flex; align-items: center; gap: 14px; padding: 12px 0; }
+      /* La barre s'enroule sur mobile : enseigne d'abord, puis modes et panier
+         sur une seconde ligne, plutôt qu'un débordement horizontal du corps. */
+      .barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 0; }
       .enseigne { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; text-decoration: none; font-family: var(--display); }
       .enseigne img { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; }
       .nav { display: none; gap: 4px; }
       @media (min-width: 860px) { .nav { display: flex; } }
       .nav a { padding: 7px 12px; border-radius: 999px; font-size: 13px; color: var(--muted); text-decoration: none; }
       .nav a:hover, .nav a.actif { color: var(--text); background: var(--surface-2); }
-      .droite { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+      .droite { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
       .modes { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
       .modes button { border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 999px; }
       .modes button[aria-pressed='true'] { color: #fff; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
