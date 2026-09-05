@@ -38,9 +38,16 @@ frontend/    React + Vite + Tailwind v4 → Vercel (Root Directory = frontend)
 storefront/  Vitrine de démonstration OGGUS (HTML autonome)
 storefront-imprimerie/  Print34, boutique d'imprimerie autonome (voir docs/boutique-imprimerie.md)
 backend/storefront-boutique/  La vitrine generique, servie a /b/<adresse> — sous backend/ parce que Railway y a sa racine.
-                    Refondue le 05/09/2026 sur le modele d oguss.fr : 4 modes visiteur [data-theme], panier localStorage
-                    par boutique, commande vers POST /api/public/shops/:shopKey/orders (prix relus serveur, Order.quantity).
-                    Banc node check-vitrine.cjs (faux fetch, attentes de visiteur, contrat de commande ecrit en dur).
+                    Refondue le 05/09/2026 sur le modele d oguss.fr : 5 modes visiteur [data-theme] — « Boutique »
+                    (les 16 jetons du theme marchand en variables --m-*, mode par defaut) puis noir/clair/gradient/
+                    colorful —, panier localStorage par boutique, commande vers POST /api/public/shops/:shopKey/orders
+                    (prix relus serveur, Order.quantity). Banc node check-vitrine.cjs (faux fetch, attentes de
+                    visiteur, contrat de commande ecrit en dur). La bibliotheque fait 50 themes (build-themes.cjs,
+                    tableau THEMES apparie a la main) ; deux bornes tenues par check-themes.ts : 40 familles de
+                    polices maxi (elles seront auto-hebergees — RGPD) et 8 paires de contraste WCAG par palette.
+                    Jamais de typo hors Google Fonts (appariements 20 et 39 : Satoshi, Clash Display, General Sans).
+                    Les textes de vitrine s editent champ par champ dans VitrineBlock ; PATCH /settings/shops/:id
+                    REMPLACE le JSON storefront en entier — toujours renvoyer l objet complet fusionne.
 docs/        Documentation de l'API catalogue
 ```
 
@@ -152,6 +159,28 @@ Trois conséquences, toutes appliquées :
   Vite fige les `VITE_*` a la compilation, donc ajouter une variable exige un
   redeploiement, et en ecraser une ne se voit qu au premier clic. `lib/api.ts`
   retombe desormais sur l API connue plutot que sur une adresse impossible.
+- **Un handler `async` qui leve, sous Express 4, fait PENDRE la requete — pas
+  d erreur, pas de 500, rien.** Express 4 (pas la 5) n attrape pas ce qu un
+  `async` leve de lui-meme : la reponse n arrive jamais, le client patiente
+  jusqu au timeout. Panne du 05/09/2026 : apres le wipe du 01/09, le compte de
+  Max a ete recree avec un nouvel id, mais son navigateur gardait un jeton
+  signe pointant l ancien. Signature bonne -> `jwt.verify` passe -> `req.userId`
+  = id fantome -> le premier `findUniqueOrThrow({ id: req.userId })` de la route
+  leve `NotFoundError`. Chaque chargement de sa page empilait une requete
+  pendante, jusqu a saturer l instance : **le service tombait quelques minutes
+  apres chaque demarrage, sans une ligne de journal**, et Railway cesse de
+  relancer apres une serie d echecs. Les `.catch` des tournees et l AUTO-MODE
+  n y etaient pour rien -- desarme a tort par precaution avant de trouver.
+  Trois protections, du plus cible au plus general : **`requireAuth` refuse au
+  portique un jeton valide dont le compte a disparu** (un `findUnique` par cle
+  primaire -> 401 « reconnectez-vous »), ce qui couvre d un coup les seize
+  routes qui font confiance a `req.userId` ; un **gestionnaire d erreurs Express
+  a quatre arguments** en fin d `index.ts` ; et un filet **process** dans
+  `index.ts` (`unhandledRejection` journalise et survit, `uncaughtException`
+  journalise et sort proprement pour que Railway relance). Le premier reflexe
+  quand l API pend sans rien journaliser : chercher un `async` qui leve, pas la
+  base ni les tournees. La cause se reproduit hors navigateur en rejouant le
+  jeton exact du localStorage avec `curl` -- 20 s pendues avant le correctif.
 - **Vercel répond 200 à un GET et 405 à un POST** sur `/api/*`. Une adresse d'API
   mal réglée dans l'extension donne donc un 405 incompréhensible ; le popup la
   vérifie désormais avant d'enregistrer.

@@ -77,6 +77,21 @@ de passe oublié. Le code est bon, il lui manque la clé.
 
 ## Ce qui a été fait le 05/09/2026 — vu fonctionner en production
 
+- **La panne du matin est réglée, et ce n'était pas la base.** L'API tombait
+  quelques minutes après chaque démarrage, sans journal : un jeton valide de
+  Max (localStorage) pointait un id de compte disparu au wipe du 01/09, le
+  `findUniqueOrThrow` de la route levait, et Express 4 laisse **pendre** ce
+  qu'un handler async lève. `requireAuth` refuse désormais un tel jeton en 401
+  (voir le piège dans `CLAUDE.md`). **Max doit se reconnecter une fois** pour
+  remplacer son jeton mort. Base jamais touchée.
+- **Deux passes vitrine livrées, vues en production** : la bibliothèque passe
+  de 21 à 50 thèmes (build-themes.cjs, 40 familles de polices maxi), la vitrine
+  gagne un 5ᵉ mode « Boutique » (les 16 jetons du marchand), et VitrineBlock
+  gagne un éditeur de textes (accroche/sous-titre/annonce/frais de port, PATCH
+  fusionnant) + une bibliothèque filtrable (pastilles par structure, recherche
+  nom/secteurs). Constaté sur un compte jetable : édition → base → vitrine.
+
+
 - **La vitrine `/b/<slug>` vend.** Refondue sur le modèle d'oguss.fr : héro et
   catégories créées depuis le flux, fiche produit, panier localStorage par
   boutique, 4 modes visiteur `[data-theme]` teintés par l'accent du thème
