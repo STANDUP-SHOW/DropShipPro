@@ -54,7 +54,7 @@ async function main() {
     await prisma.autopilot.create({ data: { userId: eteint.id, enabled: false } })
 
     console.log('La tranche : payée d\'avance, une par demi-journée')
-    await tourneeAutopilot(fauxPassage, 0)
+    await tourneeAutopilot(fauxPassage, 0, [riche.id, pauvre.id, eteint.id])
     verifier('les deux pilotes activés sont visés, l\'éteint jamais', passages === 1, `${passages} passage(s)`)
     verifier(`la tranche coûte ${CREDITS_TRANCHE_AUTO} crédits, débités d'avance`, (await credits(riche.id)) === 20 - CREDITS_TRANCHE_AUTO)
     verifier('le vendeur sans crédits n\'est pas servi, ses crédits intacts', (await credits(pauvre.id)) === 2)
@@ -63,7 +63,7 @@ async function main() {
 
     console.log('\nLa garde de la tranche')
     const avant = passages
-    await tourneeAutopilot(fauxPassage, 0)
+    await tourneeAutopilot(fauxPassage, 0, [riche.id, pauvre.id, eteint.id])
     verifier('une tournée juste après ne repasse pas', passages === avant)
     verifier('et ne re-débite rien', (await credits(riche.id)) === 20 - CREDITS_TRANCHE_AUTO)
 
@@ -73,7 +73,7 @@ async function main() {
       data: { lastAutoRunAt: new Date(Date.now() - 12 * 3600 * 1000) },
     })
     const avantPanne = await credits(riche.id)
-    await tourneeAutopilot(passageEnPanne, 0)
+    await tourneeAutopilot(passageEnPanne, 0, [riche.id, pauvre.id, eteint.id])
     verifier('la tournée survit au passage en panne', true)
     verifier('la tranche est rendue', (await credits(riche.id)) === avantPanne)
     const marqueRiche = await prisma.autopilot.findUniqueOrThrow({ where: { userId: riche.id } })

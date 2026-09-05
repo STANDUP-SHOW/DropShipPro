@@ -276,9 +276,21 @@ async function dejaServi(depId: string): Promise<boolean> {
  * rafale, c'est comme ça que la limite « serveur dépassée » du 04/09/2026 a
  * été atteinte — et un passage sans recherche échoue exprès.
  */
-export async function tourneeAutoMode(generer: Generateur = genererAnalyse, pauseMs = 20_000): Promise<void> {
+export async function tourneeAutoMode(
+  generer: Generateur = genererAnalyse,
+  pauseMs = 20_000,
+  // Restricts the sweep to these accounts. Production never passes it; benches
+  // MUST: on 05/09/2026 the unscoped bench sweep ran its fake generator over
+  // the three real armed departments and consigned fake analyses there.
+  seulement?: string | string[],
+): Promise<void> {
   const rayons = await prisma.department.findMany({
-    where: { autoMode: true, paidUntil: { gt: new Date() }, NOT: { plan: 'essai' } },
+    where: {
+      autoMode: true,
+      paidUntil: { gt: new Date() },
+      NOT: { plan: 'essai' },
+      ...(seulement ? { userId: { in: Array.isArray(seulement) ? seulement : [seulement] } } : {}),
+    },
   })
 
   let dejaUnPassage = false

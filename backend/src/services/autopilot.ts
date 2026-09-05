@@ -329,11 +329,19 @@ export type PassageAutopilot = (userId: string) => Promise<RunResult>
  * gagnants », et chaque soir. La garde vit en base (`lastAutoRunAt`), donc
  * un redéploiement Railway ne rejoue ni ne double aucun passage.
  */
-export async function tourneeAutopilot(passage: PassageAutopilot = runAutopilot, pauseMs = 5_000): Promise<void> {
+export async function tourneeAutopilot(
+  passage: PassageAutopilot = runAutopilot,
+  pauseMs = 5_000,
+  // Restricts the sweep to these accounts. Production never passes it; benches
+  // MUST — an unscoped bench sweep would run its fake passage on any real
+  // enabled autopilot outside its 11-hour window and debit 5 real credits.
+  seulement?: string | string[],
+): Promise<void> {
   const actifs = await prisma.autopilot.findMany({
     where: {
       enabled: true,
       OR: [{ lastAutoRunAt: null }, { lastAutoRunAt: { lt: new Date(Date.now() - 11 * 3600 * 1000) } }],
+      ...(seulement ? { userId: { in: Array.isArray(seulement) ? seulement : [seulement] } } : {}),
     },
   })
 
