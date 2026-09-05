@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Palette, Sparkles, ExternalLink, Copy, Check, Loader2 } from 'lucide-react'
+import { Palette, Sparkles, ExternalLink, Copy, Check, Loader2, PenLine, Search } from 'lucide-react'
 import { api, apiRoot } from '../lib/api'
+import { PriceInput } from './PriceInput'
 
 /**
  * L'apparence d'une boutique : le thème, les textes, et l'adresse de la vitrine.
@@ -38,6 +39,14 @@ export function VitrineBlock({
   const [erreur, setErreur] = useState<string | null>(null)
   const [copie, setCopie] = useState(false)
   const [tousLesThemes, setTousLesThemes] = useState(false)
+  const [filtreStructure, setFiltreStructure] = useState('')
+  const [rechercheTheme, setRechercheTheme] = useState('')
+  const [editeur, setEditeur] = useState(false)
+  const [textes, setTextes] = useState({ accroche: '', accrocheSuite: '', sousTitre: '', annonce: '' })
+  const [fraisPort, setFraisPort] = useState(4.9)
+  const [portOffertDes, setPortOffertDes] = useState(79)
+  const [sauve, setSauve] = useState(false)
+  const [enregistrement, setEnregistrement] = useState(false)
 
   useEffect(() => {
     api.listThemes().then(setThemes).catch(() => {
@@ -79,6 +88,52 @@ export function VitrineBlock({
 
   /** L'adresse d'essai : la vraie boutique, avec un autre thème, sans rien écrire. */
   const essai = (themeId: string) => (adresse ? `${adresse}?theme=${themeId}` : null)
+
+  /** Ouvre l'éditeur sur ce qui est réellement en place, jamais sur du vide. */
+  function ouvrirEditeur() {
+    const sf = shop.storefront ?? {}
+    setTextes({
+      accroche: typeof sf.accroche === 'string' ? sf.accroche : '',
+      accrocheSuite: typeof sf.accrocheSuite === 'string' ? sf.accrocheSuite : '',
+      sousTitre: typeof sf.sousTitre === 'string' ? sf.sousTitre : '',
+      annonce: typeof sf.annonce === 'string' ? sf.annonce : '',
+    })
+    setFraisPort(typeof sf.fraisPort === 'number' ? sf.fraisPort : 4.9)
+    setPortOffertDes(typeof sf.portOffertDes === 'number' ? sf.portOffertDes : 79)
+    setEditeur(true)
+  }
+
+  /**
+   * Écrit les textes de la vitrine, champ par champ.
+   *
+   * PATCH remplace le JSON `storefront` en entier : on repart donc de ce qui est
+   * stocké et on renvoie l'objet complet. Un champ texte vidé est retiré de
+   * l'objet — la vitrine retombe alors sur son texte d'usine, ce que le libellé
+   * du bloc annonce ; les deux montants partent toujours, 0 est une valeur
+   * (port offert).
+   */
+  async function enregistrerTextes() {
+    setErreur(null)
+    setEnregistrement(true)
+    try {
+      const sf: Record<string, string | number> = { ...(shop.storefront ?? {}) }
+      for (const cle of ['accroche', 'accrocheSuite', 'sousTitre', 'annonce'] as const) {
+        const net = textes[cle].trim()
+        if (net) sf[cle] = net
+        else delete sf[cle]
+      }
+      sf.fraisPort = fraisPort
+      sf.portOffertDes = portOffertDes
+      await api.renameShop(shop.id, { storefront: sf })
+      setSauve(true)
+      setTimeout(() => setSauve(false), 1800)
+      onSaved()
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : 'Enregistrement impossible')
+    } finally {
+      setEnregistrement(false)
+    }
+  }
 
   return (
     <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -206,6 +261,90 @@ export function VitrineBlock({
         </div>
       ) : null}
 
+      {/* --- L'éditeur des textes -------------------------------------------- */}
+      <div>
+        <button
+          type="button"
+          onClick={() => (editeur ? setEditeur(false) : ouvrirEditeur())}
+          className="inline-flex items-center gap-1.5 text-[11px] text-purple-300 hover:underline"
+        >
+          <PenLine size={11} />
+          <span>{editeur ? 'Masquer les textes' : 'Écrire moi-même les textes et la livraison'}</span>
+        </button>
+
+        {editeur ? (
+          <div className="mt-3 space-y-2.5 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <div>
+                <label className="text-xs text-gray-400">Accroche (1ʳᵉ ligne du titre)</label>
+                <input
+                  value={textes.accroche}
+                  onChange={(e) => setTextes((t) => ({ ...t, accroche: e.target.value }))}
+                  maxLength={120}
+                  placeholder="Notre sélection,"
+                  className={`${champ} mt-1`}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Suite de l'accroche</label>
+                <input
+                  value={textes.accrocheSuite}
+                  onChange={(e) => setTextes((t) => ({ ...t, accrocheSuite: e.target.value }))}
+                  maxLength={120}
+                  placeholder="choisie pour vous."
+                  className={`${champ} mt-1`}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400">Sous-titre</label>
+              <textarea
+                value={textes.sousTitre}
+                onChange={(e) => setTextes((t) => ({ ...t, sousTitre: e.target.value }))}
+                maxLength={400}
+                rows={2}
+                placeholder="Livraison suivie. Paiement sécurisé. Retours sous 14 jours."
+                className={`${champ} mt-1`}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400">Bandeau d'annonce (tout en haut de la vitrine)</label>
+              <input
+                value={textes.annonce}
+                onChange={(e) => setTextes((t) => ({ ...t, annonce: e.target.value }))}
+                maxLength={200}
+                placeholder="Livraison offerte dès 79 € — laissez vide pour ne rien afficher"
+                className={`${champ} mt-1`}
+              />
+            </div>
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <div>
+                <label className="text-xs text-gray-400">Frais de port (€)</label>
+                <PriceInput value={fraisPort} onCommit={setFraisPort} className={`${champ} mt-1`} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Port offert dès (€)</label>
+                <PriceInput value={portOffertDes} onCommit={setPortOffertDes} className={`${champ} mt-1`} />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={enregistrerTextes}
+                disabled={enregistrement}
+                className="btn-gradient rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+              >
+                {enregistrement ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+              {sauve ? <span className="text-xs text-purple-200">Enregistré ✓</span> : null}
+              <span className="text-[11px] text-gray-500">
+                Un champ texte laissé vide reprend le texte d'usine.
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {/* --- La bibliothèque -------------------------------------------------- */}
       {themes.length ? (
         <div>
@@ -218,20 +357,103 @@ export function VitrineBlock({
           </button>
 
           {tousLesThemes ? (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {themes.map((t) => (
-                <Vignette
-                  key={t.id}
-                  theme={t}
-                  choisi={t.id === shop.themeId}
-                  essai={essai(t.id)}
-                  onChoisir={() => appliquer(t.id)}
-                />
-              ))}
-            </div>
+            <BibliothequeThemes
+              themes={themes}
+              filtreStructure={filtreStructure}
+              onFiltre={setFiltreStructure}
+              recherche={rechercheTheme}
+              onRecherche={setRechercheTheme}
+              themeChoisi={shop.themeId}
+              essai={essai}
+              onChoisir={(id) => appliquer(id)}
+            />
           ) : null}
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * La bibliothèque dépliée, avec de quoi s'y retrouver à cinquante thèmes.
+ *
+ * À vingt et un, une grille suffisait ; à cinquante, elle fait dix-sept rangées.
+ * Le filtre réutilise ce que chaque thème sait déjà de lui-même — sa structure
+ * et ses secteurs — plutôt que d'inventer une taxonomie de plus.
+ */
+function BibliothequeThemes({
+  themes,
+  filtreStructure,
+  onFiltre,
+  recherche,
+  onRecherche,
+  themeChoisi,
+  essai,
+  onChoisir,
+}: {
+  themes: Theme[]
+  filtreStructure: string
+  onFiltre: (id: string) => void
+  recherche: string
+  onRecherche: (v: string) => void
+  themeChoisi: string
+  essai: (themeId: string) => string | null
+  onChoisir: (themeId: string) => void
+}) {
+  const structures = [...new Map(themes.map((t) => [t.structure.id, t.structure])).values()]
+  const terme = recherche.trim().toLowerCase()
+  const visibles = themes.filter((t) => {
+    if (filtreStructure && t.structure.id !== filtreStructure) return false
+    if (!terme) return true
+    return `${t.nom} ${t.secteurs.join(' ')}`.toLowerCase().includes(terme)
+  })
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onFiltre('')}
+          className={`rounded-full border px-2.5 py-1 text-xs transition ${
+            filtreStructure === '' ? 'border-purple-400/60 bg-purple-500/20 text-white' : 'border-white/10 text-gray-400 hover:bg-white/5'
+          }`}
+        >
+          {`Tous (${themes.length})`}
+        </button>
+        {structures.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onFiltre(filtreStructure === s.id ? '' : s.id)}
+            title={s.pour}
+            className={`rounded-full border px-2.5 py-1 text-xs transition ${
+              filtreStructure === s.id ? 'border-purple-400/60 bg-purple-500/20 text-white' : 'border-white/10 text-gray-400 hover:bg-white/5'
+            }`}
+          >
+            {`${s.nom} (${themes.filter((t) => t.structure.id === s.id).length})`}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative">
+        <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <input
+          value={recherche}
+          onChange={(e) => onRecherche(e.target.value)}
+          placeholder="Rechercher un thème ou un secteur — bijoux, gaming, bébé…"
+          className={`${champ} pl-8`}
+        />
+      </div>
+
+      {visibles.length ? (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {visibles.map((t) => (
+            <Vignette key={t.id} theme={t} choisi={t.id === themeChoisi} essai={essai(t.id)} onChoisir={() => onChoisir(t.id)} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-gray-500">Aucun thème ne correspond — essayez un autre mot.</p>
+      )}
     </div>
   )
 }
@@ -274,6 +496,7 @@ function Vignette({
       <div className="p-2.5">
         <p className="text-xs font-semibold">{theme.nom}</p>
         <p className="truncate text-[10.5px] text-gray-500">{theme.structure.nom}</p>
+        <p className="truncate text-[10px] text-gray-600">{theme.secteurs.join(' · ')}</p>
         <div className="mt-2 flex items-center gap-1.5">
           <button
             type="button"
