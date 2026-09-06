@@ -657,6 +657,27 @@ Trois conséquences, toutes appliquées :
   à 15 partout sauf dans `capture.js`, où 10 restait écrit en dur à trois
   endroits — le vendeur lisait 15 et n'en cochait que 10.
 
+- **En import de LOT, personne ne relit — et c'est là que Temu se venge.**
+  Signalé le 06/09/2026 : un lot de chaussures Temu ressortait avec des photos
+  de tondeuses et d'aspirateurs. **À l'unité c'est bon** (le vendeur choisit à
+  l'œil) ; **en lot c'est cassé** (aucun filtre humain). `releverPourLot`
+  prenait les photos « certifiées » par l'adaptateur, or sur Temu galerie,
+  panier et recommandations sortent du **même CDN** : l'adaptateur ne les sépare
+  pas, et le filtre par lien (`dspPointeVersUneAutreFiche`) rate les carrousels
+  qui ne sont pas de simples `<a href>`. **Piège de méthode, le pire du projet :
+  `check-recommandations.cjs` PASSAIT** (il teste le filtre par lien sur une
+  page synthétique) **pendant que la réalité échouait** — la page de test ne
+  reproduisait pas la vraie structure Temu. Le seul signal robuste, indépendant
+  de la structure : **une fiche sert ses photos produit à un seul format** (800×800
+  chez Temu, 1000×1000 chez AliExpress), les recommandations à d'autres.
+  `galerieDominante()` (capture.js) ne garde donc que le format le plus
+  représenté parmi les grandes images, en lot uniquement. Banc
+  `node check-galerie-lot.cjs` (jeu de tailles mixtes, garde-fous contre le
+  vidage d'une galerie légitime). **À confirmer sur une vraie fiche Temu** :
+  un banc synthétique ne prouve pas que le format réel sépare bien les deux.
+  Et l'extension ne se met pas à jour toute seule en Mode développeur — le
+  vendeur doit la recharger.
+
 - **Le tri des photos jetait son propre classement.** Les images mesurées
   étaient retriées par surface décroissante, ce qui effaçait le chemin produit
   et l'adaptateur fournisseur : une bannière de 1600×900 passait devant une

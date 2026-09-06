@@ -1641,6 +1641,43 @@
    * sélecteurs n'est pas un lot. Le vendeur reprend ses photos annonce par
    * annonce ensuite, là où il reprend déjà ses prix.
    */
+  /**
+   * En lot, la galerie isolée par son format.
+   *
+   * **Le défaut coûteux du lot, signalé par le vendeur le 06/09/2026** : un lot
+   * de chaussures Temu ressortait avec des photos de tondeuses et d'aspirateurs.
+   * Sur Temu, galerie, panier et recommandations sortent du **même CDN** :
+   * l'adaptateur ne les distingue pas par l'adresse, et le filtre par lien
+   * (`dspPointeVersUneAutreFiche`) rate les carrousels qui ne sont pas de simples
+   * `<a href>`. En import à l'unité le vendeur choisit à l'œil, donc c'est bon ;
+   * en lot personne ne relit, et tout entre.
+   *
+   * Le signal robuste, indépendant de la structure de la page : **une fiche sert
+   * ses photos produit à un seul format** — huit cents sur huit cents chez Temu,
+   * mille sur mille chez AliExpress — et les recommandations, le panier, les
+   * bannières sont à d'autres tailles. Le format le plus représenté parmi les
+   * grandes images est la galerie. C'est ce que le vendeur voit quand il coche à
+   * la main ; ici on le fait pour lui.
+   *
+   * Prudence : on ne tranche que si un format se dégage franchement (au moins
+   * trois photos du même format). Sinon on rend les images telles quelles —
+   * mieux vaut la sélection d'avant qu'une galerie vidée.
+   */
+  function galerieDominante(images) {
+    const grandes = images.filter((i) => Math.min(i.width || 0, i.height || 0) >= MIN_SIDE)
+    if (grandes.length < 3) return images
+    const compte = new Map()
+    for (const i of grandes) {
+      const cle = `${i.width}x${i.height}`
+      compte.set(cle, (compte.get(cle) || 0) + 1)
+    }
+    const dominant = [...compte.entries()].sort((a, b) => b[1] - a[1])[0]
+    if (!dominant || dominant[1] < 3) return images
+    const meme = grandes.filter((i) => `${i.width}x${i.height}` === dominant[0])
+    return meme.length ? meme : images
+  }
+  self.__dspGalerieDominante = galerieDominante
+
   async function releverPourLot() {
     const payload = await buildPayload()
     if (!payload.title) throw new Error('Produit non reconnu sur cette page')
@@ -1659,7 +1696,16 @@
      * personne ne relit. Quand l'adaptateur en trouve au moins trois, on s'en
      * tient à lui.
      */
-    const retenues = certaines.length >= 3 ? certaines : produits
+    const base = certaines.length >= 3 ? certaines : produits
+
+    /*
+     * Puis on isole la galerie par son format — le filet qui manquait.
+     *
+     * L'adaptateur seul ne suffit pas sur Temu (même CDN pour tout) : sans cette
+     * étape, un lot de chaussures ressortait avec des tondeuses. `galerieDominante`
+     * ne garde que le format le plus représenté, c'est-à-dire la galerie.
+     */
+    const retenues = galerieDominante(base)
     payload.images = retenues.slice(0, PHOTOS_MAX).map((i) => i.url)
 
     /*
