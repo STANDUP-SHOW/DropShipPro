@@ -228,7 +228,10 @@ async function montrerLot(hote, surRetour) {
     for (const [i, entree] of liste.entries()) {
       bouton.textContent = `Import ${i + 1} sur ${liste.length}…`
       try {
-        await apiFetch('/api/products/capture', { method: 'POST', body: entree.payload })
+        // `differer` : la réécriture d'un lot part en batch Anthropic (moitié
+        // prix). L'annonce naît avec le texte source et se complète en quelques
+        // minutes ; l'import à l'unité, lui, reste instantané.
+        await apiFetch('/api/products/capture', { method: 'POST', body: { ...entree.payload, differer: true } })
         faits++
       } catch (e) {
         echecs.push({ ...entree, raison: e?.message || 'Échec' })

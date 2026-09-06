@@ -404,6 +404,22 @@ Trois conséquences, toutes appliquées :
   tester). Regle generale : chaque appel IA sur le chemin d import se compte, et un
   appel vision sur chaque item est un cout qu on n annonce pas au vendeur.
 
+- **L API Batch d Anthropic reecrit les LOTS a moitie prix (06/09/2026).** Un
+  import a l unite reste synchrone (l attente n y serait pas acceptable) ; un
+  import en LOT differe la reecriture : l annonce nait avec le texte source
+  (`Product.rewritePending`), depose un `RewriteJob`, et `tourneeReecritures`
+  (services/rewriteBatch.ts, toutes les 2 min) regroupe toutes les entrees en
+  attente dans UN batch Anthropic, puis applique les resultats -- ou rend le
+  credit et garde le texte source en cas d echec, comme le chemin synchrone.
+  `construireRequete`/`interpreter` sont EXTRAITS d aiEnhancer et partages entre
+  le direct et le batch : le lot reecrit mot pour mot comme l unite, sinon les
+  deux divergeraient. Le flag `differer:true` est pose par extension/lot.js.
+  **Piege evite (leçon AUTO-MODE) : la tournee prend un 3e parametre de perimetre
+  (userId) que la prod ne passe JAMAIS et le banc TOUJOURS** -- sans lui, un banc
+  soumettrait et ecraserait les vraies reecritures en attente. Banc
+  `npx tsx check-rewrite-batch.ts` (faux serveur de batch, contrat ecrit en dur :
+  create -> id, retrieve -> ended, results -> une ligne par requete).
+
 - **Une image coute 0,0336 $ (~0,031 EUR)**, pas 0,33. Les credits graphiques sont
   le meilleur produit : 47 a 69 % de marge sur les six premiers paliers. Les deux
   derniers sont fragiles -- 23 % a 10 000 images, **3 % a 25 000** (27 EUR de

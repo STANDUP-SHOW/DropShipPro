@@ -177,6 +177,7 @@ model User {
   agentAutoSettings  AgentAutoSetting[]
   adAccounts         AdAccount[]
   productReviews     ProductReview[]
+  rewriteJobs        RewriteJob[]
   supplierLinks      SupplierConnection[]
   tickets            Ticket[]
   socialProfiles     SocialProfile[]
@@ -331,6 +332,10 @@ model Product {
   /// Faux quand le modele n a pas repondu et que le texte source a ete conserve.
   /// L annonce est alors signalee dans l interface et le credit n est pas pris.
   aiEnhanced Boolean @default(true)
+  /// La reecriture est differee et pas encore appliquee (import en lot -> Batch).
+  /// Vrai : l annonce porte le texte source, la vraie sortie arrive par batch.
+  /// Voir services/rewriteBatch.ts et le RewriteJob correspondant.
+  rewritePending Boolean @default(false)
 
   /// Derniere analyse de marche (voir services/marketAnalysis.ts), telle quelle.
   /// Stockee pour ne pas la repayer a chaque affichage.
@@ -351,6 +356,7 @@ model Product {
   updatedAt DateTime @updatedAt
 
   publications    Publication[]
+  rewriteJob      RewriteJob?
   orders          Order[]
   generatedImages GeneratedImage[]
 }
@@ -1020,6 +1026,33 @@ model AdAccount {
 ///
 /// Garde en cache par adresse, et pour de bonnes raisons : l avis coute cinq
 /// recherches web et une lecture par le modele, soit trois credits au vendeur.
+/// Une reecriture d annonce differee, en attente d un lot Anthropic.
+///
+/// L import a l unite reecrit tout de suite ; l import en LOT ne le fait pas :
+/// il cree l annonce avec le texte source (rewritePending), depose ici l entree
+/// de la reecriture, et un planificateur (services/rewriteBatch.ts) regroupe
+/// toutes les entrees en attente dans UN SEUL batch Anthropic -- moitie prix.
+/// Le batch fini, chaque resultat est applique a son annonce ou echoue (credit
+/// rendu, texte source garde). `productId` est unique : une annonce n a qu une
+/// reecriture en vol a la fois.
+model RewriteJob {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// L entree de la reecriture (title, description, category, pageText) : de quoi
+  /// reconstruire la requete au moment de soumettre le batch.
+  entree    Json
+  /// L identifiant du batch Anthropic une fois soumis (msgbatch_...).
+  batchId   String?
+  /// en_attente -> soumis -> fait | echec.
+  statut    String   @default("en_attente")
+  createdAt DateTime @default(now())
+
+  @@index([statut])
+}
+
 /// Un vendeur indecis qui recolle la meme adresse quatre fois dans la journee
 /// paierait quatre fois pour la meme reponse, et notre facture triplerait avec
 /// la sienne. Passe le delai, l avis se refait : un produit peut passer de mode

@@ -131,6 +131,12 @@ const captureSchema = z.object({
    */
   skuAliExpress: z.any().optional(),
   pageText: z.string().max(20000).optional(),
+  /**
+   * Import en LOT : différer la réécriture vers un batch Anthropic (moitié
+   * prix). Posé par le panneau latéral ; absent sur un import à l'unité, qui
+   * reste instantané.
+   */
+  differer: z.boolean().optional(),
 })
 
 // Import from the Chrome extension: the page is already rendered in the user's
@@ -179,6 +185,10 @@ productsRouter.post(
           variantes: data.variants as Record<string, string[]> | undefined,
           skuAliExpress: data.skuAliExpress ?? null,
         },
+        // Import en lot : la réécriture part en batch. `reecrit` vaut alors vrai
+        // (en file), donc le crédit n'est pas rendu ici — le planificateur le
+        // rendra si le batch échoue.
+        differerReecriture: data.differer,
       })
 
       if (!reecrit) await refundCredits(req.userId!, 1)

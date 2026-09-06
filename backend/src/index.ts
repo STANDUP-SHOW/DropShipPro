@@ -29,6 +29,7 @@ import { semerCategories } from './services/categories.js'
 import { tourneeEnquetes } from './services/enqueteFournisseurs.js'
 import { tourneeAutoMode } from './services/autoAnalyste.js'
 import { tourneeAutopilot } from './services/autopilot.js'
+import { tourneeReecritures } from './services/rewriteBatch.js'
 /*
  * Un processus qui meurt doit dire pourquoi.
  *
@@ -206,3 +207,17 @@ setTimeout(() => {
     3 * 3600 * 1000,
   )
 }, 6 * 60 * 1000)
+
+/*
+ * La réécriture différée des imports en LOT : soumise et appliquée par petits
+ * pas. Toutes les deux minutes, parce que ce n'est pas une tournée quotidienne
+ * mais une file — plus tôt elle part, plus tôt les annonces se complètent. Le
+ * premier passage vient vite (30 s) : un lot importé juste avant un
+ * redéploiement ne doit pas attendre le prochain grand cycle.
+ */
+setInterval(() => {
+  tourneeReecritures().catch((e) => console.error('tournée réécriture batch impossible', e))
+}, 2 * 60 * 1000)
+setTimeout(() => {
+  tourneeReecritures().catch((e) => console.error('tournée réécriture batch impossible', e))
+}, 30 * 1000)

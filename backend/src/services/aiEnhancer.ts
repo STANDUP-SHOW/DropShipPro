@@ -151,7 +151,7 @@ Règles :
  * l'intérieur de `enhanceListing`, `callModel` n'avait pas d'autre choix que de
  * rendre `enhanced: true` sur une réponse qu'il n'avait pas su lire.
  */
-function passthroughDe(input: { title: string; description: string }): EnhancedListing {
+export function passthroughDe(input: { title: string; description: string }): EnhancedListing {
   return {
     title: input.title,
     description: input.description,
@@ -223,6 +223,31 @@ export async function extractVariants(pageText: string): Promise<Record<string, 
  * Rewrites the scraped listing with Claude and derives everything marketplaces rank
  * on: an SEO title, bullet points, structured attributes and long-tail keywords.
  */
+/** Réécrire ou non, et avec quelle entrée. */
+export type PlanReecriture =
+  | { faire: false; resultat: EnhancedListing }
+  | { faire: true; entree: EntreeReecriture }
+
+/**
+ * Faut-il réécrire, avec quoi — sans payer l'appel.
+ *
+ * Partagé entre l'appel synchrone et le lot différé, pour que la même décision
+ * vaille des deux côtés : pas de clé → on garde le texte source ; pas de matière
+ * → on refuse (le 03/09/2026, vingt-six annonces Temu ont été écrites à partir
+ * du seul titre, faute de cette garde). Sinon le lot facturerait en batch des
+ * réécritures que l'unité aurait refusées. L'accroche SEO n'est jamais transmise :
+ * présentée comme la parole du fournisseur, elle égare le modèle.
+ */
+export function planifierReecriture(input: EntreeReecriture): PlanReecriture {
+  const anthropic = getClient()
+  if (!anthropic) return { faire: false, resultat: passthroughDe(input) }
+  const substance = substanceSource(input)
+  if (!substance.assezPourEcrire) {
+    return { faire: false, resultat: { ...passthroughDe(input), raison: substance.raison ?? 'relevé sans matière' } }
+  }
+  return { faire: true, entree: { ...input, description: substance.description ?? '' } }
+}
+
 export async function enhanceListing(input: {
   title: string
   description: string
@@ -238,38 +263,17 @@ export async function enhanceListing(input: {
    */
   pageText?: string | null
 }): Promise<EnhancedListing> {
-  /** Keeps the scraped copy when the model can't be reached. */
-  const passthrough = () => passthroughDe(input)
-
-  const anthropic = getClient()
-  // No API key configured: pass the scraped text through so the rest of the
-  // pipeline (watermark, publish) still works end to end.
-  if (!anthropic) return passthrough()
-
-  /*
-   * On regarde ce qu'on a avant de payer un appel — et avant d'inventer.
-   *
-   * Le 03/09/2026, vingt-six annonces Temu sont sorties écrites à partir du
-   * seul titre : `collectDescription()` ne peut pas trouver le bloc de
-   * description sur un site qui obfusque ses noms de classe, et retombait sur
-   * la balise SEO (« Trouvez des offres incroyables sur… »). Le modèle a fait
-   * ce qu'on lui demandait — sept arguments de vente, neuf attributs — tous
-   * déduits du titre et présentés comme des caractéristiques du produit.
-   *
-   * Une annonce inventée est pire qu'une annonce absente : elle a l'air bonne,
-   * elle est facturée, et ce sont des affirmations fausses au nom du vendeur.
-   */
-  const substance = substanceSource(input)
-  if (!substance.assezPourEcrire) {
-    console.error(`[ia] reecriture refusee : ${substance.raison}`)
-    return { ...passthrough(), raison: substance.raison ?? 'relevé sans matière' }
+  const plan = planifierReecriture(input)
+  if (!plan.faire) {
+    if (plan.resultat.raison) console.error(`[ia] reecriture refusee : ${plan.resultat.raison}`)
+    return plan.resultat
   }
 
+  // planifierReecriture a déjà confirmé une clé.
+  const anthropic = getClient() as Anthropic
+
   try {
-    // L'accroche SEO n'est pas transmise : présentée comme la parole du
-    // fournisseur, elle induit le modèle en erreur au lieu de le laisser lire
-    // le corps de la page.
-    const resultat = await callModel(anthropic, { ...input, description: substance.description ?? '' })
+    const resultat = await callModel(anthropic, plan.entree)
 
     /*
      * Le repli reprend le texte d'origine, pas celui qu'on a nettoyé.
@@ -278,7 +282,7 @@ export async function enhanceListing(input: {
      * réponse. Lui avoir retiré l'accroche laisserait alors une annonce sans
      * aucune description : le vendeur perdrait même le peu que la page portait.
      */
-    return resultat.enhanced ? resultat : { ...passthrough(), raison: resultat.raison }
+    return resultat.enhanced ? resultat : { ...passthroughDe(input), raison: resultat.raison }
   } catch (err) {
     // An expired, revoked or over-quota key must not destroy the import: the
     // product is still worth keeping, and the seller can rewrite it by hand or
@@ -299,32 +303,37 @@ export async function enhanceListing(input: {
      * ressemble au bon. La raison remonte donc jusqu'à l'import, qui l'écrit
      * dans les remarques de l'annonce.
      */
-    return { ...passthrough(), raison: `${statut ? `erreur ${statut}` : 'appel impossible'} — ${message}` }
+    return { ...passthroughDe(input), raison: `${statut ? `erreur ${statut}` : 'appel impossible'} — ${message}` }
   }
 }
 
-async function callModel(
-  anthropic: Anthropic,
-  input: { title: string; description: string; category: string | null; pageText?: string | null },
-): Promise<EnhancedListing> {
+/** L'entrée d'une réécriture : ce qui suffit à la reconstruire, ici ou en batch. */
+export interface EntreeReecriture {
+  title: string
+  description: string
+  category: string | null
+  pageText?: string | null
+}
 
-  const message = await anthropic.messages.create({
+/**
+ * La requête d'une réécriture, telle qu'on l'envoie au modèle.
+ *
+ * Isolée pour être partagée entre l'appel synchrone (`callModel`) et l'API
+ * Batch d'Anthropic, qui soumet exactement les mêmes paramètres pour **moitié
+ * prix**. Deux copies de ce préambule finiraient par diverger — et le lot ne
+ * réécrirait pas comme l'unité.
+ */
+export function construireRequete(
+  input: EntreeReecriture,
+): Anthropic.Messages.MessageCreateParamsNonStreaming {
+  return {
     model: MODEL_ENHANCE,
     /*
-     * Huit mille, et non deux mille cinq cents.
-     *
-     * Ce que la consigne demande, compté : un titre, deux variantes, une
-     * description de trois à cinq paragraphes, quatre à cinq arguments, six à
-     * huit attributs, une méta-description et dix à douze mots-clés. La consigne
-     * a été **allégée le 06/09/2026** (elle demandait sept arguments, quinze
-     * attributs et vingt-cinq mots-clés) : la sortie est la moitié chère du
-     * tarif (10 $/M), et une annonce riche n'a pas besoin de vingt-cinq mots-clés
-     * pour se classer. Le coût par annonce baisse d'autant.
-     *
-     * Le plafond reste haut — il ne coûte rien tant qu'il n'est pas atteint, et
-     * un plafond trop bas rejoue la panne du 02/09 : la réponse coupée au milieu
-     * du JSON, rendue avec le texte du fournisseur. `stop_reason` reste le seul
-     * signal fiable qu'une réponse a été tronquée.
+     * Huit mille : le plafond reste haut — il ne coûte rien tant qu'il n'est pas
+     * atteint, et un plafond trop bas rejoue la panne du 02/09 (réponse coupée au
+     * milieu du JSON, rendue avec le texte du fournisseur). La consigne a été
+     * allégée le 06/09/2026 (12 mots-clés, 8 attributs, 5 arguments) : la sortie,
+     * moitié chère du tarif, baisse d'autant.
      */
     max_tokens: 8000,
     // Le meme preambule part a chaque annonce : mis en cache, il est relu
@@ -356,10 +365,23 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce f
 }`,
       },
     ],
-  })
+  }
+}
 
+async function callModel(anthropic: Anthropic, input: EntreeReecriture): Promise<EnhancedListing> {
+  const message = await anthropic.messages.create(construireRequete(input))
   logCost('reecriture', MODEL_ENHANCE, message.usage)
+  return interpreter(message, input)
+}
 
+/**
+ * La réponse du modèle, interprétée en annonce.
+ *
+ * Séparée de l'appel pour que le chemin Batch — qui reçoit le même message par
+ * un autre canal — applique EXACTEMENT la même lecture : `stop_reason`, JSON
+ * extrait, longueurs vérifiées. Deux lecteurs finiraient par diverger.
+ */
+export function interpreter(message: Anthropic.Message, input: EntreeReecriture): EnhancedListing {
   const text = message.content.find((b) => b.type === 'text')?.text ?? '{}'
   // The model occasionally wraps the JSON in prose or a code fence despite the
   // instruction, so take the outermost object rather than parsing the raw reply.

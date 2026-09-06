@@ -785,6 +785,11 @@ export default function Dashboard() {
                   </button>
                   <div className="p-3">
                     <p className="text-sm font-medium line-clamp-2">{p.aiTitle || p.title}</p>
+                    {p.rewritePending ? (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                        <Loader2 size={9} className="animate-spin" /> Réécriture en cours
+                      </span>
+                    ) : null}
                     <div className="mt-2 flex items-center justify-between">
                       <span className="font-bold text-purple-300">
                         {`${Number(p.sellingPrice ?? 0).toFixed(2)} ${p.currency}`}

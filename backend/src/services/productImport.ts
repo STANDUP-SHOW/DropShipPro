@@ -1,7 +1,7 @@
 import type { Product, User } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { scrapeProduct } from './scraper.js'
-import { enhanceListing, extractVariants } from './aiEnhancer.js'
+import { enhanceListing, extractVariants, planifierReecriture, passthroughDe } from './aiEnhancer.js'
 import { selectProductImages, PHOTOS_PAR_ANNONCE } from './imageSelect.js'
 import { reparerVariantes } from './variantRepair.js'
 import { reviewImages, applyVerdict } from './controlAgent.js'
@@ -84,6 +84,12 @@ export interface OptionsImport {
   } | null
   /** La fiche relevee par l extension. Presente : on ne va pas lire la page. */
   capture?: FicheRelevee | null
+  /**
+   * Differer la reecriture : l annonce nait avec le texte source, la vraie
+   * sortie arrive par un batch Anthropic (moitie prix). Reserve a l import en
+   * LOT, ou l attente est acceptable ; l import a l unite reste instantane.
+   */
+  differerReecriture?: boolean
 }
 
 /**
@@ -136,13 +142,26 @@ export async function importerAdresse(
    */
   const releveesParExtension = (options.releve?.images ?? options.capture?.images ?? []).filter(Boolean)
 
+  const entreeReecriture = {
+    title: scraped.title,
+    description: scraped.description,
+    category: scraped.sourceCategory,
+    pageText: scraped.pageText,
+  }
+
+  /*
+   * En LOT, la réécriture est différée : on décide ici quoi faire, mais on ne
+   * la paie pas maintenant. `planifierReecriture` rend la même décision que
+   * l'appel synchrone (pas de clé / pas de matière → texte source), sans
+   * appeler le modèle. Si elle est à faire, l'annonce naît avec le texte source
+   * et un `RewriteJob` est déposé plus bas ; le batch la complétera.
+   */
+  const planDiffere = options.differerReecriture ? planifierReecriture(entreeReecriture) : null
+
   const [enhanced, luesParLeModele, chosen] = await Promise.all([
-    enhanceListing({
-      title: scraped.title,
-      description: scraped.description,
-      category: scraped.sourceCategory,
-      pageText: scraped.pageText,
-    }),
+    planDiffere
+      ? Promise.resolve(planDiffere.faire ? passthroughDe(entreeReecriture) : planDiffere.resultat)
+      : enhanceListing(entreeReecriture),
     // Les options d'achat se lisent dans le texte de la page : aucune balise ne
     // les déclare, et sans cette lecture un import ne rend ni taille ni couleur.
     extractVariants(scraped.pageText ?? ''),
@@ -257,7 +276,15 @@ export async function importerAdresse(
    * « l'IA n'a pas répondu » ne se corrige pas, alors qu'un quota dépassé ou une
    * limite de débit se corrige.
    */
-  if (!enhanced.enhanced) {
+  // La réécriture est en file (lot différé) : l'annonce porte le texte source
+  // pour l'instant, la vraie sortie arrive par batch. Ce n'est pas un échec.
+  const reecritureEnFile = Boolean(planDiffere?.faire)
+
+  if (reecritureEnFile) {
+    notes.unshift(
+      "Réécriture en cours : l'annonce porte le texte du fournisseur et se complétera dans quelques minutes.",
+    )
+  } else if (!enhanced.enhanced) {
     notes.unshift(
       `Texte non réécrit : l'annonce porte le texte du fournisseur${
         enhanced.raison ? ` (${enhanced.raison})` : ''
@@ -300,11 +327,27 @@ export async function importerAdresse(
       bulletPoints: enhanced.bulletPoints,
       attributes: enhanced.attributes,
       aiEnhanced: enhanced.enhanced,
+      rewritePending: reecritureEnFile,
       status: 'READY',
     },
   })
 
-  return { produit, reecrit: enhanced.enhanced, notes }
+  /*
+   * La réécriture différée est déposée après la création de l'annonce : elle a
+   * besoin de son `productId`. Le planificateur la regroupera dans un batch.
+   */
+  if (planDiffere?.faire) {
+    await prisma.rewriteJob.create({
+      data: { userId, productId: produit.id, entree: planDiffere.entree as object },
+    })
+  }
+
+  /*
+   * `reecrit` sert à l'appelant à décider s'il rend le crédit. Une réécriture
+   * en file (lot) ne rend PAS le crédit : elle est en cours, et c'est le
+   * planificateur qui le rendra si le batch échoue. Sinon, comme avant.
+   */
+  return { produit, reecrit: reecritureEnFile || enhanced.enhanced, notes }
 }
 
 /**

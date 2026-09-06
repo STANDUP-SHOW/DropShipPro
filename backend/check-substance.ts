@@ -153,7 +153,7 @@ console.log('\nCe que la réécriture en fait')
   )
   verifier(
     'mais le repli garde bien le texte d’origine',
-    /resultat\.enhanced \? resultat : \{ \.\.\.passthrough\(\), raison: resultat\.raison \}/.test(source),
+    /resultat\.enhanced \? resultat : \{ \.\.\.passthroughDe\(input\), raison: resultat\.raison \}/.test(source),
   )
 }
 
