@@ -383,6 +383,27 @@ Trois conséquences, toutes appliquées :
   signaux arrivent par `POST /agent/*`, deposes par un agent exterieur que le
   vendeur branche avec sa cle. Ce n est pas notre API Anthropic qui paie.
 
+- **Un import lance QUATRE appels IA, pas un — c est la que part la marge.**
+  Constate le 06/09/2026 : Max a depense 23 EUR de tokens pour ~200 annonces, soit
+  ~11 centimes l annonce rien qu en texte, alors qu il vend 500 annonces 50 EUR
+  (10 c) et 1250 a 100 EUR (8 c) : **il perdait de l argent a chaque vente**. Le
+  compte reel par import (`services/productImport.ts`), et non estime :
+  **reecriture** (Sonnet 5, ~4 c, sortie enorme), **agent de controle des photos**
+  (Sonnet 5 + vision, jusqu a 15 images, ~2 c), extraction variantes (Haiku, ~0,3 c),
+  categorie (Haiku, mise en cache, ~0,3 c). La reecriture ne fait AUCUNE recherche
+  web (elle n existe que dans l analyse de marche AUTO-MODE). Deux corrections du
+  06/09, choisies par Max : l agent de controle passe **OFF par defaut**
+  (`User.controlAgent @default(false)`, comptes existants bascules par migration ;
+  l AUTO-SHIPPER le **force** cote code car personne ne regarde) -- il repassait
+  Sonnet 5 en vision sur des photos deja choisies a la main ; et la sortie de
+  reecriture est **allegee** (12 mots-cles au lieu de 25, 8 attributs au lieu de 15,
+  5 arguments au lieu de 7) dans le `SYSTEM_PROMPT` d `aiEnhancer.ts`. Cible
+  ~3-4 c/annonce. Leviers restants non faits, du plus payant : **API Batch
+  d Anthropic (-50 % sur tout**, l import n a pas besoin d etre instantane) et
+  **Haiku au lieu de Sonnet pour la reecriture** (moitie prix, arbitrage qualite a
+  tester). Regle generale : chaque appel IA sur le chemin d import se compte, et un
+  appel vision sur chaque item est un cout qu on n annonce pas au vendeur.
+
 - **Une image coute 0,0336 $ (~0,031 EUR)**, pas 0,33. Les credits graphiques sont
   le meilleur produit : 47 a 69 % de marge sur les six premiers paliers. Les deux
   derniers sont fragiles -- 23 % a 10 000 images, **3 % a 25 000** (27 EUR de

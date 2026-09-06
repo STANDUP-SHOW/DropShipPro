@@ -110,8 +110,9 @@ Règles :
 - Titre : 60 à 130 caractères, structure "Type de produit + caractéristiques clés +
   matière + public". Les mots les plus recherchés en premier. Pas de MAJUSCULES
   intempestives, pas d'emoji, pas de nom de marque inventé.
-- Bullet points : 5 à 7 arguments de vente, un bénéfice concret par ligne, 80 à 200
+- Bullet points : 4 à 5 arguments de vente, un bénéfice concret par ligne, 80 à 200
   caractères chacun, commençant par 2-3 mots en capitales servant d'accroche.
+  Choisis les arguments qui décident l'achat, pas tous ceux qui existent.
 - Caractéristiques techniques : c'est le point le plus important. La fiche source
   contient presque toujours des précisions qui font vendre — « bracelet acier
   inoxydable », « 22 rubis sur le cadran », « mouvement automatique », « étanche
@@ -120,14 +121,15 @@ Règles :
   relèves TOUTES et tu les conserves : dans la description ET dans les attributs.
   En perdre une, c'est perdre l'argument qui décidait l'acheteur, et c'est la
   faute la plus grave que tu puisses commettre ici.
-- Attributs : entre six et quinze, adaptés au produit réel — pas une grille de
+- Attributs : entre six et huit, adaptés au produit réel — pas une grille de
   mode plaquée sur une montre ou une perceuse. Nomme-les avec les termes du
   métier concerné (Mouvement, Étanchéité, Puissance, Capacité, Autonomie,
   Matière du bracelet, Diamètre du boîtier, Compatibilité, Norme…). Utilise
   UNIQUEMENT ce qui figure dans la source. Si une information est absente, omets
   l'attribut plutôt que d'inventer.
-- Mots-clés : 15 à 25, en français, incluant les variantes orthographiques et les
-  requêtes longue traîne que taperait un acheteur. Séparés par des virgules.
+- Mots-clés : 10 à 12, en français, les plus recherchés d'abord, incluant quelques
+  variantes orthographiques et requêtes longue traîne que taperait un acheteur.
+  Séparés par des virgules.
 - metaDescription : 150 à 160 caractères maximum.
 - Titres courts : en plus du titre principal, écris-en deux versions raccourcies.
   Aucune destination n'accepte la même longueur — Amazon en prend deux cents et en
@@ -312,19 +314,17 @@ async function callModel(
      * Huit mille, et non deux mille cinq cents.
      *
      * Ce que la consigne demande, compté : un titre, deux variantes, une
-     * description de trois à cinq paragraphes (600 caractères au minimum, souvent
-     * 1 500), sept arguments de 80 à 200 caractères, jusqu'à quinze attributs,
-     * une méta-description et vingt-cinq mots-clés. En français, où un mot coûte
-     * plus de jetons qu'en anglais, l'ensemble dépasse régulièrement trois mille
-     * jetons — et le plafond était à deux mille cinq cents.
+     * description de trois à cinq paragraphes, quatre à cinq arguments, six à
+     * huit attributs, une méta-description et dix à douze mots-clés. La consigne
+     * a été **allégée le 06/09/2026** (elle demandait sept arguments, quinze
+     * attributs et vingt-cinq mots-clés) : la sortie est la moitié chère du
+     * tarif (10 $/M), et une annonce riche n'a pas besoin de vingt-cinq mots-clés
+     * pour se classer. Le coût par annonce baisse d'autant.
      *
-     * La réponse se faisait donc couper au milieu du JSON. Le plafond était la
-     * cause ; l'absence de contrôle sur `stop_reason` est ce qui l'a rendue
-     * invisible pendant des semaines.
-     *
-     * Huit mille laisse de la marge sans risquer le délai d'attente d'une
-     * requête non diffusée en flux : la réécriture la plus longue mesurée
-     * atteint la moitié de ce plafond.
+     * Le plafond reste haut — il ne coûte rien tant qu'il n'est pas atteint, et
+     * un plafond trop bas rejoue la panne du 02/09 : la réponse coupée au milieu
+     * du JSON, rendue avec le texte du fournisseur. `stop_reason` reste le seul
+     * signal fiable qu'une réponse a été tronquée.
      */
     max_tokens: 8000,
     // Le meme preambule part a chaque annonce : mis en cache, il est relu

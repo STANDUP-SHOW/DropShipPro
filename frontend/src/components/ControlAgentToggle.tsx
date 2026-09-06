@@ -46,8 +46,10 @@ export function ControlAgentToggle() {
       <p className="mt-1 text-xs leading-relaxed text-gray-400">
         Avant chaque mise en ligne, il regarde les photos que vous avez retenues et signale ce qui
         ne semble pas être le produit : bannières, tableaux de tailles, visuels d'un autre article.
-        Il relève aussi les couleurs réellement visibles et vérifie que les tailles vont avec le
-        produit.
+        C'est un second regard de l'IA sur des photos que vous avez déjà choisies — utile, mais qui
+        coûte quelques centimes par annonce. <strong>Désactivé par défaut</strong> : activez-le si
+        vous importez vite sans regarder vos photos. L'AUTO-SHIPPER, lui, le lance toujours (personne
+        ne relit à sa place), quel que soit ce réglage.
       </p>
       {/*
         Dit franchement, parce que le contraire s'est vu.
@@ -78,17 +80,18 @@ export function ControlAgentToggle() {
           </span>
           <span className="mt-0.5 block text-xs text-gray-500">
             {enabled
-              ? "Chaque import est relu. Indispensable si le pilote automatique publie sans vous."
-              : "Les photos partent telles que le tri automatique les a choisies."}
+              ? "Chaque import manuel est relu par l'IA — quelques centimes de plus par annonce."
+              : "Vos photos partent telles que vous les avez choisies. L'AUTO-SHIPPER relit toujours les siennes."}
           </span>
         </span>
       </label>
 
       {!enabled && (
-        <p className="mt-3 flex items-start gap-2 rounded-lg border border-amber-400/25 bg-amber-400/10 p-2 text-xs text-amber-100">
+        <p className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-400/25 bg-emerald-400/10 p-2 text-xs text-emerald-100">
           <ShieldCheck size={13} className="mt-0.5 shrink-0" />
           <span>
-            En mode automatique, plus rien ne relit vos annonces avant publication.
+            Vous choisissez déjà vos photos à la main : ce second regard est facultatif, et le couper
+            fait baisser le coût de chaque annonce. L'AUTO-SHIPPER reste couvert de son côté.
           </span>
         </p>
       )}

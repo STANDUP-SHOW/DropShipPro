@@ -96,8 +96,6 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
     .filter((d: unknown): d is string => typeof d === 'string')
     .filter((d: string) => AUTO_PLATFORMS.includes(d as Platform)) as Platform[]
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
-
   for (const o of candidates) {
     if (result.imported >= budget) {
       log.push({ titre: o.title, action: 'écarté', raison: 'Plafond quotidien atteint' })
@@ -164,9 +162,12 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       )
       const announced = await extractVariants(scraped.pageText)
 
-      const verdict = user.controlAgent
-        ? await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
-        : null
+      // L'AUTO-SHIPPER publie sans que personne ne regarde : l'agent de contrôle
+      // des photos est TOUJOURS lancé ici, quel que soit le réglage du vendeur
+      // (qui, lui, est OFF par défaut depuis le 06/09/2026 pour les imports
+      // manuels où le vendeur choisit ses photos lui-même). Sans ce filet, une
+      // bannière ou un produit recommandé partirait en photo n°1 sans recours.
+      const verdict = await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
 
       if (verdict?.checked && verdict.rejected.length) {
         log.push({

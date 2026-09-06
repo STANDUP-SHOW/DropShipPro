@@ -136,9 +136,15 @@ model User {
   /// Credits images restants, pour les agents visuels. Distincts des credits
   /// d annonces : une image generee coute a chaque fois, une annonce non.
   imageCredits         Int     @default(9)
-  /// Agent de controle visuel des photos et des options, avant mise en ligne.
-  /// Actif par defaut : c est lui qui rend le mode automatique fiable.
-  controlAgent         Boolean @default(true)
+  /// Agent de controle visuel des photos, avant mise en ligne.
+  ///
+  /// **Desactive par defaut depuis le 06/09/2026** : il repasse Sonnet 5 en
+  /// vision sur les photos deja choisies a la main, ~2 centimes par annonce.
+  /// Sur un import manuel ou le vendeur selectionne lui-meme, c est un
+  /// second regard redondant. L AUTO-SHIPPER, lui, le lance TOUJOURS (personne
+  /// ne regarde) quel que soit ce reglage. Le vendeur peut le rallumer pour ses
+  /// imports s il le veut.
+  controlAgent         Boolean @default(false)
 
   /// Passer la commande chez le fournisseur sans demander, des qu une vente
   /// tombe. Faux par defaut : engager l argent du vendeur sans son accord n est
