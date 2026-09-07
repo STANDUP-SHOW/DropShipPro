@@ -1,3 +1,9 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/b/:path*",
+      "destination": "https://dropshippro-production.up.railway.app/b/:path*"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
