@@ -1,4 +1,4 @@
-import { MODELE_PUISSANT, modele } from './aiModels.js'
+import { MODELE_REDACTION, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { systemeCachable } from './chatBudget.js'
 import type { Product } from '@prisma/client'
@@ -15,7 +15,16 @@ import type { Product } from '@prisma/client'
  * them anyway is how an account gets closed. The consequence is stated plainly to
  * the seller — these are dated observations, not a price list.
  */
-const MODEL = modele('AI_MODEL_ANALYSIS', MODELE_PUISSANT)
+/*
+ * Sonnet, et non Opus, depuis le 07/09/2026.
+ *
+ * L'analyse tournait sur Opus 5 (5/25 $ le million) : ~0,15 € par produit avec
+ * ses recherches web, facturée 1 crédit — perte nette. Sonnet 5 (2/10 $) divise
+ * le coût par ~2,5 sans que la qualité d'une synthèse sourcée en pâtisse
+ * vraiment : la valeur est dans les recherches web, pas dans la puissance brute
+ * du modèle. Surchargeable par AI_MODEL_ANALYSIS si un jour on veut remonter.
+ */
+const MODEL = modele('AI_MODEL_ANALYSIS', MODELE_REDACTION)
 
 /** Caps the bill: each search is billed, and a runaway agent is a runaway invoice. */
 const MAX_SEARCHES = 5

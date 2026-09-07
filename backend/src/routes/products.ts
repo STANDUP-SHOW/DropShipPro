@@ -901,7 +901,15 @@ productsRouter.post('/publish-batch', async (req: AuthedRequest, res) => {
   })
 })
 
-const analysisSchema = z.object({ productIds: z.array(z.string()).min(1).max(25) })
+/*
+ * Cinq produits par clic au maximum (07/09/2026).
+ *
+ * Chaque produit = un appel modèle séparé + jusqu'à cinq recherches web. À 25,
+ * un seul clic pouvait lancer 25 analyses d'affilée — ~0,80 € de coût réel à 5,
+ * ~3,75 € à 25, pour 1 crédit débité par produit. Le plafond borne le coût d'un
+ * geste ; le prix par produit, lui, est couvert depuis le passage à Sonnet.
+ */
+const analysisSchema = z.object({ productIds: z.array(z.string()).min(1).max(5) })
 
 /**
  * Market analysis for the selected listings.
@@ -916,7 +924,7 @@ const analysisSchema = z.object({ productIds: z.array(z.string()).min(1).max(25)
  */
 productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
   const parsed = analysisSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'Sélectionnez entre 1 et 25 annonces' })
+  if (!parsed.success) return res.status(400).json({ error: 'Sélectionnez entre 1 et 5 annonces à analyser' })
 
   const owned = await prisma.product.findMany({
     where: { id: { in: parsed.data.productIds }, userId: req.userId! },

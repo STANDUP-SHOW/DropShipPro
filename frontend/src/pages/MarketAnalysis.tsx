@@ -24,7 +24,19 @@ const COMPETITION_STYLE: Record<string, string> = {
  */
 export default function MarketAnalysisPage() {
   const location = useLocation()
-  const productIds = (location.state as { productIds?: string[] } | null)?.productIds ?? []
+  const selection = (location.state as { productIds?: string[] } | null)?.productIds ?? []
+
+  /*
+   * Cinq produits par passage au maximum (07/09/2026).
+   *
+   * Chaque produit lance un vrai appel modèle + des recherches web : c'est le
+   * geste le plus coûteux de l'app. Le serveur refuse au-delà de cinq ; on
+   * plafonne ici pour que le vendeur reçoive une analyse plutôt qu'une erreur,
+   * et on lui dit combien ont été laissées de côté.
+   */
+  const PLAFOND = 5
+  const productIds = selection.slice(0, PLAFOND)
+  const laissees = selection.length - productIds.length
 
   const [results, setResults] = useState<Result[]>([])
   const [running, setRunning] = useState(false)
@@ -60,6 +72,12 @@ export default function MarketAnalysisPage() {
       <p className="mt-1 text-sm text-gray-400">
         Où vos produits se vendent déjà, à quel prix, expédiés d'où et en combien de temps.
       </p>
+
+      {laissees > 0 && (
+        <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {`L'analyse se fait par 5 au maximum : les ${PLAFOND} premières annonces sont traitées ici. Resélectionnez les ${laissees} restante(s) pour un second passage.`}
+        </p>
+      )}
 
       {productIds.length === 0 && (
         <p className="mt-6 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
