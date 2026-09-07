@@ -28,6 +28,16 @@ import { DROPS } from './src/services/tarifs.js'
 
 const ECRIRE = process.argv.includes('--ecrire')
 
+/**
+ * Restreint la conversion à un seul compte (--email <adresse>).
+ *
+ * Un compte de développement au solde d'images gonflé par les tests
+ * (ex. 24 952 crédits images) donnerait un chiffre absurde en drops : on le
+ * traite à part plutôt que de le convertir aveuglément avec les vrais comptes.
+ */
+const iEmail = process.argv.indexOf('--email')
+const EMAIL = iEmail >= 0 ? process.argv[iEmail + 1] : null
+
 /** Repère de conversion : sa présence dit « ce compte est déjà en drops ». */
 const MARQUE = 'Conversion initiale en drops'
 
@@ -39,7 +49,7 @@ const BASCULE = new Date('2026-09-07T23:59:59.000Z')
 
 async function main() {
   const users = await prisma.user.findMany({
-    where: { createdAt: { lt: BASCULE } },
+    where: { createdAt: { lt: BASCULE }, ...(EMAIL ? { email: EMAIL } : {}) },
     select: { id: true, email: true, credits: true, imageCredits: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   })
