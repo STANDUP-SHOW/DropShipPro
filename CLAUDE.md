@@ -815,11 +815,18 @@ publication « en attente ».
    À confirmer en production avec un jeton réel.
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
 4. Une **veille de disponibilité** des produits sources a été proposée.
-6. **Publication de l extension au Chrome Web Store** : paquet et fiche prêts
-   (`docs/chrome-web-store.md`, `node extension/build-store-zip.cjs`). Restent le
-   compte développeur à 5 $, les captures d écran et l envoi. Tant que ce n est
-   pas fait, aucune mise à jour automatique : le Mode développeur ne se met
-   jamais à jour tout seul.
+6. **Publication de l extension au Chrome Web Store** : **ENVOYÉE POUR EXAMEN le
+   07/09/2026.** Paquet (`node extension/build-store-zip.cjs` → 26 fichiers
+   runtime, zéro dev), fiche, 4 captures 1280×800, 2 tuiles promo (440×280 et
+   1400×560, générées par scratchpad/promo-tiles.cjs), icône 128, justifications
+   (dont sidePanel et « code distant : Non ») — tout dans `docs/chrome-web-store.md`.
+   L accès hôte large déclenche un examen approfondi (quelques jours à ~2 semaines) ;
+   surveiller maxmartinel34@gmail.com pour une question de Google. **Après
+   acceptation** (voir la fin de `docs/chrome-web-store.md`) : remplacer le bouton
+   « Télécharger l extension » par le lien du store, prévenir les utilisateurs en
+   Mode développeur de réinstaller une fois, et pour chaque mise à jour incrémenter
+   `version` puis relancer le build. Tant que ce n est pas accepté, aucune mise à
+   jour automatique : le Mode développeur ne se met jamais à jour tout seul.
 5. **Compteur de la fenêtre « Diffuser »** : signalé bloqué à 0. Non reproduit en
    lisant le code ; la fenêtre a été déplacée dans un portail `document.body` avec
    `type="button"` explicite (une barre collante ou un ancêtre transformé pouvait
