@@ -91,12 +91,12 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
   if (!stripe) return res.status(503).json({ error: 'Paiement indisponible pour le moment.' })
 
   const parsed = checkoutSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'Formule inconnue' })
+  if (!parsed.success) return res.status(400).json({ error: 'Recharge inconnue' })
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
 
   const pack = findPack(parsed.data.planId)
-  if (!pack) return res.status(400).json({ error: 'Formule inconnue' })
+  if (!pack) return res.status(400).json({ error: 'Recharge inconnue' })
 
   // One Stripe customer per account, reused: without it every purchase creates a
   // new customer and the payment history shows empty.
@@ -184,7 +184,7 @@ billingRouter.post('/confirm', async (req: AuthedRequest, res) => {
   if (existing) return res.json({ granted: true, alreadyGranted: true, credits: existing.credits })
 
   const pack = findPack(session.metadata?.planId ?? '')
-  if (!pack) return res.status(400).json({ error: 'Formule inconnue sur ce paiement.' })
+  if (!pack) return res.status(400).json({ error: 'Recharge inconnue sur ce paiement.' })
 
   await grantPack(req.userId!, pack, session.id, session.amount_total ?? pack.amount)
   res.json({ granted: true, credits: pack.drops })

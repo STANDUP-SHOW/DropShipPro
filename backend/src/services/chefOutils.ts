@@ -182,7 +182,7 @@ async function produitsGagnantsReperes(userId: string, departmentId: string | nu
   if (!opportunites.length) {
     return [
       "Aucune opportunité n'a encore été déposée pour ce rayon.",
-      "Les listes quotidiennes arrivent par les enquêtes (abonnement du rayon actif) ; en attendant je peux chercher chez les fournisseurs reliés avec l'outil de recherche.",
+      "Les listes quotidiennes arrivent par les enquêtes (dès qu'un rayon est confié) ; en attendant je peux chercher chez les fournisseurs reliés avec l'outil de recherche.",
     ].join('\n')
   }
 

@@ -179,7 +179,7 @@ export default function Dashboard() {
     setError(null)
     try {
       const copie = await api.dupliquerProduit(p.id)
-      setAvis(`Copie créée : « ${copie.aiTitle ?? 'Annonce'} ». Aucun crédit — rien n'a été réécrit.`)
+      setAvis(`Copie créée : « ${copie.aiTitle ?? 'Annonce'} ». Gratuit — rien n'a été réécrit, aucun drop prélevé.`)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Duplication impossible')
@@ -282,7 +282,7 @@ export default function Dashboard() {
          */
         const message = err instanceof Error ? err.message : "Échec de l'import"
         echecs.push({ url: u, error: message })
-        if (/crédit|credit|solde/i.test(message)) {
+        if (/drop|crédit|credit|solde/i.test(message)) {
           setBatchSummary(`Arrêté à ${i + 1} sur ${urls.length} : ${message}`)
           break
         }
@@ -683,7 +683,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => navigate('/analyse-marche', { state: { productIds: selectedIds } })}
                 disabled={!selectedIds.length}
-                title="Un crédit par produit analysé"
+                title="30 drops par produit analysé"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-purple-400/40 px-3 py-2 text-xs font-semibold text-purple-200 transition hover:bg-purple-500/10 disabled:opacity-40"
               >
                 <TrendingUp size={14} />
@@ -771,7 +771,7 @@ export default function Dashboard() {
                       irréversible. */}
                   <button
                     type="button"
-                    title="Dupliquer cette annonce (aucun crédit)"
+                    title="Dupliquer cette annonce (gratuit, aucun drop)"
                     aria-label={`Dupliquer ${p.aiTitle || p.title}`}
                     disabled={duplication === p.id}
                     onClick={(e) => {
@@ -852,7 +852,7 @@ export default function Dashboard() {
 
                   <button
                     type="button"
-                    title="Dupliquer cette annonce (aucun crédit)"
+                    title="Dupliquer cette annonce (gratuit, aucun drop)"
                     aria-label={`Dupliquer ${p.aiTitle || p.title}`}
                     disabled={duplication === p.id}
                     onClick={() => dupliquer(p)}

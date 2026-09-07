@@ -86,7 +86,7 @@ function AddCardForm({ onDone }: { onDone: () => void }) {
 
         const { error: err } = await stripe.confirmSetup({
           elements,
-          confirmParams: { return_url: `${window.location.origin}/abonnement` },
+          confirmParams: { return_url: `${window.location.origin}/credits` },
           // Only leave the page when the bank demands authentication.
           redirect: 'if_required',
         })

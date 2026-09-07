@@ -37,7 +37,7 @@ const MARQUE = { enquete: 'aliexpress-flux' }
 export async function enqueteAliExpress(userId: string): Promise<ResultatEnquete> {
   const rayons = await activeDepartments(userId)
   if (!rayons.length) {
-    return { deposees: 0, relevees: 0, raison: "Aucun rayon actif : l'enquête quotidienne est ce que l'abonnement d'un rayon paie." }
+    return { deposees: 0, relevees: 0, raison: "Aucun rayon confié : confiez un rayon (c'est gratuit) pour recevoir l'enquête quotidienne." }
   }
 
   const liaison = await prisma.supplierConnection.findUnique({

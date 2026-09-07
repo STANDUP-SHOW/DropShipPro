@@ -228,7 +228,7 @@ export function VitrineBlock({
             <span>{enCours ? 'Écriture…' : 'Habiller ma vitrine'}</span>
           </button>
           <span className="text-[11px] text-gray-500">
-            1 crédit — rendu si rien n'est écrit
+            10 drops — rendus si rien n'est écrit
           </span>
         </div>
       </div>

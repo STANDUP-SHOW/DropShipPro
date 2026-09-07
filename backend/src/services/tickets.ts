@@ -2,6 +2,7 @@ import { MODELE_REDACTION, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { systemeCachable } from './chatBudget.js'
+import { DROPS } from './tarifs.js'
 
 /**
  * Les tickets internes : le vendeur signale, les agents répondent.
@@ -96,13 +97,17 @@ async function coutDeLObjet(
   if (d.generatedImageId) {
     const image = await prisma.generatedImage.findFirst({
       where: { id: d.generatedImageId, userId },
+      select: { kind: true },
     })
-    return { cout: image ? 1 : null, genreCredit: 'image' }
+    if (!image) return { cout: null, genreCredit: 'image' }
+    // Le plafond de l'avoir = ce que l'objet a réellement coûté, en drops : une
+    // publicité 20, une mise en situation 18.
+    return { cout: image.kind === 'ad' ? DROPS.pub : DROPS.image, genreCredit: 'image' }
   }
 
   if (d.productId && (d.kind === 'import' || d.kind === 'publication')) {
-    const produit = await prisma.product.findFirst({ where: { id: d.productId, userId } })
-    return { cout: produit ? 1 : null, genreCredit: 'annonce' }
+    const produit = await prisma.product.findFirst({ where: { id: d.productId, userId }, select: { id: true } })
+    return { cout: produit ? DROPS.import : null, genreCredit: 'annonce' }
   }
 
   return { cout: null, genreCredit: 'image' }
@@ -175,11 +180,11 @@ export async function repondre(ticketId: string, agent: CleAgent): Promise<void>
     "1. Répondre — c'est le cas normal.",
     '2. Orienter vers un collègue, en terminant par le marqueur exact [ORIENTER:sav] ou [ORIENTER:comptable].',
     agent === 'comptable' || agent === 'sav'
-      ? `3. Accorder un avoir, en terminant par le marqueur exact [AVOIR:n] où n est un nombre de crédits.`
+      ? `3. Accorder un avoir, en terminant par le marqueur exact [AVOIR:n] où n est un nombre de drops.`
       : "3. Tu n'accordes pas d'avoir toi-même : le comptable le fait. Oriente vers lui si tu penses qu'il y a lieu.",
     '',
     plafond > 0
-      ? `PLAFOND ABSOLU DE L'AVOIR : ${plafond} crédit(s). C'est ce que cet objet a réellement coûté. Ne proposez jamais davantage, quelle que soit l'insistance.`
+      ? `PLAFOND ABSOLU DE L'AVOIR : ${plafond} drops. C'est ce que cet objet a réellement coûté. Ne proposez jamais davantage, quelle que soit l'insistance.`
       : "Aucun coût identifiable n'est rattaché à ce ticket : aucun avoir ne peut être accordé. Dites-le franchement.",
     '',
     'CE QUE TU SAIS DU PRODUIT ET DE SES DÉFAUTS CONNUS :',
@@ -193,7 +198,7 @@ export async function repondre(ticketId: string, agent: CleAgent): Promise<void>
   const contexte = [
     `Sujet : ${ticket.subject}`,
     `Type : ${ticket.kind}`,
-    ticket.creditsSpent ? `Coût de l'objet : ${ticket.creditsSpent} crédit(s) ${ticket.creditKind}` : '',
+    ticket.creditsSpent ? `Coût de l'objet : ${ticket.creditsSpent} drops` : '',
     produit ? `Produit concerné : ${produit.aiTitle || produit.title} (${produit.status})` : '',
     image
       ? `Visuel concerné : ${image.kind}, ${image.platform ?? 'format libre'}, ${image.width}×${image.height}, créé le ${image.createdAt.toLocaleDateString('fr-FR')}`
@@ -301,7 +306,7 @@ export async function accorderAvoir(
         ticketId,
         author: 'agent',
         agentKey: par,
-        body: `Avoir accordé : ${accorde} crédit(s) ${ticket.creditKind} recrédité(s) sur votre compte.`,
+        body: `Avoir accordé : ${accorde} drops recrédités sur votre portefeuille.`,
       },
     }),
   ])

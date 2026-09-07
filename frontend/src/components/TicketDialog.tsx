@@ -36,7 +36,7 @@ const MOTIFS: Record<string, { titre: string; suggestion: string }> = {
     titre: 'Cette publication a échoué',
     suggestion: "Dites sur quelle plateforme, et ce que le message d'erreur disait.",
   },
-  facturation: { titre: 'Une question de facturation', suggestion: 'Crédits, abonnement, avoir…' },
+  facturation: { titre: 'Une question de facturation', suggestion: 'Drops, recharge, avoir…' },
   autre: { titre: 'Autre chose', suggestion: 'Décrivez le problème en quelques lignes.' },
 }
 
@@ -106,7 +106,7 @@ export function TicketDialog({
             <p className="mt-3 text-sm font-medium">{ticket.subject}</p>
             {ticket.creditsSpent ? (
               <p className="mt-0.5 text-xs text-gray-500">
-                {`${ticket.creditsSpent} crédit(s) ${ticket.creditKind} engagé(s) sur cet objet.`}
+                {`${ticket.creditsSpent} drops engagés sur cet objet.`}
               </p>
             ) : null}
 
@@ -130,7 +130,7 @@ export function TicketDialog({
 
             {ticket.refundedCredits ? (
               <p className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2.5 text-sm text-emerald-200">
-                {`Avoir accordé : ${ticket.refundedCredits} crédit(s) ${ticket.creditKind} recrédité(s).`}
+                {`Avoir accordé : ${ticket.refundedCredits} drops recrédités.`}
               </p>
             ) : null}
 

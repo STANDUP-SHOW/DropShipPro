@@ -41,9 +41,9 @@ statsRouter.get('/jauges', async (req: AuthedRequest, res) => {
     prisma.product.count({ where: { userId } }),
     prisma.supplierConnection.count({ where: { userId, connected: true } }),
     prisma.platformCredential.count({ where: { userId, connected: true } }),
-    // Les chefs EN POSTE — embauchés et payés — pas les rayons simplement
-    // créés : « je n'ai embauché que Mika, la jauge doit dire 1 sur 24 ».
-    prisma.department.count({ where: { userId, paidUntil: { gt: new Date() } } }),
+    // Les rayons confiés : plus d'abonnement (07/09/2026), un rayon confié est
+    // toujours en poste. La jauge compte donc tous les rayons du vendeur.
+    prisma.department.count({ where: { userId } }),
     prisma.socialAccount.count({ where: { userId } }),
   ])
 

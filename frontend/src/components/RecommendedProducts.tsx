@@ -140,7 +140,7 @@ export function RecommendedProducts({ department }: { department: string }) {
             <span>
               {running
                 ? 'Import en cours…'
-                : `Importer la sélection (${selectedImportable.length} crédit(s))`}
+                : `Importer la sélection (${selectedImportable.length * 12} drops)`}
             </span>
           </button>
           <button

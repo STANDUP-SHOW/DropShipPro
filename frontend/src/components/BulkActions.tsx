@@ -186,7 +186,7 @@ export function BulkActions({
                   rend davantage.
                 </p>
                 <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-400">
-                  {`1 crédit annonce par annonce, soit ${ids.length} au total. Une annonce que l'IA ne réécrit pas n'est pas facturée.`}
+                  {`10 drops par annonce, soit ${ids.length * 10} drops au total. Une annonce que l'IA ne réécrit pas n'est pas facturée.`}
                 </p>
               </>
             ) : null}

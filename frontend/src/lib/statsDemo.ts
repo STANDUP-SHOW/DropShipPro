@@ -331,8 +331,8 @@ const SCENARIO: Record<string, Scene> = {
   'marche/risque': { valeur: RUPTURES, evolution: -8, forme: 'barre' },
 
   // 14 · Plateforme.
-  'plateforme/credits': { valeur: 8456, forme: 'rayures' },
-  'plateforme/credits-image': { valeur: 12456, evolution: 10, forme: 'segments' },
+  'plateforme/drops': { valeur: 20912, forme: 'rayures' },
+  'plateforme/drops-euros': { valeur: '209,12', forme: 'segments' },
   'plateforme/annonces-ia': { valeur: PRODUITS_RANGES, evolution: 8.7, forme: 'batons', serie: serieSommant(PRODUITS_RANGES, 'annoncesia') },
   'plateforme/images': { valeur: 1248, evolution: 6.7, forme: 'onde', serie: serieSommant(1248, 'images') },
   'plateforme/pubs': { valeur: 124, forme: 'pastilles' },

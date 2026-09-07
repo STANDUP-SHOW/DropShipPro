@@ -130,7 +130,7 @@ export function DepartmentChat({
         {credits !== null && (
           <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs text-gray-400">
             <Coins size={13} />
-            <span>{`${credits} crédit(s)`}</span>
+            <span>{`${credits} drops`}</span>
           </span>
         )}
       </div>

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link2, Search, Truck, Share2, Store, Clock } from 'lucide-react'
 import { api, type ProductReview } from '../lib/api'
 
-/** Ce que coûte un avis. Écrit avant le clic, jamais découvert après. */
-const COUT = 3
+/** Ce que coûte un avis produit, en drops (conseil produit). Écrit avant le clic. */
+const COUT = 40
 
 /**
  * « Info sur un produit ».
@@ -89,7 +89,7 @@ export function ProductInfo({ departmentId, agentName }: { departmentId: string;
           disabled={busy || !url.trim()}
           className="btn-gradient shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
         >
-          {busy ? `${agentName} cherche…` : `Demander un avis (${COUT} crédits)`}
+          {busy ? `${agentName} cherche…` : `Demander un avis (${COUT} drops)`}
         </button>
       </div>
 

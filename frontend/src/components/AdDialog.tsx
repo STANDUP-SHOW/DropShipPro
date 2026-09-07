@@ -40,7 +40,7 @@ export function AdDialog({
   productTitle,
   shopId,
   credits,
-  coutParPub = 2,
+  coutParPub = 20,
   onClose,
   onGenerated,
 }: {
@@ -422,8 +422,8 @@ export function AdDialog({
 
             <p className="mt-2 text-center text-[11px] text-gray-500">
               {credits === null
-                ? `${cout} crédit(s) image · ${coutParPub} par publicité`
-                : `${cout} crédit(s) image sur les ${credits} qui vous restent · ${coutParPub} par publicité`}
+                ? `${cout} drops · ${coutParPub} drops par publicité`
+                : `${cout} drops sur les ${credits} qui vous restent · ${coutParPub} drops par publicité`}
             </p>
           </>
         )}

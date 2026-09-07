@@ -333,8 +333,9 @@ export default function Autopilot() {
       {/* 2. Les acquisitions : au moins un chef de rayon. */}
       <section className="mt-10">
         <p className="text-center text-sm text-gray-300">
-          Pour faire les acquisitions, <b>au moins un chef de rayon doit être embauché</b> — c'est
-          lui qui génère <span className="text-fuchsia-300">la liste de produits à importer chaque jour</span>.
+          Pour faire les acquisitions, <b>au moins un chef de rayon doit être confié</b> (c'est
+          gratuit, il est en poste aussitôt) — c'est lui qui génère{' '}
+          <span className="text-fuchsia-300">la liste de produits à importer chaque jour</span>.
         </p>
 
         <p className="mt-5 text-center text-sm font-bold uppercase tracking-wide text-yellow-300">
@@ -436,7 +437,7 @@ export default function Autopilot() {
           </span>
           {s.enabled ? (
             <span className="rounded-full bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-sky-300">
-              un passage par tranche de 12 h — 5 crédits la tranche
+              un passage par tranche de 12 h — 14 drops par import
             </span>
           ) : null}
         </label>
@@ -453,7 +454,7 @@ export default function Autopilot() {
               className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
             />
             <p className="mt-1 text-[11px] text-gray-500">
-              {`Plafond de cette version : 50 par jour. Soit ${s.dailyLimit} crédit(s) d'annonce par jour au maximum.`}
+              {`Plafond de cette version : 50 par jour. Soit ${s.dailyLimit * 14} drops par jour au maximum (14 drops par import auto).`}
             </p>
           </div>
 
@@ -645,10 +646,9 @@ export default function Autopilot() {
 
         <p className="mt-4 text-xs font-semibold leading-relaxed text-yellow-200">
           Pour l'instant, cette version de DropShipper IA limite la publication auto à 50 annonces
-          par jour — soit 1 500 par mois en mode auto. Tarif du mode auto : 5 crédits par tranche de
-          12 h d'activité (reprise des produits gagnants, sélection, publication auto et archivage
-          du journal). Chaque annonce importée consomme en plus son crédit d'annonce, comme partout
-          dans l'application.
+          par jour — soit 1 500 par mois en mode auto. Tarif du mode auto : 14 drops par import
+          automatique (reprise des produits gagnants, sélection, publication et archivage du journal
+          compris), débités sur votre solde de drops.
         </p>
       </div>
 
@@ -657,7 +657,7 @@ export default function Autopilot() {
         <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
         <div className="text-xs leading-relaxed text-amber-100">
           <p>
-            <b>Chaque import consomme un crédit</b> et remplit votre catalogue. Le plafond quotidien
+            <b>Chaque import consomme des drops</b> (14 en AUTO-SHIPPER) et remplit votre catalogue. Le plafond quotidien
             est la seule chose qui vous protège d'un agent trop généreux : commencez bas.
           </p>
           <p className="mt-1">

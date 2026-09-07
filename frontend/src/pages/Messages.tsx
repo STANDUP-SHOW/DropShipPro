@@ -412,8 +412,8 @@ export default function Messages() {
                 <Sparkles size={13} />
                 <span>
                   {full.agentName
-                    ? `Faire rédiger par ${full.agentName} (1 crédit)`
-                    : 'Faire rédiger (1 crédit)'}
+                    ? `Faire rédiger par ${full.agentName} (5 drops)`
+                    : 'Faire rédiger (5 drops)'}
                 </span>
               </button>
 

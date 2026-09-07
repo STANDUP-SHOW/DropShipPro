@@ -115,7 +115,7 @@ export function SupportChat({
       {/* La fiche de l'agent, en tete de la conversation (06/09/2026). */}
       <FicheAgentChat prenom={data.agent.name} role={data.agent.role} emoji={data.agent.emoji} photo={photoAgent(data.agent.key)} />
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-        <p className="text-xs text-gray-400">Une question posée coûte un crédit.</p>
+        <p className="text-xs text-gray-400">Une question posée coûte 5 à 25 drops selon l'agent.</p>
         {/*
           Le compteur du jour, annonce d avance.
           Un plafond decouvert au moment du refus se lit comme une panne. Le
@@ -134,7 +134,7 @@ export function SupportChat({
         {credits !== null ? (
           <span className="ml-auto inline-flex items-center gap-1 text-xs text-gray-400">
             <Coins size={13} />
-            <span>{`${credits} crédit(s)`}</span>
+            <span>{`${credits} drops`}</span>
           </span>
         ) : null}
       </div>

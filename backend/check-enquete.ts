@@ -7,7 +7,7 @@ import { createHmac } from 'node:crypto'
  *
  *   cd backend && npx tsx check-enquete.ts
  *
- * Ce qu'elle promet : pour un vendeur à rayon actif et clé AliExpress reliée,
+ * Ce qu'elle promet : pour un vendeur à rayon confié et clé AliExpress reliée,
  * le flux « meilleures ventes » est relevé une fois par jour et déposé en
  * opportunités — rattachées au bon rayon quand le lexique de titres tranche,
  * sans rayon sinon, jamais dans le mauvais.
@@ -117,7 +117,7 @@ async function main() {
   try {
     console.log('Les deux conditions du produit')
     const sansRayon = await enqueteAliExpress(user.id)
-    verifier("sans rayon actif, l'enquête dit pourquoi elle ne tourne pas", /rayon actif/.test(sansRayon.raison ?? ''))
+    verifier("sans rayon confié, l'enquête dit pourquoi elle ne tourne pas", /confi/i.test(sansRayon.raison ?? ''))
 
     // Le rayon des téléphones : c'est le secteur où le lexique range les
     // écouteurs Bluetooth, et c'est le rattachement qu'on veut voir.

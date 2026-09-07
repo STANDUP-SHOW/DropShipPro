@@ -110,7 +110,7 @@ async function contextFor(key: string, userId: string): Promise<string> {
       `Solde : ${user.credits} drops`,
       `Chiffre d'affaires enregistré : ${chiffre.toFixed(2)} € sur ${orders.length} commande(s)`,
       payments.length
-        ? `Derniers paiements :\n${payments.map((p) => `- ${(p.amount / 100).toFixed(2)} € · ${p.planId} · ${p.createdAt.toLocaleDateString('fr-FR')}${p.credits ? ` · ${p.credits} crédits` : ''}`).join('\n')}`
+        ? `Derniers paiements :\n${payments.map((p) => `- ${(p.amount / 100).toFixed(2)} € · ${p.planId} · ${p.createdAt.toLocaleDateString('fr-FR')}${p.credits ? ` · ${p.credits} drops` : ''}`).join('\n')}`
         : 'Aucun paiement enregistré.',
     ].join('\n')
   }
@@ -325,7 +325,7 @@ function systemPrompt(key: string, context: string) {
       '',
       "Ton rôle est d'orienter. Écoute la demande, réponds en une ou deux phrases, puis oriente en",
       'terminant ta réponse par un marqueur exact, seul sur sa ligne :',
-      '[ORIENTER:commercial] pour une facture, un paiement, un abonnement, des crédits ou des chiffres ;',
+      '[ORIENTER:commercial] pour une facture, un paiement, une recharge de drops ou des chiffres ;',
       '[ORIENTER:sav] pour un produit non conforme, un litige, un remboursement ;',
       '[ORIENTER:livraisons] pour un colis, un délai, un numéro de suivi ;',
       `[ORIENTER:rayon] pour une question sur un produit ou un marché — précise alors quel chef de rayon parmi : ${rayons}.`,
@@ -381,8 +381,8 @@ function systemPrompt(key: string, context: string) {
     return [
       ...commun,
       '',
-      "Tu traites les factures, les crédits, l'abonnement et les chiffres.",
-      "Rappelle au besoin qu'un import coûte un crédit et que la publication est gratuite.",
+      "Tu traites les factures, le portefeuille de drops, les recharges et les chiffres.",
+      "Rappelle au besoin qu'un import coûte 12 drops et que la publication est gratuite.",
       "Tu n'accordes aucun remboursement et ne promets aucun geste commercial : cela appartient au",
       "responsable de l'application, à qui le vendeur peut écrire.",
     ].join('\n')

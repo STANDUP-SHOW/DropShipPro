@@ -105,7 +105,7 @@ export default function MyAds() {
     ['pub', img.platform, titre].filter(Boolean).join('-')
 
   async function jeter(id: string) {
-    if (!window.confirm('Jeter cette publicité ? Elle ne sera pas régénérée sans un nouveau crédit.')) return
+    if (!window.confirm('Jeter cette publicité ? La régénérer coûtera de nouveau 20 drops.')) return
     await api.deleteImage(id).catch(() => undefined)
     setImages((v) => v.filter((i) => i.id !== id))
   }

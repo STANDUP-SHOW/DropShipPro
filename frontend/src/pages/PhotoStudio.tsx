@@ -183,7 +183,7 @@ export default function PhotoStudio() {
                     className="btn-gradient inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
                   >
                     <Sparkles size={14} />
-                    <span>{busy ? 'Création…' : `Créer les images (${count} crédit(s))`}</span>
+                    <span>{busy ? 'Création…' : `Créer les images (${count * (state?.tarif.photo ?? 18)} drops)`}</span>
                   </button>
                 </div>
 

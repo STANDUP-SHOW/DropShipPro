@@ -10,6 +10,7 @@ import { catalogueThemes, themeConnu } from '../services/themes.js'
 import { adresseLibre } from '../services/shopSlug.js'
 import { composerVitrine, VitrineImpossible } from '../services/shopGenerator.js'
 import { reserveCredits, refundCredits } from '../services/billing.js'
+import { DROPS } from '../services/tarifs.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { estMirakl, normaliserBaseUrl } from '../services/mirakl.js'
@@ -864,7 +865,7 @@ settingsRouter.post('/shops/:id/vitrine', async (req: AuthedRequest, res) => {
     : []
   const rayons = [...new Set(categories.map((c) => c.path.split('>')[0].trim()))]
 
-  const credit = await reserveCredits(req.userId!, 1)
+  const credit = await reserveCredits(req.userId!, DROPS.reecriture, 'Génération de vitrine')
   if (!credit.ok) return res.status(402).json({ error: credit.reason })
 
   try {
@@ -874,13 +875,13 @@ settingsRouter.post('/shops/:id/vitrine', async (req: AuthedRequest, res) => {
       rayons,
     })
     if (!propose) {
-      await refundCredits(req.userId!, 1)
-      return res.status(502).json({ error: "L'écriture n'a rien rendu de lisible. Crédit rendu, réessayez." })
+      await refundCredits(req.userId!, DROPS.reecriture)
+      return res.status(502).json({ error: "L'écriture n'a rien rendu de lisible. Drops rendus, réessayez." })
     }
     res.json({ ...propose, rayonsRetenus: rayons })
   } catch (err) {
-    await refundCredits(req.userId!, 1)
-    const message = err instanceof VitrineImpossible ? err.message : "L'écriture a échoué. Crédit rendu."
+    await refundCredits(req.userId!, DROPS.reecriture)
+    const message = err instanceof VitrineImpossible ? err.message : "L'écriture a échoué. Drops rendus."
     res.status(502).json({ error: message })
   }
 })

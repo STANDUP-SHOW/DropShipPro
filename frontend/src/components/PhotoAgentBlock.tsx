@@ -155,14 +155,14 @@ export function PhotoAgentBlock({
           se retient — le vendeur sait d'avance ce que coûtera la fois d'après.
         */}
         {credits === null
-          ? `${cout} crédit(s) · ${tarif.photo} crédit par image`
-          : `${cout} crédit(s) sur les ${credits} qui vous restent · ${tarif.photo} crédit par image`}
+          ? `${cout} drops · ${tarif.photo} drops par image`
+          : `${cout} drops sur les ${credits} qui vous restent · ${tarif.photo} drops par image`}
       </p>
 
       {credits === 0 ? (
         <p className="mt-2 text-center text-[11px] text-amber-300">
-          <Link to="/marketing-photo" className="underline">
-            Recharger des crédits images
+          <Link to="/credits" className="underline">
+            Recharger des drops
           </Link>
         </p>
       ) : null}
@@ -202,8 +202,8 @@ export function PhotoAgentBlock({
 
       <p className="mt-2 text-center text-[11px] text-gray-500">
         {credits === null
-          ? `${tarif.pub} crédits la publicité`
-          : `${tarif.pub} crédits la publicité, sur les ${credits} qui vous restent`}
+          ? `${tarif.pub} drops la publicité`
+          : `${tarif.pub} drops la publicité, sur les ${credits} qui vous restent`}
       </p>
       <p className="mt-1 text-center text-[11px] text-gray-500">
         Vos publicités se retrouvent aussi dans{' '}

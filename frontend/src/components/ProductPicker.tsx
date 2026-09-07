@@ -279,7 +279,7 @@ export function ProductPicker({
                   title={
                     p.adAdvice
                       ? "Relire l'avis de Laurence — deja paye"
-                      : 'Demander a Laurence si ce produit merite un budget (1 credit)'
+                      : 'Demander à Laurence si ce produit mérite un budget (10 drops)'
                   }
                   className={
                     p.adAdvice

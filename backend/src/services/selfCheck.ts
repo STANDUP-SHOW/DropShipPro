@@ -147,8 +147,8 @@ export async function selfCheck(): Promise<ServiceReport> {
   if (stripe === 'non-configure') alertes.push('Aucun paiement possible : clé Stripe absente.')
   if (stripe === 'sans-webhook') {
     alertes.push(
-      "Webhook Stripe non signé : les achats restent crédités au retour de paiement, mais " +
-        'les renouvellements et résiliations d\'abonnement passeront inaperçus.',
+      'Webhook Stripe non signé : les recharges restent créditées au retour de paiement, mais ' +
+        'un remboursement ou une contestation de paiement côté Stripe passera inaperçu.',
     )
   }
 

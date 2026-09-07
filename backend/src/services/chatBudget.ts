@@ -83,7 +83,7 @@ export async function etatPlafond(
 
 /** Ce que l'agent répond quand il a atteint son quota du jour. */
 export function messagePlafond(nom: string): string {
-  return `${nom} a déjà répondu ${PLAFOND_JOUR} fois aujourd'hui — c'est le maximum compris dans son abonnement. Il reprend demain matin, et vos échanges d'aujourd'hui restent consultables.`
+  return `${nom} a déjà répondu ${PLAFOND_JOUR} fois aujourd'hui — c'est le maximum de réponses qu'il donne dans une journée. Il reprend demain matin, et vos échanges d'aujourd'hui restent consultables.`
 }
 
 export interface Tour {

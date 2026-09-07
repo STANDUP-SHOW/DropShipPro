@@ -66,7 +66,7 @@ export function OptimizerAgentBlock({
     try {
       const r = await api.optimiserAnnonce(productId)
       if (!r.reecrit) {
-        setErreur("L'IA n'a pas répondu. Rien n'a été modifié, aucun crédit n'a été pris.")
+        setErreur("L'IA n'a pas répondu. Rien n'a été modifié, aucun drop n'a été prélevé.")
         return
       }
       setNote((n) => (n ? { ...n, score: r.apres.score, checks: r.apres.checks } : n))
@@ -140,7 +140,7 @@ export function OptimizerAgentBlock({
             <span>{busy ? 'Hugo reprend l’annonce…' : "Optimiser l'annonce"}</span>
           </button>
           <p className="mt-2 text-center text-[11px] text-gray-500">
-            1 crédit annonce — rendu si l'IA ne répond pas.
+            10 drops — rendus si l'IA ne répond pas.
           </p>
         </>
       )}

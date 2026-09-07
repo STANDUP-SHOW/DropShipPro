@@ -219,7 +219,7 @@ export function OpportunityList({ scope, department }: { scope: 'ALL' | 'PERSONA
                     className="btn-gradient inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                   >
                     <Download size={13} />
-                    <span>{busyId === o.id ? 'Import…' : 'Importer (1 crédit)'}</span>
+                    <span>{busyId === o.id ? 'Import…' : 'Importer (12 drops)'}</span>
                   </button>
                 ))}
 

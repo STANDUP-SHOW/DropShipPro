@@ -175,8 +175,8 @@ export default function Agents() {
         <Link to="/rayons" className="text-purple-300 underline">
           Mes rayons
         </Link>{' '}
-        : ils s'embauchent un par un, dépendent des rayons que vous travaillez vraiment, et se
-        paient à part. Les mélanger ici laissait croire qu'ils étaient inclus.
+        : ils se confient un par un (gratuitement), dépendent des rayons que vous travaillez
+        vraiment, et leurs actions se paient en drops comme le reste.
       </p>
 
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}

@@ -44,7 +44,7 @@ export function AgentBook({
   }, [kind])
 
   async function jeter(id: string) {
-    if (!window.confirm('Jeter cette image ? Elle ne sera pas régénérée sans un nouveau crédit.')) return
+    if (!window.confirm('Jeter cette image ? La régénérer coûtera de nouveau 18 drops.')) return
     await api.deleteImage(id).catch(() => undefined)
     setImages((v) => v.filter((i) => i.id !== id))
   }

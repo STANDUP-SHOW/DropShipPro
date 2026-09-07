@@ -71,7 +71,7 @@ function BadgeEmbauche({ actif, to }: { actif: boolean; to?: string }) {
       }
     >
       <span className={(actif ? 'bg-emerald-300' : 'bg-red-400') + ' h-2 w-2 animate-pulse rounded-full'} />
-      <span>{actif ? 'Embauché' : 'Inactif'}</span>
+      <span>{actif ? 'En poste' : 'À confier'}</span>
     </span>
   )
   return to ? (
@@ -250,7 +250,7 @@ export default function Rayons() {
                     onClick={() => setConfirming(p)}
                     className="btn-gradient w-full rounded-lg px-3 py-2 text-sm font-semibold"
                   >
-                    Embaucher
+                    Confier ce rayon
                   </button>
                 </div>
               )}
