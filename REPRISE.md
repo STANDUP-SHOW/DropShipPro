@@ -16,6 +16,55 @@ contre une liste de fonctions qui grossit pendant que l'application recule.
 
 ---
 
+## Refonte « Drops » (07/09/2026) — code prêt, déploiement à faire
+
+Bascule vers une **monnaie unique, les drops** : plus d'abonnement Premium, plus
+de location de chef de rayon. Accès à tout, chaque action facturée en drops.
+**1 drop = 0,01 € ; prix d'une action = coût réel × 5** (marge 80 %). Barème
+dans `backend/src/services/tarifs.ts` (source unique).
+
+**Fait et vérifié en local :**
+
+- Cœur économique côté serveur : `services/tarifs.ts` (barème), `billing.ts`
+  (`reserveCredits`/`refundCredits` **tout-ou-rien** sur le solde de drops, relevé
+  écrit à chaque mouvement, packs de drops). Repricing de tous les sites d'appel
+  (import 12, importLot 8, réécriture 10, analyse 30, image 18, pub 20, question
+  comptoir 5, question chef 25, conseil produit 40, AUTO-MODE 75/passage,
+  AUTO-SHIPPER 14/import). Publier reste gratuit.
+- Abonnement + location **supprimés** : `routes/billing.ts` (drops-only),
+  `agentBilling.ts` (plus de `paidUntil`/`AGENT_PLANS`, tous les rayons actifs),
+  `reports.ts`/`departments.ts`/`agent.ts`/`autoAnalyste.ts`/`autopilot.ts`
+  (plus de gate premium/paidUntil ; AUTO-MODE facture 75 drops/passage ;
+  AUTO-SHIPPER sans tranche, 14/import). Crédits images fondus dans le solde
+  unique (visuals, tickets, statistiques).
+- **Relevé du portefeuille** : table `DropTransaction` (migration
+  `20260911090000_portefeuille_drops` **déjà appliquée** en prod — additive,
+  sans risque : table + défaut d'inscription à 120), endpoint
+  `GET /billing/transactions`, chaque débit/crédit porte un libellé.
+- Front : page « Mes crédits » refondue en **portefeuille** (`pages/Billing.tsx`)
+  — solde en drops + équivalent €, recharge Stripe, relevé en direct,
+  explication des drops, **grille tarifaire complète drops/€/$**. Icône pièce
+  `components/DropCoin.tsx` (D barré, or, vectorielle). UI d'abonnement/location
+  retirée de Billing/Rayon/Rayons/PhotoStudio/Agents. Route `/credits` ajoutée.
+- **58 bancs verts**, `tsc` backend vert, `npm run build` front vert.
+
+**Ce qui reste, dans l'ordre — NE PAS inverser :**
+
+1. **Déployer le code** (push → Railway + Vercel). Le nouveau code lit `credits`
+   comme des drops.
+2. **APRÈS le déploiement**, convertir les soldes existants :
+   `cd backend && npx tsx convertir-en-drops.ts` (aperçu), puis `--ecrire`.
+   Il fond `credits×12 + imageCredits×18 → drops` pour les comptes antérieurs à
+   la bascule (préserve le pouvoir d'achat), idempotent, borné par date. **Ne
+   jamais le lancer avant le déploiement** : l'ancien code lirait des soldes
+   gonflés. Sauvegarde déjà prise (`sauvegardes/2026-09-07-14-30-17`).
+3. **Vérifier en prod** : solde affiché en drops, une action débite le bon
+   montant et apparaît au relevé, une recharge crédite.
+4. Reste cosmétique (non bloquant) : quelques mentions « abonnement / € par
+   mois » dans Guide.tsx et Marketing.tsx à revoir.
+
+---
+
 ## Ce qui bloque, à traiter en premier
 
 ### 1. Les variantes ne sont pas importées — non diagnostiqué

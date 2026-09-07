@@ -280,12 +280,12 @@ export async function accorderAvoir(
   if (!accorde) return 0
 
   await prisma.$transaction([
+    // Un seul portefeuille en drops (07/09/2026) : que le litige porte sur une
+    // annonce ou sur une image, l'avoir revient au même solde. `creditKind`
+    // reste consigné sur le ticket, il ne pilote plus qu'un libellé.
     prisma.user.update({
       where: { id: ticket.userId },
-      data:
-        ticket.creditKind === 'annonce'
-          ? { credits: { increment: accorde } }
-          : { imageCredits: { increment: accorde } },
+      data: { credits: { increment: accorde } },
     }),
     prisma.ticket.update({
       where: { id: ticketId },

@@ -26,47 +26,24 @@ export const visualsRouter = Router()
 visualsRouter.use(requireAuth)
 
 /**
- * Recharges d'images. Prix TTC en centimes, comme partout ailleurs.
- *
- * Une image coûte environ 0,032 € à produire. La dégressivité tient jusqu'à cinq
- * mille — de 68 % à 45 % de marge — puis se resserre : 20 % sur dix mille, et
- * seulement 1 % sur vingt-cinq mille, soit quatre euros de bénéfice sur une
- * vente à huit cents. Ce dernier palier ne laisse aucune place à une hausse de
- * tarif du fournisseur ; il est là parce qu'il a été décidé, pas parce qu'il est
- * confortable.
+ * Les images se paient au portefeuille unique en drops (07/09/2026), comme tout
+ * le reste : plus de « crédits images » à part. Une image coûte `DROPS.image`,
+ * une publicité `DROPS.pub`, décomptés après coup. Une génération qui échoue
+ * n'est pas facturée : le vendeur n'a rien reçu, ses drops lui reviennent.
  */
-export const IMAGE_PACKS = [
-  { id: 'img-100', label: '100 images', amount: 1000, images: 100 },
-  { id: 'img-250', label: '250 images', amount: 2200, images: 250 },
-  { id: 'img-500', label: '500 images', amount: 4000, images: 500 },
-  { id: 'img-1000', label: '1 000 images', amount: 7000, images: 1000 },
-  { id: 'img-2500', label: '2 500 images', amount: 16000, images: 2500 },
-  { id: 'img-5000', label: '5 000 images', amount: 29000, images: 5000 },
-  { id: 'img-10000', label: '10 000 images', amount: 40000, images: 10000 },
-  { id: 'img-25000', label: '25 000 images', amount: 80000, images: 25000 },
-]
-
-export function findImagePack(id: string) {
-  return IMAGE_PACKS.find((p) => p.id === id) ?? null
-}
-
 visualsRouter.get('/state', async (req: AuthedRequest, res) => {
   const [user, produced] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: req.userId! },
-      select: { imageCredits: true },
+      select: { credits: true },
     }),
     prisma.generatedImage.count({ where: { userId: req.userId! } }),
   ])
 
   res.json({
-    credits: user.imageCredits,
+    credits: user.credits,
     produced,
     configured: imageGenConfigured(),
-    packs: IMAGE_PACKS,
-    // Au-delà du plus gros paquet, le prix se négocie : le dire dans la réponse
-    // évite à l'interface de deviner.
-    beyond: "Au-delà de 25 000 images, écrivez-nous : le tarif se négocie.",
     formats: Object.entries(AD_FORMATS).map(([id, f]) => ({ id, ...f })),
     /*
      * Le tarif part au client au lieu d'être réécrit par lui.
@@ -140,10 +117,10 @@ const photoSchema = z.object({
  * qui rend le prélèvement de deux crédits sûr autant que celui d'un seul —
  * lire le solde puis décrémenter laisserait passer une publicité à découvert.
  */
-async function takeImageCredit(userId: string, combien = COUT_PHOTO): Promise<boolean> {
+async function takeImageCredit(userId: string, combien: number = COUT_PHOTO): Promise<boolean> {
   const { count } = await prisma.user.updateMany({
-    where: { id: userId, imageCredits: { gte: combien } },
-    data: { imageCredits: { decrement: combien } },
+    where: { id: userId, credits: { gte: combien } },
+    data: { credits: { decrement: combien } },
   })
   return count > 0
 }
@@ -152,7 +129,7 @@ async function takeImageCredit(userId: string, combien = COUT_PHOTO): Promise<bo
 async function rendreCredits(userId: string, combien: number) {
   await prisma.user.update({
     where: { id: userId },
-    data: { imageCredits: { increment: combien } },
+    data: { credits: { increment: combien } },
   })
 }
 
@@ -211,7 +188,7 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
 
   for (let i = 0; i < parsed.data.count; i++) {
     if (!(await takeImageCredit(req.userId!))) {
-      errors.push('Crédits images épuisés.')
+      errors.push('Solde de drops insuffisant pour une image.')
       break
     }
 
@@ -260,10 +237,10 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.userId! },
-    select: { imageCredits: true },
+    select: { credits: true },
   })
 
-  res.status(produced.length ? 201 : 502).json({ images: produced, credits: user.imageCredits, errors })
+  res.status(produced.length ? 201 : 502).json({ images: produced, credits: user.credits, errors })
 })
 
 const adSchema = z.object({
@@ -420,7 +397,7 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
       // Deux crédits : l'accroche est écrite, puis le visuel est composé —
       // logo, prix, bouton, format du réseau. Voir `visualTariff.ts`.
       if (!(await takeImageCredit(req.userId!, COUT_PUB))) {
-        errors.push(`Crédits images insuffisants : une publicité en coûte ${COUT_PUB}.`)
+        errors.push(`Drops insuffisants : une publicité en coûte ${COUT_PUB}.`)
         break outer
       }
 
@@ -514,10 +491,10 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.userId! },
-    select: { imageCredits: true },
+    select: { credits: true },
   })
 
-  res.status(produced.length ? 201 : 502).json({ images: produced, credits: user.imageCredits, errors })
+  res.status(produced.length ? 201 : 502).json({ images: produced, credits: user.credits, errors })
 })
 
 /**

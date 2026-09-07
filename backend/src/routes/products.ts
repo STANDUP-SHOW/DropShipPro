@@ -29,6 +29,7 @@ import { brouillonPour } from '../services/socialDraft.js'
 import { comptesDe } from '../services/socialGateway.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
+import { DROPS } from '../services/tarifs.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 import { watermarkOptionsFor } from '../services/watermarkOptions.js'
 import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
@@ -76,7 +77,7 @@ productsRouter.post(
 
     // Reserve d avance, rendu plus bas si l import echoue : le vendeur paie une
     // annonce qu il a recue, jamais une tentative.
-    const credit = await reserveCredits(req.userId!, 1)
+    const credit = await reserveCredits(req.userId!, DROPS.import, "Import d'une annonce")
     if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
     try {
@@ -85,12 +86,12 @@ productsRouter.post(
       // La reecriture est ce que le credit paie. Modele injoignable : l annonce
       // est gardee -- les photos et le prix valent d etre pris -- mais elle est
       // rendue gratuite et signalee comme non reecrite.
-      if (!reecrit) await refundCredits(req.userId!, 1)
+      if (!reecrit) await refundCredits(req.userId!, DROPS.import)
 
       res.status(201).json({ ...produit, notes })
     } catch (err) {
       // Rien livre, rien facture.
-      await refundCredits(req.userId!, 1)
+      await refundCredits(req.userId!, DROPS.import)
       console.error(err)
       if (err instanceof ScrapeBlockedError) {
         return res.status(422).json({ error: err.message })
@@ -166,7 +167,10 @@ productsRouter.post(
 
     const data = parsed.data
 
-    const credit = await reserveCredits(req.userId!, 1)
+    // Un lot passe par le panneau latéral avec `differer` : sa réécriture part
+    // en batch (−50 %), donc l'annonce coûte moins qu'une capture à l'unité.
+    const cout = data.differer ? DROPS.importLot : DROPS.import
+    const credit = await reserveCredits(req.userId!, cout, data.differer ? 'Import en lot' : "Import d'une annonce")
     if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
     try {
@@ -191,10 +195,10 @@ productsRouter.post(
         differerReecriture: data.differer,
       })
 
-      if (!reecrit) await refundCredits(req.userId!, 1)
+      if (!reecrit) await refundCredits(req.userId!, cout)
       res.status(201).json({ ...produit, notes })
     } catch (err) {
-      await refundCredits(req.userId!, 1)
+      await refundCredits(req.userId!, cout)
       console.error(err)
       res.status(500).json({ error: "Impossible d'enregistrer ce produit" })
     }
@@ -224,17 +228,19 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
   const parsed = batchImportSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Envoyez entre 1 et 25 URLs valides' })
 
-  // Couverture partielle plutot que refus : avec trois credits et dix adresses,
-  // les trois premieres passent et le reste est signale comme non couvert.
-  const credit = await reserveCredits(req.userId!, parsed.data.urls.length)
-  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+  // Réservé annonce par annonce : le débit d'une action est tout ou rien (voir
+  // billing.ts), donc dès que le solde ne couvre plus un import, l'adresse en
+  // cours et les suivantes sont signalées non couvertes plutôt que débitées à
+  // moitié.
+  const results: Array<{ url: string; ok: boolean; product?: unknown; error?: string; notes?: string[] }> = []
 
-  const couvertes = parsed.data.urls.slice(0, credit.allowed)
-  const nonCouvertes = parsed.data.urls.slice(credit.allowed)
-  const results: Array<{ url: string; ok: boolean; product?: unknown; error?: string; notes?: string[] }> =
-    nonCouvertes.map((url) => ({ url, ok: false, error: 'Solde insuffisant pour cette annonce' }))
+  for (const url of parsed.data.urls) {
+    const credit = await reserveCredits(req.userId!, DROPS.import, "Import d'une annonce")
+    if (!credit.ok) {
+      results.push({ url, ok: false, error: 'Solde de drops insuffisant pour cette annonce.' })
+      continue
+    }
 
-  for (const url of couvertes) {
     // Une place par adresse, tenue le temps du travail. Une seule place pour
     // tout le lot affamerait les autres vingt minutes ; aucune place laisserait
     // un lot passer devant la file.
@@ -243,7 +249,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
       release = await importLimiter.acquire()
     } catch {
       results.push({ url, ok: false, error: 'Service saturé, réessayez dans une minute.' })
-      await refundCredits(req.userId!, 1)
+      await refundCredits(req.userId!, DROPS.import)
       continue
     }
 
@@ -251,11 +257,11 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
       const { produit, reecrit, notes } = await importerAdresse(req.userId!, url, {
         shopId: parsed.data.shopId,
       })
-      if (!reecrit) await refundCredits(req.userId!, 1)
+      if (!reecrit) await refundCredits(req.userId!, DROPS.import)
       results.push({ url, ok: true, product: produit, notes })
     } catch (err) {
       // Chaque adresse en echec rend son credit, individuellement.
-      await refundCredits(req.userId!, 1)
+      await refundCredits(req.userId!, DROPS.import)
       console.error(`import-batch failed for ${url}`, err)
       results.push({
         url,
@@ -360,7 +366,7 @@ productsRouter.post('/lot', async (req: AuthedRequest, res) => {
    */
   if (action === 'reecrire') {
     for (const resume of annonces) {
-      const credit = await reserveCredits(req.userId!, 1)
+      const credit = await reserveCredits(req.userId!, DROPS.reecriture, "Réécriture d'une annonce")
       if (!credit.ok) {
         echecs.push({
           id: resume.id,
@@ -376,7 +382,7 @@ productsRouter.post('/lot', async (req: AuthedRequest, res) => {
         const produit = await prisma.product.findUniqueOrThrow({ where: { id: resume.id } })
         const { reecrit, champs } = await reecrireAnnonce(produit)
         if (!reecrit || !champs) {
-          await refundCredits(req.userId!, 1)
+          await refundCredits(req.userId!, DROPS.reecriture)
           echecs.push({
             id: resume.id,
             titre: resume.aiTitle || resume.title,
@@ -387,7 +393,7 @@ productsRouter.post('/lot', async (req: AuthedRequest, res) => {
         await prisma.product.update({ where: { id: resume.id }, data: champs })
         faites++
       } catch (e) {
-        await refundCredits(req.userId!, 1)
+        await refundCredits(req.userId!, DROPS.reecriture)
         echecs.push({
           id: resume.id,
           titre: resume.aiTitle || resume.title,
@@ -533,13 +539,13 @@ productsRouter.post('/:id/reecrire', async (req: AuthedRequest, res) => {
   })
   if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
 
-  const credit = await reserveCredits(req.userId!, 1)
+  const credit = await reserveCredits(req.userId!, DROPS.reecriture, "Réécriture d'une annonce")
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   try {
     const { reecrit, champs, changements } = await reecrireAnnonce(produit)
     if (!reecrit || !champs) {
-      await refundCredits(req.userId!, 1)
+      await refundCredits(req.userId!, DROPS.reecriture)
       return res.status(503).json({
         error: "L'IA ne répond pas pour le moment. Rien n'a été modifié, aucun crédit n'a été pris.",
       })
@@ -548,7 +554,7 @@ productsRouter.post('/:id/reecrire', async (req: AuthedRequest, res) => {
     await prisma.product.update({ where: { id: produit.id }, data: champs })
     res.json({ ok: true, changements })
   } catch (err) {
-    await refundCredits(req.userId!, 1)
+    await refundCredits(req.userId!, DROPS.reecriture)
     console.error('réécriture impossible', err)
     res.status(502).json({ error: "La réécriture n'a pas abouti. Réessayez dans un instant." })
   }
@@ -560,7 +566,7 @@ productsRouter.post('/:id/optimiser', async (req: AuthedRequest, res) => {
   })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
 
-  const credit = await reserveCredits(req.userId!, 1)
+  const credit = await reserveCredits(req.userId!, DROPS.reecriture, "Optimisation d'une annonce")
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   try {
@@ -568,14 +574,14 @@ productsRouter.post('/:id/optimiser', async (req: AuthedRequest, res) => {
 
     // Rien réécrit — modèle injoignable, ou rien à reprendre : le crédit est rendu.
     if (!optimisation.reecrit || !champs) {
-      await refundCredits(req.userId!, 1)
+      await refundCredits(req.userId!, DROPS.reecriture)
       return res.json(optimisation)
     }
 
     await prisma.product.update({ where: { id: product.id }, data: champs })
     res.json(optimisation)
   } catch (err) {
-    await refundCredits(req.userId!, 1)
+    await refundCredits(req.userId!, DROPS.reecriture)
     console.error('optimisation impossible', err)
     res.status(502).json({ error: "La reprise de l'annonce n'a pas abouti. Réessayez dans un instant." })
   }
@@ -944,7 +950,7 @@ productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
       continue
     }
 
-    const credit = await reserveCredits(req.userId!, 1)
+    const credit = await reserveCredits(req.userId!, DROPS.analyse, 'Analyse de marché')
     if (!credit.ok) {
       results.push({
         productId: product.id,
@@ -964,7 +970,7 @@ productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
       results.push({ productId: product.id, title: product.aiTitle || product.title, analysis })
     } catch (err) {
       // Nothing produced, nothing charged.
-      await refundCredits(req.userId!, 1)
+      await refundCredits(req.userId!, DROPS.analyse)
       console.error('analyse de marché', product.id, err)
       results.push({
         productId: product.id,
@@ -1814,7 +1820,7 @@ productsRouter.post('/:id/ad-advice', async (req: AuthedRequest, res) => {
     return res.json({ avis: produit.adAdvice, at: produit.adAdvisedAt, facture: false })
   }
 
-  const credit = await reserveCredits(req.userId!, COUT_AVIS)
+  const credit = await reserveCredits(req.userId!, COUT_AVIS, 'Avis publicitaire')
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   const categorie = produit.categoryId

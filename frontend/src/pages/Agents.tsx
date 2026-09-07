@@ -56,15 +56,12 @@ function AgentCard({
         </p>
       ) : null}
 
-      {agent.monthly ? (
-        <p className="mt-2 text-[11px] font-semibold text-sky-300">
-          {agent.hired && agent.paidUntil
-            ? `Embauché jusqu'au ${new Date(agent.paidUntil).toLocaleDateString('fr-FR')}`
-            : `${(agent.monthly / 100).toFixed(2)} € par mois`}
-        </p>
-      ) : (
-        <p className="mt-2 text-[11px] text-gray-500">Compris dans votre abonnement</p>
-      )}
+      {/* Plus d'abonnement ni d'embauche (07/09/2026) : tout agent est
+          accessible, chaque question se paie en drops (un agent « lourd » —
+          avocat, comptable — coûte plus qu'un agent de comptoir simple). */}
+      <p className="mt-2 text-[11px] font-semibold text-sky-300">
+        {agent.monthly ? 'Payé à la question, en drops' : 'Accessible — payé à la question, en drops'}
+      </p>
 
       {agent.note ? <p className="mt-2 text-[11px] text-amber-300">{agent.note}</p> : null}
 

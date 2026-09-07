@@ -1,6 +1,7 @@
 import { MODELE_REDACTION } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { systemeCachable } from './chatBudget.js'
+import { DROPS } from './tarifs.js'
 
 /**
  * « Info sur un produit » : l'avis d'un chef de rayon sur une adresse collée.
@@ -24,7 +25,8 @@ const MODEL = MODELE_REDACTION
 export const MAX_RECHERCHES = 5
 
 /** Ce que coûte un avis au vendeur. */
-export const COUT_EN_CREDITS = 3
+/** Ce que coûte un conseil produit approfondi, en drops. */
+export const COUT_EN_CREDITS = DROPS.conseilProduit
 
 /**
  * Combien de temps un avis reste servi sans repayer.

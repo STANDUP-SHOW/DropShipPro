@@ -117,8 +117,10 @@ export async function enqueteAliExpress(userId: string): Promise<ResultatEnquete
  * l'un prive les autres. Appelée par le planificateur de l'API.
  */
 export async function tourneeEnquetes(): Promise<void> {
+  // Tout vendeur ayant confié au moins un rayon (plus d'abonnement depuis le
+  // 07/09/2026). L'enquête interroge un connecteur fournisseur, pas le modèle :
+  // elle ne coûte rien, et n'aboutit de toute façon que si une clé est reliée.
   const eligibles = await prisma.department.findMany({
-    where: { paidUntil: { gt: new Date() } },
     select: { userId: true },
     distinct: ['userId'],
   })

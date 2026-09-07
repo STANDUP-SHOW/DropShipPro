@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react'
-import { loadStripe } from '@stripe/stripe-js'
-import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
+import { Link } from 'react-router-dom'
 import { Camera, Sparkles, Check, Trash2, Download, ImageOff } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { AgentBook } from '../components/AgentBook'
 import { AgentBar } from '../components/AgentBar'
-
-const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-  : null
+import { DropCoin } from '../components/DropCoin'
 
 type State = Awaited<ReturnType<typeof api.visualState>>
 type Detail = Awaited<ReturnType<typeof api.productVisuals>>
@@ -32,7 +28,6 @@ export default function PhotoStudio() {
   const [count, setCount] = useState(2)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   function loadState() {
     api.visualState().then(setState).catch(() => setError('Atelier indisponible'))
@@ -80,16 +75,6 @@ export default function PhotoStudio() {
     setDetail((d) => (d ? { ...d, generated: d.generated.filter((g) => g.id !== id) } : d))
   }
 
-  async function buy(packId: string) {
-    setError(null)
-    try {
-      const { clientSecret: secret } = await api.startCheckout(packId)
-      setClientSecret(secret)
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }
-
   const photos = detail?.generated.filter((g) => g.kind === 'photo') ?? []
 
   return (
@@ -114,27 +99,23 @@ export default function PhotoStudio() {
 
       {state && (
         <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
+          <DropCoin size={28} />
           <div>
             <p className="text-sm">
-              <b>{`Vous m'avez embauché pour ${state.credits + state.produced} images.`}</b>
+              <b>{`${state.credits.toLocaleString('fr-FR')} drops`}</b>
+              {state.tarif ? ` — une image coûte ${state.tarif.photo} drops` : ''}
             </p>
             <p className="text-xs text-gray-400">
-              {`Nous en avons généré ${state.produced}. Il vous en reste ${state.credits}.`}
+              {`${state.produced} image(s) déjà générée(s). Aucune embauche : Léa puise dans vos drops quand elle travaille.`}
             </p>
           </div>
 
-          <div className="ml-auto flex flex-wrap gap-2">
-            {state.packs.slice(0, 4).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => buy(p.id)}
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
-              >
-                {`${p.label} — ${(p.amount / 100).toFixed(0)} €`}
-              </button>
-            ))}
-          </div>
+          <Link
+            to="/credits"
+            className="ml-auto rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+          >
+            Recharger
+          </Link>
 
           {!state.configured && (
             <p className="w-full text-xs text-amber-300">
@@ -142,26 +123,6 @@ export default function PhotoStudio() {
             </p>
           )}
         </div>
-      )}
-
-      {clientSecret && stripePromise && (
-        <section className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold">Paiement sécurisé</h2>
-            <button
-              type="button"
-              onClick={() => setClientSecret(null)}
-              className="text-xs text-gray-400 hover:text-white"
-            >
-              Annuler
-            </button>
-          </div>
-          <div className="mt-4">
-            <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
-              <EmbeddedCheckout />
-            </EmbeddedCheckoutProvider>
-          </div>
-        </section>
       )}
 
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}

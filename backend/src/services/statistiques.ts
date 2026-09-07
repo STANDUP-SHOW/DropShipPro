@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { EURO_PAR_DROP } from './tarifs.js'
 import { PLATFORMS } from './platforms.js'
 import type { Order, Platform } from '@prisma/client'
 
@@ -150,7 +151,7 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
       prisma.generatedImage.findMany({ where: { userId }, select: { kind: true, createdAt: true } }),
       prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: { credits: true, imageCredits: true, plan: true, autoOrder: true, controlAgent: true },
+        select: { credits: true, autoOrder: true, controlAgent: true },
       }),
       prisma.opportunity.count({ where: { userId } }),
       prisma.category.findMany({ select: { id: true, path: true } }),
@@ -604,8 +605,8 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
       numero: '14',
       titre: 'Plateforme DropShipper',
       tuiles: [
-        { id: 'credits', label: 'Crédits annonces restants', valeur: user.credits },
-        { id: 'credits-image', label: 'Crédits images restants', valeur: user.imageCredits },
+        { id: 'drops', label: 'Solde de drops', valeur: user.credits },
+        { id: 'drops-euros', label: 'Valeur du solde', valeur: (user.credits * EURO_PAR_DROP).toFixed(2), unite: '€' },
         { id: 'annonces-ia', label: 'Annonces rédigées par l’IA', valeur: generees },
         { id: 'images', label: 'Images générées', valeur: images.filter((i) => i.kind !== 'ad').length },
         { id: 'pubs', label: 'Publicités créées', valeur: images.filter((i) => i.kind === 'ad').length },

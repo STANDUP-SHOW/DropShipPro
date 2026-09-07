@@ -26,8 +26,9 @@ const compte = await prisma.user.create({
 })
 
 try {
+  // Un seul portefeuille en drops (07/09/2026) : tout avoir revient à `credits`.
   const soldeDe = async () =>
-    (await prisma.user.findUniqueOrThrow({ where: { id: compte.id } })).imageCredits
+    (await prisma.user.findUniqueOrThrow({ where: { id: compte.id } })).credits
 
   // --- Un avoir ne dépasse jamais ce qui a été pris --------------------------
   const gourmand = await prisma.ticket.create({
@@ -62,14 +63,15 @@ try {
     "l avoir n apparait pas dans le fil du ticket",
   )
 
-  // --- Les crédits annonce et image ne se mélangent pas ---------------------
+  // --- Avoir image et avoir annonce vont au même portefeuille ---------------
+  // Plus deux réserves séparées : un litige, quelle que soit sa nature, rend
+  // des drops sur l'unique solde. À ce stade l'avoir image a déjà rendu 1 drop.
   const annonce = await prisma.ticket.create({
     data: { userId: compte.id, subject: 'import rate', creditsSpent: 1, creditKind: 'annonce' },
   })
   await accorderAvoir(annonce.id, 1, 'comptable')
   const apres = await prisma.user.findUniqueOrThrow({ where: { id: compte.id } })
-  exige(apres.credits === 1, `credits annonce a ${apres.credits}, attendu 1`)
-  exige(apres.imageCredits === 1, `credits image a ${apres.imageCredits}, attendu 1 (inchange)`)
+  exige(apres.credits === 2, `solde de drops a ${apres.credits}, attendu 2 (1 image + 1 annonce)`)
 
   console.log(echecs === 0 ? 'Tickets et avoirs : tout passe.' : `${echecs} echec(s).`)
   process.exitCode = echecs === 0 ? 0 : 1

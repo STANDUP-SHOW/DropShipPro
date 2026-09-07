@@ -507,10 +507,10 @@ async function creerCompte() {
     data: {
       email,
       passwordHash: await bcrypt.hash(motDePasse, 10),
-      // De quoi importer trente annonces et produire une dizaine de visuels
-      // sans que le banc échoue pour une raison de solde.
-      credits: 200,
-      imageCredits: 50,
+      // Un seul portefeuille en drops (07/09/2026) : imports, images, pubs,
+      // analyses tirent tous sur `credits`. De quoi couvrir tout le parcours
+      // sans qu'il échoue pour une raison de solde.
+      credits: 10000,
       // L'agent de contrôle fait partie du parcours : sans lui, le banc
       // éprouverait un chemin que le vendeur n'emprunte pas.
       controlAgent: true,

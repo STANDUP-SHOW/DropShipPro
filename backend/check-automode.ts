@@ -1,17 +1,20 @@
 import { prisma } from './src/lib/prisma.js'
 import { passageAutoMode, tourneeAutoMode, type Generateur } from './src/services/autoAnalyste.js'
+import { DROPS } from './src/services/tarifs.js'
 
 /**
  * L'AUTO-MODE des chefs de rayon, éprouvé contre la vraie base avec un faux
- * générateur — l'API Anthropic n'est jamais appelée, aucun crédit ne part.
+ * générateur — l'API Anthropic n'est jamais appelée.
  *
  *   cd backend && npx tsx check-automode.ts
  *
- * Ce qu'il promet : un rayon en poste dont l'interrupteur est levé reçoit,
- * au plus une fois par demi-journée, une analyse consignée en rapport MARKET
- * et dix produits gagnants en opportunités marquées gagnant12h. Un rayon à
- * l'arrêt, en essai ou interrupteur baissé ne reçoit rien. Un générateur en
- * échec sur un rayon ne prive pas les autres.
+ * Ce qu'il promet, modèle drops (07/09/2026) : un rayon dont l'interrupteur
+ * AUTO-MODE est levé reçoit, au plus une fois par demi-journée, une analyse
+ * consignée en rapport MARKET et dix produits gagnants marqués gagnant12h.
+ * L'éligibilité ne tient qu'à l'interrupteur — plus d'abonnement, plus d'essai.
+ * Chaque passage coûte `DROPS.autoModePassage`, débité au vendeur ; sans drops,
+ * le rayon est sauté sans rien consigner. Interrupteur baissé : jamais servi.
+ * Un générateur en échec rend les drops et ne prive pas les autres rayons.
  */
 
 let echecs = 0
@@ -42,7 +45,8 @@ const enPanne: Generateur = async () => {
 
 async function main() {
   const user = await prisma.user.create({
-    data: { email: `banc-automode-${Date.now()}@example.com`, passwordHash: 'x' },
+    // De quoi payer plusieurs passages : chacun coûte DROPS.autoModePassage.
+    data: { email: `banc-automode-${Date.now()}@example.com`, passwordHash: 'x', credits: 500 },
   })
   const demain = new Date(Date.now() + 86400000)
 
@@ -67,32 +71,57 @@ async function main() {
     await tourneeAutoMode(fauxGenerateur, 0, user.id)
     verifier('une tournée juste après ne régénère rien pour ce rayon', generations === avant)
 
-    console.log('\nQui la tournée sert, et qui elle ignore')
-    // Trois rayons qui ne doivent JAMAIS être servis : arrêté, essai, interrupteur baissé.
+    console.log('\nQui la tournée sert, et qui elle ignore (modèle drops)')
+    // L'interrupteur est le seul critère : paidUntil et plan ne comptent plus.
+    // Trois rayons interrupteur LEVÉ (dont un « expiré » et un « essai » d'antan)
+    // sont désormais servis ; seul l'interrupteur BAISSÉ est ignoré.
     await prisma.department.create({ data: { userId: user.id, key: 'informatique', agentName: 'Iris', autoMode: true, paidUntil: new Date(Date.now() - 1000), plan: 'mensuel' } })
     await prisma.department.create({ data: { userId: user.id, key: 'jeux-videos', agentName: 'Jade', autoMode: true, paidUntil: demain, plan: 'essai' } })
-    await prisma.department.create({ data: { userId: user.id, key: 'mode-homme', agentName: 'Hugo', autoMode: false, paidUntil: demain, plan: 'mensuel' } })
-    // Et un quatrième, éligible, pour prouver que la tournée le sert.
-    const eligible = await prisma.department.create({
+    const hugo = await prisma.department.create({ data: { userId: user.id, key: 'mode-homme', agentName: 'Hugo', autoMode: false, paidUntil: demain, plan: 'mensuel' } })
+    await prisma.department.create({
       data: { userId: user.id, key: 'maison-et-jardin', agentName: 'Nora', autoMode: true, paidUntil: demain, plan: 'mensuel' },
     })
+    const soldeAvant = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits
     const avantTournee = generations
     await tourneeAutoMode(fauxGenerateur, 0, user.id)
-    verifier('la tournée ne sert que le rayon éligible', generations === avantTournee + 1)
-    const rapportNora = await prisma.report.findFirst({ where: { departmentId: eligible.id } })
-    verifier('et son rapport existe', Boolean(rapportNora))
-    const rapportsArretes = await prisma.report.count({ where: { userId: user.id, departmentId: { notIn: [rayon.id, eligible.id] } } })
-    verifier('arrêté, essai et interrupteur baissé : aucun rapport', rapportsArretes === 0)
+    // Malik a déjà un rapport frais (garde) : il est sauté. Restent Iris, Jade, Nora.
+    verifier('les trois rayons interrupteur levé sont servis', generations === avantTournee + 3, `${generations - avantTournee} servi(s)`)
+    const soldeApres = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits
+    verifier(
+      `chaque passage débite ${DROPS.autoModePassage} drops`,
+      soldeAvant - soldeApres === 3 * DROPS.autoModePassage,
+      `débité ${soldeAvant - soldeApres}`,
+    )
+    const rapportHugo = await prisma.report.count({ where: { departmentId: hugo.id } })
+    verifier('interrupteur baissé : aucun rapport', rapportHugo === 0)
+
+    console.log('\nSans drops, le rayon est sauté sans rien consigner')
+    const pauvre = await prisma.user.create({
+      data: { email: `banc-automode-pauvre-${Date.now()}@example.com`, passwordHash: 'x', credits: 10 },
+    })
+    const rayonPauvre = await prisma.department.create({
+      data: { userId: pauvre.id, key: 'informatique', agentName: 'Sam', autoMode: true },
+    })
+    await tourneeAutoMode(fauxGenerateur, 0, pauvre.id)
+    const rapportsPauvre = await prisma.report.count({ where: { departmentId: rayonPauvre.id } })
+    verifier('rien consigné pour le rayon sans drops', rapportsPauvre === 0)
+    verifier('et ses drops sont intacts (il retentera)', (await prisma.user.findUniqueOrThrow({ where: { id: pauvre.id } })).credits === 10)
+    await prisma.user.delete({ where: { id: pauvre.id } })
 
     console.log('\nUn rayon en panne ne prive pas les autres')
-    // Nora redevient servable en vieillissant son rapport au-delà de la garde.
-    await prisma.report.updateMany({ where: { departmentId: eligible.id }, data: { createdAt: new Date(Date.now() - 12 * 3600 * 1000) } })
-    await prisma.report.updateMany({ where: { departmentId: rayon.id }, data: { createdAt: new Date(Date.now() - 12 * 3600 * 1000) } })
+    // Tous les rapports vieillis au-delà de la garde : la tournée les reprend.
+    await prisma.report.updateMany({ where: { userId: user.id }, data: { createdAt: new Date(Date.now() - 12 * 3600 * 1000) } })
+    const nbRapportsAvantPanne = await prisma.report.count({ where: { userId: user.id } })
+    const soldeAvantPanne = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits
     // Le générateur tombe sur tous : la tournée doit finir sans lever.
     await tourneeAutoMode(enPanne, 0, user.id)
     verifier('la tournée survit à un générateur en panne', true)
     const rapportsApresPanne = await prisma.report.count({ where: { userId: user.id } })
-    verifier('et ne consigne rien de vide', rapportsApresPanne === 2)
+    verifier('et ne consigne rien de vide', rapportsApresPanne === nbRapportsAvantPanne)
+    verifier(
+      'un passage en panne rend ses drops',
+      (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits === soldeAvantPanne,
+    )
   } finally {
     await prisma.user.deleteMany({ where: { id: user.id } })
     await prisma.$disconnect()

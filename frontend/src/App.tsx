@@ -131,6 +131,8 @@ export default function App() {
           <Route path="/fournisseurs" element={<Protected><Suppliers /></Protected>} />
           <Route path="/autorisation-speciale" element={<Protected><BetaAccess /></Protected>} />
           <Route path="/sav" element={<Protected><AfterSales /></Protected>} />
+          <Route path="/credits" element={<Protected><BillingPage /></Protected>} />
+          {/* Ancien chemin gardé : les liens et signets existants tombent sur le portefeuille. */}
           <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
           <Route path="/livraisons" element={<Protected><Deliveries /></Protected>} />
           <Route path="/messages" element={<Protected><Messages /></Protected>} />

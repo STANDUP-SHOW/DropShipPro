@@ -7,7 +7,6 @@ import { VignetteProfil } from '../components/VignetteProfil'
 
 type Catalogue = Awaited<ReturnType<typeof api.departmentCatalogue>>
 type Profile = Catalogue['profiles'][number]
-type Plan = Catalogue['plans'][number]
 type Hired = Awaited<ReturnType<typeof api.listDepartments>>[number]
 
 /** Ce que fait un chef de rayon, dit une fois, en haut de page. */
@@ -86,7 +85,6 @@ function BadgeEmbauche({ actif, to }: { actif: boolean; to?: string }) {
 
 export default function Rayons() {
   const [catalogue, setCatalogue] = useState<Profile[]>([])
-  const [plans, setPlans] = useState<Plan[]>([])
   const [hired, setHired] = useState<Hired[]>([])
   const [confirming, setConfirming] = useState<Profile | null>(null)
   const [busy, setBusy] = useState(false)
@@ -96,10 +94,7 @@ export default function Rayons() {
   function load() {
     api
       .departmentCatalogue()
-      .then((c) => {
-        setCatalogue(c.profiles)
-        setPlans(c.plans)
-      })
+      .then((c) => setCatalogue(c.profiles))
       .catch(() => setError('Catalogue indisponible'))
     api.listDepartments().then(setHired).catch(() => undefined)
   }
@@ -195,30 +190,12 @@ export default function Rayons() {
                   }
                 >
 
-                {/* L'échéance, dite clairement : un agent qui s'arrête sans
-                    prévenir passe pour une panne. */}
-                <p className={d.active ? 'mt-1 text-[11px] text-gray-500' : 'mt-1 text-[11px] text-amber-300'}>
-                  {d.active
-                    ? d.paidUntil
-                      ? `Travaille jusqu'au ${new Date(d.paidUntil).toLocaleDateString('fr-FR')}`
-                      : 'Actif'
-                    : d.paidUntil
-                      ? `${d.agentName} est à l'arrêt — abonnement expiré`
-                      : `${d.agentName} attend sa formule pour se mettre au travail`}
-                </p>
+                {/* Plus d'abonnement (07/09/2026) : un rayon confié est en poste.
+                    Ses actions se paient en drops, pas sa présence. */}
+                <p className="mt-1 text-[11px] text-gray-500">En poste — payé à l'usage, en drops</p>
 
                 <div className="mt-3 space-y-2">
                   <BadgeEmbauche actif={d.active} to={`/rayon/${d.id}`} />
-                  {/* Sous l'INACTIF, le geste qui répare : la formule se
-                      choisit sur la fiche du rayon. */}
-                  {!d.active && (
-                    <Link
-                      to={`/rayon/${d.id}`}
-                      className="btn-gradient block w-full rounded-lg px-3 py-2 text-center text-sm font-semibold"
-                    >
-                      Embaucher
-                    </Link>
-                  )}
                   <Link
                     to={`/rayon/${d.id}`}
                     className="block text-center text-[11px] text-gray-400 hover:text-white"
@@ -297,24 +274,22 @@ export default function Rayons() {
               {`Un onglet « ${confirming.label} » sera créé. ${confirming.agentName} y déposera ses trouvailles ; vous gardez la main sur tout ce qui est importé ou publié.`}
             </p>
 
-            {/* Pas d'essai gratuit — décision du 05/09/2026 : un chef
-                travaille quand il est embauché. La formule se choisit sur la
-                page du rayon, juste après. */}
+            {/* Plus d'abonnement ni de salaire (07/09/2026) : confier un rayon
+                est gratuit. Le chef est en poste aussitôt ; ce sont ses actions
+                — une question, un conseil, un passage AUTO-MODE — qui se paient
+                en drops, au moment où elles ont lieu. */}
             <div className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
               <p className="text-xs font-semibold text-emerald-300">
-                {`${confirming.agentName} se met au travail dès sa formule choisie — à partir de 1 € la journée.`}
+                {`${confirming.agentName} se met au travail tout de suite — gratuit à confier.`}
               </p>
-              <p className="mt-1 text-[11px] text-gray-400">Son salaire :</p>
-              <ul className="mt-2 space-y-1">
-                {plans.map((p) => (
-                  <li key={p.id} className="flex items-baseline gap-2 text-[11px] text-gray-400">
-                    <span className="font-semibold text-gray-200">
-                      {`${p.label} — ${(p.amount / 100).toFixed(2)} €`}
-                    </span>
-                    <span>{p.pitch}</span>
-                  </li>
-                ))}
-              </ul>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Vous ne payez que ce que vous lui demandez : une question, un conseil produit ou un
+                passage automatique coûtent chacun quelques drops, indiqués avant chaque geste. Voir{' '}
+                <Link to="/credits" className="text-emerald-300 hover:underline">
+                  la grille des tarifs
+                </Link>
+                .
+              </p>
             </div>
 
             <div className="mt-5 flex justify-end gap-2">

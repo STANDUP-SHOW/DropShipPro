@@ -1,46 +1,22 @@
 import Stripe from 'stripe'
-import type { User } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
+import { PACKS_DROPS, DROPS_INSCRIPTION, type PackDrops } from './tarifs.js'
 
 /**
- * Credit packs and the unlimited subscription.
+ * Le portefeuille en drops — la monnaie unique de DropShipper (07/09/2026).
  *
- * A credit is consumed when a listing is *imported* — the moment the AI actually
- * costs money. Publishing is free and consumes nothing, which is what the offer
- * promises. Credits never expire and stack: an unused pack keeps its value.
+ * Plus d'abonnement, plus de location d'agent : le vendeur accède à tout et paie
+ * ce qu'il consomme. Chaque action débite un nombre de drops (voir `tarifs.ts`),
+ * le solde vit dans `User.credits` (le champ garde son nom en base, il compte
+ * désormais des drops), et une recharge crédite des drops. Publier reste gratuit.
  */
-export interface Pack {
-  id: string
-  label: string
-  /** Cents, so Stripe takes it without rounding surprises. */
-  amount: number
-  credits: number
-}
 
-export const PACKS: Pack[] = [
-  { id: 'pack-20', label: '20 annonces', amount: 500, credits: 20 },
-  { id: 'pack-50', label: '50 annonces', amount: 1000, credits: 50 },
-  { id: 'pack-200', label: '200 annonces', amount: 2500, credits: 200 },
-  { id: 'pack-500', label: '500 annonces', amount: 5000, credits: 500 },
-  { id: 'pack-1250', label: '1250 annonces', amount: 10000, credits: 1250 },
-]
+/** Le solde de drops offert à l'inscription. Réexporté pour la valeur par défaut Prisma. */
+export const SIGNUP_CREDITS = DROPS_INSCRIPTION
 
-export const PREMIUM = {
-  id: 'premium',
-  label: 'Premium — annonces illimitées',
-  amount: 29900,
-  /**
-   * Fair-use ceiling, in imports per month.
-   *
-   * "Unlimited" at 299 € breaks even around 20 600 listings a month at the current
-   * AI cost. Past that, every listing is sold below cost, so the plan needs a stop
-   * — announced up front rather than discovered by a seller mid-month.
-   */
-  monthlyFairUse: 20000,
-}
-
-/** Free listings granted at signup — also the value of `credits` default in Prisma. */
-export const SIGNUP_CREDITS = 10
+/** Les recharges disponibles, en drops (1 drop = 1 centime). */
+export const PACKS = PACKS_DROPS
+export type Pack = PackDrops
 
 let stripe: Stripe | null = null
 
@@ -53,77 +29,98 @@ export function getStripe(): Stripe | null {
   return stripe
 }
 
-export function findPack(id: string): Pack | undefined {
-  return PACKS.find((p) => p.id === id)
-}
-
-/** True while a paid subscription is running — checked on date, not on a flag. */
-export function isPremium(user: Pick<User, 'plan' | 'premiumUntil'>): boolean {
-  if (user.plan !== 'PREMIUM') return false
-  // A cancelled subscription stays usable until the end of the paid period.
-  return !user.premiumUntil || user.premiumUntil.getTime() > Date.now()
+export function findPack(id: string): PackDrops | undefined {
+  return PACKS_DROPS.find((p) => p.id === id)
 }
 
 export interface CreditCheck {
   ok: boolean
-  /** How many of the requested imports are actually covered. */
+  /** Drops réellement débités (le coût demandé, ou 0 si refusé). */
   allowed: number
   reason?: string
 }
 
 /**
- * Reserves credits for an import, atomically.
+ * Inscrit un mouvement au relevé du portefeuille.
  *
- * The decrement is conditional on the balance in the same statement: two imports
- * fired at once from two tabs cannot both pass a read-then-write check and take
- * the same last credit.
+ * Best-effort à dessein : le débit du solde (juste au-dessus) fait autorité et
+ * doit tenir même si l'écriture du relevé échoue — une ligne d'historique perdue
+ * ne doit jamais bloquer une action déjà payée, ni pire, la refuser après coup.
+ * L'échec est journalisé, pas propagé.
  */
-export async function reserveCredits(userId: string, wanted = 1): Promise<CreditCheck> {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
-
-  if (isPremium(user)) return { ok: true, allowed: wanted }
-
-  if (user.credits <= 0) {
-    return {
-      ok: false,
-      allowed: 0,
-      reason: "Vous n'avez plus d'annonces disponibles. Rechargez votre compte pour continuer.",
-    }
+async function inscrireMouvement(userId: string, delta: number, balance: number, motif: string, ref?: string) {
+  try {
+    await prisma.dropTransaction.create({ data: { userId, delta, balance, motif, ref: ref ?? null } })
+  } catch (err) {
+    console.error('relevé drops non écrit', motif, err instanceof Error ? err.message : err)
   }
-
-  const allowed = Math.min(wanted, user.credits)
-  const { count } = await prisma.user.updateMany({
-    where: { id: userId, credits: { gte: allowed } },
-    data: { credits: { decrement: allowed } },
-  })
-
-  if (count === 0) {
-    return { ok: false, allowed: 0, reason: 'Solde insuffisant, réessayez.' }
-  }
-  return { ok: true, allowed }
 }
 
 /**
- * Gives a credit back when the work was not delivered.
+ * Réserve `cost` drops, atomiquement et **tout ou rien**.
  *
- * A scrape that returns nothing, or an AI call that failed and left the source
- * text untouched, must not be charged: the seller did not get what they paid for.
+ * Le décrément est conditionné au solde dans la même requête : deux actions
+ * lancées d'un coup depuis deux onglets ne peuvent pas passer toutes les deux un
+ * contrôle lire-puis-écrire et prendre les mêmes derniers drops.
+ *
+ * Tout ou rien, et non partiel : une action coûte un nombre fixe de drops, et en
+ * débiter la moitié n'a aucun sens (on ne fait pas un demi-import). Les lots
+ * réservent donc drop par drop, action par action, dans leur boucle.
+ *
+ * `motif` est le libellé porté au relevé du vendeur ; `ref` désigne l'objet
+ * concerné (produit, publicité…) quand il existe.
  */
-export async function refundCredits(userId: string, count = 1): Promise<void> {
-  if (count <= 0) return
-  const user = await prisma.user.findUnique({ where: { id: userId } })
-  if (!user || isPremium(user)) return
-  await prisma.user.update({ where: { id: userId }, data: { credits: { increment: count } } })
+export async function reserveCredits(
+  userId: string,
+  cost = 1,
+  motif = 'Action',
+  ref?: string,
+): Promise<CreditCheck> {
+  if (cost <= 0) return { ok: true, allowed: 0 }
+  const { count } = await prisma.user.updateMany({
+    where: { id: userId, credits: { gte: cost } },
+    data: { credits: { decrement: cost } },
+  })
+  if (count === 0) {
+    return {
+      ok: false,
+      allowed: 0,
+      reason: 'Solde de drops insuffisant. Rechargez votre portefeuille pour continuer.',
+    }
+  }
+  const apres = await prisma.user.findUnique({ where: { id: userId }, select: { credits: true } })
+  await inscrireMouvement(userId, -cost, apres?.credits ?? 0, motif, ref)
+  return { ok: true, allowed: cost }
 }
 
-/** Adds the credits of a paid pack, and records the payment. */
-export async function grantPack(userId: string, pack: Pack, sessionId: string, amount: number) {
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: userId }, data: { credits: { increment: pack.credits } } }),
-    prisma.payment.create({
-      data: { userId, planId: pack.id, amount, credits: pack.credits, stripeSessionId: sessionId },
-    }),
-  ])
+/**
+ * Rend `cost` drops quand le travail n'a pas été livré.
+ *
+ * Un scraping qui ne rend rien, ou un appel IA raté qui laisse le texte source
+ * intact, ne doit pas être facturé : le vendeur n'a pas eu ce qu'il a payé. Le
+ * remboursement figure au relevé, pour que le solde reste explicable ligne à ligne.
+ */
+export async function refundCredits(userId: string, cost = 1, motif = 'Remboursement', ref?: string): Promise<void> {
+  if (cost <= 0) return
+  const apres = await prisma.user.update({
+    where: { id: userId },
+    data: { credits: { increment: cost } },
+    select: { credits: true },
+  })
+  await inscrireMouvement(userId, cost, apres.credits, motif, ref)
+}
+
+/** Crédite les drops d'une recharge payée, enregistre le paiement et le relevé. */
+export async function grantPack(userId: string, pack: PackDrops, sessionId: string, amount: number) {
+  const apres = await prisma.user.update({
+    where: { id: userId },
+    data: { credits: { increment: pack.drops } },
+    select: { credits: true },
+  })
+  await prisma.payment.create({
+    data: { userId, planId: pack.id, amount, credits: pack.drops, stripeSessionId: sessionId },
+  })
+  await inscrireMouvement(userId, pack.drops, apres.credits, `Recharge de ${pack.drops} drops`, sessionId)
 }
 
 /** Where Stripe sends the buyer back. First entry of FRONTEND_URL, apex or www. */

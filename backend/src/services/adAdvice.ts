@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { Product } from '@prisma/client'
 import { MODELE_RAISONNEMENT } from './chatBudget.js'
+import { DROPS } from './tarifs.js'
 
 /**
  * L'avis de Laurence : ce produit mérite-t-il un budget publicitaire ?
@@ -20,7 +21,8 @@ import { MODELE_RAISONNEMENT } from './chatBudget.js'
  */
 
 /** Ce que coûte un avis. Écrit avant le clic, jamais découvert après. */
-export const COUT_EN_CREDITS = 1
+/** Ce que coûte un avis publicitaire, en drops (appel Sonnet, sans recherche web). */
+export const COUT_EN_CREDITS = DROPS.reecriture
 
 /**
  * Au-delà, l'avis est refait.

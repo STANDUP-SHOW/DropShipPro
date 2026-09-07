@@ -126,7 +126,7 @@ export function SupportChat({
             className={`inline-flex items-center gap-1 text-xs ${
               quota.utilise >= quota.plafond ? 'text-amber-300' : 'text-gray-500'
             }`}
-            title={`Chaque agent répond ${quota.plafond} fois par jour dans son abonnement.`}
+            title={`Chaque agent répond ${quota.plafond} fois par jour par vendeur.`}
           >
             {`${quota.utilise}/${quota.plafond} aujourd'hui`}
           </span>

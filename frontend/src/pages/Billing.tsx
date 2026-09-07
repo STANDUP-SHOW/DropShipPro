@@ -2,93 +2,103 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
-import { Coins, Check, Infinity as InfinityIcon } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
+import { DropCoin } from '../components/DropCoin'
 import { Invoices, PaymentMethods } from '../components/BillingSections'
-import { AgentsCosts, TransparenceCredits, DepenseParMois } from '../components/CreditsSections'
 
 /**
- * Publishable key — public by design, it identifies the account and can do
- * nothing on its own. Loaded once, outside the component, so a re-render never
- * reloads Stripe.js.
+ * Le portefeuille en drops — la page « Mes crédits ».
+ *
+ * Une seule monnaie (07/09/2026) : les drops. Le vendeur voit son solde et sa
+ * valeur en euros, recharge, lit le relevé de chaque mouvement, et retrouve en
+ * bas la grille tarifaire complète — ce que chaque action coûte, en drops et en
+ * monnaie réelle. Plus d'abonnement, plus de location : on paie ce qu'on consomme.
  */
+
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
   : null
 
 type Plans = Awaited<ReturnType<typeof api.listPlans>>
 type Billing = Awaited<ReturnType<typeof api.myBilling>>
+type Mouvement = Awaited<ReturnType<typeof api.walletTransactions>>['mouvements'][number]
 
-const euros = (cents: number) => `${(cents / 100).toFixed(2).replace('.', ',')} €`
+const euros = (montant: number) => `${montant.toFixed(2).replace('.', ',')} €`
+const dollars = (montant: number) => `$${montant.toFixed(2)}`
+const nombre = (n: number) => n.toLocaleString('fr-FR')
 
-/** Price per listing — the number that actually lets someone compare the packs. */
-function unitPrice(amount: number, credits: number) {
-  return `${(amount / 100 / credits).toFixed(3).replace('.', ',')} € / annonce`
-}
-
-/** Les trois blocs de la page, dans l'ordre où l'on vient les chercher. */
-const BLOCS = [
-  { id: 'annonces', label: 'Annonces et formules' },
-  { id: 'agents', label: 'Agents' },
-  { id: 'graphique', label: 'Où part mon argent' },
-] as const
-
-type BlocId = (typeof BLOCS)[number]['id']
+/**
+ * L'ordre et les libellés de la grille tarifaire. Les clés sont celles de
+ * `tarifs.ts` côté serveur ; ce qui n'est pas listé ici est ignoré, pour qu'un
+ * nouveau tarif technique n'apparaisse pas sans libellé.
+ */
+const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
+  { cle: 'import', label: 'Importer une annonce', detail: 'Scraper une fiche + la réécrire par l’IA' },
+  { cle: 'importLot', label: 'Importer en lot (par annonce)', detail: 'Réécriture groupée, moitié prix' },
+  { cle: 'reecriture', label: 'Réécrire une annonce', detail: 'Reprendre titre, description, attributs' },
+  { cle: 'analyse', label: 'Analyse de marché (par produit)', detail: 'Recherche web + prix constatés' },
+  { cle: 'image', label: 'Générer une image', detail: 'Une mise en situation du produit' },
+  { cle: 'pub', label: 'Créer une publicité', detail: 'Accroche rédigée + visuel composé' },
+  { cle: 'questionComptoir', label: 'Question à un agent de comptoir', detail: 'Hotline, SAV, commercial…' },
+  { cle: 'questionChef', label: 'Question à un chef de rayon', detail: 'Avocat, comptable, chef de secteur…' },
+  { cle: 'conseilProduit', label: 'Conseil produit approfondi', detail: 'Un chef fouille fournisseurs et réseaux' },
+  { cle: 'autoModePassage', label: 'AUTO-MODE (un passage de rayon)', detail: 'Analyse + 10 produits gagnants, toutes les 12 h' },
+  { cle: 'autoShipperImport', label: 'AUTO-SHIPPER (une annonce)', detail: 'Import + publication automatiques' },
+]
 
 export default function BillingPage() {
-  const [bloc, setBloc] = useState<BlocId>('annonces')
   const [plans, setPlans] = useState<Plans | null>(null)
   const [billing, setBilling] = useState<Billing | null>(null)
+  const [mouvements, setMouvements] = useState<Mouvement[]>([])
+  const [suite, setSuite] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [params] = useSearchParams()
-
-  const sessionId = params.get('session_id')
   const [confirmation, setConfirmation] = useState<string | null>(null)
+  const [params] = useSearchParams()
+  const sessionId = params.get('session_id')
 
-  async function load() {
-    const [p, b] = await Promise.all([api.listPlans(), api.myBilling()])
+  const load = useCallback(async () => {
+    const [p, b, releve] = await Promise.all([api.listPlans(), api.myBilling(), api.walletTransactions()])
     setPlans(p)
     setBilling(b)
-  }
+    setMouvements(releve.mouvements)
+    setSuite(releve.suite)
+  }, [])
 
   useEffect(() => {
     load().catch((err) => setError(err instanceof Error ? err.message : 'Chargement impossible'))
-  }, [])
+  }, [load])
 
   // Retour de paiement : la vérité est demandée à Stripe plutôt que déduite de
-  // l'URL, et les annonces sont créditées ici même si le webhook a échoué.
-  const confirmer = useCallback(async (id: string) => {
-    try {
-      const res = await api.confirmPayment(id)
-      if (res.granted) {
+  // l'URL, et les drops sont crédités ici même si le webhook a échoué.
+  const confirmer = useCallback(
+    async (id: string) => {
+      try {
+        const res = await api.confirmPayment(id)
         setConfirmation(
-          res.premium
-            ? 'Abonnement Premium activé.'
-            : `Paiement reçu. ${res.credits ?? 0} annonces ajoutées à votre solde.`,
+          res.granted
+            ? `Recharge reçue. ${nombre(res.credits ?? 0)} drops ajoutés à votre portefeuille.`
+            : "Paiement non abouti — rien n'a été débité.",
         )
-        await load()
-      } else {
-        setConfirmation("Paiement non abouti — rien n'a été débité.")
+        if (res.granted) await load()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Confirmation impossible')
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Confirmation impossible')
-    }
-  }, [])
+    },
+    [load],
+  )
 
   useEffect(() => {
     if (sessionId) confirmer(sessionId)
   }, [sessionId, confirmer])
 
-  async function buy(planId: string) {
+  async function recharger(planId: string) {
     setBusy(planId)
     setError(null)
     try {
       const { clientSecret } = await api.startCheckout(planId)
-      // The form is mounted below: no redirection, the seller stays on the site.
-      // Card data still goes straight to Stripe from inside its iframe.
       setClientSecret(clientSecret)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Paiement indisponible')
@@ -96,105 +106,46 @@ export default function BillingPage() {
     }
   }
 
+  async function voirPlus() {
+    if (!suite) return
+    const releve = await api.walletTransactions(suite)
+    setMouvements((m) => [...m, ...releve.mouvements])
+    setSuite(releve.suite)
+  }
+
+  const euroParDrop = billing?.euroParDrop ?? plans?.euroParDrop ?? 0.01
+  const usdParDrop = plans?.usdParDrop ?? 0.011
+  const solde = billing?.credits ?? 0
+
   return (
     <Layout>
       <h1 className="text-2xl font-bold">Mes crédits</h1>
-
-      {/* Trois blocs plutot qu une colonne : le vendeur vient pour une chose a la
-          fois — recharger, comprendre ce que coute un agent, ou voir ou part son
-          argent. Tout empiler obligeait a faire defiler cinq ecrans pour la
-          troisieme. */}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {BLOCS.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            onClick={() => setBloc(b.id)}
-            className={
-              bloc === b.id
-                ? 'rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold'
-                : 'rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:bg-white/5'
-            }
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
 
       {confirmation && (
         <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
           {confirmation}
         </p>
       )}
-
-      {bloc === 'annonces' ? (
-        <>
-      {/* Solde */}
-      <div className="mt-6 rounded-2xl border border-purple-400/30 bg-purple-500/5 p-5">
-        {billing?.premium ? (
-          <div className="flex items-center gap-3">
-            <InfinityIcon className="text-purple-300" size={28} />
-            <div>
-              <p className="text-lg font-bold">Premium — annonces illimitées</p>
-              <p className="text-xs text-gray-400">
-                {billing.premiumUntil
-                  ? `Renouvellement le ${new Date(billing.premiumUntil).toLocaleDateString('fr-FR')}`
-                  : 'Abonnement actif'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <Coins className="text-purple-300" size={28} />
-            <div>
-              <p className="text-lg font-bold">
-                {`${billing?.credits ?? 0} annonce(s) disponible(s)`}
-              </p>
-              <p className="text-xs text-gray-400">
-                Une annonce est décomptée à l'import. La publication est offerte, sur toutes les
-                destinations, autant de fois que vous voulez.
-              </p>
-              {/* L'essai gratuit, dit tel que le produit le définit
-                  (05/09/2026) : ce qui est offert, et que tout le reste des
-                  fonctions gratuites est ouvert. */}
-              <p className="mt-1 text-[11px] text-gray-500">
-                L'essai gratuit comprend 10 annonces, 5 images et 2 publicités, les agents
-                d'administration, et des liaisons illimitées — fournisseurs, market places, réseaux.
-                Quota atteint : rechargez ci-dessous.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {billing?.premium && (
-          <button
-            type="button"
-            onClick={async () => {
-              setBusy('cancel')
-              setError(null)
-              try {
-                const res = await api.cancelSubscription()
-                setConfirmation(
-                  res.activeUntil
-                    ? `Abonnement résilié. Il reste actif jusqu'au ${new Date(res.activeUntil).toLocaleDateString('fr-FR')}.`
-                    : 'Abonnement résilié.',
-                )
-                await load()
-              } catch (err) {
-                setError(err instanceof Error ? err.message : 'Résiliation impossible')
-              } finally {
-                setBusy(null)
-              }
-            }}
-            disabled={busy === 'cancel'}
-            className="mt-4 text-xs text-gray-400 hover:text-red-300"
-          >
-            {busy === 'cancel' ? 'Résiliation…' : "Résilier mon abonnement"}
-          </button>
-        )}
-      </div>
-
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+
+      {/* Le solde, en drops et en euros. */}
+      <div className="mt-6 flex flex-wrap items-center gap-5 rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-500/10 to-purple-500/5 p-6">
+        <DropCoin size={64} />
+        <div>
+          <p className="text-3xl font-bold">
+            {nombre(solde)} <span className="text-amber-300">drops</span>
+          </p>
+          <p className="mt-0.5 text-sm text-gray-400">
+            {`Valeur ≈ ${euros(solde * euroParDrop)} · 1 drop = ${euros(euroParDrop)}`}
+          </p>
+        </div>
+        <a
+          href="#recharger"
+          className="btn-gradient ml-auto rounded-xl px-5 py-2.5 text-sm font-semibold"
+        >
+          Recharger
+        </a>
+      </div>
 
       {plans && !plans.enabled && (
         <p className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
@@ -202,8 +153,8 @@ export default function BillingPage() {
         </p>
       )}
 
-      {/* Paiement, dans la page. Stripe monte son formulaire dans une iframe :
-          le numero de carte ne transite jamais par notre code ni nos serveurs. */}
+      {/* Paiement, dans la page. Stripe monte son formulaire en iframe : le
+          numéro de carte ne transite jamais par notre code ni nos serveurs. */}
       {clientSecret && (
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="flex items-center justify-between">
@@ -219,7 +170,6 @@ export default function BillingPage() {
               Annuler
             </button>
           </div>
-
           {stripePromise ? (
             <div className="mt-4">
               <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
@@ -234,155 +184,142 @@ export default function BillingPage() {
         </section>
       )}
 
-      {/* Packs */}
-      <h2 className="mt-10 text-lg font-bold">Recharger</h2>
+      {/* Recharger */}
+      <h2 id="recharger" className="mt-10 text-lg font-bold">
+        Recharger mon portefeuille
+      </h2>
       <p className="mt-1 text-sm text-gray-400">
-        Sans abonnement ni engagement. Vos annonces n'expirent pas.
+        Sans abonnement ni engagement. Vos drops n'expirent pas. 1 drop = {euros(euroParDrop)}.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {plans?.packs.map((pack) => (
           <div key={pack.id} className="rounded-xl border border-white/10 bg-white/5 p-5">
-            <p className="text-2xl font-bold">{euros(pack.amount)}</p>
-            <p className="mt-1 font-semibold text-purple-200">{pack.label}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{unitPrice(pack.amount, pack.credits)}</p>
+            <div className="flex items-center gap-2">
+              <DropCoin size={22} />
+              <p className="text-xl font-bold">{nombre(pack.drops)} drops</p>
+            </div>
+            <p className="mt-1 text-2xl font-bold text-amber-200">{euros(pack.amount / 100)}</p>
             <button
               type="button"
-              onClick={() => buy(pack.id)}
+              onClick={() => recharger(pack.id)}
               disabled={!plans.enabled || busy !== null}
               className="btn-gradient mt-4 w-full rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
-              {busy === pack.id ? 'Ouverture…' : 'Acheter'}
+              {busy === pack.id ? 'Ouverture…' : 'Recharger'}
             </button>
           </div>
         ))}
       </div>
 
-      {/*
-        Les crédits graphiques.
-        Ils étaient achetables dans l'atelier photo, donc invisibles pour qui ne
-        l'avait jamais ouvert. Or ce sont deux réserves différentes et le vendeur
-        doit le comprendre d'un coup d'œil : les crédits annonces paient
-        l'écriture, les crédits graphiques paient les images. Les mélanger ferait
-        croire qu'un import consomme une image.
-      */}
-      <h2 className="mt-10 text-lg font-bold">Crédits graphiques</h2>
-      <p className="mt-1 max-w-2xl text-sm text-gray-400">
-        Une réserve à part, pour les images. <b>Léa et Laurence sont gratuites</b> — aucun
-        abonnement, aucune embauche : elles puisent dans ces crédits quand elles travaillent. Une
-        {/*
-          Deux crédits, pas un — le serveur en prélève deux depuis le 02/09/2026.
-          Une page qui annonce la moitié du prix se découvre sur le solde, et
-          c'est la pire façon de l'apprendre.
-        */}
-        mise en situation coûte un crédit, une publicité en coûte deux par format.
+      {/* Le relevé du portefeuille : chaque mouvement, en direct. */}
+      <h2 className="mt-10 text-lg font-bold">Relevé du compte</h2>
+      <p className="mt-1 text-sm text-gray-400">
+        Chaque mouvement de votre portefeuille : rechargements et actions facturées.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {(plans?.imagePacks ?? []).map((pack) => (
-          <div key={pack.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xl font-bold">{euros(pack.amount)}</p>
-            <p className="mt-1 text-sm font-semibold text-emerald-200">{pack.label}</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {`${(pack.amount / 100 / pack.images).toFixed(3).replace('.', ',')} € l'image`}
-            </p>
-            <button
-              type="button"
-              onClick={() => buy(pack.id)}
-              disabled={!plans?.enabled || busy !== null}
-              className="mt-3 w-full rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/10 disabled:opacity-40"
-            >
-              {busy === pack.id ? 'Ouverture…' : 'Acheter'}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Premium */}
-      {plans && (
-        <div className="mt-8 rounded-2xl border border-purple-400/40 bg-gradient-to-br from-purple-500/15 to-pink-500/10 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold">{plans.premium.label}</h2>
-              <p className="mt-1 text-3xl font-bold">
-                {`${euros(plans.premium.amount)} / mois`}
-              </p>
-              <ul className="mt-4 space-y-1.5 text-sm text-gray-300">
-                <li className="flex items-center gap-2">
-                  <Check size={15} className="text-emerald-400" />
-                  <span>Imports illimités, sans décompte</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check size={15} className="text-emerald-400" />
-                  <span>Publication en lot sur toutes les destinations</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check size={15} className="text-emerald-400" />
-                  <span>Résiliable à tout moment, actif jusqu'à la fin du mois payé</span>
-                </li>
-              </ul>
-              {/* Announced up front rather than discovered mid-month. */}
-              <p className="mt-3 text-xs text-gray-500">
-                {`Usage loyal : ${plans.premium.monthlyFairUse.toLocaleString('fr-FR')} imports par mois. Au-delà, nous vous contactons avant toute limitation.`}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => buy(plans.premium.id)}
-              disabled={!plans.enabled || busy !== null || billing?.premium}
-              className="btn-gradient shrink-0 rounded-xl px-6 py-3 font-semibold disabled:opacity-40"
-            >
-              {billing?.premium ? 'Déjà abonné' : busy === plans.premium.id ? 'Ouverture…' : 'M’abonner'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <PaymentMethods stripePromise={stripePromise} />
-      <Invoices />
-
-      {/* Historique */}
-      {billing && billing.payments.length > 0 && (
-        <>
-          <h2 className="mt-10 text-lg font-bold">Historique</h2>
-          <div className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
-            {billing.payments.map((p) => (
-              <div key={p.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="text-gray-300">
-                  {new Date(p.createdAt).toLocaleDateString('fr-FR')}
+      {mouvements.length === 0 ? (
+        <p className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-400">
+          Aucun mouvement pour l'instant. Vos rechargements et vos actions apparaîtront ici.
+        </p>
+      ) : (
+        <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+          <div className="divide-y divide-white/5">
+            {mouvements.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                <span className="w-24 shrink-0 text-xs text-gray-500">
+                  {new Date(m.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                 </span>
-                <span className="text-gray-400">
-                  {p.credits > 0 ? `${p.credits} annonces` : 'Abonnement Premium'}
+                <span className="flex-1 truncate text-gray-200">{m.motif}</span>
+                <span
+                  className={`w-24 shrink-0 text-right font-semibold tabular-nums ${
+                    m.delta >= 0 ? 'text-emerald-300' : 'text-gray-300'
+                  }`}
+                >
+                  {`${m.delta >= 0 ? '+' : '−'}${nombre(Math.abs(m.delta))}`}
                 </span>
-                <span className="font-semibold">{euros(p.amount)}</span>
+                <span className="hidden w-20 shrink-0 text-right text-xs text-gray-500 tabular-nums sm:block">
+                  {nombre(m.balance)}
+                </span>
               </div>
             ))}
           </div>
-        </>
+          {suite && (
+            <button
+              type="button"
+              onClick={voirPlus}
+              className="w-full border-t border-white/5 px-4 py-2.5 text-xs text-gray-400 hover:bg-white/5 hover:text-white"
+            >
+              Voir plus
+            </button>
+          )}
+        </div>
       )}
-        </>
-      ) : null}
 
-      {bloc === 'agents' ? (
-        <div className="mt-6">
-          <AgentsCosts />
+      {/* L'explication de la monnaie, puis la grille complète. */}
+      <section className="mt-12 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:text-left">
+          <DropCoin size={96} className="shrink-0" />
+          <div>
+            <h2 className="text-xl font-bold">Les drops, la monnaie de DropShipper</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-300">
+              Un drop est notre monnaie interne. Elle rend chaque geste clair : vous ne payez ni
+              abonnement ni location d'agent, seulement ce que vous consommez. Un drop vaut{' '}
+              <b>{euros(euroParDrop)}</b> (≈ {dollars(usdParDrop)}), et il ne périme jamais. Vous
+              accédez à tout — chefs de rayon, avocat, comptable, pilotes automatiques — et chaque
+              action indique son prix en drops avant que vous ne cliquiez.
+            </p>
+          </div>
         </div>
-      ) : null}
 
-      {bloc === 'graphique' ? (
-        <div className="mt-6">
-          <h2 className="text-lg font-bold">Où part mon argent</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Ce que vous avez réellement payé, mois par mois. Rien n'est estimé : ce sont vos
-            paiements encaissés.
-          </p>
-          <DepenseParMois payments={billing?.payments ?? []} />
+        <h3 className="mt-8 text-sm font-semibold uppercase tracking-wide text-gray-400">
+          Ce que coûte chaque action
+        </h3>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[34rem] border-collapse text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+                <th className="py-2 pr-4 font-medium">Action</th>
+                <th className="py-2 px-3 text-right font-medium">Drops</th>
+                <th className="py-2 px-3 text-right font-medium">Euros</th>
+                <th className="py-2 pl-3 text-right font-medium">Dollars US</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ACTIONS.filter((a) => plans?.tarifs?.[a.cle] !== undefined).map((a) => {
+                const drops = plans!.tarifs[a.cle]
+                return (
+                  <tr key={a.cle} className="border-t border-white/5">
+                    <td className="py-2.5 pr-4">
+                      <p className="font-medium text-gray-100">{a.label}</p>
+                      <p className="text-xs text-gray-500">{a.detail}</p>
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-amber-200">
+                        <DropCoin size={14} />
+                        {nombre(drops)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
+                      {euros(drops * euroParDrop)}
+                    </td>
+                    <td className="py-2.5 pl-3 text-right tabular-nums text-gray-400">
+                      {dollars(drops * usdParDrop)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
-      ) : null}
+        <p className="mt-3 text-xs text-gray-500">
+          Publier une annonce sur vos destinations est <b>gratuit</b>, autant de fois que vous
+          voulez : seul le travail de l'IA est facturé.
+        </p>
+      </section>
 
-      {/* Le bloc noir reste visible quel que soit l onglet : c est la reponse a
-          « pourquoi mon solde a baisse », et cette question se pose partout. */}
-      <TransparenceCredits />
+      <PaymentMethods stripePromise={stripePromise} />
+      <Invoices />
     </Layout>
   )
 }

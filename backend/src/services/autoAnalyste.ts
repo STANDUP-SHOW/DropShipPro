@@ -4,6 +4,8 @@ import { prisma } from '../lib/prisma.js'
 import { findDepartment } from './departments.js'
 import { systemeCachable } from './chatBudget.js'
 import { MODELE_REDACTION, modele } from './aiModels.js'
+import { reserveCredits, refundCredits } from './billing.js'
+import { DROPS } from './tarifs.js'
 
 /**
  * Le mode automatique des chefs de rayon — la structure du 05/09/2026.
@@ -271,10 +273,15 @@ async function dejaServi(depId: string): Promise<boolean> {
 }
 
 /**
- * La tournée : chaque rayon en poste, interrupteur levé, au plus une fois par
- * demi-journée. Les passages sont espacés : six recherches web par rayon en
- * rafale, c'est comme ça que la limite « serveur dépassée » du 04/09/2026 a
- * été atteinte — et un passage sans recherche échoue exprès.
+ * La tournée : chaque rayon dont l'interrupteur AUTO-MODE est levé, au plus une
+ * fois par demi-journée. Les passages sont espacés : six recherches web par
+ * rayon en rafale, c'est comme ça que la limite « serveur dépassée » du
+ * 04/09/2026 a été atteinte — et un passage sans recherche échoue exprès.
+ *
+ * Plus d'abonnement (07/09/2026) : l'éligibilité ne tient qu'à l'interrupteur.
+ * Chaque passage coûte `DROPS.autoModePassage`, débité ici ; un rayon dont le
+ * vendeur n'a plus de drops est sauté sans rien consigner, et retentera quand
+ * le portefeuille sera rechargé.
  */
 export async function tourneeAutoMode(
   generer: Generateur = genererAnalyse,
@@ -287,22 +294,31 @@ export async function tourneeAutoMode(
   const rayons = await prisma.department.findMany({
     where: {
       autoMode: true,
-      paidUntil: { gt: new Date() },
-      NOT: { plan: 'essai' },
       ...(seulement ? { userId: { in: Array.isArray(seulement) ? seulement : [seulement] } } : {}),
     },
   })
 
   let dejaUnPassage = false
   for (const dep of rayons) {
+    if (await dejaServi(dep.id)) continue
+
+    // Le passage se paie d'avance ; sans drops, le rayon est sauté (rien n'est
+    // consigné, la garde des onze heures ne se déclenche pas, il retentera).
+    const credit = await reserveCredits(dep.userId, DROPS.autoModePassage, `AUTO-MODE — ${dep.agentName}`)
+    if (!credit.ok) {
+      console.error(`auto-mode : passage sauté pour ${dep.agentName} — ${credit.reason ?? 'drops insuffisants'}`)
+      continue
+    }
+
     try {
-      if (await dejaServi(dep.id)) continue
       if (dejaUnPassage && pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs))
       dejaUnPassage = true
       const fait = await passageAutoMode(dep, generer)
       console.log(`auto-mode : ${dep.agentName} — rapport ${fait.rapportId}, ${fait.gagnants} gagnant(s)`)
     } catch (err) {
-      // Un rayon en échec ne prive pas les autres ; l'échec se relit ici.
+      // Rien produit : les drops du passage sont rendus. Un rayon en échec ne
+      // prive pas les autres ; l'échec se relit ici.
+      await refundCredits(dep.userId, DROPS.autoModePassage).catch(() => undefined)
       console.error(`auto-mode en échec pour ${dep.agentName} (${dep.id})`, err instanceof Error ? err.message : err)
     }
   }

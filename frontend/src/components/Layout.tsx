@@ -200,7 +200,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   const estActive = (to: string) =>
     to.includes('?') || to.includes('#') ? pathname + search + hash === to : pathname === to
   const { logout, user } = useAuth()
-  const [solde, setSolde] = useState<{ credits: number; premium: boolean } | null>(null)
+  const [solde, setSolde] = useState<{ credits: number } | null>(null)
   /**
    * Les rayons confiés, chacun à son nom.
    *
@@ -216,7 +216,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   useEffect(() => {
     api
       .myBilling()
-      .then((b) => setSolde({ credits: b.credits, premium: b.premium }))
+      .then((b) => setSolde({ credits: b.credits }))
       .catch(() => {
         // Ancienne session ou API indisponible : on n'affiche simplement rien.
       })
@@ -372,11 +372,11 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
         <div className="border-t border-white/10 pt-3 text-xs text-gray-400">
           {solde && (
             <Link
-              to="/abonnement"
+              to="/credits"
               className="mb-2 flex items-center gap-1.5 rounded-lg bg-purple-500/15 px-2 py-1.5 text-purple-200 hover:bg-purple-500/25"
             >
               <Coins size={13} />
-              <span>{solde.premium ? 'Illimité' : `${solde.credits} annonce(s)`}</span>
+              <span>{`${solde.credits.toLocaleString('fr-FR')} drops`}</span>
             </Link>
           )}
           <p className="truncate">{user?.email}</p>

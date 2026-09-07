@@ -96,7 +96,7 @@ async function contextFor(key: string, userId: string): Promise<string> {
     const [user, payments, orders] = await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: { credits: true, plan: true, premiumUntil: true },
+        select: { credits: true },
       }),
       prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 10 }),
       prisma.order.findMany({ where: { userId }, select: { amount: true, status: true } }),
@@ -107,8 +107,7 @@ async function contextFor(key: string, userId: string): Promise<string> {
       .reduce((n, o) => n + Number(o.amount), 0)
 
     return [
-      `Formule : ${user.plan}${user.premiumUntil ? ` jusqu'au ${user.premiumUntil.toLocaleDateString('fr-FR')}` : ''}`,
-      `Crédits restants : ${user.credits}`,
+      `Solde : ${user.credits} drops`,
       `Chiffre d'affaires enregistré : ${chiffre.toFixed(2)} € sur ${orders.length} commande(s)`,
       payments.length
         ? `Derniers paiements :\n${payments.map((p) => `- ${(p.amount / 100).toFixed(2)} € · ${p.planId} · ${p.createdAt.toLocaleDateString('fr-FR')}${p.credits ? ` · ${p.credits} crédits` : ''}`).join('\n')}`
@@ -120,7 +119,7 @@ async function contextFor(key: string, userId: string): Promise<string> {
     const [user, payments, orders, products] = await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: { credits: true, imageCredits: true, plan: true, premiumUntil: true },
+        select: { credits: true },
       }),
       prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 20 }),
       prisma.order.findMany({
@@ -148,14 +147,13 @@ async function contextFor(key: string, userId: string): Promise<string> {
     }
 
     return [
-      `Formule : ${user.plan}${user.premiumUntil ? ` jusqu'au ${user.premiumUntil.toLocaleDateString('fr-FR')}` : ''}`,
       `Annonces au catalogue : ${products}`,
       `Chiffre d'affaires : ${chiffre.toFixed(2)} € sur ${vendus.length} vente(s)`,
       `Coût d'achat des produits vendus : ${achats.toFixed(2)} €`,
       `Marge brute : ${(chiffre - achats).toFixed(2)} €`,
       `Remboursements : ${rembourses.length} commande(s)`,
       `Dépensé dans l'application : ${depense.toFixed(2)} € sur ${payments.length} paiement(s)`,
-      `Crédits restants : ${user.credits} annonce(s), ${user.imageCredits} image(s)`,
+      `Solde du portefeuille : ${user.credits} drops`,
       parPlateforme.size
         ? `Par plateforme :\n${[...parPlateforme.entries()]
             .map(([p, l]) => `- ${p} : ${l.commandes} vente(s), ${l.chiffre.toFixed(2)} €`)

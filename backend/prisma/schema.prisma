@@ -125,10 +125,11 @@ model User {
   emailVerifiedAt   DateTime?
   createdAt         DateTime  @default(now())
 
-  /// Annonces importables restantes. 10 offertes à l'inscription.
-  /// La publication ne consomme rien : seul l'import est décompté.
-  credits              Int     @default(10)
-  /// FREE tant qu'aucun abonnement n'est actif, PREMIUM = imports illimités.
+  /// Le solde de drops, la monnaie unique (07/09/2026). Toute action facturée
+  /// débite ce champ ; une recharge le crédite. Il compte des drops, plus des
+  /// « crédits annonce ». 120 offerts à l'inscription. La publication est gratuite.
+  credits              Int     @default(120)
+  /// Vestige : plus d'abonnement depuis le 07/09/2026, tout le monde est FREE.
   plan                 Plan    @default(FREE)
   /// Identifiants Stripe. Null tant que l'utilisateur n'a jamais payé.
   stripeCustomerId     String? @unique
@@ -184,6 +185,7 @@ model User {
   socialAccounts     SocialAccount[]
   printProducts      PrintProduct[]
   channelRequests    ChannelRequest[]
+  dropTransactions   DropTransaction[]
 }
 
 enum AuthTokenType {
@@ -469,6 +471,30 @@ model Payment {
   createdAt       DateTime @default(now())
 
   @@index([userId])
+}
+
+/// Le relevé du portefeuille en drops : une ligne par mouvement.
+///
+/// Le vendeur voit dans « Mes crédits » l'historique complet de son compte —
+/// rechargements et chaque action facturée (import, image, publicité, question
+/// à un agent, passage automatique…). `delta` est positif pour un crédit
+/// (recharge, remboursement) et négatif pour un débit ; `balance` est le solde
+/// APRÈS l'opération, écrit pour que le relevé se lise sans tout recalculer.
+model DropTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Signé : +N pour un crédit, −N pour un débit.
+  delta     Int
+  /// Solde de drops juste après ce mouvement.
+  balance   Int
+  /// Libellé lisible : « Import d'une annonce », « Recharge 1 000 drops »…
+  motif     String
+  /// Optionnel : type/identifiant de l'objet concerné (produit, publicité…).
+  ref       String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 /// Événements Stripe déjà traités.

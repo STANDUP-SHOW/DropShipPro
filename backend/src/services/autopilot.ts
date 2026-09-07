@@ -7,6 +7,7 @@ import { rapatrierImages } from './watermark.js'
 import { publishToPlatform } from './publisher.js'
 import { PLATFORMS } from './platforms.js'
 import { reserveCredits, refundCredits } from './billing.js'
+import { DROPS } from './tarifs.js'
 import { resoudreCategorie } from './categories.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { selectProductImages, PHOTOS_PAR_ANNONCE } from './imageSelect.js'
@@ -132,7 +133,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       continue
     }
 
-    const credit = await reserveCredits(userId, 1)
+    const credit = await reserveCredits(userId, DROPS.autoShipperImport, 'Import automatique (AUTO-SHIPPER)')
     if (!credit.ok) {
       log.push({ titre: o.title, action: 'écarté', raison: credit.reason ?? 'Crédits épuisés' })
       result.skipped++
@@ -245,7 +246,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
 
       // Le crédit paie la réécriture. Modèle injoignable, texte source conservé,
       // crédit rendu — la même règle que pour un import manuel.
-      if (!enhanced.enhanced) await refundCredits(userId, 1)
+      if (!enhanced.enhanced) await refundCredits(userId, DROPS.autoShipperImport)
 
       await prisma.opportunity.update({
         where: { id: o.id },
@@ -288,7 +289,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
         }
       }
     } catch (err) {
-      await refundCredits(userId, 1)
+      await refundCredits(userId, DROPS.autoShipperImport)
       result.failed++
       const reason =
         err instanceof ScrapeBlockedError ? err.message : "Import impossible depuis cette adresse"
@@ -312,15 +313,6 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
 
   return result
 }
-
-/**
- * Le prix d'une tranche de 12 h de mode automatique : il couvre
- * l'orchestration — reprise des produits gagnants, sélection, publication,
- * archivage du passage. Chaque import continue de consommer son crédit
- * d'annonce, comme partout ailleurs : cinq crédits ne couvriront jamais
- * cinquante réécritures.
- */
-export const CREDITS_TRANCHE_AUTO = 5
 
 export type PassageAutopilot = (userId: string) => Promise<RunResult>
 
@@ -352,17 +344,11 @@ export async function tourneeAutopilot(
       if (dejaUnPassage && pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs))
       dejaUnPassage = true
 
-      // La tranche se paie d'avance ; sans crédits, rien n'est marqué servi
-      // et le prochain réveil retentera — le vendeur recharge, ça repart.
-      // reserveCredits sait débiter PARTIELLEMENT (fait pour les lots) ; une
-      // tranche a un prix fixe : moins que le plein tarif se rend aussitôt.
-      const credit = await reserveCredits(pilote.userId, CREDITS_TRANCHE_AUTO)
-      if (!credit.ok || credit.allowed < CREDITS_TRANCHE_AUTO) {
-        if (credit.ok && credit.allowed > 0) await refundCredits(pilote.userId, credit.allowed)
-        console.error(`auto-shipper : tranche refusée pour ${pilote.userId} — ${credit.reason ?? 'crédits insuffisants'}`)
-        continue
-      }
-
+      // Plus de tranche forfaitaire (07/09/2026) : l'orchestration est gratuite,
+      // seuls les imports produits se paient — `DROPS.autoShipperImport` chacun,
+      // débité dans `runAutopilot`. Un pilote sans drops importe simplement zéro
+      // annonce et le passage s'arrête là, sans rien facturer.
+      //
       // Marqué servi AVANT le passage : un passage qui plante à mi-course ne
       // doit pas être rejoué (et l'utilisateur re-débité) au réveil suivant.
       await prisma.autopilot.update({ where: { id: pilote.id }, data: { lastAutoRunAt: new Date() } })
@@ -372,9 +358,6 @@ export async function tourneeAutopilot(
         `auto-shipper : ${pilote.userId} — ${fait.imported} import(s), ${fait.published} publication(s), ${fait.skipped} écarté(s), ${fait.failed} échec(s)`,
       )
     } catch (err) {
-      // Le passage n'a rien produit : la tranche est rendue. La marque reste,
-      // le pilote retentera à la tranche suivante plutôt qu'en boucle.
-      await refundCredits(pilote.userId, CREDITS_TRANCHE_AUTO).catch(() => undefined)
       console.error(`auto-shipper en échec pour ${pilote.userId}`, err instanceof Error ? err.message : err)
     }
   }

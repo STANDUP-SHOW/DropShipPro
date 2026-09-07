@@ -519,23 +519,38 @@ export const api = {
       }>
     }>('/products/market-analysis', { method: 'POST', body: JSON.stringify({ productIds }) }),
 
-  // Facturation. /plans est public : la grille s'affiche avant toute connexion.
+  // Facturation en drops. /plans est public : la grille s'affiche avant connexion.
   listPlans: () =>
     request<{
       signupCredits: number
-      packs: Array<{ id: string; label: string; amount: number; credits: number }>
-      /** Les credits graphiques : une reserve a part, pour les images. */
-      imagePacks: Array<{ id: string; label: string; amount: number; images: number }>
-      premium: { id: string; label: string; amount: number; monthlyFairUse: number }
+      euroParDrop: number
+      usdParDrop: number
+      packs: Array<{ id: string; amount: number; drops: number }>
+      /** Le tarif en drops de chaque action, source unique de la grille. */
+      tarifs: Record<string, number>
       enabled: boolean
     }>('/billing/plans'),
   myBilling: () =>
     request<{
+      /** Le solde, en drops. */
       credits: number
-      premium: boolean
-      premiumUntil: string | null
+      euroParDrop: number
+      usdParDrop: number
       payments: Array<{ id: string; planId: string; amount: number; credits: number; createdAt: string }>
     }>('/billing/me'),
+  /** Le relevé du portefeuille : chaque mouvement de drops, du plus récent au plus ancien. */
+  walletTransactions: (before?: string) =>
+    request<{
+      mouvements: Array<{
+        id: string
+        delta: number
+        balance: number
+        motif: string
+        ref: string | null
+        createdAt: string
+      }>
+      suite: string | null
+    }>(`/billing/transactions${before ? `?before=${before}` : ''}`),
   // Renvoie un clientSecret et non une URL : le formulaire de paiement est monte
   // dans l'application, l'acheteur ne quitte jamais drop-shipper.fr.
   startCheckout: (planId: string, departmentId?: string) =>
@@ -544,7 +559,7 @@ export const api = {
       body: JSON.stringify({ planId, departmentId }),
     }),
   confirmPayment: (sessionId: string) =>
-    request<{ granted: boolean; alreadyGranted?: boolean; credits?: number; premium?: boolean; status?: string }>(
+    request<{ granted: boolean; alreadyGranted?: boolean; credits?: number; status?: string }>(
       '/billing/confirm',
       { method: 'POST', body: JSON.stringify({ sessionId }) },
     ),
@@ -568,9 +583,6 @@ export const api = {
     }>('/billing/payment-methods'),
   createSetupIntent: () => request<{ clientSecret: string }>('/billing/setup-intent', { method: 'POST' }),
   deleteCard: (id: string) => request(`/billing/payment-methods/${id}`, { method: 'DELETE' }),
-  cancelSubscription: () =>
-    request<{ cancelled: boolean; activeUntil: string | null }>('/billing/cancel-subscription', { method: 'POST' }),
-
   openBillingPortal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
 
   listOrders: () =>
@@ -877,10 +889,10 @@ export const api = {
   // Agents visuels : photos de produit et visuels publicitaires.
   visualState: () =>
     request<{
+      /** Le solde de drops (les images se paient au portefeuille unique). */
       credits: number
       produced: number
       configured: boolean
-      packs: Array<{ id: string; label: string; amount: number; images: number }>
       formats: Array<{ id: string; label: string; width: number; height: number; note: string }>
       /*
        * Le tarif vient du serveur, il ne se recalcule pas ici.
@@ -1165,7 +1177,6 @@ export const api = {
         covers: string[]
         hired: boolean
       }>
-      plans: Array<{ id: string; label: string; amount: number; days: number; pitch: string }>
     }>('/departments/catalogue'),
   /** Les six jauges du bandeau fixe : fait sur possible, par catégorie. */
   jauges: () =>

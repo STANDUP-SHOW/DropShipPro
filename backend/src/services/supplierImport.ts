@@ -6,6 +6,7 @@ import { rapatrierImages } from './watermark.js'
 import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
 import { resoudreCategorie } from './categories.js'
 import { reserveCredits } from './billing.js'
+import { DROPS } from './tarifs.js'
 
 /**
  * Importer des fiches par l'API du fournisseur.
@@ -93,7 +94,7 @@ export async function importerDepuisFournisseurs(
 
       // Le crédit est pris avant l'appel : appeler le modèle puis annoncer qu'il
       // n'y avait pas de crédit serait payer pour rien.
-      const credit = await reserveCredits(userId, 1)
+      const credit = await reserveCredits(userId, DROPS.import, 'Import fournisseur')
       if (!credit.ok) {
         resultat.echecs.push({ ref, raison: 'Crédits épuisés.' })
         break

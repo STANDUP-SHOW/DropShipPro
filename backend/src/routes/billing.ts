@@ -2,33 +2,27 @@ import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
-import { findAgentPlan, extendDepartment } from '../services/agentBilling.js'
-import { findImagePack, IMAGE_PACKS } from './visuals.js'
-import { findSupportAgent } from '../services/agentRoster.js'
-import {
-  PACKS,
-  PREMIUM,
-  SIGNUP_CREDITS,
-  appUrl,
-  findPack,
-  getStripe,
-  grantPack,
-  isPremium,
-} from '../services/billing.js'
+import { PACKS, SIGNUP_CREDITS, appUrl, findPack, getStripe, grantPack } from '../services/billing.js'
+import { DROPS, EURO_PAR_DROP, USD_PAR_DROP } from '../services/tarifs.js'
 
 export const billingRouter = Router()
 
-/** Public: the pricing grid is shown on the site before anyone signs in. */
+/**
+ * Public : la grille de recharges et les tarifs des actions, montrés avant même
+ * la connexion.
+ *
+ * Un seul portefeuille en drops (07/09/2026) : plus d'abonnement, plus de
+ * location d'agent. On expose aussi le tarif en drops de chaque action, pour que
+ * le site affiche « tant de drops » sur chaque bouton depuis une source unique.
+ */
 billingRouter.get('/plans', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300')
   res.json({
     signupCredits: SIGNUP_CREDITS,
+    euroParDrop: EURO_PAR_DROP,
+    usdParDrop: USD_PAR_DROP,
     packs: PACKS,
-    // Les credits graphiques sont une reserve a part, et ils s achetaient
-    // uniquement depuis l atelier photo : invisibles pour qui ne l avait jamais
-    // ouvert. Ils figurent donc dans la grille publique, avec les autres.
-    imagePacks: IMAGE_PACKS,
-    premium: PREMIUM,
+    tarifs: DROPS,
     /** False when no Stripe key is set: the UI then hides the buy buttons. */
     enabled: Boolean(getStripe()),
   })
@@ -36,7 +30,7 @@ billingRouter.get('/plans', (_req, res) => {
 
 billingRouter.use(requireAuth)
 
-/** Balance and plan of the signed-in seller. */
+/** Solde de drops et derniers paiements du vendeur connecté. */
 billingRouter.get('/me', async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
   const payments = await prisma.payment.findMany({
@@ -47,37 +41,50 @@ billingRouter.get('/me', async (req: AuthedRequest, res) => {
   })
 
   res.json({
+    /** Le solde, en drops (le champ garde son nom `credits` en base). */
     credits: user.credits,
-    premium: isPremium(user),
-    premiumUntil: user.premiumUntil,
+    euroParDrop: EURO_PAR_DROP,
+    usdParDrop: USD_PAR_DROP,
     payments,
+  })
+})
+
+/**
+ * Le relevé du portefeuille : chaque mouvement de drops, du plus récent au plus
+ * ancien. C'est ce que le vendeur voit dans « Mes crédits » — rechargements et
+ * chaque action facturée, avec son libellé, son montant signé et le solde après.
+ *
+ * Paginé par curseur (`before` = id du dernier mouvement déjà affiché) : un
+ * compte actif accumule des milliers de lignes, on ne les envoie pas d'un bloc.
+ */
+billingRouter.get('/transactions', async (req: AuthedRequest, res) => {
+  const before = typeof req.query.before === 'string' ? req.query.before : undefined
+  const mouvements = await prisma.dropTransaction.findMany({
+    where: { userId: req.userId! },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    ...(before ? { cursor: { id: before }, skip: 1 } : {}),
+    select: { id: true, delta: true, balance: true, motif: true, ref: true, createdAt: true },
+  })
+  res.json({
+    mouvements,
+    /** L'id à repasser en `before` pour la page suivante, ou null s'il n'y en a plus. */
+    suite: mouvements.length === 50 ? mouvements[mouvements.length - 1].id : null,
   })
 })
 
 /** Stripe product tax code: « Software as a service (SaaS) - business use ». */
 const TAX_CODE = 'txcd_10103001'
 
-const checkoutSchema = z.object({
-  planId: z.string(),
-  /** Le rayon à prolonger, quand la formule est celle d'un chef de rayon. */
-  departmentId: z.string().optional(),
-})
-
-/** Les formules « chef de rayon » se reconnaissent à leur préfixe. */
-const AGENT_PREFIX = 'agent:'
-
-/** Les recharges d'images des agents visuels. */
-const IMAGE_PREFIX = 'img-'
-
-/** L'embauche d'un agent de comptoir payant, au mois. */
-const HIRE_PREFIX = 'agent-hire:'
+const checkoutSchema = z.object({ planId: z.string() })
 
 /**
- * Opens a Stripe Checkout session.
+ * Opens a Stripe Checkout session for a drops recharge.
  *
  * Prices are declared inline rather than referencing Price objects created in the
  * dashboard: the grid then lives in one place, in the code, and no deploy can
- * disagree with what Stripe charges.
+ * disagree with what Stripe charges. Only drops packs are sold — no subscription,
+ * no rental — so every session is a one-off `payment`.
  */
 billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
   const stripe = getStripe()
@@ -88,47 +95,11 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
 
-  // Le salaire d'un chef de rayon : un paiement unique qui prolonge un rayon
-  // précis. Il faut donc vérifier que le rayon appartient bien à ce vendeur
-  // avant d'encaisser quoi que ce soit.
-  const agentPlan = parsed.data.planId.startsWith(AGENT_PREFIX)
-    ? findAgentPlan(parsed.data.planId.slice(AGENT_PREFIX.length))
-    : null
-
-  let department: { id: string; agentName: string; key: string } | null = null
-  if (agentPlan) {
-    if (!parsed.data.departmentId) return res.status(400).json({ error: 'Rayon manquant' })
-    department = await prisma.department.findFirst({
-      where: { id: parsed.data.departmentId, userId: user.id },
-      select: { id: true, agentName: true, key: true },
-    })
-    if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
-  } else if (parsed.data.planId.startsWith(AGENT_PREFIX)) {
-    return res.status(400).json({ error: 'Formule inconnue' })
-  }
-
-  const hired = parsed.data.planId.startsWith(HIRE_PREFIX)
-    ? findSupportAgent(parsed.data.planId.slice(HIRE_PREFIX.length))
-    : null
-  if (parsed.data.planId.startsWith(HIRE_PREFIX) && (!hired || !hired.monthly)) {
-    return res.status(400).json({ error: 'Agent inconnu' })
-  }
-
-  const imagePack = parsed.data.planId.startsWith(IMAGE_PREFIX)
-    ? findImagePack(parsed.data.planId)
-    : null
-  if (parsed.data.planId.startsWith(IMAGE_PREFIX) && !imagePack) {
-    return res.status(400).json({ error: 'Formule inconnue' })
-  }
-
-  const isSubscription = parsed.data.planId === PREMIUM.id
-  const pack = isSubscription || agentPlan || imagePack || hired ? null : findPack(parsed.data.planId)
-  if (!isSubscription && !agentPlan && !imagePack && !hired && !pack) {
-    return res.status(400).json({ error: 'Formule inconnue' })
-  }
+  const pack = findPack(parsed.data.planId)
+  if (!pack) return res.status(400).json({ error: 'Formule inconnue' })
 
   // One Stripe customer per account, reused: without it every purchase creates a
-  // new customer and the subscription portal shows an empty history.
+  // new customer and the payment history shows empty.
   let customerId = user.stripeCustomerId
   if (!customerId) {
     const customer = await stripe.customers.create({
@@ -141,7 +112,7 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    mode: isSubscription ? 'subscription' : 'payment',
+    mode: 'payment',
     locale: 'fr',
     // Embedded rather than hosted: the payment form is mounted inside the app,
     // the seller never leaves drop-shipper.fr. Card data still goes straight to
@@ -152,55 +123,28 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
         quantity: 1,
         price_data: {
           currency: 'eur',
-          unit_amount: hired
-            ? hired.monthly!
-            : agentPlan
-            ? agentPlan.amount
-            : imagePack
-              ? imagePack.amount
-              : isSubscription
-                ? PREMIUM.amount
-                : pack!.amount,
+          unit_amount: pack.amount,
           // Prices are advertised TTC, as French consumer law requires: the amount
           // above is what the buyer pays, VAT included, not a base to add tax to.
           tax_behavior: 'inclusive',
           product_data: {
-            name: hired
-              ? `${hired.role} ${hired.name} — 1 mois`
-              : agentPlan
-              ? `Chef de rayon ${department!.agentName} — ${agentPlan.label}`
-              : imagePack
-                ? `Agent visuel — ${imagePack.label}`
-              : isSubscription
-                ? PREMIUM.label
-                : `DropShipper IA — ${pack!.label}`,
+            name: `DropShipper — ${pack.drops} drops`,
             // Required as soon as Managed Payments is on, which it is by default:
-            // without it Stripe refuses the session outright. SaaS for business
-            // use is what this is — software reached over the internet, nothing
-            // downloaded, sold to sellers for their trade.
+            // without it Stripe refuses the session outright.
             tax_code: TAX_CODE,
           },
-          ...(isSubscription ? { recurring: { interval: 'month' as const } } : {}),
         },
       },
     ],
-    // Read back in the webhook: the session is the only link between the payment
-    // and the account once Stripe answers asynchronously.
     // Without this a one-off payment leaves only a receipt; sellers need a real
     // invoice, and they need it from us rather than from a Stripe page.
-    ...(isSubscription ? {} : { invoice_creation: { enabled: true } }),
-    metadata: {
-      userId: user.id,
-      planId: parsed.data.planId,
-      ...(department ? { departmentId: department.id } : {}),
-    },
+    invoice_creation: { enabled: true },
+    // Read back on confirm/webhook: the session is the only link between the
+    // payment and the account once Stripe answers asynchronously.
+    metadata: { userId: user.id, planId: parsed.data.planId },
     // Where the iframe sends the buyer once the payment is done. The session id
-    // lets the page confirm the outcome instead of assuming it.
-    // Le vendeur revient là où il était : sur son rayon s'il vient d'embaucher,
-    // sur son compte sinon.
-    return_url: department
-      ? `${appUrl()}/rayon/${department.id}?session_id={CHECKOUT_SESSION_ID}`
-      : `${appUrl()}/abonnement?session_id={CHECKOUT_SESSION_ID}`,
+    // lets the wallet page confirm the outcome instead of assuming it.
+    return_url: `${appUrl()}/credits?session_id={CHECKOUT_SESSION_ID}`,
   })
 
   // The client secret is what mounts the form; there is no URL to redirect to.
@@ -208,7 +152,7 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
 })
 
 /**
- * Grants a purchase from its session id, without waiting for the webhook.
+ * Grants a recharge from its session id, without waiting for the webhook.
  *
  * A webhook can be late, misconfigured or refused — it happened on the very first
  * real payment here. Making the credit depend on it alone means a seller pays and
@@ -239,109 +183,11 @@ billingRouter.post('/confirm', async (req: AuthedRequest, res) => {
   const existing = await prisma.payment.findUnique({ where: { stripeSessionId: session.id } })
   if (existing) return res.json({ granted: true, alreadyGranted: true, credits: existing.credits })
 
-  const planId = session.metadata?.planId ?? ''
-
-  if (session.mode === 'subscription') {
-    await prisma.user.update({
-      where: { id: req.userId! },
-      data: {
-        plan: 'PREMIUM',
-        stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
-        premiumUntil: new Date(Date.now() + 32 * 24 * 3600 * 1000),
-      },
-    })
-    await prisma.payment.create({
-      data: {
-        userId: req.userId!,
-        planId: PREMIUM.id,
-        amount: session.amount_total ?? PREMIUM.amount,
-        credits: 0,
-        stripeSessionId: session.id,
-      },
-    })
-    return res.json({ granted: true, premium: true })
-  }
-
-  if (planId.startsWith(AGENT_PREFIX)) {
-    const plan = findAgentPlan(planId.slice(AGENT_PREFIX.length))
-    const departmentId = session.metadata?.departmentId
-    if (!plan || !departmentId) {
-      return res.status(400).json({ error: 'Formule inconnue sur ce paiement.' })
-    }
-
-    const owned = await prisma.department.findFirst({
-      where: { id: departmentId, userId: req.userId! },
-      select: { id: true, agentName: true },
-    })
-    if (!owned) return res.status(404).json({ error: 'Rayon introuvable' })
-
-    const updated = await extendDepartment(owned.id, plan)
-    await prisma.payment.create({
-      data: {
-        userId: req.userId!,
-        planId,
-        amount: session.amount_total ?? plan.amount,
-        credits: 0,
-        stripeSessionId: session.id,
-      },
-    })
-    return res.json({ granted: true, agent: owned.agentName, paidUntil: updated.paidUntil })
-  }
-
-  if (planId.startsWith(HIRE_PREFIX)) {
-    const agent = findSupportAgent(planId.slice(HIRE_PREFIX.length))
-    if (!agent || !agent.monthly) return res.status(400).json({ error: 'Agent inconnu sur ce paiement.' })
-
-    // La durée s'ajoute à ce qui reste : renouveler en avance ne doit pas
-    // faire perdre les jours déjà payés.
-    const existant = await prisma.agentSubscription.findUnique({
-      where: { userId_agentKey: { userId: req.userId!, agentKey: agent.key } },
-    })
-    const depart = existant && existant.paidUntil > new Date() ? existant.paidUntil : new Date()
-    const paidUntil = new Date(depart.getTime() + 30 * 24 * 3600 * 1000)
-
-    await prisma.agentSubscription.upsert({
-      where: { userId_agentKey: { userId: req.userId!, agentKey: agent.key } },
-      create: { userId: req.userId!, agentKey: agent.key, paidUntil, plan: 'mois' },
-      update: { paidUntil, plan: 'mois' },
-    })
-    await prisma.payment.create({
-      data: {
-        userId: req.userId!,
-        planId,
-        amount: session.amount_total ?? agent.monthly,
-        credits: 0,
-        stripeSessionId: session.id,
-      },
-    })
-    return res.json({ granted: true, agent: agent.name, paidUntil })
-  }
-
-  if (planId.startsWith(IMAGE_PREFIX)) {
-    const imagePack = findImagePack(planId)
-    if (!imagePack) return res.status(400).json({ error: 'Formule inconnue sur ce paiement.' })
-
-    await prisma.user.update({
-      where: { id: req.userId! },
-      data: { imageCredits: { increment: imagePack.images } },
-    })
-    await prisma.payment.create({
-      data: {
-        userId: req.userId!,
-        planId,
-        amount: session.amount_total ?? imagePack.amount,
-        credits: 0,
-        stripeSessionId: session.id,
-      },
-    })
-    return res.json({ granted: true, images: imagePack.images })
-  }
-
-  const pack = findPack(planId)
+  const pack = findPack(session.metadata?.planId ?? '')
   if (!pack) return res.status(400).json({ error: 'Formule inconnue sur ce paiement.' })
 
   await grantPack(req.userId!, pack, session.id, session.amount_total ?? pack.amount)
-  res.json({ granted: true, credits: pack.credits })
+  res.json({ granted: true, credits: pack.drops })
 })
 
 /**
@@ -442,22 +288,7 @@ billingRouter.delete('/payment-methods/:id', async (req: AuthedRequest, res) => 
   res.status(204).send()
 })
 
-/** Cancels at period end: the seller keeps what they paid for until it runs out. */
-billingRouter.post('/cancel-subscription', async (req: AuthedRequest, res) => {
-  const stripe = getStripe()
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
-  if (!stripe || !user.stripeSubscriptionId) return res.status(400).json({ error: 'Aucun abonnement actif.' })
-
-  const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-    cancel_at_period_end: true,
-  })
-  res.json({
-    cancelled: true,
-    activeUntil: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
-  })
-})
-
-/** Stripe's own portal: card change, invoices, cancellation. */
+/** Stripe's own portal: card change, invoices. */
 billingRouter.post('/portal', async (req: AuthedRequest, res) => {
   const stripe = getStripe()
   if (!stripe) return res.status(503).json({ error: 'Paiement indisponible pour le moment.' })
@@ -467,7 +298,7 @@ billingRouter.post('/portal', async (req: AuthedRequest, res) => {
 
   const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
-    return_url: `${appUrl()}/abonnement`,
+    return_url: `${appUrl()}/credits`,
   })
   res.json({ url: session.url })
 })
@@ -510,67 +341,13 @@ export async function stripeWebhook(req: Request, res: Response) {
 }
 
 async function handleEvent(event: import('stripe').Stripe.Event) {
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object
-      const userId = session.metadata?.userId
-      const planId = session.metadata?.planId
-      if (!userId || !planId) return
-
-      if (session.mode === 'subscription') {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            plan: 'PREMIUM',
-            stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
-            // Extended on each paid invoice; a month covers the first period.
-            premiumUntil: new Date(Date.now() + 32 * 24 * 3600 * 1000),
-          },
-        })
-        await prisma.payment.create({
-          data: {
-            userId,
-            planId: PREMIUM.id,
-            amount: session.amount_total ?? PREMIUM.amount,
-            credits: 0,
-            stripeSessionId: session.id,
-          },
-        })
-        return
-      }
-
-      const pack = findPack(planId)
-      if (pack) await grantPack(userId, pack, session.id, session.amount_total ?? pack.amount)
-      return
-    }
-
-    // Renewal: push the paid-until date forward.
-    case 'invoice.paid': {
-      const invoice = event.data.object
-      const customerId = typeof invoice.customer === 'string' ? invoice.customer : null
-      if (!customerId) return
-      const user = await prisma.user.findUnique({ where: { stripeCustomerId: customerId } })
-      if (!user) return
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { plan: 'PREMIUM', premiumUntil: new Date(Date.now() + 32 * 24 * 3600 * 1000) },
-      })
-      return
-    }
-
-    // Cancelled or failed: the account falls back to credits at the end of the
-    // period, never mid-month — the seller paid for it.
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object
-      const customerId = typeof subscription.customer === 'string' ? subscription.customer : null
-      if (!customerId) return
-      const user = await prisma.user.findUnique({ where: { stripeCustomerId: customerId } })
-      if (!user) return
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { plan: 'FREE', stripeSubscriptionId: null },
-      })
-      return
-    }
+  // Only one-off drops recharges exist now — a completed checkout grants its pack.
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object
+    const userId = session.metadata?.userId
+    const planId = session.metadata?.planId
+    if (!userId || !planId) return
+    const pack = findPack(planId)
+    if (pack) await grantPack(userId, pack, session.id, session.amount_total ?? pack.amount)
   }
 }

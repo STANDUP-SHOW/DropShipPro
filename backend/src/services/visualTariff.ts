@@ -1,24 +1,27 @@
+import { DROPS } from './tarifs.js'
+
 /**
- * Ce que coûte un visuel, en crédits images.
+ * Ce que coûte un visuel, en drops.
  *
  * **Le tarif est ici, et nulle part ailleurs.** Il était implicite — un crédit
  * par appel au modèle, quel que soit le travail — et l'écran le réécrivait de
  * son côté pour l'afficher. Deux endroits qui disent le prix finissent par ne
  * plus dire le même : le vendeur lit un chiffre avant de cliquer et en voit un
- * autre sur son solde.
+ * autre sur son solde. Les valeurs viennent de `tarifs.ts`, la source unique
+ * des tarifs en drops.
  *
- * **Pourquoi une publicité vaut deux photos.** Une mise en situation est une
- * image, et rien de plus. Une publicité en est une aussi, mais précédée d'une
- * rédaction — l'accroche est écrite par un modèle de texte, avec un angle
- * imposé — puis suivie d'une composition : logo, prix, bouton, format propre à
- * chaque réseau. Trois travaux là où la photo en demande un.
+ * **Pourquoi une publicité coûte un peu plus qu'une photo.** Une mise en
+ * situation est une image, et rien de plus. Une publicité en est une aussi, mais
+ * précédée d'une rédaction — l'accroche est écrite par un modèle de texte, avec
+ * un angle imposé — puis suivie d'une composition : logo, prix, bouton, format
+ * propre à chaque réseau. Trois travaux là où la photo en demande un.
  */
 
-/** Une mise en situation : un crédit. */
-export const COUT_PHOTO = 1
+/** Une mise en situation. */
+export const COUT_PHOTO = DROPS.image
 
-/** Une publicité : deux crédits, pour les trois étapes ci-dessus. */
-export const COUT_PUB = 2
+/** Une publicité : la photo, plus l'accroche et la composition. */
+export const COUT_PUB = DROPS.pub
 
 /**
  * Combien d'images au plus dans une même demande.

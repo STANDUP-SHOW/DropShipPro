@@ -3,26 +3,25 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { askDepartment } from '../services/departmentChat.js'
-import { isActive } from '../services/agentBilling.js'
 import { etatPlafond, messagePlafond, PLAFOND_JOUR } from '../services/chatBudget.js'
 import { reserveCredits } from '../services/billing.js'
+import { DROPS } from '../services/tarifs.js'
 import { AGENT_CATEGORIES, ALL_AGENTS, PIPELINE_AGENTS, SUPPORT_AGENTS, findSupportAgent } from '../services/agentRoster.js'
 import { askSupportAgent } from '../services/supportChat.js'
 import { findDepartment } from '../services/departments.js'
 
 /**
- * Vrai quand l'agent payant est effectivement payé.
+ * Le tarif d'une question, en drops.
  *
- * Un agent compris dans l'abonnement répond toujours. Les autres se taisent
- * quand la période est passée — sans quoi le prix ne veut rien dire — mais la
- * conversation reste : reprendre son avocat ne doit pas effacer ses conseils.
+ * Plus d'abonnement ni de location depuis le 07/09/2026 : chaque agent est
+ * accessible, chaque question est facturée. Un chef de rayon (et les agents
+ * lourds : avocat, comptable…) fouille le web et raisonne — c'est le tarif
+ * `questionChef`. Un agent de comptoir répond de tête, sans recherche : c'est
+ * `questionComptoir`, bien moins cher. Le repère : les agents qui étaient
+ * payants au mois (`monthly`) sont les lourds.
  */
-async function agentActif(userId: string, agentKey: string, monthly?: number) {
-  if (!monthly) return true
-  const abo = await prisma.agentSubscription.findUnique({
-    where: { userId_agentKey: { userId, agentKey } },
-  })
-  return Boolean(abo && abo.paidUntil > new Date())
+function coutQuestion(monthly?: number): number {
+  return monthly ? DROPS.questionChef : DROPS.questionComptoir
 }
 
 /**
@@ -110,38 +109,18 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
   })
   if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
 
-  /*
-   * L'abonnement d'abord : un rayon à l'arrêt ne répond pas.
-   *
-   * Constaté le 04/09/2026 : le chat vérifiait crédits et plafond mais jamais
-   * `paidUntil` — un agent « à l'arrêt » discutait comme si de rien n'était,
-   * et l'abonnement ne voulait plus rien dire. Ses rapports et ses trouvailles
-   * restent lisibles ; c'est la conversation qui reprend avec l'abonnement.
-   */
-  /*
-   * Il n'y a pas d'essai gratuit — décision du 05/09/2026 : un chef travaille
-   * s'il est embauché, point. `plan === 'essai'` couvre les rayons créés
-   * avant cette règle, tant que leurs vingt-quatre heures n'ont pas expiré :
-   * eux non plus ne discutent pas sans formule payée. La borne est dans le
-   * code, pas dans une consigne au modèle.
-   */
-  if (!isActive(department.paidUntil) || department.plan === 'essai') {
-    return res.status(402).json({
-      error: `${department.agentName} n'est pas en poste : choisissez sa formule (à partir de 1 € la journée, sur la page du rayon) pour qu'il se mette au travail. Ses rapports et trouvailles éventuels restent lisibles.`,
-      reabonner: true,
-    })
-  }
-
-  // Le solde est vérifié avant d'appeler le modèle : payer un appel pour
-  // annoncer ensuite qu'il n'y avait pas de crédit serait absurde.
+  // Plus d'abonnement (07/09/2026) : un chef de rayon confié répond toujours,
+  // et chaque question est facturée en drops. Le solde est vérifié avant
+  // d'appeler le modèle : payer un appel pour annoncer ensuite qu'il n'y avait
+  // pas de drops serait absurde.
+  const COUT = DROPS.questionChef
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.userId! },
-    select: { credits: true, plan: true, premiumUntil: true },
+    select: { credits: true },
   })
-  const unlimited = user.plan === 'PREMIUM' && (!user.premiumUntil || user.premiumUntil > new Date())
-  if (!unlimited && user.credits < 1) {
+  if (user.credits < COUT) {
     return res.status(402).json({
-      error: "Il vous faut au moins un crédit pour poser une question à un chef de rayon.",
+      error: `Une question à un chef de rayon coûte ${COUT} drops : il vous en reste ${user.credits}.`,
       needsCredits: true,
     })
   }
@@ -204,15 +183,15 @@ chatRouter.post('/:departmentId', async (req: AuthedRequest, res) => {
   })
 
   let credits = user.credits
-  if (answer.billed && !unlimited) {
-    const taken = await reserveCredits(req.userId!, 1)
-    if (taken.ok) credits = user.credits - 1
+  if (answer.billed) {
+    const taken = await reserveCredits(req.userId!, COUT, 'Question à un chef de rayon')
+    if (taken.ok) credits = user.credits - COUT
   }
 
   res.status(201).json({
     message: saved,
-    billed: answer.billed && !unlimited,
-    credits: unlimited ? null : credits,
+    billed: answer.billed,
+    credits,
     // Le compteur voyage avec la reponse : le vendeur voit venir le plafond au
     // lieu de le decouvrir sur un refus.
     quota: { utilise: quota.utilise + (answer.billed ? 1 : 0), plafond: PLAFOND_JOUR },
@@ -255,14 +234,12 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
     return { state: 'actif', note: null }
   }
 
-  const abonnements = await prisma.agentSubscription.findMany({ where: { userId: req.userId! } })
   const autos = await prisma.agentAutoSetting.findMany({ where: { userId: req.userId! } })
   const autoPar = new Map(autos.map((a) => [a.agentKey, a.enabled]))
-  const paidUntil = new Map(abonnements.map((a) => [a.agentKey, a.paidUntil]))
 
   const rayons = await prisma.department.findMany({
     where: { userId: req.userId! },
-    select: { id: true, key: true, agentName: true, paidUntil: true, autoMode: true },
+    select: { id: true, key: true, agentName: true, autoMode: true },
     orderBy: { createdAt: 'asc' },
   })
 
@@ -270,30 +247,24 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
     categories: AGENT_CATEGORIES,
     // Les chefs de rayon sont nommés, pas seulement comptés : « 3 rayons
     // confiés » ne dit pas lesquels, et le vendeur veut voir son équipe.
+    // Plus d'abonnement (07/09/2026) : un rayon confié est toujours en poste.
     rayons: rayons.map((r) => ({
       id: r.id,
       key: r.key,
       name: r.agentName,
       label: findDepartment(r.key)?.label ?? r.key,
-      paidUntil: r.paidUntil,
-      active: Boolean(r.paidUntil && r.paidUntil > new Date()),
+      active: true,
       autoMode: r.autoMode,
     })),
     pipeline: PIPELINE_AGENTS.map((a) => ({ ...a, ...statusOf(a.key), autoMode: autoPar.get(a.key) ?? false })),
-    support: SUPPORT_AGENTS.map((a) => {
-      const echeance = paidUntil.get(a.key) ?? null
-      const actif = !a.monthly || Boolean(echeance && echeance > new Date())
-      return {
-        ...a,
-        ...statusOf(a.key),
-        hired: actif,
-        paidUntil: echeance,
-        autoMode: autoPar.get(a.key) ?? false,
-        // Un agent payant non souscrit n'est pas « en panne » : il n'est pas
-        // embauché, ce qui n'est pas la même inquiétude.
-        ...(a.monthly && !actif ? { state: 'inactif' as const, note: 'Pas encore embauché.' } : {}),
-      }
-    }),
+    // Tout agent est accessible : chaque question est facturée en drops, il n'y
+    // a plus d'embauche préalable. `hired` reste vrai pour l'interface existante.
+    support: SUPPORT_AGENTS.map((a) => ({
+      ...a,
+      ...statusOf(a.key),
+      hired: true,
+      autoMode: autoPar.get(a.key) ?? false,
+    })),
     departments,
   })
 })
@@ -313,10 +284,8 @@ chatRouter.patch('/support/:key/auto', async (req: AuthedRequest, res) => {
   const parsed = z.object({ enabled: z.boolean() }).safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
 
-  if (parsed.data.enabled && !(await agentActif(req.userId!, agent.key, agent.monthly))) {
-    return res.status(402).json({ error: `${agent.name} n'est pas embauché : son mode automatique viendra avec.` })
-  }
-
+  // Plus d'embauche préalable (07/09/2026) : tout agent peut passer en AUTO-MODE.
+  // Chaque passage automatique est facturé en drops par la tâche elle-même.
   const maj = await prisma.agentAutoSetting.upsert({
     where: { userId_agentKey: { userId: req.userId!, agentKey: agent.key } },
     create: { userId: req.userId!, agentKey: agent.key, enabled: parsed.data.enabled },
@@ -351,21 +320,17 @@ chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
   const parsed = askSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Écrivez votre question' })
 
-  if (!(await agentActif(req.userId!, agent.key, agent.monthly))) {
-    return res.status(402).json({
-      error: `${agent.name} n'est pas encore embauché. Son abonnement est de ${((agent.monthly ?? 0) / 100).toFixed(2)} € par mois.`,
-      needsHire: true,
-    })
-  }
-
+  // Plus d'embauche (07/09/2026) : tout agent de comptoir répond, chaque
+  // question est facturée en drops (un agent lourd — avocat, comptable — coûte
+  // plus qu'un agent de comptoir simple).
+  const COUT = coutQuestion(agent.monthly)
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.userId! },
-    select: { credits: true, plan: true, premiumUntil: true },
+    select: { credits: true },
   })
-  const unlimited = user.plan === 'PREMIUM' && (!user.premiumUntil || user.premiumUntil > new Date())
-  if (!unlimited && user.credits < 1) {
+  if (user.credits < COUT) {
     return res.status(402).json({
-      error: "Il vous faut au moins un crédit pour poser une question à un agent.",
+      error: `Une question à ${agent.name} coûte ${COUT} drops : il vous en reste ${user.credits}.`,
       needsCredits: true,
     })
   }
@@ -396,15 +361,13 @@ chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
   })
 
   let credits = user.credits
-  if (!unlimited) {
-    const taken = await reserveCredits(req.userId!, 1)
-    if (taken.ok) credits = user.credits - 1
-  }
+  const taken = await reserveCredits(req.userId!, COUT, `Question à ${agent.name}`)
+  if (taken.ok) credits = user.credits - COUT
 
   res.status(201).json({
     message: saved,
     route: answer.route,
-    credits: unlimited ? null : credits,
+    credits,
     quota: { utilise: quota.utilise + (answer.failed ? 0 : 1), plafond: PLAFOND_JOUR },
   })
 })

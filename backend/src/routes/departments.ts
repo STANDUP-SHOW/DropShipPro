@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { DEPARTMENTS, DEPARTMENT_KEYS, findDepartment } from '../services/departments.js'
-import { AGENT_PLANS, isActive } from '../services/agentBilling.js'
 import { enqueteAliExpress } from '../services/enqueteFournisseurs.js'
 import { reserveCredits } from '../services/billing.js'
 import { SECTOR_CATEGORIES } from '../services/categorySectors.js'
@@ -34,7 +33,6 @@ departmentsRouter.get('/catalogue', async (req: AuthedRequest, res) => {
 
   res.json({
     profiles: DEPARTMENTS.map((d) => ({ ...d, hired: taken.has(d.key) })),
-    plans: AGENT_PLANS,
   })
 })
 
@@ -69,9 +67,8 @@ departmentsRouter.get('/', async (req: AuthedRequest, res) => {
         opportunities: d._count.opportunities,
         signals: d._count.signals,
         pending: pendingBy.get(d.id) ?? 0,
-        paidUntil: d.paidUntil,
-        plan: d.plan,
-        active: isActive(d.paidUntil),
+        // Plus d'abonnement (07/09/2026) : un rayon confié est toujours en poste.
+        active: true,
         autoMode: d.autoMode,
         createdAt: d.createdAt,
       }
@@ -93,18 +90,15 @@ departmentsRouter.post('/', async (req: AuthedRequest, res) => {
   if (existing) return res.status(400).json({ error: `${existing.agentName} tient déjà ce rayon.` })
 
   /*
-   * Pas d'essai gratuit — décision du 05/09/2026 : « un chef de rayon doit
-   * être embauché pour travailler, point ». L'embauche crée le rayon à
-   * l'arrêt ; il se met au travail quand sa formule est payée (1 jour,
-   * 1 semaine ou 1 mois), et c'est la page du rayon qui la propose.
+   * Confier un rayon est gratuit (07/09/2026) : plus de location. Le chef est
+   * en poste dès sa création ; ce sont ses actions — une question, un passage
+   * AUTO-MODE — qui coûtent des drops, pas sa présence.
    */
   const created = await prisma.department.create({
     data: {
       userId: req.userId!,
       key: profile.key,
       agentName: profile.agentName,
-      plan: null,
-      paidUntil: null,
     },
   })
 
@@ -129,11 +123,6 @@ departmentsRouter.post('/:id/enquete', async (req: AuthedRequest, res) => {
     where: { id: req.params.id, userId: req.userId! },
   })
   if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
-  if (!isActive(department.paidUntil) || department.plan === 'essai') {
-    return res.status(402).json({
-      error: `${department.agentName} n'est pas en poste : choisissez sa formule pour lancer une enquête — un chef travaille quand il est embauché.`,
-    })
-  }
 
   const resultat = await enqueteAliExpress(req.userId!)
   res.json(resultat)
@@ -141,8 +130,9 @@ departmentsRouter.post('/:id/enquete', async (req: AuthedRequest, res) => {
 
 /**
  * L'interrupteur IA AUTO-MODE du rayon (05/09/2026) : toutes les douze
- * heures, une analyse de marché et dix produits gagnants. Inclus dans le
- * salaire — mais un chef qui n'est pas en poste n'a pas d'automatismes.
+ * heures, une analyse de marché et dix produits gagnants. Chaque passage
+ * coûte des drops (`DROPS.autoModePassage`), débités par la tournée — activer
+ * l'interrupteur est libre, c'est le travail produit qui se paie.
  */
 departmentsRouter.patch('/:id/auto', async (req: AuthedRequest, res) => {
   const parsed = z.object({ enabled: z.boolean() }).safeParse(req.body)
@@ -152,11 +142,6 @@ departmentsRouter.patch('/:id/auto', async (req: AuthedRequest, res) => {
     where: { id: req.params.id, userId: req.userId! },
   })
   if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
-  if (parsed.data.enabled && (!isActive(department.paidUntil) || department.plan === 'essai')) {
-    return res.status(402).json({
-      error: `${department.agentName} n'est pas en poste : choisissez sa formule pour activer son mode automatique.`,
-    })
-  }
 
   const maj = await prisma.department.update({
     where: { id: department.id },
@@ -217,12 +202,11 @@ departmentsRouter.post('/:id/product-info', async (req: AuthedRequest, res) => {
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.userId! },
-    select: { credits: true, plan: true, premiumUntil: true },
+    select: { credits: true },
   })
-  const illimite = user.plan === 'PREMIUM' && (!user.premiumUntil || user.premiumUntil > new Date())
-  if (!illimite && user.credits < COUT_EN_CREDITS) {
+  if (user.credits < COUT_EN_CREDITS) {
     return res.status(402).json({
-      error: `Un avis coûte ${COUT_EN_CREDITS} crédits : il vous en reste ${user.credits}.`,
+      error: `Un avis produit coûte ${COUT_EN_CREDITS} drops : il vous en reste ${user.credits}.`,
       needsCredits: true,
     })
   }
@@ -263,12 +247,10 @@ departmentsRouter.post('/:id/product-info', async (req: AuthedRequest, res) => {
   })
 
   let credits = user.credits
-  if (!illimite) {
-    const pris = await reserveCredits(req.userId!, COUT_EN_CREDITS)
-    if (pris.ok) credits = user.credits - COUT_EN_CREDITS
-  }
+  const pris = await reserveCredits(req.userId!, COUT_EN_CREDITS, 'Avis produit')
+  if (pris.ok) credits = user.credits - COUT_EN_CREDITS
 
-  res.status(201).json({ review, billed: !illimite, credits: illimite ? null : credits })
+  res.status(201).json({ review, billed: true, credits })
 })
 
 /** Les avis déjà rendus dans ce rayon : payés une fois, relisibles toujours. */
