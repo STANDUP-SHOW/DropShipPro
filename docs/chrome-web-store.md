@@ -79,10 +79,17 @@ Le formulaire d'examen demande une justification par permission. À recopier :
 | `tabs` | Le panneau lit l'adresse de l'onglet actif pour proposer à l'utilisateur d'autoriser ce site précis, et pour ouvrir l'annonce importée dans un nouvel onglet. |
 | `scripting` | Injecte le bouton d'import sur les sites autorisés, et le script de remplissage sur les formulaires de dépôt d'annonce. |
 | `notifications` | Signale la fin d'un remplissage, ou une connexion requise sur la marketplace, quand l'onglet concerné n'est pas au premier plan. |
+| `sidePanel` | Affiche la liste d'import groupé : sur AliExpress ou Temu, l'utilisateur navigue de fiche en fiche et ajoute chaque produit sans que le panneau se ferme. Le panneau sert aussi à choisir l'annonce à recopier pendant qu'il remplit un formulaire de marketplace. |
 | `tabGroups` | Regroupe dans un même groupe d'onglets les formulaires ouverts pour une même diffusion, afin que l'utilisateur les retrouve. |
 | Hôtes marketplaces (Vinted, Leboncoin, eBay, Amazon, Facebook, Cdiscount, TikTok Shop, Google Merchant) | Remplir le formulaire de dépôt d'annonce sur ces sites, à la demande de l'utilisateur. C'est la fonction même de l'extension. |
 | Hôtes DropShipper IA (drop-shipper.fr, API Railway) | Envoyer et lire les annonces de l'utilisateur sur son propre compte. |
 | `optional_host_permissions: https://*/*` | Jamais demandée à l'installation. L'utilisateur autorise une boutique à la fois, depuis le panneau, pour y faire apparaître le bouton d'import. |
+
+**Code distant** (remote code) : répondre **« Non, je n'utilise pas de code
+distant »**. Tous les scripts sont empaquetés (config.js, popup.js, lot.js,
+sidepanel.js, content/*.js) ; l'extension ne récupère que des données JSON de
+l'API, jamais du code exécutable — aucun `eval`, aucun `<script src>` externe,
+aucun CDN.
 
 **Objectif unique** (single purpose), à recopier :
 
