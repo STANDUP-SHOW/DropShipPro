@@ -207,8 +207,11 @@ export default function Autopilot() {
    * l'autonomie d'Auto-Shipper n'a besoin ni d'un conseil de droit, ni de
    * photos refaites, ni de publicités pour tourner (06/09/2026). Leurs
    * fiches restent sur la page Mes agents ADMIN.
+   *
+   * Et Auto-Shipper (`autopilot`) ne figure pas dans SA PROPRE liste : c'est
+   * lui qui orchestre les autres, il n'a pas à s'y compter (07/09/2026).
    */
-  const HORS_AUTONOMIE = ['avocat', 'photo', 'marketing']
+  const HORS_AUTONOMIE = ['avocat', 'photo', 'marketing', 'autopilot']
   const agents: Agent[] = roster
     ? [...roster.pipeline, ...roster.support].filter((a) => !HORS_AUTONOMIE.includes(a.key))
     : []
@@ -260,7 +263,7 @@ export default function Autopilot() {
     <Layout>
       {/*
         Le haut de page en deux colonnes (06/09/2026) : le bloc principal
-        d'Auto-Shipper justifié à gauche, la grille des neuf agents en 3 × 3 à
+        d'Auto-Shipper justifié à gauche, la grille des agents ADMIN à
         sa droite — l'empilement ne revient qu'en affichage vertical.
       */}
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
@@ -299,7 +302,7 @@ export default function Autopilot() {
           </ul>
         </div>
 
-        {/* ---------- Les neuf agents ADMIN, 3 × 3, à droite ---------- */}
+        {/* ---------- Les agents ADMIN, à droite ---------- */}
         <section>
           <p className="text-sm text-gray-300">
             Pour travailler en totale autonomie, je dois travailler avec :{' '}
