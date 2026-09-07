@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Coins, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
+import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
 import { FondVivant } from './FondVivant'
@@ -163,7 +164,7 @@ const SECTIONS: Array<{
     titre: 'DropShipper',
     entrees: [
       { to: '/settings', label: 'Réglages', icon: SettingsIcon },
-      { to: '/abonnement', label: 'Mes crédits', icon: Coins },
+      { to: '/credits', label: 'Mes crédits', icon: DropCoin },
       { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
       { to: '/guide', label: "Mode d'emploi", icon: BookOpen },
       { to: '/guide#contact', label: 'Aide & contact', icon: LifeBuoy },
@@ -375,7 +376,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
               to="/credits"
               className="mb-2 flex items-center gap-1.5 rounded-lg bg-purple-500/15 px-2 py-1.5 text-purple-200 hover:bg-purple-500/25"
             >
-              <Coins size={13} />
+              <DropCoin size={14} />
               <span>{`${solde.credits.toLocaleString('fr-FR')} drops`}</span>
             </Link>
           )}
