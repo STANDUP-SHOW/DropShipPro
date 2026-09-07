@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Palette, Sparkles, ExternalLink, Copy, Check, Loader2, PenLine, Search, ImagePlus, Trash2 } from 'lucide-react'
-import { api, apiRoot, assetUrl } from '../lib/api'
+import { Palette, Sparkles, ExternalLink, Copy, Check, Loader2, PenLine, Search, ImagePlus, Trash2, Globe } from 'lucide-react'
+import { api, assetUrl } from '../lib/api'
 import { PriceInput } from './PriceInput'
 
 /**
@@ -63,7 +63,10 @@ export function VitrineBlock({
     })
   }, [])
 
-  const adresse = shop.slug ? `${apiRoot}/b/${shop.slug}` : null
+  // L'adresse publique porte le domaine du site (drop-shipper.fr/b/…), pas
+  // l'URL technique de l'API : depuis le 07/09/2026 un rewrite Vercel proxifie
+  // /b/* vers le backend, donc c'est cette adresse-là que le vendeur partage.
+  const adresse = shop.slug ? `${window.location.origin}/b/${shop.slug}` : null
   const actuel = themes.find((t) => t.id === shop.themeId)
 
   async function generer() {
@@ -186,6 +189,57 @@ export function VitrineBlock({
           Cette boutique n'a pas encore d'adresse de vitrine. Renommez-la pour qu'elle en reçoive une.
         </p>
       )}
+
+      {/* --- Utiliser son propre nom de domaine (redirection) --------------- */}
+      {adresse ? (
+        <details className="group rounded-xl border border-white/10 bg-white/[0.03]">
+          <summary className="flex cursor-pointer list-none items-center gap-2 p-3 text-xs font-semibold text-gray-200 [&::-webkit-details-marker]:hidden">
+            <Globe size={14} className="shrink-0 text-emerald-300" />
+            <span className="flex-1">Utiliser votre propre nom de domaine</span>
+            <span className="text-[11px] font-normal text-gray-500 transition group-open:hidden">Afficher</span>
+          </summary>
+
+          <div className="space-y-3 border-t border-white/10 p-3 text-xs leading-relaxed text-gray-300">
+            <p>
+              Vous avez déjà un nom de domaine (par exemple{' '}
+              <code className="rounded bg-black/30 px-1 py-0.5 text-[11px] text-emerald-200">maboutique.fr</code>) ?
+              Vous pouvez le faire pointer sur cette boutique dès aujourd'hui, en trois étapes, chez
+              l'endroit où vous l'avez acheté (OVH, Gandi, Ionos, Namecheap…).
+            </p>
+            <ol className="ml-4 list-decimal space-y-1.5 marker:text-gray-500">
+              <li>Connectez-vous chez votre registrar et ouvrez la gestion de votre domaine.</li>
+              <li>
+                Créez une <b className="text-gray-100">redirection web</b> (souvent nommée « Redirection »
+                ou « URL forwarding ») de votre domaine vers cette adresse :
+                <span className="mt-1 flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-2">
+                  <code className="min-w-0 flex-1 truncate text-[11px] text-emerald-200">{adresse}</code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(adresse)
+                      setCopie(true)
+                      setTimeout(() => setCopie(false), 1500)
+                    }}
+                    className="shrink-0 rounded-lg border border-white/10 p-1.5 text-gray-400 hover:bg-white/5"
+                    title="Copier l'adresse"
+                  >
+                    {copie ? <Check size={12} /> : <Copy size={12} />}
+                  </button>
+                </span>
+              </li>
+              <li>
+                Choisissez une redirection <b className="text-gray-100">permanente (301)</b>, validez :
+                c'est actif en quelques minutes.
+              </li>
+            </ol>
+            <p className="text-[11px] text-gray-500">
+              Votre domaine amène alors vos clients droit sur votre boutique. Un branchement « natif »,
+              où votre domaine reste affiché dans la barre d'adresse, est prévu pour une prochaine
+              version.
+            </p>
+          </div>
+        </details>
+      ) : null}
 
       {/* --- Les logos de la vitrine ---------------------------------------- */}
       <div className="grid gap-2.5 sm:grid-cols-2">

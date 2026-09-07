@@ -105,10 +105,11 @@ export default function CreerBoutique() {
           <li className="flex gap-3">
             <Globe size={16} className="mt-0.5 shrink-0 text-emerald-300" />
             <span className="text-xs leading-relaxed text-gray-300">
-              <b className="text-gray-100">Votre propre nom de domaine ?</b> Pas encore :{' '}
+              <b className="text-gray-100">Votre propre nom de domaine ?</b> Possible dès aujourd'hui :
+              une simple redirection chez votre registrar fait pointer{' '}
               <code className="rounded bg-black/30 px-1 py-0.5 text-[11px] text-emerald-200">maboutique.fr</code>{' '}
-              qui afficherait la vitrine est prévu pour une prochaine version. En attendant, l'adresse
-              ci-dessus fonctionne partout.
+              sur votre boutique — la marche à suivre est dans Mes sites, sous l'adresse. Un
+              branchement natif (votre domaine reste affiché) arrivera plus tard.
             </span>
           </li>
         </ul>
