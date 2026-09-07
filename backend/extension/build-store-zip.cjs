@@ -49,10 +49,18 @@ async function main() {
   const out = fs.createWriteStream(OUT)
   archive.pipe(out)
 
-  // Everything but the manifest and this script, then the rewritten manifest.
+  /*
+   * Tout sauf le manifeste (réécrit) et l'outillage de développement.
+   *
+   * L'outillage est exclu par MOTIF, pas par liste nominative : aucun `.cjs` ni
+   * `.md` ne tourne dans le navigateur (ce sont des bancs et des notes Node), et
+   * un denylist nominatif oublie précisément le banc neuf — c'est ainsi que
+   * `check-capture.cjs` était parti dans le paquet du magasin. Un relecteur lit
+   * un fichier de test embarqué comme du code non expliqué.
+   */
   archive.glob('**/*', {
     cwd: DIR,
-    ignore: ['manifest.json', 'build-store-zip.cjs', 'check.cjs', 'README.md'],
+    ignore: ['manifest.json', '**/*.cjs', '**/*.md'],
   })
   archive.append(JSON.stringify(manifest, null, 2) + '\n', { name: 'manifest.json' })
   await archive.finalize()
