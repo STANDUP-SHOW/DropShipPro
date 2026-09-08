@@ -1,6 +1,18 @@
-import { Puzzle, Download, MousePointerClick, ListPlus, ClipboardCheck, ShieldAlert, Images, RefreshCw } from 'lucide-react'
+import { Puzzle, Download, MousePointerClick, ListPlus, ClipboardCheck, ShieldAlert, Images, RefreshCw, Star } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { apiRoot } from '../lib/api'
+
+/**
+ * Le lien de la fiche Chrome Web Store, une fois l'extension publiée en Public.
+ *
+ * Coller ici l'adresse de la fiche (ex.
+ * `https://chromewebstore.google.com/detail/<slug>/<id>`). Tant qu'il est vide,
+ * la page propose l'installation manuelle (mode développeur) comme avant — aucun
+ * lien mort. Dès qu'il est renseigné, l'installation en un clic + le bouton
+ * « Noter » passent en avant : l'installation depuis le store se met à jour
+ * seule, et les avis sont le premier levier du référencement du store.
+ */
+const CHROME_STORE_URL = ''
 
 /**
  * La page de l'extension Chrome — téléchargement et mode d'emploi complet.
@@ -62,28 +74,88 @@ export default function Extension() {
         style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)' }}
       >
         <h2 className="text-sm font-bold">Installer l'extension</h2>
-        <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-gray-400">
-          <li>Téléchargez l'archive ci-dessous et décompressez-la dans un dossier que vous gardez.</li>
-          <li>
-            Ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, activez le « Mode développeur » en haut à droite.
-          </li>
-          <li>« Charger l'extension non empaquetée », puis désignez le dossier décompressé.</li>
-          <li>Cliquez l'icône de l'extension et connectez-vous avec votre compte DropShipper IA.</li>
-        </ol>
-        <a
-          href={`${apiRoot}/api/public/extension.zip`}
-          className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-        >
-          <Download size={15} />
-          <span>Télécharger l'extension (.zip)</span>
-        </a>
-        <p className="mt-2 flex items-start gap-1.5 text-[11px] text-gray-500">
-          <RefreshCw size={12} className="mt-0.5 shrink-0" />
-          <span>
-            En mode développeur, l'extension ne se met pas à jour toute seule : quand une nouvelle version est annoncée
-            dans l'application, retéléchargez l'archive et rechargez le dossier.
-          </span>
-        </p>
+
+        {CHROME_STORE_URL ? (
+          <>
+            {/* Voie principale : le Chrome Web Store — un clic, mises à jour automatiques. */}
+            <p className="mt-1 text-xs leading-relaxed text-gray-400">
+              Un clic depuis le Chrome Web Store. L'extension se met à jour toute seule, et vous vous
+              connectez ensuite avec votre compte DropShipper IA.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href={CHROME_STORE_URL}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="btn-gradient inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+              >
+                <Puzzle size={15} />
+                <span>Installer depuis le Chrome Web Store</span>
+              </a>
+              {/* Les avis font monter le classement du store : on le demande, poliment. */}
+              <a
+                href={CHROME_STORE_URL}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-white/5"
+              >
+                <Star size={15} />
+                <span>Noter l'extension</span>
+              </a>
+            </div>
+            <p className="mt-2 text-[11px] text-gray-500">
+              Un avis ⭐ nous aide énormément à être trouvés par d'autres vendeurs — merci d'avance.
+            </p>
+
+            {/* Repli : installation manuelle (mode développeur), pliée. */}
+            <details className="mt-3 text-xs text-gray-400">
+              <summary className="cursor-pointer text-gray-500 hover:text-gray-300">
+                Installer manuellement (mode développeur)
+              </summary>
+              <ol className="mt-2 list-decimal space-y-1 pl-4 leading-relaxed">
+                <li>Téléchargez l'archive et décompressez-la dans un dossier que vous gardez.</li>
+                <li>
+                  Ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, activez le « Mode développeur ».
+                </li>
+                <li>« Charger l'extension non empaquetée », puis désignez le dossier décompressé.</li>
+              </ol>
+              <a
+                href={`${apiRoot}/api/public/extension.zip`}
+                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
+              >
+                <Download size={13} />
+                <span>Télécharger l'archive (.zip)</span>
+              </a>
+            </details>
+          </>
+        ) : (
+          <>
+            {/* Tant que le lien du store n'est pas renseigné : installation manuelle. */}
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-gray-400">
+              <li>Téléchargez l'archive ci-dessous et décompressez-la dans un dossier que vous gardez.</li>
+              <li>
+                Ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, activez le « Mode développeur » en haut à droite.
+              </li>
+              <li>« Charger l'extension non empaquetée », puis désignez le dossier décompressé.</li>
+              <li>Cliquez l'icône de l'extension et connectez-vous avec votre compte DropShipper IA.</li>
+            </ol>
+            <a
+              href={`${apiRoot}/api/public/extension.zip`}
+              className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+            >
+              <Download size={15} />
+              <span>Télécharger l'extension (.zip)</span>
+            </a>
+            <p className="mt-2 flex items-start gap-1.5 text-[11px] text-gray-500">
+              <RefreshCw size={12} className="mt-0.5 shrink-0" />
+              <span>
+                En mode développeur, l'extension ne se met pas à jour toute seule : quand une nouvelle version est annoncée
+                dans l'application, retéléchargez l'archive et rechargez le dossier. L'installation en un clic depuis le
+                Chrome Web Store arrive dès sa validation.
+              </span>
+            </p>
+          </>
+        )}
       </section>
 
       {/* ---------- Mode d'emploi ---------- */}
