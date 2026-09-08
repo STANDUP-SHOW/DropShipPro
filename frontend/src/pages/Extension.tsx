@@ -12,7 +12,7 @@ import { apiRoot } from '../lib/api'
  * « Noter » passent en avant : l'installation depuis le store se met à jour
  * seule, et les avis sont le premier levier du référencement du store.
  */
-const CHROME_STORE_URL = ''
+const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk'
 
 /**
  * La page de l'extension Chrome — téléchargement et mode d'emploi complet.
