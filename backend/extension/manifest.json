@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "DropShipper IA",
-  "version": "1.28.0",
-  "description": "Ajoutez un produit à DropShipper IA depuis n'importe quelle boutique, et publiez-le sur vos marketplaces.",
+  "name": "DropShipper IA – dropshipping : import et publication automatique",
+  "short_name": "DropShipper",
+  "version": "1.29.0",
+  "description": "Dropshipping : importez un produit depuis n'importe quelle boutique et publiez vos annonces sur vos marketplaces, en automatique.",
   "permissions": [
     "storage",
     "tabs",

@@ -32,18 +32,41 @@ store, même en mode non répertorié, Chrome l'actualise seul chez tout le mond
    bouton « Ajouter à DropShipper IA » sur une fiche produit, le panneau de
    l'extension, et un formulaire Vinted rempli automatiquement.
 4. **Icône de la fiche** : 128×128 — `icon128.png` du dossier convient.
-5. Choisir **Non répertorié** dans Visibilité : installable par votre lien
-   uniquement, invisible dans les recherches, mises à jour automatiques quand même.
+5. Choisir **Public** dans Visibilité — c'est la SEULE façon d'apparaître dans
+   la recherche et les listes du store, ce qui est désormais le but (référencement
+   naturel). En **Non répertorié**, l'extension est invisible à la recherche
+   **même en tapant son nom exact** : installable par lien seulement. C'était le
+   réglage d'origine, quand on ne visait que les mises à jour automatiques ; ce
+   n'est plus le cas.
+   - **Piège vérifié le 08/09/2026** : publiée en « Non répertorié », l'extension
+     ne remontait sur AUCUNE recherche, pas même « drop-shipper ia » exact — le
+     symptôme exact de l'Unlisted. Le correctif est ce réglage, pas la fiche.
+   - Passer de Non répertorié à Public peut **redéclencher un examen Google**
+     (quelques jours), et l'indexation dans la recherche prend ensuite quelques
+     heures à quelques jours.
+   - Le classement se mérite ensuite : Chrome Web Store trie surtout par
+     **installations, notes/avis et rétention**. Une extension neuve ne sort pas
+     en page 1 sur « dropshipping » tout de suite — pousser les installs depuis
+     l'app/emails et récolter des avis est ce qui fait monter.
 
 ## Textes de la fiche, à copier tels quels
 
-**Nom** : DropShipper IA
+**Nom** : `DropShipper IA – dropshipping : import et publication automatique`
 
-**Description courte** (132 caractères maximum)
+Le nom de la fiche **vient du manifeste** (`manifest.json` → `name`), pas d'un
+champ du dashboard : il est porté à cette valeur depuis la version 1.29.0, avec
+le mot-clé « dropshipping » en tête — le nom est le premier signal de recherche
+du store. `short_name` (« DropShipper ») reste court pour la barre d'outils.
 
-    Importez un produit depuis n'importe quelle boutique et remplissez vos annonces Vinted, Leboncoin, eBay ou Facebook.
+**Description courte** (132 caractères maximum) — le mot-clé d'abord
 
-**Description détaillée**
+    Dropshipping : importez un produit depuis n'importe quelle boutique et publiez vos annonces sur vos marketplaces, en automatique.
+
+**Description détaillée** (première ligne = mots-clés, le reste inchangé)
+
+    Extension de dropshipping pour importer des produits (AliExpress, Temu,
+    n'importe quelle boutique) et préparer la publication de vos annonces sur vos
+    marketplaces.
 
     DropShipper IA est l'extension compagnon du service DropShipper IA
     (www.drop-shipper.fr), destinée aux vendeurs qui gèrent un catalogue en ligne.
@@ -66,7 +89,8 @@ store, même en mode non répertorié, Chrome l'actualise seul chez tout le mond
 
     Un compte DropShipper IA est nécessaire.
 
-**Catégorie** : Outils de travail (Workflow & Planning)
+**Catégorie** : **Shopping** (plutôt que « Outils de travail » : c'est là que les
+vendeurs cherchent un outil de dropshipping — meilleure découverte).
 **Langue** : Français
 
 ## Justification de chaque permission
