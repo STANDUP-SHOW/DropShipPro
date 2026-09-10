@@ -3,7 +3,7 @@ import { Eye, FlaskConical, RefreshCw } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocStats, type BlocData } from '../components/stats/TuileStat'
 import { CarteMonde, type CarteData } from '../components/stats/CarteMonde'
-import { blocsDemo, carteDemo, compteVide } from '../lib/statsDemo'
+import { blocsDemo, carteDemo } from '../lib/statsDemo'
 import { demoActif, demoAutorise, demoChoisi, poserDemo } from '../lib/demo'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
@@ -17,11 +17,12 @@ import { api } from '../lib/api'
  * trois, et la plateforme ferme la page. C'est ce dessin-là qui donne au
  * tableau son air de poste de pilotage.
  *
- * **Le mode démonstration**, demandé en toutes lettres : tant que le compte
- * n'a pas vendu, les tuiles montrent des chiffres de démonstration — semés,
- * donc identiques à chaque visite — pour que le graphisme se voie. Un bandeau
- * le dit sans détour et la bascule rend les vraies données en un clic : jamais
- * un chiffre de démonstration sans son étiquette.
+ * **Le mode démonstration** est un outil réservé au seul compte de
+ * démonstration : il ne s'active JAMAIS tout seul (règle du 11/09/2026). Un
+ * compte neuf — y compris une première connexion Google — voit ses vraies
+ * données, vides comprises. Seul ce compte-là voit la pilule DÉMO, et il faut
+ * son clic pour remplir le site de chiffres d'exemple, étiquetés par un
+ * bandeau ; rien n'est écrit en base, un second clic rend les vraies données.
  */
 
 const PERIODES = [
@@ -66,9 +67,9 @@ export default function Statistiques() {
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   /*
-   * Le mode démo global n'appartient qu'au compte de démonstration : pour
-   * tout autre vendeur, la pilule n'existe pas et la démo du tableau de bord
-   * reste ce qu'elle a toujours été — locale, pour les comptes vides.
+   * Le mode démo n'appartient qu'au compte de démonstration : pour tout autre
+   * vendeur la pilule n'existe pas, et plus aucun automatisme de « compte
+   * vide » n'affiche de chiffres semés — chacun voit ses propres données.
    */
   const { user } = useAuth()
   const autorise = demoAutorise(user?.email)
@@ -88,20 +89,13 @@ export default function Statistiques() {
       const r = await api.tableauStats(du, au)
       setBlocs(r.blocs)
       setCarte(r.carte)
-      // Le premier chargement choisit le mode ; les suivants respectent le choix
-      // du vendeur — une bascule qui se remet toute seule n'est pas une bascule.
-      // Et l'automatisme du compte vide lève le mode GLOBALEMENT, sinon la
-      // pilule s'affichait allumée avec le site éteint : le premier clic
-      // coupait au lieu d'étendre (constaté en production le 06/09/2026).
+      // AUCUNE auto-activation. Un compte neuf — y compris une première
+      // connexion Google — voit SES données, vides comprises, jamais la démo.
+      // La démo ne s'allume que si le compte de démonstration a cliqué la
+      // pilule lui-même ; on ne fait que reprendre cet état global au retour.
       setDemo((actuel) => {
         if (actuel !== null) return actuel
-        // Hors du compte de démonstration, l'automatisme reste LOCAL : les
-        // chiffres semés s'affichent ici, étiquetés, sans toucher au site.
-        if (!autorise) return compteVide(r.blocs)
-        if (demoChoisi()) return demoActif()
-        const decide = compteVide(r.blocs)
-        if (decide) poserDemo(true)
-        return decide
+        return autorise && demoChoisi() ? demoActif() : false
       })
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Statistiques indisponibles')

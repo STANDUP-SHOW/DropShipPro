@@ -15,7 +15,10 @@ import { useAuth } from './auth'
  * les composants d'une même page (la pilule et la liste, par exemple).
  */
 
-const CLE = 'dsp-demo'
+// Clé bumpée le 11/09/2026 : l'ancien automatisme du « compte vide » posait ce
+// drapeau à '1' tout seul. En changeant de clé, tout état hérité de cet
+// automatisme est ignoré — la démo repart éteinte, et seul un clic la lève.
+const CLE = 'dsp-demo-2'
 const EVENEMENT = 'dsp-demo-bascule'
 
 /**
@@ -39,9 +42,9 @@ export function demoActif(): boolean {
 }
 
 /**
- * Vrai si un choix a déjà été posé — pilule cliquée, ou automatisme du compte
- * vide. Il départage « jamais décidé » (l'automatisme peut choisir) de
- * « coupé exprès » (l'automatisme n'a plus voix au chapitre).
+ * Vrai si la pilule a déjà été cliquée (dans un sens ou l'autre). Sert à
+ * reprendre l'état choisi au retour sur le tableau de bord ; sans choix, la
+ * démo reste éteinte (plus aucun automatisme ne la lève).
  */
 export function demoChoisi(): boolean {
   try {
