@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BlocStats, type BlocData } from './TuileStat'
-import { blocsDemo, compteVide } from '../../lib/statsDemo'
+import { blocsDemo } from '../../lib/statsDemo'
 import { useDemo } from '../../lib/demo'
 import { api } from '../../lib/api'
 
@@ -14,18 +14,18 @@ import { api } from '../../lib/api'
  * adresse, même calcul, donc jamais deux chiffres différents pour la même
  * chose selon l'écran.
  *
- * Le mode démonstration suit la même règle qu'à l'accueil : tant que le compte
- * n'a pas vendu, les chiffres du scénario s'affichent, étiquetés. Une page de
- * section ne doit pas dire autre chose que le tableau de bord.
+ * Le mode démonstration suit la même règle qu'à l'accueil : il ne s'affiche
+ * QUE si la pilule DÉMO est levée (compte de démonstration). Une page de
+ * section ne dit jamais autre chose que le tableau de bord.
  */
 export function BlocSection({ id }: { id: string }) {
   const [bloc, setBloc] = useState<BlocData | null>(null)
   const [demo, setDemo] = useState(false)
   /*
-   * Le mode DEMO global (la pilule du tableau de bord) prime : un vendeur qui
-   * fait le contrôle visuel veut le graphique rempli sur CHAQUE page, même
-   * avec de vraies données derrière — « les graphiques ne donnent pas les
-   * démo sur les pages » (06/09/2026). L'automatisme du compte vide reste.
+   * Le mode DEMO n'est levé que par la pilule du tableau de bord (compte de
+   * démonstration uniquement). Plus AUCUN automatisme de « compte vide » : une
+   * page de section montre les vraies données, vides comprises, exactement
+   * comme le tableau de bord (règle du 11/09/2026).
    */
   const [demoGlobal] = useDemo()
 
@@ -35,10 +35,9 @@ export function BlocSection({ id }: { id: string }) {
     api
       .tableauStats(du, au)
       .then((r) => {
-        const enDemo = demoGlobal || compteVide(r.blocs)
-        const blocs = enDemo ? blocsDemo(r.blocs) : r.blocs
+        const blocs = demoGlobal ? blocsDemo(r.blocs) : r.blocs
         setBloc(blocs.find((b) => b.id === id) ?? null)
-        setDemo(enDemo)
+        setDemo(demoGlobal)
       })
       .catch(() => {
         // Les statistiques sont un bandeau, pas la page : leur panne ne doit
