@@ -54,9 +54,12 @@ export function GoogleSignIn() {
             )
         },
       })
+      // « outline » = le bouton Google blanc classique : fond blanc, texte
+      // sombre, et un léger grisé au survol (géré par Google dans son iframe —
+      // le bouton n'est pas stylable en CSS de notre côté, c'est un cadre isolé).
       window.google.accounts.id.renderButton(boite.current, {
         type: 'standard',
-        theme: 'filled_black',
+        theme: 'outline',
         size: 'large',
         shape: 'pill',
         text: 'continue_with',
