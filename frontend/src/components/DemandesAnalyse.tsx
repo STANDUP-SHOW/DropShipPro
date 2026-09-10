@@ -22,7 +22,16 @@ function lienTikTok(titre: string) {
  */
 
 type Produit = { id: string; aiTitle?: string | null; title?: string | null }
-type Resultat = { productId: string; titre: string; texte: string }
+type PrixMarche = {
+  devise: string
+  min: number | null
+  median: number | null
+  max: number | null
+  releves: Array<{ source: string; prix: number }>
+}
+type Resultat = { productId: string; titre: string; texte: string; prix?: PrixMarche }
+
+const eur = (n: number | null) => (n === null ? '—' : n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 
 const ARC_EN_CIEL = 'linear-gradient(90deg,#eab308,#84cc16,#22c55e,#06b6d4,#3b82f6,#8b5cf6,#ec4899,#ef4444)'
 
@@ -211,7 +220,30 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
           {resultats.lignes.map((l) => (
             <div key={l.productId} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <p className="text-sm font-semibold text-gray-100">{l.titre}</p>
-              <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-300">{l.texte}</p>
+
+              {/* Le prix marché constaté, relevé en direct (analyse marché). */}
+              {resultats.type === 'marche' && l.prix && l.prix.releves.length ? (
+                <div className="mt-1.5 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] p-2">
+                  <p className="text-[11px] font-semibold text-emerald-200">
+                    Prix marché constaté : {eur(l.prix.min)} – {eur(l.prix.max)} €
+                    {l.prix.median !== null ? (
+                      <>
+                        {' '}· médian <b>{eur(l.prix.median)} €</b>
+                      </>
+                    ) : null}
+                    <span className="text-gray-400"> · {l.prix.releves.length} relevé(s)</span>
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {l.prix.releves.map((r, i) => (
+                      <span key={i} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-gray-300">
+                        {r.source} <b className="text-gray-100">{eur(r.prix)} €</b>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-gray-300">{l.texte}</p>
 
               {/* Pour l'analyse sociale : les vraies pubs en direct + l'intégration
                   d'une annonce dans Mes pubs (au tarif pub habituel). */}

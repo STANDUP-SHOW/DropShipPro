@@ -296,7 +296,12 @@ departmentsRouter.post('/:id/analyse-produits', async (req: AuthedRequest, res) 
 
   const social = parsed.data.type === 'sociale'
   const cout = social ? DROPS.analyseSociale : DROPS.analyse
-  const results: Array<{ productId: string; titre: string; texte: string }> = []
+  const results: Array<{
+    productId: string
+    titre: string
+    texte: string
+    prix?: { devise: string; min: number | null; median: number | null; max: number | null; releves: Array<{ source: string; prix: number }> }
+  }> = []
 
   for (const p of produits) {
     const pris = await reserveCredits(req.userId!, cout, social ? 'Analyse sociale (produit)' : 'Analyse marché (produit)')
@@ -313,7 +318,13 @@ departmentsRouter.post('/:id/analyse-produits', async (req: AuthedRequest, res) 
         const k = await keepaProduit(p.aiTitle || p.title || avis.title || '')
         if (k) texte = `${keepaTexte(k)}\n\n${texte}`
       }
-      results.push({ productId: p.id, titre: avis.title || p.aiTitle || p.title, texte })
+      results.push({
+        productId: p.id,
+        titre: avis.title || p.aiTitle || p.title,
+        texte,
+        // Le prix marché structuré, pour l'analyse marché uniquement.
+        prix: !social ? avis.prix : undefined,
+      })
     } catch (e) {
       await refundCredits(req.userId!, cout)
       results.push({ productId: p.id, titre: p.aiTitle || p.title, texte: `Analyse indisponible : ${e instanceof Error ? e.message : 'erreur'}` })

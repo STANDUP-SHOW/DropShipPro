@@ -37,12 +37,34 @@ export const COUT_EN_CREDITS = DROPS.conseilProduit
  */
 export const FRAICHEUR_JOURS = 7
 
+/** Un prix de vente réellement relevé sur une place de marché. */
+export interface PrixReleve {
+  source: string
+  prix: number
+}
+
+/**
+ * Le « prix marché constaté », monté à partir des prix réellement relevés en
+ * direct — l'alternative gratuite à Keepa (prix actuel + concurrence, sans
+ * historique ni Sales Rank). Min / médian / max sont calculés côté serveur, pas
+ * demandés au modèle : sa somme se trompe, une médiane non.
+ */
+export interface PrixMarche {
+  devise: string
+  releves: PrixReleve[]
+  min: number | null
+  median: number | null
+  max: number | null
+}
+
 export interface ProductAdvice {
   title: string | null
   verdict: string
   suppliers: string
   social: string
   marketplace: string
+  /** Les prix de vente relevés sur les places de marché, structurés. */
+  prix: PrixMarche
   sources: string[]
 }
 
@@ -87,6 +109,35 @@ function parseJson(text: string): Record<string, unknown> {
 
 function asString(value: unknown, defaut = ''): string {
   return typeof value === 'string' && value.trim() ? value.trim() : defaut
+}
+
+/** Monte le prix marché à partir des relevés du modèle ; min/médian/max ici. */
+function construirePrix(brut: unknown, devise: string): PrixMarche {
+  const releves: PrixReleve[] = Array.isArray(brut)
+    ? brut
+        .map((r) => {
+          const o = r as { source?: unknown; prix?: unknown }
+          const prix = typeof o.prix === 'number' ? o.prix : Number(o.prix)
+          return { source: asString(o.source, 'Source'), prix }
+        })
+        .filter((r) => Number.isFinite(r.prix) && r.prix > 0)
+        .slice(0, 12)
+    : []
+
+  const valeurs = releves.map((r) => r.prix).sort((a, b) => a - b)
+  const mediane = valeurs.length
+    ? valeurs.length % 2
+      ? valeurs[(valeurs.length - 1) / 2]
+      : Math.round(((valeurs[valeurs.length / 2 - 1] + valeurs[valeurs.length / 2]) / 2) * 100) / 100
+    : null
+
+  return {
+    devise: devise || 'EUR',
+    releves,
+    min: valeurs.length ? valeurs[0] : null,
+    median: mediane,
+    max: valeurs.length ? valeurs[valeurs.length - 1] : null,
+  }
 }
 
 const SYSTEM = [
@@ -140,9 +191,11 @@ Cherche ce produit, puis réponds UNIQUEMENT en JSON valide, sans texte autour n
   "suppliers": "avis fournisseurs, quelques phrases",
   "social": "avis réseaux, quelques phrases",
   "marketplace": "avis places de marché, quelques phrases",
+  "devise": "EUR",
+  "releves": [{"source": "Amazon", "prix": 24.90}, {"source": "Cdiscount", "prix": 22.50}],
   "sources": ["https://..."]
 }
-Mets une chaîne vide dans un volet où tu n'as rien trouvé.`,
+Dans "releves", mets les prix de vente RÉELS que tu as relevés sur les places de marché (Amazon, Cdiscount, eBay, Vinted…), un par source, en NOMBRE — c'est le prix marché constaté. Laisse la liste vide si tu n'as trouvé aucun prix. Mets une chaîne vide dans un volet où tu n'as rien trouvé.`,
       },
     ],
   })
@@ -161,6 +214,7 @@ Mets une chaîne vide dans un volet où tu n'as rien trouvé.`,
     suppliers: asString(parsed.suppliers, absent),
     social: asString(parsed.social, absent),
     marketplace: asString(parsed.marketplace, absent),
+    prix: construirePrix(parsed.releves, asString(parsed.devise, 'EUR')),
     sources: Array.isArray(parsed.sources)
       ? parsed.sources.filter((s): s is string => typeof s === 'string').slice(0, 12)
       : [],
