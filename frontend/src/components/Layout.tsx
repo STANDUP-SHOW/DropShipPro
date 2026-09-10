@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy } from 'lucide-react'
+import { Fragment, useEffect, useState } from 'react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { ExtensionVersion } from './ExtensionVersion'
@@ -201,7 +201,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   const estActive = (to: string) =>
     to.includes('?') || to.includes('#') ? pathname + search + hash === to : pathname === to
   const { logout, user } = useAuth()
-  const [solde, setSolde] = useState<{ credits: number } | null>(null)
+  const [solde, setSolde] = useState<{ credits: number; euroParDrop: number } | null>(null)
   /**
    * Les rayons confiés, chacun à son nom.
    *
@@ -217,7 +217,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   useEffect(() => {
     api
       .myBilling()
-      .then((b) => setSolde({ credits: b.credits }))
+      .then((b) => setSolde({ credits: b.credits, euroParDrop: b.euroParDrop }))
       .catch(() => {
         // Ancienne session ou API indisponible : on n'affiche simplement rien.
       })
@@ -248,24 +248,53 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
           {NAV.map((item) => {
             const active = pathname.startsWith(item.to)
             return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <item.icon size={16} />
-                {/* Auto-Shipper porte les couleurs de son animation : bold,
-                    du bleu du noyau au jaune de l'anneau de feu. */}
-                {item.to === '/pilote' ? (
-                  <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text font-bold text-transparent">
-                    {item.label}
-                  </span>
-                ) : (
-                  <span>{item.label}</span>
-                )}
-              </Link>
+              <Fragment key={item.to}>
+                <Link
+                  to={item.to}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <item.icon size={16} />
+                  {/* Auto-Shipper porte les couleurs de son animation : bold,
+                      du bleu du noyau au jaune de l'anneau de feu. */}
+                  {item.to === '/pilote' ? (
+                    <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text font-bold text-transparent">
+                      {item.label}
+                    </span>
+                  ) : (
+                    <span>{item.label}</span>
+                  )}
+                </Link>
+
+                {/* Le portefeuille de drops, dans le menu, juste sous Dashboard
+                    et avant Auto-Shipper (demandé le 10/09/2026) : solde + recharge
+                    à un clic. Bloc en verre → il s'allume au survol comme les autres. */}
+                {item.to === '/statistiques' && solde ? (
+                  <Link
+                    to="/credits"
+                    className="my-1.5 block rounded-xl border border-white/10 bg-white/[0.05] p-2.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <DropCoin size={24} className="shrink-0" />
+                      <div className="min-w-0 leading-tight">
+                        <p className="truncate text-sm font-extrabold text-white">
+                          {solde.credits.toLocaleString('fr-FR')}{' '}
+                          <span className="text-[11px] font-semibold text-gray-400">drops</span>
+                        </p>
+                        {solde.euroParDrop ? (
+                          <p className="text-[10px] text-gray-500">
+                            ≈ {(solde.credits * solde.euroParDrop).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span className="btn-gradient mt-2 flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-white">
+                      <Plus size={13} /> Recharger
+                    </span>
+                  </Link>
+                ) : null}
+              </Fragment>
             )
           })}
 
@@ -371,15 +400,8 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
 
         </nav>
         <div className="border-t border-white/10 pt-3 text-xs text-gray-400">
-          {solde && (
-            <Link
-              to="/credits"
-              className="mb-2 flex items-center gap-1.5 rounded-lg bg-purple-500/15 px-2 py-1.5 text-purple-200 hover:bg-purple-500/25"
-            >
-              <DropCoin size={14} />
-              <span>{`${solde.credits.toLocaleString('fr-FR')} drops`}</span>
-            </Link>
-          )}
+          {/* Le solde vit désormais dans son bloc, sous Dashboard : plus de
+              badge répété ici. */}
           <p className="truncate">{user?.email}</p>
           <button onClick={logout} className="mt-2 flex items-center gap-1.5 text-gray-400 hover:text-white">
             <LogOut size={14} /> Déconnexion
