@@ -134,6 +134,8 @@ settingsRouter.get('/shops', async (req: AuthedRequest, res) => {
       shopKey: s.shopKey,
       slug: s.slug,
       platform: s.platform,
+      /** L'adresse du site du vendeur, pour le bouton « Aller sur mon site ». */
+      siteUrl: s.siteUrl,
       logo: s.logo,
       vitrineLogoEntete: s.vitrineLogoEntete,
       vitrineLogoAccueil: s.vitrineLogoAccueil,
@@ -178,6 +180,18 @@ const shopSchema = z.object({
   name: z.string().trim().min(1).max(60),
   /** Indicative only: wordpress, prestashop, magento, shopify, autre. */
   platform: z.string().trim().max(30).optional(),
+  /**
+   * L'adresse du site du vendeur, pour « Aller sur mon site ». http(s) seulement
+   * — une adresse `javascript:` s'exécuterait au clic. `null` efface.
+   */
+  siteUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .url()
+    .refine((u) => /^https?:\/\//i.test(u), 'Adresse invalide')
+    .nullable()
+    .optional(),
   /**
    * Les rayons vendus par cette boutique.
    *
@@ -738,8 +752,17 @@ settingsRouter.put('/shops/:id/logo', (req: AuthedRequest, res) => {
 
       res.json({ logo })
     } catch (e) {
-      console.error('logo de boutique illisible', e)
-      res.status(400).json({ error: "Ce fichier n'a pas pu être lu comme une image" })
+      // Distinguer un fichier illisible d'une panne de STOCKAGE : le message
+      // « ce fichier ne peut pas être lu » envoyait le vendeur changer un fichier
+      // parfaitement valide alors que c'est R2 (ou le disque) qui refuse.
+      console.error('enregistrement du logo de boutique impossible', e)
+      const msg = e instanceof Error ? e.message : ''
+      const stockage = /access denied|nosuchbucket|credential|invalidaccesskey|signature|s3|\br2\b|network|econn|getaddrinfo|timeout|enoent|eacces|erofs/i.test(msg)
+      res.status(stockage ? 502 : 400).json({
+        error: stockage
+          ? "Le stockage des images est momentanément indisponible (réglage R2 / disque). Réessayez ; si ça persiste, vérifiez la configuration du stockage."
+          : "Ce fichier n'a pas pu être lu comme une image.",
+      })
     }
   })
 })

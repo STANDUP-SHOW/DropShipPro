@@ -530,6 +530,11 @@ model Shop {
   slug     String? @unique
   /// Type de site branche, a titre indicatif: wordpress, prestashop, magento...
   platform String?
+  /// L adresse publique du site du vendeur, saisie par lui, pour le bouton
+  /// « Aller sur mon site ». Son propre nom de domaine (site externe) ou celui
+  /// qu il a raccorde a sa vitrine. Nul = pas encore renseigne ; pour une
+  /// vitrine hebergee, l ecran retombe alors sur /b/<slug>.
+  siteUrl  String?
   /// Les rayons vendus par cette boutique. Vide = tous.
   ///
   /// Un vendeur qui tient un site de mode et un site high-tech ne veut pas voir

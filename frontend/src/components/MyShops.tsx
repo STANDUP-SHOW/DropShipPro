@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Copy, Check, ImagePlus, ChevronDown, Store } from 'lucide-react'
+import { Plus, Trash2, Copy, Check, ImagePlus, ChevronDown, Store, ExternalLink, Pencil } from 'lucide-react'
 import { api, apiRoot, assetUrl } from '../lib/api'
 import { VitrineBlock } from './VitrineBlock'
+
+/** Complète l'adresse avec https:// si le vendeur l'a omis. */
+function normaliserUrl(u: string): string {
+  const t = u.trim()
+  if (!t) return ''
+  return /^https?:\/\//i.test(t) ? t : `https://${t}`
+}
 
 /**
  * Mes sites : un grand bloc par boutique, qui contient tout ce qui la décrit.
@@ -124,6 +131,11 @@ function BlocSite({
   const [copie, setCopie] = useState(false)
   const fichier = useRef<HTMLInputElement>(null)
 
+  // « Aller sur mon site » : l'adresse du site du vendeur + la popup de saisie.
+  const [siteUrl, setSiteUrl] = useState(shop?.siteUrl ?? '')
+  const [popupSite, setPopupSite] = useState(false)
+  const [urlSaisie, setUrlSaisie] = useState('')
+
   /*
    * Le logo d'une boutique qui n'existe pas encore.
    *
@@ -212,7 +224,28 @@ function BlocSite({
     }
   }
 
+  async function enregistrerSite() {
+    if (!shop) return
+    const u = normaliserUrl(urlSaisie)
+    setBusy(true)
+    setMessage(null)
+    try {
+      await api.renameShop(shop.id, { siteUrl: u || null })
+      setSiteUrl(u)
+      setPopupSite(false)
+      onChange()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Enregistrement impossible')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const flux = shop ? `${apiRoot}/api/public/shops/${shop.shopKey}/products` : null
+  // Où mène « Aller sur mon site » : l'adresse saisie, sinon — pour une vitrine
+  // hébergée — l'adresse /b/<slug>. Vide sur un site externe pas encore renseigné.
+  const adresseVitrine = heberge && shop?.slug ? `${window.location.origin}/b/${shop.slug}` : ''
+  const lienSite = siteUrl || adresseVitrine
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -541,6 +574,47 @@ function BlocSite({
           {neuf ? 'Créer la boutique' : 'Enregistrer'}
         </button>
 
+        {/* « Aller sur mon site » (dégradé vert-jaune) : ouvre le site si l'adresse
+            est renseignée, sinon la popup de saisie. Le crayon permet de la changer. */}
+        {shop ? (
+          <>
+            {lienSite ? (
+              <a
+                href={lienSite}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-400 to-yellow-300 px-4 py-2 text-sm font-bold text-black/85 transition hover:brightness-110"
+              >
+                <ExternalLink size={14} />
+                <span>Aller sur mon site</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setUrlSaisie('')
+                  setPopupSite(true)
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-400 to-yellow-300 px-4 py-2 text-sm font-bold text-black/85 transition hover:brightness-110"
+              >
+                <ExternalLink size={14} />
+                <span>Aller sur mon site</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setUrlSaisie(siteUrl || adresseVitrine)
+                setPopupSite(true)
+              }}
+              title="Renseigner l'adresse de mon site"
+              className="rounded-lg border border-white/10 px-2 py-2 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            >
+              <Pencil size={13} />
+            </button>
+          </>
+        ) : null}
+
         {onAnnuler ? (
           <button
             type="button"
@@ -582,6 +656,53 @@ function BlocSite({
           </span>
         )}
       </div>
+
+      {/* La popup « renseigner l'adresse de votre site ». */}
+      {popupSite ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPopupSite(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1b1633] p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-bold">Renseigner l'adresse de votre site</h2>
+            <p className="mt-1 text-xs text-gray-400">
+              L'adresse publique où mène le bouton « Aller sur mon site » — votre nom de domaine
+              {heberge ? ' (ou celui raccordé à votre vitrine)' : ''}.
+            </p>
+            <input
+              value={urlSaisie}
+              onChange={(e) => setUrlSaisie(e.target.value)}
+              placeholder="https://mon-site.fr"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') enregistrerSite()
+              }}
+              className="mt-3 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+            />
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPopupSite(false)}
+                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-400 hover:bg-white/5"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={enregistrerSite}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-400 to-yellow-300 px-4 py-2 text-sm font-bold text-black/85 transition hover:brightness-110 disabled:opacity-50"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

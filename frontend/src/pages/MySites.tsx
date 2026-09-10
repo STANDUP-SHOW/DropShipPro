@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Store, ChevronDown } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { MyShops } from '../components/MyShops'
-import { ControlAgentToggle } from '../components/ControlAgentToggle'
 import { WatermarkSettings } from '../components/WatermarkSettings'
 
 /**
@@ -55,8 +54,6 @@ export default function MySites() {
         cherche pas.
       */}
       <FiligranePorDefaut />
-
-      <ControlAgentToggle />
     </Layout>
   )
 }

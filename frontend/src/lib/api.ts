@@ -714,12 +714,14 @@ export const api = {
         watermarkPosition: string | null
         /** L adresse lisible de la vitrine : /b/<slug>. */
         slug: string | null
+        /** L adresse du site du vendeur, pour « Aller sur mon site ». */
+        siteUrl: string | null
         themeId: string
         themeTokens: Record<string, string> | null
         storefront: Record<string, string | number> | null
       }>
     >('/settings/shops'),
-  createShop: (data: { name: string; platform?: string; sectors?: string[] }) =>
+  createShop: (data: { name: string; platform?: string; sectors?: string[]; siteUrl?: string | null }) =>
     request<{ id: string; name: string; shopKey: string }>('/settings/shops', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -730,6 +732,7 @@ export const api = {
       name?: string
       platform?: string
       sectors?: string[]
+      siteUrl?: string | null
       watermarkEnabled?: boolean
       watermarkMode?: 'texte' | 'logo' | null
       watermarkText?: string | null

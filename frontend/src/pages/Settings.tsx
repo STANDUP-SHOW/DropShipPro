@@ -4,6 +4,7 @@ import { Puzzle, Download, Settings as SettingsIcon } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
+import { ControlAgentToggle } from '../components/ControlAgentToggle'
 import { useAuth } from '../lib/auth'
 
 /**
@@ -178,6 +179,11 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* L'agent de contrôle des photos : un réglage du compte, à sa place ici
+          (déplacé de « Mes sites » le 10/09/2026). */}
+      <div className="mt-6">
+        <ControlAgentToggle />
+      </div>
     </Layout>
   )
 }
