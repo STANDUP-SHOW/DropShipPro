@@ -63,16 +63,21 @@ body {
  * jamais paru sur eux (le symptôme signalé le 10/09/2026 : « pas de néon sur
  * tout le site »). Une règle `!important` de feuille, elle, passe devant un
  * inline normal. On garde un liseré interne dans l'ombre du survol pour ne pas
- * aplatir le bloc. Une teinte inline sur un ÉLÉMENT (les tuiles du dashboard,
- * qui posent leur propre couleur) reste prioritaire : elles gardent leur teinte. */
-:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"],
-:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"],
+ * aplatir le bloc.
+ *
+ * COULEURS VARIÉES, pas un rose uniforme : `--neon` est posé par bloc (voir
+ * lib/neonColors.ts), en tournant sur une palette vert/jaune/bleu/rose/orange/
+ * violet/bleu-ciel. Le rose ci-dessous n'est que le repli, avant peinture ou
+ * sur une page sans le mécanisme. Les tuiles du dashboard (`data-forme`) sont
+ * EXCLUES : elles gardent leur propre code, chacune sa teinte. */
+:where([class~="rounded-2xl"], [class~="rounded-xl"], [class~="rounded-3xl"])[class*="bg-white/"][class*="border"]:not([data-forme]),
+:where([class~="rounded-2xl"], [class~="rounded-xl"], [class~="rounded-3xl"])[class*="backdrop-blur"][class*="border"]:not([data-forme]),
 .neon-hover {
   --neon: 236, 72, 153;
   transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
-:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"]:hover,
-:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"]:hover,
+:where([class~="rounded-2xl"], [class~="rounded-xl"], [class~="rounded-3xl"])[class*="bg-white/"][class*="border"]:not([data-forme]):hover,
+:where([class~="rounded-2xl"], [class~="rounded-xl"], [class~="rounded-3xl"])[class*="backdrop-blur"][class*="border"]:not([data-forme]):hover,
 .neon-hover:hover {
   /* Le liseré rose passe par `outline`, pas `border-color` : Tailwind v4 pose la
      couleur de bordure dans un @layer qu'un `!important` de feuille ne bat pas
@@ -85,8 +90,8 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 24px rgba(var(--neon), 0.4) !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"],
-  :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"],
+  :where([class~="rounded-2xl"], [class~="rounded-xl"], [class~="rounded-3xl"])[class*="bg-white/"][class*="border"],
+  :where([class~="rounded-2xl"], [class~="rounded-xl"], [class~="rounded-3xl"])[class*="backdrop-blur"][class*="border"],
   .neon-hover {
     transition: none;
   }

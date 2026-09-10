@@ -364,10 +364,11 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Le bloc statistique « Acquisition de produits », en tête de Mes annonces
-          — c'est ici qu'on acquiert. Il reste aussi sur « Comment acquérir » ;
-          même adresse, même calcul, jamais deux chiffres différents. */}
+      {/* Les blocs statistiques en tête de Mes annonces : l'acquisition (c'est
+          ici qu'on acquiert) puis le catalogue — produits et stocks. Même
+          adresse, même calcul qu'à l'accueil ; jamais deux chiffres différents. */}
       <BlocSection id="acquisition" />
+      <BlocSection id="catalogue" />
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>

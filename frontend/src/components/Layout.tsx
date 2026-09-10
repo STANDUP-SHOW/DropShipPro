@@ -7,6 +7,7 @@ import { FondVivant } from './FondVivant'
 import { BandeauJauges } from './BandeauJauges'
 import { BandeauNotifications } from './BandeauNotifications'
 import { useAuth } from '../lib/auth'
+import { useNeonVarie } from '../lib/neonColors'
 import { api } from '../lib/api'
 
 /**
@@ -201,6 +202,10 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   const estActive = (to: string) =>
     to.includes('?') || to.includes('#') ? pathname + search + hash === to : pathname === to
   const { logout, user } = useAuth()
+  // Peint chaque bloc d'une couleur de néon variée (vert/jaune/bleu/rose/orange/
+  // violet/bleu-ciel), au lieu d'un rose uniforme — et suit les blocs qui se
+  // montent après le chargement des données.
+  useNeonVarie()
   const [solde, setSolde] = useState<{ credits: number; euroParDrop: number } | null>(null)
   /**
    * Les rayons confiés, chacun à son nom.
