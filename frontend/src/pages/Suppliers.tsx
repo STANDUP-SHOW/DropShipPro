@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Boxes,
@@ -148,7 +148,64 @@ export default function Suppliers() {
           </p>
         </div>
       ) : null}
+
+      <DemandeFournisseur />
     </Layout>
+  )
+}
+
+/**
+ * « Votre fournisseur n'est pas dans la liste ? » — un nom ou une adresse, et la
+ * demande part par email à l'équipe, qui l'ajoute à l'annuaire et le relie si
+ * une API existe. Rien n'est écrit en base : c'est une demande, pas un compteur.
+ */
+function DemandeFournisseur() {
+  const [valeur, setValeur] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [etat, setEtat] = useState<{ ok: boolean; texte: string } | null>(null)
+
+  async function envoyer(e: FormEvent) {
+    e.preventDefault()
+    const fournisseur = valeur.trim()
+    if (fournisseur.length < 2) return
+    setBusy(true)
+    setEtat(null)
+    try {
+      await api.demanderFournisseur(fournisseur)
+      setEtat({ ok: true, texte: 'Demande envoyée — merci ! On l’ajoute à l’annuaire, et on le relie si une API est disponible.' })
+      setValeur('')
+    } catch (err) {
+      setEtat({ ok: false, texte: err instanceof Error ? err.message : 'Envoi impossible, réessayez.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5">
+      <h2 className="text-lg font-bold">Votre fournisseur n'est pas dans la liste ?</h2>
+      <p className="mt-1 max-w-2xl text-sm text-gray-400">
+        Demandez-le : on l'ajoute à l'annuaire, et on le relie si une API est disponible.
+      </p>
+      <form onSubmit={envoyer} className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input
+          value={valeur}
+          onChange={(e) => setValeur(e.target.value)}
+          placeholder="Nom du fournisseur, ou adresse de son site"
+          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+        />
+        <button
+          type="submit"
+          disabled={busy || valeur.trim().length < 2}
+          className="btn-gradient shrink-0 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
+        >
+          {busy ? 'Envoi…' : 'Envoyer la demande'}
+        </button>
+      </form>
+      {etat ? (
+        <p className={`mt-2 text-sm ${etat.ok ? 'text-emerald-300' : 'text-red-300'}`}>{etat.texte}</p>
+      ) : null}
+    </section>
   )
 }
 

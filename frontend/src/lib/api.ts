@@ -372,6 +372,13 @@ export const api = {
   /** « Je veux celle-la » : enregistre la demande, rend le nouveau compte. */
   demanderCanal: (canalId: string) =>
     request<{ ok: true; canal: string; demandes: number }>(`/products/meta/channels/${canalId}/demande`, { method: 'POST' }),
+  // Demande d'ajout d'un fournisseur absent de la liste : envoie un mail à
+  // l'équipe (nom ou adresse + email du vendeur), rien n'est écrit en base.
+  demanderFournisseur: (fournisseur: string) =>
+    request<{ ok: true }>('/products/meta/suppliers/demande', {
+      method: 'POST',
+      body: JSON.stringify({ fournisseur }),
+    }),
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>

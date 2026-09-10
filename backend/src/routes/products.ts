@@ -7,6 +7,7 @@ import { dupliquerAnnonce } from '../services/listingDuplicate.js'
 import { fluxPour, FORMATS_FLUX } from '../services/channelFeeds.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { sendMail } from '../services/mailer.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
 import { watermarkUploads } from '../services/watermark.js'
 import { enregistrerVideo, refusVideo, VIDEO_MAX_OCTETS } from '../services/productVideo.js'
@@ -1418,6 +1419,48 @@ productsRouter.post('/meta/channels/:canalId/demande', async (req: AuthedRequest
   })
   const demandes = await prisma.channelRequest.count({ where: { canalId: canal.id } })
   res.json({ ok: true, canal: canal.label, demandes })
+})
+
+/**
+ * « Votre fournisseur n'est pas dans la liste ? » — la demande d'ajout.
+ *
+ * On ne crée rien en base : un email part à l'équipe pour qu'elle ajoute le
+ * fournisseur à l'annuaire et le relie si une API existe. Le vendeur ne donne
+ * qu'un nom ou une adresse ; son email vient de son compte.
+ */
+productsRouter.post('/meta/suppliers/demande', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ fournisseur: z.string().trim().min(2).max(300) }).safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Indiquez le nom ou l’adresse du fournisseur.' })
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.userId! },
+    select: { email: true },
+  })
+
+  // Le corps de l'email est inséré tel quel dans du HTML : on échappe l'entrée
+  // du vendeur pour qu'un nom ou une URL biscornue ne casse pas le message.
+  const echapper = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const contact =
+    process.env.CONTACT_EMAIL?.trim() || process.env.SMTP_USER?.trim() || 'contact@drop-shipper.fr'
+
+  try {
+    await sendMail({
+      to: contact,
+      subject: `Demande d'ajout de fournisseur — ${parsed.data.fournisseur}`.slice(0, 180),
+      heading: 'Nouvelle demande de fournisseur',
+      body: `L'utilisateur <b>${echapper(user.email)}</b> souhaite ajouter le fournisseur : <b>${echapper(
+        parsed.data.fournisseur,
+      )}</b>.<br><br>À ajouter à l'annuaire, et à relier si une API est disponible.`,
+      footer: 'Demande envoyée depuis la page Fournisseurs de DropShipper IA.',
+    })
+  } catch (err) {
+    console.error('demande de fournisseur : email non envoyé', err)
+    return res.status(502).json({ error: "La demande n'a pas pu être envoyée, réessayez plus tard." })
+  }
+
+  res.json({ ok: true })
 })
 
 /**
