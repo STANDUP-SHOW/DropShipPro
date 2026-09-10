@@ -114,8 +114,14 @@ export interface AgentCardData {
   href: string | null
   state: 'actif' | 'inactif' | 'indisponible'
   note: string | null
-  /** Prix mensuel en centimes, absent quand l'agent est compris dans l'abonnement. */
-  monthly?: number
+  /**
+   * Comment l'agent se paie : compris dans la plateforme, compris dans les
+   * achats d'annonces, payé à la demande (image/pub), ou payé à la question
+   * (l'avocat seul).
+   */
+  access: 'plateforme' | 'annonces' | 'demande' | 'question'
+  /** L'AUTO-MODE est-il actif par défaut, avant tout réglage du vendeur ? */
+  autoDefault: boolean
   /** Ce que l'agent ne fait pas — décisif sur du conseil comptable ou juridique. */
   caveat?: string
   hired?: boolean

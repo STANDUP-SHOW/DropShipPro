@@ -13,15 +13,15 @@ import { findDepartment } from '../services/departments.js'
 /**
  * Le tarif d'une question, en drops.
  *
- * Plus d'abonnement ni de location depuis le 07/09/2026 : chaque agent est
- * accessible, chaque question est facturée. Un chef de rayon (et les agents
- * lourds : avocat, comptable…) fouille le web et raisonne — c'est le tarif
- * `questionChef`. Un agent de comptoir répond de tête, sans recherche : c'est
- * `questionComptoir`, bien moins cher. Le repère : les agents qui étaient
- * payants au mois (`monthly`) sont les lourds.
+ * Modèle du 10/09/2026 : **seul l'avocat se paie à la question** (`access:
+ * 'question'`), au tarif d'un agent lourd — il raisonne comme un chef de rayon.
+ * Tous les autres agents de comptoir sont compris dans la plateforme (les
+ * administratifs) ou payés à l'action ailleurs (le marketing, à la publicité) :
+ * leur conversation ne se facture pas. Un plafond quotidien les borne quand
+ * même, côté serveur, pour notre propre coût d'IA.
  */
-function coutQuestion(monthly?: number): number {
-  return monthly ? DROPS.questionChef : DROPS.questionComptoir
+function coutQuestion(access: string): number {
+  return access === 'question' ? DROPS.questionChef : 0
 }
 
 /**
@@ -256,14 +256,20 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
       active: true,
       autoMode: r.autoMode,
     })),
-    pipeline: PIPELINE_AGENTS.map((a) => ({ ...a, ...statusOf(a.key), autoMode: autoPar.get(a.key) ?? false })),
-    // Tout agent est accessible : chaque question est facturée en drops, il n'y
-    // a plus d'embauche préalable. `hired` reste vrai pour l'interface existante.
+    // L'AUTO-MODE prend le défaut de l'agent tant que le vendeur n'a rien réglé
+    // (10/09/2026) : actif d'office pour la production et les administratifs,
+    // « à activer » pour le marketing et le contrôle.
+    pipeline: PIPELINE_AGENTS.map((a) => ({
+      ...a,
+      ...statusOf(a.key),
+      autoMode: autoPar.get(a.key) ?? a.autoDefault,
+    })),
+    // Tout agent est accessible ; `hired` reste vrai pour l'interface existante.
     support: SUPPORT_AGENTS.map((a) => ({
       ...a,
       ...statusOf(a.key),
       hired: true,
-      autoMode: autoPar.get(a.key) ?? false,
+      autoMode: autoPar.get(a.key) ?? a.autoDefault,
     })),
     departments,
   })
@@ -320,15 +326,15 @@ chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
   const parsed = askSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Écrivez votre question' })
 
-  // Plus d'embauche (07/09/2026) : tout agent de comptoir répond, chaque
-  // question est facturée en drops (un agent lourd — avocat, comptable — coûte
-  // plus qu'un agent de comptoir simple).
-  const COUT = coutQuestion(agent.monthly)
+  // Seul l'avocat se paie à la question (10/09/2026) ; les autres agents de
+  // comptoir sont inclus. COUT vaut alors 0 : pas de contrôle de solde, pas de
+  // débit, mais le plafond quotidien reste (il borne notre coût d'IA).
+  const COUT = coutQuestion(agent.access)
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.userId! },
     select: { credits: true },
   })
-  if (user.credits < COUT) {
+  if (COUT > 0 && user.credits < COUT) {
     return res.status(402).json({
       error: `Une question à ${agent.name} coûte ${COUT} drops : il vous en reste ${user.credits}.`,
       needsCredits: true,
@@ -361,8 +367,10 @@ chatRouter.post('/support/:key', async (req: AuthedRequest, res) => {
   })
 
   let credits = user.credits
-  const taken = await reserveCredits(req.userId!, COUT, `Question à ${agent.name}`)
-  if (taken.ok) credits = user.credits - COUT
+  if (COUT > 0) {
+    const taken = await reserveCredits(req.userId!, COUT, `Question à ${agent.name}`)
+    if (taken.ok) credits = user.credits - COUT
+  }
 
   res.status(201).json({
     message: saved,

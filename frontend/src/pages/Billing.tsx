@@ -319,7 +319,7 @@ export default function BillingPage() {
       </section>
 
       <PaymentMethods stripePromise={stripePromise} />
-      <Invoices />
+      <Invoices payments={billing?.payments ?? []} />
     </Layout>
   )
 }

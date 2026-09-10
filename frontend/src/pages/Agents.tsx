@@ -17,6 +17,33 @@ const STATE_STYLE: Record<string, string> = {
   indisponible: 'bg-red-400/15 text-red-300',
 }
 
+/**
+ * Comment chaque agent se paie, dit au vendeur (10/09/2026).
+ *
+ * — plateforme : compris dans la plateforme (les administratifs, en mode auto) ;
+ * — annonces   : compris dans vos achats d'annonces (la production) ;
+ * — demande    : payé à la demande, en drops (image, publicité, contrôle) ;
+ * — question   : payé à la question, en drops (l'avocat, seul).
+ */
+const ACCESS_LABEL: Record<string, string> = {
+  plateforme: 'Inclus dans la plateforme',
+  annonces: "Inclus dans vos achats d'annonces",
+  demande: 'Payé à la demande, en drops',
+  question: 'Payé à la question, en drops',
+}
+
+/**
+ * Une carte d'agent, à hauteur égale de toutes les autres.
+ *
+ * La carte n'est plus un gros bouton : le bouton IA AUTO-MODE vit DEDANS
+ * (demandé le 10/09/2026), et un bouton dans un bouton est du HTML invalide.
+ * Le pied de fiche — étiquette de prix, interrupteur, action — est collé en bas
+ * (`mt-auto`) : avec `auto-rows-fr` sur la grille, toutes les cartes prennent la
+ * hauteur de la plus grande, et leurs pieds s'alignent.
+ *
+ * La conversation d'un agent de comptoir ne s'ouvre plus DANS la grille (elle
+ * gonflerait toutes les cartes), mais en pleine largeur SOUS la section.
+ */
 function AgentCard({
   agent,
   ouvert,
@@ -28,102 +55,63 @@ function AgentCard({
   onOuvrir: (key: string) => void
   onAuto: (key: string, enabled: boolean) => Promise<void>
 }) {
-  /*
-   * La vignette profil du modèle « social media » (06/09/2026) : la photo
-   * ronde — l'emoji tant que la planche des portraits n'est pas livrée —, le
-   * prénom badgé, le rôle en pilule blanche. Le reste de la fiche (mission,
-   * limites, salaire) vit dessous, dans la même carte de verre.
-   */
-  const card = (
-    <VignetteProfil
-      prenom={agent.name}
-      role={agent.role}
-      emoji={agent.emoji}
-      photo={photoAgent(agent.key)}
-      coin={
-        <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATE_STYLE[agent.state]}`}>
-          {agent.state}
-        </span>
-      }
-    >
-      <p className="text-xs leading-relaxed text-gray-500">{agent.does}</p>
+  const comptoir = agent.family === 'comptoir'
 
-      {/* Ce que l'agent ne fait pas : sur du conseil comptable ou juridique,
-          c'est aussi important que ce qu'il fait. */}
-      {agent.caveat ? (
-        <p className="mt-2 rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] leading-relaxed text-gray-400">
-          {agent.caveat}
-        </p>
-      ) : null}
-
-      {/* Plus d'abonnement ni d'embauche (07/09/2026) : tout agent est
-          accessible, chaque question se paie en drops (un agent « lourd » —
-          avocat, comptable — coûte plus qu'un agent de comptoir simple). */}
-      <p className="mt-2 text-[11px] font-semibold text-sky-300">
-        {agent.monthly ? 'Payé à la question, en drops' : 'Accessible — payé à la question, en drops'}
-      </p>
-
-      {agent.note ? <p className="mt-2 text-[11px] text-amber-300">{agent.note}</p> : null}
-
-      {agent.where ? (
-        <p className="mt-3 inline-flex items-center gap-1 text-[11px] text-gray-400">
-          <span>
-            {agent.family === 'comptoir' ? (ouvert ? 'Fermer la conversation' : 'Lui parler') : agent.where}
+  return (
+    <li className="h-full">
+      <VignetteProfil
+        prenom={agent.name}
+        role={agent.role}
+        emoji={agent.emoji}
+        photo={photoAgent(agent.key)}
+        coin={
+          <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATE_STYLE[agent.state]}`}>
+            {agent.state}
           </span>
-          <ArrowRight size={11} />
-        </p>
-      ) : null}
-    </VignetteProfil>
-  )
+        }
+      >
+        <p className="text-xs leading-relaxed text-gray-500">{agent.does}</p>
 
-  /*
-   * Un agent de comptoir ouvre sa conversation sous sa carte, sans quitter la
-   * page. Changer de page pour poser une question faisait perdre la liste, donc
-   * l'idée d'en essayer un autre. Les agents de chaîne, eux, mènent bien
-   * ailleurs : leur travail se voit dans une autre page.
-   */
-  /*
-   * L'interrupteur AUTO-MODE vit SOUS la carte, jamais dedans : la carte est
-   * elle-même un bouton (comptoir) ou un lien (chaîne), et un bouton imbriqué
-   * dans l'un ou l'autre est du HTML invalide au clavier imprévisible.
-   */
-  const interrupteur = (
-    <div className="mt-2">
-      <BoutonAutoMode compact actif={Boolean(agent.autoMode)} onBascule={(enabled) => onAuto(agent.key, enabled)} />
-    </div>
-  )
-
-  if (agent.family === 'comptoir') {
-    return (
-      <li className={ouvert ? 'sm:col-span-2 lg:col-span-3' : 'flex flex-col'}>
-        <button
-          type="button"
-          onClick={() => onOuvrir(agent.key)}
-          className={`block w-full text-left ${ouvert ? '' : 'flex-1'}`}
-        >
-          {card}
-        </button>
-        {interrupteur}
-        {ouvert ? (
-          <div className="mt-3">
-            <SupportChat agentKey={agent.key} onRoute={onOuvrir} />
-          </div>
+        {/* Ce que l'agent ne fait pas : sur du conseil comptable ou juridique,
+            c'est aussi important que ce qu'il fait. */}
+        {agent.caveat ? (
+          <p className="mt-2 rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] leading-relaxed text-gray-400">
+            {agent.caveat}
+          </p>
         ) : null}
-      </li>
-    )
-  }
 
-  return agent.href ? (
-    <li className="flex flex-col">
-      <Link to={agent.href} className="block flex-1">
-        {card}
-      </Link>
-      {interrupteur}
-    </li>
-  ) : (
-    <li className="flex flex-col">
-      <div className="flex-1">{card}</div>
-      {interrupteur}
+        {/* Le pied de fiche, collé en bas — c'est lui qui aligne les cartes. */}
+        <div className="mt-auto pt-3">
+          <p className="text-[11px] font-semibold text-sky-300">{ACCESS_LABEL[agent.access] ?? 'Accessible'}</p>
+          {agent.note ? <p className="mt-1 text-[11px] text-amber-300">{agent.note}</p> : null}
+
+          {/* Le bouton IA AUTO-MODE fait partie du bloc (10/09/2026). */}
+          <div className="mt-2">
+            <BoutonAutoMode compact actif={Boolean(agent.autoMode)} onBascule={(enabled) => onAuto(agent.key, enabled)} />
+          </div>
+
+          {/* L'action : lui parler (comptoir) ou aller voir son travail (chaîne). */}
+          <div className="mt-2">
+            {comptoir ? (
+              <button
+                type="button"
+                onClick={() => onOuvrir(agent.key)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-300 hover:text-purple-200"
+              >
+                <span>{ouvert ? 'Fermer la conversation' : 'Lui parler'}</span>
+                <ArrowRight size={11} />
+              </button>
+            ) : agent.href ? (
+              <Link to={agent.href} className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-200">
+                <span>{agent.where}</span>
+                <ArrowRight size={11} />
+              </Link>
+            ) : agent.where ? (
+              <span className="text-[11px] text-gray-500">{agent.where}</span>
+            ) : null}
+          </div>
+        </div>
+      </VignetteProfil>
     </li>
   )
 }
@@ -186,11 +174,16 @@ export default function Agents() {
         ? roster.categories.map((cat) => {
             const membres = tous.filter((a) => a.category === cat.key)
             if (!membres.length) return null
+            // L'agent de comptoir dont la conversation est ouverte, s'il est de
+            // cette section : son tchat s'affiche en pleine largeur sous la grille.
+            const agentOuvert = membres.find((a) => a.key === ouvert && a.family === 'comptoir')
             return (
               <section key={cat.key} className="mt-8">
                 <h2 className="font-bold">Mes agents {cat.label}</h2>
                 <p className="mt-1 text-xs text-gray-500">{cat.hint}</p>
-                <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {/* `auto-rows-fr` : toutes les rangées à la hauteur de la plus
+                    grande carte — les blocs font donc tous la même taille. */}
+                <ul className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {membres.map((a) => (
                     <AgentCard
                       key={a.key}
@@ -201,6 +194,14 @@ export default function Agents() {
                     />
                   ))}
                 </ul>
+                {agentOuvert ? (
+                  <div className="mt-3">
+                    <SupportChat
+                      agentKey={agentOuvert.key}
+                      onRoute={(k) => setOuvert((actuel) => (actuel === k ? null : k))}
+                    />
+                  </div>
+                ) : null}
               </section>
             )
           })

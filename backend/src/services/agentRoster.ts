@@ -62,17 +62,32 @@ export interface AgentProfile {
   /** Adresse de la page concernée, quand il y en a une. */
   href: string | null
   /**
-   * Prix mensuel TTC en centimes, quand l'agent se paie à part.
-   *
-   * Zéro veut dire compris dans l'abonnement : la plupart le sont, et un
-   * vendeur ne doit pas se demander devant chaque agent s'il va être facturé.
+   * Comment l'agent se paie — l'étiquette de sa fiche (10/09/2026) :
+   * — `plateforme` : compris dans la plateforme, travaille en mode automatique ;
+   * — `annonces`   : compris dans vos achats d'annonces (scraping + rédaction +
+   *                  mise en vente sont ce qu'une annonce achète) ;
+   * — `demande`    : payé à la demande, en drops, à chaque action (image, pub,
+   *                  contrôle) — son tarif est déjà défini ailleurs ;
+   * — `question`   : payé à la question, en drops (l'avocat, seul).
    */
-  monthly?: number
+  access: 'plateforme' | 'annonces' | 'demande' | 'question'
+  /**
+   * L'AUTO-MODE est-il actif par défaut, avant tout réglage du vendeur ?
+   *
+   * Vrai pour les administratifs et la production (ils travaillent d'office) ;
+   * faux pour le marketing et le contrôle, qui « restent à activer ».
+   */
+  autoDefault: boolean
   /** Ce que l'agent ne fait pas, et pourquoi. Affiché avec ses fonctions. */
   caveat?: string
 }
 
-/** Les agents de chaîne : ils produisent, ils ne discutent pas. */
+/**
+ * Les agents de chaîne : ils produisent, ils ne discutent pas.
+ *
+ * L'AUTO-SHIPPER n'y figure plus (10/09/2026) : il a sa propre rubrique,
+ * « Auto-Shipper AI », dans le menu — le répéter ici doublait sa fiche.
+ */
 export const PIPELINE_AGENTS: AgentProfile[] = [
   {
     key: 'scrapper',
@@ -81,6 +96,8 @@ export const PIPELINE_AGENTS: AgentProfile[] = [
     family: 'chaine',
     category: 'production',
     emoji: '🔎',
+    access: 'annonces',
+    autoDefault: true,
     does: "Lit la fiche du fournisseur et en ramène le titre, le prix, les photos et les options. Sur Temu et AliExpress il travaille depuis votre navigateur, par l'extension : ces sites ne livrent rien à un serveur.",
     where: 'Import de produit',
     href: '/dashboard',
@@ -92,8 +109,23 @@ export const PIPELINE_AGENTS: AgentProfile[] = [
     family: 'chaine',
     category: 'production',
     emoji: '✍️',
+    access: 'annonces',
+    autoDefault: true,
     does: "Réécrit l'annonce : titre, description, neuf attributs, six arguments de vente, vingt mots-clés. Du contenu original — recopier la fiche du fournisseur fait sanctionner le référencement.",
     where: 'Chaque annonce importée',
+    href: '/dashboard',
+  },
+  {
+    key: 'seller',
+    name: 'Olivier',
+    role: 'Agent Vendeur',
+    family: 'chaine',
+    category: 'production',
+    emoji: '🏷️',
+    access: 'annonces',
+    autoDefault: true,
+    does: "Adapte l'annonce à chaque destination au moment de publier : longueur du titre, catégorie de la plateforme, champs obligatoires. Il corrige au lieu de signaler — un avertissement ne vend rien.",
+    where: 'Chaque publication',
     href: '/dashboard',
   },
   {
@@ -103,31 +135,11 @@ export const PIPELINE_AGENTS: AgentProfile[] = [
     family: 'chaine',
     category: 'production',
     emoji: '👁️',
+    access: 'demande',
+    autoDefault: false,
     does: "Regarde les photos avant la mise en ligne et écarte ce qui n'est pas le produit. Garde toutes les vraies photos, relève les couleurs réellement visibles, écarte les tailles incohérentes.",
     where: 'Réglages → Agent de contrôle',
     href: '/settings',
-  },
-  {
-    key: 'seller',
-    name: 'Olivier',
-    role: 'Agent Vendeur',
-    family: 'chaine',
-    category: 'production',
-    emoji: '🏷️',
-    does: "Adapte l'annonce à chaque destination au moment de publier : longueur du titre, catégorie de la plateforme, champs obligatoires. Il corrige au lieu de signaler — un avertissement ne vend rien.",
-    where: 'Chaque publication',
-    href: '/dashboard',
-  },
-  {
-    key: 'autopilot',
-    name: 'Auto-Shipper',
-    role: 'Agent Pilote automatique',
-    family: 'chaine',
-    category: 'production',
-    emoji: '✈️',
-    does: "Fait travailler toute la chaîne sans vous : il reprend les produits conseillés par vos chefs de rayon, importe ce qui passe vos critères, et publie. Il lui faut au moins un chef de rayon pour avoir de quoi travailler.",
-    where: 'Pilote automatique',
-    href: '/pilote',
   },
   {
     key: 'photo',
@@ -136,6 +148,8 @@ export const PIPELINE_AGENTS: AgentProfile[] = [
     family: 'chaine',
     category: 'marketing',
     emoji: '📸',
+    access: 'demande',
+    autoDefault: false,
     does: "Refait les photos d'un produit : le même article, mais en situation, éclairé comme en studio. Elle apparaît sur chaque fiche d'annonce avec un bouton qui produit six mises en situation d'un coup (18 drops l'image). Elle ne fait que de la photo — la publicité, avec son logo, son prix et son bouton, est le métier de Laurence.",
     caveat:
       "Elle ne dessine jamais un produit qui n'existe pas : elle repart de vos photos et garde la forme, les couleurs et les marquages. Publier l'image d'un objet que le fournisseur ne livre pas, c'est un litige puis une suspension.",
@@ -149,22 +163,26 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
   {
     key: 'hotline',
     name: 'Camille',
-    role: 'Agent Hotline',
+    role: 'Secrétaire',
     family: 'comptoir',
     category: 'administratif',
     emoji: '☎️',
-    does: "Le premier interlocuteur. Elle écoute votre question et vous met en relation avec celui qui sait : un chef de rayon pour un produit, le service commercial pour une facture, le SAV pour un litige, les livraisons pour un colis.",
+    access: 'plateforme',
+    autoDefault: true,
+    does: "Votre secrétaire. En mode automatique, elle assure la hotline et votre relation avec les clients : elle répond pour vous aux emails et aux messages des marketplaces, et oriente chaque demande vers le bon collègue — un chef de rayon pour un produit, le SAV pour un litige, les livraisons pour un colis.",
     where: 'Agents → Discuter',
     href: '/agents/hotline',
   },
   {
     key: 'commercial',
     name: 'Béatrice',
-    role: 'Agent Service commercial',
+    role: 'Agent Plateforme',
     family: 'comptoir',
     category: 'administratif',
     emoji: '💶',
-    does: "Factures, portefeuille de drops, recharges, chiffres. Elle explique une facture, retrouve un paiement, et lit vos statistiques financières avec vous.",
+    access: 'plateforme',
+    autoDefault: true,
+    does: "Tout sur la plateforme DropShipper IA : vos drops, vos rechargements, vos factures, la grille tarifaire. Elle explique une facture, retrouve un paiement, et lit vos statistiques financières avec vous.",
     where: 'Agents → Discuter',
     href: '/agents/commercial',
   },
@@ -175,6 +193,8 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
     family: 'comptoir',
     category: 'administratif',
     emoji: '🛠️',
+    access: 'plateforme',
+    autoDefault: true,
     does: "Les problèmes après vente : produit non conforme, colis abîmé, demande de remboursement. Il ouvre un litige avec vous et suit ceux en cours.",
     where: 'Agents → Discuter',
     href: '/agents/sav',
@@ -186,25 +206,13 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
     family: 'comptoir',
     category: 'administratif',
     emoji: '📒',
+    access: 'plateforme',
+    autoDefault: true,
     does: "Vos chiffres et vos papiers : factures et devis, encaissements et remboursements, frais de plateforme, coût des livraisons, résultat par place de marché. Il tient aussi le compte de ce que l'application vous coûte, poste par poste.",
     caveat:
       "Il prépare, il ne certifie pas. Un bilan, une déclaration de TVA ou une liasse fiscale doivent être validés par un expert-comptable inscrit à l'ordre.",
     where: 'Agents → Discuter',
     href: '/agents/comptable',
-  },
-  {
-    key: 'avocat',
-    name: 'Maître Doré',
-    role: 'Agent Avocat',
-    family: 'comptoir',
-    category: 'administratif',
-    emoji: '⚖️',
-    monthly: 1500,
-    does: "Droit des affaires appliqué à la vente en ligne : conditions générales, litiges acheteurs, garantie légale et droit de rétractation, contrefaçon, création d'entreprise et choix du statut, obligations d'un dropshippeur envers ses clients.",
-    caveat:
-      "Il informe, il ne représente pas. Aucun avis rendu ici n'est une consultation juridique : un litige engagé, une mise en demeure ou un contrat signé demandent un avocat inscrit au barreau.",
-    where: 'Agents → Discuter',
-    href: '/agents/avocat',
   },
   {
     key: 'livraisons',
@@ -213,6 +221,8 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
     family: 'comptoir',
     category: 'logistique',
     emoji: '📦',
+    access: 'plateforme',
+    autoDefault: true,
     does: "Le suivi des colis. Où en est une commande, que faire d'un colis bloqué, comment répondre à un acheteur qui s'impatiente.",
     where: 'Agents → Discuter',
     href: '/agents/livraisons',
@@ -224,11 +234,28 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
     family: 'comptoir',
     category: 'marketing',
     emoji: '📣',
+    access: 'demande',
+    autoDefault: false,
     does: "Les campagnes payantes : quel produit mérite un budget, quel angle convertit, quel format pour quel réseau, comment lire un coût par acquisition et savoir quand couper. Elle produit aussi le visuel, au format exact de chaque réseau.",
     caveat:
       "Elle ne dépense pas votre argent. Le budget, le ciblage et les enchères restent chez la régie, là où vous voyez ce qui part — une application qui engage un budget publicitaire à votre place est une application qu'on n'ose plus laisser tourner.",
     where: 'Marketing',
     href: '/marketing',
+  },
+  {
+    key: 'avocat',
+    name: 'Maître Doré',
+    role: 'Agent Avocat',
+    family: 'comptoir',
+    category: 'administratif',
+    emoji: '⚖️',
+    access: 'question',
+    autoDefault: false,
+    does: "Droit des affaires appliqué à la vente en ligne : conditions générales, litiges acheteurs, garantie légale et droit de rétractation, contrefaçon, création d'entreprise et choix du statut, obligations d'un dropshippeur envers ses clients.",
+    caveat:
+      "Il informe, il ne représente pas. Aucun avis rendu ici n'est une consultation juridique : un litige engagé, une mise en demeure ou un contrat signé demandent un avocat inscrit au barreau.",
+    where: 'Agents → Discuter',
+    href: '/agents/avocat',
   },
 ]
 

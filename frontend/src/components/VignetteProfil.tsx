@@ -57,7 +57,7 @@ export function VignetteProfil({
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/[0.07] p-5 text-center backdrop-blur-2xl"
+      className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-white/15 bg-white/[0.07] p-5 text-center backdrop-blur-2xl"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 14px 40px rgba(0,0,0,0.35)' }}
     >
       {/* Les orbes du modèle, flous derrière le verre. */}
@@ -122,7 +122,7 @@ export function VignetteProfil({
 
       {coin ? <span className="absolute right-3 top-3">{coin}</span> : null}
 
-      {children ? <div className="relative mt-4 text-left">{children}</div> : null}
+      {children ? <div className="relative mt-4 flex flex-1 flex-col text-left">{children}</div> : null}
     </div>
   )
 }
