@@ -8,6 +8,7 @@ import { reserveCredits, refundCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
 import { passageAutoMode } from '../services/autoAnalyste.js'
 import { runAutopilot } from '../services/autopilot.js'
+import { keepaConfigure, keepaProduit, keepaTexte } from '../services/keepa.js'
 import { SECTOR_CATEGORIES } from '../services/categorySectors.js'
 import {
   COUT_EN_CREDITS,
@@ -305,7 +306,14 @@ departmentsRouter.post('/:id/analyse-produits', async (req: AuthedRequest, res) 
     }
     try {
       const avis = await adviseOnProduct(p.sourceUrl, label)
-      results.push({ productId: p.id, titre: avis.title || p.aiTitle || p.title, texte: social ? avis.social : avis.marketplace })
+      let texte = social ? avis.social : avis.marketplace
+      // Analyse marché : on préfixe les vraies données Amazon (Keepa) quand la
+      // clé est configurée et qu'un produit correspond — sinon rien, best-effort.
+      if (!social && keepaConfigure()) {
+        const k = await keepaProduit(p.aiTitle || p.title || avis.title || '')
+        if (k) texte = `${keepaTexte(k)}\n\n${texte}`
+      }
+      results.push({ productId: p.id, titre: avis.title || p.aiTitle || p.title, texte })
     } catch (e) {
       await refundCredits(req.userId!, cout)
       results.push({ productId: p.id, titre: p.aiTitle || p.title, texte: `Analyse indisponible : ${e instanceof Error ? e.message : 'erreur'}` })

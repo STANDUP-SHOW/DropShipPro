@@ -14,6 +14,7 @@ import { selectProductImages, PHOTOS_PAR_ANNONCE } from './imageSelect.js'
 import { reviewImages, applyVerdict } from './controlAgent.js'
 import { extractVariants } from './aiEnhancer.js'
 import { supplierFields } from './suppliers.js'
+import { keepaConfigure, keepaProduit } from './keepa.js'
 
 /**
  * Le pilote automatique.
@@ -110,6 +111,11 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
     .filter((d: unknown): d is string => typeof d === 'string')
     .filter((d: string) => AUTO_PLATFORMS.includes(d as Platform)) as Platform[]
 
+  // Combler un prix marché manquant avec Keepa (prix Amazon réel), quand la clé
+  // est là — mais borné : un passage ne doit pas brûler tout le quota de tokens.
+  const keepaActif = keepaConfigure()
+  let keepaBudget = 20
+
   for (const o of retenus) {
     if (result.imported >= budget) {
       log.push({ titre: o.title, action: 'écarté', raison: 'Plafond quotidien atteint' })
@@ -118,7 +124,20 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
     }
 
     const source = Number(o.sourcePrice)
-    const market = o.marketPrice === null ? null : Number(o.marketPrice)
+    let market = o.marketPrice === null ? null : Number(o.marketPrice)
+
+    // Pas de prix marché relevé : on tente Keepa (prix Amazon moyen 90 j) plutôt
+    // que d'écarter tout de suite. On garde la valeur pour ne pas re-payer.
+    if (market === null && keepaActif && keepaBudget > 0) {
+      keepaBudget--
+      const k = await keepaProduit(o.title)
+      const ref = k?.prixMoyen90 ?? k?.prixActuel ?? null
+      if (ref !== null) {
+        market = ref
+        await prisma.opportunity.update({ where: { id: o.id }, data: { marketPrice: ref } }).catch(() => undefined)
+      }
+    }
+
     const margin = market !== null && source > 0 ? Math.round(((market - source) / source) * 100) : null
 
     if (margin === null) {
