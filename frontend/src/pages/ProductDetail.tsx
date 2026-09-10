@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  RefreshCw,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, downloadWithAuth, assetUrl, uploadProductImages } from '../lib/api'
@@ -330,10 +331,29 @@ export default function ProductDetail() {
       </div>
 
       {product.aiEnhanced === false && (
-        <p className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
-          La réécriture par l'IA n'a pas pu aboutir : le texte du site source a été conservé tel
-          quel. Aucune annonce n'a été décomptée. Relancez l'import pour réessayer.
-        </p>
+        <div className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
+          <p>
+            La réécriture par l'IA n'a pas pu aboutir : la fiche source a été relevée avec trop peu
+            de texte — souvent parce que la page n'avait pas fini de charger au moment de la capture,
+            fréquent sur AliExpress et Temu en import groupé. Le texte source a été conservé tel quel,
+            et <b>aucun drop n'a été décompté</b>.
+          </p>
+          <p className="mt-1.5 text-orange-200/90">
+            Pour la refaire proprement : rouvrez la fiche, laissez-la se charger entièrement (faites
+            défiler jusqu'aux caractéristiques), puis réimportez-la à l'unité avec le bouton
+            <b> « + Ajouter à DropShipper IA »</b> de l'extension.
+          </p>
+          <a
+            href={product.sourceUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-orange-400/40 bg-orange-400/15 px-3 py-2 text-xs font-semibold text-orange-100 hover:bg-orange-400/25"
+          >
+            <RefreshCw size={14} />
+            <span>Ré-importer cette fiche{product.sourceSite ? ` sur ${product.sourceSite}` : ''}</span>
+            <ExternalLink size={12} />
+          </a>
+        </div>
       )}
 
       {/* ---------- Barre d'état, collée en haut au défilement ---------- */}

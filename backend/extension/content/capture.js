@@ -1679,10 +1679,25 @@
   self.__dspGalerieDominante = galerieDominante
 
   async function releverPourLot() {
+    /*
+     * Les photos AVANT le reste, et c'est l'ordre qui compte.
+     *
+     * `collectImages()` fait défiler toute la fiche pour déclencher le chargement
+     * différé — sur AliExpress et Temu, la galerie ET la description, les
+     * caractéristiques, le tableau technique ne sont montés qu'au passage du
+     * défilement. `buildPayload()` lit ensuite `collectPageText()` et
+     * `collectDescription()` sur une page enfin complète.
+     *
+     * L'ordre était inversé : le texte était relevé sur la page AU REPOS, donc
+     * maigre, et la réécriture, faute de matière, était refusée à juste titre —
+     * l'annonce ressortait brute, exactement comme la fiche source. À l'unité le
+     * défilement précède toujours la lecture ; le lot le fait maintenant aussi.
+     */
+    const trouve = await collectImages()
+
     const payload = await buildPayload()
     if (!payload.title) throw new Error('Produit non reconnu sur cette page')
 
-    const trouve = await collectImages()
     const produits = Array.isArray(trouve) ? trouve : (trouve?.produits ?? [])
     const certaines = Array.isArray(trouve) ? [] : (trouve?.certaines ?? [])
     const adaptateur = Array.isArray(trouve) ? null : (trouve?.adaptateur ?? null)

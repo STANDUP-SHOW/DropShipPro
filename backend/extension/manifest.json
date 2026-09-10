@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DropShipper IA – dropshipping : import et publication automatique",
   "short_name": "DropShipper",
-  "version": "1.29.0",
+  "version": "1.30.0",
   "description": "Dropshipping : importez un produit depuis n'importe quelle boutique et publiez vos annonces sur vos marketplaces, en automatique.",
   "permissions": [
     "storage",
