@@ -277,15 +277,19 @@ export default function ProductDetail() {
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold leading-snug">{product.aiTitle || product.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-            <a
-              href={product.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-gray-400 hover:text-gray-200"
-            >
-              <span>{product.sourceSite || 'Source'}</span>
-              <ExternalLink size={11} />
-            </a>
+            {/* Pas de lien « Source » pour une annonce saisie à la main : elle
+                ne vient d'aucune page (sourceUrl vide). */}
+            {product.sourceUrl ? (
+              <a
+                href={product.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-gray-400 hover:text-gray-200"
+              >
+                <span>{product.sourceSite || 'Source'}</span>
+                <ExternalLink size={11} />
+              </a>
+            ) : null}
             {published.map((pub: any) => {
               const info = platforms.find((p) => p.id === pub.platform)
               const state =

@@ -219,6 +219,8 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ urls }) },
     ),
   listProducts: () => request<any[]>('/products'),
+  // Créer une annonce vide à remplir soi-même — gratuit, rien n'est débité.
+  creerProduitManuel: () => request<{ id: string }>('/products/manuel', { method: 'POST' }),
   /** Les quatorze blocs du tableau de bord statistiques, sur la periode donnee. */
   tableauStats: (du: Date, au: Date) =>
     request<{

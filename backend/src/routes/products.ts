@@ -1464,6 +1464,30 @@ productsRouter.post('/meta/suppliers/demande', async (req: AuthedRequest, res) =
 })
 
 /**
+ * Créer une annonce vide, à remplir à la main — gratuit.
+ *
+ * Pour le vendeur qui veut saisir un produit lui-même, sans import : une fiche
+ * vierge où titre, description, prix et photos sont à remplir, et où les agents
+ * IA de la fiche proposent leur aide comme sur n'importe quelle annonce. Aucun
+ * drop débité : la saisie manuelle ne coûte rien. Les valeurs par défaut du
+ * schéma font le reste (statut brouillon, prix à 0, état neuf…).
+ */
+productsRouter.post('/manuel', async (req: AuthedRequest, res) => {
+  const produit = await prisma.product.create({
+    data: {
+      userId: req.userId!,
+      // Pas de source : la fiche ne vient d'aucune page. L'écran masque le lien
+      // « Source » quand sourceUrl est vide.
+      sourceUrl: '',
+      title: 'Nouvelle annonce',
+      description: '',
+      images: [],
+    },
+  })
+  res.status(201).json({ id: produit.id })
+})
+
+/**
  * Importer une liste de produits depuis un export fournisseur.
  *
  * AliExpress Business permet de cocher des produits et d'exporter la sélection.

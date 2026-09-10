@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Link2, Loader2, Layers, Puzzle, Trash2, Copy, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp } from 'lucide-react'
+import { Link2, Loader2, Layers, Puzzle, Trash2, Copy, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp, Plus } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { CategoryMenu } from '../components/CategoryMenu'
 import { AgentBar } from '../components/AgentBar'
@@ -66,6 +66,22 @@ export default function Dashboard() {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const navigate = useNavigate()
+  const [creationManuelle, setCreationManuelle] = useState(false)
+
+  // Ajouter un produit à la main, sans import : on crée une annonce vide
+  // (gratuite) et on ouvre sa fiche, où tout est à remplir et où les agents IA
+  // proposent leur aide comme d'habitude.
+  async function ajouterManuel() {
+    setCreationManuelle(true)
+    setError(null)
+    try {
+      const { id } = await api.creerProduitManuel()
+      navigate(`/products/${id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Création de l'annonce impossible")
+      setCreationManuelle(false)
+    }
+  }
 
 
   /*
@@ -520,7 +536,21 @@ export default function Dashboard() {
 
       <div className="mt-8">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="text-lg font-bold">Mes annonces</h2>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 className="text-lg font-bold">Mes annonces</h2>
+            {/* Ajouter un produit à la main, gratuitement — à côté de l'import. */}
+            <button
+              type="button"
+              onClick={ajouterManuel}
+              disabled={creationManuelle}
+              title="Créer une annonce vide et la remplir vous-même — gratuit"
+              className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+            >
+              <Plus size={13} />
+              <span>{creationManuelle ? 'Création…' : 'Ajouter un produit'}</span>
+            </button>
+            <span className="text-[11px] text-gray-500">gratuit, à remplir vous-même</span>
+          </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-400">
               {`${visible.length} / ${products.length} annonce(s)`}
