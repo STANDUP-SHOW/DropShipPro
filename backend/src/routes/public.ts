@@ -16,6 +16,50 @@ import { z } from 'zod'
 
 export const publicRouter = Router()
 
+/**
+ * Inscription à la newsletter DropShipper — publique, aucun compte requis.
+ *
+ * `upsert` sur l'email (unique) rend l'inscription idempotente : réabonner une
+ * adresse déjà là ne double rien et ne lève pas. L'email est normalisé en
+ * minuscules, comme partout dans le projet.
+ */
+const newsletterSchema = z.object({
+  email: z.string().trim().email().max(200),
+  // `source` est posé par notre propre code (« site », « page-newsletter »…),
+  // mais l'endpoint est public : on ne garde que des caractères sûrs et on
+  // laisse tomber le reste (au lieu de rejeter l'abonné). Ça neutralise à la
+  // racine toute virgule, saut de ligne ou caractère de formule qui finirait
+  // dans l'export CSV admin.
+  source: z
+    .string()
+    .trim()
+    .max(60)
+    .optional()
+    .transform((s) => (s && /^[a-z0-9_-]+$/i.test(s) ? s : undefined)),
+})
+
+publicRouter.post(
+  '/newsletter/subscribe',
+  rateLimit({ name: 'newsletter', windowMs: 3600_000, max: 20 }),
+  async (req, res) => {
+    const parsed = newsletterSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'Adresse email invalide.' })
+
+    const email = parsed.data.email.toLowerCase()
+    try {
+      await prisma.newsletterSubscriber.upsert({
+        where: { email },
+        create: { email, source: parsed.data.source ?? 'site' },
+        update: {},
+      })
+    } catch (err) {
+      console.error('inscription newsletter impossible', err)
+      return res.status(502).json({ error: "L'inscription n'a pas pu être enregistrée, réessayez." })
+    }
+    res.status(201).json({ ok: true })
+  },
+)
+
 // Packages the Chrome extension folder on the fly so the app can offer it as a
 // download. Unauthenticated on purpose: it's just client code, and a plain <a>
 // link can't carry the Bearer token.

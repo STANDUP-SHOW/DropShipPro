@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus, Mail } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
 import { BandeauJauges } from './BandeauJauges'
 import { BandeauNotifications } from './BandeauNotifications'
 import { useAuth } from '../lib/auth'
+import { demoAutorise } from '../lib/demo'
 import { useNeonVarie } from '../lib/neonColors'
 import { api } from '../lib/api'
 
@@ -167,6 +168,8 @@ const SECTIONS: Array<{
       { to: '/settings', label: 'Réglages', icon: SettingsIcon },
       { to: '/credits', label: 'Mes crédits', icon: DropCoin },
       { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
+      // Réservée à l'admin : filtrée au rendu par demoAutorise(user).
+      { to: '/admin/newsletter', label: 'Newsletter', icon: Mail },
       { to: '/guide', label: "Mode d'emploi", icon: BookOpen },
       { to: '/guide#contact', label: 'Aide & contact', icon: LifeBuoy },
     ],
@@ -378,7 +381,9 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                 </>
               ) : null}
 
-              {section.entrees.map((item) => (
+              {section.entrees
+                .filter((item) => item.to !== '/admin/newsletter' || demoAutorise(user?.email))
+                .map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}

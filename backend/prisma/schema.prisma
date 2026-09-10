@@ -193,6 +193,16 @@ model User {
   dropTransactions   DropTransaction[]
 }
 
+/// Un abonné à la newsletter DropShipper. Autonome : l'inscription est publique,
+/// l'abonné n'a pas forcément de compte. `email` unique = idempotence.
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  /// D'où vient l'inscription (page publique, email d'accueil…).
+  source    String?
+}
+
 enum AuthTokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION

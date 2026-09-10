@@ -57,3 +57,27 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
 export function signToken(userId: string) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' })
 }
+
+/**
+ * Réserve une route à l'administrateur (le compte de Max). À enchaîner APRÈS
+ * `requireAuth`, qui a déjà posé `req.userId` et prouvé que le compte existe.
+ *
+ * L'email de référence vient de `ADMIN_EMAIL` (Railway), avec repli sur le
+ * compte connu — le même que la pilule DÉMO côté client. Comparaison en
+ * minuscules, comme tous les emails du projet. **Le contrôle est ICI, côté
+ * serveur** : le filtre côté navigateur ne fait que cacher le bouton ; la liste
+ * des abonnés est de la donnée personnelle, elle ne se protège pas au front.
+ */
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'maxmartinel34@gmail.com').trim().toLowerCase()
+
+export async function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { email: true } })
+    if (!user || user.email.trim().toLowerCase() !== ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Accès réservé.' })
+    }
+  } catch {
+    return res.status(503).json({ error: 'Service momentanément indisponible' })
+  }
+  next()
+}

@@ -381,6 +381,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ fournisseur }),
     }),
+  // Newsletter — inscription publique (aucun token requis) ; la liste est admin.
+  newsletterSubscribe: (email: string, source = 'site') =>
+    request<{ ok: true }>('/public/newsletter/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ email, source }),
+    }),
+  newsletterList: () =>
+    request<{ total: number; subscribers: Array<{ id: string; email: string; source: string | null; createdAt: string }> }>(
+      '/admin/newsletter',
+    ),
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>

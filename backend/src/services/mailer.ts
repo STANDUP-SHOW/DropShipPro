@@ -68,9 +68,10 @@ function render({ heading, body, actionLabel, actionUrl, footer, brand, highligh
 
   const news = newsletter
     ? `<tr><td style="padding-top:26px">
-          <p style="margin:0;padding-top:22px;border-top:1px solid rgba(255,255,255,0.08);font-size:14px;line-height:1.6;color:#c9c4e0">
-            <b style="color:#f472b6">Restez informé des nouveautés</b> — abonnez-vous à la newsletter DropShipper : les niches qui montent, les nouvelles fonctions et nos conseils pour vendre plus.
+          <p style="margin:0 0 14px;padding-top:22px;border-top:1px solid rgba(255,255,255,0.08);font-size:14px;line-height:1.6;color:#c9c4e0">
+            <b style="color:#f472b6">Restez informé des nouveautés</b> — les niches qui montent, les nouvelles fonctions et nos conseils pour vendre plus.
           </p>
+          <a href="${appUrl()}/newsletter" style="display:inline-block;background-color:#c026d3;background-image:linear-gradient(90deg,#a855f7,#ec4899);color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 24px;border-radius:10px">S'abonner à la newsletter</a>
         </td></tr>`
     : ''
 
@@ -104,7 +105,7 @@ function plainText(mail: Mail): string {
   if (mail.highlight) lignes.push(sansHtml(mail.highlight))
   if (mail.actionLabel && mail.actionUrl) lignes.push(mail.actionLabel + ' : ' + mail.actionUrl)
   if (mail.newsletter)
-    lignes.push('Restez informé des nouveautés — abonnez-vous à la newsletter DropShipper.')
+    lignes.push('Restez informé des nouveautés — abonnez-vous à la newsletter DropShipper : ' + appUrl() + '/newsletter')
   lignes.push(mail.footer)
   return lignes.join(saut)
 }

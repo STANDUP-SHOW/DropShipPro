@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import { authRouter } from './routes/auth.js'
+import { adminRouter } from './routes/admin.js'
 import { productsRouter } from './routes/products.js'
 import { ordersRouter } from './routes/orders.js'
 import { settingsRouter } from './routes/settings.js'
@@ -102,6 +103,7 @@ app.get('/api/health/ai', async (_req, res) => {
   res.status(status === 'ok' ? 200 : 503).json({ ai: status })
 })
 app.use('/api/auth', authRouter)
+app.use('/api/admin', adminRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/settings', settingsRouter)
