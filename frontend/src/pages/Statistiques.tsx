@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, FlaskConical, RefreshCw } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocStats, type BlocData } from '../components/stats/TuileStat'
+import { WalletDrops } from '../components/WalletDrops'
 import { CarteMonde, type CarteData } from '../components/stats/CarteMonde'
 import { blocsDemo, carteDemo, compteVide } from '../lib/statsDemo'
 import { demoActif, demoAutorise, demoChoisi, poserDemo } from '../lib/demo'
@@ -186,6 +187,11 @@ export default function Statistiques() {
 
   return (
     <Layout large>
+
+      {/* Le portefeuille de drops, en tête : solde + recharge, avant les blocs. */}
+      <div className="mt-4">
+        <WalletDrops />
+      </div>
 
       {erreur ? (
         <p className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">{erreur}</p>

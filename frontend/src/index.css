@@ -29,8 +29,53 @@ body {
   color: transparent;
 }
 
+/* Le rose→violet de l'icône de l'app (le cube). Sert au titre de la marque,
+ * pour que le mot « DropShipper IA » porte les mêmes couleurs que son icône. */
+.text-gradient-rose {
+  background: linear-gradient(120deg, #f472b6 5%, #c026d3 55%, #a855f7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .btn-gradient {
   background: linear-gradient(90deg, #a855f7, #ec4899);
+}
+
+/* ── Le « néon survol » des blocs ───────────────────────────────────────────
+ * Repris des tuiles du tableau de bord (bordure éteinte au repos, liseré + halo
+ * au survol) et généralisé à TOUS les blocs du site, demandé le 10/09/2026.
+ *
+ * Deux voies, une seule apparence :
+ *  1. Une règle sur la SIGNATURE d'un bloc en verre — coin arrondi large
+ *     (rounded-xl / rounded-2xl) + fond translucide (bg-white/…) + bordure.
+ *     Les boutons (rounded-lg, fond plein), les pastilles (rounded-full) et les
+ *     champs n'ont pas cette signature : ils restent tranquilles. Cette voie
+ *     couvre toutes les pages, présentes et à venir, sans toucher un fichier.
+ *  2. La classe .neon-hover, à poser à la main sur un bloc TEINTÉ (bg-purple/…,
+ *     bg-emerald/…) que la signature ne reconnaît pas.
+ *
+ * L'accent par défaut est le rose de la marque ; --neon le redéfinit par bloc.
+ * Une teinte inline sur l'élément (comme les tuiles) prime, elle : le style en
+ * ligne bat toujours la feuille. */
+:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"],
+:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"],
+.neon-hover {
+  --neon: 236, 72, 153;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"]:hover,
+:where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"]:hover,
+.neon-hover:hover {
+  border-color: rgba(var(--neon), 0.5);
+  box-shadow: 0 0 20px rgba(var(--neon), 0.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"],
+  :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"],
+  .neon-hover {
+    transition: none;
+  }
 }
 
 /* Indeterminate progress: the import has no measurable steps to report. */
