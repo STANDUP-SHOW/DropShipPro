@@ -724,6 +724,22 @@ Trois conséquences, toutes appliquées :
 vérification d'email, import, IA (titre, description, 9 attributs, 6 arguments,
 20 mots-clés), filigrane, calcul de marge, API catalogue, extension.
 
+- **Connexion Google (Sign in with Google)** : code livré le 11/09/2026, flux
+  Google Identity Services par ID token. Le front (`GoogleSignIn.tsx`) rend le
+  bouton, le back (`POST /auth/google` + `services/googleAuth.ts`) vérifie l'ID
+  token via `google-auth-library` (audience = Client ID) et rend le même
+  `{ token, user }` que `/login`. **Un seul Client ID, le même des deux côtés**,
+  aucun client secret (la vérif d'ID token n'en demande pas). Reste à faire par
+  Max pour l'activer : `GOOGLE_CLIENT_ID` sur Railway, `VITE_GOOGLE_CLIENT_ID`
+  sur Vercel (puis **redéployer** le front — Vite fige les VITE_*), et déclarer
+  les origines JS autorisées dans la console Google (apex + www). Sans ces
+  variables, le bouton ne s'affiche pas et la route répond 503 : dégradation
+  propre. Schéma : `User.googleId String? @unique`, `passwordHash` rendu
+  **nullable** (compte Google sans mot de passe) — les routes qui le lisaient
+  sont gardées. Liaison par email **seulement si l'adresse est déjà vérifiée**
+  chez nous ; sinon on adopte le compte et on révoque le mot de passe non prouvé
+  (anti-pré-hijacking). Email normalisé en minuscules partout (sinon doublons).
+
 **Cinq familles de destinations publient réellement** (45 « live » au
 registre) : « Mon site » (immédiat, via `/api/public/shops/:shopKey/products`),
 **Shopify** (API Admin GraphQL, jeton `shpat_` saisi dans Réglages), **eBay**

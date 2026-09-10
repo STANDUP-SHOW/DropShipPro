@@ -99,7 +99,12 @@ enum PayoutStatus {
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
-  passwordHash      String
+  /// Nul pour un compte créé via « Sign in with Google » : il n'a pas de mot de
+  /// passe. Les routes qui le comparent (login, changement) gardent ce cas.
+  passwordHash      String?
+  /// Identifiant Google (claim `sub`) quand le compte s'est connecté via Google.
+  /// Null pour un compte email ; unique sinon (plusieurs NULL tolérés).
+  googleId          String?   @unique
   shopName          String?
   /// Identifiant public de la boutique, utilisé dans l'URL du catalogue.
   /// Distinct de l'id du compte : il peut être publié sans exposer l'identité interne.

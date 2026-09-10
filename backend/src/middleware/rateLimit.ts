@@ -26,10 +26,24 @@ setInterval(() => {
   for (const [key, window] of buckets) if (window.resetAt <= now) buckets.delete(key)
 }, 60_000).unref()
 
-/** The caller's address, honouring the proxy Railway puts in front. */
+/**
+ * L'adresse de l'appelant, en tenant compte du proxy que Railway met devant.
+ *
+ * On prend le DERNIER élément de X-Forwarded-For, pas le premier. Le proxy de
+ * bord de Railway ajoute l'IP réelle du client à la fin de l'en-tête ; les
+ * valeurs de gauche, elles, sont fournies par le client et donc falsifiables.
+ * Lire `split(',')[0]` laissait un attaquant injecter une IP différente à
+ * chaque requête (« X-Forwarded-For: <aléatoire> » → bucket neuf à chaque fois),
+ * ce qui annulait le plafond sur /login, /register et /auth/google. Le dernier
+ * élément est celui posé par notre proxy de confiance : il n'est pas contrôlable
+ * depuis l'extérieur.
+ */
 function clientIp(req: Request): string {
-  const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()
-  return forwarded || req.socket.remoteAddress || 'inconnu'
+  const parts = String(req.headers['x-forwarded-for'] ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return parts.at(-1) || req.socket.remoteAddress || 'inconnu'
 }
 
 export function rateLimit({

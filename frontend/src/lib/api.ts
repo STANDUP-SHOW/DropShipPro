@@ -181,6 +181,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  // Connexion Google : on envoie l'ID token rendu par Google Identity Services,
+  // le backend le vérifie et rend le MÊME contrat que /login.
+  loginGoogle: (idToken: string) =>
+    request<{ token: string; user: { id: string; email: string } }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+    }),
   me: () =>
     request<{ id: string; email: string; shopName?: string; watermarkText?: string; emailVerified?: boolean }>(
       '/auth/me',

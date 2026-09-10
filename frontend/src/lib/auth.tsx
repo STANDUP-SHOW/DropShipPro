@@ -17,6 +17,7 @@ interface AuthContextValue {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (idToken: string) => Promise<void>
   logout: () => void
   refresh: () => Promise<void>
 }
@@ -72,13 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user)
   }
 
+  // L'ID token vient de Google Identity Services ; le backend le vérifie et
+  // rend notre jeton applicatif — c'est LUI qu'on stocke, jamais l'ID Google.
+  async function loginWithGoogle(idToken: string) {
+    const res = await api.loginGoogle(idToken)
+    setToken(res.token)
+    setUser(res.user)
+  }
+
   function logout() {
     clearToken()
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   )

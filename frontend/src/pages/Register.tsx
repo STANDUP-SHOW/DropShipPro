@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
+import { GoogleSignIn } from '../components/GoogleSignIn'
 import { useAuth } from '../lib/auth'
 
 export default function Register() {
@@ -57,6 +58,7 @@ export default function Register() {
         <button disabled={busy} className="btn-gradient w-full rounded-lg py-2.5 font-semibold disabled:opacity-50">
           {busy ? 'Création...' : 'Créer mon compte'}
         </button>
+        <GoogleSignIn />
         <p className="text-sm text-center text-gray-400">
           Déjà un compte ?{' '}
           <Link to="/login" className="text-purple-300 hover:underline">
