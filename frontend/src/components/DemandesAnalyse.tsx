@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Store, Share2, Sparkles, Rocket, Search, Loader2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Store, Share2, Sparkles, Rocket, Search, Loader2, ExternalLink, Megaphone } from 'lucide-react'
 import { api } from '../lib/api'
+
+/** La Facebook Ad Library, en direct, pour un produit — les vraies pubs qui tournent. */
+function lienAdLibrary(titre: string) {
+  return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=FR&q=${encodeURIComponent(titre)}&media_type=all`
+}
+/** TikTok : les contenus qui tournent sur le sujet. */
+function lienTikTok(titre: string) {
+  return `https://www.tiktok.com/search?q=${encodeURIComponent(titre)}`
+}
 
 /**
  * Les demandes d'analyse pré-formatées et tarifées d'un chef de rayon.
@@ -22,7 +32,7 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
   const [choisis, setChoisis] = useState<string[]>([])
   const [count, setCount] = useState(5)
   const [busy, setBusy] = useState<string | null>(null)
-  const [resultats, setResultats] = useState<{ titre: string; lignes: Resultat[] } | null>(null)
+  const [resultats, setResultats] = useState<{ type: 'marche' | 'sociale'; titre: string; lignes: Resultat[] } | null>(null)
   const [extraction, setExtraction] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -47,7 +57,7 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
     setResultats(null)
     try {
       const r = await api.analyseProduits(departmentId, type, choisis)
-      setResultats({ titre: type === 'sociale' ? 'Analyse réseaux sociaux' : 'Analyse de marché', lignes: r.results })
+      setResultats({ type, titre: type === 'sociale' ? 'Analyse réseaux sociaux' : 'Analyse de marché', lignes: r.results })
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Analyse impossible')
     } finally {
@@ -202,6 +212,38 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
             <div key={l.productId} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <p className="text-sm font-semibold text-gray-100">{l.titre}</p>
               <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-300">{l.texte}</p>
+
+              {/* Pour l'analyse sociale : les vraies pubs en direct + l'intégration
+                  d'une annonce dans Mes pubs (au tarif pub habituel). */}
+              {resultats.type === 'sociale' ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <a
+                    href={lienAdLibrary(l.titre)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:bg-white/5"
+                  >
+                    <span>Facebook Ad Library</span>
+                    <ExternalLink size={11} />
+                  </a>
+                  <a
+                    href={lienTikTok(l.titre)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-300 hover:bg-white/5"
+                  >
+                    <span>TikTok</span>
+                    <ExternalLink size={11} />
+                  </a>
+                  <Link
+                    to={`/products/${l.productId}`}
+                    className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-500 to-amber-300 px-2.5 py-1 text-[11px] font-bold text-black hover:brightness-110"
+                  >
+                    <Megaphone size={11} />
+                    <span>Intégrer dans Mes pubs</span>
+                  </Link>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
