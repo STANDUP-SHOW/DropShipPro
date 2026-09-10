@@ -1217,6 +1217,22 @@ export const api = {
       method: 'POST',
     }),
 
+  /** Analyse pré-formatée d'un chef sur des produits de mes annonces (30 drops/produit). */
+  analyseProduits: (departmentId: string, type: 'marche' | 'sociale', productIds: string[]) =>
+    request<{ results: Array<{ productId: string; titre: string; texte: string }>; credits: number | null }>(
+      `/departments/${departmentId}/analyse-produits`,
+      { method: 'POST', body: JSON.stringify({ type, productIds }) },
+    ),
+
+  /** Extraction à la demande de N produits gagnants (5 drops, 6 avec publication). */
+  extractionGagnants: (departmentId: string, count: number, publier: boolean) =>
+    request<{
+      deposees: number
+      publication: { imported: number; published: number } | null
+      note: string | null
+      credits: number | null
+    }>(`/departments/${departmentId}/extraction`, { method: 'POST', body: JSON.stringify({ count, publier }) }),
+
   listDepartments: () =>
     request<
       Array<{

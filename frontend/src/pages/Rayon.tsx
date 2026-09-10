@@ -8,6 +8,7 @@ import { SignalList } from '../components/SignalList'
 import { ReportList } from '../components/ReportList'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
 import { DepartmentChat } from '../components/DepartmentChat'
+import { DemandesAnalyse } from '../components/DemandesAnalyse'
 import { ProductInfo } from '../components/ProductInfo'
 import { DepartmentSales } from '../components/DepartmentSales'
 import { api } from '../lib/api'
@@ -244,6 +245,10 @@ export default function Rayon() {
       )}
       {tab === 'CHAT' && (
         <>
+          {/* Les demandes d'analyse pré-formatées et tarifées (10/09/2026),
+              au-dessus du chat libre. */}
+          <DemandesAnalyse departmentId={department.id} agentName={department.agentName} />
+
           <DepartmentChat departmentId={department.id} agentName={department.agentName} emoji={department.emoji} role={department.label} />
 
           {/* Les analyses de l'AUTO-MODE, sous la conversation : la même ligne

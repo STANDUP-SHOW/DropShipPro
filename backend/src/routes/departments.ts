@@ -4,7 +4,10 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { DEPARTMENTS, DEPARTMENT_KEYS, findDepartment } from '../services/departments.js'
 import { enqueteAliExpress } from '../services/enqueteFournisseurs.js'
-import { reserveCredits } from '../services/billing.js'
+import { reserveCredits, refundCredits } from '../services/billing.js'
+import { DROPS } from '../services/tarifs.js'
+import { passageAutoMode } from '../services/autoAnalyste.js'
+import { runAutopilot } from '../services/autopilot.js'
 import { SECTOR_CATEGORIES } from '../services/categorySectors.js'
 import {
   COUT_EN_CREDITS,
@@ -261,6 +264,115 @@ departmentsRouter.get('/:id/product-info', async (req: AuthedRequest, res) => {
     take: 40,
   })
   res.json({ count: reviews.length, reviews })
+})
+
+const analyseProduitsSchema = z.object({
+  type: z.enum(['marche', 'sociale']),
+  productIds: z.array(z.string()).min(1).max(10),
+})
+
+/**
+ * Analyse pré-formatée sur des produits de MES annonces, par le chef du rayon
+ * (10/09/2026) : « marche » — places de marché, annonces en ligne, prix
+ * constaté ; « sociale » — suggestions, Facebook Ad Library, TikTok Shop.
+ * 30 drops par produit, payés PAR PRODUIT réellement analysé (rendu si l'analyse
+ * échoue). Best-effort : le chef raisonne avec ses outils, sans données live
+ * d'ad-library — à brancher plus tard.
+ */
+departmentsRouter.post('/:id/analyse-produits', async (req: AuthedRequest, res) => {
+  const parsed = analyseProduitsSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Sélectionnez au moins un produit.' })
+
+  const department = await prisma.department.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+  if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
+  const label = findDepartment(department.key)?.label ?? department.key
+
+  const produits = await prisma.product.findMany({
+    where: { id: { in: parsed.data.productIds }, userId: req.userId! },
+    select: { id: true, aiTitle: true, title: true, sourceUrl: true },
+  })
+  if (!produits.length) return res.status(404).json({ error: 'Aucun de ces produits ne vous appartient.' })
+
+  const social = parsed.data.type === 'sociale'
+  const cout = social ? DROPS.analyseSociale : DROPS.analyse
+  const results: Array<{ productId: string; titre: string; texte: string }> = []
+
+  for (const p of produits) {
+    const pris = await reserveCredits(req.userId!, cout, social ? 'Analyse sociale (produit)' : 'Analyse marché (produit)')
+    if (!pris.ok) {
+      results.push({ productId: p.id, titre: p.aiTitle || p.title, texte: pris.reason ?? 'Solde insuffisant.' })
+      continue
+    }
+    try {
+      const avis = await adviseOnProduct(p.sourceUrl, label)
+      results.push({ productId: p.id, titre: avis.title || p.aiTitle || p.title, texte: social ? avis.social : avis.marketplace })
+    } catch (e) {
+      await refundCredits(req.userId!, cout)
+      results.push({ productId: p.id, titre: p.aiTitle || p.title, texte: `Analyse indisponible : ${e instanceof Error ? e.message : 'erreur'}` })
+    }
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { credits: true } })
+  res.json({ results, credits: user?.credits ?? null })
+})
+
+const extractionSchema = z.object({
+  count: z.number().int().min(1).max(10),
+  publier: z.boolean().default(false),
+})
+
+/**
+ * Extraction à la demande de N produits gagnants par le chef, archivés dans
+ * « Produits gagnants » (non publiés). 5 drops/produit ; 6 avec publication —
+ * l'Auto-Shipper importe alors les gagnants qualifiés (chaque annonce garde son
+ * coût d'import habituel). Publication au tarif 6 UNIQUEMENT si l'Auto-Shipper
+ * est activé ; sinon on extrait au tarif 5 et on l'explique.
+ */
+departmentsRouter.post('/:id/extraction', async (req: AuthedRequest, res) => {
+  const parsed = extractionSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Choisissez le nombre de produits (1 à 10).' })
+
+  const department = await prisma.department.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+  if (!department) return res.status(404).json({ error: 'Rayon introuvable' })
+
+  const autopilot = parsed.data.publier
+    ? await prisma.autopilot.findUnique({ where: { userId: req.userId! }, select: { enabled: true } })
+    : null
+  const publieReel = parsed.data.publier && Boolean(autopilot?.enabled)
+
+  const unite = publieReel ? DROPS.gagnantPublie : DROPS.gagnantExtrait
+  const cout = unite * parsed.data.count
+  const pris = await reserveCredits(req.userId!, cout, publieReel ? 'Extraction gagnants + publication' : 'Extraction de gagnants')
+  if (!pris.ok) return res.status(402).json({ error: pris.reason, needsCredits: true })
+
+  let deposees = 0
+  try {
+    const r = await passageAutoMode(department, undefined, parsed.data.count)
+    deposees = r.gagnants
+  } catch (e) {
+    await refundCredits(req.userId!, cout)
+    return res.status(503).json({ error: e instanceof Error ? e.message : "L'extraction a échoué." })
+  }
+
+  // Payé pour `count` mais moins de gagnants valides trouvés : on rend la différence.
+  if (deposees < parsed.data.count) await refundCredits(req.userId!, unite * (parsed.data.count - deposees))
+
+  let publication: { imported: number; published: number } | null = null
+  if (publieReel && deposees > 0) {
+    const run = await runAutopilot(req.userId!)
+    publication = { imported: run.imported, published: run.published }
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { credits: true } })
+  res.json({
+    deposees,
+    publication,
+    // Un mot au vendeur quand il a demandé la publication sans Auto-Shipper actif.
+    note: parsed.data.publier && !publieReel
+      ? "Publication auto : activez l'Auto-Shipper. Vos gagnants sont archivés dans Produits gagnants."
+      : null,
+    credits: user?.credits ?? null,
+  })
 })
 
 /**

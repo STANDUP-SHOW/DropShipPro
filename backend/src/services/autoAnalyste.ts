@@ -211,7 +211,13 @@ export type Generateur = typeof genererAnalyse
 /**
  * Un passage complet pour un rayon : l'analyse écrite une fois, lue partout.
  */
-export async function passageAutoMode(dep: Department, generer: Generateur = genererAnalyse): Promise<{ rapportId: string; gagnants: number }> {
+export async function passageAutoMode(
+  dep: Department,
+  generer: Generateur = genererAnalyse,
+  // Plafond de gagnants déposés. Dix par défaut (AUTO-MODE) ; une extraction à la
+  // demande le fixe au nombre voulu par le vendeur (curseur de la page rayon).
+  limite = 10,
+): Promise<{ rapportId: string; gagnants: number }> {
   const label = findDepartment(dep.key)?.label ?? dep.key
   const produit = await generer(dep, label)
   const jour = new Date().toISOString().slice(0, 10)
@@ -236,7 +242,7 @@ export async function passageAutoMode(dep: Department, generer: Generateur = gen
    */
   const valides = produit.gagnants
     .filter((g) => g.titre && g.lien && g.prixBas > 0 && g.prixVente > g.prixBas)
-    .slice(0, 10)
+    .slice(0, Math.max(1, limite))
 
   const { count } = await prisma.opportunity.createMany({
     data: valides.map((g) => ({

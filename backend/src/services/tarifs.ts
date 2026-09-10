@@ -24,6 +24,12 @@ export const DROPS = {
   reecriture: 10,
   /** Analyse de marché, par produit : Opus→Sonnet + recherches web. ~0,06 €. */
   analyse: 30,
+  /** Analyse réseaux sociaux, par produit (suggestions, ad-library, TikTok). 30. */
+  analyseSociale: 30,
+  /** Produit gagnant extrait à la demande, archivé non publié. 5 / produit. */
+  gagnantExtrait: 5,
+  /** Produit gagnant extrait ET publié (+ coût d'import habituel). 6 / produit. */
+  gagnantPublie: 6,
   /** Question à un agent de comptoir (hotline, SAV, commercial…), sans recherche. ~0,003 €. */
   questionComptoir: 5,
   /** Question à un chef de rayon / avocat / comptable (recherche web bornée). ~0,05 €. */
