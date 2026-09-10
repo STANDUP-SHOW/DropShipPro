@@ -219,7 +219,9 @@ export const SUPPORT_AGENTS: AgentProfile[] = [
     name: 'Yann',
     role: 'Agent Livraisons',
     family: 'comptoir',
-    category: 'logistique',
+    // Rangé avec les administratifs (10/09/2026) : le vendeur le veut dans la
+    // première liste, plus dans une rubrique « logistique » à part en bas.
+    category: 'administratif',
     emoji: '📦',
     access: 'plateforme',
     autoDefault: true,

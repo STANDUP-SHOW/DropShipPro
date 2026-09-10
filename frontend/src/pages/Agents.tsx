@@ -85,10 +85,13 @@ function AgentCard({
           <p className="text-[11px] font-semibold text-sky-300">{ACCESS_LABEL[agent.access] ?? 'Accessible'}</p>
           {agent.note ? <p className="mt-1 text-[11px] text-amber-300">{agent.note}</p> : null}
 
-          {/* Le bouton IA AUTO-MODE fait partie du bloc (10/09/2026). */}
-          <div className="mt-2">
-            <BoutonAutoMode compact actif={Boolean(agent.autoMode)} onBascule={(enabled) => onAuto(agent.key, enabled)} />
-          </div>
+          {/* Le bouton IA AUTO-MODE fait partie du bloc (10/09/2026). L'avocat
+              ne le propose JAMAIS : il ne se paie qu'à la question, en drops. */}
+          {agent.access !== 'question' ? (
+            <div className="mt-2">
+              <BoutonAutoMode compact actif={Boolean(agent.autoMode)} onBascule={(enabled) => onAuto(agent.key, enabled)} />
+            </div>
+          ) : null}
 
           {/* L'action : lui parler (comptoir) ou aller voir son travail (chaîne). */}
           <div className="mt-2">

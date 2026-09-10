@@ -56,8 +56,15 @@ body {
  *     bg-emerald/…) que la signature ne reconnaît pas.
  *
  * L'accent par défaut est le rose de la marque ; --neon le redéfinit par bloc.
- * Une teinte inline sur l'élément (comme les tuiles) prime, elle : le style en
- * ligne bat toujours la feuille. */
+ *
+ * Le survol est en `!important` À DESSEIN : presque tous les blocs du site
+ * portent un `box-shadow` EN LIGNE (le liseré interne du glassmorphism), et un
+ * style en ligne bat une règle de feuille — sans `!important`, le halo n'aurait
+ * jamais paru sur eux (le symptôme signalé le 10/09/2026 : « pas de néon sur
+ * tout le site »). Une règle `!important` de feuille, elle, passe devant un
+ * inline normal. On garde un liseré interne dans l'ombre du survol pour ne pas
+ * aplatir le bloc. Une teinte inline sur un ÉLÉMENT (les tuiles du dashboard,
+ * qui posent leur propre couleur) reste prioritaire : elles gardent leur teinte. */
 :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"],
 :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"],
 .neon-hover {
@@ -67,8 +74,15 @@ body {
 :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"]:hover,
 :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="backdrop-blur"][class*="border"]:hover,
 .neon-hover:hover {
-  border-color: rgba(var(--neon), 0.5);
-  box-shadow: 0 0 20px rgba(var(--neon), 0.2);
+  /* Le liseré rose passe par `outline`, pas `border-color` : Tailwind v4 pose la
+     couleur de bordure dans un @layer qu'un `!important` de feuille ne bat pas
+     proprement, alors qu'`outline` n'est touché nulle part. `outline-offset`
+     négatif le pose PILE sur la bordure — on dirait qu'elle s'allume. Le halo,
+     lui, est en `box-shadow !important` pour passer devant l'ombre inline des
+     blocs (le liseré interne du glassmorphism). */
+  outline: 1.5px solid rgba(var(--neon), 0.7);
+  outline-offset: -1.5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 24px rgba(var(--neon), 0.4) !important;
 }
 @media (prefers-reduced-motion: reduce) {
   :where([class~="rounded-2xl"], [class~="rounded-xl"])[class*="bg-white/"][class*="border"],

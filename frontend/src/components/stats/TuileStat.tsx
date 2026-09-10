@@ -276,8 +276,18 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
     <div
       data-forme={choisie}
       className="@container flex h-full flex-col overflow-hidden rounded-xl border border-transparent p-3 transition hover:bg-white/[0.02]"
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${de}66`; e.currentTarget.style.boxShadow = `0 0 16px ${de}26` }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = 'none' }}
+      /* En `important` : la règle néon globale du site est elle-même en
+         `!important` (elle doit battre les ombres inline des blocs) ; sans cela,
+         la tuile perdrait SA couleur au profit du rose global. Ici, la tuile
+         garde sa teinte. */
+      onMouseEnter={(e) => {
+        e.currentTarget.style.setProperty('border-color', `${de}66`, 'important')
+        e.currentTarget.style.setProperty('box-shadow', `0 0 16px ${de}26`, 'important')
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.setProperty('border-color', 'transparent', 'important')
+        e.currentTarget.style.setProperty('box-shadow', 'none', 'important')
+      }}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{tuile.label}</p>
