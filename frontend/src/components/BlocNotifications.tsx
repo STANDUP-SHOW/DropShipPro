@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell, ShoppingBag, Inbox, PackageX, Truck, LifeBuoy } from 'lucide-react'
 import { api } from '../lib/api'
+import { useDemo } from '../lib/demo'
 
 /**
  * Le bloc « Notifications » — ce qui attend une action, en tête de chaque page.
@@ -20,6 +21,24 @@ type Compteurs = Awaited<ReturnType<typeof api.notifications>>
 
 let cache: { valeur: Compteurs; horodatage: number } | null = null
 
+/**
+ * Les compteurs du mode DEMO — cohérents avec le reste de la démonstration.
+ *
+ * Ils suivent le jeu de commandes de démonstration (DEMO_COMMANDES) : deux
+ * commandes NEW, deux commandées chez le fournisseur (à expédier), une en
+ * difficulté ; plus quelques messages et tickets, à l'échelle d'une boutique
+ * démo active. Quand la pilule DEMO du tableau de bord est levée, ce bloc les
+ * affiche comme les jauges affichent JAUGES_DEMO — jamais un chiffre de démo
+ * sans que tout le site le soit.
+ */
+const NOTIFS_DEMO: Compteurs = {
+  commandes: 2,
+  messagesClient: 8,
+  fournisseur: 1,
+  aExpedier: 2,
+  ticketsSav: 2,
+}
+
 const TUILES: Array<{
   cle: keyof Compteurs
   label: string
@@ -36,6 +55,7 @@ const TUILES: Array<{
 
 export function BlocNotifications() {
   const [compteurs, setCompteurs] = useState<Compteurs | null>(cache?.valeur ?? null)
+  const [demo] = useDemo()
 
   useEffect(() => {
     if (cache && Date.now() - cache.horodatage < 60_000) return
@@ -49,6 +69,9 @@ export function BlocNotifications() {
         // Session expirée ou API muette : le bloc ne bloque pas la page.
       })
   }, [])
+
+  // La pilule DEMO du tableau de bord commande tout le site : ici aussi.
+  const affiches = demo ? NOTIFS_DEMO : compteurs
 
   return (
     <section
@@ -64,7 +87,7 @@ export function BlocNotifications() {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {TUILES.map((t) => {
-          const n = compteurs?.[t.cle] ?? 0
+          const n = affiches?.[t.cle] ?? 0
           const actif = n > 0
           return (
             <Link

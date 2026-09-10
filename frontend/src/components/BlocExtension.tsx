@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useExtensionVersion } from '../lib/extensionVersion'
+import { useDemo } from '../lib/demo'
 
 /**
  * Le bloc « Extension Google Chrome », à côté des notifications.
@@ -29,9 +30,14 @@ function ChromeGlyph({ size = 20 }: { size?: number }) {
 
 export function BlocExtension() {
   const { presente, enRetard, installee, servie } = useExtensionVersion()
+  const [demo] = useDemo()
 
-  // Trois états : à jour, mise à jour en cours, non installée.
-  const etat = !presente ? 'absente' : enRetard ? 'maj' : 'ajour'
+  // Trois états : à jour, mise à jour en cours, non installée. En mode démo, la
+  // pilule du tableau de bord commande tout le site : l'extension est montrée
+  // « à jour », comme le reste de la démonstration.
+  const etat = demo ? 'ajour' : !presente ? 'absente' : enRetard ? 'maj' : 'ajour'
+  // La version affichée : en démo, la version servie (ou un repère) fait foi.
+  const versionAffichee = demo ? servie ?? '1.30.0' : installee
   const config = {
     ajour: { label: 'À jour', teinte: '#34d399', cote: 'gauche' as const },
     maj: { label: 'Mise à jour en cours', teinte: '#fbbf24', cote: 'droite' as const },
@@ -80,8 +86,11 @@ export function BlocExtension() {
           <p className="mt-1.5 text-xs font-semibold" style={{ color: config.teinte }}>
             {config.label}
           </p>
-          {installee ? (
-            <p className="text-[10px] text-gray-500">Version {installee}{servie && enRetard ? ` → ${servie}` : ''}</p>
+          {versionAffichee ? (
+            <p className="text-[10px] text-gray-500">
+              Version {versionAffichee}
+              {servie && enRetard && !demo ? ` → ${servie}` : ''}
+            </p>
           ) : (
             <p className="text-[10px] text-gray-500">Cliquez pour l'installer</p>
           )}
@@ -90,7 +99,7 @@ export function BlocExtension() {
 
       {/* L'avertissement jaune, au SURVOL seulement, et seulement en retard :
           Chrome met à jour tout seul, inutile d'alarmer en permanence. */}
-      {enRetard ? (
+      {enRetard && !demo ? (
         <div className="pointer-events-none absolute left-3 right-3 top-full z-40 mt-1 rounded-xl border border-amber-400/30 bg-[#211a10] p-3 text-[11px] leading-relaxed text-amber-100 opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100">
           Votre extension est en {installee}, la version {servie} est disponible. Elle est sur le Chrome
           Web Store et se met à jour toute seule — Chrome propage en quelques heures. Si l'ancienne
