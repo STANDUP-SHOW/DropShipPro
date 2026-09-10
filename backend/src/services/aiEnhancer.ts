@@ -127,6 +127,8 @@ Règles :
   Matière du bracelet, Diamètre du boîtier, Compatibilité, Norme…). Utilise
   UNIQUEMENT ce qui figure dans la source. Si une information est absente, omets
   l'attribut plutôt que d'inventer.
+  TOUJOURS un attribut "Marque" en plus : la marque réelle si elle apparaît dans
+  la source, sinon EXACTEMENT "Sans marque". N'invente jamais de marque.
 - Mots-clés : 10 à 12, en français, les plus recherchés d'abord, incluant quelques
   variantes orthographiques et requêtes longue traîne que taperait un acheteur.
   Séparés par des virgules.
@@ -358,7 +360,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce f
   "titleShort": "50 caracteres au plus",
   "description": "3 à 5 paragraphes courts",
   "bulletPoints": ["MATIÈRE PREMIUM : ...", "..."],
-  "attributes": {"Matière": "...", "Couleur": "...", "Coupe": "...", "Saison": "...", "Style": "...", "Public": "..."},
+  "attributes": {"Marque": "Sans marque", "Matière": "...", "Couleur": "...", "Coupe": "...", "Saison": "...", "Style": "..."},
   "metaTitle": "...",
   "metaDescription": "...",
   "metaKeywords": "mot1, mot2, mot3"
@@ -467,7 +469,7 @@ export function interpreter(message: Anthropic.Message, input: EntreeReecriture)
     bulletPoints: Array.isArray(parsed.bulletPoints)
       ? parsed.bulletPoints.filter((b): b is string => typeof b === 'string')
       : [],
-    attributes:
+    attributes: garantirMarque(
       parsed.attributes && typeof parsed.attributes === 'object' && !Array.isArray(parsed.attributes)
         ? Object.fromEntries(
             Object.entries(parsed.attributes as Record<string, unknown>)
@@ -475,5 +477,21 @@ export function interpreter(message: Anthropic.Message, input: EntreeReecriture)
               .map(([k, v]) => [k, (v as string).trim()]),
           )
         : {},
+    ),
   }
+}
+
+/**
+ * Garantit un attribut « Marque » sur chaque annonce (demandé le 10/09/2026).
+ *
+ * La marque est un filtre clé sur Vinted et Leboncoin ; une annonce sans elle
+ * n'apparaît pas dans les recherches par marque. Le modèle est prié d'en mettre
+ * une (réelle ou « Sans marque »), mais il l'oublie parfois : on la repose ici,
+ * en tête, avec « Sans marque » quand elle est inconnue ou non précisée.
+ */
+function garantirMarque(attrs: Record<string, string>): Record<string, string> {
+  const cle = Object.keys(attrs).find((k) => k.toLowerCase() === 'marque')
+  const valeur = cle ? attrs[cle].trim() : ''
+  const reste = cle ? Object.fromEntries(Object.entries(attrs).filter(([k]) => k !== cle)) : attrs
+  return { Marque: valeur || 'Sans marque', ...reste }
 }
