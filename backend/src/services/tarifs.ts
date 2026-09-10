@@ -56,23 +56,27 @@ export const DROPS_INSCRIPTION = 120
 /**
  * Les recharges, en drops, au prix unique de 0,01 €/drop.
  *
- * Prix unique volontaire : toute remise de volume entamerait la marge ×5, que le
- * modèle promet de tenir partout. Un « bonus » de bienvenue se ferait en drops
- * offerts, pas en cassant le prix unitaire.
+ * Remise de volume sur les gros forfaits (10/09/2026) : le prix des ACTIONS en
+ * drops ne bouge pas — c'est le drop qui coûte moins cher quand on en achète
+ * beaucoup. Ça fidélise sans casser le modèle : à 0,0075 €/drop (forfait 20 000),
+ * la marge reste largement positive (le coût réel d'un drop est ~0,002 €). Les
+ * petits forfaits restent au tarif plein, la remise récompense l'engagement.
  */
 export interface PackDrops {
   id: string
   /** Prix en centimes (Stripe). */
   amount: number
-  /** Drops crédités. amount/100 × 100 = amount (1 drop = 1 centime). */
+  /** Drops crédités. Le rapport amount/drops décroît sur les gros forfaits. */
   drops: number
 }
 
 export const PACKS_DROPS: PackDrops[] = [
+  // Tarif plein : 1 drop = 1 centime.
   { id: 'drops-500', amount: 500, drops: 500 },
   { id: 'drops-1000', amount: 1000, drops: 1000 },
   { id: 'drops-2000', amount: 2000, drops: 2000 },
-  { id: 'drops-5000', amount: 5000, drops: 5000 },
-  { id: 'drops-10000', amount: 10000, drops: 10000 },
-  { id: 'drops-20000', amount: 20000, drops: 20000 },
+  // Remise de volume : le drop coûte moins cher.
+  { id: 'drops-5000', amount: 4500, drops: 5000 }, // 0,009 €/drop (−10 %)
+  { id: 'drops-10000', amount: 8000, drops: 10000 }, // 0,008 €/drop (−20 %)
+  { id: 'drops-20000', amount: 15000, drops: 20000 }, // 0,0075 €/drop (−25 %)
 ]

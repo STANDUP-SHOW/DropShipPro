@@ -189,74 +189,50 @@ export default function BillingPage() {
         Recharger mon portefeuille
       </h2>
       <p className="mt-1 text-sm text-gray-400">
-        Sans abonnement ni engagement. Vos drops n'expirent pas. 1 drop = {euros(euroParDrop)}.
+        Sans abonnement ni engagement. Vos drops n'expirent pas. 1 drop = {euros(euroParDrop)} — et
+        <b className="text-gray-300"> plus vous rechargez, moins le drop coûte</b>.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {plans?.packs.map((pack) => (
-          <div key={pack.id} className="rounded-xl border border-white/10 bg-white/5 p-5">
-            <div className="flex items-center gap-2">
-              <DropCoin size={22} />
-              <p className="text-xl font-bold">{nombre(pack.drops)} drops</p>
+        {plans?.packs.map((pack) => {
+          // Le prix d'achat du drop pour ce forfait : il baisse sur les gros.
+          const prixDrop = pack.amount / 100 / pack.drops
+          const remise = Math.round((1 - prixDrop / euroParDrop) * 100)
+          const prixDropTexte = prixDrop.toLocaleString('fr-FR', {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 4,
+          })
+          return (
+            <div key={pack.id} className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="flex items-center gap-2">
+                <DropCoin size={22} />
+                <p className="text-xl font-bold">{nombre(pack.drops)} drops</p>
+                {remise > 0 ? (
+                  <span className="ml-auto rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                    {`−${remise} %`}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-2xl font-bold text-amber-200">{euros(pack.amount / 100)}</p>
+              {/* Le prix d'achat du drop, dans la case (demandé le 10/09/2026). */}
+              <p className="mt-0.5 text-xs text-gray-400">{`le drop à ${prixDropTexte} €`}</p>
+              <button
+                type="button"
+                onClick={() => recharger(pack.id)}
+                disabled={!plans.enabled || busy !== null}
+                className="btn-gradient mt-4 w-full rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              >
+                {busy === pack.id ? 'Ouverture…' : 'Recharger'}
+              </button>
             </div>
-            <p className="mt-1 text-2xl font-bold text-amber-200">{euros(pack.amount / 100)}</p>
-            <button
-              type="button"
-              onClick={() => recharger(pack.id)}
-              disabled={!plans.enabled || busy !== null}
-              className="btn-gradient mt-4 w-full rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
-            >
-              {busy === pack.id ? 'Ouverture…' : 'Recharger'}
-            </button>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      {/* Le relevé du portefeuille : chaque mouvement, en direct. */}
-      <h2 className="mt-10 text-lg font-bold">Relevé du compte</h2>
-      <p className="mt-1 text-sm text-gray-400">
-        Chaque mouvement de votre portefeuille : rechargements et actions facturées.
-      </p>
+      {/* Moyens de paiement, juste sous les forfaits, avant la monnaie (10/09/2026). */}
+      <PaymentMethods stripePromise={stripePromise} />
 
-      {mouvements.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-400">
-          Aucun mouvement pour l'instant. Vos rechargements et vos actions apparaîtront ici.
-        </p>
-      ) : (
-        <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-white/5">
-          <div className="divide-y divide-white/5">
-            {mouvements.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span className="w-24 shrink-0 text-xs text-gray-500">
-                  {new Date(m.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                </span>
-                <span className="flex-1 truncate text-gray-200">{m.motif}</span>
-                <span
-                  className={`w-24 shrink-0 text-right font-semibold tabular-nums ${
-                    m.delta >= 0 ? 'text-emerald-300' : 'text-gray-300'
-                  }`}
-                >
-                  {`${m.delta >= 0 ? '+' : '−'}${nombre(Math.abs(m.delta))}`}
-                </span>
-                <span className="hidden w-20 shrink-0 text-right text-xs text-gray-500 tabular-nums sm:block">
-                  {nombre(m.balance)}
-                </span>
-              </div>
-            ))}
-          </div>
-          {suite && (
-            <button
-              type="button"
-              onClick={voirPlus}
-              className="w-full border-t border-white/5 px-4 py-2.5 text-xs text-gray-400 hover:bg-white/5 hover:text-white"
-            >
-              Voir plus
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* L'explication de la monnaie, puis la grille complète. */}
+      {/* L'explication de la monnaie, AVANT le relevé (10/09/2026), puis la grille. */}
       <section className="mt-12 rounded-2xl border border-white/10 bg-white/5 p-6">
         <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:text-left">
           <DropCoin size={96} className="shrink-0" />
@@ -318,7 +294,50 @@ export default function BillingPage() {
         </p>
       </section>
 
-      <PaymentMethods stripePromise={stripePromise} />
+      {/* Le relevé du portefeuille : chaque mouvement, en direct. */}
+      <h2 className="mt-10 text-lg font-bold">Relevé du compte</h2>
+      <p className="mt-1 text-sm text-gray-400">
+        Chaque mouvement de votre portefeuille : rechargements et actions facturées.
+      </p>
+
+      {mouvements.length === 0 ? (
+        <p className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-400">
+          Aucun mouvement pour l'instant. Vos rechargements et vos actions apparaîtront ici.
+        </p>
+      ) : (
+        <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+          <div className="divide-y divide-white/5">
+            {mouvements.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                <span className="w-24 shrink-0 text-xs text-gray-500">
+                  {new Date(m.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                </span>
+                <span className="flex-1 truncate text-gray-200">{m.motif}</span>
+                <span
+                  className={`w-24 shrink-0 text-right font-semibold tabular-nums ${
+                    m.delta >= 0 ? 'text-emerald-300' : 'text-gray-300'
+                  }`}
+                >
+                  {`${m.delta >= 0 ? '+' : '−'}${nombre(Math.abs(m.delta))}`}
+                </span>
+                <span className="hidden w-20 shrink-0 text-right text-xs text-gray-500 tabular-nums sm:block">
+                  {nombre(m.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {suite && (
+            <button
+              type="button"
+              onClick={voirPlus}
+              className="w-full border-t border-white/5 px-4 py-2.5 text-xs text-gray-400 hover:bg-white/5 hover:text-white"
+            >
+              Voir plus
+            </button>
+          )}
+        </div>
+      )}
+
       <Invoices payments={billing?.payments ?? []} />
     </Layout>
   )
