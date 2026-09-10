@@ -287,6 +287,36 @@ export const TYPES_CANAL: Array<{ id: TypeCanal; label: string; aide: string }> 
 
 fs.writeFileSync(SORTIE, ts.replace('${INTEGREES}', 'vingt et une'), 'utf8')
 
+/*
+ * Le même annuaire, en module CommonJS, pour la construction des pages SEO du
+ * frontend. Il faut une copie ici, et non un require du .ts : le build Vercel
+ * a `frontend/` pour racine et ne voit pas le dossier `backend/`. Ce fichier
+ * est engendré, jamais édité à la main.
+ */
+const SORTIE_SEO = path.resolve(__dirname, '../frontend/scripts/seo-channels.cjs')
+const typesLitteral = [
+  { id: 'marketplace', label: 'Places de marché et enseignes' },
+  { id: 'comparateur', label: 'Comparateurs de prix' },
+  { id: 'affiliation', label: "Plateformes d'affiliation" },
+  { id: 'regie', label: 'Régies publicitaires' },
+  { id: 'outil', label: 'Outils du commerce en ligne' },
+]
+const cjs = `/**
+ * L'annuaire des canaux, pour la construction des pages SEO.
+ *
+ * ENGENDRÉ — ne pas éditer à la main : produit par
+ * \`backend/build-channel-directory.cjs\` en même temps que
+ * \`backend/src/services/channelDirectory.ts\`, depuis le dossier des logos.
+ * Il vit sous frontend/ parce que le build SEO (Vercel, racine = frontend) ne
+ * voit pas le dossier backend.
+ */
+module.exports = {
+  canaux: ${JSON.stringify(entrees, null, 2)},
+  types: ${JSON.stringify(typesLitteral, null, 2)},
+}
+`
+fs.writeFileSync(SORTIE_SEO, cjs, 'utf8')
+
 const compte = {}
 for (const e of entrees) compte[e.type] = (compte[e.type] ?? 0) + 1
 console.log(`${entrees.length} entrées écrites dans ${path.relative(process.cwd(), SORTIE)}`)

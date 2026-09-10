@@ -273,4 +273,101 @@ module.exports = [
       },
     ],
   },
+  {
+    slug: 'creation-boutique-en-ligne-gratuite',
+    title: 'Créer une boutique en ligne gratuite et instantanée',
+    description:
+      "Ouvrir une boutique en ligne gratuite, en quelques secondes, sans abonnement Shopify à 29 € par mois : ce qui est inclus, ce qui reste à votre charge.",
+    intro:
+      "Ouvrir une boutique en ligne ne devrait pas commencer par un abonnement. DropShipper IA vous crée une boutique gratuite et instantanée : une adresse en ligne, votre catalogue, votre logo et vos couleurs, sans frais mensuels ni carte bancaire pour démarrer.",
+    sections: [
+      {
+        h2: 'Gratuite, et vraiment gratuite',
+        paragraphs: [
+          "Pas d'abonnement à 29 € par mois, pas de commission sur vos ventes, pas de période d'essai qui se transforme en prélèvement. Votre boutique est incluse : vous ne payez que ce que vous consommez réellement, l'import et la réécriture de vos annonces, à l'unité.",
+          "La différence avec un abonnement classique est simple : une boutique Shopify coûte le même prix qu'elle vende dix produits ou zéro. Ici, une boutique qui dort ne coûte rien.",
+        ],
+      },
+      {
+        h2: 'Instantanée : en ligne en quelques secondes',
+        paragraphs: [
+          "La boutique naît toute seule à votre première publication : une adresse publique, une page d'accueil, vos fiches produit déjà en vente. Aucun thème à configurer pendant des heures, aucun nom de domaine obligatoire pour commencer — vous pourrez brancher le vôtre plus tard.",
+          "Vos photos partent filigranées à vos couleurs, vos fiches sont rédigées en français, et le panier et la prise de commande fonctionnent dès la première minute.",
+        ],
+      },
+      {
+        h2: 'Ce que la boutique vous garde',
+        paragraphs: [
+          "Sur une place de marché, le client appartient à la plateforme : vous ne connaissez ni son adresse e-mail, ni son historique, et vous ne pouvez pas le fidéliser. Sur votre boutique, le client est à vous, et aucune commission ne s'intercale entre lui et vous.",
+          "La bonne stratégie n'oppose pas les deux : les marketplaces apportent le trafic, la boutique garde la marge et la relation. On publie aux deux endroits à partir de la même fiche.",
+        ],
+      },
+      {
+        h2: 'Le nom de domaine, si vous le voulez',
+        paragraphs: [
+          "L'adresse gratuite suffit pour vendre. Le jour où vous voulez une adresse à votre marque, vous renseignez votre nom de domaine dans « Mes sites » : la boutique répond alors sur votre adresse à vous, sans rien perdre de ce qui est déjà en ligne.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'La boutique gratuite prend-elle une commission sur mes ventes ?',
+        a: "Non. Aucune commission n'est prélevée sur les ventes de votre boutique : le prix payé par le client vous revient, moins seulement les frais de votre solution de paiement.",
+      },
+      {
+        q: 'Faut-il un abonnement Shopify en plus ?',
+        a: "Non. La boutique de DropShipper IA remplace le besoin d'un abonnement Shopify pour démarrer. Si vous avez déjà une boutique Shopify, vous pouvez aussi y publier : les deux coexistent.",
+      },
+      {
+        q: 'Peut-on utiliser son propre nom de domaine ?',
+        a: "Oui. L'adresse gratuite fonctionne immédiatement, et vous pouvez brancher votre nom de domaine quand vous le souhaitez depuis « Mes sites ».",
+      },
+    ],
+  },
+  {
+    slug: 'dropshipping-automatique',
+    title: 'Dropshipping automatique : le mode Auto-Shipper',
+    description:
+      "Le dropshipping en pilote automatique : sélection des produits gagnants, réécriture, filigrane et publication sans intervention. Ce que l'Auto-Shipper fait, et ce qu'il coûte.",
+    intro:
+      "Faire tourner une boutique de dropshipping, c'est répéter les mêmes gestes chaque jour : chercher les produits qui marchent, rédiger, protéger les photos, publier. Le mode Auto-Shipper enchaîne tout cela sans vous — vous fixez le cadre, il exécute.",
+    sections: [
+      {
+        h2: 'Ce que l’Auto-Shipper enchaîne tout seul',
+        paragraphs: [
+          "À chaque passage, il récupère une analyse de marché et les produits gagnants sélectionnés, importe ceux qui rentrent dans vos critères, laisse l'IA rédiger l'annonce en français, filigrane les photos à vos couleurs, puis publie — sur votre boutique et sur les marketplaces que vous avez reliées.",
+          "Tout ce que vous faites à la main dans un import est fait à l'identique en automatique, avec les mêmes contrôles de qualité sur les photos et le même refus des fiches sans matière.",
+        ],
+      },
+      {
+        h2: 'Vous gardez la main',
+        paragraphs: [
+          "L'automatique n'est pas l'aveugle. Vous choisissez les rayons, le nombre de produits gagnants par rayon, et le rythme des passages. Rien ne part sans que le cadre que vous avez posé l'autorise.",
+          "Chaque passage est plafonné et facturé d'avance, en drops : pas de dérive de coût, pas de surprise en fin de mois. Un passage qui échoue est remboursé.",
+        ],
+      },
+      {
+        h2: 'Automatique ne veut pas dire sur tous les canaux',
+        paragraphs: [
+          "La publication réellement automatique se fait là où une API le permet : votre boutique, Shopify, et les marketplaces qui délivrent une clé à leurs vendeurs validés. Sur Vinted, Leboncoin ou Facebook Marketplace, aucune API publique d'annonces n'existe — publier à votre place y violerait les conditions d'utilisation et ferait suspendre le compte.",
+          "Pour ces plateformes, l'Auto-Shipper prépare tout, et le dépôt final passe par le remplissage assisté que vous validez.",
+        ],
+        note: "L'Auto-Shipper force le contrôle des photos par l'IA sur ses imports, parce que personne ne les relit à l'œil : c'est un coût par annonce contrôlée, annoncé d'avance.",
+      },
+    ],
+    faq: [
+      {
+        q: 'Le dropshipping automatique publie-t-il vraiment sans moi ?',
+        a: "Oui, sur les destinations à API : la fiche est importée, rédigée, filigranée et publiée sans intervention. Sur les plateformes sans API d'annonces, il prépare tout et vous validez le dépôt.",
+      },
+      {
+        q: 'Combien coûte un passage de l’Auto-Shipper ?',
+        a: "Chaque passage est facturé d'avance en drops, par rayon et par tranche, et chaque produit importé consomme son coût d'annonce. Le détail et un simulateur sont affichés sur la page Auto-Shipper avant activation.",
+      },
+      {
+        q: 'Peut-on arrêter à tout moment ?',
+        a: "Oui. L'Auto-Shipper s'active et se désactive quand vous voulez ; sans activation, aucun passage n'a lieu et rien n'est facturé.",
+      },
+    ],
+  },
 ]
