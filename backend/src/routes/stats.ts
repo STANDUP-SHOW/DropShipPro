@@ -74,6 +74,37 @@ statsRouter.get('/jauges', async (req: AuthedRequest, res) => {
   res.json({ ...jauges, utilisation })
 })
 
+/**
+ * Le bloc « Notifications » — ce qui attend une action du vendeur, en cinq
+ * compteurs (demandé le 10/09/2026). Chacun mène à sa page.
+ *
+ * Les définitions suivent l'état réel des pages, pour ne jamais annoncer un
+ * chiffre qu'on ne retrouve pas en cliquant :
+ *  - commandes      : commandes NEW (à commander chez le fournisseur) → /orders
+ *  - messagesClient : conversations acheteur non lues → /messages
+ *  - fournisseur    : commandes fournisseur en échec (supplierOrderError) — la
+ *                     messagerie fournisseur n'existe pas encore, le SAV
+ *                     fournisseur montre exactement ces lignes → /sav-fournisseurs
+ *  - aExpedier      : commandées chez le fournisseur, en attente d'expédition → /livraisons
+ *  - ticketsSav     : tickets encore OUVERT → /tickets
+ */
+statsRouter.get('/notifications', async (req: AuthedRequest, res) => {
+  const userId = req.userId!
+  try {
+    const [commandes, messagesClient, fournisseur, aExpedier, ticketsSav] = await Promise.all([
+      prisma.order.count({ where: { userId, status: 'NEW' } }),
+      prisma.conversation.count({ where: { userId, unread: true } }),
+      prisma.order.count({ where: { userId, supplierOrderError: { not: null } } }),
+      prisma.order.count({ where: { userId, status: 'ORDERED_FROM_SUPPLIER' } }),
+      prisma.ticket.count({ where: { userId, status: 'OUVERT' } }),
+    ])
+    res.json({ commandes, messagesClient, fournisseur, aExpedier, ticketsSav })
+  } catch (err) {
+    console.error('notifications impossibles', err)
+    res.status(500).json({ error: "Les notifications n'ont pas pu être calculées." })
+  }
+})
+
 statsRouter.get('/tableau', async (req: AuthedRequest, res) => {
   const lireDate = (brut: unknown): Date | null => {
     if (typeof brut !== 'string' || !brut) return null

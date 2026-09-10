@@ -1189,6 +1189,16 @@ export const api = {
       utilisation: number
     }>('/stats/jauges'),
 
+  /** Le bloc « Notifications » : ce qui attend une action, en cinq compteurs. */
+  notifications: () =>
+    request<{
+      commandes: number
+      messagesClient: number
+      fournisseur: number
+      aExpedier: number
+      ticketsSav: number
+    }>('/stats/notifications'),
+
   /** Lance l'enquête fournisseurs du jour sans attendre la tournée. */
   lancerEnquete: (departmentId: string) =>
     request<{ deposees: number; relevees: number; raison?: string }>(`/departments/${departmentId}/enquete`, {

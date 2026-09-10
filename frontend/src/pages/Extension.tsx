@@ -2,6 +2,7 @@ import { Puzzle, Download, MousePointerClick, ListPlus, ClipboardCheck, ShieldAl
 import { Layout } from '../components/Layout'
 import { apiRoot } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
+import { useExtensionVersion } from '../lib/extensionVersion'
 
 /**
  * La page de l'extension Chrome — téléchargement et mode d'emploi complet.
@@ -47,6 +48,10 @@ const CARTES = [
 ]
 
 export default function Extension() {
+  // Le détail « en retard » ne vit plus en haut de toutes les pages : ici, et au
+  // survol du bloc Extension, uniquement.
+  const { enRetard, installee, servie } = useExtensionVersion()
+
   return (
     <Layout>
       <div className="flex items-center gap-2.5">
@@ -56,6 +61,19 @@ export default function Extension() {
       <p className="mt-0.5 mb-5 text-xs text-gray-500">
         Elle lit les fiches dans votre navigateur, importe à l'unité ou par lots, et remplit les formulaires de vente à votre place.
       </p>
+
+      {enRetard ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3">
+          <span className="text-lg">⚠️</span>
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-amber-100">
+            <strong>{`Votre extension est en ${installee}, la version ${servie} est disponible.`}</strong>{' '}
+            Elle est sur le Chrome Web Store et se met à jour toute seule — Chrome propage en quelques
+            heures. Si l'ancienne version persiste, c'est sans doute la copie « mode développeur » :
+            ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, retirez-la, et
+            gardez uniquement celle du store.
+          </p>
+        </div>
+      ) : null}
 
       {/* ---------- Installation ---------- */}
       <section

@@ -3,9 +3,9 @@ import { Fragment, useEffect, useState } from 'react'
 import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
-import { ExtensionVersion } from './ExtensionVersion'
 import { FondVivant } from './FondVivant'
 import { BandeauJauges } from './BandeauJauges'
+import { BandeauNotifications } from './BandeauNotifications'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 
@@ -421,13 +421,13 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
         */}
         <div className="mx-auto max-w-[1800px]">
           {/*
-            Dans la mise en page, donc sur tous les écrans.
-            Une extension en retard fausse ce que le vendeur voit partout — pas
-            seulement dans la fenêtre de publication, seul endroit qui la
-            détectait jusqu'ici. Le bandeau ne s'affiche que si une extension
-            est installée ET qu'elle est antérieure.
+            La ligne « Notifications + Extension », sous les six jauges et sur
+            toutes les pages (10/09/2026). Elle remplace l'ancien bandeau
+            d'avertissement d'extension : au Chrome Web Store, une version en
+            retard se met à jour toute seule — plus d'alarme permanente, juste
+            l'état dans le bloc Extension, et le détail au survol.
           */}
-          <ExtensionVersion />
+          <BandeauNotifications />
           {/* Le menu horizontal mobile (Dashboard / Pilote auto / Agents)
               doublait le menu latéral : retiré le 05/09/2026 à la demande. */}
           {children}
