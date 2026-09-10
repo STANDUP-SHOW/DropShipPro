@@ -30,6 +30,8 @@ export function DepartmentChat({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [credits, setCredits] = useState<number | null>(null)
+  /** Le tarif d'une question à ce chef, montré AVANT l'envoi. */
+  const [tarif, setTarif] = useState<number | null>(null)
   const [listening, setListening] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const recognition = useRef<any>(null)
@@ -83,6 +85,11 @@ export function DepartmentChat({
       .catch(() => setError("Impossible de charger la conversation"))
   }, [departmentId])
 
+  // Le tarif d'une question à un chef, pour l'annoncer avant l'envoi.
+  useEffect(() => {
+    api.listPlans().then((p) => setTarif(p.tarifs?.questionChef ?? null)).catch(() => undefined)
+  }, [])
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -125,7 +132,12 @@ export function DepartmentChat({
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
         <Info size={14} className="shrink-0 text-gray-500" />
         <p className="text-xs text-gray-400">
-          {`${agentName} ne répond que sur son rayon. Une question hors sujet n'est pas facturée.`}
+          {tarif ? (
+            <>
+              <b className="text-amber-200">{`Une question à ${agentName} : ≈ ${tarif} drops.`}</b>{' '}
+            </>
+          ) : null}
+          {`${agentName} ne répond que sur son rayon — une question hors sujet n'est pas facturée.`}
         </p>
         {credits !== null && (
           <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs text-gray-400">

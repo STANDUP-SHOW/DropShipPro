@@ -122,7 +122,7 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
         <Carte
           icone={Share2}
           titre="Analyse réseaux sociaux"
-          detail="Suggestions d'annonces qui marcheraient, Facebook Ad Library, TikTok Shop."
+          detail="Suggestions d'annonces qui marcheraient, Facebook Ad Library, TikTok Shop. Intégrer une annonce suggérée se fait au tarif d'import habituel."
           tarif={`30 drops / produit${nbChoisis ? ` — ${30 * nbChoisis} drops` : ''}`}
           bouton={busy === 'sociale' ? 'Analyse…' : 'Analyser le social'}
           occupe={busy === 'sociale'}
@@ -137,9 +137,10 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
           <h3 className="text-sm font-bold">Extraction de produits gagnants</h3>
         </div>
         <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
-          Analyse complète marché + social (tendances, algorithmes, années précédentes, calendrier
-          des fêtes commerciales : soldes, Black Friday, Noël, été, Pâques, fête des mères/pères…),
-          puis extraction de gagnants archivés dans « Produits gagnants ».
+          Analyse complète : fournisseurs, places de marché et social (tendances, algorithmes, années
+          précédentes, calendrier des fêtes commerciales — soldes, Black Friday, Noël, été, Pâques,
+          fête des mères/pères…), puis extraction de gagnants archivés dans « Produits gagnants »,
+          chacun avec le lien vers sa fiche chez le fournisseur.
         </p>
 
         <div className="mt-3 flex items-baseline justify-between">
