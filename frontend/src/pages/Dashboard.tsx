@@ -8,6 +8,7 @@ import { VoirPlus, useVoirPlus } from '../components/VoirPlus'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { BulkActions } from '../components/BulkActions'
 import { api, assetUrl, importSupplierList } from '../lib/api'
+import { CHROME_STORE_URL } from '../lib/extension'
 import type { PlatformInfo } from '../lib/platforms'
 import { PublishedBadges } from '../components/PublishedBadges'
 
@@ -368,10 +369,11 @@ export default function Dashboard() {
           <p className="text-gray-400 text-sm mt-1">Collez l'URL d'un produit — Temu, JoyBuy, ou n'importe quel site.</p>
         </div>
         <a
-          href={assetUrl('/api/public/extension.zip')}
-          download="dropship-pro-extension.zip"
+          href={CHROME_STORE_URL}
+          target="_blank"
+          rel="noreferrer noopener"
           className="inline-flex items-center gap-2 rounded-lg border border-purple-400/40 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 transition"
-          title="Remplit automatiquement les formulaires Vinted, Leboncoin et eBay"
+          title="Installer depuis le Chrome Web Store — remplit automatiquement les formulaires Vinted, Leboncoin et eBay"
         >
           <Puzzle size={16} className="text-purple-300" /> Extension Chrome
         </a>

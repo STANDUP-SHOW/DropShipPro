@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Puzzle, Download, Settings as SettingsIcon } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
+import { CHROME_STORE_URL } from '../lib/extension'
 import { useAuth } from '../lib/auth'
 
 /**
@@ -137,14 +138,20 @@ export default function Settings() {
               Marketplace et eBay — titre, description, prix et photos filigranées.
             </p>
             <a
-              href={assetUrl('/api/public/extension.zip')}
-              download="dropship-pro-extension.zip"
+              href={CHROME_STORE_URL}
+              target="_blank"
+              rel="noreferrer noopener"
               className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
             >
-              <Download size={15} /> Télécharger l'extension
+              <Puzzle size={15} /> Installer depuis le Chrome Web Store
             </a>
+            <p className="mt-2 text-[11px] text-gray-500">
+              Un clic, et Chrome la met à jour toute seule. Si vous aviez l'ancienne version « en mode
+              développeur », retirez-la depuis <code className="text-gray-400">chrome://extensions</code>{' '}
+              et gardez seulement celle du store.
+            </p>
             <details className="mt-3">
-              <summary className="text-xs text-purple-300 cursor-pointer">Comment l'installer ?</summary>
+              <summary className="text-xs text-purple-300 cursor-pointer">Installer manuellement (mode développeur)</summary>
               <ol className="text-xs text-gray-400 mt-2 space-y-1 list-decimal list-inside">
                 <li>Clic droit sur le .zip téléchargé › « Extraire tout… » › Extraire.</li>
                 <li>
@@ -159,6 +166,13 @@ export default function Settings() {
                 Windows en affiche le contenu comme un dossier, sans rien extraire. Refaites
                 « Extraire tout… », ou faites glisser le dossier directement sur chrome://extensions.
               </p>
+              <a
+                href={assetUrl('/api/public/extension.zip')}
+                download="dropship-pro-extension.zip"
+                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
+              >
+                <Download size={13} /> Télécharger l'archive (.zip)
+              </a>
             </details>
           </div>
         </div>

@@ -20,6 +20,7 @@ import {
 import { Layout } from '../components/Layout'
 import { PlatformBadge } from '../components/PlatformBadge'
 import { api, assetUrl, apiRoot } from '../lib/api'
+import { CHROME_STORE_URL } from '../lib/extension'
 import { PLATFORM_GUIDES } from '../lib/platformGuides'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 
@@ -241,36 +242,59 @@ export default function Guide() {
 
       <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-6">
         <Step n={1} title="Installer l'extension">
-          <p>Téléchargez le fichier .zip, puis :</p>
-          <ol className="list-inside list-decimal space-y-1 text-gray-400">
-            <li>
-              <b className="text-gray-200">Décompressez-le vraiment</b> : clic droit sur le .zip ›
-              « Extraire tout… » › Extraire
-            </li>
-            <li>
-              Ouvrez <code className="rounded bg-black/30 px-1.5 py-0.5 text-gray-200">chrome://extensions</code>
-            </li>
-            <li>Activez le « Mode développeur » en haut à droite</li>
-            <li>Cliquez « Charger l'extension non empaquetée » et choisissez le dossier extrait</li>
-            <li>Épinglez l'icône DropShipper IA dans votre barre d'outils</li>
-          </ol>
-          {/* The single most common failure on Windows: Explorer browses a .zip as
-              if it were a folder, so nothing is ever really extracted. */}
-          <p className="rounded-lg border border-orange-400/30 bg-orange-500/10 p-2.5 text-xs text-orange-200">
-            <b>Si Chrome répond qu'il ne trouve pas l'extension</b>, c'est que le dossier choisi est
-            encore l'intérieur du .zip : Windows en affiche le contenu comme un dossier normal, mais
-            rien n'y est réellement extrait. Refaites « Extraire tout… », et choisissez le dossier
-            qui contient directement le fichier <code className="rounded bg-black/30 px-1 py-0.5">manifest.json</code>.
-            Autre solution qui marche toujours : faites glisser ce dossier directement sur la page
-            chrome://extensions.
+          <p>
+            Elle est sur le <b className="text-gray-200">Chrome Web Store</b> : un clic pour l'ajouter,
+            et Chrome la met à jour tout seul. Épinglez ensuite l'icône DropShipper IA dans votre
+            barre d'outils.
           </p>
           <a
-            href={assetUrl('/api/public/extension.zip')}
-            download="dropshipper-ia-extension.zip"
+            href={CHROME_STORE_URL}
+            target="_blank"
+            rel="noreferrer noopener"
             className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-xl px-6 py-3 font-semibold"
           >
-            <Download size={18} /> Télécharger l'extension Chrome
+            <Puzzle size={18} /> Installer depuis le Chrome Web Store
           </a>
+          <p className="mt-2 text-xs text-gray-500">
+            Vous aviez déjà installé l'extension « en mode développeur » ? Ouvrez{' '}
+            <code className="rounded bg-black/30 px-1 py-0.5">chrome://extensions</code>, retirez
+            l'ancienne, et gardez seulement celle du store — c'est elle qui se met à jour seule.
+          </p>
+
+          {/* The single most common failure on Windows: Explorer browses a .zip as
+              if it were a folder, so nothing is ever really extracted. Kept as a
+              collapsed fallback for anyone who can't use the store. */}
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs text-purple-300">
+              Installer manuellement (mode développeur)
+            </summary>
+            <ol className="mt-2 list-inside list-decimal space-y-1 text-gray-400">
+              <li>
+                <b className="text-gray-200">Décompressez-le vraiment</b> : clic droit sur le .zip ›
+                « Extraire tout… » › Extraire
+              </li>
+              <li>
+                Ouvrez <code className="rounded bg-black/30 px-1.5 py-0.5 text-gray-200">chrome://extensions</code>
+              </li>
+              <li>Activez le « Mode développeur » en haut à droite</li>
+              <li>Cliquez « Charger l'extension non empaquetée » et choisissez le dossier extrait</li>
+            </ol>
+            <p className="mt-2 rounded-lg border border-orange-400/30 bg-orange-500/10 p-2.5 text-xs text-orange-200">
+              <b>Si Chrome répond qu'il ne trouve pas l'extension</b>, c'est que le dossier choisi est
+              encore l'intérieur du .zip : Windows en affiche le contenu comme un dossier normal, mais
+              rien n'y est réellement extrait. Refaites « Extraire tout… », et choisissez le dossier
+              qui contient directement le fichier <code className="rounded bg-black/30 px-1 py-0.5">manifest.json</code>.
+              Autre solution qui marche toujours : faites glisser ce dossier directement sur la page
+              chrome://extensions.
+            </p>
+            <a
+              href={assetUrl('/api/public/extension.zip')}
+              download="dropshipper-ia-extension.zip"
+              className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
+            >
+              <Download size={14} /> Télécharger l'archive (.zip)
+            </a>
+          </details>
         </Step>
 
         <Step n={2} title="Se connecter">

@@ -1,18 +1,7 @@
 import { Puzzle, Download, MousePointerClick, ListPlus, ClipboardCheck, ShieldAlert, Images, RefreshCw, Star } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { apiRoot } from '../lib/api'
-
-/**
- * Le lien de la fiche Chrome Web Store, une fois l'extension publiée en Public.
- *
- * Coller ici l'adresse de la fiche (ex.
- * `https://chromewebstore.google.com/detail/<slug>/<id>`). Tant qu'il est vide,
- * la page propose l'installation manuelle (mode développeur) comme avant — aucun
- * lien mort. Dès qu'il est renseigné, l'installation en un clic + le bouton
- * « Noter » passent en avant : l'installation depuis le store se met à jour
- * seule, et les avis sont le premier levier du référencement du store.
- */
-const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk'
+import { CHROME_STORE_URL } from '../lib/extension'
 
 /**
  * La page de l'extension Chrome — téléchargement et mode d'emploi complet.

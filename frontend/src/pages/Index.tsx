@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Zap, Globe, ShieldCheck, ArrowRight } from 'lucide-react'
 import { Logo } from '../components/Logo'
-import { api, isAuthed, assetUrl } from '../lib/api'
+import { api, isAuthed } from '../lib/api'
+import { CHROME_STORE_URL } from '../lib/extension'
 import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
 
 const FEATURES = [
@@ -75,10 +76,13 @@ export default function Index() {
           </Link>
 
           {/* Same visual weight as the primary action: the extension is the fullest
-              way to import, and it was previously buried in the settings page. */}
+              way to import. Depuis sa publication en Public, on envoie au Chrome Web
+              Store — un clic, mises à jour automatiques, et chaque install nourrit
+              le classement du store (référencement naturel). */}
           <a
-            href={assetUrl('/api/public/extension.zip')}
-            download="dropshipper-ia-extension.zip"
+            href={CHROME_STORE_URL}
+            target="_blank"
+            rel="noreferrer noopener"
             className="inline-flex items-center gap-2.5 rounded-xl border-2 border-white/20 bg-white/5 px-6 py-3 font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
           >
             <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true">
@@ -87,7 +91,7 @@ export default function Index() {
               <path d="M6.7 13.9 14.47 27.4A10 10 0 0 0 24 34c.7 0 1.37-.07 2.02-.2l-7.7 13.34A20 20 0 0 1 6.7 13.9Z" fill="#34a853" />
               <path d="M41.32 14A20 20 0 0 1 26.02 47.8L33.7 34.4A10 10 0 0 0 34 14Z" fill="#fbbc05" />
             </svg>
-            Télécharger l'extension Chrome
+            Installer sur le Chrome Web Store
           </a>
         </div>
 
