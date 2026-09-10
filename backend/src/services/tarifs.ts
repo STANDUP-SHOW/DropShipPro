@@ -32,6 +32,11 @@ export const DROPS = {
   conseilProduit: 40,
   /** Générer une image (photo en situation). ~0,033 €. */
   image: 18,
+  /**
+   * Contrôle photo d'Iris, par annonce contrôlée : vision Sonnet sur les photos
+   * importées sans œil humain (import en lot, AUTO-SHIPPER). ~0,02 € → 10.
+   */
+  controle: 10,
   /** Créer une publicité (accroche + visuel composé). ~0,035 €. */
   pub: 20,
   /** AUTO-MODE : un passage d'un rayon (analyse + 10 gagnants). ~0,14 €. */

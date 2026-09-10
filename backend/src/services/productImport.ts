@@ -5,6 +5,8 @@ import { enhanceListing, extractVariants, planifierReecriture, passthroughDe } f
 import { selectProductImages, PHOTOS_PAR_ANNONCE } from './imageSelect.js'
 import { reparerVariantes } from './variantRepair.js'
 import { reviewImages, applyVerdict } from './controlAgent.js'
+import { reserveCredits } from './billing.js'
+import { DROPS } from './tarifs.js'
 import { resoudreCategorie } from './categories.js'
 import { rapatrierImages } from './watermark.js'
 import { supplierFields } from './suppliers.js'
@@ -184,11 +186,21 @@ export async function importerAdresse(
 
   const annoncees = fusionnerVariantes(options.releve?.variantes, luesParLeModele)
 
-  // L'agent de contrôle voit ce que les heuristiques ne peuvent pas voir : une
-  // bannière au bon format, sur le bon serveur, passe tous les filtres.
-  const verdict = user.controlAgent
-    ? await reviewImages({ images: chosen, title: enhanced.title, variants: annoncees })
-    : null
+  // L'agent de contrôle (Iris) voit ce que les heuristiques ne peuvent pas voir :
+  // une bannière au bon format, sur le bon serveur, passe tous les filtres. Il est
+  // facturé PAR ANNONCE CONTRÔLÉE, en drops (add-on distinct du crédit d'import,
+  // que l'appelant gère) : c'est un appel vision qui a un coût réel. Sur un import
+  // sans œil humain (lot, AUTO-SHIPPER), c'est lui qui garantit les photos. Solde
+  // insuffisant : on saute le contrôle plutôt que de bloquer l'import.
+  let verdict: Awaited<ReturnType<typeof reviewImages>> | null = null
+  if (user.controlAgent) {
+    const payeControle = await reserveCredits(userId, DROPS.controle, 'Contrôle photo (Iris)')
+    if (payeControle.ok) {
+      verdict = await reviewImages({ images: chosen, title: enhanced.title, variants: annoncees })
+    } else {
+      notes.push('Contrôle photo non effectué : drops insuffisants.')
+    }
+  }
 
   const retenues = verdict?.checked ? verdict.keep : chosen
   if (verdict?.checked && verdict.keep.length < chosen.length) {

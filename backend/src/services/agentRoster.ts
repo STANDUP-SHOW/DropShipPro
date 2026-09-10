@@ -137,7 +137,7 @@ export const PIPELINE_AGENTS: AgentProfile[] = [
     emoji: '👁️',
     access: 'demande',
     autoDefault: false,
-    does: "Regarde les photos avant la mise en ligne et écarte ce qui n'est pas le produit. Garde toutes les vraies photos, relève les couleurs réellement visibles, écarte les tailles incohérentes.",
+    does: "En mode automatique, elle contrôle les photos que l'extension téléverse quand vous ne pouvez pas les vérifier vous-même — l'import en lot et l'AUTO-SHIPPER, où les annonces entrent sans œil humain. Elle s'assure que les photos importées sont les bonnes : elle écarte ce qui n'est pas le produit (bannières, recommandations, panier), garde les vraies, et si une annonce se retrouve sans photo correcte, elle propose d'en régénérer via l'agent graphiste. Active, elle coûte 10 drops par annonce contrôlée.",
     where: 'Réglages → Agent de contrôle',
     href: '/settings',
   },

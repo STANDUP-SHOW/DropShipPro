@@ -39,6 +39,7 @@ const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'reecriture', label: 'Réécrire une annonce', detail: 'Reprendre titre, description, attributs' },
   { cle: 'analyse', label: 'Analyse de marché (par produit)', detail: 'Recherche web + prix constatés' },
   { cle: 'image', label: 'Générer une image', detail: 'Une mise en situation du produit' },
+  { cle: 'controle', label: 'Contrôle photo (par annonce)', detail: 'Iris vérifie les photos d’un import sans œil humain (lot, AUTO-SHIPPER)' },
   { cle: 'pub', label: 'Créer une publicité', detail: 'Accroche rédigée + visuel composé' },
   { cle: 'questionComptoir', label: 'Question à un agent de comptoir', detail: 'Hotline, SAV, commercial…' },
   { cle: 'questionChef', label: 'Question à un chef de rayon', detail: 'Avocat, comptable, chef de secteur…' },
