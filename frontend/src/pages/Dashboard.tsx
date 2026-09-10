@@ -7,6 +7,7 @@ import { AgentBar } from '../components/AgentBar'
 import { VoirPlus, useVoirPlus } from '../components/VoirPlus'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { BulkActions } from '../components/BulkActions'
+import { BlocSection } from '../components/stats/BlocSection'
 import { api, assetUrl, importSupplierList } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
 import type { PlatformInfo } from '../lib/platforms'
@@ -362,6 +363,11 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Le bloc statistique « Acquisition de produits », en tête de Mes annonces
+          — c'est ici qu'on acquiert. Il reste aussi sur « Comment acquérir » ;
+          même adresse, même calcul, jamais deux chiffres différents. */}
+      <BlocSection id="acquisition" />
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
