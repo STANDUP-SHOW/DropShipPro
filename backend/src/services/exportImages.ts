@@ -40,7 +40,7 @@ export function reglagesFiligrane(user: User, shop?: Shop | null): WatermarkOpti
   const logo = shop?.logo || user.watermarkImage
 
   return {
-    text: shop?.watermarkText || user.watermarkText || shop?.name || user.shopName || 'DropShip Pro',
+    text: shop?.watermarkText || user.watermarkText || shop?.name || user.shopName || 'DropShipper IA',
     // En mode texte, aucun logo n'est transmis : le composeur pose le logo des
     // qu'il en recoit un.
     imagePath: mode === 'logo' ? logo : null,

@@ -145,7 +145,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 })
 
 const port = Number(process.env.PORT) || 4000
-app.listen(port, () => console.log(`DropShip Pro API sur http://localhost:${port}`))
+app.listen(port, () => console.log(`DropShipper IA API sur http://localhost:${port}`))
 
 /*
  * Le referentiel de categories est seme au demarrage.

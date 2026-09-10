@@ -305,7 +305,7 @@ export class ScrapeBlockedError extends Error {
     super(
       `${site} ne livre ni prix ni photos à un import par URL : la fiche produit est construite ` +
         `en JavaScript après l'affichage. Ouvrez la page du produit dans Chrome et cliquez sur ` +
-        `« + Ajouter à DropShip Pro » — l'extension lit la page déjà affichée, avec le prix, les ` +
+        `« + Ajouter à DropShipper IA » — l'extension lit la page déjà affichée, avec le prix, les ` +
         `photos et les variantes.`,
     )
     this.name = 'ScrapeBlockedError'

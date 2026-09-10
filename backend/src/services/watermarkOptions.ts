@@ -10,7 +10,7 @@ import type { WatermarkOptions, WatermarkPosition } from './watermark.js'
  */
 export function watermarkOptionsFor(user: User): WatermarkOptions {
   return {
-    text: user.watermarkText || user.shopName || 'DropShip Pro',
+    text: user.watermarkText || user.shopName || 'DropShipper IA',
     // Le choix du vendeur, et non « le logo s'il existe » : voir
     // reglagesFiligrane, meme regle des deux cotes sous peine d'avoir deux
     // filigranes differents selon le chemin d'import.

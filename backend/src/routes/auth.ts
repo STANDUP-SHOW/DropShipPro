@@ -62,12 +62,18 @@ async function sendVerificationEmail(userId: string, email: string) {
   const token = await issueToken(userId, 'EMAIL_VERIFICATION')
   await sendMail({
     to: email,
-    subject: 'Confirmez votre adresse email',
-    heading: 'Bienvenue sur DropShip Pro',
-    body: "Confirmez votre adresse pour sécuriser votre compte et pouvoir réinitialiser votre mot de passe en cas d'oubli.",
+    subject: 'Bienvenue sur DropShipper IA — confirmez votre adresse',
+    heading: 'Bienvenue sur DropShipper IA',
+    body:
+      '<p style="margin:0">Avec <b>DropShipper IA</b>, vous allez prendre part à la plus grande révolution du dropshipping depuis son apogée.</p>' +
+      '<p style="margin:14px 0 0">Il ne reste qu\'une étape : confirmez votre adresse pour activer votre compte et débloquer toutes vos fonctionnalités.</p>',
+    highlight:
+      "Et si l'IA pouvait <b>dénicher les niches</b>, <b>les mettre en vente</b> pour vous, et que vous n'ayez plus qu'à <b>encaisser vos bénéfices</b> ? C'est exactement ce que DropShipper IA fait pour vous.",
     actionLabel: 'Confirmer mon adresse',
     actionUrl: `${appUrl()}/verify-email?token=${token}`,
-    footer: 'Ce lien est valable 24 heures.',
+    newsletter: true,
+    footer:
+      "Ce lien est valable 24 heures. Si vous n'êtes pas à l'origine de cette inscription, ignorez simplement cet email.",
   })
 }
 
@@ -218,7 +224,7 @@ authRouter.post('/password/forgot', rateLimit({ name: 'forgot', windowMs: 3600_0
       to: user.email,
       subject: 'Réinitialisation de votre mot de passe',
       heading: 'Réinitialisez votre mot de passe',
-      body: "Vous avez demandé un nouveau mot de passe pour votre compte DropShip Pro. Ce lien ne fonctionne qu'une seule fois.",
+      body: "Vous avez demandé un nouveau mot de passe pour votre compte DropShipper IA. Ce lien ne fonctionne qu'une seule fois.",
       actionLabel: 'Choisir un nouveau mot de passe',
       actionUrl: `${appUrl()}/reset-password?token=${token}`,
       footer: "Ce lien expire dans 1 heure. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot de passe reste inchangé.",
