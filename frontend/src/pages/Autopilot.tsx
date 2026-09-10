@@ -290,10 +290,14 @@ export default function Autopilot() {
             Je suis capable de gérer pour toi intégralement mon système.
           </p>
           <ul className="mt-4 flex flex-col items-start gap-1.5">
-            {SYSTEME.map((ligne) => (
+            {/* La première action, avant les huit métiers : tout part de là. */}
+            {[
+              { label: "récupération de l'analyse de marché et des produits gagnants sélectionnés", couleur: '#facc15' },
+              ...SYSTEME,
+            ].map((ligne) => (
               <li key={ligne.label} className="flex items-center gap-2.5 text-sm text-gray-200">
                 <span
-                  className="h-3 w-3 shrink-0 rounded-full"
+                  className="mt-0.5 h-3 w-3 shrink-0 self-start rounded-full"
                   style={{ background: ligne.couleur, boxShadow: `0 0 6px ${ligne.couleur}` }}
                 />
                 <span>{ligne.label}</span>
@@ -329,6 +333,109 @@ export default function Autopilot() {
           </ul>
         </section>
       </div>
+
+      {/* ---------- Activer Auto-Shipper : le bouton, et le tarif qui s'adapte ---------- */}
+      {(() => {
+        const rayonsAuto = enPoste.filter((r) => r.autoMode).length
+        const nR = Math.max(rayonsAuto, 1) // 1 rayon en exemple quand rien n'est en auto-mode
+        const produits = s.produitsParRayon
+        // Le coût réel : l'analyse (75) est facturée PAR RAYON (chef en auto-mode),
+        // et chaque produit importé coûte 14. Total end-to-end d'un passage de 12 h.
+        const analyse = 75 * nR
+        const imports = 14 * produits * nR
+        const total = analyse + imports
+        const eur = (d: number) => (d * 0.01).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        const arcEnCiel = 'linear-gradient(90deg,#eab308,#84cc16,#22c55e,#06b6d4,#3b82f6,#8b5cf6,#ec4899,#ef4444)'
+        return (
+          <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold">Activer Auto-Shipper</h2>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  75 drops / passage / rayon / 12 h · 14 drops / produit ·{' '}
+                  <a href="#infos" className="text-yellow-300 underline underline-offset-2">
+                    * infos
+                  </a>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...s, enabled: !s.enabled }
+                  update({ enabled: !s.enabled })
+                  save(next)
+                }}
+                className="rounded-xl bg-gradient-to-r from-sky-500 via-cyan-400 to-yellow-300 px-6 py-3 text-base font-black text-black shadow-[0_0_20px_rgba(56,189,248,0.35)] transition hover:brightness-110"
+              >
+                {s.enabled ? 'Auto-Shipper activé ✓' : 'Activer Auto-Shipper'}
+              </button>
+            </div>
+
+            {/* Le curseur multicolore : combien de produits gagnants par rayon (1-10). */}
+            <div className="mt-5">
+              <div className="flex items-baseline justify-between">
+                <label className="text-sm font-semibold">Produits gagnants repris par rayon sélectionné</label>
+                <span className="text-2xl font-black text-amber-400">{produits}</span>
+              </div>
+              <div className="relative mt-2">
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full"
+                  style={{ background: arcEnCiel }}
+                />
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={produits}
+                  onChange={(e) => update({ produitsParRayon: Number(e.target.value) })}
+                  onMouseUp={() => save()}
+                  onTouchEnd={() => save()}
+                  className="relative h-6 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+                />
+              </div>
+              <div className="mt-1 flex justify-between px-0.5 text-[10px] text-gray-500">
+                {Array.from({ length: 10 }, (_, i) => (
+                  <span key={i}>{i + 1}</span>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
+                <b>14 drops par produit</b> — comprend la rédaction de l'annonce optimisée, le scraping
+                des photos, l'ajustement du prix de vente au marché (marge respectée) et la sélection
+                géographique.
+              </p>
+            </div>
+
+            {/* Le tarif qui s'adapte au réglage. */}
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/25 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Coût d'un passage {rayonsAuto > 0 ? `— ${rayonsAuto} rayon(s) en auto-mode` : '(exemple : 1 rayon)'}, toutes les 12 h
+              </p>
+              <div className="mt-2 space-y-1 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-300">Analyse de marché + gagnants — 75 × {nR} rayon(s)</span>
+                  <span className="shrink-0 font-semibold text-amber-200">{analyse} drops</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-300">Imports — 14 × {produits} produit(s) × {nR} rayon(s)</span>
+                  <span className="shrink-0 font-semibold text-amber-200">{imports} drops</span>
+                </div>
+                <div className="flex justify-between gap-3 border-t border-white/10 pt-1.5 text-base font-black">
+                  <span>Total par passage</span>
+                  <span className="shrink-0 text-yellow-300">
+                    {total} drops <span className="text-xs font-semibold text-gray-400">≈ {eur(total)} €</span>
+                  </span>
+                </div>
+              </div>
+              {rayonsAuto === 0 ? (
+                <p className="mt-2 text-[11px] text-gray-500">
+                  Activez au moins un rayon en auto-mode (ci-dessous) pour un passage réel.
+                </p>
+              ) : null}
+            </div>
+          </section>
+        )
+      })()}
 
       {/* 2. Les acquisitions : au moins un chef de rayon. */}
       <section className="mt-10">
@@ -619,7 +726,7 @@ export default function Autopilot() {
         (règle du 05/09/2026) : ce que fait un chef en mode auto, ce que fait
         Auto-Shipper, les limites et le tarif de cette version.
       */}
-      <div className="mt-8 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-5">
+      <div id="infos" className="mt-8 scroll-mt-6 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-5">
         <h2 className="font-bold text-yellow-200">Infos</h2>
 
         <div className="mt-3 grid gap-5 sm:grid-cols-2">

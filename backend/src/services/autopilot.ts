@@ -93,11 +93,24 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
     take: 200,
   })
 
+  // Plafond PAR RAYON : chaque chef génère dix gagnants ; le vendeur choisit
+  // combien Auto-Shipper en reprend par rayon (les plus récents d'abord), avant
+  // les autres filtres (marge, stock, plafond du jour).
+  const parRayon = settings.produitsParRayon ?? 10
+  const prisParRayon = new Map<string, number>()
+  const retenus = candidates.filter((o) => {
+    const cle = o.departmentId ?? 'sans-rayon'
+    const deja = prisParRayon.get(cle) ?? 0
+    if (deja >= parRayon) return false
+    prisParRayon.set(cle, deja + 1)
+    return true
+  })
+
   const destinations = (Array.isArray(settings.destinations) ? settings.destinations : [])
     .filter((d: unknown): d is string => typeof d === 'string')
     .filter((d: string) => AUTO_PLATFORMS.includes(d as Platform)) as Platform[]
 
-  for (const o of candidates) {
+  for (const o of retenus) {
     if (result.imported >= budget) {
       log.push({ titre: o.title, action: 'écarté', raison: 'Plafond quotidien atteint' })
       result.skipped++

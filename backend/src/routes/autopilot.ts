@@ -18,6 +18,7 @@ autopilotRouter.use(requireAuth)
 const DEFAULTS = {
   enabled: false,
   dailyLimit: 5,
+  produitsParRayon: 10,
   autoPublish: false,
   destinations: ['OWN_SITE'],
   minMargin: 50,
@@ -32,6 +33,7 @@ autopilotRouter.get('/', async (req: AuthedRequest, res) => {
       ? {
           enabled: settings.enabled,
           dailyLimit: settings.dailyLimit,
+          produitsParRayon: settings.produitsParRayon,
           autoPublish: settings.autoPublish,
           destinations: Array.isArray(settings.destinations) ? settings.destinations : [],
           minMargin: settings.minMargin,
@@ -51,6 +53,7 @@ autopilotRouter.get('/', async (req: AuthedRequest, res) => {
 const settingsSchema = z.object({
   enabled: z.boolean(),
   dailyLimit: z.number().int().min(1).max(50),
+  produitsParRayon: z.number().int().min(1).max(10),
   autoPublish: z.boolean(),
   destinations: z.array(z.string()).max(10),
   minMargin: z.number().int().min(0).max(1000),

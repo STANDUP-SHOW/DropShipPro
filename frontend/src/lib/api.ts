@@ -1051,6 +1051,8 @@ export const api = {
       settings: {
         enabled: boolean
         dailyLimit: number
+        /** Produits gagnants repris par rayon et par passage (1-10). */
+        produitsParRayon: number
         autoPublish: boolean
         destinations: string[]
         minMargin: number
@@ -1061,6 +1063,7 @@ export const api = {
   saveAutopilot: (settings: {
     enabled: boolean
     dailyLimit: number
+    produitsParRayon: number
     autoPublish: boolean
     destinations: string[]
     minMargin: number
