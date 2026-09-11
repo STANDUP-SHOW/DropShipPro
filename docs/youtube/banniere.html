@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Bannière YouTube — DropShipper IA</title>
+<!--
+  Bannière de chaîne YouTube, 2560 × 1440.
+
+  YouTube recadre selon l'écran : la télévision voit tout, l'ordinateur voit une
+  bande de 2560 × 423 au centre, la tablette 1855 × 423, le téléphone 1546 × 423.
+  Tout ce qui compte (nom, cerveau, accroche) tient donc dans la « zone sûre »
+  de 1546 × 423 centrée ; les pastilles s'étalent dans la bande d'ordinateur ;
+  le reste du canevas n'est que décor pour la télévision.
+
+  Ouvrir avec « ?guides » pour voir les zones de recadrage superposées, avec
+  « ?vue=ordinateur » ou « ?vue=telephone » pour voir la bande telle que YouTube
+  la recadre. Rendu en PNG par `node docs/youtube/rendre.cjs`.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;900&display=swap">
+<style>
+  :root {
+    --noir: #08070f;
+    --rose-neon: #ff3ea5;
+    --rose: #f472b6;
+    --fuchsia: #c026d3;
+    --violet: #a855f7;
+  }
+  html, body { margin: 0; width: 2560px; height: 1440px; overflow: hidden; background: var(--noir); }
+  body { font-family: Outfit, system-ui, "Segoe UI", sans-serif; color: #fff; }
+
+  .scene {
+    position: relative; width: 2560px; height: 1440px; overflow: hidden;
+    background:
+      radial-gradient(760px 520px at 50% 50%, rgba(192, 38, 211, .28), transparent 70%),
+      radial-gradient(1500px 1000px at 50% 50%, rgba(76, 29, 149, .32), transparent 72%),
+      var(--noir);
+  }
+  /* Trame de points, fondue vers les bords : matière pour la télévision. */
+  .grille {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, .09) 1.6px, transparent 1.7px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(1500px 1000px at 50% 50%, #000 25%, transparent 78%);
+            mask-image: radial-gradient(1500px 1000px at 50% 50%, #000 25%, transparent 78%);
+  }
+  .liens { position: absolute; inset: 0; width: 2560px; height: 1440px; }
+
+  /* Les pastilles : disque blanc, liseré et halo à la couleur de leur lien. */
+  .pastille {
+    position: absolute; transform: translate(-50%, -50%);
+    border-radius: 50%; background: #fff; display: grid; place-items: center;
+    box-shadow: 0 0 0 3px var(--c), 0 0 26px var(--c), 0 0 70px color-mix(in srgb, var(--c) 40%, transparent);
+  }
+  .pastille img { width: 78%; height: 78%; object-fit: contain; }
+  .pastille.carre img { width: 70%; height: 70%; border-radius: 18%; }
+
+  /* Les aperçus recadrés : la scène glisse pour que la fenêtre montre la bande. */
+  body.vue-ordinateur .scene { transform: translateY(-508px); }
+  body.vue-telephone .scene { transform: translate(-507px, -508px); }
+
+  /* La marque : cube + nom en dégradé rose, avec sa lueur en double flouté. */
+  .marque {
+    position: absolute; left: 50%; top: 538px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 20px; white-space: nowrap;
+  }
+  .marque svg { width: 62px; height: 62px; filter: drop-shadow(0 0 16px rgba(192, 38, 211, .6)); }
+  .nom { position: relative; font-weight: 900; font-size: 62px; line-height: 1; letter-spacing: -0.01em; }
+  .nom span {
+    background: linear-gradient(120deg, #f472b6 5%, #c026d3 55%, #a855f7 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .nom .lueur { position: absolute; inset: 0; filter: blur(22px); opacity: .55; }
+
+  .accroche {
+    position: absolute; left: 50%; top: 868px; transform: translateX(-50%);
+    font-size: 28px; font-weight: 500; letter-spacing: .01em; color: #ece9f7; white-space: nowrap;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, .6);
+  }
+  .accroche b { color: var(--rose-neon); font-weight: 700; text-shadow: 0 0 14px rgba(255, 62, 165, .65); }
+  .accroche .sep { margin: 0 16px; opacity: .45; }
+
+  /* Les guides de recadrage (uniquement avec ?guides). */
+  .guides { display: none; position: absolute; inset: 0; pointer-events: none; }
+  .guides.on { display: block; }
+  .guide { position: absolute; border: 3px dashed; box-sizing: border-box; }
+  .guide span {
+    position: absolute; left: 0; top: -34px; padding: 4px 10px; font-size: 22px; font-weight: 700;
+    background: #000; border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="grille"></div>
+
+  <svg class="liens" id="liens" viewBox="0 0 2560 1440" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="neon" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+      <filter id="neon-doux" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+      <filter id="aura" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>
+      <linearGradient id="trait-cerveau" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f472b6"/><stop offset=".55" stop-color="#e040c8"/><stop offset="1" stop-color="#a855f7"/>
+      </linearGradient>
+      <radialGradient id="chair-cerveau" cx="50%" cy="50%" r="60%">
+        <stop offset="0" stop-color="#ff3ea5" stop-opacity=".55"/>
+        <stop offset=".6" stop-color="#c026d3" stop-opacity=".28"/>
+        <stop offset="1" stop-color="#6d28d9" stop-opacity=".12"/>
+      </radialGradient>
+      <linearGradient id="cube-fond" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Décor hors bande (visible à la télévision seulement) : traces de circuit. -->
+    <g id="circuit" fill="none" stroke="rgba(236,72,153,.16)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></g>
+
+    <!-- Les liens, générés en bas de page. -->
+    <g id="halos"></g>
+    <g id="traits"></g>
+    <g id="paquets"></g>
+
+    <!-- Les anneaux de traitement, autour du cerveau. -->
+    <g id="anneaux" fill="none"></g>
+
+    <!-- Le cerveau IA, au centre : 300 × 250 posé sur le canevas. -->
+    <svg id="cerveau" x="1130" y="606" width="300" height="250" viewBox="0 0 240 200" overflow="visible">
+      <g id="silhouette">
+        <path id="contour" d="M30 100C12 88 16 60 40 54C40 32 66 18 90 30C100 12 132 10 146 28C168 16 202 28 202 56C226 60 232 92 214 108C228 128 212 154 186 150C182 170 154 180 138 166C128 178 104 178 94 164C72 174 46 160 46 140C24 136 14 112 30 100Z"/>
+      </g>
+      <!-- Aura : la silhouette floutée, derrière tout. -->
+      <use href="#contour" fill="#ff3ea5" opacity=".55" filter="url(#aura)"/>
+      <use href="#contour" fill="url(#chair-cerveau)"/>
+      <!-- Réseau de neurones, sous la chair. -->
+      <g id="reseau" stroke="rgba(255,255,255,.55)" stroke-width="1.2"></g>
+      <g id="neurones"></g>
+      <!-- Circonvolutions et scissure. -->
+      <g fill="none" stroke="url(#trait-cerveau)" stroke-width="2.6" stroke-linecap="round" opacity=".9">
+        <path d="M118 22C108 60 128 100 116 168"/>
+        <path d="M48 70C66 62 64 88 84 84"/>
+        <path d="M52 118C72 108 74 136 96 130"/>
+        <path d="M78 44C92 50 88 66 104 68"/>
+        <path d="M70 150C84 142 96 152 108 146"/>
+        <path d="M136 44C152 40 156 62 176 58"/>
+        <path d="M140 92C160 84 166 108 190 100"/>
+        <path d="M142 132C160 124 168 148 186 138"/>
+        <path d="M148 171C150 183 158 190 170 194" opacity=".7"/>
+      </g>
+      <!-- Le contour, en néon : halo flouté puis trait net. -->
+      <use href="#contour" fill="none" stroke="#ff3ea5" stroke-width="9" opacity=".7" filter="url(#neon-doux)"/>
+      <use href="#contour" fill="none" stroke="url(#trait-cerveau)" stroke-width="4.2" stroke-linejoin="round"/>
+      <!-- Le cube de la marque, au cœur. -->
+      <g transform="translate(97 78)">
+        <rect width="46" height="46" rx="12" fill="url(#cube-fond)" filter="url(#neon-doux)" opacity=".9"/>
+        <rect width="46" height="46" rx="12" fill="url(#cube-fond)"/>
+        <path transform="scale(.36) translate(0 0)" d="M64 24L104 46L104 84L64 106L24 84L24 46ZM24 46L64 66L104 46M64 66L64 106" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </svg>
+
+  <!-- Pastilles sources (gauche) et destinations (droite) : posées par le script. -->
+  <div id="pastilles"></div>
+
+  <div class="marque">
+    <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="cube-marque" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs>
+      <rect width="128" height="128" rx="33" fill="url(#cube-marque)"/>
+      <path d="M64 24L104 46L104 84L64 106L24 84L24 46ZM24 46L64 66L104 46M64 66L64 106" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div class="nom"><span class="lueur">DropShipper IA</span><span>DropShipper IA</span></div>
+  </div>
+
+  <div class="accroche">Du fournisseur à la marketplace, l'IA fait le reste<span class="sep">·</span><b>drop-shipper.fr</b></div>
+
+  <div class="guides" id="guides">
+    <div class="guide" style="left:0;top:0;width:2560px;height:1440px;border-color:#6b7280"><span style="color:#9ca3af;top:8px;left:8px">Télévision 2560 × 1440</span></div>
+    <div class="guide" style="left:0;top:508px;width:2560px;height:423px;border-color:#38bdf8"><span style="color:#38bdf8;left:8px">Ordinateur 2560 × 423</span></div>
+    <div class="guide" style="left:352px;top:508px;width:1855px;height:423px;border-color:#facc15"><span style="color:#facc15">Tablette 1855 × 423</span></div>
+    <div class="guide" style="left:507px;top:508px;width:1546px;height:423px;border-color:#4ade80"><span style="color:#4ade80;top:auto;bottom:-34px">Téléphone / zone sûre 1546 × 423</span></div>
+  </div>
+</div>
+
+<script>
+  const LOGOS = '../../frontend/public/logos/'
+  const ROSE = '#ff3ea5'
+
+  // Sources, à gauche : une couleur néon par flux. Les logos du paquet du site.
+  const SOURCES = [
+    { x: 470, y: 640, d: 142, logo: 'temu_logo-svg.png', c: '#fb923c', carre: true },
+    { x: 662, y: 640, d: 142, logo: 'shein-logo.png',    c: '#22d3ee' },
+    { x: 470, y: 808, d: 142, logo: 'etsy.png',          c: '#facc15' },
+    { x: 662, y: 808, d: 142, logo: 'joom-logo-new.png', c: '#a3e635' },
+  ]
+  // Destinations, à droite : tout en rose néon, la couleur de la marque.
+  const DESTINATIONS = [
+    { x: 1832, y: 640, d: 140, logo: 'amazon.png' },
+    { x: 2004, y: 640, d: 140, logo: 'tiktokshop_logo.png' },
+    { x: 2176, y: 640, d: 140, logo: 'ebay.png' },
+    { x: 1832, y: 808, d: 140, logo: 'cdiscount-new-logo.png' },
+    { x: 2004, y: 808, d: 140, logo: 'rakuten.png' },
+    { x: 2176, y: 808, d: 140, logo: 'zalando.png' },
+  ].map((p) => ({ ...p, c: ROSE }))
+
+  // Où les flux touchent le cerveau : sur son contour, pas sur sa boîte.
+  const ENTREES = [[1158, 690], [1150, 716], [1150, 746], [1160, 774]]
+  const SORTIES = [[1384, 668], [1406, 700], [1418, 728], [1416, 756], [1398, 786], [1370, 812]]
+
+  const NS = 'http://www.w3.org/2000/svg'
+  const el = (tag, attrs) => {
+    const n = document.createElementNS(NS, tag)
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v)
+    return n
+  }
+  const halos = document.getElementById('halos')
+  const traits = document.getElementById('traits')
+  const paquets = document.getElementById('paquets')
+
+  const courbe = ([x0, y0], [x1, y1]) => {
+    const dx = (x1 - x0) * 0.55
+    return `M${x0} ${y0}C${x0 + dx} ${y0} ${x1 - dx} ${y1} ${x1} ${y1}`
+  }
+
+  function lien(depart, arrivee, couleur, graine) {
+    const d = courbe(depart, arrivee)
+    halos.append(el('path', { d, fill: 'none', stroke: couleur, 'stroke-width': 14, opacity: .55, filter: 'url(#neon)', 'stroke-linecap': 'round' }))
+    traits.append(el('path', { d, fill: 'none', stroke: couleur, 'stroke-width': 4.5, 'stroke-linecap': 'round' }))
+    const coeur = el('path', { d, fill: 'none', stroke: '#fff', 'stroke-width': 1.4, opacity: .75, 'stroke-linecap': 'round' })
+    traits.append(coeur)
+    // Les paquets de données qui circulent, figés à des positions décalées par lien.
+    const L = coeur.getTotalLength()
+    for (const t of [0.22, 0.5, 0.78]) {
+      const p = coeur.getPointAtLength(((t + graine * 0.07) % 1) * L)
+      paquets.append(el('circle', { cx: p.x, cy: p.y, r: 13, fill: couleur, opacity: .5, filter: 'url(#neon-doux)' }))
+      paquets.append(el('circle', { cx: p.x, cy: p.y, r: 6, fill: '#fff' }))
+    }
+    // La pointe, à l'arrivée.
+    const fin = coeur.getPointAtLength(L)
+    const avant = coeur.getPointAtLength(L - 12)
+    const a = Math.atan2(fin.y - avant.y, fin.x - avant.x) * 180 / Math.PI
+    paquets.append(el('path', { d: 'M-16 -9L4 0L-16 9Z', fill: couleur, transform: `translate(${fin.x} ${fin.y}) rotate(${a})`, filter: 'url(#neon-doux)' }))
+    paquets.append(el('path', { d: 'M-16 -9L4 0L-16 9Z', fill: couleur, transform: `translate(${fin.x} ${fin.y}) rotate(${a})` }))
+  }
+
+  SOURCES.forEach((p, i) => lien([p.x + p.d / 2 - 4, p.y], ENTREES[i], p.c, i))
+  DESTINATIONS.forEach((p, i) => lien(SORTIES[i], [p.x - p.d / 2 + 4, p.y], p.c, i + 4))
+
+  // Les pastilles.
+  const conteneur = document.getElementById('pastilles')
+  for (const p of [...SOURCES, ...DESTINATIONS]) {
+    const div = document.createElement('div')
+    div.className = 'pastille' + (p.carre ? ' carre' : '')
+    div.style.cssText = `left:${p.x}px;top:${p.y}px;width:${p.d}px;height:${p.d}px;--c:${p.c}`
+    const img = document.createElement('img')
+    img.src = LOGOS + p.logo
+    img.alt = ''
+    div.append(img)
+    conteneur.append(div)
+  }
+
+  // Les neurones du cerveau (repère 240 × 200 du cerveau).
+  const NEURONES = [[60, 80], [84, 58], [100, 112], [72, 132], [94, 152], [52, 108], [140, 66], [172, 80], [152, 118], [192, 118], [168, 150], [130, 152], [118, 56], [206, 92], [40, 90], [120, 178]]
+  const ARETES = [[0, 1], [0, 5], [1, 12], [2, 3], [2, 5], [3, 4], [4, 11], [6, 12], [6, 7], [7, 13], [7, 8], [8, 9], [9, 10], [10, 11], [8, 11], [14, 0], [14, 5], [12, 2], [6, 8], [15, 11], [15, 4]]
+  const reseau = document.getElementById('reseau')
+  const neurones = document.getElementById('neurones')
+  for (const [a, b] of ARETES) {
+    reseau.append(el('line', { x1: NEURONES[a][0], y1: NEURONES[a][1], x2: NEURONES[b][0], y2: NEURONES[b][1] }))
+  }
+  NEURONES.forEach(([x, y], i) => {
+    neurones.append(el('circle', { cx: x, cy: y, r: 5, fill: ROSE, opacity: .8, filter: 'url(#neon-doux)' }))
+    neurones.append(el('circle', { cx: x, cy: y, r: i % 3 === 0 ? 3.2 : 2.4, fill: '#fff' }))
+  })
+
+  // Les anneaux de traitement autour du cerveau (repère de la page).
+  const anneaux = document.getElementById('anneaux')
+  const cx = 1280, cy = 731
+  ;[[190, .55, '10 14', 3], [222, .35, '3 22', 2.5], [258, .22, '40 30', 2]].forEach(([r, o, dash, w], i) => {
+    anneaux.append(el('circle', { cx, cy, r, stroke: ROSE, 'stroke-width': w, 'stroke-dasharray': dash, opacity: o, transform: `rotate(${i * 37} ${cx} ${cy})` }))
+  })
+  ;[[190, 20], [190, 200], [222, 110], [222, 290], [258, 60], [258, 250]].forEach(([r, deg]) => {
+    const x = cx + r * Math.cos(deg * Math.PI / 180), y = cy + r * Math.sin(deg * Math.PI / 180)
+    anneaux.append(el('circle', { cx: x, cy: y, r: 10, fill: ROSE, opacity: .5, filter: 'url(#neon-doux)' }))
+    anneaux.append(el('circle', { cx: x, cy: y, r: 4, fill: '#fff' }))
+  })
+
+  // Traces de circuit dans les zones que seule la télévision montre.
+  const circuit = document.getElementById('circuit')
+  const TRACES = [
+    'M120 120H520L600 200H900L960 260H1180', 'M2440 120H2040L1960 200H1660L1600 260H1380',
+    'M120 1320H560L640 1240H920L980 1180H1180', 'M2440 1320H2000L1920 1240H1640L1580 1180H1380',
+    'M260 300V420', 'M2300 300V420', 'M260 1140V1020', 'M2300 1140V1020',
+    'M1280 60V300', 'M1280 1380V1140', 'M760 80V160H1040', 'M1800 80V160H1520', 'M760 1360V1280H1040', 'M1800 1360V1280H1520',
+  ]
+  for (const d of TRACES) circuit.append(el('path', { d }))
+  ;[[120, 120], [2440, 120], [120, 1320], [2440, 1320], [1180, 260], [1380, 260], [1180, 1180], [1380, 1180], [1280, 60], [1280, 1380], [260, 420], [2300, 420], [260, 1020], [2300, 1020], [1040, 160], [1520, 160], [1040, 1280], [1520, 1280]]
+    .forEach(([x, y]) => circuit.append(el('circle', { cx: x, cy: y, r: 6, fill: 'rgba(236,72,153,.35)', stroke: 'none' })))
+
+  const params = new URLSearchParams(location.search)
+  if (params.has('guides')) document.getElementById('guides').classList.add('on')
+  if (params.get('vue')) document.body.classList.add('vue-' + params.get('vue'))
+</script>
+</body>
+</html>

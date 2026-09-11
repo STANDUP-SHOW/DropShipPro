@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Photo de profil YouTube — DropShipper IA</title>
+<!--
+  Photo de profil de la chaîne, 800 × 800. YouTube l'affiche en rond : le cube
+  reste dans le cercle central, et le dégradé remplit tout le carré pour que le
+  recadrage ne laisse aucun coin.
+-->
+<style>
+  html, body { margin: 0; width: 800px; height: 800px; overflow: hidden; background: #08070f; }
+  .icone { width: 800px; height: 800px; display: block; }
+</style>
+</head>
+<body>
+<svg class="icone" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fond" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+    <radialGradient id="reflet" cx="30%" cy="22%" r="70%">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="lueur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  </defs>
+  <rect width="128" height="128" fill="url(#fond)"/>
+  <rect width="128" height="128" fill="url(#reflet)"/>
+  <!-- Le cube, un peu plus grand que sur le favicon : il doit tenir dans le rond. -->
+  <g transform="translate(64 64) scale(1.12) translate(-64 -64)">
+    <path d="M64 24L104 46L104 84L64 106L24 84L24 46ZM24 46L64 66L104 46M64 66L64 106" fill="none" stroke="#fff" stroke-width="7" opacity=".55" filter="url(#lueur)" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M64 24L104 46L104 84L64 106L24 84L24 46ZM24 46L64 66L104 46M64 66L64 106" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+</svg>
+</body>
+</html>

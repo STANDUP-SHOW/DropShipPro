@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Gabarit de miniature YouTube — DropShipper IA</title>
+<!--
+  Gabarit de miniature, 1280 × 720. Le titre est un EXEMPLE : changer les deux
+  lignes dans .titre, puis relancer `node docs/youtube/rendre.cjs`.
+  Règle de lisibilité : 3 à 5 mots par ligne, le mot fort en dégradé rose.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;900&display=swap">
+<style>
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: #08070f; }
+  body { font-family: Outfit, system-ui, "Segoe UI", sans-serif; color: #fff; }
+  .scene {
+    position: relative; width: 1280px; height: 720px; overflow: hidden;
+    background:
+      radial-gradient(620px 460px at 82% 52%, rgba(192, 38, 211, .32), transparent 70%),
+      radial-gradient(900px 700px at 20% 100%, rgba(76, 29, 149, .28), transparent 70%),
+      #08070f;
+  }
+  .grille {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, .08) 1.4px, transparent 1.5px);
+    background-size: 36px 36px;
+    -webkit-mask-image: radial-gradient(900px 600px at 70% 50%, #000 30%, transparent 80%);
+            mask-image: radial-gradient(900px 600px at 70% 50%, #000 30%, transparent 80%);
+  }
+  .marque { position: absolute; left: 56px; top: 44px; display: flex; align-items: center; gap: 14px; }
+  .marque svg { width: 48px; height: 48px; filter: drop-shadow(0 0 12px rgba(192, 38, 211, .6)); }
+  .marque .nom {
+    font-weight: 900; font-size: 34px; line-height: 1;
+    background: linear-gradient(120deg, #f472b6 5%, #c026d3 55%, #a855f7 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .titre {
+    position: absolute; left: 56px; top: 236px; width: 700px;
+    font-weight: 900; font-size: 88px; line-height: .98; letter-spacing: -0.02em;
+    text-shadow: 0 6px 30px rgba(0, 0, 0, .7);
+  }
+  .titre em {
+    font-style: normal;
+    background: linear-gradient(120deg, #f472b6 5%, #c026d3 55%, #a855f7 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    /* L'ombre se peint PAR-DESSUS un fond découpé au texte : elle salirait le dégradé. */
+    text-shadow: none;
+  }
+  .sous { position: absolute; left: 56px; top: 530px; font-size: 30px; font-weight: 500; color: #d9d4ea; }
+  .barre {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 14px;
+    background: linear-gradient(90deg, #a855f7, #ff3ea5);
+    box-shadow: 0 0 24px rgba(255, 62, 165, .7);
+  }
+  .site { position: absolute; right: 56px; bottom: 40px; font-size: 26px; font-weight: 700; color: #ff3ea5; text-shadow: 0 0 14px rgba(255, 62, 165, .6); }
+  .cerveau { position: absolute; left: 812px; top: 150px; width: 420px; height: 350px; overflow: visible; }
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="grille"></div>
+
+  <div class="marque">
+    <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="cube-marque" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs>
+      <rect width="128" height="128" rx="33" fill="url(#cube-marque)"/>
+      <path d="M64 24L104 46L104 84L64 106L24 84L24 46ZM24 46L64 66L104 46M64 66L64 106" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div class="nom">DropShipper IA</div>
+  </div>
+
+  <!-- EXEMPLE de titre : à remplacer pour chaque vidéo. -->
+  <div class="titre">50 produits<br>importés en<br><em>5 minutes</em></div>
+  <div class="sous">Sans écrire une seule annonce</div>
+
+  <svg class="cerveau" viewBox="0 0 240 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="aura" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16"/></filter>
+      <filter id="neon-doux" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.5"/></filter>
+      <linearGradient id="trait" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f472b6"/><stop offset=".55" stop-color="#e040c8"/><stop offset="1" stop-color="#a855f7"/></linearGradient>
+      <radialGradient id="chair" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#ff3ea5" stop-opacity=".55"/><stop offset=".6" stop-color="#c026d3" stop-opacity=".28"/><stop offset="1" stop-color="#6d28d9" stop-opacity=".12"/></radialGradient>
+      <linearGradient id="cube-fond" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/></linearGradient>
+      <path id="contour" d="M30 100C12 88 16 60 40 54C40 32 66 18 90 30C100 12 132 10 146 28C168 16 202 28 202 56C226 60 232 92 214 108C228 128 212 154 186 150C182 170 154 180 138 166C128 178 104 178 94 164C72 174 46 160 46 140C24 136 14 112 30 100Z"/>
+    </defs>
+    <use href="#contour" fill="#ff3ea5" opacity=".5" filter="url(#aura)"/>
+    <use href="#contour" fill="url(#chair)"/>
+    <g id="reseau" stroke="rgba(255,255,255,.55)" stroke-width="1.2"></g>
+    <g id="neurones"></g>
+    <g fill="none" stroke="url(#trait)" stroke-width="2.6" stroke-linecap="round" opacity=".9">
+      <path d="M118 22C108 60 128 100 116 168"/><path d="M48 70C66 62 64 88 84 84"/><path d="M52 118C72 108 74 136 96 130"/>
+      <path d="M78 44C92 50 88 66 104 68"/><path d="M70 150C84 142 96 152 108 146"/><path d="M136 44C152 40 156 62 176 58"/>
+      <path d="M140 92C160 84 166 108 190 100"/><path d="M142 132C160 124 168 148 186 138"/><path d="M148 171C150 183 158 190 170 194" opacity=".7"/>
+    </g>
+    <use href="#contour" fill="none" stroke="#ff3ea5" stroke-width="9" opacity=".7" filter="url(#neon-doux)"/>
+    <use href="#contour" fill="none" stroke="url(#trait)" stroke-width="4.2" stroke-linejoin="round"/>
+    <g transform="translate(97 78)">
+      <rect width="46" height="46" rx="12" fill="url(#cube-fond)" filter="url(#neon-doux)" opacity=".9"/>
+      <rect width="46" height="46" rx="12" fill="url(#cube-fond)"/>
+      <path transform="scale(.36)" d="M64 24L104 46L104 84L64 106L24 84L24 46ZM24 46L64 66L104 46M64 66L64 106" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+    </g>
+  </svg>
+
+  <div class="site">drop-shipper.fr</div>
+  <div class="barre"></div>
+</div>
+<script>
+  const NS = 'http://www.w3.org/2000/svg'
+  const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n }
+  const NEURONES = [[60, 80], [84, 58], [100, 112], [72, 132], [94, 152], [52, 108], [140, 66], [172, 80], [152, 118], [192, 118], [168, 150], [130, 152], [118, 56], [206, 92], [40, 90], [120, 178]]
+  const ARETES = [[0, 1], [0, 5], [1, 12], [2, 3], [2, 5], [3, 4], [4, 11], [6, 12], [6, 7], [7, 13], [7, 8], [8, 9], [9, 10], [10, 11], [8, 11], [14, 0], [14, 5], [12, 2], [6, 8], [15, 11], [15, 4]]
+  const reseau = document.getElementById('reseau'), neurones = document.getElementById('neurones')
+  for (const [a, b] of ARETES) reseau.append(el('line', { x1: NEURONES[a][0], y1: NEURONES[a][1], x2: NEURONES[b][0], y2: NEURONES[b][1] }))
+  NEURONES.forEach(([x, y], i) => {
+    neurones.append(el('circle', { cx: x, cy: y, r: 5, fill: '#ff3ea5', opacity: .8, filter: 'url(#neon-doux)' }))
+    neurones.append(el('circle', { cx: x, cy: y, r: i % 3 === 0 ? 3.2 : 2.4, fill: '#fff' }))
+  })
+</script>
+</body>
+</html>
