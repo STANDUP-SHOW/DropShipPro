@@ -12,6 +12,7 @@ import { api, assetUrl, importSupplierList } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
 import type { PlatformInfo } from '../lib/platforms'
 import { PublishedBadges } from '../components/PublishedBadges'
+import { PrixModifiable } from '../components/PrixModifiable'
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -289,6 +290,12 @@ export default function Dashboard() {
 
   function toggleSelected(id: string) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]))
+  }
+
+  // Prix modifié depuis une miniature : on met la liste à jour sur place, sans
+  // recharger — la carte affiche le nouveau prix, et un tri par prix se recale.
+  function majPrix(id: string, prix: number) {
+    setProducts((liste) => liste.map((p) => (p.id === id ? { ...p, sellingPrice: prix } : p)))
   }
 
   // Selecting acts on what is on screen, not on the whole catalogue: a filter is
@@ -907,9 +914,7 @@ export default function Dashboard() {
                       </span>
                     ) : null}
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="font-bold text-purple-300">
-                        {`${Number(p.sellingPrice ?? 0).toFixed(2)} ${p.currency}`}
-                      </span>
+                      <PrixModifiable produit={p} onChange={majPrix} />
                       <span className={`text-xs rounded-full px-2 py-0.5 ${STATUS_COLOR[p.status]}`}>
                         {STATUS_LABEL[p.status]}
                       </span>
@@ -959,8 +964,8 @@ export default function Dashboard() {
                     <div className="hidden shrink-0 sm:block">
                       <PublishedBadges publications={p.publications ?? []} platforms={platforms} max={5} />
                     </div>
-                    <span className="shrink-0 text-sm font-bold text-purple-300">
-                      {`${Number(p.sellingPrice ?? 0).toFixed(2)} ${p.currency}`}
+                    <span className="shrink-0">
+                      <PrixModifiable produit={p} onChange={majPrix} className="text-sm" />
                     </span>
                     <span
                       className={`hidden shrink-0 rounded-full px-2 py-0.5 text-xs sm:inline ${STATUS_COLOR[p.status]}`}
