@@ -1637,16 +1637,76 @@ export async function downloadWithAuth(path: string, filename: string) {
 }
 
 /** Uploads photos to a listing. FormData, so no JSON Content-Type here. */
+/**
+ * Réduit une image avant l'envoi.
+ *
+ * Une photo de téléphone ou d'appareil fait souvent 5 à 20 Mo. Un corps
+ * multipart trop lourd se fait couper par le proxy (ou par la limite serveur)
+ * AVANT toute réponse : le navigateur ne voit alors qu'un « Failed to fetch »,
+ * sans code ni message — c'est la panne signalée le 11/09/2026. On
+ * redimensionne donc à 2000 px de côté maximum et on ré-encode en JPEG : le
+ * serveur filigrane et stocke de toute façon, une annonce n'a pas besoin de
+ * 24 Mpx. `imageOrientation: 'from-image'` respecte l'EXIF (photos de téléphone
+ * pivotées). En cas de format non décodable, on renvoie le fichier d'origine.
+ */
+async function compresserImage(file: File, maxDim = 2000, quality = 0.85): Promise<Blob> {
+  if (!file.type.startsWith('image/') || typeof createImageBitmap !== 'function') return file
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    const echelle = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+    // Déjà petite et légère : inutile de la ré-encoder.
+    if (echelle === 1 && file.size <= 1_500_000) {
+      bitmap.close?.()
+      return file
+    }
+    const largeur = Math.round(bitmap.width * echelle)
+    const hauteur = Math.round(bitmap.height * echelle)
+    const canvas = document.createElement('canvas')
+    canvas.width = largeur
+    canvas.height = hauteur
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      bitmap.close?.()
+      return file
+    }
+    ctx.drawImage(bitmap, 0, 0, largeur, hauteur)
+    bitmap.close?.()
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+    // On ne garde la version réduite que si elle est réellement plus légère.
+    return blob && blob.size < file.size ? blob : file
+  } catch {
+    return file
+  }
+}
+
 export async function uploadProductImages(productId: string, files: File[]) {
   const form = new FormData()
-  for (const file of files) form.append('photos', file)
+  for (const file of files) {
+    const blob = await compresserImage(file)
+    // Nom en .jpg quand on a ré-encodé, sinon le nom d'origine.
+    const nom = blob === file ? file.name : file.name.replace(/\.[^.]+$/, '') + '.jpg'
+    form.append('photos', blob, nom)
+  }
 
   const token = getToken()
-  const res = await fetch(`${BASE}/products/${productId}/images`, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/products/${productId}/images`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    })
+  } catch (e) {
+    // fetch() lève un TypeError « Failed to fetch » quand la connexion tombe
+    // avant toute réponse : corps coupé par le proxy, réseau, ou API en cours
+    // de redéploiement. Un message lisible vaut mieux que l'erreur brute.
+    if (e instanceof TypeError) {
+      throw new Error(
+        'Envoi interrompu — connexion perdue ou photos trop lourdes. Réessayez : les photos sont désormais réduites automatiquement avant l\'envoi.',
+      )
+    }
+    throw e
+  }
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`)
   // `max` vient du serveur : le plafond etait ecrit en dur dans l ecran, et les

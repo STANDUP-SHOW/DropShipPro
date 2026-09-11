@@ -279,7 +279,7 @@ export default function ProductDetail() {
       <button
         type="button"
         onClick={() => navigate(id ? `/dashboard?retour=${id}` : '/dashboard')}
-        className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-300 transition hover:bg-white/10 hover:text-white"
+        className="btn-gradient mb-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold text-white"
       >
         <ChevronLeft size={16} />
         <span>Retour aux annonces</span>
