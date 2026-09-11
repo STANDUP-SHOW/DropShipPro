@@ -2,59 +2,59 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Bannière YouTube — DropShipper IA</title>
+<title>Couverture Facebook — DropShipper IA</title>
 <!--
-  Bannière de chaîne YouTube, 2560 × 1440.
+  Couverture de page Facebook, 1640 × 720 : le double de 820 × 360, la seule
+  taille qui satisfait les deux recadrages de Facebook à la fois.
 
-  YouTube recadre selon l'écran : la télévision voit tout, l'ordinateur voit une
-  bande de 2560 × 423 au centre, la tablette 1855 × 423, le téléphone 1546 × 423.
-  Tout ce qui compte (nom, cerveau, accroche) tient donc dans la « zone sûre »
-  de 1546 × 423 centrée ; les nuages de pastilles s'étalent dans la bande
-  d'ordinateur ; le reste du canevas n'est que décor pour la télévision.
+  Sur ordinateur la couverture s'affiche en 820 × 312 : Facebook garde la bande
+  centrale et rogne 24 px (48 ici) en haut et en bas. Sur téléphone elle
+  s'affiche en 640 × 360 : il garde toute la hauteur et rogne 90 px (180 ici)
+  de chaque côté. Le nom, le cerveau et l'accroche tiennent donc dans
+  l'intersection, 1280 × 624 au centre ; les nuages de pastilles s'étalent sur
+  toute la largeur d'ordinateur, et leurs bords sortent du cadre du téléphone —
+  c'est un nuage, il déborde.
 
-  Le nuage (pastilles, liens, cerveau) est dessiné par nuage.js, partagé avec la
-  couverture Facebook ; cette page ne donne que sa géométrie. Changer GRAINE
-  pour un autre tirage des positions.
-
-  Ouvrir avec « ?guides » pour voir les zones de recadrage superposées, avec
-  « ?vue=ordinateur » ou « ?vue=telephone » pour voir la bande telle que YouTube
-  la recadre. Rendu en PNG par `node docs/youtube/rendre.cjs`.
+  Le nuage est dessiné par nuage.js, partagé avec la bannière YouTube ; cette
+  page ne donne que sa géométrie. Ouvrir avec « ?guides » pour voir les deux
+  cadres, « ?vue=ordinateur » ou « ?vue=telephone » pour voir chaque recadrage.
+  Rendu en PNG par `node docs/youtube/rendre.cjs facebook`.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;900&family=Dancing+Script:wght@700&display=swap">
 <link rel="stylesheet" href="nuage.css">
 <style>
-  html, body { width: 2560px; height: 1440px; }
+  html, body { width: 1640px; height: 720px; }
   .scene {
-    width: 2560px; height: 1440px;
+    width: 1640px; height: 720px;
     background:
-      radial-gradient(760px 520px at 50% 50%, rgba(192, 38, 211, .28), transparent 70%),
-      radial-gradient(1500px 1000px at 50% 50%, rgba(76, 29, 149, .32), transparent 72%),
+      radial-gradient(620px 420px at 50% 50%, rgba(192, 38, 211, .3), transparent 70%),
+      radial-gradient(1200px 700px at 50% 50%, rgba(76, 29, 149, .32), transparent 74%),
       var(--noir);
   }
   .grille {
-    -webkit-mask-image: radial-gradient(1500px 1000px at 50% 50%, #000 25%, transparent 78%);
-            mask-image: radial-gradient(1500px 1000px at 50% 50%, #000 25%, transparent 78%);
+    -webkit-mask-image: radial-gradient(1100px 600px at 50% 50%, #000 30%, transparent 85%);
+            mask-image: radial-gradient(1100px 600px at 50% 50%, #000 30%, transparent 85%);
   }
-  .liens { width: 2560px; height: 1440px; }
+  .liens { width: 1640px; height: 720px; }
 
-  /* Les aperçus recadrés : la scène glisse pour que la fenêtre montre la bande. */
-  body.vue-ordinateur .scene { transform: translateY(-508px); }
-  body.vue-telephone .scene { transform: translate(-507px, -508px); }
+  /* Les aperçus recadrés : la scène glisse pour que la fenêtre montre le cadre. */
+  body.vue-ordinateur .scene { transform: translateY(-48px); }
+  body.vue-telephone .scene { transform: translateX(-180px); }
 
-  .marque { top: 538px; gap: 20px; }
-  .marque svg { width: 62px; height: 62px; }
-  .nom { font-size: 62px; }
-  .accroche { top: 868px; font-size: 28px; }
+  .marque { top: 118px; gap: 18px; }
+  .marque svg { width: 58px; height: 58px; }
+  .nom { font-size: 58px; }
+  .accroche { top: 556px; font-size: 25px; }
 </style>
 </head>
 <body>
 <div class="scene">
   <div class="grille"></div>
 
-  <svg class="liens" viewBox="0 0 2560 1440" xmlns="http://www.w3.org/2000/svg">
+  <svg class="liens" viewBox="0 0 1640 720" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <filter id="neon" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>
+      <filter id="neon" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>
       <filter id="neon-doux" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
       <filter id="aura" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>
       <linearGradient id="trait-cerveau" x1="0" y1="0" x2="1" y2="1">
@@ -70,9 +70,6 @@
       </linearGradient>
     </defs>
 
-    <!-- Décor hors bande (visible à la télévision seulement) : traces de circuit. -->
-    <g id="circuit" fill="none" stroke="rgba(236,72,153,.16)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></g>
-
     <!-- Les liens, générés par nuage.js. -->
     <g id="halos"></g>
     <g id="traits"></g>
@@ -81,8 +78,8 @@
     <!-- Les anneaux de traitement, autour du cerveau. -->
     <g id="anneaux" fill="none"></g>
 
-    <!-- Le cerveau IA, au centre : 300 × 250 posé sur le canevas. -->
-    <svg id="cerveau" x="1130" y="606" width="300" height="250" viewBox="0 0 240 200" overflow="visible">
+    <!-- Le cerveau IA, au centre : 276 × 230 posé sur le canevas, centré en (820, 360). -->
+    <svg id="cerveau" x="682" y="245" width="276" height="230" viewBox="0 0 240 200" overflow="visible">
       <g id="silhouette">
         <path id="contour" d="M30 100C12 88 16 60 40 54C40 32 66 18 90 30C100 12 132 10 146 28C168 16 202 28 202 56C226 60 232 92 214 108C228 128 212 154 186 150C182 170 154 180 138 166C128 178 104 178 94 164C72 174 46 160 46 140C24 136 14 112 30 100Z"/>
       </g>
@@ -126,43 +123,30 @@
   <div class="accroche">Du fournisseur à la marketplace, l'IA fait le reste<span class="sep">·</span><b>drop-shipper.fr</b></div>
 
   <div class="guides" id="guides">
-    <div class="guide" style="left:0;top:0;width:2560px;height:1440px;border-color:#6b7280"><span style="color:#9ca3af;top:8px;left:8px">Télévision 2560 × 1440</span></div>
-    <div class="guide" style="left:0;top:508px;width:2560px;height:423px;border-color:#38bdf8"><span style="color:#38bdf8;left:8px">Ordinateur 2560 × 423</span></div>
-    <div class="guide" style="left:352px;top:508px;width:1855px;height:423px;border-color:#facc15"><span style="color:#facc15">Tablette 1855 × 423</span></div>
-    <div class="guide" style="left:507px;top:508px;width:1546px;height:423px;border-color:#4ade80"><span style="color:#4ade80;top:auto;bottom:-34px">Téléphone / zone sûre 1546 × 423</span></div>
+    <div class="guide" style="left:0;top:48px;width:1640px;height:624px;border-color:#38bdf8"><span style="color:#38bdf8;left:8px;top:8px">Ordinateur 1640 × 624 (820 × 312)</span></div>
+    <div class="guide" style="left:180px;top:0;width:1280px;height:720px;border-color:#4ade80"><span style="color:#4ade80;top:auto;bottom:8px;left:8px">Téléphone 1280 × 720 (640 × 360)</span></div>
   </div>
 </div>
 
 <script src="nuage.js"></script>
 <script>
-  // Les nuages vivent dans la bande d'ordinateur (508–931), loin du centre.
+  // Les nuages vivent dans la bande d'ordinateur (48–672), loin du centre, et
+  // débordent du cadre du téléphone (180–1460) sur les côtés.
   dessinerNuage({
     GRAINE: 20260911,
-    BANDE: { y0: 520, y1: 920 },
-    GAUCHE: [48, 1000],
-    DROITE: [1560, 2512],
-    CERVEAU: { cx: 1280, cy: 731, rx: 146, ry: 112 },
+    BANDE: { y0: 62, y1: 658 },
+    GAUCHE: [28, 610],
+    DROITE: [1030, 1612],
+    CERVEAU: { cx: 820, cy: 360, rx: 134, ry: 103 },
     EXCLUS: [
-      { cx: 1280, cy: 731, r: 292 },                     // cerveau + anneaux
-      { x0: 940, x1: 1620, y0: 512, y1: 622 },           // la marque
-      { x0: 840, x1: 1730, y0: 850, y1: 910 },           // l'accroche (858 → 1702 px)
+      { cx: 820, cy: 360, r: 262 },                      // cerveau + anneaux
+      { x0: 560, x1: 1080, y0: 100, y1: 200 },           // la marque
+      { x0: 420, x1: 1220, y0: 540, y1: 600 },           // l'accroche
     ],
-    TAILLES: { sources: [156, 70], destinations: [128, 54] },
-    ANNEAUX: [190, 222, 258],
-    EPAISSEUR: { source: 3.6, destination: 3 },
+    TAILLES: { sources: [126, 60], destinations: [104, 46] },
+    ANNEAUX: [172, 202, 234],
+    EPAISSEUR: { source: 3.2, destination: 2.7 },
   })
-
-  // Traces de circuit dans les zones que seule la télévision montre.
-  const circuit = document.getElementById('circuit')
-  const TRACES = [
-    'M120 120H520L600 200H900L960 260H1180', 'M2440 120H2040L1960 200H1660L1600 260H1380',
-    'M120 1320H560L640 1240H920L980 1180H1180', 'M2440 1320H2000L1920 1240H1640L1580 1180H1380',
-    'M260 300V420', 'M2300 300V420', 'M260 1140V1020', 'M2300 1140V1020',
-    'M1280 60V300', 'M1280 1380V1140', 'M760 80V160H1040', 'M1800 80V160H1520', 'M760 1360V1280H1040', 'M1800 1360V1280H1520',
-  ]
-  for (const d of TRACES) circuit.append(el('path', { d }))
-  ;[[120, 120], [2440, 120], [120, 1320], [2440, 1320], [1180, 260], [1380, 260], [1180, 1180], [1380, 1180], [1280, 60], [1280, 1380], [260, 420], [2300, 420], [260, 1020], [2300, 1020], [1040, 160], [1520, 160], [1040, 1280], [1520, 1280]]
-    .forEach(([x, y]) => circuit.append(el('circle', { cx: x, cy: y, r: 6, fill: 'rgba(236,72,153,.35)', stroke: 'none' })))
 
   const params = new URLSearchParams(location.search)
   if (params.has('guides')) document.getElementById('guides').classList.add('on')

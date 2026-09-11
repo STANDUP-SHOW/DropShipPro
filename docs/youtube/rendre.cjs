@@ -1,5 +1,5 @@
 /**
- * Rend les visuels YouTube en PNG, aux dimensions exactes de chaque format.
+ * Rend les visuels YouTube et Facebook en PNG, aux dimensions exactes de chaque format.
  *
  * Chaque visuel est une page HTML de ce dossier, dessinée à sa taille finale ;
  * Chrome (headless) la photographie telle quelle. Pas de dépendance : Chrome
@@ -33,6 +33,13 @@ const VISUELS = [
   { html: 'banniere.html?guides', png: 'banniere-zones-de-recadrage.png', w: 2560, h: 1440 },
   { html: 'banniere.html?vue=ordinateur', png: 'apercu-ordinateur-2560x423.png', w: 2560, h: 423 },
   { html: 'banniere.html?vue=telephone', png: 'apercu-telephone-1546x423.png', w: 1546, h: 423 },
+  // Couverture de page Facebook : 1640 × 720 (le double de 820 × 360). L'ordinateur
+  // montre la bande centrale de 1640 × 624 (48 px rognés en haut et en bas), le
+  // téléphone la zone centrale de 1280 × 720 (180 px rognés de chaque côté).
+  { html: 'couverture-facebook.html', png: 'facebook-couverture-1640x720.png', w: 1640, h: 720 },
+  { html: 'couverture-facebook.html?guides', png: 'facebook-zones-de-recadrage.png', w: 1640, h: 720 },
+  { html: 'couverture-facebook.html?vue=ordinateur', png: 'facebook-apercu-ordinateur-1640x624.png', w: 1640, h: 624 },
+  { html: 'couverture-facebook.html?vue=telephone', png: 'facebook-apercu-telephone-1280x720.png', w: 1280, h: 720 },
   { html: 'profil.html', png: 'profil-800x800.png', w: 800, h: 800 },
   { html: 'filigrane.html', png: 'filigrane-150x150.png', w: 150, h: 150, transparent: true },
   { html: 'miniature.html', png: 'miniature-1280x720.png', w: 1280, h: 720 },

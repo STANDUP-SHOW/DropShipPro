@@ -1,0 +1,64 @@
+/* Le style commun de la bannière YouTube et de la couverture Facebook :
+ * fond noir, pastilles blanches à liseré néon, marque en dégradé rose, guides
+ * de recadrage. Chaque page pose par-dessus ses dimensions et ses positions. */
+:root {
+  --noir: #08070f;
+  --rose-neon: #ff3ea5;
+  --rose: #f472b6;
+  --fuchsia: #c026d3;
+  --violet: #a855f7;
+}
+html, body { margin: 0; overflow: hidden; background: var(--noir); }
+body { font-family: Outfit, system-ui, "Segoe UI", sans-serif; color: #fff; }
+
+.scene { position: relative; overflow: hidden; background: var(--noir); }
+
+/* Trame de points, fondue vers les bords. */
+.grille {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, .09) 1.6px, transparent 1.7px);
+  background-size: 44px 44px;
+}
+.liens { position: absolute; inset: 0; }
+
+/* Les pastilles : disque blanc, liseré et halo à la couleur de leur lien. */
+.pastille {
+  position: absolute; transform: translate(-50%, -50%);
+  border-radius: 50%; background: #fff; display: grid; place-items: center;
+  box-shadow: 0 0 0 2.5px var(--c), 0 0 calc(var(--d) * .18) var(--c), 0 0 calc(var(--d) * .5) color-mix(in srgb, var(--c) 40%, transparent);
+}
+.pastille img, .pastille .repli { width: 78%; height: 78%; object-fit: contain; }
+.pastille.carre img { width: 70%; height: 70%; border-radius: 18%; }
+.repli { display: grid; place-items: center; text-align: center; line-height: 1; overflow: hidden; }
+.repli svg { width: 92%; height: 92%; }
+.repli.mot { font-weight: 900; letter-spacing: -0.02em; }
+
+/* La marque : cube + nom en dégradé rose, avec sa lueur en double flouté. */
+.marque {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; white-space: nowrap;
+}
+.marque svg { filter: drop-shadow(0 0 16px rgba(192, 38, 211, .6)); }
+.nom { position: relative; font-weight: 900; line-height: 1; letter-spacing: -0.01em; }
+.nom span {
+  background: linear-gradient(120deg, #f472b6 5%, #c026d3 55%, #a855f7 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.nom .lueur { position: absolute; inset: 0; filter: blur(22px); opacity: .55; }
+
+.accroche {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font-weight: 500; letter-spacing: .01em; color: #ece9f7; white-space: nowrap;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, .6);
+}
+.accroche b { color: var(--rose-neon); font-weight: 700; text-shadow: 0 0 14px rgba(255, 62, 165, .65); }
+.accroche .sep { margin: 0 16px; opacity: .45; }
+
+/* Les guides de recadrage (uniquement avec ?guides). */
+.guides { display: none; position: absolute; inset: 0; pointer-events: none; }
+.guides.on { display: block; }
+.guide { position: absolute; border: 3px dashed; box-sizing: border-box; }
+.guide span {
+  position: absolute; left: 0; top: -34px; padding: 4px 10px; font-size: 22px; font-weight: 700;
+  background: #000; border-radius: 6px;
+}
