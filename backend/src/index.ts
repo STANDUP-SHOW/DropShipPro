@@ -19,6 +19,7 @@ import { reportsRouter, chatRouter } from './routes/reports.js'
 import { statsRouter } from './routes/stats.js'
 import { autopilotRouter } from './routes/autopilot.js'
 import { conversationsRouter } from './routes/conversations.js'
+import { supplierConversationsRouter } from './routes/supplierConversations.js'
 import { visualsRouter } from './routes/visuals.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { checkAi } from './services/aiHealth.js'
@@ -118,6 +119,7 @@ app.use('/api/stats', statsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/autopilot', autopilotRouter)
 app.use('/api/conversations', conversationsRouter)
+app.use('/api/supplier-conversations', supplierConversationsRouter)
 app.use('/api/visuals', visualsRouter)
 // Hors authentification : c est Facebook qui appelle ces adresses, en
 // redirigeant le navigateur du vendeur ou en signant sa requete.

@@ -16,8 +16,9 @@ import { DEMO_COMMANDES } from '../lib/demoJeux'
  * moment ni avec les mêmes armes. Ici : les commandes fournisseur en échec,
  * avec la raison écrite par le connecteur, et les statistiques du bloc 10.
  *
- * La messagerie fournisseurs viendra s'y ranger quand elle sera reliée ; en
- * attendant, la page dit ce qui existe plutôt que de promettre.
+ * La messagerie fournisseurs est désormais une page à part entière
+ * (/messagerie-fournisseurs), jumelle de la messagerie market places ; cette
+ * page-ci renvoie vers elle.
  */
 export default function SavFournisseurs() {
   const [enEchec, setEnEchec] = useState<any[] | null>(null)
@@ -78,7 +79,11 @@ export default function SavFournisseurs() {
           <Link to="/orders" className="text-purple-300 underline-offset-2 hover:underline">
             Ventes › Commandes
           </Link>
-          . La messagerie fournisseurs sera rangée ici quand elle sera reliée.
+          . Vos échanges avec les fournisseurs sont dans{' '}
+          <Link to="/messagerie-fournisseurs" className="text-purple-300 underline-offset-2 hover:underline">
+            SAV fournisseurs › Messagerie fournisseurs
+          </Link>
+          .
         </p>
       </section>
 

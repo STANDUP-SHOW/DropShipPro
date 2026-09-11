@@ -921,6 +921,72 @@ export const api = {
   setConversationUnread: (id: string, unread: boolean) =>
     request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ unread }) }),
 
+  // Messagerie fournisseurs — jumelle de la messagerie acheteurs, dans l'autre
+  // sens : les échanges du vendeur avec ses fournisseurs. Table et routeur
+  // séparés côté serveur ; ici, mêmes gestes.
+  listSupplierConversations: (status?: string) =>
+    request<{
+      count: number
+      unread: number
+      conversations: Array<{
+        id: string
+        supplierName: string
+        supplierEmail: string | null
+        subject: string | null
+        status: 'OPEN' | 'WAITING' | 'CLOSED'
+        unread: boolean
+        lastMessageAt: string
+        preview: string
+        channel: 'email' | 'manuel'
+      }>
+    }>(status ? `/supplier-conversations?status=${status}` : '/supplier-conversations'),
+  getSupplierConversation: (id: string) =>
+    request<{
+      id: string
+      supplierName: string
+      supplierEmail: string | null
+      subject: string | null
+      status: 'OPEN' | 'WAITING' | 'CLOSED'
+      agentName: string | null
+      channel: 'email' | 'manuel'
+      notice: string
+      messages: Array<{
+        id: string
+        direction: string
+        body: string
+        author: string | null
+        sentVia: string | null
+        drafted: boolean
+        createdAt: string
+      }>
+    }>(`/supplier-conversations/${id}`),
+  replySupplierConversation: (id: string, body: string, drafted?: boolean) =>
+    request<{
+      message: {
+        id: string
+        direction: string
+        body: string
+        author: string | null
+        sentVia: string | null
+        drafted: boolean
+        createdAt: string
+      }
+      delivered: boolean
+      channel: 'email' | 'manuel'
+      notice: string
+    }>(`/supplier-conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ body, drafted }) }),
+  draftSupplierConversation: (id: string) =>
+    request<{ text: string; agentName: string | null }>(`/supplier-conversations/${id}/draft`, {
+      method: 'POST',
+    }),
+  /** Ouvrir un nouveau fil fournisseur (nom + e-mail optionnel + message optionnel). */
+  creerFilFournisseur: (data: { supplierName: string; supplierEmail?: string; subject?: string; body?: string }) =>
+    request<{ id: string }>('/supplier-conversations', { method: 'POST', body: JSON.stringify(data) }),
+  setSupplierConversationStatus: (id: string, status: string) =>
+    request(`/supplier-conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  setSupplierConversationUnread: (id: string, unread: boolean) =>
+    request(`/supplier-conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ unread }) }),
+
   // Agents visuels : photos de produit et visuels publicitaires.
   visualState: () =>
     request<{

@@ -108,7 +108,7 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
    * plusieurs tuiles comptent des états (« sans vente », « en rupture ») qui
    * ne dépendent pas de la période.
    */
-  const [commandes, commandesAvant, produits, publications, tickets, conversations, messages, images, user, opportunites, categories] =
+  const [commandes, commandesAvant, produits, publications, tickets, conversations, messages, images, user, opportunites, categories, conversationsFournisseurs] =
     await Promise.all([
       prisma.order.findMany({ where: { userId, createdAt: { gte: du, lte: au } } }),
       prisma.order.findMany({ where: { userId, createdAt: { gte: duPrecedent, lt: du } } }),
@@ -155,6 +155,10 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
       }),
       prisma.opportunity.count({ where: { userId } }),
       prisma.category.findMany({ select: { id: true, path: true } }),
+      prisma.supplierConversation.findMany({
+        where: { userId },
+        select: { id: true, status: true, unread: true },
+      }),
     ])
 
   const coutDe = new Map(produits.map((p) => [p.id, { prix: num(p.price), port: num(p.shippingCost) }]))
@@ -491,13 +495,13 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
       tuiles: [
         { id: 'echecs', label: 'Commandes en échec', valeur: cmdProbleme.length },
         { id: 'retards', label: 'Retards fournisseur', valeur: commandes.filter((o) => o.supplierOrderedAt && o.status === 'ORDERED_FROM_SUPPLIER' && +o.supplierOrderedAt < Date.now() - 10 * 86400000).length },
-        { id: 'litiges', label: 'Litiges ouverts', ...pasEncore('Les litiges fournisseurs ne sont pas encore suivis ici.') },
+        { id: 'litiges', label: 'Litiges ouverts', ...pasEncore('Un fil de messagerie n’est pas un litige : le litige fournisseur sera compté à part.') },
         { id: 'qualite', label: 'Problèmes qualité', ...pasEncore('Se comptera depuis les motifs de remboursement.') },
         { id: 'ruptures', label: 'Ruptures constatées', valeur: produits.filter((p) => p.supplierStock === 0).length },
         { id: 'rembourses', label: 'Remboursements fournisseur', ...pasEncore('Non suivis : le remboursement se passe chez le fournisseur.') },
         { id: 'delai', label: 'Délai de résolution', ...pasEncore('Suivra les litiges quand ils seront suivis.') },
         { id: 'problematiques', label: 'Fournisseurs à problèmes', valeur: new Set(cmdProbleme.map((o) => produitParId.get(o.productId)?.sourceSite).filter(Boolean)).size },
-        { id: 'messages', label: 'Messagerie fournisseurs', ...pasEncore('La messagerie fournisseur n’est pas encore reliée.') },
+        { id: 'messages', label: 'Messagerie fournisseurs', valeur: conversationsFournisseurs.length },
       ],
     })
   }

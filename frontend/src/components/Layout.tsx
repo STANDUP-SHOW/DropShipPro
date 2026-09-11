@@ -156,7 +156,10 @@ const SECTIONS: Array<{
      * moment ni avec les mêmes armes.
      */
     titre: 'SAV fournisseurs',
-    entrees: [{ to: '/sav-fournisseurs', label: 'Service après-vente', icon: LifeBuoy }],
+    entrees: [
+      { to: '/sav-fournisseurs', label: 'Service après-vente', icon: LifeBuoy },
+      { to: '/messagerie-fournisseurs', label: 'Messagerie fournisseurs', icon: Inbox },
+    ],
   },
   {
     titre: 'Comptabilité',

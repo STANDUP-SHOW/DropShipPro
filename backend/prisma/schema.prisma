@@ -178,6 +178,7 @@ model User {
   ChatMessage        ChatMessage[]
   autopilot          Autopilot?
   conversations      Conversation[]
+  supplierConversations SupplierConversation[]
   generatedImages    GeneratedImage[]
   agentSubscriptions AgentSubscription[]
   agentAutoSettings  AgentAutoSetting[]
@@ -967,6 +968,70 @@ model CustomerMessage {
   /// plateforme — le dire evite de croire une reponse partie alors qu elle dort.
   sentVia String?
   /// Vrai quand le texte a ete redige par l agent du rayon.
+  drafted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+/// Le statut d un fil de messagerie fournisseur — meme vocabulaire que la
+/// messagerie acheteurs : un fil se traite, attend une reponse, puis s archive.
+enum SupplierConversationStatus {
+  OPEN
+  WAITING
+  CLOSED
+}
+
+/// La messagerie fournisseurs : les echanges entre le vendeur et ses
+/// fournisseurs (rupture, delai, facture, litige).
+///
+/// Voulue par la decoupe du 03/09/2026, comme le SAV fournisseurs : un litige
+/// avec un fournisseur ne se traite ni au meme moment ni avec les memes armes
+/// qu un litige acheteur. Table SEPAREE de Conversation (messagerie acheteurs)
+/// a dessein — les deux boites ne doivent jamais se melanger, ni dans l ecran,
+/// ni dans la comptabilite, ni dans les statistiques.
+model SupplierConversation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Le fournisseur, tel qu affiche : « AliExpress », « BigBuy », « CJ »…
+  supplierName String
+  /// Renseigne quand on connait l e-mail du fournisseur : sans lui, la reponse
+  /// se colle dans la messagerie du fournisseur au lieu de partir par e-mail.
+  supplierEmail String?
+
+  subject   String?
+  /// Commande / produit a l origine du fil, quand il y en a un.
+  orderId   String?
+  productId String?
+
+  status        SupplierConversationStatus @default(OPEN)
+  /// Faux des que le vendeur a ouvert le fil.
+  unread        Boolean                    @default(true)
+  lastMessageAt DateTime                   @default(now())
+  createdAt     DateTime                   @default(now())
+
+  messages SupplierMessage[]
+
+  @@index([userId, status])
+}
+
+model SupplierMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  conversation   SupplierConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// OUT : envoye par le vendeur au fournisseur. IN : recu du fournisseur.
+  direction String
+  body      String  @db.Text
+  author    String?
+
+  /// Comment le message est parti : email, manuel, ou null a la reception.
+  /// « manuel » = a coller dans la messagerie du fournisseur (AliExpress, CJ…).
+  sentVia String?
+  /// Vrai quand le texte a ete redige par l IA.
   drafted Boolean @default(false)
 
   createdAt DateTime @default(now())

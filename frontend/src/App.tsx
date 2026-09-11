@@ -16,6 +16,7 @@ import Acquisition from './pages/Acquisition'
 import Extension from './pages/Extension'
 import CommandesFournisseurs from './pages/CommandesFournisseurs'
 import SavFournisseurs from './pages/SavFournisseurs'
+import SavMessagerie from './pages/SavMessagerie'
 import ProductDetail from './pages/ProductDetail'
 import Orders from './pages/Orders'
 import Settings from './pages/Settings'
@@ -128,6 +129,7 @@ export default function App() {
           <Route path="/extension" element={<Protected><Extension /></Protected>} />
           <Route path="/commandes-fournisseurs" element={<Protected><CommandesFournisseurs /></Protected>} />
           <Route path="/sav-fournisseurs" element={<Protected><SavFournisseurs /></Protected>} />
+          <Route path="/messagerie-fournisseurs" element={<Protected><SavMessagerie /></Protected>} />
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/guide" element={<Protected><Guide /></Protected>} />

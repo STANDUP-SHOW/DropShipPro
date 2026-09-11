@@ -336,6 +336,166 @@ export function demoFilConversation(id: string) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Messagerie fournisseurs                                             */
+/* ------------------------------------------------------------------ */
+
+/*
+ * La jumelle de la messagerie market places, dans l'autre sens : les échanges
+ * du vendeur avec ses fournisseurs. Même forme que DEMO_CONVERSATIONS — cinq
+ * fils écrits à la main en tête, une masse générée derrière pour qu'une boîte
+ * de démonstration ressemble à un sourcing qui tourne.
+ *
+ * `channel` : « email » quand on connaît l'adresse du fournisseur (BigBuy, CJ,
+ * VidaXL…), « manuel » quand il ne se contacte que par sa propre messagerie
+ * (AliExpress, Temu) — exactement la distinction du service côté serveur.
+ */
+const FOURNISSEURS_SIGNATURE = [
+  {
+    id: 'demo-f1',
+    supplierName: 'AliExpress',
+    supplierEmail: null,
+    subject: 'Rupture de stock',
+    status: 'OPEN' as const,
+    unread: true,
+    lastMessageAt: il_y_a(0, 2),
+    preview: 'Bonjour, la variante « Noir / 42 » est en rupture jusqu\'à la semaine prochaine. Souhaitez-vous patienter ou un remplacement ?',
+    channel: 'manuel' as const,
+  },
+  {
+    id: 'demo-f2',
+    supplierName: 'BigBuy',
+    supplierEmail: 'sav@bigbuy.eu',
+    subject: 'Délai d\'expédition',
+    status: 'OPEN' as const,
+    unread: true,
+    lastMessageAt: il_y_a(0, 6),
+    preview: 'Votre commande sera expédiée sous 3 à 5 jours ouvrés depuis notre entrepôt espagnol.',
+    channel: 'email' as const,
+  },
+  {
+    id: 'demo-f3',
+    supplierName: 'CJ Dropshipping',
+    supplierEmail: 'support@cjdropshipping.com',
+    subject: 'Facture demandée',
+    status: 'WAITING' as const,
+    unread: false,
+    lastMessageAt: il_y_a(1, 3),
+    preview: 'Bonjour, veuillez trouver la facture correspondant à votre commande. Bonne réception.',
+    channel: 'email' as const,
+  },
+  {
+    id: 'demo-f4',
+    supplierName: 'Temu',
+    supplierEmail: null,
+    subject: 'Qualité produit',
+    status: 'WAITING' as const,
+    unread: false,
+    lastMessageAt: il_y_a(2, 5),
+    preview: 'Nous avons bien noté le défaut signalé par votre client. Pouvez-vous nous transmettre une photo ?',
+    channel: 'manuel' as const,
+  },
+  {
+    id: 'demo-f5',
+    supplierName: 'VidaXL',
+    supplierEmail: 'b2b@vidaxl.com',
+    subject: 'Tarif dégressif',
+    status: 'CLOSED' as const,
+    unread: false,
+    lastMessageAt: il_y_a(9, 1),
+    preview: 'À partir de 50 unités, nous appliquons une remise de 12 %. Au plaisir de travailler ensemble.',
+    channel: 'email' as const,
+  },
+]
+
+const FOURNISSEURS_DEMO: Array<{ nom: string; email: string | null }> = [
+  { nom: 'AliExpress', email: null },
+  { nom: 'BigBuy', email: 'sav@bigbuy.eu' },
+  { nom: 'CJ Dropshipping', email: 'support@cjdropshipping.com' },
+  { nom: 'Temu', email: null },
+  { nom: 'VidaXL', email: 'b2b@vidaxl.com' },
+  { nom: 'Matterhorn', email: 'contact@matterhorn.eu' },
+]
+const SUJETS_FOURNISSEURS: Array<[string, string]> = [
+  ['Rupture de stock', 'La variante commandée est momentanément en rupture. Souhaitez-vous un remplacement ou un remboursement ?'],
+  ['Numéro de suivi', 'Votre colis vient de partir, voici le numéro de suivi : SF123456789CN.'],
+  ['Délai d\'expédition', 'Votre commande sera expédiée sous 3 à 5 jours ouvrés, nous vous tiendrons informé.'],
+  ['Facture', 'Bonjour, veuillez trouver votre facture en pièce jointe. N\'hésitez pas en cas de question.'],
+  ['Photos HD', 'Voici le lien vers nos photos en haute définition pour vos annonces produit.'],
+  ['Réapprovisionnement', 'Le réapprovisionnement de cette référence est prévu sous une dizaine de jours.'],
+  ['Variante manquante', 'La taille L est de nouveau disponible, vous pouvez repasser commande.'],
+  ['Avoir', 'Nous avons établi un avoir pour la commande non reçue, valable six mois.'],
+  ['Emballage neutre', 'C\'est noté : vos colis partent désormais en emballage neutre, sans facture ni publicité.'],
+  ['Confirmation de commande', 'Nous confirmons votre commande, expédition prévue dès demain matin.'],
+  ['Tarif dégressif', 'À partir de 50 unités, une remise de 12 % s\'applique automatiquement.'],
+  ['Défaut signalé', 'Nous avons bien reçu votre signalement. Pouvez-vous nous transmettre une photo du produit ?'],
+]
+
+const FOURNISSEURS_GENERES = Array.from({ length: 55 }, (_, i) => {
+  const [sujet, preview] = SUJETS_FOURNISSEURS[i % SUJETS_FOURNISSEURS.length]
+  const fournisseur = FOURNISSEURS_DEMO[i % FOURNISSEURS_DEMO.length]
+  const channel = fournisseur.email ? ('email' as const) : ('manuel' as const)
+  const status = i % 3 === 0 ? ('OPEN' as const) : i % 3 === 1 ? ('WAITING' as const) : ('CLOSED' as const)
+  return {
+    id: `demo-fg${i}`,
+    supplierName: fournisseur.nom,
+    supplierEmail: fournisseur.email,
+    subject: sujet,
+    status,
+    unread: status === 'OPEN' && i % 8 < 3,
+    lastMessageAt: il_y_a(Math.floor(i / 3), (i * 5) % 24),
+    preview,
+    channel,
+  }
+})
+
+/** La boîte fournisseurs complète : les fils signature d'abord, la masse ensuite. */
+export const DEMO_CONVERSATIONS_FOURNISSEURS = [...FOURNISSEURS_SIGNATURE, ...FOURNISSEURS_GENERES]
+
+/** Le fil ouvert d'un échange fournisseur de démonstration. */
+export function demoFilConversationFournisseur(id: string) {
+  const c = DEMO_CONVERSATIONS_FOURNISSEURS.find((x) => x.id === id)
+  if (!c) return null
+  return {
+    id: c.id,
+    supplierName: c.supplierName,
+    supplierEmail: c.supplierEmail,
+    subject: c.subject,
+    status: c.status,
+    agentName: null,
+    channel: c.channel,
+    notice:
+      c.channel === 'email'
+        ? `Votre message partira par e-mail à ${c.supplierName}.`
+        : `${c.supplierName} ne se contacte pas par e-mail : copiez votre message dans sa messagerie.`,
+    messages: [
+      {
+        id: `${c.id}-1`,
+        // Le fournisseur a écrit : côté messagerie, c'est un message reçu.
+        direction: 'IN',
+        body: c.preview,
+        author: c.supplierName,
+        sentVia: null,
+        drafted: false,
+        createdAt: c.lastMessageAt,
+      },
+      ...(c.status !== 'OPEN'
+        ? [
+            {
+              id: `${c.id}-2`,
+              direction: 'OUT',
+              body: 'Bonjour, merci pour votre retour. Je confirme la commande et reste en attente de l\'expédition — pouvez-vous me transmettre le suivi dès qu\'il est disponible ? Bien cordialement.',
+              author: 'Vous',
+              sentVia: c.channel === 'email' ? 'email' : 'manuel',
+              drafted: true,
+              createdAt: il_y_a(1, 1),
+            },
+          ]
+        : []),
+    ],
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* SAV clients                                                         */
 /* ------------------------------------------------------------------ */
 
