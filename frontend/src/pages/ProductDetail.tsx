@@ -272,6 +272,19 @@ export default function ProductDetail() {
 
   return (
     <Layout>
+      {/* Retour à la liste, au niveau de cette annonce : on repart vers
+          /dashboard en emportant l'identifiant, et la liste s'y déroule et s'y
+          recale au lieu de revenir tout en haut (le « page précédente » du
+          navigateur remettait la liste à zéro). */}
+      <button
+        type="button"
+        onClick={() => navigate(id ? `/dashboard?retour=${id}` : '/dashboard')}
+        className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-300 transition hover:bg-white/10 hover:text-white"
+      >
+        <ChevronLeft size={16} />
+        <span>Retour aux annonces</span>
+      </button>
+
       {/* ---------- En-tête ---------- */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">

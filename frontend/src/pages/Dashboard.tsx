@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Link2, Loader2, Layers, Puzzle, Trash2, Copy, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp, Plus } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { CategoryMenu } from '../components/CategoryMenu'
@@ -67,6 +67,14 @@ export default function Dashboard() {
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const navigate = useNavigate()
   const [creationManuelle, setCreationManuelle] = useState(false)
+
+  // Retour depuis une fiche : /dashboard?retour=<id>. On déroule la liste
+  // jusqu'à cette annonce et on la fait défiler jusqu'à elle, au lieu de
+  // rouvrir la page en haut sur les dix premières.
+  const [searchParams] = useSearchParams()
+  const retourId = searchParams.get('retour')
+  const retourFait = useRef(false)
+  const [surligne, setSurligne] = useState<string | null>(null)
 
   // Ajouter un produit à la main, sans import : on crée une annonce vide
   // (gratuite) et on ouvre sa fiche, où tout est à remplir et où les agents IA
@@ -210,6 +218,36 @@ export default function Dashboard() {
     load()
     api.listPlatforms().then(setPlatforms)
   }, [])
+
+  /*
+   * Recaler la liste sur l'annonce d'où l'on revient (bouton « Retour aux
+   * annonces » de la fiche). La liste s'ouvre par tranches de dix : l'annonce
+   * n°144 n'est pas rendue au chargement, donc on déroule tout (`tout()`) pour
+   * que sa carte existe, puis on la fait défiler au centre et on la surligne
+   * un instant. L'URL est nettoyée sans repasser par le routeur — sinon le
+   * défileur d'ancre de App.tsx ramènerait la page tout en haut.
+   */
+  useEffect(() => {
+    if (!retourId || loading || retourFait.current) return
+    tout()
+    setSurligne(retourId)
+    let essais = 0
+    const viser = () => {
+      const el = document.getElementById(`annonce-${retourId}`)
+      if (el) {
+        el.scrollIntoView({ block: 'center' })
+        retourFait.current = true
+        window.history.replaceState({}, '', '/dashboard')
+        setTimeout(() => setSurligne(null), 2400)
+        return
+      }
+      if (++essais < 30) setTimeout(viser, 100)
+    }
+    setTimeout(viser, 60)
+    // `tout` volontairement hors dépendances : une nouvelle référence à chaque
+    // rendu relancerait l'effet en boucle ; `retourFait` garde le tir unique.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retourId, loading])
 
   useEffect(() => {
     localStorage.setItem('droppost_view', view)
@@ -761,9 +799,14 @@ export default function Dashboard() {
               return (
                 <Link
                   key={p.id}
+                  id={`annonce-${p.id}`}
                   to={`/products/${p.id}`}
-                  className={`group relative rounded-xl overflow-hidden border bg-white/5 transition ${
-                    isSelected ? 'border-purple-400' : 'border-white/10 hover:border-purple-400/50'
+                  className={`group relative scroll-mt-24 rounded-xl overflow-hidden border bg-white/5 transition ${
+                    p.id === surligne
+                      ? 'border-purple-400 ring-2 ring-purple-400/70'
+                      : isSelected
+                        ? 'border-purple-400'
+                        : 'border-white/10 hover:border-purple-400/50'
                   }`}
                 >
                   <div className="aspect-square bg-black/30">
@@ -857,7 +900,10 @@ export default function Dashboard() {
               return (
                 <div
                   key={p.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 transition ${isSelected ? 'bg-purple-500/10' : ''}`}
+                  id={`annonce-${p.id}`}
+                  className={`flex scroll-mt-24 items-center gap-3 px-3 py-2.5 transition ${
+                    p.id === surligne ? 'bg-purple-500/20 ring-1 ring-inset ring-purple-400/60' : isSelected ? 'bg-purple-500/10' : ''
+                  }`}
                 >
                   <button
                     type="button"
