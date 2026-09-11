@@ -26,6 +26,24 @@ const STATUS_COLOR: Record<string, string> = {
   ARCHIVED: 'bg-gray-500/20 text-gray-400',
 }
 
+/**
+ * Les réglages de liste (tri, filtres, recherche, vue) mémorisés d'un rendu à
+ * l'autre. Relus UNIQUEMENT au retour d'une fiche — quand l'URL porte
+ * `?retour=…` : une visite normale de « Mes annonces » repart des réglages par
+ * défaut, une visite qui revient d'une annonce retrouve la liste telle qu'elle
+ * était (mêmes filtres, même position).
+ */
+const CLE_FILTRES = 'dsp-annonces-filtres'
+function filtresSauves(): Record<string, any> | null {
+  try {
+    if (!new URLSearchParams(window.location.search).get('retour')) return null
+    const brut = sessionStorage.getItem(CLE_FILTRES)
+    return brut ? JSON.parse(brut) : null
+  } catch {
+    return null
+  }
+}
+
 export default function Dashboard() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,9 +57,11 @@ export default function Dashboard() {
   const [batchEchecs, setBatchEchecs] = useState<Array<{ url: string; error: string }>>([])
   /** Le compte-rendu d'une action en lot. Une action muette laisse croire qu'il ne s'est rien passé. */
   const [avis, setAvis] = useState<string | null>(null)
-  const [tri, setTri] = useState<'date' | 'categorie' | 'prix' | 'fournisseur'>('date')
-  const [statut, setStatut] = useState<'tous' | 'publie' | 'nonPublie'>('tous')
-  const [fournisseurFiltre, setFournisseurFiltre] = useState('')
+  // Réglages restaurés au retour d'une fiche (null lors d'une visite normale).
+  const [restaure] = useState(filtresSauves)
+  const [tri, setTri] = useState<'date' | 'categorie' | 'prix' | 'fournisseur'>(restaure?.tri ?? 'date')
+  const [statut, setStatut] = useState<'tous' | 'publie' | 'nonPublie'>(restaure?.statut ?? 'tous')
+  const [fournisseurFiltre, setFournisseurFiltre] = useState<string>(restaure?.fournisseurFiltre ?? '')
   /**
    * N'afficher que les annonces dont le texte n'a pas été réécrit.
    *
@@ -50,17 +70,17 @@ export default function Dashboard() {
    * 02/09/2026, vingt-deux annonces sur vingt-cinq étaient dans ce cas et il a
    * fallu les ouvrir une par une pour s'en apercevoir.
    */
-  const [seulementNonReecrites, setSeulementNonReecrites] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState('')
+  const [seulementNonReecrites, setSeulementNonReecrites] = useState<boolean>(restaure?.seulementNonReecrites ?? false)
+  const [categoryFilter, setCategoryFilter] = useState<string>(restaure?.categoryFilter ?? '')
   /** Les identifiants que le choix de catégorie recouvre. Vide = toutes. */
-  const [categoryIds, setCategoryIds] = useState<string[]>([])
-  const [search, setSearch] = useState('')
+  const [categoryIds, setCategoryIds] = useState<string[]>(restaure?.categoryIds ?? [])
+  const [search, setSearch] = useState<string>(restaure?.search ?? '')
   const [pendingDelete, setPendingDelete] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
 
   // Kept between visits: someone who works in list mode expects to find it again.
   const [view, setView] = useState<'grid' | 'list'>(
-    () => (localStorage.getItem('droppost_view') === 'list' ? 'list' : 'grid'),
+    () => restaure?.view ?? (localStorage.getItem('droppost_view') === 'list' ? 'list' : 'grid'),
   )
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkOpen, setBulkOpen] = useState(false)
@@ -252,6 +272,20 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem('droppost_view', view)
   }, [view])
+
+  // Mémorise les réglages de liste à chaque changement : au moment où l'on
+  // ouvre une fiche, sessionStorage porte déjà les filtres exacts à restaurer
+  // au retour. Lus seulement quand l'URL revient avec ?retour= (voir filtresSauves).
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        CLE_FILTRES,
+        JSON.stringify({ tri, statut, fournisseurFiltre, seulementNonReecrites, categoryFilter, categoryIds, search, view }),
+      )
+    } catch {
+      // sessionStorage indisponible (navigation privée stricte) : sans effet.
+    }
+  }, [tri, statut, fournisseurFiltre, seulementNonReecrites, categoryFilter, categoryIds, search, view])
 
   function toggleSelected(id: string) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]))
