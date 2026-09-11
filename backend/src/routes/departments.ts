@@ -388,7 +388,7 @@ departmentsRouter.post('/:id/extraction', async (req: AuthedRequest, res) => {
     publication,
     // Un mot au vendeur quand il a demandé la publication sans Auto-Shipper actif.
     note: parsed.data.publier && !publieReel
-      ? "Publication auto : activez l'Auto-Shipper. Vos gagnants sont archivés dans Produits gagnants."
+      ? "Publication auto : activez l'Auto-SHIPPER IA. Vos gagnants sont archivés dans Produits gagnants."
       : null,
     credits: user?.credits ?? null,
   })

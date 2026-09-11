@@ -48,7 +48,7 @@ export function ControlAgentToggle() {
         ne semble pas être le produit : bannières, tableaux de tailles, visuels d'un autre article.
         C'est un second regard de l'IA sur des photos que vous avez déjà choisies — utile, mais qui
         coûte quelques centimes par annonce. <strong>Désactivé par défaut</strong> : activez-le si
-        vous importez vite sans regarder vos photos. L'AUTO-SHIPPER, lui, le lance toujours (personne
+        vous importez vite sans regarder vos photos. L'Auto-SHIPPER IA, lui, le lance toujours (personne
         ne relit à sa place), quel que soit ce réglage.
       </p>
       {/*
@@ -81,7 +81,7 @@ export function ControlAgentToggle() {
           <span className="mt-0.5 block text-xs text-gray-500">
             {enabled
               ? "Chaque import manuel est relu par l'IA — quelques centimes de plus par annonce."
-              : "Vos photos partent telles que vous les avez choisies. L'AUTO-SHIPPER relit toujours les siennes."}
+              : "Vos photos partent telles que vous les avez choisies. L'Auto-SHIPPER IA relit toujours les siennes."}
           </span>
         </span>
       </label>
@@ -91,7 +91,7 @@ export function ControlAgentToggle() {
           <ShieldCheck size={13} className="mt-0.5 shrink-0" />
           <span>
             Vous choisissez déjà vos photos à la main : ce second regard est facultatif, et le couper
-            fait baisser le coût de chaque annonce. L'AUTO-SHIPPER reste couvert de son côté.
+            fait baisser le coût de chaque annonce. L'Auto-SHIPPER IA reste couvert de son côté.
           </span>
         </p>
       )}

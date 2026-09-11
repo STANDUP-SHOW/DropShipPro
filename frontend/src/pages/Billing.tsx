@@ -42,13 +42,13 @@ const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'gagnantExtrait', label: 'Produit gagnant extrait', detail: 'Extraction à la demande, archivé dans Produits gagnants' },
   { cle: 'gagnantPublie', label: 'Produit gagnant extrait + publié', detail: '+ le coût d’import habituel par annonce' },
   { cle: 'image', label: 'Générer une image', detail: 'Une mise en situation du produit' },
-  { cle: 'controle', label: 'Contrôle photo (par annonce)', detail: 'Iris vérifie les photos d’un import sans œil humain (lot, AUTO-SHIPPER)' },
+  { cle: 'controle', label: 'Contrôle photo (par annonce)', detail: 'Iris vérifie les photos d’un import sans œil humain (lot, Auto-SHIPPER IA)' },
   { cle: 'pub', label: 'Créer une publicité', detail: 'Accroche rédigée + visuel composé' },
   { cle: 'questionComptoir', label: 'Question à un agent de comptoir', detail: 'Hotline, SAV, commercial…' },
   { cle: 'questionChef', label: 'Question à un chef de rayon', detail: 'Avocat, comptable, chef de secteur…' },
   { cle: 'conseilProduit', label: 'Conseil produit approfondi', detail: 'Un chef fouille fournisseurs et réseaux' },
   { cle: 'autoModePassage', label: 'AUTO-MODE (un passage de rayon)', detail: 'Analyse + 10 produits gagnants, toutes les 12 h' },
-  { cle: 'autoShipperImport', label: 'AUTO-SHIPPER (une annonce)', detail: 'Import + publication automatiques' },
+  { cle: 'autoShipperImport', label: 'Auto-SHIPPER IA (une annonce)', detail: 'Import + publication automatiques' },
 ]
 
 export default function BillingPage() {

@@ -54,7 +54,7 @@ const NAV = [
   { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
   // La page « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (06/09/2026) ;
   // son entrée porte l'icône et le dégradé bleu → jaune de son animation.
-  { to: '/pilote', label: 'Auto-Shipper AI', icon: IconeAutoShipper },
+  { to: '/pilote', label: 'Auto-SHIPPER IA', icon: IconeAutoShipper },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
 ]
 

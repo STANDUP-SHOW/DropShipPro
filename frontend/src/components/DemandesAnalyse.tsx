@@ -206,7 +206,7 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
         </div>
         <p className="mt-2 text-[11px] text-gray-500">
           Publier ajoute le coût d'import habituel par annonce (scraping, description, mots-clés…) et
-          nécessite l'Auto-Shipper activé.
+          nécessite l'Auto-SHIPPER IA activé.
         </p>
         {extraction ? <p className="mt-2 text-xs text-emerald-200">{extraction}</p> : null}
       </div>

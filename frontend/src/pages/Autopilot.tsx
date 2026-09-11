@@ -148,7 +148,7 @@ function AnimationAutoShipper() {
 }
 
 /**
- * AUTO-SHIPPER AI — le pilote automatique, présenté comme un agent.
+ * Auto-SHIPPER IA — le pilote automatique, présenté comme un agent.
  *
  * La page suit la fiche de recadrage du 06/09/2026 : l'agent se présente,
  * montre ce qu'il exige pour travailler seul (les agents ADMIN en mode auto,
@@ -204,11 +204,11 @@ export default function Autopilot() {
   const s = config.settings
   /*
    * L'avocat, la graphiste et l'agent marketing ne figurent pas ici :
-   * l'autonomie d'Auto-Shipper n'a besoin ni d'un conseil de droit, ni de
+   * l'autonomie d'Auto-SHIPPER IA n'a besoin ni d'un conseil de droit, ni de
    * photos refaites, ni de publicités pour tourner (06/09/2026). Leurs
    * fiches restent sur la page Mes agents ADMIN.
    *
-   * Et Auto-Shipper (`autopilot`) ne figure pas dans SA PROPRE liste : c'est
+   * Et Auto-SHIPPER IA (`autopilot`) ne figure pas dans SA PROPRE liste : c'est
    * lui qui orchestre les autres, il n'a pas à s'y compter (07/09/2026).
    */
   const HORS_AUTONOMIE = ['avocat', 'photo', 'marketing', 'autopilot']
@@ -263,7 +263,7 @@ export default function Autopilot() {
     <Layout>
       {/*
         Le haut de page en deux colonnes (06/09/2026) : le bloc principal
-        d'Auto-Shipper justifié à gauche, la grille des agents ADMIN à
+        d'Auto-SHIPPER IA justifié à gauche, la grille des agents ADMIN à
         sa droite — l'empilement ne revient qu'en affichage vertical.
       */}
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
@@ -274,7 +274,7 @@ export default function Autopilot() {
             {/* Le dégradé du titre reprend l'animation : la glace du noyau vers
                 le feu de l'anneau — bleu → jaune (06/09/2026). */}
             <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text text-transparent">
-              AUTO-SHIPPER AI
+              Auto-SHIPPER IA
             </span>
           </h1>
           <p className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-400">
@@ -285,7 +285,7 @@ export default function Autopilot() {
 
           {/* L'agent se présente, dans ses mots. */}
           <p className="text-sm leading-relaxed text-sky-300">
-            Salut, je suis Auto-Shipper.
+            Salut, je suis Auto-SHIPPER IA.
             <br />
             Je suis capable de gérer pour toi intégralement mon système.
           </p>
@@ -334,7 +334,7 @@ export default function Autopilot() {
         </section>
       </div>
 
-      {/* ---------- Activer Auto-Shipper : le bouton, et le tarif qui s'adapte ---------- */}
+      {/* ---------- Activer Auto-SHIPPER IA : le bouton, et le tarif qui s'adapte ---------- */}
       {(() => {
         const rayonsAuto = enPoste.filter((r) => r.autoMode).length
         const nR = Math.max(rayonsAuto, 1) // 1 rayon en exemple quand rien n'est en auto-mode
@@ -350,7 +350,7 @@ export default function Autopilot() {
           <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold">Activer Auto-Shipper</h2>
+                <h2 className="text-lg font-bold">Activer Auto-SHIPPER IA</h2>
                 <p className="mt-0.5 text-xs text-gray-400">
                   75 drops / passage / rayon / 12 h · 14 drops / produit ·{' '}
                   <a href="#infos" className="text-yellow-300 underline underline-offset-2">
@@ -367,7 +367,7 @@ export default function Autopilot() {
                 }}
                 className="rounded-xl bg-gradient-to-r from-sky-500 via-cyan-400 to-yellow-300 px-6 py-3 text-base font-black text-black shadow-[0_0_20px_rgba(56,189,248,0.35)] transition hover:brightness-110"
               >
-                {s.enabled ? 'Auto-Shipper activé ✓' : 'Activer Auto-Shipper'}
+                {s.enabled ? 'Auto-SHIPPER IA activé ✓' : 'Activer Auto-SHIPPER IA'}
               </button>
             </div>
 
@@ -540,7 +540,7 @@ export default function Autopilot() {
             className="h-5 w-5 accent-sky-400"
           />
           <span className="font-semibold">
-            {s.enabled ? 'Auto-Shipper activé' : 'Auto-Shipper désactivé'}
+            {s.enabled ? 'Auto-SHIPPER IA activé' : 'Auto-SHIPPER IA désactivé'}
           </span>
           {s.enabled ? (
             <span className="rounded-full bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-sky-300">
@@ -664,7 +664,7 @@ export default function Autopilot() {
         {!s.enabled && (
           <p className="mt-3 flex items-center gap-1 text-xs text-gray-500">
             <Info size={13} />
-            <span>Activez Auto-Shipper pour pouvoir lancer un passage.</span>
+            <span>Activez Auto-SHIPPER IA pour pouvoir lancer un passage.</span>
           </p>
         )}
       </section>
@@ -724,7 +724,7 @@ export default function Autopilot() {
       {/*
         Le bloc infos de la fiche, EN BAS comme toutes les mises en garde
         (règle du 05/09/2026) : ce que fait un chef en mode auto, ce que fait
-        Auto-Shipper, les limites et le tarif de cette version.
+        Auto-SHIPPER IA, les limites et le tarif de cette version.
       */}
       <div id="infos" className="mt-8 scroll-mt-6 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-5">
         <h2 className="font-bold text-yellow-200">Infos</h2>
@@ -741,7 +741,7 @@ export default function Autopilot() {
           </div>
 
           <div className="text-xs leading-relaxed text-yellow-100/90">
-            <p className="font-semibold text-yellow-200">Ce que fait Auto-Shipper :</p>
+            <p className="font-semibold text-yellow-200">Ce que fait Auto-SHIPPER IA :</p>
             <ul className="mt-1 list-inside list-disc space-y-0.5">
               <li>il récupère matin et soir la liste des produits gagnants mise à jour par vos chefs de rayon ;</li>
               <li>il importe ces articles dans Mes annonces, un par un, avec contrôle des images avant publication ;</li>
@@ -764,7 +764,7 @@ export default function Autopilot() {
         <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
         <div className="text-xs leading-relaxed text-amber-100">
           <p>
-            <b>Chaque import consomme des drops</b> (14 en AUTO-SHIPPER) et remplit votre catalogue. Le plafond quotidien
+            <b>Chaque import consomme des drops</b> (14 en Auto-SHIPPER IA) et remplit votre catalogue. Le plafond quotidien
             est la seule chose qui vous protège d'un agent trop généreux : commencez bas.
           </p>
           <p className="mt-1">

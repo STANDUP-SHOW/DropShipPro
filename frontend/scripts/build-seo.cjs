@@ -328,7 +328,7 @@ ${c.note ? `<p class="note">${esc(c.note)}</p>` : ''}
 /**
  * Le bloc « ce que DropShipper IA apporte », le même sur chaque page : une
  * boutique en ligne gratuite et instantanée (pas d'abonnement Shopify à payer)
- * et le dropshipping automatique du mode Auto-Shipper. Demandé pour chaque
+ * et le dropshipping automatique du mode Auto-SHIPPER IA. Demandé pour chaque
  * plateforme le 10/09/2026.
  */
 function argumentsDropShipper(name) {
@@ -337,8 +337,8 @@ function argumentsDropShipper(name) {
 <div class="gratuit">
   <p class="pitch">Créez votre <span class="free">boutique en ligne gratuite et instantanée</span> — sans payer 29 € par mois d'abonnement Shopify.</p>
   <p>Vendre sur ${esc(name)} vous soumet à ses règles et à sa commission. Une boutique à vous, en parallèle, ne prélève aucune commission sur vos ventes et vous garde le client. DropShipper IA vous en ouvre une en quelques secondes : une adresse en ligne, votre logo, vos couleurs, votre catalogue déjà en vente — sans frais mensuels, sans carte bancaire, sans savoir coder.</p>
-  <h3>Dropshipping automatique : le mode Auto-Shipper</h3>
-  <p>L'Auto-Shipper fait tourner le magasin en pilote automatique : il repère les produits gagnants, rédige les annonces en français, filigrane les photos à vos couleurs et publie tout seul, à intervalle régulier, sur votre boutique comme sur ${esc(name)}. Vous gardez la main — chaque passage est plafonné et facturé d'avance, jamais de surprise.</p>
+  <h3>Dropshipping automatique : le mode Auto-SHIPPER IA</h3>
+  <p>L'Auto-SHIPPER IA fait tourner le magasin en pilote automatique : il repère les produits gagnants, rédige les annonces en français, filigrane les photos à vos couleurs et publie tout seul, à intervalle régulier, sur votre boutique comme sur ${esc(name)}. Vous gardez la main — chaque passage est plafonné et facturé d'avance, jamais de surprise.</p>
   <p><a class="cta small" href="/register">Ouvrir ma boutique gratuite</a></p>
 </div>`
 }

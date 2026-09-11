@@ -326,14 +326,14 @@ module.exports = [
   },
   {
     slug: 'dropshipping-automatique',
-    title: 'Dropshipping automatique : le mode Auto-Shipper',
+    title: 'Dropshipping automatique : le mode Auto-SHIPPER IA',
     description:
-      "Le dropshipping en pilote automatique : sélection des produits gagnants, réécriture, filigrane et publication sans intervention. Ce que l'Auto-Shipper fait, et ce qu'il coûte.",
+      "Le dropshipping en pilote automatique : sélection des produits gagnants, réécriture, filigrane et publication sans intervention. Ce que l'Auto-SHIPPER IA fait, et ce qu'il coûte.",
     intro:
-      "Faire tourner une boutique de dropshipping, c'est répéter les mêmes gestes chaque jour : chercher les produits qui marchent, rédiger, protéger les photos, publier. Le mode Auto-Shipper enchaîne tout cela sans vous — vous fixez le cadre, il exécute.",
+      "Faire tourner une boutique de dropshipping, c'est répéter les mêmes gestes chaque jour : chercher les produits qui marchent, rédiger, protéger les photos, publier. Le mode Auto-SHIPPER IA enchaîne tout cela sans vous — vous fixez le cadre, il exécute.",
     sections: [
       {
-        h2: 'Ce que l’Auto-Shipper enchaîne tout seul',
+        h2: 'Ce que l’Auto-SHIPPER IA enchaîne tout seul',
         paragraphs: [
           "À chaque passage, il récupère une analyse de marché et les produits gagnants sélectionnés, importe ceux qui rentrent dans vos critères, laisse l'IA rédiger l'annonce en français, filigrane les photos à vos couleurs, puis publie — sur votre boutique et sur les marketplaces que vous avez reliées.",
           "Tout ce que vous faites à la main dans un import est fait à l'identique en automatique, avec les mêmes contrôles de qualité sur les photos et le même refus des fiches sans matière.",
@@ -350,9 +350,9 @@ module.exports = [
         h2: 'Automatique ne veut pas dire sur tous les canaux',
         paragraphs: [
           "La publication réellement automatique se fait là où une API le permet : votre boutique, Shopify, et les marketplaces qui délivrent une clé à leurs vendeurs validés. Sur Vinted, Leboncoin ou Facebook Marketplace, aucune API publique d'annonces n'existe — publier à votre place y violerait les conditions d'utilisation et ferait suspendre le compte.",
-          "Pour ces plateformes, l'Auto-Shipper prépare tout, et le dépôt final passe par le remplissage assisté que vous validez.",
+          "Pour ces plateformes, l'Auto-SHIPPER IA prépare tout, et le dépôt final passe par le remplissage assisté que vous validez.",
         ],
-        note: "L'Auto-Shipper force le contrôle des photos par l'IA sur ses imports, parce que personne ne les relit à l'œil : c'est un coût par annonce contrôlée, annoncé d'avance.",
+        note: "L'Auto-SHIPPER IA force le contrôle des photos par l'IA sur ses imports, parce que personne ne les relit à l'œil : c'est un coût par annonce contrôlée, annoncé d'avance.",
       },
     ],
     faq: [
@@ -361,12 +361,12 @@ module.exports = [
         a: "Oui, sur les destinations à API : la fiche est importée, rédigée, filigranée et publiée sans intervention. Sur les plateformes sans API d'annonces, il prépare tout et vous validez le dépôt.",
       },
       {
-        q: 'Combien coûte un passage de l’Auto-Shipper ?',
-        a: "Chaque passage est facturé d'avance en drops, par rayon et par tranche, et chaque produit importé consomme son coût d'annonce. Le détail et un simulateur sont affichés sur la page Auto-Shipper avant activation.",
+        q: 'Combien coûte un passage de l’Auto-SHIPPER IA ?',
+        a: "Chaque passage est facturé d'avance en drops, par rayon et par tranche, et chaque produit importé consomme son coût d'annonce. Le détail et un simulateur sont affichés sur la page Auto-SHIPPER IA avant activation.",
       },
       {
         q: 'Peut-on arrêter à tout moment ?',
-        a: "Oui. L'Auto-Shipper s'active et se désactive quand vous voulez ; sans activation, aucun passage n'a lieu et rien n'est facturé.",
+        a: "Oui. L'Auto-SHIPPER IA s'active et se désactive quand vous voulez ; sans activation, aucun passage n'a lieu et rien n'est facturé.",
       },
     ],
   },
