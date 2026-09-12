@@ -108,7 +108,7 @@ function AnimationAutoShipper() {
 
         {/* Le liseré technique : pointillés serrés, rotation lente. */}
         <g className="dsp-as-anime" style={{ animation: 'dsp-as-rot 22s linear infinite' }}>
-          <circle cx="130" cy="130" r="98" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.4" strokeDasharray="2 7" />
+          <circle cx="130" cy="130" r="98" fill="none" stroke="currentColor" strokeOpacity="0.35" strokeWidth="1.4" strokeDasharray="2 7" />
         </g>
 
         {/* Les huit métiers en satellites, chacun sa couleur. */}

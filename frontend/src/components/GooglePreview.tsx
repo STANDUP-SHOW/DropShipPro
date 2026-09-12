@@ -129,7 +129,7 @@ export function GooglePreview({
 
       {/* Fond blanc, police système : un aperçu qui ne ressemble pas au résultat
           vaut moins que pas d'aperçu du tout. */}
-      <div className="mt-4 rounded-xl bg-white p-5 font-[Arial,sans-serif] text-[#202124]">
+      <div className="mt-4 rounded-xl bg-[#fff] p-5 font-[Arial,sans-serif] text-[#202124]">
         {/* ---------- Le résultat de recherche ---------- */}
         <div className="flex items-center gap-2">
           <span

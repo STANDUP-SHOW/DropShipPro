@@ -191,7 +191,7 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
             <path
               d={MONDE_D}
               fill="rgba(148, 121, 255, 0.10)"
-              stroke="rgba(255,255,255,0.9)"
+              stroke="currentColor" strokeOpacity="0.9"
               strokeWidth="0.38"
               strokeLinejoin="round"
               style={{ filter: 'drop-shadow(0 0 1.6px rgba(255,255,255,0.75))' }}

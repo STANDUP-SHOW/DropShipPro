@@ -26,6 +26,14 @@
     <meta property="og:locale" content="fr_FR" />
     <meta http-equiv="Content-Language" content="fr" />
 
+    <!-- Le thème choisi (clair ou sombre, voir src/lib/theme.ts) est posé avant
+         le premier rendu : lu par React seulement, la page clignoterait en
+         sombre à chaque chargement. -->
+    <script>
+      try {
+        if (localStorage.getItem('dsp-theme') === 'light') document.documentElement.setAttribute('data-theme', 'light')
+      } catch (e) {}
+    </script>
     <title>DropShipper IA</title>
   </head>
   <body>

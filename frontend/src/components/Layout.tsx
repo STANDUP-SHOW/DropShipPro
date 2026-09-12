@@ -4,6 +4,7 @@ import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
+import { BoutonTheme } from './BoutonTheme'
 import { BandeauJauges } from './BandeauJauges'
 import { BandeauNotifications } from './BandeauNotifications'
 import { useAuth } from '../lib/auth'
@@ -252,9 +253,10 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
     <div className="min-h-screen text-white flex">
       <FondVivant />
       <aside className="relative w-56 shrink-0 border-r border-white/10 bg-black/35 p-4 backdrop-blur-xl flex flex-col">
-        <Link to="/dashboard" className="mb-8 block">
+        <Link to="/dashboard" className="mb-4 block">
           <Logo size={22} />
         </Link>
+        <BoutonTheme />
         <nav className="space-y-1 flex-1">
           {NAV.map((item) => {
             const active = pathname.startsWith(item.to)

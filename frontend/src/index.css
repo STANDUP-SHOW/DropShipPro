@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./theme-clair.css";
 
 @theme {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -206,3 +207,30 @@ optgroup {
     top: 30%;
   }
 }
+
+/* ── Le thème clair ────────────────────────────────────────────────────────
+ * Demandé le 13/09/2026 : un bouton lune/soleil sous le titre du menu, et un
+ * second thème en contraste opposé — fond blanc, textes noirs ou gris.
+ *
+ * Le gros du travail n'est pas ici mais dans theme-clair.css (généré par
+ * scripts/build-theme-clair.cjs) : la palette Tailwind retournée autour de
+ * 500, white → gris-noir, black → gris clair. Chaque utilitaire lit sa couleur
+ * dans une variable, donc tout le site se retourne sans qu'une classe change.
+ * Ne restent ici que les couleurs écrites en dur : le fond, les panneaux à
+ * teinte fixe, les listes natives — et le texte des boutons en dégradé, qui
+ * reste blanc parce que le dégradé, lui, ne se retourne pas. */
+html[data-theme="light"] { color-scheme: light; }
+[data-theme="light"] body { background: #ffffff; color: #111827; }
+[data-theme="light"] .bg-app-gradient {
+  background: radial-gradient(1100px 700px at 75% -10%, #f1e9ff, #ffffff 60%);
+}
+[data-theme="light"] .btn-gradient { --color-white: #fff; }
+[data-theme="light"] option,
+[data-theme="light"] optgroup { background-color: #ffffff; color: #111827; }
+/* Les fonds écrits en dur : le noir du décor et des jauges, le violet nuit des
+ * fenêtres, l'ambre sombre du bloc extension. */
+[data-theme="light"] [class~="bg-[#08070f]"] { background-color: #ffffff; }
+[data-theme="light"] [class~="bg-[#1b1633]"] { background-color: #f7f4fd; }
+[data-theme="light"] [class~="bg-[#211a10]"] { background-color: #fff6e5; }
+/* Les gouttes de la lampe à lave, plus discrètes sur blanc. */
+[data-theme="light"] .blob { opacity: 0.32; }

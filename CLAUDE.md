@@ -718,6 +718,24 @@ Trois conséquences, toutes appliquées :
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).
 - **Un `type="number"` contrôlé par `Number()` casse à la virgule** du pavé
   numérique français. D'où le composant `PriceInput`.
+- **Le thème clair est une inversion de palette, pas une seconde feuille de
+  style.** Demandé le 13/09/2026 (bouton lune/soleil sous le titre du menu,
+  `BoutonTheme.tsx`, choix dans localStorage `dsp-theme`, posé sur
+  `<html data-theme="light">` par `index.html` avant le premier rendu). Le site
+  entier est écrit pour le noir avec `text-white`, `bg-white/10`, `text-gray-400`,
+  `text-purple-300`… — et Tailwind v4 ne fige aucune de ces couleurs : chaque
+  utilitaire lit `var(--color-white)`, `color-mix(… var(--color-gray-400) …)`.
+  `scripts/build-theme-clair.cjs` génère donc `src/theme-clair.css` : sous
+  `[data-theme="light"]`, chaque échelle est retournée autour de 500
+  (300 ↔ 700, 400 ↔ 600…), `white` devient gray-900, `black` devient gray-300
+  (pas blanc : les panneaux `bg-black/20` disparaîtraient). Aucune classe à
+  toucher dans cent cinquante fichiers. Ce qui a dû être fait à la main :
+  les fonds en dur (`bg-[#08070f]`, `bg-[#1b1633]`, `bg-[#211a10]`), le texte
+  des boutons `.btn-gradient` (reste blanc : le dégradé ne se retourne pas),
+  et les tracés SVG des jauges en `rgba(255,255,255,…)` passés en
+  `currentColor` + `fillOpacity`. **Piège :** un sélecteur échappé
+  `.bg-[#08070f]` écrit dans index.css est perdu à la minification
+  (Lightning CSS) ; viser la classe par attribut, `[class~="bg-[#08070f]"]`.
 
 ---
 

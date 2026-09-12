@@ -149,7 +149,7 @@ export function Points({ serie, graine = 0 }: { serie: number[]; encre?: Encre; 
   const pts = n.map((v, i) => [4 + i * pas, H - 5 - v * (H - 10)] as const)
   return (
     <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" className="h-8 w-full" aria-hidden>
-      <path d={pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="1" />
+      <path d={pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} fill="none" stroke="currentColor" strokeOpacity="0.14" strokeWidth="1" />
       {pts.map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r="2.2" fill={neon(i + graine)} />
       ))}
@@ -199,7 +199,7 @@ export function Vague({ serie, encre }: { serie: number[]; encre: Encre }) {
       <path d={lisse(haut)} fill="none" stroke={`url(#${gid}h)`} strokeWidth="1.8" strokeLinecap="round" />
       <path d={`${lisse(bas)} L100,${H / 2} L0,${H / 2} Z`} fill={`${encre.a}30`} />
       <path d={lisse(bas)} fill="none" stroke={encre.a} strokeWidth="1.4" strokeLinecap="round" opacity="0.85" />
-      <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="rgba(255,255,255,0.14)" strokeWidth="0.7" strokeDasharray="2 2.4" />
+      <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="currentColor" strokeOpacity="0.14" strokeWidth="0.7" strokeDasharray="2 2.4" />
     </svg>
   )
 }
@@ -298,7 +298,7 @@ export function Empilees({ serie, graine = 0 }: { serie: number[]; encre?: Encre
         const h = Math.max(2, v * (H - 6))
         return (
           <g key={i}>
-            <rect x={i * larg + larg * 0.2} y={2} width={larg * 0.6} height={H - 4} rx="2.4" fill="rgba(255,255,255,0.08)" />
+            <rect x={i * larg + larg * 0.2} y={2} width={larg * 0.6} height={H - 4} rx="2.4" fill="currentColor" fillOpacity="0.08" />
             <rect x={i * larg + larg * 0.2} y={H - 2 - h} width={larg * 0.6} height={h} rx="2.4" fill={`url(#${gid}${(i + graine) % SEGMENTS_COULEURS.length})`} />
           </g>
         )
@@ -322,7 +322,7 @@ export function Ecarts({ serie, graine = 0 }: { serie: number[]; encre?: Encre; 
   const ampli = Math.max(...n.map((v) => Math.abs(v - moyenne)), 0.05)
   return (
     <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" className="h-8 w-full" aria-hidden>
-      <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="rgba(255,255,255,0.16)" strokeWidth="0.8" strokeDasharray="2 2.4" />
+      <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="currentColor" strokeOpacity="0.16" strokeWidth="0.8" strokeDasharray="2 2.4" />
       {n.map((v, i) => {
         const ecart = (v - moyenne) / ampli
         const h = Math.max(1.4, Math.abs(ecart) * (H / 2 - 3))
@@ -398,7 +398,7 @@ export function TroisLignes({ serie, graine = 0 }: { serie: number[]; encre?: En
   const ptsMoy = chemin(moyenne)
   return (
     <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" className="h-8 w-full" aria-hidden>
-      <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="rgba(255,255,255,0.10)" strokeWidth="0.7" strokeDasharray="1.6 2.4" />
+      <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="currentColor" strokeOpacity="0.10" strokeWidth="0.7" strokeDasharray="1.6 2.4" />
       <path d={chemin(tendance).map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} fill="none" stroke={c3} strokeWidth="1.2" strokeDasharray="3 2.4" opacity="0.85" />
       <path d={chemin(brute).map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} fill="none" stroke={c1} strokeWidth="1.2" opacity="0.6" />
       <path d={lisse(ptsMoy)} fill="none" stroke={c2} strokeWidth="1.9" strokeLinecap="round" />
@@ -488,7 +488,7 @@ export function Anneaux({ parts, graine = 0 }: { parts: Part[]; graine?: number 
         const visible = Math.max(0.07, p.valeur / max)
         return (
           <g key={p.label + i}>
-            <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4.5" />
+            <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeOpacity="0.07" strokeWidth="4.5" />
             <circle
               cx="32"
               cy="32"
@@ -521,7 +521,7 @@ export function BarresH({ parts, graine = 0 }: { parts: Part[]; graine?: number 
       </defs>
       {lignes.map((p, i) => (
         <g key={p.label + i}>
-          <rect x="0" y={i * h + h * 0.25} width="100" height={h * 0.5} rx={h * 0.25} fill="rgba(255,255,255,0.07)" />
+          <rect x="0" y={i * h + h * 0.25} width="100" height={h * 0.5} rx={h * 0.25} fill="currentColor" fillOpacity="0.07" />
           <rect x="0" y={i * h + h * 0.25} width={Math.max(5, (p.valeur / max) * 100)} height={h * 0.5} rx={h * 0.25} fill={`url(#${gid}${i})`} />
         </g>
       ))}
@@ -554,7 +554,7 @@ export function RangeesPilules({ parts, graine = 0 }: { parts: Part[]; graine?: 
             width={pas * 0.58}
             height={h * 0.64}
             rx={Math.min(2.2, pas * 0.29)}
-            fill={j < pleines ? `url(#${gid}${i})` : 'rgba(255,255,255,0.08)'}
+            fill={j < pleines ? `url(#${gid}${i})` : 'currentColor'} fillOpacity={j < pleines ? 1 : 0.08}
           />
         ))
       })}
@@ -580,7 +580,7 @@ export function MatricePoints({ parts, graine = 0 }: { parts: Part[]; graine?: n
             cx={pas / 2 + j * pas}
             cy={i * h + h / 2}
             r={Math.min(2.6, h * 0.3)}
-            fill={j < pleins ? c : 'rgba(255,255,255,0.08)'}
+            fill={j < pleins ? c : 'currentColor'} fillOpacity={j < pleins ? 1 : 0.08}
           />
         ))
       })}
@@ -607,7 +607,7 @@ export function Radar({ parts, encre }: { parts: Part[]; encre: Encre }) {
         <Degrade id={gid} {...encre} />
       </defs>
       {toile.map((points, i) => (
-        <polygon key={i} points={points} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="0.8" />
+        <polygon key={i} points={points} fill="none" stroke="currentColor" strokeOpacity="0.10" strokeWidth="0.8" />
       ))}
       <polygon points={forme.join(' ')} fill={`${encre.de}33`} stroke={`url(#${gid})`} strokeWidth="1.6" strokeLinejoin="round" />
       {forme.map((p, i) => {
@@ -630,7 +630,7 @@ export function Curseurs({ parts, graine = 0 }: { parts: Part[]; graine?: number
         const couleur = neon(i + graine)
         return (
           <g key={p.label + i}>
-            <line x1={x} y1="6" x2={x} y2="58" stroke="rgba(255,255,255,0.12)" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1={x} y1="6" x2={x} y2="58" stroke="currentColor" strokeOpacity="0.12" strokeWidth="2.5" strokeLinecap="round" />
             <line x1={x} y1={y} x2={x} y2="58" stroke={couleur} strokeWidth="2.5" strokeLinecap="round" />
             <rect x={x - 3.2} y={y - 4.5} width="6.4" height="9" rx="2" fill={couleur} style={{ filter: `drop-shadow(0 0 3px ${couleur})` }} />
           </g>
@@ -675,7 +675,7 @@ export function Jalons({ parts, graine = 0 }: { parts: Part[]; graine?: number }
   const pas = 100 / lignes.length
   return (
     <svg viewBox="0 0 100 32" preserveAspectRatio="none" className="h-8 w-full" aria-hidden>
-      <line x1={pas / 2} y1="12" x2={100 - pas / 2} y2="12" stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="2 2.5" />
+      <line x1={pas / 2} y1="12" x2={100 - pas / 2} y2="12" stroke="currentColor" strokeOpacity="0.18" strokeWidth="1" strokeDasharray="2 2.5" />
       {lignes.map((p, i) => {
         const couleur = neon(i + graine)
         const x = pas / 2 + i * pas
@@ -733,7 +733,7 @@ export function Jauge({ part, encre }: { part: number; encre: Encre }) {
       <defs>
         <Degrade id={gid} {...encre} />
       </defs>
-      <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+      <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeOpacity="0.08" strokeWidth="6" />
       <circle cx="32" cy="32" r={r} fill="none" stroke={`url(#${gid})`} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(part * tour).toFixed(1)} ${tour.toFixed(1)}`} transform="rotate(-90 32 32)" style={{ filter: `drop-shadow(0 0 4px ${encre.de}77)` }} />
     </svg>
   )
@@ -751,7 +751,7 @@ export function AnneauPastille({ part, encre }: { part: number; encre: Encre }) 
       <defs>
         <Degrade id={gid} {...encre} />
       </defs>
-      <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+      <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeOpacity="0.08" strokeWidth="5" />
       <circle cx="32" cy="32" r={r} fill="none" stroke={`url(#${gid})`} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(part * tour).toFixed(1)} ${tour.toFixed(1)}`} transform="rotate(-90 32 32)" />
       <circle cx={bout[0].toFixed(1)} cy={bout[1].toFixed(1)} r="4" fill={encre.a} style={{ filter: `drop-shadow(0 0 3px ${encre.de})` }} />
     </svg>
@@ -768,7 +768,7 @@ export function Arcs({ part, graine = 0 }: { part: number; encre?: Encre; graine
         const c = neon(i * 2 + graine)
         return (
           <g key={r}>
-            <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="3.4" />
+            <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeOpacity="0.07" strokeWidth="3.4" />
             <circle cx="32" cy="32" r={r} fill="none" stroke={c} strokeWidth="3.4" strokeLinecap="round" strokeDasharray={`${(visible * tour).toFixed(1)} ${tour.toFixed(1)}`} transform={`rotate(${-90 + i * 24} 32 32)`} />
           </g>
         )
@@ -837,7 +837,7 @@ export function DemiJauge({ part, encre, graine = 0 }: { part: number; encre: En
           key={i}
           d={`M ${32 - r} 36 A ${r} ${r} 0 0 1 ${32 + r} 36`}
           fill="none"
-          stroke="rgba(255,255,255,0.09)"
+          stroke="currentColor" strokeOpacity="0.09"
           strokeWidth="6"
           strokeLinecap={i === 0 ? 'round' : 'butt'}
           strokeDasharray={`${tiers.toFixed(1)} ${(demi * 2).toFixed(1)}`}
@@ -860,8 +860,8 @@ export function DemiJauge({ part, encre, graine = 0 }: { part: number; encre: En
           />
         )
       })}
-      <line x1="32" y1="36" x2={aiguille[0].toFixed(1)} y2={aiguille[1].toFixed(1)} stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="32" cy="36" r="2.4" fill="#fff" />
+      <line x1="32" y1="36" x2={aiguille[0].toFixed(1)} y2={aiguille[1].toFixed(1)} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="32" cy="36" r="2.4" fill="currentColor" />
       <circle cx="32" cy="36" r="4.6" fill="none" stroke={encre.a} strokeWidth="1.1" opacity="0.7" />
     </svg>
   )
@@ -875,7 +875,7 @@ export function Pastilles({ part, graine = 0 }: { part: number; encre?: Encre; g
   return (
     <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="h-2.5 w-full" aria-hidden>
       {Array.from({ length: n }, (_, i) => (
-        <circle key={i} cx={pas / 2 + i * pas} cy="5" r="3" fill={i < pleins ? neon(i + graine) : 'rgba(255,255,255,0.10)'} />
+        <circle key={i} cx={pas / 2 + i * pas} cy="5" r="3" fill={i < pleins ? neon(i + graine) : 'currentColor'} fillOpacity={i < pleins ? 1 : 0.10} />
       ))}
     </svg>
   )
@@ -895,7 +895,7 @@ export function Rayures({ part, encre }: { part: number; encre: Encre }) {
           <rect x="0" y="1" width={Math.max(5, part * 100)} height="8" rx="4" />
         </clipPath>
       </defs>
-      <rect x="0" y="1" width="100" height="8" rx="4" fill="rgba(255,255,255,0.08)" />
+      <rect x="0" y="1" width="100" height="8" rx="4" fill="currentColor" fillOpacity="0.08" />
       <g clipPath={`url(#${gid}c)`}>
         <rect x="0" y="1" width="100" height="8" fill={`url(#${gid}g)`} opacity="0.35" />
         {Array.from({ length: 26 }, (_, i) => (
@@ -914,9 +914,9 @@ export function Barre({ part, encre }: { part: number; encre: Encre }) {
       <defs>
         <Degrade id={gid} {...encre} />
       </defs>
-      <rect x="0" y="3.2" width="100" height="3.6" rx="1.8" fill="rgba(255,255,255,0.08)" />
+      <rect x="0" y="3.2" width="100" height="3.6" rx="1.8" fill="currentColor" fillOpacity="0.08" />
       <rect x="0" y="3.2" width={Math.max(4, part * 100)} height="3.6" rx="1.8" fill={`url(#${gid})`} />
-      <circle cx={x} cy="5" r="3.4" fill="#fff" stroke={encre.a} strokeWidth="1.6" style={{ filter: `drop-shadow(0 0 3px ${encre.a})` }} />
+      <circle cx={x} cy="5" r="3.4" fill="currentColor" stroke={encre.a} strokeWidth="1.6" style={{ filter: `drop-shadow(0 0 3px ${encre.a})` }} />
     </svg>
   )
 }
@@ -936,7 +936,7 @@ export function Segments({ part, encre, graine = 0 }: { part: number; encre: Enc
         </linearGradient>
       </defs>
       {Array.from({ length: n }, (_, i) => (
-        <rect key={i} x={(i * 100) / n + 0.8} y="0" width={100 / n - 1.6} height="8" rx="2" fill={i < pleins ? `url(#${gid})` : 'rgba(255,255,255,0.08)'} />
+        <rect key={i} x={(i * 100) / n + 0.8} y="0" width={100 / n - 1.6} height="8" rx="2" fill={i < pleins ? `url(#${gid})` : 'currentColor'} fillOpacity={i < pleins ? 1 : 0.08} />
       ))}
     </svg>
   )
