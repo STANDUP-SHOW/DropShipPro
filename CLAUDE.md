@@ -728,14 +728,22 @@ Trois conséquences, toutes appliquées :
   `www.superdelivery.com/product_image/…`), stock, lot ; **le prix de gros est
   « Members Only »** — d'où `importPath: 'extension'` et l'ajout à
   `EXTENSION_ONLY` / `siteEnJavaScript` (un import par adresse créerait une fiche
-  sans prix d'achat). Lu dans ses conditions : la marchandise est livrée « à
-  l'adresse enregistrée à l'inscription », jamais chez l'acheteur final ;
-  « Images, texts […] may not be reproduced […] on other sites without the
-  Company's prior consent » ; règlement en yens, 1 300 ¥ par fournisseur et
-  par commande, droits d'import à la charge du membre, pas de retour depuis
-  l'étranger. **Aucune API ni flux de données trouvés** pour un membre
-  étranger — pas de connecteur, donc. Adaptateur d'images dans l'extension,
-  référence `/pd_p/<n>/` dans `REFERENCES`, banc `check-refs.ts`.
+  sans prix d'achat). Son centre d'aide international, lu page par page :
+  « We do not support drop shipping. Orders can only be shipped to your
+  registered company/store address. » ; « we do not provide API integration
+  service for product information, including product images » et « We do not
+  offer any products' catalogs or price lists » ; « Image reproduction before
+  purchase is prohibited » (les photos ne se reprennent qu'après achat, pour
+  les produits achetés, si le fournisseur l'autorise) ; 131 pays livrés dont
+  la France, aucun minimum, 1 300 ¥ par fournisseur et par commande, droits
+  d'import à la charge du membre, pas de retour depuis l'étranger. La seule
+  API qui existe est **côté vendeur-sur-SD** (mise à jour de son propre stock,
+  entreprises au Japon) ; le téléchargement des fiches (zip infos + images)
+  est réservé au plan Standard japonais, et seulement pour des produits déjà
+  achetés. La version japonaise autorise l'expédition directe fournisseur par
+  fournisseur, mais exige une adresse au Japon. **Pas de connecteur, donc.**
+  Adaptateur d'images dans l'extension, référence `/pd_p/<n>/` dans
+  `REFERENCES`, banc `check-refs.ts`.
 
   Corollaire général, réglé le même jour : **un prix relevé en yens ou en
   dollars est ramené en euros à l'import** (`services/devises.ts`, taux BCE via

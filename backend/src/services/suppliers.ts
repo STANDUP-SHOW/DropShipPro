@@ -213,28 +213,34 @@ export const SUPPLIERS: SupplierInfo[] = [
      * donne titre, description, dix photos et le stock, mais **le prix de gros
      * n'apparaît qu'une fois connecté** (« Wholesale Price: Members Only ») :
      * comme sur AliExpress, seule l'extension, qui lit la page telle que le
-     * membre la voit, peut importer un prix. Aucune API ni flux de données
-     * trouvés pour les membres étrangers.
+     * membre la voit, peut importer un prix.
      *
-     * Trois choses lues dans ses conditions décident de tout :
-     * — la marchandise est livrée « à l'adresse enregistrée à l'inscription »,
-     *   jamais chez un acheteur final : c'est un grossiste pour STOCKER, pas un
-     *   fournisseur de dropshipping ;
-     * — « Images, texts […] may not be reproduced […] on other sites without the
-     *   Company's prior consent » : republier ses photos suppose son accord ;
-     * — compte réservé aux entreprises (« personal use is not currently
-     *   supported »), activité vérifiable, règlement en yens, 1 300 ¥ de frais
-     *   par fournisseur et par commande, droits d'import à la charge du membre,
-     *   aucun retour depuis l'étranger.
+     * Ce que son centre d'aide international écrit noir sur blanc (vérifié le
+     * 14/09/2026 sur les pages elles-mêmes, help-international.superdelivery.com) :
+     * — « We do not support drop shipping. Orders can only be shipped to your
+     *   registered company/store address. » — un grossiste pour STOCKER. La
+     *   version japonaise du site autorise l'expédition directe fournisseur par
+     *   fournisseur, mais elle exige une adresse au Japon ;
+     * — « we do not provide API integration service for product information,
+     *   including product images » et « We do not offer any products' catalogs
+     *   or price lists » : aucun connecteur possible, l'extension est la voie ;
+     * — « Image reproduction before purchase is prohibited » : les photos ne se
+     *   reprennent qu'après achat, pour les produits achetés, si le fournisseur
+     *   l'autorise ;
+     * — compte réservé aux entreprises (« We do NOT support personal use »),
+     *   vérification par justificatif ou adresse de boutique, 131 pays livrés
+     *   dont la France, aucun minimum (« Most of the products can be purchased
+     *   from 1 piece »), 1 300 ¥ de frais par fournisseur et par commande,
+     *   droits d'import à la charge du membre, aucun retour depuis l'étranger.
      */
     id: 'superdelivery',
     label: 'SUPER DELIVERY',
     domain: 'superdelivery.com',
     origine: 'Japon',
     importPath: 'extension',
-    quoi: "Le grossiste en ligne du Japon : 1 700 fournisseurs et 740 000 références — mode, déco, papeterie, cuisine, artisanat — à prix de gros, inscription gratuite pour les entreprises.",
+    quoi: "Le grossiste en ligne du Japon : 1 700 fournisseurs et 740 000 références — mode, déco, papeterie, cuisine, artisanat — à prix de gros, sans minimum de commande, inscription gratuite pour les entreprises, la France livrée.",
     attention:
-      "Un grossiste pour constituer un stock, pas un fournisseur de dropshipping : la commande est livrée à l'adresse de votre entreprise, jamais chez votre acheteur. Le prix de gros ne se lit que connecté, donc par l'extension. Ses conditions interdisent de republier photos et textes sans son accord : demandez-le avant de diffuser. Règlement en yens, 1 300 ¥ de frais par fournisseur et par commande, droits d'import à votre charge, pas de retour depuis l'étranger.",
+      "Un grossiste pour constituer un stock, pas un fournisseur de dropshipping — son aide le dit tel quel : « We do not support drop shipping », la commande part à l'adresse de votre entreprise, jamais chez votre acheteur. Le prix de gros ne se lit que connecté, donc par l'extension. Ses photos et textes ne se reprennent qu'après achat, pour les produits achetés, et si le fournisseur l'autorise : n'importez pour diffuser que ce que vous avez en stock. Règlement en yens (converti en euros à l'import), 1 300 ¥ de frais par fournisseur et par commande, droits d'import à votre charge, pas de retour depuis l'étranger.",
     adapte: true,
     color: '#e60012',
   },
