@@ -16,6 +16,9 @@ const CAS: Array<[string, string | null, string | null]> = [
   ['https://www.cjdropshipping.com/product/montre-acier-p-2A3B4C5D6E.html', 'cjdropshipping', '2A3B4C5D6E'],
   ['https://www.dhgate.com/product/mens-watch/987654321.html', 'dhgate', '987654321'],
   ['https://www.banggood.com/Smart-Watch-p-1987654.html', 'banggood', '1987654'],
+  ['https://www.superdelivery.com/en/r/pd_p/17754294/', 'superdelivery', '17754294'],
+  // Une catégorie SUPER DELIVERY : fournisseur reconnu, pas de référence.
+  ['https://www.superdelivery.com/en/do/psl/1053/?vi=1', 'superdelivery', null],
   // Un site qui n'est pas un fournisseur connu : rien du tout.
   ['https://www.decathlon.fr/p/montre/_/R-p-123', null, null],
   ['pas une adresse', null, null],

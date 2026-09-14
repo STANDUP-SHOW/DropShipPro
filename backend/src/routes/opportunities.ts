@@ -19,7 +19,9 @@ opportunitiesRouter.use(requireAuth)
  * qu'une coquille vide, il faut passer par l'extension. Autant le dire ici
  * plutôt que de laisser le vendeur découvrir l'échec après le clic.
  */
-const EXTENSION_ONLY = ['temu.', 'aliexpress.', 'joybuy.', 'shein.']
+// SUPER DELIVERY n'est pas en JavaScript, mais son prix de gros n'apparaît
+// qu'une fois connecté : le serveur n'y lirait qu'une fiche sans prix.
+const EXTENSION_ONLY = ['temu.', 'aliexpress.', 'joybuy.', 'shein.', 'superdelivery.']
 
 function needsExtension(sourceUrl: string) {
   const host = (() => {

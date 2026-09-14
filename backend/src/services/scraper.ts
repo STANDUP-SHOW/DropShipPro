@@ -283,7 +283,9 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
    * prix veut dire pas d'import, et on renvoie vers l'extension — qui lit la
    * page affichée, prix compris.
    */
-  const siteEnJavaScript = /temu|joybuy|aliexpress|shein|wish/i.test(site)
+  // SUPER DELIVERY n'est pas bâti en JavaScript, mais il cache son prix de gros
+  // aux visiteurs : même refus, même renvoi vers l'extension (14/09/2026).
+  const siteEnJavaScript = /temu|joybuy|aliexpress|shein|wish|superdelivery/i.test(site)
   if (looksLikeShell || ((hasNothingUsable || result.price === 0) && siteEnJavaScript)) {
     throw new ScrapeBlockedError(site)
   }

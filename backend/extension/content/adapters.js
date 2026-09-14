@@ -139,6 +139,27 @@
     },
 
     {
+      key: 'superdelivery',
+      label: 'SUPER DELIVERY',
+      matches: (host) => /superdelivery\.com$/i.test(host),
+      /**
+       * Grossiste japonais, sondé le 14/09/2026 : la galerie est dans le DOM,
+       * servie par c.superdelivery.com derrière un redimensionneur
+       * (/ip/n/sa/600/600/www.superdelivery.com/product_image/…). L'original,
+       * sans redimensionnement, vit sur www.superdelivery.com/product_image/… :
+       * c'est lui qu'on garde. Le prix de gros n'est rendu qu'au membre connecté,
+       * ce qui est précisément la raison de passer par l'extension.
+       */
+      fromJson: () => [],
+      domSelectors: ['img[src*="/product_image/"]', 'img[data-src*="/product_image/"]'],
+      imageHost: /superdelivery\.com$/i,
+      pathHint: '/product_image/',
+      fullSize: (url) =>
+        url.replace(/^(?:https?:)?\/\/c\.superdelivery\.com\/ip\/n\/[a-z]+\/\d+\/\d+\/www\.superdelivery\.com\//i, 'https://www.superdelivery.com/'),
+      variantSelector: '[class*="variation"] select, [class*="variation"] img, select[id*="size"], select[id*="color"]',
+    },
+
+    {
       key: 'banggood',
       label: 'Banggood',
       matches: (host) => /banggood\./i.test(host),

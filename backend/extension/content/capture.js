@@ -11,9 +11,21 @@
   
   function parsePrice(text) {
     if (!text) return 0
-    const m = text.replace(/\s/g, '').match(/(\d+[.,]?\d*)/)
+    const compact = text.replace(/\s/g, '')
+    // Les yens n'ont pas de décimales : « JPY 1,234 » vaut 1234, jamais 1,234
+    // (SUPER DELIVERY, 14/09/2026). La virgule y est un séparateur de milliers.
+    if (/JPY|¥|円/i.test(compact)) {
+      const m = compact.match(/(\d[\d,.]*)/)
+      return m ? parseInt(m[1].replace(/[,.]/g, ''), 10) || 0 : 0
+    }
+    const m = compact.match(/(\d+[.,]?\d*)/)
     return m ? parseFloat(m[1].replace(',', '.')) : 0
   }
+
+  /** La devise du prix retenu, posée par collectPrice : JPY, USD, GBP ou EUR. */
+  let devisePrix = null
+  const deviseDe = (text) =>
+    /JPY|¥|円/i.test(text) ? 'JPY' : /\$|USD/i.test(text) ? 'USD' : /£|GBP/i.test(text) ? 'GBP' : /€|EUR/i.test(text) ? 'EUR' : null
 
   /**
    * Best available source for one <img>.
@@ -802,22 +814,25 @@
   }
 
   function collectPrice() {
+    devisePrix = document.querySelector('meta[property="product:price:currency"]')?.content?.trim() || null
     const meta = document.querySelector('meta[property="product:price:amount"]')?.content
     if (meta) return parsePrice(meta)
 
     // Otherwise take the most prominent on-page price: scan elements whose text
-    // is a currency amount and keep the one rendered largest.
-    let best = { value: 0, size: 0 }
+    // is a currency amount and keep the one rendered largest. The currency is
+    // read from that same element: a page priced in yen must say so.
+    let best = { value: 0, size: 0, text: '' }
     for (const el of document.querySelectorAll('div,span,p,strong,b,h1,h2,h3')) {
       if (el.children.length > 0) continue
       const text = el.textContent?.trim()
       if (!text || text.length > 20) continue
-      if (!/[€$£]|EUR|USD/i.test(text)) continue
+      if (!/[€$£¥]|EUR|USD|JPY|円/i.test(text)) continue
       const value = parsePrice(text)
       if (!value) continue
       const size = parseFloat(getComputedStyle(el).fontSize) || 0
-      if (size > best.size) best = { value, size }
+      if (size > best.size) best = { value, size, text }
     }
+    if (best.text) devisePrix = deviseDe(best.text) || devisePrix
     return best.value
   }
 
@@ -1024,7 +1039,8 @@
         document.title,
       description: collectDescription(),
       price: collectPrice(),
-      currency: /\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR',
+      // `price` est calculé juste avant : collectPrice y pose la devise du prix retenu.
+      currency: devisePrix || (/\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR'),
       images: [],
       sourceCategory: collectCategory(),
       variants: collectVariants(),

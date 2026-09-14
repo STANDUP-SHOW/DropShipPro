@@ -205,6 +205,40 @@ export const SUPPLIERS: SupplierInfo[] = [
     color: '#e30613',
   },
   {
+    /*
+     * SUPER DELIVERY (Raccoon Commerce, Tokyo) — sondé le 14/09/2026.
+     *
+     * Le plus grand grossiste en ligne du Japon : 1 700 fournisseurs, 740 000
+     * références (mode, déco, papeterie, cuisine, artisanat). La fiche publique
+     * donne titre, description, dix photos et le stock, mais **le prix de gros
+     * n'apparaît qu'une fois connecté** (« Wholesale Price: Members Only ») :
+     * comme sur AliExpress, seule l'extension, qui lit la page telle que le
+     * membre la voit, peut importer un prix. Aucune API ni flux de données
+     * trouvés pour les membres étrangers.
+     *
+     * Trois choses lues dans ses conditions décident de tout :
+     * — la marchandise est livrée « à l'adresse enregistrée à l'inscription »,
+     *   jamais chez un acheteur final : c'est un grossiste pour STOCKER, pas un
+     *   fournisseur de dropshipping ;
+     * — « Images, texts […] may not be reproduced […] on other sites without the
+     *   Company's prior consent » : republier ses photos suppose son accord ;
+     * — compte réservé aux entreprises (« personal use is not currently
+     *   supported »), activité vérifiable, règlement en yens, 1 300 ¥ de frais
+     *   par fournisseur et par commande, droits d'import à la charge du membre,
+     *   aucun retour depuis l'étranger.
+     */
+    id: 'superdelivery',
+    label: 'SUPER DELIVERY',
+    domain: 'superdelivery.com',
+    origine: 'Japon',
+    importPath: 'extension',
+    quoi: "Le grossiste en ligne du Japon : 1 700 fournisseurs et 740 000 références — mode, déco, papeterie, cuisine, artisanat — à prix de gros, inscription gratuite pour les entreprises.",
+    attention:
+      "Un grossiste pour constituer un stock, pas un fournisseur de dropshipping : la commande est livrée à l'adresse de votre entreprise, jamais chez votre acheteur. Le prix de gros ne se lit que connecté, donc par l'extension. Ses conditions interdisent de republier photos et textes sans son accord : demandez-le avant de diffuser. Règlement en yens, 1 300 ¥ de frais par fournisseur et par commande, droits d'import à votre charge, pas de retour depuis l'étranger.",
+    adapte: true,
+    color: '#e60012',
+  },
+  {
     id: 'webdrop',
     label: 'Webdrop Market',
     domain: 'webdrop-market.com',
@@ -726,6 +760,7 @@ const REFERENCES: Record<string, RegExp[]> = {
   bigbuy: [/\/(?:product|producto)\/([A-Za-z0-9_-]{3,})/, /[?&]sku=([A-Za-z0-9_-]{3,})/],
   cjdropshipping: [/\/product\/[^/]*-p-([A-Za-z0-9-]{6,})\.html/, /[?&]pid=([A-Za-z0-9-]{6,})/],
   dhgate: [/\/product\/[^/]+\/(\d{6,})\.html/],
+  superdelivery: [/\/pd_p\/(\d{5,})(?:\/|$)/],
   banggood: [/-p-(\d{4,})\.html/],
   vidaxl: [/\/e\/(\d{8,})\//],
   printful: [/\/products\/(\d{3,})/],

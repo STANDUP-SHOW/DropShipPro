@@ -1,6 +1,7 @@
 import type { Product, User } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { scrapeProduct } from './scraper.js'
+import { enEuros, REPLI_DATE } from './devises.js'
 import { enhanceListing, extractVariants, planifierReecriture, passthroughDe } from './aiEnhancer.js'
 import { selectProductImages, PHOTOS_PAR_ANNONCE } from './imageSelect.js'
 import { reparerVariantes } from './variantRepair.js'
@@ -304,6 +305,24 @@ export async function importerAdresse(
     )
   }
 
+  // Le vendeur vend en euros : un prix relevé en yens ou en dollars est ramené
+  // en euros au taux du jour (services/devises.ts), et l'annonce le dit.
+  let prixAchat = scraped.price
+  let devise = scraped.currency || 'EUR'
+  if (prixAchat > 0 && devise.toUpperCase() !== 'EUR') {
+    const conversion = await enEuros(prixAchat, devise)
+    if (conversion.taux) {
+      notes.push(
+        `Prix d'achat converti : ${prixAchat} ${devise} → ${conversion.montant.toFixed(2)} € (1 ${devise} = ${conversion.taux.toFixed(4)} €, ${
+          conversion.source === 'bce' ? 'taux BCE du jour' : `taux de repli du ${REPLI_DATE}`
+        }).`,
+      )
+      prixAchat = conversion.montant
+      devise = 'EUR'
+    } else {
+      notes.push(`Prix d'achat laissé en ${devise} : devise inconnue, aucun taux disponible.`)
+    }
+  }
   const produit = await prisma.product.create({
     data: {
       userId,
@@ -317,9 +336,9 @@ export async function importerAdresse(
       description: scraped.description,
       aiTitle: enhanced.title,
       aiDescription: enhanced.description,
-      price: scraped.price,
-      sellingPrice: scraped.price * 1.5,
-      currency: scraped.currency,
+      price: prixAchat,
+      sellingPrice: prixAchat * 1.5,
+      currency: devise,
       variants: variants ?? undefined,
       combinations: (combinaisonsStockees ?? undefined) as object | undefined,
       images: watermarked.length ? watermarked : retenues,

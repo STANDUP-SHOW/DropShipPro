@@ -53,7 +53,9 @@ export interface RunResult {
 }
 
 /** Les sites dont la fiche ne se lit pas côté serveur : l'extension est requise. */
-const EXTENSION_ONLY = ['temu.', 'aliexpress.', 'joybuy.', 'shein.']
+// SUPER DELIVERY n'est pas en JavaScript, mais son prix de gros n'apparaît
+// qu'une fois connecté : le serveur n'y lirait qu'une fiche sans prix.
+const EXTENSION_ONLY = ['temu.', 'aliexpress.', 'joybuy.', 'shein.', 'superdelivery.']
 
 function needsExtension(sourceUrl: string) {
   try {

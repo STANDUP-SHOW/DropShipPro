@@ -718,6 +718,33 @@ Trois conséquences, toutes appliquées :
   refusée — donc tout paiement. Code retenu : `txcd_10103001` (SaaS usage pro).
 - **Un `type="number"` contrôlé par `Number()` casse à la virgule** du pavé
   numérique français. D'où le composant `PriceInput`.
+- **SUPER DELIVERY est un grossiste pour stocker, pas un fournisseur de
+  dropshipping — et ses conditions interdisent de republier ses photos.** Sondé
+  le 14/09/2026 à la demande de Max (membre depuis, prix à l'unité visibles).
+  Grossiste en ligne du Japon (Raccoon Commerce), 1 700 fournisseurs, 740 000
+  références, inscription gratuite réservée aux entreprises. Ce que la fiche
+  publique donne : titre, description, dix photos (c.superdelivery.com derrière
+  un redimensionneur `/ip/n/sa/L/H/…`, original sur
+  `www.superdelivery.com/product_image/…`), stock, lot ; **le prix de gros est
+  « Members Only »** — d'où `importPath: 'extension'` et l'ajout à
+  `EXTENSION_ONLY` / `siteEnJavaScript` (un import par adresse créerait une fiche
+  sans prix d'achat). Lu dans ses conditions : la marchandise est livrée « à
+  l'adresse enregistrée à l'inscription », jamais chez l'acheteur final ;
+  « Images, texts […] may not be reproduced […] on other sites without the
+  Company's prior consent » ; règlement en yens, 1 300 ¥ par fournisseur et
+  par commande, droits d'import à la charge du membre, pas de retour depuis
+  l'étranger. **Aucune API ni flux de données trouvés** pour un membre
+  étranger — pas de connecteur, donc. Adaptateur d'images dans l'extension,
+  référence `/pd_p/<n>/` dans `REFERENCES`, banc `check-refs.ts`.
+
+  Corollaire général, réglé le même jour : **un prix relevé en yens ou en
+  dollars est ramené en euros à l'import** (`services/devises.ts`, taux BCE via
+  api.frankfurter.dev sans clé, cache 12 h, table de repli datée, note écrite
+  sur l'annonce). Avant, une fiche CJ importée par l'extension gardait `USD`
+  et son prix de vente `USD × 1,5` — impubliable sur une place de marché
+  française. L'extension lit désormais `JPY`/`¥`/`円` (les yens n'ont pas de
+  décimales : « JPY 1,234 » vaut 1234) et rend la devise du prix retenu. Banc
+  `npx tsx check-devises.ts` (faux Frankfurter, contrat écrit en dur).
 - **Le thème clair est une inversion de palette, pas une seconde feuille de
   style.** Demandé le 13/09/2026 (bouton lune/soleil sous le titre du menu,
   `BoutonTheme.tsx`, choix dans localStorage `dsp-theme`, posé sur
