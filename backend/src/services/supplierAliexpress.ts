@@ -202,9 +202,28 @@ export function retourAliexpress(): string {
    * ce qui ressort n'est plus octet pour octet ce qui est entré, et la
    * signature tombe. Celui-là garde l'adresse de l'API.
    */
-  const site = (process.env.FRONTEND_URL || '').split(',')[0]?.trim().replace(/\/+$/, '')
-  const racine = site || (process.env.PUBLIC_API_URL || '').trim().replace(/\/+$/, '')
+  const racine = adresseCanoniqueDuSite() || (process.env.PUBLIC_API_URL || '').trim().replace(/\/+$/, '')
   return `${racine}/api/aliexpress/callback`
+}
+
+/**
+ * L'adresse canonique du site, celle qui ne redirige pas.
+ *
+ * `FRONTEND_URL` porte une LISTE — apex, www, vercel.app — parce que le CORS
+ * doit accepter les trois. Prendre la première venue a failli coûter une
+ * seconde tentative ratée : l'apex y est en tête, et l'apex **redirige vers
+ * www**. Or une adresse de rappel ne doit pas rediriger — le fournisseur la
+ * compare au caractère près à celle déclarée dans sa console, et il n'a aucune
+ * raison de suivre un détour.
+ *
+ * On prend donc `www` quand il est là, et la première entrée sinon.
+ */
+function adresseCanoniqueDuSite(): string {
+  const entrees = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((v) => v.trim().replace(/\/+$/, ''))
+    .filter(Boolean)
+  return entrees.find((v) => /^https?:\/\/www\./i.test(v)) ?? entrees[0] ?? ''
 }
 
 /** L'adresse où envoyer le vendeur pour qu'il autorise notre application. */
