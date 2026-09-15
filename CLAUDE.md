@@ -771,6 +771,45 @@ Trois conséquences, toutes appliquées :
   citer un prix périmé par toutes les IA, ce qui est pire que pas de prix. Les
   deux tables portent le commentaire qui renvoie à l autre. Ce qui est compté
   (canaux par famille) l est depuis `seo-channels.cjs`, jamais écrit à la main.
+- **Le chemin Google de notre référentiel est un RAYON, pas un pivot vers une
+  feuille — et un banc a validé un correctif pendant que la panne continuait.**
+  Le 15/09/2026, mini-PC, SSD, tables de mixage et souris étaient tous rangés
+  dans « Nettoyants pour appareils électroniques » chez Shopify. Premier
+  correctif : noter la ressemblance entre la feuille rendue et ce qu'on avait
+  cherché. `check-shopify-categorie.ts` passait — et **la réalité échouait
+  toujours**, exactement comme `check-recommandations.cjs`. Deux raisons, et
+  aucune n'était dans le code jugé : ses fausses réponses étaient des chemins
+  **français inventés** quand Shopify rend des chemins **anglais**, et ses
+  catégories d'essai portaient un chemin Google précis (« Electronics >
+  Computers > Laptops ») alors que **143 de nos 249 catégories n'ont qu'un
+  segment** — « Vehicles & Parts » en désigne trente-deux, « Electronics »
+  treize. Chercher la taxonomie avec ça rend les huit premières feuilles du
+  rayon, et « Electronics » note 1,00 contre « Electronics Cleaners ».
+
+  D'où le renversement : le chemin Google ne **cherche** plus, il **écarte**
+  (garde par département — une dînette « Toys & Games > … > Pretend
+  Electronics » tombe d'office). La notation compte la couverture dans les
+  **deux sens** : un mot de la feuille que rien n'explique est une
+  spécialisation qui disqualifie (« cleaners »), sauf s'il est hérité de la
+  branche (« Computer » dans « Computer Mice »). Le libellé français cherche,
+  puis son **premier mot** — « Drones et modélisme électronique » ne rend rien,
+  « Drones » rend la bonne feuille du premier coup, et le nom de tête est
+  aussi ce sur quoi on note (sinon la phrase entière dilue le score à 0,33).
+
+  Reste la barrière de langue, qu'aucune comparaison de chaînes ne franchira :
+  « Informatique » n'a aucune lettre commune avec « Computers ». Deux appels
+  Haiku **injectables** (`DemandeModele`, faux au banc, comme `AppelShopify`) :
+  traduire, puis trancher dans la **liste fermée** rendue par Shopify, avec le
+  droit de refuser. Une fois par catégorie, jamais par produit. Sans clé d'API,
+  tout dégrade proprement sur la recherche locale. Banc réécrit sur les
+  réponses réelles (`sonder-taxonomie.ts`, lecture seule, à relancer avant de
+  toucher au score).
+
+  Corollaire attrapé au passage : **une adresse de fiche Shopify ne porte aucun
+  identifiant numérique**, c'est un *handle*
+  (`/products/mini-pc-amd-ryzen-7-h255-…`). Le script de réparation lisait
+  `/products/(\d+)` et sautait les quatre fiches **en silence**.
+
 - **Le thème clair est une inversion de palette, pas une seconde feuille de
   style.** Demandé le 13/09/2026 (bouton lune/soleil sous le titre du menu,
   `BoutonTheme.tsx`, choix dans localStorage `dsp-theme`, posé sur
@@ -909,7 +948,32 @@ publication « en attente ».
    marchand avec sa propre page. Consequence commerciale a ne pas perdre de vue :
    les 3 millions de boutiques Shopify du monde peuvent nous installer depuis chez
    elles, et nous chercher dans le Shopify App Store.
+2bis. **L'app Shopify PUBLIQUE est à moitié faite (15/09/2026).** Celle qui
+   apparaît dans le menu Applications d'oguss-france est une app
+   **personnalisée** : elle ne s'installe nulle part ailleurs et ne peut pas
+   figurer à l'App Store. Écrit et éprouvé (`services/shopifyApp.ts`,
+   `routes/shopifyApp.ts`, banc `npx tsx check-shopify-app.ts`) :
+   installation OAuth avec `state` signé (il porte le compte — sans lui,
+   n'importe qui brancherait une boutique sur le compte d'un autre), HMAC du
+   retour, et les **trois webhooks RGPD obligatoires** plus `app/uninstalled`,
+   signés sur les **octets bruts** (route montée avant `express.json`, comme
+   Stripe). L'échange rend `{ shopDomain, accessToken }`, la forme que
+   `readShopifyCredentials` attendait déjà : rien en aval ne change.
+   Reste à activer : `SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`,
+   `SHOPIFY_APP_SCOPES` sur Railway. Restent à écrire pour la fiche : app
+   intégrée + App Bridge + jetons de session. **Et une décision qui n'est pas
+   technique : la facturation.** Shopify interdit l'encaissement hors
+   plateforme aux apps listées, et définit ses revenus comme ce qui « passe
+   par » l'app, avec droit d'audit. Tout est posé dans `docs/shopify-app.md`,
+   voie conseillée comprise (distribuer par lien direct d'abord : ça ne coûte
+   rien et le code est déjà là).
+
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
+3bis. **L'`ANTHROPIC_API_KEY` de `backend/.env` est refusée (401, 15/09/2026)**
+   alors que celle de Railway est bonne — les imports de production sont tous
+   réécrits. Conséquence : **aucun banc local ne peut exercer un chemin qui
+   appelle le modèle**, et un script lancé depuis la machine dégrade sans le
+   dire si on ne lit pas ses journaux. À renouveler dans `backend/.env`.
 4. Une **veille de disponibilité** des produits sources a été proposée.
 6. **L'extension est au Chrome Web Store** (fiche
    `chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk`, dossier

@@ -21,6 +21,7 @@ import {
   autorisationManquante,
 } from '../services/shopify.js'
 import { diagnostiquerJetonShopify } from '../services/shopifyToken.js'
+import { configApp, urlInstallation } from '../services/shopifyApp.js'
 import { generateApiKey } from '../middleware/apiKey.js'
 import { oublierImagesExport } from '../services/exportImages.js'
 
@@ -317,6 +318,37 @@ settingsRouter.delete('/shops/:id', async (req: AuthedRequest, res) => {
   const { count } = await prisma.shop.deleteMany({ where: { id: req.params.id, userId: req.userId! } })
   if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
   res.status(204).send()
+})
+
+/**
+ * L'adresse où envoyer le marchand pour approuver l'installation.
+ *
+ * Elle est fabriquée ICI, derrière l'authentification, et pas dans le
+ * navigateur : l'état signé qu'elle porte désigne le compte auquel le jeton
+ * sera rattaché. Laisser le client le composer reviendrait à laisser n'importe
+ * qui brancher une boutique sur le compte d'un autre.
+ */
+settingsRouter.get('/shopify/install-url', async (req: AuthedRequest, res) => {
+  try {
+    const config = configApp()
+    if (!config) {
+      return res.status(503).json({
+        error:
+          "L'installation en un clic n'est pas encore activée. Reliez votre boutique avec un jeton d'app personnalisée.",
+      })
+    }
+
+    const url = urlInstallation(config, req.userId!, String(req.query.shop ?? ''))
+    if (!url) {
+      return res.status(400).json({
+        error: "Adresse de boutique invalide. Attendu : ma-boutique.myshopify.com",
+      })
+    }
+    res.json({ url })
+  } catch (e) {
+    console.error('shopify install-url', e)
+    res.status(500).json({ error: "Impossible de préparer l'installation Shopify" })
+  }
 })
 
 settingsRouter.get('/credentials', async (req: AuthedRequest, res) => {

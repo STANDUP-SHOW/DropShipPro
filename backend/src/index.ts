@@ -22,6 +22,7 @@ import { conversationsRouter } from './routes/conversations.js'
 import { supplierConversationsRouter } from './routes/supplierConversations.js'
 import { visualsRouter } from './routes/visuals.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
+import { shopifyAppRouter } from './routes/shopifyApp.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
@@ -79,6 +80,9 @@ app.use(
 // Before express.json on purpose: Stripe signs the raw bytes, and a JSON
 // round-trip would invalidate the signature.
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook)
+// Same reason for Shopify: its webhook HMAC covers the raw bytes. Mounted here
+// rather than with the other routers so express.json never touches this body.
+app.use('/api/shopify', express.raw({ type: 'application/json' }), shopifyAppRouter)
 
 app.use(express.json({ limit: '2mb' }))
 
