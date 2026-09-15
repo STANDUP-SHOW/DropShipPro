@@ -90,7 +90,14 @@ exige(sansRef.startsWith('DSP-') && sansRef.length > 4, `UGS de repli : ${sansRe
 // --- Le rangement : catégorie officielle et collections ---------------------
 
 /** Un faux Shopify qui note ce qu'on lui demande. */
-function fauxShopify(options: { taxonomie?: unknown[]; collections?: Array<{ id: string; title: string }> } = {}) {
+function fauxShopify(
+  options: {
+    taxonomie?: unknown[]
+    /** Réponses par terme cherché : ce qui permet d'éprouver l'ORDRE des essais. */
+    parTerme?: Record<string, unknown[]>
+    collections?: Array<{ id: string; title: string }>
+  } = {},
+) {
   const appels: Array<{ query: string; variables: Record<string, unknown> }> = []
   const creees: string[] = []
   const existantes = options.collections ?? []
@@ -99,7 +106,9 @@ function fauxShopify(options: { taxonomie?: unknown[]; collections?: Array<{ id:
     appels.push({ query, variables })
 
     if (query.includes('taxonomy')) {
-      return { taxonomy: { categories: { nodes: options.taxonomie ?? [] } } } as T
+      const terme = String(variables.search)
+      const noeuds = options.parTerme ? (options.parTerme[terme] ?? []) : (options.taxonomie ?? [])
+      return { taxonomy: { categories: { nodes: noeuds } } } as T
     }
     if (query.includes('collections(')) {
       const cherche = String(variables.q).replace(/^title:"|"$/g, '')
@@ -138,9 +147,19 @@ const souris = {
   exige(rangement.categoryId === 'gid://shopify/TaxonomyCategory/el-4-8-5', 'catégorie de taxonomie trouvée')
   exige(rangement.aRetenir?.id === rangement.categoryId, 'la correspondance est rendue pour être mémorisée')
 
-  // La recherche part de l'anglais : « Souris » ne rend rien dans un index anglais.
-  const recherche = faux.appels.find((a) => a.query.includes('taxonomy'))
-  exige(recherche?.variables.search === 'Mice', `recherche avec « ${recherche?.variables.search} », attendu « Mice »`)
+  /*
+   * L'ordre des essais a changé le 15/09/2026, et c'est un renversement.
+   *
+   * On cherchait d'abord le dernier segment du chemin Google, tenu pour une
+   * chaîne anglaise précise. Relevé ce jour-là : 143 de nos 249 catégories
+   * n'ont qu'un RAYON pour chemin Google (« Electronics »), et chercher un
+   * rayon rend n'importe quelle feuille du rayon — c'est ce qui rangeait les
+   * mini-PC dans « Nettoyants pour appareils électroniques ». Le libellé
+   * passe donc en premier, le chemin Google en second et seulement quand il
+   * compte plusieurs segments, comme ici.
+   */
+  const termes = faux.appels.filter((a) => a.query.includes('taxonomy')).map((a) => String(a.variables.search))
+  exige(termes[0] === 'Souris', `première recherche « ${termes[0]} », attendu « Souris »`)
 
   // Deux collections : le rayon rassemble, la feuille précise. Une par segment
   // donnerait cent rayons dont la moitié à un seul article.
@@ -150,6 +169,34 @@ const souris = {
     `collections créées : ${faux.creees.join(' | ')}`,
   )
   exige(rangement.notes.length === 0, `notes inattendues : ${rangement.notes.join(' ')}`)
+}
+
+/*
+ * Le repli sur l'anglais existe bel et bien.
+ *
+ * Le bloc précédent ne le prouve pas : son faux Shopify rend la bonne feuille
+ * quel que soit le terme, donc le premier essai suffit toujours. Ici le libellé
+ * français ne rend RIEN — c'est ce que fait la vraie taxonomie de Shopify sur
+ * « Informatique et accessoires PC » — et seul le dernier segment du chemin
+ * Google ramène quelque chose. Sans cette attente, supprimer l'étage anglais ne
+ * ferait tomber aucun banc.
+ */
+{
+  const faux = fauxShopify({
+    parTerme: {
+      Mice: [
+        { id: 'gid://shopify/TaxonomyCategory/el-4-8-5', fullName: 'Electronics > … > Mice', isLeaf: true, isArchived: false },
+      ],
+    },
+  })
+  const rangement = await rangerDansShopify(faux.appel, souris, async () => '')
+  const termes = faux.appels.filter((a) => a.query.includes('taxonomy')).map((a) => String(a.variables.search))
+
+  exige(termes.includes('Souris') && termes.includes('Mice'), `essais : ${termes.join(' | ')}`)
+  exige(
+    rangement.categoryId === 'gid://shopify/TaxonomyCategory/el-4-8-5',
+    'quand le libellé français ne rend rien, le chemin Google doit trouver',
+  )
 }
 
 // La correspondance déjà mémorisée ne repart pas chercher.

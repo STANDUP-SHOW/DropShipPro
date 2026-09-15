@@ -14,17 +14,35 @@
  *   navigue. Sans elles, une boutique de trois cents produits n'a qu'une seule
  *   page, et le vendeur crée ses rayons à la main, un par un.
  *
- * Le référentiel maison sert de pivot pour les deux. Il porte déjà le chemin
- * Google — une chaîne anglaise stable, alignée sur la taxonomie de Shopify.
- * C'est elle qu'on cherche, **pas le libellé français** : « Souris » renvoie
- * n'importe quoi dans un index anglais, « Mice » renvoie la bonne feuille.
+ * Le référentiel maison sert de pivot pour les deux — mais **pas de la façon
+ * qu'on avait crue.** Le premier jet cherchait la taxonomie de Shopify avec le
+ * chemin Google, supposé être une chaîne anglaise précise alignée sur elle.
+ * Vérifié le 15/09/2026 : **143 de nos 249 catégories n'ont qu'un seul segment
+ * de chemin Google**. « Vehicles & Parts » désigne trente-deux catégories
+ * automobiles différentes, « Electronics » treize. Ce n'est pas un pivot vers
+ * une feuille, c'est un rayon.
  *
- * La correspondance trouvée est mémorisée dans le référentiel. Mille produits
- * d'une même catégorie coûtent une recherche, pas mille.
+ * D'où la construction actuelle, en trois étages : le chemin Google **filtre**
+ * par département, le libellé français **cherche**, et le modèle **traduit puis
+ * tranche dans la liste que Shopify a rendue** quand les deux premiers ne
+ * suffisent pas. La correspondance trouvée est mémorisée dans le référentiel :
+ * mille produits d'une même catégorie coûtent cette recherche une fois.
  */
+import Anthropic from '@anthropic-ai/sdk'
+import { MODELE_RAPIDE, modele } from './aiModels.js'
 
 /** Un appel GraphQL déjà authentifié. Passé en paramètre : le banc en fournit un faux. */
 export type AppelShopify = <T>(query: string, variables: Record<string, unknown>) => Promise<T>
+
+/**
+ * Un appel court au modele, injectable.
+ *
+ * Injecte pour la meme raison que `AppelShopify` : un banc ne doit ni depenser
+ * de jetons ni dependre d une reponse qui change d un jour a l autre. La
+ * production passe la vraie fonction, le banc en passe une fausse au contrat
+ * ecrit en dur.
+ */
+export type DemandeModele = (consigne: string, question: string, jetons: number) => Promise<string>
 
 /** Ce que le référentiel maison sait de la catégorie d'un produit. */
 export interface CategorieSource {
@@ -52,7 +70,7 @@ export interface RangementShopify {
 const CHERCHER_CATEGORIE = /* GraphQL */ `
   query dropshipperTaxonomy($search: String!) {
     taxonomy {
-      categories(search: $search, first: 5) {
+      categories(search: $search, first: 10) {
         nodes {
           id
           fullName
@@ -127,32 +145,101 @@ const MOTS_VIDES = new Set([
 ])
 
 /**
+ * Le département : le premier segment d'un chemin de taxonomie.
+ *
+ * C'est la seule chose que notre chemin Google donne à coup sûr. Relevé le
+ * 15/09/2026 : **143 de nos 249 catégories n'ont qu'un segment** — « Vehicles &
+ * Parts » sert à trente-deux catégories automobiles différentes, « Electronics »
+ * à treize. Le chemin Google n'est donc pas un pivot vers une feuille, c'est un
+ * rayon. Il ne sert pas à chercher, il sert à **écarter**.
+ */
+function departement(chemin: string): string {
+  return chemin.split('>')[0]?.trim() ?? ''
+}
+
+/** Deux départements se recouvrent-ils assez pour parler du même rayon ? */
+function memeDepartement(google: string, candidat: string): boolean {
+  const attendus = motsDe(departement(google))
+  const trouves = new Set(motsDe(departement(candidat)))
+  if (!attendus.length || !trouves.size) return true // rien à vérifier : on laisse passer
+  return attendus.filter((m) => trouves.has(m)).length / attendus.length >= 0.5
+}
+
+/**
  * À quel point cette feuille répond à la catégorie demandée, de 0 à 1.
  *
- * On compare le DERNIER segment du nom complet — « Electronics > Computers >
- * Laptops » se juge sur « Laptops », pas sur « Electronics », sinon toute
- * l'électronique se ressemble.
+ * Trois garde-fous, et chacun répond à une feuille réellement proposée par
+ * Shopify le 15/09/2026 sur la boutique de Max :
  *
- * **Et on compare à TOUS les noms que nous connaissons de cette catégorie**, pas
- * au seul terme cherché : le chemin Google est en anglais (« Laptops ») alors
- * qu'une boutique française rend ses feuilles en français (« Ordinateurs
- * portables »). Ne juger que sur le terme cherché donnerait zéro à la bonne
- * feuille, et l'on retomberait à ne rien ranger du tout.
+ * 1. **Le département doit être le bon.** Chercher « Electronics » rend
+ *    `Toys & Games > Toys > Pretend Play > Pretend Electronics` — une dînette.
+ *    Notre rayon est la seule information fiable du chemin Google : il filtre.
+ * 2. **On compare le DERNIER segment**, pas le chemin entier : « Electronics >
+ *    Computers > Laptops » se juge sur « Laptops », sinon toute l'électronique
+ *    se ressemble. Et on compare à TOUS les noms connus de la catégorie — le
+ *    chemin Google est anglais, une boutique française rend ses feuilles en
+ *    français ; ne juger que sur le terme cherché donnerait zéro à la bonne.
+ * 3. **Un mot de la feuille que rien n'explique est une spécialisation**, et
+ *    elle disqualifie. C'est le correctif du 15/09/2026, et le premier essai
+ *    ne l'avait pas : « Electronics » couvre 100 % de ce qu'on attendait dans
+ *    `Electronics > Electronics Accessories > Electronics Cleaners`, et
+ *    pourtant « cleaners » change le produit du tout au tout. On note donc la
+ *    couverture dans les DEUX sens et on garde la plus faible. Les qualificatifs
+ *    hérités de la branche sont gratuits (« Computer » dans « Computer Mice »
+ *    est déjà dans les ancêtres) : ils précisent sans changer de produit.
+ *
+ * `nomsSupplementaires` porte ce que le modèle a traduit de notre libellé
+ * français — sans lui, « Informatique et accessoires PC » ne partage aucun mot
+ * avec « Computer Accessories » et la bonne feuille serait notée zéro.
  */
-export function pertinence(categorie: CategorieSource, fullName: string): number {
-  const feuille = fullName.split('>').pop() ?? fullName
-  const trouves = new Set(motsDe(feuille))
-  const noms = [categorie.google.split('>').pop() ?? '', categorie.label, categorie.path.split('>').pop() ?? '']
+export function pertinence(
+  categorie: CategorieSource,
+  fullName: string,
+  nomsSupplementaires: string[] = [],
+): number {
+  if (!memeDepartement(categorie.google, fullName)) return 0
 
-  let meilleur = 0
+  const segments = fullName.split('>').map((s) => s.trim()).filter(Boolean)
+  const motsFeuille = motsDe(segments[segments.length - 1] ?? fullName)
+  if (!motsFeuille.length) return 0
+
+  /*
+   * Le premier mot du libellé compte comme un nom à part entière.
+   *
+   * Nos libellés sont des phrases de rayon — « Drones et modélisme
+   * électronique », « Batteries externes (powerbanks) ». Noté sur la phrase
+   * entière, `Electronics > Drones & RC Aircraft > Drones` n'obtient qu'un mot
+   * sur trois, soit 0,33 : la feuille parfaite est recalée par la longueur de
+   * notre propre libellé. Le nom de tête est ce que la catégorie désigne
+   * vraiment ; le reste précise.
+   */
+  const tete = categorie.label.split(/[^\p{L}\p{N}]+/u).filter(Boolean)[0] ?? ''
+
+  const noms = [
+    categorie.google.split('>').pop() ?? '',
+    categorie.label,
+    tete,
+    categorie.path.split('>').pop() ?? '',
+    ...nomsSupplementaires,
+  ]
+  const trouves = new Set(motsFeuille)
+  const attendusTous = new Set(noms.flatMap(motsDe))
+  const ancetres = new Set(segments.slice(0, -1).flatMap(motsDe))
+
+  // Sens 1 : combien de ce que nous attendions la feuille porte-t-elle ?
+  let couvertureAttendue = 0
   for (const nom of noms) {
     const attendus = motsDe(nom)
     if (!attendus.length) continue
     const communs = attendus.filter((m) => trouves.has(m)).length
-    // Un nom de feuille identique vaut 1 ; la moitié des mots, 0,5.
-    meilleur = Math.max(meilleur, communs / attendus.length)
+    couvertureAttendue = Math.max(couvertureAttendue, communs / attendus.length)
   }
-  return meilleur
+
+  // Sens 2 : combien de la feuille savons-nous expliquer ?
+  const expliques = motsFeuille.filter((m) => attendusTous.has(m) || ancetres.has(m)).length
+  const couvertureFeuille = expliques / motsFeuille.length
+
+  return Math.min(couvertureAttendue, couvertureFeuille)
 }
 
 /**
@@ -180,7 +267,7 @@ export function pertinence(categorie: CategorieSource, fullName: string): number
  * chemin, et une fiche sans catégorie vaut mieux qu'une fiche mal rangée — c'est
  * déjà la règle du référentiel maison (« rien ne tombe dans Divers »).
  */
-const PERTINENCE_MINIMALE = 0.5
+const PERTINENCE_MINIMALE = 0.6
 
 /**
  * Cette feuille est-elle un rangement acceptable pour cette catégorie ?
@@ -194,28 +281,215 @@ export function estPertinente(categorie: CategorieSource, fullName: string): boo
   return pertinence(categorie, fullName) >= PERTINENCE_MINIMALE
 }
 
+/** Une feuille de taxonomie retenue comme candidate. */
+type Feuille = { id: string; fullName: string }
+
+/**
+ * Le texte rendu par le modèle, ou une chaîne vide s'il n'y a pas de clé.
+ *
+ * Aucune de ces deux aides n'est indispensable : sans clé d'API, le rangement
+ * retombe sur la recherche locale, qui trouve encore la moitié des feuilles.
+ * Une catégorie non trouvée laisse la fiche partir avec son `productType` — ce
+ * n'est jamais un motif d'échec de publication.
+ */
+async function demanderAuModele(consigne: string, question: string, jetons: number): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return ''
+  try {
+    const client = new Anthropic({ apiKey })
+    const reponse = await client.messages.create({
+      // Haiku : traduire deux mots et choisir dans une liste fermée ne demande
+      // aucun raisonnement. Et cet appel n'a lieu qu'UNE fois par catégorie,
+      // jamais par produit — le résultat est gravé dans le référentiel.
+      model: modele('AI_MODEL_CATEGORY', MODELE_RAPIDE),
+      max_tokens: jetons,
+      system: consigne,
+      messages: [{ role: 'user', content: question }],
+    })
+    return reponse.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+  } catch (e) {
+    console.error('[shopify] catégorie, appel au modèle refusé :', e instanceof Error ? e.message : e)
+    return ''
+  }
+}
+
+/**
+ * Traduit notre libellé en termes de la taxonomie Shopify, qui est anglaise.
+ *
+ * Ce n'est pas du confort : `motsDe` compare des chaînes, et « Informatique »
+ * n'a aucune lettre en commun avec « Computers ». Sans cette étape, 143 de nos
+ * catégories — celles dont le chemin Google se réduit à un rayon — n'ont
+ * strictement aucun terme anglais à soumettre.
+ */
+async function traduirePourShopify(categorie: CategorieSource, demander: DemandeModele): Promise<string[]> {
+  const texte = await demander(
+    [
+      "Tu traduis un nom de catégorie de produits français vers les termes de la taxonomie produit de Shopify, qui est en anglais.",
+      'Réponds UNIQUEMENT par un tableau JSON de 1 à 3 termes courts, du plus précis au plus général.',
+      'Exemple : ["Computer Accessories","Computers"]',
+      "N'invente pas de catégorie : donne les mots qu'un catalogue anglais emploierait.",
+    ].join('\n'),
+    `Rayon : ${departement(categorie.google) || '—'}\nChemin : ${categorie.path}\nCatégorie : ${categorie.label}`,
+    120,
+  )
+  const brut = texte.match(/\[[\s\S]*\]/)
+  if (!brut) return []
+  try {
+    const liste = JSON.parse(brut[0]) as unknown[]
+    return liste.filter((t): t is string => typeof t === 'string' && t.trim().length > 2).slice(0, 3)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Le dernier recours : le modèle tranche parmi les feuilles réellement rendues.
+ *
+ * **Liste fermée, et droit de refuser.** C'est la règle déjà posée pour le
+ * référentiel maison, et elle vaut doublement ici : une catégorie Shopify
+ * inventée serait refusée par l'API et ferait perdre la fiche entière, tandis
+ * qu'une catégorie plausible mais fausse range le produit là où personne ne le
+ * cherche. Sans catégorie, le `productType` reste affiché et le vendeur range à
+ * la main — c'est le moins mauvais des trois.
+ */
+async function choisirParModele(
+  categorie: CategorieSource,
+  feuilles: Feuille[],
+  demander: DemandeModele,
+): Promise<Feuille | null> {
+  if (!feuilles.length) return null
+
+  const texte = await demander(
+    [
+      "Tu ranges un produit dans la taxonomie de Shopify.",
+      'Réponds UNIQUEMENT par un JSON : {"id":"<identifiant exact d\'une feuille de la liste>"} ou {"aucune":true}.',
+      "Choisis la feuille qui désigne LE MÊME type de produit. Un accessoire se range avec les accessoires, pas avec l'appareil.",
+      "Si aucune feuille ne convient vraiment, réponds {\"aucune\":true} : une catégorie fausse est pire que pas de catégorie.",
+      '',
+      'FEUILLES :',
+      feuilles.map((f) => `${f.id} = ${f.fullName}`).join('\n'),
+    ].join('\n'),
+    `Rayon : ${departement(categorie.google) || '—'}\nChemin : ${categorie.path}\nCatégorie : ${categorie.label}`,
+    150,
+  )
+
+  const brut = texte.match(/\{[\s\S]*\}/)
+  if (!brut) return null
+  try {
+    const choix = JSON.parse(brut[0]) as { id?: string; aucune?: boolean }
+    if (!choix.id) return null
+    // Jamais un identifiant que le modèle aurait composé : il doit être dans la liste.
+    return feuilles.find((f) => f.id === choix.id) ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Les termes à soumettre à la recherche de Shopify, sans le modèle.
+ *
+ * **Jamais le département seul.** Chercher « Electronics » ou « Vehicles &
+ * Parts » rend les huit premières feuilles du rayon, qui n'ont rien à voir avec
+ * le produit — c'est exactement ce qui rangeait les mini-PC dans « Nettoyants
+ * pour appareils électroniques ». Le dernier segment du chemin Google n'est un
+ * terme de recherche que s'il y en a plusieurs.
+ */
+function termesLocaux(categorie: CategorieSource): string[] {
+  const termes: string[] = [categorie.label]
+
+  /*
+   * Le premier mot du libellé, quand le libellé en compte plusieurs.
+   *
+   * La recherche de Shopify ne pardonne pas les phrases : « Drones et modélisme
+   * électronique » ne rend RIEN, « Drones » rend la bonne feuille du premier
+   * coup. Et en français le nom de tête est en première position — « Batteries
+   * externes », « Souris sans fil ». C'est un essai gratuit qui évite un appel
+   * au modèle chaque fois que les deux langues emploient le même mot.
+   */
+  const premier = categorie.label.split(/[^\p{L}\p{N}]+/u).filter(Boolean)[0]
+  if (premier && premier.toLowerCase() !== categorie.label.toLowerCase()) termes.push(premier)
+
+  const segmentsGoogle = categorie.google.split('>').map((s) => s.trim()).filter(Boolean)
+  if (segmentsGoogle.length > 1) termes.push(segmentsGoogle[segmentsGoogle.length - 1])
+
+  return termes.filter((t) => t.length > 2)
+}
+
+/** Interroge Shopify et retient les feuilles vivantes du bon département. */
+async function feuillesPour(
+  appel: AppelShopify,
+  categorie: CategorieSource,
+  termes: string[],
+  dans: Map<string, Feuille>,
+): Promise<void> {
+  for (const search of termes) {
+    const { taxonomy } = await appel<ReponseTaxonomie>(CHERCHER_CATEGORIE, { search })
+    for (const n of taxonomy.categories.nodes) {
+      // Shopify refuse la fiche quand la catégorie n'est pas une feuille, et
+      // une archivée disparaîtra : ni l'une ni l'autre n'est proposable.
+      if (!n.isLeaf || n.isArchived) continue
+      if (!memeDepartement(categorie.google, n.fullName)) continue
+      dans.set(n.id, { id: n.id, fullName: n.fullName })
+    }
+  }
+}
+
+/** La meilleure feuille du lot, si elle atteint le seuil. */
+function meilleureFeuille(
+  categorie: CategorieSource,
+  feuilles: Feuille[],
+  nomsAnglais: string[],
+): Feuille | null {
+  const notees = feuilles
+    .map((f) => ({ f, note: pertinence(categorie, f.fullName, nomsAnglais) }))
+    .sort((a, b) => b.note - a.note)
+  const tete = notees[0]
+  return tete && tete.note >= PERTINENCE_MINIMALE ? tete.f : null
+}
+
+/**
+ * Cherche la feuille de taxonomie qui correspond à cette catégorie.
+ *
+ * Trois étages, du gratuit au payant, et on s'arrête au premier qui répond.
+ *
+ * 1. **La recherche locale.** Le libellé français et, quand il est précis, le
+ *    dernier segment du chemin Google. Ça suffit quand les deux taxonomies
+ *    emploient le même mot (« Drones », « Smartwatches »).
+ * 2. **La traduction.** « Informatique et accessoires PC » ne partage aucun mot
+ *    avec « Computer Accessories » : aucune comparaison de chaînes ne franchira
+ *    jamais la barrière de langue. Un appel court à Haiku rend deux ou trois
+ *    termes anglais, qui servent à la fois de requêtes ET de noms connus pour la
+ *    notation.
+ * 3. **Le choix dans la liste fermée.** Si rien n'atteint le seuil, le modèle
+ *    tranche — mais seulement parmi les feuilles que Shopify a réellement
+ *    rendues, et il a le droit de refuser. C'est la règle du référentiel maison,
+ *    appliquée ici : le modèle choisit, il n'invente pas.
+ *
+ * Le résultat est mémorisé par l'appelant dans `Category.targets.shopify` :
+ * mille produits d'une même catégorie coûtent cette recherche une fois.
+ */
 async function chercherCategorie(
   appel: AppelShopify,
   categorie: CategorieSource,
-): Promise<{ id: string; fullName: string } | null> {
-  const feuilleGoogle = categorie.google.split('>').pop()?.trim()
-  const essais = [feuilleGoogle, categorie.label].filter(
-    (t): t is string => typeof t === 'string' && t.length > 1,
-  )
+  demander: DemandeModele,
+): Promise<Feuille | null> {
+  const feuilles = new Map<string, Feuille>()
 
-  for (const search of essais) {
-    const { taxonomy } = await appel<ReponseTaxonomie>(CHERCHER_CATEGORIE, { search })
-    const candidats = taxonomy.categories.nodes
-      .filter((n) => n.isLeaf && !n.isArchived)
-      .map((n) => ({ n, score: pertinence(categorie, n.fullName) }))
-      .sort((a, b) => b.score - a.score)
+  await feuillesPour(appel, categorie, termesLocaux(categorie), feuilles)
+  const local = meilleureFeuille(categorie, [...feuilles.values()], [])
+  if (local) return local
 
-    const meilleur = candidats[0]
-    if (meilleur && meilleur.score >= PERTINENCE_MINIMALE) {
-      return { id: meilleur.n.id, fullName: meilleur.n.fullName }
-    }
+  const nomsAnglais = await traduirePourShopify(categorie, demander)
+  if (nomsAnglais.length) {
+    await feuillesPour(appel, categorie, nomsAnglais, feuilles)
+    const traduit = meilleureFeuille(categorie, [...feuilles.values()], nomsAnglais)
+    if (traduit) return traduit
   }
-  return null
+
+  return choisirParModele(categorie, [...feuilles.values()], demander)
 }
 
 /** Échappe un titre pour la syntaxe de recherche de Shopify. */
@@ -266,6 +540,7 @@ async function collectionNommee(appel: AppelShopify, titre: string): Promise<str
 export async function rangerDansShopify(
   appel: AppelShopify,
   categorie: CategorieSource | null,
+  demander: DemandeModele = demanderAuModele,
 ): Promise<RangementShopify> {
   const resultat: RangementShopify = { collections: [], notes: [] }
   if (!categorie) {
@@ -281,7 +556,7 @@ export async function rangerDansShopify(
     if (connue) {
       resultat.categoryId = connue.id
     } else {
-      const trouvee = await chercherCategorie(appel, categorie)
+      const trouvee = await chercherCategorie(appel, categorie, demander)
       if (trouvee) {
         resultat.categoryId = trouvee.id
         resultat.aRetenir = trouvee

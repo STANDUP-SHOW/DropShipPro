@@ -99,6 +99,34 @@ const MAJ_CATEGORIE = /* GraphQL */ `
   }
 `
 
+/**
+ * L'identifiant Shopify d'une fiche, retrouvé par son adresse publique.
+ *
+ * **Le piège, tombé dessus le 15/09/2026.** On lisait l'identifiant au bout de
+ * l'adresse avec `/products/(\d+)/` — et les quatre fiches ont été sautées en
+ * silence, parce qu'une adresse de boutique Shopify ne porte AUCUN numéro :
+ * `…/products/mini-pc-amd-ryzen-7-h255-16go-ram-512go-ssd-windows-11-pro`.
+ * C'est un *handle*, pas une clé. Il faut donc le demander à la boutique.
+ */
+const PAR_HANDLE = /* GraphQL */ `
+  query dropshipperProductByHandle($q: String!) {
+    products(first: 1, query: $q) {
+      nodes { id handle }
+    }
+  }
+`
+
+/** Le titre lisible d'une fiche, pour les messages. */
+function nom(f: { produit: { aiTitle: string | null; title: string } }): string {
+  return (f.produit.aiTitle || f.produit.title).slice(0, 55)
+}
+
+function handleDe(adresse: string): string | null {
+  const brut = adresse.split('?')[0].split('#')[0]
+  const apres = brut.split('/products/')[1]
+  return apres ? apres.replace(/\/+$/, '') || null : null
+}
+
 const publications = await prisma.publication.findMany({
   where: { platform: 'SHOPIFY', status: 'PUBLISHED', externalUrl: { not: null } },
   select: { id: true, externalUrl: true, productId: true },
@@ -177,28 +205,37 @@ if (!aRepousser.length) {
     try {
       const rangement = await rangerDansShopify(appel, f.categorie!)
       if (!rangement.categoryId) {
-        console.log(`  – ${(f.produit.aiTitle || f.produit.title).slice(0, 50)} : aucune catégorie Shopify pertinente.`)
+        console.log(`  – ${nom(f)} : aucune catégorie Shopify pertinente.`)
         sautes++
         continue
       }
-      // L'identifiant Shopify de la fiche est au bout de son adresse publique.
-      const numero = f.pub.externalUrl!.match(/\/products\/(\d+)/)?.[1]
-      if (!numero) {
+      const handle = handleDe(f.pub.externalUrl!)
+      if (!handle) {
+        console.log(`  ✗ ${nom(f)} : adresse illisible (${f.pub.externalUrl}).`)
+        sautes++
+        continue
+      }
+      const trouve = await appel<{ products: { nodes: Array<{ id: string }> } }>(PAR_HANDLE, {
+        q: `handle:${handle}`,
+      })
+      const gid = trouve.products.nodes[0]?.id
+      if (!gid) {
+        console.log(`  ✗ ${nom(f)} : introuvable sur la boutique (handle « ${handle} »).`)
         sautes++
         continue
       }
       const r = await appel<{ productUpdate: { userErrors: Array<{ message: string }> } }>(MAJ_CATEGORIE, {
-        id: `gid://shopify/Product/${numero}`,
+        id: gid,
         category: rangement.categoryId,
       })
       if (r.productUpdate.userErrors.length) {
-        console.log(`  ✗ ${f.produit.aiTitle}: ${r.productUpdate.userErrors.map((e) => e.message).join(' ')}`)
+        console.log(`  ✗ ${nom(f)} : ${r.productUpdate.userErrors.map((e) => e.message).join(' ')}`)
         sautes++
       } else {
         faits++
       }
     } catch (err) {
-      console.log(`  ✗ ${f.produit.aiTitle}: ${err instanceof Error ? err.message : String(err)}`)
+      console.log(`  ✗ ${nom(f)} : ${err instanceof Error ? err.message : String(err)}`)
       sautes++
     }
   }
