@@ -29,18 +29,21 @@ function ChromeGlyph({ size = 20 }: { size?: number }) {
 }
 
 export function BlocExtension() {
-  const { presente, enRetard, installee, servie } = useExtensionVersion()
+  const { presente, copieDev, installee } = useExtensionVersion()
   const [demo] = useDemo()
 
-  // Trois états : à jour, mise à jour en cours, non installée. En mode démo, la
+  // Trois états : à jour (copie du store, que Chrome tient à jour), copie
+  // manuelle (chargée à la main, qui ne se mettra jamais à jour), non installée.
+  // Le site ne compare plus les numéros de version : le store ne lit pas notre
+  // dépôt, il n'a que ce qu'on lui téléverse (15/09/2026). En mode démo, la
   // pilule du tableau de bord commande tout le site : l'extension est montrée
   // « à jour », comme le reste de la démonstration.
-  const etat = demo ? 'ajour' : !presente ? 'absente' : enRetard ? 'maj' : 'ajour'
-  // La version affichée : en démo, la version servie (ou un repère) fait foi.
-  const versionAffichee = demo ? servie ?? '1.30.0' : installee
+  const etat = demo ? 'ajour' : !presente ? 'absente' : copieDev ? 'maj' : 'ajour'
+  // En démo sans extension, aucun numéro inventé : un tiret.
+  const versionAffichee = demo ? installee ?? '—' : installee
   const config = {
     ajour: { label: 'À jour', teinte: '#34d399', cote: 'gauche' as const },
-    maj: { label: 'Mise à jour en cours', teinte: '#fbbf24', cote: 'droite' as const },
+    maj: { label: 'Copie manuelle', teinte: '#fbbf24', cote: 'droite' as const },
     absente: { label: 'Non installée', teinte: '#6b7280', cote: 'gauche' as const },
   }[etat]
 
@@ -87,24 +90,20 @@ export function BlocExtension() {
             {config.label}
           </p>
           {versionAffichee ? (
-            <p className="text-[10px] text-gray-500">
-              Version {versionAffichee}
-              {servie && enRetard && !demo ? ` → ${servie}` : ''}
-            </p>
+            <p className="text-[10px] text-gray-500">Version {versionAffichee}</p>
           ) : (
             <p className="text-[10px] text-gray-500">Cliquez pour l'installer</p>
           )}
         </div>
       </div>
 
-      {/* L'avertissement jaune, au SURVOL seulement, et seulement en retard :
-          Chrome met à jour tout seul, inutile d'alarmer en permanence. */}
-      {enRetard && !demo ? (
+      {/* L'avertissement jaune, au SURVOL seulement, et seulement pour une copie
+          chargée à la main : elle ne se mettra jamais à jour. */}
+      {copieDev && !demo ? (
         <div className="pointer-events-none absolute left-3 right-3 top-full z-40 mt-1 rounded-xl border border-amber-400/30 bg-[#211a10] p-3 text-[11px] leading-relaxed text-amber-100 opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100">
-          Votre extension est en {installee}, la version {servie} est disponible. Elle est sur le Chrome
-          Web Store et se met à jour toute seule — Chrome propage en quelques heures. Si l'ancienne
-          version persiste, c'est sans doute la copie « mode développeur » : retirez-la depuis
-          chrome://extensions et gardez celle du store.
+          Une copie de l'extension chargée à la main est installée : elle ne se mettra jamais à jour.
+          Retirez-la depuis chrome://extensions et installez l'extension depuis le Chrome Web Store —
+          c'est elle que Chrome tient à jour.
         </div>
       ) : null}
     </Link>

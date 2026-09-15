@@ -887,18 +887,23 @@ publication « en attente ».
    À confirmer en production avec un jeton réel.
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
 4. Une **veille de disponibilité** des produits sources a été proposée.
-6. **Publication de l extension au Chrome Web Store** : **ENVOYÉE POUR EXAMEN le
-   07/09/2026.** Paquet (`node extension/build-store-zip.cjs` → 26 fichiers
-   runtime, zéro dev), fiche, 4 captures 1280×800, 2 tuiles promo (440×280 et
-   1400×560, générées par scratchpad/promo-tiles.cjs), icône 128, justifications
-   (dont sidePanel et « code distant : Non ») — tout dans `docs/chrome-web-store.md`.
-   L accès hôte large déclenche un examen approfondi (quelques jours à ~2 semaines) ;
-   surveiller maxmartinel34@gmail.com pour une question de Google. **Après
-   acceptation** (voir la fin de `docs/chrome-web-store.md`) : remplacer le bouton
-   « Télécharger l extension » par le lien du store, prévenir les utilisateurs en
-   Mode développeur de réinstaller une fois, et pour chaque mise à jour incrémenter
-   `version` puis relancer le build. Tant que ce n est pas accepté, aucune mise à
-   jour automatique : le Mode développeur ne se met jamais à jour tout seul.
+6. **L'extension est au Chrome Web Store** (fiche
+   `chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk`, dossier
+   dans `docs/chrome-web-store.md`). **Le store ne lit pas notre dépôt** : une
+   version n'y arrive que quand Max la téléverse. Publier une mise à jour =
+   incrémenter `version` dans `extension/manifest.json`, lancer
+   `node extension/build-store-zip.cjs` (→ `backend/extension-store.zip`, hors
+   dépôt), et **Max téléverse le zip** dans le Developer Dashboard ; Chrome
+   propage ensuite en quelques heures. Tant que ce n'est pas fait, le store sert
+   l'ancienne version — le site disait « la 1.32.0 est disponible, Chrome
+   propage » alors que le store était à la 1.30.0 (15/09/2026). Décision du
+   même jour : **plus d'installation « mode développeur » sur le site**, nulle
+   part ; le site ne compare plus les numéros de version. Il ne sait que ce qui
+   se sait : le pont (`app-bridge.js`) annonce `store` = présence de
+   `update_url` dans le manifeste, que Chrome n'écrit que sur une copie du
+   store ; une copie chargée à la main est signalée comme telle (elle ne se
+   mettra jamais à jour), rien d'autre. Deux copies installées (store + manuelle)
+   répondent toutes les deux au ping ; celle du store fait foi.
 5. **Compteur de la fenêtre « Diffuser »** : signalé bloqué à 0. Non reproduit en
    lisant le code ; la fenêtre a été déplacée dans un portail `document.body` avec
    `type="button"` explicite (une barre collante ou un ancêtre transformé pouvait

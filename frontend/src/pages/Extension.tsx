@@ -1,6 +1,5 @@
-import { Puzzle, Download, MousePointerClick, ListPlus, ClipboardCheck, ShieldAlert, Images, RefreshCw, Star } from 'lucide-react'
+import { Puzzle, MousePointerClick, ListPlus, ClipboardCheck, ShieldAlert, Images, Star } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { apiRoot } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
 import { useExtensionVersion } from '../lib/extensionVersion'
 
@@ -50,7 +49,7 @@ const CARTES = [
 export default function Extension() {
   // Le détail « en retard » ne vit plus en haut de toutes les pages : ici, et au
   // survol du bloc Extension, uniquement.
-  const { enRetard, installee, servie } = useExtensionVersion()
+  const { copieDev, installee } = useExtensionVersion()
 
   return (
     <Layout>
@@ -62,15 +61,16 @@ export default function Extension() {
         Elle lit les fiches dans votre navigateur, importe à l'unité ou par lots, et remplit les formulaires de vente à votre place.
       </p>
 
-      {enRetard ? (
+      {/* Le seul avertissement qui reste : une copie chargée à la main ne se met
+          jamais à jour. Le site ne compare plus les numéros de version — le store
+          ne lit pas notre dépôt, il n'a que ce qu'on lui téléverse. */}
+      {copieDev ? (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3">
           <span className="text-lg">⚠️</span>
           <p className="min-w-0 flex-1 text-xs leading-relaxed text-amber-100">
-            <strong>{`Votre extension est en ${installee}, la version ${servie} est disponible.`}</strong>{' '}
-            Elle est sur le Chrome Web Store et se met à jour toute seule — Chrome propage en quelques
-            heures. Si l'ancienne version persiste, c'est sans doute la copie « mode développeur » :
-            ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, retirez-la, et
-            gardez uniquement celle du store.
+            <strong>{`Une copie de l'extension chargée à la main est installée${installee ? ` (${installee})` : ''} : elle ne se mettra jamais à jour.`}</strong>{' '}
+            Ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, retirez-la, puis
+            installez l'extension depuis le Chrome Web Store — c'est elle que Chrome tient à jour.
           </p>
         </div>
       ) : null}
@@ -113,56 +113,11 @@ export default function Extension() {
             <p className="mt-2 text-[11px] text-gray-500">
               Un avis ⭐ nous aide énormément à être trouvés par d'autres vendeurs — merci d'avance.
             </p>
-
-            {/* Repli : installation manuelle (mode développeur), pliée. */}
-            <details className="mt-3 text-xs text-gray-400">
-              <summary className="cursor-pointer text-gray-500 hover:text-gray-300">
-                Installer manuellement (mode développeur)
-              </summary>
-              <ol className="mt-2 list-decimal space-y-1 pl-4 leading-relaxed">
-                <li>Téléchargez l'archive et décompressez-la dans un dossier que vous gardez.</li>
-                <li>
-                  Ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, activez le « Mode développeur ».
-                </li>
-                <li>« Charger l'extension non empaquetée », puis désignez le dossier décompressé.</li>
-              </ol>
-              <a
-                href={`${apiRoot}/api/public/extension.zip`}
-                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
-              >
-                <Download size={13} />
-                <span>Télécharger l'archive (.zip)</span>
-              </a>
-            </details>
+            {/* Plus d'installation manuelle (« mode développeur ») : retirée le
+                15/09/2026. Une copie chargée à la main ne se met jamais à jour,
+                et le store est la seule voie que l'on tient. */}
           </>
-        ) : (
-          <>
-            {/* Tant que le lien du store n'est pas renseigné : installation manuelle. */}
-            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-gray-400">
-              <li>Téléchargez l'archive ci-dessous et décompressez-la dans un dossier que vous gardez.</li>
-              <li>
-                Ouvrez <code className="rounded bg-black/30 px-1">chrome://extensions</code>, activez le « Mode développeur » en haut à droite.
-              </li>
-              <li>« Charger l'extension non empaquetée », puis désignez le dossier décompressé.</li>
-              <li>Cliquez l'icône de l'extension et connectez-vous avec votre compte DropShipper IA.</li>
-            </ol>
-            <a
-              href={`${apiRoot}/api/public/extension.zip`}
-              className="btn-gradient mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-            >
-              <Download size={15} />
-              <span>Télécharger l'extension (.zip)</span>
-            </a>
-            <p className="mt-2 flex items-start gap-1.5 text-[11px] text-gray-500">
-              <RefreshCw size={12} className="mt-0.5 shrink-0" />
-              <span>
-                En mode développeur, l'extension ne se met pas à jour toute seule : quand une nouvelle version est annoncée
-                dans l'application, retéléchargez l'archive et rechargez le dossier. L'installation en un clic depuis le
-                Chrome Web Store arrive dès sa validation.
-              </span>
-            </p>
-          </>
-        )}
+        ) : null}
       </section>
 
       {/* ---------- Mode d'emploi ---------- */}
