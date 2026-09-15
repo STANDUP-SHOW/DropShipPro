@@ -902,8 +902,8 @@ publication « en attente ».
    avant, 27 après, sur une vraie fiche produit.** Le sélecteur manuel reste, il
    sert à écarter les vignettes de recommandation.
 2. ~~**Shopify**~~ **réglé, et au-delà.** Constaté le 15/09/2026 sur la boutique
-   d Max (oguss-france) : **108 produits actifs** publies par la plateforme, avec
-   leurs photos, leurs variantes, leur stock et leur categorie Google. Et
+   d Max (oguss-france) : **108 produits actifs** publies par la plateforme (ceux que Max a
+   selectionnes), avec photos, variantes, stock et categorie Google. Et
    DropShipper IA n y est pas seulement un connecteur : c est une **application
    Shopify installee**, qui apparait dans le menu Applications du back-office
    marchand avec sa propre page. Consequence commerciale a ne pas perdre de vue :
