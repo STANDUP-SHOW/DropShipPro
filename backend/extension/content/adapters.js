@@ -151,6 +151,8 @@
        * ce qui est précisément la raison de passer par l'extension.
        */
       fromJson: () => [],
+      /** La forme d'une adresse de fiche : elle suffit à proposer le bouton, prix visible ou non. */
+      productUrl: /\/pd_p\/\d+/i,
       domSelectors: ['img[src*="/product_image/"]', 'img[data-src*="/product_image/"]'],
       imageHost: /superdelivery\.com$/i,
       pathHint: '/product_image/',

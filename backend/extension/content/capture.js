@@ -1787,6 +1787,12 @@
    * are the marks a real product page carries.
    */
   function looksLikeProductPage() {
+    // Un adaptateur qui connaît la forme des adresses de fiche tranche seul :
+    // SUPER DELIVERY ne montre son prix qu'aux membres, et sans prix la règle
+    // générale ci-dessous ne voyait jamais de fiche — donc jamais de bouton.
+    const adapter = typeof dspAdapterFor === 'function' ? dspAdapterFor() : null
+    if (adapter?.productUrl?.test(location.href)) return true
+
     const ogType = document.querySelector('meta[property="og:type"]')?.content ?? ''
     if (/product/i.test(ogType)) return true
 

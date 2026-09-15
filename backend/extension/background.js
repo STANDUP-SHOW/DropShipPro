@@ -304,6 +304,25 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.local.remove(`job_${tabId}`))
 
+/*
+ * Le popup demande l'enregistrement du bouton AVANT de recharger l'onglet.
+ *
+ * Ajouter un site écrivait `approvedSites` puis rechargeait la page tout de
+ * suite ; l'enregistrement du script, lui, partait du changement de stockage —
+ * asynchrone, et souvent plus lent que le rechargement. La page revenait donc
+ * sans le script, et le vendeur rechargeait « plusieurs fois » (signalé le
+ * 15/09/2026). Répondre seulement une fois l'enregistrement terminé supprime
+ * la course : le popup attend cette réponse, puis recharge.
+ */
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== 'dsp-enregistrer-sites') return
+  registerApprovedSites().then(
+    () => sendResponse({ ok: true }),
+    (err) => sendResponse({ ok: false, error: String(err) }),
+  )
+  return true
+})
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   /*
    * La session ouverte sur le site, reprise telle quelle.

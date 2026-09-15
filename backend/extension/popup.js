@@ -249,6 +249,19 @@ function wireSiteBox() {
     const { approvedSites = [] } = await chrome.storage.local.get('approvedSites')
     await chrome.storage.local.set({ approvedSites: [...new Set([...approvedSites, origin])] })
 
+    // Attendre que le script soit enregistré AVANT de recharger : sinon la page
+    // revient avant lui et le bouton manque — il fallait recharger « plusieurs
+    // fois » (signalé le 15/09/2026). Le service worker répond une fois
+    // l'enregistrement fini.
+    e.target.disabled = true
+    e.target.textContent = 'Ajout du bouton…'
+    try {
+      await chrome.runtime.sendMessage({ type: 'dsp-enregistrer-sites' })
+    } catch {
+      // Service worker muet : le changement de stockage l'enregistre quand même,
+      // la page rechargée le trouvera au pire au chargement suivant.
+    }
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (tab?.id) chrome.tabs.reload(tab.id)
     window.close()
