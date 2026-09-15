@@ -901,8 +901,14 @@ publication « en attente ».
    `img.src`, 22 par le scan. **Constaté en production le 18/08/2026 : 1 image
    avant, 27 après, sur une vraie fiche produit.** Le sélecteur manuel reste, il
    sert à écarter les vignettes de recommandation.
-2. **Shopify** : code écrit et compilé, jamais exécuté contre une vraie boutique.
-   À confirmer en production avec un jeton réel.
+2. ~~**Shopify**~~ **réglé, et au-delà.** Constaté le 15/09/2026 sur la boutique
+   d Max (oguss-france) : **108 produits actifs** publies par la plateforme, avec
+   leurs photos, leurs variantes, leur stock et leur categorie Google. Et
+   DropShipper IA n y est pas seulement un connecteur : c est une **application
+   Shopify installee**, qui apparait dans le menu Applications du back-office
+   marchand avec sa propre page. Consequence commerciale a ne pas perdre de vue :
+   les 3 millions de boutiques Shopify du monde peuvent nous installer depuis chez
+   elles, et nous chercher dans le Shopify App Store.
 3. **`RESEND_API_KEY`** : sans elle aucun email ne part réellement.
 4. Une **veille de disponibilité** des produits sources a été proposée.
 6. **L'extension est au Chrome Web Store** (fiche
