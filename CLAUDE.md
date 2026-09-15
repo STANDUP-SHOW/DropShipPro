@@ -22,7 +22,7 @@ publication vers des marketplaces.
 | Élément | Adresse |
 |---|---|
 | Site | https://www.drop-shipper.fr (l'apex `drop-shipper.fr` redirige vers `www`) |
-| API | https://dropshippro-production.up.railway.app |
+| API | https://dropshippro-production.up.railway.app (migration vers `api.drop-shipper.fr` : voir `docs/migration-domaine-api.md`) |
 | Dépôt | https://github.com/STANDUP-SHOW/DropShipPro |
 | Base | PostgreSQL sur Railway (la même en local et en production) |
 
