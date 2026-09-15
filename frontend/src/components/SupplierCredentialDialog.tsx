@@ -132,6 +132,44 @@ export function FormulaireFournisseur({
           remplis.
         </p>
 
+        {/*
+          AliExpress : le jeton ne se colle pas, il s'autorise.
+          Sa console ne l'affiche nulle part — le protocole est OAuth, le jeton
+          d'accès vit UN JOUR et son jeton de rafraîchissement deux. Saisi à la
+          main, le raccordement mourait dans la nuit. Ce bouton fait le seul
+          geste qui donne un jeton renouvelable ; les deux champs au-dessus
+          restent utiles pour qui possède déjà le couple.
+        */}
+        {supplier.id === 'aliexpress' ? (
+          <div className="mt-4 rounded-xl border border-purple-400/25 bg-purple-500/10 p-3">
+            <p className="text-xs leading-relaxed text-purple-100">
+              <b>Le jeton d'accès ne se recopie pas.</b> AliExpress ne l'affiche nulle part : il
+              dure <b>un jour</b> et se renouvelle tout seul, à condition d'avoir été obtenu par
+              autorisation. Enregistrez votre App Key et votre App Secret, puis cliquez ici — vous
+              n'aurez plus à y revenir.
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                setError('')
+                setBusy(true)
+                try {
+                  const { url } = await api.aliexpressAuthorizeUrl()
+                  window.location.href = url
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "L'autorisation n'a pas pu être lancée")
+                } finally {
+                  setBusy(false)
+                }
+              }}
+              className="btn-gradient mt-3 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              Autoriser sur AliExpress
+            </button>
+          </div>
+        ) : null}
+
         {error ? <p className="mt-3 text-xs text-red-400">{error}</p> : null}
 
         <div className="mt-5 flex justify-between gap-2">

@@ -22,6 +22,8 @@ import {
 } from '../services/shopify.js'
 import { diagnostiquerJetonShopify } from '../services/shopifyToken.js'
 import { configApp, urlInstallation } from '../services/shopifyApp.js'
+import { urlAutorisationAliexpress, retourAliexpress } from '../services/supplierAliexpress.js'
+import { autorisationAliexpressPrete, signerEtatAli, VIE_ETAT_ALI_MS } from './aliexpressAuth.js'
 import { generateApiKey } from '../middleware/apiKey.js'
 import { oublierImagesExport } from '../services/exportImages.js'
 
@@ -695,6 +697,44 @@ settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
   })
 
   res.json({ supplier: lien.supplier, connected: lien.connected })
+})
+
+/**
+ * L'adresse où le vendeur autorise notre application chez AliExpress.
+ *
+ * Fabriquée ici, derrière l'authentification : l'état signé qu'elle porte
+ * désigne le compte auquel le jeton sera rattaché. Laisser le navigateur la
+ * composer reviendrait à laisser n'importe qui rattacher une autorisation au
+ * compte d'un autre.
+ *
+ * Elle exige que l'App Key soit déjà enregistrée : c'est elle qui identifie
+ * l'application du vendeur auprès d'AliExpress, et il n'y a rien à autoriser
+ * sans elle.
+ */
+settingsRouter.get('/supplier-links/aliexpress/authorize-url', async (req: AuthedRequest, res) => {
+  try {
+    if (!autorisationAliexpressPrete()) {
+      return res.status(503).json({ error: "L'autorisation AliExpress n'est pas configurée sur le serveur." })
+    }
+
+    const lien = await prisma.supplierConnection.findUnique({
+      where: { userId_supplier: { userId: req.userId!, supplier: 'aliexpress' } },
+    })
+    const data = (lien?.data ?? {}) as Record<string, unknown>
+    const appKey = typeof data.appKey === 'string' ? data.appKey.trim() : ''
+    const appSecret = typeof data.appSecret === 'string' ? data.appSecret.trim() : ''
+    if (!appKey || !appSecret) {
+      return res.status(400).json({
+        error: "Enregistrez d'abord votre App Key et votre App Secret, puis relancez l'autorisation.",
+      })
+    }
+
+    const etat = signerEtatAli(process.env.JWT_SECRET!.trim(), req.userId!, Date.now() + VIE_ETAT_ALI_MS)
+    res.json({ url: urlAutorisationAliexpress(appKey, etat), retour: retourAliexpress() })
+  } catch (e) {
+    console.error('aliexpress authorize-url', e)
+    res.status(500).json({ error: "Impossible de préparer l'autorisation AliExpress" })
+  }
 })
 
 settingsRouter.delete('/supplier-links/:supplier', async (req: AuthedRequest, res) => {

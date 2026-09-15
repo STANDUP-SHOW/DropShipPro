@@ -23,6 +23,7 @@ import { supplierConversationsRouter } from './routes/supplierConversations.js'
 import { visualsRouter } from './routes/visuals.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { shopifyAppRouter } from './routes/shopifyApp.js'
+import { aliexpressAuthRouter } from './routes/aliexpressAuth.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
@@ -112,6 +113,8 @@ app.use('/api/admin', adminRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/settings', settingsRouter)
+// Le retour d'autorisation AliExpress : public, vérifié par état signé.
+app.use('/api/aliexpress', aliexpressAuthRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/billing', billingRouter)
 app.use('/api/agent', agentRouter)

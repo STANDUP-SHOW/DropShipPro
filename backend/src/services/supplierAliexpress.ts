@@ -146,6 +146,87 @@ async function renouveler(
   return { accessToken: reponse.access_token, refreshToken: reponse.refresh_token }
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * Le PREMIER jeton : l'autorisation OAuth.
+ * ---------------------------------------------------------------------------
+ *
+ * **Pourquoi ce n'est pas un champ à coller.** Relevé le 15/09/2026 dans la
+ * console AliExpress Open Platform (app « DropShipper IA ») : le protocole est
+ * OAuth 2.0 côté serveur, le **jeton d'accès vit un jour** et le jeton de
+ * rafraîchissement deux. Aucun jeton n'est affiché nulle part dans la console —
+ * l'App Key et l'App Secret le sont, le jeton non, par construction. Demander
+ * au vendeur de le coller à la main revenait donc à lui demander de recommencer
+ * tous les matins, et c'est exactement ce qui se passait : le raccordement
+ * marchait le jour de la saisie et mourait pendant la nuit.
+ *
+ * Le renouvellement automatique existait déjà (`renouveler` ci-dessus, rejoué
+ * sur un refus de jeton). Il ne servait à rien sans jeton de rafraîchissement,
+ * que seul ce parcours-ci sait produire. C'est la même leçon qu'eBay, dont le
+ * jeton vit deux heures : **un jeton qui expire ne se saisit pas, il
+ * s'autorise.**
+ *
+ * L'App Key et l'App Secret restent saisis — ils appartiennent au vendeur, pas
+ * à nous, et ils ne changent jamais.
+ */
+
+/** L'adresse d'autorisation d'AliExpress, où le vendeur approuve l'accès. */
+const AUTORISER = () =>
+  process.env.ALIEXPRESS_AUTH_URL?.trim() || 'https://api-sg.aliexpress.com/oauth/authorize'
+
+/**
+ * Le retour d'autorisation : l'adresse qu'AliExpress rappellera.
+ *
+ * **Elle doit être identique, au caractère près, à la « Callback URL »
+ * déclarée dans la console AliExpress** — sinon l'autorisation est refusée
+ * sans explication utile. D'où la variable : la changer ne demande pas de
+ * redéployer le code.
+ */
+export function retourAliexpress(): string {
+  const impose = process.env.ALIEXPRESS_REDIRECT_URI?.trim()
+  if (impose) return impose
+  const racine = (process.env.PUBLIC_API_URL || '').trim().replace(/\/+$/, '')
+  return `${racine}/api/aliexpress/callback`
+}
+
+/** L'adresse où envoyer le vendeur pour qu'il autorise notre application. */
+export function urlAutorisationAliexpress(appKey: string, etat: string): string {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: appKey,
+    redirect_uri: retourAliexpress(),
+    // `sp=ae` désigne la place de marché AliExpress : sans lui, l'autorisation
+    // part sur une autre plateforme du groupe et le jeton obtenu ne lit rien.
+    sp: 'ae',
+    state: etat,
+  })
+  return `${AUTORISER()}?${params.toString()}`
+}
+
+/**
+ * Échange le code d'autorisation contre le couple de jetons.
+ *
+ * Passe par `appelSigne` — le même chemin signé que tout le reste du
+ * connecteur. Recopier la signature ici ferait deux versions qui
+ * divergeraient, et celle du banc ne prouverait plus rien.
+ */
+export async function echangerCodeAliexpress(
+  appKey: string,
+  appSecret: string,
+  code: string,
+): Promise<{ accessToken: string; refreshToken?: string }> {
+  const reponse = (await appelSigne(
+    { app_key: appKey, code, uuid: retourAliexpress() },
+    appSecret,
+    '/auth/token/create',
+  )) as { access_token?: string; refresh_token?: string }
+
+  if (!reponse.access_token) {
+    throw new SupplierError("AliExpress n'a pas délivré de jeton d'accès pour ce code.")
+  }
+  return { accessToken: reponse.access_token, refreshToken: reponse.refresh_token }
+}
+
 /** Ce qu'AliExpress renvoie pour une fiche produit, réduit à ce qu'on en lit. */
 interface FicheAli {
   aliexpress_ds_product_get_response?: {

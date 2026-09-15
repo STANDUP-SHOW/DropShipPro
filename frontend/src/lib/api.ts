@@ -1430,6 +1430,16 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ supplier, data }),
     }),
+  /**
+   * L'adresse où le vendeur autorise notre application chez AliExpress.
+   *
+   * Le serveur la fabrique : l'état signé qu'elle porte désigne le compte
+   * auquel le jeton sera rattaché, et le navigateur ne doit pas pouvoir le
+   * composer lui-même.
+   */
+  aliexpressAuthorizeUrl: () =>
+    request<{ url: string; retour: string }>('/settings/supplier-links/aliexpress/authorize-url'),
+
   deleteSupplierLink: (supplier: string) =>
     request(`/settings/supplier-links/${supplier}`, { method: 'DELETE' }),
 
