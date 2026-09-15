@@ -185,7 +185,25 @@ const AUTORISER = () =>
 export function retourAliexpress(): string {
   const impose = process.env.ALIEXPRESS_REDIRECT_URI?.trim()
   if (impose) return impose
-  const racine = (process.env.PUBLIC_API_URL || '').trim().replace(/\/+$/, '')
+
+  /*
+   * Sur le domaine du SITE, pas sur celui de l'API.
+   *
+   * Cette adresse est la seule que le vendeur voit de notre infrastructure : il
+   * la recopie dans la console d'AliExpress et elle reste sous ses yeux. Y
+   * mettre `dropshippro-production.up.railway.app` — un nom d'hébergeur qui
+   * porte en plus l'ancien nom du produit — était le meilleur moyen d'avoir
+   * l'air d'un bricolage. Vercel réécrit `/api/aliexpress/*` vers l'API, donc
+   * `www.drop-shipper.fr/api/aliexpress/callback` arrive exactement au même
+   * endroit, sous notre marque et sans attendre le moindre réglage DNS.
+   *
+   * **Seulement pour ce qui passe par le navigateur du vendeur.** Un webhook
+   * signé sur ses octets bruts — Shopify — ne doit PAS traverser un proxy :
+   * ce qui ressort n'est plus octet pour octet ce qui est entré, et la
+   * signature tombe. Celui-là garde l'adresse de l'API.
+   */
+  const site = (process.env.FRONTEND_URL || '').split(',')[0]?.trim().replace(/\/+$/, '')
+  const racine = site || (process.env.PUBLIC_API_URL || '').trim().replace(/\/+$/, '')
   return `${racine}/api/aliexpress/callback`
 }
 
