@@ -139,7 +139,7 @@ const MOTS_VIDES = new Set([
  * portables »). Ne juger que sur le terme cherché donnerait zéro à la bonne
  * feuille, et l'on retomberait à ne rien ranger du tout.
  */
-function pertinence(categorie: CategorieSource, fullName: string): number {
+export function pertinence(categorie: CategorieSource, fullName: string): number {
   const feuille = fullName.split('>').pop() ?? fullName
   const trouves = new Set(motsDe(feuille))
   const noms = [categorie.google.split('>').pop() ?? '', categorie.label, categorie.path.split('>').pop() ?? '']
@@ -181,6 +181,18 @@ function pertinence(categorie: CategorieSource, fullName: string): number {
  * déjà la règle du référentiel maison (« rien ne tombe dans Divers »).
  */
 const PERTINENCE_MINIMALE = 0.5
+
+/**
+ * Cette feuille est-elle un rangement acceptable pour cette catégorie ?
+ *
+ * Exporté pour que le script de réparation juge la mémoire déjà gravée avec
+ * EXACTEMENT la même règle que la publication. Recopier le seuil là-bas ferait
+ * deux versions qui divergeraient, et le script validerait un jour ce que le
+ * connecteur refuse.
+ */
+export function estPertinente(categorie: CategorieSource, fullName: string): boolean {
+  return pertinence(categorie, fullName) >= PERTINENCE_MINIMALE
+}
 
 async function chercherCategorie(
   appel: AppelShopify,

@@ -207,7 +207,14 @@ export async function resoudreCredentialsShopify(data: unknown): Promise<Shopify
 
 class ShopifyError extends Error {}
 
-async function graphql<T>(creds: ShopifyCredentials, query: string, variables: Record<string, unknown>): Promise<T> {
+/**
+ * Un appel GraphQL authentifié.
+ *
+ * Exporté depuis le 15/09/2026 pour le script de réparation des catégories :
+ * il doit parler à Shopify exactement comme la publication le fait — mêmes
+ * en-têtes, même version d'API, mêmes refus traduits.
+ */
+export async function graphql<T>(creds: ShopifyCredentials, query: string, variables: Record<string, unknown>): Promise<T> {
   let res: Response
   try {
     res = await fetch(`https://${creds.shopDomain}/admin/api/${API_VERSION}/graphql.json`, {
