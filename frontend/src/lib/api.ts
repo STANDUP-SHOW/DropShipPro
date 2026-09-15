@@ -1466,18 +1466,23 @@ export const api = {
   /** Le catalogue d'un fournisseur relié : ce qu'il sait faire, et ses produits. */
   supplierCatalog: (supplier: string, q: string) =>
     request<{
-      fournisseurs: Array<{ id: string; label: string; cherche: boolean; gagnants: boolean }>
-      choisi: string | null
-      produits: Array<{
-        ref: string
-        titre: string
-        prix: number | null
-        devise: string
-        image: string | null
-        url: string | null
-        entrepot: 'europe' | 'chine' | null
+      /** Un bloc par fournisseur relié : ses offres, ou la raison de son silence. */
+      fournisseurs: Array<{
+        id: string
+        label: string
+        cherche: boolean
+        gagnants: boolean
+        produits: Array<{
+          ref: string
+          titre: string
+          prix: number | null
+          devise: string
+          image: string | null
+          url: string | null
+          entrepot: 'europe' | 'chine' | null
+        }>
+        note: string | null
       }>
-      note: string | null
     }>(`/products/meta/supplier-catalog?supplier=${encodeURIComponent(supplier)}&q=${encodeURIComponent(q)}`),
 
   /** Importe les fiches cochées dans un catalogue fournisseur. */

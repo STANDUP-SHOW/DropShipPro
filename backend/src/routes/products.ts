@@ -1628,38 +1628,59 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
         creds: (f.lien.data ?? {}) as Record<string, string>,
       }))
 
-    const catalogue = fournisseurs.map(({ connecteur, creds, ...vitrine }) => vitrine)
-    const cible = fournisseurs.find((f) => f.id === demande) ?? fournisseurs.find((f) => f.cherche)
-    if (!cible) return res.json({ fournisseurs: catalogue, choisi: null, produits: [], note: null })
-
     /*
-     * Une recherche à vide n'est pas une recherche : c'est une demande de
-     * meilleures ventes. Les deux capacités ne sont pas portées par les mêmes
-     * fournisseurs, d'où le choix explicite plutôt qu'un appel au hasard.
+     * **Tous les fournisseurs à la fois, pas l'un après l'autre.**
+     *
+     * Demandé le 16/09/2026 : « quand je clique sur écouteurs sans fil, je veux
+     * voir les offres AliExpress, les offres CJ et les offres BigBuy ». C'est le
+     * geste du sourcing : on ne cherche pas chez un fournisseur, on cherche un
+     * produit et on compare ce que chacun en demande. Un écran qui impose de
+     * choisir d'abord fait refaire la même recherche trois fois et ne permet
+     * jamais la comparaison, qui est justement la décision à prendre.
+     *
+     * En parallèle, et **chaque fournisseur porte son propre sort** : une clé
+     * refusée chez l'un ne doit pas priver le vendeur des deux autres. C'est la
+     * règle déjà posée pour le relevé des prix — un refus qui porte sur la
+     * liaison arrête ce fournisseur-là, pas la tournée entière.
      */
-    let produits: unknown[] = []
-    let note: string | null = null
-    try {
-      if (motsCles && cible.cherche) {
-        produits = await cible.connecteur.searchProducts!(motsCles, cible.creds)
-        if (!produits.length) note = `Aucun résultat chez ${cible.label} pour « ${motsCles} ».`
-      } else if (!motsCles && cible.gagnants) {
-        produits = await cible.connecteur.winningProducts!(cible.creds)
-        if (!produits.length) {
-          note = `${cible.label} ne propose aucune sélection en ce moment. Cherchez par mots-clés.`
-        }
-      } else if (motsCles) {
-        note = `${cible.label} ne propose pas de recherche par mots-clés dans son API.`
-      } else {
-        note = `Tapez ce que vous cherchez : ${cible.label} n'a pas de sélection à proposer d'office.`
-      }
-    } catch (e) {
-      // Le refus du fournisseur est transmis tel quel : il dit quoi corriger,
-      // « erreur » ne dit rien.
-      note = e instanceof Error ? e.message : 'Le fournisseur a refusé la recherche.'
-    }
+    const aInterroger = demande ? fournisseurs.filter((f) => f.id === demande) : fournisseurs
 
-    res.json({ fournisseurs: catalogue, choisi: cible.id, produits, note })
+    const resultats = await Promise.all(
+      aInterroger.map(async (f) => {
+        const vitrine = { id: f.id, label: f.label, cherche: f.cherche, gagnants: f.gagnants }
+        try {
+          if (motsCles && f.cherche) {
+            const produits = await f.connecteur.searchProducts!(motsCles, f.creds)
+            return {
+              ...vitrine,
+              produits,
+              note: produits.length ? null : `Aucun résultat pour « ${motsCles} ».`,
+            }
+          }
+          if (!motsCles && f.gagnants) {
+            const produits = await f.connecteur.winningProducts!(f.creds)
+            return {
+              ...vitrine,
+              produits,
+              note: produits.length ? null : 'Aucune sélection en ce moment — cherchez par mots-clés.',
+            }
+          }
+          return {
+            ...vitrine,
+            produits: [],
+            note: motsCles
+              ? 'Pas de recherche par mots-clés dans son API.'
+              : "Pas de sélection à proposer d'office — tapez ce que vous cherchez.",
+          }
+        } catch (e) {
+          // Le refus du fournisseur est transmis tel quel : « Invalid Token »
+          // dit quoi corriger, « erreur » ne dit rien.
+          return { ...vitrine, produits: [], note: e instanceof Error ? e.message : 'Recherche refusée.' }
+        }
+      }),
+    )
+
+    res.json({ fournisseurs: resultats })
   } catch (e) {
     console.error('catalogue fournisseur', e)
     res.status(500).json({ error: 'Impossible de lire le catalogue fournisseur' })
