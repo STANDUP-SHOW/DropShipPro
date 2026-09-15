@@ -1,5 +1,5 @@
 /**
- * Where the DropShip Pro API lives.
+ * Where the DropShipper IA API lives.
  *
  * Kept in chrome.storage rather than hard-coded so the same extension build works
  * against a local dev server and against the deployed backend: the user sets it
@@ -50,7 +50,7 @@ async function setAppUrl(url) {
 }
 
 /**
- * Calls the DropShip Pro API from a content script.
+ * Calls the DropShipper IA API from a content script.
  *
  * The request is handed to the background worker instead of being issued here.
  * A content script runs in the page's context, so on an https:// shop a direct
