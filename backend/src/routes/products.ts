@@ -38,6 +38,7 @@ import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
 import { optimiserAnnonce } from '../services/listingOptimizer.js'
 import { reecrireAnnonce } from '../services/listingRewrite.js'
+import { findConnector } from '../services/supplierConnectors.js'
 import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
 
 export const productsRouter = Router()
@@ -1301,8 +1302,25 @@ productsRouter.get('/meta/platforms', (_req, res) => {
  * gestes, et une même marque peut être les deux — on achète sur AliExpress, on
  * vend sur eBay, et Etsy est les deux à la fois.
  */
+/**
+ * L'annuaire des fournisseurs, avec l'état RÉEL de chaque raccordement.
+ *
+ * **La supercherie qu'on retire (15/09/2026).** L'écran affichait, sur TOUS les
+ * fournisseurs sans distinction : « Ce raccordement sera conservé, rien de
+ * plus. Le connecteur qui lira le catalogue, passera les commandes et
+ * remontera le suivi n'est pas encore écrit. » C'était faux pour AliExpress,
+ * BigBuy et CJ, dont les connecteurs tournent, sont couverts par des bancs et
+ * lisent réellement le catalogue. Un vendeur qui venait de brancher AliExpress
+ * lisait donc, juste sous les quatre capacités cochées en vert, qu'il ne
+ * servait à rien. Signalé mot pour mot : « quelle est donc cette supercherie ? »
+ *
+ * `connecteurEcrit` est **déduit du registre**, jamais écrit à la main : le
+ * jour où un connecteur est ajouté à `CONNECTEURS`, sa fiche cesse d'afficher
+ * l'avertissement toute seule. Une liste recopiée, elle, aurait menti dans
+ * l'autre sens au premier oubli.
+ */
 productsRouter.get('/meta/suppliers', (_req, res) => {
-  res.json(SUPPLIERS)
+  res.json(SUPPLIERS.map((s) => ({ ...s, connecteurEcrit: Boolean(findConnector(s.id)) })))
 })
 
 /**

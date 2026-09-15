@@ -500,6 +500,14 @@ export const api = {
         attention?: string
         adapte?: boolean
         color: string
+        /**
+         * Le connecteur de ce fournisseur est écrit et tourne.
+         *
+         * Déduit côté serveur du registre CONNECTEURS, jamais d'une liste
+         * recopiée : un connecteur ajouté cesse d'afficher l'avertissement
+         * tout seul, et aucun oubli ne peut le faire mentir.
+         */
+        connecteurEcrit?: boolean
         api?: {
           nom: string
           console: string

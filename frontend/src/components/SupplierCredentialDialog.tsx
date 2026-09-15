@@ -92,10 +92,27 @@ export function FormulaireFournisseur({
 
   return (
     <>
-        <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
-          Ce raccordement sera <b>conservé, rien de plus</b>. Le connecteur qui lira le catalogue,
-          passera les commandes et remontera le suivi n'est pas encore écrit.
-        </p>
+        {/*
+          L'avertissement ne s'affiche QUE là où il est vrai.
+
+          Il s'affichait sur tous les fournisseurs, y compris ceux dont le
+          connecteur tourne depuis des mois. Un vendeur qui venait de brancher
+          AliExpress lisait donc, juste sous les quatre capacités cochées en
+          vert, que ça ne servait à rien. Signalé le 15/09/2026 : « quelle est
+          donc cette supercherie ? ». Il avait raison — c'en était une.
+        */}
+        {supplier.connecteurEcrit ? (
+          <p className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">
+            Ce raccordement est <b>actif</b> : une fois relié, {supplier.label} alimente vos fiches —
+            catalogue, prix et stock à jour, commandes déposées depuis ici et numéros de suivi
+            remontés automatiquement.
+          </p>
+        ) : (
+          <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
+            Ce raccordement sera <b>conservé, rien de plus</b>. Le connecteur qui lira le catalogue,
+            passera les commandes et remontera le suivi n'est pas encore écrit pour {supplier.label}.
+          </p>
+        )}
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           {CAPACITES.map((c) => (

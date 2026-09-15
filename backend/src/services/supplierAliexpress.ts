@@ -215,16 +215,70 @@ export async function echangerCodeAliexpress(
   appSecret: string,
   code: string,
 ): Promise<{ accessToken: string; refreshToken?: string }> {
+  /*
+   * Ni `uuid`, ni `redirect_uri`.
+   *
+   * Le premier essai envoyait l'adresse de rappel en `uuid` — et l'échange a
+   * été refusé. Elle n'a rien à faire ici : elle a servi à obtenir le code,
+   * son rôle s'arrête là, et un paramètre qu'AliExpress n'attend pas entre
+   * quand même dans la signature. Cet appel ne prend que la clé et le code.
+   */
   const reponse = (await appelSigne(
-    { app_key: appKey, code, uuid: retourAliexpress() },
+    { app_key: appKey, code },
     appSecret,
     '/auth/token/create',
-  )) as { access_token?: string; refresh_token?: string }
+  )) as Record<string, unknown>
 
-  if (!reponse.access_token) {
-    throw new SupplierError("AliExpress n'a pas délivré de jeton d'accès pour ce code.")
+  const jetons = lireJetons(reponse)
+  if (jetons) return jetons
+
+  /*
+   * **Dire ce qu'AliExpress a répondu, pas ce qu'il n'a pas fait.**
+   *
+   * « AliExpress n'a pas délivré de jeton » est vrai et parfaitement inutile :
+   * ça ne dit ni pourquoi, ni quoi corriger, et ça laisse chercher la panne
+   * partout ailleurs. Or un refus n'arrive pas toujours sous `error_response` —
+   * il peut venir en `code` non nul au premier niveau, avec son message à côté,
+   * et `appelSigne` le laisse alors passer pour une réponse valide. On le lit
+   * donc ici, et à défaut on nomme les champs reçus : la prochaine tentative
+   * sera diagnosticable au lieu d'être à refaire à l'aveugle.
+   */
+  const message = typeof reponse.message === 'string' ? reponse.message : ''
+  const codeErreur = reponse.code !== undefined && String(reponse.code) !== '0' ? String(reponse.code) : ''
+  if (message || codeErreur) {
+    throw new SupplierError(
+      `AliExpress a refusé l'échange${codeErreur ? ` (code ${codeErreur})` : ''}${message ? ` : ${message}` : ''}.`,
+    )
   }
-  return { accessToken: reponse.access_token, refreshToken: reponse.refresh_token }
+  throw new SupplierError(
+    `AliExpress n'a pas délivré de jeton. Champs reçus : ${Object.keys(reponse).join(', ') || '(aucun)'}.`,
+  )
+}
+
+/**
+ * Les jetons, où qu'AliExpress les ait mis.
+ *
+ * Il les rend tantôt au premier niveau, tantôt enveloppés sous une clé en
+ * `_response` — les deux formes circulent selon l'endpoint et la version. Ne
+ * lire qu'une seule, c'est traiter l'autre comme une absence de jeton, donc
+ * rendre le message opaque qu'on vient de recevoir alors que le jeton était là.
+ */
+function lireJetons(brut: Record<string, unknown>): { accessToken: string; refreshToken?: string } | null {
+  const candidats: Record<string, unknown>[] = [brut]
+  for (const valeur of Object.values(brut)) {
+    if (valeur && typeof valeur === 'object' && !Array.isArray(valeur)) {
+      candidats.push(valeur as Record<string, unknown>)
+    }
+  }
+
+  for (const c of candidats) {
+    const acces = c.access_token ?? c.accessToken
+    if (typeof acces === 'string' && acces) {
+      const refresh = c.refresh_token ?? c.refreshToken
+      return { accessToken: acces, refreshToken: typeof refresh === 'string' ? refresh : undefined }
+    }
+  }
+  return null
 }
 
 /** Ce qu'AliExpress renvoie pour une fiche produit, réduit à ce qu'on en lit. */
