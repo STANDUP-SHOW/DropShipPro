@@ -104,6 +104,29 @@ exige(charge !== chargeTruquee, 'le banc compare bien deux charges différentes'
 const autre: ConfigApp = { ...config, secret: 'un-autre-secret' }
 exige(lireEtat(autre, etat, t0) === null, "un état signé d'un autre secret est refusé")
 
+/*
+ * Le chemin de retour : un chemin interne, jamais une adresse.
+ *
+ * Il vient du navigateur, il est signé avec l'état, et il finit dans un
+ * `Location:`. Accepter `https://…` ou `//evil.test` ferait une redirection
+ * ouverte SIGNÉE DE NOTRE NOM — le pire des deux mondes, puisque la signature
+ * la rend crédible. Et le contrôle est refait à la LECTURE : un chemin signé
+ * hier ne doit pas échapper à une règle durcie aujourd'hui.
+ */
+for (const mauvais of ['https://evil.test', '//evil.test', 'evil.test', '\\\\evil.test', '', null]) {
+  const porteur = signerEtat(config, 'usr_1', 'ma-boutique.myshopify.com', t0 + 60_000, mauvais as string)
+  exige(
+    lireEtatAvecRetour(porteur) === '/plateformes-vente',
+    `« ${mauvais} » doit retomber sur le retour par défaut, vu : ${lireEtatAvecRetour(porteur)}`,
+  )
+}
+const bon = signerEtat(config, 'usr_1', 'ma-boutique.myshopify.com', t0 + 60_000, '/boutique-shopify')
+exige(lireEtatAvecRetour(bon) === '/boutique-shopify', 'un chemin interne est conservé')
+
+function lireEtatAvecRetour(etat: string): string | null {
+  return lireEtat(config, etat, t0)?.retour ?? null
+}
+
 // ── 3. La signature des paramètres du retour ────────────────────────────────
 
 /** La recette de Shopify, réécrite à la main : trier, assembler, HMAC hex. */

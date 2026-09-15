@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { LIEN_SHOPIFY, VERT_SHOPIFY } from '../lib/shopifyAffiliation'
+import { VERT_SHOPIFY } from '../lib/shopifyAffiliation'
 
 /**
  * Le sac de courses de Shopify, à ses couleurs.
@@ -199,7 +199,16 @@ export function MenuBoutiques() {
         }
         prix="dès 27 €/mois"
         onglets={[
-          { libelle: 'Créez', vers: LIEN_SHOPIFY, externe: true },
+          /*
+           * « Créez » mène à NOTRE écran, pas directement chez Shopify.
+           *
+           * Le lien de partenaire y est, en première étape — le parrainage est
+           * préservé. Mais ouvrir la boutique n'est que le premier des quatre
+           * gestes : sans l'écran qui enchaîne installation, choix des produits
+           * et publication, le vendeur repart chez Shopify et ne revient jamais
+           * finir le travail.
+           */
+          { libelle: 'Créez', vers: '/boutique-shopify' },
           {
             libelle: 'Modifier',
             vers: poignee ? `https://admin.shopify.com/store/${poignee}` : '',

@@ -110,7 +110,8 @@ shopifyAppRouter.get(
     })
 
     const site = (process.env.FRONTEND_URL || '').split(',')[0]?.trim() || 'https://www.drop-shipper.fr'
-    res.redirect(`${site}/plateformes-vente?shopify=connectee`)
+    const separateur = etat.retour.includes('?') ? '&' : '?'
+    res.redirect(`${site}${etat.retour}${separateur}shopify=connectee`)
   }),
 )
 

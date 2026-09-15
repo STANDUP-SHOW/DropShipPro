@@ -79,8 +79,33 @@ function memeSignature(attendue: string, recue: string): boolean {
  */
 const VIE_ETAT_MS = 15 * 60 * 1000
 
-export function signerEtat(config: ConfigApp, userId: string, shop: string, expireA: number): string {
-  const charge = Buffer.from(JSON.stringify({ u: userId, s: shop, e: expireA })).toString('base64url')
+/**
+ * Où renvoyer le marchand une fois l'installation faite.
+ *
+ * **Un chemin interne, jamais une adresse.** Cette valeur vient du navigateur
+ * et finit dans un `Location:` : accepter `https://…` ou `//evil.test` en
+ * ferait une redirection ouverte signée de notre nom. On n'accepte donc qu'un
+ * chemin absolu d'une seule barre, et on retombe sur l'écran des plateformes
+ * quand il ne l'est pas.
+ */
+const RETOUR_PAR_DEFAUT = '/plateformes-vente'
+
+export function cheminDeRetour(brut: unknown): string {
+  const v = typeof brut === 'string' ? brut.trim() : ''
+  if (!v.startsWith('/') || v.startsWith('//') || v.includes('\\')) return RETOUR_PAR_DEFAUT
+  return v
+}
+
+export function signerEtat(
+  config: ConfigApp,
+  userId: string,
+  shop: string,
+  expireA: number,
+  retour = RETOUR_PAR_DEFAUT,
+): string {
+  const charge = Buffer.from(
+    JSON.stringify({ u: userId, s: shop, e: expireA, r: cheminDeRetour(retour) }),
+  ).toString('base64url')
   const signature = crypto.createHmac('sha256', config.secret).update(charge).digest('base64url')
   return `${charge}.${signature}`
 }
@@ -89,7 +114,7 @@ export function lireEtat(
   config: ConfigApp,
   etat: string,
   maintenant = Date.now(),
-): { userId: string; shop: string } | null {
+): { userId: string; shop: string; retour: string } | null {
   const [charge, signature] = etat.split('.')
   if (!charge || !signature) return null
 
@@ -97,10 +122,12 @@ export function lireEtat(
   if (!memeSignature(attendue, signature)) return null
 
   try {
-    const { u, s, e } = JSON.parse(Buffer.from(charge, 'base64url').toString('utf8'))
+    const { u, s, e, r } = JSON.parse(Buffer.from(charge, 'base64url').toString('utf8'))
     if (typeof u !== 'string' || typeof s !== 'string' || typeof e !== 'number') return null
     if (maintenant > e) return null
-    return { userId: u, shop: s }
+    // Re-contrôlé à la lecture : une signature valide ne rend pas un chemin sûr
+    // si la règle a changé depuis qu'il a été signé.
+    return { userId: u, shop: s, retour: cheminDeRetour(r) }
   } catch {
     return null
   }
@@ -118,6 +145,7 @@ export function urlInstallation(
   config: ConfigApp,
   userId: string,
   boutique: string,
+  retour?: string,
   maintenant = Date.now(),
 ): string | null {
   const shop = normalizeShopDomain(boutique)
@@ -127,7 +155,7 @@ export function urlInstallation(
     client_id: config.cle,
     scope: config.portee,
     redirect_uri: `${config.racine}/api/shopify/callback`,
-    state: signerEtat(config, userId, shop, maintenant + VIE_ETAT_MS),
+    state: signerEtat(config, userId, shop, maintenant + VIE_ETAT_MS, retour),
   })
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`
 }

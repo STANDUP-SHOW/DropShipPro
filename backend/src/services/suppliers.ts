@@ -70,6 +70,16 @@ export interface SupplierApi {
   suivi: boolean
   /** Les champs à saisir pour se relier, dans l'ordre. Un champ `optionnel` peut rester vide. */
   champs: Array<{ cle: string; label: string; secret?: boolean; optionnel?: boolean }>
+  /**
+   * Le fournisseur délivre son jeton par AUTORISATION, pas par copier-coller.
+   *
+   * Quand c'est le cas, les deux champs de jeton deviennent facultatifs — le
+   * vendeur n'a aucun moyen de les connaître — et la liaison n'est déclarée
+   * « reliée » qu'une fois l'autorisation faite. Sans cette distinction, le
+   * formulaire réclamait un jeton qu'AliExpress n'affiche nulle part, et la
+   * saisie était tout simplement impossible à terminer.
+   */
+  autorisation?: { protocole: 'oauth'; cleJeton: string }
 }
 
 export const SUPPLIERS: SupplierInfo[] = [
@@ -96,12 +106,21 @@ export const SUPPLIERS: SupplierInfo[] = [
       champs: [
         { cle: 'appKey', label: 'App Key' },
         { cle: 'appSecret', label: 'App Secret', secret: true },
-        { cle: 'accessToken', label: "Jeton d'accès", secret: true },
-        // Facultatif, et pourtant c'est lui qui évite la panne : sans jeton de
-        // rafraîchissement, la veille s'arrête le jour où l'accès expire et il
-        // faut réautoriser l'application à la main.
+        /*
+         * Les deux jetons sont FACULTATIFS depuis le 15/09/2026.
+         *
+         * Ils l'étaient déjà en pratique sans que le formulaire le sache : la
+         * console d'AliExpress n'affiche aucun jeton, le protocole est OAuth,
+         * et l'accès ne vit qu'un jour. Les exiger revenait à réclamer une
+         * valeur que le vendeur ne pouvait pas connaître — il ne pouvait
+         * simplement pas enregistrer sa liaison. Ils restent saisissables pour
+         * qui possède déjà le couple ; le chemin normal est le bouton
+         * « Autoriser sur AliExpress ».
+         */
+        { cle: 'accessToken', label: "Jeton d'accès", secret: true, optionnel: true },
         { cle: 'refreshToken', label: 'Jeton de rafraîchissement', secret: true, optionnel: true },
       ],
+      autorisation: { protocole: 'oauth', cleJeton: 'accessToken' },
     },
   },
   {

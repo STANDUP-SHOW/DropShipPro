@@ -140,13 +140,13 @@ export function FormulaireFournisseur({
           geste qui donne un jeton renouvelable ; les deux champs au-dessus
           restent utiles pour qui possède déjà le couple.
         */}
-        {supplier.id === 'aliexpress' ? (
+        {api_.autorisation ? (
           <div className="mt-4 rounded-xl border border-purple-400/25 bg-purple-500/10 p-3">
             <p className="text-xs leading-relaxed text-purple-100">
-              <b>Le jeton d'accès ne se recopie pas.</b> AliExpress ne l'affiche nulle part : il
-              dure <b>un jour</b> et se renouvelle tout seul, à condition d'avoir été obtenu par
-              autorisation. Enregistrez votre App Key et votre App Secret, puis cliquez ici — vous
-              n'aurez plus à y revenir.
+              <b>Le jeton d'accès ne se recopie pas.</b> {supplier.label} ne l'affiche nulle part :
+              il dure <b>un jour</b> et se renouvelle tout seul, à condition d'avoir été obtenu par
+              autorisation. Enregistrez d'abord votre App Key et votre App Secret — les deux champs
+              de jeton restent vides — puis cliquez ici. Vous n'aurez plus à y revenir.
             </p>
             <button
               type="button"
@@ -165,7 +165,7 @@ export function FormulaireFournisseur({
               }}
               className="btn-gradient mt-3 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
             >
-              Autoriser sur AliExpress
+              Autoriser sur {supplier.label}
             </button>
           </div>
         ) : null}

@@ -509,6 +509,12 @@ export const api = {
           commande: boolean
           suivi: boolean
           champs: Array<{ cle: string; label: string; secret?: boolean; optionnel?: boolean }>
+          /**
+           * Le fournisseur délivre son jeton par AUTORISATION, pas par
+           * copier-coller : l'écran propose alors un bouton au lieu d'un champ
+           * que le vendeur ne peut pas remplir.
+           */
+          autorisation?: { protocole: 'oauth'; cleJeton: string }
         }
       }>
     >('/products/meta/suppliers'),
@@ -1437,6 +1443,18 @@ export const api = {
    * auquel le jeton sera rattaché, et le navigateur ne doit pas pouvoir le
    * composer lui-même.
    */
+  /**
+   * L'adresse d'installation de notre application sur une boutique Shopify.
+   *
+   * `retour` est un CHEMIN interne : le serveur le signe avec l'état et le
+   * re-contrôle au retour, précisément pour qu'il ne puisse jamais devenir une
+   * redirection vers l'extérieur.
+   */
+  shopifyInstallUrl: (shop: string, retour?: string) =>
+    request<{ url: string }>(
+      `/settings/shopify/install-url?shop=${encodeURIComponent(shop)}${retour ? `&retour=${encodeURIComponent(retour)}` : ''}`,
+    ),
+
   aliexpressAuthorizeUrl: () =>
     request<{ url: string; retour: string }>('/settings/supplier-links/aliexpress/authorize-url'),
 

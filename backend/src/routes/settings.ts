@@ -340,7 +340,7 @@ settingsRouter.get('/shopify/install-url', async (req: AuthedRequest, res) => {
       })
     }
 
-    const url = urlInstallation(config, req.userId!, String(req.query.shop ?? ''))
+    const url = urlInstallation(config, req.userId!, String(req.query.shop ?? ''), String(req.query.retour ?? ''))
     if (!url) {
       return res.status(400).json({
         error: "Adresse de boutique invalide. Attendu : ma-boutique.myshopify.com",
@@ -690,13 +690,29 @@ settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: `Il manque : ${manquants.join(', ')}` })
   }
 
+  /*
+   * « Relié » ne veut pas dire « renseigné ».
+   *
+   * Chez un fournisseur qui délivre son jeton par autorisation — AliExpress —
+   * la clé et le secret ne suffisent pas : sans jeton, aucun appel ne passera.
+   * Annoncer la liaison comme faite à ce moment-là ferait échouer la veille et
+   * les commandes en silence, et le vendeur chercherait la panne ailleurs.
+   */
+  const autorisation = fournisseur.api?.autorisation
+  const connected = autorisation ? Boolean((data as Record<string, unknown>)[autorisation.cleJeton]) : true
+
   const lien = await prisma.supplierConnection.upsert({
     where: { userId_supplier: { userId: req.userId!, supplier: fournisseur.id } },
-    create: { userId: req.userId!, supplier: fournisseur.id, data, connected: true },
-    update: { data, connected: true },
+    create: { userId: req.userId!, supplier: fournisseur.id, data, connected },
+    update: { data, connected },
   })
 
-  res.json({ supplier: lien.supplier, connected: lien.connected })
+  res.json({
+    supplier: lien.supplier,
+    connected: lien.connected,
+    // L'écran doit savoir qu'il reste un geste, sinon il annonce une réussite.
+    autorisationRequise: Boolean(autorisation && !connected),
+  })
 })
 
 /**
