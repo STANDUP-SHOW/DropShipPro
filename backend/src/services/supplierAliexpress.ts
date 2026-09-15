@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto'
-import { SupplierError, type SupplierConnector, type SupplierPrice } from './supplierTypes.js'
+import { SupplierError, type SupplierConnector, type SupplierListing, type SupplierPrice } from './supplierTypes.js'
 
 /**
  * AliExpress — le plus gros fournisseur du catalogue, et le plus exigeant.
@@ -486,6 +486,53 @@ export const aliexpress: SupplierConnector = {
       .filter((p) => p.ref && p.titre)
   },
 
+  /**
+   * Cherche dans le catalogue d'AliExpress par mots-clés.
+   *
+   * **Manquait, et ça se voyait.** Signalé le 16/09/2026 : « AliExpress
+   * fonctionne en recherche par mots, si je cherche écouteurs sans fils je
+   * tombe sur des écouteurs sans fils ». C'est vrai sur leur site et c'est vrai
+   * par l'API — seul notre connecteur ne savait pas le faire, si bien qu'un
+   * chef de rayon interrogé sur AliExpress ne pouvait proposer que le flux des
+   * meilleures ventes, qui rend souvent zéro ligne.
+   *
+   * `aliexpress.ds.text.search` est la recherche du programme Dropshipping,
+   * celle qui va avec le jeton qu'on vient d'obtenir. Le prix demandé est
+   * **converti par AliExpress dans la devise cible**, pas converti par nous :
+   * une conversion maison sur un prix déjà converti donnerait deux taux
+   * différents pour le même produit selon le chemin emprunté.
+   */
+  async searchProducts(motsCles, credentials) {
+    const appKey = credentials.appKey?.trim()
+    const appSecret = credentials.appSecret?.trim()
+    const accessToken = credentials.accessToken?.trim()
+    if (!appKey || !appSecret || !accessToken) {
+      throw new SupplierError(
+        "Liaison AliExpress incomplète : il faut l'App Key, l'App Secret et le jeton d'accès.",
+        true,
+      )
+    }
+
+    const reponse = (await appelSigne(
+      {
+        method: 'aliexpress.ds.text.search',
+        app_key: appKey,
+        access_token: accessToken,
+        keyWord: motsCles,
+        local: 'fr_FR',
+        countryCode: credentials.shipTo?.trim() || 'FR',
+        currency: credentials.currency?.trim() || 'EUR',
+        pageIndex: '1',
+        pageSize: '20',
+        sortBy: 'orders,desc',
+      },
+      appSecret,
+      undefined,
+    )) as Record<string, unknown>
+
+    return lireListeProduits(reponse)
+  },
+
   async fetchPrices(refs, credentials, ctx) {
     const appKey = credentials.appKey?.trim()
     const appSecret = credentials.appSecret?.trim()
@@ -648,4 +695,63 @@ export const aliexpress: SupplierConnector = {
       available: base.product_status_type === undefined || base.product_status_type === 'onSelling',
     }
   },
+}
+
+/**
+ * Les produits, où qu'AliExpress les ait rangés dans sa réponse.
+ *
+ * Chaque méthode enveloppe différemment — `*_response.result.products`,
+ * `.data.products`, une liste `traffic_product_d_t_o` — et les noms de champs
+ * changent d'une méthode à l'autre pour désigner la même chose. Écrire un
+ * chemin en dur par méthode, c'est se condamner à rendre « 0 résultat » le
+ * jour où AliExpress déplace un niveau, sans la moindre erreur pour le dire :
+ * on descend donc jusqu'au premier tableau d'objets qui ressemble à des
+ * produits, et on lit chaque champ sous ses différents noms connus.
+ */
+function lireListeProduits(brut: unknown): SupplierListing[] {
+  const lignes = premierTableauDeProduits(brut)
+  return lignes
+    .map((p) => ({
+      ref: String(p.product_id ?? p.productId ?? p.item_id ?? p.itemId ?? ''),
+      titre: String(p.product_title ?? p.productTitle ?? p.subject ?? p.title ?? ''),
+      prix:
+        Number(
+          p.target_sale_price ?? p.targetSalePrice ?? p.sale_price ?? p.salePrice ?? p.minPrice ?? '',
+        ) || null,
+      devise: String(p.target_sale_price_currency ?? p.currency ?? 'EUR'),
+      image:
+        typeof (p.product_main_image_url ?? p.productMainImageUrl ?? p.imageUrl) === 'string'
+          ? String(p.product_main_image_url ?? p.productMainImageUrl ?? p.imageUrl)
+          : null,
+      url:
+        typeof (p.product_detail_url ?? p.productDetailUrl) === 'string'
+          ? String(p.product_detail_url ?? p.productDetailUrl)
+          : `https://www.aliexpress.com/item/${p.product_id ?? p.productId ?? p.item_id ?? ''}.html`,
+      entrepot: null as null,
+    }))
+    .filter((p) => p.ref && p.titre)
+}
+
+/** Descend dans la réponse jusqu'au premier tableau qui porte des produits. */
+function premierTableauDeProduits(brut: unknown, profondeur = 0): Array<Record<string, unknown>> {
+  if (profondeur > 6 || !brut || typeof brut !== 'object') return []
+
+  if (Array.isArray(brut)) {
+    const objets = brut.filter((v): v is Record<string, unknown> => Boolean(v) && typeof v === 'object')
+    // Un tableau de produits porte un identifiant ET un titre : sans ce
+    // contrôle, on retiendrait la première liste venue — des catégories, des
+    // images, des filtres de recherche.
+    const ressemble = objets.some(
+      (o) =>
+        (o.product_id ?? o.productId ?? o.item_id ?? o.itemId) !== undefined &&
+        (o.product_title ?? o.productTitle ?? o.subject ?? o.title) !== undefined,
+    )
+    if (ressemble) return objets
+  }
+
+  for (const valeur of Object.values(brut as Record<string, unknown>)) {
+    const trouve = premierTableauDeProduits(valeur, profondeur + 1)
+    if (trouve.length) return trouve
+  }
+  return []
 }
