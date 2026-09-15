@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, ExternalLink, Package, RefreshCw, ShoppingCart, Truck } from 'lucide-react'
 import { api } from '../lib/api'
+import { PROPS_SANS_REMPLISSAGE, nomSansRemplissage } from '../lib/champSecret'
 
 /**
  * La saisie des identifiants d'un fournisseur.
@@ -114,7 +115,10 @@ export function FormulaireFournisseur({
               </span>
               <input
                 type={champ.secret ? 'password' : 'text'}
-                autoComplete="off"
+                /* Voir lib/champSecret.ts : Chrome versait l'e-mail et le mot
+                   de passe du vendeur dans App Key / App Secret. */
+                {...PROPS_SANS_REMPLISSAGE}
+                name={nomSansRemplissage(champ.cle)}
                 value={valeurs[champ.cle] ?? ''}
                 onChange={(e) => setValeurs((v) => ({ ...v, [champ.cle]: e.target.value }))}
                 placeholder={lien?.champs.includes(champ.cle) ? '••••••••' : ''}

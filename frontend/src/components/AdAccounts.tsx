@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link2, X, Check } from 'lucide-react'
 import { api } from '../lib/api'
+import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
 
 /**
  * Les régies, et ce que chaque raccordement exige réellement.
@@ -155,6 +156,7 @@ function Fenetre({
         <label className="mt-4 block">
           <span className="text-xs text-gray-400">{regie.idLabel}</span>
           <input
+            {...PROPS_SANS_REMPLISSAGE}
             value={accountId}
             onChange={(e) => setAccountId(e.target.value)}
             className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none focus:border-purple-400/70"
@@ -167,9 +169,9 @@ function Fenetre({
           </span>
           <input
             type="password"
+            {...PROPS_SANS_REMPLISSAGE}
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            autoComplete="off"
             placeholder={compte?.connected ? '••••••••••••' : ''}
             className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none focus:border-purple-400/70"
           />

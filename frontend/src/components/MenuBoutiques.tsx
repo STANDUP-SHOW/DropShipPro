@@ -91,9 +91,18 @@ function BlocBoutique({
 }) {
   return (
     <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] p-2">
-      <div className="flex items-center gap-2">
+      {/*
+        Le titre ne se tronque pas, il passe à la ligne.
+        La colonne fait 224 px moins ses marges, soit 192 px utiles. Sur une
+        seule ligne, l'icône, « Boutique DropShop » et la pastille de prix en
+        demandent un peu plus de deux cents : le titre était rogné en
+        « Boutique Dro… » des deux côtés — c'est-à-dire que la marque, seule
+        raison d'être du bloc, disparaissait. On laisse donc l'ensemble revenir
+        à la ligne : le nom d'abord, entier, la pastille dessous s'il le faut.
+      */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {icone}
-        <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{titre}</span>
+        <span className="text-[13px] font-bold leading-tight">{titre}</span>
         <span
           className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold ${
             gratuit ? 'bg-emerald-400/20 text-emerald-300' : 'bg-white/10 text-gray-400'

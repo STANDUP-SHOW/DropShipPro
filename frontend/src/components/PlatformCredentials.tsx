@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import { PlatformBadge } from './PlatformBadge'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 import { MIRAKL_IDS } from '../lib/platformGuides'
+import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
 
 /**
  * Les clés d'accès aux places de marché.
@@ -146,6 +147,7 @@ export function PlatformCredentialForm({
                 className="mt-2 space-y-2"
               >
                 <input
+                  {...PROPS_SANS_REMPLISSAGE}
                   name="shopDomain"
                   defaultValue={cred?.hint ?? ''}
                   placeholder="ma-boutique.myshopify.com"
@@ -182,6 +184,7 @@ export function PlatformCredentialForm({
                 {voieShopify === 'jeton' ? (
                   <>
                     <input
+                      {...PROPS_SANS_REMPLISSAGE}
                       name="accessToken"
                       type="password"
                       placeholder="Jeton d'accès Admin (shpat_… — pas atkn_)"
@@ -195,11 +198,13 @@ export function PlatformCredentialForm({
                 ) : (
                   <>
                     <input
+                      {...PROPS_SANS_REMPLISSAGE}
                       name="clientId"
                       placeholder="Client ID"
                       className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                     />
                     <input
+                      {...PROPS_SANS_REMPLISSAGE}
                       name="clientSecret"
                       type="password"
                       placeholder="Client Secret"
@@ -256,6 +261,7 @@ export function PlatformCredentialForm({
                 className="mt-2 space-y-2"
               >
                 <input
+                  {...PROPS_SANS_REMPLISSAGE}
                   name="accessToken"
                   type="password"
                   placeholder="Jeton utilisateur OAuth (v^1.1#…)"
@@ -268,17 +274,20 @@ export function PlatformCredentialForm({
                 {renouvellementEbay ? (
                   <>
                     <input
+                      {...PROPS_SANS_REMPLISSAGE}
                       name="refreshToken"
                       type="password"
                       placeholder="Refresh token"
                       className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                     />
                     <input
+                      {...PROPS_SANS_REMPLISSAGE}
                       name="clientId"
                       placeholder="Client ID (App ID)"
                       className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                     />
                     <input
+                      {...PROPS_SANS_REMPLISSAGE}
                       name="clientSecret"
                       type="password"
                       placeholder="Client Secret (Cert ID)"
@@ -331,11 +340,13 @@ export function PlatformCredentialForm({
                 className="mt-2 space-y-2"
               >
                 <input
+                  {...PROPS_SANS_REMPLISSAGE}
                   name="clientKey"
                   placeholder="Client Key (32 caractères)"
                   className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                 />
                 <input
+                  {...PROPS_SANS_REMPLISSAGE}
                   name="secretKey"
                   type="password"
                   placeholder="Secret Key (64 caractères)"
@@ -391,11 +402,13 @@ export function PlatformCredentialForm({
                 className="mt-2 space-y-2"
               >
                 <input
+                  {...PROPS_SANS_REMPLISSAGE}
                   name="baseUrl"
                   placeholder="Adresse du back-office (https://marchand.mirakl.net)"
                   className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                 />
                 <input
+                  {...PROPS_SANS_REMPLISSAGE}
                   name="apiKey"
                   type="password"
                   placeholder="Clé API"
@@ -432,6 +445,7 @@ export function PlatformCredentialForm({
                   className="mt-2 flex gap-2"
                 >
                   <input
+                    {...PROPS_SANS_REMPLISSAGE}
                     name="apiKey"
                     placeholder="Clé API / token"
                     className="flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
