@@ -31,6 +31,7 @@ import MarketAnalysisPage from './pages/MarketAnalysis'
 import ProduitsGagnants from './pages/ProduitsGagnants'
 import CreerBoutique from './pages/CreerBoutique'
 import BoutiqueShopify from './pages/BoutiqueShopify'
+import CataloguesFournisseurs from './pages/CataloguesFournisseurs'
 import Veille from './pages/Veille'
 import Rayons from './pages/Rayons'
 import Agents from './pages/Agents'
@@ -176,6 +177,7 @@ export default function App() {
           <Route path="/produits-gagnants" element={<Protected><ProduitsGagnants /></Protected>} />
           <Route path="/creer-boutique" element={<Protected><CreerBoutique /></Protected>} />
           <Route path="/boutique-shopify" element={<Protected><BoutiqueShopify /></Protected>} />
+          <Route path="/catalogues" element={<Protected><CataloguesFournisseurs /></Protected>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

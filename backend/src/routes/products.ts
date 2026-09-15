@@ -1589,6 +1589,117 @@ productsRouter.post('/import-list', (req: AuthedRequest, res) => {
 })
 
 /**
+ * Les catalogues des fournisseurs reliés, cherchés depuis l'écran.
+ *
+ * **Le trou que ça bouche.** La capacité existait dans les connecteurs depuis
+ * des semaines — `searchProducts`, `winningProducts` — et n'était atteignable
+ * que de deux façons : en demandant à un chef de rayon dans le chat, ou par
+ * l'enquête automatique qui dépose des opportunités. Aucun écran. Un vendeur
+ * qui venait de relier CJ ne pouvait pas parcourir son catalogue, c'est-à-dire
+ * exactement ce pour quoi il l'avait relié.
+ *
+ * **Ce qui ne sait pas chercher ne prétend pas chercher.** La réponse dit,
+ * fournisseur par fournisseur, ce qu'il sait faire — déduit du connecteur, pas
+ * d'une liste recopiée. BigBuy est relié et ne sait ni chercher par mots-clés
+ * ni proposer ses meilleures ventes : l'écran doit le dire, pas l'interroger
+ * dans le vide et rendre « aucun résultat », ce qui ferait croire à un
+ * catalogue vide.
+ */
+productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => {
+  try {
+    const motsCles = String(req.query.q ?? '').trim()
+    const demande = String(req.query.supplier ?? '').trim()
+
+    const liens = await prisma.supplierConnection.findMany({
+      where: { userId: req.userId!, connected: true },
+    })
+
+    const fournisseurs = liens
+      .map((lien) => ({ lien, connecteur: findConnector(lien.supplier) }))
+      .filter((f): f is { lien: (typeof liens)[number]; connecteur: NonNullable<ReturnType<typeof findConnector>> } =>
+        Boolean(f.connecteur),
+      )
+      .map((f) => ({
+        id: f.lien.supplier,
+        label: f.connecteur.label,
+        cherche: Boolean(f.connecteur.searchProducts),
+        gagnants: Boolean(f.connecteur.winningProducts),
+        connecteur: f.connecteur,
+        creds: (f.lien.data ?? {}) as Record<string, string>,
+      }))
+
+    const catalogue = fournisseurs.map(({ connecteur, creds, ...vitrine }) => vitrine)
+    const cible = fournisseurs.find((f) => f.id === demande) ?? fournisseurs.find((f) => f.cherche)
+    if (!cible) return res.json({ fournisseurs: catalogue, choisi: null, produits: [], note: null })
+
+    /*
+     * Une recherche à vide n'est pas une recherche : c'est une demande de
+     * meilleures ventes. Les deux capacités ne sont pas portées par les mêmes
+     * fournisseurs, d'où le choix explicite plutôt qu'un appel au hasard.
+     */
+    let produits: unknown[] = []
+    let note: string | null = null
+    try {
+      if (motsCles && cible.cherche) {
+        produits = await cible.connecteur.searchProducts!(motsCles, cible.creds)
+        if (!produits.length) note = `Aucun résultat chez ${cible.label} pour « ${motsCles} ».`
+      } else if (!motsCles && cible.gagnants) {
+        produits = await cible.connecteur.winningProducts!(cible.creds)
+        if (!produits.length) {
+          note = `${cible.label} ne propose aucune sélection en ce moment. Cherchez par mots-clés.`
+        }
+      } else if (motsCles) {
+        note = `${cible.label} ne propose pas de recherche par mots-clés dans son API.`
+      } else {
+        note = `Tapez ce que vous cherchez : ${cible.label} n'a pas de sélection à proposer d'office.`
+      }
+    } catch (e) {
+      // Le refus du fournisseur est transmis tel quel : il dit quoi corriger,
+      // « erreur » ne dit rien.
+      note = e instanceof Error ? e.message : 'Le fournisseur a refusé la recherche.'
+    }
+
+    res.json({ fournisseurs: catalogue, choisi: cible.id, produits, note })
+  } catch (e) {
+    console.error('catalogue fournisseur', e)
+    res.status(500).json({ error: 'Impossible de lire le catalogue fournisseur' })
+  }
+})
+
+/**
+ * Importe des fiches repérées dans un catalogue fournisseur.
+ *
+ * Passe par `importerDepuisFournisseurs`, le même chemin que l'import d'un
+ * export de références : réécriture, photos réhébergées, catégorie, crédits
+ * décomptés une fois. Écrire un second chemin d'import ferait deux
+ * comportements pour un même geste, et c'est toujours le second qu'on oublie
+ * de corriger.
+ */
+productsRouter.post('/import-catalogue', async (req: AuthedRequest, res) => {
+  try {
+    const { supplier, refs } = req.body as { supplier?: string; refs?: unknown }
+    const liste = Array.isArray(refs) ? refs.filter((r): r is string => typeof r === 'string' && Boolean(r)) : []
+    if (!supplier || !liste.length) {
+      return res.status(400).json({ error: 'Choisissez un fournisseur et au moins un produit.' })
+    }
+    if (liste.length > 50) {
+      return res.status(400).json({ error: 'Cinquante produits au maximum par import.' })
+    }
+
+    const parFournisseur = new Map<string, Map<string, string>>([
+      [supplier, new Map(liste.map((ref) => [ref, '']))],
+    ])
+    const resultats = await importerDepuisFournisseurs(req.userId!, parFournisseur, {
+      apiBaseUrl: apiBaseUrl(req),
+    })
+    res.json(resultats)
+  } catch (e) {
+    console.error('import catalogue', e)
+    res.status(500).json({ error: "L'import depuis le catalogue a échoué" })
+  }
+})
+
+/**
  * L'arbre du référentiel : rayons à gros blocs, sous-catégories dessous.
  *
  * Public au sens du compte — tous les vendeurs partagent le même référentiel —

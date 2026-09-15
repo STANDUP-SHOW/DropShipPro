@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus, Mail } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus, Mail, Search } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
@@ -86,6 +86,9 @@ const SECTIONS: Array<{
     // les répéter dans le menu le doublait pour rien (retirés le 04/09/2026).
     entrees: [
       { to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes },
+      // Parcourir le catalogue de ceux qui sont reliés, et importer de là :
+      // la capacité vivait dans les connecteurs sans aucun écran pour y aller.
+      { to: '/catalogues', label: 'Catalogues connectés', icon: Search },
       { to: '/commandes-fournisseurs', label: 'Commandes fournisseurs', icon: ShoppingBag },
     ],
   },
