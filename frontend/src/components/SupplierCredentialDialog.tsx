@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, ExternalLink, Package, RefreshCw, ShoppingCart, Truck } from 'lucide-react'
 import { api } from '../lib/api'
 import { PROPS_SANS_REMPLISSAGE, nomSansRemplissage } from '../lib/champSecret'
@@ -12,6 +12,14 @@ import { PROPS_SANS_REMPLISSAGE, nomSansRemplissage } from '../lib/champSecret'
  */
 type Supplier = Awaited<ReturnType<typeof api.listSuppliers>>[number]
 type Lien = Awaited<ReturnType<typeof api.listSupplierLinks>>[number]
+
+/**
+ * Les champs que l'autorisation remplit à la place du vendeur.
+ *
+ * Écrits ici et pas devinés : « tout champ secret » en aurait aussi masqué
+ * l'App Secret, que le vendeur DOIT saisir. Ce sont les deux jetons, nommément.
+ */
+const JETONS_AUTORISES = new Set(['accessToken', 'refreshToken'])
 
 const CAPACITES = [
   { cle: 'lectureCatalogue' as const, icone: Package, titre: 'Lire le catalogue' },
@@ -41,6 +49,22 @@ export function FormulaireFournisseur({
   const [valeurs, setValeurs] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /*
+   * L'adresse de rappel attendue par le fournisseur.
+   *
+   * Demandée au serveur plutôt que recomposée ici : elle dépend de
+   * PUBLIC_API_URL, que seul le serveur connaît, et une adresse approximative
+   * affichée au vendeur serait pire qu'aucune — il la recopierait.
+   */
+  const [retourAttendu, setRetourAttendu] = useState('')
+  useEffect(() => {
+    if (!supplier.api?.autorisation) return
+    api
+      .aliexpressAuthorizeUrl()
+      .then((r) => setRetourAttendu(r.retour))
+      // Un refus ici est normal (clés pas encore saisies) : le bloc se tait.
+      .catch(() => undefined)
+  }, [supplier.id])
 
   async function enregistrer() {
     setBusy(true)
@@ -103,8 +127,20 @@ export function FormulaireFournisseur({
           <ExternalLink size={11} />
         </a>
 
+        {/*
+          Un champ qu'on ne peut pas remplir ne s'affiche pas.
+
+          Chez un fournisseur qui délivre son jeton par autorisation, les deux
+          champs de jeton n'ont AUCUNE valeur que le vendeur puisse y mettre :
+          sa console ne les affiche nulle part. Les laisser visibles, même
+          marqués « facultatif », faisait chercher — et c'est ce qu'a signalé
+          Max le 15/09/2026. Ils sortent du formulaire ; le bouton
+          d'autorisation les remplit.
+        */}
         <div className="mt-4 space-y-3">
-          {api_.champs.map((champ) => (
+          {api_.champs
+            .filter((champ) => !(api_.autorisation && JETONS_AUTORISES.has(champ.cle)))
+            .map((champ) => (
             <label key={champ.cle} className="block">
               <span className="text-xs text-gray-400">
                 {lien?.champs.includes(champ.cle) && champ.secret
@@ -149,6 +185,26 @@ export function FormulaireFournisseur({
               deux champs de jeton vides, et cliquez ci-dessous : vos clés sont enregistrées au
               passage, puis {supplier.label} vous demande d'approuver. Vous n'aurez plus à y revenir.
             </p>
+            {/*
+              L'adresse de rappel, affichée noir sur blanc.
+
+              Refus constaté le 15/09/2026 : « L'URL de redirection ne
+              correspond pas à l'URL de rappel de l'application ». AliExpress
+              compare la nôtre à celle déclarée dans la console du vendeur, au
+              caractère près, et son message ne dit pas laquelle il attendait.
+              Sans cette ligne, le vendeur n'a aucun moyen de savoir quoi
+              recopier — et c'est le seul réglage qui lui reste à faire.
+            */}
+            {retourAttendu ? (
+              <div className="mt-3 rounded-lg border border-white/10 bg-black/30 p-2.5">
+                <p className="text-[11px] text-gray-400">
+                  Dans votre console {supplier.label}, le champ <b>Callback URL</b> doit valoir
+                  exactement :
+                </p>
+                <code className="mt-1 block break-all text-[11px] text-emerald-300">{retourAttendu}</code>
+              </div>
+            ) : null}
+
             <button
               type="button"
               disabled={busy}
