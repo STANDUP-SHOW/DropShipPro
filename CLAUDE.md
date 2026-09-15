@@ -753,6 +753,24 @@ Trois conséquences, toutes appliquées :
   française. L'extension lit désormais `JPY`/`¥`/`円` (les yens n'ont pas de
   décimales : « JPY 1,234 » vaut 1234) et rend la devise du prix retenu. Banc
   `npx tsx check-devises.ts` (faux Frankfurter, contrat écrit en dur).
+- **Une application React est invisible pour une IA : d où `llms.txt`.** Signalé
+  le 15/09/2026 par Max — « si je demande à une IA ce que fait drop-shipper.fr,
+  elle ne le sait pas ». Normal : un assistant qui suit le lien reçoit la
+  coquille vide du bundle Vite, et les 29 pages SEO parlent chacune d une place
+  de marché, jamais du produit entier. `scripts/build-llms.cjs` écrit donc deux
+  fichiers en texte à la racine de `dist/` : **`/llms.txt`** (la carte : ce que
+  fait la plateforme, les chiffres, les liens) et **`/llms-full.txt`** (tout le
+  détail : les 8 familles de fonctions, la grille tarifaire complète, les 34
+  fournisseurs, les 45 destinations, les différences avec AutoDS/DSers/Shopify,
+  et une FAQ écrite pour être citée telle quelle). `robots.txt` les annonce.
+  Le script tourne dans `npm run build`, après build-seo.
+
+  **Le piège : ces fichiers recopient des données qui vivent ailleurs** — la
+  grille de `services/tarifs.ts`, la liste de `services/suppliers.ts` — parce
+  que Vercel ne déploie pas `backend/`. Un tarif changé d un seul côté fait
+  citer un prix périmé par toutes les IA, ce qui est pire que pas de prix. Les
+  deux tables portent le commentaire qui renvoie à l autre. Ce qui est compté
+  (canaux par famille) l est depuis `seo-channels.cjs`, jamais écrit à la main.
 - **Le thème clair est une inversion de palette, pas une seconde feuille de
   style.** Demandé le 13/09/2026 (bouton lune/soleil sous le titre du menu,
   `BoutonTheme.tsx`, choix dans localStorage `dsp-theme`, posé sur

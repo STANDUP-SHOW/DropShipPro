@@ -607,12 +607,25 @@ ${urls
 `
   fs.writeFileSync(path.join(DIST, 'sitemap.xml'), sitemap)
 
+  /*
+   * robots.txt : ouvert à tous, y compris aux robots des assistants.
+   *
+   * Les deux lignes `llms.txt` ne sont pas une directive standard — aucun robot
+   * n'est obligé de les suivre — mais elles sont lues par plusieurs crawlers
+   * d'IA et, à défaut, elles coûtent deux lignes. Le fichier lui-même est
+   * produit par scripts/build-llms.cjs.
+   */
   fs.writeFileSync(
     path.join(DIST, 'robots.txt'),
     `User-agent: *
 Allow: /
 
 Sitemap: ${SITE}/sitemap.xml
+
+# Fiche d'identité lisible par les assistants conversationnels
+# (convention llms.txt) : ce que fait DropShipper IA, en un seul fichier.
+LLM-Content: ${SITE}/llms.txt
+LLM-Full-Content: ${SITE}/llms-full.txt
 `,
   )
 
