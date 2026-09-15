@@ -135,6 +135,50 @@ export const SUPPLIERS: SupplierInfo[] = [
     adapte: true,
     color: '#fb7701',
   },
+  /*
+   * Les trois oubliés de l'annuaire (16/09/2026).
+   *
+   * Le reste du code les connaissait déjà — `EXTENSION_ONLY` dans
+   * routes/opportunities.ts et services/autopilot.ts, `siteEnJavaScript` dans
+   * services/scraper.ts les nomment tous les trois. Seul l'annuaire les
+   * ignorait, donc ils n'apparaissaient nulle part à l'écran : un vendeur qui
+   * importait depuis Shein voyait le refus « passez par l'extension » sans
+   * trouver Shein dans la liste des fournisseurs. Le code savait, la vitrine
+   * non.
+   */
+  {
+    id: 'joybuy',
+    label: 'JoyBuy',
+    domain: 'joybuy.com',
+    origine: 'Chine, façade internationale de JD.com',
+    importPath: 'extension',
+    quoi: "L'export à l'international de JD.com : électronique, maison, mode, sur un catalogue tenu par un des deux géants chinois.",
+    attention:
+      "La fiche est construite en JavaScript : un import par adresse arrive sur une coquille vide, sans prix ni photos. L'extension est le seul chemin.",
+    color: '#e1251b',
+  },
+  {
+    id: 'shein',
+    label: 'Shein',
+    domain: 'shein.com',
+    origine: 'Chine, entrepôts européens',
+    importPath: 'extension',
+    quoi: 'Le catalogue mode le plus rapide du marché : des milliers de références nouvelles par jour, à des prix très bas.',
+    attention:
+      "Deux réserves, et la seconde coûte plus cher que la première. La fiche est en JavaScript, donc extension obligatoire. Et le vêtement de mode rapide est le terrain le plus surveillé d'Europe — conformité textile, étiquetage, droit de rétractation : ce que vous revendez, vous en répondez devant l'acheteur.",
+    color: '#000000',
+  },
+  {
+    id: 'wish',
+    label: 'Wish',
+    domain: 'wish.com',
+    origine: 'Chine, expédition directe',
+    importPath: 'extension',
+    quoi: 'Une place de marché grand public au catalogue très large, souvent moins chère que les comparables.',
+    attention:
+      "Vous y achetez au prix de détail, pas au prix de gros : la marge est donc structurellement plus mince que chez un vrai grossiste. Wish est aussi une DESTINATION de vente chez nous — ne confondez pas les deux usages.",
+    color: '#2fb7ec',
+  },
   {
     id: 'dhgate',
     label: 'DHgate',
@@ -790,6 +834,19 @@ const REFERENCES: Record<string, RegExp[]> = {
   vidaxl: [/\/e\/(\d{8,})\//],
   printful: [/\/products\/(\d{3,})/],
   printify: [/\/products\/(\d{3,})/],
+  /*
+   * Ni JoyBuy, ni Shein, ni Wish — volontairement (16/09/2026).
+   *
+   * Une règle absente coûte une information manquante : la fiche part sans
+   * référence fournisseur, et la veille de stock ne la suit pas. Une règle
+   * FAUSSE coûte bien plus cher : elle extrait un numéro qui appartient à autre
+   * chose — une catégorie, une promotion — et greffe la fiche sur le mauvais
+   * produit chez le fournisseur. C'est la leçon de l'EAN vérifié chez Kaufland.
+   *
+   * Leurs adresses n'ont pas été relevées sur de vraies fiches, donc rien n'est
+   * écrit ici. À compléter en lisant trois adresses réelles par site, et le
+   * banc check-refs.ts les couvrira comme les autres.
+   */
 }
 
 export function supplierRefFromUrl(url: string): { supplier: string; ref: string } | null {
