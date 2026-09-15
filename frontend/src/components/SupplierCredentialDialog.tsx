@@ -145,8 +145,9 @@ export function FormulaireFournisseur({
             <p className="text-xs leading-relaxed text-purple-100">
               <b>Le jeton d'accès ne se recopie pas.</b> {supplier.label} ne l'affiche nulle part :
               il dure <b>un jour</b> et se renouvelle tout seul, à condition d'avoir été obtenu par
-              autorisation. Enregistrez d'abord votre App Key et votre App Secret — les deux champs
-              de jeton restent vides — puis cliquez ici. Vous n'aurez plus à y revenir.
+              autorisation. Remplissez seulement <b>App Key</b> et <b>App Secret</b>, laissez les
+              deux champs de jeton vides, et cliquez ci-dessous : vos clés sont enregistrées au
+              passage, puis {supplier.label} vous demande d'approuver. Vous n'aurez plus à y revenir.
             </p>
             <button
               type="button"
@@ -155,6 +156,24 @@ export function FormulaireFournisseur({
                 setError('')
                 setBusy(true)
                 try {
+                  /*
+                   * Enregistrer AVANT de partir, et sans que le vendeur ait à y
+                   * penser.
+                   *
+                   * Signalé le 15/09/2026, et c'était une impasse parfaite :
+                   * « Autoriser » répondait « enregistrez d'abord votre App Key »
+                   * — parce qu'elle n'était encore que dans le champ, jamais
+                   * envoyée — et « Relier » répondait « il manque le jeton ».
+                   * Deux boutons qui se renvoyaient l'un à l'autre, et aucun
+                   * moyen de sortir.
+                   *
+                   * Le vendeur n'a pas à connaître cet ordre : ce qu'il a tapé
+                   * part d'abord, l'autorisation suit.
+                   */
+                  if (Object.values(valeurs).some((v) => v.trim())) {
+                    await api.saveSupplierLink(supplier.id, valeurs)
+                    onSaved()
+                  }
                   const { url } = await api.aliexpressAuthorizeUrl()
                   window.location.href = url
                 } catch (e) {
