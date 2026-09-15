@@ -60,11 +60,11 @@ export default function CreerBoutique() {
           IA
         </span>
         <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text text-transparent">
-          Créez votre boutique en ligne
+          Créer une boutique DropShop
         </span>
       </h1>
       <p className="mt-2 max-w-3xl text-sm text-gray-400">
-        Une vraie boutique à votre enseigne, hébergée ici et remplie par votre catalogue : vous la
+        Une vraie boutique <b>DropShop</b> à votre enseigne, hébergée ici et remplie par votre catalogue : vous la
         nommez, l'IA compose sa vitrine — thème, couleurs, textes — et elle est en ligne à sa propre
         adresse. Vos annonces s'y rangent par boutique, comme sur Mes sites.
       </p>

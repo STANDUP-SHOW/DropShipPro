@@ -109,6 +109,52 @@ function dejaConnue(targets: unknown): { id: string; fullName: string } | null {
     : null
 }
 
+/** Sans accents, sans ponctuation, en minuscules : pour comparer deux libellés. */
+function motsDe(texte: string): string[] {
+  return texte
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((m) => m.length > 2 && !MOTS_VIDES.has(m))
+}
+
+/** Les mots qui ne prouvent rien : ils sont dans la moitié de la taxonomie. */
+const MOTS_VIDES = new Set([
+  'and', 'the', 'for', 'with', 'other', 'accessories', 'accessoires', 'produits', 'products',
+  'appareils', 'devices', 'equipment', 'equipement', 'materiel', 'supplies', 'fournitures',
+  'articles', 'les', 'des', 'aux', 'pour', 'sur', 'par',
+])
+
+/**
+ * À quel point cette feuille répond à la catégorie demandée, de 0 à 1.
+ *
+ * On compare le DERNIER segment du nom complet — « Electronics > Computers >
+ * Laptops » se juge sur « Laptops », pas sur « Electronics », sinon toute
+ * l'électronique se ressemble.
+ *
+ * **Et on compare à TOUS les noms que nous connaissons de cette catégorie**, pas
+ * au seul terme cherché : le chemin Google est en anglais (« Laptops ») alors
+ * qu'une boutique française rend ses feuilles en français (« Ordinateurs
+ * portables »). Ne juger que sur le terme cherché donnerait zéro à la bonne
+ * feuille, et l'on retomberait à ne rien ranger du tout.
+ */
+function pertinence(categorie: CategorieSource, fullName: string): number {
+  const feuille = fullName.split('>').pop() ?? fullName
+  const trouves = new Set(motsDe(feuille))
+  const noms = [categorie.google.split('>').pop() ?? '', categorie.label, categorie.path.split('>').pop() ?? '']
+
+  let meilleur = 0
+  for (const nom of noms) {
+    const attendus = motsDe(nom)
+    if (!attendus.length) continue
+    const communs = attendus.filter((m) => trouves.has(m)).length
+    // Un nom de feuille identique vaut 1 ; la moitié des mots, 0,5.
+    meilleur = Math.max(meilleur, communs / attendus.length)
+  }
+  return meilleur
+}
+
 /**
  * Cherche la feuille de taxonomie qui correspond à cette catégorie.
  *
@@ -119,7 +165,23 @@ function dejaConnue(targets: unknown): { id: string; fullName: string } | null {
  *
  * **Seules les feuilles sont retenues.** Shopify refuse la fiche quand la
  * catégorie n'est pas une feuille, et un refus ici perdrait tout le produit.
+ *
+ * **Et la feuille retenue doit RESSEMBLER à ce qu'on a cherché.** La recherche
+ * de Shopify est approximative, exactement comme celle des collections quarante
+ * lignes plus bas — et le piège qui y est documenté nous est tombé dessus ici :
+ * prendre `nodes.find(isLeaf)`, c'est prendre la première feuille que Shopify
+ * propose, quelle qu'elle soit. Constaté le 15/09/2026 sur la boutique de Max :
+ * mini-PC, SSD, tables de mixage et souris rangés dans **« Nettoyants pour
+ * appareils électroniques »** — la feuille partage « appareils électroniques »
+ * avec la recherche, Shopify la sort en tête, et personne ne vérifiait.
+ *
+ * On note donc les cinq candidats et on ne garde le meilleur que s'il atteint
+ * la moitié des mots demandés. Sinon rien : `productType` affiche quand même le
+ * chemin, et une fiche sans catégorie vaut mieux qu'une fiche mal rangée — c'est
+ * déjà la règle du référentiel maison (« rien ne tombe dans Divers »).
  */
+const PERTINENCE_MINIMALE = 0.5
+
 async function chercherCategorie(
   appel: AppelShopify,
   categorie: CategorieSource,
@@ -131,8 +193,15 @@ async function chercherCategorie(
 
   for (const search of essais) {
     const { taxonomy } = await appel<ReponseTaxonomie>(CHERCHER_CATEGORIE, { search })
-    const feuille = taxonomy.categories.nodes.find((n) => n.isLeaf && !n.isArchived)
-    if (feuille) return { id: feuille.id, fullName: feuille.fullName }
+    const candidats = taxonomy.categories.nodes
+      .filter((n) => n.isLeaf && !n.isArchived)
+      .map((n) => ({ n, score: pertinence(categorie, n.fullName) }))
+      .sort((a, b) => b.score - a.score)
+
+    const meilleur = candidats[0]
+    if (meilleur && meilleur.score >= PERTINENCE_MINIMALE) {
+      return { id: meilleur.n.id, fullName: meilleur.n.fullName }
+    }
   }
   return null
 }

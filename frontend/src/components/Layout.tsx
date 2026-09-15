@@ -4,6 +4,7 @@ import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
+import { LIEN_SHOPIFY, VERT_SHOPIFY } from '../lib/shopifyAffiliation'
 import { BoutonTheme } from './BoutonTheme'
 import { BandeauJauges } from './BandeauJauges'
 import { BandeauNotifications } from './BandeauNotifications'
@@ -33,6 +34,30 @@ function IconeAutoShipper({ size = 16 }: { size?: number }) {
       <circle cx="12" cy="12" r="4.2" fill="url(#ico-as-noyau)" />
       <circle cx="12" cy="12" r="7" stroke="url(#ico-as-feu)" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="5 3 2 4" fill="none" />
       <circle cx="12" cy="12" r="9.6" stroke="#38bdf8" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="6 3 1 5" opacity="0.85" fill="none" />
+    </svg>
+  )
+}
+
+/**
+ * Le sac de courses de Shopify, à ses couleurs.
+ *
+ * Redessiné plutôt que téléversé : l'icône vit dans le menu, sur fond sombre
+ * comme sur fond clair, et un PNG y serait flou. Le vert est celui de leur
+ * charte (voir lib/shopifyAffiliation.ts) — écrire le nom d'un partenaire à ses
+ * couleurs est la convention, et c'est ce que font les intégrateurs.
+ */
+function IconeShopify({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size + 2} height={size + 2} viewBox="0 0 24 24" aria-hidden className="shrink-0">
+      <path
+        d="M15.3 4.3a.4.4 0 0 0-.36-.34l-1.5-.11-1.1-1.1a.5.5 0 0 0-.46-.12l-.6.18c-.36-1.03-1-1.48-1.7-1.48-.05 0-.1 0-.15.02C9.2.9 8.9.7 8.5.7 7.3.7 6.2 2.2 5.8 4.6l-1.6.5c-.5.16-.52.18-.58.65L2.3 17.9l9.3 1.74 5-1.08S15.31 4.4 15.3 4.3Zm-4.6-1.1-.95.3c0-.65-.08-1.2-.22-1.63.53.1.9.7 1.17 1.33ZM8.53 1.72c.15 0 .28.05.4.15-.53.28-1.1.9-1.34 2.17l-1.2.37c.34-1.55 1.14-2.7 2.14-2.7Z"
+        fill={VERT_SHOPIFY}
+      />
+      <path d="m14.94 3.96-1.5-.11-1.1-1.1a.27.27 0 0 0-.15-.07l-.68 16.96 5-1.08S15.31 4.4 15.3 4.3a.4.4 0 0 0-.36-.34Z" fill="#5E8E3E" />
+      <path
+        d="M9.62 7.03 9.04 9.2s-.64-.3-1.4-.25c-1.12.07-1.13.78-1.12.95.06.96 2.58 1.17 2.72 3.42.11 1.77-.94 2.98-2.45 3.07-1.82.12-2.82-.96-2.82-.96l.38-1.64s1.01.76 1.82.71c.53-.03.72-.46.7-.77-.08-1.25-2.13-1.18-2.26-3.24C4.5 8.75 5.63 7.03 8.13 6.87c.97-.06 1.49.16 1.49.16Z"
+        fill="#fff"
+      />
     </svg>
   )
 }
@@ -78,7 +103,12 @@ const NAV = [
  */
 const SECTIONS: Array<{
   titre: string
-  entrees: Array<{ to: string; label: string; icon: React.ElementType }>
+  /**
+   * `externe` : l'entrée quitte l'application et s'ouvre dans un autre onglet.
+   * `prix` : une pastille de prix à droite du libellé — elle ne sert qu'aux deux
+   * créations de boutique, où la comparaison est justement l'argument.
+   */
+  entrees: Array<{ to: string; label: string; icon: React.ElementType; externe?: boolean; prix?: string }>
 }> = [
   {
     titre: 'Acquisition produits',
@@ -112,7 +142,14 @@ const SECTIONS: Array<{
       { to: '/mes-sites', label: 'Mes sites', icon: Store },
       // La création de boutique, à part de Mes sites (06/09/2026) : elle sera
       // facturée en crédits — son entrée porte l'icône IA et le vert.
-      { to: '/creer-boutique', label: 'Créez votre boutique en ligne', icon: IconeBoutiqueIA },
+      // Les deux créations de boutique, au même niveau et avec leur prix : le
+      // vendeur voit d'un coup d'œil que la nôtre est gratuite et illimitée.
+      { to: '/creer-boutique', label: 'Créer une boutique DropShop', icon: IconeBoutiqueIA, prix: 'Gratuit' },
+      // Le parrainage Shopify : un vendeur qui va ouvrir une boutique Shopify
+      // le fera de toute façon — autant qu'il parte d'ici. C'est ce que font
+      // nos concurrents (Zendrop), et c'est un revenu qu'ils encaissent seuls.
+      // Le client paie sa boutique chez Shopify ; nous touchons le parrainage.
+      { to: LIEN_SHOPIFY, label: 'Créer une boutique Shopify', icon: IconeShopify, externe: true, prix: 'dès 27 €/mois' },
     ],
   },
   {
@@ -388,28 +425,61 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
 
               {section.entrees
                 .filter((item) => item.to !== '/admin/newsletter' || demoAutorise(user?.email))
-                .map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                    estActive(item.to)
+                .map((item) => {
+                  const classes = `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                    !item.externe && estActive(item.to)
                       ? 'bg-purple-500/20 text-white'
                       : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <item.icon size={18} />
-                  {/* La création de boutique porte son dégradé vert → blanc,
-                      en gras — comme Auto-Shipper porte le sien. */}
-                  {item.to === '/creer-boutique' ? (
-                    <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text font-bold text-transparent">
-                      {item.label}
+                  }`
+                  /*
+                   * Le libellé, et les deux entrées qui portent des couleurs.
+                   *
+                   * « DropShop » garde le dégradé vert → blanc de la marque de
+                   * nos boutiques ; « Shopify » s'écrit au vert de LEUR charte,
+                   * comme le fait tout partenaire. Les deux sont au même niveau
+                   * du menu : le vendeur choisit où il ouvre sa boutique.
+                   */
+                  const libelle =
+                    item.to === '/creer-boutique' ? (
+                      <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text font-bold text-transparent">
+                        {item.label}
+                      </span>
+                    ) : item.externe && item.label.includes('Shopify') ? (
+                      <span className="font-bold">
+                        {item.label.replace(' Shopify', ' ')}
+                        <span style={{ color: VERT_SHOPIFY }}>Shopify</span>
+                      </span>
+                    ) : (
+                      <span>{item.label}</span>
+                    )
+
+                  /* La pastille de prix : verte quand c'est gratuit, sobre sinon. */
+                  const pastille = item.prix ? (
+                    <span
+                      className={`ml-auto shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold ${
+                        item.prix === 'Gratuit'
+                          ? 'bg-emerald-400/20 text-emerald-300'
+                          : 'bg-white/10 text-gray-400'
+                      }`}
+                    >
+                      {item.prix}
                     </span>
+                  ) : null
+
+                  return item.externe ? (
+                    <a key={item.to} href={item.to} target="_blank" rel="noreferrer noopener" className={classes}>
+                      <item.icon size={18} />
+                      {libelle}
+                      {pastille}
+                    </a>
                   ) : (
-                    <span>{item.label}</span>
-                  )}
-                </Link>
-              ))}
+                    <Link key={item.to} to={item.to} className={classes}>
+                      <item.icon size={18} />
+                      {libelle}
+                      {pastille}
+                    </Link>
+                  )
+                })}
             </div>
           ))}
 
