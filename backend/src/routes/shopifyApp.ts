@@ -7,9 +7,10 @@ import {
   hmacWebhookValide,
   lireEtat,
   lireJetonDeSession,
+  souscrireDesinstallation,
 } from '../services/shopifyApp.js'
 import { pageIntegree } from '../services/shopifyEmbed.js'
-import { normalizeShopDomain } from '../services/shopify.js'
+import { graphql, normalizeShopDomain } from '../services/shopify.js'
 
 /**
  * Les deux portes publiques de l'application Shopify.
@@ -110,6 +111,22 @@ shopifyAppRouter.get(
         connected: true,
       },
     })
+
+    /*
+     * L'abonnement à `app/uninstalled`, en meilleur effort.
+     *
+     * Il se pose APRÈS l'enregistrement de la liaison et son échec n'annule
+     * rien : le marchand vient d'approuver l'installation, la lui refuser
+     * parce qu'un abonnement de webhook n'a pas pris serait absurde. Ce qu'on
+     * perd alors est la détection automatique de la désinstallation — c'est
+     * consigné dans le journal, pas caché.
+     */
+    souscrireDesinstallation(config, shop, jeton.accessToken, graphql).then(
+      (r) => {
+        if (!r.pose) console.error('[shopify-app] abonnement app/uninstalled refusé :', r.raison)
+      },
+      (err) => console.error('[shopify-app] abonnement app/uninstalled', err),
+    )
 
     const site = (process.env.FRONTEND_URL || '').split(',')[0]?.trim() || 'https://www.drop-shipper.fr'
     const separateur = etat.retour.includes('?') ? '&' : '?'

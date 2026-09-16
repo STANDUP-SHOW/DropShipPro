@@ -285,6 +285,74 @@ export function urlApplicationIntegree(config: ConfigApp): string {
   return `${config.racine}/api/shopify/app`
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * L'abonnement à `app/uninstalled`, posé juste après l'installation.
+ * ---------------------------------------------------------------------------
+ *
+ * **Shopify ne prévient personne tout seul.** Un marchand qui désinstalle
+ * l'application garde une liaison marquée « reliée » chez nous, avec un jeton
+ * qui ne vaut plus rien : chaque publication échoue ensuite sans que le vendeur
+ * comprenne pourquoi — exactement le défaut qu'on a corrigé côté fournisseurs
+ * en vérifiant les clés à l'enregistrement plutôt qu'au premier import.
+ *
+ * **Ce sujet-là s'abonne par l'API ; les trois sujets RGPD, non.** Ces
+ * derniers sont des *compliance webhooks* : leur adresse se déclare dans la
+ * configuration de l'application, pas boutique par boutique, et le Dev
+ * Dashboard n'expose pas ce champ (constaté le 16/09/2026). Notre endpoint les
+ * traite déjà et son banc passe ; il leur manque seulement d'être déclarés.
+ * Rien dans ce fichier ne peut y suppléer, et prétendre le contraire serait
+ * pire que l'absence.
+ */
+export type AppelGraphQL = (
+  creds: { shopDomain: string; accessToken: string },
+  query: string,
+  variables: Record<string, unknown>,
+) => Promise<unknown>
+
+const ABONNER = /* GraphQL */ `
+  mutation dropshipperAbonnerDesinstallation($url: URL!) {
+    webhookSubscriptionCreate(
+      topic: APP_UNINSTALLED
+      webhookSubscription: { callbackUrl: $url, format: JSON }
+    ) {
+      webhookSubscription { id }
+      userErrors { field message }
+    }
+  }
+`
+
+export async function souscrireDesinstallation(
+  config: ConfigApp,
+  shop: string,
+  accessToken: string,
+  appeler: AppelGraphQL,
+): Promise<{ pose: boolean; raison?: string }> {
+  const reponse = (await appeler({ shopDomain: shop, accessToken }, ABONNER, {
+    url: `${config.racine}/api/shopify/webhooks`,
+  })) as {
+    webhookSubscriptionCreate?: {
+      webhookSubscription?: { id?: string } | null
+      userErrors?: Array<{ message?: string }>
+    }
+  }
+
+  const bloc = reponse?.webhookSubscriptionCreate
+  if (bloc?.webhookSubscription?.id) return { pose: true }
+
+  const raison = bloc?.userErrors?.map((e) => e.message).filter(Boolean).join(' ; ') || 'refus sans motif'
+
+  /*
+   * **Un abonnement déjà présent n'est pas un échec.** Un marchand qui
+   * réinstalle repasse ici, et Shopify refuse alors le doublon — « address for
+   * this topic has already been taken ». Traiter ce refus comme une erreur
+   * ferait échouer une installation parfaitement valide, et c'est le genre de
+   * faute qui ne se voit qu'en production, à la deuxième installation.
+   */
+  if (/already been taken|already exists/i.test(raison)) return { pose: true }
+  return { pose: false, raison }
+}
+
 /** Échange le code d'autorisation contre un jeton d'accès permanent. */
 export async function echangerCode(
   config: ConfigApp,

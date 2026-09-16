@@ -39,6 +39,7 @@ import { scoreListing } from '../services/listingScore.js'
 import { optimiserAnnonce } from '../services/listingOptimizer.js'
 import { reecrireAnnonce } from '../services/listingRewrite.js'
 import { findConnector, fournisseursRelies } from '../services/supplierConnectors.js'
+import { catalogueFaire } from '../services/faire.js'
 import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
 
 export const productsRouter = Router()
@@ -1022,6 +1023,76 @@ productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
 
 // Bundles the watermarked photos into a zip for the manual Leboncoin/Vinted flow
 // (no API on those platforms, so the user drags these into the native upload widget).
+/**
+ * Le catalogue au format de Faire, en CSV.
+ *
+ * **Faire n'a pas d'API d'annonces**, et n'en propose pas : son portail marque
+ * accepte un dépôt de feuille de calcul, et c'est la seule voie qui passe à
+ * l'échelle. Le vendeur télécharge ce fichier et le dépose chez eux — même
+ * geste que les opérateurs Mirakl, à ceci près que Faire fait la mise en forme
+ * de son côté.
+ *
+ * Les réglages passent en paramètres parce qu'ils sont des **décisions
+ * commerciales**, pas des propriétés du produit : la remise de gros, le
+ * conditionnement, la quantité minimale. Leurs défauts sont dans le service, et
+ * l'écran doit les montrer plutôt que les appliquer en silence.
+ *
+ * Ce qui est écarté n'est pas caché : le compte et les raisons partent dans un
+ * en-tête, et l'écran les affiche. Un catalogue de deux cents fiches dont
+ * quarante manquent de photo doit le dire ici, pas se faire refuser chez Faire
+ * trois heures plus tard.
+ */
+productsRouter.get('/meta/faire.csv', async (req: AuthedRequest, res) => {
+  try {
+    const nombre = (valeur: unknown, defaut: number) => {
+      const n = Number(valeur)
+      return Number.isFinite(n) && n > 0 ? n : defaut
+    }
+
+    const produits = await prisma.product.findMany({
+      where: {
+        userId: req.userId!,
+        ...(req.query.shop ? { shopId: String(req.query.shop) } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const { csv, retenus, ecartes } = catalogueFaire(produits, {
+      remiseGros: nombre(req.query.remiseGros, 0.5),
+      unitesParCarton: nombre(req.query.unitesParCarton, 1),
+      quantiteMinimale: nombre(req.query.quantiteMinimale, 1),
+      methodeVente: String(req.query.methodeVente ?? '') || undefined,
+      paysFabrication: String(req.query.paysFabrication ?? '') || undefined,
+    })
+
+    res.setHeader('X-Faire-Retenus', String(retenus))
+    res.setHeader('X-Faire-Ecartes', String(ecartes.length))
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.attachment(`faire-${new Date().toISOString().slice(0, 10)}.csv`)
+    res.send(csv)
+  } catch (e) {
+    console.error('export Faire', e)
+    res.status(500).json({ error: "L'export Faire a échoué" })
+  }
+})
+
+/** Ce que l'export donnerait, sans le produire : de quoi afficher un aperçu. */
+productsRouter.get('/meta/faire-apercu', async (req: AuthedRequest, res) => {
+  try {
+    const produits = await prisma.product.findMany({
+      where: { userId: req.userId!, ...(req.query.shop ? { shopId: String(req.query.shop) } : {}) },
+      orderBy: { createdAt: 'desc' },
+    })
+    const { retenus, ecartes } = catalogueFaire(produits, {
+      remiseGros: Number(req.query.remiseGros) || 0.5,
+    })
+    res.json({ total: produits.length, retenus, ecartes: ecartes.slice(0, 50) })
+  } catch (e) {
+    console.error('aperçu Faire', e)
+    res.status(500).json({ error: "L'aperçu Faire a échoué" })
+  }
+})
+
 productsRouter.get('/:id/photos.zip', async (req: AuthedRequest, res) => {
   const product = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
