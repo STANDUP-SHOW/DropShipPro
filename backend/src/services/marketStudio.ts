@@ -479,6 +479,18 @@ export function analyserFournisseurs(
   }
 }
 
+/**
+ * Un nombre écrit en français.
+ *
+ * `toFixed` rend toujours un point décimal. La phrase de synthèse disait donc
+ * « 3.09 EUR » à dix centimètres d'un tableau qui affiche « 3,09 EUR » — vu en
+ * production le 16/09/2026. Ce n'est pas un détail d'esthétique : deux
+ * écritures du même prix sur le même écran font douter du chiffre.
+ */
+function fr(n: number): string {
+  return n.toFixed(2).replace('.', ',')
+}
+
 function composerSynthese(
   sujet: SujetAnalyse,
   total: number,
@@ -497,7 +509,7 @@ function composerSynthese(
 
   if (meilleure?.prix != null) {
     morceaux.push(
-      `La moins chère vient de ${meilleure.fournisseurLabel} à ${meilleure.prix.toFixed(2)} ${meilleure.devise}.`,
+      `La moins chère vient de ${meilleure.fournisseurLabel} à ${fr(meilleure.prix)} ${meilleure.devise}.`,
     )
   }
 
@@ -507,14 +519,14 @@ function composerSynthese(
    * pas de refaire une fiche ; trois euros, si.
    */
   if (ecart != null && ecart > 0) {
-    morceaux.push(`L'écart avec la plus chère est de ${ecart.toFixed(2)} € par pièce.`)
+    morceaux.push(`L'écart avec la plus chère est de ${fr(ecart)} € par pièce.`)
   }
 
   if (marge != null) {
     morceaux.push(
       marge > 0
-        ? `À votre prix de vente, elle laisse ${marge.toFixed(1)} % de marge brute.`
-        : `À votre prix de vente, même la moins chère est perdante (${marge.toFixed(1)} %).`,
+        ? `À votre prix de vente, elle laisse ${marge.toFixed(1).replace(".", ",")} % de marge brute.`
+        : `À votre prix de vente, même la moins chère est perdante (${marge.toFixed(1).replace(".", ",")} %).`,
     )
   }
 

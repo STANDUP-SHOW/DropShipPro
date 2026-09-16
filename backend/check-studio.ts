@@ -215,6 +215,11 @@ verifier(
 verifier('la marge est calculée au prix de vente', f.margePossible === 76.9, `lue : ${f.margePossible}`)
 verifier('les trois offres restent affichées', f.offres.length === 3)
 verifier('la synthèse nomme le meilleur fournisseur', f.synthese.includes('ALIEXPRESS'), f.synthese)
+verifier(
+  'les nombres de la synthèse sont écrits en français',
+  f.synthese.includes('9,20') && f.synthese.includes('5,30') && !/[0-9]\.[0-9]/.test(f.synthese),
+  'vu en production : la phrase disait « 3.09 EUR » à côté d’un tableau affichant « 3,09 EUR » — ' + f.synthese,
+)
 
 const seule = analyserFournisseurs(SUJET, [offre('cj', 14.5)])
 verifier("un seul fournisseur ne produit pas d'écart", seule.ecart === null)
