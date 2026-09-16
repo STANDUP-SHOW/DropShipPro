@@ -104,8 +104,15 @@ async function main() {
     })
     await tourneeAutoMode(fauxGenerateur, 0, pauvre.id)
     const rapportsPauvre = await prisma.report.count({ where: { departmentId: rayonPauvre.id } })
-    verifier('rien consigné pour le rayon sans drops', rapportsPauvre === 0)
-    verifier('et ses drops sont intacts (il retentera)', (await prisma.user.findUniqueOrThrow({ where: { id: pauvre.id } })).credits === 10)
+    // AUTO-MODE gratuit depuis le 17/09/2026 (DROPS.autoModePassage = 0) : un
+    // rayon sans drops est servi comme les autres. Si le prix redevient
+    // positif, l'attente redevient « rien consigné ».
+    if (DROPS.autoModePassage === 0) {
+      verifier('AUTO-MODE gratuit : le rayon sans drops est servi quand même', rapportsPauvre === 1)
+    } else {
+      verifier('rien consigné pour le rayon sans drops', rapportsPauvre === 0)
+    }
+    verifier('et ses drops sont intacts', (await prisma.user.findUniqueOrThrow({ where: { id: pauvre.id } })).credits === 10)
     await prisma.user.delete({ where: { id: pauvre.id } })
 
     console.log('\nUn rayon en panne ne prive pas les autres')

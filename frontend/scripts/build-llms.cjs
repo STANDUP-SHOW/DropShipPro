@@ -58,8 +58,10 @@ const TARIFS = [
   ['Question à un chef de rayon (avec recherche web)', 25, '0,25 €'],
   ['Question à un agent de comptoir', 5, '0,05 €'],
   ['Contrôle photo par l’IA, par annonce', 10, '0,10 €'],
-  ['AUTO-SHIPPER : une annonce importée automatiquement', 14, '0,14 €'],
-  ['AUTO-MODE : un passage d’analyse d’un rayon', 75, '0,75 €'],
+  ['Agent extension : relever une fiche fournisseur dans votre navigateur', 6, '0,06 €'],
+  ['AUTO-SHIPPER : la journée, une tournée par 24 h (analyse, relevé, import, annonces, publications, back-office)', 100, '1,00 €'],
+  ['AUTO-SHIPPER : un produit importé et publié automatiquement', 18, '0,18 €'],
+  ['AUTO-MODE d’un chef de rayon : analyses et produits gagnants quotidiens', 0, 'gratuit'],
 ]
 
 const RECHARGES = [
@@ -159,8 +161,8 @@ const FONCTIONS = [
   {
     titre: 'Mode automatique (AUTO-SHIPPER)',
     lignes: [
-      'Import et publication automatiques par tranches de douze heures, sur les sources choisies par le vendeur.',
-      'Plafond réglable, 50 annonces par jour au maximum, contrôle photo forcé puisque personne ne relit.',
+      'Du fournisseur à la vente sans rien faire : analyse des produits du jour, import, fabrication des annonces, publication sur les places de marché, et les agents gèrent le back-office. 100 drops la journée (1 €), 18 drops par produit importé et publié — 50 produits conseillés par jour, jusqu’à 480.',
+      'Plafond réglable : 50 produits par jour conseillés, jusqu’à 480 (24 catégories × 20 produits) ; contrôle photo forcé puisque personne ne relit.',
       'Le vendeur peut laisser la plateforme travailler seule et ne revenir que pour valider les publications sensibles.',
     ],
   },

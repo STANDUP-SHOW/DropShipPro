@@ -350,6 +350,11 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
 
 export type PassageAutopilot = (userId: string) => Promise<RunResult>
 
+/** Le même jour civil (UTC) : c'est la journée AUTO-SHIPPER qui se paie, pas la tranche. */
+function memeJour(a: Date, b: Date): boolean {
+  return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10)
+}
+
 /**
  * La tournée AUTO-SHIPPER : chaque pilote activé, au plus une fois par
  * tranche de douze heures — « il récupère chaque matin la liste des produits
@@ -367,7 +372,10 @@ export async function tourneeAutopilot(
   const actifs = await prisma.autopilot.findMany({
     where: {
       enabled: true,
-      OR: [{ lastAutoRunAt: null }, { lastAutoRunAt: { lt: new Date(Date.now() - 11 * 3600 * 1000) } }],
+      // Une seule tournée par 24 h (17/09/2026) : relevé, acquisition,
+      // publication, une fois par jour — la garde à 23 h absorbe la dérive du
+      // réveil, comme les 11 h absorbaient celle de la demi-journée.
+      OR: [{ lastAutoRunAt: null }, { lastAutoRunAt: { lt: new Date(Date.now() - 23 * 3600 * 1000) } }],
       ...(seulement ? { userId: { in: Array.isArray(seulement) ? seulement : [seulement] } } : {}),
     },
   })
@@ -378,19 +386,48 @@ export async function tourneeAutopilot(
       if (dejaUnPassage && pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs))
       dejaUnPassage = true
 
-      // Plus de tranche forfaitaire (07/09/2026) : l'orchestration est gratuite,
-      // seuls les imports produits se paient — `DROPS.autoShipperImport` chacun,
-      // débité dans `runAutopilot`. Un pilote sans drops importe simplement zéro
-      // annonce et le passage s'arrête là, sans rien facturer.
-      //
+      /*
+       * La journée AUTO-SHIPPER se paie une fois par jour (17/09/2026 —
+       * `DROPS.autoShipperJour`), à la première tournée du jour ; la seconde
+       * tournée du même jour (douze heures plus tard) ne redemande rien. Chaque
+       * produit importé et publié se paie en plus, dans `runAutopilot`.
+       *
+       * Le prix est fixe : `reserveCredits` sait débiter partiellement (fait pour
+       * les lots), donc on vérifie `allowed === prix` et on rend un partiel —
+       * piège attrapé par le banc dès la première version de la tranche.
+       * Sans assez de drops, le pilote est sauté ET non marqué : il retentera à
+       * la tournée suivante, quand le portefeuille aura été rechargé.
+       */
+      const journeeDejaPayee = pilote.lastAutoRunAt !== null && memeJour(pilote.lastAutoRunAt, new Date())
+      if (!journeeDejaPayee) {
+        const credit = await reserveCredits(pilote.userId, DROPS.autoShipperJour, 'Journée AUTO-SHIPPER')
+        if (!credit.ok || credit.allowed !== DROPS.autoShipperJour) {
+          if (credit.allowed > 0) await refundCredits(pilote.userId, credit.allowed, 'Journée AUTO-SHIPPER non lancée')
+          console.error(`auto-shipper : journée non lancée pour ${pilote.userId} — ${credit.reason ?? 'drops insuffisants'}`)
+          continue
+        }
+      }
+
       // Marqué servi AVANT le passage : un passage qui plante à mi-course ne
       // doit pas être rejoué (et l'utilisateur re-débité) au réveil suivant.
       await prisma.autopilot.update({ where: { id: pilote.id }, data: { lastAutoRunAt: new Date() } })
 
-      const fait = await passage(pilote.userId)
-      console.log(
-        `auto-shipper : ${pilote.userId} — ${fait.imported} import(s), ${fait.published} publication(s), ${fait.skipped} écarté(s), ${fait.failed} échec(s)`,
-      )
+      try {
+        const fait = await passage(pilote.userId)
+        console.log(
+          `auto-shipper : ${pilote.userId} — ${fait.imported} import(s), ${fait.published} publication(s), ${fait.skipped} écarté(s), ${fait.failed} échec(s)`,
+        )
+        // Une journée qui n'a rien fait n'est pas due — mais la marque reste.
+        if (!journeeDejaPayee && fait.imported === 0 && fait.published === 0) {
+          await refundCredits(pilote.userId, DROPS.autoShipperJour, 'Journée AUTO-SHIPPER sans import')
+        }
+      } catch (err) {
+        // En panne de passage, la journée est rendue mais la marque reste : pas de rejeu en boucle.
+        if (!journeeDejaPayee) {
+          await refundCredits(pilote.userId, DROPS.autoShipperJour, 'Journée AUTO-SHIPPER en panne').catch(() => undefined)
+        }
+        throw err
+      }
     } catch (err) {
       console.error(`auto-shipper en échec pour ${pilote.userId}`, err instanceof Error ? err.message : err)
     }

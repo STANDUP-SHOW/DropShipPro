@@ -45,10 +45,30 @@ export const DROPS = {
   controle: 10,
   /** Créer une publicité (accroche + visuel composé). ~0,035 €. */
   pub: 20,
-  /** AUTO-MODE : un passage d'un rayon (analyse + 10 gagnants). ~0,14 €. */
-  autoModePassage: 75,
-  /** AUTO-SHIPPER : une annonce importée automatiquement (orchestration gratuite). ~0,051 €. */
-  autoShipperImport: 14,
+  /**
+   * AUTO-MODE d'un chef de rayon : GRATUIT depuis le 17/09/2026. Les analyses de
+   * marché et les produits gagnants viennent des 48 agents locaux
+   * (MARKET-ANALYSES/), qui ne coûtent rien ; le chef reste en mode auto sans
+   * frais d'activation. La clé reste pour l'écran et pour les bancs.
+   */
+  autoModePassage: 0,
+  /**
+   * L'agent extension : relève UNE fiche fournisseur dans le navigateur du
+   * vendeur (file d'import servie par le serveur, exécutée par l'extension), puis
+   * la remet à l'import. Le relevé seul ; la réécriture est l'annonce (12).
+   * Un produit importé par l'agent coûte donc 6 + 12 = 18.
+   */
+  agentExtension: 6,
+  /**
+   * AUTO-SHIPPER : la journée, 1 €. Débitée une fois par 24 h, à la tournée du
+   * jour : analyse, choix des produits, relevé, import, annonces, publications,
+   * back-office — le vendeur ne fait rien. Rendue si la journée n'a rien
+   * importé ni publié. Nombre de produits conseillé : 50 ; jusqu'à 480 (24
+   * catégories × 20 produits) si le vendeur a de quoi se l'offrir.
+   */
+  autoShipperJour: 100,
+  /** AUTO-SHIPPER : un produit importé ET publié automatiquement — agent (6) + annonce (12). */
+  autoShipperImport: 18,
 } as const
 
 /** Ce que vaut un drop, à l'achat, en euros. Sert à afficher l'équivalent. */

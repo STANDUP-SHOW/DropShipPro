@@ -585,6 +585,22 @@ Trois conséquences, toutes appliquées :
   L'animation de la page est un SVG d'attente : à remplacer par l'animation
   JSON tirée des 4 MP4 choisis par Max (chemins à recevoir).
 
+  **Le modèle du 17/09/2026 : « l'IA fait tout pour toi ».** La tranche de
+  5 drops par 12 h est morte deux fois : gratuite le 07/09, puis remplacée par
+  **la journée AUTO-SHIPPER à 100 drops (1 €), une tournée par 24 h**
+  (`DROPS.autoShipperJour`, garde à 23 h, débit à la tournée, rendue si rien
+  n'a été importé ni publié, prix fixe vérifié `allowed === prix`), plus
+  **18 drops par produit importé et publié** (`autoShipperImport` = agent
+  extension 6 + annonce 12). Un pilote sans drops est sauté SANS être marqué.
+  Plafond : 50 produits/jour conseillés, **480 autorisés** (24 catégories ×
+  20 produits des rapports) pour qui peut se l'offrir. **L'AUTO-MODE des chefs
+  de rayon devient gratuit** (`autoModePassage` = 0) : les analyses et gagnants
+  viennent des 48 agents locaux de `MARKET-ANALYSES/` (24 catégories × 7
+  thèmes, contrat des rapports dans son README — la liste des 20 produits est
+  un tableau à colonnes fixes, sinon rien ne s'importe). Reste payant : l'analyse
+  produit par produit des annonces du vendeur et le rapport produit à la
+  demande. Bancs `check-autoshipper.ts` et `check-automode.ts` adaptés.
+
 - **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
   pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
   et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou

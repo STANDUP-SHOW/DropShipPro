@@ -47,8 +47,10 @@ const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'questionComptoir', label: 'Question à un agent de comptoir', detail: 'Hotline, SAV, commercial…' },
   { cle: 'questionChef', label: 'Question à un chef de rayon', detail: 'Avocat, comptable, chef de secteur…' },
   { cle: 'conseilProduit', label: 'Conseil produit approfondi', detail: 'Un chef fouille fournisseurs et réseaux' },
-  { cle: 'autoModePassage', label: 'AUTO-MODE (un passage de rayon)', detail: 'Analyse + 10 produits gagnants, toutes les 12 h' },
-  { cle: 'autoShipperImport', label: 'Auto-SHIPPER IA (une annonce)', detail: 'Import + publication automatiques' },
+  { cle: 'agentExtension', label: 'Agent extension (une fiche)', detail: 'Relève la fiche fournisseur dans votre navigateur, puis la remet à l’import' },
+  { cle: 'autoShipperJour', label: 'AUTO-SHIPPER IA (la journée, 1 €)', detail: 'Une tournée par 24 h : analyse, relevé, import, annonces, publications, back-office — vous ne faites rien. 50 produits conseillés, jusqu’à 480.' },
+  { cle: 'autoShipperImport', label: 'AUTO-SHIPPER IA (un produit)', detail: 'Importé et publié automatiquement : agent + annonce' },
+  { cle: 'autoModePassage', label: 'AUTO-MODE d’un chef de rayon', detail: 'Analyses et produits gagnants quotidiens — gratuit' },
 ]
 
 export default function BillingPage() {
