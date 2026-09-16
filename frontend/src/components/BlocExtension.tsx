@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { useExtensionVersion } from '../lib/extensionVersion'
-import { useDemo } from '../lib/demo'
 
 /**
  * La tuile « Extension Chrome », au gabarit des jauges du dessus.
@@ -39,18 +38,29 @@ function ChromeGlyph({ size = 18 }: { size?: number }) {
 }
 
 export function BlocExtension() {
-  const { presente, store, copieDev, deuxCopies, versionStore, versionManuelle, installee } =
+  const { presente, store, copieDev, deuxCopies, versionStore, versionManuelle } =
     useExtensionVersion()
-  const [demo] = useDemo()
 
   /*
+   * **Le mode démonstration ne commande PAS cette tuile**, contrairement au
+   * reste du bandeau — et c'est un revirement assumé du 16/09/2026.
+   *
+   * La pilule DEMO peuple le tableau de bord de chiffres d'affaires plausibles
+   * pour qu'un prospect voie une boutique vivante. Ce sont des chiffres de
+   * commerce. L'extension, elle, n'est pas un chiffre de commerce : c'est un
+   * fait sur LA MACHINE de celui qui regarde. La démonstration n'a aucune
+   * autorité dessus.
+   *
+   * Le coût de l'ancienne règle s'est vu le jour même : dans un navigateur où
+   * aucune extension n'était installée, la tuile affichait « Extension active »
+   * avec un tiret pour version. Elle se contredisait dans le même souffle, et
+   * elle cachait le seul renseignement utile — qu'il n'y en a pas.
+   *
    * Quatre situations réelles, et chacune appelle un geste différent. Les
    * fondre en « à jour / pas à jour » est précisément ce qui produisait un
    * écran faux.
    */
-  const etat = demo
-    ? { teinte: '#34d399', valeur: installee ?? '—', label: 'Extension active', detail: 'Mode démonstration.' }
-    : deuxCopies
+  const etat = deuxCopies
       ? {
           teinte: '#fbbf24',
           valeur: versionStore ?? '—',
