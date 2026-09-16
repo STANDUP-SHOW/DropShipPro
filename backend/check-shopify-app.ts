@@ -1,9 +1,13 @@
 import crypto from 'node:crypto'
 import {
   configApp,
+  donneesLiaison,
+  echangerCode,
   hmacRequeteValide,
   hmacWebhookValide,
+  jetonOfflineValide,
   lireEtat,
+  RafraichissementRefuse,
   signerEtat,
   urlInstallation,
   type ConfigApp,
@@ -188,6 +192,134 @@ delete process.env.SHOPIFY_APP_SECRET
 exige(configApp() === null, "sans variables, l'app doit se déclarer absente plutôt qu'à moitié configurée")
 if (cle) process.env.SHOPIFY_APP_KEY = cle
 if (secret) process.env.SHOPIFY_APP_SECRET = secret
+
+// ── 6. Le jeton expirant et son renouvellement ──────────────────────────────
+
+/*
+ * Le contrat de Shopify, EN DUR, d'après sa page « Access tokens » lue le
+ * 16/09/2026 : sans `expiring: 1`, l'échange rend un jeton permanent — que
+ * l'Admin API refuse ensuite en 403 pour une app publique. Avec, il rend
+ * `expires_in: 3600` et un `refresh_token` (90 jours). Le renouvellement est
+ * un POST au même endroit avec `grant_type: refresh_token`, rend une NOUVELLE
+ * paire, et répond 401 `invalid_request` quand le refresh token ne vaut plus.
+ *
+ * Le faux serveur fait exactement ça, et rien d'autre : c'est lui qui aurait
+ * attrapé la panne du 16/09 — la première publication réelle l'a attrapée à sa
+ * place.
+ */
+const appels: Array<Record<string, unknown>> = []
+let refreshValide = 'rt-1'
+let compteur = 1
+const fauxShopify: typeof fetch = async (entree, init) => {
+  const adresse = String(entree)
+  const corps = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+  appels.push({ adresse, ...corps })
+  if (adresse !== 'https://ma-boutique.myshopify.com/admin/oauth/access_token') {
+    return new Response('not found', { status: 404 })
+  }
+  if (corps.client_id !== config.cle || corps.client_secret !== SECRET) {
+    return new Response(JSON.stringify({ error: 'invalid_client' }), { status: 401 })
+  }
+  if (corps.grant_type === 'refresh_token') {
+    if (corps.refresh_token !== refreshValide) {
+      return new Response(JSON.stringify({ error: 'invalid_request' }), { status: 401 })
+    }
+    compteur++
+    refreshValide = `rt-${compteur}`
+    return Response.json({
+      access_token: `at-${compteur}`,
+      scope: 'write_products,write_publications',
+      expires_in: 3600,
+      refresh_token: refreshValide,
+      refresh_token_expires_in: 7776000,
+    })
+  }
+  if (corps.code !== 'abc123') return new Response('bad code', { status: 400 })
+  if (corps.expiring !== 1) {
+    // Ce que Shopify rend sans `expiring` : un jeton permanent, sans échéance.
+    return Response.json({ access_token: 'permanent', scope: 'write_products' })
+  }
+  return Response.json({
+    access_token: 'at-1',
+    scope: 'write_products,write_publications',
+    expires_in: 3600,
+    refresh_token: 'rt-1',
+    refresh_token_expires_in: 7776000,
+  })
+}
+
+const T = 1_800_000_000_000
+const jeton = await echangerCode(config, 'ma-boutique.myshopify.com', 'abc123', fauxShopify, T)
+exige(jeton.accessToken === 'at-1' && jeton.refreshToken === 'rt-1', "l'échange demande un jeton expirant et garde le refresh token")
+exige(jeton.expiresAt === new Date(T + 3600_000).toISOString(), `l'échéance vient de la réponse, vue : ${jeton.expiresAt}`)
+exige(
+  jeton.refreshTokenExpiresAt === new Date(T + 7776000_000).toISOString(),
+  "l'échéance du refresh token vient aussi de la réponse",
+)
+const liaison = donneesLiaison(jeton)
+exige(liaison.via === 'oauth' && liaison.shopDomain === 'ma-boutique.myshopify.com', 'la liaison rangée porte la voie et la boutique')
+
+// Le renouvellement a besoin de la clé et du secret : ceux du banc.
+const envCle = process.env.SHOPIFY_APP_KEY
+const envSecret = process.env.SHOPIFY_APP_SECRET
+const envRacine = process.env.PUBLIC_API_URL
+process.env.SHOPIFY_APP_KEY = config.cle
+process.env.SHOPIFY_APP_SECRET = SECRET
+process.env.PUBLIC_API_URL = config.racine
+
+const persistes: Array<Record<string, unknown>> = []
+const persister = async (data: Record<string, unknown>) => {
+  persistes.push(data)
+}
+
+// a. Un jeton encore valide sert tel quel : aucun appel réseau.
+appels.length = 0
+const valide = await jetonOfflineValide(liaison, persister, fauxShopify, T + 1_000)
+exige(valide?.accessToken === 'at-1', 'un jeton valide est rendu tel quel')
+exige(appels.length === 0 && persistes.length === 0, 'un jeton valide ne déclenche ni appel ni écriture')
+
+// b. À moins de cinq minutes de l'échéance, on renouvelle, et on RANGE la nouvelle paire.
+const renouvele = await jetonOfflineValide(liaison, persister, fauxShopify, T + 3600_000 - 2 * 60_000)
+exige(renouvele?.accessToken === 'at-2', `près de l'échéance, le jeton est renouvelé, vu : ${renouvele?.accessToken}`)
+exige(appels.length === 1 && appels[0].grant_type === 'refresh_token' && appels[0].refresh_token === 'rt-1', 'le renouvellement présente le refresh token courant')
+exige(!('code' in appels[0]) && !('expiring' in appels[0]), 'le renouvellement ne rejoue pas un échange de code')
+exige(
+  persistes.length === 1 && persistes[0].accessToken === 'at-2' && persistes[0].refreshToken === 'rt-2' && persistes[0].via === 'oauth',
+  "la NOUVELLE paire est écrite en base — l'ancien refresh token meurt dès que le nouveau sert",
+)
+
+// c. Un refresh token mort : refus définitif, pas une erreur à réessayer.
+let refus: unknown = null
+await jetonOfflineValide(liaison, persister, fauxShopify, T + 7200_000).catch((e: unknown) => {
+  refus = e
+})
+exige(refus instanceof RafraichissementRefuse, 'un refresh token remplacé donne un refus définitif qui demande de réinstaller')
+exige(persistes.length === 1, 'un refus ne réécrit rien')
+
+// d. Les autres voies ne passent pas par ici.
+exige((await jetonOfflineValide({ shopDomain: 'ma-boutique', accessToken: 'shpat_colle' }, persister, fauxShopify, T)) === null, 'un jeton collé à la main rend null')
+exige(
+  (await jetonOfflineValide({ shopDomain: 'ma-boutique', accessToken: 'permanent', via: 'oauth' }, persister, fauxShopify, T)) === null,
+  "une liaison OAuth d'avant le 16/09 (sans refresh token) rend null : elle sera réinstallée, pas renouvelée",
+)
+
+// e. Sans `expiring`, Shopify rend un jeton permanent : la lecture doit le REFUSER, pas le ranger.
+let permanent: unknown = null
+await echangerCode(config, 'ma-boutique.myshopify.com', 'abc123', async (entree, init) => {
+  const corps = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+  delete corps.expiring
+  return fauxShopify(entree, { ...init, body: JSON.stringify(corps) })
+}, T).catch((e: unknown) => {
+  permanent = e
+})
+exige(permanent instanceof Error && /expirant/.test((permanent as Error).message), "un jeton permanent rendu par Shopify est refusé à la lecture")
+
+process.env.SHOPIFY_APP_KEY = envCle
+process.env.SHOPIFY_APP_SECRET = envSecret
+process.env.PUBLIC_API_URL = envRacine
+if (envCle === undefined) delete process.env.SHOPIFY_APP_KEY
+if (envSecret === undefined) delete process.env.SHOPIFY_APP_SECRET
+if (envRacine === undefined) delete process.env.PUBLIC_API_URL
 
 console.log(echecs === 0 ? 'Application Shopify : tout passe.' : `${echecs} échec(s).`)
 process.exitCode = echecs === 0 ? 0 : 1

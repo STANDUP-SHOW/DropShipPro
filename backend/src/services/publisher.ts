@@ -3,6 +3,7 @@ import type { Platform, Product } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { mapCategory } from './categoryMapping.js'
 import { publishToShopify, resoudreCredentialsShopify } from './shopify.js'
+import { jetonOfflineValide } from './shopifyApp.js'
 import { deposerOffreMirakl, estMirakl, readMiraklCredentials } from './mirakl.js'
 import { publierSurEbay, readEbayCredentials } from './ebay.js'
 import { deposerOffreKaufland, readKauflandCredentials } from './kaufland.js'
@@ -268,7 +269,13 @@ async function publishShopify(product: Product, targetCategory: string, apiBaseU
 
   if (credential?.connected) {
     try {
-      creds = await resoudreCredentialsShopify(credential.data)
+      // La liaison par l'app (jeton d'une heure + refresh token) se renouvelle
+      // ici, et les deux jetons neufs sont rangés avant de servir. Les autres
+      // voies rendent null et gardent leur chemin.
+      creds =
+        (await jetonOfflineValide(credential.data, async (data) => {
+          await prisma.platformCredential.update({ where: { id: credential.id }, data: { data } })
+        })) ?? (await resoudreCredentialsShopify(credential.data))
     } catch (err) {
       raison = err instanceof Error ? err.message : 'Shopify a refusé les identifiants.'
     }

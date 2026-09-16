@@ -353,16 +353,83 @@ export async function souscrireDesinstallation(
   return { pose: false, raison }
 }
 
-/** Échange le code d'autorisation contre un jeton d'accès permanent. */
+/*
+ * ---------------------------------------------------------------------------
+ * Le jeton d'accès n'est plus permanent.
+ * ---------------------------------------------------------------------------
+ *
+ * Constaté le 16/09/2026, à la première publication depuis l'app installée par
+ * OAuth sur une boutique de développement : Shopify répondait 403 — « Non-
+ * expiring access tokens are no longer accepted for the Admin API » — avec un
+ * jeton `shpat_` qu'il venait lui-même de délivrer. Les apps publiques doivent
+ * demander `expiring: 1` à l'échange : le jeton d'accès vit UNE HEURE, et un
+ * refresh token de 90 jours permet d'en obtenir un neuf sans que le marchand
+ * revienne. Les apps personnalisées (jeton collé dans Réglages) ne sont pas
+ * concernées, et gardent leur chemin.
+ *
+ * Deux règles de Shopify à ne pas perdre : chaque renouvellement rend un
+ * NOUVEAU refresh token, et l'ancien meurt dès que le nouveau sert — les deux
+ * jetons se rangent donc ensemble, tout de suite. Et un 401 au renouvellement
+ * est définitif (jeton inconnu, remplacé, expiré, app désinstallée : la même
+ * réponse pour tout) : on n'insiste pas, on demande de réinstaller.
+ */
+export interface JetonOffline {
+  shopDomain: string
+  accessToken: string
+  scope: string
+  refreshToken: string
+  /** Date ISO à laquelle le jeton d'accès cesse de servir — lue dans la réponse, jamais écrite en dur. */
+  expiresAt: string
+  /** Date ISO à laquelle le refresh token lui-même expire. */
+  refreshTokenExpiresAt: string
+}
+
+/** La forme rangée dans `PlatformCredential.data` — celle que `readShopifyCredentials` lit déjà. */
+export function donneesLiaison(jeton: JetonOffline) {
+  return { ...jeton, via: 'oauth' as const }
+}
+
+type AppelHttp = typeof fetch
+
+/** On renouvelle un peu avant l'échéance : une publication de trente fiches ne doit pas expirer en route. */
+const MARGE_RENOUVELLEMENT_MS = 5 * 60 * 1000
+
+function lireReponseJeton(shop: string, corps: unknown, maintenant: number): JetonOffline {
+  const c = (corps ?? {}) as {
+    access_token?: string
+    scope?: string
+    expires_in?: number
+    refresh_token?: string
+    refresh_token_expires_in?: number
+  }
+  if (!c.access_token) throw new Error("Shopify n'a pas délivré de jeton d'accès.")
+  if (!c.refresh_token || typeof c.expires_in !== 'number') {
+    throw new Error(
+      "Shopify a délivré un jeton permanent au lieu d'un jeton expirant : l'Admin API le refuserait. L'échange doit demander `expiring: 1`.",
+    )
+  }
+  return {
+    shopDomain: shop,
+    accessToken: c.access_token,
+    scope: c.scope ?? '',
+    refreshToken: c.refresh_token,
+    expiresAt: new Date(maintenant + c.expires_in * 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(maintenant + (c.refresh_token_expires_in ?? 90 * 86400) * 1000).toISOString(),
+  }
+}
+
+/** Échange le code d'autorisation contre un jeton d'accès expirant et son refresh token. */
 export async function echangerCode(
   config: ConfigApp,
   shop: string,
   code: string,
-): Promise<{ shopDomain: string; accessToken: string; scope: string }> {
-  const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
+  appelerHttp: AppelHttp = fetch,
+  maintenant = Date.now(),
+): Promise<JetonOffline> {
+  const res = await appelerHttp(`https://${shop}/admin/oauth/access_token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ client_id: config.cle, client_secret: config.secret, code }),
+    body: JSON.stringify({ client_id: config.cle, client_secret: config.secret, code, expiring: 1 }),
   })
 
   if (!res.ok) {
@@ -372,7 +439,70 @@ export async function echangerCode(
     )
   }
 
-  const corps = (await res.json()) as { access_token?: string; scope?: string }
-  if (!corps.access_token) throw new Error("Shopify n'a pas délivré de jeton d'accès.")
-  return { shopDomain: shop, accessToken: corps.access_token, scope: corps.scope ?? '' }
+  return lireReponseJeton(shop, await res.json(), maintenant)
+}
+
+/** Le refus définitif : Shopify ne rendra plus jamais de jeton pour ce refresh token. */
+export class RafraichissementRefuse extends Error {}
+
+/** Obtient un jeton d'accès neuf avec le refresh token — sans le marchand. */
+export async function rafraichirJeton(
+  config: ConfigApp,
+  shop: string,
+  refreshToken: string,
+  appelerHttp: AppelHttp = fetch,
+  maintenant = Date.now(),
+): Promise<JetonOffline> {
+  const res = await appelerHttp(`https://${shop}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      client_id: config.cle,
+      client_secret: config.secret,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
+  })
+
+  if (res.status === 401) {
+    throw new RafraichissementRefuse(
+      "Shopify n'accepte plus le renouvellement de la liaison. Réinstallez DropShipper IA depuis votre boutique : Réglages › Shopify › Relier ma boutique.",
+    )
+  }
+  if (!res.ok) throw new Error(`Shopify a répondu ${res.status} au renouvellement du jeton. Réessayez dans un instant.`)
+
+  return lireReponseJeton(shop, await res.json(), maintenant)
+}
+
+/**
+ * Rend un jeton utilisable pour une boutique reliée par l'app, renouvelé si
+ * besoin — ou `null` quand la liaison n'est pas de cette sorte (jeton `shpat_`
+ * collé à la main, Client ID + Secret) : ces voies-là gardent leur chemin.
+ *
+ * `persister` reçoit les nouvelles données à ranger en base à chaque
+ * renouvellement. Ne pas les écrire reviendrait à perdre le refresh token
+ * neuf pendant que l'ancien meurt : la boutique serait à réinstaller.
+ */
+export async function jetonOfflineValide(
+  data: unknown,
+  persister: (data: ReturnType<typeof donneesLiaison>) => Promise<void>,
+  appelerHttp: AppelHttp = fetch,
+  maintenant = Date.now(),
+): Promise<{ shopDomain: string; accessToken: string } | null> {
+  const raw = data as Record<string, unknown> | null
+  if (!raw || raw.via !== 'oauth' || typeof raw.refreshToken !== 'string' || !raw.refreshToken) return null
+  const shopDomain = typeof raw.shopDomain === 'string' ? normalizeShopDomain(raw.shopDomain) : null
+  const accessToken = typeof raw.accessToken === 'string' ? raw.accessToken : ''
+  if (!shopDomain || !accessToken) return null
+
+  const expire = typeof raw.expiresAt === 'string' ? Date.parse(raw.expiresAt) : NaN
+  if (Number.isFinite(expire) && expire - maintenant > MARGE_RENOUVELLEMENT_MS) return { shopDomain, accessToken }
+
+  const config = configApp()
+  if (!config) {
+    throw new Error("L'application Shopify n'est plus configurée côté serveur : le jeton ne peut pas être renouvelé.")
+  }
+  const neuf = await rafraichirJeton(config, shopDomain, raw.refreshToken, appelerHttp, maintenant)
+  await persister(donneesLiaison(neuf))
+  return { shopDomain, accessToken: neuf.accessToken }
 }

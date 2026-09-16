@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
 import {
   configApp,
+  donneesLiaison,
   echangerCode,
   hmacRequeteValide,
   hmacWebhookValide,
@@ -102,12 +103,12 @@ shopifyAppRouter.get(
         userId: etat.userId,
         platform: 'SHOPIFY',
         label: shop,
-        data: { shopDomain: shop, accessToken: jeton.accessToken, scope: jeton.scope, via: 'oauth' },
+        data: donneesLiaison(jeton),
         connected: true,
       },
       update: {
         label: shop,
-        data: { shopDomain: shop, accessToken: jeton.accessToken, scope: jeton.scope, via: 'oauth' },
+        data: donneesLiaison(jeton),
         connected: true,
       },
     })

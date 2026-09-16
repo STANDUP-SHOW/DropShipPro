@@ -959,6 +959,25 @@ publication « en attente ».
    signés sur les **octets bruts** (route montée avant `express.json`, comme
    Stripe). L'échange rend `{ shopDomain, accessToken }`, la forme que
    `readShopifyCredentials` attendait déjà : rien en aval ne change.
+
+   **Le jeton d'une app publique n'est plus permanent (16/09/2026).** Première
+   installation réelle sur une boutique de développement (auto-parts-o8avomvl,
+   créée depuis le Dev Dashboard — une boutique d'essai créée depuis l'admin
+   marchand est dans une autre organisation et Shopify y refuse l'app tant
+   qu'elle n'est pas examinée) : callback, liaison et page intégrée bons, et la
+   première publication répondait 403 « Non-expiring access tokens are no
+   longer accepted for the Admin API » — avec un `shpat_` que Shopify venait de
+   délivrer. Notre écran disait « jeton refusé », sans le motif ; la cause n'a
+   été lue qu'en rejouant l'appel à la main. Depuis : l'échange demande
+   `expiring: 1` (jeton d'UNE HEURE + refresh token de 90 jours, échéances lues
+   dans la réponse), `jetonOfflineValide()` renouvelle à moins de cinq minutes
+   de l'échéance et RANGE la nouvelle paire avant de servir (l'ancien refresh
+   token meurt dès que le nouveau sert), un 401 au renouvellement est définitif
+   et demande de réinstaller, et le motif de Shopify est transmis dans le refus.
+   Banc `check-shopify-app.ts` § 6, faux serveur au contrat écrit en dur.
+   **Une seule boutique Shopify par compte** (`@@unique([userId, platform])`) :
+   installer l'app sur une seconde boutique ÉCRASE la liaison de la première —
+   c'est ce qui est arrivé à oguss-france ce jour-là.
    Reste à activer : `SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`,
    `SHOPIFY_APP_SCOPES` sur Railway. Restent à écrire pour la fiche : app
    intégrée + App Bridge + jetons de session. **Et une décision qui n'est pas

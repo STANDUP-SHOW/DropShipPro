@@ -230,8 +230,21 @@ export async function graphql<T>(creds: ShopifyCredentials, query: string, varia
   }
 
   if (res.status === 401 || res.status === 403) {
+    /*
+     * Le motif de Shopify est transmis : le 16/09/2026, un 403 « Non-expiring
+     * access tokens are no longer accepted » s'affichait comme un simple
+     * « jeton refusé », et la cause n'a été lue qu'en rejouant l'appel à la
+     * main. Un refus qui ne dit pas pourquoi coûte une heure à chaque fois.
+     */
+    const motif = await res
+      .json()
+      .then((b: unknown) => {
+        const errors = (b as { errors?: unknown } | null)?.errors
+        return typeof errors === 'string' ? errors.slice(0, 200) : ''
+      })
+      .catch(() => '')
     throw new ShopifyError(
-      "Jeton refusé par Shopify. Vérifiez le jeton d'accès de l'app personnalisée et l'autorisation write_products.",
+      `Jeton refusé par Shopify. Vérifiez le jeton d'accès et l'autorisation write_products.${motif ? ` Shopify dit : ${motif}` : ''}`,
     )
   }
   if (res.status === 404) {
