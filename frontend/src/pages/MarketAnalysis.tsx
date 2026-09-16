@@ -4,6 +4,7 @@ import { TrendingUp, ExternalLink, Loader2, ArrowLeft, Info } from 'lucide-react
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { ReportList } from '../components/ReportList'
+import { StudioAnalyses } from '../components/StudioAnalyses'
 import { api } from '../lib/api'
 
 type Result = Awaited<ReturnType<typeof api.marketAnalysis>>['results'][number]
@@ -67,10 +68,12 @@ export default function MarketAnalysisPage() {
 
       <h1 className="mt-4 flex items-center gap-2 text-2xl font-bold">
         <TrendingUp className="text-purple-300" size={24} />
-        <span>Analyse de marché</span>
+        <span>Analyses de marché</span>
       </h1>
-      <p className="mt-1 text-sm text-gray-400">
-        Où vos produits se vendent déjà, à quel prix, expédiés d'où et en combien de temps.
+      <p className="mt-1 max-w-3xl text-sm text-gray-400">
+        Quatre façons de regarder un marché <b>avant</b> de publier : qui vend déjà, qui fait de la
+        publicité, quelles boutiques occupent la niche, et lequel de vos fournisseurs est le moins
+        cher sur la même référence.
       </p>
 
       {laissees > 0 && (
@@ -79,10 +82,22 @@ export default function MarketAnalysisPage() {
         </p>
       )}
 
+      {/*
+        Le studio, en tête.
+
+        **Cette page était un cul-de-sac quand on l'ouvrait depuis le menu** :
+        elle ne savait travailler que sur une sélection d'annonces venue de
+        « Mes annonces », et sans sélection elle n'affichait qu'un message
+        expliquant qu'il fallait aller ailleurs. Or le geste utile arrive
+        d'abord : on analyse AVANT d'importer, sinon on paie un catalogue pour
+        découvrir ensuite que la niche est saturée.
+      */}
+      <StudioAnalyses />
+
       {productIds.length === 0 && (
-        <p className="mt-6 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
-          Aucune annonce sélectionnée. Retournez à vos annonces, cochez celles à analyser, puis
-          cliquez « Analyse de marché IA ».
+        <p className="mt-6 text-xs text-gray-500">
+          Pour analyser une annonce déjà importée — avec son prix d'achat et son prix de vente —
+          cochez-la dans <b>Mes annonces</b>, puis cliquez « Analyse de marché IA ».
         </p>
       )}
 

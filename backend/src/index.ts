@@ -16,6 +16,7 @@ import { opportunitiesRouter } from './routes/opportunities.js'
 import { signalsRouter } from './routes/signals.js'
 import { departmentsRouter } from './routes/departments.js'
 import { reportsRouter, chatRouter } from './routes/reports.js'
+import { studioRouter } from './routes/studio.js'
 import { statsRouter } from './routes/stats.js'
 import { autopilotRouter } from './routes/autopilot.js'
 import { conversationsRouter } from './routes/conversations.js'
@@ -122,6 +123,7 @@ app.use('/api/opportunities', opportunitiesRouter)
 app.use('/api/signals', signalsRouter)
 app.use('/api/departments', departmentsRouter)
 app.use('/api/reports', reportsRouter)
+app.use('/api/studio', studioRouter)
 app.use('/api/stats', statsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/autopilot', autopilotRouter)

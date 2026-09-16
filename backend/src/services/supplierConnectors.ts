@@ -431,3 +431,47 @@ export const CONNECTEURS: SupplierConnector[] = [aliexpress, bigbuy, cj]
 export function findConnector(id: string): SupplierConnector | null {
   return CONNECTEURS.find((c) => c.id === id) ?? null
 }
+
+/**
+ * Les fournisseurs qu'un vendeur a reliés ET dont le connecteur existe.
+ *
+ * Les deux conditions sont distinctes, et les confondre est une erreur qu'on a
+ * déjà faite : un vendeur peut avoir enregistré ses identifiants chez un
+ * fournisseur pour lequel aucun connecteur n'est écrit — la liaison est vraie,
+ * la capacité n'existe pas. Filtrer ici évite de le découvrir au milieu d'une
+ * boucle, là où il ne reste plus qu'à lever.
+ *
+ * Extrait ici parce que **deux écrans en ont besoin** — les catalogues
+ * connectés et le studio d'analyses — et que recopier la jointure en ferait
+ * deux versions qui divergeraient : celle qui filtre les liaisons éteintes et
+ * celle qui oublie de le faire.
+ */
+export interface FournisseurRelie {
+  id: string
+  label: string
+  connecteur: SupplierConnector
+  /** Les identifiants du vendeur. Ne sortent jamais vers le navigateur. */
+  creds: Record<string, string>
+}
+
+export async function fournisseursRelies(
+  prisma: { supplierConnection: { findMany(args: unknown): Promise<Array<{ supplier: string; data: unknown }>> } },
+  userId: string,
+): Promise<FournisseurRelie[]> {
+  const liens = await prisma.supplierConnection.findMany({
+    where: { userId, connected: true },
+  })
+
+  return liens.flatMap((lien) => {
+    const connecteur = findConnector(lien.supplier)
+    if (!connecteur) return []
+    return [
+      {
+        id: lien.supplier,
+        label: connecteur.label,
+        connecteur,
+        creds: (lien.data ?? {}) as Record<string, string>,
+      },
+    ]
+  })
+}

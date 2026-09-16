@@ -565,6 +565,25 @@ export const api = {
       }>
     }>('/products/market-analysis', { method: 'POST', body: JSON.stringify({ productIds }) }),
 
+  /*
+   * Le studio d'analyses — quatre volets.
+   *
+   * Le résultat est typé `unknown` à dessein : sa forme dépend du volet, et
+   * l'écran la restreint au moment d'afficher. Un type union recopié ici
+   * divergerait du serveur à la première évolution, et c'est le genre d'écart
+   * qui ne se voit qu'en production.
+   */
+  studioTarifs: () =>
+    request<{
+      volets: Array<{ id: string; label: string; drops: number }>
+      euroParDrop: number
+    }>('/studio/tarifs'),
+  studioAnalyse: (corps: { volet: string; intitule?: string; productId?: string; pays?: string }) =>
+    request<{ volet: string; sujet: { intitule: string; pays: string }; resultat: unknown; drops: number }>(
+      '/studio/analyse',
+      { method: 'POST', body: JSON.stringify(corps) },
+    ),
+
   // Facturation en drops. /plans est public : la grille s'affiche avant connexion.
   listPlans: () =>
     request<{

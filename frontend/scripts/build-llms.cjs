@@ -164,6 +164,17 @@ const FONCTIONS = [
     ],
   },
   {
+    titre: 'Studio d’analyses : savoir avant de publier',
+    lignes: [
+      'Places de marché : qui vend déjà le produit, à quel prix, avec quelles notes, dans le pays visé.',
+      'Publicités concurrentes : qui investit sur la niche, depuis quand, avec quel angle — synthèse sourcée, plus un accès direct à la Facebook Ad Library et à la bibliothèque de contenus commerciaux de TikTok, pré-remplies avec les mots-clés et le marché du vendeur.',
+      'Boutiques comparables : ce que vendent les boutiques de la même niche, leur positionnement, leur gamme de prix.',
+      'Comparaison fournisseurs : pour la même référence, ce que chacun des fournisseurs reliés demande, l’écart entre le moins cher et le plus cher, et la marge que cela laisse. Gratuit — ce volet n’appelle aucun modèle.',
+      'L’analyse se lance sur de simples mots-clés, sans avoir rien importé : découvrir qu’une niche est saturée coûte alors une analyse, pas un catalogue.',
+      'Rien n’est inventé : chaque chiffre a sa source, et ce qui n’a pas été trouvé est annoncé comme introuvable plutôt que comblé.',
+    ],
+  },
+  {
     titre: 'Pilotage, suivi et conformité',
     lignes: [
       'Tableau de bord : ventes par canal, marge par produit, jauges de santé, statistiques géographiques.',

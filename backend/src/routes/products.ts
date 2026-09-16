@@ -38,7 +38,7 @@ import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
 import { optimiserAnnonce } from '../services/listingOptimizer.js'
 import { reecrireAnnonce } from '../services/listingRewrite.js'
-import { findConnector } from '../services/supplierConnectors.js'
+import { findConnector, fournisseursRelies } from '../services/supplierConnectors.js'
 import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
 
 export const productsRouter = Router()
@@ -1610,24 +1610,15 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
     const motsCles = String(req.query.q ?? '').trim()
     const demande = String(req.query.supplier ?? '').trim()
 
-    const liens = await prisma.supplierConnection.findMany({
-      where: { userId: req.userId!, connected: true },
-    })
-
-    const fournisseurs = liens
-      .map((lien) => ({ lien, connecteur: findConnector(lien.supplier) }))
-      .filter((f): f is { lien: (typeof liens)[number]; connecteur: NonNullable<ReturnType<typeof findConnector>> } =>
-        Boolean(f.connecteur),
-      )
-      .map((f) => ({
-        id: f.lien.supplier,
-        label: f.connecteur.label,
-        cherche: Boolean(f.connecteur.searchProducts),
-        gagnants: Boolean(f.connecteur.winningProducts),
-        rayons: Boolean(f.connecteur.listerRayons),
-        connecteur: f.connecteur,
-        creds: (f.lien.data ?? {}) as Record<string, string>,
-      }))
+    // La jointure « liaison reliée + connecteur écrit » vit dans le registre :
+    // le studio d'analyses en a besoin aussi, et deux copies divergeraient —
+    // celle qui filtre les liaisons éteintes et celle qui oublie de le faire.
+    const fournisseurs = (await fournisseursRelies(prisma, req.userId!)).map((f) => ({
+      ...f,
+      cherche: Boolean(f.connecteur.searchProducts),
+      gagnants: Boolean(f.connecteur.winningProducts),
+      rayons: Boolean(f.connecteur.listerRayons),
+    }))
 
     /*
      * **Tous les fournisseurs à la fois, pas l'un après l'autre.**
