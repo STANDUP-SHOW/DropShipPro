@@ -100,11 +100,13 @@ Sans elles, l'installation en un clic ne s'affiche pas et les routes répondent
 503 : dégradation propre, exactement comme la connexion Google. Le parcours au
 jeton `shpat_` continue de fonctionner à côté, sans changement.
 
-Dans le Dev Dashboard, l'app doit déclarer :
+Dans le Dev Dashboard, l'app déclare (version `2.1-domaine-propre`, 16/09/2026) :
 
 - **App URL** (la page affichée dans l'admin du marchand) :
-  `https://dropshippro-production.up.railway.app/api/shopify/app`
-- **URL de redirection** : `https://dropshippro-production.up.railway.app/api/shopify/callback`
+  `https://api.drop-shipper.fr/api/shopify/app`
+- **URL de redirection** : `https://api.drop-shipper.fr/api/shopify/callback`,
+  **et** l'ancienne adresse Railway, gardée volontairement le temps de la
+  bascule — le champ accepte une liste.
 - **Webhooks RGPD**, les trois, vers `https://dropshippro-production.up.railway.app/api/shopify/webhooks`
 - **`app/uninstalled`**, même adresse
 

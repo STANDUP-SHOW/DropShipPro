@@ -46,19 +46,29 @@ cd backend && node extension/build-store-zip.cjs
 
 puis téléverser `backend/extension-store.zip` dans le Developer Dashboard.
 
-### 2. Le domaine existe
+### 2. Le domaine existe — **fait le 16/09/2026**
 
 Dans Railway : service → **Settings › Networking › Custom Domain** →
-`api.drop-shipper.fr`. Railway rend un CNAME, à poser chez le registrar du
-domaine. Compter quelques minutes à quelques heures pour le certificat.
+`api.drop-shipper.fr`, port 8080. **Le DNS est chez OVH**, pas chez Vercel
+(`ns106.ovh.net` / `dns106.ovh.net`) — c'est dans la zone du domaine que se
+posent les deux enregistrements rendus par Railway, un CNAME `api` et un TXT
+`_railway-verify.api`.
 
-Contrôle avant de continuer — les deux adresses doivent répondre `{"ok":true}` :
+Deux choses vues en le faisant :
+
+- **Railway passe par trois états** : « Waiting for DNS update », puis
+  « Creating order with Certificate Authority », puis servi. Entre les deux
+  derniers, le domaine RÉSOUT déjà mais `curl` sort en **erreur 60** (certificat
+  non vérifiable) et le code HTTP est `000` — ce n'est pas une panne, c'est
+  Let's Encrypt qui n'a pas fini.
+- Contrôler sur une route **publique**, sinon on lit un 401 d'authentification
+  et on croit à un échec :
 
 ```bash
-curl -s https://api.drop-shipper.fr/api/public/config | head -c 80
+curl -s -o /dev/null -w '%{http_code}\n' https://api.drop-shipper.fr/api/billing/plans   # 200
 ```
 
-### 3. L'API se présente sous son nouveau nom
+### 3. L'API se présente sous son nouveau nom — **fait le 16/09/2026**
 
 Sur Railway : `PUBLIC_API_URL=https://api.drop-shipper.fr`.
 
@@ -66,16 +76,25 @@ Sur Railway : `PUBLIC_API_URL=https://api.drop-shipper.fr`.
 l'adresse des photos que Shopify vient télécharger, et les adresses de rappel
 d'AliExpress et de Shopify. La changer change donc trois choses d'un coup.
 
-### 4. Les deux consoles, dans la foulée
+### 4. Les consoles, dans la foulée
 
-| Console | Champ | Nouvelle valeur |
-|---|---|---|
-| AliExpress Open Platform → App Overview → Edit | Callback URL | `https://api.drop-shipper.fr/api/aliexpress/callback` |
-| Shopify Dev Dashboard | URL de redirection | `https://api.drop-shipper.fr/api/shopify/callback` |
-| Shopify Dev Dashboard | Webhooks RGPD | `https://api.drop-shipper.fr/api/shopify/webhooks` |
+| Console | Champ | Nouvelle valeur | État |
+|---|---|---|---|
+| Shopify Dev Dashboard | URL de l'appli | `https://api.drop-shipper.fr/api/shopify/app` | **fait** (version `2.1-domaine-propre`) |
+| Shopify Dev Dashboard | URL de redirection | `https://api.drop-shipper.fr/api/shopify/callback` | **fait** |
+| AliExpress Open Platform → App Overview → Edit | Callback URL | `https://api.drop-shipper.fr/api/aliexpress/callback` | à faire |
+| Shopify Dev Dashboard | Webhooks RGPD | `https://api.drop-shipper.fr/api/shopify/webhooks` | pas déclarables ici — voir `docs/shopify-app.md` |
 
 Entre l'étape 3 et celle-ci, une autorisation lancée échouerait : les faire
 à la suite, pas à deux jours d'intervalle.
+
+**Le geste qui supprime cette fenêtre, et qu'il faut refaire ailleurs :
+déclarer les DEUX adresses de rappel avant de basculer la variable.** Le champ
+Shopify accepte une liste séparée par des virgules ; l'ancienne y reste tant
+que des liaisons peuvent encore l'utiliser. Sans ça, il existe un instant où
+notre code envoie un `redirect_uri` que la console ne connaît pas encore, et
+toute installation échoue avec le message le plus inutile qui soit — « L'URL
+de redirection ne correspond pas », déjà vu sur AliExpress le 15/09.
 
 ### 5. Le site
 
