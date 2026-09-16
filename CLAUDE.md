@@ -613,7 +613,7 @@ Trois conséquences, toutes appliquées :
 - **Tout se contrôle en une commande**, et c'est celle-là qu'il faut lancer :
 
   ```bash
-  cd backend && npm run controle          # les 48 bancs locaux
+  cd backend && npm run controle          # tous les bancs locaux (62 au 16/09/2026)
   cd backend && npm run controle -- --tout # + le parcours en production
   ```
 
