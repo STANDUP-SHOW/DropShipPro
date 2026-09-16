@@ -992,6 +992,22 @@ publication « en attente ».
    store ; une copie chargée à la main est signalée comme telle (elle ne se
    mettra jamais à jour), rien d'autre. Deux copies installées (store + manuelle)
    répondent toutes les deux au ping ; celle du store fait foi.
+
+   **Et il faut le DIRE quand il y en a deux (16/09/2026).** Le client lisait
+   1.35.0 dans `chrome://extensions` et « Version 1.32.0 » chez nous, et en
+   concluait que l'écran mentait. L'écran ne mentait pas : il avait les deux
+   copies, et il en montrait une **sans dire qu'il choisissait**. C'est la
+   leçon générale, et elle dépasse l'extension — *un écran qui tranche en
+   silence est indiscernable d'un écran faux* : celui qui le lit n'a aucun
+   moyen de savoir lequel des deux il est. La tuile distingue donc quatre
+   états (active / copie manuelle / **deux copies** / absente).
+
+   Corollaire trouvé en vérifiant, et c'est le même défaut : **la pilule DEMO
+   ne commande pas cette tuile.** Elle peuple le chiffre d'affaires et les
+   commandes — des chiffres de commerce qu'on montre à un prospect. L'état de
+   l'extension est un fait sur la MACHINE de celui qui regarde ; la
+   démonstration n'a aucune autorité dessus, et elle affichait « Extension
+   active » dans un navigateur qui n'en avait aucune.
 5. **Compteur de la fenêtre « Diffuser »** : signalé bloqué à 0. Non reproduit en
    lisant le code ; la fenêtre a été déplacée dans un portail `document.body` avec
    `type="button"` explicite (une barre collante ou un ancêtre transformé pouvait
