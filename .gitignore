@@ -6,3 +6,4 @@ frontend/dist/
 *.log
 backend/banc-prod-*.ts
 shopify-app/.shopify/
+MARKET-ANALYSES/rapports/
