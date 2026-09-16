@@ -77,9 +77,18 @@ const RECHARGES = [
  * Recopiés et non importés (le site ne déploie pas le dossier backend) : si un
  * fournisseur est ajouté là-bas, il s'ajoute ici. Le compte sert dans le texte,
  * donc un oubli se verrait dans une phrase, pas seulement dans une liste.
+ *
+ * **Et pourtant l'oubli a eu lieu.** JoyBuy, Shein et Wish ont été ajoutés au
+ * registre le 16/09/2026 ; cette liste est restée à 34 pendant que
+ * `suppliers.ts` en comptait 37. Rien ne l'a signalé : le site se construit,
+ * `llms.txt` se publie, et les assistants qui le lisent citent trois
+ * fournisseurs de moins que ce que l'application sait faire. Un commentaire qui
+ * demande de se souvenir ne remplace pas un contrôle — d'où
+ * `backend/check-llms.ts`, qui compare les deux listes et tombe si elles
+ * divergent.
  */
 const FOURNISSEURS = [
-  'AliExpress', 'Temu', 'DHgate', 'Banggood', 'CJ Dropshipping', 'BigBuy', 'Zentrada',
+  'AliExpress', 'Temu', 'JoyBuy', 'Shein', 'Wish', 'DHgate', 'Banggood', 'CJ Dropshipping', 'BigBuy', 'Zentrada',
   'SUPER DELIVERY', 'Webdrop Market', 'Etsy', 'Alibaba', 'Made-in-China', 'Spocket', 'Printful',
   'Printify', 'vidaXL', 'Ankorstore', 'SUNSKY', 'SUP Dropshipping', 'LightInTheBox', 'Joom',
   'Faire', 'FashionGo', 'Amazon Business', 'Meesho', 'Ingram Micro', 'TD SYNNEX', 'ALSO',

@@ -16,6 +16,40 @@ contre une liste de fonctions qui grossit pendant que l'application recule.
 
 ---
 
+## Livrables hors dépôt — les artefacts
+
+**Une partie du travail de ce projet n'est pas dans le dépôt.** Le business plan,
+les chiffrages et les relevés de coûts sont des **artefacts claude.ai** : ils ne
+sont ni commités, ni visibles par une recherche de fichiers. Leur adresse n'était
+écrite nulle part, et le 16/09/2026 ça a coûté exactement ce que ça devait
+coûter — à la question « business plan mis à jour ? », j'ai cherché dans le
+dépôt, n'ai rien trouvé, et répondu qu'il n'existait pas. Il existait, il faisait
+130 Ko, et il contenait déjà la section demandée. Réponse du client : *« chaque
+jour j'ai l'impression qu'on redémarre de 0, comme si je n'avais pas fait ce
+projet avec toi. »* Il avait raison.
+
+| Artefact | Adresse |
+|---|---|
+| **Business plan 2027–2031** (le document de référence) | https://claude.ai/artifact/Ji9BodBHs1k2nqSTziX1JM |
+| Le modèle Drops (la monnaie, les paliers) | https://claude.ai/artifact/3bqQ9yjJAECmNiMEFT9N73 |
+| Coûts IA réels (cité par `services/tarifs.ts`) | https://claude.ai/artifact/D6irqHHvH2v3m7G8y5QvcA |
+| Grille marketplaces | https://claude.ai/artifact/KPXB3n4KeYi9UdkepveepX |
+| Capacités par plateforme | https://claude.ai/artifact/RpPjhGgNBTrjVawVEpTSf6 |
+| Chiffrage domaines | https://claude.ai/artifact/2kGqtj3FvRLCD8s2xjhcZz |
+| Relevé DropShipper IA | https://claude.ai/artifact/PhremyNwb3zTsoezxMsFnE |
+
+**Deux règles qui vont avec :**
+
+1. **Avant de conclure qu'un livrable n'existe pas**, lister les artefacts — pas
+   seulement chercher un fichier. Ce qui n'est pas commité existe quand même.
+2. **Le business plan recopie des chiffres qui vivent dans le code** —
+   fournisseurs (`services/suppliers.ts`), canaux (`frontend/scripts/seo-channels.cjs`),
+   tarifs (`services/tarifs.ts`). Exactement le piège déjà documenté pour
+   `llms.txt` dans `CLAUDE.md`. **Une fonction ajoutée au produit périme le plan
+   sans que rien ne le signale** : relire ces trois sources avant de le republier.
+
+---
+
 ## Refonte « Drops » (07/09/2026) — code prêt, déploiement à faire
 
 Bascule vers une **monnaie unique, les drops** : plus d'abonnement Premium, plus
