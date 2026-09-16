@@ -286,13 +286,35 @@ export function FormulaireFournisseur({
           ) : (
             <span />
           )}
+          {/*
+            Le bouton dit l'ÉTAT, pas seulement l'action.
+            Rose « Relier » tant que ça ne l'est pas, vert « Relié ✓ » une fois
+            que le fournisseur a accepté les identifiants. Le vendeur referme
+            souvent la fiche et y revient : sans cette couleur, il doit relire
+            tout le formulaire pour savoir où il en est. Et il reste cliquable
+            — c'est ainsi qu'on remplace une clé.
+          */}
           <button
             type="button"
             onClick={enregistrer}
             disabled={busy}
-            className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-40 ${
+              lien?.connected
+                ? 'bg-emerald-500 hover:bg-emerald-400'
+                : 'btn-gradient hover:brightness-110'
+            }`}
+            title={lien?.connected ? 'Relié. Cliquez pour remplacer vos identifiants.' : undefined}
           >
-            {busy ? 'Enregistrement…' : 'Relier'}
+            {busy ? (
+              'Enregistrement…'
+            ) : lien?.connected ? (
+              <>
+                <Check size={14} />
+                <span>Relié</span>
+              </>
+            ) : (
+              'Relier'
+            )}
           </button>
         </div>
     </>
