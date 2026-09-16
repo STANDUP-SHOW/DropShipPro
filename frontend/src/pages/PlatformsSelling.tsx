@@ -3,6 +3,7 @@ import { ExportFaire } from '../components/ExportFaire'
 import { Link } from 'react-router-dom'
 import { Store, X, ExternalLink, AlertTriangle, Search, Check } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BandeauMCP } from '../components/BandeauMCP'
 import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { api } from '../lib/api'
@@ -194,6 +195,7 @@ export default function PlatformsSelling() {
         par ordre alphabétique : ce qui publie tout seul d'abord, ce qui demande une démarche
         ensuite.
       </p>
+      <BandeauMCP />
 
       <label className="relative mt-5 block max-w-sm">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />

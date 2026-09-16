@@ -403,6 +403,7 @@ function annuaireComplet() {
 
   return `<h2>L'annuaire complet : plus de 300 plateformes</h2>
 <p>Au-delà des plateformes ci-dessus, voici tout le paysage que DropShipper IA connaît : places de marché et enseignes, comparateurs de prix, plateformes d'affiliation, régies publicitaires et outils du commerce en ligne. Être listée ici ne veut pas dire être déjà reliée — mais chacune peut recevoir votre catalogue, aujourd'hui par un flux produit, demain par un connecteur si vous la demandez.</p>
+<p><strong>L'avenir des connecteurs est au MCP.</strong> Le Model Context Protocol est le protocole ouvert par lequel une IA se branche directement sur un service, sans clé à recopier ni formulaire à remplir. Nous étudions et développons actuellement des solutions de connexion MCP pour nos fournisseurs et nos places de marché.</p>
 
 <h3>Réseaux sociaux : vendre et publier</h3>
 <p>Les réseaux sociaux, à part : on y vend le catalogue (social markets) et on y publie au nom de ses pages. La plupart se nourrissent d'un simple flux produit.</p>
@@ -443,6 +444,7 @@ ${coutsHtml(platform.name, COUTS[platform.slug])}
 
 <h2>Publier sur ${esc(platform.name)} avec DropShipper IA</h2>
 ${wording.how.map((p) => `<p>${esc(p)}</p>`).join('\n')}
+<p><strong>L'avenir des connecteurs est au MCP.</strong> Le Model Context Protocol est le protocole ouvert par lequel une IA se branche directement sur un service comme ${esc(platform.name)}, sans clé à recopier ni formulaire à remplir. Nous étudions et développons actuellement des solutions de connexion MCP pour nos places de marché et nos fournisseurs.</p>
 <div class="card">
   <p>Importez un produit depuis n'importe quelle boutique, laissez l'IA rédiger le titre, la description, les attributs et les mots-clés en français, filigranez les photos à vos couleurs, puis diffusez.</p>
   <p><a class="cta small" href="/register">Créer un compte gratuitement</a></p>

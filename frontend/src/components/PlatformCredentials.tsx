@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { PlatformBadge } from './PlatformBadge'
+import { BandeauMCP } from './BandeauMCP'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 import { MIRAKL_IDS } from '../lib/platformGuides'
 import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
@@ -39,6 +40,7 @@ export function PlatformCredentials({ only, titre }: { only?: string[]; titre?: 
         Une plateforme sans API vendeur n'a pas de champ : il n'y a rien à connecter, l'extension
         remplit son formulaire à votre place.
       </p>
+      <BandeauMCP compact />
 
       <div className="mt-4 space-y-4">
         {platforms

@@ -8,6 +8,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BandeauMCP } from '../components/BandeauMCP'
 import { BlocSection } from '../components/stats/BlocSection'
 import { AgentBar } from '../components/AgentBar'
 import { SupplierBlock } from '../components/SupplierBlock'
@@ -87,6 +88,7 @@ export default function Suppliers() {
           D'où viennent vos produits, et ce qu'il reste à commander. Une fiche par fournisseur : ce
           qu'il vend, comment on l'importe, et où en est le raccordement à son API.
         </p>
+        <BandeauMCP />
       </div>
 
 

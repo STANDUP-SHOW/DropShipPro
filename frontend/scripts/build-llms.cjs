@@ -104,6 +104,7 @@ const FONCTIONS = [
       'Import en lot depuis un panneau latéral : le vendeur navigue de fiche en fiche, chaque produit s’ajoute à une liste, tout part en une fois.',
       `${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles (origine, délais, douane, dropshipping autorisé ou non).`,
       'Connecteurs API sur AliExpress, BigBuy et CJ Dropshipping : prix et stock en temps réel, commande déposée chez le fournisseur.',
+      'Cap des connecteurs : le MCP (Model Context Protocol), le protocole ouvert par lequel une IA se branche directement sur un service. DropShipper IA étudie et développe actuellement des solutions de connexion MCP vers ses fournisseurs et ses places de marché.',
       'Tri automatique des photos : bannières, vignettes de recommandation et panier du visiteur sont écartés.',
       'Prix relevés en devise étrangère (yen, dollar) convertis en euros au taux de la Banque centrale européenne.',
     ],

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { KeyRound, Info } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { BandeauMCP } from '../components/BandeauMCP'
 import { PlatformCredentials } from '../components/PlatformCredentials'
 import { AdAccounts } from '../components/AdAccounts'
 
@@ -40,6 +41,7 @@ export default function ApiLinks() {
           base qui fuit ne doit pas distribuer des accès en état de marche.
         </p>
       </div>
+      <BandeauMCP />
 
       {/* ---------- Places de marché ---------- */}
       <PlatformCredentials />
