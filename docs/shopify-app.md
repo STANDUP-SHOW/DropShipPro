@@ -154,6 +154,50 @@ Dans le Dev Dashboard, l'app déclare (version `2.1-domaine-propre`, 16/09/2026)
 
 ---
 
+## CORRECTION du 16/09/2026 — la facturation n'est pas le mur annoncé
+
+Ce qui suit était écrit trop fort, et le client l'a mis en doute avec les bons
+arguments : « toutes les applis que j'ai installées depuis l'App Store étaient
+payantes, j'ai même été débité de 70 € par AliDrop à la fin d'un essai ».
+
+Vérifié à la source le 16/09/2026, dans les exigences de fiche de Shopify. Le
+bloc « Pricing » d'une fiche App Store comporte un élément dédié :
+
+> « A link to a page that describes any charges that are **billed outside of
+> Shopify's app billing system**. » — *shopify.dev, Best practices, § C. Pricing,
+> renvoyant à l'exigence 4.2 de l'App Store.*
+
+**Shopify prévoit donc explicitement des frais encaissés hors de son système**,
+et prévoit un champ pour les déclarer. La règle n'est pas « interdit », elle est
+« déclarez-les ». Écrire l'inverse revenait à nous fermer l'App Store tout seuls.
+
+Ce qui reste vrai et qu'il faut lire avant de soumettre : **l'exigence 4.2**
+elle-même, et la définition des *App Revenues* dans le Partner Agreement, qui
+gouvernent ce qui doit passer par la Billing API. Ce qui est constaté :
+
+- **AutoDS** est référencée et déclare ses trois forfaits sur sa fiche
+  (26,90 / 39,90 / 66,90 $ par mois).
+- **Channable**, une plateforme multicanale comme nous, est référencée et déclare
+  des forfaits de 104 à 215 $ par mois.
+
+Et l'argument qui nous distingue, soulevé par le client et qui tient : **nous ne
+vendons pas une fonction de Shopify.** Les drops servent à importer, réécrire,
+illustrer, analyser et publier sur **314 canaux** — Shopify n'en est qu'un.
+Une boutique Shopify qui nous installe reste facturée pour un travail dont
+l'essentiel se passe ailleurs, et nous lui amenons des ventes sur d'autres
+canaux. C'est la position de Channable et de Lengow, pas celle d'une app dont
+la totalité de la valeur vit dans l'admin Shopify.
+
+**Conséquence pratique : le référencement n'est plus un projet bloqué**, c'est
+un dossier à monter (fiche, visuels, démonstration, examen). La distribution
+publique est posée depuis le 16/09/2026, donc rien n'attend : les installations
+par lien direct marchent dès aujourd'hui, et la demande de référencement se fait
+quand la fiche est prête.
+
+---
+
+## Ce qui avait été écrit avant cette correction (conservé pour mémoire)
+
 ## La question qui peut tout arrêter : la facturation
 
 C'est le point à trancher **avant** d'investir dans la fiche, et il n'est pas
