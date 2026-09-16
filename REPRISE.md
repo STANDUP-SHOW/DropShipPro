@@ -56,9 +56,10 @@ org 5189201, distribution **publique** choisie — irréversible) :
   Shopify sans saisie d'adresse (½ j), coût d'achat dans le champ Cost (1 h),
   page publique /tarifs (1 h), page intégrée qui publie depuis l'admin (1 j),
   puis fichiers de fiche + screencast. Après validation, oguss-france et
-  toute boutique peuvent installer. **Max n'a pas encore réussi le `shopify
-  app deploy`** (PowerShell refuse `&&` : deux commandes séparées) — aucune
-  version nouvelle dans le Dev Dashboard à 23h50.
+  toute boutique peuvent installer. **Webhooks RGPD déclarés et publiés**
+  (version `1.1-webhooks-rgpd`, CLI connecté par code d'appareil depuis le
+  Chrome de Max ; `app/uninstalled` refusé au niveau app avec le flux hérité,
+  reste posé boutique par boutique).
 - **oguss-france a PERDU sa liaison** : une seule boutique Shopify par compte
   (`@@unique([userId, platform])`), l'installation sur auto-parts a écrasé son
   jeton. Rien de cassé côté Shopify (108 produits en place), mais une nouvelle
