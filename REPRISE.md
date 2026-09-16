@@ -40,10 +40,21 @@ org 5189201, distribution **publique** choisie — irréversible) :
   boutique. Ce qui a bloqué entre les deux : Shopify refuse les jetons
   permanents aux apps publiques (commit 624bebd, `expiring: 1` + renouvellement,
   CLAUDE.md § app publique).
-- **Prochaine étape** : le dossier de soumission — webhooks RGPD déclarés dans
-  la config d'app (pas le formulaire du Dev Dashboard), page décrivant la
-  facturation hors Shopify (exigence 4.2), fiche App Store. Puis soumettre :
-  après validation, oguss-france et toute boutique peuvent installer.
+- **Le dossier de soumission est écrit** : `docs/shopify-app-store-dossier.md`
+  (exigences relevées à la source avec leurs numéros, état point par point,
+  chantiers dans l'ordre, textes de fiche FR/EN aux bonnes longueurs). Le
+  TOML qui déclare les webhooks RGPD est dans `shopify-app/shopify.app.toml`,
+  CLI Shopify 4.8.0 installé. **Geste de Max** : `cd shopify-app && shopify app
+  deploy --no-release` (connexion Shopify dans le navigateur), puis activer la
+  version dans le Dev Dashboard. **Découverte qui change le plan** : la
+  facturation hors Shopify est INTERDITE aux apps listées (exigence 1.2.1,
+  texte exact dans le dossier) — la « correction » du matin dans
+  docs/shopify-app.md était fausse, re-corrigée. Chantiers avant soumission :
+  Billing API pour les recharges de drops (1 j), installation lancée depuis
+  Shopify sans saisie d'adresse (½ j), coût d'achat dans le champ Cost (1 h),
+  page publique /tarifs (1 h), page intégrée qui publie depuis l'admin (1 j),
+  puis fichiers de fiche + screencast. Après validation, oguss-france et
+  toute boutique peuvent installer.
 - **oguss-france a PERDU sa liaison** : une seule boutique Shopify par compte
   (`@@unique([userId, platform])`), l'installation sur auto-parts a écrasé son
   jeton. Rien de cassé côté Shopify (108 produits en place), mais une nouvelle

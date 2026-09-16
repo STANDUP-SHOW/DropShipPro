@@ -1,0 +1,65 @@
+# Configuration de l'app Shopify publique « DropShipper IA » (app 424256045057,
+# organisation Dev Dashboard 236010842). Aucun code ici : ce dossier ne sert
+# qu'à DÉCLARER la configuration que le formulaire « Créer une version » du
+# Dev Dashboard ne sait pas saisir — en premier lieu les trois webhooks de
+# conformité (RGPD), obligatoires pour toute app soumise à l'App Store.
+#
+# Publier une nouvelle version = depuis ce dossier :
+#
+#   shopify app deploy
+#
+# (le CLI demande de se connecter au compte Shopify de Max ; `--no-release`
+# crée la version sans l'activer, pour la relire d'abord dans le Dev Dashboard).
+#
+# Ce fichier NE contient aucun secret : le client_id est la clé publique de
+# l'app, déjà visible dans chaque lien d'installation. Le secret vit sur
+# Railway (SHOPIFY_APP_SECRET), jamais ici.
+#
+# Il reflète la version « 1.0-organisation-partenaire » relue le 16/09/2026,
+# à laquelle il n'ajoute que les webhooks. Toute valeur changée ici doit
+# rester cohérente avec backend/src/services/shopifyApp.ts (portées par
+# défaut, chemins /api/shopify/callback, /api/shopify/app et
+# /api/shopify/webhooks).
+
+client_id = "50e43d4e109a563f0176c78fe316d82f"
+name = "DropShipper IA"
+application_url = "https://api.drop-shipper.fr/api/shopify/app"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = false
+include_config_on_deploy = true
+
+[access_scopes]
+# Les mêmes que PORTEE_PAR_DEFAUT dans shopifyApp.ts et que la version active.
+scopes = "read_products,write_products,read_publications,write_publications"
+# Le flux hérité (redirection OAuth classique) est celui que nos routes
+# implémentent ; l'installation gérée par Shopify demanderait l'échange de
+# jeton par App Bridge, qui n'est pas écrit.
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = ["https://api.drop-shipper.fr/api/shopify/callback"]
+
+[webhooks]
+api_version = "2026-07"
+
+# Les trois sujets RGPD. Notre route répond 200 tout de suite puis traite :
+# customers/* n'ont rien à livrer ni effacer (nous ne recevons aucune donnée
+# des clients d'une boutique), shop/redact supprime la liaison et son jeton.
+# La signature est vérifiée sur les octets bruts (route montée avant
+# express.json dans index.ts).
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://api.drop-shipper.fr/api/shopify/webhooks"
+
+# La désinstallation, déclarée au niveau de l'app : la liaison s'éteint sans
+# attendre que la première publication échoue. Le code pose aussi cet
+# abonnement boutique par boutique à l'installation — un doublon est accepté
+# (« already been taken ») et le traitement est idempotent.
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "https://api.drop-shipper.fr/api/shopify/webhooks"
+
+[pos]
+embedded = false

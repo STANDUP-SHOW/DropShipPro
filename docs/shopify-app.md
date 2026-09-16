@@ -194,6 +194,34 @@ publique est posée depuis le 16/09/2026, donc rien n'attend : les installations
 par lien direct marchent dès aujourd'hui, et la demande de référencement se fait
 quand la fiche est prête.
 
+### RE-CORRECTION du 16/09/2026 au soir — lu dans les exigences elles-mêmes
+
+Le paragraphe ci-dessus s'appuyait sur le champ « frais facturés hors Shopify »
+de la fiche, et en déduisait que la facturation hors plateforme était admise.
+**C'est faux**, et l'exigence le dit sans ambiguïté — *App Store requirements*,
+1.2.1, texte exact :
+
+> « Apps that use off-platform billing cannot be distributed through the
+> Shopify App Store. Your app must use Shopify App Pricing or the Shopify
+> Billing API for any app charges. »
+
+Le champ « hors Shopify » sert aux frais qui ne sont **pas des frais d'app**
+(marchandise, service d'un tiers). AutoDS et Channable déclarent leurs
+forfaits sur leur fiche parce qu'ils passent par la Billing API, pas malgré
+elle. L'argument « nous ne vendons pas une fonction de Shopify » reste vrai
+pour la **catégorie** (multicanal, pas sourcing — § 2.5 du dossier), il ne
+change rien à la **facturation**.
+
+Ce que ça coûte : brancher `appPurchaseOneTimeCreate` sur les recharges de
+drops pour les marchands venus de Shopify — une journée, avec le retour à
+confirmer sur la page cible. Ce que ça rapporte : Shopify encaisse et prélève
+0 % jusqu'à 1 M$/an sur le programme actuel. Le dossier complet, exigence par
+exigence, est dans `docs/shopify-app-store-dossier.md`.
+
+Leçon de méthode : **une exigence se lit dans la page « requirements », pas
+dans le formulaire qui la met en œuvre.** Le formulaire a un champ pour
+l'exception ; la règle est ailleurs, et c'est elle qui juge.
+
 ---
 
 ## Ce qui avait été écrit avant cette correction (conservé pour mémoire)
