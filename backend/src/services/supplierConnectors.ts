@@ -60,23 +60,95 @@ async function appel(url: string, options: RequestInit & { timeoutMs?: number } 
  * s'obtient sans validation préalable : un vendeur abonné peut l'essayer le
  * jour même.
  */
+/** Les en-têtes de tout appel BigBuy : un jeton Bearer, rien d'autre. */
+const enTetesBigbuy = (cle: string) => ({ Authorization: `Bearer ${cle}`, Accept: 'application/json' })
+
 const bigbuy: SupplierConnector = {
   id: 'bigbuy',
   label: 'BigBuy',
 
   /**
-   * Le porte-monnaie : l'appel le moins cher qui prouve l'identité.
+   * BigBuy publie un point d'entrée fait exactement pour ça.
    *
-   * Il ne lit aucun catalogue et ne coûte aucun quota de recherche — il répond
-   * juste « je sais qui vous êtes » ou « Invalid Token ». C'est exactement ce
-   * qu'on veut éprouver au moment d'enregistrer une clé.
+   * `/rest/user/auth/status` ne lit aucun catalogue, ne coûte aucun quota, et
+   * répond « je sais qui vous êtes » ou « Invalid Token ». Trouvé dans leur
+   * spec OpenAPI le 16/09/2026 — le porte-monnaie faisait le même travail, mais
+   * en prétendant demander autre chose.
    */
   async verifier(credentials) {
     const key = credentials.apiKey?.trim()
     if (!key) throw new SupplierError("Aucune clé d'API BigBuy saisie.", true)
-    await appel(`${BASES.bigbuy}/rest/user/purse.json`, {
-      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
-    })
+    await appel(`${BASES.bigbuy}/rest/user/auth/status.json`, { headers: enTetesBigbuy(key) })
+  },
+
+  /**
+   * Les rayons de BigBuy : son arbre de taxonomie.
+   *
+   * **BigBuy ne sait pas chercher, et ce n'est pas un manque de notre côté.**
+   * Sa spec OpenAPI compte 61 points d'entrée, lus un par un : pas UN ne prend
+   * de mots-clés. Son catalogue se parcourt, il ne s'interroge pas. Lui envoyer
+   * « écouteurs sans fil » ne pouvait rien donner — la question n'existe pas
+   * chez lui.
+   */
+  async listerRayons(credentials) {
+    const key = credentials.apiKey?.trim()
+    if (!key) throw new SupplierError("Aucune clé d'API BigBuy saisie.", true)
+
+    const rayons = (await appel(`${BASES.bigbuy}/rest/catalog/taxonomies.json?isoCode=fr`, {
+      headers: enTetesBigbuy(key),
+    })) as Array<{ id?: number; name?: string; parentTaxonomy?: number | null }>
+
+    // Seulement le premier niveau : l'arbre entier fait des milliers de nœuds,
+    // et un menu de mille entrées ne se parcourt pas davantage qu'une liste vide.
+    return rayons
+      .filter((r) => r.id && r.name && !r.parentTaxonomy)
+      .map((r) => ({ id: String(r.id), label: r.name! }))
+  },
+
+  /**
+   * Les produits d'un rayon, titres et prix réunis.
+   *
+   * **Deux appels, parce que BigBuy sépare le prix du nom.** `products` rend
+   * l'identifiant et les prix sans le libellé ; `productsinformation` rend le
+   * libellé traduit sans les prix. Afficher l'un sans l'autre donnerait une
+   * liste de numéros ou une liste sans prix — inutilisable pour décider. On les
+   * demande sur le même rayon et la même page, puis on joint par identifiant.
+   */
+  async produitsDuRayon(rayon, credentials) {
+    const key = credentials.apiKey?.trim()
+    if (!key) throw new SupplierError("Aucune clé d'API BigBuy saisie.", true)
+
+    const entetes = enTetesBigbuy(key)
+    const parametres = `parentTaxonomy=${encodeURIComponent(rayon)}&pageSize=24&page=0`
+
+    const [produits, libelles] = await Promise.all([
+      appel(`${BASES.bigbuy}/rest/catalog/products.json?${parametres}`, { headers: entetes }) as Promise<
+        Array<{ id?: number; sku?: string; wholesalePrice?: string | null; retailPrice?: string | null }>
+      >,
+      appel(`${BASES.bigbuy}/rest/catalog/productsinformation.json?${parametres}&isoCode=fr`, {
+        headers: entetes,
+      }) as Promise<Array<{ id?: number; name?: string }>>,
+    ])
+
+    const noms = new Map(libelles.filter((l) => l.id).map((l) => [String(l.id), l.name ?? '']))
+
+    return produits
+      .filter((p) => p.id)
+      .map((p): SupplierListing => ({
+        ref: String(p.id),
+        // Sans libellé traduit, la référence vaut mieux qu'une ligne vide : le
+        // vendeur voit qu'il y a un produit, et la fiche importée le nommera.
+        titre: noms.get(String(p.id)) || p.sku || String(p.id),
+        // Le prix de gros est celui qui décide de la marge ; le prix conseillé
+        // ne sert qu'à se comparer.
+        prix: Number(p.wholesalePrice ?? p.retailPrice) || null,
+        devise: 'EUR',
+        image: null,
+        url: null,
+        // BigBuy expédie d'Espagne : c'est le seul fournisseur du lot dont
+        // l'entrepôt européen est certain, et ça change le délai du tout au tout.
+        entrepot: 'europe' as const,
+      }))
   },
 
   async fetchPrices(refs, credentials) {

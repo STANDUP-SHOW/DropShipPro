@@ -1464,7 +1464,7 @@ export const api = {
     ),
 
   /** Le catalogue d'un fournisseur relié : ce qu'il sait faire, et ses produits. */
-  supplierCatalog: (supplier: string, q: string) =>
+  supplierCatalog: (supplier: string, q: string, rayon?: string) =>
     request<{
       /** Un bloc par fournisseur relié : ses offres, ou la raison de son silence. */
       fournisseurs: Array<{
@@ -1472,6 +1472,10 @@ export const api = {
         label: string
         cherche: boolean
         gagnants: boolean
+        /** Son catalogue se parcourt par rayons, faute de recherche. */
+        rayons?: boolean
+        rayonsDisponibles?: Array<{ id: string; label: string }>
+        rayonChoisi?: string | null
         produits: Array<{
           ref: string
           titre: string
@@ -1483,7 +1487,7 @@ export const api = {
         }>
         note: string | null
       }>
-    }>(`/products/meta/supplier-catalog?supplier=${encodeURIComponent(supplier)}&q=${encodeURIComponent(q)}`),
+    }>(`/products/meta/supplier-catalog?supplier=${encodeURIComponent(supplier)}&q=${encodeURIComponent(q)}${rayon ? `&rayon=${encodeURIComponent(rayon)}` : ''}`),
 
   /** Importe les fiches cochées dans un catalogue fournisseur. */
   importCatalogue: (supplier: string, refs: string[]) =>

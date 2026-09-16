@@ -39,6 +39,9 @@ type Bloc = {
   label: string
   cherche: boolean
   gagnants: boolean
+  rayons?: boolean
+  rayonsDisponibles?: Array<{ id: string; label: string }>
+  rayonChoisi?: string | null
   produits: Produit[]
   note: string | null
 }
@@ -52,14 +55,21 @@ export default function CataloguesFournisseurs() {
   const [bilan, setBilan] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
-  async function interroger(q: string) {
+  async function interroger(q: string, rayon?: { supplier: string; id: string }) {
     setCherche(true)
     setBilan(null)
     setErreur(null)
     try {
-      const r = await api.supplierCatalog('', q)
-      setBlocs(r.fournisseurs)
-      setCoches(new Map())
+      const r = await api.supplierCatalog(rayon?.supplier ?? '', q, rayon?.id)
+      /*
+       * Un rayon ne recharge QUE son fournisseur : recharger tout le monde
+       * effacerait les résultats que le vendeur est en train de comparer, ce
+       * qui est précisément ce qu'il est venu faire ici.
+       */
+      setBlocs((anciens) =>
+        rayon ? anciens.map((b) => r.fournisseurs.find((n) => n.id === b.id) ?? b) : r.fournisseurs,
+      )
+      if (!rayon) setCoches(new Map())
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Lecture des catalogues impossible')
     } finally {
@@ -186,6 +196,25 @@ export default function CataloguesFournisseurs() {
               </span>
             </h2>
             {b.note ? <p className="mt-1 text-xs text-amber-200">{b.note}</p> : null}
+
+            {/* Les rayons, pour un fournisseur qui ne sait pas chercher. */}
+            {b.rayonsDisponibles?.length ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {b.rayonsDisponibles.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => interroger(motsCles, { supplier: b.id, id: r.id })}
+                    className={`rounded-lg border px-2.5 py-1 text-xs transition ${
+                      r.id === b.rayonChoisi
+                        ? 'border-purple-400/60 bg-purple-500/20 text-white'
+                        : 'border-white/10 text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             {b.produits.length ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -189,9 +189,37 @@ export interface SupplierConnector {
    * comportement d'avant et ne ment pas davantage.
    */
   verifier?(credentials: Record<string, string>, ctx?: SupplierContext): Promise<void>
+
+  /**
+   * Les rayons du catalogue, quand le fournisseur ne sait pas chercher.
+   *
+   * **Tous n'ont pas de recherche, et ce n'est pas un oubli.** La spec OpenAPI
+   * de BigBuy, lue le 16/09/2026, compte 61 points d'entrée : pas UN ne fait de
+   * recherche par mots-clés. Son catalogue se parcourt par arbre de taxonomie,
+   * point. Lui envoyer des mots-clés ne pouvait donc rien donner — ce n'était
+   * pas notre connecteur qui était incomplet, c'était la question qui n'existait
+   * pas chez lui.
+   *
+   * Un fournisseur expose donc l'une, l'autre, ou les deux. L'écran s'adapte à
+   * ce qu'il déclare au lieu de supposer que tout le monde cherche pareil.
+   */
+  listerRayons?(credentials: Record<string, string>, ctx?: SupplierContext): Promise<SupplierRayon[]>
+
+  /** Les produits d'un rayon, page par page. */
+  produitsDuRayon?(
+    rayon: string,
+    credentials: Record<string, string>,
+    ctx?: SupplierContext,
+  ): Promise<SupplierListing[]>
 }
 
 /** Une ligne de catalogue fournisseur, telle qu'un chef de rayon la présente. */
+/** Un rayon du catalogue d'un fournisseur : de quoi le parcourir. */
+export interface SupplierRayon {
+  id: string
+  label: string
+}
+
 export interface SupplierListing {
   ref: string
   titre: string

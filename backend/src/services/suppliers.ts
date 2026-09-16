@@ -242,8 +242,16 @@ export const SUPPLIERS: SupplierInfo[] = [
     color: '#00a3e0',
     api: {
           "nom": "BigBuy REST API",
-          "console": "https://api.bigbuy.eu/doc",
-          "exige": "Un abonnement BigBuy actif. La clé se trouve dans votre espace client, section API.",
+          /*
+           * Le panneau de contrôle, pas la documentation de l'API.
+           *
+           * Signalé le 16/09/2026 : le lien rendait un 404. Et même valide, il
+           * était mal choisi — le vendeur clique pour ALLER CHERCHER SA CLÉ,
+           * pas pour lire une référence technique. Sa clé est sur
+           * controlpanel.bigbuy.eu, et c'est là qu'il faut l'envoyer.
+           */
+          "console": "https://controlpanel.bigbuy.eu",
+          "exige": "Un abonnement BigBuy actif. La clé se trouve dans votre panneau de contrôle (controlpanel.bigbuy.eu), section API.",
           "lectureCatalogue": true,
           "stockTempsReel": true,
           "commande": true,

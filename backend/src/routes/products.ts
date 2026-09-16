@@ -1624,6 +1624,7 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
         label: f.connecteur.label,
         cherche: Boolean(f.connecteur.searchProducts),
         gagnants: Boolean(f.connecteur.winningProducts),
+        rayons: Boolean(f.connecteur.listerRayons),
         connecteur: f.connecteur,
         creds: (f.lien.data ?? {}) as Record<string, string>,
       }))
@@ -1647,7 +1648,7 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
 
     const resultats = await Promise.all(
       aInterroger.map(async (f) => {
-        const vitrine = { id: f.id, label: f.label, cherche: f.cherche, gagnants: f.gagnants }
+        const vitrine = { id: f.id, label: f.label, cherche: f.cherche, gagnants: f.gagnants, rayons: f.rayons }
         try {
           if (motsCles && f.cherche) {
             const produits = await f.connecteur.searchProducts!(motsCles, f.creds)
@@ -1665,6 +1666,35 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
               note: produits.length ? null : 'Aucune sélection en ce moment — cherchez par mots-clés.',
             }
           }
+          /*
+           * Il ne sait pas chercher : alors on lui demande ses RAYONS.
+           *
+           * BigBuy n'a pas un seul point d'entrée de recherche sur les 61 de sa
+           * spec. Répondre « pas de recherche » et s'arrêter là laisserait le
+           * vendeur devant une section vide alors que son catalogue entier est
+           * lisible — simplement par l'arbre, pas par des mots.
+           */
+          if (f.connecteur.listerRayons) {
+            const rayonDemande = String(req.query.rayon ?? '').trim()
+            if (rayonDemande && f.connecteur.produitsDuRayon) {
+              const produits = await f.connecteur.produitsDuRayon(rayonDemande, f.creds)
+              return {
+                ...vitrine,
+                produits,
+                rayonsDisponibles: await f.connecteur.listerRayons(f.creds),
+                rayonChoisi: rayonDemande,
+                note: produits.length ? null : 'Ce rayon est vide chez lui.',
+              }
+            }
+            return {
+              ...vitrine,
+              produits: [],
+              rayonsDisponibles: await f.connecteur.listerRayons(f.creds),
+              rayonChoisi: null,
+              note: 'Son catalogue ne se cherche pas par mots-clés — choisissez un rayon.',
+            }
+          }
+
           return {
             ...vitrine,
             produits: [],
