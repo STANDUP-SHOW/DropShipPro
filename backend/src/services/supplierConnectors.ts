@@ -19,6 +19,7 @@
 
 export * from './supplierTypes.js'
 
+import { traduireEnAnglais, gardeLesPertinents } from './traduction.js'
 import {
   SupplierError,
   type SupplierConnector,
@@ -62,6 +63,22 @@ async function appel(url: string, options: RequestInit & { timeoutMs?: number } 
 const bigbuy: SupplierConnector = {
   id: 'bigbuy',
   label: 'BigBuy',
+
+  /**
+   * Le porte-monnaie : l'appel le moins cher qui prouve l'identité.
+   *
+   * Il ne lit aucun catalogue et ne coûte aucun quota de recherche — il répond
+   * juste « je sais qui vous êtes » ou « Invalid Token ». C'est exactement ce
+   * qu'on veut éprouver au moment d'enregistrer une clé.
+   */
+  async verifier(credentials) {
+    const key = credentials.apiKey?.trim()
+    if (!key) throw new SupplierError("Aucune clé d'API BigBuy saisie.", true)
+    await appel(`${BASES.bigbuy}/rest/user/purse.json`, {
+      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+    })
+  },
+
   async fetchPrices(refs, credentials) {
     const key = credentials.apiKey?.trim()
     if (!key) throw new SupplierError("Aucune clé d'API BigBuy enregistrée.", true)
@@ -136,6 +153,18 @@ const enTetesCj = (jeton: string) => ({ 'CJ-Access-Token': jeton, Accept: 'appli
 const cj: SupplierConnector = {
   id: 'cjdropshipping',
   label: 'CJ Dropshipping',
+
+  /**
+   * Obtenir le jeton suffit à prouver le couple e-mail + clé.
+   *
+   * C'est déjà ce que fait chaque appel CJ avant de travailler : si l'échange
+   * passe, les identifiants sont bons, et aucun appel de catalogue n'est
+   * nécessaire pour le savoir.
+   */
+  async verifier(credentials) {
+    await jetonCj(credentials)
+  },
+
   async fetchPrices(refs, credentials) {
     const jeton = await jetonCj(credentials)
 
@@ -179,14 +208,25 @@ const cj: SupplierConnector = {
    */
   async searchProducts(motsCles, credentials) {
     const jeton = await jetonCj(credentials)
+
+    /*
+     * **En anglais, et filtré.** Deux défauts constatés le 16/09/2026, et ils
+     * se cumulaient. `productNameEn` est un index ANGLAIS : « écouteurs sans
+     * fil » y rendait une balayette de jardin et un fer à boucler, accrochés au
+     * seul mot « fil ». Et même en anglais parfait, CJ s'accroche à UN mot —
+     * « wireless earbuds » rendait un nettoyeur haute pression, une tasse pour
+     * bébé et un soutien-gorge, tous « wireless », aucun écouteur, sans le
+     * moindre classement par pertinence.
+     */
+    const requete = await traduireEnAnglais(motsCles)
     const reponse = (await appel(
-      `${BASES.cjdropshipping}/product/list?productNameEn=${encodeURIComponent(motsCles)}&pageNum=1&pageSize=10`,
+      `${BASES.cjdropshipping}/product/list?productNameEn=${encodeURIComponent(requete)}&pageNum=1&pageSize=40`,
       { headers: enTetesCj(jeton) },
     )) as {
       data?: { list?: Array<{ pid?: string; productNameEn?: string; sellPrice?: number | string; productImage?: string }> }
     }
 
-    return (reponse.data?.list ?? [])
+    const lignes = (reponse.data?.list ?? [])
       .filter((p) => p.pid)
       .map((p): SupplierListing => ({
         ref: p.pid!,
@@ -197,6 +237,10 @@ const cj: SupplierConnector = {
         url: `https://www.cjdropshipping.com/product/-p-${p.pid}.html`,
         entrepot: null,
       }))
+
+    // On demande large (40) puis on resserre : CJ ne classe pas, donc élaguer
+    // sur dix lignes ne laisserait presque rien de juste.
+    return gardeLesPertinents(lignes, requete).slice(0, 20)
   },
 
   async fetchVariants(ref, credentials) {

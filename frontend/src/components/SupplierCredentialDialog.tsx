@@ -70,7 +70,16 @@ export function FormulaireFournisseur({
     setBusy(true)
     setError(null)
     try {
-      await api.saveSupplierLink(supplier.id, valeurs)
+      const r = await api.saveSupplierLink(supplier.id, valeurs)
+      /*
+       * Le refus du fournisseur s'affiche ICI, au moment de la saisie.
+       *
+       * Les identifiants sont enregistrés quand même — les resaisir à chaque
+       * essai serait pénible, et certains refus sont temporaires. Mais la
+       * liaison n'est PAS déclarée reliée, et le vendeur lit le refus mot pour
+       * mot : « Invalid Token » dit quoi corriger, « échec » ne dit rien.
+       */
+      if (r?.refus) setError(r.refus)
       onSaved()
           } catch (err) {
       setError(err instanceof Error ? err.message : 'Enregistrement impossible')

@@ -24,6 +24,7 @@ import { diagnostiquerJetonShopify } from '../services/shopifyToken.js'
 import { configApp, urlInstallation } from '../services/shopifyApp.js'
 import { urlAutorisationAliexpress, retourAliexpress } from '../services/supplierAliexpress.js'
 import { autorisationAliexpressPrete, signerEtatAli, VIE_ETAT_ALI_MS } from './aliexpressAuth.js'
+import { findConnector } from '../services/supplierConnectors.js'
 import { generateApiKey } from '../middleware/apiKey.js'
 import { oublierImagesExport } from '../services/exportImages.js'
 
@@ -699,7 +700,34 @@ settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
    * les commandes en silence, et le vendeur chercherait la panne ailleurs.
    */
   const autorisation = fournisseur.api?.autorisation
-  const connected = autorisation ? Boolean((data as Record<string, unknown>)[autorisation.cleJeton]) : true
+  let connected = autorisation ? Boolean((data as Record<string, unknown>)[autorisation.cleJeton]) : true
+
+  /*
+   * **On essaie la clé avant de dire « relié ».**
+   *
+   * Constaté le 16/09/2026 : la liaison BigBuy était marquée reliée depuis des
+   * jours pendant que l'API répondait « Invalid Token » à chaque appel. Rien ne
+   * pouvait le révéler — l'enregistrement n'essayait jamais, et l'échec
+   * n'apparaissait qu'au moment d'importer, loin du formulaire et sans rapport
+   * apparent avec lui.
+   *
+   * L'essai ne bloque PAS l'enregistrement : les identifiants sont conservés et
+   * le vendeur reçoit le refus du fournisseur mot pour mot, pour le corriger.
+   * Refuser d'enregistrer lui ferait tout resaisir à chaque essai, et certains
+   * refus sont temporaires — un quota, une coupure.
+   */
+  let refus: string | null = null
+  if (connected) {
+    const connecteur = findConnector(fournisseur.id)
+    if (connecteur?.verifier) {
+      try {
+        await connecteur.verifier(data as Record<string, string>)
+      } catch (e) {
+        refus = e instanceof Error ? e.message : 'Le fournisseur a refusé ces identifiants.'
+        connected = false
+      }
+    }
+  }
 
   const lien = await prisma.supplierConnection.upsert({
     where: { userId_supplier: { userId: req.userId!, supplier: fournisseur.id } },
@@ -711,7 +739,10 @@ settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
     supplier: lien.supplier,
     connected: lien.connected,
     // L'écran doit savoir qu'il reste un geste, sinon il annonce une réussite.
-    autorisationRequise: Boolean(autorisation && !connected),
+    autorisationRequise: Boolean(autorisation && !connected && !refus),
+    // Le refus du fournisseur, mot pour mot : « Invalid Token » dit quoi
+    // corriger, « échec » ne dit rien.
+    refus,
   })
 })
 

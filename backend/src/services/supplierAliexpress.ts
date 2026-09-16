@@ -524,7 +524,19 @@ export const aliexpress: SupplierConnector = {
         currency: credentials.currency?.trim() || 'EUR',
         pageIndex: '1',
         pageSize: '20',
-        sortBy: 'orders,desc',
+        /*
+         * **Aucun tri, et c'est le correctif.**
+         *
+         * On envoyait `sortBy: 'orders,desc'`, en croyant faire remonter ce qui
+         * se vend. Constaté le 16/09/2026 en comparant les deux appels côte à
+         * côte sur « mini pc » : trier par commandes prend les articles les
+         * PLUS VENDUS parmi tout ce qui correspond de près ou de loin, donc
+         * rendait une station météo, un allume-cigare, un ventilateur de poche
+         * et des aimants — des best-sellers qui contiennent « mini ». Sans
+         * tri, AliExpress classe par pertinence et les six premiers sont des
+         * mini-PC. Le tri par popularité n'a de sens que sur un ensemble déjà
+         * pertinent ; appliqué à la recherche, il la remplace.
+         */
       },
       appSecret,
       undefined,
@@ -719,10 +731,10 @@ function lireListeProduits(brut: unknown): SupplierListing[] {
           p.target_sale_price ?? p.targetSalePrice ?? p.sale_price ?? p.salePrice ?? p.minPrice ?? '',
         ) || null,
       devise: String(p.target_sale_price_currency ?? p.currency ?? 'EUR'),
-      image:
-        typeof (p.product_main_image_url ?? p.productMainImageUrl ?? p.imageUrl) === 'string'
-          ? String(p.product_main_image_url ?? p.productMainImageUrl ?? p.imageUrl)
-          : null,
+      // `itemMainPic` est le nom qu'emploie ds.text.search, là où le flux des
+      // meilleures ventes dit `product_main_image_url`. Le même champ, deux
+      // noms : ne lire que le premier laissait toutes les vignettes vides.
+      image: premiereChaine(p.product_main_image_url, p.productMainImageUrl, p.itemMainPic, p.imageUrl),
       url:
         typeof (p.product_detail_url ?? p.productDetailUrl) === 'string'
           ? String(p.product_detail_url ?? p.productDetailUrl)
@@ -730,6 +742,12 @@ function lireListeProduits(brut: unknown): SupplierListing[] {
       entrepot: null as null,
     }))
     .filter((p) => p.ref && p.titre)
+}
+
+/** La première de ces valeurs qui soit une chaîne non vide. */
+function premiereChaine(...valeurs: unknown[]): string | null {
+  for (const v of valeurs) if (typeof v === 'string' && v) return v
+  return null
 }
 
 /** Descend dans la réponse jusqu'au premier tableau qui porte des produits. */

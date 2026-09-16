@@ -173,6 +173,22 @@ export interface SupplierConnector {
     credentials: Record<string, string>,
     ctx?: SupplierContext,
   ): Promise<SupplierListing[]>
+
+  /**
+   * Éprouve les identifiants, et lève si le fournisseur les refuse.
+   *
+   * **« Relié » ne doit pas vouloir dire « saisi ».** Constaté le 16/09/2026 :
+   * la liaison BigBuy était marquée reliée depuis des jours pendant que l'API
+   * répondait « Invalid Token » à chaque appel. Personne ne pouvait le savoir —
+   * l'enregistrement n'avait jamais essayé la clé, et l'échec n'apparaissait
+   * qu'au moment d'importer, loin du formulaire et sans rapport apparent.
+   *
+   * L'appel doit être le moins cher possible : on vérifie une identité, pas un
+   * catalogue. Un connecteur qui ne sait pas se vérifier ne l'implémente pas —
+   * la liaison est alors enregistrée telle quelle, ce qui reste le
+   * comportement d'avant et ne ment pas davantage.
+   */
+  verifier?(credentials: Record<string, string>, ctx?: SupplierContext): Promise<void>
 }
 
 /** Une ligne de catalogue fournisseur, telle qu'un chef de rayon la présente. */

@@ -1440,7 +1440,7 @@ export const api = {
       '/settings/supplier-links',
     ),
   saveSupplierLink: (supplier: string, data: Record<string, string>) =>
-    request<{ supplier: string; connected: boolean }>('/settings/supplier-links', {
+    request<{ supplier: string; connected: boolean; autorisationRequise?: boolean; refus?: string | null }>('/settings/supplier-links', {
       method: 'PUT',
       body: JSON.stringify({ supplier, data }),
     }),
