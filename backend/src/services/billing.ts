@@ -48,7 +48,7 @@ export interface CreditCheck {
  * ne doit jamais bloquer une action déjà payée, ni pire, la refuser après coup.
  * L'échec est journalisé, pas propagé.
  */
-async function inscrireMouvement(userId: string, delta: number, balance: number, motif: string, ref?: string) {
+export async function inscrireMouvement(userId: string, delta: number, balance: number, motif: string, ref?: string) {
   try {
     await prisma.dropTransaction.create({ data: { userId, delta, balance, motif, ref: ref ?? null } })
   } catch (err) {

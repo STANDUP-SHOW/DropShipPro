@@ -99,6 +99,19 @@ export function pageIntegree({ shop, cleApp, site }: PageIntegree): string {
   li { margin: 5px 0; }
   .pied { color: var(--encre-2); font-size: 12px; margin-top: 26px; border-top: 1px solid var(--trait); padding-top: 14px; }
   .pied a { color: inherit; }
+  .ligne-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .solde { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .bandeau { border-radius: 9px; padding: 9px 12px; margin: 10px 0 0; font-size: 13px; font-weight: 600; }
+  .bandeau.ok { background: var(--vert-doux); color: var(--vert); }
+  .bandeau.attente { background: var(--ambre-doux); color: var(--ambre); }
+  .packs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+  .pack { border: 1px solid var(--trait); border-radius: 10px; padding: 12px; text-align: left;
+          background: transparent; color: var(--encre); cursor: pointer; font: inherit; }
+  .pack:hover { border-color: #a855f7; }
+  .pack:disabled { opacity: .55; cursor: wait; }
+  .pack .d { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .pack .p { color: var(--encre-2); font-size: 12px; margin-top: 2px; }
+  .pack .u { color: var(--encre-2); font-size: 11px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -131,6 +144,17 @@ export function pageIntegree({ shop, cleApp, site }: PageIntegree): string {
       <a class="bouton" href="${w}/produits" target="_blank" rel="noopener">Mes annonces</a>
       <a class="bouton" href="${w}/catalogues" target="_blank" rel="noopener">Chercher un produit chez mes fournisseurs</a>
     </div>
+  </div>
+
+  <div class="carte" id="carte-drops" hidden>
+    <div class="ligne-titre">
+      <b>Vos drops</b>
+      <span class="solde"><span id="n-drops">—</span> drops</span>
+    </div>
+    <p class="sous" style="margin-top:4px">La monnaie de chaque action — import, réécriture, image, publicité. Achetés ici, ils sont facturés par Shopify avec votre abonnement.</p>
+    <p class="bandeau ok" id="bandeau-credite" hidden></p>
+    <p class="bandeau attente" id="bandeau-achat" hidden></p>
+    <div class="packs" id="packs"></div>
   </div>
 
   <div class="carte">
@@ -189,6 +213,7 @@ export function pageIntegree({ shop, cleApp, site }: PageIntegree): string {
     document.getElementById('n-catalogue').textContent = d.catalogue
     document.getElementById('n-fournisseurs').textContent = d.fournisseurs
     document.getElementById('chiffres').hidden = false
+    if (d.reliee) montrerDrops(d)
 
     if (d.reliee) {
       etat.className = 'etat ok'
@@ -201,6 +226,74 @@ export function pageIntegree({ shop, cleApp, site }: PageIntegree): string {
     }
   } catch (e) {
     echec("Impossible de vérifier la liaison pour l'instant. Réessayez dans un instant.")
+  }
+
+  /*
+   * Les recharges : un bouton par pack, l'achat s'ouvre chez Shopify.
+   *
+   * La page d'approbation de Shopify ne peut pas s'afficher dans l'iframe :
+   * on y envoie la fenêtre entière (_top). Shopify ramène ensuite le marchand
+   * ici par notre adresse de retour, et le serveur a déjà crédité ce que
+   * Shopify dit approuvé — la page ne fait que l'afficher.
+   */
+  function montrerDrops(d) {
+    var carte = document.getElementById('carte-drops')
+    var packs = document.getElementById('packs')
+    var solde = document.getElementById('n-drops')
+    var bandeauCredite = document.getElementById('bandeau-credite')
+    var bandeauAchat = document.getElementById('bandeau-achat')
+    solde.textContent = Number(d.drops || 0).toLocaleString('fr-FR')
+
+    if (d.credites && d.credites.length) {
+      var total = d.credites.reduce(function (s, c) { return s + c.drops }, 0)
+      bandeauCredite.textContent = 'Recharge créditée : +' + total.toLocaleString('fr-FR') + ' drops. Merci !'
+      bandeauCredite.hidden = false
+    } else if (/[?&]achat=attente/.test(location.search)) {
+      bandeauAchat.textContent = "L'achat n'est pas encore approuvé chez Shopify. Dès qu'il l'est, les drops apparaissent ici."
+      bandeauAchat.hidden = false
+    } else if (/[?&]achat=erreur/.test(location.search)) {
+      bandeauAchat.textContent = "Impossible de vérifier l'achat pour l'instant. Rouvrez cette page dans un instant : les drops seront crédités."
+      bandeauAchat.hidden = false
+    }
+
+    packs.textContent = ''
+    ;(d.packs || []).forEach(function (p) {
+      var b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'pack'
+      var unitaire = (Number(p.prix) / p.drops * 100).toFixed(2).replace('.', ',')
+      b.innerHTML = '<div class="d">' + p.drops.toLocaleString('fr-FR') + ' drops</div>' +
+        '<div class="p">' + String(p.prix).replace('.', ',') + ' € TTC</div>' +
+        '<div class="u">' + unitaire + ' c le drop</div>'
+      b.addEventListener('click', function () { acheter(p.id, b) })
+      packs.appendChild(b)
+    })
+    carte.hidden = false
+  }
+
+  async function acheter(packId, bouton) {
+    var bandeauAchat = document.getElementById('bandeau-achat')
+    bouton.disabled = true
+    try {
+      var jeton = await window.shopify.idToken()
+      var r = await fetch('/api/shopify/embed/achat', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + jeton, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId: packId }),
+      })
+      var j = await r.json()
+      if (!r.ok || !j.confirmationUrl) {
+        bandeauAchat.textContent = j.error || "Impossible d'ouvrir l'achat pour l'instant."
+        bandeauAchat.hidden = false
+        bouton.disabled = false
+        return
+      }
+      window.open(j.confirmationUrl, '_top')
+    } catch (e) {
+      bandeauAchat.textContent = "Impossible d'ouvrir l'achat pour l'instant. Réessayez."
+      bandeauAchat.hidden = false
+      bouton.disabled = false
+    }
   }
 })()
 </script>
