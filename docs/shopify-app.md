@@ -33,6 +33,60 @@ objet différent. Voici l'inventaire, sans arrondir.
 | Fiche App Store (visuels, textes, démonstration, politique de confidentialité) | **à faire** | — |
 | **Facturation** | **décision à prendre** | voir plus bas |
 
+## L'état réel du Dev Dashboard (16/09/2026, constaté)
+
+Organisation **oguss conect** (`232181656`). **Deux applis y existent** — la
+question « faut-il en créer une ? » revenait à chaque session, la réponse est
+non.
+
+| Appli | Id | Installations | À quoi elle sert |
+|---|---|---|---|
+| **DropShipper IA** | `415503286273` | 0 | **C'est l'app publique.** Configurée et publiée en version `2.0-oauth-publique` le 16/09/2026. |
+| DROP-SHIPPER AI | `415547916289` | 1 | **Ne pas l'utiliser.** Sa version 14 demande *toutes* les portées de Shopify — paiements, thèmes, commandes complètes, journaux d'audit. Une fiche App Store avec ça est refusée, et c'est une surface d'attaque gratuite. À nettoyer ou à supprimer, séparément. |
+
+Ce que porte la version `2.0-oauth-publique` :
+
+- **Portées** : `read_products,write_products,read_publications,write_publications`
+  — rien d'autre. Shopify examine cette liste.
+- **URL de redirection** : `…/api/shopify/callback`
+- **URL de l'appli** : `…/api/shopify/app`
+- **Intégrée dans l'admin** : oui (App Bridge). **POS** : non.
+- **Flux d'installation hérité : OUI**, et ce n'est pas un oubli. « Hérité »
+  désigne le *grant* OAuth classique — redirection vers `/admin/oauth/authorize`
+  puis échange du `code` —, c'est-à-dire exactement ce que `routes/shopifyApp.ts`
+  implémente. Le décocher ferait passer Shopify en installation « gérée » : notre
+  `/callback` ne serait plus jamais appelé, et il faudrait écrire l'échange de
+  jeton de session à la place.
+
+**Ce qui manque encore : les webhooks RGPD ne sont déclarés nulle part.** Le
+formulaire de version du Dev Dashboard n'expose que la *version d'API* des
+webhooks, pas leurs adresses ; les sujets de conformité se déclarent dans
+`shopify.app.toml` et se poussent par `shopify app deploy`. Notre endpoint les
+traite et son banc passe — mais tant que l'adresse n'est pas déclarée, **Shopify
+ne les enverra pas**. Conséquence concrète : après une désinstallation, aucun
+`shop/redact` n'arrive et le jeton resterait en base. Deux façons de fermer ça,
+au choix : déclarer les sujets par le CLI, ou souscrire `app/uninstalled`
+nous-mêmes juste après l'OAuth (`webhookSubscriptionCreate`). Obligatoire pour
+une fiche App Store ; à faire de toute façon.
+
+## Le domaine d'API
+
+Ajouté dans Railway le 16/09/2026 : **`api.drop-shipper.fr`**, port 8080, sur le
+service `DropShipPro`. Les anciennes adresses `*.up.railway.app` continuent de
+répondre — l'ajout est purement additif, rien ne casse.
+
+**Le DNS de `drop-shipper.fr` est chez OVH** (`ns106.ovh.net`, `dns106.ovh.net`),
+pas chez Vercel. Les deux enregistrements à poser dans la zone :
+
+| Type | Nom | Valeur |
+|---|---|---|
+| CNAME | `api` | `neb2lwm1.up.railway.app` |
+| TXT | `_railway-verify.api` | `railway-verify=250de5caab3be96d0fb44acd7c20a32e04f031c1a83f6b34db23e361bbeecf7f` |
+
+Tant que `api.drop-shipper.fr` ne résout pas, l'App URL et l'URL de redirection
+déclarées chez Shopify portent l'adresse Railway. **Ce sont deux champs à
+rechanger** une fois le domaine actif, plus `PUBLIC_API_URL` sur Railway.
+
 À faire par Max pour activer ce qui est déjà écrit — trois variables sur
 Railway, et rien d'autre :
 
