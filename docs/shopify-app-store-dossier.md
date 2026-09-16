@@ -54,11 +54,18 @@ Ce qu'il reste à faire, et qui demande la session Shopify de Max :
 cd shopify-app && shopify app deploy --no-release
 ```
 
-Le CLI ouvre une page de connexion Shopify (compte de Max), crée une version
-sans l'activer ; on la relit dans le Dev Dashboard › Versions, puis on
-l'active. Ensuite, contrôle : dans l'admin d'auto-parts, désinstaller
-DropShipper IA et vérifier dans les journaux Railway `app/uninstalled … liaison(s)
-éteinte(s)`, puis réinstaller. Le CLI est installé sur la machine (4.8.0).
+**FAIT le 16/09/2026 à 23h55** : version `1.1-webhooks-rgpd` créée par le
+CLI puis publiée (`shopify app release --version=1.1-webhooks-rgpd
+--allow-updates`), relue dans le Dev Dashboard : identique à la 1.0 plus les
+trois URL de conformité (`customers_data_request_url`, `customers_redact_url`,
+`shop_redact_url` → `/api/shopify/webhooks`). Deux pièges rencontrés, écrits
+dans le TOML : la connexion du CLI se fait par code d'appareil
+(accounts.shopify.com/activate, saisir le code, puis « Se connecter à Shopify
+CLI sur un autre appareil ? Continuer ») ; et **avec le flux d'installation
+hérité, Shopify refuse tout abonnement webhook au niveau de l'app**
+(`topics = ["app/uninstalled"]`) — seuls les `compliance_topics` passent.
+`app/uninstalled` reste posé boutique par boutique par le code. Le dossier
+`shopify-app/.shopify/` (état local du CLI) est ignoré par git.
 
 ### 2.2 La facturation — LE point bloquant, et il est bien écrit noir sur blanc
 

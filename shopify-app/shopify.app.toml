@@ -28,7 +28,6 @@ embedded = true
 
 [build]
 automatically_update_urls_on_dev = false
-include_config_on_deploy = true
 
 [access_scopes]
 # Les mêmes que PORTEE_PAR_DEFAUT dans shopifyApp.ts et que la version active.
@@ -53,13 +52,10 @@ api_version = "2026-07"
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
 uri = "https://api.drop-shipper.fr/api/shopify/webhooks"
 
-# La désinstallation, déclarée au niveau de l'app : la liaison s'éteint sans
-# attendre que la première publication échoue. Le code pose aussi cet
-# abonnement boutique par boutique à l'installation — un doublon est accepté
-# (« already been taken ») et le traitement est idempotent.
-[[webhooks.subscriptions]]
-topics = ["app/uninstalled"]
-uri = "https://api.drop-shipper.fr/api/shopify/webhooks"
+# La désinstallation (app/uninstalled) N'est PAS déclarée ici : avec le flux
+# d'installation hérité, Shopify refuse tout abonnement au niveau de l'app
+# (constaté au premier deploy, 16/09/2026). Le code la pose boutique par
+# boutique à l'installation, et c'est suffisant.
 
 [pos]
 embedded = false
