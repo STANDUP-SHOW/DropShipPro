@@ -263,7 +263,7 @@ export function pageIntegree({ shop, cleApp, site }: PageIntegree): string {
       b.className = 'pack'
       var unitaire = (Number(p.prix) / p.drops * 100).toFixed(2).replace('.', ',')
       b.innerHTML = '<div class="d">' + p.drops.toLocaleString('fr-FR') + ' drops</div>' +
-        '<div class="p">' + String(p.prix).replace('.', ',') + ' € TTC</div>' +
+        '<div class="p">' + String(p.prix).replace('.', ',') + ' € HT</div>' +
         '<div class="u">' + unitaire + ' c le drop</div>'
       b.addEventListener('click', function () { acheter(p.id, b) })
       packs.appendChild(b)
