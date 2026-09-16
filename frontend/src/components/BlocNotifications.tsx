@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, ShoppingBag, Inbox, PackageX, Truck, LifeBuoy } from 'lucide-react'
+import { ShoppingBag, Inbox, PackageX, Truck, LifeBuoy } from 'lucide-react'
 import { api } from '../lib/api'
 import { useDemo } from '../lib/demo'
 
@@ -73,53 +73,39 @@ export function BlocNotifications() {
   // La pilule DEMO du tableau de bord commande tout le site : ici aussi.
   const affiches = demo ? NOTIFS_DEMO : compteurs
 
+  /*
+   * Plus de cadre ni d'en-tête : le titre vit au-dessus, dans le bandeau, et
+   * les cinq tuiles se partagent la largeur exactement comme les six jauges du
+   * dessus — même bordure, même fond, même hauteur. C'est ce qui fait tenir les
+   * deux lignes sur le même gabarit.
+   */
   return (
-    <section
-      className="h-full rounded-2xl border border-white/[0.12] bg-white/[0.05] p-4 backdrop-blur-2xl"
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)' }}
-    >
-      <header className="mb-3 flex items-center gap-2.5 border-b border-white/10 pb-2">
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-purple-400 text-black/80">
-          <Bell size={14} />
-        </span>
-        <h2 className="text-sm font-bold uppercase tracking-widest text-purple-200">Notifications</h2>
-      </header>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {TUILES.map((t) => {
-          const n = affiches?.[t.cle] ?? 0
-          const actif = n > 0
-          return (
-            <Link
-              key={t.cle}
-              to={t.to}
-              title={`${t.label} : ${n}`}
-              className="flex flex-col gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3"
-            >
-              <span className="flex items-center justify-between">
-                <t.icone size={16} style={{ color: t.teinte }} />
-                {actif ? (
-                  <span
-                    className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-black/85"
-                    style={{ backgroundColor: t.teinte }}
-                  >
-                    {n}
-                  </span>
-                ) : null}
-              </span>
+    <div className="flex gap-2">
+      {TUILES.map((t) => {
+        const n = affiches?.[t.cle] ?? 0
+        const actif = n > 0
+        return (
+          <Link
+            key={t.cle}
+            to={t.to}
+            title={`${t.label} : ${n}`}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 backdrop-blur-xl transition hover:border-white/[0.18]"
+          >
+            <t.icone size={18} style={{ color: actif ? t.teinte : '#6b7280' }} className="shrink-0" />
+            <span className="min-w-0 flex-1">
               <span
-                className="text-2xl font-extrabold leading-none"
+                className="block text-lg font-extrabold leading-none"
                 style={{ color: actif ? t.teinte : '#6b7280' }}
               >
                 {n.toLocaleString('fr-FR')}
               </span>
-              <span className="text-[10px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
+              <span className="mt-1 block truncate text-[9px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
                 {t.label}
               </span>
-            </Link>
-          )
-        })}
-      </div>
-    </section>
+            </span>
+          </Link>
+        )
+      })}
+    </div>
   )
 }

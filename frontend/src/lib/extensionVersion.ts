@@ -40,6 +40,20 @@ export interface EtatExtension {
   store: boolean
   /** Une copie chargée à la main est installée (seule, ou en plus de celle du store). */
   copieDev: boolean
+  /**
+   * Les deux versions, séparément — et c'est le point.
+   *
+   * **Constaté le 16/09/2026 :** le vendeur voyait 1.35.0 dans `chrome://extensions`
+   * et « Version 1.32.0 » chez nous, et concluait que l'écran mentait. Il ne
+   * mentait pas — il avait DEUX copies installées, celle du store en 1.32 et la
+   * sienne chargée à la main en 1.35 — mais il n'en montrait qu'une, sans dire
+   * qu'il choisissait. Un écran qui tranche en silence est indiscernable d'un
+   * écran faux.
+   */
+  versionStore: string | null
+  versionManuelle: string | null
+  /** Les deux copies cohabitent : à signaler, c'est une source de confusion réelle. */
+  deuxCopies: boolean
 }
 
 export function useExtensionVersion(): EtatExtension {
@@ -74,5 +88,8 @@ export function useExtensionVersion(): EtatExtension {
     presente: copies.length > 0,
     store: Boolean(duStore),
     copieDev: Boolean(manuelle),
+    versionStore: duStore?.version ?? null,
+    versionManuelle: manuelle?.version ?? null,
+    deuxCopies: Boolean(duStore && manuelle),
   }
 }

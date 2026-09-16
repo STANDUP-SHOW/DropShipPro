@@ -3,20 +3,30 @@ import { useExtensionVersion } from '../lib/extensionVersion'
 import { useDemo } from '../lib/demo'
 
 /**
- * Le bloc « Extension Google Chrome », à côté des notifications.
+ * La tuile « Extension Chrome », au gabarit des jauges du dessus.
  *
- * Demandé le 10/09/2026, et il remplace le bandeau d'avertissement en haut des
- * pages. Le raisonnement : l'extension est au Chrome Web Store, donc une version
- * en retard n'est plus un problème à signaler en gros — Chrome la met à jour
- * tout seul, en quelques heures. On montre juste un CURSEUR BICOLORE : à jour
- * (vert) ou mise à jour en cours (ambre). Le détail jaune ne s'affiche qu'au
- * SURVOL, et sur la page Extension — nulle part ailleurs.
+ * **Ce qu'elle ne dit plus, et pourquoi.** Elle annonçait « À jour » avec un
+ * numéro de version. Les deux étaient contestables et le vendeur l'a vu tout de
+ * suite le 16/09/2026 : « dans Chrome la 1.35 est chargée, dans l'appli je lis
+ * 1.32, votre appli est à jour — un gros bloc qui dit des trucs faux ».
  *
- * Tout le bloc mène à la page de l'extension.
+ * Deux fautes distinctes, et la seconde est la vraie :
+ *
+ * 1. **« À jour » est une comparaison qu'on ne peut pas faire.** Le Chrome Web
+ *    Store ne lit pas notre dépôt ; nous ignorons ce qu'il sert. C'était déjà la
+ *    leçon du 15/09, et il restait ce mot pour la contredire.
+ * 2. **Il avait DEUX copies installées** — celle du store et la sienne chargée à
+ *    la main —, l'écran en choisissait une et n'en disait rien. Un écran qui
+ *    tranche en silence est indiscernable d'un écran faux : il n'y a aucun moyen,
+ *    pour celui qui le lit, de savoir lequel des deux il est.
+ *
+ * Elle dit donc ce qui se sait : combien de copies répondent, d'où elles
+ * viennent, et quelle version chacune annonce. Le reste est sur la page
+ * Extension, où il y a la place de l'expliquer.
  */
 
 /** Le logo Chrome, en petit. */
-function ChromeGlyph({ size = 20 }: { size?: number }) {
+function ChromeGlyph({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden className="shrink-0">
       <circle cx="24" cy="24" r="9" fill="#fff" />
@@ -29,82 +39,66 @@ function ChromeGlyph({ size = 20 }: { size?: number }) {
 }
 
 export function BlocExtension() {
-  const { presente, copieDev, installee } = useExtensionVersion()
+  const { presente, store, copieDev, deuxCopies, versionStore, versionManuelle, installee } =
+    useExtensionVersion()
   const [demo] = useDemo()
 
-  // Trois états : à jour (copie du store, que Chrome tient à jour), copie
-  // manuelle (chargée à la main, qui ne se mettra jamais à jour), non installée.
-  // Le site ne compare plus les numéros de version : le store ne lit pas notre
-  // dépôt, il n'a que ce qu'on lui téléverse (15/09/2026). En mode démo, la
-  // pilule du tableau de bord commande tout le site : l'extension est montrée
-  // « à jour », comme le reste de la démonstration.
-  const etat = demo ? 'ajour' : !presente ? 'absente' : copieDev ? 'maj' : 'ajour'
-  // En démo sans extension, aucun numéro inventé : un tiret.
-  const versionAffichee = demo ? installee ?? '—' : installee
-  const config = {
-    ajour: { label: 'À jour', teinte: '#34d399', cote: 'gauche' as const },
-    maj: { label: 'Copie manuelle', teinte: '#fbbf24', cote: 'droite' as const },
-    absente: { label: 'Non installée', teinte: '#6b7280', cote: 'gauche' as const },
-  }[etat]
+  /*
+   * Quatre situations réelles, et chacune appelle un geste différent. Les
+   * fondre en « à jour / pas à jour » est précisément ce qui produisait un
+   * écran faux.
+   */
+  const etat = demo
+    ? { teinte: '#34d399', valeur: installee ?? '—', label: 'Extension active', detail: 'Mode démonstration.' }
+    : deuxCopies
+      ? {
+          teinte: '#fbbf24',
+          valeur: versionStore ?? '—',
+          label: 'Deux copies',
+          detail: `Une copie du Chrome Web Store (${versionStore}) et une copie chargée à la main (${versionManuelle}) sont installées. C'est celle du store qui fait foi. Retirez l'autre depuis chrome://extensions.`,
+        }
+      : store
+        ? {
+            teinte: '#34d399',
+            valeur: versionStore ?? '—',
+            label: 'Extension active',
+            detail: `Copie du Chrome Web Store, version ${versionStore}. Chrome la met à jour tout seul.`,
+          }
+        : copieDev
+          ? {
+              teinte: '#fbbf24',
+              valeur: versionManuelle ?? '—',
+              label: 'Copie manuelle',
+              detail: `Version ${versionManuelle}, chargée à la main : elle ne se mettra jamais à jour. Installez celle du Chrome Web Store.`,
+            }
+          : {
+              teinte: '#6b7280',
+              valeur: '—',
+              label: 'Non installée',
+              detail: "Cliquez pour l'installer depuis le Chrome Web Store.",
+            }
 
   return (
     <Link
       to="/extension"
-      className="group relative flex h-full flex-col rounded-2xl border border-white/[0.12] bg-white/[0.05] p-4 backdrop-blur-2xl"
+      title={etat.detail}
+      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 backdrop-blur-xl transition hover:border-white/[0.18]"
     >
-      <header className="mb-3 flex items-center gap-2.5 border-b border-white/10 pb-2">
-        <ChromeGlyph size={20} />
-        <h2 className="text-sm font-bold uppercase tracking-widest text-gray-200">Extension Google Chrome</h2>
-      </header>
-
-      <div className="flex flex-1 items-center gap-3">
-        {/* L'icône de l'extension, la même que la marque et le Web Store. */}
-        <img
-          src="/favicon-128.png"
-          width={40}
-          height={40}
-          alt=""
+      <ChromeGlyph size={18} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-lg font-extrabold leading-none" style={{ color: etat.teinte }}>
+          {etat.valeur}
+        </span>
+        <span className="mt-1 block truncate text-[9px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
+          {etat.label}
+        </span>
+      </span>
+      {presente ? (
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: etat.teinte, boxShadow: `0 0 8px ${etat.teinte}` }}
           aria-hidden
-          className="shrink-0 rounded-[26%]"
-          style={{ width: 40, height: 40 }}
         />
-
-        <div className="min-w-0 flex-1">
-          {/* Le curseur bicolore : à jour (vert) ↔ mise à jour (ambre). */}
-          <div className="relative h-6 w-full max-w-[190px] overflow-hidden rounded-full border border-white/10">
-            <div className="absolute inset-0 flex">
-              <span className="flex-1" style={{ background: 'rgba(52,211,153,0.18)' }} />
-              <span className="flex-1" style={{ background: 'rgba(251,191,36,0.18)' }} />
-            </div>
-            {/* Le curseur, posé sur la moitié active. */}
-            <span
-              className="absolute top-0.5 bottom-0.5 w-[calc(50%-3px)] rounded-full transition-all duration-300"
-              style={{
-                left: config.cote === 'gauche' ? '3px' : 'calc(50% + 0px)',
-                background: config.teinte,
-                boxShadow: `0 0 10px ${config.teinte}`,
-              }}
-            />
-          </div>
-          <p className="mt-1.5 text-xs font-semibold" style={{ color: config.teinte }}>
-            {config.label}
-          </p>
-          {versionAffichee ? (
-            <p className="text-[10px] text-gray-500">Version {versionAffichee}</p>
-          ) : (
-            <p className="text-[10px] text-gray-500">Cliquez pour l'installer</p>
-          )}
-        </div>
-      </div>
-
-      {/* L'avertissement jaune, au SURVOL seulement, et seulement pour une copie
-          chargée à la main : elle ne se mettra jamais à jour. */}
-      {copieDev && !demo ? (
-        <div className="pointer-events-none absolute left-3 right-3 top-full z-40 mt-1 rounded-xl border border-amber-400/30 bg-[#211a10] p-3 text-[11px] leading-relaxed text-amber-100 opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100">
-          Une copie de l'extension chargée à la main est installée : elle ne se mettra jamais à jour.
-          Retirez-la depuis chrome://extensions et installez l'extension depuis le Chrome Web Store —
-          c'est elle que Chrome tient à jour.
-        </div>
       ) : null}
     </Link>
   )

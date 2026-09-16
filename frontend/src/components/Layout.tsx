@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus, Mail, Search, Menu as MenuIcon, X } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Mail, Search, Menu as MenuIcon, X } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
@@ -356,33 +356,11 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                   )}
                 </Link>
 
-                {/* Le portefeuille de drops, dans le menu, juste sous Dashboard
-                    et avant Auto-Shipper (demandé le 10/09/2026) : solde + recharge
-                    à un clic. Bloc en verre → il s'allume au survol comme les autres. */}
-                {item.to === '/statistiques' && solde ? (
-                  <Link
-                    to="/credits"
-                    className="my-1.5 block rounded-xl border border-white/10 bg-white/[0.05] p-2.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      <DropCoin size={24} className="shrink-0" />
-                      <div className="min-w-0 leading-tight">
-                        <p className="truncate text-sm font-extrabold text-white">
-                          {solde.credits.toLocaleString('fr-FR')}{' '}
-                          <span className="text-[11px] font-semibold text-gray-400">drops</span>
-                        </p>
-                        {solde.euroParDrop ? (
-                          <p className="text-[10px] text-gray-500">
-                            ≈ {(solde.credits * solde.euroParDrop).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                    <span className="btn-gradient mt-2 flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-white">
-                      <Plus size={13} /> Recharger
-                    </span>
-                  </Link>
-                ) : null}
+                {/* Le portefeuille de drops vivait ici depuis le 10/09/2026. Il
+                    est parti dans le bandeau du haut le 16/09 : un solde n'est
+                    pas une destination de navigation, c'est un chiffre qu'on
+                    surveille en travaillant — et dans un menu devenu tiroir sur
+                    téléphone, il disparaissait entièrement. Voir BlocDrops. */}
               </Fragment>
             )
           })}
