@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, Store, Rss, Plug, Puzzle, Ban, Plus } from 'lucide-react'
+import { CheckCircle2, Store, Rss, Plug, Puzzle, Ban, Plus , FileDown} from 'lucide-react'
 import { PlatformBadge } from './PlatformBadge'
 import { api } from '../lib/api'
 import { INTEGRATION_LABEL, type PlatformInfo } from '../lib/platforms'
@@ -81,6 +81,19 @@ export function PublishTargets({
       icone: Puzzle,
       aide: "Aucune API publique : un onglet s'ouvre, l'extension remplit le formulaire, et c'est vous qui cliquez sur Publier.",
       liste: sansOwnSite.filter((p) => p.integration === 'extension'),
+    },
+    {
+      /*
+       * Le quatrième groupe, ajouté le 16/09/2026 avec Faire. Il ne se confond
+       * ni avec le flux — personne ne vient rien relire — ni avec l'extension —
+       * aucun formulaire n'est rempli à votre place. Nous produisons le
+       * fichier au gabarit du canal ; vous le déposez.
+       */
+      id: 'export',
+      titre: 'Boutiques à dépôt de fichier',
+      icone: FileDown,
+      aide: "Le canal n'a ni API ni flux : nous préparons le fichier à son format exact, vous le déposez chez lui. Une fois.",
+      liste: sansOwnSite.filter((p) => p.integration === 'export'),
     },
   ]
 

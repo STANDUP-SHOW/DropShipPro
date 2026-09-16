@@ -9,6 +9,9 @@ datasource db {
 
 enum Platform {
   OWN_SITE
+  FAIRE
+  TEMU
+  ALIEXPRESS
   LEBONCOIN
   VINTED
   EBAY

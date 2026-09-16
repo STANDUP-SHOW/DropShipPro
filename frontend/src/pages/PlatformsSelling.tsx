@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ExportFaire } from '../components/ExportFaire'
 import { Link } from 'react-router-dom'
 import { Store, X, ExternalLink, AlertTriangle, Search, Check } from 'lucide-react'
 import { Layout } from '../components/Layout'
@@ -16,6 +17,8 @@ const EXPLICATION: Record<string, string> = {
   feed: "Nous produisons un flux que la plateforme vient lire toute seule, à intervalle régulier. Vous branchez l'adresse du flux une fois chez elle.",
   'api-ready':
     "Le raccordement est écrit de notre côté, mais la plateforme exige un compte vendeur validé par ses équipes avant de délivrer les accès. La demande se fait chez elle, à votre nom.",
+  export:
+    "Ce canal n'a ni API d'annonces ni flux à relire : il ingère une feuille de calcul. Nous la préparons à son format exact, avec vos annonces, vos photos et vos prix — vous n'avez qu'à la déposer chez lui.",
   extension:
     "Pas d'API publique : la publication se fait dans votre navigateur. L'extension remplit le formulaire à votre place, et c'est vous qui cliquez sur Publier — publier à votre place ferait suspendre votre compte.",
   none: "Aucune publication n'est possible : cette enseigne n'est pas une place de marché ouverte aux vendeurs tiers.",
@@ -355,6 +358,9 @@ export default function PlatformsSelling() {
                   Installer l'extension
                 </Link>
               ) : null}
+
+              {/* Un canal à dépôt de fichier : on prépare, le vendeur dépose. */}
+              {ouvert.integration === 'export' && ouvert.id === 'FAIRE' ? <ExportFaire /> : null}
             </div>
           </div>
         </div>

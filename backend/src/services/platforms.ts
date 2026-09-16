@@ -9,13 +9,21 @@ import { OPERATEURS_MIRAKL } from './mirakl.js'
  *                 (Instagram, boutique Facebook, Google Shopping). The seller pastes
  *                 the address once ; there is no per-listing call to make.
  * - `api-ready` : an API exists but no seller account is connected yet — recorded as "en attente"
+ * - `export`    : **nous produisons le fichier, le vendeur le dépose.** Le canal
+ *                 n'expose aucune API d'annonces et ne lit aucun flux : il
+ *                 ingère une feuille de calcul déposée à la main. C'est le cas
+ *                 de Faire, dont le portail marque accepte un `.csv`.
+ *                 Ajouté le 16/09/2026 : se ranger sous `extension` aurait
+ *                 promis un remplissage de formulaire qui n'existe pas, et
+ *                 sous `feed` un rafraîchissement automatique qui n'existe pas
+ *                 non plus.
  * - `extension` : no public API at all, the Chrome extension fills the form
- * - `none`      : not a marketplace, nothing can be published
+ * - `none`      : no publication path at all today
  *
  * Bulk publishing only makes sense for the first two: the extension drives one
  * browser tab at a time, with the seller clicking « Publier » himself.
  */
-export type PlatformIntegration = 'live' | 'feed' | 'api-ready' | 'extension' | 'none'
+export type PlatformIntegration = 'live' | 'feed' | 'export' | 'api-ready' | 'extension' | 'none'
 
 export interface PlatformInfo {
   id: Platform
@@ -154,6 +162,64 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     automatable: true,
     sellUrl: 'https://merchant.wish.com',
     note: 'Wish Merchant API — inscription vendeur en self-service.',
+  },
+
+  /*
+   * ---------------------------------------------------------------------------
+   * Les canaux à DOUBLE CASQUETTE : on y achète ET on y vend.
+   * ---------------------------------------------------------------------------
+   *
+   * Notre modèle sépare deux annuaires — les fournisseurs d'un côté
+   * (`suppliers.ts`), les canaux de vente de l'autre — et cette séparation
+   * décrivait mal la réalité. Wish et Etsy figuraient déjà des deux côtés ;
+   * Faire, Temu et AliExpress n'étaient que fournisseurs, alors qu'un vendeur
+   * peut parfaitement y vendre. Signalé le 16/09/2026 : « certains canaux sont
+   * utilisés par les utilisateurs à la fois pour vendre et acheter, on n'a pas
+   * prévu ça. »
+   *
+   * Les deux annuaires restent séparés — ce sont deux métiers, deux jeux
+   * d'identifiants, deux écrans. Ce qui change, c'est qu'un même nom a
+   * désormais le droit d'exister dans les deux.
+   */
+  {
+    id: 'FAIRE',
+    label: 'Faire',
+    // Aucune API d'annonces : le catalogue se dépose en feuille de calcul.
+    // C'est le même geste que chez les opérateurs Mirakl, et il est écrit
+    // (`services/faire.ts`, gabarit officiel à 49 colonnes).
+    automatable: false,
+    sellUrl: 'https://www.faire.com/brand-portal',
+    note: "Vente en GROS entre marques et détaillants. Faire n'expose aucune API d'annonces : on exporte le catalogue au format de son portail marque, et le vendeur le dépose. Les prix de gros, la quantité minimale et le conditionnement sont à décider — ce sont trois données qu'aucune fiche produit ne porte.",
+    warning:
+      "Faire sélectionne des MARQUES, pas des revendeurs : un catalogue de produits AliExpress ou Temu y sera refusé, comme sur Etsy. Réservé aux vendeurs qui ont leur propre marque — impression à la demande avec leurs visuels, marque blanche, création.",
+  },
+  /*
+   * Temu et AliExpress sont marqués SANS CHEMIN DE PUBLICATION, et c'est
+   * délibéré. Les ranger sous « extension » aurait promis un remplissage de
+   * formulaire que personne n'a écrit — aucun adaptateur ne connaît leurs
+   * écrans vendeur. Ils figurent ici parce qu'ils EXISTENT comme places de
+   * marché et que le vendeur doit les voir dans l'annuaire ; l'écran dira
+   * honnêtement qu'on ne sait pas encore y publier.
+   */
+  {
+    id: 'TEMU',
+    label: 'Temu',
+    automatable: false,
+    unavailable: true,
+    sellUrl: 'https://seller.temu.com',
+    note: "Programme vendeur ouvert en Europe, mais sans API publique d'annonces accessible en self-service : le dépôt se fait depuis le portail vendeur.",
+    warning:
+      "Temu impose ses prix planchers et arbitre lui-même la visibilité. Revendre sur Temu des produits achetés sur Temu n'a aucun sens économique : c'est un canal pour qui fabrique ou importe en propre.",
+  },
+  {
+    id: 'ALIEXPRESS',
+    label: 'AliExpress',
+    automatable: false,
+    unavailable: true,
+    sellUrl: 'https://sell.aliexpress.com',
+    note: "Vendre sur AliExpress demande un compte vendeur validé, et l'ouverture aux vendeurs européens reste partielle selon les catégories.",
+    warning:
+      "Notre connecteur AliExpress sert à ACHETER, pas à vendre : c'est la même marque, ce ne sont pas les mêmes identifiants ni la même API. Revendre sur AliExpress ce qu'on y achète est un aller-retour sans marge.",
   },
   // La Redoute, Leclerc, BHV, Kiabi and BrandAlley all run their marketplace on
   // Mirakl, so a single Mirakl connector covers them: only the operator's base URL
@@ -656,8 +722,17 @@ const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', ...OPERATEU
  */
 const FEED: Platform[] = ['INSTAGRAM', 'GOOGLE_SHOPPING']
 
+/**
+ * Les canaux qui ingerent une feuille de calcul deposee a la main.
+ *
+ * Une seule entree aujourd hui, et c est normal : la plupart des places de
+ * marche exposent une API ou lisent un flux. Faire ne fait ni l un ni l autre.
+ */
+const EXPORT: Platform[] = ['FAIRE']
+
 function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchable' | 'domain' | 'video'>): PlatformIntegration {
   if (p.unavailable) return 'none'
+  if (EXPORT.includes(p.id)) return 'export'
   if (!p.automatable) return 'extension'
   if (FEED.includes(p.id)) return 'feed'
   return LIVE.includes(p.id) ? 'live' : 'api-ready'

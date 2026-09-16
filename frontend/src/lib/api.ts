@@ -573,6 +573,12 @@ export const api = {
    * divergerait du serveur à la première évolution, et c'est le genre d'écart
    * qui ne se voit qu'en production.
    */
+  /** Ce que l'export Faire donnerait, sans le produire : de quoi corriger avant de deposer. */
+  faireApercu: (remiseGros: number) =>
+    request<{ total: number; retenus: number; ecartes: Array<{ id: string; titre: string; raison: string }> }>(
+      `/products/meta/faire-apercu?remiseGros=${remiseGros}`,
+    ),
+
   studioTarifs: () =>
     request<{
       volets: Array<{ id: string; label: string; drops: number }>
