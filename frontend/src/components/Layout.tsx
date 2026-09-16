@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus, Mail, Search } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Plus, Mail, Search, Menu as MenuIcon, X } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
@@ -220,6 +220,25 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   /** Ce qui attend, tous rayons confondus — affiché sur le titre replié. */
   const enAttente = rayons.reduce((n, r) => n + r.pending, 0)
 
+  /**
+   * Le menu latéral sur téléphone : un tiroir, fermé par défaut.
+   *
+   * **Il n'y avait rien.** Le menu faisait 224 px de large, `shrink-0`, sans
+   * aucune règle d'écran : sur un téléphone de 375 px il mangeait 60 % de la
+   * largeur, et les 40 % restants devaient contenir la page entière. Rien ne
+   * permettait de le replier — l'application était inutilisable en mobilité,
+   * alors que c'est là qu'un vendeur relève ses commandes.
+   *
+   * Le tiroir se ferme **à chaque changement de page** : sur un écran de
+   * téléphone il recouvre tout, et le laisser ouvert après un clic cacherait
+   * la page qu'on vient de demander. Au-dessus de `md`, il redevient la
+   * colonne fixe d'avant et cet état n'a plus aucun effet.
+   */
+  const [menuOuvert, setMenuOuvert] = useState(false)
+  useEffect(() => {
+    setMenuOuvert(false)
+  }, [pathname])
+
   useEffect(() => {
     api
       .myBilling()
@@ -244,12 +263,75 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
     // Le thème glassmorphism vaut pour toute l'application (04/09/2026) :
     // fond noir vivant — les gouttes de la lampe à lave — sous des blocs en
     // verre. `relative` sur l'aside et le main les fait peindre au-dessus.
-    <div className="min-h-screen text-white flex">
+    <div className="min-h-screen text-white md:flex">
       <FondVivant />
-      <aside className="relative w-56 shrink-0 border-r border-white/10 bg-black/35 p-4 backdrop-blur-xl flex flex-col">
-        <Link to="/dashboard" className="mb-4 block">
-          <Logo size={22} />
+
+      {/*
+        La barre de téléphone : la seule chose qui reste à l'écran quand le
+        menu est un tiroir. Elle porte les trois gestes qu'on ne doit jamais
+        avoir à chercher — ouvrir le menu, revenir à l'accueil, voir son solde
+        — et rien d'autre : la place manque, et chaque élément ajouté ici
+        repousse la page vers le bas sur tous les écrans.
+      */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/10 bg-[#08070f]/85 px-4 backdrop-blur-xl md:hidden">
+        <button
+          type="button"
+          onClick={() => setMenuOuvert(true)}
+          aria-label="Ouvrir le menu"
+          aria-expanded={menuOuvert}
+          className="-ml-1 rounded-lg p-1.5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+        >
+          <MenuIcon size={22} />
+        </button>
+        <Link to="/dashboard" className="min-w-0 shrink">
+          <Logo size={20} />
         </Link>
+        {solde ? (
+          <Link
+            to="/credits"
+            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2 py-1.5"
+          >
+            <DropCoin size={18} className="shrink-0" />
+            <span className="text-xs font-extrabold text-white">
+              {solde.credits.toLocaleString('fr-FR')}
+            </span>
+          </Link>
+        ) : null}
+      </header>
+
+      {/*
+        Le voile. Il assombrit la page ET il ferme le tiroir : sur téléphone,
+        toucher à côté est le geste attendu pour refermer un panneau, et sans
+        lui la seule sortie serait la croix — qu'on ne trouve pas toujours du
+        pouce. `md:hidden` parce qu'au-dessus il n'y a pas de tiroir à fermer.
+      */}
+      {menuOuvert ? (
+        <button
+          type="button"
+          aria-label="Fermer le menu"
+          onClick={() => setMenuOuvert(false)}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+        />
+      ) : null}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] flex-col overflow-y-auto border-r border-white/10 bg-[#08070f]/95 p-4 backdrop-blur-xl transition-transform duration-200 ease-out md:relative md:z-10 md:w-56 md:max-w-none md:shrink-0 md:translate-x-0 md:overflow-visible md:bg-black/35 ${
+          menuOuvert ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <Link to="/dashboard" className="min-w-0">
+            <Logo size={22} />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMenuOuvert(false)}
+            aria-label="Fermer le menu"
+            className="-mr-1 rounded-lg p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white md:hidden"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <BoutonTheme />
         <nav className="space-y-1 flex-1">
           {NAV.map((item) => {
@@ -418,7 +500,9 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
           </button>
         </div>
       </aside>
-      <main className="relative flex-1 px-6 pb-6 md:px-8 md:pb-8 overflow-x-hidden">
+      {/* `min-w-0` : sans lui, un tableau ou un titre long élargit le `flex-1`
+          au-delà de l'écran et c'est la page ENTIÈRE qui défile de côté. */}
+      <main className="relative min-w-0 flex-1 overflow-x-hidden px-4 pb-6 md:px-8 md:pb-8">
         {/* Les six jauges, fixes en tête de chaque page : fait sur possible,
             et la porte vers l'endroit où on agit (04/09/2026). */}
         <BandeauJauges />

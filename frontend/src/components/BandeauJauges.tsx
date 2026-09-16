@@ -115,7 +115,10 @@ export function BandeauJauges() {
     'flex min-w-[68px] flex-1 shrink-0 flex-col items-center gap-1 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
 
   return (
-    <div className="sticky top-0 z-30 -mx-6 mb-5 border-b border-white/[0.06] bg-[#08070f]/80 px-6 py-2.5 backdrop-blur-xl md:-mx-8 md:px-8">
+    // `top-14` sur téléphone : la barre du menu est collée au-dessus, et deux
+    // éléments collés à `top-0` se recouvrent. Au-dessus de `md` cette barre
+    // n'existe pas, donc les jauges reprennent le haut de l'écran.
+    <div className="sticky top-14 z-20 -mx-4 mb-5 border-b border-white/[0.06] bg-[#08070f]/80 px-4 py-2.5 backdrop-blur-xl md:top-0 md:-mx-8 md:px-8">
       <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
         {blocs.map((b) => (
           <Link
