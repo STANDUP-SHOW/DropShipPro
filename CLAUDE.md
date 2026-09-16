@@ -978,6 +978,23 @@ publication « en attente ».
    **Une seule boutique Shopify par compte** (`@@unique([userId, platform])`) :
    installer l'app sur une seconde boutique ÉCRASE la liaison de la première —
    c'est ce qui est arrivé à oguss-france ce jour-là.
+
+   **La facturation hors Shopify est INTERDITE aux apps listées** — exigence
+   1.2.1 de l'App Store, texte exact dans `docs/shopify-app-store-dossier.md`.
+   Le champ « frais facturés hors Shopify » de la fiche sert aux frais qui ne
+   sont pas des frais d'app ; il ne dispense de rien. Une règle se lit dans la
+   page « requirements », pas dans le formulaire qui la met en œuvre. D'où
+   `services/shopifyBilling.ts` (même soir) : les packs de `PACKS_DROPS`
+   s'achètent DANS l'admin par `appPurchaseOneTimeCreate` (nom de l'achat
+   porte `[drops-1000]`, prix en chaîne décimale, `test` vrai sur une boutique
+   de développement) ; **on ne crédite jamais parce que le marchand est
+   revenu**, on relit chez Shopify les achats `ACTIVE` non crédités — au retour
+   ET à chaque ouverture de la page intégrée (retour perdu = crédité à la
+   visite suivante). Le `Payment` s'écrit AVANT les drops sous la clé unique de
+   l'achat (colonne `stripeSessionId`, qui est en fait la clé d'idempotence
+   quel que soit l'encaisseur) : deux régularisations simultanées ne créditent
+   pas deux fois. Prix affichés HT — Shopify ajoute les taxes. Constaté sur
+   auto-parts : 49 850 → 50 350 drops, une fois. Banc `check-shopify-billing.ts`.
    Reste à activer : `SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`,
    `SHOPIFY_APP_SCOPES` sur Railway. Restent à écrire pour la fiche : app
    intégrée + App Bridge + jetons de session. **Et une décision qui n'est pas

@@ -49,12 +49,16 @@ org 5189201, distribution **publique** choisie — irréversible) :
   version dans le Dev Dashboard. **Découverte qui change le plan** : la
   facturation hors Shopify est INTERDITE aux apps listées (exigence 1.2.1,
   texte exact dans le dossier) — la « correction » du matin dans
-  docs/shopify-app.md était fausse, re-corrigée. Chantiers avant soumission :
-  Billing API pour les recharges de drops (1 j), installation lancée depuis
+  docs/shopify-app.md était fausse, re-corrigée. **Billing API FAITE et
+  constatée** (commit e9056ac + ec0eda8 : recharges de drops achetées dans
+  l'admin, achat test approuvé sur auto-parts, 49 850 → 50 350 drops, crédité
+  une fois). Chantiers restants avant soumission : installation lancée depuis
   Shopify sans saisie d'adresse (½ j), coût d'achat dans le champ Cost (1 h),
   page publique /tarifs (1 h), page intégrée qui publie depuis l'admin (1 j),
   puis fichiers de fiche + screencast. Après validation, oguss-france et
-  toute boutique peuvent installer.
+  toute boutique peuvent installer. **Max n'a pas encore réussi le `shopify
+  app deploy`** (PowerShell refuse `&&` : deux commandes séparées) — aucune
+  version nouvelle dans le Dev Dashboard à 23h50.
 - **oguss-france a PERDU sa liaison** : une seule boutique Shopify par compte
   (`@@unique([userId, platform])`), l'installation sur auto-parts a écrasé son
   jeton. Rien de cassé côté Shopify (108 produits en place), mais une nouvelle

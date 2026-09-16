@@ -98,8 +98,19 @@ le compte auquel la boutique est reliée. Banc à écrire contre un faux serveur
 GraphQL (contrat en dur : `appPurchaseOneTimeCreate` rend `confirmationUrl`,
 puis `currentAppInstallation.oneTimePurchases` rend `status: ACTIVE`).
 
-**Estimation : une journée**, tests sur auto-parts avec `test: true` (Shopify
-n'encaisse pas sur une boutique de développement).
+**FAIT le 16/09/2026 au soir** (commit e9056ac, `services/shopifyBilling.ts`,
+banc `check-shopify-billing.ts`) et **constaté sur auto-parts** : la page
+intégrée propose les six packs, l'achat s'ouvre chez Shopify (page « Approuver
+le montant facturé », bandeau « montant de test, ne vous sera pas facturé »),
+l'approbation renvoie sur la page de l'app avec `?achat=ok`, et le solde est
+passé de 49 850 à 50 350 drops — un `Payment` sous la clé
+`gid://shopify/AppPurchaseOneTime/…` et une ligne de relevé « Recharge de 500
+drops (Shopify) ». Rechargé deux fois depuis : crédité une seule fois.
+
+Ce qui reste sur ce point pour la fiche : le bloc Tarifs (« Gratuite à
+installer » + frais supplémentaires), et 1.2.3 ne nous concerne pas (aucun
+forfait à changer). Les abonnements (chefs de rayon, AUTO-SHIPPER) restent
+sur le site et hors fiche.
 
 ### 2.3 L'installation doit PARTIR de Shopify
 

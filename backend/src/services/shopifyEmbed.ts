@@ -248,6 +248,10 @@ export function pageIntegree({ shop, cleApp, site }: PageIntegree): string {
       var total = d.credites.reduce(function (s, c) { return s + c.drops }, 0)
       bandeauCredite.textContent = 'Recharge créditée : +' + total.toLocaleString('fr-FR') + ' drops. Merci !'
       bandeauCredite.hidden = false
+    } else if (/[?&]achat=ok/.test(location.search)) {
+      // Crédité au retour d'approbation, avant que cette page se recharge : le solde ci-dessus est à jour.
+      bandeauCredite.textContent = 'Recharge approuvée par Shopify : votre solde est à jour. Merci !'
+      bandeauCredite.hidden = false
     } else if (/[?&]achat=attente/.test(location.search)) {
       bandeauAchat.textContent = "L'achat n'est pas encore approuvé chez Shopify. Dès qu'il l'est, les drops apparaissent ici."
       bandeauAchat.hidden = false
