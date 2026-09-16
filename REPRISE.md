@@ -16,6 +16,41 @@ contre une liste de fonctions qui grossit pendant que l'application recule.
 
 ---
 
+## Où on en est au soir du 16/09/2026
+
+**App Shopify publique** (Dev Dashboard org 236010842, app 424256045057, Partner
+org 5189201, distribution **publique** choisie — irréversible) :
+- Railway : `SHOPIFY_APP_KEY` = `50e43d4e109a563f0176c78fe316d82f` (clé de la
+  nouvelle app, non secrète) et le secret correspondant, déployés. **Constaté** :
+  `/api/settings/shopify/install-url` rend un lien portant cette clé, redirect
+  `https://api.drop-shipper.fr/api/shopify/callback`, 4 portées.
+- **Constaté** : sur oguss-france, Shopify reconnaît l'app mais affiche « Cette
+  appli est en cours d'examen … doit être examinée par Shopify avant de pouvoir
+  être installée », bouton Installer grisé. oguss-france est dans l'autre org
+  (« oguss conect »). Une app publique non validée ne s'installe que sur une
+  **boutique de développement de l'org Partner**.
+- **Prochaine étape** : Max crée une boutique de développement dans
+  partners.shopify.com et donne son adresse ; on y installe et on vérifie
+  callback, `PlatformCredential` via OAuth, page intégrée `/app`, publication.
+  Puis dossier de soumission : webhooks RGPD (config d'app, pas le formulaire
+  du Dev Dashboard), page décrivant la facturation hors Shopify (exigence 4.2).
+- oguss-france reste reliée par l'ancien jeton : rien n'est cassé.
+- Deux Chrome sont reliés à Claude in Chrome : celui où Max est connecté
+  (drop-shipper, Shopify) n'est pas forcément celui sélectionné par défaut —
+  lister les navigateurs et vérifier la session avant d'agir.
+
+**Faire** : export CSV au gabarit officiel (49 colonnes), état d'intégration
+`export`, canaux double casquette (FAIRE/TEMU/ALIEXPRESS dans l'enum), éligibilité
+sourcée — tout poussé (commits 5c1a24e, f6f7b93, 9b10724). Non confronté à un
+vrai dépôt chez Faire.
+
+**Restent** : extension 1.35 à téléverser au Chrome Web Store (puis étapes 5–6
+de `docs/migration-domaine-api.md`), supprimer l'ancienne app Shopify une fois la
+nouvelle prouvée, `ALIEXPRESS_REDIRECT_URI` optionnel vers api.drop-shipper.fr,
+clé Anthropic locale à renouveler.
+
+---
+
 ## Livrables hors dépôt — les artefacts
 
 **Une partie du travail de ce projet n'est pas dans le dépôt.** Le business plan,
