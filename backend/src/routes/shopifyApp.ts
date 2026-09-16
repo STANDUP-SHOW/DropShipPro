@@ -6,7 +6,9 @@ import {
   hmacRequeteValide,
   hmacWebhookValide,
   lireEtat,
+  lireJetonDeSession,
 } from '../services/shopifyApp.js'
+import { pageIntegree } from '../services/shopifyEmbed.js'
 import { normalizeShopDomain } from '../services/shopify.js'
 
 /**
@@ -117,7 +119,120 @@ shopifyAppRouter.get(
 
 /*
  * ---------------------------------------------------------------------------
- * 2. Les webhooks.
+ * 2. L'application intégrée : la page affichée DANS l'admin Shopify.
+ * ---------------------------------------------------------------------------
+ *
+ * C'est l'« App URL » déclarée dans le Dev Dashboard. Shopify l'ouvre dans une
+ * iframe de `admin.shopify.com` avec `shop`, `host`, `timestamp` et `hmac`.
+ *
+ * **La signature est vérifiée ici comme au retour d'installation**, et pour la
+ * même raison : sans elle, n'importe qui afficherait cette page avec le
+ * paramètre `shop` de son choix. Elle ne donne aucun accès par elle-même — les
+ * chiffres viennent d'un second appel authentifié au jeton de session — mais
+ * une page qui affiche « Boutique connectée : victime.myshopify.com » est déjà
+ * un outil d'hameçonnage.
+ */
+shopifyAppRouter.get(
+  '/app',
+  sur(async (req, res) => {
+    const config = configApp()
+    if (!config) {
+      res.status(503).send("L'application Shopify n'est pas configurée.")
+      return
+    }
+
+    const params = req.query as Record<string, unknown>
+    if (!hmacRequeteValide(config, params)) {
+      res.status(401).send('Signature Shopify invalide.')
+      return
+    }
+
+    const shop = normalizeShopDomain(String(params.shop ?? ''))
+    if (!shop) {
+      res.status(400).send('Boutique Shopify absente ou invalide.')
+      return
+    }
+
+    /*
+     * `frame-ancestors` : sans cet en-tête, l'admin Shopify refuse d'afficher
+     * l'iframe et le marchand voit un cadre vide — c'est le symptôme le plus
+     * courant d'une app intégrée qui « ne marche pas ». Il vaut aussi
+     * protection : il limite l'affichage à Shopify et à CETTE boutique, donc
+     * un tiers ne peut pas encadrer notre page dans la sienne.
+     */
+    res.setHeader('Content-Security-Policy', `frame-ancestors https://${shop} https://admin.shopify.com`)
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    // Le contenu dépend du jeton de session, pas du cache : rien à garder.
+    res.setHeader('Cache-Control', 'no-store')
+
+    const site = (process.env.FRONTEND_URL || '').split(',')[0]?.trim() || 'https://www.drop-shipper.fr'
+    res.send(pageIntegree({ shop, cleApp: config.cle, site }))
+  }),
+)
+
+/**
+ * L'état de la boutique, pour la page intégrée — au jeton de session.
+ *
+ * **C'est ici que le second portique sert vraiment.** La page elle-même
+ * n'affiche aucun chiffre ; elle les demande, et cette route ne répond qu'à un
+ * jeton signé du secret de l'app, dont la destination désigne la boutique.
+ * Un appelant qui n'a pas ce jeton ne peut pas savoir si une boutique nous est
+ * reliée, ni combien d'annonces elle porte.
+ *
+ * 404 plutôt que 403 quand la boutique n'est rattachée à aucun compte : la
+ * page a besoin de distinguer « pas encore relié » de « refusé », et les deux
+ * cas appellent le même geste côté marchand — ouvrir DropShipper IA.
+ */
+shopifyAppRouter.get(
+  '/embed/etat',
+  sur(async (req, res) => {
+    const config = configApp()
+    if (!config) {
+      res.status(503).json({ error: 'Application Shopify non configurée' })
+      return
+    }
+
+    const entete = String(req.get('Authorization') ?? '')
+    const session = entete.startsWith('Bearer ')
+      ? lireJetonDeSession(config, entete.slice('Bearer '.length))
+      : null
+    if (!session) {
+      res.status(401).json({ error: 'Jeton de session invalide' })
+      return
+    }
+
+    const liaison = await prisma.platformCredential.findFirst({
+      where: {
+        platform: 'SHOPIFY',
+        data: { path: ['shopDomain'], equals: session.shop },
+      },
+      select: { userId: true, connected: true },
+    })
+    if (!liaison) {
+      res.status(404).json({ error: 'Boutique non rattachée' })
+      return
+    }
+
+    /*
+     * Les trois chiffres sont comptés, jamais listés : la page n'a pas besoin
+     * du catalogue, et un `findMany` enverrait les fiches d'un vendeur dans une
+     * iframe qu'on n'a authentifiée que par la boutique.
+     */
+    const [publiees, catalogue, fournisseurs] = await Promise.all([
+      prisma.publication.count({
+        where: { platform: 'SHOPIFY', status: 'PUBLISHED', product: { userId: liaison.userId } },
+      }),
+      prisma.product.count({ where: { userId: liaison.userId } }),
+      prisma.supplierConnection.count({ where: { userId: liaison.userId, connected: true } }),
+    ])
+
+    res.json({ reliee: liaison.connected, shop: session.shop, publiees, catalogue, fournisseurs })
+  }),
+)
+
+/*
+ * ---------------------------------------------------------------------------
+ * 3. Les webhooks.
  * ---------------------------------------------------------------------------
  *
  * Les trois premiers sujets sont **obligatoires pour toute app publique** :

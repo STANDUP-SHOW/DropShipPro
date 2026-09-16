@@ -27,9 +27,9 @@ objet différent. Voici l'inventaire, sans arrondir.
 | `customers/redact` | **fait** | idem |
 | `shop/redact` | **fait** | la liaison de la boutique est supprimée |
 | `app/uninstalled` (non obligatoire, mais indispensable) | **fait** | la liaison est éteinte, pas détruite |
-| Banc de non-régression | **fait** | `npx tsx check-shopify-app.ts` |
-| App **intégrée** (rendue dans l'admin Shopify) + App Bridge | **à faire** | — |
-| Jetons de session (session tokens) pour l'app intégrée | **à faire** | — |
+| Banc de non-régression | **fait** | `check-shopify-app.ts` + `check-shopify-embed.ts` |
+| App **intégrée** (rendue dans l'admin Shopify) + App Bridge | **fait** | `services/shopifyEmbed.ts`, `GET /api/shopify/app` |
+| Jetons de session (session tokens) pour l'app intégrée | **fait** | `lireJetonDeSession`, `GET /api/shopify/embed/etat` |
 | Fiche App Store (visuels, textes, démonstration, politique de confidentialité) | **à faire** | — |
 | **Facturation** | **décision à prendre** | voir plus bas |
 
@@ -48,6 +48,8 @@ jeton `shpat_` continue de fonctionner à côté, sans changement.
 
 Dans le Dev Dashboard, l'app doit déclarer :
 
+- **App URL** (la page affichée dans l'admin du marchand) :
+  `https://dropshippro-production.up.railway.app/api/shopify/app`
 - **URL de redirection** : `https://dropshippro-production.up.railway.app/api/shopify/callback`
 - **Webhooks RGPD**, les trois, vers `https://dropshippro-production.up.railway.app/api/shopify/webhooks`
 - **`app/uninstalled`**, même adresse
@@ -104,14 +106,39 @@ ensuite.
 
 ---
 
+## L'application intégrée — écrite le 16/09/2026
+
+L'admin Shopify affiche l'app dans une iframe de `admin.shopify.com`. Trois
+choses en découlent, et aucune n'est optionnelle.
+
+**Nos cookies n'arrivent pas dans cette iframe** (troisième partie, bloqués par
+tous les navigateurs modernes), donc `requireAuth` n'y sert à rien : il n'y a
+pas de session à lire. Shopify délivre à la place un **jeton de session**, un
+JWT d'une minute signé du secret de l'app, que la page demande à App Bridge et
+pose en `Authorization: Bearer`. `lireJetonDeSession` le vérifie — c'est un
+**second portique**, à côté de `requireAuth`, pas un remplacement : il ne dit
+pas quel compte regarde, il prouve « cette page est servie dans l'admin de
+cette boutique-là ».
+
+Le contrôle qui compte le plus est le plus discret : **`alg` est imposé à
+HS256**, jamais lu dans l'en-tête du jeton. Un vérificateur qui fait confiance
+à ce que le jeton déclare accepte `alg: none`, et le jeton se fabrique alors
+sans connaître le secret. `check-shopify-embed.ts` éprouve ce cas précis, et il
+a été confronté à la version fautive : sans la ligne, il tombe.
+
+**`Content-Security-Policy: frame-ancestors`** est envoyé sur la page : sans
+lui, l'admin refuse d'afficher l'iframe et le marchand voit un cadre vide —
+c'est le symptôme le plus courant d'une app intégrée qui « ne marche pas ».
+
+**La page ne contient aucun chiffre.** Elle les demande à
+`/api/shopify/embed/etat` avec le jeton. Les écrire au rendu aurait été plus
+simple et faux : la page est servie avant que la signature du jeton soit
+vérifiée, donc on afficherait le catalogue d'une boutique à qui la demande.
+
 ## Ce qui reste à écrire pour la voie 1
 
-- **App intégrée** : l'admin Shopify affiche l'app dans une iframe. Il faut
-  App Bridge (dernière version) et servir une page qui s'y rend.
-- **Jetons de session** : dans une app intégrée, l'authentification ne passe
-  pas par nos cookies — le front demande un jeton de session à App Bridge et
-  l'API le vérifie (JWT signé du secret de l'app). C'est un second portique à
-  côté de `requireAuth`, pas un remplacement.
 - **Billing API** : `appSubscriptionCreate` ou `appPurchaseOneTimeCreate` pour
   les recharges de drops, avec le retour à confirmer sur la page cible — le
   piège Stripe du mémo vaut mot pour mot ici.
+- **Fiche App Store** : visuels, textes, démonstration, politique de
+  confidentialité.

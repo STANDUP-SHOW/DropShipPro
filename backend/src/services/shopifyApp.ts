@@ -189,6 +189,102 @@ export function hmacWebhookValide(config: ConfigApp, corpsBrut: Buffer | string,
   return memeSignature(attendu, signature)
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * Le jeton de session : le portique de l'application INTÉGRÉE.
+ * ---------------------------------------------------------------------------
+ *
+ * L'administration Shopify affiche l'app dans une iframe. **Nos cookies n'y
+ * arrivent pas** — troisième partie, bloqués par tous les navigateurs modernes
+ * — donc `requireAuth` ne peut rien y faire : il n'y a pas de session à lire.
+ *
+ * Shopify résout ça autrement : App Bridge délivre au front un **jeton de
+ * session**, un JWT court signé du secret de l'app, que le front met en
+ * `Authorization: Bearer`. C'est un SECOND portique à côté de `requireAuth`,
+ * pas un remplacement : il n'authentifie pas un compte DropShipper, il prouve
+ * « cette page est bien servie dans l'admin de cette boutique-là ».
+ *
+ * Les contrôles ne sont pas décoratifs, chacun ferme une porte réelle :
+ *
+ * - **`alg` imposé à HS256.** Un JWT dont on lit l'algorithme dans son propre
+ *   en-tête accepte `alg: none` — le jeton se fabrique alors sans secret. La
+ *   faille est vieille et elle se reproduit à chaque implémentation naïve.
+ * - **`aud` égal à notre clé d'app.** Sans ça, un jeton délivré à une AUTRE
+ *   application Shopify, parfaitement signé de son propre secret, serait
+ *   rejeté de toute façon par la signature — mais l'inverse compte : notre
+ *   secret ne doit servir qu'à nous.
+ * - **`exp` et `nbf`.** Ces jetons vivent une minute. Un jeton rejoué une heure
+ *   plus tard doit être refusé, sinon la fenêtre d'un vol dure indéfiniment.
+ * - **`iss` et `dest` sur la même boutique.** C'est le contrôle qui compte :
+ *   `dest` désigne la boutique, et c'est sur lui qu'on ira chercher la liaison.
+ *   Les laisser diverger permettrait de lire la boutique d'un autre.
+ */
+export interface SessionIntegree {
+  /** La boutique, normalisée : `exemple.myshopify.com`. */
+  shop: string
+  /** L'utilisateur Shopify qui regarde la page, quand il est communiqué. */
+  utilisateur: string | null
+}
+
+/** La tolérance d'horloge. Deux serveurs ne sont jamais à la seconde près. */
+const DERIVE_HORLOGE_S = 10
+
+function hoteDe(valeur: unknown): string | null {
+  if (typeof valeur !== 'string' || !valeur) return null
+  try {
+    return normalizeShopDomain(new URL(valeur).host)
+  } catch {
+    return null
+  }
+}
+
+export function lireJetonDeSession(
+  config: ConfigApp,
+  jeton: string,
+  maintenant = Date.now(),
+): SessionIntegree | null {
+  const morceaux = (jeton ?? '').trim().split('.')
+  if (morceaux.length !== 3) return null
+  const [enTete, charge, signature] = morceaux
+
+  const attendue = crypto
+    .createHmac('sha256', config.secret)
+    .update(`${enTete}.${charge}`)
+    .digest('base64url')
+  if (!memeSignature(attendue, signature)) return null
+
+  try {
+    const tete = JSON.parse(Buffer.from(enTete, 'base64url').toString('utf8'))
+    // Lu APRÈS la signature, et imposé : jamais « ce que le jeton déclare ».
+    if (tete?.alg !== 'HS256') return null
+
+    const corps = JSON.parse(Buffer.from(charge, 'base64url').toString('utf8'))
+    if (corps?.aud !== config.cle) return null
+
+    const secondes = Math.floor(maintenant / 1000)
+    if (typeof corps.exp !== 'number' || secondes > corps.exp + DERIVE_HORLOGE_S) return null
+    if (typeof corps.nbf === 'number' && secondes + DERIVE_HORLOGE_S < corps.nbf) return null
+
+    const destination = hoteDe(corps.dest)
+    const emetteur = hoteDe(corps.iss)
+    if (!destination || !emetteur || destination !== emetteur) return null
+
+    return { shop: destination, utilisateur: typeof corps.sub === 'string' ? corps.sub : null }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * L'adresse où l'admin Shopify doit ouvrir l'application.
+ *
+ * Shopify l'appelle « App URL ». Elle est déclarée dans le Dev Dashboard et
+ * rappelée ici pour qu'un seul endroit du code en fasse foi.
+ */
+export function urlApplicationIntegree(config: ConfigApp): string {
+  return `${config.racine}/api/shopify/app`
+}
+
 /** Échange le code d'autorisation contre un jeton d'accès permanent. */
 export async function echangerCode(
   config: ConfigApp,
