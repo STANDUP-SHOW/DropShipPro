@@ -33,6 +33,48 @@ objet différent. Voici l'inventaire, sans arrondir.
 | Fiche App Store (visuels, textes, démonstration, politique de confidentialité) | **à faire** | — |
 | **Facturation** | **décision à prendre** | voir plus bas |
 
+## Le blocage qui commande tout : l'app n'est installable NULLE PART
+
+Constaté le 16/09/2026 en tentant l'installation sur `oguss-france`. Shopify
+répond :
+
+```
+Oauth error application_cannot_be_found:
+Could not find Shopify API application with api_key 87fc194a…
+```
+
+C'est l'erreur 400 signalée la veille sans qu'on sache d'où elle venait. Ce
+n'est ni la clé, ni les portées, ni les adresses — tout cela est juste. La
+chaîne des faits, vérifiée écran par écran :
+
+1. L'app vit dans l'**organisation Dev Dashboard « oguss conect »** (`232181656`).
+2. Cette organisation compte **zéro boutique** (page Boutiques : « Créez une
+   boutique de développement »).
+3. `oguss-france.myshopify.com` n'en fait donc pas partie.
+4. Le Dev Dashboard n'expose **aucun réglage de distribution** — ni dans les
+   paramètres de l'app, ni sous une adresse `/distribution`.
+5. Le compte n'a **aucune organisation Shopify Partners** : `partners.shopify.com`
+   propose d'en créer une ou d'en rejoindre une.
+
+**Une app du Dev Dashboard ne s'installe que sur une boutique de sa propre
+organisation, ou par une distribution déclarée.** Sans l'une ni l'autre, aucune
+boutique au monde ne peut l'installer — pas seulement celle du test.
+
+**Conséquence à ne pas minimiser :** tant que ce point n'est pas réglé, la
+promesse « les trois millions de boutiques Shopify peuvent nous installer » n'a
+pas de chemin technique. Les variables Railway et la configuration de l'app
+étaient nécessaires ; elles ne sont pas suffisantes.
+
+Trois voies, et le choix n'est pas technique :
+
+| Voie | Ce qu'elle demande | Ce qu'elle donne |
+|---|---|---|
+| **Organisation Shopify Partners** | La créer sur `partners.shopify.com` (gratuit, création de compte — au client de la faire) | C'est là que vit le réglage **Distribution** : publique non listée (lien direct) ou personnalisée (une boutique nommée). C'est la voie recommandée par `docs/shopify-app.md` depuis le début. |
+| **Boutique de développement** dans l'organisation actuelle | Un bouton dans le Dev Dashboard | Éprouve le parcours OAuth de bout en bout sans toucher à une boutique réelle. Ne règle pas la distribution aux vrais marchands. |
+| **Ne rien changer** | — | `oguss-france` continue de publier avec son jeton `shpat_`, qui fonctionne. L'app publique attend. |
+
+---
+
 ## L'état réel du Dev Dashboard (16/09/2026, constaté)
 
 Organisation **oguss conect** (`232181656`). **Deux applis y existent** — la
