@@ -28,13 +28,30 @@ org 5189201, distribution **publique** choisie — irréversible) :
   appli est en cours d'examen … doit être examinée par Shopify avant de pouvoir
   être installée », bouton Installer grisé. oguss-france est dans l'autre org
   (« oguss conect »). Une app publique non validée ne s'installe que sur une
-  **boutique de développement de l'org Partner**.
-- **Prochaine étape** : Max crée une boutique de développement dans
-  partners.shopify.com et donne son adresse ; on y installe et on vérifie
-  callback, `PlatformCredential` via OAuth, page intégrée `/app`, publication.
-  Puis dossier de soumission : webhooks RGPD (config d'app, pas le formulaire
-  du Dev Dashboard), page décrivant la facturation hors Shopify (exigence 4.2).
-- oguss-france reste reliée par l'ancien jeton : rien n'est cassé.
+  boutique de l'organisation **Dev Dashboard 236010842** : « My Store 3 »
+  (zr6h70-b1, créée depuis l'admin marchand, essai payant) a été refusée
+  pareil ; la boutique dev créée depuis Dev Dashboard › Boutiques › Créer une
+  boutique › Dev est passée.
+- **Prouvé de bout en bout le 16/09 au soir sur `auto-parts-o8avomvl.myshopify.com`**
+  (boutique dev, org 236010842) : lien d'installation → page d'accord Shopify →
+  callback → `PlatformCredential` (via `oauth`, refresh token, `expiresAt`) →
+  page intégrée dans l'admin (« Boutique reliée », 204 annonces) → publication
+  réelle : la station météo (11 variantes) est **Actif** dans Produits de la
+  boutique. Ce qui a bloqué entre les deux : Shopify refuse les jetons
+  permanents aux apps publiques (commit 624bebd, `expiring: 1` + renouvellement,
+  CLAUDE.md § app publique).
+- **Prochaine étape** : le dossier de soumission — webhooks RGPD déclarés dans
+  la config d'app (pas le formulaire du Dev Dashboard), page décrivant la
+  facturation hors Shopify (exigence 4.2), fiche App Store. Puis soumettre :
+  après validation, oguss-france et toute boutique peuvent installer.
+- **oguss-france a PERDU sa liaison** : une seule boutique Shopify par compte
+  (`@@unique([userId, platform])`), l'installation sur auto-parts a écrasé son
+  jeton. Rien de cassé côté Shopify (108 produits en place), mais une nouvelle
+  publication irait vers auto-parts. Deux issues : recoller le `shpat_` de
+  l'app personnalisée d'oguss-france dans Réglages (écrase auto-parts à son
+  tour), ou — la vraie — **plusieurs boutiques Shopify par compte** (schéma,
+  migration à la main + `migrate deploy`, choix de la boutique à la diffusion
+  comme `ShopPicker`). À décider avec Max avant de toucher au schéma.
 - Deux Chrome sont reliés à Claude in Chrome : celui où Max est connecté
   (drop-shipper, Shopify) n'est pas forcément celui sélectionné par défaut —
   lister les navigateurs et vérifier la session avant d'agir.
