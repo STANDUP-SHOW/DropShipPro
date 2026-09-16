@@ -556,7 +556,7 @@ export const SUPPLIERS: SupplierInfo[] = [
     domain: 'faire.com',
     origine: 'Marques indépendantes, Europe et Amérique du Nord',
     importPath: 'les-deux',
-    quoi: "Vente en gros entre marques indépendantes et détaillants : de quoi vendre autre chose que ce que tout le monde vend, avec des marques identifiables.",
+    quoi: "Vente en gros entre marques indépendantes et détaillants : de quoi vendre autre chose que ce que tout le monde vend, avec des marques identifiables. **Faire marche aussi dans l'autre sens** : vous pouvez y vendre votre propre catalogue en gros — voir la fiche Faire dans les places de marché.",
     attention:
       "Ce n'est pas du dropshipping : vous achetez le stock, avec un minimum par marque. Le premier achat est souvent payable à soixante jours, ce qui aide, mais l'invendu reste le vôtre.",
     color: '#111111',

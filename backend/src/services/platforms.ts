@@ -190,8 +190,22 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     automatable: false,
     sellUrl: 'https://www.faire.com/brand-portal',
     note: "Vente en GROS entre marques et détaillants. Faire n'expose aucune API d'annonces : on exporte le catalogue au format de son portail marque, et le vendeur le dépose. Les prix de gros, la quantité minimale et le conditionnement sont à décider — ce sont trois données qu'aucune fiche produit ne porte.",
+    /*
+     * **Ce qui suit est SOURCÉ, et l'était mal quelques heures plus tôt.**
+     *
+     * J'avais écrit que Faire « sélectionne des marques, pas des revendeurs » et
+     * qu'un catalogue AliExpress y serait refusé « comme sur Etsy ». C'était une
+     * déduction, pas une règle : vérifié le 16/09/2026 sur faire.com/brands et
+     * dans leur centre d'aide, **Faire n'exige nulle part que la marque fabrique
+     * ses produits.** Ce qui existe est une candidature examinée, et des frais.
+     *
+     * La différence compte : Etsy INTERDIT la revente noir sur blanc, et c'est
+     * ce qui justifie notre avertissement là-bas. Chez Faire il y a un risque de
+     * refus, pas une interdiction — et présenter un risque comme une règle fait
+     * renoncer un vendeur à un canal qui lui était peut-être ouvert.
+     */
     warning:
-      "Faire sélectionne des MARQUES, pas des revendeurs : un catalogue de produits AliExpress ou Temu y sera refusé, comme sur Etsy. Réservé aux vendeurs qui ont leur propre marque — impression à la demande avec leurs visuels, marque blanche, création.",
+      "Candidature examinée par Faire, pas d'inscription libre : ils regardent la catégorie, votre localisation, le type de produit, le nombre de références et votre activité existante — expérience du gros, notoriété, présence sur les réseaux. Et les frais sont lourds sur du prix de gros : 15 % de commission, 10 $ à la première commande d'un détaillant, plus 1,9 à 3,5 % de traitement. Les liens Faire Direct, eux, sont à 0 %.",
   },
   /*
    * Temu et AliExpress sont marqués SANS CHEMIN DE PUBLICATION, et c'est
