@@ -30,12 +30,22 @@
  * 2. **Les marqueurs des autres gestionnaires** (1Password, LastPass,
  *    Bitwarden, Dashlane). Ils ont chacun le leur et n'écoutent pas
  *    `autocomplete`. Un vendeur sur trois en utilise un.
- * 3. **`readOnly` levé au premier clic.** Le filet. Un champ en lecture seule
- *    ne peut être rempli par personne au chargement de la page, et c'est
- *    précisément au chargement que le remplissage automatique frappe. Il
- *    redevient normal dès que le vendeur le vise — geste qu'il fait de toute
- *    façon pour y coller sa clé. Sans ce filet, la correction reposerait
- *    entièrement sur une heuristique de navigateur, qui change sans préavis.
+ * **Ce qu'on a essayé et retiré : le `readOnly` levé au focus.** L'idée
+ * paraissait solide — un champ en lecture seule ne peut être rempli par
+ * personne au chargement, et c'est au chargement que le remplissage automatique
+ * frappe ; il redevenait normal dès que le vendeur le visait. En pratique,
+ * **le champ restait en lecture seule** : levé impérativement dans `onFocus`,
+ * l'attribut revenait au premier rendu suivant, et plus rien ne pouvait y être
+ * tapé ni collé. Constaté le 16/09/2026 sur la clé BigBuy — « j'ai recollé la
+ * clé, toujours rien » — et la clé en base n'avait effectivement pas bougé
+ * d'une seconde.
+ *
+ * La leçon vaut plus que le détail : **un filet de sécurité qui bloque le
+ * chemin légitime coûte plus cher que le risque qu'il écarte.** Ici il
+ * transformait un remplissage indésirable, visible et corrigeable, en un
+ * formulaire muet dont personne ne comprenait le silence. Les deux protections
+ * restantes suffisent, et elles ont été vérifiées dans le vrai Chrome : les
+ * champs AliExpress s'ouvrent vides.
  */
 export const PROPS_SANS_REMPLISSAGE = {
   autoComplete: 'new-password' as const,
@@ -44,10 +54,6 @@ export const PROPS_SANS_REMPLISSAGE = {
   'data-lpignore': 'true',
   'data-bwignore': true,
   'data-form-type': 'other',
-  readOnly: true,
-  onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.readOnly = false
-  },
 }
 
 /**
