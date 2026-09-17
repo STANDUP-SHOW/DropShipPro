@@ -65,9 +65,28 @@ déposé s'affiche, les couleurs sont lues (#2f6bff 53 %, #e0342c 33 %) et
 quatre gammes à pastilles sont proposées avec « Adapter la boutique aux
 couleurs de votre logo ? ». Max a lui-même restauré des versions depuis
 l'écran (v3 « Retour à la version 1 », v4 « Retour à la version 2 » dans la
-base). Une **seconde création réelle** de France ROBOTIQUE avec modes
-visiteur a été lancée (débit 200, solde 49 950) : résultat à lire ci-dessous
-ou dans la base (`SiteVersion`).
+base). **Seconde création réelle de France ROBOTIQUE** : la première
+tentative (11 h 20 UTC) a échoué après deux réparations sur deux contrôles
+aux messages trop vagues (drops rendus, solde revenu à 50 150) ; contrôles
+corrigés (commit 538d3dd : la règle CSS fautive est nommée, compteur de
+panier accepté par attribut, trois réparations) ; la seconde tentative
+(11 h 50 UTC, débit 200, solde 49 950) a réussi en **268 s avec deux
+réparations** : **version 5**, 1 358 lignes / 69 Ko, Exo + Roboto Mono,
+identité écrite en tête du CSS (« héros plein écran en diaporama Ken Burns
+façon salle d'essai, panneaux verre sur matière noir-bleu grainée, liserés
+HUD »), grain feTurbulence, verre, révélation au défilement,
+prefers-reduced-motion, 12 règles @media ; **titre du héros à 160 px du
+bord** (plus collé), 29 photos sur la fiche, panier et commande vérifiés
+par le DOM. Servie à https://api.drop-shipper.fr/b/france-robotique.
+
+**Modes visiteur pas exercés en production** : la case « expérience
+immersive » cochée par l'automate Chrome n'a pas été prise par React
+(`options.modesVisiteur:false` dans le travail) — à cocher à la main. Le
+vérificateur `--modes` est couvert par le banc. Correctif d'un vrai bug
+signalé par Max au passage : **les envois de logo répondaient 500** parce
+que le helper `request` imposait `Content-Type: application/json` sur un
+FormData (commit ac1d589) — tous les envois de fichier du site étaient
+touchés.
 
 Piège d'outillage : le `file_upload` de Chrome MCP a fait répondre 500 à
 l'envoi du logo, alors que le même envoi en `fetch` + `FormData` depuis la
