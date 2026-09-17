@@ -71,6 +71,40 @@ donc dans un processus à part, avec un environnement VIDE (pas de
 l'enfant — aucun minuteur interne ne le sauve, seul le parent le peut, et c'est
 ce que le banc éprouve.
 
+## Ce qui nourrit le modèle avant qu'il écrive (17/09, second passage)
+
+Retours de Max sur la première boutique : « la page d'accueil d'oguss.fr fait
+beaucoup plus pro », titre collé au bord, pas de logo en amont, pas de
+matière, pas de mouvement. Quatre réponses :
+
+- **Le logo d'abord.** Le studio demande le logo (barre du haut + grand sur
+  l'accueil, `PUT /settings/shops/:id/vitrine-logo/…`) avant le brief.
+  `services/logoCouleurs.ts` lit ses couleurs (sharp, 48×48, fond écarté,
+  teintes fusionnées) et en tire **quatre gammes** complètes (sombre, claire,
+  contrastée, naturelle) au contraste vérifié (texte ≥ 4,5:1, accent ≥ 3:1).
+  `GET /api/dropshop/:shopId/gammes`. Le vendeur en impose une ou laisse
+  l'IA libre ; le vérificateur exige le logo dans l'en-tête (`--logo`).
+- **La bibliothèque de design.** `services/designLibrary.ts` lit en Node les
+  CSV de la skill `ui-ux-pro-max` copiés dans `backend/dropshop/design/`
+  (67 styles avec recette et variables, 161 palettes par type de commerce,
+  57 appariements Google Fonts, 34 patrons d'accueil, règles de mouvement,
+  raisonnement par type). Glossaire commerce FR→EN, BM25 de poche, dossier
+  rédigé (~6 000 caractères) donné au modèle comme **inspiration** : choisir,
+  adapter, jamais recopier. Déterministe, donc banc sans modèle.
+- **La consigne « niveau studio »** : matière dans les fonds (dégradés
+  superposés, grain SVG en data URI, trames, blend modes — jamais d'image),
+  profondeur (ombres à couches, verre, chevauchements, parallaxe), mouvement
+  au survol des vignettes, **diaporama d'accueil** sur les photos produits
+  (fondu, Ken Burns, pastilles), textes qui bougent (cascade, marquee,
+  révélation au défilement avec état de repos lisible), logo au bon endroit,
+  **alignement** (tout dans `.wrap`, jamais `width:100%` dessus — le
+  vérificateur le refuse), code expert.
+- **Modes visiteur** (case « expérience client immersive ») : quatre
+  ambiances complètes en `[data-theme]`, sélecteur à quatre boutons
+  `[data-mode]` dessinés, noms propres au commerce — pas « Noir / Clair /
+  Gradient / Colorful » recopiés d'oguss. Le vérificateur (`--modes`) exige
+  trois ambiances au moins et un clic qui pose `data-theme`.
+
 ## Le paiement : sur le compte Stripe du marchand
 
 Nous n'encaissons rien pour lui. Il colle sa clé secrète (`sk_live_…`) dans le

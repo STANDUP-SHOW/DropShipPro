@@ -4,6 +4,8 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import { appliquerEditions, extraireEditions, extraireHtml } from './src/services/siteGenerator.js'
+import { dossierDesignPour, dossierEnTexte } from './src/services/designLibrary.js'
+import { couleursDuLogo, gammesDepuis, contraste } from './src/services/logoCouleurs.js'
 
 /**
  * Le moteur DropShop et son vérificateur, éprouvés l'un contre l'autre.
@@ -30,6 +32,15 @@ const require = createRequire(import.meta.url)
 const { verifier } = require('./dropshop/verifier.cjs') as { verifier: (html: string) => Promise<{ ok: boolean; echecs: string[] }> }
 
 const EXEMPLE = fs.readFileSync(path.join('dropshop', 'exemple.html'), 'utf8')
+
+/** Le vérificateur avec ses drapeaux (--modes, --logo), lancé comme la production le fait : en processus enfant. */
+function verifierAvec(page: string, drapeaux: string[]): Promise<{ ok: boolean; echecs: string[] }> {
+  const fichier = path.join(os.tmpdir(), `dropshop-banc-${Math.random().toString(36).slice(2)}.html`)
+  fs.writeFileSync(fichier, page)
+  const r = spawnSync(process.execPath, [path.join('dropshop', 'verifier.cjs'), fichier, ...drapeaux], { encoding: 'utf8', timeout: 40_000, env: { PATH: process.env.PATH ?? '' } })
+  fs.unlinkSync(fichier)
+  try { return Promise.resolve(JSON.parse(r.stdout)) } catch { return Promise.resolve({ ok: false, echecs: ['sortie illisible : ' + r.stdout.slice(0, 100)] }) }
+}
 
 let echecs = 0
 function attendre(nom: string, condition: boolean, detail = '') {
@@ -66,6 +77,40 @@ async function main() {
   const r = spawnSync(process.execPath, [path.join('dropshop', 'verifier.cjs'), fichier], { encoding: 'utf8', timeout: 8_000, env: { PATH: process.env.PATH ?? '' } })
   attendre('le processus enfant ne rend jamais la main et le parent le tue', r.status === null, `${Math.round((Date.now() - debut) / 1000)} s, signal ${r.signal}`)
   fs.unlinkSync(fichier)
+
+  console.log('\n— Les options : modes visiteur, logo, alignement —')
+  const avecModes = EXEMPLE
+    .replace('<style>', '<style>\n[data-theme="nuit"]{--fond:#000}[data-theme="papier"]{--fond:#fff}[data-theme="pop"]{--fond:#f0f}')
+    .replace("'<a href=\"' + c.lien.panier + '\">Panier (' + c.panier.nombre + ')</a>'", "'<button data-mode=\"nuit\">Nuit</button><button data-mode=\"papier\">Papier</button><button data-mode=\"pop\">Pop</button><a href=\"' + c.lien.panier + '\">Panier (' + c.panier.nombre + ')</a>'")
+  const sansModes = await verifierAvec(EXEMPLE, ['--modes'])
+  attendre('sans sélecteur, une boutique « immersive » est refusée et nommée', !sansModes.ok && sansModes.echecs.some((e) => /data-theme|data-mode/.test(e)), sansModes.echecs[0]?.slice(0, 100))
+  const avec = await verifierAvec(avecModes, ['--modes'])
+  attendre('avec 3 boutons [data-mode] et 3 ambiances [data-theme], elle passe', avec.ok, avec.echecs.join(' | '))
+  const sansLogo = await verifierAvec(EXEMPLE, ['--logo'])
+  attendre('avec un logo d\'en-tête non affiché, la page est refusée', !sansLogo.ok && sansLogo.echecs.some((e) => /logo/.test(e)), sansLogo.echecs[0]?.slice(0, 100))
+  const avecLogo = EXEMPLE.replace("'<a href=\"' + c.lien.accueil + '\"><strong>' + c.html(c.boutique.nom) + '</strong></a>'", "'<a href=\"' + c.lien.accueil + '\">' + (c.boutique.logoEntete ? '<img src=\"' + c.html(c.boutique.logoEntete) + '\" alt=\"\">' : '') + '<strong>' + c.html(c.boutique.nom) + '</strong></a>'")
+  const okLogo = await verifierAvec(avecLogo, ['--logo'])
+  attendre('avec le logo dans l\'en-tête, elle passe', okLogo.ok, okLogo.echecs.join(' | '))
+  const wrapCasse = EXEMPLE.replace('.wrap { width: min(1200px, 92vw); margin-inline: auto; }', '.wrap { width: min(1200px, 92vw); margin-inline: auto; }\n    .barre { width: 100%; }')
+  const rWrap = await verifierAvec(wrapCasse, [])
+  attendre('un .wrap qui reçoit width:100% d\'une autre classe est refusé (titre collé au bord)', !rWrap.ok && rWrap.echecs.some((e) => /width:100%/.test(e)), rWrap.ok ? 'accepté à tort' : rWrap.echecs[0]?.slice(0, 100))
+
+  console.log('\n— La bibliothèque de design —')
+  const luxe = dossierDesignPour('Bijoux en argent et montres pour hommes, haut de gamme, élégant, bois et noir', ['Montres'])
+  attendre('un brief de luxe trouve un type de commerce de luxe', /Luxury/.test(luxe.produit?.type ?? ''), luxe.produit?.type)
+  attendre('il propose des appariements serif + sans (Cormorant, Playfair…)', luxe.polices.some((p) => /Cormorant|Playfair|Bodoni/.test(p.titre)), luxe.polices.map((p) => p.titre).join(', '))
+  attendre('trois styles, trois palettes, un patron, du mouvement', luxe.styles.length === 3 && luxe.palettes.length === 3 && Boolean(luxe.patron) && luxe.mouvement.length > 0)
+  const robots = dossierDesignPour('France ROBOTIQUE vend des robots humanoïdes et des drones, laboratoire du futur, bleu électrique, ton expert', ['Drones'])
+  attendre('un brief tech reconnaît une boutique (e-commerce ou tech), pas un logiciel métier', /E-commerce|Tech|Electronics|Robot|Gadget|Smart/i.test(robots.produit?.type ?? '') && !/Manager|Dashboard|SaaS/i.test(robots.produit?.type ?? ''), robots.produit?.type)
+  attendre('le dossier rédigé tient sous 9 000 caractères', dossierEnTexte(luxe).length < 9000, String(dossierEnTexte(luxe).length))
+
+  console.log('\n— Les couleurs du logo —')
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="200" height="100" fill="#ffffff"/><circle cx="60" cy="50" r="40" fill="#2f6bff"/><rect x="120" y="20" width="60" height="60" fill="#e0342c"/></svg>'
+  const couleurs = await couleursDuLogo(Buffer.from(svg))
+  attendre('le fond blanc est écarté, le bleu et le rouge dominent', couleurs.length >= 2 && couleurs[0].hex === '#2f6bff' && couleurs[1].hex === '#e0342c', couleurs.map((c) => c.hex).join(' '))
+  const gammes = gammesDepuis(couleurs)
+  attendre('quatre gammes, texte lisible (≥ 4,5:1) et accent visible (≥ 3:1) sur chacune', gammes.length === 4 && gammes.every((g) => contraste(g.jetons.fond, g.jetons.texte) >= 4.5 && contraste(g.jetons.fond, g.jetons.accent) >= 3), gammes.map((g) => `${g.id} ${contraste(g.jetons.fond, g.jetons.texte).toFixed(1)}/${contraste(g.jetons.fond, g.jetons.accent).toFixed(1)}`).join(' '))
+  attendre('sans logo, des gammes neutres sont quand même proposées', gammesDepuis([]).length === 4)
 
   console.log('\n— Les éditions ciblées —')
   const a = appliquerEditions('aaa\nbbb\nccc', [{ chercher: 'bbb', remplacer: 'BBB' }])

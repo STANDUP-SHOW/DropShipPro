@@ -637,6 +637,17 @@ Trois conséquences, toutes appliquées :
   boutique. Dossier complet : `docs/dropshop.md`. Bancs `check-dropshop.ts`
   et `check-dropshop-jobs.ts`.
 
+  **Second passage le même jour, sur les retours de Max** (« oguss.fr fait
+  beaucoup plus pro ») : le logo se dépose AVANT le brief et ses couleurs
+  donnent quatre gammes (`logoCouleurs.ts`, contraste vérifié) ; la skill
+  `ui-ux-pro-max` est branchée en Node (`designLibrary.ts`, CSV copiés dans
+  `dropshop/design/`) et fournit au modèle styles, palettes, polices, patron
+  et mouvement choisis par le brief ; la consigne exige matière, profondeur,
+  survol, diaporama d'accueil, textes en mouvement ; les modes visiteur sont
+  une option vérifiée (`--modes`). **Piège attrapé par le vérificateur :** un
+  `.wrap` qui reçoit `width:100%` d'une seconde classe perd ses marges et le
+  titre du héros colle au bord de l'écran — c'est ce que Max a vu en premier.
+
 - **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
   pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
   et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou

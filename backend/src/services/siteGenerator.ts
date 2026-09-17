@@ -61,6 +61,20 @@ export interface CatalogueBoutique {
   logoEntete: string | null
   logoAccueil: string | null
   annonce: string
+  /** Les couleurs lues dans le logo (hex + part), quand il y en a un. */
+  couleursLogo?: Array<{ hex: string; part: number }>
+  /** La gamme choisie par le vendeur à partir de son logo : imposée au modèle comme palette de départ. */
+  gamme?: { nom: string; mode: 'sombre' | 'clair'; jetons: Record<string, string> } | null
+  /** Le vendeur veut que ses visiteurs choisissent l'ambiance (modes visiteur). */
+  modesVisiteur?: boolean
+  /** Le dossier tiré de la bibliothèque de design, déjà rédigé. */
+  dossierDesign?: string
+}
+
+/** Ce que le vendeur a coché à la création ; voyage avec le travail et le vérificateur. */
+export interface OptionsSite {
+  modesVisiteur?: boolean
+  logo?: boolean
 }
 
 export interface AppelModele {
@@ -73,7 +87,7 @@ export interface AppelModele {
 }
 
 export interface Verificateur {
-  (html: string): Promise<{ ok: boolean; echecs: string[]; avertissements: string[] }>
+  (html: string, options?: OptionsSite): Promise<{ ok: boolean; echecs: string[]; avertissements: string[] }>
 }
 
 const DOSSIER = ['dropshop', path.join('..', 'dropshop')].map((d) => path.resolve(d)).find((d) => fs.existsSync(d)) ?? path.resolve('dropshop')
@@ -115,9 +129,26 @@ const DIRECTION_ARTISTIQUE = `Tu es le directeur artistique d'un studio réputé
 - Prévois l'absence de photo (c.photo(p) === '') avec un visuel de remplacement en CSS (dégradé ou initiale), jamais une image cassée.
 - Tout texte du catalogue passe par c.html(...).
 
+## Le niveau attendu : une boutique qu'on croit faite sur mesure par un studio
+
+Le marchand compare avec les meilleures boutiques générées ailleurs. Ce qu'il regarde, et ce que tu dois livrer :
+
+- **De la matière dans les fonds, pas des aplats.** Des fonds qui ont une texture : dégradés superposés (linear + radial), grain léger (un motif SVG feTurbulence en data URI dans un ::before à faible opacité — c'est du CSS, autorisé), trames fines (repeating-linear-gradient à 2-3 px), reflets, vignettage. Un fond « bois », « métal brossé », « papier », « béton », « velours » se fait en dégradés répétés et en blend modes (background-blend-mode, mix-blend-mode), sans image. Le noir n'est jamais #000 pur : il est teinté par l'accent.
+- **De la profondeur.** Ombres à plusieurs couches (une courte nette + une longue diffuse), panneaux en verre (backdrop-filter: blur + bordure claire à 10-15 % d'opacité), superpositions légères, éléments qui se chevauchent (une photo qui déborde de sa carte, un titre qui passe devant un visuel), un léger parallaxe du héros au défilement (dans DropShop.apres, transform sur le fond avec requestAnimationFrame, désactivé si prefers-reduced-motion).
+- **Du mouvement dans les vignettes au survol.** Chaque carte produit et catégorie réagit : levée de 4 à 6 px, zoom de la photo (scale 1.05-1.08 dans un conteneur overflow:hidden), ombre qui s'étend, apparition d'un bouton ou d'un liseré d'accent, transition 250-350 ms en cubic-bezier. Les boutons ont un état survol et un état pressé.
+- **Un diaporama d'accueil augmenté.** Le héros ne montre pas UNE photo figée : il fait défiler les photos des produits (c.nouveautes, jusqu'à 5) en fondu enchaîné ou en glissement lent (CSS @keyframes, ou DropShop.apres avec setInterval), avec effet Ken Burns (zoom lent), le titre par-dessus, des pastilles de navigation cliquables. Prévoir le cas d'un catalogue avec une seule photo (pas de mouvement) ou sans photo (fond en matière).
+- **Des textes qui bougent.** Le titre du héros apparaît en cascade (mots ou lignes avec un délai d'animation croissant), un bandeau défilant (marquee) porte les catégories ou les promesses, les sections se révèlent au défilement (IntersectionObserver dans DropShop.apres, classe .visible, opacité ET translation), un chiffre ou un mot-clé peut avoir un soulignement animé. Tout respecte prefers-reduced-motion. Rien ne reste invisible si l'observateur ne se déclenche pas : l'état de repos est LISIBLE (opacité de départ 0 seulement dans une règle qui n'est appliquée que si JS a posé une classe sur <html>).
+- **Le logo, au bon endroit.** Si c.boutique.logoEntete existe : en miniature dans la barre du haut, hauteur 34-44 px, avant le nom (ou à sa place si le logo porte le nom). Si c.boutique.logoAccueil existe : en grand au-dessus du titre du héros (largeur clamp(180px, 30vw, 460px)), sans étirement (object-fit: contain), avec un léger fondu à l'arrivée. Sans logo : le nom fait enseigne, dans la police de titrage, avec un signe distinctif (lettrine, trait, ligature).
+- **Alignement irréprochable.** TOUT contenu textuel vit dans un conteneur .wrap { width: min(1200px, 92vw); margin-inline: auto; } — et .wrap ne reçoit JAMAIS width:100% par une seconde classe (c'est la faute qui colle un titre au bord de l'écran). Le héros plein écran met sa photo en fond (position absolue, inset 0) et son texte dans un .wrap. Aucun texte à moins de 16 px du bord sur téléphone. Les titres longs se coupent en lignes (max-width en ch, text-wrap: balance), jamais en débordement.
+- **Code de niveau expert.** Variables CSS en tête, échelle typographique en clamp(), grilles en auto-fit/minmax, pas de sélecteurs qui se contredisent (une classe ne redéfinit pas ce qu'une autre pose sur le même élément), pas de !important, images en loading="lazy" hors héros, SVG inline pour les icônes, attributs aria sur les boutons d'icône, focus visible, contraste ≥ 4,5:1 pour le texte. Le JavaScript de la page est petit et propre : des fonctions de rendu pures, un seul DropShop.apres pour les effets, jamais de gestionnaire sur les gestes que le moteur branche.
+
+## Modes visiteur (seulement si demandés dans la fiche)
+
+Quand le marchand a coché « expérience immersive », la boutique propose au visiteur de changer d'ambiance : un sélecteur dans l'en-tête avec 4 boutons [data-mode="…"] (noms courts et évocateurs, propres à ce commerce — pas « Noir / Clair / Gradient / Colorful » recopiés), chacun avec son propre dessin de bouton (une pastille de couleur, un dégradé miniature, une icône), l'actif marqué (aria-pressed via la valeur de data-theme sur <html>). Chaque mode est une AMBIANCE COMPLÈTE définie en CSS sous [data-theme="…"] : fond, surfaces, texte, texte sourd, lignes, accents, matière du héros, ombres. Le mode par défaut (sans data-theme) est celui du brief. Quatre ambiances vraiment différentes : par exemple nuit profonde, papier clair, dégradé saturé, pastel coloré — pas une simple inversion. Toutes lisibles (contraste ≥ 4,5:1), toutes soignées.
+
 ## Format de réponse
 
-Réponds UNIQUEMENT par le document HTML complet, dans un bloc \`\`\`html … \`\`\`. Aucune phrase avant ni après. Vise 600 à 1 100 lignes : complet mais sans redondance.`
+Réponds UNIQUEMENT par le document HTML complet, dans un bloc \`\`\`html … \`\`\`. Aucune phrase avant ni après. Vise 700 à 1 300 lignes : complet, riche, sans redondance.`
 
 const REGLES_EDITION = `Tu modifies une boutique DropShop existante par ÉDITIONS CIBLÉES, sans la réécrire.
 
@@ -176,9 +207,19 @@ function ficheCommerce(brief: string, catalogue: CatalogueBoutique): string {
     catalogue.echantillon.length
       ? `Quelques produits réels, pour te représenter ce qui sera montré (les photos et prix viendront de c.nouveautes, jamais d'ici) :\n${catalogue.echantillon.slice(0, 8).map((p) => `- ${p.title} — ${p.price.toFixed(2)} € — ${p.category ?? 'sans catégorie'}${p.image ? ' — photo disponible' : ' — sans photo'}`).join('\n')}`
       : '',
-    catalogue.logoEntete ? 'Le marchand a un logo d\'en-tête (c.boutique.logoEntete).' : 'Pas de logo d\'en-tête : le nom fait enseigne, soigne sa typographie.',
-    catalogue.logoAccueil ? 'Le marchand a un grand logo d\'accueil (c.boutique.logoAccueil).' : '',
+    catalogue.logoEntete ? 'Le marchand a un logo d\'en-tête (c.boutique.logoEntete) : affiche-le dans la barre du haut.' : 'Pas de logo d\'en-tête : le nom fait enseigne, soigne sa typographie.',
+    catalogue.logoAccueil ? 'Le marchand a un grand logo d\'accueil (c.boutique.logoAccueil) : en grand au-dessus du titre du héros.' : '',
+    catalogue.couleursLogo?.length ? `Couleurs lues dans son logo : ${catalogue.couleursLogo.map((c) => `${c.hex} (${Math.round(c.part * 100)} %)`).join(', ')}.` : '',
+    catalogue.gamme
+      ? `PALETTE IMPOSÉE par le marchand, tirée de son logo — gamme « ${catalogue.gamme.nom} » (mode ${catalogue.gamme.mode}) : ${Object.entries(catalogue.gamme.jetons).map(([k, v]) => `${k} ${v}`).join(', ')}. Pars de ces jetons exactement pour le mode par défaut ; tu peux ajouter des nuances dérivées, pas changer la base.`
+      : '',
+    catalogue.modesVisiteur
+      ? 'EXPÉRIENCE IMMERSIVE DEMANDÉE : ajoute les modes visiteur décrits dans la consigne (4 boutons [data-mode], 4 ambiances [data-theme] complètes).'
+      : 'Pas de modes visiteur : une seule ambiance, celle du brief.',
     catalogue.annonce ? `Bandeau d'annonce du marchand : « ${catalogue.annonce} »` : '',
+    catalogue.dossierDesign
+      ? `\n# Bibliothèque de design — inspirations sélectionnées pour ce commerce\n\nChoisis, adapte, pousse plus loin ; ne recopie aucune recette telle quelle.\n\n${catalogue.dossierDesign}`
+      : '',
   ]
   return lignes.filter(Boolean).join('\n')
 }
@@ -262,11 +303,12 @@ export const appelAnthropic: AppelModele = async (d) => {
 
 /* ---------- La vérification, dans un processus enfant à l'environnement vide ---------- */
 
-export const verifierEnfant: Verificateur = (html) =>
+export const verifierEnfant: Verificateur = (html, options = {}) =>
   new Promise((resolve) => {
     const fichier = path.join(os.tmpdir(), `dropshop-${randomUUID()}.html`)
     fs.writeFileSync(fichier, html, 'utf8')
-    const enfant = spawn(process.execPath, [path.join(DOSSIER, 'verifier.cjs'), fichier], {
+    const drapeaux = [options.modesVisiteur ? '--modes' : '', options.logo ? '--logo' : ''].filter(Boolean)
+    const enfant = spawn(process.execPath, [path.join(DOSSIER, 'verifier.cjs'), fichier, ...drapeaux], {
       env: { PATH: process.env.PATH ?? '' },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -336,8 +378,10 @@ export async function fabriquerSite(
   let html = extraireHtml(reponse.texte)
   if (!html) throw new SiteImpossible("Le modèle n'a pas rendu une page HTML complète.")
 
+  const options: OptionsSite = { modesVisiteur: Boolean(catalogue.modesVisiteur), logo: Boolean(catalogue.logoEntete) }
   let tentatives = 1
-  let verdict = await new Promise<Awaited<ReturnType<Verificateur>>>((r) => { surEtape({ etape: 'verification', tentative: 1 }); r(verifier(html!)) })
+  surEtape({ etape: 'verification', tentative: 1 })
+  let verdict = await verifier(html, options)
   for (let n = 1; !verdict.ok && n <= REPARATIONS_MAX; n++) {
     surEtape({ etape: 'reparation', tentative: n })
     const repare = await reparerSite(html, verdict.echecs, appeler)
@@ -346,7 +390,7 @@ export async function fabriquerSite(
     html = repare.html
     tentatives++
     surEtape({ etape: 'verification', tentative: n + 1 })
-    verdict = await verifier(html)
+    verdict = await verifier(html, options)
   }
   if (!verdict.ok) {
     throw new SiteImpossible('La boutique écrite ne passe pas le contrôle du visiteur après réparations.', verdict.echecs)
@@ -408,19 +452,20 @@ export async function modifierSite(
   appeler: AppelModele = appelAnthropic,
   verifier: Verificateur = verifierEnfant,
   surEtape: (e: Etape) => void = () => undefined,
+  options: OptionsSite = {},
 ): Promise<SiteModifie & { avertissements: string[] }> {
   const modeleEdition = modele('AI_MODEL_SITE_MODIF', MODELE_RAPIDE)
   surEtape({ etape: 'ecriture', tentative: 1 })
   const edite = await editer(html, demande, appeler, modeleEdition)
   surEtape({ etape: 'verification', tentative: 1 })
-  let verdict = await verifier(edite.html)
+  let verdict = await verifier(edite.html, options)
   let resultat = edite
   if (!verdict.ok) {
     surEtape({ etape: 'reparation', tentative: 1 })
     const repare = await reparerSite(edite.html, verdict.echecs, appeler)
     resultat = { ...edite, html: repare.html, jetons: { entree: edite.jetons.entree + repare.jetons.entree, sortie: edite.jetons.sortie + repare.jetons.sortie } }
     surEtape({ etape: 'verification', tentative: 2 })
-    verdict = await verifier(resultat.html)
+    verdict = await verifier(resultat.html, options)
     if (!verdict.ok) throw new SiteImpossible('La modification casse la boutique et la réparation n\'a pas suffi.', verdict.echecs)
   }
   return { ...resultat, avertissements: verdict.avertissements }

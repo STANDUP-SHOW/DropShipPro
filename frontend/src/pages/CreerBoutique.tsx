@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Sparkles, Store, ArrowRight, Monitor, Smartphone, ExternalLink, History, RotateCcw,
-  CreditCard, Wand2, CheckCircle2, AlertTriangle, Loader2, ChevronDown, Trash2, Copy,
+  CreditCard, Wand2, CheckCircle2, AlertTriangle, Loader2, ChevronDown, Trash2, Copy, Image as ImageIcon,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
-import { api, type EtatDropShop, type TravailDropShop } from '../lib/api'
+import { api, type EtatDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
 
 type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
 
@@ -165,6 +165,51 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
   const [copie, setCopie] = useState(false)
   const [rechargement, setRechargement] = useState(0)
   const versionVue = useRef<number>(-1)
+  // Le logo, ses couleurs, la gamme choisie, l'expérience immersive.
+  const [logos, setLogos] = useState<{ entete: string | null; accueil: string | null }>({ entete: boutique.vitrineLogoEntete, accueil: boutique.vitrineLogoAccueil })
+  const [gammes, setGammes] = useState<{ logo: boolean; couleurs: Array<{ hex: string; part: number }>; gammes: GammeDropShop[] } | null>(null)
+  const [gammeChoisie, setGammeChoisie] = useState<string | null>(null)
+  const [modesVisiteur, setModesVisiteur] = useState(false)
+  const [chargeLogo, setChargeLogo] = useState<'entete' | 'accueil' | null>(null)
+
+  const analyserLogo = useCallback(async () => {
+    try {
+      const g = await api.dropshopGammes(boutique.id)
+      setGammes(g)
+      // Sans logo, pas de proposition « adapter aux couleurs » : l'IA reste libre.
+      if (!g.logo) setGammeChoisie(null)
+    } catch {
+      setGammes(null)
+    }
+  }, [boutique.id])
+
+  async function televerserLogo(emplacement: 'entete' | 'accueil', fichier: File | null) {
+    if (!fichier) return
+    setChargeLogo(emplacement)
+    setErreur(null)
+    try {
+      const r = await api.uploadVitrineLogo(boutique.id, emplacement, fichier)
+      setLogos((l) => ({ ...l, [emplacement]: r.logo }))
+      onChange()
+      await analyserLogo()
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Logo refusé')
+    } finally {
+      setChargeLogo(null)
+    }
+  }
+
+  async function retirerLogo(emplacement: 'entete' | 'accueil') {
+    setChargeLogo(emplacement)
+    try {
+      await api.deleteVitrineLogo(boutique.id, emplacement)
+      setLogos((l) => ({ ...l, [emplacement]: null }))
+      onChange()
+      await analyserLogo()
+    } finally {
+      setChargeLogo(null)
+    }
+  }
 
   const relire = useCallback(async () => {
     try {
@@ -183,7 +228,8 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
     versionVue.current = -1
     setEtat(null)
     void relire()
-  }, [relire])
+    void analyserLogo()
+  }, [relire, analyserLogo])
 
   const enCours = Boolean(etat?.travail && !etat.travail.fin)
   useEffect(() => {
@@ -197,7 +243,8 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
     setBusy(true)
     setErreur(null)
     try {
-      await api.dropshopCreer(boutique.id, brief)
+      const gamme = gammes?.gammes.find((g) => g.id === gammeChoisie) ?? null
+      await api.dropshopCreer(boutique.id, { description: brief, gamme: gamme ? { nom: gamme.nom, mode: gamme.mode, jetons: gamme.jetons } : null, modesVisiteur })
       await relire()
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Création impossible')
@@ -290,10 +337,74 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
       {/* ---------- Colonne gauche : la conversation ---------- */}
       <div className="space-y-4">
         {!etat.creee && !enCours ? (
+          <section className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
+            <h2 className="flex items-center gap-2 font-bold">
+              <ImageIcon size={16} className="text-emerald-300" />
+              <span>1. Votre logo</span>
+            </h2>
+            <p className="mt-1 text-xs text-gray-400">
+              Déposez-le avant de créer : il prend place dans la barre du haut (petit) et en grand au-dessus du titre
+              d'accueil, et l'IA lit ses couleurs pour vous proposer une gamme. PNG, SVG, WebP ou JPEG, fond transparent de préférence.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {(['entete', 'accueil'] as const).map((emplacement) => (
+                <div key={emplacement} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{emplacement === 'entete' ? 'Barre du haut' : 'Grand, sur l\'accueil'}</p>
+                  <div className="mt-2 flex h-20 items-center justify-center rounded-lg bg-white/[0.06]">
+                    {logos[emplacement] ? <img src={logos[emplacement] ?? ''} alt="" className="max-h-16 max-w-[90%] object-contain" /> : <span className="text-xs text-gray-500">Aucun logo</span>}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <label className="cursor-pointer rounded-lg border border-white/10 px-2.5 py-1 text-xs text-gray-200 hover:bg-white/5">
+                      {chargeLogo === emplacement ? 'Envoi…' : logos[emplacement] ? 'Remplacer' : 'Choisir un fichier'}
+                      <input type="file" accept="image/png,image/svg+xml,image/webp,image/jpeg" className="hidden" onChange={(e) => televerserLogo(emplacement, e.target.files?.[0] ?? null)} />
+                    </label>
+                    {logos[emplacement] ? <button type="button" onClick={() => retirerLogo(emplacement)} className="text-xs text-gray-500 underline hover:text-red-300">Retirer</button> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {gammes?.logo ? (
+              <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.05] p-3">
+                <p className="text-sm font-semibold text-emerald-100">Adapter la boutique aux couleurs de votre logo ?</p>
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+                  <span>Couleurs lues :</span>
+                  {gammes.couleurs.map((c) => (
+                    <span key={c.hex} className="inline-flex items-center gap-1 rounded-full border border-white/10 px-1.5 py-0.5">
+                      <span className="inline-block h-3 w-3 rounded-full" style={{ background: c.hex }} />
+                      <span className="text-[11px] text-gray-300">{c.hex} · {Math.round(c.part * 100)} %</span>
+                    </span>
+                  ))}
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {gammes.gammes.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setGammeChoisie(gammeChoisie === g.id ? null : (g.id ?? null))}
+                      className={`rounded-xl border p-2.5 text-left transition ${gammeChoisie === g.id ? 'border-emerald-300 bg-emerald-400/10' : 'border-white/10 hover:bg-white/5'}`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {(['fond', 'surface', 'accent', 'accent2', 'texte'] as const).map((k) => (
+                          <span key={k} className="inline-block h-5 w-5 rounded-md border border-white/10" style={{ background: g.jetons[k] }} title={k} />
+                        ))}
+                        <span className="ml-auto text-sm font-bold text-gray-100">{g.nom}</span>
+                      </span>
+                      <span className="mt-1 block text-[11px] leading-snug text-gray-400">{g.description}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-gray-500">{gammeChoisie ? 'Cette gamme sera imposée comme palette de départ.' : 'Aucune gamme choisie : l\'IA compose librement, en connaissant les couleurs de votre logo.'}</p>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {!etat.creee && !enCours ? (
           <section className="rounded-2xl border border-emerald-400/25 bg-emerald-500/[0.06] p-5">
             <h2 className="flex items-center gap-2 font-bold">
               <Wand2 size={16} className="text-emerald-300" />
-              <span>{`Décrivez la boutique de vos rêves pour ${boutique.name}`}</span>
+              <span>{`2. Décrivez la boutique de vos rêves pour ${boutique.name}`}</span>
             </h2>
             <p className="mt-1 text-xs text-gray-400">
               Ce que vous vendez, à qui, l'ambiance, les couleurs, ce qui vous inspire. Plus c'est précis, plus la
@@ -306,9 +417,17 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
               placeholder="Ex. Une boutique de montres et bijoux en acier pour hommes, ambiance atelier d'horloger : bois sombre, laiton, noir profond, typographie élégante. Clientèle 25-45 ans, urbaine. Je veux un grand héros avec une montre en gros plan, les catégories en cartes, et un ton sobre, sûr de lui, sans superlatifs."
               className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm leading-relaxed outline-none transition focus:border-emerald-400/70"
             />
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
+              <input type="checkbox" checked={modesVisiteur} onChange={(e) => setModesVisiteur(e.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-400" />
+              <span className="text-xs leading-relaxed text-gray-300">
+                <b className="text-gray-100">Expérience client immersive.</b> Vos visiteurs choisissent l'ambiance de la boutique
+                depuis un sélecteur dans l'en-tête : quatre assemblages de couleurs complets et soignés, dessinés pour votre
+                commerce, chacun avec son bouton. Leur choix est mémorisé.
+              </span>
+            </label>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-gray-400">
-                <b className="text-emerald-200">{etat.tarifs.creation} drops</b> · {etat.tarifs.incluses} modifications comprises · en ligne en 2 à 3 minutes
+                <b className="text-emerald-200">{etat.tarifs.creation} drops</b> · {etat.tarifs.incluses} modifications comprises · en ligne en 3 à 5 minutes
               </span>
               <button
                 type="button"

@@ -5,6 +5,7 @@ import { apiBaseUrl } from '../lib/urls.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { BOUTIQUE_MODIFS_INCLUSES, DROPS } from '../services/tarifs.js'
 import {
+  gammesPour,
   lancerCreation,
   lancerModification,
   restaurerVersion,
@@ -61,7 +62,29 @@ dropshopRouter.get('/:shopId', async (req: AuthedRequest, res) => {
   })
 })
 
-const briefSchema = z.object({ description: z.string().trim().min(20, 'Décrivez la boutique en quelques phrases (20 caractères au moins).').max(4000) })
+/**
+ * Les couleurs du logo et les gammes qu'on en tire, pour l'écran « adapter la
+ * boutique aux couleurs de votre logo ? ». Sans logo : gammes neutres, `logo: false`.
+ */
+dropshopRouter.get('/:shopId/gammes', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  res.json(await gammesPour(shop))
+})
+
+const couleur = z.string().regex(/^(#[0-9a-fA-F]{6}|rgba?\([^)]{1,40}\))$/, 'Couleur invalide')
+const briefSchema = z.object({
+  description: z.string().trim().min(20, 'Décrivez la boutique en quelques phrases (20 caractères au moins).').max(4000),
+  gamme: z
+    .object({
+      nom: z.string().trim().min(1).max(40),
+      mode: z.enum(['sombre', 'clair']),
+      jetons: z.object({ fond: couleur, surface: couleur, texte: couleur, sourd: couleur, accent: couleur, accent2: couleur, ligne: couleur }),
+    })
+    .nullable()
+    .optional(),
+  modesVisiteur: z.boolean().optional(),
+})
 
 dropshopRouter.post('/:shopId/creer', async (req: AuthedRequest, res) => {
   const shop = await boutiqueDe(req)
@@ -69,7 +92,7 @@ dropshopRouter.post('/:shopId/creer', async (req: AuthedRequest, res) => {
   const parsed = briefSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Brief invalide' })
   try {
-    const etat = await lancerCreation(shop, parsed.data.description)
+    const etat = await lancerCreation(shop, parsed.data.description, {}, { gamme: parsed.data.gamme ?? null, modesVisiteur: Boolean(parsed.data.modesVisiteur) })
     res.status(202).json({ travail: etat })
   } catch (e) {
     refus(res, e)

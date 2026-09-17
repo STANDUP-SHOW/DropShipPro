@@ -23,6 +23,13 @@ const { JSDOM, VirtualConsole } = require('jsdom')
 
 const SDK = fs.readFileSync(path.join(__dirname, 'sdk.js'), 'utf8')
 
+/**
+ * Les options de contrôle, selon ce que le vendeur a demandé :
+ *   --modes  la boutique doit offrir des modes visiteur ([data-mode] + [data-theme=…])
+ *   --logo   le marchand a un logo : il doit être affiché dans l'en-tête
+ */
+const OPTIONS = { modes: process.argv.includes('--modes'), logo: process.argv.includes('--logo') }
+
 const THEME = {
   theme: 'comptoir',
   jetons: {},
@@ -35,7 +42,7 @@ const THEME = {
     fraisPort: 4.9,
     portOffertDes: 300,
   },
-  boutique: { nom: 'Maison Test', logo: null, logoEntete: null, logoAccueil: null },
+  boutique: { nom: 'Maison Test', logo: null, logoEntete: OPTIONS.logo ? 'https://cdn.test/logo.png' : null, logoAccueil: OPTIONS.logo ? 'https://cdn.test/logo-grand.png' : null },
 }
 const PRODUITS = {
   shop: { name: 'Maison Test' },
@@ -80,6 +87,14 @@ function controlerStructure(page, echecs, avertissements) {
   if (/<script[^>]*>[\s\S]*?on(click|submit|change)\s*=/i.test(page) || /\son(click|submit|change)=["']/i.test(page)) avertissements.push('Des gestionnaires inline (onclick=…) ont été trouvés : préférer les attributs data-ajouter, data-retirer, data-commande, que le moteur branche lui-même.')
   const taille = Buffer.byteLength(page, 'utf8')
   if (taille > 400_000) echecs.push('La page pèse ' + Math.round(taille / 1024) + ' Ko : au-delà de 400 Ko. Pas de données en dur, pas d\'images encodées dans la page.')
+  // Faute vue sur la première boutique réelle : un « .wrap » recevant width:100%
+  // par une seconde classe perd ses marges, et le titre du héros colle au bord.
+  const css = (page.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || []).join('\n')
+  if (/\.wrap\s*\{[^}]*width\s*:\s*100%/.test(css)) echecs.push('La règle .wrap ne doit pas poser width:100% : elle centre le contenu avec une largeur bornée (min(1200px, 92vw)) et margin-inline:auto.')
+  if (OPTIONS.modes) {
+    const themes = new Set((css.match(/\[data-theme=["']?([a-z0-9-]+)["']?\]/gi) || []).map((m) => m.toLowerCase()))
+    if (themes.size < 3) echecs.push('Les modes visiteur ont été demandés : le CSS doit définir au moins 3 ambiances complètes sous [data-theme="…"] (fond, surfaces, texte, accent), trouvé ' + themes.size + '.')
+  }
 }
 
 /* ---------- Montage ---------- */
@@ -147,6 +162,21 @@ async function parcours(page, echecs, avertissements) {
   verifier(() => app().querySelector('a[href="#/panier"]'), 'Le cadre (en-tête) doit porter un lien vers le panier (c.lien.panier = "#/panier").')
   verifier(() => texte(d).includes('249,00 €'), 'Les prix s\'affichent avec c.prix(p.price) — « 249,00 € » n\'apparaît pas sur l\'accueil.')
   verifier(() => app().querySelector('img[src="https://cdn.test/aurore.jpg"]'), 'Les photos des produits s\'affichent via c.photo(produit) — la photo de « Montre Aurore acier » n\'est pas dans la page.')
+  verifier(() => app().querySelector('h1'), 'L\'accueil doit porter un <h1> : l\'accroche du héros (c.boutique.accroche + accrocheSuite).')
+  // Un .wrap qui reçoit width:100% d'une autre classe : le contenu colle au bord.
+  verifier(() => !Array.from(app().querySelectorAll('.wrap')).some((el) => w.getComputedStyle(el).width === '100%'), 'Un élément .wrap reçoit width:100% (par une autre classe) : il perd ses marges et le texte colle au bord de l\'écran. Le conteneur centré garde sa largeur bornée ; mettre width:100% sur un enfant, pas sur .wrap.')
+  if (OPTIONS.modes) {
+    verifier(() => app().querySelectorAll('[data-mode]').length >= 3, 'Les modes visiteur ont été demandés : le cadre doit offrir au moins 3 boutons [data-mode="…"] (un sélecteur d\'ambiance dans l\'en-tête).')
+    const premier = app().querySelector('[data-mode]')
+    if (premier) {
+      const mode = premier.getAttribute('data-mode')
+      premier.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }))
+      verifier(() => d.documentElement.getAttribute('data-theme') === mode, 'Un clic sur [data-mode] doit laisser le moteur poser data-theme sur <html> : ne pas intercepter ce clic.')
+    }
+  }
+  if (OPTIONS.logo) {
+    verifier(() => app().querySelector('header img[src="https://cdn.test/logo.png"], img[src="https://cdn.test/logo.png"]'), 'Le marchand a un logo d\'en-tête (c.boutique.logoEntete) : il doit être affiché dans l\'en-tête à la place ou à côté du nom.')
+  }
 
   // Boutique
   await aller(w, '#/boutique')

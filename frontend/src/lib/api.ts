@@ -69,6 +69,15 @@ export interface TravailDropShop {
   drops: number
 }
 
+/** Une gamme de couleurs proposée à partir du logo, ou choisie par le vendeur. */
+export interface GammeDropShop {
+  id?: string
+  nom: string
+  description?: string
+  mode: 'sombre' | 'clair'
+  jetons: { fond: string; surface: string; texte: string; sourd: string; accent: string; accent2: string; ligne: string }
+}
+
 export interface EtatDropShop {
   id: string
   nom: string
@@ -861,8 +870,11 @@ export const api = {
     >('/settings/shops'),
   /* ---------- DropShop IA : la boutique écrite par le modèle ---------- */
   dropshopEtat: (shopId: string) => request<EtatDropShop>(`/dropshop/${shopId}`),
-  dropshopCreer: (shopId: string, description: string) =>
-    request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/creer`, { method: 'POST', body: JSON.stringify({ description }) }),
+  dropshopCreer: (shopId: string, brief: { description: string; gamme?: GammeDropShop | null; modesVisiteur?: boolean }) =>
+    request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/creer`, { method: 'POST', body: JSON.stringify(brief) }),
+  /** Les couleurs du logo de la boutique et les gammes qu'on en tire. */
+  dropshopGammes: (shopId: string) =>
+    request<{ logo: boolean; couleurs: Array<{ hex: string; part: number }>; gammes: GammeDropShop[] }>(`/dropshop/${shopId}/gammes`),
   dropshopModifier: (shopId: string, demande: string) =>
     request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/modifier`, { method: 'POST', body: JSON.stringify({ demande }) }),
   dropshopRestaurer: (shopId: string, numero: number) =>

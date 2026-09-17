@@ -15,6 +15,37 @@ import {
   type Etape,
   type Verificateur,
 } from './siteGenerator.js'
+import { dossierDesignPour, dossierEnTexte } from './designLibrary.js'
+import { couleursDuLogo, gammesDepuis, type CouleurLogo, type Gamme } from './logoCouleurs.js'
+
+/** Ce que le vendeur a choisi à la création : la gamme tirée de son logo, les modes visiteur. */
+export interface OptionsCreation {
+  gamme?: { nom: string; mode: 'sombre' | 'clair'; jetons: Record<string, string> } | null
+  modesVisiteur?: boolean
+}
+
+/**
+ * Les couleurs du logo de la boutique — celui de l'en-tête, sinon celui de
+ * l'accueil, sinon celui du filigrane — lues par notre propre API (/storage ou
+ * R2 : l'adresse absolue marche dans les deux cas). Rend [] sans logo.
+ */
+export async function couleursLogoDe(shop: Pick<Shop, 'vitrineLogoEntete' | 'vitrineLogoAccueil' | 'logo'>): Promise<CouleurLogo[]> {
+  const chemin = shop.vitrineLogoEntete ?? shop.vitrineLogoAccueil ?? shop.logo
+  if (!chemin) return []
+  try {
+    const res = await fetch(absoluteUrl(chemin))
+    if (!res.ok) return []
+    return await couleursDuLogo(Buffer.from(await res.arrayBuffer()))
+  } catch (e) {
+    console.error('[dropshop] couleurs du logo', e instanceof Error ? e.message : e)
+    return []
+  }
+}
+
+export async function gammesPour(shop: Shop): Promise<{ couleurs: CouleurLogo[]; gammes: Gamme[]; logo: boolean }> {
+  const couleurs = await couleursLogoDe(shop)
+  return { couleurs, gammes: gammesDepuis(couleurs), logo: Boolean(shop.vitrineLogoEntete ?? shop.vitrineLogoAccueil ?? shop.logo) }
+}
 
 /**
  * Les travaux DropShop : créer ou modifier la boutique d'un vendeur, avec le
@@ -50,6 +81,8 @@ export interface EtatTravail {
   resume?: string
   /** Drops pris pour ce travail, à rendre si ça tourne mal. */
   drops: number
+  /** À la création : la gamme choisie et les modes visiteur. */
+  options?: OptionsCreation
 }
 
 export const DELAI_TRAVAIL_MORT_MS = 15 * 60_000
@@ -131,7 +164,7 @@ interface Outils {
  * Lance la création. Rend l'état initial tout de suite ; le travail continue.
  * Lève `TravailRefuse` (402 sans drops, 409 si un travail tourne).
  */
-export async function lancerCreation(shop: Shop, brief: string, outils: Outils = {}): Promise<EtatTravail> {
+export async function lancerCreation(shop: Shop, brief: string, outils: Outils = {}, options: OptionsCreation = {}): Promise<EtatTravail> {
   if (await travailOuvert(shop)) throw new TravailRefuse('Un travail est déjà en cours sur cette boutique.', 409)
   const prix = DROPS.boutiqueCreation
   const credit = await reserveCredits(shop.userId, prix, 'Création de boutique DropShop IA', shop.id)
@@ -139,7 +172,7 @@ export async function lancerCreation(shop: Shop, brief: string, outils: Outils =
     if (credit.allowed > 0) await refundCredits(shop.userId, credit.allowed, 'Création de boutique : débit partiel rendu', shop.id)
     throw new TravailRefuse(credit.reason ?? `Il faut ${prix} drops pour créer une boutique.`, 402)
   }
-  const etat: EtatTravail = { type: 'creation', etape: 'ecriture', tentative: 1, demande: brief, debut: new Date().toISOString(), drops: prix }
+  const etat: EtatTravail = { type: 'creation', etape: 'ecriture', tentative: 1, demande: brief, debut: new Date().toISOString(), drops: prix, options }
   await poserEtat(shop.id, etat)
   enCours.add(shop.id)
   executer(shop, etat, outils).catch((e) => console.error('[dropshop] création', e instanceof Error ? e.message : e))
@@ -177,6 +210,12 @@ export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): P
   try {
     if (etat.type === 'creation') {
       const catalogue = await catalogueDe(shop)
+      // Le dossier de design (bibliothèque), les couleurs du logo, la gamme
+      // choisie et les modes : tout ce que le modèle doit savoir avant d'écrire.
+      catalogue.couleursLogo = (await couleursLogoDe(shop)).map((c) => ({ hex: c.hex, part: c.part }))
+      catalogue.gamme = etat.options?.gamme ?? null
+      catalogue.modesVisiteur = Boolean(etat.options?.modesVisiteur)
+      catalogue.dossierDesign = dossierEnTexte(dossierDesignPour(etat.demande, catalogue.categories.map((c) => c.nom)))
       const fait = await fabriquerSite(etat.demande, catalogue, appeler, verifier, surEtape)
       await publierVersion(shop.id, fait.html, etat.demande, fait.modele, { brief: etat.demande, modifsRestantes: BOUTIQUE_MODIFS_INCLUSES })
       console.log(`[dropshop] boutique ${shop.id} créée : ${fait.tentatives} passage(s), ${fait.jetons.entree}+${fait.jetons.sortie} jetons`)
@@ -184,7 +223,9 @@ export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): P
     } else {
       const actuel = await prisma.shop.findUnique({ where: { id: shop.id }, select: { siteHtml: true, siteModifsRestantes: true } })
       if (!actuel?.siteHtml) throw new SiteImpossible('La boutique a disparu pendant le travail.')
-      const fait = await modifierSite(actuel.siteHtml, etat.demande, appeler, verifier, surEtape)
+      // Ce que la page a déjà (modes visiteur, logo) doit survivre à la modification.
+      const options = { modesVisiteur: /data-mode=/.test(actuel.siteHtml), logo: Boolean(shop.vitrineLogoEntete) }
+      const fait = await modifierSite(actuel.siteHtml, etat.demande, appeler, verifier, surEtape, options)
       await publierVersion(shop.id, fait.html, etat.demande, fait.modele, etat.drops === 0 ? { modifsRestantes: Math.max(0, actuel.siteModifsRestantes - 1) } : {})
       console.log(`[dropshop] boutique ${shop.id} modifiée : ${fait.jetons.entree}+${fait.jetons.sortie} jetons`)
       etat.resume = fait.resume || 'Modification appliquée.'
