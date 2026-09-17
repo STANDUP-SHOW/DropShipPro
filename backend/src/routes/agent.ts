@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireApiKey, type AgentRequest } from '../middleware/apiKey.js'
+import { requireAdmin } from '../middleware/auth.js'
+import { lireRapport, RapportInvalide } from '../services/marketReports.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { findDepartment } from '../services/departments.js'
 import { runAutopilot } from '../services/autopilot.js'
@@ -369,6 +371,43 @@ agentRouter.post('/reports', async (req: AgentRequest, res) => {
     remplace: Boolean(existing),
     avertissement: dept.warning,
   })
+})
+
+/**
+ * Dépôt d'un rapport de marché des 48 agents locaux (MARKET-ANALYSES/).
+ *
+ * Réservé au compte administrateur : ces rapports sont GLOBAUX (lus par tous
+ * les vendeurs à ≥ 500 drops), une clé d'agent ordinaire ne doit pas pouvoir
+ * écrire dans le journal de tout le monde. Le corps est le Markdown du
+ * rapport, lu selon le contrat du README — refusé s'il ne le respecte pas,
+ * avec la raison, pour que l'agent qui l'a écrit se corrige.
+ */
+agentRouter.post('/market-reports', requireAdmin as never, async (req: AgentRequest, res) => {
+  const parsed = z.object({ markdown: z.string().min(50).max(400_000) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Envoyez { markdown } : le rapport complet.' })
+
+  let lu
+  try {
+    lu = lireRapport(parsed.data.markdown)
+  } catch (err) {
+    if (err instanceof RapportInvalide) return res.status(422).json({ error: err.message })
+    throw err
+  }
+
+  const cle = { day: lu.day, categorie: lu.categorie, theme: lu.theme, type: lu.type }
+  const data = {
+    titre: lu.titre,
+    accroche: lu.accroche,
+    body: lu.body,
+    produits: lu.produits as never,
+    sources: lu.sources,
+  }
+  const rapport = await prisma.marketReport.upsert({
+    where: { day_categorie_theme_type: cle },
+    create: { ...cle, ...data },
+    update: data,
+  })
+  res.status(201).json({ id: rapport.id, ...cle, produits: lu.produits.length })
 })
 
 /**

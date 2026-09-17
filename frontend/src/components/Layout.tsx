@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Mail, Search, Menu as MenuIcon, X } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, Search, Menu as MenuIcon, X } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
@@ -122,6 +122,7 @@ const SECTIONS: Array<{
     // avant ces deux entrées — voir le bloc conditionnel du rendu.
     titre: 'Mes rayons IA',
     entrees: [
+      { to: '/fresh-news', label: 'Fresh news', icon: Newspaper },
       { to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp },
       { to: '/produits-gagnants', label: 'Produits gagnants', icon: Trophy },
     ],

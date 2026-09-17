@@ -212,6 +212,50 @@ export const api = {
     request<{ ok: true }>('/auth/email/verify', { method: 'POST', body: JSON.stringify({ token }) }),
   resendVerification: () => request<{ ok: true }>('/auth/email/resend', { method: 'POST' }),
 
+  // Fresh news : les rapports du jour des 48 agents (réservés aux comptes à ≥ 500 drops).
+  freshCategories: () =>
+    request<Array<{ id: string; nom: string; themes: Array<{ id: string; nom: string }>; themeDuJour: string }>>(
+      '/market-reports/categories',
+    ),
+  freshRapports: (categorie: string, jour?: string, q?: string) =>
+    request<{
+      categorie: { id: string; nom: string }
+      jour?: string
+      aujourdhui?: string
+      hier?: string
+      disponibles: string[]
+      resultats?: Array<{ id: string; day: string; theme: string; type: string; titre: string; accroche: string | null }>
+      rapports: Array<{
+        id: string
+        type: 'rayon' | 'marketing'
+        theme: { id: string; nom: string }
+        titre: string
+        accroche: string | null
+        sources: number
+        body: string
+        produits: Array<{
+          rang: number
+          titre: string
+          fournisseur: string
+          url: string
+          prixAchat: number | null
+          prixVente: number | null
+          margePct: number | null
+          import: 'api' | 'url' | 'extension'
+          pourquoi: string
+        }>
+      }>
+    }>(
+      `/market-reports?categorie=${encodeURIComponent(categorie)}${jour ? `&jour=${jour}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+    ),
+  // La file d'import exécutée par l'agent extension.
+  fileImportAjouter: (produits: Array<{ url: string; titre?: string; fournisseur?: string; mode?: 'api' | 'url' | 'extension'; origine?: string }>) =>
+    request<{ ajoutes: number; dejaEnFile: number }>('/market-reports/file', { method: 'POST', body: JSON.stringify({ produits }) }),
+  fileImport: () =>
+    request<Array<{ id: string; url: string; titre: string | null; fournisseur: string | null; mode: string; status: string; erreur: string | null; productId: string | null; createdAt: string }>>(
+      '/market-reports/file',
+    ),
+  fileImportRetirer: (id: string) => request<{ ok: true }>(`/market-reports/file/${id}`, { method: 'DELETE' }),
   importProduct: (url: string) => request('/products/import', { method: 'POST', body: JSON.stringify({ url }) }),
   importBatch: (urls: string[]) =>
     request<{ results: Array<{ url: string; ok: boolean; error?: string }>; imported: number; failed: number }>(

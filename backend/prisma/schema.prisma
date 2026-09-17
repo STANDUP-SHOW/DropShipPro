@@ -178,6 +178,7 @@ model User {
   review             Review?
   Department         Department[]
   Report             Report[]
+  ImportQueue        ImportQueue[]
   ChatMessage        ChatMessage[]
   autopilot          Autopilot?
   conversations      Conversation[]
@@ -826,6 +827,56 @@ model Report {
   // Prisma ne sait pas exprimer un index partiel, le code fait donc la lecture
   // avant ecriture lui-meme.
   @@index([userId, section])
+}
+
+/// Un rapport de marché produit par les agents locaux (MARKET-ANALYSES/) :
+/// un par jour, par catégorie, par thème et par type (rayon | marketing).
+/// Global — offert à tout compte qui a au moins 500 drops en banque.
+model MarketReport {
+  id        String   @id @default(cuid())
+  /// Jour couvert, AAAA-MM-JJ.
+  day       String
+  /// Identifiants d'agents.json : catégorie générale et thème du jour.
+  categorie String
+  theme     String
+  /// rayon | marketing
+  type      String
+  titre     String
+  /// L'accroche « journal », une phrase.
+  accroche  String?
+  /// Le corps en Markdown, sections H2 = blocs de la page.
+  body      String   @db.Text
+  /// Rapport rayon : les 20 produits du tableau normalisé (titre, fournisseur, url, prix, mode d'import…).
+  produits  Json?
+  sources   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([day, categorie, theme, type])
+  @@index([categorie, day])
+}
+
+/// La file d'import servie par le serveur et exécutée par l'extension Chrome du
+/// vendeur (l'agent extension) : une fiche fournisseur par ligne.
+model ImportQueue {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url         String
+  titre       String?
+  fournisseur String?
+  /// api | url | extension — comment la fiche se relève.
+  mode        String   @default("extension")
+  /// D'où vient la demande (id de MarketReport, ou null pour une saisie libre).
+  origine     String?
+  /// EN_ATTENTE | RELEVE | IMPORTE | ECHEC
+  status      String   @default("EN_ATTENTE")
+  erreur      String?
+  productId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, status])
 }
 
 /// Un echange avec un chef de rayon.
