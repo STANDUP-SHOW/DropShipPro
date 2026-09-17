@@ -593,12 +593,19 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
         </div>
         <div className={`flex justify-center overflow-hidden rounded-b-2xl border border-white/10 bg-[#0b0b10] ${mobile ? 'py-4' : ''}`} style={{ height: '78vh', minHeight: 560 }}>
           {apercu && (etat.creee || etat.versions.length === 0) ? (
-            <iframe
-              key={apercu}
-              title={`Aperçu de ${boutique.name}`}
-              src={apercu}
-              className={`h-full bg-white ${mobile ? 'w-[390px] rounded-[28px] border-8 border-black/80 shadow-2xl' : 'w-full'}`}
-            />
+            <div className={`relative h-full ${mobile ? 'w-[390px]' : 'w-full'}`}>
+              {!etat.creee ? (
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-amber-500/90 px-3 py-1.5 text-center text-[11px] font-bold text-black">
+                  Ceci est l'ancienne vitrine à thèmes, en attendant : votre boutique écrite par l'IA la remplacera ici, à la même adresse.
+                </div>
+              ) : null}
+              <iframe
+                key={apercu}
+                title={`Aperçu de ${boutique.name}`}
+                src={apercu}
+                className={`h-full w-full bg-white ${mobile ? 'rounded-[28px] border-8 border-black/80 shadow-2xl' : ''}`}
+              />
+            </div>
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center">
               <Sparkles size={28} className="text-emerald-300" />

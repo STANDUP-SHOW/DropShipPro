@@ -13,6 +13,7 @@ import { vitrineRouter } from './routes/vitrine.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
 import { dropshopRouter } from "./routes/dropshop.js"
+import { reprendreTravauxOrphelins } from "./services/dropshopJobs.js"
 import { marketReportsRouter } from './routes/marketReports.js'
 import { opportunitiesRouter } from './routes/opportunities.js'
 import { signalsRouter } from './routes/signals.js'
@@ -170,7 +171,13 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 })
 
 const port = Number(process.env.PORT) || 4000
-app.listen(port, () => console.log(`DropShipper IA API sur http://localhost:${port}`))
+app.listen(port, () => {
+  console.log(`DropShipper IA API sur http://localhost:${port}`)
+  // Les créations DropShop tuées par ce redémarrage repartent, sans redébit.
+  reprendreTravauxOrphelins()
+    .then((n) => { if (n) console.log(`[dropshop] ${n} travail(aux) repris après redémarrage`) })
+    .catch((e) => console.error('[dropshop] reprise impossible', e instanceof Error ? e.message : e))
+})
 
 /*
  * Le referentiel de categories est seme au demarrage.

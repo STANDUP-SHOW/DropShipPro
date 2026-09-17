@@ -272,6 +272,36 @@ async function publierVersion(
   })
 }
 
+/**
+ * Reprend les travaux que le dernier redémarrage a tués.
+ *
+ * Railway redémarre l'API à chaque envoi de code, et un travail vit dans le
+ * processus : le 17/09/2026, la création d'iagent.agency a démarré pendant
+ * un redéploiement et est restée « en écriture » un quart d'heure, avant
+ * d'être déclarée morte et rendue — pendant que Max regardait l'ancienne
+ * vitrine à la place de sa boutique. Au démarrage, tout travail ouvert (sans
+ * `fin`) repart donc du début : les drops ont déjà été pris, rien n'est
+ * redébité, et le vendeur voit son avancement continuer.
+ */
+export async function reprendreTravauxOrphelins(outils: Outils = {}): Promise<number> {
+  const shops = await prisma.shop.findMany({ where: { siteJob: { not: Prisma.DbNull } } })
+  let repris = 0
+  for (const shop of shops) {
+    const etat = travailDe(shop)
+    if (!etat || etat.fin || enCours.has(shop.id)) continue
+    etat.etape = 'ecriture'
+    etat.tentative = 1
+    etat.debut = new Date().toISOString()
+    etat.resume = 'Repris après un redémarrage du serveur.'
+    await poserEtat(shop.id, etat)
+    enCours.add(shop.id)
+    repris++
+    console.log(`[dropshop] reprise du travail ${etat.type} de la boutique ${shop.id} après redémarrage`)
+    executer(shop, etat, outils).catch((e) => console.error('[dropshop] reprise', e instanceof Error ? e.message : e))
+  }
+  return repris
+}
+
 /** Remet en service une version passée, telle quelle. Gratuit : rien n'est écrit par le modèle. */
 export async function restaurerVersion(shop: Shop, numero: number): Promise<number> {
   if (await travailOuvert(shop)) throw new TravailRefuse('Un travail est en cours sur cette boutique.', 409)
