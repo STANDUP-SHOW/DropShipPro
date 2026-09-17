@@ -95,10 +95,21 @@ export interface EtatDropShop {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
+  /*
+   * Un envoi de fichier (FormData) ne doit pas partir en « application/json ».
+   *
+   * Constaté le 17/09/2026 : les envois de logo passaient `headers: {}` en
+   * croyant effacer le type par défaut — un objet vide étalé n'efface rien.
+   * Le navigateur envoyait donc un corps multipart étiqueté JSON ; le serveur
+   * essayait de le lire comme du JSON, levait, et le vendeur voyait « Une
+   * erreur interne est survenue » à chaque logo. Le navigateur pose lui-même
+   * la frontière multipart quand on ne lui impose aucun type.
+   */
+  const fichier = typeof FormData !== 'undefined' && options.body instanceof FormData
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(fichier ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },

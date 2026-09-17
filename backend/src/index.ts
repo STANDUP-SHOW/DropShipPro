@@ -156,8 +156,16 @@ app.use('/b', vitrineRouter)
  * d'erreurs et non une route.
  */
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('erreur non gérée dans une route', err instanceof Error ? err.stack : err)
   if (res.headersSent) return
+  // Un corps illisible (JSON cassé, ou un fichier envoyé sous une étiquette
+  // JSON) est une faute du client, pas une panne : body-parser la marque en
+  // 4xx. La rendre en 500 « erreur interne » envoyait chercher une panne
+  // serveur pour un logo qui partait mal étiqueté (17/09/2026).
+  const statut = typeof (err as { status?: unknown })?.status === 'number' ? (err as { status: number }).status : 500
+  if (statut >= 400 && statut < 500) {
+    return res.status(statut).json({ error: statut === 413 ? 'Envoi trop volumineux.' : "Le corps de la requête n'a pas pu être lu (format inattendu)." })
+  }
+  console.error('erreur non gérée dans une route', err instanceof Error ? err.stack : err)
   res.status(500).json({ error: 'Une erreur interne est survenue.' })
 })
 
