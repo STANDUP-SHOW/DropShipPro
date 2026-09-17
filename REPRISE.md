@@ -93,6 +93,18 @@ l'envoi du logo, alors que le même envoi en `fetch` + `FormData` depuis la
 page répond 200 (adresse R2). Un vrai sélecteur de fichier suit le second
 chemin ; à revérifier si un vendeur se plaint.
 
+**Troisième passage (commit a2899bb, 17/09 vers 14 h 30)** : Max a jugé la
+création « bas de gamme » — il regardait l'ancienne vitrine d'iagent.agency,
+dont la création avait été tuée par un redéploiement. Reprise automatique au
+démarrage (constatée : « Repris après un redémarrage », iagent.agency en
+ligne v1, Max : « ok parfait la création est top »). Ajoutés le même
+après-midi, **pas encore constatés en production** : recettes de matière,
+finition, trois directions à choisir, liste des boutiques avec suppression,
+coût mesuré (admin). Le vrai bug d'envoi de logo (Content-Type JSON sur
+FormData) est corrigé. Demandes de Max à faire ensuite : **vidéos produit
+(déjà dans le flux), avis produits avec photos, avis boutique**, importables
+depuis l'annonce DropShipper et depuis l'admin de la boutique.
+
 **Pas encore constaté** : une création qui exige une réparation (le banc la
 couvre), et le chemin Stripe (`/checkout` → session → `/checkout/:session`)
 — aucune clé marchand branchée, éprouvé par le contrat seulement.

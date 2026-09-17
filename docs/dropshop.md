@@ -105,6 +105,42 @@ matière, pas de mouvement. Quatre réponses :
   Gradient / Colorful » recopiés d'oguss. Le vérificateur (`--modes`) exige
   trois ambiances au moins et un clic qui pose `data-theme`.
 
+## Troisième passage (17/09 après-midi) : « bas de gamme, aucune matière »
+
+Max regardait iagent.agency : sa création avait été tuée par un redéploiement
+Railway (le travail vit dans le processus) et la page servie était l'ancienne
+vitrine à thèmes. Deux corrections de fond, puis la qualité :
+
+- **Un travail tué reprend au démarrage** (`reprendreTravauxOrphelins`,
+  appelé après `app.listen`) : pas de redébit, l'écran continue. L'aperçu du
+  studio porte un bandeau tant que la page IA n'existe pas.
+- **`dropshop/recettes.css`** : matières (bois, papier, métal, béton, nuit,
+  velours, grain, trame), ombres à couches, verre, cartes avec photo sur
+  plateau clair (les packshots fournisseurs sont blancs), système de boutons
+  à trois variantes et tous les états, révélation, cascade, diaporama Ken
+  Burns, marquee, sélecteur de modes. Donné au modèle comme base à adapter.
+- **Finition** : après le contrôle du visiteur, un second passage relit la
+  page contre dix points (matière, relief, photos, boutons, survol, mouvement,
+  rythme, typographie, logo, mobile) et corrige par éditions ; si la page
+  finie ne passe plus le contrôle, on garde la précédente.
+- **Trois directions à choisir** (`POST /api/dropshop/:id/directions`, ~30 s,
+  gratuit, dix par heure) : palette, polices Google, matière, concept de
+  héros, boutons, sections ; cartes dans le studio avec les polices
+  chargées ; la direction choisie est imposée à l'écriture. C'est l'étape
+  « trois templates en une minute » de Lovable.
+- **Liste des boutiques** en cases (logo, annonces, adresse, Modifier,
+  Supprimer) ; supprimer une boutique efface sa page et ses versions, jamais
+  ses annonces.
+- **Coût mesuré** : chaque appel est compté au tarif plein de son modèle
+  (`coutAppel`), la somme est écrite dans le travail et montrée à
+  l'administrateur seulement.
+
+Durée d'une création : écriture 3 à 4 min (Sonnet 5, ~30 000 jetons), contrôle
+quelques secondes, réparations Haiku 10 à 20 s chacune, finition 1 à 2 min.
+**4 à 6 minutes.** Lovable annonce 3 minutes : l'écart vient de la longueur de
+la page écrite en une passe ; on ne le rattrapera qu'en écrivant moins ou en
+parallèle.
+
 ## Le paiement : sur le compte Stripe du marchand
 
 Nous n'encaissons rien pour lui. Il colle sa clé secrète (`sk_live_…`) dans le
