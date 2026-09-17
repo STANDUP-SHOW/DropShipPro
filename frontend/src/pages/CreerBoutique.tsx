@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
+import { DropCoin } from '../components/DropCoin'
 import { api, type DirectionDropShop, type EtatDropShop, type ExtensionDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
 
 type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
@@ -808,19 +809,31 @@ function Extensions({ shopId, busy }: { shopId: string; busy: boolean }) {
         <span>Extensions</span>
         <span className="ml-auto text-[11px] font-normal text-gray-500">Comme les apps Shopify, en drops</span>
       </h3>
-      <div className="mt-3 grid gap-2">
-        {liste.map((ext) => (
+      {([
+        ['dropshop', 'Extensions DropShop IA', 'Les nôtres : conçues pour vos boutiques, payables en drops.'],
+        ['partenaire', 'Extensions partenaires exclusifs — seulement ici', 'Des partenaires que vous ne trouverez sur aucune autre plateforme.'],
+      ] as const).map(([famille, titre, sousTitre]) => (
+        <div key={famille} className="mt-3">
+          <p className="text-[11px] font-bold uppercase tracking-[.18em] text-gray-300">{titre}</p>
+          <p className="mb-2 text-[11px] text-gray-500">{sousTitre}</p>
+          <div className="grid gap-2">
+        {liste.filter((e) => e.famille === famille).map((ext) => (
           <div key={ext.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
-            <div className="flex flex-wrap items-start gap-2">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/[0.06] shadow-[0_6px_16px_-8px_rgba(0,0,0,.6)]">
+                {ext.logo === 'drops' ? <DropCoin size={34} /> : <img src={ext.logo} alt="" className="h-12 w-12 object-cover" />}
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-gray-100">
-                  {ext.nom}
-                  {ext.statut === 'bientot' ? <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-400">Bientôt</span> : null}
-                  {ext.installee ? <span className="ml-2 rounded-full bg-emerald-400/20 px-2 py-0.5 text-[10px] font-bold text-emerald-200">Installée</span> : null}
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-gray-100">
+                  <span>{ext.nom}</span>
+                  {ext.exclusif ? <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-200">EXCLUSIVITÉ</span> : null}
+                  {ext.mention ? <span className="rounded-full bg-sky-400/20 px-2 py-0.5 text-[10px] font-black tracking-wider text-sky-200">{ext.mention}</span> : null}
+                  {ext.statut === 'bientot' ? <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-400">Bientôt disponible</span> : null}
+                  {ext.installee ? <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[10px] font-bold text-emerald-200">Installée</span> : null}
                 </p>
                 <p className="text-xs text-gray-400">{ext.accroche}</p>
               </div>
-              <span className="text-xs font-bold text-purple-200">{ext.prix === 0 ? 'Gratuite' : `${ext.prix} drops`}</span>
+              <span className="shrink-0 text-xs font-bold text-purple-200">{ext.statut === 'bientot' && ext.prix === 0 ? '' : ext.prix === 0 ? 'Gratuite' : `${ext.prix} drops`}</span>
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-gray-500">{ext.description}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -840,12 +853,14 @@ function Extensions({ shopId, busy }: { shopId: string; busy: boolean }) {
                   Installer · {ext.prix === 0 ? 'gratuit' : `${ext.prix} drops`}
                 </button>
               ) : (
-                <span className="text-[11px] text-gray-500">Disponible prochainement — les boutiques qui l'installeront deviendront Premium Members.</span>
+                <span className="text-[11px] text-gray-500">{ext.id === 'dropbank' ? 'Disponible prochainement — les boutiques qui l\'installeront deviendront Premium Members.' : 'Disponible prochainement.'}</span>
               )}
             </div>
           </div>
         ))}
-      </div>
+          </div>
+        </div>
+      ))}
       {erreur && !ouverte ? <p className="mt-2 text-xs text-red-400">{erreur}</p> : null}
 
       {ouverte ? (

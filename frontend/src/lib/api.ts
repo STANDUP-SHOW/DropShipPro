@@ -91,6 +91,11 @@ export interface ExtensionDropShop {
   statut: 'disponible' | 'bientot'
   champs: Array<{ cle: string; label: string; type: 'text' | 'password' | 'email'; aide?: string; min?: number }>
   apres?: 'back-office'
+  famille: 'dropshop' | 'partenaire'
+  exclusif?: boolean
+  mention?: string
+  /** Chemin d'un visuel sous /extensions/, ou 'drops' pour le jeton de l'application. */
+  logo: string
   installee: boolean
   installedAt: string | null
   identifiant?: string

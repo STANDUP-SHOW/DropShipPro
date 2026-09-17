@@ -45,7 +45,8 @@ async function main() {
     const shopPauvre = await prisma.shop.create({ data: { userId: pauvre.id, name: 'Banc pauvre', platform: 'dropshipper', slug: `banc-ext-pauvre-${t}` } })
 
     console.log('— Catalogue —')
-    attendre('deux extensions au catalogue, Back Office disponible, Paiement en drops bientôt', EXTENSIONS.length === 2 && EXTENSIONS[0].id === 'back-office' && EXTENSIONS[0].statut === 'disponible' && EXTENSIONS[1].statut === 'bientot')
+    attendre('neuf extensions au catalogue : Back Office seule disponible, six DropShop, trois partenaires exclusives', EXTENSIONS.length === 9 && EXTENSIONS.filter((e) => e.statut === 'disponible').map((e) => e.id).join() === 'back-office' && EXTENSIONS.filter((e) => e.famille === 'dropshop').length === 6 && EXTENSIONS.filter((e) => e.famille === 'partenaire').every((e) => e.exclusif))
+    attendre('chaque extension a un visuel, DropBank le jeton drops', EXTENSIONS.every((e) => e.logo) && EXTENSIONS.find((e) => e.id === 'dropbank')?.logo === 'drops')
     attendre('le Back Office coûte ce que dit la grille', EXTENSIONS[0].prix === DROPS.extensionBackOffice && DROPS.extensionBackOffice > 0)
 
     console.log('\n— Installation —')
@@ -61,7 +62,7 @@ async function main() {
     try { await installerExtension(shop, 'back-office', { identifiant: 'autre', motDePasse: 'motdepasse-solide' }) } catch (e) { refus = e as ExtensionRefusee }
     attendre('une seconde installation est refusée sans redébit', refus?.status === 409 && (await solde(riche.id)) === 1000 - DROPS.extensionBackOffice)
     refus = null
-    try { await installerExtension(shop, 'paiement-drops', {}) } catch (e) { refus = e as ExtensionRefusee }
+    try { await installerExtension(shop, 'dropbank', {}) } catch (e) { refus = e as ExtensionRefusee }
     attendre('« bientôt » ne s\'installe pas', refus?.status === 409)
     refus = null
     try { await installerExtension(shopPauvre, 'back-office', { identifiant: 'pauvre', motDePasse: 'motdepasse-solide' }) } catch (e) { refus = e as ExtensionRefusee }

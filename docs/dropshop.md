@@ -168,7 +168,25 @@ est en vitrine), réglages de la vitrine (bandeau, accroche, sous-titre, port �
 le JSON `storefront` est fusionné, jamais remplacé). Banc
 `npx tsx check-extensions.ts` (compte jetable).
 
-**Paiement en drops (gratuite, « bientôt »)** — spécification à construire :
+**Le catalogue prévu (17/09 soir, visuels de Max découpés dans
+`frontend/public/extensions/`, jeton drops de l'application pour DropBank)** :
+
+| Famille | Extension | Rôle | Statut |
+|---|---|---|---|
+| DropShop IA | Back Office | administration indépendante | disponible, 300 drops |
+| DropShop IA | DropBank | accepter les drops, Premium Member | bientôt |
+| DropShop IA | DropSEO IA | référencement de la boutique | bientôt |
+| DropShop IA | DropMarket | la place de marché DropShipper | bientôt |
+| DropShop IA | Dropshop Cloud | stockage de fichiers volumineux | bientôt |
+| DropShop IA | DropReviews | avis des annonces et de la boutique, avec photos | bientôt |
+| Partenaires exclusifs | iadds | référencement IA | bientôt, EXCLUSIVITÉ |
+| Partenaires exclusifs | Eskal Branding | escale logistique de branding, réexpédition France | bientôt, EXCLUSIVITÉ |
+| Partenaires exclusifs | iagent | machines dédiées pour agents en local, humanoïdes IA | bientôt, EXCLUSIVITÉ, IA POWERED |
+
+Les prix des « bientôt » sont à 0 dans le catalogue tant que Max ne les a pas
+fixés ; ils se posent dans `tarifs.ts` le jour où l'extension s'installe.
+
+**DropBank (gratuite, « bientôt »)** — spécification à construire :
 la boutique accepte les drops comme monnaie ; pour le client final, c'est un
 programme de fidélité (achat minimum, portefeuille de drops chez le
 marchand, avantages), pour le marchand une trésorerie d'avance (le client paie

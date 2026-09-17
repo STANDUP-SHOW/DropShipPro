@@ -87,11 +87,11 @@ export const DROPS = {
    */
   extensionBackOffice: 300,
   /**
-   * Extension « Paiement en drops » : la boutique accepte les drops comme
-   * monnaie de fidélité. Gratuite — c'est notre programme, et la boutique qui
-   * l'installe devient Premium Member de Dropshop Cloud.
+   * Extension « DropBank » : la boutique accepte les drops comme monnaie de
+   * fidélité. Gratuite — c'est notre programme, et la boutique qui l'installe
+   * devient Premium Member de DropMarket. Pas encore installable.
    */
-  extensionPaiementDrops: 0,
+  extensionDropBank: 0,
 } as const
 
 /** Modifications de boutique comprises dans le prix de création. */

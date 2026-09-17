@@ -45,8 +45,24 @@ export interface ExtensionCatalogue {
   champs: ChampExtension[]
   /** Ce que l'écran propose une fois installée : une adresse à ouvrir, par exemple. */
   apres?: 'back-office'
+  /** « dropshop » : les nôtres ; « partenaire » : les partenaires exclusifs, seulement ici. */
+  famille: 'dropshop' | 'partenaire'
+  /** Un partenaire exclusif : l'écran l'affiche en EXCLUSIVITÉ. */
+  exclusif?: boolean
+  /** Une mention courte de plus : « IA POWERED »… */
+  mention?: string
+  /**
+   * Le visuel : un fichier sous frontend/public/extensions/ (planche d'icônes
+   * de Max découpée par sharp), ou 'drops' pour le jeton de l'application.
+   */
+  logo: string
 }
 
+/**
+ * Le catalogue, dans l'ordre de l'écran. Les prix des extensions « bientôt »
+ * sont posés à 0 en attendant la décision de Max : le tarif se met dans
+ * `tarifs.ts` le jour où l'extension s'installe.
+ */
 export const EXTENSIONS: ExtensionCatalogue[] = [
   {
     id: 'back-office',
@@ -61,16 +77,108 @@ export const EXTENSIONS: ExtensionCatalogue[] = [
       { cle: 'motDePasse', label: 'Mot de passe', type: 'password', aide: '8 caractères au moins. Il est haché : personne ne peut le relire.', min: 8 },
     ],
     apres: 'back-office',
+    famille: 'dropshop',
+    logo: '/extensions/dropshop-d.png',
   },
   {
-    id: 'paiement-drops',
-    nom: 'Paiement en drops',
+    id: 'dropbank',
+    nom: 'DropBank',
     accroche: 'Acceptez les drops sur votre boutique et devenez Premium Member',
     description:
-      "Vos clients règlent en drops : un programme de fidélité avec achat minimum, un portefeuille sur votre boutique et une trésorerie d'avance, puisque le client paie avant de consommer. Les boutiques qui acceptent les drops deviennent Premium Members, reçoivent avantages et promotions toute l'année et sont mieux référencées dans Dropshop Cloud, la place de marché de toutes les boutiques DropShop.",
-    prix: DROPS.extensionPaiementDrops,
+      "Vos clients règlent en drops : un programme de fidélité avec achat minimum, un portefeuille sur votre boutique et une trésorerie d'avance, puisque le client paie avant de consommer. Les boutiques qui acceptent les drops deviennent Premium Members, reçoivent avantages et promotions toute l'année et sont mieux référencées dans DropMarket, la place de marché de toutes les boutiques DropShop.",
+    prix: DROPS.extensionDropBank,
     statut: 'bientot',
     champs: [],
+    famille: 'dropshop',
+    logo: 'drops',
+  },
+  {
+    id: 'dropseo',
+    nom: 'DropSEO IA',
+    accroche: 'Le référencement de votre boutique, tenu par l’IA',
+    description:
+      "Titres, descriptions, balises, plan de site, pages de catégories rédigées, liens internes et réponses aux questions que vos clients tapent : DropSEO IA travaille votre référencement en continu et vous dit ce qui monte.",
+    prix: 0,
+    statut: 'bientot',
+    champs: [],
+    famille: 'dropshop',
+    logo: '/extensions/dropseo.png',
+  },
+  {
+    id: 'dropmarket',
+    nom: 'DropMarket',
+    accroche: 'La place de marché DropShipper',
+    description:
+      "Votre boutique et ses produits paraissent sur DropMarket, la place de marché de toutes les boutiques DropShop : une vitrine commune, un trafic partagé, et les Premium Members en tête.",
+    prix: 0,
+    statut: 'bientot',
+    champs: [],
+    famille: 'dropshop',
+    logo: '/extensions/dropmarket.png',
+  },
+  {
+    id: 'dropshop-cloud',
+    nom: 'Dropshop Cloud',
+    accroche: 'Le stockage de vos fichiers volumineux',
+    description:
+      "Vidéos produit, catalogues, visuels haute définition, fichiers à télécharger : un espace de stockage rattaché à votre boutique, servi vite, sans limite de poids par fichier.",
+    prix: 0,
+    statut: 'bientot',
+    champs: [],
+    famille: 'dropshop',
+    logo: '/extensions/dropshop-cloud.png',
+  },
+  {
+    id: 'dropreviews',
+    nom: 'DropReviews',
+    accroche: 'Les avis de vos annonces et de votre boutique',
+    description:
+      "Importez les avis de vos annonces (texte, notes, photos des clients) depuis DropShipper et recueillez les avis de votre boutique depuis son admin. Les avis s'affichent sur les fiches et sur l'accueil, avec les photos.",
+    prix: 0,
+    statut: 'bientot',
+    champs: [],
+    famille: 'dropshop',
+    logo: '/extensions/dropreviews.png',
+  },
+  {
+    id: 'iadds',
+    nom: 'iadds',
+    accroche: 'Référencement IA',
+    description:
+      "Faites référencer votre boutique et vos produits par les assistants IA : présence, citations et recommandations dans les réponses des modèles, suivies et travaillées par iadds.",
+    prix: 0,
+    statut: 'bientot',
+    champs: [],
+    famille: 'partenaire',
+    exclusif: true,
+    logo: '/extensions/iadds.png',
+  },
+  {
+    id: 'eskal-branding',
+    nom: 'Eskal Branding',
+    accroche: 'Escale logistique de branding produit, réexpédition France',
+    description:
+      "Vos produits font escale chez Eskal avant le client : contrôle, étiquette à votre marque, emballage à votre image, réexpédition depuis la France. Le colis arrive comme s'il partait de chez vous.",
+    prix: 0,
+    statut: 'bientot',
+    champs: [],
+    famille: 'partenaire',
+    exclusif: true,
+    logo: '/extensions/eskal-branding.png',
+  },
+  {
+    id: 'iagent',
+    nom: 'iagent',
+    accroche: 'Local Agent : des machines dédiées pour vos agents en local, humanoïdes IA',
+    description:
+      "Des machines dédiées chez vous pour faire tourner vos agents en local, jusqu'aux humanoïdes IA : la puissance et les données restent chez vous, pilotées depuis DropShipper.",
+    prix: 0,
+    statut: 'bientot',
+    champs: [],
+    famille: 'partenaire',
+    exclusif: true,
+    mention: 'IA POWERED',
+    logo: '/extensions/iagent.png',
   },
 ]
 
