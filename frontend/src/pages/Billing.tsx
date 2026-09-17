@@ -53,6 +53,8 @@ const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'autoModePassage', label: 'AUTO-MODE d’un chef de rayon', detail: 'Analyses et produits gagnants quotidiens — gratuit' },
   { cle: 'boutiqueCreation', label: 'DropShop IA — création de boutique (2 €)', detail: 'L’IA écrit votre boutique : design unique, responsive, panier, emails, Stripe pré-branché, hébergement et 10 modifications comprises' },
   { cle: 'boutiqueModification', label: 'DropShop IA — modification', detail: 'Au-delà des 10 comprises : une demande, appliquée et vérifiée' },
+  { cle: 'extensionBackOffice', label: 'Extension Back Office (une boutique)', detail: 'Une administration indépendante à l’adresse de la boutique, avec identifiant et mot de passe' },
+  { cle: 'extensionPaiementDrops', label: 'Extension Paiement en drops', detail: 'Vos clients règlent en drops ; votre boutique devient Premium Member — gratuite' },
 ]
 
 export default function BillingPage() {

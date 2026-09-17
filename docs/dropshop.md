@@ -141,6 +141,48 @@ quelques secondes, réparations Haiku 10 à 20 s chacune, finition 1 à 2 min.
 la page écrite en une passe ; on ne le rattrapera qu'en écrivant moins ou en
 parallèle.
 
+## Les extensions : comme les apps Shopify, en drops (17/09 soir)
+
+Max : « de la même manière que Shopify ou PrestaShop, une liste de plugins à
+ajouter à sa boutique avec des tarifs en drops. Un pop-up à renseigner
+s'ouvre, il paie, l'extension est installée. »
+
+- **Catalogue dans le code** (`services/extensions.ts`, prix dans
+  `tarifs.ts`), **installation en base** (`ShopExtension`, une par boutique
+  et par extension, configuration en JSON, prix payé). Paiement tout ou rien,
+  rendu si l'écriture échoue ; retrait sans remboursement.
+- Routes : `GET /api/dropshop/:id/extensions` (catalogue vu de la boutique),
+  `POST /api/dropshop/:id/extensions/:ext` `{ champs }`, `DELETE`.
+- Studio : section « Extensions » avec cartes, pop-up des champs, bouton
+  « Payer N drops et installer », lien « Ouvrir le back-office ».
+
+**Back Office (300 drops)** — une administration indépendante à
+`/b/<slug>/admin`, page `dropshop/admin.html` servie seulement si
+l'extension est installée (sinon 404). Identifiant + mot de passe (haché
+bcrypt, jamais relu) → jeton 12 h qui ne porte que la boutique et sa portée
+(`scope: back-office`) : un employé qui a ce mot de passe n'atteint ni le
+portefeuille, ni les autres boutiques, ni les jetons de places de marché ;
+un jeton de compte DropShipper n'ouvre pas le Back Office. API
+`/api/boutique-admin/:shopKey/…` : commandes (liste, état), produits (ce qui
+est en vitrine), réglages de la vitrine (bandeau, accroche, sous-titre, port —
+le JSON `storefront` est fusionné, jamais remplacé). Banc
+`npx tsx check-extensions.ts` (compte jetable).
+
+**Paiement en drops (gratuite, « bientôt »)** — spécification à construire :
+la boutique accepte les drops comme monnaie ; pour le client final, c'est un
+programme de fidélité (achat minimum, portefeuille de drops chez le
+marchand, avantages), pour le marchand une trésorerie d'avance (le client paie
+avant de consommer). Les boutiques qui l'installent deviennent **Premium
+Members** : avantages et promotions toute l'année, meilleur référencement
+dans **Dropshop Cloud**, la place de marché de toutes les boutiques DropShop.
+Ce qu'il faut décider avant de coder : qui porte le portefeuille du client
+(un compte client DropShipper commun à toutes les boutiques, ou un solde par
+boutique), comment le marchand est réglé quand un client paie en drops
+(reversement en euros, ou drops utilisables chez nous), le taux (1 drop =
+0,01 € à l'achat), et les règles du programme (minimum, bonus). Le moteur
+(`sdk.js`) recevra `c.commande.paiement === 'drops'` et un écran de
+connexion client.
+
 ## Le paiement : sur le compte Stripe du marchand
 
 Nous n'encaissons rien pour lui. Il colle sa clé secrète (`sk_live_…`) dans le

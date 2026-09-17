@@ -648,6 +648,22 @@ Trois conséquences, toutes appliquées :
   `.wrap` qui reçoit `width:100%` d'une seconde classe perd ses marges et le
   titre du héros colle au bord de l'écran — c'est ce que Max a vu en premier.
 
+  **Un travail DropShop vit dans le processus : un redéploiement le tue.**
+  Constaté le 17/09 : la création d'iagent.agency a démarré pendant un
+  redéploiement Railway et est restée « en écriture » un quart d'heure
+  pendant que Max regardait l'ancienne vitrine à thèmes en croyant voir la
+  production de l'IA. `reprendreTravauxOrphelins()` au démarrage relance tout
+  travail sans `fin` (drops déjà pris, pas de redébit) ; l'aperçu du studio
+  dit quand il montre l'ancienne vitrine. Règle : **ne pas pousser pendant
+  qu'une création tourne** (vérifier `Shop.siteJob` sans `fin`).
+
+  **Les extensions DropShop** (17/09 soir) : catalogue dans
+  `services/extensions.ts`, installation payée en base (`ShopExtension`),
+  Back Office à `/b/<slug>/admin` avec sa propre session (`scope:
+  back-office`, jamais le compte marchand). Paiement en drops et Dropshop
+  Cloud spécifiés dans `docs/dropshop.md`, pas codés. Banc
+  `check-extensions.ts`.
+
 - **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
   pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
   et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou

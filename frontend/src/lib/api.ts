@@ -81,6 +81,21 @@ export interface GammeDropShop {
   jetons: { fond: string; surface: string; texte: string; sourd: string; accent: string; accent2: string; ligne: string }
 }
 
+/** Une extension du catalogue DropShop, vue depuis une boutique. */
+export interface ExtensionDropShop {
+  id: string
+  nom: string
+  accroche: string
+  description: string
+  prix: number
+  statut: 'disponible' | 'bientot'
+  champs: Array<{ cle: string; label: string; type: 'text' | 'password' | 'email'; aide?: string; min?: number }>
+  apres?: 'back-office'
+  installee: boolean
+  installedAt: string | null
+  identifiant?: string
+}
+
 /** Une direction artistique proposée avant l'écriture ; le vendeur en choisit une. */
 export interface DirectionDropShop {
   id: string
@@ -908,6 +923,13 @@ export const api = {
     request<{ logo: boolean; couleurs: Array<{ hex: string; part: number }>; gammes: GammeDropShop[] }>(`/dropshop/${shopId}/gammes`),
   dropshopModifier: (shopId: string, demande: string) =>
     request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/modifier`, { method: 'POST', body: JSON.stringify({ demande }) }),
+  /* ---------- Extensions d'une boutique DropShop (catalogue, installation payée, retrait) ---------- */
+  dropshopExtensions: (shopId: string) => request<{ extensions: ExtensionDropShop[]; adresseAdmin: string | null }>(`/dropshop/${shopId}/extensions`),
+  dropshopInstallerExtension: (shopId: string, extensionId: string, champs: Record<string, string>) =>
+    request<{ ok: true; prixPaye: number; adresseAdmin: string | null }>(`/dropshop/${shopId}/extensions/${extensionId}`, { method: 'POST', body: JSON.stringify({ champs }) }),
+  dropshopRetirerExtension: (shopId: string, extensionId: string) =>
+    request<{ ok: true }>(`/dropshop/${shopId}/extensions/${extensionId}`, { method: 'DELETE' }),
+
   dropshopRestaurer: (shopId: string, numero: number) =>
     request<{ ok: true; version: number }>(`/dropshop/${shopId}/restaurer/${numero}`, { method: 'POST' }),
   dropshopRetirer: (shopId: string) => request<{ ok: true }>(`/dropshop/${shopId}`, { method: 'DELETE' }),

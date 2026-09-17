@@ -64,6 +64,8 @@ const TARIFS = [
   ['AUTO-MODE d’un chef de rayon : analyses et produits gagnants quotidiens', 0, 'gratuit'],
   ['DropShop IA : création d’une boutique écrite par l’IA (design unique, responsive, panier, emails, Stripe, hébergement, 10 modifications comprises)', 200, '2,00 €'],
   ['DropShop IA : une modification au-delà des 10 comprises', 10, '0,10 €'],
+  ['Extension Back Office d’une boutique DropShop (administration indépendante, identifiant et mot de passe)', 300, '3,00 €'],
+  ['Extension Paiement en drops (la boutique accepte les drops, Premium Member de Dropshop Cloud)', 0, 'gratuit'],
 ]
 
 const RECHARGES = [

@@ -64,6 +64,27 @@ function moteurDropShop(): string | null {
   return trouve ? readFileSync(trouve, 'utf8') : null
 }
 
+/**
+ * Le Back Office d'une boutique (extension « Back Office ») : `/b/<slug>/admin`.
+ * La page n'est servie que si l'extension est installée ; sinon 404, comme si
+ * l'adresse n'existait pas — rien n'annonce une porte qui n'est pas là.
+ */
+vitrineRouter.get('/:slug/admin', async (req, res) => {
+  const boutique = await prisma.shop.findUnique({
+    where: { slug: req.params.slug },
+    select: { shopKey: true, name: true, slug: true, extensions: { where: { extensionId: 'back-office' }, select: { id: true } } },
+  })
+  if (!boutique || !boutique.extensions.length) {
+    return res.status(404).type('html').send('<!doctype html><meta charset="utf-8"><p>Cette page n\'existe pas.</p>')
+  }
+  const chemin = ['dropshop/admin.html', '../dropshop/admin.html'].map((c) => path.resolve(c)).find((c) => existsSync(c))
+  if (!chemin) return res.status(500).type('html').send('<!doctype html><meta charset="utf-8"><p>Administration indisponible.</p>')
+  const config = `<script>window.BOUTIQUE=${JSON.stringify({ api: apiBaseUrl(req), shopKey: boutique.shopKey, slug: boutique.slug, nom: boutique.name }).replace(/</g, '\\u003c')};</script>`
+  res.type('html')
+  res.set('Cache-Control', 'no-store')
+  res.send(readFileSync(chemin, 'utf8').replace('</head>', `${config}\n</head>`))
+})
+
 vitrineRouter.get('/:slug', async (req, res) => {
   const boutique = await prisma.shop.findUnique({
     where: { slug: req.params.slug },

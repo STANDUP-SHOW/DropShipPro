@@ -6,6 +6,7 @@ import { ADMIN_EMAIL, requireAuth, type AuthedRequest } from '../middleware/auth
 import { BOUTIQUE_MODIFS_INCLUSES, DROPS } from '../services/tarifs.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { SiteImpossible } from '../services/siteGenerator.js'
+import { catalogueDe as catalogueExtensionsDe, desinstallerExtension, ExtensionRefusee, installerExtension } from '../services/extensions.js'
 import {
   directionsPour,
   gammesPour,
@@ -169,6 +170,38 @@ dropshopRouter.delete('/:shopId', async (req: AuthedRequest, res) => {
   if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
   if (await travailOuvert(shop)) return res.status(409).json({ error: 'Un travail est en cours sur cette boutique.' })
   await prisma.shop.update({ where: { id: shop.id }, data: { siteHtml: null } })
+  res.json({ ok: true })
+})
+
+/* ---------- Les extensions : catalogue, installation (payée), retrait ---------- */
+
+dropshopRouter.get('/:shopId/extensions', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  res.json({ extensions: await catalogueExtensionsDe(shop), adresseAdmin: shop.slug ? `${apiBaseUrl(req)}/b/${shop.slug}/admin` : null })
+})
+
+const installationSchema = z.object({ champs: z.record(z.string().max(200)).default({}) })
+
+dropshopRouter.post('/:shopId/extensions/:extensionId', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  const parsed = installationSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
+  try {
+    const inst = await installerExtension(shop, req.params.extensionId, parsed.data.champs)
+    res.status(201).json({ ok: true, ...inst, adresseAdmin: shop.slug ? `${apiBaseUrl(req)}/b/${shop.slug}/admin` : null })
+  } catch (e) {
+    if (e instanceof ExtensionRefusee) return res.status(e.status).json({ error: e.message })
+    refus(res, e)
+  }
+})
+
+dropshopRouter.delete('/:shopId/extensions/:extensionId', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  const ok = await desinstallerExtension(shop, req.params.extensionId)
+  if (!ok) return res.status(404).json({ error: "Cette extension n'est pas installée." })
   res.json({ ok: true })
 })
 

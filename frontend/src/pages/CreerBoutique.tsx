@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Sparkles, Store, ArrowRight, Monitor, Smartphone, ExternalLink, History, RotateCcw,
-  CreditCard, Wand2, CheckCircle2, AlertTriangle, Loader2, ChevronDown, Trash2, Copy, Image as ImageIcon,
+  CreditCard, Wand2, CheckCircle2, AlertTriangle, Loader2, ChevronDown, Trash2, Copy, Image as ImageIcon, Puzzle,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
-import { api, type DirectionDropShop, type EtatDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
+import { api, type DirectionDropShop, type EtatDropShop, type ExtensionDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
 
 type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
 
@@ -645,6 +645,8 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
           </section>
         ) : null}
 
+        <Extensions shopId={boutique.id} busy={busy} />
+
         {/* ---------- Stripe ---------- */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
           <h3 className="flex items-center gap-2 text-sm font-bold">
@@ -752,6 +754,134 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
         ) : null}
       </div>
     </div>
+  )
+}
+
+/**
+ * Les extensions de la boutique — comme les apps Shopify ou les modules
+ * PrestaShop, en drops. Un pop-up demande ce que l'extension a besoin de
+ * savoir (identifiant, mot de passe…), le vendeur paie, elle est installée.
+ */
+function Extensions({ shopId, busy }: { shopId: string; busy: boolean }) {
+  const [liste, setListe] = useState<ExtensionDropShop[]>([])
+  const [adresseAdmin, setAdresseAdmin] = useState<string | null>(null)
+  const [ouverte, setOuverte] = useState<ExtensionDropShop | null>(null)
+  const [champs, setChamps] = useState<Record<string, string>>({})
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [envoi, setEnvoi] = useState(false)
+
+  const charger = useCallback(() => {
+    api.dropshopExtensions(shopId).then((r) => { setListe(r.extensions); setAdresseAdmin(r.adresseAdmin) }).catch(() => undefined)
+  }, [shopId])
+  useEffect(charger, [charger])
+
+  async function installer() {
+    if (!ouverte) return
+    setEnvoi(true)
+    setErreur(null)
+    try {
+      await api.dropshopInstallerExtension(shopId, ouverte.id, champs)
+      setOuverte(null)
+      setChamps({})
+      charger()
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Installation impossible')
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  async function retirer(ext: ExtensionDropShop) {
+    if (!window.confirm(`Retirer « ${ext.nom} » de cette boutique ? Les drops payés ne sont pas rendus.`)) return
+    try {
+      await api.dropshopRetirerExtension(shopId, ext.id)
+      charger()
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Retrait impossible')
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold">
+        <Puzzle size={15} className="text-purple-300" />
+        <span>Extensions</span>
+        <span className="ml-auto text-[11px] font-normal text-gray-500">Comme les apps Shopify, en drops</span>
+      </h3>
+      <div className="mt-3 grid gap-2">
+        {liste.map((ext) => (
+          <div key={ext.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="flex flex-wrap items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-gray-100">
+                  {ext.nom}
+                  {ext.statut === 'bientot' ? <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-400">Bientôt</span> : null}
+                  {ext.installee ? <span className="ml-2 rounded-full bg-emerald-400/20 px-2 py-0.5 text-[10px] font-bold text-emerald-200">Installée</span> : null}
+                </p>
+                <p className="text-xs text-gray-400">{ext.accroche}</p>
+              </div>
+              <span className="text-xs font-bold text-purple-200">{ext.prix === 0 ? 'Gratuite' : `${ext.prix} drops`}</span>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-gray-500">{ext.description}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {ext.installee ? (
+                <>
+                  {ext.apres === 'back-office' && adresseAdmin ? (
+                    <a href={adresseAdmin} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 rounded-lg bg-purple-500/20 px-2.5 py-1 text-xs font-bold text-purple-200 hover:bg-purple-500/30">
+                      <ExternalLink size={12} />
+                      <span>Ouvrir le back-office</span>
+                    </a>
+                  ) : null}
+                  {ext.identifiant ? <span className="text-[11px] text-gray-500">identifiant : {ext.identifiant}</span> : null}
+                  <button type="button" onClick={() => retirer(ext)} className="ml-auto text-[11px] text-gray-500 underline hover:text-red-300">Retirer</button>
+                </>
+              ) : ext.statut === 'disponible' ? (
+                <button type="button" onClick={() => { setOuverte(ext); setChamps({}); setErreur(null) }} disabled={busy} className="rounded-lg border border-purple-400/40 px-2.5 py-1 text-xs font-bold text-purple-200 hover:bg-purple-400/10 disabled:opacity-40">
+                  Installer · {ext.prix === 0 ? 'gratuit' : `${ext.prix} drops`}
+                </button>
+              ) : (
+                <span className="text-[11px] text-gray-500">Disponible prochainement — les boutiques qui l'installeront deviendront Premium Members.</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {erreur && !ouverte ? <p className="mt-2 text-xs text-red-400">{erreur}</p> : null}
+
+      {ouverte ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => !envoi && setOuverte(null)}>
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#14121f] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-base font-bold text-gray-100">Installer « {ouverte.nom} »</h4>
+            <p className="mt-1 text-xs text-gray-400">{ouverte.accroche}</p>
+            <div className="mt-4 space-y-3">
+              {ouverte.champs.map((c) => (
+                <label key={c.cle} className="block text-xs text-gray-300">
+                  <span className="font-semibold">{c.label}</span>
+                  <input
+                    type={c.type}
+                    value={champs[c.cle] ?? ''}
+                    onChange={(e) => setChamps((x) => ({ ...x, [c.cle]: e.target.value }))}
+                    autoComplete={c.type === 'password' ? 'new-password' : 'off'}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-gray-100 outline-none focus:border-purple-400/70"
+                  />
+                  {c.aide ? <span className="mt-1 block text-[11px] text-gray-500">{c.aide}</span> : null}
+                </label>
+              ))}
+            </div>
+            {erreur ? <p className="mt-3 text-xs text-red-400">{erreur}</p> : null}
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-400">{ouverte.prix === 0 ? 'Gratuite' : <><b className="text-purple-200">{ouverte.prix} drops</b>, une fois</>}</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setOuverte(null)} disabled={envoi} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-gray-300 hover:bg-white/5">Annuler</button>
+                <button type="button" onClick={installer} disabled={envoi} className="rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">
+                  {envoi ? 'Installation…' : ouverte.prix === 0 ? 'Installer' : `Payer ${ouverte.prix} drops et installer`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
   )
 }
 

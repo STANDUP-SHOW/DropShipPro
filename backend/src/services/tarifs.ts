@@ -78,6 +78,20 @@ export const DROPS = {
   boutiqueCreation: 200,
   /** Une demande de modification de la boutique au-delà des 10 comprises (Haiku, édition ciblée). */
   boutiqueModification: 10,
+  /**
+   * Extension « Back Office » d'une boutique DropShop (17/09/2026) : une
+   * administration indépendante à l'adresse de la boutique, avec identifiant et
+   * mot de passe, pour gérer commandes, produits et réglages sans compte
+   * DropShipper. Une fois par boutique. Pas de coût de modèle : le prix paie
+   * l'hébergement et le support de l'admin.
+   */
+  extensionBackOffice: 300,
+  /**
+   * Extension « Paiement en drops » : la boutique accepte les drops comme
+   * monnaie de fidélité. Gratuite — c'est notre programme, et la boutique qui
+   * l'installe devient Premium Member de Dropshop Cloud.
+   */
+  extensionPaiementDrops: 0,
 } as const
 
 /** Modifications de boutique comprises dans le prix de création. */

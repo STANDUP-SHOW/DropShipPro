@@ -645,6 +645,26 @@ model Shop {
   @@index([userId])
   printProducts PrintProduct[]
   siteVersions  SiteVersion[]
+  extensions    ShopExtension[]
+}
+
+/// Une extension installée sur une boutique DropShop (17/09/2026).
+///
+/// Le catalogue des extensions vit dans le code (`services/extensions.ts`),
+/// avec leurs prix en drops ; ce qui vit ici, c'est l'INSTALLATION : quelle
+/// boutique, quelle extension, avec quelle configuration (pour le Back Office :
+/// l'identifiant et le hachage du mot de passe, jamais le mot de passe).
+model ShopExtension {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  extensionId String
+  config      Json?
+  /// Drops payés à l'installation, pour le relevé.
+  prixPaye    Int      @default(0)
+  installedAt DateTime @default(now())
+
+  @@unique([shopId, extensionId])
 }
 
 /// Une version de la boutique DropShop IA : la page telle qu'elle a été servie.

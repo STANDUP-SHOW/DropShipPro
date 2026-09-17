@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Administration</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" />
+  <style>
+    /*
+     * Le Back Office d'une boutique DropShop (extension « Back Office »).
+     * Une page, servie à /b/<slug>/admin, qui parle à /api/boutique-admin.
+     * Sobre et neutre : c'est un outil de travail, pas la vitrine.
+     */
+    :root { --fond: #f4f5f7; --surface: #ffffff; --texte: #15171c; --sourd: #6b7280; --ligne: #e3e6ea; --accent: #1f5eff; --ok: #0f9d58; --alerte: #d97706; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Manrope, system-ui, sans-serif; background: var(--fond); color: var(--texte); }
+    .wrap { width: min(1100px, 94vw); margin-inline: auto; }
+    header { background: var(--surface); border-bottom: 1px solid var(--ligne); }
+    .barre { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 14px 0; }
+    .barre h1 { margin: 0; font-size: 16px; }
+    .barre nav { display: flex; gap: 4px; margin-left: auto; }
+    .barre nav button { border: 0; background: transparent; padding: 8px 12px; border-radius: 8px; font: inherit; font-weight: 600; color: var(--sourd); cursor: pointer; }
+    .barre nav button[aria-pressed="true"] { background: #eaf0ff; color: var(--accent); }
+    main { padding: 24px 0 60px; }
+    .carte { background: var(--surface); border: 1px solid var(--ligne); border-radius: 14px; padding: 18px; }
+    .champ { width: 100%; padding: 10px 12px; border: 1px solid var(--ligne); border-radius: 10px; font: inherit; margin: 6px 0 12px; background: #fff; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    .btn.sec { background: #eef1f5; color: var(--texte); }
+    .btn:disabled { opacity: .5; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--ligne); vertical-align: top; }
+    th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--sourd); }
+    .photo { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; background: #eee; }
+    .pastille { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #eef1f5; }
+    .pastille.ok { background: #e6f6ee; color: var(--ok); }
+    .pastille.alerte { background: #fff3e0; color: var(--alerte); }
+    select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--ligne); }
+    .grille { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .produit { display: flex; gap: 10px; align-items: center; }
+    .erreur { color: #b91c1c; font-size: 13px; }
+    .connexion { max-width: 420px; margin: 8vh auto 0; }
+    .sourd { color: var(--sourd); font-size: 13px; }
+    @media (max-width: 700px) { th:nth-child(4), td:nth-child(4) { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    var CONF = window.BOUTIQUE || {}
+    var API = (CONF.api || '') + '/api/boutique-admin/' + CONF.shopKey
+    var CLE = 'dropshop-admin-' + CONF.shopKey
+    var jeton = null
+    try { jeton = sessionStorage.getItem(CLE) } catch (e) {}
+    var onglet = 'commandes'
+    var app = document.getElementById('app')
+
+    function h(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] }) }
+    function prix(n) { return Number(n).toFixed(2).replace('.', ',') + ' €' }
+    function appel(chemin, options) {
+      options = options || {}
+      options.headers = Object.assign({ 'Content-Type': 'application/json' }, jeton ? { Authorization: 'Bearer ' + jeton } : {}, options.headers || {})
+      return fetch(API + chemin, options).then(function (r) {
+        return r.json().catch(function () { return {} }).then(function (j) {
+          if (r.status === 401 && jeton) { jeton = null; try { sessionStorage.removeItem(CLE) } catch (e) {} rendre() }
+          if (!r.ok) throw new Error(j.error || 'Erreur ' + r.status)
+          return j
+        })
+      })
+    }
+
+    var ETATS = { NEW: 'Nouvelle', ORDERED_FROM_SUPPLIER: 'Commandée au fournisseur', SHIPPED: 'Expédiée', DELIVERED: 'Livrée', REFUNDED: 'Remboursée' }
+
+    function cadre(contenu) {
+      return '<header><div class="wrap barre"><h1>' + h(CONF.nom || 'Boutique') + ' — administration</h1>' +
+        '<nav>' + ['commandes', 'produits', 'reglages'].map(function (o) { return '<button data-onglet="' + o + '" aria-pressed="' + (onglet === o) + '">' + { commandes: 'Commandes', produits: 'Produits', reglages: 'Réglages' }[o] + '</button>' }).join('') +
+        '<button data-sortir>Se déconnecter</button></nav></div></header><main class="wrap">' + contenu + '</main>'
+    }
+
+    function rendre() {
+      if (!jeton) {
+        app.innerHTML = '<main class="wrap"><div class="carte connexion"><h2 style="margin-top:0">Administration de ' + h(CONF.nom || 'la boutique') + '</h2>' +
+          '<p class="sourd">Réservée à l\'équipe de la boutique. Vos gestes s\'appliquent à la vitrine et aux commandes.</p>' +
+          '<form id="f-connexion"><label>Identifiant<input class="champ" name="identifiant" autocomplete="username" required></label>' +
+          '<label>Mot de passe<input class="champ" type="password" name="motDePasse" autocomplete="current-password" required></label>' +
+          '<p class="erreur" id="erreur" hidden></p><button class="btn" type="submit">Se connecter</button></form></div></main>'
+        document.getElementById('f-connexion').addEventListener('submit', function (e) {
+          e.preventDefault()
+          var fd = new FormData(e.target)
+          appel('/session', { method: 'POST', body: JSON.stringify({ identifiant: fd.get('identifiant'), motDePasse: fd.get('motDePasse') }) })
+            .then(function (j) { jeton = j.token; try { sessionStorage.setItem(CLE, jeton) } catch (x) {} rendre() })
+            .catch(function (err) { var el = document.getElementById('erreur'); el.hidden = false; el.textContent = err.message })
+        })
+        return
+      }
+      app.innerHTML = cadre('<p class="sourd">Chargement…</p>')
+      app.querySelectorAll('[data-onglet]').forEach(function (b) { b.addEventListener('click', function () { onglet = b.getAttribute('data-onglet'); rendre() }) })
+      app.querySelector('[data-sortir]').addEventListener('click', function () { jeton = null; try { sessionStorage.removeItem(CLE) } catch (e) {} rendre() })
+      var main = app.querySelector('main')
+      if (onglet === 'commandes') {
+        appel('/commandes').then(function (liste) {
+          main.innerHTML = '<div class="carte"><h2 style="margin-top:0">Commandes <span class="sourd">(' + liste.length + ')</span></h2>' +
+            (liste.length ? '<div style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Produit</th><th>Acheteur</th><th>Adresse</th><th>Montant</th><th>Paiement</th><th>État</th></tr></thead><tbody>' +
+            liste.map(function (c) {
+              var a = c.adresse || {}
+              return '<tr><td>' + new Date(c.date).toLocaleDateString('fr-FR') + '</td>' +
+                '<td class="produit">' + (c.photo ? '<img class="photo" src="' + h(c.photo) + '" alt="">' : '') + '<span>' + h(c.produit) + ' × ' + c.quantite + '</span></td>' +
+                '<td>' + h(c.acheteur) + (a.email ? '<br><span class="sourd">' + h(a.email) + '</span>' : '') + (a.phone ? '<br><span class="sourd">' + h(a.phone) + '</span>' : '') + '</td>' +
+                '<td class="sourd">' + h((a.street || '') + ', ' + (a.zip || '') + ' ' + (a.city || '')) + '</td>' +
+                '<td>' + prix(c.montant) + '</td>' +
+                '<td>' + (c.paye ? '<span class="pastille ok">Payée</span>' : '<span class="pastille alerte">À encaisser</span>') + '</td>' +
+                '<td><select data-commande="' + h(c.id) + '">' + Object.keys(ETATS).map(function (k) { return '<option value="' + k + '"' + (k === c.statut ? ' selected' : '') + '>' + ETATS[k] + '</option>' }).join('') + '</select></td></tr>'
+            }).join('') + '</tbody></table></div>' : '<p class="sourd">Aucune commande pour le moment.</p>') + '</div>'
+          main.querySelectorAll('[data-commande]').forEach(function (s) {
+            s.addEventListener('change', function () {
+              appel('/commandes/' + s.getAttribute('data-commande'), { method: 'PATCH', body: JSON.stringify({ status: s.value }) }).catch(function (err) { alert(err.message) })
+            })
+          })
+        }).catch(function (err) { main.innerHTML = '<p class="erreur">' + h(err.message) + '</p>' })
+      } else if (onglet === 'produits') {
+        appel('/produits').then(function (liste) {
+          main.innerHTML = '<div class="carte"><h2 style="margin-top:0">Produits <span class="sourd">(' + liste.length + ')</span></h2>' +
+            '<p class="sourd">Les produits se rangent, se rédigent et se publient depuis DropShipper IA ; ici vous voyez ce qui est en vitrine.</p>' +
+            (liste.length ? '<div class="grille">' + liste.map(function (p) {
+              return '<div class="produit">' + (p.photo ? '<img class="photo" src="' + h(p.photo) + '" alt="">' : '<span class="photo"></span>') + '<div><div style="font-weight:600;font-size:13px">' + h(p.titre) + '</div><div class="sourd">' + prix(p.prix) + ' · ' + (p.enVitrine ? '<span class="pastille ok">En vitrine</span>' : '<span class="pastille">Non publié</span>') + '</div></div></div>'
+            }).join('') + '</div>' : '<p class="sourd">Aucun produit rangé dans cette boutique.</p>') + '</div>'
+        }).catch(function (err) { main.innerHTML = '<p class="erreur">' + h(err.message) + '</p>' })
+      } else {
+        appel('/reglages').then(function (r) {
+          main.innerHTML = '<div class="carte"><h2 style="margin-top:0">Réglages de la vitrine</h2><form id="f-reglages">' +
+            '<label>Bandeau d\'annonce<input class="champ" name="annonce" value="' + h(r.annonce) + '" maxlength="120"></label>' +
+            '<label>Accroche (ligne 1)<input class="champ" name="accroche" value="' + h(r.accroche) + '" maxlength="60"></label>' +
+            '<label>Accroche (ligne 2)<input class="champ" name="accrocheSuite" value="' + h(r.accrocheSuite) + '" maxlength="60"></label>' +
+            '<label>Sous-titre<input class="champ" name="sousTitre" value="' + h(r.sousTitre) + '" maxlength="200"></label>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>Frais de port (€)<input class="champ" name="fraisPort" type="number" step="0.1" min="0" value="' + h(r.fraisPort) + '"></label>' +
+            '<label>Port offert dès (€)<input class="champ" name="portOffertDes" type="number" step="1" min="0" value="' + h(r.portOffertDes) + '"></label></div>' +
+            '<p class="erreur" id="erreur" hidden></p><button class="btn" type="submit">Enregistrer</button> <span class="sourd" id="ok"></span></form></div>'
+          document.getElementById('f-reglages').addEventListener('submit', function (e) {
+            e.preventDefault()
+            var fd = new FormData(e.target)
+            appel('/reglages', { method: 'PATCH', body: JSON.stringify({ annonce: fd.get('annonce'), accroche: fd.get('accroche'), accrocheSuite: fd.get('accrocheSuite'), sousTitre: fd.get('sousTitre'), fraisPort: Number(fd.get('fraisPort')), portOffertDes: Number(fd.get('portOffertDes')) }) })
+              .then(function () { document.getElementById('ok').textContent = 'Enregistré. La vitrine est à jour dans la minute.' })
+              .catch(function (err) { var el = document.getElementById('erreur'); el.hidden = false; el.textContent = err.message })
+          })
+        }).catch(function (err) { main.innerHTML = '<p class="erreur">' + h(err.message) + '</p>' })
+      }
+    }
+    rendre()
+  </script>
+</body>
+</html>
