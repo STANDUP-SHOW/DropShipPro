@@ -631,6 +631,9 @@ function Avancement({ travail }: { travail: TravailDropShop }) {
   // minute affichait « 0 s » pendant toute l'écriture. Le compteur part donc
   // du moment où CET écran a vu le travail, et ne recule jamais.
   const vuA = useRef(Date.now())
+  // Un nouveau travail dans le même écran repart de zéro (sinon le compteur
+  // héritait du précédent : « 145 s » quatre secondes après le clic).
+  useEffect(() => { vuA.current = Date.now() }, [travail.debut])
   useEffect(() => {
     if (!enCours) return
     const t = setInterval(() => tick((n) => n + 1), 1000)
