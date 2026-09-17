@@ -382,7 +382,7 @@ export function appliquerEditions(html: string, edits: Edition[]): { html: strin
  * en cache. On compte ici au tarif plein : le coût réel est en dessous.
  */
 export function coutAppel(modeleUtilise: string, entree: number, sortie: number): number {
-  const t = TARIFS[modeleUtilise] ?? TARIFS['claude-sonnet-5']
+  const t = TARIFS[modeleUtilise] ?? TARIFS[MODELE_REDACTION]
   return (entree * t.in + sortie * t.out) / 1_000_000
 }
 
