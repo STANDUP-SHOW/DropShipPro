@@ -351,7 +351,13 @@ export interface SiteFabrique {
   jetons: { entree: number; sortie: number }
 }
 
-export const REPARATIONS_MAX = 2
+/**
+ * Trois réparations : la seconde boutique réelle est tombée après deux, sur
+ * deux manques dont les messages ne disaient pas quoi corriger. Les messages
+ * nomment désormais la règle fautive ; une troisième chance coûte quelques
+ * centimes de Haiku contre deux euros rendus et cinq minutes perdues.
+ */
+export const REPARATIONS_MAX = 3
 
 /**
  * Écrit la boutique, la vérifie, la répare — ou échoue proprement.

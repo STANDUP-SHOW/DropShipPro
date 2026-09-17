@@ -93,7 +93,10 @@ async function main() {
   attendre('avec le logo dans l\'en-tête, elle passe', okLogo.ok, okLogo.echecs.join(' | '))
   const wrapCasse = EXEMPLE.replace('.wrap { width: min(1200px, 92vw); margin-inline: auto; }', '.wrap { width: min(1200px, 92vw); margin-inline: auto; }\n    .barre { width: 100%; }')
   const rWrap = await verifierAvec(wrapCasse, [])
-  attendre('un .wrap qui reçoit width:100% d\'une autre classe est refusé (titre collé au bord)', !rWrap.ok && rWrap.echecs.some((e) => /width:100%/.test(e)), rWrap.ok ? 'accepté à tort' : rWrap.echecs[0]?.slice(0, 100))
+  attendre('un .wrap qui reçoit width:100% d\'une autre classe est refusé, et la règle fautive est nommée', !rWrap.ok && rWrap.echecs.some((e) => /width:100%/.test(e) && /« \.barre »/.test(e)), rWrap.ok ? 'accepté à tort' : rWrap.echecs[0]?.slice(0, 160))
+  const badgeAttribut = EXEMPLE.replace("'<a href=\"' + c.lien.panier + '\">Panier (' + c.panier.nombre + ')</a>'", "'<a href=\"' + c.lien.panier + '\" data-compte=\"' + c.panier.nombre + '\">Panier</a>'")
+  const rBadge = await verifierAvec(badgeAttribut, [])
+  attendre('un compteur de panier rendu par attribut (data-compte, ::after) est accepté', rBadge.ok, rBadge.echecs.join(' | '))
 
   console.log('\n— La bibliothèque de design —')
   const luxe = dossierDesignPour('Bijoux en argent et montres pour hommes, haut de gamme, élégant, bois et noir', ['Montres'])

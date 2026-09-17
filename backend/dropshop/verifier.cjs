@@ -146,6 +146,20 @@ function texte(d) {
   return d.getElementById('app').textContent.replace(/\s+/g, ' ')
 }
 
+/** Les sélecteurs des règles CSS qui posent width:100% sur cet élément (règles @media comprises). */
+function reglesLargeur100(d, el) {
+  const trouves = []
+  const parcourir = (regles) => {
+    for (const r of Array.from(regles || [])) {
+      if (r.cssRules && r.cssRules.length) parcourir(r.cssRules)
+      if (!r.selectorText || !r.style || r.style.width !== '100%') continue
+      try { if (el.matches(r.selectorText)) trouves.push(r.selectorText) } catch (e) { /* sélecteur exotique */ }
+    }
+  }
+  try { for (const feuille of Array.from(d.styleSheets)) parcourir(feuille.cssRules) } catch (e) { /* feuille illisible */ }
+  return trouves
+}
+
 /* ---------- Le parcours du visiteur ---------- */
 async function parcours(page, echecs, avertissements) {
   const { w, d, appels, erreursJs } = await monter(page, echecs)
@@ -164,7 +178,12 @@ async function parcours(page, echecs, avertissements) {
   verifier(() => app().querySelector('img[src="https://cdn.test/aurore.jpg"]'), 'Les photos des produits s\'affichent via c.photo(produit) — la photo de « Montre Aurore acier » n\'est pas dans la page.')
   verifier(() => app().querySelector('h1'), 'L\'accueil doit porter un <h1> : l\'accroche du héros (c.boutique.accroche + accrocheSuite).')
   // Un .wrap qui reçoit width:100% d'une autre classe : le contenu colle au bord.
-  verifier(() => !Array.from(app().querySelectorAll('.wrap')).some((el) => w.getComputedStyle(el).width === '100%'), 'Un élément .wrap reçoit width:100% (par une autre classe) : il perd ses marges et le texte colle au bord de l\'écran. Le conteneur centré garde sa largeur bornée ; mettre width:100% sur un enfant, pas sur .wrap.')
+  // Le message NOMME la règle fautive : « un .wrap reçoit width:100% » sans
+  // dire laquelle a résisté à deux réparations sur la première boutique réelle.
+  const fautifs = Array.from(app().querySelectorAll('.wrap'))
+    .filter((el) => w.getComputedStyle(el).width === '100%')
+    .map((el) => ({ el, regles: reglesLargeur100(d, el) }))
+  verifier(() => fautifs.length === 0, fautifs.length ? 'Un élément .wrap (' + fautifs.map((f) => '<' + f.el.tagName.toLowerCase() + ' class="' + f.el.className + '">').slice(0, 2).join(', ') + ') reçoit width:100% de la règle CSS « ' + (fautifs.flatMap((f) => f.regles).slice(0, 3).join(' », « ') || 'style en ligne') + ' » : il perd ses marges et le texte colle au bord de l\'écran. Retire width:100% de cette règle (ou ne mets pas .wrap sur cet élément : mets .wrap sur un enfant qui contient le texte).' : '')
   if (OPTIONS.modes) {
     verifier(() => app().querySelectorAll('[data-mode]').length >= 3, 'Les modes visiteur ont été demandés : le cadre doit offrir au moins 3 boutons [data-mode="…"] (un sélecteur d\'ambiance dans l\'en-tête).')
     const premier = app().querySelector('[data-mode]')
@@ -199,7 +218,13 @@ async function parcours(page, echecs, avertissements) {
     bouton.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }))
     await patienter(40)
     verifier(() => JSON.parse(w.localStorage.getItem('dropshop-panier-cle-test') || '[]').some((l) => l.productId === 'p1' && l.quantity === 1), 'Le clic sur [data-ajouter] n\'a pas ajouté le produit au panier : ne pas intercepter le clic (pas de preventDefault ni de stopPropagation sur ce bouton).')
-    verifier(() => /\b1\b/.test(app().textContent), 'Après un ajout, le cadre doit afficher le nombre d\'articles du panier (c.panier.nombre).')
+    // Le compteur peut être un texte, un attribut rendu par CSS (data-compte,
+    // ::after) ou un aria-label : on accepte tout ce qui porte le chiffre.
+    verifier(() => {
+      const lien = app().querySelector('a[href="#/panier"]')
+      const porte = (el) => Boolean(el) && (/\b1\b/.test(el.textContent) || Array.from(el.attributes).some((a) => /\b1\b/.test(a.value)) || Array.from(el.querySelectorAll('*')).some((x) => Array.from(x.attributes).some((a) => /\b1\b/.test(a.value))))
+      return porte(lien) || /\b1\b/.test(app().textContent)
+    }, 'Après un ajout, le lien du panier (a[href="#/panier"]) doit montrer le nombre d\'articles : c.panier.nombre écrit en texte dans une pastille (par exemple <span class="badge">1</span>), pas seulement une icône.')
   }
 
   // Produit inconnu

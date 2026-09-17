@@ -55,10 +55,28 @@ la FAQ dans la fiche produit, pas sur l'accueil ni dans le cadre — la
 consigne d'édition dit désormais où va une demande qui ne nomme pas d'écran.
 La page servie aussi repassée localement dans le vérificateur : ok.
 
-**Pas encore constaté** : la restauration d'une version depuis l'écran (le
-banc la couvre), une création qui exige une réparation (le banc la couvre),
-et le chemin Stripe (`/checkout` → session → `/checkout/:session`) — aucune
-clé marchand branchée, éprouvé par le contrat seulement.
+**Second passage (commit 0924738, 17/09 vers 13 h 15)**, sur les retours de
+Max (« oguss.fr fait beaucoup plus pro », titre collé au bord, pas de logo en
+amont, pas de matière ni de mouvement) : logo avant le brief + gammes tirées
+de ses couleurs, bibliothèque `ui-ux-pro-max` branchée en Node, consigne
+niveau studio, modes visiteur en option. **Constaté en production** : sur
+une boutique de test « Banc logo DropShop » (créée puis supprimée), le logo
+déposé s'affiche, les couleurs sont lues (#2f6bff 53 %, #e0342c 33 %) et
+quatre gammes à pastilles sont proposées avec « Adapter la boutique aux
+couleurs de votre logo ? ». Max a lui-même restauré des versions depuis
+l'écran (v3 « Retour à la version 1 », v4 « Retour à la version 2 » dans la
+base). Une **seconde création réelle** de France ROBOTIQUE avec modes
+visiteur a été lancée (débit 200, solde 49 950) : résultat à lire ci-dessous
+ou dans la base (`SiteVersion`).
+
+Piège d'outillage : le `file_upload` de Chrome MCP a fait répondre 500 à
+l'envoi du logo, alors que le même envoi en `fetch` + `FormData` depuis la
+page répond 200 (adresse R2). Un vrai sélecteur de fichier suit le second
+chemin ; à revérifier si un vendeur se plaint.
+
+**Pas encore constaté** : une création qui exige une réparation (le banc la
+couvre), et le chemin Stripe (`/checkout` → session → `/checkout/:session`)
+— aucune clé marchand branchée, éprouvé par le contrat seulement.
 
 Piège d'outillage vu ce jour : **les captures d'écran de Chrome MCP
 échouent (« renderer frozen ») quand la fenêtre Chrome est masquée** par une
