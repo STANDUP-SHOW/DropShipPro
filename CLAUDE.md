@@ -601,6 +601,42 @@ Trois conséquences, toutes appliquées :
   produit par produit des annonces du vendeur et le rapport produit à la
   demande. Bancs `check-autoshipper.ts` et `check-automode.ts` adaptés.
 
+- **DropShop IA (17/09/2026) : la boutique est ÉCRITE par le modèle, pas
+  choisie dans un catalogue.** Après de très mauvais retours sur la vitrine à
+  thèmes, Max a voulu « un Lovable-like ». Le partage qui rend ça possible à
+  2 € : le modèle n'écrit que ce qui est unique (la page HTML entière — design,
+  CSS, écrans) et **jamais la logique de commerce**, qui vit dans
+  `backend/dropshop/sdk.js` (catalogue vivant, routage, panier, commande,
+  paiement, confirmation). La page décrit des écrans (`DropShop.pages({...})`)
+  et des gestes par attributs (`data-ajouter`, `<form data-commande>`…) que le
+  moteur branche lui-même. Le panier ne peut donc pas « ne plus marcher ».
+  Contrat lu par le modèle : `dropshop/contrat.md` ; squelette de référence
+  volontairement neutre : `dropshop/exemple.html`.
+
+  **Puis la page est testée comme un visiteur** (`dropshop/verifier.cjs`,
+  jsdom + vrai moteur + faux serveur) : accueil, catégorie, fiche, ajout au
+  panier, commande envoyée avec le bon corps, merci. Chaque manque est écrit
+  pour être lu par le modèle, qui répare par éditions « chercher / remplacer »
+  (tout ou rien, extrait unique) — deux fois au plus, sinon échec et drops
+  rendus. Sonnet 5 écrit (`AI_MODEL_SITE`), Haiku 4.5 modifie et répare
+  (`AI_MODEL_SITE_MODIF`). **Le vérificateur tourne dans un processus enfant à
+  l'environnement VIDE, tué à 30 s** : jsdom n'est pas un bac à sable et la
+  page vient d'un texte tapé par un vendeur ; une `while (true)` bloque le fil
+  de l'enfant, seul le parent peut le tuer, et c'est ce que le banc éprouve.
+  `jsdom` est passé en dépendance de production pour ça.
+
+  Prix : 200 drops la création (10 modifications comprises), 10 la
+  modification ensuite, 0 la restauration d'une version. Travail en 202 + état
+  relu dans `Shop.siteJob` (dure des minutes) ; un travail sans fin depuis
+  15 min est tenu pour mort et rendu. `/b/<slug>` sert la page IA (moteur
+  inséré) dès qu'elle existe, la vitrine à thèmes sinon. **Le paiement va sur
+  le compte Stripe DU MARCHAND** (clé collée par lui dans le studio, jamais
+  relue) : `/checkout` écrit les commandes puis ouvre la session avec sa clé ;
+  au retour, `/checkout/:session` relit Stripe et pose `paidAt` — jamais sur
+  la parole du navigateur. Emails acheteur + marchand sous l'enseigne de la
+  boutique. Dossier complet : `docs/dropshop.md`. Bancs `check-dropshop.ts`
+  et `check-dropshop-jobs.ts`.
+
 - **Zernio facture 6 $/mois et par compte raccordé.** Le prix à l'acte n'est
   pas le problème : ce coût fixe court sur les vendeurs dormants. Trois comptes
   et trente annonces font 38 $/vendeur/mois, dont la moitié due qu'il publie ou

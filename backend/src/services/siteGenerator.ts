@@ -135,7 +135,8 @@ Règles :
 - Pour supprimer, remplace par une chaîne vide ou par le contexte conservé.
 - Respecte le contrat du moteur (ci-dessous) : les attributs data-*, DropShop.pages, aucun appel réseau, aucun script externe, tout texte du catalogue via c.html(...).
 - Si la demande exige une refonte complète (changer tout le design), réponds à la place par le document entier dans un bloc \`\`\`html.
-- Ne change rien qui n'a pas été demandé.`
+- Ne change rien qui n'a pas été demandé.
+- Où placer ce qui est demandé : une demande qui ne nomme pas d'écran vise l'ACCUEIL (fonction accueil). « L'en-tête », « le menu », « le pied de page », « avant le pied de page » désignent le CADRE (fonction cadre), donc toutes les pages. « La fiche », « le produit » désignent l'écran produit ; « le panier », « la commande » les leurs. Une section ajoutée « avant le pied de page » va dans cadre, juste avant le <footer>, jamais dans une seule fiche produit — c'est la faute constatée sur la première boutique réelle.`
 
 export function consigneCreation(): string {
   return `${DIRECTION_ARTISTIQUE}

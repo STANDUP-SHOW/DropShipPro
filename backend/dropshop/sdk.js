@@ -72,7 +72,11 @@
   function prix(p) {
     var n = Number(p)
     if (isNaN(n)) return ''
-    return n.toFixed(2).replace('.', ',') + ' €'
+    // « 2 990,00 € » et non « 2990,00 € » : l'espace fine des milliers, comme
+    // sur n'importe quel ticket français. Vu sur la première boutique réelle.
+    var parts = n.toFixed(2).split('.')
+    var entier = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+    return entier + ',' + parts[1] + ' €'
   }
   function slug(s) {
     return String(s || '')

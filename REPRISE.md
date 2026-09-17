@@ -16,6 +16,58 @@ contre une liste de fonctions qui grossit pendant que l'application recule.
 
 ---
 
+## Où on en est le 17/09/2026 — DropShop IA et Fresh news
+
+**Fresh news** (commit 33689a1) : rapports des 48 agents de marché stockés
+(`MarketReport`), servis aux comptes à ≥ 500 drops (`GET /api/market-reports`,
+402 sinon), page `/fresh-news` (rayon, aujourd'hui / hier, date des 15
+derniers jours, titre dégradé, blocs ancrés, produits « Voir / Importer 12 /
+Extension 6+12 »). File d'import (`ImportQueue`) écrite, **exécuteur dans
+l'extension pas encore fait**. `deposer-rapports.ts` envoie
+`MARKET-ANALYSES/rapports/` au serveur (clé `AGENT_API_KEY` dans .env). **Aucun
+rapport réel déposé encore** : Max doit dire où Cowork a écrit le rapport
+téléphonie.
+
+**DropShop IA** (commit 4446c41, poussé le 17/09 vers 13 h) : le
+« Lovable-like » demandé — voir `docs/dropshop.md` et le piège dans
+`CLAUDE.md`. Tout est écrit, 70 bancs passent (dont `check-dropshop.ts` et
+`check-dropshop-jobs.ts`, ce dernier contre la vraie base avec comptes
+jetables et faux modèle). Migration `20260917200000_dropshop_ia` **appliquée
+en production** après sauvegarde.
+
+**Constaté en production le 17/09 vers 12 h 20 (compte de Max, boutique
+France ROBOTIQUE, 3 annonces)** : création lancée depuis `/creer-boutique`
+avec un brief de six lignes → **215 s** (Sonnet 5, un seul passage, le
+contrôle du visiteur passé du premier coup) → page de 610 lignes / 35 Ko
+servie à `https://api.drop-shipper.fr/b/france-robotique` (en-tête
+`X-DropShop-Version: 1`) : identité écrite en tête du CSS (palette noir
+laboratoire / bleu électrique, Chakra Petch + Manrope, « poste de contrôle »),
+héros plein écran avec la vraie photo du robot, catégories en cartes,
+nouveautés, section « pourquoi », FAQ, pied complet. Vérifié par le DOM :
+fiche produit (titre, 2 990 €, 16 photos, bouton `data-ajouter`), ajout au
+panier → compteur 1 → panier (sous-total, port offert, total) → commande
+(6 champs, « Confirmer la commande »). À 615 px de large : pas de défilement
+horizontal, grilles à 2 colonnes. **Débit réel : 50 350 → 50 150** (« Création
+de boutique DropShop IA »). Puis une modification (« ajoute une FAQ livraison
+avant le pied de page ») : **18 s** (Haiku 4.5), version 2, gratuite (9
+comprises restantes), résumé montré au vendeur. **Défaut vu** : Haiku a mis
+la FAQ dans la fiche produit, pas sur l'accueil ni dans le cadre — la
+consigne d'édition dit désormais où va une demande qui ne nomme pas d'écran.
+La page servie aussi repassée localement dans le vérificateur : ok.
+
+**Pas encore constaté** : la restauration d'une version depuis l'écran (le
+banc la couvre), une création qui exige une réparation (le banc la couvre),
+et le chemin Stripe (`/checkout` → session → `/checkout/:session`) — aucune
+clé marchand branchée, éprouvé par le contrat seulement.
+
+Piège d'outillage vu ce jour : **les captures d'écran de Chrome MCP
+échouent (« renderer frozen ») quand la fenêtre Chrome est masquée** par une
+autre ; le DOM répond toujours (`javascript_tool`, `get_page_text`). Vérifier
+par le DOM, pas par l'image.
+
+Reste pour DropShop : sous-domaine / domaine propre, boutique de démonstration,
+port par commande dans le back-office, Opus 5 à l'essai pour la création.
+
 ## Où on en est au soir du 16/09/2026
 
 **App Shopify publique** (Dev Dashboard org 236010842, app 424256045057, Partner

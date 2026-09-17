@@ -508,12 +508,19 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
 function Avancement({ travail }: { travail: TravailDropShop }) {
   const [, tick] = useState(0)
   const enCours = !travail.fin
+  // L'horloge du navigateur n'est pas celle du serveur : un décalage d'une
+  // minute affichait « 0 s » pendant toute l'écriture. Le compteur part donc
+  // du moment où CET écran a vu le travail, et ne recule jamais.
+  const vuA = useRef(Date.now())
   useEffect(() => {
     if (!enCours) return
     const t = setInterval(() => tick((n) => n + 1), 1000)
     return () => clearInterval(t)
   }, [enCours])
-  const secondes = Math.max(0, Math.round(((travail.fin ? new Date(travail.fin).getTime() : Date.now()) - new Date(travail.debut).getTime()) / 1000))
+  const debut = new Date(travail.debut).getTime()
+  const secondes = travail.fin
+    ? Math.max(0, Math.round((new Date(travail.fin).getTime() - debut) / 1000))
+    : Math.max(Math.round((Date.now() - debut) / 1000), Math.round((Date.now() - vuA.current) / 1000), 0)
   const titre = travail.type === 'creation' ? 'Création de la boutique' : 'Modification'
 
   if (travail.etape === 'echec') {
@@ -545,7 +552,10 @@ function Avancement({ travail }: { travail: TravailDropShop }) {
         <Loader2 size={15} className="animate-spin" />
         <span>{titre} en cours — {secondes} s</span>
       </h3>
-      <p className="mt-1 text-xs text-gray-300">{ETAPES[travail.etape]}{travail.etape === 'reparation' ? ` (passage ${travail.tentative})` : ''}</p>
+      <p className="mt-1 text-xs text-gray-300">
+        {travail.type === 'modification' && travail.etape === 'ecriture' ? "L'IA applique votre demande à la page…" : ETAPES[travail.etape]}
+        {travail.etape === 'reparation' ? ` (passage ${travail.tentative})` : ''}
+      </p>
       <ol className="mt-3 flex gap-2">
         {etapes.map(([k, label], i) => (
           <li key={k} className={`flex-1 rounded-lg border px-2 py-1.5 text-center text-[11px] font-semibold ${i < rang ? 'border-emerald-400/40 text-emerald-200' : i === rang ? 'border-emerald-300 bg-emerald-400/15 text-white' : 'border-white/10 text-gray-500'}`}>
