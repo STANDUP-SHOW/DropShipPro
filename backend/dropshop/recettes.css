@@ -1,0 +1,241 @@
+/* ======================================================================
+   RECETTES DROPSHOP — matière, relief, mouvement (17/09/2026)
+
+   Ce fichier est donné au modèle qui écrit une boutique. Ce sont des
+   RECETTES éprouvées, pas un design : il copie dans son <style> celles
+   qu'il utilise, les renomme s'il veut, et surtout les ADAPTE à ses
+   jetons (--fond, --surface, --texte, --sourd, --accent, --accent2,
+   --ligne). Les techniques viennent d'oguss.fr (bois en dégradés
+   répétés, ombre « lux », survol qui lève et zoome, verre) et des
+   boutiques que Max trouve belles. Aucune image : tout est CSS.
+   ====================================================================== */
+
+/* ---------- 1. MATIÈRE : des fonds qui ont une texture ---------- */
+
+/* Grain : un bruit SVG en data URI, posé en ::before à faible opacité.
+   Il donne du « papier » ou du « métal » à n'importe quel fond. */
+.grain { position: relative; isolation: isolate; }
+.grain::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .18;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* Bois : deux dégradés répétés (veines) fondus sur un dégradé de fond, façon oguss.fr. */
+.matiere-bois {
+  --bois: #6b4a2b; --bois-sombre: #3e2a17;
+  background-image:
+    repeating-linear-gradient(92deg, color-mix(in srgb, var(--bois-sombre) 55%, transparent) 0 3px, color-mix(in srgb, var(--bois) 42%, transparent) 3px 7px, color-mix(in srgb, var(--bois-sombre) 30%, transparent) 7px 12px),
+    repeating-linear-gradient(88deg, transparent 0 40px, rgba(0,0,0,.08) 40px 41px),
+    linear-gradient(135deg, #1a120b 0%, #33231a 55%, #150f0a 100%);
+  background-blend-mode: overlay, multiply, normal;
+}
+
+/* Papier / lin : clair, chaud, très léger grain (à combiner avec .grain). */
+.matiere-papier {
+  background:
+    radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.7), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 1px, transparent 1px 3px),
+    #f4efe6;
+}
+
+/* Métal brossé : trame fine horizontale + reflet diagonal. */
+.matiere-metal {
+  background:
+    linear-gradient(115deg, rgba(255,255,255,.14) 0%, transparent 35%, rgba(255,255,255,.08) 55%, transparent 70%),
+    repeating-linear-gradient(180deg, rgba(255,255,255,.045) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #2a2e36, #15181d);
+}
+
+/* Béton : dégradé froid + taches radiales + grain. */
+.matiere-beton {
+  background:
+    radial-gradient(60% 40% at 30% 20%, rgba(255,255,255,.06), transparent 70%),
+    radial-gradient(50% 50% at 80% 80%, rgba(0,0,0,.25), transparent 70%),
+    #4a4d52;
+}
+
+/* Nuit : noir teinté par l'accent, halo, vignettage — le fond « sombre » par défaut. */
+.matiere-nuit {
+  background:
+    radial-gradient(90% 70% at 70% 0%, color-mix(in srgb, var(--accent, #4a7cff) 22%, transparent), transparent 60%),
+    radial-gradient(120% 90% at 50% 120%, rgba(0,0,0,.6), transparent 60%),
+    color-mix(in srgb, var(--accent, #4a7cff) 6%, #07080c);
+}
+
+/* Velours : dégradé profond + reflet doux, pour le luxe. */
+.matiere-velours {
+  background:
+    radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--accent, #7a3b5c) 35%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent, #7a3b5c) 18%, #120a10), #0b060a);
+}
+
+/* Trame HUD : une grille fine, pour les univers techniques. */
+.trame-grille {
+  background-image:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ---------- 2. RELIEF : ombres et verre ---------- */
+
+/* Ombre « lux » : une ombre courte nette + une longue diffuse + un liseré. */
+.ombre-lux {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.06) inset,
+    0 2px 6px rgba(0,0,0,.25),
+    0 18px 40px -12px rgba(0,0,0,.45);
+}
+.ombre-douce { box-shadow: 0 10px 30px -10px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.12); }
+.ombre-claire { box-shadow: 0 1px 2px rgba(30,20,10,.08), 0 14px 34px -14px rgba(30,20,10,.25); }
+
+/* Verre : flou de ce qui passe derrière, bord clair, léger reflet. */
+.verre {
+  background: color-mix(in srgb, var(--surface, #141821) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--texte, #fff) 12%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--texte, #fff) 10%, transparent), 0 12px 30px -12px rgba(0,0,0,.5);
+}
+
+/* Liseré dégradé : une bordure qui change de couleur au survol, sans image. */
+.liseré { position: relative; }
+.liseré::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent, #fff) 60%, transparent), transparent 40%, color-mix(in srgb, var(--accent2, #fff) 40%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: .5; transition: opacity .3s;
+}
+.liseré:hover::after { opacity: 1; }
+
+/* ---------- 3. CARTES : photo traitée, survol vivant ---------- */
+
+/* Les photos fournisseurs sont presque toujours des PACKSHOTS SUR FOND BLANC.
+   Sur une ambiance sombre, un rectangle blanc brut est laid : on pose la photo
+   sur un « plateau » clair, avec de l'air autour, et on la laisse zoomer au survol.
+   Sur une ambiance claire, mix-blend-mode: multiply fait disparaître le blanc. */
+.carte {
+  position: relative; display: block; overflow: hidden; border-radius: var(--rayon, 18px);
+  background: var(--surface, #141821); border: 1px solid var(--ligne, rgba(255,255,255,.1));
+  text-decoration: none; color: inherit;
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s, border-color .35s;
+}
+.carte:hover { transform: translateY(-6px); box-shadow: 0 24px 50px -18px rgba(0,0,0,.55); border-color: color-mix(in srgb, var(--accent, #fff) 45%, transparent); }
+.carte .plateau {
+  aspect-ratio: 4 / 5; display: grid; place-items: center; padding: 8%;
+  background: radial-gradient(80% 70% at 50% 40%, #ffffff, #eef0f3 100%);
+}
+.carte .plateau img { width: 100%; height: 100%; object-fit: contain; transition: transform .6s cubic-bezier(.2,.8,.2,1); mix-blend-mode: multiply; }
+.carte:hover .plateau img { transform: scale(1.07); }
+/* Variante immersive : photo à fond perdu, voile qui monte au survol. */
+.carte .visuel { aspect-ratio: 4 / 5; overflow: hidden; }
+.carte .visuel img { width: 100%; height: 100%; object-fit: cover; transition: transform .7s cubic-bezier(.2,.8,.2,1); }
+.carte:hover .visuel img { transform: scale(1.06); }
+.carte .voile {
+  position: absolute; inset: auto 0 0 0; padding: 18px 16px 14px;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,.72));
+  transform: translateY(8px); opacity: .92; transition: transform .35s, opacity .35s;
+}
+.carte:hover .voile { transform: translateY(0); opacity: 1; }
+.carte .etiquette {
+  position: absolute; top: 12px; left: 12px; padding: 5px 10px; border-radius: 999px;
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700;
+  background: color-mix(in srgb, var(--fond, #000) 70%, transparent); color: var(--texte, #fff);
+  backdrop-filter: blur(8px); border: 1px solid color-mix(in srgb, var(--texte, #fff) 15%, transparent);
+}
+/* Sans photo : jamais une image cassée — un dégradé et l'initiale. */
+.carte .plateau.vide, .carte .visuel.vide {
+  display: grid; place-items: center; font-size: clamp(40px, 8vw, 96px); font-weight: 800; color: color-mix(in srgb, var(--accent, #fff) 55%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent, #4a7cff) 30%, var(--surface, #141821)), var(--surface, #141821));
+}
+
+/* ---------- 4. BOUTONS : un système, trois variantes, tous les états ---------- */
+
+.btn {
+  --b-fond: var(--accent, #4a7cff); --b-texte: #fff;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 46px; padding: 0 22px; border-radius: var(--rayon-btn, 12px);
+  background: var(--b-fond); color: var(--b-texte); border: 1px solid transparent;
+  font: inherit; font-weight: 700; letter-spacing: .01em; cursor: pointer; text-decoration: none;
+  box-shadow: 0 1px 0 rgba(255,255,255,.15) inset, 0 8px 20px -8px color-mix(in srgb, var(--b-fond) 70%, transparent);
+  transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .25s, background .25s, border-color .25s;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255,255,255,.2) inset, 0 14px 28px -10px color-mix(in srgb, var(--b-fond) 80%, transparent); filter: brightness(1.06); }
+.btn:active { transform: translateY(0) scale(.98); box-shadow: 0 2px 6px -2px rgba(0,0,0,.4); }
+.btn:focus-visible { outline: 2px solid var(--accent2, var(--accent)); outline-offset: 3px; }
+.btn:disabled { opacity: .55; cursor: wait; transform: none; }
+.btn-secondaire { --b-fond: var(--surface, #141821); --b-texte: var(--texte, #fff); border-color: var(--ligne, rgba(255,255,255,.14)); box-shadow: none; }
+.btn-secondaire:hover { border-color: color-mix(in srgb, var(--accent, #fff) 60%, transparent); }
+.btn-fantome { --b-fond: transparent; --b-texte: var(--texte, #fff); border-color: color-mix(in srgb, var(--texte, #fff) 25%, transparent); box-shadow: none; }
+.btn-fantome:hover { background: color-mix(in srgb, var(--texte, #fff) 8%, transparent); }
+/* Flèche qui glisse au survol. */
+.btn .fleche { display: inline-block; transition: transform .25s; }
+.btn:hover .fleche { transform: translateX(4px); }
+/* Pastille de compteur (panier). */
+.pastille { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--accent, #4a7cff); color: #fff; }
+
+/* ---------- 5. MOUVEMENT : révélation, cascade, diaporama, marquee ---------- */
+
+/* Révélation au défilement. L'ÉTAT DE REPOS EST LISIBLE : l'opacité 0 n'est
+   posée que quand JS a mis la classe js-anime sur <html> (DropShop.apres), et
+   l'observateur ajoute .visible. Sans JS, tout est visible. */
+html.js-anime .reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); transition-delay: calc(var(--i, 0) * 90ms); }
+html.js-anime .reveal.visible { opacity: 1; transform: none; }
+
+/* Titre en cascade : chaque mot dans un <span style="--i:n">. */
+.cascade span { display: inline-block; animation: cascade .8s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 80ms); }
+@keyframes cascade { from { opacity: 0; transform: translateY(.6em) rotate(1deg); } to { opacity: 1; transform: none; } }
+
+/* Diaporama du héros : N images superposées, fondu enchaîné + Ken Burns.
+   Durée totale = N × 6 s ; chaque <img> reçoit --i et --n. */
+.diapo { position: absolute; inset: 0; overflow: hidden; }
+.diapo img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0;
+  animation: diapo calc(var(--n, 3) * 6s) infinite; animation-delay: calc(var(--i, 0) * 6s);
+}
+@keyframes diapo {
+  0% { opacity: 0; transform: scale(1.04); }
+  8% { opacity: 1; }
+  30% { opacity: 1; transform: scale(1.12); }
+  38% { opacity: 0; transform: scale(1.14); }
+  100% { opacity: 0; }
+}
+/* Une seule image : Ken Burns lent, sans fondu. */
+.kenburns { animation: kenburns 18s ease-in-out infinite alternate; }
+@keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.1) translate(-1.5%, -1%); } }
+/* Voile de lisibilité au-dessus du diaporama. */
+.voile-hero { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.35) 50%, color-mix(in srgb, var(--fond, #000) 96%, transparent)); }
+
+/* Bandeau défilant : le contenu est écrit DEUX fois pour boucler. */
+.marquee { overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.marquee > div { display: inline-flex; gap: 3rem; padding-right: 3rem; animation: marquee 32s linear infinite; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+.marquee:hover > div { animation-play-state: paused; }
+
+/* Soulignement animé d'un mot-clé. */
+.souligne { background: linear-gradient(var(--accent, #4a7cff), var(--accent, #4a7cff)) no-repeat 0 100% / 0% 3px; animation: souligne 1.2s .6s forwards; }
+@keyframes souligne { to { background-size: 100% 3px; } }
+
+/* Tout s'arrête pour qui le demande. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; }
+  html.js-anime .reveal { opacity: 1; transform: none; }
+}
+
+/* ---------- 6. RYTHME : sections, titres, séparateurs ---------- */
+
+.section { padding-block: clamp(56px, 9vw, 120px); }
+.eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent, #4a7cff); font-weight: 700; }
+.eyebrow::before { content: ""; width: 28px; height: 1px; background: currentColor; }
+.titre-section { font-size: clamp(28px, 4vw, 48px); line-height: 1.05; letter-spacing: -.02em; text-wrap: balance; margin: 10px 0 8px; }
+.separateur { height: 1px; background: linear-gradient(90deg, transparent, var(--ligne, rgba(255,255,255,.2)), transparent); }
+.grille-auto { display: grid; gap: clamp(14px, 2vw, 24px); grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+
+/* Sélecteur de modes visiteur : chaque bouton porte un aperçu de son ambiance. */
+.modes { display: inline-flex; gap: 6px; padding: 5px; border-radius: 999px; border: 1px solid var(--ligne, rgba(255,255,255,.14)); background: color-mix(in srgb, var(--surface, #141821) 70%, transparent); }
+.modes button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--sourd, #aaa); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: background .25s, color .25s; }
+.modes button i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; background: var(--apercu, currentColor); box-shadow: 0 0 0 2px rgba(255,255,255,.15) inset; }
+.modes button:hover { color: var(--texte, #fff); }
+.modes button[aria-pressed="true"] { background: var(--texte, #fff); color: var(--fond, #000); }

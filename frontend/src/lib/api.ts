@@ -58,7 +58,7 @@ export function getToken() {
 /** Un travail DropShop (création ou modification), tel que le serveur le tient. */
 export interface TravailDropShop {
   type: 'creation' | 'modification'
-  etape: 'ecriture' | 'verification' | 'reparation' | 'termine' | 'echec'
+  etape: 'ecriture' | 'verification' | 'reparation' | 'finition' | 'termine' | 'echec'
   tentative: number
   demande: string
   debut: string
@@ -67,6 +67,9 @@ export interface TravailDropShop {
   echecs?: string[]
   resume?: string
   drops: number
+  /** Réservé à l'administrateur : ce que le travail nous a coûté. */
+  jetons?: { entree: number; sortie: number }
+  cout?: number
 }
 
 /** Une gamme de couleurs proposée à partir du logo, ou choisie par le vendeur. */
@@ -76,6 +79,20 @@ export interface GammeDropShop {
   description?: string
   mode: 'sombre' | 'clair'
   jetons: { fond: string; surface: string; texte: string; sourd: string; accent: string; accent2: string; ligne: string }
+}
+
+/** Une direction artistique proposée avant l'écriture ; le vendeur en choisit une. */
+export interface DirectionDropShop {
+  id: string
+  titre: string
+  concept: string
+  ambiance: 'sombre' | 'clair'
+  matiere: 'nuit' | 'bois' | 'papier' | 'metal' | 'beton' | 'velours'
+  palette: { fond: string; surface: string; texte: string; sourd: string; accent: string; accent2: string; ligne: string }
+  polices: { titre: string; texte: string }
+  hero: string
+  boutons: string
+  sections: string[]
 }
 
 export interface EtatDropShop {
@@ -881,8 +898,11 @@ export const api = {
     >('/settings/shops'),
   /* ---------- DropShop IA : la boutique écrite par le modèle ---------- */
   dropshopEtat: (shopId: string) => request<EtatDropShop>(`/dropshop/${shopId}`),
-  dropshopCreer: (shopId: string, brief: { description: string; gamme?: GammeDropShop | null; modesVisiteur?: boolean }) =>
+  dropshopCreer: (shopId: string, brief: { description: string; gamme?: GammeDropShop | null; modesVisiteur?: boolean; direction?: DirectionDropShop | null }) =>
     request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/creer`, { method: 'POST', body: JSON.stringify(brief) }),
+  /** Trois directions artistiques pour ce brief (~30 s, gratuit) : le vendeur choisit avant l'écriture. */
+  dropshopDirections: (shopId: string, brief: { description: string; gamme?: GammeDropShop | null }) =>
+    request<{ directions: DirectionDropShop[] }>(`/dropshop/${shopId}/directions`, { method: 'POST', body: JSON.stringify(brief) }),
   /** Les couleurs du logo de la boutique et les gammes qu'on en tire. */
   dropshopGammes: (shopId: string) =>
     request<{ logo: boolean; couleurs: Array<{ hex: string; part: number }>; gammes: GammeDropShop[] }>(`/dropshop/${shopId}/gammes`),

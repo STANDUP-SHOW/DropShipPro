@@ -2,9 +2,12 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { apiBaseUrl } from '../lib/urls.js'
-import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { ADMIN_EMAIL, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { BOUTIQUE_MODIFS_INCLUSES, DROPS } from '../services/tarifs.js'
+import { rateLimit } from '../middleware/rateLimit.js'
+import { SiteImpossible } from '../services/siteGenerator.js'
 import {
+  directionsPour,
   gammesPour,
   lancerCreation,
   lancerModification,
@@ -45,7 +48,13 @@ dropshopRouter.get('/:shopId', async (req: AuthedRequest, res) => {
     select: { numero: true, demande: true, modele: true, createdAt: true },
   })
   // Le dernier travail clos reste lisible (résumé, erreur) tant qu'un autre n'a pas commencé.
-  const dernier = shop.siteJob && typeof shop.siteJob === 'object' ? (shop.siteJob as Record<string, unknown>) : null
+  const dernier = shop.siteJob && typeof shop.siteJob === 'object' ? { ...(shop.siteJob as Record<string, unknown>) } : null
+  // Ce que le travail NOUS a coûté ne regarde que l'administrateur.
+  const compte = await prisma.user.findUnique({ where: { id: req.userId! }, select: { email: true } })
+  if (dernier && compte?.email.trim().toLowerCase() !== ADMIN_EMAIL) {
+    delete dernier.cout
+    delete dernier.jetons
+  }
   res.json({
     id: shop.id,
     nom: shop.name,
@@ -73,17 +82,44 @@ dropshopRouter.get('/:shopId/gammes', async (req: AuthedRequest, res) => {
 })
 
 const couleur = z.string().regex(/^(#[0-9a-fA-F]{6}|rgba?\([^)]{1,40}\))$/, 'Couleur invalide')
+const paletteSchema = z.object({ fond: couleur, surface: couleur, texte: couleur, sourd: couleur, accent: couleur, accent2: couleur, ligne: couleur })
+const gammeSchema = z.object({ nom: z.string().trim().min(1).max(40), mode: z.enum(['sombre', 'clair']), jetons: paletteSchema })
+const directionSchema = z.object({
+  id: z.string().trim().min(1).max(40),
+  titre: z.string().trim().min(1).max(60),
+  concept: z.string().trim().max(400),
+  ambiance: z.enum(['sombre', 'clair']),
+  matiere: z.enum(['nuit', 'bois', 'papier', 'metal', 'beton', 'velours']),
+  palette: paletteSchema,
+  polices: z.object({ titre: z.string().trim().min(1).max(60), texte: z.string().trim().min(1).max(60) }),
+  hero: z.string().trim().max(400),
+  boutons: z.string().trim().max(300),
+  sections: z.array(z.string().trim().max(80)).max(8),
+})
 const briefSchema = z.object({
   description: z.string().trim().min(20, 'Décrivez la boutique en quelques phrases (20 caractères au moins).').max(4000),
-  gamme: z
-    .object({
-      nom: z.string().trim().min(1).max(40),
-      mode: z.enum(['sombre', 'clair']),
-      jetons: z.object({ fond: couleur, surface: couleur, texte: couleur, sourd: couleur, accent: couleur, accent2: couleur, ligne: couleur }),
-    })
-    .nullable()
-    .optional(),
+  gamme: gammeSchema.nullable().optional(),
   modesVisiteur: z.boolean().optional(),
+  direction: directionSchema.nullable().optional(),
+})
+
+/**
+ * Trois directions artistiques pour ce brief, en ~25 s, gratuites : le
+ * marchand choisit AVANT que la boutique soit écrite (ce que Lovable fait).
+ * Bornées à dix par heure et par compte : c'est un appel au modèle.
+ */
+dropshopRouter.post('/:shopId/directions', rateLimit({ name: 'dropshop-directions', windowMs: 3600_000, max: 10 }), async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  const parsed = briefSchema.pick({ description: true, gamme: true }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Brief invalide' })
+  try {
+    const directions = await directionsPour(shop, parsed.data.description, { gamme: parsed.data.gamme ?? null })
+    res.json({ directions })
+  } catch (e) {
+    if (e instanceof SiteImpossible) return res.status(502).json({ error: e.message })
+    refus(res, e)
+  }
 })
 
 dropshopRouter.post('/:shopId/creer', async (req: AuthedRequest, res) => {
@@ -92,7 +128,7 @@ dropshopRouter.post('/:shopId/creer', async (req: AuthedRequest, res) => {
   const parsed = briefSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Brief invalide' })
   try {
-    const etat = await lancerCreation(shop, parsed.data.description, {}, { gamme: parsed.data.gamme ?? null, modesVisiteur: Boolean(parsed.data.modesVisiteur) })
+    const etat = await lancerCreation(shop, parsed.data.description, {}, { gamme: parsed.data.gamme ?? null, modesVisiteur: Boolean(parsed.data.modesVisiteur), direction: parsed.data.direction ?? null })
     res.status(202).json({ travail: etat })
   } catch (e) {
     refus(res, e)

@@ -68,7 +68,7 @@ export function signToken(userId: string) {
  * serveur** : le filtre côté navigateur ne fait que cacher le bouton ; la liste
  * des abonnés est de la donnée personnelle, elle ne se protège pas au front.
  */
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'maxmartinel34@gmail.com').trim().toLowerCase()
+export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'maxmartinel34@gmail.com').trim().toLowerCase()
 
 export async function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
   try {

@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { MODELE_RAPIDE, MODELE_REDACTION, modele } from './aiModels.js'
+import { MODELE_RAPIDE, MODELE_REDACTION, TARIFS, modele } from './aiModels.js'
 
 /**
  * DropShop IA — la boutique écrite par le modèle (17/09/2026).
@@ -69,6 +69,83 @@ export interface CatalogueBoutique {
   modesVisiteur?: boolean
   /** Le dossier tiré de la bibliothèque de design, déjà rédigé. */
   dossierDesign?: string
+  /** La direction choisie parmi les trois proposées : imposée au modèle. */
+  direction?: Direction | null
+}
+
+/**
+ * Une direction artistique : ce que le marchand choisit AVANT que la boutique
+ * soit écrite (comme les trois propositions de Lovable). Courte à produire
+ * (~25 s), montrée en carte avec palette, polices et concept.
+ */
+export interface Direction {
+  id: string
+  titre: string
+  concept: string
+  ambiance: 'sombre' | 'clair'
+  matiere: 'nuit' | 'bois' | 'papier' | 'metal' | 'beton' | 'velours'
+  palette: { fond: string; surface: string; texte: string; sourd: string; accent: string; accent2: string; ligne: string }
+  polices: { titre: string; texte: string }
+  hero: string
+  boutons: string
+  sections: string[]
+}
+
+const CONSIGNE_DIRECTIONS = `Tu es directeur artistique. Un marchand décrit sa boutique ; tu lui proposes TROIS directions artistiques vraiment différentes entre elles (pas trois variantes de la même), chacune pensée pour son commerce et sa clientèle. Il en choisira une, et la boutique sera écrite dans cette direction.
+
+Réponds UNIQUEMENT par un bloc \`\`\`json :
+{
+  "directions": [
+    {
+      "id": "identifiant-court",
+      "titre": "Nom évocateur (2-4 mots)",
+      "concept": "Une phrase qui vend la direction au marchand : l'ambiance, ce que le visiteur ressent.",
+      "ambiance": "sombre | clair",
+      "matiere": "nuit | bois | papier | metal | beton | velours",
+      "palette": { "fond": "#…", "surface": "#…", "texte": "#…", "sourd": "#…", "accent": "#…", "accent2": "#…", "ligne": "rgba(…)" },
+      "polices": { "titre": "Nom Google Fonts", "texte": "Nom Google Fonts" },
+      "hero": "Ce que montre le héros d'accueil et comment il bouge (une phrase).",
+      "boutons": "Le dessin des boutons (une phrase).",
+      "sections": ["Catégories en cartes matière", "Nouveautés", "…"]
+    }
+  ]
+}
+
+Règles : contraste texte/fond ≥ 4,5:1 ; polices réellement disponibles sur Google Fonts, appariement titrage + texte ; au moins une direction claire et une sombre ; si une palette est imposée (logo), les trois directions la respectent et varient sur la matière, la typographie et le concept ; pas de dégradé violet-bleu générique ; écris en français, pour un marchand, sans jargon.`
+
+export function extraireDirections(texte: string): Direction[] {
+  const bloc = /```json\s*\n([\s\S]*?)\n```/i.exec(texte)
+  const brut = bloc ? bloc[1] : texte.match(/\{[\s\S]*\}/)?.[0]
+  if (!brut) return []
+  try {
+    const obj = JSON.parse(brut) as { directions?: unknown }
+    if (!Array.isArray(obj.directions)) return []
+    return obj.directions
+      .filter((d): d is Direction => Boolean(d) && typeof (d as Direction).titre === 'string' && typeof (d as Direction).palette === 'object')
+      .slice(0, 3)
+      .map((d, i) => ({
+        ...d,
+        id: typeof d.id === 'string' && d.id ? d.id.toLowerCase().replace(/[^a-z0-9-]+/g, '-') : `direction-${i + 1}`,
+        ambiance: d.ambiance === 'clair' ? 'clair' : 'sombre',
+        matiere: (['nuit', 'bois', 'papier', 'metal', 'beton', 'velours'] as const).includes(d.matiere) ? d.matiere : d.ambiance === 'clair' ? 'papier' : 'nuit',
+        sections: Array.isArray(d.sections) ? d.sections.filter((s): s is string => typeof s === 'string').slice(0, 8) : [],
+      }))
+  } catch {
+    return []
+  }
+}
+
+/** Trois directions pour ce brief. ~25 s, quelques centimes, aucune page écrite. */
+export async function proposerDirections(brief: string, catalogue: CatalogueBoutique, appeler: AppelModele = appelAnthropic): Promise<Direction[]> {
+  const reponse = await appeler({
+    modele: modele('AI_MODEL_SITE_DIRECTIONS', MODELE_REDACTION),
+    system: CONSIGNE_DIRECTIONS,
+    messages: [{ role: 'user', content: ficheCommerce(brief, { ...catalogue, dossierDesign: catalogue.dossierDesign?.slice(0, 3500) }) }],
+    max_tokens: 3500,
+  })
+  const directions = extraireDirections(reponse.texte)
+  if (!directions.length) throw new SiteImpossible("Le modèle n'a pas rendu de directions lisibles.")
+  return directions
 }
 
 /** Ce que le vendeur a coché à la création ; voyage avec le travail et le vérificateur. */
@@ -169,8 +246,22 @@ Règles :
 - Ne change rien qui n'a pas été demandé.
 - Où placer ce qui est demandé : une demande qui ne nomme pas d'écran vise l'ACCUEIL (fonction accueil). « L'en-tête », « le menu », « le pied de page », « avant le pied de page » désignent le CADRE (fonction cadre), donc toutes les pages. « La fiche », « le produit » désignent l'écran produit ; « le panier », « la commande » les leurs. Une section ajoutée « avant le pied de page » va dans cadre, juste avant le <footer>, jamais dans une seule fiche produit — c'est la faute constatée sur la première boutique réelle.`
 
+const RECETTES = `# Recettes de matière, de relief et de mouvement (dropshop/recettes.css)
+
+Ces recettes sont ÉPROUVÉES et viennent des boutiques que le marchand trouve belles. Copie dans ton <style> celles que tu utilises (renomme-les si tu veux) et ADAPTE-les à tes jetons ; elles sont ta base, pas ton plafond. Une boutique sans matière dans ses fonds, sans ombres à couches, sans photos posées sur un plateau, sans survol vivant, est refusée par le marchand comme « bas de gamme ».
+
+**Les photos fournisseurs sont presque toujours des packshots sur fond blanc.** Sur une ambiance sombre, un rectangle blanc brut posé sur du noir est laid : pose chaque photo sur un « plateau » clair avec de l'air autour (.carte .plateau, mix-blend-mode: multiply), ou en fond perdu avec un voile (.carte .visuel + .voile). Sur une ambiance claire, multiply fait disparaître le blanc. Le héros pose sa photo derrière un voile dégradé (.voile-hero) ou dans un cadre de matière.
+
+**Les boutons forment un système** (.btn, .btn-secondaire, .btn-fantome) avec survol, pression, focus, flèche qui glisse — jamais un simple dégradé identique partout ; dans chaque mode visiteur, les boutons changent avec l'ambiance.
+
+\`\`\`css
+${lireDossier('recettes.css')}
+\`\`\``
+
 export function consigneCreation(): string {
   return `${DIRECTION_ARTISTIQUE}
+
+${RECETTES}
 
 # Contrat du moteur
 
@@ -212,6 +303,9 @@ function ficheCommerce(brief: string, catalogue: CatalogueBoutique): string {
     catalogue.couleursLogo?.length ? `Couleurs lues dans son logo : ${catalogue.couleursLogo.map((c) => `${c.hex} (${Math.round(c.part * 100)} %)`).join(', ')}.` : '',
     catalogue.gamme
       ? `PALETTE IMPOSÉE par le marchand, tirée de son logo — gamme « ${catalogue.gamme.nom} » (mode ${catalogue.gamme.mode}) : ${Object.entries(catalogue.gamme.jetons).map(([k, v]) => `${k} ${v}`).join(', ')}. Pars de ces jetons exactement pour le mode par défaut ; tu peux ajouter des nuances dérivées, pas changer la base.`
+      : '',
+    catalogue.direction
+      ? `DIRECTION ARTISTIQUE CHOISIE PAR LE MARCHAND — « ${catalogue.direction.titre} » : ${catalogue.direction.concept} Ambiance ${catalogue.direction.ambiance}, matière « ${catalogue.direction.matiere} » (recette .matiere-${catalogue.direction.matiere}). Palette : ${Object.entries(catalogue.direction.palette).map(([k, v]) => `${k} ${v}`).join(', ')}. Polices : ${catalogue.direction.polices.titre} (titres) + ${catalogue.direction.polices.texte} (texte). Héros : ${catalogue.direction.hero} Boutons : ${catalogue.direction.boutons}${catalogue.direction.sections.length ? ` Sections : ${catalogue.direction.sections.join(' ; ')}.` : ''} Respecte cette direction à la lettre : c'est ce qu'il a choisi en la voyant.`
       : '',
     catalogue.modesVisiteur
       ? 'EXPÉRIENCE IMMERSIVE DEMANDÉE : ajoute les modes visiteur décrits dans la consigne (4 boutons [data-mode], 4 ambiances [data-theme] complètes).'
@@ -281,6 +375,17 @@ export function appliquerEditions(html: string, edits: Edition[]): { html: strin
 
 /* ---------- L'appel au modèle ---------- */
 
+/**
+ * Ce qu'un appel coûte, en dollars, d'après la grille d'`aiModels.ts`.
+ * Les entrées mises en cache sont facturées au dixième : la consigne (recettes,
+ * contrat, squelette) ne change jamais, donc dès le second appel elle est lue
+ * en cache. On compte ici au tarif plein : le coût réel est en dessous.
+ */
+export function coutAppel(modeleUtilise: string, entree: number, sortie: number): number {
+  const t = TARIFS[modeleUtilise] ?? TARIFS['claude-sonnet-5']
+  return (entree * t.in + sortie * t.out) / 1_000_000
+}
+
 export const appelAnthropic: AppelModele = async (d) => {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
   if (!apiKey) throw new SiteImpossible("Le service d'écriture n'est pas configuré sur ce serveur.")
@@ -339,7 +444,7 @@ export const verifierEnfant: Verificateur = (html, options = {}) =>
 /* ---------- Création ---------- */
 
 export interface Etape {
-  etape: 'ecriture' | 'verification' | 'reparation'
+  etape: 'ecriture' | 'verification' | 'reparation' | 'finition'
   tentative: number
 }
 
@@ -349,6 +454,8 @@ export interface SiteFabrique {
   tentatives: number
   avertissements: string[]
   jetons: { entree: number; sortie: number }
+  /** Coût de production en dollars, au tarif plein (le cache le réduit). */
+  cout: number
 }
 
 /**
@@ -371,6 +478,7 @@ export async function fabriquerSite(
 ): Promise<SiteFabrique> {
   const modeleCreation = modele('AI_MODEL_SITE', MODELE_REDACTION)
   const jetons = { entree: 0, sortie: 0 }
+  let cout = 0
 
   surEtape({ etape: 'ecriture', tentative: 1 })
   const reponse = await appeler({
@@ -381,6 +489,7 @@ export async function fabriquerSite(
   })
   jetons.entree += reponse.entree
   jetons.sortie += reponse.sortie
+  cout += coutAppel(modeleCreation, reponse.entree, reponse.sortie)
   let html = extraireHtml(reponse.texte)
   if (!html) throw new SiteImpossible("Le modèle n'a pas rendu une page HTML complète.")
 
@@ -393,6 +502,7 @@ export async function fabriquerSite(
     const repare = await reparerSite(html, verdict.echecs, appeler)
     jetons.entree += repare.jetons.entree
     jetons.sortie += repare.jetons.sortie
+    cout += repare.cout
     html = repare.html
     tentatives++
     surEtape({ etape: 'verification', tentative: n + 1 })
@@ -401,7 +511,57 @@ export async function fabriquerSite(
   if (!verdict.ok) {
     throw new SiteImpossible('La boutique écrite ne passe pas le contrôle du visiteur après réparations.', verdict.echecs)
   }
-  return { html, modele: modeleCreation, tentatives, avertissements: verdict.avertissements, jetons }
+
+  /*
+   * La finition : un second regard de directeur artistique sur une page qui
+   * MARCHE déjà. Le premier passage écrit ; celui-ci relit contre une liste
+   * précise (matière, relief, photos sur plateau, système de boutons, survol,
+   * rythme) et corrige par éditions. Si la page finie ne passe plus le
+   * contrôle, on garde la page d'avant : on ne perd jamais une boutique qui
+   * marchait pour un coup de vernis.
+   */
+  surEtape({ etape: 'finition', tentative: 1 })
+  try {
+    const finie = await finirSite(html, catalogue, appeler)
+    jetons.entree += finie.jetons.entree
+    jetons.sortie += finie.jetons.sortie
+    cout += finie.cout
+    if (finie.html !== html) {
+      surEtape({ etape: 'verification', tentative: tentatives + 1 })
+      const apres = await verifier(finie.html, options)
+      if (apres.ok) {
+        html = finie.html
+        verdict = apres
+      } else {
+        console.warn('[dropshop] finition écartée : ' + apres.echecs[0])
+      }
+    }
+  } catch (e) {
+    console.warn('[dropshop] finition impossible : ' + (e instanceof Error ? e.message : e))
+  }
+  return { html, modele: modeleCreation, tentatives, avertissements: verdict.avertissements, jetons, cout }
+}
+
+const CHECKLIST_FINITION = `Tu es le directeur artistique qui relit une boutique que ton studio vient d'écrire. Elle fonctionne ; elle doit maintenant être BELLE, au niveau d'oguss.fr. Relis le code contre cette liste et corrige tout ce qui manque, par éditions ciblées (format ci-dessous). Ne casse rien : le moteur, les attributs data-*, DropShop.pages, les écrans restent.
+
+1. MATIÈRE : chaque grande zone de fond (héros, sections alternées, pied) a une texture réelle — dégradés superposés, grain (.grain), trame, bois/papier/métal/nuit (recettes). Aucun aplat nu, aucun #000 pur.
+2. RELIEF : cartes et panneaux portent des ombres à couches (.ombre-lux/.ombre-douce) ou du verre (.verre) ; au moins un chevauchement (photo qui déborde, titre devant un visuel).
+3. PHOTOS : les packshots sont posés sur un plateau clair avec de l'air (.plateau + multiply) ou en fond perdu avec voile ; jamais un rectangle blanc brut sur fond sombre. Le héros : diaporama (.diapo) ou Ken Burns (.kenburns) sous un voile (.voile-hero).
+4. BOUTONS : un système (.btn / .btn-secondaire / .btn-fantome) avec survol qui lève, pression, focus, flèche ; pas deux boutons identiques pour deux rôles différents ; les modes visiteur changent aussi les boutons.
+5. SURVOL : toute carte lève et zoome sa photo ; liens de navigation avec état ; transitions 250-350 ms.
+6. MOUVEMENT : titre en cascade (.cascade), sections en .reveal (avec html.js-anime posé dans DropShop.apres et un IntersectionObserver), un marquee ou un soulignement animé ; prefers-reduced-motion respecté ; état de repos lisible.
+7. RYTHME : sections espacées (.section), eyebrow + titre balancé + séparateur ; grilles auto-fit ; rien de collé au bord (.wrap partout, jamais width:100% dessus).
+8. TYPOGRAPHIE : deux polices Google chargées et vraiment utilisées (titres ≠ texte), échelle en clamp(), lettrage des étiquettes.
+9. LOGO : s'il existe, dans l'en-tête (34-44 px) et en grand sur l'accueil ; sinon une enseigne typographique travaillée.
+10. MOBILE : navigation repliée ou défilante, grilles à 1-2 colonnes, héros lisible, aucun débordement.
+
+Si plus de la moitié de la liste manque, réécris la page entière (bloc \`\`\`html) en gardant les mêmes écrans et les mêmes textes ; sinon, des éditions.`
+
+/** Le second regard : la page marche, on la rend belle. */
+export async function finirSite(html: string, catalogue: CatalogueBoutique, appeler: AppelModele = appelAnthropic): Promise<SiteModifie> {
+  const modeleFinition = modele('AI_MODEL_SITE_FINITION', MODELE_REDACTION)
+  const demande = `${CHECKLIST_FINITION}\n\nRappel du commerce : ${catalogue.nom}${catalogue.gamme ? ` — palette imposée « ${catalogue.gamme.nom} »` : ''}${catalogue.modesVisiteur ? ' — modes visiteur demandés' : ''}.`
+  return editer(html, demande, appeler, modeleFinition, `${REGLES_EDITION}\n\n${RECETTES}\n\n# Contrat du moteur\n\n${lireDossier('contrat.md')}`)
 }
 
 /* ---------- Modification et réparation : des éditions ciblées ---------- */
@@ -411,6 +571,8 @@ export interface SiteModifie {
   resume: string
   modele: string
   jetons: { entree: number; sortie: number }
+  /** Coût en dollars au tarif plein. */
+  cout: number
 }
 
 async function editer(
@@ -418,19 +580,22 @@ async function editer(
   demande: string,
   appeler: AppelModele,
   modeleEdition: string,
+  consigne: string = consigneEdition(),
 ): Promise<SiteModifie> {
   const jetons = { entree: 0, sortie: 0 }
   const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
     { role: 'user', content: `# Page actuelle\n\n\`\`\`html\n${html}\n\`\`\`\n\n# Demande\n\n${demande}` },
   ]
+  let cout = 0
   for (let essai = 1; essai <= 2; essai++) {
-    const reponse = await appeler({ modele: modeleEdition, system: consigneEdition(), messages, max_tokens: 16_000 })
+    const reponse = await appeler({ modele: modeleEdition, system: consigne, messages, max_tokens: 48_000 })
     jetons.entree += reponse.entree
     jetons.sortie += reponse.sortie
+    cout += coutAppel(modeleEdition, reponse.entree, reponse.sortie)
 
     // Une refonte entière est acceptée quand le modèle la juge nécessaire.
     const entier = /```html/i.test(reponse.texte) ? extraireHtml(reponse.texte) : null
-    if (entier) return { html: entier, resume: 'Boutique refondue.', modele: modeleEdition, jetons }
+    if (entier) return { html: entier, resume: 'Boutique refondue.', modele: modeleEdition, jetons, cout }
 
     const editions = extraireEditions(reponse.texte)
     if (!editions || !editions.edits.length) {
@@ -440,7 +605,7 @@ async function editer(
       continue
     }
     const applique = appliquerEditions(html, editions.edits)
-    if (!applique.erreurs.length) return { html: applique.html, resume: editions.resume, modele: modeleEdition, jetons }
+    if (!applique.erreurs.length) return { html: applique.html, resume: editions.resume, modele: modeleEdition, jetons, cout }
     if (essai === 2) throw new SiteImpossible('Les éditions du modèle ne correspondent pas à la page.', applique.erreurs)
     messages.push({ role: 'assistant', content: reponse.texte })
     messages.push({
@@ -469,7 +634,7 @@ export async function modifierSite(
   if (!verdict.ok) {
     surEtape({ etape: 'reparation', tentative: 1 })
     const repare = await reparerSite(edite.html, verdict.echecs, appeler)
-    resultat = { ...edite, html: repare.html, jetons: { entree: edite.jetons.entree + repare.jetons.entree, sortie: edite.jetons.sortie + repare.jetons.sortie } }
+    resultat = { ...edite, html: repare.html, cout: edite.cout + repare.cout, jetons: { entree: edite.jetons.entree + repare.jetons.entree, sortie: edite.jetons.sortie + repare.jetons.sortie } }
     surEtape({ etape: 'verification', tentative: 2 })
     verdict = await verifier(resultat.html, options)
     if (!verdict.ok) throw new SiteImpossible('La modification casse la boutique et la réparation n\'a pas suffi.', verdict.echecs)

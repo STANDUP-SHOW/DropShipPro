@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
-import { appliquerEditions, extraireEditions, extraireHtml } from './src/services/siteGenerator.js'
+import { appliquerEditions, coutAppel, extraireDirections, extraireEditions, extraireHtml } from './src/services/siteGenerator.js'
 import { dossierDesignPour, dossierEnTexte } from './src/services/designLibrary.js'
 import { couleursDuLogo, gammesDepuis, contraste } from './src/services/logoCouleurs.js'
 
@@ -114,6 +114,15 @@ async function main() {
   const gammes = gammesDepuis(couleurs)
   attendre('quatre gammes, texte lisible (≥ 4,5:1) et accent visible (≥ 3:1) sur chacune', gammes.length === 4 && gammes.every((g) => contraste(g.jetons.fond, g.jetons.texte) >= 4.5 && contraste(g.jetons.fond, g.jetons.accent) >= 3), gammes.map((g) => `${g.id} ${contraste(g.jetons.fond, g.jetons.texte).toFixed(1)}/${contraste(g.jetons.fond, g.jetons.accent).toFixed(1)}`).join(' '))
   attendre('sans logo, des gammes neutres sont quand même proposées', gammesDepuis([]).length === 4)
+
+  console.log('\n— Les directions et le coût —')
+  const dirs = extraireDirections('```json\n' + JSON.stringify({ directions: [
+    { id: 'Atelier Nuit', titre: 'Atelier nuit', concept: 'x', ambiance: 'sombre', matiere: 'metal', palette: { fond: '#000', surface: '#111', texte: '#fff', sourd: '#999', accent: '#2f6bff', accent2: '#e0342c', ligne: 'rgba(255,255,255,.1)' }, polices: { titre: 'Exo', texte: 'Inter' }, hero: 'h', boutons: 'b', sections: ['a', 'b'] },
+    { titre: 'Papier clair', concept: 'y', ambiance: 'clair', matiere: 'inconnue', palette: { fond: '#fff', surface: '#fff', texte: '#111', sourd: '#666', accent: '#0044aa', accent2: '#aa2200', ligne: 'rgba(0,0,0,.1)' }, polices: { titre: 'Playfair Display', texte: 'Inter' }, hero: 'h', boutons: 'b', sections: [] },
+  ] }) + '\n```')
+  attendre('deux directions lues, identifiants normalisés, matière inconnue rabattue', dirs.length === 2 && dirs[0].id === 'atelier-nuit' && dirs[1].id === 'direction-2' && dirs[1].matiere === 'papier', JSON.stringify(dirs.map((d) => [d.id, d.matiere])))
+  attendre('sans bloc json, aucune direction', extraireDirections('rien').length === 0)
+  attendre('le coût d\'un appel suit la grille (Sonnet 2 $/10 $ le million)', Math.abs(coutAppel('claude-sonnet-5', 20_000, 30_000) - 0.34) < 1e-9 && Math.abs(coutAppel('claude-haiku-4-5', 40_000, 3_000) - 0.055) < 1e-9)
 
   console.log('\n— Les éditions ciblées —')
   const a = appliquerEditions('aaa\nbbb\nccc', [{ chercher: 'bbb', remplacer: 'BBB' }])

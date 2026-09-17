@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
-import { api, type EtatDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
+import { api, type DirectionDropShop, type EtatDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
 
 type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
 
@@ -45,6 +45,27 @@ export default function CreerBoutique() {
   const hebergees = boutiques.filter((b) => (b as { platform?: string | null }).platform === 'dropshipper')
   const active = hebergees.find((b) => b.id === choisie) ?? null
 
+  /**
+   * Supprimer une boutique pour en recréer une autre (demande de Max, 17/09).
+   * Ses annonces ne sont pas supprimées : elles perdent leur boutique et
+   * cessent d'être servies, comme dans Mes sites.
+   */
+  async function supprimerBoutique(b: Boutique) {
+    const ok = window.confirm(`Supprimer la boutique « ${b.name} » ? Sa page, ses versions IA et son adresse /b/${b.slug ?? ''} disparaissent. Ses annonces restent dans votre catalogue.`)
+    if (!ok) return
+    setBusy(true)
+    setErreur(null)
+    try {
+      await api.deleteShop(b.id)
+      if (choisie === b.id) setChoisie(null)
+      charger()
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Suppression impossible')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function creer() {
     if (!nom.trim()) return setErreur('Donnez un nom à votre boutique.')
     setBusy(true)
@@ -78,28 +99,40 @@ export default function CreerBoutique() {
         la création, <b className="text-gray-200">10 modifications comprises</b>, puis 10 drops la demande.
       </p>
 
-      {/* ---------- Choisir ou nommer la boutique ---------- */}
+      {/* ---------- Vos boutiques IA : une case par boutique, modifier ou supprimer ---------- */}
       <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.05] p-5 backdrop-blur">
         <h2 className="flex items-center gap-2 font-bold">
           <Store size={16} className="text-emerald-300" />
-          <span>Votre boutique</span>
+          <span>Vos boutiques DropShop</span>
         </h2>
         {hebergees.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {hebergees.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => setChoisie(b.id)}
-                className={
-                  active?.id === b.id
-                    ? 'rounded-full bg-emerald-400/20 px-3 py-1.5 text-xs font-semibold text-emerald-200'
-                    : 'rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5'
-                }
-              >
-                {b.name}
-              </button>
-            ))}
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {hebergees.map((b) => {
+              const logo = b.vitrineLogoEntete ?? b.vitrineLogoAccueil ?? b.logo
+              const estActive = active?.id === b.id
+              return (
+                <div
+                  key={b.id}
+                  className={`flex items-center gap-3 rounded-xl border p-3 transition ${estActive ? 'border-emerald-300/60 bg-emerald-400/10' : 'border-white/10 bg-black/20'}`}
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.08]">
+                    {logo ? <img src={logo} alt="" className="max-h-10 max-w-10 object-contain" /> : <span className="text-lg font-black text-gray-400">{b.name.slice(0, 1).toUpperCase()}</span>}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-gray-100">{b.name}</p>
+                    <p className="truncate text-[11px] text-gray-500">{b.products} annonce(s) · /b/{b.slug ?? '…'}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <button type="button" onClick={() => setChoisie(b.id)} className="rounded-lg border border-emerald-400/40 px-2.5 py-1 text-[11px] font-bold text-emerald-200 hover:bg-emerald-400/10">
+                      {estActive ? 'Ouverte' : 'Modifier'}
+                    </button>
+                    <button type="button" onClick={() => supprimerBoutique(b)} disabled={busy} className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-gray-400 hover:border-red-400/50 hover:text-red-300 disabled:opacity-40">
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
@@ -148,6 +181,7 @@ const ETAPES: Record<string, string> = {
   ecriture: "L'IA dessine et écrit votre boutique…",
   verification: 'Elle la teste comme un visiteur : accueil, catégories, fiche, panier, commande…',
   reparation: 'Elle corrige ce que le test a relevé…',
+  finition: 'Second regard de direction artistique : matière, relief, photos, boutons, mouvement…',
   termine: 'Terminé.',
   echec: 'Échec.',
 }
@@ -171,6 +205,33 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
   const [gammeChoisie, setGammeChoisie] = useState<string | null>(null)
   const [modesVisiteur, setModesVisiteur] = useState(false)
   const [chargeLogo, setChargeLogo] = useState<'entete' | 'accueil' | null>(null)
+  // Les trois directions proposées avant l'écriture, et celle que le vendeur choisit.
+  const [directions, setDirections] = useState<DirectionDropShop[]>([])
+  const [directionChoisie, setDirectionChoisie] = useState<string | null>(null)
+  const [chercheDirections, setChercheDirections] = useState(false)
+
+  async function proposerDirections() {
+    if (brief.trim().length < 20) return setErreur('Décrivez d\'abord la boutique en quelques phrases.')
+    setChercheDirections(true)
+    setErreur(null)
+    setDirections([])
+    setDirectionChoisie(null)
+    try {
+      const gamme = gammes?.gammes.find((g) => g.id === gammeChoisie) ?? null
+      const r = await api.dropshopDirections(boutique.id, { description: brief, gamme: gamme ? { nom: gamme.nom, mode: gamme.mode, jetons: gamme.jetons } : null })
+      setDirections(r.directions)
+      // Les polices des trois directions, demandées à Google pour l'aperçu.
+      const familles = [...new Set(r.directions.flatMap((d) => [d.polices.titre, d.polices.texte]))]
+      const lien = document.createElement('link')
+      lien.rel = 'stylesheet'
+      lien.href = 'https://fonts.googleapis.com/css2?' + familles.map((f) => 'family=' + encodeURIComponent(f).replace(/%20/g, '+') + ':wght@400;700').join('&') + '&display=swap'
+      document.head.appendChild(lien)
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Directions indisponibles')
+    } finally {
+      setChercheDirections(false)
+    }
+  }
 
   const analyserLogo = useCallback(async () => {
     try {
@@ -244,7 +305,8 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
     setErreur(null)
     try {
       const gamme = gammes?.gammes.find((g) => g.id === gammeChoisie) ?? null
-      await api.dropshopCreer(boutique.id, { description: brief, gamme: gamme ? { nom: gamme.nom, mode: gamme.mode, jetons: gamme.jetons } : null, modesVisiteur })
+      const direction = directions.find((d) => d.id === directionChoisie) ?? null
+      await api.dropshopCreer(boutique.id, { description: brief, gamme: gamme ? { nom: gamme.nom, mode: gamme.mode, jetons: gamme.jetons } : null, modesVisiteur, direction })
       await relire()
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Création impossible')
@@ -425,9 +487,71 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
                 commerce, chacun avec son bouton. Leur choix est mémorisé.
               </span>
             </label>
+            {/* ---------- Les trois directions, à choisir avant l'écriture ---------- */}
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-100">3. Choisissez une direction artistique</p>
+                <button
+                  type="button"
+                  onClick={proposerDirections}
+                  disabled={chercheDirections || brief.trim().length < 20}
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/40 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-400/10 disabled:opacity-40"
+                >
+                  {chercheDirections ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                  <span>{chercheDirections ? 'L\'IA compose trois directions…' : directions.length ? 'Trois autres directions' : 'Proposer 3 directions (gratuit, ~30 s)'}</span>
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-gray-500">Trois ambiances vraiment différentes, avec leur palette, leurs polices et leur concept de héros. Choisissez-en une, ou laissez l'IA libre.</p>
+              {directions.length ? (
+                <div className="mt-3 grid gap-3">
+                  {directions.map((d) => {
+                    const p = d.palette
+                    const choisie = directionChoisie === d.id
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setDirectionChoisie(choisie ? null : d.id)}
+                        className={`overflow-hidden rounded-xl border text-left transition ${choisie ? 'border-emerald-300 ring-2 ring-emerald-400/40' : 'border-white/10 hover:border-white/30'}`}
+                      >
+                        <div
+                          className="relative px-4 pb-4 pt-5"
+                          style={{
+                            background: `radial-gradient(90% 70% at 70% 0%, ${p.accent}44, transparent 60%), linear-gradient(160deg, ${p.surface}, ${p.fond})`,
+                            color: p.texte,
+                            fontFamily: `'${d.polices.texte}', system-ui, sans-serif`,
+                          }}
+                        >
+                          <p className="text-[10px] font-bold uppercase tracking-[.22em]" style={{ color: p.accent }}>{d.titre}</p>
+                          <p className="mt-1 text-[22px] font-bold leading-tight" style={{ fontFamily: `'${d.polices.titre}', serif` }}>
+                            {boutique.name}
+                          </p>
+                          <p className="mt-1 max-w-md text-[12px] leading-snug" style={{ color: p.sourd }}>{d.concept}</p>
+                          <span className="mt-3 inline-block rounded-lg px-3 py-1.5 text-[12px] font-bold" style={{ background: p.accent, color: '#fff', boxShadow: `0 8px 20px -8px ${p.accent}` }}>
+                            Découvrir la boutique
+                          </span>
+                          <span className="absolute right-3 top-3 flex gap-1">
+                            {(['fond', 'surface', 'accent', 'accent2', 'texte'] as const).map((k) => (
+                              <span key={k} className="h-4 w-4 rounded-full border border-white/20" style={{ background: p[k] }} title={k} />
+                            ))}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-white/[0.04] px-4 py-2 text-[11px] text-gray-400">
+                          <span><b className="text-gray-200">{d.polices.titre}</b> + {d.polices.texte}</span>
+                          <span>· matière {d.matiere}</span>
+                          <span>· {d.ambiance}</span>
+                          {choisie ? <span className="ml-auto font-bold text-emerald-300">Choisie</span> : <span className="ml-auto">Choisir</span>}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
+
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-gray-400">
-                <b className="text-emerald-200">{etat.tarifs.creation} drops</b> · {etat.tarifs.incluses} modifications comprises · en ligne en 3 à 5 minutes
+                <b className="text-emerald-200">{etat.tarifs.creation} drops</b> · {etat.tarifs.incluses} modifications comprises · en ligne en 4 à 6 minutes
               </span>
               <button
                 type="button"
@@ -670,10 +794,15 @@ function Avancement({ travail }: { travail: TravailDropShop }) {
       <section className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.07] p-4">
         <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-200"><CheckCircle2 size={15} /><span>{titre} : en ligne</span></h3>
         <p className="mt-1 text-xs text-gray-300">{travail.resume ?? 'Terminé.'} <span className="text-gray-500">({secondes} s)</span></p>
+        {typeof travail.cout === 'number' ? (
+          <p className="mt-1 text-[11px] text-amber-200/90">
+            Coût de production (admin) : {travail.cout.toFixed(2)} $ au tarif plein{travail.jetons ? ` — ${Math.round(travail.jetons.entree / 1000)} k jetons lus, ${Math.round(travail.jetons.sortie / 1000)} k écrits` : ''}.
+          </p>
+        ) : null}
       </section>
     )
   }
-  const etapes: Array<[string, string]> = [['ecriture', 'Écriture'], ['verification', 'Test du parcours'], ['reparation', 'Corrections']]
+  const etapes: Array<[string, string]> = [['ecriture', 'Écriture'], ['verification', 'Test du parcours'], ['reparation', 'Corrections'], ['finition', 'Finition']]
   const rang = etapes.findIndex(([k]) => k === travail.etape)
   return (
     <section className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.07] p-4">

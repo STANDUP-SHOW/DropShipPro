@@ -7,11 +7,13 @@ import { BOUTIQUE_MODIFS_INCLUSES, DROPS } from './tarifs.js'
 import {
   fabriquerSite,
   modifierSite,
+  proposerDirections,
   SiteImpossible,
   appelAnthropic,
   verifierEnfant,
   type AppelModele,
   type CatalogueBoutique,
+  type Direction,
   type Etape,
   type Verificateur,
 } from './siteGenerator.js'
@@ -22,6 +24,17 @@ import { couleursDuLogo, gammesDepuis, type CouleurLogo, type Gamme } from './lo
 export interface OptionsCreation {
   gamme?: { nom: string; mode: 'sombre' | 'clair'; jetons: Record<string, string> } | null
   modesVisiteur?: boolean
+  /** La direction choisie parmi les trois proposées. */
+  direction?: Direction | null
+}
+
+/** Trois directions artistiques pour cette boutique et ce brief. Gratuit, rien n'est écrit. */
+export async function directionsPour(shop: Shop, brief: string, options: OptionsCreation = {}, outils: Outils = {}): Promise<Direction[]> {
+  const catalogue = await catalogueDe(shop)
+  catalogue.couleursLogo = (await couleursLogoDe(shop)).map((c) => ({ hex: c.hex, part: c.part }))
+  catalogue.gamme = options.gamme ?? null
+  catalogue.dossierDesign = dossierEnTexte(dossierDesignPour(brief, catalogue.categories.map((c) => c.nom)))
+  return proposerDirections(brief, catalogue, outils.appeler ?? appelAnthropic)
 }
 
 /**
@@ -83,6 +96,9 @@ export interface EtatTravail {
   drops: number
   /** À la création : la gamme choisie et les modes visiteur. */
   options?: OptionsCreation
+  /** Ce que le travail a coûté : jetons et dollars au tarif plein (admin seulement à l'écran). */
+  jetons?: { entree: number; sortie: number }
+  cout?: number
 }
 
 export const DELAI_TRAVAIL_MORT_MS = 15 * 60_000
@@ -215,11 +231,14 @@ export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): P
       catalogue.couleursLogo = (await couleursLogoDe(shop)).map((c) => ({ hex: c.hex, part: c.part }))
       catalogue.gamme = etat.options?.gamme ?? null
       catalogue.modesVisiteur = Boolean(etat.options?.modesVisiteur)
+      catalogue.direction = etat.options?.direction ?? null
       catalogue.dossierDesign = dossierEnTexte(dossierDesignPour(etat.demande, catalogue.categories.map((c) => c.nom)))
       const fait = await fabriquerSite(etat.demande, catalogue, appeler, verifier, surEtape)
       await publierVersion(shop.id, fait.html, etat.demande, fait.modele, { brief: etat.demande, modifsRestantes: BOUTIQUE_MODIFS_INCLUSES })
-      console.log(`[dropshop] boutique ${shop.id} créée : ${fait.tentatives} passage(s), ${fait.jetons.entree}+${fait.jetons.sortie} jetons`)
+      console.log(`[dropshop] boutique ${shop.id} créée : ${fait.tentatives} passage(s), ${fait.jetons.entree}+${fait.jetons.sortie} jetons, ${fait.cout.toFixed(3)} $`)
       etat.resume = fait.avertissements.length ? `Boutique créée. À surveiller : ${fait.avertissements.join(' ')}` : 'Boutique créée.'
+      etat.jetons = fait.jetons
+      etat.cout = Math.round(fait.cout * 1000) / 1000
     } else {
       const actuel = await prisma.shop.findUnique({ where: { id: shop.id }, select: { siteHtml: true, siteModifsRestantes: true } })
       if (!actuel?.siteHtml) throw new SiteImpossible('La boutique a disparu pendant le travail.')
@@ -227,8 +246,10 @@ export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): P
       const options = { modesVisiteur: /data-mode=/.test(actuel.siteHtml), logo: Boolean(shop.vitrineLogoEntete) }
       const fait = await modifierSite(actuel.siteHtml, etat.demande, appeler, verifier, surEtape, options)
       await publierVersion(shop.id, fait.html, etat.demande, fait.modele, etat.drops === 0 ? { modifsRestantes: Math.max(0, actuel.siteModifsRestantes - 1) } : {})
-      console.log(`[dropshop] boutique ${shop.id} modifiée : ${fait.jetons.entree}+${fait.jetons.sortie} jetons`)
+      console.log(`[dropshop] boutique ${shop.id} modifiée : ${fait.jetons.entree}+${fait.jetons.sortie} jetons, ${fait.cout.toFixed(3)} $`)
       etat.resume = fait.resume || 'Modification appliquée.'
+      etat.jetons = fait.jetons
+      etat.cout = Math.round(fait.cout * 1000) / 1000
     }
     etat.etape = 'termine'
     etat.fin = new Date().toISOString()
