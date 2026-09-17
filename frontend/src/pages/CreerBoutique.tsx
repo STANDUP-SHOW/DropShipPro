@@ -17,7 +17,7 @@ type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
  * Refonte demandée par Max après de très mauvais retours sur la vitrine à
  * thèmes : « un Lovable-like ». Le vendeur décrit la boutique de ses rêves ;
  * l'IA l'écrit, la teste, la corrige ; il la voit ici, dans l'aperçu, et la
- * modifie par simples demandes. 200 drops la création, 10 modifications
+ * modifie par simples demandes. 350 drops la création, une seule fois à vie, 10 modifications
  * comprises, puis 10 drops la demande.
  *
  * Deux colonnes : à gauche la conversation (brief, avancement, demandes,
@@ -96,8 +96,9 @@ export default function CreerBoutique() {
       <p className="mt-2 max-w-3xl text-sm text-gray-400">
         Décrivez la boutique de vos rêves : l'IA la dessine et l'écrit entièrement — design unique, responsive,
         panier, commande, emails, paiement Stripe pré-branché — puis la teste comme un visiteur et corrige ce qui
-        manque. Elle est en ligne à sa propre adresse, remplie par votre catalogue, gérée d'ici. <b className="text-gray-200">200 drops</b>{' '}
-        la création, <b className="text-gray-200">10 modifications comprises</b>, puis 10 drops la demande.
+        manque. Elle est en ligne à sa propre adresse, remplie par votre catalogue, gérée d'ici, sans aucune mention DropShipper.{' '}
+        <b className="text-gray-200">350 drops, une seule fois, à vie</b> — hébergement, trafic et{' '}
+        <b className="text-gray-200">10 modifications compris</b>, puis 10 drops la demande.
       </p>
 
       {/* ---------- Vos boutiques IA : une case par boutique, modifier ou supprimer ---------- */}

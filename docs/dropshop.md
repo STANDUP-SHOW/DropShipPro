@@ -11,7 +11,7 @@ modifie ensuite par simples demandes.
 
 | Geste | Drops | Ce que ça couvre |
 |---|---|---|
-| Création de boutique | **200** (2 €) | design unique écrit par Sonnet 5, contrôle du parcours visiteur, jusqu'à deux réparations, hébergement, trafic, emails de commande, Stripe pré-branché, **10 modifications comprises** |
+| Création de boutique | **350** (3,50 €), **une seule fois, à vie** | design unique écrit par Sonnet 5, contrôle du parcours visiteur, réparations, finition, hébergement, trafic, emails de commande, Stripe pré-branché, **10 modifications comprises**, **sans filigrane** : aucune mention DropShipper sur la boutique (décidé le 17/09 au soir, 200 → 350) |
 | Modification (au-delà des 10) | **10** | une demande, appliquée par Haiku 4.5 en éditions ciblées, puis vérifiée |
 | Restauration d'une version | 0 | rien n'est écrit par le modèle |
 

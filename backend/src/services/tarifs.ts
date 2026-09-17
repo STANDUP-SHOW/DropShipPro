@@ -72,10 +72,12 @@ export const DROPS = {
   /**
    * DropShop IA (17/09/2026) : la boutique écrite par le modèle — design
    * unique, responsive, emails, paiement Stripe pré-branché, gestion depuis
-   * DropShipper — et 10 demandes de modification comprises. 2 € : création
-   * (~0,40 € de Sonnet 5, une réparation comprise), hébergement, trafic.
+   * DropShipper — et 10 demandes de modification comprises. 350 drops (3,50 €),
+   * payés UNE SEULE FOIS, à vie : création (~0,60 à 0,90 $ de modèle, finition
+   * comprise), hébergement, trafic, et SANS FILIGRANE — aucune mention
+   * DropShipper sur la boutique. 200 → 350 décidé par Max le 17/09 au soir.
    */
-  boutiqueCreation: 200,
+  boutiqueCreation: 350,
   /** Une demande de modification de la boutique au-delà des 10 comprises (Haiku, édition ciblée). */
   boutiqueModification: 10,
   /**

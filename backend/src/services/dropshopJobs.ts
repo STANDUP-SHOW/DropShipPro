@@ -75,7 +75,7 @@ export async function gammesPour(shop: Shop): Promise<{ couleurs: CouleurLogo[];
  * mort : le suivant peut démarrer, et les drops de celui-là sont rendus la
  * première fois qu'on le constate.
  *
- * **Le prix se prend avant, se rend après.** Création : 200 drops, tout ou
+ * **Le prix se prend avant, se rend après.** Création : 350 drops (une seule fois, à vie), tout ou
  * rien (`allowed === prix`, leçon de l'AUTO-SHIPPER). Modification : comprise
  * tant qu'il en reste (10 à la création), 10 drops ensuite. Tout échec —
  * modèle indisponible, page qui ne passe pas le contrôle, exception — rend ce

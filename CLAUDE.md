@@ -625,7 +625,9 @@ Trois conséquences, toutes appliquées :
   de l'enfant, seul le parent peut le tuer, et c'est ce que le banc éprouve.
   `jsdom` est passé en dépendance de production pour ça.
 
-  Prix : 200 drops la création (10 modifications comprises), 10 la
+  Prix : 350 drops la création, payés une seule fois à vie, sans aucune
+  mention DropShipper sur la boutique (200 → 350 le 17/09 au soir ; 10
+  modifications comprises), 10 la
   modification ensuite, 0 la restauration d'une version. Travail en 202 + état
   relu dans `Shop.siteJob` (dure des minutes) ; un travail sans fin depuis
   15 min est tenu pour mort et rendu. `/b/<slug>` sert la page IA (moteur

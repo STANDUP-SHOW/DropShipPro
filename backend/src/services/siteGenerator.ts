@@ -14,7 +14,7 @@ import { MODELE_RAPIDE, MODELE_REDACTION, TARIFS, modele } from './aiModels.js'
  * responsive, modifiable par simple demande — pas un choix dans un catalogue
  * de gabarits.
  *
- * ## Comment ça tient à 2 € la boutique
+ * ## Comment ça tient à 3,50 € la boutique, payés une seule fois à vie
  *
  * **Le modèle n'écrit que ce qui est unique** : la page HTML entière — mise en
  * page, CSS, textes, écrans, animations. Il ne réécrit jamais la logique de
@@ -205,6 +205,7 @@ const DIRECTION_ARTISTIQUE = `Tu es le directeur artistique d'un studio réputé
 - Évite l'allure « générée » : pas de dégradé violet-bleu par défaut, pas de tout-centré, pas de cartes toutes identiques à ombre uniforme, pas d'Inter ou Space Grotesk par réflexe. Une seule audace visuelle, le reste calme.
 - Prévois l'absence de photo (c.photo(p) === '') avec un visuel de remplacement en CSS (dégradé ou initiale), jamais une image cassée.
 - Tout texte du catalogue passe par c.html(...).
+- **La boutique appartient entièrement au marchand** : aucune mention de DropShipper, DropShop, « propulsé par » ou d'un quelconque outil, nulle part — ni pied de page, ni mentions, ni commentaire visible. Le © porte le nom de la boutique.
 
 ## Le niveau attendu : une boutique qu'on croit faite sur mesure par un studio
 
