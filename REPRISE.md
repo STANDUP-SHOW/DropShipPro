@@ -105,6 +105,19 @@ FormData) est corrigé. Demandes de Max à faire ensuite : **vidéos produit
 (déjà dans le flux), avis produits avec photos, avis boutique**, importables
 depuis l'annonce DropShipper et depuis l'admin de la boutique.
 
+**Extensions DropShop (commits ff9896c, e32722b, 17/09 soir)** : catalogue
+en drops comme les apps Shopify, pop-up de champs, paiement tout ou rien.
+Première extension livrée : **Back Office** (300 drops) à `/b/<slug>/admin`,
+session propre à la boutique, commandes / produits / réglages. Migration
+`ShopExtension` **appliquée en production** après sauvegarde. Banc
+`check-extensions.ts` vert (installation, 402, doublon, session, retrait).
+**Pas constaté en production** : l'installation depuis le studio et la page
+admin réelle — je ne crée pas de mot de passe sur la boutique de Max, c'est
+à lui de l'installer avec ses identifiants. « Paiement en drops » est au
+catalogue en « bientôt » avec sa spécification (Premium Members, Dropshop
+Cloud) dans `docs/dropshop.md` : les décisions de portefeuille client et de
+reversement au marchand sont à prendre avant de coder.
+
 **Pas encore constaté** : une création qui exige une réparation (le banc la
 couvre), et le chemin Stripe (`/checkout` → session → `/checkout/:session`)
 — aucune clé marchand branchée, éprouvé par le contrat seulement.
