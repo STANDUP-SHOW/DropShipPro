@@ -52,16 +52,51 @@ function pourScript(valeur: string) {
   return JSON.stringify(valeur).replace(/</g, '\\u003c')
 }
 
+/**
+ * Le moteur des boutiques écrites par l'IA (`dropshop/sdk.js`), inséré dans
+ * la page au moment de la servir : la boutique part en un seul document, et
+ * le moteur se met à jour avec l'API sans qu'aucune page ne soit réécrite.
+ */
+const CHEMINS_SDK = [path.join('dropshop', 'sdk.js'), path.join('..', 'dropshop', 'sdk.js')]
+
+function moteurDropShop(): string | null {
+  const trouve = CHEMINS_SDK.map((c) => path.resolve(c)).find((c) => existsSync(c))
+  return trouve ? readFileSync(trouve, 'utf8') : null
+}
+
 vitrineRouter.get('/:slug', async (req, res) => {
   const boutique = await prisma.shop.findUnique({
     where: { slug: req.params.slug },
-    select: { shopKey: true, name: true },
+    select: { shopKey: true, name: true, slug: true, siteHtml: true, siteVersion: true },
   })
   if (!boutique) {
     return res
       .status(404)
       .type('html')
       .send('<!doctype html><meta charset="utf-8"><p>Cette boutique n\'existe pas.</p>')
+  }
+
+  /*
+   * La boutique écrite par l'IA (DropShop IA, 17/09/2026) passe devant la
+   * vitrine à thèmes dès qu'elle existe. Même clé, même catalogue, même
+   * commande : seule la page change — et c'est la sienne.
+   */
+  if (boutique.siteHtml) {
+    const moteur = moteurDropShop()
+    if (!moteur) {
+      console.error('moteur DropShop introuvable, cherche dans', CHEMINS_SDK.map((c) => path.resolve(c)))
+      return res.status(500).type('html').send('<!doctype html><meta charset="utf-8"><p>Boutique indisponible.</p>')
+    }
+    const config = `<script>window.BOUTIQUE=${JSON.stringify({ api: apiBaseUrl(req), shopKey: boutique.shopKey, slug: boutique.slug, nom: boutique.name }).replace(/</g, '\\u003c')};</script>`
+    const moteurInline = `<script>${moteur.replace(/<\/script/gi, '<\\/script')}</script>`
+    let page = boutique.siteHtml.replace(/<script[^>]+src=["']\/dropshop\/sdk\.js["'][^>]*><\/script>/i, () => moteurInline)
+    if (!page.includes(moteurInline)) page = page.replace('</body>', `${moteurInline}\n</body>`)
+    page = page.replace('</head>', `${config}\n</head>`)
+    res.type('html')
+    // Court : le vendeur qui vient de modifier sa boutique veut la voir tout de suite.
+    res.set('Cache-Control', 'public, max-age=30')
+    res.set('X-DropShop-Version', String(boutique.siteVersion))
+    return res.send(page)
   }
 
   const page = pageVitrine()

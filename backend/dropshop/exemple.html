@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Boutique</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" />
+  <style>
+    /* SQUELETTE VOLONTAIREMENT NEUTRE : il montre le contrat, pas un design. */
+    :root { --fond: #ffffff; --texte: #111111; --sourd: #666666; --ligne: #e6e6e6; --accent: #111111; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--fond); color: var(--texte); }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; }
+    .wrap { width: min(1200px, 92vw); margin-inline: auto; }
+    header { position: sticky; top: 0; background: var(--fond); border-bottom: 1px solid var(--ligne); }
+    .barre { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
+    .barre nav { display: flex; gap: 12px; margin-left: auto; }
+    .grille { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    .carte { border: 1px solid var(--ligne); padding: 12px; text-decoration: none; }
+    .carte .visuel { aspect-ratio: 1; background: #f3f3f3; overflow: hidden; }
+    .carte img { width: 100%; height: 100%; object-fit: cover; }
+    .btn { background: var(--accent); color: #fff; border: 0; padding: 12px 18px; cursor: pointer; font: inherit; }
+    .champ { width: 100%; padding: 10px; border: 1px solid var(--ligne); margin-bottom: 10px; font: inherit; }
+    @media (max-width: 900px) { .grille { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .grille { grid-template-columns: 1fr; } .barre nav { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="/dropshop/sdk.js"></script>
+  <script>
+    function carte(c, p) {
+      return '<a class="carte" href="' + c.lien.produit(p.id) + '">' +
+        '<span class="visuel">' + (c.photo(p) ? '<img loading="lazy" src="' + c.html(c.photo(p)) + '" alt="">' : '') + '</span>' +
+        '<span>' + c.html(c.categorieDe(p).nom) + '</span>' +
+        '<strong>' + c.html(p.title) + '</strong>' +
+        '<span>' + c.prix(p.price) + '</span>' +
+      '</a>'
+    }
+
+    DropShop.pages({
+      cadre: function (c, contenu, page) {
+        return '<header><div class="wrap barre">' +
+          '<a href="' + c.lien.accueil + '"><strong>' + c.html(c.boutique.nom) + '</strong></a>' +
+          '<nav><a href="' + c.lien.boutique + '">Boutique</a>' +
+          c.categories.slice(0, 5).map(function (k) { return '<a href="' + c.lien.categorie(k.slug) + '">' + c.html(k.nom) + '</a>' }).join('') +
+          '</nav>' +
+          '<a href="' + c.lien.panier + '">Panier (' + c.panier.nombre + ')</a>' +
+          '</div>' + (c.boutique.annonce ? '<div class="wrap">' + c.html(c.boutique.annonce) + '</div>' : '') + '</header>' +
+          '<main class="wrap">' + contenu + '</main>' +
+          '<footer class="wrap"><p>© ' + c.html(c.boutique.nom) + '</p></footer>'
+      },
+
+      accueil: function (c) {
+        return '<section><h1>' + c.html(c.boutique.accroche) + ' ' + c.html(c.boutique.accrocheSuite) + '</h1>' +
+          '<p>' + c.html(c.boutique.sousTitre) + '</p>' +
+          '<a class="btn" href="' + c.lien.boutique + '">Découvrir la boutique</a></section>' +
+          '<section><h2>Catégories</h2><div class="grille">' +
+          c.categories.map(function (k) { return '<a class="carte" href="' + c.lien.categorie(k.slug) + '"><strong>' + c.html(k.nom) + '</strong><span>' + k.nombre + ' article(s)</span></a>' }).join('') +
+          '</div></section>' +
+          '<section><h2>Nouveautés</h2><div class="grille">' + c.nouveautes.map(function (p) { return carte(c, p) }).join('') + '</div></section>'
+      },
+
+      boutique: function (c, r) {
+        return '<h1>' + (r.recherche ? 'Résultats pour « ' + c.html(r.recherche) + ' »' : 'Toute la boutique') + '</h1>' +
+          '<input class="champ" data-recherche placeholder="Rechercher…" value="' + c.html(r.recherche) + '">' +
+          (r.produits.length ? '<div class="grille">' + r.produits.map(function (p) { return carte(c, p) }).join('') + '</div>' : '<p>Aucun produit ne correspond.</p>')
+      },
+
+      categorie: function (c, k) {
+        return '<h1>' + c.html(k.nom) + '</h1><p>' + k.nombre + ' article(s)</p>' +
+          '<div class="grille">' + k.produits.map(function (p) { return carte(c, p) }).join('') + '</div>'
+      },
+
+      produit: function (c, p) {
+        return '<article><p><a href="' + c.lien.categorie(c.categorieDe(p).slug) + '">' + c.html(c.categorieDe(p).nom) + '</a></p>' +
+          (c.photo(p) ? '<img src="' + c.html(c.photo(p)) + '" alt="' + c.html(p.title) + '">' : '') +
+          '<h1>' + c.html(p.title) + '</h1><p><strong>' + c.prix(p.price) + '</strong></p>' +
+          '<p>' + c.html(p.description) + '</p>' +
+          (p.bulletPoints.length ? '<ul>' + p.bulletPoints.map(function (b) { return '<li>' + c.html(b) + '</li>' }).join('') + '</ul>' : '') +
+          '<label>Quantité <input class="champ" type="number" min="1" max="20" value="1" data-quantite-pour="' + c.html(p.id) + '"></label>' +
+          '<button class="btn" data-ajouter="' + c.html(p.id) + '">Ajouter au panier</button></article>'
+      },
+
+      panier: function (c) {
+        if (c.panier.vide) return '<h1>Votre panier est vide</h1><a class="btn" href="' + c.lien.boutique + '">Voir la boutique</a>'
+        return '<h1>Votre panier</h1>' +
+          c.panier.lignes.map(function (l) {
+            return '<div><strong>' + c.html(l.produit.title) + '</strong> ' + c.prix(l.produit.price) +
+              ' <button data-moins="' + c.html(l.produit.id) + '">−</button> ' + l.quantite + ' <button data-plus="' + c.html(l.produit.id) + '">+</button>' +
+              ' = ' + c.prix(l.total) + ' <button data-retirer="' + c.html(l.produit.id) + '">Retirer</button></div>'
+          }).join('') +
+          '<p>Sous-total ' + c.prix(c.panier.sousTotal) + ' · Livraison ' + (c.panier.port ? c.prix(c.panier.port) : 'offerte') + ' · Total ' + c.prix(c.panier.total) + '</p>' +
+          '<a class="btn" href="' + c.lien.commande + '">Commander</a>'
+      },
+
+      commande: function (c) {
+        return '<h1>Vos coordonnées</h1>' +
+          (c.commande.erreur ? '<p role="alert">' + c.html(c.commande.erreur) + '</p>' : '') +
+          '<form data-commande>' +
+          '<input class="champ" name="name" placeholder="Nom complet" required>' +
+          '<input class="champ" name="email" type="email" placeholder="Email" required>' +
+          '<input class="champ" name="phone" placeholder="Téléphone">' +
+          '<input class="champ" name="street" placeholder="Adresse" required>' +
+          '<input class="champ" name="zip" placeholder="Code postal" required>' +
+          '<input class="champ" name="city" placeholder="Ville" required>' +
+          '<p>Total à régler : ' + c.prix(c.panier.total) + '</p>' +
+          '<button class="btn" type="submit"' + (c.commande.envoi ? ' disabled' : '') + '>' + (c.commande.envoi ? 'Envoi…' : (c.commande.paiement === 'stripe' ? 'Payer ' + c.prix(c.panier.total) : 'Confirmer la commande')) + '</button>' +
+          '</form>'
+      },
+
+      merci: function (c) {
+        return '<h1>Merci !</h1><p>' + (c.merci.attente ? 'Nous confirmons votre paiement…' : c.merci.paye ? 'Paiement reçu, votre commande est confirmée.' : 'Votre commande est bien enregistrée, nous vous recontactons très vite.') + '</p>' +
+          '<a class="btn" href="' + c.lien.accueil + '">Retour à l\'accueil</a>'
+      },
+
+      introuvable: function (c) {
+        return '<h1>Page introuvable</h1><a class="btn" href="' + c.lien.accueil + '">Retour à l\'accueil</a>'
+      }
+    })
+  </script>
+</body>
+</html>

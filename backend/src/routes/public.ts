@@ -9,7 +9,8 @@ import { metaCsv, googleRss } from '../services/productFeeds.js'
 import { etatPour } from '../services/productCondition.js'
 import { prixDAppel, prixDeVente, type LigneTarif } from '../services/printPricing.js'
 import { resoudre, enVariablesCss, themeConnu } from '../services/themes.js'
-import { absoluteUrl } from '../lib/urls.js'
+import { absoluteUrl, apiBaseUrl } from '../lib/urls.js'
+import { notifierCommande, ouvrirPaiement, paiementConfirme } from '../services/commandeVitrine.js'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { z } from 'zod'
@@ -276,6 +277,9 @@ publicRouter.get('/shops/:shopKey/products', async (req, res) => {
   res.set('Cache-Control', 'public, max-age=60')
   res.json({
     shop: { name: shop.name },
+    // Ce que la boutique fait à la commande : « stripe » quand le marchand a
+    // branché sa clé, « sans » sinon. Le moteur adapte le bouton (« Payer … »).
+    paiement: shop.stripeSecretKey ? 'stripe' : 'sans',
     count: publications.length,
     products: await Promise.all(
       publications.map((p) =>
@@ -562,6 +566,163 @@ publicRouter.post(
       }),
     )
 
+    const lignes = parsed.data.lignes.map((l) => {
+      const produit = parProduit.get(l.productId)!
+      const unitaire = Number(produit.sellingPrice ?? produit.price)
+      return { titre: produit.aiTitle || produit.title, quantite: l.quantity, prixUnitaire: unitaire, total: Math.round(unitaire * l.quantity * 100) / 100 }
+    })
+    const contenu = resoudre(shop).contenu
+    const sousTotal = lignes.reduce((s, l) => s + l.total, 0)
+    const port = sousTotal >= contenu.portOffertDes ? 0 : contenu.fraisPort
+    void notifierCommande({ shop, acheteur: { ...buyer, country: adresse.country }, lignes, port, paye: false })
+
     res.status(201).json({ ok: true, commandes: creees.length })
   },
 )
+
+/*
+ * La commande d'une boutique DropShop IA : la même que ci-dessus, plus le
+ * paiement en ligne quand le marchand a branché Stripe.
+ *
+ * Les commandes sont écrites AVANT d'ouvrir le paiement (leur identifiant
+ * voyage dans la session), et effacées si Stripe refuse : une commande sans
+ * session de paiement serait une commande fantôme dans le back-office. Sans
+ * clé Stripe, c'est la commande « à encaisser par le marchand », et la
+ * réponse ne porte pas d'adresse de paiement : le moteur mène à #/merci.
+ */
+const checkoutSchema = commandeVitrineSchema.extend({
+  retour: z
+    .string()
+    .trim()
+    .max(300)
+    .url()
+    .refine((u) => /^https?:\/\//i.test(u), 'Adresse de retour invalide')
+    .optional(),
+})
+
+publicRouter.post(
+  '/shops/:shopKey/checkout',
+  rateLimit({ name: 'commande-vitrine', windowMs: 3600_000, max: 20 }),
+  async (req, res) => {
+    const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey } })
+    if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+
+    const parsed = checkoutSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Commande incomplète : vérifiez vos coordonnées et votre panier.' })
+    }
+
+    const publiees = await prisma.publication.findMany({
+      where: {
+        platform: 'OWN_SITE',
+        status: 'PUBLISHED',
+        productId: { in: parsed.data.lignes.map((l) => l.productId) },
+        product: { shopId: shop.id },
+      },
+      include: { product: true },
+    })
+    const parProduit = new Map(publiees.map((p) => [p.productId, p.product]))
+    if (parsed.data.lignes.some((l) => !parProduit.has(l.productId))) {
+      return res.status(400).json({ error: "Un article du panier n'est plus disponible dans cette boutique." })
+    }
+
+    const { buyer } = parsed.data
+    const acheteur = { ...buyer, country: buyer.country || 'France' }
+    const adresse = {
+      street: buyer.street,
+      zip: buyer.zip,
+      city: buyer.city,
+      country: acheteur.country,
+      ...(buyer.phone ? { phone: buyer.phone } : {}),
+      ...(buyer.email ? { email: buyer.email } : {}),
+    }
+    const lignes = parsed.data.lignes.map((l) => {
+      const produit = parProduit.get(l.productId)!
+      const unitaire = Number(produit.sellingPrice ?? produit.price)
+      return { productId: l.productId, titre: produit.aiTitle || produit.title, quantite: l.quantity, prixUnitaire: unitaire, total: Math.round(unitaire * l.quantity * 100) / 100, currency: produit.currency ?? 'EUR' }
+    })
+    const contenu = resoudre(shop).contenu
+    const sousTotal = lignes.reduce((s, l) => s + l.total, 0)
+    const port = sousTotal >= contenu.portOffertDes ? 0 : contenu.fraisPort
+
+    const creees = await prisma.$transaction(
+      lignes.map((l) =>
+        prisma.order.create({
+          data: {
+            userId: shop.userId,
+            productId: l.productId,
+            platform: 'OWN_SITE',
+            status: 'NEW',
+            buyerName: buyer.name,
+            buyerAddress: adresse,
+            amount: l.total,
+            currency: l.currency,
+            quantity: l.quantite,
+          },
+          select: { id: true },
+        }),
+      ),
+    )
+
+    if (!shop.stripeSecretKey) {
+      void notifierCommande({ shop, acheteur, lignes, port, paye: false })
+      return res.status(201).json({ ok: true, commandes: creees.length, paiement: null })
+    }
+
+    try {
+      const retour = parsed.data.retour ?? `${apiBaseUrl(req)}/b/${shop.slug ?? ''}`
+      const paiement = await ouvrirPaiement({
+        cle: shop.stripeSecretKey,
+        boutique: shop.name,
+        lignes,
+        port,
+        acheteur,
+        retour,
+        commandes: creees.map((c) => c.id),
+        shopKey: shop.shopKey,
+      })
+      await prisma.order.updateMany({ where: { id: { in: creees.map((c) => c.id) } }, data: { stripeSessionId: paiement.sessionId } })
+      res.status(201).json({ ok: true, commandes: creees.length, paiement: paiement.url })
+    } catch (e) {
+      console.error('[checkout vitrine] Stripe du marchand', e instanceof Error ? e.message : e)
+      await prisma.order.deleteMany({ where: { id: { in: creees.map((c) => c.id) } } })
+      res.status(502).json({ error: 'Le paiement en ligne de cette boutique est indisponible pour le moment. Réessayez dans un instant.' })
+    }
+  },
+)
+
+/**
+ * Le retour de paiement. `paye` est relu chez Stripe avec la clé du marchand ;
+ * la première confirmation marque les commandes et envoie les emails, les
+ * suivantes ne font que répondre.
+ */
+publicRouter.get('/shops/:shopKey/checkout/:sessionId', async (req, res) => {
+  const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey } })
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  if (!shop.stripeSecretKey) return res.json({ paye: false })
+  const sessionId = req.params.sessionId
+  if (!/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return res.status(400).json({ error: 'Session invalide' })
+  try {
+    const paye = await paiementConfirme(shop.stripeSecretKey, sessionId)
+    if (!paye) return res.json({ paye: false })
+    const commandes = await prisma.order.findMany({ where: { stripeSessionId: sessionId, userId: shop.userId, paidAt: null }, include: { product: true } })
+    if (commandes.length) {
+      await prisma.order.updateMany({ where: { id: { in: commandes.map((c) => c.id) } }, data: { paidAt: new Date() } })
+      const adresse = commandes[0].buyerAddress as { street: string; zip: string; city: string; country: string; phone?: string; email?: string }
+      const lignes = commandes.map((c) => ({ titre: c.product.aiTitle || c.product.title, quantite: c.quantity, prixUnitaire: Number(c.amount) / c.quantity, total: Number(c.amount) }))
+      const contenu = resoudre(shop).contenu
+      const sousTotal = lignes.reduce((s, l) => s + l.total, 0)
+      void notifierCommande({
+        shop,
+        acheteur: { name: commandes[0].buyerName, email: adresse.email, phone: adresse.phone, street: adresse.street, zip: adresse.zip, city: adresse.city, country: adresse.country },
+        lignes,
+        port: sousTotal >= contenu.portOffertDes ? 0 : contenu.fraisPort,
+        paye: true,
+      })
+    }
+    res.json({ paye: true })
+  } catch (e) {
+    console.error('[checkout vitrine] confirmation', e instanceof Error ? e.message : e)
+    res.status(502).json({ paye: false, error: 'La confirmation du paiement est indisponible.' })
+  }
+})

@@ -55,6 +55,35 @@ export function getToken() {
   return localStorage.getItem('droppost_token')
 }
 
+/** Un travail DropShop (création ou modification), tel que le serveur le tient. */
+export interface TravailDropShop {
+  type: 'creation' | 'modification'
+  etape: 'ecriture' | 'verification' | 'reparation' | 'termine' | 'echec'
+  tentative: number
+  demande: string
+  debut: string
+  fin?: string
+  erreur?: string
+  echecs?: string[]
+  resume?: string
+  drops: number
+}
+
+export interface EtatDropShop {
+  id: string
+  nom: string
+  slug: string | null
+  adresse: string | null
+  creee: boolean
+  version: number
+  brief: string | null
+  modifsRestantes: number
+  stripe: boolean
+  travail: TravailDropShop | null
+  versions: Array<{ numero: number; demande: string; modele: string; createdAt: string }>
+  tarifs: { creation: number; modification: number; incluses: number }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const res = await fetch(`${BASE}${path}`, {
@@ -830,6 +859,19 @@ export const api = {
         storefront: Record<string, string | number> | null
       }>
     >('/settings/shops'),
+  /* ---------- DropShop IA : la boutique écrite par le modèle ---------- */
+  dropshopEtat: (shopId: string) => request<EtatDropShop>(`/dropshop/${shopId}`),
+  dropshopCreer: (shopId: string, description: string) =>
+    request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/creer`, { method: 'POST', body: JSON.stringify({ description }) }),
+  dropshopModifier: (shopId: string, demande: string) =>
+    request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/modifier`, { method: 'POST', body: JSON.stringify({ demande }) }),
+  dropshopRestaurer: (shopId: string, numero: number) =>
+    request<{ ok: true; version: number }>(`/dropshop/${shopId}/restaurer/${numero}`, { method: 'POST' }),
+  dropshopRetirer: (shopId: string) => request<{ ok: true }>(`/dropshop/${shopId}`, { method: 'DELETE' }),
+  dropshopStripe: (shopId: string, secretKey: string) =>
+    request<{ ok: true; test: boolean }>(`/dropshop/${shopId}/stripe`, { method: 'PUT', body: JSON.stringify({ secretKey }) }),
+  dropshopStripeRetirer: (shopId: string) => request<{ ok: true }>(`/dropshop/${shopId}/stripe`, { method: 'DELETE' }),
+
   createShop: (data: { name: string; platform?: string; sectors?: string[]; siteUrl?: string | null }) =>
     request<{ id: string; name: string; shopKey: string }>('/settings/shops', {
       method: 'POST',

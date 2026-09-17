@@ -12,6 +12,7 @@ import { betaRouter } from './routes/beta.js'
 import { vitrineRouter } from './routes/vitrine.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
+import { dropshopRouter } from "./routes/dropshop.js"
 import { marketReportsRouter } from './routes/marketReports.js'
 import { opportunitiesRouter } from './routes/opportunities.js'
 import { signalsRouter } from './routes/signals.js'
@@ -121,6 +122,7 @@ app.use('/api/reviews', reviewsRouter)
 app.use('/api/billing', billingRouter)
 app.use('/api/agent', agentRouter)
 app.use('/api/market-reports', marketReportsRouter)
+app.use('/api/dropshop', dropshopRouter)
 app.use('/api/opportunities', opportunitiesRouter)
 app.use('/api/signals', signalsRouter)
 app.use('/api/departments', departmentsRouter)

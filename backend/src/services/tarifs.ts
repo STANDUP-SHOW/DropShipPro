@@ -69,7 +69,19 @@ export const DROPS = {
   autoShipperJour: 100,
   /** AUTO-SHIPPER : un produit importé ET publié automatiquement — agent (6) + annonce (12). */
   autoShipperImport: 18,
+  /**
+   * DropShop IA (17/09/2026) : la boutique écrite par le modèle — design
+   * unique, responsive, emails, paiement Stripe pré-branché, gestion depuis
+   * DropShipper — et 10 demandes de modification comprises. 2 € : création
+   * (~0,40 € de Sonnet 5, une réparation comprise), hébergement, trafic.
+   */
+  boutiqueCreation: 200,
+  /** Une demande de modification de la boutique au-delà des 10 comprises (Haiku, édition ciblée). */
+  boutiqueModification: 10,
 } as const
+
+/** Modifications de boutique comprises dans le prix de création. */
+export const BOUTIQUE_MODIFS_INCLUSES = 10
 
 /** Ce que vaut un drop, à l'achat, en euros. Sert à afficher l'équivalent. */
 export const EURO_PAR_DROP = 0.01

@@ -51,6 +51,8 @@ const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'autoShipperJour', label: 'AUTO-SHIPPER IA (la journée, 1 €)', detail: 'Une tournée par 24 h : analyse, relevé, import, annonces, publications, back-office — vous ne faites rien. 50 produits conseillés, jusqu’à 480.' },
   { cle: 'autoShipperImport', label: 'AUTO-SHIPPER IA (un produit)', detail: 'Importé et publié automatiquement : agent + annonce' },
   { cle: 'autoModePassage', label: 'AUTO-MODE d’un chef de rayon', detail: 'Analyses et produits gagnants quotidiens — gratuit' },
+  { cle: 'boutiqueCreation', label: 'DropShop IA — création de boutique (2 €)', detail: 'L’IA écrit votre boutique : design unique, responsive, panier, emails, Stripe pré-branché, hébergement et 10 modifications comprises' },
+  { cle: 'boutiqueModification', label: 'DropShop IA — modification', detail: 'Au-delà des 10 comprises : une demande, appliquée et vérifiée' },
 ]
 
 export default function BillingPage() {

@@ -417,6 +417,12 @@ model Order {
   quantity Int     @default(1)
 
   status           OrderStatus @default(NEW)
+  /// Payée en ligne (Stripe du marchand) : la date de confirmation. Nulle pour
+  /// une commande de vitrine sans paiement en ligne, ou pas encore confirmée.
+  paidAt           DateTime?
+  /// La session Stripe Checkout qui porte cette commande, pour la confirmer au
+  /// retour de l'acheteur — sans lire ce que le navigateur prétend.
+  stripeSessionId  String?
   supplierOrderUrl String?
 
   /// La commande passee chez le fournisseur, quand elle l a ete.
@@ -609,12 +615,56 @@ model Shop {
   /// Les textes de la vitrine : banniere, accroche, livraison.
   storefront  Json?
 
+  /// DropShop IA (17/09/2026) : la boutique ÉCRITE par le modèle.
+  ///
+  /// Une page HTML complète, unique à cette boutique, posée sur le moteur
+  /// `dropshop/sdk.js` (catalogue, panier, commande, paiement). Présente, elle
+  /// est servie à `/b/<slug>` à la place de la vitrine générique à thèmes ;
+  /// nulle, la vitrine à thèmes continue de servir. Chaque état passé est dans
+  /// `SiteVersion` : le vendeur restaure la version qu'il préfère.
+  siteHtml            String?  @db.Text
+  /// Ce que le vendeur a écrit de la boutique de ses rêves, à la création.
+  siteBrief           String?  @db.Text
+  /// Numéro de la version servie (0 = jamais générée).
+  siteVersion         Int      @default(0)
+  /// Modifications encore comprises dans le prix de création (10 au départ).
+  siteModifsRestantes Int      @default(0)
+  /// Le travail en cours (création ou modification) : étape, demande, début,
+  /// erreur. Nul quand rien ne tourne. Persisté pour survivre à un rechargement
+  /// de la page du vendeur — pas à un redéploiement, d'où l'échéance lue dedans.
+  siteJob             Json?
+  /// La clé secrète Stripe DU MARCHAND, collée par lui : la boutique encaisse
+  /// sur son compte, jamais sur le nôtre. Nulle = commande sans paiement en
+  /// ligne (le marchand encaisse comme il l'entend). Jamais renvoyée au client.
+  stripeSecretKey     String?
+
   createdAt DateTime @default(now())
 
   products Product[]
 
   @@index([userId])
   printProducts PrintProduct[]
+  siteVersions  SiteVersion[]
+}
+
+/// Une version de la boutique DropShop IA : la page telle qu'elle a été servie.
+///
+/// Gardée entière, pas en différence : une restauration doit rendre la page
+/// exacte, et un différentiel qui ne s'applique plus rendrait une boutique
+/// cassée à l'heure où le vendeur veut revenir à celle qui marchait.
+model SiteVersion {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  numero    Int
+  html      String   @db.Text
+  /// La demande qui a produit cette version : le brief, ou la modification.
+  demande   String   @db.Text
+  /// Le modèle qui l'a écrite, pour le coût et le diagnostic.
+  modele    String
+  createdAt DateTime @default(now())
+
+  @@unique([shopId, numero])
 }
 
 /// Cle d API machine : un agent externe ecrit dans le catalogue sans mot de passe.

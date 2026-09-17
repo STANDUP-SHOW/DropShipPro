@@ -62,6 +62,8 @@ const TARIFS = [
   ['AUTO-SHIPPER : la journée, une tournée par 24 h (analyse, relevé, import, annonces, publications, back-office)', 100, '1,00 €'],
   ['AUTO-SHIPPER : un produit importé et publié automatiquement', 18, '0,18 €'],
   ['AUTO-MODE d’un chef de rayon : analyses et produits gagnants quotidiens', 0, 'gratuit'],
+  ['DropShop IA : création d’une boutique écrite par l’IA (design unique, responsive, panier, emails, Stripe, hébergement, 10 modifications comprises)', 200, '2,00 €'],
+  ['DropShop IA : une modification au-delà des 10 comprises', 10, '0,10 €'],
 ]
 
 const RECHARGES = [
@@ -135,7 +137,8 @@ const FONCTIONS = [
   {
     titre: 'Boutiques en ligne illimitées',
     lignes: [
-      'Création d’une boutique complète en quelques clics : 50 thèmes, panier, prise de commande, adresse publique.',
+      'DropShop IA : le vendeur décrit la boutique de ses rêves, l’IA l’écrit entièrement (design unique, responsive, panier, commande, emails, paiement Stripe pré-branché), la teste comme un visiteur et la corrige. 200 drops (2 €) la création, 10 modifications comprises, puis 10 drops la demande. Hébergement et trafic compris.',
+      'Chaque modification est une version : le vendeur revient à la version qu’il préfère à tout moment. Une vitrine à thèmes gratuite (50 thèmes) reste disponible sans boutique IA.',
       'Autant de boutiques que le vendeur veut, sans surcoût — une par niche, par produit ou par pays. Là où un abonnement Shopify se paie par boutique.',
       'Aucun second back-office : produits, commandes, stocks, clients, statistiques et comptabilité restent dans DropShipper IA.',
       'Chaque boutique a son propre catalogue, ses rayons et son thème ; les annonces s’y rangent au moment de la diffusion.',
