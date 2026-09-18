@@ -144,7 +144,7 @@ export function AgentBar({
             type="button"
             onClick={dicter}
             title={ecoute ? 'Arrêter la dictée' : 'Dicter ma question'}
-            className={`shrink-0 rounded-xl p-2 transition ${
+            className={`shrink-0 rounded-xl p-3 transition sm:p-2 ${
               ecoute
                 ? 'bg-red-500/80 text-white'
                 : 'border border-white/10 text-gray-300 hover:bg-white/10'
@@ -158,7 +158,7 @@ export function AgentBar({
           type="button"
           onClick={demander}
           disabled={busy || question.trim().length < 2}
-          className="btn-gradient shrink-0 rounded-xl p-2 disabled:opacity-40"
+          className="btn-gradient shrink-0 rounded-xl p-3 disabled:opacity-40 sm:p-2"
           title={`Demander à ${nom}`}
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
@@ -169,7 +169,7 @@ export function AgentBar({
             type="button"
             onClick={() => setDeplie((v) => !v)}
             title={deplie ? 'Replier' : 'Revoir la réponse'}
-            className="shrink-0 rounded-xl border border-white/10 p-2 text-gray-400 hover:bg-white/10"
+            className="shrink-0 rounded-xl border border-white/10 p-3 text-gray-400 hover:bg-white/10 sm:p-2"
           >
             {deplie ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>

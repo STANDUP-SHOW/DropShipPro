@@ -134,7 +134,7 @@ export function RecommendedProducts({ department }: { department: string }) {
             type="button"
             onClick={importSelection}
             disabled={!selectedImportable.length || running !== null}
-            className="btn-gradient inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+            className="btn-gradient inline-flex items-center gap-1 rounded-lg px-3 py-2.5 text-xs sm:py-1.5 font-semibold disabled:opacity-40"
           >
             <Download size={13} />
             <span>
@@ -147,7 +147,7 @@ export function RecommendedProducts({ department }: { department: string }) {
             type="button"
             onClick={deleteSelection}
             disabled={!selected.length || running !== null}
-            className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5 hover:text-red-400 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 text-gray-400 hover:bg-white/5 hover:text-red-400 disabled:opacity-40"
           >
             <Trash2 size={13} />
             <span>Supprimer</span>
@@ -252,7 +252,7 @@ export function RecommendedProducts({ department }: { department: string }) {
                     href={o.sourceUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
                   >
                     <ExternalLink size={13} />
                     <span>Voir chez le fournisseur</span>
@@ -261,7 +261,7 @@ export function RecommendedProducts({ department }: { department: string }) {
                   {o.status === 'IMPORTED' && o.productId && (
                     <Link
                       to={`/products/${o.productId}`}
-                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-300"
+                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2.5 text-xs sm:py-1.5 text-emerald-300"
                     >
                       <Check size={13} />
                       <span>Voir l'annonce</span>

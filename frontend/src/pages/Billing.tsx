@@ -203,7 +203,7 @@ export default function BillingPage() {
         <b className="text-gray-300"> plus vous rechargez, moins le drop coûte</b>.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {plans?.packs.map((pack) => {
           // Le prix d'achat du drop pour ce forfait : il baisse sur les gros.
           const prixDrop = pack.amount / 100 / pack.drops
@@ -261,14 +261,18 @@ export default function BillingPage() {
         <h3 className="mt-8 text-sm font-semibold uppercase tracking-wide text-gray-400">
           Ce que coûte chaque action
         </h3>
+        {/* Quatre colonnes sur 544 px : sur un telephone, la grille demandait
+            de faire glisser pour lire le prix a cote de son action. La colonne
+            en dollars, la moins utile a un vendeur qui facture en euros, est
+            donc repliee en dessous de `sm` et la largeur minimale avec elle. */}
         <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[34rem] border-collapse text-sm">
+          <table className="w-full border-collapse text-sm sm:min-w-[34rem]">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
                 <th className="py-2 pr-4 font-medium">Action</th>
                 <th className="py-2 px-3 text-right font-medium">Drops</th>
                 <th className="py-2 px-3 text-right font-medium">Euros</th>
-                <th className="py-2 pl-3 text-right font-medium">Dollars US</th>
+                <th className="hidden py-2 pl-3 text-right font-medium sm:table-cell">Dollars US</th>
               </tr>
             </thead>
             <tbody>
@@ -289,7 +293,7 @@ export default function BillingPage() {
                     <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
                       {euros(drops * euroParDrop)}
                     </td>
-                    <td className="py-2.5 pl-3 text-right tabular-nums text-gray-400">
+                    <td className="hidden py-2.5 pl-3 text-right tabular-nums text-gray-400 sm:table-cell">
                       {dollars(drops * usdParDrop)}
                     </td>
                   </tr>

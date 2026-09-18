@@ -60,7 +60,10 @@ export default function Index() {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 text-center pt-16 pb-24">
-        <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
+        {/* « Dropshipping » en un seul mot de 48 px mesure 340 px : treize de
+            plus que la largeur utile d'un téléphone de 375 px, et c'est la
+            page d'accueil ENTIÈRE qui se mettait à défiler de côté. */}
+        <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl md:text-6xl">
           Automatisez votre <span className="text-gradient-brand">Dropshipping</span>
         </h1>
         <p className="mt-6 text-lg text-gray-300 max-w-2xl mx-auto">
@@ -100,7 +103,7 @@ export default function Index() {
           son prix et ses variantes.
         </p>
 
-        <div className="grid md:grid-cols-3 gap-5 mt-20 text-left">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-20 text-left">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-2xl bg-white/5 border border-white/10 p-6 backdrop-blur">
               <f.icon className={f.color} size={28} />

@@ -186,7 +186,7 @@ export function DepartmentChat({
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder={listening ? "Parlez…" : `Une question pour ${agentName} ?`}
-          className="flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
         />
         {voiceSupported && (
           <button

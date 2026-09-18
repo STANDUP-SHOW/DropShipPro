@@ -178,7 +178,7 @@ export function ReportList({ section, department }: { section: string; departmen
           <button
             type="button"
             onClick={removeSelection}
-            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5 hover:text-red-400"
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 text-gray-400 hover:bg-white/5 hover:text-red-400"
           >
             <Trash2 size={13} />
             <span>Supprimer</span>
@@ -244,7 +244,7 @@ export function ReportList({ section, department }: { section: string; departmen
                       <button
                         type="button"
                         onClick={exportPdf}
-                        className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+                        className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
                       >
                         <Printer size={13} />
                         <span>Exporter en PDF</span>

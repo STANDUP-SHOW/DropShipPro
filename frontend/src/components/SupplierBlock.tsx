@@ -156,7 +156,7 @@ function MarcheASuivre({ supplier }: { supplier: Supplier }) {
           </p>
           <Link
             to="/dashboard"
-            className="btn-gradient mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+            className="btn-gradient mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-xs sm:py-1.5 font-semibold"
           >
             Importer un produit
           </Link>
@@ -182,7 +182,7 @@ function MarcheASuivre({ supplier }: { supplier: Supplier }) {
           </ol>
           <Link
             to="/settings"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/5"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
           >
             Télécharger l'extension
           </Link>

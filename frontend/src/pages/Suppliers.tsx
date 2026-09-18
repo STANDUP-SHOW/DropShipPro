@@ -331,7 +331,7 @@ function LigneVente({
             type="button"
             onClick={commander}
             disabled={busy}
-            className="btn-gradient rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+            className="btn-gradient rounded-lg px-3 py-2.5 text-xs sm:py-1.5 font-semibold disabled:opacity-50"
           >
             {busy ? 'Envoi…' : 'Commander'}
           </button>

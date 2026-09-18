@@ -201,7 +201,7 @@ export function AdDialog({
                 <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-400">
                   Au nom de quelle boutique ?
                 </h3>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {boutiques.map((b) => (
                     <button
                       key={b.id}
@@ -379,7 +379,7 @@ export function AdDialog({
             )}
 
             {/* --- Le bouton dessiné sur le visuel ------------------------------ */}
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 value={ctaLabel}
                 onChange={(e) => setCtaLabel(e.target.value)}

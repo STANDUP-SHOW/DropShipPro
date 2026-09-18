@@ -324,7 +324,7 @@ export default function Deliveries() {
 
             {openId === o.id && detail && detail.id === o.id && (
               <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-4">
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
                     <p className="flex items-center gap-1 text-xs text-gray-400">
                       <MapPin size={13} />
@@ -378,7 +378,7 @@ export default function Deliveries() {
                           href={detail.tracking.url}
                           target="_blank"
                           rel="noreferrer noopener"
-                          className="mt-1 inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+                          className="mt-1 inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
                         >
                           <ExternalLink size={13} />
                           <span>Suivre le colis</span>

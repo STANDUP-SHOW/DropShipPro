@@ -108,7 +108,7 @@ export default function CreerBoutique() {
           <span>Vos boutiques DropShop</span>
         </h2>
         {hebergees.length > 0 && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {hebergees.map((b) => {
               const logo = b.vitrineLogoEntete ?? b.vitrineLogoAccueil ?? b.logo
               const estActive = active?.id === b.id
@@ -397,7 +397,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
   const apercu = etat.adresse ? `${etat.adresse}?v=${etat.version}-${rechargement}` : null
 
   return (
-    <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
+    <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
       {/* ---------- Colonne gauche : la conversation ---------- */}
       <div className="space-y-4">
         {!etat.creee && !enCours ? (
@@ -410,7 +410,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
               Déposez-le avant de créer : il prend place dans la barre du haut (petit) et en grand au-dessus du titre
               d'accueil, et l'IA lit ses couleurs pour vous proposer une gamme. PNG, SVG, WebP ou JPEG, fond transparent de préférence.
             </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {(['entete', 'accueil'] as const).map((emplacement) => (
                 <div key={emplacement} className="rounded-xl border border-white/10 bg-black/20 p-3">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{emplacement === 'entete' ? 'Barre du haut' : 'Grand, sur l\'accueil'}</p>
@@ -440,7 +440,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
                     </span>
                   ))}
                 </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {gammes.gammes.map((g) => (
                     <button
                       key={g.id}

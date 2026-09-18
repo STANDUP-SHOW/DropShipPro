@@ -224,7 +224,7 @@ function Bloc({
 
             <Link
               to={action?.to ?? `/orders/${l.id}`}
-              className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/5"
+              className="shrink-0 rounded-lg border border-white/15 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
             >
               {action?.label ?? 'Ouvrir'}
             </Link>

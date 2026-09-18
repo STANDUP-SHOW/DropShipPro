@@ -170,7 +170,7 @@ export default function Settings() {
               <a
                 href={assetUrl('/api/public/extension.zip')}
                 download="dropship-pro-extension.zip"
-                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
+                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2.5 text-xs sm:py-1.5 font-semibold hover:bg-white/5"
               >
                 <Download size={13} /> Télécharger l'archive (.zip)
               </a>

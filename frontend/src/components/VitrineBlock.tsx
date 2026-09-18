@@ -242,7 +242,7 @@ export function VitrineBlock({
       ) : null}
 
       {/* --- Les logos de la vitrine ---------------------------------------- */}
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <LogoVitrine
           shopId={shop.id}
           emplacement="entete"
@@ -321,7 +321,7 @@ export function VitrineBlock({
                 href={essai(propose.themeId)!}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/5"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
               >
                 <span>Voir sur ma boutique</span>
                 <ExternalLink size={11} />
@@ -356,7 +356,7 @@ export function VitrineBlock({
 
         {editeur ? (
           <div className="mt-3 space-y-2.5 rounded-xl border border-white/10 bg-black/20 p-3">
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <div>
                 <label className="text-xs text-gray-400">Accroche (1ʳᵉ ligne du titre)</label>
                 <input
@@ -399,7 +399,7 @@ export function VitrineBlock({
                 className={`${champ} mt-1`}
               />
             </div>
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <div>
                 <label className="text-xs text-gray-400">Frais de port (€)</label>
                 <PriceInput value={fraisPort} onCommit={setFraisPort} className={`${champ} mt-1`} />
@@ -414,7 +414,7 @@ export function VitrineBlock({
                 type="button"
                 onClick={enregistrerTextes}
                 disabled={enregistrement}
-                className="btn-gradient rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                className="btn-gradient rounded-lg px-3 py-2.5 text-xs sm:py-1.5 font-semibold disabled:opacity-50"
               >
                 {enregistrement ? 'Enregistrement…' : 'Enregistrer'}
               </button>
@@ -528,7 +528,7 @@ function BibliothequeThemes({
       </div>
 
       {visibles.length ? (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {visibles.map((t) => (
             <Vignette key={t.id} theme={t} choisi={t.id === themeChoisi} essai={essai(t.id)} onChoisir={() => onChoisir(t.id)} />
           ))}
