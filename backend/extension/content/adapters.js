@@ -162,6 +162,31 @@
     },
 
     {
+      key: 'reichelt',
+      label: 'reichelt elektronik',
+      matches: (host) => /reichelt\.(com|de|at|nl|pl|co\.uk|fr)$/i.test(host),
+      /**
+       * Distributeur allemand d'électronique, sondé le 19/09/2026 sur deux
+       * fiches. La galerie est un carrousel Swiper dont chaque vue vient de
+       * cdn-reichelt.de sous /xxl_ws/, derrière un redimensionneur
+       * (/resize/600%2F-/web/xxl_ws/…?type=ProductXxl&resize=…). L'original vit
+       * sous /bilder/web/xxl_ws/, sans paramètre : mesuré, 777 px contre 600.
+       * Tout le reste de la page — vignettes, accessoires, produits voisins —
+       * sort du même CDN mais sous /artikel_ws/ (300 px) : le chemin les sépare.
+       * Le prix est déclaré en microdonnées schema.org, que capture.js lit.
+       */
+      fromJson: () => [],
+      // Les deux formes relevées : /shop/produit/<nom>-<numéro> et ?ARTICLE=<numéro>.
+      productUrl: /\/shop\/produit\/[^/?#]*-\d+(?:[?#]|$)|[?&]ARTICLE=\d+/i,
+      domSelectors: ['.gallery-top img', 'img[src*="/xxl_ws/"]', 'img[data-src*="/xxl_ws/"]'],
+      imageHost: /^cdn-reichelt\.de$/i,
+      pathHint: '/xxl_ws/',
+      fullSize: (url) =>
+        url.replace(/^(https?:\/\/cdn-reichelt\.de)\/resize\/[^/]+\/web\/xxl_ws\//i, '$1/bilder/web/xxl_ws/').split('?')[0],
+      variantSelector: 'select#groupselector',
+    },
+
+    {
       key: 'banggood',
       label: 'Banggood',
       matches: (host) => /banggood\./i.test(host),

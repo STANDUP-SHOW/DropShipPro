@@ -316,6 +316,42 @@ export const SUPPLIERS: SupplierInfo[] = [
     color: '#e60012',
   },
   {
+    /*
+     * reichelt elektronik (Sande, Allemagne) — sondé le 19/09/2026 sur le site
+     * français, dans un navigateur : deux fiches produit, les CGV, les frais de
+     * port et les délais.
+     *
+     * Distributeur d'électronique et d'informatique : composants, Raspberry Pi
+     * et cartes de développement, réseau, mesure, outillage, domotique. La
+     * fiche est propre — microdonnées schema.org complètes (prix en euros,
+     * marque, référence fabricant, EAN/GTIN), galerie sur cdn-reichelt.de — mais
+     * **tout ce qui n'est pas un navigateur reçoit un mur « Security Check »**
+     * (503 + captcha, constaté en curl) : l'import par adresse n'y lira jamais
+     * rien, d'où `extension` et l'ajout à EXTENSION_ONLY.
+     *
+     * Ce que le site écrit lui-même :
+     * — France livrée par DPD en 3 à 5 jours ouvrés ; 7,90 € jusqu'à 10 kg,
+     *   10,90 € jusqu'à 20 kg (DHL et UPS plus chers) ;
+     * — CGV 8.2 : « Les noms de produits, ainsi que les logos et illustrations
+     *   sont la propriété de tiers et, le cas échéant, ne peuvent pas être
+     *   utilisés sans autorisation » ;
+     * — trois affichages de prix (particulier TTC, entreprise, école) : le prix
+     *   relevé est celui que le vendeur a sous les yeux.
+     * Aucune page ne parle de dropshipping, d'expédition neutre ni d'API
+     * catalogue : rien n'est donc promis ici, et la question est posée.
+     */
+    id: 'reichelt',
+    label: 'reichelt elektronik',
+    domain: 'reichelt.com',
+    origine: 'Allemagne (Sande), expédition depuis son entrepôt',
+    importPath: 'extension',
+    quoi: "Distributeur allemand d'électronique : composants, Raspberry Pi et cartes de développement, réseau, mesure, outillage, domotique. Stock en Europe, prix en euros, la France livrée par DPD en 3 à 5 jours ouvrés, EAN et référence fabricant sur chaque fiche.",
+    attention:
+      "C'est un détaillant-distributeur, pas un grossiste de dropshipping : aucun programme de revente ni d'expédition neutre n'est annoncé — le colis part à son nom, avec sa facture, sauf accord à demander par écrit. Le port s'ajoute à chaque commande (7,90 € jusqu'à 10 kg pour la France) : sur un article à dix euros, il mange la marge. Le site affiche ses prix TTC aux particuliers et autrement aux entreprises : l'extension relève celui que vous avez sous les yeux, choisissez l'affichage avant d'importer. Ses CGV (8.2) rappellent que noms, logos et illustrations appartiennent à des tiers : demandez l'autorisation avant de diffuser ses photos. L'import passe par l'extension, le site refusant toute lecture par un serveur.",
+    adapte: true,
+    color: '#005ca9',
+  },
+  {
     id: 'webdrop',
     label: 'Webdrop Market',
     domain: 'webdrop-market.com',
@@ -838,6 +874,8 @@ const REFERENCES: Record<string, RegExp[]> = {
   cjdropshipping: [/\/product\/[^/]*-p-([A-Za-z0-9-]{6,})\.html/, /[?&]pid=([A-Za-z0-9-]{6,})/],
   dhgate: [/\/product\/[^/]+\/(\d{6,})\.html/],
   superdelivery: [/\/pd_p\/(\d{5,})(?:\/|$)/],
+  // Relevé le 19/09/2026 : /shop/produit/<nom>-<numéro> (adresse canonique) et ?ARTICLE=<numéro>.
+  reichelt: [/\/shop\/produit\/[^/?#]*-(\d{3,})(?:[?#]|$)/, /[?&]ARTICLE=(\d{3,})/],
   banggood: [/-p-(\d{4,})\.html/],
   vidaxl: [/\/e\/(\d{8,})\//],
   printful: [/\/products\/(\d{3,})/],

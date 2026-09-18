@@ -19,6 +19,10 @@ const CAS: Array<[string, string | null, string | null]> = [
   ['https://www.superdelivery.com/en/r/pd_p/17754294/', 'superdelivery', '17754294'],
   // Une catégorie SUPER DELIVERY : fournisseur reconnu, pas de référence.
   ['https://www.superdelivery.com/en/do/psl/1053/?vi=1', 'superdelivery', null],
+  // reichelt : les deux formes relevées le 19/09/2026, et une page de rayon qui ne doit rien rendre.
+  ['https://www.reichelt.com/fr/fr/shop/produit/network_isolator_med_mi_1005_external-125116', 'reichelt', '125116'],
+  ['https://www.reichelt.com/fr/fr/?ARTICLE=437653', 'reichelt', '437653'],
+  ['https://www.reichelt.com/fr/fr/ordinateur-monoplatine-l1358.html', 'reichelt', null],
   // Un site qui n'est pas un fournisseur connu : rien du tout.
   ['https://www.decathlon.fr/p/montre/_/R-p-123', null, null],
   ['pas une adresse', null, null],

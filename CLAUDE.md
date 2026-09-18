@@ -834,6 +834,22 @@ Trois conséquences, toutes appliquées :
   française. L'extension lit désormais `JPY`/`¥`/`円` (les yens n'ont pas de
   décimales : « JPY 1,234 » vaut 1234) et rend la devise du prix retenu. Banc
   `npx tsx check-devises.ts` (faux Frankfurter, contrat écrit en dur).
+- **Un prix coupé en deux balises échappe au relevé visuel — lire ce que la
+  fiche déclare.** reichelt elektronik (ajouté le 19/09/2026) écrit
+  « 100,`<sup>`83`</sup>` € » : l'élément a un enfant, le relevé ne regarde que
+  des feuilles, et il retenait « 9,09 € », un accessoire sous la fiche — mesuré
+  sur la vraie page avant d'écrire une ligne. `collectPrice` lit désormais les
+  microdonnées schema.org (`[itemprop=price]` de la PREMIÈRE portée Product :
+  les recommandations en sont aussi) après la balise `product:price`, avant
+  toute devinette. Banc `node check-prix-declare.cjs`, sur le HTML réel. Le site
+  sert un mur « Security Check » (503 + captcha) à tout ce qui n'est pas un
+  navigateur : extension seulement (`EXTENSION_ONLY`). Galerie sous `/xxl_ws/`
+  de cdn-reichelt.de, original sous `/bilder/web/xxl_ws/` ; le reste de la page
+  est sous `/artikel_ws/`. Détaillant-distributeur : ni dropshipping ni
+  expédition neutre annoncés, CGV 8.2 sur les illustrations. L'EAN est sur la
+  fiche (`gtin13`) mais **l'import ne le relève pas encore** — il servirait à
+  Mirakl et Kaufland, qui l'exigent.
+
 - **Une application React est invisible pour une IA : d où `llms.txt`.** Signalé
   le 15/09/2026 par Max — « si je demande à une IA ce que fait drop-shipper.fr,
   elle ne le sait pas ». Normal : un assistant qui suit le lien reçoit la

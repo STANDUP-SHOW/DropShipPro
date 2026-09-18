@@ -95,7 +95,7 @@ const RECHARGES = [
  */
 const FOURNISSEURS = [
   'AliExpress', 'Temu', 'JoyBuy', 'Shein', 'Wish', 'DHgate', 'Banggood', 'CJ Dropshipping', 'BigBuy', 'Zentrada',
-  'SUPER DELIVERY', 'Webdrop Market', 'Etsy', 'Alibaba', 'Made-in-China', 'Spocket', 'Printful',
+  'SUPER DELIVERY', 'reichelt elektronik', 'Webdrop Market', 'Etsy', 'Alibaba', 'Made-in-China', 'Spocket', 'Printful',
   'Printify', 'vidaXL', 'Ankorstore', 'SUNSKY', 'SUP Dropshipping', 'LightInTheBox', 'Joom',
   'Faire', 'FashionGo', 'Amazon Business', 'Meesho', 'Ingram Micro', 'TD SYNNEX', 'ALSO',
   'Esprinet', 'Syncee', 'Busyx Pro', 'Matterhorn', 'Gelato', 'Pixartprinting',
@@ -106,7 +106,7 @@ const FONCTIONS = [
     titre: 'Import de produits depuis n’importe quel fournisseur',
     lignes: [
       'Import par adresse : coller le lien d’une fiche produit suffit, le serveur lit la page.',
-      'Import par extension Chrome (publiée sur le Chrome Web Store) pour les sites qui construisent leur fiche en JavaScript ou masquent leur prix aux visiteurs : Temu, AliExpress, Shein, SUPER DELIVERY.',
+      'Import par extension Chrome (publiée sur le Chrome Web Store) pour les sites qui construisent leur fiche en JavaScript ou masquent leur prix aux visiteurs : Temu, AliExpress, Shein, SUPER DELIVERY — ou refusent toute lecture par un serveur, comme reichelt elektronik.',
       'Import en lot depuis un panneau latéral : le vendeur navigue de fiche en fiche, chaque produit s’ajoute à une liste, tout part en une fois.',
       `${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles (origine, délais, douane, dropshipping autorisé ou non).`,
       'Connecteurs API sur AliExpress, BigBuy et CJ Dropshipping : prix et stock en temps réel, commande déposée chez le fournisseur.',

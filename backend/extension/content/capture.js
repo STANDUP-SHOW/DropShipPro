@@ -818,6 +818,29 @@
     const meta = document.querySelector('meta[property="product:price:amount"]')?.content
     if (meta) return parsePrice(meta)
 
+    /*
+     * Schema.org microdata, before any guess (reichelt.com, 19/09/2026).
+     *
+     * Reichelt writes its price as « 100,<sup>83</sup> € » : the element has a
+     * child, so the visual scan below skipped it and kept the largest LEAF that
+     * looked like a price — « 9,09 € », an accessory listed under the product.
+     * The page declares the right one itself (<meta itemprop="price"
+     * content="100.83">) : what a site declares beats what we infer. Only the
+     * first Product scope counts — recommendations are Product scopes too.
+     */
+    const fiche = document.querySelector('[itemtype*="schema.org/Product" i]')
+    const declare = fiche?.querySelector('[itemprop="price"]')
+    if (declare) {
+      // A machine-written « 1,234.50 » uses the comma for thousands, never decimals.
+      const brut = (declare.getAttribute('content') || declare.textContent || '').trim()
+      const valeur = parsePrice(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(brut) ? brut.replace(/,/g, '') : brut)
+      if (valeur > 0) {
+        const devise = fiche.querySelector('[itemprop="priceCurrency"]')
+        devisePrix = (devise?.getAttribute('content') || devise?.textContent || '').trim().toUpperCase() || devisePrix
+        return valeur
+      }
+    }
+
     // Otherwise take the most prominent on-page price: scan elements whose text
     // is a currency amount and keep the one rendered largest. The currency is
     // read from that same element: a page priced in yen must say so.
@@ -835,6 +858,9 @@
     if (best.text) devisePrix = deviseDe(best.text) || devisePrix
     return best.value
   }
+
+  // Exposé pour le banc check-prix-declare.cjs : le prix et la devise retenus.
+  self.__dspReleverPrix = () => ({ prix: collectPrice(), devise: devisePrix })
 
   function collectCategory() {
     const crumbs = [...document.querySelectorAll('[class*="breadcrumb" i] a, nav a')]

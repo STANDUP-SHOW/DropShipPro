@@ -315,6 +315,7 @@ function checkPhotoFilters() {
     'https://static.banggood.com/images/oaupload/banggood/images/AA/BB/lampe.webp',
     'https://m.media-amazon.com/images/I/71QwertyL._AC_SL1500_.jpg',
     'https://c.superdelivery.com/ip/n/sa/600/600/www.superdelivery.com/product_image/017/754/294/17754294_1001.jpg',
+    'https://cdn-reichelt.de/bilder/web/xxl_ws/E910%2FMED_MI1005_01.png',
     'https://cdn.site.com/upload-images/produit-vue-3.jpg',
     'https://cdn.site.com/download-center/notice-produit.png',
     'https://ae01.alicdn.com/kf/H9876/sac_1000x1000.jpg',

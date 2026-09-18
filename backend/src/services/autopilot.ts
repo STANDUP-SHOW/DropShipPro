@@ -55,7 +55,9 @@ export interface RunResult {
 /** Les sites dont la fiche ne se lit pas côté serveur : l'extension est requise. */
 // SUPER DELIVERY n'est pas en JavaScript, mais son prix de gros n'apparaît
 // qu'une fois connecté : le serveur n'y lirait qu'une fiche sans prix.
-const EXTENSION_ONLY = ['temu.', 'aliexpress.', 'joybuy.', 'shein.', 'superdelivery.']
+// reichelt.com sert un mur « Security Check » (503 + captcha) à tout ce qui n'est pas
+// un navigateur (sondé le 19/09/2026) : le serveur n'y lira jamais une fiche.
+const EXTENSION_ONLY = ['temu.', 'aliexpress.', 'joybuy.', 'shein.', 'superdelivery.', 'reichelt.']
 
 function needsExtension(sourceUrl: string) {
   try {
