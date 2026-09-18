@@ -72,7 +72,7 @@ export default function Acquisition() {
                 {v.action ? (
                   <Link
                     to={v.action.to}
-                    className="mt-2 inline-block rounded-lg border border-purple-400/40 px-3 py-1.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/10"
+                    className="mt-2 inline-block rounded-lg border border-purple-400/40 px-3 py-2.5 text-xs sm:py-1.5 font-semibold text-purple-200 hover:bg-purple-500/10"
                   >
                     {v.action.label}
                   </Link>

@@ -623,7 +623,7 @@ export default function Dashboard() {
               onClick={ajouterManuel}
               disabled={creationManuelle}
               title="Créer une annonce vide et la remplir vous-même — gratuit"
-              className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+              className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-xs sm:py-1.5 font-semibold disabled:opacity-50"
             >
               <Plus size={13} />
               <span>{creationManuelle ? 'Création…' : 'Ajouter un produit'}</span>
@@ -834,7 +834,7 @@ export default function Dashboard() {
           </p>
         ) : view === 'grid' ? (
           // Quatre annonces par ligne sur un écran 16/9 (06/09/2026).
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
             {visible.map((p) => {
               const isSelected = selectedIds.includes(p.id)
               return (

@@ -99,7 +99,7 @@ export default function Accounting() {
         <p className="text-xs leading-relaxed text-sky-100">{affiche.avertissement}</p>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <p className="text-xs text-gray-500">Commandes</p>
           <p className="text-xl font-bold tabular-nums">{total.commandes}</p>
@@ -148,9 +148,9 @@ export default function Accounting() {
 
           <div className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
             {[...affiche.parMois].reverse().map((m) => (
-              <div key={m.mois} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <div key={m.mois} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
                 <span className="font-medium">{moisLisible(m.mois)}</span>
-                <span className="flex items-center gap-4 text-xs">
+                <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-0.5 text-xs sm:flex-nowrap sm:gap-4">
                   <span className="text-gray-400">{`${m.commandes} vente(s)`}</span>
                   {m.rembourses ? (
                     <span className="text-amber-300">{`${m.rembourses} remb.`}</span>
@@ -173,9 +173,9 @@ export default function Accounting() {
       ) : (
         <div className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
           {affiche.parPlateforme.map((p) => (
-            <div key={p.platform} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <div key={p.platform} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
               <span className="font-medium">{p.platform}</span>
-              <span className="flex items-center gap-4 text-xs">
+              <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-0.5 text-xs sm:flex-nowrap sm:gap-4">
                 <span className="text-gray-400">{`${p.commandes} vente(s)`}</span>
                 {p.rembourses ? <span className="text-amber-300">{`${p.rembourses} remb.`}</span> : null}
                 <span className="tabular-nums text-purple-200">{euros(p.chiffre)}</span>
@@ -198,7 +198,7 @@ export default function Accounting() {
         peut rédiger les réponses ; vous les relisez avant l'envoi.
       </p>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section>
           <p className="flex items-center gap-1.5 text-sm font-semibold">
             <MessageSquare size={14} className="text-purple-300" />

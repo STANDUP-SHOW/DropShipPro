@@ -226,7 +226,7 @@ export function PlatformCredentialForm({
                   </>
                 )}
                 <div className="flex items-center gap-2">
-                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                  <button className="rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5">
                     {cred?.connected ? 'Remplacer' : 'Connecter ma boutique'}
                   </button>
                   {cred?.connected ? (
@@ -310,7 +310,7 @@ export function PlatformCredentialForm({
                   </button>
                 )}
                 <div className="flex items-center gap-2">
-                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                  <button className="rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5">
                     {cred?.connected ? 'Remplacer' : 'Connecter mon compte eBay'}
                   </button>
                   {cred?.connected ? (
@@ -372,7 +372,7 @@ export function PlatformCredentialForm({
                   L'EAN reste obligatoire sur chaque produit déposé.
                 </p>
                 <div className="flex items-center gap-2">
-                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                  <button className="rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5">
                     {cred?.connected ? 'Remplacer' : 'Connecter'}
                   </button>
                   {cred?.connected ? (
@@ -421,7 +421,7 @@ export function PlatformCredentialForm({
                   dans <b>Mon compte › Paramètres › API</b>.
                 </p>
                 <div className="flex items-center gap-2">
-                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                  <button className="rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5">
                     {cred?.connected ? 'Remplacer' : 'Connecter'}
                   </button>
                   {cred?.connected ? (
@@ -450,9 +450,9 @@ export function PlatformCredentialForm({
                     {...PROPS_SANS_REMPLISSAGE}
                     name="apiKey"
                     placeholder="Clé API / token"
-                    className="flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                   />
-                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                  <button className="rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5">
                     Enregistrer
                   </button>
                 </form>

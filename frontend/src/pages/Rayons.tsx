@@ -141,7 +141,7 @@ export default function Rayons() {
 
       <section className="mt-6 rounded-xl border border-white/10 bg-white/5 p-5">
         <h2 className="font-bold">Ce que fait un chef de rayon</h2>
-        <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+        <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {MISSIONS.map((m) => {
             const Icon = m.icon
             return (
@@ -162,7 +162,7 @@ export default function Rayons() {
       {hired.length > 0 && (
         <section className="mt-6">
           <h2 className="font-bold">Vos rayons</h2>
-          <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {hired.map((d) => (
               <li key={d.id}>
                 {/* La vignette profil (modèle du 06/09/2026) : le prénom en
@@ -216,7 +216,7 @@ export default function Rayons() {
           Un agent par secteur. Chacun connaît ses fournisseurs, ses saisons et ses pièges.
         </p>
 
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {catalogue.map((p) => (
             <li key={p.key} className={p.hired ? 'opacity-60' : undefined}>
               <VignetteProfil prenom={p.agentName} role={p.label} emoji={p.emoji} compact>

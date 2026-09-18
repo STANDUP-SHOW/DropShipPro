@@ -140,7 +140,7 @@ export function PublishTargets({
             {selected.includes('OWN_SITE') ? <CheckCircle2 size={16} className="ml-auto shrink-0" /> : null}
           </button>
         ) : (
-          <div className="@container mt-2 grid gap-2 @sm:grid-cols-2">
+          <div className="@container mt-2 grid grid-cols-1 gap-2 @sm:grid-cols-2">
             {shops.map((s) => {
               const coche = shopIds.includes(s.id)
               return (
@@ -204,7 +204,7 @@ export function PublishTargets({
               deux lignes, l'autre s'étire au lieu de laisser un vide.
             */}
             <div className="@container mt-2">
-              <div className="grid gap-2 @sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 @sm:grid-cols-2">
               {g.liste.map((p) => {
                 const coche = selected.includes(p.id)
                 /*

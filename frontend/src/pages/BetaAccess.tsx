@@ -343,7 +343,7 @@ function Depot({ onDepose }: { onDepose: () => void }) {
         type="button"
         onClick={deposer}
         disabled={envoi || !texte.trim()}
-        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs transition hover:bg-white/5 disabled:opacity-40"
+        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2.5 text-xs sm:py-1.5 transition hover:bg-white/5 disabled:opacity-40"
       >
         <Upload size={12} />
         <span>{envoi ? 'Dépôt…' : 'Déposer'}</span>

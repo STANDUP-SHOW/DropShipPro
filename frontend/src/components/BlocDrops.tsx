@@ -56,8 +56,13 @@ export function BlocDrops() {
         <span className="block truncate text-lg font-extrabold leading-none text-white">
           {solde.credits.toLocaleString('fr-FR')}
         </span>
+        {/* Sur téléphone, la tuile n'a que 76 px pour ce libellé et
+            « drops · ≈ 25 € » y sortait coupé. L'équivalent en euros n'y est
+            donc écrit qu'à partir de `sm` ; il reste dans l'infobulle, sur le
+            badge du haut et sur la page Mes crédits. */}
         <span className="mt-1 block truncate text-[9px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
-          {euros ? `drops · ≈ ${euros} €` : 'drops'}
+          <span className="sm:hidden">drops</span>
+          <span className="hidden sm:inline">{euros ? `drops · ≈ ${euros} €` : 'drops'}</span>
         </span>
       </span>
       <span

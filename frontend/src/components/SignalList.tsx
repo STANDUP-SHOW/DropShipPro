@@ -156,7 +156,7 @@ export function SignalList({
                 href={s.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+                className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
               >
                 <ExternalLink size={13} />
                 <span>Ouvrir la source</span>

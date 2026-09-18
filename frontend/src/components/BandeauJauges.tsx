@@ -106,20 +106,34 @@ export function BandeauJauges() {
   ]
 
   /*
-   * UNE seule ligne, toujours — demandé le 05/09/2026. Six cellules en flex
-   * qui se partagent la largeur ; quand l'écran se resserre, les textes
-   * disparaissent et il ne reste que les jauges, belles et cliquables, le
-   * détail passant dans l'infobulle. Jamais deux lignes.
+   * UNE seule ligne, toujours — demandé le 05/09/2026, et c'est toujours le
+   * cas. Au-dessus de `lg`, six cellules en flex se partagent la largeur.
+   *
+   * **Sur téléphone, la règle se retournait contre elle-même.** Six cellules
+   * `flex-1` dans 343 px tombaient à 60 px chacune : le titre, écrit en 8 px,
+   * sortait tronqué en « FOURNISSEU » et « RÉSEA SOCIA », la valeur et le
+   * geste étaient masqués, et la sixième jauge finissait hors de l'écran sans
+   * que rien n'indique qu'elle existait. Le détail était censé passer dans
+   * l'infobulle — qui ne s'ouvre pas au doigt. Il ne restait donc rien de
+   * lisible, et c'est exactement ce qui était reproché à l'application sur
+   * téléphone.
+   *
+   * La ligne reste unique : elle défile latéralement, par crans, avec des
+   * cellules assez larges pour porter le titre entier et la valeur écrite.
+   * Deux cellules et demie tiennent à l'écran — la troisième coupée est ce
+   * qui dit qu'il y en a d'autres derrière. Aucune hauteur n'est prise en
+   * plus : sur un écran de téléphone, les bandeaux partagés mangent déjà la
+   * moitié de la page avant son titre.
    */
   const cellule =
-    'flex min-w-[68px] flex-1 shrink-0 flex-col items-center gap-1 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
+    'flex w-[10.25rem] shrink-0 snap-start items-center gap-2 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-2 py-2 backdrop-blur-xl lg:w-auto lg:min-w-[68px] lg:flex-1 lg:justify-start lg:gap-2.5 lg:px-3'
 
   return (
     // `top-14` sur téléphone : la barre du menu est collée au-dessus, et deux
     // éléments collés à `top-0` se recouvrent. Au-dessus de `md` cette barre
     // n'existe pas, donc les jauges reprennent le haut de l'écran.
     <div className="sticky top-14 z-20 -mx-4 mb-5 border-b border-white/[0.06] bg-[#08070f]/80 px-4 py-2.5 backdrop-blur-xl md:top-0 md:-mx-8 md:px-8">
-      <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
+      <div className="flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1">
         {blocs.map((b) => (
           <Link
             key={b.label}
@@ -127,12 +141,13 @@ export function BandeauJauges() {
             title={`${b.label} : ${b.valeur} — ${b.action}`}
             className={`${cellule} transition hover:border-white/[0.18]`}
           >
-            <span className="order-2 w-9 shrink-0 lg:order-1 [&_svg]:h-auto [&_svg]:w-full">{b.dessin}</span>
-            {/* Le titre reste écrit, en blanc, même compressé (05/09/2026) ;
-                seuls la valeur et le geste s'effacent sur écran étroit. */}
-            <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
-              <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">{b.label}</span>
-              <span className="hidden truncate text-sm font-bold leading-tight lg:block">{b.valeur}</span>
+            <span className="w-7 shrink-0 lg:w-9 [&_svg]:h-auto [&_svg]:w-full">{b.dessin}</span>
+            {/* Le titre reste écrit, en blanc (05/09/2026). La valeur le suit
+                désormais dès le téléphone : « 12 / 30 » est le renseignement,
+                le dessin n'en donne que l'allure. Seul le geste attend `lg`. */}
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block truncate text-[10px] font-bold uppercase leading-tight text-white lg:text-[9px] lg:tracking-wider">{b.label}</span>
+              <span className="block truncate text-xs font-bold leading-tight lg:text-sm">{b.valeur}</span>
               <span className="hidden truncate text-[10px] text-purple-300 lg:block">{b.action}</span>
             </span>
           </Link>
@@ -141,12 +156,12 @@ export function BandeauJauges() {
         {/* Le sixième bloc : la jauge d'ensemble, sans porte — c'est un état,
             pas un geste. */}
         <div className={cellule} title={`Utilisation : ${jauges.utilisation} % du potentiel de l'appli`}>
-          <span className="order-2 w-9 shrink-0 lg:order-1 [&_svg]:h-auto [&_svg]:w-full">
+          <span className="w-7 shrink-0 lg:w-9 [&_svg]:h-auto [&_svg]:w-full">
             <Jauge part={Math.max(jauges.utilisation > 0 ? 0 : 0.42, jauges.utilisation / 100)} encre={{ de: '#fbbf24', a: '#fb7185' }} />
           </span>
-          <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
-            <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">Plateforme</span>
-            <span className="hidden text-sm font-bold leading-tight lg:block">{jauges.utilisation} %</span>
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate text-[10px] font-bold uppercase leading-tight text-white lg:text-[9px] lg:tracking-wider">Plateforme</span>
+            <span className="block truncate text-xs font-bold leading-tight lg:text-sm">{jauges.utilisation} %</span>
             <span className="hidden truncate text-[10px] text-gray-500 lg:block">du potentiel utilisé</span>
           </span>
         </div>

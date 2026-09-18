@@ -89,7 +89,7 @@ export default function AdminNewsletter() {
             <button
               type="button"
               onClick={copierEmails}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
             >
               {copie ? <Check size={13} /> : <Copy size={13} />}
               <span>{copie ? 'Copié' : 'Copier les emails'}</span>
@@ -97,7 +97,7 @@ export default function AdminNewsletter() {
             <button
               type="button"
               onClick={exporterCsv}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
             >
               <Download size={13} />
               <span>Exporter (CSV)</span>

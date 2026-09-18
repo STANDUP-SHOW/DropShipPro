@@ -90,7 +90,7 @@ export default function CommandesFournisseurs() {
           <Link
             key={label}
             to={cle ? `/commandes-fournisseurs?etat=${cle}` : '/commandes-fournisseurs'}
-            className={`rounded-full border px-3 py-1 text-[11px] ${
+            className={`rounded-full border px-3.5 py-2.5 text-xs sm:px-3 sm:py-1 sm:text-[11px] ${
               etat === cle || (!etat && !cle)
                 ? 'border-purple-400/50 bg-purple-500/20 text-white'
                 : 'border-white/10 text-gray-400 hover:bg-white/5'
@@ -163,7 +163,7 @@ export default function CommandesFournisseurs() {
                     href={o.supplierOrderUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+                    className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
                   >
                     <Truck size={12} /> Suivre chez le fournisseur <ExternalLink size={12} />
                   </a>
@@ -176,7 +176,7 @@ export default function CommandesFournisseurs() {
                 {e === 'sav' ? (
                   <Link
                     to="/sav-fournisseurs"
-                    className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs text-red-200 hover:bg-red-500/10"
+                    className="rounded-lg border border-red-400/30 px-3 py-2.5 text-xs sm:py-1.5 text-red-200 hover:bg-red-500/10"
                   >
                     Voir dans SAV fournisseurs
                   </Link>

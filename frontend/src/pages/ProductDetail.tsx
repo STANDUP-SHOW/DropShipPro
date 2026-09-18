@@ -441,7 +441,7 @@ export default function ProductDetail() {
         puis la suite. Sans cela, toute la colonne visuelle — vidéo et studio
         compris — s'empilait avant même le titre.
       */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         {/* ---------- Colonne visuelle ---------- */}
         <div className="flex flex-col gap-5 max-lg:contents">
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 max-lg:order-1">
@@ -746,7 +746,7 @@ export default function ProductDetail() {
             {Object.keys(attributes).length === 0 ? (
               <p className="text-xs text-gray-500">Aucun attribut généré.</p>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {Object.entries(attributes).map(([name, value]) => (
                   <div key={name}>
                     <label className="text-xs text-gray-500">{name}</label>
@@ -777,7 +777,7 @@ export default function ProductDetail() {
             sur du reconditionné — motif de retrait de l'annonce.
           */}
           <Card icon={BadgeCheck} title="État du produit" className="max-lg:order-5">
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {etats.map((e) => {
                 const choisi = (product.condition ?? 'neuf') === e.id
                 return (
@@ -929,7 +929,7 @@ export default function ProductDetail() {
               </button>
             </div>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <CopyField label="Titre" value={product.aiTitle ?? ''} />
             <CopyField label="Prix" value={`${sellingPrice.toFixed(2)} ${product.currency}`} />
             <CopyField label="Description" value={product.aiDescription ?? ''} />

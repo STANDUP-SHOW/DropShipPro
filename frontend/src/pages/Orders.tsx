@@ -120,7 +120,7 @@ export default function Orders() {
       </div>
 
       {showForm && (
-        <form onSubmit={onCreate} className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5 grid sm:grid-cols-2 gap-3">
+        <form onSubmit={onCreate} className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <select name="productId" required className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm sm:col-span-2">
             <option value="">Produit vendu...</option>
             {products.map((p) => (
@@ -158,7 +158,7 @@ export default function Orders() {
           <Link
             key={label}
             to={cle ? `/orders?etat=${cle}` : '/orders'}
-            className={`rounded-full border px-3 py-1 text-[11px] ${
+            className={`rounded-full border px-3.5 py-2.5 text-xs sm:px-3 sm:py-1 sm:text-[11px] ${
               etat === cle || (!etat && !cle)
                 ? 'border-purple-400/50 bg-purple-500/20 text-white'
                 : 'border-white/10 text-gray-400 hover:bg-white/5'
@@ -193,7 +193,7 @@ export default function Orders() {
                   type="button"
                   onClick={() => supprimer(o)}
                   title="Supprimer cette commande"
-                  className="rounded-lg border border-white/10 p-1.5 text-gray-500 hover:bg-white/5 hover:text-red-400"
+                  className="rounded-lg border border-white/10 p-2.5 text-gray-500 hover:bg-white/5 hover:text-red-400 sm:p-1.5"
                 >
                   <Trash2 size={13} />
                 </button>

@@ -224,7 +224,7 @@ export default function SavMessagerie() {
               <X size={16} />
             </button>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input
               value={nomFournisseur}
               onChange={(e) => setNomFournisseur(e.target.value)}
@@ -341,7 +341,7 @@ export default function SavMessagerie() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <ul className="space-y-2">
           {shown.map((c) => (
             <li key={c.id}>
@@ -420,7 +420,7 @@ export default function SavMessagerie() {
               <button
                 type="button"
                 onClick={close}
-                className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5"
+                className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2.5 text-xs sm:py-1.5 hover:bg-white/5"
               >
                 <CheckCheck size={13} />
                 <span>Clôturer</span>

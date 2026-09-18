@@ -247,7 +247,7 @@ function VueMarketplaces({ d }: { d: Marketplaces }) {
   return (
     <div className="mt-3">
       <p className="text-sm text-gray-200">{d.synthese}</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
         <Chiffre label="Prix le plus bas" valeur={euro(d.prixBas)} />
         <Chiffre label="Prix le plus haut" valeur={euro(d.prixHaut)} />
         <Chiffre label="Prix conseillé" valeur={euro(d.prixConseille)} />
@@ -304,7 +304,7 @@ function VuePublicites({ d }: { d: Publicites }) {
         du volet. Le reste est une synthèse sourcée ; ces deux liens mènent à la
         donnée elle-même, pré-filtrée sur les mots du vendeur et son marché.
       */}
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {d.bibliotheques.map((b) => (
           <a
             key={b.nom}
@@ -374,7 +374,7 @@ function VueBoutiques({ d }: { d: Boutiques }) {
     <div className="mt-3">
       <p className="text-sm text-gray-200">{d.synthese}</p>
       {d.boutiques.length ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {d.boutiques.map((b, i) => (
             <div key={`${b.nom}-${i}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
               <div className="flex items-baseline justify-between gap-2">

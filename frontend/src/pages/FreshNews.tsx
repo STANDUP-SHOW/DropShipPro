@@ -235,7 +235,7 @@ export default function FreshNews() {
           </header>
 
           {/* ---------- Les blocs ---------- */}
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             {blocs.map((b) => (
               <section
                 key={b.id}
