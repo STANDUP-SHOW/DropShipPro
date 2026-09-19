@@ -419,6 +419,17 @@ export const api = {
         titre: string
       }>
     }>(`/prompts/all${enQuery({ category: params.categorie, type: undefined })}`),
+  /*
+   * Ce que les agents ont déposé, par jour et par section : de quoi peindre les
+   * cinq pastilles du menu en UN appel.
+   *
+   * Le serveur ne compte pas les « non lus » — il ne sait pas ce que ce vendeur
+   * a ouvert, et lui demander section par section ferait cinq requêtes. Il rend
+   * les journées, le navigateur additionne ce qui est plus récent que sa
+   * dernière visite (voir lib/nouveautes.ts).
+   */
+  nouveautesRapports: () =>
+    request<Record<string, Array<{ jour: string; nombre: number }>>>('/reports/nouveautes'),
   // La file d'import exécutée par l'agent extension.
   fileImportAjouter: (produits: Array<{ url: string; titre?: string; fournisseur?: string; mode?: 'api' | 'url' | 'extension'; origine?: string }>) =>
     request<{ ajoutes: number; dejaEnFile: number }>('/market-reports/file', { method: 'POST', body: JSON.stringify({ produits }) }),

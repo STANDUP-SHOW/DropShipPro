@@ -11,6 +11,8 @@ import { BoutonTheme } from './BoutonTheme'
 import { MenuBoutiques } from './MenuBoutiques'
 import { BandeauJauges } from './BandeauJauges'
 import { BandeauNotifications } from './BandeauNotifications'
+import { PastilleNotif } from './PastilleNotif'
+import { SECTION_PAR_ADRESSE, titreNouveautes, useNouveautes } from '../lib/nouveautes'
 import { useAuth } from '../lib/auth'
 import { demoAutorise } from '../lib/demo'
 import { useNeonVarie } from '../lib/neonColors'
@@ -227,6 +229,13 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
     if (pathname !== to) return false
     return !PRECISES.some((p) => p === adresseComplete && p.startsWith(`${to}?`))
   }
+  /*
+   * Les pastilles de nouveautés (19/09/2026, demande de Max) : ce que les
+   * agents ont déposé et que personne n'a encore ouvert, à côté du titre qui y
+   * mène. Le relevé est commun aux cinq entrées — un seul appel — et ouvrir une
+   * entrée éteint la sienne. Voir lib/nouveautes.ts.
+   */
+  const nouveautes = useNouveautes(adresseComplete)
   const { logout, user } = useAuth()
   // Peint chaque bloc d'une couleur de néon variée (vert/jaune/bleu/rose/orange/
   // violet/bleu-ciel), au lieu d'un rose uniforme — et suit les blocs qui se
@@ -474,6 +483,23 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                       : 'text-gray-400 hover:bg-white/5 hover:text-white'
                   }`
 
+                  /*
+                   * La pastille des nouveautés, pour les cinq entrées qui
+                   * reçoivent quelque chose des agents. Elle est poussée au
+                   * bout de la ligne (`ml-auto`) plutôt que collée au mot :
+                   * les libellés n'ont pas la même longueur, et cinq pastilles
+                   * alignées se lisent d'un coup d'œil. Elle ne se peint pas à
+                   * zéro — le composant ne rend alors rien du tout.
+                   */
+                  const section = item.externe ? undefined : SECTION_PAR_ADRESSE[item.to]
+                  const pastille = section ? (
+                    <PastilleNotif
+                      nombre={nouveautes[section]}
+                      titre={titreNouveautes(section, nouveautes[section])}
+                      className="ml-auto"
+                    />
+                  ) : null
+
                   return item.externe ? (
                     <a key={item.to} href={item.to} target="_blank" rel="noreferrer noopener" className={classes}>
                       <item.icon size={18} />
@@ -483,6 +509,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                     <Link key={item.to} to={item.to} className={classes}>
                       <item.icon size={18} />
                       <span>{item.label}</span>
+                      {pastille}
                     </Link>
                   )
                 })}

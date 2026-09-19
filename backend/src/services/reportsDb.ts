@@ -280,6 +280,81 @@ export class ReportQuery {
     }
   }
 
+  /**
+   * Per-section item counts, bucketed by report date.
+   *
+   * The menu badges need one number per section, but "unread" is decided by the
+   * browser (it holds the last-seen date per section in localStorage), not here.
+   * Returning a total would force one request per section with a `since`
+   * parameter; returning the buckets lets the client sum whatever is newer than
+   * what it has already seen — five badges out of a single call, and the answer
+   * is identical for everyone, so it caches.
+   *
+   * Sections mirror the menu entries exactly: Fresh news reads every report,
+   * « Analyses de marché » the `rayon` ones, « Analyses réseaux » the
+   * `marketing` ones, « Produits gagnants » the products and « Prompts IA » the
+   * image and video prompts.
+   */
+  getCountsByDate() {
+    const parJour = (rows: any[]) =>
+      rows.map((row) => ({ jour: String(row.date), nombre: Number(row.count) }))
+
+    const rapports = this.db
+      .prepare('SELECT date, COUNT(*) as count FROM reports GROUP BY date ORDER BY date DESC')
+      .all() as any[]
+    const parType = (type: 'rayon' | 'marketing') =>
+      this.db
+        .prepare('SELECT date, COUNT(*) as count FROM reports WHERE type = ? GROUP BY date ORDER BY date DESC')
+        .all(type) as any[]
+
+    const produits = this.db
+      .prepare(`
+        SELECT r.date, COUNT(*) as count
+        FROM products p
+        JOIN rayon_reports rr ON rr.id = p.rayon_report_id
+        JOIN reports r ON r.id = rr.report_id
+        GROUP BY r.date
+        ORDER BY r.date DESC
+      `)
+      .all() as any[]
+
+    /*
+     * Prompts are JSON arrays inside marketing_reports, so they are counted
+     * here rather than in SQL: sixteen rows, and a hand-rolled json_array_length
+     * would break the day a report ships a malformed array.
+     */
+    const lignesPrompts = this.db
+      .prepare(`
+        SELECT r.date, m.image_prompts, m.video_prompts
+        FROM marketing_reports m
+        JOIN reports r ON r.id = m.report_id
+      `)
+      .all() as any[]
+    const promptsParJour = new Map<string, number>()
+    for (const ligne of lignesPrompts) {
+      const compte = (brut: unknown) => {
+        try {
+          const liste = JSON.parse(String(brut ?? '[]'))
+          return Array.isArray(liste) ? liste.length : 0
+        } catch {
+          return 0
+        }
+      }
+      const jour = String(ligne.date)
+      promptsParJour.set(jour, (promptsParJour.get(jour) ?? 0) + compte(ligne.image_prompts) + compte(ligne.video_prompts))
+    }
+
+    return {
+      'fresh-news': parJour(rapports),
+      analyses: parJour(parType('rayon')),
+      'reseaux-analyses': parJour(parType('marketing')),
+      gagnants: parJour(produits),
+      'reseaux-prompts': [...promptsParJour.entries()]
+        .map(([jour, nombre]) => ({ jour, nombre }))
+        .sort((a, b) => (a.jour < b.jour ? 1 : -1)),
+    }
+  }
+
   // Get categories
   getCategories() {
     const stmt = this.db.prepare('SELECT DISTINCT categorie FROM reports ORDER BY categorie')

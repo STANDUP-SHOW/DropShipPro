@@ -44,6 +44,27 @@ reportsPublicRouter.get('/reports/stats', (_req, res) => {
 })
 
 /**
+ * GET /reports/nouveautes
+ * Per-section item counts bucketed by day, for the menu notification badges.
+ *
+ * ONE call feeds the five badges. Sending a `since` per section would mean five
+ * requests whose answers differ per visitor and cache nowhere; the buckets are
+ * the same for everybody and the browser — which alone knows what its owner has
+ * already opened — sums the days newer than its last-seen mark.
+ *
+ * Declared BEFORE `/reports` so the literal path is never read as a filter, and
+ * it sits on this router (mounted at /api) ahead of the private reports router,
+ * whose `/:id` would otherwise swallow it.
+ */
+reportsPublicRouter.get('/reports/nouveautes', (_req, res) => {
+  try {
+    res.json(baseRapports().getCountsByDate())
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch counts', motif: motif(error) })
+  }
+})
+
+/**
  * GET /reports/categories
  * Get list of product categories
  */

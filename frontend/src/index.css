@@ -225,6 +225,13 @@ html[data-theme="light"] { color-scheme: light; }
   background: radial-gradient(1100px 700px at 75% -10%, #f1e9ff, #ffffff 60%);
 }
 [data-theme="light"] .btn-gradient { --color-white: #fff; }
+/* Même raison pour la pastille de nouveautés : son dégradé jaune → rose reste
+ * soutenu en thème clair, des chiffres passés en gris-noir n'y seraient plus
+ * lisibles. Le liseré, lui, se retourne : sur blanc il doit être sombre. */
+[data-theme="light"] .pastille-notif {
+  --color-white: #fff;
+  --tw-ring-color: rgba(17, 24, 39, 0.12);
+}
 [data-theme="light"] option,
 [data-theme="light"] optgroup { background-color: #ffffff; color: #111827; }
 /* Les fonds écrits en dur : le noir du décor et des jauges, le violet nuit des
