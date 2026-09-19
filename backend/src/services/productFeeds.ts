@@ -2,6 +2,7 @@ import type { Product } from '@prisma/client'
 import { titleForChannel } from './channelCopy.js'
 import { absoluteUrl } from '../lib/urls.js'
 import { etatPour } from './productCondition.js'
+import { codeBarresDe } from './productFacts.js'
 
 /**
  * Les flux produits lus par Meta et par Google.
@@ -147,6 +148,10 @@ export function googleRss(items: FeedItem[], shopKey: string, shopName: string, 
         '      <g:availability>in stock</g:availability>',
         `      <g:condition>${etatPour(product.condition, 'flux')}</g:condition>`,
         `      <g:brand>${xmlText(brandFallback)}</g:brand>`,
+        // Le GTIN quand on l'a, clé vérifiée ; sinon Google doit savoir qu'il n'existe pas.
+        codeBarresDe(product)
+          ? `      <g:gtin>${codeBarresDe(product)}</g:gtin>`
+          : '      <g:identifier_exists>no</g:identifier_exists>',
         category ? `      <g:product_type>${xmlText(category)}</g:product_type>` : '',
         '    </item>',
       ]

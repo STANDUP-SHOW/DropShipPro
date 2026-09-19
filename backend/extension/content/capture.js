@@ -1054,6 +1054,242 @@
     })
   }
 
+  // --- Le code-barres et les avis d'acheteurs (19/09/2026) -------------------
+
+  /** Tous les blocs JSON-LD de type Product, à plat. */
+  function produitsJsonLd() {
+    const out = []
+    const voir = (n) => {
+      if (!n || typeof n !== 'object') return
+      if (Array.isArray(n)) return n.forEach(voir)
+      const type = n['@type']
+      if (type === 'Product' || (Array.isArray(type) && type.includes('Product'))) out.push(n)
+      if (n['@graph']) voir(n['@graph'])
+    }
+    for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        voir(JSON.parse(s.textContent))
+      } catch {
+        // Un bloc illisible n'empêche pas de lire les suivants.
+      }
+    }
+    return out
+  }
+
+  /**
+   * Le code-barres que la page DÉCLARE : microdonnées puis JSON-LD.
+   *
+   * Rien n'est cherché dans le texte ici — le serveur le fait derrière une
+   * étiquette « EAN », et il revérifie la clé GS1 de toute façon.
+   */
+  function collectEan() {
+    const fiche = document.querySelector('[itemtype*="schema.org/Product" i]')
+    for (const nom of ['gtin13', 'gtin', 'gtin14', 'gtin12', 'gtin8']) {
+      const el = fiche?.querySelector(`[itemprop="${nom}"]`)
+      const v = (el?.getAttribute('content') || el?.textContent || '').replace(/\D/g, '')
+      if (v.length >= 8) return v
+    }
+    for (const p of produitsJsonLd()) {
+      for (const nom of ['gtin13', 'gtin', 'gtin14', 'gtin12', 'gtin8']) {
+        const v = String(p[nom] ?? '').replace(/\D/g, '')
+        if (v.length >= 8) return v
+      }
+    }
+    return null
+  }
+
+  const AVIS_MAX = 40
+
+  /** La note écrite quelque part dans un bloc d'avis, de 1 à 5, ou null. */
+  function noteDuBloc(bloc) {
+    const dire = (t) => {
+      if (!t) return null
+      const m =
+        // « 4,4 sur 5 », « 5 étoiles sur 5 » (Amazon), « 4 out of 5 stars ».
+        t.match(/(\d(?:[.,]\d)?)\s*(?:étoiles?|etoiles?|stars?|sterne)?\s*(?:sur|out of|von|de|\/)\s*5/i) ||
+        t.match(/(?:rated|note|noté)\s*:?\s*(\d(?:[.,]\d)?)/i) ||
+        t.match(/^(\d(?:[.,]\d)?)\s*(?:étoiles?|etoiles?|stars?|sterne)/i)
+      if (!m) return null
+      const n = Math.round(parseFloat(m[1].replace(',', '.')))
+      return n >= 1 && n <= 5 ? n : null
+    }
+
+    const declare = bloc.querySelector('[itemprop="ratingValue"]')
+    if (declare) {
+      const d = dire(`${declare.getAttribute('content') || declare.textContent || ''} / 5`)
+      if (d) return d
+    }
+
+    for (const el of bloc.querySelectorAll('[aria-label], [title], [alt]')) {
+      const n = dire(el.getAttribute('aria-label')) || dire(el.getAttribute('title')) || dire(el.getAttribute('alt'))
+      if (n) return n
+    }
+
+    // La note écrite en TEXTE dans le pictogramme d'étoiles — c'est ce que fait
+    // Amazon (<i class="a-icon-star"><span>5 étoiles sur 5</span></i>), constaté
+    // le 19/09/2026 : ni aria-label, ni title, ni alt.
+    for (const el of bloc.querySelectorAll('[class*="star" i], [class*="rating" i], [class*="etoile" i], [data-hook*="star" i]')) {
+      const t = texteCourt(el)
+      if (t.length <= 40) {
+        const n = dire(t)
+        if (n) return n
+      }
+    }
+
+    // Des étoiles écrites en caractères : ★★★★☆.
+    const pleines = (bloc.textContent.match(/★/g) || []).length
+    const vides = (bloc.textContent.match(/☆/g) || []).length
+    if (pleines && pleines + vides <= 5) return pleines
+
+    // Une barre d'étoiles remplie en pourcentage (width: 80 %).
+    for (const el of bloc.querySelectorAll('[class*="star" i] [style*="width"], [class*="rating" i] [style*="width"]')) {
+      const m = (el.getAttribute('style') || '').match(/width:\s*(\d{1,3})(?:\.\d+)?%/)
+      if (m) {
+        const n = Math.round((Number(m[1]) / 100) * 5)
+        if (n >= 1 && n <= 5) return n
+      }
+    }
+    return null
+  }
+
+  function texteCourt(el) {
+    return (el?.textContent || '').replace(/\s+/g, ' ').trim()
+  }
+
+  /**
+   * Les avis d'acheteurs affichés sur la fiche.
+   *
+   * Trois sources, de la plus sûre à la plus large : ce que la page déclare
+   * (JSON-LD `review`, microdonnées `itemprop=review`), puis les blocs dont le
+   * nom dit « avis » et qui portent une note lisible ET un texte. Un bloc sans
+   * note n'est pas repris : noter un avis à la place de son auteur l'inventerait.
+   * Seuls les avis AFFICHÉS sont lus — pas de pagination forcée, pas de clic.
+   */
+  function collectReviews() {
+    const avis = []
+    const vus = new Set()
+    const ajouter = (a) => {
+      const text = (a.text || '').replace(/\s+/g, ' ').trim()
+      if (text.length < 3 || !a.stars || avis.length >= AVIS_MAX) return
+      const cle = text.slice(0, 120).toLowerCase()
+      if (vus.has(cle)) return
+      vus.add(cle)
+      avis.push({
+        stars: a.stars,
+        author: (a.author || '').slice(0, 80),
+        text: text.slice(0, 4000),
+        photos: a.photos || [],
+        date: a.date || undefined,
+      })
+    }
+
+    for (const p of produitsJsonLd()) {
+      const liste = Array.isArray(p.review) ? p.review : p.review ? [p.review] : []
+      for (const r of liste) {
+        const auteur = typeof r.author === 'string' ? r.author : r.author?.name
+        const note = Math.round(parseFloat(String(r.reviewRating?.ratingValue ?? '').replace(',', '.')))
+        ajouter({
+          stars: note >= 1 && note <= 5 ? note : null,
+          author: auteur,
+          text: r.reviewBody || r.description || r.name,
+          date: r.datePublished,
+        })
+      }
+    }
+
+    for (const bloc of document.querySelectorAll('[itemprop="review"]')) {
+      ajouter({
+        stars: noteDuBloc(bloc),
+        author: texteCourt(bloc.querySelector('[itemprop="author"]')),
+        text: texteCourt(bloc.querySelector('[itemprop="reviewBody"], [itemprop="description"]')),
+        date: bloc.querySelector('[itemprop="datePublished"]')?.getAttribute('content') || undefined,
+      })
+    }
+    if (avis.length >= 3) return avis
+
+    const NOM = /review|comment|feedback|avis|evaluation|bewertung|testimonial/i
+    const candidats = [...document.querySelectorAll('[class], [data-testid], [data-hook]')].filter((el) => {
+      const classe = typeof el.className === 'string' ? el.className : ''
+      const nom = `${classe} ${el.getAttribute('data-testid') || ''} ${el.getAttribute('data-hook') || ''}`
+      if (!NOM.test(nom)) return false
+      const t = texteCourt(el)
+      // Neuf mille : un avis détaillé en fait cinq mille, et la liste entière bien plus.
+      return t.length >= 15 && t.length <= 9000
+    })
+
+    // Le bloc le plus INTÉRIEUR qui porte à la fois une note et un texte : la
+    // liste entière porte aussi une note (la moyenne), et ce n'est pas un avis.
+    //
+    // « Porte un texte » compte autant que « porte une note » : mesuré sur une
+    // vraie fiche Amazon le 19/09/2026, le bloc le plus intérieur à porter une
+    // note est le WIDGET d'étoiles, dont le seul texte est « 4,4 sur 5 étoiles ».
+    // La première version relevait 4 widgets et écartait les 13 vrais avis, qui
+    // les contenaient.
+    const LIBELLE_NOTE =
+      /^\s*\d(?:[.,]\d)?\s*(?:étoiles?|etoiles?|stars?|sterne)?\s*(?:sur|out of|von|de|\/)\s*5(?:\s*(?:étoiles?|etoiles?|stars?|sterne))?\s*$/i
+    const COMPTEUR = /^[\d\s.,  ]+(?:évaluations?|evaluations?|avis|notes?|ratings?|reviews?|commentaires?|bewertungen|votes?)\b.{0,20}$/i
+    const lus = new Map()
+    for (const el of candidats) {
+      const note = noteDuBloc(el)
+      if (!note) continue
+      // Le nom est une FEUILLE courte : chez Amazon le premier « profile » est le
+      // lien entier, avatar et <noscript> compris.
+      const auteurEl = [
+        ...el.querySelectorAll(
+          '[class*="author" i], [class*="user" i], [class*="name" i], [class*="nick" i], [class*="profile" i]',
+        ),
+      ].find((n) => n.children.length === 0 && texteCourt(n).length >= 2 && texteCourt(n).length <= 60)
+      const auteur = texteCourt(auteurEl)
+      let corps = ''
+      for (const n of el.querySelectorAll('p, span, div, q, blockquote')) {
+        // Un conteneur de TEXTE : ses enfants sont des paragraphes et de
+        // l'emphase, jamais des blocs. Mesuré sur Amazon : « deux enfants au
+        // plus » réduisait un avis de 2 535 caractères en six paragraphes à son
+        // plus long paragraphe (437), et avalait ailleurs le bouton « Lire la
+        // suite » avec le corps.
+        if ([...n.children].some((c) => !/^(P|SPAN|BR|B|I|EM|STRONG|U|Q|SMALL)$/.test(c.tagName))) continue
+        if (n.querySelector('a, button')) continue
+        // Ni le texte d'amorce replié (« Lire la suite… », classe a-hidden chez
+        // Amazon), ni ce qui vit dans un <noscript>.
+        if (n.closest('[hidden], [aria-hidden="true"], [class*="hidden" i], noscript')) continue
+        if (n.querySelector('[hidden], [aria-hidden="true"], [class*="hidden" i], noscript')) continue
+        const t = texteCourt(n)
+        // « 1 204 évaluations » : le résumé en tête de liste porte une note (la
+        // moyenne) et ce compteur pour seul texte — ce n'est l'avis de personne.
+        if (LIBELLE_NOTE.test(t) || COMPTEUR.test(t) || t === auteur) continue
+        if (t.length > corps.length && t.length <= 6000) corps = t
+      }
+      // Deux mots au moins : « 810 » ou « 4.4 » sous une vignette de produit
+      // recommandé porte une note, et n'est l'avis de personne.
+      if (corps.length >= 10 && (corps.match(/\p{L}{3,}/gu) || []).length >= 2) lus.set(el, { note, auteur, corps })
+    }
+
+    // Lequel de ces blocs EST l'avis ? Ni la liste (elle contient plusieurs
+    // textes), ni le sous-bloc « titre » (étoiles + titre, sans le corps). On
+    // descend de l'extérieur vers l'intérieur : un bloc qui a un enfant portant
+    // le MÊME texte laisse la place à cet emballage plus serré ; un bloc retenu
+    // consomme ses sous-blocs.
+    const consommes = new Set()
+    for (const [el, { note, auteur, corps }] of lus) {
+      if (consommes.has(el)) continue
+      const dedans = [...lus.entries()].filter(([autre]) => autre !== el && el.contains(autre))
+      if (dedans.some(([, d]) => d.corps === corps)) continue
+      for (const [autre] of dedans) consommes.add(autre)
+      const photos = [...el.querySelectorAll('img')]
+        .filter((i) => !/avatar|flag|icon|star/i.test(`${i.className} ${i.src}`) && (i.naturalWidth || i.width) >= 60)
+        .map((i) => i.currentSrc || i.src)
+        .filter((u) => /^https:/.test(u))
+        .slice(0, 6)
+
+      ajouter({ stars: note, author: auteur.length <= 60 ? auteur : '', text: corps, photos })
+    }
+    return avis
+  }
+
+  // Exposés pour le banc check-avis.ts / check-avis-extension.cjs.
+  self.__dspReleverEan = collectEan
+  self.__dspReleverAvis = collectReviews
+
   async function buildPayload() {
     // Pas de défilement ici : collectImages() vient de le faire, et le refaire
     // coûtait une seconde et demie pour rien.
@@ -1081,6 +1317,9 @@
        */
       skuAliExpress: await releverSkuAliExpress(),
       pageText: collectPageText(),
+      // Le code-barres déclaré et les avis affichés : le serveur revérifie et borne les deux.
+      ean: collectEan(),
+      reviews: collectReviews(),
     }
   }
 

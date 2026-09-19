@@ -25,7 +25,7 @@
  *
  * Le contexte `c` passé à chaque écran :
  *   c.boutique     { nom, slug, adresse, logoEntete, logoAccueil, annonce, accroche, accrocheSuite, sousTitre, fraisPort, portOffertDes }
- *   c.produits     tous les produits  { id, title, description, price, currency, images[], bulletPoints[], attributes{}, category, video, variants }
+ *   c.produits     tous les produits  { id, title, description, price, currency, images[], bulletPoints[], attributes{}, category, video, variants, ean, reviews }
  *   c.nouveautes   les 8 derniers
  *   c.categories   [{ nom, slug, nombre, image }]  créées depuis le catalogue
  *   c.produit(id)  c.parCategorie(slug)  c.rechercher(texte)  c.categorieDe(produit) → { nom, slug }

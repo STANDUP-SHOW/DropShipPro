@@ -158,13 +158,48 @@ function cleValide(code: string): boolean {
   return (10 - (somme % 10)) % 10 === cle
 }
 
-/** Le code-barres du produit, quand il est présent **et** cohérent. */
-export function codeBarresDe(product: Pick<Product, 'attributes'>): string | undefined {
-  const texte = valeurPour(product, ['ean', 'gtin', 'upc', 'code-barres', 'code barres', 'barcode', 'isbn'])
-  if (!texte) return undefined
-  const chiffres = texte.replace(/\D/g, '')
+/** Un code GS1 plausible : 8, 12, 13 ou 14 chiffres, clé de contrôle juste. */
+export function eanValide(code: string | null | undefined): string | undefined {
+  const chiffres = (code ?? '').replace(/\D/g, '')
   if (![8, 12, 13, 14].includes(chiffres.length)) return undefined
+  // « 00000000 » passe la clé et ne désigne rien.
+  if (/^0+$/.test(chiffres)) return undefined
   return cleValide(chiffres) ? chiffres : undefined
+}
+
+/**
+ * Le code-barres du produit, quand il est présent **et** cohérent.
+ *
+ * La colonne `ean` d'abord (relevée à l'import, ou saisie par le vendeur), les
+ * caractéristiques ensuite — c'est là qu'il vivait avant le 19/09/2026, et des
+ * annonces l'y portent encore.
+ */
+export function codeBarresDe(product: Pick<Product, 'attributes'> & { ean?: string | null }): string | undefined {
+  const colonne = eanValide(product.ean)
+  if (colonne) return colonne
+  return eanValide(valeurPour(product, ['ean', 'gtin', 'upc', 'code-barres', 'code barres', 'barcode', 'isbn']))
+}
+
+/**
+ * Le code-barres d'une fiche relevée : ce que la page DÉCLARE d'abord, ce que
+ * son texte ÉCRIT ensuite — jamais deviné.
+ *
+ * `declare` vient de l'extension (microdonnées `gtin13`, JSON-LD). Le texte
+ * n'est lu que derrière une étiquette explicite — « EAN », « GTIN », « Code-
+ * barres » — parce qu'une fiche technique est pleine de nombres à treize
+ * chiffres qui n'en sont pas (références, numéros de série, téléphones), et que
+ * certains passent la clé par hasard : une sur dix.
+ */
+export function eanDeLaFiche(declare: string | null | undefined, pageText: string | null | undefined): string | undefined {
+  const direct = eanValide(declare)
+  if (direct) return direct
+  if (!pageText) return undefined
+  const etiquette = /(?:\bEAN(?:[-\s]?13)?|\bGTIN(?:[-\s]?1[34])?|\bUPC\b|code[-\s]?barres?|barcode)[^\d\n]{0,25}(\d[\d\s-]{6,18}\d)/gi
+  for (const m of pageText.matchAll(etiquette)) {
+    const code = eanValide(m[1])
+    if (code) return code
+  }
+  return undefined
 }
 
 // --- L'adresse de la fiche --------------------------------------------------

@@ -216,6 +216,8 @@ const EAN: RegleCanal = {
   quoi: 'EAN / code-barres officiel',
   severite: 'bloquant',
   verifie: (p) => {
+    if (/^\d{8}$|^\d{12,14}$/.test(String((p as { ean?: string | null }).ean ?? '').replace(/\D/g, ''))) return null
+
     const attributs =
       p.attributes && typeof p.attributes === 'object' && !Array.isArray(p.attributes)
         ? (p.attributes as Record<string, unknown>)

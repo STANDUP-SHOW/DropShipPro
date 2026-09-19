@@ -163,6 +163,10 @@ export async function verifierCompteMirakl(creds: MiraklCredentials): Promise<{ 
  * Cherché dans les attributs, que le vendeur édite déjà sur la fiche.
  */
 export function identifiantCatalogue(produit: Product): { id: string; type: string } | null {
+  // La colonne d'abord : relevée à l'import ou saisie sur la fiche (19/09/2026).
+  const colonne = (produit.ean ?? '').replace(/\D/g, '')
+  if (/^\d{8}$|^\d{12,14}$/.test(colonne)) return { id: colonne, type: colonne.length === 12 ? 'UPC' : 'EAN' }
+
   const attributs =
     produit.attributes && typeof produit.attributes === 'object' && !Array.isArray(produit.attributes)
       ? (produit.attributes as Record<string, unknown>)

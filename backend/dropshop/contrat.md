@@ -43,7 +43,8 @@ introuvable(c)
 
 ```
 c.boutique     { nom, slug, adresse, logoEntete, logoAccueil, annonce, accroche, accrocheSuite, sousTitre, fraisPort, portOffertDes }
-c.produits     tous les produits : { id, title, description, price, currency, images[], bulletPoints[], attributes{}, category, video, variants }
+c.produits     tous les produits : { id, title, description, price, currency, images[], bulletPoints[], attributes{}, category, video, variants, ean, reviews }
+               reviews = { count, average, items: [{ stars (1 à 5), author, text, photos[], date, origine }] } — souvent vide (count 0)
 c.nouveautes   les 8 plus récents
 c.categories   [{ nom, slug, nombre, image }]   créées automatiquement depuis le catalogue (image = photo d'un produit)
 c.produit(id)  c.parCategorie(slug)  c.rechercher(texte)  c.categorieDe(produit) → { nom, slug }
@@ -81,3 +82,16 @@ Les liens sont de simples `<a href="#/…">` : `#/` `#/boutique` `#/c/<slug>` `#
 ## Ce que le moteur garantit
 
 Le titre de l'onglet, le défilement en haut à chaque page, la persistance du panier, l'envoi de la commande, la redirection vers le paiement Stripe quand le marchand l'a branché (`c.commande.paiement === 'stripe'`), la confirmation au retour, le vidage du panier après commande.
+
+## Les avis d'acheteurs
+
+`produit.reviews` porte la note moyenne (`average`, sur 5, ou null), le nombre d'avis (`count`) et jusqu'à trente
+avis. Quand `count` vaut 0, **rien ne s'affiche** : ni étoiles vides, ni « 0 avis », ni bloc. Quand il y en a :
+
+- sur les cartes produit, la note moyenne en étoiles et le nombre d'avis, discrets ;
+- sur la fiche produit, un bloc « Avis » : moyenne, nombre, puis chaque avis — étoiles, `author`, `date` si présente,
+  `text`, et ses `photos` en vignettes. Tout texte passe par `c.html()`.
+- quand `origine` est renseignée (le site où l'avis a été recueilli), la mention « Avis recueilli sur <origine> »
+  figure sous l'avis. Elle n'est pas décorative : présenter comme recueilli sur la boutique un avis venu d'ailleurs est
+  une pratique commerciale trompeuse. Ne jamais écrire « achat vérifié » : la boutique n'en sait rien.
+- aucun avis n'est inventé, complété ni reformulé par la page. Pas d'avis d'exemple en dur.

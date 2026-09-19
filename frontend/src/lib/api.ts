@@ -449,6 +449,23 @@ export const api = {
   listConditions: () =>
     request<Array<{ id: string; label: string; aide: string }>>('/products/meta/conditions'),
 
+  /** Les avis d'acheteurs d'une annonce : relevés par l'extension, déposés en CSV, ou saisis. Aucun drop. */
+  avisProduit: (productId: string) =>
+    request<{ avis: AvisAcheteur[]; synthese: SyntheseAvis }>(`/products/${productId}/avis`),
+  /** Le fichier CSV à trois colonnes : stars, User, Avis. */
+  avisImporter: (productId: string, fichier: File) => {
+    const form = new FormData()
+    form.append('fichier', fichier)
+    return request<DepotAvis>(`/products/${productId}/avis/import`, { method: 'POST', body: form })
+  },
+  avisAjouter: (productId: string, avis: { stars: number; author: string; text: string }) =>
+    request<DepotAvis>(`/products/${productId}/avis`, { method: 'POST', body: JSON.stringify(avis) }),
+  avisPublier: (productId: string, avisId: string, published: boolean) =>
+    request<{ ok: true }>(`/products/${productId}/avis/${avisId}`, { method: 'PATCH', body: JSON.stringify({ published }) }),
+  /** `avisId` vaut « tous » pour repartir d'un fichier corrigé. */
+  avisRetirer: (productId: string, avisId: string) =>
+    request<{ retires: number }>(`/products/${productId}/avis/${avisId}`, { method: 'DELETE' }),
+
   /**
    * La version d'extension que le serveur distribue.
    *
@@ -2027,4 +2044,31 @@ export function clearToken() {
 }
 export function isAuthed() {
   return Boolean(getToken())
+}
+
+export interface AvisAcheteur {
+  id: string
+  stars: number
+  author: string
+  text: string
+  photos: string[] | null
+  /** 'extension' | 'csv' | 'manuel' */
+  source: string
+  /** Le site où l'avis a été recueilli ; null pour un fichier ou une saisie. */
+  sourceSite: string | null
+  reviewedAt: string | null
+  published: boolean
+  createdAt: string
+}
+
+export interface SyntheseAvis {
+  nombre: number
+  moyenne: number | null
+  repartition: Record<'1' | '2' | '3' | '4' | '5', number>
+}
+
+export interface DepotAvis {
+  ajoutes: number
+  dejaPresents: number
+  refus: string[]
 }

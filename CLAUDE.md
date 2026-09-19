@@ -846,9 +846,36 @@ Trois conséquences, toutes appliquées :
   navigateur : extension seulement (`EXTENSION_ONLY`). Galerie sous `/xxl_ws/`
   de cdn-reichelt.de, original sous `/bilder/web/xxl_ws/` ; le reste de la page
   est sous `/artikel_ws/`. Détaillant-distributeur : ni dropshipping ni
-  expédition neutre annoncés, CGV 8.2 sur les illustrations. L'EAN est sur la
-  fiche (`gtin13`) mais **l'import ne le relève pas encore** — il servirait à
-  Mirakl et Kaufland, qui l'exigent.
+  expédition neutre annoncés, CGV 8.2 sur les illustrations.
+
+- **L'EAN est une COLONNE (`Product.ean`), plus une caractéristique
+  (19/09/2026).** Une réécriture remplace `attributes` en bloc et l'emportait.
+  Relevé à l'import : ce que la page DÉCLARE (microdonnées `gtin13`, JSON-LD —
+  `collectEan` de l'extension), sinon le texte **derrière une étiquette « EAN /
+  GTIN / code-barres » seulement** : une fiche technique est pleine de nombres à
+  treize chiffres, et un sur dix passe la clé GS1 par hasard. Clé vérifiée
+  partout (`eanValide`), y compris au PATCH de la fiche. `codeBarresDe` lit la
+  colonne puis les caractéristiques (les annonces d'avant) ; Mirakl, Kaufland,
+  Shopify, le flux catalogue (`ean`) et le flux Google (`g:gtin`, sinon
+  `identifier_exists: no`) passent par là.
+
+- **Les avis d'acheteurs : `BuyerReview`, pas `ProductReview`** (déjà pris par
+  le verdict d'un chef de rayon) ni `Review` (avis sur l'application). Trois
+  entrées, un seul chemin (`services/avisAcheteurs.ts`) : extension à l'import,
+  CSV à trois colonnes `stars, User, Avis` (en-têtes FR/EN dans n'importe quel
+  ordre, `;` d'Excel, BOM), saisie. `empreinte` rend le réimport idempotent. Une
+  note illisible ÉCARTE l'avis, elle ne vaut jamais 5 par défaut. `sourceSite`
+  est servi au flux (`reviews.items[].origine`) et le contrat DropShop impose la
+  mention « Avis recueilli sur … » : afficher comme sien un avis venu d'ailleurs
+  est une pratique commerciale trompeuse. **Le relevé de l'extension a raté deux
+  fois sur la vraie page Amazon avant de passer**, et aucun banc synthétique ne
+  l'aurait vu : le bloc le plus intérieur à porter une note est le WIDGET
+  d'étoiles (4 « avis » = « 4,4 sur 5 étoiles », 13 vrais écartés) ; Amazon
+  écrit la note en TEXTE (« 5 étoiles sur 5 »), sans aria-label ni alt ; « deux
+  enfants au plus » réduisait un avis de six paragraphes à son plus long. Bancs
+  `check-avis.ts` et `check-avis-extension.cjs` (structure réelle recopiée).
+  Vérifié sur Amazon seulement : Temu et AliExpress obfusquent leurs classes, le
+  relevé par nom de bloc n'y trouvera peut-être rien — le CSV est là pour ça.
 
 - **Une application React est invisible pour une IA : d où `llms.txt`.** Signalé
   le 15/09/2026 par Max — « si je demande à une IA ce que fait drop-shipper.fr,

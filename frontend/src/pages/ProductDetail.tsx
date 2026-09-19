@@ -20,6 +20,8 @@ import {
   ChevronRight,
   X,
   RefreshCw,
+  Barcode,
+  MessageSquareQuote,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, downloadWithAuth, assetUrl, uploadProductImages } from '../lib/api'
@@ -33,6 +35,7 @@ import { ChannelReadiness } from '../components/ChannelReadiness'
 import { GooglePreview } from '../components/GooglePreview'
 import { SocialPublishDialog } from '../components/SocialPublishDialog'
 import { VariantEditor } from '../components/VariantEditor'
+import { AvisAcheteurs } from '../components/AvisAcheteurs'
 
 /** Section card — one visual container per topic, instead of one long column. */
 function Card({
@@ -805,6 +808,45 @@ export default function ProductDetail() {
               « Neuf sans étiquette » sur Vinted, « refurbished » dans les flux Google et Meta. La
               traduction se fait à la publication.
             </p>
+          </Card>
+
+          {/*
+            Le code-barres : relevé à l'import quand la fiche le déclare, saisi
+            ici sinon. Le serveur vérifie la clé GS1 — un chiffre transposé
+            grefferait l'offre sur la fiche d'un autre produit.
+          */}
+          <Card
+            icon={Barcode}
+            title="Code-barres (EAN)"
+            hint="Exigé par les opérateurs Mirakl et Kaufland, demandé par Google Shopping."
+            className="max-lg:order-5"
+          >
+            <input
+              key={product.ean ?? 'sans-ean'}
+              defaultValue={product.ean ?? ''}
+              inputMode="numeric"
+              placeholder="13 chiffres, tels qu'imprimés sous le code-barres"
+              onBlur={(e) => {
+                const saisi = e.target.value.trim()
+                if (saisi === (product.ean ?? '')) return
+                setProduct({ ...product, ean: saisi || null })
+                saveField('ean', saisi)
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm tabular-nums tracking-wider"
+            />
+            <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+              EAN-13, UPC-12, EAN-8 ou GTIN-14. Il vient du fabricant ou de GS1 : ne l'inventez pas, une place de
+              marché rattache votre offre à la fiche que ce code désigne. Laissez vide si le produit n'en a pas.
+            </p>
+          </Card>
+
+          <Card
+            icon={MessageSquareQuote}
+            title="Avis d'acheteurs"
+            hint="Relevés par l'extension à l'import, importés d'un fichier, ou saisis."
+            className="max-lg:order-9"
+          >
+            {id && <AvisAcheteurs productId={id} />}
           </Card>
 
           <Card icon={Search} title="Référencement" className="max-lg:order-9">

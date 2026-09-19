@@ -11,6 +11,8 @@ import { DROPS } from './tarifs.js'
 import { resoudreCategorie } from './categories.js'
 import { rapatrierImages } from './watermark.js'
 import { supplierFields } from './suppliers.js'
+import { eanDeLaFiche } from './productFacts.js'
+import { enregistrerAvis, normaliser, type AvisBrut, type AvisPropre } from './avisAcheteurs.js'
 import { lireSkuAliExpress, type ModulesAliExpress } from './aliexpressSku.js'
 import { optionsDepuisCombinaisons, validerMatrice, type Combinaison } from './variantMatrix.js'
 
@@ -61,6 +63,10 @@ export interface FicheRelevee {
   images: string[]
   sourceCategory: string | null
   pageText?: string
+  /** Le code-barres que la page déclare (microdonnées gtin13, JSON-LD). */
+  ean?: string | null
+  /** Les avis d'acheteurs affichés sur la fiche, tels que relevés. */
+  avis?: AvisBrut[]
 }
 
 export interface OptionsImport {
@@ -329,6 +335,8 @@ export async function importerAdresse(
       sourceUrl: url,
       sourceSite: scraped.sourceSite,
       ...supplierFields(url),
+      // Déclaré par la page ou écrit derrière une étiquette « EAN » — clé GS1 vérifiée, jamais deviné.
+      ean: eanDeLaFiche(options.capture?.ean, options.capture?.pageText) ?? undefined,
       shopId: options.shopId ?? undefined,
       sourceCategory: scraped.sourceCategory,
       categoryId: rangement.categoryId,
@@ -362,6 +370,18 @@ export async function importerAdresse(
       status: 'READY',
     },
   })
+
+  // Les avis relevés sur la fiche suivent l'annonce. Un échec ici ne défait pas l'import.
+  if (options.capture?.avis?.length) {
+    try {
+      const propres = options.capture.avis.map(normaliser).filter((a): a is AvisPropre => !('refus' in a))
+      const depot = await enregistrerAvis(produit, propres, { source: 'extension', sourceSite: scraped.sourceSite })
+      if (depot.ajoutes) notes.push(`${depot.ajoutes} avis d'acheteurs relevés sur la fiche — à relire avant de les afficher.`)
+    } catch (err) {
+      console.error('[avis] relevé non enregistré', err)
+    }
+  }
+  if (produit.ean) notes.push(`EAN relevé : ${produit.ean}.`)
 
   /*
    * La réécriture différée est déposée après la création de l'annonce : elle a

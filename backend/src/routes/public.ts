@@ -14,6 +14,7 @@ import { notifierCommande, ouvrirPaiement, paiementConfirme } from '../services/
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { z } from 'zod'
+import { codeBarresDe } from '../services/productFacts.js'
 
 export const publicRouter = Router()
 
@@ -202,8 +203,50 @@ async function cheminsCategories(produits: Array<{ categoryId: string | null }>)
   return new Map(categories.map((c) => [c.id, c.path]))
 }
 
-async function toCatalogItem(product: Product, category: string | null) {
+/**
+ * Les avis d'acheteurs publiés, par produit — en UNE requête pour tout le flux.
+ *
+ * `origine` dit où l'avis a été recueilli (le site du fournisseur, ou null pour
+ * un fichier déposé par le marchand). La boutique doit pouvoir l'afficher :
+ * présenter comme recueilli chez soi un avis venu d'ailleurs est trompeur.
+ * Trente par produit dans le flux ; la note et le compte portent sur tous.
+ */
+async function avisPublies(ids: string[]) {
+  const vide = () => ({ count: 0, average: null as number | null, items: [] as unknown[] })
+  const parProduit = new Map<string, ReturnType<typeof vide> & { somme: number }>()
+  if (!ids.length) return parProduit
+  const lignes = await prisma.buyerReview.findMany({
+    where: { productId: { in: ids }, published: true },
+    orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
+  })
+  for (const a of lignes) {
+    const e = parProduit.get(a.productId) ?? { ...vide(), somme: 0 }
+    e.count++
+    e.somme += a.stars
+    if (e.items.length < 30) {
+      e.items.push({
+        stars: a.stars,
+        author: a.author,
+        text: a.text,
+        photos: Array.isArray(a.photos) ? a.photos : [],
+        date: a.reviewedAt,
+        origine: a.sourceSite,
+      })
+    }
+    e.average = Math.round((e.somme / e.count) * 10) / 10
+    parProduit.set(a.productId, e)
+  }
+  return parProduit
+}
+
+type AvisDuFlux = Awaited<ReturnType<typeof avisPublies>>
+
+async function toCatalogItem(product: Product, category: string | null, avis?: AvisDuFlux) {
+  const a = avis?.get(product.id)
   return {
+    // Le code-barres, clé GS1 vérifiée : Google Shopping et le catalogue Meta le demandent.
+    ean: codeBarresDe(product) ?? null,
+    reviews: { count: a?.count ?? 0, average: a?.average ?? null, items: a?.items ?? [] },
     id: product.id,
     title: product.aiTitle || product.title,
     description: product.aiDescription || product.description,
@@ -272,6 +315,7 @@ publicRouter.get('/shops/:shopKey/products', async (req, res) => {
   })
 
   const chemins = await cheminsCategories(publications.map((p) => p.product))
+  const avis = await avisPublies(publications.map((p) => p.product.id))
 
   // Cached briefly: a storefront may call this on every page view.
   res.set('Cache-Control', 'public, max-age=60')
@@ -283,7 +327,7 @@ publicRouter.get('/shops/:shopKey/products', async (req, res) => {
     count: publications.length,
     products: await Promise.all(
       publications.map((p) =>
-        toCatalogItem(p.product, chemins.get(p.product.categoryId ?? '') ?? p.targetCategory),
+        toCatalogItem(p.product, chemins.get(p.product.categoryId ?? '') ?? p.targetCategory, avis),
       ),
     ),
   })
@@ -311,6 +355,7 @@ publicRouter.get('/shops/:shopKey/products/:id', async (req, res) => {
     await toCatalogItem(
       publication.product,
       chemins.get(publication.product.categoryId ?? '') ?? publication.targetCategory,
+      await avisPublies([publication.product.id]),
     ),
   )
 })

@@ -38,6 +38,8 @@ import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
 import { optimiserAnnonce } from '../services/listingOptimizer.js'
 import { reecrireAnnonce } from '../services/listingRewrite.js'
+import { avisDepuisCsv, enregistrerAvis, normaliser as normaliserAvis, synthese } from '../services/avisAcheteurs.js'
+import { eanValide } from '../services/productFacts.js'
 import { findConnector, fournisseursRelies } from '../services/supplierConnectors.js'
 import { catalogueFaire } from '../services/faire.js'
 import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
@@ -135,6 +137,21 @@ const captureSchema = z.object({
    */
   skuAliExpress: z.any().optional(),
   pageText: z.string().max(20000).optional(),
+  /** Le code-barres déclaré par la page ; sa clé GS1 est revérifiée côté serveur. */
+  ean: z.string().max(20).nullable().optional(),
+  /** Les avis d'acheteurs affichés sur la fiche. Normalisés et bornés côté serveur. */
+  reviews: z
+    .array(
+      z.object({
+        stars: z.union([z.number(), z.string()]).optional(),
+        author: z.string().max(200).optional(),
+        text: z.string().max(8000).optional(),
+        photos: z.array(z.string()).max(12).optional(),
+        date: z.string().max(40).optional(),
+      }),
+    )
+    .max(60)
+    .optional(),
   /**
    * Import en LOT : différer la réécriture vers un batch Anthropic (moitié
    * prix). Posé par le panneau latéral ; absent sur un import à l'unité, qui
@@ -186,6 +203,8 @@ productsRouter.post(
           images: data.images,
           sourceCategory: data.sourceCategory,
           pageText: data.pageText,
+          ean: data.ean ?? null,
+          avis: data.reviews,
         },
         releve: {
           images: data.images,
@@ -687,6 +706,8 @@ const updateSchema = z.object({
   // A closed list, not free text : the value is recopied word for word into the
   // marketplaces' own dropdowns, which reject anything they don't know.
   condition: z.enum(['neuf', 'reconditionne', 'occasion']).optional(),
+  /** Le code-barres ; vide ou null pour l'effacer. Sa clé GS1 est vérifiée avant d'écrire. */
+  ean: z.string().max(20).nullable().optional(),
 })
 
 productsRouter.patch('/:id', async (req: AuthedRequest, res) => {
@@ -696,8 +717,89 @@ productsRouter.patch('/:id', async (req: AuthedRequest, res) => {
   const owned = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!owned) return res.status(404).json({ error: 'Produit introuvable' })
 
-  const product = await prisma.product.update({ where: { id: req.params.id }, data: parsed.data })
+  const data = { ...parsed.data }
+  if (typeof data.ean === 'string') {
+    const saisi = data.ean.trim()
+    if (!saisi) data.ean = null
+    else {
+      const code = eanValide(saisi)
+      // Un EAN faux greffe l'offre sur la fiche d'un autre produit (Mirakl, Kaufland) : refusé ici.
+      if (!code) {
+        return res.status(400).json({
+          error: "Ce code-barres n'est pas valide : 8, 12, 13 ou 14 chiffres, avec une clé de contrôle juste. Vérifiez un chiffre transposé.",
+        })
+      }
+      data.ean = code
+    }
+  }
+
+  const product = await prisma.product.update({ where: { id: req.params.id }, data })
   res.json(product)
+})
+
+// --- Les avis d'acheteurs ----------------------------------------------------
+//
+// Une note de 1 à 5, un nom, un texte. Relevés par l'extension à l'import, ou
+// déposés ici : fichier CSV à trois colonnes (stars, User, Avis), ou un avis à
+// la main. Aucun appel au modèle, donc aucun drop. Voir services/avisAcheteurs.ts.
+
+const uploadAvis = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } })
+
+async function produitDe(req: AuthedRequest) {
+  return prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! }, select: { id: true, userId: true } })
+}
+
+productsRouter.get('/:id/avis', async (req: AuthedRequest, res) => {
+  const produit = await produitDe(req)
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+  const avis = await prisma.buyerReview.findMany({
+    where: { productId: produit.id },
+    orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
+  })
+  res.json({ avis, synthese: synthese(avis.filter((a) => a.published).map((a) => a.stars)) })
+})
+
+/** Le fichier CSV (champ `fichier`), ou son texte collé (`csv`). */
+productsRouter.post('/:id/avis/import', uploadAvis.single('fichier'), async (req: AuthedRequest, res) => {
+  const produit = await produitDe(req)
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const contenu = req.file ? req.file.buffer.toString('utf8') : typeof req.body?.csv === 'string' ? req.body.csv : ''
+  if (!contenu.trim()) return res.status(400).json({ error: 'Déposez un fichier CSV à trois colonnes : stars, User, Avis.' })
+
+  const { avis, refus } = avisDepuisCsv(contenu)
+  if (!avis.length) return res.status(400).json({ error: refus[0] ?? 'Aucun avis lisible dans ce fichier.', refus })
+
+  res.status(201).json(await enregistrerAvis(produit, avis, { source: 'csv' }, refus))
+})
+
+productsRouter.post('/:id/avis', async (req: AuthedRequest, res) => {
+  const produit = await produitDe(req)
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+  const propre = normaliserAvis({ stars: req.body?.stars, author: req.body?.author, text: req.body?.text })
+  if ('refus' in propre) return res.status(400).json({ error: `Avis refusé : ${propre.refus}.` })
+  res.status(201).json(await enregistrerAvis(produit, [propre], { source: 'manuel' }))
+})
+
+productsRouter.patch('/:id/avis/:avisId', async (req: AuthedRequest, res) => {
+  const produit = await produitDe(req)
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+  if (typeof req.body?.published !== 'boolean') return res.status(400).json({ error: 'Champs invalides' })
+  const maj = await prisma.buyerReview.updateMany({
+    where: { id: req.params.avisId, productId: produit.id },
+    data: { published: req.body.published },
+  })
+  if (!maj.count) return res.status(404).json({ error: 'Avis introuvable' })
+  res.json({ ok: true })
+})
+
+/** Un avis, ou tous (`/avis/tous`) — pour repartir d'un fichier corrigé. */
+productsRouter.delete('/:id/avis/:avisId', async (req: AuthedRequest, res) => {
+  const produit = await produitDe(req)
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+  const where = req.params.avisId === 'tous' ? { productId: produit.id } : { id: req.params.avisId, productId: produit.id }
+  const retire = await prisma.buyerReview.deleteMany({ where })
+  res.json({ retires: retire.count })
 })
 
 productsRouter.delete('/:id', async (req: AuthedRequest, res) => {

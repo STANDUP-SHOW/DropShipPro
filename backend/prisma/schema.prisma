@@ -188,6 +188,7 @@ model User {
   agentAutoSettings  AgentAutoSetting[]
   adAccounts         AdAccount[]
   productReviews     ProductReview[]
+  buyerReviews       BuyerReview[]
   rewriteJobs        RewriteJob[]
   supplierLinks      SupplierConnection[]
   tickets            Ticket[]
@@ -328,6 +329,13 @@ model Product {
   ///
   /// Sans cette reference, rien ne dit quoi interroger : l adresse source suffit
   /// a rouvrir la fiche dans un navigateur, pas a demander son stock a une API.
+  /// Le code-barres (EAN-13, UPC-12, EAN-8, GTIN-14), chiffres seuls, cle GS1 verifiee.
+  ///
+  /// Releve a l import quand la fiche le declare (microdonnees gtin13, JSON-LD,
+  /// ligne « EAN » du tableau). En COLONNE et non dans `attributes` : une
+  /// reecriture remplace les caracteristiques en bloc et l emportait avec elles.
+  /// Mirakl et Kaufland l exigent, Google Shopping et Shopify le veulent.
+  ean               String?
   supplierId        String?
   /// L identifiant du produit chez le fournisseur, tel que son API l attend.
   supplierRef       String?
@@ -381,6 +389,7 @@ model Product {
   rewriteJob      RewriteJob?
   orders          Order[]
   generatedImages GeneratedImage[]
+  buyerReviews    BuyerReview[]
 }
 
 model Publication {
@@ -1289,6 +1298,47 @@ model RewriteJob {
   createdAt DateTime @default(now())
 
   @@index([statut])
+}
+
+/// L avis d un ACHETEUR sur un produit : une note de 1 a 5, un nom, un texte.
+///
+/// A ne pas confondre avec `Review` (l avis d un vendeur sur l application) ni
+/// avec `ProductReview` (le verdict d un chef de rayon sur une adresse). Deux
+/// entrees : releve par l extension sur la fiche du fournisseur, ou fichier CSV
+/// a trois colonnes (stars, User, Avis). `source` et `sourceSite` disent d ou
+/// il vient, et la boutique doit pouvoir l afficher : un avis recueilli ailleurs
+/// et presente comme recueilli chez soi est une pratique commerciale trompeuse.
+///
+/// `empreinte` rend un reimport idempotent : le meme fichier depose deux fois
+/// ne double rien.
+model BuyerReview {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  stars  Int
+  author String
+  text   String @db.Text
+  /// Les photos jointes a l avis, quand la fiche source en montre.
+  photos Json?
+
+  /// 'extension' | 'csv' | 'manuel'
+  source     String
+  /// Le site ou l avis a ete recueilli (aliexpress.com…), null pour un fichier.
+  sourceSite String?
+  /// La date de l avis telle que la source la donne, quand elle la donne.
+  reviewedAt DateTime?
+
+  published Boolean @default(true)
+  empreinte String
+
+  createdAt DateTime @default(now())
+
+  @@unique([productId, empreinte])
+  @@index([productId, published])
+  @@index([userId])
 }
 
 /// Un vendeur indecis qui recolle la meme adresse quatre fois dans la journee
