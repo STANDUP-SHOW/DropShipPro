@@ -38,6 +38,10 @@ const FICHIERS: Record<string, string> = {
   TIKTOK_SHOP: 'tiktokshop_logo.png',
   FACEBOOK: 'facebookads.png',
   INSTAGRAM: 'instagram.png',
+  // Reseaux sociaux : le paquet local en couvre deux, le reste passe par
+  // l icone publiee par la marque.
+  PINTEREST: 'pinterest.png',
+  SNAPCHAT: 'snapchat.png',
 
   // Plateformes d'acquisition.
   temu: 'temu_logo-svg.png',

@@ -150,7 +150,7 @@ export function AdDialog({
             <h2 className="mt-3 text-lg font-bold">
               {fini > 1 ? `${fini} publicités générées` : 'Publicité générée'}
             </h2>
-            <p className="mt-1 text-sm text-gray-400">Retrouvez-la dans « Mes pubs ».</p>
+            <p className="mt-1 text-sm text-gray-400">Retrouvez-la en bas de cette page, et sur « Réseaux » pour la diffuser.</p>
             <div className="mt-5 flex justify-center gap-2">
               <button
                 type="button"
@@ -160,11 +160,11 @@ export function AdDialog({
                 Fermer
               </button>
               <Link
-                to="/mes-pubs"
+                to="/reseaux"
                 onClick={onClose}
                 className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold"
               >
-                <span>Voir mes pubs</span>
+                <span>Diffuser mes pubs</span>
                 <ArrowRight size={15} />
               </Link>
             </div>

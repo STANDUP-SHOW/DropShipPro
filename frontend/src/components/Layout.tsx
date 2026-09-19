@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, Images, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, Search, Menu as MenuIcon, X } from 'lucide-react'
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, Search, Menu as MenuIcon, X,
+  Share2,
+} from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
@@ -113,7 +115,9 @@ const SECTIONS: Array<{
     titre: 'Marketing',
     entrees: [
       { to: '/marketing', label: 'Commercialisation', icon: Megaphone },
-      { to: '/mes-pubs', label: 'Mes pubs', icon: Images },
+      // Sous Commercialisation : les comptes réseaux, les régies et la diffusion
+      // des visuels, sortis du bas de Commercialisation le 19/09/2026.
+      { to: '/reseaux', label: 'Réseaux', icon: Share2 },
     ],
   },
   {

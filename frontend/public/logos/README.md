@@ -20,3 +20,16 @@ même nom.
 Les fichiers dont le nom ne désignait aucune marque (`default--12-.svg`,
 drapeaux de langue, éléments d'interface) ont été retirés : ils n'identifient
 rien.
+
+## `social.jpg` — la bande de la page Réseaux
+
+La page **Réseaux** cherche `social.jpg` dans ce dossier et l'affiche en bande,
+pleine largeur, au-dessus des raccordements : c'est la planche des logos de
+réseaux sociaux. Le nom est convenu — déposer le fichier ici suffit, il n'y a
+rien à recompiler.
+
+Tant qu'il n'y est pas, la page dessine elle-même la bande, un logo par réseau
+avec son nom : un fichier absent ne laisse donc jamais de trou.
+
+Le `.eps` de la même planche ne se dépose pas ici : aucun navigateur ne le lit,
+il ne sert qu'à l'impression.

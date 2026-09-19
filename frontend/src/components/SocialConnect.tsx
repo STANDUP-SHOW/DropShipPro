@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link2, RefreshCw, AlertTriangle, Check, Megaphone, Loader2 } from 'lucide-react'
 import { api } from '../lib/api'
+import { PlatformLogo } from './PlatformLogo'
 
 type Etat = Awaited<ReturnType<typeof api.socialState>>
 
@@ -18,25 +19,38 @@ type Etat = Awaited<ReturnType<typeof api.socialState>>
  * ne peut pas créer de campagne » — trois écrans après le clic.
  */
 
-/** Ce que le vendeur reconnaît, plutôt que la clé technique. */
-const NOMS: Record<string, { label: string; emoji: string }> = {
-  facebook: { label: 'Facebook', emoji: '👥' },
-  instagram: { label: 'Instagram', emoji: '📷' },
-  tiktok: { label: 'TikTok', emoji: '🎵' },
-  youtube: { label: 'YouTube', emoji: '▶️' },
-  linkedin: { label: 'LinkedIn', emoji: '💼' },
-  x: { label: 'X', emoji: '✖️' },
-  pinterest: { label: 'Pinterest', emoji: '📌' },
-  threads: { label: 'Threads', emoji: '🧵' },
-  'meta-ads': { label: 'Meta Ads', emoji: '📣' },
-  'google-ads': { label: 'Google Ads', emoji: '🔍' },
-  'tiktok-ads': { label: 'TikTok Ads', emoji: '🎯' },
-  'linkedin-ads': { label: 'LinkedIn Ads', emoji: '📊' },
-  'pinterest-ads': { label: 'Pinterest Ads', emoji: '📐' },
-  'x-ads': { label: 'X Ads', emoji: '📈' },
+/**
+ * Ce que le vendeur reconnaît, plutôt que la clé technique.
+ *
+ * Le logo, pas un émoji : la même charte que les market places et les
+ * fournisseurs, où chaque ligne porte la marque qu'elle désigne. `domain` est
+ * ce qui la rend quand le paquet local ne l'a pas — c'est l'échelle de recours
+ * de `PlatformLogo`.
+ */
+const NOMS: Record<string, { label: string; domain: string; color: string; id?: string }> = {
+  facebook: { label: 'Facebook', domain: 'facebook.com', color: '#1877f2', id: 'FACEBOOK' },
+  instagram: { label: 'Instagram', domain: 'instagram.com', color: '#e1306c', id: 'INSTAGRAM' },
+  tiktok: { label: 'TikTok', domain: 'tiktok.com', color: '#111111' },
+  youtube: { label: 'YouTube', domain: 'youtube.com', color: '#ff0000' },
+  linkedin: { label: 'LinkedIn', domain: 'linkedin.com', color: '#0a66c2' },
+  x: { label: 'X', domain: 'x.com', color: '#111111' },
+  pinterest: { label: 'Pinterest', domain: 'pinterest.com', color: '#e60023' },
+  threads: { label: 'Threads', domain: 'threads.net', color: '#111111' },
+  'meta-ads': { label: 'Meta Ads', domain: 'facebook.com', color: '#1877f2' },
+  'google-ads': { label: 'Google Ads', domain: 'ads.google.com', color: '#4285f4' },
+  'tiktok-ads': { label: 'TikTok Ads', domain: 'ads.tiktok.com', color: '#111111' },
+  'linkedin-ads': { label: 'LinkedIn Ads', domain: 'linkedin.com', color: '#0a66c2' },
+  'pinterest-ads': { label: 'Pinterest Ads', domain: 'pinterest.com', color: '#e60023' },
+  'x-ads': { label: 'X Ads', domain: 'x.com', color: '#111111' },
 }
 
-const nomDe = (p: string) => NOMS[p] ?? { label: p, emoji: '🔗' }
+/** Le logo d'un réseau, à la taille d'une ligne de liste. */
+function LogoReseau({ platform, size = 22 }: { platform: string; size?: number }) {
+  const n = nomDe(platform)
+  return <PlatformLogo id={n.id} label={n.label} domain={n.domain} color={n.color} size={size} arrondi="md" />
+}
+
+const nomDe = (p: string) => NOMS[p] ?? { label: p, domain: '', color: '#a855f7' }
 
 export function SocialConnect() {
   const [etat, setEtat] = useState<Etat | null>(null)
@@ -170,7 +184,7 @@ export function SocialConnect() {
                         : 'border-amber-400/30 bg-amber-400/10'
                     }`}
                   >
-                    <span className="text-base">{nomDe(c.platform).emoji}</span>
+                    <LogoReseau platform={c.platform} />
                     <span className="min-w-0 flex-1 truncate">
                       {c.label ?? nomDe(c.platform).label}
                     </span>
@@ -208,7 +222,7 @@ export function SocialConnect() {
                     {busy === p ? (
                       <Loader2 size={12} className="animate-spin" />
                     ) : (
-                      <span>{nomDe(p).emoji}</span>
+                      <LogoReseau platform={p} size={18} />
                     )}
                     <span>{deja ? `${nomDe(p).label} +` : nomDe(p).label}</span>
                   </button>

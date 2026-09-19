@@ -42,7 +42,7 @@ import PlatformsSelling from './pages/PlatformsSelling'
 import Accounting from './pages/Accounting'
 import ApiLinks from './pages/ApiLinks'
 import SupplierWatch from './pages/SupplierWatch'
-import MyAds from './pages/MyAds'
+import Reseaux from './pages/Reseaux'
 import Categories from './pages/Categories'
 import Tickets from './pages/Tickets'
 import SupportAgent from './pages/SupportAgent'
@@ -150,8 +150,12 @@ export default function App() {
           <Route path="/marketing-photo" element={<Protected><PhotoStudio /></Protected>} />
           <Route path="/tickets" element={<Protected><Tickets /></Protected>} />
           <Route path="/categories" element={<Protected><Categories /></Protected>} />
-          <Route path="/mes-pubs" element={<Protected><MyAds /></Protected>} />
+          {/* « Mes pubs » a ete supprimee le 19/09/2026 : les publicites se lisent
+              en bas de Commercialisation et se diffusent depuis Reseaux. L adresse
+              reste jouable pour les favoris deja pris. */}
+          <Route path="/mes-pubs" element={<Navigate to="/reseaux" replace />} />
           <Route path="/marketing" element={<Protected><Marketing /></Protected>} />
+          <Route path="/reseaux" element={<Protected><Reseaux /></Protected>} />
           {/*
             Les deux anciennes adresses menent a la page fusionnee.
 
