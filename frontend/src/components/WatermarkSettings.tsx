@@ -60,6 +60,9 @@ export function WatermarkSettings() {
     try {
       await api.updateProfile({
         watermarkEnabled: suivant.watermarkEnabled,
+        // `watermarkMode` était absent de cet envoi : les deux boutons « Mon
+        // logo » / « Un texte » changeaient l'écran et n'enregistraient rien.
+        watermarkMode: suivant.watermarkMode as 'texte' | 'logo',
         watermarkText: suivant.watermarkText ?? '',
         watermarkScale: suivant.watermarkScale,
         watermarkOpacity: suivant.watermarkOpacity,
@@ -252,38 +255,53 @@ export function WatermarkSettings() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label>
-            <span className="text-xs text-gray-400">{`Intensité : ${r.watermarkOpacity} %`}</span>
-            <input
-              type="range"
-              min={10}
-              max={100}
-              step={5}
-              value={r.watermarkOpacity}
-              disabled={!r.watermarkEnabled}
-              onChange={(e) => setR({ ...r, watermarkOpacity: Number(e.target.value) })}
-              onMouseUp={() => enregistrer({})}
-              onTouchEnd={() => enregistrer({})}
-              className="mt-1 w-full accent-purple-500"
-            />
-          </label>
-          <label>
-            <span className="text-xs text-gray-400">{`Taille : ${r.watermarkScale} % de la largeur`}</span>
-            <input
-              type="range"
-              min={5}
-              max={60}
-              step={1}
-              value={r.watermarkScale}
-              disabled={!r.watermarkEnabled}
-              onChange={(e) => setR({ ...r, watermarkScale: Number(e.target.value) })}
-              onMouseUp={() => enregistrer({})}
-              onTouchEnd={() => enregistrer({})}
-              className="mt-1 w-full accent-purple-500"
-            />
-          </label>
-        </div>
+        {/*
+          Un logo n'a ni taille ni intensité à régler.
+
+          Les deux curseurs ne servaient que le texte : un logo est posé à
+          pleine intensité dans un conteneur de taille fixe, au coin choisi. Les
+          laisser affichés en mode logo, c'était proposer deux réglages qui ne
+          changeaient rien — l'écran qui ment en silence, encore.
+        */}
+        {r.watermarkMode === 'logo' ? (
+          <p className="text-[11px] leading-relaxed text-gray-500">
+            Votre logo est posé <b>à pleine intensité</b>, dans un cadre de taille fixe au coin
+            choisi. Rien à régler.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label>
+              <span className="text-xs text-gray-400">{`Intensité : ${r.watermarkOpacity} %`}</span>
+              <input
+                type="range"
+                min={10}
+                max={100}
+                step={5}
+                value={r.watermarkOpacity}
+                disabled={!r.watermarkEnabled}
+                onChange={(e) => setR({ ...r, watermarkOpacity: Number(e.target.value) })}
+                onMouseUp={() => enregistrer({})}
+                onTouchEnd={() => enregistrer({})}
+                className="mt-1 w-full accent-purple-500"
+              />
+            </label>
+            <label>
+              <span className="text-xs text-gray-400">{`Taille : ${r.watermarkScale} % de la largeur`}</span>
+              <input
+                type="range"
+                min={5}
+                max={60}
+                step={1}
+                value={r.watermarkScale}
+                disabled={!r.watermarkEnabled}
+                onChange={(e) => setR({ ...r, watermarkScale: Number(e.target.value) })}
+                onMouseUp={() => enregistrer({})}
+                onTouchEnd={() => enregistrer({})}
+                className="mt-1 w-full accent-purple-500"
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       {error ? <p className="mt-3 text-xs text-red-400">{error}</p> : null}

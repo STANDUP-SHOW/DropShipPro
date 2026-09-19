@@ -76,6 +76,56 @@ exige(a !== d, "un changement d'opacite doit changer la signature")
 const e = signatureFiligrane(reglagesFiligrane(compteCoupe, null))
 exige(a !== e, 'couper la marque doit changer la signature')
 
+// --- Le logo : un cadre fixe en bas a droite, a pleine intensite ------------
+/*
+ * Ni taille ni intensite pour un logo (19/09/2026).
+ *
+ * Ce n est pas une preference d ecran : ces deux curseurs ne changeaient RIEN a
+ * un logo si on ne l ecrivait qu ici, et l ecran aurait continue de les
+ * proposer. On le prouve donc en pixels — deux reglages opposes doivent rendre
+ * exactement la meme image — et on verifie que la marque tient dans son coin,
+ * sans deborder ailleurs.
+ */
+{
+  const { marquerPourExport, saveWatermarkLogo } = await import('./src/services/watermark.js')
+  const http = await import('node:http')
+
+  const logo = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="140"><rect width="600" height="140" fill="#e11d48"/></svg>',
+  )
+  const chemin = await saveWatermarkLogo(logo, 'image/svg+xml')
+
+  const photo = await sharp({ create: { width: 900, height: 900, channels: 3, background: '#d4d4d8' } }).jpeg().toBuffer()
+  const serveur = http.createServer((_q, r) => { r.writeHead(200, { 'content-type': 'image/jpeg' }); r.end(photo) })
+  await new Promise<void>((ok) => serveur.listen(4399, ok))
+
+  const composer = async (scale: number, opacity: number) => {
+    const [sortie] = await marquerPourExport(['http://127.0.0.1:4399/p.jpg'], {
+      text: 'OGGUS', imagePath: chemin, scale, opacity, position: 'southeast', enabled: true,
+    }, `essai-${scale}-${opacity}`)
+    return sharp(`storage/${sortie.replace(/^\/storage\//, '')}`)
+  }
+
+  const petit = await composer(8, 15)
+  const grand = await composer(60, 100)
+  const [octetsPetit, octetsGrand] = await Promise.all([petit.raw().toBuffer(), grand.raw().toBuffer()])
+  exige(octetsPetit.equals(octetsGrand), 'taille et intensite ne doivent plus rien changer a un logo')
+
+  // La marque est dans le coin choisi, et nulle part ailleurs : le quart en bas
+  // a droite differe de l original, le quart en haut a gauche lui est identique.
+  const quart = (b: sharp.Sharp, left: number, top: number) =>
+    b.clone().extract({ left, top, width: 450, height: 450 }).raw().toBuffer()
+  const original = sharp(photo)
+  const [basDroite, hautGauche, refBasDroite, refHautGauche] = await Promise.all([
+    quart(grand, 450, 450), quart(grand, 0, 0), quart(original, 450, 450), quart(original, 0, 0),
+  ])
+  exige(!basDroite.equals(refBasDroite), 'le logo doit etre pose en bas a droite')
+  exige(hautGauche.equals(refHautGauche), 'rien ne doit etre pose ailleurs que dans le coin choisi')
+
+  serveur.close()
+  await (await import('fs/promises')).rm('storage', { recursive: true, force: true })
+}
+
 // --- Ce que ca donne vraiment, en pixels ------------------------------------
 const cible = process.argv[2]
 if (cible) {

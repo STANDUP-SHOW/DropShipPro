@@ -877,6 +877,62 @@ Trois conséquences, toutes appliquées :
   Vérifié sur Amazon seulement : Temu et AliExpress obfusquent leurs classes, le
   relevé par nom de bloc n'y trouvera peut-être rien — le CSV est là pour ça.
 
+- **Une page écrite une fois ne peut pas apprendre un logo déposé après (19/09/2026).**
+  Le marchand téléverse le logo d'en-tête de sa boutique DropShop : le fichier
+  part, `/theme` le sert, et **rien ne change sur la boutique**. La page a été
+  écrite par le modèle le jour de la création, à partir de ce que la boutique
+  avait alors ; sans logo ce jour-là, elle n'a tout simplement aucune balise pour
+  l'afficher, et aucun refus ne peut plus l'atteindre — elle est déjà écrite. La
+  seule réparation était de réécrire la boutique : 350 drops pour un logo.
+  `exemple.html`, le squelette de référence qui passe tout le reste, échouait le
+  contrôle `--logo` : la preuve en deux secondes.
+
+  D'où le renversement, qui est la règle du moteur depuis le premier jour :
+  **ce qui est mécanique appartient au moteur, la page ne décrit que ce qui lui
+  est propre.** `poserLogos()` (sdk.js) regarde la page RENDUE et pose ce qui
+  manque — l'en-tête, et le grand logo au-dessus du titre de l'accueil — sans
+  jamais doubler ce que la page affiche déjà (on compare l'attribut `src`, pas
+  `.src`, que le navigateur résout en absolu). Le moteur étant inséré au moment
+  de servir (`routes/vitrine.ts`), **toutes les boutiques existantes sont
+  réparées sans une seule réécriture.** Le banc `check-dropshop.ts` vérifie les
+  deux sens ; il attendait l'inverse (« une page sans logo est refusée »), ce qui
+  ne protégeait que la création et jamais le marchand qui dépose son logo après.
+
+- **`imagesWatermarked` vaut `true` par défaut : le quatrième bloc de création
+  qui l'oublie (19/09/2026).** La colonne décrit l'existant, marqué dans le
+  fichier avant que la marque passe à l'export. Un bloc qui ne pose pas
+  `imagesWatermarked: false` crée donc des annonces **réputées déjà marquées** :
+  `imagesPourExport` rend leurs photos telles quelles et aucun filigrane n'est
+  jamais posé. L'import par adresse, le lot et l'extension sont tombés dedans ;
+  `POST /products/manuel` aussi.
+
+  Trois autres trous sur le même chemin, tous invisibles un par un et qui font
+  ensemble « le filigrane par boutique ne marche pas » :
+  `POST /:id/images` marquait la photo du vendeur **au téléversement, avec les
+  réglages du COMPTE** (une annonce moderne en portait donc deux, et jamais celle
+  de la boutique) ; la **signature d'export ne couvrait que les réglages**, pas
+  la liste des photos, donc une photo ajoutée n'apparaissait nulle part ; et
+  `PATCH /shops/:id` ne vidait pas le cache alors que les deux routes du logo le
+  faisaient déjà. Enfin, **le rangement dans une boutique n'était fait que pour
+  « Mon site »** : désigner sa boutique et publier sur Shopify laissait
+  `Product.shopId` nul, donc le filigrane du compte.
+
+- **Un logo ne se règle ni en taille ni en intensité (19/09/2026).** Demandé par
+  Max, et c'est juste : un logo affaibli n'est pas discret, il est sale ; et une
+  largeur en pourcentage ne dit rien d'un logo HAUT — une enseigne verticale à
+  22 % de large mangeait le tiers de la hauteur. `CONTENEUR_LOGO` (watermark.ts)
+  est une boîte d'un cinquième de la largeur de la photo, marge de 3 %, où le
+  logo entre par `fit: 'inside'` à pleine intensité, dans le coin choisi — en bas
+  à droite par défaut. `scale` et `opacity` ne servent plus que le filigrane
+  texte, et les deux curseurs disparaissent des deux écrans en mode logo : les
+  laisser, c'était proposer deux réglages sans effet. **Le banc le prouve en
+  pixels** (deux réglages opposés doivent rendre la même image), et il a été
+  éprouvé contre la version fautive.
+
+  Trouvé en passant, même famille : `WatermarkSettings.tsx` n'envoyait pas
+  `watermarkMode` — les boutons « Mon logo » / « Un texte » changeaient l'écran
+  et n'enregistraient rien.
+
 - **Une application React est invisible pour une IA : d où `llms.txt`.** Signalé
   le 15/09/2026 par Max — « si je demande à une IA ce que fait drop-shipper.fr,
   elle ne le sait pas ». Normal : un assistant qui suit le lien reçoit la

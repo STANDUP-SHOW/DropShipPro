@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import type { Product, Shop, User } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { marquerPourExport, signatureFiligrane } from './watermark.js'
@@ -87,7 +88,15 @@ export async function imagesPourExport(produit: Product, shopId?: string | null)
   if (!user) return images
 
   const reglages = reglagesFiligrane(user, shop)
-  const signature = signatureFiligrane(reglages)
+  /*
+   * La signature couvre les réglages ET la liste des photos.
+   *
+   * Elle ne portait que les réglages : une photo ajoutée, retirée ou
+   * réordonnée laissait le cache intact, et l'export continuait de servir
+   * l'ancienne liste. Le vendeur ajoutait sa propre photo, ne la voyait ni dans
+   * son flux ni sur sa boutique, et rien ne lui disait pourquoi.
+   */
+  const signature = `${signatureFiligrane(reglages)}|${createHash('sha1').update(images.join('\n')).digest('hex').slice(0, 12)}`
 
   const enCache = Array.isArray(produit.exportImages) ? produit.exportImages : null
   if (produit.exportSignature === signature && enCache?.length) {
