@@ -19,6 +19,8 @@ import { api, assetUrl } from '../lib/api'
  * une seule case forcerait à choisir un format pour les deux.
  */
 
+type CharteBoutique = Awaited<ReturnType<typeof api.adCharte>>
+
 /** Les destinations proposées, dans l'ordre où on y pense. */
 const RESEAUX = [
   { id: 'facebook', label: 'Facebook', format: 'Fil · 1200×628', couleur: '#1877f2', emoji: '👥' },
@@ -65,6 +67,20 @@ export function AdDialog({
   const [boutiques, setBoutiques] = useState<Array<{ id: string; name: string; logo: string | null }>>([])
   const [boutique, setBoutique] = useState<string>(shopId ?? '')
 
+  /**
+   * Le logo qui signera, et les gammes tirées de ses couleurs.
+   *
+   * Max, le 19/09/2026 : « on confirme aussi le logo utilisé pour la pub en
+   * cliquant dessus, elle peut adapter la pub à la charte du logo, elle extrait
+   * code couleur gamme idem création de site DropShop ». Un logo qu'on ne voit
+   * qu'une fois la publicité payée est un logo qu'on découvre trop tard.
+   */
+  const [charte, setCharte] = useState<CharteBoutique | null>(null)
+  const [charteEnCours, setCharteEnCours] = useState(true)
+  const [avecLogo, setAvecLogo] = useState(true)
+  /** Vide = l'IA choisit. C'est le défaut : Max veut la liberté, pas un formulaire. */
+  const [gamme, setGamme] = useState('')
+
   const [choisis, setChoisis] = useState<Set<string>>(new Set(['instagram']))
   const [avecPrix, setAvecPrix] = useState(true)
   /** L'IA lit l'annonce, ou le vendeur dicte son message. */
@@ -89,6 +105,35 @@ export function AdDialog({
       .catch(() => undefined)
   }, [])
 
+  /*
+   * La charte se relit à chaque changement de boutique.
+   *
+   * Elle n'est pas dans `listShops` et ne peut pas y être : elle demande de
+   * télécharger le logo et de le lire pixel par pixel. La relire ici coûte une
+   * requête gratuite et évite au vendeur de payer pour découvrir la couleur
+   * qu'on lui a choisie.
+   */
+  useEffect(() => {
+    let vivant = true
+    setCharteEnCours(true)
+    api
+      .adCharte({ shopId: boutique || undefined, productId })
+      .then((c) => {
+        if (!vivant) return
+        setCharte(c)
+        // Un logo proposé est coché : c'est le cas courant. Le décocher est un
+        // geste, le cocher ne devrait pas en être un.
+        setAvecLogo(Boolean(c.logo))
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (vivant) setCharteEnCours(false)
+      })
+    return () => {
+      vivant = false
+    }
+  }, [boutique, productId])
+
   const basculer = (id: string) =>
     setChoisis((actuel) => {
       const suivant = new Set(actuel)
@@ -112,6 +157,8 @@ export function AdDialog({
         ctaLabel: ctaLabel.trim() || undefined,
         ctaUrl: ctaUrl.trim() || undefined,
         shopId: boutique || undefined,
+        gamme: gamme || undefined,
+        avecLogo,
       })
       if (res.errors.length) setErreur(res.errors.join(' · '))
       onGenerated(res.images, res.credits)
@@ -231,6 +278,138 @@ export function AdDialog({
                 <p className="mt-1.5 text-[11px] text-gray-500">
                   Son nom et son logo seront posés sur le visuel.
                 </p>
+              </>
+            ) : null}
+
+            {/*
+              --- Le logo, et la charte qu'on en tire -----------------------
+
+              Demandé par Max le 19/09/2026 : « on confirme aussi le logo
+              utilisé pour la pub en cliquant dessus […] elle extrait code
+              couleur gamme idem création de site DropShop ».
+
+              Trois choses se jouent ici, et la première est la plus simple :
+              le vendeur VOIT le logo qui signera avant de payer. Le décocher
+              est un vrai cas — une photo qui porte déjà la marque n'en veut
+              pas un second dans le coin, et ça ne se rattrape qu'en repayant.
+            */}
+            <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Le logo de la publicité
+            </h3>
+            {charteEnCours ? (
+              <p className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
+                <Loader2 size={12} className="animate-spin" />
+                <span>Lecture du logo…</span>
+              </p>
+            ) : charte?.logo ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAvecLogo((a) => !a)}
+                  aria-pressed={avecLogo}
+                  className={`mt-2 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                    avecLogo
+                      ? 'border-purple-400/60 bg-purple-500/15'
+                      : 'border-white/10 bg-white/[0.03] opacity-50 grayscale'
+                  }`}
+                >
+                  <img
+                    src={assetUrl(charte.logo)}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-lg bg-white/10 object-contain p-1"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium">
+                      {avecLogo ? 'Ce logo signera la publicité' : 'Publicité sans logo'}
+                    </span>
+                    <span className="block truncate text-[10px] text-gray-500">
+                      {avecLogo
+                        ? 'Cliquez pour le retirer du visuel'
+                        : "Cliquez pour le remettre — le nom de la boutique s'affichera sinon"}
+                    </span>
+                  </span>
+                  {avecLogo ? <Check size={14} className="shrink-0 text-purple-300" /> : null}
+                </button>
+
+                {/* Les couleurs relevées : la preuve, en un coup d'œil, que la
+                    publicité partira bien de cette marque-là. */}
+                {charte.couleurs.length ? (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-500">Couleurs relevées</span>
+                    {charte.couleurs.map((c) => (
+                      <span
+                        key={c.hex}
+                        title={c.hex}
+                        className="h-4 w-4 rounded-full border border-white/20"
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                Cette boutique n'a pas de logo : son nom sera écrit sur le visuel. Déposez-en un dans
+                Réglages pour que vos publicités portent vos couleurs.
+              </p>
+            )}
+
+            {/*
+              --- La gamme --------------------------------------------------
+
+              Libre par défaut, et ce n'est pas de la paresse : Max a demandé
+              « création libre IA illimitée ». Les quatre gammes sont là pour
+              le vendeur qui sait ce qu'il veut, pas pour lui imposer un
+              formulaire avant de commencer.
+            */}
+            {charte?.gammes.length ? (
+              <>
+                <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Adapter la publicité aux couleurs du logo ?
+                </h3>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => setGamme('')}
+                    className={`rounded-xl border px-3 py-2 text-left text-[11px] transition ${
+                      gamme === ''
+                        ? 'border-purple-400/60 bg-purple-500/15 text-white'
+                        : 'border-white/10 bg-white/[0.03] text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="block font-medium">Laisser l'IA libre</span>
+                    <span className="block text-[10px] text-gray-500">Elle choisit la gamme</span>
+                  </button>
+                  {charte.gammes.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setGamme(g.id)}
+                      title={g.description}
+                      className={`rounded-xl border px-3 py-2 text-left text-[11px] transition ${
+                        gamme === g.id
+                          ? 'border-purple-400/60 bg-purple-500/15 text-white'
+                          : 'border-white/10 bg-white/[0.03] text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"
+                          style={{
+                            backgroundImage: `linear-gradient(135deg, ${g.apercu.accent}, ${g.apercu.accent2})`,
+                          }}
+                        />
+                        <span className="truncate font-medium">{g.nom}</span>
+                      </span>
+                      <span
+                        className="mt-1 block rounded px-1.5 py-0.5 text-[9px]"
+                        style={{ backgroundColor: g.apercu.fond, color: g.apercu.texte }}
+                      >
+                        Aperçu
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </>
             ) : null}
 

@@ -1265,6 +1265,10 @@ export const api = {
       showPrice?: boolean
       /** La boutique dont le logo signe la publicite. */
       shopId?: string
+      /** La gamme tiree du logo : sombre, clair, contraste, naturel. */
+      gamme?: string
+      /** Faux retire le logo du visuel : le vendeur l a decoche en le voyant. */
+      avecLogo?: boolean
     },
   ) =>
     request<{
@@ -1284,6 +1288,31 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ productId, platforms, count, ...options }),
     }),
+  /**
+   * Le logo qui signera la publicité, et les gammes tirées de ses couleurs.
+   *
+   * Gratuit : c'est un écran, pas un travail. Le vendeur voit le logo avant de
+   * payer, le confirme d'un clic, et choisit la gamme — exactement le geste de
+   * la création de boutique DropShop.
+   */
+  adCharte: (params: { shopId?: string; productId?: string }) =>
+    request<{
+      nom: string | null
+      logo: string | null
+      origine: 'boutique-choisie' | 'boutique-de-l-annonce' | 'compte'
+      couleurs: Array<{ hex: string; part: number }>
+      gammes: Array<{
+        id: string
+        nom: string
+        description: string
+        mode: 'sombre' | 'clair'
+        apercu: { fond: string; texte: string; accent: string; accent2: string }
+      }>
+    }>(
+      `/visuals/charte?${new URLSearchParams(
+        Object.entries(params).filter(([, v]) => Boolean(v)) as [string, string][],
+      ).toString()}`,
+    ),
   /** Le book d'un agent visuel : tout ce qu'il a produit, toutes annonces confondues. */
   visualGallery: (kind?: 'ad' | 'photo') =>
     request<{

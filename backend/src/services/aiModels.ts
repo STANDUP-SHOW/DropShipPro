@@ -107,6 +107,10 @@ export function modelesEffectifs(): Record<string, string> {
     conversation: modele('AI_MODEL_CHAT', MODELE_REDACTION),
     categories: modele('AI_MODEL_CATEGORY', MODELE_RAPIDE),
     analyse: modele('AI_MODEL_ANALYSIS', MODELE_PUISSANT),
+    // Les deux agents visuels, passés à Opus le 19/09/2026 : une publicité et
+    // une photo sortent une fois et se paient cher, l'écart de modèle s'y voit.
+    publicite: modele('AI_MODEL_ADCOPY', MODELE_PUISSANT),
+    briefPhoto: modele('AI_MODEL_BRIEF', MODELE_PUISSANT),
   }
 }
 

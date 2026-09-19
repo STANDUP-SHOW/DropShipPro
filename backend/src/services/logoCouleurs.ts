@@ -125,7 +125,7 @@ export async function couleursDuLogo(image: Buffer): Promise<CouleurLogo[]> {
 
 /* ---------- Les gammes ---------- */
 
-function texteLisibleSur(fond: string, clair: boolean): string {
+export function texteLisibleSur(fond: string, clair: boolean): string {
   // Part d'un blanc cassé (ou d'un noir chaud) et pousse jusqu'à 4,5 : 1.
   for (let l = clair ? 0.12 : 0.96; clair ? l <= 0.5 : l >= 0.5; l += clair ? 0.02 : -0.02) {
     const t = hslVersHex(0, 0, l)
@@ -134,7 +134,7 @@ function texteLisibleSur(fond: string, clair: boolean): string {
   return clair ? '#111111' : '#f4f4f4'
 }
 
-function accentLisibleSur(fond: string, h: number, s: number, l: number, clair: boolean): string {
+export function accentLisibleSur(fond: string, h: number, s: number, l: number, clair: boolean): string {
   let hex = hslVersHex(h, s, l)
   let essais = 0
   while (contraste(fond, hex) < 3 && essais++ < 20) {

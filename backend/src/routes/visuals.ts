@@ -3,6 +3,10 @@ import { ecrireAccroche } from '../services/adCopywriter.js'
 import { ecrireBrief } from '../services/photoBriefer.js'
 import { enseignePour } from '../services/adBrand.js'
 import { SansPolice } from '../services/adComposer.js'
+import { ambianceDe, chartePour } from '../services/adCharte.js'
+import { couleursDuLogo, gammesDepuis, type CouleurLogo } from '../services/logoCouleurs.js'
+import { dossierDesignPour, dossierEnTexte } from '../services/designLibrary.js'
+import { fetchSourceImage } from '../services/watermark.js'
 import { COUT_PHOTO, COUT_PUB, PHOTOS_MAX, TARIF_VISUELS } from '../services/visualTariff.js'
 import { PHOTOS_PAR_ANNONCE } from '../services/photoLimits.js'
 import { z } from 'zod'
@@ -55,6 +59,91 @@ visualsRouter.get('/state', async (req: AuthedRequest, res) => {
      * solde.
      */
     tarif: TARIF_VISUELS,
+  })
+})
+
+/**
+ * Les couleurs du logo qui signe la publicité.
+ *
+ * `fetchSourceImage` et non un `fetch` à nous : c'est déjà lui qui va chercher
+ * ce logo pour le poser sur le visuel, il sait lire un chemin `/storage`, une
+ * adresse R2 et une URL entière. Deux lecteurs pour le même fichier finiraient
+ * par ne plus lire la même chose.
+ *
+ * Rend `[]` sans logo, sans réseau ou sur un fichier illisible : la publicité
+ * sort alors dans la gamme par défaut, jamais en erreur.
+ */
+async function couleursDe(logo: string | null | undefined): Promise<CouleurLogo[]> {
+  if (!logo) return []
+  try {
+    const brut = await fetchSourceImage(logo)
+    return brut ? await couleursDuLogo(brut) : []
+  } catch (e) {
+    console.error('[pub] couleurs du logo illisibles', e instanceof Error ? e.message : e)
+    return []
+  }
+}
+
+/**
+ * L'enseigne d'une publicité : le nom, le logo, et de quelle boutique.
+ *
+ * La même résolution sert l'écran (« voici le logo qui signera, cliquez pour
+ * confirmer ») et la génération. Deux résolutions séparées finiraient par
+ * diverger, et le vendeur verrait un logo puis en recevrait un autre — c'est
+ * exactement le défaut du 02/09/2026, une marche plus haut.
+ */
+async function enseigneDe(userId: string, shopId?: string | null, productId?: string | null) {
+  const [choisie, produit, compte] = await Promise.all([
+    shopId ? prisma.shop.findFirst({ where: { id: shopId, userId } }) : null,
+    productId
+      ? prisma.product.findFirst({
+          where: { id: productId, userId },
+          select: { shop: { select: { id: true, name: true, logo: true } } },
+        })
+      : null,
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { shopName: true, watermarkImage: true } }),
+  ])
+
+  return {
+    introuvable: Boolean(shopId && !choisie),
+    enseigne: enseignePour({ choisie, duProduit: produit?.shop ?? null, compte }),
+  }
+}
+
+/**
+ * Le logo qui signera, et les gammes qu'on en tire.
+ *
+ * Max, le 19/09/2026 : « on confirme aussi le logo utilisé pour la pub en
+ * cliquant dessus, elle peut adapter la pub à la charte du logo, elle extrait
+ * code couleur gamme idem création de site DropShop ». C'est la même route que
+ * `/dropshop/:shopId/gammes`, pour la même raison, à une différence près : une
+ * publicité peut être signée par le compte quand le vendeur n'a aucune
+ * boutique, alors qu'une boutique DropShop en a forcément une.
+ *
+ * Gratuit, ne débite rien, n'écrit rien : c'est un écran, pas un travail.
+ */
+visualsRouter.get('/charte', async (req: AuthedRequest, res) => {
+  const shopId = typeof req.query.shopId === 'string' ? req.query.shopId : undefined
+  const productId = typeof req.query.productId === 'string' ? req.query.productId : undefined
+
+  const { introuvable, enseigne } = await enseigneDe(req.userId!, shopId, productId)
+  if (introuvable) return res.status(400).json({ error: 'Cette boutique ne vous appartient pas.' })
+
+  const couleurs = await couleursDe(enseigne.logo)
+  res.json({
+    nom: enseigne.nom,
+    logo: enseigne.logo,
+    origine: enseigne.origine,
+    couleurs: couleurs.map((c) => ({ hex: c.hex, part: c.part })),
+    gammes: gammesDepuis(couleurs).map((g) => ({
+      id: g.id,
+      nom: g.nom,
+      description: g.description,
+      mode: g.mode,
+      // De quoi dessiner la pastille dans l'écran sans que le client refasse
+      // le moindre calcul de couleur : il en ferait un autre.
+      apercu: { fond: g.jetons.fond, texte: g.jetons.texte, accent: g.jetons.accent, accent2: g.jetons.accent2 },
+    })),
   })
 })
 
@@ -162,6 +251,10 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
       aiDescription: true,
       bulletPoints: true,
       attributes: true,
+      // La boutique : ses couleurs passent dans le DÉCOR des photos. Un
+      // catalogue dont les mises en situation partagent une gamme se reconnaît
+      // d'une fiche à l'autre — c'est ce que fait une marque.
+      shop: { select: { name: true, logo: true } },
     },
   })
   if (!product) return res.status(404).json({ error: 'Produit introuvable' })
@@ -172,6 +265,17 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
   if (!sourceImages.length) {
     return res.status(400).json({ error: "Ce produit n'a aucune photo à retravailler." })
   }
+
+  /*
+   * Les tons de la marque, lus une fois pour toute la demande.
+   *
+   * Ils ne touchent JAMAIS au produit : le brief les fait vivre dans le fond,
+   * la surface, un accessoire. Un produit repeint aux couleurs de la boutique
+   * n'est plus celui du colis, et c'est un litige.
+   */
+  const ambianceMarque = ambianceDe(
+    chartePour({ couleurs: await couleursDe(product.shop?.logo) }),
+  )
 
   const produced = []
   const errors: string[] = []
@@ -203,6 +307,8 @@ visualsRouter.post('/photos', async (req: AuthedRequest, res) => {
         categorie: product.sourceCategory,
         hint: parsed.data.hint,
         dejaVus: partisServis,
+        marque: product.shop?.name ?? null,
+        ambiance: ambianceMarque,
       })
       partisServis.push(brief.partiPris)
 
@@ -285,6 +391,24 @@ const adSchema = z.object({
    * on prend celui de la boutique du produit, puis celui du compte.
    */
   shopId: z.string().trim().optional(),
+  /**
+   * La gamme tirée du logo : `sombre`, `clair`, `contraste`, `naturel`.
+   *
+   * Absente, la publicité part de la gamme sombre — un bandeau foncé tient le
+   * texte lisible par-dessus n'importe quelle photo. Le modèle peut ensuite
+   * s'en écarter : c'est un point de départ, pas une consigne.
+   */
+  gamme: z.string().trim().max(20).optional(),
+  /**
+   * Poser le logo sur le visuel.
+   *
+   * L'écran montre le logo qui signera et le vendeur le confirme d'un clic.
+   * Il peut aussi le retirer : un logo déjà imprimé sur la photo du produit,
+   * ou une publicité qu'il veut sobre. Le dire à faux serait pire que de ne
+   * rien demander — un second logo dans le coin d'une image qui en porte déjà
+   * un ne se rattrape qu'en repayant.
+   */
+  avecLogo: z.boolean().optional(),
 })
 
 visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
@@ -370,13 +494,31 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
     compte: vendeur,
   })
 
+  /*
+   * La charte de la marque, lue UNE fois pour toute la demande.
+   *
+   * Le logo est téléchargé et analysé pixel par pixel : le refaire à chaque
+   * visuel ferait six lectures du même fichier pour six couleurs identiques.
+   * Ce qui change d'un visuel à l'autre, c'est la mise en page et la
+   * typographie — et elles tournent avec l'index, sans rien relire.
+   */
+  const couleursMarque = parsed.data.avecLogo === false ? [] : await couleursDe(enseigne.logo)
+  const pistesDesign = dossierEnTexte(
+    dossierDesignPour(
+      [product.aiTitle || product.title, product.sourceCategory ?? ''].join(' '),
+      product.sourceCategory ? [product.sourceCategory] : [],
+    ),
+  )
+
   const prix = Number(product.sellingPrice)
   const copy = {
     title: product.aiTitle || product.title,
     price:
       parsed.data.showPrice === false ? '' : `${prix.toFixed(2).replace('.', ',')} ${product.currency}`,
     shopName: enseigne.nom,
-    logo: enseigne.logo,
+    // Le vendeur a vu le logo et l'a décoché : on ne le pose pas, et le nom de
+    // la boutique reprend sa place (le composeur n'écrit l'un que faute de l'autre).
+    logo: parsed.data.avecLogo === false ? null : enseigne.logo,
     ctaLabel: parsed.data.ctaLabel?.trim() || 'Commander',
     ctaUrl: parsed.data.ctaUrl?.trim() || null,
     argument: parsed.data.argument?.trim() || null,
@@ -391,6 +533,13 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
   // Et les mises en scene deja servies : l accroche et l image doivent varier
   // toutes les deux, sinon deux publicites se ressemblent encore a moitie.
   const partisPubServis: string[] = []
+  /*
+   * Le rang du visuel dans la demande : c'est lui qui fait tourner la mise en
+   * page et la typographie. Six publicités demandées d'un coup ne doivent pas
+   * se ressembler MÊME quand le modèle est injoignable — la variété ne se
+   * délègue pas au réseau.
+   */
+  let rang = 0
 
   outer: for (const platform of platforms) {
     for (let i = 0; i < parsed.data.count; i++) {
@@ -413,6 +562,12 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
          * Ce que le vendeur a dicte lui-meme n est jamais ecrase : il a vu son
          * produit, la machine non.
          */
+        const charteDepart = chartePour({
+          couleurs: couleursMarque,
+          gamme: parsed.data.gamme,
+          index: rang++,
+        })
+
         const accroche = parsed.data.argument?.trim()
           ? null
           : await ecrireAccroche({
@@ -425,9 +580,16 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
               categorie: product.sourceCategory,
               platform,
               dejaVus: anglesServis,
+              boutique: enseigne.nom,
+              charte: charteDepart,
+              dossierDesign: pistesDesign,
+              hint: parsed.data.hint,
             })
 
         if (accroche) anglesServis.push(accroche.angle)
+        // La charte du modèle quand il a répondu, la nôtre sinon : dans les
+        // deux cas, aux couleurs du logo.
+        const charte = accroche?.charte ?? charteDepart
 
         const copyEcrit = accroche
           ? {
@@ -449,6 +611,8 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
           hint: parsed.data.hint,
           dejaVus: partisPubServis,
           pourPublicite: true,
+          marque: enseigne.nom,
+          ambiance: ambianceDe(charte),
         })
         partisPubServis.push(briefPub.partiPris)
 
@@ -459,6 +623,7 @@ visualsRouter.post('/ads', async (req: AuthedRequest, res) => {
           hint: parsed.data.hint,
           copy: copyEcrit,
           brief: briefPub,
+          charte,
         })
 
         produced.push(
