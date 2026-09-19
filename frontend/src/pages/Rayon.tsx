@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare, Search, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Sparkles, Truck, Share2, Store, Globe, User, MessagesSquare, Search, TrendingUp, Newspaper } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { RecommendedProducts } from '../components/RecommendedProducts'
 import { OpportunityList } from '../components/OpportunityList'
@@ -11,12 +11,18 @@ import { DepartmentChat } from '../components/DepartmentChat'
 import { DemandesAnalyse } from '../components/DemandesAnalyse'
 import { ProductInfo } from '../components/ProductInfo'
 import { DepartmentSales } from '../components/DepartmentSales'
+import { AnalysesRapports } from '../components/AnalysesRapports'
+import { GagnantsRapports } from '../components/GagnantsRapports'
 import { api } from '../lib/api'
 
 type Department = Awaited<ReturnType<typeof api.listDepartments>>[number]
 
 const TABS = [
   { id: 'ADVICE' as const, label: 'Produits gagnants', icon: Sparkles },
+  // Les analyses quotidiennes des agents, rangées dans le rayon qu'elles
+  // concernent (19/09/2026) : la même table que la page Analyses de marché,
+  // bornée aux catégories que ce rayon couvre.
+  { id: 'ANALYSES' as const, label: 'Analyses de marché', icon: Newspaper },
   { id: 'INFO' as const, label: 'Info sur un produit', icon: Search },
   { id: 'SUPPLIERS' as const, label: 'Fournisseurs', icon: Truck },
   { id: 'SOCIAL' as const, label: 'Réseaux sociaux', icon: Share2 },
@@ -180,9 +186,10 @@ export default function Rayon() {
         })}
       </div>
 
-      {/* Le filtre global/personnel n'a de sens que sur les sources : la liste
-          conseillée est par nature tournée vers ce qu'on ne vend pas encore. */}
-      {tab !== 'ADVICE' && tab !== 'CHAT' && (
+      {/* Le filtre global/personnel n'a de sens que sur les trois sources de
+          veille : ailleurs il proposait un tri sans effet sur ce qui est
+          affiché, ce qui est indiscernable d'un filtre en panne. */}
+      {(['SUPPLIERS', 'SOCIAL', 'MARKET'] as string[]).includes(tab) && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -236,7 +243,43 @@ export default function Rayon() {
         </div>
       )}
 
-      {tab === 'ADVICE' && <RecommendedProducts department={department.id} />}
+      {tab === 'ADVICE' && (
+        <>
+          {/* Les vingt produits du rapport du jour, avant la liste que le chef
+              de rayon a lui-même conseillée : ils arrivent chaque matin, avec
+              leurs prix et leur chemin d'import. */}
+          <section className="mt-5">
+            <h2 className="flex items-center gap-2 font-bold">
+              <Newspaper size={16} className="text-emerald-400" />
+              <span>Les gagnants du jour</span>
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              {`Les produits relevés ce matin par les agents pour le rayon ${department.label.toLowerCase()}. Cochez pour importer en lot, ou confiez une fiche à l'extension.`}
+            </p>
+            <GagnantsRapports rayon={department.key} />
+          </section>
+
+          <section className="mt-8">
+            <h2 className="flex items-center gap-2 font-bold">
+              <Sparkles size={16} className="text-purple-300" />
+              <span>{`Ce que ${department.agentName} conseille`}</span>
+            </h2>
+            <RecommendedProducts department={department.id} />
+          </section>
+        </>
+      )}
+      {tab === 'ANALYSES' && (
+        <section className="mt-5">
+          <h2 className="flex items-center gap-2 font-bold">
+            <Newspaper size={16} className="text-emerald-400" />
+            <span>Analyses de marché</span>
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs text-gray-500">
+            {`Les analyses écrites chaque jour pour le rayon ${department.label.toLowerCase()}, la plus récente en tête. Cliquez une ligne pour la lire.`}
+          </p>
+          <AnalysesRapports type="rayon" rayon={department.key} />
+        </section>
+      )}
       {tab === 'SALES' && (
         <DepartmentSales departmentId={department.id} agentName={department.agentName} />
       )}

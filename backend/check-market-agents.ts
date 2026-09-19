@@ -1,5 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { CATEGORIES, CATEGORIES_PAR_RAYON, categoriesDuRayon } from './src/services/marketReports.js'
+import { DEPARTMENTS } from './src/services/departments.js'
 
 /**
  * Les deux copies du découpage des agents doivent être identiques.
@@ -11,20 +13,73 @@ import path from 'node:path'
  * `check-llms.ts` : un commentaire qui demande de se souvenir ne remplace pas
  * un contrôle.
  */
+let echecs = 0
+const exige = (c: boolean, m: string) => {
+  if (!c) {
+    echecs++
+    console.log(`ECHEC : ${m}`)
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Le rattachement rayon ↔ catégorie d'agents
+ * ---------------------------------------------------------------------------
+ *
+ * Les chefs de rayon portent les clés du référentiel de catégories, les 48
+ * agents portent les catégories d'`agents.json` : deux découpages de 24 qui ne
+ * se recouvrent pas. La table de `marketReports.ts` les raccorde, et ses deux
+ * bornes sont ici.
+ *
+ * **La seconde borne est celle qui compte** : une catégorie que plus aucun
+ * rayon ne lit produit un rapport chaque matin que personne ne voit jamais, et
+ * rien dans l'écran ne le dirait — il serait simplement vide, comme un jour
+ * sans dépôt.
+ */
+const clesRayons = new Set(DEPARTMENTS.map((d) => d.key))
+for (const cle of Object.keys(CATEGORIES_PAR_RAYON)) {
+  exige(clesRayons.has(cle), `« ${cle} » n'est pas un rayon du référentiel (voir departments.ts)`)
+}
+for (const d of DEPARTMENTS) {
+  exige(Object.prototype.hasOwnProperty.call(CATEGORIES_PAR_RAYON, d.key), `le rayon « ${d.key} » n'a pas de ligne dans la table`)
+}
+
+const idsCategories = new Set(CATEGORIES.map((c) => c.id))
+const lues = new Set<string>()
+for (const [cle, cats] of Object.entries(CATEGORIES_PAR_RAYON)) {
+  for (const id of cats) {
+    exige(idsCategories.has(id), `le rayon « ${cle} » cite la catégorie inconnue « ${id} »`)
+    lues.add(id)
+  }
+}
+const orphelines = [...idsCategories].filter((id) => !lues.has(id))
+exige(orphelines.length === 0, `catégorie(s) qu'aucun rayon ne lit : ${orphelines.join(', ')}`)
+
+// Un rayon sans catégorie rend un tableau vide, pas une erreur : l'écran le dit
+// et renvoie vers la vue globale.
+exige(categoriesDuRayon('nouveaute-et-usage-special').length === 0, 'le rayon fourre-tout ne prétend lire aucune catégorie')
+exige(
+  categoriesDuRayon('electronique').map((c) => c.id).join(',') === 'informatique,tv-son-photo',
+  'un rayon peut lire plusieurs catégories',
+)
+exige(categoriesDuRayon('rayon-qui-nexiste-pas').length === 0, 'une clé inconnue ne lève pas')
+
 const local = path.resolve('..', 'MARKET-ANALYSES', 'agents.json')
 const serveur = path.resolve('src', 'services', 'marketAgents.json')
 
 if (!fs.existsSync(local)) {
-  console.log('Découpage des agents : MARKET-ANALYSES/agents.json absent (dépôt partiel ?), contrôle sauté.')
-  process.exit(0)
+  console.log('Découpage des agents : MARKET-ANALYSES/agents.json absent (dépôt partiel ?), comparaison sautée.')
+  process.exit(echecs ? 1 : 0)
 }
 
 const a = JSON.stringify(JSON.parse(fs.readFileSync(local, 'utf8')))
 const b = JSON.stringify(JSON.parse(fs.readFileSync(serveur, 'utf8')))
 
-if (a !== b) {
-  console.log('ECHEC : MARKET-ANALYSES/agents.json et backend/src/services/marketAgents.json divergent — recopier l’un sur l’autre.')
+exige(a === b, 'MARKET-ANALYSES/agents.json et backend/src/services/marketAgents.json divergent — recopier l’un sur l’autre.')
+
+if (echecs) {
+  console.log(`Découpage des agents : ${echecs} échec(s).`)
   process.exitCode = 1
 } else {
-  console.log('Découpage des agents : les deux copies sont identiques.')
+  console.log(`Découpage des agents : les deux copies sont identiques, et les ${CATEGORIES.length} catégories sont toutes lues par un rayon.`)
 }

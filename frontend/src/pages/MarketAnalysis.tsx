@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { TrendingUp, ExternalLink, Loader2, ArrowLeft, Info } from 'lucide-react'
+import { TrendingUp, ExternalLink, Loader2, ArrowLeft, Info, Newspaper } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { ReportList } from '../components/ReportList'
 import { StudioAnalyses } from '../components/StudioAnalyses'
+import { AnalysesRapports } from '../components/AnalysesRapports'
 import { api } from '../lib/api'
 
 type Result = Awaited<ReturnType<typeof api.marketAnalysis>>['results'][number]
@@ -93,6 +94,26 @@ export default function MarketAnalysisPage() {
         découvrir ensuite que la niche est saturée.
       */}
       <StudioAnalyses />
+
+      {/*
+        Les analyses quotidiennes des agents, toutes catégories (19/09/2026).
+
+        Elles arrivent chaque matin, une par rayon, et elles n'avaient jusqu'ici
+        qu'une seule vitrine : Fresh news, qui en montre une à la fois, celle du
+        jour. Ici c'est la lecture inverse — la liste par date, qu'on déplie —
+        et c'est la même table, filtrable par rayon.
+      */}
+      <section className="mt-10">
+        <h2 className="flex items-center gap-2 font-bold">
+          <Newspaper size={16} className="text-emerald-400" />
+          <span>Les analyses du jour, rayon par rayon</span>
+        </h2>
+        <p className="mt-1 max-w-3xl text-xs text-gray-500">
+          Une analyse par rayon et par jour, écrite par les agents. Cliquez une ligne pour la lire ;
+          la liste des vingt produits qu'elle porte s'importe depuis l'analyse elle-même.
+        </p>
+        <AnalysesRapports type="rayon" avecFiltreCategorie />
+      </section>
 
       {productIds.length === 0 && (
         <p className="mt-6 text-xs text-gray-500">

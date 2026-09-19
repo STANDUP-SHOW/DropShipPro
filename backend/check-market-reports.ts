@@ -1,4 +1,4 @@
-import { CATEGORIES, lireRapport, lireProduits, nombreFr, RapportInvalide, themeDuJour } from './src/services/marketReports.js'
+import { CATEGORIES, lirePrompts, lireRapport, lireProduits, nombreFr, RapportInvalide, themeDuJour } from './src/services/marketReports.js'
 
 /**
  * Éprouve la lecture des rapports des 48 agents selon le contrat de
@@ -156,6 +156,72 @@ Hook : « Un seul chargeur pour tout ça ? » Plan serré sur trois appareils qu
 const m = lireRapport(marketing)
 exige(m.type === 'marketing' && m.produits.length === 0, 'un rapport marketing ne porte pas de produits')
 exige(m.body.includes('## Prompts de vidéos publicitaires'), 'le corps est gardé tel quel, sections comprises')
+
+// ── 6. Les prompts publicitaires du rapport marketing ───────────────────────
+
+/*
+ * Ce que ce morceau protège : l'écran « Prompts IA » de Réseaux ne montre que
+ * ce que cette lecture trouve. Deux pièges, et ils viennent du même endroit —
+ * **c'est la section qui décide du genre, jamais le texte du prompt** : un
+ * prompt d'image qui parle de mouvement resterait rangé en image, et un titre
+ * de section qui ne nomme ni image ni vidéo ne produit rien plutôt que de
+ * deviner. Le second est qu'un bloc de code d'une AUTRE section (un exemple de
+ * légende, un tableau de chiffres) n'est pas un prompt.
+ */
+const rapportMarketing = `---
+type: marketing
+date: 2026-09-17
+categorie: telephonie
+theme: chargeurs-cables
+titre: Chargeurs — ce qui marche sur les réseaux
+agent: marketing-telephonie
+sources: 8
+---
+
+## Social places
+
+Le format qui marche est la démonstration en main, filmée de haut, sans voix.
+
+\`\`\`
+Ceci est un exemple de légende, pas un prompt.
+\`\`\`
+
+## Prompts d'images publicitaires
+
+\`\`\`
+# Facebook 1:1
+Chargeur GaN posé sur un bureau en chêne clair, lumière rasante du matin,
+fond flou, mention « 65 W » en gros.
+\`\`\`
+
+\`\`\`
+# Instagram 4:5
+Trois câbles tressés enroulés, à plat, fond papier terracotta.
+\`\`\`
+
+## Prompts de vidéos publicitaires
+
+\`\`\`
+# TikTok 9:16 — 15 s
+Plan serré sur une prise murale, la main branche le chargeur, coupe sur
+l'écran du téléphone qui passe de 12 % à 48 %.
+\`\`\`
+`
+
+const luMarketing = lireRapport(rapportMarketing)
+const prompts = lirePrompts(luMarketing.body)
+exige(prompts.length === 3, `3 prompts attendus, vu ${prompts.length} — un bloc d'une autre section a été pris pour un prompt`)
+exige(prompts.filter((p) => p.genre === 'image').length === 2, 'deux prompts d\'image')
+exige(prompts.filter((p) => p.genre === 'video').length === 1, 'un prompt de vidéo')
+exige(prompts[0].format === 'Facebook 1:1', `format lu en première ligne, vu « ${prompts[0].format} »`)
+exige(!prompts[0].texte.startsWith('#'), "le format n'est pas recopié dans le texte à coller")
+exige(prompts[2].format === 'TikTok 9:16 — 15 s', 'le format d\'une vidéo porte sa durée')
+exige(prompts[2].texte.includes('12 % à 48 %'), 'le corps du prompt est rendu entier')
+exige(lirePrompts('## Prompts d\'images publicitaires\n\nRien ici.').length === 0, 'une section sans bloc ne rend rien')
+exige(lirePrompts(luMarketing.body).length === lirePrompts(luMarketing.body).length, 'lecture idempotente')
+
+// Un rapport rayon n'a pas de prompts, et ne doit pas en inventer.
+exige(lirePrompts(lireRapport(rayon).body).length === 0, 'un rapport rayon ne rend aucun prompt')
 
 console.log(echecs === 0 ? 'Rapports de marché : tout passe.' : `${echecs} échec(s).`)
 process.exitCode = echecs === 0 ? 0 : 1

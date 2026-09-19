@@ -256,6 +256,28 @@ export interface SavLigne {
   produit: { id: string; titre: string; image: string | null }
 }
 
+/** Une ligne du tableau des 20 produits d'un rapport rayon. */
+export interface ProduitRapport {
+  rang: number
+  titre: string
+  fournisseur: string
+  url: string
+  prixAchat: number | null
+  prixVente: number | null
+  margePct: number | null
+  /** api | url : importable sans navigateur. extension : la page se construit en JavaScript. */
+  import: 'api' | 'url' | 'extension'
+  pourquoi: string
+}
+
+/** Compose une chaîne de requête en sautant ce qui n'est pas renseigné. */
+function enQuery(params: Record<string, string | number | undefined>): string {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') q.set(k, String(v))
+  const texte = q.toString()
+  return texte ? `?${texte}` : ''
+}
+
 export const api = {
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {
@@ -334,6 +356,69 @@ export const api = {
     }>(
       `/market-reports?categorie=${encodeURIComponent(categorie)}${jour ? `&jour=${jour}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
     ),
+  /*
+   * Le classement des rapports : les mêmes lignes que Fresh news, vues depuis
+   * un rayon, depuis le menu global ou depuis Réseaux. Le périmètre se dit par
+   * `rayon` (la clé d'un chef de rayon) ou par `categorie` (une catégorie
+   * d'agent) ; sans l'un ni l'autre, c'est la vue globale.
+   */
+  analysesRapports: (params: { type?: 'rayon' | 'marketing'; rayon?: string; categorie?: string; jour?: string; q?: string; limite?: number } = {}) =>
+    request<{
+      rayonSansCategorie: boolean
+      categories: Array<{ id: string; nom: string }>
+      analyses: Array<{
+        id: string
+        day: string
+        type: 'rayon' | 'marketing'
+        categorie: string
+        categorieNom: string
+        theme: string
+        themeNom: string
+        titre: string
+        accroche: string | null
+        sources: number
+        produits: number
+      }>
+    }>(`/market-reports/analyses${enQuery(params)}`),
+  analyseRapport: (id: string) =>
+    request<{
+      id: string
+      day: string
+      type: 'rayon' | 'marketing'
+      categorie: string
+      categorieNom: string
+      theme: string
+      themeNom: string
+      titre: string
+      accroche: string | null
+      sources: number
+      body: string
+      produits: ProduitRapport[]
+    }>(`/market-reports/analyses/${id}`),
+  gagnantsRapports: (params: { rayon?: string; categorie?: string; jour?: string; limite?: number } = {}) =>
+    request<{
+      rayonSansCategorie: boolean
+      jours: string[]
+      produits: Array<ProduitRapport & { rapportId: string; day: string; categorie: string; categorieNom: string; theme: string; themeNom: string }>
+    }>(`/market-reports/gagnants${enQuery(params)}`),
+  promptsRapports: (params: { rayon?: string; categorie?: string; jour?: string; limite?: number } = {}) =>
+    request<{
+      rayonSansCategorie: boolean
+      jours: string[]
+      prompts: Array<{
+        id: string
+        genre: 'image' | 'video'
+        format: string | null
+        texte: string
+        rapportId: string
+        day: string
+        categorie: string
+        categorieNom: string
+        theme: string
+        themeNom: string
+        titre: string
+      }>
+    }>(`/market-reports/prompts${enQuery(params)}`),
   // La file d'import exécutée par l'agent extension.
   fileImportAjouter: (produits: Array<{ url: string; titre?: string; fournisseur?: string; mode?: 'api' | 'url' | 'extension'; origine?: string }>) =>
     request<{ ajoutes: number; dejaEnFile: number }>('/market-reports/file', { method: 'POST', body: JSON.stringify({ produits }) }),

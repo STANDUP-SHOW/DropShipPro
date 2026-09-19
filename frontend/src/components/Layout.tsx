@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
 import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, Search, Menu as MenuIcon, X,
   Share2,
+  Wand2,
 } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
@@ -118,6 +119,11 @@ const SECTIONS: Array<{
       // Sous Commercialisation : les comptes réseaux, les régies et la diffusion
       // des visuels, sortis du bas de Commercialisation le 19/09/2026.
       { to: '/reseaux', label: 'Réseaux', icon: Share2 },
+      // Ce que les agents déposent chaque matin côté marketing : l'analyse
+      // réseaux du rayon, et les prompts publicitaires prêts à coller. Deux
+      // vues de la page Réseaux, pointées directement (19/09/2026).
+      { to: '/reseaux?vue=analyses', label: 'Analyses réseaux', icon: Newspaper },
+      { to: '/reseaux?vue=prompts', label: 'Prompts IA', icon: Wand2 },
     ],
   },
   {
@@ -202,11 +208,25 @@ function JaugeMax({ taille = 14 }: { taille?: number }) {
   )
 }
 
+/** Les entrees du menu qui portent un parametre : elles priment sur leur adresse nue. */
+const PRECISES = SECTIONS.flatMap((s) => s.entrees.map((e) => e.to)).filter((to) => to.includes('?') || to.includes('#'))
+
 export function Layout({ children }: { children: React.ReactNode; large?: boolean }) {
   const { pathname, search, hash } = useLocation()
-  /** Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte. */
-  const estActive = (to: string) =>
-    to.includes('?') || to.includes('#') ? pathname + search + hash === to : pathname === to
+  /**
+   * Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte.
+   *
+   * Et l inverse compte autant : une entree sans parametre cede a l entree plus
+   * precise qui, elle, correspond. Sans cette seconde moitie, « Reseaux » et
+   * « Prompts IA » s allumaient ensemble sur /reseaux?vue=prompts, et le menu
+   * disait deux endroits a la fois.
+   */
+  const adresseComplete = pathname + search + hash
+  const estActive = (to: string) => {
+    if (to.includes('?') || to.includes('#')) return adresseComplete === to
+    if (pathname !== to) return false
+    return !PRECISES.some((p) => p === adresseComplete && p.startsWith(`${to}?`))
+  }
   const { logout, user } = useAuth()
   // Peint chaque bloc d'une couleur de néon variée (vert/jaune/bleu/rose/orange/
   // violet/bleu-ciel), au lieu d'un rose uniforme — et suit les blocs qui se
