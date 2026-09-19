@@ -303,7 +303,7 @@ function BlocSite({
           */}
           <div>
             <label className="text-xs text-gray-400">Où est cette boutique ?</label>
-            <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+            <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(
                 [
                   ['externe', 'Un site à moi, ailleurs', 'Vous branchez le flux dans WordPress, PrestaShop, Shopify…'],

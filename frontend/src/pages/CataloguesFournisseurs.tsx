@@ -565,7 +565,7 @@ export default function CataloguesFournisseurs() {
             {b.note ? <p className="mt-1 text-xs text-amber-200">{b.note}</p> : null}
 
             {b.produits.length ? (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {b.produits.map((p) => {
                   const cle = `${b.id}:${p.ref}`
                   const coche = coches.has(cle)

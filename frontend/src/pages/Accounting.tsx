@@ -99,7 +99,7 @@ export default function Accounting() {
         <p className="text-xs leading-relaxed text-sky-100">{affiche.avertissement}</p>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <p className="text-xs text-gray-500">Commandes</p>
           <p className="text-xl font-bold tabular-nums">{total.commandes}</p>
@@ -198,7 +198,7 @@ export default function Accounting() {
         peut rédiger les réponses ; vous les relisez avant l'envoi.
       </p>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section>
           <p className="flex items-center gap-1.5 text-sm font-semibold">
             <MessageSquare size={14} className="text-purple-300" />

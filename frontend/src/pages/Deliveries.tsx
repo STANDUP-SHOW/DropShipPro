@@ -324,7 +324,7 @@ export default function Deliveries() {
 
             {openId === o.id && detail && detail.id === o.id && (
               <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-4">
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
                     <p className="flex items-center gap-1 text-xs text-gray-400">
                       <MapPin size={13} />

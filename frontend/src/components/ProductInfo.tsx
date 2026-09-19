@@ -116,7 +116,7 @@ export function ProductInfo({ departmentId, agentName }: { departmentId: string;
             {avis.verdict}
           </p>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {volets.map((v) => (
               <div key={v.titre} className="rounded-lg bg-white/5 p-3">
                 <p className="flex items-center gap-1.5 text-xs font-semibold">
