@@ -1,4 +1,5 @@
 import { PARTIS_PRIS, choisirPartiPris, ecrireBrief, briefEnConsigne } from './src/services/photoBriefer.js'
+import { PHOTOS_MAX } from './src/services/visualTariff.js'
 
 /**
  * Éprouve la variété des photos générées.
@@ -43,6 +44,20 @@ console.log('\nAu-dela de la liste, on recommence au lieu de refuser :')
 const septieme = choisirPartiPris(PARTIS_PRIS.map((p) => p.cle))
 exige(Boolean(septieme?.cle), 'aucun parti pris rendu quand tous sont servis')
 exige(septieme.cle === PARTIS_PRIS[0].cle, `attendu ${PARTIS_PRIS[0].cle}, obtenu ${septieme.cle}`)
+
+/*
+ * Autant de partis pris que de photos commandables d'un coup.
+ *
+ * Le plafond est de dix (`PHOTOS_MAX`) et il n'y avait que six partis pris :
+ * les photos 7 à 10 repartaient sur ceux du début, donc quatre doublons dans la
+ * même commande — exactement ce que ce banc existe pour empêcher, une marche
+ * plus loin. Les deux nombres vivent dans deux fichiers : seul un banc peut les
+ * tenir ensemble.
+ */
+exige(
+  PARTIS_PRIS.length >= PHOTOS_MAX,
+  `${PARTIS_PRIS.length} partis pris pour ${PHOTOS_MAX} photos commandables : les dernieres se repeteront`,
+)
 
 console.log('\nChaque parti pris decrit une mise en scene, pas le produit :')
 for (const p of PARTIS_PRIS) {

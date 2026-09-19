@@ -1,5 +1,6 @@
 import sharp from 'sharp'
 import { fetchSourceImage } from './watermark.js'
+import { CHARTE_DEFAUT, POLICES, type CharteAd } from './adCharte.js'
 
 /**
  * La publicité, composée ici et non demandée au modèle.
@@ -13,6 +14,20 @@ import { fetchSourceImage } from './watermark.js'
  *
  * La scène vient donc du modèle, et tout ce qui porte du sens est dessiné ici,
  * au pixel près, à partir des vraies données de l'annonce.
+ *
+ * **Ce qui change le 19/09/2026 : la charte.** Les couleurs, la mise en page et
+ * la typographie étaient écrites en dur — le même violet, le même voile noir,
+ * la même police, sur toutes les publicités de tous les vendeurs. Elles
+ * arrivent désormais dans une `CharteAd` tirée du logo de la boutique (voir
+ * `adCharte.ts`), et quatre mises en page se partagent le même contenu.
+ *
+ * **La leçon de mise en page, apprise deux fois.** L'ancienne version empilait
+ * du haut vers le bas, et le prix barré passait sous le bouton ; elle a été
+ * corrigée en empilant du bas vers le haut, ce qui a réglé ce cas et rendu tous
+ * les autres illisibles à écrire. On mesure maintenant le bloc d'offre AVANT de
+ * le poser : chaque élément connaît sa hauteur, la boîte est de la taille de son
+ * contenu, et plus rien ne peut se chevaucher — quel que soit le format, la
+ * longueur du titre ou la mise en page.
  */
 
 /** Échappe le texte pour le SVG : une esperluette dans un titre casse tout le calque. */
@@ -28,10 +43,10 @@ function xml(text: string): string {
 /**
  * Coupe un titre en lignes qui tiennent dans la largeur.
  *
- * Approximation volontaire : la largeur d'un caractère vaut environ 0,52 fois
- * la taille de police sur une graisse demi-grasse. Mesurer exactement
- * demanderait de charger la police et de sommer les avances — pour un gain
- * invisible sur deux lignes de titre.
+ * Approximation volontaire : la largeur d'un caractère est une fraction de la
+ * taille de police, propre à chaque typographie (une condensée tient plus de
+ * lettres qu'une serif). Mesurer exactement demanderait de charger la police et
+ * de sommer les avances — pour un gain invisible sur deux lignes de titre.
  */
 function wrap(text: string, maxChars: number, maxLines: number): string[] {
   const mots = text.split(/\s+/).filter(Boolean)
@@ -76,6 +91,12 @@ export interface AdCopy {
   argument?: string | null
 }
 
+/** Un morceau du bloc d'offre : sa hauteur, puis son dessin une fois sa place connue. */
+interface Bloc {
+  h: number
+  dessin: (haut: number) => string
+}
+
 /**
  * Pose l'offre sur la scène.
  *
@@ -88,122 +109,219 @@ export async function composeAd(
   width: number,
   height: number,
   copy: AdCopy,
+  charte: CharteAd = CHARTE_DEFAUT,
 ): Promise<Buffer> {
   // Sans police, tout le texte sortirait en carrés : on refuse plutôt que de
   // livrer — et de facturer — un fichier inutilisable.
   if (!(await policeDisponible())) throw new SansPolice()
 
-  const fond = await sharp(base)
+  const fondImage = await sharp(base)
     .resize(width, height, { fit: 'cover', position: 'attention' })
     .toBuffer()
 
+  const p = charte.palette
+  const police = POLICES[charte.typographie] ?? POLICES.moderne
+  const paysage = width / height >= 1.4
+
   const cote = Math.min(width, height)
   const marge = Math.round(cote * 0.05)
+  const interligne = Math.round(cote * 0.022)
 
-  const tailleTitre = Math.round(cote * 0.058)
+  const tailleTitre = Math.round(cote * (paysage ? 0.062 : 0.058))
   const taillePrix = Math.round(cote * 0.1)
   const tailleCta = Math.round(cote * 0.046)
   const tailleArg = Math.round(cote * 0.038)
 
-  const largeurTexte = width - marge * 2
-  const lignes = wrap(copy.title, Math.floor(largeurTexte / (tailleTitre * 0.52)), 2)
+  /* ---------- La boîte : où le bloc d'offre a le droit de s'écrire -------- */
 
+  const pad = Math.round(cote * (charte.miseEnPage === 'voile' ? 0 : 0.045))
   /*
-   * La mise en page se calcule du bas vers le haut.
+   * En paysage, la carte et la bande ne prennent pas toute la largeur.
    *
-   * Posée du haut vers le bas, chaque élément dépendait de la hauteur du
-   * précédent : le prix barré passait sous le bouton, et l'adresse mordait la
-   * deuxième ligne du titre. En partant du bas, le bouton est ancré à sa marge
-   * et tout le reste s'empile au-dessus — plus rien ne peut se chevaucher, quel
-   * que soit le format ou la longueur du titre.
+   * Une bannière 1200×628 dont le texte court d'un bord à l'autre ne laisse
+   * plus voir le produit — or c'est lui qu'on vend. Deux tiers pour l'offre,
+   * un tiers dégagé : la photo respire et le titre reste sur deux lignes.
    */
-  const interligne = Math.round(cote * 0.022)
+  const largeurUtile =
+    charte.miseEnPage === 'carte' && paysage
+      ? Math.round(width * 0.62) - pad * 2
+      : width - marge * 2 - pad * 2
 
-  const largeurBouton = Math.round(copy.ctaLabel.length * tailleCta * 0.62 + tailleCta * 1.8)
-  const hauteurBouton = Math.round(tailleCta * 2.1)
-  const boutonX = marge
-  const boutonY = height - marge - hauteurBouton
+  const capitales = police.capitales
+  const titreEcrit = capitales ? copy.title.toLocaleUpperCase('fr-FR') : copy.title
+  const largeurCar = tailleTitre * (police.largeurCar + Math.max(0, police.espacement))
+  const lignes = wrap(titreEcrit, Math.max(8, Math.floor(largeurUtile / largeurCar)), 2)
 
-  const ctaSvg = `
-    <rect x="${boutonX}" y="${boutonY}" width="${largeurBouton}" height="${hauteurBouton}" rx="${Math.round(hauteurBouton / 2)}" fill="url(#bouton)"/>
-    <text x="${boutonX + largeurBouton / 2}" y="${boutonY + hauteurBouton / 2 + tailleCta * 0.36}" text-anchor="middle" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleCta}" font-weight="700" fill="#ffffff">${xml(copy.ctaLabel)}</text>`
+  const familleTitre = xml(police.titre)
+  const familleTexte = xml(police.texte)
+  const espacement = Math.round(tailleTitre * police.espacement * 100) / 100
 
-  // L'adresse se pose à droite du bouton, sur sa ligne : au-dessus elle heurtait
-  // le titre, au-dessous elle sortait de l'image.
-  const urlSvg = copy.ctaUrl
-    ? `<text x="${boutonX + largeurBouton + Math.round(tailleCta * 0.6)}" y="${boutonY + hauteurBouton / 2 + tailleArg * 0.36}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleArg}" fill="#cbd5e1">${xml(copy.ctaUrl)}</text>`
-    : ''
+  /* ---------- Les blocs, mesurés avant d'être posés ----------------------- */
 
-  const argBase = boutonY - interligne
-  const argSvg = copy.argument
-    ? `<text x="${marge}" y="${argBase}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleArg}" fill="#d1d5db">${xml(copy.argument)}</text>`
-    : ''
+  const blocs: Bloc[] = []
+  const hauteurLigne = Math.round(tailleTitre * 1.2)
+
+  blocs.push({
+    h: lignes.length * hauteurLigne,
+    dessin: (haut) =>
+      lignes
+        .map(
+          (l, i) =>
+            `<text x="${'{X}'}" y="${haut + i * hauteurLigne + Math.round(tailleTitre * 0.82)}" font-family="${familleTitre}" font-size="${tailleTitre}" font-weight="${police.poidsTitre}" letter-spacing="${espacement}" fill="${p.texte}">${xml(l)}</text>`,
+        )
+        .join(''),
+  })
+
+  // Le filet d'accent : il n'appartient qu'aux mises en page à fond plein, où il
+  // sépare le titre de l'offre. Sur un voile il ferait une barre en l'air.
+  if (charte.miseEnPage === 'carte' || charte.miseEnPage === 'bande') {
+    const largeurFilet = Math.round(Math.min(largeurUtile, tailleTitre * 2.6))
+    const epaisseur = Math.max(3, Math.round(cote * 0.007))
+    blocs.push({
+      h: epaisseur + interligne,
+      dessin: (haut) =>
+        `<rect x="${'{X}'}" y="${haut + Math.round(interligne / 2)}" width="${largeurFilet}" height="${epaisseur}" rx="${Math.round(epaisseur / 2)}" fill="url(#accent)"/>`,
+    })
+  } else {
+    blocs.push({ h: Math.round(interligne * 0.8), dessin: () => '' })
+  }
 
   /*
    * Le prix est facultatif, et son absence doit se refermer.
    *
    * Un vendeur peut choisir de ne pas l'afficher — gamme à prix variables, test
-   * de positionnement. Dessiner un texte vide laisserait la place réservée : un
-   * trou entre le titre et l'argument, qui se voit d'autant plus que le reste
-   * est aligné. La ligne est donc retirée, et le titre redescend.
+   * de positionnement. Un bloc de hauteur nulle fait exactement ça : le titre
+   * et l'argument se rejoignent, sans trou réservé à rien.
    */
   const aPrix = Boolean(copy.price?.trim())
-  const prixBase = argBase - (copy.argument ? tailleArg + interligne : 0)
-  const prixSvg = aPrix
-    ? `<text x="${marge}" y="${prixBase}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${taillePrix}" font-weight="800" fill="#ffffff">${xml(copy.price)}</text>`
-    : ''
-
-  const largeurPrix = aPrix ? copy.price.length * taillePrix * 0.58 : 0
-  const barreSvg =
-    aPrix && copy.priceBefore
-      ? `<text x="${Math.round(marge + largeurPrix + taillePrix * 0.28)}" y="${prixBase}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${Math.round(taillePrix * 0.5)}" fill="#cbd5e1" text-decoration="line-through">${xml(copy.priceBefore)}</text>`
-      : ''
-
-  const titreBas = aPrix ? prixBase - Math.round(taillePrix * 0.82) - interligne : prixBase
-  const hauteurLigne = Math.round(tailleTitre * 1.18)
-  const titreHaut = titreBas - (lignes.length - 1) * hauteurLigne
-
-  const titreSvg = lignes
-    .map((l, i) => {
-      const ligneY = titreHaut + i * hauteurLigne
-      return `<text x="${marge}" y="${ligneY}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${tailleTitre}" font-weight="700" fill="#ffffff">${xml(l)}</text>`
+  if (aPrix) {
+    const largeurPrix = copy.price.length * taillePrix * 0.58
+    blocs.push({
+      h: Math.round(taillePrix * 1.06) + interligne,
+      dessin: (haut) => {
+        const ligne = haut + Math.round(taillePrix * 0.86)
+        const prix = `<text x="${'{X}'}" y="${ligne}" font-family="${familleTexte}" font-size="${taillePrix}" font-weight="800" fill="${p.texte}">${xml(copy.price)}</text>`
+        const barre = copy.priceBefore
+          ? `<text x="${`{X+${Math.round(largeurPrix + taillePrix * 0.28)}}`}" y="${ligne}" font-family="${familleTexte}" font-size="${Math.round(taillePrix * 0.5)}" fill="${p.sourd}" text-decoration="line-through">${xml(copy.priceBefore)}</text>`
+          : ''
+        return prix + barre
+      },
     })
-    .join('')
+  }
 
-  // Le voile commence au-dessus de la première ligne de titre, avec de quoi
-  // fondre : il s'ajuste au contenu au lieu d'une fraction fixe de la hauteur,
-  // qui laissait le texte déborder sur la photo en bannière.
-  const hautBandeau = Math.max(0, titreHaut - tailleTitre - Math.round(cote * 0.09))
-  const hauteurBandeau = height - hautBandeau
+  if (copy.argument) {
+    blocs.push({
+      h: Math.round(tailleArg * 1.35) + Math.round(interligne * 0.6),
+      dessin: (haut) =>
+        `<text x="${'{X}'}" y="${haut + Math.round(tailleArg * 0.95)}" font-family="${familleTexte}" font-size="${tailleArg}" fill="${p.sourd}">${xml(copy.argument!)}</text>`,
+    })
+  }
+
+  const largeurBouton = Math.round(copy.ctaLabel.length * tailleCta * 0.62 + tailleCta * 1.8)
+  const hauteurBouton = Math.round(tailleCta * 2.1)
+  blocs.push({
+    h: hauteurBouton + Math.round(interligne * 0.4),
+    dessin: (haut) => {
+      const y = haut + Math.round(interligne * 0.4)
+      const bouton = `<rect x="${'{X}'}" y="${y}" width="${largeurBouton}" height="${hauteurBouton}" rx="${Math.round(hauteurBouton / 2)}" fill="url(#accent)"/>
+    <text x="${`{X+${Math.round(largeurBouton / 2)}}`}" y="${y + Math.round(hauteurBouton / 2 + tailleCta * 0.36)}" text-anchor="middle" font-family="${familleTexte}" font-size="${tailleCta}" font-weight="700" fill="${p.surAccent}">${xml(copy.ctaLabel)}</text>`
+      // L'adresse se pose à droite du bouton, sur sa ligne : au-dessus elle
+      // heurtait le titre, au-dessous elle sortait de l'image.
+      const url = copy.ctaUrl
+        ? `<text x="${`{X+${largeurBouton + Math.round(tailleCta * 0.6)}}`}" y="${y + Math.round(hauteurBouton / 2 + tailleArg * 0.36)}" font-family="${familleTexte}" font-size="${tailleArg}" fill="${p.sourd}">${xml(copy.ctaUrl)}</text>`
+        : ''
+      return bouton + url
+    },
+  })
+
+  /* ---------- Chaque mise en page place cette boîte à sa façon ------------ */
+
+  // Le titre part seul en haut dans la mise en page « coin » : le reste de
+  // l'offre descend au bas de l'image, et la photo garde tout le milieu.
+  const coin = charte.miseEnPage === 'coin'
+  const blocTitre = coin ? blocs.slice(0, 2) : []
+  const blocOffre = coin ? blocs.slice(2) : blocs
+  const hauteurTitre = blocTitre.reduce((s, b) => s + b.h, 0)
+  const hauteurOffre = blocOffre.reduce((s, b) => s + b.h, 0)
+
+  const x = charte.miseEnPage === 'voile' || coin ? marge : marge + pad
+  const basOffre = charte.miseEnPage === 'bande' ? height - Math.round(pad * 0.9) : height - marge
+  const hautOffre = basOffre - hauteurOffre
+  // La mise en page « coin » réserve le haut au titre, sous le logo.
+  const hautTitre = marge + Math.round(cote * 0.13)
+
+  const opaciteFond = p.mode === 'clair' ? 0.9 : 0.93
+
+  let fondSvg = ''
+  if (charte.miseEnPage === 'voile') {
+    // Le voile commence au-dessus de la première ligne de titre, avec de quoi
+    // fondre : il s'ajuste au contenu au lieu d'une fraction fixe de la hauteur,
+    // qui laissait le texte déborder sur la photo en bannière.
+    const haut = Math.max(0, hautOffre - Math.round(cote * 0.12))
+    fondSvg = `<rect x="0" y="${haut}" width="${width}" height="${height - haut}" fill="url(#voile)"/>`
+  } else if (charte.miseEnPage === 'carte') {
+    const carteHaut = hautOffre - pad
+    const carteLargeur = largeurUtile + pad * 2
+    fondSvg = `<rect x="${marge}" y="${carteHaut}" width="${carteLargeur}" height="${height - marge - carteHaut}" rx="${Math.round(cote * 0.04)}" fill="${p.fond}" fill-opacity="${opaciteFond}" stroke="${p.accent}" stroke-opacity="0.45" stroke-width="${Math.max(1, Math.round(cote * 0.0035))}"/>`
+  } else if (charte.miseEnPage === 'bande') {
+    const bandeHaut = hautOffre - pad
+    const epaisseur = Math.max(3, Math.round(cote * 0.008))
+    fondSvg = `<rect x="0" y="${bandeHaut}" width="${width}" height="${height - bandeHaut}" fill="${p.fond}" fill-opacity="${Math.min(0.97, opaciteFond + 0.04)}"/>
+    <rect x="0" y="${bandeHaut}" width="${width}" height="${epaisseur}" fill="url(#accent)"/>`
+  } else {
+    const hautVoile = Math.max(0, hautOffre - Math.round(cote * 0.12))
+    fondSvg = `<rect x="0" y="0" width="${width}" height="${hautTitre + hauteurTitre + Math.round(cote * 0.08)}" fill="url(#coiffe)"/>
+    <rect x="0" y="${hautVoile}" width="${width}" height="${height - hautVoile}" fill="url(#voile)"/>`
+  }
+
+  /* ---------- Le dessin, une fois les places connues ---------------------- */
+
+  const poser = (liste: Bloc[], depart: number) => {
+    let y = depart
+    return liste
+      .map((b) => {
+        const dessin = b.dessin(y)
+        y += b.h
+        return dessin
+      })
+      .join('')
+      // Les blocs écrivent leur abscisse en clair : ils ne savent pas encore où
+      // la mise en page les posera quand ils se mesurent.
+      .replace(/\{X\+(\d+)\}/g, (_, d: string) => String(x + Number(d)))
+      .replace(/\{X\}/g, String(x))
+  }
+
+  const contenuSvg = (coin ? poser(blocTitre, hautTitre) : '') + poser(blocOffre, hautOffre)
 
   // Le nom de la boutique n'est écrit que faute de logo : les deux ensemble
-  // font doublon et mangent la photo.
+  // font doublon et mangent la photo. Dans la mise en page « coin », le titre
+  // occupe le coin haut gauche : l'enseigne passe à droite.
+  const enseigneADroite = coin
   const nomSvg =
     !copy.logo && copy.shopName
-      ? `<text x="${marge}" y="${marge + Math.round(tailleArg * 1.1)}" font-family="DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif" font-size="${Math.round(tailleArg * 1.1)}" font-weight="700" fill="#ffffff" opacity="0.95">${xml(copy.shopName)}</text>`
+      ? `<text x="${enseigneADroite ? width - marge : marge}" ${enseigneADroite ? 'text-anchor="end"' : ''} y="${marge + Math.round(tailleArg * 1.1)}" font-family="${familleTexte}" font-size="${Math.round(tailleArg * 1.1)}" font-weight="700" fill="#ffffff" opacity="0.95">${xml(copy.shopName)}</text>`
       : ''
 
   const calque = Buffer.from(`
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="voile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0b0a14" stop-opacity="0"/>
-      <stop offset="35%" stop-color="#0b0a14" stop-opacity="0.72"/>
-      <stop offset="100%" stop-color="#0b0a14" stop-opacity="0.93"/>
+      <stop offset="0%" stop-color="${p.fond}" stop-opacity="0"/>
+      <stop offset="35%" stop-color="${p.fond}" stop-opacity="${(opaciteFond * 0.78).toFixed(2)}"/>
+      <stop offset="100%" stop-color="${p.fond}" stop-opacity="${opaciteFond}"/>
     </linearGradient>
-    <linearGradient id="bouton" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#a855f7"/>
-      <stop offset="100%" stop-color="#ec4899"/>
+    <linearGradient id="coiffe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${p.fond}" stop-opacity="${(opaciteFond * 0.92).toFixed(2)}"/>
+      <stop offset="100%" stop-color="${p.fond}" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="${p.accent}"/>
+      <stop offset="100%" stop-color="${p.accent2}"/>
     </linearGradient>
   </defs>
-  <rect x="0" y="${hautBandeau}" width="${width}" height="${hauteurBandeau}" fill="url(#voile)"/>
+  ${fondSvg}
   ${nomSvg}
-  ${titreSvg}
-  ${prixSvg}
-  ${barreSvg}
-  ${argSvg}
-  ${urlSvg}
-  ${ctaSvg}
+  ${contenuSvg}
 </svg>`)
 
   const couches: sharp.OverlayOptions[] = [{ input: calque, top: 0, left: 0 }]
@@ -217,7 +335,9 @@ export async function composeAd(
           .resize({ height: hauteurLogo, fit: 'inside', withoutEnlargement: false })
           .png()
           .toBuffer()
-        couches.push({ input: logo, top: marge, left: marge })
+        const taille = await sharp(logo).metadata()
+        const gauche = enseigneADroite ? Math.max(marge, width - marge - (taille.width ?? hauteurLogo)) : marge
+        couches.push({ input: logo, top: marge, left: gauche })
       } catch {
         // Un logo illisible ne doit pas emporter la publicité entière : elle
         // sort sans lui, ce qui vaut mieux que pas de publicité du tout.
@@ -225,7 +345,7 @@ export async function composeAd(
     }
   }
 
-  return sharp(fond).composite(couches).jpeg({ quality: 90 }).toBuffer()
+  return sharp(fondImage).composite(couches).jpeg({ quality: 90 }).toBuffer()
 }
 
 /**

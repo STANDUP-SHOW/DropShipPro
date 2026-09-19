@@ -469,6 +469,57 @@ Trois conséquences, toutes appliquées :
   sans dire de quoi elle est faite donne trois formulations du meme argument.
   Ce que le vendeur dicte lui-meme n est jamais ecrase.
 
+- **Une publicité portait NOS couleurs, pas celles du vendeur (19/09/2026).** Max :
+  « l'agent IA utilisé pour la création des publicités doit être augmenté même si
+  plus cher, je souhaite vraiment quelque chose de très créatif […] elle extrait
+  code couleur gamme idem création de site DropShop ». Le dégradé du bouton
+  (`#a855f7` → `#ec4899`), le voile (`#0b0a14`), la police et la mise en page
+  étaient **écrits en dur** dans `adComposer` : toutes les publicités de tous les
+  vendeurs sortaient du même violet. Un vendeur qui signe d'un logo vert recevait
+  un bouton violet — pas un défaut de goût, une publicité qui ne ressemble pas à
+  sa marque, donc une publicité qu'il jette.
+
+  `logoCouleurs.ts` savait déjà faire pour DropShop : `adCharte.ts` ne recalcule
+  donc rien, il **traduit une gamme de boutique en charte de visuel** (palette,
+  plus une mise en page et une typographie parmi quatre de chaque, qui tournent
+  avec le rang du visuel). `adCopywriter` passe de Haiku à **Opus 5** et ne se
+  contente plus d'écrire : il reçoit les couleurs du logo et rend l'accroche
+  **avec** la palette, la mise en page et la typographie. `photoBriefer` passe à
+  Opus aussi (demandé pour « le graphiste qui refait les photos ») et reçoit les
+  tons de la marque **en mots** — un hexadécimal finirait par repeindre le
+  produit, qui doit rester celui du colis. Les tons ne touchent que le décor.
+
+  Trois règles qui ne se négocient pas, et chacune vient d'un essai raté :
+  **le contraste est vérifié chez nous** (`normaliserPalette`), parce qu'un
+  modèle écrit un titre illisible avec beaucoup de goût ; **le texte du bouton se
+  mesure, il ne se devine pas** — la première version décidait à la clarté, et un
+  vert moyen recevait du blanc à 2,2 : 1, sur la seule partie de l'image qui
+  demande un geste ; et **tout reste déterministe sans réseau** — sans clé, une
+  pub garde les couleurs du logo et quatre pubs d'affilée ont quatre mises en
+  page.
+
+  Banc `npx tsx check-pub-charte.ts`, et c'est lui qui compte : il **compte les
+  pixels** de deux publicités issues de deux logos opposés, au lieu de relire la
+  charte. Une charte juste qu'un composeur ignore, c'est exactement la panne
+  qu'on corrige — et c'est la leçon de `check-recommandations.cjs`, qui passait
+  pendant que la réalité échouait.
+
+  Écran : le logo qui signera est montré AVANT de payer et se retire d'un clic
+  (`avecLogo`), les couleurs relevées sont affichées en pastilles, les quatre
+  gammes se choisissent, « laisser l'IA libre » par défaut. Route gratuite
+  `GET /visuals/charte`.
+
+- **Le modèle d'image se choisit en cascade, jamais par un nom (19/09/2026).**
+  Le rendu passe de Flash Lite (0,0336 $) à **Pro (0,134 $)** — une image se vend
+  18 drops et c'est elle que l'acheteur regarde, donc c'est le meilleur endroit
+  où mettre l'argent. Mais le nom vient de chez Google : impossible de l'éprouver
+  avant de déployer, et un modèle retiré rend un **404** — celui du 02/09/2026
+  avait tout arrêté d'un coup. `imageGen.ts` essaie donc
+  `gemini-3.1-pro-image` → `flash-image` → `flash-lite-image`, retient celui qui
+  répond (sinon chaque image repaierait les 404), et `GOOGLE_IMAGE_MODEL` passe
+  devant. Le diagnostic sonde la cascade entière, pas un nom : un banc qui teste
+  autre chose que le vrai chemin ne teste rien.
+
 - **Pas de bouton qui recredite tout seul : un ticket.** Un remboursement
   automatique se presse par reflexe et n apprend rien -- ni ce qui rate, ni sur
   quoi, ni a quelle frequence. Le vendeur signale depuis l objet concerne (une

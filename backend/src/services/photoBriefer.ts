@@ -1,4 +1,4 @@
-import { MODELE_RAPIDE, modele } from './aiModels.js'
+import { MODELE_PUISSANT, modele } from './aiModels.js'
 import Anthropic from '@anthropic-ai/sdk'
 
 /**
@@ -76,6 +76,26 @@ export const PARTIS_PRIS: PartiPris[] = [
     consigne:
       "Le produit replacé dans son environnement complet, vu d'un peu plus loin, pour qu'on comprenne sa taille réelle et où il prend place.",
   },
+  {
+    cle: 'geste',
+    consigne:
+      "Le produit saisi en plein geste : la main qui le prend, le referme, l'ouvre. Léger flou de mouvement sur ce qui bouge, le produit net. Rien d'autre dans le cadre que ce qui sert au geste.",
+  },
+  {
+    cle: 'graphique',
+    consigne:
+      "Parti pris graphique assumé : fond uni et franc, un socle géométrique simple, ombre portée dure et dirigée. Une image de campagne, pas de catalogue.",
+  },
+  {
+    cle: 'matiere',
+    consigne:
+      "Le produit posé sur la matière qui lui répond — pierre, tissu froissé, eau, bois brut, papier — vue de très près, en lumière rasante. Le décor tient dans une seule matière.",
+  },
+  {
+    cle: 'avant-apres',
+    consigne:
+      "Le produit au milieu de ce qu'il remplace ou de ce qu'il range : l'ordre qu'il installe se lit dans le cadre, sans qu'aucun texte ne l'explique.",
+  },
 ]
 
 export interface Brief {
@@ -87,6 +107,8 @@ export interface Brief {
   cadrage: string
   /** Ce qui entoure le produit, ou rien. */
   entourage: string
+  /** Les couleurs du décor — du décor, jamais du produit. */
+  palette: string
   /** Le parti pris retenu, gardé pour ne pas le reprendre. */
   partiPris: string
 }
@@ -103,9 +125,20 @@ export interface DemandeBrief {
   dejaVus?: string[]
   /** Un visuel publicitaire réserve le tiers bas au texte. */
   pourPublicite?: boolean
+  /** L'enseigne, quand la photo sert sa publicité. */
+  marque?: string | null
+  /**
+   * Les tons de la marque, en mots et jamais en hexadécimal.
+   *
+   * Le modèle d'image lit mal un code couleur, et surtout il s'en servirait
+   * pour REPEINDRE le produit — qui doit rester celui du colis. « des tons
+   * ocre » décrit le décor ; « #c8873a » finit sur l'objet.
+   */
+  ambiance?: string | null
 }
 
-const CONSIGNE = `Tu es directeur photo pour un catalogue de vente en ligne.
+const CONSIGNE = `Tu es directeur photo pour une marque qui vend en ligne, et tu
+travailles comme pour une campagne : une image qui se remarque, pas une fiche.
 
 On te donne une annonce et un PARTI PRIS IMPOSÉ. Tu écris le brief d'UNE photo,
 en français, sous forme d'objet JSON et rien d'autre :
@@ -114,7 +147,8 @@ en français, sous forme d'objet JSON et rien d'autre :
   "scene": "le décor, en une phrase concrète et située",
   "lumiere": "la lumière et le rendu, une phrase",
   "cadrage": "point de vue, distance, orientation, une phrase",
-  "entourage": "ce qui est visible autour du produit, ou \\"rien\\""
+  "entourage": "ce qui est visible autour du produit, ou \\"rien\\"",
+  "palette": "les couleurs du DÉCOR, deux ou trois, nommées"
 }
 
 Règles :
@@ -123,11 +157,16 @@ Règles :
   « dans un décor adapté ». Un décor vague donne une image vague.
 - Déduis le décor de ce que l'annonce dit vraiment du produit : sa catégorie,
   ses matières, son usage. Une cafetière ne va pas en forêt.
+- Choisis une vraie intention de lumière : d'où elle vient, ce qu'elle creuse,
+  ce qu'elle laisse dans l'ombre. « Lumière naturelle » ne dit rien à personne.
+- La palette est celle du DÉCOR et de la lumière. Quand les tons de la marque
+  sont donnés, fais-les vivre dans le fond, la surface, un accessoire — jamais
+  sur le produit.
 - Ne décris JAMAIS le produit lui-même : ni sa couleur, ni sa forme, ni sa
   marque. Il existe, il est sur les photos de référence, et le redessiner
   ferait vendre autre chose que ce qui sera livré.
 - Aucun texte, aucun logo, aucun prix, aucune personne reconnaissable.
-- Quatre phrases courtes au total. C'est un brief, pas une nouvelle.`
+- Cinq phrases courtes au total. C'est un brief, pas une nouvelle.`
 
 /** Le parti pris à servir : le premier non encore utilisé pour ce produit. */
 export function choisirPartiPris(dejaVus: string[] = []): PartiPris {
@@ -150,6 +189,7 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
     lumiere: '',
     cadrage: '',
     entourage: '',
+    palette: d.ambiance ?? '',
     partiPris: parti.cle,
   }
 
@@ -171,6 +211,9 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
     d.arguments?.length ? `Arguments de vente : ${d.arguments.slice(0, 6).join(' · ')}` : '',
     attributs.length ? `Caractéristiques : ${attributs.map(([k, v]) => `${k} = ${v}`).join(' · ')}` : '',
     '',
+    d.marque ? `Marque : ${d.marque}` : '',
+    d.ambiance ? `Tons de la marque, pour le DÉCOR seulement : ${d.ambiance}` : '',
+    '',
     `PARTI PRIS IMPOSÉ — ${parti.cle} : ${parti.consigne}`,
     d.hint ? `\nCONSIGNE DU VENDEUR, prioritaire sur tout le reste : ${d.hint}` : '',
     d.pourPublicite
@@ -183,10 +226,21 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
   try {
     const client = new Anthropic({ apiKey })
     const reponse = await client.messages.create({
-      // Haiku suffit : quatre phrases sous contrainte. La consigne ne change
-      // jamais, donc mise en cache — six photos ne la relisent qu'une fois.
-      model: modele('AI_MODEL_BRIEF', MODELE_RAPIDE),
-      max_tokens: 400,
+      /*
+       * Opus, depuis le 19/09/2026, et c'est une dépense assumée.
+       *
+       * Max : « pareil pour le graphiste qui refait les photos produits, on
+       * améliore le modèle ». Une photo se paie 18 drops et le modèle d'image
+       * coûte déjà plusieurs centimes : quelques centimes de plus pour décider
+       * de la scène sont le meilleur endroit où les mettre, parce que c'est là
+       * que tout se joue. Un petit modèle rend « sur un fond neutre, lumière
+       * douce » ; un grand rend une image qu'on regarde.
+       *
+       * La consigne ne change jamais, donc mise en cache — dix photos ne la
+       * relisent qu'une fois.
+       */
+      model: modele('AI_MODEL_BRIEF', MODELE_PUISSANT),
+      max_tokens: 700,
       system: [{ type: 'text' as const, text: CONSIGNE, cache_control: { type: 'ephemeral' as const } }],
       messages: [{ role: 'user', content: fiche }],
     })
@@ -207,6 +261,7 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
       lumiere: String(ecrit.lumiere ?? ''),
       cadrage: String(ecrit.cadrage ?? ''),
       entourage: String(ecrit.entourage ?? ''),
+      palette: String(ecrit.palette ?? d.ambiance ?? ''),
       partiPris: parti.cle,
     }
   } catch {
@@ -223,6 +278,7 @@ export function briefEnConsigne(b: Brief): string {
     b.lumiere ? `Lumière : ${b.lumiere}` : '',
     b.cadrage ? `Cadrage : ${b.cadrage}` : '',
     b.entourage && b.entourage.toLowerCase() !== 'rien' ? `Autour du produit : ${b.entourage}` : '',
+    b.palette ? `Couleurs du décor (jamais du produit) : ${b.palette}` : '',
   ]
     .filter(Boolean)
     .join('\n')
