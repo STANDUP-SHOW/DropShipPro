@@ -4,6 +4,23 @@
  */
 
 import Database from 'better-sqlite3'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/**
+ * Where rapports.db lives, resolved from THIS module, never from the cwd.
+ *
+ * `new Database('rapports.db')` resolves against `process.cwd()`, and
+ * better-sqlite3 CREATES an empty file when it finds nothing. A server started
+ * from anywhere but the backend root therefore opened a blank database and
+ * answered 500 « no such table: reports » on every report route, while
+ * /api/health kept answering 200 — a site that looks alive and shows no data.
+ *
+ * `../..` lands on the backend root from both src/services (tsx, dev) and
+ * dist/services (compiled, Railway).
+ */
+const RACINE_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+export const CHEMIN_RAPPORTS_DB = path.join(RACINE_BACKEND, 'rapports.db')
 
 interface QueryOptions {
   format?: 'json' | 'table' | 'summary'
@@ -16,8 +33,12 @@ interface QueryOptions {
 export class ReportQuery {
   private db: Database.Database
 
-  constructor(dbPath: string = 'rapports.db') {
-    this.db = new Database(dbPath)
+  /**
+   * `fileMustExist` is the point: a missing base must FAIL, never be invented.
+   * Read-only because every method here is a SELECT — nothing writes.
+   */
+  constructor(dbPath: string = CHEMIN_RAPPORTS_DB) {
+    this.db = new Database(dbPath, { readonly: true, fileMustExist: true })
   }
 
   // Get all reports

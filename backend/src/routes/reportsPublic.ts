@@ -4,12 +4,30 @@
  */
 
 import { Router } from 'express'
-import { ReportQuery } from '../services/reportsDb.js'
+import { CHEMIN_RAPPORTS_DB, ReportQuery } from '../services/reportsDb.js'
 
 export const reportsPublicRouter = Router()
 
-// Initialize report query with rapports.db
-const reportQuery = new ReportQuery('rapports.db')
+/**
+ * The base is opened on FIRST USE, not at import.
+ *
+ * This router is imported by index.ts, so throwing here would take the whole
+ * API down — every route, not just the reports. Opening lazily keeps the rest
+ * of the server alive and lets /api/reports-health name the real reason.
+ * The failure is not memoized: dropping the file in repairs the routes without
+ * a restart.
+ */
+let baseOuverte: ReportQuery | null = null
+
+function baseRapports(): ReportQuery {
+  if (!baseOuverte) baseOuverte = new ReportQuery()
+  return baseOuverte
+}
+
+/** A 500 that says nothing is what hid this outage for six hours. */
+function motif(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 
 /**
@@ -18,10 +36,10 @@ const reportQuery = new ReportQuery('rapports.db')
  */
 reportsPublicRouter.get('/reports/stats', (_req, res) => {
   try {
-    const stats = reportQuery.getStatistics()
+    const stats = baseRapports().getStatistics()
     res.json(stats)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch statistics' })
+    res.status(500).json({ error: 'Failed to fetch statistics', motif: motif(error) })
   }
 })
 
@@ -31,10 +49,10 @@ reportsPublicRouter.get('/reports/stats', (_req, res) => {
  */
 reportsPublicRouter.get('/reports/categories', (_req, res) => {
   try {
-    const categories = reportQuery.getCategories()
+    const categories = baseRapports().getCategories()
     res.json(categories)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch categories' })
+    res.status(500).json({ error: 'Failed to fetch categories', motif: motif(error) })
   }
 })
 
@@ -44,10 +62,10 @@ reportsPublicRouter.get('/reports/categories', (_req, res) => {
  */
 reportsPublicRouter.get('/reports/dates', (_req, res) => {
   try {
-    const dates = reportQuery.getDates()
+    const dates = baseRapports().getDates()
     res.json(dates)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch dates' })
+    res.status(500).json({ error: 'Failed to fetch dates', motif: motif(error) })
   }
 })
 
@@ -67,10 +85,10 @@ reportsPublicRouter.get('/reports', (req, res) => {
     const date = (req.query.date as string) || undefined
     const type = (req.query.type as any) || undefined
 
-    const reports = reportQuery.getAllReports({ limit, category, date, type })
+    const reports = baseRapports().getAllReports({ limit, category, date, type })
     res.json(reports)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch reports' })
+    res.status(500).json({ error: 'Failed to fetch reports', motif: motif(error) })
   }
 })
 
@@ -86,10 +104,10 @@ reportsPublicRouter.get('/markets/trends', (req, res) => {
     const limit = parseInt((req.query.limit as string) || '10')
     const category = (req.query.category as string) || undefined
 
-    const trends = reportQuery.getMarketingTrends({ limit, category })
+    const trends = baseRapports().getMarketingTrends({ limit, category })
     res.json(trends)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch trends' })
+    res.status(500).json({ error: 'Failed to fetch trends', motif: motif(error) })
   }
 })
 
@@ -105,10 +123,10 @@ reportsPublicRouter.get('/markets/analysis', (req, res) => {
     const category = (req.query.category as string) || undefined
     const date = (req.query.date as string) || undefined
 
-    const analysis = reportQuery.getSocialMediaAnalysis(category, date)
+    const analysis = baseRapports().getSocialMediaAnalysis(category, date)
     res.json(analysis)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch analysis' })
+    res.status(500).json({ error: 'Failed to fetch analysis', motif: motif(error) })
   }
 })
 
@@ -129,10 +147,10 @@ reportsPublicRouter.get('/products/by-category', (req, res) => {
       return
     }
 
-    const products = reportQuery.getProductsByCategory(category, { date })
+    const products = baseRapports().getProductsByCategory(category, { date })
     res.json(products)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch products' })
+    res.status(500).json({ error: 'Failed to fetch products', motif: motif(error) })
   }
 })
 
@@ -148,10 +166,10 @@ reportsPublicRouter.get('/prompts/all', (req, res) => {
     const category = (req.query.category as string) || undefined
     const type = (req.query.type as any) || undefined
 
-    const prompts = reportQuery.getAIPrompts(category, type)
+    const prompts = baseRapports().getAIPrompts(category, type)
     res.json(prompts)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch prompts' })
+    res.status(500).json({ error: 'Failed to fetch prompts', motif: motif(error) })
   }
 })
 
@@ -165,10 +183,10 @@ reportsPublicRouter.get('/prompts/images', (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
 
-    const prompts = reportQuery.getAIPrompts(category, 'image')
+    const prompts = baseRapports().getAIPrompts(category, 'image')
     res.json(prompts)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch image prompts' })
+    res.status(500).json({ error: 'Failed to fetch image prompts', motif: motif(error) })
   }
 })
 
@@ -182,10 +200,10 @@ reportsPublicRouter.get('/prompts/videos', (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
 
-    const prompts = reportQuery.getAIPrompts(category, 'video')
+    const prompts = baseRapports().getAIPrompts(category, 'video')
     res.json(prompts)
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch video prompts' })
+    res.status(500).json({ error: 'Failed to fetch video prompts', motif: motif(error) })
   }
 })
 
@@ -195,14 +213,20 @@ reportsPublicRouter.get('/prompts/videos', (req, res) => {
  */
 reportsPublicRouter.get('/reports-health', (_req, res) => {
   try {
-    const stats = reportQuery.getStatistics()
+    const stats = baseRapports().getStatistics()
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
       database: 'connected',
+      chemin: CHEMIN_RAPPORTS_DB,
       totalReports: stats.totalReports
     })
   } catch (error) {
-    res.status(500).json({ error: 'Database connection failed' })
+    // The path is the diagnosis: it says WHERE the server looked and found nothing.
+    res.status(500).json({
+      error: 'Database connection failed',
+      motif: motif(error),
+      chemin: CHEMIN_RAPPORTS_DB
+    })
   }
 })

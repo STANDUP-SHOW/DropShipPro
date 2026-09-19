@@ -5,5 +5,14 @@ extension-store.zip
 # Copies locales de la base : des donnees clientes, jamais du code.
 sauvegardes/
 
-# Report database - synced from iagents project, not committed
-rapports.db
+# rapports.db EST versionnee, volontairement.
+#
+# Elle a ete ignoree ici le 19/09/2026. Consequence : le fichier n'est jamais
+# parti dans le conteneur Railway, better-sqlite3 a recree une base vide au
+# demarrage, et toutes les routes /api/reports/* ont repondu 500 « no such
+# table: reports » pendant que /api/health repondait 200. Le site paraissait
+# vivant et n'affichait aucune donnee.
+#
+# 392 Ko de donnees publiques de rapports, pas des donnees clientes : elle se
+# commite. Ne pas la remettre ici sans lui donner un autre moyen d'arriver
+# dans le conteneur.
