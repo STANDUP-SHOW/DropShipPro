@@ -234,7 +234,7 @@ export function AdAccounts() {
         identifiants et vous fait gagner l'étape, rien de plus.
       </p>
 
-      <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+      <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {REGIES.map((r) => {
           const compte = relie(r.id)
           return (

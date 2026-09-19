@@ -183,7 +183,7 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
       </header>
 
       <div className="@container mt-3">
-        <div className="grid gap-3 @3xl:grid-cols-[1fr_230px]">
+        <div className="grid grid-cols-1 gap-3 @3xl:grid-cols-[1fr_230px]">
           {/* 8..150 : l'essentiel des terres habitées, sans les mers australes. */}
           <svg viewBox="0 8 360 142" className="w-full" aria-hidden>
             {/* Les contours en blanc néon (06/09/2026) : un trait vif doublé

@@ -120,7 +120,7 @@ export default function Orders() {
       </div>
 
       {showForm && (
-        <form onSubmit={onCreate} className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5 grid sm:grid-cols-2 gap-3">
+        <form onSubmit={onCreate} className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <select name="productId" required className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm sm:col-span-2">
             <option value="">Produit vendu...</option>
             {products.map((p) => (

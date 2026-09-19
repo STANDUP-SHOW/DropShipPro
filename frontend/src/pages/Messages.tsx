@@ -244,7 +244,7 @@ export default function Messages() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <ul className="space-y-2">
           {shown.map((c) => (
             <li key={c.id}>

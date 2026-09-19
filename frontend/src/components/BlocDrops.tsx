@@ -56,12 +56,19 @@ export function BlocDrops() {
         <span className="block truncate text-lg font-extrabold leading-none text-white">
           {solde.credits.toLocaleString('fr-FR')}
         </span>
-        <span className="mt-1 block truncate text-[9px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
+        {/* La contre-valeur en euros sortait en « ≈ 1… » sur téléphone : les
+            majuscules et l'interlettrage coûtent un tiers de la largeur pour
+            une ligne qui n'est qu'un ordre de grandeur. Elle se lit en bas de
+            casse jusqu'à `lg`, où la place revient. */}
+        <span className="mt-1 block truncate text-[10px] font-semibold leading-tight text-gray-400 lg:text-[9px] lg:uppercase lg:tracking-wide">
           {euros ? `drops · ≈ ${euros} €` : 'drops'}
         </span>
       </span>
+      {/* Le « + » est un ornement : la tuile entière mène déjà au portefeuille.
+          Sur téléphone il prenait trente-quatre pixels à la ligne des euros,
+          qui sont le seul texte de la tuile qu'on ne puisse pas deviner. */}
       <span
-        className="btn-gradient grid h-6 w-6 shrink-0 place-items-center rounded-lg text-white"
+        className="btn-gradient hidden h-6 w-6 shrink-0 place-items-center rounded-lg text-white sm:grid"
         aria-hidden
       >
         <Plus size={13} />

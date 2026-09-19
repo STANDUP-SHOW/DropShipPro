@@ -190,7 +190,7 @@ export default function Marketing() {
           {/* Ce qui sera écrit sur la publicité. Le titre, le prix et le logo
               viennent de l'annonce et de vos réglages : ils ne se saisissent pas
               ici, pour qu'un prix affiché soit toujours le vrai. */}
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label>
               <span className="block text-xs text-gray-400">Texte du bouton</span>
               <input
@@ -257,7 +257,7 @@ export default function Marketing() {
             </button>
           </div>
 
-          <ul className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {ads.map((g) => (
               <li key={g.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
                 <img src={assetUrl(g.path)} alt="" className="w-full rounded-lg object-cover" />

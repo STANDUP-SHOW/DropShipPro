@@ -266,7 +266,7 @@ export default function Autopilot() {
         d'Auto-SHIPPER IA justifié à gauche, la grille des agents ADMIN à
         sa droite — l'empilement ne revient qu'en affichage vertical.
       */}
-      <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
         {/* ---------- Le bloc principal, à gauche ---------- */}
         <div>
           <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight">
@@ -549,7 +549,7 @@ export default function Autopilot() {
           ) : null}
         </label>
 
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label className="block text-xs text-gray-400">Imports maximum par jour</label>
             <input
@@ -729,7 +729,7 @@ export default function Autopilot() {
       <div id="infos" className="mt-8 scroll-mt-6 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-5">
         <h2 className="font-bold text-yellow-200">Infos</h2>
 
-        <div className="mt-3 grid gap-5 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="text-xs leading-relaxed text-yellow-100/90">
             <p className="font-semibold text-yellow-200">Quand un chef de rayon passe en mode auto :</p>
             <ul className="mt-1 list-inside list-disc space-y-0.5">

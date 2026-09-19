@@ -408,7 +408,11 @@ export default function ProductDetail() {
           )}
         </span>
 
-        <div className="flex items-center gap-2">
+        {/* `flex-wrap` : les trois boutons font 386 px a eux seuls, soit onze
+            de plus qu'un ecran de telephone — « Publier », le geste qui compte,
+            etait le bout qui sortait. La barre qui les porte se replie deja ;
+            le groupe doit se replier aussi. */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={saveAll}
             disabled={saving}
@@ -444,7 +448,7 @@ export default function ProductDetail() {
         puis la suite. Sans cela, toute la colonne visuelle — vidéo et studio
         compris — s'empilait avant même le titre.
       */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         {/* ---------- Colonne visuelle ---------- */}
         <div className="flex flex-col gap-5 max-lg:contents">
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 max-lg:order-1">
@@ -504,18 +508,26 @@ export default function ProductDetail() {
                     >
                       <X size={11} />
                     </button>
-                    <div className="absolute inset-x-0 bottom-0 flex justify-between px-0.5 opacity-0 transition group-hover:opacity-100">
+                    {/* `max-md:opacity-100`, comme la croix juste au-dessus : sans
+                        souris il n'y a pas de survol, et ces deux fleches etaient
+                        donc INVISIBLES et inatteignables sur telephone — l'ordre
+                        des photos ne s'y changeait pas du tout. Elles y sont aussi
+                        plus grandes : a quinze pixels de haut, on ne les vise pas
+                        au pouce. */}
+                    <div className="absolute inset-x-0 bottom-0 flex justify-between px-0.5 opacity-0 transition group-hover:opacity-100 max-md:opacity-100">
                       <button
                         onClick={() => moveImage(i, -1)}
                         disabled={i === 0}
-                        className="rounded bg-black/70 px-1 text-[10px] disabled:opacity-25"
+                        aria-label="Déplacer cette photo vers la gauche"
+                        className="rounded bg-black/70 px-1.5 py-1 text-xs leading-none disabled:opacity-25 md:px-1 md:py-0 md:text-[10px]"
                       >
                         ‹
                       </button>
                       <button
                         onClick={() => moveImage(i, 1)}
                         disabled={i === images.length - 1}
-                        className="rounded bg-black/70 px-1 text-[10px] disabled:opacity-25"
+                        aria-label="Déplacer cette photo vers la droite"
+                        className="rounded bg-black/70 px-1.5 py-1 text-xs leading-none disabled:opacity-25 md:px-1 md:py-0 md:text-[10px]"
                       >
                         ›
                       </button>
@@ -749,7 +761,7 @@ export default function ProductDetail() {
             {Object.keys(attributes).length === 0 ? (
               <p className="text-xs text-gray-500">Aucun attribut généré.</p>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {Object.entries(attributes).map(([name, value]) => (
                   <div key={name}>
                     <label className="text-xs text-gray-500">{name}</label>
@@ -780,7 +792,7 @@ export default function ProductDetail() {
             sur du reconditionné — motif de retrait de l'annonce.
           */}
           <Card icon={BadgeCheck} title="État du produit" className="max-lg:order-5">
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {etats.map((e) => {
                 const choisi = (product.condition ?? 'neuf') === e.id
                 return (
@@ -971,7 +983,7 @@ export default function ProductDetail() {
               </button>
             </div>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <CopyField label="Titre" value={product.aiTitle ?? ''} />
             <CopyField label="Prix" value={`${sellingPrice.toFixed(2)} ${product.currency}`} />
             <CopyField label="Description" value={product.aiDescription ?? ''} />

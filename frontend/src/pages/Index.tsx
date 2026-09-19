@@ -100,7 +100,7 @@ export default function Index() {
           son prix et ses variantes.
         </p>
 
-        <div className="grid md:grid-cols-3 gap-5 mt-20 text-left">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-20 text-left">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-2xl bg-white/5 border border-white/10 p-6 backdrop-blur">
               <f.icon className={f.color} size={28} />

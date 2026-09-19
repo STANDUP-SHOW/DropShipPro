@@ -450,7 +450,7 @@ export function PlatformCredentialForm({
                     {...PROPS_SANS_REMPLISSAGE}
                     name="apiKey"
                     placeholder="Clé API / token"
-                    className="flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
                   />
                   <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
                     Enregistrer
