@@ -319,6 +319,54 @@ Trois conséquences, toutes appliquées :
   alors qu un refus portant sur **la liaison** (signature, cle, quota) l arrete
   tout de suite : continuer ferait cent appels voues au meme echec.
 
+- **`overflow-x-hidden` déplace tout `position: sticky` qu'il contient.** C'est
+  la cause la plus coûteuse du passage mobile du 19/09/2026, et elle n'était
+  visible sur AUCUN écran large. `overflow-x: hidden` fait de l'élément une
+  **boîte de défilement** ; une boîte de défilement devient le repère de tout
+  élément collant à l'intérieur. Le bandeau des six jauges, réglé sur `top-14`
+  pour passer sous la barre du téléphone, se collait donc à 56 px du haut de
+  `<main>` — soit 112 px du haut de l'écran. Résultat sur CHAQUE page : une
+  bande vide de 56 px sous la barre, et un bandeau qui recouvrait le titre
+  « Notifications » et le haut des tuiles. `overflow-x-clip` rogne exactement
+  pareil **sans** créer cette boîte : c'est lui qu'il faut, et le `min-w-0` du
+  `flex-1` reste indispensable à côté.
+
+- **Une grille dont les colonnes ne sont déclarées qu'à partir d'un point de
+  rupture s'étire au texte le plus long.** `grid gap-4 lg:grid-cols-2` ne
+  déclare rien sur téléphone : la grille crée une colonne **implicite** en
+  `auto`, dont le minimum est le min-content de son contenu. Or `truncate` pose
+  `white-space: nowrap`, donc le min-content d'un titre tronqué est le titre
+  ENTIER — la colonne passait à 700 px et la page rognait le reste (nom de
+  l'acheteur dans Messages, ligne de remboursement en Comptabilité). Toujours
+  poser `grid-cols-1` en base : cela vaut `repeat(1, minmax(0, 1fr))`, la même
+  colonne unique mais de minimum zéro. Soixante grilles étaient dans ce cas.
+
+- **Un `<input class="flex-1">` sans `min-w-0` pousse son bouton hors de
+  l'écran.** Un champ a une largeur intrinsèque d'une vingtaine de caractères et
+  `flex-1` laisse `min-width: auto` : il refuse de se réduire. Dans le tchat des
+  chefs de rayon, « Envoyer » était dehors — la question se tapait, elle ne
+  s'envoyait pas.
+
+- **Sans souris il n'y a pas de survol : `group-hover` seul cache un geste.**
+  Les deux flèches qui rangent les photos d'une annonce vivaient sous
+  `opacity-0 group-hover:opacity-100` : sur téléphone, invisibles ET
+  inatteignables, donc l'ordre des photos ne s'y changeait pas du tout. La croix
+  de suppression juste à côté portait déjà `max-md:opacity-100` — l'oubli tenait
+  à une ligne, et rien ne le signalait. Tout geste rendu par `group-hover` a
+  besoin de son `max-md:opacity-100`.
+
+- **Les écrans derrière `Protected` se contrôlent SANS mot de passe.** Une
+  session s'était arrêtée faute d'accès. Le banc
+  (`node banc-mobile/audit.cjs`, hors dépôt) lance le site en local, pose un
+  jeton de test dans `localStorage` et répond lui-même à chaque appel d'API avec
+  des données de la bonne forme, relevées dans `src/lib/api.ts` : aucun compte
+  réel, aucune base touchée. Deux pièges de mesure appris en l'écrivant :
+  **`document.scrollWidth` ne voit rien** (`main` rogne, il ne défile jamais de
+  côté, donc le document ne dépasse jamais), et **il faut mesurer le débord par
+  rapport au cadre qui COUPE, pas par rapport à l'écran** — sinon une cellule
+  simplement poussée hors de vue dans une bande qui défile est signalée comme
+  cassée, alors que son contenu reste atteignable.
+
 - **En JSX, ne pas juxtaposer plusieurs expressions de texte** dont une chaîne
   vide : React perd la trace des nœuds et lève « removeChild: the node to be
   removed is not a child ». Composer une seule chaîne.
