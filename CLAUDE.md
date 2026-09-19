@@ -895,6 +895,23 @@ Trois conséquences, toutes appliquées :
   citer un prix périmé par toutes les IA, ce qui est pire que pas de prix. Les
   deux tables portent le commentaire qui renvoie à l autre. Ce qui est compté
   (canaux par famille) l est depuis `seo-channels.cjs`, jamais écrit à la main.
+
+  **Et `llms.txt` ne suffisait pas (19/09/2026).** Mesuré avec l'agent de
+  GPTBot : l'accueil rendait **21 caractères de texte** — aucun robot d'assistant
+  n'exécute JavaScript, et ils partent d'un index de PAGES, pas d'un fichier que
+  personne ne leur désigne. `scripts/build-geo.cjs` (dernier maillon de
+  `npm run build`) pré-rend l'accueil DANS `#root` (React la remplace au
+  montage ; masquée hors de `/` par la classe `ecran-app`, sinon elle clignote
+  sur les écrans de l'application), pose un graphe schema.org (Organization,
+  WebSite, SoftwareApplication aux offres réelles, FAQPage — **jamais
+  d'`aggregateRating` inventé**), écrit `/faq/`, `/tarifs/`, `/a-propos/`, nomme
+  17 robots d'IA dans `robots.txt` et dépose la clé IndexNow. La FAQ est UNE
+  table (`geo-faq.cjs`) lue par trois sorties ; `check-geo.ts` tient ses prix
+  égaux à `tarifs.ts`. Après un déploiement qui change des pages :
+  `node scripts/indexnow.cjs --envoyer` (il vérifie d'abord que le site sert la
+  clé). Ce qu'aucun fichier ne remplace — annuaires, comptes sociaux, pages
+  écrites par d'autres — est dans `docs/referencement-ia.md`, textes prêts à
+  coller compris.
 - **Le chemin Google de notre référentiel est un RAYON, pas un pivot vers une
   feuille — et un banc a validé un correctif pendant que la panne continuait.**
   Le 15/09/2026, mini-PC, SSD, tables de mixage et souris étaient tous rangés

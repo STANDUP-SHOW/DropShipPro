@@ -28,6 +28,19 @@
       ],
       "port": 4000,
       "cwd": "backend"
+    },
+    {
+      "name": "droppost-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "port": 4173,
+      "cwd": "frontend"
     }
   ]
 }

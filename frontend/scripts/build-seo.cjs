@@ -100,6 +100,9 @@ p{margin:.6rem 0}
 .dir span{color:#9d95c0}
 .count{font-weight:400;color:#9d95c0;font-size:.85rem}
 ul{padding-left:1.1rem}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.93rem}
+th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid #ffffff1a;vertical-align:top}
+th{color:#9d95c0;font-weight:600}
 li{margin:.3rem 0}
 .grid{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));margin:1rem 0}
 .tile{display:flex;align-items:center;gap:.6rem;border:1px solid #ffffff1a;background:#ffffff0d;border-radius:.75rem;padding:.7rem .8rem;text-decoration:none;color:#e9e6f5;font-size:.93rem}
@@ -125,7 +128,7 @@ function layout({ url, title, description, jsonLd, body }) {
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${SITE}${url}">
 <meta name="twitter:card" content="summary">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
 <style>${CSS}</style>
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 </head>
@@ -142,6 +145,9 @@ ${body}
   <a href="/">Accueil</a>
   <a href="/dropshipping/">Dropshipping</a>
   <a href="/vendre-sur-marketplaces/">Où vendre</a>
+  <a href="/tarifs/">Tarifs</a>
+  <a href="/faq/">Questions fréquentes</a>
+  <a href="/a-propos/">À propos</a>
   <a href="/avis">Avis</a>
   <a href="/confidentialite">Confidentialité</a>
 </div></footer>
@@ -636,4 +642,8 @@ LLM-Full-Content: ${SITE}/llms-full.txt
   console.log(`sitemap.xml : ${urls.length} URL`)
 }
 
-main()
+// build-geo.cjs reprend le gabarit : les pages /faq/, /tarifs/ et /a-propos/
+// doivent avoir le visage des autres, pas un second habillage qui divergerait.
+module.exports = { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY }
+
+if (require.main === module) main()

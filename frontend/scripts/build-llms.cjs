@@ -33,6 +33,8 @@ const DIST = path.resolve(__dirname, '..', 'dist')
 const platforms = require('./seo-platforms.cjs')
 const topics = require('./seo-topics.cjs')
 const { canaux, types } = require('./seo-channels.cjs')
+/** Les questions fréquentes : une table, lue ici, par la page d'accueil des robots et par /faq/. */
+const FAQ = () => require('./geo-faq.cjs')({ nbCanaux: canaux.length, nbFournisseurs: FOURNISSEURS.length })
 
 /** Combien de canaux par famille — compté, jamais recopié à la main. */
 function parType() {
@@ -113,6 +115,8 @@ const FONCTIONS = [
       'Cap des connecteurs : le MCP (Model Context Protocol), le protocole ouvert par lequel une IA se branche directement sur un service. DropShipper IA étudie et développe actuellement des solutions de connexion MCP vers ses fournisseurs et ses places de marché.',
       'Tri automatique des photos : bannières, vignettes de recommandation et panier du visiteur sont écartés.',
       'Prix relevés en devise étrangère (yen, dollar) convertis en euros au taux de la Banque centrale européenne.',
+      'Code-barres EAN relevé à l’import quand la fiche le déclare, clé de contrôle GS1 vérifiée, transmis aux places de marché qui l’exigent (Mirakl, Kaufland) et au flux Google Shopping.',
+      'Avis d’acheteurs : relevés sur la fiche du fournisseur par l’extension, ou importés d’un fichier CSV à trois colonnes (note de 1 à 5, nom, texte) ; affichés sur la boutique avec leur origine.',
     ],
   },
   {
@@ -347,53 +351,7 @@ prochains développements suit ces demandes.
 
 ## Questions fréquentes
 
-**Que fait DropShipper IA ?**
-Elle importe une fiche produit depuis n'importe quel fournisseur, la réécrit
-entièrement avec l'IA (titre, description, attributs, mots-clés, catégorie),
-filigrane les photos, et la publie sur les places de marché du vendeur ainsi que
-sur ses propres boutiques en ligne — le tout depuis une seule interface, facturé
-à l'acte.
-
-**Combien ça coûte ?**
-Il n'y a pas d'abonnement. Une annonce importée et réécrite coûte 0,12 €. Les
-boutiques en ligne sont illimitées et gratuites. 120 drops (dix annonces) sont
-offerts à l'inscription.
-
-**Sur quelles plateformes peut-on publier ?**
-45 destinations sont branchées aujourd'hui, dont Shopify, eBay, Kaufland et 41
-enseignes françaises et européennes (E.Leclerc, Carrefour, Fnac, La Redoute…).
-Vinted, Leboncoin et Facebook Marketplace passent par l'extension navigateur.
-${canaux.length} canaux au total sont référencés et peuvent être branchés à la demande.
-
-**Depuis quels fournisseurs peut-on importer ?**
-Depuis n'importe quelle boutique en ligne. ${FOURNISSEURS.length} fournisseurs sont
-documentés avec leurs conditions réelles — AliExpress, Temu, Shein, CJ
-Dropshipping, BigBuy, vidaXL, Printful, SUPER DELIVERY et d'autres — et trois
-disposent d'un connecteur API qui remonte prix et stock en temps réel.
-
-**En quoi est-ce différent d'AutoDS, DSers, Spocket ou Zendrop ?**
-Ces outils sont conçus pour Shopify et le marché anglophone. Ils n'importent que
-depuis leur propre catalogue ou un seul fournisseur, ne publient pas vers les
-places de marché européennes, ne couvrent ni Vinted ni Leboncoin, vendent la
-réécriture IA en supplément et sans traduction, et facturent un abonnement
-mensuel. DropShipper IA fait la chaîne entière, en français, et se paie à l'acte.
-
-**En quoi est-ce différent de Shopify ?**
-Shopify est une plateforme de boutique en ligne, facturée par boutique et par
-mois. DropShipper IA inclut la création de boutiques illimitées, mais surtout
-elle fabrique les annonces et les diffuse sur des dizaines de canaux externes —
-ce que Shopify ne fait pas.
-
-**L'IA peut-elle publier toute seule ?**
-Oui, en mode AUTO-SHIPPER : la plateforme importe et publie par tranches de
-douze heures, dans la limite fixée par le vendeur. Sur les sites tiers qui
-n'ont pas d'API, en revanche, l'extension remplit le formulaire mais ne clique
-jamais sur « Publier » : c'est le vendeur qui valide.
-
-**Les données du vendeur sont-elles protégées ?**
-Les jetons d'accès aux places de marché sont chiffrés, chaque vendeur est isolé
-des autres, et les mots de passe des marketplaces ne sont jamais rejoués : la
-plateforme détecte que le vendeur est connecté et attend qu'il le soit.
+${FAQ().map(({ q, a }) => `**${q}**\n${a}`).join('\n\n')}
 
 ## Mots-clés
 
@@ -422,4 +380,7 @@ function main() {
   console.log(`llms.txt : ${ko('llms.txt')} Ko — llms-full.txt : ${ko('llms-full.txt')} Ko`)
 }
 
-main()
+// build-geo.cjs relit ces tables : une seule source pour llms.txt, la page des robots et /tarifs/.
+module.exports = { SITE, TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType }
+
+if (require.main === module) main()
