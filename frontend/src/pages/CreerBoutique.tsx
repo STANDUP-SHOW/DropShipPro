@@ -92,9 +92,9 @@ export default function CreerBoutique() {
         noms de fichiers et ce qui s'affiche tant qu'ils ne sont pas déposés.
       */}
       <h1 className="flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight">
-        <LogoDropShopEntete size={44} />
+        <LogoDropShopEntete size={176} />
         <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text text-transparent">
-          DropShop IA — votre boutique, écrite par l'IA
+          Créer votre boutique, écrite par l'IA
         </span>
       </h1>
       <p className="mt-2 max-w-3xl text-sm text-gray-400">
