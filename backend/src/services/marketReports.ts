@@ -185,3 +185,120 @@ export function lireRapport(md: string): RapportLu {
     produits,
   }
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * Le rattachement rayon ↔ catégorie d'agents
+ * ---------------------------------------------------------------------------
+ *
+ * Deux découpages coexistent, et ils ne sont pas les mêmes : les chefs de rayon
+ * portent les 24 clés du référentiel de catégories (`departments.ts`), les 48
+ * agents locaux portent les 24 catégories d'`agents.json`. « Électronique » d'un
+ * côté, « Informatique » et « TV, son et photo » de l'autre.
+ *
+ * Sans table, le bloc « Analyses de marché » d'un rayon ne saurait pas quels
+ * rapports lui reviennent, et un rapprochement par ressemblance de libellé
+ * rangerait « Bijoux et montres » sous « Sacs et bagages » un jour sur deux.
+ * La table est donc écrite à la main, et le banc `check-market-agents.ts`
+ * vérifie ses trois bornes : toute clé citée est un vrai rayon, tout rayon lit
+ * au moins une catégorie, et toute catégorie est lue par au moins un rayon —
+ * sinon un rapport écrit chaque matin n'apparaîtrait nulle part, et l'écran
+ * serait vide comme un jour sans dépôt.
+ *
+ * Un rayon peut lire plusieurs catégories ; une catégorie peut être lue par
+ * plusieurs rayons (les motos lisent l'automobile).
+ */
+export const CATEGORIES_PAR_RAYON: Record<string, string[]> = {
+  electronique: ['informatique', 'tv-son-photo'],
+  'telephones-portables-et-accessoires': ['telephonie'],
+  'appareils-electromenagers': ['electromenager'],
+  'vetements-pour-femmes': ['mode-femme'],
+  'vetements-pour-hommes': ['mode-homme'],
+  chaussures: ['chaussures-maroquinerie'],
+  'bijoux-et-accessoires': ['bijoux-montres'],
+  'sacs-et-bagages': ['chaussures-maroquinerie'],
+  'beaute-et-sante': ['beaute', 'sante-bien-etre'],
+  'extensions-de-cheveux-et-perruques': ['beaute'],
+  'outils-et-bricolage': ['bricolage'],
+  'terrasse-pelouse-et-jardin': ['jardin'],
+  meubles: ['meubles', 'maison-decoration', 'linge-de-maison', 'cuisine-table', 'salle-de-bain'],
+  'arts-artisanat-et-couture': ['loisirs-creatifs'],
+  'livres-et-medias': ['loisirs-creatifs'],
+  'fournitures-de-bureau-et-scolaires': ['loisirs-creatifs'],
+  'jouets-et-jeux': ['jouets-jeux'],
+  'bebe-et-maternite': ['bebe-enfant'],
+  'fournitures-pour-animaux-de-compagnie': ['animaux'],
+  'sports-et-loisirs-de-plein-air': ['sport', 'voyage-plein-air'],
+  automobile: ['automobile'],
+  'motos-et-sports-motorises': ['automobile'],
+  'commerce-industrie-et-science': ['bricolage'],
+}
+
+/** Les catégories d'agents lues par un rayon. Tableau vide si le rayon n'en couvre aucune. */
+export function categoriesDuRayon(key: string): CategorieAgent[] {
+  return (CATEGORIES_PAR_RAYON[key] ?? [])
+    .map((id) => categorieDe(id))
+    .filter((c): c is CategorieAgent => c !== null)
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Les prompts publicitaires du rapport marketing
+ * ---------------------------------------------------------------------------
+ */
+
+export interface PromptPub {
+  /** image | video — la section d'où il vient. */
+  genre: 'image' | 'video'
+  /** Le format visé, première ligne du bloc : « TikTok 9:16 — 15 s ». */
+  format: string | null
+  texte: string
+}
+
+/**
+ * Relève les prompts publicitaires d'un rapport marketing.
+ *
+ * Le contrat (MARKET-ANALYSES/README.md) les veut dans deux sections H2 —
+ * « Prompts d'images publicitaires » et « Prompts de vidéos publicitaires » —
+ * et chacun dans un bloc ``` autonome, copiable tel quel, avec le format visé
+ * en première ligne derrière un `#`.
+ *
+ * **La section décide du genre, pas le texte du prompt.** Un prompt d'image qui
+ * parle de mouvement resterait une image ; deviner au vocabulaire rangerait des
+ * prompts sous le mauvais onglet sans que personne ne comprenne pourquoi.
+ */
+export function lirePrompts(body: string): PromptPub[] {
+  const prompts: PromptPub[] = []
+  let genre: 'image' | 'video' | null = null
+  let dansBloc = false
+  let courant: string[] = []
+
+  const fermer = () => {
+    const texte = courant.join('\n').trim()
+    courant = []
+    if (!texte || !genre) return
+    const lignes = texte.split('\n')
+    const entete = lignes[0].trim().startsWith('#') ? lignes[0].replace(/^#+\s*/, '').trim() : null
+    prompts.push({ genre, format: entete || null, texte: entete ? lignes.slice(1).join('\n').trim() : texte })
+  }
+
+  for (const ligne of body.split(/\r?\n/)) {
+    const titre = /^##\s+(.*)$/.exec(ligne.trim())
+    if (titre && !dansBloc) {
+      const t = titre[1].toLowerCase()
+      if (/prompts?\s+d/.test(t) && /image/.test(t)) genre = 'image'
+      else if (/prompts?\s+d/.test(t) && /vid/.test(t)) genre = 'video'
+      else genre = null
+      continue
+    }
+    if (/^\s*```/.test(ligne)) {
+      if (dansBloc) fermer()
+      dansBloc = !dansBloc
+      continue
+    }
+    if (dansBloc) courant.push(ligne)
+  }
+  if (dansBloc) fermer()
+
+  return prompts
+}

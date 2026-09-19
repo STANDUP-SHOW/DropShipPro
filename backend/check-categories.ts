@@ -1,4 +1,10 @@
-import { semerCategories, resoudreCategorie, arbreCategories, cle } from './src/services/categories.js'
+import {
+  semerCategories,
+  resoudreCategorie,
+  arbreCategories,
+  apprendreDuVendeur,
+  cle,
+} from './src/services/categories.js'
 import { prisma } from './src/lib/prisma.js'
 
 /**
@@ -90,6 +96,40 @@ const avant = await prisma.category.findUniqueOrThrow({ where: { id: autre.id } 
 await resoudreCategorie({ sourceCategory: inedit, title: 'test' })
 const apresUsage = await prisma.category.findUniqueOrThrow({ where: { id: autre.id } })
 exige(apresUsage.uses > avant.uses, "le compteur d'usage ne monte pas")
+
+// --- La correction du vendeur remplace, elle ne s'ajoute pas ---------------
+/*
+ * Le cas qui manquait, et c'est le seul qui compte pour le vendeur : il corrige
+ * une annonce **parce que** la mémoire s'est trompée. Tant que l'apprentissage
+ * ne faisait qu'ajouter « si rien n'existe », la correction ne changeait rien —
+ * il rangeait, le suivant repartait au même mauvais endroit, et rien ne
+ * l'expliquait.
+ */
+const fautif = `cosplay-essai-${seme.categories}`
+await prisma.categoryAlias.createMany({
+  data: [{ key: cle(fautif), categoryId: exact.id, source: 'aliexpress' }],
+  skipDuplicates: true,
+})
+const bonneCategorie = autre.id
+await apprendreDuVendeur({ title: `perruque essai ${seme.categories}`, sourceCategory: fautif }, bonneCategorie)
+
+const corrige = await prisma.categoryAlias.findFirstOrThrow({ where: { key: cle(fautif) } })
+exige(corrige.categoryId === bonneCategorie, "la correction du vendeur doit remplacer l'alias fautif")
+exige(corrige.source === 'manuel', `l'alias corrigé porte « manuel », vu « ${corrige.source} » — sinon le titre peut l'effacer`)
+
+// Et la clé du titre est gravée aussi : une fiche qui n'annonce aucune
+// catégorie doit elle aussi apprendre quelque chose.
+const parTitre = await prisma.categoryAlias.findFirst({ where: { key: cle(`perruque essai ${seme.categories}`) } })
+exige(parTitre?.categoryId === bonneCategorie, 'le titre est gravé comme clé de dernier recours')
+
+// Relu par le résolveur : c'est la seule preuve qui vaille.
+const relu = await resoudreCategorie({ sourceCategory: fautif, title: `perruque essai ${seme.categories}` })
+exige(relu.categoryId === bonneCategorie, `la correction doit être relue, vu ${relu.path ?? 'AUCUNE'} (${relu.par})`)
+
+// Nettoyage : ce banc écrit dans la vraie mémoire, il ne l'encombre pas.
+await prisma.categoryAlias.deleteMany({
+  where: { key: { in: [cle(fautif), cle(`perruque essai ${seme.categories}`)] } },
+})
 
 // --- Ce que le socle couvre vraiment ---------------------------------------
 const echantillon = [

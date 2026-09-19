@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy, ExternalLink, Trash2 } from 'lucide-react'
+import { Trophy, ExternalLink, Trash2, Newspaper, Sparkles } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { GagnantsRapports } from '../components/GagnantsRapports'
 import { api } from '../lib/api'
 import { useDemo } from '../lib/demo'
 import { BandeauDemo } from '../components/ModeDemo'
@@ -58,9 +59,36 @@ export default function ProduitsGagnants() {
         <span>Produits gagnants</span>
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        La sélection déposée par vos chefs de rayon en IA AUTO-MODE : dix produits par rayon et par
-        demi-journée, avec le prix le plus bas constaté, un prix de vente possible et les
-        plateformes conseillées.
+        Deux sources, sur la même page : les vingt produits que les agents relèvent chaque matin pour
+        chaque rayon, et la sélection déposée par vos chefs de rayon en IA AUTO-MODE.
+      </p>
+
+      {/*
+        Les gagnants du jour, en tête (19/09/2026).
+
+        Ils arrivent chaque matin avec le rapport de leur rayon — titre, fournisseur, prix d'achat,
+        prix de vente, marge, et le chemin d'import qui convient à la fiche. Cochez pour importer en
+        lot ; une fiche que seul un navigateur sait lire part à l'agent extension.
+      */}
+      <section className="mt-6">
+        <h2 className="flex items-center gap-2 font-bold">
+          <Newspaper size={16} className="text-emerald-400" />
+          <span>Les gagnants du jour, tous rayons</span>
+        </h2>
+        <p className="mt-1 max-w-3xl text-xs text-gray-500">
+          Vingt produits par rayon et par jour, relevés par les agents. Les mêmes listes se retrouvent
+          dans chaque rayon, bornées à ce qu'il couvre.
+        </p>
+        <GagnantsRapports />
+      </section>
+
+      <h2 className="mt-10 flex items-center gap-2 font-bold">
+        <Sparkles size={16} className="text-amber-300" />
+        <span>La sélection de vos chefs de rayon</span>
+      </h2>
+      <p className="mt-1 max-w-3xl text-xs text-gray-500">
+        Déposée par les rayons en IA AUTO-MODE : dix produits par rayon et par demi-journée, avec le
+        prix le plus bas constaté, un prix de vente possible et les plateformes conseillées.
       </p>
 
       {erreur && !demo ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
@@ -68,7 +96,7 @@ export default function ProduitsGagnants() {
 
       {!chargement && !erreur && affichees.length === 0 ? (
         <div className="mt-6 rounded-xl border border-dashed border-white/15 p-8 text-center">
-          <p className="text-sm text-gray-400">Aucun produit gagnant déposé pour l'instant.</p>
+          <p className="text-sm text-gray-400">Aucune sélection de chef de rayon pour l'instant.</p>
           <p className="mt-2 text-xs text-gray-500">
             Activez l'interrupteur <b>IA AUTO-MODE</b> sur la fiche d'un{' '}
             <Link to="/rayons" className="text-purple-300 underline">

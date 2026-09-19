@@ -137,6 +137,28 @@ export async function semerCategories(): Promise<{ categories: number; alias: nu
   return { categories: ordonnees.length, alias }
 }
 
+/**
+ * La salle d'attente du référentiel.
+ *
+ * « Nouveauté et usage spécial » vient du classeur de correspondances, où elle
+ * est une catégorie comme une autre. Chez nous elle n'en est pas une : c'est là
+ * qu'atterrit ce que personne n'a su ranger — le vendeur qui ne trouve pas sa
+ * catégorie, le modèle qui s'est trompé de rayon. Elle n'a donc **pas de chef
+ * de rayon** (voir `departments.ts`), et une annonce qui y reste ne s'affiche
+ * dans aucun rayon : elle attend d'être corrigée.
+ *
+ * Ce n'est pas un défaut à réparer en silence. La correction du vendeur est le
+ * seul signal qui vaille — il voit le produit — et c'est elle qui apprend au
+ * référentiel une catégorie qu'il ne connaissait pas. L'écran doit donc le dire
+ * au lieu de laisser l'annonce dormir là.
+ */
+export const CATEGORIE_A_RANGER = 'nouveaute-et-usage-special'
+
+/** Vrai pour la salle d'attente et pour tout ce qu'elle contient. */
+export function estARanger(categoryId: string | null | undefined): boolean {
+  return categoryId === CATEGORIE_A_RANGER || Boolean(categoryId?.startsWith(`${CATEGORIE_A_RANGER}-`))
+}
+
 export interface DemandeCategorie {
   /** Le choix explicite du vendeur : il l'emporte sur tout le reste. */
   categoryId?: string | null
@@ -162,8 +184,22 @@ export interface Resolution {
   raison?: string
 }
 
+/**
+ * La clé de dernier recours : le titre lui-même.
+ *
+ * Très spécifique — deux produits ne partagent ce titre que s'ils sont le même
+ * produit — donc sans risque de rassembler ce qui n'a rien en commun, à
+ * l'inverse d'une catégorie source vague. Elle n'était qu'écrite et jamais
+ * relue : le modèle la gravait quand la fiche n'annonçait aucune catégorie, et
+ * la lecture ne la cherchait pas. Cent fiches identiques repayaient donc cent
+ * appels.
+ */
+export function cleDuTitre(titre: string): string {
+  return cle(titre ?? '')
+}
+
 /** Les clés à essayer, de la plus sûre à la plus vague. */
-function clesCandidates(d: DemandeCategorie): string[] {
+export function clesCandidates(d: DemandeCategorie): string[] {
   const sortie: string[] = []
   if (d.supplierId && d.supplierCategoryId) {
     // La plus fiable de toutes : un identifiant de catégorie chez un
@@ -251,12 +287,23 @@ export async function resoudreCategorie(d: DemandeCategorie): Promise<Resolution
    *   pouvoir être corrigé ; celui que le vendeur a posé lui-même, non.
    */
   const candidates = clesCandidates(d)
-  const [titre, memoire] = await Promise.all([
+  const cleTitre = cleDuTitre(d.title)
+  /*
+   * Trois lectures, et l'ordre est explicite.
+   *
+   * La clé de titre n'est pas jetée dans le même `in` que les autres : un
+   * `findFirst` sur une liste rend n'importe laquelle des lignes qui
+   * correspondent, et la plus vague gagnerait une fois sur deux. Elle est donc
+   * lue à part, et ne sert que si rien de plus sûr n'a répondu.
+   */
+  const [titre, parCandidats, parTitre] = await Promise.all([
     parLeTitre(d.title),
     candidates.length
       ? prisma.categoryAlias.findFirst({ where: { key: { in: candidates } }, include: { category: true } })
       : null,
+    cleTitre ? prisma.categoryAlias.findFirst({ where: { key: cleTitre }, include: { category: true } }) : null,
   ])
+  const memoire = parCandidats ?? parTitre
 
   if (memoire && (!titre || titre.id === memoire.categoryId)) {
     await Promise.all([
@@ -329,13 +376,53 @@ export async function resoudreCategorie(d: DemandeCategorie): Promise<Resolution
  *
  * Un alias déjà posé porte soit le choix d un vendeur, soit une décision du
  * modèle déjà payée : le réécrire perdrait l un ou rachèterait l autre.
+ *
+ * **Sauf quand le vendeur corrige** (`remplacer`). Sans cette porte, ranger une
+ * annonce à la main n'apprenait rien dès qu'un alias existait déjà : c'est
+ * pourtant le cas le plus fréquent — le vendeur corrige justement parce que la
+ * mémoire s'est trompée. Il rangeait, le suivant repartait au même mauvais
+ * endroit, et rien n'expliquait pourquoi.
  */
-export async function apprendreCategorie(key: string, categoryId: string, source: string): Promise<void> {
+export async function apprendreCategorie(
+  key: string,
+  categoryId: string,
+  source: string,
+  options: { remplacer?: boolean } = {},
+): Promise<void> {
   if (!key) return
-  await prisma.categoryAlias.createMany({
-    data: [{ key, categoryId, source }],
-    skipDuplicates: true,
-  })
+  if (!options.remplacer) {
+    await prisma.categoryAlias.createMany({ data: [{ key, categoryId, source }], skipDuplicates: true })
+    return
+  }
+  const existant = await prisma.categoryAlias.findFirst({ where: { key }, select: { id: true } })
+  if (existant) await prisma.categoryAlias.update({ where: { id: existant.id }, data: { categoryId, source } })
+  else await prisma.categoryAlias.create({ data: { key, categoryId, source } })
+}
+
+/**
+ * Apprend du geste du vendeur, sur toutes les clés que la lecture essaiera.
+ *
+ * Trois défauts vivaient ici, invisibles un par un et qui faisaient ensemble
+ * « la catégorie que je corrige revient toujours » :
+ *
+ * - la clé était gravée **telle qu'écrite par le fournisseur** (« Gadgets
+ *   Insolites ») alors que la lecture demande une clé normalisée
+ *   (« gadgets-insolites ») : l'alias ne pouvait jamais être retrouvé ;
+ * - elle portait la source du fournisseur, donc la règle qui protège « ce que
+ *   le vendeur a posé lui-même » ne la reconnaissait pas et le titre pouvait
+ *   l'effacer ;
+ * - et rien n'était appris du tout quand la fiche n'annonçait aucune catégorie,
+ *   ce qui est précisément le cas des produits qui atterrissent en salle
+ *   d'attente.
+ */
+export async function apprendreDuVendeur(
+  d: DemandeCategorie,
+  categoryId: string,
+): Promise<{ cles: string[] }> {
+  const cles = [...clesCandidates(d), cleDuTitre(d.title)].filter(Boolean)
+  const uniques = [...new Set(cles)]
+  for (const k of uniques) await apprendreCategorie(k, categoryId, 'manuel', { remplacer: true })
+  return { cles: uniques }
 }
 
 /**

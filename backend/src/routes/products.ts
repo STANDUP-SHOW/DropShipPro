@@ -13,7 +13,14 @@ import { watermarkUploads } from '../services/watermark.js'
 import { enregistrerVideo, refusVideo, VIDEO_MAX_OCTETS } from '../services/productVideo.js'
 import { publishToPlatform } from '../services/publisher.js'
 import { mapCategory, mapCategories } from '../services/categoryMapping.js'
-import { resoudreCategorie, arbreCategories, apprendreCategorie, avecGenre } from '../services/categories.js'
+import {
+  resoudreCategorie,
+  arbreCategories,
+  apprendreDuVendeur,
+  avecGenre,
+  CATEGORIE_A_RANGER,
+  estARanger,
+} from '../services/categories.js'
 import { BATCH_PLATFORM_IDS, PLATFORMS, PLATFORM_IDS } from '../services/platforms.js'
 import { SUPPLIERS, supplierFields } from '../services/suppliers.js'
 import { lireClasseur, colonneAdresses, XlsxIllisible } from '../services/xlsx.js'
@@ -2130,24 +2137,47 @@ productsRouter.post('/meta/recategoriser', async (req: AuthedRequest, res) => {
   })
 })
 
-productsRouter.get('/meta/category-tree', async (_req: AuthedRequest, res) => {
+productsRouter.get('/meta/category-tree', async (req: AuthedRequest, res) => {
   const arbre = await arbreCategories()
+
+  /*
+   * Ce qui attend d'être rangé, compté pour être dit.
+   *
+   * Une annonce en salle d'attente ne s'affiche dans aucun rayon et ne part
+   * bien nulle part : sans ce chiffre, elle y dort sans que rien ne le signale,
+   * et le vendeur conclut que son import a échoué. Compté chez lui seulement —
+   * c'est son catalogue, pas le référentiel, qui est en cause.
+   */
+  const enSalleDAttente = await prisma.product.count({
+    where: {
+      userId: req.userId!,
+      OR: [{ categoryId: CATEGORIE_A_RANGER }, { categoryId: { startsWith: `${CATEGORIE_A_RANGER}-` } }],
+    },
+  })
+
   res.json({
     rayons: arbre.length,
     sousCategories: arbre.reduce((n, r) => n + r.enfants.length, 0),
     // Les catégories apprises se comptent à part : c'est la mesure de ce que le
     // référentiel a gagné depuis sa livraison.
     apprises: arbre.reduce((n, r) => n + r.enfants.filter((e) => e.origin === 'learned').length, 0),
+    aRanger: { categoryId: CATEGORIE_A_RANGER, annonces: enSalleDAttente },
     arbre,
   })
 })
 
 /**
- * Range une annonce à la main, et l'apprend.
+ * Range une annonce à la main, et l'apprend pour de bon.
  *
  * Le geste du vendeur vaut mieux que n'importe quelle heuristique : il voit le
- * produit. Il est donc enregistré comme alias, et le prochain produit annoncé
- * de la même façon partira au bon endroit sans rien demander à personne.
+ * produit. C'est aussi la seule sortie de la salle d'attente — une annonce qui
+ * y reste ne s'affiche dans aucun rayon — et c'est ce qui apprend au
+ * référentiel une catégorie qu'il ne savait pas reconnaître.
+ *
+ * Encore faut-il que la leçon serve : voir `apprendreDuVendeur`, qui grave la
+ * correction sur toutes les clés que la lecture essaiera, la marque « manuel »
+ * pour qu'aucune heuristique ne l'efface, et **remplace** l'alias fautif au
+ * lieu de le laisser en place.
  */
 productsRouter.put('/:id/category', async (req: AuthedRequest, res) => {
   const categoryId = typeof req.body?.categoryId === 'string' ? req.body.categoryId.trim() : ''
@@ -2162,11 +2192,24 @@ productsRouter.put('/:id/category', async (req: AuthedRequest, res) => {
 
   await prisma.product.update({ where: { id: produit.id }, data: { categoryId } })
 
-  if (produit.sourceCategory) {
-    await apprendreCategorie(produit.sourceCategory, categoryId, produit.supplierId ?? 'manuel')
-  }
+  const { cles } = await apprendreDuVendeur(
+    {
+      title: produit.aiTitle || produit.title,
+      sourceCategory: produit.sourceCategory,
+      supplierId: produit.supplierId,
+    },
+    categoryId,
+  )
 
-  res.json({ ok: true, categoryId, path: categorie.path })
+  res.json({
+    ok: true,
+    categoryId,
+    path: categorie.path,
+    // Ce que la correction a appris : l'écran le dit, parce qu'un
+    // apprentissage silencieux est indiscernable d'un apprentissage absent.
+    appris: cles.length,
+    sortiDeLaSalleDAttente: estARanger(produit.categoryId) && !estARanger(categoryId),
+  })
 })
 
 /**

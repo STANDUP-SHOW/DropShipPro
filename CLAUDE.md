@@ -984,6 +984,50 @@ Trois conséquences, toutes appliquées :
   `watermarkMode` — les boutons « Mon logo » / « Un texte » changeaient l'écran
   et n'enregistraient rien.
 
+- **« Nouveauté et usage spécial » n'est pas un rayon, c'est une salle d'attente
+  (19/09/2026).** Max : « ne doit pas être un rayon ni traité comme une
+  catégorie […] si un utilisateur ne trouve pas sa catégorie ou si l'agent a mal
+  transcrit, il se trouve dans nouveauté usage spécial […] le produit ne
+  s'affiche nulle part, ça devrait être expliqué ». Cette entrée vient du
+  classeur de correspondances, où elle est une catégorie comme une autre ; chez
+  nous c'est là qu'atterrit ce que personne n'a su ranger. Elle avait donc un
+  chef de rayon, **Ousmane**, ce qui laissait croire qu'il s'y vend quelque
+  chose. Le chef est retiré (23 rayons ; la clé répond encore et mène à « Jouets
+  et jeux », pour ne pas faire disparaître l'agent de qui l'avait confié), et
+  `CATEGORIE_A_RANGER` la nomme en un seul endroit.
+
+  **Et la correction du vendeur n'apprenait rien** — trois défauts sur la même
+  route (`PUT /products/:id/category`), invisibles un par un : l'alias était
+  gravé sur la catégorie source **telle que le fournisseur l'écrit** (« Gadgets
+  Insolites ») quand la lecture demande une clé normalisée
+  (« gadgets-insolites »), donc introuvable à jamais ; il portait la source du
+  fournisseur, donc la règle qui protège « ce que le vendeur a posé lui-même »
+  ne le reconnaissait pas ; et `apprendreCategorie` ne faisait qu'ajouter
+  (`skipDuplicates`), donc ne corrigeait **rien** quand un alias fautif existait
+  déjà — ce qui est précisément le cas où l'on corrige. `apprendreDuVendeur`
+  grave désormais toutes les clés que la lecture essaie, marquées `manuel`, en
+  remplaçant. La clé de titre, elle, était écrite et jamais relue : cent fiches
+  identiques repayaient cent appels au modèle ; elle est lue en dernier, à part,
+  parce qu'un `findFirst` sur une liste de clés rend n'importe laquelle des
+  lignes qui correspondent et que la plus vague gagnerait une fois sur deux.
+  Bancs `check-salle-attente.ts` (sans base, éprouvé contre un identifiant
+  faux et contre la clé non normalisée) et `check-categories.ts` (vraie base :
+  l'alias fautif doit être remplacé, et relu par le résolveur).
+
+- **Les rapports des 48 agents se lisent à quatre endroits, pas seulement dans
+  Fresh news (19/09/2026).** Fresh news montre un jour d'une catégorie, comme un
+  journal ; il manquait la lecture inverse. Chaque rayon a son onglet
+  « Analyses de marché », la page du menu porte la même liste tous rayons, et
+  Réseaux a deux vues (`?vue=analyses`, `?vue=prompts`). Le raccordement est une
+  table écrite à la main, `CATEGORIES_PAR_RAYON` : les chefs de rayon portent
+  les clés du référentiel, les agents portent celles d'`agents.json` — deux
+  découpages de 24 qui ne se recouvrent pas. Le banc tient ses trois bornes,
+  dont celle qui compte : **toute catégorie est lue par au moins un rayon**,
+  sinon un rapport écrit chaque matin n'apparaîtrait nulle part et l'écran
+  serait vide comme un jour sans dépôt. La liste des produits est **partagée**
+  (`ListeProduitsRapport`) entre les trois écrans : recopiée, elle aurait donné
+  deux boutons « Importer » qui ne font pas la même chose selon la page.
+
 - **Une application React est invisible pour une IA : d où `llms.txt`.** Signalé
   le 15/09/2026 par Max — « si je demande à une IA ce que fait drop-shipper.fr,
   elle ne le sait pas ». Normal : un assistant qui suit le lien reçoit la

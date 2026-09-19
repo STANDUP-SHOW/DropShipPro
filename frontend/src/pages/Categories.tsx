@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Sparkles, ChevronLeft, FolderTree } from 'lucide-react'
+import { Search, Sparkles, ChevronLeft, FolderTree, Inbox } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { api } from '../lib/api'
@@ -78,6 +78,42 @@ export default function Categories() {
           <Chiffre valeur={arbre.sousCategories} libelle="sous-catégories" />
           <Chiffre valeur={arbre.apprises} libelle="apprises à l'usage" accent />
         </div>
+      ) : null}
+
+      {/*
+        La salle d'attente, dite en toutes lettres (19/09/2026).
+
+        « Nouveauté et usage spécial » n'est pas un rayon et n'a pas de chef :
+        c'est là qu'atterrit ce que personne n'a su ranger. Une annonce qui y
+        reste ne s'affiche nulle part, et rien ne le signalait — le vendeur
+        concluait que son import avait échoué. Le bloc n'apparaît que lorsqu'il
+        y a quelque chose à ranger : un encadré permanent qui dit « rien à
+        faire » finit par ne plus se lire.
+      */}
+      {arbre && arbre.aRanger.annonces > 0 ? (
+        <section className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-5">
+          <h2 className="flex items-center gap-2 font-bold text-amber-100">
+            <Inbox size={16} />
+            <span>{`${arbre.aRanger.annonces} annonce(s) à ranger`}</span>
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-100/90">
+            Elles sont dans <b>Nouveauté et usage spécial</b>, qui n'est pas un rayon mais une salle
+            d'attente : c'est là qu'atterrit un produit dont la catégorie n'a pas été reconnue — une
+            catégorie introuvable dans la liste, ou mal lue à l'import. <b>Tant qu'elles y sont,
+            elles ne s'affichent dans aucun rayon.</b>
+          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-100/90">
+            Changez leur catégorie : c'est le seul geste qui les sort de là, et c'est aussi celui qui
+            apprend au référentiel à reconnaître ce produit. Le prochain du même genre partira au bon
+            endroit tout seul.
+          </p>
+          <Link
+            to={`/dashboard?categorie=${encodeURIComponent(arbre.aRanger.categoryId)}`}
+            className="btn-gradient mt-4 inline-flex rounded-lg px-4 py-2 text-sm font-semibold"
+          >
+            Voir ces annonces
+          </Link>
+        </section>
       ) : null}
 
       <Reprise />

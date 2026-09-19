@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Newspaper, ExternalLink, Download, Send, Loader2, Lock } from 'lucide-react'
+import { Newspaper, Loader2, Lock } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { Markdown, blocsDe } from '../components/Markdown'
+import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
 import { api } from '../lib/api'
 
 /**
@@ -15,11 +16,10 @@ import { api } from '../lib/api'
  * eux-mêmes — chaque section H2 du rapport est une case.
  *
  * **La liste des 20 produits n'est pas un tableau à lire, c'est une liste
- * d'annonces à importer.** Chaque ligne a « Voir » (chez nous si le
- * fournisseur est relié, sur le web sinon), « Importer » (direct, quand la
- * fiche se lit par l'API ou par l'adresse) et « Envoyer à l'extension » (la
- * file que l'agent extension relève dans le navigateur). Et « Tout » fait les
- * deux d'un coup, chaque produit par le chemin qui lui convient.
+ * d'annonces à importer** — et elle vit dans `ListeProduitsRapport`, partagée
+ * avec la page Produits gagnants et les rayons. Elle était écrite ici, et la
+ * recopier ailleurs aurait fait deux boutons « Importer » qui ne font pas la
+ * même chose selon la page d'où on les clique.
  *
  * Gratuit, réservé aux comptes à ≥ 500 drops : le serveur répond 402 avec le
  * manque, et la page le dit plutôt que de montrer une page vide.
@@ -38,18 +38,13 @@ export default function FreshNews() {
   const [porte, setPorte] = useState<{ seuil: number; drops: number; message: string } | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [chargement, setChargement] = useState(false)
-  const [liens, setLiens] = useState<Array<{ supplier: string; connected: boolean }>>([])
-  const [fournisseurs, setFournisseurs] = useState<Array<{ id: string; name: string }>>([])
   const [message, setMessage] = useState<string | null>(null)
-  const [enCours, setEnCours] = useState<string | null>(null)
 
   const categorie = params.get('categorie') || categories[0]?.id || ''
   const jour = params.get('jour') || undefined
 
   useEffect(() => {
     api.freshCategories().then(setCategories).catch(() => setErreur('Impossible de lire les catégories.'))
-    api.listSupplierLinks().then((l) => setLiens(l)).catch(() => undefined)
-    api.listSuppliers().then((s) => setFournisseurs((s as Array<{ id: string; label: string }>).map((x) => ({ id: x.id, name: x.label })))).catch(() => undefined)
   }, [])
 
   useEffect(() => {
@@ -81,57 +76,6 @@ export default function FreshNews() {
     setParams(suivant)
   }
 
-  /** Le fournisseur d'un produit, retrouvé par son nom dans l'annuaire — et s'il est relié. */
-  function fournisseurDe(p: Produit) {
-    const nom = p.fournisseur.toLowerCase()
-    const f = fournisseurs.find((x) => x.name.toLowerCase() === nom || nom.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(nom))
-    const relie = f ? liens.some((l) => l.supplier === f.id && l.connected) : false
-    return { id: f?.id ?? null, relie }
-  }
-
-  async function importer(produits: Produit[], origine: string) {
-    setEnCours(origine)
-    setMessage(null)
-    try {
-      const directs = produits.filter((p) => p.import !== 'extension')
-      const parExtension = produits.filter((p) => p.import === 'extension')
-      let importes = 0
-      let echecs = 0
-      for (let i = 0; i < directs.length; i += 25) {
-        const r = await api.importBatch(directs.slice(i, i + 25).map((p) => p.url))
-        importes += r.imported
-        echecs += r.failed
-      }
-      let enFile = 0
-      if (parExtension.length) {
-        const r = await api.fileImportAjouter(parExtension.map((p) => ({ url: p.url, titre: p.titre, fournisseur: p.fournisseur, mode: 'extension', origine })))
-        enFile = r.ajoutes
-      }
-      const morceaux = []
-      if (importes) morceaux.push(`${importes} annonce(s) importée(s)`)
-      if (enFile) morceaux.push(`${enFile} fiche(s) envoyée(s) à l'extension`)
-      if (echecs) morceaux.push(`${echecs} échec(s)`)
-      setMessage(morceaux.length ? morceaux.join(' · ') + '.' : 'Rien à faire : tout était déjà importé ou en file.')
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "L'import n'a pas abouti.")
-    } finally {
-      setEnCours(null)
-    }
-  }
-
-  async function versExtension(produits: Produit[], origine: string) {
-    setEnCours(origine + ':ext')
-    setMessage(null)
-    try {
-      const r = await api.fileImportAjouter(produits.map((p) => ({ url: p.url, titre: p.titre, fournisseur: p.fournisseur, mode: p.import, origine })))
-      setMessage(`${r.ajoutes} fiche(s) envoyée(s) à l'extension${r.dejaEnFile ? `, ${r.dejaEnFile} déjà en file` : ''}. Elle les relève dès que votre navigateur est ouvert.`)
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "L'envoi n'a pas abouti.")
-    } finally {
-      setEnCours(null)
-    }
-  }
-
   const rayon = donnees?.rapports.find((r) => r.type === 'rayon')
   const marketing = donnees?.rapports.find((r) => r.type === 'marketing')
   const blocs = useMemo(() => {
@@ -155,7 +99,7 @@ export default function FreshNews() {
         <span>Fresh news</span>
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        Chaque jour, pour chacun des 24 rayons, deux rapports : le marché et ses 20 produits à importer, et le marketing —
+        Chaque jour, pour chacune des 24 catégories, deux rapports : le marché et ses 20 produits à importer, et le marketing —
         social places, publicités, tendances, prompts. Offerts à partir de 500 drops en banque.
       </p>
 
@@ -253,14 +197,7 @@ export default function FreshNews() {
                 </div>
 
                 {b.produits ? (
-                  <ListeProduits
-                    produits={b.produits}
-                    rapportId={b.rapport.id}
-                    fournisseurDe={fournisseurDe}
-                    enCours={enCours}
-                    onImporter={(ps, origine) => importer(ps, origine)}
-                    onExtension={(ps, origine) => versExtension(ps, origine)}
-                  />
+                  <ListeProduitsRapport produits={b.produits} origine={b.rapport.id} onMessage={setMessage} />
                 ) : (
                   <div className="mt-2"><Markdown texte={b.corps} /></div>
                 )}
@@ -294,86 +231,4 @@ function Pilule({ actif, onClick, children }: { actif: boolean; onClick: () => v
 function dateFr(iso: string): string {
   const d = new Date(iso + 'T12:00:00Z')
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-}
-
-function euros(n: number | null): string {
-  return n === null ? '—' : `${n.toFixed(2).replace('.', ',')} €`
-}
-
-/**
- * Les 20 produits : une liste d'annonces, pas un tableau.
- *
- * « Voir » ouvre chez nous quand le fournisseur est relié (le catalogue lu par
- * l'API), sur le web sinon. « Importer » n'existe que pour ce qui se lit sans
- * navigateur (api, url) ; le reste passe par l'agent extension.
- */
-function ListeProduits({
-  produits,
-  rapportId,
-  fournisseurDe,
-  enCours,
-  onImporter,
-  onExtension,
-}: {
-  produits: Produit[]
-  rapportId: string
-  fournisseurDe: (p: Produit) => { id: string | null; relie: boolean }
-  enCours: string | null
-  onImporter: (ps: Produit[], origine: string) => void
-  onExtension: (ps: Produit[], origine: string) => void
-}) {
-  const directs = produits.filter((p) => p.import !== 'extension').length
-  return (
-    <div className="mt-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-        <span>{produits.length} produits — {directs} importables directement, {produits.length - directs} par l'extension.</span>
-        <span className="ml-auto flex gap-2">
-          <button type="button" disabled={enCours !== null} onClick={() => onImporter(produits, rapportId)} className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60">
-            {enCours === rapportId ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Tout importer
-          </button>
-          <button type="button" disabled={enCours !== null} onClick={() => onExtension(produits, rapportId)} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:border-purple-400/50 disabled:opacity-60">
-            <Send size={12} /> Tout envoyer à l'extension
-          </button>
-        </span>
-      </div>
-
-      <ul className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10">
-        {produits.map((p) => {
-          const f = fournisseurDe(p)
-          const cle = `${rapportId}:${p.rang}`
-          return (
-            <li key={p.rang} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold"><span className="text-gray-500">{p.rang}.</span> {p.titre}</p>
-                <p className="mt-0.5 text-xs text-gray-400">
-                  {p.fournisseur}{f.relie ? <span className="ml-1 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">relié</span> : null}
-                  {' · '}achat {euros(p.prixAchat)} · vente {euros(p.prixVente)}{p.margePct !== null ? ` · marge ${Math.round(p.margePct)} %` : ''}
-                  {p.pourquoi ? <span className="text-gray-500"> — {p.pourquoi}</span> : null}
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-1.5">
-                {f.relie && f.id ? (
-                  <Link to={`/catalogues?fournisseur=${encodeURIComponent(f.id)}&q=${encodeURIComponent(p.titre)}`} className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold hover:border-purple-400/50">
-                    <ExternalLink size={12} /> Voir chez nous
-                  </Link>
-                ) : (
-                  <a href={p.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold hover:border-purple-400/50">
-                    <ExternalLink size={12} /> Voir sur le web
-                  </a>
-                )}
-                {p.import !== 'extension' ? (
-                  <button type="button" disabled={enCours !== null} onClick={() => onImporter([p], cle)} className="btn-gradient inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-60">
-                    {enCours === cle ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Importer · 12
-                  </button>
-                ) : null}
-                <button type="button" disabled={enCours !== null} onClick={() => onExtension([p], cle)} className="inline-flex items-center gap-1 rounded-lg border border-purple-400/30 bg-purple-400/10 px-2.5 py-1.5 text-xs font-semibold text-purple-100 hover:border-purple-400/60 disabled:opacity-60">
-                  {enCours === cle + ':ext' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Extension · 6 + 12
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
 }
