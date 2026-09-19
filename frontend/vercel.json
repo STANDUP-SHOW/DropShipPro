@@ -5,6 +5,10 @@
       "destination": "https://dropshippro-production.up.railway.app/b/:path*"
     },
     {
+      "source": "/api/:path*",
+      "destination": "https://dropshippro-production.up.railway.app/api/:path*"
+    },
+    {
       "source": "/api/aliexpress/:path*",
       "destination": "https://dropshippro-production.up.railway.app/api/aliexpress/:path*"
     },
