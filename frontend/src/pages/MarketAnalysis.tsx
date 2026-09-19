@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { TrendingUp, ExternalLink, Loader2, ArrowLeft, Info } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { ReportList } from '../components/ReportList'
 import { StudioAnalyses } from '../components/StudioAnalyses'
+import { SelectionAnalyse, PLAFOND_ANALYSE, type Mode } from '../components/SelectionAnalyse'
 import { api } from '../lib/api'
 
 type Result = Awaited<ReturnType<typeof api.marketAnalysis>>['results'][number]
@@ -22,6 +23,12 @@ const COMPETITION_STYLE: Record<string, string> = {
  *
  * Ids arrive through router state rather than the URL: a hundred ids would not
  * fit in a query string, and this page is never meant to be bookmarked.
+ *
+ * **Et la page sait désormais choisir elle-même.** Elle ne savait travailler que
+ * sur une sélection venue de « Mes annonces » : ouverte depuis le menu, elle
+ * n'offrait rien pour analyser une annonce déjà importée. Le bloc de sélection
+ * (catégorie obligatoire, puis les annonces de cette catégorie) est en tête ;
+ * l'arrivée par « Mes annonces » continue de lancer l'analyse toute seule.
  */
 export default function MarketAnalysisPage() {
   const location = useLocation()
@@ -35,28 +42,33 @@ export default function MarketAnalysisPage() {
    * plafonne ici pour que le vendeur reçoive une analyse plutôt qu'une erreur,
    * et on lui dit combien ont été laissées de côté.
    */
-  const PLAFOND = 5
-  const productIds = selection.slice(0, PLAFOND)
+  const productIds = selection.slice(0, PLAFOND_ANALYSE)
   const laissees = selection.length - productIds.length
 
   const [results, setResults] = useState<Result[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<Mode>('mes-annonces')
   const started = useRef(false)
+
+  const lancer = useCallback((ids: string[]) => {
+    if (!ids.length) return
+    setRunning(true)
+    setError(null)
+    api
+      .marketAnalysis(ids)
+      .then((data) => setResults(data.results))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Analyse impossible'))
+      .finally(() => setRunning(false))
+  }, [])
 
   useEffect(() => {
     // Guard against the double invocation React does in development: each run
     // spends credits, so a second one is not acceptable.
     if (started.current || productIds.length === 0) return
     started.current = true
-
-    setRunning(true)
-    api
-      .marketAnalysis(productIds)
-      .then((data) => setResults(data.results))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Analyse impossible'))
-      .finally(() => setRunning(false))
-  }, [productIds])
+    lancer(productIds)
+  }, [productIds, lancer])
 
   return (
     <Layout>
@@ -78,28 +90,29 @@ export default function MarketAnalysisPage() {
 
       {laissees > 0 && (
         <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          {`L'analyse se fait par 5 au maximum : les ${PLAFOND} premières annonces sont traitées ici. Resélectionnez les ${laissees} restante(s) pour un second passage.`}
+          {`L'analyse se fait par 5 au maximum : les ${PLAFOND_ANALYSE} premières annonces sont traitées ici. Resélectionnez les ${laissees} restante(s) pour un second passage.`}
         </p>
       )}
 
       {/*
-        Le studio, en tête.
+        Le choix de ce qu'on analyse, en tête.
 
         **Cette page était un cul-de-sac quand on l'ouvrait depuis le menu** :
         elle ne savait travailler que sur une sélection d'annonces venue de
         « Mes annonces », et sans sélection elle n'affichait qu'un message
-        expliquant qu'il fallait aller ailleurs. Or le geste utile arrive
-        d'abord : on analyse AVANT d'importer, sinon on paie un catalogue pour
+        expliquant qu'il fallait aller ailleurs. Les deux gestes se posent
+        maintenant ici : une annonce du catalogue, ou un sujet libre — on
+        analyse souvent AVANT d'importer, sinon on paie un catalogue pour
         découvrir ensuite que la niche est saturée.
       */}
-      <StudioAnalyses />
+      <SelectionAnalyse
+        onLancer={lancer}
+        enCours={running}
+        preselection={productIds}
+        onModeChange={setMode}
+      />
 
-      {productIds.length === 0 && (
-        <p className="mt-6 text-xs text-gray-500">
-          Pour analyser une annonce déjà importée — avec son prix d'achat et son prix de vente —
-          cochez-la dans <b>Mes annonces</b>, puis cliquez « Analyse de marché IA ».
-        </p>
-      )}
+      {mode === 'libre' && <StudioAnalyses />}
 
       {running && (
         <div className="mt-6 rounded-xl border border-purple-400/30 bg-purple-500/5 p-4">
@@ -107,7 +120,7 @@ export default function MarketAnalysisPage() {
             <Loader2 className="animate-spin text-purple-300 shrink-0" size={20} />
             <div>
               <p className="text-sm font-medium">
-                {`Analyse de ${productIds.length} produit(s) en cours — laissez cette page ouverte`}
+                Analyse en cours — laissez cette page ouverte
               </p>
               <p className="mt-0.5 text-xs text-gray-400">
                 L'agent cherche sur le web pour chaque produit. Comptez une trentaine de secondes
@@ -241,7 +254,7 @@ export default function MarketAnalysisPage() {
           Les analyses rédigées par vos chefs de rayon en IA AUTO-MODE, et celles lancées depuis
           vos annonces. Cliquez une ligne pour la lire, l'exporter ou la partager.
         </p>
-        <ReportList section="MARKET" />
+        <ReportList section="MARKET" triable />
       </section>
     </Layout>
   )

@@ -1114,6 +1114,28 @@ productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
       const moi = await prisma.user.findUnique({ where: { id: req.userId! }, select: { email: true } })
       const utilisateur = (moi?.email ?? 'vendeur').split('@')[0]
       const jour = new Date().toISOString().slice(0, 10)
+
+      /*
+       * Le rayon des annonces analysées, écrit sur le rapport.
+       *
+       * « Mes analyses » se trie et se filtre par catégorie, et seules les
+       * lignes de l'AUTO-MODE en portaient une : une analyse payée par le
+       * vendeur tombait toujours dans « Sans catégorie ». La sélection se fait
+       * désormais par catégorie, donc un lot en a une — mais un lot mélangé
+       * reste possible (arrivée depuis « Mes annonces »), et il est dit tel
+       * quel plutôt que rangé sous le rayon du premier produit.
+       */
+      const analyses = new Set(reussies.map((r) => r.productId))
+      const rayons = [
+        ...new Set(
+          owned.filter((p) => analyses.has(p.id) && p.categoryId).map((p) => p.categoryId as string),
+        ),
+      ]
+      const libelles = rayons.length
+        ? await prisma.category.findMany({ where: { id: { in: rayons } }, select: { label: true } })
+        : []
+      const rayon =
+        libelles.length === 1 ? libelles[0].label : libelles.length > 1 ? 'Plusieurs catégories' : null
       const corps = reussies
         .map((r) => {
           const a = r.analysis as { verdict?: string; suggestedPrice?: number | null; reasoning?: string }
@@ -1128,7 +1150,7 @@ productsRouter.post('/market-analysis', async (req: AuthedRequest, res) => {
           day: jour,
           title: `produits-${jour}-${utilisateur}`,
           body: corps,
-          summary: { redacteur: utilisateur, produits: reussies.length },
+          summary: { redacteur: utilisateur, produits: reussies.length, ...(rayon ? { rayon } : {}) },
         },
       })
     } catch (err) {
