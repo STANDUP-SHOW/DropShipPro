@@ -537,22 +537,39 @@ function BlocSite({
                 </p>
               </div>
 
-              <Curseur
-                label="Taille"
-                valeur={taille}
-                min={5}
-                max={60}
-                unite="%"
-                onChange={setTaille}
-              />
-              <Curseur
-                label="Intensité"
-                valeur={opacite}
-                min={5}
-                max={100}
-                unite="%"
-                onChange={setOpacite}
-              />
+              {/*
+                Un logo n'a ni taille ni intensité à régler.
+
+                Les deux curseurs ne servent que le filigrane texte : un logo
+                est posé à pleine intensité dans un cadre de taille fixe, au
+                coin choisi. Les montrer en mode logo revenait à proposer deux
+                réglages sans effet.
+              */}
+              {mode === 'logo' || (mode === null && logo) ? (
+                <p className="text-[11px] leading-relaxed text-gray-500">
+                  Le logo est posé <b>à pleine intensité</b>, dans un cadre de taille fixe au coin
+                  choisi. Rien à régler.
+                </p>
+              ) : (
+                <>
+                  <Curseur
+                    label="Taille"
+                    valeur={taille}
+                    min={5}
+                    max={60}
+                    unite="%"
+                    onChange={setTaille}
+                  />
+                  <Curseur
+                    label="Intensité"
+                    valeur={opacite}
+                    min={5}
+                    max={100}
+                    unite="%"
+                    onChange={setOpacite}
+                  />
+                </>
+              )}
 
               <p className="text-[11px] leading-relaxed text-gray-500">
                 La marque se pose <b>à l'export</b>, jamais sur l'original : changer de logo ne

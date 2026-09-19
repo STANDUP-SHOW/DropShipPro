@@ -36,9 +36,14 @@ export interface WatermarkOptions {
   text: string
   /** Public path (/storage/watermarks/…) of a PNG or SVG logo; wins over text. */
   imagePath?: string | null
-  /** Width of the mark as a percentage of the photo width. */
+  /**
+   * Largeur de la marque en % de la largeur de la photo — **le texte seulement**.
+   *
+   * Un logo ne se règle plus en taille : il rentre dans un conteneur fixe (voir
+   * `CONTENEUR_LOGO`). Le champ reste lu pour le filigrane texte.
+   */
   scale?: number
-  /** 10 to 100. */
+  /** 10 à 100 — **le texte seulement** : un logo est posé à pleine intensité. */
   opacity?: number
   position?: WatermarkPosition
   /**
@@ -107,28 +112,45 @@ async function readLogo(imagePath: string): Promise<Buffer> {
 }
 
 /**
- * Prepares the logo overlay: resized to the requested share of the photo width and
- * faded to the requested opacity.
+ * Le conteneur du logo : une boîte de taille fixe, décollée du bord.
+ *
+ * Demandé par le vendeur le 19/09/2026, et c'est un réglage en moins des deux
+ * côtés : **un logo ne se règle plus ni en taille ni en intensité.** Il est
+ * posé à pleine intensité dans une boîte qui fait un cinquième de la largeur de
+ * la photo, dans le coin choisi — en bas à droite par défaut.
+ *
+ * Pourquoi enlever plutôt que régler : un logo affaibli n'est pas un logo
+ * discret, c'est un logo sale, et une largeur en pourcentage ne dit rien d'un
+ * logo haut (une enseigne verticale à 22 % de large mangeait le tiers de la
+ * hauteur). La boîte, elle, borne les deux sens : `fit: 'inside'` fait rentrer
+ * le logo dedans sans jamais le déformer, large ou haut.
+ *
+ * `part` est la part de la largeur de la photo ; `marge` la distance au bord,
+ * ajoutée en transparent tout autour pour que n'importe quel ancrage de sharp
+ * reste décollé du bord.
+ */
+const CONTENEUR_LOGO = { part: 0.2, marge: 0.03 }
+
+/**
+ * Prepares the logo overlay: fitted into the fixed container, at full strength.
  *
  * sharp rasterises SVG on read, so PNG (transparency preserved) and SVG both work.
- * The alpha channel is multiplied rather than replaced, otherwise a transparent
- * background would turn opaque and box the logo in.
  */
-async function logoOverlay(imagePath: string, photoWidth: number, scale: number, opacity: number) {
+async function logoOverlay(imagePath: string, photoWidth: number) {
   const buffer = await readLogo(imagePath)
-  const targetWidth = Math.max(40, Math.round((photoWidth * scale) / 100))
+  const cote = Math.max(48, Math.round(photoWidth * CONTENEUR_LOGO.part))
+  const marge = Math.max(6, Math.round(photoWidth * CONTENEUR_LOGO.marge))
 
   return sharp(buffer, { density: 300 })
-    .resize({ width: targetWidth, withoutEnlargement: false })
+    .resize({ width: cote, height: cote, fit: 'inside', withoutEnlargement: false })
     .ensureAlpha()
-    .composite([
-      {
-        input: Buffer.from([255, 255, 255, Math.round((opacity / 100) * 255)]),
-        raw: { width: 1, height: 1, channels: 4 },
-        tile: true,
-        blend: 'dest-in',
-      },
-    ])
+    .extend({
+      top: marge,
+      bottom: marge,
+      left: marge,
+      right: marge,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
     .png()
     .toBuffer()
 }
@@ -188,7 +210,8 @@ export async function watermarkImages(
 ): Promise<string[]> {
   await mkdir(STORAGE_DIR, { recursive: true })
 
-  const scale = options.scale ?? 22
+  // La taille et l.intensite ne concernent plus que le texte : un logo est pose
+  // a pleine intensite dans le conteneur fixe (voir CONTENEUR_LOGO).
   const opacity = options.opacity ?? 75
   const gravity = options.position ?? 'southeast'
   const selected = imageUrls.slice(0, MAX_IMAGES)
@@ -208,7 +231,7 @@ export async function watermarkImages(
     if (!options.imagePath) return Promise.resolve(null)
     let attendu = logos.get(width)
     if (!attendu) {
-      attendu = logoOverlay(options.imagePath, width, scale, opacity).catch((err) => {
+      attendu = logoOverlay(options.imagePath, width).catch((err) => {
         // A missing or corrupt logo must not lose the whole import: fall back to text.
         console.error('logo de filigrane illisible, repli sur le texte', err)
         return null
@@ -293,7 +316,8 @@ export async function watermarkUploads(
 ): Promise<string[]> {
   await mkdir(STORAGE_DIR, { recursive: true })
 
-  const scale = options.scale ?? 22
+  // La taille et l.intensite ne concernent plus que le texte : un logo est pose
+  // a pleine intensite dans le conteneur fixe (voir CONTENEUR_LOGO).
   const opacity = options.opacity ?? 75
   const gravity = options.position ?? 'southeast'
   const results: string[] = []
@@ -306,7 +330,7 @@ export async function watermarkUploads(
       const width = meta.width ?? 800
 
       if (options.imagePath && !logo) {
-        logo = await logoOverlay(options.imagePath, width, scale, opacity).catch(() => null as unknown as Buffer)
+        logo = await logoOverlay(options.imagePath, width).catch(() => null as unknown as Buffer)
       }
 
       const filename = seoFileName(productTitle, startIndex + offset)
@@ -535,7 +559,8 @@ export async function marquerPourExport(
   if (options.enabled === false) return images
   await mkdir(STORAGE_DIR, { recursive: true })
 
-  const scale = options.scale ?? 22
+  // La taille et l.intensite ne concernent plus que le texte : un logo est pose
+  // a pleine intensite dans le conteneur fixe (voir CONTENEUR_LOGO).
   const opacity = options.opacity ?? 75
   const gravity = options.position ?? 'southeast'
 
@@ -551,7 +576,7 @@ export async function marquerPourExport(
       const largeur = (await image.metadata()).width ?? 800
 
       if (options.imagePath && !logo) {
-        logo = await logoOverlay(options.imagePath, largeur, scale, opacity).catch((err) => {
+        logo = await logoOverlay(options.imagePath, largeur).catch((err) => {
           console.error('logo de filigrane illisible, repli sur le texte', err)
           return null as unknown as Buffer
         })

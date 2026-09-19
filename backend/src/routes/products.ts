@@ -23,7 +23,7 @@ import { titlesByChannel, titleForChannel } from '../services/channelCopy.js'
 import { CANAUX, TYPES_CANAL } from '../services/channelDirectory.js'
 import { buildFillPlan } from '../services/formFiller.js'
 import { apiBaseUrl } from '../lib/urls.js'
-import { imagesPourExport } from '../services/exportImages.js'
+import { imagesPourExport, reglagesFiligrane } from '../services/exportImages.js'
 import { ETATS, etatPour } from '../services/productCondition.js'
 import { avisEncoreFrais, redigerAvisPublicitaire, COUT_EN_CREDITS as COUT_AVIS } from '../services/adAdvice.js'
 import { brouillonPour } from '../services/socialDraft.js'
@@ -32,7 +32,6 @@ import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
-import { watermarkOptionsFor } from '../services/watermarkOptions.js'
 import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
 import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
@@ -859,6 +858,23 @@ productsRouter.post('/:id/publish', async (req: AuthedRequest, res) => {
   const owned = await prisma.product.findFirst({ where: { id: req.params.id, userId: req.userId! } })
   if (!owned) return res.status(404).json({ error: 'Produit introuvable' })
 
+  /*
+   * Une boutique choisie à la main range l'annonce, quelle que soit la
+   * destination.
+   *
+   * Le rangement n'était fait que pour « Mon site ». Un marchand qui désignait
+   * sa boutique de mode et publiait sur Shopify laissait donc l'annonce sans
+   * boutique — et `reglagesFiligrane` retombait sur le compte : il avait réglé
+   * le filigrane de cette boutique-là et voyait partir celui du compte.
+   * Ranger n'expose rien : le flux d'une vitrine ne sert que les annonces
+   * PUBLIÉES sur « Mon site ».
+   */
+  if (parsed.data.shopId && !parsed.data.platforms.includes('OWN_SITE')) {
+    const shop = await prisma.shop.findFirst({ where: { id: parsed.data.shopId, userId: req.userId! } })
+    if (!shop) return res.status(400).json({ error: 'Boutique inconnue' })
+    await prisma.product.update({ where: { id: owned.id }, data: { shopId: shop.id } })
+  }
+
   // Choosing the destination site is part of publishing, not a setting buried
   // elsewhere: one catalogue feeds a menswear store and a tech store, and only
   // the listings assigned to a shop appear in its feed.
@@ -1324,20 +1340,53 @@ productsRouter.post('/:id/images', (req: AuthedRequest, res) => {
     if (!product) return res.status(404).json({ error: 'Produit introuvable' })
 
     try {
-      const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
       const existing = (product.images as string[]) ?? []
       const room = Math.max(0, PHOTOS_PAR_ANNONCE - existing.length)
       if (!room) return res.status(400).json({ error: `Cette annonce a déjà ${PHOTOS_PAR_ANNONCE} photos` })
 
+      /*
+       * La photo du vendeur suit le régime de l'annonce, et la marque est celle
+       * de SA BOUTIQUE.
+       *
+       * Elle était marquée ici, au téléversement, avec les réglages du COMPTE :
+       * `watermarkOptionsFor(user)` ne connaît pas la boutique. Deux
+       * conséquences, toutes deux constatées par le marchand qui règle le
+       * filigrane d'une de ses boutiques et ne voit rien changer — sa photo
+       * portait la marque du compte et jamais celle de la boutique, et sur une
+       * annonce moderne (remarquée à l'export) elle en portait **deux**, l'une
+       * par-dessus l'autre.
+       *
+       * Depuis que la marque se pose à l'export, une annonce moderne range ses
+       * photos NUES : l'original reste intact, la boutique décide, et changer de
+       * logo ne demande aucun réenvoi. Les annonces antérieures gardent leurs
+       * fichiers déjà marqués, qu'on ne peut pas démarquer : la photo ajoutée y
+       * est marquée tout de suite, sinon elle serait la seule sans marque.
+       */
+      const [user, shop] = await Promise.all([
+        prisma.user.findUniqueOrThrow({ where: { id: req.userId! } }),
+        product.shopId ? prisma.shop.findUnique({ where: { id: product.shopId } }) : Promise.resolve(null),
+      ])
+      const reglages = product.imagesWatermarked
+        ? reglagesFiligrane(user, shop)
+        : ({ text: '', enabled: false } as const)
+
       const saved = await watermarkUploads(
         files.slice(0, room).map((f) => f.buffer),
-        watermarkOptionsFor(user),
+        reglages,
         product.aiTitle || product.title,
         existing.length,
       )
 
       const images = [...existing, ...saved]
-      await prisma.product.update({ where: { id: product.id }, data: { images } })
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          images,
+          // Le cache d'export porte la liste d'avant : sans ça, la photo qu'on
+          // vient d'ajouter n'apparaîtrait nulle part à la publication.
+          exportSignature: null,
+        },
+      })
       // Le plafond est rendu avec la reponse : l ecran l affichait en dur, et
       // les deux valeurs ont diverge des que le serveur a change.
       res.json({ images, added: saved.length, max: PHOTOS_PAR_ANNONCE })
@@ -1673,6 +1722,19 @@ productsRouter.post('/manuel', async (req: AuthedRequest, res) => {
       title: 'Nouvelle annonce',
       description: '',
       images: [],
+      /*
+       * `imagesWatermarked: false` — la quatrième fois que cet oubli coûte un
+       * filigrane.
+       *
+       * La colonne vaut `true` par défaut (elle décrit l'existant, marqué dans
+       * le fichier avant que la marque passe à l'export). Un bloc de création
+       * qui l'oublie produit donc des annonces **réputées déjà marquées** :
+       * `imagesPourExport` rend leurs photos telles quelles et aucun filigrane
+       * n'est jamais posé. L'import par adresse, l'import en lot et l'extension
+       * sont tombés dedans ; la saisie manuelle aussi, et c'est ce que voyait le
+       * marchand qui réglait le filigrane de sa boutique sans rien voir changer.
+       */
+      imagesWatermarked: false,
     },
   })
   res.status(201).json({ id: produit.id })

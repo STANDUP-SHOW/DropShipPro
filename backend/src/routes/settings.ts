@@ -306,6 +306,19 @@ settingsRouter.patch('/shops/:id', async (req: AuthedRequest, res) => {
     data: avecJson(parsed.data),
   })
   if (!count) return res.status(404).json({ error: 'Boutique introuvable' })
+
+  /*
+   * Un filigrane changé se voit tout de suite.
+   *
+   * Les deux routes du logo vidaient déjà le cache d'export ; celle-ci, qui
+   * porte le texte, la position, la taille et l'interrupteur, ne le faisait
+   * pas. La signature l'aurait rattrapé au prochain export, mais « au prochain
+   * export » veut dire « pas maintenant » pour le marchand qui vient
+   * d'enregistrer et regarde sa boutique.
+   */
+  const FILIGRANE = ['watermarkEnabled', 'watermarkMode', 'watermarkText', 'watermarkScale', 'watermarkOpacity', 'watermarkPosition']
+  if (FILIGRANE.some((champ) => champ in parsed.data)) await oublierImagesExport(req.userId!)
+
   res.json({ ok: true })
 })
 

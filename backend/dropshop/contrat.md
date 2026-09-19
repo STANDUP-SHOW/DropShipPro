@@ -43,6 +43,11 @@ introuvable(c)
 
 ```
 c.boutique     { nom, slug, adresse, logoEntete, logoAccueil, annonce, accroche, accrocheSuite, sousTitre, fraisPort, portOffertDes }
+               logoEntete / logoAccueil : affiche-les si tu les reçois (en-tête, et en grand au-dessus du
+               titre de l'accueil). Si tu ne le fais pas, LE MOTEUR LES POSE LUI-MÊME après le rendu —
+               le marchand peut déposer son logo longtemps après la création de sa boutique, et il doit
+               apparaître sans que la page soit réécrite. Ta mise en page sera toujours meilleure que
+               l'insertion de secours : soigne-la quand le logo est là.
 c.produits     tous les produits : { id, title, description, price, currency, images[], bulletPoints[], attributes{}, category, video, variants, ean, reviews }
                reviews = { count, average, items: [{ stars (1 à 5), author, text, photos[], date, origine }] } — souvent vide (count 0)
 c.nouveautes   les 8 plus récents

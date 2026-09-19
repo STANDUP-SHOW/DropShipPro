@@ -193,8 +193,18 @@ async function parcours(page, echecs, avertissements) {
       verifier(() => d.documentElement.getAttribute('data-theme') === mode, 'Un clic sur [data-mode] doit laisser le moteur poser data-theme sur <html> : ne pas intercepter ce clic.')
     }
   }
+  /*
+   * Les logos sont POSÉS PAR LE MOTEUR quand la page ne les affiche pas.
+   *
+   * Ces deux attentes ne jugent donc plus seulement la page : elles prouvent la
+   * garantie. Elles passaient à faux sur `exemple.html` — une page qui passait
+   * pourtant tout le reste — et c'est exactement ce que voyait un marchand qui
+   * déposait son logo après la création de sa boutique : rien.
+   */
   if (OPTIONS.logo) {
-    verifier(() => app().querySelector('header img[src="https://cdn.test/logo.png"], img[src="https://cdn.test/logo.png"]'), 'Le marchand a un logo d\'en-tête (c.boutique.logoEntete) : il doit être affiché dans l\'en-tête à la place ou à côté du nom.')
+    const combien = (src) => app().querySelectorAll('img[src="' + src + '"]').length
+    verifier(() => combien('https://cdn.test/logo.png') === 1, 'Le marchand a un logo d\'en-tête (c.boutique.logoEntete) : il doit être affiché en haut de la page, une fois et une seule, à la place ou à côté du nom.')
+    verifier(() => combien('https://cdn.test/logo-grand.png') === 1, 'Le marchand a un logo d\'accueil (c.boutique.logoAccueil) : il doit être affiché en grand au-dessus du titre de l\'accueil, une fois et une seule.')
   }
 
   // Boutique

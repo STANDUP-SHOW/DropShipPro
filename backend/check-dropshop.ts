@@ -86,11 +86,23 @@ async function main() {
   attendre('sans sélecteur, une boutique « immersive » est refusée et nommée', !sansModes.ok && sansModes.echecs.some((e) => /data-theme|data-mode/.test(e)), sansModes.echecs[0]?.slice(0, 100))
   const avec = await verifierAvec(avecModes, ['--modes'])
   attendre('avec 3 boutons [data-mode] et 3 ambiances [data-theme], elle passe', avec.ok, avec.echecs.join(' | '))
+  /*
+   * Le logo est posé par le MOTEUR quand la page ne le pose pas.
+   *
+   * Ce banc attendait l'inverse — « une page qui n'affiche pas le logo est
+   * refusée » — et c'était la règle du jour où la page était écrite. Elle ne
+   * dit rien du marchand qui dépose son logo APRÈS : sa page, elle, est déjà
+   * écrite, et aucun refus ne peut plus l'atteindre. Il voyait donc son logo
+   * partir et rien changer sur sa boutique.
+   *
+   * Les deux sens comptent : le moteur pose ce qui manque, et ne double pas ce
+   * qui est déjà là.
+   */
   const sansLogo = await verifierAvec(EXEMPLE, ['--logo'])
-  attendre('avec un logo d\'en-tête non affiché, la page est refusée', !sansLogo.ok && sansLogo.echecs.some((e) => /logo/.test(e)), sansLogo.echecs[0]?.slice(0, 100))
+  attendre('une page sans balise de logo reçoit quand même les deux logos du moteur', sansLogo.ok, sansLogo.echecs.join(' | '))
   const avecLogo = EXEMPLE.replace("'<a href=\"' + c.lien.accueil + '\"><strong>' + c.html(c.boutique.nom) + '</strong></a>'", "'<a href=\"' + c.lien.accueil + '\">' + (c.boutique.logoEntete ? '<img src=\"' + c.html(c.boutique.logoEntete) + '\" alt=\"\">' : '') + '<strong>' + c.html(c.boutique.nom) + '</strong></a>'")
   const okLogo = await verifierAvec(avecLogo, ['--logo'])
-  attendre('avec le logo dans l\'en-tête, elle passe', okLogo.ok, okLogo.echecs.join(' | '))
+  attendre('une page qui affiche déjà le logo le garde, sans doublon', okLogo.ok, okLogo.echecs.join(' | '))
   const wrapCasse = EXEMPLE.replace('.wrap { width: min(1200px, 92vw); margin-inline: auto; }', '.wrap { width: min(1200px, 92vw); margin-inline: auto; }\n    .barre { width: 100%; }')
   const rWrap = await verifierAvec(wrapCasse, [])
   attendre('un .wrap qui reçoit width:100% d\'une autre classe est refusé, et la règle fautive est nommée', !rWrap.ok && rWrap.echecs.some((e) => /width:100%/.test(e) && /« \.barre »/.test(e)), rWrap.ok ? 'accepté à tort' : rWrap.echecs[0]?.slice(0, 160))

@@ -267,6 +267,70 @@
     return f(c, arg)
   }
 
+  /*
+   * Le logo est POSÉ PAR LE MOTEUR, comme le panier.
+   *
+   * La page est écrite une fois, par le modèle, à partir de ce que la boutique
+   * avait ce jour-là. Un marchand qui dépose son logo APRÈS la création ne
+   * voyait donc rien changer : le fichier partait bien, `/theme` le servait
+   * bien, et la page n'avait tout simplement aucune balise pour l'afficher.
+   * Rien n'échouait, rien ne le disait, et la seule réparation était de
+   * réécrire la boutique — 350 drops pour un logo.
+   *
+   * C'est la même règle que pour le panier : ce qui est mécanique appartient au
+   * moteur, la page ne décrit que ce qui lui est propre. Une page qui affiche
+   * déjà le logo n'est pas touchée (on reconnaît son adresse dans un `<img>`) ;
+   * une page qui ne l'affiche pas le reçoit.
+   */
+  function poserLogos(c, route) {
+    var app = document.getElementById('app')
+    if (!app) return
+
+    function dejaLa(src) {
+      var imgs = app.querySelectorAll('img')
+      for (var i = 0; i < imgs.length; i++) {
+        // getAttribute plutôt que .src : le navigateur résout .src en absolu.
+        if ((imgs[i].getAttribute('src') || '') === src) return true
+      }
+      return false
+    }
+
+    if (c.boutique.logoEntete && !dejaLa(c.boutique.logoEntete)) {
+      var img = document.createElement('img')
+      img.src = c.boutique.logoEntete
+      img.alt = c.boutique.nom
+      img.style.cssText = 'height:38px;width:auto;max-width:200px;object-fit:contain;vertical-align:middle'
+      var barre = app.querySelector('header')
+      if (barre) {
+        // Dans la barre, à côté du nom : le premier lien vers l'accueil est
+        // l'enseigne dans toutes les pages écrites jusqu'ici.
+        var enseigne = barre.querySelector('a[href="#/"], a[href$="#/"]')
+        var hote = document.createElement('span')
+        hote.style.cssText = 'display:inline-flex;align-items:center;gap:10px'
+        hote.appendChild(img)
+        if (enseigne && enseigne.parentNode) enseigne.parentNode.insertBefore(hote, enseigne)
+        else barre.insertBefore(hote, barre.firstChild)
+      } else {
+        var bandeau = document.createElement('div')
+        bandeau.style.cssText = 'padding:14px 20px'
+        bandeau.appendChild(img)
+        app.insertBefore(bandeau, app.firstChild)
+      }
+    }
+
+    if (route.page === 'accueil' && c.boutique.logoAccueil && !dejaLa(c.boutique.logoAccueil)) {
+      var grand = document.createElement('img')
+      grand.src = c.boutique.logoAccueil
+      grand.alt = c.boutique.nom
+      grand.style.cssText =
+        'display:block;margin:0 auto 24px;width:clamp(180px,30vw,460px);height:auto;object-fit:contain'
+      // Au-dessus du titre du héros, c'est-à-dire du premier titre de la page.
+      var titre = app.querySelector('h1')
+      if (titre && titre.parentNode) titre.parentNode.insertBefore(grand, titre)
+      else app.insertBefore(grand, app.firstChild)
+    }
+  }
+
   function rendre() {
     if (!pret) return
     var app = document.getElementById('app')
@@ -302,6 +366,9 @@
       app.innerHTML = '<section style="padding:40px 20px;font-family:system-ui"><p>Cette page a rencontré un problème d\'affichage.</p></section>'
       if (window.console) console.error('[dropshop] rendu', e)
     }
+    // Après l'écriture de la page, jamais avant : on regarde ce qu'elle affiche
+    // réellement pour ne poser que ce qui manque.
+    try { poserLogos(c, route) } catch (e) { if (window.console) console.error('[dropshop] logos', e) }
     if (pageCourante !== route.page + '/' + route.param) {
       pageCourante = route.page + '/' + route.param
       try { window.scrollTo(0, 0) } catch (e) {}
