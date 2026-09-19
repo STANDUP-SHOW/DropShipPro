@@ -26,6 +26,7 @@ import AfterSales from './pages/AfterSales'
 import BetaAccess from './pages/BetaAccess'
 import Privacy from './pages/Privacy'
 import ReviewsPage from './pages/ReviewsPage'
+import Tarifs from './pages/Tarifs'
 import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
 import FreshNews from './pages/FreshNews'
@@ -123,6 +124,8 @@ export default function App() {
           <Route path="/confidentialite" element={<Privacy />} />
           {/* Public : un visiteur sans compte doit pouvoir lire les avis. */}
           <Route path="/avis" element={<ReviewsPage />} />
+          {/* Public : tarification, affichée dans l'app Shopify et ailleurs. */}
+          <Route path="/tarifs" element={<Tarifs />} />
           {/* Public : l'inscription newsletter, où pointent les liens des emails. */}
           <Route path="/newsletter" element={<Newsletter />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />

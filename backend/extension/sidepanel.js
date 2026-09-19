@@ -216,6 +216,14 @@ function montrerListe(plateforme) {
     }
 
     <!--
+      L'entrée vers la file Fresh news, en haut du panneau.
+      Affichée quand le serveur a des articles en attente.
+    -->
+    <button class="primary" id="ouvrir-fresh-news" style="margin-bottom:10px;display:none">
+      📰 File Fresh news
+    </button>
+
+    <!--
       L'entrée vers le lot, en haut du panneau.
       C'est le seul chemin possible pour importer plusieurs fiches AliExpress :
       chacune doit être lue dans le navigateur pendant qu'elle est affichée.
@@ -259,6 +267,31 @@ function montrerListe(plateforme) {
             .join('')
     }
   `
+
+  document.getElementById('ouvrir-fresh-news')?.addEventListener('click', async () => {
+    // Retenu en mémoire : le panneau doit rouvrir sur la file à chaque onglet.
+    await chrome.storage.local.set({ freshNewsQueueTab: true })
+    demarrer()
+  })
+
+  // Charge la file Fresh news et affiche le bouton s'il y a des articles
+  ;(async () => {
+    try {
+      const token = await jeton()
+      if (token) {
+        const reponse = await appel('/api/market-reports/file')
+        if (Array.isArray(reponse) && reponse.length > 0) {
+          const btn = document.getElementById('ouvrir-fresh-news')
+          if (btn) {
+            btn.style.display = 'block'
+            btn.textContent = `📰 File Fresh news (${reponse.length})`
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Erreur de chargement de la file Fresh news:', err)
+    }
+  })()
 
   document.getElementById('ouvrir-lot').addEventListener('click', async () => {
     // Retenu en mémoire : le panneau doit rouvrir sur le lot à chaque onglet,
@@ -345,6 +378,21 @@ async function demarrer() {
   // en train de faire.
   const { pendingListing } = await chrome.storage.local.get('pendingListing')
   if (pendingListing) return montrerEnCours(pendingListing)
+
+  /*
+   * La file Fresh news prime sur le lot de navigation.
+   *
+   * Elle a une source fixe (le serveur), alors que le lot dépend de la
+   * navigation. Quand il y a une file, c'est une action claire : importer
+   * ce qui a été recommandé.
+   */
+  const { freshNewsQueueTab } = await chrome.storage.local.get('freshNewsQueueTab')
+  if (freshNewsQueueTab) {
+    return montrerQueueFreshNews(app, async () => {
+      await chrome.storage.local.remove('freshNewsQueueTab')
+      demarrer()
+    })
+  }
 
   /*
    * La liste d'import groupé prime sur la liste des annonces.
