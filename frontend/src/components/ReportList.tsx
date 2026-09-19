@@ -59,8 +59,34 @@ const NETWORKS = [
   { id: 'email', label: 'E-mail', icon: Mail, url: (t: string) => `mailto:?subject=${encodeURIComponent('Rapport de veille')}&body=${encodeURIComponent(t)}` },
 ]
 
-export function ReportList({ section, department }: { section: string; department?: string }) {
+/**
+ * Le rayon d'un rapport, tel que les listes l'affichent.
+ *
+ * Les trois écritures de la section MARKET ne portent pas la même chose : un
+ * passage AUTO-MODE écrit le rayon du chef, une analyse d'annonces le rayon des
+ * produits analysés, un volet du studio n'en a pas — son sujet est libre. Une
+ * ligne sans rayon est rangée à part plutôt que sous un rayon inventé.
+ */
+export const SANS_RAYON = 'Sans catégorie'
+
+function rayonDe(r: Summary): string {
+  const rayon = r.summary?.rayon
+  return typeof rayon === 'string' && rayon.trim() ? rayon : SANS_RAYON
+}
+
+export function ReportList({
+  section,
+  department,
+  /** Les tris et le filtre par catégorie : la page Analyses de marché en a des dizaines. */
+  triable = false,
+}: {
+  section: string
+  department?: string
+  triable?: boolean
+}) {
   const [reports, setReports] = useState<Summary[]>([])
+  const [tri, setTri] = useState<'recent' | 'ancien' | 'categorie'>('recent')
+  const [rayonChoisi, setRayonChoisi] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [full, setFull] = useState<Full | null>(null)
   const [chosen, setChosen] = useState<Set<string>>(new Set())
@@ -97,6 +123,35 @@ export function ReportList({ section, department }: { section: string; departmen
   }, [openId])
 
   const selected = useMemo(() => reports.filter((r) => chosen.has(r.id)), [reports, chosen])
+
+  /** Les rayons réellement présents : proposer un filtre vide ne filtre rien. */
+  const rayons = useMemo(() => {
+    const vus = new Set(reports.map(rayonDe))
+    return [...vus].sort((a, b) =>
+      a === SANS_RAYON ? 1 : b === SANS_RAYON ? -1 : a.localeCompare(b, 'fr'),
+    )
+  }, [reports])
+
+  const listee = useMemo(() => {
+    if (!triable) return reports
+    const filtree = rayonChoisi ? reports.filter((r) => rayonDe(r) === rayonChoisi) : reports
+    const date = (r: Summary) => new Date(r.createdAt || r.day).getTime()
+    return [...filtree].sort((a, b) => {
+      if (tri === 'ancien') return date(a) - date(b)
+      // Par catégorie : les rayons dans l'ordre, et dans chacun le plus récent
+      // d'abord — sans quoi un rayon de trente analyses se lirait au hasard.
+      if (tri === 'categorie') {
+        const ra = rayonDe(a)
+        const rb = rayonDe(b)
+        if (ra !== rb) {
+          if (ra === SANS_RAYON) return 1
+          if (rb === SANS_RAYON) return -1
+          return ra.localeCompare(rb, 'fr')
+        }
+      }
+      return date(b) - date(a)
+    })
+  }, [reports, triable, tri, rayonChoisi])
 
   function toggle(id: string) {
     setChosen((current) => {
@@ -172,6 +227,48 @@ export function ReportList({ section, department }: { section: string; departmen
 
   return (
     <div className="mt-5">
+      {triable && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <label className="text-xs text-gray-500" htmlFor="tri-analyses">
+            Trier par
+          </label>
+          <select
+            id="tri-analyses"
+            value={tri}
+            onChange={(e) => setTri(e.target.value as typeof tri)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs outline-none focus:border-purple-400/60"
+          >
+            <option value="recent" className="bg-[#1b1633]">
+              Date — la plus récente
+            </option>
+            <option value="ancien" className="bg-[#1b1633]">
+              Date — la plus ancienne
+            </option>
+            <option value="categorie" className="bg-[#1b1633]">
+              Catégorie
+            </option>
+          </select>
+
+          <select
+            value={rayonChoisi}
+            onChange={(e) => setRayonChoisi(e.target.value)}
+            aria-label="Filtrer par catégorie"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs outline-none focus:border-purple-400/60"
+          >
+            <option value="" className="bg-[#1b1633]">
+              Toutes les catégories
+            </option>
+            {rayons.map((r) => (
+              <option key={r} value={r} className="bg-[#1b1633]">
+                {r}
+              </option>
+            ))}
+          </select>
+
+          <span className="text-xs text-gray-500">{`${listee.length} analyse(s)`}</span>
+        </div>
+      )}
+
       {chosen.size > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
           <span className="text-xs text-gray-400">{`${chosen.size} rapport(s) sélectionné(s)`}</span>
@@ -186,8 +283,14 @@ export function ReportList({ section, department }: { section: string; departmen
         </div>
       )}
 
+      {triable && !listee.length && (
+        <p className="rounded-xl border border-dashed border-white/15 p-6 text-center text-sm text-gray-400">
+          Aucune analyse dans cette catégorie.
+        </p>
+      )}
+
       <ul className="space-y-2">
-        {reports.map((r) => (
+        {listee.map((r) => (
           <li key={r.id}>
             <div
               className={
