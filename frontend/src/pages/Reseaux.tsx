@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Share2, Info, BarChart3, Newspaper, Wand2 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { AgentBar } from '../components/AgentBar'
+import { LogosHeader } from '../components/LogosHeader'
 import { BandeReseaux } from '../components/BandeReseaux'
 import { SocialConnect } from '../components/SocialConnect'
 import { AdAccounts } from '../components/AdAccounts'
@@ -43,6 +44,8 @@ export default function Reseaux() {
 
   return (
     <Layout>
+      <LogosHeader />
+
       <AgentBar
         agentKey="marketing"
         nom="Laurence"
