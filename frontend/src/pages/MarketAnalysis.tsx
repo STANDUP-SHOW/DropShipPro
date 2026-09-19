@@ -76,12 +76,32 @@ export default function MarketAnalysisPage() {
       <BlocSection id="marche" />
 
       {/* MCP Info Block */}
-      <div className="mb-6 max-w-2xl rounded-2xl border border-white/10 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-blue-500/10 overflow-hidden">
-        <img
-          src="/images/mcp-block.png"
-          alt="MCP Block Information"
-          className="w-full h-auto object-cover"
-        />
+      <div className="mb-6 max-w-2xl rounded-2xl border border-white/10 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-blue-500/10 p-6 overflow-hidden">
+        <div className="flex items-center gap-4">
+          <div className="shrink-0">
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 64 64"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="text-purple-300"
+            >
+              <rect x="8" y="8" width="48" height="48" rx="8" fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="2" />
+              <circle cx="24" cy="24" r="4" fill="currentColor" />
+              <circle cx="40" cy="24" r="4" fill="currentColor" />
+              <circle cx="32" cy="40" r="4" fill="currentColor" />
+              <line x1="24" y1="28" x2="32" y2="36" stroke="currentColor" strokeWidth="2" />
+              <line x1="40" y1="28" x2="32" y2="36" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white">Model Context Protocol</h3>
+            <p className="text-sm text-gray-300 mt-1">
+              Les analyses de marché utilisent le protocole MCP pour accéder à vos données en toute sécurité
+            </p>
+          </div>
+        </div>
       </div>
 
       <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white">
