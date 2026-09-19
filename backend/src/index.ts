@@ -29,6 +29,7 @@ import { visualsRouter } from './routes/visuals.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { shopifyAppRouter } from './routes/shopifyApp.js'
 import { aliexpressAuthRouter } from './routes/aliexpressAuth.js'
+import { reportsPublicRouter } from './routes/reportsPublic.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
@@ -113,6 +114,10 @@ app.get('/api/health/ai', async (_req, res) => {
   const status = await checkAi()
   res.status(status === 'ok' ? 200 : 503).json({ ai: status })
 })
+
+// Public report endpoints (market analyses, products, prompts, etc.)
+app.use('/api', reportsPublicRouter)
+
 app.use('/api/auth', authRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/products', productsRouter)
