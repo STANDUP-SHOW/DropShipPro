@@ -7,9 +7,9 @@ import { PlatformLogo } from './PlatformLogo'
  * Deux façons de la peindre, et la seconde existe pour que la première puisse
  * manquer sans laisser un trou :
  *
- * 1. **Le visuel du vendeur**, s'il a déposé `public/logos/social.jpg` — la
+ * 1. **Le visuel du vendeur**, s'il a déposé `public/images/social-logos.jpg` — la
  *    planche de logos qu'il nous a désignée. Le nom est convenu et écrit dans
- *    `public/logos/README.md` : déposer le fichier suffit, il n'y a rien à
+ *    `public/images/README.md` : déposer le fichier suffit, il n'y a rien à
  *    recompiler ni à recoder.
  * 2. **Une bande construite ici**, un logo par réseau, chacun avec son nom.
  *    C'est ce qui s'affiche tant que le fichier n'est pas là, et c'est une vraie
@@ -41,7 +41,7 @@ const RESEAUX = [
 ]
 
 /** Le nom convenu du visuel déposé par le vendeur. */
-const PLANCHE = '/logos/social.jpg'
+const PLANCHE = '/images/social-logos.jpg'
 
 export function BandeReseaux() {
   // Une image absente répond par une erreur de chargement, jamais par un 404
