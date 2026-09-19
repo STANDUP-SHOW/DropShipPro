@@ -126,11 +126,14 @@ export function StudioAnalyses() {
   return (
     <section className="mt-6">
       <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+        {/* La question est posée au-dessus, par le bloc de sélection : la
+            reposer ici mot pour mot ferait lire deux fois la même chose. */}
         <label className="block text-sm font-semibold" htmlFor="studio-sujet">
-          Qu'est-ce que vous voulez analyser ?
+          Décrivez le produit, la niche ou l'idée
         </label>
         <p className="mt-0.5 text-xs text-gray-400">
-          Un produit, une niche, une idée — vous n'avez pas besoin de l'avoir importé.
+          Vous n'avez pas besoin de l'avoir importé — c'est le bon ordre : analyser d'abord, acheter
+          le catalogue ensuite.
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           <input
