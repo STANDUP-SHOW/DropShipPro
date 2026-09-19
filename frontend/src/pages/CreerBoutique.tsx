@@ -7,6 +7,7 @@ import {
 import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
 import { DropCoin } from '../components/DropCoin'
+import { LogoDropShopEntete } from '../components/LogoDropShop'
 import { api, type DirectionDropShop, type EtatDropShop, type ExtensionDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
 
 type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
@@ -85,10 +86,13 @@ export default function CreerBoutique() {
 
   return (
     <Layout>
-      <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-green-600 text-sm font-black text-white shadow-[0_0_14px_rgba(52,211,153,0.5)]">
-          IA
-        </span>
+      {/*
+        La marque en tête, et pas deux lettres (demandé le 19/09/2026).
+        Le logo vit dans public/logos : voir LogoDropShop.tsx pour les deux
+        noms de fichiers et ce qui s'affiche tant qu'ils ne sont pas déposés.
+      */}
+      <h1 className="flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight">
+        <LogoDropShopEntete size={44} />
         <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text text-transparent">
           DropShop IA — votre boutique, écrite par l'IA
         </span>
