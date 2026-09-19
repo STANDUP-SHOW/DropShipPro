@@ -99,7 +99,7 @@ export default function FreshNews() {
         <span>Fresh news</span>
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        Chaque jour, pour chacun des 24 rayons, deux rapports : le marché et ses 20 produits à importer, et le marketing —
+        Chaque jour, pour chacune des 24 catégories, deux rapports : le marché et ses 20 produits à importer, et le marketing —
         social places, publicités, tendances, prompts. Offerts à partir de 500 drops en banque.
       </p>
 

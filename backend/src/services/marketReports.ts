@@ -200,9 +200,10 @@ export function lireRapport(md: string): RapportLu {
  * rapports lui reviennent, et un rapprochement par ressemblance de libellé
  * rangerait « Bijoux et montres » sous « Sacs et bagages » un jour sur deux.
  * La table est donc écrite à la main, et le banc `check-market-agents.ts`
- * vérifie ses deux bornes : toute clé citée est un vrai rayon, toute catégorie
- * est lue par au moins un rayon — sinon un rapport payé chaque matin
- * n'apparaîtrait nulle part.
+ * vérifie ses trois bornes : toute clé citée est un vrai rayon, tout rayon lit
+ * au moins une catégorie, et toute catégorie est lue par au moins un rayon —
+ * sinon un rapport écrit chaque matin n'apparaîtrait nulle part, et l'écran
+ * serait vide comme un jour sans dépôt.
  *
  * Un rayon peut lire plusieurs catégories ; une catégorie peut être lue par
  * plusieurs rayons (les motos lisent l'automobile).
@@ -231,13 +232,6 @@ export const CATEGORIES_PAR_RAYON: Record<string, string[]> = {
   automobile: ['automobile'],
   'motos-et-sports-motorises': ['automobile'],
   'commerce-industrie-et-science': ['bricolage'],
-  /*
-   * « Nouveauté et usage spécial » ne recouvre aucune catégorie d'agent : c'est
-   * le rayon fourre-tout du référentiel. Lui coller une catégorie au hasard
-   * afficherait chaque matin une analyse qui ne parle pas de son rayon, ce qui
-   * est pire que rien — l'écran dit alors d'aller à la vue globale.
-   */
-  'nouveaute-et-usage-special': [],
 }
 
 /** Les catégories d'agents lues par un rayon. Tableau vide si le rayon n'en couvre aucune. */

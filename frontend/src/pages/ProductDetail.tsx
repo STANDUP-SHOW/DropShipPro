@@ -97,12 +97,23 @@ function CopyField({ label, value }: { label: string; value: string }) {
 const field =
   'w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none transition focus:border-purple-400/70 focus:bg-white/[0.08]'
 
+/**
+ * La salle d'attente du référentiel, du côté de l'écran.
+ *
+ * Le même identifiant qu'au serveur (`CATEGORIE_A_RANGER`), écrit ici parce que
+ * le front ne lit pas `backend/`. Les deux portent le commentaire qui renvoie à
+ * l'autre — même règle que les tarifs recopiés dans `llms.txt`.
+ */
+const CATEGORIE_A_RANGER = 'nouveaute-et-usage-special'
+
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
 
   const [product, setProduct] = useState<any>(null)
   const [categories, setCategories] = useState<Record<string, string>>({})
+  /** Ce que la dernière correction de catégorie a appris, dit au vendeur. */
+  const [apprisMessage, setApprisMessage] = useState<string | null>(null)
   const [catalog, setCatalog] = useState<Array<{ id: string; group: string; label: string }>>([])
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
   const [etats, setEtats] = useState<Array<{ id: string; label: string; aide: string }>>([])
@@ -272,6 +283,10 @@ export default function ProductDetail() {
 
   const activeAssist = platforms.find((p) => p.id === assistPanel)
   const published = product.publications ?? []
+  // La salle d'attente et ses sous-catégories : l'annonce n'est rangée nulle part.
+  const enSalleDAttente =
+    typeof product.categoryId === 'string' &&
+    (product.categoryId === CATEGORIE_A_RANGER || product.categoryId.startsWith(`${CATEGORIE_A_RANGER}-`))
 
   return (
     <Layout>
@@ -869,6 +884,28 @@ export default function ProductDetail() {
                 text renders an empty text node when the value is an empty string;
                 React then loses track of it — "removeChild: the node to be removed
                 is not a child". */}
+            {/*
+              La salle d'attente, dite sur la fiche (19/09/2026).
+
+              « Nouveauté et usage spécial » n'est pas un rayon : c'est là
+              qu'atterrit un produit dont la catégorie n'a pas été reconnue. Le
+              vendeur voyait une catégorie remplie et passait son chemin, alors
+              que l'annonce ne s'affiche dans aucun rayon tant qu'elle y est.
+            */}
+            {enSalleDAttente ? (
+              <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
+                Cette annonce est en <b>salle d'attente</b> : sa catégorie n'a pas été reconnue, et
+                tant qu'elle y est elle ne s'affiche dans aucun rayon. Choisissez-en une ci-dessous —
+                c'est aussi ce qui apprend au référentiel à reconnaître ce produit.
+              </p>
+            ) : null}
+
+            {apprisMessage ? (
+              <p className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                {apprisMessage}
+              </p>
+            ) : null}
+
             <label className="mt-3 block text-xs text-gray-400">
               {product.sourceCategory
                 ? `Catégorie · détectée : « ${product.sourceCategory} »`
@@ -886,8 +923,21 @@ export default function ProductDetail() {
                  * simple enregistrement de champ ne faisait pas.
                  */
                 if (value) {
-                  const { path } = await api.setProductCategory(product.id, value)
-                  setProduct({ ...product, categoryId: value, categoryPath: path })
+                  const r = await api.setProductCategory(product.id, value)
+                  setProduct({ ...product, categoryId: value, categoryPath: r.path })
+                  /*
+                   * Dire ce qui a été appris.
+                   *
+                   * Un apprentissage silencieux est indiscernable d'un
+                   * apprentissage absent : le vendeur qui corrige trois fois la
+                   * même famille de produits doit voir que la troisième fois
+                   * n'était pas pour rien.
+                   */
+                  setApprisMessage(
+                    r.appris > 0
+                      ? `Rangée dans « ${r.path} ». Les prochains produits annoncés de la même façon y partiront tout seuls.`
+                      : `Rangée dans « ${r.path} ».`,
+                  )
                 } else {
                   setProduct({ ...product, categoryId: null, categoryPath: null })
                   await saveField('categoryId', null)

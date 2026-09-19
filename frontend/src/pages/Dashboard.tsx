@@ -94,8 +94,25 @@ export default function Dashboard() {
   // rouvrir la page en haut sur les dix premières.
   const [searchParams] = useSearchParams()
   const retourId = searchParams.get('retour')
+  /*
+   * Une catégorie passée dans l'adresse pré-coche le filtre.
+   *
+   * C'est ce qui rend le bouton « Voir ces annonces » de la page Catégories
+   * autre chose qu'un lien vers tout le catalogue : le vendeur arrive sur les
+   * seules annonces qu'on lui demande de ranger. Posé une fois — ensuite le
+   * filtre lui appartient, et le réappliquer à chaque rendu l'empêcherait de
+   * le retirer.
+   */
+  const categorieDemandee = searchParams.get('categorie')
+  const filtreApplique = useRef(false)
   const retourFait = useRef(false)
   const [surligne, setSurligne] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!categorieDemandee || filtreApplique.current) return
+    filtreApplique.current = true
+    setCategoryIds([categorieDemandee])
+  }, [categorieDemandee])
 
   // Ajouter un produit à la main, sans import : on crée une annonce vide
   // (gratuite) et on ouvre sa fiche, où tout est à remplir et où les agents IA

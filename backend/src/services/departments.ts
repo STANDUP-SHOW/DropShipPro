@@ -6,8 +6,9 @@
  * mêmes endroits, ne se jugent pas sur les mêmes critères, et un seul agent
  * chargé de tout produit une bouillie où rien ne ressort.
  *
- * **Vingt-quatre, et ce nombre n'est pas choisi ici.** Il vient du référentiel
- * de catégories, qui compte vingt-quatre rayons. Les quinze d'avant étaient une
+ * **Vingt-trois, et ce nombre n'est pas choisi ici.** Il vient du référentiel
+ * de catégories, qui compte vingt-quatre rayons — moins la salle d'attente
+ * « Nouveauté et usage spécial », qui n'en est pas un (voir plus bas). Les quinze d'avant étaient une
  * liste parallèle, écrite à la main, qui ne correspondait à rien : un produit
  * rangé dans « Chaussures » relevait d'un chef « Mode homme » qui n'existait
  * que dans ce fichier. Chaque clé est désormais l'identifiant d'un rayon réel,
@@ -243,15 +244,16 @@ export const DEPARTMENTS: DepartmentProfile[] = [
       "Machines, équipement de sécurité, emballage et matériel de laboratoire. Panier moyen élevé, cycle de vente long, clientèle professionnelle.",
     covers: ['Machines-outils', 'Équipement de sécurité', 'Emballage commercial', 'Manutention', 'Matériel de laboratoire'],
   },
-  {
-    key: 'nouveaute-et-usage-special',
-    label: 'Nouveauté et usage spécial',
-    agentName: 'Ousmane',
-    emoji: '🎁',
-    focus:
-      "Gadgets insolites, articles de fête, cosplay et déguisements. Le rayon des coups : très fort pendant six semaines, puis plus rien.",
-    covers: ['Gadgets insolites', 'Articles de fête', 'Cosplay', 'Déguisements', 'Articles religieux'],
-  },
+  /*
+   * Il n'y a pas de chef de rayon « Nouveauté et usage spécial » (19/09/2026).
+   *
+   * Cette entrée du référentiel n'est pas un rayon : c'est la salle d'attente
+   * des produits que personne n'a su ranger — le vendeur qui ne trouve pas sa
+   * catégorie, ou le modèle qui s'est trompé. Lui donner un chef donnait à
+   * croire qu'il s'y vend quelque chose, alors que ce qui s'y trouve est
+   * précisément ce qui n'est rangé nulle part, ne s'affiche nulle part, et
+   * attend que le vendeur le corrige. Voir `CATEGORIE_A_RANGER`.
+   */
 ]
 
 /*
@@ -278,6 +280,14 @@ const ANCIENNES_CLES: Record<string, string> = {
   'auto-moto': 'automobile',
   'jeux-consoles': 'jouets-et-jeux',
   'bijoux-montres': 'bijoux-et-accessoires',
+  /*
+   * Retiré le 19/09/2026 : ce n'est pas un rayon, c'est la salle d'attente du
+   * référentiel. Un vendeur qui l'avait confié garde son agent, ses rapports et
+   * ses trouvailles — rangés sous le rayon réel le plus proche de ce qu'il
+   * couvrait (fête, cosplay, déguisements) plutôt que de disparaître de l'écran
+   * en laissant croire que tout est perdu.
+   */
+  'nouveaute-et-usage-special': 'jouets-et-jeux',
 }
 
 export function findDepartment(key: string) {

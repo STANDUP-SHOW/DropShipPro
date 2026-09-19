@@ -1875,6 +1875,8 @@ export const api = {
       rayons: number
       sousCategories: number
       apprises: number
+      /** La salle d'attente : ce que personne n'a su ranger, et combien d'annonces y dorment. */
+      aRanger: { categoryId: string; annonces: number }
       arbre: Array<{
         id: string
         label: string
@@ -1887,7 +1889,7 @@ export const api = {
 
   /** Range une annonce a la main : le geste est retenu comme alias. */
   setProductCategory: (id: string, categoryId: string) =>
-    request<{ ok: true; categoryId: string; path: string }>(`/products/${id}/category`, {
+    request<{ ok: true; categoryId: string; path: string; appris: number; sortiDeLaSalleDAttente: boolean }>(`/products/${id}/category`, {
       method: 'PUT',
       body: JSON.stringify({ categoryId }),
     }),

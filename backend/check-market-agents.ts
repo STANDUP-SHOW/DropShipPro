@@ -41,7 +41,10 @@ for (const cle of Object.keys(CATEGORIES_PAR_RAYON)) {
   exige(clesRayons.has(cle), `« ${cle} » n'est pas un rayon du référentiel (voir departments.ts)`)
 }
 for (const d of DEPARTMENTS) {
-  exige(Object.prototype.hasOwnProperty.call(CATEGORIES_PAR_RAYON, d.key), `le rayon « ${d.key} » n'a pas de ligne dans la table`)
+  // Un rayon qui ne lit aucune catégorie affiche un bloc vide chaque matin : le
+  // vendeur croit que les agents n'ont rien écrit, alors que personne n'a dit
+  // au rayon où regarder.
+  exige(categoriesDuRayon(d.key).length > 0, `le rayon « ${d.key} » ne lit aucune catégorie`)
 }
 
 const idsCategories = new Set(CATEGORIES.map((c) => c.id))
@@ -57,7 +60,6 @@ exige(orphelines.length === 0, `catégorie(s) qu'aucun rayon ne lit : ${orphelin
 
 // Un rayon sans catégorie rend un tableau vide, pas une erreur : l'écran le dit
 // et renvoie vers la vue globale.
-exige(categoriesDuRayon('nouveaute-et-usage-special').length === 0, 'le rayon fourre-tout ne prétend lire aucune catégorie')
 exige(
   categoriesDuRayon('electronique').map((c) => c.id).join(',') === 'informatique,tv-son-photo',
   'un rayon peut lire plusieurs catégories',
