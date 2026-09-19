@@ -323,7 +323,7 @@ export const api = {
   // Fresh news : les rapports du jour des 48 agents (réservés aux comptes à ≥ 500 drops).
   freshCategories: () =>
     request<Array<{ id: string; nom: string; themes: Array<{ id: string; nom: string }>; themeDuJour: string }>>(
-      '/market-reports/categories',
+      '/reports/categories',
     ),
   freshRapports: (categorie: string, jour?: string, q?: string) =>
     request<{
@@ -354,7 +354,7 @@ export const api = {
         }>
       }>
     }>(
-      `/market-reports?categorie=${encodeURIComponent(categorie)}${jour ? `&jour=${jour}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+      `/reports?category=${encodeURIComponent(categorie)}${jour ? `&date=${jour}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
     ),
   /*
    * Le classement des rapports : les mêmes lignes que Fresh news, vues depuis
@@ -379,7 +379,7 @@ export const api = {
         sources: number
         produits: number
       }>
-    }>(`/market-reports/analyses${enQuery(params)}`),
+    }>(`/reports${enQuery({ type: params.type, category: params.categorie, date: params.jour, limit: params.limite })}`),
   analyseRapport: (id: string) =>
     request<{
       id: string
@@ -394,13 +394,13 @@ export const api = {
       sources: number
       body: string
       produits: ProduitRapport[]
-    }>(`/market-reports/analyses/${id}`),
+    }>(`/reports/${id}`),
   gagnantsRapports: (params: { rayon?: string; categorie?: string; jour?: string; limite?: number } = {}) =>
     request<{
       rayonSansCategorie: boolean
       jours: string[]
       produits: Array<ProduitRapport & { rapportId: string; day: string; categorie: string; categorieNom: string; theme: string; themeNom: string }>
-    }>(`/market-reports/gagnants${enQuery(params)}`),
+    }>(`/products/by-category${enQuery({ category: params.categorie, date: params.jour, limit: params.limite })}`),
   promptsRapports: (params: { rayon?: string; categorie?: string; jour?: string; limite?: number } = {}) =>
     request<{
       rayonSansCategorie: boolean
@@ -418,7 +418,7 @@ export const api = {
         themeNom: string
         titre: string
       }>
-    }>(`/market-reports/prompts${enQuery(params)}`),
+    }>(`/prompts/all${enQuery({ category: params.categorie, type: undefined })}`),
   // La file d'import exécutée par l'agent extension.
   fileImportAjouter: (produits: Array<{ url: string; titre?: string; fournisseur?: string; mode?: 'api' | 'url' | 'extension'; origine?: string }>) =>
     request<{ ajoutes: number; dejaEnFile: number }>('/market-reports/file', { method: 'POST', body: JSON.stringify({ produits }) }),

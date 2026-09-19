@@ -11,15 +11,6 @@ export const reportsPublicRouter = Router()
 // Initialize report query with rapports.db
 const reportQuery = new ReportQuery('rapports.db')
 
-interface ApiResponse {
-  success: boolean
-  data?: any
-  error?: string
-}
-
-function sendResponse(res: any, statusCode: number, data: ApiResponse) {
-  res.status(statusCode).json(data)
-}
 
 /**
  * GET /reports/stats
@@ -28,9 +19,9 @@ function sendResponse(res: any, statusCode: number, data: ApiResponse) {
 reportsPublicRouter.get('/reports/stats', (_req, res) => {
   try {
     const stats = reportQuery.getStatistics()
-    sendResponse(res, 200, { success: true, data: stats })
+    res.json(stats)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch statistics' })
+    res.status(500).json({ error: 'Failed to fetch statistics' })
   }
 })
 
@@ -41,9 +32,9 @@ reportsPublicRouter.get('/reports/stats', (_req, res) => {
 reportsPublicRouter.get('/reports/categories', (_req, res) => {
   try {
     const categories = reportQuery.getCategories()
-    sendResponse(res, 200, { success: true, data: categories })
+    res.json(categories)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch categories' })
+    res.status(500).json({ error: 'Failed to fetch categories' })
   }
 })
 
@@ -54,9 +45,9 @@ reportsPublicRouter.get('/reports/categories', (_req, res) => {
 reportsPublicRouter.get('/reports/dates', (_req, res) => {
   try {
     const dates = reportQuery.getDates()
-    sendResponse(res, 200, { success: true, data: dates })
+    res.json(dates)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch dates' })
+    res.status(500).json({ error: 'Failed to fetch dates' })
   }
 })
 
@@ -77,9 +68,9 @@ reportsPublicRouter.get('/reports', (req, res) => {
     const type = (req.query.type as any) || undefined
 
     const reports = reportQuery.getAllReports({ limit, category, date, type })
-    sendResponse(res, 200, { success: true, data: reports })
+    res.json(reports)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch reports' })
+    res.status(500).json({ error: 'Failed to fetch reports' })
   }
 })
 
@@ -96,9 +87,9 @@ reportsPublicRouter.get('/markets/trends', (req, res) => {
     const category = (req.query.category as string) || undefined
 
     const trends = reportQuery.getMarketingTrends({ limit, category })
-    sendResponse(res, 200, { success: true, data: trends })
+    res.json(trends)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch trends' })
+    res.status(500).json({ error: 'Failed to fetch trends' })
   }
 })
 
@@ -115,9 +106,9 @@ reportsPublicRouter.get('/markets/analysis', (req, res) => {
     const date = (req.query.date as string) || undefined
 
     const analysis = reportQuery.getSocialMediaAnalysis(category, date)
-    sendResponse(res, 200, { success: true, data: analysis })
+    res.json(analysis)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch analysis' })
+    res.status(500).json({ error: 'Failed to fetch analysis' })
   }
 })
 
@@ -134,14 +125,14 @@ reportsPublicRouter.get('/products/by-category', (req, res) => {
     const date = (req.query.date as string) || undefined
 
     if (!category) {
-      sendResponse(res, 400, { success: false, error: 'category parameter required' })
+      res.status(400).json({ error: 'category parameter required' })
       return
     }
 
     const products = reportQuery.getProductsByCategory(category, { date })
-    sendResponse(res, 200, { success: true, data: products })
+    res.json(products)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch products' })
+    res.status(500).json({ error: 'Failed to fetch products' })
   }
 })
 
@@ -158,9 +149,9 @@ reportsPublicRouter.get('/prompts/all', (req, res) => {
     const type = (req.query.type as any) || undefined
 
     const prompts = reportQuery.getAIPrompts(category, type)
-    sendResponse(res, 200, { success: true, data: prompts })
+    res.json(prompts)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch prompts' })
+    res.status(500).json({ error: 'Failed to fetch prompts' })
   }
 })
 
@@ -175,9 +166,9 @@ reportsPublicRouter.get('/prompts/images', (req, res) => {
     const category = (req.query.category as string) || undefined
 
     const prompts = reportQuery.getAIPrompts(category, 'image')
-    sendResponse(res, 200, { success: true, data: prompts })
+    res.json(prompts)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch image prompts' })
+    res.status(500).json({ error: 'Failed to fetch image prompts' })
   }
 })
 
@@ -192,9 +183,9 @@ reportsPublicRouter.get('/prompts/videos', (req, res) => {
     const category = (req.query.category as string) || undefined
 
     const prompts = reportQuery.getAIPrompts(category, 'video')
-    sendResponse(res, 200, { success: true, data: prompts })
+    res.json(prompts)
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Failed to fetch video prompts' })
+    res.status(500).json({ error: 'Failed to fetch video prompts' })
   }
 })
 
@@ -205,16 +196,13 @@ reportsPublicRouter.get('/prompts/videos', (req, res) => {
 reportsPublicRouter.get('/reports-health', (_req, res) => {
   try {
     const stats = reportQuery.getStatistics()
-    sendResponse(res, 200, {
-      success: true,
-      data: {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        database: 'connected',
-        totalReports: stats.totalReports
-      }
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      totalReports: stats.totalReports
     })
   } catch (error) {
-    sendResponse(res, 500, { success: false, error: 'Database connection failed' })
+    res.status(500).json({ error: 'Database connection failed' })
   }
 })
