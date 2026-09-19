@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { VERT_SHOPIFY } from '../lib/shopifyAffiliation'
+import { IconeDropShop, TAILLE_ICONE_MARQUE } from './LogoDropShop'
 
 /**
  * Le sac de courses de Shopify, à ses couleurs.
@@ -11,9 +12,9 @@ import { VERT_SHOPIFY } from '../lib/shopifyAffiliation'
  * charte (voir lib/shopifyAffiliation.ts) — écrire le nom d'un partenaire à ses
  * couleurs est la convention, et c'est ce que font les intégrateurs.
  */
-function IconeShopify({ size = 16 }: { size?: number }) {
+function IconeShopify({ size = TAILLE_ICONE_MARQUE }: { size?: number }) {
   return (
-    <svg width={size + 2} height={size + 2} viewBox="0 0 24 24" aria-hidden className="shrink-0">
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden className="shrink-0">
       <path
         d="M15.3 4.3a.4.4 0 0 0-.36-.34l-1.5-.11-1.1-1.1a.5.5 0 0 0-.46-.12l-.6.18c-.36-1.03-1-1.48-1.7-1.48-.05 0-.1 0-.15.02C9.2.9 8.9.7 8.5.7 7.3.7 6.2 2.2 5.8 4.6l-1.6.5c-.5.16-.52.18-.58.65L2.3 17.9l9.3 1.74 5-1.08S15.31 4.4 15.3 4.3Zm-4.6-1.1-.95.3c0-.65-.08-1.2-.22-1.63.53.1.9.7 1.17 1.33ZM8.53 1.72c.15 0 .28.05.4.15-.53.28-1.1.9-1.34 2.17l-1.2.37c.34-1.55 1.14-2.7 2.14-2.7Z"
         fill={VERT_SHOPIFY}
@@ -24,19 +25,6 @@ function IconeShopify({ size = 16 }: { size?: number }) {
         fill="#fff"
       />
     </svg>
-  )
-}
-
-/** Le badge IA vert de la marque DropShop. */
-function IconeBoutiqueIA({ size = 16 }: { size?: number }) {
-  return (
-    <span
-      aria-hidden
-      className="flex shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-400 to-green-600 font-black text-white"
-      style={{ width: size + 2, height: size + 2, fontSize: size * 0.5, boxShadow: '0 0 8px rgba(52,211,153,0.6)' }}
-    >
-      IA
-    </span>
   )
 }
 
@@ -99,10 +87,20 @@ function BlocBoutique({
         « Boutique Dro… » des deux côtés — c'est-à-dire que la marque, seule
         raison d'être du bloc, disparaissait. On laisse donc l'ensemble revenir
         à la ligne : le nom d'abord, entier, la pastille dessous s'il le faut.
+
+        Le titre prend TOUTE la place restante sur la ligne de l'icône
+        (`flex-1 min-w-0`), et ce n'est pas cosmétique : sans cela, c'est la
+        largeur du nom qui décide si le titre tient à côté de l'icône ou
+        bascule dessous. Les deux blocs, dont les noms font la même longueur à
+        quelques pixels près, se rangeaient alors différemment — DropShop sur
+        deux lignes, Shopify sur une — et deux marques présentées au même rang
+        avec deux mises en page différentes se lisent comme un défaut.
+        Constaté en agrandissant les icônes de moitié le 19/09/2026 : les neuf
+        pixels gagnés par l'icône sont exactement ceux qui manquaient au titre.
       */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {icone}
-        <span className="text-[13px] font-bold leading-tight">{titre}</span>
+        <span className="min-w-0 flex-1 text-[13px] font-bold leading-tight">{titre}</span>
         <span
           className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold ${
             gratuit ? 'bg-emerald-400/20 text-emerald-300' : 'bg-white/10 text-gray-400'
@@ -170,7 +168,7 @@ export function MenuBoutiques() {
   return (
     <>
       <BlocBoutique
-        icone={<IconeBoutiqueIA size={16} />}
+        icone={<IconeDropShop />}
         titre={
           <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text text-transparent">
             Boutique DropShop
@@ -191,7 +189,7 @@ export function MenuBoutiques() {
       />
 
       <BlocBoutique
-        icone={<IconeShopify size={16} />}
+        icone={<IconeShopify />}
         titre={
           <>
             Boutique <span style={{ color: VERT_SHOPIFY }}>Shopify</span>
