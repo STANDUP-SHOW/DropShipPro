@@ -480,8 +480,18 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
         </div>
       </aside>
       {/* `min-w-0` : sans lui, un tableau ou un titre long élargit le `flex-1`
-          au-delà de l'écran et c'est la page ENTIÈRE qui défile de côté. */}
-      <main className="relative min-w-0 flex-1 overflow-x-hidden px-4 pb-6 md:px-8 md:pb-8">
+          au-delà de l'écran et c'est la page ENTIÈRE qui défile de côté.
+
+          `overflow-x-clip` et NON `overflow-x-hidden`, et la nuance coûte cher :
+          `hidden` fait de l'élément une BOÎTE DE DÉFILEMENT, et une boîte de
+          défilement devient le repère de tout `position: sticky` qu'elle
+          contient. Le bandeau des six jauges, réglé sur `top-14` pour passer
+          sous la barre du téléphone, se collait donc à 56 px du haut de `main`
+          — c'est-à-dire à 112 px du haut de l'écran. Résultat sur chaque page :
+          une bande vide de 56 px sous la barre, et un bandeau qui recouvrait
+          les premiers pixels de la page. `clip` rogne exactement pareil sans
+          créer cette boîte, et le repère redevient l'écran. */}
+      <main className="relative min-w-0 flex-1 overflow-x-clip px-4 pb-6 md:px-8 md:pb-8">
         {/* Les six jauges, fixes en tête de chaque page : fait sur possible,
             et la porte vers l'endroit où on agit (04/09/2026). */}
         <BandeauJauges />

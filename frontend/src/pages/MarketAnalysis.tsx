@@ -142,7 +142,7 @@ export default function MarketAnalysisPage() {
                 <>
                   <p className="mt-3 text-sm leading-relaxed text-gray-200">{a.verdict}</p>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
                     <div className="rounded-lg bg-black/20 px-3 py-2">
                       <p className="text-xs text-gray-500">Prix constatés</p>
                       <p className="mt-0.5 text-sm font-semibold">

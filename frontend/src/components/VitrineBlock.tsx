@@ -242,7 +242,7 @@ export function VitrineBlock({
       ) : null}
 
       {/* --- Les logos de la vitrine ---------------------------------------- */}
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <LogoVitrine
           shopId={shop.id}
           emplacement="entete"
@@ -356,7 +356,7 @@ export function VitrineBlock({
 
         {editeur ? (
           <div className="mt-3 space-y-2.5 rounded-xl border border-white/10 bg-black/20 p-3">
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <div>
                 <label className="text-xs text-gray-400">Accroche (1ʳᵉ ligne du titre)</label>
                 <input
@@ -399,7 +399,7 @@ export function VitrineBlock({
                 className={`${champ} mt-1`}
               />
             </div>
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <div>
                 <label className="text-xs text-gray-400">Frais de port (€)</label>
                 <PriceInput value={fraisPort} onCommit={setFraisPort} className={`${champ} mt-1`} />
@@ -528,7 +528,7 @@ function BibliothequeThemes({
       </div>
 
       {visibles.length ? (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {visibles.map((t) => (
             <Vignette key={t.id} theme={t} choisi={t.id === themeChoisi} essai={essai(t.id)} onChoisir={() => onChoisir(t.id)} />
           ))}

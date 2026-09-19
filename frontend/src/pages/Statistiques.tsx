@@ -195,7 +195,7 @@ export default function Statistiques() {
             return (
               <div key={rangee.join('-')} className="space-y-3">
                 <div
-                  className={`grid gap-3 ${presents.length === 2 ? 'xl:grid-cols-2' : presents.length === 3 ? 'xl:grid-cols-3' : ''}`}
+                  className={`grid grid-cols-1 gap-3 ${presents.length === 2 ? 'xl:grid-cols-2' : presents.length === 3 ? 'xl:grid-cols-3' : ''}`}
                 >
                   {presents.map((bloc) => (
                     <BlocStats key={bloc.id} bloc={bloc} enTete={bloc.id === 'vue-generale' ? controles : undefined} />

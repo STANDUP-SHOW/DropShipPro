@@ -111,8 +111,17 @@ export function BandeauJauges() {
    * disparaissent et il ne reste que les jauges, belles et cliquables, le
    * détail passant dans l'infobulle. Jamais deux lignes.
    */
+  /*
+   * `min-w-[94px]` et non 68 : un mot ne se coupe pas en deux.
+   *
+   * À 68 px il restait 56 px de texte, et la cellule — qui ROGNE, elle porte
+   * `overflow-hidden` — servait « FOURNISSEU » et « RÉSEA SOCIA » sur toutes
+   * les pages du site. Le plus long libellé d'un seul tenant est
+   * « FOURNISSEURS » : la cellule est taillée pour lui. La bande défile déjà
+   * de côté, alors ces vingt-six pixels ne coûtent aucune hauteur de page.
+   */
   const cellule =
-    'flex min-w-[68px] flex-1 shrink-0 flex-col items-center gap-1 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
+    'flex min-w-[94px] flex-1 shrink-0 flex-col items-center gap-1 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:min-w-[68px] lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
 
   return (
     // `top-14` sur téléphone : la barre du menu est collée au-dessus, et deux
@@ -131,7 +140,7 @@ export function BandeauJauges() {
             {/* Le titre reste écrit, en blanc, même compressé (05/09/2026) ;
                 seuls la valeur et le geste s'effacent sur écran étroit. */}
             <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
-              <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">{b.label}</span>
+              <span className="block text-[9px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:tracking-wider">{b.label}</span>
               <span className="hidden truncate text-sm font-bold leading-tight lg:block">{b.valeur}</span>
               <span className="hidden truncate text-[10px] text-purple-300 lg:block">{b.action}</span>
             </span>
@@ -145,7 +154,7 @@ export function BandeauJauges() {
             <Jauge part={Math.max(jauges.utilisation > 0 ? 0 : 0.42, jauges.utilisation / 100)} encre={{ de: '#fbbf24', a: '#fb7185' }} />
           </span>
           <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
-            <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">Plateforme</span>
+            <span className="block text-[9px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:tracking-wider">Plateforme</span>
             <span className="hidden text-sm font-bold leading-tight lg:block">{jauges.utilisation} %</span>
             <span className="hidden truncate text-[10px] text-gray-500 lg:block">du potentiel utilisé</span>
           </span>

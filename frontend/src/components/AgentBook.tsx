@@ -123,7 +123,10 @@ export function AgentBook({
               {img.productId ? (
                 <Link
                   to={`/products/${img.productId}`}
-                  className="absolute inset-x-0 bottom-0 bg-black/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100"
+                  /* Sans souris, pas de survol : ce lien etait invisible et la
+                     vignette n'ouvrait rien sur telephone. Meme remede que la
+                     barre d'actions quelques lignes plus haut. */
+                  className="absolute inset-x-0 bottom-0 bg-black/80 py-1.5 text-center text-[11px] opacity-0 transition group-hover:opacity-100 max-md:opacity-100 md:py-1 md:text-[10px]"
                 >
                   Voir l'annonce
                 </Link>
