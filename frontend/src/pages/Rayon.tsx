@@ -247,7 +247,11 @@ export default function Rayon() {
         <>
           {/* Les demandes d'analyse pré-formatées et tarifées (10/09/2026),
               au-dessus du chat libre. */}
-          <DemandesAnalyse departmentId={department.id} agentName={department.agentName} />
+          <DemandesAnalyse
+            departmentId={department.id}
+            departmentKey={department.key}
+            agentName={department.agentName}
+          />
 
           <DepartmentChat departmentId={department.id} agentName={department.agentName} emoji={department.emoji} role={department.label} />
 

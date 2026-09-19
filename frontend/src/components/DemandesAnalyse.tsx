@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Store, Share2, Sparkles, Rocket, Search, Loader2, ExternalLink, Megaphone } from 'lucide-react'
-import { api } from '../lib/api'
+import { createPortal } from 'react-dom'
+import { api, assetUrl } from '../lib/api'
+import { ApercuProduit, photosProduit, eurosProduit, type ProduitApercu } from './ApercuProduit'
 
 /** La Facebook Ad Library, en direct, pour un produit — les vraies pubs qui tournent. */
 function lienAdLibrary(titre: string) {
@@ -21,7 +23,7 @@ function lienTikTok(titre: string) {
  * extraction de produits gagnants (avec ou sans publication).
  */
 
-type Produit = { id: string; aiTitle?: string | null; title?: string | null }
+type Produit = ProduitApercu & { createdAt?: string; categoryId?: string | null }
 type PrixMarche = {
   devise: string
   min: number | null
@@ -35,22 +37,80 @@ const eur = (n: number | null) => (n === null ? '—' : n.toLocaleString('fr-FR'
 
 const ARC_EN_CIEL = 'linear-gradient(90deg,#eab308,#84cc16,#22c55e,#06b6d4,#3b82f6,#8b5cf6,#ec4899,#ef4444)'
 
-export function DemandesAnalyse({ departmentId, agentName }: { departmentId: string; agentName: string }) {
+export function DemandesAnalyse({
+  departmentId,
+  departmentKey,
+  agentName,
+}: {
+  departmentId: string
+  /** La clé du rayon : elle décide des annonces que ce chef peut analyser. */
+  departmentKey: string
+  agentName: string
+}) {
   const [produits, setProduits] = useState<Produit[]>([])
   const [recherche, setRecherche] = useState('')
   const [choisis, setChoisis] = useState<string[]>([])
+  /** L'annonce survolée et l'endroit où sa carte s'ouvre, en coordonnées d'écran. */
+  const [survol, setSurvol] = useState<{ produit: Produit; x: number; y: number } | null>(null)
   const [count, setCount] = useState(5)
   const [busy, setBusy] = useState<string | null>(null)
   const [resultats, setResultats] = useState<{ type: 'marche' | 'sociale'; titre: string; lignes: Resultat[] } | null>(null)
   const [extraction, setExtraction] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  /**
+   * Les catégories de CE rayon.
+   *
+   * Un chef de rayon n'analyse que ce qui le regarde : proposer tout le
+   * catalogue à Camille, qui tient la mode, revenait à lui faire payer une
+   * analyse de perceuse qu'elle n'a aucune raison de savoir lire.
+   */
+  const [categoriesDuRayon, setCategoriesDuRayon] = useState<Set<string> | null>(null)
+  /** La soupape : un produit sans catégorie n'appartient à aucun rayon. */
+  const [toutLeCatalogue, setToutLeCatalogue] = useState(false)
 
   useEffect(() => {
     api.listProducts().then((p) => setProduits(p as Produit[])).catch(() => undefined)
   }, [])
 
+  useEffect(() => {
+    if (!departmentKey) return
+    api
+      .listCategories({ sector: departmentKey })
+      .then((r) => setCategoriesDuRayon(new Set(r.categories.map((c) => c.id))))
+      // Sans le référentiel, mieux vaut tout montrer que ne rien montrer : le
+      // vendeur garde la main, il ne se retrouve pas devant une liste vide sans
+      // savoir pourquoi.
+      .catch(() => setCategoriesDuRayon(null))
+  }, [departmentKey])
+
   const nom = (p: Produit) => p.aiTitle || p.title || 'Sans titre'
-  const filtres = produits.filter((p) => nom(p).toLowerCase().includes(recherche.toLowerCase().trim()))
+  const duRayon = (p: Produit) =>
+    !categoriesDuRayon || toutLeCatalogue ? true : Boolean(p.categoryId && categoriesDuRayon.has(p.categoryId))
+  const filtres = produits
+    .filter(duRayon)
+    .filter((p) => nom(p).toLowerCase().includes(recherche.toLowerCase().trim()))
+  /** Ce que le filtre par rayon met de côté : dit, jamais caché en silence. */
+  const horsRayon = categoriesDuRayon && !toutLeCatalogue ? produits.filter((p) => !duRayon(p)).length : 0
+
+  /**
+   * Où ouvrir l'aperçu : à droite de la ligne, rabattu à gauche quand la
+   * fenêtre est trop étroite, et remonté quand la carte dépasserait en bas.
+   */
+  function montrer(id: string, ligne: HTMLElement) {
+    const p = produits.find((x) => x.id === id)
+    if (!p) return
+    const r = ligne.getBoundingClientRect()
+    const LARGEUR = 320
+    const HAUTEUR = 260
+    /*
+     * À droite de la ligne, et rabattue contre le bord droit de la fenêtre
+     * quand elle n'y tient pas — pas à gauche : la carte atterrissait alors
+     * par-dessus le menu, à un écran de la ligne survolée.
+     */
+    const x = Math.max(8, Math.min(r.right + 12, window.innerWidth - LARGEUR - 8))
+    const y = Math.max(8, Math.min(r.top, window.innerHeight - HAUTEUR - 8))
+    setSurvol({ produit: p, x, y })
+  }
 
   function basculer(id: string) {
     setChoisis((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
@@ -116,15 +176,76 @@ export function DemandesAnalyse({ departmentId, agentName }: { departmentId: str
           />
           <span className="text-[11px] text-gray-500">{nbChoisis} sélectionné(s)</span>
         </div>
-        <div className="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
-          {filtres.slice(0, 60).map((p) => (
-            <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-white/5">
-              <input type="checkbox" checked={choisis.includes(p.id)} onChange={() => basculer(p.id)} className="accent-purple-500" />
-              <span className="truncate text-gray-200">{nom(p)}</span>
-            </label>
-          ))}
-          {!filtres.length && <p className="px-1.5 py-2 text-xs text-gray-500">Aucun produit dans vos annonces.</p>}
+
+        {horsRayon || toutLeCatalogue ? (
+          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+            <span>
+              {toutLeCatalogue
+                ? 'Toutes vos annonces, y compris celles des autres rayons.'
+                : `Les annonces de ce rayon seulement — ${horsRayon} autre(s) mise(s) de côté.`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setToutLeCatalogue((v) => !v)}
+              className="underline underline-offset-2 hover:text-gray-300"
+            >
+              {toutLeCatalogue ? 'Revenir à ce rayon' : 'Tout mon catalogue'}
+            </button>
+          </p>
+        ) : null}
+        <div className="mt-2 max-h-64 space-y-0.5 overflow-y-auto">
+          {filtres.slice(0, 60).map((p) => {
+            const photo = photosProduit(p)[0]
+            return (
+              <label
+                key={p.id}
+                onMouseEnter={(e) => montrer(p.id, e.currentTarget)}
+                onMouseLeave={() => setSurvol(null)}
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 text-sm hover:bg-white/5"
+              >
+                <input
+                  type="checkbox"
+                  checked={choisis.includes(p.id)}
+                  onChange={() => basculer(p.id)}
+                  className="accent-purple-500"
+                />
+                {photo ? (
+                  <img src={assetUrl(photo)} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+                ) : (
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-black/30 text-[9px] text-gray-500">
+                    —
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate text-gray-200">{nom(p)}</span>
+                <span className="shrink-0 tabular-nums text-[11px] text-gray-400">
+                  {eurosProduit(p.sellingPrice, p.currency)}
+                </span>
+              </label>
+            )
+          })}
+          {!filtres.length && <p className="px-1.5 py-2 text-xs text-gray-500">
+              {categoriesDuRayon && !toutLeCatalogue
+                ? 'Aucune de vos annonces n\'est rangée dans ce rayon.'
+                : 'Aucun produit dans vos annonces.'}
+            </p>}
         </div>
+
+        {/*
+          L'aperçu est posé en fixe, dans un portail, et non en absolu sous la
+          ligne : la liste défile, et une boîte à `overflow` découpe tout ce
+          qu'un enfant dépasse — la carte serait sortie coupée en deux.
+        */}
+        {survol
+          ? createPortal(
+              <div
+                className="pointer-events-none fixed z-50"
+                style={{ left: survol.x, top: survol.y }}
+              >
+                <ApercuProduit product={survol.produit} />
+              </div>,
+              document.body,
+            )
+          : null}
       </div>
 
       {/* Les deux analyses par produit. */}

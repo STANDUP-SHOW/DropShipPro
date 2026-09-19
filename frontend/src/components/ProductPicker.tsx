@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MessageSquare, Sparkles, Search } from 'lucide-react'
 import { api, assetUrl } from '../lib/api'
 import { VoirPlus, useVoirPlus } from './VoirPlus'
+import { ApercuProduit } from './ApercuProduit'
 
 type Product = {
   id: string
@@ -28,80 +29,6 @@ const euros = (v: unknown, devise = 'EUR') =>
 
 const photos = (p: Product): string[] =>
   Array.isArray(p.images) ? (p.images as unknown[]).filter((i): i is string => typeof i === 'string') : []
-
-/**
- * La fiche qui apparaît au survol.
- *
- * Une liste de titres tronqués ne suffit pas à choisir sur quel produit
- * dépenser un budget : il faut revoir la photo, le prix et la marge. Ouvrir la
- * fiche pour cela ferait perdre la liste, et donc la comparaison.
- */
-function Apercu({ product }: { product: Product }) {
-  const revient = Number(product.price ?? 0) + Number(product.shippingCost ?? 0)
-  const vente = Number(product.sellingPrice ?? 0)
-  const marge = vente - revient
-  const taux = revient > 0 ? (marge / revient) * 100 : null
-  const image = photos(product)[0]
-
-  return (
-    <div className="pointer-events-none absolute left-0 top-full z-30 mt-1 w-80 rounded-xl border border-white/15 bg-[#1b1633] p-3 shadow-2xl">
-      <div className="flex gap-3">
-        {image ? (
-          <img
-            src={assetUrl(image)}
-            alt=""
-            className="h-20 w-20 shrink-0 rounded-lg object-cover"
-          />
-        ) : (
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-black/30 text-[10px] text-gray-500">
-            aucune photo
-          </div>
-        )}
-        <div className="min-w-0">
-          <p className="text-xs font-semibold leading-snug">{product.aiTitle || product.title}</p>
-          <p className="mt-1 text-[11px] text-gray-500">
-            {product.sourceSite ? `Source : ${product.sourceSite}` : 'Source inconnue'}
-          </p>
-        </div>
-      </div>
-
-      {product.aiDescription ? (
-        <p className="mt-2 line-clamp-3 text-[11px] leading-relaxed text-gray-400">
-          {product.aiDescription}
-        </p>
-      ) : null}
-
-      <div className="mt-2 grid grid-cols-3 gap-2 border-t border-white/10 pt-2 text-[11px]">
-        <div>
-          <p className="text-gray-500">Revient à</p>
-          <p className="font-semibold tabular-nums">{euros(revient, product.currency)}</p>
-        </div>
-        <div>
-          <p className="text-gray-500">Vendu</p>
-          <p className="font-semibold tabular-nums text-purple-200">
-            {euros(vente, product.currency)}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-500">Marge</p>
-          <p
-            className={
-              marge >= 0 ? 'font-semibold tabular-nums text-emerald-300' : 'font-semibold tabular-nums text-red-400'
-            }
-          >
-            {`${marge >= 0 ? '+' : ''}${euros(marge, product.currency)}`}
-          </p>
-        </div>
-      </div>
-
-      {taux !== null ? (
-        <p className="mt-1 text-[10px] text-gray-500">
-          {`Soit ${taux.toFixed(0)} % du coût de revient. Le coût par acquisition doit tenir dedans.`}
-        </p>
-      ) : null}
-    </div>
-  )
-}
 
 /**
  * La liste des produits sur laquelle travaille le marketing.
@@ -305,7 +232,11 @@ export function ProductPicker({
                   <span className="max-sm:hidden">Générer ad</span>
                 </button>
 
-                {survol === p.id ? <Apercu product={p} /> : null}
+                {survol === p.id ? (
+                  <div className="pointer-events-none absolute left-0 top-full z-30 mt-1">
+                    <ApercuProduit product={p} />
+                  </div>
+                ) : null}
               </li>
             )
           })}
