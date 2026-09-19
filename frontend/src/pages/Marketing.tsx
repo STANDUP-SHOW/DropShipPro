@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Megaphone, Sparkles, Download, Trash2, Info, BarChart3 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Megaphone, Sparkles, Download, Trash2, Info, Share2 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
-import { AdAccounts } from '../components/AdAccounts'
-import { SocialConnect } from '../components/SocialConnect'
 import { AgentBar } from '../components/AgentBar'
 import { AgentBook } from '../components/AgentBook'
 import { AdDialog } from '../components/AdDialog'
@@ -119,14 +118,12 @@ export default function Marketing() {
         </p>
       </div>
 
-      {state ? (
-        <p className="mt-4 text-sm text-gray-300">
-          {`Il vous reste ${state.credits} drops.`}
-          {!state.configured ? (
-            <span className="ml-2 text-xs text-amber-300">
-              La génération n'est pas encore configurée sur le serveur.
-            </span>
-          ) : null}
+      {/* Le solde de drops ne s affiche plus ici : il vit dans le menu et sur
+          Mes credits, et il n a pas a se relire sous chaque titre. Le refus
+          du serveur, lui, reste dit — un bouton gris sans raison se reclique. */}
+      {state && !state.configured ? (
+        <p className="mt-4 text-xs text-amber-300">
+          La génération n'est pas encore configurée sur le serveur.
         </p>
       ) : null}
 
@@ -288,27 +285,16 @@ export default function Marketing() {
         </div>
       ) : null}
 
-      {/* ---------- Comptes publicitaires, cliquables ---------- */}
-      <SocialConnect />
-
-      <AdAccounts />
-
-      {/* ---------- Suivi des campagnes ---------- */}
-      <h2 className="mt-10 flex items-center gap-2 font-bold">
-        <BarChart3 size={16} className="text-purple-300" />
-        <span>Suivi de mes campagnes</span>
-      </h2>
-      <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
-        Cette place attend les chiffres de vos campagnes — dépense, impressions, clics, coût par
-        acquisition, marge nette par produit — régie par régie. Elle restera vide tant qu'aucun
-        compte n'est relié : afficher des chiffres inventés ou des exemples serait pire que le vide,
-        puisque c'est sur eux qu'on décide de couper une campagne ou de la doubler.
-      </p>
-      <p className="mt-3 max-w-3xl rounded-xl border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-gray-400">
-        En attendant, Laurence sait lire les chiffres que vous lui recopiez depuis le gestionnaire de
-        la régie : donnez-lui la dépense, le nombre de ventes et le produit concerné, elle vous dira
-        si la campagne gagne ou perd de l'argent, et à partir de quel coût par acquisition il faut
-        l'arrêter.
+      {/* Les raccordements, les régies et le suivi des campagnes vivent
+          maintenant sur Réseaux : ils n'ont rien à faire sous un catalogue de
+          produits, et le vendeur qui vient brancher un compte n'a plus à faire
+          défiler toutes ses annonces pour l'atteindre. */}
+      <p className="mt-10 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-gray-400">
+        <Share2 size={14} className="shrink-0 text-purple-300" />
+        <span>Vos comptes réseaux et régies publicitaires, et la diffusion des visuels :</span>
+        <Link to="/reseaux" className="font-semibold text-purple-300 hover:text-purple-200">
+          Réseaux
+        </Link>
       </p>
 
       {adCible ? (

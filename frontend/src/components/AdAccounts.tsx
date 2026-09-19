@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link2, X, Check } from 'lucide-react'
 import { api } from '../lib/api'
 import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
+import { PlatformLogo } from './PlatformLogo'
 
 /**
  * Les régies, et ce que chaque raccordement exige réellement.
@@ -13,6 +14,7 @@ import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
 const REGIES = [
   {
     id: 'meta',
+    domain: 'facebook.com', color: '#1877f2',
     label: 'Meta — Facebook et Instagram',
     exige: 'Un compte Business Manager, une page, et une application Meta validée par leur revue.',
     ou: 'business.facebook.com → Paramètres → Comptes publicitaires',
@@ -21,6 +23,7 @@ const REGIES = [
   },
   {
     id: 'google',
+    domain: 'ads.google.com', color: '#4285f4',
     label: 'Google Ads',
     exige: "Un compte Google Ads actif et un jeton de développeur, accordé après examen du compte.",
     ou: 'Google Ads → Outils → Accès et sécurité',
@@ -29,6 +32,7 @@ const REGIES = [
   },
   {
     id: 'tiktok',
+    domain: 'tiktok.com', color: '#111111',
     label: 'TikTok Ads',
     exige: 'Un compte TikTok for Business et une application approuvée sur leur console développeur.',
     ou: 'TikTok Ads Manager → Compte → Informations',
@@ -37,6 +41,7 @@ const REGIES = [
   },
   {
     id: 'x',
+    domain: 'x.com', color: '#111111',
     label: 'X Ads',
     exige: "Un compte publicitaire X et un accès à l'API Ads, accordé au cas par cas.",
     ou: 'ads.x.com → Paramètres du compte',
@@ -45,6 +50,7 @@ const REGIES = [
   },
   {
     id: 'snapchat',
+    domain: 'snapchat.com', color: '#8a7300',
     label: 'Snapchat Ads',
     exige: 'Un compte Snap Business et une application enregistrée.',
     ou: 'Ads Manager → Paramètres du compte',
@@ -53,6 +59,7 @@ const REGIES = [
   },
   {
     id: 'pinterest',
+    domain: 'pinterest.com', color: '#e60023',
     label: 'Pinterest Ads',
     exige: 'Un compte professionnel Pinterest et un accès API validé.',
     ou: 'Ads Manager → Paramètres du compte publicitaire',
@@ -125,7 +132,15 @@ function Fenetre({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="font-bold">{`Relier ${regie.label}`}</h2>
+          <h2 className="flex items-center gap-3 font-bold">
+            <PlatformLogo
+              label={regie.label}
+              domain={regie.domain}
+              color={regie.color}
+              size={44}
+            />
+            <span>{`Relier ${regie.label}`}</span>
+          </h2>
           <button type="button" onClick={onClose} className="p-1 text-gray-400 hover:text-white">
             <X size={16} />
           </button>
@@ -244,8 +259,14 @@ export function AdAccounts() {
                 onClick={() => setOuvert(r)}
                 className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:bg-white/10"
               >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold">{r.label}</span>
+                <span className="flex items-center gap-3">
+                  <PlatformLogo
+                    label={r.label}
+                    domain={r.domain}
+                    color={r.color}
+                    size={36}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{r.label}</span>
                   {compte?.connected ? (
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] text-emerald-300">
                       <Check size={10} />
