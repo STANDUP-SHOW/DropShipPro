@@ -76,11 +76,11 @@ export default function MarketAnalysisPage() {
       <BlocSection id="marche" />
 
       {/* MCP Info Block */}
-      <div className="mb-6 rounded-2xl border border-white/10 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-blue-500/10 overflow-hidden">
+      <div className="mb-6 max-w-2xl rounded-2xl border border-white/10 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-blue-500/10 overflow-hidden">
         <img
           src="/images/mcp-block.png"
           alt="MCP Block Information"
-          className="w-full object-cover"
+          className="w-full h-auto object-cover"
         />
       </div>
 
