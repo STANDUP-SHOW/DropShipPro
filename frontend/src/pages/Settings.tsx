@@ -5,6 +5,7 @@ import { Layout } from '../components/Layout'
 import { api, assetUrl } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
 import { ControlAgentToggle } from '../components/ControlAgentToggle'
+import { ApiKeys } from '../components/ApiKeys'
 import { useAuth } from '../lib/auth'
 
 /**
@@ -184,6 +185,11 @@ export default function Settings() {
       <div className="mt-6">
         <ControlAgentToggle />
       </div>
+
+      {/* Les clés d'agent : l'écran existait depuis longtemps mais n'était
+          monté nulle part, donc impossible d'en créer une. Sa place est ici,
+          à côté des autres réglages de compte (20/09/2026). */}
+      <ApiKeys />
     </Layout>
   )
 }
