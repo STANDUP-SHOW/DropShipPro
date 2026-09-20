@@ -191,6 +191,60 @@ for (const fichier of fichiers) {
   }
 
   // transaction a la main : node:sqlite n'a pas le helper de better-sqlite3
+  /**
+   * La colonne `data` est renvoyee TELLE QUELLE par l'API.
+   *
+   * getAllReports fait `JSON.parse(row.data)` et sert le resultat au site sans
+   * rien remodeler : sa forme est donc un contrat, pas un espace libre. Y
+   * mettre le JSON MarketSpy brut a casse toutes les pages de rapports et
+   * l'import produits, qui cherchaient supplierUrl, importMethod et le reste.
+   * On construit donc la forme attendue, et on range MarketSpy dessous.
+   */
+  const produitsPourLeSite = produits.map((p, i) => {
+    const net = p.net_margin_estimated != null ? p.net_margin_estimated : p.gross_margin;
+    const roi = Number(p.roi_estimated);
+    return {
+      title: [p.product_name, p.variant].filter(Boolean).join(' — ') || 'Sans titre',
+      supplier: [p.supplier_name, p.supplier_platform].filter(Boolean).join(' / ') || '—',
+      supplierUrl: p.supplier_url || '',
+      buyPrice: eur(p.estimated_landed_cost_france != null ? p.estimated_landed_cost_france : p.purchase_price),
+      sellPrice: eur(p.target_selling_price),
+      margin: eur(net) + (Number.isFinite(roi) && roi ? ` (ROI ${(roi * 100).toFixed(1)} %)` : ''),
+      importMethod: methodeImport(p),
+      reason: [p.decision, p.problem_solved, p.target_customer].filter(Boolean).join(' · ') || '—',
+      recommendedUrl: '-',
+      rank: p.rank || i + 1,
+    };
+  });
+
+  const enTete = {
+    date,
+    categorie,
+    theme,
+    titre,
+    agent: 'marketspy',
+    sources: nbSources,
+  };
+  const dataRayon = JSON.stringify({
+    type: 'rayon',
+    ...enTete,
+    analysis: texteAnalyse(d),
+    products: produitsPourLeSite,
+    marketspy: d,
+  });
+  const cp0 = d.creative_prompts || {};
+  const dataMarketing = JSON.stringify({
+    type: 'marketing',
+    ...enTete,
+    socialPlaces: [],
+    adsCurrent: (d.alerts && d.alerts.breakout_products) || [],
+    trendsDaily: (d.market && d.market.current_trends) || [],
+    trendingAds: (d.market && d.market.emerging_trends) || [],
+    imagePrompts: cp0.image_ads || [],
+    videoPrompts: cp0.short_videos_30s || [],
+    marketspy: d,
+  });
+
   const maj = () => {
     // --- le rapport RAYON : l'analyse et les 20 produits
     db.prepare(
@@ -198,14 +252,14 @@ for (const fichier of fichiers) {
        VALUES (?, 'rayon', ?, ?, ?, ?, 'marketspy', ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, sources=excluded.sources,
          data=excluded.data, updated_at=CURRENT_TIMESTAMP`
-    ).run(idRayon, date, categorie, theme, titre, nbSources, JSON.stringify(d));
+    ).run(idRayon, date, categorie, theme, titre, nbSources, dataRayon);
 
     const idEnfantR = `rayon-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM products WHERE rayon_report_id = ?`).run(idEnfantR);
     db.prepare(`DELETE FROM rayon_reports WHERE id = ?`).run(idEnfantR);
     db.prepare(
       `INSERT INTO rayon_reports (id, report_id, analysis, products) VALUES (?, ?, ?, ?)`
-    ).run(idEnfantR, idRayon, texteAnalyse(d), JSON.stringify(produits));
+    ).run(idEnfantR, idRayon, texteAnalyse(d), JSON.stringify(produitsPourLeSite));
 
     const insProd = db.prepare(
       `INSERT INTO products (id, rayon_report_id, title, supplier, supplier_url,
@@ -254,7 +308,7 @@ for (const fichier of fichiers) {
        VALUES (?, 'marketing', ?, ?, ?, ?, 'marketspy', ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, sources=excluded.sources,
          data=excluded.data, updated_at=CURRENT_TIMESTAMP`
-    ).run(idMkt, date, categorie, theme, titre, nbSources, JSON.stringify(d));
+    ).run(idMkt, date, categorie, theme, titre, nbSources, dataMarketing);
 
     const idEnfantM = `marketing-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM marketing_reports WHERE id = ?`).run(idEnfantM);
