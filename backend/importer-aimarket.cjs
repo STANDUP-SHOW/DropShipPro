@@ -234,7 +234,14 @@ for (const fichier of fichiers) {
         p.supplier_url || '',
         eur(p.estimated_landed_cost_france != null ? p.estimated_landed_cost_france : p.purchase_price),
         eur(p.target_selling_price),
-        pct(p.net_margin_estimated != null ? p.net_margin_estimated : p.gross_margin),
+        // net_margin_estimated et gross_margin sont en EUROS chez MarketSpy,
+        // pas en pourcentage : « 105 » veut dire 105 € de marge nette. Le ROI,
+        // lui, est bien un ratio — on l'ajoute quand il est la.
+        (() => {
+          const net = p.net_margin_estimated != null ? p.net_margin_estimated : p.gross_margin;
+          const roi = Number(p.roi_estimated);
+          return eur(net) + (Number.isFinite(roi) && roi ? ` (ROI ${(roi * 100).toFixed(1)} %)` : '');
+        })(),
         methodeImport(p),
         pourquoi || '—',
         refUrl
