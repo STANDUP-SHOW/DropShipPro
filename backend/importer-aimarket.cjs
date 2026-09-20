@@ -261,11 +261,35 @@ for (const fichier of fichiers) {
       `INSERT INTO rayon_reports (id, report_id, analysis, products) VALUES (?, ?, ?, ?)`
     ).run(idEnfantR, idRayon, texteAnalyse(d), JSON.stringify(produitsPourLeSite));
 
+    // Les colonnes numeriques et d'identite sont remplies ICI, a l'import :
+    // c'est ce qui rend les etudes comparables dans le temps. Les remplir plus
+    // tard par migration marche une fois ; les remplir a la source marche
+    // toujours. Voir memoire-migration.cjs pour le pourquoi.
     const insProd = db.prepare(
       `INSERT INTO products (id, rayon_report_id, title, supplier, supplier_url,
-         buy_price, sell_price, margin, import_method, reason, recommended_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         buy_price, sell_price, margin, import_method, reason, recommended_url,
+         product_key, brand, buy_price_eur, sell_price_eur, margin_eur, roi_pct,
+         report_date, categorie, theme, rank, is_product,
+         verdict, url_type, image_url, moq, eu_stock,
+         score_global, score_demand, score_trend, score_margin,
+         score_supplier, score_competition, score_ads, score_risk)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1,
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
+
+    // « POCO X7 Pro 12/512 » et « POCO X7 Pro 5G (EU) » doivent tomber sur la
+    // meme cle, sinon il n'y a ni memoire ni evolution de prix.
+    const BRUIT_CLE = new Set(('les le la un une de du des en pour avec et ou a au aux ' +
+      'meilleur meilleure meilleurs top best nouveau promo prix pas cher achat ' +
+      '2024 2025 2026 2027 sur par plus').split(' '));
+    const cleProduit = (t) => {
+      const base = String(t || '').split(/\s[—–]\s/)[0]
+        .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+        .replace(/[^a-z0-9+]+/g, ' ').trim();
+      const j = base.split(' ').filter((x) => x && !BRUIT_CLE.has(x));
+      return j.slice(0, 5).join('-') || null;
+    };
     produits.forEach((p, i) => {
       const titreP = [p.product_name, p.variant].filter(Boolean).join(' — ');
       const fournisseur = [p.supplier_name, p.supplier_platform]
@@ -275,6 +299,7 @@ for (const fichier of fichiers) {
         .filter(Boolean)
         .join(' · ');
       // le prix de reference d'une place de marche, quand il y en a un
+      const sc = p.scores || {};
       const mp = p.marketplace_prices || {};
       let refUrl = '';
       if (Array.isArray(mp.other) && mp.other.length && mp.other[0].merchant) {
@@ -298,7 +323,32 @@ for (const fichier of fichiers) {
         })(),
         methodeImport(p),
         pourquoi || '—',
-        refUrl
+        refUrl,
+        // --- identite et chiffres : la partie qui rend la memoire possible
+        cleProduit(titreP),
+        (cleProduit(titreP) || '').split('-')[0] || null,
+        p.estimated_landed_cost_france != null ? Number(p.estimated_landed_cost_france) : (p.purchase_price != null ? Number(p.purchase_price) : null),
+        p.target_selling_price != null ? Number(p.target_selling_price) : null,
+        p.net_margin_estimated != null ? Number(p.net_margin_estimated) : (p.gross_margin != null ? Number(p.gross_margin) : null),
+        p.roi_estimated != null ? Number(p.roi_estimated) * 100 : null,
+        date,
+        categorie,
+        theme,
+        p.rank != null ? Number(p.rank) : i + 1,
+        // --- enrichissements MarketSpy
+        p.decision || null,
+        p.url_type || null,
+        p.image_url || null,
+        p.moq != null ? String(p.moq) : null,
+        p.eu_stock === true ? 1 : p.eu_stock === false ? 0 : null,
+        sc.global_opportunity_score ?? null,
+        sc.demand_score ?? null,
+        sc.trend_score ?? null,
+        sc.margin_score ?? null,
+        sc.supplier_score ?? null,
+        sc.competition_score ?? null,
+        sc.ads_potential_score ?? null,
+        sc.risk_score ?? null
       );
     });
 
