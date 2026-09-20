@@ -83,8 +83,9 @@ export default function FreshNews() {
     for (const r of [rayon, marketing]) {
       if (!r) continue
       for (const b of blocsDe(r.body)) {
-        const estListe = r.type === 'rayon' && /produits/i.test(b.titre) && r.produits.length > 0
-        tous.push({ id: `${r.type}-${b.id}`, titre: b.titre || (r.type === 'rayon' ? 'Analyse' : 'Marketing'), corps: b.corps, rapport: r, produits: estListe ? r.produits : undefined })
+        const produitsDuRapport = r.produits ?? []
+        const estListe = r.type === 'rayon' && /produits/i.test(b.titre) && produitsDuRapport.length > 0
+        tous.push({ id: `${r.type}-${b.id}`, titre: b.titre || (r.type === 'rayon' ? 'Analyse' : 'Marketing'), corps: b.corps, rapport: r, produits: estListe ? produitsDuRapport : undefined })
       }
     }
     return tous
@@ -165,7 +166,7 @@ export default function FreshNews() {
             {rayon?.accroche || marketing?.accroche ? (
               <p className="mt-2 max-w-3xl text-base text-gray-200">{rayon?.accroche ?? marketing?.accroche}</p>
             ) : null}
-            {donnees.rapports.length === 0 ? (
+            {(donnees.rapports ?? []).length === 0 ? (
               <p className="mt-3 text-sm text-gray-400">Pas encore de rapport pour ce rayon ce jour-là. Les agents écrivent chaque matin.</p>
             ) : (
               <nav className="mt-4 flex flex-wrap gap-2">

@@ -235,11 +235,14 @@ export default function MarketAnalysisPage() {
                     </p>
                   )}
 
-                  {a.findings.length > 0 && (
+                  {/* Une analyse peut revenir sans relevé ni source — un
+                      fournisseur muet, une recherche vide. Lire .length
+                      dessus faisait tomber toute la page (20/09/2026). */}
+                  {(a.findings ?? []).length > 0 && (
                     <>
                       <h3 className="mt-5 text-sm font-semibold">Déjà en vente sur</h3>
                       <div className="mt-2 divide-y divide-white/5 rounded-lg border border-white/10">
-                        {a.findings.map((f, i) => (
+                        {(a.findings ?? []).map((f, i) => (
                           <div key={`${f.marketplace}-${i}`} className="flex items-center justify-between px-3 py-2 text-sm">
                             <span className="text-gray-300">{f.marketplace}</span>
                             <span className="flex items-center gap-3">
@@ -261,13 +264,13 @@ export default function MarketAnalysisPage() {
                     </>
                   )}
 
-                  {a.sources.length > 0 && (
+                  {(a.sources ?? []).length > 0 && (
                     <details className="mt-4">
                       <summary className="cursor-pointer text-xs text-purple-300">
-                        {`Sources consultées (${a.sources.length})`}
+                        {`Sources consultées (${(a.sources ?? []).length})`}
                       </summary>
                       <ul className="mt-2 space-y-1">
-                        {a.sources.map((s) => (
+                        {(a.sources ?? []).map((s) => (
                           <li key={s} className="truncate text-xs text-gray-500">
                             <a href={s} target="_blank" rel="noreferrer" className="hover:text-gray-300">
                               {s}

@@ -185,13 +185,17 @@ export function AnalysesRapports({
                     {complete.accroche ? <p className="mb-3 text-sm text-gray-200">{complete.accroche}</p> : null}
 
                     {blocsDe(complete.body).map((b) => {
+                      // Un rapport peut arriver sans tableau de produits —
+                      // une analyse seule, ou un import dont le tableau n'a
+                      // pas été relu. Sans garde, toute la page tombait.
+                      const produitsDuRapport = complete.produits ?? []
                       const estListe =
-                        complete.type === 'rayon' && /produits/i.test(b.titre) && complete.produits.length > 0
+                        complete.type === 'rayon' && /produits/i.test(b.titre) && produitsDuRapport.length > 0
                       return (
                         <section key={b.id} className="mt-4 first:mt-0">
                           {b.titre ? <h4 className="font-bold text-purple-200">{b.titre}</h4> : null}
                           {estListe ? (
-                            <ListeProduitsRapport produits={complete.produits} origine={complete.id} avecSelection />
+                            <ListeProduitsRapport produits={produitsDuRapport} origine={complete.id} avecSelection />
                           ) : (
                             <div className="mt-1">
                               <Markdown texte={b.corps} />
