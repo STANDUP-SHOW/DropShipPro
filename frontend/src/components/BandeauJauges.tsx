@@ -54,7 +54,13 @@ export function BandeauJauges() {
   }, [])
 
   const jauges = demo ? JAUGES_DEMO : charges
-  if (!jauges) return null
+  /*
+   * Le bandeau est monte dans le menu, donc sur TOUTES les pages : une reponse
+   * d'une autre forme y lit `jauges.annonces.fait` sur `undefined` et efface
+   * l'application entiere. Un relevé incomplet fait disparaitre le bandeau.
+   */
+  if (!jauges?.annonces || !jauges.fournisseurs || !jauges.marketplaces || !jauges.agents || !jauges.sociaux)
+    return null
 
   /*
    * PROVISOIRE (05/09/2026) : tant que le compte est à zéro, la jauge

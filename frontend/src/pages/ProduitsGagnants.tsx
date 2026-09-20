@@ -38,7 +38,7 @@ export default function ProduitsGagnants() {
   useEffect(() => {
     api
       .listOpportunities(undefined, undefined, true)
-      .then((r) => setLignes(r.opportunities))
+      .then((r) => setLignes(Array.isArray(r?.opportunities) ? r.opportunities : []))
       .catch((err) => setErreur(err instanceof Error ? err.message : 'Chargement impossible'))
       .finally(() => setChargement(false))
   }, [])

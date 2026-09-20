@@ -108,7 +108,7 @@ export function ReportList({
     }
     api
       .listReports(section, department)
-      .then((r) => setReports(r.reports))
+      .then((r) => setReports(Array.isArray(r?.reports) ? r.reports : []))
       .catch(() => setReports([]))
       .finally(() => setLoading(false))
   }, [section, department, demo])

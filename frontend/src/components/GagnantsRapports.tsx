@@ -16,6 +16,18 @@ import { api } from '../lib/api'
  * Le même composant sert la page Produits gagnants (tous rayons) et l'onglet du
  * rayon concerné (`rayon=<clé>`).
  */
+/*
+ * Une charge utile d'une autre forme ne doit JAMAIS faire tomber la page.
+ *
+ * Le 20/09 les routes rapports ont changé de forme sous les écrans : `d.analyses`,
+ * `d.produits`, `d.prompts` sont passés à `undefined`, et le premier `.length`
+ * a emporté toute l'application derrière l'ErrorBoundary. Un contrat qui bouge
+ * est un état vide à afficher — « aucun rapport » — pas un écran blanc.
+ */
+function liste<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : []
+}
+
 export function GagnantsRapports({ rayon }: { rayon?: string }) {
   const [produits, setProduits] = useState<ProduitAffiche[]>([])
   const [jours, setJours] = useState<string[]>([])
@@ -32,9 +44,9 @@ export function GagnantsRapports({ rayon }: { rayon?: string }) {
     api
       .gagnantsRapports({ rayon, jour: jour || undefined })
       .then((d) => {
-        setProduits(d.produits)
-        setSansCategorie(d.rayonSansCategorie)
-        if (!jour) setJours(d.jours)
+        setProduits(liste<ProduitAffiche>(d?.produits))
+        setSansCategorie(Boolean(d?.rayonSansCategorie))
+        if (!jour) setJours(liste<string>(d?.jours))
       })
       .catch((e: Error & { status?: number; body?: { seuil?: number; drops?: number } }) => {
         setProduits([])

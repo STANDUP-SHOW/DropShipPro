@@ -323,7 +323,7 @@ export const api = {
   // Fresh news : les rapports du jour des 48 agents (réservés aux comptes à ≥ 500 drops).
   freshCategories: () =>
     request<Array<{ id: string; nom: string; themes: Array<{ id: string; nom: string }>; themeDuJour: string }>>(
-      '/reports/categories',
+      '/reports/fresh-categories',
     ),
   freshRapports: (categorie: string, jour?: string, q?: string) =>
     request<{
@@ -354,7 +354,7 @@ export const api = {
         }>
       }>
     }>(
-      `/reports?category=${encodeURIComponent(categorie)}${jour ? `&date=${jour}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+      `/reports/fresh?category=${encodeURIComponent(categorie)}${jour ? `&date=${jour}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
     ),
   /*
    * Le classement des rapports : les mêmes lignes que Fresh news, vues depuis
@@ -379,7 +379,7 @@ export const api = {
         sources: number
         produits: number
       }>
-    }>(`/reports${enQuery({ type: params.type, category: params.categorie, date: params.jour, limit: params.limite })}`),
+    }>(`/reports/analyses${enQuery({ type: params.type, category: params.categorie, date: params.jour, limit: params.limite })}`),
   analyseRapport: (id: string) =>
     request<{
       id: string
@@ -394,13 +394,13 @@ export const api = {
       sources: number
       body: string
       produits: ProduitRapport[]
-    }>(`/reports/${id}`),
+    }>(`/reports/analyses/${id}`),
   gagnantsRapports: (params: { rayon?: string; categorie?: string; jour?: string; limite?: number } = {}) =>
     request<{
       rayonSansCategorie: boolean
       jours: string[]
       produits: Array<ProduitRapport & { rapportId: string; day: string; categorie: string; categorieNom: string; theme: string; themeNom: string }>
-    }>(`/products/by-category${enQuery({ category: params.categorie, date: params.jour, limit: params.limite })}`),
+    }>(`/reports/gagnants${enQuery({ category: params.categorie, date: params.jour, limit: params.limite })}`),
   promptsRapports: (params: { rayon?: string; categorie?: string; jour?: string; limite?: number } = {}) =>
     request<{
       rayonSansCategorie: boolean
@@ -418,7 +418,7 @@ export const api = {
         themeNom: string
         titre: string
       }>
-    }>(`/prompts/all${enQuery({ category: params.categorie, type: undefined })}`),
+    }>(`/reports/prompts${enQuery({ category: params.categorie, date: params.jour, limit: params.limite })}`),
   /*
    * Ce que les agents ont déposé, par jour et par section : de quoi peindre les
    * cinq pastilles du menu en UN appel.

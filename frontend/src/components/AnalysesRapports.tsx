@@ -24,6 +24,18 @@ import { api } from '../lib/api'
 type Ligne = Awaited<ReturnType<typeof api.analysesRapports>>['analyses'][number]
 type Complete = Awaited<ReturnType<typeof api.analyseRapport>>
 
+/*
+ * Une charge utile d'une autre forme ne doit JAMAIS faire tomber la page.
+ *
+ * Le 20/09 les routes rapports ont changé de forme sous les écrans : `d.analyses`,
+ * `d.produits`, `d.prompts` sont passés à `undefined`, et le premier `.length`
+ * a emporté toute l'application derrière l'ErrorBoundary. Un contrat qui bouge
+ * est un état vide à afficher — « aucun rapport » — pas un écran blanc.
+ */
+function liste<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : []
+}
+
 function dateFr(iso: string): string {
   const d = new Date(iso + 'T12:00:00Z')
   return Number.isNaN(d.getTime())
@@ -63,9 +75,9 @@ export function AnalysesRapports({
     api
       .analysesRapports({ type, rayon, categorie: categorie || undefined, limite })
       .then((d) => {
-        setLignes(d.analyses)
-        setSansCategorie(d.rayonSansCategorie)
-        if (avecFiltreCategorie && !categorie) setCategories(d.categories)
+        setLignes(liste<Ligne>(d?.analyses))
+        setSansCategorie(Boolean(d?.rayonSansCategorie))
+        if (avecFiltreCategorie && !categorie) setCategories(liste<{ id: string; nom: string }>(d?.categories))
       })
       .catch((e: Error & { status?: number; body?: { seuil?: number; drops?: number } }) => {
         setLignes([])
@@ -184,11 +196,11 @@ export function AnalysesRapports({
                   <>
                     {complete.accroche ? <p className="mb-3 text-sm text-gray-200">{complete.accroche}</p> : null}
 
-                    {blocsDe(complete.body).map((b) => {
+                    {blocsDe(complete.body ?? '').map((b) => {
                       // Un rapport peut arriver sans tableau de produits —
                       // une analyse seule, ou un import dont le tableau n'a
                       // pas été relu. Sans garde, toute la page tombait.
-                      const produitsDuRapport = complete.produits ?? []
+                      const produitsDuRapport = liste<(typeof complete.produits)[number]>(complete.produits)
                       const estListe =
                         complete.type === 'rayon' && /produits/i.test(b.titre) && produitsDuRapport.length > 0
                       return (

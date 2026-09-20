@@ -91,15 +91,20 @@ reportsPublicRouter.get('/reports/dates', (_req, res) => {
 })
 
 /**
- * GET /reports
- * Get all reports with optional filtering
- * Query params:
- *   - limit: number of results (default: 10)
- *   - category: filter by category
- *   - date: filter by date (YYYY-MM-DD)
- *   - type: filter by type (marketing|rayon)
+ * GET /reports/liste
+ * Les rapports bruts, tels qu'ils sont en base.
+ *
+ * **Cette route s'appelait `/reports` et elle masquait `/api/reports`.**
+ * Ce routeur est monté sur `/api` AVANT le routeur privé des rapports
+ * (`app.use('/api/reports', reportsRouter)`) : un `GET /api/reports` tombait
+ * donc ici et recevait un tableau nu, alors que l'écran « Mes analyses »
+ * attend `{ reports: [...] }`. Le nom explicite rend `/api/reports` à son
+ * routeur, et cette vue brute reste accessible pour qui veut la donnée telle
+ * quelle.
+ *
+ * Query params : limit, category, date, type (marketing|rayon)
  */
-reportsPublicRouter.get('/reports', (req, res) => {
+reportsPublicRouter.get('/reports/liste', (req, res) => {
   try {
     const limit = parseInt((req.query.limit as string) || '10')
     const category = (req.query.category as string) || undefined
@@ -107,9 +112,109 @@ reportsPublicRouter.get('/reports', (req, res) => {
     const type = (req.query.type as any) || undefined
 
     const reports = baseRapports().getAllReports({ limit, category, date, type })
-    res.json(reports)
+    res.json({ count: reports.length, reports })
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch reports', motif: motif(error) })
+  }
+})
+
+/*
+ * ---------------------------------------------------------------------------
+ * Le contrat des cinq pages de dépôt
+ * ---------------------------------------------------------------------------
+ *
+ * Fresh news, Analyses de marché, Produits gagnants et les deux vues de
+ * Réseaux lisent des objets à clé nommée — `rapports`, `analyses`, `produits`,
+ * `prompts` — chaque ligne portant sa provenance. Les routes brutes au-dessus
+ * rendent des tableaux nus : branchées dessus le 19/09, les cinq pages ont lu
+ * `d.analyses`, `d.produits`, `d.prompts` à `undefined` et sont tombées sur le
+ * premier `.length`.
+ *
+ * Ces routes-ci rendent la forme attendue. Une page, une route, un nom : plus
+ * d'URL qui doit deviner lequel de deux contrats on lui demande.
+ */
+
+/** Les rayons qui ont reçu quelque chose, et leur thème du jour. */
+reportsPublicRouter.get('/reports/fresh-categories', (_req, res) => {
+  try {
+    res.json(baseRapports().getCategoriesFraiches())
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch categories', motif: motif(error) })
+  }
+})
+
+/** Fresh news : les rapports d'un rayon pour un jour, corps compris. */
+reportsPublicRouter.get('/reports/fresh', (req, res) => {
+  try {
+    const category = (req.query.category as string) || ''
+    const date = (req.query.date as string) || undefined
+    if (!category) {
+      // Pas de rayon demandé : le premier qui a du contenu, plutôt qu'un 400
+      // que l'écran afficherait en rouge au premier chargement.
+      const premier = baseRapports().getCategoriesFraiches()[0]
+      if (!premier) return res.json({ categorie: { id: '', nom: '' }, disponibles: [], rapports: [] })
+      return res.json(baseRapports().getFresh(premier.id, date))
+    }
+    res.json(baseRapports().getFresh(category, date))
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch reports', motif: motif(error) })
+  }
+})
+
+/** La liste des analyses, en-têtes seulement. */
+reportsPublicRouter.get('/reports/analyses', (req, res) => {
+  try {
+    res.json(
+      baseRapports().getAnalyses({
+        type: (req.query.type as 'rayon' | 'marketing') || undefined,
+        categorie: (req.query.category as string) || undefined,
+        jour: (req.query.date as string) || undefined,
+        limite: req.query.limit ? Number(req.query.limit) : undefined,
+      }),
+    )
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch analyses', motif: motif(error) })
+  }
+})
+
+/** Une analyse, corps compris : ce que le dépliage d'une ligne demande. */
+reportsPublicRouter.get('/reports/analyses/:id', (req, res) => {
+  try {
+    const analyse = baseRapports().getAnalyse(req.params.id)
+    if (!analyse) return res.status(404).json({ error: 'Analyse introuvable.' })
+    res.json(analyse)
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch analysis', motif: motif(error) })
+  }
+})
+
+/** Les produits gagnants à plat — sans rayon demandé, tout le dépôt. */
+reportsPublicRouter.get('/reports/gagnants', (req, res) => {
+  try {
+    res.json(
+      baseRapports().getGagnants({
+        categorie: (req.query.category as string) || undefined,
+        jour: (req.query.date as string) || undefined,
+        limite: req.query.limit ? Number(req.query.limit) : undefined,
+      }),
+    )
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch products', motif: motif(error) })
+  }
+})
+
+/** Les prompts publicitaires, un par entrée, toujours en texte. */
+reportsPublicRouter.get('/reports/prompts', (req, res) => {
+  try {
+    res.json(
+      baseRapports().getPromptsRapports({
+        categorie: (req.query.category as string) || undefined,
+        jour: (req.query.date as string) || undefined,
+        limite: req.query.limit ? Number(req.query.limit) : undefined,
+      }),
+    )
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch prompts', motif: motif(error) })
   }
 })
 
@@ -153,23 +258,28 @@ reportsPublicRouter.get('/markets/analysis', (req, res) => {
 
 /**
  * GET /products/by-category
- * Get winning products by category
- * Query params:
- *   - category: product category (required)
- *   - date: report date (optional)
+ * Les produits gagnants d'un rayon, ou de TOUS les rayons.
+ *
+ * `category` était obligatoire et la page « Produits gagnants » n'en a pas à
+ * donner : elle veut la récolte du matin, tous rayons confondus. Elle recevait
+ * « category parameter required » et affichait « Aucun produit gagnant déposé »
+ * au-dessus d'une base qui en contenait 162.
+ *
+ * Sans `category` ni `date`, c'est le DERNIER JOUR DÉPOSÉ — pas la date du
+ * jour : les agents déposent le matin, et l'horloge de la machine est déjà
+ * demain avant qu'ils aient écrit. La forme rendue est la même dans les deux
+ * cas, pour que l'écran n'ait pas deux chemins.
+ *
+ * Query params : category (optionnel), date (optionnel), limit (optionnel)
  */
 reportsPublicRouter.get('/products/by-category', (req, res) => {
   try {
-    const category = (req.query.category as string) || ''
+    const category = (req.query.category as string) || undefined
     const date = (req.query.date as string) || undefined
+    const limit = req.query.limit ? Number(req.query.limit) : undefined
 
-    if (!category) {
-      res.status(400).json({ error: 'category parameter required' })
-      return
-    }
-
-    const products = baseRapports().getProductsByCategory(category, { date })
-    res.json(products)
+    const products = baseRapports().getProductsByCategory(category, { date, limit })
+    res.json({ count: products.length, category: category ?? null, date: date ?? null, products })
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch products', motif: motif(error) })
   }

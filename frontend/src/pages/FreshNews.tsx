@@ -29,6 +29,18 @@ type Rapport = Rapports['rapports'][number]
 type Produit = Rapport['produits'][number]
 type Categorie = Awaited<ReturnType<typeof api.freshCategories>>[number]
 
+/*
+ * Une charge utile d'une autre forme ne doit JAMAIS faire tomber la page.
+ *
+ * Le 20/09 les routes rapports ont changé de forme sous les écrans : `d.analyses`,
+ * `d.produits`, `d.prompts` sont passés à `undefined`, et le premier `.length`
+ * a emporté toute l'application derrière l'ErrorBoundary. Un contrat qui bouge
+ * est un état vide à afficher — « aucun rapport » — pas un écran blanc.
+ */
+function liste<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : []
+}
+
 const COULEURS = ['#a855f7,#ec4899', '#22d3ee,#a855f7', '#f59e0b,#ef4444', '#34d399,#22d3ee']
 
 export default function FreshNews() {
@@ -44,7 +56,10 @@ export default function FreshNews() {
   const jour = params.get('jour') || undefined
 
   useEffect(() => {
-    api.freshCategories().then(setCategories).catch(() => setErreur('Impossible de lire les catégories.'))
+    api
+      .freshCategories()
+      .then((c) => setCategories(liste<Categorie>(c)))
+      .catch(() => setErreur('Impossible de lire les catégories.'))
   }, [])
 
   useEffect(() => {
@@ -76,14 +91,14 @@ export default function FreshNews() {
     setParams(suivant)
   }
 
-  const rayon = donnees?.rapports.find((r) => r.type === 'rayon')
-  const marketing = donnees?.rapports.find((r) => r.type === 'marketing')
+  const rayon = liste<Rapport>(donnees?.rapports).find((r) => r.type === 'rayon')
+  const marketing = liste<Rapport>(donnees?.rapports).find((r) => r.type === 'marketing')
   const blocs = useMemo(() => {
     const tous: Array<{ id: string; titre: string; corps: string; rapport: Rapport; produits?: Produit[] }> = []
     for (const r of [rayon, marketing]) {
       if (!r) continue
-      for (const b of blocsDe(r.body)) {
-        const produitsDuRapport = r.produits ?? []
+      for (const b of blocsDe(r.body ?? '')) {
+        const produitsDuRapport = liste<Produit>(r.produits)
         const estListe = r.type === 'rayon' && /produits/i.test(b.titre) && produitsDuRapport.length > 0
         tous.push({ id: `${r.type}-${b.id}`, titre: b.titre || (r.type === 'rayon' ? 'Analyse' : 'Marketing'), corps: b.corps, rapport: r, produits: estListe ? produitsDuRapport : undefined })
       }
@@ -161,12 +176,12 @@ export default function FreshNews() {
               className="mt-1 break-words bg-gradient-to-r bg-clip-text text-3xl font-black leading-tight text-transparent sm:text-4xl"
               style={{ backgroundImage: `linear-gradient(90deg, ${couleur})` }}
             >
-              Fresh news {cat?.nom ?? donnees.categorie.nom} !
+              Fresh news {cat?.nom ?? donnees.categorie?.nom ?? ''} !
             </h2>
             {rayon?.accroche || marketing?.accroche ? (
               <p className="mt-2 max-w-3xl text-base text-gray-200">{rayon?.accroche ?? marketing?.accroche}</p>
             ) : null}
-            {(donnees.rapports ?? []).length === 0 ? (
+            {liste(donnees.rapports).length === 0 ? (
               <p className="mt-3 text-sm text-gray-400">Pas encore de rapport pour ce rayon ce jour-là. Les agents écrivent chaque matin.</p>
             ) : (
               <nav className="mt-4 flex flex-wrap gap-2">

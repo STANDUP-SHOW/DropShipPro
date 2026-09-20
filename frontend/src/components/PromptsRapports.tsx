@@ -20,6 +20,18 @@ import { api } from '../lib/api'
  */
 type Prompt = Awaited<ReturnType<typeof api.promptsRapports>>['prompts'][number]
 
+/*
+ * Une charge utile d'une autre forme ne doit JAMAIS faire tomber la page.
+ *
+ * Le 20/09 les routes rapports ont changé de forme sous les écrans : `d.analyses`,
+ * `d.produits`, `d.prompts` sont passés à `undefined`, et le premier `.length`
+ * a emporté toute l'application derrière l'ErrorBoundary. Un contrat qui bouge
+ * est un état vide à afficher — « aucun rapport » — pas un écran blanc.
+ */
+function liste<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : []
+}
+
 export function PromptsRapports({ rayon }: { rayon?: string }) {
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [jours, setJours] = useState<string[]>([])
@@ -38,8 +50,8 @@ export function PromptsRapports({ rayon }: { rayon?: string }) {
     api
       .promptsRapports({ rayon, jour: jour || undefined })
       .then((d) => {
-        setPrompts(d.prompts)
-        if (!jour) setJours(d.jours)
+        setPrompts(liste<Prompt>(d?.prompts))
+        if (!jour) setJours(liste<string>(d?.jours))
       })
       .catch((e: Error & { status?: number; body?: { seuil?: number; drops?: number } }) => {
         setPrompts([])
@@ -51,7 +63,7 @@ export function PromptsRapports({ rayon }: { rayon?: string }) {
 
   const categories = useMemo(() => {
     const vues = new Map<string, string>()
-    for (const p of prompts) vues.set(p.categorie, p.categorieNom)
+    for (const p of prompts) vues.set(p.categorie, p.categorieNom ?? p.categorie)
     return [...vues].map(([id, nom]) => ({ id, nom }))
   }, [prompts])
 

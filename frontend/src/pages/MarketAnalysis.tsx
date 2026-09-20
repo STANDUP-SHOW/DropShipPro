@@ -58,7 +58,7 @@ export default function MarketAnalysisPage() {
     setError(null)
     api
       .marketAnalysis(ids)
-      .then((data) => setResults(data.results))
+      .then((data) => setResults(Array.isArray(data?.results) ? data.results : []))
       .catch((err) => setError(err instanceof Error ? err.message : 'Analyse impossible'))
       .finally(() => setRunning(false))
   }, [])

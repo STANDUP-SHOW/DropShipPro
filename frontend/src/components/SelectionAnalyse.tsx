@@ -52,8 +52,13 @@ export function SelectionAnalyse({
   const [survol, setSurvol] = useState<{ produit: Produit; x: number; y: number } | null>(null)
 
   useEffect(() => {
-    api.listProducts().then((p) => setProduits(p as Produit[])).catch(() => undefined)
-    api.listCategories().then((r) => setCatalogue(r.categories)).catch(() => undefined)
+    api.listProducts().then((p) => setProduits(Array.isArray(p) ? (p as Produit[]) : [])).catch(() => undefined)
+    api
+      .listCategories()
+      // Une reponse d'une autre forme vide le selecteur ; elle ne doit pas
+      // emporter la page d'analyses avec elle.
+      .then((r) => setCatalogue(Array.isArray(r?.categories) ? r.categories : []))
+      .catch(() => undefined)
     // Le tarif vient du serveur, jamais recopié ici : un prix faux affiché
     // d'avance est pire qu'un prix absent.
     api

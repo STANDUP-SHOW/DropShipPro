@@ -276,7 +276,19 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   useEffect(() => {
     api
       .myBilling()
-      .then((b) => setSolde({ credits: b.credits, euroParDrop: b.euroParDrop }))
+      /*
+       * Le solde ne s'affiche que s'il est vraiment chiffre.
+       *
+       * Le menu est monte sur TOUTES les pages : `credits` a `undefined` et
+       * c'est `solde.credits.toLocaleString()` qui emporte l'application
+       * entiere, pas seulement le bandeau. Une reponse d'une autre forme doit
+       * faire disparaitre le solde, jamais la page.
+       */
+      .then((b) =>
+        setSolde(
+          Number.isFinite(b?.credits) ? { credits: b.credits, euroParDrop: b?.euroParDrop ?? 0 } : null,
+        ),
+      )
       .catch(() => {
         // Ancienne session ou API indisponible : on n'affiche simplement rien.
       })
@@ -287,7 +299,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
       .listDepartments()
       // Seuls les rayons dont le chef est embauché (en poste) : un rayon à
       // l'arrêt se retrouve par « Mes chefs de rayon », pas dans le déroulant.
-      .then((list) => setRayons(list.filter((r) => r.active)))
+      .then((list) => setRayons(Array.isArray(list) ? list.filter((r) => r.active) : []))
       .catch(() => {
         // Session expirée ou API muette : le menu se passe des rayons.
       })
