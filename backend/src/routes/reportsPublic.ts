@@ -3,10 +3,21 @@
  * Provides market analyses, products, AI prompts, and social media data
  */
 
-import { Router } from 'express'
+import { Router, type RequestHandler } from 'express'
 import { CHEMIN_RAPPORTS_DB, ReportQuery } from '../services/reportsDb.js'
 
 export const reportsPublicRouter = Router()
+
+/**
+ * `www.drop-shipper.fr/api/*` is a Vercel rewrite: the edge can retain what the
+ * backend answered, a 500 included, and keep serving it long after the backend
+ * recovered. A day was lost to a refresh that replayed a failure the server had
+ * already stopped producing.
+ */
+const sansCache: RequestHandler = (_req, res, next) => {
+  res.set('Cache-Control', 'no-store')
+  next()
+}
 
 /**
  * The base is opened on FIRST USE, not at import.
@@ -34,7 +45,7 @@ function motif(error: unknown): string {
  * GET /reports/stats
  * Get database statistics
  */
-reportsPublicRouter.get('/reports/stats', (_req, res) => {
+reportsPublicRouter.get('/reports/stats', sansCache, (_req, res) => {
   try {
     const stats = baseRapports().getStatistics()
     res.json(stats)
@@ -56,7 +67,7 @@ reportsPublicRouter.get('/reports/stats', (_req, res) => {
  * it sits on this router (mounted at /api) ahead of the private reports router,
  * whose `/:id` would otherwise swallow it.
  */
-reportsPublicRouter.get('/reports/nouveautes', (_req, res) => {
+reportsPublicRouter.get('/reports/nouveautes', sansCache, (_req, res) => {
   try {
     res.json(baseRapports().getCountsByDate())
   } catch (error) {
@@ -68,7 +79,7 @@ reportsPublicRouter.get('/reports/nouveautes', (_req, res) => {
  * GET /reports/categories
  * Get list of product categories
  */
-reportsPublicRouter.get('/reports/categories', (_req, res) => {
+reportsPublicRouter.get('/reports/categories', sansCache, (_req, res) => {
   try {
     const categories = baseRapports().getCategories()
     res.json(categories)
@@ -81,7 +92,7 @@ reportsPublicRouter.get('/reports/categories', (_req, res) => {
  * GET /reports/dates
  * Get list of report dates
  */
-reportsPublicRouter.get('/reports/dates', (_req, res) => {
+reportsPublicRouter.get('/reports/dates', sansCache, (_req, res) => {
   try {
     const dates = baseRapports().getDates()
     res.json(dates)
@@ -104,7 +115,7 @@ reportsPublicRouter.get('/reports/dates', (_req, res) => {
  *
  * Query params : limit, category, date, type (marketing|rayon)
  */
-reportsPublicRouter.get('/reports/liste', (req, res) => {
+reportsPublicRouter.get('/reports/liste', sansCache, (req, res) => {
   try {
     const limit = parseInt((req.query.limit as string) || '10')
     const category = (req.query.category as string) || undefined
@@ -135,7 +146,7 @@ reportsPublicRouter.get('/reports/liste', (req, res) => {
  */
 
 /** Les rayons qui ont reçu quelque chose, et leur thème du jour. */
-reportsPublicRouter.get('/reports/fresh-categories', (_req, res) => {
+reportsPublicRouter.get('/reports/fresh-categories', sansCache, (_req, res) => {
   try {
     res.json(baseRapports().getCategoriesFraiches())
   } catch (error) {
@@ -144,7 +155,7 @@ reportsPublicRouter.get('/reports/fresh-categories', (_req, res) => {
 })
 
 /** Fresh news : les rapports d'un rayon pour un jour, corps compris. */
-reportsPublicRouter.get('/reports/fresh', (req, res) => {
+reportsPublicRouter.get('/reports/fresh', sansCache, (req, res) => {
   try {
     const category = (req.query.category as string) || ''
     const date = (req.query.date as string) || undefined
@@ -162,7 +173,7 @@ reportsPublicRouter.get('/reports/fresh', (req, res) => {
 })
 
 /** La liste des analyses, en-têtes seulement. */
-reportsPublicRouter.get('/reports/analyses', (req, res) => {
+reportsPublicRouter.get('/reports/analyses', sansCache, (req, res) => {
   try {
     res.json(
       baseRapports().getAnalyses({
@@ -178,7 +189,7 @@ reportsPublicRouter.get('/reports/analyses', (req, res) => {
 })
 
 /** Une analyse, corps compris : ce que le dépliage d'une ligne demande. */
-reportsPublicRouter.get('/reports/analyses/:id', (req, res) => {
+reportsPublicRouter.get('/reports/analyses/:id', sansCache, (req, res) => {
   try {
     const analyse = baseRapports().getAnalyse(req.params.id)
     if (!analyse) return res.status(404).json({ error: 'Analyse introuvable.' })
@@ -189,7 +200,7 @@ reportsPublicRouter.get('/reports/analyses/:id', (req, res) => {
 })
 
 /** Les produits gagnants à plat — sans rayon demandé, tout le dépôt. */
-reportsPublicRouter.get('/reports/gagnants', (req, res) => {
+reportsPublicRouter.get('/reports/gagnants', sansCache, (req, res) => {
   try {
     res.json(
       baseRapports().getGagnants({
@@ -204,7 +215,7 @@ reportsPublicRouter.get('/reports/gagnants', (req, res) => {
 })
 
 /** Les prompts publicitaires, un par entrée, toujours en texte. */
-reportsPublicRouter.get('/reports/prompts', (req, res) => {
+reportsPublicRouter.get('/reports/prompts', sansCache, (req, res) => {
   try {
     res.json(
       baseRapports().getPromptsRapports({
@@ -225,7 +236,7 @@ reportsPublicRouter.get('/reports/prompts', (req, res) => {
  *   - category: filter by category (optional)
  *   - limit: number of results (default: 10)
  */
-reportsPublicRouter.get('/markets/trends', (req, res) => {
+reportsPublicRouter.get('/markets/trends', sansCache, (req, res) => {
   try {
     const limit = parseInt((req.query.limit as string) || '10')
     const category = (req.query.category as string) || undefined
@@ -244,7 +255,7 @@ reportsPublicRouter.get('/markets/trends', (req, res) => {
  *   - category: filter by category (optional)
  *   - date: filter by date (optional)
  */
-reportsPublicRouter.get('/markets/analysis', (req, res) => {
+reportsPublicRouter.get('/markets/analysis', sansCache, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
     const date = (req.query.date as string) || undefined
@@ -272,7 +283,7 @@ reportsPublicRouter.get('/markets/analysis', (req, res) => {
  *
  * Query params : category (optionnel), date (optionnel), limit (optionnel)
  */
-reportsPublicRouter.get('/products/by-category', (req, res) => {
+reportsPublicRouter.get('/products/by-category', sansCache, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
     const date = (req.query.date as string) || undefined
@@ -292,7 +303,7 @@ reportsPublicRouter.get('/products/by-category', (req, res) => {
  *   - category: product category (optional)
  *   - type: prompt type: image or video (optional)
  */
-reportsPublicRouter.get('/prompts/all', (req, res) => {
+reportsPublicRouter.get('/prompts/all', sansCache, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
     const type = (req.query.type as any) || undefined
@@ -310,7 +321,7 @@ reportsPublicRouter.get('/prompts/all', (req, res) => {
  * Query params:
  *   - category: product category (optional)
  */
-reportsPublicRouter.get('/prompts/images', (req, res) => {
+reportsPublicRouter.get('/prompts/images', sansCache, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
 
@@ -327,7 +338,7 @@ reportsPublicRouter.get('/prompts/images', (req, res) => {
  * Query params:
  *   - category: product category (optional)
  */
-reportsPublicRouter.get('/prompts/videos', (req, res) => {
+reportsPublicRouter.get('/prompts/videos', sansCache, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
 
@@ -342,7 +353,7 @@ reportsPublicRouter.get('/prompts/videos', (req, res) => {
  * GET /reports-health
  * Health check endpoint for reports database
  */
-reportsPublicRouter.get('/reports-health', (_req, res) => {
+reportsPublicRouter.get('/reports-health', sansCache, (_req, res) => {
   try {
     const stats = baseRapports().getStatistics()
     res.json({
