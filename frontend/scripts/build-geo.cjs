@@ -129,7 +129,8 @@ function grapheSchema(faq) {
           { '@type': 'PropertyValue', name: 'Fournisseurs référencés', value: FOURNISSEURS.length },
           { '@type': 'PropertyValue', name: 'Canaux de vente référencés', value: canaux.length },
           { '@type': 'PropertyValue', name: 'Places de marché référencées', value: n.marketplace },
-          { '@type': 'PropertyValue', name: 'Destinations de publication branchées', value: 45 },
+          { '@type': 'PropertyValue', name: 'Destinations à publication directe branchées', value: 45 },
+          { '@type': 'PropertyValue', name: 'Canaux servis par le flux produit', value: 234 },
         ],
       },
       { ...faqLd(faq), '@id': `${SITE}/#faq`, '@context': undefined },
@@ -161,7 +162,7 @@ ${ACCUEIL.themes
 <h2>En chiffres</h2>
 <ul>
 <li>${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles, dont 3 reliés par API (prix et stock en temps réel).</li>
-<li>${canaux.length} canaux de vente référencés, dont ${n.marketplace} places de marché ; 45 destinations de publication déjà branchées, dont 41 opérateurs Mirakl.</li>
+<li>314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.</li>
 <li>Une annonce importée et réécrite par l'IA : 0,12 €. Une boutique en ligne écrite par l'IA : 3,50 €, une seule fois. Aucun abonnement.</li>
 </ul>
 
@@ -310,7 +311,7 @@ function pageAPropos(faq) {
 <tr><th>Pour qui</th><td>Vendeurs en ligne, dropshippers, boutiques qui diffusent sur plusieurs places de marché</td></tr>
 <tr><th>Modèle de prix</th><td>À l'acte, en drops (1 drop = 0,01 €), sans abonnement — voir les <a href="/tarifs/">tarifs</a></td></tr>
 <tr><th>Fournisseurs</th><td>${FOURNISSEURS.length} référencés ; import possible depuis n'importe quelle boutique en ligne</td></tr>
-<tr><th>Canaux de vente</th><td>${canaux.length} référencés, dont ${n.marketplace} places de marché ; 45 destinations branchées (Shopify, eBay, Kaufland, 41 opérateurs Mirakl, boutique du vendeur)</td></tr>
+<tr><th>Canaux de vente</th><td>314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.</td></tr>
 <tr><th>Extension</th><td><a href="${CHROME_STORE}">Chrome Web Store</a></td></tr>
 <tr><th>Contact</th><td>contact@drop-shipper.fr</td></tr>
 </tbody></table>

@@ -230,7 +230,7 @@ ${FONCTIONS.map((f) => `- **${f.titre}** — ${f.lignes[0]}`).join('\n')}
 
 - ${FOURNISSEURS.length} fournisseurs référencés, dont 3 avec connecteur API (prix et stock en temps réel)
 - ${canaux.length} canaux de vente référencés : ${n.marketplace} places de marché, ${n.comparateur} comparateurs de prix, ${n.affiliation} plateformes d'affiliation, ${n.regie} régies publicitaires, ${n.outil} outils
-- 45 destinations de publication déjà branchées, dont 41 opérateurs Mirakl
+- 314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.
 - Import d'une annonce réécrite par l'IA : 0,12 €
 - Boutiques en ligne : illimitées et incluses
 

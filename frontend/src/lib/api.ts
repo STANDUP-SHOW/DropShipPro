@@ -651,6 +651,17 @@ export const api = {
          * et les deux formats sont déjà servis.
          */
         flux: { format: 'google' | 'meta'; ou: string } | null
+        /**
+         * La voie de liaison du canal — chacun des 314 en a une : publication
+         * directe (branchée ou compte vendeur requis), flux à coller, fichier à
+         * déposer, extension, ou « pas un canal de vente » (avec la raison).
+         */
+        liaison: {
+          voie: 'api' | 'flux' | 'export' | 'extension' | 'aucune'
+          etat: 'branche' | 'compte-requis' | 'verifie' | 'famille'
+          comment: string
+          doc?: string
+        }
         /** Combien de vendeurs la veulent, et si celui-ci l'a déjà demandée. */
         demandes: number
         demandee: boolean
@@ -658,6 +669,13 @@ export const api = {
       total: number
       /** Combien de canaux un simple flux suffirait à servir. */
       aFlux: number
+      liaisons: {
+        total: number
+        parVoie: Record<'api' | 'flux' | 'export' | 'extension' | 'aucune', number>
+        parEtat: Record<'branche' | 'compte-requis' | 'verifie' | 'famille', number>
+      }
+      /** Le catalogue en CSV, à télécharger (avec le jeton) et déposer dans un back-office. */
+      exportCsv: string
       formats: Array<{ id: 'google' | 'meta'; fichier: string; label: string; aide: string }>
       boutiques: Array<{ id: string; name: string; adresses: Record<string, string> }>
     }>('/products/meta/channels'),

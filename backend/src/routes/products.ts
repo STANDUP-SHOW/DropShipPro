@@ -4,7 +4,9 @@ import archiver from 'archiver'
 import multer from 'multer'
 import path from 'path'
 import { dupliquerAnnonce } from '../services/listingDuplicate.js'
-import { fluxPour, FORMATS_FLUX } from '../services/channelFeeds.js'
+import { FORMATS_FLUX } from '../services/channelFeeds.js'
+import { liaisonPour, resumeLiaisons } from '../services/liaisonsCanaux.js'
+import { metaCsv } from '../services/productFeeds.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { sendMail } from '../services/mailer.js'
@@ -1641,13 +1643,21 @@ productsRouter.get('/meta/channels', async (req: AuthedRequest, res) => {
   const compteDemandes = new Map(demandes.map((d) => [d.canalId, d._count.canalId]))
   const demandesAMoi = new Set(miennes.map((m) => m.canalId))
 
+  void integrees
   const canaux = CANAUX.map((c) => {
-    const flux = fluxPour(c)
+    /*
+     * La voie de liaison de CHAQUE canal (services/liaisonsCanaux.ts) : API
+     * branchée ou à compte, flux à coller, fichier, extension, ou « pas un
+     * canal de vente ». Avant le 23/09/2026, seuls 45 canaux avaient un état
+     * et le reste disait « pas encore reliée » — faux pour la plupart.
+     */
+    const liaison = liaisonPour(c)
     return {
       ...c,
-      integre: integrees.has(c.label.toLowerCase()),
-      /** Le format de flux qui suffit à le nourrir, quand il en existe un. */
-      flux: flux ? { format: flux.format, ou: flux.ou } : null,
+      integre: liaison.voie === 'api' && liaison.etat === 'branche',
+      liaison,
+      /** Le format de flux qui suffit à le nourrir, quand c'est sa voie. */
+      flux: liaison.voie === 'flux' ? liaison.flux ?? null : null,
       /** Combien de vendeurs la veulent, et si celui-ci l a deja demandee. */
       demandes: compteDemandes.get(c.id) ?? 0,
       demandee: demandesAMoi.has(c.id),
@@ -1660,6 +1670,10 @@ productsRouter.get('/meta/channels', async (req: AuthedRequest, res) => {
     total: CANAUX.length,
     /** Combien de canaux un simple flux suffirait à servir. */
     aFlux: canaux.filter((c) => c.flux).length,
+    /** Les 314, comptés par voie et par état : ce qu'on peut affirmer. */
+    liaisons: resumeLiaisons(),
+    /** Le catalogue en fichier CSV (colonnes Google / Meta), à déposer dans un back-office vendeur. */
+    exportCsv: '/api/products/meta/catalogue.csv',
     formats: FORMATS_FLUX,
     boutiques: boutiques.map((b) => ({
       id: b.id,
@@ -1667,6 +1681,32 @@ productsRouter.get('/meta/channels', async (req: AuthedRequest, res) => {
       adresses: Object.fromEntries(FORMATS_FLUX.map((f) => [f.id, `${base}/${b.shopKey}/${f.fichier}`])),
     })),
   })
+})
+
+/**
+ * Le catalogue en fichier, pour les canaux qui n'acceptent pas d'adresse.
+ *
+ * Mêmes colonnes que le flux Meta (id, title, description, price, link,
+ * image_link, brand, gtin…), le dénominateur commun des imports de places de
+ * marché. Toutes les annonces prêtes du vendeur, ou celles d'une boutique
+ * (`?shop=`). Le vendeur le dépose dans son back-office ; le canal fait le
+ * rapprochement par EAN quand il en exige un.
+ */
+productsRouter.get('/meta/catalogue.csv', async (req: AuthedRequest, res) => {
+  const shopId = typeof req.query.shop === 'string' ? req.query.shop : undefined
+  const shop = shopId ? await prisma.shop.findFirst({ where: { id: shopId, userId: req.userId! } }) : null
+  if (shopId && !shop) return res.status(404).json({ error: 'Boutique introuvable.' })
+
+  const produits = await prisma.product.findMany({
+    where: { userId: req.userId!, status: 'READY', ...(shop ? { shopId: shop.id } : {}) },
+    orderBy: { updatedAt: 'desc' },
+    take: 5000,
+  })
+  const compte = await prisma.user.findUnique({ where: { id: req.userId! }, select: { shopKey: true, email: true } })
+  const cle = shop?.shopKey ?? compte?.shopKey ?? 'catalogue'
+  res.type('text/csv; charset=utf-8')
+  res.set('Content-Disposition', `attachment; filename="catalogue-${(shop?.name ?? 'dropshipper').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.csv"`)
+  res.send(metaCsv(produits.map((product) => ({ product, category: product.sourceCategory })), cle, shop?.name ?? 'DropShipper'))
 })
 
 /**

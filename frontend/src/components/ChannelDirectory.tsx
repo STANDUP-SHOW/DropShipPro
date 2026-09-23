@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, Check, Send, X, Rss, Copy } from 'lucide-react'
-import { api } from '../lib/api'
+import { Search, Check, Send, X, Rss, Copy, Download, Puzzle, KeyRound, Ban } from 'lucide-react'
+import { api, downloadWithAuth } from '../lib/api'
 
 type Data = Awaited<ReturnType<typeof api.listChannels>>
 type Canal = Data['canaux'][number]
@@ -101,6 +101,59 @@ function FluxProduit({ data }: { data: Data }) {
  * intégré, et les pastilles le disent sans détour — trois états, parce qu'il y
  * en a trois : reliée, servie par votre flux, ou pas encore branchée.
  */
+/** L'ordre d'affichage : ce qui marche aujourd'hui d'abord. */
+function rang(c: Canal): number {
+  const l = c.liaison
+  if (l.voie === 'api' && l.etat === 'branche') return 0
+  if (l.voie === 'api') return 1
+  if (l.voie === 'flux' || l.voie === 'export') return 2
+  if (l.voie === 'extension') return 3
+  return 4
+}
+
+/** La pastille d'un canal : sa voie, en un mot. */
+function Pastille({ c }: { c: Canal }) {
+  const l = c.liaison
+  if (l.voie === 'api' && l.etat === 'branche') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300">
+        <Check size={9} />
+        <span>reliée</span>
+      </span>
+    )
+  }
+  if (l.voie === 'api') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
+        <KeyRound size={9} />
+        <span>votre compte vendeur</span>
+      </span>
+    )
+  }
+  if (l.voie === 'flux' || l.voie === 'export') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] text-sky-300">
+        <Rss size={9} />
+        <span>{l.voie === 'export' ? 'fichier à déposer' : 'par votre flux'}</span>
+      </span>
+    )
+  }
+  if (l.voie === 'extension') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] text-purple-300">
+        <Puzzle size={9} />
+        <span>par l'extension</span>
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-gray-500">
+      <Ban size={9} />
+      <span>pas un canal de vente</span>
+    </span>
+  )
+}
+
 export function ChannelDirectory() {
   const [data, setData] = useState<Data | null>(null)
   const [recherche, setRecherche] = useState('')
@@ -124,12 +177,7 @@ export function ChannelDirectory() {
        * exploitables le jour même au milieu de deux cent trente qui ne le sont
        * pas.
        */
-      .sort(
-        (a, b) =>
-          Number(b.integre) - Number(a.integre) ||
-          Number(Boolean(b.flux)) - Number(Boolean(a.flux)) ||
-          a.label.localeCompare(b.label),
-      )
+      .sort((a, b) => rang(a) - rang(b) || a.label.localeCompare(b.label))
   }, [data, recherche, type])
 
   if (!data) return null
@@ -143,9 +191,20 @@ export function ChannelDirectory() {
       <h2 className="mt-12 font-bold">L'annuaire complet</h2>
       <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
         {`${data.total} canaux connus : places de marché, comparateurs, plateformes d'affiliation, régies publicitaires et outils du commerce en ligne. `}
-        <b>Être listé ici ne veut pas dire être relié.</b> Nous ne nous fermons à aucune plateforme :
-        si celle qu'il vous faut n'est pas encore branchée, demandez-la et nous la coderons.
+        <b>Chacun a sa voie de liaison</b> — {data.liaisons.parVoie.api} par publication directe
+        ({data.liaisons.parEtat.branche} branchées, {data.liaisons.parEtat['compte-requis']} qui attendent votre compte
+        vendeur), {data.liaisons.parVoie.flux} par votre flux produit, {data.liaisons.parVoie.extension} par l'extension,
+        et {data.liaisons.parVoie.aucune} qui ne sont pas des canaux de vente (nous le disons). Cliquez un canal :
+        la fenêtre dit quoi faire, et où.
       </p>
+      <button
+        type="button"
+        onClick={() => downloadWithAuth(data.exportCsv, 'catalogue-dropshipper.csv')}
+        className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium hover:bg-white/10"
+        title="Vos annonces prêtes, en CSV aux colonnes Google / Meta : à déposer dans le back-office d'une place de marché qui n'accepte pas d'adresse de flux."
+      >
+        <Download size={14} /> Télécharger mon catalogue en CSV
+      </button>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <label className="relative min-w-[14rem] flex-1">
@@ -223,23 +282,7 @@ export function ChannelDirectory() {
                     ranger avec celles qui demandent des mois de travail lui
                     cachait ce qu'il pouvait faire le jour même.
                   */}
-                  {c.integre ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300">
-                      <Check size={9} />
-                      <span>reliée</span>
-                    </span>
-                  ) : c.flux ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-sky-300">
-                      <Rss size={9} />
-                      <span>par votre flux</span>
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-gray-500">
-                      {c.demandes > 0
-                        ? `demandée par ${c.demandes} vendeur${c.demandes > 1 ? 's' : ''}`
-                        : 'pas encore reliée'}
-                    </span>
-                  )}
+                  <Pastille c={c} />
                 </span>
               </button>
             </li>
@@ -304,7 +347,24 @@ export function ChannelDirectory() {
                   {data.types.find((t) => t.id === demande.type)?.aide}
                 </p>
                 <p className="mt-3 rounded-xl border border-sky-400/30 bg-sky-400/10 p-3 text-xs leading-relaxed text-sky-100">
-                  <b>Rien à coder de notre côté : ce canal lit un flux produit.</b> {demande.flux.ou}
+                  <b>Rien à coder de notre côté : ce canal lit un flux produit.</b> {demande.liaison.comment}
+                  {demande.liaison.etat === 'famille' ? (
+                    <>
+                      {' '}
+                      <i>
+                        C'est la voie de sa famille : nous n'avons pas lu la documentation de ce canal une par une. S'il
+                        exige son propre gabarit, cliquez « Je veux » ci-dessous et nous l'ajoutons à nos formats.
+                      </i>
+                    </>
+                  ) : null}
+                  {demande.liaison.doc ? (
+                    <>
+                      {' '}
+                      <a href={demande.liaison.doc} target="_blank" rel="noreferrer noopener" className="underline">
+                        Espace vendeur
+                      </a>
+                    </>
+                  ) : null}
                 </p>
                 {data.boutiques.length ? (
                   <div className="mt-3 space-y-2">
@@ -337,15 +397,31 @@ export function ChannelDirectory() {
                   </p>
                 )}
               </>
+            ) : demande.liaison.voie === 'aucune' ? (
+              <p className="mt-4 rounded-xl border border-white/10 bg-black/25 p-3 text-xs leading-relaxed text-gray-300">
+                <b>Ce n'est pas un canal de vente.</b> {demande.liaison.comment}
+              </p>
             ) : (
               <>
                 <p className="mt-4 text-xs leading-relaxed text-gray-400">
                   {data.types.find((t) => t.id === demande.type)?.aide}
                 </p>
-                <p className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3 text-xs leading-relaxed text-gray-300">
-                  Ce canal n'est pas encore branché. Dites-nous que vous en avez besoin : c'est ce
-                  qui décide de l'ordre dans lequel nous les codons. Nous ne refusons aucune
-                  plateforme par principe.
+                <p
+                  className={
+                    demande.liaison.voie === 'api'
+                      ? 'mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100'
+                      : 'mt-3 rounded-xl border border-purple-400/30 bg-purple-400/10 p-3 text-xs leading-relaxed text-purple-100'
+                  }
+                >
+                  {demande.liaison.comment}
+                  {demande.liaison.doc ? (
+                    <>
+                      {' '}
+                      <a href={demande.liaison.doc} target="_blank" rel="noreferrer noopener" className="underline">
+                        Espace vendeur
+                      </a>
+                    </>
+                  ) : null}
                 </p>
 
                 {/*

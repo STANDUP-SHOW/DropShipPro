@@ -89,17 +89,16 @@ console.log("\nCe qu'on ne doit surtout pas annoncer")
   )
 
   /*
-   * Les régies servies le sont par leur gestionnaire de catalogue (publicités
-   * dynamiques) — celles qui n'ont pas de catalogue documenté ne doivent
-   * jamais hériter d'un flux par accident.
+   * Les régies sont une famille à flux depuis le 23/09/2026 : une publicité
+   * dynamique pioche dans un catalogue, c'est structurel (Criteo, AdRoll, Bing
+   * Product Ads, Google Local lisent tous un flux). Les exceptions vérifiées
+   * gardent leur format (Meta en CSV), les autres reçoivent Google Shopping.
    */
-  const regiesServies = CANAUX.filter((c) => c.type === 'regie' && fluxPour(c) !== null)
-  const horsListe = regiesServies.filter((c) => !IDS_EXCEPTIONS_FLUX.includes(c.id))
-  verifier(
-    'seules les régies à catalogue vérifié sont servies',
-    horsListe.length === 0,
-    regiesServies.map((c) => c.label).join(', '),
-  )
+  const regies = CANAUX.filter((c) => c.type === 'regie')
+  verifier('toute régie est servie par un flux', regies.every((c) => fluxPour(c) !== null), regies.filter((c) => !fluxPour(c)).map((c) => c.label).join(', '))
+  const metaEnCsv = ['instagram', 'facebookads', 'snapchat'].every((id) => fluxPour(CANAUX.find((c) => c.id === id)!)?.format === 'meta')
+  verifier('les régies de la famille Meta gardent le CSV Meta', metaEnCsv)
+  verifier('une régie hors exception reçoit Google Shopping', fluxPour(CANAUX.find((c) => c.id === 'criteo')!)?.format === 'google')
 }
 
 // --- Les deux formats existent vraiment --------------------------------------
@@ -130,10 +129,13 @@ console.log("\nCe que le vendeur voit")
     /par votre flux/.test(ecran),
     'ni « reliée » ni « pas encore reliée » : c’est un troisième état',
   )
+  // Le tri par voie (23/09/2026) : branchées, compte requis, flux et fichier,
+  // extension, puis ce qui n'est pas un canal de vente.
   verifier(
     'et il remonte au-dessus de ce qui n’est pas branché',
-    /Number\(Boolean\(b\.flux\)\) - Number\(Boolean\(a\.flux\)\)/.test(ecran),
+    /function rang\(c: Canal\)/.test(ecran) && /l\.voie === 'flux' \|\| l\.voie === 'export'\) return 2/.test(ecran) && /return 4/.test(ecran),
   )
+  verifier("les cinq voies ont leur pastille", ['reliée', 'votre compte vendeur', 'par votre flux', "par l'extension", 'pas un canal de vente'].every((t) => ecran.includes(t)))
 }
 
 console.log(echecs ? `\n${echecs} échec(s).` : '\nTout passe.')

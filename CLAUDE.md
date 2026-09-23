@@ -1098,6 +1098,32 @@ Trois conséquences, toutes appliquées :
   n'ont pas d'adresse. Cache 1 h. Les noms affichés viennent de la base
   (`categorieNom`, `themeNom`), pas d'une relecture d'`agents.json`.
 
+- **Chaque canal de l'annuaire a une VOIE de liaison — plus jamais « 45
+  branchés » (23/09/2026).** Max : « que nous manque-t-il pour affirmer que nous
+  proposons une liaison avec 314 canaux ? » Réponse trouvée dans le code :
+  l'annuaire (`channelDirectory.ts`, engendré depuis le dossier des logos) ne
+  portait qu'un nom, un logo et une famille ; « branché » n'avait jamais été
+  défini pour un comparateur, une régie ou une place de marché sans API. Les
+  314 logos viennent d'un gestionnaire de flux, qui les sert TOUS par un flux
+  produit : c'est la voie de la majorité, et nous servons déjà le format
+  Google Shopping. `services/liaisonsCanaux.ts` donne à chaque canal une voie
+  (`api` branché ou compte-requis, `flux`, `export`, `extension`, `aucune`) et
+  un état (`branche`, `compte-requis`, `verifie` = lu dans sa documentation,
+  `famille` = voie de sa famille, et l'écran le dit). Résultat : 51 api (45
+  branchées, 6 à compte), 234 flux, 2 extension, 27 « pas un canal de vente »
+  (outils d'avis, d'analyse, sites fermés — dits tels quels). Banc
+  `check-liaisons-canaux.ts` : toute clé est un canal réel (le premier
+  `channelFeeds` portait des noms fantômes), chaque `aucune` a sa raison, chaque
+  destination LIVE a son canal. Les rapprochements de libellés qui manquaient
+  (« Fnac Marketplace » / `fnac`, « Galeria Inno » / deux logos…) sont dans
+  `PLATEFORME_VERS_CANAL`. Les régies sont une famille à flux (une publicité
+  dynamique pioche dans un catalogue). `GET /products/meta/catalogue.csv` : le
+  catalogue en fichier pour les canaux qui n'acceptent pas d'adresse. La phrase
+  juste, la même dans l'accueil, la FAQ, llms.txt et l'annuaire : « 314 canaux,
+  une voie de liaison pour chacun ». Reste à faire, canal par canal : lire les
+  114 `famille` pour les passer `verifie`, et les API restantes avec un compte
+  vendeur (Amazon d'abord).
+
 - **« Déployer = pousser sur main » n'est vrai que si Vercel écoute (23/09/2026).**
   Trois pushs de suite (bd4e721, c0e7e53, 17ee921) n'ont déclenché AUCUN
   build Vercel — aucune trace, ni en file ni en erreur — pendant que Railway

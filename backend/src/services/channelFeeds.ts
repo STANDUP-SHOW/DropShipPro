@@ -41,7 +41,9 @@ const META: Omit<FluxCanal, 'ou'> = { format: 'meta', fichier: 'feed/meta.csv' }
  * d'affiliation fait la même chose pour ses éditeurs. C'est structurel, pas une
  * liste à tenir à jour.
  */
-const FAMILLES_A_FLUX: TypeCanal[] = ['comparateur', 'affiliation']
+// Les régies aussi (23/09/2026) : une publicité dynamique pioche dans un catalogue,
+// c'est structurel — Criteo, AdRoll, Bing Product Ads, Google Local lisent tous un flux.
+const FAMILLES_A_FLUX: TypeCanal[] = ['comparateur', 'affiliation', 'regie']
 
 /**
  * Les exceptions vérifiées, par identifiant d'annuaire.
