@@ -328,6 +328,8 @@ Allow: /
 ${ROBOTS_IA.map(([agent, qui]) => `# ${qui}\nUser-agent: ${agent}\nAllow: /`).join('\n\n')}
 
 Sitemap: ${SITE}/sitemap.xml
+# Les analyses de marché des agents, une page par rapport, servies par l'API (routes/analysesPubliques.ts).
+Sitemap: ${SITE}/analyses/sitemap.xml
 
 # Fiche d'identité lisible par les assistants conversationnels
 # (convention llms.txt) : ce que fait ${NOM}, en un seul fichier.

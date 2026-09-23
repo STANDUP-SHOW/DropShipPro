@@ -33,7 +33,8 @@ Trois sources, et nous n'en maîtrisons directement qu'une :
 | `robots.txt` : 17 robots d'assistants nommés | `build-geo.cjs` | `User-agent: *` les couvrait ; les nommer protège d'un futur `Disallow` trop large. |
 | `llms.txt` / `llms-full.txt` | `build-llms.cjs` (15/09) | La carte et le détail, en texte. |
 | Clé IndexNow + script d'annonce | `build-geo.cjs`, `scripts/indexnow.cjs` | Bing, Yandex, Seznam, Naver. |
-| Banc | `backend/check-geo.ts` | Les prix cités dans la FAQ sont ceux de `tarifs.ts` ; l'accueil construite porte texte et schéma. |
+| Pages `/analyses/…` : une page par rapport des agents (analyse, produits gagnants sans adresse fournisseur ni prix d'achat, prompts), archive par catégorie, `/analyses/sitemap.xml` | `backend/src/routes/analysesPubliques.ts`, `services/analysesPubliques.ts` | Le seul contenu du site qui se renouvelle chaque jour — jusqu'à 48 pages par jour quand les agents tournent. Source : `rapports.db`, commitée. |
+| Banc | `backend/check-geo.ts`, `backend/check-analyses-publiques.ts` | Les prix cités dans la FAQ sont ceux de `tarifs.ts` ; l'accueil construite porte texte et schéma. |
 
 Après chaque déploiement qui change des pages publiques :
 

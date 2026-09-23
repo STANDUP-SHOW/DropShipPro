@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/analyses",
+      "destination": "https://dropshippro-production.up.railway.app/analyses/"
+    },
+    {
+      "source": "/analyses/:path*",
+      "destination": "https://dropshippro-production.up.railway.app/analyses/:path*"
+    },
+    {
       "source": "/b/:path*",
       "destination": "https://dropshippro-production.up.railway.app/b/:path*"
     },
@@ -12,6 +20,9 @@
       "source": "/api/aliexpress/:path*",
       "destination": "https://dropshippro-production.up.railway.app/api/aliexpress/:path*"
     },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

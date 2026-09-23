@@ -81,8 +81,18 @@ export function nombreFr(texte: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/*
+ * L'en-tête se ferme par « --- »… ou pas. Constaté le 23/09/2026 sur 51 des 61
+ * rapports écrits par l'agent local (Ollama) : « --- », une ligne vide, les
+ * champs, une ligne vide, puis « ## Analyse » — jamais le second « --- ». Les
+ * champs sont tous là ; refuser 51 rapports pour un tiret manquant laissait
+ * Fresh news vide. L'en-tête finit donc au « --- » fermant s'il existe, sinon
+ * à la première ligne vide (ou au premier titre) qui suit au moins un champ.
+ */
 function lireEnTete(md: string): { champs: Record<string, string>; reste: string } {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(md)
+  let m: RegExpExecArray | null = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(md)
+  if (m && !/^\s*\w[\w-]*\s*:/m.test(m[1])) m = null
+  if (!m) m = /^---\r?\n\s*((?:\w[\w-]*\s*:[^\n]*\r?\n)+)(?=\s*\r?\n|\s*#)/.exec(md)
   if (!m) throw new RapportInvalide("En-tête YAML absent : le rapport doit commencer par '---'.")
   const champs: Record<string, string> = {}
   for (const ligne of m[1].split(/\r?\n/)) {

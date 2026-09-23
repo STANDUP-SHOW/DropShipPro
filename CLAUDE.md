@@ -1063,6 +1063,40 @@ Trois conséquences, toutes appliquées :
   clé). Ce qu'aucun fichier ne remplace — annuaires, comptes sociaux, pages
   écrites par d'autres — est dans `docs/referencement-ia.md`, textes prêts à
   coller compris.
+
+- **Les rapports des agents vivent dans `backend/rapports.db` (SQLite livrée dans
+  le dépôt), PAS dans la table Prisma `MarketReport` (23/09/2026).** Depuis le
+  19/09, une autre session a branché Fresh news, Analyses, Gagnants et Prompts
+  sur `/api/reports/*` (`routes/reportsPublic.ts`, `services/reportsDb.ts`,
+  classe `ReportQuery`, lecture seule) ; la base est remplie par
+  `importer-aimarket.cjs` depuis `aiMarket/*.json` (agent MarketSpy) et
+  **committée** : un rapport n'est publié que quand la base est commitée et
+  déployée. J'ai perdu une heure à déposer 47 rapports Markdown dans
+  `MarketReport` que plus rien ne lit — vidée depuis, script retiré. La règle :
+  **avant de toucher aux rapports, `grep -rn "reports/" frontend/src/lib/api.ts`
+  dit quelle source le site lit.** La table `MarketReport` et
+  `POST /api/agent/market-reports` restent en place (contrat des `.md`,
+  `lireRapport`), mais la production ne les lit plus. `lireEnTete` tolère
+  désormais un en-tête sans `---` fermant (51 fichiers sur 61 l'oubliaient).
+
+  **Les pages publiques `/analyses/…`** (`routes/analysesPubliques.ts`,
+  rendu pur dans `services/analysesPubliques.ts`, banc
+  `check-analyses-publiques.ts`) lisent `ReportQuery` : index, archive par
+  catégorie, une page par rapport rayon (analyse + produits gagnants) et par
+  rapport marketing (prompts image/vidéo), `/analyses/sitemap.xml` déclaré
+  dans `robots.txt` et lu par `indexnow.cjs`. Réécriture Vercel `/analyses/*`
+  → Railway (comme `/b/`). **Ligne publique / privée** : analyse et produits
+  (titre, fournisseur, prix de vente conseillé, pourquoi) sont publics ;
+  **jamais l'adresse fournisseur ni le prix d'achat** (c'est ce que le compte à
+  500 drops achète), ni la marge (MarketSpy l'écrit en euros, l'ancien agent en
+  pour-cent, la base ne dit pas lequel). Le corps d'un rapport rayon Markdown
+  contient le tableau AVEC les adresses : il n'est jamais rendu tel quel. Piège
+  attrapé sur la première page servie : un rapport MarketSpy ne porte pas son
+  tableau dans le corps, la page titrait « 20 produits gagnants » et n'en
+  montrait aucun — le tableau bridé est ajouté quand le corps ne le porte pas.
+  Les lignes aux identifiants fautifs (« téléphonie », « maison decoration »)
+  n'ont pas d'adresse. Cache 1 h. Les noms affichés viennent de la base
+  (`categorieNom`, `themeNom`), pas d'une relecture d'`agents.json`.
 - **Le chemin Google de notre référentiel est un RAYON, pas un pivot vers une
   feuille — et un banc a validé un correctif pendant que la panne continuait.**
   Le 15/09/2026, mini-PC, SSD, tables de mixage et souris étaient tous rangés

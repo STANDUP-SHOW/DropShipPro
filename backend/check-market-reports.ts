@@ -81,6 +81,20 @@ exige(lu.produits[0].import === 'extension' && lu.produits[1].import === 'api', 
 exige(lu.produits[1].fournisseur === 'CJ Dropshipping' && lu.produits[1].url === 'https://exemple.test/p/2', 'fournisseur et adresse sont lus')
 exige(lu.produits[19].rang === 20, 'le rang suit la liste')
 
+// L'en-tête sans « --- » fermant, tel que l'agent local l'écrit (23/09/2026) : lu quand même.
+const sansFermeture = rayon.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/, '---\n\n$1\n\n')
+exige(!sansFermeture.includes('\n---\n'), 'le cas de test a bien perdu son « --- » fermant')
+const luSans = lireRapport(sansFermeture)
+exige(luSans.titre === lu.titre && luSans.produits.length === 20 && luSans.day === '2026-09-17', "un en-tête sans « --- » fermant est lu comme l'autre")
+exige(luSans.body.startsWith('## '), "le corps commence à l'analyse, pas à l'en-tête")
+let sansEnTete = false
+try {
+  lireRapport('## Analyse\n' + 'x'.repeat(300))
+} catch (e) {
+  sansEnTete = e instanceof RapportInvalide
+}
+exige(sansEnTete, 'un rapport sans en-tête du tout reste refusé')
+
 // Les colonnes se lisent par NOM : un ordre différent passe, une colonne en moins non.
 const autreOrdre = `| Fournisseur | Titre | Import | URL fournisseur | Prix vente conseillé € | Prix achat € |
 |---|---|---|---|---|---|

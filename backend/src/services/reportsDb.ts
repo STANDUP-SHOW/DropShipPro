@@ -863,6 +863,27 @@ export class ReportQuery {
     return { rayonSansCategorie: false, jours, prompts }
   }
 
+  /**
+   * Tous les rapports, allégés, pour le sitemap et les archives publiques
+   * (/analyses/). Sans limite : 48 rapports par jour, un sitemap qui en
+   * oublierait ferait disparaître des pages déjà indexées.
+   */
+  getPourSitemap() {
+    return (
+      this.db
+        .prepare('SELECT id, date, type, categorie, theme, titre, updated_at, created_at FROM reports ORDER BY date DESC, categorie ASC')
+        .all() as any[]
+    ).map((row) => ({
+      id: String(row.id),
+      day: String(row.date),
+      type: row.type as 'rayon' | 'marketing',
+      categorie: String(row.categorie),
+      theme: String(row.theme),
+      titre: String(row.titre ?? ''),
+      updatedAt: new Date(row.updated_at ?? row.created_at ?? `${row.date}T06:00:00Z`),
+    }))
+  }
+
   close() {
     this.db.close()
   }

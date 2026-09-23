@@ -10,6 +10,7 @@ import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
 import { betaRouter } from './routes/beta.js'
 import { vitrineRouter } from './routes/vitrine.js'
+import { analysesPubliquesRouter } from './routes/analysesPubliques.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
 import { dropshopRouter } from "./routes/dropshop.js"
@@ -152,6 +153,8 @@ app.use('/api/beta', betaRouter)
 app.use('/api/public', publicRouter)
 // Les vitrines vivent hors de /api : c est une page, pas une ressource d API.
 app.use('/b', vitrineRouter)
+// Les rapports des agents en pages publiques, réécrites par Vercel sous www.drop-shipper.fr/analyses/.
+app.use('/analyses', analysesPubliquesRouter)
 
 /*
  * Le dernier filet : une erreur qui remonte jusqu'ici répond, elle ne pend pas.

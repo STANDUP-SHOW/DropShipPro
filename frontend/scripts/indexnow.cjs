@@ -30,8 +30,16 @@ async function main() {
     process.exit(1)
   }
 
-  const sitemap = await (await fetch(`${SITE}/sitemap.xml`)).text()
-  const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])
+  // Deux sitemaps : les pages du site (Vercel) et les analyses des agents (API, une page par rapport).
+  const urls: string[] = []
+  for (const chemin of ['/sitemap.xml', '/analyses/sitemap.xml']) {
+    const reponse = await fetch(`${SITE}${chemin}`)
+    if (!reponse.ok) {
+      console.error(`${chemin} : ${reponse.status} — ignoré.`)
+      continue
+    }
+    urls.push(...[...(await reponse.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]))
+  }
   // Les deux fichiers des assistants ne sont pas dans le sitemap (ce ne sont pas des pages), mais ils s'annoncent.
   urls.push(`${SITE}/llms.txt`, `${SITE}/llms-full.txt`)
   console.log(`${urls.length} adresses lues dans le sitemap en ligne.`)
