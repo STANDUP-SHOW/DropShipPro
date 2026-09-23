@@ -29,6 +29,7 @@ Trois sources, et nous n'en maîtrisons directement qu'une :
 | Accueil pré-rendue dans `#root` | `frontend/scripts/build-geo.cjs` | Un robot lit une vraie page ; React la remplace au montage. Seulement sur `/`. |
 | Graphe schema.org : Organization, WebSite, SoftwareApplication (7 offres réelles), FAQPage | idem | Les faits sous une forme que les moteurs n'ont pas à deviner. **Pas d'`aggregateRating`** : aucune note n'est inventée. |
 | `/faq/`, `/tarifs/`, `/a-propos/` | idem | Des pages de faits citables : une question → sa réponse, une action → son prix. |
+| `/fonctions/<slug>/` : onze pages, une par thème de l'accueil (texte long, points, offre) | `build-geo.cjs`, table `src/data/accueil-themes.json` | La même table que la page d'accueil React : un accueil pour les visiteurs, le même pour les robots. |
 | FAQ en une table | `frontend/scripts/geo-faq.cjs` | Lue par `llms-full.txt`, l'accueil et `/faq/`. Chaque réponse tient seule. |
 | `robots.txt` : 17 robots d'assistants nommés | `build-geo.cjs` | `User-agent: *` les couvrait ; les nommer protège d'un futur `Disallow` trop large. |
 | `llms.txt` / `llms-full.txt` | `build-llms.cjs` (15/09) | La carte et le détail, en texte. |

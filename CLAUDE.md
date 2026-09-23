@@ -1098,6 +1098,23 @@ Trois conséquences, toutes appliquées :
   n'ont pas d'adresse. Cache 1 h. Les noms affichés viennent de la base
   (`categorieNom`, `themeNom`), pas d'une relecture d'`agents.json`.
 
+- **« Déployer = pousser sur main » n'est vrai que si Vercel écoute (23/09/2026).**
+  Trois pushs de suite (bd4e721, c0e7e53, 17ee921) n'ont déclenché AUCUN
+  build Vercel — aucune trace, ni en file ni en erreur — pendant que Railway
+  déployait normalement. Vingt minutes perdues à attendre un déploiement qui
+  n'existait pas, en cherchant la cause dans le code. Le réflexe : après un
+  push, **vérifier que Vercel a bien créé un déploiement** (outil MCP
+  `list_deployments` sur `prj_xBa58FSEtTrtw8HxCafkMuFDzI8P`, ou la page
+  Deployments), pas seulement attendre le site. Sans build : Deployments › « … »
+  › Create Deployment › `main` › Deploy to Production — le bouton reste sur
+  « Loading… » mais le déploiement part. La cause côté crochet GitHub → Vercel
+  n'est pas trouvée (statut Vercel au vert, intégration « Connected »).
+
+  Attrapé au passage : **une réécriture Vercel `:path*` ne prend pas une adresse
+  à barre finale** — `/analyses/informatique` atteignait Railway,
+  `/analyses/informatique/` (la canonique) tombait sur `index.html`. Source
+  `/analyses/(.*)` avec `$1`.
+
 - **L'accueil est une table de thèmes, lue trois fois (23/09/2026).** Refait
   « à la manière de Channable » sur la demande de Max : un thème par section
   (gros titre, courte description, illustration, fond alterné), un diaporama
