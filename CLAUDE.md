@@ -1097,6 +1097,21 @@ Trois conséquences, toutes appliquées :
   Les lignes aux identifiants fautifs (« téléphonie », « maison decoration »)
   n'ont pas d'adresse. Cache 1 h. Les noms affichés viennent de la base
   (`categorieNom`, `themeNom`), pas d'une relecture d'`agents.json`.
+
+- **L'accueil est une table de thèmes, lue trois fois (23/09/2026).** Refait
+  « à la manière de Channable » sur la demande de Max : un thème par section
+  (gros titre, courte description, illustration, fond alterné), un diaporama
+  d'arrivée qui envoie sur la section, chaque section vers `/fonctions/<slug>/`
+  (« plus d'informations ») et vers son offre. La source est
+  `frontend/src/data/accueil-themes.json` : `Index.tsx` (React),
+  `build-geo.cjs` (accueil pré-rendue pour les robots + les onze pages
+  `/fonctions/`) la lisent tous les deux — un texte changé d'un seul côté
+  ferait deux accueils. Les chiffres y sont ceux du registre (314 canaux, 187
+  places de marché, 65 comparateurs, 38 fournisseurs — pas les « 350 / 180 /
+  25 / 35 » de mémoire). Les images sont celles de Max, attendues dans
+  `frontend/public/images/accueil/<slug>.jpg` ; tant qu'elles manquent,
+  `IllustrationTheme` (dégradé + pictogramme) tient la place et aucune image
+  cassée ne s'affiche (`ImageOuRepli`, `onerror` sur les pages statiques).
 - **Le chemin Google de notre référentiel est un RAYON, pas un pivot vers une
   feuille — et un banc a validé un correctif pendant que la panne continuait.**
   Le 15/09/2026, mini-PC, SSD, tables de mixage et souris étaient tous rangés

@@ -1,0 +1,175 @@
+{
+  "_commentaire": "Les thèmes de la page d'accueil, dans l'ordre d'affichage. UNE source pour trois sorties : la page React (Index.tsx), la version pré-rendue pour les robots et les pages /fonctions/<slug>/ (build-geo.cjs). Les chiffres recopient seo-channels.cjs, build-llms.cjs et tarifs.ts : un chiffre changé là-bas se change ici (le banc check-geo.ts compare). `image` : /images/accueil/<slug>.jpg, déposée par Max ; tant qu'elle manque, la page montre une illustration de repli.",
+  "hero": {
+    "titre": "Une seule plateforme pour tout faire avec l'IA",
+    "sousTitre": "Pour en faire beaucoup moins, et en vendre beaucoup plus.",
+    "texte": "DropShipper IA prend un produit n'importe où sur le web, en fait une annonce prête à vendre, la publie sur vos boutiques et vos places de marché, et laisse ses agents faire le reste : analyses de marché, visuels, publicités, réseaux sociaux. Sans abonnement : vous ne payez que ce que vous faites."
+  },
+  "themes": [
+    {
+      "slug": "scraping-produits",
+      "eyebrow": "Relevé de produits",
+      "titre": "Prenez n'importe quel produit, n'importe où",
+      "accroche": "Extension Chrome, adresse collée ou lot entier : toutes les photos, tout le texte, le prix, les variantes, le code-barres et les avis partent vers l'IA qui compose votre annonce.",
+      "points": [
+        "Un clic sur la fiche du fournisseur avec l'extension Chrome — même sur AliExpress, Temu ou Shein, qui construisent leur page en JavaScript.",
+        "Une adresse collée suffit pour les sites lisibles par un serveur.",
+        "Un lot entier depuis le panneau latéral : vous naviguez de fiche en fiche, tout part en une fois, réécrit à moitié prix.",
+        "Photos triées (bannières, vignettes de recommandation et panier écartés), prix converti en euros, EAN vérifié, avis d'acheteurs relevés."
+      ],
+      "detail": "Le relevé est la première brique, et c'est celle où les autres outils perdent : un produit importé sans ses variantes, sans ses vraies photos ou sans prix n'est pas une annonce, c'est un brouillon à refaire. L'extension Chrome de DropShipper IA lit la page telle que vous la voyez — après que le site a chargé son prix et sa galerie — et le serveur trie ce qu'il reçoit : les photos de produit gardées, les bannières, vignettes de recommandation et articles du panier écartés, le prix ramené en euros au taux du jour, le code EAN vérifié par sa clé de contrôle, les avis d'acheteurs relevés avec leur note. Trente-huit fournisseurs sont documentés avec leurs conditions réelles ; les autres boutiques passent par l'adresse de la fiche ou par l'extension.",
+      "image": "/images/accueil/scraping-produits.jpg",
+      "offre": { "label": "Installer l'extension Chrome", "href": "https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk" }
+    },
+    {
+      "slug": "fournisseurs",
+      "eyebrow": "Acquisition",
+      "titre": "38 fournisseurs, avec leurs vraies conditions",
+      "accroche": "AliExpress, Temu, CJ Dropshipping, BigBuy, vidaXL, Printful, SUPER DELIVERY, reichelt… Pour chacun : d'où part la marchandise, par où passe l'import, et ce qui vous surprendra.",
+      "points": [
+        "Trois fournisseurs reliés par API : prix et stock en temps réel, commande déposée chez eux.",
+        "Pour chaque fournisseur, le mode d'import qui marche vraiment : adresse, extension, ou les deux.",
+        "Ce que leurs conditions écrivent — dropshipping autorisé ou non, photos réutilisables ou non, douane, délais — lu sur leurs pages, pas deviné.",
+        "Comparaison fournisseurs : pour une même référence, ce que chacun demande, et la marge que cela laisse."
+      ],
+      "detail": "Un fournisseur n'est pas qu'un catalogue : c'est un pays d'expédition, un délai, une douane, et des conditions d'utilisation que personne ne lit — jusqu'au jour où un compte est fermé pour avoir republié des photos interdites. L'annuaire de DropShipper IA documente trente-huit fournisseurs avec ce qui compte pour un vendeur, vérifié sur leurs propres pages : SUPER DELIVERY ne fait pas de dropshipping et interdit la reprise des photos avant achat ; reichelt elektronik vend en détaillant, port à chaque commande ; AliExpress annonce des délais qui comptent rarement le dédouanement. Trois fournisseurs sont reliés par leur API officielle — AliExpress, BigBuy, CJ Dropshipping — pour remonter prix et stock en temps réel et déposer la commande sans ressaisie.",
+      "image": "/images/accueil/fournisseurs.jpg",
+      "offre": { "label": "Voir les fournisseurs", "href": "/register" }
+    },
+    {
+      "slug": "annonces-ia",
+      "eyebrow": "Annonces",
+      "titre": "Des annonces reconstruites et optimisées par l'IA",
+      "accroche": "Titre en trois longueurs, description, arguments, attributs, mots-clés, catégorie : l'IA réécrit tout en français, à partir de ce que la fiche dit vraiment — jamais inventé.",
+      "points": [
+        "Un titre par canal : Amazon veut soixante caractères au moins, Leboncoin coupe à cinquante.",
+        "Attributs structurés que les places de marché transforment en filtres ; genre, état et EAN à leur place.",
+        "Catégorie trouvée sans appel au modèle pour 98 % des annonces, et apprise de vos corrections.",
+        "Sans matière, pas d'invention : une fiche sans description reste en brouillon plutôt que de recevoir des caractéristiques imaginées."
+      ],
+      "detail": "Une annonce inventée est pire qu'une annonce absente : elle a l'air bonne, elle est publiée, et ce sont des affirmations commerciales fausses au nom du vendeur. DropShipper IA mesure la matière de la fiche avant d'appeler le modèle, écarte les accroches SEO des fournisseurs (« Trouvez des offres incroyables… »), et n'écrit que ce que la fiche permet d'écrire. Le résultat est complet : titre court, moyen et long, description, cinq arguments de vente, huit attributs, douze mots-clés, méta-titre et méta-description, catégorie rangée dans un référentiel de 24 rayons et 224 sous-catégories qui apprend de vos corrections. Chaque canal reçoit ensuite la version qui lui convient, et le moteur de conformité dit, avant de publier, ce qui manque pour Kaufland, Mirakl ou eBay.",
+      "image": "/images/accueil/annonces-ia.jpg",
+      "offre": { "label": "Importer une première annonce — 120 drops offerts", "href": "/register" }
+    },
+    {
+      "slug": "dropshop-ia",
+      "eyebrow": "DropShop IA",
+      "titre": "Votre boutique, écrite par l'IA — et la marketplace qui va avec",
+      "accroche": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique, responsive, avec panier, commande, emails et paiement Stripe sur votre compte. 3,50 €, une seule fois, à vie.",
+      "points": [
+        "Trois directions proposées en une minute, une boutique générée en trois — puis modifiée par simples demandes, dix comprises.",
+        "Les couleurs de votre logo deviennent la gamme du site ; matière, profondeur, mouvement : le niveau d'une agence.",
+        "Catalogue vivant, avis clients, EAN, flux Google Shopping et Meta : tout est branché.",
+        "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews, DropMarket — la place de marché de toutes les boutiques DropShop."
+      ],
+      "detail": "DropShop IA ne choisit pas un thème dans un catalogue : le modèle écrit la page entière — design, CSS, écrans — à partir de votre description et des couleurs de votre logo, puis un vérificateur la parcourt comme un visiteur (accueil, catégorie, fiche, panier, commande) et fait corriger ce qui manque avant que vous la voyiez. La logique de commerce, elle, ne s'écrit jamais : catalogue, panier, commande, paiement et confirmation vivent dans un moteur commun, donc un panier DropShop ne peut pas « ne plus marcher ». Le paiement va directement sur votre compte Stripe. 350 drops (3,50 €) payés une seule fois, hébergement, trafic et dix modifications compris, sans aucune mention DropShipper sur la boutique. Des extensions s'ajoutent en drops, comme les apps d'une boutique Shopify : le Back Office indépendant est disponible ; DropBank (accepter les drops), DropSEO, DropReviews, Dropshop Cloud et DropMarket — la marketplace géante de toutes les boutiques DropShop — arrivent.",
+      "image": "/images/accueil/dropshop-ia.jpg",
+      "offre": { "label": "Créer ma boutique", "href": "/register" }
+    },
+    {
+      "slug": "visuels-ia",
+      "eyebrow": "Photos, images et vidéos publicitaires",
+      "titre": "Des visuels et des publicités à vos couleurs",
+      "accroche": "Photos en situation, publicités image avec accroche écrite par l'IA, prompts vidéo prêts à l'emploi — composés dans la charte de votre logo, jamais dans la nôtre.",
+      "points": [
+        "Photo en situation à partir de la photo du fournisseur : le produit reste celui du colis, le décor change.",
+        "Publicité composée : accroche à angle imposé (problème, bénéfice, preuve, urgence…), palette, mise en page et typographie tirées de votre logo, contraste vérifié.",
+        "Prompts vidéo et image par catégorie, livrés chaque jour par les analyses marketing.",
+        "Votre filigrane posé à l'export sur chaque photo, logo ou texte, dans le coin que vous choisissez."
+      ],
+      "detail": "Un visuel qui ne ressemble pas à votre marque est un visuel que vous jetez. DropShipper IA lit les couleurs de votre logo et en tire la charte de chaque publicité : palette, mise en page, typographie, et le texte du bouton dont le contraste est mesuré, pas deviné. L'accroche est écrite par le modèle avec un angle différent à chaque demande, pour que trois publicités du même produit ne soient pas trois fois la même image. Les photos en situation gardent le produit tel qu'il est — le décor seul change, dans les tons de la marque. Et chaque jour, les analyses marketing livrent des prompts d'images et de vidéos par catégorie, au format de chaque réseau (9:16 TikTok, 4:5 Instagram, 16:9 LinkedIn), à coller dans le générateur de votre choix.",
+      "image": "/images/accueil/visuels-ia.jpg",
+      "offre": { "label": "Générer un visuel", "href": "/register" }
+    },
+    {
+      "slug": "reseaux-sociaux",
+      "eyebrow": "Réseaux sociaux",
+      "titre": "Publiez vos produits sur vos réseaux, depuis le même endroit",
+      "accroche": "Facebook, Instagram et les autres, en organique : le visuel, l'accroche et le lien partent d'un clic, sans jamais rejouer vos mots de passe.",
+      "points": [
+        "Raccordement par une passerelle, jamais en direct : vos comptes restent à vous.",
+        "Instagram Shopping et la boutique Facebook alimentés par un flux catalogue relu plusieurs fois par jour.",
+        "Analyse réseaux par produit : ce qui se dit, ce qui se vend, les publicités qui tournent.",
+        "Un double clic ne publie pas deux fois."
+      ],
+      "detail": "Les réseaux sociaux sont un canal de vente, pas seulement de visibilité : Instagram Shopping et la boutique Facebook lisent un flux catalogue que DropShipper IA tient à jour, et chaque annonce publiée sur votre site y remonte toute seule. Pour la publication organique, la plateforme passe par une passerelle qui valide les comptes contre votre profil et jamais contre un autre client, avec une clé d'idempotence par envoi. Les agents marketing analysent, pour un produit donné, ce que les réseaux en disent et quelles publicités concurrentes tournent, et livrent chaque jour des angles et des prompts par catégorie.",
+      "image": "/images/accueil/reseaux-sociaux.jpg",
+      "offre": { "label": "Relier mes réseaux", "href": "/register" }
+    },
+    {
+      "slug": "diffusion",
+      "eyebrow": "Diffusion",
+      "titre": "314 canaux de vente référencés, 45 déjà branchés",
+      "accroche": "187 places de marché, 65 comparateurs de prix, 18 régies publicitaires, 16 plateformes d'affiliation, 28 outils. Shopify, eBay, Kaufland et 41 enseignes Mirakl publient aujourd'hui ; Vinted, Leboncoin et Facebook Marketplace par remplissage assisté.",
+      "points": [
+        "Publication réelle par API : Shopify (application installée dans votre back-office), eBay, Kaufland, et les 41 opérateurs Mirakl — E.Leclerc, Carrefour, Fnac Darty, La Redoute, BHV, Kiabi…",
+        "Vinted, Leboncoin, Facebook Marketplace : l'extension remplit le formulaire, vous validez. Jamais de publication à votre place.",
+        "Publication en lot : sélectionnez, tout part en une fois, avec la catégorie de destination déjà calculée.",
+        "Chaque canal manquant se demande en un clic ; l'ordre des prochains branchements suit ces demandes."
+      ],
+      "detail": "Vendre sur plusieurs canaux est ce qui fait la différence entre un test et un revenu, et c'est ce que les outils anglophones ne font pas pour la France. DropShipper IA référence 314 canaux — 187 places de marché et enseignes, 65 comparateurs de prix, 18 régies publicitaires, 16 plateformes d'affiliation, 28 outils du commerce en ligne — et en a 45 de branchés : Shopify, où DropShipper IA est une application installée qui publie photos, variantes, stock et catégorie Google ; eBay par son API ; Kaufland ; et les 41 enseignes françaises et européennes opérées sous Mirakl. Les places de marché sans API — Vinted, Leboncoin, Facebook Marketplace — sont couvertes par remplissage assisté : l'extension ouvre le formulaire et le remplit, et c'est vous qui cliquez sur « Publier », parce que publier à votre place ferait suspendre votre compte. Google Shopping et le catalogue Meta lisent vos flux avec le GTIN.",
+      "image": "/images/accueil/diffusion.jpg",
+      "offre": { "label": "Voir toutes les places de marché", "href": "/vendre-sur-marketplaces/" }
+    },
+    {
+      "slug": "analyses-de-marche",
+      "eyebrow": "Analyses de marché",
+      "titre": "Chaque jour, 48 analyses de marché et leurs produits gagnants",
+      "accroche": "Vingt-quatre catégories, deux rapports par jour et par catégorie : le marché et ses vingt produits à importer, le marketing et ses prompts publicitaires. Rédigés par des agents, lus par vous.",
+      "points": [
+        "Fresh news : le journal du jour, catégorie par catégorie, avec ses sources.",
+        "Produits gagnants : fournisseur, prix d'achat, prix de vente conseillé, marge — importables en un clic, à l'unité ou en lot.",
+        "Analyses réseaux et publicités qui tournent, avec les prompts image et vidéo au format de chaque réseau.",
+        "Une mémoire commerciale : les rapports se comparent dans le temps, et les alertes disent ce qui a bougé."
+      ],
+      "detail": "Les analyses ne sont pas un supplément : elles sont ce qui décide quoi vendre. Quarante-huit agents — un agent rayon et un agent marketing pour chacune des vingt-quatre catégories — lisent le web chaque matin sur le thème du jour et rédigent un rapport de marché avec ses vingt produits à importer (fournisseur, prix, marge, pourquoi) et un rapport marketing avec ses angles, ses audiences et ses prompts publicitaires. Les comptes DropShipper IA lisent tout et importent les produits en un clic ; les analyses sont aussi publiées pour tous, sans les adresses fournisseur ni les prix d'achat, dans la rubrique Analyses de marché.",
+      "image": "/images/accueil/analyses-de-marche.jpg",
+      "offre": { "label": "Lire les analyses du jour", "href": "/analyses/" }
+    },
+    {
+      "slug": "agents-ia",
+      "eyebrow": "Agents IA",
+      "titre": "Des agents IA à tous les niveaux",
+      "accroche": "Analyses de marché, publicité, images, annonces, relevé de produits, SAV, comptabilité, juridique : chaque métier a son agent, avec de vrais outils — pas un chatbot.",
+      "points": [
+        "Vingt-trois chefs de rayon qui cherchent chez les fournisseurs reliés, sondent les prix pratiqués et déposent des opportunités.",
+        "Iris contrôle les photos, Nadia juge si un produit mérite un budget publicitaire, Camille répond aux tickets et oriente vers le SAV ou la comptable.",
+        "Chaque chiffre a une source ; un fournisseur non relié rend le geste à faire au lieu d'inventer.",
+        "Un plafond par agent et par jour, annoncé d'avance : ce que vous payez est borné."
+      ],
+      "detail": "Un agent sans outils est un chatbot, et le vendeur le voit tout de suite. Les agents de DropShipper IA ont des outils : les chefs de rayon cherchent des produits chez les fournisseurs reliés, sondent les prix réellement pratiqués dans le catalogue et lisent les opportunités déposées par les enquêtes ; l'agent photo contrôle les images importées sans œil humain ; l'agent publicité écrit l'accroche et choisit la charte ; les agents de comptoir — SAV, comptable, juriste — répondent aux tickets avec la borne de ce qu'ils peuvent accorder écrite dans le code, pas dans une consigne. Rien n'est inventé : chaque chiffre a une source, un refus fournisseur est transmis tel quel, et une question de fait coûte moins qu'une question d'arbitrage.",
+      "image": "/images/accueil/agents-ia.jpg",
+      "offre": { "label": "Rencontrer les agents", "href": "/register" }
+    },
+    {
+      "slug": "auto-shipper",
+      "eyebrow": "AUTO-SHIPPER IA",
+      "titre": "Mode auto : laissez-les faire",
+      "accroche": "Une tournée par jour : l'IA choisit les produits dans les analyses du matin, les importe, écrit les annonces, les publie sur vos canaux et tient le back-office. Vous fixez la limite, elle fait le reste.",
+      "points": [
+        "La journée coûte 1 € (100 drops), plus 18 drops par produit importé et publié — rendue si rien n'a été importé.",
+        "Cinquante produits par jour conseillés, jusqu'à quatre cent quatre-vingts pour qui peut se l'offrir.",
+        "Seuls les produits importables sans humain partent ; les autres restent dans la liste pour vous.",
+        "Contrôle photo forcé : personne ne regarde, l'agent le fait."
+      ],
+      "detail": "L'AUTO-SHIPPER est une tournée quotidienne, pas un bouton : chaque jour, à l'heure, il lit les produits gagnants du matin dans les catégories que vous avez choisies, écarte ceux que seul un navigateur peut relever, importe les autres, fait réécrire les annonces, les publie sur les destinations réglées et passe les photos au contrôle de l'agent — parce que personne ne les regardera. La journée coûte 100 drops, soit 1 €, et 18 drops par produit importé et publié ; si rien n'a été importé, la journée est rendue. Vous fixez le plafond : cinquante produits par jour est le rythme conseillé, quatre cent quatre-vingts le maximum autorisé.",
+      "image": "/images/accueil/auto-shipper.jpg",
+      "offre": { "label": "Activer l'AUTO-SHIPPER", "href": "/register" }
+    },
+    {
+      "slug": "les-drops",
+      "eyebrow": "Les drops",
+      "titre": "Pas d'abonnement : vous payez ce que vous faites",
+      "accroche": "1 drop = 0,01 €. Une annonce importée et réécrite : 12 drops. Une boutique écrite par l'IA : 350 drops, une seule fois. 120 drops offerts à l'inscription — de quoi importer dix annonces sans payer.",
+      "points": [
+        "Aucun engagement, aucune formule : chaque action a son prix, affiché avant.",
+        "Un crédit rendu quand l'action échoue — une réécriture que le modèle n'a pas faite, une boutique qui n'aboutit pas.",
+        "Recharges de 5 à 150 € ; le drop coûte moins cher quand on en achète beaucoup, jusqu'à −25 %.",
+        "Boutiques à thèmes, flux catalogue, annuaire des canaux et des fournisseurs : gratuits."
+      ],
+      "detail": "Les concurrents facturent de 20 à 300 dollars par mois, payés avant la première vente. DropShipper IA se paie à l'acte, en drops : 1 drop vaut 0,01 €, et chaque action a un prix connu avant de cliquer — 12 drops pour importer et faire réécrire une annonce, 8 en lot, 18 pour une image, 20 pour une publicité, 30 pour une analyse de marché par produit, 350 une seule fois pour une boutique écrite par l'IA. Un crédit est rendu quand l'action échoue. Les recharges vont de 5 € (500 drops) à 150 € (20 000 drops, −25 %), et 120 drops sont offerts à l'inscription. Ce qui ne coûte rien : la vitrine à thèmes, les flux Google Shopping et Meta, l'annuaire des 314 canaux et des 38 fournisseurs, les analyses de marché quotidiennes en mode auto.",
+      "image": "/images/accueil/les-drops.jpg",
+      "offre": { "label": "Voir la grille tarifaire", "href": "/tarifs/" }
+    }
+  ]
+}

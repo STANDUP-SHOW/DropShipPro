@@ -37,6 +37,8 @@ const path = require('node:path')
 const { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY } = require('./build-seo.cjs')
 const { TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType } = require('./build-llms.cjs')
 const { canaux } = require('./seo-channels.cjs')
+/** Les thèmes de l'accueil : la même table que la page React (src/pages/Index.tsx). */
+const ACCUEIL = require('../src/data/accueil-themes.json')
 
 const DIST = path.resolve(__dirname, '..', 'dist')
 
@@ -141,14 +143,20 @@ function corpsAccueil(faq) {
   return `<div id="contenu-statique" style="max-width:52rem;margin:0 auto;padding:2.5rem 1.25rem;font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif;color:inherit">
 <header><p style="font-weight:700;letter-spacing:.02em">${NOM}</p></header>
 <main>
-<h1 style="font-size:1.9rem;line-height:1.2;margin:.6rem 0 1rem">Le logiciel de dropshipping français : prenez l'annonce n'importe où, publiez-la partout</h1>
-<p>${esc(DESCRIPTION)}</p>
+<h1 style="font-size:1.9rem;line-height:1.2;margin:.6rem 0 1rem">${esc(ACCUEIL.hero.titre)} — ${esc(ACCUEIL.hero.sousTitre)}</h1>
+<p>${esc(ACCUEIL.hero.texte)}</p>
 <p><a href="/register" style="color:#a78bfa">Créer un compte — 120 drops offerts</a> · <a href="/tarifs/" style="color:#a78bfa">Tarifs</a> · <a href="/faq/" style="color:#a78bfa">Questions fréquentes</a> · <a href="/a-propos/" style="color:#a78bfa">À propos</a></p>
 
-<h2>Ce que fait ${NOM}</h2>
-<ul>
-${FONCTIONS.map((f) => `<li><strong>${esc(f.titre)}</strong> — ${esc(f.lignes[0])}</li>`).join('\n')}
-</ul>
+${ACCUEIL.themes
+  .map(
+    (t) => `<section id="${t.slug}">
+<h2>${esc(t.titre)}</h2>
+<p>${esc(t.accroche)}</p>
+<ul>${t.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
+<p><a href="/fonctions/${t.slug}/" style="color:#a78bfa">Plus d'informations</a> · <a href="${esc(t.offre.href)}" style="color:#a78bfa">${esc(t.offre.label)}</a></p>
+</section>`,
+  )
+  .join('\n')}
 
 <h2>En chiffres</h2>
 <ul>
@@ -316,6 +324,51 @@ ${FONCTIONS.map((f) => `<h3>${esc(f.titre)}</h3>\n<ul>${f.lignes.map((l) => `<li
   }
 }
 
+/**
+ * /fonctions/<slug>/ — la page « plus d'informations » d'un thème de l'accueil :
+ * le texte long, les points, l'illustration, et l'offre correspondante.
+ */
+function pageFonction(t, index) {
+  const url = `/fonctions/${t.slug}/`
+  const trail = [{ name: 'Accueil', url: '/' }, { name: 'Fonctions', url: '/#' + t.slug }, { name: t.eyebrow, url }]
+  const voisins = ACCUEIL.themes.filter((a) => a.slug !== t.slug)
+  const externe = /^https?:/.test(t.offre.href)
+  return {
+    url,
+    html: layout({
+      url,
+      title: `${t.titre} — ${NOM}`,
+      description: t.accroche.length > 158 ? `${t.accroche.slice(0, 155).replace(/\s+\S*$/, '')}…` : t.accroche,
+      jsonLd: [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebPage',
+          name: t.titre,
+          url: `${SITE}${url}`,
+          inLanguage: 'fr-FR',
+          description: t.accroche,
+          isPartOf: { '@id': `${SITE}/#site` },
+          about: { '@id': `${SITE}/#application` },
+          position: index + 1,
+        },
+        breadcrumbLd(trail),
+      ],
+      body: `${crumb(trail)}
+<p class="badge">${esc(t.eyebrow)}</p>
+<h1>${esc(t.titre)}</h1>
+<p class="lede">${esc(t.accroche)}</p>
+<img src="${esc(t.image)}" alt="${esc(t.titre)}" loading="lazy" style="display:block;width:100%;border-radius:1rem;margin:1.25rem 0" onerror="this.style.display='none'">
+<h2>En détail</h2>
+<p>${esc(t.detail)}</p>
+<h2>Ce que vous obtenez</h2>
+<ul>${t.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
+<p><a class="cta" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''}>${esc(t.offre.label)}</a></p>
+<h2>Les autres fonctions</h2>
+<div class="grid">${voisins.map((v) => `<a class="tile" href="/fonctions/${v.slug}/">${esc(v.eyebrow)}</a>`).join('')}</div>`,
+    }),
+  }
+}
+
 function ecrireRobots() {
   fs.writeFileSync(
     path.join(DIST, 'robots.txt'),
@@ -357,7 +410,7 @@ function main() {
   }
   const faq = FAQ()
   enrichirAccueil(faq)
-  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq)]
+  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), ...ACCUEIL.themes.map(pageFonction)]
   pages.forEach(ecrire)
   ecrireRobots()
   fs.writeFileSync(path.join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY)
