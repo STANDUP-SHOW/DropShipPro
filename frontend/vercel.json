@@ -5,8 +5,8 @@
       "destination": "https://dropshippro-production.up.railway.app/analyses/"
     },
     {
-      "source": "/analyses/:path*",
-      "destination": "https://dropshippro-production.up.railway.app/analyses/:path*"
+      "source": "/analyses/(.*)",
+      "destination": "https://dropshippro-production.up.railway.app/analyses/$1"
     },
     {
       "source": "/b/:path*",

@@ -31,7 +31,7 @@ async function main() {
   }
 
   // Deux sitemaps : les pages du site (Vercel) et les analyses des agents (API, une page par rapport).
-  const urls: string[] = []
+  const urls = []
   for (const chemin of ['/sitemap.xml', '/analyses/sitemap.xml']) {
     const reponse = await fetch(`${SITE}${chemin}`)
     if (!reponse.ok) {
