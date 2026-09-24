@@ -88,6 +88,9 @@ const COLORS: Record<string, string> = {
   KIABI: '#e5007d',
   BRANDALLEY: '#1a1a1a',
   KAUFLAND: '#e10915',
+  WOOCOMMERCE: '#7f54b3',
+  PRESTASHOP: '#df0067',
+  MAGENTO: '#f46f25',
   SPARTOO: '#ff6600',
   MIINTO: '#000000',
   ETSY: '#f56400',
@@ -294,6 +297,32 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     note: "Dépôt d'offres direct par la Seller API : collez la Client Key et la Secret Key de votre portail vendeur, la diffusion dépose l'offre. Une seule inscription ouvre les sept pays du groupe, dont Kaufland.fr.",
     warning:
       "EAN/GTIN officiel obligatoire : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres, et il doit venir du fabricant ou de GS1. Un produit importé sans EAN sera refusé.",
+  },
+  /*
+   * Les boutiques du vendeur hors Shopify (24/09/2026). Ce ne sont pas des
+   * places de marché : pas de candidature, pas d'EAN imposé, pas de catégorie
+   * à rejoindre — le vendeur possède le site, l'annonce y arrive entière.
+   */
+  {
+    id: 'WOOCOMMERCE',
+    label: 'WooCommerce',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par l'API REST de votre boutique WordPress : générez une clé et un secret de consommateur (WooCommerce › Réglages › Avancé › API REST, lecture/écriture) et collez-les avec l'adresse du site. Titre, description, photos, référence, catégorie et stock arrivent en une fois.",
+  },
+  {
+    id: 'PRESTASHOP',
+    label: 'PrestaShop',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par le webservice de votre boutique : activez-le (Paramètres avancés › Webservice), créez une clé avec les droits products, images, categories et stock_availables, et collez-la avec l'adresse du site.",
+  },
+  {
+    id: 'MAGENTO',
+    label: 'Magento',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par l'API REST de Magento 2 / Adobe Commerce : créez une intégration (Système › Extensions › Intégrations) avec le catalogue en écriture, activez-la et collez son Access Token avec l'adresse du site.",
   },
   /*
    * Les trente-six opérateurs Mirakl recensés le 03/09/2026.
@@ -726,7 +755,16 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
  * alors la raison. C'est déjà le cas de Shopify, dont le connecteur n'a jamais
  * été confronté à une vraie boutique.
  */
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', ...OPERATEURS_MIRAKL]
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO', ...OPERATEURS_MIRAKL]
+
+/**
+ * Les boutiques que le vendeur POSSÈDE, par opposition aux canaux de vente
+ * tiers : pas de candidature, pas de catégorie imposée, pas d'entrée dans
+ * l'annuaire des canaux (on n'y liste pas un logiciel de boutique). Ce qui
+ * vaut pour Shopify vaut pour les trois autres — une liste, pour que le banc
+ * des liaisons et le mappage des catégories ne la réécrivent pas chacun.
+ */
+export const BOUTIQUES_DU_VENDEUR: Platform[] = ['OWN_SITE', 'SHOPIFY', 'WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO']
 
 /**
  * Destinations qui viennent lire un flux au lieu qu'on leur pousse une annonce.

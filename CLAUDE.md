@@ -1213,6 +1213,31 @@ Trois conséquences, toutes appliquées :
   `.bg-[#08070f]` écrit dans index.css est perdu à la minification
   (Lightning CSS) ; viser la classe par attribut, `[class~="bg-[#08070f]"]`.
 
+- **Les boutiques du vendeur ne sont pas des canaux : WooCommerce, PrestaShop,
+  Magento (24/09/2026).** Trois connecteurs sur un chemin commun
+  (`boutiqueTiers.ts` prépare la fiche une fois — HTML de description, images
+  téléchargées ≤ 8 Mo, EAN — chaque connecteur la traduit) : WooCommerce par
+  l'API REST wc/v3 (clé/secret en Basic Auth, photos par adresse, catégorie
+  cherchée puis créée, `product_invalid_sku` → mise à jour), PrestaShop par
+  son webservice XML (clé Basic sans mot de passe, `link_rewrite` et champs
+  multilingues sous `<language id>`, photos en multipart une par appel, stock
+  sur `stock_availables` après coup), Magento 2 par l'API REST à jeton
+  d'intégration (photos en base64 dans `media_gallery_entries`, GET puis
+  PUT/POST par SKU). **La liaison se vérifie au collage** (`verifierCompte*`
+  dans `routes/settings.ts`) : une clé sans droits ou un webservice éteint se
+  voit là, avec la raison, pas à la première diffusion. Banc
+  `npx tsx check-boutiques-tiers.ts` (trois faux serveurs, contrat en dur).
+  Piège attrapé par `check-liaisons-canaux` : l'annuaire des 314 canaux liste
+  des marques, pas des logiciels de boutique — Shopify n'y est pas, les trois
+  autres non plus. `BOUTIQUES_DU_VENDEUR` (platforms.ts) nomme la liste une
+  fois ; le banc et `categoryMapping` (libellé lisible, pas de taxonomie) la
+  lisent. Jamais confrontés à une vraie boutique — faux serveurs seulement.
+
+- **Titres néon de l'accueil (24/09/2026).** Demandés multicolores par Max :
+  `.neon .neon-1..6` dans `index.css` (jaune, turquoise, orange, violet,
+  vert, rose), lueur par `text-shadow`, tournant par rang de section dans
+  `Index.tsx` ; variante thème clair (lueur réduite, couleur assombrie).
+
 ---
 
 ## État des intégrations

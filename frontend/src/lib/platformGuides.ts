@@ -188,6 +188,50 @@ PLATFORM_GUIDES.KAUFLAND = {
     "L'EAN est obligatoire et doit venir du fabricant ou de GS1 : Kaufland apparie chaque offre à sa fiche catalogue par le code-barres. Un produit importé de Temu ou d'AliExpress n'en a généralement aucun — en acheter chez GS1 ne se justifie que si vous vendez sous votre propre marque. Le dépôt automatique est branché : clés collées, chaque diffusion dépose l'offre par la Seller API, et un EAN absent ou invalide est refusé avec la raison écrite.",
 }
 
+PLATFORM_GUIDES.WOOCOMMERCE = {
+  summary:
+    "Votre boutique WordPress reçoit l'annonce entière — titre, description, photos, référence, catégorie, stock — par l'API REST de WooCommerce. Aucun module à installer.",
+  steps: [
+    "Dans WordPress, ouvrez WooCommerce › Réglages › Avancé › API REST, puis « Ajouter une clé ».",
+    "Donnez-lui une description (« DropShipper IA »), l'utilisateur administrateur, et les droits Lecture/écriture.",
+    "Copiez la clé (ck_…) et le secret (cs_…) : le secret ne s'affiche qu'une fois.",
+    "Collez-les avec l'adresse du site dans Réglages › Plateformes de vente › WooCommerce. La connexion est vérifiée immédiatement.",
+  ],
+  caution:
+    "Le site doit être en HTTPS (l'API REST de WooCommerce refuse les clés en clair) et les permaliens réglés autrement que « Simple », sinon /wp-json ne répond pas. Les photos sont envoyées en adresses : votre WordPress les télécharge dans sa médiathèque.",
+  docUrl: 'https://woocommerce.com/document/woocommerce-rest-api/',
+  docLabel: "Documentation de l'API REST WooCommerce",
+}
+
+PLATFORM_GUIDES.PRESTASHOP = {
+  summary:
+    "Votre boutique PrestaShop reçoit la fiche, ses photos et son stock par le webservice intégré à PrestaShop 1.7 et 8. Aucun module à installer.",
+  steps: [
+    'Dans PrestaShop, ouvrez Paramètres avancés › Webservice et activez « Activer le webservice de PrestaShop ».',
+    "Cliquez « Ajouter une clé », générez-la, et cochez pour products, images, categories et stock_availables les droits GET, POST et PUT.",
+    "Collez la clé avec l'adresse du site dans Réglages › Plateformes de vente › PrestaShop. La connexion est vérifiée immédiatement.",
+  ],
+  caution:
+    "Si votre hébergeur est en mode CGI/FastCGI, activez aussi « Activer le mode CGI pour PHP » dans la page Webservice, sinon la clé n'arrive jamais au serveur. La fiche est créée dans la langue par défaut de la boutique.",
+  docUrl: 'https://devdocs.prestashop-project.org/8/webservice/',
+  docLabel: 'Documentation du webservice PrestaShop',
+}
+
+PLATFORM_GUIDES.MAGENTO = {
+  summary:
+    "Votre boutique Magento 2 / Adobe Commerce reçoit la fiche, ses photos (en contenu) et son stock par l'API REST, avec un jeton d'intégration.",
+  steps: [
+    "Dans l'administration Magento, ouvrez Système › Extensions › Intégrations › Ajouter une nouvelle intégration.",
+    'Nommez-la « DropShipper IA », et dans l\'onglet API donnez les ressources Catalogue (produits, catégories) et Stocks.',
+    'Enregistrez, puis « Activer » : Magento affiche quatre jetons — copiez l\'Access Token.',
+    "Collez-le avec l'adresse du site dans Réglages › Plateformes de vente › Magento. La connexion est vérifiée immédiatement.",
+  ],
+  caution:
+    "La fiche est créée dans le jeu d'attributs par défaut (Default, id 4), visible en catalogue et en recherche. Redéposer la même annonce met la fiche à jour par sa référence, sans doublon.",
+  docUrl: 'https://developer.adobe.com/commerce/webapi/rest/',
+  docLabel: "Documentation de l'API REST Magento",
+}
+
 const SPECIALIST_IDS = ['SPARTOO', 'MIINTO']
 
 for (const id of SPECIALIST_IDS) {

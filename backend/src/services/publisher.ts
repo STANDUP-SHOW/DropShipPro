@@ -7,6 +7,10 @@ import { jetonOfflineValide } from './shopifyApp.js'
 import { deposerOffreMirakl, estMirakl, readMiraklCredentials } from './mirakl.js'
 import { publierSurEbay, readEbayCredentials } from './ebay.js'
 import { deposerOffreKaufland, readKauflandCredentials } from './kaufland.js'
+import { ficheDe } from './boutiqueTiers.js'
+import { publierWoo, readWooCredentials } from './woocommerce.js'
+import { publierPresta, readPrestaCredentials } from './prestashop.js'
+import { publierMagento, readMagentoCredentials } from './magento.js'
 import { imagesPourExport } from './exportImages.js'
 
 /**
@@ -38,6 +42,10 @@ export async function publishToPlatform(productId: string, platform: Platform, a
   if (platform === 'EBAY') return publierEbay(product, targetCategory, apiBaseUrl)
 
   if (platform === 'KAUFLAND') return publierKaufland(product, targetCategory)
+
+  if (platform === 'WOOCOMMERCE' || platform === 'PRESTASHOP' || platform === 'MAGENTO') {
+    return publierBoutique(product, platform, targetCategory)
+  }
 
   if (estMirakl(platform)) return publierMirakl(product, platform, targetCategory)
 
@@ -121,6 +129,58 @@ async function publierMirakl(product: Product, platform: Platform, targetCategor
       create: { productId: product.id, platform, targetCategory, status: 'FAILED', error: raison },
       update: { targetCategory, status: 'FAILED', error: raison, publishedAt: null },
     })
+  }
+}
+
+/**
+ * Les boutiques du vendeur — WooCommerce, PrestaShop, Magento — par un seul
+ * chemin : la fiche se prépare une fois (boutiqueTiers.ts), chaque connecteur
+ * la traduit. Sans identifiants, la publication attend (PENDING) avec le geste
+ * à faire ; un refus de liaison ou de produit est écrit tel quel.
+ */
+const BOUTIQUES = {
+  WOOCOMMERCE: {
+    lire: readWooCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readWooCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierWoo(creds, fiche)).note,
+    absent: "Boutique WooCommerce non reliée : collez l'adresse du site, la clé et le secret de consommateur (WooCommerce › Réglages › Avancé › API REST) dans Réglages › Plateformes de vente › WooCommerce.",
+  },
+  PRESTASHOP: {
+    lire: readPrestaCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readPrestaCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierPresta(creds, fiche)).note,
+    absent: "Boutique PrestaShop non reliée : collez l'adresse du site et la clé du webservice (Paramètres avancés › Webservice) dans Réglages › Plateformes de vente › PrestaShop.",
+  },
+  MAGENTO: {
+    lire: readMagentoCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readMagentoCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierMagento(creds, fiche)).note,
+    absent: "Boutique Magento non reliée : collez l'adresse du site et l'Access Token de votre intégration (Système › Extensions › Intégrations) dans Réglages › Plateformes de vente › Magento.",
+  },
+} as const
+
+async function publierBoutique(product: Product, platform: keyof typeof BOUTIQUES, targetCategory: string) {
+  const where = { productId_platform: { productId: product.id, platform } }
+  const boutique = BOUTIQUES[platform]
+
+  const credential = await prisma.platformCredential.findUnique({
+    where: { userId_platform: { userId: product.userId, platform } },
+  })
+  const creds = credential?.connected ? boutique.lire(credential.data) : null
+  if (!creds) {
+    return prisma.publication.upsert({
+      where,
+      create: { productId: product.id, platform, targetCategory, status: 'PENDING', error: boutique.absent },
+      update: { targetCategory, status: 'PENDING', error: boutique.absent, publishedAt: null },
+    })
+  }
+
+  try {
+    const fiche = await ficheDe(product, targetCategory)
+    const note = await boutique.publier(creds as never, fiche)
+    const data = { targetCategory, status: 'PUBLISHED' as const, error: note, publishedAt: new Date() }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform, ...data }, update: data })
+  } catch (err) {
+    const raison = err instanceof Error ? err.message : 'La boutique a refusé la fiche.'
+    const data = { targetCategory, status: 'FAILED' as const, error: raison, publishedAt: null }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform, ...data }, update: data })
   }
 }
 

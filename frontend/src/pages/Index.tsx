@@ -128,7 +128,7 @@ export default function Index() {
               <div className={`mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 md:grid-cols-2 md:py-24 ${inverse ? 'md:[&>*:first-child]:order-2' : ''}`}>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{t.eyebrow}</p>
-                  <h2 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight md:text-5xl">{t.titre}</h2>
+                  <h2 className={`neon neon-${(i % 6) + 1} mt-3 text-3xl font-extrabold leading-tight tracking-tight md:text-5xl`}>{t.titre}</h2>
                   <p className="mt-5 text-lg text-gray-300">{t.accroche}</p>
                   <ul className="mt-6 space-y-2.5">
                     {t.points.map((p) => (

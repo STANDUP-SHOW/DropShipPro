@@ -21,7 +21,7 @@ module.exports = ({ nbCanaux, nbFournisseurs }) => [
   },
   {
     q: 'Sur quelles plateformes DropShipper IA publie-t-il les annonces ?',
-    a: `${nbCanaux} canaux de vente sont référencés, et chacun a sa voie de liaison. Publication directe : Shopify, eBay, Kaufland, la boutique du vendeur et 41 places de marché françaises et européennes sous Mirakl (E.Leclerc, Carrefour, Fnac Darty, La Redoute, BHV, Kiabi…), soit 45 branchées, plus Amazon, Cdiscount, TikTok Shop, Etsy, Spartoo et Miinto dès que le vendeur colle son compte. Flux produit collé une fois dans l'espace marchand : comparateurs, affiliation, régies et la plupart des autres places de marché. Vinted, Leboncoin et Facebook Marketplace passent par l'extension Chrome, qui remplit le formulaire ; le vendeur valide.`,
+    a: `${nbCanaux} canaux de vente sont référencés, et chacun a sa voie de liaison. Publication directe : Shopify, WooCommerce, PrestaShop, Magento, eBay, Kaufland, la boutique du vendeur et 41 places de marché françaises et européennes sous Mirakl (E.Leclerc, Carrefour, Fnac Darty, La Redoute, BHV, Kiabi…), soit 45 branchées, plus Amazon, Cdiscount, TikTok Shop, Etsy, Spartoo et Miinto dès que le vendeur colle son compte. Flux produit collé une fois dans l'espace marchand : comparateurs, affiliation, régies et la plupart des autres places de marché. Vinted, Leboncoin et Facebook Marketplace passent par l'extension Chrome, qui remplit le formulaire ; le vendeur valide.`,
   },
   {
     q: 'Depuis quels fournisseurs peut-on importer des produits ?',

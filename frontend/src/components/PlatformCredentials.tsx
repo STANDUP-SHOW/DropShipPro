@@ -386,6 +386,129 @@ export function PlatformCredentialForm({
                   ) : null}
                 </div>
               </form>
+            ) : platform.id === 'WOOCOMMERCE' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['siteUrl', 'consumerKey', 'consumerSecret'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('WOOCOMMERCE', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="siteUrl"
+                  placeholder="Adresse du site (https://ma-boutique.fr)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="consumerKey"
+                  placeholder="Clé de consommateur (ck_…)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="consumerSecret"
+                  type="password"
+                  placeholder="Secret de consommateur (cs_…)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans WordPress : WooCommerce › Réglages › Avancé › API REST › Ajouter une clé, droits <b>Lecture/écriture</b>. Le site doit être en HTTPS. La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('WOOCOMMERCE', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'PRESTASHOP' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['siteUrl', 'apiKey'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('PRESTASHOP', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="siteUrl"
+                  placeholder="Adresse du site (https://ma-boutique.fr)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="apiKey"
+                  type="password"
+                  placeholder="Clé du webservice (32 caractères)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans PrestaShop : Paramètres avancés › Webservice › activer, puis « Ajouter une clé » avec les droits <b>products, images, categories, stock_availables</b> (GET, POST, PUT). La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('PRESTASHOP', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'MAGENTO' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['siteUrl', 'token'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('MAGENTO', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="siteUrl"
+                  placeholder="Adresse du site (https://ma-boutique.fr)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="token"
+                  type="password"
+                  placeholder="Access Token de l'intégration"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans Magento : Système › Extensions › Intégrations › Ajouter, ressources <b>Catalogue</b> (produits, catégories) et <b>Stocks</b>, puis Activer et copier l'Access Token. La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('MAGENTO', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
             ) : MIRAKL_IDS.includes(platform.id) ? (
               /*
                * Un opérateur Mirakl demande deux valeurs, et le champ générique

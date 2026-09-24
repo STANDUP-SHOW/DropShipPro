@@ -1,6 +1,7 @@
 import type { Platform } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { findCategory, categoryFor } from './categoryCatalog.js'
+import { BOUTIQUES_DU_VENDEUR } from './platforms.js'
 
 /**
  * La catégorie de destination, plateforme par plateforme.
@@ -38,7 +39,7 @@ const TAXONOMIE_GOOGLE: Platform[] = ['GOOGLE_SHOPPING', 'INSTAGRAM', 'FACEBOOK'
  * faut. La vraie catégorie de taxonomie Shopify, elle, part par un autre chemin
  * (voir `shopifyCatalog.ts`) — ce sont deux champs différents.
  */
-const LIBELLE_LISIBLE: Platform[] = ['OWN_SITE', 'SHOPIFY']
+const LIBELLE_LISIBLE: Platform[] = [...BOUTIQUES_DU_VENDEUR]
 
 /** Les correspondances établies à la main sur une catégorie du référentiel. */
 function correspondance(targets: unknown, platform: Platform): string | null {

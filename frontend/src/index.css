@@ -250,3 +250,17 @@ html[data-theme="light"] { color-scheme: light; }
 }
 /* Les gouttes de la lampe à lave, plus discrètes sur blanc. */
 [data-theme="light"] .blob { opacity: 0.32; }
+
+/*
+ * Titres néon de l'accueil (24/09/2026, demandé par Max) : une couleur par
+ * thème, qui tourne — jaune, turquoise, orange, violet, vert, rose. La lueur
+ * est un empilement d'ombres, pas une image ; sur fond clair elle s'atténue.
+ */
+.neon { --neon: #fff; color: var(--neon); text-shadow: 0 0 6px color-mix(in srgb, var(--neon) 80%, transparent), 0 0 18px color-mix(in srgb, var(--neon) 55%, transparent), 0 0 40px color-mix(in srgb, var(--neon) 30%, transparent); }
+.neon-1 { --neon: #f5ff3d; }
+.neon-2 { --neon: #2ef2ff; }
+.neon-3 { --neon: #ff8a1f; }
+.neon-4 { --neon: #c04dff; }
+.neon-5 { --neon: #39ff7a; }
+.neon-6 { --neon: #ff4fd8; }
+[data-theme="light"] .neon { text-shadow: 0 0 2px color-mix(in srgb, var(--neon) 60%, transparent), 0 0 10px color-mix(in srgb, var(--neon) 25%, transparent); filter: saturate(1.1) brightness(0.85); }

@@ -70,7 +70,7 @@ export function AccueilDiaporama({ themes, intervalle = 5000 }: { themes: DiapoT
             <ImageOuRepli src={t.image} slug={t.slug} alt="" actif={i === index} />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b0714] via-[#0b0714]/80 to-transparent px-6 pb-6 pt-16 md:px-10 md:pb-8">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{t.eyebrow}</p>
-              <h2 className="mt-1 text-2xl font-extrabold leading-tight md:text-4xl">{t.titre}</h2>
+              <h2 className={`neon neon-${(i % 6) + 1} mt-1 text-2xl font-extrabold leading-tight md:text-4xl`}>{t.titre}</h2>
               <p className="mt-2 hidden max-w-2xl text-sm text-gray-300 md:block">{t.accroche}</p>
               <span className="mt-3 inline-block text-sm font-semibold text-purple-200 underline-offset-4 group-hover:underline">
                 En savoir plus ↓

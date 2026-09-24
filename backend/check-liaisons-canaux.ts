@@ -8,7 +8,7 @@
  */
 import { CANAUX } from './src/services/channelDirectory.js'
 import { IDS_VERIFIES, liaisonPour, resumeLiaisons } from './src/services/liaisonsCanaux.js'
-import { PLATFORMS } from './src/services/platforms.js'
+import { BOUTIQUES_DU_VENDEUR, PLATFORMS } from './src/services/platforms.js'
 
 let echecs = 0
 function exige(condition: boolean, nom: string, detail = '') {
@@ -32,7 +32,7 @@ exige(
 )
 
 const branchees = liaisons.filter((l) => l.liaison.etat === 'branche')
-const live = PLATFORMS.filter((p) => p.integration === 'live' && p.id !== 'OWN_SITE' && p.id !== 'SHOPIFY')
+const live = PLATFORMS.filter((p) => p.integration === 'live' && !BOUTIQUES_DU_VENDEUR.includes(p.id))
 const liveSansCanal = live.filter((p) => !branchees.some((b) => b.liaison.plateforme === p.id))
 exige(liveSansCanal.length === 0, 'chaque destination LIVE de platforms.ts a son canal dans l’annuaire, marqué branché', liveSansCanal.map((p) => p.id).join(', '))
 

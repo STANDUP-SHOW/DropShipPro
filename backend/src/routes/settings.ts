@@ -14,6 +14,10 @@ import { DROPS } from '../services/tarifs.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { estMirakl, normaliserBaseUrl } from '../services/mirakl.js'
+import { BoutiqueRefus } from '../services/boutiqueTiers.js'
+import { readWooCredentials, verifierCompteWoo } from '../services/woocommerce.js'
+import { readPrestaCredentials, verifierComptePresta } from '../services/prestashop.js'
+import { readMagentoCredentials, verifierCompteMagento } from '../services/magento.js'
 import { saveWatermarkLogo, saveVitrineLogo } from '../services/watermark.js'
 import {
   normalizeShopDomain,
@@ -515,6 +519,29 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
     }
     const storefront = (data.storefront ?? 'fr').trim().toLowerCase()
     data = { clientKey, secretKey, storefront }
+  }
+
+  /*
+   * Les boutiques du vendeur : l'adresse du site et ses clés, VÉRIFIÉES par un
+   * appel qui ne coûte rien avant d'écrire « Connecté ». Une clé sans droits
+   * d'écriture, une adresse sans API ou un webservice désactivé se voient ici,
+   * avec la raison — pas à la première diffusion, en silence.
+   */
+  const BOUTIQUES = {
+    WOOCOMMERCE: { lire: readWooCredentials, verifier: verifierCompteWoo, manque: "Donnez l'adresse du site, la clé et le secret de consommateur WooCommerce." },
+    PRESTASHOP: { lire: readPrestaCredentials, verifier: verifierComptePresta, manque: "Donnez l'adresse du site et la clé du webservice PrestaShop." },
+    MAGENTO: { lire: readMagentoCredentials, verifier: verifierCompteMagento, manque: "Donnez l'adresse du site et l'Access Token de l'intégration Magento." },
+  } as const
+  if (parsed.data.platform in BOUTIQUES && Object.keys(data).length > 0) {
+    const boutique = BOUTIQUES[parsed.data.platform as keyof typeof BOUTIQUES]
+    const creds = boutique.lire(data)
+    if (!creds) return res.status(400).json({ error: boutique.manque })
+    try {
+      await boutique.verifier(creds as never)
+    } catch (err) {
+      return res.status(400).json({ error: err instanceof BoutiqueRefus || err instanceof Error ? err.message : 'La boutique ne répond pas.' })
+    }
+    data = { ...creds } as unknown as typeof data
   }
 
   /*
