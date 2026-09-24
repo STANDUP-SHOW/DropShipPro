@@ -1133,8 +1133,25 @@ Trois conséquences, toutes appliquées :
   `list_deployments` sur `prj_xBa58FSEtTrtw8HxCafkMuFDzI8P`, ou la page
   Deployments), pas seulement attendre le site. Sans build : Deployments › « … »
   › Create Deployment › `main` › Deploy to Production — le bouton reste sur
-  « Loading… » mais le déploiement part. La cause côté crochet GitHub → Vercel
-  n'est pas trouvée (statut Vercel au vert, intégration « Connected »).
+  « Loading… » mais le déploiement part.
+
+  **Cause trouvée le 24/09/2026 : le plafond de builds de l'offre Hobby.**
+  Vercel ne crée aucun déploiement et n'en dit rien dans son tableau de bord,
+  mais il l'écrit sur le commit GitHub, lisible sans aucun jeton (dépôt
+  public) :
+
+  ```bash
+  curl -s https://api.github.com/repos/STANDUP-SHOW/DropShipPro/commits/<sha>/status
+  ```
+
+  → `"description": "Deployment rate limited — retry in 24 hours."`. C'est le
+  premier geste après un push que Vercel ignore, avant tout le reste. Tant que
+  la fenêtre court, seul un déploiement créé à la main depuis le tableau de
+  bord (ou l'offre Pro) passe ; ni le navigateur intégré ni Chrome ne sont
+  connectés à Vercel, et `create_deployment` du MCP Vercel refuse son
+  `requestBody` — c'est donc un geste de Max. Un commit qui ne touche pas
+  `frontend/` (CLAUDE.md seul, commit vide) ne déclenche de toute façon
+  aucun build : inutile de pousser du vide pour « relancer ».
 
   Attrapé au passage : **une réécriture Vercel `:path*` ne prend pas une adresse
   à barre finale** — `/analyses/informatique` atteignait Railway,
