@@ -1,0 +1,271 @@
+{
+  "_commentaire": "ENGENDRÉ par backend/exporter-fournisseurs.ts depuis services/suppliers.ts, ne pas éditer : la frise de logos de l’accueil et build-llms.cjs le lisent.",
+  "fournisseurs": [
+    {
+      "id": "aliexpress",
+      "label": "AliExpress",
+      "domain": "aliexpress.com",
+      "color": "#ff4747",
+      "logo": "/logos-fournisseurs/aliexpress.png"
+    },
+    {
+      "id": "temu",
+      "label": "Temu",
+      "domain": "temu.com",
+      "color": "#fb7701",
+      "logo": "/logos/temu_logo-svg.png"
+    },
+    {
+      "id": "joybuy",
+      "label": "JoyBuy",
+      "domain": "joybuy.com",
+      "color": "#e1251b",
+      "logo": "/logos-fournisseurs/joybuy.png"
+    },
+    {
+      "id": "shein",
+      "label": "Shein",
+      "domain": "shein.com",
+      "color": "#000000",
+      "logo": "/logos/shein-logo.png"
+    },
+    {
+      "id": "wish",
+      "label": "Wish",
+      "domain": "wish.com",
+      "color": "#2fb7ec",
+      "logo": "/logos-fournisseurs/wish.png"
+    },
+    {
+      "id": "dhgate",
+      "label": "DHgate",
+      "domain": "dhgate.com",
+      "color": "#ff4400",
+      "logo": null
+    },
+    {
+      "id": "banggood",
+      "label": "Banggood",
+      "domain": "banggood.com",
+      "color": "#ff6600",
+      "logo": null
+    },
+    {
+      "id": "cjdropshipping",
+      "label": "CJ Dropshipping",
+      "domain": "cjdropshipping.com",
+      "color": "#1f8ceb",
+      "logo": "/logos-fournisseurs/cjdropshipping.png"
+    },
+    {
+      "id": "bigbuy",
+      "label": "BigBuy",
+      "domain": "bigbuy.eu",
+      "color": "#00a3e0",
+      "logo": "/logos-fournisseurs/bigbuy.png"
+    },
+    {
+      "id": "zentrada",
+      "label": "Zentrada",
+      "domain": "zentrada.com",
+      "color": "#e30613",
+      "logo": "/logos/zentrada.png"
+    },
+    {
+      "id": "superdelivery",
+      "label": "SUPER DELIVERY",
+      "domain": "superdelivery.com",
+      "color": "#e60012",
+      "logo": "/logos-fournisseurs/superdelivery.png"
+    },
+    {
+      "id": "reichelt",
+      "label": "reichelt elektronik",
+      "domain": "reichelt.com",
+      "color": "#005ca9",
+      "logo": "/logos-fournisseurs/reichelt.png"
+    },
+    {
+      "id": "webdrop",
+      "label": "Webdrop Market",
+      "domain": "webdrop-market.com",
+      "color": "#0d6efd",
+      "logo": null
+    },
+    {
+      "id": "etsy",
+      "label": "Etsy",
+      "domain": "etsy.com",
+      "color": "#f56400",
+      "logo": "/logos/etsy.png"
+    },
+    {
+      "id": "alibaba",
+      "label": "Alibaba",
+      "domain": "alibaba.com",
+      "color": "#ff6a00",
+      "logo": "/logos-fournisseurs/alibaba.png"
+    },
+    {
+      "id": "made-in-china",
+      "label": "Made-in-China",
+      "domain": "made-in-china.com",
+      "color": "#d0021b",
+      "logo": "/logos-fournisseurs/made-in-china.png"
+    },
+    {
+      "id": "spocket",
+      "label": "Spocket",
+      "domain": "spocket.co",
+      "color": "#7f56d9",
+      "logo": "/logos-fournisseurs/spocket.png"
+    },
+    {
+      "id": "printful",
+      "label": "Printful",
+      "domain": "printful.com",
+      "color": "#000000",
+      "logo": null
+    },
+    {
+      "id": "printify",
+      "label": "Printify",
+      "domain": "printify.com",
+      "color": "#29ab51",
+      "logo": "/logos-fournisseurs/printify.png"
+    },
+    {
+      "id": "vidaxl",
+      "label": "vidaXL",
+      "domain": "vidaxl.fr",
+      "color": "#e2001a",
+      "logo": "/logos-fournisseurs/vidaxl.png"
+    },
+    {
+      "id": "ankorstore",
+      "label": "Ankorstore",
+      "domain": "ankorstore.com",
+      "color": "#1a1a1a",
+      "logo": "/logos-fournisseurs/ankorstore.png"
+    },
+    {
+      "id": "sunsky",
+      "label": "SUNSKY",
+      "domain": "sunsky-online.com",
+      "color": "#0d6efd",
+      "logo": null
+    },
+    {
+      "id": "supdropshipping",
+      "label": "SUP Dropshipping",
+      "domain": "supdropshipping.com",
+      "color": "#ff6b35",
+      "logo": "/logos-fournisseurs/supdropshipping.png"
+    },
+    {
+      "id": "lightinthebox",
+      "label": "LightInTheBox",
+      "domain": "lightinthebox.com",
+      "color": "#e64c3c",
+      "logo": "/logos-fournisseurs/lightinthebox.png"
+    },
+    {
+      "id": "joom",
+      "label": "Joom",
+      "domain": "joom.com",
+      "color": "#5c39d1",
+      "logo": "/logos/joom-logo-new.png"
+    },
+    {
+      "id": "faire",
+      "label": "Faire",
+      "domain": "faire.com",
+      "color": "#111111",
+      "logo": "/logos-fournisseurs/faire.png"
+    },
+    {
+      "id": "fashiongo",
+      "label": "FashionGo",
+      "domain": "fashiongo.net",
+      "color": "#e6007e",
+      "logo": "/logos-fournisseurs/fashiongo.png"
+    },
+    {
+      "id": "amazon-business",
+      "label": "Amazon Business",
+      "domain": "business.amazon.fr",
+      "color": "#ff9900",
+      "logo": "/logos/amazon.png"
+    },
+    {
+      "id": "meesho",
+      "label": "Meesho",
+      "domain": "meesho.com",
+      "color": "#f43397",
+      "logo": null
+    },
+    {
+      "id": "ingram-micro",
+      "label": "Ingram Micro",
+      "domain": "ingrammicro.com",
+      "color": "#0072ce",
+      "logo": null
+    },
+    {
+      "id": "td-synnex",
+      "label": "TD SYNNEX",
+      "domain": "tdsynnex.com",
+      "color": "#00539b",
+      "logo": "/logos-fournisseurs/td-synnex.png"
+    },
+    {
+      "id": "also",
+      "label": "ALSO",
+      "domain": "also.com",
+      "color": "#e2001a",
+      "logo": "/logos-fournisseurs/also.png"
+    },
+    {
+      "id": "esprinet",
+      "label": "Esprinet",
+      "domain": "esprinet.com",
+      "color": "#c8102e",
+      "logo": "/logos-fournisseurs/esprinet.png"
+    },
+    {
+      "id": "syncee",
+      "label": "Syncee",
+      "domain": "syncee.com",
+      "color": "#0f9d58",
+      "logo": "/logos-fournisseurs/syncee.png"
+    },
+    {
+      "id": "busyx-pro",
+      "label": "Busyx Pro",
+      "domain": "busyx-pro.com",
+      "color": "#d81b60",
+      "logo": "/logos-fournisseurs/busyx-pro.png"
+    },
+    {
+      "id": "matterhorn",
+      "label": "Matterhorn",
+      "domain": "matterhorn-wholesale.com",
+      "color": "#1a2b4c",
+      "logo": null
+    },
+    {
+      "id": "gelato",
+      "label": "Gelato",
+      "domain": "gelato.com",
+      "color": "#ff5a5f",
+      "logo": "/logos-fournisseurs/gelato.png"
+    },
+    {
+      "id": "pixartprinting",
+      "label": "Pixartprinting",
+      "domain": "pixartprinting.fr",
+      "color": "#e4002b",
+      "logo": "/logos-fournisseurs/pixartprinting.png"
+    }
+  ]
+}

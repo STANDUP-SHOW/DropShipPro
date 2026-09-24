@@ -264,3 +264,35 @@ html[data-theme="light"] { color-scheme: light; }
 .neon-5 { --neon: #39ff7a; }
 .neon-6 { --neon: #ff4fd8; }
 [data-theme="light"] .neon { text-shadow: 0 0 2px color-mix(in srgb, var(--neon) 60%, transparent), 0 0 10px color-mix(in srgb, var(--neon) 25%, transparent); filter: saturate(1.1) brightness(0.85); }
+
+/*
+ * La frise de logos de l'accueil (FriseLogos.tsx) : la liste est rendue deux
+ * fois et la piste glisse d'exactement une moitié, d'où une boucle sans
+ * couture. Le fondu des bords est un masque, pas un dégradé posé par-dessus :
+ * il suit le fond de la section, quel qu'il soit.
+ */
+.frise {
+  height: 150px;
+  width: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.frise-piste {
+  display: flex;
+  height: 100%;
+  width: max-content;
+  align-items: center;
+  animation: frise-defile 60s linear infinite;
+  will-change: transform;
+}
+.frise-piste[data-sens="droite"] { animation-direction: reverse; }
+.frise:hover .frise-piste { animation-play-state: paused; }
+@keyframes frise-defile {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .frise { overflow-x: auto; }
+  .frise-piste { animation: none; }
+}

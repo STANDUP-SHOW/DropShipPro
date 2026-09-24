@@ -7,6 +7,20 @@ import { CHROME_STORE_URL } from '../lib/extension'
 import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
 import { AccueilDiaporama, ImageOuRepli } from '../components/AccueilDiaporama'
 import accueil from '../data/accueil-themes.json'
+import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
+import fournisseurs from '../data/fournisseurs.json'
+import canaux from '../data/canaux.json'
+
+/*
+ * Les frises de logos (24/09/2026) : sous « fournisseurs », les 38 fournisseurs
+ * de droite à gauche ; sous « diffusion », les 314 canaux de l'annuaire sur
+ * deux lignes qui vont dans l'autre sens — et en sens contraire l'une de
+ * l'autre. Les deux JSON sont engendrés (exporter-fournisseurs.ts,
+ * build-channel-directory.cjs) : rien n'est recopié à la main ici.
+ */
+const FOURNISSEURS_FRISE: LogoFrise[] = fournisseurs.fournisseurs.map((f) => ({ id: f.id, label: f.label, logo: f.logo, couleur: f.color }))
+const CANAUX_FRISE: [LogoFrise[], LogoFrise[]] = [[], []]
+canaux.canaux.forEach((c, i) => CANAUX_FRISE[i % 2].push({ id: c.id, label: c.label, logo: c.logo }))
 
 /**
  * La page d'accueil : ce que fait DropShipper IA, thème par thème.
@@ -156,6 +170,13 @@ export default function Index() {
                   <ImageOuRepli src={t.image} slug={t.slug} alt={t.titre} actif={i < 2} />
                 </a>
               </div>
+              {t.slug === 'fournisseurs' ? <FriseLogos logos={FOURNISSEURS_FRISE} sens="gauche" className="mb-6" /> : null}
+              {t.slug === 'diffusion' ? (
+                <div className="mb-6 space-y-3">
+                  <FriseLogos logos={CANAUX_FRISE[0]} sens="droite" />
+                  <FriseLogos logos={CANAUX_FRISE[1]} sens="gauche" />
+                </div>
+              ) : null}
             </section>
           )
         })}

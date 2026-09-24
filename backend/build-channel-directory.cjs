@@ -30,6 +30,12 @@ const SORTIE = path.resolve(__dirname, 'src/services/channelDirectory.ts')
 /** Ce qui n'identifie aucune marque, ou n'est pas une plateforme. */
 const ECARTES = new Set([
   'README',
+  // Les fichiers de la marque et du site, déposés dans le même dossier (24/09/2026) : pas des canaux.
+  'dropshop-entete',
+  'dropshop-icone',
+  'mcp',
+  'social',
+  'textLOGO DROP SHOP',
   'blog',
   'calque_2',
   'cas-clients',
@@ -316,6 +322,25 @@ module.exports = {
 }
 `
 fs.writeFileSync(SORTIE_SEO, cjs, 'utf8')
+
+/*
+ * Et une troisième sortie, en JSON, pour la page React : la frise des logos
+ * de l'accueil (FriseLogos.tsx) défile les 314 canaux. Un JSON s'importe dans
+ * Vite ; un module CommonJS, non.
+ */
+const SORTIE_JSON = path.resolve(__dirname, '../frontend/src/data/canaux.json')
+fs.writeFileSync(
+  SORTIE_JSON,
+  JSON.stringify(
+    {
+      _commentaire: 'ENGENDRÉ par backend/build-channel-directory.cjs, ne pas éditer : les canaux de l’annuaire avec leur logo (frontend/public/logos), pour la frise de l’accueil.',
+      canaux: entrees.map((e) => ({ id: e.id, label: e.label, logo: '/logos/' + e.logo, type: e.type })),
+    },
+    null,
+    2,
+  ) + '\n',
+  'utf8',
+)
 
 const compte = {}
 for (const e of entrees) compte[e.type] = (compte[e.type] ?? 0) + 1

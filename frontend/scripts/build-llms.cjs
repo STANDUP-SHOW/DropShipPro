@@ -95,13 +95,7 @@ const RECHARGES = [
  * `backend/check-llms.ts`, qui compare les deux listes et tombe si elles
  * divergent.
  */
-const FOURNISSEURS = [
-  'AliExpress', 'Temu', 'JoyBuy', 'Shein', 'Wish', 'DHgate', 'Banggood', 'CJ Dropshipping', 'BigBuy', 'Zentrada',
-  'SUPER DELIVERY', 'reichelt elektronik', 'Webdrop Market', 'Etsy', 'Alibaba', 'Made-in-China', 'Spocket', 'Printful',
-  'Printify', 'vidaXL', 'Ankorstore', 'SUNSKY', 'SUP Dropshipping', 'LightInTheBox', 'Joom',
-  'Faire', 'FashionGo', 'Amazon Business', 'Meesho', 'Ingram Micro', 'TD SYNNEX', 'ALSO',
-  'Esprinet', 'Syncee', 'Busyx Pro', 'Matterhorn', 'Gelato', 'Pixartprinting',
-]
+const FOURNISSEURS = require('../src/data/fournisseurs.json').fournisseurs.map((f) => f.label)
 
 const FONCTIONS = [
   {

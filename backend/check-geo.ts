@@ -14,6 +14,8 @@ import { createRequire } from 'node:module'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { DROPS, DROPS_INSCRIPTION } from './src/services/tarifs.js'
+import { SUPPLIERS } from './src/services/suppliers.js'
+import { CANAUX } from './src/services/channelDirectory.js'
 
 const require = createRequire(import.meta.url)
 const scripts = resolve(import.meta.dirname, '../frontend/scripts')
@@ -48,6 +50,24 @@ console.log('\nChaque réponse tient seule')
 exige(faq.length >= 8, `${faq.length} questions`)
 exige(faq.every((f) => f.q.endsWith('?') && f.a.length >= 120 && f.a.length <= 700), 'une question, une réponse de 120 à 700 caractères')
 exige(!faq.some((f) => /ci-dessus|plus haut|voir plus bas/i.test(f.a)), 'aucune ne renvoie à une autre')
+/*
+ * Les deux listes de la frise de l'accueil sont des copies engendrées de
+ * suppliers.ts et de l'annuaire (Vercel ne voit pas backend/). Un fournisseur
+ * ajouté sans relancer `npx tsx exporter-fournisseurs.ts` manquerait à la
+ * frise ; un logo déclaré sans fichier ferait une carte blanche vide.
+ */
+const fournisseursJson = JSON.parse(readFileSync(resolve(scripts, '../src/data/fournisseurs.json'), 'utf8')) as { fournisseurs: Array<{ id: string; logo: string | null }> }
+exige(
+  SUPPLIERS.length === fournisseursJson.fournisseurs.length && SUPPLIERS.every((s, i) => s.id === fournisseursJson.fournisseurs[i]?.id),
+  'fournisseurs.json recopie suppliers.ts, dans l’ordre (sinon : npx tsx exporter-fournisseurs.ts)',
+)
+const logosAbsents = fournisseursJson.fournisseurs.filter((f) => f.logo && !existsSync(resolve(scripts, '../public', f.logo.slice(1))))
+exige(logosAbsents.length === 0, 'chaque logo de fournisseur déclaré existe dans public/', logosAbsents.map((f) => f.id).join(', '))
+const canauxJson = JSON.parse(readFileSync(resolve(scripts, '../src/data/canaux.json'), 'utf8')) as { canaux: Array<{ id: string; logo: string }> }
+exige(
+  canauxJson.canaux.length === CANAUX.length && canauxJson.canaux.every((c, i) => c.id === CANAUX[i]?.id),
+  'canaux.json est engendré avec l’annuaire (sinon : node build-channel-directory.cjs)',
+)
 exige(ROBOTS_IA.length >= 12 && ROBOTS_IA.some(([a]: [string]) => a === 'GPTBot') && ROBOTS_IA.some(([a]: [string]) => a === 'ClaudeBot'), 'les robots des assistants sont nommés')
 
 const index = resolve(import.meta.dirname, '../frontend/dist/index.html')

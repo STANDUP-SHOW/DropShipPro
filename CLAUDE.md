@@ -1255,6 +1255,29 @@ Trois conséquences, toutes appliquées :
   vert, rose), lueur par `text-shadow`, tournant par rang de section dans
   `Index.tsx` ; variante thème clair (lueur réduite, couleur assombrie).
 
+- **Les frises de logos de l'accueil lisent deux JSON engendrés (24/09/2026).**
+  Demandées par Max : sous « fournisseurs », les 38 logos de droite à gauche ;
+  sous « diffusion », les 314 canaux sur deux lignes en sens contraire, 150 px
+  de haut, pleine largeur, sans fin. `FriseLogos.tsx` rend la liste DEUX fois
+  et glisse la piste d'exactement une moitié ; l'espacement est un `padding`
+  de chaque élément, jamais un `gap` de la piste (la moitié ne tomberait plus
+  sur un tour et la frise sauterait à chaque boucle). Chaque logo est posé sur
+  une carte blanche : la plupart des logos de canaux sont sombres sur fond
+  transparent. Les données : `src/data/canaux.json` (troisième sortie de
+  `build-channel-directory.cjs`, à côté du .ts et du .cjs SEO) et
+  `src/data/fournisseurs.json` (`npx tsx exporter-fournisseurs.ts`, qui
+  recopie suppliers.ts ; `--telecharger` va chercher UNE FOIS l'icône du site
+  dans `public/logos-fournisseurs/` — la page ne fait jamais d'appel vers
+  Google ni icon.horse). Huit fournisseurs n'ont d'icône chez aucun des deux
+  services (DHgate, Banggood, Webdrop, Printful, SUNSKY, Meesho, Ingram Micro,
+  Matterhorn) : pastille aux initiales dans leur couleur, à remplacer par un
+  vrai fichier `public/logos-fournisseurs/<id>.png` quand Max en a un.
+  `check-geo.ts` tient les deux JSON égaux à leurs sources. Piège attrapé en
+  regénérant l'annuaire : les fichiers de la marque déposés dans
+  `public/logos` (dropshop-entete, mcp, social, textLOGO…) devenaient des
+  canaux — ils sont dans `ECARTES`. `build-llms.cjs` lit désormais les
+  fournisseurs dans le JSON au lieu d'une liste recopiée.
+
 ---
 
 ## État des intégrations
