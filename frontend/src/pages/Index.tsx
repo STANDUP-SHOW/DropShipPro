@@ -172,7 +172,7 @@ export default function Index() {
               </div>
               {t.slug === 'fournisseurs' ? <FriseLogos logos={FOURNISSEURS_FRISE} sens="gauche" className="mb-6" /> : null}
               {t.slug === 'diffusion' ? (
-                <div className="mb-6 space-y-3">
+                <div className="mb-6">
                   <FriseLogos logos={CANAUX_FRISE[0]} sens="droite" />
                   <FriseLogos logos={CANAUX_FRISE[1]} sens="gauche" />
                 </div>

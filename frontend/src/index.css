@@ -275,8 +275,8 @@ html[data-theme="light"] { color-scheme: light; }
   height: 150px;
   width: 100%;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  /* Bande blanche pleine largeur (demandé le 25/09/2026) : les logos y sont posés directement. */
+  background: #fff;
 }
 .frise-piste {
   display: flex;

@@ -10,8 +10,9 @@
  * élément, pas un `gap` de la piste : avec un gap, la moitié ne tombe pas sur
  * un tour complet et la frise saute d'un demi-espace à chaque boucle.
  *
- * Chaque logo est posé sur une carte blanche : la plupart des logos de canaux
- * sont sombres sur fond transparent et disparaîtraient sur le fond du site.
+ * La bande entière est blanche, pleine largeur (demandé le 25/09/2026) : la
+ * plupart des logos de canaux sont sombres sur fond transparent et
+ * disparaîtraient sur le fond du site.
  * Sans fichier (`logo: null`), une pastille aux initiales dans la couleur de
  * la marque tient la place. La vitesse suit le nombre de logos (une durée
  * fixe ferait défiler 314 logos huit fois plus vite que 38). Le survol met en
@@ -53,7 +54,7 @@ export function FriseLogos({
           const copie = i >= logos.length
           return (
             <li key={`${l.id}-${i}`} className="flex h-full shrink-0 items-center px-4" aria-hidden={copie || undefined} title={l.label}>
-              <span className="flex h-24 w-44 items-center justify-center rounded-2xl bg-white p-3 shadow-lg shadow-black/30">
+              <span className="flex h-24 w-44 items-center justify-center p-3">
                 {l.logo ? (
                   <img
                     src={l.logo}
