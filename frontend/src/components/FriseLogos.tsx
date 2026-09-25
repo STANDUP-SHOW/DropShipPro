@@ -60,6 +60,8 @@ export function FriseLogos({
                     alt={copie ? '' : l.label}
                     loading="lazy"
                     decoding="async"
+                    fetchPriority="low"
+                    draggable={false}
                     className="max-h-full max-w-full object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
