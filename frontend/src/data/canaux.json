@@ -1,1889 +1,2203 @@
 {
-  "_commentaire": "ENGENDRÉ par backend/build-channel-directory.cjs, ne pas éditer : les canaux de l’annuaire avec leur logo (frontend/public/logos), pour la frise de l’accueil.",
+  "_commentaire": "ENGENDRÉ par backend/build-channel-directory.cjs, ne pas éditer : les canaux de l’annuaire avec leur logo (frontend/public/logos), pour la frise de l’accueil. large = logo en long (carte 300 × 150).",
   "canaux": [
     {
       "id": "1200px-media_markt_logo-svg",
       "label": "MediaMarkt",
       "logo": "/logos/1200px-media_markt_logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "31m2",
       "label": "31m2",
       "logo": "/logos/31m2.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "achatmoinscher",
       "label": "Achatmoinscher",
       "logo": "/logos/achatmoinscher.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "adroll",
       "label": "Adroll",
       "logo": "/logos/adroll.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "ads-google-instagram-tiktok",
       "label": "Google, Instagram & TikTok Ads",
       "logo": "/logos/ads-google-instagram-tiktok.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "adverline",
       "label": "Adverline",
       "logo": "/logos/adverline.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "affilae",
       "label": "Affilae",
       "logo": "/logos/affilae.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": false
     },
     {
       "id": "al-futtaim",
       "label": "Al Futtaim",
       "logo": "/logos/al-futtaim.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "alltricks",
       "label": "Alltricks",
       "logo": "/logos/alltricks.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "amazon",
       "label": "Amazon",
       "logo": "/logos/amazon.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "asos",
       "label": "Asos",
       "logo": "/logos/asos.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "attraqt-navy-logo",
       "label": "Attraqt Navy",
       "logo": "/logos/attraqt-navy-logo.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "auchan",
       "label": "Auchan",
       "logo": "/logos/auchan.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "aujardin",
       "label": "Aujardin",
       "logo": "/logos/aujardin.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "autodoc",
       "label": "Autodoc",
       "logo": "/logos/autodoc.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "awin",
       "label": "Awin",
       "logo": "/logos/awin.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "b-q-logo",
       "label": "B&Q",
       "logo": "/logos/b-q-logo.svg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "backmarket_logo",
       "label": "Backmarket",
       "logo": "/logos/backmarket_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "bauhaus_logo",
       "label": "Bauhaus",
       "logo": "/logos/bauhaus_logo.svg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bazaarvoice",
       "label": "Bazaarvoice",
       "logo": "/logos/bazaarvoice.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "beautetest",
       "label": "Beautetest",
       "logo": "/logos/beautetest.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "bed-bath-beyond_logo",
       "label": "Bed Bath & Beyond",
       "logo": "/logos/bed-bath-beyond_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "best-buy-logo",
       "label": "Best Buy",
       "logo": "/logos/best-buy-logo.jpg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bestlist",
       "label": "Bestlist",
       "logo": "/logos/bestlist.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "bhvmarais",
       "label": "BHV Marais",
       "logo": "/logos/bhvmarais.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "big-bang-logo-2023",
       "label": "Big Bang",
       "logo": "/logos/big-bang-logo-2023.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "biliger",
       "label": "Biliger",
       "logo": "/logos/biliger.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "bingproductsads",
       "label": "Bing Product Ads",
       "logo": "/logos/bingproductsads.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "black_red_white_logo-svg",
       "label": "Black Red White",
       "logo": "/logos/black_red_white_logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "bloomingdales-logo",
       "label": "Bloomingdales",
       "logo": "/logos/bloomingdales-logo.svg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bol-logo",
       "label": "Bol.com",
       "logo": "/logos/bol-logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bonial",
       "label": "Bonial",
       "logo": "/logos/bonial.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "boulanger",
       "label": "Boulanger",
       "logo": "/logos/boulanger.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "brandalley",
       "label": "Brandalley",
       "logo": "/logos/brandalley.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "brico",
       "label": "Brico",
       "logo": "/logos/brico.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bricocash_logo",
       "label": "Bricocash",
       "logo": "/logos/bricocash_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bricodepot",
       "label": "Bricodepot",
       "logo": "/logos/bricodepot.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bricoman-logo2020",
       "label": "Bricoman",
       "logo": "/logos/bricoman-logo2020.jpg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "bricomarche",
       "label": "Bricomarche",
       "logo": "/logos/bricomarche.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bricoplanit",
       "label": "Bricoplanit",
       "logo": "/logos/bricoplanit.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bricoramalogo",
       "label": "Bricorama",
       "logo": "/logos/bricoramalogo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "bulevip",
       "label": "Bulevip",
       "logo": "/logos/bulevip.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "but",
       "label": "But",
       "logo": "/logos/but.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "buyon",
       "label": "Buyon",
       "logo": "/logos/buyon.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "caasttv",
       "label": "Caasttv",
       "logo": "/logos/caasttv.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "cadena",
       "label": "Cadena",
       "logo": "/logos/cadena.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "carrefour",
       "label": "Carrefour",
       "logo": "/logos/carrefour.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "cartageous",
       "label": "Cartageous",
       "logo": "/logos/cartageous.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "castorama",
       "label": "Castorama",
       "logo": "/logos/castorama.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "catalogate",
       "label": "Catalogate",
       "logo": "/logos/catalogate.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "catchys",
       "label": "Catchys",
       "logo": "/logos/catchys.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "cdiscount-new-logo",
       "label": "Cdiscount",
       "logo": "/logos/cdiscount-new-logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ceneo",
       "label": "Ceneo",
       "logo": "/logos/ceneo.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "cercavino",
       "label": "Cercavino",
       "logo": "/logos/cercavino.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "cezigue",
       "label": "Cezigue",
       "logo": "/logos/cezigue.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "cherchons",
       "label": "Cherchons",
       "logo": "/logos/cherchons.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "cibleclicbyuzerly",
       "label": "Cibleclicbyuzerly",
       "logo": "/logos/cibleclicbyuzerly.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "cjaffiliategs",
       "label": "CJ Affiliate",
       "logo": "/logos/cjaffiliategs.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "click2buy",
       "label": "Click2buy",
       "logo": "/logos/click2buy.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "clicktofournisseur",
       "label": "Clicktofournisseur",
       "logo": "/logos/clicktofournisseur.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "clubic",
       "label": "Clubic",
       "logo": "/logos/clubic.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "cocote",
       "label": "Cocote",
       "logo": "/logos/cocote.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "commentseruiner",
       "label": "Commentseruiner",
       "logo": "/logos/commentseruiner.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "commerceconnector",
       "label": "Commerceconnector",
       "logo": "/logos/commerceconnector.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "connexity",
       "label": "Connexity",
       "logo": "/logos/connexity.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "conrad_logo_blau_rgb",
       "label": "Conrad",
       "logo": "/logos/conrad_logo_blau_rgb.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "contentsquare",
       "label": "Contentsquare",
       "logo": "/logos/contentsquare.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "coompra",
       "label": "Coompra",
       "logo": "/logos/coompra.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "cotebebe",
       "label": "Cotebebe",
       "logo": "/logos/cotebebe.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "creavea",
       "label": "Creavea",
       "logo": "/logos/creavea.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "criteo",
       "label": "Criteo",
       "logo": "/logos/criteo.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "cultura_logo",
       "label": "Cultura",
       "logo": "/logos/cultura_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "darty",
       "label": "Darty",
       "logo": "/logos/darty.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "dealplaza",
       "label": "Dealplaza",
       "logo": "/logos/dealplaza.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "debenhams_logo",
       "label": "Debenhams",
       "logo": "/logos/debenhams_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "decofinder",
       "label": "Decofinder",
       "logo": "/logos/decofinder.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "destockagehabitat",
       "label": "Destockagehabitat",
       "logo": "/logos/destockagehabitat.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "dolaba",
       "label": "Dolaba",
       "logo": "/logos/dolaba.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "doofinder",
       "label": "Doofinder",
       "logo": "/logos/doofinder.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "douglas_logo_2018",
       "label": "Douglas",
       "logo": "/logos/douglas_logo_2018.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "dreamact",
       "label": "Dreamact",
       "logo": "/logos/dreamact.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "drinksco",
       "label": "Drinksco",
       "logo": "/logos/drinksco.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ebay",
       "label": "Ebay",
       "logo": "/logos/ebay.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ebuyclub",
       "label": "Ebuyclub",
       "logo": "/logos/ebuyclub.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "eccevino",
       "label": "Eccevino",
       "logo": "/logos/eccevino.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "effiliation",
       "label": "Effiliation",
       "logo": "/logos/effiliation.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "elcorteingles",
       "label": "El Corte Inglés",
       "logo": "/logos/elcorteingles.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "eleclerc",
       "label": "E.Leclerc",
       "logo": "/logos/eleclerc.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "electromenagercompare",
       "label": "Electromenagercompare",
       "logo": "/logos/electromenagercompare.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "eprice",
       "label": "Eprice",
       "logo": "/logos/eprice.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "equishopping",
       "label": "Equishopping",
       "logo": "/logos/equishopping.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "eroski-logo",
       "label": "Eroski",
       "logo": "/logos/eroski-logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "esearchvision",
       "label": "Esearchvision",
       "logo": "/logos/esearchvision.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "etsy",
       "label": "Etsy",
       "logo": "/logos/etsy.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "facebookads",
       "label": "Facebook Ads",
       "logo": "/logos/facebookads.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "fanatics_company_logo-svg",
       "label": "Fanatics",
       "logo": "/logos/fanatics_company_logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "fashiola",
       "label": "Fashiola",
       "logo": "/logos/fashiola.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "fashionchick",
       "label": "Fashionchick",
       "logo": "/logos/fashionchick.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "fitizzy",
       "label": "Fitizzy",
       "logo": "/logos/fitizzy.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "fnac",
       "label": "Fnac",
       "logo": "/logos/fnac.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "fonq-logo-new-svg",
       "label": "fonQ",
       "logo": "/logos/fonq-logo-new-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "fourmisante",
       "label": "Fourmisante",
       "logo": "/logos/fourmisante.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "fruugo",
       "label": "Fruugo",
       "logo": "/logos/fruugo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "galaxus_logo",
       "label": "Galaxus",
       "logo": "/logos/galaxus_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "galeria_logo",
       "label": "Galeria",
       "logo": "/logos/galeria_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "galerieslafayette",
       "label": "Galeries Lafayette",
       "logo": "/logos/galerieslafayette.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "gammvert",
       "label": "Gammvert",
       "logo": "/logos/gammvert.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "gearscore",
       "label": "Gearscore",
       "logo": "/logos/gearscore.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "getflowbox",
       "label": "Getflowbox",
       "logo": "/logos/getflowbox.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "glami",
       "label": "Glami",
       "logo": "/logos/glami.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "googlelocal",
       "label": "Google Local",
       "logo": "/logos/googlelocal.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "googleshoppingads",
       "label": "Google Shopping Ads",
       "logo": "/logos/googleshoppingads.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "grainger_logo",
       "label": "Grainger",
       "logo": "/logos/grainger_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "greenweez",
       "label": "Greenweez",
       "logo": "/logos/greenweez.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "guenstiger",
       "label": "Guenstiger",
       "logo": "/logos/guenstiger.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "guitariste",
       "label": "Guitariste",
       "logo": "/logos/guitariste.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "h-m-logo-svg",
       "label": "H&M",
       "logo": "/logos/h-m-logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "happytal_logo",
       "label": "Happytal",
       "logo": "/logos/happytal_logo.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "hbc_logo",
       "label": "Hudson's Bay",
       "logo": "/logos/hbc_logo.webp",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "hellopro",
       "label": "Hellopro",
       "logo": "/logos/hellopro.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "home-depot-logo",
       "label": "The Home Depot",
       "logo": "/logos/home-depot-logo.webp",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "home24",
       "label": "Home24",
       "logo": "/logos/home24.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "homecinecompare",
       "label": "Homecinecompare",
       "logo": "/logos/homecinecompare.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "hometiger",
       "label": "Hometiger",
       "logo": "/logos/hometiger.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "hornbach_logo_black-svg",
       "label": "Hornbach",
       "logo": "/logos/hornbach_logo_black-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "houzz",
       "label": "Houzz",
       "logo": "/logos/houzz.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ibs",
       "label": "Ibs",
       "logo": "/logos/ibs.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "icecat",
       "label": "Icecat",
       "logo": "/logos/icecat.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "icomparateur",
       "label": "Icomparateur",
       "logo": "/logos/icomparateur.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "idealo",
       "label": "Idealo",
       "logo": "/logos/idealo.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "informaprezzi",
       "label": "Informaprezzi",
       "logo": "/logos/informaprezzi.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "inno",
       "label": "Inno",
       "logo": "/logos/inno.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "instagram",
       "label": "Instagram",
       "logo": "/logos/instagram.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "jardiland",
       "label": "Jardiland",
       "logo": "/logos/jardiland.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "jd-sport",
       "label": "JD Sports",
       "logo": "/logos/jd-sport.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "jeuxvideofr",
       "label": "Jeuxvideofr",
       "logo": "/logos/jeuxvideofr.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "jeveuxdesbijoux",
       "label": "Jeveuxdesbijoux",
       "logo": "/logos/jeveuxdesbijoux.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "joom-logo-new",
       "label": "Joom",
       "logo": "/logos/joom-logo-new.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "kairn",
       "label": "Kairn",
       "logo": "/logos/kairn.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "kaufland_marketplace",
       "label": "Kaufland",
       "logo": "/logos/kaufland_marketplace.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "kelbike",
       "label": "Kelbike",
       "logo": "/logos/kelbike.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "keldelice",
       "label": "Keldelice",
       "logo": "/logos/keldelice.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "kelkoogroup",
       "label": "Kelkoo",
       "logo": "/logos/kelkoogroup.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "kiabi_logo",
       "label": "Kiabi",
       "logo": "/logos/kiabi_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "kohl-s_logo",
       "label": "Kohl's",
       "logo": "/logos/kohl-s_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ktaloguebio",
       "label": "Ktaloguebio",
       "logo": "/logos/ktaloguebio.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "ktaloguesexy",
       "label": "Ktaloguesexy",
       "logo": "/logos/ktaloguesexy.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "kuantokusta",
       "label": "Kuantokusta",
       "logo": "/logos/kuantokusta.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "kwanko-logo",
       "label": "Kwanko",
       "logo": "/logos/kwanko-logo.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "lacitesport",
       "label": "Lacitesport",
       "logo": "/logos/lacitesport.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lamtalia",
       "label": "Lamtalia",
       "logo": "/logos/lamtalia.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "laposte",
       "label": "Laposte",
       "logo": "/logos/laposte.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "laredoute",
       "label": "La Redoute",
       "logo": "/logos/laredoute.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "lavorincasa",
       "label": "Lavorincasa",
       "logo": "/logos/lavorincasa.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lazada-1",
       "label": "Lazada",
       "logo": "/logos/lazada-1.svg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lcdcompare",
       "label": "Lcdcompare",
       "logo": "/logos/lcdcompare.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "ldlc",
       "label": "Ldlc",
       "logo": "/logos/ldlc.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "lebriconome",
       "label": "Lebriconome",
       "logo": "/logos/lebriconome.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ledenicheur",
       "label": "Ledenicheur",
       "logo": "/logos/ledenicheur.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "leguide",
       "label": "Leguide",
       "logo": "/logos/leguide.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "lequipement",
       "label": "L'Équipement",
       "logo": "/logos/lequipement.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "leroymerlin",
       "label": "Leroymerlin",
       "logo": "/logos/leroymerlin.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lesbonnesbouilles",
       "label": "Lesbonnesbouilles",
       "logo": "/logos/lesbonnesbouilles.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lgmdp",
       "label": "Lgmdp",
       "logo": "/logos/lgmdp.jpg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "liganz",
       "label": "Liganz",
       "logo": "/logos/liganz.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "limango",
       "label": "Limango",
       "logo": "/logos/limango.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lionshome",
       "label": "Lionshome",
       "logo": "/logos/lionshome.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "livingo",
       "label": "Livingo",
       "logo": "/logos/livingo.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "logotype_printemps-vert",
       "label": "Printemps",
       "logo": "/logos/logotype_printemps-vert.jpg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lowes_companies_logo-svg",
       "label": "Lowe's",
       "logo": "/logos/lowes_companies_logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "lusini_logo",
       "label": "Lusini",
       "logo": "/logos/lusini_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "macy-s_logo_2019",
       "label": "Macy's",
       "logo": "/logos/macy-s_logo_2019.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "mafringue",
       "label": "Mafringue",
       "logo": "/logos/mafringue.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "maisonsdumonde",
       "label": "Maisonsdumonde",
       "logo": "/logos/maisonsdumonde.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "makro-logo",
       "label": "Makro",
       "logo": "/logos/makro-logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "manomano",
       "label": "Manomano",
       "logo": "/logos/manomano.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "manomanopro",
       "label": "ManoMano Pro",
       "logo": "/logos/manomanopro.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "manor-logo-blk-rgb-1",
       "label": "Manor",
       "logo": "/logos/manor-logo-blk-rgb-1.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "mareduc",
       "label": "Mareduc",
       "logo": "/logos/mareduc.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "materiel-net",
       "label": "Materiel Net",
       "logo": "/logos/materiel-net.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "maxeda_diy_group",
       "label": "Maxeda DIY",
       "logo": "/logos/maxeda_diy_group.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "meilleurvendeur",
       "label": "Meilleurvendeur",
       "logo": "/logos/meilleurvendeur.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "metro",
       "label": "Metro",
       "logo": "/logos/metro.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "meublesfr",
       "label": "Meublesfr",
       "logo": "/logos/meublesfr.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "miintomarketplace",
       "label": "Miinto",
       "logo": "/logos/miintomarketplace.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "misterauto_pro",
       "label": "Mister Auto Pro",
       "logo": "/logos/misterauto_pro.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "momax",
       "label": "Momax",
       "logo": "/logos/momax.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "mondialtissus",
       "label": "Mondialtissus",
       "logo": "/logos/mondialtissus.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "musicompare",
       "label": "Musicompare",
       "logo": "/logos/musicompare.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "mybestbrands",
       "label": "Mybestbrands",
       "logo": "/logos/mybestbrands.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "mythings",
       "label": "Mythings",
       "logo": "/logos/mythings.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "naturabuy",
       "label": "Naturabuy",
       "logo": "/logos/naturabuy.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "natureetdecouvertes",
       "label": "Nature & Découvertes",
       "logo": "/logos/natureetdecouvertes.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "neokasa",
       "label": "Neokasa",
       "logo": "/logos/neokasa.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "netreviews",
       "label": "Netreviews",
       "logo": "/logos/netreviews.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "nokaut",
       "label": "Nokaut",
       "logo": "/logos/nokaut.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "nowinstore",
       "label": "Nowinstore",
       "logo": "/logos/nowinstore.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "nuukik",
       "label": "Nuukik",
       "logo": "/logos/nuukik.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "obi-logo-orange-rgb",
       "label": "OBI",
       "logo": "/logos/obi-logo-orange-rgb.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "onachetefrancais",
       "label": "On Achète Français",
       "logo": "/logos/onachetefrancais.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "otiendas",
       "label": "Otiendas",
       "logo": "/logos/otiendas.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "otto_logo",
       "label": "Otto",
       "logo": "/logos/otto_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "pagineprezzi",
       "label": "Pagineprezzi",
       "logo": "/logos/pagineprezzi.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "pccomponentes",
       "label": "Pccomponentes",
       "logo": "/logos/pccomponentes.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "perfectcorp",
       "label": "Perfectcorp",
       "logo": "/logos/perfectcorp.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "phonehouse",
       "label": "Phonehouse",
       "logo": "/logos/phonehouse.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "pikengo",
       "label": "Pikengo",
       "logo": "/logos/pikengo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "pinterest",
       "label": "Pinterest",
       "logo": "/logos/pinterest.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "place_des_tendances_logo",
       "label": "Place des Tendances",
       "logo": "/logos/place_des_tendances_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "plante",
       "label": "Plante",
       "logo": "/logos/plante.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "plusbaslesprix",
       "label": "Plusbaslesprix",
       "logo": "/logos/plusbaslesprix.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "pneucompare",
       "label": "Pneucompare",
       "logo": "/logos/pneucompare.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "polyvore",
       "label": "Polyvore",
       "logo": "/logos/polyvore.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "popeo",
       "label": "Popeo",
       "logo": "/logos/popeo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "pourbebe",
       "label": "Pourbebe",
       "logo": "/logos/pourbebe.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "pourdebon",
       "label": "Pour de Bon",
       "logo": "/logos/pourdebon.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "pourlamaison",
       "label": "Pourlamaison",
       "logo": "/logos/pourlamaison.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "praxis",
       "label": "Praxis",
       "logo": "/logos/praxis.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "prezzifacili",
       "label": "Prezzifacili",
       "logo": "/logos/prezzifacili.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "prezzigomme",
       "label": "Prezzigomme",
       "logo": "/logos/prezzigomme.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "pricegrabber",
       "label": "Pricegrabber",
       "logo": "/logos/pricegrabber.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "priceobservatory",
       "label": "Priceobservatory",
       "logo": "/logos/priceobservatory.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "pricerunner",
       "label": "Pricerunner",
       "logo": "/logos/pricerunner.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "prisvis",
       "label": "Prisvis",
       "logo": "/logos/prisvis.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "private_sport_shop",
       "label": "Private Sport Shop",
       "logo": "/logos/private_sport_shop.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "prixing",
       "label": "Prixing",
       "logo": "/logos/prixing.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "pronto",
       "label": "Pronto",
       "logo": "/logos/pronto.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "pureshopping",
       "label": "Pureshopping",
       "logo": "/logos/pureshopping.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "quelpneu",
       "label": "Quelpneu",
       "logo": "/logos/quelpneu.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "quesabesde",
       "label": "Quesabesde",
       "logo": "/logos/quesabesde.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "radarprice",
       "label": "Radarprice",
       "logo": "/logos/radarprice.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "radvertising",
       "label": "Radvertising",
       "logo": "/logos/radvertising.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "rakuten",
       "label": "Rakuten",
       "logo": "/logos/rakuten.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "reductionmarque",
       "label": "Reductionmarque",
       "logo": "/logos/reductionmarque.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "reebonz",
       "label": "Reebonz",
       "logo": "/logos/reebonz.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "reelevant",
       "label": "Reelevant",
       "logo": "/logos/reelevant.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "reetags",
       "label": "Reetags",
       "logo": "/logos/reetags.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "refurbed-new",
       "label": "Refurbed",
       "logo": "/logos/refurbed-new.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "retif",
       "label": "Retif",
       "logo": "/logos/retif.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "rinascente_logo-svg",
       "label": "La Rinascente",
       "logo": "/logos/rinascente_logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ruemontgallet",
       "label": "Ruemontgallet",
       "logo": "/logos/ruemontgallet.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "runbabyrun",
       "label": "Runbabyrun",
       "logo": "/logos/runbabyrun.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "sabdoo",
       "label": "Sabdoo",
       "logo": "/logos/sabdoo.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "secretsales",
       "label": "Secretsales",
       "logo": "/logos/secretsales.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "sevellia",
       "label": "Sevellia",
       "logo": "/logos/sevellia.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "sextoyer",
       "label": "Sextoyer",
       "logo": "/logos/sextoyer.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "shareasale",
       "label": "Shareasale",
       "logo": "/logos/shareasale.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "shein-logo",
       "label": "Shein",
       "logo": "/logos/shein-logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "shop-apotheke",
       "label": "Shop Apotheke",
       "logo": "/logos/shop-apotheke.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "shopalike",
       "label": "Shopalike",
       "logo": "/logos/shopalike.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "shopbotinc",
       "label": "ShopBot",
       "logo": "/logos/shopbotinc.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "shopee",
       "label": "Shopee",
       "logo": "/logos/shopee.svg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "shopmania",
       "label": "Shopmania",
       "logo": "/logos/shopmania.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "shoppingcom",
       "label": "Shopping.com",
       "logo": "/logos/shoppingcom.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "shoppydoo",
       "label": "Shoppydoo",
       "logo": "/logos/shoppydoo.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "shopstyle",
       "label": "Shopstyle",
       "logo": "/logos/shopstyle.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "shoptoit",
       "label": "Shoptoit",
       "logo": "/logos/shoptoit.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "shopzilla",
       "label": "Shopzilla",
       "logo": "/logos/shopzilla.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "showroomprive",
       "label": "Showroomprivé",
       "logo": "/logos/showroomprive.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "slood-logo",
       "label": "Slood",
       "logo": "/logos/slood-logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "snapchat",
       "label": "Snapchat",
       "logo": "/logos/snapchat.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "sociomantic",
       "label": "Sociomantic",
       "logo": "/logos/sociomantic.png",
-      "type": "regie"
+      "type": "regie",
+      "large": true
     },
     {
       "id": "socloz",
       "label": "Socloz",
       "logo": "/logos/socloz.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "solostocks",
       "label": "Solostocks",
       "logo": "/logos/solostocks.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "spareka_logo",
       "label": "Spareka",
       "logo": "/logos/spareka_logo.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "spartoo",
       "label": "Spartoo",
       "logo": "/logos/spartoo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "sponsorboost",
       "label": "Sponsorboost",
       "logo": "/logos/sponsorboost.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "spycommerce",
       "label": "Spycommerce",
       "logo": "/logos/spycommerce.png",
-      "type": "outil"
+      "type": "outil",
+      "large": false
     },
     {
       "id": "stileo",
       "label": "Stileo",
       "logo": "/logos/stileo.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "stockly",
       "label": "Stockly",
       "logo": "/logos/stockly.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "superdrug_logo-svg",
       "label": "Superdrug",
       "logo": "/logos/superdrug_logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "target-logo",
       "label": "Target",
       "logo": "/logos/target-logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "target2sell",
       "label": "Target2sell",
       "logo": "/logos/target2sell.png",
-      "type": "regie"
+      "type": "regie",
+      "large": false
     },
     {
       "id": "temu_logo-svg",
       "label": "Temu",
       "logo": "/logos/temu_logo-svg.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "tesco_logo",
       "label": "Tesco",
       "logo": "/logos/tesco_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "testntrust",
       "label": "Testntrust",
       "logo": "/logos/testntrust.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "thunderstone",
       "label": "Thunderstone",
       "logo": "/logos/thunderstone.png",
-      "type": "outil"
+      "type": "outil",
+      "large": true
     },
     {
       "id": "tightr",
       "label": "Tightr",
       "logo": "/logos/tightr.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "tiktokshop_logo",
       "label": "TikTok Shop",
       "logo": "/logos/tiktokshop_logo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "timeone",
       "label": "Timeone",
       "logo": "/logos/timeone.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "topnegozi",
       "label": "Topnegozi",
       "logo": "/logos/topnegozi.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": false
     },
     {
       "id": "touslesprix",
       "label": "Touslesprix",
       "logo": "/logos/touslesprix.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "toutvendre",
       "label": "Toutvendre",
       "logo": "/logos/toutvendre.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "tracdelight",
       "label": "Tracdelight",
       "logo": "/logos/tracdelight.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "tradedoubler",
       "label": "Tradedoubler",
       "logo": "/logos/tradedoubler.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "tradetrackercom",
       "label": "TradeTracker",
       "logo": "/logos/tradetrackercom.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "trouversoncadeau",
       "label": "Trouversoncadeau",
       "logo": "/logos/trouversoncadeau.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "trovaprezzi",
       "label": "Trovaprezzi",
       "logo": "/logos/trovaprezzi.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "truffaut",
       "label": "Truffaut",
       "logo": "/logos/truffaut.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "trygr",
       "label": "Trygr",
       "logo": "/logos/trygr.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "turbo",
       "label": "Turbo",
       "logo": "/logos/turbo.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "twenganew",
       "label": "Twenga",
       "logo": "/logos/twenganew.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "twil",
       "label": "Twil",
       "logo": "/logos/twil.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "ubaldi",
       "label": "Ubaldi",
       "logo": "/logos/ubaldi.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "uncadeau",
       "label": "Uncadeau",
       "logo": "/logos/uncadeau.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "unooc",
       "label": "Unooc",
       "logo": "/logos/unooc.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "usinenouvelle",
       "label": "L'Usine Nouvelle",
       "logo": "/logos/usinenouvelle.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "veepeegroup",
       "label": "Veepee",
       "logo": "/logos/veepeegroup.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "veganplace",
       "label": "Veganplace",
       "logo": "/logos/veganplace.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "vinogustoes",
       "label": "Vinogustoes",
       "logo": "/logos/vinogustoes.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "vinsnaturels",
       "label": "Vinsnaturels",
       "logo": "/logos/vinsnaturels.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "vtwonen-logo-1",
       "label": "vtwonen",
       "logo": "/logos/vtwonen-logo-1.webp",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "wayfair",
       "label": "Wayfair",
       "logo": "/logos/wayfair.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "webepartners",
       "label": "Webepartners",
       "logo": "/logos/webepartners.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": false
     },
     {
       "id": "webgains",
       "label": "Webgains",
       "logo": "/logos/webgains.png",
-      "type": "affiliation"
+      "type": "affiliation",
+      "large": true
     },
     {
       "id": "winedecider",
       "label": "Winedecider",
       "logo": "/logos/winedecider.png",
-      "type": "comparateur"
+      "type": "comparateur",
+      "large": true
     },
     {
       "id": "wmt-marketplace-wordmark-stacked-rgb",
       "label": "Walmart Marketplace",
       "logo": "/logos/wmt-marketplace-wordmark-stacked-rgb.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "worten",
       "label": "Worten",
       "logo": "/logos/worten.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "xxxlutz-logo",
       "label": "XXXLutz",
       "logo": "/logos/xxxlutz-logo.svg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "youvente",
       "label": "Youvente",
       "logo": "/logos/youvente.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": false
     },
     {
       "id": "yves-rocher-france",
       "label": "Yves Rocher",
       "logo": "/logos/yves-rocher-france.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "zalando",
       "label": "Zalando",
       "logo": "/logos/zalando.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "zentrada",
       "label": "Zentrada",
       "logo": "/logos/zentrada.png",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     },
     {
       "id": "zooplus-new",
       "label": "Zooplus",
       "logo": "/logos/zooplus-new.svg",
-      "type": "marketplace"
+      "type": "marketplace",
+      "large": true
     }
   ]
 }

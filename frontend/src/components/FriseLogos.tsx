@@ -10,9 +10,11 @@
  * élément, pas un `gap` de la piste : avec un gap, la moitié ne tombe pas sur
  * un tour complet et la frise saute d'un demi-espace à chaque boucle.
  *
- * La bande entière est blanche, pleine largeur (demandé le 25/09/2026) : la
- * plupart des logos de canaux sont sombres sur fond transparent et
- * disparaîtraient sur le fond du site.
+ * Chaque logo a sa carte (demandé le 25/09/2026) : un carré blanc de 150 × 150 aux
+ * coins arrondis, ou 300 × 150 pour un logo en long (`large`, mesuré à la
+ * génération des JSON, jamais au chargement : une carte qui s'élargit en cours
+ * de route ferait sauter la ligne), avec un bord néon dont la couleur tourne
+ * sur les six du site. Rien n'est cliquable et le survol n'arrête rien.
  * Sans fichier (`logo: null`), une pastille aux initiales dans la couleur de
  * la marque tient la place. La vitesse suit le nombre de logos (une durée
  * fixe ferait défiler 314 logos huit fois plus vite que 38). Le survol met en
@@ -26,6 +28,8 @@ export interface LogoFrise {
   logo: string | null
   /** La couleur de la pastille de repli. */
   couleur?: string
+  /** Vrai pour un logo en long : carte de 300 × 150 au lieu de 150 × 150. */
+  large?: boolean
 }
 
 function initiales(label: string): string {
@@ -53,8 +57,8 @@ export function FriseLogos({
         {[...logos, ...logos].map((l, i) => {
           const copie = i >= logos.length
           return (
-            <li key={`${l.id}-${i}`} className="flex h-full shrink-0 items-center px-4" aria-hidden={copie || undefined} title={l.label}>
-              <span className="flex h-24 w-44 items-center justify-center p-3">
+            <li key={`${l.id}-${i}`} className="flex h-full shrink-0 items-center px-3" aria-hidden={copie || undefined}>
+              <span className={`frise-carte neon-${(i % 6) + 1} ${l.large ? 'w-[300px]' : 'w-[150px]'}`}>
                 {l.logo ? (
                   <img
                     src={l.logo}
@@ -70,7 +74,7 @@ export function FriseLogos({
                   />
                 ) : (
                   <span
-                    className="flex h-16 w-16 items-center justify-center rounded-xl text-xl font-extrabold text-white"
+                    className="flex h-20 w-20 items-center justify-center rounded-2xl text-2xl font-extrabold text-white"
                     style={{ background: l.couleur || '#7c3aed' }}
                   >
                     {initiales(l.label)}

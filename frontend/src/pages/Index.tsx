@@ -18,9 +18,9 @@ import canaux from '../data/canaux.json'
  * l'autre. Les deux JSON sont engendrés (exporter-fournisseurs.ts,
  * build-channel-directory.cjs) : rien n'est recopié à la main ici.
  */
-const FOURNISSEURS_FRISE: LogoFrise[] = fournisseurs.fournisseurs.map((f) => ({ id: f.id, label: f.label, logo: f.logo, couleur: f.color }))
+const FOURNISSEURS_FRISE: LogoFrise[] = fournisseurs.fournisseurs.map((f) => ({ id: f.id, label: f.label, logo: f.logo, couleur: f.color, large: f.large }))
 const CANAUX_FRISE: [LogoFrise[], LogoFrise[]] = [[], []]
-canaux.canaux.forEach((c, i) => CANAUX_FRISE[i % 2].push({ id: c.id, label: c.label, logo: c.logo }))
+canaux.canaux.forEach((c, i) => CANAUX_FRISE[i % 2].push({ id: c.id, label: c.label, logo: c.logo, large: c.large }))
 
 /**
  * La page d'accueil : ce que fait DropShipper IA, thème par thème.
@@ -172,7 +172,7 @@ export default function Index() {
               </div>
               {t.slug === 'fournisseurs' ? <FriseLogos logos={FOURNISSEURS_FRISE} sens="gauche" className="mb-6" /> : null}
               {t.slug === 'diffusion' ? (
-                <div className="mb-6">
+                <div className="mb-6 space-y-1">
                   <FriseLogos logos={CANAUX_FRISE[0]} sens="droite" />
                   <FriseLogos logos={CANAUX_FRISE[1]} sens="gauche" />
                 </div>

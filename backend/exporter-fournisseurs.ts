@@ -20,6 +20,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import sharp from 'sharp'
 import { SUPPLIERS } from './src/services/suppliers.js'
 
 const DOSSIER = path.resolve('../frontend/public/logos-fournisseurs')
@@ -80,7 +81,14 @@ async function main() {
       if (fs.existsSync(fichier)) logo = `/logos-fournisseurs/${s.id}.png`
     }
     if (!logo) sans++
-    fournisseurs.push({ id: s.id, label: s.label, domain: s.domain, color: s.color, logo })
+    // Un logo en long (plus de 1,6 fois plus large que haut) prend une carte de
+    // 300 × 150 dans la frise ; mesuré ici, jamais au chargement (voir canaux.json).
+    let large = false
+    if (logo) {
+      const m = await sharp(path.join(PUBLIC, logo)).metadata().catch(() => null)
+      large = !!(m?.width && m?.height && m.width / m.height > 1.6)
+    }
+    fournisseurs.push({ id: s.id, label: s.label, domain: s.domain, color: s.color, logo, large })
   }
   fs.writeFileSync(
     SORTIE,

@@ -329,18 +329,43 @@ fs.writeFileSync(SORTIE_SEO, cjs, 'utf8')
  * Vite ; un module CommonJS, non.
  */
 const SORTIE_JSON = path.resolve(__dirname, '../frontend/src/data/canaux.json')
-fs.writeFileSync(
-  SORTIE_JSON,
-  JSON.stringify(
-    {
-      _commentaire: 'ENGENDRÉ par backend/build-channel-directory.cjs, ne pas éditer : les canaux de l’annuaire avec leur logo (frontend/public/logos), pour la frise de l’accueil.',
-      canaux: entrees.map((e) => ({ id: e.id, label: e.label, logo: '/logos/' + e.logo, type: e.type })),
-    },
-    null,
-    2,
-  ) + '\n',
-  'utf8',
-)
+/*
+ * `large` : un logo en long (plus de 1,6 fois plus large que haut) reçoit une
+ * carte de 300 × 150 dans la frise, les autres une carte de 150 × 150. Mesuré
+ * ici, une fois, plutôt qu'au chargement de l'image : une carte qui change de
+ * largeur pendant que la frise défile ferait sauter toute la ligne.
+ */
+const sharp = require('sharp')
+async function ecrireJson() {
+  const canaux = []
+  for (const e of entrees) {
+    let large = false
+    try {
+      const m = await sharp(path.join(LOGOS, e.logo)).metadata()
+      large = !!(m.width && m.height && m.width / m.height > 1.6)
+    } catch {
+      /* un fichier illisible reste une carte carrée */
+    }
+    canaux.push({ id: e.id, label: e.label, logo: '/logos/' + e.logo, type: e.type, large })
+  }
+  fs.writeFileSync(
+    SORTIE_JSON,
+    JSON.stringify(
+      {
+        _commentaire: 'ENGENDRÉ par backend/build-channel-directory.cjs, ne pas éditer : les canaux de l’annuaire avec leur logo (frontend/public/logos), pour la frise de l’accueil. large = logo en long (carte 300 × 150).',
+        canaux,
+      },
+      null,
+      2,
+    ) + '\n',
+    'utf8',
+  )
+  console.log(`${canaux.length} canaux dans ${path.relative(process.cwd(), SORTIE_JSON)}, dont ${canaux.filter((c) => c.large).length} logos en long`)
+}
+ecrireJson().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})
 
 const compte = {}
 for (const e of entrees) compte[e.type] = (compte[e.type] ?? 0) + 1
