@@ -31,7 +31,10 @@
          sombre à chaque chargement. -->
     <script>
       try {
-        if (localStorage.getItem('dsp-theme') === 'light') document.documentElement.setAttribute('data-theme', 'light')
+        // L'accueil et API Power n'ont qu'un seul rendu, sombre (Max, 25/09/2026) :
+        // le thème clair n'y est jamais posé, même avant le montage de React.
+        var publique = location.pathname === '/' || location.pathname.indexOf('/api-power') === 0
+        if (!publique && localStorage.getItem('dsp-theme') === 'light') document.documentElement.setAttribute('data-theme', 'light')
       } catch (e) {}
     </script>
     <title>DropShipper IA</title>

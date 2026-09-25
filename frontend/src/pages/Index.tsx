@@ -80,7 +80,7 @@ export default function Index() {
       <header className="sticky top-0 z-20 border-b border-white/5 bg-[#08070f]/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Logo />
-          <nav className="hidden items-center gap-5 whitespace-nowrap text-sm text-gray-300 lg:flex" aria-label="Sections">
+          <nav className="hidden items-center gap-5 whitespace-nowrap text-sm text-white lg:flex" aria-label="Sections">
             {NAV.map((n) => (
               <a key={n.href} href={n.href} className="hover:text-white">
                 {n.label}
@@ -203,7 +203,7 @@ export default function Index() {
                   {average !== null && (
                     <div className="mt-2 flex items-center gap-3">
                       <Stars rating={Math.round(average)} size={16} />
-                      <span className="text-sm text-gray-400">{`${average.toFixed(1)} sur 5 — ${count} avis`}</span>
+                      <span className="text-sm text-white">{`${average.toFixed(1)} sur 5 — ${count} avis`}</span>
                     </div>
                   )}
                 </div>
@@ -232,36 +232,36 @@ export default function Index() {
             Google only ever learns about them through the sitemap. Plain <a>, not
             <Link>: these are real HTML files, not React routes. */}
         <nav className="mx-auto max-w-6xl border-t border-white/10 px-6 pb-16 pt-8 text-left">
-          <h2 className="text-sm font-semibold text-gray-300">Vendre sur les marketplaces</h2>
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-400">
+          <h2 className="text-sm font-semibold text-white">Vendre sur les marketplaces</h2>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white">
             {SEO_LINKS.map((link) => (
               <a key={link.href} href={link.href} className="hover:text-purple-300">
                 {link.label}
               </a>
             ))}
           </div>
-          <p className="mt-6 text-xs text-gray-500">
-            <a href="/analyses/" className="hover:text-gray-300">
+          <p className="mt-6 text-xs text-white">
+            <a href="/analyses/" className="hover:text-purple-300">
               Analyses de marché
             </a>
             {' · '}
-            <a href="/tarifs/" className="hover:text-gray-300">
+            <a href="/tarifs/" className="hover:text-purple-300">
               Tarifs
             </a>
             {' · '}
-            <a href="/faq/" className="hover:text-gray-300">
+            <a href="/faq/" className="hover:text-purple-300">
               Questions fréquentes
             </a>
             {' · '}
-            <a href="/a-propos/" className="hover:text-gray-300">
+            <a href="/a-propos/" className="hover:text-purple-300">
               À propos
             </a>
             {' · '}
-            <Link to="/avis" className="hover:text-gray-300">
+            <Link to="/avis" className="hover:text-purple-300">
               Avis des utilisateurs
             </Link>
             {' · '}
-            <a href="/confidentialite" className="hover:text-gray-300">
+            <a href="/confidentialite" className="hover:text-purple-300">
               Politique de confidentialité
             </a>
           </p>
