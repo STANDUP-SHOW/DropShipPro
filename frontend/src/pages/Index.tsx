@@ -7,6 +7,7 @@ import { CHROME_STORE_URL } from '../lib/extension'
 import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
 import { AccueilDiaporama, ImageOuRepli } from '../components/AccueilDiaporama'
 import accueil from '../data/accueil-themes.json'
+import { useThemeSombreForce } from '../lib/themeSombre'
 import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
 import fournisseurs from '../data/fournisseurs.json'
 import canaux from '../data/canaux.json'
@@ -52,6 +53,7 @@ const NAV = [
 ]
 
 export default function Index() {
+  useThemeSombreForce()
   // The twelve most recent reviews, loaded client-side: the home page is served as
   // a static shell, so this arrives just after paint rather than blocking it.
   const [reviews, setReviews] = useState<PublicReview[]>([])

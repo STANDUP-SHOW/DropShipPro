@@ -4,6 +4,7 @@ import { Zap, ExternalLink, Check } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { isAuthed } from '../lib/api'
 import apiPower from '../data/api-power.json'
+import { useThemeSombreForce } from '../lib/themeSombre'
 
 /**
  * API Power — tout ce que les API marketing, publicitaires et de publication
@@ -62,6 +63,7 @@ const EXPLICATION_ETAT: Record<Etat, string> = {
 }
 
 export default function ApiPower() {
+  useThemeSombreForce()
   const [univers, setUnivers] = useState<Univers | 'tous'>('tous')
   const [usage, setUsage] = useState<string>('tous')
   const apis = APIS

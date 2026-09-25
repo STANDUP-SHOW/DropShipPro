@@ -327,8 +327,3 @@ html[data-theme="light"] { color-scheme: light; }
   text-shadow: 0 0 4px rgba(255, 255, 255, 0.55), 0 0 14px rgba(255, 255, 255, 0.25);
 }
 .texte-neon :is(p, span, li, dd, dt, small, cite) { color: #fff; }
-[data-theme="light"] .texte-neon,
-[data-theme="light"] .texte-neon :is(p, span, li, dd, dt, small, cite) {
-  color: #111;
-  text-shadow: none;
-}
