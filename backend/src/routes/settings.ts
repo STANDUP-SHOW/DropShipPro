@@ -18,6 +18,12 @@ import { BoutiqueRefus } from '../services/boutiqueTiers.js'
 import { readWooCredentials, verifierCompteWoo } from '../services/woocommerce.js'
 import { readPrestaCredentials, verifierComptePresta } from '../services/prestashop.js'
 import { readMagentoCredentials, verifierCompteMagento } from '../services/magento.js'
+import { readDrupalCredentials, verifierCompteDrupal } from '../services/drupalCommerce.js'
+import { readBigCommerceCredentials, verifierCompteBigCommerce } from '../services/bigcommerce.js'
+import { readWixCredentials, verifierCompteWix } from '../services/wix.js'
+import { readShopwareCredentials, verifierCompteShopware } from '../services/shopware.js'
+import { readEcwidCredentials, verifierCompteEcwid } from '../services/ecwid.js'
+import { readSquarespaceCredentials, verifierCompteSquarespace } from '../services/squarespace.js'
 import { saveWatermarkLogo, saveVitrineLogo } from '../services/watermark.js'
 import {
   normalizeShopDomain,
@@ -531,6 +537,12 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
     WOOCOMMERCE: { lire: readWooCredentials, verifier: verifierCompteWoo, manque: "Donnez l'adresse du site, la clé et le secret de consommateur WooCommerce." },
     PRESTASHOP: { lire: readPrestaCredentials, verifier: verifierComptePresta, manque: "Donnez l'adresse du site et la clé du webservice PrestaShop." },
     MAGENTO: { lire: readMagentoCredentials, verifier: verifierCompteMagento, manque: "Donnez l'adresse du site et l'Access Token de l'intégration Magento." },
+    DRUPAL_COMMERCE: { lire: readDrupalCredentials, verifier: verifierCompteDrupal, manque: "Donnez l'adresse du site Drupal, l'identifiant et le mot de passe du compte dédié." },
+    BIGCOMMERCE: { lire: readBigCommerceCredentials, verifier: verifierCompteBigCommerce, manque: 'Donnez le store hash (6 à 20 caractères) et l’Access Token BigCommerce.' },
+    WIX: { lire: readWixCredentials, verifier: verifierCompteWix, manque: "Donnez la clé d'API Wix et l'identifiant du site (UUID)." },
+    SHOPWARE: { lire: readShopwareCredentials, verifier: verifierCompteShopware, manque: "Donnez l'adresse de la boutique Shopware, l'identifiant et le secret d'accès de l'intégration." },
+    ECWID: { lire: readEcwidCredentials, verifier: verifierCompteEcwid, manque: "Donnez l'identifiant de boutique Ecwid (chiffres) et le jeton secret." },
+    SQUARESPACE: { lire: readSquarespaceCredentials, verifier: verifierCompteSquarespace, manque: "Donnez la clé d'API Commerce de Squarespace." },
   } as const
   if (parsed.data.platform in BOUTIQUES && Object.keys(data).length > 0) {
     const boutique = BOUTIQUES[parsed.data.platform as keyof typeof BOUTIQUES]

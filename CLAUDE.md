@@ -1314,6 +1314,32 @@ Trois conséquences, toutes appliquées :
   référence envoyée par Max (cœur blanc, deux couronnes, halo large, lueur
   intérieure sur les cartes ; bande de 210 px pour laisser passer le halo).
 
+- **Neuf boutiques du vendeur, un seul chemin (25/09/2026).** Après WooCommerce,
+  PrestaShop et Magento : Drupal Commerce (JSON:API + Basic Auth — la
+  VARIATION porte référence et prix, le PRODUIT la référence avec sa
+  boutique ; photo en octets sur `field_image` ; 422 = référence déjà prise →
+  PATCH ; pas de stock sans Commerce Stock), BigCommerce (Catalog V3 hébergée
+  chez eux, `X-Auth-Token` + store hash ; `weight` OBLIGATOIRE, posé à 1 ;
+  409 → GET sku → PUT), Wix Stores (clé du compte + `wix-site-id`, produit
+  sous `product`, médias par adresse en second appel ; les collections ne se
+  créent pas par l'API v1, la fiche le dit ; sku non unique → on cherche
+  avant), Shopware 6 (jeton `client_credentials` de dix minutes gardé par
+  boutique — **clé de cache avec le secret haché**, sinon un secret faux
+  réutilisait le bon jeton, attrapé par le banc ; taxe, devise EUR et canal lus
+  sur la boutique ; `POST /api/product` répond 204, l'UUID est le nôtre ;
+  médias créés puis téléchargés par Shopware depuis l'adresse), Ecwid (REST
+  v3 hébergée, Bearer secret + storeId ; `/image` puis `/gallery?externalUrl=` ;
+  EAN en attribut UPC), Squarespace Commerce (Bearer + `User-Agent`
+  obligatoire ; `storePageId` de la première page Boutique ; variantes avec
+  prix en chaîne ; images en multipart `file` ; une référence déjà présente est
+  un refus de PRODUIT avec le geste, l'API ne sait pas la retrouver). Les API
+  hébergées prennent un `apiBase` que seul le banc passe. `BOUTIQUES_TIERS`
+  (platforms.ts) est la liste ; LIVE et BOUTIQUES_DU_VENDEUR la lisent ;
+  publisher.ts et settings.ts ont leur table par plateforme. Migration
+  `20260925120000` (six valeurs d'enum). Banc `check-boutiques-tiers.ts`,
+  neuf faux serveurs au contrat écrit en dur. **Aucun des neuf n'a été
+  confronté à une vraie boutique.**
+
 ---
 
 ## État des intégrations

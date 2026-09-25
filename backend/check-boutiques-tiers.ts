@@ -1,6 +1,7 @@
 /**
- * Banc : les trois connecteurs de boutique du vendeur — WooCommerce, PrestaShop,
- * Magento — contre trois faux serveurs dont le contrat est ÉCRIT EN DUR (leçon
+ * Banc : les neuf connecteurs de boutique du vendeur — WooCommerce, PrestaShop,
+ * Magento, puis Drupal Commerce, BigCommerce, Wix, Shopware, Ecwid, Squarespace
+ * (25/09/2026) — contre autant de faux serveurs dont le contrat est ÉCRIT EN DUR (leçon
  * Kaufland : un faux qui réutilise le code du connecteur ne prouve rien).
  *
  * Ce que chaque faux vérifie côté serveur : l'authentification telle que la
@@ -13,6 +14,12 @@ import { BoutiqueRefus, descriptionEnHtml, normaliserSiteUrl, telechargerImage, 
 import { publierWoo, readWooCredentials, verifierCompteWoo } from './src/services/woocommerce.js'
 import { publierPresta, readPrestaCredentials, xmlProduit } from './src/services/prestashop.js'
 import { publierMagento, readMagentoCredentials, verifierCompteMagento } from './src/services/magento.js'
+import { publierDrupal, readDrupalCredentials, verifierCompteDrupal } from './src/services/drupalCommerce.js'
+import { publierBigCommerce, readBigCommerceCredentials, verifierCompteBigCommerce } from './src/services/bigcommerce.js'
+import { publierWix, readWixCredentials, verifierCompteWix } from './src/services/wix.js'
+import { publierShopware, readShopwareCredentials, verifierCompteShopware } from './src/services/shopware.js'
+import { publierEcwid, readEcwidCredentials, verifierCompteEcwid } from './src/services/ecwid.js'
+import { publierSquarespace, readSquarespaceCredentials, verifierCompteSquarespace } from './src/services/squarespace.js'
 
 let echecs = 0
 function verifier(nom: string, condition: boolean, detail = '') {
@@ -265,11 +272,388 @@ async function main() {
     }
   }
 
+  // Un refus attendu, ramené à sa forme : la classe, le drapeau liaison, le motif.
+  const refusDe = async (essai: () => Promise<unknown>): Promise<BoutiqueRefus | null> => {
+    try {
+      await essai()
+      return null
+    } catch (e) {
+      return e as BoutiqueRefus
+    }
+  }
+
+  // --------------------------------------------------------- Drupal Commerce
+  console.log('\nDrupal Commerce (JSON:API, Basic Auth, variation puis produit, photo en octets)')
+  {
+    const attendu = `Basic ${Buffer.from('robot:secret').toString('base64')}`
+    let variations: Array<{ id: string; sku: string }> = []
+    let produits: Array<{ id: string; variation: string }> = []
+    const s = await serveur((a, res) => {
+      const json = (code: number, o: unknown) => {
+        res.writeHead(code, { 'Content-Type': 'application/vnd.api+json' })
+        res.end(JSON.stringify(o))
+      }
+      if (a.auth !== attendu) return json(401, { errors: [{ title: 'Unauthorized' }] })
+      if (!a.chemin.startsWith('/jsonapi/')) return json(404, {})
+      const chemin = a.chemin.slice('/jsonapi'.length)
+      if (a.methode === 'GET' && chemin.startsWith('/commerce_store/online')) return json(200, { data: [{ id: 'store-1', type: 'commerce_store--online' }] })
+      if (a.methode === 'GET' && chemin.startsWith('/commerce_product/default?page')) return json(200, { data: [] })
+      if (chemin.includes('/field_image')) {
+        if (a.type !== 'application/octet-stream' || !/^file; filename="/.test(String(a.corps ? '' : ''))) {
+          // Le corps est binaire ; on ne relit que les en-têtes.
+        }
+        return json(201, { data: { id: 'file-1' } })
+      }
+      if (a.type !== 'application/vnd.api+json' && a.methode !== 'GET') return json(415, { errors: [{ title: 'Unsupported Media Type' }] })
+      if (a.methode === 'POST' && chemin === '/commerce_product_variation/default') {
+        const d = JSON.parse(a.corps).data
+        if (variations.some((v) => v.sku === d.attributes.sku)) return json(422, { errors: [{ title: 'Unprocessable Entity', detail: 'sku: The SKU must be unique.' }] })
+        const v = { id: 'var-' + (variations.length + 1), sku: d.attributes.sku }
+        variations = [...variations, v]
+        return json(201, { data: { id: v.id, type: d.type } })
+      }
+      if (a.methode === 'GET' && chemin.startsWith('/commerce_product_variation/default?filter[sku]=')) {
+        const sku = decodeURIComponent(chemin.split('=')[1])
+        return json(200, { data: variations.filter((v) => v.sku === sku).map((v) => ({ id: v.id })) })
+      }
+      if (a.methode === 'PATCH' && chemin.startsWith('/commerce_product_variation/default/')) return json(200, { data: { id: chemin.split('/').pop() } })
+      if (a.methode === 'POST' && chemin === '/commerce_product/default') {
+        const d = JSON.parse(a.corps).data
+        if (!d.relationships?.stores?.data?.[0]?.id || !d.relationships?.variations?.data?.[0]?.id) return json(422, { errors: [{ detail: 'stores et variations requis' }] })
+        const p = { id: 'prod-' + (produits.length + 1), variation: d.relationships.variations.data[0].id }
+        produits = [...produits, p]
+        return json(201, { data: { id: p.id } })
+      }
+      if (a.methode === 'GET' && chemin.startsWith('/commerce_product/default?filter[variations.sku]=')) {
+        const sku = decodeURIComponent(chemin.split('=')[1])
+        const v = variations.find((x) => x.sku === sku)
+        return json(200, { data: produits.filter((p) => p.variation === v?.id).map((p) => ({ id: p.id })) })
+      }
+      if (a.methode === 'PATCH' && chemin.startsWith('/commerce_product/default/')) return json(200, { data: { id: chemin.split('/').pop() } })
+      return json(404, { errors: [{ title: chemin }] })
+    })
+    try {
+      verifier('rien sans le mot de passe', readDrupalCredentials({ siteUrl: s.base, identifiant: 'robot' }) === null)
+      const creds = readDrupalCredentials({ siteUrl: s.base, identifiant: 'robot', motDePasse: 'secret' })!
+      verifier('le type de produit est « default » par défaut', creds.type === 'default')
+      await verifierCompteDrupal(creds)
+      const depot = await publierDrupal(creds, fiche(s.base))
+      const variation = s.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/commerce_product_variation/default'))!
+      const produit = s.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/commerce_product/default'))!
+      const v = JSON.parse(variation.corps).data.attributes
+      const p = JSON.parse(produit.corps).data
+      verifier('la variation porte référence, prix en chaîne et devise', v.sku === 'DSP-lampe-1' && v.price.number === '34.90' && v.price.currency_code === 'EUR')
+      verifier('le produit référence la boutique et la variation, corps en HTML', p.relationships.stores.data[0].id === 'store-1' && p.relationships.variations.data[0].id === 'var-1' && p.attributes.body.value.includes('<ul>'))
+      verifier('les deux photos partent en octets sur le champ image de la variation', s.journal.filter((a) => a.chemin.includes('/var-1/field_image') && a.type === 'application/octet-stream').length === 2 && depot.id === 'prod-1')
+      const rejoue = await publierDrupal(creds, fiche(s.base))
+      verifier('redéposer la même référence met à jour (422 → PATCH), sans doublon', rejoue.id === 'prod-1' && s.journal.some((a) => a.methode === 'PATCH' && a.chemin.includes('/commerce_product/default/prod-1')) && produits.length === 1)
+      const refus = await refusDe(() => verifierCompteDrupal({ ...creds, motDePasse: 'faux' }))
+      verifier('un mot de passe faux est un refus de liaison expliqué', refus instanceof BoutiqueRefus && refus.liaison && /Basic Auth/.test(refus.message))
+    } finally {
+      s.fermer()
+    }
+  }
+
+  // ------------------------------------------------------------- BigCommerce
+  console.log('\nBigCommerce (Catalog V3, X-Auth-Token, images par adresse, poids obligatoire)')
+  {
+    const HASH = 'abc123xy'
+    let produits: Array<{ id: number; sku: string }> = []
+    const s = await serveur((a, res) => {
+      const json = (code: number, o: unknown) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(o))
+      }
+      // Le faux lit l'en-tête X-Auth-Token par le journal : il n'est pas dans `auth`.
+      return void 0, json(200, { data: {} })
+    })
+    s.fermer()
+    // Un serveur qui lit X-Auth-Token : on l'écrit à part, avec l'en-tête sous la main.
+    const s2 = await (async () => {
+      const { createServer } = await import('node:http')
+      const journal: Array<{ methode: string; chemin: string; token: string; corps: string }> = []
+      const srv = createServer(async (req, res) => {
+        const morceaux: Buffer[] = []
+        for await (const c of req) morceaux.push(c as Buffer)
+        const a = { methode: req.method!, chemin: req.url!, token: String(req.headers['x-auth-token'] ?? ''), corps: Buffer.concat(morceaux).toString('utf8') }
+        journal.push(a)
+        const json = (code: number, o: unknown) => {
+          res.writeHead(code, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(o))
+        }
+        if (a.token !== 'tok-bc') return json(401, { title: 'Unauthorized', status: 401 })
+        if (!a.chemin.startsWith(`/stores/${HASH}/v3/`)) return json(404, { title: 'Not Found' })
+        const chemin = a.chemin.slice(`/stores/${HASH}/v3`.length)
+        if (a.methode === 'GET' && chemin === '/catalog/summary') return json(200, { data: { inventory_count: 1 } })
+        if (a.methode === 'GET' && chemin.startsWith('/catalog/categories?name=')) {
+          const nom = decodeURIComponent(/name=([^&]*)/.exec(chemin)![1])
+          return json(200, { data: nom === 'Luminaires' ? [{ id: 7, name: 'Luminaires' }] : [] })
+        }
+        if (a.methode === 'POST' && chemin === '/catalog/categories') return json(200, { data: { id: 40, name: JSON.parse(a.corps).name } })
+        if (a.methode === 'GET' && chemin.startsWith('/catalog/products?sku=')) {
+          const sku = decodeURIComponent(chemin.split('=')[1])
+          return json(200, { data: produits.filter((p) => p.sku === sku) })
+        }
+        if (a.methode === 'POST' && chemin === '/catalog/products') {
+          const p = JSON.parse(a.corps)
+          if (!p.name || typeof p.weight !== 'number' || typeof p.price !== 'number' || !p.type) return json(422, { title: 'name, type, weight et price requis', status: 422 })
+          if (produits.some((x) => x.sku === p.sku)) return json(409, { title: 'The product sku is a duplicate', status: 409 })
+          const cree = { id: 501, sku: p.sku }
+          produits = [...produits, cree]
+          return json(200, { data: { id: 501, ...p } })
+        }
+        if (a.methode === 'PUT' && chemin === '/catalog/products/501') return json(200, { data: { id: 501 } })
+        return json(404, { title: chemin })
+      })
+      return new Promise<{ base: string; journal: typeof journal; fermer: () => void }>((ok) =>
+        srv.listen(0, '127.0.0.1', () => ok({ base: `http://127.0.0.1:${(srv.address() as { port: number }).port}`, journal, fermer: () => srv.close() })),
+      )
+    })()
+    try {
+      verifier('un store hash mal formé est refusé au collage', readBigCommerceCredentials({ storeHash: 'stores/abc 123', accessToken: 't' }) === null)
+      const creds = readBigCommerceCredentials({ storeHash: `stores/${HASH}`, accessToken: 'tok-bc', apiBase: s2.base })!
+      verifier('le préfixe « stores/ » collé par erreur est retiré', creds.storeHash === HASH)
+      await verifierCompteBigCommerce(creds)
+      verifier('la vérification passe par /catalog/summary', s2.journal.at(-1)?.chemin.endsWith('/catalog/summary') === true)
+      const depot = await publierBigCommerce(creds, fiche(s.base))
+      const post = s2.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/catalog/products'))!
+      const corps = JSON.parse(post.corps)
+      verifier('fiche créée avec poids, prix nombre, images par adresse, stock et GTIN', depot.id === 501 && corps.weight === 1 && corps.price === 34.9 && corps.images[0].image_url === `${s.base}/photo.png` && corps.inventory_level === 12 && corps.gtin === '4006381333931')
+      verifier('la catégorie existante est référencée sans être recréée', corps.categories[0] === 7 && !s2.journal.some((a) => a.methode === 'POST' && a.chemin.endsWith('/catalog/categories')))
+      const rejoue = await publierBigCommerce(creds, fiche(s.base))
+      verifier('redéposer la même référence met à jour (409 → GET sku → PUT)', rejoue.id === 501 && s2.journal.some((a) => a.methode === 'PUT' && a.chemin.endsWith('/catalog/products/501')))
+      const refus = await refusDe(() => verifierCompteBigCommerce({ ...creds, accessToken: 'faux' }))
+      verifier('un jeton faux est un refus de liaison expliqué', refus instanceof BoutiqueRefus && refus.liaison && /Comptes API/.test(refus.message))
+    } finally {
+      s2.fermer()
+    }
+  }
+
+  // --------------------------------------------------------------------- Wix
+  console.log('\nWix Stores (clé + wix-site-id, produit sous « product », médias par adresse, collections existantes)')
+  {
+    const SITE = '0b1c2d3e-4f50-4617-8899-aabbccddeeff'
+    let produits: Array<{ id: string; sku: string }> = []
+    const { createServer } = await import('node:http')
+    const journal: Array<{ methode: string; chemin: string; corps: string }> = []
+    const srv = createServer(async (req, res) => {
+      const morceaux: Buffer[] = []
+      for await (const c of req) morceaux.push(c as Buffer)
+      const a = { methode: req.method!, chemin: req.url!, corps: Buffer.concat(morceaux).toString('utf8') }
+      journal.push(a)
+      const json = (code: number, o: unknown) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(o))
+      }
+      if (req.headers.authorization !== 'cle-wix' || req.headers['wix-site-id'] !== SITE) return json(403, { message: 'Forbidden' })
+      if (!a.chemin.startsWith('/stores/v1/')) return json(404, {})
+      const chemin = a.chemin.slice('/stores/v1'.length)
+      if (a.methode === 'POST' && chemin === '/products/query') {
+        const q = JSON.parse(a.corps).query
+        const filtre = q.filter ? JSON.parse(q.filter) : {}
+        return json(200, { products: produits.filter((p) => !filtre.sku || p.sku === filtre.sku) })
+      }
+      if (a.methode === 'POST' && chemin === '/products') {
+        const p = JSON.parse(a.corps).product
+        if (!p || !p.name || !p.priceData?.price) return json(400, { message: 'product.name et priceData requis' })
+        const cree = { id: 'p1', sku: p.sku }
+        produits = [...produits, cree]
+        return json(200, { product: { id: 'p1', ...p } })
+      }
+      if (a.methode === 'PATCH' && chemin === '/products/p1') return json(200, { product: { id: 'p1' } })
+      if (a.methode === 'POST' && chemin === '/products/p1/media') {
+        const m = JSON.parse(a.corps).media
+        if (!Array.isArray(m) || !m.every((x: { url?: string }) => x.url)) return json(400, { message: 'media[].url requis' })
+        return json(200, {})
+      }
+      if (a.methode === 'POST' && chemin === '/collections/query') return json(200, { collections: [{ id: 'c1', name: 'Luminaires' }] })
+      if (a.methode === 'POST' && chemin === '/collections/c1/productIds') return json(200, {})
+      return json(404, { message: chemin })
+    })
+    const base = await new Promise<string>((ok) => srv.listen(0, '127.0.0.1', () => ok(`http://127.0.0.1:${(srv.address() as { port: number }).port}`)))
+    const photos = await serveur(() => undefined)
+    try {
+      verifier('un identifiant de site qui n’est pas un UUID est refusé', readWixCredentials({ apiKey: 'k', siteId: 'mon-site' }) === null)
+      const creds = readWixCredentials({ apiKey: 'cle-wix', siteId: SITE, apiBase: base })!
+      await verifierCompteWix(creds)
+      const depot = await publierWix(creds, fiche(photos.base))
+      const post = journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/stores/v1/products'))!
+      const p = JSON.parse(post.corps).product
+      verifier('la fiche est sous « product » : prix nombre, stock suivi, visible', depot.id === 'p1' && p.priceData.price === 34.9 && p.stock.trackInventory === true && p.stock.quantity === 12 && p.visible === true)
+      verifier('les photos partent par adresse dans un second appel', journal.some((a) => a.chemin.endsWith('/products/p1/media')) && /photo\.png/.test(journal.find((a) => a.chemin.endsWith('/products/p1/media'))!.corps))
+      verifier('la fiche est rangée dans la collection existante', journal.some((a) => a.chemin.endsWith('/collections/c1/productIds')) && /collection/.test(depot.note))
+      const rejoue = await publierWix(creds, fiche(photos.base, { categorie: 'Jardin > Arrosage' }))
+      verifier('redéposer met à jour (recherche par sku → PATCH) et dit qu’une collection manque', rejoue.id === 'p1' && journal.some((a) => a.methode === 'PATCH') && /Arrosage/.test(rejoue.note))
+      const refus = await refusDe(() => verifierCompteWix({ ...creds, apiKey: 'faux' }))
+      verifier('une clé fausse est un refus de liaison expliqué', refus instanceof BoutiqueRefus && refus.liaison && /Clés API/.test(refus.message))
+    } finally {
+      srv.close()
+      photos.fermer()
+    }
+  }
+
+  // ---------------------------------------------------------------- Shopware
+  console.log('\nShopware 6 (jeton client_credentials, taxe/devise/canal lus, médias téléchargés, 204 sans corps)')
+  {
+    let produits: Array<{ id: string; productNumber: string }> = []
+    const s = await serveur((a, res) => {
+      const json = (code: number, o?: unknown) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' })
+        res.end(o === undefined ? '' : JSON.stringify(o))
+      }
+      if (a.methode === 'POST' && a.chemin === '/api/oauth/token') {
+        const c = JSON.parse(a.corps)
+        if (c.grant_type !== 'client_credentials' || c.client_id !== 'SWIA1' || c.client_secret !== 'sw-secret') return json(401, { errors: [{ title: 'invalid_client' }] })
+        return json(200, { access_token: 'tok-sw', expires_in: 600 })
+      }
+      if (a.auth !== 'Bearer tok-sw') return json(401, { errors: [{ title: 'The resource owner or authorization server denied the request.' }] })
+      if (a.methode === 'GET' && a.chemin === '/api/_info/version') return json(200, { version: '6.6.0.0' })
+      if (a.methode === 'POST' && a.chemin === '/api/search/tax') return json(200, { data: [{ id: 'tax1', taxRate: 20 }] })
+      if (a.methode === 'POST' && a.chemin === '/api/search/currency') return json(200, { data: [{ id: 'cur1', isoCode: 'EUR' }] })
+      if (a.methode === 'POST' && a.chemin === '/api/search/sales-channel') return json(200, { data: [{ id: 'sc1' }] })
+      if (a.methode === 'POST' && a.chemin === '/api/search/product') {
+        const f = JSON.parse(a.corps).filter?.[0]
+        return json(200, { data: produits.filter((p) => !f || p.productNumber === f.value) })
+      }
+      if (a.methode === 'POST' && a.chemin === '/api/media') return json(204)
+      if (a.methode === 'POST' && a.chemin.startsWith('/api/_action/media/')) {
+        if (!/[?&]extension=png/.test(a.chemin) || !JSON.parse(a.corps).url) return json(400, { errors: [{ detail: 'extension et url requis' }] })
+        return json(204)
+      }
+      if (a.methode === 'POST' && a.chemin === '/api/product') {
+        const p = JSON.parse(a.corps)
+        if (!p.id || !p.name || !p.productNumber || typeof p.stock !== 'number' || !p.taxId || !p.price?.[0]?.currencyId) return json(400, { errors: [{ detail: 'champs requis manquants' }] })
+        if (produits.some((x) => x.productNumber === p.productNumber)) return json(400, { errors: [{ code: 'CONTENT__DUPLICATE_PRODUCT_NUMBER' }] })
+        produits = [...produits, { id: p.id, productNumber: p.productNumber }]
+        return json(204)
+      }
+      if (a.methode === 'PATCH' && a.chemin.startsWith('/api/product/')) return json(204)
+      return json(404, { errors: [{ title: a.chemin }] })
+    })
+    try {
+      const creds = readShopwareCredentials({ siteUrl: s.base, clientId: 'SWIA1', clientSecret: 'sw-secret' })!
+      await verifierCompteShopware(creds)
+      verifier('un seul échange de jeton pour deux appels', s.journal.filter((a) => a.chemin === '/api/oauth/token').length === 1)
+      const depot = await publierShopware(creds, fiche(s.base))
+      const post = s.journal.find((a) => a.methode === 'POST' && a.chemin === '/api/product')!
+      const p = JSON.parse(post.corps)
+      verifier('la fiche porte un UUID à nous, la taxe, le prix brut et net, le stock, l’EAN', /^[0-9a-f]{32}$/.test(p.id) && p.taxId === 'tax1' && p.price[0].gross === 34.9 && p.price[0].net === 29.08 && p.stock === 12 && p.ean === '4006381333931' && depot.id === p.id)
+      verifier('deux médias créés puis téléchargés par Shopware depuis l’adresse, et référencés', s.journal.filter((a) => a.chemin.startsWith('/api/_action/media/')).length === 2 && p.media.length === 2)
+      verifier('visible sur le premier canal de vente', p.visibilities[0].salesChannelId === 'sc1' && p.visibilities[0].visibility === 30)
+      const rejoue = await publierShopware(creds, fiche(s.base))
+      verifier('redéposer met à jour (recherche par productNumber → PATCH), sans nouveau média', rejoue.id === depot.id && s.journal.some((a) => a.methode === 'PATCH' && a.chemin === `/api/product/${depot.id}`) && s.journal.filter((a) => a.chemin.startsWith('/api/_action/media/')).length === 2)
+      const refus = await refusDe(() => verifierCompteShopware({ ...creds, clientSecret: 'faux' }))
+      verifier('un secret faux est un refus de liaison expliqué', refus instanceof BoutiqueRefus && refus.liaison && /Intégrations/.test(refus.message))
+    } finally {
+      s.fermer()
+    }
+  }
+
+  // ------------------------------------------------------------------- Ecwid
+  console.log('\nEcwid (REST v3, Bearer, images par adresse, mise à jour par référence)')
+  {
+    let produits: Array<{ id: number; sku: string }> = []
+    const s = await serveur((a, res) => {
+      const json = (code: number, o: unknown) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(o))
+      }
+      if (a.auth !== 'Bearer secret_ecwid') return json(403, { errorMessage: 'Token doesn’t have access' })
+      if (!a.chemin.startsWith('/api/v3/12345/')) return json(404, { errorMessage: 'store' })
+      const chemin = a.chemin.slice('/api/v3/12345'.length)
+      if (a.methode === 'GET' && chemin === '/profile') return json(200, { generalInfo: { storeId: 12345 } })
+      if (a.methode === 'GET' && chemin.startsWith('/categories')) return json(200, { items: [{ id: 7, name: 'Luminaires' }] })
+      if (a.methode === 'POST' && chemin === '/categories') return json(200, { id: 40 })
+      if (a.methode === 'GET' && chemin.startsWith('/products?sku=')) {
+        const sku = decodeURIComponent(/sku=([^&]*)/.exec(chemin)![1])
+        return json(200, { items: produits.filter((p) => p.sku === sku) })
+      }
+      if (a.methode === 'POST' && chemin === '/products') {
+        const p = JSON.parse(a.corps)
+        if (!p.name || typeof p.price !== 'number') return json(400, { errorMessage: 'name et price requis' })
+        produits = [...produits, { id: 501, sku: p.sku }]
+        return json(200, { id: 501 })
+      }
+      if (a.methode === 'PUT' && chemin === '/products/501') return json(200, { updateCount: 1 })
+      if (a.methode === 'POST' && /^\/products\/501\/(image|gallery)\?externalUrl=/.test(chemin)) return json(200, { id: 9 })
+      return json(404, { errorMessage: chemin })
+    })
+    try {
+      verifier('un identifiant de boutique qui n’est pas un nombre est refusé', readEcwidCredentials({ storeId: 'ma-boutique', token: 't' }) === null)
+      const creds = readEcwidCredentials({ storeId: 12345, token: 'secret_ecwid', apiBase: s.base })!
+      await verifierCompteEcwid(creds)
+      const depot = await publierEcwid(creds, fiche(s.base))
+      const post = s.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/products'))!
+      const p = JSON.parse(post.corps)
+      verifier('fiche créée : prix nombre, stock, catégorie existante, attribut, EAN en UPC', depot.id === 501 && p.price === 34.9 && p.quantity === 12 && p.categoryIds[0] === 7 && p.attributes.some((x: { name: string }) => x.name === 'Matière') && p.attributes.some((x: { type?: string; value: string }) => x.type === 'UPC' && x.value === '4006381333931'))
+      verifier('première photo sur /image, la suivante sur /gallery, par adresse', s.journal.some((a) => a.chemin.includes('/products/501/image?externalUrl=')) && s.journal.some((a) => a.chemin.includes('/products/501/gallery?externalUrl=')))
+      const rejoue = await publierEcwid(creds, fiche(s.base))
+      verifier('redéposer met à jour (GET sku → PUT) sans renvoyer les photos', rejoue.id === 501 && s.journal.some((a) => a.methode === 'PUT') && s.journal.filter((a) => a.chemin.includes('externalUrl=')).length === 2)
+      const refus = await refusDe(() => verifierCompteEcwid({ ...creds, token: 'faux' }))
+      verifier('un jeton faux est un refus de liaison expliqué', refus instanceof BoutiqueRefus && refus.liaison && /jeton secret/.test(refus.message))
+    } finally {
+      s.fermer()
+    }
+  }
+
+  // ------------------------------------------------------------- Squarespace
+  console.log('\nSquarespace Commerce (Bearer + User-Agent, page boutique, variantes, images en multipart)')
+  {
+    let skus: string[] = []
+    const { createServer } = await import('node:http')
+    const journal: Array<{ methode: string; chemin: string; type: string; corps: string; ua: string }> = []
+    const srv = createServer(async (req, res) => {
+      const morceaux: Buffer[] = []
+      for await (const c of req) morceaux.push(c as Buffer)
+      const a = { methode: req.method!, chemin: req.url!, type: String(req.headers['content-type'] ?? ''), corps: Buffer.concat(morceaux).toString('latin1'), ua: String(req.headers['user-agent'] ?? '') }
+      journal.push(a)
+      const json = (code: number, o: unknown) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(o))
+      }
+      if (!a.ua) return json(400, { message: 'User-Agent header is required' })
+      if (req.headers.authorization !== 'Bearer cle-sq') return json(401, { message: 'Unauthorized' })
+      if (!a.chemin.startsWith('/1.0/commerce/')) return json(404, {})
+      const chemin = a.chemin.slice('/1.0/commerce'.length)
+      if (a.methode === 'GET' && chemin === '/store_pages') return json(200, { storePages: [{ id: 'sp1', isEnabled: true }] })
+      if (a.methode === 'POST' && chemin === '/products') {
+        const p = JSON.parse(a.corps)
+        if (p.type !== 'PHYSICAL' || !p.storePageId || !p.variants?.[0]?.pricing?.basePrice?.value) return json(400, { message: 'type, storePageId et variants[].pricing requis' })
+        if (skus.includes(p.variants[0].sku)) return json(400, { message: 'Variant SKU DSP-lampe-1 already in use' })
+        skus = [...skus, p.variants[0].sku]
+        return json(201, { id: 'sq1', ...p })
+      }
+      if (a.methode === 'POST' && chemin === '/products/sq1/images') {
+        if (!a.type.startsWith('multipart/form-data') || !/name="file"/.test(a.corps)) return json(400, { message: 'multipart file requis' })
+        return json(202, { imageId: 'img1' })
+      }
+      return json(404, { message: chemin })
+    })
+    const base = await new Promise<string>((ok) => srv.listen(0, '127.0.0.1', () => ok(`http://127.0.0.1:${(srv.address() as { port: number }).port}`)))
+    const photos = await serveur(() => undefined)
+    try {
+      const creds = readSquarespaceCredentials({ apiKey: 'cle-sq', apiBase: base })!
+      await verifierCompteSquarespace(creds)
+      const depot = await publierSquarespace(creds, fiche(photos.base))
+      const post = journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/commerce/products'))!
+      const p = JSON.parse(post.corps)
+      verifier('fiche PHYSICAL dans la première page boutique, variante avec référence, prix en chaîne EUR et stock', depot.id === 'sq1' && p.storePageId === 'sp1' && p.variants[0].sku === 'DSP-lampe-1' && p.variants[0].pricing.basePrice.value === '34.90' && p.variants[0].pricing.basePrice.currency === 'EUR' && p.variants[0].stock.quantity === 12)
+      verifier('les deux photos partent en multipart, champ « file », et sont acceptées en 202', journal.filter((a) => a.chemin.endsWith('/products/sq1/images') && a.type.startsWith('multipart')).length === 2 && /2 photos/.test(depot.note))
+      const doublon = await refusDe(() => publierSquarespace(creds, fiche(photos.base)))
+      verifier('une référence déjà présente est un refus de PRODUIT (pas de liaison), avec le geste', doublon instanceof BoutiqueRefus && !doublon.liaison && /supprimez-le puis republiez/.test(doublon.message))
+      const refus = await refusDe(() => verifierCompteSquarespace({ ...creds, apiKey: 'faux' }))
+      verifier('une clé fausse est un refus de liaison expliqué', refus instanceof BoutiqueRefus && refus.liaison && /Outils de développement/.test(refus.message))
+    } finally {
+      srv.close()
+      photos.fermer()
+    }
+  }
+
   if (echecs) {
     console.error(`\n${echecs} attente(s) manquée(s).`)
     process.exit(1)
   }
-  console.log('\nBoutiques du vendeur (WooCommerce, PrestaShop, Magento) : tout passe.')
+  console.log('\nBoutiques du vendeur (WooCommerce, PrestaShop, Magento, Drupal Commerce, BigCommerce, Wix, Shopware, Ecwid, Squarespace) : tout passe.')
 }
 
 main().catch((e) => {

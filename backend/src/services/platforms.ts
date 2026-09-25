@@ -91,6 +91,12 @@ const COLORS: Record<string, string> = {
   WOOCOMMERCE: '#7f54b3',
   PRESTASHOP: '#df0067',
   MAGENTO: '#f46f25',
+  DRUPAL_COMMERCE: '#0678be',
+  BIGCOMMERCE: '#121118',
+  WIX: '#0c6efc',
+  SHOPWARE: '#189eff',
+  ECWID: '#0059ff',
+  SQUARESPACE: '#222222',
   SPARTOO: '#ff6600',
   MIINTO: '#000000',
   ETSY: '#f56400',
@@ -323,6 +329,49 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     automatable: true,
     sellUrl: null,
     note: "Publication directe par l'API REST de Magento 2 / Adobe Commerce : créez une intégration (Système › Extensions › Intégrations) avec le catalogue en écriture, activez-la et collez son Access Token avec l'adresse du site.",
+  },
+  // Six boutiques de plus le 25/09/2026, même chemin (boutiqueTiers.ts).
+  {
+    id: 'DRUPAL_COMMERCE',
+    label: 'Drupal Commerce',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par JSON:API (module du cœur de Drupal) et un compte dédié en Basic Auth : la variation (référence, prix) puis le produit, rattaché à votre première boutique Commerce ; photos déposées en octets.",
+  },
+  {
+    id: 'BIGCOMMERCE',
+    label: 'BigCommerce',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par l'API Catalog V3 : créez un compte API (Paramètres › Comptes API, Produits en modification) et collez l'Access Token avec le store hash. Photos par adresse, catégorie créée si absente.",
+  },
+  {
+    id: 'WIX',
+    label: 'Wix Stores',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par l'API Wix Stores : une clé d'API du compte (permission Wix Stores) et l'identifiant du site. Les collections se créent dans le tableau de bord, la fiche y est rangée si le nom correspond.",
+  },
+  {
+    id: 'SHOPWARE',
+    label: 'Shopware 6',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par l'API d'administration : une intégration (Paramètres › Système › Intégrations) donne un identifiant et un secret d'accès ; TVA, devise et canal de vente sont lus sur la boutique, les photos téléchargées par Shopware.",
+  },
+  {
+    id: 'ECWID',
+    label: 'Ecwid by Lightspeed',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par l'API REST v3 : l'identifiant de la boutique et un jeton secret (Applications › Jetons d'accès). Photos par adresse, catégorie créée si absente, mise à jour sans doublon par référence.",
+  },
+  {
+    id: 'SQUARESPACE',
+    label: 'Squarespace Commerce',
+    automatable: true,
+    sellUrl: null,
+    note: "Publication directe par l'API Commerce 1.0 (forfaits Commerce) : une clé d'API Products en écriture ; la fiche va dans votre première page Boutique, photos déposées en octets.",
   },
   /*
    * Les trente-six opérateurs Mirakl recensés le 03/09/2026.
@@ -755,7 +804,10 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
  * alors la raison. C'est déjà le cas de Shopify, dont le connecteur n'a jamais
  * été confronté à une vraie boutique.
  */
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO', ...OPERATEURS_MIRAKL]
+/** Les boutiques publiées par boutiqueTiers.ts : une entrée ici, une dans publisher.ts et settings.ts. */
+export const BOUTIQUES_TIERS: Platform[] = ['WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO', 'DRUPAL_COMMERCE', 'BIGCOMMERCE', 'WIX', 'SHOPWARE', 'ECWID', 'SQUARESPACE']
+
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', ...BOUTIQUES_TIERS, ...OPERATEURS_MIRAKL]
 
 /**
  * Les boutiques que le vendeur POSSÈDE, par opposition aux canaux de vente
@@ -764,7 +816,7 @@ const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERC
  * vaut pour Shopify vaut pour les trois autres — une liste, pour que le banc
  * des liaisons et le mappage des catégories ne la réécrivent pas chacun.
  */
-export const BOUTIQUES_DU_VENDEUR: Platform[] = ['OWN_SITE', 'SHOPIFY', 'WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO']
+export const BOUTIQUES_DU_VENDEUR: Platform[] = ['OWN_SITE', 'SHOPIFY', ...BOUTIQUES_TIERS]
 
 /**
  * Destinations qui viennent lire un flux au lieu qu'on leur pousse une annonce.

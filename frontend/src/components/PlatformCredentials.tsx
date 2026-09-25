@@ -509,6 +509,252 @@ export function PlatformCredentialForm({
                   ) : null}
                 </div>
               </form>
+            ) : platform.id === 'DRUPAL_COMMERCE' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['siteUrl', 'identifiant', 'motDePasse', 'type'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('DRUPAL_COMMERCE', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="siteUrl"
+                  placeholder="Adresse du site (https://ma-boutique.fr)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="identifiant"
+                  placeholder="Identifiant du compte dédié"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="motDePasse"
+                  type="password"
+                  placeholder="Mot de passe du compte dédié"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="type"
+                  placeholder="Type de produit (default)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans Drupal : activez les modules <b>JSON:API</b> et <b>HTTP Basic Authentication</b>, créez un compte dédié avec le rôle qui administre les produits Commerce. La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('DRUPAL_COMMERCE', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'BIGCOMMERCE' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['storeHash', 'accessToken'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('BIGCOMMERCE', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="storeHash"
+                  placeholder="Store hash (store-XXXXX → XXXXX)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="accessToken"
+                  type="password"
+                  placeholder="Access Token du compte API"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans BigCommerce : Paramètres › Comptes API › Créer un jeton d'API, portée <b>Produits : modifier</b>. Le store hash est dans l'adresse de votre back-office. La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('BIGCOMMERCE', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'WIX' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['siteId', 'apiKey'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('WIX', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="siteId"
+                  placeholder="Identifiant du site (UUID)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="apiKey"
+                  type="password"
+                  placeholder="Clé d'API du compte Wix"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans Wix : Paramètres du compte › <b>Clés API</b> › Générer une clé, permission <b>Wix Stores</b>. L'identifiant du site est dans Paramètres du site. La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('WIX', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'SHOPWARE' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['siteUrl', 'clientId', 'clientSecret'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('SHOPWARE', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="siteUrl"
+                  placeholder="Adresse de la boutique (https://ma-boutique.fr)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="clientId"
+                  placeholder="Identifiant d'accès de l'intégration"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="clientSecret"
+                  type="password"
+                  placeholder="Secret d'accès de l'intégration"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans Shopware : Paramètres › Système › <b>Intégrations</b> › Ajouter, droits sur produits, médias et catégories. La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('SHOPWARE', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'ECWID' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['storeId', 'token'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('ECWID', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="storeId"
+                  placeholder="Identifiant de la boutique (chiffres)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="token"
+                  type="password"
+                  placeholder="Jeton secret"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans Ecwid : l'identifiant de boutique est en bas du tableau de bord ; le jeton secret se crée dans Applications › Mes applications › <b>Jetons d'accès</b>. La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('ECWID', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : platform.id === 'SQUARESPACE' ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const valeurs = Object.fromEntries(['apiKey'].map((k) => [k, String(fd.get(k) || '').trim()]))
+                  saveCredential('SQUARESPACE', Object.values(valeurs).some(Boolean) ? valeurs : {})
+                }}
+                className="mt-2 space-y-2"
+              >
+                <input
+                  {...PROPS_SANS_REMPLISSAGE}
+                  name="apiKey"
+                  type="password"
+                  placeholder="Clé d'API Commerce (Products, écriture)"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs outline-none focus:border-purple-400"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">Dans Squarespace : Paramètres › Avancé › Outils de développement › <b>Clés d'API</b>, permission Products en lecture et écriture (forfaits Commerce). La connexion est vérifiée tout de suite.</p>
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
+                    {cred?.connected ? 'Remplacer' : 'Connecter'}
+                  </button>
+                  {cred?.connected ? (
+                    <button
+                      type="button"
+                      onClick={() => saveCredential('SQUARESPACE', {})}
+                      className="text-xs text-gray-400 hover:text-red-300"
+                    >
+                      Déconnecter
+                    </button>
+                  ) : null}
+                </div>
+              </form>
             ) : MIRAKL_IDS.includes(platform.id) ? (
               /*
                * Un opérateur Mirakl demande deux valeurs, et le champ générique

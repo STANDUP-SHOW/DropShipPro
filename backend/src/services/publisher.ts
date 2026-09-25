@@ -11,6 +11,12 @@ import { ficheDe } from './boutiqueTiers.js'
 import { publierWoo, readWooCredentials } from './woocommerce.js'
 import { publierPresta, readPrestaCredentials } from './prestashop.js'
 import { publierMagento, readMagentoCredentials } from './magento.js'
+import { publierDrupal, readDrupalCredentials } from './drupalCommerce.js'
+import { publierBigCommerce, readBigCommerceCredentials } from './bigcommerce.js'
+import { publierWix, readWixCredentials } from './wix.js'
+import { publierShopware, readShopwareCredentials } from './shopware.js'
+import { publierEcwid, readEcwidCredentials } from './ecwid.js'
+import { publierSquarespace, readSquarespaceCredentials } from './squarespace.js'
 import { imagesPourExport } from './exportImages.js'
 
 /**
@@ -43,9 +49,7 @@ export async function publishToPlatform(productId: string, platform: Platform, a
 
   if (platform === 'KAUFLAND') return publierKaufland(product, targetCategory)
 
-  if (platform === 'WOOCOMMERCE' || platform === 'PRESTASHOP' || platform === 'MAGENTO') {
-    return publierBoutique(product, platform, targetCategory)
-  }
+  if (platform in BOUTIQUES) return publierBoutique(product, platform as keyof typeof BOUTIQUES, targetCategory)
 
   if (estMirakl(platform)) return publierMirakl(product, platform, targetCategory)
 
@@ -153,6 +157,36 @@ const BOUTIQUES = {
     lire: readMagentoCredentials,
     publier: async (creds: NonNullable<ReturnType<typeof readMagentoCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierMagento(creds, fiche)).note,
     absent: "Boutique Magento non reliée : collez l'adresse du site et l'Access Token de votre intégration (Système › Extensions › Intégrations) dans Réglages › Plateformes de vente › Magento.",
+  },
+  DRUPAL_COMMERCE: {
+    lire: readDrupalCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readDrupalCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierDrupal(creds, fiche)).note,
+    absent: "Boutique Drupal Commerce non reliée : collez l'adresse du site et le compte dédié (identifiant, mot de passe, module Basic Auth) dans Réglages › Plateformes de vente › Drupal Commerce.",
+  },
+  BIGCOMMERCE: {
+    lire: readBigCommerceCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readBigCommerceCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierBigCommerce(creds, fiche)).note,
+    absent: "Boutique BigCommerce non reliée : collez le store hash et l'Access Token de votre compte API (Paramètres › Comptes API) dans Réglages › Plateformes de vente › BigCommerce.",
+  },
+  WIX: {
+    lire: readWixCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readWixCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierWix(creds, fiche)).note,
+    absent: "Boutique Wix non reliée : collez la clé d'API du compte et l'identifiant du site dans Réglages › Plateformes de vente › Wix Stores.",
+  },
+  SHOPWARE: {
+    lire: readShopwareCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readShopwareCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierShopware(creds, fiche)).note,
+    absent: "Boutique Shopware non reliée : collez l'adresse de la boutique, l'identifiant et le secret d'accès de votre intégration dans Réglages › Plateformes de vente › Shopware 6.",
+  },
+  ECWID: {
+    lire: readEcwidCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readEcwidCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierEcwid(creds, fiche)).note,
+    absent: "Boutique Ecwid non reliée : collez l'identifiant de la boutique et le jeton secret dans Réglages › Plateformes de vente › Ecwid.",
+  },
+  SQUARESPACE: {
+    lire: readSquarespaceCredentials,
+    publier: async (creds: NonNullable<ReturnType<typeof readSquarespaceCredentials>>, fiche: Awaited<ReturnType<typeof ficheDe>>) => (await publierSquarespace(creds, fiche)).note,
+    absent: "Boutique Squarespace non reliée : collez la clé d'API Commerce (Products en écriture) dans Réglages › Plateformes de vente › Squarespace.",
   },
 } as const
 

@@ -27,11 +27,19 @@ import { SUPPLIERS } from './src/services/suppliers.js'
  */
 const CHEMIN = resolve(import.meta.dirname, '../frontend/scripts/build-llms.cjs')
 
+/*
+ * Depuis le 24/09/2026, build-llms.cjs ne recopie plus la liste à la main : il
+ * lit `frontend/src/data/fournisseurs.json`, engendré par
+ * `exporter-fournisseurs.ts`. C'est donc cette copie que le banc compare — et
+ * il vérifie que build-llms la lit bien, sinon la comparaison ne prouverait rien.
+ */
+const JSON_FOURNISSEURS = resolve(import.meta.dirname, '../frontend/src/data/fournisseurs.json')
+
 function listeRecopiee(): string[] {
   const source = readFileSync(CHEMIN, 'utf8')
-  const bloc = /const FOURNISSEURS = \[([\s\S]*?)\n\]/.exec(source)
-  if (!bloc) throw new Error(`FOURNISSEURS introuvable dans ${CHEMIN}`)
-  return [...bloc[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
+  if (!/require\('\.\.\/src\/data\/fournisseurs\.json'\)/.test(source)) throw new Error(`build-llms.cjs ne lit plus fournisseurs.json (${CHEMIN})`)
+  const { fournisseurs } = JSON.parse(readFileSync(JSON_FOURNISSEURS, 'utf8')) as { fournisseurs: Array<{ label: string }> }
+  return fournisseurs.map((f) => f.label)
 }
 
 const attendus = SUPPLIERS.map((s) => s.label)
@@ -45,7 +53,7 @@ if (manquants.length) {
   echecs++
   console.log(
     `ECHEC ${manquants.length} fournisseur(s) du registre absent(s) de llms.txt : ${manquants.join(', ')}\n` +
-      `  Les ajouter dans FOURNISSEURS de frontend/scripts/build-llms.cjs, dans l'ordre de suppliers.ts.`,
+      `  Relancer : cd backend && npx tsx exporter-fournisseurs.ts (il recopie suppliers.ts dans frontend/src/data/fournisseurs.json).`,
   )
 }
 if (enTrop.length) {

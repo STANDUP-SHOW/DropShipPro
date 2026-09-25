@@ -232,6 +232,79 @@ PLATFORM_GUIDES.MAGENTO = {
   docLabel: "Documentation de l'API REST Magento",
 }
 
+PLATFORM_GUIDES.DRUPAL_COMMERCE = {
+  summary:
+    "Votre boutique Drupal Commerce reçoit la fiche par JSON:API, le module du cœur de Drupal : la variation (référence, prix) puis le produit, rattaché à votre première boutique Commerce, photos comprises.",
+  steps: [
+    'Dans Drupal, activez les modules JSON:API et HTTP Basic Authentication (Extensions).',
+    "Créez un compte dédié (« DropShipper IA ») avec un rôle qui administre les produits Commerce et peut téléverser des fichiers.",
+    "Collez l'adresse du site, l'identifiant et le mot de passe de ce compte dans Réglages › Plateformes de vente › Drupal Commerce. La connexion est vérifiée immédiatement.",
+  ],
+  caution:
+    "Les types de produit et de variation utilisés sont « default » (ceux qu'installe Commerce) ; indiquez le vôtre si vous en avez créé un autre. Le stock n'est pas envoyé : Drupal Commerce ne le gère qu'avec le module Commerce Stock.",
+  docUrl: 'https://www.drupal.org/docs/core-modules-and-themes/core-modules/jsonapi-module',
+  docLabel: 'Documentation JSON:API de Drupal',
+}
+
+PLATFORM_GUIDES.BIGCOMMERCE = {
+  summary: "Votre boutique BigCommerce reçoit la fiche entière par l'API Catalog V3 : photos par adresse, catégorie créée si absente, stock et EAN.",
+  steps: [
+    "Dans BigCommerce, ouvrez Paramètres › Comptes API › Créer un jeton d'API v2/v3, portée Produits : modifier.",
+    "Copiez l'Access Token (il ne s'affiche qu'une fois) et le store hash, visible dans l'adresse de votre back-office (store-XXXXX.mybigcommerce.com).",
+    "Collez-les dans Réglages › Plateformes de vente › BigCommerce. La connexion est vérifiée immédiatement.",
+  ],
+  caution: "BigCommerce exige un poids sur chaque produit ; nos annonces n'en portent pas, il est posé à 1 dans l'unité de la boutique. Corrigez-le dans la boutique si vous vendez au poids.",
+  docUrl: 'https://developer.bigcommerce.com/docs/rest-catalog/products',
+  docLabel: "Documentation de l'API Catalog",
+}
+
+PLATFORM_GUIDES.WIX = {
+  summary: "Votre boutique Wix reçoit la fiche par l'API Wix Stores : nom, description, prix, référence, stock, photos, et le rangement dans une collection existante.",
+  steps: [
+    "Dans votre compte Wix, ouvrez Paramètres du compte › Clés API › Générer une clé, avec la permission Wix Stores.",
+    "Relevez l'identifiant du site (Paramètres du site, ou l'adresse du tableau de bord).",
+    "Collez la clé et l'identifiant dans Réglages › Plateformes de vente › Wix Stores. La connexion est vérifiée immédiatement.",
+  ],
+  caution: "Wix ne laisse pas créer de collection par l'API : la fiche est rangée dans la collection dont le nom correspond à sa catégorie, sinon elle reste sans collection et la publication le dit.",
+  docUrl: 'https://dev.wix.com/docs/rest/business-solutions/stores/catalog/products/introduction',
+  docLabel: "Documentation de l'API Wix Stores",
+}
+
+PLATFORM_GUIDES.SHOPWARE = {
+  summary: "Votre boutique Shopware 6 reçoit la fiche par l'API d'administration : TVA, devise et canal de vente sont lus sur la boutique, les photos sont téléchargées par Shopware.",
+  steps: [
+    "Dans Shopware, ouvrez Paramètres › Système › Intégrations › Ajouter une intégration, avec les droits sur les produits, médias et catégories.",
+    "Copiez l'identifiant d'accès et le secret d'accès (le secret ne s'affiche qu'une fois).",
+    "Collez-les avec l'adresse de la boutique dans Réglages › Plateformes de vente › Shopware 6. La connexion est vérifiée immédiatement.",
+  ],
+  caution: "Le prix envoyé est TTC ; le hors-taxe est calculé avec le premier taux de TVA de la boutique. La fiche est rendue visible sur le premier canal de vente.",
+  docUrl: 'https://developer.shopware.com/docs/guides/integrations-api/',
+  docLabel: "Documentation de l'API d'administration",
+}
+
+PLATFORM_GUIDES.ECWID = {
+  summary: "Votre boutique Ecwid reçoit la fiche par l'API REST v3 : photos par adresse, catégorie créée si absente, caractéristiques et EAN, mise à jour sans doublon.",
+  steps: [
+    "Dans Ecwid, relevez l'identifiant de votre boutique, affiché en bas du tableau de bord.",
+    "Créez un jeton secret : Applications › Mes applications › Jetons d'accès (ou une application personnalisée avec le droit de modifier le catalogue).",
+    "Collez-les dans Réglages › Plateformes de vente › Ecwid. La connexion est vérifiée immédiatement.",
+  ],
+  caution: "Un jeton public (public_…) ne suffit pas : il faut le jeton secret (secret_…), le seul qui écrit dans le catalogue.",
+  docUrl: 'https://api-docs.ecwid.com/reference/products',
+  docLabel: "Documentation de l'API Ecwid",
+}
+
+PLATFORM_GUIDES.SQUARESPACE = {
+  summary: "Votre boutique Squarespace reçoit la fiche par l'API Commerce : dans votre première page Boutique, avec prix, stock, référence et photos.",
+  steps: [
+    "Dans Squarespace, ouvrez Paramètres › Avancé › Outils de développement › Clés d'API › Générer une clé, permission Products en lecture et écriture.",
+    "Collez la clé dans Réglages › Plateformes de vente › Squarespace. La connexion est vérifiée immédiatement.",
+  ],
+  caution: "L'API Commerce n'est ouverte que sur les forfaits Commerce (Basique ou Avancé). Une référence déjà présente est refusée par Squarespace, qui ne permet pas de la retrouver par l'API : modifiez-la dans la boutique ou supprimez-la avant de republier.",
+  docUrl: 'https://developers.squarespace.com/commerce-apis/products-overview',
+  docLabel: "Documentation de l'API Commerce",
+}
+
 const SPECIALIST_IDS = ['SPARTOO', 'MIINTO']
 
 for (const id of SPECIALIST_IDS) {

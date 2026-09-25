@@ -127,7 +127,7 @@ const FONCTIONS = [
   {
     titre: 'Publication sur les places de marché',
     lignes: [
-      'Publication réelle et immédiate vers : la boutique du vendeur, Shopify, WooCommerce, PrestaShop, Magento, eBay, Kaufland et 41 opérateurs Mirakl (E.Leclerc, Carrefour, Auchan, Fnac, La Redoute, Boulanger, Leroy Merlin, Galeries Lafayette, Cultura, Truffaut, El Corte Inglés, MediaMarkt, Worten…).',
+      'Publication réelle et immédiate vers : la boutique du vendeur, Shopify, WooCommerce, PrestaShop, Magento, Drupal Commerce, BigCommerce, Wix, Shopware, Ecwid, Squarespace, eBay, Kaufland et 41 opérateurs Mirakl (E.Leclerc, Carrefour, Auchan, Fnac, La Redoute, Boulanger, Leroy Merlin, Galeries Lafayette, Cultura, Truffaut, El Corte Inglés, MediaMarkt, Worten…).',
       'Remplissage assisté des formulaires de Vinted, Leboncoin, Facebook Marketplace et eBay par l’extension : l’outil remplit, le vendeur relit et valide. L’application ne clique jamais « Publier » à sa place.',
       'Flux catalogue vers Google Shopping et Instagram Shopping.',
       `Annuaire de ${canaux.length} canaux de vente référencés — places de marché, comparateurs de prix, plateformes d’affiliation, régies publicitaires — que le vendeur peut demander à voir brancher.`,
@@ -316,7 +316,7 @@ une limite.
 
 ### Publication réelle et immédiate (45)
 
-Votre propre boutique, Shopify, WooCommerce, PrestaShop, Magento, eBay, Kaufland, et les 41 opérateurs Mirakl :
+Votre propre boutique, Shopify, WooCommerce, PrestaShop, Magento, Drupal Commerce, BigCommerce, Wix, Shopware, Ecwid, Squarespace, eBay, Kaufland, et les 41 opérateurs Mirakl :
 E.Leclerc, Carrefour, Auchan, Fnac, La Redoute, Boulanger, Leroy Merlin,
 Galeries Lafayette, BHV Marais, Cultura, Truffaut, Nature & Découvertes,
 Maisons du Monde, Showroomprivé, Spartoo, Miinto, Kiabi, BrandAlley, But,
