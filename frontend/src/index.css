@@ -256,7 +256,8 @@ html[data-theme="light"] { color-scheme: light; }
  * thème, qui tourne — jaune, turquoise, orange, violet, vert, rose. La lueur
  * est un empilement d'ombres, pas une image ; sur fond clair elle s'atténue.
  */
-.neon { --neon: #fff; color: var(--neon); text-shadow: 0 0 6px color-mix(in srgb, var(--neon) 80%, transparent), 0 0 18px color-mix(in srgb, var(--neon) 55%, transparent), 0 0 40px color-mix(in srgb, var(--neon) 30%, transparent); }
+/* Halo renforcé le 25/09/2026 sur la référence de Max : cœur blanc, deux couronnes vives, halo large. */
+.neon { --neon: #fff; color: var(--neon); text-shadow: 0 0 3px #fff, 0 0 10px var(--neon), 0 0 24px var(--neon), 0 0 56px color-mix(in srgb, var(--neon) 45%, transparent); }
 .neon-1 { --neon: #f5ff3d; }
 .neon-2 { --neon: #2ef2ff; }
 .neon-3 { --neon: #ff8a1f; }
@@ -272,8 +273,8 @@ html[data-theme="light"] { color-scheme: light; }
  * il suit le fond de la section, quel qu'il soit.
  */
 .frise {
-  /* 150 px de carte + de quoi laisser respirer la lueur néon au-dessus et en dessous. */
-  height: 182px;
+  /* 150 px de carte + 30 px de halo néon de chaque côté (référence de Max du 25/09/2026). */
+  height: 210px;
   width: 100%;
   overflow: hidden;
   /* Rien n'est cliquable dans une frise (demandé le 25/09/2026). */
@@ -288,8 +289,13 @@ html[data-theme="light"] { color-scheme: light; }
   padding: 16px;
   border-radius: 22px;
   background: #fff;
-  border: 2px solid var(--neon);
-  box-shadow: 0 0 6px var(--neon), 0 0 18px color-mix(in srgb, var(--neon) 55%, transparent), 0 0 40px color-mix(in srgb, var(--neon) 25%, transparent);
+  border: 3px solid var(--neon);
+  box-shadow:
+    0 0 4px #fff,
+    0 0 10px var(--neon),
+    0 0 26px var(--neon),
+    0 0 60px color-mix(in srgb, var(--neon) 45%, transparent),
+    inset 0 0 14px color-mix(in srgb, var(--neon) 35%, transparent);
 }
 .frise-piste {
   display: flex;
@@ -307,4 +313,19 @@ html[data-theme="light"] { color-scheme: light; }
 @media (prefers-reduced-motion: reduce) {
   .frise { overflow-x: auto; }
   .frise-piste { animation: none; }
+}
+
+/*
+ * Les textes courants des blocs de l'accueil : turquoise clair, lueur légère
+ * (Max, 25/09/2026 — essai avant de le décliner sur le dashboard ; sinon ce
+ * sera du blanc néon). La lueur reste faible : sur du texte courant, un halo
+ * fort rend illisible ce qu'il devait faire ressortir.
+ */
+.texte-neon {
+  color: #a8f6ff;
+  text-shadow: 0 0 4px rgba(46, 242, 255, 0.55), 0 0 14px rgba(46, 242, 255, 0.28);
+}
+[data-theme="light"] .texte-neon {
+  color: #0a7d8c;
+  text-shadow: 0 0 2px rgba(46, 242, 255, 0.35);
 }

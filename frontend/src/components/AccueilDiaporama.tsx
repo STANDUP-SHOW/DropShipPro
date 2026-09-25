@@ -46,7 +46,7 @@ export function AccueilDiaporama({ themes, intervalle = 5000 }: { themes: DiapoT
 
   return (
     <div
-      className="relative mx-auto mt-10 max-w-5xl select-none"
+      className="relative w-full select-none"
       onMouseEnter={() => setPause(true)}
       onMouseLeave={() => setPause(false)}
       onFocus={() => setPause(true)}
@@ -55,7 +55,9 @@ export function AccueilDiaporama({ themes, intervalle = 5000 }: { themes: DiapoT
       aria-roledescription="diaporama"
       aria-label="Ce que fait DropShipper IA"
     >
-      <div className="relative aspect-[16/8] overflow-hidden rounded-3xl border border-white/10 bg-black/30 shadow-2xl shadow-purple-950/40">
+      {/* Pleine page (Max, 25/09/2026) : pas de conteneur, la hauteur suit la largeur
+          de l'écran sans dépasser les trois quarts de sa hauteur. */}
+      <div className="relative w-full overflow-hidden bg-black/30" style={{ height: 'min(52vw, 75vh)', minHeight: 320 }}>
         {themes.map((t, i) => (
           <button
             key={t.slug}
@@ -68,10 +70,10 @@ export function AccueilDiaporama({ themes, intervalle = 5000 }: { themes: DiapoT
             }`}
           >
             <ImageOuRepli src={t.image} slug={t.slug} alt="" actif={i === index} />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b0714] via-[#0b0714]/80 to-transparent px-6 pb-6 pt-16 md:px-10 md:pb-8">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b0714] via-[#0b0714]/80 to-transparent px-6 pb-8 pt-20 text-center md:px-10 md:pb-10">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{t.eyebrow}</p>
-              <h2 className={`neon neon-${(i % 6) + 1} mt-1 text-2xl font-extrabold leading-tight md:text-4xl`}>{t.titre}</h2>
-              <p className="mt-2 hidden max-w-2xl text-sm text-gray-300 md:block">{t.accroche}</p>
+              <h2 className={`neon neon-${(i % 6) + 1} mx-auto mt-1 max-w-4xl text-2xl font-extrabold leading-tight md:text-4xl`}>{t.titre}</h2>
+              <p className="texte-neon mx-auto mt-2 hidden max-w-3xl text-lg md:block">{t.accroche}</p>
               <span className="mt-3 inline-block text-sm font-semibold text-purple-200 underline-offset-4 group-hover:underline">
                 En savoir plus ↓
               </span>

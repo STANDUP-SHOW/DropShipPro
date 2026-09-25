@@ -94,13 +94,20 @@ export default function Index() {
       </header>
 
       <main>
-        {/* Le héros : la phrase de Max, et le diaporama des thèmes. */}
-        <section className="mx-auto max-w-6xl px-6 pb-16 pt-14 text-center md:pt-20">
+        {/* Le héros, dans l'ordre demandé par Max le 25/09/2026 : le titre, tout de
+            suite le diaporama en pleine largeur, puis le contenu (sous-titre, texte,
+            boutons). Le texte reste centré ; les images prennent toute la page. */}
+        <section className="mx-auto max-w-6xl px-6 pb-8 pt-14 text-center md:pt-20">
           <h1 className="mx-auto max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight md:text-6xl">
             {accueil.hero.titre.replace(" avec l'IA", '')} <span className="text-gradient-brand">avec l'IA</span>
           </h1>
-          <p className="mt-4 text-2xl font-semibold text-gray-200 md:text-3xl">{accueil.hero.sousTitre}</p>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-400">{accueil.hero.texte}</p>
+        </section>
+
+        <AccueilDiaporama themes={THEMES} />
+
+        <section className="mx-auto max-w-6xl px-6 pb-16 pt-10 text-center">
+          <p className="texte-neon text-2xl font-semibold md:text-3xl">{accueil.hero.sousTitre}</p>
+          <p className="texte-neon mx-auto mt-6 max-w-3xl text-xl md:text-2xl">{accueil.hero.texte}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
               to={cible}
@@ -123,9 +130,7 @@ export default function Index() {
               Extension Chrome
             </a>
           </div>
-          <p className="mt-3 text-xs text-gray-500">Sans abonnement. 1 drop = 0,01 €. Une annonce importée et réécrite par l'IA : 0,12 €.</p>
-
-          <AccueilDiaporama themes={THEMES} />
+          <p className="texte-neon mt-4 text-base">Sans abonnement. 1 drop = 0,01 €. Une annonce importée et réécrite par l'IA : 0,12 €.</p>
         </section>
 
         {/* Un thème par section : titre, texte, illustration, fond qui alterne. */}
@@ -143,11 +148,13 @@ export default function Index() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{t.eyebrow}</p>
                   <h2 className={`neon neon-${(i % 6) + 1} mt-3 text-3xl font-extrabold leading-tight tracking-tight md:text-5xl`}>{t.titre}</h2>
-                  <p className="mt-5 text-lg text-gray-300">{t.accroche}</p>
-                  <ul className="mt-6 space-y-2.5">
+                  {/* Les textes des blocs en turquoise néon, corps agrandi (Max, 25/09/2026 :
+                      « actuellement c'est illisible ») ; essai turquoise avant le dashboard. */}
+                  <p className="texte-neon mt-5 text-xl font-medium md:text-2xl">{t.accroche}</p>
+                  <ul className="mt-6 space-y-3">
                     {t.points.map((p) => (
-                      <li key={p} className="flex gap-3 text-sm text-gray-400">
-                        <Check size={16} className="mt-0.5 shrink-0 text-emerald-400" />
+                      <li key={p} className="texte-neon flex gap-3 text-base md:text-lg">
+                        <Check size={20} className="mt-1 shrink-0 text-emerald-400" />
                         <span>{p}</span>
                       </li>
                     ))}
@@ -170,9 +177,10 @@ export default function Index() {
                   <ImageOuRepli src={t.image} slug={t.slug} alt={t.titre} actif={i < 2} />
                 </a>
               </div>
-              {t.slug === 'fournisseurs' ? <FriseLogos logos={FOURNISSEURS_FRISE} sens="gauche" className="mb-6" /> : null}
+              {/* Les frises n'ajoutent aucune marge : elles ne doivent pas écarter les blocs. */}
+              {t.slug === 'fournisseurs' ? <FriseLogos logos={FOURNISSEURS_FRISE} sens="gauche" /> : null}
               {t.slug === 'diffusion' ? (
-                <div className="mb-6 space-y-1">
+                <div>
                   <FriseLogos logos={CANAUX_FRISE[0]} sens="droite" />
                   <FriseLogos logos={CANAUX_FRISE[1]} sens="gauche" />
                 </div>

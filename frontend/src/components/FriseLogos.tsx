@@ -15,6 +15,7 @@
  * génération des JSON, jamais au chargement : une carte qui s'élargit en cours
  * de route ferait sauter la ligne), avec un bord néon dont la couleur tourne
  * sur les six du site. Rien n'est cliquable et le survol n'arrête rien.
+ * Vitesse doublée le 25/09/2026 (1,1 s par logo) à la demande de Max.
  * Sans fichier (`logo: null`), une pastille aux initiales dans la couleur de
  * la marque tient la place. La vitesse suit le nombre de logos (une durée
  * fixe ferait défiler 314 logos huit fois plus vite que 38). Le survol met en
@@ -40,7 +41,7 @@ function initiales(label: string): string {
 export function FriseLogos({
   logos,
   sens = 'gauche',
-  secondesParLogo = 2.2,
+  secondesParLogo = 1.1,
   className = '',
 }: {
   logos: LogoFrise[]
