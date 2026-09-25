@@ -1278,6 +1278,42 @@ Trois conséquences, toutes appliquées :
   canaux — ils sont dans `ECARTES`. `build-llms.cjs` lit désormais les
   fournisseurs dans le JSON au lieu d'une liste recopiée.
 
+- **API Power : les API marketing sont un REGISTRE avant d'être des connecteurs
+  (25/09/2026).** Max : « nos concurrents se servent des API Meta Business,
+  Google Ads, Search Console, Analytics… je veux une page API Power qui liste
+  toutes les opportunités, et savoir si nous avions anticipé ces connexions
+  et le classement des données dans notre back-end ». Réponse : à moitié —
+  la passerelle sociale (organique, jamais confrontée), les jetons de régie
+  conservés sans être lus (`AdAccount`), les flux Google/Meta servis. Rien
+  pour LIRE des rapports, CRÉER une campagne, REMONTER une vente ou ranger
+  tout ça. `services/apiPower.ts` est la source unique : 27 API (Meta ×11,
+  Google ×5, TikTok ×4, Pinterest, Snapchat, LinkedIn, X, Microsoft ×2,
+  Amazon), 41 opportunités, chacune avec **ce qui remonte** (mesure datée ou
+  objet), **les gestes** du vendeur et **l'écran** du back-office. L'état est
+  dit tel qu'il est (`ecrit` / `flux` / `jeton` / `prevu` / `ecarte`) et
+  `check-geo.ts` refuse une API écartée qui promettrait quelque chose. Page
+  publique `/api-power` (React + pré-rendue par build-geo, via
+  `src/data/api-power.json` engendré par `npx tsx exporter-api-power.ts`),
+  entrée « API Power » du menu Marketing, lien depuis API Connect. **Le modèle
+  de données n'est pas migré** : trois sortes seulement — Mesures (chiffres
+  datés, vocabulaire commun impressions/clics/coût/conversions/valeur), Objets
+  (campagne, prospect, message, produit… avec un état), Gestes (journalisés) —
+  posées dans `docs/api-power.md` avec les écrans cibles et l'ordre de
+  branchement (Search Console + GA4 d'abord : lecture seule, aucun examen ;
+  lancer tout de suite la vérification d'entreprise Meta et le jeton
+  développeur Google Ads, ce sont des semaines). Règle : un agent propose,
+  le vendeur valide chaque dépense, le plafond est en base. Les rapports se
+  relèvent par tournée et s'affichent depuis la base, jamais à l'ouverture
+  d'une page.
+
+- **Accueil, textes en blanc néon (25/09/2026).** Le turquoise essayé le même
+  jour « ne plaît pas du tout » : `.texte-neon` est blanc à lueur faible et
+  couvre aussi le bloc des avis (ses gris ne se lisaient pas). Diaporama pleine
+  largeur juste sous le titre (hauteur `min(52vw, 75vh)`), contenu dessous ;
+  frises à 1,1 s par logo, sans marge ; cartes et titres avec le halo de la
+  référence envoyée par Max (cœur blanc, deux couronnes, halo large, lueur
+  intérieure sur les cartes ; bande de 210 px pour laisser passer le halo).
+
 ---
 
 ## État des intégrations

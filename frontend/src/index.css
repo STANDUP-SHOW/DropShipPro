@@ -316,16 +316,19 @@ html[data-theme="light"] { color-scheme: light; }
 }
 
 /*
- * Les textes courants des blocs de l'accueil : turquoise clair, lueur légère
- * (Max, 25/09/2026 — essai avant de le décliner sur le dashboard ; sinon ce
- * sera du blanc néon). La lueur reste faible : sur du texte courant, un halo
- * fort rend illisible ce qu'il devait faire ressortir.
+ * Les textes courants des blocs de l'accueil : blanc néon (Max, 25/09/2026 —
+ * le turquoise essayé le même jour « ne plaît pas du tout »). La lueur reste
+ * faible : sur du texte courant, un halo fort rend illisible ce qu'il devait
+ * faire ressortir. Le bloc des avis reçoit la même classe : ses gris d'origine
+ * ne se lisaient pas sur le fond foncé.
  */
 .texte-neon {
-  color: #a8f6ff;
-  text-shadow: 0 0 4px rgba(46, 242, 255, 0.55), 0 0 14px rgba(46, 242, 255, 0.28);
+  color: #fff;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.55), 0 0 14px rgba(255, 255, 255, 0.25);
 }
-[data-theme="light"] .texte-neon {
-  color: #0a7d8c;
-  text-shadow: 0 0 2px rgba(46, 242, 255, 0.35);
+.texte-neon :is(p, span, li, dd, dt, small, cite) { color: #fff; }
+[data-theme="light"] .texte-neon,
+[data-theme="light"] .texte-neon :is(p, span, li, dd, dt, small, cite) {
+  color: #111;
+  text-shadow: none;
 }

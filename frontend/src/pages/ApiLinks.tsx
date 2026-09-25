@@ -30,6 +30,11 @@ export default function ApiLinks() {
         <Link to="/api-sourcing-connect" className="text-purple-300 underline">
           API Sourcing Connect
         </Link>
+        . Ce que chaque API marketing débloquera une fois raccordée, et l'état réel de chaque
+        raccordement, est sur{' '}
+        <Link to="/api-power/" className="text-purple-300 underline">
+          API Power
+        </Link>
         .
       </p>
 

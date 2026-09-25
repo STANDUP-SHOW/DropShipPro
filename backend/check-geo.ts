@@ -16,6 +16,7 @@ import { resolve } from 'node:path'
 import { DROPS, DROPS_INSCRIPTION } from './src/services/tarifs.js'
 import { SUPPLIERS } from './src/services/suppliers.js'
 import { CANAUX } from './src/services/channelDirectory.js'
+import { API_POWER, resumeApiPower } from './src/services/apiPower.js'
 
 const require = createRequire(import.meta.url)
 const scripts = resolve(import.meta.dirname, '../frontend/scripts')
@@ -67,6 +68,19 @@ const canauxJson = JSON.parse(readFileSync(resolve(scripts, '../src/data/canaux.
 exige(
   canauxJson.canaux.length === CANAUX.length && canauxJson.canaux.every((c, i) => c.id === CANAUX[i]?.id),
   'canaux.json est engendré avec l’annuaire (sinon : node build-channel-directory.cjs)',
+)
+const apiPowerJson = JSON.parse(readFileSync(resolve(scripts, '../src/data/api-power.json'), 'utf8')) as { apis: Array<{ id: string; opportunites: unknown[] }>; resume: { opportunites: number } }
+exige(
+  apiPowerJson.apis.length === API_POWER.length && apiPowerJson.apis.every((a, i) => a.id === API_POWER[i]?.id) && apiPowerJson.resume.opportunites === resumeApiPower().opportunites,
+  'api-power.json recopie le registre apiPower.ts (sinon : npx tsx exporter-api-power.ts)',
+)
+exige(
+  API_POWER.every((a) => (a.etat === 'ecarte' ? a.opportunites.length === 0 && !!a.existant : a.opportunites.length > 0 && a.prerequis.length > 0)),
+  'une API écartée dit pourquoi et ne promet rien ; une API retenue a ses opportunités et ses prérequis',
+)
+exige(
+  API_POWER.flatMap((a) => a.opportunites).every((o) => o.donnees.length > 0 && o.gestes.length > 0 && o.quoi.length > 40),
+  'chaque opportunité dit ce qui remonte, les gestes possibles, et où',
 )
 exige(ROBOTS_IA.length >= 12 && ROBOTS_IA.some(([a]: [string]) => a === 'GPTBot') && ROBOTS_IA.some(([a]: [string]) => a === 'ClaudeBot'), 'les robots des assistants sont nommés')
 

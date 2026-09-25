@@ -26,6 +26,7 @@ import AfterSales from './pages/AfterSales'
 import BetaAccess from './pages/BetaAccess'
 import Privacy from './pages/Privacy'
 import ReviewsPage from './pages/ReviewsPage'
+import ApiPower from './pages/ApiPower'
 import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
 import FreshNews from './pages/FreshNews'
@@ -123,6 +124,8 @@ export default function App() {
           <Route path="/confidentialite" element={<Privacy />} />
           {/* Public : un visiteur sans compte doit pouvoir lire les avis. */}
           <Route path="/avis" element={<ReviewsPage />} />
+          {/* Public : ce que les API marketing débloquent (25/09/2026), lisible avant de créer un compte. */}
+          <Route path="/api-power" element={<ApiPower />} />
           {/* Public : l'inscription newsletter, où pointent les liens des emails. */}
           <Route path="/newsletter" element={<Newsletter />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />

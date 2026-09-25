@@ -1,0 +1,916 @@
+/**
+ * API Power — le registre des API marketing, publicitaires et de publication
+ * que la plateforme propose de raccorder, et ce que chacune permet.
+ *
+ * Demandé le 25/09/2026 par Max : nos concurrents s'appuient sur l'API
+ * Marketing de Meta, Google Ads, la Search Console, Analytics, TikTok… et une
+ * page « API Power » doit lister toutes les opportunités — marketing,
+ * publicité, publication, analyse — que ces API ouvrent une fois connectées.
+ *
+ * Trois règles, et elles sont la raison d'être de ce fichier :
+ *
+ * - **Une seule source.** La page publique /api-power, la version pré-rendue
+ *   pour les robots (build-geo.cjs, via frontend/src/data/api-power.json
+ *   engendré par `exporter-api-power.ts`) et l'écran du back-office lisent
+ *   TOUTES ce registre. Une opportunité écrite ici est promise partout de la
+ *   même façon.
+ * - **L'état est dit tel qu'il est.** `ecrit` = le code existe et a un banc
+ *   sur faux serveur ; `flux` = nous servons déjà le flux que cette API
+ *   consomme ; `jeton` = le vendeur peut coller son jeton, rien n'est encore lu
+ *   (AdAccount) ; `prevu` = rien d'écrit ; `ecarte` = pas retenu, avec la
+ *   raison. Aucune API n'est « branchée » ici tant qu'elle n'a pas été
+ *   confrontée au vrai service — c'est la leçon de Shopify, d'eBay et de Meta.
+ * - **Chaque opportunité dit où ses données iront** dans le back-office
+ *   (`ecran`), sous quelle forme (`donnees` : des MESURES datées ou des OBJETS
+ *   — campagne, annonce, prospect, message) et quels GESTES le vendeur pourra
+ *   faire depuis chez nous. C'est le classement que le dashboard suivra ;
+ *   docs/api-power.md en donne le modèle complet.
+ *
+ * Ce que ce registre ne fait pas : appeler quoi que ce soit. Les appels vivent
+ * dans socialMeta.ts, socialGateway.ts, channelFeeds.ts et ceux qui viendront.
+ */
+
+export type Univers = 'meta' | 'google' | 'tiktok' | 'pinterest' | 'snapchat' | 'linkedin' | 'x' | 'microsoft' | 'amazon'
+
+export type EtatApi = 'ecrit' | 'flux' | 'jeton' | 'prevu' | 'ecarte'
+
+/** À quoi sert l'opportunité, pour le tri de la page. */
+export type Usage = 'publicite' | 'analyse' | 'publication' | 'prospects' | 'catalogue' | 'messagerie' | 'veille' | 'mesure'
+
+/** L'écran du back-office où les données de l'opportunité arriveront. */
+export type Ecran = 'marketing' | 'reseaux' | 'dashboard' | 'annonces' | 'sav' | 'veille' | 'sites' | 'commandes'
+
+export interface Opportunite {
+  id: string
+  titre: string
+  usage: Usage
+  /** Ce que le vendeur en tire, en une ou deux phrases. */
+  quoi: string
+  /** Ce qui remonte chez nous : mesures datées ou objets. */
+  donnees: string[]
+  /** Ce que le vendeur pourra faire depuis le back-office. */
+  gestes: string[]
+  ecran: Ecran
+}
+
+export interface ApiPower {
+  id: string
+  univers: Univers
+  nom: string
+  editeur: string
+  /** La documentation officielle. */
+  doc: string
+  /** La console où le vendeur (ou nous) crée l'accès. */
+  console: string
+  /** Ce que c'est, en une phrase. */
+  quoi: string
+  /** Les démarches réelles, chez l'éditeur, avant que l'API réponde. */
+  prerequis: string[]
+  etat: EtatApi
+  /** Ce qui existe déjà dans le code, ou pourquoi l'API est écartée. */
+  existant?: string
+  opportunites: Opportunite[]
+}
+
+export const LIBELLE_ETAT: Record<EtatApi, string> = {
+  ecrit: 'Connecteur écrit',
+  flux: 'Flux déjà servi',
+  jeton: 'Jeton accepté',
+  prevu: 'À brancher',
+  ecarte: 'Non retenu',
+}
+
+export const LIBELLE_USAGE: Record<Usage, string> = {
+  publicite: 'Publicité',
+  analyse: 'Analyse',
+  publication: 'Publication',
+  prospects: 'Prospects',
+  catalogue: 'Catalogue',
+  messagerie: 'Messagerie',
+  veille: 'Veille concurrence',
+  mesure: 'Mesure des ventes',
+}
+
+export const LIBELLE_ECRAN: Record<Ecran, string> = {
+  marketing: 'Commercialisation',
+  reseaux: 'Réseaux',
+  dashboard: 'Dashboard',
+  annonces: 'Mes annonces',
+  sav: 'SAV et messagerie',
+  veille: 'Analyses de marché',
+  sites: 'Mes sites',
+  commandes: 'Commandes',
+}
+
+export const UNIVERS: Record<Univers, { label: string; domain: string; color: string }> = {
+  meta: { label: 'Meta — Facebook, Instagram, Threads, Messenger', domain: 'facebook.com', color: '#1877f2' },
+  google: { label: 'Google — Ads, Search Console, Analytics, Merchant Center, YouTube', domain: 'google.com', color: '#4285f4' },
+  tiktok: { label: 'TikTok', domain: 'tiktok.com', color: '#111111' },
+  pinterest: { label: 'Pinterest', domain: 'pinterest.com', color: '#e60023' },
+  snapchat: { label: 'Snapchat', domain: 'snapchat.com', color: '#fffc00' },
+  linkedin: { label: 'LinkedIn', domain: 'linkedin.com', color: '#0a66c2' },
+  x: { label: 'X (Twitter)', domain: 'x.com', color: '#111111' },
+  microsoft: { label: 'Microsoft — Bing Ads et Bing Webmaster', domain: 'bing.com', color: '#0078d4' },
+  amazon: { label: 'Amazon Ads', domain: 'amazon.fr', color: '#ff9900' },
+}
+
+/*
+ * Les prérequis Meta reviennent sur toutes ses API : une application Meta
+ * (celle de Max s'appelle « dropshipper » sur developers.facebook.com), la
+ * vérification de l'entreprise, et le contrôle de l'app (App Review) pour
+ * chaque permission avancée. Écrits une fois.
+ */
+const META_APP = "Une application Meta (developers.facebook.com — la nôtre s'appelle « dropshipper ») avec le cas d'utilisation activé."
+const META_ENTREPRISE = "La vérification de l'entreprise (Business Verification) dans le Business Manager de DropShipper IA."
+const META_REVUE = "Le contrôle de l'app (App Review) pour chaque permission avancée : tant qu'il n'est pas passé, l'API ne répond que pour les comptes de test de l'application."
+
+export const API_POWER: ApiPower[] = [
+  // ------------------------------------------------------------------ Meta
+  {
+    id: 'meta-marketing',
+    univers: 'meta',
+    nom: 'API Marketing',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/marketing-apis/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: "L'API par laquelle se créent, se pilotent et se mesurent les publicités Facebook et Instagram — celle qu'utilisent tous les outils publicitaires du marché.",
+    prerequis: [
+      META_APP,
+      META_ENTREPRISE,
+      META_REVUE + ' Permissions : ads_management, ads_read, business_management.',
+      "Le niveau d'accès « Standard » de l'API Marketing, accordé après un volume d'appels réussis en niveau « Développement ».",
+      "Un compte publicitaire (act_…) que le vendeur relie par OAuth : nous ne demandons jamais son mot de passe.",
+    ],
+    etat: 'jeton',
+    existant:
+      "Le vendeur peut coller l'identifiant de son compte publicitaire et un jeton (Réglages › API Connect, table AdAccount). L'écran le dit : rien n'est lu ni diffusé pour l'instant.",
+    opportunites: [
+      {
+        id: 'meta-campagnes',
+        titre: 'Créer et gérer les publicités depuis nos visuels',
+        usage: 'publicite',
+        quoi: "Une publicité générée par l'atelier (visuel + accroche + lien) devient une campagne Meta en un geste : audience, budget et dates choisis chez nous, diffusion chez Meta.",
+        donnees: ['Objets : campagnes, ensembles de publicités, publicités, statut de diffusion, motifs de refus'],
+        gestes: ['Créer une campagne depuis une annonce', 'Mettre en pause / reprendre', 'Changer le budget quotidien', 'Dupliquer une publicité qui marche'],
+        ecran: 'marketing',
+      },
+      {
+        id: 'meta-insights',
+        titre: 'Mesurer la performance publicitaire',
+        usage: 'analyse',
+        quoi: "Impressions, portée, clics, coût par clic, dépense et retour sur dépense par publicité, par produit et par jour — rapprochés des ventes réelles de l'annonce.",
+        donnees: ['Mesures datées : impressions, portée, clics, CPC, CPM, dépense, conversions, ROAS (avec le pixel ou l’API Conversions)'],
+        gestes: ["Couper une publicité qui coûte plus qu'elle ne rapporte", 'Comparer deux visuels du même produit', "Recevoir l'alerte « ROAS sous 1 »"],
+        ecran: 'dashboard',
+      },
+      {
+        id: 'meta-prospects',
+        titre: 'Capturer les prospects des publicités à formulaire',
+        usage: 'prospects',
+        quoi: "Les formulaires « Lead Ads » remplis sur Facebook et Instagram arrivent chez nous en temps réel (webhook), avec le nom, l'email et les réponses — et non dans un CSV à télécharger à la main.",
+        donnees: ['Objets : prospects (nom, email, téléphone, réponses, publicité d’origine, date)'],
+        gestes: ['Répondre par email ou Messenger', 'Exporter vers son CRM', 'Marquer converti / perdu'],
+        ecran: 'sav',
+      },
+      {
+        id: 'meta-audiences',
+        titre: 'Audiences personnalisées et similaires depuis nos commandes',
+        usage: 'publicite',
+        quoi: "Les acheteurs des boutiques DropShop et les visiteurs des fiches forment des audiences (hachées) chez Meta, et des audiences similaires en découlent pour trouver de nouveaux clients.",
+        donnees: ['Objets : audiences, taille estimée'],
+        gestes: ["Créer l'audience « mes acheteurs »", 'Créer une audience similaire 1 %', 'Exclure les acheteurs récents d’une campagne'],
+        ecran: 'marketing',
+      },
+      {
+        id: 'meta-agent-pub',
+        titre: "Agent publicitaire : l'IA pilote la campagne",
+        usage: 'publicite',
+        quoi: "Le cas d'utilisation « Agent publicitaire » de Meta autorise un agent à créer et ajuster des campagnes au nom du vendeur. Chez nous, ce sera un chef de rayon qui propose ; le vendeur valide chaque dépense.",
+        donnees: ['Objets : propositions de campagne, historique des décisions'],
+        gestes: ["Accepter ou refuser la proposition de l'agent", 'Fixer un plafond de dépense que l’agent ne dépasse jamais'],
+        ecran: 'marketing',
+      },
+    ],
+  },
+  {
+    id: 'meta-conversions',
+    univers: 'meta',
+    nom: 'API Conversions (CAPI)',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/marketing-api/conversions-api/',
+    console: 'https://business.facebook.com/events_manager',
+    quoi: "L'envoi des événements de vente depuis le serveur (et non depuis le navigateur, où les bloqueurs les perdent) : c'est ce qui permet à Meta d'attribuer une commande à la publicité qui l'a produite.",
+    prerequis: ['Un pixel / jeu de données dans le Gestionnaire d’événements du vendeur', 'Un jeton d’accès au pixel, collé chez nous', META_APP],
+    etat: 'prevu',
+    existant: "Les commandes des boutiques DropShop sont écrites chez nous (routes/vitrine.ts, paiement confirmé côté Stripe) : l'événement Purchase peut partir du serveur au moment où paidAt est posé.",
+    opportunites: [
+      {
+        id: 'capi-achats',
+        titre: 'Attribuer chaque commande DropShop à sa publicité',
+        usage: 'mesure',
+        quoi: "À chaque paiement confirmé, l'événement Purchase part au serveur de Meta avec le montant et le produit : le ROAS affiché devient un vrai chiffre, pas une estimation.",
+        donnees: ['Mesures datées : événements envoyés, taux de correspondance (Event Match Quality)'],
+        gestes: ['Activer / couper l’envoi par boutique', 'Vérifier la correspondance des événements'],
+        ecran: 'commandes',
+      },
+    ],
+  },
+  {
+    id: 'meta-catalogue',
+    univers: 'meta',
+    nom: 'API Catalogue (Commerce)',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/commerce-platform/catalog/',
+    console: 'https://business.facebook.com/commerce/',
+    quoi: "Le catalogue produit de Meta, qui alimente les publicités dynamiques (Advantage+ catalogue), la boutique Facebook et Instagram Shopping.",
+    prerequis: ['Un catalogue dans le Commerce Manager du vendeur', META_APP, META_REVUE + ' Permission : catalog_management.'],
+    etat: 'flux',
+    existant:
+      "Nous servons déjà le flux au format Meta (channelFeeds.ts) : le vendeur colle son adresse dans le Commerce Manager et Meta le relit à son rythme. L'API ajoute la mise à jour immédiate (stock, prix) et la lecture des refus par produit.",
+    opportunites: [
+      {
+        id: 'meta-catalogue-sync',
+        titre: 'Catalogue synchronisé, refus lisibles',
+        usage: 'catalogue',
+        quoi: "Une annonce modifiée chez nous est mise à jour chez Meta dans la minute, et un produit refusé (politique publicitaire, image trop petite) est signalé sur sa fiche avec le motif.",
+        donnees: ['Objets : produits du catalogue, statut d’approbation, motifs de refus'],
+        gestes: ['Corriger la fiche et resoumettre', 'Retirer un produit du catalogue'],
+        ecran: 'annonces',
+      },
+      {
+        id: 'meta-dynamiques',
+        titre: 'Publicités dynamiques sur tout le catalogue',
+        usage: 'publicite',
+        quoi: "Une seule campagne montre à chaque personne le produit qu'elle a regardé ou ajouté au panier — sans créer une publicité par produit.",
+        donnees: ['Mesures datées : performance par produit du catalogue'],
+        gestes: ['Lancer une campagne catalogue', 'Exclure des catégories'],
+        ecran: 'marketing',
+      },
+    ],
+  },
+  {
+    id: 'instagram-graph',
+    univers: 'meta',
+    nom: 'API Instagram (Graph)',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/instagram-platform/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: 'Publier des posts, des Reels et des stories sur un compte Instagram professionnel, lire ses statistiques, et gérer commentaires et messages.',
+    prerequis: [
+      'Un compte Instagram Business ou Créateur relié à une page Facebook (un compte personnel ne peut rien publier par API).',
+      META_APP,
+      META_REVUE + ' Permissions : instagram_basic, instagram_content_publish, instagram_manage_insights, instagram_manage_comments, instagram_manage_messages.',
+    ],
+    etat: 'ecrit',
+    existant:
+      "La publication organique est écrite dans socialMeta.ts derrière la passerelle socialGateway.ts (banc check-meta.ts, faux serveur) — jamais confrontée au vrai Meta : il manque la vérification d'entreprise et l'App Review.",
+    opportunites: [
+      {
+        id: 'ig-publier',
+        titre: 'Publier les visuels et vidéos des annonces',
+        usage: 'publication',
+        quoi: 'Le visuel produit, la vidéo ou le carrousel généré part sur Instagram avec sa légende, tout de suite ou à l’heure choisie.',
+        donnees: ['Objets : publications, statut, lien'],
+        gestes: ['Publier / programmer', 'Republier une annonce qui a bien marché'],
+        ecran: 'reseaux',
+      },
+      {
+        id: 'ig-insights',
+        titre: 'Statistiques du compte et des publications',
+        usage: 'analyse',
+        quoi: 'Portée, impressions, abonnés gagnés, enregistrements et clics sur le lien, par publication et par jour.',
+        donnees: ['Mesures datées : portée, impressions, abonnés, engagement, clics'],
+        gestes: ['Voir quel produit fait gagner des abonnés', 'Comparer Reels et images'],
+        ecran: 'dashboard',
+      },
+      {
+        id: 'ig-messages',
+        titre: 'Commentaires et messages privés au même endroit',
+        usage: 'messagerie',
+        quoi: "Les commentaires sous les posts et les messages Instagram arrivent dans la messagerie du back-office ; le vendeur (ou l'agent SAV) répond sans ouvrir l'application.",
+        donnees: ['Objets : commentaires, conversations, messages'],
+        gestes: ['Répondre', 'Masquer un commentaire', 'Proposer une réponse rédigée par l’agent SAV'],
+        ecran: 'sav',
+      },
+    ],
+  },
+  {
+    id: 'facebook-pages',
+    univers: 'meta',
+    nom: 'API Pages Facebook',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/pages-api/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: "Tout gérer sur la page Facebook du vendeur : publier, lire les statistiques de la page, répondre aux commentaires.",
+    prerequis: ['Une page Facebook dont le vendeur est administrateur', META_APP, META_REVUE + ' Permissions : pages_manage_posts, pages_read_engagement, pages_manage_engagement.'],
+    etat: 'ecrit',
+    existant: 'Même chemin que Instagram (socialMeta.ts) : publication écrite, jamais confrontée.',
+    opportunites: [
+      {
+        id: 'fb-publier',
+        titre: 'Publier sur la page',
+        usage: 'publication',
+        quoi: "Le même visuel qu'Instagram part sur la page Facebook, avec le lien vers la fiche ou la boutique.",
+        donnees: ['Objets : publications, statut'],
+        gestes: ['Publier / programmer'],
+        ecran: 'reseaux',
+      },
+      {
+        id: 'fb-insights',
+        titre: 'Statistiques de la page',
+        usage: 'analyse',
+        quoi: 'Portée, engagement, clics sur le lien et nouveaux abonnés par jour.',
+        donnees: ['Mesures datées : portée, engagement, clics, abonnés'],
+        gestes: ['Voir les meilleures heures de publication'],
+        ecran: 'dashboard',
+      },
+    ],
+  },
+  {
+    id: 'threads',
+    univers: 'meta',
+    nom: 'API Threads',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/threads/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: 'Publier sur Threads et lire les statistiques des posts.',
+    prerequis: ['Un compte Threads (lié au compte Instagram)', META_APP, META_REVUE + ' Permissions : threads_basic, threads_content_publish, threads_manage_insights.'],
+    etat: 'prevu',
+    opportunites: [
+      {
+        id: 'threads-publier',
+        titre: 'Publier le texte et le visuel de l’annonce sur Threads',
+        usage: 'publication',
+        quoi: "Un réseau de plus pour la même publication, sans effort : Threads accepte texte, image et vidéo.",
+        donnees: ['Objets : posts', 'Mesures datées : vues, mentions J’aime, réponses'],
+        gestes: ['Publier / programmer'],
+        ecran: 'reseaux',
+      },
+    ],
+  },
+  {
+    id: 'messenger',
+    univers: 'meta',
+    nom: 'Plateforme Messenger',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/messenger-platform/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: 'Recevoir et envoyer les messages Messenger de la page — le canal par lequel les acheteurs posent leurs questions avant de commander.',
+    prerequis: ['Une page Facebook', META_APP, META_REVUE + ' Permission : pages_messaging.', 'Règle Meta : répondre librement dans les 24 h suivant le message du client ; au-delà, seuls des messages étiquetés sont permis.'],
+    etat: 'prevu',
+    opportunites: [
+      {
+        id: 'messenger-sav',
+        titre: 'Le SAV répond sur Messenger depuis le back-office',
+        usage: 'messagerie',
+        quoi: "Les questions Messenger arrivent dans la messagerie SAV, à côté des emails ; l'agent SAV (Marc) propose la réponse, le vendeur l'envoie.",
+        donnees: ['Objets : conversations, messages, délai de réponse'],
+        gestes: ['Répondre', 'Envoyer la fiche produit', 'Marquer résolu'],
+        ecran: 'sav',
+      },
+    ],
+  },
+  {
+    id: 'meta-ad-library',
+    univers: 'meta',
+    nom: 'API Bibliothèque publicitaire (Ad Library)',
+    editeur: 'Meta',
+    doc: 'https://www.facebook.com/ads/library/api/',
+    console: 'https://www.facebook.com/ads/library/',
+    quoi: "La bibliothèque publique de toutes les publicités diffusées en Europe (transparence DSA) : ce que les concurrents font tourner en ce moment, avec quels visuels, depuis quand.",
+    prerequis: ["Une identité confirmée auprès de Meta pour l'accès à l'API (pièce d'identité), et l'application Meta.", "Champ d'accès : en Union européenne, toutes les publicités ; hors UE, seules les publicités politiques ou sociétales."],
+    etat: 'prevu',
+    existant: "Les chefs de rayon font déjà de la veille par recherche web (AUTO-MODE) ; l'API donnerait des publicités réelles, datées, avec leurs visuels, au lieu d'articles.",
+    opportunites: [
+      {
+        id: 'adlib-veille',
+        titre: 'Voir les publicités des concurrents sur un produit',
+        usage: 'veille',
+        quoi: "Pour un produit ou une marque, la liste des publicités actives en Europe : visuel, texte, pages qui les diffusent, date de début. Un chef de rayon en tire l'angle qui marche avant d'en écrire un.",
+        donnees: ['Objets : publicités concurrentes (visuel, texte, annonceur, dates, plateformes)'],
+        gestes: ['Chercher par mot-clé ou par page', 'Envoyer une publicité en exemple à l’atelier'],
+        ecran: 'veille',
+      },
+    ],
+  },
+  {
+    id: 'meta-oembed',
+    univers: 'meta',
+    nom: 'oEmbed Facebook, Instagram, Threads',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/plugins/oembed/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: "Intégrer un post Facebook, Instagram ou Threads dans une autre page web — chez nous, dans les boutiques DropShop.",
+    prerequis: [META_APP + " Cas d'utilisation « Intégrer du contenu »."],
+    etat: 'prevu',
+    opportunites: [
+      {
+        id: 'oembed-boutique',
+        titre: 'Les derniers posts Instagram sur la boutique',
+        usage: 'publication',
+        quoi: "Un bloc « Suivez-nous » qui montre les vrais derniers posts du vendeur, pas des images figées.",
+        donnees: ['Objets : posts intégrés'],
+        gestes: ['Activer le bloc sur la boutique'],
+        ecran: 'sites',
+      },
+    ],
+  },
+  {
+    id: 'meta-live-video',
+    univers: 'meta',
+    nom: 'API Live Video',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/live-video-api/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: 'Créer et gérer des vidéos en direct sur une page ou un profil.',
+    prerequis: [META_APP, META_REVUE + ' Permission : publish_video.'],
+    etat: 'ecarte',
+    existant: "Un direct se tourne devant une caméra, pas depuis un back-office : rien de ce que nous produisons (visuels, vidéos montées) n'y trouve sa place. Cas d'utilisation disponible dans l'application Meta, non retenu.",
+    opportunites: [],
+  },
+  {
+    id: 'meta-audience-network',
+    univers: 'meta',
+    nom: 'Meta Audience Network',
+    editeur: 'Meta',
+    doc: 'https://developers.facebook.com/docs/audience-network/',
+    console: 'https://developers.facebook.com/apps',
+    quoi: "La régie qui affiche des publicités Meta DANS des applications tierces pour les rémunérer.",
+    prerequis: [META_APP],
+    etat: 'ecarte',
+    existant: "C'est une source de revenus pour les éditeurs d'applications, pas un canal pour un vendeur : un dropshipper achète de la publicité, il n'en affiche pas. Non retenu.",
+    opportunites: [],
+  },
+
+  // ---------------------------------------------------------------- Google
+  {
+    id: 'google-ads',
+    univers: 'google',
+    nom: 'API Google Ads',
+    editeur: 'Google',
+    doc: 'https://developers.google.com/google-ads/api/docs/start',
+    console: 'https://ads.google.com/aw/apicenter',
+    quoi: 'Créer et piloter les campagnes Google (Shopping, Performance Max, Search), lire leurs rapports et remonter les conversions.',
+    prerequis: [
+      "Un jeton de développeur (Centre API de Google Ads) : accès « Test » immédiat, accès « Basique » après examen de la demande par Google — c'est lui qui autorise les vrais comptes.",
+      'Un compte administrateur (MCC) DropShipper IA, et le compte Google Ads du vendeur relié par OAuth.',
+      'Pour Shopping et Performance Max : un Merchant Center relié au compte Google Ads.',
+    ],
+    etat: 'jeton',
+    existant: "Le numéro client et un jeton se collent dans API Connect (AdAccount), rien n'est lu. Le flux Google Shopping, lui, est déjà servi (channelFeeds.ts).",
+    opportunites: [
+      {
+        id: 'gads-pmax',
+        titre: 'Campagne Performance Max depuis le catalogue',
+        usage: 'publicite',
+        quoi: "Les annonces du vendeur, déjà dans son Merchant Center par notre flux, partent en campagne Performance Max ou Shopping avec un budget fixé chez nous.",
+        donnees: ['Objets : campagnes, groupes d’annonces, statut, motifs de refus'],
+        gestes: ['Créer / mettre en pause', 'Changer le budget', 'Exclure un produit'],
+        ecran: 'marketing',
+      },
+      {
+        id: 'gads-rapports',
+        titre: 'Rapports par produit et par requête',
+        usage: 'analyse',
+        quoi: 'Impressions, clics, coût, conversions et ROAS par produit, par requête de recherche et par jour, rapprochés des ventes.',
+        donnees: ['Mesures datées : impressions, clics, CPC, coût, conversions, valeur de conversion, ROAS, part d’impressions'],
+        gestes: ['Couper un produit qui dépense sans vendre', 'Ajouter un mot-clé négatif', 'Alerte « coût par conversion en hausse »'],
+        ecran: 'dashboard',
+      },
+      {
+        id: 'gads-conversions',
+        titre: 'Remonter les ventes DropShop en conversions',
+        usage: 'mesure',
+        quoi: "Chaque commande payée sur une boutique DropShop est envoyée comme conversion hors ligne / améliorée, avec sa valeur : Google optimise sur les vraies ventes.",
+        donnees: ['Mesures datées : conversions envoyées, acceptées'],
+        gestes: ['Activer par boutique'],
+        ecran: 'commandes',
+      },
+      {
+        id: 'gads-motscles',
+        titre: 'Volumes de recherche et enchères (Keyword Planner)',
+        usage: 'veille',
+        quoi: "Avant d'importer un produit, le volume de recherche mensuel et le coût par clic estimé de ses mots-clés : un chiffre de plus pour les chefs de rayon, qui ne l'inventent plus.",
+        donnees: ['Mesures : volume mensuel, CPC estimé, concurrence, par mot-clé'],
+        gestes: ['Consulter depuis une analyse de marché', 'Ajouter au rapport produit'],
+        ecran: 'veille',
+      },
+    ],
+  },
+  {
+    id: 'search-console',
+    univers: 'google',
+    nom: 'API Search Console',
+    editeur: 'Google',
+    doc: 'https://developers.google.com/webmaster-tools',
+    console: 'https://search.google.com/search-console',
+    quoi: "Ce que Google voit des boutiques DropShop : les requêtes qui les affichent, la position, les clics, les pages indexées, et le dépôt des sitemaps.",
+    prerequis: ["La propriété de la boutique vérifiée dans la Search Console du vendeur (nous pouvons poser la balise de vérification nous-mêmes sur la boutique).", 'Accès OAuth webmasters.readonly (lecture) ou webmasters (dépôt de sitemaps).'],
+    etat: 'prevu',
+    existant: "Les sitemaps du site et des analyses existent (build-seo, /analyses/sitemap.xml) et IndexNow est en place ; le dépôt dans la Search Console reste un geste manuel — celui que Max fait à la main aujourd'hui.",
+    opportunites: [
+      {
+        id: 'gsc-requetes',
+        titre: 'Les requêtes qui amènent des visiteurs à la boutique',
+        usage: 'analyse',
+        quoi: 'Clics, impressions, taux de clic et position moyenne par requête et par page, sur 16 mois : quel produit Google montre, et pour quels mots.',
+        donnees: ['Mesures datées : clics, impressions, CTR, position, par requête / page / pays / appareil'],
+        gestes: ['Voir les requêtes d’un produit', 'Réécrire un titre qui s’affiche mais n’est pas cliqué'],
+        ecran: 'sites',
+      },
+      {
+        id: 'gsc-sitemaps',
+        titre: 'Sitemaps déposés et indexation suivie',
+        usage: 'publication',
+        quoi: "Le sitemap de chaque boutique est déposé automatiquement à la création et à chaque ajout de produits ; les pages non indexées sont listées avec la raison de Google.",
+        donnees: ['Objets : sitemaps déposés, pages indexées / exclues, raisons'],
+        gestes: ['Redéposer', 'Demander l’inspection d’une page'],
+        ecran: 'sites',
+      },
+    ],
+  },
+  {
+    id: 'ga4',
+    univers: 'google',
+    nom: 'API Google Analytics (Data API GA4)',
+    editeur: 'Google',
+    doc: 'https://developers.google.com/analytics/devguides/reporting/data/v1',
+    console: 'https://analytics.google.com/',
+    quoi: "Les visites et le comportement des acheteurs sur les boutiques DropShop : d'où ils viennent, ce qu'ils regardent, où ils abandonnent.",
+    prerequis: ['Une propriété GA4 sur la boutique (nous pouvons poser la balise)', 'Accès OAuth analytics.readonly', "Pour l'envoi serveur des ventes : le Measurement Protocol et un secret d'API de la propriété"],
+    etat: 'prevu',
+    existant: "Les boutiques DropShop n'ont aujourd'hui aucune balise de mesure : le vendeur ne sait pas d'où viennent ses visiteurs.",
+    opportunites: [
+      {
+        id: 'ga4-sources',
+        titre: "D'où viennent les visiteurs, et lesquels achètent",
+        usage: 'analyse',
+        quoi: 'Sessions, sources (Google, Meta, TikTok, direct), pages vues, ajouts au panier et achats par source et par jour.',
+        donnees: ['Mesures datées : sessions, utilisateurs, source/medium, vues de fiche, ajouts au panier, achats, revenu'],
+        gestes: ['Comparer les sources', 'Voir le tunnel fiche → panier → paiement'],
+        ecran: 'dashboard',
+      },
+      {
+        id: 'ga4-mp',
+        titre: 'Les ventes envoyées depuis le serveur',
+        usage: 'mesure',
+        quoi: "L'événement purchase part de notre serveur à la confirmation Stripe : aucune vente ne manque, bloqueur ou pas.",
+        donnees: ['Mesures datées : événements envoyés'],
+        gestes: ['Activer par boutique'],
+        ecran: 'commandes',
+      },
+    ],
+  },
+  {
+    id: 'merchant-center',
+    univers: 'google',
+    nom: 'API Merchant Center (Content API / Merchant API)',
+    editeur: 'Google',
+    doc: 'https://developers.google.com/merchant/api',
+    console: 'https://merchants.google.com/',
+    quoi: "Le catalogue Google Shopping : dépôt des produits, statut d'approbation, refus, et rapports de compétitivité des prix.",
+    prerequis: ['Un compte Merchant Center vérifié (site revendiqué)', 'Accès OAuth content'],
+    etat: 'flux',
+    existant: "Le flux Google Shopping est servi (channelFeeds.ts, g:gtin, identifier_exists) ; le vendeur le colle dans son Merchant Center. L'API ajoute les statuts par produit et les rapports.",
+    opportunites: [
+      {
+        id: 'gmc-statuts',
+        titre: 'Le statut Google de chaque produit sur sa fiche',
+        usage: 'catalogue',
+        quoi: "« Approuvé », « Refusé : image générique », « En attente » — lu chez Google et écrit sur la fiche, avec le geste qui corrige.",
+        donnees: ['Objets : statut par produit, motifs de refus, pays'],
+        gestes: ['Corriger et resoumettre', 'Retirer du flux'],
+        ecran: 'annonces',
+      },
+      {
+        id: 'gmc-prix',
+        titre: 'Compétitivité des prix et meilleures ventes',
+        usage: 'veille',
+        quoi: 'Le rapport de Google sur le prix du vendeur face aux autres marchands du même produit, et les produits les plus vendus de sa catégorie.',
+        donnees: ['Mesures : prix de référence, position de prix, meilleures ventes par catégorie'],
+        gestes: ['Ajuster un prix', 'Envoyer les meilleures ventes au chef de rayon'],
+        ecran: 'veille',
+      },
+    ],
+  },
+  {
+    id: 'youtube',
+    univers: 'google',
+    nom: 'API YouTube Data',
+    editeur: 'Google',
+    doc: 'https://developers.google.com/youtube/v3',
+    console: 'https://console.cloud.google.com/',
+    quoi: 'Publier les vidéos produit sur la chaîne du vendeur et lire les statistiques de la chaîne.',
+    prerequis: ['Une chaîne YouTube', 'Accès OAuth youtube.upload', "Quota de 10 000 unités par jour (une vidéo publiée en coûte 1 600) ; au-delà, un audit de conformité par Google."],
+    etat: 'prevu',
+    existant: "La vidéo d'annonce existe déjà (elle part vers « Mon site » et Shopify) : YouTube serait sa troisième destination.",
+    opportunites: [
+      {
+        id: 'yt-publier',
+        titre: 'La vidéo produit sur YouTube et en Short',
+        usage: 'publication',
+        quoi: "La vidéo de l'annonce, avec titre, description et lien vers la fiche, publiée sur la chaîne — et au format Short quand elle est verticale.",
+        donnees: ['Objets : vidéos publiées, statut', 'Mesures datées : vues, durée de visionnage, clics'],
+        gestes: ['Publier / programmer'],
+        ecran: 'reseaux',
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------- TikTok
+  {
+    id: 'tiktok-marketing',
+    univers: 'tiktok',
+    nom: 'API Marketing TikTok (Business API)',
+    editeur: 'TikTok',
+    doc: 'https://business-api.tiktok.com/portal/docs',
+    console: 'https://business-api.tiktok.com/portal',
+    quoi: 'Créer et piloter les campagnes TikTok Ads, lire leurs rapports, gérer les créations.',
+    prerequis: ['Un compte TikTok for Business et un compte publicitaire (Advertiser ID)', "Une application sur le portail développeur TikTok, approuvée pour chaque champ d'accès demandé", 'Le compte du vendeur relié par OAuth'],
+    etat: 'jeton',
+    existant: "L'Advertiser ID et un jeton se collent dans API Connect (AdAccount), rien n'est lu.",
+    opportunites: [
+      {
+        id: 'tt-campagnes',
+        titre: 'Campagnes TikTok depuis les vidéos produit',
+        usage: 'publicite',
+        quoi: 'La vidéo générée devient une publicité In-Feed avec budget et audience fixés chez nous.',
+        donnees: ['Objets : campagnes, groupes, publicités, statut'],
+        gestes: ['Créer / pause', 'Changer le budget'],
+        ecran: 'marketing',
+      },
+      {
+        id: 'tt-rapports',
+        titre: 'Rapports de performance TikTok',
+        usage: 'analyse',
+        quoi: 'Impressions, vues, clics, coût, conversions par publicité et par jour, à côté de Meta et Google dans le même tableau.',
+        donnees: ['Mesures datées : impressions, vues 2 s / 6 s, clics, CPC, coût, conversions'],
+        gestes: ['Couper / dupliquer', 'Comparer avec Meta et Google'],
+        ecran: 'dashboard',
+      },
+    ],
+  },
+  {
+    id: 'tiktok-content',
+    univers: 'tiktok',
+    nom: 'API Content Posting TikTok',
+    editeur: 'TikTok',
+    doc: 'https://developers.tiktok.com/doc/content-posting-api-get-started',
+    console: 'https://developers.tiktok.com/',
+    quoi: 'Publier des vidéos sur le compte TikTok du vendeur (organique).',
+    prerequis: ["Une application sur developers.tiktok.com avec le champ video.publish", "L'audit de l'application par TikTok : sans lui, les vidéos publiées restent en visibilité privée."],
+    etat: 'prevu',
+    opportunites: [
+      {
+        id: 'tt-publier',
+        titre: 'La vidéo produit publiée sur TikTok',
+        usage: 'publication',
+        quoi: "La même vidéo que YouTube et Instagram, publiée sur TikTok avec sa légende et ses hashtags, à l'heure choisie.",
+        donnees: ['Objets : vidéos publiées, statut', 'Mesures datées : vues, mentions J’aime, partages'],
+        gestes: ['Publier / programmer'],
+        ecran: 'reseaux',
+      },
+    ],
+  },
+  {
+    id: 'tiktok-ccl',
+    univers: 'tiktok',
+    nom: 'Bibliothèque de contenu commercial TikTok (Ad Library)',
+    editeur: 'TikTok',
+    doc: 'https://library.tiktok.com/',
+    console: 'https://developers.tiktok.com/',
+    quoi: "Les publicités diffusées en Europe sur TikTok (transparence DSA), consultables par annonceur et mot-clé.",
+    prerequis: ["Une application TikTok approuvée pour l'API Commercial Content"],
+    etat: 'prevu',
+    opportunites: [
+      {
+        id: 'tt-veille',
+        titre: 'Les publicités TikTok des concurrents',
+        usage: 'veille',
+        quoi: "Quelles vidéos un concurrent fait tourner sur un produit, depuis quand, dans quels pays — le même relevé que la bibliothèque Meta, pour TikTok.",
+        donnees: ['Objets : publicités concurrentes (vidéo, annonceur, dates, pays)'],
+        gestes: ['Chercher par mot-clé', 'Envoyer en exemple à l’atelier vidéo'],
+        ecran: 'veille',
+      },
+    ],
+  },
+  {
+    id: 'tiktok-shop',
+    univers: 'tiktok',
+    nom: 'API TikTok Shop (Partner Center)',
+    editeur: 'TikTok',
+    doc: 'https://partner.tiktokshop.com/docv2/page/',
+    console: 'https://partner.tiktokshop.com/',
+    quoi: 'La boutique TikTok Shop du vendeur : produits, commandes, stock.',
+    prerequis: ['Un compte vendeur TikTok Shop validé (France)', "Une application partenaire approuvée"],
+    etat: 'prevu',
+    existant: "TikTok Shop est dans l'annuaire des canaux avec l'état « compte vendeur requis » ; c'est un canal de vente, pas une API marketing — listé ici parce que ses commandes nourrissent les mêmes rapports.",
+    opportunites: [
+      {
+        id: 'tts-catalogue',
+        titre: 'Publier les annonces sur TikTok Shop et relire les commandes',
+        usage: 'catalogue',
+        quoi: 'Les annonces partent dans TikTok Shop, les commandes reviennent chez nous à côté des autres.',
+        donnees: ['Objets : produits, commandes, stock'],
+        gestes: ['Publier', 'Mettre à jour le stock'],
+        ecran: 'commandes',
+      },
+    ],
+  },
+
+  // ------------------------------------------------------------ Pinterest
+  {
+    id: 'pinterest',
+    univers: 'pinterest',
+    nom: 'API Pinterest (v5)',
+    editeur: 'Pinterest',
+    doc: 'https://developers.pinterest.com/docs/api/v5/',
+    console: 'https://developers.pinterest.com/',
+    quoi: 'Épingles, tableaux, catalogue produit, publicités et statistiques Pinterest — un réseau où le produit se cherche avant de s’acheter.',
+    prerequis: ['Un compte Pinterest Business', "Une application en accès « trial » (comptes de test), puis « standard » après examen par Pinterest"],
+    etat: 'jeton',
+    existant: 'Un jeton Pinterest Ads se colle dans API Connect (AdAccount), rien n’est lu.',
+    opportunites: [
+      {
+        id: 'pin-epingles',
+        titre: 'Chaque annonce devient une épingle produit',
+        usage: 'publication',
+        quoi: "Visuel, titre, prix et lien vers la fiche, épinglés sur le tableau choisi ; le catalogue Pinterest se remplit du flux produit.",
+        donnees: ['Objets : épingles, tableaux, produits du catalogue'],
+        gestes: ['Épingler', 'Créer un tableau par catégorie'],
+        ecran: 'reseaux',
+      },
+      {
+        id: 'pin-ads',
+        titre: 'Publicités et statistiques Pinterest',
+        usage: 'publicite',
+        quoi: 'Promouvoir une épingle, et lire impressions, enregistrements, clics et coût.',
+        donnees: ['Mesures datées : impressions, enregistrements, clics, coût, conversions'],
+        gestes: ['Promouvoir / arrêter'],
+        ecran: 'marketing',
+      },
+    ],
+  },
+
+  // ------------------------------------------------------------- Snapchat
+  {
+    id: 'snapchat-marketing',
+    univers: 'snapchat',
+    nom: 'API Marketing Snapchat',
+    editeur: 'Snap',
+    doc: 'https://marketingapi.snapchat.com/docs/',
+    console: 'https://business.snapchat.com/',
+    quoi: 'Campagnes, catalogue et rapports Snapchat Ads.',
+    prerequis: ['Un compte Snapchat Business et un compte publicitaire', "Une application OAuth sur le Business Center"],
+    etat: 'jeton',
+    existant: 'Un jeton se colle dans API Connect (AdAccount), rien n’est lu.',
+    opportunites: [
+      {
+        id: 'snap-campagnes',
+        titre: 'Campagnes Snapchat et rapports',
+        usage: 'publicite',
+        quoi: 'Publicités verticales depuis nos vidéos, budget fixé chez nous, résultats dans le même tableau que les autres régies.',
+        donnees: ['Objets : campagnes, publicités', 'Mesures datées : impressions, swipes, coût, conversions'],
+        gestes: ['Créer / pause', 'Changer le budget'],
+        ecran: 'marketing',
+      },
+    ],
+  },
+
+  // ------------------------------------------------------------- LinkedIn
+  {
+    id: 'linkedin-marketing',
+    univers: 'linkedin',
+    nom: 'API Marketing LinkedIn',
+    editeur: 'LinkedIn',
+    doc: 'https://learn.microsoft.com/linkedin/marketing/',
+    console: 'https://www.linkedin.com/developers/',
+    quoi: 'Publier sur une page entreprise et piloter des campagnes LinkedIn — utile aux vendeurs B2B (grossistes, fournitures, équipement).',
+    prerequis: ["Une page entreprise LinkedIn", "L'accès au Marketing Developer Platform, accordé par LinkedIn sur demande"],
+    etat: 'prevu',
+    opportunites: [
+      {
+        id: 'li-publier',
+        titre: 'Publier sur la page entreprise',
+        usage: 'publication',
+        quoi: 'Le visuel et le texte de l’annonce sur la page LinkedIn, pour les catalogues B2B.',
+        donnees: ['Objets : posts', 'Mesures datées : impressions, clics, engagement'],
+        gestes: ['Publier / programmer'],
+        ecran: 'reseaux',
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------- X
+  {
+    id: 'x-ads',
+    univers: 'x',
+    nom: 'API X Ads et API v2',
+    editeur: 'X',
+    doc: 'https://developer.x.com/en/docs/x-ads-api',
+    console: 'https://developer.x.com/',
+    quoi: 'Publicités et publication sur X.',
+    prerequis: ["L'accès à l'API Ads, accordé au cas par cas par X", "La publication par l'API v2 exige un abonnement développeur payant (paliers Basic et au-delà)"],
+    etat: 'jeton',
+    existant: 'Un jeton X Ads se colle dans API Connect (AdAccount), rien n’est lu.',
+    opportunites: [
+      {
+        id: 'x-publier',
+        titre: 'Publier et promouvoir sur X',
+        usage: 'publication',
+        quoi: "Le texte et le visuel de l'annonce sur X, promus si le vendeur le veut.",
+        donnees: ['Objets : posts, campagnes', 'Mesures datées : impressions, engagements, coût'],
+        gestes: ['Publier', 'Promouvoir'],
+        ecran: 'reseaux',
+      },
+    ],
+  },
+
+  // ------------------------------------------------------------ Microsoft
+  {
+    id: 'microsoft-ads',
+    univers: 'microsoft',
+    nom: 'API Microsoft Advertising (Bing Ads)',
+    editeur: 'Microsoft',
+    doc: 'https://learn.microsoft.com/advertising/guides/',
+    console: 'https://ads.microsoft.com/',
+    quoi: 'Campagnes Shopping et Search sur Bing, et import de campagnes Google Ads en un clic.',
+    prerequis: ['Un compte Microsoft Advertising', "Un jeton de développeur approuvé par Microsoft", 'Un Merchant Center Microsoft pour Shopping'],
+    etat: 'prevu',
+    opportunites: [
+      {
+        id: 'ms-shopping',
+        titre: 'Le même catalogue sur Bing Shopping',
+        usage: 'publicite',
+        quoi: "Le flux Google Shopping que nous servons est accepté tel quel par Microsoft : une campagne Shopping de plus, sur un trafic moins disputé.",
+        donnees: ['Objets : campagnes', 'Mesures datées : impressions, clics, coût, conversions'],
+        gestes: ['Créer / pause', 'Importer la campagne Google'],
+        ecran: 'marketing',
+      },
+    ],
+  },
+  {
+    id: 'bing-webmaster',
+    univers: 'microsoft',
+    nom: 'API Bing Webmaster Tools',
+    editeur: 'Microsoft',
+    doc: 'https://learn.microsoft.com/bingwebmaster/getting-access',
+    console: 'https://www.bing.com/webmasters',
+    quoi: 'Dépôt de sitemaps et rapports de recherche Bing (et, par lui, DuckDuckGo et Yahoo).',
+    prerequis: ["Le site vérifié dans Bing Webmaster Tools et sa clé d'API"],
+    etat: 'prevu',
+    existant: "Le sitemap de drop-shipper.fr a été déposé à la main dans Bing Webmaster Tools le 23/09/2026 ; IndexNow (que Bing a créé) est branché.",
+    opportunites: [
+      {
+        id: 'bing-sitemaps',
+        titre: 'Sitemaps des boutiques déposés chez Bing',
+        usage: 'publication',
+        quoi: 'Le même dépôt automatique que la Search Console, côté Bing.',
+        donnees: ['Objets : sitemaps, pages indexées', 'Mesures datées : clics, impressions Bing'],
+        gestes: ['Redéposer'],
+        ecran: 'sites',
+      },
+    ],
+  },
+
+  // --------------------------------------------------------------- Amazon
+  {
+    id: 'amazon-ads',
+    univers: 'amazon',
+    nom: 'API Amazon Ads',
+    editeur: 'Amazon',
+    doc: 'https://advertising.amazon.com/API/docs/',
+    console: 'https://advertising.amazon.com/',
+    quoi: 'Produits sponsorisés et rapports sur Amazon — pour les vendeurs qui y sont déjà.',
+    prerequis: ['Un compte vendeur Amazon avec des produits en ligne', "Une application approuvée par Amazon Ads (demande d'accès à l'API)"],
+    etat: 'prevu',
+    existant: "Amazon est dans l'annuaire des canaux avec l'état « compte vendeur requis » : la publicité viendra après la publication.",
+    opportunites: [
+      {
+        id: 'amz-sponsored',
+        titre: 'Produits sponsorisés et rapports Amazon',
+        usage: 'publicite',
+        quoi: 'Sponsoriser une annonce publiée sur Amazon et lire ses ventes attribuées.',
+        donnees: ['Objets : campagnes', 'Mesures datées : impressions, clics, coût, ventes attribuées, ACoS'],
+        gestes: ['Sponsoriser / arrêter', 'Changer l’enchère'],
+        ecran: 'marketing',
+      },
+    ],
+  },
+]
+
+/** Les compteurs de la page, calculés — jamais écrits à la main. */
+export function resumeApiPower() {
+  const retenues = API_POWER.filter((a) => a.etat !== 'ecarte')
+  const parEtat: Record<EtatApi, number> = { ecrit: 0, flux: 0, jeton: 0, prevu: 0, ecarte: 0 }
+  const parUsage: Partial<Record<Usage, number>> = {}
+  let opportunites = 0
+  for (const a of API_POWER) {
+    parEtat[a.etat]++
+    for (const o of a.opportunites) {
+      opportunites++
+      parUsage[o.usage] = (parUsage[o.usage] ?? 0) + 1
+    }
+  }
+  return { apis: API_POWER.length, retenues: retenues.length, opportunites, parEtat, parUsage }
+}

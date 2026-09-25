@@ -48,6 +48,7 @@ const NAV = [
   { href: '#analyses-de-marche', label: 'Analyses' },
   { href: '#auto-shipper', label: 'Auto-mode' },
   { href: '/tarifs/', label: 'Tarifs' },
+  { href: '/api-power/', label: 'API Power' },
 ]
 
 export default function Index() {
@@ -148,8 +149,8 @@ export default function Index() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{t.eyebrow}</p>
                   <h2 className={`neon neon-${(i % 6) + 1} mt-3 text-3xl font-extrabold leading-tight tracking-tight md:text-5xl`}>{t.titre}</h2>
-                  {/* Les textes des blocs en turquoise néon, corps agrandi (Max, 25/09/2026 :
-                      « actuellement c'est illisible ») ; essai turquoise avant le dashboard. */}
+                  {/* Les textes des blocs en blanc néon, corps agrandi (Max, 25/09/2026 :
+                      « actuellement c'est illisible »). */}
                   <p className="texte-neon mt-5 text-xl font-medium md:text-2xl">{t.accroche}</p>
                   <ul className="mt-6 space-y-3">
                     {t.points.map((p) => (
@@ -192,7 +193,7 @@ export default function Index() {
         {/* Les douze derniers avis. Masqué tant que personne ne s'est exprimé :
             une section « Avis » vide inspire moins confiance que pas de section. */}
         {reviews.length > 0 && (
-          <section className="border-t border-white/5 bg-[#0b0714]">
+          <section className="texte-neon border-t border-white/5 bg-[#0b0714]">
             <div className="mx-auto max-w-6xl px-6 py-16">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -218,7 +219,7 @@ export default function Index() {
         <section className="border-t border-white/5 bg-gradient-to-b from-[#160d2e] to-[#0b0714]">
           <div className="mx-auto max-w-4xl px-6 py-20 text-center">
             <h2 className="text-3xl font-extrabold md:text-4xl">Prenez l'annonce n'importe où. Publiez-la partout.</h2>
-            <p className="mt-4 text-gray-400">Compte gratuit, 120 drops offerts, aucun abonnement.</p>
+            <p className="texte-neon mt-4 text-lg">Compte gratuit, 120 drops offerts, aucun abonnement.</p>
             <Link to={cible} className="btn-gradient mt-8 inline-flex items-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-lg shadow-purple-900/40 transition hover:opacity-90">
               Créer mon compte <ArrowRight size={18} />
             </Link>

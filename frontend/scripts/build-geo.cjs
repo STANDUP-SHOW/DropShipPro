@@ -326,6 +326,45 @@ ${FONCTIONS.map((f) => `<h3>${esc(f.titre)}</h3>\n<ul>${f.lignes.map((l) => `<li
 }
 
 /**
+ * /api-power/ — ce que les API marketing débloquent une fois connectées, avec
+ * l'état réel de chaque raccordement. Lit src/data/api-power.json, copie
+ * engendrée du registre backend (exporter-api-power.ts) : la page React
+ * /api-power lit la même.
+ */
+function pageApiPower() {
+  const url = '/api-power/'
+  const trail = [{ name: 'Accueil', url: '/' }, { name: 'API Power', url }]
+  const { apis, libelles, univers, resume } = require('../src/data/api-power.json')
+  const retenues = apis.filter((a) => a.etat !== 'ecarte')
+  return {
+    url,
+    html: layout({
+      url,
+      title: `API Power : ce que les API Meta, Google, TikTok et Pinterest débloquent dans ${NOM}`,
+      description: `${resume.retenues} API marketing, publicitaires et de publication, ${resume.opportunites} opportunités — publier, mesurer, cibler, répondre — et l'état réel de chaque raccordement.`,
+      jsonLd: [
+        { '@context': 'https://schema.org', '@type': 'ItemList', name: 'API Power', url: `${SITE}${url}`, numberOfItems: retenues.length, itemListElement: retenues.map((a, i) => ({ '@type': 'ListItem', position: i + 1, name: `${a.nom} (${a.editeur})`, url: `${SITE}${url}#${a.id}` })) },
+        breadcrumbLd(trail),
+      ],
+      body: `${crumb(trail)}
+<h1>API Power : ce que les API marketing débloquent, une fois connectées</h1>
+<p class="lede">Meta, Google, TikTok, Pinterest et les autres exposent des API. Chacune ouvre des gestes précis — publier, mesurer, cibler, répondre — et chaque donnée a une place dans le back-office de ${NOM}. ${resume.retenues} API retenues, ${resume.opportunites} opportunités, et pour chaque raccordement son état réel.</p>
+<h2>Lire l'état d'un raccordement</h2>
+<ul>${Object.entries(libelles.etat).map(([e, l]) => `<li><b>${esc(l)}</b> — ${esc({ ecrit: 'connecteur écrit et éprouvé sur un faux serveur, à confronter au vrai service', flux: 'nous servons déjà le flux que cette API consomme', jeton: 'le jeton se colle dans API Connect, rien n’est encore lu', prevu: 'rien n’est écrit, l’opportunité est décrite honnêtement', ecarte: 'non retenu, avec la raison' }[e])}</li>`).join('')}</ul>
+${retenues.map((a) => `<h2 id="${a.id}">${esc(a.nom)} — ${esc(univers[a.univers].label.split(' — ')[0])}</h2>
+<p><b>${esc(libelles.etat[a.etat])}.</b> ${esc(a.quoi)}${a.existant ? ` <i>${esc(a.existant)}</i>` : ''}</p>
+${a.opportunites.map((o) => `<h3>${esc(o.titre)} <small>(${esc(libelles.usage[o.usage])} · dans le back-office : ${esc(libelles.ecran[o.ecran])})</small></h3>
+<p>${esc(o.quoi)}</p>
+<p>Ce qui remonte : ${o.donnees.map(esc).join(' ; ')}. Vos gestes : ${o.gestes.map(esc).join(' ; ')}.</p>`).join('\n')}
+<p>Prérequis chez ${esc(a.editeur)} : ${a.prerequis.map(esc).join(' ')} <a href="${a.doc}">Documentation</a> · <a href="${a.console}">Console</a></p>`).join('\n')}
+<h2>Non retenues</h2>
+<ul>${apis.filter((a) => a.etat === 'ecarte').map((a) => `<li><b>${esc(a.nom)}</b> — ${esc(a.existant || '')}</li>`).join('')}</ul>
+<p>Les raccordements se font dans API Connect, après connexion : les jetons se collent une fois, ne sont jamais réaffichés, et chaque écran dit ce qui est lu.</p>`,
+    }),
+  }
+}
+
+/**
  * /fonctions/<slug>/ — la page « plus d'informations » d'un thème de l'accueil :
  * le texte long, les points, l'illustration, et l'offre correspondante.
  */
@@ -411,7 +450,7 @@ function main() {
   }
   const faq = FAQ()
   enrichirAccueil(faq)
-  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), ...ACCUEIL.themes.map(pageFonction)]
+  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), pageApiPower(), ...ACCUEIL.themes.map(pageFonction)]
   pages.forEach(ecrire)
   ecrireRobots()
   fs.writeFileSync(path.join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY)

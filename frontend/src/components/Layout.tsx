@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, Search, Menu as MenuIcon, X,
   Share2,
   Wand2,
+  Zap,
 } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
@@ -126,6 +127,9 @@ const SECTIONS: Array<{
       // vues de la page Réseaux, pointées directement (19/09/2026).
       { to: '/reseaux?vue=analyses', label: 'Analyses réseaux', icon: Newspaper },
       { to: '/reseaux?vue=prompts', label: 'Prompts IA', icon: Wand2 },
+      // Ce que les API marketing débloqueront une fois raccordées, et l'état réel
+      // de chaque raccordement (25/09/2026). Page publique, montée ici aussi.
+      { to: '/api-power/', label: 'API Power', icon: Zap },
     ],
   },
   {
