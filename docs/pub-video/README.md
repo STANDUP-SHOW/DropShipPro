@@ -12,6 +12,7 @@ npm install                      # playwright-core + ffmpeg-static
 node rendre.cjs --apercu 12.5    # une image, pour vérifier une scène
 node rendre.cjs                  # → sortie/pub-dropshipper-30s.mp4 (~6 min)
 node rendre.cjs --pub canaux     # → sortie/pub-canaux-30s.mp4 (pub-canaux.html)
+node rendre.cjs --pub dropshop   # → sortie/pub-dropshop-30s.mp4 (pub-dropshop.html)
 ```
 
 Ouvrir `pub.html` dans Chrome joue la pub en boucle ; `pub.html?t=12.5` fige un instant.
@@ -56,3 +57,23 @@ comprise). C'est pour ça que `sources/` et `clips/` restent hors du dépôt.
 Les icônes des logiciels de boutique et des réseaux (`icones/`) viennent du
 paquet `simple-icons` (CC0), recolorées à la couleur de chaque marque. Aucune
 phrase ne dit « seul » ni « exclusif » : ce n'est pas vérifiable.
+
+## Pub 3 · DropShop IA (`pub-dropshop.html`)
+
+Faite de **vrais enregistrements d'écran** envoyés par Max le 26/09/2026, à
+déposer dans `sources/` : `boutique-oguss.mp4`, `boutique-robotique.mp4`,
+`boutique-iagent.mp4` (le réseau de la session cloud refusait les boutiques).
+
+| Temps | Scène | Images |
+|---|---|---|
+| 0–3 s | Votre boutique. Écrite par l'IA. | logo DropShop |
+| 3–8 s | Un design unique | OGUSS : accueil, puis fiche Azure Noir |
+| 8–13 s | Architecture complète | France Robotique : accueil, puis fiche Unitree R1 |
+| 13–17 s | Votre logo, votre charte | iagent : accueil (le catalogue est encore vide, non montré) |
+| 17–21,2 s | 4 ambiances, 1 boutique | OGUSS en accéléré : Noir, Clair, Dégradé, Coloré |
+| 21,2–26,6 s | Pas un thème. Écrite pour vous. | les trois boutiques en éventail ; 3,50 € une fois, 10 modifications, Stripe |
+| 26,6–30 s | Créer ma boutique | drop-shipper.fr |
+
+Les enregistrements sont à cadence variable : **on découpe au numéro d'image
+après `fps=30`, jamais avec `-ss`/`-t`**, qui tombaient plusieurs secondes à
+côté. Les modes d'OGUSS sont choisis par le visiteur : l'écran le dit.

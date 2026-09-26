@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Publicité DropShop IA — 30 s, 9:16</title>
+<!--
+  Troisième publicité : DropShop IA, la boutique écrite par l'IA.
+
+  Même mécanique que pub.html : rendre(t) pose tout l'instant t.
+  Les images des boutiques sont de vrais enregistrements d'écran envoyés par
+  Max le 26/09/2026 (OGUSS, France Robotique, iagent), découpés par preparer.sh.
+  Les modes « Noir, Clair, Gradient, Colorful » d'OGUSS sont les ambiances que
+  le VISITEUR choisit : présentés comme tels, jamais comme « vos couleurs ».
+  Prix relus dans accueil-themes.json : 350 drops = 3,50 €, une seule fois,
+  dix modifications comprises, aucune mention DropShipper sur la boutique.
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  :root { --fond: #08070d; --orange: #f5a31e; --vert: #22c55e; --rose: #ec4899; --degrade: linear-gradient(135deg, #f5a31e 0%, #ec4899 100%); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--fond); }
+  body { font-family: Outfit, system-ui, sans-serif; color: #fff; position: relative; }
+  #scene { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(1200px 900px at 20% 30%, #1d1407 0%, transparent 60%), radial-gradient(1000px 900px at 90% 80%, #1a0a1a 0%, transparent 60%), var(--fond); }
+  .points { position: absolute; inset: -40px; background-image: radial-gradient(rgba(245,163,30,0.08) 1.5px, transparent 1.5px); background-size: 44px 44px; }
+  .plan { position: absolute; inset: 0; opacity: 0; display: none; }
+  .fondvideo { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+  .voile { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,7,13,0.85) 0%, rgba(8,7,13,0.55) 35%, rgba(8,7,13,0.6) 60%, rgba(8,7,13,0.95) 100%); }
+  .grad { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .neon { color: #fff; text-shadow: 0 0 3px #fff, 0 0 14px var(--n), 0 0 34px var(--n), 0 0 70px color-mix(in srgb, var(--n) 50%, transparent); }
+  .n-or { --n: #f5a31e; } .n-ve { --n: #22c55e; } .n-ro { --n: #ff4fd8; } .n-cy { --n: #2ef2ff; }
+  .etiquette { position: absolute; top: 250px; left: 0; right: 0; text-align: center; }
+  .etiquette b { display: inline-block; font-weight: 600; font-size: 30px; letter-spacing: 0.14em; text-transform: uppercase; padding: 12px 28px; border-radius: 999px; border: 2px solid rgba(245,163,30,0.5); background: rgba(245,163,30,0.1); color: #ffe2b0; }
+  .legende { position: absolute; top: 330px; left: 50px; right: 50px; text-align: center; font-weight: 900; font-size: 112px; line-height: 1.02; letter-spacing: -0.02em; }
+  .legende .l { display: block; }
+  .sous { position: absolute; left: 60px; right: 60px; text-align: center; font-weight: 600; font-size: 40px; color: #efe6d8; line-height: 1.2; }
+  /* Fenêtre de navigateur qui porte l'enregistrement */
+  .fenetre { position: absolute; width: 900px; border-radius: 26px; overflow: hidden; background: #111; border: 2px solid rgba(255,255,255,0.14);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 30px 90px rgba(0,0,0,0.7), 0 0 60px var(--halo, rgba(245,163,30,0.35)); }
+  .fenetre .barre { height: 50px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: #1b1a22; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .fenetre .barre i { width: 14px; height: 14px; border-radius: 50%; display: block; }
+  .fenetre .barre span { margin-left: 16px; flex: 1; max-width: 420px; font-size: 22px; font-weight: 600; color: #cfc8dd; background: #0e0d14; border-radius: 99px; padding: 6px 18px; }
+  .fenetre .ecran { position: relative; overflow: hidden; }
+  .fenetre .ecran img { display: block; width: 900px; height: auto; transform-origin: 50% 0; }
+  .pastille { display: inline-block; font-weight: 700; font-size: 32px; padding: 14px 28px; border-radius: 999px; border: 2px solid rgba(34,197,94,0.75); background: rgba(8,7,13,0.85); color: #dcfce7; box-shadow: 0 0 24px rgba(34,197,94,0.35); white-space: nowrap; }
+  #marque { position: absolute; top: 92px; left: 0; right: 0; display: flex; justify-content: center; }
+  #marque img { height: 84px; filter: drop-shadow(0 0 18px rgba(245,163,30,0.45)); }
+  #liseré { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: linear-gradient(90deg, #f5a31e, #22c55e, #ec4899); }
+  #eclair { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(245,163,30,0.85) 45%, rgba(236,72,153,0.85) 55%, transparent 70%); opacity: 0; mix-blend-mode: screen; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div class="points" id="points"></div>
+
+  <!-- 0 · Accroche -->
+  <section class="plan" id="q0">
+    <img class="fondvideo" data-clip="d-accroche" data-n="96" alt=""><div class="voile"></div>
+    <div id="q0logo" style="position:absolute; left:50%; top:330px; width:300px; height:300px; margin-left:-150px">
+      <img src="../../frontend/public/logos/dropshop-icone.png" alt="" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 40px rgba(245,163,30,0.7))">
+    </div>
+    <div class="legende" style="top:720px"><span class="l" id="q0a">Votre boutique.</span><span class="l neon n-or" id="q0b">Écrite par l'IA.</span></div>
+    <div class="sous" id="q0c" style="top:1000px">Clé en main, à vos couleurs, à votre logo</div>
+  </section>
+
+  <!-- 1 · OGUSS -->
+  <section class="plan" id="q1">
+    <div class="etiquette"><b>OGUSS · mode homme</b></div>
+    <div class="legende"><span class="l">Un design</span><span class="l neon n-or">unique.</span></div>
+    <div class="fenetre" id="q1a" style="left:90px; top:590px"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>oguss.fr</span></div>
+      <div class="ecran" style="height:438px"><img data-clip="d-oguss-accueil" data-n="142" alt=""></div></div>
+    <div class="fenetre" id="q1b" style="left:90px; top:1100px; --halo: rgba(236,72,153,0.4)"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>oguss.fr · fiche produit</span></div>
+      <div class="ecran" style="height:438px"><img data-clip="d-oguss-produits" data-n="125" alt=""></div></div>
+    <div class="sous" id="q1s" style="top:1620px"><span class="pastille">Accueil · Catégories · Fiches produits</span></div>
+  </section>
+
+  <!-- 2 · France Robotique -->
+  <section class="plan" id="q2">
+    <div class="etiquette"><b>France Robotique</b></div>
+    <div class="legende"><span class="l">Architecture</span><span class="l neon n-cy">complète.</span></div>
+    <div class="fenetre" id="q2a" style="left:90px; top:590px; --halo: rgba(46,242,255,0.35)"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>France Robotique</span></div>
+      <div class="ecran" style="height:430px"><img data-clip="d-robot-accueil" data-n="82" alt=""></div></div>
+    <div class="fenetre" id="q2b" style="left:90px; top:1095px; --halo: rgba(46,242,255,0.35)"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>France Robotique · fiche produit</span></div>
+      <div class="ecran" style="height:430px"><img data-clip="d-robot-fiche" data-n="125" alt=""></div></div>
+    <div class="sous" id="q2s" style="top:1620px"><span class="pastille" style="border-color:rgba(46,242,255,0.7); color:#cffafe; box-shadow:0 0 24px rgba(46,242,255,0.35)">Accueil · Univers · Fiches · Panier · Paiement</span></div>
+  </section>
+
+  <!-- 3 · iagent -->
+  <section class="plan" id="q3">
+    <img class="fondvideo" data-clip="d-bokeh" data-n="138" alt="" style="filter:brightness(0.45) hue-rotate(40deg)"><div class="voile"></div>
+    <div class="etiquette"><b>iagent</b></div>
+    <div class="legende"><span class="l">Votre logo.</span><span class="l neon n-ro">Votre charte.</span></div>
+    <div class="fenetre" id="q3a" style="left:90px; top:650px; --halo: rgba(236,72,153,0.45)"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>iagent</span></div>
+      <div class="ecran" style="height:469px"><img data-clip="d-iagent" data-n="62" alt=""></div></div>
+    <div class="sous" id="q3s" style="top:1250px">Les couleurs de votre logo deviennent<br>la gamme de tout le site</div>
+  </section>
+
+  <!-- 4 · Modes visiteur -->
+  <section class="plan" id="q4">
+    <div class="etiquette"><b>Modes visiteur</b></div>
+    <div class="legende"><span class="l">4 ambiances.</span><span class="l neon n-ve">1 boutique.</span></div>
+    <div class="fenetre" id="q4a" style="left:90px; top:650px"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>oguss.fr</span></div>
+      <div class="ecran" style="height:438px"><img data-clip="d-oguss-modes" data-n="117" alt=""></div></div>
+    <div id="q4modes" style="position:absolute; top:1200px; left:0; right:0; display:flex; justify-content:center; gap:16px">
+      <span class="pastille" style="border-color:#8b5a2b; color:#fde7cf">Noir</span><span class="pastille" style="border-color:#e8dcc4; color:#fff7e8">Clair</span><span class="pastille" style="border-color:#a21caf; color:#f5d0fe">Dégradé</span><span class="pastille" style="border-color:#5eead4; color:#ccfbf1">Coloré</span>
+    </div>
+    <div class="sous" id="q4s" style="top:1310px">Vos visiteurs choisissent leur ambiance</div>
+  </section>
+
+  <!-- 5 · Pas un thème -->
+  <section class="plan" id="q5">
+    <img class="fondvideo" data-clip="d-bokeh" data-n="138" alt="" style="filter:brightness(0.35)"><div class="voile"></div>
+    <div class="legende" style="top:260px"><span class="l">Pas un thème.</span><span class="l neon n-or">Écrite pour vous.</span></div>
+    <div id="q5v0" class="fenetre" style="left:90px; top:720px; --halo: rgba(245,163,30,0.4)"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>oguss.fr</span></div><div class="ecran" style="height:438px"><img src="clips/d-still-oguss.jpg" alt=""></div></div>
+    <div id="q5v1" class="fenetre" style="left:90px; top:720px; --halo: rgba(46,242,255,0.4)"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>France Robotique</span></div><div class="ecran" style="height:438px"><img src="clips/d-still-robot.jpg" alt=""></div></div>
+    <div id="q5v2" class="fenetre" style="left:90px; top:720px; --halo: rgba(236,72,153,0.45)"><div class="barre"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>iagent</span></div><div class="ecran" style="height:438px"><img src="clips/d-still-iagent.jpg" alt=""></div></div>
+    <div id="q5arg" style="position:absolute; top:1330px; left:0; right:0; display:flex; flex-direction:column; align-items:center; gap:18px">
+      <span class="pastille" style="border-color:#f5a31e; color:#ffe2b0; box-shadow:0 0 24px rgba(245,163,30,0.45); font-size:40px">3,50 € · une fois, à vie</span>
+      <span class="pastille">10 modifications comprises</span>
+      <span class="pastille">Paiement Stripe sur votre compte</span>
+    </div>
+  </section>
+
+  <!-- 6 · Appel à l'action -->
+  <section class="plan" id="q6">
+    <img class="fondvideo" data-clip="d-final" data-n="93" alt=""><div class="voile"></div>
+    <div id="q6logo" style="position:absolute; left:90px; right:90px; top:520px; text-align:center"><img src="../../frontend/public/logos/dropshop-entete.png" alt="" style="width:900px; filter:drop-shadow(0 0 30px rgba(245,163,30,0.6))"></div>
+    <div id="q6phrase" style="position:absolute; top:800px; left:80px; right:80px; text-align:center; font-weight:800; font-size:62px; line-height:1.12">Votre boutique <span class="neon n-or">clé en main</span>,<br>écrite par l'IA</div>
+    <div id="q6bouton" style="position:absolute; top:1040px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:54px; padding:30px 64px; border-radius:999px; background:var(--degrade); color:#1a0d02; box-shadow:0 0 50px rgba(245,163,30,0.6)">Créer ma boutique</div>
+    <div id="q6site" style="position:absolute; top:1220px; left:0; right:0; text-align:center; font-weight:800; font-size:56px; color:#ffb547">drop-shipper.fr</div>
+  </section>
+
+  <div id="marque"><img src="../../frontend/public/logos/dropshop-entete.png" alt=""></div>
+  <div id="liseré"></div>
+  <div id="eclair"></div>
+</div>
+
+<script>
+const PLANS = [
+  { id: 'q0', de: 0.0,  a: 3.0 },
+  { id: 'q1', de: 3.0,  a: 8.0 },
+  { id: 'q2', de: 8.0,  a: 13.0 },
+  { id: 'q3', de: 13.0, a: 17.0 },
+  { id: 'q4', de: 17.0, a: 21.2 },
+  { id: 'q5', de: 21.2, a: 26.6 },
+  { id: 'q6', de: 26.6, a: 30.0 },
+]
+window.DUREE = 30
+window.COUPES = PLANS.slice(1).map((p) => p.de)
+
+const $ = (id) => document.getElementById(id)
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const lerp = (a, b, k) => a + (b - a) * k
+const plage = (t, a, b) => clamp((t - a) / (b - a))
+const sortie3 = (k) => 1 - Math.pow(1 - k, 3)
+const entree3 = (k) => k * k * k
+const douce = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
+const rebond = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2) }
+function poser(el, { o = 1, x = 0, y = 0, s = 1, r = 0, b = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+  el.style.filter = b > 0.05 ? `blur(${b}px)` : 'none'
+}
+function surgir(el, t, a, d = 0.45, dy = 50) {
+  const k = plage(t, a, a + d)
+  poser(el, { o: sortie3(k), y: (1 - sortie3(k)) * dy, s: lerp(0.9, 1, rebond(k)) })
+}
+// Une fenêtre arrive de côté, légèrement inclinée, puis se pose
+function arriver(el, t, a, cote = 1) {
+  const k = sortie3(plage(t, a, a + 0.55))
+  poser(el, { o: clamp(k * 1.4), x: (1 - k) * 260 * cote, y: (1 - k) * 40, r: (1 - k) * 6 * cote, s: lerp(0.92, 1, k) })
+}
+// Zoom lent dans l'écran, pour lire la page comme on la parcourt
+function zoomer(img, t, de, a, s0, s1, oy = 0) {
+  const k = douce(plage(t, de, a))
+  img.style.transform = `translateY(${-oy * k}px) scale(${lerp(s0, s1, k)})`
+}
+
+const SCENES = {
+  q0(t) {
+    const k = plage(t, 0.05, 0.6)
+    poser($('q0logo'), { o: clamp(k * 3), s: rebond(k) * (1 + 0.03 * Math.sin(t * 5)), r: (1 - sortie3(k)) * -20 })
+    surgir($('q0a'), t, 0.45, 0.45, 60)
+    surgir($('q0b'), t, 0.8, 0.45, 60)
+    surgir($('q0c'), t, 1.5, 0.45, 30)
+  },
+  q1(t) {
+    arriver($('q1a'), t, 0.1, -1)
+    arriver($('q1b'), t, 1.1, 1)
+    zoomer($('q1a').querySelector('img'), t, 0.4, 5, 1, 1.12)
+    zoomer($('q1b').querySelector('img'), t, 1.4, 5, 1.08, 1.2)
+    surgir($('q1s'), t, 2.0, 0.4, 20)
+  },
+  q2(t) {
+    arriver($('q2a'), t, 0.1, 1)
+    arriver($('q2b'), t, 1.1, -1)
+    zoomer($('q2a').querySelector('img'), t, 0.4, 5, 1, 1.1)
+    zoomer($('q2b').querySelector('img'), t, 1.4, 5, 1.05, 1.18)
+    surgir($('q2s'), t, 2.0, 0.4, 20)
+  },
+  q3(t) {
+    const k = plage(t, 0.1, 0.7)
+    poser($('q3a'), { o: sortie3(k), s: lerp(0.8, 1, rebond(k)) })
+    zoomer($('q3a').querySelector('img'), t, 0.5, 4, 1, 1.18)
+    surgir($('q3s'), t, 1.3, 0.45, 30)
+  },
+  q4(t) {
+    const k = plage(t, 0.1, 0.6)
+    poser($('q4a'), { o: sortie3(k), y: (1 - sortie3(k)) * 80 })
+    // Chaque pastille s'allume quand son ambiance passe à l'écran
+    const moments = [0, 0.62, 1.3, 1.95]
+    ;[...$('q4modes').children].forEach((el, i) => {
+      const actif = t >= moments[i] && (i === 3 || t < moments[i + 1])
+      surgir(el, t, 0.3 + i * 0.12, 0.35, 20)
+      el.style.transform += ` scale(${actif ? 1.12 : 1})`
+      el.style.opacity = t < 0.3 + i * 0.12 ? 0 : (actif ? 1 : 0.45)
+    })
+    surgir($('q4s'), t, 1.0, 0.4, 20)
+  },
+  q5(t) {
+    // Trois boutiques, trois identités : l'éventail s'ouvre
+    const k = rebond(plage(t, 0.4, 1.2))
+    ;[['q5v0', -1], ['q5v1', 0], ['q5v2', 1]].forEach(([id, e], i) => {
+      const ki = sortie3(plage(t, 0.05 + i * 0.12, 0.45 + i * 0.12))
+      poser($(id), { o: ki, x: e * 250 * k, y: (e === 0 ? -60 * k : 90 * k) + (1 - ki) * 120, r: e * 8 * k, s: e === 0 ? 0.72 : 0.6 })
+      $(id).style.zIndex = e === 0 ? 3 : 1
+      $(id).style.transformOrigin = '50% 50%'
+    })
+    ;[...$('q5arg').children].forEach((el, i) => surgir(el, t, 1.2 + i * 0.25, 0.4, 30))
+  },
+  q6(t) {
+    const kl = plage(t, 0.05, 0.6)
+    poser($('q6logo'), { o: clamp(kl * 3), s: rebond(kl) * (1 + 0.02 * Math.sin(t * 4)) })
+    surgir($('q6phrase'), t, 0.4, 0.45, 40)
+    const kb = plage(t, 0.85, 1.25)
+    $('q6bouton').style.opacity = kb
+    $('q6bouton').style.transform = `translateX(-50%) scale(${lerp(0.5, 1, rebond(kb)) * (1 + 0.035 * Math.sin((t - 1.25) * 7) * clamp((t - 1.25) * 2))})`
+    surgir($('q6site'), t, 1.15, 0.4, 20)
+  },
+}
+
+function rendre(t) {
+  const attentes = []
+  $('points').style.transform = `translateY(${(t * 22) % 44}px)`
+  for (const p of PLANS) {
+    const el = $(p.id)
+    const dernier = p.id === 'q6'
+    const dans = t >= p.de - 0.001 && t < p.a + (dernier ? 1 : 0)
+    if (!dans) { el.style.display = 'none'; continue }
+    el.style.display = 'block'
+    const local = t - p.de, d = p.a - p.de
+    const kin = p.id === 'q0' ? 1 : sortie3(plage(local, 0, 0.3))
+    const kout = dernier ? 0 : entree3(plage(local, d - 0.28, d))
+    poser(el, { o: kin * (1 - kout), y: (1 - kin) * 80, s: 1 + kout * 0.1, b: (1 - kin) * 12 + kout * 10 })
+    SCENES[p.id](local, d)
+    for (const img of el.querySelectorAll('img[data-clip]')) {
+      const n = Math.min(+img.dataset.n, Math.max(1, Math.floor(local * 30) + 1))
+      const src = `clips/${img.dataset.clip}/${String(n).padStart(4, '0')}.jpg`
+      if (img.getAttribute('src') !== src) { img.setAttribute('src', src); attentes.push(img.decode().catch(() => {})) }
+    }
+  }
+  let flash = 0
+  for (const c of window.COUPES) { const k = (t - c + 0.18) / 0.36; if (k > 0 && k < 1) flash = Math.max(flash, Math.sin(k * Math.PI) * 0.45) }
+  $('eclair').style.opacity = flash
+  $('marque').style.opacity = plage(t, 2.7, 3.2) * (1 - plage(t, 26.3, 26.6))
+  return Promise.all(attentes)
+}
+window.rendre = rendre
+
+const q = new URLSearchParams(location.search)
+if (q.has('t')) rendre(parseFloat(q.get('t')))
+else if (!navigator.webdriver) { const t0 = performance.now(); (function boucle() { rendre(((performance.now() - t0) / 1000) % 30); requestAnimationFrame(boucle) })() }
+else rendre(0)
+</script>
+</body>
+</html>
