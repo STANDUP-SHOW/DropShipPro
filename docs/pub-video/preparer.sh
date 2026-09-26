@@ -19,3 +19,13 @@ extraire ville    ville.mp4     2    3.8 "$COUVRIR"                     # 5 · d
 extraire cube     cube-ia.mp4   0    3.6 "scale=1000:-2"                # 6 · mode auto (écran)
 extraire reseau   crypto.mp4    6.4  3.1 "crop=720:1000:0:0,$COUVRIR"   # 7 · carte du monde en réseau
 extraire final    neurovibe.mp4 30   3.1 "$COUVRIR"                     # 8 · appel à l'action
+
+# Pub 2 · 314 canaux
+extraire c-accroche neurovibe.mp4 40   3.5 "$COUVRIR"
+extraire c-ville1   ville.mp4     6    4.4 "$COUVRIR"
+extraire c-europe   crypto.mp4    6.2  4.4 "crop=720:1000:0:0,$COUVRIR"
+extraire c-bokeh    neurovibe.mp4 20   4.4 "$COUVRIR"
+extraire c-ville2   ville.mp4     11   4.2 "$COUVRIR"
+extraire c-cube     cube-ia.mp4   1    4.0 "$COUVRIR"
+extraire c-terre    crypto.mp4    0    3.4 "crop=720:1000:0:0,$COUVRIR"
+extraire c-final    neurovibe.mp4 44   3.1 "$COUVRIR"

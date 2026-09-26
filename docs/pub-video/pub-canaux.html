@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Publicité DropShipper IA — 314 canaux, 30 s, 9:16</title>
+<!--
+  Deuxième publicité : la diffusion. 314 canaux, une voie de liaison pour chacun.
+
+  Même mécanique que pub.html : rendre(t) pose tout l'instant t, rien ne
+  s'anime tout seul, rendre.cjs photographie image par image.
+
+  Chaque chiffre vient du code, pas de la mémoire :
+    314 = 187 places de marché + 65 comparateurs + 28 outils + 18 régies
+          + 16 plateformes d'affiliation   (accueil-themes.json, seo-channels.cjs)
+    41 enseignes Mirakl                     (backend/src/services/mirakl.ts)
+    boutiques par API                       (BOUTIQUES_TIERS, platforms.ts)
+  Aucune phrase ne dit « seul » ni « exclusif » : ce n'est pas vérifiable,
+  et une allégation commerciale fausse est une pratique trompeuse.
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  :root { --fond: #07060f; --degrade: linear-gradient(135deg, #c084fc 0%, #ec4899 100%); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--fond); }
+  body { font-family: Outfit, system-ui, sans-serif; color: #fff; position: relative; }
+  #scene { position: absolute; inset: 0; overflow: hidden; background: var(--fond); }
+  .grille { position: absolute; inset: -60px; background-image: linear-gradient(rgba(46,242,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(46,242,255,0.06) 1px, transparent 1px); background-size: 60px 60px; }
+  .plan { position: absolute; inset: 0; opacity: 0; display: none; }
+  .fondvideo { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+  .voile { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,6,15,0.85) 0%, rgba(7,6,15,0.55) 30%, rgba(7,6,15,0.5) 55%, rgba(7,6,15,0.9) 80%, rgba(7,6,15,0.97) 100%); }
+  .grad { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .neon { color: #fff; text-shadow: 0 0 3px #fff, 0 0 14px var(--n), 0 0 34px var(--n), 0 0 70px color-mix(in srgb, var(--n) 50%, transparent); }
+  .n1 { --n: #f5ff3d; } .n2 { --n: #2ef2ff; } .n3 { --n: #ff8a1f; } .n4 { --n: #c04dff; } .n5 { --n: #39ff7a; } .n6 { --n: #ff4fd8; }
+  .etiquette { position: absolute; top: 250px; left: 0; right: 0; text-align: center; }
+  .etiquette b { display: inline-block; font-weight: 600; font-size: 30px; letter-spacing: 0.14em; text-transform: uppercase; padding: 12px 28px; border-radius: 999px; border: 2px solid rgba(46,242,255,0.4); background: rgba(46,242,255,0.08); color: #c9fbff; }
+  .legende { position: absolute; top: 330px; left: 50px; right: 50px; text-align: center; font-weight: 900; font-size: 116px; line-height: 1.02; letter-spacing: -0.02em; }
+  .legende .l { display: block; }
+  .titre { position: absolute; top: 1400px; left: 80px; right: 80px; text-align: center; font-weight: 700; font-size: 46px; line-height: 1.18; color: #ece6ff; }
+  .titre small { display: block; margin-top: 14px; font-weight: 400; font-size: 34px; color: #b9b0d6; }
+  /* Nœuds du réseau */
+  .noeud { position: absolute; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px rgba(255,255,255,0.15), 0 0 30px var(--lueur, rgba(46,242,255,0.6)); }
+  .noeud img { width: 58%; height: 58%; object-fit: contain; }
+  .noeud.texte { font-weight: 800; color: #111; font-size: 24px; text-align: center; line-height: 1; }
+  .carteLogo { position: absolute; background: #fff; border-radius: 16px; display: flex; align-items: center; justify-content: center; padding: 10px 14px; box-shadow: 0 0 18px rgba(46,242,255,0.35); }
+  .carteLogo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .coeur { position: absolute; width: 180px; height: 180px; margin: -90px 0 0 -90px; }
+  .coeur img { width: 100%; height: 100%; border-radius: 26%; box-shadow: 0 0 50px rgba(236,72,153,0.8), 0 0 120px rgba(168,85,247,0.6); }
+  .anneau { position: absolute; border-radius: 50%; border: 3px solid rgba(46,242,255,0.7); box-shadow: 0 0 24px rgba(46,242,255,0.6), inset 0 0 24px rgba(46,242,255,0.3); }
+  svg.flux { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: visible; }
+  .pastille { display: inline-block; font-weight: 700; font-size: 32px; padding: 14px 28px; border-radius: 999px; border: 2px solid rgba(57,255,122,0.7); background: rgba(7,6,15,0.8); color: #d9ffe6; box-shadow: 0 0 24px rgba(57,255,122,0.35); }
+  #marque { position: absolute; top: 96px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 18px; }
+  #marque img { width: 72px; height: 72px; border-radius: 26%; box-shadow: 0 0 26px rgba(192,38,211,0.6); }
+  #marque span { font-weight: 800; font-size: 46px; }
+  #liseré { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: linear-gradient(90deg, #2ef2ff, #c084fc, #ec4899); }
+  #eclair { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(46,242,255,0.85) 45%, rgba(236,72,153,0.85) 55%, transparent 70%); opacity: 0; mix-blend-mode: screen; }
+  .barre { position: absolute; left: 90px; right: 90px; height: 118px; }
+  .barre .rail { position: absolute; left: 0; right: 0; top: 64px; height: 26px; border-radius: 99px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .barre .rail i { display: block; height: 100%; width: 0; border-radius: 99px; }
+  .barre .lib { display: flex; justify-content: space-between; align-items: baseline; font-size: 38px; font-weight: 600; }
+  .barre .lib b { font-weight: 900; font-size: 54px; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div class="grille" id="grille"></div>
+
+  <!-- A · Accroche -->
+  <section class="plan" id="pA">
+    <img class="fondvideo" data-clip="c-accroche" data-n="105" alt=""><div class="voile"></div>
+    <div class="legende" style="top:430px"><span class="l" id="aA1">Un clic.</span></div>
+    <div id="aCompteur" style="position:absolute; top:640px; left:0; right:0; text-align:center">
+      <div class="neon n2" style="font-weight:900; font-size:330px; line-height:1; letter-spacing:-0.04em" id="aNombre">0</div>
+      <div style="font-weight:800; font-size:78px; margin-top:6px">canaux de vente</div>
+    </div>
+    <div class="titre" id="aT" style="top:1210px; font-size:52px">Une seule plateforme<br>pour tout diffuser</div>
+  </section>
+
+  <!-- B · Le détail des 314 -->
+  <section class="plan" id="pB">
+    <img class="fondvideo" data-clip="c-ville1" data-n="132" alt="" style="filter:blur(4px) saturate(1.3)"><div class="voile"></div>
+    <div class="etiquette"><b>314 canaux</b></div>
+    <div class="legende"><span class="l">Chacun sa voie</span><span class="l neon n2">de liaison.</span></div>
+    <div id="bBarres"></div>
+    <div class="titre" style="top:1480px">Places de marché, comparateurs, régies,<br>affiliation, outils : tout est relié</div>
+  </section>
+
+  <!-- C · Mirakl France & Europe -->
+  <section class="plan" id="pC">
+    <img class="fondvideo" data-clip="c-europe" data-n="132" alt=""><div class="voile"></div>
+    <div class="etiquette"><b>Mirakl · France &amp; Europe</b></div>
+    <div class="legende"><span class="l">API</span><span class="l neon n5">branchée.</span></div>
+    <div id="cChiffre" style="position:absolute; top:590px; left:0; right:0; text-align:center; font-weight:800; font-size:50px"><span class="grad" style="font-weight:900; font-size:76px" id="cN">0</span> enseignes, un seul connecteur</div>
+    <div id="cMur"></div>
+    <div class="titre" style="top:1440px">E.Leclerc, Carrefour, Fnac, La Redoute, El Corte Inglés, Worten…<small>+ eBay et Kaufland, publiés en direct</small></div>
+  </section>
+
+  <!-- D · Vos boutiques -->
+  <section class="plan" id="pD">
+    <img class="fondvideo" data-clip="c-bokeh" data-n="132" alt="" style="filter:brightness(0.55)"><div class="voile"></div>
+    <div class="etiquette"><b>Vos sites</b></div>
+    <div class="legende"><span class="l">Vos boutiques</span><span class="l neon n6">aussi.</span></div>
+    <svg class="flux" id="dFlux"></svg>
+    <div id="dNoeuds"></div>
+    <div class="coeur" id="dCoeur" style="left:540px; top:990px"><img src="../../frontend/public/favicon-128.png" alt=""></div>
+    <div class="titre" style="top:1440px">Shopify, WooCommerce, PrestaShop, Magento, Wix…<small>et votre site DropShop : la fiche entière, par API</small></div>
+  </section>
+
+  <!-- E · Réseaux sociaux -->
+  <section class="plan" id="pE">
+    <img class="fondvideo" data-clip="c-ville2" data-n="126" alt="" style="filter:blur(4px) saturate(1.4)"><div class="voile"></div>
+    <div class="etiquette"><b>Social commerce</b></div>
+    <div class="legende"><span class="l">Vos réseaux</span><span class="l neon n4">sociaux.</span></div>
+    <svg class="flux" id="eFlux"></svg>
+    <div id="eNoeuds"></div>
+    <div class="coeur" id="eCoeur" style="left:540px; top:990px"><img src="../../frontend/public/favicon-128.png" alt=""></div>
+    <div class="titre" style="top:1440px">Instagram Shopping, boutique Facebook, TikTok…<small>votre catalogue en flux, relu plusieurs fois par jour</small></div>
+  </section>
+
+  <!-- F · Comparateurs, affiliation, extension -->
+  <section class="plan" id="pF">
+    <img class="fondvideo" data-clip="c-cube" data-n="120" alt="" style="filter:blur(10px) brightness(0.6)"><div class="voile"></div>
+    <div class="etiquette"><b>Flux produit</b></div>
+    <div class="legende"><span class="l">Comparateurs</span><span class="l neon n3">&amp; affiliation.</span></div>
+    <svg class="flux" id="fFlux"></svg>
+    <div id="fMur"></div>
+    <div id="fExt" style="position:absolute; top:1290px; left:0; right:0; text-align:center"><span class="pastille">Vinted · Leboncoin : l'extension remplit, vous validez</span></div>
+    <div class="titre" style="top:1420px">Google Shopping, idealo, Kelkoo, LeDénicheur…<small>65 comparateurs et 16 plateformes d'affiliation</small></div>
+  </section>
+
+  <!-- G · Tout à la fois -->
+  <section class="plan" id="pG">
+    <img class="fondvideo" data-clip="c-terre" data-n="102" alt=""><div class="voile"></div>
+    <div class="legende"><span class="l">En un clic.</span><span class="l neon n1">Partout.</span></div>
+    <svg class="flux" id="gFlux"></svg>
+    <div id="gNoeuds"></div>
+    <div class="anneau" id="gAnneau" style="left:540px; top:1010px"></div>
+    <div class="coeur" id="gCoeur" style="left:540px; top:1010px"><img src="../../frontend/public/favicon-128.png" alt=""></div>
+    <div id="gSel" style="position:absolute; top:1430px; left:0; right:0; text-align:center"><span class="pastille" style="border-color:#2ef2ff; color:#c9fbff; box-shadow:0 0 24px rgba(46,242,255,0.4)">Sélectionnez · Diffusez · C'est parti</span></div>
+  </section>
+
+  <!-- H · Appel à l'action -->
+  <section class="plan" id="pH">
+    <img class="fondvideo" data-clip="c-final" data-n="93" alt=""><div class="voile"></div>
+    <div id="hLogo" style="position:absolute; left:50%; top:430px; width:260px; height:260px; margin-left:-130px"><img src="../../frontend/public/favicon-128.png" style="width:100%; height:100%; border-radius:26%; box-shadow:0 0 70px rgba(236,72,153,0.75), 0 0 160px rgba(168,85,247,0.55)"></div>
+    <div id="hNom" style="position:absolute; top:740px; left:0; right:0; text-align:center; font-weight:900; font-size:116px; letter-spacing:-0.02em"><span class="grad">DropShipper IA</span></div>
+    <div id="hPhrase" style="position:absolute; top:900px; left:80px; right:80px; text-align:center; font-weight:700; font-size:58px; line-height:1.15"><span class="neon n2">314 canaux</span>,<br>une voie de liaison pour chacun</div>
+    <div id="hBouton" style="position:absolute; top:1130px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:52px; padding:30px 60px; border-radius:999px; background:var(--degrade); box-shadow:0 0 50px rgba(236,72,153,0.6)">Essayer gratuitement</div>
+    <div id="hSite" style="position:absolute; top:1310px; left:0; right:0; text-align:center; font-weight:800; font-size:56px; color:#ff5fb0">drop-shipper.fr</div>
+  </section>
+
+  <div id="marque"><img src="../../frontend/public/favicon-128.png" alt=""><span class="grad">DropShipper IA</span></div>
+  <div id="liseré"></div>
+  <div id="eclair"></div>
+</div>
+
+<script>
+const PLANS = [
+  { id: 'pA', de: 0.0,  a: 3.4 },
+  { id: 'pB', de: 3.4,  a: 7.6 },
+  { id: 'pC', de: 7.6,  a: 11.8 },
+  { id: 'pD', de: 11.8, a: 16.0 },
+  { id: 'pE', de: 16.0, a: 20.0 },
+  { id: 'pF', de: 20.0, a: 23.8 },
+  { id: 'pG', de: 23.8, a: 27.0 },
+  { id: 'pH', de: 27.0, a: 30.0 },
+]
+window.DUREE = 30
+window.COUPES = PLANS.slice(1).map((p) => p.de)
+
+const $ = (id) => document.getElementById(id)
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const lerp = (a, b, k) => a + (b - a) * k
+const plage = (t, a, b) => clamp((t - a) / (b - a))
+const sortie3 = (k) => 1 - Math.pow(1 - k, 3)
+const entree3 = (k) => k * k * k
+const rebond = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2) }
+function poser(el, { o = 1, x = 0, y = 0, s = 1, b = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s})`
+  el.style.filter = b > 0.05 ? `blur(${b}px)` : 'none'
+}
+function surgir(el, t, a, d = 0.45, dy = 50) {
+  const k = plage(t, a, a + d)
+  poser(el, { o: sortie3(k), y: (1 - sortie3(k)) * dy, s: lerp(0.9, 1, rebond(k)) })
+}
+const LOGO = (f) => `../../frontend/public/logos/${f}`
+const ICONE = (f) => `icones/${f}.svg`
+const NS = 'http://www.w3.org/2000/svg'
+
+// ---------- Réseau néon : un cœur, des nœuds, un flux par nœud ----------
+function reseau(svgId, boiteId, centre, noeuds, taille) {
+  const svg = $(svgId), boite = $(boiteId)
+  const liens = noeuds.map((n, i) => {
+    const mx = (centre[0] + n.x) / 2, my = (centre[1] + n.y) / 2
+    const dx = n.x - centre[0], dy = n.y - centre[1]
+    const cx = mx - dy * 0.18, cy = my + dx * 0.18
+    const d = `M${centre[0]},${centre[1]} Q${cx},${cy} ${n.x},${n.y}`
+    const trace = document.createElementNS(NS, 'path'); trace.setAttribute('d', d)
+    trace.setAttribute('fill', 'none'); trace.setAttribute('stroke', n.couleur); trace.setAttribute('stroke-width', '3'); trace.setAttribute('stroke-opacity', '0.55')
+    trace.style.filter = `drop-shadow(0 0 6px ${n.couleur})`
+    const impulsion = document.createElementNS(NS, 'path'); impulsion.setAttribute('d', d)
+    impulsion.setAttribute('fill', 'none'); impulsion.setAttribute('stroke', '#fff'); impulsion.setAttribute('stroke-width', '6'); impulsion.setAttribute('stroke-linecap', 'round')
+    impulsion.style.filter = `drop-shadow(0 0 8px ${n.couleur}) drop-shadow(0 0 16px ${n.couleur})`
+    svg.appendChild(trace); svg.appendChild(impulsion)
+    const L = trace.getTotalLength()
+    trace.style.strokeDasharray = L
+    impulsion.style.strokeDasharray = `22 ${L}`
+    const el = document.createElement('div')
+    el.className = 'noeud' + (n.texte ? ' texte' : '')
+    const tl = n.taille || taille
+    el.style.cssText += `width:${tl}px;height:${tl}px;left:${n.x - tl / 2}px;top:${n.y - tl / 2}px;--lueur:${n.couleur}`
+    el.innerHTML = n.texte ? n.texte : `<img src="${n.src}" alt="">`
+    boite.appendChild(el)
+    return { trace, impulsion, L, el, i }
+  })
+  return function (t, depart, pas = 0.08) {
+    for (const l of liens) {
+      const a = depart + l.i * pas
+      const k = sortie3(plage(t, a, a + 0.5))
+      l.trace.style.strokeDashoffset = l.L * (1 - k)
+      // Les impulsions partent du cœur, en boucle, une fois le lien tracé
+      const cycle = ((t - a - 0.3) * 1.3 + l.i * 0.37) % 1
+      l.impulsion.style.strokeDashoffset = -cycle * (l.L + 22) + 22
+      l.impulsion.style.opacity = k > 0.95 ? 1 : 0
+      const kn = plage(t, a + 0.35, a + 0.7)
+      l.el.style.opacity = sortie3(kn)
+      l.el.style.transform = `scale(${lerp(0.2, 1, rebond(kn)) * (1 + 0.04 * Math.sin(t * 3 + l.i))})`
+    }
+  }
+}
+function cercle(n, cx, cy, rx, ry, decal = -Math.PI / 2) {
+  return Array.from({ length: n }, (_, i) => { const a = decal + (i / n) * Math.PI * 2; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry] })
+}
+
+// D · les logiciels de boutique branchés par API (BOUTIQUES_TIERS + Shopify + Mon site)
+const BOUTIQUES = [
+  { src: ICONE('shopify'), couleur: '#7AB55C' }, { src: ICONE('woocommerce'), couleur: '#b67fd6' },
+  { src: ICONE('prestashop'), couleur: '#ff3d9a' }, { src: ICONE('magento'), couleur: '#EE672F' },
+  { src: ICONE('wix'), couleur: '#2e8bff' }, { src: ICONE('drupal'), couleur: '#2ea8ff' },
+  { src: ICONE('bigcommerce'), couleur: '#c9c9ff' }, { src: ICONE('shopware'), couleur: '#189EFF' },
+  { src: ICONE('squarespace'), couleur: '#e0e0e0' }, { texte: 'ecwid', couleur: '#2ef2ff' },
+  { src: '../../frontend/public/logos/dropshop-icone.png', couleur: '#ec4899', taille: 150 },
+]
+cercle(BOUTIQUES.length, 540, 990, 390, 330).forEach(([x, y], i) => Object.assign(BOUTIQUES[i], { x, y }))
+const animD = reseau('dFlux', 'dNoeuds', [540, 990], BOUTIQUES, 128)
+
+// E · réseaux sociaux et régies à flux
+const SOCIAL = [
+  { src: ICONE('facebook'), couleur: '#0866FF' }, { src: ICONE('instagram'), couleur: '#FF0069' },
+  { src: ICONE('tiktok'), couleur: '#2ef2ff' }, { src: ICONE('pinterest'), couleur: '#ff2b48' },
+  { src: ICONE('snapchat'), couleur: '#FFFC00' }, { src: ICONE('google'), couleur: '#4285F4' },
+]
+cercle(SOCIAL.length, 540, 990, 360, 320).forEach(([x, y], i) => Object.assign(SOCIAL[i], { x, y }))
+const animE = reseau('eFlux', 'eNoeuds', [540, 990], SOCIAL, 150)
+
+// C · 40 enseignes Mirakl (Hudson's Bay n'a pas de logo dans le dépôt)
+const MIRAKL = ['eleclerc.png', 'carrefour.png', 'fnac.png', 'laredoute.png', 'boulanger.png', 'auchan.png', 'bhvmarais.png', 'kiabi_logo.png',
+  'but.png', 'leroymerlin.png', 'maisonsdumonde.png', 'galerieslafayette.png', 'cultura_logo.png', 'truffaut.png', 'ubaldi.png', 'darty.png',
+  'elcorteingles.png', 'worten.png', 'pccomponentes.png', '1200px-media_markt_logo-svg.png', 'conrad_logo_blau_rgb.png', 'home24.png', 'manor-logo-blk-rgb-1.png', 'inno.png',
+  'ldlc.png', 'laposte.png', 'showroomprive.png', 'natureetdecouvertes.png', 'greenweez.png', 'metro.png', 'eprice.png', 'ibs.png',
+  'alltricks.png', 'bricomarche.png', 'brandalley.png', 'place_des_tendances_logo.png', 'retif.png', 'secretsales.png', 'phonehouse.png', 'twil.png']
+const murC = $('cMur')
+const logosC = MIRAKL.map((f, i) => {
+  const d = document.createElement('div'); d.className = 'carteLogo'
+  const col = i % 5, lig = Math.floor(i / 5)
+  d.style.cssText += `width:180px;height:78px;left:${40 + col * 204}px;top:${690 + lig * 92}px`
+  d.innerHTML = `<img src="${LOGO(f)}" alt="">`; murC.appendChild(d); return d
+})
+
+// F · comparateurs et affiliation, reliés par leur flux produit
+const COMPARATEURS = ['googleshoppingads.png', 'idealo.png', 'kelkoogroup.png', 'ledenicheur.png', 'twenganew.png', 'criteo.png', 'awin.png', 'effiliation.png']
+const murF = $('fMur')
+const logosF = COMPARATEURS.map((f, i) => {
+  const d = document.createElement('div'); d.className = 'carteLogo'
+  const col = i % 2, lig = Math.floor(i / 2)
+  d.style.cssText += `width:300px;height:112px;left:${col ? 690 : 90}px;top:${690 + lig * 145}px`
+  d.innerHTML = `<img src="${LOGO(f)}" alt="">`; murF.appendChild(d); return d
+})
+// Un flux vertical au centre, qui alimente chaque carte
+const fFlux = $('fFlux')
+const fLiens = COMPARATEURS.map((_, i) => {
+  const col = i % 2, lig = Math.floor(i / 2)
+  const y = 690 + lig * 145 + 56, x = col ? 690 : 390
+  const d = `M540,650 L540,${y} L${x},${y}`
+  const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', 'none')
+  p.setAttribute('stroke', '#ff8a1f'); p.setAttribute('stroke-width', '4'); p.style.filter = 'drop-shadow(0 0 8px #ff8a1f)'
+  fFlux.appendChild(p); const L = p.getTotalLength(); p.style.strokeDasharray = `14 18`; return { p, L }
+})
+
+// B · les 314, famille par famille
+const FAMILLES = [
+  ['Places de marché', 187, '#2ef2ff'], ['Comparateurs de prix', 65, '#39ff7a'], ['Outils e-commerce', 28, '#f5ff3d'],
+  ['Régies publicitaires', 18, '#ff8a1f'], ['Plateformes d\'affiliation', 16, '#ff4fd8'],
+]
+const boiteB = $('bBarres')
+const barres = FAMILLES.map(([nom, n, c], i) => {
+  const d = document.createElement('div'); d.className = 'barre'; d.style.top = (640 + i * 150) + 'px'
+  d.innerHTML = `<div class="lib"><span>${nom}</span><b style="color:${c}; text-shadow:0 0 18px ${c}">0</b></div><div class="rail"><i style="background:${c}; box-shadow:0 0 18px ${c}"></i></div>`
+  boiteB.appendChild(d); return { d, n, b: d.querySelector('b'), i: d.querySelector('i') }
+})
+
+// G · l'explosion finale : un anneau de tous les mondes à la fois
+const TOUT = [
+  { src: LOGO('amazon.png') }, { src: ICONE('shopify') }, { src: LOGO('ebay.png') }, { src: LOGO('eleclerc.png') },
+  { src: ICONE('instagram') }, { src: LOGO('carrefour.png') }, { src: LOGO('idealo.png') }, { src: ICONE('woocommerce') },
+  { src: LOGO('fnac.png') }, { src: ICONE('tiktok') }, { src: LOGO('kaufland_marketplace.png') }, { src: LOGO('zalando.png') },
+  { src: ICONE('facebook') }, { src: LOGO('cdiscount-new-logo.png') }, { src: ICONE('prestashop') }, { src: LOGO('laredoute.png') },
+  { src: LOGO('googleshoppingads.png') }, { src: LOGO('rakuten.png') }, { src: ICONE('pinterest') }, { src: LOGO('manomano.png') },
+]
+const COULEURS = ['#2ef2ff', '#ec4899', '#39ff7a', '#f5ff3d', '#c04dff', '#ff8a1f']
+TOUT.forEach((n, i) => {
+  const anneau = i % 2, a = -Math.PI / 2 + (i / TOUT.length) * Math.PI * 2
+  const rx = anneau ? 440 : 330, ry = anneau ? 350 : 250
+  Object.assign(n, { x: 540 + Math.cos(a) * rx, y: 1010 + Math.sin(a) * ry, couleur: COULEURS[i % COULEURS.length], taille: anneau ? 104 : 118 })
+})
+const animG = reseau('gFlux', 'gNoeuds', [540, 1010], TOUT, 110)
+
+// ---------- Les scènes ----------
+const SCENES = {
+  pA(t) {
+    surgir($('aA1'), t, 0.1, 0.4, 60)
+    const k = plage(t, 0.45, 2.3)
+    $('aNombre').textContent = Math.round(314 * sortie3(k))
+    poser($('aCompteur'), { o: clamp(plage(t, 0.4, 0.7) * 1), s: lerp(0.7, 1, rebond(plage(t, 0.4, 0.9))) * (1 + 0.02 * Math.sin(t * 6)) })
+    surgir($('aT'), t, 1.6, 0.45, 30)
+  },
+  pB(t) {
+    barres.forEach((b, i) => {
+      surgir(b.d, t, 0.25 + i * 0.18, 0.4, 30)
+      const k = sortie3(plage(t, 0.4 + i * 0.18, 1.6 + i * 0.18))
+      b.i.style.width = (k * b.n / 187 * 100) + '%'
+      b.b.textContent = Math.round(k * b.n)
+    })
+  },
+  pC(t) {
+    surgir($('cChiffre'), t, 0.2, 0.4, 20)
+    $('cN').textContent = Math.round(41 * sortie3(plage(t, 0.3, 1.9)))
+    logosC.forEach((el, i) => {
+      const col = i % 5, lig = Math.floor(i / 5)
+      const k = plage(t, 0.35 + (lig + col) * 0.07, 0.75 + (lig + col) * 0.07)
+      el.style.opacity = sortie3(k)
+      el.style.transform = `scale(${lerp(0.4, 1, rebond(k))})`
+      // Une vague lumineuse traverse le mur, comme un dépôt qui part
+      const vague = Math.max(0, 1 - Math.abs(((t - 1.8) * 6) - (lig + col)) / 1.5)
+      el.style.boxShadow = `0 0 ${18 + vague * 40}px rgba(57,255,122,${0.35 + vague * 0.6})`
+    })
+  },
+  pD(t) {
+    poser($('dCoeur'), { o: plage(t, 0.1, 0.4), s: rebond(plage(t, 0.1, 0.55)) * (1 + 0.04 * Math.sin(t * 5)) })
+    animD(t, 0.45, 0.13)
+  },
+  pE(t) {
+    poser($('eCoeur'), { o: plage(t, 0.1, 0.4), s: rebond(plage(t, 0.1, 0.55)) * (1 + 0.04 * Math.sin(t * 5)) })
+    animE(t, 0.45, 0.2)
+  },
+  pF(t) {
+    logosF.forEach((el, i) => surgir(el, t, 0.4 + i * 0.12, 0.4, 20))
+    fLiens.forEach(({ p, L }, i) => {
+      p.style.opacity = plage(t, 0.3 + i * 0.12, 0.6 + i * 0.12)
+      p.style.strokeDashoffset = -t * 120
+    })
+    surgir($('fExt'), t, 1.9, 0.4, 30)
+  },
+  pG(t) {
+    poser($('gCoeur'), { o: 1, s: (1 + 0.3 * Math.max(0, 1 - t * 3)) * (1 + 0.04 * Math.sin(t * 6)) })
+    const ka = plage(t, 0.05, 0.9)
+    const r = lerp(40, 1200, sortie3(ka))
+    Object.assign($('gAnneau').style, { width: r + 'px', height: r + 'px', marginLeft: -r / 2 + 'px', marginTop: -r / 2 + 'px', opacity: 1 - ka })
+    animG(t, 0.15, 0.045)
+    surgir($('gSel'), t, 1.4, 0.4, 30)
+  },
+  pH(t) {
+    const kl = plage(t, 0.05, 0.6)
+    poser($('hLogo'), { o: clamp(kl * 3), s: rebond(kl) * (1 + 0.025 * Math.sin(t * 4)) })
+    surgir($('hNom'), t, 0.35, 0.45, 50)
+    surgir($('hPhrase'), t, 0.6, 0.45, 40)
+    const kb = plage(t, 0.95, 1.35)
+    $('hBouton').style.opacity = kb
+    $('hBouton').style.transform = `translateX(-50%) scale(${lerp(0.5, 1, rebond(kb)) * (1 + 0.035 * Math.sin((t - 1.35) * 7) * clamp((t - 1.35) * 2))})`
+    surgir($('hSite'), t, 1.2, 0.4, 20)
+  },
+}
+
+function rendre(t) {
+  const attentes = []
+  $('grille').style.transform = `translateY(${(t * 30) % 60}px)`
+  for (const p of PLANS) {
+    const el = $(p.id)
+    const dans = t >= p.de - 0.001 && t < p.a + (p.id === 'pH' ? 1 : 0)
+    if (!dans) { el.style.display = 'none'; continue }
+    el.style.display = 'block'
+    const local = t - p.de, d = p.a - p.de
+    const kin = p.id === 'pA' ? 1 : sortie3(plage(local, 0, 0.3))
+    const kout = p.id === 'pH' ? 0 : entree3(plage(local, d - 0.28, d))
+    poser(el, { o: kin * (1 - kout), y: (1 - kin) * 80, s: 1 + kout * 0.12, b: (1 - kin) * 12 + kout * 10 })
+    SCENES[p.id](local, d)
+    for (const img of el.querySelectorAll('img[data-clip]')) {
+      const n = Math.min(+img.dataset.n, Math.max(1, Math.floor(local * 30) + 1))
+      const src = `clips/${img.dataset.clip}/${String(n).padStart(4, '0')}.jpg`
+      if (img.getAttribute('src') !== src) { img.setAttribute('src', src); attentes.push(img.decode().catch(() => {})) }
+    }
+  }
+  let flash = 0
+  for (const c of window.COUPES) { const k = (t - c + 0.18) / 0.36; if (k > 0 && k < 1) flash = Math.max(flash, Math.sin(k * Math.PI) * 0.5) }
+  $('eclair').style.opacity = flash
+  $('marque').style.opacity = plage(t, 3.0, 3.5) * (1 - plage(t, 26.7, 27.0))
+  return Promise.all(attentes)
+}
+window.rendre = rendre
+
+const q = new URLSearchParams(location.search)
+if (q.has('t')) rendre(parseFloat(q.get('t')))
+else if (!navigator.webdriver) { const t0 = performance.now(); (function boucle() { rendre(((performance.now() - t0) / 1000) % 30); requestAnimationFrame(boucle) })() }
+else rendre(0)
+</script>
+</body>
+</html>

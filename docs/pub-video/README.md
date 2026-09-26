@@ -1,4 +1,4 @@
-# Publicité vidéo DropShipper IA — 30 s, 9:16
+# Publicités vidéo DropShipper IA — 30 s, 9:16
 
 Une page HTML animée (`pub.html`), rendue image par image par Chromium et
 assemblée par ffmpeg (`rendre.cjs`). Chaque image est une fonction du temps :
@@ -11,6 +11,7 @@ npm install                      # playwright-core + ffmpeg-static
 ./preparer.sh                    # → clips/ (séquences d'images 9:16)
 node rendre.cjs --apercu 12.5    # une image, pour vérifier une scène
 node rendre.cjs                  # → sortie/pub-dropshipper-30s.mp4 (~6 min)
+node rendre.cjs --pub canaux     # → sortie/pub-canaux-30s.mp4 (pub-canaux.html)
 ```
 
 Ouvrir `pub.html` dans Chrome joue la pub en boucle ; `pub.html?t=12.5` fige un instant.
@@ -38,3 +39,20 @@ la première coupe à 3 s, normalisée à −14 LUFS.
 **Droits** : les quatre rushs viennent de Pinterest (PinLoad). Leur licence
 n'est pas établie — à vérifier avant toute diffusion payante (musique
 comprise). C'est pour ça que `sources/` et `clips/` restent hors du dépôt.
+
+## Pub 2 · 314 canaux (`pub-canaux.html`)
+
+| Temps | Scène | Ce qu'on voit |
+|---|---|---|
+| 0–3,4 s | Accroche | Un clic. Compteur jusqu'à 314 canaux de vente |
+| 3,4–7,6 s | Les familles | 187 places de marché, 65 comparateurs, 28 outils, 18 régies, 16 affiliation (= 314) |
+| 7,6–11,8 s | API branchée | Mur des 40 enseignes Mirakl dont le logo est dans le dépôt (41 branchées ; Hudson's Bay sans logo) |
+| 11,8–16 s | Vos boutiques | Flux néon vers Shopify, WooCommerce, PrestaShop, Magento, Wix, Drupal, BigCommerce, Shopware, Squarespace, Ecwid, DropShop |
+| 16–20 s | Social commerce | Facebook, Instagram, TikTok, Pinterest, Snapchat, Google |
+| 20–23,8 s | Flux produit | Comparateurs et affiliation ; Vinted et Leboncoin par l'extension |
+| 23,8–27 s | Partout | Tous les mondes à la fois autour du cœur |
+| 27–30 s | Appel à l'action | 314 canaux, une voie de liaison pour chacun |
+
+Les icônes des logiciels de boutique et des réseaux (`icones/`) viennent du
+paquet `simple-icons` (CC0), recolorées à la couleur de chaque marque. Aucune
+phrase ne dit « seul » ni « exclusif » : ce n'est pas vérifiable.
