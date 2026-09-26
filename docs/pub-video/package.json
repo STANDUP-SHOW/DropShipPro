@@ -1,0 +1,7 @@
+{
+  "name": "pub-video",
+  "private": true,
+  "description": "Montage des publicités vidéo DropShipper IA : une page HTML animée, rendue image par image par Chromium, assemblée par ffmpeg.",
+  "scripts": { "rendre": "node rendre.cjs" },
+  "dependencies": { "ffmpeg-static": "^5.2.0", "playwright-core": "^1.55.0" }
+}
