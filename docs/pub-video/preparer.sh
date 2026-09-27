@@ -60,3 +60,10 @@ fenetre2 a-usine      annonces-usine.mp4     0 170 "scale=1000:-2"
 fenetre2 a-mockup     annonces-mockup.mp4    0 150 "$C1"
 "$F" -loglevel error -y -i sources/annonces-seo-roue.jpg -vf "$C1" -q:v 2 clips/a-seo-roue.jpg
 "$F" -loglevel error -y -i sources/annonces-monde.jpg    -vf "$C1" -q:v 2 clips/a-monde.jpg
+
+# --- Accueil : illustrations des 11 thèmes (accueil.html / accueil.cjs) ---
+# Rushs fournis par Max dans sources/accueil/ (nommés par numéro de thème : 1, 11, 111… = thème 1).
+for v in sources/accueil/*.mp4; do
+  b=h-$(basename "$v" .mp4); rm -rf "clips/$b"; mkdir -p "clips/$b"
+  "$FFMPEG" -loglevel error -i "$v" -vf "fps=30,scale='min(1280,iw)':-2" -q:v 3 "clips/$b/%04d.jpg"
+done

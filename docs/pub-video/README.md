@@ -117,3 +117,19 @@ node techno.cjs --pub annonces --drop 3 --coupes 8.4,13.4,18.2,23 --final 26.8 -
 
 Logo v2 **en éléments séparés** (l'assemblage est illisible en vertical) : `logos-v2/texte-dropshipper.png`
 pleine largeur en haut pendant toute la pub, `logos-v2/icone-v2-dropshipper.png` seule en grand (accroche, fin).
+
+## Illustrations de l'accueil (11 thèmes)
+
+`accueil.html?theme=<slug>` compose chaque thème de `frontend/src/data/accueil-themes.json` : les rushs de Max
+au fond (fondu enchaîné, zoom lent) et, par-dessus, ce que fait le thème (relevé, 38 fournisseurs, annonce qui
+s'écrit, boutique DropShop réelle, 314 canaux, agents…). Tout est périodique sur 8 s : la boucle ne saute pas.
+
+```bash
+node accueil.cjs                  # sortie/accueil/<slug>.mp4 (boucle 1280×720), <slug>.jpg (affiche), <slug>.png (fixe détouré)
+node accueil.cjs --theme diffusion --apercu 4
+```
+
+`&fixe=1` donne la seconde proposition : la même scène détourée dans une forme (cercle, hexagone, étoile…),
+fond transparent. Le contenu important reste dans les 960 px du centre (bloc 4:3 de l'accueil).
+Écartés des rushs : 555.mp4 (logo ECOM ALLIANCE), 7777777777.jpg (FedEx, DHL, USPS), 77777 (3).jpg
+(Walmart, Target), 22.jpg (logos Twitter), la fin de 88.mp4 (personnes de banque d'images).
