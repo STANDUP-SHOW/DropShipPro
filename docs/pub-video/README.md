@@ -100,3 +100,20 @@ par Google et par les IA » (attributs, GTIN, catégorie Google), jamais
 ECOM ALLIANCE, sous-titres incrustés), les vidéos néon (texte russe, logos
 OZON / WB / Yandex), l'infographie « AI for E-commerce » (outils tiers).
 Le téléphone rose est rogné sous son filigrane.
+
+## Musique propre à une pub
+
+`rendre.cjs` prend `musiques/<nom>.wav` s'il existe (sinon la bande neurovibe).
+Le dossier est hors dépôt (droits, poids) ; on le reconstruit :
+
+```bash
+# Pub 4 (annonces) : Vegas – Jiboya, de 4:00 à 4:30, fournie par Max (sources/musique-annonces.mp3)
+ffmpeg -ss 240 -t 30 -i sources/musique-annonces.mp3 \
+  -af "afade=t=in:d=0.05,afade=t=out:st=28.8:d=1.2,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/annonces.wav
+
+# Ou une techno originale synthétisée, sans droits (128 BPM, montée jusqu'au drop, impacts aux coupes) :
+node techno.cjs --pub annonces --drop 3 --coupes 8.4,13.4,18.2,23 --final 26.8 --duree 30
+```
+
+Logo v2 **en éléments séparés** (l'assemblage est illisible en vertical) : `logos-v2/texte-dropshipper.png`
+pleine largeur en haut pendant toute la pub, `logos-v2/icone-v2-dropshipper.png` seule en grand (accroche, fin).

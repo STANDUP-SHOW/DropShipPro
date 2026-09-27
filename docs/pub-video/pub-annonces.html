@@ -52,8 +52,9 @@
   .titreCanal .txt { font-weight: 700; font-size: 34px; line-height: 1.22; min-height: 42px; }
   .logoCanal { position: absolute; width: 180px; height: 92px; margin: -46px 0 0 -90px; background: #fff; border-radius: 18px; padding: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 22px rgba(242,138,73,0.45); }
   .logoCanal img { max-width: 100%; max-height: 100%; object-fit: contain; }
-  #marque { position: absolute; top: 92px; left: 0; right: 0; display: flex; justify-content: center; }
-  #marque img { height: 78px; filter: drop-shadow(0 0 16px rgba(233,89,134,0.45)); }
+  #marque { position: absolute; top: 34px; left: 0; right: 0; display: flex; justify-content: center; z-index: 5; }
+  #marque img { width: 1000px; filter: drop-shadow(0 0 22px rgba(233,89,134,0.55)) drop-shadow(0 4px 12px rgba(0,0,0,0.8)); }
+  .etiquette { display: none; }
   #liseré { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: var(--degrade); }
   #eclair { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(242,138,73,0.85) 45%, rgba(233,89,134,0.85) 55%, transparent 70%); opacity: 0; mix-blend-mode: screen; }
 </style>
@@ -65,11 +66,11 @@
   <!-- 0 · Accroche -->
   <section class="plan" id="q0">
     <img class="fondvideo" data-clip="a-telephone" data-n="81" alt=""><div class="voile"></div>
-    <div id="q0icone" style="position:absolute; left:50%; top:330px; width:250px; height:250px; margin-left:-125px">
+    <div id="q0icone" style="position:absolute; left:50%; top:360px; width:420px; height:420px; margin-left:-210px">
       <img src="logos-v2/icone-v2-dropshipper.png" alt="" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 40px rgba(233,89,134,0.75))">
     </div>
-    <div class="sous" id="q0a" style="top:680px; font-size:56px; color:#e8dde6">Une fiche fournisseur…</div>
-    <div class="legende" style="top:790px"><span class="l" id="q0b">…devient une</span><span class="l neon n-or" id="q0c">annonce d'exception.</span></div>
+    <div class="sous" id="q0a" style="top:830px; font-size:56px; color:#e8dde6">Une fiche fournisseur…</div>
+    <div class="legende" style="top:940px"><span class="l" id="q0b">…devient une</span><span class="l neon n-or" id="q0c">annonce d'exception.</span></div>
   </section>
 
   <!-- 1 · Avant / après -->
@@ -142,13 +143,13 @@
   <!-- 6 · Appel à l'action -->
   <section class="plan" id="q6">
     <img class="fondvideo" data-clip="a-telephone" data-n="81" alt="" style="filter:blur(10px) brightness(0.4)"><div class="voile"></div>
-    <div id="q6logo" style="position:absolute; left:60px; right:60px; top:560px; text-align:center"><img src="logos-v2/complet-phrase.png" alt="" style="width:960px; filter:drop-shadow(0 0 30px rgba(233,89,134,0.55))"></div>
-    <div id="q6phrase" style="position:absolute; top:830px; left:70px; right:70px; text-align:center; font-weight:800; font-size:62px; line-height:1.12">L'excellence de l'annonce,<br><span class="neon n-or">écrite par l'IA.</span></div>
-    <div id="q6bouton" style="position:absolute; top:1070px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:50px; padding:30px 58px; border-radius:999px; background:var(--degrade); color:#1a0a10; box-shadow:0 0 50px rgba(233,89,134,0.6)">Importer ma première annonce</div>
-    <div id="q6site" style="position:absolute; top:1250px; left:0; right:0; text-align:center; font-weight:800; font-size:48px"><span style="color:#39ff7a">120 drops offerts</span> · <span class="grad">drop-shipper.fr</span></div>
+    <div id="q6logo" style="position:absolute; left:50%; top:380px; width:440px; height:440px; margin-left:-220px"><img src="logos-v2/icone-v2-dropshipper.png" alt="" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 40px rgba(233,89,134,0.75))"></div>
+    <div id="q6phrase" style="position:absolute; top:880px; left:70px; right:70px; text-align:center; font-weight:800; font-size:62px; line-height:1.12">L'excellence de l'annonce,<br><span class="neon n-or">écrite par l'IA.</span></div>
+    <div id="q6bouton" style="position:absolute; top:1120px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:50px; padding:30px 58px; border-radius:999px; background:var(--degrade); color:#1a0a10; box-shadow:0 0 50px rgba(233,89,134,0.6)">Importer ma première annonce</div>
+    <div id="q6site" style="position:absolute; top:1300px; left:0; right:0; text-align:center; font-weight:800; font-size:48px"><span style="color:#39ff7a">120 drops offerts</span> · <span class="grad">drop-shipper.fr</span></div>
   </section>
 
-  <div id="marque"><img src="logos-v2/complet.png" alt=""></div>
+  <div id="marque"><img src="logos-v2/texte-dropshipper.png" alt=""></div>
   <div id="liseré"></div>
   <div id="eclair"></div>
 </div>
@@ -295,7 +296,7 @@ function rendre(t) {
   let flash = 0
   for (const c of window.COUPES) { const k = (t - c + 0.18) / 0.36; if (k > 0 && k < 1) flash = Math.max(flash, Math.sin(k * Math.PI) * 0.45) }
   $('eclair').style.opacity = flash
-  $('marque').style.opacity = plage(t, 2.7, 3.2) * (1 - plage(t, 26.5, 26.8))
+  $('marque').style.opacity = 1
   return Promise.all(attentes)
 }
 window.rendre = rendre

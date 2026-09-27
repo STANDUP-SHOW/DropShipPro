@@ -91,7 +91,9 @@ async function main() {
     return
   }
 
-  const wav = await bandeSon(duree, coupe, nom || 'pub')
+  // Une pub peut avoir sa propre musique : musiques/<nom>.wav (voir techno.cjs)
+  const propre = path.join(DOSSIER, 'musiques', `${nom || 'pub'}.wav`)
+  const wav = fs.existsSync(propre) ? propre : await bandeSon(duree, coupe, nom || 'pub')
   const mp4 = path.join(SORTIE, fichier)
   const fin = ffmpeg(['-loglevel', 'error', '-y',
     '-f', 'image2pipe', '-framerate', String(IPS), '-c:v', 'mjpeg', '-i', '-',
