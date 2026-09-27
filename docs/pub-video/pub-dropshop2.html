@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Publicité DropShop by DropShipper — 31 s, 9:16</title>
+<!--
+  Septième publicité : DropShop, présentée par DropShipper.
+  Musique : neurovibe (la toute première envoyée par Max), de 16,44 s à 47,44 s
+  (musiques/dropshop2.wav). 106,3 BPM, un temps toutes les 0,56464 s ; le drop
+  tombe à 9,035 s de la pub. Scènes de huit temps (4,52 s) : deux avant le drop
+  (DropShipper présente → DropShop apparaît), quatre après, puis l'appel.
+
+  Le bandeau du haut change de marque SUR le drop : texte DropShipper pendant
+  la présentation, texte DropShop ensuite. Logos toujours en éléments séparés.
+  DropShop Market n'existe pas encore : il est annoncé « bientôt », jamais
+  montré comme disponible (accueil-themes.json : « arrivent »).
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  :root { --degrade: linear-gradient(120deg, #f28a49 0%, #e95986 50%, #c084fc 100%); --ds: linear-gradient(120deg, #f5a524 0%, #1f8a3a 100%); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #06080a; }
+  body { font-family: Outfit, system-ui, sans-serif; color: #fff; position: relative; }
+  #scene { position: absolute; inset: 0; overflow: hidden; background: #06080a; }
+  #cadre { position: absolute; inset: 0; transform-origin: 50% 45%; }
+  .marque { position: absolute; top: 34px; left: 0; right: 0; display: flex; justify-content: center; z-index: 5; transform-origin: 50% 40%; }
+  .marque img { width: 1000px; filter: drop-shadow(0 0 22px rgba(255,255,255,0.25)) drop-shadow(0 4px 12px rgba(0,0,0,0.85)); }
+  #marqueDS img { width: 980px; filter: drop-shadow(0 0 26px rgba(245,165,36,0.45)) drop-shadow(0 4px 12px rgba(0,0,0,0.85)); }
+  .grad { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .plan { position: absolute; inset: 0; opacity: 0; display: none; will-change: transform, opacity, filter; }
+  .fondvideo { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+  .voile { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,8,10,0.85) 0%, rgba(6,8,10,0.45) 30%, rgba(6,8,10,0.4) 55%, rgba(6,8,10,0.88) 80%, rgba(6,8,10,0.96) 100%); }
+  .legende { position: absolute; top: 360px; left: 50px; right: 50px; text-align: center; font-weight: 900; font-size: 110px; line-height: 1.02; letter-spacing: -0.02em; text-shadow: 0 6px 30px rgba(0,0,0,0.75); }
+  .legende .l { display: block; }
+  .neon { color: #fff; text-shadow: 0 0 3px #fff, 0 0 14px var(--n), 0 0 34px var(--n), 0 0 70px color-mix(in srgb, var(--n) 50%, transparent); }
+  .n1 { --n: #f5ff3d; } .n2 { --n: #2ef2ff; } .n3 { --n: #ffb020; } .n4 { --n: #c04dff; } .n5 { --n: #39ff7a; } .n6 { --n: #ff4fd8; }
+  .titre { position: absolute; top: 1420px; left: 80px; right: 80px; text-align: center; font-weight: 700; font-size: 48px; line-height: 1.16; color: #f1ecff; text-shadow: 0 4px 20px rgba(0,0,0,0.85); }
+  .titre small { display: block; margin-top: 14px; font-weight: 500; font-size: 34px; color: #d6d0ea; }
+  .puce { display: inline-block; font-weight: 700; font-size: 34px; padding: 14px 28px; border-radius: 999px; border: 2px solid rgba(57,255,122,0.75); background: rgba(6,8,10,0.85); color: #d9ffe6; box-shadow: 0 0 24px rgba(57,255,122,0.35); margin: 0 8px 16px; }
+  .fenetre { position: absolute; border-radius: 28px; overflow: hidden; background: #000; border: 3px solid rgba(245,165,36,0.7); box-shadow: 0 0 60px rgba(245,165,36,0.35), 0 30px 80px rgba(0,0,0,0.6); }
+  .barre { height: 54px; display: flex; align-items: center; gap: 11px; padding: 0 22px; background: #14191c; }
+  .barre b { width: 16px; height: 16px; border-radius: 50%; }
+  .barre span { margin-left: 18px; flex: 1; height: 34px; border-radius: 999px; background: rgba(255,255,255,0.1); font-size: 22px; line-height: 34px; padding-left: 20px; color: #e5e9e8; }
+  .tuile { position: absolute; width: 190px; height: 130px; margin: -65px 0 0 -95px; border-radius: 18px; overflow: hidden; border: 2px solid rgba(255,255,255,0.4); box-shadow: 0 0 24px rgba(245,165,36,0.45), 0 10px 26px rgba(0,0,0,0.5); background: #000; }
+  .tuile img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  #liseré { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: var(--ds); z-index: 5; }
+  #eclair { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(245,165,36,0.85) 42%, rgba(57,255,122,0.7) 52%, rgba(236,72,153,0.8) 60%, transparent 72%); opacity: 0; pointer-events: none; mix-blend-mode: screen; z-index: 6; }
+  #blanc { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 7; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="cadre">
+  <!-- 0 · DropShipper présente -->
+  <section class="plan" id="s0">
+    <img class="fondvideo" id="s0fond" data-clip="d2-ville" data-n="774" alt="" style="filter:saturate(1.4)"><div class="voile" style="opacity:0.7"></div>
+    <div id="s0icone" style="position:absolute; left:50%; top:560px; width:460px; height:444px; margin-left:-230px"><img src="logos-v2/icone-v2-dropshipper.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 50px rgba(233,89,134,0.85)) drop-shadow(0 0 120px rgba(242,138,73,0.45))"></div>
+    <div id="s0mot" style="position:absolute; top:1090px; left:0; right:0; text-align:center; font-weight:900; font-size:120px; letter-spacing:0.02em"><span class="neon n6">présente</span></div>
+  </section>
+
+  <!-- 1 · DropShop apparaît, by DropShipper — montée vers le drop -->
+  <section class="plan" id="s1">
+    <img class="fondvideo" data-clip="d2-ville" data-n="774" data-de="160" alt="" style="filter:saturate(1.5) brightness(0.8)"><div class="voile" style="opacity:0.55"></div>
+    <div id="s1auvent" style="position:absolute; left:50%; top:420px; width:760px; height:473px; margin-left:-380px"><img src="logos-v2/auvent-dropshop.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 40px rgba(245,165,36,0.6)) drop-shadow(0 20px 40px rgba(0,0,0,0.7))"></div>
+    <div id="s1texte" style="position:absolute; left:40px; right:40px; top:960px; text-align:center"><img src="logos-v2/texte-dropshop.png" style="width:1000px; filter:drop-shadow(0 0 30px rgba(245,165,36,0.5)) drop-shadow(0 6px 16px rgba(0,0,0,0.85))"></div>
+    <div id="s1by" style="position:absolute; top:1250px; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:22px">
+      <span style="font-weight:600; font-size:52px; color:#e8e3f5; text-shadow:0 4px 20px rgba(0,0,0,0.8)">by</span>
+      <img src="logos-v2/texte-dropshipper.png" style="width:560px; filter:drop-shadow(0 0 18px rgba(233,89,134,0.6))">
+    </div>
+  </section>
+
+  <!-- 2 · Les vraies boutiques -->
+  <section class="plan" id="s2">
+    <img class="fondvideo" data-clip="d2-ville" data-n="774" data-de="320" alt="" style="filter:blur(8px) brightness(0.55) saturate(1.4)"><div class="voile" style="opacity:0.5"></div>
+    <div class="legende"><span class="l">Ta boutique,</span><span class="l neon n3">écrite par l'IA.</span></div>
+    <div class="fenetre" id="s2fenetre" style="left:50px; top:640px; width:980px; height:620px">
+      <div class="barre"><b style="background:#ff5f57"></b><b style="background:#febc2e"></b><b style="background:#28c840"></b><span id="s2url">oguss.fr</span></div>
+      <div style="position:relative; height:566px">
+        <img class="s2ecran" data-shop="d-oguss-accueil" data-url="oguss.fr" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top">
+        <img class="s2ecran" data-shop="d-oguss-produits" data-url="oguss.fr" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top">
+        <img class="s2ecran" data-shop="d-robot-accueil" data-url="france-robotique" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top">
+        <img class="s2ecran" data-shop="d-iagent" data-url="iagent-dropshipper" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top">
+      </div>
+    </div>
+    <div class="titre" style="top:1320px"><span style="font-weight:900; font-size:84px; color:#ffb020; text-shadow:0 0 30px rgba(255,176,32,0.6)" id="s2prix">3,50 €</span> une fois, à vie<small>Design unique, écrit par l'IA — rien à voir avec un thème</small></div>
+  </section>
+
+  <!-- 3 · À tes couleurs -->
+  <section class="plan" id="s3">
+    <img class="fondvideo" data-clip="d2-telephones" data-n="156" alt=""><div class="voile" style="opacity:0.55"></div>
+    <div class="legende"><span class="l">Ton logo.</span><span class="l neon n5">Tes couleurs.</span></div>
+    <div id="s3gammes" style="position:absolute; top:1180px; left:0; right:0; display:flex; justify-content:center; gap:18px"></div>
+    <div class="titre" style="top:1320px">Quatre gammes tirées de ton logo<small>contraste vérifié, modifiable à tout moment</small></div>
+  </section>
+
+  <!-- 4 · DropShop Market (bientôt) -->
+  <section class="plan" id="s4">
+    <img class="fondvideo" data-clip="d2-ville" data-n="774" data-de="480" alt="" style="filter:brightness(0.6) saturate(1.5)"><div class="voile" style="opacity:0.55"></div>
+    <div class="legende" style="font-size:100px"><span class="l">DropShop</span><span class="l neon n2">Market.</span></div>
+    <div id="s4bientot" style="position:absolute; top:590px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:36px; padding:12px 30px; border-radius:999px; background:#ffb020; color:#1c1200; box-shadow:0 0 30px rgba(255,176,32,0.6)">Bientôt · en construction</div>
+    <div id="s4tuiles"></div>
+    <div id="s4coeur" style="position:absolute; left:540px; top:1000px; width:0; height:0">
+      <div style="position:absolute; width:250px; height:250px; left:-125px; top:-125px"><img src="logos-v2/icone-dropshop.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 40px rgba(245,165,36,0.8))"></div>
+    </div>
+    <div class="titre" style="top:1400px">La marketplace internationale<br>des dropshippers<small>toutes les boutiques DropShop, réunies</small></div>
+  </section>
+
+  <!-- 5 · Clé en main -->
+  <section class="plan" id="s5">
+    <img class="fondvideo" src="sources/dropshop2/laptop.jpg" id="s5fond" alt="" style="filter:brightness(0.55)"><div class="voile" style="opacity:0.5"></div>
+    <div class="legende"><span class="l">Clé en main.</span><span class="l neon n3">Prête à vendre.</span></div>
+    <div id="s5puces" style="position:absolute; top:680px; left:60px; right:60px; text-align:center">
+      <span class="puce">✓ Hébergement et trafic</span><span class="puce">✓ Panier et commandes</span><span class="puce">✓ Paiement Stripe sur ton compte</span><span class="puce">✓ Back Office</span><span class="puce">✓ 10 modifications comprises</span><span class="puce">✓ Aucune mention DropShipper</span>
+    </div>
+    <div class="fenetre" id="s5mockup" style="left:290px; top:1110px; width:500px; height:280px; border-color:rgba(46,242,255,0.6)"><img class="fondvideo" data-clip="d2-mockup" data-n="176" alt="" style="width:500px; height:280px"></div>
+  </section>
+
+  <!-- 6 · Construisez votre DropShop sur DropShipper -->
+  <section class="plan" id="s6">
+    <img class="fondvideo" data-clip="d2-ville" data-n="774" data-de="620" alt="" style="filter:brightness(0.55) saturate(1.5)"><div class="voile" style="opacity:0.6"></div>
+    <div id="s6icone" style="position:absolute; left:50%; top:380px; width:420px; height:420px; margin-left:-210px"><img src="logos-v2/icone-dropshop.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 50px rgba(245,165,36,0.8))"></div>
+    <div id="s6phrase" style="position:absolute; top:850px; left:40px; right:40px; text-align:center; font-weight:900; font-size:76px; line-height:1.08">Construisez votre<br><span style="color:#ffb020; text-shadow:0 0 30px rgba(255,176,32,0.6)">DropShop</span><br>sur <span class="grad">DropShipper</span></div>
+    <div id="s6bouton" style="position:absolute; top:1170px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:54px; padding:30px 62px; border-radius:999px; background:var(--ds); color:#fff; text-shadow:0 2px 8px rgba(0,0,0,0.4); box-shadow:0 0 50px rgba(245,165,36,0.6)">Créer ma boutique</div>
+    <div id="s6site" style="position:absolute; top:1350px; left:0; right:0; text-align:center; font-weight:800; font-size:50px"><span style="color:#39ff7a">120 drops offerts</span> · <span class="grad">drop-shipper.fr</span></div>
+  </section>
+  </div>
+
+  <div class="marque" id="marqueDSP"><img src="logos-v2/texte-dropshipper.png" alt=""></div>
+  <div class="marque" id="marqueDS"><img src="logos-v2/texte-dropshop.png" alt=""></div>
+  <div id="liseré"></div>
+  <div id="eclair"></div>
+  <div id="blanc"></div>
+</div>
+
+<script>
+const TEMPS = 0.56464, DROP = 25.475 - 16.44 // 9,035 s dans la pub
+const temps = (k) => DROP + (k - 16) * TEMPS // temps 0 ≈ début de la pub, 16 = drop
+const DUREE = 31
+const BORNES = [0, temps(8), temps(16), temps(24), temps(32), temps(40), temps(48), DUREE]
+const PLANS = BORNES.slice(0, -1).map((de, i) => ({ id: 's' + i, de, a: BORNES[i + 1] }))
+window.DUREE = DUREE
+window.COUPES = PLANS.slice(1).map((p) => p.de)
+
+const $ = (id) => document.getElementById(id)
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const lerp = (a, b, k) => a + (b - a) * k
+const plage = (t, a, b) => clamp((t - a) / (b - a))
+const sortie3 = (k) => 1 - Math.pow(1 - k, 3)
+const entree3 = (k) => k * k * k
+const rebond = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2) }
+function poser(el, { o = 1, x = 0, y = 0, s = 1, r = 0, b = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+  el.style.filter = b > 0.05 ? `blur(${b}px)` : 'none'
+}
+function surgir(el, t, a, d = 0.35, dy = 50) {
+  const k = plage(t, a, a + d)
+  poser(el, { o: sortie3(k), y: (1 - sortie3(k)) * dy, s: lerp(0.85, 1, rebond(k)) })
+}
+const T = (n) => n * TEMPS
+const impulsion = (t) => Math.exp(-((((t - temps(0)) % TEMPS) + TEMPS) % TEMPS) * 10)
+
+// 3 · quatre gammes de couleurs tirées d'un logo
+const GAMMES = [['#1f8a3a', '#f5a524', '#fff7e6'], ['#0b1b3a', '#2ef2ff', '#e8f6ff'], ['#2a0d3a', '#ec4899', '#fce7f3'], ['#111111', '#c9a36b', '#f4efe6']]
+const gammes = GAMMES.map((g) => {
+  const d = document.createElement('div')
+  d.style.cssText = 'display:flex; padding:10px; gap:6px; border-radius:22px; background:rgba(6,8,10,0.85); border:2px solid rgba(255,255,255,0.25)'
+  d.innerHTML = g.map((c) => `<i style="display:block; width:52px; height:52px; border-radius:50%; background:${c}; border:2px solid rgba(255,255,255,0.6)"></i>`).join('')
+  $('s3gammes').appendChild(d); return d
+})
+
+// 4 · des boutiques DropShop qui convergent vers la place de marché
+const SHOPS = ['d-oguss-accueil', 'd-robot-accueil', 'd-iagent', 'd-oguss-produits', 'd-robot-fiche', 'd-oguss-modes', 'd-iagent', 'd-robot-accueil']
+const tuiles = SHOPS.map((s, i) => {
+  const d = document.createElement('div'); d.className = 'tuile'
+  d.innerHTML = `<img src="clips/${s}/0030.jpg" alt="">`; $('s4tuiles').appendChild(d)
+  const a = -Math.PI / 2 + (i / SHOPS.length) * Math.PI * 2
+  return { d, a }
+})
+
+const IMAGES = { 'd-oguss-accueil': 142, 'd-oguss-produits': 126, 'd-robot-accueil': 82, 'd-iagent': 63 }
+let ATTENTES = []
+
+const SCENES = {
+  s0(t) {
+    $('s0fond').style.filter = `saturate(1.4) brightness(${lerp(0.12, 1, sortie3(plage(t, 0, T(6))))})`
+    const k = plage(t, T(1), T(2.5))
+    poser($('s0icone'), { o: clamp(k * 2), s: rebond(k) * (1 + 0.04 * impulsion(t)), r: (1 - sortie3(k)) * -90 })
+    const km = plage(t, T(4), T(4.8))
+    poser($('s0mot'), { o: sortie3(km), s: lerp(1.5, 1, sortie3(km)) })
+  },
+  s1(t, d) {
+    const ka = plage(t, 0.05, T(2))
+    poser($('s1auvent'), { o: sortie3(ka), y: (1 - sortie3(ka)) * -300, s: lerp(0.6, 1, rebond(ka)) })
+    const kt = plage(t, T(2), T(3.2))
+    poser($('s1texte'), { o: sortie3(kt), s: lerp(1.6, 1, sortie3(kt)) })
+    surgir($('s1by'), t, T(4.5), 0.4, 30)
+    // Monte vers le drop : tout grossit un peu
+    const monte = entree3(plage(t, d - 1.2, d))
+    $('s1auvent').style.transform += ` scale(${1 + 0.1 * monte})`
+  },
+  s2(t) {
+    const kf = plage(t, 0.05, 0.45)
+    poser($('s2fenetre'), { o: sortie3(kf), s: lerp(0.8, 1, rebond(kf)), r: (1 - sortie3(kf)) * -4 })
+    const ecrans = [...document.querySelectorAll('.s2ecran')]
+    const i = Math.min(ecrans.length - 1, Math.floor(t / T(2)))
+    ecrans.forEach((im, j) => {
+      const debut = j * T(2)
+      im.style.opacity = j === i ? clamp((t - debut) / 0.1) : (j === i - 1 ? 1 : 0)
+      im.style.zIndex = j === i ? 2 : 1
+      if (j !== i && j !== i - 1) return
+      const f = clamp(Math.floor((j === i ? t - debut : T(2)) * 30) + 12, 1, IMAGES[im.dataset.shop])
+      const src = `clips/${im.dataset.shop}/${String(f).padStart(4, '0')}.jpg`
+      if (im.getAttribute('src') !== src) { im.setAttribute('src', src); ATTENTES.push(im.decode().catch(() => {})) }
+    })
+    $('s2url').textContent = ecrans[i].dataset.url
+    // Le prix ne s'affiche qu'en montant : jamais « 0,00 € » à l'écran
+    const kp = plage(t, T(0.8), T(2.8))
+    $('s2prix').textContent = (3.5 * sortie3(kp)).toFixed(2).replace('.', ',') + ' €'
+    $('s2prix').parentElement.style.opacity = plage(t, T(0.8), T(1.1))
+  },
+  s3(t) {
+    gammes.forEach((g, i) => {
+      surgir(g, t, T(1 + i), 0.3, 30)
+      const actif = Math.floor(t / T(1)) % 4 === i && t > T(1)
+      g.style.boxShadow = actif ? '0 0 30px rgba(245,165,36,0.8)' : 'none'
+      g.style.borderColor = actif ? '#ffb020' : 'rgba(255,255,255,0.25)'
+    })
+  },
+  s4(t) {
+    surgir($('s4bientot'), t, T(1), 0.3, 20)
+    $('s4bientot').style.transform = `translateX(-50%) ${$('s4bientot').style.transform}`
+    const kc = plage(t, 0.05, 0.4)
+    $('s4coeur').style.opacity = sortie3(kc)
+    $('s4coeur').style.transform = `scale(${rebond(kc) * (1 + 0.06 * impulsion(t + PLANS[4].de))})`
+    tuiles.forEach(({ d, a }, i) => {
+      // Arrivent de loin, se posent en couronne autour du cœur, tournent doucement
+      const k = sortie3(plage(t, 0.1 + i * TEMPS / 3, 0.6 + i * TEMPS / 3))
+      const ang = a + t * 0.25
+      const r = lerp(900, 330, k)
+      d.style.left = (540 + Math.cos(ang) * r) + 'px'
+      d.style.top = (1000 + Math.sin(ang) * r * 0.85) + 'px'
+      d.style.opacity = clamp(k * 2)
+      d.style.transform = `scale(${lerp(0.5, 1, k)})`
+    })
+  },
+  s5(t) {
+    ;[...$('s5puces').children].forEach((el, i) => surgir(el, t, 0.2 + i * TEMPS / 2, 0.3, 30))
+    surgir($('s5mockup'), t, T(4), 0.4, 40)
+    $('s5fond').style.transform = `scale(${1.05 + t * 0.03})`
+  },
+  s6(t) {
+    const kl = plage(t, 0.05, 0.55)
+    poser($('s6icone'), { o: clamp(kl * 3), s: rebond(kl) * (1 + 0.03 * impulsion(t + PLANS[6].de)), r: (1 - sortie3(kl)) * 30 })
+    surgir($('s6phrase'), t, T(1), 0.4, 40)
+    const kb = plage(t, T(2.5), T(3.3))
+    $('s6bouton').style.opacity = kb
+    $('s6bouton').style.transform = `translateX(-50%) scale(${lerp(0.5, 1, rebond(kb)) * (1 + 0.04 * impulsion(t + PLANS[6].de) * kb)})`
+    surgir($('s6site'), t, T(3.5), 0.35, 20)
+  },
+}
+
+function rendre(t) {
+  ATTENTES = []
+  for (const p of PLANS) {
+    const el = $(p.id)
+    const dernier = p.id === 's6'
+    const dans = t >= p.de - 0.001 && t < p.a + (dernier ? 1 : 0)
+    if (!dans) { el.style.display = 'none'; continue }
+    el.style.display = 'block'
+    const local = t - p.de, d = p.a - p.de
+    const kin = p.id === 's0' ? 1 : sortie3(plage(local, 0, 0.25))
+    const kout = dernier ? 0 : entree3(plage(local, d - 0.22, d))
+    poser(el, { o: kin * (1 - kout), y: (1 - kin) * 90, s: (1 + kout * 0.14) * lerp(1.12, 1, kin), b: (1 - kin) * 14 + kout * 12 })
+    SCENES[p.id](local, d)
+    for (const img of el.querySelectorAll('img[data-clip]')) {
+      const n0 = +img.dataset.n, de = +(img.dataset.de || 1)
+      const n = Math.min(n0, de + Math.floor(local * 30))
+      const src = `clips/${img.dataset.clip}/${String(n).padStart(4, '0')}.jpg`
+      if (img.getAttribute('src') !== src) { img.setAttribute('src', src); ATTENTES.push(img.decode().catch(() => {})) }
+    }
+  }
+  // Le bandeau change de marque sur le drop : DropShipper présente, DropShop prend la main
+  const bascule = plage(t, DROP - 0.05, DROP + 0.25)
+  const fort = t >= DROP ? 1 : 0.4
+  const imp = impulsion(t) * fort
+  // Pendant la révélation (scène 1), le bandeau se retire : « by DropShipper » est au centre
+  $('marqueDSP').style.opacity = 1 - plage(t, PLANS[1].de - 0.1, PLANS[1].de + 0.25)
+  $('marqueDS').style.opacity = bascule
+  $('marqueDSP').style.transform = `scale(${1 + 0.03 * imp})`
+  $('marqueDS').style.transform = `scale(${(1 + 0.03 * imp) * lerp(1.3, 1, sortie3(bascule))})`
+  $('cadre').style.transform = `scale(${1 + 0.018 * imp})`
+  $('cadre').style.filter = `brightness(${1 + 0.16 * imp})`
+  let flash = 0
+  for (const c of window.COUPES) { const k = (t - c + 0.16) / 0.32; if (k > 0 && k < 1) flash = Math.max(flash, Math.sin(k * Math.PI) * 0.55) }
+  $('eclair').style.opacity = flash
+  $('blanc').style.opacity = t >= DROP ? Math.exp(-(t - DROP) * 5) * 0.85 : 0
+  return Promise.all(ATTENTES)
+}
+window.rendre = rendre
+
+const q = new URLSearchParams(location.search)
+if (q.has('t')) rendre(parseFloat(q.get('t')))
+else if (!navigator.webdriver) { const t0 = performance.now(); (function boucle() { rendre(((performance.now() - t0) / 1000) % DUREE); requestAnimationFrame(boucle) })() }
+else rendre(0)
+</script>
+</body>
+</html>

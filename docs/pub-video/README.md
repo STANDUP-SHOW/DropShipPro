@@ -177,3 +177,19 @@ node rendre.cjs --pub partout          # → sortie/pub-partout-30s.mp4
 Le mode d'emploi complet (technique, étapes, grammaire visuelle validée par Max, règles de contenu,
 pièges) est la skill Claude Code `.claude/skills/pub-video/SKILL.md`. Outils : `battements.cjs`
 (analyse de la musique), `extraire.cjs` (rush → images), `page-modele.html` (page de livraison).
+
+## Pub 7 · DropShop by DropShipper (31 s)
+
+`pub-dropshop2.html` : DropShipper présente → DropShop apparaît « by DropShipper » → le bandeau passe au
+texte DropShop sur le drop → boutiques réelles, couleurs, DropShop Market (« bientôt »), clé en main →
+« Construisez votre DropShop sur DropShipper ». Musique neurovibe de 0:16,44 à 0:47,44 (106,3 BPM, drop à 9,03 s).
+Logos DropShop v2 (zip de Max) : `logos-v2/texte-dropshop.png`, `icone-dropshop.png`, `auvent-dropshop.png`.
+
+```bash
+ffmpeg -ss 16.44 -t 31 -i sources/neurovibe.mp4 -vn \
+  -af "afade=t=in:d=0.03,afade=t=out:st=29.8:d=1.2,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/dropshop2.wav
+node extraire.cjs d2-ville sources/dropshop2/neon-city.mp4
+node extraire.cjs d2-telephones sources/dropshop2/stores.mp4 --filtre "crop=iw:ih*0.76:0:0,scale=-2:1280"   # ôte le filigrane du créateur
+node extraire.cjs d2-mockup sources/dropshop2/mockup.mp4
+node rendre.cjs --pub dropshop2
+```

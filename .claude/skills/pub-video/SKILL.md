@@ -24,7 +24,7 @@ lenteur de la machine.
 | `ffmpeg-static` | Découpe de la musique, extraction des rushs en images, encodage H.264 + AAC |
 | `simple-icons` (npm) | Icônes des réseaux sociaux en SVG (`node_modules/simple-icons/icons/<nom>.svg`) |
 | `polices/outfit-*.woff2` | Police Outfit **en local** — Google Fonts est bloqué par le proxy du cloud |
-| `logos-v2/` | Logos v2 : `texte-dropshipper.png` (le mot seul), `icone-v2-dropshipper.png` (l'icône seule) |
+| `logos-v2/` | Logos v2 : `texte-dropshipper.png` (le mot seul), `icone-v2-dropshipper.png` (l'icône seule) ; DropShop : `texte-dropshop.png`, `icone-dropshop.png`, `auvent-dropshop.png` |
 | `../../frontend/public/logos/` | 745 logos de canaux ; `logos-fournisseurs/` pour les fournisseurs ; `icones/` pour Shopify, WooCommerce… |
 
 Installation : `cd docs/pub-video && npm install`. Aucun Python (il n'y en a pas sur la machine de Max).
@@ -45,6 +45,7 @@ Installation : `cd docs/pub-video && npm install`. Aucun Python (il n'y en a pas
 | `pub-annonces.html` | Pub 4 « Annonces IA » : avant/après, champs qui s'allument, SEO/GEO, titres par vitrine |
 | `pub-complete.html` | Pub 5 « L'IA fait tout, toi tu vends » (39 s, Jiboya) : l'appli complète, **la meilleure base pour une pub générale** |
 | `pub-partout.html` | Pub 6 « Prends un produit n'importe où, publie-le partout » (Poseidon) : **compteur machine à sous 314 qui se fige en néon sur le drop** |
+| `pub-dropshop2.html` | Pub 7 « DropShop by DropShipper » (neurovibe) : **présentation d'une marque par une autre** (le bandeau change de logo sur le drop), DropShop Market annoncé « bientôt » |
 | `README.md`, `preparer.sh` | Commandes de préparation de chaque pub (musiques, clips) |
 
 Hors dépôt (`.gitignore`) : `sources/` (rushs, musiques), `clips/`, `musiques/`, `sortie/`.
@@ -112,6 +113,7 @@ Ils se reconstruisent avec les commandes du README à partir des fichiers de Max
   314 canaux (187 places de marché, 65 comparateurs, 28 outils, 18 régies, 16 affiliation),
   41 enseignes Mirakl, 38 fournisseurs, 48 analyses/jour, 12 drops l'annonce, 350 drops la
   boutique (= 3,50 € une fois), 120 drops offerts, 50 produits/jour conseillés en mode auto.
+  Ce qui n'existe pas encore (DropShop Market / DropMarket, DropBank, Dropshop Cloud) se dit « bientôt ».
   Jamais « seul », « exclusif », « n°1 ». GEO se dit « lisible par Google et par les IA ».
   Annonce : titre en 3 longueurs, description, 5 arguments, 8 attributs, 12 mots-clés, rien d'inventé.
 - **Marques tierces** : pas de rush où une marque est le sujet (FedEx, DHL, Walmart, Target,
@@ -134,6 +136,8 @@ Ils se reconstruisent avec les commandes du README à partir des fichiers de Max
 | Publication refusée | Vidéo > 15 Mo | Recompresser en débit cible (~2,6–3 Mb/s) |
 | Fichier non envoyé | `SendUserFile` limité à 30 Mo | Envoyer la version compressée |
 | `pkill -f motif` tue sa propre commande | Le motif figure dans la ligne de commande | Nommer le processus autrement ou ne pas s'en servir |
+| « 0,00 € » à l'écran avant qu'un compteur de prix démarre | Le compteur part tard dans la scène | Masquer le prix tant qu'il n'a pas commencé à monter ; jamais un prix faux, même 1 s |
+| Filigrane d'un créateur (@pseudo) dans un rush | Rushs Pinterest | Regarder chaque rush en entier, recadrer (`--filtre "crop=…"` d'`extraire.cjs`) |
 | Logos qui traversent le titre | Entrée « qui tombe » depuis le haut | Apparition sur place (échelle + rotation) |
 | Une coupe « à côté » du temps | BPM estimé à l'oreille ou par l'écart médian | `battements.cjs` (ajustement de phase sur tous les coups) ; ±0,1 BPM près |
 
