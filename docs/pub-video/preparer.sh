@@ -65,5 +65,5 @@ fenetre2 a-mockup     annonces-mockup.mp4    0 150 "$C1"
 # Rushs fournis par Max dans sources/accueil/ (nommés par numéro de thème : 1, 11, 111… = thème 1).
 for v in sources/accueil/*.mp4; do
   b=h-$(basename "$v" .mp4); rm -rf "clips/$b"; mkdir -p "clips/$b"
-  "$FFMPEG" -loglevel error -i "$v" -vf "fps=30,scale='min(1280,iw)':-2" -q:v 3 "clips/$b/%04d.jpg"
+  "$F" -loglevel error -i "$v" -vf "fps=30,scale='min(1280,iw)':-2" -q:v 3 "clips/$b/%04d.jpg"
 done
