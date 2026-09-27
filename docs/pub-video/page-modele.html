@@ -1,0 +1,95 @@
+<!--
+  Modèle de la page de présentation d'une pub (publiée comme Artifact claude.ai).
+  Copier dans le scratchpad à côté de la vidéo COMPRESSÉE (< 15 Mo) et de son
+  affiche, remplir PUBS, publier avec `files` : { "<pub>.mp4": …, "affiche-….jpg": … }.
+  Attention aux apostrophes dans les chaînes JS (titre entre guillemets doubles) :
+  une seule apostrophe mal placée et la page reste noire. Vérifier avec
+  node --check sur le script extrait avant de publier.
+-->
+<title>Pub Prends Publie partout</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --fond: #0b0a14;
+    --surface: #16132a;
+    --texte: #f3eefe;
+    --doux: #b9b0d6;
+    --rose: #ec4899;
+    --violet: #c084fc;
+    --cyan: #2ef2ff;
+    --trait: rgba(255, 255, 255, 0.12);
+  }
+  body { background: var(--fond); color: var(--texte); font-family: Outfit, system-ui, sans-serif; padding: 24px 16px 40px; }
+  .onglets { max-width: 980px; margin: 0 auto 26px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .onglets button {
+    font: inherit; font-weight: 600; font-size: 16px; color: var(--doux); cursor: pointer;
+    background: transparent; border: 2px solid var(--trait); border-radius: 999px; padding: 10px 20px;
+  }
+  .onglets button[aria-selected="true"] { color: var(--texte); border-color: var(--violet); background: var(--surface); box-shadow: 0 0 18px rgba(192, 132, 252, 0.35); }
+  .onglets button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  main { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 400px) 1fr; gap: 40px; align-items: start; }
+  .lecteur { width: 100%; max-width: 400px; aspect-ratio: 9 / 16; border-radius: 28px; overflow: hidden; background: #000;
+    border: 2px solid var(--trait); box-shadow: 0 0 60px rgba(236, 72, 153, 0.25), 0 24px 60px rgba(0, 0, 0, 0.6); }
+  video { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .marque { font-weight: 800; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--violet); }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.05; margin: 10px 0 12px; text-wrap: balance; font-weight: 800; }
+  h1 span { background: linear-gradient(135deg, var(--violet), var(--rose)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .meta { color: var(--doux); font-size: 16px; margin: 0 0 24px; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  li { display: grid; grid-template-columns: 74px 1fr; gap: 12px; padding: 9px 12px; border-radius: 12px; cursor: pointer; font-size: 16px; }
+  li:hover, li:focus-visible { background: var(--surface); outline: none; }
+  li.actif { background: var(--surface); box-shadow: inset 0 0 0 1px rgba(192, 132, 252, 0.45); }
+  li time { color: var(--doux); font-variant-numeric: tabular-nums; }
+  li b { font-weight: 600; }
+  .note { margin-top: 22px; color: var(--doux); font-size: 14px; line-height: 1.5; max-width: 60ch; }
+  @media (max-width: 720px) { main { grid-template-columns: 1fr; gap: 28px; } .lecteur { margin: 0 auto; } }
+</style>
+
+<main>
+  <div class="lecteur"><video id="video" src="pub-partout-30s.mp4" poster="affiche-partout.jpg" controls playsinline preload="metadata"></video></div>
+  <section>
+    <div class="marque">DropShipper IA · publicité</div>
+    <h1 id="titre">Prends un produit n'importe où, <span>publie-le partout</span></h1>
+    <p class="meta">30 s · 1080 × 1920 · Shorts, Reels, TikTok · calée sur la musique</p>
+    <ol id="scenes"></ol>
+    <p class="note">Logos v2 séparés. Musique : Pandora &amp; Vermont – Poseidon, 3:32 → 4:02 (144,5 BPM). Pendant la montée, le compteur roule comme une machine à sous et se fige sur 314 pile au drop (13,2 s), où il s'allume en néon. Droits des rushs et de la musique à vérifier avant une diffusion payante.</p>
+  </section>
+</main>
+
+<script>
+  // Une entrée par pub. Les temps des scènes sont ceux de PLANS dans la page de la pub.
+  const PUBS = {
+    pub: {
+      titre: "Prends un produit n'importe où, <span>publie-le partout</span>",
+      src: 'pub-partout-30s.mp4', affiche: 'affiche-partout.jpg',
+      scenes: [[0, 'Prends un produit.'], [3.26, "N'importe où : 38 fournisseurs"], [6.59, 'Un clic. Importé.'],
+        [9.91, 'Publie-le partout : le compteur roule…'], [13.23, '314 canaux de vente, en néon'], [16.55, 'Un flux. Tous les canaux.'],
+        [19.87, 'Places de marché France & Europe'], [23.19, 'Boutiques, réseaux, comparateurs'], [26.52, 'Essayer gratuitement · 120 drops offerts']],
+    },
+  }
+  const video = document.getElementById('video')
+  const liste = document.getElementById('scenes')
+  const fmt = (s) => { const [e, d] = String(s).split('.'); return '0:' + e.padStart(2, '0') + (d ? ',' + d : '') }
+  function choisir(cle) {
+    const p = PUBS[cle]
+    document.getElementById('titre').innerHTML = p.titre
+    if (!video.src.endsWith(p.src)) { video.poster = p.affiche; video.src = p.src }
+    liste.innerHTML = ''
+    for (const [t, texte] of p.scenes) {
+      const li = document.createElement('li'); li.tabIndex = 0; li.dataset.t = t
+      li.innerHTML = `<time>${fmt(t)}</time><b></b>`; li.querySelector('b').textContent = texte
+      const aller = () => { video.currentTime = t; video.play().catch(() => {}) }
+      li.addEventListener('click', aller)
+      li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller() } })
+      liste.appendChild(li)
+    }
+  }
+
+  video.addEventListener('timeupdate', () => {
+    const items = [...liste.children]; let actif = 0
+    items.forEach((li, i) => { if (video.currentTime >= +li.dataset.t) actif = i })
+    items.forEach((li, i) => li.classList.toggle('actif', i === actif))
+  })
+  choisir('pub')
+</script>

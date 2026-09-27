@@ -155,3 +155,25 @@ ffmpeg -ss 146 -t 32 -i sources/nitrobong.mp3 \
   -af "afade=t=in:d=0.03,afade=t=out:st=30.9:d=1.1,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/canaux2.wav
 node rendre.cjs --pub canaux2          # → sortie/pub-canaux2-32s.mp4
 ```
+
+## Pub 6 · Prends un produit n'importe où, publie-le partout (30 s)
+
+`pub-partout.html`, logos v2, Pandora & Vermont – Poseidon de 3:32 à 4:02 (144,5 BPM, drop 13,23 s).
+Pendant la montée, le compteur 314 roule comme une machine à sous et se fige, chiffre après chiffre,
+pile sur le drop, où il s'allume en néon. Rushs de Max dans `sources/partout/` (clips `t-*`).
+
+```bash
+node battements.cjs sources/poseidon.mp3 --debut 212 --duree 30
+ffmpeg -ss 212 -t 30 -i sources/poseidon.mp3 \
+  -af "afade=t=in:d=0.03,afade=t=out:st=28.9:d=1.1,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/partout.wav
+for c in "t-miami miami" "t-globe iphone" "t-ville ville-nuit" "t-warp v5" "t-rayons v3" "t-carres carres" "t-losange v4" "t-etoiles v2"; do
+  set -- $c; node extraire.cjs $1 sources/partout/$2.mp4; done
+ffmpeg -i sources/partout/flux.jpg -vf "crop=600:930:410:440,scale=1080:-2" -q:v 2 sources/partout/flux-carte.jpg
+node rendre.cjs --pub partout          # → sortie/pub-partout-30s.mp4
+```
+
+## Refaire une pub
+
+Le mode d'emploi complet (technique, étapes, grammaire visuelle validée par Max, règles de contenu,
+pièges) est la skill Claude Code `.claude/skills/pub-video/SKILL.md`. Outils : `battements.cjs`
+(analyse de la musique), `extraire.cjs` (rush → images), `page-modele.html` (page de livraison).

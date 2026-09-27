@@ -53,6 +53,8 @@ backend/storefront-boutique/  La vitrine generique, servie a /b/<adresse> — so
                     detoure pas (le filigrane fait l inverse). Un SVG portant du script est refuse au televersement
                     (adresse /storage ouvrable en direct). Bancs check-logos-vitrine.ts + check-vitrine.cjs.
 docs/        Documentation de l'API catalogue
+docs/pub-video/  Pubs vidéo verticales (Shorts/Reels/TikTok) rendues depuis du HTML image par image,
+             calées sur la musique. Mode d'emploi complet : skill `.claude/skills/pub-video/SKILL.md`.
 docs/youtube/  Kit YouTube + Facebook (bannière, couverture, photo, filigrane, gabarit de miniature) : HTML
              dessinés aux dimensions exactes, rendus en PNG par `node docs/youtube/rendre.cjs` (Chrome
              headless). Le nuage de pastilles (nuage.js) ne montre que suppliers.ts et platforms.ts.
