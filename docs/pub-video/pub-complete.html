@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Publicité DropShipper IA — l'application complète, 39 s, 9:16</title>
+<!--
+  Cinquième publicité : toute l'application, comme la première, avec les
+  logos v2 (texte « DropShipper » seul en haut pendant toute la pub, icône
+  seule en grand) et la musique Vegas – Jiboya de 5:12 à 5:51.
+
+  Tout est calé sur la musique (musiques/complete.wav) : 142,3 BPM, un temps
+  toutes les 0,4216 s, premier temps à 0,338 s. Le drop tombe au temps 13
+  (5,82 s), la cassure au temps 77 (32,80 s) : entre les deux, seize mesures,
+  donc huit scènes de deux mesures, chaque coupe sur un premier temps.
+  L'introduction porte l'accroche, la cassure porte le prix et l'appel.
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+  :root { --fond: #0b0a14; --rose: #ec4899; --violet: #a855f7; --orange: #f28a49;
+    --degrade: linear-gradient(120deg, #f28a49 0%, #e95986 50%, #c084fc 100%); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--fond); }
+  body { font-family: Outfit, system-ui, sans-serif; color: #fff; position: relative; }
+  #scene { position: absolute; inset: 0; overflow: hidden; background: var(--fond); }
+  #cadre { position: absolute; inset: 0; transform-origin: 50% 45%; }
+
+  /* Logo v2 en éléments séparés : le texte, seul, pleine largeur, du début à la fin */
+  #marque { position: absolute; top: 34px; left: 0; right: 0; display: flex; justify-content: center; z-index: 5; transform-origin: 50% 40%; }
+  #marque img { width: 1000px; filter: drop-shadow(0 0 22px rgba(233,89,134,0.55)) drop-shadow(0 4px 12px rgba(0,0,0,0.85)); }
+  .grad { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  .plan { position: absolute; inset: 0; opacity: 0; will-change: transform, opacity, filter; }
+  .legende { position: absolute; top: 340px; left: 50px; right: 50px; text-align: center; font-weight: 900; font-size: 112px; line-height: 1.02; letter-spacing: -0.02em; text-shadow: 0 6px 30px rgba(0,0,0,0.7); }
+  .legende .l { display: block; }
+  .neon { color: #fff; text-shadow: 0 0 3px #fff, 0 0 14px var(--n), 0 0 34px var(--n), 0 0 70px color-mix(in srgb, var(--n) 50%, transparent); }
+  .n1 { --n: #f5ff3d; } .n2 { --n: #2ef2ff; } .n3 { --n: #ff8a1f; } .n4 { --n: #c04dff; } .n5 { --n: #39ff7a; } .n6 { --n: #ff4fd8; }
+  .titre { position: absolute; top: 1400px; left: 80px; right: 80px; text-align: center; font-weight: 700; font-size: 50px; line-height: 1.15; color: #f1ecff; text-shadow: 0 4px 20px rgba(0,0,0,0.8); }
+  .titre small { display: block; margin-top: 14px; font-weight: 500; font-size: 36px; color: #cfc7ea; }
+
+  .fondvideo { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+  .voile { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,10,20,0.85) 0%, rgba(11,10,20,0.45) 30%, rgba(11,10,20,0.4) 55%, rgba(11,10,20,0.88) 80%, rgba(11,10,20,0.96) 100%); }
+  .carte { position: absolute; background: #16132a; border: 2px solid rgba(255,255,255,0.12); border-radius: 36px; box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+  .logo-carte { position: absolute; width: 190px; height: 112px; margin: -56px 0 0 -95px; background: #fff; border-radius: 24px; display: flex; align-items: center; justify-content: center; padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+  .logo-carte img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .puce { display: inline-block; font-weight: 600; font-size: 30px; padding: 10px 22px; border-radius: 16px; background: rgba(192,132,252,0.16); border: 2px solid rgba(192,132,252,0.45); color: #f3e8ff; margin: 0 10px 14px 0; }
+  .chiffre { font-weight: 900; font-size: 150px; line-height: 1; letter-spacing: -0.03em; }
+  .rond { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 3px solid rgba(255,255,255,0.4); }
+  .rond img { width: 52%; height: 52%; filter: invert(1); }
+
+  #progression { position: absolute; bottom: 150px; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; z-index: 5; }
+  #progression i { display: block; width: 76px; height: 10px; border-radius: 99px; background: rgba(255,255,255,0.15); overflow: hidden; }
+  #progression i u { display: block; height: 100%; width: 0; background: var(--degrade); }
+  #liseré { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: var(--degrade); z-index: 5; }
+  #eclair { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(242,138,73,0.9) 42%, rgba(236,72,153,0.9) 52%, rgba(192,132,252,0.9) 60%, transparent 72%); opacity: 0; pointer-events: none; mix-blend-mode: screen; z-index: 6; }
+  #blanc { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 7; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="gMarque" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f28a49"/><stop offset="1" stop-color="#ec4899"/></linearGradient>
+      <linearGradient id="gCadran" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2548"/><stop offset="1" stop-color="#0f0d1f"/></linearGradient>
+      <symbol id="montre" viewBox="0 0 200 300">
+        <rect x="62" y="0" width="76" height="92" rx="14" fill="#6b6590"/>
+        <rect x="62" y="208" width="76" height="92" rx="14" fill="#6b6590"/>
+        <rect x="70" y="10" width="60" height="6" rx="3" fill="#8d87b3"/><rect x="70" y="30" width="60" height="6" rx="3" fill="#8d87b3"/>
+        <rect x="70" y="264" width="60" height="6" rx="3" fill="#8d87b3"/><rect x="70" y="284" width="60" height="6" rx="3" fill="#8d87b3"/>
+        <circle cx="100" cy="150" r="84" fill="#d9d5ec"/>
+        <circle cx="100" cy="150" r="72" fill="url(#gCadran)"/>
+        <rect x="184" y="140" width="12" height="20" rx="4" fill="#bfb9da"/>
+        <g stroke="#f5d0fe" stroke-width="4" stroke-linecap="round">
+          <line x1="100" y1="88" x2="100" y2="100"/><line x1="100" y1="200" x2="100" y2="212"/>
+          <line x1="38" y1="150" x2="50" y2="150"/><line x1="150" y1="150" x2="162" y2="150"/>
+        </g>
+        <line x1="100" y1="150" x2="100" y2="104" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+        <line x1="100" y1="150" x2="134" y2="168" stroke="url(#gMarque)" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="100" cy="150" r="7" fill="#ec4899"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div id="cadre">
+  <!-- 0 · Accroche : la ville s'allume, les corvées tombent sur les temps -->
+  <section class="plan" id="q0">
+    <img class="fondvideo" id="q0fond" data-clip="h-11" data-n="402" alt="">
+    <div class="voile" style="opacity:0.6"></div>
+    <div id="q0liste" style="position:absolute; top:420px; left:0; right:0; text-align:center; font-weight:900; font-size:86px; line-height:1.18">
+      <div>Trouver des produits.</div><div>Écrire les annonces.</div><div>Créer la boutique.</div><div>Publier partout.</div>
+    </div>
+    <div id="q0heures" style="position:absolute; top:1020px; left:0; right:0; text-align:center; font-weight:900; font-size:80px; white-space:nowrap"><span class="neon n3">Des heures, chaque jour.</span></div>
+  </section>
+
+  <!-- 1 · Et si l'IA faisait tout ? — montée vers le drop -->
+  <section class="plan" id="q1">
+    <img class="fondvideo" id="q1fond" data-clip="p5-warp" data-n="175" alt=""><div class="voile" style="opacity:0.35"></div>
+    <div class="legende" style="top:360px; font-size:124px"><span class="l" id="q1a">Et si l'IA</span><span class="l neon n6" id="q1b">faisait tout ?</span></div>
+    <div id="q1icone" style="position:absolute; left:50%; top:760px; width:520px; height:500px; margin-left:-260px">
+      <img src="logos-v2/icone-v2-dropshipper.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 50px rgba(233,89,134,0.85)) drop-shadow(0 0 120px rgba(242,138,73,0.5))">
+    </div>
+  </section>
+
+  <!-- 2 · Relevé -->
+  <section class="plan" id="q2">
+    <img class="fondvideo" data-clip="c-ville1" data-n="132" alt="" style="filter:saturate(1.4)"><div class="voile"></div>
+    <div class="legende" style="font-size:96px"><span class="l">Je prends un produit.</span><span class="l neon n1" id="q2b">Partout.</span></div>
+    <div id="q2orbite"></div>
+    <div class="carte" id="q2carte" style="left:390px; top:820px; width:300px; height:380px; display:flex; align-items:center; justify-content:center">
+      <svg width="170" height="255"><use href="#montre"/></svg>
+      <div id="q2ok" style="position:absolute; bottom:-34px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:32px; padding:12px 26px; border-radius:999px; background:#39ff7a; color:#062b12">Importé ✓</div>
+    </div>
+    <svg id="q2curseur" width="70" height="90" viewBox="0 0 24 30" style="position:absolute; left:0; top:0">
+      <path d="M2 2 L2 24 L8 18 L12 27 L16 25 L12 16 L20 16 Z" fill="#fff" stroke="#0b0a14" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <div id="q2onde" style="position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border:5px solid #f5ff3d; left:540px; top:1010px; opacity:0"></div>
+    <div class="titre"><span class="grad" style="font-weight:900; font-size:72px" id="q2n">0</span> fournisseurs, un clic<small>Extension Chrome · AliExpress, Temu, CJ, BigBuy…</small></div>
+  </section>
+
+  <!-- 3 · L'annonce -->
+  <section class="plan" id="q3">
+    <img class="fondvideo" data-clip="p5-tunnel" data-n="300" alt="" style="filter:blur(6px) brightness(0.55)"><div class="voile" style="opacity:0.6"></div>
+    <div class="legende"><span class="l">L'IA écrit</span><span class="l neon n2">l'annonce.</span></div>
+    <div class="carte" id="q3carte" style="left:70px; top:640px; width:940px; height:680px; padding:40px; background:rgba(22,19,42,0.92)">
+      <div style="display:flex; gap:36px">
+        <div style="flex:0 0 220px; height:270px; border-radius:24px; background:linear-gradient(160deg,#241f40,#15122a); display:flex; align-items:center; justify-content:center">
+          <svg width="140" height="210"><use href="#montre"/></svg>
+        </div>
+        <div style="flex:1">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px">
+            <img src="logos-v2/icone-v2-dropshipper.png" style="height:46px">
+            <span style="font-size:28px; color:#b9b0d6" id="q3etat">Réécriture…</span>
+          </div>
+          <div id="q3titre" style="font-weight:800; font-size:44px; line-height:1.12; min-height:150px"></div>
+          <div id="q3prix" style="margin-top:14px; font-weight:900; font-size:56px" class="grad">89,90 €</div>
+        </div>
+      </div>
+      <div id="q3puces" style="margin-top:34px">
+        <span class="puce">Titre en 3 longueurs</span><span class="puce">Description complète</span><span class="puce">5 arguments</span><span class="puce">8 attributs</span><span class="puce">12 mots-clés SEO</span><span class="puce">Lisible par les IA</span>
+      </div>
+    </div>
+    <div class="titre" style="top:1390px">Titre, description, attributs, mots-clés<small>Rien d'inventé : tout vient de la fiche</small></div>
+  </section>
+
+  <!-- 4 · La boutique : les vraies boutiques DropShop défilent -->
+  <section class="plan" id="q4">
+    <img class="fondvideo" data-clip="p5-prisme" data-n="451" alt="" style="filter:brightness(0.8)"><div class="voile" style="opacity:0.55"></div>
+    <div class="legende"><span class="l">Il crée</span><span class="l neon n6">ta boutique.</span></div>
+    <div id="q4fenetre" style="position:absolute; left:50px; top:640px; width:980px; height:620px; border-radius:28px; overflow:hidden; background:#000; border:3px solid rgba(236,72,153,0.6); box-shadow:0 0 60px rgba(236,72,153,0.45), 0 30px 80px rgba(0,0,0,0.6)">
+      <div style="height:54px; display:flex; align-items:center; gap:11px; padding:0 22px; background:#1b1733">
+        <b style="width:16px;height:16px;border-radius:50%;background:#ff5f57"></b><b style="width:16px;height:16px;border-radius:50%;background:#febc2e"></b><b style="width:16px;height:16px;border-radius:50%;background:#28c840"></b>
+        <span id="q4url" style="margin-left:20px; flex:1; height:34px; border-radius:999px; background:rgba(255,255,255,0.1); font-size:22px; line-height:34px; padding-left:20px; color:#e5dff8">oguss.fr</span>
+      </div>
+      <div style="position:relative; height:566px">
+        <img class="q4ecran" data-shop="d-oguss-accueil" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top">
+        <img class="q4ecran" data-shop="d-robot-accueil" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top">
+        <img class="q4ecran" data-shop="d-iagent" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top">
+      </div>
+    </div>
+    <div class="titre" style="top:1320px"><span class="grad" style="font-weight:900; font-size:80px" id="q4prix">3,50 €</span> une fois, à vie<small>Écrite par l'IA à partir de ton logo · paiement Stripe</small></div>
+  </section>
+
+  <!-- 5 · Les visuels -->
+  <section class="plan" id="q5">
+    <img class="fondvideo" data-clip="h-555555" data-n="180" alt=""><div class="voile"></div>
+    <div class="legende"><span class="l">Les</span><span class="l neon n3">visuels.</span></div>
+    <div id="q5v0" class="carte" style="left:380px; top:680px; width:320px; height:480px; overflow:hidden; background:linear-gradient(170deg,#0f766e,#022c22)">
+      <div style="height:300px; display:flex; align-items:center; justify-content:center"><svg width="150" height="225"><use href="#montre"/></svg></div>
+      <div style="padding:0 26px; font-weight:900; font-size:38px; line-height:1.05; color:#ccfbf1">Livrée<br>en 48 h</div>
+      <div style="margin:16px 26px; width:max-content; font-weight:800; font-size:22px; padding:10px 20px; border-radius:99px; background:#5eead4; color:#042f2e">Commander</div>
+    </div>
+    <div id="q5v1" class="carte" style="left:380px; top:680px; width:320px; height:480px; overflow:hidden; background:linear-gradient(170deg,#f59e0b,#7c2d12)">
+      <div style="height:300px; display:flex; align-items:center; justify-content:center"><svg width="150" height="225"><use href="#montre"/></svg></div>
+      <div style="padding:0 26px; font-weight:900; font-size:38px; line-height:1.05; color:#fff7ed">−30 %<br>ce week-end</div>
+      <div style="margin:16px 26px; width:max-content; font-weight:800; font-size:22px; padding:10px 20px; border-radius:99px; background:#fff7ed; color:#7c2d12">J'en profite</div>
+    </div>
+    <div id="q5v2" class="carte" style="left:380px; top:680px; width:320px; height:480px; overflow:hidden; background:linear-gradient(170deg,#7c3aed,#be185d)">
+      <div style="height:300px; display:flex; align-items:center; justify-content:center"><svg width="150" height="225"><use href="#montre"/></svg></div>
+      <div style="padding:0 26px; font-weight:900; font-size:38px; line-height:1.05">Le temps<br>vous va bien</div>
+      <div style="margin:16px 26px; width:max-content; font-weight:800; font-size:22px; padding:10px 20px; border-radius:99px; background:#fff; color:#7c3aed">Découvrir</div>
+    </div>
+    <div id="q5pastilles" style="position:absolute; top:1230px; left:0; right:0; display:flex; justify-content:center; gap:18px">
+      <i style="width:56px;height:56px;border-radius:50%;background:#7c3aed"></i><i style="width:56px;height:56px;border-radius:50%;background:#ec4899"></i><i style="width:56px;height:56px;border-radius:50%;background:#f59e0b"></i><i style="width:56px;height:56px;border-radius:50%;background:#0f766e"></i><i style="width:56px;height:56px;border-radius:50%;background:#fff"></i>
+    </div>
+    <div class="titre" style="top:1340px">Photos et publicités à tes couleurs<small>Accroche écrite par l'IA, charte tirée de ton logo</small></div>
+  </section>
+
+  <!-- 6 · Réseaux sociaux -->
+  <section class="plan" id="q6">
+    <img class="fondvideo" data-clip="p5-globe" data-n="156" alt="" style="filter:brightness(0.75)"><div class="voile" style="opacity:0.6"></div>
+    <div class="legende"><span class="l">Tes</span><span class="l neon n4">réseaux.</span></div>
+    <svg id="q6traits" width="1080" height="1920" style="position:absolute; inset:0"></svg>
+    <div id="q6coeur" style="position:absolute; left:390px; top:840px; width:300px; height:290px">
+      <img src="logos-v2/icone-v2-dropshipper.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 40px rgba(233,89,134,0.85))">
+    </div>
+    <div id="q6icones"></div>
+    <div class="titre" style="top:1400px">Publie sur tes réseaux<small>depuis le même endroit</small></div>
+  </section>
+
+  <!-- 7 · Diffusion -->
+  <section class="plan" id="q7">
+    <img class="fondvideo" data-clip="c-ville2" data-n="126" alt="" style="filter:blur(4px) saturate(1.4)"><div class="voile"></div>
+    <div class="legende"><span class="l">Je diffuse</span><span class="l neon n5">partout.</span></div>
+    <div id="q7logos"></div>
+    <div id="q7centre" style="position:absolute; left:540px; top:975px; width:0; height:0">
+      <div style="position:absolute; width:480px; height:250px; left:-240px; top:-125px; border-radius:40px; background:rgba(11,10,20,0.85); border:2px solid rgba(46,242,255,0.4); box-shadow:0 0 40px rgba(57,255,122,0.3)"></div>
+      <div style="position:absolute; width:480px; left:-240px; top:-100px; text-align:center">
+        <div class="chiffre grad" id="q7chiffre">0</div>
+        <div style="font-weight:700; font-size:40px; margin-top:4px">canaux de vente</div>
+      </div>
+    </div>
+    <div class="titre">En un clic : places de marché, comparateurs, boutiques<small>Amazon, Fnac, Cdiscount, eBay, Shopify, 41 enseignes Mirakl…</small></div>
+  </section>
+
+  <!-- 8 · Analyses et agents -->
+  <section class="plan" id="q8">
+    <img class="fondvideo" src="sources/complete/tableau.jpg" alt="" style="filter:blur(3px) brightness(0.6)"><div class="voile" style="opacity:0.7"></div>
+    <div class="legende"><span class="l">Des agents IA</span><span class="l neon n2">qui cherchent.</span></div>
+    <div class="carte" id="q8carte" style="left:90px; top:650px; width:900px; height:420px; padding:34px; background:rgba(22,19,42,0.9)">
+      <div style="display:flex; align-items:baseline; gap:18px"><span class="chiffre grad" style="font-size:120px" id="q8n">0</span><span style="font-weight:700; font-size:40px">analyses de marché<br>chaque jour</span></div>
+      <div id="q8barres" style="position:absolute; left:34px; right:34px; bottom:34px; height:170px; display:flex; align-items:flex-end; gap:14px"></div>
+    </div>
+    <div id="q8agents" style="position:absolute; top:1110px; left:70px; right:70px; text-align:center">
+      <span class="puce">Sourcing</span><span class="puce">Annonces</span><span class="puce">Images</span><span class="puce">Publicité</span><span class="puce">SAV</span><span class="puce">Comptable</span>
+    </div>
+    <div class="titre" style="top:1400px">Et chaque matin, les produits gagnants<small>Importables en un clic</small></div>
+  </section>
+
+  <!-- 9 · Mode auto -->
+  <section class="plan" id="q9">
+    <img class="fondvideo" data-clip="p5-chevrons" data-n="150" alt="" style="filter:blur(10px) brightness(0.6)"><div class="voile"></div>
+    <div class="legende"><span class="l">Le mode auto</span><span class="l neon n4">fait tout.</span></div>
+    <div id="q9ecran" style="position:absolute; left:40px; top:620px; width:1000px; height:560px; border-radius:36px; overflow:hidden; border:3px solid rgba(192,132,252,0.6); box-shadow:0 0 50px rgba(192,77,255,0.45), 0 30px 80px rgba(0,0,0,0.6)">
+      <img class="fondvideo" data-clip="p5-cube" data-n="216" alt="" style="width:1000px; height:560px">
+      <div style="position:absolute; left:24px; right:24px; bottom:22px; display:flex; flex-wrap:wrap; gap:12px">
+        <span class="q9l puce" style="margin:0; background:rgba(11,10,20,0.8); border-color:#39ff7a; color:#d9ffe6">✓ Choisis</span>
+        <span class="q9l puce" style="margin:0; background:rgba(11,10,20,0.8); border-color:#39ff7a; color:#d9ffe6">✓ Importés</span>
+        <span class="q9l puce" style="margin:0; background:rgba(11,10,20,0.8); border-color:#39ff7a; color:#d9ffe6">✓ Réécrits</span>
+        <span class="q9l puce" style="margin:0; background:rgba(11,10,20,0.8); border-color:#39ff7a; color:#d9ffe6">✓ Publiés</span>
+      </div>
+    </div>
+    <div class="carte" style="left:40px; top:1210px; width:1000px; height:150px; padding:0 40px; display:flex; align-items:center; justify-content:space-between; background:rgba(22,19,42,0.88)">
+      <div style="display:flex; align-items:center; gap:26px">
+        <div id="q9inter" style="position:relative; width:150px; height:80px; border-radius:99px; background:#3a3558">
+          <div id="q9bouton" style="position:absolute; top:8px; left:8px; width:64px; height:64px; border-radius:50%; background:#fff; box-shadow:0 4px 14px rgba(0,0,0,0.4)"></div>
+        </div>
+        <div style="font-weight:800; font-size:44px">Mode auto</div>
+      </div>
+      <div style="text-align:right"><span class="grad" style="font-weight:900; font-size:72px; line-height:1" id="q9n">0</span><span style="font-size:30px; color:#b9b0d6"> produits / jour</span></div>
+    </div>
+    <div class="titre" style="top:1400px">Tu fixes la limite,<small>l'IA fait le reste</small></div>
+  </section>
+
+  <!-- 10 · Sans abonnement (cassure de la musique) -->
+  <section class="plan" id="q10">
+    <img class="fondvideo" data-clip="p5-warp-violet" data-n="416" alt="" style="filter:brightness(0.7)"><div class="voile"></div>
+    <div class="legende"><span class="l">Sans</span><span class="l neon n6">abonnement.</span></div>
+    <div id="q10barre" style="position:absolute; top:670px; left:0; right:0; text-align:center; font-weight:700; font-size:46px; color:#a59ec2">
+      <span style="position:relative; display:inline-block">20 à 300 $ / mois ailleurs<i id="q10trait" style="position:absolute; left:-10px; top:52%; height:7px; width:0; background:#ff4f6d; border-radius:9px; box-shadow:0 0 16px #ff4f6d"></i></span>
+    </div>
+    <div id="q10drop" style="position:absolute; top:790px; left:0; right:0; text-align:center">
+      <div class="chiffre" style="font-size:170px"><span class="grad">1 drop</span></div>
+      <div style="font-weight:800; font-size:80px; margin-top:6px">= 0,01 €</div>
+      <div style="font-size:38px; color:#cfc7ea; margin-top:18px">Tu paies ce que tu fais</div>
+    </div>
+    <div id="q10cadeau" style="position:absolute; top:1210px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:48px; padding:20px 42px; border-radius:999px; background:#39ff7a; color:#062b12; box-shadow:0 0 40px rgba(57,255,122,0.5)"><span id="q10n">0</span> drops offerts</div>
+  </section>
+
+  <!-- 11 · Appel à l'action -->
+  <section class="plan" id="q11">
+    <img class="fondvideo" data-clip="ville" data-n="114" alt="" style="filter:saturate(1.5)"><div class="voile" style="opacity:0.8"></div>
+    <div id="q11icone" style="position:absolute; left:50%; top:400px; width:460px; height:444px; margin-left:-230px">
+      <img src="logos-v2/icone-v2-dropshipper.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 50px rgba(233,89,134,0.85)) drop-shadow(0 0 120px rgba(242,138,73,0.45))">
+    </div>
+    <div id="q11phrase" style="position:absolute; top:900px; left:60px; right:60px; text-align:center; font-weight:900; font-size:74px; line-height:1.08">L'IA fait tout.<br><span class="grad">Toi, tu vends.</span></div>
+    <div id="q11bouton" style="position:absolute; top:1110px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:54px; padding:30px 62px; border-radius:999px; background:var(--degrade); color:#1a0a10; box-shadow:0 0 50px rgba(236,72,153,0.6)">Essayer gratuitement</div>
+    <div id="q11site" style="position:absolute; top:1290px; left:0; right:0; text-align:center; font-weight:800; font-size:50px"><span style="color:#39ff7a">120 drops offerts</span> · <span class="grad">drop-shipper.fr</span></div>
+  </section>
+  </div>
+
+  <div id="marque"><img src="logos-v2/texte-dropshipper.png" alt=""></div>
+  <div id="progression"><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i></div>
+  <div id="liseré"></div>
+  <div id="eclair"></div>
+  <div id="blanc"></div>
+</div>
+
+<script>
+// ---------- La grille de la musique ----------
+const TEMPS = 0.4216, PREMIER = 0.338
+const temps = (k) => PREMIER + k * TEMPS // instant du k-ième temps
+const DROP = temps(13), CASSURE = temps(77)
+const DUREE = 39
+const BORNES = [0, temps(7), DROP, temps(21), temps(29), temps(37), temps(45), temps(53), temps(61), temps(69), CASSURE, temps(83), DUREE]
+const PLANS = BORNES.slice(0, -1).map((de, i) => ({ id: 'q' + i, de, a: BORNES[i + 1] }))
+window.DUREE = DUREE
+window.COUPES = PLANS.slice(1).map((p) => p.de)
+
+// ---------- Outils ----------
+const $ = (id) => document.getElementById(id)
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const lerp = (a, b, k) => a + (b - a) * k
+const plage = (t, a, b) => clamp((t - a) / (b - a))
+const sortie3 = (k) => 1 - Math.pow(1 - k, 3)
+const entree3 = (k) => k * k * k
+const douce = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
+const rebond = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2) }
+function poser(el, { o = 1, x = 0, y = 0, s = 1, r = 0, b = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+  el.style.filter = b > 0.05 ? `blur(${b}px)` : 'none'
+}
+function surgir(el, t, a, d = 0.35, dy = 50) {
+  const k = plage(t, a, a + d)
+  poser(el, { o: sortie3(k), y: (1 - sortie3(k)) * dy, s: lerp(0.85, 1, rebond(k)) })
+}
+// Impulsion sur chaque temps : 1 au temps, retombe en ~0,15 s
+function impulsion(t) {
+  if (t < PREMIER) return 0
+  const phase = (t - PREMIER) % TEMPS
+  return Math.exp(-phase * 14)
+}
+const T = (n) => n * TEMPS // n temps, en secondes (pour placer les apparitions dans une scène)
+const compte = (el, cible, t, a, b, suffixe = '') => { el.textContent = Math.round(cible * sortie3(plage(t, a, b))) + suffixe }
+
+// ---------- Logos ----------
+const FOURNISSEURS = ['aliexpress', 'temu', 'cjdropshipping', 'bigbuy', 'vidaxl', 'alibaba', 'printify', 'faire']
+const CHEMIN_FOURNISSEUR = (n) => n === 'temu' ? '../../frontend/public/logos/temu_logo-svg.png' : `../../frontend/public/logos-fournisseurs/${n}.png`
+const logosF = FOURNISSEURS.map((n) => {
+  const d = document.createElement('div'); d.className = 'logo-carte'
+  d.innerHTML = `<img src="${CHEMIN_FOURNISSEUR(n)}" alt="">`; $('q2orbite').appendChild(d); return d
+})
+const CANAUX = ['amazon.png', 'ebay.png', 'carrefour.png', 'fnac.png', 'cdiscount-new-logo.png', 'darty.png', 'zalando.png',
+  'kaufland_marketplace.png', 'rakuten.png', 'laredoute.png', 'manomano.png', 'boulanger.png']
+const logosC = CANAUX.map((f) => {
+  const d = document.createElement('div'); d.className = 'logo-carte'; d.style.width = '210px'; d.style.height = '110px'; d.style.margin = '-55px 0 0 -105px'
+  d.innerHTML = `<img src="../../frontend/public/logos/${f}" alt="">`; $('q7logos').appendChild(d); return d
+})
+const SOCIAL = [['facebook', '#0866FF'], ['instagram', '#E4405F'], ['tiktok', '#111111'], ['youtube', '#FF0000'], ['pinterest', '#BD081C'], ['linkedin', '#0A66C2'], ['x', '#111111'], ['snapchat', '#E6D800']]
+const rondsS = SOCIAL.map(([n, c]) => {
+  const d = document.createElement('div'); d.className = 'rond'
+  d.style.cssText = `width:140px; height:140px; margin:-70px 0 0 -70px; background:${c}; box-shadow:0 0 34px ${c}aa, 0 10px 26px rgba(0,0,0,0.5)`
+  d.innerHTML = `<img src="node_modules/simple-icons/icons/${n}.svg" alt="">`; $('q6icones').appendChild(d); return d
+})
+const NS = 'http://www.w3.org/2000/svg'
+const traitsS = SOCIAL.map(() => { const l = document.createElementNS(NS, 'line'); l.setAttribute('stroke', 'rgba(46,242,255,0.6)'); l.setAttribute('stroke-width', 4); $('q6traits').appendChild(l); return l })
+const ballesS = SOCIAL.map(() => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('r', 11); c.setAttribute('fill', '#fff'); c.setAttribute('style', 'filter:drop-shadow(0 0 10px #ec4899)'); $('q6traits').appendChild(c); return c })
+const HAUTEURS = [0.3, 0.45, 0.38, 0.6, 0.52, 0.72, 0.85, 1]
+const barres = HAUTEURS.map(() => { const b = document.createElement('div'); b.style.cssText = 'flex:1; border-radius:10px 10px 4px 4px; background:linear-gradient(0deg,#a855f7,#ec4899); box-shadow:0 0 16px rgba(236,72,153,0.5)'; $('q8barres').appendChild(b); return b })
+
+const TITRE_ANNONCE = 'Montre automatique acier — 22 rubis, étanche 50 m'
+const BOUTIQUES = [['d-oguss-accueil', 'oguss.fr'], ['d-robot-accueil', 'france-robotique'], ['d-iagent', 'iagent-dropshipper']]
+const IMAGES_BOUTIQUE = { 'd-oguss-accueil': 142, 'd-robot-accueil': 82, 'd-iagent': 63 }
+
+// ---------- Scènes (t local) ----------
+const SCENES = {
+  q0(t) {
+    // La ville s'allume ; une corvée par temps
+    $('q0fond').style.filter = `brightness(${lerp(0.12, 1.05, douce(plage(t, 0, 3)))}) saturate(1.4)`
+    ;[...$('q0liste').children].forEach((el, i) => surgir(el, t, temps(1 + i) - 0.05, 0.3, 40))
+    const k = plage(t, temps(5.5), temps(6.2))
+    poser($('q0heures'), { o: sortie3(k), s: lerp(1.6, 1, sortie3(k)) })
+  },
+  q1(t, d) {
+    surgir($('q1a'), t, 0.05, 0.35, 70)
+    surgir($('q1b'), t, T(1), 0.35, 70)
+    // L'icône arrive en tournant, puis grossit jusqu'au drop
+    const k = plage(t, T(2), T(3.2))
+    const monte = entree3(plage(t, d - 0.9, d))
+    poser($('q1icone'), { o: clamp(k * 2), s: rebond(k) * (1 + 0.25 * monte) * (1 + 0.04 * impulsion(t + PLANS[1].de)), r: (1 - sortie3(k)) * -180 })
+  },
+  q2(t) {
+    surgir($('q2b'), t, 0.05, 0.3, 60)
+    logosF.forEach((el, i) => {
+      const a0 = (i / logosF.length) * Math.PI * 2 - Math.PI / 2
+      const k = sortie3(plage(t, 0.05 + i * 0.05, 0.8 + i * 0.05))
+      const ang = a0 + t * 0.45
+      const rx = lerp(820, 400, k), ry = lerp(900, 290, k)
+      el.style.left = (540 + Math.cos(ang) * rx) + 'px'
+      el.style.top = (1010 + Math.sin(ang) * ry) + 'px'
+      el.style.opacity = clamp(k * 1.5)
+      el.style.transform = `scale(${lerp(0.6, 1, k)})`
+    })
+    const kc = plage(t, 0.3, 0.75)
+    poser($('q2carte'), { o: sortie3(kc), s: lerp(0.5, 1, rebond(kc)) })
+    const clicA = T(4) - 0.08
+    const kcur = douce(plage(t, clicA - 0.6, clicA))
+    $('q2curseur').style.opacity = clamp(plage(t, clicA - 0.7, clicA - 0.55) - plage(t, T(7), T(7.6)))
+    $('q2curseur').style.transform = `translate(${lerp(900, 560, kcur)}px, ${lerp(1370, 1020, kcur)}px) scale(${1 - 0.15 * clamp(plage(t, clicA, clicA + 0.1) - plage(t, clicA + 0.1, clicA + 0.2))})`
+    const ko = plage(t, clicA + 0.05, clicA + 0.6)
+    $('q2onde').style.opacity = ko > 0 && ko < 1 ? 1 - ko : 0
+    $('q2onde').style.transform = `scale(${lerp(0.5, 4, sortie3(ko))})`
+    const kok = plage(t, clicA + 0.08, clicA + 0.4)
+    $('q2ok').style.opacity = kok
+    $('q2ok').style.transform = `translateX(-50%) scale(${lerp(0.4, 1, rebond(kok))})`
+    compte($('q2n'), 38, t, 0.2, 1.6)
+  },
+  q3(t) {
+    const kc = plage(t, 0.1, 0.5)
+    poser($('q3carte'), { o: sortie3(kc), y: (1 - sortie3(kc)) * 120 })
+    const n = Math.floor(TITRE_ANNONCE.length * plage(t, 0.5, 1.7))
+    const curseur = t < 1.9 && Math.floor(t * 5) % 2 === 0 ? '<span style="color:#ec4899">|</span>' : ''
+    $('q3titre').innerHTML = TITRE_ANNONCE.slice(0, n) + curseur
+    $('q3etat').textContent = t < 1.75 ? 'Réécriture…' : 'Annonce prête ✓'
+    $('q3etat').style.color = t < 1.75 ? '#b9b0d6' : '#39ff7a'
+    $('q3prix').style.opacity = plage(t, 1.7, 1.95)
+    ;[...$('q3puces').children].forEach((el, i) => surgir(el, t, T(4) + i * TEMPS / 2, 0.25, 30))
+  },
+  q4(t) {
+    const kf = plage(t, 0.05, 0.45)
+    poser($('q4fenetre'), { o: sortie3(kf), s: lerp(0.8, 1, rebond(kf)), r: (1 - sortie3(kf)) * -4 })
+    // Une boutique par temps fort : 2 temps chacune, puis la troisième tient jusqu'au bout
+    const i = Math.min(2, Math.floor(t / T(2.67)))
+    const debut = i * T(2.67)
+    document.querySelectorAll('.q4ecran').forEach((im, j) => {
+      im.style.opacity = j === i ? clamp((t - debut) / 0.12) : (j === i - 1 ? 1 : 0)
+      im.style.zIndex = j === i ? 2 : 1
+      const nom = im.dataset.shop
+      const f = clamp(Math.floor(((j === i ? t - debut : T(2.67))) * 30) + 1, 1, IMAGES_BOUTIQUE[nom])
+      const src = `clips/${nom}/${String(f).padStart(4, '0')}.jpg`
+      if ((j === i || j === i - 1) && im.getAttribute('src') !== src) { im.setAttribute('src', src); ATTENTES.push(im.decode().catch(() => {})) }
+    })
+    $('q4url').textContent = BOUTIQUES[i][1]
+    const kp = plage(t, T(3), T(4))
+    $('q4prix').textContent = (3.5 * sortie3(kp)).toFixed(2).replace('.', ',') + ' €'
+  },
+  q5(t) {
+    const k = rebond(plage(t, 0.3, 1.0))
+    const ecart = [-1, 0, 1]
+    ;['q5v0', 'q5v1', 'q5v2'].forEach((id, i) => {
+      const e = ecart[i]
+      const ki = plage(t, 0.05 + i * 0.1, 0.4 + i * 0.1)
+      poser($(id), { o: sortie3(ki), x: e * 300 * k, y: Math.abs(e) * 50 * k + (1 - sortie3(ki)) * 150, r: e * 9 * k, s: e === 0 ? 1.06 : 0.94 })
+    })
+    $('q5v1').style.zIndex = 3
+    ;[...$('q5pastilles').children].forEach((el, i) => surgir(el, t, T(3) + i * TEMPS / 2, 0.25, 20))
+  },
+  q6(t) {
+    const kc = plage(t, 0.05, 0.45)
+    poser($('q6coeur'), { o: sortie3(kc), s: rebond(kc) * (1 + 0.06 * impulsion(t + PLANS[6].de)) })
+    const cx = 540, cy = 985
+    rondsS.forEach((el, i) => {
+      const k = sortie3(plage(t, 0.2 + i * TEMPS / 3, 0.6 + i * TEMPS / 3))
+      const ang = (i / rondsS.length) * Math.PI * 2 - Math.PI / 2 + t * 0.3
+      const x = cx + Math.cos(ang) * lerp(80, 400, k), y = cy + Math.sin(ang) * lerp(80, 300, k)
+      el.style.left = x + 'px'; el.style.top = y + 'px'
+      el.style.opacity = clamp(k * 2)
+      el.style.transform = `scale(${lerp(0.3, 1, rebond(k))})`
+      const l = traitsS[i]
+      l.setAttribute('x1', cx); l.setAttribute('y1', cy); l.setAttribute('x2', x); l.setAttribute('y2', y); l.setAttribute('opacity', k * 0.8)
+      const q = ((t * 1.2) + i / rondsS.length) % 1
+      ballesS[i].setAttribute('cx', lerp(cx, x, q)); ballesS[i].setAttribute('cy', lerp(cy, y, q)); ballesS[i].setAttribute('opacity', k * Math.sin(Math.PI * q))
+    })
+  },
+  q7(t) {
+    const cases = []
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!((r === 1 || r === 2) && (c === 1 || c === 2))) cases.push([r, c])
+    logosC.forEach((el, i) => {
+      const [r, c] = cases[i]
+      const x = 135 + c * 270, y = 720 + r * 170
+      const dist = Math.hypot(c - 1.5, r - 1.5)
+      const k = plage(t, 0.2 + dist * 0.2 + (i % 3) * 0.05, 0.6 + dist * 0.2 + (i % 3) * 0.05)
+      const ks = sortie3(k)
+      el.style.left = lerp(540, x, ks) + 'px'
+      el.style.top = (lerp(975, y, ks) + Math.sin(t * 2.2 + i) * 6 * ks) + 'px'
+      el.style.opacity = clamp(k * 2)
+      el.style.transform = `scale(${lerp(0.2, 1, rebond(k)) * (1 + 0.05 * impulsion(t + PLANS[7].de) * ks)})`
+    })
+    compte($('q7chiffre'), 314, t, 0.3, 2.2)
+    const kc = plage(t, 0.1, 0.45)
+    $('q7centre').style.opacity = kc
+    $('q7centre').style.transform = `scale(${lerp(0.7, 1, rebond(kc))})`
+  },
+  q8(t) {
+    const kc = plage(t, 0.05, 0.45)
+    poser($('q8carte'), { o: sortie3(kc), y: (1 - sortie3(kc)) * 100 })
+    compte($('q8n'), 48, t, 0.3, 1.8)
+    barres.forEach((b, i) => { b.style.height = (HAUTEURS[i] * 100 * sortie3(plage(t, 0.4 + i * 0.08, 0.9 + i * 0.08))) + '%' })
+    ;[...$('q8agents').children].forEach((el, i) => surgir(el, t, T(4) + i * TEMPS / 2, 0.25, 30))
+  },
+  q9(t) {
+    const ke = plage(t, 0.05, 0.45)
+    poser($('q9ecran'), { o: sortie3(ke), s: lerp(0.85, 1, rebond(ke)) })
+    const ki = douce(plage(t, T(1), T(1) + 0.25))
+    $('q9bouton').style.left = lerp(8, 78, ki) + 'px'
+    $('q9inter').style.background = ki > 0.5 ? 'linear-gradient(135deg,#f28a49,#ec4899)' : '#3a3558'
+    $('q9inter').style.boxShadow = ki > 0.5 ? '0 0 36px rgba(236,72,153,0.7)' : 'none'
+    ;[...document.querySelectorAll('.q9l')].forEach((el, i) => surgir(el, t, T(2 + i), 0.25, 20))
+    compte($('q9n'), 50, t, T(2), T(7))
+  },
+  q10(t) {
+    surgir($('q10barre'), t, 0.05, 0.3, 20)
+    $('q10trait').style.width = (sortie3(plage(t, T(1), T(1.8))) * 105) + '%'
+    surgir($('q10drop'), t, T(2), 0.4, 60)
+    const kg = plage(t, T(3.5), T(4.3))
+    $('q10cadeau').style.opacity = kg
+    $('q10cadeau').style.transform = `translateX(-50%) scale(${lerp(0.3, 1, rebond(kg)) * (1 + 0.03 * Math.sin(t * 8) * kg)})`
+    compte($('q10n'), 120, t, T(3.5), T(5.5))
+  },
+  q11(t) {
+    const kl = plage(t, 0.05, 0.6)
+    poser($('q11icone'), { o: clamp(kl * 3), s: rebond(kl) * (1 + 0.03 * Math.sin(t * 4)), r: (1 - sortie3(kl)) * 40 })
+    surgir($('q11phrase'), t, 0.5, 0.45, 40)
+    const kb = plage(t, 1.0, 1.4)
+    $('q11bouton').style.opacity = kb
+    $('q11bouton').style.transform = `translateX(-50%) scale(${lerp(0.5, 1, rebond(kb)) * (1 + 0.04 * Math.sin((t - 1.4) * 7) * clamp((t - 1.4) * 2))})`
+    surgir($('q11site'), t, 1.3, 0.4, 20)
+  },
+}
+
+// ---------- Rendu d'un instant ----------
+let ATTENTES = []
+function rendre(t) {
+  ATTENTES = []
+  for (const p of PLANS) {
+    const el = $(p.id)
+    const dernier = p.id === 'q11'
+    const dans = t >= p.de - 0.001 && t < p.a + (dernier ? 1 : 0)
+    if (!dans) { el.style.opacity = 0; el.style.display = 'none'; continue }
+    el.style.display = 'block'
+    const local = t - p.de, d = p.a - p.de
+    const kin = p.id === 'q0' ? 1 : sortie3(plage(local, 0, 0.22))
+    const kout = dernier ? 0 : entree3(plage(local, d - 0.2, d))
+    poser(el, { o: kin * (1 - kout), y: (1 - kin) * 90, s: (1 + kout * 0.14) * lerp(1.12, 1, kin), b: (1 - kin) * 14 + kout * 12 })
+    SCENES[p.id](local, d)
+    for (const img of el.querySelectorAll('img[data-clip]')) {
+      // q1 accélère vers le drop : la vidéo défile de plus en plus vite
+      const v = p.id === 'q1' ? local * (1 + local * 0.9) : local
+      const n = Math.min(+img.dataset.n, Math.max(1, Math.floor(v * 30) + 1))
+      const src = `clips/${img.dataset.clip}/${String(n).padStart(4, '0')}.jpg`
+      if (img.getAttribute('src') !== src) { img.setAttribute('src', src); ATTENTES.push(img.decode().catch(() => {})) }
+    }
+  }
+
+  // Sur les temps : le cadre pulse (plus fort après le drop), le logo respire
+  const fort = t >= DROP && t < CASSURE ? 1 : 0.35
+  const imp = impulsion(t) * fort
+  $('cadre').style.transform = `scale(${1 + 0.018 * imp})`
+  $('cadre').style.filter = `brightness(${1 + 0.18 * imp})`
+  $('marque').style.transform = `scale(${1 + 0.03 * imp})`
+
+  // Éclair sur chaque coupe, flash blanc sur le drop et sur la cassure
+  let flash = 0
+  for (const c of window.COUPES) { const k = (t - c + 0.14) / 0.28; if (k > 0 && k < 1) flash = Math.max(flash, Math.sin(k * Math.PI) * 0.6) }
+  $('eclair').style.opacity = flash
+  const b1 = t >= DROP ? Math.exp(-(t - DROP) * 5) : 0
+  const b2 = t >= CASSURE ? Math.exp(-(t - CASSURE) * 6) * 0.5 : 0
+  $('blanc').style.opacity = Math.max(b1, b2) * 0.85
+
+  // Progression : les neuf scènes entre le drop et l'appel final
+  ;[...document.querySelectorAll('#progression u')].forEach((u, i) => {
+    const p = PLANS[i + 2]; u.style.width = (plage(t, p.de, p.a) * 100) + '%'
+  })
+  $('progression').style.opacity = plage(t, DROP - 0.1, DROP + 0.2) * (1 - plage(t, PLANS[11].de - 0.2, PLANS[11].de))
+  return Promise.all(ATTENTES)
+}
+window.rendre = rendre
+
+const q = new URLSearchParams(location.search)
+if (q.has('t')) rendre(parseFloat(q.get('t')))
+else if (!navigator.webdriver) { const t0 = performance.now(); (function boucle() { rendre(((performance.now() - t0) / 1000) % DUREE); requestAnimationFrame(boucle) })() }
+else rendre(0)
+</script>
+</body>
+</html>

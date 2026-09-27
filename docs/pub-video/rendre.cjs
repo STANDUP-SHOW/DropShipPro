@@ -69,7 +69,6 @@ async function main() {
   const j = process.argv.indexOf('--pub')
   const nom = j > 0 ? process.argv[j + 1] : null
   const fichierHtml = nom ? `pub-${nom}.html` : 'pub.html'
-  const fichier = nom ? `pub-${nom}-30s.mp4` : 'pub-dropshipper-30s.mp4'
 
   const nav = await chromium.launch({ executablePath: CHROME, args: ['--allow-file-access-from-files', '--force-device-scale-factor=1'] })
   const page = await nav.newPage({ viewport: { width: L, height: H }, deviceScaleFactor: 1 })
@@ -81,6 +80,7 @@ async function main() {
   })
   const duree = await page.evaluate(() => window.DUREE)
   const coupe = await page.evaluate(() => window.COUPES[0])
+  const fichier = nom ? `pub-${nom}-${Math.round(duree)}s.mp4` : 'pub-dropshipper-30s.mp4'
 
   if (apercu !== null) {
     await page.evaluate((t) => window.rendre(t), apercu)

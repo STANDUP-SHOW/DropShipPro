@@ -133,3 +133,14 @@ node accueil.cjs --theme diffusion --apercu 4
 fond transparent. Le contenu important reste dans les 960 px du centre (bloc 4:3 de l'accueil).
 Écartés des rushs : 555.mp4 (logo ECOM ALLIANCE), 7777777777.jpg (FedEx, DHL, USPS), 77777 (3).jpg
 (Walmart, Target), 22.jpg (logos Twitter), la fin de 88.mp4 (personnes de banque d'images).
+
+## Pub 5 · L'application complète (39 s)
+
+`pub-complete.html`, logos v2 séparés, calée sur Vegas – Jiboya de 5:12 à 5:51 (142,3 BPM, drop au temps 13 = 5,82 s,
+cassure au temps 77 = 32,80 s) : chaque coupe tombe sur un premier temps. Rushs du zip de Max dans `clips/p5-*`.
+
+```bash
+ffmpeg -ss 312 -t 39 -i sources/musique-annonces.mp3 \
+  -af "afade=t=in:d=0.03,afade=t=out:st=37.8:d=1.2,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/complete.wav
+node rendre.cjs --pub complete        # → sortie/pub-complete-39s.mp4 (le nom suit la durée)
+```
