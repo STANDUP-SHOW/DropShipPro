@@ -144,3 +144,14 @@ ffmpeg -ss 312 -t 39 -i sources/musique-annonces.mp3 \
   -af "afade=t=in:d=0.03,afade=t=out:st=37.8:d=1.2,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/complete.wav
 node rendre.cjs --pub complete        # → sortie/pub-complete-39s.mp4 (le nom suit la durée)
 ```
+
+## Remix 314 canaux (32 s)
+
+`pub-canaux2.html` : la pub 314 canaux avec les logos v2 séparés, calée sur Webra – Nitrobong de 2:26 à 2:58
+(144,5 BPM, drop au temps 15 = 6,45 s ; huit scènes de huit temps ; le compteur touche 314 sur le drop).
+
+```bash
+ffmpeg -ss 146 -t 32 -i sources/nitrobong.mp3 \
+  -af "afade=t=in:d=0.03,afade=t=out:st=30.9:d=1.1,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/canaux2.wav
+node rendre.cjs --pub canaux2          # → sortie/pub-canaux2-32s.mp4
+```
