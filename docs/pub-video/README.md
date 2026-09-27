@@ -13,6 +13,7 @@ node rendre.cjs --apercu 12.5    # une image, pour vérifier une scène
 node rendre.cjs                  # → sortie/pub-dropshipper-30s.mp4 (~6 min)
 node rendre.cjs --pub canaux     # → sortie/pub-canaux-30s.mp4 (pub-canaux.html)
 node rendre.cjs --pub dropshop   # → sortie/pub-dropshop-30s.mp4 (pub-dropshop.html)
+node rendre.cjs --pub annonces   # → sortie/pub-annonces-30s.mp4 (pub-annonces.html)
 ```
 
 Ouvrir `pub.html` dans Chrome joue la pub en boucle ; `pub.html?t=12.5` fige un instant.
@@ -77,3 +78,25 @@ déposer dans `sources/` : `boutique-oguss.mp4`, `boutique-robotique.mp4`,
 Les enregistrements sont à cadence variable : **on découpe au numéro d'image
 après `fps=30`, jamais avec `-ss`/`-t`**, qui tombaient plusieurs secondes à
 côté. Les modes d'OGUSS sont choisis par le visiteur : l'écran le dit.
+
+## Pub 4 · Annonces IA (`pub-annonces.html`)
+
+Première pub aux **logos v2** (`logos-v2/`, envoyés par Max le 27/09/2026, à
+l'essai ; réduits à 1 600 px de large), palette du logo : `#f28a49` → `#e95986`.
+
+| Temps | Scène |
+|---|---|
+| 0–3 s | Une fiche fournisseur… devient une annonce d'exception |
+| 3–8,4 s | Recomposition totale : fiche brute balayée par un laser, annonce réécrite |
+| 8,4–13,4 s | Chaque champ optimisé (vidéo « usine à annonces » + 8 champs cochés) |
+| 13,4–18,2 s | SEO · GEO |
+| 18,2–23 s | Taillée pour chaque vitrine : titres long, moyen (80), court (50) comptés |
+| 23–26,8 s | Diffusée sur 314 canaux |
+| 26,8–30 s | Importer ma première annonce · 120 drops offerts |
+
+Promesses relues dans `aiEnhancer.ts`. GEO = « données structurées lisibles
+par Google et par les IA » (attributs, GTIN, catégorie Google), jamais
+« référencé dans ChatGPT ». Rushs écartés : le « Shopping mall » (logo
+ECOM ALLIANCE, sous-titres incrustés), les vidéos néon (texte russe, logos
+OZON / WB / Yandex), l'infographie « AI for E-commerce » (outils tiers).
+Le téléphone rose est rogné sous son filigrane.

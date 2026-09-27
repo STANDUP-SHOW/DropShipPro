@@ -50,3 +50,13 @@ extraire d-final    neurovibe.mp4 36 3.1 "$COUVRIR"
 "$F" -loglevel error -y -i sources/boutique-oguss.mp4     -vf "fps=30,select='eq(n,300)',$FEN" -frames:v 1 clips/d-still-oguss.jpg
 "$F" -loglevel error -y -i sources/boutique-robotique.mp4 -vf "fps=30,select='eq(n,130)',$FEN" -frames:v 1 clips/d-still-robot.jpg
 "$F" -loglevel error -y -i sources/boutique-iagent.mp4    -vf "fps=30,select='eq(n,70)',$FEN"  -frames:v 1 clips/d-still-iagent.jpg
+
+# Pub 4 · Annonces IA — sources/annonces-*.mp4|jpg (dossier pub-annonces de Max)
+C1="scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"
+fenetre2() { rm -rf "clips/$1"; mkdir -p "clips/$1"; "$F" -loglevel error -y -i "sources/$2" -vf "fps=30,trim=start_frame=$3:end_frame=$4,setpts=PTS-STARTPTS,$5" -q:v 2 "clips/$1/%04d.jpg"; }
+fenetre2 a-telephone  annonces-telephone.mp4 0 96  "crop=720:1080:0:0,$C1"   # rogné sous le filigrane
+fenetre2 a-usine-fond annonces-usine.mp4     0 170 "$C1"
+fenetre2 a-usine      annonces-usine.mp4     0 170 "scale=1000:-2"
+fenetre2 a-mockup     annonces-mockup.mp4    0 150 "$C1"
+"$F" -loglevel error -y -i sources/annonces-seo-roue.jpg -vf "$C1" -q:v 2 clips/a-seo-roue.jpg
+"$F" -loglevel error -y -i sources/annonces-monde.jpg    -vf "$C1" -q:v 2 clips/a-monde.jpg
