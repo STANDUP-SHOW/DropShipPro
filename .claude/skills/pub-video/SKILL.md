@@ -9,6 +9,14 @@ Tout vit dans `docs/pub-video/`. Six pubs y ont été faites en septembre 2026 ;
 est une page HTML que l'on photographie image par image. Ce mémo dit comment en
 refaire une, et surtout **ce qui a déjà cassé**.
 
+## Économie (lire avant de commencer)
+
+- **Sonnet suffit** pour une pub : si la session est sur Opus, le signaler à Max (`/model`).
+- **Une pub = une session neuve.** Ne pas enchaîner plusieurs pubs dans la même conversation.
+- **Images** : vérifier avec UNE planche contact réduite (ex. 6 vignettes 270 px), pas des captures en série ; ne relire une image que si quelque chose a changé.
+- Ne pas relire les pages HTML existantes en entier : copier la plus proche (`pub-partout.html`, `pub-dropshop2.html`) et éditer par `grep`/`sed -n`.
+- Pas de check-in planifié ni d abonnement de PR après le push, sauf demande.
+
 ## La technique en une phrase
 
 Une pub = **une page HTML qui est une fonction pure du temps** (`window.rendre(t)` pose
