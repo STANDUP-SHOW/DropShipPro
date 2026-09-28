@@ -64,6 +64,7 @@ export function ApiKeys() {
   }
 
   const endpoint = `${apiRoot || window.location.origin}/api/agent/opportunities`
+  const shareEndpoint = `${apiRoot || window.location.origin}/api/agent/share`
   const active = keys.filter((k) => !k.revokedAt)
   const revoked = keys.filter((k) => k.revokedAt)
 
@@ -201,6 +202,28 @@ Content-Type: application/json
           <b className="text-gray-400">title</b> et <b className="text-gray-400">sourcePrice</b> sont
           obligatoires. Laissez un champ vide plutôt que de l'inventer : un nombre de ventes à zéro
           se lit « ne se vend pas ».
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+        <p className="text-xs text-gray-400">Bouton « partager » (mobile, puis desktop) — juste l'URL</p>
+        <input
+          readOnly
+          value={shareEndpoint}
+          onFocus={(e) => e.target.select()}
+          className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 font-mono text-xs outline-none"
+        />
+        <pre className="mt-2 overflow-x-auto rounded-lg bg-black/40 p-3 text-[11px] leading-relaxed text-gray-300">
+{`POST ${shareEndpoint}
+Authorization: Bearer VOTRE_CLE
+Content-Type: application/json
+
+{"url": "https://…", "title": "Casque sans fil ANC"}`}
+        </pre>
+        <p className="mt-2 text-xs text-gray-500">
+          Seul <b className="text-gray-400">url</b> est obligatoire — c'est fait pour un clic « partager »,
+          pas pour une fiche analysée. Le lien attend dans la file (<code>GET</code> même adresse) qu'une
+          application companion le récupère.
         </p>
       </div>
     </div>

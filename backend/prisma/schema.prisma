@@ -183,6 +183,7 @@ model User {
   authTokens         AuthToken[]
   apiKeys            ApiKey[]
   opportunities      Opportunity[]
+  sharedLinks        SharedLink[]
   signals            Signal[]
   review             Review?
   Department         Department[]
@@ -786,6 +787,42 @@ model Opportunity {
   /// Le meme produit repere deux fois ne fait pas deux lignes.
   @@unique([userId, sourceUrl])
   @@index([userId, status])
+}
+
+/// Un lien partage depuis un client leger (mobile aujourd hui, desktop ensuite)
+/// vers l'application companion qui le telechargera. Volontairement distinct
+/// d'Opportunity : ici on ne demande rien de plus qu'une URL — un clic sur
+/// "partager" ne connait ni le prix fournisseur ni le titre exact du produit.
+model SharedLink {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// L'URL partagee, seul champ obligatoire.
+  url String
+  /// Titre transmis par le partage systeme (Web Share Target), quand il y en a un.
+  title String?
+  /// Note libre laissee au moment du partage.
+  note String? @db.Text
+  /// D'ou vient le depot : "mobile" aujourd hui, "desktop" ou autre demain.
+  source String @default("mobile")
+
+  status SharedLinkStatus @default(NEW)
+  /// Renseigne quand l'application companion a pris le lien en charge.
+  claimedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Partager deux fois le meme lien ne fait pas deux lignes.
+  @@unique([userId, url])
+  @@index([userId, status])
+}
+
+enum SharedLinkStatus {
+  NEW
+  CLAIMED
+  DONE
 }
 
 enum SignalKind {
