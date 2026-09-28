@@ -2,13 +2,14 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Publicité DropShop by DropShipper — 31 s, 9:16</title>
+<title>Publicité DropShop by DropShipper — 30 s, 9:16</title>
 <!--
   Septième publicité : DropShop, présentée par DropShipper.
-  Musique : neurovibe (la toute première envoyée par Max), de 16,44 s à 47,44 s
-  (musiques/dropshop2.wav). 106,3 BPM, un temps toutes les 0,56464 s ; le drop
-  tombe à 9,035 s de la pub. Scènes de huit temps (4,52 s) : deux avant le drop
-  (DropShipper présente → DropShop apparaît), quatre après, puis l'appel.
+  Musique : Vegas – Jiboya de 4:06 à 4:36 (musiques/dropshop2.wav), choisie par Max
+  (la première version, sur neurovibe, n'était « pas la techno demandée »).
+  141,7 BPM, un temps toutes les 0,4235 s ; le drop tombe à 4,275 s : la
+  présentation tient avant, DropShop apparaît SUR le drop. Scènes de huit temps,
+  DropShop Market en seize, l'appel sur la phrase suivante (24,6 s).
 
   Le bandeau du haut change de marque SUR le drop : texte DropShipper pendant
   la présentation, texte DropShop ensuite. Logos toujours en éléments séparés.
@@ -136,10 +137,11 @@
 </div>
 
 <script>
-const TEMPS = 0.56464, DROP = 25.475 - 16.44 // 9,035 s dans la pub
-const temps = (k) => DROP + (k - 16) * TEMPS // temps 0 ≈ début de la pub, 16 = drop
-const DUREE = 31
-const BORNES = [0, temps(8), temps(16), temps(24), temps(32), temps(40), temps(48), DUREE]
+const TEMPS = 0.4235, DROP = 4.275
+const temps = (k) => DROP + (k - 16) * TEMPS // 16 = le drop
+const DUREE = 30
+// présente | DropShop (sur le drop) | boutiques | couleurs | Market ×2 | clé en main | appel
+const BORNES = [0, temps(16), temps(24), temps(32), temps(40), temps(56), temps(64), DUREE]
 const PLANS = BORNES.slice(0, -1).map((de, i) => ({ id: 's' + i, de, a: BORNES[i + 1] }))
 window.DUREE = DUREE
 window.COUPES = PLANS.slice(1).map((p) => p.de)
@@ -161,7 +163,7 @@ function surgir(el, t, a, d = 0.35, dy = 50) {
   poser(el, { o: sortie3(k), y: (1 - sortie3(k)) * dy, s: lerp(0.85, 1, rebond(k)) })
 }
 const T = (n) => n * TEMPS
-const impulsion = (t) => Math.exp(-((((t - temps(0)) % TEMPS) + TEMPS) % TEMPS) * 10)
+const impulsion = (t) => Math.exp(-((((t - temps(0)) % TEMPS) + TEMPS) % TEMPS) * 14)
 
 // 3 · quatre gammes de couleurs tirées d'un logo
 const GAMMES = [['#1f8a3a', '#f5a524', '#fff7e6'], ['#0b1b3a', '#2ef2ff', '#e8f6ff'], ['#2a0d3a', '#ec4899', '#fce7f3'], ['#111111', '#c9a36b', '#f4efe6']]
@@ -284,11 +286,11 @@ function rendre(t) {
     }
   }
   // Le bandeau change de marque sur le drop : DropShipper présente, DropShop prend la main
-  const bascule = plage(t, DROP - 0.05, DROP + 0.25)
+  const bascule = plage(t, PLANS[2].de - 0.05, PLANS[2].de + 0.25)
   const fort = t >= DROP ? 1 : 0.4
   const imp = impulsion(t) * fort
   // Pendant la révélation (scène 1), le bandeau se retire : « by DropShipper » est au centre
-  $('marqueDSP').style.opacity = 1 - plage(t, PLANS[1].de - 0.1, PLANS[1].de + 0.25)
+  $('marqueDSP').style.opacity = 1 - plage(t, PLANS[1].de - 0.15, PLANS[1].de + 0.05)
   $('marqueDS').style.opacity = bascule
   $('marqueDSP').style.transform = `scale(${1 + 0.03 * imp})`
   $('marqueDS').style.transform = `scale(${(1 + 0.03 * imp) * lerp(1.3, 1, sortie3(bascule))})`

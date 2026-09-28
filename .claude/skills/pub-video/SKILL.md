@@ -45,7 +45,7 @@ Installation : `cd docs/pub-video && npm install`. Aucun Python (il n'y en a pas
 | `pub-annonces.html` | Pub 4 « Annonces IA » : avant/après, champs qui s'allument, SEO/GEO, titres par vitrine |
 | `pub-complete.html` | Pub 5 « L'IA fait tout, toi tu vends » (39 s, Jiboya) : l'appli complète, **la meilleure base pour une pub générale** |
 | `pub-partout.html` | Pub 6 « Prends un produit n'importe où, publie-le partout » (Poseidon) : **compteur machine à sous 314 qui se fige en néon sur le drop** |
-| `pub-dropshop2.html` | Pub 7 « DropShop by DropShipper » (neurovibe) : **présentation d'une marque par une autre** (le bandeau change de logo sur le drop), DropShop Market annoncé « bientôt » |
+| `pub-dropshop2.html` | Pub 7 « DropShop by DropShipper » (Jiboya 4:06–4:36) : **présentation d'une marque par une autre** (le bandeau change de logo sur le drop), DropShop Market annoncé « bientôt » |
 | `README.md`, `preparer.sh` | Commandes de préparation de chaque pub (musiques, clips) |
 
 Hors dépôt (`.gitignore`) : `sources/` (rushs, musiques), `clips/`, `musiques/`, `sortie/`.
@@ -121,6 +121,8 @@ Ils se reconstruisent avec les commandes du README à partir des fichiers de Max
   (`blur(10px)`) et le lui dire. Pas de personne de banque d'images en gros plan.
 - **Droits** : les rushs Pinterest et les musiques de Max ne sont pas licenciés — le dire à
   chaque livraison ; `techno.cjs` fournit une piste sans droits.
+- **Musique : techno énergique**, celle que Max désigne. Si la consigne est ambiguë (« la première musique »),
+  demander ou prendre Jiboya — la pub DropShop faite sur neurovibe (plus lente) a été refusée.
 - Réponses à Max en français, lien de la page à chaque livraison.
 
 ## Pièges déjà rencontrés

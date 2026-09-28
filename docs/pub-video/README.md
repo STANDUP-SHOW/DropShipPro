@@ -178,16 +178,17 @@ Le mode d'emploi complet (technique, étapes, grammaire visuelle validée par Ma
 pièges) est la skill Claude Code `.claude/skills/pub-video/SKILL.md`. Outils : `battements.cjs`
 (analyse de la musique), `extraire.cjs` (rush → images), `page-modele.html` (page de livraison).
 
-## Pub 7 · DropShop by DropShipper (31 s)
+## Pub 7 · DropShop by DropShipper (30 s)
 
 `pub-dropshop2.html` : DropShipper présente → DropShop apparaît « by DropShipper » → le bandeau passe au
 texte DropShop sur le drop → boutiques réelles, couleurs, DropShop Market (« bientôt »), clé en main →
-« Construisez votre DropShop sur DropShipper ». Musique neurovibe de 0:16,44 à 0:47,44 (106,3 BPM, drop à 9,03 s).
+« Construisez votre DropShop sur DropShipper ». Musique Vegas – Jiboya de 4:06 à 4:36 (141,7 BPM, drop à 4,28 s :
+DropShop apparaît sur le drop). Première version sur neurovibe refusée par Max : « pas la techno demandée ».
 Logos DropShop v2 (zip de Max) : `logos-v2/texte-dropshop.png`, `icone-dropshop.png`, `auvent-dropshop.png`.
 
 ```bash
-ffmpeg -ss 16.44 -t 31 -i sources/neurovibe.mp4 -vn \
-  -af "afade=t=in:d=0.03,afade=t=out:st=29.8:d=1.2,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/dropshop2.wav
+ffmpeg -ss 246 -t 30 -i sources/musique-annonces.mp3 \
+  -af "afade=t=in:d=0.03,afade=t=out:st=28.8:d=1.2,loudnorm=I=-14:TP=-1.5" -ar 48000 -ac 2 musiques/dropshop2.wav
 node extraire.cjs d2-ville sources/dropshop2/neon-city.mp4
 node extraire.cjs d2-telephones sources/dropshop2/stores.mp4 --filtre "crop=iw:ih*0.76:0:0,scale=-2:1280"   # ôte le filigrane du créateur
 node extraire.cjs d2-mockup sources/dropshop2/mockup.mp4
