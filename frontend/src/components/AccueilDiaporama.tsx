@@ -120,10 +120,34 @@ export function AccueilDiaporama({ themes, intervalle = 5000 }: { themes: DiapoT
   )
 }
 
-/** L'image de Max si elle existe ; sinon l'illustration de repli, sans image cassée. */
+/**
+ * L'illustration animée du thème (boucle MP4 de 8 s à côté de l'image : `x.jpg` → `x.mp4`),
+ * son affiche si la vidéo ne charge pas ou si le visiteur a demandé moins d'animations,
+ * puis l'illustration de repli — jamais d'image cassée.
+ */
 export function ImageOuRepli({ src, slug, alt, actif = true, className = '' }: { src: string; slug: string; alt: string; actif?: boolean; className?: string }) {
   const [manque, setManque] = useState(false)
+  const [sansVideo, setSansVideo] = useState(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  )
   if (manque) return <IllustrationTheme slug={slug} className={className} />
+  if (!sansVideo && /\.jpg$/i.test(src)) {
+    return (
+      <video
+        src={src.replace(/\.jpg$/i, '.mp4')}
+        poster={src}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload={actif ? 'auto' : 'metadata'}
+        aria-label={alt || undefined}
+        aria-hidden={alt ? undefined : true}
+        onError={() => setSansVideo(true)}
+        className={`h-full w-full object-cover ${className}`}
+      />
+    )
+  }
   return (
     <img
       src={src}
