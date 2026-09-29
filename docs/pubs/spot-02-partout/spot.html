@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Spot 2 — Prenez un produit, publiez-le partout</title>
+<!--
+  Spot publicitaire de 30 s, 1080 × 1920, dessiné image par image sur un canvas.
+  `window.rendre(t)` dessine l'instant t (en secondes) et ne dépend de rien
+  d'autre : rendre.cjs l'appelle 900 fois et enregistre chaque image. Ouvert
+  dans un navigateur avec ?lire, la page se joue en temps réel (aperçu).
+
+  Déroulé :
+    0 – 7,5   carte : les fournisseurs apparaissent, montent en bulles,
+              s'illuminent et lancent leurs flux vers le centre
+    7,5 – 12  on plonge et on suit les flux (tunnel)
+    12 – 18   le logo DropShipper reçoit, travaille, renvoie des flux colorés
+    18 – 21   on suit les flux sortants
+    21 – 26,5 les places de marché s'allument en bulles sur tout l'écran
+    26,5 – 30 carte de fin
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 600; src: url(polices/outfit-latin-600-normal.woff2) format('woff2'); }
+  @font-face { font-family: Outfit; font-weight: 800; src: url(polices/outfit-latin-800-normal.woff2) format('woff2'); }
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; width: 1080px; height: 1920px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const W = 1080, H = 1920, CX = W / 2
+const cv = document.getElementById('c')
+const ctx = cv.getContext('2d')
+const params = new URLSearchParams(location.search)
+// The tunnel frames live outside the repo (the rush comes from Pinterest).
+const TUNNEL = params.get('tunnel') || 'tunnel'
+const LOGOS = '../../../frontend/public/'
+
+// ---------------------------------------------------------------- data
+
+const FOURNISSEURS = [
+  // [logo, pin on the map (image px), slot in the air (screen px), colour]
+  ['logos-fournisseurs/aliexpress.png', [760, 820], [200, 360], '#ff4747'],
+  ['logos/temu_logo-svg.png', [1160, 760], [540, 300], '#ff7a00'],
+  ['logos-fournisseurs/alibaba.png', [1340, 900], [880, 360], '#ff6a00'],
+  ['logos-fournisseurs/cjdropshipping.png', [640, 1080], [120, 600], '#f59e0b'],
+  ['logos-fournisseurs/bigbuy.png', [960, 980], [370, 560], '#38bdf8'],
+  ['logos-fournisseurs/spocket.png', [1200, 1060], [710, 560], '#a855f7'],
+  ['logos-fournisseurs/joybuy.png', [1420, 1180], [960, 600], '#ef4444'],
+  ['logos-fournisseurs/printify.png', [820, 1260], [250, 820], '#22c55e'],
+  ['logos-fournisseurs/made-in-china.png', [1100, 1300], [830, 820], '#e11d48'],
+]
+
+const MARKETPLACES = [
+  // [logo, position, colour]
+  ['logos/amazon.png', [210, 470], '#ff9900'],
+  ['logos/ebay.png', [540, 430], '#3b82f6'],
+  ['logos/cdiscount-new-logo.png', [870, 470], '#22d3ee'],
+  ['logos/tiktokshop_logo.png', [130, 720], '#f43f5e'],
+  ['logos/fnac.png', [390, 690], '#fbbf24'],
+  ['logos/zalando.png', [690, 690], '#fb923c'],
+  ['logos/kaufland_marketplace.png', [950, 730], '#ef4444'],
+  ['logos/rakuten.png', [230, 960], '#e11d48'],
+  ['logos/instagram.png', [850, 980], '#ec4899'],
+  ['logos/manomano.png', [130, 1170], '#10b981'],
+  ['logos/facebookads.png', [950, 1180], '#3b82f6'],
+  ['logos/bol-logo.png', [130, 1590], '#3b82f6'],
+  ['logos/googleshoppingads.png', [380, 1720], '#34d399'],
+  ['logos/darty.png', [700, 1740], '#ef4444'],
+  ['logos/otto_logo.png', [950, 1590], '#f43f5e'],
+]
+
+const COULEURS = ['#a855f7', '#ec4899', '#22d3ee', '#fbbf24', '#34d399', '#f97316', '#60a5fa', '#f43f5e']
+
+// ---------------------------------------------------------------- helpers
+
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v))
+const lin = (t, a, b) => clamp((t - a) / (b - a))
+const easeOut = (u) => 1 - Math.pow(1 - u, 3)
+const easeIn = (u) => u * u * u
+const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2)
+const backOut = (u) => { const c = 1.9; return 1 + (c + 1) * Math.pow(u - 1, 3) + c * Math.pow(u - 1, 2) }
+const mix = (a, b, u) => a + (b - a) * u
+// Visible between a and b, with fades of f seconds.
+const fenetre = (t, a, b, f = 0.35) => Math.min(lin(t, a, a + f), 1 - lin(t, b - f, b))
+
+function aleatoire(graine) {
+  let s = graine >>> 0
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296 }
+}
+
+const images = {}
+function charger(src) {
+  if (images[src]) return images[src]
+  const img = new Image()
+  img.src = src
+  images[src] = img.decode().then(() => img).catch(() => null)
+  return images[src]
+}
+async function prechargerTout() {
+  await document.fonts.load('800 80px Outfit')
+  await document.fonts.load('600 40px Outfit')
+  const liste = ['images/carte-chine.jpg', 'images/caddie-monde.jpg', 'images/reseaux.jpg',
+    ...FOURNISSEURS.map((f) => LOGOS + f[0]), ...MARKETPLACES.map((m) => LOGOS + m[0])]
+  for (const s of liste) images[s] = await charger(s)
+}
+const img = (s) => images[s]
+
+async function tunnel(tt) {
+  const n = clamp(Math.round(tt * 30) + 1, 1, 705)
+  const src = `${TUNNEL}/${String(n).padStart(4, '0')}.jpg`
+  const i = new Image()
+  i.src = src
+  try { await i.decode(); return i } catch { return null }
+}
+
+// Draws an image covering the screen, zoomed by z around image point (fx, fy).
+function couvrir(im, z, fx, fy, alpha = 1, filtre = 'none') {
+  if (!im) return
+  const s = Math.max(W / im.width, H / im.height) * z
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.filter = filtre
+  ctx.drawImage(im, CX - fx * s, H / 2 - fy * s, im.width * s, im.height * s)
+  ctx.restore()
+}
+
+function texte(str, x, y, taille, o = {}) {
+  const u = o.u ?? 1
+  if (u <= 0) return
+  ctx.save()
+  ctx.font = `${o.poids || 800} ${taille}px Outfit`
+  ctx.textAlign = o.align || 'center'
+  ctx.textBaseline = 'middle'
+  ctx.globalAlpha = u
+  const sc = o.echelle ?? 1
+  ctx.translate(x, y + (1 - u) * (o.monte ?? 40))
+  ctx.scale(sc, sc)
+  if (o.flou && u < 1) ctx.filter = `blur(${(1 - u) * o.flou}px)`
+  let fill = o.couleur || '#fff'
+  if (o.degrade) {
+    const w = ctx.measureText(str).width
+    const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0)
+    o.degrade.forEach((c, i) => g.addColorStop(i / (o.degrade.length - 1), c))
+    fill = g
+  }
+  ctx.shadowColor = o.lueur || 'rgba(168,85,247,.9)'
+  ctx.shadowBlur = o.halo ?? 36
+  ctx.fillStyle = fill
+  ctx.fillText(str, 0, 0)
+  ctx.shadowBlur = (o.halo ?? 36) / 3
+  ctx.fillText(str, 0, 0)
+  ctx.restore()
+}
+
+function voile(alpha, couleur = '0,0,0') {
+  ctx.fillStyle = `rgba(${couleur},${alpha})`
+  ctx.fillRect(0, 0, W, H)
+}
+
+function degradeBas(a) {
+  const g = ctx.createLinearGradient(0, H * 0.55, 0, H)
+  g.addColorStop(0, 'rgba(5,4,15,0)')
+  g.addColorStop(1, `rgba(5,4,15,${a})`)
+  ctx.fillStyle = g
+  ctx.fillRect(0, H * 0.55, W, H * 0.45)
+}
+
+function eclair(x, y, r, a, couleur = '255,255,255') {
+  if (a <= 0) return
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+  g.addColorStop(0, `rgba(${couleur},${a})`)
+  g.addColorStop(0.35, `rgba(${couleur},${a * 0.45})`)
+  g.addColorStop(1, `rgba(${couleur},0)`)
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.fillStyle = g
+  ctx.fillRect(x - r, y - r, r * 2, r * 2)
+  ctx.restore()
+}
+
+// A soap bubble holding a logo on a white disc. `lum` 0..1 lights it up.
+function bulle(x, y, r, logo, couleur, lum, t, echelle = 1) {
+  if (echelle <= 0.01) return
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(echelle, echelle)
+  // halo
+  if (lum > 0) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    const g = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 2.1)
+    g.addColorStop(0, hexa(couleur, 0.55 * lum))
+    g.addColorStop(1, hexa(couleur, 0))
+    ctx.fillStyle = g
+    ctx.beginPath(); ctx.arc(0, 0, r * 2.1, 0, Math.PI * 2); ctx.fill()
+    ctx.restore()
+  }
+  // glass body
+  const corps = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r)
+  corps.addColorStop(0, 'rgba(255,255,255,.18)')
+  corps.addColorStop(0.7, 'rgba(120,90,255,.10)')
+  corps.addColorStop(1, 'rgba(255,255,255,.28)')
+  ctx.fillStyle = corps
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill()
+  // iridescent rim, turning slowly
+  const a0 = t * 1.3
+  const rim = ctx.createConicGradient ? ctx.createConicGradient(a0, 0, 0) : null
+  if (rim) {
+    ;['#22d3ee', '#a855f7', '#ec4899', '#fbbf24', '#34d399', '#22d3ee'].forEach((c, i, l) => rim.addColorStop(i / (l.length - 1), c))
+  }
+  ctx.lineWidth = 5
+  ctx.strokeStyle = rim || couleur
+  ctx.shadowColor = couleur
+  ctx.shadowBlur = 18 + 40 * lum
+  ctx.beginPath(); ctx.arc(0, 0, r - 2, 0, Math.PI * 2); ctx.stroke()
+  ctx.shadowBlur = 0
+  // white disc + logo
+  const rd = r * 0.72
+  ctx.fillStyle = '#fff'
+  ctx.beginPath(); ctx.arc(0, 0, rd, 0, Math.PI * 2); ctx.fill()
+  const im = img(LOGOS + logo)
+  if (im) {
+    const box = rd * 1.3
+    const k = Math.min(box / im.width, box / im.height)
+    ctx.save()
+    ctx.beginPath(); ctx.arc(0, 0, rd - 2, 0, Math.PI * 2); ctx.clip()
+    ctx.drawImage(im, (-im.width * k) / 2, (-im.height * k) / 2, im.width * k, im.height * k)
+    ctx.restore()
+  }
+  // specular highlight
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'
+  ctx.lineWidth = 6
+  ctx.lineCap = 'round'
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.84, Math.PI * 1.1, Math.PI * 1.38); ctx.stroke()
+  ctx.fillStyle = 'rgba(255,255,255,.8)'
+  ctx.beginPath(); ctx.arc(r * 0.5, -r * 0.62, r * 0.06, 0, Math.PI * 2); ctx.fill()
+  ctx.restore()
+  ctx.restore()
+}
+
+function hexa(h, a) {
+  const n = parseInt(h.slice(1), 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
+
+// Quadratic curve point.
+function qpt(p0, c, p1, u) {
+  const v = 1 - u
+  return [v * v * p0[0] + 2 * v * u * c[0] + u * u * p1[0], v * v * p0[1] + 2 * v * u * c[1] + u * u * p1[1]]
+}
+
+// A glowing flow from p0 to p1 through c, drawn up to `longueur` (0..1),
+// with particles running along it.
+function flux(p0, c, p1, couleur, longueur, t, graine, epaisseur = 1) {
+  if (longueur <= 0) return
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.lineCap = 'round'
+  const pas = 40
+  const passes = [[26 * epaisseur, 0.10], [12 * epaisseur, 0.28], [4 * epaisseur, 0.95]]
+  for (const [lw, a] of passes) {
+    ctx.beginPath()
+    for (let i = 0; i <= pas; i++) {
+      const [x, y] = qpt(p0, c, p1, (i / pas) * longueur)
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)
+    }
+    ctx.strokeStyle = lw < 6 ? `rgba(255,255,255,${a * 0.9})` : hexa(couleur, a)
+    ctx.shadowColor = couleur
+    ctx.shadowBlur = lw < 6 ? 14 : 0
+    ctx.lineWidth = lw
+    ctx.stroke()
+  }
+  ctx.shadowBlur = 0
+  const rnd = aleatoire(graine)
+  for (let k = 0; k < 7; k++) {
+    const vit = 0.35 + rnd() * 0.5
+    const u = (rnd() + t * vit) % 1
+    if (u > longueur) continue
+    const [x, y] = qpt(p0, c, p1, u)
+    const r = 5 + rnd() * 7
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 3)
+    g.addColorStop(0, 'rgba(255,255,255,1)')
+    g.addColorStop(0.3, hexa(couleur, 0.9))
+    g.addColorStop(1, hexa(couleur, 0))
+    ctx.fillStyle = g
+    ctx.beginPath(); ctx.arc(x, y, r * 3, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.restore()
+}
+
+// Streaks rushing from the centre towards the viewer: speed of the dive.
+function vitesse(t, force, graine, couleurs = COULEURS, cx = CX, cy = H * 0.47) {
+  if (force <= 0) return
+  const rnd = aleatoire(graine)
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.lineCap = 'round'
+  for (let i = 0; i < 70; i++) {
+    const ang = rnd() * Math.PI * 2
+    const v = 0.5 + rnd() * 0.9
+    const u = (rnd() + t * v) % 1
+    const d0 = 60 + u * u * 1300
+    const d1 = d0 + 30 + u * u * 260
+    const c = couleurs[i % couleurs.length]
+    ctx.strokeStyle = hexa(c, 0.8 * force * Math.min(1, u * 4))
+    ctx.lineWidth = 1.5 + u * 6
+    ctx.beginPath()
+    ctx.moveTo(cx + Math.cos(ang) * d0, cy + Math.sin(ang) * d0)
+    ctx.lineTo(cx + Math.cos(ang) * d1, cy + Math.sin(ang) * d1)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+function logoDropShipper(x, y, taille, lum, t) {
+  ctx.save()
+  ctx.translate(x, y)
+  const s = taille / 128
+  // light around
+  eclair(0, 0, taille * 1.8, 0.45 * lum, '192,132,252')
+  eclair(0, 0, taille * 1.1, 0.35 * lum, '236,72,153')
+  // rotating rings
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.lineCap = 'round'
+  for (let k = 0; k < 3; k++) {
+    const rr = taille * (0.9 + k * 0.2)
+    const a = t * (k % 2 ? -1.6 : 1.1) + k
+    ctx.strokeStyle = hexa(['#22d3ee', '#ec4899', '#fbbf24'][k], 0.85 * lum)
+    ctx.shadowColor = ['#22d3ee', '#ec4899', '#fbbf24'][k]
+    ctx.shadowBlur = 20
+    ctx.lineWidth = 6 - k
+    ctx.beginPath(); ctx.arc(0, 0, rr, a, a + Math.PI * 0.9); ctx.stroke()
+    ctx.beginPath(); ctx.arc(0, 0, rr, a + Math.PI, a + Math.PI * 1.5); ctx.stroke()
+  }
+  ctx.restore()
+  // icon: gradient rounded square with the white cube (same drawing as the favicon)
+  ctx.scale(s, s)
+  ctx.translate(-64, -64)
+  ctx.shadowColor = 'rgba(236,72,153,.9)'
+  ctx.shadowBlur = 50 * lum
+  const g = ctx.createLinearGradient(0, 0, 128, 128)
+  g.addColorStop(0, '#a855f7'); g.addColorStop(1, '#ec4899')
+  ctx.fillStyle = g
+  ctx.beginPath(); ctx.roundRect(0, 0, 128, 128, 28); ctx.fill()
+  ctx.shadowBlur = 0
+  const refl = ctx.createRadialGradient(38, 28, 0, 38, 28, 90)
+  refl.addColorStop(0, 'rgba(255,255,255,.28)'); refl.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = refl
+  ctx.beginPath(); ctx.roundRect(0, 0, 128, 128, 28); ctx.fill()
+  const cube = new Path2D('M64 24L104 46L104 84L64 106L24 84L24 46ZM24 46L64 66L104 46M64 66L64 106')
+  ctx.strokeStyle = '#fff'
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round'
+  ctx.lineWidth = 7
+  ctx.shadowColor = '#fff'
+  ctx.shadowBlur = 10 + 14 * lum
+  ctx.stroke(cube)
+  ctx.restore()
+}
+
+// A glass label with a check mark.
+function puce(str, x, y, u, couleur, taille = 46) {
+  if (u <= 0) return
+  ctx.save()
+  ctx.globalAlpha = clamp(u)
+  ctx.translate(x, y + (1 - easeOut(clamp(u))) * 50)
+  ctx.font = `600 ${taille}px Outfit`
+  const w = ctx.measureText(str).width + taille * 2.6
+  const h = taille * 1.9
+  ctx.fillStyle = 'rgba(20,14,40,.72)'
+  ctx.strokeStyle = couleur
+  ctx.lineWidth = 3
+  ctx.shadowColor = couleur
+  ctx.shadowBlur = 30
+  ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, h / 2); ctx.fill(); ctx.stroke()
+  ctx.shadowBlur = 0
+  // check
+  const cx = -w / 2 + taille * 1.05
+  ctx.fillStyle = couleur
+  ctx.beginPath(); ctx.arc(cx, 0, taille * 0.5, 0, Math.PI * 2); ctx.fill()
+  ctx.strokeStyle = '#0b0a14'
+  ctx.lineWidth = taille * 0.12
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(cx - taille * 0.22, 0); ctx.lineTo(cx - taille * 0.05, taille * 0.18); ctx.lineTo(cx + taille * 0.24, -taille * 0.18)
+  ctx.stroke()
+  ctx.fillStyle = '#fff'
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+  ctx.fillText(str, cx + taille * 0.8, 2)
+  ctx.restore()
+}
+
+// ---------------------------------------------------------------- scenes
+
+// Map view: image point -> screen point for the zoom at time t.
+const CARTE_CENTRE = [1000, 1060]
+function zoomCarte(t) { return 1.25 + 0.25 * easeInOut(lin(t, 0, 7)) }
+function versEcran(p, t) {
+  const im = img('images/carte-chine.jpg')
+  const s = Math.max(W / im.width, H / im.height) * zoomCarte(t)
+  return [CX + (p[0] - CARTE_CENTRE[0]) * s, H / 2 + (p[1] - CARTE_CENTRE[1]) * s]
+}
+const CONVERGENCE = [CX, 1000]
+
+function sceneFournisseurs(t) {
+  // Dive into the convergence point at the end.
+  const plonge = easeIn(lin(t, 6.3, 7.6))
+  ctx.save()
+  const zp = 1 + plonge * 6
+  ctx.translate(CONVERGENCE[0], CONVERGENCE[1])
+  ctx.scale(zp, zp)
+  ctx.translate(-CONVERGENCE[0], -CONVERGENCE[1])
+
+  couvrir(img('images/carte-chine.jpg'), zoomCarte(t), CARTE_CENTRE[0], CARTE_CENTRE[1], 1, 'saturate(1.2) brightness(.8)')
+  voile(0.25, '8,6,25')
+  eclair(CONVERGENCE[0], CONVERGENCE[1], 420, 0.25 + 0.4 * lin(t, 4, 6.5), '120,200,255')
+
+  FOURNISSEURS.forEach(([logo, pin, slot, couleur], i) => {
+    const t0 = 0.5 + i * 0.32
+    const pinE = versEcran(pin, t)
+    // pin flash on the map
+    const up = lin(t, t0, t0 + 0.6)
+    if (up > 0 && up < 1) {
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.strokeStyle = hexa(couleur, 1 - up)
+      ctx.lineWidth = 6
+      ctx.beginPath(); ctx.arc(pinE[0], pinE[1], 20 + up * 120, 0, Math.PI * 2); ctx.stroke()
+      ctx.restore()
+      eclair(pinE[0], pinE[1], 90, 0.9 * (1 - up))
+    }
+    // rise into the air
+    const u = easeOut(lin(t, t0 + 0.15, t0 + 1.9))
+    if (u <= 0) return
+    const flotte = Math.sin(t * 1.7 + i) * 10
+    const x = mix(pinE[0], slot[0], u) + Math.sin(u * Math.PI * 2 + i) * 30 * (1 - u)
+    const y = mix(pinE[1], slot[1], u) + flotte * u
+    // thin tether to the map while rising
+    if (u < 1) flux(pinE, [mix(pinE[0], x, 0.2), mix(pinE[1], y, 0.6)], [x, y], couleur, 1, t, 90 + i, 0.4 * (1 - u))
+    const lum = lin(t, t0 + 1.7, t0 + 2.2) * (0.75 + 0.25 * Math.sin(t * 6 + i))
+    // lit bubbles send their flow to the convergence point
+    const f = easeOut(lin(t, 3.9 + i * 0.12, 5.2 + i * 0.12))
+    if (f > 0) {
+      const c = [mix(x, CONVERGENCE[0], 0.2) + (x < CX ? -120 : 120), mix(y, CONVERGENCE[1], 0.75)]
+      flux([x, y], c, CONVERGENCE, couleur, f, t, 10 + i)
+    }
+    bulle(x, y, 96, logo, couleur, lum, t, backOut(lin(t, t0 + 0.1, t0 + 0.7)) * (0.6 + 0.4 * u))
+  })
+  eclair(CONVERGENCE[0], CONVERGENCE[1], 260, 0.6 * lin(t, 5, 6.5))
+  ctx.restore()
+
+  degradeBas(0.85 * (1 - plonge))
+  // captions
+  const a1 = fenetre(t, 0.3, 3.7)
+  texte('DROP SHIPPING 2027', CX, 1330, 44, { u: a1, poids: 600, lueur: '#22d3ee', couleur: '#a5f3fc', halo: 24 })
+  texte('Prenez un produit.', CX, 1420, 92, { u: easeOut(lin(t, 0.35, 0.9)) * a1, flou: 12 })
+  texte("De n'importe où.", CX, 1525, 92, { u: easeOut(lin(t, 1.0, 1.6)) * a1, flou: 12, degrade: ['#22d3ee', '#a855f7', '#ec4899'] })
+  const a2 = fenetre(t, 3.9, 6.6)
+  texte('AliExpress, Temu, CJ, Alibaba…', CX, 1420, 64, { u: a2, poids: 600, flou: 10 })
+  texte('38 fournisseurs branchés', CX, 1520, 80, { u: easeOut(lin(t, 4.2, 4.8)) * a2, flou: 12, degrade: ['#fbbf24', '#ec4899'] })
+  eclair(CONVERGENCE[0], CONVERGENCE[1], 1400 * plonge, plonge)
+}
+
+async function sceneTunnel(t, t0, teinte, sombre) {
+  const fr = await tunnel(t - 7.5)
+  const arrivee = easeOut(lin(t, t0, t0 + 0.9))
+  couvrir(fr, 1 + (1 - arrivee) * 0.8, 540, 960, 1, `hue-rotate(${teinte}deg) saturate(1.25) brightness(${1 - sombre})`)
+}
+
+function fluxTags(t, a, b, tags) {
+  // Captured data flying from the hub past the camera.
+  tags.forEach(([str, couleur], i) => {
+    const ts = a + i * ((b - a) / tags.length)
+    const u = lin(t, ts, ts + 1.6)
+    if (u <= 0 || u >= 1) return
+    const ang = -Math.PI / 2 + (i % 2 ? 1 : -1) * (0.55 + (i % 3) * 0.35)
+    const d = 30 + easeIn(u) * 900
+    const x = CX + Math.cos(ang) * d
+    const y = H * 0.47 + Math.sin(ang) * d * 0.9
+    ctx.save()
+    ctx.translate(x, y)
+    const sc = 0.35 + easeIn(u) * 1.6
+    ctx.scale(sc, sc)
+    puce(str, 0, 0, Math.min(1, u * 5) * (1 - lin(u, 0.8, 1)), couleur, 44)
+    ctx.restore()
+  })
+}
+
+async function sceneRecolte(t) {
+  await sceneTunnel(t, 7.5, 0, 0.1)
+  vitesse(t, lin(t, 7.5, 8.2) * (1 - lin(t, 11.6, 12)), 7)
+  fluxTags(t, 8.2, 11.4, [['Photos', '#22d3ee'], ['Prix', '#fbbf24'], ['Variantes', '#ec4899'], ['Description', '#34d399'], ['Avis', '#a855f7'], ['EAN', '#f97316']])
+  eclair(CX, H * 0.47, 900, 1 - lin(t, 7.5, 8.1))
+  const a = fenetre(t, 8.0, 11.9)
+  degradeBas(0.9 * a)
+  texte("L'IA récolte tout", CX, 1440, 96, { u: easeOut(lin(t, 8.1, 8.7)) * a, flou: 14, degrade: ['#22d3ee', '#a855f7'] })
+  texte('en un clic, depuis la page', CX, 1545, 54, { u: easeOut(lin(t, 8.6, 9.2)) * a, poids: 600, lueur: '#22d3ee' })
+}
+
+const LOGO = [CX, 880]
+async function sceneLogo(t) {
+  await sceneTunnel(t, 12, 0, 0.45)
+  voile(0.25, '6,4,18')
+  const plonge = easeIn(lin(t, 17.2, 18.1))
+  ctx.save()
+  const cible = [930, 380]
+  const zp = 1 + plonge * 7
+  ctx.translate(mix(LOGO[0], cible[0], plonge * 0.6), mix(LOGO[1], cible[1], plonge * 0.6))
+  ctx.scale(zp, zp)
+  ctx.translate(-LOGO[0], -LOGO[1])
+
+  // incoming data: particles spiralling in
+  const entrant = fenetre(t, 12.3, 15.6, 0.5)
+  if (entrant > 0) {
+    const rnd = aleatoire(3)
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    for (let i = 0; i < 60; i++) {
+      const ang0 = rnd() * Math.PI * 2
+      const v = 0.6 + rnd() * 0.6
+      const u = (rnd() + t * v) % 1
+      const d = (1 - u) * 1100 + 150
+      const ang = ang0 + u * 1.4
+      const x = LOGO[0] + Math.cos(ang) * d, y = LOGO[1] + Math.sin(ang) * d * 1.2
+      const c = COULEURS[i % COULEURS.length]
+      const r = 4 + rnd() * 6
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 3)
+      g.addColorStop(0, `rgba(255,255,255,${entrant})`)
+      g.addColorStop(1, hexa(c, 0))
+      ctx.fillStyle = g
+      ctx.beginPath(); ctx.arc(x, y, r * 3, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.restore()
+  }
+  // outgoing coloured flows
+  const sortant = lin(t, 14.6, 16.2)
+  if (sortant > 0) {
+    for (let i = 0; i < 8; i++) {
+      const ang = -Math.PI / 2 + (i - 3.5) * 0.42 + (i >= 4 ? Math.PI : 0) * 0 + Math.sin(t * 0.8 + i) * 0.05
+      const loin = [LOGO[0] + Math.cos(ang) * 1400 * (i % 2 ? 1 : 0.85), LOGO[1] + Math.sin(ang) * 1400]
+      const tourne = i % 2 ? 1 : -1
+      const c = [LOGO[0] + Math.cos(ang + 0.5 * tourne) * 500, LOGO[1] + Math.sin(ang + 0.5 * tourne) * 500]
+      flux(LOGO, c, loin, COULEURS[i], easeOut(clamp(sortant * 1.4 - i * 0.05)), t, 40 + i, 1)
+    }
+    for (let i = 0; i < 8; i++) {
+      const ang = Math.PI / 2 + (i - 3.5) * 0.36
+      const loin = [LOGO[0] + Math.cos(ang) * 1500, LOGO[1] + Math.sin(ang) * 1500]
+      const c = [LOGO[0] + Math.cos(ang - 0.45) * 420, LOGO[1] + Math.sin(ang - 0.45) * 420]
+      flux(LOGO, c, loin, COULEURS[(i + 3) % 8], easeOut(clamp(sortant * 1.4 - 0.2 - i * 0.05)), t, 60 + i, 0.8)
+    }
+  }
+  const apparait = backOut(lin(t, 12.1, 12.8))
+  const pouls = 0.8 + 0.2 * Math.sin(t * 7)
+  eclair(LOGO[0], LOGO[1], 700, (1 - lin(t, 12, 12.6)) * 1.2)
+  if (apparait > 0) logoDropShipper(LOGO[0], LOGO[1], 250 * apparait, clamp(lin(t, 12.2, 12.8) * pouls + lin(t, 14.4, 14.8) * 0.3), t)
+  ctx.restore()
+  eclair(cible[0], cible[1], 1500 * plonge, plonge)
+
+  const a = fenetre(t, 12.4, 17.4)
+  texte('DropShipper IA', CX, 330, 110, { u: easeOut(lin(t, 12.4, 13)) * a, flou: 14, degrade: ['#c084fc', '#ec4899', '#fbbf24'] })
+  texte('reçoit, travaille, renvoie', CX, 440, 52, { u: easeOut(lin(t, 12.8, 13.4)) * a, poids: 600, lueur: '#ec4899' })
+  const puces = [['Réécrit l’annonce', '#34d399'], ['Filigrane les photos', '#22d3ee'], ['Calcule la marge', '#fbbf24'], ['Range la catégorie', '#ec4899']]
+  puces.forEach(([str, c], i) => {
+    const t0 = 13.3 + i * 0.75
+    puce(str, CX, 1270 + i * 118, easeOut(lin(t, t0, t0 + 0.45)) * a, c, 44)
+  })
+}
+
+async function sceneSortie(t) {
+  await sceneTunnel(t, 18, 110, 0.05)
+  vitesse(t, lin(t, 18, 18.5) * (1 - lin(t, 20.6, 21)), 11, ['#22d3ee', '#34d399', '#fbbf24', '#ec4899'])
+  eclair(CX, H * 0.47, 900, 1 - lin(t, 18, 18.6))
+  const a = fenetre(t, 18.3, 21)
+  degradeBas(0.9 * a)
+  texte('…et publie', CX, 1400, 104, { u: easeOut(lin(t, 18.4, 19)) * a, flou: 14 })
+  texte('PARTOUT.', CX, 1530, 150, { u: easeOut(lin(t, 19, 19.5)) * a, flou: 18, echelle: 1 + 0.05 * Math.sin(t * 8), lueur: '#22d3ee', halo: 50 })
+  eclair(CX, H * 0.47, 1400 * easeIn(lin(t, 20.4, 21)), easeIn(lin(t, 20.4, 21)))
+}
+
+const CADDIE = [540, 1140]
+function sceneMarketplaces(t) {
+  const z = 1.35 - 0.3 * easeOut(lin(t, 21, 26.5))
+  couvrir(img('images/caddie-monde.jpg'), z, 368, 600, 1, 'saturate(1.3) brightness(.85)')
+  couvrir(img('images/reseaux.jpg'), 1.05 + 0.1 * lin(t, 23.8, 26.5), 1000, 1000, easeInOut(lin(t, 23.8, 24.8)) * 0.9, 'brightness(.7) saturate(1.2)')
+  voile(0.3, '6,4,18')
+  eclair(CADDIE[0], CADDIE[1], 520, 0.5 + 0.2 * Math.sin(t * 5), '120,200,255')
+  MARKETPLACES.forEach(([logo, pos, couleur], i) => {
+    const t0 = 21.2 + i * 0.17
+    const f = easeOut(lin(t, t0, t0 + 0.55))
+    const c = [mix(CADDIE[0], pos[0], 0.5) + (pos[1] < CADDIE[1] ? 1 : -1) * (pos[0] - CX) * 0.3, mix(CADDIE[1], pos[1], 0.5) - 160]
+    flux(CADDIE, c, pos, couleur, f, t, 200 + i, 0.8)
+    const e = backOut(lin(t, t0 + 0.45, t0 + 0.95))
+    const flotte = Math.sin(t * 1.9 + i * 1.3) * 12
+    bulle(pos[0], pos[1] + flotte, 92, logo, couleur, lin(t, t0 + 0.5, t0 + 1.1) * (0.75 + 0.25 * Math.sin(t * 6 + i)), t, e)
+    eclair(pos[0], pos[1], 200, 0.8 * (1 - lin(t, t0 + 0.5, t0 + 1)) * (t > t0 + 0.45 ? 1 : 0))
+  })
+  eclair(CX, H / 2, 1200, 1 - lin(t, 21, 21.6))
+  // top caption on a dark band so it reads over the bubbles
+  const a = fenetre(t, 21.4, 26.4)
+  const g = ctx.createLinearGradient(0, 0, 0, 360)
+  g.addColorStop(0, `rgba(5,4,15,${0.85 * a})`); g.addColorStop(1, 'rgba(5,4,15,0)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 360)
+  texte('Une annonce.', CX, 150, 84, { u: easeOut(lin(t, 21.5, 22)) * a, flou: 12 })
+  texte('314 canaux de vente.', CX, 255, 84, { u: easeOut(lin(t, 22.1, 22.6)) * a, flou: 12, degrade: ['#fbbf24', '#ec4899', '#a855f7'] })
+  const b = fenetre(t, 23.6, 26.4)
+  ctx.fillStyle = `rgba(5,4,15,${0.55 * b})`
+  ctx.beginPath(); ctx.roundRect(90, 1300, 900, 150, 75); ctx.fill()
+  texte('Marketplaces, boutiques, réseaux', CX, 1375, 52, { u: b, poids: 600, lueur: '#22d3ee' })
+  eclair(CX, H / 2, 1500 * easeIn(lin(t, 26, 26.6)), easeIn(lin(t, 26, 26.6)))
+}
+
+async function sceneFin(t) {
+  const fr = await tunnel(Math.min(t - 7.5, 23.3))
+  couvrir(fr, 1.1, 540, 960, 1, 'hue-rotate(40deg) brightness(.45) saturate(1.2)')
+  voile(0.35, '6,4,18')
+  eclair(CX, H / 2, 1500, 1 - lin(t, 26.5, 27.1))
+  logoDropShipper(CX, 640, 230 * backOut(lin(t, 26.6, 27.2)), 0.85 + 0.15 * Math.sin(t * 5), t)
+  texte('DropShipper IA', CX, 950, 118, { u: easeOut(lin(t, 26.9, 27.4)), flou: 14 })
+  texte('Drop Shipping 2027', CX, 1080, 76, { u: easeOut(lin(t, 27.2, 27.7)), flou: 12, degrade: ['#22d3ee', '#a855f7', '#ec4899'] })
+  texte('la révolution.', CX, 1170, 76, { u: easeOut(lin(t, 27.45, 27.95)), flou: 12, degrade: ['#a855f7', '#ec4899', '#fbbf24'] })
+  const u = backOut(lin(t, 27.8, 28.3))
+  if (u > 0) {
+    ctx.save()
+    ctx.translate(CX, 1370)
+    ctx.scale(u, u)
+    const g = ctx.createLinearGradient(-330, 0, 330, 0)
+    g.addColorStop(0, '#a855f7'); g.addColorStop(1, '#ec4899')
+    ctx.fillStyle = g
+    ctx.shadowColor = '#ec4899'
+    ctx.shadowBlur = 40 + 20 * Math.sin(t * 6)
+    ctx.beginPath(); ctx.roundRect(-330, -68, 660, 136, 68); ctx.fill()
+    ctx.restore()
+    texte('Essayer gratuitement', CX, 1372, 58, { u: clamp(u), monte: 0, lueur: 'rgba(255,255,255,.6)', halo: 12 })
+  }
+  texte('drop-shipper.fr', CX, 1510, 62, { u: easeOut(lin(t, 28.2, 28.7)), poids: 600, lueur: '#22d3ee', couleur: '#a5f3fc' })
+}
+
+// ---------------------------------------------------------------- entry points
+
+let pret = null
+window.rendre = async (t) => {
+  if (!pret) pret = prechargerTout()
+  await pret
+  ctx.save()
+  ctx.fillStyle = '#05040f'
+  ctx.fillRect(0, 0, W, H)
+  if (t < 7.6) sceneFournisseurs(t)
+  else if (t < 12) await sceneRecolte(t)
+  else if (t < 18.05) await sceneLogo(t)
+  else if (t < 21) await sceneSortie(t)
+  else if (t < 26.6) sceneMarketplaces(t)
+  else await sceneFin(t)
+  ctx.restore()
+  return true
+}
+window.DUREE = 30
+
+if (params.has('lire')) {
+  const debut = performance.now() - (+params.get('lire') || 0) * 1000
+  const boucle = async () => {
+    await window.rendre(((performance.now() - debut) / 1000) % 30)
+    requestAnimationFrame(boucle)
+  }
+  boucle()
+} else if (params.has('t')) {
+  window.rendre(+params.get('t'))
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Rushes, extracted frames, previews and rendered videos stay out of the repo.
+.tunnel
+.apercu-*.png
+*.mp4
