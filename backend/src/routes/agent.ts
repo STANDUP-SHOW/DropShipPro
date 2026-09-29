@@ -204,6 +204,75 @@ agentRouter.get('/opportunities', async (req: AgentRequest, res) => {
   res.json({ count: items.length, opportunities: items })
 })
 
+const shareSchema = z.object({
+  url: z.string().url().max(2000),
+  /** Transmis par le partage système (Web Share Target : title, text, url) quand il y en a un. */
+  title: z.string().trim().max(300).optional(),
+  note: z.string().trim().max(4000).optional(),
+  /** "mobile" par défaut ; laisse la place à un autre client demain (desktop, extension…). */
+  source: z.string().trim().max(40).optional(),
+})
+
+/**
+ * Le bouton « partager » du mobile : une URL, rien d'autre d'exigé.
+ *
+ * Volontairement séparé de `/opportunities`, qui attend un lot déjà analysé
+ * (prix, marge…). Ici l'utilisateur vient de voir un produit dans une autre
+ * app et clique « partager » — lui demander un prix ferait échouer le geste.
+ * Le lien atterrit dans la file `SharedLink`, que l'application desktop (à
+ * venir) videra pour lancer le téléchargement automatique chez le fournisseur.
+ */
+agentRouter.post('/share', async (req: AgentRequest, res) => {
+  const parsed = shareSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Partage invalide',
+      details: parsed.error.issues.slice(0, 10).map((i) => `${i.path.join('.')} : ${i.message}`),
+    })
+  }
+
+  const { url, title, note, source } = parsed.data
+  const data = { title: title ?? null, note: note ?? null, source: source || 'mobile' }
+
+  // Repartager le même lien remonte les infos (titre, note) sans dupliquer la
+  // ligne — utile si un premier partage n'avait pas de titre et le suivant en a un.
+  const link = await prisma.sharedLink.upsert({
+    where: { userId_url: { userId: req.userId!, url } },
+    create: { ...data, url, userId: req.userId! },
+    update: data,
+  })
+
+  res.status(201).json({ ok: true, id: link.id, status: link.status })
+})
+
+/** Ce que l'application desktop récupère pour lancer le téléchargement automatique. */
+agentRouter.get('/share', async (req: AgentRequest, res) => {
+  const status = typeof req.query.status === 'string' ? req.query.status.toUpperCase() : null
+  const valid = ['NEW', 'CLAIMED', 'DONE']
+
+  const items = await prisma.sharedLink.findMany({
+    where: {
+      userId: req.userId!,
+      ...(status && valid.includes(status) ? { status: status as 'NEW' } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  })
+
+  res.json({ count: items.length, links: items })
+})
+
+/** L'application desktop marque un lien pris en charge, pour ne pas le retélécharger au passage suivant. */
+agentRouter.post('/share/:id/claim', async (req: AgentRequest, res) => {
+  const status = req.body?.status === 'DONE' ? 'DONE' : 'CLAIMED'
+  const result = await prisma.sharedLink.updateMany({
+    where: { id: req.params.id, userId: req.userId! },
+    data: { status, claimedAt: new Date() },
+  })
+  if (result.count === 0) return res.status(404).json({ error: 'Lien introuvable' })
+  res.json({ ok: true, status })
+})
+
 const signalSchema = z.object({
   /** SOCIAL : réseaux sociaux. MARKET : places de marché, prix, concurrence. */
   kind: z.enum(['SOCIAL', 'MARKET']),

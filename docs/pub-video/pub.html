@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Publicité DropShipper IA — 30 s, 9:16</title>
+<!--
+  Publicité verticale de 30 secondes (Shorts, Reels, TikTok), 1080 × 1920.
+
+  Chaque image est une fonction du temps : rendre(t) pose tous les styles pour
+  l'instant t, sans aucune animation CSS. C'est ce qui permet à rendre.cjs de
+  photographier la page image par image sans jamais rater ni doubler une image.
+  Ouverte dans un navigateur, la page se joue toute seule (lecture en boucle),
+  et ?t=12.5 fige l'instant voulu.
+
+  Les textes viennent de frontend/src/data/accueil-themes.json (titres des
+  sections de l'accueil) ; les chiffres sont ceux de la page, pas des arrondis.
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+  :root {
+    --fond: #0b0a14;
+    --rose: #ec4899;
+    --violet: #a855f7;
+    --degrade: linear-gradient(135deg, #c084fc 0%, #ec4899 100%);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--fond); }
+  body { font-family: Outfit, system-ui, sans-serif; color: #fff; position: relative; }
+
+  #scene { position: absolute; inset: 0; overflow: hidden; background: var(--fond); }
+  .fond-points { position: absolute; inset: -40px; background-image: radial-gradient(rgba(255,255,255,0.07) 1.5px, transparent 1.5px); background-size: 44px 44px; }
+  .orbe { position: absolute; border-radius: 50%; filter: blur(90px); will-change: transform; }
+  #orbe1 { width: 900px; height: 900px; background: radial-gradient(circle, rgba(168,85,247,0.55), transparent 65%); }
+  #orbe2 { width: 800px; height: 800px; background: radial-gradient(circle, rgba(236,72,153,0.45), transparent 65%); }
+
+  /* Barre de marque, présente de la première scène à la dernière */
+  #marque { position: absolute; top: 96px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 18px; }
+  #marque img { width: 72px; height: 72px; border-radius: 26%; box-shadow: 0 0 26px rgba(192,38,211,0.6); }
+  #marque span { font-weight: 800; font-size: 46px; }
+  .grad { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* Une scène = un calque plein écran */
+  .plan { position: absolute; inset: 0; opacity: 0; will-change: transform, opacity, filter; }
+  .etiquette { position: absolute; top: 250px; left: 0; right: 0; text-align: center; }
+  .etiquette b { display: inline-block; font-weight: 600; font-size: 30px; letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 12px 28px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #f5d0fe; }
+  .legende { position: absolute; top: 330px; left: 60px; right: 60px; text-align: center; font-weight: 900; font-size: 118px; line-height: 1.02; letter-spacing: -0.02em; }
+  .legende .l { display: block; }
+  .neon { color: #fff; text-shadow: 0 0 3px #fff, 0 0 14px var(--n), 0 0 34px var(--n), 0 0 70px color-mix(in srgb, var(--n) 50%, transparent); }
+  .n1 { --n: #f5ff3d; } .n2 { --n: #2ef2ff; } .n3 { --n: #ff8a1f; } .n4 { --n: #c04dff; } .n5 { --n: #39ff7a; } .n6 { --n: #ff4fd8; }
+  .titre { position: absolute; top: 1370px; left: 90px; right: 90px; text-align: center; font-weight: 700; font-size: 50px; line-height: 1.15; color: #e9e3ff; }
+  .titre small { display: block; margin-top: 16px; font-weight: 400; font-size: 36px; color: #b9b0d6; }
+
+  .fondvideo { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+  .voile { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,10,20,0.82) 0%, rgba(11,10,20,0.5) 32%, rgba(11,10,20,0.45) 55%, rgba(11,10,20,0.88) 82%, rgba(11,10,20,0.95) 100%); }
+  .carte { position: absolute; background: #16132a; border: 2px solid rgba(255,255,255,0.12); border-radius: 36px; box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+  .logo-carte { position: absolute; width: 190px; height: 112px; margin: -56px 0 0 -95px; background: #fff; border-radius: 24px; display: flex; align-items: center; justify-content: center; padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+  .logo-carte img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .puce { display: inline-block; font-weight: 600; font-size: 30px; padding: 10px 22px; border-radius: 16px; background: rgba(192,132,252,0.16); border: 2px solid rgba(192,132,252,0.45); color: #f3e8ff; margin: 0 10px 14px 0; }
+  .chiffre { font-weight: 900; font-size: 150px; line-height: 1; letter-spacing: -0.03em; }
+
+  /* Barre de progression : sept étapes */
+  #progression { position: absolute; bottom: 150px; left: 0; right: 0; display: flex; justify-content: center; gap: 16px; }
+  #progression i { display: block; width: 70px; height: 10px; border-radius: 99px; background: rgba(255,255,255,0.15); overflow: hidden; }
+  #progression i u { display: block; height: 100%; width: 0; background: var(--degrade); }
+  #liseré { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: linear-gradient(90deg, #a855f7, #ec4899); }
+  #eclair { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(236,72,153,0.9) 45%, rgba(192,132,252,0.9) 55%, transparent 70%); opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="gMarque" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c084fc"/><stop offset="1" stop-color="#ec4899"/></linearGradient>
+      <linearGradient id="gCadran" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2548"/><stop offset="1" stop-color="#0f0d1f"/></linearGradient>
+      <!-- Le produit d'exemple : une montre, dessinée pour ne dépendre d'aucune photo -->
+      <symbol id="montre" viewBox="0 0 200 300">
+        <rect x="62" y="0" width="76" height="92" rx="14" fill="#6b6590"/>
+        <rect x="62" y="208" width="76" height="92" rx="14" fill="#6b6590"/>
+        <rect x="70" y="10" width="60" height="6" rx="3" fill="#8d87b3"/><rect x="70" y="30" width="60" height="6" rx="3" fill="#8d87b3"/>
+        <rect x="70" y="264" width="60" height="6" rx="3" fill="#8d87b3"/><rect x="70" y="284" width="60" height="6" rx="3" fill="#8d87b3"/>
+        <circle cx="100" cy="150" r="84" fill="#d9d5ec"/>
+        <circle cx="100" cy="150" r="72" fill="url(#gCadran)"/>
+        <rect x="184" y="140" width="12" height="20" rx="4" fill="#bfb9da"/>
+        <g stroke="#f5d0fe" stroke-width="4" stroke-linecap="round">
+          <line x1="100" y1="88" x2="100" y2="100"/><line x1="100" y1="200" x2="100" y2="212"/>
+          <line x1="38" y1="150" x2="50" y2="150"/><line x1="150" y1="150" x2="162" y2="150"/>
+        </g>
+        <line x1="100" y1="150" x2="100" y2="104" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+        <line x1="100" y1="150" x2="134" y2="168" stroke="url(#gMarque)" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="100" cy="150" r="7" fill="#ec4899"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="fond-points" id="points"></div>
+  <div class="orbe" id="orbe1"></div>
+  <div class="orbe" id="orbe2"></div>
+
+  <!-- 0 · Accroche -->
+  <section class="plan" id="p0">
+    <img class="fondvideo" data-clip="accroche" data-n="93" alt=""><div class="voile"></div>
+    <div class="legende" style="top:520px"><span class="l" id="p0a">Et si l'IA</span><span class="l grad" id="p0b">faisait tout ?</span></div>
+    <div id="p0logo" style="position:absolute; left:50%; top:1010px; width:230px; height:230px; margin-left:-115px">
+      <img src="../../frontend/public/favicon-128.png" style="width:100%; height:100%; border-radius:26%; box-shadow:0 0 60px rgba(236,72,153,0.7), 0 0 140px rgba(168,85,247,0.5)">
+    </div>
+    <div class="titre" id="p0t" style="top:1330px">Une seule plateforme pour tout faire avec l'IA</div>
+  </section>
+
+  <!-- 1 · Je prends un produit, partout -->
+  <section class="plan" id="p1">
+    <img class="fondvideo" data-clip="terre" data-n="111" alt=""><div class="voile"></div>
+    <div class="etiquette"><b>Relevé de produits</b></div>
+    <div class="legende" style="font-size:92px"><span class="l">Je prends un produit.</span><span class="l neon n1" id="p1b">Partout.</span></div>
+    <div id="p1orbite"></div>
+    <div class="carte" id="p1carte" style="left:390px; top:800px; width:300px; height:380px; display:flex; align-items:center; justify-content:center">
+      <svg width="170" height="255"><use href="#montre"/></svg>
+      <div id="p1ok" style="position:absolute; bottom:-34px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:32px; padding:12px 26px; border-radius:999px; background:#39ff7a; color:#062b12">Importé ✓</div>
+    </div>
+    <svg id="p1curseur" width="70" height="90" viewBox="0 0 24 30" style="position:absolute; left:0; top:0">
+      <path d="M2 2 L2 24 L8 18 L12 27 L16 25 L12 16 L20 16 Z" fill="#fff" stroke="#0b0a14" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <div id="p1onde" style="position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border:5px solid #f5ff3d; left:540px; top:990px; opacity:0"></div>
+    <div class="titre">Prenez n'importe quel produit, n'importe où<small id="p1s">38 fournisseurs · extension Chrome en un clic</small></div>
+  </section>
+
+  <!-- 2 · L'IA fait l'annonce -->
+  <section class="plan" id="p2">
+    <div class="etiquette"><b>Annonces</b></div>
+    <div class="legende"><span class="l">L'IA fait</span><span class="l neon n2">l'annonce.</span></div>
+    <div class="carte" id="p2carte" style="left:90px; top:660px; width:900px; height:640px; padding:40px">
+      <div style="display:flex; gap:36px">
+        <div style="flex:0 0 220px; height:270px; border-radius:24px; background:linear-gradient(160deg,#241f40,#15122a); display:flex; align-items:center; justify-content:center">
+          <svg width="140" height="210"><use href="#montre"/></svg>
+        </div>
+        <div style="flex:1">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px">
+            <span style="font-weight:800; font-size:26px; padding:6px 16px; border-radius:10px; background:var(--degrade)">IA</span>
+            <span style="font-size:28px; color:#b9b0d6" id="p2etat">Réécriture…</span>
+          </div>
+          <div id="p2titre" style="font-weight:800; font-size:44px; line-height:1.12; min-height:150px"></div>
+          <div id="p2prix" style="margin-top:14px; font-weight:900; font-size:56px" class="grad">89,90 €</div>
+        </div>
+      </div>
+      <div id="p2puces" style="margin-top:34px">
+        <span class="puce">Acier inoxydable</span><span class="puce">Mouvement automatique</span><span class="puce">22 rubis</span><span class="puce">Étanche 50 m</span><span class="puce">EAN vérifié ✓</span><span class="puce">Catégorie : Montres</span>
+      </div>
+    </div>
+    <div class="titre">Des annonces reconstruites et optimisées par l'IA<small>Titre, description, attributs, mots-clés — jamais inventés</small></div>
+  </section>
+
+  <!-- 3 · La boutique -->
+  <section class="plan" id="p3">
+    <div class="etiquette"><b>DropShop IA</b></div>
+    <div class="legende"><span class="l">La</span><span class="l neon n6">boutique.</span></div>
+    <!-- Téléphone -->
+    <div id="p3tel" style="position:absolute; left:120px; top:630px; width:420px; height:700px; border-radius:60px; background:#05040b; border:10px solid #2c2748; box-shadow:0 30px 90px rgba(0,0,0,0.6), 0 0 60px rgba(236,72,153,0.25); overflow:hidden; padding:22px 18px">
+      <div id="p3b0" style="display:flex; align-items:center; gap:10px; margin-bottom:16px">
+        <img src="../../frontend/public/favicon-128.png" style="width:44px; height:44px; border-radius:26%"><span style="font-weight:800; font-size:26px">Maison Horlogère</span>
+      </div>
+      <div id="p3b1" style="height:210px; border-radius:26px; background:linear-gradient(135deg,#7c3aed,#ec4899); padding:24px; display:flex; flex-direction:column; justify-content:flex-end">
+        <div style="font-weight:900; font-size:40px; line-height:1">Le temps<br>vous va bien</div>
+        <div style="margin-top:12px; display:inline-block; width:max-content; background:#fff; color:#111; font-weight:800; font-size:20px; padding:8px 18px; border-radius:99px">Découvrir</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px">
+        <div class="p3g" style="height:170px; border-radius:20px; background:#1b1733; display:flex; align-items:center; justify-content:center"><svg width="70" height="105"><use href="#montre"/></svg></div>
+        <div class="p3g" style="height:170px; border-radius:20px; background:#1b1733; display:flex; align-items:center; justify-content:center"><svg width="70" height="105"><use href="#montre"/></svg></div>
+        <div class="p3g" style="height:170px; border-radius:20px; background:#1b1733; display:flex; align-items:center; justify-content:center"><svg width="70" height="105"><use href="#montre"/></svg></div>
+        <div class="p3g" style="height:170px; border-radius:20px; background:#1b1733; display:flex; align-items:center; justify-content:center"><svg width="70" height="105"><use href="#montre"/></svg></div>
+      </div>
+      <div id="p3panier" style="position:absolute; right:22px; bottom:26px; font-weight:800; font-size:22px; padding:12px 20px; border-radius:99px; background:#39ff7a; color:#062b12">Panier · 1</div>
+    </div>
+    <div id="p3prix" style="position:absolute; left:590px; top:760px; width:440px">
+      <div class="chiffre grad" id="p3chiffre">3,50 €</div>
+      <div style="font-weight:700; font-size:44px; margin-top:12px">une fois,<br>à vie</div>
+      <div style="margin-top:28px; font-size:32px; color:#b9b0d6; line-height:1.35">Panier, commande,<br>paiement Stripe<br>sur votre compte</div>
+    </div>
+    <div class="titre">Votre boutique, écrite par l'IA<small>Un site unique, à partir de votre logo</small></div>
+  </section>
+
+  <!-- 4 · Les visuels -->
+  <section class="plan" id="p4">
+    <img class="fondvideo" data-clip="bokeh" data-n="102" alt=""><div class="voile"></div>
+    <div class="etiquette"><b>Visuels &amp; publicités</b></div>
+    <div class="legende"><span class="l">Les</span><span class="l neon n3">visuels.</span></div>
+    <div id="p4v0" class="carte" style="left:380px; top:680px; width:320px; height:480px; overflow:hidden; background:linear-gradient(170deg,#0f766e,#022c22)">
+      <div style="height:300px; display:flex; align-items:center; justify-content:center"><svg width="150" height="225"><use href="#montre"/></svg></div>
+      <div style="padding:0 26px; font-weight:900; font-size:38px; line-height:1.05; color:#ccfbf1">Livrée<br>en 48 h</div>
+      <div style="margin:16px 26px; width:max-content; font-weight:800; font-size:22px; padding:10px 20px; border-radius:99px; background:#5eead4; color:#042f2e">Commander</div>
+    </div>
+    <div id="p4v1" class="carte" style="left:380px; top:680px; width:320px; height:480px; overflow:hidden; background:linear-gradient(170deg,#f59e0b,#7c2d12)">
+      <div style="height:300px; display:flex; align-items:center; justify-content:center"><svg width="150" height="225"><use href="#montre"/></svg></div>
+      <div style="padding:0 26px; font-weight:900; font-size:38px; line-height:1.05; color:#fff7ed">−30 %<br>ce week-end</div>
+      <div style="margin:16px 26px; width:max-content; font-weight:800; font-size:22px; padding:10px 20px; border-radius:99px; background:#fff7ed; color:#7c2d12">J'en profite</div>
+    </div>
+    <div id="p4v2" class="carte" style="left:380px; top:680px; width:320px; height:480px; overflow:hidden; background:linear-gradient(170deg,#7c3aed,#be185d)">
+      <div style="height:300px; display:flex; align-items:center; justify-content:center"><svg width="150" height="225"><use href="#montre"/></svg></div>
+      <div style="padding:0 26px; font-weight:900; font-size:38px; line-height:1.05">Le temps<br>vous va bien</div>
+      <div style="margin:16px 26px; width:max-content; font-weight:800; font-size:22px; padding:10px 20px; border-radius:99px; background:#fff; color:#7c3aed">Découvrir</div>
+    </div>
+    <div id="p4pastilles" style="position:absolute; top:1210px; left:0; right:0; display:flex; justify-content:center; gap:18px">
+      <i style="width:56px;height:56px;border-radius:50%;background:#7c3aed"></i><i style="width:56px;height:56px;border-radius:50%;background:#ec4899"></i><i style="width:56px;height:56px;border-radius:50%;background:#f59e0b"></i><i style="width:56px;height:56px;border-radius:50%;background:#0f766e"></i><i style="width:56px;height:56px;border-radius:50%;background:#fff"></i>
+    </div>
+    <div class="titre" style="top:1320px">Des visuels et des publicités à vos couleurs<small>Accroche écrite par l'IA, charte tirée de votre logo</small></div>
+  </section>
+
+  <!-- 5 · Je diffuse partout -->
+  <section class="plan" id="p5">
+    <img class="fondvideo" data-clip="ville" data-n="114" alt="" style="filter:blur(5px) saturate(1.3)"><div class="voile"></div>
+    <div class="etiquette"><b>Diffusion</b></div>
+    <div class="legende"><span class="l">Je diffuse</span><span class="l neon n5">partout.</span></div>
+    <div id="p5logos"></div>
+    <div id="p5centre" style="position:absolute; left:540px; top:955px; width:0; height:0">
+      <div style="position:absolute; width:480px; height:250px; left:-240px; top:-125px; border-radius:40px; background:rgba(11,10,20,0.82); border:2px solid rgba(46,242,255,0.35); box-shadow:0 0 40px rgba(57,255,122,0.25)"></div>
+      <div style="position:absolute; width:480px; left:-240px; top:-100px; text-align:center">
+        <div class="chiffre grad" id="p5chiffre">0</div>
+        <div style="font-weight:700; font-size:40px; margin-top:4px">canaux de vente</div>
+      </div>
+    </div>
+    <div class="titre">314 canaux de vente, une voie de liaison pour chacun<small>Places de marché, comparateurs, boutiques, réseaux</small></div>
+  </section>
+
+  <!-- 6 · Le mode auto fait tout -->
+  <section class="plan" id="p6">
+    <img class="fondvideo" data-clip="cube" data-n="109" alt="" style="filter:blur(18px) brightness(0.7)"><div class="voile"></div>
+    <div class="etiquette"><b>AUTO-SHIPPER IA</b></div>
+    <div class="legende"><span class="l">Le mode auto</span><span class="l neon n4">fait tout.</span></div>
+    <!-- La vidéo du cube IA, nette, dans un écran ; la même, floutée, en fond -->
+    <div id="p6ecran" style="position:absolute; left:40px; top:615px; width:1000px; height:552px; border-radius:36px; overflow:hidden; border:3px solid rgba(192,132,252,0.6); box-shadow:0 0 50px rgba(192,77,255,0.45), 0 30px 80px rgba(0,0,0,0.6)">
+      <img class="fondvideo" data-clip="cube" data-n="109" alt="" style="width:1000px; height:552px">
+      <div id="p6etapes" style="position:absolute; left:24px; right:24px; bottom:22px; display:flex; flex-wrap:wrap; gap:12px">
+        <span class="p6l puce" style="margin:0; background:rgba(11,10,20,0.78); border-color:#39ff7a; color:#d9ffe6">✓ Choisis</span>
+        <span class="p6l puce" style="margin:0; background:rgba(11,10,20,0.78); border-color:#39ff7a; color:#d9ffe6">✓ Importés</span>
+        <span class="p6l puce" style="margin:0; background:rgba(11,10,20,0.78); border-color:#39ff7a; color:#d9ffe6">✓ Réécrits</span>
+        <span class="p6l puce" style="margin:0; background:rgba(11,10,20,0.78); border-color:#39ff7a; color:#d9ffe6">✓ Publiés</span>
+      </div>
+    </div>
+    <div class="carte" style="left:40px; top:1195px; width:1000px; height:150px; padding:0 40px; display:flex; align-items:center; justify-content:space-between; background:rgba(22,19,42,0.85)">
+      <div style="display:flex; align-items:center; gap:26px">
+        <div id="p6inter" style="position:relative; width:150px; height:80px; border-radius:99px; background:#3a3558">
+          <div id="p6bouton" style="position:absolute; top:8px; left:8px; width:64px; height:64px; border-radius:50%; background:#fff; box-shadow:0 4px 14px rgba(0,0,0,0.4)"></div>
+        </div>
+        <div style="font-weight:800; font-size:44px">Mode auto</div>
+      </div>
+      <div style="text-align:right">
+        <span class="grad" style="font-weight:900; font-size:72px; line-height:1" id="p6chiffre">0</span>
+        <span style="font-size:30px; color:#b9b0d6"> produits / jour</span>
+      </div>
+    </div>
+    <div class="titre" style="top:1385px">Mode auto : laissez-les faire<small>Vous fixez la limite, l'IA fait le reste</small></div>
+  </section>
+
+  <!-- 7 · Sans abonnement -->
+  <section class="plan" id="p7">
+    <img class="fondvideo" data-clip="reseau" data-n="93" alt=""><div class="voile"></div>
+    <div class="etiquette"><b>Les drops</b></div>
+    <div class="legende"><span class="l">Sans</span><span class="l neon n6">abonnement.</span></div>
+    <div id="p7barre" style="position:absolute; top:690px; left:0; right:0; text-align:center; font-weight:700; font-size:46px; color:#8f88ad">
+      <span style="position:relative; display:inline-block">20 à 300 $ / mois ailleurs<i id="p7trait" style="position:absolute; left:-10px; top:52%; height:7px; width:0; background:#ff4f6d; border-radius:9px; box-shadow:0 0 16px #ff4f6d"></i></span>
+    </div>
+    <div id="p7drop" style="position:absolute; top:800px; left:0; right:0; text-align:center">
+      <div class="chiffre" style="font-size:170px"><span class="grad">1 drop</span></div>
+      <div style="font-weight:800; font-size:80px; margin-top:6px">= 0,01 €</div>
+      <div style="font-size:38px; color:#b9b0d6; margin-top:18px">Vous payez ce que vous faites</div>
+    </div>
+    <div id="p7cadeau" style="position:absolute; top:1200px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:44px; padding:20px 40px; border-radius:999px; background:#39ff7a; color:#062b12; box-shadow:0 0 40px rgba(57,255,122,0.5)">120 drops offerts</div>
+    <div class="titre" style="top:1380px">Pas d'abonnement : vous payez ce que vous faites</div>
+  </section>
+
+  <!-- 8 · Appel à l'action -->
+  <section class="plan" id="p8">
+    <img class="fondvideo" data-clip="final" data-n="93" alt=""><div class="voile"></div>
+    <div id="p8logo" style="position:absolute; left:50%; top:470px; width:300px; height:300px; margin-left:-150px">
+      <img src="../../frontend/public/favicon-128.png" style="width:100%; height:100%; border-radius:26%; box-shadow:0 0 70px rgba(236,72,153,0.75), 0 0 160px rgba(168,85,247,0.55)">
+    </div>
+    <div id="p8nom" style="position:absolute; top:830px; left:0; right:0; text-align:center; font-weight:900; font-size:120px; letter-spacing:-0.02em"><span class="grad">DropShipper IA</span></div>
+    <div id="p8phrase" style="position:absolute; top:990px; left:100px; right:100px; text-align:center; font-weight:600; font-size:50px; line-height:1.2; color:#e9e3ff">Pour en faire beaucoup moins,<br>et en vendre beaucoup plus.</div>
+    <div id="p8bouton" style="position:absolute; top:1180px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:52px; padding:30px 60px; border-radius:999px; background:var(--degrade); box-shadow:0 0 50px rgba(236,72,153,0.6)">Essayer gratuitement</div>
+    <div id="p8site" style="position:absolute; top:1360px; left:0; right:0; text-align:center; font-weight:800; font-size:56px; color:#ff5fb0">drop-shipper.fr</div>
+  </section>
+
+  <div id="marque"><img src="../../frontend/public/favicon-128.png" alt=""><span class="grad">DropShipper IA</span></div>
+  <div id="progression"><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i><i><u></u></i></div>
+  <div id="liseré"></div>
+  <div id="eclair"></div>
+</div>
+
+<script>
+// ---------- Découpage (secondes) ----------
+const DUREE = 30
+const PLANS = [
+  { id: 'p0', de: 0.0,  a: 3.0 },
+  { id: 'p1', de: 3.0,  a: 6.6 },
+  { id: 'p2', de: 6.6,  a: 10.2 },
+  { id: 'p3', de: 10.2, a: 13.5 },
+  { id: 'p4', de: 13.5, a: 16.8 },
+  { id: 'p5', de: 16.8, a: 20.5 },
+  { id: 'p6', de: 20.5, a: 24.0 },
+  { id: 'p7', de: 24.0, a: 27.0 },
+  { id: 'p8', de: 27.0, a: 30.0 },
+]
+window.DUREE = DUREE
+window.COUPES = PLANS.slice(1).map((p) => p.de)
+
+// ---------- Outils ----------
+const $ = (id) => document.getElementById(id)
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const lerp = (a, b, k) => a + (b - a) * k
+const plage = (t, a, b) => clamp((t - a) / (b - a))
+const sortie3 = (k) => 1 - Math.pow(1 - k, 3)
+const entree3 = (k) => k * k * k
+const douce = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
+const rebond = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2) }
+function poser(el, { o = 1, x = 0, y = 0, s = 1, r = 0, b = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+  el.style.filter = b > 0.05 ? `blur(${b}px)` : 'none'
+}
+// Apparition d'un élément à l'instant a (local), en d secondes
+function surgir(el, t, a, d = 0.45, dy = 50) {
+  const k = plage(t, a, a + d)
+  poser(el, { o: sortie3(k), y: (1 - sortie3(k)) * dy, s: lerp(0.9, 1, rebond(k)) })
+}
+
+// ---------- Logos (fournisseurs et canaux) ----------
+const FOURNISSEURS = ['aliexpress', 'temu', 'cjdropshipping', 'bigbuy', 'vidaxl', 'alibaba', 'printify', 'faire']
+const CHEMIN_FOURNISSEUR = (n) => n === 'temu' ? '../../frontend/public/logos/temu_logo-svg.png' : `../../frontend/public/logos-fournisseurs/${n}.png`
+const orbite = $('p1orbite')
+const logosF = FOURNISSEURS.map((n) => {
+  const d = document.createElement('div'); d.className = 'logo-carte'
+  d.innerHTML = `<img src="${CHEMIN_FOURNISSEUR(n)}" alt="">`; orbite.appendChild(d); return d
+})
+const CANAUX = ['amazon.png', 'ebay.png', 'carrefour.png', 'fnac.png', 'cdiscount-new-logo.png', 'darty.png', 'zalando.png',
+  'kaufland_marketplace.png', 'rakuten.png', 'laredoute.png', 'manomano.png', 'boulanger.png', 'bol-logo.png',
+  'otto_logo.png', 'instagram.png', 'tiktokshop_logo.png', 'etsy.png', 'facebookads.png']
+const boiteCanaux = $('p5logos')
+const logosC = CANAUX.map((f) => {
+  const d = document.createElement('div'); d.className = 'logo-carte'; d.style.width = '210px'; d.style.height = '110px'; d.style.margin = '-55px 0 0 -105px'
+  d.innerHTML = `<img src="../../frontend/public/logos/${f}" alt="">`; boiteCanaux.appendChild(d); return d
+})
+
+const TITRE_ANNONCE = 'Montre automatique acier — 22 rubis, étanche 50 m'
+
+// ---------- Une fonction par plan ; t est le temps local, d la durée ----------
+const SCENES = {
+  p0(t, d) {
+    surgir($('p0a'), t, 0.1, 0.5, 80)
+    surgir($('p0b'), t, 0.45, 0.5, 80)
+    const k = plage(t, 1.0, 1.6)
+    poser($('p0logo'), { o: clamp(k * 3), s: rebond(k) * (1 + 0.03 * Math.sin(t * 5)), r: (1 - sortie3(k)) * -40 })
+    surgir($('p0t'), t, 1.5, 0.5)
+  },
+  p1(t, d) {
+    surgir($('p1b'), t, 0.25, 0.4, 60)
+    // Les fournisseurs arrivent de loin et tournent autour du produit
+    logosF.forEach((el, i) => {
+      const a0 = (i / logosF.length) * Math.PI * 2 - Math.PI / 2
+      const k = sortie3(plage(t, 0.05 + i * 0.05, 0.9 + i * 0.05))
+      const ang = a0 + t * 0.35
+      const rx = lerp(820, 400, k), ry = lerp(900, 290, k)
+      el.style.left = (540 + Math.cos(ang) * rx) + 'px'
+      el.style.top = (990 + Math.sin(ang) * ry) + 'px'
+      el.style.opacity = clamp(k * 1.5)
+      el.style.transform = `scale(${lerp(0.6, 1, k)})`
+    })
+    const kc = plage(t, 0.35, 0.85)
+    poser($('p1carte'), { o: sortie3(kc), s: lerp(0.5, 1, rebond(kc)) })
+    // Le curseur vient cliquer sur le produit
+    const kcur = douce(plage(t, 1.2, 1.9))
+    const cx = lerp(900, 560, kcur), cy = lerp(1350, 1000, kcur)
+    const clic = plage(t, 1.9, 2.05) - plage(t, 2.05, 2.2)
+    $('p1curseur').style.opacity = clamp(plage(t, 1.1, 1.3) - plage(t, 2.8, 3.1))
+    $('p1curseur').style.transform = `translate(${cx}px, ${cy}px) scale(${1 - 0.15 * clamp(clic)})`
+    const ko = plage(t, 1.95, 2.6)
+    $('p1onde').style.opacity = ko > 0 && ko < 1 ? 1 - ko : 0
+    $('p1onde').style.transform = `scale(${lerp(0.5, 4, sortie3(ko))})`
+    const kok = plage(t, 2.0, 2.35)
+    $('p1ok').style.opacity = kok
+    $('p1ok').style.transform = `translateX(-50%) scale(${lerp(0.4, 1, rebond(kok))})`
+  },
+  p2(t, d) {
+    const kc = plage(t, 0.2, 0.7)
+    poser($('p2carte'), { o: sortie3(kc), y: (1 - sortie3(kc)) * 120 })
+    // Le titre s'écrit, lettre après lettre
+    const n = Math.floor(TITRE_ANNONCE.length * plage(t, 0.7, 1.9))
+    const curseur = t < 2.2 && Math.floor(t * 4) % 2 === 0 ? '<span style="color:#ec4899">|</span>' : ''
+    $('p2titre').innerHTML = TITRE_ANNONCE.slice(0, n) + curseur
+    $('p2etat').textContent = t < 1.95 ? 'Réécriture…' : 'Annonce prête ✓'
+    $('p2etat').style.color = t < 1.95 ? '#b9b0d6' : '#39ff7a'
+    $('p2prix').style.opacity = plage(t, 1.9, 2.2)
+    ;[...$('p2puces').children].forEach((el, i) => surgir(el, t, 1.95 + i * 0.12, 0.35, 30))
+  },
+  p3(t, d) {
+    const kt = plage(t, 0.15, 0.7)
+    poser($('p3tel'), { o: sortie3(kt), y: (1 - sortie3(kt)) * 200, r: (1 - sortie3(kt)) * -8 })
+    // La boutique se construit bloc par bloc
+    surgir($('p3b0'), t, 0.55, 0.35, 30)
+    surgir($('p3b1'), t, 0.75, 0.4, 40)
+    ;[...document.querySelectorAll('.p3g')].forEach((el, i) => surgir(el, t, 1.0 + i * 0.12, 0.35, 30))
+    surgir($('p3panier'), t, 1.7, 0.35, 20)
+    const kp = plage(t, 1.25, 1.75)
+    poser($('p3prix'), { o: sortie3(kp), x: (1 - sortie3(kp)) * 120 })
+  },
+  p4(t, d) {
+    // Trois publicités du même produit s'ouvrent en éventail
+    const k = rebond(plage(t, 0.35, 1.1))
+    const ecart = [-1, 0, 1]
+    ;['p4v0', 'p4v1', 'p4v2'].forEach((id, i) => {
+      const e = ecart[i]
+      const ki = plage(t, 0.1 + i * 0.12, 0.5 + i * 0.12)
+      poser($(id), { o: sortie3(ki), x: e * 300 * k, y: Math.abs(e) * 50 * k + (1 - sortie3(ki)) * 150, r: e * 9 * k, s: e === 0 ? 1.06 : 0.94 })
+    })
+    $('p4v1').style.zIndex = 3
+    ;[...$('p4pastilles').children].forEach((el, i) => surgir(el, t, 1.2 + i * 0.1, 0.3, 20))
+  },
+  p5(t, d) {
+    // Un mur de canaux autour du compteur : chaque logo surgit depuis le centre
+    const cases = []
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!((r === 1 || r === 2) && (c === 1 || c === 2))) cases.push([r, c])
+    logosC.forEach((el, i) => {
+      if (i >= cases.length) { el.style.opacity = 0; return }
+      const [r, c] = cases[i]
+      const x = 135 + c * 270, y = 700 + r * 170
+      const dist = Math.hypot(c - 1.5, r - 1.5)
+      const k = plage(t, 0.3 + dist * 0.25 + (i % 3) * 0.05, 0.75 + dist * 0.25 + (i % 3) * 0.05)
+      const ks = sortie3(k)
+      el.style.left = lerp(540, x, ks) + 'px'
+      el.style.top = (lerp(955, y, ks) + Math.sin(t * 2.2 + i) * 6 * ks) + 'px'
+      el.style.opacity = clamp(k * 2)
+      el.style.transform = `scale(${lerp(0.2, 1, rebond(k))})`
+    })
+    $('p5chiffre').textContent = Math.round(314 * sortie3(plage(t, 0.4, 2.3)))
+    const kc = plage(t, 0.2, 0.6)
+    $('p5centre').style.opacity = kc
+    $('p5centre').style.transform = `scale(${lerp(0.7, 1, rebond(kc))})`
+  },
+  p6(t, d) {
+    const ke = plage(t, 0.15, 0.6)
+    poser($('p6ecran'), { o: sortie3(ke), s: lerp(0.85, 1, rebond(ke)) })
+    // L'interrupteur bascule, puis chaque étape se coche sur l'écran
+    const ki = douce(plage(t, 0.6, 0.9))
+    $('p6bouton').style.left = lerp(8, 78, ki) + 'px'
+    $('p6inter').style.background = ki > 0.5 ? 'linear-gradient(135deg,#c084fc,#ec4899)' : '#3a3558'
+    $('p6inter').style.boxShadow = ki > 0.5 ? '0 0 36px rgba(236,72,153,0.7)' : 'none'
+    ;[...document.querySelectorAll('.p6l')].forEach((el, i) => surgir(el, t, 1.0 + i * 0.3, 0.3, 20))
+    $('p6chiffre').textContent = Math.round(50 * sortie3(plage(t, 1.0, 2.6)))
+  },
+  p7(t, d) {
+    surgir($('p7barre'), t, 0.2, 0.35, 20)
+    $('p7trait').style.width = (sortie3(plage(t, 0.7, 1.05)) * 105) + '%'
+    surgir($('p7drop'), t, 1.05, 0.45, 60)
+    const kg = plage(t, 1.7, 2.1)
+    $('p7cadeau').style.opacity = kg
+    $('p7cadeau').style.transform = `translateX(-50%) scale(${lerp(0.3, 1, rebond(kg)) * (1 + 0.03 * Math.sin(t * 8) * kg)})`
+  },
+  p8(t, d) {
+    const kl = plage(t, 0.05, 0.6)
+    poser($('p8logo'), { o: clamp(kl * 3), s: rebond(kl) * (1 + 0.025 * Math.sin(t * 4)), r: (1 - sortie3(kl)) * 30 })
+    surgir($('p8nom'), t, 0.4, 0.45, 50)
+    surgir($('p8phrase'), t, 0.7, 0.45, 40)
+    const kb = plage(t, 1.0, 1.4)
+    $('p8bouton').style.opacity = kb
+    $('p8bouton').style.transform = `translateX(-50%) scale(${lerp(0.5, 1, rebond(kb)) * (1 + 0.035 * Math.sin((t - 1.4) * 7) * clamp((t - 1.4) * 2))})`
+    surgir($('p8site'), t, 1.25, 0.4, 20)
+  },
+}
+
+// ---------- Rendu d'un instant ----------
+function rendre(t) {
+  const attentes = []
+  // Fond vivant : deux lueurs qui dérivent, une grille qui glisse
+  $('orbe1').style.transform = `translate(${-250 + Math.sin(t * 0.5) * 200}px, ${200 + Math.cos(t * 0.4) * 250}px)`
+  $('orbe2').style.transform = `translate(${500 + Math.cos(t * 0.45) * 180}px, ${1100 + Math.sin(t * 0.35) * 260}px)`
+  $('points').style.transform = `translateY(${(t * 22) % 44}px)`
+
+  for (const p of PLANS) {
+    const el = $(p.id)
+    const dansLePlan = t >= p.de - 0.001 && t < p.a + (p.id === 'p8' ? 1 : 0)
+    if (!dansLePlan) { el.style.opacity = 0; el.style.display = 'none'; continue }
+    el.style.display = 'block'
+    const local = t - p.de, d = p.a - p.de
+    // Entrée : montée + netteté ; sortie : léger zoom avant + fondu
+    const kin = p.id === 'p0' ? 1 : sortie3(plage(local, 0, 0.35))
+    const kout = p.id === 'p8' ? 0 : entree3(plage(local, d - 0.3, d))
+    poser(el, { o: kin * (1 - kout), y: (1 - kin) * 90, s: 1 + kout * 0.12, b: (1 - kin) * 14 + kout * 10 })
+    SCENES[p.id](local, d)
+    // Les vidéos sont des suites d'images : l'image de l'instant, jamais une lecture
+    for (const img of el.querySelectorAll('img[data-clip]')) {
+      const n = Math.min(+img.dataset.n, Math.max(1, Math.floor(local * 30) + 1))
+      const src = `clips/${img.dataset.clip}/${String(n).padStart(4, '0')}.jpg`
+      if (img.getAttribute('src') !== src) { img.setAttribute('src', src); attentes.push(img.decode().catch(() => {})) }
+    }
+  }
+
+  // Éclair de transition sur chaque coupe
+  let flash = 0
+  for (const c of window.COUPES) { const k = (t - c + 0.18) / 0.36; if (k > 0 && k < 1) flash = Math.max(flash, Math.sin(k * Math.PI) * 0.55) }
+  $('eclair').style.opacity = flash
+
+  // Marque : discrète pendant l'accroche et l'appel final, qui portent déjà le logo
+  const km = plage(t, 2.6, 3.1) * (1 - plage(t, 26.7, 27.0))
+  $('marque').style.opacity = km
+  // Progression des sept étapes
+  ;[...document.querySelectorAll('#progression u')].forEach((u, i) => {
+    const p = PLANS[i + 1]; u.style.width = (plage(t, p.de, p.a) * 100) + '%'
+  })
+  $('progression').style.opacity = km
+  return Promise.all(attentes)
+}
+window.rendre = rendre
+
+// Hors du rendu : lecture en boucle, ou instant figé par ?t=
+const q = new URLSearchParams(location.search)
+if (q.has('t')) rendre(parseFloat(q.get('t')))
+else if (!navigator.webdriver) { const t0 = performance.now(); (function boucle() { rendre(((performance.now() - t0) / 1000) % DUREE); requestAnimationFrame(boucle) })() }
+else rendre(0)
+</script>
+</body>
+</html>

@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<!--
+  Illustrations animées des 11 thèmes de l'accueil (frontend/src/data/accueil-themes.json).
+
+  accueil.html?theme=<slug>          boucle de 8 s, 1280 × 720 (rendue par accueil.cjs)
+  accueil.html?theme=<slug>&fixe=1   image fixe détourée, fond transparent, 1280 × 960
+
+  Comme les pubs, la page est une fonction pure du temps : window.rendre(t).
+  Tout ce qui bouge est périodique sur DUREE, donc la dernière image rejoint la
+  première et la boucle ne saute pas. Le contenu important reste dans les
+  960 px du centre : le bloc de l'accueil est en 4:3 et rogne les côtés.
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  :root { --violet: #a855f7; --rose: #ec4899; --cyan: #2ef2ff; --or: #ffb547; --vert: #39ff7a;
+    --degrade: linear-gradient(120deg, #a855f7 0%, #ec4899 100%); --verre: rgba(16, 12, 32, 0.74); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #07060d; overflow: hidden; }
+  body.fixe { background: transparent; }
+  #scene { position: relative; width: 1280px; height: 720px; overflow: hidden; font-family: Outfit, system-ui, sans-serif; color: #fff; background: #07060d; }
+  body.fixe #scene { height: 960px; background: transparent; overflow: visible; }
+  #contenu { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; z-index: 2; }
+  body.fixe #contenu { top: 120px; }
+
+  /* Fond : plans en fondu enchaîné */
+  #fond { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+  .plan { position: absolute; inset: 0; overflow: hidden; }
+  .plan .flou { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); object-fit: cover; filter: blur(26px) brightness(0.5) saturate(1.3); }
+  .plan .net { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+  .plan .panneau { position: absolute; top: 50%; height: 620px; object-fit: cover; border-radius: 26px; border: 2px solid rgba(255,255,255,0.16);
+    box-shadow: 0 0 60px rgba(168,85,247,0.45), 0 30px 80px rgba(0,0,0,0.6); }
+  #voile { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(7,6,13,0) 40%, rgba(7,6,13,0.72) 100%), linear-gradient(0deg, rgba(7,6,13,0.55), rgba(7,6,13,0) 40%); pointer-events: none; }
+  body.fixe #voile { display: none; }
+
+  /* Forme détourée de l'image fixe */
+  body.fixe #fond { inset: auto; left: 50%; top: 50%; width: 780px; height: 660px; transform: translate(-50%, -50%); }
+  #cadreForme { display: none; }
+  body.fixe #cadreForme { display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 780px; height: 660px; pointer-events: none; }
+
+  /* Éléments communs */
+  .verre { position: absolute; background: var(--verre); border: 1.5px solid rgba(255,255,255,0.16); border-radius: 22px;
+    box-shadow: 0 0 40px rgba(168,85,247,0.28), 0 20px 50px rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+  .puce { position: absolute; display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; font-weight: 600; font-size: 26px;
+    padding: 10px 22px; border-radius: 999px; background: rgba(16,12,32,0.8); border: 1.5px solid rgba(255,255,255,0.2);
+    box-shadow: 0 0 22px rgba(236,72,153,0.35); }
+  .puce i { width: 14px; height: 14px; border-radius: 50%; background: var(--vert); box-shadow: 0 0 12px var(--vert); font-style: normal; }
+  .grad { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .neon { color: #fff; text-shadow: 0 0 8px var(--n, #ec4899), 0 0 22px var(--n, #ec4899), 0 0 48px var(--n, #ec4899); }
+  .gros { position: absolute; font-weight: 800; line-height: 1; white-space: nowrap; text-shadow: 0 4px 30px rgba(0,0,0,0.9); }
+  .etiq { display: inline-block; padding: 12px 30px; border-radius: 999px; background: rgba(12,9,26,0.82); border: 1.5px solid rgba(255,255,255,0.2); text-shadow: none; }
+  .carteLogo { position: absolute; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 18px;
+    box-shadow: 0 0 26px rgba(46,242,255,0.35), 0 10px 26px rgba(0,0,0,0.45); }
+  .carteLogo img { max-width: 78%; max-height: 64%; object-fit: contain; }
+  .rond { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .rond img { width: 52%; height: 52%; filter: invert(1); }
+  svg.traits { position: absolute; inset: 0; overflow: visible; }
+  #eclat { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(236,72,153,0.22), rgba(0,0,0,0) 60%); mix-blend-mode: screen; pointer-events: none; }
+  body.fixe #eclat { display: none; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="fond"></div>
+  <svg id="cadreForme" viewBox="0 0 780 660"></svg>
+  <div id="voile"></div>
+  <div id="eclat"></div>
+  <div id="contenu"></div>
+</div>
+<script>
+const DUREE = 8, IPS = 30
+window.DUREE = DUREE
+const $ = (id) => document.getElementById(id)
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x))
+const lerp = (a, b, k) => a + (b - a) * k
+const plage = (t, a, b) => clamp((t - a) / (b - a))
+const doux = (k) => k * k * (3 - 2 * k)
+const rebond = (k) => { const c = 1.7; k = clamp(k); return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2) }
+const mod = (a, b) => ((a % b) + b) % b
+// Enveloppe de boucle : 0 au début, 1 entre a et b, 0 à la fin — la boucle se referme sur le vide.
+const vie = (t, a, b = 7.2, fin = 0.6) => doux(plage(t, a, a + 0.5)) * (1 - doux(plage(t, b, b + fin)))
+const TAU = Math.PI * 2
+const onde = (t, n = 1, ph = 0) => Math.sin(TAU * n * t / DUREE + ph) // périodique sur DUREE
+
+const params = new URLSearchParams(location.search)
+const FIXE = params.get('fixe') === '1'
+if (FIXE) { document.body.classList.add('fixe'); document.documentElement.style.background = 'transparent' }
+const S = 'sources/accueil/'
+const LOGOS = '../../frontend/public/logos/'
+const FOURN = '../../frontend/public/logos-fournisseurs/'
+const ICONES = 'node_modules/simple-icons/icons/'
+// n : nombre d'images du dossier (dernière image utilisable) ; debut : première image lue.
+const clip = (nom, n, debut = 1) => ({ clip: nom, n, debut })
+
+function el(tag, cls, style, parent = $('contenu')) {
+  const e = document.createElement(tag)
+  if (cls) e.className = cls
+  if (style) e.style.cssText = style
+  parent.appendChild(e)
+  return e
+}
+function poser(e, { o = 1, x = 0, y = 0, s = 1, r = 0 } = {}) {
+  e.style.opacity = o
+  e.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+}
+// Un élément qui apparaît en rebondissant à a, et s'efface à b.
+function surgir(e, t, a, b = 7.2, dy = 30) {
+  const k = plage(t, a, a + 0.45)
+  const o = vie(t, a, b)
+  poser(e, { o, y: (1 - doux(k)) * dy, s: lerp(0.7, 1, rebond(k)) })
+}
+const SOCIAL = { facebook: '#0866FF', instagram: '#E4405F', tiktok: '#111111', youtube: '#FF0000', pinterest: '#BD081C', linkedin: '#0A66C2', x: '#111111', snapchat: '#E6D800', whatsapp: '#25D366', threads: '#111111' }
+function rondSocial(nom, taille, style = '') {
+  const r = el('div', 'rond', `width:${taille}px; height:${taille}px; background:${SOCIAL[nom]}; box-shadow:0 0 26px ${SOCIAL[nom]}99, 0 8px 20px rgba(0,0,0,0.5); border:2px solid rgba(255,255,255,0.35); ${style}`)
+  el('img', '', '', r).src = ICONES + nom + '.svg'
+  return r
+}
+function carteLogo(src, l, h, style = '') {
+  const c = el('div', 'carteLogo', `width:${l}px; height:${h}px; ${style}`)
+  el('img', '', '', c).src = src
+  return c
+}
+
+/* ---------------------------------------------------------------- Thèmes
+   plans : ce qui défile au fond (image ou séquence de clips/), en fondu.
+   mode 'net' remplit le cadre ; 'panneau' pose l'image entière, nette, sur
+   son propre flou (pour les formats verticaux, qu'un recadrage 16:9 abîmerait).
+   forme : la découpe de l'image fixe. monter() crée les calques, animer(t) les bouge. */
+const THEMES = {
+  'scraping-produits': {
+    plans: [{ img: S + '1.jpg' }, { img: S + '11111 (2).jpg' }, { img: S + '1111.jpg', mode: 'panneau', x: 640 }, { img: S + '11111.jpg', mode: 'panneau', x: 640 }],
+    forme: 'cercle',
+    monter(c) {
+      c.cadre = el('div', '', 'position:absolute; left:390px; top:110px; width:500px; height:420px;')
+      for (const [l, t, rx, ry] of [[0, 0, 1, 1], [1, 0, -1, 1], [0, 1, 1, -1], [1, 1, -1, -1]]) {
+        el('div', '', `position:absolute; ${l ? 'right' : 'left'}:0; ${t ? 'bottom' : 'top'}:0; width:70px; height:70px;
+          border-${l ? 'right' : 'left'}:6px solid var(--cyan); border-${t ? 'bottom' : 'top'}:6px solid var(--cyan); border-radius:${!l && !t ? '18px 0 0 0' : l && !t ? '0 18px 0 0' : !l ? '0 0 0 18px' : '0 0 18px 0'};
+          filter:drop-shadow(0 0 10px var(--cyan))`, c.cadre)
+      }
+      c.laser = el('div', '', 'position:absolute; left:10px; right:10px; height:4px; background:var(--cyan); box-shadow:0 0 18px 4px var(--cyan), 0 0 60px 10px rgba(46,242,255,0.5); border-radius:4px', c.cadre)
+      c.puces = ['Photos', 'Prix', 'Variantes', 'EAN', 'Avis'].map((txt, i) => {
+        const p = el('div', 'puce', `left:${170 + i * 192}px; top:590px; font-size:28px`)
+        p.innerHTML = `<i></i>${txt}`
+        p.style.left = [175, 355, 505, 700, 840][i] + 'px'
+        return p
+      })
+    },
+    animer(t, c) {
+      c.cadre.style.opacity = FIXE ? 1 : vie(t, 0.1, 7.3)
+      const k = FIXE ? 0.55 : mod(t / 2, 1)
+      c.laser.style.top = (10 + 390 * (0.5 - 0.5 * Math.cos(Math.PI * k * 2))) + 'px'
+      c.puces.forEach((p, i) => FIXE ? poser(p) : surgir(p, t, 1.2 + i * 0.55, 7.1 + i * 0.05))
+    },
+  },
+
+  fournisseurs: {
+    plans: [{ img: S + '22222.jpg' }, { img: S + '2222.jpg', mode: 'panneau', x: 640 }],
+    sombre: 0.55,
+    forme: 'hexagone',
+    monter(c) {
+      const noms = ['aliexpress', 'cjdropshipping', 'bigbuy', 'alibaba', 'vidaxl', 'spocket', 'printify', 'syncee', 'ankorstore', 'faire', 'gelato', 'made-in-china', 'joybuy', 'lightinthebox', 'td-synnex', 'reichelt']
+      c.rangs = [noms.slice(0, 8), noms.slice(8)].map((liste, r) => {
+        const piste = el('div', '', `position:absolute; left:0; top:${r ? 520 : 390}px; height:110px; width:${liste.length * 2 * 190}px`)
+        ;[...liste, ...liste].forEach((n, i) => { const k = carteLogo(FOURN + n + '.png', 170, 96, `left:${i * 190}px; top:0`); k.remove(); piste.appendChild(k) })
+        return { piste, largeur: liste.length * 190, sens: r ? 1 : -1 }
+      })
+      c.titre = el('div', 'gros', 'left:0; right:0; top:120px; text-align:center; font-size:150px')
+      c.titre.innerHTML = '<span class="neon" style="--n:#2ef2ff">38</span>'
+      c.sous = el('div', 'gros', 'left:0; right:0; top:270px; text-align:center; font-size:40px; font-weight:600')
+      c.sous.innerHTML = '<span class="etiq">fournisseurs, prêts à importer</span>'
+    },
+    animer(t, c) {
+      for (const r of c.rangs) {
+        if (FIXE) { // image fixe : cinq logos par rang, centrés, sans bande coupée au bord
+          ;[...r.piste.children].forEach((k, i) => { k.style.display = i < 5 ? 'flex' : 'none' })
+          r.piste.style.transform = `translateX(${(1280 - 5 * 190 + 20) / 2}px)`
+          continue
+        }
+        const d = (FIXE ? 0.3 : t / DUREE) * r.largeur
+        r.piste.style.transform = `translateX(${r.sens < 0 ? -d : d - r.largeur}px)`
+      }
+      if (FIXE) { poser(c.titre); poser(c.sous); return }
+      poser(c.titre, { s: 1 + 0.03 * onde(t, 2) })
+      c.sous.style.opacity = 0.92
+    },
+  },
+
+  'annonces-ia': {
+    plans: [clip('h-33333', 176), { img: S + '33.jpg', mode: 'panneau', x: 360 }, { img: S + '33 (2).jpg', mode: 'panneau', x: 360 }, clip('h-38', 181)],
+    forme: 'goutte',
+    monter(c) {
+      c.carte = el('div', 'verre', 'left:560px; top:95px; width:560px; height:530px; padding:30px 32px')
+      c.carte.innerHTML = `<div style="display:inline-block; font-weight:600; font-size:20px; padding:6px 16px; border-radius:999px; background:var(--degrade)">Annonce réécrite par l'IA</div>
+        <div id="aTitre" style="margin-top:20px; font-weight:800; font-size:32px; line-height:1.18; min-height:114px"></div>
+        <div id="aChamps" style="margin-top:16px; display:grid; gap:11px"></div>`
+      c.titre = 'Montre automatique homme acier inoxydable, étanche 100 m, verre saphir'
+      c.champs = ['Titres en 3 longueurs', 'Description complète', '5 arguments de vente', '8 attributs + marque', '12 mots-clés · méta SEO'].map((txt) => {
+        const d = el('div', '', 'display:flex; align-items:center; gap:14px; font-size:25px; font-weight:600', $('aChamps'))
+        d.innerHTML = `<span style="width:30px; height:30px; border-radius:50%; background:var(--vert); color:#07060d; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; box-shadow:0 0 14px var(--vert)">✓</span>${txt}`
+        return d
+      })
+      c.badge = el('div', 'gros neon', 'left:190px; top:560px; font-size:66px; --n:#2ef2ff')
+      c.badge.textContent = 'SEO · GEO'
+    },
+    animer(t, c) {
+      if (FIXE) { $('aTitre').textContent = c.titre; c.champs.forEach((d) => poser(d)); poser(c.carte); poser(c.badge); return }
+      surgir(c.carte, t, 0.1, 7.3, 40)
+      const n = Math.round(c.titre.length * plage(t, 0.6, 2.2))
+      $('aTitre').innerHTML = c.titre.slice(0, n) + (n < c.titre.length && Math.floor(t * 4) % 2 ? '<span style="color:var(--cyan)">|</span>' : '')
+      c.champs.forEach((d, i) => { const k = plage(t, 2.4 + i * 0.4, 2.8 + i * 0.4); poser(d, { o: k, x: (1 - doux(k)) * 30 }) })
+      surgir(c.badge, t, 4.6, 7.2)
+      c.badge.style.opacity *= 0.85 + 0.15 * onde(t, 4)
+    },
+  },
+
+  'dropshop-ia': {
+    plans: [{ img: S + '44.jpg' }, { img: S + '4.jpg' }, { img: S + '4444.jpg' }, { img: S + '4 (2).jpg' }],
+    forme: 'arche',
+    monter(c) {
+      c.fenetre = el('div', 'verre', 'left:230px; top:70px; width:820px; height:520px; padding:0; overflow:hidden; border-radius:20px')
+      c.fenetre.innerHTML = `<div style="height:44px; display:flex; align-items:center; gap:9px; padding:0 18px; background:rgba(255,255,255,0.08)">
+          <b style="width:13px;height:13px;border-radius:50%;background:#ff5f57"></b><b style="width:13px;height:13px;border-radius:50%;background:#febc2e"></b><b style="width:13px;height:13px;border-radius:50%;background:#28c840"></b>
+          <span style="margin-left:18px; flex:1; height:26px; border-radius:999px; background:rgba(255,255,255,0.1); font-size:16px; line-height:26px; padding-left:16px; color:#d8d2ef">votre-boutique.fr</span></div>
+        <div id="ecrans" style="position:relative; height:476px; overflow:hidden; background:#000"></div>`
+      c.ecrans = [clip('d-oguss-accueil', 0), clip('d-robot-accueil', 0), clip('d-iagent', 0)].map((cl) => {
+        const im = el('img', '', 'position:absolute; left:0; top:0; width:100%; height:100%; object-fit:cover; object-position:top', $('ecrans'))
+        im.dataset.clip = cl.clip
+        return im
+      })
+      c.nuancier = el('div', '', 'position:absolute; left:470px; top:612px; display:flex; gap:14px')
+      c.pastilles = [0, 1, 2, 3, 4].map(() => el('div', '', 'width:56px; height:56px; border-radius:50%; border:3px solid rgba(255,255,255,0.8); box-shadow:0 6px 16px rgba(0,0,0,0.5)', c.nuancier))
+      c.gammes = [['#111', '#c9a36b', '#f4efe6', '#8a6d3b', '#fff'], ['#0b1b3a', '#2ef2ff', '#e8f6ff', '#3b82f6', '#fff'], ['#1a0b2e', '#a855f7', '#ec4899', '#fce7f3', '#fff']]
+    },
+    animer(t, c) {
+      const S3 = DUREE / 3
+      c.ecrans.forEach((im, i) => {
+        const u = mod(t - i * S3 + 0.3, DUREE)
+        const o = FIXE ? (i === 0 ? 1 : 0) : (u < 0.6 ? u / 0.6 : u < S3 + 0.6 ? 1 : 0)
+        im.style.opacity = o
+        im.style.zIndex = u < 0.6 ? 2 : 1
+        const n = CLIPS[im.dataset.clip] || 1
+        const f = FIXE ? 30 : clamp(Math.floor(u * IPS) + 1, 1, n)
+        const src = `clips/${im.dataset.clip}/${String(f).padStart(4, '0')}.jpg`
+        if (o > 0 && im.getAttribute('src') !== src) { im.setAttribute('src', src); ATTENTES.push(im.decode().catch(() => {})) }
+      })
+      const g = FIXE ? 2 : Math.floor(mod(t + 0.3, DUREE) / S3) % 3
+      c.pastilles.forEach((p, i) => { p.style.background = c.gammes[g][i]; poser(p, { s: FIXE ? 1 : 1 + 0.12 * Math.max(0, onde(t, 3, i)) }) })
+      if (!FIXE) poser(c.fenetre, { y: 6 * onde(t, 1) })
+    },
+  },
+
+  'visuels-ia': {
+    plans: [clip('h-555555', 180)],
+    forme: 'losange',
+    monter(c) {
+      c.cartes = [[S + '5.jpg', 250, 150, -8, 330, 250], [S + '55555.jpg', 520, 110, 0, 300, 375], [S + '5555.jpg', 800, 150, 8, 250, 440]].map(([src, x, y, r, l, h]) => {
+        const k = el('div', '', `position:absolute; left:${x}px; top:${y}px; width:${l}px; height:${h}px; border-radius:20px; overflow:hidden; border:3px solid rgba(255,255,255,0.85);
+          box-shadow:0 0 40px rgba(236,72,153,0.5), 0 24px 50px rgba(0,0,0,0.6)`)
+        el('img', '', 'width:100%; height:100%; object-fit:cover; object-position:top', k).src = src
+        k.r = r
+        return k
+      })
+      c.palette = el('div', 'verre', 'left:400px; top:560px; width:480px; height:96px; display:flex; align-items:center; gap:16px; padding:0 22px')
+      c.pal = [0, 1, 2, 3, 4, 5].map(() => el('div', '', 'width:58px; height:58px; border-radius:14px; border:2px solid rgba(255,255,255,0.4)', c.palette))
+      c.teintes = ['#a855f7', '#ec4899', '#ffb547', '#2ef2ff', '#39ff7a', '#ffffff']
+    },
+    animer(t, c) {
+      c.cartes.forEach((k, i) => {
+        if (FIXE) { poser(k, { r: k.r }); return }
+        const a = 0.3 + i * 0.5
+        const kk = plage(t, a, a + 0.6)
+        poser(k, { o: vie(t, a, 7.1 + i * 0.1), y: (1 - doux(kk)) * 80 + 10 * onde(t, 1, i * 2), r: k.r + 2 * onde(t, 1, i), s: lerp(0.8, 1, rebond(kk)) })
+      })
+      c.pal.forEach((p, i) => {
+        const d = FIXE ? 0 : (t * 0.9 + i * 0.6)
+        p.style.background = c.teintes[(i + Math.floor(d)) % c.teintes.length]
+        if (!FIXE) p.style.transform = `translateY(${-8 * Math.max(0, onde(t, 4, -i * 0.7))}px)`
+      })
+      if (!FIXE) surgir(c.palette, t, 1.8, 7.2)
+    },
+  },
+
+  'reseaux-sociaux': {
+    plans: [{ img: S + '66.jpg' }, { img: S + '66666666.jpg', mode: 'panneau', x: 640 }, { img: S + '6666666666.jpg', mode: 'panneau', x: 640 }, { img: S + '66666.jpg', mode: 'panneau', x: 640 }],
+    forme: 'cercle',
+    monter(c) {
+      c.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); c.svg.setAttribute('class', 'traits'); c.svg.setAttribute('width', 1280); c.svg.setAttribute('height', 720); $('contenu').appendChild(c.svg)
+      c.coeur = el('div', 'rond', 'left:560px; top:280px; width:160px; height:160px; background:var(--degrade); box-shadow:0 0 60px rgba(236,72,153,0.9), 0 0 120px rgba(168,85,247,0.6); font-weight:800; font-size:64px')
+      c.coeur.textContent = 'IA'
+      c.noms = ['facebook', 'instagram', 'tiktok', 'youtube', 'pinterest', 'linkedin', 'x', 'snapchat']
+      c.icones = c.noms.map((n) => rondSocial(n, 104))
+      c.lignes = c.noms.map(() => { const l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); l.setAttribute('stroke', 'rgba(46,242,255,0.55)'); l.setAttribute('stroke-width', 3); c.svg.appendChild(l); return l })
+      c.balles = c.noms.map(() => { const b = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); b.setAttribute('r', 8); b.setAttribute('fill', '#fff'); b.setAttribute('style', 'filter:drop-shadow(0 0 8px #2ef2ff)'); c.svg.appendChild(b); return b })
+    },
+    animer(t, c) {
+      const cx = 640, cy = 360
+      poser(c.coeur, { s: FIXE ? 1 : 1 + 0.06 * onde(t, 4) })
+      c.icones.forEach((ic, i) => {
+        const a = TAU * i / c.icones.length + 0.2 + (FIXE ? 0 : 0.3 * onde(t, 1)) // balancement : les icônes diffèrent, un tour partiel sauterait à la boucle
+        const rx = 380, ry = 235
+        const x = cx + rx * Math.cos(a), y = cy + ry * Math.sin(a)
+        ic.style.left = (x - 52) + 'px'; ic.style.top = (y - 52) + 'px'
+        c.lignes[i].setAttribute('x1', cx); c.lignes[i].setAttribute('y1', cy); c.lignes[i].setAttribute('x2', x); c.lignes[i].setAttribute('y2', y)
+        const k = FIXE ? 0.6 : mod(t / 2 + i / c.icones.length, 1)
+        c.balles[i].setAttribute('cx', lerp(cx, x, k)); c.balles[i].setAttribute('cy', lerp(cy, y, k))
+        c.balles[i].setAttribute('opacity', Math.sin(Math.PI * k))
+        ic.style.transform = `scale(${FIXE ? 1 : 1 + 0.14 * clamp((k - 0.8) / 0.2) * (1 - clamp((k - 0.95) / 0.05))})`
+      })
+    },
+  },
+
+  diffusion: {
+    plans: [{ img: S + '77777.jpg', mode: 'panneau', x: 640 }, { img: S + '77777 (2).jpg', mode: 'panneau', x: 640 }],
+    sombre: 0.55,
+    forme: 'etoile',
+    monter(c) {
+      c.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); c.svg.setAttribute('class', 'traits'); c.svg.setAttribute('width', 1280); c.svg.setAttribute('height', 720); $('contenu').appendChild(c.svg)
+      c.fichiers = ['amazon.png', 'ebay.png', 'fnac.png', 'cdiscount-new-logo.png', 'carrefour.png', 'eleclerc.png', 'kaufland_marketplace.png', 'laredoute.png', 'zalando.png', 'rakuten.png', 'manomano.png', 'boulanger.png', 'darty.png', 'googleshoppingads.png', 'tiktokshop_logo.png', 'pinterest.png']
+      c.logos = c.fichiers.map((f) => carteLogo(LOGOS + f, 150, 80))
+      c.rayons = c.fichiers.map(() => { const l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); l.setAttribute('stroke', 'url(#gr)'); l.setAttribute('stroke-width', 3); c.svg.appendChild(l); return l })
+      c.svg.insertAdjacentHTML('afterbegin', '<defs><linearGradient id="gr" gradientUnits="userSpaceOnUse" x1="640" y1="360" x2="1100" y2="360"><stop offset="0" stop-color="#ec4899"/><stop offset="1" stop-color="#2ef2ff" stop-opacity="0.2"/></linearGradient></defs>')
+      c.compteur = el('div', 'gros', 'left:0; right:0; top:230px; text-align:center; font-size:170px')
+      c.sous = el('div', 'gros', 'left:0; right:0; top:410px; text-align:center; font-size:38px; font-weight:600')
+      c.sous.innerHTML = '<span class="etiq">canaux de vente, un clic</span>'
+    },
+    animer(t, c) {
+      const n = c.logos.length
+      c.logos.forEach((lg, i) => {
+        // Chaque logo part du centre et file vers le bord : deux vagues par boucle.
+        const k = FIXE ? 0.72 + 0.12 * (i % 2) : mod(t / 4 + i / n, 1)
+        const a = TAU * i / n + 0.3
+        const x = 640 + Math.cos(a) * lerp(300, 600, k), y = 360 + Math.sin(a) * lerp(210, 340, k)
+        lg.style.left = (x - 75) + 'px'; lg.style.top = (y - 40) + 'px'
+        poser(lg, { o: FIXE ? 1 : clamp(k * 5) * clamp((1 - k) * 5), s: lerp(0.6, 1.05, k) })
+        c.rayons[i].setAttribute('x1', 640 + Math.cos(a) * 230); c.rayons[i].setAttribute('y1', 360 + Math.sin(a) * 160); c.rayons[i].setAttribute('x2', x); c.rayons[i].setAttribute('y2', y)
+        c.rayons[i].setAttribute('opacity', FIXE ? 0.6 : 0.7 * clamp(k * 5) * clamp((1 - k) * 5))
+      })
+      const v = FIXE ? 314 : Math.round(314 * doux(plage(t, 0.2, 2.2)))
+      c.compteur.innerHTML = `<span class="neon" style="--n:#ec4899">${v}</span>`
+      c.compteur.style.opacity = FIXE ? 1 : vie(t, 0.1, 7.3)
+      c.sous.style.opacity = FIXE ? 1 : vie(t, 1.0, 7.2)
+    },
+  },
+
+  'analyses-de-marche': {
+    plans: [clip('h-8', 521, 1), clip('h-88', 150, 1), clip('h-8', 521, 240)],
+    forme: 'blob',
+    monter(c) {
+      c.carte = el('div', 'verre', 'left:200px; top:110px; width:520px; height:440px; padding:28px')
+      c.carte.innerHTML = `<div style="font-weight:600; font-size:24px; color:#d8d2ef">Tendance de la catégorie</div>
+        <div id="barres" style="position:absolute; left:28px; right:28px; bottom:28px; height:300px; display:flex; align-items:flex-end; gap:16px"></div>
+        <svg id="courbe" style="position:absolute; left:28px; bottom:28px; width:464px; height:300px; overflow:visible"><polyline fill="none" stroke="#2ef2ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 8px #2ef2ff)"/></svg>`
+      c.valeurs = [0.28, 0.4, 0.34, 0.52, 0.47, 0.66, 0.78, 0.95]
+      c.barres = c.valeurs.map(() => el('div', '', 'flex:1; border-radius:10px 10px 4px 4px; background:linear-gradient(0deg, #a855f7, #ec4899); box-shadow:0 0 18px rgba(236,72,153,0.5)', $('barres')))
+      c.liste = el('div', 'verre', 'left:750px; top:150px; width:340px; height:360px; padding:24px 24px')
+      c.liste.innerHTML = '<div style="font-weight:800; font-size:28px; margin-bottom:14px">Produits gagnants</div>'
+      c.lignes = [['#1', '+212 %'], ['#2', '+148 %'], ['#3', '+97 %'], ['#4', '+64 %']].map(([r, p]) => {
+        const d = el('div', '', 'display:flex; align-items:center; gap:14px; margin:12px 0; font-size:26px; font-weight:600', c.liste)
+        d.innerHTML = `<span style="color:var(--or)">${r}</span><span style="flex:1; height:16px; border-radius:8px; background:rgba(255,255,255,0.18)"></span><span style="color:var(--vert)">${p}</span>`
+        return d
+      })
+      c.puce = el('div', 'puce', 'left:430px; top:590px')
+      c.puce.innerHTML = '<i></i>48 analyses par jour'
+    },
+    animer(t, c) {
+      const k = FIXE ? 1 : doux(plage(t, 0.5, 2.3))
+      c.barres.forEach((b, i) => { b.style.height = (c.valeurs[i] * 100 * clamp(k * 1.4 - i * 0.05)) + '%' })
+      const pts = c.valeurs.map((v, i) => `${(i + 0.5) * 464 / 8},${300 - v * 300 * clamp(k * 1.2) - 16}`).join(' ')
+      document.querySelector('#courbe polyline').setAttribute('points', pts)
+      if (FIXE) { c.lignes.forEach((d) => poser(d)); return }
+      surgir(c.carte, t, 0.1, 7.3)
+      surgir(c.liste, t, 0.8, 7.3)
+      c.lignes.forEach((d, i) => { const q = plage(t, 1.6 + i * 0.35, 2 + i * 0.35); poser(d, { o: q, x: (1 - doux(q)) * 40 }) })
+      surgir(c.puce, t, 3.2, 7.2)
+    },
+  },
+
+  'agents-ia': {
+    plans: [clip('h-999', 181)],
+    forme: 'hexagone',
+    monter(c) {
+      c.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); c.svg.setAttribute('class', 'traits'); c.svg.setAttribute('width', 1280); c.svg.setAttribute('height', 720); $('contenu').appendChild(c.svg)
+      c.coeur = el('div', 'rond', 'left:565px; top:285px; width:150px; height:150px; background:var(--degrade); box-shadow:0 0 60px rgba(236,72,153,0.9); font-weight:800; font-size:60px')
+      c.coeur.textContent = 'IA'
+      c.roles = [['Sourcing', '🔎'], ['Annonces', '✍️'], ['Images', '🎨'], ['Publicité', '📣'], ['Marché', '📈'], ['SAV', '💬'], ['Comptable', '🧾'], ['Juridique', '⚖️']]
+      c.agents = c.roles.map(([nom, ic], i) => {
+        const a = TAU * i / c.roles.length - Math.PI / 2
+        const x = 640 + 400 * Math.cos(a), y = 360 + 250 * Math.sin(a)
+        const d = el('div', 'puce', `left:${x}px; top:${y}px; font-size:26px; padding:10px 20px`)
+        d.innerHTML = `<span style="font-size:28px">${ic}</span>${nom}`
+        d.x = x; d.y = y
+        const l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); l.setAttribute('x1', 640); l.setAttribute('y1', 360); l.setAttribute('x2', x); l.setAttribute('y2', y)
+        l.setAttribute('stroke', 'rgba(46,242,255,0.5)'); l.setAttribute('stroke-width', 2.5); l.setAttribute('stroke-dasharray', '8 10'); c.svg.appendChild(l); d.l = l
+        const b = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); b.setAttribute('r', 7); b.setAttribute('fill', '#fff'); b.setAttribute('style', 'filter:drop-shadow(0 0 8px #ec4899)'); c.svg.appendChild(b); d.b = b
+        return d
+      })
+    },
+    animer(t, c) {
+      poser(c.coeur, { s: FIXE ? 1 : 1 + 0.06 * onde(t, 4) })
+      c.agents.forEach((d, i) => {
+        const w = d.offsetWidth, h = d.offsetHeight
+        d.style.marginLeft = (-w / 2) + 'px'; d.style.marginTop = (-h / 2) + 'px'
+        const actif = FIXE ? 0 : Math.max(0, Math.sin(Math.PI * mod(t - i, DUREE) / 1)) * (mod(t - i, DUREE) < 1 ? 1 : 0)
+        d.style.boxShadow = `0 0 ${22 + 40 * actif}px rgba(236,72,153,${0.35 + 0.5 * actif})`
+        d.style.borderColor = actif > 0.2 ? '#ec4899' : 'rgba(255,255,255,0.2)'
+        poser(d, { s: 1 + 0.1 * actif, y: FIXE ? 0 : 5 * onde(t, 1, i) })
+        const k = FIXE ? 0.5 : mod(t * 0.75 + i / 8, 1)
+        const sortant = i % 2 === 0
+        const q = sortant ? k : 1 - k
+        d.b.setAttribute('cx', lerp(640, d.x, q)); d.b.setAttribute('cy', lerp(360, d.y, q)); d.b.setAttribute('opacity', Math.sin(Math.PI * k))
+        d.l.setAttribute('stroke-dashoffset', FIXE ? 0 : -t * 36)
+      })
+    },
+  },
+
+  'auto-shipper': {
+    plans: [clip('h-10', 181)],
+    forme: 'goutte',
+    monter(c) {
+      c.anneau = el('div', '', 'position:absolute; left:190px; top:150px; width:300px; height:300px')
+      c.anneau.innerHTML = `<svg viewBox="0 0 300 300" style="width:100%;height:100%;overflow:visible"><circle cx="150" cy="150" r="126" fill="rgba(16,12,32,0.78)" stroke="rgba(255,255,255,0.15)" stroke-width="18"/>
+        <circle id="arc" cx="150" cy="150" r="126" fill="none" stroke="url(#ga)" stroke-width="18" stroke-linecap="round" transform="rotate(-90 150 150)" stroke-dasharray="792" style="filter:drop-shadow(0 0 10px #ec4899)"/>
+        <defs><linearGradient id="ga"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs></svg>
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800">
+          <div id="auto" style="font-size:66px" class="neon">AUTO</div><div style="font-size:24px; color:#d8d2ef; font-weight:600">une tournée / jour</div></div>`
+      c.etapes = ['Choisir', 'Importer', 'Réécrire', 'Publier'].map((txt, i) => {
+        const d = el('div', 'puce', `left:560px; top:${120 + i * 112}px; font-size:30px; padding:14px 28px`)
+        d.innerHTML = `<span style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:22px">${i + 1}</span>${txt}`
+        return d
+      })
+      c.fleche = el('div', '', 'position:absolute; left:520px; top:150px; width:6px; height:350px; border-radius:3px; background:linear-gradient(180deg, #a855f7, #ec4899); box-shadow:0 0 16px #ec4899')
+    },
+    animer(t, c) {
+      $('arc').setAttribute('stroke-dashoffset', 792 * (1 - (FIXE ? 0.72 : doux(plage(t, 0.2, 7.4)))))
+      if (!FIXE) $('arc').style.opacity = 1 - plage(t, 7.5, 7.95)
+      c.etapes.forEach((d, i) => {
+        const a = 0.6 + i * 1.4
+        const fait = FIXE || t > a + 0.4
+        const actif = FIXE ? 0 : vie(t, a, a + 1.2, 0.4)
+        d.querySelector('span').style.background = fait ? 'var(--vert)' : 'rgba(255,255,255,0.12)'
+        d.querySelector('span').style.color = fait ? '#07060d' : '#fff'
+        d.querySelector('span').textContent = fait ? '✓' : String(i + 1)
+        d.style.boxShadow = `0 0 ${22 + 40 * actif}px rgba(236,72,153,${0.35 + 0.5 * actif})`
+        poser(d, { o: FIXE ? 1 : 0.55 + 0.45 * Math.max(actif, fait ? 1 : 0) * (1 - plage(t, 7.3, 7.9)), s: 1 + 0.07 * actif })
+      })
+      c.fleche.style.transformOrigin = 'top'
+      c.fleche.style.transform = `scaleY(${FIXE ? 1 : doux(plage(t, 0.6, 5.2)) * (1 - plage(t, 7.3, 7.9))})`
+    },
+  },
+
+  'les-drops': {
+    plans: [clip('h-11', 402, 1), clip('h-11', 402, 200)],
+    sombre: 0.5,
+    forme: 'goutteRonde',
+    monter(c) {
+      c.gouttes = Array.from({ length: 14 }, (_, i) => {
+        const g = el('div', '', `position:absolute; width:46px; height:46px; background:var(--degrade); border-radius:0 50% 50% 50%; transform-origin:center;
+          box-shadow:0 0 20px rgba(236,72,153,0.8)`)
+        g.x = 220 + ((i * 137) % 840); g.ph = (i * 0.37) % 1
+        return g
+      })
+      c.prix = el('div', 'gros', 'left:0; right:0; top:170px; text-align:center; font-size:120px')
+      c.prix.innerHTML = '<span class="neon" style="--n:#a855f7">1 drop = 0,01 €</span>'
+      c.sous = el('div', 'gros', 'left:0; right:0; top:320px; text-align:center; font-size:52px; font-weight:800')
+      c.sous.innerHTML = '<span class="etiq" style="background:var(--degrade); border:0">Sans abonnement</span>'
+      c.tarifs = [['Une annonce', '12 drops'], ['Une boutique IA', '350 drops'], ['À l\'inscription', '120 offerts']].map(([a, b], i) => {
+        const d = el('div', 'verre', `left:${170 + i * 320}px; top:450px; width:300px; height:130px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px`)
+        d.innerHTML = `<div style="font-size:24px; color:#d8d2ef; font-weight:600">${a}</div><div style="font-size:40px; font-weight:800">${b}</div>`
+        return d
+      })
+    },
+    animer(t, c) {
+      c.gouttes.forEach((g) => {
+        const k = FIXE ? g.ph : mod(t / 4 + g.ph, 1)
+        g.style.left = g.x + 'px'; g.style.top = lerp(-60, 740, k) + 'px'
+        g.style.transform = 'rotate(45deg)'; g.style.opacity = FIXE ? 0.5 : 0.75
+      })
+      if (FIXE) { c.tarifs.forEach((d) => poser(d)); return }
+      surgir(c.prix, t, 0.2, 7.3)
+      surgir(c.sous, t, 0.9, 7.3)
+      c.tarifs.forEach((d, i) => surgir(d, t, 1.8 + i * 0.5, 7.1 + i * 0.1, 50))
+    },
+  },
+}
+
+/* --------------------------------------------------------- Formes (fixe) */
+const FORMES = {
+  cercle: 'M390,10 A320,320 0 1,1 389.9,10 Z',
+  hexagone: 'M390,8 L700,170 L700,490 L390,652 L80,490 L80,170 Z',
+  goutte: 'M390,10 C560,10 740,140 740,330 C740,520 580,650 390,650 C200,650 40,520 40,330 C40,190 150,70 290,30 Z',
+  arche: 'M60,650 L60,300 C60,120 210,10 390,10 C570,10 720,120 720,300 L720,650 Z',
+  losange: 'M390,10 C420,10 440,20 460,40 L740,300 C765,322 765,338 740,360 L460,620 C440,640 420,650 390,650 C360,650 340,640 320,620 L40,360 C15,338 15,322 40,300 L320,40 C340,20 360,10 390,10 Z',
+  etoile: 'M390,10 L470,190 L760,200 L540,340 L640,640 L390,470 L140,640 L240,340 L20,200 L310,190 Z',
+  blob: 'M420,20 C580,30 740,120 750,300 C760,470 640,640 440,648 C260,655 60,590 36,410 C12,240 120,100 250,50 C300,30 360,16 420,20 Z',
+  goutteRonde: 'M390,10 C390,10 700,300 700,440 C700,570 560,650 390,650 C220,650 80,570 80,440 C80,300 390,10 390,10 Z',
+}
+
+/* ------------------------------------------------------------- Moteur */
+const cle = params.get('theme') || 'scraping-produits'
+const TH = THEMES[cle]
+const CLIPS = { 'd-oguss-accueil': 0, 'd-robot-accueil': 0, 'd-iagent': 0 }
+let ATTENTES = []
+const ctx = {}
+
+const PLANS = TH.plans.map((p) => {
+  const div = el('div', 'plan', '', $('fond'))
+  const src0 = p.img || `clips/${p.clip}/${String(p.debut).padStart(4, '0')}.jpg`
+  if (p.mode === 'panneau' && !FIXE) {
+    const f = el('img', 'flou', '', div); f.src = src0
+    const n = el('img', 'panneau', '', div); n.src = src0
+    n.onload = () => { const l = 620 * n.naturalWidth / n.naturalHeight; n.style.width = l + 'px'; n.style.left = ((p.x || 640) - l / 2) + 'px'; n.style.marginTop = '-310px' }
+    return { ...p, div, imgs: [f, n] }
+  }
+  const n = el('img', 'net', '', div); n.src = src0
+  return { ...p, div, imgs: [n] }
+})
+
+if (FIXE) {
+  $('cadreForme').innerHTML = `<defs><linearGradient id="gf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs>
+    <path d="${FORMES[TH.forme]}" fill="none" stroke="url(#gf)" stroke-width="10" style="filter:drop-shadow(0 0 16px #ec4899)"/>`
+  $('fond').style.clipPath = `path('${FORMES[TH.forme]}')` // #fond a la taille du cadre : même tracé
+}
+
+TH.monter(ctx)
+
+function rendre(t) {
+  ATTENTES = []
+  const N = PLANS.length, S = DUREE / N, F = 0.7
+  PLANS.forEach((p, i) => {
+    let u = mod(t - i * S + F / 2, DUREE)
+    if (FIXE) u = i === 0 ? S / 2 : -1
+    const visible = u >= 0 && u < S + F
+    p.div.style.display = visible ? 'block' : 'none'
+    if (!visible) return
+    p.div.style.opacity = N === 1 || FIXE ? 1 : (u < F ? doux(u / F) : 1)
+    p.div.style.zIndex = u < F ? 2 : 1
+    const k = u / (S + F)
+    const s = FIXE ? 1.04 : 1.04 + 0.1 * k, dx = FIXE ? 0 : (i % 2 ? 1 : -1) * 24 * (k - 0.5)
+    const cible = p.imgs[p.imgs.length - 1]
+    cible.style.transform = `translate(${dx}px, 0) scale(${s})`
+    if (p.clip) {
+      const f = clamp(p.debut + Math.floor(u * IPS), 1, p.n)
+      const src = `clips/${p.clip}/${String(f).padStart(4, '0')}.jpg`
+      for (const im of p.imgs) if (im.getAttribute('src') !== src) { im.setAttribute('src', src); ATTENTES.push(im.decode().catch(() => {})) }
+    }
+  })
+  if (!FIXE) $('eclat').style.opacity = 0.6 + 0.4 * onde(t, 2)
+  if (!FIXE && TH.sombre) $('fond').style.filter = `brightness(${TH.sombre})`
+  TH.animer(FIXE ? 5 : t, ctx)
+  return Promise.all(ATTENTES)
+}
+window.rendre = rendre
+window.pret = async () => {
+  // Nombre d'images des clips DropShop, lu une fois (le moteur ne liste pas les dossiers).
+  for (const nom of Object.keys(CLIPS)) {
+    let n = 0, pas = 256
+    while (pas >= 1) { if (await existe(`clips/${nom}/${String(n + pas).padStart(4, '0')}.jpg`)) n += pas; else pas /= 2 }
+    CLIPS[nom] = n
+  }
+}
+function existe(src) { return new Promise((ok) => { const i = new Image(); i.onload = () => ok(true); i.onerror = () => ok(false); i.src = src }) }
+</script>
+</body>
+</html>

@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Publicité DropShipper IA — Prends un produit n'importe où, publie-le partout (30 s)</title>
+<!--
+  Sixième publicité : le relevé et la diffusion, logos v2 séparés, sur
+  Pandora & Vermont – Poseidon de 3:32 à 4:02 (musiques/partout.wav).
+
+  144,5 BPM, un temps toutes les 0,41518 s. Phrases de seize temps à 0 ; 6,59
+  (montée) ; 13,23 (drop) ; 19,87 ; 26,52. Neuf scènes de huit temps : chaque
+  coupe tombe sur un premier temps. Pendant la montée, le compteur 314 roule
+  comme une machine à sous et se fige, chiffre après chiffre, pile sur le drop,
+  où il s'allume en néon.
+-->
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(polices/outfit-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  :root { --degrade: linear-gradient(120deg, #f28a49 0%, #e95986 50%, #c084fc 100%); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #07060f; }
+  body { font-family: Outfit, system-ui, sans-serif; color: #fff; position: relative; }
+  #scene { position: absolute; inset: 0; overflow: hidden; background: #07060f; }
+  #cadre { position: absolute; inset: 0; transform-origin: 50% 45%; }
+  #marque { position: absolute; top: 34px; left: 0; right: 0; display: flex; justify-content: center; z-index: 5; transform-origin: 50% 40%; }
+  #marque img { width: 1000px; filter: drop-shadow(0 0 22px rgba(233,89,134,0.55)) drop-shadow(0 4px 12px rgba(0,0,0,0.85)); }
+  .grad { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .plan { position: absolute; inset: 0; opacity: 0; display: none; will-change: transform, opacity, filter; }
+  .fondvideo { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+  .voile { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,6,15,0.85) 0%, rgba(7,6,15,0.45) 30%, rgba(7,6,15,0.4) 55%, rgba(7,6,15,0.88) 80%, rgba(7,6,15,0.96) 100%); }
+  .legende { position: absolute; top: 340px; left: 50px; right: 50px; text-align: center; font-weight: 900; font-size: 116px; line-height: 1.02; letter-spacing: -0.02em; text-shadow: 0 6px 30px rgba(0,0,0,0.75); }
+  .legende .l { display: block; }
+  .neon { color: #fff; text-shadow: 0 0 3px #fff, 0 0 14px var(--n), 0 0 34px var(--n), 0 0 70px color-mix(in srgb, var(--n) 50%, transparent); }
+  .n1 { --n: #f5ff3d; } .n2 { --n: #2ef2ff; } .n3 { --n: #ff8a1f; } .n4 { --n: #c04dff; } .n5 { --n: #39ff7a; } .n6 { --n: #ff4fd8; }
+  .titre { position: absolute; top: 1420px; left: 80px; right: 80px; text-align: center; font-weight: 700; font-size: 48px; line-height: 1.16; color: #f1ecff; text-shadow: 0 4px 20px rgba(0,0,0,0.85); }
+  .titre small { display: block; margin-top: 14px; font-weight: 500; font-size: 34px; color: #cfc7ea; }
+  .carte { position: absolute; background: rgba(22,19,42,0.92); border: 2px solid rgba(255,255,255,0.14); border-radius: 36px; box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+  .logo-carte { position: absolute; width: 200px; height: 110px; margin: -55px 0 0 -100px; background: #fff; border-radius: 22px; display: flex; align-items: center; justify-content: center; padding: 16px; box-shadow: 0 0 26px rgba(46,242,255,0.35), 0 14px 34px rgba(0,0,0,0.45); }
+  .logo-carte img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .noeud { position: absolute; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px rgba(255,255,255,0.15), 0 0 30px var(--lueur, rgba(46,242,255,0.6)); }
+  .noeud img { width: 58%; height: 58%; object-fit: contain; }
+  .puce { display: inline-block; font-weight: 700; font-size: 32px; padding: 12px 26px; border-radius: 999px; border: 2px solid rgba(57,255,122,0.75); background: rgba(7,6,15,0.82); color: #d9ffe6; box-shadow: 0 0 24px rgba(57,255,122,0.35); margin: 0 8px 14px; }
+  /* Compteur machine à sous */
+  #compteur { position: absolute; left: 0; right: 0; top: 660px; display: flex; justify-content: center; gap: 10px; }
+  .roue { position: relative; width: 250px; height: 340px; overflow: hidden; border-radius: 28px; background: rgba(7,6,15,0.78); border: 3px solid rgba(255,255,255,0.18); }
+  .roue .bande { position: absolute; left: 0; right: 0; top: 0; }
+  .roue .bande div { height: 340px; line-height: 340px; text-align: center; font-weight: 900; font-size: 300px; letter-spacing: -0.04em; color: #fff; }
+  .roue::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,6,15,0.85), transparent 28%, transparent 72%, rgba(7,6,15,0.85)); }
+  #liseré { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: var(--degrade); z-index: 5; }
+  #eclair { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(46,242,255,0.85) 42%, rgba(236,72,153,0.85) 52%, rgba(242,138,73,0.85) 60%, transparent 72%); opacity: 0; pointer-events: none; mix-blend-mode: screen; z-index: 6; }
+  #blanc { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 7; }
+  svg.flux { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: visible; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <linearGradient id="gCadran" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2548"/><stop offset="1" stop-color="#0f0d1f"/></linearGradient>
+    <symbol id="montre" viewBox="0 0 200 300">
+      <rect x="62" y="0" width="76" height="92" rx="14" fill="#6b6590"/><rect x="62" y="208" width="76" height="92" rx="14" fill="#6b6590"/>
+      <rect x="70" y="10" width="60" height="6" rx="3" fill="#8d87b3"/><rect x="70" y="30" width="60" height="6" rx="3" fill="#8d87b3"/>
+      <rect x="70" y="264" width="60" height="6" rx="3" fill="#8d87b3"/><rect x="70" y="284" width="60" height="6" rx="3" fill="#8d87b3"/>
+      <circle cx="100" cy="150" r="84" fill="#d9d5ec"/><circle cx="100" cy="150" r="72" fill="url(#gCadran)"/>
+      <rect x="184" y="140" width="12" height="20" rx="4" fill="#bfb9da"/>
+      <g stroke="#f5d0fe" stroke-width="4" stroke-linecap="round"><line x1="100" y1="88" x2="100" y2="100"/><line x1="100" y1="200" x2="100" y2="212"/><line x1="38" y1="150" x2="50" y2="150"/><line x1="150" y1="150" x2="162" y2="150"/></g>
+      <line x1="100" y1="150" x2="100" y2="104" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+      <line x1="100" y1="150" x2="134" y2="168" stroke="#ec4899" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="100" cy="150" r="7" fill="#ec4899"/>
+    </symbol>
+  </defs></svg>
+
+  <div id="cadre">
+  <!-- 0 · Un produit -->
+  <section class="plan" id="s0">
+    <img class="fondvideo" data-clip="t-miami" data-n="292" alt="" style="filter:saturate(1.4)"><div class="voile"></div>
+    <div class="legende" style="top:380px"><span class="l" id="s0a">Prends</span><span class="l neon n1" id="s0b">un produit.</span></div>
+    <div class="carte" id="s0carte" style="left:350px; top:780px; width:380px; height:480px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px">
+      <svg width="190" height="285"><use href="#montre"/></svg>
+      <div style="font-weight:800; font-size:44px" class="grad">24,90 €</div>
+    </div>
+  </section>
+
+  <!-- 1 · N'importe où -->
+  <section class="plan" id="s1">
+    <img class="fondvideo" data-clip="t-globe" data-n="600" alt=""><div class="voile" style="opacity:0.6"></div>
+    <div class="legende"><span class="l neon n2" id="s1a">N'importe où.</span></div>
+    <div id="s1logos"></div>
+    <div class="titre" id="s1t"><span class="grad" style="font-weight:900; font-size:76px" id="s1n">0</span> fournisseurs<small>AliExpress, Temu, CJ, Alibaba, BigBuy…</small></div>
+  </section>
+
+  <!-- 2 · Un clic, importé -->
+  <section class="plan" id="s2">
+    <img class="fondvideo" data-clip="t-ville" data-n="180" alt="" style="filter:saturate(1.3)"><div class="voile"></div>
+    <div class="legende"><span class="l">Un clic.</span><span class="l neon n5" id="s2b">Importé.</span></div>
+    <div class="carte" id="s2fiche" style="left:70px; top:640px; width:940px; height:560px; padding:36px">
+      <div style="display:flex; gap:30px">
+        <div style="flex:0 0 220px; height:260px; border-radius:24px; background:linear-gradient(160deg,#241f40,#15122a); display:flex; align-items:center; justify-content:center"><svg width="130" height="195"><use href="#montre"/></svg></div>
+        <div style="flex:1">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px"><img src="logos-v2/icone-v2-dropshipper.png" style="height:46px"><span id="s2etat" style="font-size:28px; color:#b9b0d6">Relevé de la fiche…</span></div>
+          <div id="s2titre" style="font-weight:800; font-size:42px; line-height:1.12; min-height:140px"></div>
+        </div>
+      </div>
+      <div id="s2puces" style="margin-top:26px; text-align:left">
+        <span class="puce" style="margin:0 8px 12px 0">✓ Photos</span><span class="puce" style="margin:0 8px 12px 0">✓ Prix en €</span><span class="puce" style="margin:0 8px 12px 0">✓ Variantes</span><span class="puce" style="margin:0 8px 12px 0">✓ EAN</span><span class="puce" style="margin:0 8px 12px 0">✓ Avis</span>
+      </div>
+    </div>
+    <svg id="s2curseur" width="70" height="90" viewBox="0 0 24 30" style="position:absolute; left:0; top:0"><path d="M2 2 L2 24 L8 18 L12 27 L16 25 L12 16 L20 16 Z" fill="#fff" stroke="#0b0a14" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    <div class="titre" style="top:1280px">L'extension relève tout,<small>l'IA réécrit l'annonce</small></div>
+  </section>
+
+  <!-- 3 · La montée : le compteur roule -->
+  <section class="plan" id="s3">
+    <img class="fondvideo" id="s3fond" data-clip="t-warp" data-n="90" data-boucle="1" alt=""><div class="voile" style="opacity:0.35"></div>
+    <div class="legende"><span class="l" id="s3a">Publie-le</span><span class="l neon n6" id="s3b">partout.</span></div>
+  </section>
+
+  <!-- 4 · Le drop : 314 en néon -->
+  <section class="plan" id="s4">
+    <img class="fondvideo" data-clip="t-rayons" data-n="156" alt="" style="filter:brightness(0.75) saturate(1.3)"><div class="voile" style="opacity:0.45"></div>
+    <div class="legende"><span class="l neon n6">Partout.</span></div>
+    <div id="s4sous" style="position:absolute; top:1040px; left:0; right:0; text-align:center; font-weight:900; font-size:80px; text-shadow:0 6px 30px rgba(0,0,0,0.8)">canaux de vente</div>
+    <div class="titre" id="s4t" style="top:1200px">Une voie de liaison pour chacun<small>API, flux produit, extension</small></div>
+  </section>
+
+  <!-- 5 · Le flux -->
+  <section class="plan" id="s5">
+    <img class="fondvideo" src="sources/partout/flux-carte.jpg" id="s5fond" alt="" style="filter:blur(10px) brightness(0.7) saturate(1.4)"><div class="voile" style="opacity:0.6"></div>
+    <div class="legende"><span class="l">Un flux.</span><span class="l neon n2">Tous les canaux.</span></div>
+    <svg class="flux" id="s5flux"></svg>
+    <div id="s5noeuds"></div>
+    <div id="s5coeur" style="position:absolute; left:440px; top:900px; width:200px; height:193px"><img src="logos-v2/icone-v2-dropshipper.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 30px rgba(233,89,134,0.9))"></div>
+    <div class="titre" style="top:1480px">Ton catalogue part d'un seul endroit</div>
+  </section>
+
+  <!-- 6 · Places de marché -->
+  <section class="plan" id="s6">
+    <img class="fondvideo" data-clip="t-carres" data-n="900" alt="" style="filter:brightness(0.8)"><div class="voile" style="opacity:0.7"></div>
+    <div class="legende"><span class="l" style="font-size:96px">Places de marché</span><span class="l neon n4" style="font-size:96px">France &amp; Europe.</span></div>
+    <div id="s6mur"></div>
+    <div class="titre" style="top:1460px"><span class="grad" style="font-weight:900; font-size:76px" id="s6n">0</span> places de marché<small>dont 41 enseignes Mirakl, par API</small></div>
+  </section>
+
+  <!-- 7 · Boutiques, réseaux, comparateurs -->
+  <section class="plan" id="s7">
+    <img class="fondvideo" data-clip="t-losange" data-n="300" alt="" style="filter:brightness(0.55) hue-rotate(250deg)"><div class="voile" style="opacity:0.6"></div>
+    <div class="legende" style="font-size:96px"><span class="l">Boutiques, réseaux,</span><span class="l neon n3">comparateurs.</span></div>
+    <svg class="flux" id="s7flux"></svg>
+    <div id="s7noeuds"></div>
+    <div id="s7coeur" style="position:absolute; left:450px; top:935px; width:180px; height:174px"><img src="logos-v2/icone-v2-dropshipper.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 30px rgba(233,89,134,0.9))"></div>
+    <div class="titre" style="top:1500px">Shopify, WooCommerce, Instagram, TikTok, Google Shopping, idealo…</div>
+  </section>
+
+  <!-- 8 · Appel -->
+  <section class="plan" id="s8">
+    <img class="fondvideo" data-clip="t-etoiles" data-n="150" data-boucle="1" alt="" style="filter:brightness(0.6)"><div class="voile" style="opacity:0.6"></div>
+    <div id="s8icone" style="position:absolute; left:50%; top:360px; width:440px; height:424px; margin-left:-220px"><img src="logos-v2/icone-v2-dropshipper.png" style="width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 50px rgba(233,89,134,0.85)) drop-shadow(0 0 120px rgba(242,138,73,0.45))"></div>
+    <div id="s8phrase" style="position:absolute; top:820px; left:30px; right:30px; text-align:center; font-weight:900; font-size:68px; line-height:1.1">Prends un produit<br>n'importe où.<br><span class="grad">Publie-le partout.</span></div>
+    <div id="s8bouton" style="position:absolute; top:1120px; left:50%; transform:translateX(-50%); white-space:nowrap; font-weight:800; font-size:54px; padding:30px 62px; border-radius:999px; background:var(--degrade); color:#1a0a10; box-shadow:0 0 50px rgba(236,72,153,0.6)">Essayer gratuitement</div>
+    <div id="s8site" style="position:absolute; top:1300px; left:0; right:0; text-align:center; font-weight:800; font-size:50px"><span style="color:#39ff7a">120 drops offerts</span> · <span class="grad">drop-shipper.fr</span></div>
+  </section>
+
+  <!-- Le compteur vit au-dessus des scènes 3 et 4 : il roule pendant la montée et se fige sur le drop -->
+  <div id="compteur"></div>
+  </div>
+
+  <div id="marque"><img src="logos-v2/texte-dropshipper.png" alt=""></div>
+  <div id="liseré"></div>
+  <div id="eclair"></div>
+  <div id="blanc"></div>
+</div>
+
+<script>
+const TEMPS = 0.41518, DROP = 13.23
+const PREMIER = DROP - 32 * TEMPS // ≈ −0,06 : le premier temps tombe au tout début
+const temps = (k) => PREMIER + k * TEMPS
+const DUREE = 30
+const PLANS = Array.from({ length: 9 }, (_, i) => ({ id: 's' + i, de: i ? temps(i * 8) : 0, a: i < 8 ? temps((i + 1) * 8) : DUREE }))
+window.DUREE = DUREE
+window.COUPES = PLANS.slice(1).map((p) => p.de)
+
+const $ = (id) => document.getElementById(id)
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const lerp = (a, b, k) => a + (b - a) * k
+const plage = (t, a, b) => clamp((t - a) / (b - a))
+const sortie3 = (k) => 1 - Math.pow(1 - k, 3)
+const entree3 = (k) => k * k * k
+const douce = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
+const rebond = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2) }
+function poser(el, { o = 1, x = 0, y = 0, s = 1, r = 0, b = 0 } = {}) {
+  el.style.opacity = o
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`
+  el.style.filter = b > 0.05 ? `blur(${b}px)` : 'none'
+}
+function surgir(el, t, a, d = 0.35, dy = 50) {
+  const k = plage(t, a, a + d)
+  poser(el, { o: sortie3(k), y: (1 - sortie3(k)) * dy, s: lerp(0.85, 1, rebond(k)) })
+}
+const T = (n) => n * TEMPS
+const impulsion = (t) => Math.exp(-(((t - PREMIER) % TEMPS + TEMPS) % TEMPS) * 14)
+const LOGO = (f) => `../../frontend/public/logos/${f}`
+const ICONE = (f) => `icones/${f}.svg`
+const NS = 'http://www.w3.org/2000/svg'
+
+// ---------- 1 · les fournisseurs tombent du monde entier ----------
+const FOURN = ['aliexpress', 'temu', 'cjdropshipping', 'alibaba', 'bigbuy', 'vidaxl', 'printify', 'faire', 'spocket', 'ankorstore']
+const cheminF = (n) => n === 'temu' ? LOGO('temu_logo-svg.png') : `../../frontend/public/logos-fournisseurs/${n}.png`
+const logosF = FOURN.map((n, i) => {
+  const d = document.createElement('div'); d.className = 'logo-carte'
+  d.innerHTML = `<img src="${cheminF(n)}" alt="">`; $('s1logos').appendChild(d)
+  return { d, x: 180 + (i % 3) * 360 + (Math.floor(i / 3) % 2) * 0, y: 640 + Math.floor(i / 3) * 170 }
+})
+logosF.forEach((l, i) => { if (i === 9) { l.x = 540; l.y = 640 + 3 * 170 } })
+
+// ---------- 3/4 · le compteur machine à sous ----------
+const CHIFFRES = [3, 1, 4]
+const roues = CHIFFRES.map(() => {
+  const r = document.createElement('div'); r.className = 'roue'
+  const b = document.createElement('div'); b.className = 'bande'
+  for (let k = 0; k < 30; k++) { const d = document.createElement('div'); d.textContent = k % 10; b.appendChild(d) }
+  r.appendChild(b); $('compteur').appendChild(r); return { r, b }
+})
+// Chaque roue tourne vite puis ralentit ; la centaine se fige d'abord, l'unité pile sur le drop
+const ARRETS = [DROP - T(2), DROP - T(1), DROP]
+function compteur(t) {
+  const debut = PLANS[3].de
+  const visible = t >= debut - 0.05 && t < PLANS[5].de
+  $('compteur').style.display = visible ? 'flex' : 'none'
+  if (!visible) return
+  const allume = t >= DROP
+  roues.forEach(({ r, b }, i) => {
+    const k = plage(t, debut, ARRETS[i])
+    const tours = 3 + i // nombre de tours restants au départ
+    const p = CHIFFRES[i] + 10 + tours * 10 * (1 - sortie3(k)) // position dans la bande (en chiffres)
+    const y = -(10 + ((p % 10) + 10) % 10) * 340
+    b.style.transform = `translateY(${y}px)`
+    const vitesse = k < 1 ? (1 - k) * (1 - k) : 0
+    b.style.filter = vitesse > 0.02 ? `blur(${Math.min(14, vitesse * 30)}px)` : 'none'
+    const fixe = t >= ARRETS[i]
+    const n = impulsion(t) * (allume ? 1 : 0)
+    ;[...b.children].forEach((d) => {
+      d.style.color = fixe ? '#fff' : '#d8d2ef'
+      d.style.textShadow = allume ? `0 0 4px #fff, 0 0 ${18 + 16 * n}px #ff4fd8, 0 0 ${44 + 30 * n}px #ff4fd8, 0 0 ${90 + 40 * n}px #c04dff` : (fixe ? '0 0 20px #ff4fd8' : 'none')
+    })
+    r.style.borderColor = fixe ? '#ff4fd8' : 'rgba(255,255,255,0.18)'
+    r.style.boxShadow = fixe ? `0 0 ${30 + (allume ? 30 * n : 0)}px rgba(255,79,216,0.7), inset 0 0 30px rgba(255,79,216,0.3)` : 'none'
+    // petit coup quand la roue se fige
+    const choc = t >= ARRETS[i] ? Math.exp(-(t - ARRETS[i]) * 10) : 0
+    r.style.transform = `scale(${1 + 0.1 * choc})`
+  })
+  // Entrée avec la scène 3, punch sur le drop, puis le compteur monte et laisse la place à la scène 4
+  const kin = sortie3(plage(t, debut, debut + 0.4))
+  const punch = allume ? Math.exp(-(t - DROP) * 6) : 0
+  const sAllume = allume ? 1 + 0.05 * impulsion(t) : 1
+  $('compteur').style.opacity = kin * (1 - plage(t, PLANS[5].de - 0.2, PLANS[5].de))
+  $('compteur').style.transform = `translateY(${allume ? -40 : 0}px) scale(${lerp(0.7, 1, kin) * (1 + 0.25 * punch) * sAllume})`
+}
+
+// ---------- 5 · le flux : un cœur, des canaux, des impulsions ----------
+function reseau(svgId, boiteId, centre, noeuds, taille) {
+  const svg = $(svgId), boite = $(boiteId)
+  return noeuds.map((n, i) => {
+    const mx = (centre[0] + n.x) / 2, my = (centre[1] + n.y) / 2
+    const dx = n.x - centre[0], dy = n.y - centre[1]
+    const d = `M${centre[0]},${centre[1]} Q${mx - dy * 0.2},${my + dx * 0.2} ${n.x},${n.y}`
+    const trace = document.createElementNS(NS, 'path'); trace.setAttribute('d', d)
+    trace.setAttribute('fill', 'none'); trace.setAttribute('stroke', n.couleur); trace.setAttribute('stroke-width', '4'); trace.setAttribute('stroke-opacity', '0.6')
+    trace.style.filter = `drop-shadow(0 0 6px ${n.couleur})`
+    const imp = document.createElementNS(NS, 'path'); imp.setAttribute('d', d)
+    imp.setAttribute('fill', 'none'); imp.setAttribute('stroke', '#fff'); imp.setAttribute('stroke-width', '7'); imp.setAttribute('stroke-linecap', 'round')
+    imp.style.filter = `drop-shadow(0 0 8px ${n.couleur}) drop-shadow(0 0 16px ${n.couleur})`
+    svg.appendChild(trace); svg.appendChild(imp)
+    const L = trace.getTotalLength()
+    trace.style.strokeDasharray = L; imp.style.strokeDasharray = `26 ${L}`
+    const el = document.createElement('div'); el.className = 'noeud'
+    const tl = n.taille || taille
+    el.style.cssText += `width:${tl}px;height:${tl}px;left:${n.x - tl / 2}px;top:${n.y - tl / 2}px;--lueur:${n.couleur}`
+    el.innerHTML = `<img src="${n.src}" alt="">`; boite.appendChild(el)
+    return { trace, imp, L, el, i }
+  })
+}
+function animer(liens, t, depart, pas) {
+  for (const l of liens) {
+    const a = depart + l.i * pas
+    const k = sortie3(plage(t, a, a + 0.4))
+    l.trace.style.strokeDashoffset = l.L * (1 - k)
+    const cycle = ((t - a - 0.25) * 1.5 + l.i * 0.37) % 1
+    l.imp.style.strokeDashoffset = -cycle * (l.L + 26) + 26
+    l.imp.style.opacity = k > 0.95 ? 1 : 0
+    const kn = plage(t, a + 0.3, a + 0.6)
+    l.el.style.opacity = sortie3(kn)
+    l.el.style.transform = `scale(${lerp(0.2, 1, rebond(kn)) * (1 + 0.05 * impulsion(t + PLANS[5].de))})`
+  }
+}
+function cercle(n, cx, cy, rx, ry, decal = -Math.PI / 2) {
+  return Array.from({ length: n }, (_, i) => { const a = decal + (i / n) * Math.PI * 2; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry] })
+}
+const COUL = ['#2ef2ff', '#ec4899', '#39ff7a', '#f5ff3d', '#c04dff', '#ff8a1f']
+const FLUX = ['amazon.png', 'ebay.png', 'fnac.png', 'cdiscount-new-logo.png', 'eleclerc.png', 'carrefour.png', 'zalando.png', 'googleshoppingads.png', 'idealo.png', 'kaufland_marketplace.png']
+  .map((f, i) => ({ src: LOGO(f), couleur: COUL[i % COUL.length] }))
+cercle(FLUX.length, 540, 1000, 400, 360).forEach(([x, y], i) => Object.assign(FLUX[i], { x, y }))
+const liens5 = reseau('s5flux', 's5noeuds', [540, 1000], FLUX, 130)
+
+const RING = [ICONE('shopify'), ICONE('instagram'), ICONE('woocommerce'), ICONE('tiktok'), LOGO('googleshoppingads.png'), ICONE('prestashop'),
+  ICONE('facebook'), LOGO('idealo.png'), ICONE('magento'), ICONE('pinterest'), LOGO('ledenicheur.png'), ICONE('wix')]
+  .map((src, i) => ({ src, couleur: COUL[i % COUL.length] }))
+cercle(RING.length, 540, 1020, 410, 370).forEach(([x, y], i) => Object.assign(RING[i], { x, y }))
+const liens7 = reseau('s7flux', 's7noeuds', [540, 1020], RING, 124)
+
+// ---------- 6 · mur de places de marché ----------
+const MUR = ['amazon.png', 'ebay.png', 'fnac.png', 'cdiscount-new-logo.png', 'eleclerc.png', 'carrefour.png', 'zalando.png', 'rakuten.png',
+  'kaufland_marketplace.png', 'laredoute.png', 'manomano.png', 'darty.png', 'boulanger.png', 'auchan.png', 'leroymerlin.png', 'galerieslafayette.png',
+  'elcorteingles.png', 'worten.png', 'bol-logo.png', 'otto_logo.png']
+const murEl = MUR.map((f, i) => {
+  const d = document.createElement('div'); d.className = 'logo-carte'
+  const col = i % 4, lig = Math.floor(i / 4)
+  d.style.cssText += `width:220px;height:104px;margin:0;left:${40 + col * 254}px;top:${640 + lig * 150}px`
+  d.innerHTML = `<img src="${LOGO(f)}" alt="">`; $('s6mur').appendChild(d); return { d, col, lig }
+})
+
+const TITRE = 'Montre automatique homme acier, étanche 100 m'
+
+// ---------- Scènes (t local) ----------
+const SCENES = {
+  s0(t) {
+    surgir($('s0a'), t, 0.05, 0.3, 60)
+    surgir($('s0b'), t, T(1), 0.3, 60)
+    const k = plage(t, T(3), T(4))
+    poser($('s0carte'), { o: sortie3(k), s: lerp(0.4, 1, rebond(k)) * (1 + 0.03 * impulsion(t)), r: (1 - sortie3(k)) * -12 })
+  },
+  s1(t) {
+    surgir($('s1a'), t, 0.05, 0.3, 60)
+    logosF.forEach((l, i) => {
+      const a = T(0.5) + i * TEMPS / 2
+      const k = plage(t, a, a + 0.35)
+      l.d.style.left = l.x + 'px'
+      l.d.style.top = (l.y + 6 * Math.sin(t * 3 + i)) + 'px'
+      l.d.style.opacity = clamp(k * 3)
+      l.d.style.transform = `scale(${lerp(0.2, 1, rebond(k)) * (1 + 0.04 * impulsion(t + PLANS[1].de))}) rotate(${(1 - sortie3(k)) * (i % 2 ? 25 : -25)}deg)`
+    })
+    $('s1n').textContent = Math.round(38 * sortie3(plage(t, 0.3, T(6))))
+  },
+  s2(t) {
+    const kc = plage(t, 0.05, 0.4)
+    poser($('s2fiche'), { o: sortie3(kc), y: (1 - sortie3(kc)) * 120 })
+    surgir($('s2b'), t, T(3), 0.3, 60)
+    $('s2b').style.opacity = t < T(3) ? 0 : $('s2b').style.opacity
+    const clic = T(2) - 0.05
+    const kcur = douce(plage(t, clic - 0.55, clic))
+    $('s2curseur').style.opacity = clamp(plage(t, 0.3, 0.45) - plage(t, T(3.5), T(4)))
+    $('s2curseur').style.transform = `translate(${lerp(880, 540, kcur)}px, ${lerp(1330, 900, kcur)}px) scale(${1 - 0.15 * clamp(plage(t, clic, clic + 0.1) - plage(t, clic + 0.1, clic + 0.2))})`
+    const n = Math.floor(TITRE.length * plage(t, clic + 0.1, T(5)))
+    $('s2titre').textContent = TITRE.slice(0, n)
+    $('s2etat').textContent = t < T(5) ? (t < clic ? 'Relevé de la fiche…' : 'Réécriture par l\'IA…') : 'Annonce prête ✓'
+    $('s2etat').style.color = t < T(5) ? '#b9b0d6' : '#39ff7a'
+    ;[...$('s2puces').children].forEach((el, i) => surgir(el, t, T(3) + i * TEMPS / 2, 0.25, 20))
+  },
+  s3(t) {
+    surgir($('s3a'), t, 0.05, 0.3, 60)
+    surgir($('s3b'), t, T(1), 0.3, 60)
+  },
+  s4(t) {
+    surgir($('s4sous'), t, T(0.5), 0.3, 40)
+    surgir($('s4t'), t, T(2), 0.3, 30)
+  },
+  s5(t) {
+    const kc = plage(t, 0.05, 0.4)
+    poser($('s5coeur'), { o: sortie3(kc), s: rebond(kc) * (1 + 0.06 * impulsion(t + PLANS[5].de)) })
+    animer(liens5, t, 0.2, TEMPS / 3)
+    $('s5fond').style.transform = `scale(${1.05 + t * 0.03})`
+  },
+  s6(t) {
+    murEl.forEach(({ d, col, lig }, i) => {
+      const k = plage(t, 0.15 + (col + lig) * 0.08, 0.5 + (col + lig) * 0.08)
+      d.style.opacity = sortie3(k)
+      d.style.transform = `scale(${lerp(0.3, 1, rebond(k))})`
+      const vague = Math.max(0, 1 - Math.abs(((t - T(4)) * 6) - (col + lig)) / 1.5)
+      d.style.boxShadow = `0 0 ${20 + vague * 50}px rgba(192,77,255,${0.35 + vague * 0.6})`
+    })
+    $('s6n').textContent = Math.round(187 * sortie3(plage(t, 0.2, T(6))))
+  },
+  s7(t) {
+    const kc = plage(t, 0.05, 0.4)
+    poser($('s7coeur'), { o: sortie3(kc), s: rebond(kc) * (1 + 0.06 * impulsion(t + PLANS[7].de)) })
+    animer(liens7, t, 0.15, TEMPS / 4)
+  },
+  s8(t) {
+    const kl = plage(t, 0.05, 0.55)
+    poser($('s8icone'), { o: clamp(kl * 3), s: rebond(kl) * (1 + 0.03 * impulsion(t + PLANS[8].de)), r: (1 - sortie3(kl)) * 40 })
+    surgir($('s8phrase'), t, T(1), 0.4, 40)
+    const kb = plage(t, T(2.5), T(3.5))
+    $('s8bouton').style.opacity = kb
+    $('s8bouton').style.transform = `translateX(-50%) scale(${lerp(0.5, 1, rebond(kb)) * (1 + 0.04 * impulsion(t + PLANS[8].de) * kb)})`
+    surgir($('s8site'), t, T(3.5), 0.35, 20)
+  },
+}
+
+let ATTENTES = []
+function rendre(t) {
+  ATTENTES = []
+  for (const p of PLANS) {
+    const el = $(p.id)
+    const dernier = p.id === 's8'
+    const dans = t >= p.de - 0.001 && t < p.a + (dernier ? 1 : 0)
+    if (!dans) { el.style.display = 'none'; continue }
+    el.style.display = 'block'
+    const local = t - p.de, d = p.a - p.de
+    const kin = p.id === 's0' ? 1 : sortie3(plage(local, 0, 0.22))
+    const kout = dernier ? 0 : entree3(plage(local, d - 0.2, d))
+    poser(el, { o: kin * (1 - kout), y: (1 - kin) * 90, s: (1 + kout * 0.14) * lerp(1.12, 1, kin), b: (1 - kin) * 14 + kout * 12 })
+    SCENES[p.id](local, d)
+    for (const img of el.querySelectorAll('img[data-clip]')) {
+      const n0 = +img.dataset.n
+      // La montée accélère la vidéo ; les clips courts bouclent
+      const v = p.id === 's3' ? local * (1 + local * 0.6) : local
+      let n = Math.floor(v * 30)
+      n = img.dataset.boucle ? (n % n0) + 1 : Math.min(n0, n + 1)
+      const src = `clips/${img.dataset.clip}/${String(n).padStart(4, '0')}.jpg`
+      if (img.getAttribute('src') !== src) { img.setAttribute('src', src); ATTENTES.push(img.decode().catch(() => {})) }
+    }
+  }
+  compteur(t)
+
+  const fort = t >= DROP ? 1 : (t >= temps(16) ? 0.55 : 0.3)
+  const imp = impulsion(t) * fort
+  $('cadre').style.transform = `scale(${1 + 0.018 * imp})`
+  $('cadre').style.filter = `brightness(${1 + 0.18 * imp})`
+  $('marque').style.transform = `scale(${1 + 0.03 * imp})`
+  let flash = 0
+  for (const c of window.COUPES) { const k = (t - c + 0.14) / 0.28; if (k > 0 && k < 1) flash = Math.max(flash, Math.sin(k * Math.PI) * 0.55) }
+  $('eclair').style.opacity = flash
+  $('blanc').style.opacity = t >= DROP ? Math.exp(-(t - DROP) * 5) * 0.85 : 0
+  return Promise.all(ATTENTES)
+}
+window.rendre = rendre
+
+const q = new URLSearchParams(location.search)
+if (q.has('t')) rendre(parseFloat(q.get('t')))
+else if (!navigator.webdriver) { const t0 = performance.now(); (function boucle() { rendre(((performance.now() - t0) / 1000) % DUREE); requestAnimationFrame(boucle) })() }
+else rendre(0)
+</script>
+</body>
+</html>
