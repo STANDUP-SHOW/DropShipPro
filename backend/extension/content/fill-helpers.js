@@ -95,7 +95,7 @@ function showBanner(message, tone = 'info') {
     padding: '10px 16px',
     font: '600 13px system-ui, sans-serif',
     color: '#fff',
-    background: tone === 'error' ? '#dc2626' : 'linear-gradient(90deg, #a855f7, #ec4899)',
+    background: tone === 'error' ? '#dc2626' : 'linear-gradient(90deg, #f28a4b, #e85290)',
     textAlign: 'center',
   })
   document.body.appendChild(bar)
@@ -192,7 +192,7 @@ function monterBoutonRemplissage({ titre, remplir, onFermer, listing }) {
     fontSize: '14px',
     fontWeight: '600',
     color: '#fff',
-    background: 'linear-gradient(90deg,#a855f7,#ec4899)',
+    background: 'linear-gradient(90deg, #f28a4b, #e85290)',
     boxShadow: '0 6px 24px rgba(168,85,247,.45)',
   })
 

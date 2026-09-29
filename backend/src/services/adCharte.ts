@@ -163,8 +163,10 @@ export const PALETTE_DEFAUT: PaletteAd = {
   fond: '#0b0a14',
   texte: '#ffffff',
   sourd: '#cbd5e1',
-  accent: '#a855f7',
-  accent2: '#ec4899',
+  // Charte DropShipper du 29/09/2026 (rose → orange de l'icône) : c'est la
+  // palette d'une pub sans logo de vendeur. Blanc sur #e85290 = 3,5 : 1.
+  accent: '#e85290',
+  accent2: '#f28a4b',
   surAccent: '#ffffff',
   mode: 'sombre',
 }

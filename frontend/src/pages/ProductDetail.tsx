@@ -337,7 +337,7 @@ export default function ProductDetail() {
                   title={pub.error ?? undefined}
                   className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: info?.color ?? '#a855f7' }} />
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: info?.color ?? '#e85290' }} />
                   <span>{info?.label ?? pub.platform}</span>
                   <span className={tone}>{state}</span>
                   {pub.externalUrl ? (

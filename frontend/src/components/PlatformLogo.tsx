@@ -123,7 +123,7 @@ export function PlatformLogo({
       style={{
         width: size,
         height: size,
-        backgroundColor: color ?? '#a855f7',
+        backgroundColor: color ?? '#e85290',
         fontSize: Math.round(size * 0.38),
       }}
       className={`grid shrink-0 place-items-center rounded-${arrondi} font-bold text-white`}

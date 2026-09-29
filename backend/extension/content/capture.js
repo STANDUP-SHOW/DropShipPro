@@ -1353,7 +1353,7 @@
         <span id="dsp-timer" style="margin-left:auto;color:#d8b4fe;font-variant-numeric:tabular-nums">0 s</span>
       </div>
       <div style="margin-top:9px;height:3px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden">
-        <div id="dsp-bar" style="height:100%;width:8%;border-radius:999px;background:linear-gradient(90deg,#a855f7,#ec4899);transition:width .6s ease"></div>
+        <div id="dsp-bar" style="height:100%;width:8%;border-radius:999px;background:linear-gradient(90deg, #f28a4b, #e85290);transition:width .6s ease"></div>
       </div>
       <p style="margin:8px 0 0;color:#9ca3af;line-height:1.5">Ne fermez pas cet onglet. L'annonce s'ouvrira toute seule.</p>
     `
@@ -1605,7 +1605,7 @@
               <span style="color:#6b7280;font-size:11px">Affichage</span>
               <span id="dsp-f-vue" style="display:flex;gap:5px"></span>
             </div>
-            <button id="dsp-clear" style="margin-left:auto;border:0;background:none;color:#a855f7;cursor:pointer;font:500 12px system-ui,sans-serif">Effacer les filtres</button>
+            <button id="dsp-clear" style="margin-left:auto;border:0;background:none;color:#e85290;cursor:pointer;font:500 12px system-ui,sans-serif">Effacer les filtres</button>
           </div>
 
           <div style="display:flex;gap:8px;margin-top:10px">
@@ -1628,7 +1628,7 @@
           <span id="dsp-count" style="color:#9ca3af"></span>
           <span style="display:flex;gap:8px">
             <button id="dsp-cancel" style="border:1px solid rgba(255,255,255,.15);background:none;color:#e5e7eb;border-radius:9px;padding:9px 16px;cursor:pointer;font:inherit">Annuler</button>
-            <button id="dsp-ok" style="border:0;background:linear-gradient(90deg,#a855f7,#ec4899);color:#fff;border-radius:9px;padding:9px 20px;cursor:pointer;font:inherit;font-weight:600">Importer</button>
+            <button id="dsp-ok" style="border:0;background:linear-gradient(90deg, #f28a4b, #e85290);color:#fff;border-radius:9px;padding:9px 20px;cursor:pointer;font:inherit;font-weight:600">Importer</button>
           </span>
         </div>`
 
@@ -1650,7 +1650,7 @@
         const b = document.createElement('button')
         b.textContent = compte === undefined ? label : `${label} (${compte})`
         Object.assign(b.style, {
-          border: actif ? '1px solid #a855f7' : '1px solid rgba(255,255,255,.15)',
+          border: actif ? '1px solid #e85290' : '1px solid rgba(255,255,255,.15)',
           background: actif ? 'rgba(168,85,247,.25)' : 'none',
           color: actif ? '#e9d5ff' : '#e5e7eb',
           borderRadius: '999px',
@@ -1736,10 +1736,10 @@
           <span class="tick" style="position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff"></span>`
 
         const paint = () => {
-          cell.style.borderColor = selected() ? '#a855f7' : 'rgba(255,255,255,.08)'
+          cell.style.borderColor = selected() ? '#e85290' : 'rgba(255,255,255,.08)'
           cell.style.opacity = selected() ? '1' : '.6'
           const tick = cell.querySelector('.tick')
-          tick.style.background = selected() ? '#a855f7' : 'rgba(0,0,0,.65)'
+          tick.style.background = selected() ? '#e85290' : 'rgba(0,0,0,.65)'
           tick.textContent = selected() ? '✓' : ''
         }
 
@@ -2113,7 +2113,7 @@
       borderRadius: '10px',
       font: '600 14px system-ui, sans-serif',
       color: '#fff',
-      background: 'linear-gradient(90deg, #a855f7, #ec4899)',
+      background: 'linear-gradient(90deg, #f28a4b, #e85290)',
       boxShadow: '0 8px 24px rgba(0,0,0,.35)',
       cursor: 'pointer',
     })

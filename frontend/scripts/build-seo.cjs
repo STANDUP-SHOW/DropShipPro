@@ -69,7 +69,7 @@ a{color:#c4b5fd}
 header{border-bottom:1px solid #ffffff1a}
 header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:1rem;padding-bottom:1rem;gap:1rem}
 .brand{font-weight:700;color:#fff;text-decoration:none;font-size:1.05rem}
-.cta{display:inline-block;background:linear-gradient(90deg,#a855f7,#ec4899);color:#fff;text-decoration:none;font-weight:600;padding:.7rem 1.15rem;border-radius:.75rem}
+.cta{display:inline-block;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:600;padding:.7rem 1.15rem;border-radius:.75rem}
 .cta.small{padding:.5rem .9rem;font-size:.9rem}
 h1{font-size:1.9rem;line-height:1.25;margin:2rem 0 .5rem}
 h2{font-size:1.25rem;margin:2.25rem 0 .5rem}

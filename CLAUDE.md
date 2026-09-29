@@ -80,6 +80,10 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - JSX : ne pas juxtaposer plusieurs expressions texte dont une chaîne vide.
 - Ne pas pousser pendant qu'une création DropShop tourne (`Shop.siteJob` sans `fin`).
 
+## Charte (29/09/2026)
+
+Sources dans `docs/marque/` (fichiers de Max). Icône DropShipper : cube sur dégradé **orange #f28a4b → rose #e85290** ; boutons principaux (`.btn-gradient`, extension, e-mails, pages statiques) = ce dégradé ; variables `--marque-orange` / `--marque-rose`. DropShop : vert #0b6b33 + orange ; Drops : jaune #fdbf06. Logo du site : `public/marque/dropshipper-complet.png`. Pas de police hors Google Fonts : la « Radeil Rounded » est une démo, elle ne vit que dans les images des logos.
+
 ## Commandes
 
 ```bash

@@ -279,7 +279,7 @@ export function SocialPublishDialog({
                         >
                           <span
                             className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: COULEURS[c.platform] ?? '#a855f7' }}
+                            style={{ backgroundColor: COULEURS[c.platform] ?? '#e85290' }}
                           />
                           <span>{c.label ?? NOMS[c.platform] ?? c.platform}</span>
                         </button>

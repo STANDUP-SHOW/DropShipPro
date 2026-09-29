@@ -35,8 +35,8 @@ function imprimerRecu(p: Paiement, email?: string | null) {
     <style>
       *{box-sizing:border-box} body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#111;margin:0;padding:40px;background:#fff}
       .wrap{max-width:620px;margin:0 auto}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #ec4899;padding-bottom:16px}
-      .brand{font-size:22px;font-weight:800;background:linear-gradient(120deg,#f472b6,#a855f7);-webkit-background-clip:text;background-clip:text;color:transparent}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #e85290;padding-bottom:16px}
+      .brand{font-size:22px;font-weight:800;background:linear-gradient(120deg,#f28a4b,#e85290);-webkit-background-clip:text;background-clip:text;color:transparent}
       .brand small{display:block;font-size:11px;font-weight:600;color:#888;margin-top:2px}
       h1{font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:#555;margin:0}
       .meta{font-size:12px;color:#555;text-align:right;line-height:1.6}

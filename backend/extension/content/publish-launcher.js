@@ -38,7 +38,7 @@
       borderRadius: '10px',
       font: '600 14px system-ui, sans-serif',
       color: '#fff',
-      background: 'linear-gradient(90deg, #a855f7, #ec4899)',
+      background: 'linear-gradient(90deg, #f28a4b, #e85290)',
       boxShadow: '0 8px 24px rgba(0,0,0,.35)',
       cursor: 'pointer',
     })

@@ -23,24 +23,30 @@ body {
   background: radial-gradient(1100px 700px at 75% -10%, #16102a, #08070f 60%);
 }
 
+/* La charte du 29/09/2026, relevée sur les fichiers de Max (docs/marque/) :
+ * l'icône va de l'orange #f28a4b au rose #e85290, le mot « DropShipper » est rose.
+ * Tout ce qui portait l'ancien violet-rose de la marque lit ces deux valeurs. */
+:root { --marque-orange: #f28a4b; --marque-rose: #e85290; }
+
 .text-gradient-brand {
-  background: linear-gradient(90deg, #f472b6, #fb923c);
+  background: linear-gradient(90deg, #e85290, #f28a4b);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-/* Le rose→violet de l'icône de l'app (le cube). Sert au titre de la marque,
+/* L'orange→rose de l'icône de l'app (le cube). Sert au titre de la marque,
  * pour que le mot « DropShipper IA » porte les mêmes couleurs que son icône. */
 .text-gradient-rose {
-  background: linear-gradient(120deg, #f472b6 5%, #c026d3 55%, #a855f7 100%);
+  background: linear-gradient(120deg, #f28a4b 0%, #ed6c6f 40%, #e85290 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
+/* Le bouton principal prend le dégradé de l'icône (charte du 29/09/2026). */
 .btn-gradient {
-  background: linear-gradient(90deg, #a855f7, #ec4899);
+  background: linear-gradient(90deg, #f28a4b, #e85290);
 }
 
 /* ── Le « néon survol » des blocs ───────────────────────────────────────────

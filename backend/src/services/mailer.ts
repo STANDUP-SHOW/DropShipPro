@@ -53,7 +53,7 @@ function render({ heading, body, actionLabel, actionUrl, footer, brand, highligh
   const action =
     actionUrl && actionLabel
       ? `<tr><td style="padding-top:30px">
-            <a href="${actionUrl}" style="display:inline-block;background-color:#c026d3;background-image:linear-gradient(90deg,#a855f7,#ec4899);color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:12px">${actionLabel}</a>
+            <a href="${actionUrl}" style="display:inline-block;background-color:#e85290;background-image:linear-gradient(90deg,#f28a4b,#e85290);color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:12px">${actionLabel}</a>
           </td></tr>
           <tr><td style="padding-top:18px;font-size:12px;color:#7c7699;word-break:break-all">
             Si le bouton ne fonctionne pas, copiez ce lien&nbsp;: ${actionUrl}
@@ -71,7 +71,7 @@ function render({ heading, body, actionLabel, actionUrl, footer, brand, highligh
           <p style="margin:0 0 14px;padding-top:22px;border-top:1px solid rgba(255,255,255,0.08);font-size:14px;line-height:1.6;color:#c9c4e0">
             <b style="color:#f472b6">Restez informé des nouveautés</b> — les niches qui montent, les nouvelles fonctions et nos conseils pour vendre plus.
           </p>
-          <a href="${appUrl()}/newsletter" style="display:inline-block;background-color:#c026d3;background-image:linear-gradient(90deg,#a855f7,#ec4899);color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 24px;border-radius:10px">S'abonner à la newsletter</a>
+          <a href="${appUrl()}/newsletter" style="display:inline-block;background-color:#e85290;background-image:linear-gradient(90deg,#f28a4b,#e85290);color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 24px;border-radius:10px">S'abonner à la newsletter</a>
         </td></tr>`
     : ''
 

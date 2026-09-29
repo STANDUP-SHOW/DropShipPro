@@ -50,7 +50,7 @@ function LogoReseau({ platform, size = 22 }: { platform: string; size?: number }
   return <PlatformLogo id={n.id} label={n.label} domain={n.domain} color={n.color} size={size} arrondi="md" />
 }
 
-const nomDe = (p: string) => NOMS[p] ?? { label: p, domain: '', color: '#a855f7' }
+const nomDe = (p: string) => NOMS[p] ?? { label: p, domain: '', color: '#e85290' }
 
 export function SocialConnect() {
   const [etat, setEtat] = useState<Etat | null>(null)
