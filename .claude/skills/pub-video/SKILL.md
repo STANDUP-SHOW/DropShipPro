@@ -156,5 +156,7 @@ Ils se reconstruisent avec les commandes du README à partir des fichiers de Max
 `accueil.html?theme=<slug>` (11 thèmes de `accueil-themes.json`) : boucle de 8 s en 1280×720,
 tout périodique sur 8 s, contenu utile dans les 960 px du centre (bloc 4:3). `&fixe=1` donne
 le PNG détouré, fond transparent, dans une forme (cercle, hexagone, étoile…).
-`node accueil.cjs` rend les 11 MP4 + affiches + PNG dans `sortie/accueil/`. Max a choisi les
-vidéos (retouches à venir) ; l'intégration dans `frontend/` n'est pas faite.
+`node accueil.cjs` rend les 11 MP4 + affiches + PNG dans `sortie/accueil/`. Retouches faites le 29/09 : thème 1 = scan d'une fiche fournisseur (laser + champs qui
+s'allument), thème 2 = trois fiches fournisseur comparées (origine, import, capacités lus dans
+`suppliers.ts`, sans chiffre inventé), thème 5 = la palette recolore les visuels (calque `mix-blend-mode: color`).
+L'intégration dans `frontend/` n'est pas faite.
