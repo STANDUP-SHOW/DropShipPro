@@ -1,0 +1,121 @@
+{
+  "_lisezmoi": "Configuration de l'API Link DropShipper pour l'application mobile compagnon. Aucune donnée secrète ici : le jeton s'obtient par auth.login avec le compte de test que Max transmet directement. Détail de chaque route et exemples de réponses : api-link-mobile.md.",
+  "name": "DropShipper API Link",
+  "contractVersion": "1.0.0",
+  "updatedAt": "2026-09-29",
+
+  "baseUrl": "https://api.drop-shipper.fr/api/mobile",
+  "fallbackBaseUrl": "https://dropshippro-production.up.railway.app/api/mobile",
+
+  "auth": {
+    "type": "bearer",
+    "header": "Authorization",
+    "scheme": "Bearer",
+    "format": "JWT HS256",
+    "tokenLifetimeDays": 30,
+    "onUnauthorized": "clear_token_and_show_login",
+    "googleSignIn": false
+  },
+
+  "errors": {
+    "field": "detail",
+    "language": "fr",
+    "codes": {
+      "400": "corps invalide",
+      "401": "jeton absent, invalide ou expiré — reconnexion",
+      "404": "objet introuvable",
+      "429": "trop de tentatives — réessayer plus tard",
+      "500": "erreur serveur — réessayer",
+      "503": "service momentanément indisponible — réessayer"
+    }
+  },
+
+  "http": {
+    "contentType": "application/json",
+    "connectTimeoutMs": 10000,
+    "readTimeoutMs": 20000,
+    "retryOn": [500, 502, 503, 504],
+    "maxRetries": 2,
+    "originHeaderRequired": false
+  },
+
+  "rateLimits": {
+    "auth.login": { "max": 15, "windowSeconds": 900, "per": "ip" }
+  },
+
+  "endpoints": {
+    "auth.login": { "method": "POST", "path": "/auth/login", "auth": false, "body": { "email": "string", "password": "string" } },
+    "auth.me": { "method": "GET", "path": "/auth/me" },
+
+    "dashboard.summary": { "method": "GET", "path": "/dashboard/summary", "window": "30d" },
+    "dashboard.chart": { "method": "GET", "path": "/dashboard/chart", "query": { "range": ["24h", "7d", "30d"] }, "defaultRange": "7d" },
+    "dashboard.copilot": { "method": "GET", "path": "/dashboard/copilot" },
+
+    "notifications.list": { "method": "GET", "path": "/notifications" },
+    "notifications.read": { "method": "POST", "path": "/notifications/{id}/read", "encodeId": true },
+    "notifications.readAll": { "method": "POST", "path": "/notifications/read-all" },
+    "notifications.action": { "method": "POST", "path": "/notifications/{id}/action", "encodeId": true, "body": { "action_id": "approve_pay | refill_wallet | take_over | review" } },
+    "push.register": { "method": "POST", "path": "/register-push", "body": { "platform": "ios | android", "device_token": "string" } },
+
+    "products.share": { "method": "POST", "path": "/products/share", "body": { "text": "string?", "url": "string?", "source": "string?" } },
+    "products.shared": { "method": "GET", "path": "/products/shared" },
+
+    "settings.notifications.get": { "method": "GET", "path": "/settings/notifications" },
+    "settings.notifications.put": { "method": "PUT", "path": "/settings/notifications", "partialUpdate": true }
+  },
+
+  "enums": {
+    "notificationTypes": ["rpa_validation", "low_balance", "ai_escalation", "new_sale", "order_shipped"],
+    "notificationActions": ["approve_pay", "refill_wallet", "take_over", "review"],
+    "actionStyles": ["primary", "ghost"],
+    "shareStatus": { "queued": "en attente d'import", "processing": "pris par l'application desktop", "done": "importé" },
+    "notificationPreferenceKeys": ["new_sales", "order_shipped", "low_balance_margin", "rpa_validation", "ai_escalation"]
+  },
+
+  "notificationIds": {
+    "_note": "Identifiants stables contenant « : » — à encoder dans l'URL (pay%3A…).",
+    "rpa_validation": "pay:<commande>",
+    "low_balance": "balance:<AAAA-MM-JJ>",
+    "ai_escalation": "ticket:<ticket>",
+    "new_sale": "sale:<commande>",
+    "order_shipped": "ship:<commande>"
+  },
+
+  "defaults": {
+    "notificationPreferences": { "new_sales": false, "order_shipped": false, "low_balance_margin": true, "rpa_validation": true, "ai_escalation": true },
+    "currency": "EUR",
+    "locale": "fr-FR"
+  },
+
+  "polling": {
+    "_note": "Tant que l'envoi push n'est pas actif, l'application relit les notifications à intervalle.",
+    "notificationsSeconds": 60,
+    "dashboardSeconds": 300,
+    "sharedProductsSeconds": 30
+  },
+
+  "push": {
+    "registrationEnabled": true,
+    "deliveryEnabled": false,
+    "_note": "L'inscription des appareils est stockée ; l'envoi attend les clés Firebase du projet."
+  },
+
+  "webLinks": {
+    "site": "https://www.drop-shipper.fr",
+    "register": "https://www.drop-shipper.fr/register",
+    "orders": "https://www.drop-shipper.fr/orders",
+    "billing": "https://www.drop-shipper.fr/billing",
+    "tickets": "https://www.drop-shipper.fr/tickets",
+    "apiPower": "https://www.drop-shipper.fr/api-power/"
+  },
+
+  "branding": {
+    "primaryGradient": ["#f28a4b", "#e85290"],
+    "brandPink": "#e85290",
+    "brandOrange": "#f28a4b",
+    "dropShopGreen": "#0b6b33",
+    "dropsYellow": "#fdbf06",
+    "icon": "https://www.drop-shipper.fr/marque/dropshipper-icone.png",
+    "wordmark": "https://www.drop-shipper.fr/marque/dropshipper-mot.png"
+  }
+}

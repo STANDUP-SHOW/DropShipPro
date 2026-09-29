@@ -7,9 +7,9 @@ listés à la fin. Code : `backend/src/routes/mobile.ts` ; banc :
 
 ## 0. Les réponses aux points bloquants
 
-1. **URL de base** : `https://dropshippro-production.up.railway.app/api/mobile`
-   (elle deviendra `https://api.drop-shipper.fr/api/mobile` après la migration de
-   domaine ; garder l'URL de base dans une seule constante).
+1. **URL de base** : `https://api.drop-shipper.fr/api/mobile` (en service, certificat
+   valide). Secours : `https://dropshippro-production.up.railway.app/api/mobile`.
+   Toute la configuration est dans `dropshipper-api.config.json`, à côté.
 2. **Auth** : JWT signé HS256, **durée de vie 30 jours**, header
    `Authorization: Bearer <token>`. Le même jeton que le site. Un 401 (jeton
    expiré, invalide, ou compte supprimé) → renvoyer vers l'écran de connexion.
