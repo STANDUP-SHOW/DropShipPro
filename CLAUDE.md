@@ -74,7 +74,8 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - Un faux serveur de banc écrit le contrat **en dur** ; un banc synthétique qui
   passe ne prouve pas la réalité (Temu, Shopify taxonomie).
 - Rapports des agents : `backend/rapports.db` (SQLite commitée), pas `MarketReport`.
-- Pas de connexion automatique aux marketplaces ; l'agent ne clique jamais « Publier ».
+- Pas de connexion automatique aux marketplaces : le vendeur se connecte lui-même, ses identifiants ne passent jamais chez nous.
+- **Décision de Max (29/09/2026)** : un MODE AUTOMATIQUE de publication (Vinted, Leboncoin, Facebook Marketplace) est permis, par l'application desktop, dans la session du vendeur, **sur son accord explicite** (risque de suspension affiché), avec plafonds et espacement par plateforme, arrêt et alerte au premier captcha ou blocage, journal de chaque publication. **Jamais d'évasion anti-robot** : ni faux profils matériels, ni navigateur « stealth », ni résolution de captcha.
 - Node seulement (pas de Python). Pas de police hors Google Fonts.
 - JSX : ne pas juxtaposer plusieurs expressions texte dont une chaîne vide.
 - Ne pas pousser pendant qu'une création DropShop tourne (`Shop.siteJob` sans `fin`).
