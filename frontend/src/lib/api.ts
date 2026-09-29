@@ -965,6 +965,26 @@ export const api = {
   updateOrder: (id: string, data: Record<string, unknown>) =>
     request(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteOrder: (id: string) => request(`/orders/${id}`, { method: 'DELETE' }),
+  /** Où en est la remontée des ventes, canal par canal (ventesMarketplaces.ts). */
+  canauxVentes: () =>
+    request<{
+      captees: string[]
+      canaux: Array<{
+        platform: string
+        automatique: boolean
+        ventesReleveesAt: string | null
+        ventesErreur: string | null
+        ventesBilan: { lues: number; creees: number; deja: number; suivis: number; signal: string | null; sansProduit: Array<{ numero: string; sku: string | null; titre: string }> } | null
+      }>
+    }>('/orders/canaux-ventes'),
+  releverVentes: (platform: string) =>
+    request<{ bilan: { creees: number } | null; suivis: number; erreur: string | null; signal: string | null }>(`/orders/canaux-ventes/${platform}/relever`, { method: 'POST' }),
+  /** L'export de commandes de n'importe quelle plateforme, en CSV. */
+  importerCommandes: (platform: string, csv: string) =>
+    request<{ lues: number; creees: number; deja: number; ecartees: number; sansProduit: Array<{ numero: string; sku: string | null; titre: string }>; colonnes: Record<string, string> }>(
+      '/orders/import',
+      { method: 'POST', body: JSON.stringify({ platform, csv }) },
+    ),
 
   /** Les reglages du compte, filigrane compris : /auth/me n en renvoie qu une part. */
   settingsProfile: () =>

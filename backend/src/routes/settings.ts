@@ -493,7 +493,7 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
     const accessToken = (data.accessToken ?? data.apiKey ?? '').trim()
     if (!accessToken) {
       return res.status(400).json({
-        error: "Collez le jeton utilisateur OAuth généré sur developer.ebay.com (portées sell.inventory et sell.account).",
+        error: "Collez le jeton utilisateur OAuth généré sur developer.ebay.com (portées sell.inventory, sell.account et sell.fulfillment).",
       })
     }
     const refreshToken = (data.refreshToken ?? '').trim()

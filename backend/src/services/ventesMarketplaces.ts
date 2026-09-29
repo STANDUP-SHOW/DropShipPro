@@ -3,31 +3,44 @@
  *
  * C'est le maillon qui manquait à l'auto-fulfillment (docs/v2/DECISIONS.md) :
  * la commande fournisseur savait partir d'une vente ENREGISTRÉE, mais une vente
- * Shopify, eBay ou WooCommerce n'arrivait jamais toute seule dans l'application.
- * Le vendeur la recopiait. Premier canal branché le 29/09/2026 : Shopify, le
- * seul où Max vend réellement aujourd'hui (oguss-france). Les autres suivront
- * la même forme : un relevé qui rend des `VenteCapturee`, un envoi du suivi.
+ * Shopify, eBay ou La Redoute n'arrivait jamais toute seule dans l'application.
+ * Le vendeur la recopiait.
  *
- * Quatre règles :
+ * **Un moteur, des canaux.** Nos vendeurs vendent sur des dizaines de places de
+ * marché : ce fichier ne connaît pas « Shopify », il connaît un `Canal` — un
+ * relevé qui rend des `VenteCapturee`, un envoi du suivi facultatif, une
+ * traduction des refus. Brancher une plateforme, c'est écrire ces trois
+ * fonctions et l'ajouter à `canalPour`. Une famille d'API vaut pour toutes ses
+ * enseignes : Mirakl, c'est quarante et une places de marché d'un coup.
+ * Ce qui n'a pas d'API passe par l'import de commandes (importCommandes.ts).
+ *
+ * Quatre règles, communes à tous les canaux :
  *
  * - **Une vente se retrouve par sa référence (UGS)**, celle que la plateforme a
- *   reçue à la publication (`ugsDe`, productFacts.ts, ou `DSP-…` des boutiques
- *   tierces). Une ligne dont la référence ne mène à aucun produit du compte est
- *   comptée et dite, jamais rattachée « au plus proche » : commander le mauvais
- *   article chez le fournisseur coûte le colis.
+ *   reçue à la publication (`ugsDe`, productFacts.ts ; `DSP-…` des boutiques
+ *   tierces ; l'identifiant du produit pour eBay et Mirakl). Une ligne dont la
+ *   référence ne mène à aucun produit du compte est comptée et dite, jamais
+ *   rattachée « au plus proche » : commander le mauvais article chez le
+ *   fournisseur coûte le colis.
  * - **Idempotent** : relire la même fenêtre ne crée rien de plus. La clé est
  *   (compte, plateforme, commande externe, produit).
  * - **Rien d'impayé n'entre** : commande annulée, en attente de paiement ou
- *   expirée est ignorée — commander chez le fournisseur une vente non payée,
- *   c'est avancer l'argent d'un colis que personne n'achète.
+ *   d'acceptation est ignorée — commander chez le fournisseur une vente non
+ *   payée, c'est avancer l'argent d'un colis que personne n'achète.
  * - **Le suivi repart une fois** : `Order.suiviTransmisAt` le marque, et une
  *   erreur est écrite en clair (`suiviTransmisErreur`) au lieu d'être rejouée
  *   en boucle toutes les quinze minutes.
+ *
+ * L'état de chaque relève (heure, erreur, bilan) est écrit sur la liaison
+ * (`PlatformCredential.ventes*`) : le vendeur voit à l'écran qu'un canal ne
+ * remonte rien, et pourquoi, au lieu que ce soit dit dans un journal serveur.
  */
-import type { Platform } from '@prisma/client'
+import type { Platform, PlatformCredential, Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { graphql, resoudreCredentialsShopify } from './shopify.js'
 import { jetonOfflineValide } from './shopifyApp.js'
+import { appeler as appelerEbay, avecRenouvellement, readEbayCredentials, type EbayCredentials } from './ebay.js'
+import { appeler as appelerMirakl, OPERATEURS_MIRAKL, estMirakl, readMiraklCredentials, type MiraklCredentials } from './mirakl.js'
 
 export interface LigneCapturee {
   /** L'identifiant de la ligne chez la plateforme. */
@@ -62,21 +75,31 @@ export interface BilanCapture {
   sansProduit: Array<{ numero: string; sku: string | null; titre: string }>
 }
 
+/** Les canaux dont les ventes remontent seules aujourd'hui. */
+export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', ...OPERATEURS_MIRAKL]
+
 // ------------------------------------------------------ La référence → produit
 
 /**
  * Le produit du compte que désigne une référence de vente.
  *
- * Les trois formes que la plateforme a reçues : `<FOURNISSEUR>-<réf>[-variante]`
- * (ugsDe avec référence fournisseur), `DSP-<10 derniers caractères de l'id>`
- * (ugsDe sans référence), `DSP-<réf fournisseur>` ou `DSP-<id>` (boutiques
- * tierces). La plus longue correspondance l'emporte : « CJ-123 » ne doit pas
- * capter la vente de « CJ-1234 ».
+ * Les formes que la plateforme a reçues : l'identifiant du produit lui-même
+ * (eBay, Mirakl), `<FOURNISSEUR>-<réf>[-variante]` (ugsDe avec référence
+ * fournisseur), `DSP-<10 derniers caractères de l'id>` (ugsDe sans référence),
+ * `DSP-<réf fournisseur>` ou `DSP-<id>` (boutiques tierces). La plus longue
+ * correspondance l'emporte : « CJ-123 » ne doit pas capter la vente de
+ * « CJ-1234 ».
  */
 export async function produitDeLUgs(userId: string, sku: string | null): Promise<string | null> {
   if (!sku) return null
   const s = sku.trim()
   if (!s) return null
+
+  // L'identifiant brut : un cuid, sans tiret, ne se confond avec aucune autre forme.
+  if (/^c[a-z0-9]{20,30}$/.test(s)) {
+    const brut = await prisma.product.findFirst({ where: { userId, id: s }, select: { id: true } })
+    if (brut) return brut.id
+  }
 
   if (/^DSP-/i.test(s)) {
     const reste = s.slice(4)
@@ -143,6 +166,74 @@ export async function enregistrerVentes(userId: string, ventes: VenteCapturee[])
     }
   }
   return bilan
+}
+
+// ------------------------------------------------------------------ Le moteur
+
+/** Ce qu'une plateforme doit savoir faire pour que ses ventes remontent. */
+export interface Canal {
+  platform: Platform
+  /** Les ventes PAYÉES depuis cette date (le canal peut élargir s'il lit par état). */
+  relever(depuis: Date): Promise<VenteCapturee[]>
+  /** Renvoie le suivi. Absent : la plateforme n'a pas de chemin connu, le vendeur le reporte. */
+  transmettreSuivi?(externalOrderId: string, numero: string, transporteur: string | null): Promise<void>
+  /** Les identifiants de commande que ce canal sait traiter (Shopify : un GID). */
+  idTransmissible?(id: string): boolean
+  /** Un refus traduit en geste pour le vendeur. */
+  motif(err: unknown): string
+  /** Un fait à dire au vendeur à côté du bilan (des commandes à accepter…). */
+  aSignaler?(): Promise<string | null>
+}
+
+export interface ResultatPassage {
+  bilan: BilanCapture | null
+  suivis: number
+  erreur: string | null
+  signal: string | null
+}
+
+const texteErreur = (err: unknown) => (err instanceof Error ? err.message : String(err)).slice(0, 300)
+
+/** Une passe pour un compte et un canal : capter, puis renvoyer les suivis en attente. */
+export async function passage(userId: string, canal: Canal): Promise<ResultatPassage> {
+  let bilan: BilanCapture | null = null
+  let erreur: string | null = null
+  let signal: string | null = null
+  try {
+    // Fenêtre : depuis la dernière vente connue moins deux jours (une commande
+    // payée tard garde sa date de création), bornée à quatorze jours.
+    const derniere = await prisma.order.findFirst({ where: { userId, platform: canal.platform }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+    const plancher = Date.now() - 14 * 86_400_000
+    const depuis = new Date(Math.max(plancher, (derniere?.createdAt.getTime() ?? plancher) - 2 * 86_400_000))
+    bilan = await enregistrerVentes(userId, await canal.relever(depuis))
+    if (canal.aSignaler) signal = await canal.aSignaler().catch(() => null)
+  } catch (err) {
+    erreur = canal.motif(err)
+  }
+
+  let suivis = 0
+  if (canal.transmettreSuivi) {
+    const aTransmettre = await prisma.order.findMany({
+      where: { userId, platform: canal.platform, trackingNumber: { not: null }, suiviTransmisAt: null, suiviTransmisErreur: null, externalOrderId: { not: null } },
+      select: { id: true, externalOrderId: true, trackingNumber: true, carrier: true },
+      take: 50,
+    })
+    // Plusieurs lignes d'une même commande : un seul envoi par commande.
+    const faites = new Set<string>()
+    for (const o of aTransmettre) {
+      const id = o.externalOrderId!
+      if (canal.idTransmissible && !canal.idTransmissible(id)) continue
+      try {
+        if (!faites.has(id)) await canal.transmettreSuivi(id, o.trackingNumber!, o.carrier)
+        faites.add(id)
+        await prisma.order.update({ where: { id: o.id }, data: { suiviTransmisAt: new Date() } })
+        suivis++
+      } catch (err) {
+        await prisma.order.update({ where: { id: o.id }, data: { suiviTransmisErreur: canal.motif(err) } })
+      }
+    }
+  }
+  return { bilan, suivis, erreur, signal }
 }
 
 // ---------------------------------------------------------------- Shopify
@@ -268,65 +359,281 @@ function motifShopify(err: unknown): string {
   return m.slice(0, 300)
 }
 
-/** Une passe pour un compte : capter, puis renvoyer les suivis en attente. */
-export async function passageShopify(userId: string, appel: AppelGraphql): Promise<{ bilan: BilanCapture | null; suivis: number; erreur: string | null }> {
-  let bilan: BilanCapture | null = null
-  let erreur: string | null = null
-  try {
-    // Fenêtre : depuis la dernière vente connue moins deux jours (une commande
-    // payée tard garde sa date de création), bornée à quatorze jours.
-    const derniere = await prisma.order.findFirst({ where: { userId, platform: 'SHOPIFY' }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
-    const plancher = Date.now() - 14 * 86_400_000
-    const depuis = new Date(Math.max(plancher, (derniere?.createdAt.getTime() ?? plancher) - 2 * 86_400_000))
-    bilan = await enregistrerVentes(userId, await releverVentesShopify(appel, depuis))
-  } catch (err) {
-    erreur = motifShopify(err)
+export function canalShopify(appel: AppelGraphql): Canal {
+  return {
+    platform: 'SHOPIFY',
+    relever: (depuis) => releverVentesShopify(appel, depuis),
+    transmettreSuivi: (id, numero, transporteur) => transmettreSuiviShopify(appel, id, numero, transporteur),
+    idTransmissible: (id) => id.startsWith('gid://shopify/Order/'),
+    motif: motifShopify,
   }
+}
 
-  let suivis = 0
-  const aTransmettre = await prisma.order.findMany({
-    where: { userId, platform: 'SHOPIFY', trackingNumber: { not: null }, suiviTransmisAt: null, suiviTransmisErreur: null, externalOrderId: { startsWith: 'gid://shopify/Order/' } },
-    select: { id: true, externalOrderId: true, trackingNumber: true, carrier: true },
-    take: 50,
-  })
-  // Plusieurs lignes d'une même commande : un seul envoi par commande.
-  const faites = new Set<string>()
-  for (const o of aTransmettre) {
-    const gid = o.externalOrderId!
-    try {
-      if (!faites.has(gid)) await transmettreSuiviShopify(appel, gid, o.trackingNumber!, o.carrier)
-      faites.add(gid)
-      await prisma.order.update({ where: { id: o.id }, data: { suiviTransmisAt: new Date() } })
-      suivis++
-    } catch (err) {
-      await prisma.order.update({ where: { id: o.id }, data: { suiviTransmisErreur: motifShopify(err) } })
+/** Gardée pour le banc et les appels existants : une passe Shopify. */
+export async function passageShopify(userId: string, appel: AppelGraphql): Promise<ResultatPassage> {
+  return passage(userId, canalShopify(appel))
+}
+
+// ------------------------------------------------------------------- eBay
+
+/**
+ * eBay — l'API Fulfillment (portée `sell.fulfillment`).
+ *
+ * `GET /sell/fulfillment/v1/order` filtré par date de création ; une commande
+ * entre si elle est payée et ni annulée ni en cours d'annulation. Le suivi
+ * part par `POST …/order/{id}/shipping_fulfillment`, sur toutes les lignes.
+ * La référence de ligne est l'identifiant du produit (publierSurEbay).
+ */
+type CommandeEbay = {
+  orderId: string
+  legacyOrderId?: string
+  creationDate: string
+  orderPaymentStatus?: string
+  cancelStatus?: { cancelState?: string }
+  buyer?: { username?: string; buyerRegistrationAddress?: { email?: string } }
+  fulfillmentStartInstructions?: Array<{
+    shippingStep?: {
+      shipTo?: {
+        fullName?: string
+        email?: string
+        primaryPhone?: { phoneNumber?: string }
+        contactAddress?: { addressLine1?: string; addressLine2?: string; city?: string; stateOrProvince?: string; postalCode?: string; countryCode?: string }
+      }
     }
+  }>
+  lineItems?: Array<{ lineItemId: string; sku?: string; title?: string; quantity?: number; total?: { value?: string; currency?: string }; lineItemCost?: { value?: string; currency?: string } }>
+}
+
+const PAYEES_EBAY = new Set(['PAID', 'PARTIALLY_REFUNDED'])
+
+export function canalEbay(creds: EbayCredentials): Canal {
+  const lire = async <T,>(chemin: string): Promise<T> =>
+    avecRenouvellement(creds, async (c) => (await (await appelerEbay(c, 'GET', chemin)).json()) as T)
+
+  return {
+    platform: 'EBAY',
+    async relever(depuis) {
+      const ventes: VenteCapturee[] = []
+      const filtre = encodeURIComponent(`creationdate:[${depuis.toISOString()}..]`)
+      for (let page = 0; page < 5; page++) {
+        const r = await lire<{ orders?: CommandeEbay[]; total?: number }>(`/sell/fulfillment/v1/order?filter=${filtre}&limit=50&offset=${page * 50}`)
+        const commandes = r.orders ?? []
+        for (const c of commandes) {
+          const annulation = c.cancelStatus?.cancelState
+          if (!PAYEES_EBAY.has(c.orderPaymentStatus ?? '') || annulation === 'CANCELED' || annulation === 'IN_PROGRESS') continue
+          const vers = c.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo ?? {}
+          const a = vers.contactAddress ?? {}
+          const nom = vers.fullName || c.buyer?.username || 'Acheteur'
+          const devise = c.lineItems?.[0]?.total?.currency || 'EUR'
+          ventes.push({
+            platform: 'EBAY',
+            externalOrderId: c.orderId,
+            numero: c.legacyOrderId || c.orderId,
+            creeLe: new Date(c.creationDate),
+            devise,
+            acheteur: {
+              nom,
+              email: vers.email || c.buyer?.buyerRegistrationAddress?.email || null,
+              adresse: {
+                name: nom,
+                address1: a.addressLine1,
+                address2: a.addressLine2,
+                city: a.city,
+                zip: a.postalCode,
+                province: a.stateOrProvince,
+                countryCode: a.countryCode,
+                phone: vers.primaryPhone?.phoneNumber,
+              },
+            },
+            lignes: (c.lineItems ?? []).map((l) => ({
+              externalLineId: l.lineItemId,
+              sku: l.sku ?? null,
+              titre: l.title ?? '',
+              quantite: l.quantity ?? 1,
+              // Ce que l'acheteur a payé pour la ligne, port compris : c'est ce
+              // que le garde-fou de perte doit comparer au coût fournisseur.
+              montant: Number(l.total?.value ?? l.lineItemCost?.value) || 0,
+            })),
+          })
+        }
+        if (commandes.length < 50) break
+      }
+      return ventes
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      const commande = await lire<CommandeEbay>(`/sell/fulfillment/v1/order/${encodeURIComponent(orderId)}`)
+      const lignes = (commande.lineItems ?? []).map((l) => ({ lineItemId: l.lineItemId, quantity: l.quantity ?? 1 }))
+      if (!lignes.length) throw new Error("eBay ne présente aucune ligne à expédier sur cette commande.")
+      await avecRenouvellement(creds, (c) =>
+        appelerEbay(c, 'POST', `/sell/fulfillment/v1/order/${encodeURIComponent(orderId)}/shipping_fulfillment`, {
+          lineItems: lignes,
+          shippedDate: new Date().toISOString(),
+          // eBay reconnaît les transporteurs courants par leur nom ; « Other » sinon.
+          shippingCarrierCode: transporteur || 'Other',
+          trackingNumber: numero,
+        }),
+      )
+    },
+    motif: texteErreur,
   }
-  return { bilan, suivis, erreur }
+}
+
+// ------------------------------------------------------------------ Mirakl
+
+/**
+ * Mirakl — un canal pour les quarante et une enseignes (OR11, OR23, OR24).
+ *
+ * On lit les commandes à l'état `SHIPPING` : acceptées ET débitées, donc
+ * payées — exactement ce qu'il faut commander chez le fournisseur. Les états
+ * antérieurs (`WAITING_ACCEPTANCE`, `WAITING_DEBIT…`) n'entrent pas ; ceux qui
+ * attendent l'acceptation du vendeur sont comptés et dits, car une commande
+ * Mirakl non acceptée à temps est annulée et pèse sur la note du vendeur.
+ * La référence de ligne (`offer_sku`) est l'identifiant du produit (csvOffre).
+ */
+type CommandeMirakl = {
+  order_id: string
+  commercial_id?: string
+  created_date: string
+  currency_iso_code?: string
+  order_state?: string
+  customer_notification_email?: string
+  customer?: {
+    firstname?: string
+    lastname?: string
+    shipping_address?: { firstname?: string; lastname?: string; street_1?: string; street_2?: string; zip_code?: string; city?: string; state?: string; country?: string; country_iso_code?: string; phone?: string }
+  }
+  order_lines?: Array<{ order_line_id: string; offer_sku?: string; product_title?: string; quantity?: number; price?: number; total_price?: number; order_line_state?: string }>
+}
+
+const LIGNES_ECARTEES = new Set(['REFUSED', 'CANCELED', 'CLOSED'])
+
+export function canalMirakl(platform: Platform, creds: MiraklCredentials): Canal {
+  const boutique = creds.shopId ? `&shop_id=${encodeURIComponent(creds.shopId)}` : ''
+  const lire = async <T,>(chemin: string): Promise<T> => (await (await appelerMirakl(creds, chemin)).json()) as T
+
+  return {
+    platform,
+    async relever(depuis) {
+      // Lu par état, pas par date : une commande passe « SHIPPING » quand elle
+      // est débitée, parfois des jours après sa création. Trente jours de recul.
+      const recul = new Date(Math.min(depuis.getTime(), Date.now() - 30 * 86_400_000))
+      const ventes: VenteCapturee[] = []
+      for (let page = 0; page < 5; page++) {
+        const r = await lire<{ orders?: CommandeMirakl[]; total_count?: number }>(
+          `/orders?order_state_codes=SHIPPING&start_date=${encodeURIComponent(recul.toISOString())}&max=100&offset=${page * 100}${boutique}`,
+        )
+        const commandes = r.orders ?? []
+        for (const c of commandes) {
+          const a = c.customer?.shipping_address ?? {}
+          const nom = [a.firstname ?? c.customer?.firstname, a.lastname ?? c.customer?.lastname].filter(Boolean).join(' ') || 'Acheteur'
+          ventes.push({
+            platform,
+            externalOrderId: c.order_id,
+            numero: c.commercial_id || c.order_id,
+            creeLe: new Date(c.created_date),
+            devise: c.currency_iso_code || 'EUR',
+            acheteur: {
+              nom,
+              email: c.customer_notification_email ?? null,
+              adresse: {
+                name: nom,
+                address1: a.street_1,
+                address2: a.street_2,
+                city: a.city,
+                zip: a.zip_code,
+                province: a.state,
+                countryCode: a.country_iso_code && a.country_iso_code.length === 2 ? a.country_iso_code : undefined,
+                country: a.country,
+                phone: a.phone,
+              },
+            },
+            lignes: (c.order_lines ?? [])
+              .filter((l) => !LIGNES_ECARTEES.has(l.order_line_state ?? ''))
+              .map((l) => ({
+                externalLineId: l.order_line_id,
+                sku: l.offer_sku ?? null,
+                titre: l.product_title ?? '',
+                quantite: l.quantity ?? 1,
+                montant: Number(l.total_price ?? l.price) || 0,
+              })),
+          })
+        }
+        if (commandes.length < 100) break
+      }
+      return ventes
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      const id = encodeURIComponent(orderId)
+      await appelerMirakl(creds, `/orders/${id}/tracking`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carrier_name: transporteur || 'Transporteur', tracking_number: numero }),
+      })
+      // Puis « expédiée » : sans ce second appel la commande reste à expédier
+      // chez l'opérateur, et le délai d'expédition court toujours.
+      await appelerMirakl(creds, `/orders/${id}/ship`, { method: 'PUT' })
+    },
+    motif: texteErreur,
+    async aSignaler() {
+      const r = await lire<{ total_count?: number }>(`/orders?order_state_codes=WAITING_ACCEPTANCE&max=1${boutique}`)
+      const n = r.total_count ?? 0
+      return n ? `${n} commande${n > 1 ? 's attendent' : ' attend'} votre acceptation dans le back-office de l'opérateur (sans acceptation, elle sera annulée).` : null
+    },
+  }
+}
+
+// ------------------------------------------------------------------ Tournée
+
+/** Le canal d'une liaison, ou null si la plateforme ne remonte pas (encore) ses ventes. */
+export async function canalPour(lien: PlatformCredential): Promise<Canal | null> {
+  if (lien.platform === 'SHOPIFY') {
+    const creds =
+      (await jetonOfflineValide(lien.data, async (data) => {
+        await prisma.platformCredential.update({ where: { id: lien.id }, data: { data } })
+      })) ?? (await resoudreCredentialsShopify(lien.data))
+    return creds ? canalShopify((q, v) => graphql(creds, q, v)) : null
+  }
+  if (lien.platform === 'EBAY') {
+    const creds = readEbayCredentials(lien.data)
+    return creds ? canalEbay(creds) : null
+  }
+  if (estMirakl(lien.platform)) {
+    const creds = readMiraklCredentials(lien.data)
+    return creds ? canalMirakl(lien.platform, creds) : null
+  }
+  return null
 }
 
 /**
- * La tournée : tous les comptes dont Shopify est relié. `perimetre` borne la
- * tournée à des comptes précis — la production ne le passe JAMAIS, un banc
- * TOUJOURS (leçon AUTO-MODE du 05/09/2026).
+ * La tournée : toutes les liaisons actives d'un canal qui remonte ses ventes.
+ * `perimetre` borne la tournée à des comptes précis — la production ne le
+ * passe JAMAIS, un banc TOUJOURS (leçon AUTO-MODE du 05/09/2026).
  */
 export async function tourneeVentes(perimetre?: string[]): Promise<void> {
   const liens = await prisma.platformCredential.findMany({
-    where: { platform: 'SHOPIFY', connected: true, ...(perimetre ? { userId: { in: perimetre } } : {}) },
+    where: { platform: { in: VENTES_CAPTEES }, connected: true, ...(perimetre ? { userId: { in: perimetre } } : {}) },
   })
   for (const lien of liens) {
     try {
-      const creds =
-        (await jetonOfflineValide(lien.data, async (data) => {
-          await prisma.platformCredential.update({ where: { id: lien.id }, data: { data } })
-        })) ?? (await resoudreCredentialsShopify(lien.data))
-      if (!creds) continue
-      const appel: AppelGraphql = (q, v) => graphql(creds, q, v)
-      const r = await passageShopify(lien.userId, appel)
-      if (r.erreur) console.warn(`ventes Shopify ${lien.userId} : ${r.erreur}`)
-      else if (r.bilan && (r.bilan.creees || r.suivis)) console.log(`ventes Shopify ${lien.userId} : ${r.bilan.creees} vente(s), ${r.suivis} suivi(s) transmis`)
+      const canal = await canalPour(lien)
+      if (!canal) continue
+      const r = await passage(lien.userId, canal)
+      await noterReleve(lien.id, r)
+      if (r.erreur) console.warn(`ventes ${lien.platform} ${lien.userId} : ${r.erreur}`)
+      else if (r.bilan && (r.bilan.creees || r.suivis)) console.log(`ventes ${lien.platform} ${lien.userId} : ${r.bilan.creees} vente(s), ${r.suivis} suivi(s) transmis`)
     } catch (err) {
-      console.error('tournée ventes Shopify', lien.userId, err)
+      console.error('tournée des ventes', lien.platform, lien.userId, err)
     }
   }
+}
+
+/** Écrit l'état de la relève sur la liaison, pour l'écran du vendeur. */
+export async function noterReleve(credentialId: string, r: ResultatPassage): Promise<void> {
+  const bilan: Prisma.InputJsonValue | undefined = r.bilan
+    ? { lues: r.bilan.lues, creees: r.bilan.creees, deja: r.bilan.deja, suivis: r.suivis, signal: r.signal, sansProduit: r.bilan.sansProduit.slice(0, 20) }
+    : undefined
+  await prisma.platformCredential.update({
+    where: { id: credentialId },
+    data: { ventesReleveesAt: new Date(), ventesErreur: r.erreur, ...(bilan ? { ventesBilan: bilan } : {}) },
+  })
 }

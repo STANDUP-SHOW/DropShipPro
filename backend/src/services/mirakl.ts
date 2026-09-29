@@ -125,7 +125,7 @@ function refusDe(statut: number, corps: string): MiraklRefus {
   return new MiraklRefus(`Refus de l'opérateur (${statut})${extrait ? ` — ${extrait}` : ''}`, statut >= 500)
 }
 
-async function appeler(creds: MiraklCredentials, chemin: string, init: RequestInit = {}) {
+export async function appeler(creds: MiraklCredentials, chemin: string, init: RequestInit = {}) {
   const reponse = await fetch(`${creds.baseUrl}/api${chemin}`, {
     ...init,
     headers: {

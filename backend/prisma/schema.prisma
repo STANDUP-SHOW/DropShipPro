@@ -254,6 +254,12 @@ model PlatformCredential {
   data      Json
   connected Boolean  @default(false)
   createdAt DateTime @default(now())
+  /// Derniere releve des ventes de ce canal (ventesMarketplaces.ts).
+  ventesReleveesAt DateTime?
+  /// Pourquoi la derniere releve a echoue, en clair ; null quand elle a reussi.
+  ventesErreur     String?   @db.Text
+  /// Bilan de la derniere releve : lues, creees, lignes sans produit.
+  ventesBilan      Json?
 
   @@unique([userId, platform])
 }

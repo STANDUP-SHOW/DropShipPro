@@ -86,7 +86,7 @@ function messageDe(corps: string): string {
   }
 }
 
-async function appeler(
+export async function appeler(
   creds: EbayCredentials,
   methode: string,
   chemin: string,
@@ -114,7 +114,7 @@ async function appeler(
   }
   if (reponse.status === 403) {
     throw new EbayRefus(
-      "Jeton eBay valide mais sans les autorisations Sell : régénérez-le avec les portées sell.inventory et sell.account.",
+      "Jeton eBay valide mais sans les autorisations Sell : régénérez-le avec les portées sell.inventory, sell.account et sell.fulfillment (cette dernière pour capter les ventes et renvoyer le suivi).",
       true,
     )
   }
@@ -132,7 +132,7 @@ async function appeler(
  * de deux heures après le collage échouerait en bloc, avec un message qui
  * ferait recoller le même jeton pour deux heures de plus.
  */
-async function avecRenouvellement<T>(creds: EbayCredentials, action: (c: EbayCredentials) => Promise<T>): Promise<T> {
+export async function avecRenouvellement<T>(creds: EbayCredentials, action: (c: EbayCredentials) => Promise<T>): Promise<T> {
   try {
     return await action(creds)
   } catch (err) {

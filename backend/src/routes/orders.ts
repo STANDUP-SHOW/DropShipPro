@@ -7,6 +7,8 @@ import { PLATFORM_IDS } from '../services/platforms.js'
 import { identify, fetchEvents } from '../services/tracking.js'
 import { commanderChezFournisseur, releverSuiviFournisseur } from '../services/supplierOrders.js'
 import { findConnector } from '../services/supplierConnectors.js'
+import { VENTES_CAPTEES, canalPour, noterReleve, passage } from '../services/ventesMarketplaces.js'
+import { importerCommandes } from '../services/importCommandes.js'
 
 export const ordersRouter = Router()
 ordersRouter.use(requireAuth)
@@ -175,7 +177,68 @@ ordersRouter.delete('/:id', async (req: AuthedRequest, res) => {
  * liste vit ici plutôt qu'ailleurs pour qu'un futur `/orders/quelque-chose`
  * n'ait qu'un endroit à mettre à jour.
  */
-const CHEMINS_RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking', 'by-supplier', 'sav'])
+const CHEMINS_RESERVES = new Set(['purchases', 'accounting', 'summary', 'supplier-tracking', 'by-supplier', 'sav', 'canaux-ventes'])
+
+/**
+ * Où en est la remontée des ventes, canal par canal : ce que le vendeur a
+ * relié, ce qui remonte seul, la dernière relève et son erreur éventuelle.
+ * Les canaux sans API passent par l'import de fichier (POST /import).
+ */
+ordersRouter.get('/canaux-ventes', async (req: AuthedRequest, res) => {
+  try {
+    const liens = await prisma.platformCredential.findMany({
+      where: { userId: req.userId!, connected: true },
+      select: { platform: true, ventesReleveesAt: true, ventesErreur: true, ventesBilan: true },
+      orderBy: { platform: 'asc' },
+    })
+    res.json({
+      captees: VENTES_CAPTEES,
+      canaux: liens.map((l) => ({ ...l, automatique: VENTES_CAPTEES.includes(l.platform) })),
+    })
+  } catch (err) {
+    console.error('canaux-ventes', err)
+    res.status(500).json({ error: "L'état des canaux n'a pas pu être lu." })
+  }
+})
+
+/** « Relever maintenant » : la même passe que la tournée, pour un canal du compte. */
+ordersRouter.post('/canaux-ventes/:platform/relever', async (req: AuthedRequest, res) => {
+  try {
+    const lien = await prisma.platformCredential.findFirst({
+      where: { userId: req.userId!, platform: req.params.platform as never, connected: true },
+    })
+    if (!lien) return res.status(404).json({ error: "Ce canal n'est pas relié à votre compte." })
+    const canal = await canalPour(lien)
+    if (!canal) return res.status(400).json({ error: "Ce canal ne remonte pas encore ses ventes tout seul : importez l'export de commandes de son back-office." })
+    const r = await passage(req.userId!, canal)
+    await noterReleve(lien.id, r)
+    res.json(r)
+  } catch (err) {
+    console.error('relever ventes', err)
+    res.status(500).json({ error: 'La relève a échoué côté serveur.' })
+  }
+})
+
+/**
+ * L'import de commandes : le CSV exporté du back-office de n'importe quelle
+ * plateforme. Colonnes reconnues par leur nom, idempotent (importCommandes.ts).
+ */
+const importSchema = z.object({ platform: z.enum(PLATFORM_IDS), csv: z.string().min(10).max(1_900_000) })
+
+ordersRouter.post('/import', async (req: AuthedRequest, res) => {
+  const parsed = importSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Choisissez la plateforme et joignez le fichier CSV des commandes (2 Mo au plus).' })
+  try {
+    const r = await importerCommandes(req.userId!, parsed.data.platform, parsed.data.csv)
+    if (r.manquantes.length) {
+      return res.status(422).json({ error: `Colonnes introuvables dans le fichier : ${r.manquantes.join(', ')}.`, colonnes: r.colonnes })
+    }
+    res.json(r)
+  } catch (err) {
+    console.error('import commandes', err)
+    res.status(500).json({ error: "L'import a échoué côté serveur." })
+  }
+})
 
 ordersRouter.get('/:id', async (req: AuthedRequest, res, next) => {
   if (CHEMINS_RESERVES.has(req.params.id)) return next('route')

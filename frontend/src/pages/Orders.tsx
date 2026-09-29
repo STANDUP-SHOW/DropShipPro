@@ -8,6 +8,7 @@ import { api } from '../lib/api'
 import { useDemo } from '../lib/demo'
 import { BandeauDemo } from '../components/ModeDemo'
 import { DEMO_COMMANDES } from '../lib/demoJeux'
+import { CanauxVentes } from '../components/CanauxVentes'
 
 const STATUS_LABEL: Record<string, string> = {
   NEW: 'Nouvelle vente',
@@ -111,13 +112,15 @@ export default function Orders() {
         <div>
           <h1 className="text-2xl font-bold">Commandes</h1>
           <p className="text-gray-400 text-sm mt-1">
-            Aucune plateforme connectée en API pour l'instant : enregistrez les ventes manuellement.
+            Les ventes des canaux reliés arrivent seules ; les autres s'importent depuis leur export de commandes.
           </p>
         </div>
         <button onClick={() => setShowForm((v) => !v)} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
           <Plus size={15} /> Nouvelle vente
         </button>
       </div>
+
+      {!demo && <CanauxVentes platforms={platforms} onNouvelles={load} />}
 
       {showForm && (
         <form onSubmit={onCreate} className="mt-4 rounded-xl border border-white/10 bg-white/5 p-5 grid sm:grid-cols-2 gap-3">

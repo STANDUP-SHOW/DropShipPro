@@ -31,7 +31,16 @@ travail V2 ; les mémos restent la vision, ce fichier fait foi pour l'exécution
   par son UGS (la plus longue correspondance), payées seulement, idempotent,
   suivi renvoyé une fois (`Order.suiviTransmisAt` / `suiviTransmisErreur`).
   Exige `read_orders` et `write_merchant_managed_fulfillment_orders` sur l'app
-  Shopify du vendeur. Prochains canaux, même forme : eBay, WooCommerce, Mirakl.
+  Shopify du vendeur.
+- **Moteur multi-canal** (même jour) : `Canal` = relevé + suivi + motif ; eBay
+  (Fulfillment API, portée `sell.fulfillment`) et les 41 enseignes Mirakl
+  (commandes `SHIPPING`, suivi OR23 puis expédition OR24, commandes à accepter
+  signalées). État de chaque relève sur la liaison (`PlatformCredential.ventes*`),
+  affiché dans Commandes avec « Relever maintenant ». **Toutes les autres
+  plateformes** : import de l'export CSV de commandes (`importCommandes.ts`,
+  colonnes reconnues en 5 langues, idempotent). Banc `check-ventes-canaux.ts`.
+  Prochains adaptateurs, même forme : Kaufland, les 9 boutiques tierces, puis
+  les canaux à session (Vinted, Leboncoin, Facebook) par l'application desktop.
 
 ## Ce qu'on adopte
 
