@@ -5,7 +5,7 @@ import { Logo } from '../components/Logo'
 import { api, isAuthed } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
 import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
-import { AccueilDiaporama, ImageOuRepli } from '../components/AccueilDiaporama'
+import { AccueilDiaporama, BoucleTheme } from '../components/AccueilDiaporama'
 import accueil from '../data/accueil-themes.json'
 import { useThemeSombreForce } from '../lib/themeSombre'
 import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
@@ -177,7 +177,7 @@ export default function Index() {
                   aria-label={`${t.titre} — plus d'informations`}
                   className="block aspect-[4/3] overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-black/40 transition hover:-translate-y-1 hover:shadow-purple-950/50"
                 >
-                  <ImageOuRepli src={t.image} slug={t.slug} alt={t.titre} actif={i < 2} />
+                  <BoucleTheme poster={t.image} slug={t.slug} alt={t.titre} />
                 </a>
               </div>
               {/* Les frises n'ajoutent aucune marge : elles ne doivent pas écarter les blocs. */}
