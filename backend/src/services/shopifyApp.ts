@@ -28,7 +28,10 @@ import { normalizeShopDomain } from './shopify.js'
  */
 
 /** Les autorisations demandées. Le strict nécessaire : Shopify examine la liste. */
-const PORTEE_PAR_DEFAUT = 'write_products,read_products,write_publications,read_publications'
+// read_orders et write_merchant_managed_fulfillment_orders depuis le 29/09/2026 :
+// capter les ventes et renvoyer le suivi (ventesMarketplaces.ts). Une boutique
+// déjà installée doit accepter la mise à jour des permissions.
+const PORTEE_PAR_DEFAUT = 'write_products,read_products,write_publications,read_publications,read_orders,write_merchant_managed_fulfillment_orders'
 
 export interface ConfigApp {
   cle: string

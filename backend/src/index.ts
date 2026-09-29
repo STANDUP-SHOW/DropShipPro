@@ -42,6 +42,7 @@ import { tourneeEnquetes } from './services/enqueteFournisseurs.js'
 import { tourneeAutoMode } from './services/autoAnalyste.js'
 import { tourneeAutopilot } from './services/autopilot.js'
 import { tourneeReecritures } from './services/rewriteBatch.js'
+import { tourneeVentes } from './services/ventesMarketplaces.js'
 /*
  * Un processus qui meurt doit dire pourquoi.
  *
@@ -261,6 +262,13 @@ setTimeout(() => {
  * premier passage vient vite (30 s) : un lot importé juste avant un
  * redéploiement ne doit pas attendre le prochain grand cycle.
  */
+// Les ventes des places de marché (Shopify d'abord) et le renvoi du suivi,
+// toutes les quinze minutes (auto-fulfillment, 29/09/2026).
+setInterval(() => {
+  tourneeVentes().catch((e) => console.error('tournée des ventes impossible', e))
+}, 15 * 60_000)
+setTimeout(() => tourneeVentes().catch((e) => console.error('tournée des ventes impossible', e)), 90_000)
+
 setInterval(() => {
   tourneeReecritures().catch((e) => console.error('tournée réécriture batch impossible', e))
 }, 2 * 60 * 1000)

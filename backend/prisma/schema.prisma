@@ -472,6 +472,12 @@ model Order {
   trackingNumber      String?
   /// Transporteur, quand la plateforme le donne ou qu on le devine du numero.
   carrier             String?
+  /// Quand le suivi a ete renvoye a la place de marche d origine (Shopify…).
+  /// Pose une fois : le suivi ne repart pas a chaque tournee (ventesMarketplaces.ts).
+  suiviTransmisAt     DateTime?
+  /// Pourquoi l envoi du suivi a echoue, en clair. Tant qu il est pose, la
+  /// tournee ne rejoue pas l envoi : c est au vendeur de corriger.
+  suiviTransmisErreur String?      @db.Text
   /// Adresse email de l acheteur, quand la plateforme la communique. Sans elle,
   /// aucune reponse ne peut partir d ici.
   buyerEmail          String?

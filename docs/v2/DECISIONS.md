@@ -19,6 +19,20 @@ travail V2 ; les mémos restent la vision, ce fichier fait foi pour l'exécution
 - Réécriture en lot à moitié prix (API Batch) : c'est ce qui rend les imports
   massifs rentables.
 
+## Livré le 29/09/2026
+
+- **API Link mobile** (`routes/mobile.ts`, banc `check-api-mobile.ts`) : le contrat
+  de l'app compagnon, sous `https://api.drop-shipper.fr/api/mobile`. Fiche
+  `api-link-mobile.md`, configuration `dropshipper-api.config.json`.
+- **Garde-fou de perte** (`gardePerte`, supplierOrders.ts, banc
+  `check-garde-perte.ts`) : `FLAGGED_PRICE_ERROR` écrit sur la commande.
+- **Capture des ventes Shopify + renvoi du suivi** (`ventesMarketplaces.ts`,
+  banc `check-ventes-shopify.ts`, tournée toutes les 15 min) : vente retrouvée
+  par son UGS (la plus longue correspondance), payées seulement, idempotent,
+  suivi renvoyé une fois (`Order.suiviTransmisAt` / `suiviTransmisErreur`).
+  Exige `read_orders` et `write_merchant_managed_fulfillment_orders` sur l'app
+  Shopify du vendeur. Prochains canaux, même forme : eBay, WooCommerce, Mirakl.
+
 ## Ce qu'on adopte
 
 - **Inbox mobile** : `POST /v1/mobile/inbox { source_url }` → branchée sur `SharedLink`.

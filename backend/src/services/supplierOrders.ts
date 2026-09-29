@@ -211,6 +211,13 @@ export async function commanderChezFournisseur(
     }
   }
 
+  // --- Garde-fou 4 : jamais à perte (Maximum Loss Guard, mémo V2 du 29/09) --
+  const perte = gardePerte(coutAttendu, Number(commande.amount))
+  if (!options.forcer && perte) {
+    await prisma.order.update({ where: { id: commande.id }, data: { supplierOrderError: perte } })
+    return { orderId, etat: 'bloquee', message: perte, cout: coutAttendu }
+  }
+
   // --- L'envoi -------------------------------------------------------------
   try {
     const resultat = await connecteur.placeOrder(
@@ -373,4 +380,25 @@ export async function releverSuiviFournisseur(userId: string): Promise<{
   }
 
   return resultat
+}
+
+/**
+ * Le garde-fou de perte : une commande fournisseur qui coûte autant ou plus
+ * que la vente ne part pas toute seule.
+ *
+ * C'est le symptôme d'une hausse de prix chez le fournisseur que l'annonce n'a
+ * pas suivie, ou d'une référence mal lue. Le plafond ne le voit pas (il borne
+ * un coût absolu, pas une marge) : une lampe à 30 € vendue 25 € passe sous un
+ * plafond de 50 €. Code `FLAGGED_PRICE_ERROR`, repris du mémo V2, pour qu'un
+ * outil qui lit la raison puisse la reconnaître.
+ *
+ * Rend le message à écrire sur la commande, ou null quand la marge est positive.
+ * Une vente sans montant (0) ne se juge pas : la vitrine sans paiement en ligne
+ * en crée, et les bloquer toutes ne protégerait de rien.
+ */
+export function gardePerte(coutFournisseur: number, montantVente: number): string | null {
+  if (!Number.isFinite(coutFournisseur) || !Number.isFinite(montantVente) || montantVente <= 0) return null
+  if (coutFournisseur < montantVente) return null
+  const ecart = (coutFournisseur - montantVente).toFixed(2).replace('.', ',')
+  return `FLAGGED_PRICE_ERROR : commande non envoyée, elle serait à perte — ${coutFournisseur.toFixed(2).replace('.', ',')} € chez le fournisseur (port compris) pour une vente de ${montantVente.toFixed(2).replace('.', ',')} € (${ecart} € de perte). Vérifiez le prix du fournisseur ; pour l'envoyer quand même, forcez-la depuis la page Commandes.`
 }
