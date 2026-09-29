@@ -146,6 +146,11 @@ model User {
   /// débite ce champ ; une recharge le crédite. Il compte des drops, plus des
   /// « crédits annonce ». 120 offerts à l'inscription. La publication est gratuite.
   credits              Int     @default(120)
+  /// Préférences de notification de l'application mobile (API Link, 29/09/2026).
+  /// Nul = les valeurs par défaut du contrat (voir routes/mobile.ts).
+  mobilePrefs          Json?
+  mobileNotificationStates MobileNotificationState[]
+  pushDevices          PushDevice[]
   /// Vestige : plus d'abonnement depuis le 07/09/2026, tout le monde est FREE.
   plan                 Plan    @default(FREE)
   /// Identifiants Stripe. Null tant que l'utilisateur n'a jamais payé.
@@ -1718,4 +1723,37 @@ model ChannelRequest {
 
   @@unique([userId, canalId])
   @@index([canalId])
+}
+
+/// L'état lu / traité d'une notification de l'application mobile.
+///
+/// Les notifications ne sont pas stockées : elles se dérivent de l'état réel
+/// (routes/mobile.ts). Seul ce que le vendeur en a fait l'est, sous une clé
+/// stable par objet (`sale:<orderId>`, `pay:<orderId>`, `ticket:<id>`…).
+model MobileNotificationState {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key        String
+  read       Boolean  @default(false)
+  resolved   Boolean  @default(false)
+  resolution String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, key])
+}
+
+/// Un téléphone à notifier (jeton FCM / APNs). Le compte est celui du jeton
+/// d'API qui l'inscrit, jamais celui annoncé dans le corps de la requête.
+model PushDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform    String
+  deviceToken String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
 }

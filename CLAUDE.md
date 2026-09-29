@@ -57,7 +57,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 
 1. Migration écrite à la main ou générée sans base fantôme, appliquée par
    `npx prisma migrate deploy` uniquement. `migrate dev` interactif = signal.
-2. **Avant tout changement de schéma : `cd backend && npm run sauvegarde`.**
+2. **Avant tout changement de schéma : `cd backend && npm run sauvegarde`.** Et AVANT `prisma generate` : un client déjà régénéré lit une colonne absente de la base et la sauvegarde plante sans rien écrire (29/09/2026).
 3. Un script qui touche la base n'écrit rien sans `--ecrire`.
 4. Un banc qui lance une tournée (AUTO-MODE, AUTO-SHIPPER, réécritures batch)
    lui passe **toujours** son périmètre (compte jetable) ; la production jamais.

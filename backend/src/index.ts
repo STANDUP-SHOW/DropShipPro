@@ -13,6 +13,7 @@ import { vitrineRouter } from './routes/vitrine.js'
 import { analysesPubliquesRouter } from './routes/analysesPubliques.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
+import { mobileRouter } from './routes/mobile.js'
 import { dropshopRouter } from "./routes/dropshop.js"
 import { reprendreTravauxOrphelins } from "./services/dropshopJobs.js"
 import { shopAdminRouter } from "./routes/shopAdmin.js"
@@ -129,6 +130,8 @@ app.use('/api/aliexpress', aliexpressAuthRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/billing', billingRouter)
 app.use('/api/agent', agentRouter)
+// L'application mobile (API Link, 29/09/2026) : contrat propre, erreurs en { detail }.
+app.use('/api/mobile', mobileRouter)
 app.use('/api/market-reports', marketReportsRouter)
 app.use('/api/dropshop', dropshopRouter)
 // Le Back Office des boutiques DropShop (extension) : sa propre session, hors compte marchand.
