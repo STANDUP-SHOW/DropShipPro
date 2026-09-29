@@ -24,9 +24,20 @@ export interface DiapoTheme {
  * Le défilement s'arrête quand la souris est dessus, quand l'onglet est caché,
  * et n'existe pas du tout pour qui a demandé moins de mouvement.
  */
-export function AccueilDiaporama({ themes, intervalle = 5000 }: { themes: DiapoTheme[]; intervalle?: number }) {
+export function AccueilDiaporama({ themes, intervalle = 6500 }: { themes: DiapoTheme[]; intervalle?: number }) {
   const [index, setIndex] = useState(0)
   const [pause, setPause] = useState(false)
+  // La diapositive qui s'en va, pour qu'elle recule pendant que la suivante
+  // arrive (Max, 29/09/2026 : « pas de belle transition, ni d'effet
+  // d'éloignement et de rapprochement »).
+  const [precedente, setPrecedente] = useState<number | null>(null)
+  const derniere = useRef(0)
+  useEffect(() => {
+    if (derniere.current !== index) {
+      setPrecedente(derniere.current)
+      derniere.current = index
+    }
+  }, [index])
   const reduit = useRef(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
 
   useEffect(() => {
@@ -65,16 +76,19 @@ export function AccueilDiaporama({ themes, intervalle = 5000 }: { themes: DiapoT
             onClick={() => aller(t.slug)}
             aria-hidden={i !== index}
             tabIndex={i === index ? 0 : -1}
-            className={`absolute inset-0 block w-full cursor-pointer text-left transition-opacity duration-700 ${
-              i === index ? 'opacity-100' : 'pointer-events-none opacity-0'
+            className={`diapo-slide absolute inset-0 block w-full cursor-pointer text-left ${
+              i === index ? 'actif' : i === precedente ? 'sortant' : ''
             }`}
           >
-            <ImageOuRepli src={t.image} slug={t.slug} alt="" actif={i === index} />
+            {/* Ken Burns : l'image avance (ou recule, une sur deux) le temps qu'elle est affichée. */}
+            <div className={`diapo-media ${i % 2 ? 'sens-b' : ''}`}>
+              <ImageOuRepli src={t.image} slug={t.slug} alt="" actif={i === index} />
+            </div>
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b0714] via-[#0b0714]/80 to-transparent px-6 pb-8 pt-20 text-center md:px-10 md:pb-10">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{t.eyebrow}</p>
-              <h2 className={`neon neon-${(i % 6) + 1} mx-auto mt-1 max-w-4xl text-2xl font-extrabold leading-tight md:text-4xl`}>{t.titre}</h2>
-              <p className="texte-neon mx-auto mt-2 hidden max-w-3xl text-lg md:block">{t.accroche}</p>
-              <span className="mt-3 inline-block text-sm font-semibold text-purple-200 underline-offset-4 group-hover:underline">
+              <p className="diapo-anim text-xs font-semibold uppercase tracking-[0.2em] text-purple-300" style={{ ['--d' as string]: '0.35s' }}>{t.eyebrow}</p>
+              <h2 className={`diapo-anim neon neon-${(i % 6) + 1} mx-auto mt-1 max-w-4xl text-2xl font-extrabold leading-tight md:text-4xl`} style={{ ['--d' as string]: '0.55s' }}>{t.titre}</h2>
+              <p className="diapo-anim texte-neon mx-auto mt-2 hidden max-w-3xl text-lg md:block" style={{ ['--d' as string]: '0.8s' }}>{t.accroche}</p>
+              <span className="diapo-anim mt-3 inline-block text-sm font-semibold text-purple-200 underline-offset-4 group-hover:underline" style={{ ['--d' as string]: '1s' }}>
                 En savoir plus ↓
               </span>
             </div>

@@ -371,7 +371,8 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
       >
         <div className="mb-4 flex items-center justify-between gap-2">
           <Link to="/dashboard" className="min-w-0">
-            <Logo size={22} />
+            {/* 16 : l'icône (40 px) et le mot tiennent dans les 192 px utiles du menu. */}
+            <Logo size={16} />
           </Link>
           <button
             type="button"

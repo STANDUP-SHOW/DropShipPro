@@ -333,3 +333,43 @@ html[data-theme="light"] { color-scheme: light; }
   text-shadow: 0 0 4px rgba(255, 255, 255, 0.55), 0 0 14px rgba(255, 255, 255, 0.25);
 }
 .texte-neon :is(p, span, li, dd, dt, small, cite) { color: #fff; }
+
+/*
+ * Le diaporama de l'accueil (AccueilDiaporama.tsx), animé le 29/09/2026 à la
+ * demande de Max : l'image arrive en se rapprochant (zoom de 1,1 à 1), celle
+ * qui part recule en s'effaçant, et pendant l'affichage l'image avance ou
+ * recule lentement (Ken Burns, un sens sur deux). La légende entre ligne par
+ * ligne, flou → net. Tout s'arrête sous « réduire les animations ».
+ */
+.diapo-slide {
+  opacity: 0;
+  transform: scale(1.1);
+  transition: opacity 1.1s ease, transform 1.5s cubic-bezier(0.22, 0.8, 0.2, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+.diapo-slide.actif { opacity: 1; transform: scale(1); pointer-events: auto; z-index: 2; }
+.diapo-slide.sortant { opacity: 0; transform: scale(0.9); z-index: 1; }
+.diapo-media { position: absolute; inset: 0; overflow: hidden; }
+.diapo-media > * { transform-origin: 50% 45%; will-change: transform; }
+.diapo-slide.actif .diapo-media > * { animation: diapo-avance 8s ease-out both; }
+.diapo-slide.actif .diapo-media.sens-b > * { animation-name: diapo-recule; }
+@keyframes diapo-avance {
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to { transform: scale(1.18) translate3d(-2.5%, -2%, 0); }
+}
+@keyframes diapo-recule {
+  from { transform: scale(1.18) translate3d(2.5%, 1.5%, 0); }
+  to { transform: scale(1.02) translate3d(0, 0, 0); }
+}
+.diapo-slide .diapo-anim { opacity: 0; }
+.diapo-slide.actif .diapo-anim { animation: diapo-legende 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--d, 0s); }
+@keyframes diapo-legende {
+  from { opacity: 0; transform: translateY(28px) scale(0.96); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .diapo-slide, .diapo-slide.actif, .diapo-slide.sortant { transition: opacity 0.3s ease; transform: none; }
+  .diapo-slide.actif .diapo-media > *, .diapo-slide.actif .diapo-anim { animation: none; }
+  .diapo-slide.actif .diapo-anim { opacity: 1; }
+}
