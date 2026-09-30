@@ -33,7 +33,7 @@ export function readEcwidCredentials(data: unknown): EcwidCredentials | null {
   return { storeId, token, apiBase }
 }
 
-async function appeler(creds: EcwidCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
+export async function appeler(creds: EcwidCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
   const r = await fetcher(`${creds.apiBase}/api/v3/${creds.storeId}${chemin}`, {
     method: methode,
     headers: {

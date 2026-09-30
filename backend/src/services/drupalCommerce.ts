@@ -44,7 +44,7 @@ export function readDrupalCredentials(data: unknown): DrupalCredentials | null {
 
 const JSONAPI = 'application/vnd.api+json'
 
-async function appeler(
+export async function appeler(
   creds: DrupalCredentials,
   methode: string,
   chemin: string,

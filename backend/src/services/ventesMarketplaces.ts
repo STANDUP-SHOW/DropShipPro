@@ -42,6 +42,12 @@ import { jetonOfflineValide } from './shopifyApp.js'
 import { appeler as appelerEbay, avecRenouvellement, readEbayCredentials, type EbayCredentials } from './ebay.js'
 import { appeler as appelerWoo, readWooCredentials, type WooCredentials } from './woocommerce.js'
 import { BoutiqueRefus } from './boutiqueTiers.js'
+import { readBigCommerceCredentials, type BigCommerceCredentials } from './bigcommerce.js'
+import { readWixCredentials, type WixCredentials } from './wix.js'
+import { appeler as appelerShopware, readShopwareCredentials, type ShopwareCredentials } from './shopware.js'
+import { appeler as appelerEcwid, readEcwidCredentials, type EcwidCredentials } from './ecwid.js'
+import { appeler as appelerSquarespace, readSquarespaceCredentials, type SquarespaceCredentials } from './squarespace.js'
+import { appeler as appelerDrupalBrut, readDrupalCredentials, type DrupalCredentials } from './drupalCommerce.js'
 import { appeler as appelerPresta, readPrestaCredentials, type PrestaCredentials } from './prestashop.js'
 import { appeler as appelerMagento, readMagentoCredentials, type MagentoCredentials } from './magento.js'
 import { appeler as appelerKaufland, readKauflandCredentials, type KauflandCredentials } from './kaufland.js'
@@ -81,7 +87,7 @@ export interface BilanCapture {
 }
 
 /** Les canaux dont les ventes remontent seules aujourd'hui. */
-export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'MAGENTO', 'PRESTASHOP', ...OPERATEURS_MIRAKL]
+export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'MAGENTO', 'PRESTASHOP', 'BIGCOMMERCE', 'WIX', 'SHOPWARE', 'ECWID', 'SQUARESPACE', 'DRUPAL_COMMERCE', ...OPERATEURS_MIRAKL]
 
 // ------------------------------------------------------ La référence → produit
 
@@ -928,6 +934,352 @@ export function canalPresta(creds: PrestaCredentials): Canal {
   }
 }
 
+// ------------------------------------------------------------------ BigCommerce
+
+/** Les commandes se lisent en API v2 (la v3 n'a pas de commandes) : `/stores/{hash}/v2`. */
+async function appelerBigCommerceV2(creds: BigCommerceCredentials, methode: string, chemin: string, corps?: unknown): Promise<Response> {
+  const r = await fetch(`${creds.apiBase}/stores/${creds.storeHash}/v2${chemin}`, {
+    method: methode,
+    headers: { 'X-Auth-Token': creds.accessToken, Accept: 'application/json', 'User-Agent': 'DropShipperIA', ...(corps === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    body: corps === undefined ? undefined : JSON.stringify(corps),
+  })
+  if (r.status === 401 || r.status === 403) {
+    throw new BoutiqueRefus("BigCommerce refuse le jeton : le compte API doit avoir le droit « Commandes : modifier » (Paramètres › Comptes API).", true)
+  }
+  return r
+}
+
+/**
+ * BigCommerce : les statuts 9 « Awaiting Shipment » et 11 « Awaiting
+ * Fulfillment » sont des commandes payées à expédier. Le suivi s'écrit en
+ * livraison (`/shipments`), qui exige l'adresse et les lignes expédiées.
+ */
+export function canalBigCommerce(creds: BigCommerceCredentials): Canal {
+  return {
+    platform: 'BIGCOMMERCE',
+    async relever(depuis) {
+      const ventes: VenteCapturee[] = []
+      for (const statut of [9, 11]) {
+        const r = await appelerBigCommerceV2(creds, 'GET', `/orders?status_id=${statut}&min_date_created=${encodeURIComponent(depuis.toUTCString())}&limit=100`)
+        if (r.status === 204) continue
+        if (!r.ok) throw new Error(`BigCommerce a répondu ${r.status} à la lecture des commandes.`)
+        const commandes = (await r.json()) as Array<{ id: number; date_created?: string; currency_code?: string; billing_address?: { first_name?: string; last_name?: string; email?: string; phone?: string } }>
+        for (const c of commandes) {
+          const lire = async <T,>(sous: string): Promise<T[]> => {
+            const x = await appelerBigCommerceV2(creds, 'GET', `/orders/${c.id}/${sous}`)
+            return x.ok && x.status !== 204 ? ((await x.json()) as T[]) : []
+          }
+          const produits = await lire<{ id: number; name?: string; sku?: string; quantity?: number; total_inc_tax?: string }>('products')
+          const adresse = (await lire<{ first_name?: string; last_name?: string; street_1?: string; street_2?: string; city?: string; state?: string; zip?: string; country_iso2?: string; phone?: string }>('shipping_addresses'))[0] ?? {}
+          const nom = [adresse.first_name ?? c.billing_address?.first_name, adresse.last_name ?? c.billing_address?.last_name].filter(Boolean).join(' ') || 'Acheteur'
+          ventes.push({
+            platform: 'BIGCOMMERCE',
+            externalOrderId: String(c.id),
+            numero: String(c.id),
+            creeLe: new Date(c.date_created ?? Date.now()),
+            devise: c.currency_code || 'EUR',
+            acheteur: { nom, email: c.billing_address?.email ?? null, adresse: { name: nom, address1: adresse.street_1, address2: adresse.street_2 || undefined, city: adresse.city, zip: adresse.zip, province: adresse.state, countryCode: adresse.country_iso2, phone: adresse.phone || c.billing_address?.phone || undefined } },
+            lignes: produits.map((l) => ({ externalLineId: String(l.id), sku: l.sku || null, titre: l.name ?? '', quantite: l.quantity ?? 1, montant: Number(l.total_inc_tax) || 0 })),
+          })
+        }
+      }
+      return ventes
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      const id = encodeURIComponent(orderId)
+      const lignes = await appelerBigCommerceV2(creds, 'GET', `/orders/${id}/products`)
+      const adresses = await appelerBigCommerceV2(creds, 'GET', `/orders/${id}/shipping_addresses`)
+      const produits = lignes.ok && lignes.status !== 204 ? ((await lignes.json()) as Array<{ id: number; quantity: number }>) : []
+      const adresse = adresses.ok && adresses.status !== 204 ? ((await adresses.json()) as Array<{ id: number }>)[0] : undefined
+      if (!adresse || !produits.length) throw new Error("BigCommerce ne renvoie ni adresse ni lignes pour cette commande : la livraison n'a pu être créée.")
+      const r = await appelerBigCommerceV2(creds, 'POST', `/orders/${id}/shipments`, {
+        tracking_number: numero,
+        shipping_provider: '',
+        comments: transporteur ? `Transporteur : ${transporteur}` : '',
+        order_address_id: adresse.id,
+        items: produits.map((p) => ({ order_product_id: p.id, quantity: p.quantity })),
+      })
+      if (!r.ok) throw new Error(`BigCommerce a refusé la livraison (${r.status}).`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
+// ------------------------------------------------------------------ Wix
+
+async function appelerWixEcom(creds: WixCredentials, methode: string, chemin: string, corps?: unknown): Promise<Response> {
+  const r = await fetch(`${creds.apiBase}${chemin}`, {
+    method: methode,
+    headers: { Authorization: creds.apiKey, 'wix-site-id': creds.siteId, Accept: 'application/json', 'User-Agent': 'DropShipperIA', ...(corps === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    body: corps === undefined ? undefined : JSON.stringify(corps),
+  })
+  if (r.status === 401 || r.status === 403) {
+    throw new BoutiqueRefus("Wix refuse la clé : la clé d'API doit avoir la permission de lire et gérer les commandes (Wix eCommerce).", true)
+  }
+  return r
+}
+
+/**
+ * Wix : l'API eCommerce (`/ecom/v1`) — commandes PAYÉES et pas encore
+ * expédiées ; le suivi s'écrit dans une « fulfillment » sur les lignes.
+ */
+export function canalWix(creds: WixCredentials): Canal {
+  return {
+    platform: 'WIX',
+    async relever(depuis) {
+      const r = await appelerWixEcom(creds, 'POST', '/ecom/v1/orders/search', {
+        search: { filter: { paymentStatus: { $eq: 'PAID' }, fulfillmentStatus: { $eq: 'NOT_FULFILLED' }, _createdDate: { $gte: depuis.toISOString() } }, cursorPaging: { limit: 100 } },
+      })
+      if (!r.ok) throw new Error(`Wix a répondu ${r.status} à la lecture des commandes.`)
+      const { orders = [] } = (await r.json()) as {
+        orders?: Array<{
+          id: string
+          number?: string | number
+          createdDate?: string
+          currency?: string
+          buyerInfo?: { email?: string }
+          recipientInfo?: { contactDetails?: { firstName?: string; lastName?: string; phone?: string }; address?: { country?: string; subdivision?: string; city?: string; postalCode?: string; addressLine?: string; streetAddress?: { name?: string; number?: string } } }
+          lineItems?: Array<{ id: string; productName?: { original?: string }; physicalProperties?: { sku?: string }; quantity?: number; totalPriceAfterTax?: { amount?: string } }>
+        }>
+      }
+      return orders.map((c) => {
+        const d = c.recipientInfo?.contactDetails ?? {}
+        const a = c.recipientInfo?.address ?? {}
+        const nom = [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Acheteur'
+        return {
+          platform: 'WIX' as Platform,
+          externalOrderId: c.id,
+          numero: String(c.number ?? c.id),
+          creeLe: new Date(c.createdDate ?? Date.now()),
+          devise: c.currency || 'EUR',
+          acheteur: {
+            nom,
+            email: c.buyerInfo?.email ?? null,
+            adresse: { name: nom, address1: a.addressLine || [a.streetAddress?.number, a.streetAddress?.name].filter(Boolean).join(' ') || undefined, city: a.city, zip: a.postalCode, province: a.subdivision, countryCode: a.country && a.country.length === 2 ? a.country : undefined, phone: d.phone },
+          },
+          lignes: (c.lineItems ?? []).map((l) => ({ externalLineId: l.id, sku: l.physicalProperties?.sku || null, titre: l.productName?.original ?? '', quantite: l.quantity ?? 1, montant: Number(l.totalPriceAfterTax?.amount) || 0 })),
+        }
+      })
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      const id = encodeURIComponent(orderId)
+      const lu = await appelerWixEcom(creds, 'GET', `/ecom/v1/orders/${id}`)
+      const lignes = lu.ok ? (((await lu.json()) as { order?: { lineItems?: Array<{ id: string; quantity?: number }> } }).order?.lineItems ?? []) : []
+      if (!lignes.length) throw new Error("Wix ne renvoie pas les lignes de cette commande : le suivi n'a pu être posé.")
+      const r = await appelerWixEcom(creds, 'POST', `/ecom/v1/fulfillments/orders/${id}/create-fulfillment`, {
+        fulfillment: { lineItems: lignes.map((l) => ({ id: l.id, quantity: l.quantity ?? 1 })), trackingInfo: { trackingNumber: numero, shippingProvider: transporteur || 'other' } },
+      })
+      if (!r.ok) throw new Error(`Wix a refusé le suivi (${r.status}).`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
+// ------------------------------------------------------------------ Shopware
+
+interface CommandeShopware {
+  id: string
+  orderNumber?: string
+  orderDateTime?: string
+  currency?: { isoCode?: string }
+  orderCustomer?: { email?: string; firstName?: string; lastName?: string }
+  lineItems?: Array<{ id: string; label?: string; quantity?: number; totalPrice?: number; type?: string; payload?: { productNumber?: string } }>
+  deliveries?: Array<{ id: string; shippingOrderAddress?: { firstName?: string; lastName?: string; street?: string; additionalAddressLine1?: string; zipcode?: string; city?: string; phoneNumber?: string; country?: { iso?: string } } }>
+}
+
+/**
+ * Shopware 6 : une commande est PAYÉE quand sa transaction est à l'état
+ * `paid`. Le numéro de suivi va sur la livraison (`trackingCodes`), puis la
+ * livraison passe à « expédiée » par la transition d'état `ship`.
+ */
+export function canalShopware(creds: ShopwareCredentials): Canal {
+  return {
+    platform: 'SHOPWARE',
+    async relever(depuis) {
+      const r = await appelerShopware(creds, 'POST', '/search/order', {
+        limit: 100,
+        filter: [
+          { type: 'equals', field: 'transactions.stateMachineState.technicalName', value: 'paid' },
+          { type: 'equals', field: 'deliveries.stateMachineState.technicalName', value: 'open' },
+          { type: 'range', field: 'orderDateTime', parameters: { gte: depuis.toISOString() } },
+        ],
+        associations: { lineItems: {}, currency: {}, orderCustomer: {}, deliveries: { associations: { shippingOrderAddress: { associations: { country: {} } } } } },
+      })
+      if (!r.ok) throw new Error(`Shopware a répondu ${r.status} à la lecture des commandes.`)
+      const { data = [] } = (await r.json()) as { data?: CommandeShopware[] }
+      return data.map((c) => {
+        const a = c.deliveries?.[0]?.shippingOrderAddress ?? {}
+        const nom = [a.firstName ?? c.orderCustomer?.firstName, a.lastName ?? c.orderCustomer?.lastName].filter(Boolean).join(' ') || 'Acheteur'
+        return {
+          platform: 'SHOPWARE' as Platform,
+          externalOrderId: c.id,
+          numero: c.orderNumber || c.id,
+          creeLe: new Date(c.orderDateTime ?? Date.now()),
+          devise: c.currency?.isoCode || 'EUR',
+          acheteur: { nom, email: c.orderCustomer?.email ?? null, adresse: { name: nom, address1: a.street, address2: a.additionalAddressLine1 || undefined, city: a.city, zip: a.zipcode, countryCode: a.country?.iso, phone: a.phoneNumber || undefined } },
+          lignes: (c.lineItems ?? []).filter((l) => (l.type ?? 'product') === 'product').map((l) => ({ externalLineId: l.id, sku: l.payload?.productNumber || null, titre: l.label ?? '', quantite: l.quantity ?? 1, montant: Number(l.totalPrice) || 0 })),
+        }
+      })
+    },
+    async transmettreSuivi(orderId, numero) {
+      const r = await appelerShopware(creds, 'POST', '/search/order-delivery', { limit: 1, filter: [{ type: 'equals', field: 'orderId', value: orderId }] })
+      const livraison = r.ok ? ((await r.json()) as { data?: Array<{ id: string }> }).data?.[0] : undefined
+      if (!livraison) throw new Error("Shopware ne renvoie aucune livraison pour cette commande : le suivi n'a pu être posé.")
+      const p = await appelerShopware(creds, 'PATCH', `/order-delivery/${livraison.id}`, { trackingCodes: [numero] })
+      if (!p.ok) throw new Error(`Shopware a refusé le numéro de suivi (${p.status}).`)
+      const t = await appelerShopware(creds, 'POST', `/_action/order_delivery/${livraison.id}/state/ship`, {})
+      if (!t.ok) throw new Error(`Shopware a refusé de passer la livraison à « expédiée » (${t.status}).`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
+// ------------------------------------------------------------------ Ecwid
+
+interface CommandeEcwid {
+  id: string | number
+  vendorOrderNumber?: string | number
+  createDate?: string
+  createTimestamp?: number
+  email?: string
+  currency?: string
+  shippingPerson?: { name?: string; street?: string; city?: string; postalCode?: string; countryCode?: string; stateOrProvinceCode?: string; phone?: string }
+  items?: Array<{ id: number | string; sku?: string; name?: string; quantity?: number; price?: number; productPrice?: number }>
+}
+
+/** Ecwid : `PAID` et pas expédiée ; le suivi et l'état « SHIPPED » vont d'un seul `PUT`. */
+export function canalEcwid(creds: EcwidCredentials): Canal {
+  return {
+    platform: 'ECWID',
+    async relever(depuis) {
+      const r = await appelerEcwid(creds, 'GET', `/orders?paymentStatus=PAID&fulfillmentStatus=AWAITING_PROCESSING,PROCESSING&createdFrom=${Math.floor(depuis.getTime() / 1000)}&limit=100`)
+      if (!r.ok) throw new Error(`Ecwid a répondu ${r.status} à la lecture des commandes.`)
+      const { items = [] } = (await r.json()) as { items?: CommandeEcwid[] }
+      return items.map((c) => {
+        const a = c.shippingPerson ?? {}
+        return {
+          platform: 'ECWID' as Platform,
+          externalOrderId: String(c.id),
+          numero: String(c.vendorOrderNumber ?? c.id),
+          creeLe: new Date(c.createTimestamp ? c.createTimestamp * 1000 : (c.createDate?.replace(' ', 'T') ?? Date.now())),
+          devise: c.currency || 'EUR',
+          acheteur: { nom: a.name || 'Acheteur', email: c.email ?? null, adresse: { name: a.name, address1: a.street, city: a.city, zip: a.postalCode, province: a.stateOrProvinceCode, countryCode: a.countryCode && a.countryCode.length === 2 ? a.countryCode : undefined, phone: a.phone } },
+          lignes: (c.items ?? []).map((l) => ({ externalLineId: String(l.id), sku: l.sku || null, titre: l.name ?? '', quantite: l.quantity ?? 1, montant: (Number(l.price ?? l.productPrice) || 0) * (l.quantity ?? 1) })),
+        }
+      })
+    },
+    async transmettreSuivi(orderId, numero) {
+      const r = await appelerEcwid(creds, 'PUT', `/orders/${encodeURIComponent(orderId)}`, { trackingNumber: numero, fulfillmentStatus: 'SHIPPED' })
+      if (!r.ok) throw new Error(`Ecwid a refusé le suivi (${r.status}).`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
+// ------------------------------------------------------------------ Squarespace
+
+interface CommandeSquarespace {
+  id: string
+  orderNumber?: string
+  createdOn?: string
+  customerEmail?: string
+  grandTotal?: { currency?: string }
+  shippingAddress?: { firstName?: string; lastName?: string; address1?: string; address2?: string; city?: string; state?: string; postalCode?: string; countryCode?: string; phone?: string }
+  lineItems?: Array<{ id: string; sku?: string; productName?: string; quantity?: number; unitPricePaid?: { value?: string } }>
+}
+
+/**
+ * Squarespace : `fulfillmentStatus=PENDING` = payée, pas expédiée (une commande
+ * n'existe qu'une fois réglée). L'API exige une fenêtre `modifiedAfter` +
+ * `modifiedBefore`. Le suivi crée une « fulfillment » avec notification.
+ */
+export function canalSquarespace(creds: SquarespaceCredentials): Canal {
+  return {
+    platform: 'SQUARESPACE',
+    async relever(depuis) {
+      const r = await appelerSquarespace(creds, 'GET', `/orders?modifiedAfter=${encodeURIComponent(depuis.toISOString())}&modifiedBefore=${encodeURIComponent(new Date(Date.now() + 60_000).toISOString())}&fulfillmentStatus=PENDING`)
+      if (!r.ok) throw new Error(`Squarespace a répondu ${r.status} à la lecture des commandes.`)
+      const { result = [] } = (await r.json()) as { result?: CommandeSquarespace[] }
+      return result.map((c) => {
+        const a = c.shippingAddress ?? {}
+        const nom = [a.firstName, a.lastName].filter(Boolean).join(' ') || 'Acheteur'
+        return {
+          platform: 'SQUARESPACE' as Platform,
+          externalOrderId: c.id,
+          numero: c.orderNumber || c.id,
+          creeLe: new Date(c.createdOn ?? Date.now()),
+          devise: c.grandTotal?.currency || 'EUR',
+          acheteur: { nom, email: c.customerEmail ?? null, adresse: { name: nom, address1: a.address1, address2: a.address2 || undefined, city: a.city, zip: a.postalCode, province: a.state, countryCode: a.countryCode, phone: a.phone } },
+          lignes: (c.lineItems ?? []).map((l) => ({ externalLineId: l.id, sku: l.sku || null, titre: l.productName ?? '', quantite: l.quantity ?? 1, montant: (Number(l.unitPricePaid?.value) || 0) * (l.quantity ?? 1) })),
+        }
+      })
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      const r = await appelerSquarespace(creds, 'POST', `/orders/${encodeURIComponent(orderId)}/fulfillments`, {
+        shouldSendNotification: true,
+        shipments: [{ shipDate: new Date().toISOString(), carrierName: transporteur || 'Autre', service: 'Standard', trackingNumber: numero }],
+      })
+      if (!r.ok) throw new Error(`Squarespace a refusé le suivi (${r.status}).`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
+// ------------------------------------------------------------------ Drupal Commerce
+
+interface ResourceJsonApi {
+  id: string
+  type: string
+  attributes?: Record<string, unknown>
+  relationships?: Record<string, { data?: { id: string; type: string } | Array<{ id: string; type: string }> | null }>
+}
+
+/**
+ * Drupal Commerce : `completed` est l'état d'une commande passée et réglée.
+ * Le cœur de Commerce n'a PAS de suivi de colis (il vient du module
+ * d'expédition, propre à chaque site) : ce canal relève les ventes, et le suivi
+ * reste au vendeur — `transmettreSuivi` est volontairement absent.
+ */
+export function canalDrupal(creds: DrupalCredentials): Canal {
+  const tous = (inclus: ResourceJsonApi[], type: string) => new Map(inclus.filter((x) => x.type.startsWith(type)).map((x) => [x.id, x]))
+  return {
+    platform: 'DRUPAL_COMMERCE',
+    async relever(depuis) {
+      const r = await appelerDrupal(creds, 'GET', `/commerce_order/${creds.type}?filter[state]=completed&filter[placed][condition][path]=placed&filter[placed][condition][operator]=%3E%3D&filter[placed][condition][value]=${Math.floor(depuis.getTime() / 1000)}&include=order_items,order_items.purchased_entity,billing_profile&page[limit]=50`)
+      if (!r.ok) throw new Error(`Drupal a répondu ${r.status} à la lecture des commandes.`)
+      const doc = (await r.json()) as { data?: ResourceJsonApi[]; included?: ResourceJsonApi[] }
+      const inclus = doc.included ?? []
+      const lignes = tous(inclus, 'commerce_order_item')
+      const variations = tous(inclus, 'commerce_product_variation')
+      const profils = tous(inclus, 'profile')
+      return (doc.data ?? []).map((c) => {
+        const profilId = (c.relationships?.billing_profile?.data as { id?: string } | null | undefined)?.id
+        const adresse = (profils.get(profilId ?? '')?.attributes?.address ?? {}) as Record<string, string>
+        const nom = [adresse.given_name, adresse.family_name].filter(Boolean).join(' ') || 'Acheteur'
+        const refs = (c.relationships?.order_items?.data as Array<{ id: string }> | undefined) ?? []
+        const total = (c.attributes?.total_price ?? {}) as { currency_code?: string }
+        return {
+          platform: 'DRUPAL_COMMERCE' as Platform,
+          externalOrderId: c.id,
+          numero: String(c.attributes?.order_number ?? c.id),
+          creeLe: new Date(typeof c.attributes?.placed === 'string' ? (c.attributes.placed as string) : Date.now()),
+          devise: total.currency_code || 'EUR',
+          acheteur: { nom, email: typeof c.attributes?.mail === 'string' ? (c.attributes.mail as string) : null, adresse: { name: nom, address1: adresse.address_line1, address2: adresse.address_line2 || undefined, city: adresse.locality, zip: adresse.postal_code, countryCode: adresse.country_code } },
+          lignes: refs.flatMap((ref) => {
+            const l = lignes.get(ref.id)
+            if (!l) return []
+            const variationId = (l.relationships?.purchased_entity?.data as { id?: string } | null | undefined)?.id
+            const sku = variations.get(variationId ?? '')?.attributes?.sku
+            const prix = (l.attributes?.total_price ?? {}) as { number?: string }
+            return [{ externalLineId: l.id, sku: typeof sku === 'string' ? sku : null, titre: String(l.attributes?.title ?? ''), quantite: Math.round(Number(l.attributes?.quantity)) || 1, montant: Number(prix.number) || 0 }]
+          }),
+        }
+      })
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
 // ------------------------------------------------------------------ Tournée
 
 /** Le canal d'une liaison, ou null si la plateforme ne remonte pas (encore) ses ventes. */
@@ -942,6 +1294,30 @@ export async function canalPour(lien: PlatformCredential): Promise<Canal | null>
   if (lien.platform === 'EBAY') {
     const creds = readEbayCredentials(lien.data)
     return creds ? canalEbay(creds) : null
+  }
+  if (lien.platform === 'BIGCOMMERCE') {
+    const creds = readBigCommerceCredentials(lien.data)
+    return creds ? canalBigCommerce(creds) : null
+  }
+  if (lien.platform === 'WIX') {
+    const creds = readWixCredentials(lien.data)
+    return creds ? canalWix(creds) : null
+  }
+  if (lien.platform === 'SHOPWARE') {
+    const creds = readShopwareCredentials(lien.data)
+    return creds ? canalShopware(creds) : null
+  }
+  if (lien.platform === 'ECWID') {
+    const creds = readEcwidCredentials(lien.data)
+    return creds ? canalEcwid(creds) : null
+  }
+  if (lien.platform === 'SQUARESPACE') {
+    const creds = readSquarespaceCredentials(lien.data)
+    return creds ? canalSquarespace(creds) : null
+  }
+  if (lien.platform === 'DRUPAL_COMMERCE') {
+    const creds = readDrupalCredentials(lien.data)
+    return creds ? canalDrupal(creds) : null
   }
   if (lien.platform === 'PRESTASHOP') {
     const creds = readPrestaCredentials(lien.data)
@@ -999,3 +1375,5 @@ export async function noterReleve(credentialId: string, r: ResultatPassage): Pro
     data: { ventesReleveesAt: new Date(), ventesErreur: r.erreur, ...(bilan ? { ventesBilan: bilan } : {}) },
   })
 }
+
+const appelerDrupal = (creds: DrupalCredentials, methode: string, chemin: string, corps?: unknown) => appelerDrupalBrut(creds, methode, chemin, corps)

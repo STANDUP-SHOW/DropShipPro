@@ -67,7 +67,7 @@ async function jeton(creds: ShopwareCredentials, fetcher: typeof fetch): Promise
   return access_token
 }
 
-async function appeler(creds: ShopwareCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
+export async function appeler(creds: ShopwareCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
   const r = await fetcher(`${creds.siteUrl}/api${chemin}`, {
     method: methode,
     headers: {

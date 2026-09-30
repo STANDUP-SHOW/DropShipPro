@@ -34,7 +34,7 @@ export function readSquarespaceCredentials(data: unknown): SquarespaceCredential
   return { apiKey, apiBase }
 }
 
-async function appeler(creds: SquarespaceCredentials, methode: string, chemin: string, corps?: unknown | FormData, fetcher: typeof fetch = fetch): Promise<Response> {
+export async function appeler(creds: SquarespaceCredentials, methode: string, chemin: string, corps?: unknown | FormData, fetcher: typeof fetch = fetch): Promise<Response> {
   const form = typeof FormData !== 'undefined' && corps instanceof FormData
   const r = await fetcher(`${creds.apiBase}/1.0/commerce${chemin}`, {
     method: methode,

@@ -12,7 +12,7 @@
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { prisma } from './src/lib/prisma.js'
-import { canalEbay, canalKaufland, canalMagento, canalMirakl, canalPresta, canalWoo, noterReleve, passage } from './src/services/ventesMarketplaces.js'
+import { canalEbay, canalKaufland, canalMagento, canalMirakl, canalPresta, canalBigCommerce, canalWix, canalShopware, canalEcwid, canalSquarespace, canalDrupal, canalWoo, noterReleve, passage } from './src/services/ventesMarketplaces.js'
 import { correspondance, importerCommandes, lireCsv, lireMontant } from './src/services/importCommandes.js'
 
 let echecs = 0
@@ -251,6 +251,133 @@ async function main() {
     await passage(user.id, cPresta)
     const histo = presta.journal.find((a) => a.methode === 'POST' && a.chemin.includes('/order_histories'))
     verifier('commande passée à « Expédié » (état 4)', !!histo && /<id_order>7<\/id_order><id_order_state>4</.test(histo.corps))
+
+    // ------------------------------------------------------ BigCommerce
+    console.log('\nBigCommerce')
+    const bc = await serveur((a) => {
+      if (a.auth !== '' && false) return { statut: 401 }
+      const q = decodeURIComponent(a.chemin)
+      if (a.methode === 'GET' && q.startsWith('/stores/abc123/v2/orders?')) return q.includes('status_id=11') ? { json: [{ id: 300, date_created: 'Wed, 30 Sep 2026 08:00:00 +0000', currency_code: 'EUR', billing_address: { email: 'b@exemple.test' } }] } : { statut: 204 }
+      if (a.methode === 'GET' && q.endsWith('/orders/300/products')) return { json: [{ id: 3001, name: 'Lampe', sku: 'DSP-555', quantity: 2, total_inc_tax: '59.8000' }] }
+      if (a.methode === 'GET' && q.endsWith('/orders/300/shipping_addresses')) return { json: [{ id: 3002, first_name: 'Zoe', last_name: 'Lin', street_1: '1 rue Rose', city: 'Lille', zip: '59000', country_iso2: 'FR' }] }
+      return { statut: 201, json: {} }
+    })
+    fermer.push(bc.fermer)
+    const cBc = canalBigCommerce({ storeHash: 'abc123', accessToken: 'tok', apiBase: bc.url })
+    const pBc = await passage(user.id, cBc)
+    const oBc = await prisma.order.findMany({ where: { userId: user.id, platform: 'BIGCOMMERCE' } })
+    verifier('BigCommerce : statut 11 lu (le 9 vide, 204 toléré), adresse et lignes relues', oBc.length === 1 && oBc[0].productId === lampe.id && Number(oBc[0].amount) === 59.8 && (oBc[0].buyerAddress as Record<string, string>).city === 'Lille', JSON.stringify(pBc.bilan) + pBc.erreur)
+    await prisma.order.update({ where: { id: oBc[0].id }, data: { trackingNumber: 'B-TRACK', carrier: 'DPD' } })
+    await passage(user.id, cBc)
+    const shBc = bc.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/orders/300/shipments'))
+    verifier('BigCommerce : livraison avec adresse et lignes expédiées', !!shBc && JSON.parse(shBc.corps).tracking_number === 'B-TRACK' && JSON.parse(shBc.corps).order_address_id === 3002 && JSON.parse(shBc.corps).items[0].order_product_id === 3001)
+
+    // --------------------------------------------------------------- Wix
+    console.log('\nWix')
+    const wix = await serveur((a) => {
+      if (a.auth !== 'clef-wix') return { statut: 401 }
+      if (a.methode === 'POST' && a.chemin === '/ecom/v1/orders/search') return { json: { orders: [{ id: 'w-1', number: 1001, createdDate: '2026-09-30T08:00:00Z', currency: 'EUR', buyerInfo: { email: 'w@exemple.test' }, recipientInfo: { contactDetails: { firstName: 'Ana', lastName: 'Sol', phone: '06' }, address: { country: 'FR', city: 'Nice', postalCode: '06000', addressLine: '2 quai Bleu' } }, lineItems: [{ id: 'l1', productName: { original: 'Tapis' }, physicalProperties: { sku: `DSP-${tapis.id}` }, quantity: 1, totalPriceAfterTax: { amount: '30.00' } }] }] } }
+      if (a.methode === 'GET' && a.chemin === '/ecom/v1/orders/w-1') return { json: { order: { lineItems: [{ id: 'l1', quantity: 1 }] } } }
+      return { json: {} }
+    })
+    fermer.push(wix.fermer)
+    const cWix = canalWix({ apiKey: 'clef-wix', siteId: '12345678-1234-1234-1234-123456789012', apiBase: wix.url })
+    const pWx = await passage(user.id, cWix)
+    const oWx = await prisma.order.findMany({ where: { userId: user.id, platform: 'WIX' } })
+    verifier('Wix : commande payée non expédiée relevée', oWx.length === 1 && oWx[0].productId === tapis.id && Number(oWx[0].amount) === 30 && (oWx[0].buyerAddress as Record<string, string>).city === 'Nice', JSON.stringify(pWx.bilan) + pWx.erreur)
+    const filtreWix = JSON.parse(wix.journal[0].corps).search.filter
+    verifier('Wix : le filtre demande PAID et NOT_FULFILLED', filtreWix.paymentStatus.$eq === 'PAID' && filtreWix.fulfillmentStatus.$eq === 'NOT_FULFILLED')
+    await prisma.order.update({ where: { id: oWx[0].id }, data: { trackingNumber: 'X-TRACK', carrier: 'GLS' } })
+    await passage(user.id, cWix)
+    const fWx = wix.journal.find((a) => a.chemin === '/ecom/v1/fulfillments/orders/w-1/create-fulfillment')
+    verifier('Wix : fulfillment avec suivi sur les lignes', !!fWx && JSON.parse(fWx.corps).fulfillment.trackingInfo.trackingNumber === 'X-TRACK' && JSON.parse(fWx.corps).fulfillment.lineItems[0].id === 'l1')
+
+    // ---------------------------------------------------------- Shopware
+    console.log('\nShopware')
+    const sw = await serveur((a) => {
+      if (a.chemin === '/api/oauth/token') return { json: { access_token: 'jeton-sw', expires_in: 600 } }
+      if (a.auth !== 'Bearer jeton-sw') return { statut: 401 }
+      if (a.chemin === '/api/search/order') return { json: { data: [{ id: 'sw1', orderNumber: '10001', orderDateTime: '2026-09-30T08:00:00Z', currency: { isoCode: 'EUR' }, orderCustomer: { email: 's@exemple.test', firstName: 'Tim', lastName: 'Roth' }, lineItems: [{ id: 'i1', label: 'Lampe', quantity: 1, totalPrice: 29.9, type: 'product', payload: { productNumber: 'DSP-555' } }, { id: 'i2', label: 'Remise', quantity: 1, totalPrice: -3, type: 'promotion' }], deliveries: [{ id: 'd1', shippingOrderAddress: { firstName: 'Tim', lastName: 'Roth', street: 'Bergstr. 1', zipcode: '80331', city: 'München', country: { iso: 'DE' } } }] }] } }
+      if (a.chemin === '/api/search/order-delivery') return { json: { data: [{ id: 'd1' }] } }
+      return { statut: 204 }
+    })
+    fermer.push(sw.fermer)
+    const cSw = canalShopware({ siteUrl: sw.url, clientId: 'id', clientSecret: 'secret' })
+    const pSw = await passage(user.id, cSw)
+    const oSw = await prisma.order.findMany({ where: { userId: user.id, platform: 'SHOPWARE' } })
+    verifier('Shopware : ligne de remise écartée, produit par sa référence, pays ISO', oSw.length === 1 && oSw[0].productId === lampe.id && Number(oSw[0].amount) === 29.9 && (oSw[0].buyerAddress as Record<string, string>).countryCode === 'DE', JSON.stringify(pSw.bilan) + pSw.erreur)
+    await prisma.order.update({ where: { id: oSw[0].id }, data: { trackingNumber: 'S-TRACK', carrier: 'DHL' } })
+    await passage(user.id, cSw)
+    const iPatch = sw.journal.findIndex((a) => a.methode === 'PATCH' && a.chemin === '/api/order-delivery/d1')
+    const iShipSw = sw.journal.findIndex((a) => a.chemin === '/api/_action/order_delivery/d1/state/ship')
+    verifier('Shopware : code de suivi posé PUIS livraison « ship »', iPatch >= 0 && iShipSw > iPatch && JSON.parse(sw.journal[iPatch].corps).trackingCodes[0] === 'S-TRACK')
+
+    // ------------------------------------------------------------- Ecwid
+    console.log('\nEcwid')
+    const ecwid = await serveur((a) => {
+      if (a.auth !== 'Bearer tok-ec') return { statut: 401 }
+      if (a.methode === 'GET' && a.chemin.startsWith('/api/v3/123456/orders?')) {
+        const q = decodeURIComponent(a.chemin)
+        if (!q.includes('paymentStatus=PAID')) return { statut: 400 }
+        return { json: { items: [{ id: 'EC1', vendorOrderNumber: 12, createTimestamp: 1790755200, email: 'e@exemple.test', shippingPerson: { name: 'Jo Ek', street: '9 rue Lune', city: 'Brest', postalCode: '29200', countryCode: 'FR' }, items: [{ id: 1, sku: `DSP-${tapis.id}`, name: 'Tapis', quantity: 2, price: 15 }] }] } }
+      }
+      return { json: {} }
+    })
+    fermer.push(ecwid.fermer)
+    const cEc = canalEcwid({ storeId: '123456', token: 'tok-ec', apiBase: ecwid.url })
+    const pEc = await passage(user.id, cEc)
+    const oEc = await prisma.order.findMany({ where: { userId: user.id, platform: 'ECWID' } })
+    verifier('Ecwid : prix unitaire × quantité, adresse', oEc.length === 1 && oEc[0].productId === tapis.id && Number(oEc[0].amount) === 30 && oEc[0].quantity === 2 && (oEc[0].buyerAddress as Record<string, string>).city === 'Brest', JSON.stringify(pEc.bilan) + pEc.erreur)
+    await prisma.order.update({ where: { id: oEc[0].id }, data: { trackingNumber: 'E-TRACK', carrier: 'UPS' } })
+    await passage(user.id, cEc)
+    const putEc = ecwid.journal.find((a) => a.methode === 'PUT' && a.chemin.endsWith('/orders/EC1'))
+    verifier('Ecwid : suivi et état SHIPPED en un seul appel', !!putEc && JSON.parse(putEc.corps).trackingNumber === 'E-TRACK' && JSON.parse(putEc.corps).fulfillmentStatus === 'SHIPPED')
+
+    // ------------------------------------------------------- Squarespace
+    console.log('\nSquarespace')
+    const sq = await serveur((a) => {
+      if (a.auth !== 'Bearer clef-sq') return { statut: 401 }
+      if (a.methode === 'GET' && a.chemin.startsWith('/1.0/commerce/orders?')) {
+        const q = decodeURIComponent(a.chemin)
+        if (!q.includes('modifiedAfter=') || !q.includes('modifiedBefore=') || !q.includes('fulfillmentStatus=PENDING')) return { statut: 400 }
+        return { json: { result: [{ id: 'sq1', orderNumber: '1005', createdOn: '2026-09-30T08:00:00Z', customerEmail: 'q@exemple.test', grandTotal: { currency: 'EUR' }, shippingAddress: { firstName: 'Uma', lastName: 'Ray', address1: '4 rue Or', city: 'Metz', postalCode: '57000', countryCode: 'FR' }, lineItems: [{ id: 'q1', sku: 'DSP-555', productName: 'Lampe', quantity: 3, unitPricePaid: { value: '10.00' } }] }] } }
+      }
+      return { json: {} }
+    })
+    fermer.push(sq.fermer)
+    const cSq = canalSquarespace({ apiKey: 'clef-sq', apiBase: sq.url })
+    const pSq = await passage(user.id, cSq)
+    const oSq = await prisma.order.findMany({ where: { userId: user.id, platform: 'SQUARESPACE' } })
+    verifier('Squarespace : fenêtre de dates exigée fournie, 3 × 10 €', oSq.length === 1 && oSq[0].productId === lampe.id && Number(oSq[0].amount) === 30 && oSq[0].quantity === 3, JSON.stringify(pSq.bilan) + pSq.erreur)
+    await prisma.order.update({ where: { id: oSq[0].id }, data: { trackingNumber: 'Q-TRACK', carrier: 'Colissimo' } })
+    await passage(user.id, cSq)
+    const fSq = sq.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/orders/sq1/fulfillments'))
+    verifier('Squarespace : fulfillment avec numéro, transporteur et notification', !!fSq && JSON.parse(fSq.corps).shipments[0].trackingNumber === 'Q-TRACK' && JSON.parse(fSq.corps).shipments[0].carrierName === 'Colissimo' && JSON.parse(fSq.corps).shouldSendNotification === true)
+
+    // ----------------------------------------------------------- Drupal
+    console.log('\nDrupal Commerce')
+    const drupal = await serveur((a) => {
+      if (!a.auth.startsWith('Basic ')) return { statut: 401 }
+      if (a.methode === 'GET' && a.chemin.startsWith('/jsonapi/commerce_order/default?')) {
+        return {
+          json: {
+            data: [{ id: 'o-1', type: 'commerce_order--default', attributes: { order_number: '77', mail: 'd@exemple.test', placed: '2026-09-30T08:00:00+00:00', total_price: { number: '59.80', currency_code: 'EUR' } }, relationships: { billing_profile: { data: { id: 'p-1', type: 'profile--customer' } }, order_items: { data: [{ id: 'i-1', type: 'commerce_order_item--default' }] } } }],
+            included: [
+              { id: 'i-1', type: 'commerce_order_item--default', attributes: { title: 'Lampe', quantity: '2.00', total_price: { number: '59.80' } }, relationships: { purchased_entity: { data: { id: 'v-1', type: 'commerce_product_variation--default' } } } },
+              { id: 'v-1', type: 'commerce_product_variation--default', attributes: { sku: 'DSP-555' } },
+              { id: 'p-1', type: 'profile--customer', attributes: { address: { given_name: 'Eva', family_name: 'Dur', address_line1: '6 rue Sel', locality: 'Rouen', postal_code: '76000', country_code: 'FR' } } },
+            ],
+          },
+        }
+      }
+      return { statut: 404 }
+    })
+    fermer.push(drupal.fermer)
+    const cDr = canalDrupal({ siteUrl: drupal.url, identifiant: 'u', motDePasse: 'p', type: 'default' })
+    const pDr = await passage(user.id, cDr)
+    const oDr = await prisma.order.findMany({ where: { userId: user.id, platform: 'DRUPAL_COMMERCE' } })
+    verifier('Drupal : commande, SKU lu sur la variation incluse, adresse du profil', oDr.length === 1 && oDr[0].productId === lampe.id && oDr[0].quantity === 2 && Number(oDr[0].amount) === 59.8 && (oDr[0].buyerAddress as Record<string, string>).city === 'Rouen', JSON.stringify(pDr.bilan) + pDr.erreur)
+    verifier('Drupal : pas de suivi renvoyé (canal sans transmettreSuivi, dit au vendeur)', cDr.transmettreSuivi === undefined)
 
     // ----------------------------------------------------------- Import
     console.log('\nImport de fichier')
