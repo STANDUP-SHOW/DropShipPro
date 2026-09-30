@@ -33,4 +33,8 @@ npm run check      # banc de la logique pure, sans Electron
 npm start
 ```
 
+## Installeurs Windows (générés le 30/09/2026)
+
+`npm run build` produit dans `dist/` : `DropShipper Desktop Setup 0.1.0.exe` (NSIS) et `DropShipper Desktop 0.1.0.msi`. **Non signés** : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même) tant qu'un certificat de signature n'est pas acheté. Sous Windows, `electron-builder` échoue sur des liens symboliques macOS de son cache `winCodeSign` : copier un dossier extrait du cache en `winCodeSign-2.6.0` (fait sur ce poste). L'app empaquetée démarre ; jamais essayée par un vendeur.
+
 Clé d'API : drop-shipper.fr › Réglages › Clés d'API (préfixe `dsp_live_`).
