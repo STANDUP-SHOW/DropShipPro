@@ -369,8 +369,8 @@ agentRouter.post('/import', requireDesktop as never, async (req: AgentRequest, r
  */
 agentRouter.get('/gagnants', requireDesktop as never, async (req: AgentRequest, res) => {
   try {
-    const q = z.object({ margeMin: z.coerce.number().min(0).max(100).default(20), max: z.coerce.number().int().min(1).max(100).default(50) }).safeParse(req.query)
-    if (!q.success) return res.status(400).json({ error: 'margeMin (0-100) et max (1-100) attendus' })
+    const q = z.object({ margeMin: z.coerce.number().min(0).max(100).default(20), max: z.coerce.number().int().min(1).max(1000).default(500) }).safeParse(req.query)
+    if (!q.success) return res.status(400).json({ error: 'margeMin (0-100) et max (1-1000) attendus' })
 
     const moi = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! }, select: { credits: true } })
     if (moi.credits < SEUIL_DROPS) {

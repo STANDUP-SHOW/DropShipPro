@@ -312,7 +312,7 @@ async function main() {
   verifier('mise en file ratée : le produit importé n’est pas perdu, la raison est dite', rc.statut === 'importe' && rc.productId === 'prod9' && /mise en file/.test(rc.raison))
 
   console.log('\nImport groupé de la liste du jour')
-  const { importGroupe, importesAujourdhui, plafondImports, PLAFOND_IMPORTS_DUR } = require('./lib/circuit')
+  const { importGroupe, importesAujourdhui, plafondImports } = require('./lib/circuit')
   const liste = (n) => ({ jour: '2026-09-30', produits: Array.from({ length: n }, (_, i) => ({ url: `https://exemple.test/p${i}`, margePct: 40 - i })) })
   const apiListe = (n, surImport = async () => ({ id: 'x' })) => {
     const j = { max: null, importer: [], file: [] }
@@ -375,7 +375,10 @@ async function main() {
     { type: 'publication', at: midi.toISOString() },
   ]
   verifier('le compteur du jour ne compte que les imports réussis d’aujourd’hui', importesAujourdhui(jr, midi) === 2)
-  verifier('plafond d’imports : 20 par défaut, réglable, 50 au plus', plafondImports({}) === 20 && plafondImports({ plafondImports: 5 }) === 5 && plafondImports({ plafondImports: 9999 }) === PLAFOND_IMPORTS_DUR)
+  verifier('aucune limite d’imports par défaut : illimité ; réglable si le vendeur le veut, sans plafond dur', plafondImports({}) === Infinity && plafondImports({ plafondImports: 5 }) === 5 && plafondImports({ plafondImports: 100000 }) === 100000 && plafondImports({ plafondImports: null }) === Infinity)
+  ag = apiListe(480)
+  bg = await importGroupe({ api: ag, plateformes: ['VINTED'], plafond: Infinity, dormir: async () => undefined })
+  verifier('480 produits, sans limite : les 480 sont importés et mis en file', bg.importes === 480 && ag.j.file.length === 480 && !bg.plafondAtteint && ag.j.max === 1000)
 
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {

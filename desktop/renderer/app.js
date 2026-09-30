@@ -134,7 +134,7 @@ function rendre(etat) {
   if (!etat.connecte) return
   $('circuit').checked = Boolean(etat.circuit)
   $('reseaux').checked = Boolean(etat.reseaux)
-  if (document.activeElement !== $('plafond-imports')) $('plafond-imports').value = etat.plafondImports
+  if (document.activeElement !== $('plafond-imports')) $('plafond-imports').value = etat.plafondImports === null ? '' : etat.plafondImports
   $('imports-jour').textContent = `${etat.importsAujourdhui} aujourd’hui`
   rendreLiens(etat)
   rendreAnnonces(etat)

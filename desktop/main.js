@@ -67,7 +67,7 @@ function instantane() {
     })),
     circuit: Boolean(cfg.circuit && cfg.circuit.actif),
     reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux),
-    plafondImports: plafondImports(cfg),
+    plafondImports: Number.isFinite(plafondImports(cfg)) ? plafondImports(cfg) : null,
     importsAujourdhui: importesAujourdhui(plafonds.lireJournal(dossier())),
     texteAccord: plafonds.TEXTE_ACCORD,
     journal: plafonds.lireJournal(dossier()).slice(-50).reverse(),
@@ -318,7 +318,8 @@ function brancherIpc() {
   })
 
   ipcMain.handle('circuit:plafond', (_e, n) => {
-    cfg = { ...cfg, plafondImports: Math.max(1, Math.min(Math.floor(Number(n)) || 20, 50)) }
+    // Vide ou nul : illimité. Une limite est un réglage du vendeur, jamais une décision de l'application.
+    cfg = { ...cfg, plafondImports: Number(n) > 0 ? Math.floor(Number(n)) : null }
     config.enregistrer(dossier(), cfg)
     return instantane()
   })

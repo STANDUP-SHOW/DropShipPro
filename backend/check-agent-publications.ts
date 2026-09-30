@@ -152,7 +152,7 @@ async function main() {
     verifier('extension, marge inconnue, déjà importé et adresse invalide sont écartés', !miens.some((p: { url: string }) => /temu|d-|e-|pas-une/.test(p.url)) && g.json.ecartes.extension >= 1 && g.json.ecartes.margeInconnue >= 1 && g.json.ecartes.dejaImportes >= 1)
     const serre = await appel('GET', '/gagnants?margeMin=50&max=1', cleDesk.key)
     verifier('margeMin et max respectés', serre.json.produits.length <= 1 && serre.json.produits.every((p: { margePct: number }) => p.margePct >= 50))
-    verifier('paramètre invalide : 400', (await appel('GET', '/gagnants?max=9999', cleDesk.key)).statut === 400)
+    verifier('paramètre invalide : 400', (await appel('GET', '/gagnants?max=99999', cleDesk.key)).statut === 400)
     await prisma.marketReport.deleteMany({ where: { categorie: catBanc } })
 
     console.log('\nRésultat')

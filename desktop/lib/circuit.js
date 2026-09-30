@@ -60,9 +60,7 @@ async function importerEtMettreEnFile({ api, lien, plateformes, essais, pauseEss
   }
 }
 
-/** Le plafond d'imports par jour que le vendeur ne peut pas dépasser : chaque import coûte des drops. */
-const PLAFOND_IMPORTS_DUR = 50
-const PLAFOND_IMPORTS_DEFAUT = 20
+/** Aucune limite d'imports par défaut : le solde de drops du vendeur est la seule borne, et c'est son choix. */
 
 const jourLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -73,8 +71,7 @@ function importesAujourdhui(journal, maintenant = new Date()) {
 
 function plafondImports(config = {}) {
   const voulu = Number(config.plafondImports)
-  const choisi = Number.isFinite(voulu) && voulu > 0 ? Math.floor(voulu) : PLAFOND_IMPORTS_DEFAUT
-  return Math.min(choisi, PLAFOND_IMPORTS_DUR)
+  return Number.isFinite(voulu) && voulu > 0 ? Math.floor(voulu) : Infinity // facultatif : vide = illimité
 }
 
 /**
@@ -88,7 +85,7 @@ async function importGroupe({ api, plateformes = [], reseaux = false, plafond, d
   const restant = Math.max(0, plafond - dejaFaits)
   const bilan = { jour: null, lus: 0, importes: 0, echecs: 0, sansSolde: false, plafondAtteint: restant === 0, resultats: [] }
   if (restant === 0) return bilan
-  const liste = await api.gagnants({ margeMin, max: restant })
+  const liste = await api.gagnants({ margeMin, max: Math.min(restant, 1000) })
   bilan.jour = liste.jour
   bilan.lus = (liste.produits || []).length
   for (const produit of liste.produits || []) {
@@ -110,4 +107,4 @@ async function importGroupe({ api, plateformes = [], reseaux = false, plafond, d
   return bilan
 }
 
-module.exports = { traiterLien, importGroupe, importesAujourdhui, plafondImports, PLAFOND_IMPORTS_DUR, PLAFOND_IMPORTS_DEFAUT }
+module.exports = { traiterLien, importGroupe, importesAujourdhui, plafondImports }
