@@ -30,7 +30,16 @@ aucun renvoi de suivi constaté.
 2. Desktop : `cd desktop && npm install && npm start` (jamais lancé), puis
    l'**exécuteur de publication** (Vinted / Leboncoin / Facebook) appuyé sur les
    garde-fous de `lib/plafonds.js` ; imports en masse ; commandes fournisseurs
-   arrêtées au paiement.
+   arrêtées au paiement. **Pré-requis constaté le 30/09** : le Chrome de Max n'est
+   PAS connecté à Vinted (`/items/new` renvoie à l'inscription) — sans session
+   réelle, impossible de relever les vrais champs du formulaire ; Max doit s'y
+   connecter (Vinted, Leboncoin, Facebook) avant qu'on écrive l'exécuteur. File
+   côté serveur sans migration : les `Publication` PENDING des plateformes
+   VINTED/LEBONCOIN/FACEBOOK (aujourd'hui laissées PENDING par `publisher.ts`) +
+   une route `/api/agent/publications` à écrire (images via `imagesPourExport`).
+2bis. **eBay** : les jetons se collent à la main (secrets, geste de Max). Le vrai
+   remède est un « Connecter mon compte eBay » par OAuth (comme Shopify) : demande
+   la clé d'application eBay (Client ID/Secret + RuName) de Max.
 3. **Max doit** : téléverser `backend/extension-store.zip` (1.37.0) au Chrome Web
    Store — Chrome interdit à l'automate de piloter cette page (« extensions
    gallery cannot be scripted »), et Google redemande le mot de passe ; jeton
