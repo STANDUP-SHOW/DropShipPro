@@ -27,16 +27,7 @@ aucun renvoi de suivi constaté.
 
 **Reste, dans l'ordre** :
 1. (fait) Vérifier le déploiement et le panneau « Ventes captées ».
-2. Desktop : installeurs Windows générés (`desktop/dist`, copiés sur le Bureau, non signés) ; exécuteur et file serveur ÉCRITS (bancs verts, faux pilote) mais jamais essayés sur une vraie page ; reste :
-   **la catégorie Vinted/Leboncoin** (le mode automatique ne publie rien là tant qu'elle n'est pas réglée), la vérification des sélecteurs sur une session connectée, (Vinted / Leboncoin / Facebook) appuyé sur les
-   garde-fous de `lib/plafonds.js` ; imports en masse ; commandes fournisseurs
-   arrêtées au paiement. **Pré-requis constaté le 30/09** : le Chrome de Max n'est
-   PAS connecté à Vinted (`/items/new` renvoie à l'inscription) — sans session
-   réelle, impossible de relever les vrais champs du formulaire ; Max doit s'y
-   connecter (Vinted, Leboncoin, Facebook) avant qu'on écrive l'exécuteur. File
-   côté serveur sans migration : les `Publication` PENDING des plateformes
-   VINTED/LEBONCOIN/FACEBOOK (aujourd'hui laissées PENDING par `publisher.ts`) +
-   une route `/api/agent/publications` à écrire (images via `imagesPourExport`).
+2. Desktop (30/09, `975d8dd`) : circuit TOUT AUTOMATIQUE écrit — clé de type desktop (préfixe `dsp_desk_`, Réglages › Clés), import des liens reçus (`POST /api/agent/import`, drops du vendeur) puis mise en file (`POST /api/agent/publications`), exécuteur qui publie, sans validation une fois l'agent activé. Il INSISTE : 3 essais sur les échecs ordinaires, jamais de double clic, pause de sécurité 6 h doublée (48 h max) sur mur anti-robot puis reprise seule ; jamais d'évasion (décision Max du 29/09 et limite de Claude : pas de faux profil, pas de gestes simulés, pas de captcha). Bancs verts (faux pilote, faux serveur). **Jamais essayé sur une vraie page** ; la catégorie Vinted/Leboncoin n'est pas réglée par le pilote donc le mode automatique ne publie rien là (requis) — le retirer des requis a été refusé par le classifieur le 30/09, à décider avec Max. Manquent : choix des produits gagnants côté desktop (AUTO-MODE serveur existe), publication réseaux sociaux, sélecteurs vérifiés sur session connectée (Max non connecté à Vinted dans Chrome). Installeurs non signés (Bureau).
 2bis. **eBay** : les jetons se collent à la main (secrets, geste de Max). Le vrai
    remède est un « Connecter mon compte eBay » par OAuth (comme Shopify) : demande
    la clé d'application eBay (Client ID/Secret + RuName) de Max.
