@@ -164,7 +164,33 @@ export default function BoutiqueShopify() {
               : "Saisissez l'adresse de votre boutique. Vous approuverez l'installation chez Shopify — aucun jeton à recopier, aucun réglage à activer."
           }
         >
-          {reliee ? null : (
+          {reliee ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  setDomaine(reliee)
+                  setErreur('')
+                  setOccupe(true)
+                  api
+                    .shopifyInstallUrl(reliee, '/boutique-shopify')
+                    .then(({ url }) => {
+                      window.location.href = url
+                    })
+                    .catch((e) => {
+                      setErreur(e instanceof Error ? e.message : "L'autorisation n'a pas pu être lancée")
+                      setOccupe(false)
+                    })
+                }}
+                disabled={occupe}
+                className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-gray-200 disabled:opacity-40"
+              >
+                Renouveler les autorisations
+              </button>
+              <span className="text-[11px] text-gray-500">
+                À faire quand Shopify signale des permissions manquantes (commandes, expéditions) : vous approuvez à nouveau chez Shopify, rien d'autre ne change.
+              </span>
+            </div>
+          ) : (
             <div className="flex flex-wrap items-center gap-2">
               <input
                 {...PROPS_SANS_REMPLISSAGE}
