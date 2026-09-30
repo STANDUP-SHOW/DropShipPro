@@ -12,7 +12,7 @@
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { prisma } from './src/lib/prisma.js'
-import { canalEbay, canalMirakl, noterReleve, passage } from './src/services/ventesMarketplaces.js'
+import { canalEbay, canalKaufland, canalMirakl, noterReleve, passage } from './src/services/ventesMarketplaces.js'
 import { correspondance, importerCommandes, lireCsv, lireMontant } from './src/services/importCommandes.js'
 
 let echecs = 0
@@ -129,6 +129,41 @@ async function main() {
     await noterReleve(lien.id, refus)
     const etat = await prisma.platformCredential.findUnique({ where: { id: lien.id } })
     verifier("l'erreur est écrite sur la liaison, pour l'écran", !!etat?.ventesReleveesAt && /Régénérez-la/.test(etat.ventesErreur ?? ''))
+
+    // ---------------------------------------------------------- Kaufland
+    console.log('\nKaufland')
+    await prisma.product.update({ where: { id: lampe.id }, data: { ean: '4006381333931' } })
+    const commandeK = { id_order: 'K-1', ts_created_iso: iso(3_600_000), currency: 'EUR', buyer: { email: 'k@exemple.test' }, shipping_address: { first_name: 'Ida', last_name: 'Kern', street: 'Hauptstr.', house_number: '4', postcode: '10115', city: 'Berlin', country: 'DE' } }
+    const kaufland = await serveur((a) => {
+      if (a.methode === 'GET' && a.chemin.startsWith('/order-units/?') && a.chemin.includes('status=need_to_be_sent')) {
+        return {
+          json: {
+            data: [
+              { id_order_unit: 11, id_order: 'K-1', id_offer: tapis.id, ean: '4006381333931', status: 'need_to_be_sent', revenue_gross: 1990, order: commandeK, product: { title: 'Tapis' } },
+              { id_order_unit: 12, id_order: 'K-1', id_offer: tapis.id, status: 'need_to_be_sent', revenue_gross: 1990, order: commandeK, product: { title: 'Tapis' } },
+              { id_order_unit: 13, id_order: 'K-1', id_offer: null, ean: '4006381333931', status: 'need_to_be_sent', revenue_gross: 2500, order: commandeK, product: { title: 'Lampe' } },
+            ],
+          },
+        }
+      }
+      if (a.methode === 'GET' && a.chemin.includes('id_order=K-1')) {
+        return { json: { data: [{ id_order_unit: 11, status: 'need_to_be_sent' }, { id_order_unit: 12, status: 'need_to_be_sent' }, { id_order_unit: 13, status: 'sent' }] } }
+      }
+      if (a.methode === 'PATCH') return { json: {} }
+      return { statut: 404 }
+    })
+    fermer.push(kaufland.fermer)
+    const cKaufland = canalKaufland({ baseUrl: kaufland.url, clientKey: 'c', secretKey: 's', storefront: 'fr' })
+    const pK = await passage(user.id, cKaufland)
+    const oK = await prisma.order.findMany({ where: { userId: user.id, platform: 'KAUFLAND' }, orderBy: { amount: 'asc' } })
+    verifier('trois unités : le tapis (deux pièces, id_offer) et la lampe (retrouvée par EAN)', oK.length === 2 && oK.some((o) => o.productId === tapis.id && o.quantity === 2 && Number(o.amount) === 39.8) && oK.some((o) => o.productId === lampe.id && Number(o.amount) === 25), JSON.stringify(pK.bilan))
+    verifier('adresse allemande lue, code pays ISO-2', (oK[0].buyerAddress as Record<string, string>).countryCode === 'DE' && (oK[0].buyerAddress as Record<string, string>).city === 'Berlin')
+    await passage(user.id, cKaufland)
+    verifier('relire ne double rien', (await prisma.order.count({ where: { userId: user.id, platform: 'KAUFLAND' } })) === 2)
+    await prisma.order.updateMany({ where: { userId: user.id, platform: 'KAUFLAND' }, data: { trackingNumber: 'K-TRACK', carrier: 'DHL' } })
+    await passage(user.id, cKaufland)
+    const envois = kaufland.journal.filter((a) => a.methode === 'PATCH')
+    verifier('suivi posé sur les seules unités à expédier (11 et 12, pas la 13 déjà envoyée)', envois.length === 2 && envois.every((a) => /\/order-units\/1[12]\/send$/.test(a.chemin) && JSON.parse(a.corps).tracking_numbers === 'K-TRACK' && JSON.parse(a.corps).carrier_code === 'DHL'), JSON.stringify(envois.map((a) => a.chemin)))
 
     // ----------------------------------------------------------- Import
     console.log('\nImport de fichier')

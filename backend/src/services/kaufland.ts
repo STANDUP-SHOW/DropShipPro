@@ -79,7 +79,7 @@ export function signatureKaufland(
     .digest('hex')
 }
 
-async function appeler(
+export async function appeler(
   creds: KauflandCredentials,
   methode: string,
   chemin: string,
@@ -149,6 +149,8 @@ export async function deposerOffreKaufland(creds: KauflandCredentials, produit: 
 
   const reponse = await appeler(creds, 'POST', `/units/?storefront=${encodeURIComponent(creds.storefront)}`, {
     ean: identifiant.id,
+    // Notre référence : les ventes reviennent avec elle (ventesMarketplaces.ts).
+    id_offer: produit.id,
     condition: 'new',
     listing_price: Math.round(Number(produit.sellingPrice ?? 0) * 100),
     amount: produit.supplierStock ?? 10,

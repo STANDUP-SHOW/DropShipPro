@@ -40,6 +40,7 @@ import { prisma } from '../lib/prisma.js'
 import { graphql, resoudreCredentialsShopify } from './shopify.js'
 import { jetonOfflineValide } from './shopifyApp.js'
 import { appeler as appelerEbay, avecRenouvellement, readEbayCredentials, type EbayCredentials } from './ebay.js'
+import { appeler as appelerKaufland, readKauflandCredentials, type KauflandCredentials } from './kaufland.js'
 import { appeler as appelerMirakl, OPERATEURS_MIRAKL, estMirakl, readMiraklCredentials, type MiraklCredentials } from './mirakl.js'
 
 export interface LigneCapturee {
@@ -76,7 +77,7 @@ export interface BilanCapture {
 }
 
 /** Les canaux dont les ventes remontent seules aujourd'hui. */
-export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', ...OPERATEURS_MIRAKL]
+export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', ...OPERATEURS_MIRAKL]
 
 // ------------------------------------------------------ La référence → produit
 
@@ -99,6 +100,13 @@ export async function produitDeLUgs(userId: string, sku: string | null): Promise
   if (/^c[a-z0-9]{20,30}$/.test(s)) {
     const brut = await prisma.product.findFirst({ where: { userId, id: s }, select: { id: true } })
     if (brut) return brut.id
+  }
+
+  // Kaufland : une unité déposée avant l'`id_offer` ne porte que son EAN.
+  const ean = /^EAN:(\d{8}|\d{12,14})$/.exec(s)
+  if (ean) {
+    const trouves = await prisma.product.findMany({ where: { userId, ean: ean[1] }, select: { id: true }, take: 2 })
+    return trouves.length === 1 ? trouves[0].id : null // deux produits, un EAN : on ne devine pas
   }
 
   if (/^DSP-/i.test(s)) {
@@ -582,6 +590,100 @@ export function canalMirakl(platform: Platform, creds: MiraklCredentials): Canal
   }
 }
 
+// ------------------------------------------------------------------ Kaufland
+
+interface UniteKaufland {
+  id_order_unit: number | string
+  id_order?: string
+  id_offer?: string | null
+  ean?: string | null
+  status?: string
+  price?: number
+  revenue_gross?: number
+  currency?: string
+  order?: {
+    id_order?: string
+    ts_created_iso?: string
+    currency?: string
+    buyer?: { email?: string }
+    shipping_address?: { first_name?: string; last_name?: string; street?: string; house_number?: string; additional_field?: string; postcode?: string; city?: string; country?: string; phone?: string }
+  }
+  product?: { title?: string; eans?: string[] }
+}
+
+/**
+ * Kaufland vend par « unité de commande » : une pièce, une unité. Les unités
+ * d'une même commande sont regroupées ici par référence : deux pièces du même
+ * produit font une ligne de quantité deux (le moteur enregistre une vente par
+ * commande et par produit).
+ */
+export function canalKaufland(creds: KauflandCredentials): Canal {
+  const pays = encodeURIComponent(creds.storefront)
+  return {
+    platform: 'KAUFLAND',
+    async relever() {
+      const parCommande = new Map<string, VenteCapturee>()
+      for (let page = 0; page < 5; page++) {
+        const r = (await (await appelerKaufland(creds, 'GET', `/order-units/?storefront=${pays}&status=need_to_be_sent&embedded=order,product&limit=100&offset=${page * 100}`)).json()) as { data?: UniteKaufland[] }
+        const unites = r.data ?? []
+        for (const u of unites) {
+          const idCommande = String(u.id_order ?? u.order?.id_order ?? '')
+          if (!idCommande) continue
+          const a = u.order?.shipping_address ?? {}
+          const nom = [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Acheteur'
+          let vente = parCommande.get(idCommande)
+          if (!vente) {
+            vente = {
+              platform: 'KAUFLAND',
+              externalOrderId: idCommande,
+              numero: idCommande,
+              creeLe: new Date(u.order?.ts_created_iso ?? Date.now()),
+              devise: u.order?.currency || u.currency || 'EUR',
+              acheteur: {
+                nom,
+                email: u.order?.buyer?.email ?? null,
+                adresse: {
+                  name: nom,
+                  address1: [a.street, a.house_number].filter(Boolean).join(' ') || undefined,
+                  address2: a.additional_field,
+                  city: a.city,
+                  zip: a.postcode,
+                  countryCode: a.country && a.country.length === 2 ? a.country.toUpperCase() : undefined,
+                  phone: a.phone,
+                },
+              },
+              lignes: [],
+            }
+            parCommande.set(idCommande, vente)
+          }
+          const ean = (u.ean ?? u.product?.eans?.[0] ?? '').replace(/\D/g, '')
+          const sku = u.id_offer ? String(u.id_offer) : ean ? `EAN:${ean}` : null
+          // Les montants Kaufland sont en centimes.
+          const montant = (Number(u.revenue_gross ?? u.price) || 0) / 100
+          const meme = sku ? vente.lignes.find((l) => l.sku === sku) : undefined
+          if (meme) {
+            meme.quantite += 1
+            meme.montant += montant
+          } else {
+            vente.lignes.push({ externalLineId: String(u.id_order_unit), sku, titre: u.product?.title ?? '', quantite: 1, montant })
+          }
+        }
+        if (unites.length < 100) break
+      }
+      return [...parCommande.values()]
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      // Le suivi part par unité : on relit celles de la commande.
+      const r = (await (await appelerKaufland(creds, 'GET', `/order-units/?storefront=${pays}&id_order=${encodeURIComponent(orderId)}&limit=100`)).json()) as { data?: UniteKaufland[] }
+      for (const u of r.data ?? []) {
+        if (u.status && u.status !== 'need_to_be_sent') continue
+        await appelerKaufland(creds, 'PATCH', `/order-units/${u.id_order_unit}/send`, { carrier_code: transporteur || 'OTHER', tracking_numbers: numero })
+      }
+    },
+    motif: texteErreur,
+  }
+}
+
 // ------------------------------------------------------------------ Tournée
 
 /** Le canal d'une liaison, ou null si la plateforme ne remonte pas (encore) ses ventes. */
@@ -596,6 +698,10 @@ export async function canalPour(lien: PlatformCredential): Promise<Canal | null>
   if (lien.platform === 'EBAY') {
     const creds = readEbayCredentials(lien.data)
     return creds ? canalEbay(creds) : null
+  }
+  if (lien.platform === 'KAUFLAND') {
+    const creds = readKauflandCredentials(lien.data)
+    return creds ? canalKaufland(creds) : null
   }
   if (estMirakl(lien.platform)) {
     const creds = readMiraklCredentials(lien.data)
