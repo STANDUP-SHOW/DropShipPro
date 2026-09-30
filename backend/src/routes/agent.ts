@@ -8,6 +8,8 @@ import { rateLimit } from '../middleware/rateLimit.js'
 import { findDepartment } from '../services/departments.js'
 import { runAutopilot } from '../services/autopilot.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
+import { imagesPourExport } from '../services/exportImages.js'
+import { etatPour } from '../services/productCondition.js'
 import type { Platform } from '@prisma/client'
 
 /**
@@ -270,6 +272,73 @@ agentRouter.post('/share/:id/claim', async (req: AgentRequest, res) => {
     data: { status, claimedAt: new Date() },
   })
   if (result.count === 0) return res.status(404).json({ error: 'Lien introuvable' })
+  res.json({ ok: true, status })
+})
+
+/**
+ * La file de publication de l'application desktop.
+ *
+ * Les places de marché à session (Vinted, Leboncoin, Facebook) n'ont pas d'API :
+ * `publisher.ts` y laisse la publication en PENDING. L'application desktop, dans
+ * la session du vendeur, prend ces annonces ici. Aucune migration : c'est la
+ * table `Publication` telle qu'elle est.
+ *
+ * Une clé machine peut LIRE la fiche à publier et DIRE ce qui s'est passé ; elle
+ * ne déclenche rien chez nous. Le résultat n'accepte que PUBLISHED ou FAILED,
+ * sur une publication PENDING du compte de la clé.
+ */
+const PLATEFORMES_SESSION = ['VINTED', 'LEBONCOIN', 'FACEBOOK'] as const
+
+agentRouter.get('/publications', async (req: AgentRequest, res) => {
+  try {
+    const demandee = typeof req.query.platform === 'string' ? req.query.platform.toUpperCase() : null
+    const plateformes = demandee && (PLATEFORMES_SESSION as readonly string[]).includes(demandee) ? [demandee as (typeof PLATEFORMES_SESSION)[number]] : [...PLATEFORMES_SESSION]
+
+    const publications = await prisma.publication.findMany({
+      where: { status: 'PENDING', platform: { in: plateformes }, product: { userId: req.userId! } },
+      include: { product: true },
+      orderBy: { createdAt: 'asc' },
+      take: 50,
+    })
+
+    const items = []
+    for (const p of publications) {
+      const images = await imagesPourExport(p.product)
+      items.push({
+        id: p.id,
+        platform: p.platform,
+        productId: p.productId,
+        title: p.product.title,
+        description: p.product.description,
+        price: Number(p.product.sellingPrice ?? 0),
+        category: p.targetCategory ?? null,
+        condition: etatPour(p.product.condition, p.platform),
+        ean: p.product.ean ?? null,
+        images,
+      })
+    }
+    res.json({ count: items.length, publications: items })
+  } catch (e) {
+    console.error('agent publications', e)
+    res.status(500).json({ error: 'Impossible de lire la file de publication' })
+  }
+})
+
+const resultatSchema = z.object({
+  status: z.enum(['PUBLISHED', 'FAILED']),
+  externalUrl: z.string().url().max(2000).optional(),
+  error: z.string().trim().max(500).optional(),
+})
+
+agentRouter.post('/publications/:id/resultat', async (req: AgentRequest, res) => {
+  const parsed = resultatSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Résultat invalide : status PUBLISHED ou FAILED attendu' })
+  const { status, externalUrl, error } = parsed.data
+  const maj = await prisma.publication.updateMany({
+    where: { id: req.params.id, status: 'PENDING', platform: { in: [...PLATEFORMES_SESSION] }, product: { userId: req.userId! } },
+    data: status === 'PUBLISHED' ? { status, externalUrl: externalUrl ?? null, error: null, publishedAt: new Date() } : { status, error: error ?? 'Échec signalé par l’application desktop', publishedAt: null },
+  })
+  if (maj.count === 0) return res.status(404).json({ error: 'Publication introuvable, déjà traitée, ou hors des places de marché à session' })
   res.json({ ok: true, status })
 })
 
