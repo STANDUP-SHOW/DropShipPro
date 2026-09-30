@@ -137,6 +137,96 @@ async function main() {
   verifier('trois plateformes, une partition persistante chacune', ['VINTED', 'LEBONCOIN', 'FACEBOOK'].every((k) => /^persist:/.test(p.PLATEFORMES[k].partition)))
   verifier('aucun plafond dur au-dessus de 15', Object.values(p.PLATEFORMES).every((x) => x.dur <= 15 && x.plafondJour <= x.dur))
 
+  console.log('\nExécuteur de publication (faux pilote)')
+  const { traiter } = require('./lib/executeur')
+  const { manquants } = require('./lib/adaptateurs')
+  const annonce = { id: 'pub1', productId: 'prod1', title: 'Lampe', description: 'Une lampe.', price: 30, images: ['https://exemple.test/a.jpg'] }
+  const TOUT = ['titre', 'description', 'prix', 'photos', 'categorie']
+  function fauxPilote({ rempli = TOUT, page = { url: 'https://www.vinted.fr/items/new', titre: 'Vendre un article', texte: 'Titre, description' }, pagesApres = null, echecPublier = false } = {}) {
+    const journalPilote = []
+    let publie = false
+    return {
+      journalPilote,
+      ouvrir: async (p) => journalPilote.push(`ouvrir:${p}`),
+      lirePage: async () => (publie && pagesApres ? pagesApres : page),
+      remplir: async () => (journalPilote.push('remplir'), { rempli }),
+      publier: async () => {
+        journalPilote.push('publier')
+        if (echecPublier) throw new Error('Bouton « Publier » introuvable ou désactivé')
+        publie = true
+        return { url: 'https://www.vinted.fr/items/999-lampe' }
+      },
+    }
+  }
+  const fauxApi = () => {
+    const appels = []
+    return { appels, resultat: async (id, statut, x) => appels.push({ id, statut, x }) }
+  }
+  const dossierEx = () => fs.mkdtempSync(path.join(os.tmpdir(), 'dsp-exec-'))
+  const cfgAuto = p.accorder({ ...config.PAR_DEFAUT }, 'VINTED', midi)
+  const cfgManuel = { ...config.PAR_DEFAUT }
+
+  verifier('champs indispensables : Vinted exige la catégorie, Facebook non', manquants('VINTED', ['titre', 'description', 'prix', 'photos']).join() === 'categorie' && manquants('FACEBOOK', ['titre', 'description', 'prix', 'photos']).length === 0)
+
+  let d = dossierEx()
+  let pil = fauxPilote()
+  let api2 = fauxApi()
+  let r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgManuel, etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('validation (sans accord) : formulaire rempli, JAMAIS de clic « Publier », rien envoyé au serveur', r.statut === 'preparee' && !pil.journalPilote.includes('publier') && api2.appels.length === 0, JSON.stringify(r))
+
+  pil = fauxPilote({ rempli: ['titre', 'description', 'prix', 'photos'] })
+  r = await traiter({ api: fauxApi(), pilote: pil, plateforme: 'VINTED', annonce, config: cfgManuel, etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('catégorie non réglée : la main revient au vendeur, avec ce qui manque', r.statut === 'a_valider' && r.manque.join() === 'categorie')
+
+  d = dossierEx()
+  pil = fauxPilote()
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('automatique, formulaire complet : publié, serveur informé avec l’adresse', r.statut === 'publiee' && pil.journalPilote.join() === 'ouvrir:VINTED,remplir,publier' && api2.appels.length === 1 && api2.appels[0].statut === 'PUBLISHED' && api2.appels[0].x === 'https://www.vinted.fr/items/999-lampe', JSON.stringify(r))
+  verifier('la publication est au journal (elle compte pour le plafond du jour)', p.lireJournal(d).some((e) => e.type === 'publication' && e.plateforme === 'VINTED' && e.publication === 'pub1'))
+
+  d = dossierEx()
+  pil = fauxPilote({ rempli: ['titre', 'prix'] })
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('automatique mais champ manquant : AUCUN clic « Publier »', r.statut === 'a_valider' && !pil.journalPilote.includes('publier') && api2.appels.length === 0)
+
+  d = dossierEx()
+  pil = fauxPilote({ page: { url: 'https://www.vinted.fr/items/new', titre: 'Vérification de sécurité', texte: 'captcha' } })
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('blocage à l’ouverture : arrêt, on ne remplit rien, on n’alerte pas le serveur d’un faux échec', r.statut === 'arret' && !pil.journalPilote.includes('remplir') && api2.appels.length === 0)
+  verifier('l’arrêt est écrit sur disque : la plateforme reste arrêtée au redémarrage', !!p.lireEtat(d).arrets.VINTED && p.lireJournal(d).some((e) => e.type === 'alerte'))
+
+  d = dossierEx()
+  pil = fauxPilote({ pagesApres: { url: 'https://www.vinted.fr/captcha', titre: 'Are you a robot?', texte: '' } })
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('blocage APRÈS le clic : arrêt, la publication n’est ni comptée ni déclarée publiée', r.statut === 'arret' && !p.lireJournal(d).some((e) => e.type === 'publication') && api2.appels.length === 0)
+
+  d = dossierEx()
+  pil = fauxPilote()
+  const pleinJournal = Array.from({ length: 10 }, (_, i) => ({ type: 'publication', plateforme: 'VINTED', at: new Date(2026, 8, 30, 6, i * 20).toISOString() }))
+  r = await traiter({ api: fauxApi(), pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: new Date(2026, 8, 30, 13, 0), journal: pleinJournal })
+  verifier('plafond du jour atteint : on n’ouvre même pas la page', r.statut === 'attente' && r.attenteMs > 0 && pil.journalPilote.length === 0, JSON.stringify(r))
+
+  d = dossierEx()
+  pil = fauxPilote({ echecPublier: true })
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('bouton introuvable : échec journalisé, serveur informé FAILED avec la raison', r.statut === 'echec' && api2.appels[0].statut === 'FAILED' && /Publier/.test(api2.appels[0].x))
+
+  d = dossierEx()
+  pil = fauxPilote()
+  r = await traiter({ api: fauxApi(), pilote: pil, plateforme: 'VINTED', annonce, config: cfgManuel, etat: p.arreter({ arrets: {} }, 'VINTED', 'captcha', midi), dossier: d, maintenant: midi })
+  verifier('plateforme arrêtée : même en validation, on ne rouvre pas la page', r.statut === 'arret' && pil.journalPilote.length === 0)
+
+  d = dossierEx()
+  pil = fauxPilote({ rempli: ['titre', 'description', 'prix', 'photos'] })
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'FACEBOOK', annonce, config: p.accorder({ ...config.PAR_DEFAUT }, 'FACEBOOK', midi), etat: { arrets: {} }, dossier: d, maintenant: midi })
+  verifier('Facebook sans catégorie à régler : publié en mode automatique', r.statut === 'publiee' && api2.appels[0].statut === 'PUBLISHED')
+
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {
     console.error(`\n${echecs} attente(s) manquée(s).`)

@@ -41,6 +41,40 @@ function rendreLiens(etat) {
   }
 }
 
+const NOMS_PLATEFORMES = { VINTED: 'Vinted', LEBONCOIN: 'Leboncoin', FACEBOOK: 'Facebook' }
+
+function rendreAnnonces(etat) {
+  const ul = $('annonces')
+  ul.replaceChildren()
+  const liste = etat.annonces || []
+  $('nb-annonces').textContent = liste.length ? `(${liste.length})` : ''
+  $('aucune-annonce').hidden = liste.length > 0
+  for (const a of liste) {
+    ul.append(
+      el(
+        'li',
+        {},
+        el('span', { classe: 'url', texte: `${NOMS_PLATEFORMES[a.platform] || a.platform} — ${a.title} — ${a.price} €` }),
+        el(
+          'span',
+          { classe: 'actions' },
+          el('button', {
+            texte: 'Préparer',
+            type: 'button',
+            clic: async () => {
+              $('resultat-annonce').textContent = 'Ouverture du formulaire…'
+              const r = await window.desktop.preparerAnnonce(a.id)
+              $('resultat-annonce').textContent = r && r.raison ? r.raison : ''
+            },
+          }),
+          el('button', { texte: 'Publiée', type: 'button', classe: 'principal', clic: async () => rendre(await window.desktop.annonceTerminee(a.id, true)) }),
+          el('button', { texte: 'Abandonner', type: 'button', classe: 'danger', clic: async () => rendre(await window.desktop.annonceTerminee(a.id, false)) }),
+        ),
+      ),
+    )
+  }
+}
+
 function rendrePlateformes(etat) {
   const zone = $('plateformes')
   zone.replaceChildren()
@@ -98,6 +132,7 @@ function rendre(etat) {
   $('compte').textContent = etat.connecte ? etat.apiBase.replace(/^https?:\/\//, '') : ''
   if (!etat.connecte) return
   rendreLiens(etat)
+  rendreAnnonces(etat)
   rendrePlateformes(etat)
   rendreJournal(etat)
 }

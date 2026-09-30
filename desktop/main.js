@@ -19,6 +19,8 @@ const config = require('./lib/config')
 const { client } = require('./lib/api')
 const file = require('./lib/file')
 const plafonds = require('./lib/plafonds')
+const { traiter } = require('./lib/executeur')
+const { creerPilote } = require('./lib/pilote-electron')
 
 let fenetre = null
 let cfg = null
@@ -26,6 +28,9 @@ let etat = null
 let api = null
 const dejaVus = new Set()
 let liens = []
+let annonces = []
+const pilotes = new Map()
+let occupe = false
 let derniereErreur = null
 let minuteur = null
 const fenetresSession = new Map()
@@ -48,6 +53,7 @@ function instantane() {
     connecte: !!api,
     apiBase: cfg.apiBase,
     liens,
+    annonces,
     erreur: derniereErreur,
     plateformes: Object.entries(plafonds.PLATEFORMES).map(([id, p]) => ({
       id,
@@ -74,11 +80,67 @@ async function sonder() {
   envoyer('etat', instantane())
 }
 
+// ------------------------------------------------- Annonces à publier (exécuteur)
+
+const piloteDe = (id) => {
+  if (!pilotes.has(id)) pilotes.set(id, creerPilote())
+  return pilotes.get(id)
+}
+
+async function lireAnnonces() {
+  if (!api) return
+  try {
+    annonces = await api.publications()
+  } catch (err) {
+    derniereErreur = err.message
+  }
+}
+
+/** Traite UNE annonce : `manuel` = le vendeur a cliqué « Préparer », il relira et publiera lui-même. */
+async function traiterAnnonce(annonce, { manuel }) {
+  if (occupe) return { statut: 'attente', raison: 'Une annonce est déjà en cours.' }
+  occupe = true
+  try {
+    // Un clic « Préparer » ne publie jamais : on retire l'accord du calcul pour cette annonce.
+    const configLocale = manuel ? { ...cfg, accords: {} } : cfg
+    const r = await traiter({ api, pilote: piloteDe(annonce.platform), plateforme: annonce.platform, annonce, config: configLocale, etat, dossier: dossier() })
+    etat = plafonds.lireEtat(dossier())
+    if (r.statut === 'publiee') annonces = annonces.filter((a) => a.id !== annonce.id)
+    envoyer('etat', instantane())
+    return r
+  } finally {
+    occupe = false
+  }
+}
+
+/**
+ * La tournée du mode automatique : à intervalle fixe, UNE annonce par plateforme
+ * au plus, et seulement là où le vendeur a donné son accord. Le plafond et
+ * l'espacement sont ceux de lib/plafonds.js.
+ */
+async function tourneeAuto() {
+  if (!api || occupe) return
+  await lireAnnonces()
+  for (const id of Object.keys(plafonds.PLATEFORMES)) {
+    if (!cfg.accords[id] || etat.arrets[id]) continue
+    const suivante = annonces.find((a) => a.platform === id)
+    if (!suivante) continue
+    const d = plafonds.decision({ plateforme: id, config: cfg, journal: plafonds.lireJournal(dossier()), etat })
+    if (!d.ok) continue
+    await traiterAnnonce(suivante, { manuel: false })
+  }
+  envoyer('etat', instantane())
+}
+
 function demarrerSondage() {
   if (minuteur) clearInterval(minuteur)
   sonder()
+  lireAnnonces().then(() => envoyer('etat', instantane()))
   // Intervalle FIXE : ni hasard ni rafale. Le serveur en accepte 120 par minute, on en fait une.
-  minuteur = setInterval(sonder, file.INTERVALLE_MS)
+  minuteur = setInterval(async () => {
+    await sonder()
+    await tourneeAuto()
+  }, file.INTERVALLE_MS)
 }
 
 // --------------------------------------------------------- Fenêtres de session
@@ -181,6 +243,24 @@ function brancherIpc() {
   })
 
   ipcMain.handle('session:ouvrir', (_e, id) => ouvrirSession(id))
+
+  ipcMain.handle('annonce:preparer', async (_e, id) => {
+    const annonce = annonces.find((a) => a.id === id)
+    if (!annonce) return { statut: 'echec', raison: 'Annonce introuvable.' }
+    return traiterAnnonce(annonce, { manuel: true })
+  })
+
+  // Le vendeur a publié lui-même après « Préparer » : il le dit, on le transmet.
+  ipcMain.handle('annonce:terminee', async (_e, { id, reussi }) => {
+    try {
+      await api.resultat(id, reussi ? 'PUBLISHED' : 'FAILED', reussi ? undefined : 'Abandonnée depuis l’application desktop')
+      plafonds.journaliser(dossier(), { type: reussi ? 'publication-manuelle' : 'abandon', plateforme: annonces.find((a) => a.id === id)?.platform, publication: id })
+      annonces = annonces.filter((a) => a.id !== id)
+    } catch (err) {
+      derniereErreur = err.message
+    }
+    return instantane()
+  })
 
   ipcMain.handle('auto:accorder', (_e, id) => {
     cfg = plafonds.accorder(cfg, id)

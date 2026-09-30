@@ -12,5 +12,7 @@ contextBridge.exposeInMainWorld('desktop', {
   accorder: (id) => ipcRenderer.invoke('auto:accorder', id),
   retirerAccord: (id) => ipcRenderer.invoke('auto:retirer', id),
   reprendre: (id) => ipcRenderer.invoke('auto:reprendre', id),
+  preparerAnnonce: (id) => ipcRenderer.invoke('annonce:preparer', id),
+  annonceTerminee: (id, reussi) => ipcRenderer.invoke('annonce:terminee', { id, reussi }),
   surEtat: (cb) => ipcRenderer.on('etat', (_e, e) => cb(e)),
 })

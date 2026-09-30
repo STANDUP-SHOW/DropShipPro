@@ -35,6 +35,11 @@ function client({ apiBase, cle, fetcher = fetch }) {
     me: () => appel('GET', '/me'),
     liensNouveaux: async () => (await appel('GET', '/share?status=NEW')).links || [],
     reclamer: (id, statut = 'CLAIMED') => appel('POST', `/share/${encodeURIComponent(id)}/claim`, { status: statut }),
+    /** Les annonces à publier sur les places à session (Vinted, Leboncoin, Facebook). */
+    publications: async (plateforme) => (await appel('GET', `/publications${plateforme ? `?platform=${encodeURIComponent(plateforme)}` : ''}`)).publications || [],
+    /** Dit au serveur ce qui s'est passé : PUBLISHED (avec l'adresse) ou FAILED (avec la raison). */
+    resultat: (id, statut, urlOuRaison) =>
+      appel('POST', `/publications/${encodeURIComponent(id)}/resultat`, statut === 'PUBLISHED' ? { status: statut, ...(urlOuRaison ? { externalUrl: urlOuRaison } : {}) } : { status: statut, error: urlOuRaison }),
   }
 }
 

@@ -11,11 +11,13 @@ Le compagnon de bureau de drop-shipper.fr (Electron). Décisions : `docs/v2/DECI
 | Sessions persistantes Vinted / Leboncoin / Facebook (partition `persist:*`, le vendeur se connecte lui-même) | `main.js` | **jamais lancé sous Electron** |
 | Garde-fous du mode automatique : accord daté, plafonds (durs), espacement, arrêt au premier blocage, journal | `lib/plafonds.js` | banc vert |
 | Surveillance des blocages sur chaque fenêtre de session | `main.js` (`surveiller`) | **jamais lancé sous Electron** |
-| Écran de contrôle (CSP stricte, données posées en `textContent`) | `renderer/` | **jamais affiché** |
+| Exécuteur de publication (modes validation et automatique, arrêt au blocage, jamais de « Publier » avec un champ indispensable manquant) + adaptateurs + pilote Electron | `lib/executeur.js`, `lib/adaptateurs.js`, `lib/pilote-electron.js` | logique : banc vert avec faux pilote ; **pilote et sélecteurs jamais confrontés à une vraie page connectée** |
+| File côté serveur : `GET /api/agent/publications`, `POST …/resultat` (Publication PENDING de Vinted/Leboncoin/Facebook, sans migration) | `backend/src/routes/agent.ts` | banc vert (`check-agent-publications.ts`) |
+| Écran de contrôle (CSP stricte, données posées en `textContent`) | `renderer/` | rendu constaté dans un navigateur avec un état simulé (30/09) ; jamais dans la fenêtre Electron |
 
 ## Ce qui n'est PAS écrit
 
-- **L'exécuteur de publication** (remplir et valider le formulaire Vinted / Leboncoin / Facebook). Les garde-fous sont prêts et attendent : l'exécuteur doit appeler `plafonds.decision()` avant chaque annonce, `plafonds.journaliser()` après, et `plafonds.detecterBlocage()` + `plafonds.arreter()` à chaque page. Le remplissage Leboncoin de l'extension (`backend/extension/`) est la base ; il n'a jamais été vu aller au bout des quatre écrans.
+- **La catégorie Vinted / Leboncoin** : c'est une fenêtre à plusieurs niveaux que le pilote ne règle pas. Le pilote ne rend jamais « categorie » dans `rempli`, donc **le mode automatique ne publie RIEN sur Vinted ni Leboncoin** (l'exécuteur rend la main : « à compléter par vous : categorie ») ; il publie sur Facebook, dont les sélecteurs sont les moins sûrs. En mode « Préparer », tout le reste est rempli et le vendeur choisit la catégorie et publie.
 - Les imports en masse par le navigateur, la préparation des commandes fournisseurs (arrêt au paiement).
 - Synchro par WebSocket (le sondage suffit tant que la file est courte).
 - Signature des exécutables et mises à jour automatiques.

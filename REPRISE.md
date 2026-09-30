@@ -27,8 +27,8 @@ aucun renvoi de suivi constaté.
 
 **Reste, dans l'ordre** :
 1. (fait) Vérifier le déploiement et le panneau « Ventes captées ».
-2. Desktop : `cd desktop && npm install && npm start` (jamais lancé), puis
-   l'**exécuteur de publication** (Vinted / Leboncoin / Facebook) appuyé sur les
+2. Desktop : installeurs Windows générés (`desktop/dist`, copiés sur le Bureau, non signés) ; exécuteur et file serveur ÉCRITS (bancs verts, faux pilote) mais jamais essayés sur une vraie page ; reste :
+   **la catégorie Vinted/Leboncoin** (le mode automatique ne publie rien là tant qu'elle n'est pas réglée), la vérification des sélecteurs sur une session connectée, (Vinted / Leboncoin / Facebook) appuyé sur les
    garde-fous de `lib/plafonds.js` ; imports en masse ; commandes fournisseurs
    arrêtées au paiement. **Pré-requis constaté le 30/09** : le Chrome de Max n'est
    PAS connecté à Vinted (`/items/new` renvoie à l'inscription) — sans session
