@@ -42,6 +42,7 @@ import { jetonOfflineValide } from './shopifyApp.js'
 import { appeler as appelerEbay, avecRenouvellement, readEbayCredentials, type EbayCredentials } from './ebay.js'
 import { appeler as appelerWoo, readWooCredentials, type WooCredentials } from './woocommerce.js'
 import { BoutiqueRefus } from './boutiqueTiers.js'
+import { appeler as appelerMagento, readMagentoCredentials, type MagentoCredentials } from './magento.js'
 import { appeler as appelerKaufland, readKauflandCredentials, type KauflandCredentials } from './kaufland.js'
 import { appeler as appelerMirakl, OPERATEURS_MIRAKL, estMirakl, readMiraklCredentials, type MiraklCredentials } from './mirakl.js'
 
@@ -79,7 +80,7 @@ export interface BilanCapture {
 }
 
 /** Les canaux dont les ventes remontent seules aujourd'hui. */
-export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', ...OPERATEURS_MIRAKL]
+export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'MAGENTO', ...OPERATEURS_MIRAKL]
 
 // ------------------------------------------------------ La référence → produit
 
@@ -755,6 +756,84 @@ export function canalWoo(creds: WooCredentials): Canal {
   }
 }
 
+// ------------------------------------------------------------------ Magento
+
+interface CommandeMagento {
+  entity_id: number
+  increment_id?: string
+  created_at?: string
+  order_currency_code?: string
+  customer_email?: string
+  customer_firstname?: string
+  customer_lastname?: string
+  items?: Array<{ item_id: number; sku?: string; name?: string; qty_ordered?: number; row_total?: number; parent_item_id?: number | null }>
+  extension_attributes?: { shipping_assignments?: Array<{ shipping?: { address?: { firstname?: string; lastname?: string; street?: string[]; city?: string; region?: string; postcode?: string; country_id?: string; telephone?: string } } }> }
+}
+
+/**
+ * Magento : « processing » est une commande payée (facturée) et pas expédiée.
+ * Les lignes filles d'un produit configurable (`parent_item_id`) sont écartées :
+ * le prix et la quantité vivent sur la ligne mère. Le suivi part avec la
+ * livraison (`/order/{id}/ship`), qui clôt la commande.
+ */
+export function canalMagento(creds: MagentoCredentials): Canal {
+  return {
+    platform: 'MAGENTO',
+    async relever(depuis) {
+      const ventes: VenteCapturee[] = []
+      for (let page = 1; page <= 5; page++) {
+        const filtre = (i: number, champ: string, valeur: string, cond: string) =>
+          `searchCriteria[filter_groups][${i}][filters][0][field]=${champ}&searchCriteria[filter_groups][${i}][filters][0][value]=${encodeURIComponent(valeur)}&searchCriteria[filter_groups][${i}][filters][0][condition_type]=${cond}`
+        const r = await appelerMagento(
+          creds,
+          'GET',
+          `/orders?${filtre(0, 'status', 'processing', 'eq')}&${filtre(1, 'created_at', depuis.toISOString().replace('T', ' ').slice(0, 19), 'gteq')}&searchCriteria[pageSize]=100&searchCriteria[currentPage]=${page}`,
+        )
+        if (!r.ok) throw new Error(`Magento a répondu ${r.status} à la lecture des commandes.`)
+        const commandes = ((await r.json()) as { items?: CommandeMagento[] }).items ?? []
+        for (const c of commandes) {
+          const a = c.extension_attributes?.shipping_assignments?.[0]?.shipping?.address ?? {}
+          const nom = [a.firstname ?? c.customer_firstname, a.lastname ?? c.customer_lastname].filter(Boolean).join(' ') || 'Acheteur'
+          ventes.push({
+            platform: 'MAGENTO',
+            externalOrderId: String(c.entity_id),
+            numero: c.increment_id || String(c.entity_id),
+            creeLe: new Date(c.created_at ? `${c.created_at.replace(' ', 'T')}Z` : Date.now()),
+            devise: c.order_currency_code || 'EUR',
+            acheteur: {
+              nom,
+              email: c.customer_email ?? null,
+              adresse: {
+                name: nom,
+                address1: a.street?.[0],
+                address2: a.street?.[1],
+                city: a.city,
+                zip: a.postcode,
+                province: a.region,
+                countryCode: a.country_id && a.country_id.length === 2 ? a.country_id : undefined,
+                phone: a.telephone,
+              },
+            },
+            lignes: (c.items ?? [])
+              .filter((l) => !l.parent_item_id)
+              .map((l) => ({ externalLineId: String(l.item_id), sku: l.sku ?? null, titre: l.name ?? '', quantite: l.qty_ordered ?? 1, montant: Number(l.row_total) || 0 })),
+          })
+        }
+        if (commandes.length < 100) break
+      }
+      return ventes
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      const r = await appelerMagento(creds, 'POST', `/order/${encodeURIComponent(orderId)}/ship`, {
+        notify: true,
+        tracks: [{ track_number: numero, title: transporteur || 'Transporteur', carrier_code: 'custom' }],
+      })
+      if (!r.ok) throw new Error(`Magento a refusé la livraison (${r.status}) : ${(await r.text().catch(() => '')).slice(0, 200)}`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
 // ------------------------------------------------------------------ Tournée
 
 /** Le canal d'une liaison, ou null si la plateforme ne remonte pas (encore) ses ventes. */
@@ -769,6 +848,10 @@ export async function canalPour(lien: PlatformCredential): Promise<Canal | null>
   if (lien.platform === 'EBAY') {
     const creds = readEbayCredentials(lien.data)
     return creds ? canalEbay(creds) : null
+  }
+  if (lien.platform === 'MAGENTO') {
+    const creds = readMagentoCredentials(lien.data)
+    return creds ? canalMagento(creds) : null
   }
   if (lien.platform === 'WOOCOMMERCE') {
     const creds = readWooCredentials(lien.data)

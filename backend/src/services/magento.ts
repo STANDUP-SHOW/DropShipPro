@@ -30,7 +30,7 @@ export function readMagentoCredentials(data: unknown): MagentoCredentials | null
   return { siteUrl, token }
 }
 
-async function appeler(creds: MagentoCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
+export async function appeler(creds: MagentoCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
   const r = await fetcher(`${creds.siteUrl}/rest/V1${chemin}`, {
     method: methode,
     headers: {

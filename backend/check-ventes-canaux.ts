@@ -12,7 +12,7 @@
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { prisma } from './src/lib/prisma.js'
-import { canalEbay, canalKaufland, canalMirakl, canalWoo, noterReleve, passage } from './src/services/ventesMarketplaces.js'
+import { canalEbay, canalKaufland, canalMagento, canalMirakl, canalWoo, noterReleve, passage } from './src/services/ventesMarketplaces.js'
 import { correspondance, importerCommandes, lireCsv, lireMontant } from './src/services/importCommandes.js'
 
 let echecs = 0
@@ -189,6 +189,41 @@ async function main() {
     const iNote = woo.journal.findIndex((a) => a.methode === 'POST' && a.chemin.endsWith('/orders/901/notes'))
     const iClos = woo.journal.findIndex((a) => a.methode === 'PUT' && a.chemin.endsWith('/orders/901'))
     verifier('suivi : note client avec le numéro PUIS commande « completed »', iNote >= 0 && iClos > iNote && /W-TRACK/.test(woo.journal[iNote].corps) && JSON.parse(woo.journal[iNote].corps).customer_note === true && JSON.parse(woo.journal[iClos].corps).status === 'completed')
+
+    // ---------------------------------------------------------- Magento
+    console.log('\nMagento')
+    const magento = await serveur((a) => {
+      if (a.auth !== 'Bearer jeton-mg') return { statut: 401 }
+      if (a.methode === 'GET' && a.chemin.startsWith('/rest/V1/orders?')) {
+        const q = decodeURIComponent(a.chemin)
+        if (!q.includes('[value]=processing')) return { json: { items: [] } }
+        return {
+          json: {
+            items: [
+              {
+                entity_id: 42, increment_id: '000000042', created_at: '2026-09-30 08:00:00', order_currency_code: 'EUR', customer_email: 'm@exemple.test', customer_firstname: 'Max', customer_lastname: 'Roy',
+                extension_attributes: { shipping_assignments: [{ shipping: { address: { firstname: 'Max', lastname: 'Roy', street: ['8 quai Vert', 'bât B'], city: 'Nantes', postcode: '44000', country_id: 'FR', telephone: '0600' } } }] },
+                items: [
+                  { item_id: 1, sku: tapis.id, name: 'Tapis', qty_ordered: 3, row_total: 90, product_type: 'configurable' },
+                  { item_id: 2, sku: `${tapis.id}-rouge`, name: 'Tapis rouge', qty_ordered: 3, row_total: 0, parent_item_id: 1 },
+                ],
+              },
+            ],
+          },
+        }
+      }
+      return { json: true }
+    })
+    fermer.push(magento.fermer)
+    const cMagento = canalMagento({ siteUrl: magento.url, token: 'jeton-mg' })
+    const pM = await passage(user.id, cMagento)
+    const oM = await prisma.order.findMany({ where: { userId: user.id, platform: 'MAGENTO' } })
+    verifier('ligne fille de configurable écartée : une vente, trois pièces, 90 €', oM.length === 1 && oM[0].productId === tapis.id && oM[0].quantity === 3 && Number(oM[0].amount) === 90 && !pM.bilan?.sansProduit.length, JSON.stringify(pM.bilan))
+    verifier('adresse : rue sur deux lignes, pays ISO-2', (oM[0].buyerAddress as Record<string, string>).address2 === 'bât B' && (oM[0].buyerAddress as Record<string, string>).countryCode === 'FR')
+    await prisma.order.update({ where: { id: oM[0].id }, data: { trackingNumber: 'M-TRACK', carrier: 'UPS' } })
+    await passage(user.id, cMagento)
+    const ship = magento.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/order/42/ship'))
+    verifier('livraison posée avec le suivi', !!ship && JSON.parse(ship.corps).tracks[0].track_number === 'M-TRACK' && JSON.parse(ship.corps).tracks[0].title === 'UPS')
 
     // ----------------------------------------------------------- Import
     console.log('\nImport de fichier')
