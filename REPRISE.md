@@ -15,9 +15,18 @@ Magento, PrestaShop, BigCommerce, Wix, Shopware, Ecwid, Squarespace, Drupal
 (commits `f10ad4b` → `bff5e31`, détail dans `docs/v2/DECISIONS.md` § 30/09) ;
 socle de l'application desktop dans `desktop/` (voir son README).
 
+**Constaté en production le 30/09** : déploiement Railway/Vercel des commits du
+jour ; panneau « Ventes captées » connecté (53 canaux) ; **Shopify relève sans
+erreur** (« relevé à l'instant · 0 nouvelle ») après ré-autorisation de la
+boutique auto-parts. Deux défauts trouvés et corrigés en route : `SHOPIFY_APP_SCOPES`
+(Railway) REMPLAÇAIT la liste de portées, donc `read_orders` n'était jamais demandé
+(`c10409a` : les portées du code s'ajoutent désormais) ; et aucun bouton pour
+ré-autoriser une boutique déjà reliée (`b0acc39` : « Renouveler les
+autorisations » sur `/boutique-shopify`). Aucune vente réelle relevée (0), et
+aucun renvoi de suivi constaté.
+
 **Reste, dans l'ordre** :
-1. Vérifier le déploiement Railway des commits du jour, puis le panneau
-   « Ventes captées » connecté dans Commandes.
+1. (fait) Vérifier le déploiement et le panneau « Ventes captées ».
 2. Desktop : `cd desktop && npm install && npm start` (jamais lancé), puis
    l'**exécuteur de publication** (Vinted / Leboncoin / Facebook) appuyé sur les
    garde-fous de `lib/plafonds.js` ; imports en masse ; commandes fournisseurs
