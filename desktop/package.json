@@ -2,12 +2,13 @@
   "name": "dropshipper-desktop",
   "version": "0.1.0",
   "description": "DropShipper Desktop — le compagnon de l'application drop-shipper.fr : sessions marchandes, file de travail, mode automatique encadré.",
+  "author": "DropShipper IA <contact@drop-shipper.fr>",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "check": "node check-desktop.cjs",
-    "build": "electron-builder --win --mac"
+    "build": "electron-builder --win"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -16,8 +17,10 @@
   "build": {
     "appId": "fr.drop-shipper.desktop",
     "productName": "DropShipper Desktop",
+    "directories": { "output": "dist", "buildResources": "build" },
     "files": ["main.js", "preload.js", "lib/**", "renderer/**"],
-    "win": { "target": "nsis" },
-    "mac": { "target": "dmg", "category": "public.app-category.business" }
+    "win": { "target": ["nsis", "msi"], "icon": "build/icon.png" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "msi": { "oneClick": false }
   }
 }
