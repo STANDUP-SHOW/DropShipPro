@@ -97,6 +97,57 @@ async function main() {
     verifier('une publication FAILED peut être remise en file', relance.json.enFile?.[0] === 'FACEBOOK')
     await prisma.publication.updateMany({ where: { productId: tapisFile.id }, data: { status: 'PUBLISHED' } })
 
+    console.log('\nPilote automatique → file du desktop')
+    const { mettreEnFileDesktop, aUneApplicationDesktop } = await import('./src/services/desktopFile.js')
+    const gagnant = await prisma.product.create({ data: { ...base_, title: 'Gagnant du pilote', description: 'x' } })
+    await prisma.apiKey.updateMany({ where: { keyHash: cleDesk.keyHash }, data: { lastUsedAt: null } })
+    verifier('clé desktop jamais utilisée : pas d’application desktop, rien mis en file', !(await aUneApplicationDesktop(user.id)) && (await mettreEnFileDesktop(user.id, gagnant.id)).length === 0)
+    await prisma.apiKey.updateMany({ where: { keyHash: cleDesk.keyHash }, data: { lastUsedAt: new Date() } })
+    verifier('clé desktop vue à l’instant : l’application existe', await aUneApplicationDesktop(user.id))
+    const faites = await mettreEnFileDesktop(user.id, gagnant.id)
+    verifier('le produit gagnant est mis en file sur les trois plateformes à session', faites.length === 3 && (await prisma.publication.count({ where: { productId: gagnant.id, status: 'PENDING' } })) === 3)
+    verifier('rejoué : aucun doublon', (await mettreEnFileDesktop(user.id, gagnant.id)).length === 0)
+    await prisma.apiKey.updateMany({ where: { keyHash: cleDesk.keyHash }, data: { lastUsedAt: new Date(Date.now() - 8 * 24 * 3600_000) } })
+    verifier('application muette depuis 8 jours : plus de mise en file', !(await aUneApplicationDesktop(user.id)))
+    await prisma.apiKey.updateMany({ where: { keyHash: cleDesk.keyHash }, data: { lastUsedAt: new Date(), revokedAt: new Date() } })
+    verifier('clé révoquée : plus de mise en file', !(await aUneApplicationDesktop(user.id)))
+    await prisma.publication.deleteMany({ where: { productId: gagnant.id } })
+
+    console.log('\nListe du jour des gagnants')
+    const existant = await prisma.marketReport.findFirst({ orderBy: { day: 'desc' }, select: { day: true } })
+    const jourBanc = existant?.day ?? new Date().toISOString().slice(0, 10)
+    const catBanc = `banc-${Date.now()}` // une catégorie inconnue du site : invisible pour les vendeurs, supprimée plus bas
+    const sku = Date.now()
+    await prisma.marketReport.create({
+      data: {
+        day: jourBanc, categorie: catBanc, theme: 't', type: 'rayon', titre: 'banc', body: 'banc', sources: 0,
+        produits: [
+          { rang: 1, titre: 'Marge haute', fournisseur: 'x', url: `https://exemple.test/a-${sku}`, margePct: 55, import: 'url' },
+          { rang: 2, titre: 'Marge basse', fournisseur: 'x', url: `https://exemple.test/b-${sku}`, margePct: 8, import: 'url' },
+          { rang: 3, titre: 'Extension requise', fournisseur: 'temu', url: `https://www.temu.com/c-${sku}`, margePct: 70, import: 'extension' },
+          { rang: 4, titre: 'Marge inconnue', fournisseur: 'x', url: `https://exemple.test/d-${sku}`, margePct: null, import: 'url' },
+          { rang: 5, titre: 'Déjà importé', fournisseur: 'x', url: `https://exemple.test/e-${sku}`, margePct: 40, import: 'api' },
+          { rang: 6, titre: 'Marge moyenne', fournisseur: 'x', url: `https://exemple.test/f-${sku}`, margePct: 30, import: 'api' },
+          { rang: 7, titre: 'Adresse invalide', fournisseur: 'x', url: 'pas-une-adresse', margePct: 90, import: 'url' },
+        ],
+      },
+    })
+    await prisma.product.create({ data: { ...base_, title: 'Déjà chez moi', description: 'x', sourceUrl: `https://exemple.test/e-${sku}` } })
+    await prisma.user.update({ where: { id: user.id }, data: { credits: 100 } })
+    await prisma.apiKey.updateMany({ where: { keyHash: cleDesk.keyHash }, data: { revokedAt: null } })
+    const pauvre = await appel('GET', '/gagnants', cleDesk.key)
+    verifier('moins de 500 drops : 402 avec le manque chiffré, comme Fresh news', pauvre.statut === 402 && pauvre.json.seuil === 500 && pauvre.json.drops === 100)
+    await prisma.user.update({ where: { id: user.id }, data: { credits: 800 } })
+    verifier('une clé d’agent tiers ne lit pas la liste (403)', (await appel('GET', '/gagnants', cle.key)).statut === 403)
+    const g = await appel('GET', '/gagnants', cleDesk.key)
+    const miens = (g.json.produits ?? []).filter((p: { categorie: string }) => p.categorie === catBanc)
+    verifier('marge ≥ 20 % seulement, triée par marge : 55 % puis 30 %', miens.map((p: { margePct: number }) => p.margePct).join() === '55,30', JSON.stringify(miens))
+    verifier('extension, marge inconnue, déjà importé et adresse invalide sont écartés', !miens.some((p: { url: string }) => /temu|d-|e-|pas-une/.test(p.url)) && g.json.ecartes.extension >= 1 && g.json.ecartes.margeInconnue >= 1 && g.json.ecartes.dejaImportes >= 1)
+    const serre = await appel('GET', '/gagnants?margeMin=50&max=1', cleDesk.key)
+    verifier('margeMin et max respectés', serre.json.produits.length <= 1 && serre.json.produits.every((p: { margePct: number }) => p.margePct >= 50))
+    verifier('paramètre invalide : 400', (await appel('GET', '/gagnants?max=9999', cleDesk.key)).statut === 400)
+    await prisma.marketReport.deleteMany({ where: { categorie: catBanc } })
+
     console.log('\nRésultat')
     verifier('résultat invalide refusé (400)', (await appel('POST', `/publications/${pVinted.id}/resultat`, cle.key, { status: 'DONE' })).statut === 400)
     const intrus = await appel('POST', `/publications/${pVinted.id}/resultat`, cleAutre.key, { status: 'PUBLISHED' })

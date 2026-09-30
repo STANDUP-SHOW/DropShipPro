@@ -311,6 +311,50 @@ async function main() {
   rc = await traiterLien({ api: ac, lien, plateformes: ['VINTED'], dormir: async () => undefined })
   verifier('mise en file ratée : le produit importé n’est pas perdu, la raison est dite', rc.statut === 'importe' && rc.productId === 'prod9' && /mise en file/.test(rc.raison))
 
+  console.log('\nImport groupé de la liste du jour')
+  const { importGroupe, importesAujourdhui, plafondImports, PLAFOND_IMPORTS_DUR } = require('./lib/circuit')
+  const liste = (n) => ({ jour: '2026-09-30', produits: Array.from({ length: n }, (_, i) => ({ url: `https://exemple.test/p${i}`, margePct: 40 - i })) })
+  const apiListe = (n, surImport = async () => ({ id: 'x' })) => {
+    const j = { max: null, importer: [], file: [] }
+    return {
+      j,
+      gagnants: async ({ max }) => ((j.max = max), { ...liste(n), produits: liste(n).produits.slice(0, max) }),
+      importer: async (url, id) => (j.importer.push(url), surImport(j.importer.length)),
+      mettreEnFile: async (pid, pl) => (j.file.push(pl), { enFile: pl }),
+      reclamer: async () => undefined,
+    }
+  }
+  let ag = apiListe(5)
+  let bg = await importGroupe({ api: ag, plateformes: ['VINTED'], plafond: 20, dormir: async () => undefined })
+  verifier('les 5 adresses du jour sont importées puis mises en file, sans validation', bg.importes === 5 && bg.lus === 5 && ag.j.file.length === 5 && !bg.plafondAtteint && bg.jour === '2026-09-30')
+  ag = apiListe(30)
+  bg = await importGroupe({ api: ag, plateformes: ['VINTED'], plafond: 20, dejaFaits: 12, dormir: async () => undefined })
+  verifier('plafond du jour : 12 déjà faits sur 20 → 8 importés, pas un de plus, et le serveur n’en renvoie que 8', bg.importes === 8 && ag.j.importer.length === 8 && ag.j.max === 8 && bg.plafondAtteint)
+  bg = await importGroupe({ api: apiListe(3), plateformes: [], plafond: 20, dejaFaits: 20 })
+  verifier('plafond déjà atteint : aucun appel au serveur', bg.importes === 0 && bg.plafondAtteint && bg.lus === 0)
+  ag = apiListe(6, async (n) => {
+    if (n === 3) throw new ErreurApi('Solde de drops insuffisant', 402)
+    return { id: 'x' }
+  })
+  bg = await importGroupe({ api: ag, plateformes: ['VINTED'], plafond: 20, dormir: async () => undefined })
+  verifier('solde vide au 3e : arrêt net (2 importés), les autres attendent le rechargement', bg.sansSolde && bg.importes === 2 && ag.j.importer.length === 3)
+  ag = apiListe(4, async (n) => {
+    if (n === 2) throw new ErreurApi('Cette page n’a pas pu être lue', 502)
+    return { id: 'x' }
+  })
+  bg = await importGroupe({ api: ag, plateformes: ['VINTED'], plafond: 20, dormir: async () => undefined })
+  verifier('une page illisible n’arrête pas le lot : 3 importés, 1 échec', bg.importes === 3 && bg.echecs === 1 && !bg.sansSolde)
+  const hier = new Date(midi.getTime() - 86_400_000).toISOString()
+  const jr = [
+    { type: 'import', resultat: 'en_file', at: midi.toISOString() },
+    { type: 'import', resultat: 'importe', at: midi.toISOString() },
+    { type: 'import', resultat: 'echec', at: midi.toISOString() },
+    { type: 'import', resultat: 'en_file', at: hier },
+    { type: 'publication', at: midi.toISOString() },
+  ]
+  verifier('le compteur du jour ne compte que les imports réussis d’aujourd’hui', importesAujourdhui(jr, midi) === 2)
+  verifier('plafond d’imports : 20 par défaut, réglable, 50 au plus', plafondImports({}) === 20 && plafondImports({ plafondImports: 5 }) === 5 && plafondImports({ plafondImports: 9999 }) === PLAFOND_IMPORTS_DUR)
+
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {
     console.error(`\n${echecs} attente(s) manquée(s).`)

@@ -21,7 +21,7 @@ const file = require('./lib/file')
 const plafonds = require('./lib/plafonds')
 const { traiter } = require('./lib/executeur')
 const { creerPilote } = require('./lib/pilote-electron')
-const { traiterLien } = require('./lib/circuit')
+const { traiterLien, importGroupe, importesAujourdhui, plafondImports } = require('./lib/circuit')
 
 let fenetre = null
 let cfg = null
@@ -66,6 +66,8 @@ function instantane() {
       decision: plafonds.decision({ plateforme: id, config: cfg, journal: plafonds.lireJournal(dossier()), etat }),
     })),
     circuit: Boolean(cfg.circuit && cfg.circuit.actif),
+    plafondImports: plafondImports(cfg),
+    importsAujourdhui: importesAujourdhui(plafonds.lireJournal(dossier())),
     texteAccord: plafonds.TEXTE_ACCORD,
     journal: plafonds.lireJournal(dossier()).slice(-50).reverse(),
   }
@@ -93,6 +95,39 @@ async function circuitAuto(nouveaux) {
   }
   await lireAnnonces()
   return restants
+}
+
+const jourLocalMain = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/**
+ * L'import groupé de la liste du jour des produits gagnants : une fois par jour
+ * (et le reste du plafond s'il reste des places), quand le circuit est actif. Chaque
+ * adresse devient une annonce, mise en file sur les plateformes où l'agent est
+ * activé. Plafond d'imports par jour : protège le solde de drops.
+ */
+async function journeeGagnants() {
+  if (!api || !cfg.circuit || !cfg.circuit.actif || cfg.dernierGagnants === jourLocalMain()) return
+  const plateformes = Object.keys(plafonds.PLATEFORMES).filter((id) => cfg.accords[id])
+  try {
+    const bilan = await importGroupe({
+      api,
+      plateformes,
+      plafond: plafondImports(cfg),
+      dejaFaits: importesAujourdhui(plafonds.lireJournal(dossier())),
+      surProduit: (produit, r) => plafonds.journaliser(dossier(), { type: 'import', publication: produit.url, produit: r.productId, raison: r.raison, resultat: r.statut }),
+    })
+    plafonds.journaliser(dossier(), { type: 'gagnants', raison: `${bilan.importes} importé(s) sur ${bilan.lus} de la liste du ${bilan.jour}${bilan.sansSolde ? ' — solde de drops vide' : ''}` })
+    // « Fait pour aujourd'hui » sauf si le solde a coupé le lot : il reprendra au prochain passage.
+    if (!bilan.sansSolde) {
+      cfg = { ...cfg, dernierGagnants: jourLocalMain() }
+      config.enregistrer(dossier(), cfg)
+    } else {
+      derniereErreur = 'Solde de drops vide : les produits gagnants attendent votre rechargement.'
+    }
+  } catch (err) {
+    derniereErreur = err.message
+  }
+  await lireAnnonces()
 }
 
 async function sonder() {
@@ -168,6 +203,7 @@ function demarrerSondage() {
   // Intervalle FIXE : ni hasard ni rafale. Le serveur en accepte 120 par minute, on en fait une.
   minuteur = setInterval(async () => {
     await sonder()
+    await journeeGagnants()
     await tourneeAuto()
   }, file.INTERVALLE_MS)
 }
@@ -273,8 +309,16 @@ function brancherIpc() {
 
   ipcMain.handle('session:ouvrir', (_e, id) => ouvrirSession(id))
 
+  ipcMain.handle('circuit:plafond', (_e, n) => {
+    cfg = { ...cfg, plafondImports: Math.max(1, Math.min(Math.floor(Number(n)) || 20, 50)) }
+    config.enregistrer(dossier(), cfg)
+    return instantane()
+  })
+
   ipcMain.handle('circuit:regler', (_e, actif) => {
     cfg = { ...cfg, circuit: { actif: Boolean(actif) } }
+    // Réactiver le circuit relance l'import groupé du jour, même s'il a déjà tourné.
+    if (actif) cfg.dernierGagnants = null
     config.enregistrer(dossier(), cfg)
     plafonds.journaliser(dossier(), { type: actif ? 'circuit-active' : 'circuit-coupe' })
     return instantane()

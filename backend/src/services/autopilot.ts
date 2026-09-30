@@ -5,6 +5,7 @@ import { scrapeProduct, ScrapeBlockedError } from './scraper.js'
 import { enhanceListing } from './aiEnhancer.js'
 import { rapatrierImages } from './watermark.js'
 import { publishToPlatform } from './publisher.js'
+import { mettreEnFileDesktop } from './desktopFile.js'
 import { PLATFORMS } from './platforms.js'
 import { reserveCredits, refundCredits } from './billing.js'
 import { DROPS } from './tarifs.js'
@@ -26,10 +27,10 @@ import { keepaConfigure, keepaProduit } from './keepa.js'
  * Deux limites sont posées dans le code et non dans les réglages, parce
  * qu'elles protègent le vendeur de lui-même :
  *
- * — il ne publie que sur les destinations qui ont une vraie API. Sur Vinted,
- *   Leboncoin et Facebook Marketplace, publier suppose de piloter un compte
- *   vendeur à sa place ; c'est contraire aux conditions de ces plateformes et
- *   c'est son compte qui serait suspendu, pas le nôtre ;
+ * — il ne publie LUI-MÊME que sur les destinations qui ont une vraie API. Sur
+ *   Vinted, Leboncoin et Facebook Marketplace, il met les produits en file pour
+ *   l'application desktop du vendeur (desktopFile.ts), qui publie depuis sa session
+ *   quand il a activé l'agent ;
  *
  * — il s'arrête net au plafond quotidien. Un agent qui déposerait cinq cents
  *   trouvailles viderait sinon le porte-monnaie du vendeur en une nuit.
@@ -322,6 +323,13 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
             raison: ok ? `Publié sur ${platform}` : `${platform} : ${publications.error ?? 'refus'}`,
           })
           if (!ok) result.failed++
+        }
+
+        // Vinted, Leboncoin, Facebook : pas d'API, donc en file pour l'application desktop du vendeur
+        // (si elle existe). Elle publie là où le vendeur a activé l'agent ; ailleurs l'annonce l'attend.
+        const enFile = await mettreEnFileDesktop(userId, product.id)
+        if (enFile.length) {
+          log.push({ titre: o.title, action: 'publié', raison: `En file pour l'application desktop : ${enFile.join(', ')}` })
         }
       }
     } catch (err) {
