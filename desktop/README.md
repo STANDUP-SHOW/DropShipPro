@@ -2,25 +2,29 @@
 
 Le compagnon de bureau de drop-shipper.fr (Electron). Décisions : `docs/v2/DECISIONS.md`.
 
-## Ce qui est écrit (30/09/2026)
+## Ce qui est écrit (30/09/2026, version 0.2.0)
 
 | Pièce | Fichier | État |
 |---|---|---|
-| Clé d'API chiffrée par le coffre du système, appairage | `lib/config.js`, `lib/api.js`, `main.js` | banc vert |
+| Clé d'API chiffrée par le coffre du système, appairage | `lib/config.js`, `lib/api.js`, `main.js` | banc vert ; **fenêtre réelle : fausse clé refusée par l'API de production, message affiché** (`check-fenetre.cjs`) |
 | File de travail (liens partagés du mobile), sondage fixe 60 s, `claim` | `lib/file.js` | banc vert |
-| Sessions persistantes Vinted / Leboncoin / Facebook (partition `persist:*`, le vendeur se connecte lui-même) | `main.js` | **jamais lancé sous Electron** |
+| Sessions persistantes Vinted / Leboncoin / Facebook (partition `persist:*`, le vendeur se connecte lui-même) | `main.js` | jamais essayé avec un vrai compte |
 | Garde-fous du mode automatique : accord daté, plafonds (durs), espacement, arrêt au premier blocage, journal | `lib/plafonds.js` | banc vert |
-| Surveillance des blocages sur chaque fenêtre de session | `main.js` (`surveiller`) | **jamais lancé sous Electron** |
-| Exécuteur de publication (modes validation et automatique, arrêt au blocage, jamais de « Publier » avec un champ indispensable manquant) + adaptateurs + pilote Electron | `lib/executeur.js`, `lib/adaptateurs.js`, `lib/pilote-electron.js` | logique : banc vert avec faux pilote ; **pilote et sélecteurs jamais confrontés à une vraie page connectée** |
-| File côté serveur : `GET /api/agent/publications`, `POST …/resultat` (Publication PENDING de Vinted/Leboncoin/Facebook, sans migration) | `backend/src/routes/agent.ts` | banc vert (`check-agent-publications.ts`) |
-| Écran de contrôle (CSP stricte, données posées en `textContent`) | `renderer/` | rendu constaté dans un navigateur avec un état simulé (30/09) ; jamais dans la fenêtre Electron |
+| Surveillance des blocages sur chaque fenêtre de session | `main.js` (`surveiller`) | jamais essayé avec un vrai compte |
+| Exécuteur de publication (modes validation et automatique, arrêt au blocage, jamais de « Publier » avec un champ indispensable manquant) | `lib/executeur.js` | banc vert avec faux pilote |
+| **Facebook Marketplace** : champs par libellé, catégorie et état choisis dans les listes lues sur la page, « Suivant » puis « Publier » | `lib/adaptateurs.js`, `lib/page.js`, `lib/choix.js`, `lib/pilote-electron.js` | **structure relevée sur la vraie page connectée** ; la lecture de la liste des catégories a tourné sur la vraie page (26 rayons) ; le remplissage et la publication n'ont pas été exécutés sur un vrai compte |
+| Vinted, Leboncoin | `lib/adaptateurs.js` | sélecteurs de l'extension, **jamais confrontés à une page connectée** ; catégorie non réglée |
+| Import groupé des gagnants du jour, avec **marge minimale et rayons choisis par le vendeur** | `lib/circuit.js`, `main.js`, `renderer/` | banc vert ; serveur : `check-agent-publications.ts` vert |
+| File côté serveur : `GET /api/agent/publications`, `POST …/resultat`, `GET /api/agent/gagnants?categories=` | `backend/src/routes/agent.ts` | banc vert |
+| Écran de contrôle (CSP stricte, données posées en `textContent`) | `renderer/` | **chargé dans la vraie fenêtre Electron** (`check-fenetre.cjs` : pont complet, tous les éléments présents) ; clics des écrans connectés non essayés |
 
-## Ce qui n'est PAS écrit
+## Ce qui n'est PAS fait
 
-- **La catégorie Vinted / Leboncoin** : c'est une fenêtre à plusieurs niveaux que le pilote ne règle pas. Le pilote ne rend jamais « categorie » dans `rempli`, donc **le mode automatique ne publie RIEN sur Vinted ni Leboncoin** (l'exécuteur rend la main : « à compléter par vous : categorie ») ; il publie sur Facebook, dont les sélecteurs sont les moins sûrs. En mode « Préparer », tout le reste est rempli et le vendeur choisit la catégorie et publie.
+- **Vinted / Leboncoin** : leur catégorie est une fenêtre à plusieurs niveaux, à relever sur une session connectée (le Chrome de Max ne l'était pas le 30/09 : Vinted renvoie à l'inscription, Leboncoin à « Me connecter »). Tant qu'elle n'est pas réglée, **le mode automatique n'y publie rien** (« à compléter par vous : categorie ») ; « Préparer » remplit le reste. Le mécanisme existe (`categorie: { bouton, libelles, menu, option }` dans l'adaptateur, comme Facebook) : il reste à y mettre les vrais sélecteurs.
+- Une vraie publication Facebook de bout en bout (compte de test, accord donné).
 - Les imports en masse par le navigateur, la préparation des commandes fournisseurs (arrêt au paiement).
 - Synchro par WebSocket (le sondage suffit tant que la file est courte).
-- Signature des exécutables et mises à jour automatiques.
+- Signature des exécutables (certificat à acheter) et mises à jour automatiques.
 
 ## Ce qui est interdit ici (CLAUDE.md, décision du 29/09/2026)
 
@@ -30,13 +34,14 @@ Pas de faux profil matériel, pas de navigateur « stealth », pas de résolutio
 
 ```bash
 cd desktop
-npm install        # télécharge Electron (~100 Mo)
-npm run check      # banc de la logique pure, sans Electron
+npm install            # télécharge Electron (~100 Mo)
+npm run check          # banc de la logique pure, sans Electron
+npm run check:fenetre  # ouvre la vraie fenêtre quelques secondes (profil jetable) et lit l'écran
 npm start
 ```
 
-## Installeurs Windows (générés le 30/09/2026)
+## Installeurs Windows
 
-`npm run build` produit dans `dist/` : `DropShipper Desktop Setup 0.1.0.exe` (NSIS) et `DropShipper Desktop 0.1.0.msi`. **Non signés** : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même) tant qu'un certificat de signature n'est pas acheté. Sous Windows, `electron-builder` échoue sur des liens symboliques macOS de son cache `winCodeSign` : copier un dossier extrait du cache en `winCodeSign-2.6.0` (fait sur ce poste). L'app empaquetée démarre ; jamais essayée par un vendeur.
+`npm run build` produit dans `dist/` : `DropShipper Desktop Setup 0.2.0.exe` (NSIS) et `DropShipper Desktop 0.2.0.msi`. **Non signés** : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même) tant qu'un certificat de signature n'est pas acheté. Sous Windows, `electron-builder` échoue sur des liens symboliques macOS de son cache `winCodeSign` : copier un dossier extrait du cache en `winCodeSign-2.6.0` (fait sur ce poste).
 
-Clé d'API : drop-shipper.fr › Réglages › Clés d'API (préfixe `dsp_live_`).
+Clé d'API : drop-shipper.fr › Réglages › « Créer une clé pour DropShipper Desktop » (préfixe `dsp_desk_`).

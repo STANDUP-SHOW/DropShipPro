@@ -279,6 +279,8 @@ function enQuery(params: Record<string, string | number | undefined>): string {
 }
 
 export const api = {
+  /** « Connecter mon compte eBay » : l'adresse d'autorisation, ou `configure: false` tant que l'application eBay n'est pas posée côté serveur. */
+  ebayOauth: () => request<{ configure: boolean; url?: string }>('/ebay/oauth/start'),
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {
       method: 'POST',

@@ -31,6 +31,10 @@
         <label class="interrupteur"><input id="circuit" type="checkbox" /> <span>Importer et publier automatiquement</span></label>
         <label class="interrupteur"><input id="reseaux" type="checkbox" /> <span>Publier aussi chaque produit sur mes réseaux sociaux reliés</span></label>
         <p class="discret">Limite d'imports par jour (facultative, vide = illimité ; chaque import coûte des drops) : <input id="plafond-imports" type="number" min="1" placeholder="illimité" style="width:96px;flex:none" /> — <span id="imports-jour"></span></p>
+        <p class="discret">Marge minimale des produits gagnants : <input id="marge-min" type="number" min="0" max="100" style="width:72px;flex:none" /> %</p>
+        <p class="discret">Rayons à importer (aucun coché = tous les rayons du jour) :</p>
+        <div id="rayons" class="rayons"></div>
+        <p id="aucun-rayon" class="discret">La liste des rayons apparaît dès que votre compte peut lire la liste du jour (500 drops en banque).</p>
       </div>
 
       <div class="carte">

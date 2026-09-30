@@ -117,6 +117,24 @@ function rendrePlateformes(etat) {
   }
 }
 
+function rendreRayons(etat) {
+  const zone = $('rayons')
+  zone.replaceChildren()
+  const rayons = etat.rayons || []
+  $('aucun-rayon').hidden = rayons.length > 0
+  const choisis = new Set(etat.rayonsChoisis || [])
+  for (const r of rayons) {
+    const c = el('input', { type: 'checkbox' })
+    c.checked = choisis.has(r)
+    c.addEventListener('change', async () => {
+      if (c.checked) choisis.add(r)
+      else choisis.delete(r)
+      rendre(await window.desktop.choisirRayons([...choisis]))
+    })
+    zone.append(el('label', {}, c, el('span', { texte: r })))
+  }
+}
+
 function rendreJournal(etat) {
   const ul = $('journal')
   ul.replaceChildren()
@@ -136,6 +154,8 @@ function rendre(etat) {
   $('reseaux').checked = Boolean(etat.reseaux)
   if (document.activeElement !== $('plafond-imports')) $('plafond-imports').value = etat.plafondImports === null ? '' : etat.plafondImports
   $('imports-jour').textContent = `${etat.importsAujourdhui} aujourd’hui`
+  if (document.activeElement !== $('marge-min')) $('marge-min').value = etat.margeMin
+  rendreRayons(etat)
   rendreLiens(etat)
   rendreAnnonces(etat)
   rendrePlateformes(etat)
@@ -155,6 +175,8 @@ $('circuit').addEventListener('change', async (e) => rendre(await window.desktop
 
 $('reseaux').addEventListener('change', async (e) => rendre(await window.desktop.regerReseaux(e.target.checked)))
 $('plafond-imports').addEventListener('change', async (e) => rendre(await window.desktop.plafondImports(e.target.value)))
+
+$('marge-min').addEventListener('change', async (e) => rendre(await window.desktop.margeMin(e.target.value)))
 
 window.desktop.surEtat(rendre)
 window.desktop.etat().then(rendre)

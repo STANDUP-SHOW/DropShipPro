@@ -85,6 +85,21 @@ export function PlatformCredentialForm({
   const [voieShopify, setVoieShopify] = useState<'jeton' | 'oauth'>('jeton')
   /** eBay : le trio de renouvellement est replié tant qu'on ne le demande pas. */
   const [renouvellementEbay, setRenouvellementEbay] = useState(false)
+  /** eBay : l'adresse d'autorisation OAuth, quand le serveur a son application eBay ; sinon le collage du jeton reste seul. */
+  const [oauthEbay, setOauthEbay] = useState<string | null>(null)
+  useEffect(() => {
+    if (platform.id !== 'EBAY') return
+    let vivant = true
+    api
+      .ebayOauth()
+      .then((r) => {
+        if (vivant) setOauthEbay(r.configure && r.url ? r.url : null)
+      })
+      .catch(() => undefined)
+    return () => {
+      vivant = false
+    }
+  }, [platform.id])
 
   async function saveCredential(id: string, data: Record<string, string>) {
     setCredError(null)
@@ -262,6 +277,17 @@ export function PlatformCredentialForm({
                 }}
                 className="mt-2 space-y-2"
               >
+                {oauthEbay ? (
+                  <div className="space-y-1">
+                    <a href={oauthEbay} className="btn-gradient inline-block rounded-lg px-3 py-1.5 text-xs font-semibold text-white">
+                      {cred?.connected ? 'Reconnecter mon compte eBay' : 'Connecter mon compte eBay'}
+                    </a>
+                    <p className="text-[11px] leading-relaxed text-gray-500">
+                      Vous vous connectez sur ebay.fr et donnez votre accord : rien à copier, le jeton se renouvelle tout seul. Le collage
+                      manuel ci-dessous reste possible.
+                    </p>
+                  </div>
+                ) : null}
                 <input
                   {...PROPS_SANS_REMPLISSAGE}
                   name="accessToken"
@@ -311,7 +337,7 @@ export function PlatformCredentialForm({
                 )}
                 <div className="flex items-center gap-2">
                   <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5">
-                    {cred?.connected ? 'Remplacer' : 'Connecter mon compte eBay'}
+                    {cred?.connected ? 'Remplacer' : oauthEbay ? 'Enregistrer ce jeton' : 'Connecter mon compte eBay'}
                   </button>
                   {cred?.connected ? (
                     <button

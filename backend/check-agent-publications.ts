@@ -153,6 +153,11 @@ async function main() {
     const serre = await appel('GET', '/gagnants?margeMin=50&max=1', cleDesk.key)
     verifier('margeMin et max respectés', serre.json.produits.length <= 1 && serre.json.produits.every((p: { margePct: number }) => p.margePct >= 50))
     verifier('paramètre invalide : 400', (await appel('GET', '/gagnants?max=99999', cleDesk.key)).statut === 400)
+    verifier('la réponse rend les rayons du jour', Array.isArray(g.json.categories) && g.json.categories.includes(catBanc))
+    const choisi = await appel('GET', `/gagnants?categories=${encodeURIComponent(`  ${catBanc.toUpperCase()} , autre-rayon`)}`, cleDesk.key)
+    verifier('rayons choisis : seuls leurs produits sortent (casse et espaces ignorés)', choisi.json.produits.length === 2 && choisi.json.produits.every((p: { categorie: string }) => p.categorie === catBanc), JSON.stringify(choisi.json.produits))
+    const ailleurs = await appel('GET', '/gagnants?categories=rayon-qui-n-existe-pas', cleDesk.key)
+    verifier('rayon inconnu : liste vide, pas une erreur', ailleurs.statut === 200 && ailleurs.json.produits.length === 0 && ailleurs.json.categories.includes(catBanc))
     await prisma.marketReport.deleteMany({ where: { categorie: catBanc } })
 
     console.log('\nRésultat')

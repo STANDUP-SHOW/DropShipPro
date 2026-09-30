@@ -366,11 +366,16 @@ agentRouter.post('/import', requireDesktop as never, async (req: AgentRequest, r
  * Ne sortent que les produits que le SERVEUR sait importer (`import` api ou url :
  * les pages qui exigent l'extension sont écartées et comptées), avec une marge
  * connue au moins égale à `margeMin`, et que le vendeur n'a pas déjà en catalogue.
+ * `categories` (rayons séparés par des virgules) restreint la liste aux rayons
+ * choisis par le vendeur ; vide = tous. La réponse rend toujours `categories`,
+ * les rayons du jour, pour que l'application puisse les proposer.
  */
 agentRouter.get('/gagnants', requireDesktop as never, async (req: AgentRequest, res) => {
   try {
-    const q = z.object({ margeMin: z.coerce.number().min(0).max(100).default(20), max: z.coerce.number().int().min(1).max(1000).default(500) }).safeParse(req.query)
+    const q = z.object({ margeMin: z.coerce.number().min(0).max(100).default(20), max: z.coerce.number().int().min(1).max(1000).default(500), categories: z.string().max(4000).optional() }).safeParse(req.query)
     if (!q.success) return res.status(400).json({ error: 'margeMin (0-100) et max (1-1000) attendus' })
+    const rayon = (s: string) => s.trim().toLowerCase()
+    const voulues = new Set((q.data.categories ?? '').split(',').map(rayon).filter(Boolean))
 
     const moi = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! }, select: { credits: true } })
     if (moi.credits < SEUIL_DROPS) {
@@ -378,14 +383,16 @@ agentRouter.get('/gagnants', requireDesktop as never, async (req: AgentRequest, 
     }
 
     const dernier = await prisma.marketReport.findFirst({ orderBy: { day: 'desc' }, select: { day: true } })
-    if (!dernier) return res.json({ jour: null, count: 0, ecartes: { extension: 0, dejaImportes: 0, margeInconnue: 0 }, produits: [] })
+    if (!dernier) return res.json({ jour: null, count: 0, ecartes: { extension: 0, dejaImportes: 0, margeInconnue: 0 }, categories: [], produits: [] })
     const rapports = await prisma.marketReport.findMany({ where: { day: dernier.day }, select: { categorie: true, produits: true } })
 
     const vus = new Set<string>()
     const ecartes = { extension: 0, dejaImportes: 0, margeInconnue: 0 }
     type Candidat = { url: string; titre: string; fournisseur: string; margePct: number; import: string; categorie: string }
     const candidats: Candidat[] = []
+    const categories = [...new Set(rapports.map((r) => r.categorie))].sort((a, b) => a.localeCompare(b, 'fr'))
     for (const r of rapports) {
+      if (voulues.size && !voulues.has(rayon(r.categorie))) continue
       for (const p of (r.produits ?? []) as unknown as Array<Record<string, unknown>>) {
         const url = typeof p.url === 'string' ? p.url : ''
         if (!/^https?:\/\//i.test(url) || vus.has(url)) continue
@@ -407,7 +414,7 @@ agentRouter.get('/gagnants', requireDesktop as never, async (req: AgentRequest, 
     const dejaLa = new Set((await prisma.product.findMany({ where: { userId: req.userId!, sourceUrl: { in: candidats.map((c) => c.url) } }, select: { sourceUrl: true } })).map((p) => p.sourceUrl))
     const produits = candidats.filter((c) => !dejaLa.has(c.url)).sort((a, b) => b.margePct - a.margePct)
     ecartes.dejaImportes = candidats.length - produits.length
-    res.json({ jour: dernier.day, count: Math.min(produits.length, q.data.max), ecartes, produits: produits.slice(0, q.data.max) })
+    res.json({ jour: dernier.day, count: Math.min(produits.length, q.data.max), ecartes, categories, produits: produits.slice(0, q.data.max) })
   } catch (e) {
     console.error('agent gagnants', e)
     res.status(500).json({ error: 'Impossible de lire la liste des gagnants' })

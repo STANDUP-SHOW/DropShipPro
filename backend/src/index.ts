@@ -31,6 +31,7 @@ import { visualsRouter } from './routes/visuals.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
 import { shopifyAppRouter } from './routes/shopifyApp.js'
 import { aliexpressAuthRouter } from './routes/aliexpressAuth.js'
+import { ebayAuthRouter } from './routes/ebayAuth.js'
 import { reportsPublicRouter } from './routes/reportsPublic.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
@@ -128,6 +129,8 @@ app.use('/api/orders', ordersRouter)
 app.use('/api/settings', settingsRouter)
 // Le retour d'autorisation AliExpress : public, vérifié par état signé.
 app.use('/api/aliexpress', aliexpressAuthRouter)
+// « Connecter mon compte eBay » : départ authentifié, retour public vérifié par état signé.
+app.use('/api/ebay', ebayAuthRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/billing', billingRouter)
 app.use('/api/agent', agentRouter)

@@ -68,6 +68,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - Disque Railway éphémère : volume monté exactement sur `/app/storage`.
 - Express 4 : un handler `async` qui lève fait **pendre** la requête sans log.
 - `VITE_*` figées à la compilation : changer une variable Vercel = redéployer.
+- Railway « failure » sur GitHub = le plus souvent un déploiement REMPLACÉ par le push suivant (`REMOVED` au tableau de bord, constaté le 30/09) : pousser en lots.
 - Vercel ne build pas ? `curl -s https://api.github.com/repos/STANDUP-SHOW/DropShipPro/commits/<sha>/status` (plafond Hobby).
 - Content scripts : tout appel API passe par le service worker (`apiFetch`).
 - `imagesWatermarked` vaut `true` par défaut : tout bloc de création pose `false`.

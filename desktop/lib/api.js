@@ -41,7 +41,8 @@ function client({ apiBase, cle, fetcher = fetch }) {
     liensNouveaux: async () => (await appel('GET', '/share?status=NEW')).links || [],
     reclamer: (id, statut = 'CLAIMED') => appel('POST', `/share/${encodeURIComponent(id)}/claim`, { status: statut }),
     /** La liste du jour des produits gagnants (une adresse par produit). Clé desktop, comptes ≥ 500 drops. */
-    gagnants: ({ margeMin = 20, max = 50 } = {}) => appel('GET', `/gagnants?margeMin=${encodeURIComponent(margeMin)}&max=${encodeURIComponent(max)}`),
+    gagnants: ({ margeMin = 20, max = 50, categories = [] } = {}) =>
+      appel('GET', `/gagnants?margeMin=${encodeURIComponent(margeMin)}&max=${encodeURIComponent(max)}${categories.length ? `&categories=${encodeURIComponent(categories.join(','))}` : ''}`),
     /** Importe le produit d'un lien reçu (drops du vendeur, remboursés si rien n'est livré). Clé desktop. */
     importer: (url, shareId) => appel('POST', '/import', { url, ...(shareId ? { shareId } : {}) }),
     /** Publie un produit sur les réseaux sociaux reliés du vendeur. Clé desktop. */

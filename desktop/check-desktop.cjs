@@ -172,7 +172,30 @@ async function main() {
   const cfgAuto = p.accorder({ ...config.PAR_DEFAUT }, 'VINTED', midi)
   const cfgManuel = { ...config.PAR_DEFAUT }
 
-  verifier('champs indispensables : Vinted exige la catégorie, Facebook non', manquants('VINTED', ['titre', 'description', 'prix', 'photos']).join() === 'categorie' && manquants('FACEBOOK', ['titre', 'description', 'prix', 'photos']).length === 0)
+  verifier('champs indispensables : Vinted exige la catégorie, Facebook la catégorie et l’état', manquants('VINTED', ['titre', 'description', 'prix', 'photos']).join() === 'categorie' && manquants('FACEBOOK', ['titre', 'description', 'prix', 'photos']).join() === 'categorie,etat' && manquants('FACEBOOK', [...TOUT, 'etat']).length === 0)
+
+  console.log('\nCatégorie et état (options relevées sur la vraie page Facebook le 30/09/2026)')
+  const { choisirCategorie, choisirEtat } = require('./lib/choix')
+  const pageJs = require('./lib/page')
+  const { ADAPTATEURS } = require('./lib/adaptateurs')
+  const FB = ['Outils', 'Meubles', 'Pour la maison', 'Jardin', 'Électroménager', 'Jeux vidéo', 'Livres, films et musique', 'Sacs et bagages', 'Vêtements et chaussures pour femmes', 'Vêtements et chaussures pour hommes', 'Bijoux et accessoires', 'Santé et beauté', 'Produits pour animaux', 'Puériculture et enfants', 'Jouets et jeux', 'Électronique et ordinateurs', 'Téléphones mobiles', 'Vélos', 'Artisanat d’art', 'Sports et activités extérieures', 'Pièces auto', 'Instruments de musique', 'Antiquités et objets de collection', 'Vide-grenier', 'Divers', 'Véhicules']
+  const ETATS_FB = ['Neuf', 'D’occasion - comme neuf', 'D’occasion - bon état', 'D’occasion - assez bon état']
+  const cat = (category, title = '') => choisirCategorie(FB, { category, title }, ADAPTATEURS.FACEBOOK.categorie.fourreTout)
+  verifier('chemin Google « Maison et jardin > Éclairage > Lampes » → Pour la maison', cat('Maison et jardin > Éclairage > Lampes', 'Lampe de bureau LED') === 'Pour la maison', cat('Maison et jardin > Éclairage > Lampes', 'Lampe de bureau LED'))
+  verifier('« Appareils électroniques > Téléphones mobiles » → Téléphones mobiles', cat('Appareils électroniques > Communications > Téléphonie > Téléphones mobiles') === 'Téléphones mobiles')
+  verifier('« Animaux et articles pour animaux de compagnie » → Produits pour animaux', cat('Animaux et articles pour animaux de compagnie > Articles pour animaux de compagnie') === 'Produits pour animaux')
+  verifier('sans catégorie, le titre décide : perceuse → Outils', cat(null, 'Perceuse visseuse sans fil 18V') === 'Outils')
+  verifier('rien ne correspond : le fourre-tout de la page (« Divers »), jamais une catégorie au hasard', cat('Zzz', 'Qqq') === 'Divers')
+  verifier('ni correspondance ni fourre-tout : null, le vendeur choisit', choisirCategorie(['Outils', 'Meubles'], { category: 'Zzz', title: 'Qqq' }, ['Divers']) === null)
+  verifier('état : « Neuf » exact, « Comme neuf » et « Bon état » vers leur libellé d’occasion', choisirEtat(ETATS_FB, 'Neuf') === 'Neuf' && choisirEtat(ETATS_FB, 'Comme neuf') === 'D’occasion - comme neuf' && choisirEtat(ETATS_FB, 'Bon état') === 'D’occasion - bon état' && choisirEtat(ETATS_FB, 'Inconnu') === null)
+  const appelTexte = pageJs.appelPage(pageJs.lireOptions, ADAPTATEURS.FACEBOOK.categorie, 4000)
+  let syntaxe = true
+  try {
+    new Function(`return ${appelTexte}`)
+  } catch {
+    syntaxe = false
+  }
+  verifier('l’appel envoyé à la page est du JavaScript valide et ne dépend de rien d’extérieur', syntaxe && !appelTexte.includes('require(') &&[pageJs.poserValeur, pageJs.cliquerOption, pageJs.cliquerBouton].every((fn) => { try { new Function(`return (${fn.toString()})`); return true } catch { return false } }))
 
   let d = dossierEx()
   let pil = fauxPilote()
@@ -263,10 +286,13 @@ async function main() {
   verifier('pause écoulée + publication réussie : la plateforme est libérée, compteur à zéro', r.statut === 'publiee' && !p.lireEtat(d).arrets.VINTED)
 
   d = dossierEx()
-  pil = fauxPilote({ rempli: ['titre', 'description', 'prix', 'photos'] })
+  pil = fauxPilote({ rempli: [...TOUT, 'etat'] })
   api2 = fauxApi()
   r = await traiter({ api: api2, pilote: pil, plateforme: 'FACEBOOK', annonce, config: p.accorder({ ...config.PAR_DEFAUT }, 'FACEBOOK', midi), etat: { arrets: {} }, dossier: d, maintenant: midi })
-  verifier('Facebook sans catégorie à régler : publié en mode automatique', r.statut === 'publiee' && api2.appels[0].statut === 'PUBLISHED')
+  verifier('Facebook, catégorie et état réglés : publié en mode automatique', r.statut === 'publiee' && api2.appels[0].statut === 'PUBLISHED')
+  pil = fauxPilote({ rempli: ['titre', 'description', 'prix', 'photos', 'etat'] })
+  r = await traiter({ api: fauxApi(), pilote: pil, plateforme: 'FACEBOOK', annonce, config: p.accorder({ ...config.PAR_DEFAUT }, 'FACEBOOK', midi), etat: { arrets: {} }, dossier: dossierEx(), maintenant: midi })
+  verifier('Facebook sans catégorie trouvée : rien n’est publié, l’annonce revient au vendeur', r.statut === 'a_valider' && r.manque.join() === 'categorie' && !pil.journalPilote.includes('publier'))
 
   console.log('\nCircuit automatique (lien → import → file)')
   const { traiterLien } = require('./lib/circuit')
@@ -318,7 +344,7 @@ async function main() {
     const j = { max: null, importer: [], file: [] }
     return {
       j,
-      gagnants: async ({ max }) => ((j.max = max), { ...liste(n), produits: liste(n).produits.slice(0, max) }),
+      gagnants: async ({ max, margeMin, categories }) => ((j.max = max), (j.margeMin = margeMin), (j.categories = categories), { categories: ['Maison', 'Mode'], ...liste(n), produits: liste(n).produits.slice(0, max) }),
       importer: async (url, id) => (j.importer.push(url), surImport(j.importer.length)),
       mettreEnFile: async (pid, pl) => (j.file.push(pl), { enFile: pl }),
       reclamer: async () => undefined,
@@ -379,6 +405,10 @@ async function main() {
   ag = apiListe(480)
   bg = await importGroupe({ api: ag, plateformes: ['VINTED'], plafond: Infinity, dormir: async () => undefined })
   verifier('480 produits, sans limite : les 480 sont importés et mis en file', bg.importes === 480 && ag.j.file.length === 480 && !bg.plafondAtteint && ag.j.max === 1000)
+
+  const ar = apiListe(3)
+  const br = await importGroupe({ api: ar, plateformes: ['FACEBOOK'], plafond: Infinity, margeMin: 35, categories: ['Mode'], dormir: async () => undefined })
+  verifier('rayons et marge choisis par le vendeur : transmis au serveur, rayons du jour rendus à l’écran', ar.j.margeMin === 35 && ar.j.categories.join() === 'Mode' && br.rayons.join() === 'Maison,Mode' && br.importes === 3)
 
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {

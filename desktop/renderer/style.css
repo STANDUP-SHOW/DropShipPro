@@ -46,3 +46,5 @@ button.danger { color: var(--alerte); }
 .accord label { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; cursor: pointer; }
 
 .interrupteur { display: flex; gap: 8px; align-items: center; margin-top: 8px; cursor: pointer; font-weight: 600; }
+.rayons { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0; }
+.rayons label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }

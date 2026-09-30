@@ -68,6 +68,9 @@ function instantane() {
     circuit: Boolean(cfg.circuit && cfg.circuit.actif),
     reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux),
     plafondImports: Number.isFinite(plafondImports(cfg)) ? plafondImports(cfg) : null,
+    margeMin: margeMin(),
+    rayons: cfg.rayonsConnus || [],
+    rayonsChoisis: (cfg.circuit && cfg.circuit.categories) || [],
     importsAujourdhui: importesAujourdhui(plafonds.lireJournal(dossier())),
     texteAccord: plafonds.TEXTE_ACCORD,
     journal: plafonds.lireJournal(dossier()).slice(-50).reverse(),
@@ -106,6 +109,23 @@ const jourLocalMain = (d = new Date()) => `${d.getFullYear()}-${String(d.getMont
  * adresse devient une annonce, mise en file sur les plateformes où l'agent est
  * activé. Plafond d'imports par jour : protège le solde de drops.
  */
+const margeMin = () => {
+  const m = Number(cfg.circuit && cfg.circuit.margeMin)
+  return Number.isFinite(m) && m >= 0 && m <= 100 ? m : 20
+}
+
+/** Les rayons du jour, pour l'écran : lus sans rien importer (max=1), au plus une fois par jour. */
+async function lireRayons() {
+  if (!api || cfg.rayonsLus === jourLocalMain()) return
+  try {
+    const liste = await api.gagnants({ margeMin: 0, max: 1 })
+    cfg = { ...cfg, rayonsConnus: liste.categories || [], rayonsLus: jourLocalMain() }
+    config.enregistrer(dossier(), cfg)
+  } catch {
+    /* compte sous le seuil de drops ou hors ligne : l'écran garde les derniers rayons connus */
+  }
+}
+
 async function journeeGagnants() {
   if (!api || !cfg.circuit || !cfg.circuit.actif || cfg.dernierGagnants === jourLocalMain()) return
   const plateformes = Object.keys(plafonds.PLATEFORMES).filter((id) => cfg.accords[id])
@@ -116,9 +136,12 @@ async function journeeGagnants() {
       reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux),
       plafond: plafondImports(cfg),
       dejaFaits: importesAujourdhui(plafonds.lireJournal(dossier())),
+      margeMin: margeMin(),
+      categories: (cfg.circuit && cfg.circuit.categories) || [],
       surProduit: (produit, r) => plafonds.journaliser(dossier(), { type: 'import', publication: produit.url, produit: r.productId, raison: r.raison, resultat: r.statut, reseaux: r.reseaux ? r.reseaux.publies : undefined }),
     })
     plafonds.journaliser(dossier(), { type: 'gagnants', raison: `${bilan.importes} importé(s) sur ${bilan.lus} de la liste du ${bilan.jour}${bilan.sansSolde ? ' — solde de drops vide' : ''}` })
+    if (bilan.rayons.length) cfg = { ...cfg, rayonsConnus: bilan.rayons }
     // « Fait pour aujourd'hui » sauf si le solde a coupé le lot : il reprendra au prochain passage.
     if (!bilan.sansSolde) {
       cfg = { ...cfg, dernierGagnants: jourLocalMain() }
@@ -202,9 +225,11 @@ function demarrerSondage() {
   if (minuteur) clearInterval(minuteur)
   sonder()
   lireAnnonces().then(() => envoyer('etat', instantane()))
+  lireRayons().then(() => envoyer('etat', instantane()))
   // Intervalle FIXE : ni hasard ni rafale. Le serveur en accepte 120 par minute, on en fait une.
   minuteur = setInterval(async () => {
     await sonder()
+    await lireRayons()
     await journeeGagnants()
     await tourneeAuto()
   }, file.INTERVALLE_MS)
@@ -320,6 +345,22 @@ function brancherIpc() {
   ipcMain.handle('circuit:plafond', (_e, n) => {
     // Vide ou nul : illimité. Une limite est un réglage du vendeur, jamais une décision de l'application.
     cfg = { ...cfg, plafondImports: Number(n) > 0 ? Math.floor(Number(n)) : null }
+    config.enregistrer(dossier(), cfg)
+    return instantane()
+  })
+
+  // Un réglage de sélection change la liste : l'import groupé du jour repart avec le nouveau choix.
+  ipcMain.handle('circuit:marge', (_e, n) => {
+    const m = Number(n)
+    cfg = { ...cfg, circuit: { ...(cfg.circuit || {}), margeMin: Number.isFinite(m) && m >= 0 && m <= 100 ? m : 20 }, dernierGagnants: null }
+    config.enregistrer(dossier(), cfg)
+    return instantane()
+  })
+
+  ipcMain.handle('circuit:rayons', (_e, choisis) => {
+    const connus = new Set(cfg.rayonsConnus || [])
+    const categories = Array.isArray(choisis) ? choisis.filter((c) => typeof c === 'string' && connus.has(c)) : []
+    cfg = { ...cfg, circuit: { ...(cfg.circuit || {}), categories }, dernierGagnants: null }
     config.enregistrer(dossier(), cfg)
     return instantane()
   })

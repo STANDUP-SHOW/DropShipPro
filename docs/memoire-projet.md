@@ -1582,3 +1582,10 @@ cd frontend && npm run dev     # site sur :5173
 cd frontend && npm run build   # build de production, plus strict que le dev
 cd backend && npx tsc --noEmit # vérification des types
 ```
+
+
+## 30/09/2026 (nuit) — Railway « failure », Facebook Marketplace relevé
+
+- **Railway** : sur 21 commits du 30/09, GitHub marquait la majorité des déploiements « failure ». Le tableau de bord (service DropShipper IA › Deployments) ne montre que des `REMOVED` et un `ACTIVE`, aucun `FAILED` : un build remplacé par le push suivant est rendu « failure » à GitHub. Remède : pousser en lots.
+- **Facebook Marketplace** (`/marketplace/create/item`, relevé connecté) : classes illisibles, champs repérés par le texte du `<label>` (Titre, Prix ; Description n'apparaît qu'après le choix de la catégorie) ; catégorie = `label[role=combobox]` → `[role=dialog][aria-label="Menu déroulant"]` à un niveau, options `[role=button]` dont le texte colle « Livraison possible » au nom ; état = `[role=listbox]` (Neuf, D’occasion - comme neuf / bon état / assez bon état) ; bouton « Suivant » grisé par `aria-disabled`. Code : `desktop/lib/adaptateurs.js`, `page.js`, `choix.js`.
+- **Outil** : le classifieur de permissions refuse de REMPLIR un formulaire sur le compte connecté de Max (« Unrequested Commit in a Connected App ») ; lire la page et ouvrir un menu passe.

@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('desktop', {
   annonceTerminee: (id, reussi) => ipcRenderer.invoke('annonce:terminee', { id, reussi }),
   regerReseaux: (actif) => ipcRenderer.invoke('circuit:reseaux', actif),
   plafondImports: (n) => ipcRenderer.invoke('circuit:plafond', n),
+  margeMin: (n) => ipcRenderer.invoke('circuit:marge', n),
+  choisirRayons: (liste) => ipcRenderer.invoke('circuit:rayons', liste),
   regerCircuit: (actif) => ipcRenderer.invoke('circuit:regler', actif),
   surEtat: (cb) => ipcRenderer.on('etat', (_e, e) => cb(e)),
 })

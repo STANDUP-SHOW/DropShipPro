@@ -53,13 +53,61 @@ export function readEbayCredentials(data: unknown): EbayCredentials | null {
   const texte = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
   const accessToken = texte(raw.accessToken) ?? texte(raw.token)
   if (!accessToken) return null
+  const refreshToken = texte(raw.refreshToken)
+  // Compte relié par « Connecter mon compte eBay » : le refresh token est seul dans la ligne, le Client ID et le
+  // Client Secret sont ceux de NOTRE application, relus ici.
+  const app = refreshToken && !texte(raw.clientId) ? configEbayApp() : null
   return {
     accessToken,
-    refreshToken: texte(raw.refreshToken),
-    clientId: texte(raw.clientId),
-    clientSecret: texte(raw.clientSecret),
+    refreshToken,
+    clientId: texte(raw.clientId) ?? app?.clientId,
+    clientSecret: texte(raw.clientSecret) ?? app?.clientSecret,
     baseUrl: texte(raw.baseUrl),
   }
+}
+
+/** Notre application eBay (developer.ebay.com) : les trois valeurs ensemble, ou rien. */
+export interface EbayApp {
+  clientId: string
+  clientSecret: string
+  /** Le « RuName » : eBay n'accepte pas une adresse de retour, mais le nom d'une adresse déclarée chez eux. */
+  ruName: string
+}
+
+export function configEbayApp(env: NodeJS.ProcessEnv = process.env): EbayApp | null {
+  const clientId = env.EBAY_CLIENT_ID?.trim()
+  const clientSecret = env.EBAY_CLIENT_SECRET?.trim()
+  const ruName = env.EBAY_RUNAME?.trim()
+  return clientId && clientSecret && ruName ? { clientId, clientSecret, ruName } : null
+}
+
+/** Ce que publication et ventes captées demandent : fiches et offres, politiques du compte, commandes. */
+export const PORTEES_EBAY = [
+  'https://api.ebay.com/oauth/api_scope/sell.inventory',
+  'https://api.ebay.com/oauth/api_scope/sell.account',
+  'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
+]
+
+export function urlAutorisationEbay(app: EbayApp, etat: string): string {
+  const q = new URLSearchParams({ client_id: app.clientId, redirect_uri: app.ruName, response_type: 'code', scope: PORTEES_EBAY.join(' '), state: etat })
+  return `https://auth.ebay.com/oauth2/authorize?${q.toString()}`
+}
+
+/** Le code d'autorisation contre un jeton (2 h) et son refresh token (18 mois). */
+export async function echangerCodeEbay(app: EbayApp, code: string, baseUrl = API_EBAY): Promise<{ accessToken: string; refreshToken: string }> {
+  const reponse = await fetch(`${baseUrl}/identity/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${Buffer.from(`${app.clientId}:${app.clientSecret}`).toString('base64')}`,
+    },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: app.ruName }).toString(),
+  })
+  const json = (await reponse.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; error_description?: string }
+  if (!reponse.ok || !json.access_token || !json.refresh_token) {
+    throw new Error(`eBay a refusé l'échange du code${json.error_description ? ` : ${json.error_description}` : ` (HTTP ${reponse.status})`}. Relancez l'autorisation.`)
+  }
+  return { accessToken: json.access_token, refreshToken: json.refresh_token }
 }
 
 export class EbayRefus extends Error {

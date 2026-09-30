@@ -1,6 +1,7 @@
 import { createServer } from 'node:http'
 import type { Product } from '@prisma/client'
-import { categorieEbay, EbayRefus, publierSurEbay, readEbayCredentials } from './src/services/ebay.js'
+import { categorieEbay, configEbayApp, EbayRefus, echangerCodeEbay, publierSurEbay, readEbayCredentials, urlAutorisationEbay } from './src/services/ebay.js'
+import { lireEtatEbay, signerEtatEbay } from './src/routes/ebayAuth.js'
 
 /**
  * Le connecteur eBay, éprouvé contre un faux serveur Sell API.
@@ -79,6 +80,14 @@ function fauxEbay() {
         const attendu = `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`
         const params = new URLSearchParams(brut)
         if (auth !== attendu) return repondre(401, { error: 'invalid_client' })
+        // L'échange du code d'autorisation : le code, et le RuName (pas une adresse) en redirect_uri.
+        if (params.get('grant_type') === 'authorization_code') {
+          if (params.get('code') !== 'code-bon' || params.get('redirect_uri') !== 'DropShipper-ru-name') {
+            return repondre(400, { error: 'invalid_grant', error_description: 'code invalide ou expiré' })
+          }
+          journal.push({ methode: req.method!, chemin, auth, langue: '', corps: brut })
+          return repondre(200, { access_token: JETON_FRAIS, refresh_token: REFRESH, expires_in: 7200, refresh_token_expires_in: 47304000 })
+        }
         if (params.get('grant_type') !== 'refresh_token' || params.get('refresh_token') !== REFRESH) {
           return repondre(400, { error: 'invalid_grant' })
         }
@@ -276,6 +285,32 @@ async function main() {
     verifier('avec le trio, le jeton est renouvelé et la publication passe', renouvele.listingId === '405123456789')
     const dernierePub = faux.journal.filter((a) => a.chemin.includes('/publish')).pop()
     verifier('les appels rejoués portent le jeton frais', dernierePub?.auth === `Bearer ${JETON_FRAIS}`)
+
+    console.log('\nConnecter mon compte eBay (OAuth, notre application)')
+    const env = { EBAY_CLIENT_ID: CLIENT_ID, EBAY_CLIENT_SECRET: CLIENT_SECRET, EBAY_RUNAME: 'DropShipper-ru-name' } as NodeJS.ProcessEnv
+    verifier('sans les trois variables, rien n’est configuré', configEbayApp({ EBAY_CLIENT_ID: CLIENT_ID } as NodeJS.ProcessEnv) === null)
+    const app = configEbayApp(env)!
+    const adresse = new URL(urlAutorisationEbay(app, 'etat-1'))
+    verifier(
+      'adresse d’autorisation : auth.ebay.com, RuName en redirect_uri, les trois portées, l’état',
+      adresse.host === 'auth.ebay.com' && adresse.searchParams.get('redirect_uri') === 'DropShipper-ru-name' && adresse.searchParams.get('response_type') === 'code' && ['sell.inventory', 'sell.account', 'sell.fulfillment'].every((p) => adresse.searchParams.get('scope')!.includes(p)) && adresse.searchParams.get('state') === 'etat-1',
+    )
+    const etat = signerEtatEbay('secret-banc', 'vendeur-1', Date.now() + 60_000)
+    verifier('état signé : relu par la bonne clé', lireEtatEbay('secret-banc', etat) === 'vendeur-1')
+    verifier('état falsifié, autre clé ou expiré : refusé', lireEtatEbay('secret-banc', etat.replace(/.$/, 'x')) === null && lireEtatEbay('autre', etat) === null && lireEtatEbay('secret-banc', signerEtatEbay('secret-banc', 'v', Date.now() - 1)) === null)
+    const jetons = await echangerCodeEbay(app, 'code-bon', faux.base)
+    verifier('code échangé : jeton et refresh token rendus', jetons.accessToken === JETON_FRAIS && jetons.refreshToken === REFRESH)
+    const echange = faux.journal.filter((a) => a.chemin.includes('/oauth2/token')).pop()
+    verifier('l’échange porte Basic (Client ID:Secret), le code et le RuName', echange?.auth === `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}` && String(echange?.corps).includes('grant_type=authorization_code') && String(echange?.corps).includes('code=code-bon') && String(echange?.corps).includes('redirect_uri=DropShipper-ru-name'))
+    let refus = ''
+    await echangerCodeEbay(app, 'code-faux', faux.base).catch((e) => (refus = e.message))
+    verifier('code refusé par eBay : message clair, pas de jeton inventé', /refusé/.test(refus))
+    process.env.EBAY_CLIENT_ID = CLIENT_ID
+    process.env.EBAY_CLIENT_SECRET = CLIENT_SECRET
+    process.env.EBAY_RUNAME = 'DropShipper-ru-name'
+    const relie = readEbayCredentials({ accessToken: 'perime', refreshToken: REFRESH, oauth: 'application' })
+    verifier('compte relié par OAuth : le renouvellement prend nos clés d’application, absentes de la ligne du vendeur', relie?.clientId === CLIENT_ID && relie?.clientSecret === CLIENT_SECRET)
+    verifier('jeton collé seul : aucun trio inventé', readEbayCredentials({ accessToken: 'x' })?.clientId === undefined)
 
     console.log('\nLa taxonomie seule')
     verifier('une suggestion vide rend null, jamais une invention', (await categorieEbay(creds, 'catégorie introuvable')) === null)

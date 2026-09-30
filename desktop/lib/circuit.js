@@ -79,14 +79,18 @@ function plafondImports(config = {}) {
  * en file sur les plateformes activées. S'arrête au plafond du jour (protège le
  * solde de drops) ou net si le solde est vide.
  *
- * @returns {Promise<{jour: string|null, lus: number, importes: number, echecs: number, sansSolde: boolean, plafondAtteint: boolean, resultats: object[]}>}
+ * `categories` : les rayons choisis par le vendeur (vide = tous). `rayons` rend
+ * ceux du jour, pour que l'écran puisse les proposer.
+ *
+ * @returns {Promise<{jour: string|null, lus: number, importes: number, echecs: number, sansSolde: boolean, plafondAtteint: boolean, rayons: string[], resultats: object[]}>}
  */
-async function importGroupe({ api, plateformes = [], reseaux = false, plafond, dejaFaits = 0, margeMin = 20, essais, pauseEssaiMs, dormir, surProduit = () => {} }) {
+async function importGroupe({ api, plateformes = [], reseaux = false, plafond, dejaFaits = 0, margeMin = 20, categories = [], essais, pauseEssaiMs, dormir, surProduit = () => {} }) {
   const restant = Math.max(0, plafond - dejaFaits)
-  const bilan = { jour: null, lus: 0, importes: 0, echecs: 0, sansSolde: false, plafondAtteint: restant === 0, resultats: [] }
+  const bilan = { jour: null, lus: 0, importes: 0, echecs: 0, sansSolde: false, plafondAtteint: restant === 0, rayons: [], resultats: [] }
   if (restant === 0) return bilan
-  const liste = await api.gagnants({ margeMin, max: Math.min(restant, 1000) })
+  const liste = await api.gagnants({ margeMin, max: Math.min(restant, 1000), categories })
   bilan.jour = liste.jour
+  bilan.rayons = liste.categories || []
   bilan.lus = (liste.produits || []).length
   for (const produit of liste.produits || []) {
     if (bilan.importes >= restant) {

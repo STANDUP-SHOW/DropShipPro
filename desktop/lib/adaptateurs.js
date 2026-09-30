@@ -1,19 +1,26 @@
 'use strict'
 /**
  * Ce que l'exécuteur sait de chaque place de marché : où est le formulaire, quels
- * champs viser, lesquels sont indispensables.
+ * champs viser, lesquels sont indispensables. Ce sont des DONNÉES, faciles à
+ * corriger ; quand un champ ne se trouve pas, il est rendu dans `manque` et
+ * l'exécuteur laisse la main au vendeur au lieu de publier une annonce à moitié
+ * remplie.
  *
- * **Les sélecteurs viennent de l'extension** (backend/extension/content/*.js),
- * écrits par des sessions précédentes et jamais confrontés ici à une vraie page
- * connectée : le 30/09/2026 le Chrome de Max n'était connecté ni à Vinted ni à
- * Leboncoin. Ils sont des DONNÉES, faciles à corriger ; quand l'un ne trouve rien,
- * le champ est rendu dans `manque` et l'exécuteur laisse la main au vendeur au
- * lieu de publier une annonce à moitié remplie.
+ * **Facebook : relevé sur la vraie page connectée le 30/09/2026.** Les classes
+ * sont illisibles et changent : les champs se repèrent par le texte de leur
+ * `<label>` (« Titre », « Prix », « Description » — cette dernière n'apparaît
+ * qu'une fois la catégorie choisie). La catégorie est un `label[role=combobox]`
+ * qui ouvre un `[role=dialog]` « Menu déroulant » à un seul niveau ; l'état un
+ * `[role=listbox]`. Le bouton du bas est « Suivant » (grisé par
+ * `aria-disabled` tant que le formulaire est incomplet), puis « Publier ».
  *
- * `requis` : sans eux, jamais de publication automatique. La catégorie est dans
- * la liste pour Vinted et Leboncoin : c'est une fenêtre à plusieurs niveaux qu'un
- * script ne règle pas de façon fiable (constat de l'extension). Tant qu'elle n'est
- * pas réglée, le mode automatique ne publie rien et le dit.
+ * **Vinted et Leboncoin : sélecteurs venus de l'extension, jamais confrontés à
+ * une vraie page connectée** (le Chrome de Max n'y était pas connecté le 30/09 :
+ * Vinted renvoie à l'inscription, Leboncoin demande « Me connecter »). Leur
+ * catégorie est une fenêtre à plusieurs niveaux qui reste à relever : elle est
+ * dans `requis` sans réglage, donc le mode automatique n'y publie rien et le dit.
+ *
+ * `requis` : sans eux, jamais de publication automatique.
  */
 const ADAPTATEURS = {
   VINTED: {
@@ -40,14 +47,29 @@ const ADAPTATEURS = {
   },
   FACEBOOK: {
     formulaire: 'https://www.facebook.com/marketplace/create/item',
-    champs: {
-      titre: ['input[type="text"]'],
-      description: ['textarea', '[role="textbox"]'],
-      prix: ['input[type="text"]'],
+    libelles: {
+      titre: ['Titre', 'Title'],
+      description: ['Description'],
+      prix: ['Prix', 'Price'],
     },
-    photos: ['input[type="file"]'],
-    publier: ['div[aria-label="Publier"]', 'div[aria-label="Publish"]'],
-    requis: ['titre', 'description', 'prix', 'photos'],
+    photos: ['input[type="file"][accept*="image"]', 'input[type="file"]'],
+    categorie: {
+      bouton: 'label[role="combobox"]',
+      libelles: ['Catégorie', 'Category'],
+      menu: '[role="dialog"][aria-label="Menu déroulant"], [role="dialog"][aria-label="Dropdown menu"]',
+      option: '[role="button"]',
+      suffixes: ['Livraison possible', 'Shipping available'],
+      fourreTout: ['Divers', 'Miscellaneous'],
+    },
+    etat: {
+      bouton: 'label[role="combobox"]',
+      libelles: ['État', 'Condition'],
+      menu: '[role="listbox"]',
+      option: '[role="option"]',
+    },
+    etapes: ['[aria-label="Suivant"]', '[aria-label="Next"]'],
+    publier: ['[aria-label="Publier"]', '[aria-label="Publish"]'],
+    requis: ['titre', 'description', 'prix', 'photos', 'categorie', 'etat'],
   },
 }
 

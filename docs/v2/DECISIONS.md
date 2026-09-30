@@ -63,6 +63,13 @@ travail V2 ; les mémos restent la vision, ce fichier fait foi pour l'exécution
   du mode automatique (accord daté, plafonds durs, espacement fixe, arrêt au
   premier captcha, journal) — banc `desktop/check-desktop.cjs`. **Pas encore
   lancé sous Electron, et l'exécuteur de publication n'est pas écrit.**
+- **Nuit du 30/09 (desktop 0.2.0)** : exécuteur écrit ; Facebook Marketplace relevé
+  sur la vraie page (champs par libellé, catégorie et état choisis dans les listes
+  lues sur la page — jamais de liste en dur, jamais de catégorie au hasard) ; vraie
+  fenêtre Electron essayée (`check-fenetre.cjs`) ; gagnants filtrés par marge et
+  rayons au choix du vendeur ; « Connecter mon compte eBay » par OAuth avec NOTRE
+  application eBay (clés dans l'environnement, jamais dans la ligne du vendeur).
+  Vinted / Leboncoin : catégorie toujours à relever sur session connectée.
 
 ## Ce qu'on adopte
 

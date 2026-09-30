@@ -7,7 +7,42 @@ vérifiés** : celui-ci dit **où on en est**, **ce qui bloque**, et **ce qui re
 
 ---
 
-## Où on en est le 30/09/2026 au soir — à reprendre ICI
+## Session du 30/09/2026, nuit (Fable) — à reprendre ICI
+
+**Fait (bancs verts, `tsc` et build du site verts)** :
+- **Facebook Marketplace relevé sur la vraie page connectée** : champs par libellé,
+  catégorie (26 rayons lus sur la page par la fonction réelle), état, « Suivant » puis
+  « Publier » — `desktop/lib/{adaptateurs,page,choix,pilote-electron}.js`. Le remplissage
+  d'un vrai formulaire et une vraie publication n'ont **pas** été exécutés (le
+  classifieur refuse qu'on remplisse le formulaire du compte de Max sans sa demande
+  expresse ; à faire avec lui sur un compte de test).
+- **Gagnants du jour : marge minimale et rayons choisis par le vendeur**
+  (`GET /api/agent/gagnants?categories=`, écran du desktop).
+- **« Connecter mon compte eBay » (OAuth)** : `backend/src/routes/ebayAuth.ts`,
+  bouton dans Réglages. Inactif tant que Railway n'a pas `EBAY_CLIENT_ID`,
+  `EBAY_CLIENT_SECRET`, `EBAY_RUNAME` (l'écran garde alors le collage du jeton).
+  Chez eBay, l'adresse « Auth accepted » du RuName doit être
+  `https://api.drop-shipper.fr/api/ebay/callback`. Jamais confronté au vrai eBay.
+- **Vraie fenêtre Electron essayée** (`desktop/check-fenetre.cjs`) : écran chargé,
+  pont complet, fausse clé refusée par l'API de production avec le bon message.
+- Installeurs **0.2.0** (non signés) dans `Bureau\DropShipper-Desktop\`.
+- **Railway** : le tableau de bord a été lu — historique = `REMOVED` (déploiement
+  remplacé par le suivant), **aucun `FAILED`** ; GitHub affiche ces remplacés en
+  « failure ». Pas de build cassé : pousser en lots.
+
+**Bloqué, à la charge de Max** : se connecter à **Vinted et Leboncoin** dans Chrome
+(le 30/09 au soir : Vinted renvoie à l'inscription, Leboncoin à « Me connecter » ;
+seul Facebook est connecté) pour relever leurs catégories ; clés d'application eBay ;
+clés du module réseaux sociaux ; certificat de signature ; zip de l'extension au
+Chrome Web Store.
+
+**Tests de demain (dans l'ordre)** : 1. installer la 0.2.0, coller une clé desktop ;
+2. se connecter à Facebook dans l'application, « Préparer » une annonce et regarder
+le formulaire rempli (titre, prix, photos, catégorie, état, description) ; 3. donner
+l'accord sur Facebook et laisser partir une publication ; 4. Vinted/Leboncoin une
+fois connectés : relever la catégorie.
+
+## Où on en était le 30/09/2026 au soir
 
 **Fait aujourd'hui (poussé, bancs verts, jamais confronté à un vrai compte)** :
 version Shopify `1.2-commandes` **active** (constaté) ; ventes Kaufland, WooCommerce,

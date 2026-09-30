@@ -7,37 +7,32 @@
  * l'extension le fait déjà. Pas de faux profil, pas de mouvement de souris
  * simulé, pas de délai aléatoire (CLAUDE.md, décision du 29/09/2026).
  *
- * **Jamais lancé contre une vraie page** (voir adaptateurs.js).
+ * Facebook : structure relevée sur la vraie page (voir adaptateurs.js) ; la
+ * fenêtre Electron elle-même n'a pas encore publié une annonce réelle.
  */
 const { BrowserWindow } = require('electron')
 const { PLATEFORMES } = require('./plafonds')
 const { ADAPTATEURS } = require('./adaptateurs')
 const file = require('./file')
-
-/** Le script posé dans la page : pose une valeur comme le ferait une saisie, pour que React la voie. */
-const SCRIPT_CHAMP = `(function (selecteurs, valeur) {
-  const el = selecteurs.map((s) => document.querySelector(s)).find(Boolean)
-  if (!el) return false
-  const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
-  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, valeur)
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-  el.dispatchEvent(new Event('change', { bubbles: true }))
-  return true
-})`
-
-const SCRIPT_CLIC = `(function (selecteurs) {
-  const el = selecteurs.map((s) => document.querySelector(s)).find(Boolean)
-  if (!el || el.disabled) return false
-  el.click()
-  return true
-})`
+const page = require('./page')
+const { choisirCategorie, choisirEtat } = require('./choix')
 
 function creerPilote({ telecharger = fetch, attendreMs = 4000 } = {}) {
   let win = null
   let plateforme = null
   const pause = (ms) => new Promise((ok) => setTimeout(ok, ms))
   const exec = (code) => win.webContents.executeJavaScript(code, true)
-  const appel = (script, ...args) => exec(`${script}(${args.map((a) => JSON.stringify(a)).join(',')})`)
+  const appel = (fonction, ...args) => exec(page.appelPage(fonction, ...args))
+  const cible = (a, nom) => (a.libelles ? { libelles: a.libelles[nom] } : { selecteurs: a.champs[nom] })
+
+  /** Une liste déroulante : lire ce que la page propose, choisir, cliquer. Faux si rien ne convient. */
+  async function regler(liste, choisir) {
+    const options = await appel(page.lireOptions, liste, attendreMs)
+    const voulu = options ? choisir(options) : null
+    if (!voulu || !(await appel(page.cliquerOption, liste, voulu))) return false
+    await pause(1000) // la page redessine le formulaire après un choix
+    return true
+  }
 
   return {
     async ouvrir(id) {
@@ -60,10 +55,16 @@ function creerPilote({ telecharger = fetch, attendreMs = 4000 } = {}) {
     async remplir(annonce) {
       const a = ADAPTATEURS[plateforme]
       const rempli = []
-      for (const [nom, valeur] of [['titre', annonce.title], ['description', annonce.description], ['prix', String(annonce.price)]]) {
-        if (valeur && (await appel(SCRIPT_CHAMP, a.champs[nom], valeur))) rempli.push(nom)
+      const poser = async (nom, valeur) => {
+        if (valeur && (await appel(page.poserValeur, cible(a, nom), valeur))) rempli.push(nom)
       }
+      await poser('titre', annonce.title)
+      await poser('prix', String(annonce.price))
       if (annonce.images?.length && (await this._photos(annonce.images.slice(0, 10)))) rempli.push('photos')
+      // Catégorie et état avant la description : sur Facebook elle n'apparaît qu'une fois la catégorie choisie.
+      if (a.categorie && (await regler(a.categorie, (options) => choisirCategorie(options, annonce, a.categorie.fourreTout)))) rempli.push('categorie')
+      if (a.etat && (await regler(a.etat, (options) => choisirEtat(options, annonce.condition)))) rempli.push('etat')
+      await poser('description', annonce.description)
       return { rempli }
     },
 
@@ -108,9 +109,29 @@ function creerPilote({ telecharger = fetch, attendreMs = 4000 } = {}) {
       }
     },
 
+    /**
+     * Un seul clic sur « Publier », jamais deux. Les écrans intermédiaires (« Suivant » sur Facebook) sont
+     * passés d'abord ; un bouton grisé est attendu (les photos finissent de monter), puis c'est un échec ordinaire.
+     */
     async publier() {
       const a = ADAPTATEURS[plateforme]
-      if (!(await appel(SCRIPT_CLIC, a.publier))) throw new Error('Bouton « Publier » introuvable ou désactivé')
+      const attendre = async (selecteurs) => {
+        let vu = 'absent'
+        for (let i = 0; i < 10; i++) {
+          vu = await appel(page.cliquerBouton, selecteurs)
+          if (vu !== 'inactif') return vu
+          await pause(attendreMs / 2)
+        }
+        return vu
+      }
+      for (let etape = 0; etape < 4 && a.etapes; etape++) {
+        const vu = await attendre(a.etapes)
+        if (vu === 'absent') break
+        if (vu === 'inactif') throw new Error('Bouton « Suivant » resté grisé : le formulaire est incomplet')
+        await pause(attendreMs / 2)
+      }
+      const vu = await attendre(a.publier)
+      if (vu !== 'clic') throw new Error('Bouton « Publier » introuvable ou désactivé')
       await pause(attendreMs)
       return { url: win.webContents.getURL() }
     },
