@@ -19,5 +19,7 @@ contextBridge.exposeInMainWorld('desktop', {
   margeMin: (n) => ipcRenderer.invoke('circuit:marge', n),
   choisirRayons: (liste) => ipcRenderer.invoke('circuit:rayons', liste),
   regerCircuit: (actif) => ipcRenderer.invoke('circuit:regler', actif),
+  importerLien: (id) => ipcRenderer.invoke('lien:importer', id),
   surEtat: (cb) => ipcRenderer.on('etat', (_e, e) => cb(e)),
+  surSection: (cb) => ipcRenderer.on('section', (_e, s) => cb(s)),
 })

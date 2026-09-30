@@ -2,8 +2,15 @@
 /**
  * DropShipper Desktop — le processus principal.
  *
- * - Une fenêtre de contrôle (renderer/), sans accès Node : tout passe par le
- *   preload et des canaux IPC nommés.
+ * - Une fenêtre : une barre à gauche (renderer/coque.html), et à droite LE SITE
+ *   drop-shipper.fr lui-même (tableau de bord, Auto-Shipper, commandes, drops…)
+ *   dans son propre navigateur, ou les panneaux locaux (renderer/index.html).
+ *   Le vendeur se connecte au site dans cette fenêtre ; ce poste se relie alors
+ *   tout seul (clé desktop créée avec sa session, gardée chiffrée ici).
+ * - Partage d'un produit vers la liste à importer : lien collé ou déposé sur la
+ *   fenêtre, presse-papiers capturé (au choix du vendeur), adresse
+ *   `dropshipper://partager?url=…`. Le mobile partage vers la même liste.
+ * - Aucun écran n'a accès à Node : tout passe par les preloads et des canaux nommés.
  * - Une session par plateforme (Vinted, Leboncoin, Facebook) dans une
  *   « partition » persistante : le vendeur s'y connecte LUI-MÊME, une fois, et
  *   ses cookies restent dans ce profil local. Ses identifiants ne passent
@@ -14,7 +21,7 @@
  *   le vendeur alerté. Aucune évasion, aucun hasard, aucun faux profil.
  */
 const path = require('node:path')
-const { app, BrowserWindow, ipcMain, safeStorage, shell, Notification } = require('electron')
+const { app, BrowserWindow, WebContentsView, ipcMain, safeStorage, shell, Notification, clipboard, Tray, Menu } = require('electron')
 const config = require('./lib/config')
 const { client } = require('./lib/api')
 const file = require('./lib/file')
@@ -38,6 +45,15 @@ let occupe = false
 let derniereErreur = null
 let minuteur = null
 const fenetresSession = new Map()
+const SITE = 'https://www.drop-shipper.fr'
+const LARGEUR_BARRE = 220
+let vueSite = null
+let vuePanneau = null
+let panneauVisible = false
+let tray = null
+let dernierPresse = null
+let dernierPartage = null
+let liaisonEnCours = false
 /** Plateformes vues sans session : la tournée automatique n'y retourne pas tant que le vendeur n'a pas rouvert la plateforme. */
 const sansSession = new Set()
 
@@ -51,7 +67,12 @@ function chargerTout() {
 }
 
 function envoyer(canal, donnees) {
-  if (fenetre && !fenetre.isDestroyed()) fenetre.webContents.send(canal, donnees)
+  if (vuePanneau && !vuePanneau.webContents.isDestroyed()) vuePanneau.webContents.send(canal, donnees)
+  if (fenetre && !fenetre.isDestroyed()) fenetre.webContents.send('coque', etatCoque())
+}
+
+function etatCoque() {
+  return { compte: cfg.compte || null, connecte: !!api, nbLiens: liens.length, nbAnnonces: annonces.length, capture: Boolean(cfg.capturePressePapiers), dernierPartage }
 }
 
 function instantane() {
@@ -295,20 +316,220 @@ function ouvrirLien(url) {
   win.loadURL(sure)
 }
 
+// ------------------------------------------------------------- La fenêtre
+
+function placerVues() {
+  if (!fenetre || fenetre.isDestroyed()) return
+  const [largeur, hauteur] = fenetre.getContentSize()
+  const zone = { x: LARGEUR_BARRE, y: 0, width: Math.max(0, largeur - LARGEUR_BARRE), height: hauteur }
+  const cache = { x: 0, y: 0, width: 0, height: 0 }
+  vueSite.setBounds(panneauVisible ? cache : zone)
+  vuePanneau.setBounds(panneauVisible ? zone : cache)
+}
+
+function montrerSite(chemin) {
+  panneauVisible = false
+  const cible = new URL(chemin, SITE).href
+  if (vueSite.webContents.getURL() !== cible) vueSite.webContents.loadURL(cible)
+  placerVues()
+}
+
+function montrerPanneau(section) {
+  panneauVisible = true
+  placerVues()
+  vuePanneau.webContents.send('section', section)
+}
+
+/**
+ * Le site est connecté dans la fenêtre : ce poste se relie tout seul. La session du
+ * site (son jeton, dans sa propre page) sert UNE fois, pour créer la clé desktop ;
+ * c'est la clé, chiffrée ici, qui sert ensuite. Jamais de mot de passe lu ni gardé.
+ */
+async function relierDepuisLeSite() {
+  if (api || liaisonEnCours || !vueSite) return
+  liaisonEnCours = true
+  try {
+    const jeton = await vueSite.webContents.executeJavaScript('(() => { try { return localStorage.getItem("droppost_token") } catch { return null } })()', true)
+    if (!jeton) return
+    const r = await fetch(`${cfg.apiBase}/api/settings/api-keys`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json', 'User-Agent': 'DropShipperDesktop' },
+      body: JSON.stringify({ name: `DropShipper Desktop (${require('node:os').hostname()})`.slice(0, 60), type: 'desktop' }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || !j.key) {
+      derniereErreur = j.error || `Impossible de relier ce poste (HTTP ${r.status}).`
+      return
+    }
+    cfg = config.poserCle(cfg, j.key, safeStorage)
+    config.enregistrer(dossier(), cfg)
+    chargerTout()
+    const moi = await api.me().catch(() => null)
+    if (moi && moi.compte) {
+      cfg = { ...cfg, compte: moi.compte }
+      config.enregistrer(dossier(), cfg)
+    }
+    plafonds.journaliser(dossier(), { type: 'liaison', raison: 'poste relié depuis la session du site' })
+    demarrerSondage()
+    envoyer('etat', instantane())
+  } catch (err) {
+    derniereErreur = err.message
+  } finally {
+    liaisonEnCours = false
+  }
+}
+
+function creerFenetre() {
+  fenetre = new BrowserWindow({
+    width: 1360,
+    height: 900,
+    minWidth: 900,
+    minHeight: 600,
+    title: 'DropShipper Desktop',
+    webPreferences: { preload: path.join(__dirname, 'coque-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+  })
+  fenetre.removeMenu()
+  fenetre.loadFile(path.join(__dirname, 'renderer', 'coque.html'))
+
+  // Le site, dans son propre navigateur (session persistante « persist:site », le vendeur s'y connecte lui-même).
+  vueSite = new WebContentsView({ webPreferences: { partition: 'persist:site', contextIsolation: true, nodeIntegration: false, sandbox: true } })
+  vueSite.webContents.setWindowOpenHandler(({ url }) => {
+    // Le site reste dans la fenêtre ; les liens extérieurs (fournisseurs, places de marché) s'ouvrent dans le navigateur du poste.
+    if (url.startsWith(SITE)) vueSite.webContents.loadURL(url)
+    else if (file.adresseSure(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  vueSite.webContents.on('did-finish-load', () => {
+    if (!api) relierDepuisLeSite()
+  })
+  vueSite.webContents.on('did-navigate-in-page', () => {
+    if (!api) relierDepuisLeSite()
+  })
+
+  vuePanneau = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } })
+  vuePanneau.webContents.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+
+  fenetre.contentView.addChildView(vueSite)
+  fenetre.contentView.addChildView(vuePanneau)
+  fenetre.on('resize', placerVues)
+  fenetre.on('close', (e) => {
+    // Fermer la fenêtre ne coupe pas l'agent : l'application reste dans la zone de notification.
+    if (!app.quitter) {
+      e.preventDefault()
+      fenetre.hide()
+    }
+  })
+  montrerSite('/dashboard')
+}
+
+function creerTray() {
+  try {
+    tray = new Tray(path.join(__dirname, 'build', 'icon.png'))
+    tray.setToolTip('DropShipper Desktop')
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: 'Ouvrir DropShipper Desktop', click: () => fenetre.show() },
+        { label: 'Partager le lien copié', click: () => partagerLien(clipboard.readText()) },
+        { type: 'separator' },
+        {
+          label: 'Quitter',
+          click: () => {
+            app.quitter = true
+            app.quit()
+          },
+        },
+      ]),
+    )
+    tray.on('click', () => fenetre.show())
+  } catch {
+    /* pas d'icône : l'application vit sans zone de notification */
+  }
+}
+
+// ------------------------------------------------------------- Le partage
+
+/** Un lien partagé rejoint la liste à importer (la même que celle du mobile). */
+async function partagerLien(texte, origine = 'desktop') {
+  const url = file.adresseSure(String(texte || '').trim())
+  if (!url) return { ok: false, erreur: 'Ce n’est pas une adresse web.' }
+  if (url.includes('drop-shipper.fr')) return { ok: false, erreur: 'C’est une page du site, pas un produit.' }
+  if (!api) return { ok: false, erreur: 'Connectez-vous d’abord sur le site, dans cette fenêtre.' }
+  try {
+    await api.partager(url, origine)
+    dernierPartage = `Ajouté : ${url.slice(0, 60)}`
+    plafonds.journaliser(dossier(), { type: 'partage', raison: url.slice(0, 200) })
+    if (Notification.isSupported() && origine !== 'desktop') new Notification({ title: 'DropShipper', body: 'Produit ajouté à la liste à importer.' }).show()
+    await sonder()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, erreur: err.message }
+  }
+}
+
+/** Le presse-papiers, lu à intervalle fixe quand le vendeur l'a demandé : un lien copié devient un partage. */
+function surveillerPressePapiers() {
+  setInterval(() => {
+    if (!cfg.capturePressePapiers || !api) return
+    const texte = clipboard.readText().trim()
+    if (!texte || texte === dernierPresse) return
+    dernierPresse = texte
+    if (/^https?:\/\/\S+$/i.test(texte) && !texte.includes('drop-shipper.fr')) partagerLien(texte, 'presse-papiers')
+  }, 1500)
+}
+
+/** `dropshipper://partager?url=…` : depuis un raccourci, un autre programme, ou le site. */
+function traiterArguments(argv) {
+  const brut = argv.find((a) => a.startsWith('dropshipper://'))
+  if (!brut) return
+  try {
+    const u = new URL(brut)
+    const url = u.searchParams.get('url')
+    if (url) partagerLien(url, 'protocole')
+  } catch {
+    /* adresse illisible */
+  }
+}
+
 // ------------------------------------------------------------------------ IPC
 
 function brancherIpc() {
   ipcMain.handle('etat', () => instantane())
 
+  ipcMain.handle('coque:etat', () => etatCoque())
+  ipcMain.handle('coque:naviguer', (_e, ou) => {
+    if (ou && ou.site) montrerSite(String(ou.site))
+    else montrerPanneau(String((ou && ou.panneau) || 'partages'))
+  })
+  ipcMain.handle('coque:partager', (_e, url) => partagerLien(url, 'desktop'))
+  ipcMain.handle('coque:capture', (_e, actif) => {
+    cfg = { ...cfg, capturePressePapiers: Boolean(actif) }
+    config.enregistrer(dossier(), cfg)
+    dernierPresse = clipboard.readText().trim() // ce qui est déjà copié ne compte pas
+    return etatCoque()
+  })
+
+  // « Importer » sur un lien partagé : le circuit, à la demande, même quand le mode automatique est coupé.
+  ipcMain.handle('lien:importer', async (_e, id) => {
+    const lien = liens.find((l) => l.id === id)
+    if (!lien || !api) return instantane()
+    const plateformes = Object.keys(plafonds.PLATEFORMES).filter((p) => cfg.accords[p])
+    const r = await traiterLien({ api, lien, plateformes, reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux) })
+    plafonds.journaliser(dossier(), { type: 'import', publication: lien.id, produit: r.productId, raison: r.raison, resultat: r.statut })
+    if (r.statut === 'echec' || r.statut === 'sans_solde') derniereErreur = r.raison
+    else liens = liens.filter((l) => l.id !== id)
+    await lireAnnonces()
+    return instantane()
+  })
+
   ipcMain.handle('cle:poser', async (_e, { cle, apiBase }) => {
     const essai = client({ apiBase: apiBase || cfg.apiBase, cle: String(cle || '').trim() })
     try {
       const moi = await essai.me()
-      cfg = config.poserCle({ ...cfg, apiBase: apiBase || cfg.apiBase }, String(cle).trim(), safeStorage)
+      cfg = config.poserCle({ ...cfg, apiBase: apiBase || cfg.apiBase, compte: moi.compte || null }, String(cle).trim(), safeStorage)
       config.enregistrer(dossier(), cfg)
       chargerTout()
       demarrerSondage()
-      return { ok: true, compte: moi.email }
+      return { ok: true, compte: moi.compte }
     } catch (err) {
       return { ok: false, erreur: err.message }
     }
@@ -426,20 +647,30 @@ function brancherIpc() {
 
 // ------------------------------------------------------------------ Démarrage
 
-app.whenReady().then(() => {
-  chargerTout()
-  brancherIpc()
-  fenetre = new BrowserWindow({
-    width: 980,
-    height: 780,
-    title: 'DropShipper Desktop',
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+// Une seule instance : un second lancement (raccourci, adresse dropshipper://) parle à la première.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', (_e, argv) => {
+    if (fenetre) fenetre.show()
+    traiterArguments(argv)
   })
-  fenetre.removeMenu()
-  fenetre.loadFile(path.join(__dirname, 'renderer', 'index.html'))
-  if (api) demarrerSondage()
-})
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) app.setAsDefaultProtocolClient('dropshipper', process.execPath, [path.resolve(process.argv[1])])
+  } else app.setAsDefaultProtocolClient('dropshipper')
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.whenReady().then(() => {
+    chargerTout()
+    brancherIpc()
+    creerFenetre()
+    creerTray()
+    surveillerPressePapiers()
+    if (api) demarrerSondage()
+    traiterArguments(process.argv)
+  })
+
+  app.on('before-quit', () => {
+    app.quitter = true
+  })
+  app.on('window-all-closed', () => undefined) // la zone de notification garde l'agent en vie
+}

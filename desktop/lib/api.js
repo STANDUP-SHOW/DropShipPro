@@ -38,6 +38,8 @@ function client({ apiBase, cle, fetcher = fetch }) {
   }
   return {
     me: () => appel('GET', '/me'),
+    /** Partage un lien produit vers la liste à importer (la même que celle du mobile). */
+    partager: (url, source = 'desktop') => appel('POST', '/share', { url, source }),
     liensNouveaux: async () => (await appel('GET', '/share?status=NEW')).links || [],
     reclamer: (id, statut = 'CLAIMED') => appel('POST', `/share/${encodeURIComponent(id)}/claim`, { status: statut }),
     /** La liste du jour des produits gagnants (une adresse par produit). Clé desktop, comptes ≥ 500 drops. */

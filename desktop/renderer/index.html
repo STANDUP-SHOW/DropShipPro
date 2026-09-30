@@ -16,7 +16,7 @@
   <main>
     <section id="connexion" hidden>
       <h2>Relier ce poste à votre compte</h2>
-      <p>Dans <strong>drop-shipper.fr › Réglages › Clés pour mes agents</strong>, cliquez « Créer une clé pour DropShipper Desktop » et collez-la ici. Elle est gardée chiffrée sur ce poste ; elle ne peut ni payer par carte ni toucher à votre compte : elle importe et met en file, sur votre solde de drops.</p>
+      <p><strong>Connectez-vous sur le site, dans cette fenêtre (Tableau de bord)</strong> : ce poste se relie tout seul. À défaut, collez ici une clé créée dans drop-shipper.fr › Réglages › « Créer une clé pour DropShipper Desktop ». Elle est gardée chiffrée sur ce poste ; elle ne peut ni payer par carte ni toucher à votre compte : elle importe et met en file, sur votre solde de drops.</p>
       <div class="ligne">
         <input id="cle" type="password" placeholder="dsp_live_…" autocomplete="off" />
         <button id="relier" class="principal" type="button">Relier</button>
@@ -38,14 +38,15 @@
       </div>
 
       <div class="carte">
-        <h2>Produits reçus du mobile <small id="nb-liens"></small></h2>
+        <h2 id="partages">Produits partagés — à importer <small id="nb-liens"></small></h2>
+        <p class="discret">Partagés depuis le mobile, collés ou déposés sur cette fenêtre, ou copiés (capture). « Importer » réécrit l'annonce (drops) et la met en file sur les plateformes où l'agent est activé ; en mode tout automatique, c'est fait sans vous.</p>
         <p id="erreur" class="erreur"></p>
         <ul id="liens" class="liste"></ul>
-        <p id="vide" class="discret">Rien en attente. Partagez un produit depuis l’application mobile ou l’extension : il apparaît ici en moins d’une minute.</p>
+        <p id="vide" class="discret">Rien en attente. Partagez un produit depuis le mobile, collez ou déposez son lien dans la barre de gauche : il apparaît ici en moins d’une minute.</p>
       </div>
 
       <div class="carte">
-        <h2>Annonces à publier <small id="nb-annonces"></small></h2>
+        <h2 id="publication">Annonces à publier par session <small id="nb-annonces"></small></h2>
         <p class="discret">« Préparer » ouvre le formulaire de la plateforme et le remplit : vous relisez et publiez vous-même, puis vous dites « Publiée ». Sur une plateforme où le mode automatique est actif, la publication part seule, dans les limites ci-dessous.</p>
         <p id="resultat-annonce" class="discret"></p>
         <ul id="annonces" class="liste"></ul>
@@ -59,7 +60,7 @@
       </div>
 
       <div class="carte">
-        <h2>Journal</h2>
+        <h2 id="journal-titre">Journal</h2>
         <ul id="journal" class="liste petit"></ul>
       </div>
     </section>

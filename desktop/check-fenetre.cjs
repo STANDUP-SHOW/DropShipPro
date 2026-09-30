@@ -24,7 +24,14 @@ async function main() {
     await pause(1000)
     try {
       const liste = await (await fetch('http://127.0.0.1:9377/json')).json()
-      cible = liste.find((c) => c.type === 'page')
+      // Three views live in the window: the shell (coque.html), the site, and the local panel (index.html).
+      const coque = liste.find((c) => c.type === 'page' && c.url.includes('coque.html'))
+      const site = liste.find((c) => c.url.includes('drop-shipper.fr'))
+      const panneau = liste.find((c) => c.type === 'page' && c.url.includes('renderer/index.html'))
+      if (coque && site && panneau) {
+        console.log('VUES', JSON.stringify({ coque: coque.url.split('/').pop(), site: site.url }))
+        cible = panneau
+      }
     } catch {
       /* not up yet */
     }

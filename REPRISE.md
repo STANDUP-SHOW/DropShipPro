@@ -33,7 +33,14 @@ vérifiés** : celui-ci dit **où on en est**, **ce qui bloque**, et **ce qui re
   Corrigés en route : la file envoyait le titre SOURCE au lieu de l'annonce réécrite ;
   Facebook sans session n'était pas reconnu ; prix en euros entiers pour Facebook/Leboncoin.
   **Reste non constaté : une annonce publiée sur le vrai Facebook.**
-- Installeurs **0.2.1** (non signés) dans `Bureau\DropShipper-Desktop\`.
+- **Desktop 0.3.0 = la fenêtre des mémos** (memo-final-ecosysteme, memo-auto-fulfillment) :
+  le site drop-shipper.fr dans son propre navigateur (tableau de bord, Auto-Shipper,
+  commandes…), barre à gauche, liaison automatique depuis la session du site, partage
+  d'un produit (collé, déposé, presse-papiers, `dropshipper://`) vers la liste à importer,
+  zone de notification. Constaté sur la 0.3.0 installée (`check-desktop-reel.ts`).
+  Pas fait : le menu « Partager » de Windows (réservé aux applications MSIX du Store),
+  le RPA des commandes fournisseurs jusqu'au paiement (mémo auto-fulfillment § III).
+- Installeurs **0.3.0** (non signés) dans `Bureau\DropShipper-Desktop\`.
 - **Railway** : le tableau de bord a été lu — historique = `REMOVED` (déploiement
   remplacé par le suivant), **aucun `FAILED`** ; GitHub affiche ces remplacés en
   « failure ». Pas de build cassé : pousser en lots.
@@ -44,7 +51,7 @@ seul Facebook est connecté) pour relever leurs catégories ; clés d'applicatio
 clés du module réseaux sociaux ; certificat de signature ; zip de l'extension au
 Chrome Web Store.
 
-**Tests de demain (dans l'ordre)** : 1. ouvrir la 0.2.1 (déjà installée, menu Démarrer), coller une clé desktop ;
+**Tests de demain (dans l'ordre)** : 1. ouvrir la 0.3.0 (installée, menu Démarrer), se connecter au site dans la fenêtre : le poste se relie seul ;
 2. se connecter à Facebook dans l'application, « Préparer » une annonce et regarder
 le formulaire rempli (titre, prix, photos, catégorie, état, description) ; 3. donner
 l'accord sur Facebook et laisser partir une publication ; 4. Vinted/Leboncoin une

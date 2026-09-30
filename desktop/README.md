@@ -2,9 +2,26 @@
 
 Le compagnon de bureau de drop-shipper.fr (Electron). Décisions : `docs/v2/DECISIONS.md`.
 
-## Ce qui est écrit (30/09/2026, version 0.2.1)
+## La fenêtre (0.3.0, d'après `docs/v2/memo-final-ecosysteme.md` et `memo-auto-fulfillment.md`)
 
-**Constaté le 30/09 au soir** : l'installeur 0.2.1 s'installe (mode silencieux, code 0) ; l'application INSTALLÉE, avec une clé desktop d'un compte jetable, se relie à l'API de production, affiche l'annonce en attente et les rayons du jour, ouvre la vraie page Facebook sur « Préparer » et reconnaît la session absente (`backend/check-desktop-reel.ts`). Le vrai pilote remplit et publie une réplique locale du formulaire Facebook dans la vraie fenêtre Electron (`check-pilote.cjs`). **Reste non constaté : une annonce publiée sur le vrai Facebook avec un vrai compte.**
+À gauche, une barre ; à droite, **le site drop-shipper.fr lui-même dans son propre
+navigateur** (session `persist:site`) : tableau de bord, Auto-Shipper, commandes,
+produits gagnants, drops, réglages — la même chose que sur le site, rien de réécrit.
+Le vendeur s'y connecte une fois ; **ce poste se relie alors tout seul** (une clé
+desktop est créée avec sa session, gardée chiffrée ici ; aucun mot de passe lu).
+Sous « Sur ce poste » : les produits partagés à importer, la publication par session
+(Vinted, Leboncoin, Facebook) et le journal.
+
+**Partager un produit** vers la liste à importer (la même que celle du mobile) :
+lien collé ou déposé sur la fenêtre, presse-papiers capturé (interrupteur, coupé par
+défaut), adresse `dropshipper://partager?url=…`, menu de la zone de notification.
+Fermer la fenêtre ne coupe pas l'agent : il vit dans la zone de notification.
+Le menu « Partager » de Windows lui-même n'est ouvert qu'aux applications du Store
+(MSIX) : pas dans cette version.
+
+## Ce qui est écrit (30/09/2026)
+
+**Constaté le 30/09 au soir (0.3.0)** : liaison automatique depuis la session du site, partage depuis la barre (source `desktop`, visible côté serveur), annonce et rayons affichés, « Préparer » sur le vrai Facebook — `backend/check-desktop-reel.ts` sur l'application INSTALLÉE. Avant (0.2.1) : l'installeur s'installe (mode silencieux, code 0) ; l'application INSTALLÉE, avec une clé desktop d'un compte jetable, se relie à l'API de production, affiche l'annonce en attente et les rayons du jour, ouvre la vraie page Facebook sur « Préparer » et reconnaît la session absente (`backend/check-desktop-reel.ts`). Le vrai pilote remplit et publie une réplique locale du formulaire Facebook dans la vraie fenêtre Electron (`check-pilote.cjs`). **Reste non constaté : une annonce publiée sur le vrai Facebook avec un vrai compte.**
 
 | Pièce | Fichier | État |
 |---|---|---|

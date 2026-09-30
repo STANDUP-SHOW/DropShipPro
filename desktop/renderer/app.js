@@ -16,7 +16,7 @@ function el(tag, options = {}, ...enfants) {
 }
 
 const heure = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-const LIBELLES = { publication: 'Publication', alerte: 'Alerte', accord: 'Accord donné', 'accord-retire': 'Accord retiré', reprise: 'Reprise' }
+const LIBELLES = { publication: 'Publication', alerte: 'Alerte', accord: 'Accord donné', 'accord-retire': 'Accord retiré', reprise: 'Reprise', import: 'Import', partage: 'Partage', gagnants: 'Gagnants du jour', liaison: 'Liaison', 'a-valider': 'À compléter', preparee: 'Préparée', echec: 'Échec' }
 
 function rendreLiens(etat) {
   const ul = $('liens')
@@ -33,8 +33,18 @@ function rendreLiens(etat) {
         el(
           'span',
           { classe: 'actions' },
+          el('button', {
+            texte: 'Importer',
+            type: 'button',
+            classe: 'principal',
+            clic: async (e) => {
+              e.target.disabled = true
+              e.target.textContent = 'Import…'
+              rendre(await window.desktop.importerLien(l.id))
+            },
+          }),
           el('button', { texte: 'Ouvrir', type: 'button', clic: async () => rendre(await window.desktop.ouvrirLien(l.id)) }),
-          el('button', { texte: 'Terminé', type: 'button', classe: 'principal', clic: async () => rendre(await window.desktop.lienTermine(l.id)) }),
+          el('button', { texte: 'Écarter', type: 'button', clic: async () => rendre(await window.desktop.lienTermine(l.id)) }),
         ),
       ),
     )
@@ -177,6 +187,11 @@ $('reseaux').addEventListener('change', async (e) => rendre(await window.desktop
 $('plafond-imports').addEventListener('change', async (e) => rendre(await window.desktop.plafondImports(e.target.value)))
 
 $('marge-min').addEventListener('change', async (e) => rendre(await window.desktop.margeMin(e.target.value)))
+
+window.desktop.surSection((s) => {
+  const cible = document.getElementById(s === 'journal' ? 'journal-titre' : s)
+  if (cible) cible.scrollIntoView({ block: 'start' })
+})
 
 window.desktop.surEtat(rendre)
 window.desktop.etat().then(rendre)

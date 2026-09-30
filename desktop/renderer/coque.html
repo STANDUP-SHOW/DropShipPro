@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'" />
+  <title>DropShipper Desktop</title>
+  <link rel="stylesheet" href="coque.css" />
+</head>
+<body>
+  <!-- La barre de gauche. Tout le reste de la fenêtre est le site drop-shipper.fr lui-même, ou le panneau local. -->
+  <nav id="barre">
+    <h1>DropShipper <span>Desktop</span></h1>
+    <p id="compte" class="discret"></p>
+
+    <p class="titre">Mon compte</p>
+    <button data-site="/dashboard" class="actif">Tableau de bord</button>
+    <button data-site="/pilote">Auto-Shipper</button>
+    <button data-site="/orders">Commandes</button>
+    <button data-site="/produits-gagnants">Produits gagnants</button>
+    <button data-site="/dashboard#produits">Mon listing</button>
+    <button data-site="/credits">Mes drops</button>
+    <button data-site="/settings">Réglages du compte</button>
+
+    <p class="titre">Sur ce poste</p>
+    <button data-panneau="partages">Produits partagés <span id="nb-partages" class="pastille"></span></button>
+    <button data-panneau="publication">Publication par session <span id="nb-annonces" class="pastille"></span></button>
+    <button data-panneau="journal">Journal</button>
+
+    <div id="partage" class="zone">
+      <p class="titre">Partager un produit</p>
+      <p class="discret">Glissez un lien ici, collez-le, ou copiez-le n'importe où avec la capture activée : il rejoint la liste à importer.</p>
+      <input id="lien" type="url" placeholder="https://… (Entrée)" autocomplete="off" />
+      <label class="interrupteur"><input id="capture" type="checkbox" /> <span>Capturer les liens copiés</span></label>
+      <p id="retour" class="discret"></p>
+    </div>
+  </nav>
+  <div id="depot" hidden>Déposez le lien pour l'ajouter</div>
+  <script src="coque.js"></script>
+</body>
+</html>
