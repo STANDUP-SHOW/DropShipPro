@@ -54,6 +54,7 @@ import Rayon from './pages/Rayon'
 import Guide from './pages/Guide'
 import Newsletter from './pages/Newsletter'
 import AdminNewsletter from './pages/AdminNewsletter'
+import Partager from './pages/Partager'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -66,7 +67,18 @@ function Protected({ children }: { children: React.ReactNode }) {
    * s'affiche, et le profil arrive au réessai automatique.
    */
   if (!user && !isAuthed()) return <Navigate to="/login" replace />
+  // Un partage reçu du téléphone avant la connexion attend ici : il part maintenant.
+  const partageEnAttente = lirePartageEnAttente()
+  if (partageEnAttente && window.location.pathname !== '/partager') return <Navigate to={`/partager?${partageEnAttente}`} replace />
   return <>{children}</>
+}
+
+function lirePartageEnAttente(): string | null {
+  try {
+    return sessionStorage.getItem('partage_en_attente')
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -126,6 +138,7 @@ export default function App() {
           <Route path="/avis" element={<ReviewsPage />} />
           {/* Public : ce que les API marketing débloquent (25/09/2026), lisible avant de créer un compte. */}
           <Route path="/api-power" element={<ApiPower />} />
+          <Route path="/partager" element={<Partager />} />
           {/* Public : l'inscription newsletter, où pointent les liens des emails. */}
           <Route path="/newsletter" element={<Newsletter />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />

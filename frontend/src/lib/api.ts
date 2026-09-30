@@ -280,6 +280,12 @@ function enQuery(params: Record<string, string | number | undefined>): string {
 
 export const api = {
   /** « Connecter mon compte eBay » : l'adresse d'autorisation, ou `configure: false` tant que l'application eBay n'est pas posée côté serveur. */
+  /** Un produit partagé (menu « Partager » du téléphone, page /partager) : il rejoint la liste à importer, la même que celle du mobile et du desktop. */
+  partagerProduit: (data: { url?: string; text?: string }) =>
+    request<{ item: { id: string; clean_url: string; source: string; status: string }; message: string }>('/mobile/products/share', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, source: 'partage-telephone' }),
+    }),
   ebayOauth: () => request<{ configure: boolean; url?: string }>('/ebay/oauth/start'),
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {

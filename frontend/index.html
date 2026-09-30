@@ -9,6 +9,10 @@
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
     <link rel="icon" type="image/png" sizes="128x128" href="/favicon-128.png" />
     <link rel="apple-touch-icon" href="/favicon-128.png" />
+    <!-- Installable sur le téléphone : le site apparaît alors dans le menu « Partager »
+         d'Android (Web Share Target, /partager) et le produit rejoint la liste à importer. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e85290" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Importez un produit depuis n'importe quelle boutique, laissez l'IA réécrire l'annonce et publiez-la sur vos marketplaces." />
 
@@ -42,5 +46,8 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () {})
+    </script>
   </body>
 </html>

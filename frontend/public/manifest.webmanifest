@@ -1,0 +1,21 @@
+{
+  "name": "DropShipper IA",
+  "short_name": "DropShipper",
+  "description": "Partagez un produit depuis n'importe quelle boutique : il rejoint votre liste à importer, votre application desktop l'importe et le publie.",
+  "lang": "fr",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08070f",
+  "theme_color": "#e85290",
+  "icons": [
+    { "src": "/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "share_target": {
+    "action": "/partager",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  }
+}
