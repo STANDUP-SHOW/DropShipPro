@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Faux fournisseur (banc)</title>
+  </head>
+  <body>
+    <!--
+      A small supplier shop in one page, driven by the hash: #produit (variants,
+      "Ajouter au panier"), #panier ("Passer la commande"), #livraison (address form,
+      "Continuer"), #paiement (card fields, "Payer maintenant"). It records what the
+      pilot did in window.__vu and POSTs it to /etat at each step. Values only count
+      when an `input` event is seen, like React. Never a real shop: the bench proves the
+      pilot's behaviour, not a supplier's agreement.
+    -->
+    <div id="page"></div>
+    <script>
+      const vu = { variante: null, panier: 0, commander: 0, adresse: {}, continuer: 0, paye: 0, page: '' }
+      window.__vu = vu
+      const $ = (id) => document.getElementById(id)
+      const dire = () => fetch('/etat', { method: 'POST', body: JSON.stringify(vu) })
+      const pages = {
+        produit: () => `
+          <h1>Lampe de bureau LED</h1>
+          <div>Couleur :
+            <button class="variante" data-v="Noir">Noir</button>
+            <button class="variante" data-v="Blanc">Blanc</button>
+          </div>
+          <button id="panier">Ajouter au panier</button>`,
+        panier: () => `<h1>Votre panier</h1><p>1 article</p><button id="commander">Passer la commande</button>`,
+        livraison: () => `
+          <h1>Adresse de livraison</h1>
+          <label>Prénom <input name="firstName" autocomplete="given-name"></label>
+          <label>Nom <input name="lastName" autocomplete="family-name"></label>
+          <label>Adresse <input name="address1" autocomplete="address-line1"></label>
+          <label>Code postal <input name="zip" autocomplete="postal-code"></label>
+          <label>Ville <input name="city" autocomplete="address-level2"></label>
+          <label>Téléphone <input name="phone" type="tel" autocomplete="tel"></label>
+          <button id="continuer">Continuer</button>`,
+        paiement: () => `
+          <h1>Paiement</h1>
+          <p>Mode de paiement</p>
+          <label>Numéro de carte <input autocomplete="cc-number"></label>
+          <label>CVC <input autocomplete="cc-csc"></label>
+          <button id="payer">Payer maintenant</button>`,
+      }
+      function rendre() {
+        const nom = (location.hash || '#produit').slice(1)
+        vu.page = nom
+        $('page').innerHTML = pages[nom] ? pages[nom]() : '<p>Page inconnue</p>'
+        document.querySelectorAll('.variante').forEach((b) => b.addEventListener('click', () => ((vu.variante = b.dataset.v), dire())))
+        $('panier') && $('panier').addEventListener('click', () => ((vu.panier += 1), dire(), setTimeout(() => (location.hash = '#panier'), 300)))
+        $('commander') && $('commander').addEventListener('click', () => ((vu.commander += 1), dire(), setTimeout(() => (location.hash = '#livraison'), 300)))
+        document.querySelectorAll('#page input').forEach((i) => i.addEventListener('input', (e) => (vu.adresse[e.target.name || e.target.autocomplete] = e.target.value)))
+        $('continuer') && $('continuer').addEventListener('click', () => ((vu.continuer += 1), dire(), setTimeout(() => (location.hash = '#paiement'), 300)))
+        $('payer') && $('payer').addEventListener('click', () => ((vu.paye += 1), dire()))
+        dire()
+      }
+      window.addEventListener('hashchange', rendre)
+      rendre()
+    </script>
+  </body>
+</html>

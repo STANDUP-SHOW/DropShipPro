@@ -123,6 +123,25 @@ async function main() {
     verifier('clé révoquée : plus de mise en file', !(await aUneApplicationDesktop(user.id)))
     await prisma.publication.deleteMany({ where: { productId: gagnant.id } })
 
+    console.log('\nAchats chez les fournisseurs sans API (desktop)')
+    await prisma.apiKey.updateMany({ where: { keyHash: cleDesk.keyHash }, data: { revokedAt: null } }) // révoquée plus haut par le banc du pilote
+    const adresse = { street: '1 rue du Banc', city: 'Paris', zip: '75001', country: 'France', phone: '0600000000' }
+    const vente = await prisma.order.create({ data: { userId: user.id, productId: lampe.id, platform: 'EBAY', buyerName: 'Alice Banc', buyerAddress: adresse, amount: 30 } })
+    const dejaCommandee = await prisma.order.create({ data: { userId: user.id, productId: tapis.id, platform: 'EBAY', buyerName: 'Bob', buyerAddress: adresse, amount: 20, status: 'ORDERED_FROM_SUPPLIER' } })
+    verifier('une clé d’agent tiers ne lit pas les achats (403)', (await appel('GET', '/achats', cle.key)).statut === 403)
+    const achats = await appel('GET', '/achats', cleDesk.key)
+    const mien = (achats.json.achats ?? []).find((a: { id: string }) => a.id === vente.id)
+    verifier('la vente NEW sort avec l’acheteur, son adresse, le produit et son adresse source', achats.statut === 200 && mien && mien.buyerName === 'Alice Banc' && mien.buyerAddress.zip === '75001' && mien.produit.sourceUrl === 'https://exemple.test/p' && !(achats.json.achats ?? []).some((a: { id: string }) => a.id === dejaCommandee.id), JSON.stringify(achats.json).slice(0, 300))
+    const rate = await appel('POST', `/achats/${vente.id}/resultat`, cleDesk.key, { status: 'FAILED', error: 'variante introuvable' })
+    verifier('échec de préparation : la raison est écrite sur la vente, qui reste à commander', rate.json.ok === true && (await prisma.order.findUniqueOrThrow({ where: { id: vente.id } })).supplierOrderError === 'variante introuvable')
+    await appel('POST', `/achats/${vente.id}/resultat`, cleDesk.key, { status: 'PREPARED', supplierOrderUrl: 'https://exemple.test/checkout' })
+    const preparee = await prisma.order.findUniqueOrThrow({ where: { id: vente.id } })
+    verifier('préparée : l’erreur est effacée, la vente reste NEW (le paiement est au vendeur)', preparee.status === 'NEW' && preparee.supplierOrderError === null && preparee.supplierOrderUrl === 'https://exemple.test/checkout')
+    const payee = await appel('POST', '/achats/done', cleDesk.key, { orderIds: [vente.id, dejaCommandee.id] })
+    verifier('« j’ai payé » : la vente passe en commandée, une fois seulement', payee.json.updated === 1 && (await prisma.order.findUniqueOrThrow({ where: { id: vente.id } })).status === 'ORDERED_FROM_SUPPLIER')
+    verifier('vente déjà commandée : résultat refusé (404)', (await appel('POST', `/achats/${vente.id}/resultat`, cleDesk.key, { status: 'PREPARED' })).statut === 404)
+    await prisma.order.deleteMany({ where: { userId: user.id } })
+
     console.log('\nListe du jour des gagnants')
     const existant = await prisma.marketReport.findFirst({ orderBy: { day: 'desc' }, select: { day: true } })
     const jourBanc = existant?.day ?? new Date().toISOString().slice(0, 10)
@@ -179,6 +198,7 @@ async function main() {
     verifier('la file ne rend plus les traitées', (await appel('GET', '/publications', cle.key)).json.count === 0)
   } finally {
     serveur.close()
+    await prisma.order.deleteMany({ where: { userId: { in: [user.id, autre.id] } } })
     await prisma.publication.deleteMany({ where: { product: { userId: { in: [user.id, autre.id] } } } })
     await prisma.product.deleteMany({ where: { userId: { in: [user.id, autre.id] } } })
     await prisma.apiKey.deleteMany({ where: { userId: { in: [user.id, autre.id] } } })

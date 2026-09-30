@@ -53,6 +53,13 @@ function client({ apiBase, cle, fetcher = fetch }) {
     mettreEnFile: (productId, platforms) => appel('POST', '/publications', { productId, platforms }),
     /** Les annonces à publier sur les places à session (Vinted, Leboncoin, Facebook). */
     publications: async (plateforme) => (await appel('GET', `/publications${plateforme ? `?platform=${encodeURIComponent(plateforme)}` : ''}`)).publications || [],
+    /** Les ventes à commander chez un fournisseur SANS API (le serveur commande lui-même chez ceux qui en ont une). Clé desktop. */
+    achats: async () => (await appel('GET', '/achats')).achats || [],
+    /** Ce que la préparation a donné : PREPARED (le vendeur paie) ou FAILED (la raison). */
+    resultatAchat: (id, statut, urlOuRaison) =>
+      appel('POST', `/achats/${encodeURIComponent(id)}/resultat`, statut === 'PREPARED' ? { status: statut, ...(urlOuRaison ? { supplierOrderUrl: urlOuRaison } : {}) } : { status: statut, error: urlOuRaison }),
+    /** Le vendeur a payé : la vente passe en « commandée ». */
+    achatsPayes: (orderIds, supplierOrderUrl) => appel('POST', '/achats/done', { orderIds, ...(supplierOrderUrl ? { supplierOrderUrl } : {}) }),
     /** Dit au serveur ce qui s'est passé : PUBLISHED (avec l'adresse) ou FAILED (avec la raison). */
     resultat: (id, statut, urlOuRaison) =>
       appel('POST', `/publications/${encodeURIComponent(id)}/resultat`, statut === 'PUBLISHED' ? { status: statut, ...(urlOuRaison ? { externalUrl: urlOuRaison } : {}) } : { status: statut, error: urlOuRaison }),

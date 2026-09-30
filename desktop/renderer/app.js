@@ -16,7 +16,7 @@ function el(tag, options = {}, ...enfants) {
 }
 
 const heure = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-const LIBELLES = { publication: 'Publication', alerte: 'Alerte', accord: 'Accord donné', 'accord-retire': 'Accord retiré', reprise: 'Reprise', import: 'Import', partage: 'Partage', gagnants: 'Gagnants du jour', liaison: 'Liaison', 'a-valider': 'À compléter', preparee: 'Préparée', echec: 'Échec' }
+const LIBELLES = { publication: 'Publication', alerte: 'Alerte', accord: 'Accord donné', 'accord-retire': 'Accord retiré', reprise: 'Reprise', import: 'Import', achat: 'Commande fournisseur', 'achat-paye': 'Payée chez le fournisseur', partage: 'Partage', gagnants: 'Gagnants du jour', liaison: 'Liaison', 'a-valider': 'À compléter', preparee: 'Préparée', echec: 'Échec' }
 
 function rendreLiens(etat) {
   const ul = $('liens')
@@ -82,6 +82,39 @@ function rendreAnnonces(etat) {
         ),
       ),
     )
+  }
+}
+
+function rendreAchats(etat) {
+  const ul = $('achats')
+  ul.replaceChildren()
+  const liste = etat.achats || []
+  $('nb-achats').textContent = liste.length ? `(${liste.length})` : ''
+  $('aucun-achat').hidden = liste.length > 0
+  for (const a of liste) {
+    const adr = a.buyerAddress || {}
+    const li = el('li', {})
+    const bloc = el('div', { classe: 'url' })
+    bloc.append(el('div', { texte: `${a.produit.titre} — ${a.buyerName}, ${adr.zip || ''} ${adr.city || ''} · ${a.platform} · ${a.quantity > 1 ? `× ${a.quantity} · ` : ''}${a.produit.fournisseur || 'fournisseur'}${a.variante ? ` · variante ${a.variante}` : ''}` }))
+    if (a.resultat) bloc.append(el('div', { classe: a.resultat.statut === 'preparee' ? 'discret' : 'erreur', texte: a.resultat.raison }))
+    else if (a.erreur) bloc.append(el('div', { classe: 'erreur', texte: a.erreur }))
+    li.append(bloc)
+    const actions = el('span', { classe: 'actions' })
+    const bouton = el('button', {
+      texte: a.resultat ? 'Relancer' : 'Préparer chez le fournisseur',
+      type: 'button',
+      classe: a.resultat ? '' : 'principal',
+      clic: async (e) => {
+        e.target.disabled = true
+        e.target.textContent = 'Préparation…'
+        await window.desktop.preparerAchat(a.id)
+        rendre(await window.desktop.etat())
+      },
+    })
+    actions.append(bouton)
+    if (a.resultat) actions.append(el('button', { texte: 'J’ai payé', type: 'button', classe: 'principal', clic: async () => rendre(await window.desktop.achatPaye(a.id)) }))
+    li.append(actions)
+    ul.append(li)
   }
 }
 
@@ -168,6 +201,7 @@ function rendre(etat) {
   rendreRayons(etat)
   rendreLiens(etat)
   rendreAnnonces(etat)
+  rendreAchats(etat)
   rendrePlateformes(etat)
   rendreJournal(etat)
 }
@@ -189,7 +223,7 @@ $('plafond-imports').addEventListener('change', async (e) => rendre(await window
 $('marge-min').addEventListener('change', async (e) => rendre(await window.desktop.margeMin(e.target.value)))
 
 window.desktop.surSection((s) => {
-  const cible = document.getElementById(s === 'journal' ? 'journal-titre' : s)
+  const cible = document.getElementById(s === 'journal' ? 'journal-titre' : s === 'achats' ? 'achats-titre' : s)
   if (cible) cible.scrollIntoView({ block: 'start' })
 })
 

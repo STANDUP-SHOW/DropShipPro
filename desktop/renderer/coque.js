@@ -61,6 +61,7 @@ function rendre(etat) {
   $('compte').textContent = etat.compte ? `Relié : ${etat.compte}` : 'Connectez-vous sur le site : ce poste se relie tout seul.'
   $('nb-partages').textContent = etat.nbLiens ? String(etat.nbLiens) : ''
   $('nb-annonces').textContent = etat.nbAnnonces ? String(etat.nbAnnonces) : ''
+  $('nb-achats').textContent = etat.nbAchats ? String(etat.nbAchats) : ''
   $('capture').checked = Boolean(etat.capture)
   if (etat.dernierPartage) $('retour').textContent = etat.dernierPartage
 }

@@ -496,6 +496,86 @@ agentRouter.post('/publications/:id/resultat', async (req: AgentRequest, res) =>
   res.json({ ok: true, status })
 })
 
+/**
+ * Les achats à faire chez les fournisseurs SANS API : ce que l'application desktop
+ * prépare dans la session du vendeur (fiche du fournisseur, variante, panier,
+ * adresse du client) et où elle S'ARRÊTE, au paiement — mémo auto-fulfillment § III.
+ * Une vente dont le fournisseur est relié par API n'est pas là : le serveur la
+ * commande lui-même (`supplier-order`). Clé desktop.
+ */
+agentRouter.get('/achats', requireDesktop as never, async (req: AgentRequest, res) => {
+  try {
+    const [ventes, liens] = await Promise.all([
+      prisma.order.findMany({
+        where: { userId: req.userId!, status: 'NEW' },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+        include: { product: { select: { id: true, title: true, aiTitle: true, sourceUrl: true, sourceSite: true, supplierId: true, price: true, shippingCost: true, variants: true, images: true } } },
+      }),
+      prisma.supplierConnection.findMany({ where: { userId: req.userId!, connected: true }, select: { supplier: true } }),
+    ])
+    const parApi = new Set(liens.map((l) => l.supplier))
+    const achats = ventes
+      .filter((v) => !(v.product.supplierId && parApi.has(v.product.supplierId)))
+      .map((v) => ({
+        id: v.id,
+        platform: v.platform,
+        createdAt: v.createdAt,
+        quantity: v.quantity,
+        buyerName: v.buyerName,
+        buyerAddress: v.buyerAddress,
+        buyerEmail: v.buyerEmail ?? null,
+        variante: v.supplierVariantRef ?? null,
+        erreur: v.supplierOrderError ?? null,
+        produit: {
+          id: v.product.id,
+          titre: v.product.aiTitle || v.product.title,
+          sourceUrl: v.product.sourceUrl,
+          fournisseur: v.product.sourceSite ?? null,
+          coutUnitaire: Number(v.product.price),
+          port: Number(v.product.shippingCost ?? 0),
+          variantes: v.product.variants ?? null,
+          image: Array.isArray(v.product.images) ? ((v.product.images as unknown[])[0] as string | undefined) ?? null : null,
+        },
+      }))
+    res.json({ count: achats.length, achats })
+  } catch (e) {
+    console.error('agent achats', e)
+    res.status(500).json({ error: 'Impossible de lire les achats à faire' })
+  }
+})
+
+const resultatAchatSchema = z.object({
+  /** PREPARED : panier et adresse remplis, le vendeur paie lui-même. FAILED : ce qui a bloqué, en clair. */
+  status: z.enum(['PREPARED', 'FAILED']),
+  error: z.string().trim().max(500).optional(),
+  supplierOrderUrl: z.string().url().max(2000).optional(),
+})
+
+/** Ce que la préparation a donné. Rien ne passe en « commandé » ici : c'est le paiement du vendeur qui le dit (`/achats/done`). */
+agentRouter.post('/achats/:id/resultat', requireDesktop as never, async (req: AgentRequest, res) => {
+  const parsed = resultatAchatSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Résultat invalide : status PREPARED ou FAILED attendu' })
+  const { status, error, supplierOrderUrl } = parsed.data
+  const maj = await prisma.order.updateMany({
+    where: { id: req.params.id, userId: req.userId!, status: 'NEW' },
+    data: status === 'PREPARED' ? { supplierOrderError: null, ...(supplierOrderUrl ? { supplierOrderUrl } : {}) } : { supplierOrderError: error ?? 'Préparation impossible (application desktop)' },
+  })
+  if (maj.count === 0) return res.status(404).json({ error: 'Vente introuvable ou déjà commandée' })
+  res.json({ ok: true, status })
+})
+
+/** Le vendeur a payé chez le fournisseur : la vente passe en « commandée », comme sur le site (`/orders/purchases/done`). */
+agentRouter.post('/achats/done', requireDesktop as never, async (req: AgentRequest, res) => {
+  const parsed = z.object({ orderIds: z.array(z.string()).min(1).max(200), supplierOrderUrl: z.string().url().max(2000).optional() }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'orderIds attendu' })
+  const { count } = await prisma.order.updateMany({
+    where: { id: { in: parsed.data.orderIds }, userId: req.userId!, status: 'NEW' },
+    data: { status: 'ORDERED_FROM_SUPPLIER', supplierOrderedAt: new Date(), supplierOrderError: null, ...(parsed.data.supplierOrderUrl ? { supplierOrderUrl: parsed.data.supplierOrderUrl } : {}) },
+  })
+  res.json({ ok: true, updated: count })
+})
+
 const signalSchema = z.object({
   /** SOCIAL : réseaux sociaux. MARKET : places de marché, prix, concurrence. */
   kind: z.enum(['SOCIAL', 'MARKET']),

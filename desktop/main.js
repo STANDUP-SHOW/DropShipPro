@@ -28,6 +28,8 @@ const file = require('./lib/file')
 const plafonds = require('./lib/plafonds')
 const { traiter } = require('./lib/executeur')
 const { creerPilote } = require('./lib/pilote-electron')
+const { creerPiloteAchat } = require('./lib/pilote-achat')
+const { preparer: preparerAchat } = require('./lib/commande')
 const { traiterLien, importGroupe, importesAujourdhui, plafondImports } = require('./lib/circuit')
 
 // Bancs : un profil jetable (config, journal, sessions) au lieu de celui du vendeur.
@@ -40,6 +42,10 @@ let api = null
 const dejaVus = new Set()
 let liens = []
 let annonces = []
+let achats = []
+/** Une fenêtre de fournisseur par vente en cours : elle reste ouverte pour que le vendeur paie. */
+const pilotesAchat = new Map()
+const resultatsAchat = new Map()
 const pilotes = new Map()
 let occupe = false
 let derniereErreur = null
@@ -72,7 +78,7 @@ function envoyer(canal, donnees) {
 }
 
 function etatCoque() {
-  return { compte: cfg.compte || null, connecte: !!api, nbLiens: liens.length, nbAnnonces: annonces.length, capture: Boolean(cfg.capturePressePapiers), dernierPartage }
+  return { compte: cfg.compte || null, connecte: !!api, nbLiens: liens.length, nbAnnonces: annonces.length, nbAchats: achats.length, capture: Boolean(cfg.capturePressePapiers), dernierPartage }
 }
 
 function instantane() {
@@ -81,6 +87,7 @@ function instantane() {
     apiBase: cfg.apiBase,
     liens,
     annonces,
+    achats: achats.map((a) => ({ ...a, resultat: resultatsAchat.get(a.id) || null })),
     erreur: derniereErreur,
     plateformes: Object.entries(plafonds.PLATEFORMES).map(([id, p]) => ({
       id,
@@ -205,9 +212,30 @@ async function lireAnnonces() {
   if (!api) return
   try {
     annonces = await api.publications()
+    achats = await api.achats()
+    for (const id of [...resultatsAchat.keys()]) if (!achats.some((a) => a.id === id)) resultatsAchat.delete(id)
   } catch (err) {
     derniereErreur = err.message
   }
+}
+
+/**
+ * Préparer une vente chez son fournisseur (mémo auto-fulfillment § III) : dans la
+ * session du vendeur, jusqu'à l'écran de paiement, jamais plus loin. La fenêtre
+ * reste ouverte : c'est là qu'il paie, puis il dit « J'ai payé ».
+ */
+async function preparerVente(id) {
+  const achat = achats.find((a) => a.id === id)
+  if (!achat || !api) return { statut: 'echec', raison: 'Vente introuvable.' }
+  if (!pilotesAchat.has(id)) pilotesAchat.set(id, creerPiloteAchat())
+  const r = await preparerAchat({ api, pilote: pilotesAchat.get(id), achat })
+  resultatsAchat.set(id, { statut: r.statut, raison: r.raison, at: new Date().toISOString() })
+  plafonds.journaliser(dossier(), { type: 'achat', publication: id, plateforme: achat.produit.fournisseur || undefined, raison: `${r.statut} — ${r.raison}`.slice(0, 300), resultat: r.statut })
+  if (Notification.isSupported()) {
+    new Notification({ title: r.statut === 'preparee' ? 'Saisie automatique terminée' : 'Commande fournisseur : à vous', body: r.statut === 'preparee' ? 'Validez le paiement vous-même dans la fenêtre du fournisseur.' : r.raison }).show()
+  }
+  envoyer('etat', instantane())
+  return r
 }
 
 /** Traite UNE annonce : `manuel` = le vendeur a cliqué « Préparer », il relira et publiera lui-même. */
@@ -602,6 +630,24 @@ function brancherIpc() {
     if (actif) cfg.dernierGagnants = null
     config.enregistrer(dossier(), cfg)
     plafonds.journaliser(dossier(), { type: actif ? 'circuit-active' : 'circuit-coupe' })
+    return instantane()
+  })
+
+  ipcMain.handle('achat:preparer', (_e, id) => preparerVente(id))
+
+  // « J'ai payé » : dit après coup, jamais avant. La fenêtre du fournisseur se ferme.
+  ipcMain.handle('achat:paye', async (_e, id) => {
+    try {
+      await api.achatsPayes([id], (resultatsAchat.get(id) || {}).url)
+      achats = achats.filter((a) => a.id !== id)
+      resultatsAchat.delete(id)
+      const p = pilotesAchat.get(id)
+      if (p) p.fermer()
+      pilotesAchat.delete(id)
+      plafonds.journaliser(dossier(), { type: 'achat-paye', publication: id })
+    } catch (err) {
+      derniereErreur = err.message
+    }
     return instantane()
   })
 
