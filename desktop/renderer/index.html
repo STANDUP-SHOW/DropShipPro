@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DropShipper Desktop</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>DropShipper <span>Desktop</span></h1>
+    <div id="compte"></div>
+  </header>
+
+  <main>
+    <section id="connexion" hidden>
+      <h2>Relier ce poste à votre compte</h2>
+      <p>Dans <strong>drop-shipper.fr › Réglages</strong>, créez une clé d’API et collez-la ici. Elle est gardée chiffrée sur ce poste ; elle ne peut ni payer ni publier chez nous.</p>
+      <div class="ligne">
+        <input id="cle" type="password" placeholder="dsp_live_…" autocomplete="off" />
+        <button id="relier" class="principal" type="button">Relier</button>
+      </div>
+      <p id="erreur-cle" class="erreur"></p>
+    </section>
+
+    <section id="tableau" hidden>
+      <div class="carte">
+        <h2>Produits reçus du mobile <small id="nb-liens"></small></h2>
+        <p id="erreur" class="erreur"></p>
+        <ul id="liens" class="liste"></ul>
+        <p id="vide" class="discret">Rien en attente. Partagez un produit depuis l’application mobile ou l’extension : il apparaît ici en moins d’une minute.</p>
+      </div>
+
+      <div class="carte">
+        <h2>Vos places de marché</h2>
+        <p class="discret">Connectez-vous vous-même dans chaque fenêtre : vos identifiants restent dans ce profil local et ne passent jamais par nos serveurs.</p>
+        <div id="plateformes"></div>
+      </div>
+
+      <div class="carte">
+        <h2>Journal</h2>
+        <ul id="journal" class="liste petit"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

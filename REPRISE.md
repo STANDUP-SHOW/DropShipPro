@@ -7,7 +7,28 @@ vérifiés** : celui-ci dit **où on en est**, **ce qui bloque**, et **ce qui re
 
 ---
 
-## Où on en est le 30/09/2026 — auto-fulfillment multi-canal (à reprendre ICI)
+## Où on en est le 30/09/2026 au soir — à reprendre ICI
+
+**Fait aujourd'hui (poussé, bancs verts, jamais confronté à un vrai compte)** :
+version Shopify `1.2-commandes` **active** (constaté) ; ventes Kaufland, WooCommerce,
+Magento, PrestaShop, BigCommerce, Wix, Shopware, Ecwid, Squarespace, Drupal
+(commits `f10ad4b` → `bff5e31`, détail dans `docs/v2/DECISIONS.md` § 30/09) ;
+socle de l'application desktop dans `desktop/` (voir son README).
+
+**Reste, dans l'ordre** :
+1. Vérifier le déploiement Railway des commits du jour, puis le panneau
+   « Ventes captées » connecté dans Commandes.
+2. Desktop : `cd desktop && npm install && npm start` (jamais lancé), puis
+   l'**exécuteur de publication** (Vinted / Leboncoin / Facebook) appuyé sur les
+   garde-fous de `lib/plafonds.js` ; imports en masse ; commandes fournisseurs
+   arrêtées au paiement.
+3. **Max doit** : téléverser `backend/extension-store.zip` (1.37.0) au Chrome Web
+   Store — Chrome interdit à l'automate de piloter cette page (« extensions
+   gallery cannot be scripted »), et Google redemande le mot de passe ; jeton
+   eBay avec `sell.fulfillment` ; envoyer les deux fichiers du Bureau au
+   développeur mobile.
+
+## Avant : auto-fulfillment multi-canal (29/09/2026)
 
 Poussé : `b0dc6a9` (Shopify : capture des ventes, suivi renvoyé, garde-fou de
 perte) et `9a88f78` (moteur multi-canal : eBay, 41 enseignes Mirakl, import CSV

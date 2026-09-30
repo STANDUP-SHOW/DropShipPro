@@ -42,6 +42,28 @@ travail V2 ; les mémos restent la vision, ce fichier fait foi pour l'exécution
   Prochains adaptateurs, même forme : Kaufland, les 9 boutiques tierces, puis
   les canaux à session (Vinted, Leboncoin, Facebook) par l'application desktop.
 
+## Livré le 30/09/2026
+
+- **Kaufland** (`f10ad4b`) : unités `need_to_be_sent` regroupées par commande et
+  par référence, suivi `PATCH /order-units/{id}/send` par unité ; `id_offer` =
+  `produit.id` posé au dépôt, les anciennes unités retrouvées par EAN
+  (`EAN:<code>` dans `produitDeLUgs`, refusé si deux produits portent le même).
+- **Les 9 boutiques tierces** : WooCommerce (`0d94c3c`, `processing`, suivi en
+  note client puis `completed`), Magento (`d9acb65`, `/order/{id}/ship`),
+  PrestaShop (`77d3281`, JSON, `order_carriers` puis état 4 « Expédié »),
+  BigCommerce, Wix, Shopware, Ecwid, Squarespace, Drupal Commerce (`bff5e31`).
+  **Drupal : pas de renvoi du suivi** (Commerce n'a pas de suivi de colis en
+  standard). Tous éprouvés contre de faux serveurs (`check-ventes-canaux.ts`),
+  **aucun contre une vraie boutique**.
+- **Version Shopify `1.2-commandes` publiée et active** (portées `read_orders`,
+  `write_merchant_managed_fulfillment_orders`) : constaté dans le Dev Dashboard.
+  Les marchands déjà installés doivent ré-accepter les portées.
+- **Application desktop** (`desktop/`) : socle Electron (clé d'API chiffrée,
+  file de liens, sessions persistantes, surveillance des blocages) et garde-fous
+  du mode automatique (accord daté, plafonds durs, espacement fixe, arrêt au
+  premier captcha, journal) — banc `desktop/check-desktop.cjs`. **Pas encore
+  lancé sous Electron, et l'exécuteur de publication n'est pas écrit.**
+
 ## Ce qu'on adopte
 
 - **Inbox mobile** : `POST /v1/mobile/inbox { source_url }` → branchée sur `SharedLink`.
