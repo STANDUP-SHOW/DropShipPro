@@ -90,7 +90,7 @@ async function main() {
   let etat = { arrets: {} }
   verifier('sans accord explicite : refusé', p.decision({ plateforme: 'VINTED', config: cfg, maintenant: midi }).ok === false && /accord/.test(p.decision({ plateforme: 'VINTED', config: cfg, maintenant: midi }).raison))
   cfg = p.accorder(cfg, 'VINTED', midi)
-  verifier('l’accord garde sa date et le texte accepté (risque de suspension)', cfg.accords.VINTED.at === midi.toISOString() && /suspendre/.test(cfg.accords.VINTED.texte))
+  verifier('l’accord garde sa date et le texte accepté (risque de suspension)', cfg.accords.VINTED.at === midi.toISOString() && /restreindre/.test(cfg.accords.VINTED.texte))
   verifier('avec accord et journal vide : autorisé', p.decision({ plateforme: 'VINTED', config: cfg, maintenant: midi }).ok === true)
   verifier('l’accord Vinted ne vaut pas pour Leboncoin', p.decision({ plateforme: 'LEBONCOIN', config: cfg, maintenant: midi }).ok === false)
 

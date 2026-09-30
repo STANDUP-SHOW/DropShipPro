@@ -25,7 +25,7 @@ const PLATEFORMES = {
 
 /** Le texte que le vendeur lit avant de cocher l'accord — la trace de ce qu'il a accepté. */
 const TEXTE_ACCORD =
-  "Je demande la publication automatique de mes annonces sur cette plateforme, depuis ma propre session. Je sais que la plateforme peut la considérer comme contraire à ses conditions et suspendre mon compte. DropShipper publie avec des plafonds et un espacement, s'arrête au premier blocage, et tient un journal ; il ne peut pas garantir l'absence de suspension."
+  "L'agent publie seul mes annonces sur cette plateforme, depuis ma session, avec des plafonds, et s'arrête au premier blocage. Les plateformes peuvent restreindre un compte qui automatise ses publications."
 
 const MOTIFS_BLOCAGE = [
   /captcha/i,
