@@ -7,6 +7,37 @@ vérifiés** : celui-ci dit **où on en est**, **ce qui bloque**, et **ce qui re
 
 ---
 
+## Où on en est le 30/09/2026 — auto-fulfillment multi-canal (à reprendre ICI)
+
+Poussé : `b0dc6a9` (Shopify : capture des ventes, suivi renvoyé, garde-fou de
+perte) et `9a88f78` (moteur multi-canal : eBay, 41 enseignes Mirakl, import CSV
+universel, panneau « Ventes captées » dans Commandes). Voir
+`docs/v2/DECISIONS.md` § « Livré le 29/09/2026 ». Bancs : `check-ventes-shopify`,
+`check-ventes-canaux`, `check-garde-perte` — tout passe (84 bancs).
+
+**Pas constaté** : le déploiement Railway de ces deux commits (incident Railway
+en cours le 29/09 au soir), le panneau Commandes connecté, un vrai compte eBay
+ou Mirakl. À vérifier d'abord : `curl https://api.drop-shipper.fr/api/health`
+et `GET /api/orders/canaux-ventes` connecté.
+
+**Max doit** : ajouter `read_orders` + `write_merchant_managed_fulfillment_orders`
+à son app Shopify ; jeton eBay avec `sell.fulfillment` ; téléverser l'extension
+1.37.0 (`backend/extension-store.zip`) ; transmettre au dev mobile les deux
+fichiers du Bureau (`dropshipper-api.config.json`, `API-LINK-…md`).
+
+**Suite, dans l'ordre, même forme (`Canal` dans `ventesMarketplaces.ts`)** :
+1. Kaufland : `GET /order-units/?storefront=..&status=need_to_be_sent&embedded=order,product`
+   — les unités déposées n'ont pas de `id_offer` : en poser un (`produit.id`)
+   dans `deposerOffreKaufland`, et retrouver les anciennes par EAN
+   (`identifiantCatalogue`, mirakl.ts) ; suivi : `PATCH /order-units/{id}/send`.
+2. Les 9 boutiques tierces (WooCommerce `/wc/v3/orders`, PrestaShop, Magento,
+   BigCommerce, Wix, Shopware, Ecwid, Squarespace, Drupal) — SKU = `DSP-<réf|id>`.
+3. Application desktop Electron : sessions Vinted / Leboncoin / Facebook,
+   lecture des ventes dans la session, imports en masse, mode automatique
+   (accord explicite, plafonds, arrêt au captcha, jamais d'évasion).
+
+---
+
 ## La règle qui compte plus que le reste
 
 **Rien n'est « fait » tant que ça n'a pas été constaté.** Compilé, commité et
