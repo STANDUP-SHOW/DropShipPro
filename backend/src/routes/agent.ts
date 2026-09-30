@@ -7,6 +7,8 @@ import { reserveCredits, refundCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
 import { SEUIL_DROPS } from './marketReports.js'
+import { comptesDe, publier as publierSocial, socialConfigure } from '../services/socialGateway.js'
+import { brouillonPour } from '../services/socialDraft.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { lireRapport, RapportInvalide } from '../services/marketReports.js'
 import { rateLimit } from '../middleware/rateLimit.js'
@@ -410,6 +412,38 @@ agentRouter.get('/gagnants', requireDesktop as never, async (req: AgentRequest, 
     console.error('agent gagnants', e)
     res.status(500).json({ error: 'Impossible de lire la liste des gagnants' })
   }
+})
+
+/**
+ * Publie un produit sur les réseaux sociaux reliés du vendeur (Facebook, Instagram,
+ * TikTok…), au brouillon de chaque réseau (`brouillonPour`). Clé desktop.
+ * Sans réseau relié ou sans moteur social activé, la réponse le dit : ce n'est pas
+ * une erreur. Un compte qui refuse n'empêche pas les autres ; le détail est rendu.
+ * L'application desktop n'appelle qu'une fois par produit importé (elle le note).
+ */
+agentRouter.post('/social', requireDesktop as never, async (req: AgentRequest, res) => {
+  const parsed = z.object({ productId: z.string().min(1).max(60) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'productId attendu' })
+  const produit = await prisma.product.findFirst({ where: { id: parsed.data.productId, userId: req.userId! } })
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+
+  if (!socialConfigure()) return res.json({ ok: true, publies: 0, comptes: 0, raison: "Le module réseaux sociaux n'est pas encore activé sur ce compte.", erreurs: [] })
+  const comptes = (await comptesDe(req.userId!, { publicitaires: false })).filter((c) => c.connected)
+  if (!comptes.length) return res.json({ ok: true, publies: 0, comptes: 0, raison: 'Aucun réseau social relié : reliez-en dans Réseaux sociaux.', erreurs: [] })
+
+  const medias = (await imagesPourExport(produit)).slice(0, 4)
+  let publies = 0
+  const erreurs: Array<{ reseau: string; erreur: string }> = []
+  for (const compte of comptes) {
+    try {
+      const brouillon = brouillonPour(produit, compte.platform, null)
+      await publierSocial(req.userId!, { comptes: [compte.externalId], texte: brouillon.texte, medias })
+      publies++
+    } catch (err) {
+      erreurs.push({ reseau: compte.platform, erreur: err instanceof Error ? err.message.slice(0, 200) : 'refus' })
+    }
+  }
+  res.json({ ok: true, publies, comptes: comptes.length, erreurs })
 })
 
 const fileSchema = z.object({ productId: z.string().min(1).max(60), platforms: z.array(z.enum(PLATEFORMES_SESSION)).min(1).max(3) })

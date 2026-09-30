@@ -344,6 +344,28 @@ async function main() {
   })
   bg = await importGroupe({ api: ag, plateformes: ['VINTED'], plafond: 20, dormir: async () => undefined })
   verifier('une page illisible n’arrête pas le lot : 3 importés, 1 échec', bg.importes === 3 && bg.echecs === 1 && !bg.sansSolde)
+  ag = apiListe(2)
+  const posts = []
+  ag.publierReseaux = async (pid) => (posts.push(pid), { publies: 2, comptes: 2, erreurs: [] })
+  bg = await importGroupe({ api: ag, plateformes: ['VINTED'], reseaux: true, plafond: 20, dormir: async () => undefined })
+  verifier('réseaux activés : chaque produit importé est publié UNE fois sur les réseaux reliés', bg.importes === 2 && posts.length === 2)
+  posts.length = 0
+  bg = await importGroupe({ api: ag, plateformes: ['VINTED'], reseaux: false, plafond: 20, dormir: async () => undefined })
+  verifier('réseaux coupés : aucun appel social', posts.length === 0)
+  ag = apiListe(2)
+  ag.publierReseaux = async () => {
+    throw new ErreurApi('panne du moteur social', 500)
+  }
+  bg = await importGroupe({ api: ag, plateformes: ['VINTED'], reseaux: true, plafond: 20, dormir: async () => undefined })
+  verifier('un refus du module social n’annule ni l’import ni la mise en file', bg.importes === 2 && ag.j.file.length === 2)
+  ag = apiListe(1, async () => {
+    throw new ErreurApi('Cette page n’a pas pu être lue', 502)
+  })
+  const postsBis = []
+  ag.publierReseaux = async (pid) => (postsBis.push(pid), { publies: 1 })
+  await importGroupe({ api: ag, plateformes: [], reseaux: true, plafond: 20, dormir: async () => undefined })
+  verifier('import raté : rien à publier sur les réseaux', postsBis.length === 0)
+
   const hier = new Date(midi.getTime() - 86_400_000).toISOString()
   const jr = [
     { type: 'import', resultat: 'en_file', at: midi.toISOString() },

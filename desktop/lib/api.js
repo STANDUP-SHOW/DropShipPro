@@ -44,6 +44,8 @@ function client({ apiBase, cle, fetcher = fetch }) {
     gagnants: ({ margeMin = 20, max = 50 } = {}) => appel('GET', `/gagnants?margeMin=${encodeURIComponent(margeMin)}&max=${encodeURIComponent(max)}`),
     /** Importe le produit d'un lien reçu (drops du vendeur, remboursés si rien n'est livré). Clé desktop. */
     importer: (url, shareId) => appel('POST', '/import', { url, ...(shareId ? { shareId } : {}) }),
+    /** Publie un produit sur les réseaux sociaux reliés du vendeur. Clé desktop. */
+    publierReseaux: (productId) => appel('POST', '/social', { productId }),
     /** Met un produit en file de publication sur des places à session. Clé desktop. */
     mettreEnFile: (productId, platforms) => appel('POST', '/publications', { productId, platforms }),
     /** Les annonces à publier sur les places à session (Vinted, Leboncoin, Facebook). */

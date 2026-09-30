@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('desktop', {
   reprendre: (id) => ipcRenderer.invoke('auto:reprendre', id),
   preparerAnnonce: (id) => ipcRenderer.invoke('annonce:preparer', id),
   annonceTerminee: (id, reussi) => ipcRenderer.invoke('annonce:terminee', { id, reussi }),
+  regerReseaux: (actif) => ipcRenderer.invoke('circuit:reseaux', actif),
   plafondImports: (n) => ipcRenderer.invoke('circuit:plafond', n),
   regerCircuit: (actif) => ipcRenderer.invoke('circuit:regler', actif),
   surEtat: (cb) => ipcRenderer.on('etat', (_e, e) => cb(e)),

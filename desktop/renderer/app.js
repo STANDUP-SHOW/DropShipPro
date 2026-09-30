@@ -133,6 +133,7 @@ function rendre(etat) {
   $('compte').textContent = etat.connecte ? etat.apiBase.replace(/^https?:\/\//, '') : ''
   if (!etat.connecte) return
   $('circuit').checked = Boolean(etat.circuit)
+  $('reseaux').checked = Boolean(etat.reseaux)
   if (document.activeElement !== $('plafond-imports')) $('plafond-imports').value = etat.plafondImports
   $('imports-jour').textContent = `${etat.importsAujourdhui} aujourd’hui`
   rendreLiens(etat)
@@ -152,6 +153,7 @@ $('relier').addEventListener('click', async () => {
 
 $('circuit').addEventListener('change', async (e) => rendre(await window.desktop.regerCircuit(e.target.checked)))
 
+$('reseaux').addEventListener('change', async (e) => rendre(await window.desktop.regerReseaux(e.target.checked)))
 $('plafond-imports').addEventListener('change', async (e) => rendre(await window.desktop.plafondImports(e.target.value)))
 
 window.desktop.surEtat(rendre)

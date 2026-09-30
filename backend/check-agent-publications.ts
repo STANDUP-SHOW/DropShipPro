@@ -97,6 +97,13 @@ async function main() {
     verifier('une publication FAILED peut être remise en file', relance.json.enFile?.[0] === 'FACEBOOK')
     await prisma.publication.updateMany({ where: { productId: tapisFile.id }, data: { status: 'PUBLISHED' } })
 
+    console.log('\nRéseaux sociaux')
+    verifier('une clé d’agent tiers ne publie pas sur les réseaux (403)', (await appel('POST', '/social', cle.key, { productId: lampe.id })).statut === 403)
+    verifier('corps invalide : 400', (await appel('POST', '/social', cleDesk.key, {})).statut === 400)
+    verifier('produit d’un autre compte : 404', (await appel('POST', '/social', cleDesk.key, { productId: chezAutre.id })).statut === 404)
+    const soc = await appel('POST', '/social', cleDesk.key, { productId: lampe.id })
+    verifier('aucun réseau relié (ou module inactif) : 200, rien publié, la raison est dite', soc.statut === 200 && soc.json.publies === 0 && /activé|relié/.test(String(soc.json.raison)), JSON.stringify(soc.json))
+
     console.log('\nPilote automatique → file du desktop')
     const { mettreEnFileDesktop, aUneApplicationDesktop } = await import('./src/services/desktopFile.js')
     const gagnant = await prisma.product.create({ data: { ...base_, title: 'Gagnant du pilote', description: 'x' } })

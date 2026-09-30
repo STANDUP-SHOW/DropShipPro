@@ -18,7 +18,21 @@ const passagere = (err) => err && (err.statut === 0 || err.statut >= 500) && err
 /**
  * @returns {Promise<{statut: 'en_file'|'importe'|'sans_solde'|'echec', productId?: string, enFile?: string[], raison?: string}>}
  */
-async function traiterLien({ api, lien, plateformes = [], essais = 3, pauseEssaiMs = 15_000, dormir = pause }) {
+async function traiterLien({ api, lien, plateformes = [], reseaux = false, essais = 3, pauseEssaiMs = 15_000, dormir = pause }) {
+  const r = await importerEtMettreEnFile({ api, lien, plateformes, essais, pauseEssaiMs, dormir })
+  // Les réseaux sociaux : une fois par produit importé, jamais rejoués. Un refus n'annule rien du reste.
+  if (reseaux && r.productId && (r.statut === 'en_file' || r.statut === 'importe')) {
+    try {
+      const s = await api.publierReseaux(r.productId)
+      r.reseaux = { publies: s.publies || 0, raison: s.raison, erreurs: s.erreurs || [] }
+    } catch (err) {
+      r.reseaux = { publies: 0, raison: err.message, erreurs: [] }
+    }
+  }
+  return r
+}
+
+async function importerEtMettreEnFile({ api, lien, plateformes, essais, pauseEssaiMs, dormir }) {
   let produit = null
   let derniere = null
   for (let i = 1; i <= essais; i++) {
@@ -70,7 +84,7 @@ function plafondImports(config = {}) {
  *
  * @returns {Promise<{jour: string|null, lus: number, importes: number, echecs: number, sansSolde: boolean, plafondAtteint: boolean, resultats: object[]}>}
  */
-async function importGroupe({ api, plateformes = [], plafond, dejaFaits = 0, margeMin = 20, essais, pauseEssaiMs, dormir, surProduit = () => {} }) {
+async function importGroupe({ api, plateformes = [], reseaux = false, plafond, dejaFaits = 0, margeMin = 20, essais, pauseEssaiMs, dormir, surProduit = () => {} }) {
   const restant = Math.max(0, plafond - dejaFaits)
   const bilan = { jour: null, lus: 0, importes: 0, echecs: 0, sansSolde: false, plafondAtteint: restant === 0, resultats: [] }
   if (restant === 0) return bilan
@@ -82,7 +96,7 @@ async function importGroupe({ api, plateformes = [], plafond, dejaFaits = 0, mar
       bilan.plafondAtteint = true
       break
     }
-    const r = await traiterLien({ api, lien: { url: produit.url }, plateformes, essais, pauseEssaiMs, dormir })
+    const r = await traiterLien({ api, lien: { url: produit.url }, plateformes, reseaux, essais, pauseEssaiMs, dormir })
     surProduit(produit, r)
     bilan.resultats.push({ url: produit.url, statut: r.statut })
     if (r.statut === 'sans_solde') {

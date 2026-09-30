@@ -66,6 +66,7 @@ function instantane() {
       decision: plafonds.decision({ plateforme: id, config: cfg, journal: plafonds.lireJournal(dossier()), etat }),
     })),
     circuit: Boolean(cfg.circuit && cfg.circuit.actif),
+    reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux),
     plafondImports: plafondImports(cfg),
     importsAujourdhui: importesAujourdhui(plafonds.lireJournal(dossier())),
     texteAccord: plafonds.TEXTE_ACCORD,
@@ -83,7 +84,7 @@ async function circuitAuto(nouveaux) {
   const restants = []
   for (let i = 0; i < nouveaux.length; i++) {
     const lien = nouveaux[i]
-    const r = await traiterLien({ api, lien, plateformes })
+    const r = await traiterLien({ api, lien, plateformes, reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux) })
     plafonds.journaliser(dossier(), { type: 'import', publication: lien.id, produit: r.productId, raison: r.raison, resultat: r.statut })
     if (r.statut === 'sans_solde') {
       derniereErreur = r.raison
@@ -112,9 +113,10 @@ async function journeeGagnants() {
     const bilan = await importGroupe({
       api,
       plateformes,
+      reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux),
       plafond: plafondImports(cfg),
       dejaFaits: importesAujourdhui(plafonds.lireJournal(dossier())),
-      surProduit: (produit, r) => plafonds.journaliser(dossier(), { type: 'import', publication: produit.url, produit: r.productId, raison: r.raison, resultat: r.statut }),
+      surProduit: (produit, r) => plafonds.journaliser(dossier(), { type: 'import', publication: produit.url, produit: r.productId, raison: r.raison, resultat: r.statut, reseaux: r.reseaux ? r.reseaux.publies : undefined }),
     })
     plafonds.journaliser(dossier(), { type: 'gagnants', raison: `${bilan.importes} importé(s) sur ${bilan.lus} de la liste du ${bilan.jour}${bilan.sansSolde ? ' — solde de drops vide' : ''}` })
     // « Fait pour aujourd'hui » sauf si le solde a coupé le lot : il reprendra au prochain passage.
@@ -309,6 +311,12 @@ function brancherIpc() {
 
   ipcMain.handle('session:ouvrir', (_e, id) => ouvrirSession(id))
 
+  ipcMain.handle('circuit:reseaux', (_e, actif) => {
+    cfg = { ...cfg, circuit: { ...(cfg.circuit || {}), reseaux: Boolean(actif) } }
+    config.enregistrer(dossier(), cfg)
+    return instantane()
+  })
+
   ipcMain.handle('circuit:plafond', (_e, n) => {
     cfg = { ...cfg, plafondImports: Math.max(1, Math.min(Math.floor(Number(n)) || 20, 50)) }
     config.enregistrer(dossier(), cfg)
@@ -316,7 +324,7 @@ function brancherIpc() {
   })
 
   ipcMain.handle('circuit:regler', (_e, actif) => {
-    cfg = { ...cfg, circuit: { actif: Boolean(actif) } }
+    cfg = { ...cfg, circuit: { ...(cfg.circuit || {}), actif: Boolean(actif) } }
     // Réactiver le circuit relance l'import groupé du jour, même s'il a déjà tourné.
     if (actif) cfg.dernierGagnants = null
     config.enregistrer(dossier(), cfg)
