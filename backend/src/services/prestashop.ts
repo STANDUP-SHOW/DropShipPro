@@ -36,7 +36,7 @@ export function readPrestaCredentials(data: unknown): PrestaCredentials | null {
 
 const x = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-async function appeler(creds: PrestaCredentials, methode: string, chemin: string, corps?: string | FormData, contentType?: string, fetcher: typeof fetch = fetch): Promise<Response> {
+export async function appeler(creds: PrestaCredentials, methode: string, chemin: string, corps?: string | FormData, contentType?: string, fetcher: typeof fetch = fetch): Promise<Response> {
   const r = await fetcher(`${creds.siteUrl}/api${chemin}`, {
     method: methode,
     headers: {

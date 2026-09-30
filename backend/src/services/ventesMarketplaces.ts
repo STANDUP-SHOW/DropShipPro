@@ -42,6 +42,7 @@ import { jetonOfflineValide } from './shopifyApp.js'
 import { appeler as appelerEbay, avecRenouvellement, readEbayCredentials, type EbayCredentials } from './ebay.js'
 import { appeler as appelerWoo, readWooCredentials, type WooCredentials } from './woocommerce.js'
 import { BoutiqueRefus } from './boutiqueTiers.js'
+import { appeler as appelerPresta, readPrestaCredentials, type PrestaCredentials } from './prestashop.js'
 import { appeler as appelerMagento, readMagentoCredentials, type MagentoCredentials } from './magento.js'
 import { appeler as appelerKaufland, readKauflandCredentials, type KauflandCredentials } from './kaufland.js'
 import { appeler as appelerMirakl, OPERATEURS_MIRAKL, estMirakl, readMiraklCredentials, type MiraklCredentials } from './mirakl.js'
@@ -80,7 +81,7 @@ export interface BilanCapture {
 }
 
 /** Les canaux dont les ventes remontent seules aujourd'hui. */
-export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'MAGENTO', ...OPERATEURS_MIRAKL]
+export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'MAGENTO', 'PRESTASHOP', ...OPERATEURS_MIRAKL]
 
 // ------------------------------------------------------ La référence → produit
 
@@ -834,6 +835,99 @@ export function canalMagento(creds: MagentoCredentials): Canal {
   }
 }
 
+// ------------------------------------------------------------------ PrestaShop
+
+interface CommandePresta {
+  id: number
+  reference?: string
+  id_customer?: number | string
+  id_address_delivery?: number | string
+  id_currency?: number | string
+  date_add?: string
+  associations?: { order_rows?: Array<{ id: number | string; product_reference?: string; product_name?: string; product_quantity?: number | string; unit_price_tax_incl?: number | string; total_price_tax_incl?: number | string }> }
+}
+
+// Les états de commande par défaut de PrestaShop : 2 « Paiement accepté »,
+// 3 « Préparation en cours » (payées, pas expédiées), 4 « Expédié ».
+const ETATS_PAYES_PRESTA = '[2|3]'
+const ETAT_EXPEDIE_PRESTA = 4
+
+/**
+ * PrestaShop : le webservice répond en JSON avec `output_format=JSON` (1.7+).
+ * Une commande ne porte que des identifiants : l'adresse, le client et le pays
+ * se relisent un par un. Le suivi s'écrit sur `order_carriers` (relu en XML,
+ * modifié, renvoyé : PrestaShop refuse une écriture partielle), puis la commande
+ * passe à « Expédié » par un `order_histories`.
+ */
+export function canalPresta(creds: PrestaCredentials): Canal {
+  const lire = async <T,>(chemin: string): Promise<T | null> => {
+    const r = await appelerPresta(creds, 'GET', `${chemin}${chemin.includes('?') ? '&' : '?'}output_format=JSON`)
+    return r.ok ? ((await r.json()) as T) : null
+  }
+  return {
+    platform: 'PRESTASHOP',
+    async relever(depuis) {
+      const fin = new Date(Date.now() + 86_400_000)
+      const jour = (d: Date) => d.toISOString().replace('T', ' ').slice(0, 19)
+      const r = await lire<{ orders?: CommandePresta[] }>(
+        `/orders?display=full&filter[current_state]=${ETATS_PAYES_PRESTA}&filter[date_add]=[${jour(depuis)},${jour(fin)}]&date=1&limit=100`,
+      )
+      if (!r) throw new Error('PrestaShop a refusé la lecture des commandes : la clé doit avoir le droit « orders » (GET).')
+      const ventes: VenteCapturee[] = []
+      for (const c of r.orders ?? []) {
+        const adresse = c.id_address_delivery ? await lire<{ address?: Record<string, string> }>(`/addresses/${c.id_address_delivery}`) : null
+        const a = adresse?.address ?? {}
+        const client = c.id_customer ? await lire<{ customer?: { email?: string } }>(`/customers/${c.id_customer}`) : null
+        const pays = a.id_country ? await lire<{ country?: { iso_code?: string } }>(`/countries/${a.id_country}`) : null
+        const nom = [a.firstname, a.lastname].filter(Boolean).join(' ') || 'Acheteur'
+        const devise = c.id_currency ? await lire<{ currency?: { iso_code?: string } }>(`/currencies/${c.id_currency}`) : null
+        ventes.push({
+          platform: 'PRESTASHOP',
+          externalOrderId: String(c.id),
+          numero: c.reference || String(c.id),
+          creeLe: new Date(c.date_add ? c.date_add.replace(' ', 'T') + 'Z' : Date.now()),
+          devise: devise?.currency?.iso_code || 'EUR',
+          acheteur: {
+            nom,
+            email: client?.customer?.email ?? null,
+            adresse: { name: nom, address1: a.address1, address2: a.address2 || undefined, city: a.city, zip: a.postcode, countryCode: pays?.country?.iso_code, phone: a.phone || a.phone_mobile || undefined },
+          },
+          lignes: (c.associations?.order_rows ?? []).map((l) => ({
+            externalLineId: String(l.id),
+            sku: l.product_reference || null,
+            titre: l.product_name ?? '',
+            quantite: Number(l.product_quantity) || 1,
+            montant: Number(l.total_price_tax_incl) || Number(l.unit_price_tax_incl) * (Number(l.product_quantity) || 1) || 0,
+          })),
+        })
+      }
+      return ventes
+    },
+    async transmettreSuivi(orderId, numero) {
+      const id = encodeURIComponent(orderId)
+      const transporteurs = await appelerPresta(creds, 'GET', `/order_carriers?filter[id_order]=[${id}]&display=[id]&output_format=JSON`)
+      const idTransport = ((await transporteurs.json().catch(() => ({}))) as { order_carriers?: Array<{ id: number }> }).order_carriers?.[0]?.id
+      if (!idTransport) throw new Error("PrestaShop ne renvoie aucun transporteur pour cette commande : le suivi n'a pu être posé.")
+      const xml = await (await appelerPresta(creds, 'GET', `/order_carriers/${idTransport}`)).text()
+      const suivi = numero.replace(/[<>&]/g, '')
+      const modifie = /<tracking_number\s*\/>|<tracking_number>[\s\S]*?<\/tracking_number>/.test(xml)
+        ? xml.replace(/<tracking_number\s*\/>|<tracking_number>[\s\S]*?<\/tracking_number>/, `<tracking_number><![CDATA[${suivi}]]></tracking_number>`)
+        : xml.replace('</order_carrier>', `<tracking_number><![CDATA[${suivi}]]></tracking_number></order_carrier>`)
+      const put = await appelerPresta(creds, 'PUT', `/order_carriers/${idTransport}`, modifie, 'text/xml')
+      if (!put.ok) throw new Error(`PrestaShop a refusé le numéro de suivi (${put.status}).`)
+      const histoire = await appelerPresta(
+        creds,
+        'POST',
+        '/order_histories',
+        `<?xml version="1.0" encoding="UTF-8"?><prestashop><order_history><id_order>${id}</id_order><id_order_state>${ETAT_EXPEDIE_PRESTA}</id_order_state></order_history></prestashop>`,
+        'text/xml',
+      )
+      if (!histoire.ok && histoire.status !== 201) throw new Error(`PrestaShop a refusé de passer la commande à « Expédié » (${histoire.status}).`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
 // ------------------------------------------------------------------ Tournée
 
 /** Le canal d'une liaison, ou null si la plateforme ne remonte pas (encore) ses ventes. */
@@ -848,6 +942,10 @@ export async function canalPour(lien: PlatformCredential): Promise<Canal | null>
   if (lien.platform === 'EBAY') {
     const creds = readEbayCredentials(lien.data)
     return creds ? canalEbay(creds) : null
+  }
+  if (lien.platform === 'PRESTASHOP') {
+    const creds = readPrestaCredentials(lien.data)
+    return creds ? canalPresta(creds) : null
   }
   if (lien.platform === 'MAGENTO') {
     const creds = readMagentoCredentials(lien.data)

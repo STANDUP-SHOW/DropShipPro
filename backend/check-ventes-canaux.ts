@@ -12,7 +12,7 @@
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { prisma } from './src/lib/prisma.js'
-import { canalEbay, canalKaufland, canalMagento, canalMirakl, canalWoo, noterReleve, passage } from './src/services/ventesMarketplaces.js'
+import { canalEbay, canalKaufland, canalMagento, canalMirakl, canalPresta, canalWoo, noterReleve, passage } from './src/services/ventesMarketplaces.js'
 import { correspondance, importerCommandes, lireCsv, lireMontant } from './src/services/importCommandes.js'
 
 let echecs = 0
@@ -224,6 +224,33 @@ async function main() {
     await passage(user.id, cMagento)
     const ship = magento.journal.find((a) => a.methode === 'POST' && a.chemin.endsWith('/order/42/ship'))
     verifier('livraison posée avec le suivi', !!ship && JSON.parse(ship.corps).tracks[0].track_number === 'M-TRACK' && JSON.parse(ship.corps).tracks[0].title === 'UPS')
+
+    // ------------------------------------------------------- PrestaShop
+    console.log('\nPrestaShop')
+    const presta = await serveur((a) => {
+      if (a.auth !== `Basic ${Buffer.from('clef-ps:').toString('base64')}`) return { statut: 401 }
+      const q = decodeURIComponent(a.chemin)
+      if (a.methode === 'GET' && q.startsWith('/api/orders?')) {
+        if (!q.includes('filter[current_state]=[2|3]') || !q.includes('output_format=JSON')) return { statut: 400 }
+        return { json: { orders: [{ id: 7, reference: 'ABCDEFGHI', id_customer: 3, id_address_delivery: 9, id_currency: 1, date_add: '2026-09-30 09:00:00', associations: { order_rows: [{ id: 70, product_reference: `DSP-${lampe.supplierRef}`, product_name: 'Lampe', product_quantity: '2', total_price_tax_incl: '59.800000' }] } }] } }
+      }
+      if (a.methode === 'GET' && q.startsWith('/api/addresses/9')) return { json: { address: { firstname: 'Noa', lastname: 'Pic', address1: '5 av. Sud', postcode: '31000', city: 'Toulouse', id_country: '8', phone: '0611' } } }
+      if (a.methode === 'GET' && q.startsWith('/api/customers/3')) return { json: { customer: { email: 'noa@exemple.test' } } }
+      if (a.methode === 'GET' && q.startsWith('/api/countries/8')) return { json: { country: { iso_code: 'FR' } } }
+      if (a.methode === 'GET' && q.startsWith('/api/currencies/1')) return { json: { currency: { iso_code: 'EUR' } } }
+      if (a.methode === 'GET' && q.startsWith('/api/order_carriers?')) return { json: { order_carriers: [{ id: 55 }] } }
+      if (a.methode === 'GET' && q.startsWith('/api/order_carriers/55')) return { json: undefined }
+      return { statut: 201 }
+    })
+    fermer.push(presta.fermer)
+    const cPresta = canalPresta({ siteUrl: presta.url, apiKey: 'clef-ps', langue: 1 })
+    const pP = await passage(user.id, cPresta)
+    const oP = await prisma.order.findMany({ where: { userId: user.id, platform: 'PRESTASHOP' } })
+    verifier('une vente PrestaShop par la référence DSP-, adresse, e-mail et pays relus', oP.length === 1 && oP[0].productId === lampe.id && oP[0].quantity === 2 && Number(oP[0].amount) === 59.8 && oP[0].buyerEmail === 'noa@exemple.test' && (oP[0].buyerAddress as Record<string, string>).countryCode === 'FR', JSON.stringify(pP.bilan) + pP.erreur)
+    await prisma.order.update({ where: { id: oP[0].id }, data: { trackingNumber: 'P-TRACK', carrier: 'Chronopost' } })
+    await passage(user.id, cPresta)
+    const histo = presta.journal.find((a) => a.methode === 'POST' && a.chemin.includes('/order_histories'))
+    verifier('commande passée à « Expédié » (état 4)', !!histo && /<id_order>7<\/id_order><id_order_state>4</.test(histo.corps))
 
     // ----------------------------------------------------------- Import
     console.log('\nImport de fichier')
