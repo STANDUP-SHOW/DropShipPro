@@ -609,13 +609,13 @@ settingsRouter.get('/api-keys', async (req: AuthedRequest, res) => {
 })
 
 settingsRouter.post('/api-keys', async (req: AuthedRequest, res) => {
-  const parsed = z.object({ name: z.string().trim().min(1).max(60) }).safeParse(req.body)
+  const parsed = z.object({ name: z.string().trim().min(1).max(60), type: z.enum(['agent', 'desktop']).default('agent') }).safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Donnez un nom à cette clé' })
 
   const active = await prisma.apiKey.count({ where: { userId: req.userId!, revokedAt: null } })
   if (active >= 10) return res.status(400).json({ error: 'Dix clés actives au maximum' })
 
-  const { key, keyHash, prefix } = generateApiKey()
+  const { key, keyHash, prefix } = generateApiKey(parsed.data.type)
   const record = await prisma.apiKey.create({
     data: { userId: req.userId!, name: parsed.data.name, keyHash, prefix },
   })

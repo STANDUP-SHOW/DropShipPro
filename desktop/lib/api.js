@@ -28,13 +28,22 @@ function client({ apiBase, cle, fetcher = fetch }) {
     }
     if (r.status === 401) throw new ErreurApi('Clé d’API refusée : créez-en une nouvelle dans drop-shipper.fr › Réglages.', 401)
     if (r.status === 429) throw new ErreurApi('Trop de requêtes : le serveur demande de patienter.', 429)
-    if (!r.ok) throw new ErreurApi(`Le serveur répond ${r.status}.`, r.status)
+    if (r.status === 402) throw new ErreurApi('Solde de drops insuffisant : rechargez dans drop-shipper.fr › Mes crédits.', 402)
+    if (r.status === 403) throw new ErreurApi('Cette action demande une clé « DropShipper Desktop » (Réglages › Clés pour mes agents).', 403)
+    if (!r.ok) {
+      const detail = await r.json().then((j) => j && j.error).catch(() => null)
+      throw new ErreurApi(detail ? `${detail}` : `Le serveur répond ${r.status}.`, r.status)
+    }
     return r.json()
   }
   return {
     me: () => appel('GET', '/me'),
     liensNouveaux: async () => (await appel('GET', '/share?status=NEW')).links || [],
     reclamer: (id, statut = 'CLAIMED') => appel('POST', `/share/${encodeURIComponent(id)}/claim`, { status: statut }),
+    /** Importe le produit d'un lien reçu (drops du vendeur, remboursés si rien n'est livré). Clé desktop. */
+    importer: (url, shareId) => appel('POST', '/import', { url, ...(shareId ? { shareId } : {}) }),
+    /** Met un produit en file de publication sur des places à session. Clé desktop. */
+    mettreEnFile: (productId, platforms) => appel('POST', '/publications', { productId, platforms }),
     /** Les annonces à publier sur les places à session (Vinted, Leboncoin, Facebook). */
     publications: async (plateforme) => (await appel('GET', `/publications${plateforme ? `?platform=${encodeURIComponent(plateforme)}` : ''}`)).publications || [],
     /** Dit au serveur ce qui s'est passé : PUBLISHED (avec l'adresse) ou FAILED (avec la raison). */

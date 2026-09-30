@@ -116,8 +116,14 @@ async function main() {
   verifier('compte suspendu', p.detecterBlocage({ texte: 'Votre compte suspendu pour activité suspecte' }).bloque)
   verifier('une page normale ne déclenche rien', !p.detecterBlocage({ url: 'https://www.vinted.fr/items/123', titre: 'Lampe - Vinted', texte: 'Ajouter au panier, prix 25 €' }).bloque)
   etat = p.arreter(etat, 'VINTED', 'captcha', plus(1))
-  const stop = p.decision({ plateforme: 'VINTED', config: cfg, etat, maintenant: plus(500) })
-  verifier('après un blocage : refusé, quelle que soit l’heure', !stop.ok && /Reprenez vous-même/.test(stop.raison) && stop.attenteMs === null)
+  const stop = p.decision({ plateforme: 'VINTED', config: cfg, etat, maintenant: plus(61) })
+  verifier('après un blocage : pause de sécurité de 6 h, l’attente est chiffrée', !stop.ok && /Pause de sécurité/.test(stop.raison) && stop.attenteMs === 6 * 3600_000 - 60 * 60_000, JSON.stringify(stop))
+  verifier('la pause passée (6 h), l’agent retente TOUT SEUL, sans reprise manuelle', p.decision({ plateforme: 'VINTED', config: cfg, etat, maintenant: plus(6 * 60 + 2) }).ok === true)
+  const deuxieme = p.arreter(etat, 'VINTED', 'captcha encore', plus(6 * 60 + 2))
+  verifier('mur toujours là : la pause double (12 h), jusqu’à 48 h au plus', new Date(deuxieme.arrets.VINTED.jusqua).getTime() - plus(6 * 60 + 2).getTime() === 12 * 3600_000 && deuxieme.arrets.VINTED.tentatives === 2)
+  let sept = etat
+  for (let i = 0; i < 8; i++) sept = p.arreter(sept, 'VINTED', 'x', midi)
+  verifier('la pause ne dépasse jamais 48 h', new Date(sept.arrets.VINTED.jusqua).getTime() - midi.getTime() === 48 * 3600_000)
   verifier('l’arrêt d’une plateforme ne touche pas les autres', p.decision({ plateforme: 'LEBONCOIN', config: p.accorder(cfg, 'LEBONCOIN', midi), etat, maintenant: plus(500) }).ok === true)
   etat = p.reprendre(etat, 'VINTED')
   verifier('reprise manuelle : autorisé de nouveau', p.decision({ plateforme: 'VINTED', config: cfg, etat, maintenant: plus(500) }).ok === true)
@@ -195,14 +201,15 @@ async function main() {
   pil = fauxPilote({ page: { url: 'https://www.vinted.fr/items/new', titre: 'Vérification de sécurité', texte: 'captcha' } })
   api2 = fauxApi()
   r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi })
-  verifier('blocage à l’ouverture : arrêt, on ne remplit rien, on n’alerte pas le serveur d’un faux échec', r.statut === 'arret' && !pil.journalPilote.includes('remplir') && api2.appels.length === 0)
+  verifier('blocage à l’ouverture : pause, on ne remplit rien, on n’alerte pas le serveur d’un faux échec', r.statut === 'pause' && !pil.journalPilote.includes('remplir') && api2.appels.length === 0 && r.essais === 1)
   verifier('l’arrêt est écrit sur disque : la plateforme reste arrêtée au redémarrage', !!p.lireEtat(d).arrets.VINTED && p.lireJournal(d).some((e) => e.type === 'alerte'))
 
   d = dossierEx()
   pil = fauxPilote({ pagesApres: { url: 'https://www.vinted.fr/captcha', titre: 'Are you a robot?', texte: '' } })
   api2 = fauxApi()
   r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi })
-  verifier('blocage APRÈS le clic : arrêt, la publication n’est ni comptée ni déclarée publiée', r.statut === 'arret' && !p.lireJournal(d).some((e) => e.type === 'publication') && api2.appels.length === 0)
+  verifier('blocage APRÈS le clic : résultat incertain, jamais rejoué (1 seul clic), serveur : FAILED « vérifiez »', r.statut === 'pause' && pil.journalPilote.filter((x) => x === 'publier').length === 1 && api2.appels.length === 1 && api2.appels[0].statut === 'FAILED' && /Vérifiez/.test(api2.appels[0].x))
+  verifier('… et l’annonce cliquée compte pour le plafond du jour (prudence)', p.lireJournal(d).some((e) => e.type === 'publication'))
 
   d = dossierEx()
   pil = fauxPilote()
@@ -219,13 +226,90 @@ async function main() {
   d = dossierEx()
   pil = fauxPilote()
   r = await traiter({ api: fauxApi(), pilote: pil, plateforme: 'VINTED', annonce, config: cfgManuel, etat: p.arreter({ arrets: {} }, 'VINTED', 'captcha', midi), dossier: d, maintenant: midi })
-  verifier('plateforme arrêtée : même en validation, on ne rouvre pas la page', r.statut === 'arret' && pil.journalPilote.length === 0)
+  verifier('plateforme en pause : même en validation, on ne rouvre pas la page', r.statut === 'attente' && r.attenteMs === 6 * 3600_000 && pil.journalPilote.length === 0)
+
+  // Un agent insiste : les échecs ORDINAIRES sont retentés.
+  d = dossierEx()
+  let essai = 0
+  pil = fauxPilote()
+  pil.publier = async () => {
+    essai++
+    pil.journalPilote.push('publier')
+    if (essai < 3) throw new Error('Bouton « Publier » introuvable ou désactivé')
+    return { url: 'https://www.vinted.fr/items/1-lampe' }
+  }
+  api2 = fauxApi()
+  const dormis = []
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi, dormir: async (ms) => dormis.push(ms) })
+  verifier('échec ordinaire : retenté (2 échecs puis succès au 3e essai), pause fixe entre essais', r.statut === 'publiee' && r.essais === 3 && dormis.length === 2 && dormis.every((ms) => ms === 30_000) && api2.appels.length === 1 && api2.appels[0].statut === 'PUBLISHED', JSON.stringify(r))
+
+  d = dossierEx()
+  pil = fauxPilote({ echecPublier: true })
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi, dormir: async () => undefined })
+  verifier('3 essais ratés : FAILED envoyé UNE fois avec la raison, l’agent peut passer à la suivante', r.statut === 'echec' && r.essais === 3 && pil.journalPilote.filter((x) => x === 'publier').length === 3 && api2.appels.length === 1 && api2.appels[0].statut === 'FAILED' && /3 essais/.test(api2.appels[0].x))
+
+  d = dossierEx()
+  pil = fauxPilote()
+  api2 = { appels: [], resultat: async () => { throw new Error('serveur en panne') } }
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: { arrets: {} }, dossier: d, maintenant: midi, dormir: async () => undefined })
+  verifier('serveur injoignable APRÈS le clic : jamais de second clic (pas de doublon), publiée quand même', r.statut === 'publiee' && pil.journalPilote.filter((x) => x === 'publier').length === 1 && /serveur/.test(r.raison))
+
+  d = dossierEx()
+  p.ecrireEtat(d, p.arreter({ arrets: {} }, 'VINTED', 'captcha', new Date(midi.getTime() - 7 * 3600_000)))
+  pil = fauxPilote()
+  api2 = fauxApi()
+  r = await traiter({ api: api2, pilote: pil, plateforme: 'VINTED', annonce, config: cfgAuto, etat: p.lireEtat(d), dossier: d, maintenant: midi })
+  verifier('pause écoulée + publication réussie : la plateforme est libérée, compteur à zéro', r.statut === 'publiee' && !p.lireEtat(d).arrets.VINTED)
 
   d = dossierEx()
   pil = fauxPilote({ rempli: ['titre', 'description', 'prix', 'photos'] })
   api2 = fauxApi()
   r = await traiter({ api: api2, pilote: pil, plateforme: 'FACEBOOK', annonce, config: p.accorder({ ...config.PAR_DEFAUT }, 'FACEBOOK', midi), etat: { arrets: {} }, dossier: d, maintenant: midi })
   verifier('Facebook sans catégorie à régler : publié en mode automatique', r.statut === 'publiee' && api2.appels[0].statut === 'PUBLISHED')
+
+  console.log('\nCircuit automatique (lien → import → file)')
+  const { traiterLien } = require('./lib/circuit')
+  const { ErreurApi } = require('./lib/api')
+  const lien = { id: 'lk1', url: 'https://fr.aliexpress.com/item/1.html' }
+  const fauxApiCircuit = (surImport) => {
+    const j = { importer: [], file: [], reclamer: [] }
+    return {
+      j,
+      importer: async (url, id) => (j.importer.push(url), surImport(j.importer.length, url, id)),
+      mettreEnFile: async (pid, pl) => (j.file.push([pid, pl]), { enFile: pl }),
+      reclamer: async (id, s) => j.reclamer.push([id, s]),
+    }
+  }
+  let ac = fauxApiCircuit(async () => ({ id: 'prod9' }))
+  let rc = await traiterLien({ api: ac, lien, plateformes: ['VINTED', 'FACEBOOK'], dormir: async () => undefined })
+  verifier('import puis mise en file sur les plateformes activées, sans aucune validation', rc.statut === 'en_file' && rc.productId === 'prod9' && ac.j.file[0][1].join() === 'VINTED,FACEBOOK')
+  ac = fauxApiCircuit(async () => ({ id: 'prod9' }))
+  rc = await traiterLien({ api: ac, lien, plateformes: [], dormir: async () => undefined })
+  verifier('aucune plateforme activée : le produit est importé, rien n’est mis en file', rc.statut === 'importe' && ac.j.file.length === 0)
+  ac = fauxApiCircuit(async (n) => {
+    if (n < 3) throw new ErreurApi('Serveur injoignable', 0)
+    return { id: 'prod9' }
+  })
+  const dormisC = []
+  rc = await traiterLien({ api: ac, lien, plateformes: ['VINTED'], dormir: async (ms) => dormisC.push(ms) })
+  verifier('panne passagère : retentée (3e essai réussi), pause fixe', rc.statut === 'en_file' && ac.j.importer.length === 3 && dormisC.length === 2)
+  ac = fauxApiCircuit(async () => {
+    throw new ErreurApi('Solde de drops insuffisant', 402)
+  })
+  rc = await traiterLien({ api: ac, lien, plateformes: ['VINTED'], dormir: async () => undefined })
+  verifier('solde vide : arrêt net, un seul appel, aucune insistance inutile', rc.statut === 'sans_solde' && ac.j.importer.length === 1 && ac.j.reclamer.length === 0)
+  ac = fauxApiCircuit(async () => {
+    throw new ErreurApi('Cette page n’a pas pu être lue', 502)
+  })
+  rc = await traiterLien({ api: ac, lien, plateformes: ['VINTED'], dormir: async () => undefined })
+  verifier('page illisible : pas de réessai, le lien est classé, l’agent passe au suivant', rc.statut === 'echec' && ac.j.importer.length === 1 && ac.j.reclamer[0].join() === 'lk1,CLAIMED')
+  ac = fauxApiCircuit(async () => ({ id: 'prod9' }))
+  ac.mettreEnFile = async () => {
+    throw new ErreurApi('panne', 500)
+  }
+  rc = await traiterLien({ api: ac, lien, plateformes: ['VINTED'], dormir: async () => undefined })
+  verifier('mise en file ratée : le produit importé n’est pas perdu, la raison est dite', rc.statut === 'importe' && rc.productId === 'prod9' && /mise en file/.test(rc.raison))
 
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {

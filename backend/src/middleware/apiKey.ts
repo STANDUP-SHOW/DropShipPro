@@ -5,14 +5,18 @@ import { prisma } from '../lib/prisma.js'
 export interface AgentRequest extends Request {
   userId?: string
   apiKeyId?: string
+  /** Vrai pour une clé de l'application desktop : elle peut importer et mettre en file de publication. */
+  cleDesktop?: boolean
 }
 
 /** Le prefixe rend la clé reconnaissable dans un log ou un presse-papier. */
 const PREFIX = 'dsp_live_'
+/** Les clés de l'application desktop : reconnues à leur préfixe, sans colonne de plus en base. */
+const PREFIX_DESKTOP = 'dsp_desk_'
 
-export function generateApiKey() {
+export function generateApiKey(type: 'agent' | 'desktop' = 'agent') {
   const secret = crypto.randomBytes(32).toString('base64url')
-  const key = `${PREFIX}${secret}`
+  const key = `${type === 'desktop' ? PREFIX_DESKTOP : PREFIX}${secret}`
   return { key, keyHash: hashKey(key), prefix: key.slice(0, 16) }
 }
 
@@ -49,6 +53,7 @@ export async function requireApiKey(req: AgentRequest, res: Response, next: Next
 
   req.userId = record.userId
   req.apiKeyId = record.id
+  req.cleDesktop = record.prefix.startsWith(PREFIX_DESKTOP)
 
   // Sans await : savoir quand une clé a servi est utile, mais faire attendre
   // l'agent pour une écriture décorative ne l'est pas.
@@ -56,5 +61,18 @@ export async function requireApiKey(req: AgentRequest, res: Response, next: Next
     .update({ where: { id: record.id }, data: { lastUsedAt: new Date() } })
     .catch(() => {})
 
+  next()
+}
+
+/**
+ * Réservé aux clés de l'application desktop. Un agent de veille tiers garde ses
+ * droits d'origine (déposer des trouvailles, lire la file) : importer coûte des
+ * drops du vendeur, et seule l'application qu'il installe lui-même le fait pour
+ * lui — sur un solde qu'il a approvisionné, jamais au-delà.
+ */
+export function requireDesktop(req: AgentRequest, res: Response, next: NextFunction) {
+  if (!req.cleDesktop) {
+    return res.status(403).json({ error: "Cette action est réservée à une clé de l'application desktop (Réglages › Clés › clé pour DropShipper Desktop)." })
+  }
   next()
 }

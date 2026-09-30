@@ -81,15 +81,16 @@ function rendrePlateformes(etat) {
   for (const p of etat.plateformes) {
     const bloc = el('div', { classe: 'plateforme' })
     const tete = el('header', {}, el('h3', { texte: p.nom }))
-    if (p.arret) tete.append(el('span', { classe: 'pastille arret', texte: 'Arrêtée' }))
+    if (p.arret) tete.append(el('span', { classe: 'pastille arret', texte: 'En pause' }))
     else if (p.accord) tete.append(el('span', { classe: 'pastille ok', texte: 'Mode automatique actif' }))
     bloc.append(tete)
     bloc.append(el('button', { texte: `Ouvrir ${p.nom}`, type: 'button', clic: () => window.desktop.ouvrirSession(p.id) }))
 
     if (p.arret) {
+      const suite = p.arret.jusqua ? `L’agent réessaiera seul à partir du ${heure(p.arret.jusqua)}.` : 'Reprenez quand la vérification est réglée.'
       bloc.append(
-        el('p', { classe: 'erreur', texte: `Arrêt : ${p.arret.raison}. Réglez la vérification sur ${p.nom} vous-même, puis reprenez.` }),
-        el('button', { texte: 'J’ai réglé la vérification — reprendre', type: 'button', clic: async () => rendre(await window.desktop.reprendre(p.id)) }),
+        el('p', { classe: 'erreur', texte: `Pause de sécurité : ${p.arret.raison}. ${suite}` }),
+        el('button', { texte: 'J’ai réglé la vérification — reprendre maintenant', type: 'button', clic: async () => rendre(await window.desktop.reprendre(p.id)) }),
       )
     } else if (p.accord) {
       bloc.append(
@@ -131,6 +132,7 @@ function rendre(etat) {
   $('tableau').hidden = !etat.connecte
   $('compte').textContent = etat.connecte ? etat.apiBase.replace(/^https?:\/\//, '') : ''
   if (!etat.connecte) return
+  $('circuit').checked = Boolean(etat.circuit)
   rendreLiens(etat)
   rendreAnnonces(etat)
   rendrePlateformes(etat)
@@ -145,6 +147,8 @@ $('relier').addEventListener('click', async () => {
     rendre(await window.desktop.etat())
   }
 })
+
+$('circuit').addEventListener('change', async (e) => rendre(await window.desktop.regerCircuit(e.target.checked)))
 
 window.desktop.surEtat(rendre)
 window.desktop.etat().then(rendre)

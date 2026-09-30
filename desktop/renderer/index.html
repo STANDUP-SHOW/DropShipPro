@@ -16,7 +16,7 @@
   <main>
     <section id="connexion" hidden>
       <h2>Relier ce poste à votre compte</h2>
-      <p>Dans <strong>drop-shipper.fr › Réglages</strong>, créez une clé d’API et collez-la ici. Elle est gardée chiffrée sur ce poste ; elle ne peut ni payer ni publier chez nous.</p>
+      <p>Dans <strong>drop-shipper.fr › Réglages › Clés pour mes agents</strong>, cliquez « Créer une clé pour DropShipper Desktop » et collez-la ici. Elle est gardée chiffrée sur ce poste ; elle ne peut ni payer par carte ni toucher à votre compte : elle importe et met en file, sur votre solde de drops.</p>
       <div class="ligne">
         <input id="cle" type="password" placeholder="dsp_live_…" autocomplete="off" />
         <button id="relier" class="principal" type="button">Relier</button>
@@ -25,6 +25,12 @@
     </section>
 
     <section id="tableau" hidden>
+      <div class="carte">
+        <h2>Mode tout automatique</h2>
+        <p class="discret">Activé : chaque produit reçu est importé (drops débités sur votre solde), réécrit, puis mis en file sur les plateformes où l'agent est activé ci-dessous. Vous n'avez rien à valider.</p>
+        <label class="interrupteur"><input id="circuit" type="checkbox" /> <span>Importer et publier automatiquement les produits reçus</span></label>
+      </div>
+
       <div class="carte">
         <h2>Produits reçus du mobile <small id="nb-liens"></small></h2>
         <p id="erreur" class="erreur"></p>

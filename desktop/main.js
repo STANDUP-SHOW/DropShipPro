@@ -21,6 +21,7 @@ const file = require('./lib/file')
 const plafonds = require('./lib/plafonds')
 const { traiter } = require('./lib/executeur')
 const { creerPilote } = require('./lib/pilote-electron')
+const { traiterLien } = require('./lib/circuit')
 
 let fenetre = null
 let cfg = null
@@ -64,18 +65,45 @@ function instantane() {
       espacementMin: p.espacementMin,
       decision: plafonds.decision({ plateforme: id, config: cfg, journal: plafonds.lireJournal(dossier()), etat }),
     })),
+    circuit: Boolean(cfg.circuit && cfg.circuit.actif),
     texteAccord: plafonds.TEXTE_ACCORD,
     journal: plafonds.lireJournal(dossier()).slice(-50).reverse(),
   }
+}
+
+/**
+ * Le circuit automatique : chaque lien reçu est importé puis mis en file sur les
+ * plateformes où l'agent est activé (l'accord donné dans l'écran). Aucune
+ * validation entre les deux. Solde de drops vide : on s'arrête et on le dit.
+ */
+async function circuitAuto(nouveaux) {
+  const plateformes = Object.keys(plafonds.PLATEFORMES).filter((id) => cfg.accords[id])
+  const restants = []
+  for (let i = 0; i < nouveaux.length; i++) {
+    const lien = nouveaux[i]
+    const r = await traiterLien({ api, lien, plateformes })
+    plafonds.journaliser(dossier(), { type: 'import', publication: lien.id, produit: r.productId, raison: r.raison, resultat: r.statut })
+    if (r.statut === 'sans_solde') {
+      derniereErreur = r.raison
+      // Rien n'a été débité : ces liens repartent au prochain passage, quand le solde sera rechargé.
+      nouveaux.slice(i).forEach((l) => dejaVus.delete(l.id))
+      break
+    }
+    if (r.statut === 'echec') restants.push(lien)
+  }
+  await lireAnnonces()
+  return restants
 }
 
 async function sonder() {
   if (!api) return
   const r = await file.passage(api, dejaVus)
   derniereErreur = r.erreur
-  if (r.liens.length) {
-    liens = [...r.liens, ...liens].slice(0, 100)
-    if (Notification.isSupported()) new Notification({ title: 'DropShipper', body: `${r.liens.length} produit${r.liens.length > 1 ? 's' : ''} reçu${r.liens.length > 1 ? 's' : ''} du mobile.` }).show()
+  // Circuit actif : ce qui a été importé n'apparaît plus dans la liste, seul reste ce qui n'a pas pu l'être.
+  const aMontrer = r.liens.length && cfg.circuit && cfg.circuit.actif ? await circuitAuto(r.liens) : r.liens
+  if (aMontrer.length) {
+    liens = [...aMontrer, ...liens].slice(0, 100)
+    if (Notification.isSupported()) new Notification({ title: 'DropShipper', body: `${aMontrer.length} produit${aMontrer.length > 1 ? 's' : ''} reçu${aMontrer.length > 1 ? 's' : ''} du mobile.` }).show()
   }
   envoyer('etat', instantane())
 }
@@ -122,7 +150,8 @@ async function tourneeAuto() {
   if (!api || occupe) return
   await lireAnnonces()
   for (const id of Object.keys(plafonds.PLATEFORMES)) {
-    if (!cfg.accords[id] || etat.arrets[id]) continue
+    // Une plateforme en pause n'est pas sautée ici : `decision` connaît l'échéance et, passée la pause, l'agent retente seul.
+    if (!cfg.accords[id]) continue
     const suivante = annonces.find((a) => a.platform === id)
     if (!suivante) continue
     const d = plafonds.decision({ plateforme: id, config: cfg, journal: plafonds.lireJournal(dossier()), etat })
@@ -243,6 +272,13 @@ function brancherIpc() {
   })
 
   ipcMain.handle('session:ouvrir', (_e, id) => ouvrirSession(id))
+
+  ipcMain.handle('circuit:regler', (_e, actif) => {
+    cfg = { ...cfg, circuit: { actif: Boolean(actif) } }
+    config.enregistrer(dossier(), cfg)
+    plafonds.journaliser(dossier(), { type: actif ? 'circuit-active' : 'circuit-coupe' })
+    return instantane()
+  })
 
   ipcMain.handle('annonce:preparer', async (_e, id) => {
     const annonce = annonces.find((a) => a.id === id)

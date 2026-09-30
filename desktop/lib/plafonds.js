@@ -69,7 +69,12 @@ function decision({ plateforme, config = {}, journal = [], etat = {}, maintenant
   }
   const arret = etat.arrets?.[plateforme]
   if (arret) {
-    return { ok: false, raison: `Arrêt depuis ${arret.at} (${arret.raison}). Reprenez vous-même après avoir réglé la vérification sur ${p.nom}.`, attenteMs: null }
+    // Pause de sécurité en cours : on attend, sans rien tenter. Passé le délai, une nouvelle tentative
+    // (rouvrir la page) est autorisée ; si le mur est encore là, `arreter` double la pause.
+    const reste = arret.jusqua ? new Date(arret.jusqua).getTime() - maintenant.getTime() : null
+    if (reste === null || reste > 0) {
+      return { ok: false, raison: `Pause de sécurité sur ${p.nom} (${arret.raison}).${reste ? '' : ' Reprenez vous-même.'}`, attenteMs: reste }
+    }
   }
   const publiees = journal.filter((e) => e.type === 'publication' && e.plateforme === plateforme)
   const aujourdhui = publiees.filter((e) => jourLocal(new Date(e.at)) === jourLocal(maintenant))
@@ -100,9 +105,32 @@ function retirerAccord(config, plateforme) {
   return { ...config, accords }
 }
 
-/** Le premier blocage arrête la plateforme : l'état le retient jusqu'à la reprise manuelle. */
+/**
+ * Le premier blocage met la plateforme en PAUSE, pas à la porte : l'agent la
+ * retente tout seul plus tard, une fois, en ne faisant que rouvrir la page. Si le
+ * mur est toujours là, la pause double (6 h, 12 h, 24 h, 48 h au plus). Un mur
+ * anti-robot n'est jamais forcé — on attend, c'est tout. Les autres plateformes
+ * continuent pendant ce temps. Une publication réussie remet le compteur à zéro.
+ */
+const PAUSE_BASE_MS = 6 * 3600_000
+const PAUSE_MAX_MS = 48 * 3600_000
+
 function arreter(etat, plateforme, raison, maintenant = new Date()) {
-  return { ...etat, arrets: { ...etat.arrets, [plateforme]: { at: maintenant.toISOString(), raison } } }
+  const tentatives = (etat.arrets?.[plateforme]?.tentatives ?? 0) + 1
+  const pause = Math.min(PAUSE_BASE_MS * 2 ** (tentatives - 1), PAUSE_MAX_MS)
+  return {
+    ...etat,
+    arrets: { ...etat.arrets, [plateforme]: { at: maintenant.toISOString(), raison, tentatives, jusqua: new Date(maintenant.getTime() + pause).toISOString() } },
+  }
+}
+
+/** Le temps de pause restant : 0 = libre, un nombre = à attendre, null = arrêt sans échéance (état ancien). */
+function pauseRestante(etat, plateforme, maintenant = new Date()) {
+  const arret = etat.arrets?.[plateforme]
+  if (!arret) return 0
+  if (!arret.jusqua) return null
+  const reste = new Date(arret.jusqua).getTime() - maintenant.getTime()
+  return reste > 0 ? reste : 0
 }
 
 function reprendre(etat, plateforme) {
@@ -144,4 +172,4 @@ function lireJournal(dossier) {
   }
 }
 
-module.exports = { PLATEFORMES, TEXTE_ACCORD, detecterBlocage, plafondEffectif, decision, accorder, retirerAccord, arreter, reprendre, lireEtat, ecrireEtat, journaliser, lireJournal }
+module.exports = { PLATEFORMES, TEXTE_ACCORD, pauseRestante, detecterBlocage, plafondEffectif, decision, accorder, retirerAccord, arreter, reprendre, lireEtat, ecrireEtat, journaliser, lireJournal }

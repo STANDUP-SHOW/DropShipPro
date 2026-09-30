@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireApiKey, type AgentRequest } from '../middleware/apiKey.js'
+import { requireApiKey, requireDesktop, type AgentRequest } from '../middleware/apiKey.js'
+import { importerAdresse } from '../services/productImport.js'
+import { reserveCredits, refundCredits } from '../services/billing.js'
+import { DROPS } from '../services/tarifs.js'
+import { ScrapeBlockedError } from '../services/scraper.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { lireRapport, RapportInvalide } from '../services/marketReports.js'
 import { rateLimit } from '../middleware/rateLimit.js'
@@ -322,6 +326,56 @@ agentRouter.get('/publications', async (req: AgentRequest, res) => {
     console.error('agent publications', e)
     res.status(500).json({ error: 'Impossible de lire la file de publication' })
   }
+})
+
+/**
+ * Ce que l'application desktop fait de plus qu'un agent de veille : importer un
+ * produit reçu (drops du vendeur, remboursés si rien n'est livré) et le mettre en
+ * file de publication. Clé de type desktop seulement (`requireDesktop`).
+ */
+agentRouter.post('/import', requireDesktop as never, async (req: AgentRequest, res) => {
+  const parsed = z.object({ url: z.string().url().max(2000), shareId: z.string().max(60).optional() }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'URL invalide' })
+
+  const credit = await reserveCredits(req.userId!, DROPS.import, "Import d'une annonce (application desktop)")
+  if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+
+  try {
+    const { produit, reecrit, notes } = await importerAdresse(req.userId!, parsed.data.url)
+    if (!reecrit) await refundCredits(req.userId!, DROPS.import)
+    if (parsed.data.shareId) {
+      await prisma.sharedLink.updateMany({ where: { id: parsed.data.shareId, userId: req.userId! }, data: { status: 'DONE', claimedAt: new Date() } })
+    }
+    res.status(201).json({ id: (produit as { id: string }).id, title: (produit as { title?: string }).title ?? null, reecrit, notes })
+  } catch (err) {
+    await refundCredits(req.userId!, DROPS.import)
+    if (err instanceof ScrapeBlockedError) return res.status(422).json({ error: err.message })
+    console.error('agent import', err)
+    res.status(502).json({ error: "Cette page n'a pas pu être lue depuis notre serveur." })
+  }
+})
+
+const fileSchema = z.object({ productId: z.string().min(1).max(60), platforms: z.array(z.enum(PLATEFORMES_SESSION)).min(1).max(3) })
+
+agentRouter.post('/publications', requireDesktop as never, async (req: AgentRequest, res) => {
+  const parsed = fileSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'productId et platforms (VINTED, LEBONCOIN, FACEBOOK) attendus' })
+  const produit = await prisma.product.findFirst({ where: { id: parsed.data.productId, userId: req.userId! }, select: { id: true } })
+  if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+
+  const creees: string[] = []
+  for (const platform of new Set(parsed.data.platforms)) {
+    const existante = await prisma.publication.findUnique({ where: { productId_platform: { productId: produit.id, platform } } })
+    // Une annonce déjà publiée ou en attente n'est pas remise en file : pas de doublon sur la plateforme.
+    if (existante && existante.status !== 'FAILED') continue
+    await prisma.publication.upsert({
+      where: { productId_platform: { productId: produit.id, platform } },
+      create: { productId: produit.id, platform, status: 'PENDING' },
+      update: { status: 'PENDING', error: null, publishedAt: null },
+    })
+    creees.push(platform)
+  }
+  res.status(201).json({ ok: true, enFile: creees })
 })
 
 const resultatSchema = z.object({

@@ -44,3 +44,5 @@ button.danger { color: var(--alerte); }
 .erreur { color: var(--alerte); margin: 6px 0 0; min-height: 1em; }
 .accord { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--fond); font-size: 13px; }
 .accord label { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; cursor: pointer; }
+
+.interrupteur { display: flex; gap: 8px; align-items: center; margin-top: 8px; cursor: pointer; font-weight: 600; }

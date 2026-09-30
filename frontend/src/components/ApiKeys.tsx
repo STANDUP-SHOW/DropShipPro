@@ -37,12 +37,13 @@ export function ApiKeys() {
 
   useEffect(load, [])
 
-  async function create() {
-    if (!name.trim()) return
+  async function create(type: 'agent' | 'desktop' = 'agent') {
+    const nom = type === 'desktop' ? name.trim() || 'DropShipper Desktop' : name.trim()
+    if (!nom) return
     setBusy(true)
     setError(null)
     try {
-      const created = await api.createApiKey(name.trim())
+      const created = await api.createApiKey(nom, type)
       setFresh({ name: created.name, key: created.key })
       setName('')
       load()
@@ -159,12 +160,28 @@ export function ApiKeys() {
         />
         <button
           type="button"
-          onClick={create}
+          onClick={() => create('agent')}
           disabled={busy || !name.trim()}
           className="btn-gradient inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-40"
         >
           <Plus size={14} />
           <span>Créer</span>
+        </button>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+        <p className="text-xs text-gray-400">
+          Pour l'application DropShipper Desktop : une clé qui, en plus, peut importer les produits
+          que vous recevez (débités en drops sur votre solde) et les mettre en file de publication.
+        </p>
+        <button
+          type="button"
+          onClick={() => create('desktop')}
+          disabled={busy}
+          className="mt-2 inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/5 disabled:opacity-40"
+        >
+          <KeyRound size={14} />
+          <span>Créer une clé pour DropShipper Desktop</span>
         </button>
       </div>
 

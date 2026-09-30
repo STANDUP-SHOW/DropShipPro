@@ -1153,10 +1153,10 @@ export const api = {
         createdAt: string
       }>
     >('/settings/api-keys'),
-  createApiKey: (name: string) =>
+  createApiKey: (name: string, type: 'agent' | 'desktop' = 'agent') =>
     request<{ id: string; name: string; prefix: string; key: string }>('/settings/api-keys', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, type }),
     }),
   revokeApiKey: (id: string) => request(`/settings/api-keys/${id}`, { method: 'DELETE' }),
 
