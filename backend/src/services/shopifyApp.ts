@@ -33,6 +33,17 @@ import { normalizeShopDomain } from './shopify.js'
 // déjà installée doit accepter la mise à jour des permissions.
 const PORTEE_PAR_DEFAUT = 'write_products,read_products,write_publications,read_publications,read_orders,write_merchant_managed_fulfillment_orders'
 
+/**
+ * Les portées demandées = celles du code + celles que la variable ajoute.
+ * Avant, la variable REMPLAÇAIT la liste : Railway gardait les 4 portées du
+ * 16/09 et l'installation ne demandait jamais `read_orders` (constaté le
+ * 30/09/2026 : le consentement Shopify n'affichait que « Produits »).
+ */
+export function porteeDemandee(env?: string): string {
+  const voulues = [...PORTEE_PAR_DEFAUT.split(','), ...(env ?? '').split(',')].map((s) => s.trim()).filter(Boolean)
+  return [...new Set(voulues)].join(',')
+}
+
 export interface ConfigApp {
   cle: string
   secret: string
@@ -54,7 +65,7 @@ export function configApp(): ConfigApp | null {
   const secret = process.env.SHOPIFY_APP_SECRET?.trim()
   const racine = (process.env.PUBLIC_API_URL || '').trim().replace(/\/+$/, '')
   if (!cle || !secret || !racine) return null
-  return { cle, secret, portee: process.env.SHOPIFY_APP_SCOPES?.trim() || PORTEE_PAR_DEFAUT, racine }
+  return { cle, secret, portee: porteeDemandee(process.env.SHOPIFY_APP_SCOPES), racine }
 }
 
 /** Comparaison à temps constant : deux signatures se comparent octet à octet. */
