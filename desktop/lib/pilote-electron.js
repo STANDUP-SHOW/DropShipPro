@@ -46,9 +46,9 @@ function creerPilote({ telecharger = fetch, attendreMs = 4000 } = {}) {
       try {
         await win.loadURL(a.formulaire)
       } catch (err) {
-        // Une redirection (page de connexion) interrompt le chargement demandé sans que ce soit une panne :
-        // si une page est bien là, on la lit ; sinon c'est un échec ordinaire, retenté.
-        if (!/^https?:/.test(win.webContents.getURL())) throw err
+        // Une redirection (page de connexion, ERR_ABORTED) interrompt le chargement demandé sans que ce soit
+        // une panne : la page est là, on la lit. Tout autre échec est un échec ordinaire, retenté.
+        if (err.code !== 'ERR_ABORTED' && err.errno !== -3) throw new Error(String(err.message).replace(/ loading .*$/, ''))
       }
       await pause(attendreMs) // le formulaire se monte après le chargement
     },

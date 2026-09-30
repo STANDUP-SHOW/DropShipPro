@@ -28,7 +28,9 @@ ce que Max attend**. Il remplace le rapport du soir (même jour, session Sonnet 
 | **Desktop 0.2.1 de bout en bout** | `backend/check-desktop-reel.ts`, `desktop/check-pilote.cjs` | installeur exécuté sur ce poste ; application INSTALLÉE reliée à l'API de production (compte jetable) : annonce et rayons affichés, « Préparer » ouvre le vrai Facebook et reconnaît la session absente ; vrai pilote Electron : remplit, passe « Suivant », publie une seule fois sur une réplique du formulaire |
 | Corrections trouvées par ces essais | `routes/agent.ts`, `desktop/lib` | la file envoyait le titre source au lieu de l'annonce réécrite par l'IA ; Facebook sans session (accueil Marketplace + champ mot de passe) non reconnu ; prix en euros entiers pour Facebook et Leboncoin |
 | **Desktop 0.3.0 : la fenêtre des mémos** — le site drop-shipper.fr dans son propre navigateur (tableau de bord, Auto-Shipper, commandes, gagnants, drops, réglages), barre à gauche, liaison automatique depuis la session du site, partage d'un produit (collé, déposé, presse-papiers, `dropshipper://`, zone de notification) vers la liste à importer, bouton « Importer », l'agent survit à la fermeture de la fenêtre | `desktop/main.js`, `renderer/coque.*`, `coque-preload.js` | `check-desktop-reel.ts` sur la 0.3.0 INSTALLÉE : liaison, partage (source `desktop` côté serveur), annonce, rayons, « Préparer » |
-| Installeurs **0.3.0** (non signés) | `desktop/dist/`, copiés dans `Bureau\DropShipper-Desktop\` ; 0.3.0 installée sur ce poste | fabrication et installation réussies |
+| **Le site dans le menu « Partager » du téléphone** (Web Share Target) | `frontend/public/manifest.webmanifest`, `sw.js`, page `/partager` | build vert, déployé ; à essayer sur un Android : installer le site (« Ajouter à l'écran d'accueil »), puis Partager › DropShipper IA depuis une fiche produit |
+| **Desktop 0.4.0 : commandes chez les fournisseurs sans API (RPA)** — fiche dans la session du vendeur, variante fixée, panier, commande, adresse du client, arrêt à l'écran de paiement, « J'ai payé » | `GET/POST /api/agent/achats…`, `desktop/lib/{achats,commande,pilote-achat,page}.js`, écran « Commandes fournisseurs » | `check-achats.cjs` (vrai pilote Electron contre une réplique de boutique) ; `check-agent-publications.ts` ; `check-desktop-reel.ts` (vente listée, fournisseur injoignable dit au vendeur) — **jamais essayé chez un vrai fournisseur** |
+| Installeurs **0.4.0** (non signés) | `desktop/dist/`, copiés dans `Bureau\DropShipper-Desktop\` ; 0.4.0 installée sur ce poste | fabrication et installation réussies |
 
 `npx tsc --noEmit` et `npm run build` (site) verts. `npm run controle` complet non relancé
 (il tourne sur la base partagée ; les bancs touchés ont été lancés un par un).
@@ -51,7 +53,7 @@ ce que Max attend**. Il remplace le rapport du soir (même jour, session Sonnet 
    `https://api.drop-shipper.fr/api/ebay/callback`.
 5. **Signature des installeurs** (certificat à acheter), mises à jour automatiques.
 6. **Menu « Partager » de Windows** : réservé aux applications MSIX du Store ; le desktop offre à la place lien collé ou déposé, presse-papiers, `dropshipper://`, zone de notification.
-7. **RPA des commandes fournisseurs** (mémo auto-fulfillment § III, jusqu'au paiement) : non commencé dans le desktop.
+7. **RPA des commandes fournisseurs chez un VRAI fournisseur** : écrit et éprouvé sur une réplique ; les mots des boutons (« Ajouter au panier », « Passer la commande »…) et des champs d'adresse sont des données (`desktop/lib/achats.js`) à compléter au premier site qui diffère. Test : une vente réelle, « Préparer », vérifier que ça s'arrête bien à l'écran de paiement.
 
 ## 4. À la charge de Max
 

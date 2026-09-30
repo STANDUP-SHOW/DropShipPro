@@ -2,7 +2,23 @@
 
 Le compagnon de bureau de drop-shipper.fr (Electron). Décisions : `docs/v2/DECISIONS.md`.
 
-## La fenêtre (0.3.0, d'après `docs/v2/memo-final-ecosysteme.md` et `memo-auto-fulfillment.md`)
+## La fenêtre (0.4.0, d'après `docs/v2/memo-final-ecosysteme.md` et `memo-auto-fulfillment.md`)
+
+**Commandes chez les fournisseurs sans API (0.4.0, mémo auto-fulfillment § III)** :
+« Commandes fournisseurs » liste les ventes dont le fournisseur n'est pas relié par
+API. « Préparer » ouvre la boutique du fournisseur dans la session du vendeur
+(`persist:fournisseur-<hôte>`, il s'y connecte lui-même une fois), clique la variante
+fixée sur la vente (jamais devinée), « Ajouter au panier », « Passer la commande »,
+remplit l'adresse du client (autocomplete, puis nom/libellé des champs) et **s'arrête à
+l'écran de paiement** : aucun bouton de paiement n'est jamais cliqué, aucun champ de
+carte lu ni rempli. La fenêtre reste ouverte, le vendeur paie, puis « J'ai payé »
+(`POST /api/agent/achats/done`). Chaque arrêt (connexion demandée, variante introuvable,
+bouton non reconnu, vérification anti-robot) est dit et la main est rendue. Fichiers :
+`lib/achats.js` (décisions, testable seul), `lib/commande.js` (la séquence), `lib/pilote-achat.js`,
+`lib/page.js` (`cliquerTexte`, `remplirAdresse`, `signesPage`). Banc : `npm run check:achats`
+(vraie fenêtre Electron contre `banc/faux-fournisseur.html`). **Jamais essayé chez un vrai
+fournisseur** : les mots des boutons et des champs sont des données, à compléter au premier
+site qui diffère.
 
 À gauche, une barre ; à droite, **le site drop-shipper.fr lui-même dans son propre
 navigateur** (session `persist:site`) : tableau de bord, Auto-Shipper, commandes,

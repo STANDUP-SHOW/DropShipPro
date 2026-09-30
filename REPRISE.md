@@ -40,7 +40,13 @@ vérifiés** : celui-ci dit **où on en est**, **ce qui bloque**, et **ce qui re
   zone de notification. Constaté sur la 0.3.0 installée (`check-desktop-reel.ts`).
   Pas fait : le menu « Partager » de Windows (réservé aux applications MSIX du Store),
   le RPA des commandes fournisseurs jusqu'au paiement (mémo auto-fulfillment § III).
-- Installeurs **0.3.0** (non signés) dans `Bureau\DropShipper-Desktop\`.
+- **Desktop 0.4.0 : RPA des commandes fournisseurs sans API** (mémo auto-fulfillment
+  § III) : fiche dans la session du vendeur, variante fixée, panier, commande, adresse
+  du client, ARRÊT à l'écran de paiement, « J'ai payé ». Routes `/api/agent/achats…`.
+  Éprouvé sur une réplique (`desktop/check-achats.cjs`), jamais chez un vrai fournisseur.
+- **Le site dans le menu « Partager » d'Android** (Web Share Target, `/partager`) :
+  déployé, à essayer sur un téléphone.
+- Installeurs **0.4.0** (non signés) dans `Bureau\DropShipper-Desktop\`.
 - **Railway** : le tableau de bord a été lu — historique = `REMOVED` (déploiement
   remplacé par le suivant), **aucun `FAILED`** ; GitHub affiche ces remplacés en
   « failure ». Pas de build cassé : pousser en lots.

@@ -38,7 +38,9 @@ function creerPiloteAchat({ attendreMs = 3000 } = {}) {
       try {
         await win.loadURL(sure)
       } catch (err) {
-        if (!/^https?:/.test(win.webContents.getURL())) throw err
+        // ERR_ABORTED (-3) : une redirection a remplacé la page demandée, elle est bien là. Tout autre échec
+        // (adresse introuvable, réseau) est une vraie panne, rendue en clair.
+        if (err.code !== 'ERR_ABORTED' && err.errno !== -3) throw new Error(String(err.message).replace(/ loading .*$/, ''))
       }
       await pause(attendreMs)
     },

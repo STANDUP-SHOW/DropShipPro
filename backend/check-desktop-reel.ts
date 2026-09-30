@@ -65,6 +65,7 @@ async function main() {
     data: { userId: user.id, sourceUrl: `https://exemple.test/${marque}`, images: ['https://exemple.test/a.jpg'], price: 10, sellingPrice: 30, imagesWatermarked: false, title: 'Lampe de bureau du banc', description: 'Une lampe.' },
   })
   const publication = await prisma.publication.create({ data: { productId: produit.id, platform: 'FACEBOOK', status: 'PENDING', targetCategory: 'Maison et jardin > Éclairage > Lampes' } })
+  const vente = await prisma.order.create({ data: { userId: user.id, productId: produit.id, platform: 'EBAY', buyerName: 'Alice Banc', buyerAddress: { street: '1 rue du Banc', city: 'Paris', zip: '75001', country: 'France' }, amount: 30 } })
   const jetonSite = signToken(user.id)
 
   const profil = fs.mkdtempSync(path.join(os.tmpdir(), 'dsp-reel-'))
@@ -147,6 +148,25 @@ async function main() {
     const rapports = await prisma.marketReport.count()
     verifier('les rayons du jour sont proposés en cases à cocher', rapports === 0 ? e.rayons.length === 0 : e.rayons.length > 0 && e.rayonsEcran === e.rayons.length, JSON.stringify(e.rayons))
 
+    console.log('\nCommande chez le fournisseur (RPA), fournisseur injoignable')
+    for (let i = 0; i < 10 && !/Alice Banc/.test(await panneau.evaluer("document.getElementById('achats').innerText")); i++) await pause(1500)
+    const achatsEcran = await panneau.evaluer("document.getElementById('achats').innerText")
+    verifier('la vente à commander est listée avec l’acheteur et le fournisseur', /Lampe de bureau du banc — Alice Banc, 75001 Paris/.test(achatsEcran), achatsEcran)
+    const prepa = await panneau.evaluer(`(async () => {
+      const bouton = [...document.querySelectorAll('#achats button')].find((b) => /Préparer/.test(b.textContent))
+      bouton.click()
+      for (let i = 0; i < 40; i++) {
+        await new Promise((ok) => setTimeout(ok, 1000))
+        const e = await window.desktop.etat()
+        const a = e.achats.find((x) => x.buyerName === 'Alice Banc')
+        if (a && a.resultat) return JSON.stringify(a.resultat)
+      }
+      return 'rien'
+    })()`)
+    verifier('fournisseur injoignable : échec dit au vendeur, rien de commandé', /ouvre pas/.test(prepa), prepa)
+    const venteApres = await prisma.order.findUniqueOrThrow({ where: { id: vente.id } })
+    verifier('côté serveur : la vente reste NEW, la raison est écrite', venteApres.status === 'NEW' && /ouvre pas/.test(venteApres.supplierOrderError ?? ''), JSON.stringify([venteApres.status, venteApres.supplierOrderError]))
+
     console.log('\n« Préparer » sur un profil sans session Facebook')
     const resultat = await panneau.evaluer(`(async () => {
       const bouton = [...document.querySelectorAll('#annonces button')].find((b) => b.textContent === 'Préparer')
@@ -167,6 +187,7 @@ async function main() {
     vues.forEach((v) => v.fermer())
     enfant.kill()
     await pause(1500)
+    await prisma.order.deleteMany({ where: { userId: user.id } })
     await prisma.publication.deleteMany({ where: { product: { userId: user.id } } })
     await prisma.product.deleteMany({ where: { userId: user.id } })
     await prisma.sharedLink.deleteMany({ where: { userId: user.id } })
