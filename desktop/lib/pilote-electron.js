@@ -15,7 +15,7 @@ const { PLATEFORMES } = require('./plafonds')
 const { ADAPTATEURS } = require('./adaptateurs')
 const file = require('./file')
 const page = require('./page')
-const { choisirCategorie, choisirEtat } = require('./choix')
+const { choisirCategorie, choisirEtat, formaterPrix } = require('./choix')
 
 function creerPilote({ telecharger = fetch, attendreMs = 4000 } = {}) {
   let win = null
@@ -43,13 +43,20 @@ function creerPilote({ telecharger = fetch, attendreMs = 4000 } = {}) {
         win = new BrowserWindow({ width: 1200, height: 850, title: p.nom, webPreferences: { partition: p.partition, contextIsolation: true, nodeIntegration: false, sandbox: true } })
         win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
       }
-      await win.loadURL(a.formulaire)
+      try {
+        await win.loadURL(a.formulaire)
+      } catch (err) {
+        // Une redirection (page de connexion) interrompt le chargement demandé sans que ce soit une panne :
+        // si une page est bien là, on la lit ; sinon c'est un échec ordinaire, retenté.
+        if (!/^https?:/.test(win.webContents.getURL())) throw err
+      }
       await pause(attendreMs) // le formulaire se monte après le chargement
     },
 
     async lirePage() {
       const texte = await exec('document.body ? document.body.innerText.slice(0, 4000) : ""')
-      return { url: win.webContents.getURL(), titre: win.getTitle(), texte }
+      const motDePasse = await exec('!!document.querySelector(\'input[type="password"]\')')
+      return { url: win.webContents.getURL(), titre: win.getTitle(), texte, motDePasse }
     },
 
     async remplir(annonce) {
@@ -59,7 +66,7 @@ function creerPilote({ telecharger = fetch, attendreMs = 4000 } = {}) {
         if (valeur && (await appel(page.poserValeur, cible(a, nom), valeur))) rempli.push(nom)
       }
       await poser('titre', annonce.title)
-      await poser('prix', String(annonce.price))
+      await poser('prix', formaterPrix(annonce.price, a.prix))
       if (annonce.images?.length && (await this._photos(annonce.images.slice(0, 10)))) rempli.push('photos')
       // Catégorie et état avant la description : sur Facebook elle n'apparaît qu'une fois la catégorie choisie.
       if (a.categorie && (await regler(a.categorie, (options) => choisirCategorie(options, annonce, a.categorie.fourreTout)))) rempli.push('categorie')

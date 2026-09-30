@@ -88,4 +88,17 @@ function choisirEtat(options, voulu) {
   return options.find((o) => normaliser(o) === v) ?? options.find((o) => normaliser(o).endsWith(v)) ?? options.find((o) => normaliser(o).includes(v)) ?? null
 }
 
-module.exports = { choisirCategorie, choisirEtat, normaliser }
+/**
+ * Le prix tel que le champ de la plateforme l'attend. « entier » : Facebook et Leboncoin affichent des prix
+ * sans centimes, et un champ qui ne garde que les chiffres ferait de « 24.9 » un « 249 » ; on arrondit donc
+ * à l'euro le plus proche. « virgule » : décimale française, deux chiffres (« 24,90 »), entier laissé tel quel.
+ */
+function formaterPrix(prix, mode) {
+  const n = Number(prix)
+  if (!Number.isFinite(n) || n <= 0) return ''
+  if (mode === 'entier') return String(Math.max(1, Math.round(n)))
+  if (mode === 'virgule') return Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ',')
+  return String(n)
+}
+
+module.exports = { choisirCategorie, choisirEtat, formaterPrix, normaliser }

@@ -25,7 +25,15 @@ vérifiés** : celui-ci dit **où on en est**, **ce qui bloque**, et **ce qui re
   `https://api.drop-shipper.fr/api/ebay/callback`. Jamais confronté au vrai eBay.
 - **Vraie fenêtre Electron essayée** (`desktop/check-fenetre.cjs`) : écran chargé,
   pont complet, fausse clé refusée par l'API de production avec le bon message.
-- Installeurs **0.2.0** (non signés) dans `Bureau\DropShipper-Desktop\`.
+- **Desktop 0.2.1, constaté de bout en bout** : installeur exécuté (installée dans
+  `%LOCALAPPDATA%\Programs\DropShipper Desktop`), application installée reliée à
+  l'API de production avec un compte jetable, annonce et rayons affichés, « Préparer »
+  ouvre le vrai Facebook et reconnaît la session absente (`backend/check-desktop-reel.ts`) ;
+  vrai pilote Electron contre une réplique du formulaire (`desktop/check-pilote.cjs`).
+  Corrigés en route : la file envoyait le titre SOURCE au lieu de l'annonce réécrite ;
+  Facebook sans session n'était pas reconnu ; prix en euros entiers pour Facebook/Leboncoin.
+  **Reste non constaté : une annonce publiée sur le vrai Facebook.**
+- Installeurs **0.2.1** (non signés) dans `Bureau\DropShipper-Desktop\`.
 - **Railway** : le tableau de bord a été lu — historique = `REMOVED` (déploiement
   remplacé par le suivant), **aucun `FAILED`** ; GitHub affiche ces remplacés en
   « failure ». Pas de build cassé : pousser en lots.
@@ -36,7 +44,7 @@ seul Facebook est connecté) pour relever leurs catégories ; clés d'applicatio
 clés du module réseaux sociaux ; certificat de signature ; zip de l'extension au
 Chrome Web Store.
 
-**Tests de demain (dans l'ordre)** : 1. installer la 0.2.0, coller une clé desktop ;
+**Tests de demain (dans l'ordre)** : 1. ouvrir la 0.2.1 (déjà installée, menu Démarrer), coller une clé desktop ;
 2. se connecter à Facebook dans l'application, « Préparer » une annonce et regarder
 le formulaire rempli (titre, prix, photos, catégorie, état, description) ; 3. donner
 l'accord sur Facebook et laisser partir une publication ; 4. Vinted/Leboncoin une

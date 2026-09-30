@@ -2,7 +2,9 @@
 
 Le compagnon de bureau de drop-shipper.fr (Electron). Décisions : `docs/v2/DECISIONS.md`.
 
-## Ce qui est écrit (30/09/2026, version 0.2.0)
+## Ce qui est écrit (30/09/2026, version 0.2.1)
+
+**Constaté le 30/09 au soir** : l'installeur 0.2.1 s'installe (mode silencieux, code 0) ; l'application INSTALLÉE, avec une clé desktop d'un compte jetable, se relie à l'API de production, affiche l'annonce en attente et les rayons du jour, ouvre la vraie page Facebook sur « Préparer » et reconnaît la session absente (`backend/check-desktop-reel.ts`). Le vrai pilote remplit et publie une réplique locale du formulaire Facebook dans la vraie fenêtre Electron (`check-pilote.cjs`). **Reste non constaté : une annonce publiée sur le vrai Facebook avec un vrai compte.**
 
 | Pièce | Fichier | État |
 |---|---|---|
@@ -21,7 +23,8 @@ Le compagnon de bureau de drop-shipper.fr (Electron). Décisions : `docs/v2/DECI
 ## Ce qui n'est PAS fait
 
 - **Vinted / Leboncoin** : leur catégorie est une fenêtre à plusieurs niveaux, à relever sur une session connectée (le Chrome de Max ne l'était pas le 30/09 : Vinted renvoie à l'inscription, Leboncoin à « Me connecter »). Tant qu'elle n'est pas réglée, **le mode automatique n'y publie rien** (« à compléter par vous : categorie ») ; « Préparer » remplit le reste. Le mécanisme existe (`categorie: { bouton, libelles, menu, option }` dans l'adaptateur, comme Facebook) : il reste à y mettre les vrais sélecteurs.
-- Une vraie publication Facebook de bout en bout (compte de test, accord donné).
+- Une vraie publication Facebook de bout en bout (compte de test, accord donné). À surveiller ce jour-là : le prix part en euros entiers (`prix: 'entier'`), et la connexion « Continuer avec Google » peut être refusée par Google dans une fenêtre d'application (se connecter par e-mail).
+- Session absente : l'agent le dit (« connectez-vous dans l'application ») sans pause ni échec ; signes relevés sur les trois sites depuis un profil Electron vierge.
 - Les imports en masse par le navigateur, la préparation des commandes fournisseurs (arrêt au paiement).
 - Synchro par WebSocket (le sondage suffit tant que la file est courte).
 - Signature des exécutables (certificat à acheter) et mises à jour automatiques.
@@ -37,11 +40,13 @@ cd desktop
 npm install            # télécharge Electron (~100 Mo)
 npm run check          # banc de la logique pure, sans Electron
 npm run check:fenetre  # ouvre la vraie fenêtre quelques secondes (profil jetable) et lit l'écran
+npm run check:pilote   # le vrai pilote, dans Electron, contre la réplique du formulaire Facebook (banc/)
+cd ../backend && npx tsx check-desktop-reel.ts   # l'application empaquetée contre l'API de production (compte jetable)
 npm start
 ```
 
 ## Installeurs Windows
 
-`npm run build` produit dans `dist/` : `DropShipper Desktop Setup 0.2.0.exe` (NSIS) et `DropShipper Desktop 0.2.0.msi`. **Non signés** : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même) tant qu'un certificat de signature n'est pas acheté. Sous Windows, `electron-builder` échoue sur des liens symboliques macOS de son cache `winCodeSign` : copier un dossier extrait du cache en `winCodeSign-2.6.0` (fait sur ce poste).
+`npm run build` produit dans `dist/` : `DropShipper Desktop Setup 0.2.1.exe` (NSIS) et `DropShipper Desktop 0.2.1.msi`. **Non signés** : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même) tant qu'un certificat de signature n'est pas acheté. Sous Windows, `electron-builder` échoue sur des liens symboliques macOS de son cache `winCodeSign` : copier un dossier extrait du cache en `winCodeSign-2.6.0` (fait sur ce poste).
 
 Clé d'API : drop-shipper.fr › Réglages › « Créer une clé pour DropShipper Desktop » (préfixe `dsp_desk_`).

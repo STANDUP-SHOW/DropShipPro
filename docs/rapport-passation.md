@@ -25,7 +25,9 @@ ce que Max attend**. Il remplace le rapport du soir (même jour, session Sonnet 
 | **« Connecter mon compte eBay » (OAuth)** | `backend/src/routes/ebayAuth.ts` (`/api/ebay/oauth/start`, `/api/ebay/callback`), `services/ebay.ts`, bouton dans `PlatformCredentials.tsx` | `check-ebay.ts` vert (faux serveur) ; **inactif en production** tant que les trois variables manquent |
 | **Vraie fenêtre Electron** | `desktop/check-fenetre.cjs` (`npm run check:fenetre`) | écran chargé, pont complet, fausse clé refusée par l'API de production avec le bon message |
 | **Railway « failure »** | tableau de bord lu dans Chrome | historique = `REMOVED` (remplacé par le push suivant), aucun `FAILED` : pas de build cassé. Pousser en lots |
-| Installeurs **0.2.0** (non signés) | `desktop/dist/`, copiés dans `Bureau\DropShipper-Desktop\` | fabrication réussie |
+| **Desktop 0.2.1 de bout en bout** | `backend/check-desktop-reel.ts`, `desktop/check-pilote.cjs` | installeur exécuté sur ce poste ; application INSTALLÉE reliée à l'API de production (compte jetable) : annonce et rayons affichés, « Préparer » ouvre le vrai Facebook et reconnaît la session absente ; vrai pilote Electron : remplit, passe « Suivant », publie une seule fois sur une réplique du formulaire |
+| Corrections trouvées par ces essais | `routes/agent.ts`, `desktop/lib` | la file envoyait le titre source au lieu de l'annonce réécrite par l'IA ; Facebook sans session (accueil Marketplace + champ mot de passe) non reconnu ; prix en euros entiers pour Facebook et Leboncoin |
+| Installeurs **0.2.1** (non signés) | `desktop/dist/`, copiés dans `Bureau\DropShipper-Desktop\` ; 0.2.1 installée sur ce poste | fabrication et installation réussies |
 
 `npx tsc --noEmit` et `npm run build` (site) verts. `npm run controle` complet non relancé
 (il tourne sur la base partagée ; les bancs touchés ont été lancés un par un).
@@ -58,7 +60,7 @@ ce que Max attend**. Il remplace le rapport du soir (même jour, session Sonnet 
 
 ## 5. Tests du 01/10, dans l'ordre
 
-1. Installer `DropShipper Desktop Setup 0.2.0.exe`, coller une clé desktop : le tableau
+1. Ouvrir la 0.2.1 (déjà installée sur ce poste, menu Démarrer), coller une clé desktop : le tableau
    apparaît, les rayons du jour se listent (compte ≥ 500 drops).
 2. « Ouvrir Facebook » dans l'application, s'y connecter ; mettre une annonce en file pour
    Facebook ; **« Préparer »** : vérifier titre, prix, photos, catégorie, état, description.

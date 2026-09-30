@@ -17,6 +17,7 @@ import { runAutopilot } from '../services/autopilot.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
 import { imagesPourExport } from '../services/exportImages.js'
 import { etatPour } from '../services/productCondition.js'
+import { titleForChannel } from '../services/channelCopy.js'
 import type { Platform } from '@prisma/client'
 
 /**
@@ -315,8 +316,9 @@ agentRouter.get('/publications', async (req: AgentRequest, res) => {
         id: p.id,
         platform: p.platform,
         productId: p.productId,
-        title: p.product.title,
-        description: p.product.description,
+        // L'annonce RÉÉCRITE (titre à la longueur de la plateforme), pas le texte source du fournisseur.
+        title: titleForChannel(p.product, p.platform),
+        description: p.product.aiDescription || p.product.description,
         price: Number(p.product.sellingPrice ?? 0),
         category: p.targetCategory ?? null,
         condition: etatPour(p.product.condition, p.platform),

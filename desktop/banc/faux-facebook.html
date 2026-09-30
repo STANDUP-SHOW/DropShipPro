@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Créer une annonce | Faux Facebook (banc)</title>
+  </head>
+  <body>
+    <!--
+      A replica of the structure recorded on the real Marketplace form on 2026-09-30
+      (desktop/lib/adaptateurs.js): fields found by <label> text, category as a
+      label[role=combobox] opening a one-level [role=dialog] "Menu déroulant" whose
+      options glue "Livraison possible" to the name, condition as a [role=listbox],
+      Description appearing only once the category is chosen, "Suivant" greyed out by
+      aria-disabled, then "Publier". Values only count when an `input` event is seen,
+      like React. It is a bench: it proves the pilot runs, not that Facebook agrees.
+    -->
+    <div role="main">
+      <label><input id="photos" type="file" accept="image/*,image/heif,image/heic" multiple /></label>
+      <label><input type="file" accept="video/*" /></label>
+      <label><span>Titre</span><input id="titre" type="text" /></label>
+      <label><span>Prix</span><input id="prix" type="text" /></label>
+      <label role="combobox" id="cat"><span>Catégorie</span><div id="cat-valeur"> </div></label>
+      <label role="combobox" id="etat"><span>État</span><div id="etat-valeur"> </div></label>
+      <div id="suite"></div>
+      <div id="bas"><div id="suivant" role="button" aria-label="Suivant" aria-disabled="true">Suivant</div></div>
+    </div>
+    <script>
+      const vu = { titre: '', prix: '', description: '', categorie: '', etat: '', photos: 0, photosPretes: false, clicsPublier: 0, clicsSuivant: 0 }
+      const CATEGORIES = ['Outils', 'Meubles', 'Pour la maison', 'Jardin', 'Électroménager', 'Téléphones mobiles', 'Divers']
+      const LIVRABLES = new Set(['Pour la maison', 'Téléphones mobiles'])
+      const ETATS = ['Neuf', 'D’occasion - comme neuf', 'D’occasion - bon état', 'D’occasion - assez bon état']
+      const $ = (id) => document.getElementById(id)
+      const pret = () => vu.titre && vu.prix && vu.categorie && vu.etat && vu.description && vu.photosPretes
+      const rafraichir = () => $('suivant') && $('suivant').setAttribute('aria-disabled', pret() ? 'false' : 'true')
+
+      for (const id of ['titre', 'prix']) $(id).addEventListener('input', (e) => ((vu[id] = e.target.value), rafraichir()))
+      $('photos').addEventListener('change', (e) => {
+        vu.photos = e.target.files.length
+        // Photos "upload" for a moment: the button stays greyed out meanwhile, as on the real form.
+        setTimeout(() => ((vu.photosPretes = vu.photos > 0), rafraichir()), 2500)
+      })
+
+      function fermerMenus() {
+        document.querySelectorAll('[role=dialog],[role=listbox]').forEach((m) => m.remove())
+      }
+      $('cat').addEventListener('click', () => {
+        fermerMenus()
+        const d = document.createElement('div')
+        d.setAttribute('role', 'dialog')
+        d.setAttribute('aria-label', 'Menu déroulant')
+        for (const c of CATEGORIES) {
+          const b = document.createElement('div')
+          b.setAttribute('role', 'button')
+          const nom = document.createElement('span')
+          nom.textContent = c
+          b.append(nom)
+          if (LIVRABLES.has(c)) {
+            const badge = document.createElement('span')
+            badge.textContent = 'Livraison possible'
+            b.append(badge)
+          }
+          b.addEventListener('click', (e) => {
+            e.stopPropagation()
+            vu.categorie = c
+            $('cat-valeur').textContent = c
+            fermerMenus()
+            if (!$('description')) {
+              const l = document.createElement('label')
+              l.innerHTML = '<span>Description</span><textarea id="description"></textarea>'
+              $('suite').append(l)
+              $('description').addEventListener('input', (ev) => ((vu.description = ev.target.value), rafraichir()))
+            }
+            rafraichir()
+          })
+          d.append(b)
+        }
+        // The menu mounts a moment after the click, as on the real page.
+        setTimeout(() => document.body.append(d), 300)
+      })
+      $('etat').addEventListener('click', () => {
+        fermerMenus()
+        const l = document.createElement('div')
+        l.setAttribute('role', 'listbox')
+        for (const e of ETATS) {
+          const o = document.createElement('div')
+          o.setAttribute('role', 'option')
+          o.textContent = e
+          o.addEventListener('click', (ev) => {
+            ev.stopPropagation()
+            vu.etat = e
+            $('etat-valeur').textContent = e
+            fermerMenus()
+            rafraichir()
+          })
+          l.append(o)
+        }
+        setTimeout(() => document.body.append(l), 300)
+      })
+
+      $('suivant').addEventListener('click', () => {
+        if ($('suivant').getAttribute('aria-disabled') === 'true') return
+        vu.clicsSuivant++
+        $('bas').innerHTML = '<div id="publier" role="button" aria-label="Publier">Publier</div>'
+        $('publier').addEventListener('click', async () => {
+          vu.clicsPublier++
+          await fetch('/etat', { method: 'POST', body: JSON.stringify(vu) })
+          location.href = '/marketplace/you/selling'
+        })
+      })
+      window.__vu = vu
+    </script>
+  </body>
+</html>

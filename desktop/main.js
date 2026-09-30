@@ -23,6 +23,9 @@ const { traiter } = require('./lib/executeur')
 const { creerPilote } = require('./lib/pilote-electron')
 const { traiterLien, importGroupe, importesAujourdhui, plafondImports } = require('./lib/circuit')
 
+// Bancs : un profil jetable (config, journal, sessions) au lieu de celui du vendeur.
+if (process.env.DROPSHIPPER_DESKTOP_PROFIL) app.setPath('userData', process.env.DROPSHIPPER_DESKTOP_PROFIL)
+
 let fenetre = null
 let cfg = null
 let etat = null
@@ -35,6 +38,8 @@ let occupe = false
 let derniereErreur = null
 let minuteur = null
 const fenetresSession = new Map()
+/** Plateformes vues sans session : la tournée automatique n'y retourne pas tant que le vendeur n'a pas rouvert la plateforme. */
+const sansSession = new Set()
 
 const dossier = () => app.getPath('userData')
 
@@ -193,6 +198,10 @@ async function traiterAnnonce(annonce, { manuel }) {
     const configLocale = manuel ? { ...cfg, accords: {} } : cfg
     const r = await traiter({ api, pilote: piloteDe(annonce.platform), plateforme: annonce.platform, annonce, config: configLocale, etat, dossier: dossier() })
     etat = plafonds.lireEtat(dossier())
+    if (r.manque && r.manque.includes('connexion')) {
+      sansSession.add(annonce.platform)
+      derniereErreur = r.raison
+    } else sansSession.delete(annonce.platform)
     if (r.statut === 'publiee') annonces = annonces.filter((a) => a.id !== annonce.id)
     envoyer('etat', instantane())
     return r
@@ -211,7 +220,7 @@ async function tourneeAuto() {
   await lireAnnonces()
   for (const id of Object.keys(plafonds.PLATEFORMES)) {
     // Une plateforme en pause n'est pas sautée ici : `decision` connaît l'échéance et, passée la pause, l'agent retente seul.
-    if (!cfg.accords[id]) continue
+    if (!cfg.accords[id] || sansSession.has(id)) continue
     const suivante = annonces.find((a) => a.platform === id)
     if (!suivante) continue
     const d = plafonds.decision({ plateforme: id, config: cfg, journal: plafonds.lireJournal(dossier()), etat })
@@ -258,6 +267,7 @@ async function surveiller(id, win) {
 function ouvrirSession(id) {
   const p = plafonds.PLATEFORMES[id]
   if (!p) return
+  sansSession.delete(id) // le vendeur va se connecter : la tournée automatique y retournera
   const existante = fenetresSession.get(id)
   if (existante && !existante.isDestroyed()) return existante.focus()
   const win = new BrowserWindow({

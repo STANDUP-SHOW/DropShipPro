@@ -23,10 +23,13 @@
  *   autres plateformes continuent ;
  * - un champ indispensable manquant ne déclenche pas de « Publier » : l'annonce
  *   revient en `a_valider` avec ce qui manque ;
+ * - une session absente (page de connexion) rend `a_valider` avec `connexion` :
+ *   ce n'est pas un blocage, rien n'est mis en pause ;
  * - une annonce cliquée n'est JAMAIS rejouée : pas de doublon sur la plateforme.
  */
 const plafonds = require('./plafonds')
-const { manquants } = require('./adaptateurs')
+const { manquants, sansSession } = require('./adaptateurs')
+const { PLATEFORMES } = require('./plafonds')
 
 const pause = (ms) => new Promise((ok) => setTimeout(ok, ms))
 
@@ -57,6 +60,12 @@ async function tenter({ api, pilote, plateforme, annonce, config, etat, dossier,
 
   try {
     await pilote.ouvrir(plateforme)
+    // Session absente : ni blocage ni échec à retenter. Le vendeur se connecte dans l'application, puis l'agent reprend.
+    if (sansSession(plateforme, await pilote.lirePage())) {
+      const nom = PLATEFORMES[plateforme]?.nom ?? plateforme
+      trace({ type: 'a-valider', manque: ['connexion'] })
+      return { statut: 'a_valider', manque: ['connexion'], raison: `Vous n’êtes pas connecté à ${nom} dans l’application : cliquez « Ouvrir ${nom} », connectez-vous, puis relancez.` }
+    }
     let stop = await bloquer('à l’ouverture')
     if (stop) return stop
 

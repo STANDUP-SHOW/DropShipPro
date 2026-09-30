@@ -188,6 +188,8 @@ async function main() {
   verifier('rien ne correspond : le fourre-tout de la page (« Divers »), jamais une catégorie au hasard', cat('Zzz', 'Qqq') === 'Divers')
   verifier('ni correspondance ni fourre-tout : null, le vendeur choisit', choisirCategorie(['Outils', 'Meubles'], { category: 'Zzz', title: 'Qqq' }, ['Divers']) === null)
   verifier('état : « Neuf » exact, « Comme neuf » et « Bon état » vers leur libellé d’occasion', choisirEtat(ETATS_FB, 'Neuf') === 'Neuf' && choisirEtat(ETATS_FB, 'Comme neuf') === 'D’occasion - comme neuf' && choisirEtat(ETATS_FB, 'Bon état') === 'D’occasion - bon état' && choisirEtat(ETATS_FB, 'Inconnu') === null)
+  const { formaterPrix } = require('./lib/choix')
+  verifier('prix : entier arrondi pour Facebook et Leboncoin (jamais « 249 » pour 24,90 €), virgule française pour Vinted', formaterPrix(24.9, 'entier') === '25' && formaterPrix(0.3, 'entier') === '1' && formaterPrix(24.9, 'virgule') === '24,90' && formaterPrix(30, 'virgule') === '30' && formaterPrix(0, 'entier') === '' && ADAPTATEURS.FACEBOOK.prix === 'entier' && ADAPTATEURS.VINTED.prix === 'virgule')
   const appelTexte = pageJs.appelPage(pageJs.lireOptions, ADAPTATEURS.FACEBOOK.categorie, 4000)
   let syntaxe = true
   try {

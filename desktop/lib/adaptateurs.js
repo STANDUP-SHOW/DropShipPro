@@ -25,6 +25,7 @@
 const ADAPTATEURS = {
   VINTED: {
     formulaire: 'https://www.vinted.fr/items/new',
+    prix: 'virgule',
     champs: {
       titre: ['input[name="title"]', 'input#title', '[data-testid="title--input"]'],
       description: ['textarea[name="description"]', 'textarea#description', '[data-testid="description--input"]'],
@@ -36,6 +37,7 @@ const ADAPTATEURS = {
   },
   LEBONCOIN: {
     formulaire: 'https://www.leboncoin.fr/deposer-une-annonce',
+    prix: 'entier',
     champs: {
       titre: ['input[name="subject"]', 'input#subject'],
       description: ['textarea[name="body"]', 'textarea#body'],
@@ -47,6 +49,7 @@ const ADAPTATEURS = {
   },
   FACEBOOK: {
     formulaire: 'https://www.facebook.com/marketplace/create/item',
+    prix: 'entier',
     libelles: {
       titre: ['Titre', 'Title'],
       description: ['Description'],
@@ -73,6 +76,27 @@ const ADAPTATEURS = {
   },
 }
 
+/**
+ * Les signes d'une session absente, relevés le 30/09/2026 depuis un profil Electron
+ * vierge : Vinted renvoie à `/member/register`, Leboncoin garde l'adresse et écrit
+ * « Connectez-vous ou créez un compte », Facebook renvoie à l'accueil de Marketplace
+ * avec un formulaire de connexion (champ mot de passe). Un formulaire d'annonce n'a
+ * jamais de champ mot de passe : sa présence suffit, sur les trois. Ce n'est PAS un
+ * blocage : rien n'est mis en pause, le vendeur est invité à se connecter.
+ */
+const SANS_SESSION = {
+  VINTED: { url: /\/member\/(register|login|signup)|\/session|\/signup/i, texte: null },
+  LEBONCOIN: { url: /auth\.leboncoin\.fr|\/connexion/i, texte: /Connectez-vous ou créez un compte/i },
+  FACEBOOK: { url: /facebook\.com\/(login|reg)\b|\/login\/?\?|\/login\.php/i, texte: null },
+}
+
+function sansSession(plateforme, { url = '', texte = '', motDePasse = false } = {}) {
+  const s = SANS_SESSION[plateforme]
+  if (!s) return false
+  if (motDePasse) return true
+  return Boolean((s.url && s.url.test(url)) || (s.texte && s.texte.test(String(texte).slice(0, 4000))))
+}
+
 /** Ce qui manque parmi les champs indispensables, dans l'ordre. */
 function manquants(plateforme, rempli) {
   const a = ADAPTATEURS[plateforme]
@@ -81,4 +105,4 @@ function manquants(plateforme, rempli) {
   return a.requis.filter((r) => !fait.has(r))
 }
 
-module.exports = { ADAPTATEURS, manquants }
+module.exports = { ADAPTATEURS, manquants, sansSession }

@@ -1,6 +1,6 @@
 {
   "name": "dropshipper-desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DropShipper Desktop — le compagnon de l'application drop-shipper.fr : sessions marchandes, file de travail, mode automatique encadré.",
   "author": "DropShipper IA <contact@drop-shipper.fr>",
   "main": "main.js",
@@ -9,6 +9,7 @@
     "start": "electron .",
     "check": "node check-desktop.cjs",
     "check:fenetre": "node check-fenetre.cjs",
+    "check:pilote": "electron check-pilote.cjs",
     "build": "electron-builder --win"
   },
   "devDependencies": {
