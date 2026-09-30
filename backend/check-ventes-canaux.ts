@@ -12,7 +12,7 @@
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { prisma } from './src/lib/prisma.js'
-import { canalEbay, canalKaufland, canalMirakl, noterReleve, passage } from './src/services/ventesMarketplaces.js'
+import { canalEbay, canalKaufland, canalMirakl, canalWoo, noterReleve, passage } from './src/services/ventesMarketplaces.js'
 import { correspondance, importerCommandes, lireCsv, lireMontant } from './src/services/importCommandes.js'
 
 let echecs = 0
@@ -164,6 +164,31 @@ async function main() {
     await passage(user.id, cKaufland)
     const envois = kaufland.journal.filter((a) => a.methode === 'PATCH')
     verifier('suivi posé sur les seules unités à expédier (11 et 12, pas la 13 déjà envoyée)', envois.length === 2 && envois.every((a) => /\/order-units\/1[12]\/send$/.test(a.chemin) && JSON.parse(a.corps).tracking_numbers === 'K-TRACK' && JSON.parse(a.corps).carrier_code === 'DHL'), JSON.stringify(envois.map((a) => a.chemin)))
+
+    // ------------------------------------------------------ WooCommerce
+    console.log('\nWooCommerce')
+    const woo = await serveur((a) => {
+      if (!a.auth.startsWith('Basic ')) return { statut: 401 }
+      if (a.methode === 'GET' && a.chemin.startsWith('/wp-json/wc/v3/orders?') && a.chemin.includes('status=processing')) {
+        return {
+          json: [
+            { id: 901, number: '901', currency: 'EUR', date_created_gmt: '2026-09-30T08:00:00', billing: { first_name: 'Lea', last_name: 'Bon', email: 'lea@exemple.test' }, shipping: { first_name: 'Lea', last_name: 'Bon', address_1: '3 rue Neuve', city: 'Lyon', postcode: '69001', country: 'FR' }, line_items: [{ id: 5, name: 'Lampe', sku: 'DSP-555', quantity: 2, total: '59.80' }, { id: 6, name: 'Inconnu', sku: 'ZZZ', quantity: 1, total: '5.00' }] },
+          ],
+        }
+      }
+      return { json: {} }
+    })
+    fermer.push(woo.fermer)
+    const cWoo = canalWoo({ siteUrl: woo.url, consumerKey: 'ck', consumerSecret: 'cs' })
+    const pW = await passage(user.id, cWoo)
+    const oW = await prisma.order.findMany({ where: { userId: user.id, platform: 'WOOCOMMERCE' } })
+    verifier('une vente Woo par la référence DSP-, la ligne inconnue dite', oW.length === 1 && oW[0].productId === lampe.id && oW[0].quantity === 2 && Number(oW[0].amount) === 59.8 && pW.bilan?.sansProduit.length === 1, JSON.stringify(pW.bilan))
+    verifier('adresse de livraison reprise', (oW[0].buyerAddress as Record<string, string>).city === 'Lyon' && (oW[0].buyerAddress as Record<string, string>).countryCode === 'FR')
+    await prisma.order.update({ where: { id: oW[0].id }, data: { trackingNumber: 'W-TRACK', carrier: 'Colissimo' } })
+    await passage(user.id, cWoo)
+    const iNote = woo.journal.findIndex((a) => a.methode === 'POST' && a.chemin.endsWith('/orders/901/notes'))
+    const iClos = woo.journal.findIndex((a) => a.methode === 'PUT' && a.chemin.endsWith('/orders/901'))
+    verifier('suivi : note client avec le numéro PUIS commande « completed »', iNote >= 0 && iClos > iNote && /W-TRACK/.test(woo.journal[iNote].corps) && JSON.parse(woo.journal[iNote].corps).customer_note === true && JSON.parse(woo.journal[iClos].corps).status === 'completed')
 
     // ----------------------------------------------------------- Import
     console.log('\nImport de fichier')

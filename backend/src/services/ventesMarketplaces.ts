@@ -40,6 +40,8 @@ import { prisma } from '../lib/prisma.js'
 import { graphql, resoudreCredentialsShopify } from './shopify.js'
 import { jetonOfflineValide } from './shopifyApp.js'
 import { appeler as appelerEbay, avecRenouvellement, readEbayCredentials, type EbayCredentials } from './ebay.js'
+import { appeler as appelerWoo, readWooCredentials, type WooCredentials } from './woocommerce.js'
+import { BoutiqueRefus } from './boutiqueTiers.js'
 import { appeler as appelerKaufland, readKauflandCredentials, type KauflandCredentials } from './kaufland.js'
 import { appeler as appelerMirakl, OPERATEURS_MIRAKL, estMirakl, readMiraklCredentials, type MiraklCredentials } from './mirakl.js'
 
@@ -77,7 +79,7 @@ export interface BilanCapture {
 }
 
 /** Les canaux dont les ventes remontent seules aujourd'hui. */
-export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', ...OPERATEURS_MIRAKL]
+export const VENTES_CAPTEES: Platform[] = ['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', ...OPERATEURS_MIRAKL]
 
 // ------------------------------------------------------ La référence → produit
 
@@ -684,6 +686,75 @@ export function canalKaufland(creds: KauflandCredentials): Canal {
   }
 }
 
+// ------------------------------------------------------------------ WooCommerce
+
+interface CommandeWoo {
+  id: number
+  number?: string
+  status?: string
+  currency?: string
+  date_created_gmt?: string
+  billing?: { first_name?: string; last_name?: string; email?: string; phone?: string }
+  shipping?: { first_name?: string; last_name?: string; address_1?: string; address_2?: string; city?: string; state?: string; postcode?: string; country?: string; phone?: string }
+  line_items?: Array<{ id: number; name?: string; sku?: string; quantity?: number; total?: string }>
+}
+
+/**
+ * WooCommerce : « processing » est l'état d'une commande PAYÉE et pas encore
+ * expédiée ; « completed » clôt la commande. WooCommerce n'a pas de champ de
+ * suivi natif : le numéro part en note client (l'acheteur la reçoit par e-mail)
+ * puis la commande passe « completed ».
+ */
+export function canalWoo(creds: WooCredentials): Canal {
+  return {
+    platform: 'WOOCOMMERCE',
+    async relever(depuis) {
+      const ventes: VenteCapturee[] = []
+      for (let page = 1; page <= 5; page++) {
+        const r = await appelerWoo(creds, 'GET', `/orders?status=processing&after=${encodeURIComponent(depuis.toISOString())}&per_page=100&page=${page}`)
+        if (!r.ok) throw new Error(`WooCommerce a répondu ${r.status} à la lecture des commandes.`)
+        const commandes = (await r.json()) as CommandeWoo[]
+        for (const c of commandes) {
+          const a = c.shipping?.address_1 ? c.shipping : { ...c.shipping, ...c.billing }
+          const nom = [c.shipping?.first_name || c.billing?.first_name, c.shipping?.last_name || c.billing?.last_name].filter(Boolean).join(' ') || 'Acheteur'
+          ventes.push({
+            platform: 'WOOCOMMERCE',
+            externalOrderId: String(c.id),
+            numero: c.number || String(c.id),
+            creeLe: new Date(c.date_created_gmt ? `${c.date_created_gmt}Z` : Date.now()),
+            devise: c.currency || 'EUR',
+            acheteur: {
+              nom,
+              email: c.billing?.email ?? null,
+              adresse: {
+                name: nom,
+                address1: c.shipping?.address_1 || undefined,
+                address2: c.shipping?.address_2 || undefined,
+                city: c.shipping?.city || undefined,
+                zip: c.shipping?.postcode || undefined,
+                province: c.shipping?.state || undefined,
+                countryCode: c.shipping?.country && c.shipping.country.length === 2 ? c.shipping.country : undefined,
+                phone: (a as { phone?: string }).phone || c.billing?.phone || undefined,
+              },
+            },
+            lignes: (c.line_items ?? []).map((l) => ({ externalLineId: String(l.id), sku: l.sku || null, titre: l.name ?? '', quantite: l.quantity ?? 1, montant: Number(l.total) || 0 })),
+          })
+        }
+        if (commandes.length < 100) break
+      }
+      return ventes
+    },
+    async transmettreSuivi(orderId, numero, transporteur) {
+      const id = encodeURIComponent(orderId)
+      const note = await appelerWoo(creds, 'POST', `/orders/${id}/notes`, { note: `Colis expédié${transporteur ? ` par ${transporteur}` : ''} — numéro de suivi : ${numero}`, customer_note: true })
+      if (!note.ok) throw new Error(`WooCommerce a refusé la note de suivi (${note.status}).`)
+      const fin = await appelerWoo(creds, 'PUT', `/orders/${id}`, { status: 'completed' })
+      if (!fin.ok) throw new Error(`WooCommerce a refusé de clore la commande (${fin.status}).`)
+    },
+    motif: (err) => (err instanceof BoutiqueRefus ? err.message : texteErreur(err)),
+  }
+}
+
 // ------------------------------------------------------------------ Tournée
 
 /** Le canal d'une liaison, ou null si la plateforme ne remonte pas (encore) ses ventes. */
@@ -698,6 +769,10 @@ export async function canalPour(lien: PlatformCredential): Promise<Canal | null>
   if (lien.platform === 'EBAY') {
     const creds = readEbayCredentials(lien.data)
     return creds ? canalEbay(creds) : null
+  }
+  if (lien.platform === 'WOOCOMMERCE') {
+    const creds = readWooCredentials(lien.data)
+    return creds ? canalWoo(creds) : null
   }
   if (lien.platform === 'KAUFLAND') {
     const creds = readKauflandCredentials(lien.data)

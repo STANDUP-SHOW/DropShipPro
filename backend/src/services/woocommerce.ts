@@ -31,7 +31,7 @@ export function readWooCredentials(data: unknown): WooCredentials | null {
   return { siteUrl, consumerKey, consumerSecret }
 }
 
-async function appeler(creds: WooCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
+export async function appeler(creds: WooCredentials, methode: string, chemin: string, corps?: unknown, fetcher: typeof fetch = fetch): Promise<Response> {
   const r = await fetcher(`${creds.siteUrl}/wp-json/wc/v3${chemin}`, {
     method: methode,
     headers: {
