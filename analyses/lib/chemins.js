@@ -17,6 +17,8 @@ function depotParDefaut() {
 }
 
 function racineDepot(config) {
+  // Test-only: the bench points the deposit at a throwaway folder (never writes to the real C:\)
+  if (process.env.DROPSHIPPER_POSTE_BANC === '1' && process.env.DROPSHIPPER_POSTE_DEPOT) return process.env.DROPSHIPPER_POSTE_DEPOT
   return (config && config.depot) || depotParDefaut()
 }
 

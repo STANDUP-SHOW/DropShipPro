@@ -26,6 +26,7 @@ async function lancer({ maison, profil, port, serveur }) {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env, HOME: maison, USERPROFILE: maison, DROPSHIPPER_POSTE_BANC: '1', DROPSHIPPER_POSTE_PROFIL: profil,
+      DROPSHIPPER_POSTE_DEPOT: path.join(maison, 'DropShipper-Analyses'),
       POSTE_URL_SERPER: `http://127.0.0.1:${p}/search`, POSTE_URL_CLAUDE: `http://127.0.0.1:${p}/v1/messages`,
     },
   })
