@@ -5,7 +5,7 @@ import { Logo } from '../components/Logo'
 import { api, isAuthed } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
 import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
-import { AccueilDiaporama, BoucleTheme } from '../components/AccueilDiaporama'
+import { BoucleTheme } from '../components/BoucleTheme'
 import accueil from '../data/accueil-themes.json'
 import { useThemeSombreForce } from '../lib/themeSombre'
 import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
@@ -35,19 +35,24 @@ canaux.canaux.forEach((c, i) => CANAUX_FRISE[i % 2].push({ id: c.id, label: c.la
  * changé ici sans l'être là-bas ferait deux accueils différents selon qu'on
  * est un visiteur ou un robot.
  *
- * Le diaporama d'arrivée envoie sur la section du thème ; chaque section envoie
- * sur sa page détaillée et sur l'offre correspondante.
+ * Chaque section envoie sur sa page détaillée et sur l'offre correspondante.
+ * Le diaporama d'arrivée a été retiré le 03/10/2026 (Max : il répétait les
+ * sections qui suivent).
  */
 const THEMES = accueil.themes
 
-/** Le menu court de l'accueil : des libellés d'un mot, la liste complète est dans la page. */
+/**
+ * Le menu court de l'accueil : des libellés d'un mot. Il envoie sur les pages
+ * détaillées (/fonctions/<slug>/, celles du bouton « Plus d'informations »),
+ * plus sur des ancres de la page (Max, 03/10/2026).
+ */
 const NAV = [
-  { href: '#scraping-produits', label: 'Import' },
-  { href: '#annonces-ia', label: 'Annonces' },
-  { href: '#dropshop-ia', label: 'Boutiques' },
-  { href: '#diffusion', label: 'Diffusion' },
-  { href: '#analyses-de-marche', label: 'Analyses' },
-  { href: '#auto-shipper', label: 'Auto-mode' },
+  { href: '/fonctions/scraping-produits/', label: 'Import' },
+  { href: '/fonctions/annonces-ia/', label: 'Annonces' },
+  { href: '/fonctions/dropshop-ia/', label: 'Boutiques' },
+  { href: '/fonctions/diffusion/', label: 'Diffusion' },
+  { href: '/fonctions/analyses-de-marche/', label: 'Analyses' },
+  { href: '/fonctions/auto-shipper/', label: 'Auto-mode' },
   { href: '/tarifs/', label: 'Tarifs' },
   { href: '/api-power/', label: 'API Power' },
 ]
@@ -97,16 +102,12 @@ export default function Index() {
       </header>
 
       <main>
-        {/* Le héros, dans l'ordre demandé par Max le 25/09/2026 : le titre, tout de
-            suite le diaporama en pleine largeur, puis le contenu (sous-titre, texte,
-            boutons). Le texte reste centré ; les images prennent toute la page. */}
-        <section className="mx-auto max-w-6xl px-6 pb-8 pt-14 text-center md:pt-20">
+        {/* Le héros : le titre, puis le sous-titre, le texte et les boutons. */}
+        <section className="mx-auto max-w-6xl px-6 pt-14 text-center md:pt-20">
           <h1 className="mx-auto max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight md:text-6xl">
             {accueil.hero.titre.replace(" avec l'IA", '')} <span className="text-gradient-brand">avec l'IA</span>
           </h1>
         </section>
-
-        <AccueilDiaporama themes={THEMES} />
 
         <section className="mx-auto max-w-6xl px-6 pb-16 pt-10 text-center">
           <p className="texte-neon text-2xl font-semibold md:text-3xl">{accueil.hero.sousTitre}</p>
