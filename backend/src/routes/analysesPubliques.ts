@@ -14,7 +14,7 @@
 import { Router, type Response } from 'express'
 import { ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
-import { pageCategorie, pageIndex, pageRapport, sitemapXml, type RapportPublic } from '../services/analysesPubliques.js'
+import { pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, type RapportPublic } from '../services/analysesPubliques.js'
 
 export const analysesPubliquesRouter = Router()
 
@@ -78,7 +78,8 @@ analysesPubliquesRouter.get('/', (_req, res) => {
     const recents = tous.slice(0, 24).map((l) => versPublic(l.id)).filter((r): r is RapportPublic => r !== null)
     const comptes = new Map<string, number>()
     for (const l of tous) comptes.set(l.categorie, (comptes.get(l.categorie) ?? 0) + 1)
-    html(res, pageIndex(recents, comptes))
+    const jours = [...new Set(tous.map((l) => l.day))]
+    html(res, pageIndex(recents, comptes, jours))
   } catch (err) {
     panne(res, err)
   }
@@ -86,6 +87,23 @@ analysesPubliquesRouter.get('/', (_req, res) => {
 
 analysesPubliquesRouter.get('/:categorie/', (req, res) => {
   const { categorie } = req.params
+  // /analyses/2026-09-18/ : l'édition du jour, toutes catégories confondues.
+  if (JOUR.test(categorie)) {
+    try {
+      const tous = rapports().getPourSitemap().filter(adressable)
+      const jours = [...new Set(tous.map((l) => l.day))]
+      const i = jours.indexOf(categorie)
+      if (i === -1) return res.status(404).type('text').send('Aucune analyse publiée ce jour-là.')
+      const pages = tous
+        .filter((l) => l.day === categorie)
+        .map((l) => versPublic(l.id))
+        .filter((r): r is RapportPublic => r !== null)
+      // jours est trié du plus récent au plus ancien : le suivant est avant, le précédent après.
+      return html(res, pageJour(categorie, pages, jours[i + 1], jours[i - 1]))
+    } catch (err) {
+      return panne(res, err)
+    }
+  }
   if (!SLUG.test(categorie)) return res.status(404).type('text').send('Catégorie inconnue.')
   try {
     const liste = rapports()

@@ -121,6 +121,11 @@ if (existsSync(index)) {
   }
   const vercel = readFileSync(resolve(dist, '../vercel.json'), 'utf8')
   exige(['/avis', '/confidentialite', '/register'].every((u) => vercel.indexOf(`"${u}/index.html"`) !== -1 && vercel.indexOf(`"${u}/index.html"`) < vercel.indexOf('"/(.*)"')), 'vercel.json route ces écrans vers leur copie, avant le filet')
+  const indexSitemaps = readFileSync(resolve(dist, 'sitemap.xml'), 'utf8')
+  exige(
+    indexSitemaps.includes('<sitemapindex') && indexSitemaps.includes('/sitemap-pages.xml</loc>') && indexSitemaps.includes('/analyses/sitemap.xml</loc>') && existsSync(resolve(dist, 'sitemap-pages.xml')),
+    'sitemap.xml est un index : les pages du site et les analyses du jour',
+  )
   const titre = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? ''
   exige(titre.length <= 60, 'le titre de l’accueil tient dans un résultat Google', `${titre.length} caractères`)
 } else {

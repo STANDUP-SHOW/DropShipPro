@@ -26,6 +26,7 @@
  *   /analyses/<categorie>/                           l'archive d'une catégorie
  *   /analyses/<categorie>/<AAAA-MM-JJ>/<theme>/            le rapport rayon (analyse + produits gagnants)
  *   /analyses/<categorie>/<AAAA-MM-JJ>/<theme>/marketing/  le rapport marketing (angles, prompts)
+ *   /analyses/<AAAA-MM-JJ>/                          l'édition du jour : toutes les analyses et leurs produits gagnants
  *   /analyses/sitemap.xml
  */
 import { CATEGORIES, categorieDe, type ProduitRapport } from './marketReports.js'
@@ -68,6 +69,11 @@ export function esc(texte: unknown): string {
 
 export function cheminRapport(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type'>): string {
   return `/analyses/${r.categorie}/${r.day}/${r.theme}/${r.type === 'marketing' ? 'marketing/' : ''}`
+}
+
+/** L'édition d'un jour, comme un journal : /analyses/2026-09-18/. */
+export function cheminJour(day: string): string {
+  return `/analyses/${day}/`
 }
 
 export function cheminCategorie(id: string): string {
@@ -420,7 +426,7 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
 
   const body = `${crumb(fil)}
 <h1>${esc(r.titre)}</h1>
-<p class="meta">${estRayon ? 'Analyse de marché et produits gagnants' : 'Analyse marketing'} · ${esc(cat)} › ${esc(theme)} · ${dateLongue(r.day)}${
+<p class="meta">${estRayon ? 'Analyse de marché et produits gagnants' : 'Analyse marketing'} · ${esc(cat)} › ${esc(theme)} · <a href="${cheminJour(r.day)}">édition du ${dateLongue(r.day)}</a>${
     r.sources ? ` · ${r.sources} sources consultées` : ''
   } · rédigé par les agents ${NOM}</p>
 ${r.accroche ? `<p class="lede">${esc(r.accroche)}</p>` : ''}
@@ -449,7 +455,8 @@ ${
       '@context': 'https://schema.org',
       '@graph': [
         {
-          '@type': 'Article',
+          // Une analyse datée, publiée chaque jour : une actualité de marché.
+          '@type': 'NewsArticle',
           '@id': `${SITE}${url}#article`,
           headline: r.titre,
           description,
@@ -516,13 +523,21 @@ ${
   })
 }
 
-export function pageIndex(recents: RapportPublic[], compteParCategorie: Map<string, number>): string {
+export function pageIndex(recents: RapportPublic[], compteParCategorie: Map<string, number>, jours: string[] = []): string {
   const url = '/analyses/'
   const fil = [{ nom: 'Accueil', url: '/' }, { nom: 'Analyses de marché' }]
   const total = [...compteParCategorie.values()].reduce((t, n) => t + n, 0)
   const body = `${crumb(fil)}
 <h1>Analyses de marché et produits gagnants du dropshipping, chaque jour</h1>
 <p class="lede">${CATEGORIES.length} catégories, deux rapports par jour et par catégorie : le marché et ses produits à importer, le marketing et ses prompts publicitaires. Rédigés par les agents ${NOM}, ${total} rapports publiés à ce jour.</p>
+${
+    jours.length
+      ? `<h2>Les éditions</h2><div class="grille">${jours
+          .slice(0, 14)
+          .map((j) => `<a href="${cheminJour(j)}">Édition du ${dateLongue(j)}<small>tendances et produits gagnants du jour</small></a>`)
+          .join('')}</div>`
+      : ''
+  }
 <h2>Les dernières analyses</h2>
 <ul class="liste">${recents
     .map((r) => `<li><a href="${cheminRapport(r)}">${esc(r.titre)}</a><small>${esc(r.categorieNom)} · ${dateLongue(r.day)} · ${resumeRapport(r)}</small></li>`)
@@ -544,11 +559,90 @@ export function pageIndex(recents: RapportPublic[], compteParCategorie: Map<stri
   })
 }
 
+/**
+ * L'édition d'un jour (demandée par Max le 03/10/2026 : « chaque jour comme des
+ * infos ») : chaque catégorie analysée ce jour-là, son accroche, ses meilleurs
+ * produits gagnants (bridés comme partout : ni fournisseur en lien, ni prix
+ * d'achat), et les liens vers les rapports complets. Une page par jour, une
+ * adresse lisible, de quoi se faire indexer chaque matin.
+ */
+export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?: string, jourSuivant?: string): string {
+  const url = cheminJour(day)
+  const date = dateLongue(day)
+  const fil = [{ nom: 'Accueil', url: '/' }, { nom: 'Analyses de marché', url: '/analyses/' }, { nom: `Édition du ${date}` }]
+  const rayons = rapports.filter((r) => r.type === 'rayon')
+  const parCategorie = new Map<string, RapportPublic[]>()
+  for (const r of rapports) parCategorie.set(r.categorie, [...(parCategorie.get(r.categorie) ?? []), r])
+  const produits = rayons.flatMap((r) => r.produits)
+  // Deux par rayon, et d'abord ceux qui ont un prix conseillé : une vitrine du jour, pas un inventaire.
+  const top = rayons
+    .flatMap((r) =>
+      [...r.produits]
+        .sort((x, y) => Number(y.prixVente !== null) - Number(x.prixVente !== null) || x.rang - y.rang)
+        .slice(0, 2)
+        .map((p) => ({ p, r })),
+    )
+    .slice(0, 12)
+  const euros = (n: number | null) => (n === null ? '—' : `${n.toFixed(2).replace('.', ',')} €`)
+
+  const body = `${crumb(fil)}
+<h1>Produits gagnants et tendances du ${date}</h1>
+<p class="lede">L'édition du jour des agents ${NOM} : ${parCategorie.size} catégorie${parCategorie.size > 1 ? 's' : ''} analysée${parCategorie.size > 1 ? 's' : ''}, ${rapports.length} rapport${rapports.length > 1 ? 's' : ''}${produits.length ? `, ${produits.length} produits gagnants repérés` : ''}.</p>
+${
+  top.length
+    ? `<h2 id="produits">Les produits gagnants du jour</h2><div class="tableau"><table>
+<thead><tr><th>Produit</th><th>Catégorie</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
+<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixVente)}</td><td>${esc(p.pourquoi)}</td></tr>`).join('')}</tbody></table></div>`
+    : ''
+}
+${[...parCategorie.values()]
+  .map((liste) => {
+    const nom = liste[0].categorieNom
+    return `<h2>${esc(nom)}</h2>${liste
+      .map((r) => `<h3><a href="${cheminRapport(r)}">${esc(r.titre)}</a></h3>${r.accroche ? `<p>${esc(r.accroche)}</p>` : ''}<p class="meta">${esc(r.themeNom)} · ${resumeRapport(r)}</p>`)
+      .join('')}<p><a href="${cheminCategorie(liste[0].categorie)}">Toutes les analyses ${esc(nom.toLowerCase())}</a></p>`
+  })
+  .join('\n')}
+<p class="meta">${jourPrecedent ? `<a href="${cheminJour(jourPrecedent)}">← Édition du ${dateLongue(jourPrecedent)}</a>` : ''}${jourPrecedent && jourSuivant ? ' · ' : ''}${
+    jourSuivant ? `<a href="${cheminJour(jourSuivant)}">Édition du ${dateLongue(jourSuivant)} →</a>` : ''
+  }</p>`
+
+  const description = `Les analyses de marché du ${date} : tendances par catégorie${produits.length ? ` et ${produits.length} produits gagnants à importer en dropshipping` : ''}, avec prix de vente conseillés.`
+  return layout({
+    url,
+    title: `Produits gagnants et tendances du ${dateCourte(day)}`,
+    description,
+    publie: new Date(`${day}T06:00:00Z`),
+    modifie: rapports.reduce((d, r) => (r.updatedAt > d ? r.updatedAt : d), new Date(`${day}T06:00:00Z`)),
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'CollectionPage',
+          name: `Édition du ${date}`,
+          url: `${SITE}${url}`,
+          inLanguage: 'fr-FR',
+          datePublished: `${day}T06:00:00Z`,
+          publisher: ORGANISATION,
+          hasPart: rapports.map((r) => ({ '@type': 'NewsArticle', headline: r.titre, url: `${SITE}${cheminRapport(r)}` })),
+        },
+        breadcrumbLd(fil),
+      ],
+    },
+    body,
+  })
+}
+
 export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'updatedAt'>>): string {
   const categories = new Map<string, Date>()
   for (const r of rapports) {
     const d = categories.get(r.categorie)
     if (!d || d < r.updatedAt) categories.set(r.categorie, r.updatedAt)
+  }
+  const jours = new Map<string, Date>()
+  for (const r of rapports) {
+    const d = jours.get(r.day)
+    if (!d || d < r.updatedAt) jours.set(r.day, r.updatedAt)
   }
   const ligne = (loc: string, mod: Date, prio: string, freq: string) =>
     `  <url><loc>${SITE}${loc}</loc><lastmod>${mod.toISOString().slice(0, 10)}</lastmod><changefreq>${freq}</changefreq><priority>${prio}</priority></url>`
@@ -556,6 +650,7 @@ export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'da
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${ligne('/analyses/', rapports.length ? dernier : new Date(), '0.8', 'daily')}
+${[...jours.entries()].map(([j, mod]) => ligne(cheminJour(j), mod, '0.7', 'weekly')).join('\n')}
 ${[...categories.entries()].map(([id, mod]) => ligne(cheminCategorie(id), mod, '0.7', 'daily')).join('\n')}
 ${rapports.map((r) => ligne(cheminRapport(r), r.updatedAt, '0.6', 'monthly')).join('\n')}
 </urlset>

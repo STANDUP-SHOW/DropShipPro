@@ -4,7 +4,7 @@
  * que le compte à 500 drops achète. Éprouvé sur un rapport bâti comme les vrais
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
-import { blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -75,7 +75,7 @@ console.log('La page d’un rapport rayon')
   exige(!html.includes('<script>alert'), 'le HTML du rapport est échappé')
   exige(html.includes('href="https://exemple.test/etude" rel="nofollow'), 'les liens du corps sont en nofollow')
   exige(html.includes(`<link rel="canonical" href="https://www.drop-shipper.fr${cheminRapport(rapport)}">`), 'l’adresse canonique est sous www.drop-shipper.fr')
-  exige(html.includes('"@type":"Article"') && html.includes('"@type":"ItemList"') && html.includes('"@type":"BreadcrumbList"'), 'schema.org : Article, ItemList, fil d’Ariane')
+  exige(html.includes('"@type":"NewsArticle"') && html.includes('"@type":"ItemList"') && html.includes('"@type":"BreadcrumbList"'), 'schema.org : NewsArticle, ItemList, fil d’Ariane')
   exige(html.includes(cheminRapport(marketing)), 'le rapport marketing du même jour est lié')
   exige(html.includes('produits gagnants'), 'le bloc des produits est retitré « gagnants »')
   const ld = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1])
@@ -135,6 +135,17 @@ console.log('\nCe que l’audit du 03/10/2026 relevait')
   exige(vide.includes('noindex, follow') && vide.includes('Aucune analyse publiée'), 'une catégorie vide : une vraie page, hors index')
   const index = pageIndex([rapport], new Map([['telephonie', 2]]))
   exige(index.includes('href="/analyses/telephonie/"') && !index.includes('href="/analyses/sport/"'), 'l’index ne lie pas les catégories vides')
+}
+
+console.log('\nL’édition du jour')
+{
+  const html = pageJour('2026-09-18', [rapport, marketing], '2026-09-17', '2026-09-19')
+  exige(html.includes('<title>Produits gagnants et tendances du 18/09/2026</title>') && html.includes('href="https://www.drop-shipper.fr/analyses/2026-09-18/"'), 'une page par jour, à son adresse')
+  exige(html.includes('Chargeur GaN 65 W 3 ports') && html.includes('href="/analyses/telephonie/2026-09-18/chargeurs-cables/#produits"'), 'les produits gagnants du jour, liés à leur rapport')
+  exige(!html.includes('fournisseur.test') && !html.includes('9,80') && !/CJ Dropshipping|BigBuy|Temu/.test(html), 'ni adresse, ni nom de fournisseur, ni prix d’achat')
+  exige(html.includes('/analyses/2026-09-17/') && html.includes('/analyses/2026-09-19/'), 'les éditions voisines')
+  exige(sitemapXml([rapport]).includes('<loc>https://www.drop-shipper.fr/analyses/2026-09-18/</loc>'), 'chaque édition est dans le sitemap')
+  exige(pageRapport(rapport).includes('"@type":"NewsArticle"'), 'un rapport se déclare comme une actualité')
 }
 
 console.log('\nLe Markdown')
