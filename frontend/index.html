@@ -35,9 +35,11 @@
          sombre à chaque chargement. -->
     <script>
       try {
-        // L'accueil et API Power n'ont qu'un seul rendu, sombre (Max, 25/09/2026) :
-        // le thème clair n'y est jamais posé, même avant le montage de React.
-        var publique = location.pathname === '/' || location.pathname.indexOf('/api-power') === 0
+        // Le site public (accueil, API Power, connexion, avis…) n'a qu'un rendu,
+        // sombre (Max, 25/09 et 03/10/2026) : le thème clair n'y est jamais posé.
+        // Même liste que PAGES_PUBLIQUES dans src/lib/theme.ts.
+        var chemin = location.pathname.length > 1 ? location.pathname.replace(/\/+$/, '') : location.pathname
+        var publique = ['/', '/api-power', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/confidentialite', '/avis', '/partager', '/newsletter'].indexOf(chemin) !== -1
         if (!publique && localStorage.getItem('dsp-theme') === 'light') document.documentElement.setAttribute('data-theme', 'light')
       } catch (e) {}
     </script>

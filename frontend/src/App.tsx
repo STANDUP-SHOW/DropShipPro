@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { isAuthed } from './lib/api'
+import { useThemeSelonPage } from './lib/theme'
 import { LoadingScreen } from './components/LoadingScreen'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import Index from './pages/Index'
@@ -119,12 +120,19 @@ function DefileVersAncre() {
   return null
 }
 
+/** Le site public reste sombre ; l'application suit le réglage du visiteur (lib/theme.ts). */
+function ThemeSelonPage() {
+  useThemeSelonPage()
+  return null
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
     <BrowserRouter>
       <AuthProvider>
         <DefileVersAncre />
+        <ThemeSelonPage />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
