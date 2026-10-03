@@ -61,7 +61,8 @@ export async function publishToPlatform(productId: string, platform: Platform, a
     return publishToFeedChannel(productId, platform, product.userId)
   }
 
-  const isReady = platform === 'OWN_SITE'
+  // DropShop Market est à nous : publier, c est apparaître sur drop-shop.cloud.
+  const isReady = platform === 'OWN_SITE' || platform === 'DROPSHOP_MARKET'
 
   return prisma.publication.upsert({
     where: { productId_platform: { productId, platform } },

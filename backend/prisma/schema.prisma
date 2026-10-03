@@ -80,6 +80,8 @@ enum Platform {
   AUCHAN
   ALLTRICKS
   BOL
+  /// DropShop Market (drop-shop.cloud, 03/10/2026) : notre propre place de marché.
+  DROPSHOP_MARKET
 }
 
 enum ProductStatus {
@@ -172,6 +174,14 @@ model User {
   /// Passer la commande chez le fournisseur sans demander, des qu une vente
   /// tombe. Faux par defaut : engager l argent du vendeur sans son accord n est
   /// pas un reglage qu on active a sa place.
+  /// DropShop Market : le compte Stripe Connect (Express) du vendeur. Les
+  /// ventes sont encaissées sur NOTRE compte plateforme et reversées à celui-ci,
+  /// moins la commission. Nul tant que le vendeur n'a pas commencé l'inscription.
+  stripeConnectId    String?  @unique
+  /// Vrai quand Stripe autorise ce compte à recevoir des paiements
+  /// (`charges_enabled`). Relu chez Stripe, jamais déclaré par le navigateur.
+  stripeConnectReady Boolean  @default(false)
+
   autoOrder    Boolean   @default(false)
   /// Le plafond au-dela duquel la commande est preparee mais pas envoyee, meme
   /// en mode automatique. Un prix fournisseur qui s emballe est le symptome le
@@ -489,6 +499,11 @@ model Order {
   buyerEmail          String?
   shippingLabelUrl    String?
   receiptUrl          String?
+  /// DropShop Market : la commission prélevée par la plateforme (5 %), en
+  /// euros. Nulle pour toute commande qui ne vient pas de la place de marché.
+  commission          Decimal?     @db.Decimal(10, 2)
+  /// DropShop Market : la variante achetée, lisible (« Couleur : Noir, Taille : M »).
+  variante            String?
   payoutStatus        PayoutStatus @default(PENDING)
   platformBalance     Decimal?     @db.Decimal(10, 2)
 
