@@ -494,8 +494,9 @@ Allow: /
 # un : ils sont les bienvenus, y compris pour citer le contenu.
 ${ROBOTS_IA.map(([agent, qui]) => `# ${qui}\nUser-agent: ${agent}\nAllow: /`).join('\n\n')}
 
+# L'index : les pages du site et les analyses de marché des agents (une page par
+# rapport, engendrée par l'API à chaque requête, routes/analysesPubliques.ts).
 Sitemap: ${SITE}/sitemap.xml
-# Les analyses de marché des agents, une page par rapport, servies par l'API (routes/analysesPubliques.ts).
 Sitemap: ${SITE}/analyses/sitemap.xml
 
 # Fiche d'identité lisible par les assistants conversationnels (convention
@@ -517,6 +518,26 @@ function completerSitemap(urls) {
   return (xml.match(/<loc>/g) || []).length
 }
 
+/**
+ * /sitemap.xml devient un INDEX de sitemaps (demandé par Max le 03/10/2026) :
+ * les pages du site, figées au build (sitemap-pages.xml), et les analyses des
+ * agents, que l'API engendre à chaque requête depuis rapports.db
+ * (/analyses/sitemap.xml). Un moteur qui ne lit que /sitemap.xml trouve ainsi
+ * chaque nouvelle page d'analyse sans qu'on redéploie le site.
+ */
+function ecrireIndexSitemaps() {
+  fs.renameSync(path.join(DIST, 'sitemap.xml'), path.join(DIST, 'sitemap-pages.xml'))
+  fs.writeFileSync(
+    path.join(DIST, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>${SITE}/sitemap-pages.xml</loc><lastmod>${TODAY}</lastmod></sitemap>
+  <sitemap><loc>${SITE}/analyses/sitemap.xml</loc></sitemap>
+</sitemapindex>
+`,
+  )
+}
+
 function main() {
   if (!fs.existsSync(path.join(DIST, 'sitemap.xml'))) {
     console.error('dist/sitemap.xml absent — lancez build-seo.cjs avant build-geo.cjs')
@@ -529,6 +550,7 @@ function main() {
   ecrireRobots()
   fs.writeFileSync(path.join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY)
   const total = completerSitemap(pages.map((p) => p.url))
+  ecrireIndexSitemaps()
   console.log(`GEO : accueil pré-rendue, ${pages.map((p) => p.url).join(' ')}, robots.txt (${ROBOTS_IA.length} robots nommés), clé IndexNow — sitemap : ${total} URL`)
 }
 
