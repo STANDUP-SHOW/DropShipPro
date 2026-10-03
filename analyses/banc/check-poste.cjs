@@ -137,7 +137,7 @@ test('le Markdown rayon respecte le contrat lu par le serveur (lireRapport)', as
   const m = monde(srv); remise()
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: {} })
   const racine = path.join(__dirname, '..', '..', 'backend', 'src', 'services', 'marketReports.ts')
-  const script = `import('${racine.replace(/\\/g, '/')}').then((m)=>{const r=m.lireRapport(require('fs').readFileSync(process.argv[1],'utf8'));console.log(JSON.stringify({type:r.type,n:r.produits.length,imp:r.produits.map(p=>p.import)}))}).catch((e)=>{console.log('ERR '+e.message)})`
+  const script = `import(${JSON.stringify(require('node:url').pathToFileURL(racine).href)}).then((m)=>{const r=m.lireRapport(require('fs').readFileSync(process.argv[1],'utf8'));console.log(JSON.stringify({type:r.type,n:r.produits.length,imp:r.produits.map(p=>p.import)}))}).catch((e)=>{console.log('ERR '+e.message)})`
   let sortie
   try {
     sortie = execFileSync(process.execPath, ['--experimental-strip-types', '--no-warnings', '-e', script, res.chemins.rayon], { encoding: 'utf8' }).trim()
