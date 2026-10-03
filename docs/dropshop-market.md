@@ -91,6 +91,38 @@ redirige en 301 vers le domaine nu (`MARKET_URL`, défaut
 4. Google Search Console : déclarer `https://drop-shop.cloud`, soumettre
    `/sitemap.xml`. Google Merchant Center : flux programmé sur `/flux/google.xml`.
 
+## Mode Prime (livré en 24 h)
+
+- `Product.marketPrime` : le vendeur l'active depuis l'écran DropShop Market
+  après avoir confirmé un engagement (expédition le jour même) ; l'admin peut
+  le retirer (`POST /api/market/admin/annonces/:id/retirer-prime`).
+- Bouton jaune « ⚡ Prime 24 h » dans l'en-tête, page `/prime`, bandeau sur
+  l'accueil, badge sur les cartes et la fiche.
+- Déclaré à Google : délai de préparation 0 jour et transport 1 jour (schema.org
+  et flux Merchant), `custom_label_4` = `prime-24h` | `standard` pour des
+  campagnes séparées, titre Ads « Livré en 24 h ».
+
+## Catégories
+
+Les 24 catégories racines et leurs ~224 sous-catégories (table `Category`,
+graine `categorySeed.json` si la base est injoignable, cache 10 min) :
+barre de défilement + méga-menu « Toutes les catégories » sur chaque page,
+tuiles sur l'accueil, pages `/c/<rayon>` et `/c/<rayon>/<sous>` (non indexées
+tant qu'elles sont vides, présentes dans le sitemap dès qu'elles ont un produit).
+
+## Vidéos et avis
+
+- **Vidéo** : celle que le vendeur a téléversée (`Product.videoUrl`), affichée
+  sur la fiche, décrite en `VideoObject` (Google Vidéos), et passée au
+  catalogue Meta (`video[0].url`). Les vidéos des fiches fournisseur ne sont
+  pas captées (décision du 03/09/2026 : flux HLS/blob et droits non tranchés).
+- **Avis** : les `BuyerReview` publiés du produit (relevés par l'extension ou
+  CSV). Note et étoiles sur la carte et la fiche, 20 derniers avis en détail,
+  chacun avec son origine (« Avis recueilli sur aliexpress.com ») : présenter un
+  avis d'ailleurs comme recueilli ici serait trompeur. **Pas de
+  `aggregateRating` balisé** : Google interdit de baliser des avis recueillis
+  sur un autre site.
+
 ## Pas encore fait (et pourquoi)
 
 - **Panier multi-vendeurs** : l'achat est « acheter maintenant », une offre à
@@ -98,5 +130,5 @@ redirige en 301 vers le domaine nu (`MARKET_URL`, défaut
   charges and transfers » de Stripe ; à faire quand le volume le justifie.
 - **Événements Connect** (`account.updated`) : l'état du compte est relu à
   l'ouverture de l'écran vendeur, ce qui suffit au démarrage.
-- **Avis acheteurs** sur les fiches : non affichés tant que leur provenance
-  (fournisseur vs. Market) n'est pas distinguée à l'écran.
+- **Avis laissés sur le Market** : pas encore de formulaire après achat ; les
+  avis affichés sont ceux du produit (voir plus haut).

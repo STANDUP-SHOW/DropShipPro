@@ -411,6 +411,12 @@ model Product {
   adAdvice   String?   @db.Text
   adAdvisedAt DateTime?
 
+  /// DropShop Market : article « Prime », livré en 24 h. Déclaré par le vendeur
+  /// (il s engage à expédier le jour même depuis la France), retirable par
+  /// l admin. Affiché en badge, filtré sur /prime, et déclaré dans les flux
+  /// (délai de transport 1 jour) : une promesse que Google vérifie.
+  marketPrime Boolean @default(false)
+
   status ProductStatus @default(DRAFT)
 
   createdAt DateTime @default(now())

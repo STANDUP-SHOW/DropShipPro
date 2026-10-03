@@ -1,7 +1,7 @@
 import type { Product } from '@prisma/client'
-import { offresDe, cleVariante, slugify, attributGoogle, type Annonce } from './src/services/market.js'
+import { offresDe, cleVariante, slugify, attributGoogle, arbreMarket, type Annonce, type Rayon } from './src/services/market.js'
 import { googleMarketRss, metaMarketCsv, comparateurCsv, googleAdsEditorCsv, couper } from './src/services/marketFeeds.js'
-import { pageProduit, pageListe, produitLd } from './src/services/marketPages.js'
+import { pageProduit, pageListe, produitLd, carte } from './src/services/marketPages.js'
 import { commissionCentimes } from './src/services/marketStripe.js'
 
 /**
@@ -80,9 +80,10 @@ const annonce: Annonce = {
   product: avecVariantes,
   shop: { id: 's1', name: 'Maison Laine', slug: 'maison-laine' },
   vendeur: { userId: 'u1', nom: 'Maison Laine', slug: 'maison-laine', encaisse: true },
-  categorie: { path: 'Mode > Femme > Pulls', google: 'Apparel & Accessories > Clothing > Sweaters', sector: 'mode' },
+  categorie: { id: 'vetements-pour-femmes-pulls', label: 'Pulls', path: 'Vêtements pour femmes > Pulls', google: 'Apparel & Accessories > Clothing > Sweaters', rayon: { id: 'vetements-pour-femmes', label: 'Vêtements pour femmes' } },
   offres,
   publishedAt: new Date(),
+  prime: false,
 }
 
 console.log('Flux Google Merchant :')
@@ -131,8 +132,59 @@ const ld = produitLd(annonce, offres[1]) as { hasVariant: Array<{ sku: string }>
 exige(ld.hasVariant[0].sku === offres[1].id, 'la variante courante vient en tête du ProductGroup')
 const piege = pageProduit('', { ...annonce, product: { ...avecVariantes, aiTitle: '</script><script>alert(1)</script>' } as unknown as Product, offres: offresDe({ ...avecVariantes, aiTitle: '</script><script>alert(1)</script>' } as unknown as Product) }, null)
 exige(!piege.includes('<script>alert(1)'), 'un titre ne peut pas injecter de script')
-const accueil = pageListe({ base: '', titre: 't', h1: 'h', description: 'd', chemin: '/', annonces: [annonce], rayons: [{ sector: 'mode', label: 'Mode' }], page: 1, suivante: true })
-exige(accueil.includes('"SearchAction"') && accueil.includes('href="/rayon/mode"') && accueil.includes('rel="next"'), 'accueil : recherche structurée, rayons, pagination')
+exige(fiche.includes('href="/c/vetements-pour-femmes"') && fiche.includes('href="/c/vetements-pour-femmes/vetements-pour-femmes-pulls"'), "fil d'Ariane : rayon puis sous-catégorie")
+
+console.log('Les 24 catégories :')
+// Sans base, l'arbre retombe sur la graine livrée avec le code.
+process.env.DATABASE_URL = 'postgresql://personne@127.0.0.1:1/aucune'
+const { rayons } = await arbreMarket()
+exige(rayons.length === 24, `24 rayons, obtenu ${rayons.length}`)
+const sousTotal = rayons.reduce((n, r) => n + r.sousCategories.length, 0)
+exige(sousTotal >= 200, `les sous-catégories sont là (${sousTotal})`)
+exige(rayons.every((r) => r.ids.includes(r.id) && r.sousCategories.every((c) => r.ids.includes(c.id))), "un rayon filtre ses sous-catégories")
+const accueil = pageListe({ base: '', accueil: true, titre: 't', h1: 'h', description: 'd', chemin: '/', annonces: [annonce], rayons, page: 1, suivante: true })
+exige(accueil.includes('"SearchAction"') && accueil.includes('rel="next"'), 'accueil : recherche structurée, pagination')
+exige(rayons.every((r) => accueil.includes(`href="/c/${r.id}"`)), 'les 24 rayons sont liés depuis l accueil')
+exige(rayons.every((r) => r.sousCategories.every((c) => accueil.includes(`href="/c/${r.id}/${c.id}"`))), 'chaque sous-catégorie est liée (méga-menu)')
+const rayonMode = rayons.find((r) => r.sousCategories.length > 0) as Rayon
+const pageRayon = pageListe({ base: '', titre: 't', h1: 'h', description: 'd', chemin: `/c/${rayonMode.id}`, annonces: [], rayons, puces: { rayon: rayonMode, courante: null }, page: 1, suivante: false, indexable: false, vide: 'vide' })
+exige(pageRayon.includes('noindex') && pageRayon.includes('class="puces"'), 'catégorie vide : en ligne, non indexée, avec ses sous-catégories')
+
+console.log('Prime :')
+exige(accueil.includes('href="/prime"') && accueil.includes('btn-prime'), 'bouton Prime visible dans l en-tête')
+exige(accueil.includes('bandeau-prime'), 'bandeau Prime sur l accueil')
+const prime: Annonce = { ...annonce, prime: true }
+exige(carte('', prime).includes('PRIME 24 h') && !carte('', annonce).includes('PRIME'), 'badge Prime sur la carte, et seulement là')
+const fichePrime = pageProduit('', prime, offres[0], rayons)
+exige(fichePrime.includes('Livré en 24 h'), 'promesse 24 h sur la fiche')
+exige(fichePrime.includes('"transitTime":{"@type":"QuantitativeValue","minValue":1,"maxValue":1'), 'schema.org : transport 1 jour')
+const rssPrime = googleMarketRss([prime])
+exige(rssPrime.includes('<g:max_transit_time>1</g:max_transit_time>') && rssPrime.includes('<g:max_handling_time>0</g:max_handling_time>'), 'Google : délai 24 h déclaré')
+exige(rssPrime.includes('<g:custom_label_4>prime-24h</g:custom_label_4>') && rss.includes('<g:custom_label_4>standard</g:custom_label_4>'), 'Prime segmentable en campagne')
+
+console.log('Vidéo et avis :')
+const riche: Annonce = {
+  ...annonce,
+  product: { ...annonce.product, videoUrl: 'https://cdn.exemple.fr/v.mp4' } as Product,
+  avis: {
+    nombre: 12,
+    moyenne: 4.4,
+    items: [
+      { etoiles: 5, auteur: 'Lina', texte: 'Très bien <b>', photos: ['https://cdn.exemple.fr/a.jpg'], date: new Date('2026-09-01'), origine: 'aliexpress.com' },
+      { etoiles: 4, auteur: 'Marc', texte: 'Correct', photos: [], date: null, origine: null },
+    ],
+  },
+}
+const ficheRiche = pageProduit('', riche, null, rayons)
+exige(ficheRiche.includes('<video src="https://cdn.exemple.fr/v.mp4"'), 'vidéo du vendeur sur la fiche')
+exige(ficheRiche.includes('"@type":"VideoObject"') && ficheRiche.includes('"contentUrl":"https://cdn.exemple.fr/v.mp4"'), 'schema.org : VideoObject')
+exige(ficheRiche.includes('id="avis"') && ficheRiche.includes('4,4 sur 5') && ficheRiche.includes('12 avis'), 'avis : note et compte')
+exige(ficheRiche.includes('Avis recueilli sur aliexpress.com') && ficheRiche.includes('Avis transmis par le vendeur'), 'avis : origine affichée')
+exige(ficheRiche.includes('Très bien &lt;b&gt;'), 'avis : texte échappé')
+exige(!ficheRiche.includes('aggregateRating'), 'pas de note agrégée balisée (avis venus d ailleurs)')
+exige(carte('', riche).includes('★★★★☆') && !carte('', annonce).includes('★'), 'étoiles sur la carte, seulement avec des avis')
+exige(metaMarketCsv([riche]).includes('https://cdn.exemple.fr/v.mp4') && metaMarketCsv([riche]).split('\n')[0].endsWith('video[0].url'), 'Meta : vidéo dans le catalogue')
+exige(!pageProduit('', annonce, null).includes('id="avis"'), 'aucune section avis sans avis')
 
 console.log('Commission :')
 exige(commissionCentimes(3000) === 150, '5 % de 30 € = 1,50 €')

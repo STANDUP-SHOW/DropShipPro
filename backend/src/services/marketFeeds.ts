@@ -1,4 +1,5 @@
 import { marketUrl, tranchePrix, trancheMarge, attributGoogle, descriptionDe, etatPour, codeBarresDe, type Annonce, type Offre } from './market.js'
+import { videoDe } from './marketPages.js'
 
 /**
  * Les flux de DropShop Market : Google Merchant Center, catalogue Meta,
@@ -91,13 +92,19 @@ export function googleMarketRss(annonces: Annonce[]): string {
         a.categorie?.path ? `      <g:product_type>${xmlText(a.categorie.path)}</g:product_type>` : '',
         ...attributsVariante(o).map(([k, v]) => `      <g:${k}>${xmlText(v)}</g:${k}>`),
         // Le prix affiché est le prix payé : la livraison est comprise.
-        '      <g:shipping><g:country>FR</g:country><g:price>0.00 EUR</g:price></g:shipping>',
+        a.prime
+          ? '      <g:shipping><g:country>FR</g:country><g:price>0.00 EUR</g:price><g:min_transit_time>1</g:min_transit_time><g:max_transit_time>1</g:max_transit_time></g:shipping>'
+          : '      <g:shipping><g:country>FR</g:country><g:price>0.00 EUR</g:price><g:min_transit_time>4</g:min_transit_time><g:max_transit_time>12</g:max_transit_time></g:shipping>',
+        // Prime : expédié le jour même (délai de préparation nul).
+        `      <g:min_handling_time>${a.prime ? 0 : 1}</g:min_handling_time>`,
+        `      <g:max_handling_time>${a.prime ? 0 : 3}</g:max_handling_time>`,
         // Les étiquettes qui découpent les campagnes Shopping / Performance Max.
         `      <g:custom_label_0>${xmlText(a.vendeur.nom.slice(0, 100))}</g:custom_label_0>`,
         `      <g:custom_label_1>${tranchePrix(o.prix)}</g:custom_label_1>`,
         `      <g:custom_label_2>${xmlText(racine(a).slice(0, 100))}</g:custom_label_2>`,
         `      <g:custom_label_3>${trancheMarge(a.product, o.prix)}</g:custom_label_3>`,
-        `      <g:custom_label_4>${o.cle ? 'variante' : 'simple'}</g:custom_label_4>`,
+        // Prime à part : une campagne « livré en 24 h » se pilote avec son propre budget.
+        `      <g:custom_label_4>${a.prime ? 'prime-24h' : 'standard'}</g:custom_label_4>`,
         '    </item>',
       ]
       items.push(lignes.filter(Boolean).join('\n'))
@@ -120,7 +127,7 @@ export function googleMarketRss(annonces: Annonce[]): string {
 const META_COLONNES = [
   'id', 'item_group_id', 'title', 'description', 'availability', 'condition', 'price', 'link',
   'image_link', 'additional_image_link', 'brand', 'google_product_category', 'color', 'size',
-  'custom_label_0', 'custom_label_1',
+  'custom_label_0', 'custom_label_1', 'video[0].url',
 ]
 
 /** Le catalogue Meta (Facebook, Instagram), au format CSV, une ligne par variante. */
@@ -148,6 +155,8 @@ export function metaMarketCsv(annonces: Annonce[]): string {
           attrs.size ?? '',
           a.vendeur.nom,
           tranchePrix(o.prix),
+          // Meta reprend la vidéo du vendeur dans ses publicités catalogue.
+          videoDe(a) ?? '',
         ]
           .map(csvCell)
           .join(','),
@@ -190,7 +199,7 @@ export function comparateurCsv(annonces: Annonce[]): string {
           o.disponible ? 'en stock' : 'rupture',
           a.categorie?.path ?? '',
           '0.00',
-          '5-15 jours',
+          a.prime ? '24 h' : '5-15 jours',
           etatPour(a.product.condition, 'flux'),
           o.libelleVariante ?? '',
         ]
@@ -254,7 +263,7 @@ export function googleAdsEditorCsv(annonces: Annonce[]): string {
         titreAds(o.titreProduit),
         valeurs ? titreAds(valeurs) : titreAds(`Seulement ${prixTexte(o.prix)}`),
         titreAds(`À ${prixTexte(o.prix)} livré`),
-        'Livraison offerte',
+        a.prime ? 'Livré en 24 h' : 'Livraison offerte',
         'Paiement sécurisé',
         titreAds(a.vendeur.nom),
       ]

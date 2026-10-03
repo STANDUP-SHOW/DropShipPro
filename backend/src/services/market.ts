@@ -6,6 +6,7 @@ import { validerMatrice, prixDeVenteDe, cleCombo, type Combinaison } from './var
 import { etatPour } from './productCondition.js'
 import { codeBarresDe } from './productFacts.js'
 import { titleForChannel } from './channelCopy.js'
+import graine from './categorySeed.json' with { type: 'json' }
 
 /**
  * DropShop Market (drop-shop.cloud) — la place de marché des vendeurs DropShipper.
@@ -120,9 +121,58 @@ export interface Annonce {
   product: Product
   shop: Pick<Shop, 'id' | 'name' | 'slug'> | null
   vendeur: Vendeur
-  categorie: { path: string; google: string; sector: string } | null
+  /** La catégorie de l'annonce, avec son rayon (l'une des 24 catégories racines). */
+  categorie: { id: string; label: string; path: string; google: string; rayon: { id: string; label: string } } | null
   offres: Offre[]
   publishedAt: Date | null
+  /** Article Prime : livré en 24 h (voir Product.marketPrime). */
+  prime: boolean
+  /**
+   * Les avis d'acheteurs publiés (BuyerReview). La note et le compte portent sur
+   * tous ; le détail n'est chargé que pour une fiche. `origine` est le site où
+   * l'avis a été recueilli : on l'affiche, sans quoi ce serait trompeur.
+   */
+  avis?: AvisAnnonce
+}
+
+export interface AvisAnnonce {
+  nombre: number
+  moyenne: number | null
+  items: { etoiles: number; auteur: string; texte: string; photos: string[]; date: Date | null; origine: string | null }[]
+}
+
+/** Note et compte pour toutes les annonces, détail (20 au plus) pour une fiche. */
+async function avisDe(ids: string[], detail: boolean): Promise<Map<string, AvisAnnonce>> {
+  const par = new Map<string, AvisAnnonce>()
+  if (!ids.length) return par
+  const groupes = await prisma.buyerReview.groupBy({
+    by: ['productId'],
+    where: { productId: { in: ids }, published: true },
+    _avg: { stars: true },
+    _count: { _all: true },
+  })
+  for (const g of groupes) {
+    const moy = g._avg.stars
+    par.set(g.productId, { nombre: g._count._all, moyenne: moy == null ? null : Math.round(moy * 10) / 10, items: [] })
+  }
+  if (detail) {
+    const lignes = await prisma.buyerReview.findMany({
+      where: { productId: { in: ids }, published: true },
+      orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 20,
+    })
+    for (const l of lignes) {
+      par.get(l.productId)?.items.push({
+        etoiles: l.stars,
+        auteur: l.author,
+        texte: l.text,
+        photos: (Array.isArray(l.photos) ? l.photos : []).filter((p): p is string => typeof p === 'string').map((p) => absoluteUrl(p)).filter((p) => p.startsWith('http')).slice(0, 4),
+        date: l.reviewedAt,
+        origine: l.sourceSite,
+      })
+    }
+  }
+  return par
 }
 
 function imagesDe(product: Product): string[] {
@@ -232,6 +282,8 @@ interface FiltreAnnonces {
   recherche?: string
   /** Les catégories admises (un rayon = toutes ses catégories). */
   categoryIds?: string[]
+  /** Seulement les articles Prime (livraison 24 h). */
+  prime?: boolean
   limite?: number
   decalage?: number
 }
@@ -253,6 +305,7 @@ export async function annonces(filtre: FiltreAnnonces = {}): Promise<Annonce[]> 
       product: {
         ...(filtre.shopSlug ? { shop: { slug: filtre.shopSlug } } : {}),
         ...(filtre.categoryIds ? { categoryId: { in: filtre.categoryIds } } : {}),
+        ...(filtre.prime ? { marketPrime: true } : {}),
         ...(mots.length
           ? {
               AND: mots.map((m) => ({
@@ -278,11 +331,8 @@ export async function annonces(filtre: FiltreAnnonces = {}): Promise<Annonce[]> 
     skip: filtre.decalage ?? 0,
   })
 
-  const ids = [...new Set(publications.map((p) => p.product.categoryId).filter((c): c is string => Boolean(c)))]
-  const categories = ids.length
-    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, path: true, google: true, sector: true } })
-    : []
-  const parCategorie = new Map(categories.map((c) => [c.id, { path: c.path, google: c.google, sector: c.sector }]))
+  const { parId } = await arbreMarket()
+  const avis = await avisDe(publications.map((p) => p.productId), Boolean(filtre.productId))
 
   return publications.map(({ product, publishedAt }) => {
     const { shop, user, ...brut } = product
@@ -295,9 +345,11 @@ export async function annonces(filtre: FiltreAnnonces = {}): Promise<Annonce[]> 
         slug: shop?.slug ?? null,
         encaisse: user.stripeConnectReady,
       },
-      categorie: product.categoryId ? parCategorie.get(product.categoryId) ?? null : null,
+      categorie: categorieDe(parId, product.categoryId),
       offres: offresDe(brut as Product),
       publishedAt,
+      prime: product.marketPrime,
+      avis: avis.get(product.id) ?? { nombre: 0, moyenne: null, items: [] },
     }
   })
 }
@@ -324,41 +376,97 @@ export function trancheMarge(product: Product, prix: number): string {
   return 'marge-basse'
 }
 
-/** La racine d'un chemin de catégorie : « Mode > Femme > Robes » → « Mode ». */
-export function racineChemin(path: string | null | undefined): string | null {
-  return path?.split('>')[0]?.trim() || null
+/** Une catégorie du référentiel (24 rayons racines, ~224 sous-catégories). */
+interface Cat {
+  id: string
+  parentId: string | null
+  label: string
+  path: string
+  google: string
+  icone: string | null
+  origin: string
+}
+
+export interface Rayon {
+  id: string
+  label: string
+  icone: string | null
+  /** Les sous-catégories livrées avec l application (les apprises filtrent, sans encombrer le menu). */
+  sousCategories: Array<{ id: string; label: string }>
+  /** Le rayon et toutes ses sous-catégories, apprises comprises : ce qu une annonce doit porter pour y entrer. */
+  ids: string[]
+}
+
+let cache: { quand: number; rayons: Rayon[]; parId: Map<string, Cat> } | null = null
+
+function depuisGraine(): Cat[] {
+  const brut = (graine as unknown as { categories: Array<Partial<Cat> & { id: string; label: string; path: string }> }).categories
+  return brut.map((c) => ({
+    id: c.id,
+    parentId: c.parentId ?? null,
+    label: c.label,
+    path: c.path,
+    google: c.google ?? '',
+    icone: c.icone ?? null,
+    origin: 'core',
+  }))
 }
 
 /**
- * Les rayons du Market qui ont au moins une annonce, avec leur nombre de produits.
+ * L arbre des catégories du Market : les 24 rayons du référentiel et leurs
+ * sous-catégories, toujours affichés, même vides — le Market se présente avec
+ * toute son offre dès le premier jour, comme le veut Max.
+ *
+ * Lu en base (les catégories apprises à l import s y ajoutent) et gardé dix
+ * minutes ; la graine livrée avec le code sert si la base ne répond pas.
  */
-export async function rayons(): Promise<Array<{ sector: string; label: string; count: number }>> {
-  const pubs = await prisma.publication.findMany({
-    where: { platform: 'DROPSHOP_MARKET', status: 'PUBLISHED', product: { categoryId: { not: null } } },
-    select: { product: { select: { categoryId: true } } },
-    take: 20000,
-  })
-  const parCategorie = new Map<string, number>()
-  for (const p of pubs) {
-    const id = p.product.categoryId!
-    parCategorie.set(id, (parCategorie.get(id) ?? 0) + 1)
+export async function arbreMarket(): Promise<{ rayons: Rayon[]; parId: Map<string, Cat> }> {
+  if (cache && Date.now() - cache.quand < 600_000) return { rayons: cache.rayons, parId: cache.parId }
+
+  let cats: Cat[] = []
+  try {
+    const lignes = await prisma.category.findMany({ select: { id: true, parentId: true, label: true, path: true, google: true, targets: true, origin: true } })
+    cats = lignes.map((c) => {
+      const t = (c.targets ?? {}) as Record<string, unknown>
+      return { id: c.id, parentId: c.parentId, label: c.label, path: c.path, google: c.google, icone: typeof t.icone === 'string' ? t.icone : null, origin: c.origin }
+    })
+  } catch (e) {
+    console.error('[market] catégories illisibles, graine utilisée', e instanceof Error ? e.message : e)
   }
-  if (!parCategorie.size) return []
-  const cats = await prisma.category.findMany({
-    where: { id: { in: [...parCategorie.keys()] } },
-    select: { id: true, sector: true, path: true },
-  })
-  const parRayon = new Map<string, { sector: string; label: string; count: number }>()
-  for (const c of cats) {
-    const r = parRayon.get(c.sector) ?? { sector: c.sector, label: racineChemin(c.path) ?? c.sector, count: 0 }
-    r.count += parCategorie.get(c.id) ?? 0
-    parRayon.set(c.sector, r)
-  }
-  return [...parRayon.values()].sort((a, b) => b.count - a.count)
+  if (!cats.some((c) => !c.parentId)) cats = depuisGraine()
+
+  const parId = new Map(cats.map((c) => [c.id, c]))
+  const rayons: Rayon[] = cats
+    .filter((c) => !c.parentId)
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+    .map((r) => {
+      const enfants = cats.filter((c) => c.parentId === r.id)
+      return {
+        id: r.id,
+        label: r.label,
+        icone: r.icone,
+        sousCategories: enfants
+          .filter((c) => c.origin === 'core')
+          .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+          .map((c) => ({ id: c.id, label: c.label })),
+        ids: [r.id, ...enfants.map((c) => c.id)],
+      }
+    })
+  cache = { quand: Date.now(), rayons, parId }
+  return { rayons, parId }
 }
 
-/** Les catégories d'un rayon, pour en filtrer les annonces. */
-export async function categoriesDuRayon(sector: string): Promise<{ ids: string[]; label: string | null }> {
-  const cats = await prisma.category.findMany({ where: { sector }, select: { id: true, path: true } })
-  return { ids: cats.map((c) => c.id), label: racineChemin(cats[0]?.path) }
+/** La catégorie d une annonce et son rayon, depuis l arbre. */
+export function categorieDe(parId: Map<string, Cat>, categoryId: string | null): Annonce['categorie'] {
+  if (!categoryId) return null
+  const c = parId.get(categoryId)
+  if (!c) return null
+  let racine = c
+  for (let i = 0; i < 5 && racine.parentId && parId.get(racine.parentId); i++) racine = parId.get(racine.parentId)!
+  return { id: c.id, label: c.label, path: c.path, google: c.google, rayon: { id: racine.id, label: racine.label } }
+}
+
+/** Le rayon racine du chemin : « Mode > Femme » → « Mode ». */
+export function racineChemin(path: string | null | undefined): string | null {
+  return path?.split('>')[0]?.trim() || null
 }

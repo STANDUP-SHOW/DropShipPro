@@ -1,4 +1,5 @@
-import { marketUrl, descriptionDe, attributGoogle, etatPour, racineChemin, type Annonce, type Offre } from './market.js'
+import { absoluteUrl } from '../lib/urls.js'
+import { marketUrl, descriptionDe, attributGoogle, etatPour, type Annonce, type Offre, type Rayon } from './market.js'
 
 /**
  * Les pages de DropShop Market, rendues côté serveur.
@@ -44,6 +45,8 @@ interface Gabarit {
   recherche?: string
   image?: string | null
   head?: string
+  /** Les 24 catégories, pour la barre sous l'en-tête. */
+  rayons?: Rayon[]
 }
 
 const CSS = `
@@ -60,8 +63,30 @@ form.cherche{flex:1;display:flex;min-width:220px}
 form.cherche input{flex:1;border:0;border-radius:10px 0 0 10px;padding:11px 14px;font:inherit;font-size:15px;min-width:0}
 form.cherche button{border:0;border-radius:0 10px 10px 0;background:var(--orange);color:#fff;font-weight:700;padding:0 18px;font:inherit;cursor:pointer}
 .vendre{font-weight:600;font-size:14px;border:1px solid rgba(255,255,255,.5);border-radius:999px;padding:7px 14px;white-space:nowrap}
-nav.rayons{background:var(--vert-fonce);color:#e9f3ec;font-size:14px;overflow-x:auto;white-space:nowrap}
-nav.rayons .wrap{display:flex;gap:18px;padding-top:8px;padding-bottom:8px}
+nav.rayons{background:var(--vert-fonce);color:#e9f3ec;font-size:14px;position:relative}
+nav.rayons .wrap{display:flex;gap:6px;align-items:center;padding-top:6px;padding-bottom:6px}
+nav.rayons .defile{display:flex;gap:16px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;flex:1}
+nav.rayons .defile::-webkit-scrollbar{display:none}
+nav.rayons details{flex:none}
+nav.rayons summary{list-style:none;cursor:pointer;font-weight:700;background:rgba(255,255,255,.12);border-radius:8px;padding:5px 12px;white-space:nowrap}
+nav.rayons summary::-webkit-details-marker{display:none}
+.mega{position:absolute;left:0;right:0;top:100%;background:#fff;color:var(--encre);box-shadow:0 18px 40px rgba(0,0,0,.18);z-index:20;max-height:70vh;overflow:auto}
+.mega .wrap{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px 24px;padding-top:20px!important;padding-bottom:24px!important;align-items:start!important}
+.mega h3{font-size:14px;margin:0 0 6px}.mega h3 a{color:var(--vert)}
+.mega ul{list-style:none;margin:0;padding:0;font-size:13px;color:var(--gris)}.mega li{margin:3px 0}
+.btn-prime{display:inline-flex;align-items:center;gap:6px;background:#fdbf06;color:#14211a;font-weight:800;border-radius:999px;padding:8px 16px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.btn-prime:hover{text-decoration:none;filter:brightness(1.05)}
+.prime{display:inline-flex;align-items:center;gap:4px;background:#fdbf06;color:#14211a;font-weight:800;font-size:11px;border-radius:6px;padding:2px 7px;letter-spacing:.02em}
+.prime-gros{font-size:14px;padding:5px 10px;border-radius:8px}
+.carte .img{position:relative}.carte .img .prime{position:absolute;top:8px;left:8px}
+.bandeau-prime{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#fff6d6;border:1.5px solid #fdbf06;border-radius:16px;padding:16px 20px;margin:0 0 28px}
+.bandeau-prime b{font-size:18px}
+.tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:28px}
+.tuile{background:#fff;border:1px solid var(--trait);border-radius:14px;padding:14px 12px;display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px;line-height:1.25}
+.tuile span{font-size:26px}.tuile:hover{border-color:var(--vert);text-decoration:none}
+.puces{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 22px}
+.puces a{background:#fff;border:1px solid var(--trait);border-radius:999px;padding:6px 13px;font-size:13px}
+.puces a.on{background:var(--vert);border-color:var(--vert);color:#fff;font-weight:700}
 main{padding:24px 0 48px}
 h1{font-size:clamp(22px,3vw,30px);line-height:1.2;margin:0 0 8px;letter-spacing:-.01em}
 h2{font-size:20px;margin:32px 0 12px}
@@ -76,6 +101,9 @@ h2{font-size:20px;margin:32px 0 12px}
 .carte .t{font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .carte .p{font-weight:800;font-size:17px;margin-top:auto}.carte .p small{font-weight:500;color:var(--gris);font-size:12px}
 .carte .v{font-size:12px;color:var(--gris)}
+.etoiles{color:#f5a623;letter-spacing:1px}.note{font-size:12px;color:var(--gris)}
+.avis{border-top:1px solid var(--trait);padding:14px 0}.avis:first-of-type{border-top:0}.avis p{margin:6px 0}
+.avis .ph{display:flex;gap:6px;margin-top:6px}.avis .ph img{width:64px;height:64px;object-fit:cover;border-radius:8px}
 .fil{font-size:13px;color:var(--gris);margin-bottom:12px}.fil a{color:var(--vert)}
 .fiche{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px}
 @media (max-width:820px){.fiche{grid-template-columns:1fr}}
@@ -142,8 +170,10 @@ ${g.head ?? ''}
 <input name="q" type="search" placeholder="Rechercher un produit…" value="${e(g.recherche ?? '')}" aria-label="Rechercher">
 <button type="submit">Rechercher</button>
 </form>
+<a class="btn-prime" href="${base}/prime">⚡ Prime 24 h</a>
 <a class="vendre" href="${base}/vendre">Vendre sur DropShop Market</a>
 </div></header>
+${navRayons(base, g.rayons ?? [])}
 <main><div class="wrap">
 ${g.corps}
 </div></main>
@@ -163,13 +193,47 @@ function prixDAppel(a: Annonce): { prix: number; variable: boolean } {
   return { prix: min, variable: liste.some((p) => p !== min) }
 }
 
+/** L'adresse absolue de la vidéo du vendeur, ou null. */
+export function videoDe(a: Annonce): string | null {
+  const v = a.product.videoUrl ? absoluteUrl(a.product.videoUrl) : ''
+  return v.startsWith('http') ? v : null
+}
+
+/** Cinq étoiles, pleines jusqu'à la note arrondie. */
+export function etoiles(note: number): string {
+  const n = Math.max(0, Math.min(5, Math.round(note)))
+  return '★'.repeat(n) + '☆'.repeat(5 - n)
+}
+
+/**
+ * Les avis d'acheteurs d'une fiche, chacun avec son origine : un avis recueilli
+ * chez le fournisseur et présenté comme recueilli ici serait trompeur.
+ */
+export function sectionAvis(a: Annonce): string {
+  const v = a.avis
+  if (!v?.nombre || v.moyenne == null) return ''
+  const date = (d: Date | null) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
+  return `<section class="bloc" id="avis"><h2 style="margin-top:0">Avis clients</h2>
+<p><span class="etoiles" style="font-size:20px">${etoiles(v.moyenne)}</span> <strong>${v.moyenne.toLocaleString('fr-FR')} sur 5</strong> <span class="muted">· ${v.nombre} avis</span></p>
+${v.items
+  .map(
+    (x) => `<div class="avis"><div><span class="etoiles">${etoiles(x.etoiles)}</span> <strong>${e(x.auteur)}</strong></div>
+<p>${e(x.texte)}</p>
+${x.photos.length ? `<div class="ph">${x.photos.map((p) => `<img src="${e(p)}" alt="Photo jointe à l'avis" loading="lazy">`).join('')}</div>` : ''}
+<div class="muted" style="font-size:12px">${[date(x.date), x.origine ? `Avis recueilli sur ${e(x.origine)}` : 'Avis transmis par le vendeur'].filter(Boolean).join(' · ')}</div></div>`,
+  )
+  .join('')}
+${v.nombre > v.items.length ? `<p class="muted">${v.items.length} avis les plus récents sur ${v.nombre}.</p>` : ''}</section>`
+}
+
 export function carte(base: string, a: Annonce): string {
   const o = a.offres[0]
   const { prix, variable } = prixDAppel(a)
   return `<a class="carte" href="${base}${o.cheminProduit}">
-<div class="img">${o.image ? `<img src="${e(o.image)}" alt="${e(o.titreProduit)}" loading="lazy" width="400" height="400">` : ''}</div>
+<div class="img">${a.prime ? '<span class="prime">⚡ PRIME 24 h</span>' : ''}${o.image ? `<img src="${e(o.image)}" alt="${e(o.titreProduit)}" loading="lazy" width="400" height="400">` : ''}</div>
 <div class="txt"><div class="t">${e(o.titreProduit)}</div>
 <div class="v">${e(a.vendeur.nom)}${a.offres.length > 1 ? ` · ${a.offres.length} variantes` : ''}</div>
+${a.avis?.nombre && a.avis.moyenne != null ? `<div class="note"><span class="etoiles">${etoiles(a.avis.moyenne)}</span> ${a.avis.moyenne.toLocaleString('fr-FR')} (${a.avis.nombre})</div>` : ''}
 <div class="p">${variable ? '<small>dès </small>' : ''}${e(prixTexte(prix, o.devise))}</div></div></a>`
 }
 
@@ -178,12 +242,37 @@ export function grille(base: string, liste: Annonce[], vide = 'Aucun produit pou
   return `<div class="grille">${liste.map((a) => carte(base, a)).join('')}</div>`
 }
 
-export function navRayons(base: string, rayons: Array<{ sector: string; label: string }>): string {
+/** Le chemin d'un rayon ou d'une sous-catégorie. */
+export function cheminCategorie(rayonId: string, sousId?: string | null): string {
+  return `/c/${encodeURIComponent(rayonId)}${sousId ? `/${encodeURIComponent(sousId)}` : ''}`
+}
+
+/**
+ * La barre des catégories : les 24 rayons en défilement, et « Toutes les
+ * catégories » qui déplie le méga-menu avec chaque sous-catégorie. En HTML pur
+ * (<details>) : les liens existent pour un robot comme pour un acheteur.
+ */
+export function navRayons(base: string, rayons: Rayon[]): string {
   if (!rayons.length) return ''
-  return `<nav class="rayons" aria-label="Rayons"><div class="wrap">${rayons
-    .slice(0, 14)
-    .map((r) => `<a href="${base}/rayon/${encodeURIComponent(r.sector)}">${e(r.label)}</a>`)
-    .join('')}</div></nav>`
+  const mega = rayons
+    .map(
+      (r) =>
+        `<div><h3><a href="${base}${cheminCategorie(r.id)}">${r.icone ? `${e(r.icone)} ` : ''}${e(r.label)}</a></h3><ul>${r.sousCategories
+          .map((c) => `<li><a href="${base}${cheminCategorie(r.id, c.id)}">${e(c.label)}</a></li>`)
+          .join('')}</ul></div>`,
+    )
+    .join('')
+  return `<nav class="rayons" aria-label="Catégories"><div class="wrap">
+<details><summary>☰ Toutes les catégories</summary><div class="mega"><div class="wrap">${mega}</div></div></details>
+<div class="defile">${rayons.map((r) => `<a href="${base}${cheminCategorie(r.id)}">${e(r.label)}</a>`).join('')}</div>
+</div></nav>`
+}
+
+/** Les 24 rayons en tuiles, sur l'accueil. */
+export function tuilesRayons(base: string, rayons: Rayon[]): string {
+  return `<h2 style="margin-top:0">Nos catégories</h2><div class="tuiles">${rayons
+    .map((r) => `<a class="tuile" href="${base}${cheminCategorie(r.id)}"><span>${e(r.icone ?? '🛍️')}</span>${e(r.label)}</a>`)
+    .join('')}</div>`
 }
 
 /** Le texte de la description, en paragraphes sûrs (le HTML d'origine n'est jamais rendu tel quel). */
@@ -223,8 +312,9 @@ function offreLd(a: Annonce, o: Offre) {
       shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'FR' },
       deliveryTime: {
         '@type': 'ShippingDeliveryTime',
-        handlingTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 3, unitCode: 'DAY' },
-        transitTime: { '@type': 'QuantitativeValue', minValue: 4, maxValue: 12, unitCode: 'DAY' },
+        // Prime : expédié le jour même, livré le lendemain. Google compare la promesse au réel.
+        handlingTime: { '@type': 'QuantitativeValue', minValue: a.prime ? 0 : 1, maxValue: a.prime ? 0 : 3, unitCode: 'DAY' },
+        transitTime: { '@type': 'QuantitativeValue', minValue: a.prime ? 1 : 4, maxValue: a.prime ? 1 : 12, unitCode: 'DAY' },
       },
     },
     hasMerchantReturnPolicy: {
@@ -251,6 +341,22 @@ const VARIE_PAR: Record<string, string> = {
  */
 export function produitLd(a: Annonce, offreCourante: Offre | null) {
   const premiere = a.offres[0]
+  const video = videoDe(a)
+  // La vidéo du vendeur, décrite pour Google Vidéos (VideoObject). Pas de note
+  // agrégée ici : les avis viennent souvent d'un autre site, et Google interdit
+  // de baliser des avis qui n'ont pas été recueillis sur la page elle-même.
+  const sujet = video
+    ? {
+        subjectOf: {
+          '@type': 'VideoObject',
+          name: premiere.titreProduit,
+          description: `Vidéo de ${premiere.titreProduit}`,
+          contentUrl: video,
+          ...(premiere.images[0] ? { thumbnailUrl: [premiere.images[0]] } : {}),
+          uploadDate: (a.publishedAt ?? a.product.updatedAt ?? new Date()).toISOString(),
+        },
+      }
+    : {}
   const description = descriptionDe(a.product).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 5000)
   const marque = { '@type': 'Brand', name: a.vendeur.nom }
 
@@ -265,6 +371,7 @@ export function produitLd(a: Annonce, offreCourante: Offre | null) {
       brand: marque,
       ...(a.categorie?.path ? { category: a.categorie.path } : {}),
       offers: offreLd(a, premiere),
+      ...sujet,
     }
   }
 
@@ -299,6 +406,7 @@ export function produitLd(a: Annonce, offreCourante: Offre | null) {
     brand: marque,
     ...(a.categorie?.path ? { category: a.categorie.path } : {}),
     ...(varie.size ? { variesBy: [...varie].map((v) => VARIE_PAR[v]) } : {}),
+    ...sujet,
     hasVariant: offreCourante ? [variantes[a.offres.indexOf(offreCourante)], ...variantes.filter((_, i) => a.offres[i] !== offreCourante)] : variantes,
   }
 }
@@ -346,14 +454,14 @@ function selecteurs(base: string, a: Annonce, courante: Offre | null): string {
 }
 
 /** La fiche produit, ou celle d'une de ses variantes. */
-export function pageProduit(base: string, a: Annonce, courante: Offre | null): string {
+export function pageProduit(base: string, a: Annonce, courante: Offre | null, rayons: Rayon[] = []): string {
   const o = courante ?? a.offres[0]
   const aVariantes = Boolean(a.offres[0].cle)
   const choisie = aVariantes ? courante : o
   const { prix: prixMin, variable } = prixDAppel(a)
   const titreH1 = courante?.cle ? courante.titre : o.titreProduit
-  const rayon = racineChemin(a.categorie?.path)
   const description = descriptionDe(a.product)
+  const video = videoDe(a)
   const meta = (a.product.metaDescription || description.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim()
   const prixAffiche = choisie ? choisie.prix : prixMin
 
@@ -362,7 +470,8 @@ export function pageProduit(base: string, a: Annonce, courante: Offre | null): s
 
   const fil = [
     { nom: 'Accueil', chemin: '/' },
-    ...(rayon && a.categorie ? [{ nom: rayon, chemin: `/rayon/${encodeURIComponent(a.categorie.sector)}` }] : []),
+    ...(a.categorie ? [{ nom: a.categorie.rayon.label, chemin: cheminCategorie(a.categorie.rayon.id) }] : []),
+    ...(a.categorie && a.categorie.id !== a.categorie.rayon.id ? [{ nom: a.categorie.label, chemin: cheminCategorie(a.categorie.rayon.id, a.categorie.id) }] : []),
     { nom: o.titreProduit, chemin: o.cheminProduit },
     ...(courante?.cle ? [{ nom: courante.libelleVariante ?? courante.titre, chemin: courante.chemin }] : []),
   ]
@@ -386,8 +495,10 @@ ${images.length > 1 ? `<div class="vignettes">${images.map((i, n) => `<button ty
 <div>
 <h1>${e(titreH1)}</h1>
 ${a.vendeur.slug ? `<a class="vendeur" href="${base}/vendeur/${encodeURIComponent(a.vendeur.slug)}">Vendu par ${e(a.vendeur.nom)}</a>` : `<span class="vendeur">Vendu par ${e(a.vendeur.nom)}</span>`}
+${a.avis?.nombre && a.avis.moyenne != null ? `<a class="note" href="#avis" style="display:block;margin-top:4px"><span class="etoiles">${etoiles(a.avis.moyenne)}</span> ${a.avis.moyenne.toLocaleString('fr-FR')} · ${a.avis.nombre} avis</a>` : ''}
 <div class="prix">${!choisie && variable ? '<small style="font-size:16px;font-weight:600">dès </small>' : ''}${e(prixTexte(prixAffiche, o.devise))}</div>
-<div class="muted">Livraison comprise · ${choisie ? (choisie.disponible ? 'En stock' : 'Épuisé') : 'Choisissez une variante'}</div>
+${a.prime ? '<div style="margin:4px 0 6px"><span class="prime prime-gros">⚡ PRIME · Livré en 24 h</span></div>' : ''}
+<div class="muted">Livraison comprise${a.prime ? ', expédiée le jour même' : ''} · ${choisie ? (choisie.disponible ? 'En stock' : 'Épuisé') : 'Choisissez une variante'}</div>
 ${selecteurs(base, a, courante)}
 ${
   choisie
@@ -398,7 +509,7 @@ ${
 </form>`
     : `<p class="muted">Sélectionnez ${[...new Set(a.offres.flatMap((x) => Object.keys(x.combo ?? {})))].map((k) => k.toLowerCase()).join(' et ')} pour acheter.</p>`
 }
-<ul class="atouts"><li>Paiement sécurisé par Stripe</li><li>Livraison offerte en France</li><li>14 jours pour changer d'avis</li></ul>
+<ul class="atouts"><li>Paiement sécurisé par Stripe</li><li>${a.prime ? 'Livraison offerte en 24 h en France métropolitaine' : 'Livraison offerte en France'}</li><li>14 jours pour changer d'avis</li></ul>
 </div>
 </div>
 <section class="bloc"><h2 style="margin-top:0">Description</h2>${paragraphes(description)}
@@ -413,7 +524,8 @@ ${
         .join('')}<tr><td>État</td><td>${e(etatLisible(a.product.condition))}</td></tr></table></section>`
     : ''
 }
-${a.product.videoUrl ? `<section class="bloc"><h2 style="margin-top:0">Vidéo</h2><video src="${e(a.product.videoUrl)}" controls preload="none" style="width:100%;border-radius:12px"></video></section>` : ''}
+${video ? `<section class="bloc"><h2 style="margin-top:0">Vidéo</h2><video src="${e(video)}"${o.image ? ` poster="${e(o.image)}"` : ''} controls playsinline preload="none" style="width:100%;max-height:70vh;border-radius:12px;background:#000"></video></section>` : ''}
+${sectionAvis(a)}
 <script>document.querySelectorAll('.vignettes button').forEach(function(b){b.addEventListener('click',function(){var p=document.getElementById('principale');if(p)p.src=b.getAttribute('data-src')})})</script>`
 
   return gabarit({
@@ -423,6 +535,7 @@ ${a.product.videoUrl ? `<section class="bloc"><h2 style="margin-top:0">Vidéo</h
     chemin: courante?.cle ? courante.chemin : o.cheminProduit,
     image: o.image,
     corps,
+    rayons,
     head: [
       jsonLd(produitLd(a, courante?.cle ? courante : null)),
       jsonLd(filLd(fil)),
@@ -445,7 +558,11 @@ export function pageListe(args: {
   description: string
   chemin: string | null
   annonces: Annonce[]
-  rayons: Array<{ sector: string; label: string }>
+  rayons: Rayon[]
+  /** Les puces de sous-catégories d'un rayon, et celle qui est choisie. */
+  puces?: { rayon: Rayon; courante: string | null }
+  /** Accueil : bandeau Prime et tuiles des 24 catégories. */
+  accueil?: boolean
   page: number
   suivante: boolean
   indexable?: boolean
@@ -462,7 +579,16 @@ export function pageListe(args: {
   const entete = args.hero
     ? `<section class="hero"><h1>${e(args.h1)}</h1>${args.intro ? `<p>${e(args.intro)}</p>` : ''}</section>`
     : `<h1>${e(args.h1)}</h1>${args.intro ? `<p class="muted">${e(args.intro)}</p>` : ''}`
+  const puces = args.puces
+    ? `<div class="puces"><a class="${args.puces.courante ? '' : 'on'}" href="${base}${cheminCategorie(args.puces.rayon.id)}">Tout « ${e(args.puces.rayon.label)} »</a>${args.puces.rayon.sousCategories
+        .map((c) => `<a class="${args.puces!.courante === c.id ? 'on' : ''}" href="${base}${cheminCategorie(args.puces!.rayon.id, c.id)}">${e(c.label)}</a>`)
+        .join('')}</div>`
+    : ''
+  const accueil = args.accueil && args.page === 1
+    ? `<a class="bandeau-prime" href="${base}/prime"><span class="prime prime-gros">⚡ PRIME</span><span><b>Livré en 24 h</b><br><span class="muted">Les articles en stock en France, expédiés le jour même.</span></span><span class="btn" style="margin-left:auto">Voir les articles Prime</span></a>${tuilesRayons(base, args.rayons)}<h2>Les nouveautés</h2>`
+    : ''
   const corps = `${entete}
+${puces}${accueil}
 ${grille(base, args.annonces, args.vide)}
 ${args.page > 1 || args.suivante ? `<div class="pager">${args.page > 1 ? `<a href="${lienPage(args.page - 1)}" rel="prev">← Précédent</a>` : ''}${args.suivante ? `<a href="${lienPage(args.page + 1)}" rel="next">Suivant →</a>` : ''}</div>` : ''}`
   const html = gabarit({
@@ -474,6 +600,7 @@ ${args.page > 1 || args.suivante ? `<div class="pager">${args.page > 1 ? `<a hre
     indexable: args.indexable,
     recherche: args.recherche,
     image: args.annonces[0]?.offres[0]?.image ?? null,
+    rayons: args.rayons,
     head:
       args.chemin === '/' && args.page === 1
         ? jsonLd({
@@ -485,8 +612,7 @@ ${args.page > 1 || args.suivante ? `<div class="pager">${args.page > 1 ? `<a hre
           })
         : '',
   })
-  // The department bar sits right under the header.
-  return html.replace('</div></header>', `</div></header>\n${navRayons(base, args.rayons)}`)
+  return html
 }
 
 export function pageMessage(base: string, titre: string, message: string, action?: { libelle: string; href: string }): string {

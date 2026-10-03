@@ -8,3 +8,6 @@ CREATE UNIQUE INDEX "User_stripeConnectId_key" ON "User"("stripeConnectId");
 
 ALTER TABLE "Order" ADD COLUMN "commission" DECIMAL(10,2);
 ALTER TABLE "Order" ADD COLUMN "variante" TEXT;
+
+-- Mode Prime : livraison en 24 h, déclarée par le vendeur.
+ALTER TABLE "Product" ADD COLUMN "marketPrime" BOOLEAN NOT NULL DEFAULT false;

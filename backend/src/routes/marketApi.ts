@@ -55,6 +55,7 @@ marketApiRouter.get('/vendeur', requireAuth, async (req: AuthedRequest, res) => 
           titre: p.product.aiTitle || p.product.title,
           url: `${base}${offres[0].cheminProduit}`,
           variantes: offres.filter((o) => o.cle).length,
+          prime: p.product.marketPrime,
           publieeLe: p.publishedAt,
         }
       }),
@@ -103,13 +104,42 @@ marketApiRouter.post('/vendeur/stripe/tableau', requireAuth, async (req: AuthedR
   }
 })
 
+/**
+ * Le mode Prime d'une annonce : « livré en 24 h ».
+ *
+ * Le vendeur le déclare lui-même et s'y engage (stock en France, expédition le
+ * jour même) : la promesse est affichée aux acheteurs et déclarée à Google, qui
+ * la contrôle. Un article qui part de l'étranger ne peut pas être Prime.
+ */
+const primeSchema = z.object({ prime: z.boolean(), engagement: z.boolean().optional() })
+
+marketApiRouter.post('/vendeur/annonces/:productId/prime', requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = primeSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Demande invalide.' })
+  if (parsed.data.prime && !parsed.data.engagement) {
+    return res.status(400).json({ error: "Pour passer un article en Prime, confirmez qu'il est en stock en France et expédié le jour même." })
+  }
+  try {
+    const r = await prisma.product.updateMany({
+      where: { id: req.params.productId, userId: req.userId!, publications: { some: { platform: 'DROPSHOP_MARKET', status: 'PUBLISHED' } } },
+      data: { marketPrime: parsed.data.prime },
+    })
+    if (!r.count) return res.status(404).json({ error: "Cet article n'est pas publié sur DropShop Market." })
+    res.json({ ok: true, prime: parsed.data.prime })
+  } catch (err) {
+    console.error('[market] prime', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: "Le mode Prime n'a pas pu être enregistré.", motif: 'prime' })
+  }
+})
+
 // ——— Admin simplifié ———
 
 marketApiRouter.get('/admin', requireAuth, requireAdmin, async (_req: AuthedRequest, res) => {
   try {
     const depuis = new Date(Date.now() - 30 * 24 * 3600_000)
-    const [annonces, vendeursActifs, inscrits, ventes, totaux, totaux30] = await Promise.all([
+    const [annonces, annoncesPrime, vendeursActifs, inscrits, ventes, totaux, totaux30] = await Promise.all([
       prisma.publication.count({ where: { platform: 'DROPSHOP_MARKET', status: 'PUBLISHED' } }),
+      prisma.publication.count({ where: { platform: 'DROPSHOP_MARKET', status: 'PUBLISHED', product: { marketPrime: true } } }),
       prisma.user.count({ where: { stripeConnectReady: true } }),
       prisma.user.count({ where: { stripeConnectId: { not: null } } }),
       prisma.order.findMany({
@@ -142,6 +172,7 @@ marketApiRouter.get('/admin', requireAuth, requireAdmin, async (_req: AuthedRequ
       market: marketUrl(),
       chiffres: {
         annonces,
+        annoncesPrime,
         vendeursAvecAnnonces: parVendeur.size,
         vendeursPaiementsActifs: vendeursActifs,
         inscriptionsStripe: inscrits,
@@ -187,11 +218,24 @@ marketApiRouter.get('/admin/vendeurs/:userId/annonces', requireAuth, requireAdmi
         titre: p.product.aiTitle || p.product.title,
         url: `${marketUrl()}${offresDe(p.product)[0].cheminProduit}`,
         prix: Number(p.product.sellingPrice),
+        prime: p.product.marketPrime,
       })),
     })
   } catch (err) {
     console.error('[market] admin annonces', err instanceof Error ? err.message : err)
     res.status(500).json({ error: 'Annonces indisponibles.', motif: 'admin-annonces' })
+  }
+})
+
+/** L'admin retire le badge Prime d'une annonce (promesse de 24 h non tenue). */
+marketApiRouter.post('/admin/annonces/:productId/retirer-prime', requireAuth, requireAdmin, async (req: AuthedRequest, res) => {
+  try {
+    const r = await prisma.product.updateMany({ where: { id: req.params.productId }, data: { marketPrime: false } })
+    if (!r.count) return res.status(404).json({ error: 'Annonce introuvable.' })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[market] retrait prime', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: "Le retrait du badge Prime n'a pas pu être enregistré.", motif: 'retrait-prime' })
   }
 })
 

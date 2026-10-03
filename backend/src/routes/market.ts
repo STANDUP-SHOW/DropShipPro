@@ -1,9 +1,9 @@
 import express, { Router, type Request, type Response, type NextFunction } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
-import { annonces, rayons, categoriesDuRayon, marketUrl, marketHosts, type Annonce } from '../services/market.js'
+import { annonces, arbreMarket, marketUrl, marketHosts, type Annonce } from '../services/market.js'
 import { googleMarketRss, metaMarketCsv, comparateurCsv, googleAdsEditorCsv } from '../services/marketFeeds.js'
-import { pageListe, pageProduit, pageMessage, pageVendre } from '../services/marketPages.js'
+import { pageListe, pageProduit, pageMessage, pageVendre, cheminCategorie } from '../services/marketPages.js'
 import { ouvrirPaiementMarket, confirmerCommandeMarket, MarketIndisponible } from '../services/marketStripe.js'
 
 /**
@@ -54,11 +54,12 @@ function html(res: Response, corps: string, cache = 300) {
 marketRouter.get(
   '/',
   page(async (req, res) => {
-    const [l, r] = await Promise.all([liste(req, {}), rayons()])
+    const [l, { rayons: r }] = await Promise.all([liste(req, {}), arbreMarket()])
     html(
       res,
       pageListe({
         base: req.baseUrl,
+        accueil: true,
         titre: 'DropShop Market : la place de marché des boutiques DropShop',
         h1: 'Les nouveautés des boutiques DropShop',
         intro: 'Des milliers de produits, vendus par des boutiques indépendantes. Livraison comprise, paiement sécurisé par Stripe.',
@@ -76,7 +77,7 @@ marketRouter.get(
   '/recherche',
   page(async (req, res) => {
     const q = String(req.query.q ?? '').trim().slice(0, 100)
-    const [l, r] = await Promise.all([q ? liste(req, { recherche: q }) : liste(req, {}), rayons()])
+    const [l, r] = await Promise.all([q ? liste(req, { recherche: q }) : liste(req, {}), arbreMarket().then((a) => a.rayons)])
     html(
       res,
       pageListe({
@@ -96,22 +97,56 @@ marketRouter.get(
   }),
 )
 
+/**
+ * Les 24 catégories et leurs sous-catégories : toujours en ligne, même vides.
+ * Une page vide n'est pas indexée (contenu mince) ; elle le devient dès sa
+ * première annonce.
+ */
+async function pageCategorie(req: Request, res: Response) {
+  const { rayons: r } = await arbreMarket()
+  const rayon = r.find((x) => x.id === req.params.rayon)
+  if (!rayon) return res.status(404).type('html').send(pageMessage(req.baseUrl, 'Catégorie introuvable', "Cette catégorie n'existe pas.", { libelle: "Retour à l'accueil", href: `${req.baseUrl}/` }))
+  const sous = req.params.sous ? rayon.sousCategories.find((c) => c.id === req.params.sous) : null
+  if (req.params.sous && !sous) return res.redirect(301, `${req.baseUrl}${cheminCategorie(rayon.id)}`)
+  const ids = sous ? [sous.id] : rayon.ids
+  const l = await liste(req, { categoryIds: ids })
+  const nom = sous ? sous.label : rayon.label
+  html(
+    res,
+    pageListe({
+      base: req.baseUrl,
+      titre: `${nom}${sous ? ` – ${rayon.label}` : ''} : achat en ligne | DropShop Market`,
+      h1: `${rayon.icone && !sous ? `${rayon.icone} ` : ''}${nom}`,
+      description: `${nom} sur DropShop Market : les produits des boutiques DropShop, livraison comprise, paiement sécurisé par Stripe.`,
+      chemin: cheminCategorie(rayon.id, sous?.id),
+      rayons: r,
+      puces: { rayon, courante: sous?.id ?? null },
+      indexable: l.annonces.length > 0,
+      vide: 'Pas encore de produit dans cette catégorie : les premiers arrivent bientôt.',
+      ...l,
+    }),
+  )
+}
+marketRouter.get('/c/:rayon', page(pageCategorie))
+marketRouter.get('/c/:rayon/:sous', page(pageCategorie))
+
+/** Le mode Prime : les articles livrés en 24 h. */
 marketRouter.get(
-  '/rayon/:sector',
+  '/prime',
   page(async (req, res) => {
-    const sector = req.params.sector.slice(0, 80)
-    const { ids, label } = await categoriesDuRayon(sector)
-    if (!ids.length) return res.status(404).type('html').send(pageMessage(req.baseUrl, 'Rayon introuvable', "Ce rayon n'existe pas ou plus.", { libelle: "Retour à l'accueil", href: `${req.baseUrl}/` }))
-    const [l, r] = await Promise.all([liste(req, { categoryIds: ids }), rayons()])
+    const [l, { rayons: r }] = await Promise.all([liste(req, { prime: true }), arbreMarket()])
     html(
       res,
       pageListe({
         base: req.baseUrl,
-        titre: `${label} : les produits des boutiques DropShop | DropShop Market`,
-        h1: label ?? sector,
-        description: `${label} sur DropShop Market : les produits des boutiques DropShop, livraison comprise, paiement sécurisé.`,
-        chemin: `/rayon/${encodeURIComponent(sector)}`,
+        titre: 'Prime : livraison en 24 h | DropShop Market',
+        h1: '⚡ Prime : livré en 24 h',
+        intro: 'Des articles en stock en France, expédiés le jour même et livrés en 24 h. Livraison offerte.',
+        description: 'Les articles Prime de DropShop Market : en stock en France, expédiés le jour même, livrés en 24 h, livraison offerte.',
+        chemin: '/prime',
         rayons: r,
+        hero: true,
+        vide: 'Les premiers articles Prime arrivent bientôt.',
         ...l,
       }),
     )
@@ -123,7 +158,7 @@ marketRouter.get(
   page(async (req, res) => {
     const shop = await prisma.shop.findUnique({ where: { slug: req.params.slug }, select: { name: true, slug: true } })
     if (!shop) return res.status(404).type('html').send(pageMessage(req.baseUrl, 'Vendeur introuvable', "Cette boutique n'est pas (ou plus) sur DropShop Market."))
-    const [l, r] = await Promise.all([liste(req, { shopSlug: shop.slug! }), rayons()])
+    const [l, { rayons: r }] = await Promise.all([liste(req, { shopSlug: shop.slug! }), arbreMarket()])
     html(
       res,
       pageListe({
@@ -163,7 +198,8 @@ async function ficheProduit(req: Request, res: Response) {
   }
   const attendu = courante ? courante.chemin : annonce.offres[0].cheminProduit
   if (decodeURIComponent(req.path) !== attendu) return res.redirect(301, `${req.baseUrl}${attendu}`)
-  html(res, pageProduit(req.baseUrl, annonce, courante))
+  const { rayons: r } = await arbreMarket()
+  html(res, pageProduit(req.baseUrl, annonce, courante, r))
 }
 
 marketRouter.get('/p/:id', page(ficheProduit))
@@ -223,10 +259,15 @@ marketRouter.get('/robots.txt', (_req, res) => {
 marketRouter.get(
   '/sitemap.xml',
   page(async (_req, res) => {
-    const [liste, r] = await Promise.all([annonces({ limite: 5000 }), rayons()])
+    const [liste, { rayons: r }] = await Promise.all([annonces({ limite: 5000 }), arbreMarket()])
     const vendeurs = new Set(liste.map((a) => a.vendeur.slug).filter((s): s is string => Boolean(s)))
-    const urls: Array<{ loc: string; lastmod?: Date; image?: string | null }> = [{ loc: '/' }, { loc: '/vendre' }]
-    for (const x of r) urls.push({ loc: `/rayon/${encodeURIComponent(x.sector)}` })
+    const urls: Array<{ loc: string; lastmod?: Date; image?: string | null }> = [{ loc: '/' }, { loc: '/prime' }, { loc: '/vendre' }]
+    // Seules les catégories qui ont des annonces : une page vide n'a rien à faire dans le plan du site.
+    const pleines = new Set(liste.flatMap((a) => (a.categorie ? [a.categorie.id, a.categorie.rayon.id] : [])))
+    for (const x of r) {
+      if (pleines.has(x.id)) urls.push({ loc: cheminCategorie(x.id) })
+      for (const c of x.sousCategories) if (pleines.has(c.id)) urls.push({ loc: cheminCategorie(x.id, c.id) })
+    }
     for (const v of vendeurs) urls.push({ loc: `/vendeur/${encodeURIComponent(v)}` })
     for (const a of liste) {
       urls.push({ loc: a.offres[0].cheminProduit, lastmod: a.product.updatedAt, image: a.offres[0].image })

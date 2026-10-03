@@ -57,7 +57,7 @@ function AdminMarket() {
   const [donnees, setDonnees] = useState<MarketAdmin | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [ouvert, setOuvert] = useState<string | null>(null)
-  const [annonces, setAnnonces] = useState<Array<{ productId: string; titre: string; url: string; prix: number }>>([])
+  const [annonces, setAnnonces] = useState<Array<{ productId: string; titre: string; url: string; prix: number; prime: boolean }>>([])
 
   const charger = useCallback(() => {
     api.marketAdmin().then(setDonnees).catch((e) => setErreur(e instanceof Error ? e.message : 'Chargement impossible'))
@@ -83,6 +83,16 @@ function AdminMarket() {
     }
   }
 
+  const retirerPrime = async (productId: string) => {
+    try {
+      await api.marketRetirerPrime(productId)
+      setAnnonces((l) => l.map((a) => (a.productId === productId ? { ...a, prime: false } : a)))
+      charger()
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Retrait impossible')
+    }
+  }
+
   if (erreur) return <p className="text-sm text-red-300">{erreur}</p>
   if (!donnees) return <p className="text-sm text-gray-400">Chargement de l'admin…</p>
   const c = donnees.chiffres
@@ -90,7 +100,7 @@ function AdminMarket() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Chiffre libelle="Annonces en ligne" valeur={c.annonces} />
+        <Chiffre libelle="Annonces en ligne (Prime)" valeur={`${c.annonces} (${c.annoncesPrime})`} />
         <Chiffre libelle="Vendeurs (paiements actifs)" valeur={`${c.vendeursAvecAnnonces} (${c.vendeursPaiementsActifs})`} />
         <Chiffre libelle="Ventes · 30 jours" valeur={`${c.ventes} · ${c.ventes30j}`} />
         <Chiffre libelle="Commissions · 30 jours" valeur={`${euros(c.commissions)} · ${euros(c.commissions30j)}`} />
@@ -113,6 +123,11 @@ function AdminMarket() {
                   <div key={a.productId} className="flex items-center gap-2 text-sm">
                     <a href={a.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">{a.titre}</a>
                     <span className="text-gray-400">{euros(a.prix)}</span>
+                    {a.prime && (
+                      <button type="button" onClick={() => retirerPrime(a.productId)} className="rounded-lg bg-yellow-400/15 px-2 py-1 text-xs font-bold text-yellow-300 hover:bg-yellow-400/25" title="Retirer le badge Prime">
+                        ⚡ Prime ×
+                      </button>
+                    )}
                     <button type="button" onClick={() => retirer(a.productId)} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-red-300 hover:bg-red-500/10">
                       <Ban size={12} /> Retirer
                     </button>
@@ -166,6 +181,16 @@ export default function DropShopMarket() {
 
   const stripe = donnees?.stripe
 
+  const basculerPrime = async (productId: string, prime: boolean) => {
+    if (prime && !window.confirm("Prime = livré en 24 h. Je confirme que cet article est en stock en France et expédié le jour même de la commande. La promesse est affichée aux acheteurs et déclarée à Google.")) return
+    try {
+      await api.marketPrime(productId, prime, prime)
+      setDonnees((d) => (d ? { ...d, annonces: d.annonces.map((a) => (a.productId === productId ? { ...a, prime } : a)) } : d))
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Prime indisponible')
+    }
+  }
+
   return (
     <Layout>
       <div className="mb-6">
@@ -214,16 +239,27 @@ export default function DropShopMarket() {
       <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="mb-1 text-lg font-semibold">Mes annonces sur le Market</h2>
         <p className="mb-3 text-sm text-gray-400">
-          Pour publier, ouvrez un produit dans <Link className="text-emerald-300 hover:underline" to="/dashboard">Mes annonces</Link> et choisissez « DropShop Market » parmi les destinations.
+          Le badge ⚡ Prime (livré en 24 h) met un article en avant sur le Market et dans Google Shopping : réservé aux articles en stock en France, expédiés le jour même. Pour publier, ouvrez un produit dans <Link className="text-emerald-300 hover:underline" to="/dashboard">Mes annonces</Link> et choisissez « DropShop Market » parmi les destinations.
         </p>
         {donnees && donnees.annonces.length === 0 && <p className="text-sm text-gray-400">Aucune annonce publiée pour le moment.</p>}
         <div className="space-y-1">
           {donnees?.annonces.map((a) => (
-            <a key={a.productId} href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-white/[0.05]">
-              <span className="min-w-0 flex-1 truncate">{a.titre}</span>
-              {a.variantes > 0 && <span className="text-xs text-gray-400">{a.variantes} variantes = {a.variantes} pages</span>}
-              <ExternalLink size={14} className="text-gray-400" />
-            </a>
+            <div key={a.productId} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-white/[0.05]">
+              <a href={a.url} target="_blank" rel="noreferrer" className="flex min-w-0 flex-1 items-center gap-2 hover:underline">
+                <span className="truncate">{a.titre}</span>
+                <ExternalLink size={14} className="shrink-0 text-gray-400" />
+              </a>
+              {a.variantes > 0 && <span className="hidden text-xs text-gray-400 md:inline">{a.variantes} variantes = {a.variantes} pages</span>}
+              <button
+                type="button"
+                onClick={() => basculerPrime(a.productId, !a.prime)}
+                aria-pressed={a.prime}
+                title="Prime : livré en 24 h (stock en France, expédition le jour même)"
+                className={a.prime ? 'rounded-lg bg-yellow-400 px-2.5 py-1 text-xs font-extrabold text-gray-900' : 'rounded-lg border border-yellow-400/40 px-2.5 py-1 text-xs font-bold text-yellow-300 hover:bg-yellow-400/10'}
+              >
+                {a.prime ? '⚡ Prime 24 h' : '⚡ Passer en Prime'}
+              </button>
+            </div>
           ))}
         </div>
       </section>

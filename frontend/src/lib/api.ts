@@ -134,7 +134,7 @@ export interface MarketVendeur {
   commission: number
   market: string
   stripe: { inscrit: boolean; actif: boolean; detailsEnvoyes: boolean; virements: boolean; manque?: string[]; erreur?: boolean }
-  annonces: Array<{ productId: string; titre: string; url: string; variantes: number; publieeLe: string | null }>
+  annonces: Array<{ productId: string; titre: string; url: string; variantes: number; prime: boolean; publieeLe: string | null }>
   ventes: Array<{ id: string; titre: string; variante: string | null; quantite: number; montant: number; commission: number; acheteur: string; payeeLe: string | null; statut: string }>
   boutiques: Array<{ nom: string; url: string }>
   flux: { google: string; meta: string; comparateurs: string; googleAds: string; parBoutique: Array<{ nom: string; google: string }> }
@@ -144,7 +144,7 @@ export interface MarketAdmin {
   commission: number
   market: string
   chiffres: {
-    annonces: number; vendeursAvecAnnonces: number; vendeursPaiementsActifs: number; inscriptionsStripe: number
+    annonces: number; annoncesPrime: number; vendeursAvecAnnonces: number; vendeursPaiementsActifs: number; inscriptionsStripe: number
     ventes: number; volume: number; commissions: number; ventes30j: number; volume30j: number; commissions30j: number
   }
   vendeurs: Array<{ id: string; email: string; nom: string | null; paiements: boolean; annonces: number; inscritLe: string }>
@@ -307,7 +307,11 @@ export const api = {
   /** DropShop Market : l admin simplifie (compte admin seulement, 403 sinon). */
   marketAdmin: () => request<MarketAdmin>('/market/admin'),
   marketAdminAnnonces: (userId: string) =>
-    request<{ annonces: Array<{ productId: string; titre: string; url: string; prix: number }> }>(`/market/admin/vendeurs/${userId}/annonces`),
+    request<{ annonces: Array<{ productId: string; titre: string; url: string; prix: number; prime: boolean }> }>(`/market/admin/vendeurs/${userId}/annonces`),
+  marketPrime: (productId: string, prime: boolean, engagement = false) =>
+    request<{ ok: true; prime: boolean }>(`/market/vendeur/annonces/${productId}/prime`, { method: 'POST', body: JSON.stringify({ prime, engagement }) }),
+  marketRetirerPrime: (productId: string) =>
+    request<{ ok: true }>(`/market/admin/annonces/${productId}/retirer-prime`, { method: 'POST' }),
   marketRetirer: (productId: string, raison: string) =>
     request<{ ok: true }>(`/market/admin/annonces/${productId}/retirer`, { method: 'POST', body: JSON.stringify({ raison }) }),
   /** « Connecter mon compte eBay » : l'adresse d'autorisation, ou `configure: false` tant que l'application eBay n'est pas posée côté serveur. */
