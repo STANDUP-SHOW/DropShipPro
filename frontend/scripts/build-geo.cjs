@@ -46,7 +46,8 @@ const DIST = path.resolve(__dirname, '..', 'dist')
 const INDEXNOW_KEY = '7c1f4e2ab95d4c0e8f36a1d2b7e90c54'
 
 const NOM = 'DropShipper IA'
-const TITRE = 'DropShipper IA — logiciel de dropshipping français : import, annonces par IA, publication multi-marketplaces'
+// 57 caractères : l'ancien (111) était coupé par Google et signalé « trop long » par l'audit du 03/10/2026.
+const TITRE = 'DropShipper IA : logiciel de dropshipping français par IA'
 const DESCRIPTION =
   "Plateforme française de dropshipping : importez un produit depuis n'importe quel fournisseur, l'IA réécrit l'annonce, et publiez sur Shopify, eBay, Kaufland, 41 places de marché Mirakl, Vinted et Leboncoin. À l'acte, sans abonnement : 0,12 € l'annonce."
 const CHROME_STORE = 'https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk'
@@ -75,7 +76,6 @@ const ROBOTS_IA = [
 const prixEnEuros = (drops) => (drops / 100).toFixed(2)
 
 function grapheSchema(faq) {
-  const n = parType()
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -99,19 +99,26 @@ function grapheSchema(faq) {
         description: DESCRIPTION,
         publisher: { '@id': `${SITE}/#organisation` },
       },
+      /*
+       * `Service`, pas `SoftwareApplication` : Google n'accepte une fiche
+       * « Software App » qu'avec une note (aggregateRating ou review), et l'audit
+       * du 03/10/2026 classait ce nœud en erreur de balisage sur l'accueil, /avis,
+       * /confidentialite et /register. Inventer une note est exclu ; le type
+       * logiciel reste dit par `additionalType`, que les moteurs lisent sans
+       * en faire une fiche enrichie.
+       */
       {
-        '@type': 'SoftwareApplication',
+        '@type': 'Service',
+        additionalType: 'https://schema.org/SoftwareApplication',
         '@id': `${SITE}/#application`,
         name: NOM,
         url: `${SITE}/`,
-        applicationCategory: 'BusinessApplication',
-        applicationSubCategory: 'Logiciel de dropshipping et de diffusion multicanal',
-        operatingSystem: 'Web, extension Chrome',
-        inLanguage: 'fr-FR',
+        serviceType: 'Logiciel de dropshipping et de diffusion multicanal (web, extension Chrome)',
+        category: 'BusinessApplication',
+        areaServed: ['FR', 'BE', 'CH', 'LU', 'CA'],
+        availableLanguage: 'fr-FR',
         description: DESCRIPTION,
-        publisher: { '@id': `${SITE}/#organisation` },
-        featureList: FONCTIONS.map((f) => f.titre),
-        installUrl: CHROME_STORE,
+        provider: { '@id': `${SITE}/#organisation` },
         // Les prix réels, à l'acte. Pas d'aggregateRating : aucune note n'est inventée.
         offers: [
           ...TARIFS.filter(([, drops]) => drops > 0)
@@ -124,13 +131,6 @@ function grapheSchema(faq) {
               category: 'Paiement à l’acte, sans abonnement',
             })),
           { '@type': 'Offer', name: 'Inscription — 120 drops offerts', price: '0.00', priceCurrency: 'EUR' },
-        ],
-        additionalProperty: [
-          { '@type': 'PropertyValue', name: 'Fournisseurs référencés', value: FOURNISSEURS.length },
-          { '@type': 'PropertyValue', name: 'Canaux de vente référencés', value: canaux.length },
-          { '@type': 'PropertyValue', name: 'Places de marché référencées', value: n.marketplace },
-          { '@type': 'PropertyValue', name: 'Destinations à publication directe branchées', value: 45 },
-          { '@type': 'PropertyValue', name: 'Canaux servis par le flux produit', value: 234 },
         ],
       },
       { ...faqLd(faq), '@id': `${SITE}/#faq`, '@context': undefined },
@@ -212,8 +212,82 @@ function enrichirAccueil(faq) {
   // L'ancienne description courte laisse la place à la nouvelle : deux balises se contrediraient.
   html = html.replace(/\s*<meta name="description"[^>]*>/, '')
   html = html.replace(/<title>[^<]*<\/title>/, () => tete)
-  html = html.replace('<div id="root"></div>', () => `<div id="root">${corpsAccueil(faq)}</div>`)
-  fs.writeFileSync(fichier, html)
+  fs.writeFileSync(fichier, html.replace('<div id="root"></div>', () => `<div id="root">${corpsAccueil(faq)}</div>`))
+  // La tête enrichie, #root encore vide : le gabarit des écrans publics ci-dessous.
+  return html
+}
+
+/**
+ * Les écrans publics de l'application qui ont leur place dans un index : avant,
+ * Vercel leur servait l'index.html de l'accueil, donc son titre, sa description,
+ * son graphe schema.org et un canonical vers « / ». L'audit du 03/10/2026 en
+ * concluait que /avis et /confidentialite, déclarés dans le sitemap, désignaient
+ * une autre page (« pages incorrectes dans le sitemap »).
+ *
+ * Chacun reçoit une copie de l'index.html construit, avec SA tête et un court
+ * texte statique ; React s'y monte comme sur l'accueil. vercel.json route
+ * l'adresse vers cette copie, avant le filet « tout vers /index.html ».
+ */
+const ECRANS_PUBLICS = [
+  {
+    url: '/avis',
+    title: `Avis des utilisateurs de ${NOM}`,
+    description: `Les avis laissés par les vendeurs qui utilisent ${NOM} : import de produits, annonces réécrites par l'IA, publication sur les places de marché.`,
+    h1: 'Avis des utilisateurs',
+    texte: `Ce que les vendeurs disent de ${NOM}, publié tel quel. Chaque compte peut laisser son avis depuis l'application.`,
+  },
+  {
+    url: '/confidentialite',
+    title: `Politique de confidentialité | ${NOM}`,
+    description: `Quelles données ${NOM} collecte, pourquoi, combien de temps elles sont gardées et comment exercer vos droits (RGPD).`,
+    h1: 'Politique de confidentialité',
+    texte: `Les données que ${NOM} traite, leur finalité, leur durée de conservation et vos droits d'accès, de rectification et d'effacement.`,
+  },
+  {
+    url: '/register',
+    title: `Créer un compte ${NOM} : 120 drops offerts`,
+    description: `Ouvrez un compte ${NOM} en une minute : 120 drops offerts, de quoi importer et publier dix annonces réécrites par l'IA, sans abonnement.`,
+    h1: 'Créer un compte',
+    texte: `120 drops offerts à l'inscription, de quoi importer et publier dix annonces réécrites par l'IA. Aucun abonnement, aucune carte demandée.`,
+  },
+]
+
+function ecrireEcransPublics(gabarit) {
+  for (const e of ECRANS_PUBLICS) {
+    const adresse = `${SITE}${e.url}`
+    let html = gabarit
+      .replace(/<title>[^<]*<\/title>/, () => `<title>${esc(e.title)}</title>`)
+      .replace(/<meta name="description" content="[^"]*" \/>/, () => `<meta name="description" content="${esc(e.description)}" />`)
+      .replace(/<link rel="canonical" href="[^"]*" \/>/, () => `<link rel="canonical" href="${adresse}" />`)
+      .replace(/<meta property="og:type" content="[^"]*" \/>/, '<meta property="og:type" content="article" />')
+      .replace(/<meta property="og:title" content="[^"]*" \/>/, () => `<meta property="og:title" content="${esc(e.title)}" />`)
+      .replace(/<meta property="og:description" content="[^"]*" \/>/, () => `<meta property="og:description" content="${esc(e.description)}" />`)
+      .replace(/<meta property="og:url" content="[^"]*" \/>/, () => `<meta property="og:url" content="${adresse}" />`)
+      // Le graphe de l'accueil (organisation, offres, FAQ) n'est pas le propos de ces pages.
+      .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, () => `<script type="application/ld+json">${JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: e.title,
+        url: adresse,
+        inLanguage: 'fr-FR',
+        description: e.description,
+        isPartOf: { '@type': 'WebSite', '@id': `${SITE}/#site`, name: NOM, url: `${SITE}/` },
+      })}</script>`)
+      // Le titre de l'onglet reste celui de la page : Google lit le titre APRÈS JavaScript.
+      .replace("document.title = 'DropShipper IA'", '')
+    const corps = `<div id="contenu-statique" style="max-width:52rem;margin:0 auto;padding:2.5rem 1.25rem;font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif;color:inherit">
+<main>
+<h1>${esc(e.h1)}</h1>
+<p>${esc(e.texte)}</p>
+<p><a href="/">Accueil</a> · <a href="/tarifs/">Tarifs</a> · <a href="/faq/">Questions fréquentes</a> · <a href="/a-propos/">À propos</a></p>
+</main>
+</div>`
+    html = html.replace('<div id="root"></div>', () => `<div id="root">${corps}</div>`)
+    for (const attendu of [`<title>${esc(e.title)}</title>`, `href="${adresse}"`, '"@type":"WebPage"', `<h1>${esc(e.h1)}</h1>`]) {
+      if (!html.includes(attendu)) throw new Error(`${e.url} : « ${attendu} » absent de la copie de index.html`)
+    }
+    ecrire({ url: e.url, html })
+  }
 }
 
 function ecrire(page) {
@@ -229,7 +303,7 @@ function pageFaq(faq) {
     url,
     html: layout({
       url,
-      title: `Questions fréquentes sur ${NOM} : prix, plateformes, fournisseurs, légalité`,
+      title: `Questions fréquentes sur ${NOM} : prix, plateformes`,
       description: `Ce que fait ${NOM}, ce que ça coûte, où il publie, depuis quels fournisseurs il importe, et en quoi il diffère d'AutoDS, DSers ou Shopify.`,
       jsonLd: [faqLd(faq), breadcrumbLd(trail)],
       body: `${crumb(trail)}
@@ -259,7 +333,7 @@ function pageTarifs() {
     url,
     html: layout({
       url,
-      title: `Tarifs de ${NOM} : à l'acte, sans abonnement — 0,12 € l'annonce`,
+      title: `Tarifs ${NOM} : 0,12 € l'annonce, sans abonnement`,
       description: `La grille complète de ${NOM} : chaque action a son prix en drops (1 drop = 0,01 €). Aucun abonnement, 120 drops offerts à l'inscription.`,
       jsonLd: [offres, breadcrumbLd(trail)],
       body: `${crumb(trail)}
@@ -293,7 +367,7 @@ function pageAPropos(faq) {
     url,
     html: layout({
       url,
-      title: `À propos de ${NOM} : la plateforme française de dropshipping assistée par IA`,
+      title: `À propos de ${NOM}, le dropshipping français par IA`,
       description: `${NOM} en faits : ce que fait la plateforme, pour qui, à quel prix, depuis quels fournisseurs et vers quelles places de marché.`,
       jsonLd: [
         { '@context': 'https://schema.org', '@type': 'AboutPage', url: `${SITE}${url}`, name: `À propos de ${NOM}`, about: { '@id': `${SITE}/#application` } },
@@ -340,7 +414,7 @@ function pageApiPower() {
     url,
     html: layout({
       url,
-      title: `API Power : ce que les API Meta, Google, TikTok et Pinterest débloquent dans ${NOM}`,
+      title: `API Power : les API Meta, Google, TikTok et Pinterest`,
       description: `${resume.retenues} API marketing, publicitaires et de publication, ${resume.opportunites} opportunités — publier, mesurer, cibler, répondre — et l'état réel de chaque raccordement.`,
       jsonLd: [
         { '@context': 'https://schema.org', '@type': 'ItemList', name: 'API Power', url: `${SITE}${url}`, numberOfItems: retenues.length, itemListElement: retenues.map((a, i) => ({ '@type': 'ListItem', position: i + 1, name: `${a.nom} (${a.editeur})`, url: `${SITE}${url}#${a.id}` })) },
@@ -377,7 +451,7 @@ function pageFonction(t, index) {
     url,
     html: layout({
       url,
-      title: `${t.titre} — ${NOM}`,
+      title: `${t.titre} | ${NOM}`,
       description: t.accroche.length > 158 ? `${t.accroche.slice(0, 155).replace(/\s+\S*$/, '')}…` : t.accroche,
       jsonLd: [
         {
@@ -424,10 +498,10 @@ Sitemap: ${SITE}/sitemap.xml
 # Les analyses de marché des agents, une page par rapport, servies par l'API (routes/analysesPubliques.ts).
 Sitemap: ${SITE}/analyses/sitemap.xml
 
-# Fiche d'identité lisible par les assistants conversationnels
-# (convention llms.txt) : ce que fait ${NOM}, en un seul fichier.
-LLM-Content: ${SITE}/llms.txt
-LLM-Full-Content: ${SITE}/llms-full.txt
+# Fiche d'identité lisible par les assistants conversationnels (convention
+# llms.txt) : ${SITE}/llms.txt et ${SITE}/llms-full.txt. En commentaire
+# seulement : les directives LLM-Content ne sont pas standard, et l'audit du
+# 03/10/2026 classait tout le fichier « format invalide » à cause d'elles.
 `,
   )
 }
@@ -449,7 +523,7 @@ function main() {
     process.exit(1)
   }
   const faq = FAQ()
-  enrichirAccueil(faq)
+  ecrireEcransPublics(enrichirAccueil(faq))
   const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), pageApiPower(), ...ACCUEIL.themes.map(pageFonction)]
   pages.forEach(ecrire)
   ecrireRobots()
