@@ -32,14 +32,18 @@ exige(
 )
 
 const branchees = liaisons.filter((l) => l.liaison.etat === 'branche')
-const live = PLATFORMS.filter((p) => p.integration === 'live' && !BOUTIQUES_DU_VENDEUR.includes(p.id))
+// Allegro (Pologne) n'est pas dans l'annuaire des 314 logos, tiré d'un gestionnaire de flux français.
+const HORS_ANNUAIRE = ['ALLEGRO']
+const live = PLATFORMS.filter((p) => p.integration === 'live' && !BOUTIQUES_DU_VENDEUR.includes(p.id) && !HORS_ANNUAIRE.includes(p.id))
 const liveSansCanal = live.filter((p) => !branchees.some((b) => b.liaison.plateforme === p.id))
 exige(liveSansCanal.length === 0, 'chaque destination LIVE de platforms.ts a son canal dans l’annuaire, marqué branché', liveSansCanal.map((p) => p.id).join(', '))
 
 const ebay = liaisonPour(CANAUX.find((c) => c.id === 'ebay')!)
 exige(ebay.voie === 'api' && ebay.etat === 'branche', 'eBay : publication directe, branchée')
 const amazon = liaisonPour(CANAUX.find((c) => c.id === 'amazon')!)
-exige(amazon.voie === 'api' && amazon.etat === 'compte-requis', 'Amazon : connecteur écrit, compte vendeur requis')
+exige(amazon.voie === 'api' && amazon.etat === 'branche', 'Amazon : connecteur écrit (03/10/2026), publication directe')
+const cdiscount = liaisonPour(CANAUX.find((c) => /cdiscount/i.test(c.id))!)
+exige(cdiscount.etat === 'compte-requis' && /pas encore écrit/.test(cdiscount.comment), 'Cdiscount : dit sans détour que le connecteur n’est pas écrit')
 const idealo = liaisonPour(CANAUX.find((c) => c.id === 'idealo')!)
 exige(idealo.voie === 'flux' && idealo.flux?.format === 'google', 'Idealo : par le flux Google Shopping')
 const criteo = liaisonPour(CANAUX.find((c) => c.id === 'criteo')!)

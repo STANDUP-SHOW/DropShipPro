@@ -18,6 +18,7 @@ import { publierShopware, readShopwareCredentials } from './shopware.js'
 import { publierEcwid, readEcwidCredentials } from './ecwid.js'
 import { publierSquarespace, readSquarespaceCredentials } from './squarespace.js'
 import { imagesPourExport } from './exportImages.js'
+import { connecteurMarche, type ConnecteurMarche } from './marches.js'
 
 /**
  * Records a publication, and actually pushes the product where that is possible.
@@ -52,6 +53,9 @@ export async function publishToPlatform(productId: string, platform: Platform, a
   if (platform in BOUTIQUES) return publierBoutique(product, platform as keyof typeof BOUTIQUES, targetCategory)
 
   if (estMirakl(platform)) return publierMirakl(product, platform, targetCategory)
+
+  const connecteur = connecteurMarche(platform)
+  if (connecteur) return publierParConnecteur(connecteur, product, targetCategory)
 
   if (FEED_PLATFORMS.includes(platform)) {
     return publishToFeedChannel(productId, platform, product.userId)
@@ -213,6 +217,61 @@ async function publierBoutique(product: Product, platform: keyof typeof BOUTIQUE
     return prisma.publication.upsert({ where, create: { productId: product.id, platform, ...data }, update: data })
   } catch (err) {
     const raison = err instanceof Error ? err.message : 'La boutique a refusé la fiche.'
+    const data = { targetCategory, status: 'FAILED' as const, error: raison, publishedAt: null }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform, ...data }, update: data })
+  }
+}
+
+/**
+ * Le dépôt chez une place de marché à autorisation : TikTok Shop, Amazon,
+ * Allegro (`marchesApi.ts`).
+ *
+ * Trois sorts, dits tels quels : « en attente » quand notre application n'est
+ * pas déclarée chez la plateforme ou que le vendeur n'a pas relié son compte
+ * (avec le geste à faire), « publiée » avec l'adresse de l'offre, « échec »
+ * avec le message de la plateforme. Un jeton qui a tourné pendant le dépôt est
+ * gardé tout de suite : Allegro et TikTok Shop n'acceptent plus l'ancien.
+ */
+async function publierParConnecteur(connecteur: ConnecteurMarche, product: Product, targetCategory: string) {
+  const platform = connecteur.platform
+  const where = { productId_platform: { productId: product.id, platform } }
+  const enAttente = (raison: string) =>
+    prisma.publication.upsert({
+      where,
+      create: { productId: product.id, platform, targetCategory, status: 'PENDING', error: raison },
+      update: { targetCategory, status: 'PENDING', error: raison, publishedAt: null },
+    })
+
+  if (!connecteur.appConfiguree()) return enAttente(connecteur.manque())
+
+  const credential = await prisma.platformCredential.findUnique({
+    where: { userId_platform: { userId: product.userId, platform } },
+  })
+  const creds = credential?.connected ? connecteur.lire(credential.data) : null
+  if (!creds) {
+    return enAttente(
+      `Compte ${connecteur.label} non relié : cliquez « Relier mon compte ${connecteur.label} » dans Réglages › Plateformes de vente, et autorisez DropShipper chez ${connecteur.label}.`,
+    )
+  }
+
+  try {
+    const depot = await connecteur.deposer(creds, product, targetCategory)
+    if (depot.majCreds && credential) {
+      await prisma.platformCredential.update({
+        where: { id: credential.id },
+        data: { data: { ...(credential.data as Record<string, unknown>), ...depot.majCreds } as never },
+      })
+    }
+    const data = {
+      targetCategory,
+      status: 'PUBLISHED' as const,
+      error: depot.note,
+      externalUrl: depot.url,
+      publishedAt: new Date(),
+    }
+    return prisma.publication.upsert({ where, create: { productId: product.id, platform, ...data }, update: data })
+  } catch (err) {
+    const raison = err instanceof Error ? err.message : `${connecteur.label} a refusé le dépôt.`
     const data = { targetCategory, status: 'FAILED' as const, error: raison, publishedAt: null }
     return prisma.publication.upsert({ where, create: { productId: product.id, platform, ...data }, update: data })
   }

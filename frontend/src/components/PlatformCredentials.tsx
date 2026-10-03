@@ -5,6 +5,7 @@ import { BandeauMCP } from './BandeauMCP'
 import { INTEGRATION_LABEL, INTEGRATION_STYLE, type PlatformInfo } from '../lib/platforms'
 import { MIRAKL_IDS } from '../lib/platformGuides'
 import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
+import { MarcheAutorisation, MARCHES_AUTORISATION } from './MarcheAutorisation'
 
 /**
  * Les clés d'accès aux places de marché.
@@ -142,7 +143,9 @@ export function PlatformCredentialForm({
             {/* Shopify demande deux valeurs, et ce sont les seules
                 identifiants réellement utilisés aujourd'hui — d'où son
                 formulaire propre plutôt que le champ « clé API » générique. */}
-            {platform.id === 'SHOPIFY' ? (
+            {MARCHES_AUTORISATION.includes(platform.id) ? (
+              <MarcheAutorisation platform={platform.id} label={platform.label} onChange={onSaved} />
+            ) : platform.id === 'SHOPIFY' ? (
               <form
                 onSubmit={(e) => {
                   e.preventDefault()

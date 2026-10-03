@@ -287,6 +287,17 @@ export const api = {
       body: JSON.stringify({ ...data, source: 'partage-telephone' }),
     }),
   ebayOauth: () => request<{ configure: boolean; url?: string }>('/ebay/oauth/start'),
+
+  /** TikTok Shop, Amazon, Allegro : l'app est-elle déclarée, le compte vendeur relié ? */
+  marchesEtat: () =>
+    request<
+      Array<{ platform: string; label: string; appConfiguree: boolean; manque: string | null; relie: boolean; compte: string | null }>
+    >('/marches'),
+  marcheConnect: (platform: string) =>
+    request<{ url: string }>(`/marches/${platform.toLowerCase()}/connect`, { method: 'POST' }),
+  marcheDelier: (platform: string) => request<{ ok: true }>(`/marches/${platform.toLowerCase()}`, { method: 'DELETE' }),
+  amazonJeton: (data: { refreshToken: string; sellerId: string }) =>
+    request<{ ok: true }>('/marches/amazon/jeton', { method: 'POST', body: JSON.stringify(data) }),
   register: (email: string, password: string) =>
     request<{ token: string; user: { id: string; email: string } }>('/auth/register', {
       method: 'POST',
@@ -2003,6 +2014,8 @@ export const api = {
       configure: boolean
       reseaux: string[]
       regies: string[]
+      /** Connecteur écrit, mais l'application DropShipper n'y est pas encore déclarée. */
+      enAttente?: string[]
       comptes: Array<{
         id: string
         externalId: string

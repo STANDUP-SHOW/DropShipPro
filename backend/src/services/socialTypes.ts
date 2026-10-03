@@ -118,6 +118,12 @@ export interface Campagne {
     url: string
     boutonLabel?: string
   }
+  /**
+   * Vrai pour lancer la diffusion tout de suite. Par défaut la campagne est
+   * créée en pause : elle dépense l'argent du vendeur, et c'est lui qui
+   * appuie sur le bouton (ou le mode automatique, avec son accord donné).
+   */
+  activer?: boolean
   /** Le ciblage, volontairement minimal : le reste se règle chez la régie. */
   ciblage?: {
     paysCodes?: string[]
@@ -155,6 +161,22 @@ export interface Performances {
 export interface SocialProvider {
   id: string
   label: string
+
+  /**
+   * Les réseaux et régies que ce moteur sert, quand il est natif.
+   *
+   * Un moteur tiers (Zernio) servait tout d'un bloc ; nos connexions maison
+   * sont une par plateforme (Meta, TikTok, Pinterest…). La passerelle choisit
+   * le moteur d'après la plateforme demandée, et d'après `provider` du compte
+   * raccordé pour publier.
+   */
+  plateformes?: readonly string[]
+
+  /**
+   * Au retour de l'autorisation : échange le code contre les jetons, et
+   * enregistre les comptes du vendeur. Rend le nombre de comptes raccordés.
+   */
+  finaliserConnexion?(userId: string, params: Record<string, string>, redirectUri: string): Promise<number>
 
   /** Crée le profil du vendeur chez le moteur, et rend son identifiant. */
   creerProfil(userId: string, nom: string): Promise<string>

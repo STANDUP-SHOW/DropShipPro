@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { callbackMeta } from '../lib/urls.js'
+import { signerEtat } from './oauthEtat.js'
 import {
   SocialError,
   type CompteRaccorde,
@@ -353,6 +354,7 @@ async function publierSurInstagram(
 export const meta: SocialProvider = {
   id: 'meta',
   label: 'Facebook et Instagram',
+  plateformes: ['facebook', 'instagram'],
 
   /*
    * Aucun profil à créer chez un tiers : c'est tout l'intérêt du natif. Le
@@ -394,7 +396,7 @@ export const meta: SocialProvider = {
      * classique d'OAuth, et elle rattacherait la page d'un vendeur au compte
      * d'un autre.
      */
-    url.searchParams.set('state', profilId)
+    url.searchParams.set('state', signerEtat(profilId, 'facebook'))
     return url.toString()
   },
 

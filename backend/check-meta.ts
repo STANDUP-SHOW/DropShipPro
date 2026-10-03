@@ -1,6 +1,10 @@
 import 'dotenv/config'
 import { createServer } from 'http'
 import { createHmac } from 'crypto'
+import { lireEtat } from './src/services/oauthEtat.js'
+
+// Le state OAuth est signé avec JWT_SECRET (oauthEtat.ts) : une valeur de banc suffit.
+process.env.JWT_SECRET ||= 'secret-de-banc'
 
 /**
  * Éprouve l'adaptateur Meta natif contre un faux Graph API.
@@ -276,7 +280,8 @@ try {
   exige(u.hostname === 'www.facebook.com', `le vendeur s'authentifie chez Meta : ${u.hostname}`)
   // `state` porte l'identifiant du vendeur : sans lui, rejouer l'adresse de
   // retour rattacherait la page d'un vendeur au compte d'un autre.
-  exige(u.searchParams.get('state') === vendeur.id, 'state doit porter le vendeur')
+  exige(lireEtat(u.searchParams.get('state') ?? '')?.userId === vendeur.id, 'state doit porter le vendeur, signé')
+  exige(lireEtat(vendeur.id) === null, 'un state non signé (l’identifiant nu) doit être refusé')
   exige(
     u.searchParams.get('redirect_uri') === 'https://api.test/api/public/social/meta/callback',
     `redirect_uri figée, reçue : ${u.searchParams.get('redirect_uri')}`,
