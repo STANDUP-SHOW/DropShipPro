@@ -199,6 +199,9 @@ function vueReglages() {
   const champs = {}
   const f = (id, titre, valeur, type) => { champs[id] = h('input', { value: valeur, type: type || 'text' }); return h('div', {}, h('label', {}, titre), champs[id]) }
   const envoi = h('input', { type: 'checkbox', checked: r.envoiAuSite })
+  const sp = r.signauxPublics
+  const caseMeta = h('input', { type: 'checkbox', checked: sp.meta })
+  const caseTrends = h('input', { type: 'checkbox', checked: sp.trends })
   return h('div', {},
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
@@ -212,11 +215,16 @@ function vueReglages() {
       f('plafondPages', 'Pages lues par rayon', r.plafondPages, 'number'),
       f('plafondDeuxiemeVague', 'Modèles cherchés en deuxième vague (plafond Serper)', r.plafondDeuxiemeVague, 'number'),
       h('label', {}, h('span', {}, envoi, ' Envoyer aussi chaque rapport validé au site drop-shipper.fr')),
+      h('label', {}, h('span', {}, caseTrends, ' Lire Google Trends (courbe de recherche du thème et des modèles, France 12 mois)')),
+      h('label', {}, h('span', {}, caseMeta, ' Lire la Meta Ad Library (annonces actives par modèle)')),
+      f('plafondPubs', 'Modèles cherchés dans la Meta Ad Library par rayon', sp.plafondPubsParRayon, 'number'),
+      h('p', { class: 'doux petit' }, 'Lectures publiques dans une fenêtre cachée, espacées de 4 s ; le premier blocage ou la première demande de connexion arrête la source pour la nuit. Vérifiez les conditions d’utilisation de ces sites.'),
       f('apiBase', 'Adresse de l’API', r.apiBase),
       h('p', {}, h('button', { class: 'btn principal', onclick: async () => {
         const x = await appel('reglages', {
           modele: champs.modele.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
           plafondDeuxiemeVague: Number(champs.plafondDeuxiemeVague.value), apiBase: champs.apiBase.value.trim(), envoiAuSite: envoi.checked,
+          signauxPublics: { meta: caseMeta.checked, trends: caseTrends.checked, plafondPubsParRayon: Number(champs.plafondPubs.value) },
         })
         if (x) { etat = x; flash('Réglages enregistrés.') }
       } }, 'Enregistrer les réglages')),

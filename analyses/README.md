@@ -51,6 +51,23 @@ lu tel quel par `backend/importer-aimarket.cjs`), `<theme>.rayon.md` et
 **Jamais d'URL ni de prix inventés** : une `supplier_url` absente des pages réellement
 lues devient « Non vérifié » et le rapport passe « à revoir » (non envoyé au site).
 
+## Signaux publics (lib/signaux.js, 03/10/2026)
+
+Après la deuxième vague, le rayon ajoute aux preuves, sans compte ni connexion :
+- les **questions et recherches associées** de Google (déjà dans les réponses Serper) ;
+- **Google Trends** (France, 12 mois) : la courbe du thème et celle des 5 premiers modèles
+  comparés (indice moyen, variation des 8 dernières semaines, pic) ;
+- **Meta Ad Library** : pour chacun des ≤ 6 premiers modèles (nom exact), nombre d'annonces
+  actives en France et ancienneté de la plus ancienne vue.
+
+Lues dans une fenêtre cachée, espacées de 4 s. Le premier captcha ou la première demande de
+connexion arrête la source pour toute la nuit. Une valeur non lue s'écrit « illisible » ou
+« bloqué », jamais un chiffre de remplacement ; une panne des signaux ne fait pas échouer le
+rayon. Le relevé brut est gardé dans `releves\AAAA-MM-JJ\signaux\`. Cases à cocher dans Réglages.
+**Vérifié seulement contre de fausses pages** (Google et Meta n'ont pas été appelés depuis le banc) :
+si leur texte ou leur format a changé, les lignes sortent « illisible » et il faut adapter
+`extraireMetaAds` / `extraireTrends`. Conditions d'utilisation de ces sites à vérifier par Max.
+
 ## Limites connues, à lire
 
 - **Le prompt est reconstruit**, pas copié : le prompt d'origine vit dans

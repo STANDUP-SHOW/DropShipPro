@@ -29,6 +29,7 @@ const veille = lib('veille')
 const config = lib('config')
 const { planifier } = lib('planificateur')
 const { ErreurFournisseur } = lib('erreurs')
+const sig = lib('signaux')
 
 let ok = 0
 const essais = []
@@ -314,6 +315,81 @@ test('relevés dans le rayon : le texte des sites connectés arrive dans les pre
   assert.match(prompt, /RELEVÉS DES SITES DE DONNÉES CONNECTÉS/)
   assert.match(prompt, /mini hachoir, 4,2 M de vues/)
   assert.match(prompt, /https:\/\/ads\.example\/trend\/1/)
+})
+
+test('signaux : dates, nombres, Meta Ad Library et Google Trends lus sans rien inventer', () => {
+  assert.equal(sig.parserDate('12 sept. 2026'), '2026-09-12')
+  assert.equal(sig.parserDate('3 mars 2026'), '2026-03-03')
+  assert.equal(sig.parserDate('Sep 12, 2026'), '2026-09-12')
+  assert.equal(sig.parserDate('1 février 2026'), '2026-02-01')
+  assert.equal(sig.parserDate('hier soir'), null)
+  assert.equal(sig.parserNombre('~1,2 K'), 1200)
+  assert.equal(sig.parserNombre('1.5M'), 1500000)
+  assert.equal(sig.parserNombre('1 200'), 1200)
+  assert.equal(sig.parserNombre('120'), 120)
+  const meta = sig.extraireMetaAds('~1,2 K résultats\nIdentifiant de la bibliothèque : 111\nDate de début de diffusion : 3 mars 2026\nIdentifiant de la bibliothèque : 112\nStarted running on Sep 12, 2026', new Date('2026-10-03T00:00:00Z'))
+  assert.equal(meta.statut, 'ok'); assert.equal(meta.resultats, 1200); assert.equal(meta.annoncesVues, 2)
+  assert.equal(meta.plusAncienne, '2026-03-03'); assert.equal(meta.ancienneteJours, 214)
+  assert.equal(sig.extraireMetaAds('Aucun résultat pour cette recherche.').statut, 'aucun')
+  assert.equal(sig.extraireMetaAds('Page qui a changé de forme').statut, 'illisible')
+  assert.equal(sig.extraireMetaAds('').statut, 'illisible')
+  const lignes = Array.from({ length: 52 }, (_, i) => ({ time: String(1759000000 + i * 604800), formattedAxisTime: 'sem ' + (i + 1), value: [i >= 44 ? 60 : 30, 0], hasData: [true, i > 100] }))
+  const t = sig.extraireTrends(")]}',\n" + JSON.stringify({ default: { timelineData: lignes } }), ['a', 'b'])
+  assert.equal(t[0].statut, 'ok'); assert.equal(t[0].variationPct, 100, '8 dernières semaines (60) contre 8 précédentes (30)'); assert.equal(t[0].indiceMoyen, 35)
+  assert.equal(t[1].statut, 'sans_donnees')
+  assert.equal(sig.extraireTrends('<html>pas du JSON', ['a']), null)
+  assert.equal(sig.raccourcir('Philips Airfryer HD9252/90 XL (noir)', 3), 'Philips Airfryer HD9252')
+})
+
+test('signaux : lus par le poste sur de fausses pages, le blocage arrête la source pour la nuit', async (srv) => {
+  const m = monde(srv); remise()
+  const base = 'http://127.0.0.1:' + m.port
+  const lire = async (url, opts = {}) => {
+    const r = await fetch(url)
+    const html = await r.text()
+    const texte = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, '\n')
+    const captures = []
+    if (opts.capture) captures.push(await (await fetch(base + '/trends/api/widgetdata/multiline?x=1')).text())
+    return { url, urlFinale: url, texte, champMotDePasse: false, captures }
+  }
+  const suivi = { meta: null, trends: null }
+  const cfg = { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2 }
+  const noms = Array.from({ length: 10 }, (_, i) => 'Marque Modele ' + i)
+  const sortie = await sig.releverSignaux({ rayon: m.rayon, noms, lire, config: cfg, bases: { meta: base, trends: base }, journal: m.journal, suivi, pause: 0 })
+  assert.equal(sortie.pubs.length, 6, 'plafond de 6 modèles par rayon')
+  assert.deepEqual(sortie.pubs.map((p) => p.statut), ['ok', 'aucun', 'illisible', 'ok', 'ok', 'ok'], JSON.stringify(sortie.pubs))
+  assert.equal(sortie.tendances.length, 2, 'le thème, puis les modèles comparés')
+  assert.equal(sortie.tendances[0].series[0].variationPct, 100)
+  const bloc = sig.sectionPreuves(sortie)
+  assert.match(bloc, /SIGNAUX PUBLICS MESURÉS/); assert.match(bloc, /~1200 annonce\(s\)/); assert.match(bloc, /aucune annonce active trouvée/); assert.match(bloc, /: illisible/)
+  assert.match(bloc, /variation|8 dernières semaines contre les 8 précédentes \+100 %/)
+  // a block on the 2nd model stops Meta for the rest of the night, Trends goes on
+  etat.mode = 'meta-bloque'
+  const suivi2 = { meta: null, trends: null }
+  const s2 = await sig.releverSignaux({ rayon: m.rayon, noms, lire, config: cfg, bases: { meta: base, trends: base }, journal: m.journal, suivi: suivi2, pause: 0 })
+  assert.equal(s2.pubs[0].statut, 'bloque'); assert.ok(s2.pubs.slice(1).every((p) => p.statut === 'non_lu'))
+  assert.equal(etat.pubs.length > 0 && etat.pubs.length, 7, 'une seule requête de plus après le blocage (6 + 1)')
+  assert.ok(suivi2.meta && !suivi2.trends)
+  const s3 = await sig.releverSignaux({ rayon: m.rayon, noms, lire, config: cfg, bases: { meta: base, trends: base }, journal: m.journal, suivi: suivi2, pause: 0 })
+  assert.ok(s3.pubs.every((p) => p.statut === 'non_lu'), 'le rayon suivant ne rappelle pas Meta')
+  assert.equal(etat.pubs.length, 7)
+})
+
+test('rayon : questions Google et signaux publics arrivent dans les preuves ; une panne des signaux ne fait pas échouer le rayon', async (srv) => {
+  const m = monde(srv); remise()
+  let prompt = ''
+  const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
+  const signaux = async () => ({ tendances: [{ groupe: 'thème', statut: 'ok', series: [{ mot: 'Smartphones', statut: 'ok', points: 52, indiceMoyen: 35, variationPct: 100, pic: 'sem 45' }] }], pubs: [{ produit: 'Marque Modele 0', terme: 'Marque Modele 0', statut: 'ok', resultats: 1200, annoncesVues: 2, plusAncienne: '2026-03-03', ancienneteJours: 214 }, { produit: 'X', terme: 'X', statut: 'bloque', raison: 'captcha' }] })
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion, signaux }, options: {} })
+  assert.equal(res.statut, 'ok')
+  assert.match(prompt, /QUESTIONS ET RECHERCHES ASSOCIÉES/); assert.match(prompt, /Est-ce que ça vaut le coup \?/); assert.match(prompt, /pas cher/)
+  assert.match(prompt, /SIGNAUX PUBLICS MESURÉS/); assert.match(prompt, /« X » : bloque \(captcha\)/)
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.deepEqual(j.poste.signaux, { courbes: 1, pubsLues: 1, pubsDemandees: 2 })
+  assert.ok(fs.existsSync(path.join(m.racine, 'releves', '2026-10-03', 'signaux', 'telephonie_smartphones.json')), 'relevé brut gardé pour contrôle')
+  remise()
+  const res2 = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, signaux: async () => { throw new Error('fenêtre indisponible') } }, options: {} })
+  assert.equal(res2.statut, 'ok', 'les signaux sont un plus : leur panne ne perd pas le rayon')
 })
 
 test('validation : une URL absente des pages lues n’est jamais conservée', () => {

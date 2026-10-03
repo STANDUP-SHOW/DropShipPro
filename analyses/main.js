@@ -29,6 +29,7 @@ const { creerSerper } = require('./lib/serper')
 const { creerClaude } = require('./lib/claude')
 const { lirePage } = require('./lib/pages')
 const { executerRayon } = require('./lib/rayon')
+const signauxPublics = require('./lib/signaux')
 const { controleCredits, lancerNuit, rapportValide } = require('./lib/orchestrateur')
 const depot = require('./lib/depot')
 const sourcesLib = require('./lib/sources')
@@ -91,11 +92,25 @@ function notifier(titre, corps) {
   try { if (Notification.isSupported()) new Notification({ title: titre, body: corps }).show() } catch { /* best effort */ }
 }
 
+// Block memory for the night: a block stops that source for every later rayon of the day.
+let suiviSignaux = { date: null, meta: null, trends: null }
+
+function signauxDuRayon(date) {
+  const c = cfg.signauxPublics || {}
+  if (!c.meta && !c.trends) return null
+  if (suiviSignaux.date !== date) suiviSignaux = { date, meta: null, trends: null }
+  const lire = signauxPublics.lecteurSignaux({ BrowserWindow })
+  const bases = { meta: process.env.POSTE_URL_META || 'https://www.facebook.com', trends: process.env.POSTE_URL_TRENDS || 'https://trends.google.com' }
+  const pause = process.env.POSTE_PAUSE_SIGNAUX_MS ? Number(process.env.POSTE_PAUSE_SIGNAUX_MS) : undefined
+  return ({ rayon, noms }) => signauxPublics.releverSignaux({ rayon, noms, lire, config: c, bases, journal, suivi: suiviSignaux, pause })
+}
+
 function depsRayon(date) {
   const { serper, claude } = fournisseurs()
   return {
     serper,
     claude,
+    signaux: signauxDuRayon(date),
     pages: (u) => lirePage(u),
     releves: () => lectureSources(date),
     journal,
@@ -232,6 +247,7 @@ function etat() {
     reglages: {
       modele: cfg.modele, heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
       plafondPages: cfg.plafondPages, plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
+      signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2, ...(cfg.signauxPublics || {}) },
     },
     nuit: { enCours: nuit.enCours, progression: nuit.progression, dernierBilan: nuit.dernierBilan },
     rayonsDuJour: agents.rayonsDuJour(agents.charger(), date).map((r) => ({ ...r, fait: rapportValide(racine, date, r.categorie, r.theme) })),
@@ -295,6 +311,15 @@ function brancher() {
     if (!/^\d{2}:\d{2}$/.test(cfg.heureNuit)) throw new Error('Heure invalide (HH:MM).')
     cfg.plafondPages = Math.max(5, Math.min(60, Number(cfg.plafondPages) || 25))
     cfg.plafondDeuxiemeVague = Math.max(5, Math.min(40, Number(cfg.plafondDeuxiemeVague) || 26))
+    if (r.signauxPublics) {
+      const a = cfg.signauxPublics || {}
+      cfg.signauxPublics = {
+        ...a,
+        meta: Boolean(r.signauxPublics.meta),
+        trends: Boolean(r.signauxPublics.trends),
+        plafondPubsParRayon: Math.max(1, Math.min(12, Number(r.signauxPublics.plafondPubsParRayon) || a.plafondPubsParRayon || 6)),
+      }
+    }
     sauver()
     return etat()
   })

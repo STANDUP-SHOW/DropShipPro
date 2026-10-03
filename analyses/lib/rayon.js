@@ -20,6 +20,7 @@ const { ErreurFournisseur } = require('./erreurs')
 const { valider, cle: cleUrl } = require('./validation')
 const { rayonMd, marketingMd } = require('./rapports-md')
 const depot = require('./depot')
+const { sectionPreuves } = require('./signaux')
 
 const PROMPT_PAR_DEFAUT = path.join(__dirname, '..', 'prompts', 'rayon.md')
 const BUDGET_PREUVES = 90_000
@@ -150,6 +151,22 @@ async function executerRayon({ rayon, deps, options = {} }) {
   }
   journal.info(`${etiquette} : vague 2`, { modeles: noms.length })
 
+  // ---- public signals (Google Trends, Meta Ad Library): enrichment, never a reason to fail the rayon
+  let signaux = null
+  if (deps.signaux) {
+    try {
+      signaux = await deps.signaux({ rayon, noms })
+      const dossier = path.join(racine, 'releves', rayon.date, 'signaux')
+      fs.mkdirSync(dossier, { recursive: true })
+      fs.writeFileSync(path.join(dossier, `${rayon.categorie}_${rayon.theme}.json`), JSON.stringify(signaux, null, 2))
+      const pubsLues = (signaux.pubs || []).filter((p) => p.statut === 'ok' || p.statut === 'aucun').length
+      const courbes = (signaux.tendances || []).filter((g) => g.statut === 'ok').length
+      journal.info(`${etiquette} : signaux publics`, { pubsLues, pubsDemandees: (signaux.pubs || []).length, courbes })
+    } catch (err) {
+      journal.erreur(`${etiquette} : signaux publics indisponibles`, { raison: String(err.message || err) })
+    }
+  }
+
   // ---- connected data sites
   const lectures = (releves ? await releves() : []) || []
 
@@ -163,6 +180,15 @@ async function executerRayon({ rayon, deps, options = {} }) {
   }
   ajouter('# RÉSULTATS DE RECHERCHE (vague 1)\n' + resultats1.map(({ q, r }) => `## ${q}\n` + r.slice(0, 6).map((x) => `- ${x.titre} | ${x.url} | ${x.extrait}`).join('\n')).join('\n'))
   ajouter('# MODÈLES ET FICHES TROUVÉES (vague 2)\n' + resultats2.map(({ n, r }) => `## ${n}\n` + r.slice(0, 5).map((x) => `- ${x.titre} | ${x.url} | ${x.extrait}`).join('\n')).join('\n'))
+  // Google's own questions and related wordings, collected from the wave-1 answers
+  const uniques = (liste) => [...new Set(liste.map((x) => x.trim()).filter(Boolean))]
+  const questions = uniques(resultats1.flatMap(({ r }) => r.questions || [])).slice(0, 40)
+  const associees = uniques(resultats1.flatMap(({ r }) => r.associees || [])).slice(0, 40)
+  if (questions.length || associees.length) {
+    ajouter('# QUESTIONS ET RECHERCHES ASSOCIÉES (Google, France)\n' + (questions.length ? '## Questions posées\n' + questions.map((q) => `- ${q}`).join('\n') + '\n' : '') + (associees.length ? '## Recherches associées\n' + associees.map((q) => `- ${q}`).join('\n') : ''))
+  }
+  const blocSignaux = sectionPreuves(signaux)
+  if (blocSignaux) ajouter(blocSignaux)
   ajouter('# PAGES LUES\n' + lues.filter((p) => p.lisible).map((p) => `## ${p.titre || p.url}\nURL: ${p.url}\n${p.texte.slice(0, 1500)}`).join('\n\n'))
   if (lectures.length) {
     ajouter('# RELEVÉS DES SITES DE DONNÉES CONNECTÉS (sessions de Max)\n' + lectures.map((l) => `## ${l.source} — ${l.url}\n${String(l.texte).slice(0, 3000)}`).join('\n\n'))
@@ -209,6 +235,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
     problemes: validation.problemes,
     stats: validation.stats,
     usage,
+    signaux: signaux ? { courbes: (signaux.tendances || []).filter((g) => g.statut === 'ok').length, pubsLues: (signaux.pubs || []).filter((p) => p.statut === 'ok' || p.statut === 'aucun').length, pubsDemandees: (signaux.pubs || []).length } : null,
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),
   }

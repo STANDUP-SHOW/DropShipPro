@@ -27,6 +27,7 @@ async function lancer({ maison, profil, port, serveur }) {
     env: {
       ...process.env, HOME: maison, USERPROFILE: maison, DROPSHIPPER_POSTE_BANC: '1', DROPSHIPPER_POSTE_PROFIL: profil,
       DROPSHIPPER_POSTE_DEPOT: path.join(maison, 'DropShipper-Analyses'),
+      POSTE_URL_META: `http://127.0.0.1:${p}`, POSTE_URL_TRENDS: `http://127.0.0.1:${p}`, POSTE_PAUSE_SIGNAUX_MS: '0',
       POSTE_URL_SERPER: `http://127.0.0.1:${p}/search`, POSTE_URL_CLAUDE: `http://127.0.0.1:${p}/v1/messages`,
     },
   })
@@ -120,6 +121,14 @@ async function lancer({ maison, profil, port, serveur }) {
     console.log(`ok   rayon test de bout en bout : ${rapports[0]} (${fichiers.join(', ')})`)
     assert.ok(fs.existsSync(path.join(depot, 'releves', jour, 'site-de-test', '001.txt')), 'instantané du site connecté écrit')
     console.log('ok   relevé de la source écrit dans releves/')
+    // public signals read by the REAL hidden window: ad-library text and the Trends curve caught on the network
+    const brut = JSON.parse(fs.readFileSync(path.join(depot, 'releves', jour, 'signaux', fs.readdirSync(path.join(depot, 'releves', jour, 'signaux'))[0]), 'utf8'))
+    assert.equal(brut.pubs.length, 6, JSON.stringify(brut.pubs).slice(0, 300))
+    assert.ok(brut.pubs.some((p) => p.statut === 'ok' && p.resultats === 1200 && p.plusAncienne === '2026-03-03'), 'annonces lues dans la vraie fenêtre')
+    assert.ok(brut.pubs.some((p) => p.statut === 'aucun'), 'un « aucun résultat » est lu comme tel')
+    assert.ok(brut.tendances.length === 2 && brut.tendances.every((g) => g.statut === 'ok'), JSON.stringify(brut.tendances).slice(0, 300))
+    assert.equal(brut.tendances[0].series[0].variationPct, 100, 'courbe capturée sur le réseau de la fenêtre')
+    console.log('ok   signaux publics lus par la vraie fenêtre cachée (annonces, courbe Trends capturée)')
     assert.ok(fs.readdirSync(path.join(depot, 'journaux')).length >= 1, 'journal écrit')
 
     // night auto: accepted (bench has no dialog) and persisted

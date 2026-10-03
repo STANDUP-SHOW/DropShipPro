@@ -3,7 +3,7 @@
 const http = require('node:http')
 const assert = require('node:assert/strict')
 
-const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [] }
+const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [] }
 
 function creerServeur() {
   return new Promise((resolve) => {
@@ -20,7 +20,32 @@ function creerServeur() {
           if (etat.mode === 'serper-vide') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ organic: [] })) }
           const base = etat.requetesSerper.length * 3
           const organic = Array.from({ length: 6 }, (_, i) => ({ title: `Résultat ${q} ${i}`, link: `http://127.0.0.1:${port}/p/${base + i}`, snippet: `Extrait ${q}` }))
-          res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ organic }))
+          res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ organic, peopleAlsoAsk: [{ question: `Quel ${q.slice(0, 20)} choisir ?` }, { question: 'Est-ce que ça vaut le coup ?' }], relatedSearches: [{ query: `${q.slice(0, 20)} pas cher` }] }))
+        }
+        if (req.url.startsWith('/ads/library/')) {
+          const q = new URL(req.url, 'http://x').searchParams.get('q') || ''
+          etat.pubs.push(q)
+          res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+          let texte
+          if (/BLOQUE/.test(q) || etat.mode === 'meta-bloque') texte = 'Vérifiez que vous êtes humain : captcha'
+          else if (/Modele 1$/.test(q)) texte = 'Aucun résultat pour cette recherche.'
+          else if (/Modele 2$/.test(q)) texte = 'Page qui a changé de forme, rien de lisible'
+          else texte = '~1,2 K résultats\nIdentifiant de la bibliothèque : 111\nDate de début de diffusion : 3 mars 2026\nIdentifiant de la bibliothèque : 112\nDate de début de diffusion : 12 sept. 2026'
+          return res.end('<html><head><title>Ad Library</title></head><body><pre>' + texte + '</pre></body></html>')
+        }
+        if (req.url.startsWith('/trends/explore')) {
+          const mots = (new URL(req.url, 'http://x').searchParams.get('q') || '').split(',')
+          etat.tendances.push(mots.join('|'))
+          const lignes = Array.from({ length: 52 }, (_, i) => ({ time: String(1759000000 + i * 604800), formattedAxisTime: 'sem ' + (i + 1), value: mots.map((_m, k) => (i >= 44 ? 60 + k : 30 + k)), hasData: mots.map(() => true) }))
+          const corps = ")]}',\n" + JSON.stringify({ default: { timelineData: lignes } })
+          res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+          return res.end('<html><head><title>Trends</title></head><body>Explorer<script>setTimeout(function(){fetch("/trends/api/widgetdata/multiline?x=1").then(function(r){return r.text()}).then(function(){})},300)</script></body></html>')
+        }
+        if (req.url.startsWith('/trends/api/widgetdata/multiline')) {
+          const mots = etat.tendances.length ? etat.tendances[etat.tendances.length - 1].split('|') : ['x']
+          const lignes = Array.from({ length: 52 }, (_, i) => ({ time: String(1759000000 + i * 604800), formattedAxisTime: 'sem ' + (i + 1), value: mots.map((_m, k) => (i >= 44 ? 60 + k : 30 + k)), hasData: mots.map(() => true) }))
+          res.writeHead(200, { 'content-type': 'application/json' })
+          return res.end(")]}',\n" + JSON.stringify({ default: { timelineData: lignes } }))
         }
         if (req.url === '/pose-cookie') {
           res.writeHead(200, { 'content-type': 'text/html', 'Set-Cookie': 'sid=session-de-max; Max-Age=31536000; Path=/' })
@@ -28,11 +53,11 @@ function creerServeur() {
         }
         if (req.url === '/verifie-cookie') {
           const ok = /sid=session-de-max/.test(req.headers.cookie || '')
-          res.writeHead(200, { 'content-type': 'text/html' })
+          res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
           return res.end(`<html><head><title>Vérif</title></head><body>${ok ? 'SESSION-CONSERVEE' : 'SESSION-ABSENTE'}</body></html>`)
         }
         if (req.url.startsWith('/p/')) {
-          res.writeHead(200, { 'content-type': 'text/html' })
+          res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
           return res.end(`<html><head><title>Page ${req.url}</title></head><body><script>x=1</script><p>Produit à 12,90 € ${req.url}</p><a href="/p/lien${req.url.slice(3)}">fiche</a></body></html>`)
         }
         if (req.url === '/v1/messages') {
@@ -97,6 +122,6 @@ function creerServeur() {
 }
 
 
-function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [] }) }
+function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [] }) }
 
 module.exports = { etat, creerServeur, remise }

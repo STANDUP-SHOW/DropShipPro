@@ -47,3 +47,8 @@ Un seul objet JSON, sans texte autour, sans bloc markdown. Forme exacte :
 }
 
 Les scores vont de 0 à 100. `image_url` ne vaut une adresse que si elle figure dans les preuves, sinon "Non vérifié". Chaque prompt de `creative_prompts` commence par le format visé sur la première ligne (`# TikTok 9:16 — 15 s`, `# Facebook 1:1`…) et tient en un bloc autonome. Fournis au moins 3 prompts d'images et 3 prompts de vidéos de 30 s. `sources` ne liste que des pages réellement fournies dans les preuves.
+
+
+## Signaux mesurés
+
+Si les preuves contiennent « SIGNAUX PUBLICS MESURÉS », ce sont des chiffres lus par le poste sur Google Trends (indice de recherche, variation sur 8 semaines, pic) et sur la Meta Ad Library (nombre d'annonces actives et ancienneté de la plus ancienne). Appuie `trend_score`, `demand_score`, `ads_potential_score` et `alerts.breakout_products` dessus quand ils existent, et cite-les dans l'analyse. Une ligne « illisible », « bloqué » ou « non_lu » n'est pas un zéro : n'en tire aucune conclusion et n'invente aucune valeur de remplacement. Les « QUESTIONS ET RECHERCHES ASSOCIÉES » sont de vraies formulations d'acheteurs : sers-t'en pour les angles marketing et les prompts créatifs.

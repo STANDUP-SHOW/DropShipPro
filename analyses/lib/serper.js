@@ -29,7 +29,11 @@ function creerSerper({ cle, fetchImpl = fetch, url = URL_SERPER }) {
       throw new ErreurFournisseur('Serper', (corps && corps.message) || 'réponse illisible')
     }
     const organiques = Array.isArray(corps.organic) ? corps.organic : []
-    return organiques.map((o) => ({ titre: o.title || '', url: o.link || '', extrait: o.snippet || '' })).filter((o) => /^https?:\/\//i.test(o.url))
+    const res = organiques.map((o) => ({ titre: o.title || '', url: o.link || '', extrait: o.snippet || '' })).filter((o) => /^https?:\/\//i.test(o.url))
+    // Google's own "People also ask" and "Related searches": real questions and wordings of buyers.
+    res.questions = (Array.isArray(corps.peopleAlsoAsk) ? corps.peopleAlsoAsk : []).map((x) => String(x.question || '').trim()).filter(Boolean)
+    res.associees = (Array.isArray(corps.relatedSearches) ? corps.relatedSearches : []).map((x) => String(x.query || '').trim()).filter(Boolean)
+    return res
   }
   return { chercher }
 }

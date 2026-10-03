@@ -17,6 +17,8 @@ const PAR_DEFAUT = {
   plafondPages: 25,
   plafondDeuxiemeVague: 26,
   envoiAuSite: false,
+  // Public signals read in a hidden window (Max's "go" of 03/10): Meta Ad Library, Google Trends.
+  signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2 },
   sources: [],
   secrets: {},
 }
