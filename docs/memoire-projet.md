@@ -1589,3 +1589,17 @@ cd backend && npx tsc --noEmit # vérification des types
 - **Railway** : sur 21 commits du 30/09, GitHub marquait la majorité des déploiements « failure ». Le tableau de bord (service DropShipper IA › Deployments) ne montre que des `REMOVED` et un `ACTIVE`, aucun `FAILED` : un build remplacé par le push suivant est rendu « failure » à GitHub. Remède : pousser en lots.
 - **Facebook Marketplace** (`/marketplace/create/item`, relevé connecté) : classes illisibles, champs repérés par le texte du `<label>` (Titre, Prix ; Description n'apparaît qu'après le choix de la catégorie) ; catégorie = `label[role=combobox]` → `[role=dialog][aria-label="Menu déroulant"]` à un niveau, options `[role=button]` dont le texte colle « Livraison possible » au nom ; état = `[role=listbox]` (Neuf, D’occasion - comme neuf / bon état / assez bon état) ; bouton « Suivant » grisé par `aria-disabled`. Code : `desktop/lib/adaptateurs.js`, `page.js`, `choix.js`.
 - **Outil** : le classifieur de permissions refuse de REMPLIR un formulaire sur le compte connecté de Max (« Unrequested Commit in a Connected App ») ; lire la page et ouvrir un menu passe.
+
+## Poste d'analyses (03/10/2026)
+
+Application Electron à part (`analyses/`), possédée par Max seul, pour son PC dédié
+faible (sans GPU) : remplace n8n/Docker (panne du 23/09 : Docker ne remonte pas seul,
+faux succès Serper), porte les agents en Node avec le même format de rapport
+(MarketSpy JSON + .rayon.md/.marketing.md), un navigateur privé à partitions
+persistantes (`persist:source-<id>`, Max se connecte lui-même) pour les sites de
+données, et le dépôt `C:\DropShipper-Analyses` créé par l'installateur. Le prompt
+d'origine n'est PAS dans le dépôt (il est dans `_build-workflow.cjs` chez Max) :
+celui de `analyses/prompts/rayon.md` est reconstruit depuis `importer-aimarket.cjs` ;
+Max peut le remplacer dans `<dépôt>\prompts\rayon.md`. Aucune nuit sans son accord
+(dialogue natif à chaque lancement coûteux). Installateur construit par GitHub Actions
+(`poste-analyses-windows.yml`), pré-version `poste-analyses-dernier`.

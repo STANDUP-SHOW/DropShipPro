@@ -45,6 +45,7 @@ backend/            Node + Express 4 + TypeScript + Prisma
 backend/extension/  Extension Chrome MV3 (Chrome Web Store — Max téléverse le zip)
 backend/dropshop/   DropShop IA (boutique écrite par le modèle, moteur sdk.js) — docs/dropshop.md
 backend/storefront-boutique/  Vitrine à thèmes servie à /b/<adresse>
+analyses/           Poste d'analyses (Electron, PC dédié de Max : agents Node, navigateur privé, dépôt C:\DropShipper-Analyses) — analyses/README.md
 frontend/           React + Vite + Tailwind v4
 docs/               Documentation ; docs/pub-video/ = pubs vidéo (skill pub-video)
 ```
