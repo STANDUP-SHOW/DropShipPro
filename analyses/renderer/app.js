@@ -211,6 +211,7 @@ function vueReglages() {
     h('div', { class: 'carte' },
       h('h2', {}, 'Agents'),
       f('modele', 'Modèle Claude', r.modele),
+      f('espaceAnthropic', 'Identifiant d’espace de travail Anthropic (seulement si l’API répond « not scoped to a workspace »)', r.espaceAnthropic || ''),
       f('heureNuit', 'Heure de la nuit (HH:MM)', r.heureNuit),
       f('plafondPages', 'Pages lues par rayon', r.plafondPages, 'number'),
       f('plafondDeuxiemeVague', 'Modèles cherchés en deuxième vague (plafond Serper)', r.plafondDeuxiemeVague, 'number'),
@@ -222,7 +223,7 @@ function vueReglages() {
       f('apiBase', 'Adresse de l’API', r.apiBase),
       h('p', {}, h('button', { class: 'btn principal', onclick: async () => {
         const x = await appel('reglages', {
-          modele: champs.modele.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
+          modele: champs.modele.value.trim(), espaceAnthropic: champs.espaceAnthropic.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
           plafondDeuxiemeVague: Number(champs.plafondDeuxiemeVague.value), apiBase: champs.apiBase.value.trim(), envoiAuSite: envoi.checked,
           signauxPublics: { meta: caseMeta.checked, trends: caseTrends.checked, plafondPubsParRayon: Number(champs.plafondPubs.value) },
         })

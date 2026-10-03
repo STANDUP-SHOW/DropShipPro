@@ -11,6 +11,8 @@ const PAR_DEFAUT = {
   depot: null,
   apiBase: 'https://api.drop-shipper.fr',
   modele: 'claude-sonnet-5-5',
+  // Anthropic workspace id (not a secret): only for API keys that are not scoped to a workspace.
+  espaceAnthropic: '',
   // Night run: OFF until Max switches it on himself, after a validated test.
   nuitActivee: false,
   heureNuit: '01:00',

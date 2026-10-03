@@ -62,7 +62,7 @@ const secret = (nom) => config.lireSecret(cfg, nom, safeStorage)
 // ---- providers (keys read at use time: Max may change them)
 function fournisseurs() {
   const serper = creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined })
-  const claude = creerClaude({ cle: secret('anthropic'), modele: cfg.modele, url: process.env.POSTE_URL_CLAUDE || undefined })
+  const claude = creerClaude({ cle: secret('anthropic'), modele: cfg.modele, espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
   return { serper, claude }
 }
 
@@ -245,7 +245,7 @@ function etat() {
     date,
     secrets: config.etatSecrets(cfg),
     reglages: {
-      modele: cfg.modele, heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
+      modele: cfg.modele, espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
       plafondPages: cfg.plafondPages, plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
       signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2, ...(cfg.signauxPublics || {}) },
     },
@@ -306,9 +306,11 @@ function brancher() {
   })
   h('etat', () => etat())
   h('reglages', (r) => {
-    const permis = ['modele', 'heureNuit', 'envoiAuSite', 'apiBase', 'plafondPages', 'plafondDeuxiemeVague']
+    const permis = ['modele', 'espaceAnthropic', 'heureNuit', 'envoiAuSite', 'apiBase', 'plafondPages', 'plafondDeuxiemeVague']
     for (const k of permis) if (r[k] !== undefined) cfg[k] = r[k]
     if (!/^\d{2}:\d{2}$/.test(cfg.heureNuit)) throw new Error('Heure invalide (HH:MM).')
+    cfg.espaceAnthropic = String(cfg.espaceAnthropic || '').trim()
+    if (cfg.espaceAnthropic && !/^[A-Za-z0-9_-]{6,80}$/.test(cfg.espaceAnthropic)) throw new Error('Identifiant d’espace de travail invalide (lettres, chiffres, _ et - seulement).')
     cfg.plafondPages = Math.max(5, Math.min(60, Number(cfg.plafondPages) || 25))
     cfg.plafondDeuxiemeVague = Math.max(5, Math.min(40, Number(cfg.plafondDeuxiemeVague) || 26))
     if (r.signauxPublics) {

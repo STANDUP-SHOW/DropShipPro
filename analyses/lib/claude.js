@@ -10,12 +10,18 @@ const { ErreurFournisseur } = require('./erreurs')
 
 const URL_API = 'https://api.anthropic.com/v1/messages'
 
-function creerClaude({ cle, modele, fetchImpl = fetch, url = URL_API }) {
+// `espace`: workspace id (wrkspc_…). Required by keys not scoped to a workspace: the API answers 400 without the header.
+function creerClaude({ cle, modele, espace = '', fetchImpl = fetch, url = URL_API }) {
   if (!cle) throw new ErreurFournisseur('Anthropic', 'clé absente (Réglages › Clés).')
   async function message({ systeme, utilisateur, maxTokens = 32000, effort = 'medium', flux = true }) {
     const rep = await fetchImpl(url, {
       method: 'POST',
-      headers: { 'x-api-key': cle, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      headers: {
+        'x-api-key': cle,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        ...(espace ? { 'anthropic-workspace-id': espace } : {}),
+      },
       body: JSON.stringify({
         model: modele,
         max_tokens: maxTokens,

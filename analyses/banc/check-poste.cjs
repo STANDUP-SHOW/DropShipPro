@@ -81,6 +81,15 @@ test('Serper : un refus lève avec le message du fournisseur ; site: retiré', a
   await assert.rejects(m.serper.chercher('x'), /Serper : 400 - Not enough credits/)
 })
 
+test('Claude : l’identifiant d’espace de travail part en en-tête seulement s’il est posé', async () => {
+  const vus = []
+  const spy = async (_u, o) => { vus.push(o.headers); return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: {} }) } }
+  await creerClaude({ cle: 'k', modele: 'm', fetchImpl: spy }).message({ utilisateur: 'x', maxTokens: 4, flux: false })
+  await creerClaude({ cle: 'k', modele: 'm', espace: 'wrkspc_abc123', fetchImpl: spy }).message({ utilisateur: 'x', maxTokens: 4, flux: false })
+  assert.equal(vus[0]['anthropic-workspace-id'], undefined)
+  assert.equal(vus[1]['anthropic-workspace-id'], 'wrkspc_abc123')
+})
+
 test('Claude : flux lu, effort posé, refus de crédit en clair', async (srv) => {
   const m = monde(srv); remise()
   const r = await m.claude.message({ systeme: 'tableau JSON de chaînes', utilisateur: 'x', maxTokens: 100, effort: 'low' })
