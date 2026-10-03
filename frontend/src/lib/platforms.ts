@@ -33,7 +33,7 @@ export const INTEGRATION_LABEL: Record<PlatformIntegration, string> = {
   live: 'Publication automatique',
   feed: 'Par flux produit',
   export: 'Fichier à déposer',
-  'api-ready': 'API — compte vendeur requis',
+  'api-ready': 'API — raccordement pas encore écrit',
   extension: "Via l'extension",
   none: 'Indisponible',
 }

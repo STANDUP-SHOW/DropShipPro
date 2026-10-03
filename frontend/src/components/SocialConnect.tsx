@@ -56,6 +56,20 @@ export function SocialConnect() {
   const [etat, setEtat] = useState<Etat | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  /*
+   * Le retour d'une autorisation (Meta, TikTok, Pinterest…) revient ici avec
+   * son sort dans l'adresse : sans le lire, le vendeur revenait sur l'écran
+   * sans savoir si ça avait marché.
+   */
+  const [retourAutorisation] = useState<{ ok: boolean; texte: string } | null>(() => {
+    const q = new URLSearchParams(window.location.search)
+    const sort = q.get('social') ?? q.get('meta')
+    if (!sort) return null
+    if (sort === 'ok') return { ok: true, texte: `Compte relié (${q.get('comptes') ?? '1'} compte(s) raccordé(s)).` }
+    if (sort === 'refus') return { ok: false, texte: "Autorisation refusée sur l'écran de la plateforme." }
+    if (sort === 'inconnu') return { ok: false, texte: "Autorisation expirée ou invalide : relancez « Relier »." }
+    return { ok: false, texte: q.get('message') ?? 'Raccordement impossible.' }
+  })
 
   const charger = () =>
     api
@@ -155,6 +169,26 @@ export function SocialConnect() {
           <span>Relire mes comptes</span>
         </button>
       </div>
+
+      {retourAutorisation ? (
+        <p
+          className={`mb-3 rounded-lg border px-3 py-2 text-xs ${
+            retourAutorisation.ok
+              ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+              : 'border-red-400/30 bg-red-400/10 text-red-200'
+          }`}
+        >
+          {retourAutorisation.texte}
+        </p>
+      ) : null}
+
+      {etat.enAttente?.length ? (
+        <p className="mb-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-gray-400">
+          {`Raccordement écrit, en attente des clés de l'application DropShipper : ${etat.enAttente
+            .map((p) => nomDe(p).label)
+            .join(', ')}.`}
+        </p>
+      ) : null}
 
       {erreur ? (
         <p className="mb-3 flex items-start gap-2 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-200">

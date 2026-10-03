@@ -4,17 +4,21 @@ import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import {
   comptesDe,
   creerCampagne,
+  finaliserConnexion,
   lienDeConnexion,
   listerCampagnes,
+  performances,
+  plateformesDisponibles,
   publier,
   socialConfigure,
   synchroniserComptes,
 } from '../services/socialGateway.js'
-import { REGIES, RESEAUX, SocialError } from '../services/socialTypes.js'
+import { SocialError } from '../services/socialTypes.js'
+import { lireEtat } from '../services/oauthEtat.js'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { enregistrerComptesMeta, oublierMeta } from '../services/socialMeta.js'
-import { callbackMeta, frontendUrl } from '../lib/urls.js'
+import { callbackMeta, callbackSocial, frontendUrl } from '../lib/urls.js'
 
 /**
  * Le raccordement aux réseaux sociaux et aux régies publicitaires.
@@ -38,10 +42,15 @@ function repondreErreur(res: Parameters<typeof socialRouter.get>[1] extends neve
 /** L'état du module, et ce qu'on peut y raccorder. */
 socialRouter.get('/state', async (req: AuthedRequest, res) => {
   const comptes = await comptesDe(req.userId!)
+  const dispo = plateformesDisponibles()
   res.json({
     configure: socialConfigure(),
-    reseaux: RESEAUX,
-    regies: REGIES,
+    // Seulement les plateformes dont le connecteur est écrit **et** dont notre
+    // application est déclarée : un bouton qui mène à une erreur n'est pas un
+    // bouton. Celles qui attendent leurs clés sont listées à part.
+    reseaux: dispo.filter((p) => !p.regie && p.prete).map((p) => p.platform),
+    regies: dispo.filter((p) => p.regie && p.prete).map((p) => p.platform),
+    enAttente: dispo.filter((p) => !p.prete).map((p) => p.platform),
     comptes: comptes.map((c) => ({
       id: c.id,
       externalId: c.externalId,
@@ -153,6 +162,20 @@ socialRouter.get('/campaigns', async (req: AuthedRequest, res) => {
   }
 })
 
+/** Ce que les campagnes ont produit : impressions, clics, dépense, conversions. */
+socialRouter.get('/campaigns/performances', async (req: AuthedRequest, res) => {
+  const ids = String(req.query.ids ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 50)
+  try {
+    res.json(await performances(req.userId!, ids))
+  } catch (err) {
+    repondreErreur(res, err)
+  }
+})
+
 /*
  * ---------------------------------------------------------------------------
  * Le retour d'autorisation Meta.
@@ -169,7 +192,7 @@ export const socialPublicRouter = Router()
 socialPublicRouter.get('/meta/callback', async (req, res) => {
   const code = typeof req.query.code === 'string' ? req.query.code : ''
   const state = typeof req.query.state === 'string' ? req.query.state : ''
-  const retour = `${frontendUrl()}/reglages?onglet=social`
+  const retour = `${frontendUrl()}/reseaux?vue=comptes`
 
   // Le vendeur a refusé sur l'écran de Meta : ce n'est pas une erreur.
   if (typeof req.query.error === 'string') {
@@ -177,7 +200,8 @@ socialPublicRouter.get('/meta/callback', async (req, res) => {
   }
   if (!code || !state) return res.redirect(`${retour}&meta=incomplet`)
 
-  const vendeur = await prisma.user.findUnique({ where: { id: state }, select: { id: true } })
+  const lu = lireEtat(state)
+  const vendeur = lu ? await prisma.user.findUnique({ where: { id: lu.userId }, select: { id: true } }) : null
   if (!vendeur) return res.redirect(`${retour}&meta=inconnu`)
 
   try {
@@ -187,6 +211,32 @@ socialPublicRouter.get('/meta/callback', async (req, res) => {
     console.error('retour Meta', err)
     const message = err instanceof SocialError ? err.message : 'Raccordement impossible.'
     res.redirect(`${retour}&meta=erreur&message=${encodeURIComponent(message)}`)
+  }
+})
+
+/**
+ * Le retour d'autorisation de nos autres connexions maison : Meta Ads, TikTok,
+ * TikTok Ads, Pinterest. Même garde que pour Meta : le `state` signé dit quel
+ * vendeur a lancé l'autorisation, et il expire au bout d'une heure.
+ */
+socialPublicRouter.get('/:moteur/callback', async (req, res) => {
+  const moteur = req.params.moteur
+  const retour = `${frontendUrl()}/reseaux?vue=comptes`
+  const q = Object.fromEntries(
+    Object.entries(req.query).filter((e): e is [string, string] => typeof e[1] === 'string'),
+  )
+
+  if (q.error) return res.redirect(`${retour}&social=refus&moteur=${encodeURIComponent(moteur)}`)
+  const lu = lireEtat(q.state ?? '')
+  if (!lu) return res.redirect(`${retour}&social=inconnu&moteur=${encodeURIComponent(moteur)}`)
+
+  try {
+    const n = await finaliserConnexion(moteur, lu.userId, q, callbackSocial(moteur))
+    res.redirect(`${retour}&social=ok&moteur=${encodeURIComponent(moteur)}&comptes=${n}`)
+  } catch (err) {
+    console.error(`retour ${moteur}`, err)
+    const message = err instanceof SocialError ? err.message : 'Raccordement impossible.'
+    res.redirect(`${retour}&social=erreur&moteur=${encodeURIComponent(moteur)}&message=${encodeURIComponent(message)}`)
   }
 })
 
