@@ -37,6 +37,9 @@ filigrane → publication vers des marketplaces / boutiques.
 | Base | PostgreSQL sur Railway — **la même en local et en production** |
 
 `localhost` n'est pas l'application du client : tester sur `www.drop-shipper.fr`.
+`www.drop-shipper.fr/api/*` est une **réécriture Vercel** vers Railway (`frontend/vercel.json`).
+Main = production : Railway et Vercel suivent `main`, chaque fusion redéploie (Railway : 502
+quelques minutes, prévenir Max). « Corrigé sur la branche » ≠ « corrigé en ligne » : dire lequel.
 
 ## Structure
 
@@ -75,12 +78,39 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - `imagesWatermarked` vaut `true` par défaut : tout bloc de création pose `false`.
 - Un faux serveur de banc écrit le contrat **en dur** ; un banc synthétique qui
   passe ne prouve pas la réalité (Temu, Shopify taxonomie).
-- Rapports des agents : `backend/rapports.db` (SQLite commitée), pas `MarketReport`.
 - Pas de connexion automatique aux marketplaces : le vendeur se connecte lui-même, ses identifiants ne passent jamais chez nous.
 - **Décision de Max (29/09/2026)** : un MODE AUTOMATIQUE de publication (Vinted, Leboncoin, Facebook Marketplace) est permis, par l'application desktop, dans la session du vendeur, **sur son accord explicite** (risque de suspension affiché), avec plafonds et espacement par plateforme, arrêt et alerte au premier captcha ou blocage, journal de chaque publication. **Jamais d'évasion anti-robot** : ni faux profils matériels, ni navigateur « stealth », ni résolution de captcha.
 - Node seulement (pas de Python). Pas de police hors Google Fonts.
 - JSX : ne pas juxtaposer plusieurs expressions texte dont une chaîne vide.
 - Ne pas pousser pendant qu'une création DropShop tourne (`Shop.siteJob` sans `fin`).
+
+## Rapports des 48 agents (`backend/rapports.db`)
+
+- SQLite **versionnée exprès** (voir `backend/.gitignore`) : un rapport n'est en ligne que commité
+  et déployé. Remplie par `backend/importer-aimarket.cjs` (Max, en local). Pas `MarketReport`.
+  Chiffres au 03/10/2026 : 35 rapports (18 rayon, 17 marketing), 162 produits, 15 catégories,
+  du 18 au 20/09 — relire la base, elle grossit.
+- Ouverte par `services/reportsDb.ts` en `{readonly, fileMustExist}`, chemin résolu depuis le
+  module (`fileURLToPath(import.meta.url)`), jamais depuis le cwd (`src/` sous tsx ≠ `dist/`) ;
+  sinon better-sqlite3 **crée un fichier vide** et tout échoue à la première requête (500).
+  Ouverture au premier appel, pas à l'import ; chaque 500 porte un `motif`. Ne pas défaire.
+- Routes publiques `routes/reportsPublic.ts`, montées sur `/api` **avant** le routeur privé
+  `/api/reports` (dont `/:id` avalerait tout). Elles rendent la forme déclarée dans
+  `frontend/src/lib/api.ts` (clés `analyses`, `produits`, `prompts`…), **jamais un tableau nu** :
+  les écrans font `.length`/`.filter` dessus. Toutes en `Cache-Control: no-store`.
+- Lues à cinq endroits (`SECTION_PAR_ADRESSE`, `frontend/src/lib/nouveautes.ts`) : `/fresh-news`,
+  `/analyse-marche`, `/produits-gagnants`, `/reseaux?vue=analyses`, `/reseaux?vue=prompts`
+  (plus l'onglet Analyses de chaque rayon). Une forme cassée les vide toutes d'un coup.
+- Diagnostic « toujours rien » : `/api/health` 200 = pas de crash au démarrage ;
+  `/api/reports-health` nomme la cause ; comparer l'URL www et l'URL Railway — si elles
+  divergent, c'est le cache de la bordure Vercel, pas le code.
+
+## Tester un écran protégé sans mot de passe
+
+`npm run dev` (frontend), Chromium de `/opt/pw-browsers/`, `addInitScript` posant
+`localStorage.droppost_token = 'test'`, puis `**/api/**` intercepté **en dernier** : Playwright
+essaie les routes de la dernière enregistrée à la première, et un filet plus large posé après
+répondrait du JSON aux images.
 
 ## Charte (29/09/2026)
 

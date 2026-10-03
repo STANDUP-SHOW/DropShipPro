@@ -1603,3 +1603,9 @@ celui de `analyses/prompts/rayon.md` est reconstruit depuis `importer-aimarket.c
 Max peut le remplacer dans `<dépôt>\prompts\rayon.md`. Aucune nuit sans son accord
 (dialogue natif à chaque lancement coûteux). Installateur construit par GitHub Actions
 (`poste-analyses-windows.yml`), pré-version `poste-analyses-dernier`.
+
+## 03/10/2026 — Rapports invisibles en ligne : base absente, cache Vercel, forme des réponses
+
+- **`rapports.db` ignorée par git (19/09) → base vide dans Railway.** Le fichier n'est jamais parti dans le conteneur ; better-sqlite3 a créé un fichier vide à l'ouverture, rien n'a planté au démarrage, tout a échoué à la première requête (« no such table: reports ») et un `catch` générique rendait un 500 nu. Une journée perdue. Remèdes en place : base versionnée (commentaire dans `backend/.gitignore`), `{ readonly: true, fileMustExist: true }`, chemin résolu depuis le module (`process.cwd()` diffère entre `src/` sous tsx et `dist/`), ouverture au premier appel (une erreur à l'import tomberait toute l'API), `motif` et `chemin` dans chaque 500, `/api/reports-health` pour le diagnostic.
+- **La bordure Vercel garde un 500.** `www.drop-shipper.fr/api/*` est une réécriture vers Railway ; un 500 a continué d'être servi après le rétablissement du backend. D'où `Cache-Control: no-store` sur les routes publiques des rapports. Quand Max dit « toujours rien » alors que l'API répond : comparer l'URL www et l'URL Railway avant de toucher au code ; `/api/health` à 200 écarte d'un coup le crash au démarrage, le module natif et la réécriture.
+- **Un tableau nu à la place de l'objet attendu a vidé les cinq pages de dépôt d'un coup** (les composants appellent `.length`/`.filter` sur `analyses`, `produits`, `prompts`). La forme fait foi dans `frontend/src/lib/api.ts`.
