@@ -42,6 +42,7 @@ canaux.canaux.forEach((c, i) => CANAUX_FRISE[i % 2].push({ id: c.id, label: c.la
  * pages /fonctions/<slug>/ et la version pré-rendue pour les robots.
  */
 const S = accueil.synthese
+const D = S.dropshop
 
 /**
  * Le menu court de l'accueil : des libellés d'un mot. Il envoie sur les pages
@@ -208,6 +209,37 @@ export default function Index() {
             </ul>
           </div>
           <FriseLogos logos={FOURNISSEURS_FRISE} sens="gauche" />
+        </section>
+
+        {/* DropShop IA : la boutique et sa place de marché (Max, 03/10/2026 : « manque
+            création boutique DropShop et DropShop marketplace »). Couleurs DropShop. */}
+        <section id="dropshop" className="scroll-mt-20 border-t border-white/5 bg-[#0b0714]">
+          <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-20">
+            <div className="text-center">
+              <img src="/marque/dropshop-complet.png" alt="DropShop IA" className="mx-auto h-10 w-auto md:h-14" loading="lazy" />
+              <h2 className="neon neon-5 mt-5 text-3xl font-extrabold leading-tight tracking-tight md:text-5xl">{D.titre}</h2>
+            </div>
+            <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-2 md:gap-6">
+              <div className="flex flex-col rounded-3xl border-2 border-[#0b6b33] bg-[#0b6b33]/15 p-6 md:p-8">
+                <h3 className="text-2xl font-extrabold md:text-3xl">{D.boutique.titre}</h3>
+                <p className="mt-2 inline-block self-start rounded-full bg-[#f28a4b] px-3 py-1 text-sm font-bold text-black">{D.boutique.prix}</p>
+                <p className="texte-neon mt-4 flex-1 text-base md:text-lg">{D.boutique.texte}</p>
+                <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+                  <OffreLien href={D.boutique.href} label={D.boutique.bouton} />
+                  <PlusInfos slug={D.slug} />
+                </div>
+              </div>
+              <div className="flex flex-col rounded-3xl border-2 border-[#f28a4b]/70 bg-[#f28a4b]/10 p-6 md:p-8">
+                <h3 className="flex items-center gap-3 text-2xl font-extrabold md:text-3xl">
+                  {D.market.titre}
+                  <span className="rounded-full border border-[#f28a4b] px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[#f28a4b]">{D.market.badge}</span>
+                </h3>
+                <p className="texte-neon mt-4 text-base md:text-lg">{D.market.texte}</p>
+                <p className="texte-neon mt-3 flex-1 text-base md:text-lg">{D.extensions}</p>
+                <PlusInfos slug={D.slug} />
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Mode auto et tarif : côte à côte sur PC, l'un sous l'autre sur mobile. */}
