@@ -13,7 +13,9 @@ import { reserveCredits, refundCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
-import { estMirakl, normaliserBaseUrl } from '../services/mirakl.js'
+import { estMirakl, normaliserBaseUrl, verifierCompteMirakl } from '../services/mirakl.js'
+import { verifierCompteKaufland } from '../services/kaufland.js'
+import { verifierCompteEbay } from '../services/ebay.js'
 import { BoutiqueRefus } from '../services/boutiqueTiers.js'
 import { readWooCredentials, verifierCompteWoo } from '../services/woocommerce.js'
 import { readPrestaCredentials, verifierComptePresta } from '../services/prestashop.js'
@@ -514,6 +516,12 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
       })
     }
     data = trio === 3 ? { accessToken, refreshToken, clientId, clientSecret } : { accessToken }
+    // Tried now, not at the first broadcast: a wrong token must never read « Connecté ».
+    try {
+      await verifierCompteEbay(data as { accessToken: string })
+    } catch (err) {
+      return res.status(400).json({ error: err instanceof Error ? err.message : "eBay n'a pas accepté ce jeton." })
+    }
   }
 
   /*
@@ -532,6 +540,11 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
     }
     const storefront = (data.storefront ?? 'fr').trim().toLowerCase()
     data = { clientKey, secretKey, storefront }
+    try {
+      await verifierCompteKaufland({ clientKey, secretKey, storefront })
+    } catch (err) {
+      return res.status(400).json({ error: err instanceof Error ? err.message : "Kaufland n'a pas accepté ces clés." })
+    }
   }
 
   /*
@@ -581,6 +594,11 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
       return res.status(400).json({ error: 'Donnez la clé API lue dans Mon compte › Paramètres › API.' })
     }
     data = data.shopId?.trim() ? { baseUrl, apiKey, shopId: data.shopId.trim() } : { baseUrl, apiKey }
+    try {
+      await verifierCompteMirakl(data as { baseUrl: string; apiKey: string; shopId?: string })
+    } catch (err) {
+      return res.status(400).json({ error: err instanceof Error ? err.message : "L'opérateur Mirakl n'a pas accepté cette clé." })
+    }
   }
 
   const cred = await prisma.platformCredential.upsert({
