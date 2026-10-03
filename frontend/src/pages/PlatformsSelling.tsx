@@ -17,7 +17,7 @@ const EXPLICATION: Record<string, string> = {
   live: "Vos annonces partent toutes seules, dès que vous cliquez sur Publier. Rien à faire de plus.",
   feed: "Nous produisons un flux que la plateforme vient lire toute seule, à intervalle régulier. Vous branchez l'adresse du flux une fois chez elle.",
   'api-ready':
-    "Le raccordement est écrit de notre côté, mais la plateforme exige un compte vendeur validé par ses équipes avant de délivrer les accès. La demande se fait chez elle, à votre nom.",
+    "La plateforme a une API, mais notre raccordement n'est pas encore écrit : la publication y reste en attente. La plateforme exige aussi un compte vendeur validé par ses équipes.",
   export:
     "Ce canal n'a ni API d'annonces ni flux à relire : il ingère une feuille de calcul. Nous la préparons à son format exact, avec vos annonces, vos photos et vos prix — vous n'avez qu'à la déposer chez lui.",
   extension:

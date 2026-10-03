@@ -205,6 +205,16 @@ export async function avecRenouvellement<T>(creds: EbayCredentials, action: (c: 
 }
 
 /**
+ * Proves a pasted token works before the screen says « Connecté ».
+ *
+ * A read of the seller's privileges costs nothing and needs the sell.account
+ * scope the broadcast needs anyway; renewal is tried when the trio is there.
+ */
+export async function verifierCompteEbay(creds: EbayCredentials): Promise<void> {
+  await avecRenouvellement(creds, (c) => appeler(c, 'GET', '/sell/account/v1/privilege'))
+}
+
+/**
  * La catégorie eBay, demandée à leur taxonomie.
  *
  * Deux appels au plus : l'identifiant de l'arbre français (mis en cache — il

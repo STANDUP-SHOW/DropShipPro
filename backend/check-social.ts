@@ -19,6 +19,8 @@ import http from 'http'
 const PORT = 8797
 process.env.ZERNIO_API_URL = `http://127.0.0.1:${PORT}/v1`
 process.env.ZERNIO_API_KEY = 'cle-de-banc'
+// Zernio n'est plus le moteur par défaut (03/10/2026) : ce banc le choisit explicitement.
+process.env.SOCIAL_PROVIDER = 'zernio'
 
 const { prisma } = await import('./src/lib/prisma.js')
 const passerelle = await import('./src/services/socialGateway.js')

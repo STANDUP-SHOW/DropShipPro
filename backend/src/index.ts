@@ -38,6 +38,7 @@ import { selfCheck } from './services/selfCheck.js'
 
 import { ticketsRouter } from './routes/tickets.js'
 import { socialRouter, socialPublicRouter } from './routes/social.js'
+import { marchesRouter, marchesPublicRouter } from './routes/marches.js'
 import { semerCategories } from './services/categories.js'
 import { tourneeEnquetes } from './services/enqueteFournisseurs.js'
 import { tourneeAutoMode } from './services/autoAnalyste.js'
@@ -156,6 +157,9 @@ app.use('/api/visuals', visualsRouter)
 app.use('/api/public/social', express.urlencoded({ extended: false }), socialPublicRouter)
 app.use('/api/tickets', ticketsRouter)
 app.use('/api/social', socialRouter)
+// TikTok Shop, Amazon, Allegro : relier le compte vendeur, et le retour d'autorisation.
+app.use('/api/marches', marchesRouter)
+app.use('/api/public/marches', marchesPublicRouter)
 app.use('/api/beta', betaRouter)
 app.use('/api/public', publicRouter)
 // Les vitrines vivent hors de /api : c est une page, pas une ressource d API.
