@@ -41,14 +41,14 @@ export function ExportFaire() {
    * cookie de session — un `<a href>` arriverait sans jeton et recevrait un 401.
    */
   async function telecharger() {
-    const r = await fetch(`${apiRoot}/api/products/meta/faire.csv?remiseGros=${remise / 100}`, {
+    const r = await fetch(`${apiRoot}/api/products/meta/faire.xlsx?remiseGros=${remise / 100}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
     if (!r.ok) return
     const url = URL.createObjectURL(await r.blob())
     const a = document.createElement('a')
     a.href = url
-    a.download = `faire-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `faire-${new Date().toISOString().slice(0, 10)}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -109,7 +109,7 @@ export function ExportFaire() {
         className="btn-gradient mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
       >
         <FileDown size={14} />
-        <span>Télécharger le fichier</span>
+        <span>Télécharger le fichier Faire (.xlsx)</span>
       </button>
 
       <p className="mt-2 text-[11px] text-gray-500">
