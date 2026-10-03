@@ -31,7 +31,7 @@ const ATTENDU_DEBUT = [
   'Nom du produit',
   'Description',
   'Images du produit',
-  'Prix revendeur : (EUR)',
+  'Prix revendeur\u00a0: (EUR)',
   'Prix de vente (EUR)',
 ]
 const ATTENDU_FIN = ['Précommande', "Date d'expédition", "Date d'expédition finale", 'Date limite de commande']
@@ -48,9 +48,9 @@ verifier(
   `lu : ${COLONNES_FAIRE.slice(-4).join(' | ')}`,
 )
 verifier(
-  'les deux-points et l’espace de « Prix revendeur : (EUR) » sont conservés',
-  COLONNES_FAIRE[3] === 'Prix revendeur : (EUR)',
-  "Faire lit l'intitulé autant que la position : le « nettoyer » casse la correspondance.",
+  'les deux-points et l’espace INSÉCABLE de « Prix revendeur : (EUR) » sont conservés',
+  COLONNES_FAIRE[3] === 'Prix revendeur\u00a0: (EUR)',
+  "relu dans le modèle du 03/10/2026 : U+00A0 avant les deux-points. Une espace ordinaire ne correspond pas.",
 )
 verifier(
   'aucune colonne en double',
@@ -96,16 +96,16 @@ verifier(
   `lu : « ${col('Description', bon.valeurs)} »`,
 )
 verifier(
-  'les photos sont séparées par des virgules',
-  col('Images du produit', bon.valeurs) === 'https://exemple.test/a.jpg, https://exemple.test/b.jpg',
+  'les photos sont séparées par une espace, comme le dit le modèle',
+  col('Images du produit', bon.valeurs) === 'https://exemple.test/a.jpg https://exemple.test/b.jpg',
 )
 verifier('le prix de vente est repris tel quel', col('Prix de vente (EUR)', bon.valeurs) === '40.00')
 verifier(
   'le prix de gros vaut la moitié du prix de vente par défaut',
-  col('Prix revendeur : (EUR)', bon.valeurs) === '20.00',
+  col('Prix revendeur\u00a0: (EUR)', bon.valeurs) === '20.00',
   "la convention du gros, et elle doit rester un défaut affiché, pas un calcul caché.",
 )
-verifier('la méthode de vente est renseignée', col('Méthode de vente', bon.valeurs) === 'Par unité')
+verifier('la méthode de vente est renseignée', col('Méthode de vente', bon.valeurs) === 'Par article')
 verifier('la quantité minimale est renseignée', col('Quantité minimale par commande', bon.valeurs) === '1')
 verifier('l’UGS reprend la référence fournisseur', col('UGS', bon.valeurs) === 'REF-1')
 verifier(
