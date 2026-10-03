@@ -95,6 +95,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
   module (`fileURLToPath(import.meta.url)`), jamais depuis le cwd (`src/` sous tsx ≠ `dist/`) ;
   sinon better-sqlite3 **crée un fichier vide** et tout échoue à la première requête (500).
   Ouverture au premier appel, pas à l'import ; chaque 500 porte un `motif`. Ne pas défaire.
+- Rapports du Poste d'analyses : `POST /api/agent/rapports-poste` -> `storage/rapports/rapports-poste.db` (volume), lu AVEC rapports.db par `ReportQuery` (vues TEMP). Pas `/market-reports` (table non lue).
 - Routes publiques `routes/reportsPublic.ts`, montées sur `/api` **avant** le routeur privé
   `/api/reports` (dont `/:id` avalerait tout). Elles rendent la forme déclarée dans
   `frontend/src/lib/api.ts` (clés `analyses`, `produits`, `prompts`…), **jamais un tableau nu** :

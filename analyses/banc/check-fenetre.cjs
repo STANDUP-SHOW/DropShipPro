@@ -46,7 +46,7 @@ async function lancer({ maison, profil, port, serveur }) {
   await new Promise((ok, ko) => ((ws.onopen = ok), (ws.onerror = ko)))
   let n = 0
   const attente = new Map()
-  ws.onmessage = (m) => { const j = JSON.parse(m.data); if (j.id && attente.has(j.id)) attente.get(j.id)(j.result) }
+  ws.onmessage = (m) => { const j = JSON.parse(m.data); if (j.id && attente.has(j.id)) attente.get(j.id)(j.result || { exceptionDetails: j.error }) }
   const evaluer = (expression) => new Promise((ok) => {
     const id = ++n
     attente.set(id, (r) => ok(r.exceptionDetails ? { __erreur: JSON.stringify(r.exceptionDetails).slice(0, 400) } : r.result.value))
@@ -93,6 +93,13 @@ async function lancer({ maison, profil, port, serveur }) {
     const cfgTexte = fs.readFileSync(path.join(profil, 'config.json'), 'utf8')
     console.log('ok   clés posées', cfgTexte.includes('secrete') ? '(en clair : coffre indisponible sur ce poste de test)' : '(chiffrées)')
 
+    // the site (fake): the agent key is placed by Max, the address points at the bench's server
+    const baseSite = `http://127.0.0.1:${port}`
+    await a.appel('reglages', { apiBase: baseSite })
+    const e1b = (await a.appel('secret', { nom: 'agent', valeur: 'cle-agent-secrete' })).valeur
+    assert.equal(e1b.secrets.agent, true); assert.equal(e1b.reglages.envoiAuSite, true, 'envoi au site activé par défaut')
+    assert.equal(e1b.envoi.enAttente, 0)
+
     // credits, then one rayon test
     const cr = (await a.appel('credits')).valeur
     assert.ok(cr.ok && cr.serper.ok && cr.claude.ok)
@@ -117,7 +124,10 @@ async function lancer({ maison, profil, port, serveur }) {
     const rapports = fs.readdirSync(path.join(depot, 'rapports', jour))
     assert.equal(rapports.length, 1)
     const fichiers = fs.readdirSync(path.join(depot, 'rapports', jour, rapports[0]))
-    assert.equal(fichiers.length, 3, fichiers.join(','))
+    assert.equal(fichiers.filter((f) => !f.endsWith('.envoi.json')).length, 3, fichiers.join(','))
+    assert.ok(fichiers.some((f) => f.endsWith('.envoi.json')), 'preuve d’envoi au site écrite à côté du rapport')
+    assert.equal(faux.envoyes.length, 1, 'le rapport validé est parti seul vers le site')
+    assert.equal(faux.envoyes[0].auth, 'Bearer cle-agent-secrete'); assert.equal(faux.envoyes[0].produits, 20)
     console.log(`ok   rayon test de bout en bout : ${rapports[0]} (${fichiers.join(', ')})`)
     assert.ok(fs.existsSync(path.join(depot, 'releves', jour, 'site-de-test', '001.txt')), 'instantané du site connecté écrit')
     console.log('ok   relevé de la source écrit dans releves/')
@@ -151,11 +161,30 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(bilanNuit.attendus, 2); assert.equal(bilanNuit.ok, 2, JSON.stringify(bilanNuit))
     assert.deepEqual(fs.readdirSync(path.join(depot, 'rapports', jour)).sort(), [tous[0].categorie, ...deux].sort(), 'seuls les rayons choisis (plus le rayon test) ont un rapport')
     console.log('ok   nuit sur 2 rayons choisis : 2 rapports, les 21 autres intacts')
+    assert.equal(faux.envoyes.length, 3, 'chaque rapport de la nuit est parti vers le site')
+    console.log('ok   envoi au site : 3 rapports validés envoyés seuls, rayon et marketing d’un coup')
+
+    // a failed sending leaves the report waiting; the button sends it, a refusal is told in clear
+    const dossierEnvoi = path.join(depot, 'rapports', jour, deux[0])
+    const preuve = fs.readdirSync(dossierEnvoi).find((f) => f.endsWith('.envoi.json'))
+    fs.unlinkSync(path.join(dossierEnvoi, preuve))
+    assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 1)
+    faux.mode = 'site-refuse'
+    const refus = (await a.appel('envoyerAuSite')).valeur
+    assert.equal(refus.envoyes, 0); assert.match(refus.echecs[0].message, /\(403\).*administrateur/)
+    assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 1, 'refusé : le rapport reste en attente')
+    faux.mode = 'bon'
+    const renvoi = (await a.appel('envoyerAuSite')).valeur
+    assert.equal(renvoi.envoyes, 1); assert.equal(faux.envoyes.length, 4)
+    assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 0)
+    console.log('ok   renvoi : refus du site dit en clair, rapport conservé, puis envoyé')
     // the screen: a checkbox per rayon (2 ticked) and the Serper readings in Réglages
     await a.evaluer(`document.querySelectorAll('#onglets button')[1].click()`)
     await pause(300)
     const coches = JSON.parse(await a.evaluer(`JSON.stringify({ cases: document.querySelectorAll('table input[type=checkbox]').length, cochees: document.querySelectorAll('table input[type=checkbox]:checked').length })`))
     assert.deepEqual(coches, { cases: 24, cochees: 2 })
+    const enLigne = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('table .pastille')].filter((p) => p.textContent === 'en ligne').length)`))
+    assert.equal(enLigne, 3, 'la colonne « Site » montre les 3 rapports en ligne')
     await a.evaluer(`document.querySelectorAll('#onglets button')[3].click()`)
     await pause(300)
     const texteReglages = await a.evaluer(`document.body.textContent`)

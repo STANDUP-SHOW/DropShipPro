@@ -3,7 +3,7 @@
 const http = require('node:http')
 const assert = require('node:assert/strict')
 
-const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [] }
+const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [] }
 
 function creerServeur() {
   return new Promise((resolve) => {
@@ -21,6 +21,17 @@ function creerServeur() {
           const base = etat.requetesSerper.length * 3
           const organic = Array.from({ length: 6 }, (_, i) => ({ title: `Résultat ${q} ${i}`, link: `http://127.0.0.1:${port}/p/${base + i}`, snippet: `Extrait ${q}` }))
           res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ organic, peopleAlsoAsk: [{ question: `Quel ${q.slice(0, 20)} choisir ?` }, { question: 'Est-ce que ça vaut le coup ?' }], relatedSearches: [{ query: `${q.slice(0, 20)} pas cher` }] }))
+        }
+        if (req.url === '/api/agent/rapports-poste' && req.method === 'POST') {
+          const auth = req.headers.authorization || ''
+          if (etat.mode === 'site-refuse' || auth === 'Bearer ') { res.writeHead(403, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'Accès réservé.' })) }
+          if (etat.mode === 'site-hors-ligne') { res.writeHead(502, { 'content-type': 'text/plain' }); return res.end('Bad gateway') }
+          let rapport = null
+          try { rapport = JSON.parse(corps).rapport } catch { /* refused below */ }
+          if (!rapport || !rapport.study || !rapport.study.category_id || !Array.isArray(rapport.products) || !rapport.products.length) { res.writeHead(422, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'Aucun produit dans le rapport.' })) }
+          etat.envoyes.push({ auth, study: rapport.study, produits: rapport.products.length, aPoste: Object.prototype.hasOwnProperty.call(rapport, 'poste') })
+          res.writeHead(201, { 'content-type': 'application/json' })
+          return res.end(JSON.stringify({ ok: true, idRayon: `rayon-${rapport.study.date}-${rapport.study.category_id}-${rapport.study.theme_slug}`, idMkt: `marketing-${rapport.study.date}-${rapport.study.category_id}-${rapport.study.theme_slug}`, produits: rapport.products.length }))
         }
         if (['/shopping', '/autocomplete', '/images'].includes(req.url)) {
           const q = JSON.parse(corps).q
@@ -137,6 +148,6 @@ function creerServeur() {
 }
 
 
-function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [] }) }
+function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [] }) }
 
 module.exports = { etat, creerServeur, remise }

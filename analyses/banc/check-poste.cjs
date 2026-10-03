@@ -469,6 +469,51 @@ test('nuit : seuls les rayons choisis tournent (deux sur 24), liste vide = rien'
   assert.equal(bilan.attendus, 2); assert.equal(bilan.ok, 2); assert.deepEqual(faits, deux.map((r) => r.categorie))
 })
 
+test('envoi au site : le rapport complet part une fois, rayon et marketing d’un coup, et se renvoie si le Poste le réécrit', async (srv) => {
+  const m = monde(srv); remise()
+  const base = `http://127.0.0.1:${srv.address().port}`
+  const envoyer = (rapport) => depot.envoyerRapportAuSite({ apiBase: base, cle: 'cle-agent', rapport })
+  const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer } })
+  assert.equal(res.statut, 'ok')
+  assert.equal(etat.envoyes.length, 1)
+  assert.equal(etat.envoyes[0].study.category_id, 'telephonie', 'l’identifiant exact de la catégorie accompagne le rapport')
+  assert.equal(etat.envoyes[0].produits, 20); assert.equal(etat.envoyes[0].aPoste, false, 'le bloc interne « poste » reste sur ce PC')
+  assert.equal(etat.envoyes[0].auth, 'Bearer cle-agent')
+  assert.ok(depot.lireEnvoi(m.racine, '2026-10-03', 'telephonie', 'smartphones'), 'preuve d’envoi écrite à côté du rapport')
+  assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0, 'rien en attente')
+  // a re-run replaces the report: the old proof no longer covers it
+  remise()
+  await executerRayon({ rayon: m.rayon, deps: m.deps, options: {} })
+  assert.equal(depot.lireEnvoi(m.racine, '2026-10-03', 'telephonie', 'smartphones'), null)
+  const attente = depot.rapportsAEnvoyer(m.racine)
+  assert.equal(attente.length, 1); assert.equal(attente[0].categorie, 'telephonie')
+  await envoyer(attente[0].rapport)
+  depot.marquerEnvoye(m.racine, attente[0].date, attente[0].categorie, attente[0].theme, { rapportEcritLe: attente[0].rapport.poste.ecritLe, reponse: null })
+  assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0)
+  // a report « à revoir » never goes
+  remise(); etat.mode = 'url-inventee'
+  await executerRayon({ rayon: { ...m.rayon, theme: 'coques-protection', libelleTheme: 'Coques' }, deps: m.deps, options: {} })
+  assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0, 'un rapport à revoir n’est jamais proposé à l’envoi')
+})
+
+test('envoi au site : le refus du site est dit en clair, une panne ne perd rien', async (srv) => {
+  const m = monde(srv); remise()
+  const base = `http://127.0.0.1:${srv.address().port}`
+  const envoyer = (rapport) => depot.envoyerRapportAuSite({ apiBase: base, cle: 'cle-agent', rapport })
+  etat.mode = 'site-refuse'
+  const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer } })
+  assert.equal(res.statut, 'ok', 'le rapport est écrit même si le site refuse')
+  assert.equal(depot.lireEnvoi(m.racine, '2026-10-03', 'telephonie', 'smartphones'), null, 'refusé : pas marqué envoyé')
+  assert.equal(depot.rapportsAEnvoyer(m.racine).length, 1, 'il reste en attente pour le renvoi')
+  await assert.rejects(envoyer(depot.rapportsAEnvoyer(m.racine)[0].rapport), /refusé le rapport \(403\).*Accès réservé.*administrateur/)
+  etat.mode = 'site-hors-ligne'
+  await assert.rejects(envoyer(depot.rapportsAEnvoyer(m.racine)[0].rapport), /\(502\)/)
+  etat.mode = 'bon'
+  await assert.rejects(envoyer({ study: { date: '2026-10-03' }, products: [] }), /\(422\).*Aucun produit/)
+  await envoyer(depot.rapportsAEnvoyer(m.racine)[0].rapport)
+  assert.equal(etat.envoyes.length, 1)
+})
+
 test('validation : une URL absente des pages lues n’est jamais conservée', () => {
   const r = { study: {}, executive_summary: {}, market: {}, creative_prompts: { image_ads: ['a'], short_videos_30s: ['b'] }, products: [{ supplier_url: 'https://vu.fr/a/', target_selling_price: 30, net_margin_estimated: 10 }, { supplier_url: 'https://pasvu.fr/b', target_selling_price: 30 }] }
   const v = valider(r, new Set(['https://vu.fr/a']), { attendus: 2 })

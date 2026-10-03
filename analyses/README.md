@@ -92,6 +92,28 @@ Onglet « Rapports du jour » : une case par rayon. Sans choix, les 24 tournent 
 tourne. Le choix est gardé d'une ouverture à l'autre, et un rayon déjà validé aujourd'hui est
 sauté. Boutons : tout cocher, tout décocher, cocher ceux pas encore validés.
 
+## Envoi au site : comment un rapport arrive en ligne (03/10/2026)
+
+Le site (drop-shipper.fr) ne lit PAS le dossier `C:\DropShipper-Analyses` : il lit `rapports.db`
+(livrée avec le code) **plus** une deuxième base, `rapports-poste.db`, tenue sur son disque durable
+(volume `/app/storage`). Le Poste y écrit par `POST /api/agent/rapports-poste` (clé d'agent du compte
+administrateur, Réglages › Clés) :
+
+- **un envoi = un rapport complet** (le JSON MarketSpy) ; le site en fait lui-même le rapport RAYON
+  (analyse + produits → Analyses, Produits gagnants) et le rapport MARKETING (prompts, tendances →
+  Prompts, Fresh news), chacun à sa place, avec le même code que `importer-aimarket.cjs` ;
+- **seuls les rapports validés partent** (20 produits, 20 URL distinctes, marges en euros). Un rapport
+  « à revoir » reste sur ce PC et n'est jamais proposé à l'envoi ;
+- il part **tout seul** dès que le rayon est validé ; un envoi refusé ou tombé pendant un
+  redémarrage du site reste « en attente » (colonne Site, bouton « Envoyer… ») et repart à la fin de
+  la nuit. La preuve d'envoi est un fichier `<thème>.envoi.json` à côté du rapport, liée à CETTE
+  version : un rayon refait le même jour repart et remplace l'ancien sur le site ;
+- l'identifiant exact de la catégorie (`study.category_id`) accompagne le rapport : le nom ne le
+  redonne pas pour 14 catégories sur 24 (« TV, son et photo » ≠ `tv-son-photo`).
+
+Rien n'est en ligne tant que cette version du **site** n'est pas déployée (fusion de la PR sur `main`).
+Avant, le Poste reçoit un refus 404 et garde les rapports en attente.
+
 ## Limites connues, à lire
 
 - **Le prompt est reconstruit**, pas copié : le prompt d'origine vit dans
@@ -102,7 +124,7 @@ sauté. Boutons : tout cocher, tout décocher, cocher ceux pas encore validés.
   vrai rapport n'est constatée qu'au premier rayon test.
 - **Publication sur le site** : la production lit `backend/rapports.db`, alimentée par
   `importer-aimarket.cjs` puis commitée (comme dans `RUNBOOK-relance.md`). Le poste
-  écrit le JSON prêt à importer ; l'envoi automatique (`POST /api/agent/market-reports`,
+  écrit le JSON prêt à importer ; l'ancien envoi (`POST /api/agent/market-reports`, écrit dans une table que plus aucun écran ne lit,
   Réglages › « Envoyer… » + clé d'agent) existe mais la production ne lit pas cette voie.
 - Les sites de données sont lus par un navigateur normal, à intervalle fixe, sans aucune
   évasion anti-robot ; le premier captcha ou blocage arrête la source. Aucune extraction

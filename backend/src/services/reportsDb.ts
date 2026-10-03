@@ -6,7 +6,9 @@
 import Database from 'better-sqlite3'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import fs from 'node:fs'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
+import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
 
 /**
  * Where rapports.db lives, resolved from THIS module, never from the cwd.
@@ -31,6 +33,64 @@ interface QueryOptions {
   type?: 'marketing' | 'rayon'
 }
 
+const TABLES_RATTACHEES: Array<{ table: string; cle: string; parent: string }> = [
+  { table: 'reports', cle: 'id', parent: 'reports' },
+  { table: 'rayon_reports', cle: 'report_id', parent: 'reports' },
+  { table: 'marketing_reports', cle: 'report_id', parent: 'reports' },
+  { table: 'products', cle: 'rayon_report_id', parent: 'rayon_reports' },
+]
+
+/**
+ * Lit rapports.db ET la base des rapports du Poste comme une seule base.
+ *
+ * Les quatre tables sont recouvertes par des vues TEMP du même nom : SQLite
+ * cherche une table non qualifiée d'abord dans `temp`, donc les ~30 requêtes de
+ * cette classe n'ont pas à changer. Un rapport du Poste remplace celui de
+ * rapports.db pour le même jour, la même catégorie et le même thème (même
+ * identifiant) ; ses lignes filles aussi. Les colonnes sont celles de
+ * rapports.db (NULL quand la base du Poste n'en a pas) : une migration de l'une
+ * ne casse pas la lecture de l'autre.
+ *
+ * Toute panne ici (disque non écrivable, base absente) laisse rapports.db seul
+ * — les écrans montrent alors ce qui est commité, jamais une erreur 500.
+ */
+function rattacherRapportsDuPoste(db: Database.Database, chemin: string): void {
+  let rattachee = false
+  try {
+    if (!fs.existsSync(chemin) && !assurerBasePoste(chemin)) return
+    db.prepare('ATTACH DATABASE ? AS poste').run(chemin)
+    rattachee = true
+    const colonnes = (schema: 'main' | 'poste', table: string) =>
+      (db.prepare(`PRAGMA ${schema}.table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name)
+    // Toutes les vues ou aucune : des rapports lus sans leurs produits seraient pires que rapports.db seul.
+    const vues = TABLES_RATTACHEES.map(({ table, cle, parent }) => {
+      const dePoste = new Set(colonnes('poste', table))
+      const principales = colonnes('main', table)
+      if (!principales.length || !dePoste.size) throw new Error(`table ${table} illisible`)
+      const liste = (base: 'main' | 'poste') => principales.map((c) => (base === 'poste' && !dePoste.has(c) ? `NULL AS ${c}` : c)).join(', ')
+      // `products` est triée par rowid (l'ordre d'insertion, donc l'ordre des 20 lignes d'un rapport) : une vue n'en a
+      // pas, on la lui redonne ; les lignes du Poste viennent après celles de rapports.db.
+      const ordre = table === 'products' ? ', rowid AS rowid' : ''
+      const ordrePoste = table === 'products' ? ', 1000000000 + rowid AS rowid' : ''
+      return `CREATE TEMP VIEW ${table} AS
+        SELECT ${liste('main')}${ordre} FROM main.${table} WHERE ${cle} NOT IN (SELECT id FROM poste.${parent})
+        UNION ALL
+        SELECT ${liste('poste')}${ordrePoste} FROM poste.${table}`
+    })
+    db.exec('BEGIN')
+    try {
+      for (const v of vues) db.exec(v)
+      db.exec('COMMIT')
+    } catch (err) {
+      try { db.exec('ROLLBACK') } catch { /* nothing to undo */ }
+      throw err
+    }
+  } catch (err) {
+    if (rattachee) { try { db.exec('DETACH DATABASE poste') } catch { /* already gone */ } }
+    console.error('[rapports-poste] non rattachée, rapports.db seul :', err instanceof Error ? err.message : err)
+  }
+}
+
 export class ReportQuery {
   private db: Database.Database
 
@@ -38,8 +98,14 @@ export class ReportQuery {
    * `fileMustExist` is the point: a missing base must FAIL, never be invented.
    * Read-only because every method here is a SELECT — nothing writes.
    */
-  constructor(dbPath: string = CHEMIN_RAPPORTS_DB) {
+  constructor(
+    dbPath: string = CHEMIN_RAPPORTS_DB,
+    // La base des rapports envoyés par le Poste d'analyses ; seulement avec la base par défaut
+    // (un banc qui passe sa propre base n'est pas mêlé à celle de la production).
+    cheminPoste: string | null = dbPath === CHEMIN_RAPPORTS_DB ? CHEMIN_RAPPORTS_POSTE_DB : null,
+  ) {
     this.db = new Database(dbPath, { readonly: true, fileMustExist: true })
+    if (cheminPoste) rattacherRapportsDuPoste(this.db, cheminPoste)
   }
 
   // Get all reports

@@ -76,7 +76,7 @@ async function enParallele(items, n, fn) {
  * @param {object} p
  * @param {{categorie,libelleCategorie,theme,libelleTheme,date}} p.rayon
  * @param {object} p.deps  { serper, claude, pages(url)->page, releves()->[{source,url,texte}], journal, racine }
- * @param {object} p.options { plafondPages, plafondDeuxiemeVague, fichierPrompt, envoyer(markdown) }
+ * @param {object} p.options { plafondPages, plafondDeuxiemeVague, fichierPrompt, envoyer(rapport) }
  */
 async function executerRayon({ rayon, deps, options = {} }) {
   const { serper, claude, pages, releves, journal, racine } = deps
@@ -248,7 +248,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
   }
 
   // ---- identity forced from the rotation, never trusted from the model
-  rapport.study = { ...(rapport.study || {}), date: rayon.date, category_name: rayon.libelleCategorie, theme_slug: rayon.theme, theme_name: rayon.libelleTheme }
+  rapport.study = { ...(rapport.study || {}), date: rayon.date, category_id: rayon.categorie, category_name: rayon.libelleCategorie, theme_slug: rayon.theme, theme_name: rayon.libelleTheme }
   Object.defineProperty(rapport, '__categorie', { value: rayon.categorie, enumerable: false })
   Object.defineProperty(rapport, '__theme', { value: rayon.theme, enumerable: false })
 
@@ -275,8 +275,9 @@ async function executerRayon({ rayon, deps, options = {} }) {
 
   if (validation.ok && options.envoyer) {
     try {
-      await options.envoyer(rayonMd(rapport))
-      journal.info(`${etiquette} : envoyé au site`)
+      const reponse = await options.envoyer(rapport)
+      depot.marquerEnvoye(racine, rayon.date, rayon.categorie, rayon.theme, { rapportEcritLe: rapport.poste.ecritLe, reponse: reponse || null })
+      journal.info(`${etiquette} : envoyé au site (rayon et marketing)`)
     } catch (err) {
       journal.erreur(`${etiquette} : envoi au site refusé`, { raison: String(err.message || err) })
     }

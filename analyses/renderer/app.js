@@ -68,6 +68,7 @@ function vueAccueil() {
         h('h2', {}, `Aujourd’hui (${e.date})`),
         h('div', {}, `${faits} / ${e.rayonsDuJour.length} rapports validés`),
         h('div', { class: 'barre-prog' }, h('div', { style: `width:${Math.round((faits / e.rayonsDuJour.length) * 100)}%` })),
+        h('div', {}, `Envoyés au site : ${e.rapports.filter((x) => x.envoyeLe).length} / ${e.rapports.filter((x) => x.statut === 'ok').length} validés `, pastille(!e.envoi.actif ? 'coupé' : !e.envoi.cle ? 'clé absente' : e.envoi.enAttente ? `${e.envoi.enAttente} en attente` : 'à jour', e.envoi.actif && e.envoi.cle && !e.envoi.enAttente ? 'bon' : 'alerte')),
         h('div', {}, `Rayons de la nuit : ${choisis} sur ${total} `, pastille(choisis === total ? 'tous' : choisis ? 'sélection' : 'aucun', choisis === total ? '' : choisis ? 'alerte' : 'mauvais')),
         h('p', { class: 'doux petit' }, e.reglages.nuitActivee ? `Nuit automatique à ${e.reglages.heureNuit} : ACTIVÉE` : 'Nuit automatique : désactivée (rien ne tourne sans votre accord).'),
       ),
@@ -110,6 +111,21 @@ function vueRapports() {
     h('h1', {}, `Rapports du ${e.date}`),
     h('div', { class: 'ligne' }, h('button', { class: 'btn', onclick: () => appel('depotOuvrir') }, 'Ouvrir le dossier de dépôt'), h('span', { class: 'doux petit' }, e.depot)),
     h('div', { class: 'carte' },
+      h('h2', {}, 'Envoi au site drop-shipper.fr'),
+      h('p', { class: 'doux petit' }, e.envoi.actif && e.envoi.cle
+        ? 'Chaque rapport validé part seul sur le site, rayon et marketing d’un coup : le site range chacun à sa place (Analyses, Produits gagnants, Prompts, Fresh news). Un rapport « à revoir » ne part jamais.'
+        : !e.envoi.actif ? 'L’envoi au site est coupé (Réglages). Les rapports restent sur ce PC.'
+        : 'Il manque la clé d’agent du site (Réglages › Clés, celle du compte administrateur) : rien ne part tant qu’elle est absente.'),
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn principal', disabled: !e.envoi.actif || !e.envoi.cle || !e.envoi.enAttente, onclick: async () => {
+          flash('Envoi en cours…')
+          const r = await appel('envoyerAuSite')
+          if (r) flash(r.raison || `${r.envoyes} rapport(s) envoyé(s) au site${r.echecs.length ? `, ${r.echecs.length} refusé(s) : ${r.echecs[0].message}` : ''}.`)
+        } }, e.envoi.enAttente ? `Envoyer les ${e.envoi.enAttente} rapport(s) validé(s) en attente` : 'Rien en attente'),
+        h('span', { class: 'doux petit' }, `Adresse : ${e.envoi.apiBase}`),
+      ),
+    ),
+    h('div', { class: 'carte' },
       h('h2', {}, 'Rayons de la nuit'),
       h('p', { class: 'doux petit' }, 'Cochez les rayons que la nuit doit analyser (par exemple deux seulement pour tester). Sans choix, les 24 sont lancés. Un rayon déjà validé aujourd’hui est sauté.'),
       h('div', { class: 'ligne' },
@@ -121,7 +137,7 @@ function vueRapports() {
     ),
     h('div', { class: 'carte' },
       h('table', {},
-        h('thead', {}, h('tr', {}, ['Nuit', 'Catégorie', 'Thème du jour', 'État', 'Produits', ''].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['Nuit', 'Catégorie', 'Thème du jour', 'État', 'Site', 'Produits', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, e.rayonsDuJour.map((r) => {
           const rap = e.rapports.find((x) => x.categorie === r.categorie && x.theme === r.theme)
           return h('tr', {},
@@ -132,6 +148,7 @@ function vueRapports() {
             h('td', {}, r.libelleCategorie),
             h('td', {}, r.libelleTheme),
             h('td', {}, rap ? pastille(rap.statut === 'ok' ? 'validé' : 'à revoir', rap.statut === 'ok' ? 'bon' : 'alerte') : pastille('pas encore', ''), rap && rap.problemes.length ? h('div', { class: 'petit doux' }, rap.problemes.join(' · ')) : null),
+            h('td', {}, !rap ? '—' : rap.statut !== 'ok' ? pastille('non envoyé', 'alerte') : rap.envoyeLe ? pastille('en ligne', 'bon') : pastille('pas envoyé', 'mauvais')),
             h('td', {}, rap ? String(rap.produits) : '—'),
             h('td', {}, rap ? h('div', { class: 'ligne' },
               h('button', { class: 'btn', onclick: () => appel('rapportOuvrir', { categorie: r.categorie, theme: r.theme, type: 'rayon' }) }, 'Rayon'),
@@ -233,7 +250,7 @@ function vueReglages() {
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
       h('h2', {}, 'Clés (saisies par vous, chiffrées par Windows, jamais réaffichées)'),
-      cle('anthropic', 'Clé API Anthropic'), cle('serper', 'Clé API Serper'), cle('agent', 'Clé d’agent du site (facultatif, pour l’envoi)'),
+      cle('anthropic', 'Clé API Anthropic'), cle('serper', 'Clé API Serper'), cle('agent', 'Clé d’agent du site (compte administrateur : nécessaire pour envoyer les rapports)'),
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Agents'),
@@ -242,7 +259,7 @@ function vueReglages() {
       f('heureNuit', 'Heure de la nuit (HH:MM)', r.heureNuit),
       f('plafondPages', 'Pages lues par rayon', r.plafondPages, 'number'),
       f('plafondDeuxiemeVague', 'Modèles cherchés en deuxième vague (plafond Serper)', r.plafondDeuxiemeVague, 'number'),
-      h('label', {}, h('span', {}, envoi, ' Envoyer aussi chaque rapport validé au site drop-shipper.fr')),
+      h('label', {}, h('span', {}, envoi, ' Envoyer chaque rapport validé au site drop-shipper.fr (rayon et marketing, rangés par le site)')),
       h('label', {}, h('span', {}, caseTrends, ' Lire Google Trends (courbe de recherche du thème et des modèles, France 12 mois)')),
       h('label', {}, h('span', {}, caseMeta, ' Lire la Meta Ad Library (annonces actives par modèle)')),
       f('plafondPubs', 'Modèles cherchés dans la Meta Ad Library par rayon', sp.plafondPubsParRayon, 'number'),

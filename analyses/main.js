@@ -152,7 +152,7 @@ function optionsRayon() {
     plafondPages: cfg.plafondPages,
     plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
     modele: cfg.modele,
-    envoyer: cfg.envoiAuSite && cleAgent ? (markdown) => depot.envoyerAuSite({ apiBase: cfg.apiBase, cle: cleAgent, markdown }) : null,
+    envoyer: cfg.envoiAuSite && cleAgent ? (rapport) => depot.envoyerRapportAuSite({ apiBase: cfg.apiBase, cle: cleAgent, rapport }) : null,
   }
 }
 
@@ -234,6 +234,8 @@ async function lancerLaNuit({ automatique = false } = {}) {
       executer: (rayon) => executerRayon({ rayon, deps: depsRayon(date), options: optionsRayon() }),
     })
     nuit.dernierBilan = bilan
+    // Reports whose sending failed during the night (site restarting...) go out now.
+    try { await envoyerEnAttente() } catch (err) { journal.erreur('Envoi au site interrompu', { raison: String((err && err.message) || err) }) }
     notifier('Nuit terminée', bilan.annulee ? 'Nuit annulée avant dépense — voir le journal.' : `${bilan.ok} rapports validés, ${bilan.aRevoir} à revoir, ${bilan.erreurs.length} erreur(s).`)
     return bilan
   } catch (err) {
@@ -248,6 +250,44 @@ async function lancerLaNuit({ automatique = false } = {}) {
   }
 }
 
+// ---- reports to the site: every validated report, rayon AND marketing in one call, filed by the site itself
+let envoiEnCours = false
+
+/**
+ * Sends the validated reports (last 7 days) the site has not received yet.
+ * Idempotent: a report already sent (and not rewritten since) is skipped, and the
+ * site replaces a re-sent one. A failure never loses a report: it stays on disk
+ * and is retried at the end of the next run or by the button.
+ */
+async function envoyerEnAttente() {
+  if (envoiEnCours) return { envoyes: 0, echecs: [], occupe: true }
+  const cle = secret('agent')
+  if (!cfg.envoiAuSite) return { envoyes: 0, echecs: [], raison: 'L’envoi au site est coupé dans Réglages.' }
+  if (!cle) return { envoyes: 0, echecs: [], raison: 'Clé d’agent du site absente (Réglages › Clés).' }
+  envoiEnCours = true
+  const bilan = { envoyes: 0, echecs: [] }
+  try {
+    for (const r of depot.rapportsAEnvoyer(racine)) {
+      try {
+        const reponse = await depot.envoyerRapportAuSite({ apiBase: cfg.apiBase, cle, rapport: r.rapport })
+        depot.marquerEnvoye(racine, r.date, r.categorie, r.theme, { rapportEcritLe: r.rapport.poste.ecritLe, reponse })
+        journal.info(`${r.categorie}/${r.theme} : envoyé au site (rayon et marketing)`, { jour: r.date })
+        bilan.envoyes++
+      } catch (err) {
+        const message = String((err && err.message) || err)
+        bilan.echecs.push({ rayon: `${r.categorie}/${r.theme}`, jour: r.date, message })
+        journal.erreur(`${r.categorie}/${r.theme} : envoi au site refusé`, { raison: message })
+        // A refusal about the key or the server itself is systemic: the next report would hit the same wall.
+        if (/\((401|403|5\d\d)\)|fetch failed/.test(message)) break
+      }
+    }
+  } finally {
+    envoiEnCours = false
+    envoyerEtat()
+  }
+  return bilan
+}
+
 // ---- state sent to the screen (never a secret value)
 function listeRapports(date) {
   const out = []
@@ -257,7 +297,9 @@ function listeRapports(date) {
       for (const f of fs.readdirSync(path.join(base, c)).filter((x) => x.endsWith('.json'))) {
         try {
           const j = JSON.parse(fs.readFileSync(path.join(base, c, f), 'utf8'))
-          out.push({ categorie: c, theme: f.replace(/\.json$/, ''), statut: (j.poste && j.poste.statut) || '?', produits: (j.products || []).length, problemes: (j.poste && j.poste.problemes) || [] })
+          const theme = f.replace(/\.json$/, '')
+          const envoi = depot.lireEnvoi(racine, date, c, theme)
+          out.push({ categorie: c, theme, envoyeLe: envoi ? envoi.envoyeLe : null, statut: (j.poste && j.poste.statut) || '?', produits: (j.products || []).length, problemes: (j.poste && j.poste.problemes) || [] })
         } catch { /* skip unreadable */ }
       }
     }
@@ -279,6 +321,7 @@ function etat() {
       serperEtendu: { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) },
       creditsSerperParRayon: creditsSerperParRayon(),
     },
+    envoi: { actif: Boolean(cfg.envoiAuSite), cle: Boolean(secret('agent')), apiBase: cfg.apiBase, enAttente: depot.rapportsAEnvoyer(racine).length },
     nuit: { enCours: nuit.enCours, progression: nuit.progression, dernierBilan: nuit.dernierBilan },
     rayonsDuJour: agents.rayonsDuJour(agents.charger(), date).map((r) => ({ ...r, fait: rapportValide(racine, date, r.categorie, r.theme), choisi: !Array.isArray(cfg.rayonsNuit) || cfg.rayonsNuit.includes(r.categorie) })),
     rapports: listeRapports(date),
@@ -383,6 +426,7 @@ function brancher() {
     return controleCredits({ serper, claude })
   })
   h('rayon-test', (r) => lancerUnRayon(r))
+  h('envoyer-au-site', () => envoyerEnAttente())
   h('nuit-lancer', () => lancerLaNuit())
   h('nuit-arreter', () => { nuit.arret.demande = true; return true })
   h('nuit-auto', async ({ actif }) => {
@@ -506,6 +550,9 @@ if (!app.requestSingleInstanceLock() && !BANC) {
   app.on('second-instance', () => { if (fenetre) { fenetre.show(); fenetre.focus() } })
   app.whenReady().then(() => {
     cfg = config.charger(dossierDonnees())
+    // 03/10/2026: Max wants EVERY validated report on the site. The old send went to a table no screen read, so
+    // its switch was meaningless; it is now on (one time), the agent key remains his to place.
+    if (!cfg.envoiSiteV2) { cfg.envoiAuSite = true; cfg.envoiSiteV2 = true; config.enregistrer(dossierDonnees(), cfg) }
     try {
       racine = creerArborescence(racineDepot(cfg))
     } catch {

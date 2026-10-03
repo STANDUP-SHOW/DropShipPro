@@ -11,6 +11,7 @@ import { comptesDe, publier as publierSocial, socialConfigure } from '../service
 import { brouillonPour } from '../services/socialDraft.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { lireRapport, RapportInvalide } from '../services/marketReports.js'
+import { enregistrerRapportPoste } from '../services/rapportsPoste.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { findDepartment } from '../services/departments.js'
 import { runAutopilot } from '../services/autopilot.js'
@@ -780,6 +781,28 @@ agentRouter.post('/market-reports', requireAdmin as never, async (req: AgentRequ
     update: data,
   })
   res.status(201).json({ id: rapport.id, ...cle, produits: lu.produits.length })
+})
+
+/**
+ * Dépôt d'un rapport MarketSpy complet par le Poste d'analyses (analyses/).
+ *
+ * C'est CE chemin qui met un rapport en ligne : le site lit rapports.db et la
+ * base du Poste (voir services/rapportsPoste.ts), pas la table de
+ * `/market-reports` ci-dessus que plus aucun écran ne lit. Un seul envoi range
+ * le rapport RAYON (analyse + produits) et le rapport MARKETING (prompts,
+ * tendances) chacun à sa place. Même réserve qu'au-dessus : administrateur
+ * seulement, ces rapports sont lus par tous les vendeurs.
+ */
+agentRouter.post('/rapports-poste', requireAdmin as never, async (req: AgentRequest, res) => {
+  const rapport = (req.body as { rapport?: unknown } | undefined)?.rapport
+  try {
+    const rangé = enregistrerRapportPoste(rapport)
+    res.status(201).json({ ok: true, ...rangé })
+  } catch (err) {
+    if (err instanceof RapportInvalide) return res.status(422).json({ error: err.message })
+    console.error('[rapports-poste] écriture impossible :', err)
+    res.status(500).json({ error: 'Écriture impossible sur le serveur.', motif: err instanceof Error ? err.message : String(err) })
+  }
 })
 
 /**

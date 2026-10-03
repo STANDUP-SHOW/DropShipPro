@@ -18,7 +18,9 @@ const PAR_DEFAUT = {
   heureNuit: '01:00',
   plafondPages: 25,
   plafondDeuxiemeVague: 26,
-  envoiAuSite: false,
+  // Every validated report goes to the site (rayon + marketing, filed by the site). Needs the admin agent key.
+  envoiAuSite: true,
+  envoiSiteV2: false,
   // Public signals read in a hidden window (Max's "go" of 03/10): Meta Ad Library, Google Trends.
   signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2 },
   // Extra Serper readings (Max's "go" of 03/10): Google Shopping France, autocomplete, Google Images.
