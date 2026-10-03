@@ -4,7 +4,7 @@
  * que le compte à 500 drops achète. Éprouvé sur un rapport bâti comme les vrais
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
-import { blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageRapport, sitemapXml, type RapportPublic } from './src/services/analysesPubliques.js'
+import { blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -113,6 +113,28 @@ console.log('\nL’archive, l’index, le sitemap')
   exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/telephonie/</loc>'), 'et la catégorie')
   exige(xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(rapport)}</loc>`) && xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(marketing)}</loc>`), 'et chaque rapport')
   exige(cheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/' && cheminRapport(marketing) === '/analyses/telephonie/2026-09-18/chargeurs-cables/marketing/', 'les adresses sont lisibles')
+}
+
+console.log('\nCe que l’audit du 03/10/2026 relevait')
+{
+  // Le rapport bricolage du 18/09 : son tableau sous un H3, au milieu de l'analyse, sans produits structurés.
+  const glisse: RapportPublic = {
+    ...rapport,
+    produits: [],
+    body: `## Analyse\nLes outils à main reviennent, voir https://www.exemple.test/etude-outils.\n\n### 16 produits proposés\n\n| # | Titre | Fournisseur | URL fournisseur | Prix achat € | Prix vente conseillé € |\n| --- | --- | --- | --- | --- | --- |\n| 1 | Gouge 30 mm | BigBuy | https://fournisseur.test/secret-9 | 25-40 € | 40-60 € |\n`,
+  }
+  const html = pageRapport(glisse)
+  exige(!html.includes('secret-9') && !html.includes('25-40') && !html.includes('Prix achat'), 'un tableau fournisseur glissé sous un H3 ne sort jamais')
+  exige(html.includes('réservée aux comptes') && !html.includes('16 produits proposés'), 'à sa place, la mention réservée aux comptes')
+  exige(html.includes('>exemple.test</a>'), 'une adresse nue se lit par son nom de site')
+  const titre = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? ''
+  exige(!/\b0 produits/.test(html) && titre.length <= TITRE_MAX, 'ni « 0 produits gagnants », ni titre trop long', titre)
+  const long = titreRapport({ ...rapport, titre: 'Un titre d’agent très long qui raconte toute la tendance du jour et plus encore' })
+  exige(long.length <= TITRE_MAX && long.endsWith('(18/09/2026)'), 'un titre trop long est coupé au mot, date gardée', long)
+  const vide = pageCategorie('sport', [])
+  exige(vide.includes('noindex, follow') && vide.includes('Aucune analyse publiée'), 'une catégorie vide : une vraie page, hors index')
+  const index = pageIndex([rapport], new Map([['telephonie', 2]]))
+  exige(index.includes('href="/analyses/telephonie/"') && !index.includes('href="/analyses/sport/"'), 'l’index ne lie pas les catégories vides')
 }
 
 console.log('\nLe Markdown')

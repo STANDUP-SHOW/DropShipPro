@@ -13,6 +13,7 @@
  */
 import { Router, type Response } from 'express'
 import { ReportQuery } from '../services/reportsDb.js'
+import { categorieDe } from '../services/marketReports.js'
 import { pageCategorie, pageIndex, pageRapport, sitemapXml, type RapportPublic } from '../services/analysesPubliques.js'
 
 export const analysesPubliquesRouter = Router()
@@ -90,7 +91,12 @@ analysesPubliquesRouter.get('/:categorie/', (req, res) => {
     const liste = rapports()
       .getPourSitemap()
       .filter((l) => l.categorie === categorie && adressable(l))
-    if (!liste.length) return res.status(404).type('text').send('Aucune analyse pour cette catégorie.')
+    // Une catégorie connue mais encore vide répond une vraie page (noindex), pas un 404 :
+    // /analyses/ la listait et l'audit du 03/10/2026 relevait onze liens cassés.
+    if (!liste.length) {
+      if (!categorieDe(categorie)) return res.status(404).type('text').send('Catégorie inconnue.')
+      return html(res, pageCategorie(categorie, []))
+    }
     const pages = liste.slice(0, 400).map((l) => versPublic(l.id)).filter((r): r is RapportPublic => r !== null)
     html(res, pageCategorie(categorie, pages))
   } catch (err) {

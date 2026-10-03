@@ -81,11 +81,52 @@ export function dateLongue(day: string): string {
   return `${j} ${MOIS[m - 1] ?? ''} ${a}`
 }
 
+/** 18/09/2026 : la date longue mangeait vingt caractères de chaque titre. */
+export function dateCourte(day: string): string {
+  const [a, m, j] = day.split('-')
+  return `${j}/${m}/${a}`
+}
+
+/**
+ * Le <title> d'un rapport : le premier qui tient en 65 caractères, du plus
+ * complet au plus sobre. L'audit du 03/10/2026 en trouvait 40 trop longs
+ * (« titre — 11 produits gagnants automobile (18 septembre 2026) »), et un
+ * « 0 produits gagnants » quand le rapport n'en structurait aucun.
+ */
+export const TITRE_MAX = 65
+export function titreRapport(r: Pick<RapportPublic, 'titre' | 'type' | 'day' | 'produits'>): string {
+  const t = r.titre.trim()
+  const d = dateCourte(r.day)
+  const n = r.produits.length
+  const candidats =
+    r.type === 'rayon'
+      ? [...(n ? [`${t} : ${n} produits gagnants (${d})`, `${t} : ${n} produits (${d})`] : []), `${t} (${d})`]
+      : [`${t} : analyse marketing (${d})`, `${t} : marketing (${d})`, `${t} (${d})`]
+  const tient = candidats.find((c) => c.length <= TITRE_MAX)
+  if (tient) return tient
+  const place = TITRE_MAX - d.length - 4
+  return `${t.slice(0, place).replace(/[\s,:;—-]+\S*$/, '')}… (${d})`
+}
+
+/** Le résumé d'une ligne de liste : le nombre de produits seulement s'il y en a. */
+function resumeRapport(r: Pick<RapportPublic, 'type' | 'produits'>): string {
+  if (r.type === 'marketing') return 'analyse marketing, prompts image et vidéo'
+  return r.produits.length ? `${r.produits.length} produits gagnants` : 'analyse de marché'
+}
+
 function nomCategorie(id: string): string {
   return categorieDe(id)?.nom ?? id
 }
 
 // --- Markdown → HTML, échappé -------------------------------------------------
+
+function hote(adresse: string): string {
+  try {
+    return new URL(adresse).hostname.replace(/^www\./, '')
+  } catch {
+    return adresse
+  }
+}
 
 /** Gras, code, liens et adresses nues ; tout le reste est du texte échappé. */
 function enLigne(texte: string): string {
@@ -99,7 +140,8 @@ function enLigne(texte: string): string {
     if (t.startsWith('**')) out += `<strong>${esc(t.slice(2, -2))}</strong>`
     else if (t.startsWith('`')) out += `<code>${esc(t.slice(1, -1))}</code>`
     else if (t.startsWith('[')) out += `<a href="${esc(m[2])}" rel="nofollow noopener" target="_blank">${esc(t.slice(1, t.indexOf('](')))}</a>`
-    else out += `<a href="${esc(t)}" rel="nofollow noopener" target="_blank">${esc(t)}</a>`
+    // A bare address reads as its site name: an URL as anchor text says nothing (audit of 03/10/2026).
+    else out += `<a href="${esc(t)}" rel="nofollow noopener" target="_blank">${esc(hote(t))}</a>`
     i = m.index + t.length
   }
   return out + esc(texte.slice(i))
@@ -179,6 +221,33 @@ export function blocsDe(body: string): Array<{ titre: string; corps: string }> {
   return blocs
 }
 
+/**
+ * Un tableau de produits glissé AILLEURS que sous son H2 « Produits » — sous un
+ * H3 « 16 produits proposés » au milieu de l'analyse, comme le rapport bricolage
+ * du 18/09/2026 — passait au travers de `estBlocProduits` : prix d'achat et
+ * adresses fournisseur en clair sur une page publique. Tout tableau dont l'en-tête
+ * nomme un fournisseur, un prix d'achat ou une adresse est retiré, avec le titre
+ * qui l'annonce.
+ */
+const ENTETE_PRIVEE = /fournisseur|prix\s*(d['’ ]?)?achat|\burl\b/i
+
+export function sansTableauxPrives(corps: string): { corps: string; retires: number } {
+  const lignes = corps.replace(/\r\n/g, '\n').split('\n')
+  const sortie: string[] = []
+  let retires = 0
+  for (let i = 0; i < lignes.length; ) {
+    if (lignes[i].trim().startsWith('|') && ENTETE_PRIVEE.test(lignes[i])) {
+      while (i < lignes.length && lignes[i].trim().startsWith('|')) i++
+      while (sortie.length && !sortie[sortie.length - 1].trim()) sortie.pop()
+      if (sortie.length && /^#{3,}\s.*produits/i.test(sortie[sortie.length - 1])) sortie.pop()
+      retires++
+      continue
+    }
+    sortie.push(lignes[i++])
+  }
+  return { corps: sortie.join('\n'), retires }
+}
+
 /** Le bloc « N produits proposés » : celui qui porte les adresses fournisseur. Jamais rendu tel quel. */
 function estBlocProduits(titre: string, corps: string): boolean {
   return /produits/i.test(titre) && corps.trim().startsWith('|')
@@ -208,12 +277,13 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;
 .liste a{text-decoration:none;color:#fff;font-weight:600}.liste small{display:block;color:#9d95c0;margin-top:.15rem}
 .grille{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));margin:1rem 0}
 .grille a{display:block;border:1px solid #ffffff1a;background:#ffffff0d;border-radius:.75rem;padding:.7rem .85rem;text-decoration:none;color:#e9e6f5}
-.grille a small{display:block;color:#9d95c0}
+.grille a small,.grille span small{display:block;color:#9d95c0}
+.grille .vide{display:block;border:1px dashed #ffffff1a;border-radius:.75rem;padding:.7rem .85rem;color:#9d95c0}
 footer{border-top:1px solid #ffffff1a;margin-top:3rem;padding:1.5rem 0;font-size:.85rem;color:#9d95c0}footer a{color:#9d95c0;margin-right:1rem}
 .end{margin:2.5rem 0;text-align:center}
 `
 
-function layout(o: { url: string; title: string; description: string; jsonLd: unknown; body: string; publie?: Date; modifie?: Date }): string {
+function layout(o: { url: string; title: string; description: string; jsonLd: unknown; body: string; publie?: Date; modifie?: Date; indexable?: boolean }): string {
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -222,7 +292,7 @@ function layout(o: { url: string; title: string; description: string; jsonLd: un
 <title>${esc(o.title)}</title>
 <meta name="description" content="${esc(o.description)}">
 <link rel="canonical" href="${SITE}${o.url}">
-<meta name="robots" content="index, follow, max-snippet:-1">
+<meta name="robots" content="${o.indexable === false ? 'noindex, follow' : 'index, follow, max-snippet:-1'}">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="${NOM}">
 <meta property="og:locale" content="fr_FR">
@@ -295,13 +365,13 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
   const theme = r.themeNom
   const url = cheminRapport(r)
   const estRayon = r.type === 'rayon'
-  const title = estRayon
-    ? `${r.titre} — ${r.produits.length} produits gagnants ${cat.toLowerCase()} (${dateLongue(r.day)})`
-    : `${r.titre} — analyse marketing ${cat.toLowerCase()} (${dateLongue(r.day)})`
+  const title = titreRapport(r)
   const description =
     r.accroche ||
     (estRayon
-      ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping, avec fournisseur, prix de vente conseillé et marge.`
+      ? r.produits.length
+        ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping, avec fournisseur, prix de vente conseillé et marge.`
+        : `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} : tendances, prix pratiqués, saisonnalité et pistes de produits à importer en dropshipping.`
       : `Analyse marketing ${theme.toLowerCase()} du ${dateLongue(r.day)} : angles, audiences, prompts publicitaires image et vidéo.`)
 
   const fil = [
@@ -318,7 +388,13 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
       if (estBlocProduits(b.titre, b.corps)) {
         return `<h2 id="produits">${esc(b.titre.replace(/proposés/i, 'gagnants'))}</h2>${tableauProduitsPublic(r.produits)}`
       }
-      return `${b.titre ? `<h2>${enLigne(b.titre)}</h2>` : ''}${markdownEnHtml(b.corps)}`
+      const { corps, retires } = sansTableauxPrives(b.corps)
+      // Sans produits structurés à montrer à la place, le lecteur sait au moins que la liste existe.
+      const garde =
+        retires && !r.produits.length
+          ? `<p class="garde">La liste des produits proposés ce jour-là, avec fournisseurs et prix d'achat, est réservée aux comptes ${NOM} : <a href="/register">créez un compte</a> pour l'ouvrir.</p>`
+          : ''
+      return `${b.titre ? `<h2>${enLigne(b.titre)}</h2>` : ''}${markdownEnHtml(corps)}${garde}`
     })
     .join('\n')
 
@@ -356,7 +432,7 @@ ${jumeau ? `<h2>Le même jour</h2><ul class="liste"><li><a href="${cheminRapport
 ${
   voisins.length
     ? `<h2>Autres analyses ${esc(cat.toLowerCase())}</h2><ul class="liste">${voisins
-        .map((v) => `<li><a href="${cheminRapport(v)}">${esc(v.titre)}</a><small>${dateLongue(v.day)} · ${v.type === 'rayon' ? 'produits gagnants' : 'marketing'}</small></li>`)
+        .map((v) => `<li><a href="${cheminRapport(v)}">${esc(v.titre)}</a><small>${dateLongue(v.day)} · ${resumeRapport(v)}</small></li>`)
         .join('')}</ul>`
     : ''
 }
@@ -394,6 +470,11 @@ ${
   })
 }
 
+function titreCategorie(nom: string): string {
+  const long = `Analyses ${nom.toLowerCase()} : produits gagnants et tendances`
+  return long.length <= TITRE_MAX ? long : `Analyses de marché ${nom.toLowerCase()}`
+}
+
 export function pageCategorie(id: string, rapports: RapportPublic[]): string {
   const cat = categorieDe(id)
   const nom = rapports[0]?.categorieNom ?? nomCategorie(id)
@@ -411,15 +492,24 @@ ${[...parJour.entries()]
   .map(
     ([jour, liste]) =>
       `<h2>${dateLongue(jour)}</h2><ul class="liste">${liste
-        .map((r) => `<li><a href="${cheminRapport(r)}">${esc(r.titre)}</a><small>${esc(r.themeNom)} · ${r.type === 'rayon' ? `${r.produits.length} produits gagnants` : 'analyse marketing, prompts image et vidéo'}</small></li>`)
+        .map((r) => `<li><a href="${cheminRapport(r)}">${esc(r.titre)}</a><small>${esc(r.themeNom)} · ${resumeRapport(r)}</small></li>`)
         .join('')}</ul>`,
   )
   .join('\n')}
-${rapports.length ? '' : '<p>Aucune analyse publiée pour cette catégorie pour le moment.</p>'}`
+${
+  rapports.length
+    ? ''
+    : `<p>Aucune analyse publiée pour cette catégorie pour le moment : les agents de ${NOM} la couvriront dans les prochains jours. En attendant, <a href="/analyses/">les autres catégories</a> sont à jour.</p>`
+}
+<h2>Comment lire ces analyses</h2>
+<p>Le rapport de marché dit ce qui se vend dans la catégorie, à quel prix, ce qui monte et ce qui recule, puis propose des produits à importer avec leur prix de vente conseillé. Le rapport marketing du même jour dit à qui les vendre et comment : angles, audiences, accroches, et des prompts d'images et de vidéos publicitaires prêts à coller dans un générateur.</p>
+<p>Les produits se retrouvent dans l'application : un compte ${NOM} les importe en un clic, l'IA réécrit l'annonce, et elle part vers les places de marché choisies. Voir aussi <a href="/fonctions/analyses-de-marche/">comment les analyses sont produites</a> et <a href="/dropshipping/">le dropshipping expliqué</a>.</p>`
 
   return layout({
     url,
-    title: `Analyses de marché ${nom.toLowerCase()} — produits gagnants et tendances dropshipping`,
+    // Vide, la page sert le visiteur qui arrive par un vieux lien, pas l'index.
+    indexable: rapports.length > 0,
+    title: titreCategorie(nom),
     description: `Les analyses de marché quotidiennes ${nom.toLowerCase()} de ${NOM} : tendances, prix, saisonnalité, et chaque jour des produits gagnants à importer en dropshipping.`,
     jsonLd: { '@context': 'https://schema.org', '@graph': [{ '@type': 'CollectionPage', name: `Analyses de marché ${nom}`, url: `${SITE}${url}`, inLanguage: 'fr-FR', publisher: ORGANISATION }, breadcrumbLd(fil)] },
     body,
@@ -435,10 +525,16 @@ export function pageIndex(recents: RapportPublic[], compteParCategorie: Map<stri
 <p class="lede">${CATEGORIES.length} catégories, deux rapports par jour et par catégorie : le marché et ses produits à importer, le marketing et ses prompts publicitaires. Rédigés par les agents ${NOM}, ${total} rapports publiés à ce jour.</p>
 <h2>Les dernières analyses</h2>
 <ul class="liste">${recents
-    .map((r) => `<li><a href="${cheminRapport(r)}">${esc(r.titre)}</a><small>${esc(r.categorieNom)} · ${dateLongue(r.day)} · ${r.type === 'rayon' ? `${r.produits.length} produits gagnants` : 'marketing'}</small></li>`)
+    .map((r) => `<li><a href="${cheminRapport(r)}">${esc(r.titre)}</a><small>${esc(r.categorieNom)} · ${dateLongue(r.day)} · ${resumeRapport(r)}</small></li>`)
     .join('')}</ul>
 <h2>Par catégorie</h2>
-<div class="grille">${CATEGORIES.map((c) => `<a href="${cheminCategorie(c.id)}">${esc(c.nom)}<small>${compteParCategorie.get(c.id) ?? 0} analyse${(compteParCategorie.get(c.id) ?? 0) > 1 ? 's' : ''}</small></a>`).join('')}</div>`
+<div class="grille">${CATEGORIES.map((c) => {
+    const n = compteParCategorie.get(c.id) ?? 0
+    // Une catégorie encore vide n'est pas un lien : l'audit du 03/10/2026 comptait onze liens vers des pages sans contenu.
+    return n
+      ? `<a href="${cheminCategorie(c.id)}">${esc(c.nom)}<small>${n} analyse${n > 1 ? 's' : ''}</small></a>`
+      : `<span class="vide">${esc(c.nom)}<small>bientôt</small></span>`
+  }).join('')}</div>`
   return layout({
     url,
     title: 'Analyses de marché dropshipping et produits gagnants du jour',
