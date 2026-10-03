@@ -24,8 +24,9 @@
  * Adresses :
  *   /analyses/                                       toutes les catégories, dernier jour
  *   /analyses/<categorie>/                           l'archive d'une catégorie
- *   /analyses/<categorie>/<AAAA-MM-JJ>/<theme>/            le rapport rayon (analyse + produits gagnants)
- *   /analyses/<categorie>/<AAAA-MM-JJ>/<theme>/marketing/  le rapport marketing (angles, prompts)
+ *   /analyses/<categorie>/<titre>-<AAAA-MM-JJ>/            le rapport rayon (analyse + produits gagnants)
+ *   /analyses/<categorie>/<titre>-marketing-<AAAA-MM-JJ>/  le rapport marketing (angles, prompts)
+ *   (l'ancienne forme <categorie>/<AAAA-MM-JJ>/<theme>/[marketing/] redirige en 301)
  *   /analyses/<AAAA-MM-JJ>/                          l'édition du jour : toutes les analyses et leurs produits gagnants
  *   /analyses/sitemap.xml
  */
@@ -67,7 +68,39 @@ export function esc(texte: unknown): string {
     .replace(/"/g, '&quot;')
 }
 
-export function cheminRapport(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type'>): string {
+/** « Meilleurs accessoires d'intérieur pour voiture » → « meilleurs-accessoires-d-interieur-pour-voiture ». */
+export function slugTitre(titre: string, max = 70): string {
+  const slug = titre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  if (slug.length <= max) return slug
+  return slug.slice(0, max + 1).replace(/-[^-]*$/, '')
+}
+
+/**
+ * L'adresse d'un rapport, comme celle d'un article (demandé par Max le
+ * 03/10/2026) : le sujet tiré du titre, puis la date —
+ *   /analyses/automobile/meilleurs-accessoires-d-interieur-pour-voiture-2026-09-18/
+ *   /analyses/automobile/les-tendances-deco-pour-2026-marketing-2026-09-18/
+ * L'ancienne forme catégorie/date/thème redirige ici en 301 (routes/analysesPubliques.ts).
+ */
+export function cheminRapport(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre'>): string {
+  // « …-bureau-2026-2026-09-19 » : l'année du titre fait doublon avec la date qui suit.
+  // Ni « …-de-2026-09-19 » : un mot-outil ne termine pas un sujet.
+  const sujet =
+    slugTitre(r.titre)
+      .replace(new RegExp(`-${r.day.slice(0, 4)}$`), '')
+      .replace(/(-(en|de|du|des|le|la|les|pour|et|a|au|aux|sur|d|l))+$/, '') || r.theme
+  return `/analyses/${r.categorie}/${sujet}${r.type === 'marketing' ? '-marketing' : ''}-${r.day}/`
+}
+
+/** L'ancienne adresse (jusqu'au 03/10/2026), gardée pour les redirections. */
+export function ancienCheminRapport(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type'>): string {
   return `/analyses/${r.categorie}/${r.day}/${r.theme}/${r.type === 'marketing' ? 'marketing/' : ''}`
 }
 
@@ -633,7 +666,7 @@ ${[...parCategorie.values()]
   })
 }
 
-export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'updatedAt'>>): string {
+export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'updatedAt'>>): string {
   const categories = new Map<string, Date>()
   for (const r of rapports) {
     const d = categories.get(r.categorie)

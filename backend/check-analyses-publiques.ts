@@ -4,7 +4,7 @@
  * que le compte à 500 drops achète. Éprouvé sur un rapport bâti comme les vrais
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
-import { blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -112,7 +112,13 @@ console.log('\nL’archive, l’index, le sitemap')
   exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/</loc>'), 'le sitemap porte l’index')
   exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/telephonie/</loc>'), 'et la catégorie')
   exige(xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(rapport)}</loc>`) && xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(marketing)}</loc>`), 'et chaque rapport')
-  exige(cheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/' && cheminRapport(marketing) === '/analyses/telephonie/2026-09-18/chargeurs-cables/marketing/', 'les adresses sont lisibles')
+  exige(
+    cheminRapport(rapport) === '/analyses/telephonie/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre-2026-09-18/' &&
+      cheminRapport(marketing) === '/analyses/telephonie/vendre-des-chargeurs-gan-angles-et-prompts-marketing-2026-09-18/',
+    'les adresses se lisent comme des articles : le sujet, puis la date',
+    cheminRapport(rapport),
+  )
+  exige(ancienCheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/', 'l’ancienne adresse reste calculable, pour la redirection')
 }
 
 console.log('\nCe que l’audit du 03/10/2026 relevait')
@@ -141,7 +147,7 @@ console.log('\nL’édition du jour')
 {
   const html = pageJour('2026-09-18', [rapport, marketing], '2026-09-17', '2026-09-19')
   exige(html.includes('<title>Produits gagnants et tendances du 18/09/2026</title>') && html.includes('href="https://www.drop-shipper.fr/analyses/2026-09-18/"'), 'une page par jour, à son adresse')
-  exige(html.includes('Chargeur GaN 65 W 3 ports') && html.includes('href="/analyses/telephonie/2026-09-18/chargeurs-cables/#produits"'), 'les produits gagnants du jour, liés à leur rapport')
+  exige(html.includes('Chargeur GaN 65 W 3 ports') && html.includes(`href="${cheminRapport(rapport)}#produits"`), 'les produits gagnants du jour, liés à leur rapport')
   exige(!html.includes('fournisseur.test') && !html.includes('9,80') && !/CJ Dropshipping|BigBuy|Temu/.test(html), 'ni adresse, ni nom de fournisseur, ni prix d’achat')
   exige(html.includes('/analyses/2026-09-17/') && html.includes('/analyses/2026-09-19/'), 'les éditions voisines')
   exige(sitemapXml([rapport]).includes('<loc>https://www.drop-shipper.fr/analyses/2026-09-18/</loc>'), 'chaque édition est dans le sitemap')

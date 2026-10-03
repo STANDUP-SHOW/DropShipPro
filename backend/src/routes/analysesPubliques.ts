@@ -14,7 +14,7 @@
 import { Router, type Response } from 'express'
 import { ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
-import { pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, type RapportPublic } from '../services/analysesPubliques.js'
+import { cheminRapport, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, type RapportPublic } from '../services/analysesPubliques.js'
 
 export const analysesPubliquesRouter = Router()
 
@@ -122,12 +122,43 @@ analysesPubliquesRouter.get('/:categorie/', (req, res) => {
   }
 })
 
+// L'ancienne adresse catégorie/date/thème : 301 vers l'adresse-article, pour ne perdre ni lien ni indexation.
 analysesPubliquesRouter.get(['/:categorie/:day/:theme/', '/:categorie/:day/:theme/marketing/'], (req, res) => {
   const { categorie, day, theme } = req.params
   const type = req.path.endsWith('/marketing/') ? 'marketing' : 'rayon'
   if (!SLUG.test(categorie) || !JOUR.test(day) || !SLUG.test(theme)) return res.status(404).type('text').send('Rapport introuvable.')
   try {
-    const rapport = versPublic(`${type}-${day}-${categorie}-${theme}`)
+    const ligne = rapports()
+      .getPourSitemap()
+      .find((l) => l.id === `${type}-${day}-${categorie}-${theme}` && adressable(l))
+    if (!ligne) return res.status(404).type('text').send('Rapport introuvable.')
+    res.redirect(301, cheminRapport(ligne))
+  } catch (err) {
+    panne(res, err)
+  }
+})
+
+/** « meilleurs-accessoires-…-2026-09-18 » ou « …-marketing-2026-09-18 ». */
+const ARTICLE = /^([a-z0-9-]{1,90}?)(-marketing)?-(\d{4}-\d{2}-\d{2})$/
+
+analysesPubliquesRouter.get('/:categorie/:article/', (req, res) => {
+  const { categorie, article } = req.params
+  const m = ARTICLE.exec(article)
+  if (!SLUG.test(categorie) || !m) return res.status(404).type('text').send('Rapport introuvable.')
+  const type = m[2] ? 'marketing' : 'rayon'
+  const day = m[3]
+  try {
+    const candidats = rapports()
+      .getPourSitemap()
+      .filter((l) => l.categorie === categorie && l.day === day && l.type === type && adressable(l))
+    const demande = `${req.baseUrl}${req.path}`
+    const exact = candidats.find((l) => cheminRapport(l) === demande)
+    if (!exact) {
+      // Titre retouché depuis (réimport) : s'il n'y a qu'un rapport de ce genre ce jour-là, on y mène.
+      if (candidats.length === 1) return res.redirect(301, cheminRapport(candidats[0]))
+      return res.status(404).type('text').send('Rapport introuvable.')
+    }
+    const rapport = versPublic(exact.id)
     if (!rapport) return res.status(404).type('text').send('Rapport introuvable.')
     const autres = rapports()
       .getPourSitemap()
