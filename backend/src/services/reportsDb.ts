@@ -455,6 +455,33 @@ export class ReportQuery {
     return typeof t === 'string' && t.trim() ? t.trim() : null
   }
 
+  /**
+   * Le titre du jour, façon une de journal (« Les télés très demandées au Q4 et
+   * au Black Friday ») : un champ FACULTATIF du blob, que l'agent rédacteur ou
+   * l'importateur peut poser. Absent (tous les rapports au 03/10/2026), le
+   * rapport garde son titre. Demandé par Max le 03/10/2026.
+   */
+  static uneDe(blob: any): string | null {
+    const t = blob?.titre_du_jour ?? blob?.une ?? blob?.headline ?? null
+    return typeof t === 'string' && t.trim() ? t.trim().slice(0, 140) : null
+  }
+
+  /**
+   * L'extrait percutant d'un rapport, pour son adresse : l'accroche, sinon la
+   * ligne « Opportunité principale » de l'analyse. Rien qui parle d'achat, de
+   * fournisseur ou de lien : l'adresse est publique.
+   */
+  static extraitDe(blob: any, analyse: unknown): string | null {
+    const brut =
+      ReportQuery.accrocheDe(blob) ??
+      /\*\*Opportunit[ée] principale\*\*\s*:?\s*(.+)/i.exec(String(analyse ?? ''))?.[1] ??
+      null
+    if (!brut) return null
+    const t = brut.replace(/[*_`#>[\]]/g, '').trim()
+    if (!t || /€|https?:|www\.|fournisseur|achat|aliexpress|alibaba|1688|cjdropshipping/i.test(t)) return null
+    return t
+  }
+
   /** Une section Markdown, ou rien du tout si elle n'a pas de contenu. */
   private static section(titre: string, lignes: unknown): string {
     const items = Array.isArray(lignes) ? lignes.filter((l) => typeof l === 'string' && l.trim()) : []
@@ -698,6 +725,8 @@ export class ReportQuery {
       theme: String(row.theme),
       themeNom: ReportQuery.nomTheme(String(row.categorie), String(row.theme), blob),
       titre: String(row.titre ?? ''),
+      une: ReportQuery.uneDe(blob),
+      extrait: ReportQuery.extraitDe(blob, analyse),
       accroche: ReportQuery.accrocheDe(blob),
       sources: Number(row.sources ?? 0),
       body: ReportQuery.corps(row, analyse, produits.length),
@@ -871,7 +900,11 @@ export class ReportQuery {
   getPourSitemap() {
     return (
       this.db
-        .prepare('SELECT id, date, type, categorie, theme, titre, updated_at, created_at FROM reports ORDER BY date DESC, categorie ASC')
+        .prepare(
+          `SELECT r.id, r.date, r.type, r.categorie, r.theme, r.titre, r.updated_at, r.created_at, r.data, rr.analysis
+             FROM reports r LEFT JOIN rayon_reports rr ON rr.report_id = r.id
+            ORDER BY r.date DESC, r.categorie ASC`,
+        )
         .all() as any[]
     ).map((row) => ({
       id: String(row.id),
@@ -880,6 +913,8 @@ export class ReportQuery {
       categorie: String(row.categorie),
       theme: String(row.theme),
       titre: String(row.titre ?? ''),
+      une: ReportQuery.uneDe(ReportQuery.blob(row.data)),
+      extrait: ReportQuery.extraitDe(ReportQuery.blob(row.data), row.analysis),
       updatedAt: new Date(row.updated_at ?? row.created_at ?? `${row.date}T06:00:00Z`),
     }))
   }

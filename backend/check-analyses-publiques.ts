@@ -4,7 +4,8 @@
  * que le compte à 500 drops achète. Éprouvé sur un rapport bâti comme les vrais
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
-import { ancienCheminRapport, blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { aAnnoncer } from './src/services/annonceAnalyses.js'
+import { ancienCheminRapport, attribuerAdresses, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -113,12 +114,44 @@ console.log('\nL’archive, l’index, le sitemap')
   exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/telephonie/</loc>'), 'et la catégorie')
   exige(xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(rapport)}</loc>`) && xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(marketing)}</loc>`), 'et chaque rapport')
   exige(
-    cheminRapport(rapport) === '/analyses/telephonie/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre-2026-09-18/' &&
-      cheminRapport(marketing) === '/analyses/telephonie/vendre-des-chargeurs-gan-angles-et-prompts-marketing-2026-09-18/',
-    'les adresses se lisent comme des articles : le sujet, puis la date',
+    cheminRapport(rapport) === '/analyses/chargeurs-cables/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre/' &&
+      cheminRapport(marketing) === '/analyses/chargeurs-cables/vendre-des-chargeurs-gan-angles-et-prompts/',
+    'les adresses se lisent comme des articles : le thème, puis le sujet, ni catégorie ni date',
     cheminRapport(rapport),
   )
-  exige(ancienCheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/', 'l’ancienne adresse reste calculable, pour la redirection')
+  exige(ancienCheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/', 'la première adresse reste calculable, pour la redirection')
+  exige(
+    cheminArticleDate(rapport) === '/analyses/telephonie/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre-2026-09-18/',
+    'l’adresse de la PR #25 aussi',
+  )
+}
+
+console.log('\nLe sujet : titre du jour, sinon titre + extrait percutant')
+{
+  const sujet = sujetRapport({ ...rapport, extrait: 'Le GaN a gagné, et les câbles tressés font la marge.' })
+  exige(sujet === 'chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre-gagne-font-marge', 'l’extrait complète le titre sans répéter ses mots', sujet)
+  const une = sujetRapport({ ...rapport, une: 'Les télés très demandées au Q4 et au Black Friday 2026' })
+  exige(une === 'les-teles-tres-demandees-au-q4-et-au-black-friday', 'le titre du jour, quand il existe, fait l’adresse', une)
+  exige(sujetRapport({ ...rapport, titre: 'x'.repeat(30) + ' ' + 'y'.repeat(30), extrait: 'z'.repeat(80) }).length <= 100, 'jamais plus de 100 caractères')
+
+  // Même sujet, deux jours : le premier publié garde l'adresse nue, et l'arrivée d'un troisième ne la change pas.
+  const j1 = { ...rapport, id: 'r1', day: '2026-09-18' }
+  const j2 = { ...rapport, id: 'r2', day: '2026-09-19' }
+  const j3 = { ...rapport, id: 'r3', day: '2026-09-20' }
+  attribuerAdresses([j2, j1])
+  const avant = [cheminRapport(j1), cheminRapport(j2)]
+  exige(avant[0].endsWith('-septembre/') && avant[1].endsWith('-septembre-2/'), 'collision : -2 pour le second publié', avant.join(' '))
+  attribuerAdresses([j3, j1, j2])
+  exige(cheminRapport(j1) === avant[0] && cheminRapport(j2) === avant[1] && cheminRapport(j3).endsWith('-3/'), 'une adresse publiée ne bouge plus')
+  exige(rapportA(avant[1]) === 'r2', 'et chaque adresse mène à son rapport')
+  attribuerAdresses([rapport, marketing])
+}
+
+console.log('\nLe robot IndexNow')
+{
+  const xml = '<loc>https://a/1/</loc><loc>https://a/2/</loc><loc>https://a/2/</loc>'
+  const n = aAnnoncer(xml, ['https://a/1/'])
+  exige(n.length === 1 && n[0] === 'https://a/2/', 'n’annonce que les adresses nouvelles, une fois chacune')
 }
 
 console.log('\nCe que l’audit du 03/10/2026 relevait')

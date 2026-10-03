@@ -24,9 +24,8 @@
  * Adresses :
  *   /analyses/                                       toutes les catégories, dernier jour
  *   /analyses/<categorie>/                           l'archive d'une catégorie
- *   /analyses/<categorie>/<titre>-<AAAA-MM-JJ>/            le rapport rayon (analyse + produits gagnants)
- *   /analyses/<categorie>/<titre>-marketing-<AAAA-MM-JJ>/  le rapport marketing (angles, prompts)
- *   (l'ancienne forme <categorie>/<AAAA-MM-JJ>/<theme>/[marketing/] redirige en 301)
+ *   /analyses/<theme>/<sujet-tiré-du-titre>/                un rapport (rayon ou marketing), comme un article
+ *   (les formes <categorie>/<AAAA-MM-JJ>/<theme>/[marketing/] et <categorie>/<sujet>-<date>/ redirigent en 301)
  *   /analyses/<AAAA-MM-JJ>/                          l'édition du jour : toutes les analyses et leurs produits gagnants
  *   /analyses/sitemap.xml
  */
@@ -51,6 +50,10 @@ export interface RapportPublic {
   themeNom: string
   type: 'rayon' | 'marketing'
   titre: string
+  /** Le titre du jour (champ facultatif `titre_du_jour` du rapport) : quand il existe, il devient le titre et l'adresse. */
+  une?: string | null
+  /** L'extrait percutant (accroche ou « Opportunité principale ») qui complète l'adresse. */
+  extrait?: string | null
   accroche: string | null
   body: string
   produits: ProduitRapport[]
@@ -82,16 +85,83 @@ export function slugTitre(titre: string, max = 70): string {
   return slug.slice(0, max + 1).replace(/-[^-]*$/, '')
 }
 
+const MOTS_OUTILS = /(-(en|de|du|des|le|la|les|pour|et|a|au|aux|sur|d|l|un|une|avec))+$/
+/** Un mot-outil ne termine pas un sujet (« …-casques-bluetooth-de »), ni l'année en suffixe orphelin. */
+function nettoyer(slug: string, annee: string): string {
+  return slug.replace(new RegExp(`-(en-|de-)?${annee}$`), '').replace(MOTS_OUTILS, '')
+}
+
+export const SUJET_MAX = 100
+const OUTILS = new Set(['a', 'au', 'aux', 'avec', 'd', 'de', 'des', 'du', 'en', 'et', 'l', 'la', 'le', 'les', 'pour', 'sur', 'un', 'une'])
+
 /**
- * L'adresse d'un rapport, comme celle d'un article (demandé par Max le
- * 03/10/2026) : le sujet tiré du titre, puis la date —
- *   /analyses/automobile/meilleurs-accessoires-d-interieur-pour-voiture-2026-09-18/
- *   /analyses/automobile/les-tendances-deco-pour-2026-marketing-2026-09-18/
- * L'ancienne forme catégorie/date/thème redirige ici en 301 (routes/analysesPubliques.ts).
+ * Le sujet d'un rapport, pour son adresse (Max, 03/10/2026 : « titre de
+ * l'analyse et extrait percutant de l'analyse en question ») :
+ *  - le titre du jour quand le rapport en porte un, seul ;
+ *  - sinon le titre, puis l'extrait percutant sans les mots déjà dits ;
+ *  - sinon le titre seul.
+ * « ordinateurs-pour-ia-en-mode-local-egpu-docks-oculink-thunderbolt-5-… ».
  */
-export function cheminRapport(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre'>): string {
-  // « …-bureau-2026-2026-09-19 » : l'année du titre fait doublon avec la date qui suit.
-  // Ni « …-de-2026-09-19 » : un mot-outil ne termine pas un sujet.
+export function sujetRapport(r: Pick<RapportPublic, 'day' | 'theme' | 'titre' | 'une' | 'extrait'>): string {
+  const annee = r.day.slice(0, 4)
+  if (r.une) return nettoyer(slugTitre(r.une, SUJET_MAX), annee) || r.theme
+  const titre = nettoyer(slugTitre(r.titre, 70), annee) || r.theme
+  if (!r.extrait) return titre
+  const dits = new Set(titre.split('-'))
+  const reste = slugTitre(r.extrait, 200)
+    .split('-')
+    .filter((m) => m && !dits.has(m) && !OUTILS.has(m))
+    .join('-')
+  if (!reste) return titre
+  return nettoyer(slugTitre(`${titre}-${reste}`, SUJET_MAX), annee) || titre
+}
+
+type Adressable = Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait'>
+
+/**
+ * Les adresses attribuées, rapport par rapport. Ni catégorie ni date dans
+ * l'adresse (Max, 03/10/2026 : « aucun intérêt en référencement ») : deux
+ * rapports du même thème peuvent donc porter le même sujet (le rayon et le
+ * marketing du 20/09 en informatique, par exemple). Le PREMIER publié garde
+ * l'adresse nue, les suivants prennent -2, -3… dans l'ordre de publication :
+ * une adresse donnée ne change pas quand un nouveau rapport arrive.
+ * La date reste dans la page et dans datePublished, pas dans l'adresse.
+ */
+let attribuees = new Map<string, string>()
+
+export function attribuerAdresses(rapports: Adressable[]): void {
+  const prises = new Set<string>()
+  const carte = new Map<string, string>()
+  const rang = (r: Adressable) => `${r.day}|${r.type === 'rayon' ? 0 : 1}|${r.id}`
+  const ordre = [...rapports].sort((a, b) => (rang(a) < rang(b) ? -1 : 1))
+  for (const r of ordre) {
+    const base = `/analyses/${r.theme}/${sujetRapport(r)}`
+    let choix = `${base}/`
+    for (let n = 2; prises.has(choix); n++) choix = `${base}-${n}/`
+    prises.add(choix)
+    carte.set(r.id, choix)
+  }
+  attribuees = carte
+}
+
+/** Le rapport qui porte cette adresse, s'il y en a un (après attribuerAdresses). */
+export function rapportA(chemin: string): string | null {
+  for (const [id, c] of attribuees) if (c === chemin) return id
+  return null
+}
+
+/**
+ * L'adresse d'un rapport, comme un article : le thème, puis le sujet —
+ * /analyses/interieur/meilleurs-accessoires-d-interieur-pour-voiture/.
+ * Les formes précédentes (catégorie/date/thème, puis catégorie/sujet-date)
+ * redirigent ici en 301 (routes/analysesPubliques.ts).
+ */
+export function cheminRapport(r: Adressable): string {
+  return attribuees.get(r.id) ?? `/analyses/${r.theme}/${sujetRapport(r)}/`
+}
+
+/** La forme du 03/10/2026 au soir (PR #25), gardée pour les redirections. */
+export function cheminArticleDate(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre'>): string {
   const sujet =
     slugTitre(r.titre)
       .replace(new RegExp(`-${r.day.slice(0, 4)}$`), '')
@@ -666,7 +736,7 @@ ${[...parCategorie.values()]
   })
 }
 
-export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'updatedAt'>>): string {
+export function sitemapXml(rapports: Array<Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait' | 'updatedAt'>>): string {
   const categories = new Map<string, Date>()
   for (const r of rapports) {
     const d = categories.get(r.categorie)
@@ -678,7 +748,7 @@ export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'da
     if (!d || d < r.updatedAt) jours.set(r.day, r.updatedAt)
   }
   const ligne = (loc: string, mod: Date, prio: string, freq: string) =>
-    `  <url><loc>${SITE}${loc}</loc><lastmod>${mod.toISOString().slice(0, 10)}</lastmod><changefreq>${freq}</changefreq><priority>${prio}</priority></url>`
+    `  <url><loc>${SITE}${loc}</loc><lastmod>${mod.toISOString()}</lastmod><changefreq>${freq}</changefreq><priority>${prio}</priority></url>`
   const dernier = rapports.reduce((d, r) => (r.updatedAt > d ? r.updatedAt : d), new Date(0))
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
