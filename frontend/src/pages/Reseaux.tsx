@@ -5,7 +5,6 @@ import { AgentBar } from '../components/AgentBar'
 import { LogosHeader } from '../components/LogosHeader'
 import { BandeReseaux } from '../components/BandeReseaux'
 import { SocialConnect } from '../components/SocialConnect'
-import { AdAccounts } from '../components/AdAccounts'
 import { ListePubs } from '../components/ListePubs'
 import { AnalysesRapports } from '../components/AnalysesRapports'
 import { PromptsRapports } from '../components/PromptsRapports'
@@ -129,9 +128,12 @@ export default function Reseaux() {
       </div>
 
       {/* ---------- Raccordements ---------- */}
+      {/*
+        * The old "paste a token" ad-account block lived here: nothing read those
+        * tokens, and it said so ("ni l'une ni l'autre n'est encore écrite"), right
+        * under the real OAuth régies. The régies are connected above now.
+        */}
       <SocialConnect />
-
-      <AdAccounts />
 
       {/* ---------- Suivi des campagnes ---------- */}
       <h2 className="mt-10 flex items-center gap-2 font-bold">
