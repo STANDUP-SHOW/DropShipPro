@@ -68,6 +68,30 @@ rayon. Le relevé brut est gardé dans `releves\AAAA-MM-JJ\signaux\`. Cases à c
 si leur texte ou leur format a changé, les lignes sortent « illisible » et il faut adapter
 `extraireMetaAds` / `extraireTrends`. Conditions d'utilisation de ces sites à vérifier par Max.
 
+## Lectures Serper étendues (lib/serper-etendu.js, 03/10/2026)
+
+Trois lectures de plus avec la clé Serper existante, après la deuxième vague (les 46 requêtes
+d'origine ne bougent pas) :
+- **Shopping** : pour chacun des ≤ 20 premiers modèles, les offres Google Shopping France
+  (vendeur, prix affiché, note). Le prix est lu, jamais deviné : « Voir le prix » reste
+  « Non vérifié ». Les liens de redirection Google ne deviennent pas des URL fournisseur.
+- **Autocomplétion** : ce que les acheteurs tapent (thème, catégorie, 5 premiers modèles).
+- **Images** : adresses d'images réelles, les seules que `image_url` peut reprendre (≤ 10 modèles).
+
+1 crédit par lecture, soit au plus 20 + 26 + 7 + 20 + 10 = 83 crédits Serper par rayon (le
+tableau de bord l'affiche). Le premier refus (crédits, quota) coupe les lectures suivantes,
+marquées « non lues » ; il ne fait jamais échouer le rayon. Relevé brut :
+`releves\AAAA-MM-JJ\serper\`. Cases et plafonds dans Réglages. Le budget de preuves envoyé à
+Claude passe de 90 000 à 120 000 caractères pour les loger.
+
+## Choisir les rayons de la nuit
+
+Onglet « Rapports du jour » : une case par rayon. Sans choix, les 24 tournent ; avec un choix
+(par exemple deux, pour tester), « Lancer la nuit » et la nuit automatique ne font que ceux-là
+(le coût annoncé dans la fenêtre d'accord suit : ≈ 0,39 € par rayon). Rien coché = rien ne
+tourne. Le choix est gardé d'une ouverture à l'autre, et un rayon déjà validé aujourd'hui est
+sauté. Boutons : tout cocher, tout décocher, cocher ceux pas encore validés.
+
 ## Limites connues, à lire
 
 - **Le prompt est reconstruit**, pas copié : le prompt d'origine vit dans

@@ -130,6 +130,38 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(brut.tendances[0].series[0].variationPct, 100, 'courbe capturée sur le réseau de la fenêtre')
     console.log('ok   signaux publics lus par la vraie fenêtre cachée (annonces, courbe Trends capturée)')
     assert.ok(fs.readdirSync(path.join(depot, 'journaux')).length >= 1, 'journal écrit')
+    assert.ok(fs.readdirSync(path.join(depot, 'releves', jour, 'serper')).length === 1, 'relevé Serper étendu (prix, suggestions, images) écrit')
+    const brutSerper = JSON.parse(fs.readFileSync(path.join(depot, 'releves', jour, 'serper', fs.readdirSync(path.join(depot, 'releves', jour, 'serper'))[0]), 'utf8'))
+    assert.ok(brutSerper.shopping.length > 0 && brutSerper.shopping.every((x) => x.prixMin === 129.9), JSON.stringify(brutSerper.shopping[0]).slice(0, 200))
+    console.log('ok   lectures Serper étendues : prix Shopping, suggestions et images relevés')
+
+    // the rayons of the night are Max's choice: two only, for a test; zero = nothing runs
+    assert.equal(e0.rayonsDuJour.every((x) => x.choisi), true, 'sans choix : les 24 sont cochés')
+    const tous = (await a.appel('etat')).valeur.rayonsDuJour
+    const deux = [tous[1].categorie, tous[2].categorie]
+    const sel = (await a.appel('rayonsNuit', { ids: deux })).valeur
+    assert.deepEqual(sel.rayonsDuJour.filter((x) => x.choisi).map((x) => x.categorie), deux)
+    const vide = (await a.appel('rayonsNuit', { ids: [] })).valeur
+    assert.equal(vide.rayonsDuJour.filter((x) => x.choisi).length, 0)
+    const rien = (await a.appel('nuitLancer')).valeur
+    assert.match(rien.annulee, /Aucun rayon coché/)
+    assert.equal(fs.readdirSync(path.join(depot, 'rapports', jour)).length, 1, 'aucun rayon ne tourne quand rien n’est coché')
+    await a.appel('rayonsNuit', { ids: deux })
+    const bilanNuit = (await a.appel('nuitLancer')).valeur
+    assert.equal(bilanNuit.attendus, 2); assert.equal(bilanNuit.ok, 2, JSON.stringify(bilanNuit))
+    assert.deepEqual(fs.readdirSync(path.join(depot, 'rapports', jour)).sort(), [tous[0].categorie, ...deux].sort(), 'seuls les rayons choisis (plus le rayon test) ont un rapport')
+    console.log('ok   nuit sur 2 rayons choisis : 2 rapports, les 21 autres intacts')
+    // the screen: a checkbox per rayon (2 ticked) and the Serper readings in Réglages
+    await a.evaluer(`document.querySelectorAll('#onglets button')[1].click()`)
+    await pause(300)
+    const coches = JSON.parse(await a.evaluer(`JSON.stringify({ cases: document.querySelectorAll('table input[type=checkbox]').length, cochees: document.querySelectorAll('table input[type=checkbox]:checked').length })`))
+    assert.deepEqual(coches, { cases: 24, cochees: 2 })
+    await a.evaluer(`document.querySelectorAll('#onglets button')[3].click()`)
+    await pause(300)
+    const texteReglages = await a.evaluer(`document.body.textContent`)
+    assert.match(texteReglages, /Serper Shopping/); assert.match(texteReglages, /crédits Serper avec ces réglages/)
+    await a.evaluer(`document.querySelectorAll('#onglets button')[0].click()`)
+    console.log('ok   écran : 24 cases à cocher dans « Rapports du jour », réglages Serper visibles')
 
     // night auto: accepted (bench has no dialog) and persisted
     const na = (await a.appel('nuitAuto', { actif: true })).valeur
@@ -151,6 +183,7 @@ async function lancer({ maison, profil, port, serveur }) {
     const e2 = (await a.appel('etat')).valeur
     assert.equal(e2.sources.length, 1, 'la source a survécu au redémarrage')
     assert.equal(e2.secrets.anthropic, true, 'la clé a survécu au redémarrage')
+    assert.deepEqual(e2.rayonsDuJour.filter((x) => x.choisi).map((x) => x.categorie).length, 2, 'le choix des rayons a survécu au redémarrage')
     // fresh process, same profile: the verification page only says SESSION-CONSERVEE if the cookie came back from disk
     const ver2 = (await a.appel('sourceVerifier', 'site-de-test')).valeur
     console.log('ok   après redémarrage de l’application : session', ver2.etat)

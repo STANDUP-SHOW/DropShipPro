@@ -37,6 +37,12 @@ async function appel(nom, arg) {
 
 function flash(m) { messageFlash = m; rendre() }
 
+// Rayons run by the night: ids = list of category ids, null = all of them.
+async function choisirRayons(ids) {
+  const x = await appel('rayonsNuit', { ids })
+  if (x) { etat = x; rendre() }
+}
+
 // ---------------------------------------------------------------- tableau de bord
 function vueAccueil() {
   const e = etat
@@ -45,6 +51,8 @@ function vueAccueil() {
   const prog = e.nuit.progression
   const b = e.nuit.dernierBilan
   const faits = e.rayonsDuJour.filter((r) => r.fait).length
+  const choisis = e.rayonsDuJour.filter((r) => r.choisi).length
+  const total = e.rayonsDuJour.length
 
   return h('div', {},
     h('h1', {}, 'Tableau de bord'),
@@ -60,6 +68,7 @@ function vueAccueil() {
         h('h2', {}, `Aujourd’hui (${e.date})`),
         h('div', {}, `${faits} / ${e.rayonsDuJour.length} rapports validés`),
         h('div', { class: 'barre-prog' }, h('div', { style: `width:${Math.round((faits / e.rayonsDuJour.length) * 100)}%` })),
+        h('div', {}, `Rayons de la nuit : ${choisis} sur ${total} `, pastille(choisis === total ? 'tous' : choisis ? 'sélection' : 'aucun', choisis === total ? '' : choisis ? 'alerte' : 'mauvais')),
         h('p', { class: 'doux petit' }, e.reglages.nuitActivee ? `Nuit automatique à ${e.reglages.heureNuit} : ACTIVÉE` : 'Nuit automatique : désactivée (rien ne tourne sans votre accord).'),
       ),
     ),
@@ -72,7 +81,7 @@ function vueAccueil() {
           if (r) flash(`Anthropic : ${r.claude.ok ? 'OK' : r.claude.message} — Serper : ${r.serper.ok ? 'OK' : r.serper.message}`)
         } }, 'Contrôler les crédits (1 crédit)'),
         h('button', { class: 'btn principal', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('rayonTest'); if (r && !r.annule) flash(`Rayon test : ${r.statut}`) } }, 'Lancer UN rayon test'),
-        h('button', { class: 'btn', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('nuitLancer'); if (r && !r.annule) flash(r.annulee ? `Nuit annulée : ${r.annulee}` : 'Nuit terminée') } }, 'Lancer la nuit complète'),
+        h('button', { class: 'btn', disabled: e.nuit.enCours || !toutesCles || !choisis, onclick: async () => { const r = await appel('nuitLancer'); if (r && !r.annule) flash(r.annulee ? `Nuit annulée : ${r.annulee}` : 'Nuit terminée') } }, choisis === total ? 'Lancer la nuit complète' : `Lancer ${choisis} rayon${choisis > 1 ? 's' : ''} sur ${total}`),
         h('button', { class: 'btn danger', disabled: !e.nuit.enCours, onclick: () => appel('nuitArreter') }, 'Arrêter après le rayon en cours'),
       ),
       prog && h('p', {}, `En cours : ${prog.courant || '…'} ${prog.index ? `(${prog.index}/${prog.attendus})` : ''}`),
@@ -86,7 +95,7 @@ function vueAccueil() {
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Nuit automatique'),
-      h('p', { class: 'doux petit' }, 'À n’activer qu’après un rayon test dont vous avez validé la qualité (20 produits, 20 URL distinctes, marges en euros). Coût d’une nuit : environ 9,40 €.'),
+      h('p', { class: 'doux petit' }, 'À n’activer qu’après un rayon test dont vous avez validé la qualité (20 produits, 20 URL distinctes, marges en euros). Coût : environ 0,39 € par rayon coché (24 rayons ≈ 9,40 €). Les rayons se choisissent dans « Rapports du jour ».'),
       h('div', { class: 'ligne' },
         h('button', { class: 'btn', onclick: () => appel('nuitAuto', { actif: !e.reglages.nuitActivee }) }, e.reglages.nuitActivee ? 'Désactiver la nuit automatique' : `Activer la nuit automatique à ${e.reglages.heureNuit}`),
       ),
@@ -101,11 +110,25 @@ function vueRapports() {
     h('h1', {}, `Rapports du ${e.date}`),
     h('div', { class: 'ligne' }, h('button', { class: 'btn', onclick: () => appel('depotOuvrir') }, 'Ouvrir le dossier de dépôt'), h('span', { class: 'doux petit' }, e.depot)),
     h('div', { class: 'carte' },
+      h('h2', {}, 'Rayons de la nuit'),
+      h('p', { class: 'doux petit' }, 'Cochez les rayons que la nuit doit analyser (par exemple deux seulement pour tester). Sans choix, les 24 sont lancés. Un rayon déjà validé aujourd’hui est sauté.'),
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn', onclick: () => choisirRayons(null) }, 'Tout cocher'),
+        h('button', { class: 'btn', onclick: () => choisirRayons([]) }, 'Tout décocher'),
+        h('button', { class: 'btn', onclick: () => choisirRayons(e.rayonsDuJour.filter((r) => !r.fait).map((r) => r.categorie)) }, 'Cocher ceux pas encore validés'),
+        h('span', { class: 'doux petit' }, `${e.rayonsDuJour.filter((r) => r.choisi).length} coché(s) sur ${e.rayonsDuJour.length}`),
+      ),
+    ),
+    h('div', { class: 'carte' },
       h('table', {},
-        h('thead', {}, h('tr', {}, ['Catégorie', 'Thème du jour', 'État', 'Produits', ''].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['Nuit', 'Catégorie', 'Thème du jour', 'État', 'Produits', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, e.rayonsDuJour.map((r) => {
           const rap = e.rapports.find((x) => x.categorie === r.categorie && x.theme === r.theme)
           return h('tr', {},
+            h('td', {}, h('input', { type: 'checkbox', checked: r.choisi, title: 'Inclure ce rayon dans la nuit', onchange: (ev) => {
+              const ids = e.rayonsDuJour.filter((x) => (x.categorie === r.categorie ? ev.target.checked : x.choisi)).map((x) => x.categorie)
+              choisirRayons(ids)
+            } })),
             h('td', {}, r.libelleCategorie),
             h('td', {}, r.libelleTheme),
             h('td', {}, rap ? pastille(rap.statut === 'ok' ? 'validé' : 'à revoir', rap.statut === 'ok' ? 'bon' : 'alerte') : pastille('pas encore', ''), rap && rap.problemes.length ? h('div', { class: 'petit doux' }, rap.problemes.join(' · ')) : null),
@@ -202,6 +225,10 @@ function vueReglages() {
   const sp = r.signauxPublics
   const caseMeta = h('input', { type: 'checkbox', checked: sp.meta })
   const caseTrends = h('input', { type: 'checkbox', checked: sp.trends })
+  const se = r.serperEtendu
+  const caseShopping = h('input', { type: 'checkbox', checked: se.shopping })
+  const caseAuto = h('input', { type: 'checkbox', checked: se.autocomplete })
+  const caseImages = h('input', { type: 'checkbox', checked: se.images })
   return h('div', {},
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
@@ -220,12 +247,19 @@ function vueReglages() {
       h('label', {}, h('span', {}, caseMeta, ' Lire la Meta Ad Library (annonces actives par modèle)')),
       f('plafondPubs', 'Modèles cherchés dans la Meta Ad Library par rayon', sp.plafondPubsParRayon, 'number'),
       h('p', { class: 'doux petit' }, 'Lectures publiques dans une fenêtre cachée, espacées de 4 s ; le premier blocage ou la première demande de connexion arrête la source pour la nuit. Vérifiez les conditions d’utilisation de ces sites.'),
+      h('label', {}, h('span', {}, caseShopping, ' Serper Shopping : prix et vendeurs réels en France (1 crédit par modèle)')),
+      f('plafondShopping', 'Modèles cherchés dans Shopping par rayon', se.plafondShopping, 'number'),
+      h('label', {}, h('span', {}, caseAuto, ' Serper Autocomplétion : ce que les acheteurs commencent à taper (7 crédits par rayon)')),
+      h('label', {}, h('span', {}, caseImages, ' Serper Images : adresses d’images réelles (1 crédit par modèle)')),
+      f('plafondImages', 'Modèles cherchés dans Images par rayon', se.plafondImages, 'number'),
+      h('p', { class: 'doux petit' }, `Un rayon dépense au plus ${r.creditsSerperParRayon} crédits Serper avec ces réglages.`),
       f('apiBase', 'Adresse de l’API', r.apiBase),
       h('p', {}, h('button', { class: 'btn principal', onclick: async () => {
         const x = await appel('reglages', {
           modele: champs.modele.value.trim(), espaceAnthropic: champs.espaceAnthropic.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
           plafondDeuxiemeVague: Number(champs.plafondDeuxiemeVague.value), apiBase: champs.apiBase.value.trim(), envoiAuSite: envoi.checked,
           signauxPublics: { meta: caseMeta.checked, trends: caseTrends.checked, plafondPubsParRayon: Number(champs.plafondPubs.value) },
+          serperEtendu: { shopping: caseShopping.checked, autocomplete: caseAuto.checked, images: caseImages.checked, plafondShopping: Number(champs.plafondShopping.value), plafondImages: Number(champs.plafondImages.value) },
         })
         if (x) { etat = x; flash('Réglages enregistrés.') }
       } }, 'Enregistrer les réglages')),

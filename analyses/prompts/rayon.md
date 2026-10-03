@@ -52,3 +52,7 @@ Les scores vont de 0 à 100. `image_url` ne vaut une adresse que si elle figure 
 ## Signaux mesurés
 
 Si les preuves contiennent « SIGNAUX PUBLICS MESURÉS », ce sont des chiffres lus par le poste sur Google Trends (indice de recherche, variation sur 8 semaines, pic) et sur la Meta Ad Library (nombre d'annonces actives et ancienneté de la plus ancienne). Appuie `trend_score`, `demand_score`, `ads_potential_score` et `alerts.breakout_products` dessus quand ils existent, et cite-les dans l'analyse. Une ligne « illisible », « bloqué » ou « non_lu » n'est pas un zéro : n'en tire aucune conclusion et n'invente aucune valeur de remplacement. Les « QUESTIONS ET RECHERCHES ASSOCIÉES » sont de vraies formulations d'acheteurs : sers-t'en pour les angles marketing et les prompts créatifs.
+
+## Prix, suggestions et images relevés
+
+Si les preuves contiennent « PRIX ET VENDEURS RELEVÉS », ce sont des offres réelles de Google Shopping France : elles donnent le prix de vente observé sur le marché (`marketplace_prices`, `target_selling_price`), jamais un prix fournisseur. « Non lu » ou « Non vérifié » n'est pas un prix : n'invente aucun chiffre à la place. « SUGGESTIONS DE RECHERCHE GOOGLE » (autocomplétion) donne les mots que les acheteurs tapent : sers-t'en pour les angles marketing et les titres. `image_url` ne reprend qu'une adresse listée sous « IMAGES TROUVÉES ».

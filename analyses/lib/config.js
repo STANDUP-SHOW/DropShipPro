@@ -21,6 +21,10 @@ const PAR_DEFAUT = {
   envoiAuSite: false,
   // Public signals read in a hidden window (Max's "go" of 03/10): Meta Ad Library, Google Trends.
   signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2 },
+  // Extra Serper readings (Max's "go" of 03/10): Google Shopping France, autocomplete, Google Images.
+  serperEtendu: { shopping: true, autocomplete: true, images: true, plafondShopping: 20, plafondImages: 10 },
+  // Rayons (category ids) run by the night: null = all of them, a list = only those (e.g. two, to test).
+  rayonsNuit: null,
   sources: [],
   secrets: {},
 }

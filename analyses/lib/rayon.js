@@ -21,9 +21,10 @@ const { valider, cle: cleUrl } = require('./validation')
 const { rayonMd, marketingMd } = require('./rapports-md')
 const depot = require('./depot')
 const { sectionPreuves } = require('./signaux')
+const { releverSerperEtendu, sectionsPreuvesSerper, urlsVendeurs } = require('./serper-etendu')
 
 const PROMPT_PAR_DEFAUT = path.join(__dirname, '..', 'prompts', 'rayon.md')
-const BUDGET_PREUVES = 90_000
+const BUDGET_PREUVES = 120_000
 
 function requetesVague1(theme, categorie, annee) {
   const t = theme
@@ -83,7 +84,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
   const plafondVague2 = options.plafondDeuxiemeVague || 26
   const annee = rayon.date.slice(0, 4)
   const etiquette = `${rayon.categorie}/${rayon.theme}`
-  const usage = { serper: 0, claudeEntree: 0, claudeSortie: 0 }
+  const usage = { serper: 0, serperEtendu: 0, claudeEntree: 0, claudeSortie: 0 }
   const urlsVues = new Set()
   const preuves = []
 
@@ -167,6 +168,27 @@ async function executerRayon({ rayon, deps, options = {} }) {
     }
   }
 
+  // ---- extra Serper readings (Shopping prices, autocomplete, images): enrichment, never a reason to fail the rayon
+  let serperPlus = null
+  if (deps.serperEtendu) {
+    try {
+      serperPlus = await releverSerperEtendu({ rayon, noms, serper, config: deps.serperEtendu, journal })
+      usage.serperEtendu = serperPlus.requetes
+      const dossier = path.join(racine, 'releves', rayon.date, 'serper')
+      fs.mkdirSync(dossier, { recursive: true })
+      fs.writeFileSync(path.join(dossier, `${rayon.categorie}_${rayon.theme}.json`), JSON.stringify(serperPlus, null, 2))
+      journal.info(`${etiquette} : lectures Serper étendues`, {
+        requetes: serperPlus.requetes,
+        modelesAvecPrix: serperPlus.shopping.filter((x) => x.prixMin !== null).length,
+        modelesAvecImages: serperPlus.images.filter((x) => x.images.length).length,
+        coupe: serperPlus.coupe,
+      })
+      for (const u of urlsVendeurs(serperPlus)) urlsVues.add(u)
+    } catch (err) {
+      journal.erreur(`${etiquette} : lectures Serper étendues indisponibles`, { raison: String(err.message || err) })
+    }
+  }
+
   // ---- connected data sites
   const lectures = (releves ? await releves() : []) || []
 
@@ -189,6 +211,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
   }
   const blocSignaux = sectionPreuves(signaux)
   if (blocSignaux) ajouter(blocSignaux)
+  for (const b of sectionsPreuvesSerper(serperPlus)) ajouter(b)
   ajouter('# PAGES LUES\n' + lues.filter((p) => p.lisible).map((p) => `## ${p.titre || p.url}\nURL: ${p.url}\n${p.texte.slice(0, 1500)}`).join('\n\n'))
   if (lectures.length) {
     ajouter('# RELEVÉS DES SITES DE DONNÉES CONNECTÉS (sessions de Max)\n' + lectures.map((l) => `## ${l.source} — ${l.url}\n${String(l.texte).slice(0, 3000)}`).join('\n\n'))
@@ -236,6 +259,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
     stats: validation.stats,
     usage,
     signaux: signaux ? { courbes: (signaux.tendances || []).filter((g) => g.statut === 'ok').length, pubsLues: (signaux.pubs || []).filter((p) => p.statut === 'ok' || p.statut === 'aucun').length, pubsDemandees: (signaux.pubs || []).length } : null,
+    serperPlus: serperPlus ? { requetes: serperPlus.requetes, modelesAvecPrix: serperPlus.shopping.filter((x) => x.prixMin !== null).length, modelesAvecImages: serperPlus.images.filter((x) => x.images.length).length, coupe: serperPlus.coupe } : null,
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),
   }

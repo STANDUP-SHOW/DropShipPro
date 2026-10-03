@@ -30,6 +30,7 @@ const { creerClaude } = require('./lib/claude')
 const { lirePage } = require('./lib/pages')
 const { executerRayon } = require('./lib/rayon')
 const signauxPublics = require('./lib/signaux')
+const serperEtendu = require('./lib/serper-etendu')
 const { controleCredits, lancerNuit, rapportValide } = require('./lib/orchestrateur')
 const depot = require('./lib/depot')
 const sourcesLib = require('./lib/sources')
@@ -105,12 +106,28 @@ function signauxDuRayon(date) {
   return ({ rayon, noms }) => signauxPublics.releverSignaux({ rayon, noms, lire, config: c, bases, journal, suivi: suiviSignaux, pause })
 }
 
+// Extra Serper readings (Shopping, autocomplete, images); null when Max switched all three off.
+function serperEtenduActif() {
+  const c = { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) }
+  return c.shopping || c.autocomplete || c.images ? c : null
+}
+
+// Serper credits one rayon may spend at most: 20 wave-1 + 26 wave-2 searches, plus the extra readings.
+function creditsSerperParRayon() {
+  const c = serperEtenduActif()
+  return 20 + (cfg.plafondDeuxiemeVague || 26) + (c ? (c.autocomplete ? 7 : 0) + (c.shopping ? c.plafondShopping : 0) + (c.images ? c.plafondImages : 0) : 0)
+}
+
+// The rayons of the night, as chosen by Max (all of them until he chooses).
+const rayonsDeLaNuit = (date) => agents.choisirRayons(agents.rayonsDuJour(agents.charger(), date), cfg.rayonsNuit)
+
 function depsRayon(date) {
   const { serper, claude } = fournisseurs()
   return {
     serper,
     claude,
     signaux: signauxDuRayon(date),
+    serperEtendu: serperEtenduActif(),
     pages: (u) => lirePage(u),
     releves: () => lectureSources(date),
     journal,
@@ -163,7 +180,7 @@ async function lancerUnRayon(rayonChoisi) {
   if (nuit.enCours) throw new Error('Une exécution est déjà en cours.')
   const date = jourLocal()
   const rayon = rayonChoisi || agents.rayonsDuJour(agents.charger(), date)[0]
-  const ok = await accord(`Lancer UN rayon test (${rayon.libelleCategorie} › ${rayon.libelleTheme}) ?`, 'Coût estimé : environ 0,39 € chez Anthropic et ~46 crédits Serper.')
+  const ok = await accord(`Lancer UN rayon test (${rayon.libelleCategorie} › ${rayon.libelleTheme}) ?`, `Coût estimé : environ 0,39 € chez Anthropic et jusqu’à ${creditsSerperParRayon()} crédits Serper.`)
   if (!ok) return { annule: true }
   nuit.enCours = true
   nuit.arret = { demande: false }
@@ -186,14 +203,25 @@ async function lancerUnRayon(rayonChoisi) {
 async function lancerLaNuit({ automatique = false } = {}) {
   if (nuit.enCours) throw new Error('Une exécution est déjà en cours.')
   const date = jourLocal()
+  const choisis = rayonsDeLaNuit(date)
+  if (!choisis.length) {
+    journal.erreur('Nuit non lancée', { raison: 'aucun rayon coché' })
+    nuit.dernierBilan = { date, annulee: 'Aucun rayon coché : cochez au moins un rayon dans « Rayons du jour ».' }
+    envoyerEtat()
+    return nuit.dernierBilan
+  }
   if (!automatique) {
-    const ok = await accord('Lancer la nuit complète (24 rayons, un à la fois) ?', 'Coût estimé : environ 9,40 € chez Anthropic et ~1 100 crédits Serper. Faites d’abord un rayon test.')
+    const n = choisis.length
+    const ok = await accord(
+      n === 24 ? 'Lancer la nuit complète (24 rayons, un à la fois) ?' : `Lancer ${n} rayon${n > 1 ? 's' : ''} sur 24, un à la fois ?`,
+      `Coût estimé : environ ${(n * 0.39).toFixed(2).replace('.', ',')} € chez Anthropic et jusqu’à ${n * creditsSerperParRayon()} crédits Serper. ${choisis.map((r) => r.libelleCategorie).join(', ')}.${n === 24 ? ' Faites d’abord un rayon test.' : ''}`,
+    )
     if (!ok) return { annule: true }
   }
   nuit.enCours = true
   nuit.arret = { demande: false }
   try {
-    const rayons = agents.rayonsDuJour(agents.charger(), date)
+    const rayons = choisis
     const { serper, claude } = fournisseurs()
     const bilan = await lancerNuit({
       rayons,
@@ -248,9 +276,11 @@ function etat() {
       modele: cfg.modele, espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
       plafondPages: cfg.plafondPages, plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
       signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2, ...(cfg.signauxPublics || {}) },
+      serperEtendu: { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) },
+      creditsSerperParRayon: creditsSerperParRayon(),
     },
     nuit: { enCours: nuit.enCours, progression: nuit.progression, dernierBilan: nuit.dernierBilan },
-    rayonsDuJour: agents.rayonsDuJour(agents.charger(), date).map((r) => ({ ...r, fait: rapportValide(racine, date, r.categorie, r.theme) })),
+    rayonsDuJour: agents.rayonsDuJour(agents.charger(), date).map((r) => ({ ...r, fait: rapportValide(racine, date, r.categorie, r.theme), choisi: !Array.isArray(cfg.rayonsNuit) || cfg.rayonsNuit.includes(r.categorie) })),
     rapports: listeRapports(date),
     sources: cfg.sources.map((s) => ({ ...s, session: etatsSources[s.id] || null })),
     journal: journal.lire(120),
@@ -322,6 +352,28 @@ function brancher() {
         plafondPubsParRayon: Math.max(1, Math.min(12, Number(r.signauxPublics.plafondPubsParRayon) || a.plafondPubsParRayon || 6)),
       }
     }
+    if (r.serperEtendu) {
+      const a = { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) }
+      cfg.serperEtendu = {
+        shopping: Boolean(r.serperEtendu.shopping),
+        autocomplete: Boolean(r.serperEtendu.autocomplete),
+        images: Boolean(r.serperEtendu.images),
+        plafondShopping: Math.max(1, Math.min(40, Number(r.serperEtendu.plafondShopping) || a.plafondShopping)),
+        plafondImages: Math.max(1, Math.min(40, Number(r.serperEtendu.plafondImages) || a.plafondImages)),
+      }
+    }
+    sauver()
+    return etat()
+  })
+  // Which rayons the night runs: `ids` = list of category ids, or null for all of them.
+  h('rayons-nuit', ({ ids }) => {
+    if (ids === null) cfg.rayonsNuit = null
+    else {
+      const connus = new Set(agents.charger().categories.map((c) => c.id))
+      if (!Array.isArray(ids)) throw new Error('Liste de rayons invalide.')
+      const choisis = [...new Set(ids.map(String))].filter((id) => connus.has(id))
+      cfg.rayonsNuit = choisis.length === connus.size ? null : choisis
+    }
     sauver()
     return etat()
   })
@@ -335,7 +387,9 @@ function brancher() {
   h('nuit-arreter', () => { nuit.arret.demande = true; return true })
   h('nuit-auto', async ({ actif }) => {
     if (actif) {
-      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', 'Le poste lancera seul les 24 rayons chaque nuit (≈ 9,40 € par nuit). Vous pouvez la couper ici à tout moment.')
+      const n = rayonsDeLaNuit(jourLocal()).length
+      if (!n) throw new Error('Aucun rayon coché : cochez au moins un rayon dans « Rayons du jour ».')
+      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', `Le poste lancera seul ${n === 24 ? 'les 24 rayons' : `les ${n} rayon${n > 1 ? 's' : ''} cochés`} chaque nuit (≈ ${(n * 0.39).toFixed(2).replace('.', ',')} € par nuit). Vous pouvez la couper ici à tout moment.`)
       if (!ok) return etat()
       cfg.accordNuitLe = new Date().toISOString()
     }

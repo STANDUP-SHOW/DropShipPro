@@ -3,7 +3,7 @@
 const http = require('node:http')
 const assert = require('node:assert/strict')
 
-const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [] }
+const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [] }
 
 function creerServeur() {
   return new Promise((resolve) => {
@@ -21,6 +21,21 @@ function creerServeur() {
           const base = etat.requetesSerper.length * 3
           const organic = Array.from({ length: 6 }, (_, i) => ({ title: `Résultat ${q} ${i}`, link: `http://127.0.0.1:${port}/p/${base + i}`, snippet: `Extrait ${q}` }))
           res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ organic, peopleAlsoAsk: [{ question: `Quel ${q.slice(0, 20)} choisir ?` }, { question: 'Est-ce que ça vaut le coup ?' }], relatedSearches: [{ query: `${q.slice(0, 20)} pas cher` }] }))
+        }
+        if (['/shopping', '/autocomplete', '/images'].includes(req.url)) {
+          const q = JSON.parse(corps).q
+          const point = req.url.slice(1)
+          etat[point].push(q)
+          if (!etat.creditsSerper) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ message: 'Not enough credits', statusCode: 400 })) }
+          res.writeHead(200, { 'content-type': 'application/json' })
+          if (point === 'autocomplete') return res.end(JSON.stringify({ suggestions: [{ value: `${q} pas cher` }, { value: `${q} avis` }] }))
+          if (point === 'images') return res.end(JSON.stringify({ images: [{ title: `Photo ${q}`, imageUrl: `http://127.0.0.1:${port}/img/${encodeURIComponent(q)}.jpg`, link: `http://127.0.0.1:${port}/p/img1`, source: 'boutique-test.fr' }, { title: 'Sans adresse', imageUrl: 'data:image/png;base64,AAAA' }] }))
+          if (/SANS-OFFRE/.test(q)) return res.end(JSON.stringify({ shopping: [] }))
+          return res.end(JSON.stringify({ shopping: [
+            { title: `${q} 64 Go`, source: 'Boulanger', price: '129,90 €', link: `http://127.0.0.1:${port}/p/shop1`, rating: 4.4, ratingCount: 210 },
+            { title: `${q} neuf`, source: 'Darty', price: '1 299,00 €', link: 'https://www.google.com/shopping/product/123' },
+            { title: `${q} reconditionné`, source: 'BackMarket', price: 'Voir le prix', link: `http://127.0.0.1:${port}/p/shop2` },
+          ] }))
         }
         if (req.url.startsWith('/ads/library/')) {
           const q = new URL(req.url, 'http://x').searchParams.get('q') || ''
@@ -122,6 +137,6 @@ function creerServeur() {
 }
 
 
-function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [] }) }
+function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [] }) }
 
 module.exports = { etat, creerServeur, remise }

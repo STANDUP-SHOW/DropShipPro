@@ -30,6 +30,7 @@ const config = lib('config')
 const { planifier } = lib('planificateur')
 const { ErreurFournisseur } = lib('erreurs')
 const sig = lib('signaux')
+const plus = lib('serper-etendu')
 
 let ok = 0
 const essais = []
@@ -399,6 +400,73 @@ test('rayon : questions Google et signaux publics arrivent dans les preuves ; un
   remise()
   const res2 = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, signaux: async () => { throw new Error('fenêtre indisponible') } }, options: {} })
   assert.equal(res2.statut, 'ok', 'les signaux sont un plus : leur panne ne perd pas le rayon')
+})
+
+test('Serper étendu : prix lus sans rien inventer, Shopping/Autocomplétion/Images, refus de crédit en clair', async (srv) => {
+  const m = monde(srv); remise()
+  assert.equal(plus.prixEnNombre('129,90 €'), 129.9); assert.equal(plus.prixEnNombre('1 299,00 €'), 1299); assert.equal(plus.prixEnNombre('$29.99'), 29.99)
+  assert.equal(plus.prixEnNombre('1.299 €'), 1299); assert.equal(plus.prixEnNombre('Voir le prix'), null); assert.equal(plus.prixEnNombre(''), null)
+  const offres = await m.serper.shopping('Marque A')
+  assert.equal(offres.length, 3); assert.equal(offres[0].vendeur, 'Boulanger'); assert.equal(offres[0].note, 4.4); assert.equal(offres[2].note, null)
+  assert.deepEqual(await m.serper.autocomplete('robot'), ['robot pas cher', 'robot avis'])
+  const imgs = await m.serper.images('robot')
+  assert.equal(imgs.length, 1, 'une image sans adresse http n’est pas gardée'); assert.match(imgs[0].image, /^http:\/\/127\.0\.0\.1/)
+  etat.creditsSerper = false
+  await assert.rejects(m.serper.shopping('x'), /Serper : 400 - Not enough credits/)
+  // a refusal cuts the rest of the readings: unread, never an empty "success" with invented numbers
+  const res = await plus.releverSerperEtendu({ rayon: m.rayon, noms: ['A', 'B'], serper: m.serper, journal: m.journal })
+  assert.ok(res.coupe && res.requetes === 0 && res.shopping.every((x) => x.statut === 'erreur' || x.statut === 'non_lu'))
+  assert.ok(plus.sectionsPreuvesSerper(res).join('').includes('Non lu'))
+  assert.ok(!plus.sectionsPreuvesSerper(res).join('').match(/\d+ prix lus/))
+})
+
+test('rayon : prix Shopping, suggestions et images arrivent dans les preuves ; la panne de Serper étendu ne fait pas échouer le rayon', async (srv) => {
+  const m = monde(srv); remise()
+  let prompt = ''
+  const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion, serperEtendu: { shopping: true, autocomplete: true, images: true, plafondShopping: 5, plafondImages: 3 } }, options: {} })
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  assert.equal(etat.serper, 46, 'les 46 requêtes du agent n8n sont inchangées')
+  assert.equal(etat.shopping.length, 5); assert.equal(etat.images.length, 3); assert.equal(etat.autocomplete.length, 7)
+  assert.match(prompt, /PRIX ET VENDEURS RELEVÉS/); assert.match(prompt, /Boulanger \| 129,90 €/)
+  assert.match(prompt, /2 prix lus sur 3 offres, de 129,9 € à 1299 € \(médiane 714,45 €\)/)
+  assert.match(prompt, /BackMarket \| Voir le prix/)
+  assert.match(prompt, /SUGGESTIONS DE RECHERCHE GOOGLE/); assert.match(prompt, /pas cher/)
+  assert.match(prompt, /IMAGES TROUVÉES[\s\S]*\/img\//)
+  assert.match(prompt, /LISTE DES URL RENCONTRÉES[\s\S]*\/p\/shop1/, 'une page vendeur réellement vue est autorisée')
+  assert.ok(!/LISTE DES URL RENCONTRÉES[\s\S]*google\.com\/shopping/.test(prompt), 'le lien de redirection Google n’est pas une URL fournisseur')
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.equal(j.poste.usage.serperEtendu, 15); assert.equal(j.poste.serperPlus.modelesAvecPrix, 5); assert.equal(j.poste.serperPlus.modelesAvecImages, 3)
+  assert.ok(fs.existsSync(path.join(m.racine, 'releves', '2026-10-03', 'serper', 'telephonie_smartphones.json')), 'relevé brut gardé pour contrôle')
+  // not asked -> not called
+  remise()
+  await executerRayon({ rayon: m.rayon, deps: m.deps, options: {} })
+  assert.equal(etat.shopping.length + etat.images.length + etat.autocomplete.length, 0)
+  // a provider that refuses the extra readings: the rayon survives
+  remise()
+  const serperCasse = { chercher: m.serper.chercher, shopping: async () => { throw new ErreurFournisseur('Serper', '429 - trop de requêtes') }, autocomplete: async () => ['a'], images: async () => [] }
+  const res2 = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, serper: serperCasse, serperEtendu: { shopping: true, autocomplete: true, images: true, plafondShopping: 3, plafondImages: 3 } }, options: {} })
+  assert.equal(res2.statut, 'ok')
+  const brut = JSON.parse(fs.readFileSync(path.join(m.racine, 'releves', '2026-10-03', 'serper', 'telephonie_smartphones.json'), 'utf8'))
+  assert.match(brut.coupe, /429/); assert.ok(brut.shopping.every((x) => x.prixMin === null))
+})
+
+test('nuit : seuls les rayons choisis tournent (deux sur 24), liste vide = rien', async (srv) => {
+  remise()
+  const tous = agents.rayonsDuJour(agents.charger(), '2026-10-03')
+  assert.equal(agents.choisirRayons(tous, null).length, 24, 'sans choix : les 24')
+  const deux = agents.choisirRayons(tous, [tous[3].categorie, tous[7].categorie, 'inconnu'])
+  assert.deepEqual(deux.map((r) => r.categorie), [tous[3].categorie, tous[7].categorie])
+  assert.equal(agents.choisirRayons(tous, []).length, 0)
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'poste-'))
+  creerArborescence(racine)
+  const faits = []
+  const bilan = await orch.lancerNuit({
+    rayons: deux, date: '2026-10-03', racine, journal: creerJournal(racine),
+    controle: async () => ({ ok: true, serper: { ok: true }, claude: { ok: true } }),
+    executer: async (r) => { faits.push(r.categorie); return { statut: 'ok' } },
+  })
+  assert.equal(bilan.attendus, 2); assert.equal(bilan.ok, 2); assert.deepEqual(faits, deux.map((r) => r.categorie))
 })
 
 test('validation : une URL absente des pages lues n’est jamais conservée', () => {

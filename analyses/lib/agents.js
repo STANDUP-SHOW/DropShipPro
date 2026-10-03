@@ -25,4 +25,14 @@ function rayonsDuJour(agents, date) {
   })
 }
 
-module.exports = { charger, jourDeLAnnee, themeDuJour, rayonsDuJour }
+/**
+ * The rayons Max chose for the night. `ids` null (never set) = all of them;
+ * a list = only those, in the order of the rotation, unknown ids ignored.
+ */
+function choisirRayons(rayons, ids) {
+  if (!Array.isArray(ids)) return rayons
+  const voulus = new Set(ids)
+  return rayons.filter((r) => voulus.has(r.categorie))
+}
+
+module.exports = { charger, jourDeLAnnee, themeDuJour, rayonsDuJour, choisirRayons }
