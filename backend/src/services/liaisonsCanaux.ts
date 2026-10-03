@@ -28,7 +28,7 @@
  *              données) ou il n'existe plus. Dit tel quel, jamais « bientôt ».
  *
  * `etat` dit ce qu'on sait : `branche` (ça marche, vérifié en production),
- * `compte-requis` (connecteur écrit, il manque le compte vendeur), `verifie`
+ * `compte-requis` (l'API existe chez le canal, notre connecteur n'est pas écrit), `verifie`
  * (la voie a été lue dans la documentation du canal), `famille` (la voie de
  * sa famille, non lue canal par canal — et l'écran le dit). Rien n'est promis
  * qu'on n'ait lu : un canal `famille` qui exigerait son propre gabarit de
@@ -319,7 +319,10 @@ export function liaisonPour(canal: CanalAnnuaire): Liaison {
         voie: 'api',
         etat: 'compte-requis',
         plateforme: plateforme.id,
-        comment: `Connecteur écrit : il publie dès que vous collez les identifiants de votre compte vendeur ${plateforme.label} dans Réglages. ${plateforme.note ?? ''}`.trim(),
+        // Ce texte disait « Connecteur écrit » pour des plateformes sans une ligne
+        // de code d'envoi (03/10/2026) : c'est ce qui a fait croire à Max que
+        // TikTok Shop, Amazon et Allegro étaient branchés.
+        comment: `Connecteur pas encore écrit : la plateforme a une API, mais DropShipper ne publie pas encore chez ${plateforme.label}. ${plateforme.note ?? ''}`.trim(),
         doc: plateforme.sellUrl ?? undefined,
       }
     }

@@ -76,3 +76,8 @@ export function frontendUrl(): string {
 export function callbackMeta(): string {
   return `${apiBaseUrl()}/api/public/social/meta/callback`
 }
+
+/** L'adresse de retour d'une connexion sociale maison — une par moteur, fixe. */
+export function callbackSocial(moteur: string): string {
+  return `${apiBaseUrl()}/api/public/social/${moteur}/callback`
+}

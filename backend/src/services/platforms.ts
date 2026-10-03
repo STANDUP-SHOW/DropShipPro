@@ -807,7 +807,8 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
 /** Les boutiques publiées par boutiqueTiers.ts : une entrée ici, une dans publisher.ts et settings.ts. */
 export const BOUTIQUES_TIERS: Platform[] = ['WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO', 'DRUPAL_COMMERCE', 'BIGCOMMERCE', 'WIX', 'SHOPWARE', 'ECWID', 'SQUARESPACE']
 
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', ...BOUTIQUES_TIERS, ...OPERATEURS_MIRAKL]
+// TikTok Shop, Amazon, Allegro : connecteurs à autorisation (marchesApi.ts), écrits le 03/10/2026.
+const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'TIKTOK_SHOP', 'AMAZON', 'ALLEGRO', ...BOUTIQUES_TIERS, ...OPERATEURS_MIRAKL]
 
 /**
  * Les boutiques que le vendeur POSSÈDE, par opposition aux canaux de vente

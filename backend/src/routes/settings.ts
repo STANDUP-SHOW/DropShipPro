@@ -412,6 +412,13 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
 
   let data = parsed.data.data
 
+  // TikTok Shop, Amazon, Allegro se relient par autorisation (routes/marches.ts),
+  // éprouvée par un appel réel : un formulaire enregistré ici les aurait dits
+  // « connectés » sans rien prouver.
+  if (['TIKTOK_SHOP', 'AMAZON', 'ALLEGRO'].includes(parsed.data.platform)) {
+    return res.status(400).json({ error: 'Cette place de marché se relie par « Relier mon compte », pas par une clé collée.' })
+  }
+
   // Shopify is the one destination that really publishes, so its credentials are
   // checked here rather than discovered as a failure at publication time.
   if (parsed.data.platform === 'SHOPIFY' && Object.keys(data).length > 0) {
