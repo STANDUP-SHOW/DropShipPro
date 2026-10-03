@@ -42,21 +42,28 @@ import type { Product } from '@prisma/client'
  *
  * L'ordre compte : Faire lit la position autant que l'intitulé. Ne pas
  * réordonner, ne pas « nettoyer » les intitulés — les deux-points et les
- * espaces de « Prix revendeur : (EUR) » sont les leurs.
+ * espaces de « Prix revendeur : (EUR) » sont les leurs. L’espace devant les
+ * deux-points est INSÉCABLE (\u00a0) dans le modèle : relu octet par octet
+ * dans le gabarit du 03/10/2026, une espace ordinaire ne correspond pas.
+ *
+ * Les six « Prix de l’échantillon » sont tous intitulés « (EUR) » dans ce
+ * gabarit-là — une coquille de Faire, leurs clés machine (ligne 5) diffèrent.
+ * On garde nos intitulés par devise ; le fichier XLSX (faireXlsx.ts), lui,
+ * reprend le modèle tel quel et n’a pas ce problème.
  */
 export const COLONNES_FAIRE = [
   'Nom du produit',
   'Description',
   'Images du produit',
-  'Prix revendeur : (EUR)',
+  'Prix revendeur\u00a0: (EUR)',
   'Prix de vente (EUR)',
-  'Prix revendeur : (USD)',
+  'Prix revendeur\u00a0: (USD)',
   'Prix de vente (USD)',
-  'Prix revendeur : (CAD)',
+  'Prix revendeur\u00a0: (CAD)',
   'Prix de vente (CAD)',
-  'Prix revendeur : (GBP)',
+  'Prix revendeur\u00a0: (GBP)',
   'Prix de vente (GBP)',
-  'Prix revendeur : (AUD)',
+  'Prix revendeur\u00a0: (AUD)',
   'Prix de vente (AUD)',
   'Méthode de vente',
   'Unités par carton',
@@ -101,7 +108,7 @@ export const OBLIGATOIRES_FAIRE = [
   'Nom du produit',
   'Description',
   'Images du produit',
-  'Prix revendeur : (EUR)',
+  'Prix revendeur\u00a0: (EUR)',
   'Prix de vente (EUR)',
   'Méthode de vente',
   'Unités par carton',
@@ -117,7 +124,7 @@ export interface OptionsFaire {
   remiseGros?: number
   unitesParCarton?: number
   quantiteMinimale?: number
-  /** « Par unité » ou « Par carton », dans les mots de Faire. */
+  /** « Par article » ou « Par carton » : les valeurs de la liste du modèle (Options de données, colonne A). */
   methodeVente?: string
   paysFabrication?: string
 }
@@ -126,7 +133,7 @@ const DEFAUTS: Required<Omit<OptionsFaire, 'paysFabrication'>> = {
   remiseGros: 0.5,
   unitesParCarton: 1,
   quantiteMinimale: 1,
-  methodeVente: 'Par unité',
+  methodeVente: 'Par article',
 }
 
 /** Un champ CSV, échappé selon la règle du format : guillemets doublés. */
@@ -139,7 +146,7 @@ function deuxDecimales(n: number): string {
   return n.toFixed(2)
 }
 
-/** Les images, telles que Faire les attend : des adresses séparées par des virgules. */
+/** Les images : des adresses absolues, que ligneFaire sépare par une espace comme le demande le modèle. */
 function imagesDe(produit: Product): string[] {
   const brut = (produit.exportImages ?? produit.images) as unknown
   if (!Array.isArray(brut)) return []
@@ -212,8 +219,8 @@ export function ligneFaire(produit: Product, options: OptionsFaire = {}): LigneF
     'Description',
     (produit.aiDescription || produit.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
   )
-  mettre('Images du produit', images.join(', '))
-  mettre('Prix revendeur : (EUR)', deuxDecimales(gros))
+  mettre('Images du produit', images.join(' '))
+  mettre('Prix revendeur\u00a0: (EUR)', deuxDecimales(gros))
   mettre('Prix de vente (EUR)', deuxDecimales(vente))
   mettre('Méthode de vente', o.methodeVente)
   mettre('Unités par carton', String(o.unitesParCarton))

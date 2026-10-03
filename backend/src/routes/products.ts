@@ -50,6 +50,7 @@ import { avisDepuisCsv, enregistrerAvis, normaliser as normaliserAvis, synthese 
 import { eanValide } from '../services/productFacts.js'
 import { findConnector, fournisseursRelies } from '../services/supplierConnectors.js'
 import { catalogueFaire } from '../services/faire.js'
+import { classeurFaire } from '../services/faireXlsx.js'
 import { JEUX_OPTIONS, trouverJeu, poserJeu } from '../services/variantPresets.js'
 
 export const productsRouter = Router()
@@ -1221,6 +1222,39 @@ productsRouter.get('/meta/faire.csv', async (req: AuthedRequest, res) => {
     res.send(csv)
   } catch (e) {
     console.error('export Faire', e)
+    res.status(500).json({ error: "L'export Faire a échoué" })
+  }
+})
+
+/**
+ * Le même catalogue, mais dans le modèle officiel de Faire rempli à partir de
+ * la ligne 6 (services/faireXlsx.ts). C'est le fichier que l'écran propose :
+ * il garde les clés machine et les listes du modèle, que le CSV n'a pas.
+ */
+productsRouter.get('/meta/faire.xlsx', async (req: AuthedRequest, res) => {
+  try {
+    const nombre = (valeur: unknown, defaut: number) => {
+      const n = Number(valeur)
+      return Number.isFinite(n) && n > 0 ? n : defaut
+    }
+    const produits = await prisma.product.findMany({
+      where: { userId: req.userId!, ...(req.query.shop ? { shopId: String(req.query.shop) } : {}) },
+      orderBy: { createdAt: 'desc' },
+    })
+    const { xlsx, retenus, ecartes } = classeurFaire(produits, {
+      remiseGros: nombre(req.query.remiseGros, 0.5),
+      unitesParCarton: nombre(req.query.unitesParCarton, 1),
+      quantiteMinimale: nombre(req.query.quantiteMinimale, 1),
+      methodeVente: String(req.query.methodeVente ?? '') || undefined,
+      paysFabrication: String(req.query.paysFabrication ?? '') || undefined,
+    })
+    res.setHeader('X-Faire-Retenus', String(retenus))
+    res.setHeader('X-Faire-Ecartes', String(ecartes.length))
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.attachment(`faire-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    res.send(xlsx)
+  } catch (e) {
+    console.error('export Faire xlsx', e)
     res.status(500).json({ error: "L'export Faire a échoué" })
   }
 })
