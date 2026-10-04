@@ -1,0 +1,296 @@
+{
+  "name": "DropPost — Orchestrateur 48 agents (06h, Ollama local)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 6,
+              "triggerAtMinute": 0
+            }
+          ]
+        },
+        "timezone": "Europe/Paris"
+      },
+      "id": "561a98a1-fb9e-4eae-b6cc-52b9c1170dd3",
+      "name": "Declencheur quotidien 06h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        0
+      ],
+      "notes": "6h heure de Paris — n8n gere lui-meme le changement heure ete/hiver via le champ Timezone. La machine (et Ollama) doivent etre allumes a cette heure-la.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f3ae64b0-b27d-4913-90ad-0ee2f6630517",
+              "name": "configPath",
+              "type": "string",
+              "value": "C:\\Users\\maxma\\Downloads\\DropPost\\MARKET-ANALYSES\\n8n\\agents-config.json"
+            },
+            {
+              "id": "df758501-8d56-4cb8-aa47-9c79de09bf0e",
+              "name": "basePath",
+              "type": "string",
+              "value": "C:\\Users\\maxma\\Downloads\\DropPost\\MARKET-ANALYSES"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ffba861c-a140-4f06-8da7-a641f027994b",
+      "name": "Definir chemins",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1400,
+        0
+      ],
+      "notes": "A ADAPTER : chemins reels sur la machine ou tourne n8n.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ $json.configPath }}",
+        "options": {}
+      },
+      "id": "97cca358-e2df-4068-924b-1ac3a000313e",
+      "name": "Lire agents-config.json",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = Buffer.from($input.first().binary.data.data, 'base64').toString('utf8');\nconst config = JSON.parse(raw);\nreturn [{ json: { config, basePath: $json.basePath } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "88e94a61-b9cb-4e10-96b5-e6cd8a77e4d2",
+      "name": "Parser config JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $json.config;\nconst basePath = $json.basePath;\nconst today = new Date();\nconst dateStr = today.toISOString().slice(0,10);\n\nfunction dayOfYear(d) {\n  const start = new Date(d.getFullYear(), 0, 0);\n  const diff = (d - start) + ((start.getTimezoneOffset() - d.getTimezoneOffset()) * 60 * 1000);\n  return Math.floor(diff / 86400000);\n}\nconst doy = dayOfYear(today);\n\nreturn config.categories.map(cat => {\n  const theme = cat.themes[(doy - 1) % 7];\n  return {\n    json: {\n      categorie_id: cat.id,\n      categorie_label: cat.label,\n      theme_id: theme.id,\n      theme_label: theme.label,\n      date: dateStr,\n      basePath\n    }\n  };\n});",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "9c58babb-bca2-468d-94ce-84a4ef296c61",
+      "name": "Construire agents du jour",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        0
+      ],
+      "notes": "Calcule la rotation (jour de l'annee modulo 7) pour les 24 categories a partir d'agents-config.json. Produit 24 items = les 24 paires categorie/theme du jour.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "fadc9682-ae63-4949-95c0-fe0d6b3477d0",
+      "name": "Boucle categories (1 par 1)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -580,
+        0
+      ],
+      "notes": "Traite les 24 categories une par une. Sortie 'done' = journee terminee (48 rapports generes), sortie 'loop' = categorie suivante.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REMPLACER_APRES_IMPORT",
+          "mode": "list",
+          "cachedResultName": "DropPost — Agent RAYON (modele)"
+        },
+        "options": {}
+      },
+      "id": "f75fc337-6178-44a4-8724-174a372ab134",
+      "name": "Appeler Agent RAYON",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        -120
+      ],
+      "notes": "A FAIRE APRES L'IMPORT DES 3 WORKFLOWS : ouvrir ce node et re-selectionner 'DropPost — Agent RAYON (modele)' dans la liste deroulante — n8n attribue un nouvel identifiant a chaque workflow importe, la reference doit donc etre reliee manuellement une fois.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REMPLACER_APRES_IMPORT",
+          "mode": "list",
+          "cachedResultName": "DropPost — Agent MARKETING (modele)"
+        },
+        "options": {}
+      },
+      "id": "3e113de3-7263-4d95-bfc8-d4628472d21a",
+      "name": "Appeler Agent MARKETING",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        120
+      ],
+      "notes": "Meme remarque que pour l'agent RAYON : re-selectionner le workflow dans la liste deroulante apres import.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "1041fc77-fb00-418a-866c-0e9be180bc27",
+      "name": "Attendre RAYON + MARKETING",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -60,
+        0
+      ],
+      "notes": "Point de synchronisation : n8n attend que les DEUX agents (rayon et marketing) aient fini pour cette categorie avant de passer a la categorie suivante.",
+      "notesInFlow": false
+    }
+  ],
+  "connections": {
+    "Declencheur quotidien 06h": {
+      "main": [
+        [
+          {
+            "node": "Definir chemins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Definir chemins": {
+      "main": [
+        [
+          {
+            "node": "Lire agents-config.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire agents-config.json": {
+      "main": [
+        [
+          {
+            "node": "Parser config JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser config JSON": {
+      "main": [
+        [
+          {
+            "node": "Construire agents du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire agents du jour": {
+      "main": [
+        [
+          {
+            "node": "Boucle categories (1 par 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Boucle categories (1 par 1)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Appeler Agent RAYON",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Appeler Agent MARKETING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appeler Agent RAYON": {
+      "main": [
+        [
+          {
+            "node": "Attendre RAYON + MARKETING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appeler Agent MARKETING": {
+      "main": [
+        [
+          {
+            "node": "Attendre RAYON + MARKETING",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Attendre RAYON + MARKETING": {
+      "main": [
+        [
+          {
+            "node": "Boucle categories (1 par 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateNote": "Workflow principal. Se declenche a 6h (Europe/Paris), lit agents-config.json, calcule la rotation des themes du jour pour les 24 categories, puis appelle 'DropPost — Agent RAYON (modele)' et 'DropPost — Agent MARKETING (modele)' pour chacune (48 executions/jour = 48 rapports). IMPORTANT : importer d'abord les 2 sous-workflows agents dans n8n, PUIS ce workflow, PUIS re-selectionner les 2 sous-workflows dans les nodes 'Appeler Agent RAYON'/'Appeler Agent MARKETING' (voir notes sur ces nodes)."
+  }
+}

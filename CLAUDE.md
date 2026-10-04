@@ -87,9 +87,11 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 ## Rapports des 48 agents (`backend/rapports.db`)
 
 - SQLite **versionnée exprès** (voir `backend/.gitignore`) : un rapport n'est en ligne que commité
-  et déployé. Remplie par `backend/importer-aimarket.cjs` (Max, en local). Pas `MarketReport`.
-  Chiffres au 03/10/2026 : 35 rapports (18 rayon, 17 marketing), 162 produits, 15 catégories,
-  du 18 au 20/09 — relire la base, elle grossit.
+  et déployé. Remplie en local par `backend/importer-markdown.cjs` (le cas courant : les
+  rapports Markdown des tâches planifiées) ou `importer-aimarket.cjs` (JSON aiMARKET
+  de n8n). Pas `MarketReport`.
+  Chiffres au 04/10/2026 : 87 rapports (44 rayon, 43 marketing), 641 produits,
+  26 catégories, 46 thèmes, du 18/09 au 04/10 — relire la base, elle grossit.
 - Ouverte par `services/reportsDb.ts` en `{readonly, fileMustExist}`, chemin résolu depuis le
   module (`fileURLToPath(import.meta.url)`), jamais depuis le cwd (`src/` sous tsx ≠ `dist/`) ;
   sinon better-sqlite3 **crée un fichier vide** et tout échoue à la première requête (500).
@@ -132,3 +134,30 @@ cd frontend && npm run build
 - Secrets dans `backend/.env` (hors git), jamais dans le dépôt ni la conversation.
 - Une leçon nouvelle et durable : **une ligne ici** + le détail dans
   `docs/memoire-projet.md`. Ne pas regonfler ce fichier.
+
+## Moteur d'analyses de marché (MARKET-ANALYSES)
+
+24 rayons × 7 thèmes, rotation `(jour_de_l_année - 1) % 7`. **Deux** moteurs
+produisent, dans deux formats ; le site ne lit ni l'un ni l'autre, il lit
+`backend/rapports.db`, versionnée exprès → un `push` est ce qui publie.
+
+- 4 tâches planifiées Claude (04h00/03/06/09 UTC, 6 catégories chacune) écrivent
+  du **Markdown** dans `MARKET-ANALYSES/rapports/<date>/<catégorie>/<thème>.{rayon,marketing}.md`
+  → `cd backend && node importer-markdown.cjs [--date AAAA-MM-JJ] [--sec]`
+- l'agent n8n `agentRayonUnifie` écrit du **JSON** aiMARKET à plat dans `rapports/`
+  → `node importer-aimarket.cjs --fichier <chemin>` (n8n à l'arrêt depuis le 23/09)
+- puis toujours : `node memoire-migration.cjs` et `node memoire-alertes.cjs`
+
+Règles de Max, non négociables : jamais inventer une URL ni un prix (champ vide
+plutôt que vraisemblable) ; aucun fournisseur de référence ; 20 produits **et**
+20 URL par rayon et par jour ; les 7 thèmes d'un rayon ne sont pas redondants ;
+rien ne s'active sans son accord ; il pose ses clés API lui-même.
+
+Pièges : `output_config: { effort: 'medium' }` obligatoire sur l'appel Claude,
+sinon la réflexion avale tout le budget et le rapport sort vide. `reports.data`
+est servi tel quel au site — forme `{type, analysis, products[], …}`, sinon les
+pages et l'import en lot cassent. Marge en **euros** côté aiMARKET, en **pour
+cent** côté Markdown. L'opérateur `site:` est refusé par Serper en gratuit.
+
+État et procédure de relance : `docs/moteur-analyses-etat.md`,
+`docs/moteur-analyses-runbook.md`.

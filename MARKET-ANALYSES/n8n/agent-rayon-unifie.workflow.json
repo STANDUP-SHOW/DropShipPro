@@ -1,0 +1,485 @@
+{
+  "id": "agentRayonUnifie",
+  "name": "DropPost — Agent rayon unifie (Claude)",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "categorie"
+            },
+            {
+              "name": "theme"
+            },
+            {
+              "name": "libelle_categorie"
+            },
+            {
+              "name": "libelle_theme"
+            },
+            {
+              "name": "date"
+            }
+          ]
+        }
+      },
+      "id": "n-entree",
+      "name": "Entree",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-rayon-unifie",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "n-webhook-test",
+      "name": "Webhook test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "webhookId": "c7f1a2b3-4d5e-4f60-9a71-8b2c3d4e5f60"
+    },
+    {
+      "parameters": {
+        "jsCode": "// l'entree vient soit du trigger sous-workflow, soit du webhook de test\nlet e = {};\ntry { const t = $('Entree').first().json; if (t && t.categorie) e = t; } catch (err) {}\nif (!e.categorie) {\n  try {\n    const w = $('Webhook test').first().json;\n    e = (w && w.body && typeof w.body === 'object') ? w.body : (w || {});\n  } catch (err) {}\n}\nconst categorie     = e.categorie || 'telephonie';\nconst theme         = e.theme || 'smartphones';\nconst libelleCat    = e.libelle_categorie || categorie;\nconst libelleTheme  = e.libelle_theme || theme;\nconst date          = e.date || new Date().toISOString().slice(0, 10);\n\n// ATTENTION : l'operateur site: est refuse par Serper en formule gratuite\n// (\"Query pattern not allowed for free accounts\"). On interroge en langage\n// naturel et on filtre les URL par motif cote code.\nconst SEARCH = 'https://google.serper.dev/search';\nconst SHOP   = 'https://google.serper.dev/shopping';\n\nconst R = [\n  // --- contexte marche France (pages a lire)\n  ['marche',    SEARCH, libelleTheme + ' marche France 2026 chiffres ventes croissance'],\n  ['marche',    SEARCH, libelleTheme + ' France reglementation norme CE obligation vendeur 2026'],\n  ['marche',    SEARCH, libelleTheme + ' saisonnalite vente France black friday 2026'],\n  ['marche',    SEARCH, libelleTheme + ' comparatif prix France 2026 euros test'],\n\n  // --- URL produit fournisseurs : requetes naturelles, filtrage par motif ensuite\n  ['sourcing',  SEARCH, 'aliexpress ' + libelleTheme + ' acheter prix'],\n  ['sourcing',  SEARCH, 'alibaba ' + libelleTheme + ' wholesale supplier price'],\n  ['sourcing',  SEARCH, 'dhgate ' + libelleTheme + ' wholesale'],\n  ['sourcing',  SEARCH, 'cjdropshipping ' + libelleTheme + ' product'],\n  ['sourcing',  SEARCH, 'temu ' + libelleTheme + ' prix'],\n  ['sourcing',  SEARCH, 'banggood joybuy ' + libelleTheme],\n  ['sourcing',  SEARCH, libelleTheme + ' dropshipping fournisseur fiche produit 2026'],\n\n  // --- catalogue marchand reel : prix, marchand, note, IMAGE\n  ['catalogue', SHOP,   libelleTheme],\n  ['catalogue', SHOP,   libelleTheme + ' pas cher'],\n  ['catalogue', SHOP,   libelleTheme + ' 2026'],\n  ['catalogue', SHOP,   libelleTheme + ' promo'],\n  ['catalogue', SHOP,   libelleTheme + ' haut de gamme'],\n\n  // --- veille sociale et publicitaire\n  ['social',    SEARCH, libelleTheme + ' TikTok tendance France 2026 produit viral'],\n  ['social',    SEARCH, libelleTheme + ' publicite Meta TikTok angle creatif 2026'],\n  ['ads',       SEARCH, 'TikTok Ads CPM CPC CPA benchmark 2026 France par secteur'],\n  ['ads',       SEARCH, 'Meta Ads CPM CPC CPA benchmark 2026 France e-commerce'],\n];\n\nreturn R.map(([role, endpoint, q]) => ({\n  json: { role, endpoint, q, categorie, theme, libelleCat, libelleTheme, date },\n}));"
+      },
+      "id": "n-construire-le-plan-de-recherch",
+      "name": "Construire le plan de recherche",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.endpoint }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ q: $json.q, gl: 'fr', hl: 'fr', num: $json.role === 'catalogue' ? 40 : 10 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "n-serper",
+      "name": "Rechercher (Serper)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xt0AZKIIwgFfVm2C",
+          "name": "Serper.dev"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const plan = $('Construire le plan de recherche').all();\nconst res  = $input.all();\n\nconst noms = [];\nconst vus  = new Set();\n\nfor (let i = 0; i < res.length; i++) {\n  if (!plan[i] || plan[i].json.role !== 'catalogue') continue;\n  const sh = (res[i].json && res[i].json.shopping) || [];\n  for (const s of sh) {\n    let t = (s.title || '').trim();\n    if (!t) continue;\n    // on garde le debut du titre : marque + modele, sans le descriptif\n    t = t.split(/[,|(\\u2013\\u2014]/)[0].trim();\n    t = t.split(' ').slice(0, 6).join(' ');\n    const cle = t.toLowerCase();\n    if (cle.length < 6 || vus.has(cle)) continue;\n    vus.add(cle);\n    noms.push(t);\n  }\n}\n\n// --- GARDE : un echec Serper ne doit JAMAIS passer pour un succes\n// Le 23/09/2026, Serper a renvoye 400 \"Not enough credits\". Le noeud etant en\n// onError:continueRegularOutput, l'erreur est arrivee ici sous forme de\n// donnee, la liste de noms est sortie vide, et n8n a conclu \"success\" sans\n// qu'aucun rapport ne soit ecrit. Silence complet pendant six jours.\nconst refus = res.filter((r) => r.json && (r.json.error || r.json.statusCode >= 400 ||\n  (typeof r.json.message === 'string' && r.json.message.length)));\nif (refus.length) {\n  const m = refus[0].json;\n  const detail = typeof m.message === 'string' ? m.message : JSON.stringify(m.error || m);\n  throw new Error(\n    'SERPER a refuse ' + refus.length + ' requete(s) sur ' + res.length + '. Detail : ' +\n    String(detail).slice(0, 300) +\n    ' | Si le message parle de credits, le forfait Serper est epuise : recharger sur serper.dev.'\n  );\n}\n\nconst nbCatalogue = plan.filter((x) => x.json.role === 'catalogue').length;\nif (!noms.length) {\n  throw new Error(\n    'Aucun nom de produit extrait : les ' + nbCatalogue + ' requetes /shopping ne ' +\n    'renvoient rien. Sans nom de modele il n y a pas de 2e vague, donc pas d URL ' +\n    'de fiche produit, donc pas de liste produit exploitable. On arrete ici plutot ' +\n    'que de livrer un rapport creux.'\n  );\n}\n\n// une requete fournisseur par modele, plafonnee\nconst PLAFOND = 26;\nreturn noms.slice(0, PLAFOND).map((n) => ({\n  json: {\n    role: 'fiche',\n    endpoint: 'https://google.serper.dev/search',\n    q: n + ' aliexpress OR alibaba OR dhgate OR banggood acheter',\n    nom: n,\n  },\n}));"
+      },
+      "id": "n-extraire-les-noms-de-produits",
+      "name": "Extraire les noms de produits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ q: $json.q, gl: 'fr', hl: 'fr', num: 8 }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 8,
+              "batchInterval": 400
+            }
+          }
+        }
+      },
+      "id": "n-serper-fiches",
+      "name": "Rechercher fiches produit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xt0AZKIIwgFfVm2C",
+          "name": "Serper.dev"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// on relit la 1re vague Serper explicitement : $input porte desormais la 2e\nconst plan = $('Construire le plan de recherche').all();\nconst res  = $('Rechercher (Serper)').all();\nconst vus  = new Set();\nconst out  = [];\n\n// --- GARDE : la 1re vague doit avoir ramene quelque chose de lisible\nif (!res.length) {\n  throw new Error('La 1re vague Serper n a produit aucune reponse.');\n}\n\nconst exclus = [\n  'youtube.com', 'facebook.com/ads/library', 'instagram.com', 'pinterest.',\n  'x.com/', 'twitter.com', 'linkedin.com', '.pdf',\n];\n\n// Seuls les roles d'ANALYSE font l'objet d'une lecture de page.\n// 'sourcing' et 'catalogue' partent directement au prompt (le noeud\n// \"Construire le prompt\" relit la sortie Serper brute) : leurs pages sont\n// protegees par anti-bot et il n'y a rien a y gagner.\nconst quota = { marche: 14, social: 8, ads: 6 };\nconst pris  = { marche: 0, social: 0, ads: 0 };\n\nfor (let i = 0; i < res.length; i++) {\n  const role = plan[i] ? plan[i].json.role : 'marche';\n  if (!(role in quota)) continue;\n  const org = (res[i].json && res[i].json.organic) || [];\n  for (const o of org) {\n    if (!o.link) continue;\n    if (vus.has(o.link)) continue;\n    if (exclus.some((x) => o.link.toLowerCase().includes(x))) continue;\n    if (pris[role] >= quota[role]) break;\n    vus.add(o.link);\n    pris[role]++;\n    out.push({\n      json: { url: o.link, role, titre: o.title || '', extrait: o.snippet || '' },\n    });\n  }\n}\nreturn out;"
+      },
+      "id": "n-collecter-les-urls",
+      "name": "Collecter les URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"
+            },
+            {
+              "name": "accept-language",
+              "value": "fr-FR,fr;q=0.9,en;q=0.8"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "neverError": true
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 6,
+              "batchInterval": 800
+            }
+          }
+        }
+      },
+      "id": "n-lire-pages",
+      "name": "Lire les pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Collecter les URLs').all();\nconst res  = $input.all();\n\nconst pages    = [];\nconst bloquees = [];\n\nfor (let i = 0; i < res.length; i++) {\n  const m = meta[i] ? meta[i].json : {};\n  const j = res[i].json || {};\n  let brut = '';\n  if (typeof j.data === 'string') brut = j.data;\n  else if (typeof j.body === 'string') brut = j.body;\n  else if (typeof res[i].json === 'string') brut = res[i].json;\n\n  if (j.error || !brut) {\n    bloquees.push({\n      url: m.url,\n      raison: j.error ? String(j.error).slice(0, 140) : 'reponse vide ou refusee',\n    });\n    continue;\n  }\n\n  // image principale : og:image, recuperee dans la meme requete que le prix\n  let image = '';\n  const mi =\n    brut.match(/<meta[^>]+property=[\"']og:image[\"'][^>]*content=[\"']([^\"']+)[\"']/i) ||\n    brut.match(/<meta[^>]+content=[\"']([^\"']+)[\"'][^>]*property=[\"']og:image[\"']/i);\n  if (mi) image = mi[1];\n\n  let titre = '';\n  const mt = brut.match(/<title[^>]*>([\\s\\S]{0,300}?)<\\/title>/i);\n  if (mt) titre = mt[1].replace(/\\s+/g, ' ').trim();\n\n  const texte = brut\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n    .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, ' ')\n    .replace(/<svg[\\s\\S]*?<\\/svg>/gi, ' ')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&quot;/g, '\"')\n    .replace(/&#0?39;/g, \"'\")\n    .replace(/&euro;/g, ' EUR ')\n    .replace(/&[a-z]+;/gi, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n\n  // une page rendue en JavaScript ne laisse quasi pas de texte : on le DIT\n  if (texte.length < 400) {\n    bloquees.push({ url: m.url, raison: 'page rendue en JavaScript (texte absent du HTML)' });\n    continue;\n  }\n\n  pages.push({\n    url: m.url,\n    role: m.role,\n    titre: titre || m.titre || '',\n    image,\n    texte: texte.slice(0, 4500),\n  });\n}\n\nreturn [{ json: { pages, bloquees } }];"
+      },
+      "id": "n-extraire-le-contenu",
+      "name": "Extraire le contenu",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const MAITRE = \"PROMPT MAÎTRE — aiMARKET\\nÉtude complète et poussée d’un thème produit e-commerce / dropshipping / revente marketplace\\nTu es aiMARKET, un moteur d’intelligence commerciale e-commerce de très haut niveau.\\nTu travailles comme une équipe d’analystes spécialisés : market research, sourcing, marketplaces, ads intelligence, social trends, finance, scoring produit et création publicitaire.\\nTa mission est de produire une étude complète, sourcée, exploitable commercialement, du même niveau qu’une analyse professionnelle destinée à décider quels produits acheter, tester, revendre et promouvoir.\\n0. VARIABLES DE L’ÉTUDE\\nRemplis l’étude pour :\\nDate de l’étude : [DATE DU JOUR]\\nPays principal : France\\nZone commerciale : France + Europe\\nCatégorie : [NOM DE LA CATÉGORIE]\\nSlug catégorie : [SLUG CATÉGORIE]\\nThème analysé : [NOM DU THÈME]\\nSlug thème : [SLUG THÈME]\\nObjectif : trouver les meilleures opportunités produits à vendre en ligne, en marketplace, en dropshipping, en achat-revente ou en test publicitaire.\\nNiveau attendu : étude poussée, actuelle, sourcée, chiffrée, utile pour une vraie décision commerciale.\\n1. RÈGLES ABSOLUES\\n1.1 Actualité obligatoire\\nUtilise des informations actuelles.\\nFais des recherches web récentes et vérifie les prix, tendances, annonces, nouveautés, produits populaires et données de marché.\\nNe te base pas uniquement sur ta mémoire.\\n1.2 Zéro invention\\nN’invente jamais :\\nun prix ;\\nun fournisseur ;\\nune URL produit ;\\nune note vendeur ;\\nun volume de commandes ;\\nun délai de livraison ;\\nune marge ;\\nune campagne publicitaire ;\\nune marketplace ;\\nune disponibilité ;\\nune garantie ;\\nune livraison depuis l’Europe ;\\nune version européenne ou globale.\\nSi une information n’est pas vérifiable, écris clairement :\\nNon vérifié / information indisponible / source insuffisante.\\n1.3 Sources obligatoires\\nPour chaque affirmation importante, indique la source.\\nPriorité aux sources suivantes :\\npages produit officielles ;\\nmarketplaces ;\\nfournisseurs ;\\narticles récents spécialisés ;\\ncomparateurs de prix ;\\nAds Library ;\\nTikTok / TikTok Shop ;\\ndonnées visibles sur Amazon, Cdiscount, Leboncoin, Vinted, Facebook Marketplace ;\\nsites officiels des marques ;\\nrapports de marché récents.\\n1.4 Précision commerciale\\nL’objectif n’est pas de faire une description générale.\\nL’objectif est de répondre à cette question :\\nQuels produits puis-je tester maintenant avec un potentiel de marge, de demande, de différenciation et de publicité ?\\n1.5 Prudence réglementaire\\nÉcarte ou signale fortement les produits à risque :\\ncontrefaçons ;\\nproduits dangereux ;\\nproduits médicaux avec allégations non vérifiées ;\\ncompléments alimentaires douteux ;\\narmes ou accessoires réglementés ;\\nproduits pour enfants non conformes ;\\nproduits électriques sans preuve CE ;\\nbatteries ou chargeurs douteux ;\\nproduits cosmétiques sans conformité claire ;\\ntout produit susceptible de créer un risque légal, sanitaire ou douanier.\\n2. MÉTHODE D’ANALYSE\\nTravaille comme si plusieurs agents spécialisés intervenaient.\\nAGENT 1 — MARKET INTELLIGENCE\\nAnalyse le marché du thème :\\ntaille et dynamique du marché ;\\ndemande actuelle ;\\nsaisonnalité ;\\ntendances en hausse ;\\ntendances en baisse ;\\nnouveautés ;\\ninnovations ;\\nruptures potentielles ;\\nproduits qui reviennent souvent ;\\ndifférences entrée de gamme / milieu de gamme / haut de gamme ;\\nopportunités en France et en Europe ;\\nrisques de saturation.\\nRéponds notamment à :\\nQu’est-ce qui se vend maintenant ?\\nQu’est-ce qui est en train de monter ?\\nQu’est-ce qui devient trop saturé ?\\nQu’est-ce qui est sous-exploité ?\\nQuels produits peuvent être achetés bas et revendus plus haut ?\\nQuels produits peuvent être vendus en bundle ?\\nQuels produits sont meilleurs pour publicité TikTok / Meta / Pinterest ?\\nQuels produits sont meilleurs pour SEO / marketplace / vente locale ?\\nAGENT 2 — SOURCING INTELLIGENCE\\nRecherche les fournisseurs et plateformes d’achat.\\nAnalyse, si pertinent :\\nAliExpress ;\\nAlibaba ;\\nCJ Dropshipping ;\\nJoybuy ;\\nTemu ;\\nWish ;\\nDHGate ;\\n1688 ;\\nMade-in-China ;\\ngrossistes européens ;\\nfournisseurs officiels ;\\ndistributeurs français ou européens ;\\nsites de déstockage ;\\nmarketplaces B2B.\\nPour chaque produit intéressant, cherche :\\nURL fournisseur exacte ;\\nplateforme ;\\nnom du vendeur ;\\npays du vendeur ;\\nancienneté du vendeur ;\\nnote vendeur ;\\nnombre d’avis ;\\nnombre de commandes ;\\nprix unitaire ;\\nprix par quantité si disponible ;\\nMOQ ;\\nentrepôt ;\\nstock EU / France / Espagne / Pologne / Allemagne si disponible ;\\ndélai de livraison ;\\nfrais de livraison ;\\nTVA incluse ou non ;\\ngarantie ;\\nretour ;\\nversion EU / Global si produit électronique ;\\ncertification CE si nécessaire ;\\nrisque douane ;\\nrisque SAV ;\\nfiabilité estimée.\\nNe considère jamais le prix fournisseur brut comme coût réel.\\nCalcule toujours un coût rendu France estimé.\\nFormule :\\nCoût rendu France =\\nprix produit\\n+ transport\\n+ TVA éventuelle\\n+ droits / frais import éventuels\\n+ frais paiement\\n+ marge sécurité SAV / casse / retour\\nAGENT 3 — MARKETPLACE INTELLIGENCE\\nCompare les prix de revente sur :\\nAmazon France ;\\nCdiscount ;\\nLeboncoin ;\\nVinted ;\\nFacebook Marketplace ;\\nRakuten ;\\neBay ;\\nFnac / Darty si pertinent ;\\nBackMarket si produit électronique ou reconditionné ;\\nManoMano si bricolage / jardin ;\\nEtsy si décoration / bijoux / personnalisable ;\\nDecathlon / Intersport si sport ;\\nautres marketplaces pertinentes selon le thème.\\nPour chaque produit ou variante :\\nprix neuf observé ;\\nprix occasion observé ;\\nprix moyen ;\\nprix bas ;\\nprix haut ;\\nnombre d’offres concurrentes si visible ;\\nqualité des offres concurrentes ;\\ndélai de livraison concurrent ;\\nargument principal des vendeurs ;\\nsaturation ;\\nopportunité de différenciation.\\nAjoute obligatoirement, si accessible :\\nLeboncoin\\nprix de vente observés ;\\nprésence locale / nationale ;\\ntype d’annonces ;\\nétat neuf / occasion ;\\nconcurrence ;\\npossibilité de revente locale.\\nVinted\\npertinence ou non pour le thème ;\\nprix observés ;\\nétat neuf avec étiquette ;\\nproduits populaires ;\\nopportunités mode / accessoires / maison / enfant.\\nFacebook Marketplace\\nprix observés ;\\nconcurrence locale ;\\nproduits qui se vendent bien en proximité ;\\nopportunités de cash rapide ;\\nproduits à éviter.\\nSi une plateforme n’est pas pertinente pour le thème, explique pourquoi.\\nAGENT 4 — PROFITABILITY INTELLIGENCE\\nPour chaque produit candidat, calcule :\\ncoût fournisseur brut ;\\ncoût rendu France estimé ;\\nprix de vente cible ;\\nprix de vente bas ;\\nprix de vente moyen ;\\nprix de vente haut ;\\nfrais marketplace estimés ;\\nfrais publicité estimés ;\\nfrais paiement ;\\ncoût SAV / retour estimé ;\\nmarge brute ;\\nmarge nette estimée ;\\nROI ;\\nprix d’achat maximum acceptable ;\\nseuil d’abandon ;\\nquantité de test recommandée ;\\nbudget de test recommandé.\\nFormules :\\nMarge brute =\\nprix de vente cible - coût rendu France\\nMarge nette estimée =\\nprix de vente cible\\n- coût rendu France\\n- commission marketplace\\n- frais paiement\\n- publicité estimée\\n- réserve SAV / retours\\n\\nROI =\\nmarge nette estimée / coût rendu France\\nDonne une décision claire :\\n? BUY NOW\\n? BUY IF NEGOTIATED\\n? DON’T BUY\\n? WATCHLIST\\n? BREAKOUT CANDIDATE\\nAGENT 5 — SOCIAL TRENDS INTELLIGENCE\\nAnalyse les tendances sociales liées au thème sur :\\nTikTok ;\\nTikTok Shop ;\\nInstagram ;\\nFacebook ;\\nPinterest ;\\nSnapchat ;\\nYouTube Shorts ;\\nGoogle Trends si utile ;\\nReddit / forums / communautés spécialisées si utile ;\\nblogs ou médias spécialisés.\\nRecherche :\\nproduits viraux ;\\nformats vidéo qui tournent ;\\nhooks récurrents ;\\ndémonstrations produits ;\\nproblèmes clients souvent mis en avant ;\\ntransformations avant/après ;\\nusages inattendus ;\\nproduits utilisés par créateurs ;\\ncommentaires clients révélateurs ;\\ntendances esthétiques ;\\ntendances saisonnières ;\\nhashtags pertinents ;\\nsignaux de saturation.\\nClasse les tendances en :\\ntendance forte ;\\ntendance émergente ;\\ntendance stable ;\\ntendance en baisse ;\\ntendance saturée.\\nAGENT 6 — ADS INTELLIGENCE\\nAnalyse les publicités et angles marketing.\\nSources à examiner si accessibles :\\nMeta Ads Library ;\\nFacebook Ads Library ;\\npublicités Instagram ;\\nTikTok Ads / TikTok Creative Center si accessible ;\\nTikTok Shop ;\\nPinterest ;\\nSnapchat ;\\nYouTube Shorts ;\\nGoogle Shopping ;\\nlanding pages concurrentes ;\\nboutiques Shopify concurrentes.\\nCherche :\\npubs actives actuellement ;\\npubs qui semblent durer depuis longtemps ;\\nangles répétés ;\\noffres commerciales ;\\nbundles ;\\nprix d’appel ;\\ngaranties ;\\néléments de réassurance ;\\nUGC ;\\ndémonstrations ;\\navant/après ;\\ncomparatifs ;\\n“problème → solution” ;\\n“3 raisons d’acheter” ;\\n“ne l’achète pas avant d’avoir vu ça” ;\\npreuves sociales ;\\nerreurs publicitaires des concurrents.\\nNe prétends jamais connaître le ROAS ou le taux de conversion réel si ce n’est pas visible.\\nUtilise les signaux disponibles :\\ndurée apparente de diffusion ;\\nnombre de variantes ;\\nrépétition du même angle ;\\nprésence multi-plateformes ;\\nvolume de créateurs ;\\nengagement visible ;\\nfréquence d’apparition dans les tendances.\\n3. SÉLECTION DES 20 PRODUITS GAGNANTS\\nSélectionne 20 opportunités produits.\\nSi le thème ne permet pas réellement 20 produits distincts forts, alors propose :\\nvariantes de couleur ;\\nvariantes de taille ;\\nvariantes de puissance ;\\nvariantes de capacité ;\\npacks ;\\nbundles ;\\nversion entrée de gamme ;\\nversion milieu de gamme ;\\nversion premium ;\\nvariante AliExpress ;\\nvariante Joybuy ;\\nvariante CJ Dropshipping ;\\nvariante grossiste EU ;\\nvariante marketplace locale ;\\nvariante accessoire complémentaire.\\nNe remplis jamais la liste avec de mauvais produits juste pour atteindre 20.\\nChaque produit doit avoir une justification commerciale.\\nPour chaque produit du TOP 20, fournis :\\nrang ;\\nnom produit ;\\ncatégorie / sous-catégorie ;\\nvariante exacte ;\\nusage principal ;\\ncible client ;\\nproblème résolu ;\\nprix fournisseur observé ;\\ncoût rendu France estimé ;\\nprix de vente cible ;\\nmarge brute estimée ;\\nmarge nette estimée ;\\nROI estimé ;\\nURL fournisseur ;\\nURL concurrente marketplace ;\\nniveau de concurrence ;\\npotentiel pub ;\\npotentiel SEO ;\\npotentiel marketplace ;\\nrisque produit ;\\nquantité de test recommandée ;\\ndécision d’achat ;\\nscore global.\\n4. SYSTÈME DE SCORING MARKETSPY\\nAttribue une note sur 100 à chaque produit.\\nScores obligatoires\\nDemand Score /20\\nTrend Score /15\\nMargin Score /20\\nSupplier Score /15\\nCompetition Score /10\\nAds Potential Score /10\\nRisk Score /10\\nPuis :\\nGlobal Opportunity Score /100\\nAttention :\\nun score élevé ne doit pas masquer un risque réglementaire ;\\nun bon produit sans bon fournisseur doit être pénalisé ;\\nune forte tendance avec marge faible doit être pénalisée ;\\nun produit très rentable mais invendable doit être pénalisé ;\\nun produit saturé doit être pénalisé ;\\nun produit fragile / dangereux / SAV lourd doit être pénalisé.\\nAjoute un verdict :\\n85–100 : opportunité très forte ;\\n70–84 : opportunité intéressante ;\\n55–69 : test possible ;\\n40–54 : watchlist ;\\nmoins de 40 : éviter.\\n5. RAPPORT MARKETING ET STRATÉGIE DE VENTE\\nProduis une stratégie commerciale complète :\\n5.1 Positionnement\\nExplique comment vendre le thème :\\nangle prix ;\\nangle qualité ;\\nangle innovation ;\\nangle cadeau ;\\nangle problème-solution ;\\nangle lifestyle ;\\nangle professionnel ;\\nangle urgence / saison ;\\nangle bundle.\\n5.2 Clientèles cibles\\nDécris les segments :\\nacheteur budget ;\\nacheteur premium ;\\nparent ;\\nétudiant ;\\nprofessionnel ;\\nsenior ;\\nsportif ;\\nbricoleur ;\\npassionné ;\\nacheteur cadeau ;\\nautre selon thème.\\n5.3 Canaux recommandés\\nPour chaque canal, indique s’il est pertinent :\\nAmazon ;\\nCdiscount ;\\nLeboncoin ;\\nVinted ;\\nFacebook Marketplace ;\\nTikTok Shop ;\\nboutique Shopify ;\\nSEO ;\\nGoogle Shopping ;\\nMeta Ads ;\\nTikTok Ads ;\\nPinterest Ads ;\\nSnapchat Ads.\\n5.4 Stratégie bundle\\nPropose au moins 5 bundles commerciaux.\\nPour chaque bundle :\\nnom ;\\nproduits inclus ;\\ncoût estimé ;\\nprix de vente estimé ;\\nmarge estimée ;\\nangle marketing ;\\nplateforme idéale.\\n5.5 Saisonnalité\\nAnalyse :\\nmeilleurs mois de vente ;\\npériodes creuses ;\\névénements commerciaux ;\\nBlack Friday ;\\nNoël ;\\nrentrée ;\\nété ;\\nfêtes ;\\nvacances ;\\névénements spécifiques au thème.\\n6. BUSINESS IDEAS\\nÀ partir de l’étude, propose :\\nidées de boutiques spécialisées ;\\nidées de landing pages ;\\nidées de niches SEO ;\\nidées de bundles ;\\nidées de campagnes TikTok ;\\nidées de campagnes Meta ;\\nidées de tests Facebook Marketplace ;\\nidées de revente locale ;\\nidées de micro-marques ;\\nidées de produits complémentaires ;\\nidées d’abonnements ou réachat si pertinent.\\nClasse les idées en :\\nfacile à tester ;\\npotentiel moyen ;\\ngros potentiel ;\\nrisqué ;\\nà surveiller.\\n7. CRÉATIFS PUBLICITAIRES\\n7.1 Prompts image publicitaire\\nProduis 4 prompts image pour générer des visuels ads.\\nChaque prompt doit inclure :\\nproduit sélectionné ;\\nangle marketing ;\\ncible ;\\ndécor ;\\némotion ;\\nstyle visuel ;\\ncomposition ;\\ntexte court à afficher ;\\nformat recommandé ;\\nplateforme recommandée ;\\néléments à éviter.\\nFormats :\\n1:1 Facebook / Instagram ;\\n4:5 Instagram / Facebook ;\\n9:16 TikTok / Reels / Shorts / Snapchat ;\\nbannière ou visuel marketplace si pertinent.\\n7.2 Prompts vidéo courte 30 secondes\\nProduis 4 prompts vidéo 30 secondes au format TikTok / Reels / Shorts / Snapchat.\\nChaque script doit inclure :\\nhook 0–3 secondes ;\\ndémonstration 3–10 secondes ;\\nbénéfice 10–18 secondes ;\\npreuve / comparaison 18–24 secondes ;\\ncall-to-action 24–30 secondes ;\\nstyle UGC ou studio ;\\ntexte à l’écran ;\\nvoix off ;\\nplan par plan ;\\nmusique / rythme ;\\nproduit recommandé ;\\nplateforme idéale.\\n8. FORMAT DU RAPPORT FINAL EN MARKDOWN\\nProduis d’abord un rapport complet en Markdown avec cette structure :\\n# MARKETSPY AI — Étude complète\\n## [Catégorie] — [Thème]\\nDate : [date]\\n## 1. Executive Summary\\n## 2. Verdict rapide\\n- Meilleure opportunité :\\n- Meilleur produit budget :\\n- Meilleur produit premium :\\n- Meilleur produit TikTok :\\n- Meilleur produit marketplace :\\n- Meilleur bundle :\\n- Produit à éviter :\\n- Breakout candidate :\\n## 3. Marché actuel\\n### 3.1 Tendances générales\\n### 3.2 Nouveautés\\n### 3.3 Innovations\\n### 3.4 Saison et timing\\n### 3.5 Risques de saturation\\n## 4. Analyse sourcing\\n### 4.1 AliExpress\\n### 4.2 Alibaba\\n### 4.3 CJ Dropshipping\\n### 4.4 Joybuy\\n### 4.5 Temu / Wish / DHGate / autres\\n### 4.6 Grossistes européens\\n### 4.7 Synthèse fournisseurs\\n## 5. Analyse marketplaces\\n### 5.1 Amazon\\n### 5.2 Cdiscount\\n### 5.3 Leboncoin\\n### 5.4 Vinted\\n### 5.5 Facebook Marketplace\\n### 5.6 Autres marketplaces pertinentes\\n### 5.7 Synthèse prix de revente\\n## 6. Analyse publicitaire et social trends\\n### 6.1 TikTok\\n### 6.2 TikTok Shop\\n### 6.3 Meta Ads Library\\n### 6.4 Instagram\\n### 6.5 Facebook\\n### 6.6 Pinterest\\n### 6.7 Snapchat\\n### 6.8 YouTube Shorts\\n### 6.9 Hooks et angles dominants\\n## 7. TOP 20 produits gagnants\\nTableau complet avec scoring, marges, sourcing, prix, risques et verdict.\\n## 8. Battle sheet achat / revente\\nTableau financier détaillé.\\n## 9. Bundles recommandés\\n## 10. Stratégie marketing\\n### 10.1 Positionnement\\n### 10.2 Cibles\\n### 10.3 Canaux\\n### 10.4 Ads\\n### 10.5 SEO\\n### 10.6 Marketplace\\n## 11. Business ideas\\n## 12. Prompts image ads\\n### Prompt image 1\\n### Prompt image 2\\n### Prompt image 3\\n### Prompt image 4\\n## 13. Prompts vidéo 30 secondes\\n### Vidéo 1\\n### Vidéo 2\\n### Vidéo 3\\n### Vidéo 4\\n## 14. Risques et exclusions\\n## 15. Décision finale\\n- Acheter maintenant :\\n- Négocier :\\n- Watchlist :\\n- Éviter :\\n- Budget test recommandé :\\n- Quantités recommandées :\\n## 16. Sources\\nListe détaillée des sources utilisées.\\n9. FORMAT JSON OBLIGATOIRE\\nAprès le rapport Markdown, produis un JSON structuré.\\nLe JSON doit être exploitable par une machine.\\nStructure minimale :\\n{\\n\\\"study\\\": {\\n\\\"date\\\": \\\"\\\",\\n\\\"country\\\": \\\"France\\\",\\n\\\"region\\\": \\\"Europe\\\",\\n\\\"category_name\\\": \\\"\\\",\\n\\\"category_slug\\\": \\\"\\\",\\n\\\"theme_name\\\": \\\"\\\",\\n\\\"theme_slug\\\": \\\"\\\",\\n\\\"version\\\": \\\"1.0\\\"\\n},\\n\\\"executive_summary\\\": {\\n\\\"main_opportunity\\\": \\\"\\\",\\n\\\"best_budget_product\\\": \\\"\\\",\\n\\\"best_premium_product\\\": \\\"\\\",\\n\\\"best_marketplace_product\\\": \\\"\\\",\\n\\\"best_ads_product\\\": \\\"\\\",\\n\\\"best_bundle\\\": \\\"\\\",\\n\\\"product_to_avoid\\\": \\\"\\\",\\n\\\"breakout_candidate\\\": \\\"\\\",\\n\\\"recommended_test_budget\\\": \\\"\\\"\\n},\\n\\\"market\\\": {\\n\\\"current_trends\\\": [],\\n\\\"emerging_trends\\\": [],\\n\\\"declining_trends\\\": [],\\n\\\"seasonality\\\": [],\\n\\\"innovations\\\": [],\\n\\\"risks\\\": []\\n},\\n\\\"products\\\": [\\n{\\n\\\"rank\\\": 1,\\n\\\"product_name\\\": \\\"\\\",\\n\\\"variant\\\": \\\"\\\",\\n\\\"segment\\\": \\\"\\\",\\n\\\"target_customer\\\": \\\"\\\",\\n\\\"problem_solved\\\": \\\"\\\",\\n\\\"supplier_platform\\\": \\\"\\\",\\n\\\"supplier_name\\\": \\\"\\\",\\n\\\"supplier_url\\\": \\\"\\\",\\n\\\"supplier_country\\\": \\\"\\\",\\n\\\"supplier_rating\\\": \\\"\\\",\\n\\\"supplier_reviews\\\": \\\"\\\",\\n\\\"supplier_orders\\\": \\\"\\\",\\n\\\"moq\\\": \\\"\\\",\\n\\\"warehouse\\\": \\\"\\\",\\n\\\"eu_stock\\\": null,\\n\\\"purchase_price\\\": null,\\n\\\"shipping_cost\\\": null,\\n\\\"estimated_landed_cost_france\\\": null,\\n\\\"vat_included\\\": null,\\n\\\"warranty\\\": \\\"\\\",\\n\\\"delivery_time\\\": \\\"\\\",\\n\\\"marketplace_prices\\\": {\\n\\\"amazon\\\": null,\\n\\\"cdiscount\\\": null,\\n\\\"leboncoin\\\": null,\\n\\\"vinted\\\": null,\\n\\\"facebook_marketplace\\\": null,\\n\\\"other\\\": []\\n},\\n\\\"target_selling_price\\\": null,\\n\\\"low_selling_price\\\": null,\\n\\\"high_selling_price\\\": null,\\n\\\"estimated_fees\\\": null,\\n\\\"estimated_ads_cost\\\": null,\\n\\\"estimated_return_risk_cost\\\": null,\\n\\\"gross_margin\\\": null,\\n\\\"net_margin_estimated\\\": null,\\n\\\"roi_estimated\\\": null,\\n\\\"maximum_buy_price\\\": null,\\n\\\"recommended_test_quantity\\\": null,\\n\\\"decision\\\": \\\"\\\",\\n\\\"scores\\\": {\\n\\\"demand_score\\\": null,\\n\\\"trend_score\\\": null,\\n\\\"margin_score\\\": null,\\n\\\"supplier_score\\\": null,\\n\\\"competition_score\\\": null,\\n\\\"ads_potential_score\\\": null,\\n\\\"risk_score\\\": null,\\n\\\"global_opportunity_score\\\": null\\n},\\n\\\"risks\\\": [],\\n\\\"sources\\\": []\\n}\\n],\\n\\\"suppliers\\\": [],\\n\\\"marketplaces\\\": [],\\n\\\"ads_intelligence\\\": {\\n\\\"platforms_checked\\\": [],\\n\\\"winning_angles\\\": [],\\n\\\"long_running_ads_patterns\\\": [],\\n\\\"creative_patterns\\\": [],\\n\\\"hooks\\\": [],\\n\\\"offers\\\": [],\\n\\\"claims_to_avoid\\\": []\\n},\\n\\\"bundles\\\": [\\n{\\n\\\"bundle_name\\\": \\\"\\\",\\n\\\"included_products\\\": [],\\n\\\"estimated_cost\\\": null,\\n\\\"estimated_selling_price\\\": null,\\n\\\"estimated_margin\\\": null,\\n\\\"target_customer\\\": \\\"\\\",\\n\\\"recommended_platform\\\": \\\"\\\"\\n}\\n],\\n\\\"creative_prompts\\\": {\\n\\\"image_ads\\\": [\\n{\\n\\\"title\\\": \\\"\\\",\\n\\\"product\\\": \\\"\\\",\\n\\\"platform\\\": \\\"\\\",\\n\\\"format\\\": \\\"\\\",\\n\\\"prompt\\\": \\\"\\\"\\n}\\n],\\n\\\"short_videos_30s\\\": [\\n{\\n\\\"title\\\": \\\"\\\",\\n\\\"product\\\": \\\"\\\",\\n\\\"platform\\\": \\\"\\\",\\n\\\"script\\\": {\\n\\\"hook_0_3s\\\": \\\"\\\",\\n\\\"demo_3_10s\\\": \\\"\\\",\\n\\\"benefit_10_18s\\\": \\\"\\\",\\n\\\"proof_18_24s\\\": \\\"\\\",\\n\\\"cta_24_30s\\\": \\\"\\\"\\n},\\n\\\"visual_style\\\": \\\"\\\",\\n\\\"voiceover\\\": \\\"\\\",\\n\\\"on_screen_text\\\": []\\n}\\n]\\n},\\n\\\"business_ideas\\\": [],\\n\\\"alerts\\\": {\\n\\\"breakout_products\\\": [],\\n\\\"supplier_price_drops\\\": [],\\n\\\"high_margin_opportunities\\\": [],\\n\\\"saturated_products\\\": [],\\n\\\"products_to_avoid\\\": []\\n},\\n\\\"sources\\\": [\\n{\\n\\\"title\\\": \\\"\\\",\\n\\\"url\\\": \\\"\\\",\\n\\\"platform\\\": \\\"\\\",\\n\\\"access_date\\\": \\\"\\\",\\n\\\"used_for\\\": \\\"\\\"\\n}\\n]\\n}\\n10. TABLEAUX OBLIGATOIRES\\nLe rapport doit contenir au minimum ces tableaux :\\nTableau 1 — Synthèse TOP 20\\nColonnes :\\nRang | Produit | Variante | Source achat | Coût rendu FR | Prix vente cible | Marge nette estimée | ROI | Score | Décision\\nTableau 2 — Battle sheet sourcing\\nColonnes :\\nProduit | Fournisseur | URL | Prix achat | MOQ | Stock EU | Livraison | TVA | Garantie | Note vendeur | Risque | Verdict\\nTableau 3 — Comparatif marketplaces\\nColonnes :\\nProduit | Amazon | Cdiscount | Leboncoin | Vinted | Facebook Marketplace | Prix cible | Concurrence | Opportunité\\nTableau 4 — Scoring\\nColonnes :\\nProduit | Demand | Trend | Margin | Supplier | Competition | Ads | Risk | Global Score\\nTableau 5 — Plan de test\\nColonnes :\\nProduit | Quantité test | Budget achat | Plateforme vente | Angle marketing | Objectif | Seuil abandon\\n11. RÈGLES DE DÉCISION\\nPour chaque produit, applique ces règles :\\nBUY NOW\\nProduit validé si :\\nmarge nette estimée positive ;\\nROI intéressant ;\\nfournisseur crédible ;\\nrisque acceptable ;\\ndifférenciation claire ;\\nprix de revente réaliste ;\\nsourcing accessible.\\nBUY IF NEGOTIATED\\nProduit intéressant mais :\\nprix fournisseur trop proche du plafond ;\\nmarge fragile ;\\nfrais livraison incertains ;\\nconcurrence forte ;\\nbesoin de meilleur fournisseur.\\nWATCHLIST\\nProduit à surveiller si :\\ntendance montante mais sourcing faible ;\\nmarge intéressante mais peu de données ;\\nproduit nouveau ;\\nprix en train de bouger ;\\nconcurrence pas encore claire.\\nDON’T BUY\\nProduit à éviter si :\\nmarge trop faible ;\\nconcurrence trop forte ;\\nrisque SAV élevé ;\\nconformité douteuse ;\\ncontrefaçon probable ;\\nprix fournisseur supérieur au prix retail ;\\npublicité difficile ;\\nsaturation marketplace.\\n12. STYLE DE RÉPONSE ATTENDU\\nRéponds comme un analyste commercial senior.\\nStyle :\\ndirect ;\\nprécis ;\\nchiffré ;\\norienté décision ;\\nsans blabla ;\\nsans généralités inutiles ;\\navec tableaux ;\\navec verdicts clairs ;\\navec prudence lorsque les données sont incertaines.\\nNe produis pas une étude théorique.\\nProduis une étude utilisable pour décider :\\nquoi acheter ;\\noù acheter ;\\nà quel prix maximum ;\\noù vendre ;\\nà quel prix ;\\navec quel angle marketing ;\\navec quel budget test ;\\nquoi éviter.\\n13. SORTIE FINALE ATTENDUE\\nTu dois fournir dans l’ordre :\\nRapport Markdown complet\\nTOP 20 produits gagnants\\nBattle sheet sourcing\\nComparatif marketplaces\\nAnalyse ads/social trends\\nPlan marketing\\nBundles\\n4 prompts image ads\\n4 scripts/prompts vidéo 30 secondes\\nJSON complet exploitable\\nSources\\nSi certaines données ne sont pas accessibles, ne bloque pas l’étude.\\nIndique clairement les limites et propose une méthode pour compléter.\";\n\nconst e      = $('Construire le plan de recherche').first().json;\nconst d      = $input.first().json;\nconst pages  = d.pages || [];\nconst bloq   = d.bloquees || [];\n\nconst categorie    = e.categorie || 'telephonie';\nconst theme        = e.theme || 'smartphones';\nconst libelleCat   = e.libelleCat || categorie;\nconst libelleTheme = e.libelleTheme || theme;\nconst date         = e.date || new Date().toISOString().slice(0, 10);\n\nconst corpus = pages.map((p, i) =>\n  '### SOURCE ' + (i + 1) + ' [' + p.role + ']\\n' +\n  'URL: ' + p.url + '\\n' +\n  (p.image ? 'IMAGE: ' + p.image + '\\n' : '') +\n  'TITRE: ' + p.titre + '\\n' +\n  'TEXTE: ' + p.texte\n).join('\\n\\n');\n\nconst listeBloquees = bloq.length\n  ? bloq.map((b) => '- ' + b.url + ' — ' + b.raison).join('\\n')\n  : '(aucune)';\n\n// ---- CATALOGUES : relus directement depuis la sortie Serper brute ----\nconst plan = $('Construire le plan de recherche').all();\nconst brut = $('Rechercher (Serper)').all();\n\n// 1) URL fournisseurs : on garde les adresses des plateformes de sourcing.\n// Motif \"fiche\" = page produit unique, motif \"liste\" = page de recherche ou\n// de categorie. Les deux sont gardees : l'extension sait scraper les deux.\nconst PLATEFORMES = [\n  ['aliexpress',      'aliexpress.'],\n  ['Alibaba',         'alibaba.com'],\n  ['DHgate',          'dhgate.com'],\n  ['CJ Dropshipping', 'cjdropshipping.com'],\n  ['Temu',            'temu.com'],\n  ['Banggood',        'banggood.com'],\n  ['JoyBuy',          'joybuy.'],\n  ['Made-in-China',   'made-in-china.com'],\n  ['Global Sources',  'globalsources.com'],\n  ['1688',            '1688.com'],\n];\nconst MOTIFS_FICHE = ['/item/', '/product-detail/', '/product/', '/p/', '/pd/', '/goods/'];\n\nconst fournisseurs = [];\nconst vusF = new Set();\n\nfunction avale(org, nom) {\n  for (const o of org) {\n    if (!o.link || vusF.has(o.link)) continue;\n    const bas = o.link.toLowerCase();\n    const pf = PLATEFORMES.find((p) => bas.includes(p[1]));\n    if (!pf) continue;\n    vusF.add(o.link);\n    fournisseurs.push({\n      plateforme: pf[0],\n      url: o.link,\n      type: MOTIFS_FICHE.some((m) => bas.includes(m)) ? 'fiche' : 'liste',\n      modele: nom || '',\n      titre: (o.title || '').slice(0, 120),\n    });\n  }\n}\n\n// 1re vague : requetes fournisseurs generiques\nfor (let i = 0; i < brut.length; i++) {\n  if (!plan[i] || plan[i].json.role !== 'sourcing') continue;\n  avale((brut[i].json && brut[i].json.organic) || [], '');\n}\n\n// 2e vague : une requete par nom de modele reel -> ce sont les FICHES\nconst planF = $('Extraire les noms de produits').all();\nconst brutF = $('Rechercher fiches produit').all();\nfor (let i = 0; i < brutF.length; i++) {\n  const nom = planF[i] ? planF[i].json.nom : '';\n  avale((brutF[i].json && brutF[i].json.organic) || [], nom);\n}\n\n// les fiches d'abord : c'est ce que l'import automatique veut\nfournisseurs.sort((a, b) => (a.type === 'fiche' ? 0 : 1) - (b.type === 'fiche' ? 0 : 1));\n\n// 2) Catalogue marchand : prix reels, marchand, note et IMAGE produit\nconst catalogue = [];\nconst vusC = new Set();\nfor (let i = 0; i < brut.length; i++) {\n  if (!plan[i] || plan[i].json.role !== 'catalogue') continue;\n  const sh = (brut[i].json && brut[i].json.shopping) || [];\n  for (const s of sh) {\n    const cle = (s.title || '') + '|' + (s.source || '');\n    if (vusC.has(cle)) continue;\n    vusC.add(cle);\n    catalogue.push({\n      titre: (s.title || '').slice(0, 130),\n      prix: s.price || '',\n      marchand: s.source || '',\n      note: s.rating || null,\n      avis: s.ratingCount || null,\n      image: s.imageUrl || '',\n      lien: s.link || '',\n    });\n  }\n}\n\nconst listeFournisseurs = fournisseurs.length\n  ? fournisseurs.map((f, i) =>\n      '[F' + (i + 1) + '] ' + f.plateforme + ' (' + f.type + ')' +\n      (f.modele ? ' [modele: ' + f.modele + ']' : '') + ' — ' + f.url +\n      '\\n      ' + f.titre\n    ).join('\\n')\n  : '(aucune URL fournisseur remontee)';\n\nconst listeCatalogue = catalogue.length\n  ? catalogue.map((c, i) =>\n      '[C' + (i + 1) + '] ' + c.titre + ' | ' + c.prix + ' | ' + c.marchand +\n      (c.note ? ' | note ' + c.note + ' (' + (c.avis || 0) + ' avis)' : '') +\n      '\\n      IMAGE: ' + c.image\n    ).join('\\n')\n  : '(catalogue vide)';\n\nconst prompt = [\n// --- le prompt maitre aiMARKET, tel que Max l'a ecrit, sans retouche\nMAITRE,\n'',\n'=== 0. VARIABLES DE CETTE ETUDE ===',\n'Date de l etude : ' + date,\n'Pays principal : France',\n'Zone commerciale : France + Europe',\n'Categorie : ' + libelleCat,\n'Slug categorie : ' + categorie,\n'Theme analyse : ' + libelleTheme,\n'Slug theme : ' + theme,\n'',\n'=== COMPLEMENT PIPELINE — PRIORITAIRE SUR LE RESTE ===',\n'Tu ne navigues pas : toute ta matiere est fournie plus bas. Les catalogues',\n'ci-dessous ont ete releves automatiquement pour cette etude. Ils remplacent',\n'la recherche web demandee au point 1.1 du prompt maitre.',\n'',\n'REGLE URL — OBLIGATOIRE SUR LES 20 LIGNES.',\n'Le client achete de l IMPORT AUTOMATIQUE : une ligne sans URL ne lui sert a rien.',\n'supplier_url est TOUJOURS rempli, avec une adresse prise dans le CATALOGUE',\n'FOURNISSEURS [F..]. Tu ne fabriques aucune adresse, et tu n en laisses aucune vide.',\n'Privilegie les entrees de type \"fiche\" : elles sont listees en premier et',\n'portent le nom du modele entre crochets. Une entree \"liste\" n est prise que si',\n'aucune fiche ne correspond — un flux de scraping par extension la traitera',\n'produit par produit derriere. N utilise jamais deux fois la meme adresse tant',\n'qu il en reste de disponibles.',\n'Ajoute a chaque produit le champ url_type : \"fiche\" ou \"liste\".',\n'Ajoute a chaque produit le champ import : \"url\" si la fiche se lit a l adresse,',\n'\"extension\" si la page se construit en JavaScript (AliExpress, Temu, Alibaba,',\n'Shein, 1688), \"api\" pour un fournisseur relie par cle.',\n'',\n'REGLE IMAGE — OBLIGATOIRE SUR LES 20 LIGNES.',\n'Ajoute a chaque produit le champ image_url, pris dans le CATALOGUE MARCHAND',\n'[C..], celui du produit le plus proche. Ces images illustrent les fiches et les',\n'articles. Tu ne fabriques aucune adresse d image.',\n'',\n'REGLE SOURCES BLOQUEES.',\n'Les pages listees en SOURCES BLOQUEES n ont pas pu etre lues. Reporte-les',\n'telles quelles dans la section 14 et dans la cle sources_bloquees du JSON.',\n'Ne comble jamais ce qu elles auraient pu contenir.',\n'',\n'=== FORMAT DE SORTIE — IMPERATIF ===',\n'Tu produis DEUX blocs et rien d autre, dans cet ordre, separes par une ligne',\n'contenant exactement <<<JSON>>>.',\n'',\n'BLOC 1 : la ligne <<<MARKDOWN>>> seule, puis un en-tete YAML entre --- portant',\n'type: aimarket, date, categorie, theme, titre, agent, marche_revente, sourcing,',\n'produits, sources, sources_bloquees. Puis le rapport Markdown complet avec les',\n'16 sections et les 5 tableaux obligatoires du prompt maitre.',\n'',\n'BLOC 2 : apres <<<JSON>>>, le JSON complet du point 9 du prompt maitre, valide,',\n'sans balise de code, avec les trois champs ajoutes ci-dessus (url_type, import,',\n'image_url) dans chaque produit, plus la cle sources_bloquees.',\n'',\n'=== CATALOGUE FOURNISSEURS (' + fournisseurs.length + ' adresses reelles) ===',\n'C est la seule source autorisee pour supplier_url.',\nlisteFournisseurs,\n'',\n'=== CATALOGUE MARCHAND (' + catalogue.length + ' offres reelles, prix France) ===',\n'Source des prix de revente constates ET des images produit.',\nlisteCatalogue,\n'',\n'=== SOURCES BLOQUEES (a reporter telles quelles) ===',\nlisteBloquees,\n'',\n'=== SOURCES LUES (' + pages.length + ' pages) ===',\ncorpus,\n].join('\\n');\n\nreturn [{\n  json: {\n    prompt, categorie, theme, date,\n    nbPages: pages.length,\n    nbBloquees: bloq.length,\n    nbFournisseurs: fournisseurs.length,\n    nbCatalogue: catalogue.length,\n  },\n}];"
+      },
+      "id": "n-construire-le-prompt",
+      "name": "Construire le prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 64000, output_config: { effort: 'medium' }, messages: [ { role: 'user', content: $json.prompt } ] }) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "n-claude",
+      "name": "Rediger (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        0
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "OQSfM7vv1HMr4AFo",
+          "name": "Anthropic account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const e    = $('Construire le plan de recherche').first().json;\nconst p    = $('Construire le prompt').first().json;\nconst rep  = $input.first().json;\n\n// la reponse peut arriver sous plusieurs formes selon le parsing de n8n\nfunction extraitTexte(r) {\n  if (!r) return '';\n  if (typeof r === 'string') {\n    try { return extraitTexte(JSON.parse(r)); } catch (e) { return r; }\n  }\n  if (Array.isArray(r.content)) return r.content.map((c) => c.text || '').join('');\n  if (r.data) return extraitTexte(r.data);\n  if (r.body) return extraitTexte(r.body);\n  return '';\n}\nlet texte = extraitTexte(rep);\n\n// on n'echoue jamais en silence : on ecrit un fichier de diagnostic lisible\nif (!texte) {\n  const diag = '# DIAGNOSTIC — reponse Claude non exploitable\\n\\n' +\n    'Cles de premier niveau : ' + Object.keys(rep || {}).join(', ') + '\\n\\n' +\n    '~~~\\n' + JSON.stringify(rep, null, 2).slice(0, 12000) + '\\n~~~\\n';\n  return [{\n    json: {\n      diagnostic: true,\n      cles: Object.keys(rep || {}),\n      nomMd: 'DIAGNOSTIC-reponse-claude.md',\n      nomJson: 'DIAGNOSTIC-reponse-claude.json',\n    },\n    binary: {\n      md: {\n        data: Buffer.from(diag, 'utf8').toString('base64'),\n        mimeType: 'text/markdown',\n        fileName: 'DIAGNOSTIC-reponse-claude.md',\n      },\n      rapport: {\n        data: Buffer.from(JSON.stringify(rep || {}, null, 2), 'utf8').toString('base64'),\n        mimeType: 'application/json',\n        fileName: 'DIAGNOSTIC-reponse-claude.json',\n      },\n    },\n  }];\n}\n\nconst i = texte.indexOf('<<<JSON>>>');\nlet md   = (i >= 0 ? texte.slice(0, i) : texte);\nlet brut = (i >= 0 ? texte.slice(i + 10) : '{}');\n\nmd = md.replace(/^\\s*<<<MARKDOWN>>>\\s*/, '').trim();\nbrut = brut.trim().replace(/^\\u0060{3}json\\s*/i, '').replace(/\\u0060{3}\\s*$/, '').trim();\n\nlet objet = null;\ntry {\n  objet = JSON.parse(brut);\n} catch (err) {\n  // on ne jette pas le rapport pour un JSON casse : on le signale\n  objet = { _erreur_json: String(err).slice(0, 300), _brut: brut.slice(0, 2000) };\n}\n\nconst base = (e.date || p.date) + '_' + (e.categorie || p.categorie) + '_' + (e.theme || p.theme);\nconst nomMd   = base + '.md';\nconst nomJson = base + '.json';\n\nreturn [{\n  json: {\n    nomMd,\n    nomJson,\n    pagesLues: p.nbPages,\n    pagesBloquees: p.nbBloquees,\n    jsonOk: !objet._erreur_json,\n    produits: Array.isArray(objet.produits) ? objet.produits.length : 0,\n  },\n  binary: {\n    md: {\n      data: Buffer.from(md, 'utf8').toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: nomMd,\n    },\n    rapport: {\n      data: Buffer.from(JSON.stringify(objet, null, 2), 'utf8').toString('base64'),\n      mimeType: 'application/json',\n      fileName: nomJson,\n    },\n  },\n}];"
+      },
+      "id": "n-decouper-md-et-json",
+      "name": "Decouper md et json",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/files/DropPost/MARKET-ANALYSES/rapports/{{ $json.nomMd }}",
+        "dataPropertyName": "md",
+        "options": {}
+      },
+      "id": "n-ecrire-md",
+      "name": "Ecrire .md",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/files/DropPost/MARKET-ANALYSES/rapports/{{ $json.nomJson }}",
+        "dataPropertyName": "rapport",
+        "options": {}
+      },
+      "id": "n-ecrire-json",
+      "name": "Ecrire .json",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Entree": {
+      "main": [
+        [
+          {
+            "node": "Construire le plan de recherche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook test": {
+      "main": [
+        [
+          {
+            "node": "Construire le plan de recherche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire le plan de recherche": {
+      "main": [
+        [
+          {
+            "node": "Rechercher (Serper)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rechercher (Serper)": {
+      "main": [
+        [
+          {
+            "node": "Extraire les noms de produits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire les noms de produits": {
+      "main": [
+        [
+          {
+            "node": "Rechercher fiches produit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rechercher fiches produit": {
+      "main": [
+        [
+          {
+            "node": "Collecter les URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collecter les URLs": {
+      "main": [
+        [
+          {
+            "node": "Lire les pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire les pages": {
+      "main": [
+        [
+          {
+            "node": "Extraire le contenu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire le contenu": {
+      "main": [
+        [
+          {
+            "node": "Construire le prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire le prompt": {
+      "main": [
+        [
+          {
+            "node": "Rediger (Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rediger (Claude)": {
+      "main": [
+        [
+          {
+            "node": "Decouper md et json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decouper md et json": {
+      "main": [
+        [
+          {
+            "node": "Ecrire .md",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ecrire .json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveExecutionProgress": false
+  }
+}
