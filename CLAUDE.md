@@ -135,6 +135,53 @@ cd frontend && npm run build
 - Une leçon nouvelle et durable : **une ligne ici** + le détail dans
   `docs/memoire-projet.md`. Ne pas regonfler ce fichier.
 
+## LA règle des rapports : rien ne s'annonce sans `verifier-rapports.cjs`
+
+Trois fois le système a échoué **en silence**, et chaque fois la panne a été
+découverte des jours plus tard par Max, pas par nous :
+
+- **19/09** — Claude renvoie un rapport vide (la réflexion adaptative avait
+  mangé tout le budget de tokens). Rien ne l'a signalé.
+- **23/09** — Serper refuse, faute de crédits ; le nœud est en « continuer
+  malgré l'erreur », la liste sort vide, n8n conclut **success**. Deux
+  exécutions marquées réussies sans rien écrire. Six jours de silence.
+- **04/10** — 24 rapports importés, 439 produits, annoncés comme une réussite.
+  Contrôle fait après coup : **0 rayon conforme sur 24**, 0 score, 0 verdict,
+  0 image sur 439 produits. Le volume avait monté, la substance avait disparu.
+
+Le point commun n'est pas une panne : **rien ne comparait la sortie au
+contrat.** D'où la règle, sans exception :
+
+```
+cd backend && node verifier-rapports.cjs [--date AAAA-MM-JJ]
+```
+
+Sort 0 si conforme, 1 sinon, et nomme chaque rayon fautif. `import-rapports.bat`
+l'appelle et refuse en code 2. **Ne jamais annoncer à Max qu'une nuit est
+réussie sans avoir lu sa sortie.** Compter les fichiers écrits n'est pas
+mesurer la qualité : le 4 octobre, 24 fichiers étaient là et aucun n'était
+vendable.
+
+Le contrat : 20 produits, 20 URL http distinctes, ≥10 fiches, prix sur ≥18/20,
+score + verdict + image sur ≥16/20. La référence vivante est le rapport
+`telephonie/smartphones` du 20/09 — le seul CONFORME de l'historique.
+
+**Deux moteurs produisent des rapports, et c'est la cause structurelle des
+régressions.** n8n + Serper + prompt aiMARKET (arrêté depuis le 23/09, solde
+Anthropic et crédits Serper à zéro) et les quatre tâches planifiées Cowork
+(qui tournent sur l'abonnement, donc survivent aux pannes de clé API). Quand le
+bon moteur s'arrête, le faible continue de produire des fichiers et personne ne
+voit la bascule. Objectif : **un seul moteur, un seul contrat.** Le prompt des
+quatre tâches est versionné dans `MARKET-ANALYSES/PROMPT-TACHES-PLANIFIEES.md`
+— les prompts avaient été changés le 03/10 à 22h03 sans trace.
+
+**Les sites fournisseurs se lisent, contrairement à ce que des rapports
+affirment.** Vérifié le 04/10 : une fiche BigBuy se lit, seul le prix demande un
+compte. Les 404 portent sur les sitemaps et les pages de catégorie — on n'y va
+pas. CJ, Temu, Shein sont en JavaScript : classés `extension` depuis septembre,
+ce n'est pas une découverte à refaire. Un agent qui « renonce » à un fournisseur
+improvise sa recherche au lieu de suivre la procédure en trois vagues.
+
 ## Moteur d'analyses de marché (MARKET-ANALYSES)
 
 24 rayons × 7 thèmes, rotation `(jour_de_l_année - 1) % 7`. **Deux** moteurs

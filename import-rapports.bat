@@ -79,9 +79,41 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo %DATE% %TIME% - fin, tout est passe >> "%JOURNAL%"
+REM --- LE GARDE-FOU. Il ne repare rien, il refuse.
+REM     Trois fois le systeme a echoue en silence : rapport vide le 19/09,
+REM     faux « success » le 23/09, et le 04/10 vingt-quatre rapports importes
+REM     annonces comme une reussite alors qu'AUCUN ne tenait le contrat.
+REM     Le point commun n'etait pas une panne : rien ne comparait la sortie
+REM     au contrat. Desormais si, et le code de sortie le dit.
+echo --- verifier-rapports >> "%JOURNAL%"
+node verifier-rapports.cjs >> "%JOURNAL%" 2>&1
+set CONTRAT=%ERRORLEVEL%
+
+echo %DATE% %TIME% - fin >> "%JOURNAL%"
+
+if not "%CONTRAT%"=="0" (
+  echo. >> "%JOURNAL%"
+  echo RUPTURE DE CONTRAT : ne pas publier cette journee en l'etat. >> "%JOURNAL%"
+  echo.
+  echo ####################################################################
+  echo #  RUPTURE DE CONTRAT                                              #
+  echo #                                                                  #
+  echo #  Les donnees sont dans la base, mais au moins un rayon n'est pas #
+  echo #  livrable : produits manquants, URL manquantes ou prix absents.  #
+  echo #  NE PAS committer ni pousser en l'etat.                          #
+  echo #                                                                  #
+  echo #  Le detail rayon par rayon est dans :                            #
+  echo #  MARKET-ANALYSES\rapports\_import.log                           #
+  echo #                                                                  #
+  echo #  Pour le relire a l'ecran :                                      #
+  echo #    cd backend ^&^& node verifier-rapports.cjs                      #
+  echo ####################################################################
+  echo.
+  exit /b 2
+)
+
 echo.
-echo Termine. Detail dans MARKET-ANALYSES\rapports\_import.log
+echo Termine, contrat tenu. Detail dans MARKET-ANALYSES\rapports\_import.log
 echo.
 echo RAPPEL : la donnee est dans la base LOCALE. Pour qu'elle apparaisse sur
 echo www.drop-shipper.fr il faut encore commiter backend\rapports.db et
