@@ -6,14 +6,7 @@
  *   cd backend && node importer-aimarket.cjs --sec       # n'ecrit rien, montre
  *   cd backend && node importer-aimarket.cjs --envoyer   # importe, puis met EN LIGNE
  *
- * --envoyer (04/10/2026) : apres l'import, la base part a l'API
- * (POST /api/agent/rapports-db). L'application et les pages publiques
- * /analyses la lisent des la requete suivante, sans git push ni redeploiement,
- * et les nouvelles adresses sont annoncees aux moteurs. Il faut, dans
- * backend/.env ou l'environnement :
- *   DROPSHIPPER_CLE_AGENT = une cle d'agent du compte administrateur
- *   DROPSHIPPER_API       = (facultatif) https://dropshippro-production.up.railway.app
- * Un envoi qui aurait MOINS de rapports que la base en ligne est refuse.
+ * --envoyer : voir envoyer-rapports.cjs (mise en ligne sans push).
  *
  * Un fichier MarketSpy porte l'etude ET le marketing. La base, elle, separe
  * les deux : les routes de lecture filtrent sur `type = 'marketing'` pour les
@@ -412,39 +405,4 @@ for (const fichier of fichiers) {
 if (db) db.close();
 console.log(`\n${ok} importé(s), ${ko} refusé(s).`);
 
-/** backend/.env, lu a la main : le script ne depend de rien. */
-function variable(nom) {
-  if (process.env[nom]) return process.env[nom].trim();
-  try {
-    const ligne = fs.readFileSync(path.resolve(__dirname, '.env'), 'utf8').split(/\r?\n/).find((l) => l.startsWith(`${nom}=`));
-    return ligne ? ligne.slice(nom.length + 1).trim().replace(/^["']|["']$/g, '') : '';
-  } catch (e) {
-    return '';
-  }
-}
-
-if (envoyer && !sec) {
-  const cle = variable('DROPSHIPPER_CLE_AGENT');
-  const api = (variable('DROPSHIPPER_API') || 'https://dropshippro-production.up.railway.app').replace(/\/+$/, '');
-  if (!cle) {
-    console.error('\nRien envoyé : DROPSHIPPER_CLE_AGENT manque (backend/.env).');
-    process.exit(1);
-  }
-  fetch(`${api}/api/agent/rapports-db`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/octet-stream' },
-    body: fs.readFileSync(BASE),
-  })
-    .then(async (r) => {
-      const t = await r.text();
-      if (!r.ok) {
-        console.error(`\nEnvoi refusé (${r.status}) : ${t.slice(0, 300)}`);
-        process.exit(1);
-      }
-      console.log(`\nEn ligne : ${t}`);
-    })
-    .catch((e) => {
-      console.error(`\nEnvoi impossible : ${e.message}`);
-      process.exit(1);
-    });
-}
+if (envoyer && !sec) require('./envoyer-rapports.cjs').envoyerEtDire(BASE);

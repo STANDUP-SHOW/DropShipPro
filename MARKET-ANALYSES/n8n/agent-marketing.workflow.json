@@ -1,0 +1,207 @@
+{
+  "name": "DropPost — Agent MARKETING (modele)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "24021fa2-7a11-4902-9d37-79b278d05792",
+      "name": "Entree agent MARKETING",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1400,
+        0
+      ],
+      "notes": "Recoit en entree, pour UNE categorie : categorie_id, categorie_label, theme_id, theme_label, date, basePath. Fourni par le workflow Orchestrateur.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\nconst annee = new Date(item.date).getFullYear();\nconst queries = [\n  `\"${item.theme_label}\" facebook ads library publicite`,\n  `${item.theme_label} tiktok shop viral ${annee}`,\n  `${item.theme_label} influenceur ugc publicite tendance`,\n  `${item.theme_label} pinterest tendance ${annee}`,\n  `${item.theme_label} black friday ${annee} marketing idee campagne`\n];\nreturn [{ json: { ...item, searchBody: queries.map(q => ({ q, gl: 'fr', hl: 'fr', num: 5 })) } }];",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "ea955694-9655-47c7-8396-72cefd28498c",
+      "name": "Construire requetes recherche",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.searchBody) }}",
+        "options": {}
+      },
+      "id": "278562b2-93db-4eb3-bec0-e93b6d4f582f",
+      "name": "Rechercher le web (Serper.dev)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -960,
+        0
+      ],
+      "notes": "Meme credential Serper.dev que l'agent RAYON. Cible ici les requetes ads/tendances (Ads Library, TikTok Shop, Pinterest...).",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Construire requetes recherche').item.json;\nconst batchResults = $json;\n\nlet lines = [];\nlet seen = new Set();\nfor (const result of (Array.isArray(batchResults) ? batchResults : [batchResults])) {\n  for (const o of (result.organic || [])) {\n    if (!o.link || seen.has(o.link)) continue;\n    seen.add(o.link);\n    lines.push(`- [${o.title}](${o.link}) — ${o.snippet || ''}`);\n  }\n}\nconst resultatsRecherche = lines.length\n  ? lines.join('\\n')\n  : \"(aucun resultat exploitable trouve par la recherche n8n pour ces requetes — le dire honnetement dans le rapport plutot que d'inventer)\";\n\nconst prompt = `Tu es l'agent MARKETING specialise de la categorie \"${item.categorie_label}\" pour le site de dropshipping drop-shipper.fr.\nRapport du jour : ${item.date}, sous-theme \"${item.theme_label}\" (id: ${item.theme_id}).\n\nTu ne fais PAS de recherche web toi-meme : n8n a deja execute les requetes et te fournit ci-dessous les resultats REELS (titre, URL, extrait) obtenus sur le web au sujet des publicites, tendances et reseaux sociaux lies a ce theme.\nREGLE ABSOLUE : appuie-toi uniquement sur ces resultats. Si Facebook Ads Library ou une autre source n'apparait pas dedans (acces souvent bloque aux robots), dis-le explicitement plutot que d'inventer une donnee, et utilise les sources tierces presentes a la place.\n\nAnalyse en profondeur a partir de ces resultats : publicites qui convertissent sur ce theme, depuis combien de temps diffusees, vendeurs, createurs en charge, couts de campagne si l'info apparait. Couvre TikTok Ads et TikTok Shop, Meta/Instagram, Pinterest. Ajoute des conseils produits tendance du moment sur les reseaux, des conseils marketing, la preparation marketing pour les fetes a venir avec dates verifiees, et des idees de campagnes. Termine par 5 prompts de creation d'image publicitaire statique et 5 prompts de video courte publicitaire, prets a etre utilises avec un outil de generation IA (destines a Lea, notre agent graphiste).\n\nRespecte EXACTEMENT ce contrat de sortie (Markdown, rien avant ni apres) :\n\n---\ntype: marketing\ndate: ${item.date}\ncategorie: ${item.categorie_id}\ntheme: ${item.theme_id}\ntitre: <titre court en francais>\nagent: marketing-${item.categorie_id}\nsources: <nombre de sources distinctes citees>\n---\n\n## Social places\n## Publicités en cours\n## Tendances du jour\n## Tendances publicitaires\n## Prompts d'images publicitaires\n(5 blocs de code Markdown autonomes, premiere ligne = commentaire de format, ex \"# Facebook 1:1\")\n## Prompts de vidéos publicitaires\n(5 blocs de code Markdown autonomes, premiere ligne = commentaire de format, ex \"# TikTok 9:16 — 15 s\")\n\nLes six sections doivent apparaitre EXACTEMENT dans cet ordre. Reponds en francais.\n\nResultats de recherche web (fournis par n8n) :\n${resultatsRecherche}`;\n\nreturn [{ json: { ...item, marketingPrompt: prompt } }];",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "8cf8e3f4-7a6a-4de7-9462-5d6b63ede568",
+      "name": "Agreger recherche + construire prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        0
+      ],
+      "notes": "Le contrat de sortie (README.md) est embarque directement dans ce code, pour que ce sous-workflow soit un agent autonome et lisible.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"REMPLACER_PAR_VOTRE_MODELE_OLLAMA\", prompt: $json.marketingPrompt, stream: false, options: { temperature: 0.5, num_predict: 6000 } }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "698b79c9-451d-4296-a8ea-778e87a878bb",
+      "name": "Rediger avec Ollama (local)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -500,
+        0
+      ],
+      "notes": "AUCUN cout d'API. Remplacer 'REMPLACER_PAR_VOTRE_MODELE_OLLAMA' par le modele tire avec `ollama pull`. Temperature un peu plus haute (0.5) que RAYON car la creativite (prompts image/video, idees de campagne) est valorisee ici.",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $json;\nconst markdown = (response.response || '').trim();\nconst item = $('Agreger recherche + construire prompt').item.json;\nconst binary = await this.helpers.prepareBinaryData(Buffer.from(markdown, 'utf8'), `${item.theme_id}.marketing.md`, 'text/markdown');\nreturn [{ json: { ...item, marketingMarkdown: markdown, marketingPath: `${item.basePath}/rapports/${item.date}/${item.categorie_id}/${item.theme_id}.marketing.md` }, binary: { data: binary } }];",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "9e285377-fd1a-479a-8f07-4fc0b89802c3",
+      "name": "Extraire + preparer fichier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $json.marketingPath }}",
+        "options": {}
+      },
+      "id": "9ef8ac39-ccfe-4bd1-ae5e-126692c6c6e0",
+      "name": "Ecrire fichier .marketing.md",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -20,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Entree agent MARKETING": {
+      "main": [
+        [
+          {
+            "node": "Construire requetes recherche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire requetes recherche": {
+      "main": [
+        [
+          {
+            "node": "Rechercher le web (Serper.dev)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rechercher le web (Serper.dev)": {
+      "main": [
+        [
+          {
+            "node": "Agreger recherche + construire prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agreger recherche + construire prompt": {
+      "main": [
+        [
+          {
+            "node": "Rediger avec Ollama (local)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rediger avec Ollama (local)": {
+      "main": [
+        [
+          {
+            "node": "Extraire + preparer fichier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire + preparer fichier": {
+      "main": [
+        [
+          {
+            "node": "Ecrire fichier .marketing.md",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateNote": "Sous-workflow reutilisable = l'agent MARKETING. Appele une fois par categorie et par jour par le workflow Orchestrateur, meme principe que l'agent RAYON : recherche Serper.dev + redaction Ollama local (0 cout)."
+  }
+}

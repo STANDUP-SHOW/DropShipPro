@@ -1,0 +1,312 @@
+{
+  "id": "orchestrateurQuotidien",
+  "name": "DropPost — Orchestrateur quotidien (aiMARKET)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 1,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "n-declencheur",
+      "name": "Chaque nuit a 1h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "n-manuel",
+      "name": "Lancer a la main",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "orchestrateur-nuit",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "n-webhook-orch",
+      "name": "Webhook lancement",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        340
+      ],
+      "webhookId": "e1a7c2d4-9b30-4f58-8a61-7d3c5e2b4f91"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Le rayon du jour pour chaque categorie.\n *\n * Rotation par jour de l'annee modulo 7 : la meme categorie revient sur le\n * meme theme tous les 7 jours, ce qui donne la serie temporelle. Le calcul est\n * fige ici et dans marketReports.ts cote serveur — les deux doivent rester\n * d'accord, sinon un rapport tombe dans le mauvais casier.\n */\nconst CATEGORIES = [{\"id\":\"electromenager\",\"nom\":\"Électroménager\",\"themes\":[{\"id\":\"gros-froid\",\"nom\":\"Réfrigérateurs, congélateurs et caves\"},{\"id\":\"cuisson\",\"nom\":\"Fours, micro-ondes et air fryers\"},{\"id\":\"petit-dejeuner-cafe\",\"nom\":\"Café, thé et petit-déjeuner\"},{\"id\":\"sols\",\"nom\":\"Aspirateurs, balais et robots de sol\"},{\"id\":\"lavage-sechage\",\"nom\":\"Lave-linge, sèche-linge et lave-vaisselle\"},{\"id\":\"soin-du-linge\",\"nom\":\"Fers, centrales vapeur et défroisseurs\"},{\"id\":\"robots-cuisine\",\"nom\":\"Robots et préparation culinaire\"}]},{\"id\":\"telephonie\",\"nom\":\"Téléphonie\",\"themes\":[{\"id\":\"smartphones\",\"nom\":\"Smartphones\"},{\"id\":\"chargeurs-cables\",\"nom\":\"Chargeurs, câbles et batteries externes\"},{\"id\":\"coques-protection\",\"nom\":\"Coques, verres trempés et protection\"},{\"id\":\"audio-nomade\",\"nom\":\"Écouteurs et audio nomade\"},{\"id\":\"objets-connectes\",\"nom\":\"Montres, bracelets et objets connectés\"},{\"id\":\"tablettes\",\"nom\":\"Tablettes et liseuses\"},{\"id\":\"accessoires\",\"nom\":\"Supports, cardans et accessoires\"}]},{\"id\":\"informatique\",\"nom\":\"Informatique\",\"themes\":[{\"id\":\"pc-portables\",\"nom\":\"PC portables\"},{\"id\":\"mini-pc-bureau\",\"nom\":\"Mini-PC et ordinateurs de bureau\"},{\"id\":\"peripheriques\",\"nom\":\"Souris, claviers et périphériques\"},{\"id\":\"ecrans\",\"nom\":\"Écrans et supports\"},{\"id\":\"stockage\",\"nom\":\"SSD, disques et clés USB\"},{\"id\":\"reseau\",\"nom\":\"Routeurs, Wi-Fi et réseau\"},{\"id\":\"impression\",\"nom\":\"Imprimantes, scanners et consommables\"}]},{\"id\":\"tv-son-photo\",\"nom\":\"TV, son et photo\",\"themes\":[{\"id\":\"tv-projecteurs\",\"nom\":\"Téléviseurs et vidéoprojecteurs\"},{\"id\":\"barres-enceintes\",\"nom\":\"Barres de son et enceintes\"},{\"id\":\"casques\",\"nom\":\"Casques audio\"},{\"id\":\"photo-action\",\"nom\":\"Appareils photo et caméras d'action\"},{\"id\":\"drones\",\"nom\":\"Drones\"},{\"id\":\"streaming-tv\",\"nom\":\"Box, streaming et accessoires TV\"},{\"id\":\"gaming\",\"nom\":\"Manettes et accessoires gaming\"}]},{\"id\":\"automobile\",\"nom\":\"Automobile\",\"themes\":[{\"id\":\"entretien-nettoyage\",\"nom\":\"Entretien et nettoyage\"},{\"id\":\"interieur\",\"nom\":\"Accessoires d'intérieur\"},{\"id\":\"exterieur\",\"nom\":\"Accessoires d'extérieur\"},{\"id\":\"electronique-embarquee\",\"nom\":\"Dashcams, GPS et électronique embarquée\"},{\"id\":\"outillage-diagnostic\",\"nom\":\"Outillage et diagnostic\"},{\"id\":\"eclairage-led\",\"nom\":\"Éclairage et LED\"},{\"id\":\"deux-roues\",\"nom\":\"Deux-roues, trottinettes et vélos électriques\"}]},{\"id\":\"maison-decoration\",\"nom\":\"Décoration\",\"themes\":[{\"id\":\"luminaires\",\"nom\":\"Luminaires\"},{\"id\":\"tableaux-affiches\",\"nom\":\"Tableaux et affiches\"},{\"id\":\"miroirs-horloges\",\"nom\":\"Miroirs et horloges\"},{\"id\":\"vases-objets\",\"nom\":\"Vases et objets déco\"},{\"id\":\"bougies-senteurs\",\"nom\":\"Bougies et senteurs\"},{\"id\":\"rangement-deco\",\"nom\":\"Rangement décoratif\"},{\"id\":\"murs-stickers\",\"nom\":\"Décoration murale et stickers\"}]},{\"id\":\"linge-de-maison\",\"nom\":\"Linge de maison\",\"themes\":[{\"id\":\"linge-de-lit\",\"nom\":\"Linge de lit\"},{\"id\":\"couettes-oreillers\",\"nom\":\"Couettes et oreillers\"},{\"id\":\"serviettes-bain\",\"nom\":\"Serviettes et linge de bain\"},{\"id\":\"rideaux-voilages\",\"nom\":\"Rideaux et voilages\"},{\"id\":\"tapis\",\"nom\":\"Tapis\"},{\"id\":\"nappes-cuisine\",\"nom\":\"Nappes et linge de cuisine\"},{\"id\":\"plaids-coussins\",\"nom\":\"Plaids et coussins\"}]},{\"id\":\"cuisine-table\",\"nom\":\"Cuisine et arts de la table\",\"themes\":[{\"id\":\"ustensiles\",\"nom\":\"Ustensiles\"},{\"id\":\"batteries-cuisine\",\"nom\":\"Poêles, casseroles et batteries de cuisine\"},{\"id\":\"vaisselle\",\"nom\":\"Vaisselle\"},{\"id\":\"verres-carafes\",\"nom\":\"Verres, carafes et bar\"},{\"id\":\"conservation\",\"nom\":\"Conservation et boîtes\"},{\"id\":\"couteaux-decoupe\",\"nom\":\"Couteaux et découpe\"},{\"id\":\"gadgets-cuisine\",\"nom\":\"Gadgets de cuisine\"}]},{\"id\":\"salle-de-bain\",\"nom\":\"Salle de bain\",\"themes\":[{\"id\":\"accessoires\",\"nom\":\"Accessoires de salle de bain\"},{\"id\":\"rangement-etageres\",\"nom\":\"Rangement et étagères\"},{\"id\":\"douche-robinetterie\",\"nom\":\"Douche et robinetterie\"},{\"id\":\"tapis-rideaux\",\"nom\":\"Tapis et rideaux de douche\"},{\"id\":\"distributeurs-organisation\",\"nom\":\"Distributeurs et organisation\"},{\"id\":\"petits-equipements\",\"nom\":\"Sèche-serviettes et petits équipements\"},{\"id\":\"miroirs-eclairage\",\"nom\":\"Miroirs et éclairage\"}]},{\"id\":\"meubles\",\"nom\":\"Meubles\",\"themes\":[{\"id\":\"canapes-fauteuils\",\"nom\":\"Canapés et fauteuils\"},{\"id\":\"tables-chaises\",\"nom\":\"Tables et chaises\"},{\"id\":\"rangements\",\"nom\":\"Rangements et bibliothèques\"},{\"id\":\"lits\",\"nom\":\"Lits et têtes de lit\"},{\"id\":\"bureau\",\"nom\":\"Bureaux et chaises de bureau\"},{\"id\":\"appoint\",\"nom\":\"Meubles d'appoint\"},{\"id\":\"exterieur\",\"nom\":\"Meubles d'extérieur\"}]},{\"id\":\"jardin\",\"nom\":\"Jardin et extérieur\",\"themes\":[{\"id\":\"outillage-jardin\",\"nom\":\"Outillage de jardin\"},{\"id\":\"arrosage\",\"nom\":\"Arrosage\"},{\"id\":\"mobilier-jardin\",\"nom\":\"Mobilier de jardin\"},{\"id\":\"barbecue-plancha\",\"nom\":\"Barbecues et planchas\"},{\"id\":\"piscine-bien-etre\",\"nom\":\"Piscine, spa et bien-être extérieur\"},{\"id\":\"eclairage-exterieur\",\"nom\":\"Éclairage extérieur\"},{\"id\":\"plantes-jardinage\",\"nom\":\"Plantes et jardinage urbain\"}]},{\"id\":\"bricolage\",\"nom\":\"Bricolage et outillage\",\"themes\":[{\"id\":\"electroportatif\",\"nom\":\"Outillage électroportatif\"},{\"id\":\"outillage-main\",\"nom\":\"Outillage à main\"},{\"id\":\"quincaillerie\",\"nom\":\"Quincaillerie et fixation\"},{\"id\":\"peinture-renovation\",\"nom\":\"Peinture et rénovation\"},{\"id\":\"rangement-atelier\",\"nom\":\"Rangement d'atelier\"},{\"id\":\"mesure-detection\",\"nom\":\"Mesure et détection\"},{\"id\":\"securite-equipement\",\"nom\":\"Sécurité et équipement de protection\"}]},{\"id\":\"mode-femme\",\"nom\":\"Mode femme\",\"themes\":[{\"id\":\"robes-jupes\",\"nom\":\"Robes et jupes\"},{\"id\":\"hauts\",\"nom\":\"Hauts et tee-shirts\"},{\"id\":\"pantalons-jeans\",\"nom\":\"Pantalons et jeans\"},{\"id\":\"manteaux-vestes\",\"nom\":\"Manteaux et vestes\"},{\"id\":\"lingerie-nuit\",\"nom\":\"Lingerie et nuit\"},{\"id\":\"sport-detente\",\"nom\":\"Sport et détente\"},{\"id\":\"grandes-tailles\",\"nom\":\"Grandes tailles\"}]},{\"id\":\"mode-homme\",\"nom\":\"Mode homme\",\"themes\":[{\"id\":\"tee-shirts-polos\",\"nom\":\"Tee-shirts et polos\"},{\"id\":\"chemises\",\"nom\":\"Chemises\"},{\"id\":\"pantalons-jeans\",\"nom\":\"Pantalons et jeans\"},{\"id\":\"vestes-manteaux\",\"nom\":\"Vestes et manteaux\"},{\"id\":\"sous-vetements\",\"nom\":\"Sous-vêtements et chaussettes\"},{\"id\":\"sport-detente\",\"nom\":\"Sport et détente\"},{\"id\":\"ceremonie\",\"nom\":\"Costumes et tenues de cérémonie\"}]},{\"id\":\"chaussures-maroquinerie\",\"nom\":\"Chaussures et maroquinerie\",\"themes\":[{\"id\":\"baskets\",\"nom\":\"Baskets\"},{\"id\":\"ville\",\"nom\":\"Chaussures de ville\"},{\"id\":\"bottes\",\"nom\":\"Bottes et bottines\"},{\"id\":\"sandales\",\"nom\":\"Sandales et chaussures d'été\"},{\"id\":\"sacs-main\",\"nom\":\"Sacs à main\"},{\"id\":\"sacs-dos-bagages\",\"nom\":\"Sacs à dos\"},{\"id\":\"petite-maroquinerie\",\"nom\":\"Portefeuilles et petite maroquinerie\"}]},{\"id\":\"bijoux-montres\",\"nom\":\"Bijoux et montres\",\"themes\":[{\"id\":\"montres-homme\",\"nom\":\"Montres homme\"},{\"id\":\"montres-femme\",\"nom\":\"Montres femme\"},{\"id\":\"bracelets\",\"nom\":\"Bracelets\"},{\"id\":\"colliers\",\"nom\":\"Colliers et pendentifs\"},{\"id\":\"bagues\",\"nom\":\"Bagues\"},{\"id\":\"boucles\",\"nom\":\"Boucles d'oreilles\"},{\"id\":\"personnalises-coffrets\",\"nom\":\"Bijoux personnalisés et coffrets\"}]},{\"id\":\"beaute\",\"nom\":\"Beauté et soins\",\"themes\":[{\"id\":\"visage\",\"nom\":\"Soin du visage\"},{\"id\":\"corps\",\"nom\":\"Soin du corps\"},{\"id\":\"maquillage\",\"nom\":\"Maquillage\"},{\"id\":\"parfums\",\"nom\":\"Parfums\"},{\"id\":\"cheveux\",\"nom\":\"Soin des cheveux\"},{\"id\":\"appareils\",\"nom\":\"Lisseurs, épilateurs et appareils de beauté\"},{\"id\":\"ongles\",\"nom\":\"Ongles et manucure\"}]},{\"id\":\"sante-bien-etre\",\"nom\":\"Santé et bien-être\",\"themes\":[{\"id\":\"massage-relaxation\",\"nom\":\"Massage et relaxation\"},{\"id\":\"sommeil\",\"nom\":\"Sommeil\"},{\"id\":\"complements-nutrition\",\"nom\":\"Compléments et nutrition\"},{\"id\":\"mesure\",\"nom\":\"Tensiomètres, balances et appareils de mesure\"},{\"id\":\"mobilite-maintien\",\"nom\":\"Mobilité et maintien\"},{\"id\":\"hygiene-dentaire\",\"nom\":\"Hygiène et soin dentaire\"},{\"id\":\"intime\",\"nom\":\"Bien-être intime\"}]},{\"id\":\"sport\",\"nom\":\"Sport et fitness\",\"themes\":[{\"id\":\"musculation-maison\",\"nom\":\"Musculation et fitness à la maison\"},{\"id\":\"running-marche\",\"nom\":\"Running et marche\"},{\"id\":\"velo\",\"nom\":\"Vélo et accessoires\"},{\"id\":\"sports-eau\",\"nom\":\"Natation et sports d'eau\"},{\"id\":\"raquette-ballon\",\"nom\":\"Sports de raquette et de ballon\"},{\"id\":\"yoga-pilates\",\"nom\":\"Yoga et pilates\"},{\"id\":\"nutrition-accessoires\",\"nom\":\"Nutrition sportive et accessoires\"}]},{\"id\":\"bebe-enfant\",\"nom\":\"Bébé et enfant\",\"themes\":[{\"id\":\"puericulture\",\"nom\":\"Puériculture\"},{\"id\":\"poussettes-sieges\",\"nom\":\"Poussettes et sièges auto\"},{\"id\":\"vetements\",\"nom\":\"Vêtements bébé et enfant\"},{\"id\":\"eveil\",\"nom\":\"Jouets d'éveil\"},{\"id\":\"chambre\",\"nom\":\"Chambre et décoration enfant\"},{\"id\":\"repas\",\"nom\":\"Repas et biberons\"},{\"id\":\"securite-sante\",\"nom\":\"Sécurité et santé bébé\"}]},{\"id\":\"jouets-jeux\",\"nom\":\"Jouets et jeux\",\"themes\":[{\"id\":\"societe-puzzles\",\"nom\":\"Jeux de société et puzzles\"},{\"id\":\"construction\",\"nom\":\"Jouets de construction\"},{\"id\":\"figurines-imitation\",\"nom\":\"Figurines et jeux d'imitation\"},{\"id\":\"educatifs-stem\",\"nom\":\"Jeux éducatifs et STEM\"},{\"id\":\"plein-air\",\"nom\":\"Jeux de plein air\"},{\"id\":\"peluches\",\"nom\":\"Peluches\"},{\"id\":\"jeux-video\",\"nom\":\"Jeux vidéo et accessoires\"}]},{\"id\":\"animaux\",\"nom\":\"Animaux\",\"themes\":[{\"id\":\"chiens\",\"nom\":\"Accessoires pour chiens\"},{\"id\":\"chats\",\"nom\":\"Accessoires pour chats\"},{\"id\":\"alimentation\",\"nom\":\"Alimentation et friandises\"},{\"id\":\"toilettage\",\"nom\":\"Toilettage et hygiène\"},{\"id\":\"couchage-transport\",\"nom\":\"Couchage et transport\"},{\"id\":\"aquario-petits\",\"nom\":\"Aquariophilie et petits animaux\"},{\"id\":\"jouets-dressage\",\"nom\":\"Jouets et dressage\"}]},{\"id\":\"loisirs-creatifs\",\"nom\":\"Loisirs créatifs et papeterie\",\"themes\":[{\"id\":\"papeterie-bureau\",\"nom\":\"Papeterie et bureau\"},{\"id\":\"dessin-peinture\",\"nom\":\"Dessin et peinture\"},{\"id\":\"couture-tricot\",\"nom\":\"Couture et tricot\"},{\"id\":\"diy\",\"nom\":\"Scrapbooking et DIY\"},{\"id\":\"musique\",\"nom\":\"Instruments de musique\"},{\"id\":\"carnets\",\"nom\":\"Carnets et agendas\"},{\"id\":\"scolaire\",\"nom\":\"Fournitures scolaires\"}]},{\"id\":\"voyage-plein-air\",\"nom\":\"Voyage et plein air\",\"themes\":[{\"id\":\"valises\",\"nom\":\"Valises et bagages\"},{\"id\":\"camping-randonnee\",\"nom\":\"Camping et randonnée\"},{\"id\":\"accessoires-voyage\",\"nom\":\"Accessoires de voyage\"},{\"id\":\"peche-chasse\",\"nom\":\"Pêche et chasse\"},{\"id\":\"organisation\",\"nom\":\"Sacs et organisation\"},{\"id\":\"plage\",\"nom\":\"Plage et été\"},{\"id\":\"hiver\",\"nom\":\"Sports d'hiver\"}]}];\n\nconst maintenant = new Date();\nconst debut = Date.UTC(maintenant.getUTCFullYear(), 0, 1);\nconst jourAnnee = Math.floor((Date.now() - debut) / 86400000) + 1;\nconst date = maintenant.toISOString().slice(0, 10);\n\nreturn CATEGORIES.map((c) => {\n  const t = c.themes[(jourAnnee - 1) % 7];\n  return {\n    json: {\n      categorie: c.id,\n      theme: t.id,\n      libelle_categorie: c.nom,\n      libelle_theme: t.nom,\n      date,\n    },\n  };\n});"
+      },
+      "id": "n-jour",
+      "name": "Rayons du jour",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ q: \"test\", num: 1 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "n-controle-serper",
+      "name": "Controle Serper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        -140
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xt0AZKIIwgFfVm2C",
+          "name": "Serper.dev"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4, messages: [ { role: 'user', content: 'ok' } ] }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "n-controle-claude",
+      "name": "Controle Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        -140
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "OQSfM7vv1HMr4AFo",
+          "name": "Anthropic account"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "function reponse(nom) {\n  try {\n    const it = $(nom).all();\n    return (it && it.length && it[0].json) ? it[0].json : null;\n  } catch (e) {\n    return null;\n  }\n}\n\nfunction texteErreur(o) {\n  if (!o) return 'aucune reponse';\n  // n8n range le corps d'erreur a des endroits differents selon le cas\n  const cand = [o.error, o.message, o.body, o];\n  for (const c of cand) {\n    if (!c) continue;\n    if (typeof c === 'string' && c.length) return c.slice(0, 400);\n    if (typeof c === 'object') {\n      const s = JSON.stringify(c);\n      if (s && s !== '{}') return s.slice(0, 400);\n    }\n  }\n  return JSON.stringify(o).slice(0, 400);\n}\n\nconst problemes = [];\n\n// --- Serper : une reponse saine porte searchParameters ou organic\nconst s = reponse('Controle Serper');\nconst serperOk = !!(s && !s.error && (s.searchParameters || s.organic || s.shopping));\nif (!serperOk) {\n  problemes.push(\n    'SERPER refuse les requetes. Reponse : ' + texteErreur(s) +\n    '\\n  -> Si le message parle de credits : le forfait gratuit (2 500 credits, une seule fois) est epuise.' +\n    '\\n     Une nuit complete consomme environ 1 100 credits (24 rayons x ~46 requetes).' +\n    '\\n     Recharger sur serper.dev avant de relancer.'\n  );\n}\n\n// --- Claude : une reponse saine porte un id et un content\nconst c = reponse('Controle Claude');\nconst claudeOk = !!(c && !c.error && (c.content || c.id || c.type === 'message'));\nif (!claudeOk) {\n  problemes.push(\n    'ANTHROPIC refuse les requetes. Reponse : ' + texteErreur(c) +\n    '\\n  -> Si le message parle de credit balance : le solde de la cle API est a zero.' +\n    '\\n     Recharger sur console.anthropic.com > Plans & Billing avant de relancer.' +\n    '\\n     Une nuit complete coute environ 9 EUR (24 rapports x ~0,39 EUR).'\n  );\n}\n\nif (problemes.length) {\n  throw new Error(\n    'NUIT ANNULEE AVANT DE DEPENSER QUOI QUE CE SOIT.\\n\\n' +\n    problemes.join('\\n\\n') +\n    '\\n\\nAucun rayon n a ete lance. Rien n a ete consomme au-dela de ces deux requetes de controle.'\n  );\n}\n\n// Tout va bien : on rend la main aux 24 rayons du jour.\nreturn $('Rayons du jour').all();"
+      },
+      "id": "n-verdict",
+      "name": "Verdict avant la nuit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "n-boucle",
+      "name": "Un rayon a la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "agentRayonUnifie",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "categorie": "={{ $json.categorie }}",
+            "theme": "={{ $json.theme }}",
+            "libelle_categorie": "={{ $json.libelle_categorie }}",
+            "libelle_theme": "={{ $json.libelle_theme }}",
+            "date": "={{ $json.date }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "n-agent",
+      "name": "Agent rayon unifie",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1360,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": false
+    }
+  ],
+  "connections": {
+    "Chaque nuit a 1h": {
+      "main": [
+        [
+          {
+            "node": "Rayons du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancer a la main": {
+      "main": [
+        [
+          {
+            "node": "Rayons du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook lancement": {
+      "main": [
+        [
+          {
+            "node": "Rayons du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rayons du jour": {
+      "main": [
+        [
+          {
+            "node": "Controle Serper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Controle Serper": {
+      "main": [
+        [
+          {
+            "node": "Controle Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Controle Claude": {
+      "main": [
+        [
+          {
+            "node": "Verdict avant la nuit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verdict avant la nuit": {
+      "main": [
+        [
+          {
+            "node": "Un rayon a la fois",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un rayon a la fois": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Agent rayon unifie",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent rayon unifie": {
+      "main": [
+        [
+          {
+            "node": "Un rayon a la fois",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveExecutionProgress": false,
+    "executionTimeout": 28800
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "id": "zzTestShopping01",
+  "name": "ZZ Test — Serper shopping",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "test-shopping",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "n-wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "d8e2b3c4-5f60-4a71-8b92-1c2d3e4f5a60"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "content-type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ q: 'GaN charger 65W site:aliexpress.com/item', gl: 'fr', hl: 'fr', num: 20 }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "n-shop",
+      "name": "Serper shopping",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "xt0AZKIIwgFfVm2C", "name": "Serper.dev" }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst txt = JSON.stringify(r, null, 2).slice(0, 20000);\nreturn [{ json: { cles: Object.keys(r || {}) }, binary: { f: { data: Buffer.from(txt, 'utf8').toString('base64'), mimeType: 'application/json', fileName: 'TEST-shopping.json' } } }];"
+      },
+      "id": "n-dump",
+      "name": "Dump",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/files/DropPost/MARKET-ANALYSES/n8n/TEST-shopping.json",
+        "dataPropertyName": "f",
+        "options": {}
+      },
+      "id": "n-write",
+      "name": "Ecrire",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [660, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Serper shopping", "type": "main", "index": 0 }]] },
+    "Serper shopping": { "main": [[{ "node": "Dump", "type": "main", "index": 0 }]] },
+    "Dump": { "main": [[{ "node": "Ecrire", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
