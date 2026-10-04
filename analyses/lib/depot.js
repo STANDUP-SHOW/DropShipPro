@@ -54,7 +54,7 @@ function ecrireDiagnostic(racine, nom, contenu) {
  */
 async function envoyerRapportAuSite({ apiBase, cle, rapport, fetchImpl = fetch }) {
   const { poste, ...pourLeSite } = rapport
-  const rep = await fetchImpl(`${apiBase.replace(/\/$/, '')}/api/agent/rapports-poste`, {
+  const rep = await fetchImpl(`${apiBase.replace(/\/$/, '')}/api/admin/rapports-poste`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ rapport: pourLeSite }),
@@ -64,7 +64,7 @@ async function envoyerRapportAuSite({ apiBase, cle, rapport, fetchImpl = fetch }
   try { corps = JSON.parse(texte) } catch { /* handled below */ }
   if (!rep.ok) {
     const raison = (corps && (corps.error || corps.message)) || texte.slice(0, 200) || `HTTP ${rep.status}`
-    const aide = rep.status === 401 || rep.status === 403 ? ' (la clé d’agent doit être celle du compte administrateur)' : ''
+    const aide = rep.status === 401 || rep.status === 503 ? ' (clé d’administration du Poste : empreinte à poser dans Railway, voir l’onglet Administration)' : ''
     throw new Error(`Le site a refusé le rapport (${rep.status}) : ${raison}${aide}`)
   }
   if (!corps || corps.ok !== true) throw new Error(`Réponse du site illisible : ${texte.slice(0, 120)}`)

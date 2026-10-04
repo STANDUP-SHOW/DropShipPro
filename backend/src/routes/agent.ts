@@ -9,9 +9,6 @@ import { ScrapeBlockedError } from '../services/scraper.js'
 import { SEUIL_DROPS } from './marketReports.js'
 import { comptesDe, publier as publierSocial, socialConfigure } from '../services/socialGateway.js'
 import { brouillonPour } from '../services/socialDraft.js'
-import { requireAdmin } from '../middleware/auth.js'
-import { lireRapport, RapportInvalide } from '../services/marketReports.js'
-import { enregistrerRapportPoste } from '../services/rapportsPoste.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { findDepartment } from '../services/departments.js'
 import { runAutopilot } from '../services/autopilot.js'
@@ -744,65 +741,6 @@ agentRouter.post('/reports', async (req: AgentRequest, res) => {
     remplace: Boolean(existing),
     avertissement: dept.warning,
   })
-})
-
-/**
- * Dépôt d'un rapport de marché des 48 agents locaux (MARKET-ANALYSES/).
- *
- * Réservé au compte administrateur : ces rapports sont GLOBAUX (lus par tous
- * les vendeurs à ≥ 500 drops), une clé d'agent ordinaire ne doit pas pouvoir
- * écrire dans le journal de tout le monde. Le corps est le Markdown du
- * rapport, lu selon le contrat du README — refusé s'il ne le respecte pas,
- * avec la raison, pour que l'agent qui l'a écrit se corrige.
- */
-agentRouter.post('/market-reports', requireAdmin as never, async (req: AgentRequest, res) => {
-  const parsed = z.object({ markdown: z.string().min(50).max(400_000) }).safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'Envoyez { markdown } : le rapport complet.' })
-
-  let lu
-  try {
-    lu = lireRapport(parsed.data.markdown)
-  } catch (err) {
-    if (err instanceof RapportInvalide) return res.status(422).json({ error: err.message })
-    throw err
-  }
-
-  const cle = { day: lu.day, categorie: lu.categorie, theme: lu.theme, type: lu.type }
-  const data = {
-    titre: lu.titre,
-    accroche: lu.accroche,
-    body: lu.body,
-    produits: lu.produits as never,
-    sources: lu.sources,
-  }
-  const rapport = await prisma.marketReport.upsert({
-    where: { day_categorie_theme_type: cle },
-    create: { ...cle, ...data },
-    update: data,
-  })
-  res.status(201).json({ id: rapport.id, ...cle, produits: lu.produits.length })
-})
-
-/**
- * Dépôt d'un rapport MarketSpy complet par le Poste d'analyses (analyses/).
- *
- * C'est CE chemin qui met un rapport en ligne : le site lit rapports.db et la
- * base du Poste (voir services/rapportsPoste.ts), pas la table de
- * `/market-reports` ci-dessus que plus aucun écran ne lit. Un seul envoi range
- * le rapport RAYON (analyse + produits) et le rapport MARKETING (prompts,
- * tendances) chacun à sa place. Même réserve qu'au-dessus : administrateur
- * seulement, ces rapports sont lus par tous les vendeurs.
- */
-agentRouter.post('/rapports-poste', requireAdmin as never, async (req: AgentRequest, res) => {
-  const rapport = (req.body as { rapport?: unknown } | undefined)?.rapport
-  try {
-    const rangé = enregistrerRapportPoste(rapport)
-    res.status(201).json({ ok: true, ...rangé })
-  } catch (err) {
-    if (err instanceof RapportInvalide) return res.status(422).json({ error: err.message })
-    console.error('[rapports-poste] écriture impossible :', err)
-    res.status(500).json({ error: 'Écriture impossible sur le serveur.', motif: err instanceof Error ? err.message : String(err) })
-  }
 })
 
 /**

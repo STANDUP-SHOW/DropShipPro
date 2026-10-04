@@ -5,6 +5,7 @@ const ONGLETS = [
   ['accueil', 'Tableau de bord'],
   ['rapports', 'Rapports du jour'],
   ['sources', 'Sources & navigateur'],
+  ['administration', 'Administration'],
   ['reglages', 'Réglages'],
   ['journal', 'Journal'],
 ]
@@ -115,7 +116,7 @@ function vueRapports() {
       h('p', { class: 'doux petit' }, e.envoi.actif && e.envoi.cle
         ? 'Chaque rapport validé part seul sur le site, rayon et marketing d’un coup : le site range chacun à sa place (Analyses, Produits gagnants, Prompts, Fresh news). Un rapport « à revoir » ne part jamais.'
         : !e.envoi.actif ? 'L’envoi au site est coupé (Réglages). Les rapports restent sur ce PC.'
-        : 'Il manque la clé d’agent du site (Réglages › Clés, celle du compte administrateur) : rien ne part tant qu’elle est absente.'),
+        : 'Il manque la clé d’administration du Poste (onglet Administration) : rien ne part tant qu’elle est absente.'),
       h('div', { class: 'ligne' },
         h('button', { class: 'btn principal', disabled: !e.envoi.actif || !e.envoi.cle || !e.envoi.enAttente, onclick: async () => {
           flash('Envoi en cours…')
@@ -221,6 +222,60 @@ function placerNavigateur(zone, choisie) {
 }
 window.addEventListener('resize', () => { if (onglet === 'sources') rendre() })
 
+// ---------------------------------------------------------------- administration du site
+// What the site answers about its sellers lives here, in memory, and is never written to disk.
+let donneesAdmin = null
+const dateCourte = (iso) => (iso ? String(iso).slice(0, 10) : '—')
+
+async function chargerAdmin() {
+  flash('Lecture des utilisateurs sur le site…')
+  const [u, n] = await Promise.all([appel('adminUtilisateurs'), appel('adminNewsletter')])
+  if (u) { donneesAdmin = { ...u, newsletter: n || null }; flash('') }
+}
+
+function vueAdministration() {
+  const a = etat.admin
+  const d = donneesAdmin
+  return h('div', {},
+    h('h1', {}, 'Administration de drop-shipper.fr'),
+    h('div', { class: 'carte' },
+      h('h2', {}, 'Ce Poste est l’administrateur unique du site'),
+      h('p', { class: 'doux petit' }, 'Il n’y a pas de compte administrateur sur le site : la seule porte est la clé fabriquée par ce Poste. Elle reste chiffrée par Windows sur ce PC, vous ne la voyez jamais ; le site ne retient que son empreinte.'),
+      h('div', {}, 'Clé d’administration ', pastille(a.cle ? 'créée' : 'absente', a.cle ? 'bon' : 'mauvais')),
+      a.cle && h('div', { class: 'petit' }, 'Empreinte à poser sur le site : ', h('code', {}, a.empreinte)),
+      h('ol', { class: 'petit' },
+        h('li', {}, a.cle ? 'Clé créée.' : 'Créez la clé (bouton ci-dessous).'),
+        h('li', {}, 'Cliquez « Copier l’empreinte », ouvrez Railway › le service du site › Variables, créez POSTE_ADMIN_SHA256 et collez l’empreinte.'),
+        h('li', {}, 'Attendez le redémarrage du site (quelques minutes), puis « Tester la connexion ».')),
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn principal', onclick: async () => { const x = await appel('adminCreer'); if (x) { etat = x; flash(x.admin.cle ? 'Clé créée. Copiez maintenant l’empreinte dans Railway.' : '') } } }, a.cle ? 'Remplacer la clé' : 'Créer la clé d’administration'),
+        h('button', { class: 'btn', disabled: !a.cle, onclick: async () => { const r = await appel('adminCopier'); if (r) flash('Empreinte copiée : collez-la dans la variable Railway POSTE_ADMIN_SHA256.') } }, 'Copier l’empreinte'),
+        h('button', { class: 'btn', disabled: !a.cle, onclick: async () => { flash('Test en cours…'); const r = await appel('adminTester'); if (r) flash(r.ok ? 'Connecté : le site reconnaît ce Poste comme administrateur.' : 'Réponse inattendue du site.') } }, 'Tester la connexion'),
+        a.cle && h('button', { class: 'btn danger', onclick: async () => { if (confirm('Effacer la clé ? L’envoi des rapports et l’administration seront coupés.')) { const x = await appel('secret', { nom: 'admin', valeur: '' }); if (x) { etat = x; donneesAdmin = null; rendre() } } } }, 'Effacer'),
+      ),
+      messageFlash && h('p', { class: 'petit' }, messageFlash),
+    ),
+    h('div', { class: 'carte' },
+      h('h2', {}, 'Utilisateurs inscrits'),
+      h('div', { class: 'ligne' }, h('button', { class: 'btn', disabled: !a.cle, onclick: chargerAdmin }, d ? 'Actualiser' : 'Afficher les utilisateurs')),
+      d && h('div', {},
+        h('p', {}, `${d.total} compte(s), dont ${d.verifies} adresse(s) confirmée(s) ; ${d.abonnesNewsletter} abonné(s) à la newsletter.`, d.total > d.utilisateurs.length ? ` Les ${d.utilisateurs.length} plus récents sont listés.` : ''),
+        h('table', {},
+          h('thead', {}, h('tr', {}, ['Inscrit le', 'E-mail', 'Boutique', 'Offre', 'Drops', 'Adresse'].map((t) => h('th', {}, t)))),
+          h('tbody', {}, d.utilisateurs.map((u) => h('tr', {},
+            h('td', {}, dateCourte(u.createdAt)), h('td', {}, u.email), h('td', {}, u.shopName || '—'), h('td', {}, String(u.plan || '—')), h('td', {}, String(u.credits)),
+            h('td', {}, u.emailVerifiedAt ? pastille('confirmée', 'bon') : pastille('non confirmée', ''))))),
+        ),
+      ),
+      d && d.newsletter && h('div', {},
+        h('h2', {}, `Newsletter (${d.newsletter.total})`),
+        h('table', {}, h('tbody', {}, d.newsletter.subscribers.slice(0, 200).map((s) => h('tr', {}, h('td', {}, dateCourte(s.createdAt)), h('td', {}, s.email), h('td', {}, s.source || '—'))))),
+      ),
+      h('p', { class: 'doux petit' }, 'Ces données personnelles restent à l’écran, elles ne sont écrites nulle part sur ce PC. Contacter les utilisateurs, voir les boutiques, générer des jetons et des clés d’API, connexion MCP : à venir, selon l’architecture que vous fournirez.'),
+    ),
+  )
+}
+
 // ---------------------------------------------------------------- réglages
 function vueReglages() {
   const e = etat
@@ -250,7 +305,8 @@ function vueReglages() {
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
       h('h2', {}, 'Clés (saisies par vous, chiffrées par Windows, jamais réaffichées)'),
-      cle('anthropic', 'Clé API Anthropic'), cle('serper', 'Clé API Serper'), cle('agent', 'Clé d’agent du site (compte administrateur : nécessaire pour envoyer les rapports)'),
+      cle('anthropic', 'Clé API Anthropic'), cle('serper', 'Clé API Serper'),
+      h('p', { class: 'doux petit' }, 'La clé d’administration du site se crée dans l’onglet Administration (le Poste la fabrique lui-même).'),
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Agents'),
@@ -299,7 +355,7 @@ function rendre() {
   document.getElementById('pied').textContent = etat ? `v${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, reglages: vueReglages, journal: vueJournal }
+  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 

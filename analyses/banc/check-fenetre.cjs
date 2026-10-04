@@ -82,23 +82,41 @@ async function lancer({ maison, profil, port, serveur }) {
     // the screen itself (tabs, nothing missing)
     const ecran = await a.evaluer(`JSON.stringify({ onglets: [...document.querySelectorAll('#onglets button')].map((b) => b.textContent), titre: document.querySelector('h1') && document.querySelector('h1').textContent })`)
     const ec = JSON.parse(ecran)
-    assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Réglages', 'Journal'])
-    console.log('ok   écran : 5 onglets,', ec.titre)
+    assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Administration', 'Réglages', 'Journal'])
+    console.log('ok   écran : 6 onglets,', ec.titre)
 
     // keys: stored, never returned
     await a.appel('secret', { nom: 'anthropic', valeur: 'cle-anthropic-secrete' })
     const e1 = (await a.appel('secret', { nom: 'serper', valeur: 'cle-serper-secrete' })).valeur
-    assert.deepEqual(e1.secrets, { anthropic: true, serper: true, agent: false })
+    assert.deepEqual(e1.secrets, { anthropic: true, serper: true, admin: false })
     assert.ok(!JSON.stringify(e1).includes('secrete'), 'aucune valeur de clé ne revient à l’écran')
     const cfgTexte = fs.readFileSync(path.join(profil, 'config.json'), 'utf8')
     console.log('ok   clés posées', cfgTexte.includes('secrete') ? '(en clair : coffre indisponible sur ce poste de test)' : '(chiffrées)')
 
-    // the site (fake): the agent key is placed by Max, the address points at the bench's server
+    // the site (fake): the Poste makes its own admin key, Max pastes its fingerprint on the site; the address points at the bench's server
     const baseSite = `http://127.0.0.1:${port}`
     await a.appel('reglages', { apiBase: baseSite })
-    const e1b = (await a.appel('secret', { nom: 'agent', valeur: 'cle-agent-secrete' })).valeur
-    assert.equal(e1b.secrets.agent, true); assert.equal(e1b.reglages.envoiAuSite, true, 'envoi au site activé par défaut')
-    assert.equal(e1b.envoi.enAttente, 0)
+    assert.equal((await a.appel('adminTester')).ok, false, 'sans clé créée, le test d’administration dit pourquoi')
+    assert.ok(!(await a.appel('secret', { nom: 'admin', valeur: 'dsp_adm_tapee-a-la-main' })).ok, 'la clé d’administration ne se saisit pas à la main')
+    const e1b = (await a.appel('adminCreer')).valeur
+    assert.equal(e1b.admin.cle, true); assert.match(e1b.admin.empreinte, /^[0-9a-f]{64}$/); assert.equal(e1b.secrets.admin, true)
+    assert.ok(!JSON.stringify(e1b).includes('dsp_adm_'), 'la clé d’administration ne revient jamais à l’écran')
+    assert.equal(e1b.reglages.envoiAuSite, true, 'envoi au site activé par défaut'); assert.equal(e1b.envoi.enAttente, 0)
+    // the site has no fingerprint yet: it answers 503 and the app says what to do
+    const avant = await a.appel('adminTester')
+    assert.ok(!avant.ok && /503/.test(avant.erreur) && /POSTE_ADMIN_SHA256/.test(avant.erreur), avant.erreur)
+    // a wrong fingerprint on the site: 401, and the message points at the fingerprint
+    faux.empreinteSite = 'a'.repeat(64)
+    const faux401 = await a.appel('adminTester')
+    assert.ok(!faux401.ok && /401/.test(faux401.erreur) && /empreinte/.test(faux401.erreur), faux401.erreur)
+    // Max pastes the right one in Railway
+    faux.empreinteSite = e1b.admin.empreinte
+    assert.deepEqual((await a.appel('adminTester')).valeur, { ok: true })
+    const utilisateurs = (await a.appel('adminUtilisateurs')).valeur
+    assert.equal(utilisateurs.total, 2); assert.equal(utilisateurs.utilisateurs[0].email, 'a@exemple.test')
+    assert.equal((await a.appel('adminNewsletter')).valeur.total, 1)
+    assert.ok(!fs.readFileSync(path.join(profil, 'config.json'), 'utf8').includes('a@exemple.test'), 'les utilisateurs ne sont écrits nulle part')
+    console.log('ok   administration : clé fabriquée par le Poste, empreinte seule connue du site, 503 puis 401 puis 200, utilisateurs lus')
 
     // credits, then one rayon test
     const cr = (await a.appel('credits')).valeur
@@ -127,7 +145,7 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(fichiers.filter((f) => !f.endsWith('.envoi.json')).length, 3, fichiers.join(','))
     assert.ok(fichiers.some((f) => f.endsWith('.envoi.json')), 'preuve d’envoi au site écrite à côté du rapport')
     assert.equal(faux.envoyes.length, 1, 'le rapport validé est parti seul vers le site')
-    assert.equal(faux.envoyes[0].auth, 'Bearer cle-agent-secrete'); assert.equal(faux.envoyes[0].produits, 20)
+    assert.match(faux.envoyes[0].auth, /^Bearer dsp_adm_/); assert.equal(faux.envoyes[0].produits, 20)
     console.log(`ok   rayon test de bout en bout : ${rapports[0]} (${fichiers.join(', ')})`)
     assert.ok(fs.existsSync(path.join(depot, 'releves', jour, 'site-de-test', '001.txt')), 'instantané du site connecté écrit')
     console.log('ok   relevé de la source écrit dans releves/')
@@ -171,7 +189,7 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 1)
     faux.mode = 'site-refuse'
     const refus = (await a.appel('envoyerAuSite')).valeur
-    assert.equal(refus.envoyes, 0); assert.match(refus.echecs[0].message, /\(403\).*administrateur/)
+    assert.equal(refus.envoyes, 0); assert.match(refus.echecs[0].message, /\(403\).*Accès réservé/)
     assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 1, 'refusé : le rapport reste en attente')
     faux.mode = 'bon'
     const renvoi = (await a.appel('envoyerAuSite')).valeur
@@ -185,7 +203,16 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.deepEqual(coches, { cases: 24, cochees: 2 })
     const enLigne = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('table .pastille')].filter((p) => p.textContent === 'en ligne').length)`))
     assert.equal(enLigne, 3, 'la colonne « Site » montre les 3 rapports en ligne')
+    // Administration tab: key created, fingerprint shown (never the key), users listed on demand
     await a.evaluer(`document.querySelectorAll('#onglets button')[3].click()`)
+    await pause(300)
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les utilisateurs').click()`)
+    await pause(800)
+    const texteAdmin = await a.evaluer(`document.body.textContent`)
+    assert.match(texteAdmin, /Administrateur unique|administrateur unique/); assert.match(texteAdmin, /[0-9a-f]{64}/); assert.ok(!texteAdmin.includes('dsp_adm_'), 'la clé n’est jamais à l’écran')
+    assert.match(texteAdmin, /a@exemple\.test/); assert.match(texteAdmin, /2 compte\(s\), dont 1 adresse/)
+    console.log('ok   onglet Administration : empreinte visible, clé jamais affichée, utilisateurs listés')
+    await a.evaluer(`document.querySelectorAll('#onglets button')[4].click()`)
     await pause(300)
     const texteReglages = await a.evaluer(`document.body.textContent`)
     assert.match(texteReglages, /Serper Shopping/); assert.match(texteReglages, /crédits Serper avec ces réglages/)

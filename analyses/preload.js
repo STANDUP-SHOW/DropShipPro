@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 const appeler = (canal) => (arg) => ipcRenderer.invoke(canal, arg)
-const CANAUX = ['etat', 'reglages', 'secret', 'credits', 'rayon-test', 'envoyer-au-site', 'nuit-lancer', 'nuit-arreter', 'nuit-auto', 'rayons-nuit',
+const CANAUX = ['etat', 'reglages', 'secret', 'credits', 'rayon-test', 'envoyer-au-site', 'nuit-lancer', 'nuit-arreter', 'nuit-auto', 'rayons-nuit', 'admin-creer', 'admin-copier', 'admin-tester', 'admin-utilisateurs', 'admin-newsletter',
   'source-ajouter', 'source-supprimer', 'source-verifier', 'nav-afficher', 'nav-placer', 'nav-masquer', 'nav-action',
   'depot-ouvrir', 'rapport-ouvrir', 'banc-quitter']
 

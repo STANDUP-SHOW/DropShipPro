@@ -19,9 +19,10 @@
 const path = require('node:path')
 const fs = require('node:fs')
 const { execFile } = require('node:child_process')
-const { app, BrowserWindow, WebContentsView, ipcMain, safeStorage, shell, dialog, Tray, Menu, Notification, powerSaveBlocker, nativeImage } = require('electron')
+const { app, BrowserWindow, WebContentsView, ipcMain, safeStorage, shell, dialog, Tray, Menu, Notification, powerSaveBlocker, nativeImage, clipboard } = require('electron')
 
 const config = require('./lib/config')
+const admin = require('./lib/admin')
 const { racineDepot, creerArborescence, jourLocal } = require('./lib/chemins')
 const { creerJournal } = require('./lib/journal')
 const agents = require('./lib/agents')
@@ -146,13 +147,13 @@ function preparerPrompt() {
 }
 
 function optionsRayon() {
-  const cleAgent = secret('agent')
+  const cleAdmin = secret('admin')
   return {
     fichierPrompt: fichierPrompt(),
     plafondPages: cfg.plafondPages,
     plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
     modele: cfg.modele,
-    envoyer: cfg.envoiAuSite && cleAgent ? (rapport) => depot.envoyerRapportAuSite({ apiBase: cfg.apiBase, cle: cleAgent, rapport }) : null,
+    envoyer: cfg.envoiAuSite && cleAdmin ? (rapport) => depot.envoyerRapportAuSite({ apiBase: cfg.apiBase, cle: cleAdmin, rapport }) : null,
   }
 }
 
@@ -261,9 +262,9 @@ let envoiEnCours = false
  */
 async function envoyerEnAttente() {
   if (envoiEnCours) return { envoyes: 0, echecs: [], occupe: true }
-  const cle = secret('agent')
+  const cle = secret('admin')
   if (!cfg.envoiAuSite) return { envoyes: 0, echecs: [], raison: 'L’envoi au site est coupé dans Réglages.' }
-  if (!cle) return { envoyes: 0, echecs: [], raison: 'Clé d’agent du site absente (Réglages › Clés).' }
+  if (!cle) return { envoyes: 0, echecs: [], raison: 'Clé d’administration du Poste absente (l’onglet Administration).' }
   envoiEnCours = true
   const bilan = { envoyes: 0, echecs: [] }
   try {
@@ -286,6 +287,18 @@ async function envoyerEnAttente() {
     envoyerEtat()
   }
   return bilan
+}
+
+// ---- the Poste as general administrator of the site (Max only)
+// The key is made here, kept in the OS vault and never sent to the screen: only its fingerprint is shown.
+function adminEtat() {
+  const cle = secret('admin')
+  return { cle: Boolean(cle), empreinte: cle ? admin.empreinte(cle) : null, apiBase: cfg.apiBase }
+}
+function cleAdminOuErreur() {
+  const cle = secret('admin')
+  if (!cle) throw new Error('Pas encore de clé d’administration : créez-la dans l’onglet Administration.')
+  return cle
 }
 
 // ---- state sent to the screen (never a secret value)
@@ -321,7 +334,8 @@ function etat() {
       serperEtendu: { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) },
       creditsSerperParRayon: creditsSerperParRayon(),
     },
-    envoi: { actif: Boolean(cfg.envoiAuSite), cle: Boolean(secret('agent')), apiBase: cfg.apiBase, enAttente: depot.rapportsAEnvoyer(racine).length },
+    admin: adminEtat(),
+    envoi: { actif: Boolean(cfg.envoiAuSite), cle: Boolean(secret('admin')), apiBase: cfg.apiBase, enAttente: depot.rapportsAEnvoyer(racine).length },
     nuit: { enCours: nuit.enCours, progression: nuit.progression, dernierBilan: nuit.dernierBilan },
     rayonsDuJour: agents.rayonsDuJour(agents.charger(), date).map((r) => ({ ...r, fait: rapportValide(racine, date, r.categorie, r.theme), choisi: !Array.isArray(cfg.rayonsNuit) || cfg.rayonsNuit.includes(r.categorie) })),
     rapports: listeRapports(date),
@@ -420,7 +434,30 @@ function brancher() {
     sauver()
     return etat()
   })
-  h('secret', ({ nom, valeur }) => { cfg = config.poserSecret(cfg, nom, String(valeur || '').trim(), safeStorage); sauver(); return etat() })
+  // Creating (or replacing) the admin key: the old fingerprint on Railway stops working, so a replacement asks first.
+  h('admin-creer', async () => {
+    if (secret('admin')) {
+      const ok = await accord('Remplacer la clé d’administration ?', 'L’ancienne clé cesse de fonctionner : l’envoi des rapports et l’administration du site sont coupés jusqu’à ce que la NOUVELLE empreinte soit posée dans la variable Railway POSTE_ADMIN_SHA256.')
+      if (!ok) return etat()
+    }
+    cfg = config.poserSecret(cfg, 'admin', admin.fabriquerCle(), safeStorage)
+    sauver()
+    journal.info('Clé d’administration du site créée (empreinte à poser dans Railway)')
+    return etat()
+  })
+  h('admin-copier', () => { const cle = cleAdminOuErreur(); clipboard.writeText(admin.empreinte(cle)); return true })
+  h('admin-tester', async () => {
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/moi' })
+    return { ok: r.ok === true }
+  })
+  // Everything the site knows about its sellers. Kept in memory on the screen only, never written to disk.
+  h('admin-utilisateurs', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/utilisateurs' }))
+  h('admin-newsletter', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/newsletter' }))
+  h('secret', ({ nom, valeur }) => {
+    // The admin key is made by the app (admin-creer), never typed; it can only be erased.
+    if (nom === 'admin' && valeur) throw new Error('La clé d’administration est fabriquée par le Poste : utilisez « Créer la clé ».')
+    cfg = config.poserSecret(cfg, nom, String(valeur || '').trim(), safeStorage); sauver(); return etat()
+  })
   h('credits', async () => {
     const { serper, claude } = fournisseurs()
     return controleCredits({ serper, claude })

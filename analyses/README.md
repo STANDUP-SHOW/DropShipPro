@@ -96,8 +96,7 @@ sauté. Boutons : tout cocher, tout décocher, cocher ceux pas encore validés.
 
 Le site (drop-shipper.fr) ne lit PAS le dossier `C:\DropShipper-Analyses` : il lit `rapports.db`
 (livrée avec le code) **plus** une deuxième base, `rapports-poste.db`, tenue sur son disque durable
-(volume `/app/storage`). Le Poste y écrit par `POST /api/agent/rapports-poste` (clé d'agent du compte
-administrateur, Réglages › Clés) :
+(volume `/app/storage`). Le Poste y écrit par `POST /api/admin/rapports-poste` (clé d'administration du Poste, voir plus bas) :
 
 - **un envoi = un rapport complet** (le JSON MarketSpy) ; le site en fait lui-même le rapport RAYON
   (analyse + produits → Analyses, Produits gagnants) et le rapport MARKETING (prompts, tendances →
@@ -125,7 +124,7 @@ Avant, le Poste reçoit un refus 404 et garde les rapports en attente.
 - **Publication sur le site** : la production lit `backend/rapports.db`, alimentée par
   `importer-aimarket.cjs` puis commitée (comme dans `RUNBOOK-relance.md`). Le poste
   écrit le JSON prêt à importer ; l'ancien envoi (`POST /api/agent/market-reports`, écrit dans une table que plus aucun écran ne lit,
-  Réglages › « Envoyer… » + clé d'agent) existe mais la production ne lit pas cette voie.
+  supprimé le 04/10) ne servait à rien : la production ne lit pas cette voie.
 - Les sites de données sont lus par un navigateur normal, à intervalle fixe, sans aucune
   évasion anti-robot ; le premier captcha ou blocage arrête la source. Aucune extraction
   spécifique à un site n'est écrite : chaque source relève le texte des pages que Max indique.
@@ -147,3 +146,19 @@ xvfb-run -a npm run check:fenetre   # la VRAIE fenêtre Electron (Linux) ; sous 
 npm start
 npm run build                       # installateur (sous Windows)
 ```
+
+## Le Poste est l'administrateur unique du site (04/10/2026)
+
+Décision de Max : il n'existe **aucun compte administrateur** sur drop-shipper.fr. Le Poste est l'admin
+général du site, pour tous les utilisateurs, et pour lui seul.
+
+- **La clé** : le Poste fabrique lui-même une clé `dsp_adm_…` (256 bits) dans l'onglet **Administration**,
+  la garde dans le coffre de Windows et ne l'affiche jamais. Elle ne se saisit pas à la main.
+- **Le site** ne connaît que son **empreinte SHA-256**, que Max pose une fois dans la variable Railway
+  `POSTE_ADMIN_SHA256` (bouton « Copier l'empreinte »). Sans la variable, `/api/admin` répond 503 :
+  pas d'administrateur par défaut. Une clé inconnue : 401. L'ancien accès par e-mail est supprimé.
+- **Remplacer la clé** (PC changé) : « Remplacer la clé », puis poser la nouvelle empreinte dans Railway.
+- **Ce qu'ouvre la clé aujourd'hui** (`backend/src/routes/admin.ts`) : `GET /moi` (test), `GET /utilisateurs`
+  (comptes inscrits, jamais de mot de passe), `GET /newsletter`, `POST /rapports-poste` (les rapports).
+  Boutiques, contact des utilisateurs, jetons et clés d'API, MCP : à venir, selon l'architecture que Max fournira.
+- Les données personnelles lues restent à l'écran, jamais écrites sur ce PC.

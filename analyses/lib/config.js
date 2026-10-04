@@ -1,6 +1,6 @@
 'use strict'
 /**
- * Local configuration. Secrets (Anthropic, Serper, site agent key) are typed
+ * Local configuration. Secrets (Anthropic, Serper, the Poste's site admin key) are typed
  * by Max in the app and encrypted by the OS vault (`safeStorage`); without the
  * vault (test bench) they stay in clear in the file — never in the repo.
  */
@@ -18,7 +18,7 @@ const PAR_DEFAUT = {
   heureNuit: '01:00',
   plafondPages: 25,
   plafondDeuxiemeVague: 26,
-  // Every validated report goes to the site (rayon + marketing, filed by the site). Needs the admin agent key.
+  // Every validated report goes to the site (rayon + marketing, filed by the site). Needs the Poste's admin key.
   envoiAuSite: true,
   envoiSiteV2: false,
   // Public signals read in a hidden window (Max's "go" of 03/10): Meta Ad Library, Google Trends.
@@ -44,7 +44,8 @@ function enregistrer(dossier, config) {
   fs.writeFileSync(path.join(dossier, 'config.json'), JSON.stringify(config, null, 2), { mode: 0o600 })
 }
 
-const NOMS_SECRETS = ['anthropic', 'serper', 'agent']
+// 'admin' = the Poste's own admin key for the site (made by the app, never typed, never shown).
+const NOMS_SECRETS = ['anthropic', 'serper', 'admin']
 
 function poserSecret(config, nom, valeur, coffre) {
   if (!NOMS_SECRETS.includes(nom)) throw new Error(`Secret inconnu : ${nom}`)

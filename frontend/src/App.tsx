@@ -53,7 +53,6 @@ import Deliveries from './pages/Deliveries'
 import Rayon from './pages/Rayon'
 import Guide from './pages/Guide'
 import Newsletter from './pages/Newsletter'
-import AdminNewsletter from './pages/AdminNewsletter'
 import Partager from './pages/Partager'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -142,7 +141,6 @@ export default function App() {
           {/* Public : l'inscription newsletter, où pointent les liens des emails. */}
           <Route path="/newsletter" element={<Newsletter />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
-          <Route path="/admin/newsletter" element={<Protected><AdminNewsletter /></Protected>} />
           <Route path="/statistiques" element={<Protected><Statistiques /></Protected>} />
           <Route path="/acquisition" element={<Protected><Acquisition /></Protected>} />
           <Route path="/extension" element={<Protected><Extension /></Protected>} />

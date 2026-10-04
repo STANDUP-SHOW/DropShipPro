@@ -1623,3 +1623,15 @@ Max peut le remplacer dans `<dépôt>\prompts\rayon.md`. Aucune nuit sans son ac
 - **Zernio n'est plus le défaut** (abandonné pour son coût fixe) : il ne sert qu'avec `SOCIAL_PROVIDER=zernio`. Les campagnes sont créées **en pause** sauf `activer: true` (elles dépensent l'argent du vendeur).
 - **Le retour Meta renvoyait vers `/reglages`, qui n'existe pas** : un vendeur qui autorisait Facebook atterrissait sur une page vide. Retour désormais `/reseaux?vue=comptes` (social) et `/plateformes-vente` (marchés), qui lisent le sort de l'autorisation.
 - **Les bancs à base tournent sur un Postgres jetable local** (`initdb` sous l'utilisateur postgres, port 55432, `prisma migrate deploy`) : 91 sur 94 verts le 03/10 ; restent `check-polices` (déjà rouge sur main), `check-stats` (base vide), `check-desktop-reel` (application empaquetée absente). Clés à créer : `docs/connecteurs-a-declarer.md`.
+
+## 04/10/2026 — le Poste d'analyses devient l'administrateur unique du site
+
+Max n'a aucun compte administrateur sur le site (son compte est un compte vendeur) et veut que
+l'application desktop privée soit l'admin général, pour lui seul, avec à terme : voir les utilisateurs et
+les boutiques, les contacter, générer jetons et clés d'API, connexion MCP (architecture à fournir par lui).
+Décision (carte « Clé du Poste seule ») : une clé `dsp_adm_` fabriquée par le Poste (coffre Windows), le site
+ne garde que son empreinte SHA-256 (`POSTE_ADMIN_SHA256`, Railway). `middleware/adminPoste.ts`,
+`routes/admin.ts`. `requireAdmin` (e-mail) supprimé ; `/agent/market-reports` et `/agent/rapports-poste`
+retirés (déplacé en `/admin/rapports-poste`) ; la page site « Newsletter » retirée (la liste est dans le Poste).
+`ADMIN_EMAIL` ne sert plus qu'à exempter Max du plafond de création DropShop. Banc : `backend/check-admin-poste.ts`.
+Piège : la clé n'est pas une ligne `ApiKey` (`/api/agent` passe par `requireApiKey`) ; elle n'ouvre que `/api/admin`.

@@ -22,6 +22,8 @@ const { valider, NON_VERIFIE } = lib('validation')
 const { rayonMd, marketingMd } = lib('rapports-md')
 const orch = lib('orchestrateur')
 const depot = lib('depot')
+const adminLib = lib('admin')
+const CLE_ADMIN = adminLib.fabriquerCle()
 const { creerJournal } = lib('journal')
 const { creerArborescence } = lib('chemins')
 const sources = lib('sources')
@@ -68,7 +70,7 @@ test('secrets : chiffrés par le coffre, jamais montrés', () => {
   let c = config.poserSecret({ ...config.PAR_DEFAUT, secrets: {} }, 'serper', 'sk-123', coffre)
   assert.ok(c.secrets.serper.chiffre && !JSON.stringify(c).includes('sk-123'))
   assert.equal(config.lireSecret(c, 'serper', coffre), 'sk-123')
-  assert.deepEqual(config.etatSecrets(c), { anthropic: false, serper: true, agent: false })
+  assert.deepEqual(config.etatSecrets(c), { anthropic: false, serper: true, admin: false })
   c = config.poserSecret(c, 'serper', '', coffre)
   assert.equal(config.lireSecret(c, 'serper', coffre), null)
   assert.throws(() => config.poserSecret(c, 'inconnu', 'x', coffre))
@@ -470,15 +472,15 @@ test('nuit : seuls les rayons choisis tournent (deux sur 24), liste vide = rien'
 })
 
 test('envoi au site : le rapport complet part une fois, rayon et marketing d’un coup, et se renvoie si le Poste le réécrit', async (srv) => {
-  const m = monde(srv); remise()
+  const m = monde(srv); remise(); etat.empreinteSite = adminLib.empreinte(CLE_ADMIN)
   const base = `http://127.0.0.1:${srv.address().port}`
-  const envoyer = (rapport) => depot.envoyerRapportAuSite({ apiBase: base, cle: 'cle-agent', rapport })
+  const envoyer = (rapport) => depot.envoyerRapportAuSite({ apiBase: base, cle: CLE_ADMIN, rapport })
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer } })
   assert.equal(res.statut, 'ok')
   assert.equal(etat.envoyes.length, 1)
   assert.equal(etat.envoyes[0].study.category_id, 'telephonie', 'l’identifiant exact de la catégorie accompagne le rapport')
   assert.equal(etat.envoyes[0].produits, 20); assert.equal(etat.envoyes[0].aPoste, false, 'le bloc interne « poste » reste sur ce PC')
-  assert.equal(etat.envoyes[0].auth, 'Bearer cle-agent')
+  assert.equal(etat.envoyes[0].auth, `Bearer ${CLE_ADMIN}`)
   assert.ok(depot.lireEnvoi(m.racine, '2026-10-03', 'telephonie', 'smartphones'), 'preuve d’envoi écrite à côté du rapport')
   assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0, 'rien en attente')
   // a re-run replaces the report: the old proof no longer covers it
@@ -496,16 +498,30 @@ test('envoi au site : le rapport complet part une fois, rayon et marketing d’u
   assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0, 'un rapport à revoir n’est jamais proposé à l’envoi')
 })
 
-test('envoi au site : le refus du site est dit en clair, une panne ne perd rien', async (srv) => {
-  const m = monde(srv); remise()
+test('administration : la clé du Poste, son empreinte, et les refus du site dits en clair', async (srv) => {
   const base = `http://127.0.0.1:${srv.address().port}`
-  const envoyer = (rapport) => depot.envoyerRapportAuSite({ apiBase: base, cle: 'cle-agent', rapport })
+  remise(); etat.empreinteSite = null
+  const cle = adminLib.fabriquerCle()
+  assert.match(cle, /^dsp_adm_[A-Za-z0-9_-]{43}$/); assert.notEqual(cle, adminLib.fabriquerCle(), 'chaque clé est neuve')
+  assert.match(adminLib.empreinte(cle), /^[0-9a-f]{64}$/); assert.ok(!adminLib.empreinte(cle).includes(cle.slice(8)), 'l’empreinte ne contient pas la clé')
+  await assert.rejects(adminLib.appelerAdmin({ apiBase: base, cle, chemin: '/moi' }), /\(503\).*POSTE_ADMIN_SHA256.*redémarrage/)
+  etat.empreinteSite = adminLib.empreinte(adminLib.fabriquerCle())
+  await assert.rejects(adminLib.appelerAdmin({ apiBase: base, cle, chemin: '/moi' }), /\(401\).*empreinte/)
+  etat.empreinteSite = adminLib.empreinte(cle)
+  assert.deepEqual(await adminLib.appelerAdmin({ apiBase: base, cle, chemin: '/moi' }), { ok: true, administrateur: 'poste-analyses' })
+  assert.equal((await adminLib.appelerAdmin({ apiBase: base + '/', cle, chemin: '/utilisateurs' })).total, 2)
+})
+
+test('envoi au site : le refus du site est dit en clair, une panne ne perd rien', async (srv) => {
+  const m = monde(srv); remise(); etat.empreinteSite = adminLib.empreinte(CLE_ADMIN)
+  const base = `http://127.0.0.1:${srv.address().port}`
+  const envoyer = (rapport) => depot.envoyerRapportAuSite({ apiBase: base, cle: CLE_ADMIN, rapport })
   etat.mode = 'site-refuse'
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer } })
   assert.equal(res.statut, 'ok', 'le rapport est écrit même si le site refuse')
   assert.equal(depot.lireEnvoi(m.racine, '2026-10-03', 'telephonie', 'smartphones'), null, 'refusé : pas marqué envoyé')
   assert.equal(depot.rapportsAEnvoyer(m.racine).length, 1, 'il reste en attente pour le renvoi')
-  await assert.rejects(envoyer(depot.rapportsAEnvoyer(m.racine)[0].rapport), /refusé le rapport \(403\).*Accès réservé.*administrateur/)
+  await assert.rejects(envoyer(depot.rapportsAEnvoyer(m.racine)[0].rapport), /refusé le rapport \(403\).*Accès réservé/)
   etat.mode = 'site-hors-ligne'
   await assert.rejects(envoyer(depot.rapportsAEnvoyer(m.racine)[0].rapport), /\(502\)/)
   etat.mode = 'bon'

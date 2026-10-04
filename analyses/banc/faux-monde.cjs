@@ -22,9 +22,21 @@ function creerServeur() {
           const organic = Array.from({ length: 6 }, (_, i) => ({ title: `Résultat ${q} ${i}`, link: `http://127.0.0.1:${port}/p/${base + i}`, snippet: `Extrait ${q}` }))
           res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ organic, peopleAlsoAsk: [{ question: `Quel ${q.slice(0, 20)} choisir ?` }, { question: 'Est-ce que ça vaut le coup ?' }], relatedSearches: [{ query: `${q.slice(0, 20)} pas cher` }] }))
         }
-        if (req.url === '/api/agent/rapports-poste' && req.method === 'POST') {
+        // The real site's admin door: only the key whose SHA-256 fingerprint is in POSTE_ADMIN_SHA256 (here etat.empreinteSite).
+        if (req.url.startsWith('/api/admin/')) {
+          const json = (code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); return res.end(JSON.stringify(o)) }
+          if (!etat.empreinteSite) return json(503, { error: 'L’administration n’est pas activée : posez POSTE_ADMIN_SHA256.' })
           const auth = req.headers.authorization || ''
-          if (etat.mode === 'site-refuse' || auth === 'Bearer ') { res.writeHead(403, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'Accès réservé.' })) }
+          const cle = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
+          if (!cle) return json(401, { error: 'Clé d’administration manquante.' })
+          if (!cle.startsWith('dsp_adm_') || require('node:crypto').createHash('sha256').update(cle).digest('hex') !== etat.empreinteSite) return json(401, { error: 'Clé d’administration inconnue.' })
+          if (req.url === '/api/admin/moi') return json(200, { ok: true, administrateur: 'poste-analyses' })
+          if (req.url === '/api/admin/utilisateurs') return json(200, { total: 2, verifies: 1, abonnesNewsletter: 1, limite: 500, utilisateurs: [{ id: 'u1', email: 'a@exemple.test', shopName: 'Boutique A', plan: 'FREE', credits: 120, emailVerifiedAt: '2026-10-01T10:00:00Z', createdAt: '2026-10-01T09:00:00Z' }, { id: 'u2', email: 'b@exemple.test', shopName: null, plan: 'FREE', credits: 0, emailVerifiedAt: null, createdAt: '2026-10-02T09:00:00Z' }] })
+          if (req.url === '/api/admin/newsletter') return json(200, { total: 1, subscribers: [{ id: 'n1', email: 'n@exemple.test', source: 'site', createdAt: '2026-10-02T09:00:00Z' }] })
+        }
+        if (req.url === '/api/admin/rapports-poste' && req.method === 'POST') {
+          const auth = req.headers.authorization || ''
+          if (etat.mode === 'site-refuse') { res.writeHead(403, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'Accès réservé.' })) }
           if (etat.mode === 'site-hors-ligne') { res.writeHead(502, { 'content-type': 'text/plain' }); return res.end('Bad gateway') }
           let rapport = null
           try { rapport = JSON.parse(corps).rapport } catch { /* refused below */ }
