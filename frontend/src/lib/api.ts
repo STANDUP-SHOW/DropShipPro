@@ -2016,6 +2016,8 @@ export const api = {
       regies: string[]
       /** Connecteur écrit, mais l'application DropShipper n'y est pas encore déclarée. */
       enAttente?: string[]
+      reseauxEnAttente?: string[]
+      regiesEnAttente?: string[]
       comptes: Array<{
         id: string
         externalId: string
