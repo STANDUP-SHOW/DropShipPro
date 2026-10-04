@@ -86,8 +86,9 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 
 ## Rapports des 48 agents (`backend/rapports.db`)
 
-- SQLite **versionnée exprès** (voir `backend/.gitignore`) : un rapport n'est en ligne que commité
-  et déployé. Remplie par `backend/importer-aimarket.cjs` (Max, en local). Pas `MarketReport`.
+- SQLite **versionnée exprès** (voir `backend/.gitignore`), remplie par `backend/importer-aimarket.cjs`
+  (Max, en local). Pas `MarketReport`. En ligne sans push : `--envoyer` la dépose sur le volume
+  (`POST /api/agent/rapports-db`, `storage/rapports.db`, la plus récente des deux gagne).
   Chiffres au 03/10/2026 : 35 rapports (18 rayon, 17 marketing), 162 produits, 15 catégories,
   du 18 au 20/09 — relire la base, elle grossit.
 - Ouverte par `services/reportsDb.ts` en `{readonly, fileMustExist}`, chemin résolu depuis le

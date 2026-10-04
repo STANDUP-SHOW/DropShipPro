@@ -12,7 +12,7 @@
  * jour, et un robot qui lit 500 pages ne doit pas faire 500 requêtes.
  */
 import { Router, type Response } from 'express'
-import { ReportQuery } from '../services/reportsDb.js'
+import { generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
   attribuerAdresses,
@@ -35,8 +35,18 @@ const JOUR = /^\d{4}-\d{2}-\d{2}$/
 const SLUG = /^[a-z0-9-]{1,60}$/
 
 let base: ReportQuery | null = null
+let generationOuverte = -1
 function rapports(): ReportQuery {
-  if (!base) base = new ReportQuery()
+  // Un nouveau rapports.db déposé par l'importateur : on rouvre, et les adresses se recalculent.
+  if (base && generationOuverte !== generationRapports()) {
+    base.close()
+    base = null
+  }
+  if (!base) {
+    base = new ReportQuery()
+    generationOuverte = generationRapports()
+    memo = null
+  }
   return base
 }
 
@@ -50,12 +60,13 @@ type Ligne = ReturnType<ReportQuery['getPourSitemap']>[number]
 /**
  * Toutes les lignes publiables, le titre du jour à la place du titre quand il
  * existe, et leurs adresses attribuées. rapports.db ne change qu'avec un
- * déploiement (Max pousse l'import sur main) : une fois par processus suffit.
+ * déploiement ou un dépôt de l'importateur : une fois par base ouverte suffit.
  */
 let memo: Ligne[] | null = null
 export function lignesPubliques(): Ligne[] {
+  const q = rapports()
   if (memo) return memo
-  const tous = rapports()
+  const tous = q
     .getPourSitemap()
     .filter(adressable)
     .map((l) => ({ ...l, titre: l.une ?? l.titre }))

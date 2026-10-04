@@ -6,6 +6,9 @@
  * l'import de rapports.db est poussé sur main, donc au démarrage de l'API qui
  * suit : c'est là que le robot part, pas sur une horloge aveugle.
  *
+ * Il part aussi à chaque dépôt de rapports.db par l'importateur
+ * (POST /api/agent/rapports-db), sans redémarrage.
+ *
  * Ce qu'il fait : il lit les adresses du sitemap des analyses, retire celles
  * déjà annoncées (fichier dans storage/, le volume Railway), et envoie le reste
  * à IndexNow — Bing (donc Copilot et la recherche de ChatGPT), Yandex, Seznam,
@@ -72,10 +75,14 @@ export async function annoncerAnalyses(sitemap: string): Promise<number> {
   return Math.min(nouvelles.length, 10000)
 }
 
+/** Sur Railway, sauf INDEXNOW_AUTO=off : un banc ou un poste local n'annonce jamais rien. */
+export function enProduction(): boolean {
+  return Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT) && process.env.INDEXNOW_AUTO !== 'off'
+}
+
 /** Au démarrage, en production seulement, après que Railway a remplacé l'ancien conteneur. */
 export function planifierAnnonce(sitemap: () => string, delaiMs = 3 * 60_000): void {
-  const enProduction = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT)
-  if (!enProduction || process.env.INDEXNOW_AUTO === 'off') return
+  if (!enProduction()) return
   setTimeout(() => {
     Promise.resolve()
       .then(() => annoncerAnalyses(sitemap()))

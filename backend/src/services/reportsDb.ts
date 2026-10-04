@@ -4,6 +4,7 @@
  */
 
 import Database from 'better-sqlite3'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
@@ -23,6 +24,75 @@ import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketR
 const RACINE_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 export const CHEMIN_RAPPORTS_DB = path.join(RACINE_BACKEND, 'rapports.db')
 
+/**
+ * The copy Max's importer uploads (`importer-aimarket.cjs --envoyer`), on the
+ * Railway volume mounted at /app/storage. Asked on 04/10/2026: new reports
+ * must reach the app and the public /analyses pages without a git push and a
+ * redeploy. The committed file stays the fallback; whichever of the two holds
+ * the most recent report wins, so a later push of the committed file is never
+ * shadowed by an older upload.
+ */
+export const CHEMIN_RAPPORTS_DEPOSE = path.join(RACINE_BACKEND, 'storage', 'rapports.db')
+
+let generation = 0
+let cheminActif: string | null = null
+
+/** Bumped by every upload: the routes reopen their handle and recompute their addresses. */
+export function generationRapports(): number {
+  return generation
+}
+
+function resumeBase(chemin: string): { n: number; maj: string } | null {
+  if (!fs.existsSync(chemin)) return null
+  let db: Database.Database | null = null
+  try {
+    db = new Database(chemin, { readonly: true, fileMustExist: true })
+    const r = db.prepare('SELECT COUNT(*) AS n, MAX(COALESCE(updated_at, created_at, date)) AS maj FROM reports').get() as any
+    return { n: Number(r?.n ?? 0), maj: String(r?.maj ?? '') }
+  } catch {
+    return null
+  } finally {
+    db?.close()
+  }
+}
+
+/** The file the routes read: the upload when it is at least as recent as the committed file. */
+export function cheminRapportsActif(): string {
+  if (cheminActif) return cheminActif
+  const depose = resumeBase(CHEMIN_RAPPORTS_DEPOSE)
+  const livre = resumeBase(CHEMIN_RAPPORTS_DB)
+  cheminActif = depose && depose.n > 0 && (!livre || depose.maj >= livre.maj) ? CHEMIN_RAPPORTS_DEPOSE : CHEMIN_RAPPORTS_DB
+  return cheminActif
+}
+
+export class DepotRefuse extends Error {}
+
+/**
+ * Takes an uploaded rapports.db. Checked before it replaces anything: it must
+ * open, hold a `reports` table, and never hold FEWER reports than the base in
+ * service — a truncated or blank upload would empty every report screen at once.
+ */
+export function deposerRapports(contenu: Buffer): { reports: number; avant: number } {
+  if (contenu.length < 1024 || contenu.subarray(0, 15).toString('latin1') !== 'SQLite format 3') {
+    throw new DepotRefuse("Ce n'est pas un fichier SQLite (rapports.db attendu).")
+  }
+  fs.mkdirSync(path.dirname(CHEMIN_RAPPORTS_DEPOSE), { recursive: true })
+  const provisoire = `${CHEMIN_RAPPORTS_DEPOSE}.${process.pid}.tmp`
+  fs.writeFileSync(provisoire, contenu)
+  try {
+    const neuf = resumeBase(provisoire)
+    if (!neuf) throw new DepotRefuse('Fichier illisible ou sans table reports.')
+    const avant = resumeBase(cheminRapportsActif())?.n ?? 0
+    if (neuf.n < avant) throw new DepotRefuse(`Le fichier envoyé a ${neuf.n} rapports, la base en ligne en a ${avant} : refusé.`)
+    fs.renameSync(provisoire, CHEMIN_RAPPORTS_DEPOSE)
+    cheminActif = null
+    generation++
+    return { reports: neuf.n, avant }
+  } finally {
+    if (fs.existsSync(provisoire)) fs.rmSync(provisoire)
+  }
+}
+
 interface QueryOptions {
   format?: 'json' | 'table' | 'summary'
   limit?: number
@@ -38,7 +108,7 @@ export class ReportQuery {
    * `fileMustExist` is the point: a missing base must FAIL, never be invented.
    * Read-only because every method here is a SELECT — nothing writes.
    */
-  constructor(dbPath: string = CHEMIN_RAPPORTS_DB) {
+  constructor(dbPath: string = cheminRapportsActif()) {
     this.db = new Database(dbPath, { readonly: true, fileMustExist: true })
   }
 
