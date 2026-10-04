@@ -1,0 +1,232 @@
+{
+  "name": "DROPSHIP-SPY – TELEPHONIE",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "20 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "3d7d1d58-a977-42d6-8a58-481cc68429bb",
+      "name": "Chaque jour 6h20",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "50904ad0-c9a0-4aa0-bc19-7742a6cbc684",
+      "name": "Lancement manuel",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Rayon + sous-thème du jour — mêmes rotations que MINEA-SPY (dupliquer par rayon)\nconst RAYON = 'TELEPHONIE';\nconst CATEGORIES = ['phones & electronics', 'electronics & accessories', 'electronics', 'computers & office']; // filtrage local\nconst ROTATION = [\n  { theme: 'ecrans-externes-accessoires', kw: ['portable monitor', 'usb-c hub'] },\n  { theme: 'smartphones',                 kw: ['smartphone', 'refurbished phone'] },\n  { theme: 'chargeurs-cables-batteries',  kw: ['charger', 'power bank', 'magnetic cable'] },\n  { theme: 'audio',                       kw: ['earbuds', 'bluetooth headphones', 'speaker'] },\n  { theme: 'tablettes',                   kw: ['tablet', 'kids tablet', 'stylus'] },\n  { theme: 'coques-protections-gadgets',  kw: ['phone case', 'screen protector', 'car phone holder'] },\n  { theme: 'objets-connectes',            kw: ['smartwatch', 'gps tracker', 'smart ring'] },\n];\nconst now = new Date(); const pad = n => String(n).padStart(2, '0');\nconst d = x => `${pad(x.getDate())}-${pad(x.getMonth() + 1)}-${String(x.getFullYear()).slice(2)}`;\nconst st = ROTATION[now.getDay()];\n// domaines gagnants du jour fournis par MINEA-SPY (croisement des sources)\nconst fs = require('fs'); const path = require('path');\nconst dir = $env.MARKET_ANALYSES_DIR || './MARKET-ANALYSES';\nlet domains = [];\ntry {\n  const m = JSON.parse(fs.readFileSync(path.join(dir, `${RAYON}-${d(now)}-MINEA.json`), 'utf8'));\n  domains = [...new Set((m.ads || []).filter(a => a.gagnant || a.signal === 'breakout').map(a => { try { return new URL(a.url_produit).hostname.replace(/^www\\./, ''); } catch { return null; } }).filter(Boolean))];\n} catch (e) {}\nreturn [{ json: { rayon: RAYON, categories: CATEGORIES, sous_theme: st.theme, keywords: st.kw, competitorDomains: domains,\n  date_run: d(now), date_prev: d(new Date(now.getTime() - 86400000)) } }];\n"
+      },
+      "id": "30ff3da1-f45b-4173-a114-b6db49178c6e",
+      "name": "Config du jour",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SCRIPT = \"// DROPSHIP-SPY \\u2014 script Browserless (/function, Puppeteer)        v\\u00e9rifi\\u00e9 sur app.dropship.io le 04-10-2026\\n//\\n// PRINCIPE : l'application charge ses donn\\u00e9es via api.dropship.io en JSON clair (les recherches filtr\\u00e9es partent\\n// chiffr\\u00e9es \\u2192 impossible d'appeler l'API directement). Le script visite chaque module avec votre session et\\n// INTERCEPTE les r\\u00e9ponses JSON. Aucune d\\u00e9pendance au design pour les donn\\u00e9es.\\n//\\n// CR\\u00c9DITS : 1 cr\\u00e9dit = 1 r\\u00e9sultat affich\\u00e9 (constat\\u00e9 : 1 page de 50 cr\\u00e9ateurs = 50 cr\\u00e9dits). Les cr\\u00e9dits sont MENSUELS.\\n// Le script calcule chaque jour un budget = (cr\\u00e9dits restants \\u2212 r\\u00e9serve) / jours avant renouvellement / rayons du jour,\\n// et s'arr\\u00eate d\\u00e8s qu'il est atteint. Il s'adapte donc tout seul au plan, au jour du mois et au nombre de rayons.\\n\\nconst PLANS = {          // relev\\u00e9 sur /setting/plan le 04-10-2026 (cr\\u00e9dits / mois)\\n  trial:    { product_library: 500,   shop_library: 250,   ad_library: 500,   advertiser_library: 250,   creator_library: 200,\\n              competitor_per_day: 20,  track_shops: 3,  track_products: 3,   track_advertisers: 3,  drops_week: 20, ai_search: 0 },\\n  basic:    { product_library: 10000, shop_library: 5000,  ad_library: 10000, advertiser_library: 5000,  creator_library: 3000,\\n              competitor_per_day: 20,  track_shops: 10, track_products: 25,  track_advertisers: 10, drops_week: 20, ai_search: 100 },\\n  standard: { product_library: 25000, shop_library: 12500, ad_library: 25000, advertiser_library: 12500, creator_library: 6000,\\n              competitor_per_day: Infinity, track_shops: 25, track_products: 50, track_advertisers: 25, drops_week: 30, ai_search: 200 },\\n  premium:  { product_library: 50000, shop_library: 25000, ad_library: 50000, advertiser_library: 25000, creator_library: 10000,\\n              competitor_per_day: Infinity, track_shops: 50, track_products: 100, track_advertisers: 50, drops_week: 40, ai_search: 400 },\\n};\\nconst PAGE_SIZE = 50;\\n\\n// Entr\\u00e9e context = { cookies, plan:\\\"trial|basic|standard|premium\\\", keywords:[], competitorDomains:[],\\n//                    rayonsToday: 1, renewalDay: 4, creditReserve: 0.05, competitorShare: 1, pause:[ms,ms] }\\nexport default async function ({ page, context }) {\\n  const APP = \\\"https://app.dropship.io\\\";\\n  const planName = PLANS[context.plan] ? context.plan : \\\"trial\\\";\\n  const P = PLANS[planName];\\n  const rayons = Math.max(1, context.rayonsToday || 1);\\n  const reservePct = context.creditReserve ?? 0.05;            // 5 % du quota mensuel jamais d\\u00e9pens\\u00e9s\\n  const [pMin, pMax] = context.pause || [2500, 6000];\\n  const wait = () => new Promise(r => setTimeout(r, pMin + Math.random() * (pMax - pMin)));\\n  const sleep = ms => new Promise(r => setTimeout(r, ms));\\n  const warnings = [], captures = [], credits = {}, spent = {}, budget = {};\\n  let current = null;\\n\\n  // jours restants avant renouvellement (trial : 7 jours fixes)\\n  const today = new Date();\\n  const renewal = new Date(today.getFullYear(), today.getMonth(), context.renewalDay || 1);\\n  if (renewal <= today) renewal.setMonth(renewal.getMonth() + 1);\\n  const daysLeft = planName === \\\"trial\\\" ? Math.max(1, context.trialDaysLeft || 7) : Math.max(1, Math.ceil((renewal - today) / 86400000));\\n\\n  const computeBudget = (m) => {\\n    const left = credits[m]?.left ?? P[m];\\n    const usable = Math.max(0, left - Math.ceil(P[m] * reservePct));\\n    budget[m] = Math.floor(usable / daysLeft / rayons);\\n    return budget[m];\\n  };\\n  const pagesAllowed = (m) => Math.floor((budget[m] ?? computeBudget(m)) / PAGE_SIZE);\\n\\n  if (Array.isArray(context.cookies) && context.cookies.length) await page.setCookie(...context.cookies);\\n  await page.setViewport({ width: 1440, height: 900 });\\n\\n  page.on(\\\"response\\\", async (res) => {\\n    try {\\n      const u = new URL(res.url());\\n      if (u.hostname !== \\\"api.dropship.io\\\" || !current) return;\\n      if (!(res.headers()[\\\"content-type\\\"] || \\\"\\\").includes(\\\"json\\\")) return;\\n      const body = await res.json();\\n      if (/filter_presets/.test(u.pathname) && body && \\\"credits_left\\\" in body) {\\n        credits[current] = { left: body.credits_left, total: body.total_credits, attempts: body.attempts_left }; return;\\n      }\\n      if (/choice_filters|auto-ds|user\\\\/stores/.test(u.pathname)) return;\\n      if (body && (Array.isArray(body.results) || Array.isArray(body))) {\\n        const n = Array.isArray(body) ? body.length : body.results.length;\\n        captures.push({ module: current, api: u.pathname, count: body.count ?? null, body });\\n        spent[current] = (spent[current] || 0) + n;\\n        if (body.credits_left != null) credits[current] = { ...(credits[current] || {}), left: body.credits_left };\\n        if (body.attempts_left != null) credits[current] = { ...(credits[current] || {}), attempts: body.attempts_left };\\n      }\\n    } catch (_) {}\\n  });\\n\\n  const clickText = (label) => page.evaluate((label) => {\\n    const el = [...document.querySelectorAll(\\\"button,[role=tab],[role=button],a,span,div\\\")]\\n      .find(e => e.children.length <= 3 && e.innerText && e.innerText.trim() === label);\\n    if (el) { el.click(); return true; } return false;\\n  }, label);\\n\\n  const nextPage = () => page.evaluate(() => {                 // bouton \\\"page suivante\\\" (\\u203a / > / aria-label next)\\n    const b = [...document.querySelectorAll(\\\"button, li, a\\\")].find(e =>\\n      /next/i.test(e.getAttribute(\\\"aria-label\\\") || e.getAttribute(\\\"title\\\") || e.className || \\\"\\\") && !e.disabled && !/disabled/.test(e.className || \\\"\\\"));\\n    if (b) { b.click(); return true; } return false;\\n  });\\n\\n  const search = async (kw) => {\\n    const input = await page.$('input[placeholder*=\\\"earch\\\" i], input[placeholder*=\\\"nclude\\\" i], input[type=\\\"text\\\"]');\\n    if (!input) { warnings.push(`${current} : champ de recherche introuvable`); return false; }\\n    await input.click({ clickCount: 3 }); await input.type(kw, { delay: 70 });\\n    await page.keyboard.press(\\\"Enter\\\"); await sleep(6000); return true;\\n  };\\n\\n  // parcourt les pages tant que le budget du module le permet\\n  const paginate = async (m) => {\\n    let pages = 1;\\n    while (pages < pagesAllowed(m) && (spent[m] || 0) + PAGE_SIZE <= budget[m]) {\\n      if (!(await nextPage())) break;\\n      await sleep(5000); pages++;\\n    }\\n  };\\n\\n  const canSearch = (m) => {\\n    if (credits[m]?.attempts != null && credits[m].attempts <= 0) { warnings.push(`${m} : plus de recherches aujourd'hui`); return false; }\\n    if (m in P && typeof P[m] === \\\"number\\\" && P[m] > 0 && (spent[m] || 0) + PAGE_SIZE > (budget[m] ?? computeBudget(m))) {\\n      warnings.push(`${m} : budget du jour atteint (${budget[m]} cr\\u00e9dits)`); return false; }\\n    return true;\\n  };\\n\\n  const visit = async (m, path, actions) => {\\n    current = m;\\n    await page.goto(APP + path, { waitUntil: \\\"networkidle2\\\", timeout: 90000 });\\n    await sleep(4000);\\n    const p = new URL(page.url()).pathname;\\n    if (/login|sign-in|onboarding/.test(p)) { warnings.push(`${m} : redirig\\u00e9 vers ${p} (session expir\\u00e9e / essai termin\\u00e9)`); current = null; return; }\\n    if (await page.evaluate(() => /captcha|verify you are human/i.test(document.body.innerText))) throw new Error(\\\"CAPTCHA_OR_BOT_CHECK\\\");\\n    if (m in P) computeBudget(m);\\n    if (actions) { try { await actions(); } catch (e) { warnings.push(`${m} : ${String(e).slice(0, 120)}`); } }\\n    await wait(); current = null;\\n  };\\n\\n  // intensit\\u00e9 selon le plan\\n  const kwAll = context.keywords || [];\\n  const kws = { trial: kwAll.slice(0, 1), basic: kwAll.slice(0, 2), standard: kwAll, premium: kwAll }[planName];\\n  const domLimit = { trial: 3, basic: Math.floor(20 * (context.competitorShare ?? 1) / rayons) || 1, standard: 15, premium: 25 }[planName];\\n  const doms = (context.competitorDomains || []).slice(0, domLimit);\\n  const adPresets = { trial: [\\\"Weekly winners\\\"], basic: [\\\"Weekly winners\\\"], standard: [\\\"Weekly winners\\\", \\\"New Winning products\\\"],\\n                      premium: [\\\"Weekly winners\\\", \\\"New Winning products\\\", \\\"Evergreen Winners\\\"] }[planName];\\n\\n  try {\\n    // 1. Suivis + Portfolio : sans cr\\u00e9dit\\n    await visit(\\\"sales_tracker\\\", \\\"/products/sales-tracker\\\");\\n    await visit(\\\"advertiser_tracker\\\", \\\"/ads/advertiser-tracker\\\");\\n    await visit(\\\"portfolio\\\", \\\"/portfolio\\\");\\n\\n    // 2. Ad Library (Facebook EU)\\n    await visit(\\\"ad_library\\\", \\\"/ads/ad-library\\\", async () => {\\n      for (const pr of adPresets) { if (!canSearch(\\\"ad_library\\\")) break; await clickText(pr); await sleep(6000); await paginate(\\\"ad_library\\\"); }\\n      for (const k of kws) { if (!canSearch(\\\"ad_library\\\")) break; await search(k); await paginate(\\\"ad_library\\\"); }\\n    });\\n\\n    // 3. Product Library (TikTok Shop)\\n    await visit(\\\"product_library\\\", \\\"/products/product-library\\\", async () => {\\n      for (const k of kws) { if (!canSearch(\\\"product_library\\\")) break; await search(k); await paginate(\\\"product_library\\\"); }\\n    });\\n\\n    // 4. Competitor Research (Shopify) \\u2014 croisement Minea\\n    await visit(\\\"competitor_research\\\", \\\"/competitor-research\\\", async () => {\\n      for (const q of [...kws.slice(0, 1), ...doms]) { if (!canSearch(\\\"competitor_research\\\")) break; await search(q); }\\n    });\\n\\n    // 5. Advertiser Library (d\\u00e8s Basic)\\n    if (planName !== \\\"trial\\\") await visit(\\\"advertiser_library\\\", \\\"/ads/advertiser-library\\\", async () => {\\n      for (const k of kws) { if (!canSearch(\\\"advertiser_library\\\")) break; await search(k); await paginate(\\\"advertiser_library\\\"); }\\n    });\\n\\n    // 6. Shop Library + Creator Library (Standard / Premium)\\n    if (planName === \\\"standard\\\" || planName === \\\"premium\\\") {\\n      await visit(\\\"shop_library\\\", \\\"/products/shop-library\\\", async () => { if (canSearch(\\\"shop_library\\\")) await paginate(\\\"shop_library\\\"); });\\n      await visit(\\\"creator_library\\\", \\\"/products/creator-library\\\", async () => {\\n        if (!canSearch(\\\"creator_library\\\")) return;\\n        await clickText(\\\"Fast-growing creators\\\"); await sleep(6000); await paginate(\\\"creator_library\\\");\\n      });\\n    }\\n\\n    return { data: { ok: true, plan: planName, limits: P, daysLeft, rayonsToday: rayons, budget, spent, credits, captures, warnings,\\n                     scrapedAt: new Date().toISOString() }, type: \\\"application/json\\\" };\\n  } catch (e) {\\n    return { data: { ok: false, error: String(e).slice(0, 300), plan: planName, budget, spent, credits, captures, warnings }, type: \\\"application/json\\\" };\\n  }\\n}\\n\";\nlet cookies = []; try { cookies = JSON.parse($env.DROPSHIP_COOKIES || '[]'); } catch (e) {}\nconst c = $input.first().json;\nreturn [{ json: { code: SCRIPT, context: { cookies, plan: $env.DROPSHIP_PLAN || 'trial', keywords: c.keywords, competitorDomains: c.competitorDomains,\n  rayonsToday: Number($env.DROPSHIP_RAYONS_PAR_JOUR || 1),      // nb de rayons qui partagent le quota ce jour-là\n  renewalDay: Number($env.DROPSHIP_RENEWAL_DAY || 1),           // jour du mois de renouvellement de l'abonnement\n  trialDaysLeft: Number($env.DROPSHIP_TRIAL_DAYS_LEFT || 7),\n  creditReserve: Number($env.DROPSHIP_CREDIT_RESERVE_PCT || 0.05), pause: [2500, 6000] } } }];\n"
+      },
+      "id": "50e98b07-dfbf-42ef-92fe-f70c1d135cdc",
+      "name": "Payload Browserless",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BROWSERLESS_URL }}/chromium/function?token={{ $env.BROWSERLESS_TOKEN }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "9bfceb33-62d3-45e3-87fb-52b36d37f904",
+      "name": "Browserless – Dropship",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 60000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalisation par module + filtrage rayon + scoring + alertes + croisement Minea + archivage\nconst fs = require('fs'); const path = require('path');\nconst cfg = $('Config du jour').first().json;\nconst raw = $input.first().json;\nif (!raw.ok) throw new Error('Dropship : ' + (raw.error || 'échec'));\nconst dir = $env.MARKET_ANALYSES_DIR || './MARKET-ANALYSES'; fs.mkdirSync(dir, { recursive: true });\n\nconst inRayon = (...cats) => cats.filter(Boolean).some(c => cfg.categories.some(k => String(c).toLowerCase().includes(k)));\nconst kwHit = (t) => cfg.keywords.some(k => String(t || '').toLowerCase().includes(k.toLowerCase().split(' ')[0]));\nconst media = (o) => { const out = []; JSON.stringify(o || {}, (k, v) => { if (typeof v === 'string' && /^https?:\\/\\/.+\\.(jpe?g|png|webp|mp4)(\\?|$)/i.test(v)) out.push(v); return v; }); return [...new Set(out)].slice(0, 6); };\nconst host = (u) => { try { return new URL(u.startsWith('http') ? u : 'https://' + u).hostname.replace(/^www\\./, ''); } catch { return null; } };\n\nconst N = { tiktok_products: [], tiktok_shops: [], creators: [], fb_ads: [], advertisers: [], shopify_products: [], tracked_shops: [], tracked_advertisers: [], portfolio: [] };\nfor (const c of raw.captures || []) {\n  const rows = Array.isArray(c.body) ? c.body : (c.body.results || []);\n  const a = c.api;\n  for (const r of rows) {\n    if (/tiktok_shops\\/search/.test(a)) N.tiktok_products.push({ id: r.product_id, titre: r.title, url: r.url, image: r.image,\n      prix_usd: r.usd_price, ventes_30j: r.monthly_sales, ca_30j_usd: r.monthly_revenue, croissance_30j: r.revenue_growth_rate_30d,\n      categorie: r.category_name, pays: r.country?.code, lance_le: r.publish_date, note: r.rating, avis: r.review_count, videos: r.videos_count,\n      boutique: r.shop?.name, livraison_gratuite: r.shipping?.[0]?.is_free ?? null, delai_jours: r.shipping?.[0]?.delivery_days_duration ?? null });\n    else if (/tiktok_shops\\/shops\\/search/.test(a)) N.tiktok_shops.push({ id: r.seller_id, nom: r.name, url: r.url, ca_30j_usd: r.monthly_revenue,\n      ventes_30j: r.monthly_sales, croissance_30j: r.revenue_growth_rate_30d, nb_produits: r.products_count, prix_moyen: r.avg_product_price,\n      pays: r.country?.code, categories: r.categories, top_produits: (r.top_products || []).map(p => ({ titre: p.title, url: p.url, ca_30j_usd: p.monthly_revenue, ventes_30j: p.monthly_sales })) });\n    else if (/tiktok_creators\\/search/.test(a)) { const m = r.monthly_creator_metrics || {}; N.creators.push({ id: r.creator_id, nom: r.name, username: r.username,\n      ca_30j_usd: m.revenue, ventes_30j: m.sales, croissance: m.revenue_growth_rate, vues_30j: m.video_views, engagement: m.engagement_rate,\n      abonnes: r.creator_metrics?.follower_count, nb_produits: r.products_count,\n      top_videos: (r.top_viewed_videos || []).map(v => ({ id: v.video_id, cover: v.video_cover_image_url, description: (v.video_description || '').slice(0, 200) })) }); }\n    else if (/ad_library\\/ads\\/search/.test(a)) { const s = r.snapshot || {}; N.fb_ads.push({ id: r.collation_id, annonceur: r.advertiser?.page_name,\n      annonces_actives_page: r.advertiser?.active_ads_count, depense_usd: r.ad_spend, adsets: r.ad_sets_count, reach: r.total_reaches_count,\n      format: r.creative_type, cree_le: r.created_at, vue_le: r.last_seen_date, active: r.is_active, eu: r.is_eu_targeted, langue: r.language,\n      domaine: (r.domain_fld || [])[0] || host(s.link_url || ''), lien: s.link_url, titre: s.title, texte: (s.body?.text || s.body || '').toString().slice(0, 400),\n      cta: s.cta_text, creatives: media(s) }); }\n    else if (/advertisers_library\\/search/.test(a)) N.advertisers.push({ id: r.id, nom: r.name, categorie: r.page_category, domaines: r.domains,\n      depense_30j_usd: r.monthly_spend, reach_30j: r.monthly_reach, croissance_depense: r.ad_spend_growth_rate_30d, depense_totale_usd: r.total_ads_spend,\n      adsets_eu_actifs: r.total_eu_active_adsets_count, pays: (r.targeted_countries || []).map(x => x.code), derniere_pub: r.last_ad_date, pct_non_shopify: r.percent_non_shopify });\n    else if (/product_database\\/.*competitors\\/search/.test(a)) { const st = r.store || {}; const dom = st.custom_domain || st.best_ranked_domain || st.original_domain;\n      N.shopify_products.push({ id: r.id, titre: r.title, prix_usd: r.usd_price, categorie: r.category, sous_categorie: r.subcategory_short_name,\n        cree_le: r.created_at, image: r.main_image, domaine: dom, boutique: st.title, nb_produits_boutique: st.products_count,\n        url: dom && r.handle ? `https://${dom}/products/${r.handle}` : null }); }\n    else if (/collections\\/shops\\/entities/.test(a)) N.tracked_shops.push(r.full_info);\n    else if (/collections\\/advertisers\\/entities/.test(a)) N.tracked_advertisers.push(r.full_info);\n    else if (/\\/portfolio\\//.test(a)) N.portfolio.push({ mois: r.month, annee: r.year, drops: (r.drops || []).map(x => ({ id: x.drop_id, date: x.drop_date, taille: x.drop_plan_size, a_venir: x.comming_up })) });\n  }\n}\n// dédoublonnage par id\nfor (const k of Object.keys(N)) { const seen = new Set(); N[k] = N[k].filter(x => { const id = x?.id ?? JSON.stringify(x).slice(0, 80); if (seen.has(id)) return false; seen.add(id); return true; }); }\n\n// filtrage rayon (catégorie OU mot-clé du sous-thème)\nconst R = {\n  tiktok_products: N.tiktok_products.filter(p => inRayon(p.categorie) || kwHit(p.titre)),\n  fb_ads: N.fb_ads.filter(a => kwHit(a.titre) || kwHit(a.texte) || cfg.competitorDomains.includes(a.domaine)),\n  shopify_products: N.shopify_products.filter(p => inRayon(p.categorie, p.sous_categorie) || kwHit(p.titre) || cfg.competitorDomains.includes(p.domaine)),\n  advertisers: N.advertisers.filter(a => inRayon(a.categorie) || (a.domaines || []).some(d => cfg.competitorDomains.includes(host(d)))),\n};\n\n// scores /20\nfor (const p of R.tiktok_products) p.score_ventes = Math.min(20, Math.round(Math.min(10, (p.ca_30j_usd || 0) / 5000) + Math.min(6, Math.max(0, (p.croissance_30j || 0) * 10)) + (p.videos > 0 ? 2 : 0) + ((p.note || 0) >= 4.5 ? 2 : 0)));\nfor (const a of R.fb_ads) a.score_pub = Math.min(20, Math.round(Math.min(10, (a.depense_usd || 0) / 2000) + Math.min(6, (a.adsets || 0) * 1.5) + (a.active ? 2 : 0) + (a.eu ? 2 : 0)));\n\n// historique J-1 + alertes\nconst prevFile = path.join(dir, `${cfg.rayon}-${cfg.date_prev}-DROPSHIP.json`);\nlet prev = {}; try { prev = JSON.parse(fs.readFileSync(prevFile, 'utf8')); } catch (e) {}\nconst byId = (arr) => Object.fromEntries((arr || []).map(x => [x.id, x]));\nconst alerts = [];\nconst pp = byId(prev.rayon?.tiktok_products);\nfor (const p of R.tiktok_products) { const o = pp[p.id];\n  if (o && o.ventes_30j && p.ventes_30j >= o.ventes_30j * 1.5) alerts.push({ type: 'BREAKOUT', source: 'tiktok', titre: p.titre, de: o.ventes_30j, a: p.ventes_30j, url: p.url });\n  if (o && o.prix_usd && p.prix_usd < o.prix_usd * 0.85) alerts.push({ type: 'BAISSE DE PRIX', titre: p.titre, de: o.prix_usd, a: p.prix_usd, url: p.url });\n  if ((p.croissance_30j || 0) >= 0.5) alerts.push({ type: 'FORTE CROISSANCE', titre: p.titre, croissance: p.croissance_30j, url: p.url }); }\nfor (const a of R.fb_ads) if ((a.depense_usd || 0) >= 10000 && a.active) alerts.push({ type: 'GROS BUDGET PUB', annonceur: a.annonceur, depense_usd: a.depense_usd, domaine: a.domaine });\n// croisement Minea : même domaine trouvé par les 2 outils\nconst valid = [...new Set([...R.fb_ads.map(a => a.domaine), ...R.shopify_products.map(p => p.domaine)].filter(d => cfg.competitorDomains.includes(d)))];\nfor (const d of valid) alerts.push({ type: 'VALIDÉ 2 SOURCES', domaine: d, note: 'gagnant Minea confirmé par dropship.io' });\n\nconst out = { source: 'dropship.io', rayon_nom: cfg.rayon, sous_theme: cfg.sous_theme, mots_cles: cfg.keywords, date_run: cfg.date_run,\n  plan: raw.plan, limits: raw.limits, budget: raw.budget, spent: raw.spent, credits: raw.credits, warnings: raw.warnings, alerts,\n  rayon: R,      // données filtrées sur le rayon (relues au run suivant pour les alertes)\n  tout: N,       // tout ce qui a été capturé, toutes catégories\n  scrapedAt: raw.scrapedAt };\nconst file = path.join(dir, `${cfg.rayon}-${cfg.date_run}-DROPSHIP.json`);\nfs.writeFileSync(file, JSON.stringify(out, null, 2));\nreturn [{ json: { file, rayon_nom: cfg.rayon, sous_theme: cfg.sous_theme, date_run: cfg.date_run, plan: raw.plan, budget: raw.budget, spent: raw.spent, credits: raw.credits, warnings: raw.warnings, alerts,\n  top: { tiktok_products: [...R.tiktok_products].sort((a, b) => (b.score_ventes || 0) - (a.score_ventes || 0)).slice(0, 20),\n         fb_ads: [...R.fb_ads].sort((a, b) => (b.score_pub || 0) - (a.score_pub || 0)).slice(0, 15),\n         shopify_products: R.shopify_products.slice(0, 20), advertisers: R.advertisers.slice(0, 10),\n         creators: N.creators.slice(0, 10), tracked_shops: N.tracked_shops, portfolio: N.portfolio.slice(0, 1) } } }];\n"
+      },
+      "id": "c751597e-8fff-450c-848e-df1479fe7156",
+      "name": "Parse, score & alertes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: $env.CLAUDE_MODEL,\n  max_tokens: 5000,\n  system: \"Tu es l'agent DROPSHIP-SPY de MarketSpy/aiMARKET pour drop-shipper.fr. Rédige en français la section 'VENTES & CONCURRENCE (dropship.io)' du rapport du rayon. Agnostique fournisseurs. Structure : 1) Synthèse 5 lignes 2) Tableau TikTok Shop gagnants (titre, prix $, ventes 30j, CA 30j, croissance, pays, score_ventes/20) 3) Tableau pubs Facebook EU (annonceur, domaine, dépense $, adsets, format, score_pub/20) avec description de l'angle créatif 4) Boutiques Shopify concurrentes et produits 5) Créateurs TikTok à surveiller (influence UGC) 6) MARKET ALERTs, en mettant en avant 'VALIDÉ 2 SOURCES' 7) Types de produits à sourcer en plusieurs modèles 8) État des crédits (budget du jour vs dépensé, restant). N'invente aucune donnée absente du JSON ; montants en USD comme fournis.\",\n  messages: [{ role: 'user', content: JSON.stringify({ rayon: $json.rayon_nom, sous_theme: $json.sous_theme, date: $json.date_run, plan: $json.plan, credits: $json.credits, budget: $json.budget, spent: $json.spent, warnings: $json.warnings, alerts: $json.alerts, top: $json.top }) }]\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "72e99d59-880b-4622-a627-be90f8519e4a",
+      "name": "Claude – rédaction section",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs'); const path = require('path');\nconst d = $('Parse, score & alertes').first().json;\nconst text = ($input.first().json.content || []).map(b => b.text || '').join('\\n');\nconst file = path.join($env.MARKET_ANALYSES_DIR || './MARKET-ANALYSES', `${d.rayon_nom}-${d.date_run}-DROPSHIP.md`);\nfs.writeFileSync(file, `# ${d.rayon_nom} — ${d.sous_theme} — ${d.date_run} — Ventes & concurrence (dropship.io)\\n\\n${text}\\n`);\nreturn [{ json: { ok: true, file, alerts: d.alerts.length } }];\n"
+      },
+      "id": "6e783978-f14d-47f4-bc9b-46394842fe81",
+      "name": "Écrire rapport .md",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Chaque jour 6h20": {
+      "main": [
+        [
+          {
+            "node": "Config du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancement manuel": {
+      "main": [
+        [
+          {
+            "node": "Config du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config du jour": {
+      "main": [
+        [
+          {
+            "node": "Payload Browserless",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payload Browserless": {
+      "main": [
+        [
+          {
+            "node": "Browserless – Dropship",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Browserless – Dropship": {
+      "main": [
+        [
+          {
+            "node": "Parse, score & alertes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse, score & alertes": {
+      "main": [
+        [
+          {
+            "node": "Claude – rédaction section",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude – rédaction section": {
+      "main": [
+        [
+          {
+            "node": "Écrire rapport .md",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  },
+  "active": false
+}
