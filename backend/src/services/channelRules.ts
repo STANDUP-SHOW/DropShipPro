@@ -315,6 +315,7 @@ export const REGLES_PAR_CANAL: Partial<Record<Platform, RegleCanal[]>> = {
   MIINTO: [...COMMUNES, titreMax(TITRE_MAX.MIINTO!, 'Miinto'), CATEGORIE],
   WISH: [...COMMUNES, titreMax(TITRE_MAX.WISH!, 'Wish'), CATEGORIE],
   OWN_SITE: [...COMMUNES],
+  DROPSHOP_MARKET: [...COMMUNES, photosMin(1, 'DropShop Market')],
   INSTAGRAM: [...COMMUNES, photosMin(1, 'Instagram')],
 }
 

@@ -33,7 +33,8 @@ exige(
 
 const branchees = liaisons.filter((l) => l.liaison.etat === 'branche')
 // Allegro (Pologne) n'est pas dans l'annuaire des 314 logos, tiré d'un gestionnaire de flux français.
-const HORS_ANNUAIRE = ['ALLEGRO']
+// DropShop Market est notre propre place de marché : elle n'a pas à figurer dans un annuaire tiers.
+const HORS_ANNUAIRE = ['ALLEGRO', 'DROPSHOP_MARKET']
 const live = PLATFORMS.filter((p) => p.integration === 'live' && !BOUTIQUES_DU_VENDEUR.includes(p.id) && !HORS_ANNUAIRE.includes(p.id))
 const liveSansCanal = live.filter((p) => !branchees.some((b) => b.liaison.plateforme === p.id))
 exige(liveSansCanal.length === 0, 'chaque destination LIVE de platforms.ts a son canal dans l’annuaire, marqué branché', liveSansCanal.map((p) => p.id).join(', '))

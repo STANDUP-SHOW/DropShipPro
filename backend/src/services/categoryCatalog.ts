@@ -385,6 +385,7 @@ export function categoryFor(entry: CategoryEntry, platform: Platform): string {
     // Shopify's product_type is free text shown to the merchant's own customers,
     // so the French label of the catalogue is exactly the right value.
     case 'OWN_SITE':
+    case 'DROPSHOP_MARKET':
     case 'SHOPIFY':
       return entry.label
     case 'GOOGLE_SHOPPING':

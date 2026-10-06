@@ -48,6 +48,7 @@ backend/            Node + Express 4 + TypeScript + Prisma
 backend/extension/  Extension Chrome MV3 (Chrome Web Store — Max téléverse le zip)
 backend/dropshop/   DropShop IA (boutique écrite par le modèle, moteur sdk.js) — docs/dropshop.md
 backend/storefront-boutique/  Vitrine à thèmes servie à /b/<adresse>
+backend/src/routes/market.ts  DropShop Market (drop-shop.cloud, Stripe Connect 5 %, 1 page + 1 article de flux par variante) — docs/dropshop-market.md
 frontend/           React + Vite + Tailwind v4
 docs/               Documentation ; docs/pub-video/ = pubs vidéo (skill pub-video)
 ```

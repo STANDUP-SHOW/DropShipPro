@@ -45,7 +45,8 @@ export function PlatformCredentials({ only, titre }: { only?: string[]; titre?: 
 
       <div className="mt-4 space-y-4">
         {platforms
-          .filter((p) => p.id !== 'OWN_SITE')
+          // DropShop Market est à nous : aucune clé à coller, l'inscription Stripe vit sur sa page.
+          .filter((p) => p.id !== 'OWN_SITE' && p.id !== 'DROPSHOP_MARKET')
           .filter((p) => !only || only.includes(p.id))
           .map((p) => {
             const cred = creds.find((c) => c.platform === p.id)
