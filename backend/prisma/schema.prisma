@@ -181,6 +181,9 @@ model User {
   /// Vrai quand Stripe autorise ce compte à recevoir des paiements
   /// (`charges_enabled`). Relu chez Stripe, jamais déclaré par le navigateur.
   stripeConnectReady Boolean  @default(false)
+  /// Publication automatique sur DropShop Market : tout produit publie sur sa
+  /// boutique y part aussi, sauf si le vendeur le refuse (Drop Market > Reglages).
+  marketAuto         Boolean  @default(true)
 
   autoOrder    Boolean   @default(false)
   /// Le plafond au-dela duquel la commande est preparee mais pas envoyee, meme
