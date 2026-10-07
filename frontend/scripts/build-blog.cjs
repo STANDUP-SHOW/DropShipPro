@@ -274,6 +274,7 @@ function pageContact() {
 <li><strong>Une question avant de vous inscrire</strong> : la réponse est peut-être déjà dans les <a href="/faq/">questions fréquentes</a> ou sur la page des <a href="/tarifs/">tarifs</a>. Sinon, écrivez-nous.</li>
 <li><strong>Vous avez un compte</strong> : ouvrez un ticket depuis votre espace (menu <em>Tickets</em>) ; il garde l'historique de l'échange et l'agent de comptoir y répond tout de suite sur les questions courantes.</li>
 <li><strong>Vos données personnelles</strong> (accès, rectification, suppression du compte) : écrivez à l'adresse ci-dessus ; la demande est traitée sans condition, comme le dit la <a href="/confidentialite">politique de confidentialité</a>.</li>
+<li><strong>Affiliation</strong> : le programme et l'inscription sont sur la page <a href="/affiliation">affiliation</a> ; pour un versement, écrivez-nous depuis l'adresse de votre compte affilié.</li>
 <li><strong>Partenariat, presse, fournisseur ou plateforme qui souhaite être relié</strong> : même adresse, en précisant l'objet.</li>
 </ul>
 <h2>Pour aller plus vite</h2>
@@ -288,15 +289,16 @@ function pageCookies() {
     title: `Cookies et traceurs | ${NOM}`,
     description: `Ce que ${NOM} dépose dans votre navigateur : aucun traceur publicitaire ni mesure d'audience, un jeton de session, et les cookies de Stripe au paiement.`,
     corps: `<h1>Cookies et traceurs</h1>
-<p class="lede">En bref : ${NOM} ne dépose aucun cookie publicitaire et ne mesure pas l'audience. C'est pourquoi aucun bandeau de consentement ne s'affiche.</p>
+<p class="lede">En bref : ${NOM} ne dépose aucun cookie publicitaire et ne mesure pas l'audience.</p>
 <h2>Ce qui est enregistré dans votre navigateur</h2>
 <div class="table"><table><thead><tr><th>Quoi</th><th>Où</th><th>Pourquoi</th><th>Durée</th></tr></thead><tbody>
 <tr><td>Jeton de session</td><td>Stockage local du navigateur (pas un cookie)</td><td>Vous garder connecté à votre espace</td><td>Jusqu'à la déconnexion</td></tr>
 <tr><td>Préférences d'affichage (thème du tableau de bord, vue choisie, nouveautés déjà vues)</td><td>Stockage local du navigateur</td><td>Retrouver l'application comme vous l'avez laissée</td><td>Jusqu'à ce que vous les changiez</td></tr>
 <tr><td>Service worker</td><td>Navigateur</td><td>Permettre d'installer le site sur un téléphone ; il ne met rien en cache et ne lit rien</td><td>Jusqu'à la désinstallation</td></tr>
+<tr><td>Code d'affiliation</td><td>Stockage local du navigateur</td><td>Si vous arrivez par le lien d'un affilié (?parrain=…), retenir ce code pour lui attribuer votre inscription ; la visite est comptée, sans aucune donnée vous concernant</td><td>30 jours, ou jusqu'à l'inscription</td></tr>
 <tr><td>Cookies de Stripe</td><td>Page de recharge des drops uniquement</td><td>Paiement sécurisé et lutte contre la fraude, déposés par Stripe, notre prestataire de paiement</td><td>Fixée par Stripe</td></tr>
 </tbody></table></div>
-<p>Ces éléments sont strictement nécessaires au service que vous demandez : la loi les dispense de consentement. Aucun n'est lu par un tiers à des fins publicitaires.</p>
+<p>Ces éléments servent au fonctionnement du service ou, pour le code d'affiliation, à attribuer une inscription ; aucun ne vous suit sur d'autres sites et aucun n'est lu par un tiers à des fins publicitaires.</p>
 <h2>Ce que nous ne faisons pas</h2>
 <ul>
 <li>Pas de Google Analytics, pas de pixel Meta ou TikTok, pas de mesure d'audience.</li>
@@ -344,9 +346,17 @@ function pageCgu() {
 <p>Le service est fourni en l'état, avec le soin raisonnable d'un éditeur de logiciel. Des interruptions peuvent survenir, notamment lors des mises à jour. Les données sont sauvegardées chaque jour.</p>
 <h2>8. Données personnelles</h2>
 <p>Ce que nous enregistrons, pourquoi et chez qui : <a href="/confidentialite">politique de confidentialité</a> et <a href="/cookies/">cookies</a>.</p>
-<h2>9. Fin du compte</h2>
+<h2 id="affiliation">9. Programme d'affiliation</h2>
+<ul>
+<li>Le compte affilié est distinct d'un compte vendeur. Il s'ouvre sur la page <a href="/affiliation">affiliation</a> ; l'accès se fait avec l'adresse email et un code reçu par mail.</li>
+<li>Un vendeur devient filleul d'un affilié quand il crée son compte dans les 30 jours suivant sa visite par le lien de l'affilié. Un compte existant n'est pas rattaché après coup, et on ne peut pas être son propre filleul.</li>
+<li>L'affilié touche 10 % des montants payés par ses filleuls pour leurs recharges de drops, par carte ou via Shopify, aussi longtemps que leur compte existe. Les drops offerts ne donnent pas lieu à commission.</li>
+<li>Les commissions sont visibles dans l'espace affilié et versées en euros par virement bancaire. L'affilié communique ses coordonnées bancaires et, s'il agit à titre professionnel, une facture ; il déclare lui-même ces revenus.</li>
+<li>Sont interdits : les envois non sollicités, les publicités payantes sur le nom DropShipper IA, les promesses trompeuses sur le service, et toute inscription fictive. Une fraude entraîne la fermeture du compte affilié et l'annulation des commissions concernées.</li>
+</ul>
+<h2>10. Fin du compte</h2>
 <p>Vous pouvez demander la suppression de votre compte à tout moment, sans condition, en <a href="/contact/">nous écrivant</a> ; elle efface vos annonces, leurs photos et vos liaisons.</p>
-<h2>10. Modifications et droit applicable</h2>
+<h2>11. Modifications et droit applicable</h2>
 <p>Ces conditions peuvent évoluer ; la date de mise à jour figure ci-dessous et un changement important est annoncé par email aux titulaires d'un compte. Elles sont soumises au droit français.</p>
 <p class="fine">Dernière mise à jour : ${dateFr(TODAY)}. Une question : <a href="mailto:${EMAIL}">${EMAIL}</a>.</p>`,
   })

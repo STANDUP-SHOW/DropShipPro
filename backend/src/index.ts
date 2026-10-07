@@ -31,6 +31,7 @@ import { conversationsRouter } from './routes/conversations.js'
 import { supplierConversationsRouter } from './routes/supplierConversations.js'
 import { visualsRouter } from './routes/visuals.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
+import { affiliationRouter } from './routes/affiliation.js'
 import { shopifyAppRouter } from './routes/shopifyApp.js'
 import { aliexpressAuthRouter } from './routes/aliexpressAuth.js'
 import { ebayAuthRouter } from './routes/ebayAuth.js'
@@ -139,6 +140,7 @@ app.use('/api/aliexpress', aliexpressAuthRouter)
 app.use('/api/ebay', ebayAuthRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/billing', billingRouter)
+app.use('/api/affiliation', affiliationRouter)
 app.use('/api/agent', agentRouter)
 // L'application mobile (API Link, 29/09/2026) : contrat propre, erreurs en { detail }.
 app.use('/api/mobile', mobileRouter)

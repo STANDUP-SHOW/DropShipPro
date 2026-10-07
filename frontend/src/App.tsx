@@ -26,6 +26,10 @@ import Suppliers from './pages/Suppliers'
 import AfterSales from './pages/AfterSales'
 import BetaAccess from './pages/BetaAccess'
 import Privacy from './pages/Privacy'
+import AffiliationAccueil from './pages/AffiliationAccueil'
+import AffiliationConnexion from './pages/AffiliationConnexion'
+import AffiliationEspace from './pages/AffiliationEspace'
+import { capterParrain } from './lib/affiliation'
 import ReviewsPage from './pages/ReviewsPage'
 import ApiPower from './pages/ApiPower'
 import BillingPage from './pages/Billing'
@@ -121,6 +125,15 @@ function DefileVersAncre() {
   return null
 }
 
+/** Un visiteur arrivé par ?parrain=CODE : le clic est compté, le code gardé pour l'inscription. */
+function CaptureParrain() {
+  const { search, pathname } = useLocation()
+  useEffect(() => {
+    capterParrain(search, pathname)
+  }, [search, pathname])
+  return null
+}
+
 /** Le site public reste sombre ; l'application suit le réglage du visiteur (lib/theme.ts). */
 function ThemeSelonPage() {
   useThemeSelonPage()
@@ -134,6 +147,7 @@ export default function App() {
       <AuthProvider>
         <DefileVersAncre />
         <ThemeSelonPage />
+        <CaptureParrain />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -148,6 +162,10 @@ export default function App() {
           {/* Public : ce que les API marketing débloquent (25/09/2026), lisible avant de créer un compte. */}
           <Route path="/api-power" element={<ApiPower />} />
           <Route path="/partager" element={<Partager />} />
+          {/* Public : l'espace affilié a ses propres comptes, payés en euros (07/10/2026). */}
+          <Route path="/affiliation" element={<AffiliationAccueil />} />
+          <Route path="/affiliation/connexion" element={<AffiliationConnexion />} />
+          <Route path="/affiliation/espace" element={<AffiliationEspace />} />
           {/* Public : l'inscription newsletter, où pointent les liens des emails. */}
           <Route path="/newsletter" element={<Newsletter />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
