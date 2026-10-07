@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Product, Shop } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
-import { absoluteUrl } from '../lib/urls.js'
+import { absoluteUrl, apiBaseUrl } from '../lib/urls.js'
 import { validerMatrice, prixDeVenteDe, cleCombo, type Combinaison } from './variantMatrix.js'
 import { etatPour } from './productCondition.js'
 import { codeBarresDe } from './productFacts.js'
@@ -91,6 +91,20 @@ export interface Vendeur {
   slug: string | null
   /** Le vendeur peut-il encaisser (Stripe Connect actif) ? */
   encaisse: boolean
+  /**
+   * L'adresse absolue de la boutique du vendeur (son site, sinon sa vitrine
+   * `/b/<adresse>`). Le Market reste le lieu de l'achat ; ce lien, « Vendu par
+   * … », fait le maillage vers la boutique.
+   */
+  boutiqueUrl: string | null
+}
+
+/** Son propre site s'il l'a renseigné, sinon la vitrine hébergée, sinon rien. */
+export function boutiqueUrlDe(shop: { slug: string | null; siteUrl?: string | null } | null): string | null {
+  if (!shop) return null
+  const site = (shop.siteUrl ?? '').trim()
+  if (/^https?:\/\/[^\s<>"']+$/i.test(site)) return site
+  return shop.slug ? `${apiBaseUrl()}/b/${encodeURIComponent(shop.slug)}` : null
 }
 
 /** Une offre du Market : un produit, ou une de ses variantes. */
@@ -321,7 +335,7 @@ export async function annonces(filtre: FiltreAnnonces = {}): Promise<Annonce[]> 
     include: {
       product: {
         include: {
-          shop: { select: { id: true, name: true, slug: true } },
+          shop: { select: { id: true, name: true, slug: true, siteUrl: true } },
           user: { select: { id: true, shopName: true, stripeConnectReady: true } },
         },
       },
@@ -344,6 +358,7 @@ export async function annonces(filtre: FiltreAnnonces = {}): Promise<Annonce[]> 
         nom: shop?.name || user.shopName || 'Vendeur DropShop',
         slug: shop?.slug ?? null,
         encaisse: user.stripeConnectReady,
+        boutiqueUrl: boutiqueUrlDe(shop),
       },
       categorie: categorieDe(parId, product.categoryId),
       offres: offresDe(brut as Product),

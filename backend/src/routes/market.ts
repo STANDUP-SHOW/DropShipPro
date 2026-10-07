@@ -1,7 +1,7 @@
 import express, { Router, type Request, type Response, type NextFunction } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
-import { annonces, arbreMarket, marketUrl, marketHosts, type Annonce } from '../services/market.js'
+import { annonces, arbreMarket, boutiqueUrlDe, marketUrl, marketHosts, type Annonce } from '../services/market.js'
 import { googleMarketRss, metaMarketCsv, comparateurCsv, googleAdsEditorCsv } from '../services/marketFeeds.js'
 import { pageListe, pageProduit, pageMessage, pageVendre, cheminCategorie } from '../services/marketPages.js'
 import { ouvrirPaiementMarket, confirmerCommandeMarket, MarketIndisponible } from '../services/marketStripe.js'
@@ -156,7 +156,7 @@ marketRouter.get(
 marketRouter.get(
   '/vendeur/:slug',
   page(async (req, res) => {
-    const shop = await prisma.shop.findUnique({ where: { slug: req.params.slug }, select: { name: true, slug: true } })
+    const shop = await prisma.shop.findUnique({ where: { slug: req.params.slug }, select: { name: true, slug: true, siteUrl: true } })
     if (!shop) return res.status(404).type('html').send(pageMessage(req.baseUrl, 'Vendeur introuvable', "Cette boutique n'est pas (ou plus) sur DropShop Market."))
     const [l, { rayons: r }] = await Promise.all([liste(req, { shopSlug: shop.slug! }), arbreMarket()])
     html(
@@ -166,6 +166,7 @@ marketRouter.get(
         titre: `${shop.name} sur DropShop Market`,
         h1: shop.name,
         intro: 'Tous les produits de cette boutique sur DropShop Market.',
+        boutique: boutiqueUrlDe(shop) ? { nom: shop.name, url: boutiqueUrlDe(shop)! } : undefined,
         description: `Les produits de la boutique ${shop.name} sur DropShop Market : livraison comprise, paiement sécurisé par Stripe.`,
         chemin: `/vendeur/${encodeURIComponent(shop.slug!)}`,
         rayons: r,

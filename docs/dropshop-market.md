@@ -149,3 +149,13 @@ publier mes produits sur DropShop Market » (écran DropShop Market ; colonne
   (simulation par défaut, `--ecrire` pour créer). À lancer une fois, après accord de Max.
 - Migration `20261007160000_market_auto` : sauvegarde avant fusion (`npm run sauvegarde`).
 - Banc : `backend/check-market-auto.ts`.
+
+### « Vendu par » et lien vers la boutique
+
+L'achat reste neutre (le client paie sur le Market, comme sur Amazon ou AliExpress),
+mais chaque fiche affiche « Vendu par <boutique> » (page vendeur du Market) et
+« Voir sa boutique ↗ » vers la boutique elle-même : son `siteUrl` s'il l'a
+renseigné, sinon sa vitrine `/b/<adresse>` (`boutiqueUrlDe`). Même lien sur la
+page vendeur et dans le schema.org (`seller.url`). Lien suivi, sans `nofollow` :
+c'est voulu, pour le maillage et les backlinks. Un `siteUrl` qui n'est pas en
+http(s) est ignoré.
