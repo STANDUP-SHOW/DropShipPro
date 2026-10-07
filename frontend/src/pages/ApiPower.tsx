@@ -4,6 +4,7 @@ import { Zap, ExternalLink, Check } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { isAuthed } from '../lib/api'
 import apiPower from '../data/api-power.json'
+import PiedDePagePublic from '../components/PiedDePagePublic'
 
 /**
  * API Power — tout ce que les API marketing, publicitaires et de publication
@@ -218,6 +219,7 @@ export default function ApiPower() {
           </Link>
         </section>
       </main>
+      <PiedDePagePublic />
     </div>
   )
 }

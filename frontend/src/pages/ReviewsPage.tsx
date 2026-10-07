@@ -4,6 +4,7 @@ import { MessageSquare, Trash2 } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { ReviewGrid, StarPicker, Stars, type PublicReview } from '../components/Reviews'
 import { api, isAuthed } from '../lib/api'
+import PiedDePagePublic from '../components/PiedDePagePublic'
 
 /**
  * Public reviews page.
@@ -202,6 +203,7 @@ export default function ReviewsPage() {
           </div>
         )}
       </main>
+      <PiedDePagePublic />
     </div>
   )
 }

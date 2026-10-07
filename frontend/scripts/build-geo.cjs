@@ -39,6 +39,9 @@ const { TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType } 
 const { canaux } = require('./seo-channels.cjs')
 /** Les thèmes de l'accueil : la même table que la page React (src/pages/Index.tsx). */
 const ACCUEIL = require('../src/data/accueil-themes.json')
+/** Le texte long des pages /fonctions/ et les outils gratuits /outils/ (chantier SEO du 07/10/2026). */
+const { CONTENU, CHROME_STORE: CHROME_STORE_FONCTIONS } = require('./fonctions-contenu.cjs')
+const { pagesOutils, OUTILS } = require('./build-outils.cjs')
 
 const DIST = path.resolve(__dirname, '..', 'dist')
 
@@ -439,46 +442,62 @@ ${a.opportunites.map((o) => `<h3>${esc(o.titre)} <small>(${esc(libelles.usage[o.
 }
 
 /**
- * /fonctions/<slug>/ — la page « plus d'informations » d'un thème de l'accueil :
- * le texte long, les points, l'illustration, et l'offre correspondante.
+ * /fonctions/<slug>/ — la page solution d'un thème de l'accueil (chantier SEO du
+ * 07/10/2026) : un H1 au nom de la fonction, un bloc « En bref » pour les
+ * assistants, le texte long de fonctions-contenu.cjs, le détail et les points
+ * du thème, une FAQ balisée FAQPage, les outils gratuits liés et l'appel
+ * « 120 drops offerts » (DROPS_INSCRIPTION, backend/src/services/tarifs.ts).
  */
 function pageFonction(t, index) {
   const url = `/fonctions/${t.slug}/`
-  const trail = [{ name: 'Accueil', url: '/' }, { name: 'Fonctions', url: '/#' + t.slug }, { name: t.eyebrow, url }]
+  const c = CONTENU[t.slug]
+  if (!c) throw new Error(`${url} : aucun texte dans fonctions-contenu.cjs`)
+  const trail = [{ name: 'Accueil', url: '/' }, { name: 'Fonctions', url: '/#' + t.slug }, { name: c.nom, url }]
   const voisins = ACCUEIL.themes.filter((a) => a.slug !== t.slug)
   const externe = /^https?:/.test(t.offre.href)
+  const outils = c.outils.map((slug) => OUTILS.find((o) => o.slug === slug)).filter(Boolean)
   return {
     url,
     html: layout({
       url,
-      title: `${t.titre} | ${NOM}`,
-      description: t.accroche.length > 158 ? `${t.accroche.slice(0, 155).replace(/\s+\S*$/, '')}…` : t.accroche,
+      title: c.title,
+      description: c.description,
       jsonLd: [
         {
           '@context': 'https://schema.org',
           '@type': 'WebPage',
-          name: t.titre,
+          name: c.h1,
           url: `${SITE}${url}`,
           inLanguage: 'fr-FR',
-          description: t.accroche,
+          description: c.description,
           isPartOf: { '@id': `${SITE}/#site` },
           about: { '@id': `${SITE}/#application` },
           position: index + 1,
         },
+        faqLd(c.faq),
         breadcrumbLd(trail),
       ],
       body: `${crumb(trail)}
 <p class="badge">${esc(t.eyebrow)}</p>
-<h1>${esc(t.titre)}</h1>
+<h1>${esc(c.h1)}</h1>
+<div class="card"><p><strong>En bref.</strong> ${esc(c.enBref)}</p></div>
 <p class="lede">${esc(t.accroche)}</p>
-<img src="${esc(t.image)}" alt="${esc(t.titre)}" loading="lazy" style="display:block;width:100%;border-radius:1rem;margin:1.25rem 0" onerror="this.style.display='none'">
-<h2>En détail</h2>
+<img src="${esc(t.image)}" alt="${esc(c.nom)} : ${esc(t.titre)}" loading="lazy" decoding="async" width="1280" height="720" style="display:block;width:100%;height:auto;border-radius:1rem;margin:1.25rem 0" onerror="this.style.display='none'">
+<h2>${esc(t.titre)}</h2>
 <p>${esc(t.detail)}</p>
 <h2>Ce que vous obtenez</h2>
 <ul>${t.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
-<p><a class="cta" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''}>${esc(t.offre.label)}</a></p>
+${c.sections.map((s) => `<h2>${esc(s.h2)}</h2>\n${s.html}`).join('\n')}
+<div class="gratuit">
+<p class="pitch"><span class="free">120 drops offerts</span> à l'inscription, sans abonnement ni carte : de quoi importer et publier dix annonces.</p>
+<p><a class="cta" href="/register">Créer mon compte gratuit</a> <a class="cta" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''} style="background:none;border:1px solid #ffffff33">${esc(t.offre.label)}</a></p>
+<p class="fine">Les prix de chaque action : <a href="/tarifs/">tarifs</a> · L'extension : <a href="${CHROME_STORE_FONCTIONS}" rel="noopener" target="_blank">Chrome Web Store</a></p>
+</div>
+${faqHtml(c.faq)}
+${outils.length ? `<h2>Outils gratuits liés</h2>\n<ul>${outils.map((o) => `<li><a href="/outils/${o.slug}/">${esc(o.nom)}</a> — ${esc(o.court)}</li>`).join('')}</ul>` : ''}
 <h2>Les autres fonctions</h2>
-<div class="grid">${voisins.map((v) => `<a class="tile" href="/fonctions/${v.slug}/">${esc(v.eyebrow)}</a>`).join('')}</div>`,
+<div class="grid">${voisins.map((v) => `<a class="tile" href="/fonctions/${v.slug}/">${esc(CONTENU[v.slug]?.nom ?? v.eyebrow)}</a>`).join('')}</div>
+<p><a href="/">← Retour à l'accueil de DropShipper IA</a></p>`,
     }),
   }
 }
@@ -545,7 +564,7 @@ function main() {
   }
   const faq = FAQ()
   ecrireEcransPublics(enrichirAccueil(faq))
-  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), pageApiPower(), ...ACCUEIL.themes.map(pageFonction)]
+  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), pageApiPower(), ...ACCUEIL.themes.map(pageFonction), ...pagesOutils()]
   pages.forEach(ecrire)
   ecrireRobots()
   fs.writeFileSync(path.join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY)

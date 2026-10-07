@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Mail, Check } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { api } from '../lib/api'
+import PiedDePagePublic from '../components/PiedDePagePublic'
 
 /**
  * La page publique d'inscription à la newsletter — accessible sans compte,
@@ -89,6 +90,7 @@ export default function Newsletter() {
           )}
         </div>
       </main>
+      <PiedDePagePublic />
     </div>
   )
 }
