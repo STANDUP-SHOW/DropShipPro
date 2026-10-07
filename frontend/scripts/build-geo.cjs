@@ -46,10 +46,18 @@ const DIST = path.resolve(__dirname, '..', 'dist')
 const INDEXNOW_KEY = '7c1f4e2ab95d4c0e8f36a1d2b7e90c54'
 
 const NOM = 'DropShipper IA'
-// 57 caractères : l'ancien (111) était coupé par Google et signalé « trop long » par l'audit du 03/10/2026.
-const TITRE = 'DropShipper IA : logiciel de dropshipping français par IA'
-const DESCRIPTION =
-  "Plateforme française de dropshipping : importez un produit depuis n'importe quel fournisseur, l'IA réécrit l'annonce, et publiez sur Shopify, eBay, Kaufland, 41 places de marché Mirakl, Vinted et Leboncoin. À l'acte, sans abonnement : 0,12 € l'annonce."
+/*
+ * Titre et description du pack SEO de Max (07/10/2026), chiffres recomptés au
+ * build : un fournisseur ou un canal ajouté change la phrase, jamais un nombre
+ * recopié. Titre ≤ 60 caractères (audit du 03/10/2026, banc check-geo.ts) :
+ * le « — Import produit, annonces IA, 314 canaux de vente » proposé en faisait 65.
+ */
+const TITRE = `${NOM} : import produit, annonces IA, ${canaux.length} canaux`
+const DESCRIPTION = `Importez depuis ${FOURNISSEURS.length} fournisseurs, réécrivez vos annonces par IA et publiez sur ${canaux.length} canaux. Sans abonnement : 0,12 € l'annonce. 120 drops offerts.`
+/** Le slogan de l'accueil, repris par Organization et par l'image de partage. */
+const SLOGAN = "Prenez l'annonce n'importe où. Publiez-la partout."
+/** Image de partage 1200×630 (Facebook, LinkedIn, X, WhatsApp) — public/images/. */
+const IMAGE_PARTAGE = `${SITE}/images/og-dropshipper-1200x630.png`
 const CHROME_STORE = 'https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk'
 
 /** Les robots des assistants et de leurs moteurs de recherche, tels qu'ils se nomment eux-mêmes. */
@@ -84,7 +92,9 @@ function grapheSchema(faq) {
         '@id': `${SITE}/#organisation`,
         name: NOM,
         url: `${SITE}/`,
-        logo: `${SITE}/favicon-128.png`,
+        slogan: SLOGAN,
+        logo: { '@type': 'ImageObject', '@id': `${SITE}/#logo`, url: `${SITE}/marque/dropshipper-icone.png`, width: 256, height: 256, caption: NOM },
+        image: IMAGE_PARTAGE,
         email: 'contact@drop-shipper.fr',
         areaServed: ['FR', 'BE', 'CH', 'LU', 'CA'],
         knowsLanguage: 'fr',
@@ -98,6 +108,17 @@ function grapheSchema(faq) {
         inLanguage: 'fr-FR',
         description: DESCRIPTION,
         publisher: { '@id': `${SITE}/#organisation` },
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${SITE}/#accueil`,
+        url: `${SITE}/`,
+        name: TITRE,
+        inLanguage: 'fr-FR',
+        description: DESCRIPTION,
+        isPartOf: { '@id': `${SITE}/#site` },
+        about: { '@id': `${SITE}/#application` },
+        primaryImageOfPage: { '@type': 'ImageObject', url: IMAGE_PARTAGE, width: 1200, height: 630 },
       },
       /*
        * `Service`, pas `SoftwareApplication` : Google n'accepte une fiche
@@ -119,6 +140,8 @@ function grapheSchema(faq) {
         availableLanguage: 'fr-FR',
         description: DESCRIPTION,
         provider: { '@id': `${SITE}/#organisation` },
+        // Les onze fonctions de l'accueil, dans l'ordre de la page (src/data/accueil-themes.json).
+        featureList: ACCUEIL.themes.map((t) => `${t.eyebrow} : ${t.titre}`),
         // Les prix réels, à l'acte. Pas d'aggregateRating : aucune note n'est inventée.
         offers: [
           ...TARIFS.filter(([, drops]) => drops > 0)
@@ -197,8 +220,17 @@ function enrichirAccueil(faq) {
     <meta property="og:title" content="${esc(TITRE)}" />
     <meta property="og:description" content="${esc(DESCRIPTION)}" />
     <meta property="og:url" content="${SITE}/" />
-    <meta property="og:image" content="${SITE}/favicon-128.png" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="${IMAGE_PARTAGE}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="${esc(`${NOM} — ${SLOGAN}`)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${esc(TITRE)}" />
+    <meta name="twitter:description" content="${esc(DESCRIPTION)}" />
+    <meta name="twitter:image" content="${IMAGE_PARTAGE}" />
+    <!-- Une seule langue : pas de version /en, donc fr et x-default seulement. -->
+    <link rel="alternate" hreflang="fr" href="${SITE}/" />
+    <link rel="alternate" hreflang="x-default" href="${SITE}/" />
     <link rel="alternate" type="text/plain" href="${SITE}/llms.txt" title="Description pour les assistants IA" />
     <script type="application/ld+json">${JSON.stringify(grapheSchema(faq))}</script>
     <!-- Le contenu statique ne vaut que pour « / » : sur les écrans de l'application,
@@ -263,6 +295,9 @@ function ecrireEcransPublics(gabarit) {
       .replace(/<meta property="og:title" content="[^"]*" \/>/, () => `<meta property="og:title" content="${esc(e.title)}" />`)
       .replace(/<meta property="og:description" content="[^"]*" \/>/, () => `<meta property="og:description" content="${esc(e.description)}" />`)
       .replace(/<meta property="og:url" content="[^"]*" \/>/, () => `<meta property="og:url" content="${adresse}" />`)
+      .replace(/<meta name="twitter:title" content="[^"]*" \/>/, () => `<meta name="twitter:title" content="${esc(e.title)}" />`)
+      .replace(/<meta name="twitter:description" content="[^"]*" \/>/, () => `<meta name="twitter:description" content="${esc(e.description)}" />`)
+      .replace(/(hreflang="(?:fr|x-default)" href=")[^"]*"/g, (_, debut) => `${debut}${adresse}"`)
       // Le graphe de l'accueil (organisation, offres, FAQ) n'est pas le propos de ces pages.
       .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, () => `<script type="application/ld+json">${JSON.stringify({
         '@context': 'https://schema.org',
@@ -314,6 +349,38 @@ ${faqHtml(faq)}`,
   }
 }
 
+/**
+ * Les quatre questions du pack SEO de Max (07/10/2026), posées sur /tarifs/ en
+ * FAQPage. Chaque réponse est recomptée ou relue dans les tables du site :
+ * prix dans TARIFS, fournisseurs dans fournisseurs.json, canaux dans
+ * seo-channels.cjs, remboursements dans accueil-themes.json (« les-drops »,
+ * « auto-shipper »).
+ */
+function faqTarifs() {
+  const drops = (debut) => TARIFS.find(([nom]) => nom.startsWith(debut))[1]
+  const euros = (d) => `${prixEnEuros(d).replace('.', ',')} €`
+  const annonce = drops('Importer une annonce')
+  const boutique = drops('DropShop IA : création')
+  return [
+    {
+      q: `Combien coûte ${NOM} ?`,
+      a: `Aucun abonnement : 1 drop = 0,01 €. Une annonce importée et réécrite par l'IA coûte ${annonce} drops (${euros(annonce)}). Une boutique DropShop IA coûte ${boutique} drops (${euros(boutique)}), payés une seule fois, à vie. 120 drops sont offerts à l'inscription.`,
+    },
+    {
+      q: "Que se passe-t-il si l'IA échoue ?",
+      a: "Le crédit est rendu : une réécriture que le modèle n'a pas faite, une boutique qui n'aboutit pas, une journée d'AUTO-SHIPPER où aucun produit n'a été importé.",
+    },
+    {
+      q: "D'où viennent les produits ?",
+      a: `De ${FOURNISSEURS.length} fournisseurs référencés — AliExpress, Temu, CJ Dropshipping, BigBuy, vidaXL, Printful, SUPER DELIVERY… — avec leurs conditions lues sur leurs pages : origine, délais, douane, dropshipping autorisé ou non, photos réutilisables ou non. Toute autre boutique s'importe par son adresse ou par l'extension Chrome.`,
+    },
+    {
+      q: 'Où puis-je publier ?',
+      a: `${canaux.length} canaux de vente sont référencés. Publication directe vers votre boutique, Shopify, WooCommerce, PrestaShop, eBay, Kaufland et 41 enseignes Mirakl ; Vinted, Leboncoin et Facebook Marketplace par l'extension, qui remplit le formulaire et vous laisse valider ; flux Google Shopping et Meta pour les autres.`,
+    },
+  ]
+}
+
 function pageTarifs() {
   const url = '/tarifs/'
   const trail = [{ name: 'Accueil', url: '/' }, { name: 'Tarifs', url }]
@@ -335,7 +402,7 @@ function pageTarifs() {
       url,
       title: `Tarifs ${NOM} : 0,12 € l'annonce, sans abonnement`,
       description: `La grille complète de ${NOM} : chaque action a son prix en drops (1 drop = 0,01 €). Aucun abonnement, 120 drops offerts à l'inscription.`,
-      jsonLd: [offres, breadcrumbLd(trail)],
+      jsonLd: [offres, faqLd(faqTarifs()), breadcrumbLd(trail)],
       body: `${crumb(trail)}
 <h1>Tarifs de ${NOM}</h1>
 <p class="lede">Aucun abonnement, aucun engagement : chaque action a un prix, payé en « drops ». <strong>1 drop = 0,01 €.</strong> 120 drops sont offerts à l'inscription — de quoi importer dix annonces sans payer.</p>
@@ -354,7 +421,8 @@ ${RECHARGES.map(([prix, drops, unite]) => `<tr><td>${esc(prix)}</td><td>${esc(dr
 <li>La vitrine à thèmes, les flux catalogue (Google Shopping, Meta), l'annuaire des ${canaux.length} canaux et des ${FOURNISSEURS.length} fournisseurs.</li>
 <li>L'AUTO-MODE des chefs de rayon : analyses de marché et produits gagnants quotidiens.</li>
 <li>L'extension Chrome, sur le <a href="${CHROME_STORE}">Chrome Web Store</a>.</li>
-</ul>`,
+</ul>
+${faqHtml(faqTarifs())}`,
     }),
   }
 }
@@ -466,6 +534,9 @@ function pageFonction(t, index) {
           position: index + 1,
         },
         breadcrumbLd(trail),
+        // FAQPage facultative : un tableau `faq: [{ q, a }]` sur le thème, dans
+        // src/data/accueil-themes.json, suffit à la poser — balisage et texte visible.
+        ...(t.faq?.length ? [faqLd(t.faq)] : []),
       ],
       body: `${crumb(trail)}
 <p class="badge">${esc(t.eyebrow)}</p>
@@ -477,6 +548,7 @@ function pageFonction(t, index) {
 <h2>Ce que vous obtenez</h2>
 <ul>${t.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
 <p><a class="cta" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''}>${esc(t.offre.label)}</a></p>
+${t.faq?.length ? faqHtml(t.faq) : ''}
 <h2>Les autres fonctions</h2>
 <div class="grid">${voisins.map((v) => `<a class="tile" href="/fonctions/${v.slug}/">${esc(v.eyebrow)}</a>`).join('')}</div>`,
     }),
@@ -500,7 +572,7 @@ Sitemap: ${SITE}/sitemap.xml
 Sitemap: ${SITE}/analyses/sitemap.xml
 
 # Fiche d'identité lisible par les assistants conversationnels (convention
-# llms.txt) : ${SITE}/llms.txt et ${SITE}/llms-full.txt. En commentaire
+# llms.txt) : ${SITE}/llms.txt et ${SITE}/llms-full.txt (copie : ${SITE}/ai.txt). En commentaire
 # seulement : les directives LLM-Content ne sont pas standard, et l'audit du
 # 03/10/2026 classait tout le fichier « format invalide » à cause d'elles.
 `,

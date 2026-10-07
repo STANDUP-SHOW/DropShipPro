@@ -128,6 +128,14 @@ if (existsSync(index)) {
   )
   const titre = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? ''
   exige(titre.length <= 60, 'le titre de l’accueil tient dans un résultat Google', `${titre.length} caractères`)
+
+  console.log('\nLe pack SEO du 07/10/2026')
+  const image = /<meta property="og:image" content="https:\/\/www\.drop-shipper\.fr\/([^"]+)"/.exec(html)?.[1] ?? ''
+  exige(/1200x630/.test(image) && existsSync(resolve(dist, image)) && html.includes('summary_large_image'), 'une image de partage 1200×630 qui existe', image)
+  exige(!/hreflang="en"/.test(html) && html.includes('hreflang="x-default"'), 'hreflang fr et x-default, pas de version anglaise annoncée')
+  const tarifs = readFileSync(resolve(dist, 'tarifs/index.html'), 'utf8')
+  exige(tarifs.includes('"FAQPage"') && (tarifs.match(/"@type":"Question"/g) ?? []).length === 4, '/tarifs/ : les quatre questions en FAQPage')
+  exige(existsSync(resolve(dist, 'ai.txt')) && readFileSync(resolve(dist, 'ai.txt'), 'utf8') === readFileSync(resolve(dist, 'llms.txt'), 'utf8'), '/ai.txt reprend /llms.txt')
 } else {
   console.log('\n(frontend/dist absent : la page construite n’est pas relue — lancez npm run build côté frontend)')
 }
