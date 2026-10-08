@@ -37,6 +37,8 @@ const path = require('node:path')
 const { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY } = require('./build-seo.cjs')
 const { TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType } = require('./build-llms.cjs')
 const { canaux } = require('./seo-channels.cjs')
+/** L'éditeur (fondateur, SIRET, siège…) : chaque ligne n'apparaît qu'une fois remplie par Max. */
+const { lignesConnues } = require('./editeur.cjs')
 /** Les thèmes de l'accueil : la même table que la page React (src/pages/Index.tsx). */
 const ACCUEIL = require('../src/data/accueil-themes.json')
 /** Le texte long des pages /fonctions/ et les outils gratuits /outils/ (chantier SEO du 07/10/2026). */
@@ -458,7 +460,8 @@ function pageAPropos(faq) {
 <tr><th>Fournisseurs</th><td>${FOURNISSEURS.length} référencés ; import possible depuis n'importe quelle boutique en ligne</td></tr>
 <tr><th>Canaux de vente</th><td>314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.</td></tr>
 <tr><th>Extension</th><td><a href="${CHROME_STORE}">Chrome Web Store</a></td></tr>
-<tr><th>Contact</th><td>contact@drop-shipper.fr</td></tr>
+${lignesConnues().filter(([k]) => k !== 'Contact').map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('\n')}
+<tr><th>Contact</th><td><a href="/contact/">contact@drop-shipper.fr</a></td></tr>
 </tbody></table>
 <h2>Ce que fait la plateforme</h2>
 ${FONCTIONS.map((f) => `<h3>${esc(f.titre)}</h3>\n<ul>${f.lignes.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`).join('\n')}

@@ -46,7 +46,8 @@ const PAGES_PUBLIQUES = [
 
 export function estPagePublique(chemin: string): boolean {
   const c = chemin.length > 1 ? chemin.replace(/\/+$/, '') : chemin
-  return PAGES_PUBLIQUES.includes(c)
+  // L'espace affilié est public par nature : ses visiteurs n'ont pas de compte vendeur.
+  return PAGES_PUBLIQUES.includes(c) || c === '/affiliation' || c.startsWith('/affiliation/')
 }
 
 function poserAttribut(theme: Theme) {

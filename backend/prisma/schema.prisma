@@ -222,6 +222,13 @@ model User {
   printProducts      PrintProduct[]
   channelRequests    ChannelRequest[]
   dropTransactions   DropTransaction[]
+
+  /// Affiliation : l'affilié dont le lien a amené ce compte (?parrain=CODE).
+  affilieId          String?
+  affilie            Affilie?     @relation(fields: [affilieId], references: [id], onDelete: SetNull)
+  commissionsVersees Commission[]
+
+  @@index([affilieId])
 }
 
 /// Un abonné à la newsletter DropShipper. Autonome : l'inscription est publique,
@@ -578,6 +585,80 @@ model DropTransaction {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// Un affilié : compte SÉPARÉ des vendeurs, payé en euros (décision de Max,
+/// 07/10/2026). Il se connecte avec son email et un code d'accès reçu par mail
+/// (seule son empreinte bcrypt est gardée), et touche à vie 10 % des euros que
+/// ses filleuls dépensent en recharges de drops.
+model Affilie {
+  id          String            @id @default(cuid())
+  email       String            @unique
+  nom         String
+  /// Le code de ses liens : www.drop-shipper.fr/?parrain=<code>.
+  code        String            @unique
+  cleHash     String?
+  cleEmiseLe  DateTime?
+  /// Coordonnées du virement, saisies par l'affilié dans son espace.
+  titulaire   String?
+  iban        String?
+  ibanMajLe   DateTime?
+  createdAt   DateTime          @default(now())
+  filleuls    User[]
+  clics       AffiliationClic[]
+  commissions Commission[]
+  versements  Versement[]
+}
+
+/// Un virement fait à un affilié ; il solde les commissions qu'il regroupe.
+model Versement {
+  id              String       @id @default(cuid())
+  affilieId       String
+  affilie         Affilie      @relation(fields: [affilieId], references: [id], onDelete: Cascade)
+  montantCentimes Int
+  /// Libellé ou référence du virement, noté par l'admin.
+  reference       String?
+  createdAt       DateTime     @default(now())
+  commissions     Commission[]
+
+  @@index([affilieId, createdAt])
+}
+
+/// Une visite arrivée par un lien d'affilié.
+model AffiliationClic {
+  id        String   @id @default(cuid())
+  affilieId String
+  affilie   Affilie  @relation(fields: [affilieId], references: [id], onDelete: Cascade)
+  /// La page d'arrivée (chemin seul), pour savoir quels liens marchent.
+  page      String?
+  createdAt DateTime @default(now())
+
+  @@index([affilieId, createdAt])
+}
+
+/// 10 % d'une recharge d'un filleul, dus à son affilié en euros.
+///
+/// `paiementRef` est l'identifiant du paiement (session Stripe, achat
+/// Shopify) : unique, il empêche qu'un rejeu de webhook ou une double
+/// confirmation commissionne deux fois la même recharge.
+model Commission {
+  id                 String    @id @default(cuid())
+  affilieId          String
+  affilie            Affilie   @relation(fields: [affilieId], references: [id], onDelete: Cascade)
+  filleulId          String?
+  filleul            User?     @relation(fields: [filleulId], references: [id], onDelete: SetNull)
+  paiementRef        String    @unique
+  /// Montant encaissé de la recharge, en centimes.
+  montantCentimes    Int
+  /// 10 % de ce montant, en centimes.
+  commissionCentimes Int
+  /// Date du versement à l'affilié ; vide tant que la commission est due.
+  payeeLe            DateTime?
+  versementId        String?
+  versement          Versement? @relation(fields: [versementId], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now())
+
+  @@index([affilieId, createdAt])
 }
 
 /// Événements Stripe déjà traités.

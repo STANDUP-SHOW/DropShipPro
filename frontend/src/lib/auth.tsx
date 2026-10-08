@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api, setToken, clearToken, isAuthed } from './api'
+import { rattacherSiParrain } from './affiliation'
 
 interface AuthUser {
   id: string
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.register(email, password)
     setToken(res.token)
     setUser(res.user)
+    await rattacherSiParrain(res.token)
   }
 
   // L'ID token vient de Google Identity Services ; le backend le vérifie et
@@ -79,6 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.loginGoogle(idToken)
     setToken(res.token)
     setUser(res.user)
+    // Refusé côté serveur pour un compte de plus de 24 h : sans effet sur une simple connexion.
+    await rattacherSiParrain(res.token)
   }
 
   function logout() {

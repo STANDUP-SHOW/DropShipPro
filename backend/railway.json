@@ -1,7 +1,7 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "deploy": {
-    "startCommand": "node scripts/check-env.cjs && npx prisma migrate deploy && npm start",
+    "startCommand": "node scripts/check-env.cjs && node scripts/sauvegarde-avant-migration.cjs && npx prisma migrate deploy && npm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
