@@ -17,6 +17,7 @@ const topics = require('./seo-topics.cjs')
 const { canaux, types: typesCanal } = require('./seo-channels.cjs')
 
 const SITE = 'https://www.drop-shipper.fr'
+const { piedDePage, CSS_PIED } = require('./pied-de-page.cjs')
 const DIST = path.resolve(__dirname, '..', 'dist')
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -155,7 +156,7 @@ function layout({ url, title: titreLong, description, jsonLd, body }) {
 <meta property="og:url" content="${SITE}${url}">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-<style>${CSS}</style>
+<style>${CSS}${CSS_PIED}</style>
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 </head>
 <body>
@@ -168,16 +169,7 @@ ${body}
 <div class="end"><a class="cta" href="/register">Essayer DropShipper IA</a></div>
 </main>
 <footer><div class="wrap">
-  <a href="/">Accueil</a>
-  <a href="/dropshipping/">Dropshipping</a>
-  <a href="/vendre-sur-marketplaces/">Où vendre</a>
-  <a href="/analyses/">Analyses de marché</a>
-  <a href="/tarifs/">Tarifs</a>
-  <a href="/faq/">Questions fréquentes</a>
-  <a href="/a-propos/">À propos</a>
-  <a href="/avis">Avis</a>
-  <a href="/confidentialite">Confidentialité</a>
-  <p>Guides : ${GUIDES.map(([href, label]) => `<a href="${href}">${label}</a>`).join(' ')}</p>
+${piedDePage(GUIDES)}
 </div></footer>
 </body>
 </html>

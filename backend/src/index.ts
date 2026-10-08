@@ -36,6 +36,7 @@ import { shopifyAppRouter } from './routes/shopifyApp.js'
 import { aliexpressAuthRouter } from './routes/aliexpressAuth.js'
 import { ebayAuthRouter } from './routes/ebayAuth.js'
 import { reportsPublicRouter } from './routes/reportsPublic.js'
+import { outilsPublicsRouter } from './routes/outilsPublics.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
@@ -128,6 +129,8 @@ app.get('/api/health/ai', async (_req, res) => {
 
 // Public report endpoints (market analyses, products, prompts, etc.)
 app.use('/api', reportsPublicRouter)
+// Les outils gratuits du site (/outils/) : publics, bornés, sans compte.
+app.use('/api', outilsPublicsRouter)
 
 app.use('/api/auth', authRouter)
 app.use('/api/admin', adminRouter)
