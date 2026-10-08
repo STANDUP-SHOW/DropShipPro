@@ -38,7 +38,7 @@ const { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY } = requir
 const { TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType } = require('./build-llms.cjs')
 const { canaux } = require('./seo-channels.cjs')
 /** L'éditeur (fondateur, SIRET, siège…) : chaque ligne n'apparaît qu'une fois remplie par Max. */
-const { lignesConnues } = require('./editeur.cjs')
+const { lignesConnues, adresseLd, etablissementLd, ENTREPRISE } = require('./editeur.cjs')
 /** Les thèmes de l'accueil : la même table que la page React (src/pages/Index.tsx). */
 const ACCUEIL = require('../src/data/accueil-themes.json')
 /** Le texte long des pages /fonctions/ et les outils gratuits /outils/ (chantier SEO du 07/10/2026). */
@@ -101,6 +101,9 @@ function grapheSchema(faq) {
         logo: { '@type': 'ImageObject', '@id': `${SITE}/#logo`, url: `${SITE}/marque/dropshipper-icone.png`, width: 256, height: 256, caption: NOM },
         image: IMAGE_PARTAGE,
         email: 'contact@drop-shipper.fr',
+        telephone: ENTREPRISE.telephoneInternational,
+        address: adresseLd(),
+        founder: { '@type': 'Person', name: ENTREPRISE.dirigeant },
         areaServed: ['FR', 'BE', 'CH', 'LU', 'CA'],
         knowsLanguage: 'fr',
         sameAs: [CHROME_STORE],
@@ -161,6 +164,7 @@ function grapheSchema(faq) {
           { '@type': 'Offer', name: 'Inscription — 120 drops offerts', price: '0.00', priceCurrency: 'EUR' },
         ],
       },
+      etablissementLd(SITE),
       { ...faqLd(faq), '@id': `${SITE}/#faq`, '@context': undefined },
     ],
   }

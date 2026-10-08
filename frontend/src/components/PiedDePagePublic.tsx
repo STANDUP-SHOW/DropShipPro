@@ -1,4 +1,5 @@
 import donnees from '../data/pied-de-page.json'
+import entreprise from '../data/entreprise.json'
 
 /**
  * Le pied de page des écrans publics React (avis, confidentialité, API Power,
@@ -44,6 +45,14 @@ export default function PiedDePagePublic() {
       </nav>
       <p className="mx-auto max-w-5xl border-t border-white/5 px-6 py-5 text-xs text-gray-500">
         <a href="/" className="hover:text-white">DropShipper IA</a> — logiciel français de dropshipping par IA. Sans abonnement, 1 drop = 0,01 €.
+        {/* Same name, address, phone and hours as the Google Business Profile (src/data/entreprise.json). */}
+        <span className="mt-1 block">
+          {entreprise.nom} · {entreprise.adresse.rue}, {entreprise.adresse.codePostal} {entreprise.adresse.ville} ·{' '}
+          <a href={`tel:${entreprise.telephoneInternational}`} className="hover:text-white">
+            {entreprise.telephone}
+          </a>{' '}
+          · {entreprise.horaires.libelle}
+        </span>
       </p>
     </footer>
   )

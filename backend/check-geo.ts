@@ -135,6 +135,12 @@ if (existsSync(index)) {
   exige(!/hreflang="en"/.test(html) && html.includes('hreflang="x-default"'), 'hreflang fr et x-default, pas de version anglaise annoncée')
   const tarifs = readFileSync(resolve(dist, 'tarifs/index.html'), 'utf8')
   exige(tarifs.includes('"FAQPage"') && (tarifs.match(/"@type":"Question"/g) ?? []).length === 4, '/tarifs/ : les quatre questions en FAQPage')
+  const nap = JSON.parse(readFileSync(resolve(dist, '../src/data/entreprise.json'), 'utf8'))
+  const contact = readFileSync(resolve(dist, 'contact/index.html'), 'utf8')
+  exige(
+    [html, contact, tarifs].every((p) => p.includes(nap.adresse.rue) && p.includes(nap.telephoneInternational)) && html.includes('"ProfessionalService"') && contact.includes(nap.horaires.libelle),
+    'adresse, téléphone et horaires identiques sur l’accueil, /contact/ et le pied de page (fiche Google)',
+  )
   exige(existsSync(resolve(dist, 'ai.txt')) && readFileSync(resolve(dist, 'ai.txt'), 'utf8') === readFileSync(resolve(dist, 'llms.txt'), 'utf8'), '/ai.txt reprend /llms.txt')
 } else {
   console.log('\n(frontend/dist absent : la page construite n’est pas relue — lancez npm run build côté frontend)')
