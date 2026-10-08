@@ -166,7 +166,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Cdiscount',
     automatable: true,
     sellUrl: 'https://seller.cdiscount.com',
-    note: 'API Marketplace Cdiscount — nécessite un compte vendeur validé.',
+    note: "API vendeur Octopia : offre déposée sur une fiche Cdiscount existante, retrouvée par EAN. Reliez le compte avec votre Seller ID et vos identifiants API (portail vendeur › Paramètres).",
   },
   {
     id: 'TIKTOK_SHOP',
@@ -180,7 +180,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Wish',
     automatable: true,
     sellUrl: 'https://merchant.wish.com',
-    note: 'Wish Merchant API — inscription vendeur en self-service.',
+    note: "Merchant API v3 : autorisez DropShipper depuis votre espace marchand, le produit est créé sur Wish puis relu par Wish avant affichage.",
   },
 
   /*
@@ -737,7 +737,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Etsy',
     automatable: true,
     sellUrl: 'https://www.etsy.com/sell',
-    note: 'API Etsy publique et self-service.',
+    note: "Open API v3 : autorisez DropShipper chez Etsy, l'annonce est créée en brouillon dans votre boutique et vous la publiez vous-même.",
     warning:
       "Etsy interdit la revente de produits manufacturés achetés en gros : seuls le fait main, le vintage de plus de 20 ans et les fournitures créatives sont autorisés. Publier des produits Temu ou JoyBuy expose à la fermeture de la boutique.",
   },
@@ -817,8 +817,9 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
 /** Les boutiques publiées par boutiqueTiers.ts : une entrée ici, une dans publisher.ts et settings.ts. */
 export const BOUTIQUES_TIERS: Platform[] = ['WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO', 'DRUPAL_COMMERCE', 'BIGCOMMERCE', 'WIX', 'SHOPWARE', 'ECWID', 'SQUARESPACE']
 
-// TikTok Shop, Amazon, Allegro : connecteurs à autorisation (marchesApi.ts), écrits le 03/10/2026.
-const LIVE: Platform[] = ['OWN_SITE', 'DROPSHOP_MARKET', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'TIKTOK_SHOP', 'AMAZON', 'ALLEGRO', ...BOUTIQUES_TIERS, ...OPERATEURS_MIRAKL]
+// TikTok Shop, Amazon, Allegro : connecteurs à autorisation (marchesApi.ts), écrits le 03/10/2026 ;
+// Cdiscount, Etsy, Wish : même contrat, écrits le 08/10/2026.
+const LIVE: Platform[] = ['OWN_SITE', 'DROPSHOP_MARKET', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'TIKTOK_SHOP', 'AMAZON', 'ALLEGRO', 'CDISCOUNT', 'ETSY', 'WISH', ...BOUTIQUES_TIERS, ...OPERATEURS_MIRAKL]
 
 /**
  * Les boutiques que le vendeur POSSÈDE, par opposition aux canaux de vente

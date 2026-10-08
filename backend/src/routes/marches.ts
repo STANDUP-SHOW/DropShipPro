@@ -8,7 +8,7 @@ import { lireEtat, signerEtat } from '../services/oauthEtat.js'
 import { connecteurMarche, connecteursMarche, retourMarche } from '../services/marches.js'
 
 /**
- * Relier un compte vendeur TikTok Shop, Amazon ou Allegro.
+ * Relier un compte vendeur TikTok Shop, Amazon, Allegro, Cdiscount, Etsy ou Wish.
  *
  * Le vendeur autorise DropShipper chez la plateforme, jamais par un mot de
  * passe confié : nous recevons des jetons qu'il révoque quand il veut. Et le
@@ -40,6 +40,10 @@ marchesRouter.get('/', async (req: AuthedRequest, res) => {
         manque: c.appConfiguree() ? null : c.manque(),
         relie: Boolean(l?.connected),
         compte: l?.label ?? null,
+        /** Vrai quand la liaison passe par une redirection chez la plateforme. */
+        autorisation: Boolean(c.lienAutorisation),
+        /** Les champs à coller, quand la liaison passe par une saisie (Cdiscount). */
+        saisie: c.saisie?.() ?? null,
       }
     }),
   )
@@ -51,6 +55,7 @@ marchesRouter.post('/:platform/connect', (req: AuthedRequest, res) => {
   if (!platform) return res.status(404).json({ error: 'Place de marché inconnue.' })
   const c = connecteurMarche(platform)!
   if (!c.appConfiguree()) return res.status(503).json({ error: c.manque() })
+  if (!c.lienAutorisation) return res.status(400).json({ error: `${c.label} se relie en collant vos identifiants, pas par une redirection.` })
   res.json({ url: c.lienAutorisation(signerEtat(req.userId!, platform), retourMarche(platform)) })
 })
 
@@ -87,6 +92,31 @@ marchesRouter.post('/amazon/jeton', async (req: AuthedRequest, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'Amazon a refusé ce jeton.' })
+  }
+})
+
+/**
+ * La liaison par saisie (Cdiscount) : les champs déclarés par le connecteur,
+ * rien d'autre, puis le même `relier` qu'au retour d'une autorisation — donc
+ * le même appel réel avant de dire « connecté ».
+ */
+marchesRouter.post('/:platform/saisie', async (req: AuthedRequest, res) => {
+  const platform = plateformeDe(req.params.platform)
+  const c = platform ? connecteurMarche(platform) : undefined
+  if (!platform || !c?.saisie) return res.status(404).json({ error: 'Cette place de marché ne se relie pas par saisie.' })
+  if (!c.appConfiguree()) return res.status(503).json({ error: c.manque() })
+  const corps = (req.body ?? {}) as Record<string, unknown>
+  const params: Record<string, string> = {}
+  for (const champ of c.saisie()) {
+    const v = typeof corps[champ.cle] === 'string' ? (corps[champ.cle] as string).trim() : ''
+    if (!v || v.length > 2000) return res.status(400).json({ error: `Renseignez « ${champ.libelle} ».` })
+    params[champ.cle] = v
+  }
+  try {
+    await relier(req.userId!, platform, params)
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : `${c.label} a refusé ces identifiants.` })
   }
 })
 

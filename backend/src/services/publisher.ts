@@ -225,7 +225,7 @@ async function publierBoutique(product: Product, platform: keyof typeof BOUTIQUE
 
 /**
  * Le dépôt chez une place de marché à autorisation : TikTok Shop, Amazon,
- * Allegro (`marchesApi.ts`).
+ * Allegro, Cdiscount, Etsy, Wish (`marchesApi.ts`).
  *
  * Trois sorts, dits tels quels : « en attente » quand notre application n'est
  * pas déclarée chez la plateforme ou que le vendeur n'a pas relié son compte

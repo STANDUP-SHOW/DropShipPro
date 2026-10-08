@@ -27,9 +27,11 @@ import { BOUTIQUES_DU_VENDEUR } from './platforms.js'
  *
  * Ce ne sont pas des approximations : Google Shopping la définit, et le
  * catalogue Meta — dont dépendent la boutique Instagram et celle de Facebook —
- * la lit dans le champ `google_product_category` du flux.
+ * la lit dans le champ `google_product_category` du flux. Wish et Etsy ont des
+ * taxonomies anglaises voisines : le connecteur Etsy (`etsy.ts`) rapproche le
+ * chemin Google de la feuille Etsy la plus proche.
  */
-const TAXONOMIE_GOOGLE: Platform[] = ['GOOGLE_SHOPPING', 'INSTAGRAM', 'FACEBOOK', 'WISH']
+const TAXONOMIE_GOOGLE: Platform[] = ['GOOGLE_SHOPPING', 'INSTAGRAM', 'FACEBOOK', 'WISH', 'ETSY']
 
 /**
  * Les destinations où le libellé lisible est la bonne réponse.
