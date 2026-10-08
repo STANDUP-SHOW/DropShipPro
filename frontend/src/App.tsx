@@ -60,6 +60,7 @@ import Rayon from './pages/Rayon'
 import Guide from './pages/Guide'
 import Newsletter from './pages/Newsletter'
 import AdminNewsletter from './pages/AdminNewsletter'
+import AdminAffiliation from './pages/AdminAffiliation'
 import Partager from './pages/Partager'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -170,6 +171,7 @@ export default function App() {
           <Route path="/newsletter" element={<Newsletter />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
           <Route path="/admin/newsletter" element={<Protected><AdminNewsletter /></Protected>} />
+          <Route path="/admin/affiliation" element={<Protected><AdminAffiliation /></Protected>} />
           <Route path="/statistiques" element={<Protected><Statistiques /></Protected>} />
           <Route path="/acquisition" element={<Protected><Acquisition /></Protected>} />
           <Route path="/extension" element={<Protected><Extension /></Protected>} />

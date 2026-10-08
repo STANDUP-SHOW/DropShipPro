@@ -99,6 +99,12 @@ export const affiliationApi = {
     ecrire(CLE_JETON, r.token)
   },
   tableau: (periode: Periode) => appel<Tableau>(`/tableau?periode=${periode}`, {}, jetonAffilie()),
+  enregistrerIban: (titulaire: string, iban: string) =>
+    appel<{ titulaire: string; ibanMasque: string; ibanMajLe: string }>(
+      '/iban',
+      { method: 'PUT', body: JSON.stringify({ titulaire, iban }) },
+      jetonAffilie(),
+    ),
 }
 
 export type Periode = 'jour' | 'semaine' | 'mois' | 'annee'
@@ -131,6 +137,13 @@ export interface Tableau {
     derniereActivite: string | null
     actif: boolean
   }>
+  paiement: {
+    seuilCentimes: number
+    titulaire: string | null
+    ibanMasque: string | null
+    ibanMajLe: string | null
+    versements: Array<{ id: string; montantCentimes: number; createdAt: string }>
+  }
 }
 
 export const euros = (centimes: number) =>

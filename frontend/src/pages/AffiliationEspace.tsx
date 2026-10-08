@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { affiliationApi, deconnecterAffilie, euros, jetonAffilie, type Periode, type Tableau } from '../lib/affiliation'
 import { CadreAffiliation } from './AffiliationAccueil'
@@ -22,6 +22,106 @@ const MESURES: Array<[Mesure, string]> = [
 
 const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
 const pourcent = (x: number) => `${(x * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`
+
+function Versements({ t, onMaj }: { t: Tableau; onMaj: () => void }) {
+  const p = t.paiement
+  const [edition, setEdition] = useState(!p.ibanMasque)
+  const [titulaire, setTitulaire] = useState(p.titulaire ?? '')
+  const [iban, setIban] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+
+  async function enregistrer(e: FormEvent) {
+    e.preventDefault()
+    setEnvoi(true)
+    setErreur(null)
+    try {
+      await affiliationApi.enregistrerIban(titulaire, iban)
+      setIban('')
+      setEdition(false)
+      onMaj()
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : 'Enregistrement impossible')
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  const reste = Math.max(0, p.seuilCentimes - t.totaux.dusCentimes)
+  return (
+    <section className="mt-8 grid gap-4 lg:grid-cols-2">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+        <h2 className="text-lg font-bold">Vos versements</h2>
+        <p className="mt-1 text-sm text-gray-300">
+          Un virement par mois dès {euros(p.seuilCentimes)} dus.{' '}
+          {reste > 0 ? `Encore ${euros(reste)} avant le prochain virement.` : 'Votre prochain virement partira ce mois-ci.'}
+        </p>
+        {p.versements.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-400">Aucun versement pour l’instant.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-white/5 text-sm">
+            {p.versements.map((v) => (
+              <li key={v.id} className="flex justify-between py-2">
+                <span className="text-gray-300">{date(v.createdAt)}</span>
+                <span className="font-semibold tabular-nums text-emerald-300">{euros(v.montantCentimes)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+        <h2 className="text-lg font-bold">Compte bancaire</h2>
+        {!edition && p.ibanMasque ? (
+          <div className="mt-2 text-sm text-gray-300">
+            <p>{p.titulaire}</p>
+            <p className="font-mono">{p.ibanMasque}</p>
+            <p className="mt-1 text-xs text-gray-500">Enregistré le {date(p.ibanMajLe)}</p>
+            <button onClick={() => setEdition(true)} className="mt-3 text-sm underline hover:text-white">
+              Changer de compte
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={enregistrer} className="mt-2 space-y-3">
+            {!p.ibanMasque && <p className="text-sm text-amber-300">Indiquez votre IBAN pour recevoir vos commissions.</p>}
+            {erreur && <p className="text-sm text-red-400">{erreur}</p>}
+            <label className="block text-sm text-gray-300">
+              Titulaire du compte
+              <input
+                value={titulaire}
+                onChange={(e) => setTitulaire(e.target.value)}
+                required
+                minLength={2}
+                maxLength={100}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white outline-none focus:border-orange-300/60"
+              />
+            </label>
+            <label className="block text-sm text-gray-300">
+              IBAN
+              <input
+                value={iban}
+                onChange={(e) => setIban(e.target.value.toUpperCase())}
+                required
+                maxLength={50}
+                placeholder="FR76 …"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-mono text-white outline-none focus:border-orange-300/60"
+              />
+            </label>
+            <div className="flex items-center gap-3">
+              <button disabled={envoi} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50">
+                {envoi ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+              {p.ibanMasque && (
+                <button type="button" onClick={() => setEdition(false)} className="text-sm text-gray-400 underline">
+                  Annuler
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
+    </section>
+  )
+}
 
 function Carte({ titre, valeur, detail }: { titre: string; valeur: string; detail?: string }) {
   return (
@@ -173,6 +273,8 @@ export default function AffiliationEspace() {
           <span>{t.series[t.series.length - 1]?.libelle}</span>
         </div>
       </section>
+
+      <Versements t={t} onMaj={charger} />
 
       <section className="mt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">

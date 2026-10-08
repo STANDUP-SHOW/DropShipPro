@@ -1,4 +1,4 @@
-import { cases, masquerEmail, nouveauCodeAcces, ventiler, TAUX_COMMISSION, codeValide, hacherCode } from './src/services/affiliation.js'
+import { cases, ibanValide, masquerIban, normaliserIban, SEUIL_VERSEMENT_CENTIMES, masquerEmail, nouveauCodeAcces, ventiler, TAUX_COMMISSION, codeValide, hacherCode } from './src/services/affiliation.js'
 
 /**
  * Éprouve l'affiliation sans base : les cases du tableau de bord (30 jours,
@@ -70,6 +70,14 @@ exige(await codeValide(code.toLowerCase(), hash), 'code accepté en minuscules')
 exige(await codeValide(` ${code} `, hash), 'espaces autour tolérés')
 exige(!(await codeValide('AAAAAAAAAA', hash)), 'mauvais code refusé')
 exige(!(await codeValide(code, null)), 'aucun code émis : refusé')
+
+// L'IBAN
+exige(ibanValide('FR14 2004 1010 0505 0001 3M02 606'), 'IBAN français valide accepté (espaces tolérés)')
+exige(ibanValide('de89370400440532013000'), 'IBAN allemand en minuscules accepté')
+exige(!ibanValide('FR14 2004 1010 0505 0001 3M02 607'), 'une clé fausse est refusée')
+exige(!ibanValide('FR14'), 'un IBAN tronqué est refusé')
+exige(masquerIban(normaliserIban('FR14 2004 1010 0505 0001 3M02 606')) === 'FR14 •••• 2606', 'IBAN masqué')
+exige(SEUIL_VERSEMENT_CENTIMES === 5000, 'seuil de versement à 50 €')
 
 if (echecs) {
   console.log(`check-affiliation : ${echecs} échec(s)`)

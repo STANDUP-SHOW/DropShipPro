@@ -9,6 +9,9 @@ CREATE TABLE "Affilie" (
     "code" TEXT NOT NULL,
     "cleHash" TEXT,
     "cleEmiseLe" TIMESTAMP(3),
+    "titulaire" TEXT,
+    "iban" TEXT,
+    "ibanMajLe" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Affilie_pkey" PRIMARY KEY ("id")
 );
@@ -37,6 +40,7 @@ CREATE TABLE "Commission" (
     "montantCentimes" INTEGER NOT NULL,
     "commissionCentimes" INTEGER NOT NULL,
     "payeeLe" TIMESTAMP(3),
+    "versementId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Commission_pkey" PRIMARY KEY ("id")
 );
@@ -44,3 +48,15 @@ CREATE UNIQUE INDEX "Commission_paiementRef_key" ON "Commission"("paiementRef");
 CREATE INDEX "Commission_affilieId_createdAt_idx" ON "Commission"("affilieId", "createdAt");
 ALTER TABLE "Commission" ADD CONSTRAINT "Commission_affilieId_fkey" FOREIGN KEY ("affilieId") REFERENCES "Affilie"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Commission" ADD CONSTRAINT "Commission_filleulId_fkey" FOREIGN KEY ("filleulId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+CREATE TABLE "Versement" (
+    "id" TEXT NOT NULL,
+    "affilieId" TEXT NOT NULL,
+    "montantCentimes" INTEGER NOT NULL,
+    "reference" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Versement_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX "Versement_affilieId_createdAt_idx" ON "Versement"("affilieId", "createdAt");
+ALTER TABLE "Versement" ADD CONSTRAINT "Versement_affilieId_fkey" FOREIGN KEY ("affilieId") REFERENCES "Affilie"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Commission" ADD CONSTRAINT "Commission_versementId_fkey" FOREIGN KEY ("versementId") REFERENCES "Versement"("id") ON DELETE SET NULL ON UPDATE CASCADE;

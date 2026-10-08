@@ -351,7 +351,7 @@ function pageCgu() {
 <li>Le compte affilié est distinct d'un compte vendeur. Il s'ouvre sur la page <a href="/affiliation">affiliation</a> ; l'accès se fait avec l'adresse email et un code reçu par mail.</li>
 <li>Un vendeur devient filleul d'un affilié quand il crée son compte dans les 30 jours suivant sa visite par le lien de l'affilié. Un compte existant n'est pas rattaché après coup, et on ne peut pas être son propre filleul.</li>
 <li>L'affilié touche 10 % des montants payés par ses filleuls pour leurs recharges de drops, par carte ou via Shopify, aussi longtemps que leur compte existe. Les drops offerts ne donnent pas lieu à commission.</li>
-<li>Les commissions sont visibles dans l'espace affilié et versées en euros par virement bancaire. L'affilié communique ses coordonnées bancaires et, s'il agit à titre professionnel, une facture ; il déclare lui-même ces revenus.</li>
+<li>Les commissions sont visibles dans l'espace affilié et versées en euros par virement bancaire, une fois par mois, dès que 50 € sont dus ; en dessous, la somme reste acquise et s'ajoute au mois suivant. L'affilié saisit son IBAN dans son espace et, s'il agit à titre professionnel, fournit une facture ; il déclare lui-même ces revenus.</li>
 <li>Sont interdits : les envois non sollicités, les publicités payantes sur le nom DropShipper IA, les promesses trompeuses sur le service, et toute inscription fictive. Une fraude entraîne la fermeture du compte affilié et l'annulation des commissions concernées.</li>
 </ul>
 <h2>10. Fin du compte</h2>

@@ -599,10 +599,29 @@ model Affilie {
   code        String            @unique
   cleHash     String?
   cleEmiseLe  DateTime?
+  /// Coordonnées du virement, saisies par l'affilié dans son espace.
+  titulaire   String?
+  iban        String?
+  ibanMajLe   DateTime?
   createdAt   DateTime          @default(now())
   filleuls    User[]
   clics       AffiliationClic[]
   commissions Commission[]
+  versements  Versement[]
+}
+
+/// Un virement fait à un affilié ; il solde les commissions qu'il regroupe.
+model Versement {
+  id              String       @id @default(cuid())
+  affilieId       String
+  affilie         Affilie      @relation(fields: [affilieId], references: [id], onDelete: Cascade)
+  montantCentimes Int
+  /// Libellé ou référence du virement, noté par l'admin.
+  reference       String?
+  createdAt       DateTime     @default(now())
+  commissions     Commission[]
+
+  @@index([affilieId, createdAt])
 }
 
 /// Une visite arrivée par un lien d'affilié.
@@ -635,6 +654,8 @@ model Commission {
   commissionCentimes Int
   /// Date du versement à l'affilié ; vide tant que la commission est due.
   payeeLe            DateTime?
+  versementId        String?
+  versement          Versement? @relation(fields: [versementId], references: [id], onDelete: SetNull)
   createdAt          DateTime  @default(now())
 
   @@index([affilieId, createdAt])

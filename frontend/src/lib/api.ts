@@ -688,6 +688,13 @@ export const api = {
     request<{ total: number; subscribers: Array<{ id: string; email: string; source: string | null; createdAt: string }> }>(
       '/admin/newsletter',
     ),
+  // Affiliation — les versements du mois, vue admin (requireAdmin côté serveur).
+  affiliationAdmin: () => request<AffiliationAdmin>('/admin/affiliation'),
+  affiliationVerse: (id: string, reference: string) =>
+    request<{ versement: { id: string; montantCentimes: number; createdAt: string } }>(`/admin/affiliation/${id}/verse`, {
+      method: 'POST',
+      body: JSON.stringify({ reference }),
+    }),
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>
@@ -2294,4 +2301,26 @@ export interface DepotAvis {
   ajoutes: number
   dejaPresents: number
   refus: string[]
+}
+
+export interface AffiliationAdmin {
+  seuilCentimes: number
+  totaux: { affilies: number; aVerser: number; dusCentimes: number; dusAVerserCentimes: number; versesCentimes: number }
+  affilies: Array<{
+    id: string
+    nom: string
+    email: string
+    code: string
+    inscritLe: string
+    filleuls: number
+    clics: number
+    titulaire: string | null
+    iban: string | null
+    ibanMajLe: string | null
+    gainsCentimes: number
+    dusCentimes: number
+    versesCentimes: number
+    aVerser: boolean
+    versements: Array<{ id: string; montantCentimes: number; reference: string | null; createdAt: string }>
+  }>
 }

@@ -123,6 +123,106 @@ export async function commissionnerRecharge(userId: string, paiementRef: string,
 }
 
 /* ------------------------------------------------------------------ */
+/* Versements                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Règle de versement (décision de Max, 08/10/2026) : un virement par mois,
+ * dès 50 € dus. En dessous, la somme reste due et s'ajoute au mois suivant.
+ */
+export const SEUIL_VERSEMENT_CENTIMES = 5000
+
+export const normaliserIban = (iban: string) => iban.replace(/[\s-]/g, '').toUpperCase()
+
+/** Contrôle ISO 13616 : forme, puis clé modulo 97. Ne dit pas que le compte existe. */
+export function ibanValide(brut: string): boolean {
+  const iban = normaliserIban(brut)
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) return false
+  const chiffres = (iban.slice(4) + iban.slice(0, 4)).replace(/[A-Z]/g, (l) => String(l.charCodeAt(0) - 55))
+  let reste = 0
+  for (const c of chiffres) reste = (reste * 10 + Number(c)) % 97
+  return reste === 1
+}
+
+/** « FR76 •••• 0189 » : l'affilié reconnaît son compte sans que l'IBAN entier circule. */
+export const masquerIban = (iban: string) => `${iban.slice(0, 4)} •••• ${iban.slice(-4)}`
+
+/**
+ * Solde toutes les commissions dues d'un affilié par un versement. Rend le
+ * versement, ou null s'il n'y avait rien à verser. Les commissions sont
+ * prises par leurs identifiants : une recharge arrivée pendant l'opération
+ * reste due pour le mois suivant.
+ */
+export async function verser(affilieId: string, reference?: string | null) {
+  return prisma.$transaction(async (tx) => {
+    const dues = await tx.commission.findMany({ where: { affilieId, payeeLe: null }, select: { id: true, commissionCentimes: true } })
+    const montant = dues.reduce((a, c) => a + c.commissionCentimes, 0)
+    if (!dues.length || montant <= 0) return null
+    const versement = await tx.versement.create({ data: { affilieId, montantCentimes: montant, reference: reference || null } })
+    const maj = await tx.commission.updateMany({
+      where: { id: { in: dues.map((c) => c.id) }, payeeLe: null },
+      data: { payeeLe: versement.createdAt, versementId: versement.id },
+    })
+    // Un second clic simultané aurait déjà soldé une partie : on annule plutôt que de compter double.
+    if (maj.count !== dues.length) throw new Error('commissions déjà versées entre-temps')
+    return versement
+  })
+}
+
+/** La vue de l'admin : chaque affilié, ce qui lui est dû et où le virer. */
+export async function listeVersementsAdmin() {
+  const affilies = await prisma.affilie.findMany({
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      nom: true,
+      email: true,
+      code: true,
+      titulaire: true,
+      iban: true,
+      ibanMajLe: true,
+      createdAt: true,
+      _count: { select: { filleuls: true, clics: true } },
+      commissions: { select: { commissionCentimes: true, payeeLe: true } },
+      versements: { orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, montantCentimes: true, reference: true, createdAt: true } },
+    },
+  })
+  const lignes = affilies.map((a) => {
+    const gains = a.commissions.reduce((s, c) => s + c.commissionCentimes, 0)
+    const dus = a.commissions.filter((c) => !c.payeeLe).reduce((s, c) => s + c.commissionCentimes, 0)
+    return {
+      id: a.id,
+      nom: a.nom,
+      email: a.email,
+      code: a.code,
+      inscritLe: a.createdAt,
+      filleuls: a._count.filleuls,
+      clics: a._count.clics,
+      titulaire: a.titulaire,
+      iban: a.iban,
+      ibanMajLe: a.ibanMajLe,
+      gainsCentimes: gains,
+      dusCentimes: dus,
+      versesCentimes: gains - dus,
+      aVerser: dus >= SEUIL_VERSEMENT_CENTIMES && !!a.iban,
+      versements: a.versements,
+    }
+  })
+  lignes.sort((x, y) => Number(y.aVerser) - Number(x.aVerser) || y.dusCentimes - x.dusCentimes)
+  return {
+    seuilCentimes: SEUIL_VERSEMENT_CENTIMES,
+    totaux: {
+      affilies: lignes.length,
+      aVerser: lignes.filter((l) => l.aVerser).length,
+      dusCentimes: lignes.reduce((s, l) => s + l.dusCentimes, 0),
+      dusAVerserCentimes: lignes.filter((l) => l.aVerser).reduce((s, l) => s + l.dusCentimes, 0),
+      versesCentimes: lignes.reduce((s, l) => s + l.versesCentimes, 0),
+    },
+    affilies: lignes,
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Tableau de bord                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -191,7 +291,19 @@ export async function tableauDeBord(affilieId: string, periode: Periode) {
   const cs = cases(periode)
   const depuis = cs[0].debut
   const [affilie, clicsTotal, clicsPeriode, filleuls, commissions] = await Promise.all([
-    prisma.affilie.findUniqueOrThrow({ where: { id: affilieId }, select: { nom: true, email: true, code: true, createdAt: true } }),
+    prisma.affilie.findUniqueOrThrow({
+      where: { id: affilieId },
+      select: {
+        nom: true,
+        email: true,
+        code: true,
+        createdAt: true,
+        titulaire: true,
+        iban: true,
+        ibanMajLe: true,
+        versements: { orderBy: { createdAt: 'desc' }, select: { id: true, montantCentimes: true, createdAt: true } },
+      },
+    }),
     prisma.affiliationClic.count({ where: { affilieId } }),
     prisma.affiliationClic.findMany({ where: { affilieId, createdAt: { gte: depuis } }, select: { createdAt: true } }),
     prisma.user.findMany({
@@ -262,5 +374,12 @@ export async function tableauDeBord(affilieId: string, periode: Periode) {
       commissions,
     }),
     filleuls: liste,
+    paiement: {
+      seuilCentimes: SEUIL_VERSEMENT_CENTIMES,
+      titulaire: affilie.titulaire,
+      ibanMasque: affilie.iban ? masquerIban(affilie.iban) : null,
+      ibanMajLe: affilie.ibanMajLe,
+      versements: affilie.versements,
+    },
   }
 }

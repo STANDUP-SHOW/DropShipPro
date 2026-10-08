@@ -9,6 +9,9 @@ import {
   codeValide,
   enregistrerClic,
   hacherCode,
+  ibanValide,
+  masquerIban,
+  normaliserIban,
   nouveauCodeAcces,
   nouveauCodeLien,
   rattacherFilleul,
@@ -154,5 +157,26 @@ affiliationRouter.get('/tableau', requireAffilie, async (req: AffilieRequest, re
   } catch (err) {
     console.error('tableau affilié', err)
     res.status(500).json({ error: 'Tableau de bord indisponible pour le moment.' })
+  }
+})
+
+/** Les coordonnées du virement. L'IBAN entier n'est jamais renvoyé à l'affilié, seulement masqué. */
+affiliationRouter.put('/iban', requireAffilie, async (req: AffilieRequest, res) => {
+  const parsed = z
+    .object({ titulaire: z.string().trim().min(2).max(100), iban: z.string().trim().max(50) })
+    .safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Titulaire du compte et IBAN requis.' })
+  if (!ibanValide(parsed.data.iban)) return res.status(400).json({ error: 'Cet IBAN n’est pas valide, vérifiez-le.' })
+  try {
+    const iban = normaliserIban(parsed.data.iban)
+    const a = await prisma.affilie.update({
+      where: { id: req.affilieId! },
+      data: { titulaire: parsed.data.titulaire, iban, ibanMajLe: new Date() },
+      select: { titulaire: true, ibanMajLe: true },
+    })
+    res.json({ titulaire: a.titulaire, ibanMasque: masquerIban(iban), ibanMajLe: a.ibanMajLe })
+  } catch (err) {
+    console.error('IBAN affilié', err)
+    res.status(500).json({ error: 'Enregistrement impossible pour le moment, réessayez.' })
   }
 })
