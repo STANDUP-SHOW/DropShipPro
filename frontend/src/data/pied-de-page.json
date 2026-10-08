@@ -39,9 +39,11 @@
         { "href": "/dropshipping/", "label": "Guides" },
         { "href": "/vendre-sur-marketplaces/", "label": "Où vendre" },
         { "href": "/analyses/", "label": "Analyses de marché" },
+        { "href": "/blog/", "label": "Blog" },
         { "href": "/api-power/", "label": "API Power" },
         { "href": "https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk", "label": "Extension Chrome" },
-        { "href": "mailto:contact@drop-shipper.fr", "label": "Contact" }
+        { "href": "/affiliation", "label": "Affiliation : 10 % à vie" },
+        { "href": "/contact/", "label": "Contact" }
       ]
     },
     {
@@ -51,7 +53,9 @@
     {
       "titre": "Légal",
       "liens": [
-        { "href": "/confidentialite", "label": "Confidentialité" }
+        { "href": "/cgu/", "label": "Conditions d'utilisation" },
+        { "href": "/confidentialite", "label": "Confidentialité" },
+        { "href": "/cookies/", "label": "Cookies" }
       ]
     }
   ]
