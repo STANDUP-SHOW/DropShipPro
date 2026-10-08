@@ -1,0 +1,58 @@
+{
+  "_commentaire": "Le pied de page du site public, en UNE table : les pages statiques (scripts/pied-de-page.cjs, via build-seo.cjs) et les écrans React publics (components/PiedDePagePublic.tsx) la lisent. Rien d'inventé : une page n'entre ici qu'une fois qu'elle existe, et la colonne Réseaux reste vide tant que Max n'a pas donné ses comptes. Badges : NOUVEAU ou POPULAIRE, deux ou trois au plus, sinon ils ne disent plus rien.",
+  "colonnes": [
+    {
+      "titre": "Solutions",
+      "liens": [
+        { "href": "/fonctions/scraping-produits/", "label": "Relevé de produits" },
+        { "href": "/fonctions/fournisseurs/", "label": "Fournisseurs" },
+        { "href": "/fonctions/annonces-ia/", "label": "Annonces IA", "badge": "POPULAIRE" },
+        { "href": "/fonctions/dropshop-ia/", "label": "DropShop IA", "badge": "NOUVEAU" },
+        { "href": "/fonctions/visuels-ia/", "label": "Visuels et publicités" },
+        { "href": "/fonctions/reseaux-sociaux/", "label": "Réseaux sociaux" },
+        { "href": "/fonctions/diffusion/", "label": "Diffusion multicanal" },
+        { "href": "/fonctions/analyses-de-marche/", "label": "Analyses de marché" },
+        { "href": "/fonctions/agents-ia/", "label": "Agents IA" },
+        { "href": "/fonctions/auto-shipper/", "label": "AUTO-SHIPPER IA", "badge": "NOUVEAU" },
+        { "href": "/fonctions/les-drops/", "label": "Les drops" }
+      ]
+    },
+    {
+      "titre": "Outils gratuits",
+      "liens": [
+        { "href": "/outils/calculateur-marge/", "label": "Calculateur de marge" },
+        { "href": "/outils/calculateur-roas/", "label": "Calculateur de ROAS" },
+        { "href": "/outils/calculateur-cpa/", "label": "Calculateur de CPA" },
+        { "href": "/outils/roas-equilibre/", "label": "ROAS d'équilibre" },
+        { "href": "/outils/detecteur-theme-shopify/", "label": "Détecteur de thème Shopify" },
+        { "href": "/outils/generateur-titre-annonce/", "label": "Générateur de titre" },
+        { "href": "/outils/", "label": "Tous les outils" }
+      ]
+    },
+    {
+      "titre": "Confiance",
+      "liens": [
+        { "href": "/tarifs/", "label": "Tarifs" },
+        { "href": "/a-propos/", "label": "À propos" },
+        { "href": "/faq/", "label": "Questions fréquentes" },
+        { "href": "/avis", "label": "Avis" },
+        { "href": "/dropshipping/", "label": "Guides" },
+        { "href": "/vendre-sur-marketplaces/", "label": "Où vendre" },
+        { "href": "/analyses/", "label": "Analyses de marché" },
+        { "href": "/api-power/", "label": "API Power" },
+        { "href": "https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk", "label": "Extension Chrome" },
+        { "href": "mailto:contact@drop-shipper.fr", "label": "Contact" }
+      ]
+    },
+    {
+      "titre": "Réseaux",
+      "liens": []
+    },
+    {
+      "titre": "Légal",
+      "liens": [
+        { "href": "/confidentialite", "label": "Confidentialité" }
+      ]
+    }
+  ]
+}
