@@ -326,8 +326,19 @@ export const api = {
   /** TikTok Shop, Amazon, Allegro : l'app est-elle déclarée, le compte vendeur relié ? */
   marchesEtat: () =>
     request<
-      Array<{ platform: string; label: string; appConfiguree: boolean; manque: string | null; relie: boolean; compte: string | null }>
+      Array<{
+        platform: string
+        label: string
+        appConfiguree: boolean
+        manque: string | null
+        relie: boolean
+        compte: string | null
+        autorisation: boolean
+        saisie: Array<{ cle: string; libelle: string; indice?: string; secret?: boolean }> | null
+      }>
     >('/marches'),
+  marcheSaisie: (platform: string, data: Record<string, string>) =>
+    request<{ ok: true }>(`/marches/${platform.toLowerCase()}/saisie`, { method: 'POST', body: JSON.stringify(data) }),
   marcheConnect: (platform: string) =>
     request<{ url: string }>(`/marches/${platform.toLowerCase()}/connect`, { method: 'POST' }),
   marcheDelier: (platform: string) => request<{ ok: true }>(`/marches/${platform.toLowerCase()}`, { method: 'DELETE' }),

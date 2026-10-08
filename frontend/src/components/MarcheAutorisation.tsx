@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 
 /** Les places de marché qu'on relie par autorisation, pas par une clé collée. */
-export const MARCHES_AUTORISATION = ['TIKTOK_SHOP', 'AMAZON', 'ALLEGRO']
+export const MARCHES_AUTORISATION = ['TIKTOK_SHOP', 'AMAZON', 'ALLEGRO', 'CDISCOUNT', 'ETSY', 'WISH']
 
 type Etat = Awaited<ReturnType<typeof api.marchesEtat>>[number]
 
 /**
- * Relier un compte vendeur TikTok Shop, Amazon ou Allegro.
+ * Relier un compte vendeur TikTok Shop, Amazon, Allegro, Cdiscount, Etsy ou Wish.
  *
  * Le vendeur autorise DropShipper chez la plateforme ; il ne nous confie
- * aucun mot de passe. « Connecté » ne s'affiche qu'après un appel réel réussi
+ * aucun mot de passe. Cdiscount n'a pas d'écran d'autorisation : le vendeur
+ * colle son Seller ID et ses identifiants API, éprouvés de la même façon. « Connecté » ne s'affiche qu'après un appel réel réussi
  * côté serveur, jamais sur la seule foi d'un formulaire enregistré.
  */
 export function MarcheAutorisation({
@@ -26,6 +27,7 @@ export function MarcheAutorisation({
   const [erreur, setErreur] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [jeton, setJeton] = useState({ refreshToken: '', sellerId: '' })
+  const [champs, setChamps] = useState<Record<string, string>>({})
 
   async function relire() {
     try {
@@ -79,12 +81,31 @@ export function MarcheAutorisation({
     }
   }
 
+  async function envoyerSaisie(e: React.FormEvent) {
+    e.preventDefault()
+    setErreur(null)
+    setBusy(true)
+    try {
+      await api.marcheSaisie(platform, champs)
+      setChamps({})
+      await relire()
+      onChange?.()
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : `${label} a refusé ces identifiants.`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (!etat) return null
+  const saisie = etat.saisie ?? []
+  const saisieComplete = saisie.every((c) => (champs[c.cle] ?? '').trim())
 
   return (
     <div className="mt-3 space-y-2 text-xs">
       {!etat.appConfiguree ? (
         <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1.5 text-amber-200">
+          <span className="font-semibold">En attente des clés. </span>
           {etat.manque}
         </p>
       ) : etat.relie ? (
@@ -94,6 +115,27 @@ export function MarcheAutorisation({
             Délier
           </button>
         </div>
+      ) : !etat.autorisation ? (
+        <form onSubmit={envoyerSaisie} className="space-y-1.5 rounded-lg border border-white/10 p-2">
+          {saisie.map((c) => (
+            <input
+              key={c.cle}
+              type={c.secret ? 'password' : 'text'}
+              value={champs[c.cle] ?? ''}
+              onChange={(e) => setChamps({ ...champs, [c.cle]: e.target.value })}
+              placeholder={c.indice ? `${c.libelle} (${c.indice})` : c.libelle}
+              autoComplete="off"
+              className="w-full rounded border border-white/10 bg-black/30 px-2 py-1"
+            />
+          ))}
+          <button
+            type="submit"
+            disabled={busy || !saisieComplete}
+            className="btn-gradient rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+          >
+            {`Vérifier et relier ${label}`}
+          </button>
+        </form>
       ) : (
         <button
           type="button"
