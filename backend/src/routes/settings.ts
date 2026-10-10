@@ -27,6 +27,7 @@ import { readShopwareCredentials, verifierCompteShopware } from '../services/sho
 import { readEcwidCredentials, verifierCompteEcwid } from '../services/ecwid.js'
 import { readSquarespaceCredentials, verifierCompteSquarespace } from '../services/squarespace.js'
 import { saveWatermarkLogo, saveVitrineLogo } from '../services/watermark.js'
+import { connecteursMarche } from '../services/marches.js'
 import {
   normalizeShopDomain,
   jetonParClientCredentials,
@@ -414,10 +415,11 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
 
   let data = parsed.data.data
 
-  // TikTok Shop, Amazon, Allegro se relient par autorisation (routes/marches.ts),
-  // éprouvée par un appel réel : un formulaire enregistré ici les aurait dits
-  // « connectés » sans rien prouver.
-  if (['TIKTOK_SHOP', 'AMAZON', 'ALLEGRO'].includes(parsed.data.platform)) {
+  // Les places de marché à autorisation (TikTok Shop, Amazon, Allegro,
+  // Cdiscount, Etsy, Wish) se relient par routes/marches.ts, éprouvées par un
+  // appel réel : un formulaire enregistré ici les aurait dites « connectées »
+  // sans rien prouver.
+  if (connecteursMarche().some((c) => c.platform === parsed.data.platform)) {
     return res.status(400).json({ error: 'Cette place de marché se relie par « Relier mon compte », pas par une clé collée.' })
   }
 

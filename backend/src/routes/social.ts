@@ -51,6 +51,10 @@ socialRouter.get('/state', async (req: AuthedRequest, res) => {
     reseaux: dispo.filter((p) => !p.regie && p.prete).map((p) => p.platform),
     regies: dispo.filter((p) => p.regie && p.prete).map((p) => p.platform),
     enAttente: dispo.filter((p) => !p.prete).map((p) => p.platform),
+    // Same split, per group: the screen lists every written connector with its
+    // own state instead of one global "not activated" banner.
+    reseauxEnAttente: dispo.filter((p) => !p.regie && !p.prete).map((p) => p.platform),
+    regiesEnAttente: dispo.filter((p) => p.regie && !p.prete).map((p) => p.platform),
     comptes: comptes.map((c) => ({
       id: c.id,
       externalId: c.externalId,

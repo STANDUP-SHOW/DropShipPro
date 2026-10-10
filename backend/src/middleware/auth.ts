@@ -37,6 +37,8 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
   let userId: string
   try {
     userId = (jwt.verify(token, JWT_SECRET) as { userId: string }).userId
+    // Un jeton d'un autre espace (affilié, back-office de boutique) n'a pas de userId.
+    if (typeof userId !== 'string') throw new Error('jeton sans compte vendeur')
   } catch {
     return res.status(401).json({ error: 'Session invalide, reconnectez-vous' })
   }

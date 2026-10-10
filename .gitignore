@@ -7,3 +7,12 @@ frontend/dist/
 backend/banc-prod-*.ts
 shopify-app/.shopify/
 MARKET-ANALYSES/rapports/
+
+# Copies locales des bases, faites avant chaque ecriture : des centaines de Mo
+# de donnees, jamais du code. La base n8n seule pese 463 Mo par sauvegarde.
+MARKET-ANALYSES/n8n/_sauvegardes/
+MARKET-ANALYSES/n8n/*.sqlite
+backend/rapports.db.avant-*
+
+# Les jetons des agents de veille : jamais dans le depot.
+MARKET-ANALYSES/market-spy/.env

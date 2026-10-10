@@ -20,6 +20,9 @@
       "source": "/api/aliexpress/:path*",
       "destination": "https://dropshippro-production.up.railway.app/api/aliexpress/:path*"
     },
+    { "source": "/avis", "destination": "/avis/index.html" },
+    { "source": "/confidentialite", "destination": "/confidentialite/index.html" },
+    { "source": "/register", "destination": "/register/index.html" },
     {
       "source": "/(.*)",
       "destination": "/index.html"

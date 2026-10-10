@@ -1,0 +1,23 @@
+{
+  "_commentaire": "Nom, adresse, téléphone et horaires de l'entreprise, donnés par Max le 08/10/2026 pour la fiche Google (local pack). UNE table, lue par le pied de page (statique et React), la page contact, /a-propos/, les mentions légales (scripts/editeur.cjs) et les données structurées de l'accueil : Google compare ces trois informations entre le site et la fiche Google, elles doivent être identiques partout. Un champ à null n'est affiché nulle part.",
+  "nom": "DropShipper IA",
+  "dirigeant": "Maxime Martinel",
+  "adresse": {
+    "rue": "2 rue Julien Imbert",
+    "codePostal": "34500",
+    "ville": "Béziers",
+    "region": "Occitanie",
+    "pays": "France",
+    "codePays": "FR"
+  },
+  "telephone": "07 46 47 69 68",
+  "telephoneInternational": "+33746476968",
+  "horaires": {
+    "jours": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "libelleJours": "du lundi au vendredi",
+    "ouverture": "08:00",
+    "fermeture": "20:00",
+    "libelle": "du lundi au vendredi, de 8 h à 20 h sans interruption"
+  },
+  "ficheGoogle": null
+}

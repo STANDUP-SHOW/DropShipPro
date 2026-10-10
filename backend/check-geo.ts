@@ -102,9 +102,46 @@ if (existsSync(index)) {
   } catch {
     types = []
   }
-  exige(['Organization', 'SoftwareApplication', 'FAQPage'].every((t) => types.includes(t)), 'un graphe schema.org lisible', types.join(', '))
+  // Service et non SoftwareApplication : sans note, Google tient une fiche Software App pour une erreur (audit du 03/10/2026).
+  exige(['Organization', 'Service', 'FAQPage'].every((t) => types.includes(t)) && !types.includes('SoftwareApplication'), 'un graphe schema.org lisible, sans fiche logiciel invalide', types.join(', '))
   exige(!/aggregateRating/.test(html), 'aucune note inventée')
   exige((html.match(/<meta name="description"/g) ?? []).length === 1, 'une seule description')
+
+  console.log('\nCe que l’audit du 03/10/2026 relevait')
+  const dist = resolve(import.meta.dirname, '../frontend/dist')
+  const robots = readFileSync(resolve(dist, 'robots.txt'), 'utf8')
+  exige(!/^\s*LLM-/m.test(robots) && /^Sitemap: https:\/\/www\.drop-shipper\.fr\/sitemap\.xml$/m.test(robots), 'robots.txt : seulement des directives standard')
+  for (const ecran of ['avis', 'confidentialite', 'register']) {
+    const fichier = resolve(dist, ecran, 'index.html')
+    const page = existsSync(fichier) ? readFileSync(fichier, 'utf8') : ''
+    exige(
+      page.includes(`<link rel="canonical" href="https://www.drop-shipper.fr/${ecran}" />`) && !page.includes('"Service"') && !/<title>DropShipper IA :/.test(page),
+      `/${ecran} : sa propre tête (titre, canonical), pas celle de l’accueil`,
+    )
+  }
+  const vercel = readFileSync(resolve(dist, '../vercel.json'), 'utf8')
+  exige(['/avis', '/confidentialite', '/register'].every((u) => vercel.indexOf(`"${u}/index.html"`) !== -1 && vercel.indexOf(`"${u}/index.html"`) < vercel.indexOf('"/(.*)"')), 'vercel.json route ces écrans vers leur copie, avant le filet')
+  const indexSitemaps = readFileSync(resolve(dist, 'sitemap.xml'), 'utf8')
+  exige(
+    indexSitemaps.includes('<sitemapindex') && indexSitemaps.includes('/sitemap-pages.xml</loc>') && indexSitemaps.includes('/analyses/sitemap.xml</loc>') && existsSync(resolve(dist, 'sitemap-pages.xml')),
+    'sitemap.xml est un index : les pages du site et les analyses du jour',
+  )
+  const titre = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? ''
+  exige(titre.length <= 60, 'le titre de l’accueil tient dans un résultat Google', `${titre.length} caractères`)
+
+  console.log('\nLe pack SEO du 07/10/2026')
+  const image = /<meta property="og:image" content="https:\/\/www\.drop-shipper\.fr\/([^"]+)"/.exec(html)?.[1] ?? ''
+  exige(/1200x630/.test(image) && existsSync(resolve(dist, image)) && html.includes('summary_large_image'), 'une image de partage 1200×630 qui existe', image)
+  exige(!/hreflang="en"/.test(html) && html.includes('hreflang="x-default"'), 'hreflang fr et x-default, pas de version anglaise annoncée')
+  const tarifs = readFileSync(resolve(dist, 'tarifs/index.html'), 'utf8')
+  exige(tarifs.includes('"FAQPage"') && (tarifs.match(/"@type":"Question"/g) ?? []).length === 4, '/tarifs/ : les quatre questions en FAQPage')
+  const nap = JSON.parse(readFileSync(resolve(dist, '../src/data/entreprise.json'), 'utf8'))
+  const contact = readFileSync(resolve(dist, 'contact/index.html'), 'utf8')
+  exige(
+    [html, contact, tarifs].every((p) => p.includes(nap.adresse.rue) && p.includes(nap.telephoneInternational)) && html.includes('"ProfessionalService"') && contact.includes(nap.horaires.libelle),
+    'adresse, téléphone et horaires identiques sur l’accueil, /contact/ et le pied de page (fiche Google)',
+  )
+  exige(existsSync(resolve(dist, 'ai.txt')) && readFileSync(resolve(dist, 'ai.txt'), 'utf8') === readFileSync(resolve(dist, 'llms.txt'), 'utf8'), '/ai.txt reprend /llms.txt')
 } else {
   console.log('\n(frontend/dist absent : la page construite n’est pas relue — lancez npm run build côté frontend)')
 }

@@ -21,6 +21,7 @@ import {
   regulariserAchats,
 } from '../services/shopifyBilling.js'
 import { inscrireMouvement } from '../services/billing.js'
+import { commissionnerRecharge } from '../services/affiliation.js'
 import { PACKS_DROPS, type PackDrops } from '../services/tarifs.js'
 
 /**
@@ -332,6 +333,7 @@ async function crediterAchatShopify(userId: string, pack: PackDrops, achatId: st
     select: { credits: true },
   })
   await inscrireMouvement(userId, pack.drops, apres.credits, `Recharge de ${pack.drops} drops (Shopify)`, achatId)
+  await commissionnerRecharge(userId, achatId, pack.amount)
   return true
 }
 

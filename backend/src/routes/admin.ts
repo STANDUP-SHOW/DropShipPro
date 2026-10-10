@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, requireAdmin, type AuthedRequest } from '../middleware/auth.js'
+import { listeVersementsAdmin, verser } from '../services/affiliation.js'
+import { sendMail, appUrl } from '../services/mailer.js'
 
 /**
  * Les routes réservées à l'administrateur. Le portique est double et côté
@@ -25,5 +27,46 @@ adminRouter.get('/newsletter', async (_req: AuthedRequest, res) => {
   } catch (err) {
     console.error('lecture des abonnés newsletter impossible', err)
     res.status(503).json({ error: 'Service momentanément indisponible' })
+  }
+})
+
+/** Les affiliés, ce qui leur est dû et leur IBAN : de quoi faire les virements du mois. */
+adminRouter.get('/affiliation', async (_req: AuthedRequest, res) => {
+  try {
+    res.set('Cache-Control', 'no-store')
+    res.json(await listeVersementsAdmin())
+  } catch (err) {
+    console.error('liste des versements affiliés', err)
+    res.status(503).json({ error: 'Service momentanément indisponible' })
+  }
+})
+
+/**
+ * Max a fait le virement : on solde toutes les commissions dues de l'affilié
+ * et on le prévient par mail. Le virement lui-même se fait à la banque, pas ici.
+ */
+adminRouter.post('/affiliation/:id/verse', async (req: AuthedRequest, res) => {
+  const reference = typeof req.body?.reference === 'string' ? req.body.reference.trim().slice(0, 120) : null
+  try {
+    const versement = await verser(req.params.id, reference)
+    if (!versement) return res.status(409).json({ error: 'Rien à verser pour cet affilié.' })
+    const affilie = await prisma.affilie.findUnique({ where: { id: req.params.id }, select: { email: true, nom: true } })
+    if (affilie) {
+      const montant = (versement.montantCentimes / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+      sendMail({
+        to: affilie.email,
+        subject: `Votre commission de ${montant} est en route`,
+        heading: `Bonjour ${affilie.nom}, nous venons de vous virer ${montant}`,
+        body: `<p style="margin:0">Le virement de vos commissions d’affiliation DropShipper IA vient d’être envoyé sur votre compte. Comptez un à trois jours ouvrés selon votre banque.</p>`,
+        actionLabel: 'Voir mon espace affilié',
+        actionUrl: `${appUrl()}/affiliation/espace`,
+        footer: 'Vous recevez ce message parce que vous êtes affilié DropShipper IA.',
+      }).catch((err) => console.error('mail de versement affilié', err))
+    }
+    res.json({ versement })
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('déjà versées')) return res.status(409).json({ error: 'Ce versement vient déjà d’être enregistré.' })
+    console.error('versement affilié', err)
+    res.status(500).json({ error: 'Versement non enregistré, réessayez.' })
   }
 })

@@ -485,10 +485,48 @@ export class ReportQuery {
      * titres `##` afficherait deux fois les mêmes tendances.
      */
     if (!/^##\s/m.test(analyse ?? '')) {
-      parts.push(ReportQuery.section('Tendances du jour', blob?.market?.current_trends))
-      parts.push(ReportQuery.section('Tendances émergentes', blob?.market?.emerging_trends))
-      parts.push(ReportQuery.section('Publicités en vogue', blob?.alerts?.breakout_products))
-      parts.push(ReportQuery.section('Idées de vente', blob?.business_ideas))
+      /*
+       * Trois formes de `data` ont existé, et il faut lire les trois.
+       *
+       * 1. les clés À PLAT, posées par les deux importeurs :
+       *    socialPlaces, adsCurrent, trendsDaily, trendingAds ;
+       * 2. le payload MarketSpy RANGÉ sous `marketspy` depuis le 23/09/2026 ;
+       * 3. ce même payload à la RACINE, avant cette date.
+       *
+       * Ce code ne lisait que la 3e. Le 23/09 j'ai imbriqué le payload sous
+       * `marketspy` pour réparer l'affichage des produits, et ce faisant j'ai
+       * vidé en silence le corps de TOUS les rapports marketing : les quatre
+       * sections sortaient vides, `texte` était vide, et la page retombait sur
+       * le repli `## Analyse` + le titre. C'est le « gros pavé d'analyse
+       * générale » que Max voyait au lieu de sa veille réseaux.
+       *
+       * Les données, elles, n'avaient jamais disparu : 89 « social places »,
+       * 66 publicités et 71 tendances étaient en base pour le seul 4 octobre.
+       */
+      const ms = blob?.marketspy ?? blob
+      const premier = (...candidats: unknown[]) =>
+        candidats.find((c) => Array.isArray(c) && c.some((x) => typeof x === 'string' && x.trim()))
+
+      parts.push(ReportQuery.section('Social places', premier(blob?.socialPlaces)))
+      parts.push(
+        ReportQuery.section(
+          'Publicités en cours',
+          premier(blob?.adsCurrent, ms?.alerts?.breakout_products),
+        ),
+      )
+      parts.push(
+        ReportQuery.section(
+          'Tendances du jour',
+          premier(blob?.trendsDaily, ms?.market?.current_trends),
+        ),
+      )
+      parts.push(
+        ReportQuery.section(
+          'Tendances publicitaires',
+          premier(blob?.trendingAds, ms?.market?.emerging_trends),
+        ),
+      )
+      parts.push(ReportQuery.section('Idées de vente', premier(ms?.business_ideas)))
     }
 
     if (nbProduits > 0) {

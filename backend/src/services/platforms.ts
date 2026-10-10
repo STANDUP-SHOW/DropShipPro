@@ -75,6 +75,7 @@ function domaineDe(url: string | null): string | null {
 /** Brand colours, kept next to the list so the UI never hard-codes them. */
 const COLORS: Record<string, string> = {
   OWN_SITE: '#a855f7',
+  DROPSHOP_MARKET: '#0b6b33',
   SHOPIFY: '#95bf47',
   EBAY: '#e53238',
   GOOGLE_SHOPPING: '#4285f4',
@@ -120,6 +121,15 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     sellUrl: null,
     note: 'Catalogue public servi par /api/public/products — publication immédiate.',
   },
+  // Notre propre place de marché (drop-shop.cloud) : inscription gratuite,
+  // paiement Stripe Connect, 5 % de commission sur la vente. Voir docs/dropshop-market.md.
+  {
+    id: 'DROPSHOP_MARKET',
+    label: 'DropShop Market',
+    automatable: true,
+    sellUrl: null,
+    note: "Place de marché DropShipper (drop-shop.cloud) : publication immédiate, une page et une annonce Google Shopping par variante. Pour encaisser, activez les paiements Stripe dans DropShop Market (inscription gratuite, 5 % de commission par vente).",
+  },
   // Shopify is not a marketplace: it's the seller's own store, so there is no
   // application to be accepted and no listing form to fill — sellUrl stays null so
   // the extension never opens a tab for it.
@@ -156,7 +166,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Cdiscount',
     automatable: true,
     sellUrl: 'https://seller.cdiscount.com',
-    note: 'API Marketplace Cdiscount — nécessite un compte vendeur validé.',
+    note: "API vendeur Octopia : offre déposée sur une fiche Cdiscount existante, retrouvée par EAN. Reliez le compte avec votre Seller ID et vos identifiants API (portail vendeur › Paramètres).",
   },
   {
     id: 'TIKTOK_SHOP',
@@ -170,7 +180,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Wish',
     automatable: true,
     sellUrl: 'https://merchant.wish.com',
-    note: 'Wish Merchant API — inscription vendeur en self-service.',
+    note: "Merchant API v3 : autorisez DropShipper depuis votre espace marchand, le produit est créé sur Wish puis relu par Wish avant affichage.",
   },
 
   /*
@@ -727,7 +737,7 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
     label: 'Etsy',
     automatable: true,
     sellUrl: 'https://www.etsy.com/sell',
-    note: 'API Etsy publique et self-service.',
+    note: "Open API v3 : autorisez DropShipper chez Etsy, l'annonce est créée en brouillon dans votre boutique et vous la publiez vous-même.",
     warning:
       "Etsy interdit la revente de produits manufacturés achetés en gros : seuls le fait main, le vintage de plus de 20 ans et les fournitures créatives sont autorisés. Publier des produits Temu ou JoyBuy expose à la fermeture de la boutique.",
   },
@@ -807,8 +817,9 @@ const PLATFORM_DEFS: Array<Omit<PlatformInfo, 'color' | 'integration' | 'batchab
 /** Les boutiques publiées par boutiqueTiers.ts : une entrée ici, une dans publisher.ts et settings.ts. */
 export const BOUTIQUES_TIERS: Platform[] = ['WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO', 'DRUPAL_COMMERCE', 'BIGCOMMERCE', 'WIX', 'SHOPWARE', 'ECWID', 'SQUARESPACE']
 
-// TikTok Shop, Amazon, Allegro : connecteurs à autorisation (marchesApi.ts), écrits le 03/10/2026.
-const LIVE: Platform[] = ['OWN_SITE', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'TIKTOK_SHOP', 'AMAZON', 'ALLEGRO', ...BOUTIQUES_TIERS, ...OPERATEURS_MIRAKL]
+// TikTok Shop, Amazon, Allegro : connecteurs à autorisation (marchesApi.ts), écrits le 03/10/2026 ;
+// Cdiscount, Etsy, Wish : même contrat, écrits le 08/10/2026.
+const LIVE: Platform[] = ['OWN_SITE', 'DROPSHOP_MARKET', 'SHOPIFY', 'EBAY', 'KAUFLAND', 'TIKTOK_SHOP', 'AMAZON', 'ALLEGRO', 'CDISCOUNT', 'ETSY', 'WISH', ...BOUTIQUES_TIERS, ...OPERATEURS_MIRAKL]
 
 /**
  * Les boutiques que le vendeur POSSÈDE, par opposition aux canaux de vente
@@ -856,7 +867,7 @@ function integrationOf(p: Omit<PlatformInfo, 'color' | 'integration' | 'batchabl
  * la mise en ligne l'est déjà. Écrite, jamais confrontée à une vraie boutique,
  * exactement comme le reste de l'intégration Shopify.
  */
-const ACCEPTE_VIDEO: Platform[] = ['OWN_SITE', 'SHOPIFY']
+const ACCEPTE_VIDEO: Platform[] = ['OWN_SITE', 'SHOPIFY', 'DROPSHOP_MARKET']
 
 // Colours live in their own table so adding a platform above can't forget one:
 // anything missing falls back to the app's purple.

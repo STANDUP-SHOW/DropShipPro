@@ -61,7 +61,8 @@ export async function publishToPlatform(productId: string, platform: Platform, a
     return publishToFeedChannel(productId, platform, product.userId)
   }
 
-  const isReady = platform === 'OWN_SITE'
+  // DropShop Market est à nous : publier, c est apparaître sur drop-shop.cloud.
+  const isReady = platform === 'OWN_SITE' || platform === 'DROPSHOP_MARKET'
 
   return prisma.publication.upsert({
     where: { productId_platform: { productId, platform } },
@@ -224,7 +225,7 @@ async function publierBoutique(product: Product, platform: keyof typeof BOUTIQUE
 
 /**
  * Le dépôt chez une place de marché à autorisation : TikTok Shop, Amazon,
- * Allegro (`marchesApi.ts`).
+ * Allegro, Cdiscount, Etsy, Wish (`marchesApi.ts`).
  *
  * Trois sorts, dits tels quels : « en attente » quand notre application n'est
  * pas déclarée chez la plateforme ou que le vendeur n'a pas relié son compte
