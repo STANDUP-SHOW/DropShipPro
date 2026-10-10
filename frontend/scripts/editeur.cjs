@@ -9,6 +9,9 @@
  *
  * Lu par build-blog.cjs (mentions légales) et build-geo.cjs (à propos).
  */
+const ENTREPRISE = require('../src/data/entreprise.json')
+const A = ENTREPRISE.adresse
+
 const EDITEUR = {
   /** Nom de la société, ou nom et prénom pour un entrepreneur individuel. */
   raisonSociale: null,
@@ -21,15 +24,16 @@ const EDITEUR = {
   immatriculation: null,
   /** Numéro de TVA intracommunautaire, s'il existe. */
   tva: null,
-  /** Adresse postale du siège. */
-  adresse: null,
+  /** Adresse postale du siège — src/data/entreprise.json, la même que la fiche Google. */
+  adresse: `${A.rue}, ${A.codePostal} ${A.ville}, ${A.pays}`,
   /** Personne responsable de la publication (en général le dirigeant). */
-  directeurPublication: null,
+  directeurPublication: ENTREPRISE.dirigeant,
   /** Fondateur, tel qu'il veut apparaître sur /a-propos/. */
-  fondateur: null,
+  fondateur: ENTREPRISE.dirigeant,
   /** Date de création de l'entreprise, AAAA-MM-JJ. */
   dateCreation: null,
-  telephone: null,
+  telephone: ENTREPRISE.telephone,
+  horaires: ENTREPRISE.horaires.libelle,
   email: 'contact@drop-shipper.fr',
 }
 
@@ -52,9 +56,49 @@ function lignesConnues() {
     ['dateCreation', 'Création'],
     ['directeurPublication', 'Directeur de la publication'],
     ['telephone', 'Téléphone'],
+    ['horaires', 'Horaires'],
     ['email', 'Contact'],
   ]
   return libelles.filter(([k]) => EDITEUR[k]).map(([k, label]) => [label, EDITEUR[k]])
 }
 
-module.exports = { EDITEUR, OBLIGATOIRES, manquants, lignesConnues }
+/** L'adresse en schema.org, la même que la fiche Google. */
+function adresseLd() {
+  return {
+    '@type': 'PostalAddress',
+    streetAddress: A.rue,
+    postalCode: A.codePostal,
+    addressLocality: A.ville,
+    addressRegion: A.region,
+    addressCountry: A.codePays,
+  }
+}
+
+/**
+ * L'établissement, pour le « local pack » de Google (la carte) : nom, adresse,
+ * téléphone et horaires identiques à la fiche Google Business. Aucune note
+ * (aggregateRating) : on n'en invente jamais, et Google ne lit pas une note
+ * qu'une entreprise publie sur elle-même. Pas de coordonnées GPS non plus tant
+ * qu'elles ne viennent pas de la fiche Google : une position approchée serait fausse.
+ */
+function etablissementLd(site) {
+  const h = ENTREPRISE.horaires
+  return {
+    '@type': 'ProfessionalService',
+    '@id': `${site}/#etablissement`,
+    name: ENTREPRISE.nom,
+    url: `${site}/`,
+    image: `${site}/images/og-dropshipper-1200x630.png`,
+    logo: `${site}/marque/dropshipper-icone.png`,
+    telephone: ENTREPRISE.telephoneInternational,
+    email: EDITEUR.email,
+    address: adresseLd(),
+    founder: { '@type': 'Person', name: ENTREPRISE.dirigeant },
+    openingHoursSpecification: [{ '@type': 'OpeningHoursSpecification', dayOfWeek: h.jours, opens: h.ouverture, closes: h.fermeture }],
+    areaServed: ['FR', 'BE', 'CH', 'LU', 'CA'],
+    parentOrganization: { '@id': `${site}/#organisation` },
+    ...(ENTREPRISE.ficheGoogle ? { hasMap: ENTREPRISE.ficheGoogle } : {}),
+  }
+}
+
+module.exports = { adresseLd, etablissementLd, ENTREPRISE, EDITEUR, OBLIGATOIRES, manquants, lignesConnues }
