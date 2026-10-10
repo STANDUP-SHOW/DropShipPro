@@ -132,6 +132,8 @@ export interface EtatDropShop {
 
 export interface MarketVendeur {
   commission: number
+  /** Publication automatique des produits de la boutique sur le Market. */
+  auto: boolean
   market: string
   stripe: { inscrit: boolean; actif: boolean; detailsEnvoyes: boolean; virements: boolean; manque?: string[]; erreur?: boolean }
   annonces: Array<{ productId: string; titre: string; url: string; variantes: number; prime: boolean; publieeLe: string | null }>
@@ -302,6 +304,7 @@ function enQuery(params: Record<string, string | number | undefined>): string {
 export const api = {
   /** DropShop Market (drop-shop.cloud) : l espace vendeur — Stripe Connect, annonces, ventes, flux. */
   marketVendeur: () => request<MarketVendeur>('/market/vendeur'),
+  marketAuto: (actif: boolean) => request<{ ok: true; auto: boolean }>('/market/vendeur/auto', { method: 'PUT', body: JSON.stringify({ actif }) }),
   marketStripe: () => request<{ url: string }>('/market/vendeur/stripe', { method: 'POST' }),
   marketStripeTableau: () => request<{ url: string }>('/market/vendeur/stripe/tableau', { method: 'POST' }),
   /** DropShop Market : l admin simplifie (compte admin seulement, 403 sinon). */

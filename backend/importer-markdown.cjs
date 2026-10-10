@@ -606,6 +606,8 @@ for (const e of liste) {
 
 if (db) db.close();
 console.log(`\n${ok} etude(s) importee(s), ${ko} refusee(s), ${produitsTotal} produits.`);
+// --envoyer : la base part en ligne sans push (envoyer-rapports.cjs).
+if (args.includes('--envoyer') && !sec && ok) require('./envoyer-rapports.cjs').envoyerEtDire(BASE);
 if (!sec && ok) {
   console.log('\nEnchainer pour la memoire et les alertes :');
   console.log('  node memoire-migration.cjs');

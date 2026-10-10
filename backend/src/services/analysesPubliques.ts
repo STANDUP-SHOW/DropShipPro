@@ -13,9 +13,9 @@
  * La lecture en base est dans `routes/analysesPubliques.ts`.
  *
  * Ce qui est public et ce qui ne l'est pas — la ligne est nette : l'analyse
- * entière l'est, le tableau des produits gagnants aussi (titre, fournisseur,
- * prix de vente conseillé, marge, pourquoi), mais **ni l'adresse de la fiche
- * fournisseur ni le prix d'achat** : c'est ce que les rapports du jour offrent
+ * entière l'est, le tableau des produits gagnants aussi (titre, prix de vente
+ * conseillé, pourquoi), mais **ni le fournisseur (nom ou adresse) ni le prix
+ * d'achat**, pas même glissés par l'agent dans le texte « pourquoi » : c'est ce que les rapports du jour offrent
  * aux comptes à 500 drops (`routes/marketReports.ts`), et c'est la valeur qui
  * fait ouvrir un compte. Le corps Markdown du rapport rayon contient ce tableau
  * avec ses adresses : il n'est jamais rendu tel quel, la section des produits
@@ -24,9 +24,8 @@
  * Adresses :
  *   /analyses/                                       toutes les catégories, dernier jour
  *   /analyses/<categorie>/                           l'archive d'une catégorie
- *   /analyses/<categorie>/<titre>-<AAAA-MM-JJ>/            le rapport rayon (analyse + produits gagnants)
- *   /analyses/<categorie>/<titre>-marketing-<AAAA-MM-JJ>/  le rapport marketing (angles, prompts)
- *   (l'ancienne forme <categorie>/<AAAA-MM-JJ>/<theme>/[marketing/] redirige en 301)
+ *   /analyses/<theme>/<sujet-tiré-du-titre>/                un rapport (rayon ou marketing), comme un article
+ *   (les formes <categorie>/<AAAA-MM-JJ>/<theme>/[marketing/] et <categorie>/<sujet>-<date>/ redirigent en 301)
  *   /analyses/<AAAA-MM-JJ>/                          l'édition du jour : toutes les analyses et leurs produits gagnants
  *   /analyses/sitemap.xml
  */
@@ -51,6 +50,10 @@ export interface RapportPublic {
   themeNom: string
   type: 'rayon' | 'marketing'
   titre: string
+  /** Le titre du jour (champ facultatif `titre_du_jour` du rapport) : quand il existe, il devient le titre et l'adresse. */
+  une?: string | null
+  /** L'extrait percutant (accroche ou « Opportunité principale ») qui complète l'adresse. */
+  extrait?: string | null
   accroche: string | null
   body: string
   produits: ProduitRapport[]
@@ -82,16 +85,83 @@ export function slugTitre(titre: string, max = 70): string {
   return slug.slice(0, max + 1).replace(/-[^-]*$/, '')
 }
 
+const MOTS_OUTILS = /(-(en|de|du|des|le|la|les|pour|et|a|au|aux|sur|d|l|un|une|avec))+$/
+/** Un mot-outil ne termine pas un sujet (« …-casques-bluetooth-de »), ni l'année en suffixe orphelin. */
+function nettoyer(slug: string, annee: string): string {
+  return slug.replace(new RegExp(`-(en-|de-)?${annee}$`), '').replace(MOTS_OUTILS, '')
+}
+
+export const SUJET_MAX = 100
+const OUTILS = new Set(['a', 'au', 'aux', 'avec', 'd', 'de', 'des', 'du', 'en', 'et', 'l', 'la', 'le', 'les', 'pour', 'sur', 'un', 'une'])
+
 /**
- * L'adresse d'un rapport, comme celle d'un article (demandé par Max le
- * 03/10/2026) : le sujet tiré du titre, puis la date —
- *   /analyses/automobile/meilleurs-accessoires-d-interieur-pour-voiture-2026-09-18/
- *   /analyses/automobile/les-tendances-deco-pour-2026-marketing-2026-09-18/
- * L'ancienne forme catégorie/date/thème redirige ici en 301 (routes/analysesPubliques.ts).
+ * Le sujet d'un rapport, pour son adresse (Max, 03/10/2026 : « titre de
+ * l'analyse et extrait percutant de l'analyse en question ») :
+ *  - le titre du jour quand le rapport en porte un, seul ;
+ *  - sinon le titre, puis l'extrait percutant sans les mots déjà dits ;
+ *  - sinon le titre seul.
+ * « ordinateurs-pour-ia-en-mode-local-egpu-docks-oculink-thunderbolt-5-… ».
  */
-export function cheminRapport(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre'>): string {
-  // « …-bureau-2026-2026-09-19 » : l'année du titre fait doublon avec la date qui suit.
-  // Ni « …-de-2026-09-19 » : un mot-outil ne termine pas un sujet.
+export function sujetRapport(r: Pick<RapportPublic, 'day' | 'theme' | 'titre' | 'une' | 'extrait'>): string {
+  const annee = r.day.slice(0, 4)
+  if (r.une) return nettoyer(slugTitre(r.une, SUJET_MAX), annee) || r.theme
+  const titre = nettoyer(slugTitre(r.titre, 70), annee) || r.theme
+  if (!r.extrait) return titre
+  const dits = new Set(titre.split('-'))
+  const reste = slugTitre(r.extrait, 200)
+    .split('-')
+    .filter((m) => m && !dits.has(m) && !OUTILS.has(m))
+    .join('-')
+  if (!reste) return titre
+  return nettoyer(slugTitre(`${titre}-${reste}`, SUJET_MAX), annee) || titre
+}
+
+type Adressable = Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait'>
+
+/**
+ * Les adresses attribuées, rapport par rapport. Ni catégorie ni date dans
+ * l'adresse (Max, 03/10/2026 : « aucun intérêt en référencement ») : deux
+ * rapports du même thème peuvent donc porter le même sujet (le rayon et le
+ * marketing du 20/09 en informatique, par exemple). Le PREMIER publié garde
+ * l'adresse nue, les suivants prennent -2, -3… dans l'ordre de publication :
+ * une adresse donnée ne change pas quand un nouveau rapport arrive.
+ * La date reste dans la page et dans datePublished, pas dans l'adresse.
+ */
+let attribuees = new Map<string, string>()
+
+export function attribuerAdresses(rapports: Adressable[]): void {
+  const prises = new Set<string>()
+  const carte = new Map<string, string>()
+  const rang = (r: Adressable) => `${r.day}|${r.type === 'rayon' ? 0 : 1}|${r.id}`
+  const ordre = [...rapports].sort((a, b) => (rang(a) < rang(b) ? -1 : 1))
+  for (const r of ordre) {
+    const base = `/analyses/${r.theme}/${sujetRapport(r)}`
+    let choix = `${base}/`
+    for (let n = 2; prises.has(choix); n++) choix = `${base}-${n}/`
+    prises.add(choix)
+    carte.set(r.id, choix)
+  }
+  attribuees = carte
+}
+
+/** Le rapport qui porte cette adresse, s'il y en a un (après attribuerAdresses). */
+export function rapportA(chemin: string): string | null {
+  for (const [id, c] of attribuees) if (c === chemin) return id
+  return null
+}
+
+/**
+ * L'adresse d'un rapport, comme un article : le thème, puis le sujet —
+ * /analyses/interieur/meilleurs-accessoires-d-interieur-pour-voiture/.
+ * Les formes précédentes (catégorie/date/thème, puis catégorie/sujet-date)
+ * redirigent ici en 301 (routes/analysesPubliques.ts).
+ */
+export function cheminRapport(r: Adressable): string {
+  return attribuees.get(r.id) ?? `/analyses/${r.theme}/${sujetRapport(r)}/`
+}
+
+/** La forme du 03/10/2026 au soir (PR #25), gardée pour les redirections. */
+export function cheminArticleDate(r: Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre'>): string {
   const sujet =
     slugTitre(r.titre)
       .replace(new RegExp(`-${r.day.slice(0, 4)}$`), '')
@@ -372,16 +442,43 @@ function breadcrumbLd(items: Array<{ nom: string; url?: string }>) {
 
 const ORGANISATION = { '@type': 'Organization', '@id': `${SITE}/#organisation`, name: NOM, url: `${SITE}/` }
 
-/** Les produits gagnants, bridés : ni adresse fournisseur, ni prix d'achat, ni marge (son unité varie selon l'agent). */
+/**
+ * Ce qui, dans un texte libre d'agent, trahit l'achat : un prix d'achat
+ * (« 1,91 US$ relevé sur la fiche »), un coût, une devise étrangère, ou le nom
+ * d'un fournisseur. Les agents l'écrivent dans « pourquoi » : la colonne
+ * fournisseur retirée ne suffit pas, le texte est filtré au rendu.
+ */
+const TRAHIT_ACHAT = /achat|fournisseur|relev|sur la fiche|co[uû]t|usine|grossiste|\$|US\s?\$|¥|yuan|rmb|cny|aliexpress|alibaba|1688|cj\s?drop|cjdropshipping|temu|shein|bigbuy|accio|dhgate|banggood|spocket|zendrop|syncee/i
+
+/** « pourquoi » sans ce qui trahit l'achat : chaque parenthèse et chaque membre de phrase fautif est retiré. Exporté pour le banc. */
+export function pourquoiPublic(texte: string | null | undefined): string {
+  if (!texte) return ''
+  // The agents' « · »-separated fields (verdict · reason · audience) are filtered one by one.
+  return texte
+    .split(/\s+·\s+/)
+    .map((champ) => {
+      const sansParentheses = champ.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (TRAHIT_ACHAT.test(dedans) ? '' : m))
+      const net = sansParentheses
+        .split(/\s*[;,]\s+|\s+[—–-]\s+/)
+        .map((m) => m.trim().replace(/[.\s]+$/, ''))
+        .filter((m) => m && !TRAHIT_ACHAT.test(m))
+        .join(', ')
+      return net ? net.charAt(0).toUpperCase() + net.slice(1) : ''
+    })
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/** Les produits gagnants, bridés : ni fournisseur, ni prix d'achat, ni marge (son unité varie selon l'agent). */
 function tableauProduitsPublic(produits: ProduitRapport[]): string {
   if (!produits.length) return ''
   const euros = (n: number | null) => (n === null ? '—' : `${n.toFixed(2).replace('.', ',')} €`)
   return `<div class="tableau"><table>
-<thead><tr><th>#</th><th>Produit</th><th>Fournisseur</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
+<thead><tr><th>#</th><th>Produit</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
 <tbody>${produits
     .map(
       (p) =>
-        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${esc(p.fournisseur)}</td><td>${euros(p.prixVente)}</td><td>${esc(p.pourquoi)}</td></tr>`,
+        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${euros(p.prixVente)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`,
     )
     .join('')}</tbody></table></div>
 <p class="garde">La fiche fournisseur et le prix d'achat de chaque produit sont réservés aux comptes ${NOM} : <a href="/register">créez un compte</a> pour les ouvrir, les importer en un clic et les publier sur vos places de marché.</p>`
@@ -396,7 +493,7 @@ function produitsLd(r: RapportPublic) {
       '@type': 'ListItem',
       position: p.rang,
       name: p.titre,
-      ...(p.prixVente !== null ? { description: `Prix de vente conseillé ${p.prixVente.toFixed(2)} € — ${p.pourquoi}` } : {}),
+      ...(p.prixVente !== null ? { description: [`Prix de vente conseillé ${p.prixVente.toFixed(2)} €`, pourquoiPublic(p.pourquoi)].filter(Boolean).join(' — ') } : {}),
     })),
   }
 }
@@ -411,7 +508,7 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
     r.accroche ||
     (estRayon
       ? r.produits.length
-        ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping, avec fournisseur, prix de vente conseillé et marge.`
+        ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping, avec prix de vente conseillé.`
         : `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} : tendances, prix pratiqués, saisonnalité et pistes de produits à importer en dropshipping.`
       : `Analyse marketing ${theme.toLowerCase()} du ${dateLongue(r.day)} : angles, audiences, prompts publicitaires image et vidéo.`)
 
@@ -627,7 +724,7 @@ ${
   top.length
     ? `<h2 id="produits">Les produits gagnants du jour</h2><div class="tableau"><table>
 <thead><tr><th>Produit</th><th>Catégorie</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
-<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixVente)}</td><td>${esc(p.pourquoi)}</td></tr>`).join('')}</tbody></table></div>`
+<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixVente)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`).join('')}</tbody></table></div>`
     : ''
 }
 ${[...parCategorie.values()]
@@ -668,7 +765,7 @@ ${[...parCategorie.values()]
   })
 }
 
-export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'updatedAt'>>): string {
+export function sitemapXml(rapports: Array<Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait' | 'updatedAt'>>): string {
   const categories = new Map<string, Date>()
   for (const r of rapports) {
     const d = categories.get(r.categorie)
@@ -680,7 +777,7 @@ export function sitemapXml(rapports: Array<Pick<RapportPublic, 'categorie' | 'da
     if (!d || d < r.updatedAt) jours.set(r.day, r.updatedAt)
   }
   const ligne = (loc: string, mod: Date, prio: string, freq: string) =>
-    `  <url><loc>${SITE}${loc}</loc><lastmod>${mod.toISOString().slice(0, 10)}</lastmod><changefreq>${freq}</changefreq><priority>${prio}</priority></url>`
+    `  <url><loc>${SITE}${loc}</loc><lastmod>${mod.toISOString()}</lastmod><changefreq>${freq}</changefreq><priority>${prio}</priority></url>`
   const dernier = rapports.reduce((d, r) => (r.updatedAt > d ? r.updatedAt : d), new Date(0))
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

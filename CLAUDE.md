@@ -88,7 +88,8 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 ## Rapports des 48 agents (`backend/rapports.db`)
 
 - SQLite **versionnée exprès** (voir `backend/.gitignore`) : un rapport n'est en ligne que commité
-  et déployé. Remplie en local par `backend/importer-markdown.cjs` (le cas courant : les
+  et déployé, ou déposé par `--envoyer` (`POST /api/agent/rapports-db` → `storage/rapports.db`, la plus
+  récente des deux gagne). Remplie en local par `backend/importer-markdown.cjs` (le cas courant : les
   rapports Markdown des tâches planifiées) ou `importer-aimarket.cjs` (JSON aiMARKET
   de n8n). Pas `MarketReport`.
   Chiffres au 04/10/2026 : 87 rapports (44 rayon, 43 marketing), 641 produits,

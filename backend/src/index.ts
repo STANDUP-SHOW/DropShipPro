@@ -12,7 +12,9 @@ import { betaRouter } from './routes/beta.js'
 import { vitrineRouter } from './routes/vitrine.js'
 import { marketRouter, marketHostRouter } from './routes/market.js'
 import { marketApiRouter } from './routes/marketApi.js'
-import { analysesPubliquesRouter } from './routes/analysesPubliques.js'
+import { analysesPubliquesRouter, lignesPubliques } from './routes/analysesPubliques.js'
+import { sitemapXml } from './services/analysesPubliques.js'
+import { planifierAnnonce } from './services/annonceAnalyses.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
 import { mobileRouter } from './routes/mobile.js'
@@ -212,6 +214,8 @@ app.listen(port, () => {
   reprendreTravauxOrphelins()
     .then((n) => { if (n) console.log(`[dropshop] ${n} travail(aux) repris après redémarrage`) })
     .catch((e) => console.error('[dropshop] reprise impossible', e instanceof Error ? e.message : e))
+  // Les analyses que ce déploiement vient de rendre publiques sont annoncées aux moteurs (IndexNow).
+  planifierAnnonce(() => sitemapXml(lignesPubliques()))
 })
 
 /*
