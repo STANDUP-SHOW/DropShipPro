@@ -34,8 +34,8 @@ Le marché des chargeurs bascule vers le **GaN 65 W**. Les câbles tressés se v
 
 | # | Titre | Fournisseur | URL fournisseur | Prix achat € | Prix vente conseillé € | Marge % | Import | Pourquoi |
 |---|-------|-------------|-----------------|--------------|------------------------|---------|--------|----------|
-| 1 | Chargeur GaN 65 W 3 ports | CJ Dropshipping | https://fournisseur.test/secret-1 | 9,80 | 24,90 | 61 | api | Tendance forte |
-| 2 | Câble USB-C 100 W tressé 2 m | AliExpress | https://fournisseur.test/secret-2 | 1,90 | 9,90 | 81 | extension | Marge |
+| 1 | Chargeur GaN 65 W 3 ports | CJ Dropshipping | https://fournisseur.test/secret-1 | 9,80 | 24,90 | 61 | api | Tendance forte (9,80 US$ relevé sur la fiche), forte demande avant Noël |
+| 2 | Câble USB-C 100 W tressé 2 m | AliExpress | https://fournisseur.test/secret-2 | 1,90 | 9,90 | 81 | extension | Marge ; 1,90 € chez AliExpress |
 | 3 | Batterie externe 20 000 mAh | BigBuy | https://fournisseur.test/secret-3 | 12,50 | 34,90 | 64 | api | Rentrée |
 | 4 | Support voiture magnétique | CJ Dropshipping | https://fournisseur.test/secret-4 | 2,10 | 12,90 | 84 | api | Volume |
 | 5 | Chargeur sans fil 15 W | Temu | https://fournisseur.test/secret-5 | 4,30 | 19,90 | 78 | extension | Marge |
@@ -81,6 +81,9 @@ console.log('La page d’un rapport rayon')
   exige(html.includes('produits gagnants'), 'le bloc des produits est retitré « gagnants »')
   const ld = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1])
   exige(!JSON.stringify(ld).includes('fournisseur.test'), 'ni dans les données structurées')
+  exige(!/<th>Fournisseur<\/th>/.test(html) && !/CJ Dropshipping|AliExpress|BigBuy|Temu/.test(html), 'AUCUN nom de fournisseur ne sort (règle de Max, PR #24)')
+  exige(!/9,80|1,90|US\$|relevé sur la fiche/.test(html), 'ni prix d’achat glissé dans « pourquoi », données structurées comprises')
+  exige(html.includes('Tendance forte, forte demande avant Noël'), '« pourquoi » garde ce qui ne trahit pas l’achat')
 }
 
 console.log('\nUn rapport MarketSpy : les produits sont à part, pas dans le corps')
@@ -179,6 +182,7 @@ console.log('\nCe que l’audit du 03/10/2026 relevait')
 console.log('\nL’édition du jour')
 {
   const html = pageJour('2026-09-18', [rapport, marketing], '2026-09-17', '2026-09-19')
+  exige(!/9,80|US\$|AliExpress|CJ Dropshipping/.test(html), 'l’édition du jour non plus : ni prix d’achat ni fournisseur')
   exige(html.includes('<title>Produits gagnants et tendances du 18/09/2026</title>') && html.includes('href="https://www.drop-shipper.fr/analyses/2026-09-18/"'), 'une page par jour, à son adresse')
   exige(html.includes('Chargeur GaN 65 W 3 ports') && html.includes(`href="${cheminRapport(rapport)}#produits"`), 'les produits gagnants du jour, liés à leur rapport')
   exige(!html.includes('fournisseur.test') && !html.includes('9,80') && !/CJ Dropshipping|BigBuy|Temu/.test(html), 'ni adresse, ni nom de fournisseur, ni prix d’achat')
