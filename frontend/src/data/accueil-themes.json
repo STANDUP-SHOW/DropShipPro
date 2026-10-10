@@ -199,11 +199,6 @@
         "texte": "48 rapports par jour et leurs produits gagnants, importables en un clic."
       },
       {
-        "slug": "dropshop-ia",
-        "titre": "Boutique complète",
-        "texte": "Écrite par l'IA, unique et responsive. 3,50 € une seule fois, à vie."
-      },
-      {
         "slug": "visuels-ia",
         "titre": "Visuels et publicités",
         "texte": "Photos en situation et pubs à vos couleurs."
@@ -224,6 +219,23 @@
         "texte": "23 chefs de rayon et des assistants (photos, budget pub, SAV) aux vraies capacités."
       }
     ],
+    "dropshop": {
+      "slug": "dropshop-ia",
+      "titre": "Votre boutique, écrite par l'IA, et la marketplace qui va avec",
+      "boutique": {
+        "titre": "Créer ma boutique DropShop",
+        "texte": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique et responsive, avec panier, commande et paiement Stripe sur votre compte. Trois directions en une minute, dix modifications comprises.",
+        "prix": "3,50 € une seule fois, à vie",
+        "bouton": "Créer ma boutique",
+        "href": "/register"
+      },
+      "market": {
+        "titre": "DropMarket",
+        "texte": "La place de marché qui réunit toutes les boutiques DropShop.",
+        "badge": "Bientôt"
+      },
+      "extensions": "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews."
+    },
     "auto": {
       "slug": "auto-shipper",
       "titre": "Mode auto : laissez-les faire",
