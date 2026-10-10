@@ -159,3 +159,23 @@ renseigné, sinon sa vitrine `/b/<adresse>` (`boutiqueUrlDe`). Même lien sur la
 page vendeur et dans le schema.org (`seller.url`). Lien suivi, sans `nofollow` :
 c'est voulu, pour le maillage et les backlinks. Un `siteUrl` qui n'est pas en
 http(s) est ignoré.
+
+## Charte graphique du Market (10/10/2026)
+
+Planche de Max : fond noir `#010211`, dégradé turquoise `#0ce7bb` → bleu `#3da7e2` →
+violet `#8b5ed0` → rose `#e53873` → jaune `#fcb817`, logo au sac « DropShop MARKET /
+Rapide Europe / Produits d'importation », interrupteur PRIME. Les fichiers
+(`backend/market-assets/` : logo du bandeau, favicon 32, icônes 180/512, visuel de
+partage 1200×630) sont découpés de cette planche et servis à `/assets/*` par le
+routeur du Market. Bandeau noir pleine largeur avec le logo à gauche et un liseré
+dégradé ; accueil en bandeau de positionnement (relié à tous les dropshops, produits
+d'importation déjà en Europe, Prime 24 h, expédié d'Europe/Allemagne/Pologne) et
+pays par défaut (`PAYS` dans `marketPages.ts`) à ajuster. Le jaune du badge Prime
+sur les cartes est conservé.
+
+Accueil : défilé « En vedette » (douze articles : Prime d'abord, puis les mieux notés,
+puis les plus récents, pris parmi les soixante dernières annonces ; flèches et
+défilement automatique, désactivé si `prefers-reduced-motion`). Bouton PRIME de la
+charte (`boutonPrime` : interrupteur dégradé, « PRIME » en blanc dessous, « 24 H » en
+dessous) dans le bandeau noir et dans la bande Prime. Favicône : `/favicon.ico`
+(16/32/48), PNG 16/32/192, icône 180 pour iOS, `/site.webmanifest` (icône 192/512).

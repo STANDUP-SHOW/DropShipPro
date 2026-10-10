@@ -50,20 +50,21 @@ interface Gabarit {
 }
 
 const CSS = `
-:root{--vert:#0b6b33;--vert-fonce:#08522a;--orange:#f28a4b;--rose:#e85290;--encre:#14211a;--gris:#5b6660;--fond:#f6f7f5;--carte:#fff;--trait:#e3e7e4}
+:root{--vert:#6d3fc0;--vert-fonce:#0b0c24;--noir:#010211;--turquoise:#0ce7bb;--bleu:#3da7e2;--violet:#8b5ed0;--orange:#fcb817;--rose:#e53873;--degrade:linear-gradient(90deg,#0ce7bb,#3da7e2,#8b5ed0,#e53873,#fcb817);--encre:#14211a;--gris:#5b6660;--fond:#f6f7f5;--carte:#fff;--trait:#e3e7e4}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--encre);background:var(--fond);line-height:1.5}
 a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}
 img{max-width:100%;display:block}
 .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
-header.top{background:var(--vert);color:#fff;position:sticky;top:0;z-index:10}
-header.top .wrap{display:flex;align-items:center;gap:16px;min-height:64px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
-.logo{font-weight:800;font-size:20px;letter-spacing:-.02em;white-space:nowrap}.logo span{color:var(--orange)}
+header.top{background:var(--noir);color:#fff;position:sticky;top:0;z-index:10}
+header.top::after{content:"";display:block;height:4px;background:var(--degrade)}
+header.top .wrap{display:flex;align-items:center;gap:20px;min-height:104px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
+.logo{display:block;flex:none;line-height:0}.logo img{height:92px;width:auto}
 form.cherche{flex:1;display:flex;min-width:220px}
-form.cherche input{flex:1;border:0;border-radius:10px 0 0 10px;padding:11px 14px;font:inherit;font-size:15px;min-width:0}
-form.cherche button{border:0;border-radius:0 10px 10px 0;background:var(--orange);color:#fff;font-weight:700;padding:0 18px;font:inherit;cursor:pointer}
+form.cherche input{flex:1;border:0;border-radius:999px 0 0 999px;padding:11px 14px;font:inherit;font-size:15px;min-width:0}
+form.cherche button{border:0;border-radius:0 999px 999px 0;background:var(--degrade);color:var(--noir);font-weight:800;padding:0 22px;font:inherit;cursor:pointer}
 .vendre{font-weight:600;font-size:14px;border:1px solid rgba(255,255,255,.5);border-radius:999px;padding:7px 14px;white-space:nowrap}
-nav.rayons{background:var(--vert-fonce);color:#e9f3ec;font-size:14px;position:relative}
+nav.rayons{background:var(--vert-fonce);color:#e8e9f7;font-size:14px;position:relative}
 nav.rayons .wrap{display:flex;gap:6px;align-items:center;padding-top:6px;padding-bottom:6px}
 nav.rayons .defile{display:flex;gap:16px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;flex:1}
 nav.rayons .defile::-webkit-scrollbar{display:none}
@@ -74,12 +75,20 @@ nav.rayons summary::-webkit-details-marker{display:none}
 .mega .wrap{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px 24px;padding-top:20px!important;padding-bottom:24px!important;align-items:start!important}
 .mega h3{font-size:14px;margin:0 0 6px}.mega h3 a{color:var(--vert)}
 .mega ul{list-style:none;margin:0;padding:0;font-size:13px;color:var(--gris)}.mega li{margin:3px 0}
-.btn-prime{display:inline-flex;align-items:center;gap:6px;background:#fdbf06;color:#14211a;font-weight:800;border-radius:999px;padding:8px 16px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.15)}
-.btn-prime:hover{text-decoration:none;filter:brightness(1.05)}
+.btn-prime{display:inline-flex;flex-direction:column;align-items:center;gap:5px;color:#fff;font-weight:800;line-height:1;white-space:nowrap}
+.btn-prime:hover,.bandeau-prime:hover{text-decoration:none}
+.bandeau-prime:hover .pilule i{transform:translateX(54px)}
+.btn-prime .pilule{position:relative;display:block;width:104px;height:50px;border-radius:999px;background:linear-gradient(115deg,#0ce7bb 0%,#3da7e2 28%,#e53873 62%,#fcb817 100%);box-shadow:0 0 22px rgba(139,94,208,.5),inset 0 -3px 6px rgba(0,0,0,.18);transition:box-shadow .2s}
+.btn-prime .pilule i{position:absolute;top:5px;left:5px;width:40px;height:40px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:transform .25s}
+.btn-prime:hover .pilule i,.btn-prime:focus-visible .pilule i{transform:translateX(54px)}
+.btn-prime:active .pilule{box-shadow:0 0 10px rgba(139,94,208,.5),inset 0 3px 8px rgba(0,0,0,.3)}
+.btn-prime b{font-size:15px;letter-spacing:.38em;margin-right:-.38em}
+.btn-prime small{font-size:11px;font-weight:700;letter-spacing:.3em;margin-right:-.3em;color:#cfd0e6}
 .prime{display:inline-flex;align-items:center;gap:4px;background:#fdbf06;color:#14211a;font-weight:800;font-size:11px;border-radius:6px;padding:2px 7px;letter-spacing:.02em}
 .prime-gros{font-size:14px;padding:5px 10px;border-radius:8px}
 .carte .img{position:relative}.carte .img .prime{position:absolute;top:8px;left:8px}
-.bandeau-prime{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#fff6d6;border:1.5px solid #fdbf06;border-radius:16px;padding:16px 20px;margin:0 0 28px}
+.bandeau-prime{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--noir);color:#fff;border:1.5px solid var(--violet);box-shadow:0 0 22px rgba(139,94,208,.25);border-radius:16px;padding:20px 24px;margin:0 0 28px}
+.bandeau-prime .muted{color:#b9bbd3}
 .bandeau-prime b{font-size:18px}
 .tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:28px}
 .tuile{background:#fff;border:1px solid var(--trait);border-radius:14px;padding:14px 12px;display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px;line-height:1.25}
@@ -90,7 +99,24 @@ nav.rayons summary::-webkit-details-marker{display:none}
 main{padding:24px 0 48px}
 h1{font-size:clamp(22px,3vw,30px);line-height:1.2;margin:0 0 8px;letter-spacing:-.01em}
 h2{font-size:20px;margin:32px 0 12px}
-.hero{background:linear-gradient(135deg,var(--vert),#0f8a43);color:#fff;border-radius:18px;padding:32px 28px;margin-bottom:28px}
+.hero{background:radial-gradient(120% 140% at 0% 0%,rgba(139,94,208,.55),transparent 55%),radial-gradient(100% 120% at 100% 100%,rgba(12,231,187,.35),transparent 50%),var(--noir);color:#fff;border-radius:22px;padding:34px 30px;margin-bottom:28px;border:1px solid rgba(255,255,255,.08)}
+.hero h1{font-size:clamp(26px,4vw,40px);letter-spacing:-.02em}
+.hero .degrade{background:var(--degrade);-webkit-background-clip:text;background-clip:text;color:transparent}
+.atoutsm{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:22px 0 0}
+.atoutsm div{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:13px 14px;font-size:14px;line-height:1.35}
+.atoutsm b{display:block;font-size:15px;margin-bottom:2px}
+.pays{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.pays span{border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 12px;font-size:13px}
+.vedettes{position:relative;margin:0 0 28px}
+.vedettes h2{margin:0 0 12px}
+.vedettes .piste{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:2px 2px 6px}
+.vedettes .piste::-webkit-scrollbar{display:none}
+.vedettes .carte{flex:0 0 190px;scroll-snap-align:start}
+.vedettes .fleche{position:absolute;top:50%;width:42px;height:42px;border-radius:50%;border:0;background:var(--noir);color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:2}
+.vedettes .fleche.g{left:-12px}.vedettes .fleche.d{right:-12px}
+.vedettes .fleche:hover{background:var(--violet)}
+@media (max-width:640px){.vedettes .fleche{display:none}.vedettes .carte{flex-basis:160px}}
+.pays small{display:block;width:100%;opacity:.7;font-size:12px}
 .hero p{margin:6px 0 0;opacity:.9;max-width:640px}
 .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
 .carte{background:var(--carte);border:1px solid var(--trait);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .15s}
@@ -117,11 +143,11 @@ h2{font-size:20px;margin:32px 0 12px}
 .option{margin:16px 0}.option b{display:block;font-size:14px;margin-bottom:6px}
 .choix{display:flex;flex-wrap:wrap;gap:8px}
 .choix a{border:1.5px solid var(--trait);background:#fff;border-radius:10px;padding:7px 12px;font-size:14px}
-.choix a.on{border-color:var(--vert);background:#eaf5ee;font-weight:700}
+.choix a.on{border-color:var(--vert);background:#f1ebfb;font-weight:700}
 .choix a.off{opacity:.45;text-decoration:line-through}
 .achat{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap}
 .achat input{width:80px;border:1.5px solid var(--trait);border-radius:12px;padding:12px;font:inherit;font-size:16px}
-.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;background:linear-gradient(135deg,var(--orange),var(--rose));color:#fff;font-weight:800;font-size:16px;padding:13px 26px;cursor:pointer;font-family:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;background:linear-gradient(135deg,#8b5ed0,#e53873);color:#fff;font-weight:800;font-size:16px;padding:13px 26px;cursor:pointer;font-family:inherit}
 .btn:hover{text-decoration:none;filter:brightness(1.05)}.btn[disabled]{background:#c9cfcb;cursor:not-allowed}
 .atouts{list-style:none;padding:0;margin:14px 0;font-size:14px;color:var(--gris)}.atouts li::before{content:"✓ ";color:var(--vert);font-weight:800}
 .bloc{background:var(--carte);border:1px solid var(--trait);border-radius:16px;padding:20px 22px;margin-top:24px}
@@ -130,7 +156,7 @@ table.caract{border-collapse:collapse;width:100%;font-size:14px}table.caract td{
 .vendeur{display:inline-block;font-size:14px;color:var(--vert);font-weight:600}
 .pager{display:flex;gap:10px;justify-content:center;margin-top:28px}
 .pager a{background:#fff;border:1px solid var(--trait);border-radius:10px;padding:8px 14px}
-footer{background:#0e1712;color:#c9d3cc;font-size:14px;padding:32px 0}
+footer{background:var(--noir);border-top:4px solid transparent;border-image:var(--degrade) 1;color:#c3c5d8;font-size:14px;padding:32px 0}
 footer .wrap{display:flex;gap:24px;flex-wrap:wrap;justify-content:space-between}
 footer a{color:#fff}
 .vide{background:#fff;border:1px dashed var(--trait);border-radius:16px;padding:40px;text-align:center;color:var(--gris)}
@@ -155,9 +181,15 @@ ${g.chemin !== null ? `<link rel="canonical" href="${e(canon(g.chemin))}">` : ''
 <meta property="og:title" content="${e(g.titre)}">
 <meta property="og:description" content="${e(g.description)}">
 ${g.chemin !== null ? `<meta property="og:url" content="${e(canon(g.chemin))}">` : ''}
-${g.image ? `<meta property="og:image" content="${e(g.image)}">` : ''}
-<meta name="twitter:card" content="${g.image ? 'summary_large_image' : 'summary'}">
-<meta name="theme-color" content="#0b6b33">
+<meta property="og:image" content="${e(g.image ?? canon('/assets/partage-1200x630.png'))}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#010211">
+<link rel="icon" href="${base}/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="${base}/assets/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="${base}/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="${base}/assets/icone-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="${base}/assets/icone-180.png">
+<link rel="manifest" href="${base}/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>${CSS}</style>
@@ -165,12 +197,12 @@ ${g.head ?? ''}
 </head>
 <body>
 <header class="top"><div class="wrap">
-<a class="logo" href="${base}/">DropShop <span>Market</span></a>
+<a class="logo" href="${base}/"><img src="${base}/assets/logo-bandeau.png" alt="DropShop Market : rapide Europe, produits d'importation" width="174" height="92"></a>
 <form class="cherche" action="${base}/recherche" method="get" role="search">
 <input name="q" type="search" placeholder="Rechercher un produit…" value="${e(g.recherche ?? '')}" aria-label="Rechercher">
 <button type="submit">Rechercher</button>
 </form>
-<a class="btn-prime" href="${base}/prime">⚡ Prime 24 h</a>
+${boutonPrime(base)}
 <a class="vendre" href="${base}/vendre">Vendre sur DropShop Market</a>
 </div></header>
 ${navRayons(base, g.rayons ?? [])}
@@ -266,6 +298,45 @@ export function navRayons(base: string, rayons: Rayon[]): string {
 <details><summary>☰ Toutes les catégories</summary><div class="mega"><div class="wrap">${mega}</div></div></details>
 <div class="defile">${rayons.map((r) => `<a href="${base}${cheminCategorie(r.id)}">${e(r.label)}</a>`).join('')}</div>
 </div></nav>`
+}
+
+/**
+ * Le défilé des produits en vedette, en haut de l'accueil : glissement tactile
+ * ou flèches, sans bibliothèque. Les flèches et le défilement automatique ne
+ * servent que si le script tourne ; sans lui, le défilé se fait au doigt ou à la
+ * molette. Le défilement automatique respecte `prefers-reduced-motion`.
+ */
+/** Le bouton PRIME de la charte : interrupteur dégradé, « PRIME » dessous, puis « 24 H ». `lien` faux : simple bloc, pour l'intérieur d'un lien. */
+export function boutonPrime(base: string, lien = true): string {
+  const interieur = '<span class="pilule"><i></i></span><b>PRIME</b><small>24 H</small>'
+  return lien
+    ? `<a class="btn-prime" href="${base}/prime" aria-label="Articles Prime, livrés en 24 h">${interieur}</a>`
+    : `<span class="btn-prime" aria-hidden="true">${interieur}</span>`
+}
+
+export function carrouselVedettes(base: string, vedettes: Annonce[]): string {
+  if (vedettes.length < 4) return ''
+  return `<section class="vedettes" aria-label="Produits en vedette"><h2>En vedette</h2>
+<button type="button" class="fleche g" aria-label="Précédent" data-sens="-1">‹</button>
+<div class="piste">${vedettes.map((a) => carte(base, a)).join('')}</div>
+<button type="button" class="fleche d" aria-label="Suivant" data-sens="1">›</button>
+<script>(function(){var s=document.currentScript.parentNode,p=s.querySelector('.piste'),pas=function(){return Math.max(200,p.clientWidth*.8)},t;function go(d){if(d>0&&p.scrollLeft+p.clientWidth>=p.scrollWidth-4){p.scrollTo({left:0})}else if(d<0&&p.scrollLeft<=4){p.scrollTo({left:p.scrollWidth})}else{p.scrollBy({left:d*pas()})}}s.querySelectorAll('.fleche').forEach(function(b){b.addEventListener('click',function(){go(+b.dataset.sens)})});if(!matchMedia('(prefers-reduced-motion: reduce)').matches){var auto=function(){t=setInterval(function(){go(1)},5000)};s.addEventListener('mouseenter',function(){clearInterval(t)});s.addEventListener('mouseleave',auto);s.addEventListener('touchstart',function(){clearInterval(t)},{passive:true});auto()}})()</script></section>`
+}
+
+/** Pays mis en avant sur l'accueil (liste par défaut, à ajuster avec la marque). */
+const PAYS = ['France', 'Allemagne', 'Pologne', 'Belgique', 'Espagne', 'Italie', 'Pays-Bas', 'Portugal', 'Luxembourg', 'Autriche']
+
+/** Le bandeau d'accueil : le positionnement du Market, aux couleurs de la charte. */
+function heroAccueil(): string {
+  return `<section class="hero"><h1>La marketplace <span class="degrade">reliée à tous les dropshops du monde</span></h1>
+<p>Achetez des produits d'importation au meilleur prix, déjà importés en Europe, en livraison rapide.</p>
+<div class="atoutsm">
+<div><b>Déjà en Europe</b>Des produits d'importation stockés en Europe, sans attente de plusieurs semaines.</div>
+<div><b>Au meilleur prix</b>Les prix directs des dropshops, réunis au même endroit.</div>
+<div><b>Prime : 24 h</b>Utilisez Prime pour une livraison en 24 heures.</div>
+<div><b>Direct d'Europe</b>Expédié depuis l'Europe, l'Allemagne, la Pologne.</div>
+</div>
+<div class="pays">${PAYS.map((p) => `<span>${e(p)}</span>`).join('')}</div></section>`
 }
 
 /** Les 24 rayons en tuiles, sur l'accueil. */
@@ -570,6 +641,8 @@ export function pageListe(args: {
   indexable?: boolean
   recherche?: string
   hero?: boolean
+  /** Accueil : produits en vedette, en défilé sous le bandeau. */
+  vedettes?: Annonce[]
   vide?: string
 }): string {
   const { base } = args
@@ -578,7 +651,9 @@ export function pageListe(args: {
     const sep = chemin.includes('?') ? '&' : '?'
     return `${base}${chemin}${n > 1 ? `${sep}page=${n}` : ''}`
   }
-  const entete = args.hero
+  const entete = args.hero && args.accueil && args.page === 1
+    ? heroAccueil() + carrouselVedettes(base, args.vedettes ?? [])
+    : args.hero
     ? `<section class="hero"><h1>${e(args.h1)}</h1>${args.intro ? `<p>${e(args.intro)}</p>` : ''}</section>`
     : `<h1>${e(args.h1)}</h1>${args.intro ? `<p class="muted">${e(args.intro)}</p>` : ''}${args.boutique ? `<p><a class="vendeur" href="${e(args.boutique.url)}" target="_blank" rel="noopener">Visiter la boutique ${e(args.boutique.nom)} ↗</a></p>` : ''}`
   const puces = args.puces
@@ -587,7 +662,7 @@ export function pageListe(args: {
         .join('')}</div>`
     : ''
   const accueil = args.accueil && args.page === 1
-    ? `<a class="bandeau-prime" href="${base}/prime"><span class="prime prime-gros">⚡ PRIME</span><span><b>Livré en 24 h</b><br><span class="muted">Les articles en stock en France, expédiés le jour même.</span></span><span class="btn" style="margin-left:auto">Voir les articles Prime</span></a>${tuilesRayons(base, args.rayons)}<h2>Les nouveautés</h2>`
+    ? `<a class="bandeau-prime" href="${base}/prime"><span class="prime prime-gros">⚡ PRIME</span><span><b>Livré en 24 h</b><br><span class="muted">Les articles en stock en France, expédiés le jour même. Touchez le bouton pour voir les articles Prime.</span></span><span style="margin-left:auto">${boutonPrime(base, false)}</span></a>${tuilesRayons(base, args.rayons)}<h2>Les nouveautés</h2>`
     : ''
   const corps = `${entete}
 ${puces}${accueil}

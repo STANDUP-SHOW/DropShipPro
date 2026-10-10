@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import express, { Router, type Request, type Response, type NextFunction } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
@@ -46,6 +48,22 @@ async function liste(req: Request, filtre: Parameters<typeof annonces>[0]) {
   return { page: n, annonces: res.slice(0, PAR_PAGE), suivante: res.length > PAR_PAGE }
 }
 
+/**
+ * Les produits en vedette : les articles Prime d'abord, puis les mieux notés
+ * (la note pèse avec le nombre d'avis), puis les plus récents. Douze au plus,
+ * pris parmi les soixante dernières annonces — pas de classement stocké, donc
+ * rien à entretenir ni à déformer.
+ */
+async function vedettesDuMarket(): Promise<Annonce[]> {
+  const recentes = await annonces({ limite: 60 })
+  const score = (a: Annonce) => (a.prime ? 1000 : 0) + (a.avis?.moyenne != null ? a.avis.moyenne * Math.log(1 + (a.avis.nombre ?? 0)) : 0)
+  return recentes
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => score(y.a) - score(x.a) || x.i - y.i)
+    .slice(0, 12)
+    .map((x) => x.a)
+}
+
 function html(res: Response, corps: string, cache = 300) {
   res.set('Cache-Control', `public, max-age=${cache}`)
   res.type('html').send(corps)
@@ -54,12 +72,13 @@ function html(res: Response, corps: string, cache = 300) {
 marketRouter.get(
   '/',
   page(async (req, res) => {
-    const [l, { rayons: r }] = await Promise.all([liste(req, {}), arbreMarket()])
+    const [l, { rayons: r }, vedettes] = await Promise.all([liste(req, {}), arbreMarket(), vedettesDuMarket()])
     html(
       res,
       pageListe({
         base: req.baseUrl,
         accueil: true,
+        vedettes: numeroPage(req) === 1 ? vedettes : [],
         titre: 'DropShop Market : la place de marché des boutiques DropShop',
         h1: 'Les nouveautés des boutiques DropShop',
         intro: 'Des milliers de produits, vendus par des boutiques indépendantes. Livraison comprise, paiement sécurisé par Stripe.',
@@ -206,6 +225,19 @@ async function ficheProduit(req: Request, res: Response) {
 marketRouter.get('/p/:id', page(ficheProduit))
 marketRouter.get('/p/:id/:slug', page(ficheProduit))
 marketRouter.get('/p/:id/:slug/:variante', page(ficheProduit))
+
+// Charte graphique : logo, favicon, icônes, visuel de partage (backend/market-assets).
+const DOSSIER_ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'market-assets')
+marketRouter.use(
+  '/assets',
+  express.static(DOSSIER_ASSETS, { maxAge: '7d', index: false, dotfiles: 'ignore' }),
+)
+
+// Les navigateurs demandent /favicon.ico et le manifeste à la racine du domaine.
+marketRouter.get('/favicon.ico', (_req, res) => res.sendFile(path.join(DOSSIER_ASSETS, 'favicon.ico'), { maxAge: '7d' }))
+marketRouter.get('/site.webmanifest', (_req, res) =>
+  res.type('application/manifest+json').sendFile(path.join(DOSSIER_ASSETS, 'site.webmanifest'), { maxAge: '1d' }),
+)
 
 marketRouter.get('/vendre', (req, res) => html(res, pageVendre(req.baseUrl), 3600))
 

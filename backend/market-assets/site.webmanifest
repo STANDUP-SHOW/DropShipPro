@@ -1,0 +1,22 @@
+{
+  "name": "DropShop Market",
+  "short_name": "DropShop",
+  "description": "La marketplace reliée à tous les dropshops. Produits d'importation déjà en Europe, livraison rapide, Prime 24 h.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#010211",
+  "theme_color": "#010211",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/assets/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
