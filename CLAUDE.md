@@ -48,6 +48,7 @@ backend/            Node + Express 4 + TypeScript + Prisma
 backend/extension/  Extension Chrome MV3 (Chrome Web Store — Max téléverse le zip)
 backend/dropshop/   DropShop IA (boutique écrite par le modèle, moteur sdk.js) — docs/dropshop.md
 backend/storefront-boutique/  Vitrine à thèmes servie à /b/<adresse>
+analyses/           Poste d'analyses (Electron, PC dédié de Max : agents Node, navigateur privé, dépôt C:\DropShipper-Analyses) — analyses/README.md
 backend/src/routes/market.ts  DropShop Market (drop-shop.cloud, Stripe Connect 5 %, 1 page + 1 article de flux par variante) — docs/dropshop-market.md
 frontend/           React + Vite + Tailwind v4
 docs/               Documentation ; docs/pub-video/ = pubs vidéo (skill pub-video)
@@ -88,7 +89,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 ## Rapports des 48 agents (`backend/rapports.db`)
 
 - SQLite **versionnée exprès** (voir `backend/.gitignore`) : un rapport n'est en ligne que commité
-  et déployé, ou déposé par `--envoyer` (`POST /api/agent/rapports-db` → `storage/rapports.db`, la plus
+  et déployé, ou déposé par `--envoyer` (`POST /api/admin/rapports-db` → `storage/rapports.db`, la plus
   récente des deux gagne). Remplie en local par `backend/importer-markdown.cjs` (le cas courant : les
   rapports Markdown des tâches planifiées) ou `importer-aimarket.cjs` (JSON aiMARKET
   de n8n). Pas `MarketReport`.
@@ -98,6 +99,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
   module (`fileURLToPath(import.meta.url)`), jamais depuis le cwd (`src/` sous tsx ≠ `dist/`) ;
   sinon better-sqlite3 **crée un fichier vide** et tout échoue à la première requête (500).
   Ouverture au premier appel, pas à l'import ; chaque 500 porte un `motif`. Ne pas défaire.
+- Rapports du Poste d'analyses : `POST /api/admin/rapports-poste` (clé `dsp_adm_` du Poste, empreinte dans Railway `POSTE_ADMIN_SHA256` : le Poste est l'ADMIN UNIQUE du site, aucun compte admin, voir analyses/README.md) -> `storage/rapports/rapports-poste.db` (volume), lu AVEC rapports.db par `ReportQuery` (vues TEMP). Pas `/market-reports` (table non lue).
 - Import Google Drive du back-office (`/admin/analyses`, `services/importDrive.ts`) : les études importées sont rejouées
   depuis `storage/analyses-importees.json` sur chaque `--envoyer` et chaque push de rapports.db (sinon elles disparaissent).
   Lecture/écriture d'une étude : `rapports-etude.cjs`, partagé avec les deux importeurs — ne pas recopier.

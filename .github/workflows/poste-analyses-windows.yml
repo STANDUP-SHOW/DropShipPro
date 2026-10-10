@@ -1,0 +1,49 @@
+name: Poste d'analyses — installateur Windows
+
+# Builds the installer of the Poste d'analyses (analyses/) on a Windows runner,
+# runs both benches first, and publishes the .exe as a pre-release that Max can
+# download with one click. Nothing here touches the site, the API or the database.
+on:
+  push:
+    paths: ['analyses/**', '.github/workflows/poste-analyses-windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  installateur:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: analyses
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: analyses/package-lock.json
+      - run: npm ci
+      - name: Banc de la logique (faux Serper, faux Claude)
+        run: npm run check
+      - name: Banc de la vraie fenêtre Electron
+        run: npm run check:fenetre
+      - name: Installateur NSIS
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installateur-windows
+          path: analyses/dist/*.exe
+          retention-days: 30
+      - name: Publier / remplacer la pré-version « poste-analyses-dernier »
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete poste-analyses-dernier --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
+          cp dist/*Setup*.exe "dist/DropShipper-Poste-analyses-Setup.exe"
+          gh release create poste-analyses-dernier "dist/DropShipper-Poste-analyses-Setup.exe" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Poste d'analyses — dernier installateur (non signé)" \
+            --notes "Installateur Windows du Poste d'analyses, construit à partir du commit $GITHUB_SHA. Non signé : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même)."

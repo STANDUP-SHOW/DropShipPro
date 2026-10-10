@@ -7,7 +7,7 @@
  * suit : c'est là que le robot part, pas sur une horloge aveugle.
  *
  * Il part aussi à chaque dépôt de rapports.db par l'importateur
- * (POST /api/agent/rapports-db), sans redémarrage.
+ * (POST /api/admin/rapports-db), sans redémarrage.
  *
  * Ce qu'il fait : il lit les adresses du sitemap des analyses, retire celles
  * déjà annoncées (fichier dans storage/, le volume Railway), et envoie le reste

@@ -726,28 +726,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ fournisseur }),
     }),
-  // Newsletter — inscription publique (aucun token requis) ; la liste est admin.
+  // Newsletter — inscription publique (aucun token requis) ; la liste est tenue par le Poste d'analyses.
   newsletterSubscribe: (email: string, source = 'site') =>
     request<{ ok: true }>('/public/newsletter/subscribe', {
       method: 'POST',
       body: JSON.stringify({ email, source }),
     }),
-  newsletterList: () =>
-    request<{ total: number; subscribers: Array<{ id: string; email: string; source: string | null; createdAt: string }> }>(
-      '/admin/newsletter',
-    ),
-  // Affiliation — les versements du mois, vue admin (requireAdmin côté serveur).
-  affiliationAdmin: () => request<AffiliationAdmin>('/admin/affiliation'),
-  affiliationVerse: (id: string, reference: string) =>
-    request<{ versement: { id: string; montantCentimes: number; createdAt: string } }>(`/admin/affiliation/${id}/verse`, {
-      method: 'POST',
-      body: JSON.stringify({ reference }),
-    }),
-  // Analyses d'autres agents rangées dans un dossier Google Drive public (requireAdmin côté serveur).
-  analysesDriveLister: (adresse: string) =>
-    request<AnalysesDriveListe>('/admin/analyses-drive/lister', { method: 'POST', body: JSON.stringify({ adresse }) }),
-  analysesDriveImporter: (adresse: string, dates: string[], essai: boolean) =>
-    request<AnalysesDriveRapport>('/admin/analyses-drive/importer', { method: 'POST', body: JSON.stringify({ adresse, dates, essai }) }),
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>

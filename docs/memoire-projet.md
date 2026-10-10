@@ -1590,11 +1590,31 @@ cd backend && npx tsc --noEmit # vérification des types
 - **Facebook Marketplace** (`/marketplace/create/item`, relevé connecté) : classes illisibles, champs repérés par le texte du `<label>` (Titre, Prix ; Description n'apparaît qu'après le choix de la catégorie) ; catégorie = `label[role=combobox]` → `[role=dialog][aria-label="Menu déroulant"]` à un niveau, options `[role=button]` dont le texte colle « Livraison possible » au nom ; état = `[role=listbox]` (Neuf, D’occasion - comme neuf / bon état / assez bon état) ; bouton « Suivant » grisé par `aria-disabled`. Code : `desktop/lib/adaptateurs.js`, `page.js`, `choix.js`.
 - **Outil** : le classifieur de permissions refuse de REMPLIR un formulaire sur le compte connecté de Max (« Unrequested Commit in a Connected App ») ; lire la page et ouvrir un menu passe.
 
+## Poste d'analyses (03/10/2026)
+
+Application Electron à part (`analyses/`), possédée par Max seul, pour son PC dédié
+faible (sans GPU) : remplace n8n/Docker (panne du 23/09 : Docker ne remonte pas seul,
+faux succès Serper), porte les agents en Node avec le même format de rapport
+(MarketSpy JSON + .rayon.md/.marketing.md), un navigateur privé à partitions
+persistantes (`persist:source-<id>`, Max se connecte lui-même) pour les sites de
+données, et le dépôt `C:\DropShipper-Analyses` créé par l'installateur. Le prompt
+d'origine n'est PAS dans le dépôt (il est dans `_build-workflow.cjs` chez Max) :
+celui de `analyses/prompts/rayon.md` est reconstruit depuis `importer-aimarket.cjs` ;
+Max peut le remplacer dans `<dépôt>\prompts\rayon.md`. Aucune nuit sans son accord
+(dialogue natif à chaque lancement coûteux). Installateur construit par GitHub Actions
+(`poste-analyses-windows.yml`), pré-version `poste-analyses-dernier`.
+
 ## 03/10/2026 — Rapports invisibles en ligne : base absente, cache Vercel, forme des réponses
 
 - **`rapports.db` ignorée par git (19/09) → base vide dans Railway.** Le fichier n'est jamais parti dans le conteneur ; better-sqlite3 a créé un fichier vide à l'ouverture, rien n'a planté au démarrage, tout a échoué à la première requête (« no such table: reports ») et un `catch` générique rendait un 500 nu. Une journée perdue. Remèdes en place : base versionnée (commentaire dans `backend/.gitignore`), `{ readonly: true, fileMustExist: true }`, chemin résolu depuis le module (`process.cwd()` diffère entre `src/` sous tsx et `dist/`), ouverture au premier appel (une erreur à l'import tomberait toute l'API), `motif` et `chemin` dans chaque 500, `/api/reports-health` pour le diagnostic.
 - **La bordure Vercel garde un 500.** `www.drop-shipper.fr/api/*` est une réécriture vers Railway ; un 500 a continué d'être servi après le rétablissement du backend. D'où `Cache-Control: no-store` sur les routes publiques des rapports. Quand Max dit « toujours rien » alors que l'API répond : comparer l'URL www et l'URL Railway avant de toucher au code ; `/api/health` à 200 écarte d'un coup le crash au démarrage, le module natif et la réécriture.
 - **Un tableau nu à la place de l'objet attendu a vidé les cinq pages de dépôt d'un coup** (les composants appellent `.length`/`.filter` sur `analyses`, `produits`, `prompts`). La forme fait foi dans `frontend/src/lib/api.ts`.
+
+- **Poste d'analyses — signaux publics (03/10/2026, « go » de Max)** : `analyses/lib/signaux.js` ajoute aux preuves du rayon les questions/recherches associées de Serper, la courbe Google Trends (capturée sur le réseau d'une fenêtre cachée) et le nombre/l'ancienneté des annonces Meta Ad Library par modèle. Piège : le débogueur Electron ne s'attache à une fenêtre neuve qu'après une première navigation (`about:blank`), sinon « target closed » ; et une fenêtre cachée qui est la dernière fait quitter l'application sans `window-all-closed`. Seulement testé contre de fausses pages.
+
+- **Poste d'analyses — Serper étendu et choix des rayons (03/10/2026, « go » de Max)** : `analyses/lib/serper-etendu.js` ajoute Shopping (prix et vendeurs FR), autocomplétion et Images aux preuves (≤ 83 crédits Serper/rayon, budget de preuves 120 000 caractères) ; le premier refus coupe le reste sans faire échouer le rayon. Les liens google.* de Shopping ne sont pas des URL fournisseur (laissés hors de la liste des URL autorisées). `config.rayonsNuit` (null = les 24) + cases à cocher dans « Rapports du jour » : la nuit, manuelle ou automatique, ne lance que les rayons cochés ; rien coché = nuit refusée. Seulement testé contre de faux Serper : les vrais formats de réponse Shopping/Images ne sont pas confrontés.
+
+- **Poste d'analyses -> site : `POST /api/agent/rapports-poste` (03/10/2026, « tous les rapports doivent être envoyés au site et séparés dans leurs endroits »)** : l'ancien envoi (`/market-reports`, Markdown) écrivait dans `MarketReport`, que plus rien ne lit : branché tel quel, il n'aurait rien mis en ligne. Le nouveau chemin écrit dans `backend/storage/rapports/rapports-poste.db` (volume `/app/storage`, schéma identique à rapports.db, écriture par `backend/aimarket-import.cjs`, factorisée hors de `importer-aimarket.cjs` — contrôlé : mêmes lignes qu'avant sur un JSON réel) ; `ReportQuery` rattache cette base (`ATTACH` + vues TEMP du même nom qui recouvrent `reports`, `rayon_reports`, `marketing_reports`, `products`), donc les ~30 requêtes n'ont pas changé et rayon/marketing se rangent seuls. Pièges : une vue n'a pas de `rowid` (`products` en trie par rowid : la vue le redonne, +10^9 pour les lignes du Poste) ; `slug(category_name)` ≠ identifiant d'agent pour 14 catégories sur 24 (d'où `study.category_id`, prioritaire dans `lireEtude`) ; l'ordre de deux lignes du même jour dans `getAllReports` n'est pas garanti (aucun écran ne s'y fie). Banc : `backend/check-rapports-poste.ts`. Un rapport du Poste remplace celui de rapports.db du même jour/catégorie/thème. Rien n'est en ligne avant le déploiement du site (fusion sur `main`).
 
 ## 03/10/2026 — « Tout est marqué connecté » alors que rien n'était écrit
 
@@ -1603,3 +1623,15 @@ cd backend && npx tsc --noEmit # vérification des types
 - **Zernio n'est plus le défaut** (abandonné pour son coût fixe) : il ne sert qu'avec `SOCIAL_PROVIDER=zernio`. Les campagnes sont créées **en pause** sauf `activer: true` (elles dépensent l'argent du vendeur).
 - **Le retour Meta renvoyait vers `/reglages`, qui n'existe pas** : un vendeur qui autorisait Facebook atterrissait sur une page vide. Retour désormais `/reseaux?vue=comptes` (social) et `/plateformes-vente` (marchés), qui lisent le sort de l'autorisation.
 - **Les bancs à base tournent sur un Postgres jetable local** (`initdb` sous l'utilisateur postgres, port 55432, `prisma migrate deploy`) : 91 sur 94 verts le 03/10 ; restent `check-polices` (déjà rouge sur main), `check-stats` (base vide), `check-desktop-reel` (application empaquetée absente). Clés à créer : `docs/connecteurs-a-declarer.md`.
+
+## 04/10/2026 — le Poste d'analyses devient l'administrateur unique du site
+
+Max n'a aucun compte administrateur sur le site (son compte est un compte vendeur) et veut que
+l'application desktop privée soit l'admin général, pour lui seul, avec à terme : voir les utilisateurs et
+les boutiques, les contacter, générer jetons et clés d'API, connexion MCP (architecture à fournir par lui).
+Décision (carte « Clé du Poste seule ») : une clé `dsp_adm_` fabriquée par le Poste (coffre Windows), le site
+ne garde que son empreinte SHA-256 (`POSTE_ADMIN_SHA256`, Railway). `middleware/adminPoste.ts`,
+`routes/admin.ts`. `requireAdmin` (e-mail) supprimé ; `/agent/market-reports` et `/agent/rapports-poste`
+retirés (déplacé en `/admin/rapports-poste`) ; la page site « Newsletter » retirée (la liste est dans le Poste).
+`ADMIN_EMAIL` ne sert plus qu'à exempter Max du plafond de création DropShop. Banc : `backend/check-admin-poste.ts`.
+Piège : la clé n'est pas une ligne `ApiKey` (`/api/agent` passe par `requireApiKey`) ; elle n'ouvre que `/api/admin`.

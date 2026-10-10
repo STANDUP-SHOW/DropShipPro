@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, HandCoins, FolderInput, Search, Menu as MenuIcon, X,
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Search, Menu as MenuIcon, X,
   Share2,
   Wand2,
   Zap,
@@ -15,7 +15,6 @@ import { BandeauNotifications } from './BandeauNotifications'
 import { PastilleNotif } from './PastilleNotif'
 import { SECTION_PAR_ADRESSE, titreNouveautes, useNouveautes } from '../lib/nouveautes'
 import { useAuth } from '../lib/auth'
-import { demoAutorise } from '../lib/demo'
 import { useNeonVarie } from '../lib/neonColors'
 import { api } from '../lib/api'
 
@@ -185,10 +184,6 @@ const SECTIONS: Array<{
       { to: '/settings', label: 'Réglages', icon: SettingsIcon },
       { to: '/credits', label: 'Mes crédits', icon: DropCoin },
       { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
-      // Réservée à l'admin : filtrée au rendu par demoAutorise(user).
-      { to: '/admin/newsletter', label: 'Newsletter', icon: Mail },
-      { to: '/admin/affiliation', label: 'Versements affiliés', icon: HandCoins },
-      { to: '/admin/analyses', label: 'Importer des analyses', icon: FolderInput },
       { to: '/guide', label: "Mode d'emploi", icon: BookOpen },
       { to: '/guide#contact', label: 'Aide & contact', icon: LifeBuoy },
     ],
@@ -496,7 +491,6 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
               ) : null}
 
               {section.entrees
-                .filter((item) => !item.to.startsWith('/admin/') || demoAutorise(user?.email))
                 .map((item) => {
                   const classes = `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                     !item.externe && estActive(item.to)

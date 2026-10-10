@@ -585,7 +585,10 @@ function etudeAiMarket(d, origine) {
   }
 
   const date = s.date;
-  const categorie = slug(s.category_name);
+  // Le Poste d'analyses envoie l'identifiant exact de l'agent (category_id) : slug(category_name) ne le
+  // redonne pas pour 14 des 24 categories (« TV, son et photo » -> tv-son-et-photo, pas tv-son-photo).
+  // Les fichiers n8n, sans category_id, gardent la regle d'origine.
+  const categorie = s.category_id ? String(s.category_id) : slug(s.category_name);
   const theme = slug(s.theme_slug);
   const produits = Array.isArray(d.products) ? d.products : [];
   const nbSources = Array.isArray(d.sources) ? d.sources.length : 0;
