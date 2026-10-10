@@ -212,29 +212,37 @@ export default function Index() {
         </section>
 
         {/* DropShop IA : la boutique et sa place de marché (Max, 03/10/2026 : « manque
-            création boutique DropShop et DropShop marketplace »). Couleurs DropShop. */}
+            création boutique DropShop et DropShop marketplace »). Charte DropShop du
+            10/10/2026 (docs/marque/charte-dropshop.md) : dégradé cyan → violet → rose →
+            jaune, icône sac en carré arrondi, bouton pilule « Créer ma boutique ». */}
         <section id="dropshop" className="scroll-mt-20 border-t border-white/5 bg-[#0b0714]">
           <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-20">
             <div className="text-center">
-              <img src="/marque/dropshop-complet.png" alt="DropShop IA" className="mx-auto h-10 w-auto md:h-14" loading="lazy" />
-              <h2 className="neon neon-5 mt-5 text-3xl font-extrabold leading-tight tracking-tight md:text-5xl">{D.titre}</h2>
+              <img src="/marque/dropshop/logo.png" alt="DropShop" width={1000} height={230} className="mx-auto h-12 w-auto md:h-16" loading="lazy" />
+              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/50">AI shop creator</p>
+              <h2 className="texte-dropshop mt-5 text-3xl font-extrabold leading-tight tracking-tight md:text-5xl">{D.titre}</h2>
+              <div className="degrade-dropshop mx-auto mt-6 h-1 w-24 rounded-full" aria-hidden="true" />
             </div>
             <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-2 md:gap-6">
-              <div className="flex flex-col rounded-3xl border-2 border-[#0b6b33] bg-[#0b6b33]/15 p-6 md:p-8">
-                <h3 className="text-2xl font-extrabold md:text-3xl">{D.boutique.titre}</h3>
-                <p className="mt-2 inline-block self-start rounded-full bg-[#f28a4b] px-3 py-1 text-sm font-bold text-black">{D.boutique.prix}</p>
+              <div className="cadre-dropshop flex flex-col rounded-3xl p-6 md:p-8">
+                <div className="flex items-center gap-4">
+                  <img src="/marque/dropshop/icone.png" alt="" width={192} height={192} className="h-14 w-14 shrink-0 md:h-16 md:w-16" loading="lazy" />
+                  <h3 className="text-2xl font-extrabold md:text-3xl">{D.boutique.titre}</h3>
+                </div>
+                <p className="degrade-dropshop mt-4 inline-block self-start rounded-full px-3 py-1 text-sm font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,.45)]">{D.boutique.prix}</p>
                 <p className="texte-neon mt-4 flex-1 text-base md:text-lg">{D.boutique.texte}</p>
                 <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-                  <OffreLien href={D.boutique.href} label={D.boutique.bouton} />
+                  <BoutonDropShop href={D.boutique.href} label={D.boutique.bouton} />
                   <PlusInfos slug={D.slug} />
                 </div>
               </div>
-              <div className="flex flex-col rounded-3xl border-2 border-[#f28a4b]/70 bg-[#f28a4b]/10 p-6 md:p-8">
-                <h3 className="flex items-center gap-3 text-2xl font-extrabold md:text-3xl">
-                  {D.market.titre}
-                  <span className="rounded-full border border-[#f28a4b] px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[#f28a4b]">{D.market.badge}</span>
-                </h3>
-                <p className="texte-neon mt-4 text-base md:text-lg">{D.market.texte}</p>
+              <div className="cadre-dropshop flex flex-col rounded-3xl p-6 md:p-8">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <img src="/marque/dropshop/market-europe.png" alt={`${D.market.titre} — Rapide Europe, produits d'importation`} width={720} height={379} className="h-24 w-auto md:h-28" loading="lazy" />
+                  <span className="degrade-dropshop rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider text-white [text-shadow:0_1px_2px_rgba(0,0,0,.45)]">{D.market.badge}</span>
+                </div>
+                <h3 className="sr-only">{D.market.titre}</h3>
+                <p className="texte-neon mt-5 text-base md:text-lg">{D.market.texte}</p>
                 <p className="texte-neon mt-3 flex-1 text-base md:text-lg">{D.extensions}</p>
                 <PlusInfos slug={D.slug} />
               </div>
@@ -348,6 +356,22 @@ function PlusInfos({ slug }: { slug: string }) {
       Plus d'informations <ArrowRight size={15} />
     </a>
   )
+}
+
+/**
+ * Le bouton de la charte DropShop (10/10/2026) : pilule au dégradé DropShop,
+ * icône sac en blanc, libellé en capitales. Même routage que OffreLien.
+ */
+function BoutonDropShop({ href, label }: { href: string; label: string }) {
+  const contenu = (
+    <>
+      <img src="/marque/dropshop/icone-blanc.png" alt="" width={96} height={94} className="h-6 w-6" />
+      {label}
+    </>
+  )
+  const classe = 'btn-dropshop inline-flex items-center gap-2.5 rounded-full py-2.5 pl-3 pr-6 text-sm font-extrabold uppercase tracking-wide text-white shadow-lg shadow-fuchsia-900/30 transition hover:brightness-110'
+  if (href.startsWith('http') || href.endsWith('/')) return <a href={href} className={classe}>{contenu}</a>
+  return <Link to={href} className={classe}>{contenu}</Link>
 }
 
 /** L'offre : une route de l'application (Link) ou une page/site externe (a). */

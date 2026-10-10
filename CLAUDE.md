@@ -118,7 +118,7 @@ répondrait du JSON aux images.
 
 ## Charte (29/09/2026)
 
-Sources dans `docs/marque/` (fichiers de Max). Icône DropShipper : cube sur dégradé **orange #f28a4b → rose #e85290** ; boutons principaux (`.btn-gradient`, extension, e-mails, pages statiques) = ce dégradé ; variables `--marque-orange` / `--marque-rose`. DropShop : vert #0b6b33 + orange ; Drops : jaune #fdbf06. Logo du site : `public/marque/dropshipper-complet.png`. Pas de police hors Google Fonts : la « Radeil Rounded » est une démo, elle ne vit que dans les images des logos.
+Sources dans `docs/marque/` (fichiers de Max). Icône DropShipper : cube sur dégradé **orange #f28a4b → rose #e85290** ; boutons principaux (`.btn-gradient`, extension, e-mails, pages statiques) = ce dégradé ; variables `--marque-orange` / `--marque-rose`. DropShop et DropShop Market (10/10) : dégradé #07eeb7 → #8c5ed0 → #dd2488 → #ffc90b, `--dropshop-degrade`, `docs/marque/charte-dropshop.md` ; Drops : jaune #fdbf06. Logo du site : `public/marque/dropshipper-complet.png`. Pas de police hors Google Fonts : la « Radeil Rounded » est une démo, elle ne vit que dans les images des logos.
 
 ## Commandes
 

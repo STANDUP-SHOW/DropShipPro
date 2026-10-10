@@ -334,3 +334,21 @@ html[data-theme="light"] { color-scheme: light; }
 }
 .texte-neon :is(p, span, li, dd, dt, small, cite) { color: #fff; }
 
+
+/* ── Charte DropShop et DropShop Market (10/10/2026) ─────────────────────────
+ * Dégradé relevé sur la planche de Max (docs/marque/charte-dropshop.md).
+ * Réservé à DropShop : la marque mère DropShipper garde orange → rose. */
+:root { --dropshop-degrade: linear-gradient(90deg, #07eeb7 0%, #4a98eb 30%, #8c5ed0 50%, #dd2488 70%, #f48e35 90%, #ffc90b 100%); }
+.degrade-dropshop, .btn-dropshop { background: var(--dropshop-degrade); }
+.btn-dropshop { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+.texte-dropshop {
+  background: var(--dropshop-degrade);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Cadre dégradé d'une carte DropShop : bordure de 2 px au dégradé, fond sombre. */
+.cadre-dropshop {
+  border: 2px solid transparent;
+  background: linear-gradient(#120b20, #120b20) padding-box, var(--dropshop-degrade) border-box;
+}
