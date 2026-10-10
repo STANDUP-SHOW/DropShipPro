@@ -6,6 +6,8 @@ const ONGLETS = [
   ['rapports', 'Rapports du jour'],
   ['sources', 'Sources & navigateur'],
   ['administration', 'Administration'],
+  ['drive', 'Import Drive'],
+  ['affiliation', 'Affiliation'],
   ['reglages', 'Réglages'],
   ['journal', 'Journal'],
 ]
@@ -62,8 +64,10 @@ function vueAccueil() {
         h('h2', {}, 'Prêt à travailler ?'),
         h('div', {}, 'Clé Anthropic ', pastille(cles.anthropic ? 'posée' : 'absente', cles.anthropic ? 'bon' : 'mauvais')),
         h('div', {}, 'Clé Serper ', pastille(cles.serper ? 'posée' : 'absente', cles.serper ? 'bon' : 'mauvais')),
+        h('div', {}, 'Clé d’administration du site ', pastille(e.admin.cle ? 'créée' : 'absente', e.admin.cle ? 'bon' : 'mauvais')),
         h('div', {}, 'Sources de données ', pastille(String(e.sources.length), e.sources.length ? 'bon' : '')),
-        !toutesCles && h('p', { class: 'doux petit' }, 'Posez vos clés dans Réglages : elles restent chiffrées sur ce PC.'),
+        (!toutesCles || !e.admin.cle) && h('p', {}, h('button', { class: 'btn principal', onclick: () => aller('reglages') }, 'Poser mes clés')),
+        (!toutesCles || !e.admin.cle) && h('p', { class: 'doux petit' }, 'Les trois clés se posent dans Réglages : elles restent chiffrées sur ce PC.'),
       ),
       h('div', { class: 'carte' },
         h('h2', {}, `Aujourd’hui (${e.date})`),
@@ -276,6 +280,163 @@ function vueAdministration() {
   )
 }
 
+// ---------------------------------------------------------------- shared bits
+function aller(id) {
+  if (onglet === 'sources' && id !== 'sources') { appel('navMasquer'); dernierPlace = null }
+  onglet = id; messageFlash = ''; rendre()
+}
+
+// The site admin key: made by the Poste (never typed), its fingerprint goes in Railway once.
+function blocCleAdmin() {
+  const a = etat.admin
+  return h('div', {},
+    h('label', {}, 'Clé d’administration du site (Import Drive, Affiliation, Utilisateurs, envoi des rapports) ', pastille(a.cle ? 'créée' : 'absente', a.cle ? 'bon' : 'mauvais')),
+    h('p', { class: 'doux petit' }, a.cle
+      ? 'Le Poste l’a fabriquée et la garde chiffrée. Le site la reconnaît quand son empreinte est posée dans la variable Railway POSTE_ADMIN_SHA256.'
+      : 'Elle ne se tape pas : le Poste la fabrique. Ensuite, son empreinte se colle une fois dans la variable Railway POSTE_ADMIN_SHA256.'),
+    a.cle && h('div', { class: 'petit' }, 'Empreinte : ', h('code', {}, a.empreinte)),
+    h('div', { class: 'ligne' },
+      !a.cle && h('button', { class: 'btn principal', onclick: async () => { const x = await appel('adminCreer'); if (x) { etat = x; flash('Clé créée. Copiez maintenant l’empreinte dans Railway.') } } }, 'Créer la clé d’administration'),
+      a.cle && h('button', { class: 'btn', onclick: async () => { if (await appel('adminCopier')) flash('Empreinte copiée : collez-la dans la variable Railway POSTE_ADMIN_SHA256.') } }, 'Copier l’empreinte'),
+      a.cle && h('button', { class: 'btn', onclick: async () => { flash('Test en cours…'); const r = await appel('adminTester'); if (r) flash(r.ok ? 'Connecté : le site reconnaît ce Poste comme administrateur.' : 'Réponse inattendue du site.') } }, 'Tester la connexion'),
+    ),
+  )
+}
+
+// Admin tabs need the key: say so instead of showing an empty screen.
+function sansCleAdmin(titre) {
+  return h('div', {}, h('h1', {}, titre),
+    h('div', { class: 'carte' },
+      h('p', {}, 'Cet écran parle au site avec la clé d’administration du Poste, qui n’est pas encore créée.'),
+      h('button', { class: 'btn principal', onclick: () => aller('reglages') }, 'Créer la clé dans Réglages')))
+}
+
+// ---------------------------------------------------------------- import Google Drive
+const ADRESSE_DRIVE = 'https://drive.google.com/drive/folders/17mUuLYxUAzt9PFBNv_SCBdzHlCyEQM1k'
+const drive = { adresse: ADRESSE_DRIVE, liste: null, choisies: new Set(), rapport: null, enCours: null }
+const STATUT_DRIVE = { importe: ['importée', 'bon'], apercu: ['à importer', ''], doublon: ['doublon ignoré', ''], refuse: ['refusée', 'mauvais'] }
+
+async function driveLister() {
+  drive.enCours = 'liste'; drive.rapport = null; flash('Lecture du dossier sur Google Drive (par le site)…')
+  const l = await appel('adminDriveLister', { adresse: drive.adresse })
+  drive.enCours = null
+  if (l) {
+    drive.liste = l
+    // Preselect the dates that hold something new.
+    drive.choisies = new Set(l.dates.filter((d) => d.etudes.some((x) => x.importable && !x.dejaEnBase)).map((d) => d.date))
+    flash('')
+  }
+}
+
+async function driveImporter(essai) {
+  drive.enCours = essai ? 'apercu' : 'import'; flash(essai ? 'Vérification de la qualité…' : 'Import en cours…')
+  const r = await appel('adminDriveImporter', { adresse: drive.adresse, dates: [...drive.choisies], essai })
+  drive.enCours = null
+  if (r) {
+    drive.rapport = r
+    if (!essai) { const l = await appel('adminDriveLister', { adresse: drive.adresse }); if (l) drive.liste = l }
+    flash('')
+  }
+}
+
+function vueDrive() {
+  if (!etat.admin.cle) return sansCleAdmin('Importer des analyses depuis Google Drive')
+  const champ = h('input', { value: drive.adresse, placeholder: 'https://drive.google.com/drive/folders/…', oninput: (ev) => { drive.adresse = ev.target.value } })
+  const l = drive.liste
+  const r = drive.rapport
+  return h('div', {},
+    h('h1', {}, 'Importer des analyses depuis Google Drive'),
+    h('p', { class: 'doux petit' }, 'Analyses faites par d’autres agents, rangées par date (AAAA-MM-JJ) dans un dossier Google Drive public. Le site les lit lui-même et les range dans la même base que les nôtres : les pages publiques n’en montrent ni fournisseur ni prix d’achat. Un rayon que nous avons déjà pour le même jour garde notre analyse.'),
+    h('div', { class: 'carte' },
+      h('label', {}, 'Adresse du dossier Google Drive'),
+      h('div', { class: 'ligne' },
+        h('div', { style: 'flex:1;min-width:260px' }, champ),
+        h('button', { class: 'btn principal', disabled: Boolean(drive.enCours), onclick: driveLister }, drive.enCours === 'liste' ? 'Lecture…' : 'Lire le dossier'),
+      ),
+      messageFlash && h('p', { class: 'petit' }, messageFlash),
+    ),
+    l && h('div', { class: 'carte' },
+      l.dates.length === 0 ? h('p', { class: 'doux' }, 'Aucun dossier daté (AAAA-MM-JJ) dans ce dossier.') : h('div', {},
+        l.dates.map((d) => {
+          const importables = d.etudes.filter((x) => x.importable)
+          const nouvelles = importables.filter((x) => !x.dejaEnBase)
+          return h('div', { class: 'date-drive' },
+            h('label', {}, h('span', {}, h('input', { type: 'checkbox', checked: drive.choisies.has(d.date), onchange: (ev) => { if (ev.target.checked) drive.choisies.add(d.date); else drive.choisies.delete(d.date); rendre() } }),
+              ' ', h('strong', {}, d.date), h('span', { class: 'doux petit' }, `  ${importables.length} rayon(s) · ${nouvelles.length} nouveau(x) · ${d.ignores.length} document(s) non importable(s)`))),
+            h('div', { class: 'ligne' }, d.etudes.map((x) => pastille(`${x.categorie} / ${x.theme}${x.dejaEnBase ? ' (déjà là)' : ''}${x.doublons.length ? ' ×2' : ''}`, !x.importable ? 'mauvais' : x.dejaEnBase ? '' : 'alerte'))),
+          )
+        }),
+        h('div', { class: 'ligne' },
+          h('button', { class: 'btn', disabled: !drive.choisies.size || Boolean(drive.enCours), onclick: () => driveImporter(true) }, drive.enCours === 'apercu' ? 'Vérification…' : 'Vérifier la qualité'),
+          h('button', { class: 'btn principal', disabled: !drive.choisies.size || Boolean(drive.enCours), onclick: () => driveImporter(false) }, drive.enCours === 'import' ? 'Import en cours…' : `Importer ${drive.choisies.size} date(s)`),
+        ),
+      ),
+    ),
+    r && h('div', { class: 'carte' },
+      h('h2', {}, r.essai
+        ? `Aperçu : ${r.aImporter} rayon(s) à importer, ${r.doublons} doublon(s), ${r.refusees} refusé(s)`
+        : `${r.importees} rayon(s) importé(s), ${r.doublons} doublon(s) ignoré(s), ${r.refusees} refusé(s)`),
+      h('p', { class: 'doux petit' }, `Contrat (20 produits, 20 adresses, prix sur 18) : ${r.conformes} conforme(s) sur ${r.lignes.filter((x) => x.statut === 'importe' || x.statut === 'apercu').length}${r.rapportsEnBase != null ? ` · ${r.rapportsEnBase} rapports en ligne` : ''}`),
+      h('table', {},
+        h('thead', {}, h('tr', {}, ['Date', 'Rayon', 'Statut', 'Produits', 'Adresses', 'Avec prix', 'Marketing'].map((t) => h('th', {}, t)))),
+        h('tbody', {}, r.lignes.map((x) => h('tr', {},
+          h('td', {}, x.date), h('td', {}, x.rayon),
+          h('td', {}, pastille(...(STATUT_DRIVE[x.statut] || [x.statut, ''])), x.raison ? h('div', { class: 'petit doux' }, x.raison) : null),
+          h('td', {}, x.produits == null ? '—' : String(x.produits)), h('td', {}, x.urlsDistinctes == null ? '—' : String(x.urlsDistinctes)),
+          h('td', {}, x.avecPrix == null ? '—' : String(x.avecPrix)), h('td', {}, x.marketing == null ? '—' : x.marketing ? 'oui' : 'non'))))),
+      r.ignores.length ? h('p', { class: 'doux petit' }, `${r.ignores.length} fichier(s) non importé(s) : `, r.ignores.slice(0, 20).map((g) => `${g.date} · ${g.nom} (${g.raison})`).join(' ; ')) : null,
+    ),
+  )
+}
+
+// ---------------------------------------------------------------- affiliation
+// Payout data (IBAN included) stays in memory on the screen, never written to disk.
+let donneesAffiliation = null
+const euros = (c) => (c / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+const ibanMasque = (iban) => (iban ? `${iban.slice(0, 4)} •••• ${iban.slice(-4)}` : '—')
+
+async function chargerAffiliation() {
+  flash('Lecture des affiliés sur le site…')
+  const x = await appel('adminAffiliation')
+  if (x) { donneesAffiliation = x; flash('') }
+}
+
+function vueAffiliation() {
+  if (!etat.admin.cle) return sansCleAdmin('Affiliation')
+  const d = donneesAffiliation
+  return h('div', {},
+    h('h1', {}, 'Affiliation : versements du mois'),
+    h('div', { class: 'carte' },
+      h('p', { class: 'doux petit' }, '10 % à vie sur chaque recharge du filleul. Virement mensuel dès le seuil, fait à la banque ; « Versé » solde les commissions et prévient l’affilié par e-mail.'),
+      h('div', { class: 'ligne' }, h('button', { class: 'btn', onclick: chargerAffiliation }, d ? 'Actualiser' : 'Afficher les affiliés')),
+      messageFlash && h('p', { class: 'petit' }, messageFlash),
+      d && h('p', {}, `${d.totaux.affilies} affilié(s) · ${d.totaux.aVerser} à verser ce mois (${euros(d.totaux.dusAVerserCentimes)}) · dû au total ${euros(d.totaux.dusCentimes)} · déjà versé ${euros(d.totaux.versesCentimes)} · seuil ${euros(d.seuilCentimes)}`),
+    ),
+    d && d.affilies.length > 0 && h('div', { class: 'carte' },
+      h('table', {},
+        h('thead', {}, h('tr', {}, ['Affilié', 'Code', 'Filleuls', 'Dû', 'Versé', 'IBAN', ''].map((t) => h('th', {}, t)))),
+        h('tbody', {}, d.affilies.map((a) => {
+          const ref = h('input', { placeholder: 'Référence du virement (facultatif)' })
+          return h('tr', {},
+            h('td', {}, a.nom, h('div', { class: 'petit doux' }, a.email)),
+            h('td', {}, a.code),
+            h('td', {}, `${a.filleuls} (${a.clics} clics)`),
+            h('td', {}, euros(a.dusCentimes), ' ', a.aVerser ? pastille('à verser', 'alerte') : null),
+            h('td', {}, euros(a.versesCentimes)),
+            h('td', {}, ibanMasque(a.iban), a.titulaire ? h('div', { class: 'petit doux' }, a.titulaire) : null,
+              a.iban && h('button', { class: 'btn', onclick: async () => { if (await appel('copier', a.iban)) flash(`IBAN de ${a.nom} copié.`) } }, 'Copier l’IBAN')),
+            h('td', {}, a.dusCentimes > 0 && a.iban ? h('div', {}, ref, h('button', { class: 'btn principal', onclick: async () => {
+              const r = await appel('adminAffiliationVerser', { id: a.id, nom: a.nom, montant: euros(a.dusCentimes), reference: ref.value.trim() })
+              if (r && !r.annule) { flash(`Versement de ${a.nom} enregistré.`); await chargerAffiliation() }
+            } }, 'Versé')) : null),
+          )
+        })),
+      ),
+    ),
+    d && d.affilies.length === 0 && h('div', { class: 'carte' }, h('p', { class: 'doux' }, 'Aucun affilié pour l’instant.')),
+  )
+}
+
 // ---------------------------------------------------------------- réglages
 function vueReglages() {
   const e = etat
@@ -306,7 +467,7 @@ function vueReglages() {
     h('div', { class: 'carte' },
       h('h2', {}, 'Clés (saisies par vous, chiffrées par Windows, jamais réaffichées)'),
       cle('anthropic', 'Clé API Anthropic'), cle('serper', 'Clé API Serper'),
-      h('p', { class: 'doux petit' }, 'La clé d’administration du site se crée dans l’onglet Administration (le Poste la fabrique lui-même).'),
+      blocCleAdmin(),
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Agents'),
@@ -351,11 +512,11 @@ function vueJournal() {
 // ---------------------------------------------------------------- cadre
 function rendre() {
   const barre = document.getElementById('onglets')
-  barre.replaceChildren(...ONGLETS.map(([id, titre]) => h('button', { class: id === onglet ? 'actif' : '', onclick: () => { if (onglet === 'sources' && id !== 'sources') { appel('navMasquer'); dernierPlace = null } onglet = id; messageFlash = ''; rendre() } }, titre)))
-  document.getElementById('pied').textContent = etat ? `v${etat.version}` : ''
+  barre.replaceChildren(...ONGLETS.map(([id, titre]) => h('button', { class: id === onglet ? 'actif' : '', onclick: () => aller(id) }, titre)))
+  document.getElementById('pied').textContent = etat ? `Version ${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, reglages: vueReglages, journal: vueJournal }
+  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, drive: vueDrive, affiliation: vueAffiliation, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 

@@ -33,6 +33,18 @@ function creerServeur() {
           if (req.url === '/api/admin/moi') return json(200, { ok: true, administrateur: 'poste-analyses' })
           if (req.url === '/api/admin/utilisateurs') return json(200, { total: 2, verifies: 1, abonnesNewsletter: 1, limite: 500, utilisateurs: [{ id: 'u1', email: 'a@exemple.test', shopName: 'Boutique A', plan: 'FREE', credits: 120, emailVerifiedAt: '2026-10-01T10:00:00Z', createdAt: '2026-10-01T09:00:00Z' }, { id: 'u2', email: 'b@exemple.test', shopName: null, plan: 'FREE', credits: 0, emailVerifiedAt: null, createdAt: '2026-10-02T09:00:00Z' }] })
           if (req.url === '/api/admin/newsletter') return json(200, { total: 1, subscribers: [{ id: 'n1', email: 'n@exemple.test', source: 'site', createdAt: '2026-10-02T09:00:00Z' }] })
+          if (req.url === '/api/admin/analyses-drive/lister' && req.method === 'POST') {
+            const { adresse } = JSON.parse(corps || '{}')
+            if (!/drive\.google\.com/.test(adresse || '')) return json(422, { error: 'Adresse de dossier Google Drive non reconnue.' })
+            return json(200, { dossier: 'MARKET-ANALYSES', dates: [{ date: '2026-10-08', etudes: [{ categorie: 'jardin', theme: 'arrosage', fichiers: ['arrosage.rayon.md'], doublons: [], importable: true, dejaEnBase: false }], ignores: [] }] })
+          }
+          if (req.url === '/api/admin/analyses-drive/importer' && req.method === 'POST') {
+            const { dates, essai } = JSON.parse(corps || '{}')
+            etat.importsDrive = (etat.importsDrive || []).concat([{ dates, essai }])
+            return json(200, { essai: Boolean(essai), importees: essai ? 0 : 1, aImporter: essai ? 1 : 0, doublons: 0, refusees: 0, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-08', rayon: 'jardin / arrosage', statut: essai ? 'apercu' : 'importe', produits: 12, urlsDistinctes: 8, avecPrix: 1, marketing: true }], ignores: [] })
+          }
+          if (req.url === '/api/admin/affiliation') return json(200, { seuilCentimes: 5000, totaux: { affilies: 1, aVerser: 1, dusCentimes: 6200, dusAVerserCentimes: 6200, versesCentimes: 0 }, affilies: [{ id: 'af1', nom: 'Affilié Test', email: 'af@exemple.test', code: 'TEST10', inscritLe: '2026-10-01T09:00:00Z', filleuls: 3, clics: 40, titulaire: 'A. Test', iban: 'FR7612345678901234567890123', ibanMajLe: null, gainsCentimes: 6200, dusCentimes: 6200, versesCentimes: 0, aVerser: true, versements: [] }] })
+          if (req.url === '/api/admin/affiliation/af1/verse' && req.method === 'POST') { etat.versements = (etat.versements || []).concat([JSON.parse(corps || '{}')]); return json(200, { versement: { id: 'v1', montantCentimes: 6200 } }) }
         }
         if (req.url === '/api/admin/rapports-poste' && req.method === 'POST') {
           const auth = req.headers.authorization || ''

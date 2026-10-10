@@ -82,8 +82,8 @@ async function lancer({ maison, profil, port, serveur }) {
     // the screen itself (tabs, nothing missing)
     const ecran = await a.evaluer(`JSON.stringify({ onglets: [...document.querySelectorAll('#onglets button')].map((b) => b.textContent), titre: document.querySelector('h1') && document.querySelector('h1').textContent })`)
     const ec = JSON.parse(ecran)
-    assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Administration', 'Réglages', 'Journal'])
-    console.log('ok   écran : 6 onglets,', ec.titre)
+    assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Administration', 'Import Drive', 'Affiliation', 'Réglages', 'Journal'])
+    console.log('ok   écran : 8 onglets,', ec.titre)
 
     // keys: stored, never returned
     await a.appel('secret', { nom: 'anthropic', valeur: 'cle-anthropic-secrete' })
@@ -115,6 +115,19 @@ async function lancer({ maison, profil, port, serveur }) {
     const utilisateurs = (await a.appel('adminUtilisateurs')).valeur
     assert.equal(utilisateurs.total, 2); assert.equal(utilisateurs.utilisateurs[0].email, 'a@exemple.test')
     assert.equal((await a.appel('adminNewsletter')).valeur.total, 1)
+    // back-office moved from the site: Drive import and affiliate payouts, through the same key
+    const liste = (await a.appel('adminDriveLister', { adresse: 'https://drive.google.com/drive/folders/abc' })).valeur
+    assert.equal(liste.dates[0].date, '2026-10-08')
+    assert.ok(!(await a.appel('adminDriveLister', { adresse: 'https://exemple.test/x' })).ok, 'une adresse hors Drive est refusée en clair')
+    assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'], essai: true })).valeur.aImporter, 1)
+    assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'] })).valeur.importees, 1)
+    assert.deepEqual(faux.importsDrive.map((x) => x.essai), [true, false])
+    const aff = (await a.appel('adminAffiliation')).valeur
+    assert.equal(aff.affilies[0].code, 'TEST10')
+    assert.ok((await a.appel('adminAffiliationVerser', { id: 'af1', nom: 'Affilié Test', montant: '62,00 €', reference: 'VIR-1' })).ok)
+    assert.equal(faux.versements[0].reference, 'VIR-1')
+    assert.ok(!fs.readFileSync(path.join(profil, 'config.json'), 'utf8').includes('FR7612345678901234567890123'), 'les IBAN ne sont écrits nulle part')
+    console.log('ok   back-office : import Drive (liste, aperçu, import) et versement affilié par la clé du Poste')
     assert.ok(!fs.readFileSync(path.join(profil, 'config.json'), 'utf8').includes('a@exemple.test'), 'les utilisateurs ne sont écrits nulle part')
     console.log('ok   administration : clé fabriquée par le Poste, empreinte seule connue du site, 503 puis 401 puis 200, utilisateurs lus')
 
@@ -214,7 +227,21 @@ async function lancer({ maison, profil, port, serveur }) {
     console.log('ok   onglet Administration : empreinte visible, clé jamais affichée, utilisateurs listés')
     await a.evaluer(`document.querySelectorAll('#onglets button')[4].click()`)
     await pause(300)
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Lire le dossier').click()`)
+    await pause(800)
+    const texteDrive = await a.evaluer(`document.body.textContent`)
+    assert.match(texteDrive, /2026-10-08/); assert.match(texteDrive, /Importer 1 date\(s\)/)
+    await a.evaluer(`document.querySelectorAll('#onglets button')[5].click()`)
+    await pause(300)
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les affiliés').click()`)
+    await pause(800)
+    const texteAff = await a.evaluer(`document.body.textContent`)
+    assert.match(texteAff, /TEST10/); assert.match(texteAff, /FR76 •••• 0123/); assert.ok(!texteAff.includes('FR7612345678901234567890123'), 'IBAN masqué à l’écran')
+    console.log('ok   onglets Import Drive et Affiliation, IBAN masqué')
+    await a.evaluer(`document.querySelectorAll('#onglets button')[6].click()`)
+    await pause(300)
     const texteReglages = await a.evaluer(`document.body.textContent`)
+    assert.match(texteReglages, /Clé API Anthropic/); assert.match(texteReglages, /Clé API Serper/); assert.match(texteReglages, /Clé d’administration du site/)
     assert.match(texteReglages, /Serper Shopping/); assert.match(texteReglages, /crédits Serper avec ces réglages/)
     await a.evaluer(`document.querySelectorAll('#onglets button')[0].click()`)
     console.log('ok   écran : 24 cases à cocher dans « Rapports du jour », réglages Serper visibles')
