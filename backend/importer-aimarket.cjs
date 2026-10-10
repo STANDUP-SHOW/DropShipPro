@@ -4,6 +4,9 @@
  *   cd backend && node importer-aimarket.cjs            # tout aiMarket/
  *   cd backend && node importer-aimarket.cjs --fichier X.json
  *   cd backend && node importer-aimarket.cjs --sec       # n'ecrit rien, montre
+ *   cd backend && node importer-aimarket.cjs --envoyer   # importe, puis met EN LIGNE
+ *
+ * --envoyer : voir envoyer-rapports.cjs (mise en ligne sans push).
  *
  * Un fichier MarketSpy porte l'etude ET le marketing. La base, elle, separe
  * les deux : les routes de lecture filtrent sur `type = 'marketing'` pour les
@@ -40,6 +43,7 @@ function ouvrir(chemin) {
 const args = process.argv.slice(2);
 const sec = args.includes('--sec');
 const unSeul = args.includes('--fichier') ? args[args.indexOf('--fichier') + 1] : null;
+const envoyer = args.includes('--envoyer');
 
 const DOSSIER = path.resolve(__dirname, '..', 'aiMarket');
 const BASE = path.resolve(__dirname, 'rapports.db');
@@ -400,3 +404,5 @@ for (const fichier of fichiers) {
 
 if (db) db.close();
 console.log(`\n${ok} importé(s), ${ko} refusé(s).`);
+
+if (envoyer && !sec) require('./envoyer-rapports.cjs').envoyerEtDire(BASE);

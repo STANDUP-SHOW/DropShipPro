@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import express, { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireApiKey, requireDesktop, type AgentRequest } from '../middleware/apiKey.js'
@@ -12,6 +12,10 @@ import { brouillonPour } from '../services/socialDraft.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { lireRapport, RapportInvalide } from '../services/marketReports.js'
 import { rateLimit } from '../middleware/rateLimit.js'
+import { DepotRefuse, deposerRapports } from '../services/reportsDb.js'
+import { lignesPubliques } from './analysesPubliques.js'
+import { sitemapXml } from '../services/analysesPubliques.js'
+import { annoncerAnalyses, enProduction } from '../services/annonceAnalyses.js'
 import { findDepartment } from '../services/departments.js'
 import { runAutopilot } from '../services/autopilot.js'
 import { PLATFORM_IDS } from '../services/platforms.js'
@@ -781,6 +785,42 @@ agentRouter.post('/market-reports', requireAdmin as never, async (req: AgentRequ
   })
   res.status(201).json({ id: rapport.id, ...cle, produits: lu.produits.length })
 })
+
+/**
+ * Dépôt de rapports.db par l'importateur de Max (`importer-aimarket.cjs --envoyer`).
+ *
+ * Demandé le 04/10/2026 : les nouveaux rapports doivent paraître dans
+ * l'application et sur les pages publiques /analyses sans push ni
+ * redéploiement. Le fichier part sur le volume (storage/), remplace la base
+ * lue par les routes dès la requête suivante, et les nouvelles adresses sont
+ * annoncées aux moteurs (IndexNow). Administrateur seulement : ces rapports
+ * sont lus par tout le monde.
+ */
+agentRouter.post(
+  '/rapports-db',
+  requireAdmin as never,
+  express.raw({ type: 'application/octet-stream', limit: '80mb' }),
+  (req: AgentRequest, res) => {
+    if (!Buffer.isBuffer(req.body)) return res.status(400).json({ error: 'Envoyez le fichier rapports.db en application/octet-stream.' })
+    let depot
+    try {
+      depot = deposerRapports(req.body)
+    } catch (err) {
+      if (err instanceof DepotRefuse) return res.status(422).json({ error: err.message })
+      throw err
+    }
+    let adresses = 0
+    try {
+      adresses = (sitemapXml(lignesPubliques()).match(/<loc>/g) ?? []).length
+    } catch (err) {
+      return res.status(500).json({ error: `Base reçue mais illisible par les pages publiques : ${err instanceof Error ? err.message : String(err)}` })
+    }
+    if (enProduction()) {
+      annoncerAnalyses(sitemapXml(lignesPubliques())).catch((e) => console.error('[indexnow] annonce impossible', e instanceof Error ? e.message : e))
+    }
+    res.status(201).json({ ...depot, adressesPubliques: adresses })
+  },
+)
 
 /**
  * Déclenchement du pilote automatique par un agent extérieur.
