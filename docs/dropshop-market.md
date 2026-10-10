@@ -132,3 +132,30 @@ tant qu'elles sont vides, présentes dans le sitemap dès qu'elles ont un produi
   l'ouverture de l'écran vendeur, ce qui suffit au démarrage.
 - **Avis laissés sur le Market** : pas encore de formulaire après achat ; les
   avis affichés sont ceux du produit (voir plus haut).
+
+## Publication automatique des boutiques (07/10/2026)
+
+Décision de Max : tout produit publié sur une boutique (destination « Mon site »,
+`OWN_SITE`) est aussi publié sur le Market, sauf si le vendeur coche « Ne pas
+publier mes produits sur DropShop Market » (écran DropShop Market ; colonne
+`User.marketAuto`, `true` par défaut).
+
+- Point d'entrée unique : `publishToPlatform` → `services/marketAuto.ts`
+  (`diffuserSurMarket`). L'autopilote et la publication en lot passent par là.
+- On ne crée l'annonce que s'il n'existe aucune ligne Market pour le produit :
+  un retrait de la modération (`FAILED`) n'est jamais défait.
+- Désactiver arrête les prochaines diffusions ; ce qui est en ligne y reste.
+- Produits déjà en boutique avant l'activation : `backend/diffuser-boutiques-sur-market.ts`
+  (simulation par défaut, `--ecrire` pour créer). À lancer une fois, après accord de Max.
+- Migration `20261007160000_market_auto` : sauvegarde avant fusion (`npm run sauvegarde`).
+- Banc : `backend/check-market-auto.ts`.
+
+### « Vendu par » et lien vers la boutique
+
+L'achat reste neutre (le client paie sur le Market, comme sur Amazon ou AliExpress),
+mais chaque fiche affiche « Vendu par <boutique> » (page vendeur du Market) et
+« Voir sa boutique ↗ » vers la boutique elle-même : son `siteUrl` s'il l'a
+renseigné, sinon sa vitrine `/b/<adresse>` (`boutiqueUrlDe`). Même lien sur la
+page vendeur et dans le schema.org (`seller.url`). Lien suivi, sans `nofollow` :
+c'est voulu, pour le maillage et les backlinks. Un `siteUrl` qui n'est pas en
+http(s) est ignoré.

@@ -181,6 +181,15 @@ export default function DropShopMarket() {
 
   const stripe = donnees?.stripe
 
+  const basculerAuto = async (actif: boolean) => {
+    try {
+      await api.marketAuto(actif)
+      setDonnees((d) => (d ? { ...d, auto: actif } : d))
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Réglage indisponible')
+    }
+  }
+
   const basculerPrime = async (productId: string, prime: boolean) => {
     if (prime && !window.confirm("Prime = livré en 24 h. Je confirme que cet article est en stock en France et expédié le jour même de la commande. La promesse est affichée aux acheteurs et déclarée à Google.")) return
     try {
@@ -210,6 +219,25 @@ export default function DropShopMarket() {
           Stripe vérifie encore vos informations. Les paiements s'activent dès qu'il a terminé ; rechargez cette page dans quelques minutes.
         </p>
       )}
+
+      <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <h2 className="mb-1 text-lg font-semibold">Publication automatique</h2>
+        <label className="flex items-start gap-3 text-sm text-gray-300">
+          <input
+            type="checkbox"
+            className="mt-1"
+            disabled={!donnees}
+            checked={donnees ? !donnees.auto : false}
+            onChange={(e) => basculerAuto(!e.target.checked)}
+          />
+          <span>
+            Ne pas publier mes produits sur DropShop Market.
+            <span className="block text-xs text-gray-400">
+              Par défaut, chaque produit que vous publiez sur votre boutique est aussi publié sur le Market. Cocher cette case arrête les prochaines publications ; ce qui est déjà en ligne reste visible ci-dessous.
+            </span>
+          </span>
+        </label>
+      </section>
 
       <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold"><CreditCard size={18} /> Paiements</h2>

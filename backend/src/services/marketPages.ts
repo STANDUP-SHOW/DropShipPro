@@ -305,7 +305,7 @@ function offreLd(a: Annonce, o: Offre) {
     priceCurrency: o.devise,
     availability: DISPO(o),
     itemCondition: ETAT[etatPour(a.product.condition, 'flux')] ?? ETAT.new,
-    seller: { '@type': 'Organization', name: a.vendeur.nom },
+    seller: { '@type': 'Organization', name: a.vendeur.nom, ...(a.vendeur.boutiqueUrl ? { url: a.vendeur.boutiqueUrl } : {}) },
     shippingDetails: {
       '@type': 'OfferShippingDetails',
       shippingRate: { '@type': 'MonetaryAmount', value: '0', currency: o.devise },
@@ -494,7 +494,7 @@ ${images.length > 1 ? `<div class="vignettes">${images.map((i, n) => `<button ty
 </div>
 <div>
 <h1>${e(titreH1)}</h1>
-${a.vendeur.slug ? `<a class="vendeur" href="${base}/vendeur/${encodeURIComponent(a.vendeur.slug)}">Vendu par ${e(a.vendeur.nom)}</a>` : `<span class="vendeur">Vendu par ${e(a.vendeur.nom)}</span>`}
+${a.vendeur.slug ? `<a class="vendeur" href="${base}/vendeur/${encodeURIComponent(a.vendeur.slug)}">Vendu par ${e(a.vendeur.nom)}</a>` : `<span class="vendeur">Vendu par ${e(a.vendeur.nom)}</span>`}${a.vendeur.boutiqueUrl ? ` <a class="muted" style="font-size:13px" href="${e(a.vendeur.boutiqueUrl)}" target="_blank" rel="noopener">Voir sa boutique ↗</a>` : ''}
 ${a.avis?.nombre && a.avis.moyenne != null ? `<a class="note" href="#avis" style="display:block;margin-top:4px"><span class="etoiles">${etoiles(a.avis.moyenne)}</span> ${a.avis.moyenne.toLocaleString('fr-FR')} · ${a.avis.nombre} avis</a>` : ''}
 <div class="prix">${!choisie && variable ? '<small style="font-size:16px;font-weight:600">dès </small>' : ''}${e(prixTexte(prixAffiche, o.devise))}</div>
 ${a.prime ? '<div style="margin:4px 0 6px"><span class="prime prime-gros">⚡ PRIME · Livré en 24 h</span></div>' : ''}
@@ -555,6 +555,8 @@ export function pageListe(args: {
   titre: string
   h1: string
   intro?: string
+  /** Page vendeur : lien vers la boutique du vendeur. */
+  boutique?: { nom: string; url: string }
   description: string
   chemin: string | null
   annonces: Annonce[]
@@ -578,7 +580,7 @@ export function pageListe(args: {
   }
   const entete = args.hero
     ? `<section class="hero"><h1>${e(args.h1)}</h1>${args.intro ? `<p>${e(args.intro)}</p>` : ''}</section>`
-    : `<h1>${e(args.h1)}</h1>${args.intro ? `<p class="muted">${e(args.intro)}</p>` : ''}`
+    : `<h1>${e(args.h1)}</h1>${args.intro ? `<p class="muted">${e(args.intro)}</p>` : ''}${args.boutique ? `<p><a class="vendeur" href="${e(args.boutique.url)}" target="_blank" rel="noopener">Visiter la boutique ${e(args.boutique.nom)} ↗</a></p>` : ''}`
   const puces = args.puces
     ? `<div class="puces"><a class="${args.puces.courante ? '' : 'on'}" href="${base}${cheminCategorie(args.puces.rayon.id)}">Tout « ${e(args.puces.rayon.label)} »</a>${args.puces.rayon.sousCategories
         .map((c) => `<a class="${args.puces!.courante === c.id ? 'on' : ''}" href="${base}${cheminCategorie(args.puces!.rayon.id, c.id)}">${e(c.label)}</a>`)

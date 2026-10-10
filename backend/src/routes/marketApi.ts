@@ -25,7 +25,7 @@ function erreur(res: Response, err: unknown, contexte: string) {
 marketApiRouter.get('/vendeur', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const userId = req.userId!
-    const [stripe, annonces, ventes, shops] = await Promise.all([
+    const [stripe, annonces, ventes, shops, reglage] = await Promise.all([
       etatCompte(userId).catch((e) => {
         console.error('[market] état Stripe', e instanceof Error ? e.message : e)
         return { inscrit: true, actif: false, detailsEnvoyes: false, virements: false, erreur: true }
@@ -43,10 +43,12 @@ marketApiRouter.get('/vendeur', requireAuth, async (req: AuthedRequest, res) => 
         take: 50,
       }),
       prisma.shop.findMany({ where: { userId, slug: { not: null } }, select: { name: true, slug: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { marketAuto: true } }),
     ])
     const base = marketUrl()
     res.json({
       commission: COMMISSION,
+      auto: reglage?.marketAuto ?? true,
       stripe,
       annonces: annonces.map((p) => {
         const offres = offresDe(p.product)
@@ -101,6 +103,23 @@ marketApiRouter.post('/vendeur/stripe/tableau', requireAuth, async (req: AuthedR
     res.json({ url })
   } catch (err) {
     erreur(res, err, 'tableau-stripe')
+  }
+})
+
+/**
+ * Publication automatique : tout produit publié sur la boutique du vendeur part
+ * aussi sur le Market, sauf s'il la désactive ici. Désactiver n'enlève rien de
+ * ce qui est déjà en ligne : cela arrête seulement les prochaines diffusions.
+ */
+marketApiRouter.put('/vendeur/auto', requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = z.object({ actif: z.boolean() }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Demande invalide.' })
+  try {
+    await prisma.user.update({ where: { id: req.userId! }, data: { marketAuto: parsed.data.actif } })
+    res.json({ ok: true, auto: parsed.data.actif })
+  } catch (err) {
+    console.error('[market] auto', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: "Le réglage n'a pas pu être enregistré.", motif: 'auto' })
   }
 })
 
