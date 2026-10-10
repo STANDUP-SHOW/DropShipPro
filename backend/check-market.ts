@@ -1,5 +1,5 @@
 import type { Product } from '@prisma/client'
-import { offresDe, cleVariante, slugify, attributGoogle, arbreMarket, type Annonce, type Rayon } from './src/services/market.js'
+import { offresDe, boutiqueUrlDe, cleVariante, slugify, attributGoogle, arbreMarket, type Annonce, type Rayon } from './src/services/market.js'
 import { googleMarketRss, metaMarketCsv, comparateurCsv, googleAdsEditorCsv, couper } from './src/services/marketFeeds.js'
 import { pageProduit, pageListe, produitLd, carte } from './src/services/marketPages.js'
 import { commissionCentimes } from './src/services/marketStripe.js'
@@ -79,7 +79,7 @@ exige(attributGoogle('Coloris') === 'color' && attributGoogle('Pointure') === 's
 const annonce: Annonce = {
   product: avecVariantes,
   shop: { id: 's1', name: 'Maison Laine', slug: 'maison-laine' },
-  vendeur: { userId: 'u1', nom: 'Maison Laine', slug: 'maison-laine', encaisse: true },
+  vendeur: { userId: 'u1', nom: 'Maison Laine', slug: 'maison-laine', encaisse: true, boutiqueUrl: 'https://maison-laine.exemple.fr' },
   categorie: { id: 'vetements-pour-femmes-pulls', label: 'Pulls', path: 'Vêtements pour femmes > Pulls', google: 'Apparel & Accessories > Clothing > Sweaters', rayon: { id: 'vetements-pour-femmes', label: 'Vêtements pour femmes' } },
   offres,
   publishedAt: new Date(),
@@ -161,6 +161,12 @@ exige(fichePrime.includes('"transitTime":{"@type":"QuantitativeValue","minValue"
 const rssPrime = googleMarketRss([prime])
 exige(rssPrime.includes('<g:max_transit_time>1</g:max_transit_time>') && rssPrime.includes('<g:max_handling_time>0</g:max_handling_time>'), 'Google : délai 24 h déclaré')
 exige(rssPrime.includes('<g:custom_label_4>prime-24h</g:custom_label_4>') && rss.includes('<g:custom_label_4>standard</g:custom_label_4>'), 'Prime segmentable en campagne')
+
+console.log('Vendu par :')
+exige(fiche.includes('Vendu par Maison Laine') && fiche.includes('href="https://maison-laine.exemple.fr"') && fiche.includes('Voir sa boutique'), 'la fiche dit « Vendu par » et lie la boutique du vendeur')
+exige(fiche.includes('"seller":{"@type":"Organization","name":"Maison Laine","url":"https://maison-laine.exemple.fr"}'), 'schema.org : le vendeur porte l’adresse de sa boutique')
+exige(boutiqueUrlDe({ slug: 'x', siteUrl: 'javascript:alert(1)' }) !== 'javascript:alert(1)' && boutiqueUrlDe({ slug: null, siteUrl: null }) === null, 'adresse de boutique : jamais de schéma douteux, rien sans boutique')
+exige(boutiqueUrlDe({ slug: 'x', siteUrl: 'https://mon-site.fr' }) === 'https://mon-site.fr', 'son propre site prime sur la vitrine hébergée')
 
 console.log('Vidéo et avis :')
 const riche: Annonce = {
