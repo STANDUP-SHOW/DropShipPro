@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, HandCoins, Search, Menu as MenuIcon, X,
+import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Mail, HandCoins, FolderInput, Search, Menu as MenuIcon, X,
   Share2,
   Wand2,
   Zap,
@@ -188,6 +188,7 @@ const SECTIONS: Array<{
       // Réservée à l'admin : filtrée au rendu par demoAutorise(user).
       { to: '/admin/newsletter', label: 'Newsletter', icon: Mail },
       { to: '/admin/affiliation', label: 'Versements affiliés', icon: HandCoins },
+      { to: '/admin/analyses', label: 'Importer des analyses', icon: FolderInput },
       { to: '/guide', label: "Mode d'emploi", icon: BookOpen },
       { to: '/guide#contact', label: 'Aide & contact', icon: LifeBuoy },
     ],

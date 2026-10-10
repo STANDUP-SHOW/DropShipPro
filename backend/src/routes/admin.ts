@@ -3,6 +3,10 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, requireAdmin, type AuthedRequest } from '../middleware/auth.js'
 import { listeVersementsAdmin, verser } from '../services/affiliation.js'
 import { sendMail, appUrl } from '../services/mailer.js'
+import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
+import { lignesPubliques } from './analysesPubliques.js'
+import { sitemapXml } from '../services/analysesPubliques.js'
+import { annoncerAnalyses, enProduction } from '../services/annonceAnalyses.js'
 
 /**
  * Les routes réservées à l'administrateur. Le portique est double et côté
@@ -68,5 +72,47 @@ adminRouter.post('/affiliation/:id/verse', async (req: AuthedRequest, res) => {
     if (err instanceof Error && err.message.includes('déjà versées')) return res.status(409).json({ error: 'Ce versement vient déjà d’être enregistré.' })
     console.error('versement affilié', err)
     res.status(500).json({ error: 'Versement non enregistré, réessayez.' })
+  }
+})
+
+/**
+ * Import d'analyses rangées par d'autres agents dans un dossier Google Drive
+ * public (demandé par Max le 10/10/2026). D'abord la liste, par date ; puis
+ * l'import des dates choisies, ou leur aperçu (`essai`) sans rien écrire.
+ */
+function adresseDe(req: AuthedRequest): string | null {
+  const a = req.body?.adresse
+  return typeof a === 'string' && a.trim() ? a.trim().slice(0, 500) : null
+}
+
+adminRouter.post('/analyses-drive/lister', async (req: AuthedRequest, res) => {
+  res.set('Cache-Control', 'no-store')
+  const adresse = adresseDe(req)
+  if (!adresse) return res.status(400).json({ error: 'Collez l’adresse d’un dossier Google Drive public.' })
+  try {
+    res.json(await listerDossierDrive(adresse))
+  } catch (err) {
+    if (err instanceof DriveErreur) return res.status(422).json({ error: err.message })
+    console.error('liste du dossier Drive', err)
+    res.status(500).json({ error: `Liste impossible : ${err instanceof Error ? err.message : String(err)}` })
+  }
+})
+
+adminRouter.post('/analyses-drive/importer', async (req: AuthedRequest, res) => {
+  res.set('Cache-Control', 'no-store')
+  const adresse = adresseDe(req)
+  const dates = Array.isArray(req.body?.dates) ? req.body.dates.filter((d: unknown) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) : []
+  if (!adresse) return res.status(400).json({ error: 'Collez l’adresse d’un dossier Google Drive public.' })
+  if (!dates.length) return res.status(400).json({ error: 'Choisissez au moins une date.' })
+  try {
+    const rapport = await importerDossierDrive(adresse, dates, req.body?.essai === true)
+    if (rapport.importees && enProduction()) {
+      annoncerAnalyses(sitemapXml(lignesPubliques())).catch((e) => console.error('[indexnow] annonce impossible', e instanceof Error ? e.message : e))
+    }
+    res.json(rapport)
+  } catch (err) {
+    if (err instanceof DriveErreur) return res.status(422).json({ error: err.message })
+    console.error('import du dossier Drive', err)
+    res.status(500).json({ error: `Import impossible : ${err instanceof Error ? err.message : String(err)}` })
   }
 })
