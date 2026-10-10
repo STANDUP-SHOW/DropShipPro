@@ -8,6 +8,7 @@
  * serait pire qu'aucun lien.
  */
 const { colonnes } = require('../src/data/pied-de-page.json')
+const ENTREPRISE = require('../src/data/entreprise.json')
 
 const esc = (t) =>
   String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -42,7 +43,17 @@ ${cols}
 <div class="pied-bas">
 ${guides.length ? `<p>Guides : ${guides.map(([href, label]) => `<a href="${href}">${esc(label)}</a>`).join(' ')}</p>` : ''}
 <p><a href="/">DropShipper IA</a> — logiciel français de dropshipping par IA. Sans abonnement, 1 drop = 0,01 €.</p>
+${coordonnees()}
 </div>`
 }
 
-module.exports = { piedDePage, CSS_PIED, colonnes }
+/**
+ * Nom, adresse, téléphone, horaires : identiques à la fiche Google, mot pour mot
+ * (src/data/entreprise.json). Google rapproche le site de la fiche par ces trois lignes.
+ */
+function coordonnees() {
+  const { nom, adresse: a, telephone, telephoneInternational, horaires } = ENTREPRISE
+  return `<p class="nap">${esc(nom)} · ${esc(a.rue)}, ${esc(a.codePostal)} ${esc(a.ville)} · <a href="tel:${esc(telephoneInternational)}">${esc(telephone)}</a> · ${esc(horaires.libelle)}</p>`
+}
+
+module.exports = { piedDePage, CSS_PIED, colonnes, coordonnees }

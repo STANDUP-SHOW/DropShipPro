@@ -22,7 +22,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const { layout, esc, breadcrumbLd, crumb, SITE, TODAY } = require('./build-seo.cjs')
-const { EDITEUR, manquants, lignesConnues } = require('./editeur.cjs')
+const { ENTREPRISE, EDITEUR, manquants, lignesConnues, etablissementLd } = require('./editeur.cjs')
 
 const DIST = path.resolve(__dirname, '..', 'dist')
 const CONTENU = path.resolve(__dirname, '..', 'content', 'blog')
@@ -244,7 +244,7 @@ function pageIndex(tous) {
 /* Pages de confiance                                                  */
 /* ------------------------------------------------------------------ */
 
-function pageSimple({ url, nom, title, description, type = 'WebPage', corps }) {
+function pageSimple({ url, nom, title, description, type = 'WebPage', corps, ld = [] }) {
   const trail = [{ name: 'Accueil', url: '/' }, { name: nom, url }]
   return {
     url,
@@ -253,7 +253,7 @@ function pageSimple({ url, nom, title, description, type = 'WebPage', corps }) {
         url,
         title,
         description,
-        jsonLd: [{ '@context': 'https://schema.org', '@type': type, name: nom, url: `${SITE}${url}`, inLanguage: 'fr-FR' }, breadcrumbLd(trail)],
+        jsonLd: [{ '@context': 'https://schema.org', '@type': type, name: nom, url: `${SITE}${url}`, inLanguage: 'fr-FR' }, breadcrumbLd(trail), ...ld],
         body: `${crumb(trail)}\n${corps}`,
       }),
     ),
@@ -265,10 +265,15 @@ function pageContact() {
     url: '/contact/',
     nom: 'Contact',
     type: 'ContactPage',
+    ld: [{ '@context': 'https://schema.org', ...etablissementLd(SITE) }],
     title: `Contacter ${NOM}`,
     description: `Écrire à l'équipe ${NOM} : question avant inscription, aide sur votre compte, données personnelles, partenariat. Une adresse lue par l'équipe.`,
     corps: `<h1>Contacter ${NOM}</h1>
 <p class="lede">Une seule adresse, lue par l'équipe : <a href="mailto:${EMAIL}">${EMAIL}</a>.</p>
+<h2>Nous trouver</h2>
+<p><strong>${esc(ENTREPRISE.nom)}</strong><br>${esc(ENTREPRISE.adresse.rue)}<br>${esc(ENTREPRISE.adresse.codePostal)} ${esc(ENTREPRISE.adresse.ville)}, ${esc(ENTREPRISE.adresse.pays)}</p>
+<p>Téléphone : <a href="tel:${esc(ENTREPRISE.telephoneInternational)}">${esc(ENTREPRISE.telephone)}</a><br>Horaires : ${esc(ENTREPRISE.horaires.libelle)}</p>
+${ENTREPRISE.ficheGoogle ? `<p><a href="${esc(ENTREPRISE.ficheGoogle)}" rel="noopener" target="_blank">Voir sur Google Maps</a></p>` : ''}
 <h2>Selon votre demande</h2>
 <ul>
 <li><strong>Une question avant de vous inscrire</strong> : la réponse est peut-être déjà dans les <a href="/faq/">questions fréquentes</a> ou sur la page des <a href="/tarifs/">tarifs</a>. Sinon, écrivez-nous.</li>
