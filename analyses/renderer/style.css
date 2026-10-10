@@ -33,3 +33,5 @@ input[type=checkbox] { width: auto; }
 .sources { display: flex; gap: 14px; } .sources > .liste { width: 250px; flex: none; } .sources > .vue { flex: 1; min-width: 0; }
 .source { padding: 8px 10px; border: 1px solid var(--ligne); border-radius: 8px; margin-bottom: 6px; cursor: pointer; background: #fff; }
 .source.actif { border-color: var(--orange); background: #fff6f0; }
+.date-drive { padding: 10px 0; border-bottom: 1px solid var(--ligne); }
+.date-drive .ligne { margin-top: 6px; gap: 6px; }

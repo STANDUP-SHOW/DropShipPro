@@ -158,11 +158,11 @@ function optionsRayon() {
 }
 
 // ---- hard gate: a costly launch needs Max's explicit yes, in a native dialog
-async function accord(message, detail) {
+async function accord(message, detail, bouton = 'Oui, lancer') {
   if (BANC) return true
   const r = await dialog.showMessageBox(fenetre, {
     type: 'question',
-    buttons: ['Non', 'Oui, lancer'],
+    buttons: ['Non', bouton],
     defaultId: 0,
     cancelId: 0,
     title: 'Accord requis',
@@ -453,6 +453,22 @@ function brancher() {
   // Everything the site knows about its sellers. Kept in memory on the screen only, never written to disk.
   h('admin-utilisateurs', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/utilisateurs' }))
   h('admin-newsletter', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/newsletter' }))
+  // Back-office moved from the site into the Poste (PR #17): Drive import and affiliate payouts, same /api/admin routes.
+  h('admin-drive-lister', ({ adresse }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: { adresse } }))
+  h('admin-drive-importer', async ({ adresse, dates, essai }) => {
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true } })
+    if (!essai) journal.info('Analyses importées depuis Google Drive', { dates: dates.join(', '), importees: r.importees, refusees: r.refusees })
+    return r
+  })
+  h('admin-affiliation', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/affiliation' }))
+  h('admin-affiliation-verser', async ({ id, nom, montant, reference }) => {
+    const ok = await accord(`Enregistrer le virement de ${montant} à ${nom} ?`, 'Ses commissions dues sont soldées et il reçoit un e-mail. Faites d’abord le virement à la banque : ce bouton ne vire rien.', 'Oui, enregistrer')
+    if (!ok) return { annule: true }
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/affiliation/${encodeURIComponent(id)}/verse`, corps: { reference: reference || null } })
+    journal.info('Versement affilié enregistré', { nom, montant })
+    return r
+  })
+  h('copier', (texte) => { clipboard.writeText(String(texte || '')); return true })
   h('secret', ({ nom, valeur }) => {
     // The admin key is made by the app (admin-creer), never typed; it can only be erased.
     if (nom === 'admin' && valeur) throw new Error('La clé d’administration est fabriquée par le Poste : utilisez « Créer la clé ».')
@@ -524,11 +540,13 @@ function creerFenetre() {
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    title: 'DropShipper Poste d’analyses',
+    title: `DropShipper Poste d’analyses — v${app.getVersion()}`,
     show: !process.argv.includes('--cache'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   fenetre.setMenuBarVisibility(false)
+  // Keep the version in the title bar: Max must see at a glance which build he runs.
+  fenetre.on('page-title-updated', (e) => e.preventDefault())
   fenetre.loadFile(path.join(__dirname, 'renderer', 'index.html'))
   fenetre.on('close', (e) => {
     if (!quitter && !BANC) { e.preventDefault(); fenetre.hide() } // the agents keep living in the tray
