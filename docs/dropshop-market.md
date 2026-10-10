@@ -172,3 +172,10 @@ dégradé ; accueil en bandeau de positionnement (relié à tous les dropshops, 
 d'importation déjà en Europe, Prime 24 h, expédié d'Europe/Allemagne/Pologne) et
 pays par défaut (`PAYS` dans `marketPages.ts`) à ajuster. Le jaune du badge Prime
 sur les cartes est conservé.
+
+Accueil : défilé « En vedette » (douze articles : Prime d'abord, puis les mieux notés,
+puis les plus récents, pris parmi les soixante dernières annonces ; flèches et
+défilement automatique, désactivé si `prefers-reduced-motion`). Bouton PRIME de la
+charte (`boutonPrime` : interrupteur dégradé, « PRIME » en blanc dessous, « 24 H » en
+dessous) dans le bandeau noir et dans la bande Prime. Favicône : `/favicon.ico`
+(16/32/48), PNG 16/32/192, icône 180 pour iOS, `/site.webmanifest` (icône 192/512).
