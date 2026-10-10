@@ -109,6 +109,8 @@ const SECTIONS: Array<{
     entrees: [
       { to: '/plateformes-vente', label: 'Market places', icon: Store },
       { to: '/mes-sites', label: 'Mes sites', icon: Store },
+      // Notre place de marche (drop-shop.cloud, 03/10/2026) : paiements Stripe, annonces, flux.
+      { to: '/dropshop-market', label: 'DropShop Market', icon: Store },
       // Les deux boutiques — la nôtre et celle de Shopify — ne sont plus deux
       // entrées plates : elles ont leur bloc à trois onglets (Créez, Modifier,
       // Consulter), rendu juste après cette section. Voir MenuBoutiques.tsx.

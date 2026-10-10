@@ -1,0 +1,28 @@
+{
+  "name": "OBSOLETE — voir orchestrateur.workflow.json",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "CE FICHIER EST REMPLACE.\n\nL'architecture a ete revue pour utiliser Ollama en local (0 cout d'API) et separer la recherche web (faite par n8n via Serper.dev) de la redaction (faite par le LLM local).\n\nUtiliser a la place, dans ce meme dossier :\n- agent-rayon.workflow.json (sous-workflow agent RAYON)\n- agent-marketing.workflow.json (sous-workflow agent MARKETING)\n- orchestrateur.workflow.json (declencheur 6h + boucle des 24 categories)\n\nVoir TACHE-COWORK.md pour la marche a suivre complete.",
+        "height": 380,
+        "width": 480
+      },
+      "id": "2cdc96ca-d3a0-46a8-93b9-5c2a60ece931",
+      "name": "Fichier remplace",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateNote": "Fichier conserve uniquement pour eviter un lien casse ; ne pas importer/executer."
+  }
+}

@@ -48,6 +48,7 @@ function platformLabel(platform: Platform) {
     CDISCOUNT: 'Cdiscount',
     SHOPIFY: 'Shopify',
     OWN_SITE: 'Votre site',
+    DROPSHOP_MARKET: 'DropShop Market',
   }
   return labels[platform] ?? 'Cette plateforme'
 }

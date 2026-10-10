@@ -4,6 +4,9 @@
  *   cd backend && node importer-aimarket.cjs            # tout aiMarket/
  *   cd backend && node importer-aimarket.cjs --fichier X.json
  *   cd backend && node importer-aimarket.cjs --sec       # n'ecrit rien, montre
+ *   cd backend && node importer-aimarket.cjs --envoyer   # importe, puis met EN LIGNE
+ *
+ * --envoyer : voir envoyer-rapports.cjs (mise en ligne sans push).
  *
  * Un fichier MarketSpy porte l'etude ET le marketing. La base, elle, separe
  * les deux : les routes de lecture filtrent sur `type = 'marketing'` pour les
@@ -17,30 +20,15 @@
  */
 const fs = require('node:fs');
 const path = require('node:path');
-const { lireEtude, ecrireRapport } = require('./aimarket-import.cjs');
-
-/**
- * Deux pilotes possibles, sans rien installer.
- *
- * Le serveur utilise better-sqlite3 ; en local ses node_modules ne sont pas
- * toujours la, et le compiler pour un script d'import serait absurde. Node 22+
- * embarque `node:sqlite`, qui ouvre le meme fichier. On prend ce qu'on trouve.
- */
-function ouvrir(chemin) {
-  try {
-    const Database = require('better-sqlite3');
-    const db = new Database(chemin);
-    return { db, pilote: 'better-sqlite3' };
-  } catch (e) {
-    const { DatabaseSync } = require('node:sqlite');
-    const db = new DatabaseSync(chemin);
-    return { db, pilote: 'node:sqlite' };
-  }
-}
+// La lecture d'une etude et son ecriture vivent dans rapports-etude.cjs,
+// partage avec l'import Google Drive du back-office. Pilote SQLite : voir
+// `ouvrir` la-bas (better-sqlite3, sinon node:sqlite integre).
+const { ouvrir, etudeAiMarket, ecrireEtude } = require('./rapports-etude.cjs');
 
 const args = process.argv.slice(2);
 const sec = args.includes('--sec');
 const unSeul = args.includes('--fichier') ? args[args.indexOf('--fichier') + 1] : null;
+const envoyer = args.includes('--envoyer');
 
 const DOSSIER = path.resolve(__dirname, '..', 'aiMarket');
 const BASE = path.resolve(__dirname, 'rapports.db');
@@ -77,11 +65,9 @@ for (const fichier of fichiers) {
     continue;
   }
 
-  let etude;
-  try {
-    etude = lireEtude(d);
-  } catch (err) {
-    console.log(`refus  ${nom} — ${err.message}`);
+  const etude = etudeAiMarket(d, nom);
+  if (!etude.ok) {
+    console.log(`refus  ${nom} — ${etude.raison}`);
     ko++;
     continue;
   }
@@ -89,15 +75,15 @@ for (const fichier of fichiers) {
   if (sec) {
     console.log(`lu     ${nom}`);
     console.log(`       rayon     -> ${etude.idRayon}`);
-    console.log(`       marketing -> ${etude.idMkt}`);
-    console.log(`       ${etude.produits.length} produits, ${etude.nbSources} sources`);
+    console.log(`       marketing -> ${etude.idMarketing}`);
+    console.log(`       ${etude.produits} produits, ${etude.sources} sources`);
     ok++;
     continue;
   }
 
   try {
-    ecrireRapport(db, d, nom);
-    console.log(`ok     ${nom} — ${etude.produits.length} produits, ${etude.nbSources} sources`);
+    ecrireEtude(db, etude);
+    console.log(`ok     ${nom} — ${etude.produits} produits, ${etude.sources} sources`);
     ok++;
   } catch (err) {
     console.log(`refus  ${nom} — ${err.message}`);
@@ -107,3 +93,5 @@ for (const fichier of fichiers) {
 
 if (db) db.close();
 console.log(`\n${ok} importé(s), ${ko} refusé(s).`);
+
+if (envoyer && !sec) require('./envoyer-rapports.cjs').envoyerEtDire(BASE);

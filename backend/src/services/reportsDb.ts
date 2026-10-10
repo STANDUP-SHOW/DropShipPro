@@ -4,11 +4,12 @@
  */
 
 import Database from 'better-sqlite3'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import fs from 'node:fs'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
 import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
+import { createRequire } from 'node:module'
 
 /**
  * Where rapports.db lives, resolved from THIS module, never from the cwd.
@@ -24,6 +25,231 @@ import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
  */
 const RACINE_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 export const CHEMIN_RAPPORTS_DB = path.join(RACINE_BACKEND, 'rapports.db')
+
+/**
+ * The copy Max's importer uploads (`importer-aimarket.cjs --envoyer`), on the
+ * Railway volume mounted at /app/storage. Asked on 04/10/2026: new reports
+ * must reach the app and the public /analyses pages without a git push and a
+ * redeploy. The committed file stays the fallback; whichever of the two holds
+ * the most recent report wins, so a later push of the committed file is never
+ * shadowed by an older upload.
+ */
+export const CHEMIN_RAPPORTS_DEPOSE = path.join(RACINE_BACKEND, 'storage', 'rapports.db')
+
+let generation = 0
+let cheminActif: string | null = null
+
+/** Bumped by every upload: the routes reopen their handle and recompute their addresses. */
+export function generationRapports(): number {
+  return generation
+}
+
+function resumeBase(chemin: string): { n: number; maj: string } | null {
+  if (!fs.existsSync(chemin)) return null
+  let db: Database.Database | null = null
+  try {
+    db = new Database(chemin, { readonly: true, fileMustExist: true })
+    const r = db.prepare('SELECT COUNT(*) AS n, MAX(COALESCE(updated_at, created_at, date)) AS maj FROM reports').get() as any
+    return { n: Number(r?.n ?? 0), maj: String(r?.maj ?? '') }
+  } catch {
+    return null
+  } finally {
+    db?.close()
+  }
+}
+
+/**
+ * Studies imported from the back-office (public Google Drive folders, asked by
+ * Max on 10/10/2026). They are written into the served base, AND kept here as
+ * their source text: the served base is replaced wholesale by every
+ * `--envoyer` upload and by every push of the committed file, and neither of
+ * those knows about Drive imports. Each replacement replays this list on top,
+ * so an imported study never silently disappears from the site.
+ */
+export const CHEMIN_SURCOUCHE = path.join(RACINE_BACKEND, 'storage', 'analyses-importees.json')
+/** Which base the uploaded copy was built from, and that base's most recent report. */
+const CHEMIN_ORIGINE_DEPOSE = `${CHEMIN_RAPPORTS_DEPOSE}.origine.json`
+
+export interface EtudeImportee {
+  idRayon: string
+  format: 'markdown' | 'aimarket'
+  origine: string
+  importeLe: string
+  texteRayon?: string
+  texteMarketing?: string | null
+  json?: unknown
+}
+
+/** Shared with the command-line importers: one reader, one writer, one shape of `data`. */
+const etudeLib = createRequire(import.meta.url)('../../rapports-etude.cjs') as {
+  etudeMarkdown(e: { texteRayon: string; texteMarketing: string | null; origineRayon: string; origineMarketing: string | null; source?: string }): any
+  etudeAiMarket(d: unknown, origine: string): any
+  ecrireEtude(db: Database.Database, etude: any): void
+}
+export { etudeLib }
+
+export function lireSurcouche(): EtudeImportee[] {
+  try {
+    const brut = JSON.parse(fs.readFileSync(CHEMIN_SURCOUCHE, 'utf8'))
+    return Array.isArray(brut?.etudes) ? brut.etudes : []
+  } catch {
+    return []
+  }
+}
+
+function ecrireFichierAtomique(chemin: string, contenu: string | Buffer) {
+  fs.mkdirSync(path.dirname(chemin), { recursive: true })
+  const provisoire = `${chemin}.${process.pid}.tmp`
+  fs.writeFileSync(provisoire, contenu)
+  fs.renameSync(provisoire, chemin)
+}
+
+export function etudeDepuisSurcouche(e: EtudeImportee): any {
+  return e.format === 'aimarket'
+    ? etudeLib.etudeAiMarket(e.json, e.origine)
+    : etudeLib.etudeMarkdown({
+        texteRayon: e.texteRayon ?? '',
+        texteMarketing: e.texteMarketing ?? null,
+        origineRayon: e.origine,
+        origineMarketing: e.texteMarketing != null ? e.origine.replace(/\.rayon\.md$/, '.marketing.md') : null,
+        source: 'google-drive',
+      })
+}
+
+/**
+ * Writes the imported studies into a writable copy of a base. A study whose
+ * RAYON report already exists is skipped: our own agents' report for the same
+ * shelf and day always wins over an imported one.
+ */
+export function appliquerSurcouche(chemin: string, etudes: EtudeImportee[] = lireSurcouche()): number {
+  if (!etudes.length) return 0
+  const db = new Database(chemin, { fileMustExist: true })
+  let ecrites = 0
+  try {
+    const existe = db.prepare('SELECT 1 FROM reports WHERE id = ?')
+    for (const e of etudes) {
+      if (existe.get(e.idRayon)) continue
+      const etude = etudeDepuisSurcouche(e)
+      if (!etude?.ok) continue
+      etudeLib.ecrireEtude(db, etude)
+      ecrites++
+    }
+  } finally {
+    db.close()
+  }
+  return ecrites
+}
+
+function lireOrigine(): { majSource: string } | null {
+  try {
+    const o = JSON.parse(fs.readFileSync(CHEMIN_ORIGINE_DEPOSE, 'utf8'))
+    return typeof o?.majSource === 'string' ? o : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Puts `source` + the imported studies in place of the uploaded copy.
+ * `majSource` is the most recent report of the base it was built from: it is
+ * what gets compared with the committed file, never the imported rows (they
+ * are dated by their import, and would shadow a newer push).
+ */
+function installerDepose(source: string, majSource: string, nouvelles: EtudeImportee[] = []) {
+  const provisoire = `${CHEMIN_RAPPORTS_DEPOSE}.${process.pid}.construction`
+  fs.mkdirSync(path.dirname(CHEMIN_RAPPORTS_DEPOSE), { recursive: true })
+  fs.copyFileSync(source, provisoire)
+  try {
+    appliquerSurcouche(provisoire, [...lireSurcouche(), ...nouvelles])
+    fs.renameSync(provisoire, CHEMIN_RAPPORTS_DEPOSE)
+  } finally {
+    if (fs.existsSync(provisoire)) fs.rmSync(provisoire)
+  }
+  ecrireFichierAtomique(CHEMIN_ORIGINE_DEPOSE, JSON.stringify({ majSource, le: new Date().toISOString() }))
+}
+
+/** The file the routes read: the upload when it is at least as recent as the committed file. */
+export function cheminRapportsActif(): string {
+  if (cheminActif) return cheminActif
+  const depose = resumeBase(CHEMIN_RAPPORTS_DEPOSE)
+  const livre = resumeBase(CHEMIN_RAPPORTS_DB)
+  const majDepose = depose ? (lireOrigine()?.majSource ?? depose.maj) : ''
+  if (depose && depose.n > 0 && (!livre || majDepose >= livre.maj)) {
+    cheminActif = CHEMIN_RAPPORTS_DEPOSE
+  } else if (livre && lireSurcouche().length) {
+    // A newer committed file: rebuild the served copy from it, imports replayed on top.
+    try {
+      installerDepose(CHEMIN_RAPPORTS_DB, livre.maj)
+      cheminActif = CHEMIN_RAPPORTS_DEPOSE
+    } catch (err) {
+      console.error('[rapports] analyses importées non rejouées', err instanceof Error ? err.message : err)
+      cheminActif = CHEMIN_RAPPORTS_DB
+    }
+  } else {
+    cheminActif = CHEMIN_RAPPORTS_DB
+  }
+  return cheminActif
+}
+
+/** The studies already in the served base, by RAYON report id. */
+export function idsRapportsEnService(): Set<string> {
+  const db = new Database(cheminRapportsActif(), { readonly: true, fileMustExist: true })
+  try {
+    return new Set((db.prepare("SELECT id FROM reports WHERE type = 'rayon'").all() as { id: string }[]).map((r) => r.id))
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * Adds imported studies to the served base and to the replay list. The caller
+ * has already dropped the ones the base holds.
+ */
+export function ajouterEtudesImportees(etudes: EtudeImportee[]): { reports: number } {
+  if (!etudes.length) return { reports: resumeBase(cheminRapportsActif())?.n ?? 0 }
+  const actif = cheminRapportsActif()
+  const majSource = actif === CHEMIN_RAPPORTS_DEPOSE ? (lireOrigine()?.majSource ?? resumeBase(actif)?.maj ?? '') : (resumeBase(actif)?.maj ?? '')
+  installerDepose(actif, majSource, etudes)
+  const dejaGardees = new Set(lireSurcouche().map((e) => e.idRayon))
+  const liste = [...lireSurcouche(), ...etudes.filter((e) => !dejaGardees.has(e.idRayon))]
+  ecrireFichierAtomique(CHEMIN_SURCOUCHE, JSON.stringify({ version: 1, etudes: liste }))
+  cheminActif = null
+  generation++
+  return { reports: resumeBase(cheminRapportsActif())?.n ?? 0 }
+}
+
+export class DepotRefuse extends Error {}
+
+/**
+ * Takes an uploaded rapports.db. Checked before it replaces anything: it must
+ * open, hold a `reports` table, and never hold FEWER reports than the base in
+ * service — a truncated or blank upload would empty every report screen at once.
+ */
+export function deposerRapports(contenu: Buffer): { reports: number; avant: number } {
+  if (contenu.length < 1024 || contenu.subarray(0, 15).toString('latin1') !== 'SQLite format 3') {
+    throw new DepotRefuse("Ce n'est pas un fichier SQLite (rapports.db attendu).")
+  }
+  fs.mkdirSync(path.dirname(CHEMIN_RAPPORTS_DEPOSE), { recursive: true })
+  const provisoire = `${CHEMIN_RAPPORTS_DEPOSE}.${process.pid}.tmp`
+  fs.writeFileSync(provisoire, contenu)
+  try {
+    const recu = resumeBase(provisoire)
+    if (!recu) throw new DepotRefuse('Fichier illisible ou sans table reports.')
+    // The upload knows nothing of the back-office imports: replay them before
+    // counting, or the upload would look smaller than the base in service.
+    appliquerSurcouche(provisoire)
+    const neuf = resumeBase(provisoire) ?? recu
+    const avant = resumeBase(cheminRapportsActif())?.n ?? 0
+    if (neuf.n < avant) throw new DepotRefuse(`Le fichier envoyé a ${neuf.n} rapports, la base en ligne en a ${avant} : refusé.`)
+    fs.renameSync(provisoire, CHEMIN_RAPPORTS_DEPOSE)
+    ecrireFichierAtomique(CHEMIN_ORIGINE_DEPOSE, JSON.stringify({ majSource: recu.maj, le: new Date().toISOString() }))
+    cheminActif = null
+    generation++
+    return { reports: neuf.n, avant }
+  } finally {
+    if (fs.existsSync(provisoire)) fs.rmSync(provisoire)
+  }
+}
 
 interface QueryOptions {
   format?: 'json' | 'table' | 'summary'
@@ -99,10 +325,10 @@ export class ReportQuery {
    * Read-only because every method here is a SELECT — nothing writes.
    */
   constructor(
-    dbPath: string = CHEMIN_RAPPORTS_DB,
+    dbPath: string = cheminRapportsActif(),
     // La base des rapports envoyés par le Poste d'analyses ; seulement avec la base par défaut
     // (un banc qui passe sa propre base n'est pas mêlé à celle de la production).
-    cheminPoste: string | null = dbPath === CHEMIN_RAPPORTS_DB ? CHEMIN_RAPPORTS_POSTE_DB : null,
+    cheminPoste: string | null = dbPath === CHEMIN_RAPPORTS_DB || dbPath === CHEMIN_RAPPORTS_DEPOSE ? CHEMIN_RAPPORTS_POSTE_DB : null,
   ) {
     this.db = new Database(dbPath, { readonly: true, fileMustExist: true })
     if (cheminPoste) rattacherRapportsDuPoste(this.db, cheminPoste)
@@ -521,6 +747,33 @@ export class ReportQuery {
     return typeof t === 'string' && t.trim() ? t.trim() : null
   }
 
+  /**
+   * Le titre du jour, façon une de journal (« Les télés très demandées au Q4 et
+   * au Black Friday ») : un champ FACULTATIF du blob, que l'agent rédacteur ou
+   * l'importateur peut poser. Absent (tous les rapports au 03/10/2026), le
+   * rapport garde son titre. Demandé par Max le 03/10/2026.
+   */
+  static uneDe(blob: any): string | null {
+    const t = blob?.titre_du_jour ?? blob?.une ?? blob?.headline ?? null
+    return typeof t === 'string' && t.trim() ? t.trim().slice(0, 140) : null
+  }
+
+  /**
+   * L'extrait percutant d'un rapport, pour son adresse : l'accroche, sinon la
+   * ligne « Opportunité principale » de l'analyse. Rien qui parle d'achat, de
+   * fournisseur ou de lien : l'adresse est publique.
+   */
+  static extraitDe(blob: any, analyse: unknown): string | null {
+    const brut =
+      ReportQuery.accrocheDe(blob) ??
+      /\*\*Opportunit[ée] principale\*\*\s*:?\s*(.+)/i.exec(String(analyse ?? ''))?.[1] ??
+      null
+    if (!brut) return null
+    const t = brut.replace(/[*_`#>[\]]/g, '').trim()
+    if (!t || /€|https?:|www\.|fournisseur|achat|aliexpress|alibaba|1688|cjdropshipping/i.test(t)) return null
+    return t
+  }
+
   /** Une section Markdown, ou rien du tout si elle n'a pas de contenu. */
   private static section(titre: string, lignes: unknown): string {
     const items = Array.isArray(lignes) ? lignes.filter((l) => typeof l === 'string' && l.trim()) : []
@@ -551,10 +804,48 @@ export class ReportQuery {
      * titres `##` afficherait deux fois les mêmes tendances.
      */
     if (!/^##\s/m.test(analyse ?? '')) {
-      parts.push(ReportQuery.section('Tendances du jour', blob?.market?.current_trends))
-      parts.push(ReportQuery.section('Tendances émergentes', blob?.market?.emerging_trends))
-      parts.push(ReportQuery.section('Publicités en vogue', blob?.alerts?.breakout_products))
-      parts.push(ReportQuery.section('Idées de vente', blob?.business_ideas))
+      /*
+       * Trois formes de `data` ont existé, et il faut lire les trois.
+       *
+       * 1. les clés À PLAT, posées par les deux importeurs :
+       *    socialPlaces, adsCurrent, trendsDaily, trendingAds ;
+       * 2. le payload MarketSpy RANGÉ sous `marketspy` depuis le 23/09/2026 ;
+       * 3. ce même payload à la RACINE, avant cette date.
+       *
+       * Ce code ne lisait que la 3e. Le 23/09 j'ai imbriqué le payload sous
+       * `marketspy` pour réparer l'affichage des produits, et ce faisant j'ai
+       * vidé en silence le corps de TOUS les rapports marketing : les quatre
+       * sections sortaient vides, `texte` était vide, et la page retombait sur
+       * le repli `## Analyse` + le titre. C'est le « gros pavé d'analyse
+       * générale » que Max voyait au lieu de sa veille réseaux.
+       *
+       * Les données, elles, n'avaient jamais disparu : 89 « social places »,
+       * 66 publicités et 71 tendances étaient en base pour le seul 4 octobre.
+       */
+      const ms = blob?.marketspy ?? blob
+      const premier = (...candidats: unknown[]) =>
+        candidats.find((c) => Array.isArray(c) && c.some((x) => typeof x === 'string' && x.trim()))
+
+      parts.push(ReportQuery.section('Social places', premier(blob?.socialPlaces)))
+      parts.push(
+        ReportQuery.section(
+          'Publicités en cours',
+          premier(blob?.adsCurrent, ms?.alerts?.breakout_products),
+        ),
+      )
+      parts.push(
+        ReportQuery.section(
+          'Tendances du jour',
+          premier(blob?.trendsDaily, ms?.market?.current_trends),
+        ),
+      )
+      parts.push(
+        ReportQuery.section(
+          'Tendances publicitaires',
+          premier(blob?.trendingAds, ms?.market?.emerging_trends),
+        ),
+      )
+      parts.push(ReportQuery.section('Idées de vente', premier(ms?.business_ideas)))
     }
 
     if (nbProduits > 0) {
@@ -764,6 +1055,8 @@ export class ReportQuery {
       theme: String(row.theme),
       themeNom: ReportQuery.nomTheme(String(row.categorie), String(row.theme), blob),
       titre: String(row.titre ?? ''),
+      une: ReportQuery.uneDe(blob),
+      extrait: ReportQuery.extraitDe(blob, analyse),
       accroche: ReportQuery.accrocheDe(blob),
       sources: Number(row.sources ?? 0),
       body: ReportQuery.corps(row, analyse, produits.length),
@@ -937,7 +1230,11 @@ export class ReportQuery {
   getPourSitemap() {
     return (
       this.db
-        .prepare('SELECT id, date, type, categorie, theme, titre, updated_at, created_at FROM reports ORDER BY date DESC, categorie ASC')
+        .prepare(
+          `SELECT r.id, r.date, r.type, r.categorie, r.theme, r.titre, r.updated_at, r.created_at, r.data, rr.analysis
+             FROM reports r LEFT JOIN rayon_reports rr ON rr.report_id = r.id
+            ORDER BY r.date DESC, r.categorie ASC`,
+        )
         .all() as any[]
     ).map((row) => ({
       id: String(row.id),
@@ -946,6 +1243,8 @@ export class ReportQuery {
       categorie: String(row.categorie),
       theme: String(row.theme),
       titre: String(row.titre ?? ''),
+      une: ReportQuery.uneDe(ReportQuery.blob(row.data)),
+      extrait: ReportQuery.extraitDe(ReportQuery.blob(row.data), row.analysis),
       updatedAt: new Date(row.updated_at ?? row.created_at ?? `${row.date}T06:00:00Z`),
     }))
   }

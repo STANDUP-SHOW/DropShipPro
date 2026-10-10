@@ -4,7 +4,7 @@
  */
 
 import { Router, type RequestHandler } from 'express'
-import { CHEMIN_RAPPORTS_DB, ReportQuery } from '../services/reportsDb.js'
+import { cheminRapportsActif, generationRapports, ReportQuery } from '../services/reportsDb.js'
 
 export const reportsPublicRouter = Router()
 
@@ -29,9 +29,18 @@ const sansCache: RequestHandler = (_req, res, next) => {
  * a restart.
  */
 let baseOuverte: ReportQuery | null = null
+let generationOuverte = -1
 
 function baseRapports(): ReportQuery {
-  if (!baseOuverte) baseOuverte = new ReportQuery()
+  // A new rapports.db uploaded by the importer: reopen on the next request.
+  if (baseOuverte && generationOuverte !== generationRapports()) {
+    baseOuverte.close()
+    baseOuverte = null
+  }
+  if (!baseOuverte) {
+    baseOuverte = new ReportQuery()
+    generationOuverte = generationRapports()
+  }
   return baseOuverte
 }
 
@@ -360,7 +369,7 @@ reportsPublicRouter.get('/reports-health', sansCache, (_req, res) => {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       database: 'connected',
-      chemin: CHEMIN_RAPPORTS_DB,
+      chemin: cheminRapportsActif(),
       totalReports: stats.totalReports
     })
   } catch (error) {
@@ -368,7 +377,7 @@ reportsPublicRouter.get('/reports-health', sansCache, (_req, res) => {
     res.status(500).json({
       error: 'Database connection failed',
       motif: motif(error),
-      chemin: CHEMIN_RAPPORTS_DB
+      chemin: cheminRapportsActif()
     })
   }
 })

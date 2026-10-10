@@ -106,8 +106,9 @@ console.log('\nL’ancien accès par e-mail est coupé')
   const src = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'src', 'routes', 'agent.ts'), 'utf8')
   exige(!/requireAdmin/.test(src), 'agent.ts ne connaît plus requireAdmin')
   exige(!/'\/market-reports'|'\/rapports-poste'/.test(src), 'agent.ts ne porte plus les routes de dépôt de rapports')
-  const auth = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'src', 'middleware', 'auth.ts'), 'utf8')
-  exige(!/export async function requireAdmin/.test(auth), 'auth.ts n’exporte plus requireAdmin')
+  const admin = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'src', 'routes', 'admin.ts'), 'utf8')
+  exige(!/requireAdmin\b|requireAuth\b/.test(admin), 'admin.ts ne s’ouvre plus par e-mail ni par session de vendeur')
+  exige(/adminRouter\.use\(requireAdminPoste\)/.test(admin), 'toutes les routes d’admin.ts passent par la clé du Poste')
 }
 
 serveur.close()

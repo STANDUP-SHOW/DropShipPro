@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { isAuthed } from './lib/api'
+import { useThemeSelonPage } from './lib/theme'
 import { LoadingScreen } from './components/LoadingScreen'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import Index from './pages/Index'
@@ -25,6 +26,10 @@ import Suppliers from './pages/Suppliers'
 import AfterSales from './pages/AfterSales'
 import BetaAccess from './pages/BetaAccess'
 import Privacy from './pages/Privacy'
+import AffiliationAccueil from './pages/AffiliationAccueil'
+import AffiliationConnexion from './pages/AffiliationConnexion'
+import AffiliationEspace from './pages/AffiliationEspace'
+import { capterParrain } from './lib/affiliation'
 import ReviewsPage from './pages/ReviewsPage'
 import ApiPower from './pages/ApiPower'
 import BillingPage from './pages/Billing'
@@ -32,6 +37,7 @@ import MarketAnalysisPage from './pages/MarketAnalysis'
 import FreshNews from './pages/FreshNews'
 import ProduitsGagnants from './pages/ProduitsGagnants'
 import CreerBoutique from './pages/CreerBoutique'
+import DropShopMarket from './pages/DropShopMarket'
 import BoutiqueShopify from './pages/BoutiqueShopify'
 import CataloguesFournisseurs from './pages/CataloguesFournisseurs'
 import Veille from './pages/Veille'
@@ -118,12 +124,29 @@ function DefileVersAncre() {
   return null
 }
 
+/** Un visiteur arrivé par ?parrain=CODE : le clic est compté, le code gardé pour l'inscription. */
+function CaptureParrain() {
+  const { search, pathname } = useLocation()
+  useEffect(() => {
+    capterParrain(search, pathname)
+  }, [search, pathname])
+  return null
+}
+
+/** Le site public reste sombre ; l'application suit le réglage du visiteur (lib/theme.ts). */
+function ThemeSelonPage() {
+  useThemeSelonPage()
+  return null
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
     <BrowserRouter>
       <AuthProvider>
         <DefileVersAncre />
+        <ThemeSelonPage />
+        <CaptureParrain />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -138,6 +161,10 @@ export default function App() {
           {/* Public : ce que les API marketing débloquent (25/09/2026), lisible avant de créer un compte. */}
           <Route path="/api-power" element={<ApiPower />} />
           <Route path="/partager" element={<Partager />} />
+          {/* Public : l'espace affilié a ses propres comptes, payés en euros (07/10/2026). */}
+          <Route path="/affiliation" element={<AffiliationAccueil />} />
+          <Route path="/affiliation/connexion" element={<AffiliationConnexion />} />
+          <Route path="/affiliation/espace" element={<AffiliationEspace />} />
           {/* Public : l'inscription newsletter, où pointent les liens des emails. */}
           <Route path="/newsletter" element={<Newsletter />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
@@ -195,6 +222,7 @@ export default function App() {
           <Route path="/analyse-marche" element={<Protected><MarketAnalysisPage /></Protected>} />
           <Route path="/fresh-news" element={<Protected><FreshNews /></Protected>} />
           <Route path="/produits-gagnants" element={<Protected><ProduitsGagnants /></Protected>} />
+          <Route path="/dropshop-market" element={<Protected><DropShopMarket /></Protected>} />
           <Route path="/creer-boutique" element={<Protected><CreerBoutique /></Protected>} />
           <Route path="/boutique-shopify" element={<Protected><BoutiqueShopify /></Protected>} />
           <Route path="/catalogues" element={<Protected><CataloguesFournisseurs /></Protected>} />

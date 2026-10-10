@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { prisma } from '../lib/prisma.js'
 import { PACKS_DROPS, DROPS_INSCRIPTION, type PackDrops } from './tarifs.js'
+import { commissionnerRecharge } from './affiliation.js'
 
 /**
  * Le portefeuille en drops — la monnaie unique de DropShipper (07/09/2026).
@@ -121,6 +122,7 @@ export async function grantPack(userId: string, pack: PackDrops, sessionId: stri
     data: { userId, planId: pack.id, amount, credits: pack.drops, stripeSessionId: sessionId },
   })
   await inscrireMouvement(userId, pack.drops, apres.credits, `Recharge de ${pack.drops} drops`, sessionId)
+  await commissionnerRecharge(userId, sessionId, amount)
 }
 
 /** Where Stripe sends the buyer back. First entry of FRONTEND_URL, apex or www. */

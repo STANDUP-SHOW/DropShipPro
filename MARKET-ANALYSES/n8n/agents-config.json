@@ -1,0 +1,359 @@
+{
+  "meta": {
+    "projet": "DropPost — MARKET-ANALYSES",
+    "genere_le": "2026-09-18",
+    "objet": "Configuration source-de-verite pour construire dans n8n les 48 agents quotidiens (24 RAYON + 24 MARKETING) decrits dans MARKET-ANALYSES/README.md et agents.json. Ce fichier est le SPEC/reference (categories, themes, contrats, prompts, requetes de recherche) ; l'implementation executable correspondante est dans les 3 fichiers de workflow n8n du meme dossier (voir 'fichiers_workflow_n8n' ci-dessous). Voir MARKET-ANALYSES/n8n/TACHE-COWORK.md pour la tache complete a executer.",
+    "fichiers_de_reference_existants": [
+      "MARKET-ANALYSES/README.md",
+      "MARKET-ANALYSES/agents.md",
+      "MARKET-ANALYSES/agents.json"
+    ],
+    "fichiers_workflow_n8n": {
+      "MARKET-ANALYSES/n8n/agent-rayon.workflow.json": "Sous-workflow reutilisable = l'agent RAYON modele (recherche Serper.dev + redaction Ollama local + ecriture fichier). Recoit categorie/theme/date en entree, appele une fois par categorie et par jour.",
+      "MARKET-ANALYSES/n8n/agent-marketing.workflow.json": "Sous-workflow reutilisable = l'agent MARKETING modele, meme principe.",
+      "MARKET-ANALYSES/n8n/orchestrateur.workflow.json": "Workflow principal : declenche a 6h Paris, lit ce fichier de config, calcule la rotation du jour pour les 24 categories, et appelle les deux sous-workflows ci-dessus pour chacune (soit 48 executions/jour = 48 rapports)."
+    },
+    "rapports_modeles_deja_generes": [
+      "MARKET-ANALYSES/rapports/2026-09-18/telephonie/chargeurs-cables.rayon.md",
+      "MARKET-ANALYSES/rapports/2026-09-18/telephonie/chargeurs-cables.marketing.md"
+    ],
+    "note_pour_l_agent_qui_construit_n8n": "Ces deux rapports modeles sont la reference de QUALITE et de FORMAT attendue. Le workflow n8n doit produire des rapports du meme niveau de detail, avec les memes regles d'honnetete (jamais d'URL inventee, statut de verification explicite quand une fiche fournisseur est bloquee par anti-bot) — a nuancer legerement a la baisse si le modele Ollama local choisi est plus modeste qu'un modele cloud."
+  },
+
+  "planification": {
+    "fuseau_horaire": "Europe/Paris",
+    "heure_locale_cible": "06:00",
+    "recommandation_n8n": "Utiliser le node 'Schedule Trigger' avec le champ Timezone regle sur 'Europe/Paris' et un declencheur quotidien a 06:00 — n8n gere alors automatiquement le changement heure ete/hiver, pas besoin de cron UTC fixe ni d'ajustement manuel.",
+    "alternative_cron_utc_si_timezone_non_disponible": {
+      "heure_ete_CEST_avril_a_octobre": "0 4 * * *",
+      "heure_hiver_CET_octobre_a_mars": "0 5 * * *",
+      "bascule_2026": "Passage heure d'hiver le dimanche 25 octobre 2026 a 3h -> 2h (Europe/Paris)"
+    },
+    "etalement_charge": "Traiter les 24 categories en boucle sequentielle (Split In Batches, taille de lot = 1) avec une pause de quelques secondes entre chaque categorie pour rester sous les limites de rate-limit de l'API LLM utilisee. Duree totale estimee pour 48 rapports : 30-60 minutes selon le modele et les temps de recherche web."
+  },
+
+  "formule_rotation_theme": "theme_du_jour = themes[(jour_de_l_annee - 1) % 7]",
+
+  "categories": [
+    { "id": "electromenager", "label": "Électroménager", "themes": [
+      {"id":"gros-froid","label":"Réfrigérateurs, congélateurs et caves"},
+      {"id":"cuisson","label":"Fours, micro-ondes et air fryers"},
+      {"id":"petit-dejeuner-cafe","label":"Café, thé et petit-déjeuner"},
+      {"id":"sols","label":"Aspirateurs, balais et robots de sol"},
+      {"id":"lavage-sechage","label":"Lave-linge, sèche-linge et lave-vaisselle"},
+      {"id":"soin-du-linge","label":"Fers, centrales vapeur et défroisseurs"},
+      {"id":"robots-cuisine","label":"Robots et préparation culinaire"}
+    ]},
+    { "id": "telephonie", "label": "Téléphonie", "themes": [
+      {"id":"smartphones","label":"Smartphones"},
+      {"id":"chargeurs-cables","label":"Chargeurs, câbles et batteries externes"},
+      {"id":"coques-protection","label":"Coques, verres trempés et protection"},
+      {"id":"audio-nomade","label":"Écouteurs et audio nomade"},
+      {"id":"objets-connectes","label":"Montres, bracelets et objets connectés"},
+      {"id":"tablettes","label":"Tablettes et liseuses"},
+      {"id":"accessoires","label":"Supports, cardans et accessoires"}
+    ]},
+    { "id": "informatique", "label": "Informatique", "themes": [
+      {"id":"pc-portables","label":"PC portables"},
+      {"id":"mini-pc-bureau","label":"Mini-PC et ordinateurs de bureau"},
+      {"id":"peripheriques","label":"Souris, claviers et périphériques"},
+      {"id":"ecrans","label":"Écrans et supports"},
+      {"id":"stockage","label":"SSD, disques et clés USB"},
+      {"id":"reseau","label":"Routeurs, Wi-Fi et réseau"},
+      {"id":"impression","label":"Imprimantes, scanners et consommables"}
+    ]},
+    { "id": "tv-son-photo", "label": "TV, son et photo", "themes": [
+      {"id":"tv-projecteurs","label":"Téléviseurs et vidéoprojecteurs"},
+      {"id":"barres-enceintes","label":"Barres de son et enceintes"},
+      {"id":"casques","label":"Casques audio"},
+      {"id":"photo-action","label":"Appareils photo et caméras d'action"},
+      {"id":"drones","label":"Drones"},
+      {"id":"streaming-tv","label":"Box, streaming et accessoires TV"},
+      {"id":"gaming","label":"Manettes et accessoires gaming"}
+    ]},
+    { "id": "automobile", "label": "Automobile", "themes": [
+      {"id":"entretien-nettoyage","label":"Entretien et nettoyage"},
+      {"id":"interieur","label":"Accessoires d'intérieur"},
+      {"id":"exterieur","label":"Accessoires d'extérieur"},
+      {"id":"electronique-embarquee","label":"Dashcams, GPS et électronique embarquée"},
+      {"id":"outillage-diagnostic","label":"Outillage et diagnostic"},
+      {"id":"eclairage-led","label":"Éclairage et LED"},
+      {"id":"deux-roues","label":"Deux-roues, trottinettes et vélos électriques"}
+    ]},
+    { "id": "maison-decoration", "label": "Décoration", "themes": [
+      {"id":"luminaires","label":"Luminaires"},
+      {"id":"tableaux-affiches","label":"Tableaux et affiches"},
+      {"id":"miroirs-horloges","label":"Miroirs et horloges"},
+      {"id":"vases-objets","label":"Vases et objets déco"},
+      {"id":"bougies-senteurs","label":"Bougies et senteurs"},
+      {"id":"rangement-deco","label":"Rangement décoratif"},
+      {"id":"murs-stickers","label":"Décoration murale et stickers"}
+    ]},
+    { "id": "linge-de-maison", "label": "Linge de maison", "themes": [
+      {"id":"linge-de-lit","label":"Linge de lit"},
+      {"id":"couettes-oreillers","label":"Couettes et oreillers"},
+      {"id":"serviettes-bain","label":"Serviettes et linge de bain"},
+      {"id":"rideaux-voilages","label":"Rideaux et voilages"},
+      {"id":"tapis","label":"Tapis"},
+      {"id":"nappes-cuisine","label":"Nappes et linge de cuisine"},
+      {"id":"plaids-coussins","label":"Plaids et coussins"}
+    ]},
+    { "id": "cuisine-table", "label": "Cuisine et arts de la table", "themes": [
+      {"id":"ustensiles","label":"Ustensiles"},
+      {"id":"batteries-cuisine","label":"Poêles, casseroles et batteries de cuisine"},
+      {"id":"vaisselle","label":"Vaisselle"},
+      {"id":"verres-carafes","label":"Verres, carafes et bar"},
+      {"id":"conservation","label":"Conservation et boîtes"},
+      {"id":"couteaux-decoupe","label":"Couteaux et découpe"},
+      {"id":"gadgets-cuisine","label":"Gadgets de cuisine"}
+    ]},
+    { "id": "salle-de-bain", "label": "Salle de bain", "themes": [
+      {"id":"accessoires","label":"Accessoires de salle de bain"},
+      {"id":"rangement-etageres","label":"Rangement et étagères"},
+      {"id":"douche-robinetterie","label":"Douche et robinetterie"},
+      {"id":"tapis-rideaux","label":"Tapis et rideaux de douche"},
+      {"id":"distributeurs-organisation","label":"Distributeurs et organisation"},
+      {"id":"petits-equipements","label":"Sèche-serviettes et petits équipements"},
+      {"id":"miroirs-eclairage","label":"Miroirs et éclairage"}
+    ]},
+    { "id": "meubles", "label": "Meubles", "themes": [
+      {"id":"canapes-fauteuils","label":"Canapés et fauteuils"},
+      {"id":"tables-chaises","label":"Tables et chaises"},
+      {"id":"rangements","label":"Rangements et bibliothèques"},
+      {"id":"lits","label":"Lits et têtes de lit"},
+      {"id":"bureau","label":"Bureaux et chaises de bureau"},
+      {"id":"appoint","label":"Meubles d'appoint"},
+      {"id":"exterieur","label":"Meubles d'extérieur"}
+    ]},
+    { "id": "jardin", "label": "Jardin et extérieur", "themes": [
+      {"id":"outillage-jardin","label":"Outillage de jardin"},
+      {"id":"arrosage","label":"Arrosage"},
+      {"id":"mobilier-jardin","label":"Mobilier de jardin"},
+      {"id":"barbecue-plancha","label":"Barbecues et planchas"},
+      {"id":"piscine-bien-etre","label":"Piscine, spa et bien-être extérieur"},
+      {"id":"eclairage-exterieur","label":"Éclairage extérieur"},
+      {"id":"plantes-jardinage","label":"Plantes et jardinage urbain"}
+    ]},
+    { "id": "bricolage", "label": "Bricolage et outillage", "themes": [
+      {"id":"electroportatif","label":"Outillage électroportatif"},
+      {"id":"outillage-main","label":"Outillage à main"},
+      {"id":"quincaillerie","label":"Quincaillerie et fixation"},
+      {"id":"peinture-renovation","label":"Peinture et rénovation"},
+      {"id":"rangement-atelier","label":"Rangement d'atelier"},
+      {"id":"mesure-detection","label":"Mesure et détection"},
+      {"id":"securite-equipement","label":"Sécurité et équipement de protection"}
+    ]},
+    { "id": "mode-femme", "label": "Mode femme", "themes": [
+      {"id":"robes-jupes","label":"Robes et jupes"},
+      {"id":"hauts","label":"Hauts et tee-shirts"},
+      {"id":"pantalons-jeans","label":"Pantalons et jeans"},
+      {"id":"manteaux-vestes","label":"Manteaux et vestes"},
+      {"id":"lingerie-nuit","label":"Lingerie et nuit"},
+      {"id":"sport-detente","label":"Sport et détente"},
+      {"id":"grandes-tailles","label":"Grandes tailles"}
+    ]},
+    { "id": "mode-homme", "label": "Mode homme", "themes": [
+      {"id":"tee-shirts-polos","label":"Tee-shirts et polos"},
+      {"id":"chemises","label":"Chemises"},
+      {"id":"pantalons-jeans","label":"Pantalons et jeans"},
+      {"id":"vestes-manteaux","label":"Vestes et manteaux"},
+      {"id":"sous-vetements","label":"Sous-vêtements et chaussettes"},
+      {"id":"sport-detente","label":"Sport et détente"},
+      {"id":"ceremonie","label":"Costumes et tenues de cérémonie"}
+    ]},
+    { "id": "chaussures-maroquinerie", "label": "Chaussures et maroquinerie", "themes": [
+      {"id":"baskets","label":"Baskets"},
+      {"id":"ville","label":"Chaussures de ville"},
+      {"id":"bottes","label":"Bottes et bottines"},
+      {"id":"sandales","label":"Sandales et chaussures d'été"},
+      {"id":"sacs-main","label":"Sacs à main"},
+      {"id":"sacs-dos-bagages","label":"Sacs à dos et bagages"},
+      {"id":"petite-maroquinerie","label":"Portefeuilles et petite maroquinerie"}
+    ]},
+    { "id": "bijoux-montres", "label": "Bijoux et montres", "themes": [
+      {"id":"montres-homme","label":"Montres homme"},
+      {"id":"montres-femme","label":"Montres femme"},
+      {"id":"bracelets","label":"Bracelets"},
+      {"id":"colliers","label":"Colliers et pendentifs"},
+      {"id":"bagues","label":"Bagues"},
+      {"id":"boucles","label":"Boucles d'oreilles"},
+      {"id":"personnalises-coffrets","label":"Bijoux personnalisés et coffrets"}
+    ]},
+    { "id": "beaute", "label": "Beauté et soins", "themes": [
+      {"id":"visage","label":"Soin du visage"},
+      {"id":"corps","label":"Soin du corps"},
+      {"id":"maquillage","label":"Maquillage"},
+      {"id":"parfums","label":"Parfums"},
+      {"id":"cheveux","label":"Soin des cheveux"},
+      {"id":"appareils","label":"Lisseurs, épilateurs et appareils de beauté"},
+      {"id":"ongles","label":"Ongles et manucure"}
+    ]},
+    { "id": "sante-bien-etre", "label": "Santé et bien-être", "themes": [
+      {"id":"massage-relaxation","label":"Massage et relaxation"},
+      {"id":"sommeil","label":"Sommeil"},
+      {"id":"complements-nutrition","label":"Compléments et nutrition"},
+      {"id":"mesure","label":"Tensiomètres, balances et appareils de mesure"},
+      {"id":"mobilite-maintien","label":"Mobilité et maintien"},
+      {"id":"hygiene-dentaire","label":"Hygiène et soin dentaire"},
+      {"id":"intime","label":"Bien-être intime"}
+    ]},
+    { "id": "sport", "label": "Sport et fitness", "themes": [
+      {"id":"musculation-maison","label":"Musculation et fitness à la maison"},
+      {"id":"running-marche","label":"Running et marche"},
+      {"id":"velo","label":"Vélo et accessoires"},
+      {"id":"sports-eau","label":"Natation et sports d'eau"},
+      {"id":"raquette-ballon","label":"Sports de raquette et de ballon"},
+      {"id":"yoga-pilates","label":"Yoga et pilates"},
+      {"id":"nutrition-accessoires","label":"Nutrition sportive et accessoires"}
+    ]},
+    { "id": "bebe-enfant", "label": "Bébé et enfant", "themes": [
+      {"id":"puericulture","label":"Puériculture"},
+      {"id":"poussettes-sieges","label":"Poussettes et sièges auto"},
+      {"id":"vetements","label":"Vêtements bébé et enfant"},
+      {"id":"eveil","label":"Jouets d'éveil"},
+      {"id":"chambre","label":"Chambre et décoration enfant"},
+      {"id":"repas","label":"Repas et biberons"},
+      {"id":"securite-sante","label":"Sécurité et santé bébé"}
+    ]},
+    { "id": "jouets-jeux", "label": "Jouets et jeux", "themes": [
+      {"id":"societe-puzzles","label":"Jeux de société et puzzles"},
+      {"id":"construction","label":"Jouets de construction"},
+      {"id":"figurines-imitation","label":"Figurines et jeux d'imitation"},
+      {"id":"educatifs-stem","label":"Jeux éducatifs et STEM"},
+      {"id":"plein-air","label":"Jeux de plein air"},
+      {"id":"peluches","label":"Peluches"},
+      {"id":"jeux-video","label":"Jeux vidéo et accessoires"}
+    ]},
+    { "id": "animaux", "label": "Animaux", "themes": [
+      {"id":"chiens","label":"Accessoires pour chiens"},
+      {"id":"chats","label":"Accessoires pour chats"},
+      {"id":"alimentation","label":"Alimentation et friandises"},
+      {"id":"toilettage","label":"Toilettage et hygiène"},
+      {"id":"couchage-transport","label":"Couchage et transport"},
+      {"id":"aquario-petits","label":"Aquariophilie et petits animaux"},
+      {"id":"jouets-dressage","label":"Jouets et dressage"}
+    ]},
+    { "id": "loisirs-creatifs", "label": "Loisirs créatifs et papeterie", "themes": [
+      {"id":"papeterie-bureau","label":"Papeterie et bureau"},
+      {"id":"dessin-peinture","label":"Dessin et peinture"},
+      {"id":"couture-tricot","label":"Couture et tricot"},
+      {"id":"diy","label":"Scrapbooking et DIY"},
+      {"id":"musique","label":"Instruments de musique"},
+      {"id":"carnets","label":"Carnets et agendas"},
+      {"id":"scolaire","label":"Fournitures scolaires"}
+    ]},
+    { "id": "voyage-plein-air", "label": "Voyage et plein air", "themes": [
+      {"id":"valises","label":"Valises et bagages"},
+      {"id":"camping-randonnee","label":"Camping et randonnée"},
+      {"id":"accessoires-voyage","label":"Accessoires de voyage"},
+      {"id":"peche-chasse","label":"Pêche et chasse"},
+      {"id":"organisation","label":"Sacs et organisation"},
+      {"id":"plage","label":"Plage et été"},
+      {"id":"hiver","label":"Sports d'hiver"}
+    ]}
+  ],
+
+  "sortie_fichiers": {
+    "dossier_racine": "MARKET-ANALYSES/rapports",
+    "gabarit_chemin_rayon": "{dossier_racine}/{AAAA-MM-JJ}/{categorie_id}/{theme_id}.rayon.md",
+    "gabarit_chemin_marketing": "{dossier_racine}/{AAAA-MM-JJ}/{categorie_id}/{theme_id}.marketing.md",
+    "encodage": "utf-8"
+  },
+
+  "recherche_web": {
+    "principe": "n8n n'a PAS besoin d'un LLM pour aller sur le web : la recherche et la recuperation de pages se font avec les nodes natifs de n8n (HTTP Request, HTML Extract) ou une API de recherche dediee. Le LLM n'intervient qu'APRES, pour rediger le rapport a partir des resultats REELS deja recuperes par n8n — jamais pour 'chercher lui-meme'.",
+    "fournisseur_recherche_recommande": "Serper.dev (wrapper API sur Google Search) — tier gratuit genereux (2500 requetes offertes), endpoint unique https://google.serper.dev/search, header X-API-KEY, accepte un TABLEAU de requetes en une seule requete HTTP (recherche par lot).",
+    "alternatives": ["SerpAPI (tier gratuit limite)", "Brave Search API (tier gratuit)", "Google Custom Search JSON API (100 requetes/jour gratuites)", "Scraping direct des pages categorie fournisseurs/marketplaces via HTTP Request + node HTML Extract, quand le site n'est pas protege par anti-bot"],
+    "requetes_type_rayon": [
+      "{theme_label} tendance {annee} dropshipping avis prix",
+      "site:aliexpress.com {theme_label}",
+      "site:cjdropshipping.com {theme_label}",
+      "site:bigbuy.eu {theme_label}",
+      "meilleur {theme_label} {annee} comparatif prix"
+    ],
+    "requetes_type_marketing": [
+      "\"{theme_label}\" facebook ads library publicite",
+      "{theme_label} tiktok shop viral {annee}",
+      "{theme_label} influenceur ugc publicite tendance",
+      "{theme_label} pinterest tendance {annee}",
+      "{theme_label} black friday {annee} marketing idee campagne"
+    ],
+    "note": "n8n execute ces requetes lui-meme (node HTTP Request vers l'API de recherche), agrege titres/liens/extraits, puis ne transmet au LLM QUE ce contexte reel avec instruction explicite de n'utiliser aucune URL en dehors de cette liste — c'est ce qui garantit qu'aucune URL n'est inventee, sans dependre d'un outil de recherche proprietaire cote LLM."
+  },
+
+  "redaction_llm": {
+    "role": "Redige le rapport final (analyse, tableau, sections marketing, prompts creatifs) UNIQUEMENT a partir du contexte de recherche reel fourni par n8n. Ne fait aucune recherche lui-meme.",
+    "fournisseur_choisi": "Ollama — modele LOCAL, execute sur la machine de Max, AUCUN cout d'API journalier. C'est le choix retenu pour cette configuration.",
+    "endpoint_local": "http://localhost:11434/api/generate (API native Ollama — pas de cle, pas d'authentification, tourne uniquement en local)",
+    "prealable_obligatoire": "Ollama doit etre installe ET un modele doit avoir ete telecharge avant la premiere execution du workflow, via un terminal sur la machine : `ollama pull <nom_du_modele>`. Sans ce telechargement prealable, l'appel HTTP local echoue.",
+    "modele_a_choisir": "REMPLACER_PAR_VOTRE_MODELE_OLLAMA — nom exact du modele tire avec `ollama pull`. Suggestions pour un bon equilibre qualite/francais/taille : 'llama3.1:8b' (leger, tourne sur la plupart des machines), 'qwen2.5:14b-instruct' (meilleure qualite de redaction francaise si la machine a assez de RAM/VRAM, ~16 Go conseilles), 'mistral-nemo' (bon compromis). A tester sur UNE categorie avant de generaliser : la qualite de redaction depend beaucoup du modele choisi et de sa taille.",
+    "options_generation": {"temperature": 0.4, "num_predict": 6000},
+    "cout_estime": "0 EUR/jour — le seul cout est electrique/materiel (la machine doit rester allumee et disponible a 6h du matin pour que le Schedule Trigger n8n puisse s'executer et qu'Ollama reponde).",
+    "limite_a_connaitre": "Un modele local est generalement moins performant qu'un modele cloud (Claude, GPT) pour respecter scrupuleusement un format long et complexe (en-tete YAML + tableau a colonnes fixes + 6 sections dans l'ordre). Verifier manuellement les premiers rapports generes et ajuster le prompt (le rendre plus directif, donner un exemple complet dans le prompt) si le modele choisi devie du contrat.",
+    "regle_anti_invention": "Le prompt de redaction doit toujours inclure la liste des URLs reellement trouvees par la recherche n8n (Serper.dev), et une instruction explicite : ne jamais utiliser une URL absente de cette liste ; si aucune URL exploitable n'existe pour un produit, l'indiquer honnetement plutot que d'en inventer une. Cette regle est encore plus importante avec un modele local, plus susceptible d'halluciner qu'un modele cloud haut de gamme."
+  },
+
+  "agent_rayon": {
+    "id_pattern": "rayon-{categorie_id}",
+    "contrat_frontmatter": {
+      "type": "rayon",
+      "date": "AAAA-MM-JJ du jour",
+      "categorie": "{categorie_id}",
+      "theme": "{theme_id}",
+      "titre": "Titre court genere par le LLM",
+      "agent": "rayon-{categorie_id}",
+      "sources": "nombre de sources distinctes citees"
+    },
+    "sections_obligatoires_dans_l_ordre": ["## Analyse", "## 20 produits proposés"],
+    "colonnes_tableau_obligatoires_dans_l_ordre": [
+      "#", "Titre", "Fournisseur", "URL fournisseur", "Prix achat €",
+      "Prix vente conseillé €", "Marge %", "Import", "Pourquoi", "URL plateforme conseillée"
+    ],
+    "regles": [
+      "URL fournisseur : fiche produit precise reelle, jamais une page de recherche/categorie, jamais inventee",
+      "Import : 'api' (CJ Dropshipping, BigBuy, AliExpress via cle), 'url' (fiche lisible par simple adresse), 'extension' (Temu, AliExpress sans cle, Shein, SUPER DELIVERY — page JS, necessite navigateur)",
+      "Priorite d'ordre dans le tableau : produits 'api' et 'url' en tete de liste (importables automatiquement par l'AUTO-SHIPPER), 'extension' en fin de liste",
+      "URL plateforme conseillee : URL reelle (pas juste un nom) d'une marketplace/plateforme de vente europeenne pertinente ; explorer au-dela des marketplaces evidentes pour trouver des niches",
+      "Si une fiche fournisseur est bloquee par anti-bot/captcha, l'indiquer explicitement dans la colonne Pourquoi (ex: '(a verifier, fiche protegee)') plutot que de presenter le prix comme certain"
+    ],
+    "gabarit_prompt_utilisateur": "Tu es l'agent RAYON specialise de la categorie \"{categorie_label}\" pour le site de dropshipping drop-shipper.fr, base en France. Rapport du jour : {date}, sous-theme \"{theme_label}\" (id: {theme_id}). Tu ne fais PAS de recherche web toi-meme : n8n a deja execute les requetes et te fournit ci-dessous les resultats REELS (titre, URL, extrait) obtenus sur le web. REGLE ABSOLUE : n'utilise QUE les URLs presentes dans ces resultats pour les colonnes 'URL fournisseur' et 'URL plateforme conseillée' ; si aucune URL exploitable n'apparait pour un produit que tu identifies comme pertinent, dis-le honnetement dans la colonne 'Pourquoi' au lieu d'inventer une adresse. A partir de ces resultats, identifie 20 produits gagnants dans ce sous-theme : forte marge, tendance actuelle, stock/livraison Europe si possible, prix bas a moyen, en croisant les fournisseurs (AliExpress, CJ Dropshipping, BigBuy, Temu, Wish, JoyBuy, Faire) quand ils apparaissent dans les resultats. Respecte EXACTEMENT ce contrat de sortie (format Markdown) : en-tete YAML (type: rayon, date: {date}, categorie: {categorie_id}, theme: {theme_id}, titre, agent: rayon-{categorie_id}, sources: <nombre>), puis '## Analyse' (marche, saisonnalite, gammes de prix, ce qui monte, ce qui sature, pieges, sources en liens, niveau directeur marketing), puis '## 20 produits proposés' avec un tableau Markdown a exactement ces colonnes dans cet ordre : # | Titre | Fournisseur | URL fournisseur | Prix achat € | Prix vente conseillé € | Marge % | Import | Pourquoi | URL plateforme conseillée. Classe les produits 'api'/'url' avant les produits 'extension'. Sois honnete sur le niveau de verification de chaque donnee. Reponds en francais.\n\nResultats de recherche web (fournis par n8n) :\n{resultats_recherche}"
+  },
+
+  "agent_marketing": {
+    "id_pattern": "marketing-{categorie_id}",
+    "contrat_frontmatter": {
+      "type": "marketing",
+      "date": "AAAA-MM-JJ du jour",
+      "categorie": "{categorie_id}",
+      "theme": "{theme_id}",
+      "titre": "Titre court genere par le LLM",
+      "agent": "marketing-{categorie_id}",
+      "sources": "nombre de sources distinctes citees"
+    },
+    "sections_obligatoires_dans_l_ordre": [
+      "## Social places",
+      "## Publicités en cours",
+      "## Tendances du jour",
+      "## Tendances publicitaires",
+      "## Prompts d'images publicitaires",
+      "## Prompts de vidéos publicitaires"
+    ],
+    "regles": [
+      "Publicités en cours : analyser en profondeur Facebook Ads Library (publicites qui convertissent, depuis combien de temps diffusees, vendeurs/marques, createurs/influenceurs visibles, indices de couts de campagne), TikTok Ads/TikTok Shop, Meta/Instagram, Pinterest. Si l'acces direct a la Ads Library est bloque (frequent, robots.txt), le dire explicitement et s'appuyer sur des sources tierces (outils de spy ads type Minea/PowerAdSpy, articles, etudes de cas) en les citant.",
+      "Chaque affirmation doit porter un niveau de confiance implicite ou explicite (Eleve / Moyen / Faible) plutot que d'etre presentee comme un fait certain",
+      "Tendances du jour : quelques conseils produits tendance du moment sur les reseaux",
+      "Tendances publicitaires : conseils marketing generiques + marketing a preparer pour les fetes a venir (dates verifiees) + idees de campagnes concretes",
+      "Prompts d'images publicitaires : exactement 5 prompts, chacun dans son propre bloc de code Markdown autonome et copiable, premiere ligne = commentaire de format (ex '# Facebook 1:1'), destines a un outil de generation d'image IA (pour Lea, l'agent graphiste interne)",
+      "Prompts de videos publicitaires : exactement 5 prompts, meme format, premiere ligne = commentaire de format (ex '# TikTok 9:16 — 15 s'), destines a un outil de generation video IA"
+    ],
+    "gabarit_prompt_utilisateur": "Tu es l'agent MARKETING specialise de la categorie \"{categorie_label}\" pour le site de dropshipping drop-shipper.fr. Rapport du jour : {date}, sous-theme \"{theme_label}\" (id: {theme_id}). Tu ne fais PAS de recherche web toi-meme : n8n a deja execute les requetes et te fournit ci-dessous les resultats REELS (titre, URL, extrait) obtenus sur le web au sujet des publicites, tendances et reseaux sociaux lies a ce theme. REGLE ABSOLUE : appuie-toi uniquement sur ces resultats et les sources qu'ils contiennent ; si Facebook Ads Library ou une autre source n'apparait pas dans les resultats (acces souvent bloque aux robots), dis-le explicitement plutot que d'inventer une donnee, et utilise les sources tierces presentes dans les resultats a la place. Analyse en profondeur a partir de ces resultats : publicites qui convertissent sur ce theme, depuis combien de temps diffusees, vendeurs, createurs en charge, couts de campagne (si l'info apparait). Couvre TikTok Ads et TikTok Shop, Meta/Instagram, Pinterest. Ajoute des conseils produits tendance du moment sur les reseaux, des conseils marketing, la preparation marketing pour les fetes a venir avec dates verifiees, et des idees de campagnes. Termine par 5 prompts de creation d'image publicitaire statique qui marchent pour cette categorie, et 5 prompts de video courte publicitaire qui convertit, prets a etre utilises avec un outil de generation IA (destines a Lea, notre agent graphiste). Respecte EXACTEMENT ce contrat de sortie (Markdown) : en-tete YAML (type: marketing, date: {date}, categorie: {categorie_id}, theme: {theme_id}, titre, agent: marketing-{categorie_id}, sources: <nombre>), puis SIX sections dans cet ordre exact : '## Social places', '## Publicités en cours', '## Tendances du jour', '## Tendances publicitaires', '## Prompts d'images publicitaires' (5 blocs de code Markdown), '## Prompts de vidéos publicitaires' (5 blocs de code Markdown, premiere ligne = format vise en commentaire). Reponds en francais.\n\nResultats de recherche web (fournis par n8n) :\n{resultats_recherche}"
+  },
+
+  "regles_transverses": [
+    "Jamais d'URL ou de prix invente — toujours une vraie recherche web avant de repondre",
+    "Toujours indiquer honnetement le niveau de verification / confiance d'une information",
+    "Respecter scrupuleusement l'ordre des sections et le nom des colonnes de tableau : c'est un contrat machine, pas un simple format d'affichage",
+    "Nommage des fichiers : rapports/AAAA-MM-JJ/<categorie_id>/<theme_id>.rayon.md et .marketing.md — <categorie_id> et <theme_id> sont les 'id' de ce fichier de config (identiques a ceux d'agents.json)",
+    "Le theme du jour est le MEME pour l'agent RAYON et l'agent MARKETING d'une meme categorie (calcule une seule fois par categorie, reutilise pour les deux appels)"
+  ]
+}

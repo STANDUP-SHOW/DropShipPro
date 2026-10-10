@@ -4,7 +4,8 @@
  * que le compte à 500 drops achète. Éprouvé sur un rapport bâti comme les vrais
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
-import { blocsDe, cheminRapport, markdownEnHtml, pageCategorie, pageIndex, pageRapport, sitemapXml, type RapportPublic } from './src/services/analysesPubliques.js'
+import { aAnnoncer } from './src/services/annonceAnalyses.js'
+import { ancienCheminRapport, attribuerAdresses, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -33,8 +34,8 @@ Le marché des chargeurs bascule vers le **GaN 65 W**. Les câbles tressés se v
 
 | # | Titre | Fournisseur | URL fournisseur | Prix achat € | Prix vente conseillé € | Marge % | Import | Pourquoi |
 |---|-------|-------------|-----------------|--------------|------------------------|---------|--------|----------|
-| 1 | Chargeur GaN 65 W 3 ports | CJ Dropshipping | https://fournisseur.test/secret-1 | 9,80 | 24,90 | 61 | api | Tendance forte |
-| 2 | Câble USB-C 100 W tressé 2 m | AliExpress | https://fournisseur.test/secret-2 | 1,90 | 9,90 | 81 | extension | Marge |
+| 1 | Chargeur GaN 65 W 3 ports | CJ Dropshipping | https://fournisseur.test/secret-1 | 9,80 | 24,90 | 61 | api | Tendance forte (9,80 US$ relevé sur la fiche), forte demande avant Noël |
+| 2 | Câble USB-C 100 W tressé 2 m | AliExpress | https://fournisseur.test/secret-2 | 1,90 | 9,90 | 81 | extension | Marge ; 1,90 € chez AliExpress |
 | 3 | Batterie externe 20 000 mAh | BigBuy | https://fournisseur.test/secret-3 | 12,50 | 34,90 | 64 | api | Rentrée |
 | 4 | Support voiture magnétique | CJ Dropshipping | https://fournisseur.test/secret-4 | 2,10 | 12,90 | 84 | api | Volume |
 | 5 | Chargeur sans fil 15 W | Temu | https://fournisseur.test/secret-5 | 4,30 | 19,90 | 78 | extension | Marge |
@@ -75,11 +76,14 @@ console.log('La page d’un rapport rayon')
   exige(!html.includes('<script>alert'), 'le HTML du rapport est échappé')
   exige(html.includes('href="https://exemple.test/etude" rel="nofollow'), 'les liens du corps sont en nofollow')
   exige(html.includes(`<link rel="canonical" href="https://www.drop-shipper.fr${cheminRapport(rapport)}">`), 'l’adresse canonique est sous www.drop-shipper.fr')
-  exige(html.includes('"@type":"Article"') && html.includes('"@type":"ItemList"') && html.includes('"@type":"BreadcrumbList"'), 'schema.org : Article, ItemList, fil d’Ariane')
+  exige(html.includes('"@type":"NewsArticle"') && html.includes('"@type":"ItemList"') && html.includes('"@type":"BreadcrumbList"'), 'schema.org : NewsArticle, ItemList, fil d’Ariane')
   exige(html.includes(cheminRapport(marketing)), 'le rapport marketing du même jour est lié')
   exige(html.includes('produits gagnants'), 'le bloc des produits est retitré « gagnants »')
   const ld = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1])
   exige(!JSON.stringify(ld).includes('fournisseur.test'), 'ni dans les données structurées')
+  exige(!/<th>Fournisseur<\/th>/.test(html) && !/CJ Dropshipping|AliExpress|BigBuy|Temu/.test(html), 'AUCUN nom de fournisseur ne sort (règle de Max, PR #24)')
+  exige(!/9,80|1,90|US\$|relevé sur la fiche/.test(html), 'ni prix d’achat glissé dans « pourquoi », données structurées comprises')
+  exige(html.includes('Tendance forte, forte demande avant Noël'), '« pourquoi » garde ce qui ne trahit pas l’achat')
 }
 
 console.log('\nUn rapport MarketSpy : les produits sont à part, pas dans le corps')
@@ -112,7 +116,79 @@ console.log('\nL’archive, l’index, le sitemap')
   exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/</loc>'), 'le sitemap porte l’index')
   exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/telephonie/</loc>'), 'et la catégorie')
   exige(xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(rapport)}</loc>`) && xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(marketing)}</loc>`), 'et chaque rapport')
-  exige(cheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/' && cheminRapport(marketing) === '/analyses/telephonie/2026-09-18/chargeurs-cables/marketing/', 'les adresses sont lisibles')
+  exige(
+    cheminRapport(rapport) === '/analyses/chargeurs-cables/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre/' &&
+      cheminRapport(marketing) === '/analyses/chargeurs-cables/vendre-des-chargeurs-gan-angles-et-prompts/',
+    'les adresses se lisent comme des articles : le thème, puis le sujet, ni catégorie ni date',
+    cheminRapport(rapport),
+  )
+  exige(ancienCheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/', 'la première adresse reste calculable, pour la redirection')
+  exige(
+    cheminArticleDate(rapport) === '/analyses/telephonie/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre-2026-09-18/',
+    'l’adresse de la PR #25 aussi',
+  )
+}
+
+console.log('\nLe sujet : titre du jour, sinon titre + extrait percutant')
+{
+  const sujet = sujetRapport({ ...rapport, extrait: 'Le GaN a gagné, et les câbles tressés font la marge.' })
+  exige(sujet === 'chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre-gagne-font-marge', 'l’extrait complète le titre sans répéter ses mots', sujet)
+  const une = sujetRapport({ ...rapport, une: 'Les télés très demandées au Q4 et au Black Friday 2026' })
+  exige(une === 'les-teles-tres-demandees-au-q4-et-au-black-friday', 'le titre du jour, quand il existe, fait l’adresse', une)
+  exige(sujetRapport({ ...rapport, titre: 'x'.repeat(30) + ' ' + 'y'.repeat(30), extrait: 'z'.repeat(80) }).length <= 100, 'jamais plus de 100 caractères')
+
+  // Même sujet, deux jours : le premier publié garde l'adresse nue, et l'arrivée d'un troisième ne la change pas.
+  const j1 = { ...rapport, id: 'r1', day: '2026-09-18' }
+  const j2 = { ...rapport, id: 'r2', day: '2026-09-19' }
+  const j3 = { ...rapport, id: 'r3', day: '2026-09-20' }
+  attribuerAdresses([j2, j1])
+  const avant = [cheminRapport(j1), cheminRapport(j2)]
+  exige(avant[0].endsWith('-septembre/') && avant[1].endsWith('-septembre-2/'), 'collision : -2 pour le second publié', avant.join(' '))
+  attribuerAdresses([j3, j1, j2])
+  exige(cheminRapport(j1) === avant[0] && cheminRapport(j2) === avant[1] && cheminRapport(j3).endsWith('-3/'), 'une adresse publiée ne bouge plus')
+  exige(rapportA(avant[1]) === 'r2', 'et chaque adresse mène à son rapport')
+  attribuerAdresses([rapport, marketing])
+}
+
+console.log('\nLe robot IndexNow')
+{
+  const xml = '<loc>https://a/1/</loc><loc>https://a/2/</loc><loc>https://a/2/</loc>'
+  const n = aAnnoncer(xml, ['https://a/1/'])
+  exige(n.length === 1 && n[0] === 'https://a/2/', 'n’annonce que les adresses nouvelles, une fois chacune')
+}
+
+console.log('\nCe que l’audit du 03/10/2026 relevait')
+{
+  // Le rapport bricolage du 18/09 : son tableau sous un H3, au milieu de l'analyse, sans produits structurés.
+  const glisse: RapportPublic = {
+    ...rapport,
+    produits: [],
+    body: `## Analyse\nLes outils à main reviennent, voir https://www.exemple.test/etude-outils.\n\n### 16 produits proposés\n\n| # | Titre | Fournisseur | URL fournisseur | Prix achat € | Prix vente conseillé € |\n| --- | --- | --- | --- | --- | --- |\n| 1 | Gouge 30 mm | BigBuy | https://fournisseur.test/secret-9 | 25-40 € | 40-60 € |\n`,
+  }
+  const html = pageRapport(glisse)
+  exige(!html.includes('secret-9') && !html.includes('25-40') && !html.includes('Prix achat'), 'un tableau fournisseur glissé sous un H3 ne sort jamais')
+  exige(html.includes('réservée aux comptes') && !html.includes('16 produits proposés'), 'à sa place, la mention réservée aux comptes')
+  exige(html.includes('>exemple.test</a>'), 'une adresse nue se lit par son nom de site')
+  const titre = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? ''
+  exige(!/\b0 produits/.test(html) && titre.length <= TITRE_MAX, 'ni « 0 produits gagnants », ni titre trop long', titre)
+  const long = titreRapport({ ...rapport, titre: 'Un titre d’agent très long qui raconte toute la tendance du jour et plus encore' })
+  exige(long.length <= TITRE_MAX && long.endsWith('(18/09/2026)'), 'un titre trop long est coupé au mot, date gardée', long)
+  const vide = pageCategorie('sport', [])
+  exige(vide.includes('noindex, follow') && vide.includes('Aucune analyse publiée'), 'une catégorie vide : une vraie page, hors index')
+  const index = pageIndex([rapport], new Map([['telephonie', 2]]))
+  exige(index.includes('href="/analyses/telephonie/"') && !index.includes('href="/analyses/sport/"'), 'l’index ne lie pas les catégories vides')
+}
+
+console.log('\nL’édition du jour')
+{
+  const html = pageJour('2026-09-18', [rapport, marketing], '2026-09-17', '2026-09-19')
+  exige(!/9,80|US\$|AliExpress|CJ Dropshipping/.test(html), 'l’édition du jour non plus : ni prix d’achat ni fournisseur')
+  exige(html.includes('<title>Produits gagnants et tendances du 18/09/2026</title>') && html.includes('href="https://www.drop-shipper.fr/analyses/2026-09-18/"'), 'une page par jour, à son adresse')
+  exige(html.includes('Chargeur GaN 65 W 3 ports') && html.includes(`href="${cheminRapport(rapport)}#produits"`), 'les produits gagnants du jour, liés à leur rapport')
+  exige(!html.includes('fournisseur.test') && !html.includes('9,80') && !/CJ Dropshipping|BigBuy|Temu/.test(html), 'ni adresse, ni nom de fournisseur, ni prix d’achat')
+  exige(html.includes('/analyses/2026-09-17/') && html.includes('/analyses/2026-09-19/'), 'les éditions voisines')
+  exige(sitemapXml([rapport]).includes('<loc>https://www.drop-shipper.fr/analyses/2026-09-18/</loc>'), 'chaque édition est dans le sitemap')
+  exige(pageRapport(rapport).includes('"@type":"NewsArticle"'), 'un rapport se déclare comme une actualité')
 }
 
 console.log('\nLe Markdown')

@@ -110,22 +110,16 @@ export function SocialConnect() {
 
   if (!etat) return null
 
-  /* Rien n'est branché côté serveur : le dire, sans promettre de date. */
-  if (!etat.configure) {
-    return (
-      <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="flex items-center gap-2 font-bold">
-          <Link2 size={17} className="text-purple-300" />
-          <span>Réseaux sociaux et publicités</span>
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-          Le raccordement direct aux régies — publier une campagne depuis ici, suivre ses
-          performances — n'est pas encore activé sur ce serveur. En attendant, « Diffuser » télécharge
-          la créative et ouvre le gestionnaire de la régie.
-        </p>
-      </section>
-    )
-  }
+  /*
+   * No global "not activated" banner any more: every written connector is
+   * listed with its own state — ready (button « Relier »), or waiting for the
+   * DropShipper app keys on the server. "Connecté" only appears on an account
+   * that came back from a real authorisation.
+   */
+  const attente = (pub: boolean) =>
+    pub
+      ? etat.regiesEnAttente ?? (etat.enAttente ?? []).filter((p) => p.endsWith('-ads'))
+      : etat.reseauxEnAttente ?? (etat.enAttente ?? []).filter((p) => !p.endsWith('-ads'))
 
   const relies = (pub: boolean) => etat.comptes.filter((c) => c.isAdAccount === pub)
 
@@ -134,6 +128,7 @@ export function SocialConnect() {
       titre: 'Réseaux sociaux',
       aide: 'Pour publier des posts. Une page Facebook, un compte Instagram, une chaîne TikTok.',
       plateformes: etat.reseaux,
+      attente: attente(false),
       comptes: relies(false),
       pub: false,
     },
@@ -141,6 +136,7 @@ export function SocialConnect() {
       titre: 'Régies publicitaires',
       aide: "Pour acheter de la publicité. C'est un compte différent de la page : Meta Ads n'est pas Facebook.",
       plateformes: etat.regies,
+      attente: attente(true),
       comptes: relies(true),
       pub: true,
     },
@@ -179,14 +175,6 @@ export function SocialConnect() {
           }`}
         >
           {retourAutorisation.texte}
-        </p>
-      ) : null}
-
-      {etat.enAttente?.length ? (
-        <p className="mb-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-gray-400">
-          {`Raccordement écrit, en attente des clés de l'application DropShipper : ${etat.enAttente
-            .map((p) => nomDe(p).label)
-            .join(', ')}.`}
         </p>
       ) : null}
 
@@ -262,7 +250,25 @@ export function SocialConnect() {
                   </button>
                 )
               })}
+              {g.attente.map((p) => (
+                <span
+                  key={p}
+                  title="Raccordement écrit : il attend les clés de l'application DropShipper sur le serveur."
+                  className="flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-dashed border-white/10 px-3 py-1.5 text-xs text-gray-500"
+                >
+                  <span className="opacity-50">
+                    <LogoReseau platform={p} size={18} />
+                  </span>
+                  <span>{`${nomDe(p).label} · en attente des clés`}</span>
+                </span>
+              ))}
             </div>
+            {g.pub && !g.plateformes.length && !g.comptes.some((c) => c.connected) ? (
+              <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                Tant qu'aucune régie n'est reliée, « Diffuser » télécharge la créative et ouvre le
+                gestionnaire de la régie.
+              </p>
+            ) : null}
           </div>
         ))}
       </div>

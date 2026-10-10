@@ -2,6 +2,7 @@ import { PLATFORMS } from './platforms.js'
 import type { Platform, Product } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { mapCategory } from './categoryMapping.js'
+import { diffuserSurMarket } from './marketAuto.js'
 import { publishToShopify, resoudreCredentialsShopify } from './shopify.js'
 import { jetonOfflineValide } from './shopifyApp.js'
 import { deposerOffreMirakl, estMirakl, readMiraklCredentials } from './mirakl.js'
@@ -61,9 +62,10 @@ export async function publishToPlatform(productId: string, platform: Platform, a
     return publishToFeedChannel(productId, platform, product.userId)
   }
 
-  const isReady = platform === 'OWN_SITE'
+  // DropShop Market est à nous : publier, c est apparaître sur drop-shop.cloud.
+  const isReady = platform === 'OWN_SITE' || platform === 'DROPSHOP_MARKET'
 
-  return prisma.publication.upsert({
+  const publication = await prisma.publication.upsert({
     where: { productId_platform: { productId, platform } },
     create: {
       productId,
@@ -78,6 +80,14 @@ export async function publishToPlatform(productId: string, platform: Platform, a
       publishedAt: isReady ? new Date() : null,
     },
   })
+
+  // Publier sur sa boutique = apparaître aussi sur le Market, sauf refus du vendeur.
+  if (platform === 'OWN_SITE') {
+    await diffuserSurMarket(productId, product.userId).catch((err) =>
+      console.error('[market] diffusion auto', productId, err instanceof Error ? err.message : err),
+    )
+  }
+  return publication
 }
 
 /**
@@ -224,7 +234,7 @@ async function publierBoutique(product: Product, platform: keyof typeof BOUTIQUE
 
 /**
  * Le dépôt chez une place de marché à autorisation : TikTok Shop, Amazon,
- * Allegro (`marchesApi.ts`).
+ * Allegro, Cdiscount, Etsy, Wish (`marchesApi.ts`).
  *
  * Trois sorts, dits tels quels : « en attente » quand notre application n'est
  * pas déclarée chez la plateforme ou que le vendeur n'a pas relié son compte

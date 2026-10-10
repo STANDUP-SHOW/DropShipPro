@@ -17,6 +17,7 @@ const topics = require('./seo-topics.cjs')
 const { canaux, types: typesCanal } = require('./seo-channels.cjs')
 
 const SITE = 'https://www.drop-shipper.fr'
+const { piedDePage, CSS_PIED } = require('./pied-de-page.cjs')
 const DIST = path.resolve(__dirname, '..', 'dist')
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -68,7 +69,9 @@ a{color:#c4b5fd}
 .wrap{max-width:52rem;margin:0 auto;padding:0 1.25rem}
 header{border-bottom:1px solid #ffffff1a}
 header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:1rem;padding-bottom:1rem;gap:1rem}
-.brand{font-weight:700;color:#fff;text-decoration:none;font-size:1.05rem}
+.brand{display:flex;align-items:flex-start;gap:5px;height:34px;text-decoration:none;flex:none}
+.brand img{display:block}
+.brand .mot{height:21.8px;width:auto;margin-top:8.3px}
 .cta{display:inline-block;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:600;padding:.7rem 1.15rem;border-radius:.75rem}
 .cta.small{padding:.5rem .9rem;font-size:.9rem}
 h1{font-size:1.9rem;line-height:1.25;margin:2rem 0 .5rem}
@@ -112,7 +115,33 @@ footer a{color:#9d95c0;margin-right:1rem}
 .end{margin:2.5rem 0;text-align:center}
 `
 
-function layout({ url, title, description, jsonLd, body }) {
+/**
+ * Au-delà de ~60 caractères, Google coupe le titre et l'audit du 03/10/2026 le
+ * signale (43 titres trop longs) : la marque en suffixe saute la première, le
+ * propos de la page reste entier.
+ */
+const TITRE_MAX = 60
+function titreCourt(title) {
+  if (title.length <= TITRE_MAX) return title
+  const sans = title.replace(/\s+[|—]\s+DropShipper IA$/, '')
+  // Un propos un peu long reste entier ; au-delà de 70 (le seuil de l'audit), il est coupé au mot.
+  if (sans.length <= 70) return sans
+  return `${sans.slice(0, 69).replace(/[\s,:;—-]+\S*$/, '')}…`
+}
+
+/** Les guides : liés depuis le pied de chaque page, sinon chacun n'avait qu'un lien entrant (audit du 03/10/2026). */
+const GUIDES = [
+  ['/logiciel-dropshipping/', 'Logiciel de dropshipping'],
+  ['/vendre-sans-stock/', 'Vendre sans stock'],
+  ['/importer-produits-temu-joybuy/', 'Importer depuis Temu ou JoyBuy'],
+  ['/publier-annonces-plusieurs-marketplaces/', 'Publier sur plusieurs marketplaces'],
+  ['/filigrane-photos-produits/', 'Filigrane des photos produit'],
+  ['/creation-boutique-en-ligne-gratuite/', 'Créer une boutique en ligne gratuite'],
+  ['/dropshipping-automatique/', 'Dropshipping automatique'],
+]
+
+function layout({ url, title: titreLong, description, jsonLd, body }) {
+  const title = titreCourt(titreLong)
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -129,12 +158,12 @@ function layout({ url, title, description, jsonLd, body }) {
 <meta property="og:url" content="${SITE}${url}">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-<style>${CSS}</style>
+<style>${CSS}${CSS_PIED}</style>
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 </head>
 <body>
 <header><div class="wrap">
-  <a class="brand" href="/">DropShipper IA</a>
+  <a class="brand" href="/" aria-label="DropShipper IA, accueil"><img src="/marque/dropshipper-icone.png" alt="" width="34" height="34"><img class="mot" src="/marque/dropshipper-mot.png" alt="DropShipper IA" width="120" height="22"></a>
   <a class="cta small" href="/register">Créer un compte</a>
 </div></header>
 <main class="wrap">
@@ -142,14 +171,7 @@ ${body}
 <div class="end"><a class="cta" href="/register">Essayer DropShipper IA</a></div>
 </main>
 <footer><div class="wrap">
-  <a href="/">Accueil</a>
-  <a href="/dropshipping/">Dropshipping</a>
-  <a href="/vendre-sur-marketplaces/">Où vendre</a>
-  <a href="/tarifs/">Tarifs</a>
-  <a href="/faq/">Questions fréquentes</a>
-  <a href="/a-propos/">À propos</a>
-  <a href="/avis">Avis</a>
-  <a href="/confidentialite">Confidentialité</a>
+${piedDePage(GUIDES)}
 </div></footer>
 </body>
 </html>
@@ -433,7 +455,10 @@ function platformPage(platform) {
     { name: 'Où vendre', url: '/vendre-sur-marketplaces/' },
     { name: platform.name, url },
   ]
-  const others = platforms.filter((p) => p.slug !== platform.slug).slice(0, 8)
+  // The eight that FOLLOW this one, in a circle: a fixed `slice(0, 8)` left every
+  // platform past the eighth with a single incoming link (audit of 03/10/2026).
+  const i = platforms.indexOf(platform)
+  const others = Array.from({ length: Math.min(8, platforms.length - 1) }, (_, k) => platforms[(i + k + 1) % platforms.length])
 
   const body = `${crumb(trail)}
 <h1>${esc(platform.title)}</h1>
@@ -618,10 +643,10 @@ ${urls
   /*
    * robots.txt : ouvert à tous, y compris aux robots des assistants.
    *
-   * Les deux lignes `llms.txt` ne sont pas une directive standard — aucun robot
-   * n'est obligé de les suivre — mais elles sont lues par plusieurs crawlers
-   * d'IA et, à défaut, elles coûtent deux lignes. Le fichier lui-même est
-   * produit par scripts/build-llms.cjs.
+   * `llms.txt` n'y figure qu'en commentaire : les directives `LLM-Content` ne
+   * sont pas standard, et l'audit du 03/10/2026 classait le fichier entier
+   * « format invalide » à cause d'elles. Le fichier lui-même est produit par
+   * scripts/build-llms.cjs. (build-geo.cjs réécrit ce robots.txt.)
    */
   fs.writeFileSync(
     path.join(DIST, 'robots.txt'),
@@ -631,9 +656,7 @@ Allow: /
 Sitemap: ${SITE}/sitemap.xml
 
 # Fiche d'identité lisible par les assistants conversationnels
-# (convention llms.txt) : ce que fait DropShipper IA, en un seul fichier.
-LLM-Content: ${SITE}/llms.txt
-LLM-Full-Content: ${SITE}/llms-full.txt
+# (convention llms.txt) : ${SITE}/llms.txt et ${SITE}/llms-full.txt
 `,
   )
 
@@ -644,6 +667,6 @@ LLM-Full-Content: ${SITE}/llms-full.txt
 
 // build-geo.cjs reprend le gabarit : les pages /faq/, /tarifs/ et /a-propos/
 // doivent avoir le visage des autres, pas un second habillage qui divergerait.
-module.exports = { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY }
+module.exports = { layout, titreCourt, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY }
 
 if (require.main === module) main()

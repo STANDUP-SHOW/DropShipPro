@@ -1,0 +1,201 @@
+{
+  "name": "META-SPY – TELEPHONIE",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "50 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "660a3271-ceea-4c44-b3db-e1d1af0af4f6",
+      "name": "Chaque jour 6h50",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "14b2b231-04c0-46d3-afa9-c36a024879fa",
+      "name": "Lancement manuel",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const RAYON = 'TELEPHONIE';\nconst ROTATION = [\n  { theme: 'ecrans-externes-accessoires', kw: ['écran portable', 'hub usb-c'] },\n  { theme: 'smartphones',                 kw: ['smartphone', 'téléphone reconditionné'] },\n  { theme: 'chargeurs-cables-batteries',  kw: ['chargeur', 'powerbank', 'câble magnétique'] },\n  { theme: 'audio',                       kw: ['écouteurs', 'casque bluetooth', 'enceinte'] },\n  { theme: 'tablettes',                   kw: ['tablette', 'stylet'] },\n  { theme: 'coques-protections-gadgets',  kw: ['coque', 'protection écran', 'support voiture'] },\n  { theme: 'objets-connectes',            kw: ['montre connectée', 'traceur gps', 'bague connectée'] },\n];\nconst now = new Date(); const pad = n => String(n).padStart(2, '0');\nconst d = x => `${pad(x.getDate())}-${pad(x.getMonth() + 1)}-${String(x.getFullYear()).slice(2)}`;\nconst iso = x => x.toISOString().slice(0, 10);\nconst st = ROTATION[now.getDay()];\nreturn [{ json: { rayon: RAYON, sous_theme: st.theme, keywords: st.kw, countries: ($env.META_COUNTRIES || 'FR').split(','),\n  date_run: d(now), date_prev: d(new Date(now - 86400000)), since: iso(new Date(now - Number($env.META_LOOKBACK_DAYS || 30) * 86400000)) } }];\n"
+      },
+      "id": "d99540d0-4424-42d2-9f89-2d0c94ccb232",
+      "name": "Config du jour",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Meta Ad Library API — GET https://graph.facebook.com/{version}/ads_archive (pubs diffusées dans l'UE : ad_type=ALL)\nconst c = $input.first().json;\nconst V = $env.META_API_VERSION || 'v23.0';\nconst TOKEN = $env.META_ADLIB_TOKEN;                      // token utilisateur long-lived d'un compte vérifié (identité Meta)\nconst MAX_PAGES = Number($env.META_MAX_PAGES_PER_KEYWORD || 4), LIMIT = Number($env.META_PAGE_SIZE || 50);\nconst FULL = 'id,ad_creation_time,ad_delivery_start_time,ad_delivery_stop_time,ad_creative_bodies,ad_creative_link_titles,ad_creative_link_captions,ad_creative_link_descriptions,ad_snapshot_url,page_id,page_name,publisher_platforms,languages,eu_total_reach,target_ages,target_gender,target_locations,beneficiary_payers';\nconst MIN = 'id,ad_delivery_start_time,ad_creative_bodies,ad_creative_link_titles,ad_creative_link_captions,ad_snapshot_url,page_id,page_name,publisher_platforms,eu_total_reach';\nlet fields = FULL; const ads = [], warnings = [];\nconst qs = o => Object.entries(o).map(([k, v]) => `${k}=${encodeURIComponent(typeof v === 'string' ? v : JSON.stringify(v))}`).join('&');\nfor (const kw of c.keywords) {\n  let url = `https://graph.facebook.com/${V}/ads_archive?` + qs({ access_token: TOKEN, search_terms: kw, ad_type: 'ALL', ad_active_status: 'ACTIVE',\n    ad_reached_countries: c.countries, ad_delivery_date_min: c.since, fields, limit: String(LIMIT) });\n  for (let p = 0; p < MAX_PAGES && url; p++) {\n    let r;\n    try { r = await this.helpers.httpRequest({ method: 'GET', url, json: true }); }\n    catch (e) {\n      const msg = String(e.description || e.message || e).slice(0, 200);\n      if (fields === FULL && /field|param/i.test(msg)) { fields = MIN; warnings.push('Champs réduits (refus API) : ' + msg); p--; \n        url = url.replace(/fields=[^&]+/, 'fields=' + encodeURIComponent(MIN)); continue; }\n      warnings.push(`${kw} p${p} : ${msg}`); break;\n    }\n    for (const a of (r.data || [])) ads.push({ ...a, keyword: kw });\n    url = r.paging?.next || null;\n    await new Promise(res => setTimeout(res, 1500));\n  }\n}\nreturn [{ json: { ...c, meta_ads_raw: ads, warnings } }];\n"
+      },
+      "id": "5735e98d-5707-45be-b91d-bdccc6b4b0a3",
+      "name": "Meta Ad Library API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs'); const path = require('path');\nconst c = $input.first().json; const dir = $env.MARKET_ANALYSES_DIR || './MARKET-ANALYSES'; fs.mkdirSync(dir, { recursive: true });\nconst today = new Date();\nconst seen = new Set();\nconst ads = (c.meta_ads_raw || []).filter(a => a.id && !seen.has(a.id) && seen.add(a.id)).map(a => {\n  const start = a.ad_delivery_start_time ? new Date(a.ad_delivery_start_time) : null;\n  const jours = start ? Math.max(1, Math.round((today - start) / 86400000)) : null;\n  const domaine = (a.ad_creative_link_captions || []).map(s => String(s).toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0]).find(s => /\\.[a-z]{2,}$/.test(s)) || null;\n  return { id: a.id, keyword: a.keyword, page: a.page_name, page_id: a.page_id, domaine, debut: a.ad_delivery_start_time, jours_actifs: jours,\n    reach_ue: a.eu_total_reach ?? null, plateformes: a.publisher_platforms, langues: a.languages,\n    titre: (a.ad_creative_link_titles || [])[0] || null, texte: ((a.ad_creative_bodies || [])[0] || '').slice(0, 400),\n    snapshot: a.ad_snapshot_url, cible_ages: a.target_ages, cible_genre: a.target_gender, payeur: (a.beneficiary_payers || [])[0] || null,\n    score_meta: Math.min(20, Math.round(Math.min(8, (jours || 0) / 5) + Math.min(10, (a.eu_total_reach || 0) / 50000) + ((a.publisher_platforms || []).length >= 2 ? 2 : 0))) };\n});\nconst byPage = {}; for (const a of ads) { const k = a.page || '?'; const v = (byPage[k] = byPage[k] || { page: k, domaine: a.domaine, nb_pubs: 0, reach_ue: 0, keywords: new Set() });\n  v.nb_pubs++; v.reach_ue += a.reach_ue || 0; v.keywords.add(a.keyword); v.domaine = v.domaine || a.domaine; }\nconst pages = Object.values(byPage).map(v => ({ ...v, keywords: [...v.keywords] })).sort((a, b) => b.nb_pubs - a.nb_pubs);\n\nlet prev = {}; try { prev = JSON.parse(fs.readFileSync(path.join(dir, `${c.rayon}-${c.date_prev}-META.json`), 'utf8')); } catch (e) {}\nconst prevP = Object.fromEntries((prev.pages || []).map(p => [p.page, p]));\nconst alerts = [];\nfor (const p of pages) { const o = prevP[p.page];\n  if (!o && p.nb_pubs >= 5) alerts.push({ type: 'NOUVEAU CONCURRENT META', page: p.page, domaine: p.domaine, nb_pubs: p.nb_pubs });\n  else if (o && p.nb_pubs >= o.nb_pubs * 1.5 && p.nb_pubs >= 5) alerts.push({ type: 'BREAKOUT META', page: p.page, de: o.nb_pubs, a: p.nb_pubs }); }\nconst norm = s => String(s || '').toLowerCase().replace(/^www\\./, '').replace(/[^a-z0-9.]/g, '');\nconst src = { Minea: new Set(), 'dropship.io': new Set(), TikTok: new Set() };\nconst rd = f => { try { return JSON.parse(fs.readFileSync(path.join(dir, `${c.rayon}-${c.date_run}-${f}.json`), 'utf8')); } catch (e) { return null; } };\nconst m = rd('MINEA'); (m?.ads || []).forEach(a => { src.Minea.add(norm(a.boutique)); try { src.Minea.add(norm(new URL(a.url_produit).hostname)); } catch (e) {} });\nconst ds = rd('DROPSHIP'); (ds?.rayon?.fb_ads || []).forEach(a => { src['dropship.io'].add(norm(a.annonceur)); src['dropship.io'].add(norm(a.domaine)); });\nconst tt = rd('TIKTOK'); (tt?.advertisers || []).forEach(a => src.TikTok.add(norm(a.annonceur)));\nfor (const p of pages) { const keys = [norm(p.page), norm(p.domaine)].filter(Boolean);\n  const hits = ['Meta', ...Object.keys(src).filter(s => keys.some(k => src[s].has(k)))];\n  if (hits.length >= 2) alerts.push({ type: `VALIDÉ ${hits.length} SOURCES`, page: p.page, domaine: p.domaine, sources: hits }); }\n\nconst out = { source: 'meta-ad-library-api', rayon_nom: c.rayon, sous_theme: c.sous_theme, mots_cles: c.keywords, pays: c.countries,\n  date_run: c.date_run, ads, pages, alerts, warnings: c.warnings, scrapedAt: new Date().toISOString() };\nfs.writeFileSync(path.join(dir, `${c.rayon}-${c.date_run}-META.json`), JSON.stringify(out, null, 2));\nreturn [{ json: { rayon_nom: c.rayon, sous_theme: c.sous_theme, date_run: c.date_run, alerts, warnings: c.warnings,\n  top_ads: [...ads].sort((a, b) => b.score_meta - a.score_meta).slice(0, 20), pages: pages.slice(0, 15) } }];\n"
+      },
+      "id": "8ea4a00b-34ab-4f17-b538-20bd2e0b7415",
+      "name": "Parse, score & alertes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: $env.CLAUDE_MODEL, max_tokens: 4000,\n  system: \"Tu es l'agent META-SPY de MarketSpy/aiMARKET pour drop-shipper.fr. Rédige en français la section 'SIGNAUX META (Facebook/Instagram)' du rapport du rayon, à partir de la Meta Ad Library API (pubs diffusées dans l'UE). Structure : 1) Synthèse 5 lignes 2) Tableau des pubs les plus fortes (page, domaine, jours actifs, reach UE, plateformes, score_meta/20, lien snapshot) 3) Pages qui scalent (nb de pubs actives) 4) MARKET ALERTs en mettant en avant 'VALIDÉ n SOURCES' 5) Angles marketing observés (accroches, promesses, CTA) par type de produit 6) Limites (pas de dépenses ni de CA dans cette source). N'invente aucune donnée absente du JSON.\",\n  messages: [{ role: 'user', content: JSON.stringify({ rayon: $json.rayon_nom, sous_theme: $json.sous_theme, date: $json.date_run, alerts: $json.alerts, warnings: $json.warnings, top_ads: $json.top_ads, pages: $json.pages }) }]\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "b30cefd0-2b48-447d-aefb-2775bb0651dd",
+      "name": "Claude – rédaction section",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs'); const path = require('path');\nconst d = $('Parse, score & alertes').first().json;\nconst text = ($input.first().json.content || []).map(b => b.text || '').join('\\n');\nconst file = path.join($env.MARKET_ANALYSES_DIR || './MARKET-ANALYSES', `${d.rayon_nom}-${d.date_run}-META.md`);\nfs.writeFileSync(file, `# ${d.rayon_nom} — ${d.sous_theme} — ${d.date_run} — Signaux Meta\\n\\n${text}\\n`);\nreturn [{ json: { ok: true, file, alerts: d.alerts.length } }];\n"
+      },
+      "id": "0988e5ef-bd4f-410a-8289-7281f2bcf994",
+      "name": "Écrire rapport .md",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Chaque jour 6h50": {
+      "main": [
+        [
+          {
+            "node": "Config du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancement manuel": {
+      "main": [
+        [
+          {
+            "node": "Config du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config du jour": {
+      "main": [
+        [
+          {
+            "node": "Meta Ad Library API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Ad Library API": {
+      "main": [
+        [
+          {
+            "node": "Parse, score & alertes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse, score & alertes": {
+      "main": [
+        [
+          {
+            "node": "Claude – rédaction section",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude – rédaction section": {
+      "main": [
+        [
+          {
+            "node": "Écrire rapport .md",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  },
+  "active": false
+}

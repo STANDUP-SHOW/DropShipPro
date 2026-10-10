@@ -93,13 +93,13 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
   },
 
   CDISCOUNT: {
-    summary: "Marketplace française : candidature vendeur, puis une clé API délivrée dans votre espace.",
+    summary: "Marketplace française (API vendeur Octopia) : candidature vendeur, puis des identifiants API créés dans votre portail.",
     steps: [
       'Déposez une candidature vendeur sur la Seller Zone Cdiscount.',
-      'Une fois le compte validé, récupérez votre clé API dans les paramètres du compte.',
-      'Collez-la dans Réglages › Plateformes de vente › Cdiscount.',
+      'Une fois le compte validé, ouvrez Paramètres dans votre portail vendeur : notez votre Seller ID, puis créez des identifiants API (Client ID et Client Secret).',
+      'Collez-les dans Réglages › Plateformes de vente › Cdiscount : DropShipper les vérifie par un appel réel avant de dire le compte relié.',
     ],
-    caution: "L'envoi automatique n'est pas encore branché : la publication est enregistrée « en attente ».",
+    caution: "DropShipper dépose une offre sur une fiche Cdiscount existante, retrouvée par son EAN : sans code-barres, la publication reste en échec avec la raison.",
     docUrl: 'https://seller.cdiscount.com',
     docLabel: 'Seller Zone',
   },
@@ -117,13 +117,12 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
   },
 
   WISH: {
-    summary: "Inscription vendeur en self-service, puis un jeton d'API marchand.",
+    summary: "Inscription marchand, puis vous autorisez DropShipper depuis votre espace Wish.",
     steps: [
-      'Créez un compte marchand sur merchant.wish.com.',
-      "Dans les paramètres, générez un jeton d'API.",
-      'Collez-le dans Réglages › Plateformes de vente › Wish.',
+      'Créez un compte marchand sur merchant.wish.com et un entrepôt avec ses tarifs d\'expédition.',
+      'Dans Réglages › Plateformes de vente › Wish, cliquez « Relier mon compte Wish » et autorisez DropShipper.',
     ],
-    caution: "L'envoi automatique n'est pas encore branché.",
+    caution: "Wish relit chaque produit avant de l'afficher. Le prix est converti dans la devise de votre compte marchand.",
     docUrl: 'https://merchant.wish.com',
     docLabel: 'Wish Merchant',
   },
@@ -132,8 +131,8 @@ export const PLATFORM_GUIDES: Record<string, PlatformGuide> = {
     summary: "API publique et self-service, mais un règlement très restrictif sur ce que vous avez le droit de vendre.",
     steps: [
       'Ouvrez une boutique Etsy.',
-      'Créez une application sur le portail développeur Etsy et générez un jeton OAuth.',
-      'Collez-le dans Réglages › Plateformes de vente › Etsy.',
+      "Dans la boutique, créez au moins un profil d'expédition et un profil de préparation.",
+      'Dans Réglages › Plateformes de vente › Etsy, cliquez « Relier mon compte Etsy » et autorisez DropShipper : les annonces arrivent en brouillon, vous les publiez dans Etsy.',
     ],
     caution:
       "Etsy interdit la revente de produits manufacturés achetés en gros : seuls le fait main, le vintage de plus de 20 ans et les fournitures créatives sont autorisés. Publier des produits Temu ou JoyBuy expose à la fermeture de la boutique.",

@@ -171,5 +171,84 @@
       "image": "/images/accueil/les-drops.jpg",
       "offre": { "label": "Voir la grille tarifaire", "href": "/tarifs/" }
     }
-  ]
+  ],
+  "synthese": {
+    "promesse": "Prenez un produit n'importe où. L'IA en fait une annonce prête à vendre, la publie partout, et gère le reste.",
+    "prix": "120 drops offerts · Sans abonnement, 1 drop = 0,01 € · Une annonce prête : 0,12 €",
+    "etapes": [
+      {
+        "slug": "scraping-produits",
+        "titre": "Vous relevez le produit",
+        "texte": "Extension Chrome, adresse collée ou lot entier : photos, texte, prix et avis partent vers l'IA. Même AliExpress, Temu ou Shein."
+      },
+      {
+        "slug": "annonces-ia",
+        "titre": "L'IA écrit l'annonce",
+        "texte": "Titre, description, attributs, mots-clés, catégorie : tout est reconstruit en français, sans rien inventer, et adapté à chaque canal."
+      },
+      {
+        "slug": "diffusion",
+        "titre": "Vous publiez partout",
+        "texte": "Boutiques, places de marché, comparateurs : plus de 300 canaux, d'un clic."
+      }
+    ],
+    "ia": [
+      {
+        "slug": "analyses-de-marche",
+        "titre": "Analyses de marché",
+        "texte": "48 rapports par jour et leurs produits gagnants, importables en un clic."
+      },
+      {
+        "slug": "visuels-ia",
+        "titre": "Visuels et publicités",
+        "texte": "Photos en situation et pubs à vos couleurs."
+      },
+      {
+        "slug": "reseaux-sociaux",
+        "titre": "Réseaux sociaux",
+        "texte": "Publication organique depuis la même interface."
+      },
+      {
+        "slug": "fournisseurs",
+        "titre": "Fournisseurs",
+        "texte": "38 intégrés, avec leurs conditions réelles."
+      },
+      {
+        "slug": "agents-ia",
+        "titre": "Agents IA",
+        "texte": "23 chefs de rayon et des assistants (photos, budget pub, SAV) aux vraies capacités."
+      }
+    ],
+    "dropshop": {
+      "slug": "dropshop-ia",
+      "titre": "Votre boutique, écrite par l'IA, et la marketplace qui va avec",
+      "boutique": {
+        "titre": "Créer ma boutique DropShop",
+        "texte": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique et responsive, avec panier, commande et paiement Stripe sur votre compte. Trois directions en une minute, dix modifications comprises.",
+        "prix": "3,50 € une seule fois, à vie",
+        "bouton": "Créer ma boutique",
+        "href": "/register"
+      },
+      "market": {
+        "titre": "DropShop Market",
+        "texte": "La place de marché qui réunit toutes les boutiques DropShop.",
+        "badge": "Bientôt"
+      },
+      "extensions": "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews."
+    },
+    "auto": {
+      "slug": "auto-shipper",
+      "titre": "Mode auto : laissez-les faire",
+      "texte": "Une tournée par jour : l'IA choisit les produits, les importe, écrit les annonces, publie et tient le back-office. 1 € par jour.",
+      "bouton": "Activer l'AUTO-SHIPPER",
+      "href": "/register"
+    },
+    "tarif": {
+      "slug": "les-drops",
+      "titre": "Pas d'abonnement. Vous payez ce que vous faites.",
+      "texte": "1 drop = 0,01 € · 120 drops offerts · crédit rendu si l'action échoue · jusqu'à −25 % sur les recharges.",
+      "bouton": "Voir la grille tarifaire",
+      "href": "/tarifs/"
+    }
+  }
 }
