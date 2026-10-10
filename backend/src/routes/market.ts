@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import express, { Router, type Request, type Response, type NextFunction } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
@@ -206,6 +208,13 @@ async function ficheProduit(req: Request, res: Response) {
 marketRouter.get('/p/:id', page(ficheProduit))
 marketRouter.get('/p/:id/:slug', page(ficheProduit))
 marketRouter.get('/p/:id/:slug/:variante', page(ficheProduit))
+
+// Charte graphique : logo, favicon, icônes, visuel de partage (backend/market-assets).
+const DOSSIER_ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'market-assets')
+marketRouter.use(
+  '/assets',
+  express.static(DOSSIER_ASSETS, { maxAge: '7d', index: false, dotfiles: 'ignore' }),
+)
 
 marketRouter.get('/vendre', (req, res) => html(res, pageVendre(req.baseUrl), 3600))
 
