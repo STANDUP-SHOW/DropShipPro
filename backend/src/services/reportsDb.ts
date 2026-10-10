@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
+import { createRequire } from 'node:module'
 
 /**
  * Where rapports.db lives, resolved from THIS module, never from the cwd.
@@ -56,13 +57,164 @@ function resumeBase(chemin: string): { n: number; maj: string } | null {
   }
 }
 
+/**
+ * Studies imported from the back-office (public Google Drive folders, asked by
+ * Max on 10/10/2026). They are written into the served base, AND kept here as
+ * their source text: the served base is replaced wholesale by every
+ * `--envoyer` upload and by every push of the committed file, and neither of
+ * those knows about Drive imports. Each replacement replays this list on top,
+ * so an imported study never silently disappears from the site.
+ */
+export const CHEMIN_SURCOUCHE = path.join(RACINE_BACKEND, 'storage', 'analyses-importees.json')
+/** Which base the uploaded copy was built from, and that base's most recent report. */
+const CHEMIN_ORIGINE_DEPOSE = `${CHEMIN_RAPPORTS_DEPOSE}.origine.json`
+
+export interface EtudeImportee {
+  idRayon: string
+  format: 'markdown' | 'aimarket'
+  origine: string
+  importeLe: string
+  texteRayon?: string
+  texteMarketing?: string | null
+  json?: unknown
+}
+
+/** Shared with the command-line importers: one reader, one writer, one shape of `data`. */
+const etudeLib = createRequire(import.meta.url)('../../rapports-etude.cjs') as {
+  etudeMarkdown(e: { texteRayon: string; texteMarketing: string | null; origineRayon: string; origineMarketing: string | null; source?: string }): any
+  etudeAiMarket(d: unknown, origine: string): any
+  ecrireEtude(db: Database.Database, etude: any): void
+}
+export { etudeLib }
+
+export function lireSurcouche(): EtudeImportee[] {
+  try {
+    const brut = JSON.parse(fs.readFileSync(CHEMIN_SURCOUCHE, 'utf8'))
+    return Array.isArray(brut?.etudes) ? brut.etudes : []
+  } catch {
+    return []
+  }
+}
+
+function ecrireFichierAtomique(chemin: string, contenu: string | Buffer) {
+  fs.mkdirSync(path.dirname(chemin), { recursive: true })
+  const provisoire = `${chemin}.${process.pid}.tmp`
+  fs.writeFileSync(provisoire, contenu)
+  fs.renameSync(provisoire, chemin)
+}
+
+export function etudeDepuisSurcouche(e: EtudeImportee): any {
+  return e.format === 'aimarket'
+    ? etudeLib.etudeAiMarket(e.json, e.origine)
+    : etudeLib.etudeMarkdown({
+        texteRayon: e.texteRayon ?? '',
+        texteMarketing: e.texteMarketing ?? null,
+        origineRayon: e.origine,
+        origineMarketing: e.texteMarketing != null ? e.origine.replace(/\.rayon\.md$/, '.marketing.md') : null,
+        source: 'google-drive',
+      })
+}
+
+/**
+ * Writes the imported studies into a writable copy of a base. A study whose
+ * RAYON report already exists is skipped: our own agents' report for the same
+ * shelf and day always wins over an imported one.
+ */
+export function appliquerSurcouche(chemin: string, etudes: EtudeImportee[] = lireSurcouche()): number {
+  if (!etudes.length) return 0
+  const db = new Database(chemin, { fileMustExist: true })
+  let ecrites = 0
+  try {
+    const existe = db.prepare('SELECT 1 FROM reports WHERE id = ?')
+    for (const e of etudes) {
+      if (existe.get(e.idRayon)) continue
+      const etude = etudeDepuisSurcouche(e)
+      if (!etude?.ok) continue
+      etudeLib.ecrireEtude(db, etude)
+      ecrites++
+    }
+  } finally {
+    db.close()
+  }
+  return ecrites
+}
+
+function lireOrigine(): { majSource: string } | null {
+  try {
+    const o = JSON.parse(fs.readFileSync(CHEMIN_ORIGINE_DEPOSE, 'utf8'))
+    return typeof o?.majSource === 'string' ? o : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Puts `source` + the imported studies in place of the uploaded copy.
+ * `majSource` is the most recent report of the base it was built from: it is
+ * what gets compared with the committed file, never the imported rows (they
+ * are dated by their import, and would shadow a newer push).
+ */
+function installerDepose(source: string, majSource: string, nouvelles: EtudeImportee[] = []) {
+  const provisoire = `${CHEMIN_RAPPORTS_DEPOSE}.${process.pid}.construction`
+  fs.mkdirSync(path.dirname(CHEMIN_RAPPORTS_DEPOSE), { recursive: true })
+  fs.copyFileSync(source, provisoire)
+  try {
+    appliquerSurcouche(provisoire, [...lireSurcouche(), ...nouvelles])
+    fs.renameSync(provisoire, CHEMIN_RAPPORTS_DEPOSE)
+  } finally {
+    if (fs.existsSync(provisoire)) fs.rmSync(provisoire)
+  }
+  ecrireFichierAtomique(CHEMIN_ORIGINE_DEPOSE, JSON.stringify({ majSource, le: new Date().toISOString() }))
+}
+
 /** The file the routes read: the upload when it is at least as recent as the committed file. */
 export function cheminRapportsActif(): string {
   if (cheminActif) return cheminActif
   const depose = resumeBase(CHEMIN_RAPPORTS_DEPOSE)
   const livre = resumeBase(CHEMIN_RAPPORTS_DB)
-  cheminActif = depose && depose.n > 0 && (!livre || depose.maj >= livre.maj) ? CHEMIN_RAPPORTS_DEPOSE : CHEMIN_RAPPORTS_DB
+  const majDepose = depose ? (lireOrigine()?.majSource ?? depose.maj) : ''
+  if (depose && depose.n > 0 && (!livre || majDepose >= livre.maj)) {
+    cheminActif = CHEMIN_RAPPORTS_DEPOSE
+  } else if (livre && lireSurcouche().length) {
+    // A newer committed file: rebuild the served copy from it, imports replayed on top.
+    try {
+      installerDepose(CHEMIN_RAPPORTS_DB, livre.maj)
+      cheminActif = CHEMIN_RAPPORTS_DEPOSE
+    } catch (err) {
+      console.error('[rapports] analyses importées non rejouées', err instanceof Error ? err.message : err)
+      cheminActif = CHEMIN_RAPPORTS_DB
+    }
+  } else {
+    cheminActif = CHEMIN_RAPPORTS_DB
+  }
   return cheminActif
+}
+
+/** The studies already in the served base, by RAYON report id. */
+export function idsRapportsEnService(): Set<string> {
+  const db = new Database(cheminRapportsActif(), { readonly: true, fileMustExist: true })
+  try {
+    return new Set((db.prepare("SELECT id FROM reports WHERE type = 'rayon'").all() as { id: string }[]).map((r) => r.id))
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * Adds imported studies to the served base and to the replay list. The caller
+ * has already dropped the ones the base holds.
+ */
+export function ajouterEtudesImportees(etudes: EtudeImportee[]): { reports: number } {
+  if (!etudes.length) return { reports: resumeBase(cheminRapportsActif())?.n ?? 0 }
+  const actif = cheminRapportsActif()
+  const majSource = actif === CHEMIN_RAPPORTS_DEPOSE ? (lireOrigine()?.majSource ?? resumeBase(actif)?.maj ?? '') : (resumeBase(actif)?.maj ?? '')
+  installerDepose(actif, majSource, etudes)
+  const dejaGardees = new Set(lireSurcouche().map((e) => e.idRayon))
+  const liste = [...lireSurcouche(), ...etudes.filter((e) => !dejaGardees.has(e.idRayon))]
+  ecrireFichierAtomique(CHEMIN_SURCOUCHE, JSON.stringify({ version: 1, etudes: liste }))
+  cheminActif = null
+  generation++
+  return { reports: resumeBase(cheminRapportsActif())?.n ?? 0 }
 }
 
 export class DepotRefuse extends Error {}
@@ -80,11 +232,16 @@ export function deposerRapports(contenu: Buffer): { reports: number; avant: numb
   const provisoire = `${CHEMIN_RAPPORTS_DEPOSE}.${process.pid}.tmp`
   fs.writeFileSync(provisoire, contenu)
   try {
-    const neuf = resumeBase(provisoire)
-    if (!neuf) throw new DepotRefuse('Fichier illisible ou sans table reports.')
+    const recu = resumeBase(provisoire)
+    if (!recu) throw new DepotRefuse('Fichier illisible ou sans table reports.')
+    // The upload knows nothing of the back-office imports: replay them before
+    // counting, or the upload would look smaller than the base in service.
+    appliquerSurcouche(provisoire)
+    const neuf = resumeBase(provisoire) ?? recu
     const avant = resumeBase(cheminRapportsActif())?.n ?? 0
     if (neuf.n < avant) throw new DepotRefuse(`Le fichier envoyé a ${neuf.n} rapports, la base en ligne en a ${avant} : refusé.`)
     fs.renameSync(provisoire, CHEMIN_RAPPORTS_DEPOSE)
+    ecrireFichierAtomique(CHEMIN_ORIGINE_DEPOSE, JSON.stringify({ majSource: recu.maj, le: new Date().toISOString() }))
     cheminActif = null
     generation++
     return { reports: neuf.n, avant }

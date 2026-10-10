@@ -301,6 +301,40 @@ function enQuery(params: Record<string, string | number | undefined>): string {
   return texte ? `?${texte}` : ''
 }
 
+/** Liste d'un dossier Google Drive d'analyses, par date (back-office). */
+export interface AnalysesDriveListe {
+  dossier: string
+  dates: Array<{
+    date: string
+    etudes: Array<{ categorie: string; theme: string; fichiers: string[]; doublons: string[]; importable: boolean; dejaEnBase: boolean }>
+    ignores: Array<{ nom: string; raison: string }>
+  }>
+}
+
+/** Rapport d'un import (ou d'un aperçu) depuis Google Drive. */
+export interface AnalysesDriveRapport {
+  essai: boolean
+  importees: number
+  aImporter: number
+  doublons: number
+  refusees: number
+  conformes: number
+  rapportsEnBase: number | null
+  lignes: Array<{
+    date: string
+    rayon: string
+    statut: 'importe' | 'apercu' | 'doublon' | 'refuse'
+    raison?: string
+    produits?: number
+    urlsDistinctes?: number
+    avecPrix?: number
+    avecScore?: number
+    marketing?: boolean
+    conforme?: boolean
+  }>
+  ignores: Array<{ date: string; nom: string; raison: string }>
+}
+
 export const api = {
   /** DropShop Market (drop-shop.cloud) : l espace vendeur — Stripe Connect, annonces, ventes, flux. */
   marketVendeur: () => request<MarketVendeur>('/market/vendeur'),
@@ -709,6 +743,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ reference }),
     }),
+  // Analyses d'autres agents rangées dans un dossier Google Drive public (requireAdmin côté serveur).
+  analysesDriveLister: (adresse: string) =>
+    request<AnalysesDriveListe>('/admin/analyses-drive/lister', { method: 'POST', body: JSON.stringify({ adresse }) }),
+  analysesDriveImporter: (adresse: string, dates: string[], essai: boolean) =>
+    request<AnalysesDriveRapport>('/admin/analyses-drive/importer', { method: 'POST', body: JSON.stringify({ adresse, dates, essai }) }),
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>
