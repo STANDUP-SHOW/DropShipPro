@@ -216,6 +216,37 @@ Langue : français (interface et support)
 
 Prendre l'annonce n'importe où, la publier partout — et tout piloter depuis un seul endroit.
 
+## En bref
+
+- Relevé produits : extension Chrome, adresse collée ou lot entier. Photos, texte, prix, variantes, EAN et avis partent vers l'IA.
+- ${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles : AliExpress, Temu, CJ Dropshipping, BigBuy, vidaXL, Printful, SUPER DELIVERY…
+- Annonces IA en français, sans invention : titre en trois longueurs, description, attributs, mots-clés ; catégorie trouvée sans appel au modèle pour 98 % des annonces.
+- DropShop IA : boutique complète (panier, commande, emails, paiement Stripe) générée en trois minutes, 3,50 € une seule fois, à vie.
+- Visuels : photo en situation, publicité image avec accroche, prompts vidéo, aux couleurs du logo du vendeur.
+- Réseaux sociaux : publication organique Facebook et Instagram en un clic, sans jamais rejouer les mots de passe.
+- Diffusion : ${canaux.length} canaux référencés (${n.marketplace} places de marché, ${n.comparateur} comparateurs) ; publication directe vers Shopify, eBay, Kaufland et 41 enseignes Mirakl.
+- Analyses de marché : 24 catégories, deux rapports par jour et par catégorie (48 par jour), 20 produits et des prompts publicitaires.
+- Agents IA : annonces, publicité, SAV, comptabilité, juridique — chiffres sourcés, coûts plafonnés.
+- AUTO-SHIPPER (mode auto) : 1 € la journée + 0,18 € par produit importé et publié, journée rendue si rien n'a été importé.
+- Tarifs : aucun abonnement, crédit rendu quand une action échoue ; recharges de 5 à 150 €, jusqu'à −25 %.
+
+## Liens essentiels
+
+- [Accueil](${SITE}/)
+- [Tarifs](${SITE}/tarifs/)
+- [Fournisseurs](${SITE}/fonctions/fournisseurs/)
+- [Annonces IA](${SITE}/fonctions/annonces-ia/)
+- [Boutique DropShop IA](${SITE}/fonctions/dropshop-ia/)
+- [Diffusion sur ${canaux.length} canaux](${SITE}/fonctions/diffusion/)
+- [Analyses de marché du jour](${SITE}/analyses/)
+- [Mode auto (AUTO-SHIPPER)](${SITE}/fonctions/auto-shipper/)
+- [Extension Chrome](https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk)
+- [À propos et contact](${SITE}/a-propos/)
+
+## Prix lisibles par une machine
+
+1 drop = 0.01 EUR. Annonce importée et réécrite = 12 drops = 0.12 EUR. Boutique DropShop IA = 350 drops = 3.50 EUR, payée une fois. AUTO-SHIPPER = 100 drops (1.00 EUR) par jour + 18 drops (0.18 EUR) par produit. Inscription = 120 drops offerts. Recharges : 5 EUR à 150 EUR, jusqu'à -25 %.
+
 ## Ce qu'elle fait
 
 ${FONCTIONS.map((f) => `- **${f.titre}** — ${f.lignes[0]}`).join('\n')}
@@ -369,6 +400,8 @@ function main() {
     process.exit(1)
   }
   fs.writeFileSync(path.join(DIST, 'llms.txt'), carte())
+  // /ai.txt : même contenu, pour les robots qui cherchent ce nom-là plutôt que llms.txt.
+  fs.writeFileSync(path.join(DIST, 'ai.txt'), carte())
   fs.writeFileSync(path.join(DIST, 'llms-full.txt'), complet())
   const ko = (f) => Math.round(fs.statSync(path.join(DIST, f)).size / 1024)
   console.log(`llms.txt : ${ko('llms.txt')} Ko — llms-full.txt : ${ko('llms-full.txt')} Ko`)

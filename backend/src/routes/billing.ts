@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PACKS, SIGNUP_CREDITS, appUrl, findPack, getStripe, grantPack } from '../services/billing.js'
+import { confirmerCommandeMarket } from '../services/marketStripe.js'
 import { DROPS, EURO_PAR_DROP, USD_PAR_DROP } from '../services/tarifs.js'
 
 export const billingRouter = Router()
@@ -344,6 +345,11 @@ async function handleEvent(event: import('stripe').Stripe.Event) {
   // Only one-off drops recharges exist now — a completed checkout grants its pack.
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
+    // DropShop Market : une vente payée, pas une recharge (voir services/marketStripe.ts).
+    if (session.metadata?.market === '1') {
+      await confirmerCommandeMarket(session.id)
+      return
+    }
     const userId = session.metadata?.userId
     const planId = session.metadata?.planId
     if (!userId || !planId) return

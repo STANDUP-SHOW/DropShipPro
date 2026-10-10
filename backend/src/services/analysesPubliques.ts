@@ -369,7 +369,9 @@ const CSS = `
 body{margin:0;background:#140f28;color:#e9e6f5;font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:#c4b5fd}.wrap{max-width:52rem;margin:0 auto;padding:0 1.25rem}
 header{border-bottom:1px solid #ffffff1a}header .wrap{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;gap:1rem}
-.brand{font-weight:700;color:#fff;text-decoration:none;font-size:1.05rem}
+.brand{display:flex;align-items:flex-start;gap:5px;height:34px;text-decoration:none;flex:none}
+.brand img{display:block}
+.brand .mot{height:21.8px;width:auto;margin-top:8.3px}
 .cta{display:inline-block;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:600;padding:.7rem 1.15rem;border-radius:.75rem}
 .cta.small{padding:.5rem .9rem;font-size:.9rem}
 h1{font-size:1.8rem;line-height:1.25;margin:1.5rem 0 .5rem}h2{font-size:1.25rem;margin:2.25rem 0 .5rem}h3{font-size:1rem;margin:1.5rem 0 .35rem}
@@ -416,7 +418,7 @@ ${o.modifie ? `<meta property="article:modified_time" content="${o.modifie.toISO
 <script type="application/ld+json">${JSON.stringify(o.jsonLd)}</script>
 </head>
 <body>
-<header><div class="wrap"><a class="brand" href="/">${NOM}</a><a class="cta small" href="/register">Créer un compte</a></div></header>
+<header><div class="wrap"><a class="brand" href="/" aria-label="${NOM}, accueil"><img src="${SITE}/marque/dropshipper-icone.png" alt="" width="34" height="34"><img class="mot" src="${SITE}/marque/dropshipper-mot.png" alt="${NOM}" width="120" height="22"></a><a class="cta small" href="/register">Créer un compte</a></div></header>
 <main class="wrap">
 ${o.body}
 <div class="end"><a class="cta" href="/register">Essayer ${NOM} — 120 drops offerts</a></div>

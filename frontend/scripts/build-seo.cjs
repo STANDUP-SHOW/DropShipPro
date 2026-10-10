@@ -17,6 +17,7 @@ const topics = require('./seo-topics.cjs')
 const { canaux, types: typesCanal } = require('./seo-channels.cjs')
 
 const SITE = 'https://www.drop-shipper.fr'
+const { piedDePage, CSS_PIED } = require('./pied-de-page.cjs')
 const DIST = path.resolve(__dirname, '..', 'dist')
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -68,7 +69,9 @@ a{color:#c4b5fd}
 .wrap{max-width:52rem;margin:0 auto;padding:0 1.25rem}
 header{border-bottom:1px solid #ffffff1a}
 header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:1rem;padding-bottom:1rem;gap:1rem}
-.brand{font-weight:700;color:#fff;text-decoration:none;font-size:1.05rem}
+.brand{display:flex;align-items:flex-start;gap:5px;height:34px;text-decoration:none;flex:none}
+.brand img{display:block}
+.brand .mot{height:21.8px;width:auto;margin-top:8.3px}
 .cta{display:inline-block;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:600;padding:.7rem 1.15rem;border-radius:.75rem}
 .cta.small{padding:.5rem .9rem;font-size:.9rem}
 h1{font-size:1.9rem;line-height:1.25;margin:2rem 0 .5rem}
@@ -155,12 +158,12 @@ function layout({ url, title: titreLong, description, jsonLd, body }) {
 <meta property="og:url" content="${SITE}${url}">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-<style>${CSS}</style>
+<style>${CSS}${CSS_PIED}</style>
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 </head>
 <body>
 <header><div class="wrap">
-  <a class="brand" href="/">DropShipper IA</a>
+  <a class="brand" href="/" aria-label="DropShipper IA, accueil"><img src="/marque/dropshipper-icone.png" alt="" width="34" height="34"><img class="mot" src="/marque/dropshipper-mot.png" alt="DropShipper IA" width="120" height="22"></a>
   <a class="cta small" href="/register">Créer un compte</a>
 </div></header>
 <main class="wrap">
@@ -168,16 +171,7 @@ ${body}
 <div class="end"><a class="cta" href="/register">Essayer DropShipper IA</a></div>
 </main>
 <footer><div class="wrap">
-  <a href="/">Accueil</a>
-  <a href="/dropshipping/">Dropshipping</a>
-  <a href="/vendre-sur-marketplaces/">Où vendre</a>
-  <a href="/analyses/">Analyses de marché</a>
-  <a href="/tarifs/">Tarifs</a>
-  <a href="/faq/">Questions fréquentes</a>
-  <a href="/a-propos/">À propos</a>
-  <a href="/avis">Avis</a>
-  <a href="/confidentialite">Confidentialité</a>
-  <p>Guides : ${GUIDES.map(([href, label]) => `<a href="${href}">${label}</a>`).join(' ')}</p>
+${piedDePage(GUIDES)}
 </div></footer>
 </body>
 </html>

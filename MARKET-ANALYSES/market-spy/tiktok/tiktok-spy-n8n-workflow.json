@@ -1,0 +1,201 @@
+{
+  "name": "TIKTOK-SPY – TELEPHONIE",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "40 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "b508daf6-9680-4b4e-a480-0eb903d52f5a",
+      "name": "Chaque jour 6h40",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "08f36284-a220-45d8-9c05-2d291f7f6e11",
+      "name": "Lancement manuel",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const RAYON = 'TELEPHONIE';\nconst ROTATION = [\n  { theme: 'ecrans-externes-accessoires', kw: ['écran portable', 'hub usb-c'] },\n  { theme: 'smartphones',                 kw: ['smartphone', 'téléphone reconditionné'] },\n  { theme: 'chargeurs-cables-batteries',  kw: ['chargeur', 'powerbank', 'câble magnétique'] },\n  { theme: 'audio',                       kw: ['écouteurs', 'casque bluetooth', 'enceinte'] },\n  { theme: 'tablettes',                   kw: ['tablette', 'stylet'] },\n  { theme: 'coques-protections-gadgets',  kw: ['coque', 'protection écran', 'support voiture'] },\n  { theme: 'objets-connectes',            kw: ['montre connectée', 'traceur gps', 'bague connectée'] },\n];\nconst now = new Date(); const pad = n => String(n).padStart(2, '0');\nconst d = x => `${pad(x.getDate())}-${pad(x.getMonth() + 1)}-${String(x.getFullYear()).slice(2)}`;\nconst ymd = x => `${x.getFullYear()}${pad(x.getMonth() + 1)}${pad(x.getDate())}`;\nconst st = ROTATION[now.getDay()];\nreturn [{ json: { rayon: RAYON, sous_theme: st.theme, keywords: st.kw, country: $env.TIKTOK_COUNTRY || 'FR',\n  date_run: d(now), date_prev: d(new Date(now - 86400000)),\n  range: { min: ymd(new Date(now - 30 * 86400000)), max: ymd(now) } } }];\n"
+      },
+      "id": "59efb701-ae6a-43f9-a5b7-075765a6305f",
+      "name": "Config du jour",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Commercial Content API (registre officiel des pubs TikTok diffusées dans l'UE — DSA)\n// Doc : POST https://open.tiktokapis.com/v2/research/adlib/ad/query/   scope research.adlib.basic   10 résultats / requête\nconst cfg = $input.first().json;\nconst MAX_PAGES = Number($env.TIKTOK_MAX_PAGES_PER_KEYWORD || 5);           // 5 x 10 = 50 pubs / mot-clé\nconst tok = await this.helpers.httpRequest({ method: 'POST', url: 'https://open.tiktokapis.com/v2/oauth/token/',\n  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },\n  body: `client_key=${encodeURIComponent($env.TIKTOK_CLIENT_KEY)}&client_secret=${encodeURIComponent($env.TIKTOK_CLIENT_SECRET)}&grant_type=client_credentials` });\nconst token = tok.access_token; if (!token) throw new Error('Token TikTok refusé : ' + JSON.stringify(tok).slice(0, 300));\nconst FIELDS = 'ad.id,ad.first_shown_date,ad.last_shown_date,ad.status,ad.videos,ad.image_urls,ad.reach,advertiser.business_id,advertiser.business_name,advertiser.paid_for_by';\nconst ads = []; const warnings = [];\nfor (const kw of cfg.keywords) {\n  let search_id, page = 0, more = true;\n  while (more && page < MAX_PAGES) {\n    const body = { filters: { ad_published_date_range: cfg.range, country_code: cfg.country, ad_status: 'ACTIVE' },\n                   search_term: kw.slice(0, 50), search_type: 'fuzzy_phrase', max_count: 10 };\n    if (search_id) body.search_id = search_id;\n    let r;\n    try { r = await this.helpers.httpRequest({ method: 'POST', url: `https://open.tiktokapis.com/v2/research/adlib/ad/query/?fields=${FIELDS}`,\n      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body, json: true }); }\n    catch (e) { warnings.push(`${kw} p${page} : ${String(e.message || e).slice(0, 150)}`); break; }\n    if (r.error && r.error.code && r.error.code !== 'ok') { warnings.push(`${kw} : ${r.error.code} ${r.error.message || ''}`); break; }\n    for (const x of (r.data?.ads || [])) ads.push({ ...x, keyword: kw });\n    more = !!r.data?.has_more; search_id = r.data?.search_id; page++;\n    await new Promise(res => setTimeout(res, 1200));\n  }\n}\nreturn [{ json: { ...cfg, tiktok_ads_raw: ads, warnings } }];\n"
+      },
+      "id": "e4878248-a7b5-4985-9ddc-c911bd5441e9",
+      "name": "TikTok Commercial Content API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalisation + scoring + alertes + croisement Minea/Dropship + archivage\nconst fs = require('fs'); const path = require('path');\nconst c = $input.first().json; const dir = $env.MARKET_ANALYSES_DIR || './MARKET-ANALYSES'; fs.mkdirSync(dir, { recursive: true });\nconst reachMin = r => { if (r == null) return null; const s = typeof r === 'object' ? (r.unique_users_seen || r.reach || JSON.stringify(r)) : String(r);\n  const m = String(s).replace(/,/g, '').match(/([\\d.]+)\\s*([KkMm]?)/); if (!m) return null; return Math.round(parseFloat(m[1]) * (/k/i.test(m[2]) ? 1e3 : /m/i.test(m[2]) ? 1e6 : 1)); };\nconst ymdToDate = s => s ? new Date(`${String(s).slice(0,4)}-${String(s).slice(4,6)}-${String(s).slice(6,8)}`) : null;\nconst seen = new Set();\nconst ads = (c.tiktok_ads_raw || []).filter(x => { const id = x.ad?.id; if (!id || seen.has(id)) return false; seen.add(id); return true; }).map(x => {\n  const first = ymdToDate(x.ad?.first_shown_date), last = ymdToDate(x.ad?.last_shown_date);\n  const jours = first && last ? Math.max(1, Math.round((last - first) / 86400000)) : null;\n  const reach = reachMin(x.ad?.reach);\n  return { id: x.ad.id, keyword: x.keyword, annonceur: x.advertiser?.business_name, annonceur_id: x.advertiser?.business_id, paye_par: x.advertiser?.paid_for_by,\n    statut: x.ad?.status, debut: x.ad?.first_shown_date, fin: x.ad?.last_shown_date, jours_diffusion: jours, reach_brut: x.ad?.reach, reach_min: reach,\n    videos: (x.ad?.videos || []).map(v => v.url || v.cover_image_url || v).slice(0, 3), images: (x.ad?.image_urls || []).slice(0, 3),\n    score_tiktok: Math.min(20, Math.round(Math.min(8, (jours || 0) / 4) + Math.min(10, (reach || 0) / 100000) + (x.ad?.status === 'ACTIVE' ? 2 : 0))) };\n});\n// annonceurs : regroupement (un annonceur avec beaucoup de pubs actives = produit qui scale)\nconst byAdv = {}; for (const a of ads) { const k = a.annonceur || '?'; (byAdv[k] = byAdv[k] || { annonceur: k, nb_pubs: 0, reach_total: 0, keywords: new Set() });\n  byAdv[k].nb_pubs++; byAdv[k].reach_total += a.reach_min || 0; byAdv[k].keywords.add(a.keyword); }\nconst advertisers = Object.values(byAdv).map(v => ({ ...v, keywords: [...v.keywords] })).sort((a, b) => b.nb_pubs - a.nb_pubs);\n\n// alertes vs J-1\nlet prev = {}; try { prev = JSON.parse(fs.readFileSync(path.join(dir, `${c.rayon}-${c.date_prev}-TIKTOK.json`), 'utf8')); } catch (e) {}\nconst prevAdv = Object.fromEntries((prev.advertisers || []).map(a => [a.annonceur, a]));\nconst alerts = [];\nfor (const a of advertisers) { const p = prevAdv[a.annonceur];\n  if (!p && a.nb_pubs >= 3) alerts.push({ type: 'NOUVEAU CONCURRENT TIKTOK', annonceur: a.annonceur, nb_pubs: a.nb_pubs });\n  else if (p && a.nb_pubs >= p.nb_pubs * 1.5 && a.nb_pubs >= 3) alerts.push({ type: 'BREAKOUT TIKTOK', annonceur: a.annonceur, de: p.nb_pubs, a: a.nb_pubs }); }\n\n// croisement 3 sources (noms d'annonceurs / boutiques Minea et Dropship du jour)\nconst norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');\nconst mineaN = new Set(), dsN = new Set();\ntry { const m = JSON.parse(fs.readFileSync(path.join(dir, `${c.rayon}-${c.date_run}-MINEA.json`), 'utf8')); (m.ads || []).forEach(a => mineaN.add(norm(a.boutique))); } catch (e) {}\ntry { const d = JSON.parse(fs.readFileSync(path.join(dir, `${c.rayon}-${c.date_run}-DROPSHIP.json`), 'utf8'));\n  (d.rayon?.fb_ads || []).forEach(a => dsN.add(norm(a.annonceur))); (d.rayon?.tiktok_products || []).forEach(p => dsN.add(norm(p.boutique))); } catch (e) {}\nfor (const a of advertisers) { const n = norm(a.annonceur); const src = ['TikTok', mineaN.has(n) && 'Minea', dsN.has(n) && 'dropship.io'].filter(Boolean);\n  if (src.length >= 2) alerts.push({ type: `VALIDÉ ${src.length} SOURCES`, annonceur: a.annonceur, sources: src }); }\n\nconst out = { source: 'tiktok-commercial-content-api', rayon_nom: c.rayon, sous_theme: c.sous_theme, mots_cles: c.keywords, pays: c.country,\n  date_run: c.date_run, periode: c.range, ads, advertisers, alerts, warnings: c.warnings, scrapedAt: new Date().toISOString() };\nconst file = path.join(dir, `${c.rayon}-${c.date_run}-TIKTOK.json`); fs.writeFileSync(file, JSON.stringify(out, null, 2));\nreturn [{ json: { file, rayon_nom: c.rayon, sous_theme: c.sous_theme, date_run: c.date_run, alerts, warnings: c.warnings,\n  top_ads: [...ads].sort((a, b) => b.score_tiktok - a.score_tiktok).slice(0, 20), advertisers: advertisers.slice(0, 15) } }];\n"
+      },
+      "id": "20da4ebe-9e2e-42cf-96f6-88b17eca55c7",
+      "name": "Parse, score & alertes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: $env.CLAUDE_MODEL, max_tokens: 4000,\n  system: \"Tu es l'agent TIKTOK-SPY de MarketSpy/aiMARKET pour drop-shipper.fr. Rédige en français la section 'SIGNAUX TIKTOK' du rapport du rayon, à partir du registre officiel des publicités TikTok (UE). Structure : 1) Synthèse 5 lignes 2) Tableau des pubs TikTok les plus fortes (annonceur, mot-clé, jours de diffusion, reach, score_tiktok/20) 3) Annonceurs qui scalent (nb de pubs actives) 4) MARKET ALERTs, en mettant en avant les alertes 'VALIDÉ 2/3 SOURCES' 5) Angle créatif TikTok recommandé par type de produit (format UGC, Spark Ads, hook) 6) Limites des données (pas de CA ni de dépenses dans ce registre). N'invente aucune donnée absente du JSON.\",\n  messages: [{ role: 'user', content: JSON.stringify({ rayon: $json.rayon_nom, sous_theme: $json.sous_theme, date: $json.date_run, alerts: $json.alerts, warnings: $json.warnings, top_ads: $json.top_ads, advertisers: $json.advertisers }) }]\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "622d1e57-f4bf-4211-bcbd-3cd94294ece2",
+      "name": "Claude – rédaction section",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs'); const path = require('path');\nconst d = $('Parse, score & alertes').first().json;\nconst text = ($input.first().json.content || []).map(b => b.text || '').join('\\n');\nconst file = path.join($env.MARKET_ANALYSES_DIR || './MARKET-ANALYSES', `${d.rayon_nom}-${d.date_run}-TIKTOK.md`);\nfs.writeFileSync(file, `# ${d.rayon_nom} — ${d.sous_theme} — ${d.date_run} — Signaux TikTok\\n\\n${text}\\n`);\nreturn [{ json: { ok: true, file, alerts: d.alerts.length } }];\n"
+      },
+      "id": "b67fdf6a-cf9d-4efc-b754-ff6764c7b13a",
+      "name": "Écrire rapport .md",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Chaque jour 6h40": {
+      "main": [
+        [
+          {
+            "node": "Config du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancement manuel": {
+      "main": [
+        [
+          {
+            "node": "Config du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config du jour": {
+      "main": [
+        [
+          {
+            "node": "TikTok Commercial Content API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TikTok Commercial Content API": {
+      "main": [
+        [
+          {
+            "node": "Parse, score & alertes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse, score & alertes": {
+      "main": [
+        [
+          {
+            "node": "Claude – rédaction section",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude – rédaction section": {
+      "main": [
+        [
+          {
+            "node": "Écrire rapport .md",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  },
+  "active": false
+}

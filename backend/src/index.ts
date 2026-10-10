@@ -10,6 +10,8 @@ import { settingsRouter } from './routes/settings.js'
 import { publicRouter } from './routes/public.js'
 import { betaRouter } from './routes/beta.js'
 import { vitrineRouter } from './routes/vitrine.js'
+import { marketRouter, marketHostRouter } from './routes/market.js'
+import { marketApiRouter } from './routes/marketApi.js'
 import { analysesPubliquesRouter, lignesPubliques } from './routes/analysesPubliques.js'
 import { sitemapXml } from './services/analysesPubliques.js'
 import { planifierAnnonce } from './services/annonceAnalyses.js'
@@ -31,10 +33,12 @@ import { conversationsRouter } from './routes/conversations.js'
 import { supplierConversationsRouter } from './routes/supplierConversations.js'
 import { visualsRouter } from './routes/visuals.js'
 import { billingRouter, stripeWebhook } from './routes/billing.js'
+import { affiliationRouter } from './routes/affiliation.js'
 import { shopifyAppRouter } from './routes/shopifyApp.js'
 import { aliexpressAuthRouter } from './routes/aliexpressAuth.js'
 import { ebayAuthRouter } from './routes/ebayAuth.js'
 import { reportsPublicRouter } from './routes/reportsPublic.js'
+import { outilsPublicsRouter } from './routes/outilsPublics.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
 
@@ -98,6 +102,9 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stri
 // rather than with the other routers so express.json never touches this body.
 app.use('/api/shopify', express.raw({ type: 'application/json' }), shopifyAppRouter)
 
+// DropShop Market : drop-shop.cloud pointe sur ce service et y est servi a la racine.
+// Avant express.json : les pages du Market n ont pas de corps JSON.
+app.use(marketHostRouter)
 app.use(express.json({ limit: '2mb' }))
 
 // Watermarked photos are public assets pulled into third-party listing forms, so
@@ -124,6 +131,8 @@ app.get('/api/health/ai', async (_req, res) => {
 
 // Public report endpoints (market analyses, products, prompts, etc.)
 app.use('/api', reportsPublicRouter)
+// Les outils gratuits du site (/outils/) : publics, bornés, sans compte.
+app.use('/api', outilsPublicsRouter)
 
 app.use('/api/auth', authRouter)
 app.use('/api/admin', adminRouter)
@@ -136,11 +145,13 @@ app.use('/api/aliexpress', aliexpressAuthRouter)
 app.use('/api/ebay', ebayAuthRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/billing', billingRouter)
+app.use('/api/affiliation', affiliationRouter)
 app.use('/api/agent', agentRouter)
 // L'application mobile (API Link, 29/09/2026) : contrat propre, erreurs en { detail }.
 app.use('/api/mobile', mobileRouter)
 app.use('/api/market-reports', marketReportsRouter)
 app.use('/api/dropshop', dropshopRouter)
+app.use('/api/market', marketApiRouter)
 // Le Back Office des boutiques DropShop (extension) : sa propre session, hors compte marchand.
 app.use('/api/boutique-admin', shopAdminRouter)
 app.use('/api/opportunities', opportunitiesRouter)
@@ -166,6 +177,8 @@ app.use('/api/beta', betaRouter)
 app.use('/api/public', publicRouter)
 // Les vitrines vivent hors de /api : c est une page, pas une ressource d API.
 app.use('/b', vitrineRouter)
+// Apercu du Market sous l adresse de l API (le domaine drop-shop.cloud le sert a la racine).
+app.use('/market', marketRouter)
 // Les rapports des agents en pages publiques, réécrites par Vercel sous www.drop-shipper.fr/analyses/.
 app.use('/analyses', analysesPubliquesRouter)
 

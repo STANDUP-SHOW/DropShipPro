@@ -3,7 +3,7 @@ import { apiBaseUrl } from '../lib/urls.js'
 
 /**
  * Le contrat commun des places de marché publiées par API avec autorisation
- * du vendeur : TikTok Shop, Amazon, Allegro.
+ * du vendeur : TikTok Shop, Amazon, Allegro, Cdiscount, Etsy, Wish.
  *
  * Pourquoi un contrat et pas trois branches de plus dans `publisher.ts` : ces
  * trois-là ont la même forme — une application DropShipper déclarée chez la
@@ -30,6 +30,14 @@ export interface DepotMarche {
   majCreds?: Record<string, unknown>
 }
 
+export interface ChampSaisi {
+  cle: string
+  libelle: string
+  /** Un exemple de valeur, montré dans le champ vide. */
+  indice?: string
+  secret?: boolean
+}
+
 export interface ConnecteurMarche<C = Record<string, unknown>> {
   platform: Platform
   label: string
@@ -37,8 +45,18 @@ export interface ConnecteurMarche<C = Record<string, unknown>> {
   appConfiguree(): boolean
   /** Ce qui manque à notre application, en clair, quand elle ne l'est pas. */
   manque(): string
-  /** L'adresse où envoyer le vendeur pour autoriser DropShipper. */
-  lienAutorisation(etat: string, redirectUri: string): string
+  /**
+   * L'adresse où envoyer le vendeur pour autoriser DropShipper. Absente quand
+   * la plateforme ne connaît pas la redirection (Cdiscount : le vendeur délègue
+   * l'accès dans son portail, puis colle ce que `saisie` demande).
+   */
+  lienAutorisation?(etat: string, redirectUri: string): string
+  /**
+   * Les champs que le vendeur colle lui-même, quand la liaison passe par une
+   * saisie plutôt que par une redirection. Ils sont éprouvés par `verifier`
+   * avant que le compte soit dit relié, comme une autorisation.
+   */
+  saisie?(): ChampSaisi[]
   /**
    * Au retour de l'autorisation : échange le code (ou ce que la plateforme
    * renvoie) contre les identifiants à garder, et un nom lisible du compte.

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
+import PiedDePagePublic from '../components/PiedDePagePublic'
 
 /**
  * Public privacy policy.
@@ -130,6 +131,7 @@ export default function Privacy() {
 
         <p className="mt-10 text-xs text-gray-500">Dernière mise à jour : août 2026.</p>
       </main>
+      <PiedDePagePublic />
     </div>
   )
 }

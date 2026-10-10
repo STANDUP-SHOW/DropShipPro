@@ -13,3 +13,6 @@ MARKET-ANALYSES/rapports/
 MARKET-ANALYSES/n8n/_sauvegardes/
 MARKET-ANALYSES/n8n/*.sqlite
 backend/rapports.db.avant-*
+
+# Les jetons des agents de veille : jamais dans le depot.
+MARKET-ANALYSES/market-spy/.env

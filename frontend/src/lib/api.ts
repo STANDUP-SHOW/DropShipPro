@@ -130,6 +130,27 @@ export interface EtatDropShop {
   tarifs: { creation: number; modification: number; incluses: number }
 }
 
+export interface MarketVendeur {
+  commission: number
+  market: string
+  stripe: { inscrit: boolean; actif: boolean; detailsEnvoyes: boolean; virements: boolean; manque?: string[]; erreur?: boolean }
+  annonces: Array<{ productId: string; titre: string; url: string; variantes: number; prime: boolean; publieeLe: string | null }>
+  ventes: Array<{ id: string; titre: string; variante: string | null; quantite: number; montant: number; commission: number; acheteur: string; payeeLe: string | null; statut: string }>
+  boutiques: Array<{ nom: string; url: string }>
+  flux: { google: string; meta: string; comparateurs: string; googleAds: string; parBoutique: Array<{ nom: string; google: string }> }
+}
+
+export interface MarketAdmin {
+  commission: number
+  market: string
+  chiffres: {
+    annonces: number; annoncesPrime: number; vendeursAvecAnnonces: number; vendeursPaiementsActifs: number; inscriptionsStripe: number
+    ventes: number; volume: number; commissions: number; ventes30j: number; volume30j: number; commissions30j: number
+  }
+  vendeurs: Array<{ id: string; email: string; nom: string | null; paiements: boolean; annonces: number; inscritLe: string }>
+  ventes: Array<{ id: string; titre: string; variante: string | null; vendeur: string; montant: number; commission: number; payeeLe: string | null; statut: string }>
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   /*
@@ -279,6 +300,20 @@ function enQuery(params: Record<string, string | number | undefined>): string {
 }
 
 export const api = {
+  /** DropShop Market (drop-shop.cloud) : l espace vendeur — Stripe Connect, annonces, ventes, flux. */
+  marketVendeur: () => request<MarketVendeur>('/market/vendeur'),
+  marketStripe: () => request<{ url: string }>('/market/vendeur/stripe', { method: 'POST' }),
+  marketStripeTableau: () => request<{ url: string }>('/market/vendeur/stripe/tableau', { method: 'POST' }),
+  /** DropShop Market : l admin simplifie (compte admin seulement, 403 sinon). */
+  marketAdmin: () => request<MarketAdmin>('/market/admin'),
+  marketAdminAnnonces: (userId: string) =>
+    request<{ annonces: Array<{ productId: string; titre: string; url: string; prix: number; prime: boolean }> }>(`/market/admin/vendeurs/${userId}/annonces`),
+  marketPrime: (productId: string, prime: boolean, engagement = false) =>
+    request<{ ok: true; prime: boolean }>(`/market/vendeur/annonces/${productId}/prime`, { method: 'POST', body: JSON.stringify({ prime, engagement }) }),
+  marketRetirerPrime: (productId: string) =>
+    request<{ ok: true }>(`/market/admin/annonces/${productId}/retirer-prime`, { method: 'POST' }),
+  marketRetirer: (productId: string, raison: string) =>
+    request<{ ok: true }>(`/market/admin/annonces/${productId}/retirer`, { method: 'POST', body: JSON.stringify({ raison }) }),
   /** « Connecter mon compte eBay » : l'adresse d'autorisation, ou `configure: false` tant que l'application eBay n'est pas posée côté serveur. */
   /** Un produit partagé (menu « Partager » du téléphone, page /partager) : il rejoint la liste à importer, la même que celle du mobile et du desktop. */
   partagerProduit: (data: { url?: string; text?: string }) =>
@@ -291,8 +326,19 @@ export const api = {
   /** TikTok Shop, Amazon, Allegro : l'app est-elle déclarée, le compte vendeur relié ? */
   marchesEtat: () =>
     request<
-      Array<{ platform: string; label: string; appConfiguree: boolean; manque: string | null; relie: boolean; compte: string | null }>
+      Array<{
+        platform: string
+        label: string
+        appConfiguree: boolean
+        manque: string | null
+        relie: boolean
+        compte: string | null
+        autorisation: boolean
+        saisie: Array<{ cle: string; libelle: string; indice?: string; secret?: boolean }> | null
+      }>
     >('/marches'),
+  marcheSaisie: (platform: string, data: Record<string, string>) =>
+    request<{ ok: true }>(`/marches/${platform.toLowerCase()}/saisie`, { method: 'POST', body: JSON.stringify(data) }),
   marcheConnect: (platform: string) =>
     request<{ url: string }>(`/marches/${platform.toLowerCase()}/connect`, { method: 'POST' }),
   marcheDelier: (platform: string) => request<{ ok: true }>(`/marches/${platform.toLowerCase()}`, { method: 'DELETE' }),
@@ -653,6 +699,13 @@ export const api = {
     request<{ total: number; subscribers: Array<{ id: string; email: string; source: string | null; createdAt: string }> }>(
       '/admin/newsletter',
     ),
+  // Affiliation — les versements du mois, vue admin (requireAdmin côté serveur).
+  affiliationAdmin: () => request<AffiliationAdmin>('/admin/affiliation'),
+  affiliationVerse: (id: string, reference: string) =>
+    request<{ versement: { id: string; montantCentimes: number; createdAt: string } }>(`/admin/affiliation/${id}/verse`, {
+      method: 'POST',
+      body: JSON.stringify({ reference }),
+    }),
   listChannels: () =>
     request<{
       types: Array<{ id: string; label: string; aide: string }>
@@ -2259,4 +2312,26 @@ export interface DepotAvis {
   ajoutes: number
   dejaPresents: number
   refus: string[]
+}
+
+export interface AffiliationAdmin {
+  seuilCentimes: number
+  totaux: { affilies: number; aVerser: number; dusCentimes: number; dusAVerserCentimes: number; versesCentimes: number }
+  affilies: Array<{
+    id: string
+    nom: string
+    email: string
+    code: string
+    inscritLe: string
+    filleuls: number
+    clics: number
+    titulaire: string | null
+    iban: string | null
+    ibanMajLe: string | null
+    gainsCentimes: number
+    dusCentimes: number
+    versesCentimes: number
+    aVerser: boolean
+    versements: Array<{ id: string; montantCentimes: number; reference: string | null; createdAt: string }>
+  }>
 }
