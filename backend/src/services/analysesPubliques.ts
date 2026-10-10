@@ -13,9 +13,9 @@
  * La lecture en base est dans `routes/analysesPubliques.ts`.
  *
  * Ce qui est public et ce qui ne l'est pas — la ligne est nette : l'analyse
- * entière l'est, le tableau des produits gagnants aussi (titre, fournisseur,
- * prix de vente conseillé, marge, pourquoi), mais **ni l'adresse de la fiche
- * fournisseur ni le prix d'achat** : c'est ce que les rapports du jour offrent
+ * entière l'est, le tableau des produits gagnants aussi (titre, prix de vente
+ * conseillé, pourquoi), mais **ni le fournisseur (nom ou adresse) ni le prix
+ * d'achat**, pas même glissés par l'agent dans le texte « pourquoi » : c'est ce que les rapports du jour offrent
  * aux comptes à 500 drops (`routes/marketReports.ts`), et c'est la valeur qui
  * fait ouvrir un compte. Le corps Markdown du rapport rayon contient ce tableau
  * avec ses adresses : il n'est jamais rendu tel quel, la section des produits
@@ -442,16 +442,43 @@ function breadcrumbLd(items: Array<{ nom: string; url?: string }>) {
 
 const ORGANISATION = { '@type': 'Organization', '@id': `${SITE}/#organisation`, name: NOM, url: `${SITE}/` }
 
-/** Les produits gagnants, bridés : ni adresse fournisseur, ni prix d'achat, ni marge (son unité varie selon l'agent). */
+/**
+ * Ce qui, dans un texte libre d'agent, trahit l'achat : un prix d'achat
+ * (« 1,91 US$ relevé sur la fiche »), un coût, une devise étrangère, ou le nom
+ * d'un fournisseur. Les agents l'écrivent dans « pourquoi » : la colonne
+ * fournisseur retirée ne suffit pas, le texte est filtré au rendu.
+ */
+const TRAHIT_ACHAT = /achat|fournisseur|relev|sur la fiche|co[uû]t|usine|grossiste|\$|US\s?\$|¥|yuan|rmb|cny|aliexpress|alibaba|1688|cj\s?drop|cjdropshipping|temu|shein|bigbuy|accio|dhgate|banggood|spocket|zendrop|syncee/i
+
+/** « pourquoi » sans ce qui trahit l'achat : chaque parenthèse et chaque membre de phrase fautif est retiré. Exporté pour le banc. */
+export function pourquoiPublic(texte: string | null | undefined): string {
+  if (!texte) return ''
+  // The agents' « · »-separated fields (verdict · reason · audience) are filtered one by one.
+  return texte
+    .split(/\s+·\s+/)
+    .map((champ) => {
+      const sansParentheses = champ.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (TRAHIT_ACHAT.test(dedans) ? '' : m))
+      const net = sansParentheses
+        .split(/\s*[;,]\s+|\s+[—–-]\s+/)
+        .map((m) => m.trim().replace(/[.\s]+$/, ''))
+        .filter((m) => m && !TRAHIT_ACHAT.test(m))
+        .join(', ')
+      return net ? net.charAt(0).toUpperCase() + net.slice(1) : ''
+    })
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/** Les produits gagnants, bridés : ni fournisseur, ni prix d'achat, ni marge (son unité varie selon l'agent). */
 function tableauProduitsPublic(produits: ProduitRapport[]): string {
   if (!produits.length) return ''
   const euros = (n: number | null) => (n === null ? '—' : `${n.toFixed(2).replace('.', ',')} €`)
   return `<div class="tableau"><table>
-<thead><tr><th>#</th><th>Produit</th><th>Fournisseur</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
+<thead><tr><th>#</th><th>Produit</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
 <tbody>${produits
     .map(
       (p) =>
-        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${esc(p.fournisseur)}</td><td>${euros(p.prixVente)}</td><td>${esc(p.pourquoi)}</td></tr>`,
+        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${euros(p.prixVente)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`,
     )
     .join('')}</tbody></table></div>
 <p class="garde">La fiche fournisseur et le prix d'achat de chaque produit sont réservés aux comptes ${NOM} : <a href="/register">créez un compte</a> pour les ouvrir, les importer en un clic et les publier sur vos places de marché.</p>`
@@ -466,7 +493,7 @@ function produitsLd(r: RapportPublic) {
       '@type': 'ListItem',
       position: p.rang,
       name: p.titre,
-      ...(p.prixVente !== null ? { description: `Prix de vente conseillé ${p.prixVente.toFixed(2)} € — ${p.pourquoi}` } : {}),
+      ...(p.prixVente !== null ? { description: [`Prix de vente conseillé ${p.prixVente.toFixed(2)} €`, pourquoiPublic(p.pourquoi)].filter(Boolean).join(' — ') } : {}),
     })),
   }
 }
@@ -481,7 +508,7 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
     r.accroche ||
     (estRayon
       ? r.produits.length
-        ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping, avec fournisseur, prix de vente conseillé et marge.`
+        ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping, avec prix de vente conseillé.`
         : `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} : tendances, prix pratiqués, saisonnalité et pistes de produits à importer en dropshipping.`
       : `Analyse marketing ${theme.toLowerCase()} du ${dateLongue(r.day)} : angles, audiences, prompts publicitaires image et vidéo.`)
 
@@ -697,7 +724,7 @@ ${
   top.length
     ? `<h2 id="produits">Les produits gagnants du jour</h2><div class="tableau"><table>
 <thead><tr><th>Produit</th><th>Catégorie</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
-<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixVente)}</td><td>${esc(p.pourquoi)}</td></tr>`).join('')}</tbody></table></div>`
+<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixVente)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`).join('')}</tbody></table></div>`
     : ''
 }
 ${[...parCategorie.values()]
