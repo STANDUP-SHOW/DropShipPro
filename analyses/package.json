@@ -1,6 +1,6 @@
 {
   "name": "dropshipper-poste-analyses",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Poste d'analyses DropShipper — les agents d'analyse de marché, un navigateur privé à sessions persistantes et le dossier de dépôt des rapports, sur un PC dédié.",
   "author": "DropShipper IA <contact@drop-shipper.fr>",
   "main": "main.js",

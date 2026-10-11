@@ -680,6 +680,31 @@ test('sourcing : un site refusé par l’API est écarté et la vague continue ;
   assert.match(k.poste.sourcing.echec, /allowed_domains: invalid/)
 })
 
+test('sourcing : trop peu de fiches fournisseurs, le poste relance d’autres formulations avant d’écrire, et écarte les pages de recherche', async (srv) => {
+  const m = mondeClaude(srv); remise(); etat.mode = 'sourcing-maigre'
+  let prompt = ''
+  const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion }, options: {} })
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  assert.ok(etat.recherchesWeb.includes('other item 0 wholesale supplier price'), 'formulations de relance cherchées')
+  assert.ok(!/\/w\/wholesale-generic/.test(prompt.split('# OFFRES FOURNISSEURS')[1].split('\n# ')[0]), 'page de recherche écartée des offres')
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.equal(j.poste.sourcing.relances, 1)
+  assert.equal(j.poste.sourcing.offres, 6 + 80)
+  assert.ok(j.poste.sourcing.listesEcartees >= 20)
+  assert.equal(new Set(j.products.map((p) => p.supplier_url)).size, 20)
+  const trace = JSON.parse(fs.readFileSync(path.join(m.racine, 'releves', '2026-10-03', 'recherches', 'telephonie_smartphones.json'), 'utf8'))
+  assert.equal(trace.recherches.filter((r) => r.vague === 'sourcing-relance-1').length, 20)
+})
+
+test('sourcing : une fiche fournisseur se distingue d’une page de recherche ou de catégorie', () => {
+  const { estFicheFournisseur } = lib('rayon')
+  for (const u of ['https://www.aliexpress.com/item/1005006.html', 'https://www.alibaba.com/product-detail/Wholesale-Mini-PC-N100_1600.html', 'https://abc.en.made-in-china.com/product/XyZ/China-Mini-PC.html', 'https://cjdropshipping.com/product/mini-pc-p-123.html'])
+    assert.ok(estFicheFournisseur(u), u)
+  for (const u of ['https://www.aliexpress.com/w/wholesale-mini-pc.html', 'https://www.alibaba.com/showroom/mini-pc.html', 'https://www.made-in-china.com/products-search/hot-china-products/Mini_Pc.html', 'https://www.alibaba.com/trade/search?SearchText=mini+pc', 'https://www.aliexpress.com/', 'https://www.aliexpress.com/popular/mini-pc.html'])
+    assert.ok(!estFicheFournisseur(u), u)
+})
+
 test('contrôle des crédits sans Serper : la clé Anthropic seule, aucune recherche dépensée', async (srv) => {
   const m = mondeClaude(srv); remise()
   const r = await orch.controleCredits({ serper: null, claude: m.claude })

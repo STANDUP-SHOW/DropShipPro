@@ -27,7 +27,12 @@ function reponseRecherche(j, port) {
     content.push({ type: 'server_tool_use', id, name: 'web_search', input: { query: tapee } })
     if (etat.mode === 'recherche-refusee') { content.push({ type: 'web_search_tool_result', tool_use_id: id, content: { type: 'web_search_tool_result_error', error_code: 'unavailable' } }); continue }
     const base = 5000 + etat.recherchesWeb.length * 10
-    const liste = Array.from({ length: 6 }, (_, i) => ({ type: 'web_search_result', url: `http://127.0.0.1:${port}/p/${base + i}`, title: `Résultat ${q} ${i}`, encrypted_content: 'Eq…', page_age: '3 octobre 2026' }))
+    let liste = Array.from({ length: 6 }, (_, i) => ({ type: 'web_search_result', url: `http://127.0.0.1:${port}/p/${base + i}`, title: `Résultat ${q} ${i}`, encrypted_content: 'Eq…', page_age: '3 octobre 2026' }))
+    // 'sourcing-maigre': every first supplier wording finds the same 6 pages plus a search page (mini PCs, 11/10)
+    if (etat.mode === 'sourcing-maigre' && domaines && /^generic item/.test(q)) {
+      liste = [{ type: 'web_search_result', url: `http://127.0.0.1:${port}/w/wholesale-generic.html`, title: 'Recherche', encrypted_content: 'Eq…' }]
+        .concat(Array.from({ length: 6 }, (_, i) => ({ type: 'web_search_result', url: `http://127.0.0.1:${port}/p/${9000 + i}`, title: `Commun ${i}`, encrypted_content: 'Eq…' })))
+    }
     content.push({ type: 'web_search_tool_result', tool_use_id: id, content: liste })
     citations.push({ type: 'web_search_result_location', url: liste[0].url, title: liste[0].title, encrypted_index: 'x', cited_text: domaines ? `${q} : US $4.20-6.80 / piece, MOQ 2 pieces` : `${q} : modèle vendu 49,90 € chez Boutique` })
   }
@@ -169,7 +174,8 @@ function creerServeur() {
           if (j.max_tokens <= 10) {
             texte = 'ok'
           } else if (/tableau JSON d/.test(j.system || '')) {
-            texte = etat.mode === 'noms-vides' ? '[]' : JSON.stringify(Array.from({ length: 26 }, (_, i) => ({ modele: `Marque Modele ${i}`, fournisseur: `generic item ${i}` })))
+            texte = /formulations NOUVELLES/.test(user) ? JSON.stringify(Array.from({ length: 20 }, (_, i) => `other item ${i}`))
+              : etat.mode === 'noms-vides' ? '[]' : JSON.stringify(Array.from({ length: 26 }, (_, i) => ({ modele: `Marque Modele ${i}`, fournisseur: `generic item ${i}` })))
           } else if (etat.mode === 'vide') {
             texte = ''; arret = 'max_tokens'
           } else if (etat.mode === 'illisible') {

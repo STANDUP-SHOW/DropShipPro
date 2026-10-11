@@ -103,6 +103,20 @@ Depuis la 0.3.1 :
   (`poste.stats.horsSourcing`, rapport « à revoir », jamais envoyé) et, sans page fournisseur,
   vide prix d'achat et marges : jamais d'estimation. `poste.sourcing` compte les offres.
 
+## Relance fournisseurs quand les fiches manquent (0.3.5, 11/10/2026)
+
+Rayon test du 11/10 (informatique/mini-pc-bureau) : « à revoir », 14 produits, 13 URL vérifiées,
+1 lien pris chez un revendeur. Cause : les noms de modèles d'un thème se ramènent souvent à
+quelques formulations fournisseur (« mini pc n100 »), donc peu de recherches, des pages
+communes et des pages de recherche (`/w/wholesale-…`, `/showroom/…`) que le rapport ne peut
+pas utiliser ; avec moins de 20 fiches, le modèle rend moins de 20 produits (règle 3 du prompt).
+Depuis la 0.3.5 : les pages de recherche ou de catégorie des sites fournisseurs sont écartées
+(`poste.sourcing.listesEcartees`), une même fiche n'est comptée qu'une fois, et tant qu'il y a
+moins de 30 fiches distinctes (`objectifOffres`), le poste demande d'autres formulations du thème
+(petit appel, effort bas) et relance la vague, deux fois au plus (`relancesSourcing`,
+`poste.sourcing.relances`, vague `sourcing-relance-N` dans la trace). Jusqu'à 30 fiches sont
+lues (`plafondPagesOffres`). Coût d'une relance : environ 20 recherches (0,20 $) plus leurs tokens.
+
 ## Sites refusés par la recherche web (0.3.4, 11/10/2026)
 
 Rayon test du 11/10 16:24 (telephonie/objets-connectes) : la vague fournisseurs a reçu un 400
