@@ -3,7 +3,7 @@
 const http = require('node:http')
 const assert = require('node:assert/strict')
 
-const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0 }
+const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0, domainesRecherche: [] }
 
 /**
  * Fake Anthropic web search (server tool): the content blocks of the real API —
@@ -12,6 +12,8 @@ const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, m
  */
 function reponseRecherche(j, port) {
   etat.appelsRecherche++
+  const domaines = j.tools[0].allowed_domains || null
+  if (domaines) etat.domainesRecherche.push(domaines)
   const demandees = String(j.messages[0].content).split('\n').map((l) => (l.match(/^\d+\. (.+)$/) || [])[1]).filter(Boolean)
   const dejaFaites = j.messages.length > 1 ? j.messages[1].content.filter((b) => b.type === 'server_tool_use').length : 0
   // 'pause': the first answer runs one search and pauses; the resumed one runs the rest
@@ -27,7 +29,7 @@ function reponseRecherche(j, port) {
     const base = 5000 + etat.recherchesWeb.length * 10
     const liste = Array.from({ length: 6 }, (_, i) => ({ type: 'web_search_result', url: `http://127.0.0.1:${port}/p/${base + i}`, title: `Résultat ${q} ${i}`, encrypted_content: 'Eq…', page_age: '3 octobre 2026' }))
     content.push({ type: 'web_search_tool_result', tool_use_id: id, content: liste })
-    citations.push({ type: 'web_search_result_location', url: liste[0].url, title: liste[0].title, encrypted_index: 'x', cited_text: `${q} : modèle vendu 49,90 € chez Boutique` })
+    citations.push({ type: 'web_search_result_location', url: liste[0].url, title: liste[0].title, encrypted_index: 'x', cited_text: domaines ? `${q} : US $4.20-6.80 / piece, MOQ 2 pieces` : `${q} : modèle vendu 49,90 € chez Boutique` })
   }
   if (citations.length) content.push({ type: 'text', text: 'Cité.', citations })
   const pause = etat.mode === 'pause' && j.messages.length === 1
@@ -159,15 +161,17 @@ function creerServeur() {
           let arret = 'end_turn'
           if (j.max_tokens <= 10) {
             texte = 'ok'
-          } else if (/tableau JSON de chaînes/.test(j.system || '')) {
-            texte = etat.mode === 'noms-vides' ? '[]' : JSON.stringify(Array.from({ length: 26 }, (_, i) => `Marque Modele ${i}`))
+          } else if (/tableau JSON d/.test(j.system || '')) {
+            texte = etat.mode === 'noms-vides' ? '[]' : JSON.stringify(Array.from({ length: 26 }, (_, i) => ({ modele: `Marque Modele ${i}`, fournisseur: `generic item ${i}` })))
           } else if (etat.mode === 'vide') {
             texte = ''; arret = 'max_tokens'
           } else if (etat.mode === 'illisible') {
             texte = 'Voici mon rapport : pas de JSON'
           } else {
+            // like a good answer: supplier_url from the supplier offers, the rest of the URLs for selling prices
+            const offres = (user.split('# OFFRES FOURNISSEURS')[1] || '').split('\n# ')[0].split('\n').map((l) => l.split(' | ')[3]).filter((u) => /^http/.test(u || ''))
             const liste = user.split('# LISTE DES URL RENCONTRÉES')[1].split('\n').filter((l) => /\/p\/lien|\/p\/\d+/.test(l)).slice(0, 40)
-            const distinctes = [...new Set(liste)].slice(0, 20)
+            const distinctes = [...new Set(etat.mode === 'revendeurs' || !offres.length ? liste : offres)].slice(0, 20)
             const produits = distinctes.map((u, i) => ({
               rank: i + 1, product_name: `Produit ${i + 1}`, variant: 'noir', supplier_name: i % 3 === 0 ? 'CJ Dropshipping' : 'Fournisseur', supplier_platform: i % 5 === 0 ? 'AliExpress' : 'Site',
               supplier_url: etat.mode === 'url-inventee' && i < 4 ? `https://inventee.example/produit-${i}` : u,
@@ -216,6 +220,6 @@ function creerServeur() {
 }
 
 
-function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0 }) }
+function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0, domainesRecherche: [] }) }
 
 module.exports = { etat, creerServeur, remise }

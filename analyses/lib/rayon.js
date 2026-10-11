@@ -11,7 +11,9 @@
  *   wave 1  ~20 searches on the theme
  *   pages   read up to `plafondPages` pages (plain HTTP, light on a weak PC)
  *   names   model names pulled from what was read (one small Claude call)
- *   wave 2  one search per model name, to reach product pages (capped)
+ *   wave 2  one search per model name, to reach product pages (capped): the SELLING price seen in France
+ *   sourcing one search per product on supplier sites only (Alibaba, AliExpress, CJ, BigBuy…, the API's
+ *           allowed_domains): the only URLs allowed in supplier_url, the only source of a purchase price
  *   fiches  the product pages of wave 2 read in plain HTTP: image (og:image) and
  *           price written by the page itself (schema.org), free of charge
  *   sources readings of the connected data sites (private browser)
@@ -33,6 +35,14 @@ const BUDGET_PREUVES = 120_000
 // Searches per Claude call: every result read stays in the context of the next searches of the same call
 // (billed as input), so small lots cost fewer tokens; 3 keeps the per-call overhead low too.
 const TAILLE_LOT = 3
+// Where a product is bought, not resold: wholesale and import platforms. A French retailer (Darty, Fnac,
+// Cdiscount, Boulanger, Amazon.fr…) only ever gives the selling price, never the supplier (Max, 11/10).
+const DOMAINES_FOURNISSEURS = [
+  'alibaba.com', 'aliexpress.com', 'made-in-china.com', 'dhgate.com', 'globalsources.com',
+  'cjdropshipping.com', 'bigbuy.eu', 'banggood.com', 'temu.com', 'vidaxl.com', 'syncee.com', 'ankorstore.com',
+]
+const hoteDe = (u) => { try { return new URL(u).hostname.toLowerCase() } catch { return '' } }
+const chezFournisseur = (u, domaines) => { const h = hoteDe(u); return domaines.some((d) => h === d || h.endsWith('.' + d)) }
 
 function requetesVague1(theme, categorie, annee) {
   const t = theme
@@ -92,19 +102,25 @@ async function executerRayon({ rayon, deps, options = {} }) {
   const plafondPages = options.plafondPages || 25
   const plafondVague2 = options.plafondDeuxiemeVague || 26
   const plafondFiches = options.plafondFiches === undefined ? 30 : options.plafondFiches
+  const plafondOffres = options.plafondOffres === undefined ? 20 : options.plafondOffres
+  const domaines = options.domainesFournisseurs || deps.domainesFournisseurs || DOMAINES_FOURNISSEURS
+  const taux = options.tauxDollarEuro || 0.86
   const annee = rayon.date.slice(0, 4)
   const etiquette = `${rayon.categorie}/${rayon.theme}`
   const usage = { serper: 0, serperEtendu: 0, recherchesWeb: 0, rechercheEntree: 0, rechercheSortie: 0, rechercheDollars: 0, claudeEntree: 0, claudeSortie: 0 }
   const urlsVues = new Set()
+  const urlsFournisseurs = new Set()
   const imagesVues = new Set()
   const preuves = []
 
   // One result list per query, same order. A refusal throws: no silent empty list.
-  async function rechercher(requetes) {
+  // With `domaines`, Claude's search keeps to those sites (enforced by the API); Serper cannot, so its
+  // results are filtered on the host instead.
+  async function rechercher(requetes, { domaines: limite = null } = {}) {
     const sortie = []
     if (typeof moteur.chercherLot === 'function') {
       for (let i = 0; i < requetes.length; i += TAILLE_LOT) {
-        const r = await moteur.chercherLot(requetes.slice(i, i + TAILLE_LOT))
+        const r = await moteur.chercherLot(requetes.slice(i, i + TAILLE_LOT), limite ? { domaines: limite } : undefined)
         usage.recherchesWeb += r.usage.recherches || 0
         usage.rechercheEntree += r.usage.entree || 0
         usage.rechercheSortie += r.usage.sortie || 0
@@ -114,8 +130,11 @@ async function executerRayon({ rayon, deps, options = {} }) {
       return sortie
     }
     for (const q of requetes) {
-      sortie.push(await moteur.chercher(q))
+      const r = await moteur.chercher(q)
       usage.serper++
+      if (!limite) { sortie.push(r); continue }
+      const gardes = r.filter((x) => chezFournisseur(x.url, limite))
+      sortie.push(Object.assign(gardes, { questions: r.questions || [], associees: r.associees || [] }))
     }
     return sortie
   }
@@ -154,25 +173,62 @@ async function executerRayon({ rayon, deps, options = {} }) {
   // ---- model names (small call, effort low)
   const apercu = resultats1.flatMap(({ r }) => r.slice(0, 5).map((x) => `- ${x.titre} :: ${x.extrait}`)).join('\n').slice(0, 14_000)
   const rep = await claude.message({
-    systeme: 'Tu extrais des noms de produits précis. Tu réponds par un tableau JSON de chaînes, rien d’autre.',
-    utilisateur: `Thème : ${rayon.libelleTheme} (${rayon.libelleCategorie}).\nDans ces résultats de recherche, relève au plus ${plafondVague2} MODÈLES précis de produits réels (marque + modèle), vendables en France, sans doublon. Réponds uniquement par un tableau JSON.\n\n${apercu}`,
+    systeme: 'Tu extrais des produits précis pour du dropshipping. Tu réponds par un tableau JSON d’objets, rien d’autre.',
+    utilisateur: [
+      `Thème : ${rayon.libelleTheme} (${rayon.libelleCategorie}).`,
+      `Dans ces résultats de recherche, relève au plus ${plafondVague2} produits réels vendables en France, sans doublon, en préférant ceux qu’un vendeur peut acheter chez un fournisseur (import, gros, marque blanche) et revendre : pas un produit d’une grande marque qu’on ne trouve que chez les distributeurs.`,
+      'Pour chacun : {"modele": nom précis tel qu’on le voit en France (marque + modèle s’il y en a un), "fournisseur": 3 à 6 mots en anglais pour trouver ce produit générique chez un fournisseur (ex. "robot vacuum mop cleaner")}.',
+      'Réponds uniquement par le tableau JSON.',
+      '',
+      apercu,
+    ].join('\n'),
     maxTokens: 3000,
     effort: 'low',
   })
   usage.claudeEntree += rep.usage.input_tokens || 0
   usage.claudeSortie += rep.usage.output_tokens || 0
-  let noms = []
+  let brut = []
   try {
     const t = rep.texte
-    noms = JSON.parse(t.slice(t.indexOf('['), t.lastIndexOf(']') + 1))
+    brut = JSON.parse(t.slice(t.indexOf('['), t.lastIndexOf(']') + 1))
   } catch { /* handled by the guard below */ }
-  noms = [...new Set((Array.isArray(noms) ? noms : []).map((n) => String(n).trim()).filter(Boolean))].slice(0, plafondVague2)
+  // { modele, fournisseur } (a bare string is still read: the model's name, no supplier wording)
+  const produits = []
+  for (const x of Array.isArray(brut) ? brut : []) {
+    const modele = String((x && typeof x === 'object' ? x.modele : x) || '').trim()
+    if (!modele || produits.some((p) => p.modele === modele)) continue
+    produits.push({ modele, fournisseur: String((x && typeof x === 'object' && x.fournisseur) || modele).trim() })
+  }
+  const noms = produits.map((p) => p.modele).slice(0, plafondVague2)
   if (!noms.length) throw new Error(`${etiquette} : liste de noms de modèles vide (garde anti faux succès)`)
 
   // ---- wave 2
   const resultats2 = (await rechercher(noms.map((n) => `${n} prix fiche produit acheter`))).map((r, i) => ({ n: noms[i], r }))
   for (const { r } of resultats2) for (const x of r) urlsVues.add(x.url)
   journal.info(`${etiquette} : vague 2`, { modeles: noms.length, recherchesWeb: usage.recherchesWeb, coutRechercheDollars: usage.rechercheDollars })
+
+  // ---- sourcing: supplier sites only (one search per distinct supplier wording)
+  const termes = [...new Set(produits.slice(0, plafondVague2).map((p) => p.fournisseur.toLowerCase()))].slice(0, plafondOffres)
+  const offres = []
+  if (termes.length) {
+    const requetesSourcing = termes.map((t) => (moteur.chercherLot ? `${t} wholesale supplier price` : `${t} wholesale alibaba aliexpress`))
+    const resultatsS = await rechercher(requetesSourcing, { domaines })
+    termes.forEach((t, i) => {
+      for (const x of (resultatsS[i] || []).slice(0, 4)) {
+        urlsVues.add(x.url)
+        urlsFournisseurs.add(x.url)
+        offres.push({ terme: t, titre: x.titre, url: x.url, extrait: x.extrait, plateforme: hoteDe(x.url).replace(/^www\./, ''), prix: null })
+      }
+    })
+    // the supplier page itself, in plain HTTP: a price it writes in its structured data (often none: JS sites)
+    const lus = await enParallele(offres.slice(0, plafondOffres), 2, async (o) => ({ o, page: await pages(o.url) }))
+    for (const { o, page } of lus) {
+      if (!page || !page.lisible) continue
+      if (page.prix) o.prix = page.prix
+      if (page.image) { o.image = page.image; imagesVues.add(page.image) }
+    }
+    journal.info(`${etiquette} : sourcing fournisseurs`, { recherches: termes.length, offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, avecExtrait: offres.filter((o) => o.extrait).length })
+  }
 
   // ---- product pages of wave 2 (plain HTTP): image and price the page writes itself
   const fiches = []
@@ -257,6 +313,11 @@ async function executerRayon({ rayon, deps, options = {} }) {
   const blocSignaux = sectionPreuves(signaux)
   if (blocSignaux) ajouter(blocSignaux)
   for (const b of sectionsPreuvesSerper(serperPlus)) ajouter(b)
+  if (offres.length) {
+    ajouter(`# OFFRES FOURNISSEURS (vague sourcing : sites de fournisseurs uniquement ; SEULES URL autorisées dans supplier_url ; taux du poste pour les prix en dollars : 1 USD = ${String(taux).replace('.', ',')} €)\n` + offres.map((o) => `- ${o.terme} | ${o.plateforme} | ${o.titre} | ${o.url} | extrait : ${o.extrait || '—'} | prix lu sur la page : ${o.prix ? `${String(o.prix.montant).replace('.', ',')} ${o.prix.devise || '(devise non indiquée)'}` : 'aucun'}`).join('\n'))
+  } else {
+    ajouter('# OFFRES FOURNISSEURS\nAucune offre trouvée sur les sites de fournisseurs : aucune supplier_url ne peut être donnée.')
+  }
   const avecPrix = fiches.filter((f) => f.prix)
   if (avecPrix.length) {
     ajouter('# PRIX LUS SUR LES FICHES PRODUITS (écrits par la page elle-même, données structurées ; prix de vente affiché, pas un prix fournisseur)\n' + avecPrix.map((f) => `- ${f.n} | ${String(f.prix.montant).replace('.', ',')} ${f.prix.devise || '(devise non indiquée)'} | ${f.titre || 'sans titre'} | ${f.url}`).join('\n'))
@@ -271,7 +332,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
     for (const l of lectures) if (l.url) urlsVues.add(l.url)
   }
   const listeUrls = [...urlsVues].filter((u) => /^https?:\/\//i.test(u)).slice(0, 900)
-  ajouter('# LISTE DES URL RENCONTRÉES (seules autorisées dans supplier_url)\n' + listeUrls.join('\n'))
+  ajouter('# LISTE DES URL RENCONTRÉES (pour sources et marketplace_prices ; supplier_url vient des OFFRES FOURNISSEURS)\n' + listeUrls.join('\n'))
 
   const fichierPrompt = options.fichierPrompt || PROMPT_PAR_DEFAUT
   const systeme = fs.readFileSync(fichierPrompt, 'utf8')
@@ -305,7 +366,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
   Object.defineProperty(rapport, '__categorie', { value: rayon.categorie, enumerable: false })
   Object.defineProperty(rapport, '__theme', { value: rayon.theme, enumerable: false })
 
-  const validation = valider(rapport, urlsVues, { imagesVues })
+  const validation = valider(rapport, urlsVues, { imagesVues, urlsFournisseurs })
   rapport.poste = {
     statut: validation.ok ? 'ok' : 'a_revoir',
     problemes: validation.problemes,
@@ -313,6 +374,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
     usage,
     signaux: signaux ? { courbes: (signaux.tendances || []).filter((g) => g.statut === 'ok').length, pubsLues: (signaux.pubs || []).filter((p) => p.statut === 'ok' || p.statut === 'aucun').length, pubsDemandees: (signaux.pubs || []).length } : null,
     fiches: { avecDonnees: fiches.length, avecImage: avecImage.length, avecPrix: avecPrix.length },
+    sourcing: { offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, plateformes: [...new Set(offres.map((o) => o.plateforme))] },
     serperPlus: serperPlus ? { requetes: serperPlus.requetes, modelesAvecPrix: serperPlus.shopping.filter((x) => x.prixMin !== null).length, modelesAvecImages: serperPlus.images.filter((x) => x.images.length).length, coupe: serperPlus.coupe } : null,
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),
@@ -339,4 +401,4 @@ async function executerRayon({ rayon, deps, options = {} }) {
   return { statut: rapport.poste.statut, validation, chemins, usage }
 }
 
-module.exports = { executerRayon, requetesVague1, extraireJson, cleUrl }
+module.exports = { executerRayon, requetesVague1, extraireJson, cleUrl, DOMAINES_FOURNISSEURS }

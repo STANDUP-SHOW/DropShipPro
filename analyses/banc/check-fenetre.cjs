@@ -47,11 +47,19 @@ async function lancer({ maison, profil, port, serveur }) {
   let n = 0
   const attente = new Map()
   ws.onmessage = (m) => { const j = JSON.parse(m.data); if (j.id && attente.has(j.id)) attente.get(j.id)(j.result || { exceptionDetails: j.error }) }
-  const evaluer = (expression) => new Promise((ok) => {
+  const evaluerUneFois = (expression) => new Promise((ok) => {
     const id = ++n
     attente.set(id, (r) => ok(r.exceptionDetails ? { __erreur: JSON.stringify(r.exceptionDetails).slice(0, 400) } : r.result.value))
     ws.send(JSON.stringify({ id, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true } }))
   })
+  // the window may still be loading its page right after start: a destroyed context is retried, nothing else
+  const evaluer = async (expression) => {
+    for (let k = 0; ; k++) {
+      const r = await evaluerUneFois(expression)
+      if (!(r && r.__erreur && /context was destroyed|Cannot find context/.test(r.__erreur)) || k >= 10) return r
+      await pause(500)
+    }
+  }
   // page `poste.x(arg)` -> { ok, valeur }
   const appel = async (nom, arg) => {
     const r = await evaluer(`window.poste.${nom}(${JSON.stringify(arg === undefined ? null : arg)}).then((r) => JSON.stringify(r))`)
@@ -179,11 +187,11 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(brut.tendances[0].series[0].variationPct, 100, 'courbe capturée sur le réseau de la fenêtre')
     console.log('ok   signaux publics lus par la vraie fenêtre cachée (annonces, courbe Trends capturée)')
     assert.ok(fs.readdirSync(path.join(depot, 'journaux')).length >= 1, 'journal écrit')
-    assert.equal(faux.serper, 0, 'rayon test sans un appel Serper'); assert.equal(faux.recherchesWeb.length, 46, 'les 46 recherches faites par Claude')
+    assert.equal(faux.serper, 0, 'rayon test sans un appel Serper'); assert.equal(faux.recherchesWeb.length, 66, "les 66 recherches faites par Claude, dont 20 chez les fournisseurs")
     assert.ok(!fs.existsSync(path.join(depot, 'releves', jour, 'serper')), 'pas de relevé Serper')
     const rapportTest = JSON.parse(fs.readFileSync(path.join(depot, 'rapports', jour, rapports[0], fichiers.find((f) => f.endsWith('.json') && !f.endsWith('.envoi.json'))), 'utf8'))
-    assert.equal(rapportTest.poste.usage.recherchesWeb, 46); assert.ok(rapportTest.poste.fiches.avecImage > 0, JSON.stringify(rapportTest.poste.fiches))
-    console.log('ok   rayon test par la recherche web de Claude : 46 recherches, fiches produits lues, coût noté')
+    assert.equal(rapportTest.poste.usage.recherchesWeb, 66); assert.ok(rapportTest.poste.sourcing.offres > 0, JSON.stringify(rapportTest.poste.sourcing)); assert.ok(rapportTest.poste.fiches.avecImage > 0, JSON.stringify(rapportTest.poste.fiches))
+    console.log('ok   rayon test par la recherche web de Claude : 66 recherches dont 20 de sourcing, fiches lues, coût noté')
 
     // Serper stays possible when Max chooses it: key, then the extra readings
     await a.appel('reglages', { moteurRecherche: 'serper' })

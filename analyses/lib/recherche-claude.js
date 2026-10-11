@@ -10,6 +10,8 @@
  * - The result URLs come from the API's own `web_search_result` blocks, never
  *   from the model's text. The excerpt is the `cited_text` of the citations
  *   (verbatim text of the page, up to 150 characters each), never a paraphrase.
+ * - `domaines` restricts a lot to those sites (the API's own `allowed_domains`, enforced by
+ *   Anthropic, subdomains included): the sourcing wave searches supplier sites only.
  * - A lot where no search succeeded throws: an empty list must never pass for a
  *   successful wave (23/09).
  */
@@ -106,7 +108,7 @@ function creerRechercheClaude({ cle, modele, espace = '', fetchImpl = fetch, url
    * Runs every query of the lot; returns one result list per query (same order),
    * each with `questions`/`associees` empty (Google-only data), plus the usage.
    */
-  async function chercherLot(requetes, { reprise = true } = {}) {
+  async function chercherLot(requetes, { reprise = true, domaines = null } = {}) {
     const liste = requetes.map((q) => String(q).replace(/\bsite:\S+/gi, '').trim()).filter(Boolean)
     if (!liste.length) return { resultats: [], usage: { recherches: 0, entree: 0, sortie: 0, dollars: 0 } }
     const messages = [{ role: 'user', content: 'Requêtes :\n' + liste.map((q, i) => `${i + 1}. ${q}`).join('\n') }]
@@ -115,7 +117,7 @@ function creerRechercheClaude({ cle, modele, espace = '', fetchImpl = fetch, url
       max_tokens: 8000,
       output_config: { effort: 'low' },
       system: SYSTEME,
-      tools: [{ type: OUTIL, name: 'web_search', max_uses: liste.length + 2, user_location: { type: 'approximate', country: 'FR', timezone: 'Europe/Paris' } }],
+      tools: [{ type: OUTIL, name: 'web_search', max_uses: liste.length + 2, user_location: { type: 'approximate', country: 'FR', timezone: 'Europe/Paris' }, ...(domaines && domaines.length ? { allowed_domains: domaines } : {}) }],
       messages,
     }
     const usage = { recherches: 0, entree: 0, sortie: 0 }
@@ -137,7 +139,7 @@ function creerRechercheClaude({ cle, modele, espace = '', fetchImpl = fetch, url
     if (!lu.reussies && reprise && lu.erreurs.length && lu.erreurs.every((e) => PASSAGERES.has(e))) {
       // rate limit or internal error on every search of the lot: one retry after a pause, never more
       await new Promise((r) => setTimeout(r, attenteReprise))
-      const deuxieme = await chercherLot(requetes, { reprise: false })
+      const deuxieme = await chercherLot(requetes, { reprise: false, domaines })
       for (const k of ['recherches', 'entree', 'sortie']) deuxieme.usage[k] += usage[k]
       deuxieme.usage.dollars = coutDollars(deuxieme.usage, modele)
       return deuxieme

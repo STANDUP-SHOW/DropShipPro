@@ -129,7 +129,8 @@ function creditsSerperParRayon() {
 const EUR = (n) => n.toFixed(2).replace('.', ',')
 function coutParRayon(n = 1) {
   if (moteurSerper()) return `environ ${EUR(n * 0.39)} € chez Anthropic et jusqu’à ${n * creditsSerperParRayon()} crédits Serper`
-  const recherches = 20 + (cfg.plafondDeuxiemeVague || 26)
+  // wave 1 + wave 2 (selling prices) + sourcing on supplier sites (at most 20)
+  const recherches = 20 + (cfg.plafondDeuxiemeVague || 26) + Math.min(20, cfg.plafondDeuxiemeVague || 26)
   const bas = 0.39 + recherches * DOLLARS_PAR_RECHERCHE * 0.86 + 0.3
   const haut = 0.39 + recherches * DOLLARS_PAR_RECHERCHE * 0.86 + 0.9
   return `environ ${EUR(n * bas)} à ${EUR(n * haut)} € chez Anthropic, tout compris (${n * recherches} recherches web à 0,01 $ chacune, la lecture des résultats et le rapport ; aucun Serper). Le montant réel s’inscrit dans le journal`
@@ -163,6 +164,7 @@ const PROMPTS_LIVRES = new Set([
   '121cb3a0bab83bd6afe620ae8e3f8066df8b28ad7a7af948ad953f45fac47b96',
   'b0b3e1ad096127c0efafabf4ab1d9eb7504509b457d232ac659b083939b506d0',
   'eefed451c162c5bcc4da39e35ac29f3693f4ad8a7f8ba7ff286f99feebe90716',
+  'bc3eb85696999a9e5b75469082845ec926bc7a3935dcd3abf9747a6d1b050ef0',
 ])
 function preparerPrompt() {
   const cible = fichierPrompt()
@@ -178,6 +180,8 @@ function optionsRayon() {
     fichierPrompt: fichierPrompt(),
     plafondPages: cfg.plafondPages,
     plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
+    // the bench's fake web lives on 127.0.0.1 and stands for the supplier sites
+    domainesFournisseurs: BANC ? ['127.0.0.1'] : Array.isArray(cfg.domainesFournisseurs) && cfg.domainesFournisseurs.length ? cfg.domainesFournisseurs : undefined,
     modele: cfg.modele,
     envoyer: cfg.envoiAuSite && cleAdmin ? (rapport) => depot.envoyerRapportAuSite({ apiBase: cfg.apiBase, cle: cleAdmin, rapport }) : null,
   }

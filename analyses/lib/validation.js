@@ -25,19 +25,29 @@ function cle(u) {
 /**
  * @param {object} rapport  parsed MarketSpy JSON (mutated: unverified fields become "Non vérifié")
  * @param {Set<string>} urlsVues  URLs seen in search results or on pages read
- * @param {{imagesVues?: Set<string>}} o  when given, an image_url must be one of these real addresses
- *   (an unseen one is blanked and counted in stats; it does not hold the report back)
+ * @param {{imagesVues?: Set<string>, urlsFournisseurs?: Set<string>}} o
+ *   imagesVues: an image_url must be one of these real addresses (an unseen one is blanked and counted
+ *   in stats; it does not hold the report back).
+ *   urlsFournisseurs: a supplier_url must come from the sourcing wave (supplier sites); a retailer page
+ *   (Darty, Fnac…) is blanked with its purchase price: it is where the product is sold, not bought.
  */
-function valider(rapport, urlsVues, { attendus = 20, imagesVues = null } = {}) {
+function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFournisseurs = null } = {}) {
   const problemes = []
   const produits = Array.isArray(rapport.products) ? rapport.products : []
   const vues = new Set([...urlsVues].map(cle))
+  const fournisseurs = urlsFournisseurs ? new Set([...urlsFournisseurs].map(cle)) : null
+  let horsSourcing = 0
   const distinctes = new Set()
   let invention = 0
   let margesSuspectes = 0
   let imagesInventees = 0
 
   for (const p of produits) {
+    if (fournisseurs && estHttp(p.supplier_url) && vues.has(cle(p.supplier_url)) && !fournisseurs.has(cle(p.supplier_url))) {
+      horsSourcing++
+      p.supplier_url = NON_VERIFIE
+      p.url_type = 'non_verifie'
+    }
     if (estHttp(p.supplier_url) && vues.has(cle(p.supplier_url))) {
       distinctes.add(cle(p.supplier_url))
     } else {
@@ -45,6 +55,8 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null } = {}) {
       p.supplier_url = NON_VERIFIE
       p.url_type = 'non_verifie'
     }
+    // no supplier page, no purchase price: it could only come from a retailer or from nowhere
+    if (fournisseurs && !estHttp(p.supplier_url)) for (const k of ['purchase_price', 'estimated_landed_cost_france', 'gross_margin', 'net_margin_estimated', 'roi_estimated']) p[k] = null
     if (p.image_url && !estHttp(p.image_url)) p.image_url = NON_VERIFIE
     else if (imagesVues && estHttp(p.image_url) && !imagesVues.has(p.image_url)) {
       imagesInventees++
@@ -63,6 +75,7 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null } = {}) {
   if (produits.length !== attendus) problemes.push(`${produits.length} produits au lieu de ${attendus}`)
   if (distinctes.size !== attendus) problemes.push(`${distinctes.size} URL vérifiées et distinctes au lieu de ${attendus}`)
   if (invention) problemes.push(`${invention} URL absentes des pages lues, remplacées par « ${NON_VERIFIE} »`)
+  if (horsSourcing) problemes.push(`${horsSourcing} lien(s) fournisseur pris chez un revendeur et non sur un site fournisseur, retiré(s)`)
   if (margesSuspectes) problemes.push(`${margesSuspectes} marge(s) supérieure(s) au prix de vente (pourcentage ?), vidée(s)`)
   for (const k of ['study', 'executive_summary', 'market', 'creative_prompts']) {
     if (!rapport[k] || typeof rapport[k] !== 'object') problemes.push(`bloc « ${k} » absent`)
@@ -74,7 +87,7 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null } = {}) {
   return {
     ok: problemes.length === 0,
     problemes,
-    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, margesSuspectes, imagesInventees },
+    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, margesSuspectes, imagesInventees, horsSourcing, avecPrixAchat: produits.filter((p) => Number(p.purchase_price) > 0).length },
   }
 }
 

@@ -85,6 +85,24 @@ Google Shopping, autocomplétion et images n'existent qu'avec Serper : sans lui,
 viennent des fiches produits lues (balises de la page). Une `image_url` absente des adresses
 relevées est remplacée par « Non vérifié » (`poste.stats.imagesInventees`).
 
+## Sourcing fournisseurs (0.3.1, 11/10/2026)
+
+Premier rayon réel de la 0.3.0 : 20 liens… tous chez des revendeurs français (Darty, Fnac,
+Cdiscount), aucun prix d'achat. Un revendeur donne le prix de VENTE, jamais le fournisseur.
+Depuis la 0.3.1 :
+- le petit appel qui choisit les produits préfère ceux qu'on achète en import ou en marque
+  blanche, et donne pour chacun 3 à 6 mots anglais pour le chercher chez un fournisseur ;
+- une vague « sourcing » (au plus 20 recherches) cherche ces mots sur les seuls sites de
+  `DOMAINES_FOURNISSEURS` (lib/rayon.js : Alibaba, AliExpress, Made-in-China, DHgate, Global
+  Sources, CJ, BigBuy, Banggood, Temu, vidaXL, Syncee, Ankorstore), par le paramètre
+  `allowed_domains` de l'outil de recherche (appliqué par Anthropic) ; avec Serper, filtre
+  sur l'hôte. Liste remplaçable par `domainesFournisseurs` dans config.json ;
+- les pages fournisseurs sont lues en HTTP simple (prix schema.org, souvent absent sur les
+  sites en JavaScript) ; l'extrait cité (« US $4.20-6.80 / piece ») est l'autre source de prix ;
+- la validation retire toute `supplier_url` qui ne vient pas de cette vague
+  (`poste.stats.horsSourcing`, rapport « à revoir », jamais envoyé) et, sans page fournisseur,
+  vide prix d'achat et marges : jamais d'estimation. `poste.sourcing` compte les offres.
+
 ## Lectures Serper étendues (lib/serper-etendu.js, 03/10/2026)
 
 Trois lectures de plus avec la clé Serper existante, après la deuxième vague (les 46 requêtes
