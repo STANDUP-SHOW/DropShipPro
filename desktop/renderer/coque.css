@@ -21,6 +21,8 @@ h1 span { background: linear-gradient(90deg, var(--marque-orange), var(--marque-
 #barre > button { text-align: left; padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--texte); font: inherit; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
 #barre > button:hover { background: var(--fond); }
 #barre > button.actif { background: linear-gradient(90deg, var(--marque-orange), var(--marque-rose)); color: #fff; }
+#barre > button .avec-icone { display: inline-flex; align-items: center; gap: 7px; }
+#barre > button .avec-icone img { width: 16px; height: 16px; border-radius: 4px; }
 .pastille { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--fond); color: var(--texte); font-size: 11px; text-align: center; }
 .pastille:empty { display: none; }
 .zone { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--bord); }
