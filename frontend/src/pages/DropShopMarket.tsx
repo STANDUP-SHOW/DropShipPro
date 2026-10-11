@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Store, CreditCard, ExternalLink, Copy, Check, Rss, ShieldCheck, Ban } from 'lucide-react'
+import { CreditCard, ExternalLink, Copy, Check, Rss, ShieldCheck, Ban } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { useAuth } from '../lib/auth'
 import { demoAutorise } from '../lib/demo'
@@ -115,7 +115,7 @@ function AdminMarket() {
             <button type="button" onClick={() => voir(v.id)} className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-white/[0.04]">
               <span className="min-w-0 flex-1 truncate">{v.nom || v.email}</span>
               <span className="text-gray-400">{v.annonces} annonce{v.annonces > 1 ? 's' : ''}</span>
-              <span className={v.paiements ? 'text-emerald-300' : 'text-amber-300'}>{v.paiements ? 'Paiements actifs' : 'Paiements inactifs'}</span>
+              <span className={v.paiements ? 'text-violet-300' : 'text-amber-300'}>{v.paiements ? 'Paiements actifs' : 'Paiements inactifs'}</span>
             </button>
             {ouvert === v.id && (
               <div className="space-y-1 bg-black/20 px-4 py-2">
@@ -147,7 +147,7 @@ function AdminMarket() {
             <span className="min-w-0 flex-1 truncate">{o.titre}{o.variante ? ` (${o.variante})` : ''}</span>
             <span className="hidden text-gray-400 md:inline">{o.vendeur}</span>
             <span>{euros(o.montant)}</span>
-            <span className="text-emerald-300">+{euros(o.commission)}</span>
+            <span className="text-violet-300">+{euros(o.commission)}</span>
             <span className="text-gray-400">{date(o.payeeLe)}</span>
           </div>
         ))}
@@ -203,12 +203,13 @@ export default function DropShopMarket() {
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <Store className="text-emerald-400" /> DropShop Market
+        <h1 className="flex items-center gap-3 text-2xl font-bold">
+          <img src="/marque/dropshop/icone.png" alt="" width={192} height={192} className="h-10 w-10" />
+          <span>DropShop <span className="texte-dropshop">Market</span></span>
         </h1>
         <p className="mt-1 max-w-3xl text-sm text-gray-400">
           La place de marché des boutiques DropShop, sur{' '}
-          <a className="text-emerald-300 hover:underline" href="https://drop-shop.cloud" target="_blank" rel="noreferrer">drop-shop.cloud</a>.
+          <a className="text-violet-300 hover:underline" href="https://drop-shop.cloud" target="_blank" rel="noreferrer">drop-shop.cloud</a>.
           Inscription gratuite, paiement par Stripe, 5 % de commission sur chaque vente. Chaque variante de vos produits a sa page et son annonce Google Shopping.
         </p>
       </div>
@@ -245,7 +246,7 @@ export default function DropShopMarket() {
           <p className="text-sm text-gray-400">Chargement…</p>
         ) : stripe?.actif ? (
           <div className="flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1 text-sm text-emerald-300"><ShieldCheck size={16} /> Paiements actifs : vos ventes arrivent sur votre compte Stripe, moins 5 %.</span>
+            <span className="flex items-center gap-1 text-sm text-violet-300"><ShieldCheck size={16} /> Paiements actifs : vos ventes arrivent sur votre compte Stripe, moins 5 %.</span>
             <button type="button" disabled={enCours} onClick={() => ouvrirStripe(true)} className="rounded-xl border border-white/15 px-3 py-1.5 text-sm hover:bg-white/10">
               Mon tableau de bord Stripe
             </button>
@@ -257,7 +258,7 @@ export default function DropShopMarket() {
                 ? "Votre inscription Stripe n'est pas terminée. Vos produits sont déjà visibles sur le Market, mais l'achat s'ouvre quand Stripe a validé votre compte."
                 : "Pour vendre, activez vos paiements : Stripe vous demande votre identité et votre IBAN sur son propre formulaire. Rien de cela ne passe par DropShipper."}
             </p>
-            <button type="button" disabled={enCours} onClick={() => ouvrirStripe(false)} className="btn-gradient rounded-xl px-4 py-2 text-sm font-semibold">
+            <button type="button" disabled={enCours} onClick={() => ouvrirStripe(false)} className="btn-dropshop rounded-full px-5 py-2 text-sm font-bold text-white">
               {stripe?.inscrit ? "Terminer l'inscription Stripe" : 'Activer mes paiements (gratuit)'}
             </button>
           </div>
@@ -267,7 +268,7 @@ export default function DropShopMarket() {
       <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="mb-1 text-lg font-semibold">Mes annonces sur le Market</h2>
         <p className="mb-3 text-sm text-gray-400">
-          Le badge ⚡ Prime (livré en 24 h) met un article en avant sur le Market et dans Google Shopping : réservé aux articles en stock en France, expédiés le jour même. Pour publier, ouvrez un produit dans <Link className="text-emerald-300 hover:underline" to="/dashboard">Mes annonces</Link> et choisissez « DropShop Market » parmi les destinations.
+          Le badge ⚡ Prime (livré en 24 h) met un article en avant sur le Market et dans Google Shopping : réservé aux articles en stock en France, expédiés le jour même. Pour publier, ouvrez un produit dans <Link className="text-violet-300 hover:underline" to="/dashboard">Mes annonces</Link> et choisissez « DropShop Market » parmi les destinations.
         </p>
         {donnees && donnees.annonces.length === 0 && <p className="text-sm text-gray-400">Aucune annonce publiée pour le moment.</p>}
         <div className="space-y-1">
@@ -329,7 +330,7 @@ export default function DropShopMarket() {
       )}
 
       {estAdmin && (
-        <section className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
+        <section className="mb-6 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] p-5">
           <h2 className="mb-3 text-lg font-semibold">Admin DropShop Market</h2>
           <AdminMarket />
         </section>
