@@ -81,8 +81,19 @@ function lireBlocs(blocs, requetes) {
 
 const PASSAGERES = new Set(['too_many_requests', 'unavailable'])
 
+/**
+ * Sites the API refuses in allowed_domains (its crawler is blocked there), read from the 400:
+ * "The following domains are not accessible to our user agent: ['dhgate.com']" (11/10, BIGWORK).
+ */
+function domainesRefuses(err) {
+  const m = /not accessible to our user agent:\s*\[([^\]]*)\]/i.exec(String((err && err.message) || ''))
+  return m ? [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1].toLowerCase()) : []
+}
+
 function creerRechercheClaude({ cle, modele, espace = '', fetchImpl = fetch, url = URL_API, attenteReprise = 20000 }) {
   if (!cle) throw new ErreurFournisseur('Anthropic', 'clé absente (Réglages › Clés).')
+  // sites refused once are left out of every later lot of this engine
+  const refuses = new Set()
 
   async function appeler(corps) {
     const rep = await fetchImpl(url, {
@@ -110,6 +121,8 @@ function creerRechercheClaude({ cle, modele, espace = '', fetchImpl = fetch, url
    */
   async function chercherLot(requetes, { reprise = true, domaines = null } = {}) {
     const liste = requetes.map((q) => String(q).replace(/\bsite:\S+/gi, '').trim()).filter(Boolean)
+    const autorises = domaines && domaines.length ? domaines.filter((d) => !refuses.has(d.toLowerCase())) : null
+    if (domaines && domaines.length && !autorises.length) throw new ErreurFournisseur('Anthropic', `tous les sites demandés sont refusés par la recherche web (${[...refuses].join(', ')})`)
     if (!liste.length) return { resultats: [], usage: { recherches: 0, entree: 0, sortie: 0, dollars: 0 } }
     const messages = [{ role: 'user', content: 'Requêtes :\n' + liste.map((q, i) => `${i + 1}. ${q}`).join('\n') }]
     const corps = {
@@ -117,13 +130,26 @@ function creerRechercheClaude({ cle, modele, espace = '', fetchImpl = fetch, url
       max_tokens: 8000,
       output_config: { effort: 'low' },
       system: SYSTEME,
-      tools: [{ type: OUTIL, name: 'web_search', max_uses: liste.length + 2, user_location: { type: 'approximate', country: 'FR', timezone: 'Europe/Paris' }, ...(domaines && domaines.length ? { allowed_domains: domaines } : {}) }],
+      tools: [{ type: OUTIL, name: 'web_search', max_uses: liste.length + 2, user_location: { type: 'approximate', country: 'FR', timezone: 'Europe/Paris' }, ...(autorises ? { allowed_domains: autorises } : {}) }],
       messages,
     }
     const usage = { recherches: 0, entree: 0, sortie: 0 }
     const blocs = []
     for (let tour = 0; tour <= PAUSES_MAX; tour++) {
-      const j = await appeler(corps)
+      let j
+      try {
+        j = await appeler(corps)
+      } catch (err) {
+        // one refused site must not sink the lot: drop the sites the API names and ask again, same turn
+        const noms = autorises ? domainesRefuses(err) : []
+        const tool = corps.tools[0]
+        const restants = noms.length ? tool.allowed_domains.filter((d) => !noms.includes(d.toLowerCase())) : []
+        if (!noms.length || !restants.length || restants.length === tool.allowed_domains.length) throw err
+        for (const n of noms) refuses.add(n)
+        tool.allowed_domains = restants
+        tour--
+        continue
+      }
       const u = j.usage || {}
       usage.entree += (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0)
       usage.sortie += u.output_tokens || 0
@@ -157,7 +183,7 @@ function creerRechercheClaude({ cle, modele, espace = '', fetchImpl = fetch, url
     return resultats[0]
   }
 
-  return { moteur: 'claude', chercher, chercherLot }
+  return { moteur: 'claude', chercher, chercherLot, domainesRefuses: () => [...refuses] }
 }
 
-module.exports = { creerRechercheClaude, lireBlocs, coutDollars, DOLLARS_PAR_RECHERCHE, OUTIL }
+module.exports = { creerRechercheClaude, domainesRefuses, lireBlocs, coutDollars, DOLLARS_PAR_RECHERCHE, OUTIL }

@@ -660,6 +660,26 @@ test('sourcing : un rapport qui prend ses liens chez les revendeurs est à revoi
   assert.equal(j.poste.sourcing.offres, 80); assert.ok(j.poste.sourcing.avecPrixLu >= 20)
 })
 
+test('sourcing : un site refusé par l’API est écarté et la vague continue ; une vague en échec donne un rapport à revoir, pas rien', async (srv) => {
+  const m = mondeClaude(srv); remise()
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, domainesFournisseurs: ['127.0.0.1', 'dhgate.refuse.example'] }, options: {} })
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  assert.equal(etat.refusDomaines, 1, 'refusé une fois, puis plus jamais demandé')
+  assert.ok(etat.domainesRecherche.every((d) => !d.includes('dhgate.refuse.example')))
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.deepEqual(j.poste.sourcing.sitesRefuses, ['dhgate.refuse.example'])
+  assert.equal(j.poste.sourcing.offres, 80)
+
+  remise(); etat.mode = 'sourcing-ko'
+  let envoyes = 0
+  const ko = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
+  assert.equal(ko.statut, 'a_revoir'); assert.equal(envoyes, 0)
+  assert.ok(fs.existsSync(ko.chemins.json), 'le rapport des vagues 1 et 2 est écrit')
+  const k = JSON.parse(fs.readFileSync(ko.chemins.json, 'utf8'))
+  assert.match(k.poste.problemes[0], /^vague fournisseurs en échec : Anthropic/)
+  assert.match(k.poste.sourcing.echec, /allowed_domains: invalid/)
+})
+
 test('contrôle des crédits sans Serper : la clé Anthropic seule, aucune recherche dépensée', async (srv) => {
   const m = mondeClaude(srv); remise()
   const r = await orch.controleCredits({ serper: null, claude: m.claude })

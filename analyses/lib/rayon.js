@@ -38,7 +38,8 @@ const TAILLE_LOT = 3
 // Where a product is bought, not resold: wholesale and import platforms. A French retailer (Darty, Fnac,
 // Cdiscount, Boulanger, Amazon.fr…) only ever gives the selling price, never the supplier (Max, 11/10).
 const DOMAINES_FOURNISSEURS = [
-  'alibaba.com', 'aliexpress.com', 'made-in-china.com', 'dhgate.com', 'globalsources.com',
+  // dhgate.com left out: the API refuses it ("not accessible to our user agent", 11/10)
+  'alibaba.com', 'aliexpress.com', 'made-in-china.com', 'globalsources.com',
   'cjdropshipping.com', 'bigbuy.eu', 'banggood.com', 'temu.com', 'vidaxl.com', 'syncee.com', 'ankorstore.com',
 ]
 const hoteDe = (u) => { try { return new URL(u).hostname.toLowerCase() } catch { return '' } }
@@ -224,7 +225,9 @@ async function executerRayon({ rayon, deps, options = {} }) {
   // ---- sourcing: supplier sites only (one search per distinct supplier wording)
   const termes = [...new Set(produits.slice(0, plafondVague2).map((p) => p.fournisseur.toLowerCase()))].slice(0, plafondOffres)
   const offres = []
-  if (termes.length) {
+  let echecSourcing = null
+  // a failed sourcing wave costs the supplier links, never the rayon: the report is written « à revoir »
+  if (termes.length) try {
     const requetesSourcing = termes.map((t) => (moteur.chercherLot ? `${t} wholesale supplier price` : `${t} wholesale alibaba aliexpress`))
     const resultatsS = await rechercher(requetesSourcing, { domaines, vague: 'sourcing' })
     termes.forEach((t, i) => {
@@ -241,7 +244,10 @@ async function executerRayon({ rayon, deps, options = {} }) {
       if (page.prix) o.prix = page.prix
       if (page.image) { o.image = page.image; imagesVues.add(page.image) }
     }
-    journal.info(`${etiquette} : sourcing fournisseurs`, { recherches: termes.length, offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, avecExtrait: offres.filter((o) => o.extrait).length })
+    journal.info(`${etiquette} : sourcing fournisseurs`, { recherches: termes.length, offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, avecExtrait: offres.filter((o) => o.extrait).length, sitesRefuses: moteur.domainesRefuses ? moteur.domainesRefuses() : [] })
+  } catch (err) {
+    echecSourcing = String(err.message || err)
+    journal.erreur(`${etiquette} : vague fournisseurs en échec, rapport à revoir`, { raison: echecSourcing })
   }
 
   // ---- product pages of wave 2 (plain HTTP): image and price the page writes itself
@@ -381,6 +387,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
   Object.defineProperty(rapport, '__theme', { value: rayon.theme, enumerable: false })
 
   const validation = valider(rapport, urlsVues, { imagesVues, urlsFournisseurs })
+  if (echecSourcing) { validation.ok = false; validation.problemes.unshift(`vague fournisseurs en échec : ${echecSourcing}`) }
   rapport.poste = {
     statut: validation.ok ? 'ok' : 'a_revoir',
     problemes: validation.problemes,
@@ -388,7 +395,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
     usage,
     signaux: signaux ? { courbes: (signaux.tendances || []).filter((g) => g.statut === 'ok').length, pubsLues: (signaux.pubs || []).filter((p) => p.statut === 'ok' || p.statut === 'aucun').length, pubsDemandees: (signaux.pubs || []).length } : null,
     fiches: { avecDonnees: fiches.length, avecImage: avecImage.length, avecPrix: avecPrix.length },
-    sourcing: { offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, plateformes: [...new Set(offres.map((o) => o.plateforme))] },
+    sourcing: { echec: echecSourcing, sitesRefuses: moteur.domainesRefuses ? moteur.domainesRefuses() : [], offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, plateformes: [...new Set(offres.map((o) => o.plateforme))] },
     serperPlus: serperPlus ? { requetes: serperPlus.requetes, modelesAvecPrix: serperPlus.shopping.filter((x) => x.prixMin !== null).length, modelesAvecImages: serperPlus.images.filter((x) => x.images.length).length, coupe: serperPlus.coupe } : null,
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),

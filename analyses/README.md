@@ -103,6 +103,16 @@ Depuis la 0.3.1 :
   (`poste.stats.horsSourcing`, rapport « à revoir », jamais envoyé) et, sans page fournisseur,
   vide prix d'achat et marges : jamais d'estimation. `poste.sourcing` compte les offres.
 
+## Sites refusés par la recherche web (0.3.4, 11/10/2026)
+
+Rayon test du 11/10 16:24 (telephonie/objets-connectes) : la vague fournisseurs a reçu un 400
+« The following domains are not accessible to our user agent: ['dhgate.com'] » et tout le
+rayon a échoué sans rapport. Depuis la 0.3.4 : dhgate.com est retiré de la liste ; un site que
+l'API nomme dans ce refus est écarté pour la suite et le lot est redemandé sans lui
+(`poste.sourcing.sitesRefuses`) ; si la vague fournisseurs échoue quand même, le rapport des
+vagues 1 et 2 est écrit « à revoir » (`poste.sourcing.echec`, premier problème), jamais envoyé.
+Les 11 autres sites n'ont pas été essayés un par un contre l'API : un refus s'écarte seul.
+
 ## Coût mesuré et trace des recherches (0.3.2, 11/10/2026)
 
 Premier rayon réel (electromenager/sols, Sonnet 5.5 pour tout) : 46 recherches = 0,46 $, mais

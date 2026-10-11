@@ -153,6 +153,13 @@ function creerServeur() {
           if (Array.isArray(j.tools) && j.tools.some((t) => t.name === 'web_search')) {
             assert.equal(j.tools[0].type, 'web_search_20250305')
             assert.equal(j.tools[0].user_location.country, 'FR')
+            // the real API refuses some sites in allowed_domains with a 400 naming them (dhgate.com, 11/10)
+            const bloques = (j.tools[0].allowed_domains || []).filter((d) => /refuse\.example$/.test(d))
+            if (bloques.length || (etat.mode === 'sourcing-ko' && j.tools[0].allowed_domains)) {
+              etat.refusDomaines = (etat.refusDomaines || 0) + 1
+              res.writeHead(400, { 'content-type': 'application/json' })
+              return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: bloques.length ? `The following domains are not accessible to our user agent: [${bloques.map((d) => `'${d}'`).join(', ')}]. Read more: https://support.anthropic.com/en/articles/8896518` : 'allowed_domains: invalid' } }))
+            }
             res.writeHead(200, { 'content-type': 'application/json' })
             return res.end(JSON.stringify(reponseRecherche(j, port)))
           }
@@ -220,6 +227,6 @@ function creerServeur() {
 }
 
 
-function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0, domainesRecherche: [] }) }
+function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0, domainesRecherche: [], refusDomaines: 0 }) }
 
 module.exports = { etat, creerServeur, remise }
