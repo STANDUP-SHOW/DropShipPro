@@ -44,6 +44,17 @@ const DOMAINES_FOURNISSEURS = [
 ]
 const hoteDe = (u) => { try { return new URL(u).hostname.toLowerCase() } catch { return '' } }
 const chezFournisseur = (u, domaines) => { const h = hoteDe(u); return domaines.some((d) => h === d || h.endsWith('.' + d)) }
+// Search, category, showroom and price-list pages of the supplier sites (aliexpress.com/w/wholesale-…,
+// alibaba.com/showroom/…, made-in-china.com/products-search/…): not a product page, never a supplier_url.
+// Only the first path segment is tested: a product slug may well start with "Wholesale-…".
+const PAGE_DE_LISTE = /^\/(w|wholesale|showroom|popular|price|category|categories|catalog|search|searchlist|products-search|manufacturers|suppliers|hot-products|premium|trade)(\/|[-_.]|$)/i
+const RECHERCHE_EN_PARAMETRE = /[?&](searchtext|keywords?|q)=/i
+function estFicheFournisseur(u) {
+  try {
+    const x = new URL(u)
+    return x.pathname.replace(/\/+$/, '').length > 1 && !PAGE_DE_LISTE.test(x.pathname) && !RECHERCHE_EN_PARAMETRE.test(x.search)
+  } catch { return false }
+}
 
 function requetesVague1(theme, categorie, annee) {
   const t = theme
@@ -104,6 +115,10 @@ async function executerRayon({ rayon, deps, options = {} }) {
   const plafondVague2 = options.plafondDeuxiemeVague || 26
   const plafondFiches = options.plafondFiches === undefined ? 30 : options.plafondFiches
   const plafondOffres = options.plafondOffres === undefined ? 20 : options.plafondOffres
+  // distinct supplier product pages wanted before the big call: 20 products plus room for the ones it rejects
+  const objectifOffres = options.objectifOffres === undefined ? 30 : options.objectifOffres
+  const relancesMax = options.relancesSourcing === undefined ? 2 : options.relancesSourcing
+  const plafondPagesOffres = options.plafondPagesOffres === undefined ? 30 : options.plafondPagesOffres
   const domaines = options.domainesFournisseurs || deps.domainesFournisseurs || DOMAINES_FOURNISSEURS
   const taux = options.tauxDollarEuro || 0.86
   const annee = rayon.date.slice(0, 4)
@@ -225,26 +240,72 @@ async function executerRayon({ rayon, deps, options = {} }) {
   // ---- sourcing: supplier sites only (one search per distinct supplier wording)
   const termes = [...new Set(produits.slice(0, plafondVague2).map((p) => p.fournisseur.toLowerCase()))].slice(0, plafondOffres)
   const offres = []
+  const clesOffres = new Set()
+  const termesCherches = new Set()
+  let listesEcartees = 0
+  let relances = 0
   let echecSourcing = null
-  // a failed sourcing wave costs the supplier links, never the rayon: the report is written « à revoir »
-  if (termes.length) try {
-    const requetesSourcing = termes.map((t) => (moteur.chercherLot ? `${t} wholesale supplier price` : `${t} wholesale alibaba aliexpress`))
-    const resultatsS = await rechercher(requetesSourcing, { domaines, vague: 'sourcing' })
-    termes.forEach((t, i) => {
-      for (const x of (resultatsS[i] || []).slice(0, 4)) {
+  async function sourcer(liste, vague) {
+    const neufs = liste.filter((t) => !termesCherches.has(t))
+    for (const t of neufs) termesCherches.add(t)
+    if (!neufs.length) return
+    const requetesSourcing = neufs.map((t) => (moteur.chercherLot ? `${t} wholesale supplier price` : `${t} wholesale alibaba aliexpress`))
+    const resultatsS = await rechercher(requetesSourcing, { domaines, vague })
+    neufs.forEach((t, i) => {
+      let pris = 0
+      for (const x of resultatsS[i] || []) {
+        if (pris >= 4) break
+        // a search or category page is not where one buys a product: the report could not use it (prompt rule 3)
+        if (!estFicheFournisseur(x.url)) { listesEcartees++; continue }
+        if (clesOffres.has(cleUrl(x.url))) continue
+        clesOffres.add(cleUrl(x.url))
+        pris++
         urlsVues.add(x.url)
         urlsFournisseurs.add(x.url)
         offres.push({ terme: t, titre: x.titre, url: x.url, extrait: x.extrait, plateforme: hoteDe(x.url).replace(/^www\./, ''), prix: null })
       }
     })
+  }
+  // a failed sourcing wave costs the supplier links, never the rayon: the report is written « à revoir »
+  if (termes.length) try {
+    await sourcer(termes, 'sourcing')
+    // Too few distinct supplier pages for 20 products (11/10, informatique/mini-pc-bureau: 14 products): the
+    // product names of a theme often collapse into a handful of generic wordings ("mini pc n100"). Ask for
+    // other wordings of the same theme and search again, before the big call, instead of a short report.
+    while (offres.length < objectifOffres && relances < relancesMax) {
+      relances++
+      const rel = await claude.message({
+        systeme: 'Tu proposes des formulations de recherche chez des fournisseurs. Tu réponds par un tableau JSON de chaînes, rien d’autre.',
+        utilisateur: [
+          `Thème : ${rayon.libelleTheme} (${rayon.libelleCategorie}).`,
+          `Propose ${plafondOffres} formulations NOUVELLES en anglais, 3 à 6 mots chacune, pour trouver chez un grossiste (Alibaba, AliExpress, Made-in-China…) des produits de ce thème qu’un vendeur peut acheter et revendre en France.`,
+          'Chacune vise un produit ou une variante DIFFÉRENTE (format, usage, caractéristique, accessoire du thème), aucune ne reprend une formulation déjà cherchée :',
+          ...[...termesCherches].map((t) => `- ${t}`),
+          'Réponds uniquement par le tableau JSON.',
+        ].join('\n'),
+        maxTokens: 2000,
+        effort: 'low',
+      })
+      usage.claudeEntree += rel.usage.input_tokens || 0
+      usage.claudeSortie += rel.usage.output_tokens || 0
+      let props = []
+      try { const t = rel.texte; props = JSON.parse(t.slice(t.indexOf('['), t.lastIndexOf(']') + 1)) } catch { /* nothing new: the loop ends below */ }
+      const nouveaux = [...new Set((Array.isArray(props) ? props : [])
+        .map((x) => String((x && typeof x === 'object' ? x.fournisseur || x.modele : x) || '').trim().toLowerCase())
+        .filter((t) => t && !termesCherches.has(t)))].slice(0, plafondOffres)
+      if (!nouveaux.length) break
+      const avant = offres.length
+      await sourcer(nouveaux, `sourcing-relance-${relances}`)
+      journal.info(`${etiquette} : relance fournisseurs ${relances}`, { formulations: nouveaux.length, offresAjoutees: offres.length - avant, offres: offres.length, objectif: objectifOffres })
+    }
     // the supplier page itself, in plain HTTP: a price it writes in its structured data (often none: JS sites)
-    const lus = await enParallele(offres.slice(0, plafondOffres), 2, async (o) => ({ o, page: await pages(o.url) }))
+    const lus = await enParallele(offres.slice(0, plafondPagesOffres), 2, async (o) => ({ o, page: await pages(o.url) }))
     for (const { o, page } of lus) {
       if (!page || !page.lisible) continue
       if (page.prix) o.prix = page.prix
       if (page.image) { o.image = page.image; imagesVues.add(page.image) }
     }
-    journal.info(`${etiquette} : sourcing fournisseurs`, { recherches: termes.length, offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, avecExtrait: offres.filter((o) => o.extrait).length, sitesRefuses: moteur.domainesRefuses ? moteur.domainesRefuses() : [] })
+    journal.info(`${etiquette} : sourcing fournisseurs`, { recherches: termesCherches.size, relances, offres: offres.length, listesEcartees, avecPrixLu: offres.filter((o) => o.prix).length, avecExtrait: offres.filter((o) => o.extrait).length, sitesRefuses: moteur.domainesRefuses ? moteur.domainesRefuses() : [] })
   } catch (err) {
     echecSourcing = String(err.message || err)
     journal.erreur(`${etiquette} : vague fournisseurs en échec, rapport à revoir`, { raison: echecSourcing })
@@ -395,7 +456,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
     usage,
     signaux: signaux ? { courbes: (signaux.tendances || []).filter((g) => g.statut === 'ok').length, pubsLues: (signaux.pubs || []).filter((p) => p.statut === 'ok' || p.statut === 'aucun').length, pubsDemandees: (signaux.pubs || []).length } : null,
     fiches: { avecDonnees: fiches.length, avecImage: avecImage.length, avecPrix: avecPrix.length },
-    sourcing: { echec: echecSourcing, sitesRefuses: moteur.domainesRefuses ? moteur.domainesRefuses() : [], offres: offres.length, avecPrixLu: offres.filter((o) => o.prix).length, plateformes: [...new Set(offres.map((o) => o.plateforme))] },
+    sourcing: { echec: echecSourcing, sitesRefuses: moteur.domainesRefuses ? moteur.domainesRefuses() : [], offres: offres.length, relances, listesEcartees, avecPrixLu: offres.filter((o) => o.prix).length, plateformes: [...new Set(offres.map((o) => o.plateforme))] },
     serperPlus: serperPlus ? { requetes: serperPlus.requetes, modelesAvecPrix: serperPlus.shopping.filter((x) => x.prixMin !== null).length, modelesAvecImages: serperPlus.images.filter((x) => x.images.length).length, coupe: serperPlus.coupe } : null,
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),
@@ -422,4 +483,4 @@ async function executerRayon({ rayon, deps, options = {} }) {
   return { statut: rapport.poste.statut, validation, chemins, usage }
 }
 
-module.exports = { executerRayon, requetesVague1, extraireJson, cleUrl, DOMAINES_FOURNISSEURS }
+module.exports = { executerRayon, requetesVague1, extraireJson, cleUrl, DOMAINES_FOURNISSEURS, estFicheFournisseur }
