@@ -79,7 +79,8 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.ok(fs.existsSync(path.join(depot, 'prompts', 'rayon.md')), 'prompt modifiable posé dans le dépôt')
     console.log('ok   dossier de dépôt, sous-dossiers et prompt modifiable créés')
 
-    // the screen itself (tabs, nothing missing)
+    // the screen itself (tabs, nothing missing); the first render can land after the IPC answer
+    for (let i = 0; i < 50 && !(await a.evaluer(`document.querySelectorAll('#onglets button').length`)); i++) await pause(200)
     const ecran = await a.evaluer(`JSON.stringify({ onglets: [...document.querySelectorAll('#onglets button')].map((b) => b.textContent), titre: document.querySelector('h1') && document.querySelector('h1').textContent })`)
     const ec = JSON.parse(ecran)
     assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Administration', 'Import Drive', 'Affiliation', 'Réglages', 'Journal'])
@@ -93,7 +94,7 @@ async function lancer({ maison, profil, port, serveur }) {
     await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; rendre() })()`)
     await pause(300)
     const accueil = await a.evaluer(`document.body.textContent`)
-    assert.match(accueil, /par Claude, sans Serper/); assert.ok(!/Clé Serper/.test(accueil), 'pas de clé Serper demandée')
+    assert.match(accueil, /par Claude, sans Serper/); assert.ok(!/0,39 €/.test(accueil), 'plus l’ancien coût Serper sur la carte de la nuit'); assert.ok(!/Clé Serper/.test(accueil), 'pas de clé Serper demandée')
     assert.equal(await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Lancer UN rayon test').disabled`), false, 'rayon test possible sans Serper')
     assert.ok(!JSON.stringify(e1).includes('secrete'), 'aucune valeur de clé ne revient à l’écran')
     const cfgTexte = fs.readFileSync(path.join(profil, 'config.json'), 'utf8')

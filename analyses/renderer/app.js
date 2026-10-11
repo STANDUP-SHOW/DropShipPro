@@ -104,7 +104,7 @@ function vueAccueil() {
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Nuit automatique'),
-      h('p', { class: 'doux petit' }, 'À n’activer qu’après un rayon test dont vous avez validé la qualité (20 produits, 20 URL distinctes, marges en euros). Coût : environ 0,39 € par rayon coché (24 rayons ≈ 9,40 €). Les rayons se choisissent dans « Rapports du jour ».'),
+      h('p', { class: 'doux petit' }, `À n’activer qu’après un rayon test dont vous avez validé la qualité (20 produits, 20 URL distinctes, marges en euros). Coût par rayon coché : ${e.reglages.coutParRayon}. Les rayons se choisissent dans « Rapports du jour ».`),
       h('div', { class: 'ligne' },
         h('button', { class: 'btn', onclick: () => appel('nuitAuto', { actif: !e.reglages.nuitActivee }) }, e.reglages.nuitActivee ? 'Désactiver la nuit automatique' : `Activer la nuit automatique à ${e.reglages.heureNuit}`),
       ),

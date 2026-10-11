@@ -514,7 +514,7 @@ function brancher() {
     if (actif) {
       const n = rayonsDeLaNuit(jourLocal()).length
       if (!n) throw new Error('Aucun rayon coché : cochez au moins un rayon dans « Rayons du jour ».')
-      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', `Le poste lancera seul ${n === 24 ? 'les 24 rayons' : `les ${n} rayon${n > 1 ? 's' : ''} cochés`} chaque nuit (≈ ${(n * 0.39).toFixed(2).replace('.', ',')} € par nuit). Vous pouvez la couper ici à tout moment.`)
+      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', `Le poste lancera seul ${n === 24 ? 'les 24 rayons' : `les ${n} rayon${n > 1 ? 's' : ''} cochés`} chaque nuit. Coût par nuit : ${coutParRayon(n)}. Vous pouvez la couper ici à tout moment.`)
       if (!ok) return etat()
       cfg.accordNuitLe = new Date().toISOString()
     }
