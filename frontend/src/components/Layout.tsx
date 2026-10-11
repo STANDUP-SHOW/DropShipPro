@@ -19,35 +19,19 @@ import { useNeonVarie } from '../lib/neonColors'
 import { api } from '../lib/api'
 
 /**
- * L'icône d'Auto-Shipper : l'animation de sa page en miniature — le noyau
- * bleu et les anneaux segmentés feu et glace. Pas de « AI » au centre, il
- * serait illisible à seize pixels.
+ * L'icône d'Auto-Shipper : celle de son logo (engrenage et flèches
+ * circulaires sur carré rose → orange → jaune, 11/10/2026), découpée du PNG
+ * de docs/marque/autoshipper-complet.png.
  */
 function IconeAutoShipper({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-      <defs>
-        <linearGradient id="ico-as-feu" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#fbbf24" />
-          <stop offset="1" stopColor="#f97316" />
-        </linearGradient>
-        <radialGradient id="ico-as-noyau" cx="0.38" cy="0.32" r="0.9">
-          <stop offset="0" stopColor="#7dd3fc" />
-          <stop offset="1" stopColor="#2563eb" />
-        </radialGradient>
-      </defs>
-      <circle cx="12" cy="12" r="4.2" fill="url(#ico-as-noyau)" />
-      <circle cx="12" cy="12" r="7" stroke="url(#ico-as-feu)" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="5 3 2 4" fill="none" />
-      <circle cx="12" cy="12" r="9.6" stroke="#38bdf8" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="6 3 1 5" opacity="0.85" fill="none" />
-    </svg>
-  )
+  return <img src="/marque/autoshipper-icone-64.png" alt="" aria-hidden width={size} height={size} className="shrink-0 rounded-[4px]" />
 }
 
 const NAV = [
   // Le tableau de bord d abord : l accueil du vendeur, ce sont ses chiffres.
   { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
   // La page « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (06/09/2026) ;
-  // son entrée porte l'icône et le dégradé bleu → jaune de son animation.
+  // son entrée porte l'icône et le dégradé rose → orange → jaune de son logo.
   { to: '/pilote', label: 'Auto-SHIPPER IA', icon: IconeAutoShipper },
   { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
 ]
@@ -395,10 +379,10 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                   }`}
                 >
                   <item.icon size={16} />
-                  {/* Auto-Shipper porte les couleurs de son animation : bold,
-                      du bleu du noyau au jaune de l'anneau de feu. */}
+                  {/* Auto-Shipper porte les couleurs de son logo (11/10/2026) :
+                      bold, rose → orange → jaune. */}
                   {item.to === '/pilote' ? (
-                    <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text font-bold text-transparent">
+                    <span className="bg-gradient-to-r from-[#e53576] via-[#f27f40] to-[#ffca0a] bg-clip-text font-bold text-transparent">
                       {item.label}
                     </span>
                   ) : (

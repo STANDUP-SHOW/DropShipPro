@@ -7,6 +7,7 @@ import {
   MousePointerClick,
   Share2,
   Sparkles,
+  Cog,
   Store,
   Truck,
   Wand2,
@@ -29,7 +30,7 @@ const THEMES: Record<string, { icone: LucideIcon; de: string; a: string }> = {
   diffusion: { icone: Globe2, de: '#4f46e5', a: '#06b6d4' },
   'analyses-de-marche': { icone: BarChart3, de: '#16a34a', a: '#84cc16' },
   'agents-ia': { icone: Bot, de: '#8b5cf6', a: '#ec4899' },
-  'auto-shipper': { icone: Sparkles, de: '#ea580c', a: '#facc15' },
+  'auto-shipper': { icone: Cog, de: '#e53576', a: '#ffca0a' },
   'les-drops': { icone: Coins, de: '#0ea5e9', a: '#8b5cf6' },
 }
 

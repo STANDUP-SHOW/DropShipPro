@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bot, Play, AlertTriangle, Info, Plus, Store, ArrowRight } from 'lucide-react'
+import { Play, AlertTriangle, Info, Plus, Store, ArrowRight } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
 import { photoAgent } from '../lib/agentsPhotos'
@@ -269,13 +269,16 @@ export default function Autopilot() {
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
         {/* ---------- Le bloc principal, à gauche ---------- */}
         <div>
-          <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight">
-            <Bot size={30} className="text-sky-400" />
-            {/* Le dégradé du titre reprend l'animation : la glace du noyau vers
-                le feu de l'anneau — bleu → jaune (06/09/2026). */}
-            <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400 bg-clip-text text-transparent">
-              Auto-SHIPPER IA
-            </span>
+          {/* Le titre est le logo AutoShipper (11/10/2026, docs/marque) ; le nom
+              reste lisible pour les lecteurs d'écran par l'attribut alt. */}
+          <h1>
+            <img
+              src="/marque/autoshipper-complet.png"
+              alt="Auto-SHIPPER IA"
+              width={1400}
+              height={234}
+              className="h-9 w-auto max-w-full md:h-11"
+            />
           </h1>
           <p className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-400">
             Le pilote automatique
