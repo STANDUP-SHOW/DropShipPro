@@ -639,6 +639,9 @@ test('sourcing : recherches limitées aux sites fournisseurs, supplier_url prise
   const offres = new Set(prompt.split('# OFFRES FOURNISSEURS')[1].split('\n# ')[0].split('\n').map((l) => l.split(' | ')[3]).filter(Boolean))
   const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
   assert.ok(j.products.every((p) => offres.has(p.supplier_url)), 'chaque lien fournisseur vient de la vague sourcing')
+  const trace = JSON.parse(fs.readFileSync(path.join(m.racine, 'releves', '2026-10-03', 'recherches', 'telephonie_smartphones.json'), 'utf8'))
+  assert.equal(trace.recherches.length, 66, 'chaque requête tapée est gardée pour le diagnostic')
+  assert.ok(trace.recherches.filter((r) => r.vague === 'sourcing').every((r) => r.domaines.includes('alibaba.com') && r.sites.length))
 })
 
 test('sourcing : un rapport qui prend ses liens chez les revendeurs est à revoir, jamais envoyé', async (srv) => {

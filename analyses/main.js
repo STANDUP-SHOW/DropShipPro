@@ -28,7 +28,7 @@ const { creerJournal } = require('./lib/journal')
 const agents = require('./lib/agents')
 const { creerSerper } = require('./lib/serper')
 const { creerClaude } = require('./lib/claude')
-const { creerRechercheClaude, DOLLARS_PAR_RECHERCHE } = require('./lib/recherche-claude')
+const { creerRechercheClaude, coutDollars } = require('./lib/recherche-claude')
 const { lirePage } = require('./lib/pages')
 const { executerRayon } = require('./lib/rayon')
 const signauxPublics = require('./lib/signaux')
@@ -68,7 +68,7 @@ const moteurSerper = () => cfg.moteurRecherche === 'serper'
 function fournisseurs() {
   const claude = creerClaude({ cle: secret('anthropic'), modele: cfg.modele, espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
   if (moteurSerper()) return { serper: creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined }), recherche: null, claude }
-  const recherche = creerRechercheClaude({ cle: secret('anthropic'), modele: cfg.modeleRecherche || cfg.modele, espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
+  const recherche = creerRechercheClaude({ cle: secret('anthropic'), modele: modeleRecherche(), espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
   return { serper: null, recherche, claude }
 }
 
@@ -124,6 +124,11 @@ function creditsSerperParRayon() {
   return 20 + (cfg.plafondDeuxiemeVague || 26) + (c ? (c.autocomplete ? 7 : 0) + (c.shopping ? c.plafondShopping : 0) + (c.images ? c.plafondImages : 0) : 0)
 }
 
+// The search lots only run the queries and cite the pages: the cheapest model does it, unless Max names one.
+// (Measured 11/10 with Sonnet 5.5: 505 k input tokens for 46 searches = 1,01 $, more than the searches themselves.)
+const MODELE_RECHERCHE_DEFAUT = 'claude-haiku-5-5'
+const modeleRecherche = () => cfg.modeleRecherche || MODELE_RECHERCHE_DEFAUT
+
 // What one rayon costs, said before Max says yes. Claude search: $0.01 per search (Anthropic's price)
 // plus the tokens of the results read (estimated; the real amount is written in the journal).
 const EUR = (n) => n.toFixed(2).replace('.', ',')
@@ -131,9 +136,10 @@ function coutParRayon(n = 1) {
   if (moteurSerper()) return `environ ${EUR(n * 0.39)} € chez Anthropic et jusqu’à ${n * creditsSerperParRayon()} crédits Serper`
   // wave 1 + wave 2 (selling prices) + sourcing on supplier sites (at most 20)
   const recherches = 20 + (cfg.plafondDeuxiemeVague || 26) + Math.min(20, cfg.plafondDeuxiemeVague || 26)
-  const bas = 0.39 + recherches * DOLLARS_PAR_RECHERCHE * 0.86 + 0.3
-  const haut = 0.39 + recherches * DOLLARS_PAR_RECHERCHE * 0.86 + 0.9
-  return `environ ${EUR(n * bas)} à ${EUR(n * haut)} € chez Anthropic, tout compris (${n * recherches} recherches web à 0,01 $ chacune, la lecture des résultats et le rapport ; aucun Serper). Le montant réel s’inscrit dans le journal`
+  // measured on the first real rayon (electromenager/sols, 11/10): per search ~11 000 tokens read and ~700
+  // written; the report call 69 000 read and 21 000 written
+  const dollars = coutDollars({ recherches, entree: recherches * 11000, sortie: recherches * 700 }, modeleRecherche()) + coutDollars({ entree: 72000, sortie: 21500 }, cfg.modele)
+  return `environ ${EUR(n * dollars * 0.86)} € chez Anthropic, tout compris (${n * recherches} recherches web à 0,01 $ chacune, la lecture des résultats et le rapport ; aucun Serper). Le montant réel s’inscrit dans le journal`
 }
 
 // The rayons of the night, as chosen by Max (all of them until he chooses).

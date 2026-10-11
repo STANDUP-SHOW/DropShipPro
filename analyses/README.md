@@ -103,6 +103,16 @@ Depuis la 0.3.1 :
   (`poste.stats.horsSourcing`, rapport « à revoir », jamais envoyé) et, sans page fournisseur,
   vide prix d'achat et marges : jamais d'estimation. `poste.sourcing` compte les offres.
 
+## Coût mesuré et trace des recherches (0.3.2, 11/10/2026)
+
+Premier rayon réel (electromenager/sols, Sonnet 5.5 pour tout) : 46 recherches = 0,46 $, mais
+505 000 tokens lus par les lots de recherche = 1,01 $ (+ 0,32 $ écrits), soit 1,79 $ de recherche ;
+rapport 69 000 / 21 000 tokens ≈ 0,35 $. Les lots ne font que lancer les requêtes et citer :
+depuis la 0.3.2 ils tournent par défaut sur Haiku 5.5 (0,10 $ / 0,50 $ le million), champ
+« Modèle des recherches web » vide. Estimation affichée (66 recherches) : environ 0,96 € par
+rayon, 23 € la nuit de 24 — à confirmer au prochain rayon. Chaque requête tapée, son filtre
+de sites et les sites répondus sont écrits dans `releves/<date>/recherches/<rayon>.json`.
+
 ## Lectures Serper étendues (lib/serper-etendu.js, 03/10/2026)
 
 Trois lectures de plus avec la clé Serper existante, après la deuxième vague (les 46 requêtes

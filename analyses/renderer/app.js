@@ -480,7 +480,7 @@ function vueReglages() {
       h('h2', {}, 'Agents'),
       f('modele', 'Modèle Claude', r.modele),
       h('div', {}, h('label', {}, 'Moteur de recherche web'), moteur),
-      !avecSerper && f('modeleRecherche', 'Modèle des recherches web (vide = le même que ci-dessus)', r.modeleRecherche || ''),
+      !avecSerper && f('modeleRecherche', 'Modèle des recherches web (vide = Haiku 5.5, le moins cher)', r.modeleRecherche || ''),
       !avecSerper && h('p', { class: 'doux petit' }, `Recherche web d’Anthropic : 0,01 $ par recherche, plus la lecture des résultats. Un rayon : ${r.coutParRayon}.`),
       f('espaceAnthropic', 'Identifiant d’espace de travail Anthropic (seulement si l’API répond « not scoped to a workspace »)', r.espaceAnthropic || ''),
       f('heureNuit', 'Heure de la nuit (HH:MM)', r.heureNuit),

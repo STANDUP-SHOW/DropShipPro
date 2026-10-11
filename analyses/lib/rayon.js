@@ -116,8 +116,22 @@ async function executerRayon({ rayon, deps, options = {} }) {
   // One result list per query, same order. A refusal throws: no silent empty list.
   // With `domaines`, Claude's search keeps to those sites (enforced by the API); Serper cannot, so its
   // results are filtered on the host instead.
-  async function rechercher(requetes, { domaines: limite = null } = {}) {
+  // Every query typed, its site filter and the sites answered: kept in releves/ so a rayon can be diagnosed.
+  const traceRecherches = []
+  const tracer = (vague, requetes, listes, limite) => requetes.forEach((q, i) => traceRecherches.push({ vague, requete: q, domaines: limite || null, resultats: (listes[i] || []).length, sites: [...new Set((listes[i] || []).map((x) => hoteDe(x.url)))] }))
+  const ecrireTrace = () => {
+    try {
+      const dossier = path.join(racine, 'releves', rayon.date, 'recherches')
+      fs.mkdirSync(dossier, { recursive: true })
+      fs.writeFileSync(path.join(dossier, `${rayon.categorie}_${rayon.theme}.json`), JSON.stringify({ moteur: moteur.moteur || 'serper', recherches: traceRecherches }, null, 2))
+    } catch (err) { journal.erreur(`${etiquette} : trace des recherches non écrite`, { raison: String(err.message || err) }) }
+  }
+
+  async function rechercher(requetes, { domaines: limite = null, vague = '' } = {}) {
     const sortie = []
+    try { return await rechercherSans(requetes, limite, sortie) } finally { tracer(vague, requetes, sortie, limite); ecrireTrace() }
+  }
+  async function rechercherSans(requetes, limite, sortie) {
     if (typeof moteur.chercherLot === 'function') {
       for (let i = 0; i < requetes.length; i += TAILLE_LOT) {
         const r = await moteur.chercherLot(requetes.slice(i, i + TAILLE_LOT), limite ? { domaines: limite } : undefined)
@@ -141,7 +155,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
 
   // ---- wave 1
   const requetes1 = requetesVague1(rayon.libelleTheme, rayon.libelleCategorie, annee)
-  const resultats1 = (await rechercher(requetes1)).map((r, i) => ({ q: requetes1[i], r }))
+  const resultats1 = (await rechercher(requetes1, { vague: '1' })).map((r, i) => ({ q: requetes1[i], r }))
   for (const { r } of resultats1) for (const x of r) urlsVues.add(x.url)
   const total1 = resultats1.reduce((n, x) => n + x.r.length, 0)
   if (!total1) throw new Error(`${etiquette} : première vague sans aucune réponse (garde anti faux succès)`)
@@ -203,7 +217,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
   if (!noms.length) throw new Error(`${etiquette} : liste de noms de modèles vide (garde anti faux succès)`)
 
   // ---- wave 2
-  const resultats2 = (await rechercher(noms.map((n) => `${n} prix fiche produit acheter`))).map((r, i) => ({ n: noms[i], r }))
+  const resultats2 = (await rechercher(noms.map((n) => `${n} prix fiche produit acheter`), { vague: '2' })).map((r, i) => ({ n: noms[i], r }))
   for (const { r } of resultats2) for (const x of r) urlsVues.add(x.url)
   journal.info(`${etiquette} : vague 2`, { modeles: noms.length, recherchesWeb: usage.recherchesWeb, coutRechercheDollars: usage.rechercheDollars })
 
@@ -212,7 +226,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
   const offres = []
   if (termes.length) {
     const requetesSourcing = termes.map((t) => (moteur.chercherLot ? `${t} wholesale supplier price` : `${t} wholesale alibaba aliexpress`))
-    const resultatsS = await rechercher(requetesSourcing, { domaines })
+    const resultatsS = await rechercher(requetesSourcing, { domaines, vague: 'sourcing' })
     termes.forEach((t, i) => {
       for (const x of (resultatsS[i] || []).slice(0, 4)) {
         urlsVues.add(x.url)
