@@ -15,6 +15,8 @@ let onglet = 'accueil'
 let etat = null
 let sourceChoisie = null
 let messageFlash = ''
+// rayon picked for the test: { categorie, theme } ids (null = first rayon of the day)
+let choixTest = null
 
 function h(tag, attrs, ...enfants) {
   const el = document.createElement(tag)
@@ -28,6 +30,27 @@ function h(tag, attrs, ...enfants) {
   }
   for (const e of enfants.flat()) if (e !== null && e !== undefined && e !== false) el.append(e.nodeType ? e : document.createTextNode(String(e)))
   return el
+}
+
+/** Rayon and theme of the test, defaulting to the first category and its theme of the day. */
+function choixDuTest(e) {
+  const cat = (e.catalogue || []).find((c) => choixTest && c.id === choixTest.categorie) || (e.catalogue || [])[0]
+  if (!cat) return null
+  const theme = cat.themes.find((t) => choixTest && t.id === choixTest.theme) || cat.themes.find((t) => t.id === cat.themeDuJour) || cat.themes[0]
+  return { categorie: cat.id, theme: theme.id }
+}
+
+function vueChoixTest(e) {
+  const choix = choixDuTest(e)
+  if (!choix) return null
+  const cat = e.catalogue.find((c) => c.id === choix.categorie)
+  return h('div', { class: 'ligne' },
+    h('label', { class: 'doux petit' }, 'Rayon du test : '),
+    h('select', { id: 'test-categorie', onchange: (ev) => { choixTest = { categorie: ev.target.value, theme: null }; rendre() } },
+      e.catalogue.map((c) => h('option', { value: c.id, selected: c.id === choix.categorie }, c.nom))),
+    h('select', { id: 'test-theme', onchange: (ev) => { choixTest = { categorie: choix.categorie, theme: ev.target.value }; rendre() } },
+      cat.themes.map((t) => h('option', { value: t.id, selected: t.id === choix.theme }, t.id === cat.themeDuJour ? `${t.nom} (thème du jour)` : t.nom))),
+  )
 }
 
 const pastille = (texte, type) => h('span', { class: `pastille ${type || ''}` }, texte)
@@ -89,10 +112,11 @@ function vueAccueil() {
           const r = await appel('credits')
           if (r) flash(`Anthropic : ${r.claude.ok ? 'OK' : r.claude.message}${r.serper.utilise ? ` — Serper : ${r.serper.ok ? 'OK' : r.serper.message}` : ' — recherche web par Claude, sans Serper'}`)
         } }, avecSerper ? 'Contrôler les crédits (1 crédit Serper)' : 'Contrôler la clé Anthropic'),
-        h('button', { class: 'btn principal', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('rayonTest'); if (r && !r.annule) flash(`Rayon test : ${r.statut}`) } }, 'Lancer UN rayon test'),
+        h('button', { class: 'btn principal', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('rayonTest', choixDuTest(e)); if (r && !r.annule) flash(`Rayon test : ${r.statut}`) } }, 'Lancer UN rayon test'),
         h('button', { class: 'btn', disabled: e.nuit.enCours || !toutesCles || !choisis, onclick: async () => { const r = await appel('nuitLancer'); if (r && !r.annule) flash(r.annulee ? `Nuit annulée : ${r.annulee}` : 'Nuit terminée') } }, choisis === total ? 'Lancer la nuit complète' : `Lancer ${choisis} rayon${choisis > 1 ? 's' : ''} sur ${total}`),
         h('button', { class: 'btn danger', disabled: !e.nuit.enCours, onclick: () => appel('nuitArreter') }, 'Arrêter après le rayon en cours'),
       ),
+      vueChoixTest(e),
       prog && h('p', {}, `En cours : ${prog.courant || '…'} ${prog.index ? `(${prog.index}/${prog.attendus})` : ''}`),
       messageFlash && h('p', { class: 'petit' }, messageFlash),
     ),

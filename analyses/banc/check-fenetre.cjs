@@ -193,6 +193,23 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(rapportTest.poste.usage.recherchesWeb, 66); assert.ok(rapportTest.poste.sourcing.offres > 0, JSON.stringify(rapportTest.poste.sourcing)); assert.ok(rapportTest.poste.fiches.avecImage > 0, JSON.stringify(rapportTest.poste.fiches))
     console.log('ok   rayon test par la recherche web de Claude : 66 recherches dont 20 de sourcing, fiches lues, coût noté')
 
+    // the test's rayon is chosen on the dashboard (Max, 11/10): 24 rayons, then the 7 themes of the one picked
+    const eCat = (await a.appel('etat')).valeur
+    const autre = eCat.catalogue.find((c) => c.id !== eCat.rayonsDuJour[0].categorie)
+    const themeAutre = autre.themes.find((t) => t.id !== autre.themeDuJour)
+    await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; onglet = 'accueil'; rendre() })()`)
+    assert.equal(await a.evaluer(`document.querySelectorAll('#test-categorie option').length`), 24, 'les 24 rayons au choix')
+    await a.evaluer(`(() => { const s = document.querySelector('#test-categorie'); s.value = ${JSON.stringify(autre.id)}; s.dispatchEvent(new Event('change')) })()`)
+    assert.equal(await a.evaluer(`document.querySelectorAll('#test-theme option').length`), autre.themes.length, 'les thèmes du rayon choisi')
+    assert.match(await a.evaluer(`document.querySelector('#test-theme').selectedOptions[0].textContent`), /thème du jour/)
+    await a.evaluer(`(() => { const s = document.querySelector('#test-theme'); s.value = ${JSON.stringify(themeAutre.id)}; s.dispatchEvent(new Event('change')) })()`)
+    assert.deepEqual(JSON.parse(await a.evaluer(`JSON.stringify(choixDuTest(etat))`)), { categorie: autre.id, theme: themeAutre.id })
+    const rChoisi = (await a.appel('rayonTest', { categorie: autre.id, theme: themeAutre.id })).valeur
+    assert.equal(rChoisi.statut, 'ok', JSON.stringify(rChoisi))
+    assert.ok(fs.existsSync(path.join(depot, 'rapports', jour, autre.id, themeAutre.id + '.json')), 'le rapport est celui du rayon et du thème choisis')
+    console.log(`ok   rayon test choisi à l’écran : ${autre.nom} › ${themeAutre.nom}`)
+    fs.rmSync(path.join(depot, 'rapports', jour, autre.id), { recursive: true }) // the night checks below count the folders
+
     // Serper stays possible when Max chooses it: key, then the extra readings
     await a.appel('reglages', { moteurRecherche: 'serper' })
     const eSerper = (await a.appel('secret', { nom: 'serper', valeur: 'cle-serper-secrete' })).valeur
@@ -219,8 +236,8 @@ async function lancer({ maison, profil, port, serveur }) {
     const brutSerper = JSON.parse(fs.readFileSync(path.join(depot, 'releves', jour, 'serper', fs.readdirSync(path.join(depot, 'releves', jour, 'serper'))[0]), 'utf8'))
     assert.ok(brutSerper.shopping.length > 0 && brutSerper.shopping.every((x) => x.prixMin === 129.9), JSON.stringify(brutSerper.shopping[0]).slice(0, 200))
     console.log('ok   moteur Serper choisi : lectures Serper étendues, prix Shopping, suggestions et images relevés')
-    assert.equal(faux.envoyes.length, 3, 'chaque rapport de la nuit est parti vers le site')
-    console.log('ok   envoi au site : 3 rapports validés envoyés seuls, rayon et marketing d’un coup')
+    assert.equal(faux.envoyes.length, 4, 'chaque rapport (deux rayons test, deux de la nuit) est parti vers le site')
+    console.log('ok   envoi au site : 4 rapports validés envoyés seuls, rayon et marketing d’un coup')
 
     // a failed sending leaves the report waiting; the button sends it, a refusal is told in clear
     const dossierEnvoi = path.join(depot, 'rapports', jour, deux[0])
@@ -233,7 +250,7 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 1, 'refusé : le rapport reste en attente')
     faux.mode = 'bon'
     const renvoi = (await a.appel('envoyerAuSite')).valeur
-    assert.equal(renvoi.envoyes, 1); assert.equal(faux.envoyes.length, 4)
+    assert.equal(renvoi.envoyes, 1); assert.equal(faux.envoyes.length, 5)
     assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 0)
     console.log('ok   renvoi : refus du site dit en clair, rapport conservé, puis envoyé')
     // the screen: a checkbox per rayon (2 ticked) and the Serper readings in Réglages

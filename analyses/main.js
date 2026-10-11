@@ -213,10 +213,21 @@ function progression(p) {
   envoyer('progression', p)
 }
 
-async function lancerUnRayon(rayonChoisi) {
+// The rayon Max picked on the dashboard ({categorie, theme} ids, checked against agents.json);
+// without a choice, the first rayon of the day.
+function rayonDuTest(choix, date) {
+  const tous = agents.charger()
+  if (!choix || !choix.categorie) return agents.rayonsDuJour(tous, date)[0]
+  const c = tous.categories.find((x) => x.id === choix.categorie)
+  if (!c) throw new Error('Rayon inconnu : ' + choix.categorie)
+  const t = c.themes.find((x) => x.id === choix.theme) || agents.themeDuJour(c, date)
+  return { categorie: c.id, libelleCategorie: c.nom, theme: t.id, libelleTheme: t.nom, date }
+}
+
+async function lancerUnRayon(choix) {
   if (nuit.enCours) throw new Error('Une exécution est déjà en cours.')
   const date = jourLocal()
-  const rayon = rayonChoisi || agents.rayonsDuJour(agents.charger(), date)[0]
+  const rayon = rayonDuTest(choix, date)
   const ok = await accord(`Lancer UN rayon test (${rayon.libelleCategorie} › ${rayon.libelleTheme}) ?`, `Coût estimé : ${coutParRayon(1)}.`)
   if (!ok) return { annule: true }
   nuit.enCours = true
@@ -373,6 +384,8 @@ function etat() {
     admin: adminEtat(),
     envoi: { actif: Boolean(cfg.envoiAuSite), cle: Boolean(secret('admin')), apiBase: cfg.apiBase, enAttente: depot.rapportsAEnvoyer(racine).length },
     nuit: { enCours: nuit.enCours, progression: nuit.progression, dernierBilan: nuit.dernierBilan },
+    // every category and its 7 themes, for the rayon test picker
+    catalogue: agents.charger().categories.map((c) => ({ id: c.id, nom: c.nom, themeDuJour: agents.themeDuJour(c, date).id, themes: c.themes.map((t) => ({ id: t.id, nom: t.nom })) })),
     rayonsDuJour: agents.rayonsDuJour(agents.charger(), date).map((r) => ({ ...r, fait: rapportValide(racine, date, r.categorie, r.theme), choisi: !Array.isArray(cfg.rayonsNuit) || cfg.rayonsNuit.includes(r.categorie) })),
     rapports: listeRapports(date),
     sources: cfg.sources.map((s) => ({ ...s, session: etatsSources[s.id] || null })),
