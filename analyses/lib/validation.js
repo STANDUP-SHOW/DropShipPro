@@ -25,14 +25,17 @@ function cle(u) {
 /**
  * @param {object} rapport  parsed MarketSpy JSON (mutated: unverified fields become "Non vérifié")
  * @param {Set<string>} urlsVues  URLs seen in search results or on pages read
+ * @param {{imagesVues?: Set<string>}} o  when given, an image_url must be one of these real addresses
+ *   (an unseen one is blanked and counted in stats; it does not hold the report back)
  */
-function valider(rapport, urlsVues, { attendus = 20 } = {}) {
+function valider(rapport, urlsVues, { attendus = 20, imagesVues = null } = {}) {
   const problemes = []
   const produits = Array.isArray(rapport.products) ? rapport.products : []
   const vues = new Set([...urlsVues].map(cle))
   const distinctes = new Set()
   let invention = 0
   let margesSuspectes = 0
+  let imagesInventees = 0
 
   for (const p of produits) {
     if (estHttp(p.supplier_url) && vues.has(cle(p.supplier_url))) {
@@ -43,6 +46,10 @@ function valider(rapport, urlsVues, { attendus = 20 } = {}) {
       p.url_type = 'non_verifie'
     }
     if (p.image_url && !estHttp(p.image_url)) p.image_url = NON_VERIFIE
+    else if (imagesVues && estHttp(p.image_url) && !imagesVues.has(p.image_url)) {
+      imagesInventees++
+      p.image_url = NON_VERIFIE
+    }
     const vente = Number(p.target_selling_price)
     for (const champ of ['gross_margin', 'net_margin_estimated']) {
       const m = Number(p[champ])
@@ -67,7 +74,7 @@ function valider(rapport, urlsVues, { attendus = 20 } = {}) {
   return {
     ok: problemes.length === 0,
     problemes,
-    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, margesSuspectes },
+    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, margesSuspectes, imagesInventees },
   }
 }
 

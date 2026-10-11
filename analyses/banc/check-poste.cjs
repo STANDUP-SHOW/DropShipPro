@@ -33,6 +33,8 @@ const { planifier } = lib('planificateur')
 const { ErreurFournisseur } = lib('erreurs')
 const sig = lib('signaux')
 const plus = lib('serper-etendu')
+const rc = lib('recherche-claude')
+const pagesLib = lib('pages')
 
 let ok = 0
 const essais = []
@@ -546,6 +548,88 @@ test('dépôt : arborescence créée, écriture atomique, re-dépôt du même jo
   const c = depot.ecrireRapport(racine, { ...base, json: { v: 2 }, rayonMd: 'a2', marketingMd: 'b2' })
   assert.equal(JSON.parse(fs.readFileSync(c.json, 'utf8')).v, 2)
   assert.equal(fs.readdirSync(c.dossier).filter((f) => f.endsWith('.tmp')).length, 0)
+})
+
+// ------------------------------------------------------------------ search without Serper (Claude's web search)
+function mondeClaude(srv) {
+  const m = monde(srv)
+  const recherche = rc.creerRechercheClaude({ cle: 'k', modele: 'claude-sonnet-5-5', url: `http://127.0.0.1:${m.port}/v1/messages`, attenteReprise: 10 })
+  return { ...m, recherche, deps: { ...m.deps, serper: null, recherche } }
+}
+
+test('recherche Claude : une liste par requête, URL tirées des blocs de l’API, extraits = citations mot pour mot, coût compté', async (srv) => {
+  const m = mondeClaude(srv); remise()
+  const r = await m.recherche.chercherLot(['robot cuiseur site:amazon.fr', 'friteuse sans huile', 'blender'])
+  assert.equal(r.resultats.length, 3)
+  assert.ok(!etat.recherchesWeb.some((q) => /site:/.test(q)), 'site: retiré')
+  assert.ok(r.resultats.every((l) => l.length === 6 && l.every((x) => /^http:\/\/127\.0\.0\.1:\d+\/p\/\d+$/.test(x.url))))
+  assert.match(r.resultats[1][0].extrait, /^friteuse sans huile : modèle vendu 49,90 €/)
+  assert.equal(r.resultats[1][1].extrait, '', 'pas de citation = pas d’extrait, jamais de paraphrase')
+  assert.deepEqual(r.resultats[0].questions, [])
+  assert.equal(r.usage.recherches, 3)
+  assert.equal(r.usage.dollars, Math.round((3 * 0.01 + (3000 * 2 + 200 * 10) / 1e6) * 1000) / 1000)
+  assert.equal(etat.appelsRecherche, 1, 'trois recherches, un seul appel')
+  assert.equal((await m.recherche.chercher('robot')).length, 6)
+})
+
+test('recherche Claude : pause_turn reprise, requête reformulée rangée à sa place', async (srv) => {
+  let m = mondeClaude(srv); remise(); etat.mode = 'pause'
+  let r = await m.recherche.chercherLot(['a', 'b', 'c'])
+  assert.equal(etat.appelsRecherche, 2)
+  assert.ok(r.resultats.every((l) => l.length === 6))
+  assert.equal(r.usage.recherches, 3)
+  m = mondeClaude(srv); remise(); etat.mode = 'reformule'
+  r = await m.recherche.chercherLot(['a', 'b'])
+  assert.ok(r.resultats.every((l) => l.length === 6))
+})
+
+test('recherche Claude : recherches toutes en erreur ou crédit épuisé = exception, jamais une liste vide « réussie »', async (srv) => {
+  const m = mondeClaude(srv); remise(); etat.mode = 'recherche-refusee'
+  await assert.rejects(m.recherche.chercherLot(['a', 'b']), (e) => e instanceof ErreurFournisseur && /recherche web sans résultat \(erreurs unavailable\)/.test(e.message))
+  assert.equal(etat.appelsRecherche, 2, 'une seule reprise après une erreur passagère')
+  remise(); etat.creditsClaude = false
+  await assert.rejects(m.recherche.chercherLot(['a']), /credit balance is too low/)
+  remise(); etat.creditsClaude = false
+  await assert.rejects(executerRayon({ rayon: m.rayon, deps: m.deps, options: {} }), (e) => e instanceof ErreurFournisseur)
+  assert.throws(() => rc.creerRechercheClaude({ cle: '', modele: 'm' }), /clé absente/)
+})
+
+test('fiches : image og:image et prix schema.org lus tels que la page les écrit', () => {
+  const html = '<meta property="og:image" content="/i/a.jpg?x=1&amp;y=2"><script type="application/ld+json">[{"@type":"BreadcrumbList"},{"@type":"Product","offers":{"@type":"AggregateOffer","lowPrice":"19,90","priceCurrency":"EUR"}}]</script>'
+  assert.equal(pagesLib.extraireImage(html, 'https://boutique.fr/p/1'), 'https://boutique.fr/i/a.jpg?x=1&y=2')
+  assert.deepEqual(pagesLib.extrairePrix(html), { montant: 19.9, devise: 'EUR' })
+  assert.equal(pagesLib.extrairePrix('<p>Prix : 12,90 €</p>'), null, 'jamais un prix deviné dans le texte')
+  assert.equal(pagesLib.extraireImage('<meta property="og:image" content="javascript:alert(1)">', 'https://a.fr'), '')
+})
+
+test('rayon sans Serper : aucun appel Serper, 46 recherches web en lots, fiches lues, images inventées vidées, rapport conforme', async (srv) => {
+  const m = mondeClaude(srv); remise(); etat.mode = 'images'
+  let prompt = ''
+  const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion }, options: { modele: 'claude-sonnet-5-5' } })
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  assert.equal(etat.serper, 0, 'pas un seul appel Serper')
+  assert.equal(etat.recherchesWeb.length, 46)
+  assert.equal(etat.appelsRecherche, Math.ceil(20 / 3) + Math.ceil(26 / 3))
+  assert.match(prompt, /# PRIX LUS SUR LES FICHES PRODUITS[^\n]*\n- Marque Modele 0 \| \d+,?\d* EUR/)
+  assert.match(prompt, /# IMAGES DES FICHES PRODUITS[\s\S]*\/img\/fiche-\d+\.jpg/)
+  assert.match(prompt, /modèle vendu 49,90 € chez Boutique/, 'les citations arrivent dans les preuves')
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.match(j.products[0].image_url, /\/img\/fiche-\d+\.jpg$/, 'image relevée gardée')
+  assert.equal(j.products[1].image_url, NON_VERIFIE, 'image inventée vidée')
+  assert.equal(j.poste.stats.imagesInventees, 1)
+  assert.equal(j.poste.usage.recherchesWeb, 46); assert.equal(j.poste.usage.serper, 0)
+  assert.ok(j.poste.usage.rechercheDollars > 0.46 && j.poste.usage.rechercheDollars < 0.6, String(j.poste.usage.rechercheDollars))
+  assert.ok(j.poste.fiches.avecImage >= 20 && j.poste.fiches.avecPrix >= 20, JSON.stringify(j.poste.fiches))
+})
+
+test('contrôle des crédits sans Serper : la clé Anthropic seule, aucune recherche dépensée', async (srv) => {
+  const m = mondeClaude(srv); remise()
+  const r = await orch.controleCredits({ serper: null, claude: m.claude })
+  assert.equal(r.ok, true); assert.equal(r.serper.utilise, false)
+  assert.equal(etat.serper, 0); assert.equal(etat.recherchesWeb.length, 0); assert.equal(etat.claude, 1)
+  etat.creditsClaude = false
+  assert.equal((await orch.controleCredits({ serper: null, claude: m.claude })).ok, false)
 })
 
 // ------------------------------------------------------------------ run

@@ -28,6 +28,7 @@ const { creerJournal } = require('./lib/journal')
 const agents = require('./lib/agents')
 const { creerSerper } = require('./lib/serper')
 const { creerClaude } = require('./lib/claude')
+const { creerRechercheClaude, DOLLARS_PAR_RECHERCHE } = require('./lib/recherche-claude')
 const { lirePage } = require('./lib/pages')
 const { executerRayon } = require('./lib/rayon')
 const signauxPublics = require('./lib/signaux')
@@ -62,10 +63,13 @@ const sauver = () => config.enregistrer(dossierDonnees(), cfg)
 const secret = (nom) => config.lireSecret(cfg, nom, safeStorage)
 
 // ---- providers (keys read at use time: Max may change them)
+// Serper is only built when Max chose it: without a Serper key the Poste searches with Claude.
+const moteurSerper = () => cfg.moteurRecherche === 'serper'
 function fournisseurs() {
-  const serper = creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined })
   const claude = creerClaude({ cle: secret('anthropic'), modele: cfg.modele, espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
-  return { serper, claude }
+  if (moteurSerper()) return { serper: creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined }), recherche: null, claude }
+  const recherche = creerRechercheClaude({ cle: secret('anthropic'), modele: cfg.modeleRecherche || cfg.modele, espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
+  return { serper: null, recherche, claude }
 }
 
 const lecteur = () => veille.lecteurElectron({ BrowserWindow })
@@ -107,8 +111,9 @@ function signauxDuRayon(date) {
   return ({ rayon, noms }) => signauxPublics.releverSignaux({ rayon, noms, lire, config: c, bases, journal, suivi: suiviSignaux, pause })
 }
 
-// Extra Serper readings (Shopping, autocomplete, images); null when Max switched all three off.
+// Extra Serper readings (Shopping, autocomplete, images); null when Max switched all three off or searches with Claude.
 function serperEtenduActif() {
+  if (!moteurSerper()) return null
   const c = { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) }
   return c.shopping || c.autocomplete || c.images ? c : null
 }
@@ -119,13 +124,25 @@ function creditsSerperParRayon() {
   return 20 + (cfg.plafondDeuxiemeVague || 26) + (c ? (c.autocomplete ? 7 : 0) + (c.shopping ? c.plafondShopping : 0) + (c.images ? c.plafondImages : 0) : 0)
 }
 
+// What one rayon costs, said before Max says yes. Claude search: $0.01 per search (Anthropic's price)
+// plus the tokens of the results read (estimated; the real amount is written in the journal).
+const EUR = (n) => n.toFixed(2).replace('.', ',')
+function coutParRayon(n = 1) {
+  if (moteurSerper()) return `environ ${EUR(n * 0.39)} € chez Anthropic et jusqu’à ${n * creditsSerperParRayon()} crédits Serper`
+  const recherches = 20 + (cfg.plafondDeuxiemeVague || 26)
+  const bas = 0.39 + recherches * DOLLARS_PAR_RECHERCHE * 0.86 + 0.3
+  const haut = 0.39 + recherches * DOLLARS_PAR_RECHERCHE * 0.86 + 0.9
+  return `environ ${EUR(n * bas)} à ${EUR(n * haut)} € chez Anthropic, tout compris (${n * recherches} recherches web à 0,01 $ chacune, la lecture des résultats et le rapport ; aucun Serper). Le montant réel s’inscrit dans le journal`
+}
+
 // The rayons of the night, as chosen by Max (all of them until he chooses).
 const rayonsDeLaNuit = (date) => agents.choisirRayons(agents.rayonsDuJour(agents.charger(), date), cfg.rayonsNuit)
 
 function depsRayon(date) {
-  const { serper, claude } = fournisseurs()
+  const { serper, recherche, claude } = fournisseurs()
   return {
     serper,
+    recherche,
     claude,
     signaux: signauxDuRayon(date),
     serperEtendu: serperEtenduActif(),
@@ -141,9 +158,18 @@ function depsRayon(date) {
  * his original one (the one of the n8n agent) without touching the app.
  */
 const fichierPrompt = () => path.join(racine, 'prompts', 'rayon.md')
+// SHA-256 of the prompts shipped by earlier versions: a copy Max never edited is upgraded, an edited one is left alone.
+const PROMPTS_LIVRES = new Set([
+  '121cb3a0bab83bd6afe620ae8e3f8066df8b28ad7a7af948ad953f45fac47b96',
+  'b0b3e1ad096127c0efafabf4ab1d9eb7504509b457d232ac659b083939b506d0',
+  'eefed451c162c5bcc4da39e35ac29f3693f4ad8a7f8ba7ff286f99feebe90716',
+])
 function preparerPrompt() {
   const cible = fichierPrompt()
-  if (!fs.existsSync(cible)) fs.copyFileSync(path.join(__dirname, 'prompts', 'rayon.md'), cible)
+  const source = path.join(__dirname, 'prompts', 'rayon.md')
+  if (!fs.existsSync(cible)) return fs.copyFileSync(source, cible)
+  const empreinte = require('node:crypto').createHash('sha256').update(fs.readFileSync(cible)).digest('hex')
+  if (PROMPTS_LIVRES.has(empreinte)) fs.copyFileSync(source, cible)
 }
 
 function optionsRayon() {
@@ -181,7 +207,7 @@ async function lancerUnRayon(rayonChoisi) {
   if (nuit.enCours) throw new Error('Une exécution est déjà en cours.')
   const date = jourLocal()
   const rayon = rayonChoisi || agents.rayonsDuJour(agents.charger(), date)[0]
-  const ok = await accord(`Lancer UN rayon test (${rayon.libelleCategorie} › ${rayon.libelleTheme}) ?`, `Coût estimé : environ 0,39 € chez Anthropic et jusqu’à ${creditsSerperParRayon()} crédits Serper.`)
+  const ok = await accord(`Lancer UN rayon test (${rayon.libelleCategorie} › ${rayon.libelleTheme}) ?`, `Coût estimé : ${coutParRayon(1)}.`)
   if (!ok) return { annule: true }
   nuit.enCours = true
   nuit.arret = { demande: false }
@@ -215,7 +241,7 @@ async function lancerLaNuit({ automatique = false } = {}) {
     const n = choisis.length
     const ok = await accord(
       n === 24 ? 'Lancer la nuit complète (24 rayons, un à la fois) ?' : `Lancer ${n} rayon${n > 1 ? 's' : ''} sur 24, un à la fois ?`,
-      `Coût estimé : environ ${(n * 0.39).toFixed(2).replace('.', ',')} € chez Anthropic et jusqu’à ${n * creditsSerperParRayon()} crédits Serper. ${choisis.map((r) => r.libelleCategorie).join(', ')}.${n === 24 ? ' Faites d’abord un rayon test.' : ''}`,
+      `Coût estimé : ${coutParRayon(n)}. ${choisis.map((r) => r.libelleCategorie).join(', ')}.${n === 24 ? ' Faites d’abord un rayon test.' : ''}`,
     )
     if (!ok) return { annule: true }
   }
@@ -328,7 +354,7 @@ function etat() {
     date,
     secrets: config.etatSecrets(cfg),
     reglages: {
-      modele: cfg.modele, espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
+      modele: cfg.modele, modeleRecherche: cfg.modeleRecherche || '', moteurRecherche: moteurSerper() ? 'serper' : 'claude', coutParRayon: coutParRayon(1), espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
       plafondPages: cfg.plafondPages, plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
       signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2, ...(cfg.signauxPublics || {}) },
       serperEtendu: { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) },
@@ -393,8 +419,10 @@ function brancher() {
   })
   h('etat', () => etat())
   h('reglages', (r) => {
-    const permis = ['modele', 'espaceAnthropic', 'heureNuit', 'envoiAuSite', 'apiBase', 'plafondPages', 'plafondDeuxiemeVague']
+    const permis = ['modele', 'modeleRecherche', 'moteurRecherche', 'espaceAnthropic', 'heureNuit', 'envoiAuSite', 'apiBase', 'plafondPages', 'plafondDeuxiemeVague']
     for (const k of permis) if (r[k] !== undefined) cfg[k] = r[k]
+    cfg.moteurRecherche = cfg.moteurRecherche === 'serper' ? 'serper' : 'claude'
+    cfg.modeleRecherche = String(cfg.modeleRecherche || '').trim()
     if (!/^\d{2}:\d{2}$/.test(cfg.heureNuit)) throw new Error('Heure invalide (HH:MM).')
     cfg.espaceAnthropic = String(cfg.espaceAnthropic || '').trim()
     if (cfg.espaceAnthropic && !/^[A-Za-z0-9_-]{6,80}$/.test(cfg.espaceAnthropic)) throw new Error('Identifiant d’espace de travail invalide (lettres, chiffres, _ et - seulement).')

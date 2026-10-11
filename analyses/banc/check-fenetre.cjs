@@ -86,9 +86,15 @@ async function lancer({ maison, profil, port, serveur }) {
     console.log('ok   écran : 8 onglets,', ec.titre)
 
     // keys: stored, never returned
-    await a.appel('secret', { nom: 'anthropic', valeur: 'cle-anthropic-secrete' })
-    const e1 = (await a.appel('secret', { nom: 'serper', valeur: 'cle-serper-secrete' })).valeur
-    assert.deepEqual(e1.secrets, { anthropic: true, serper: true, admin: false })
+    // default engine: Claude's web search, the Anthropic key alone (no Serper)
+    const e1 = (await a.appel('secret', { nom: 'anthropic', valeur: 'cle-anthropic-secrete' })).valeur
+    assert.deepEqual(e1.secrets, { anthropic: true, serper: false, admin: false })
+    assert.equal(e1.reglages.moteurRecherche, 'claude')
+    await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; rendre() })()`)
+    await pause(300)
+    const accueil = await a.evaluer(`document.body.textContent`)
+    assert.match(accueil, /par Claude, sans Serper/); assert.ok(!/Clé Serper/.test(accueil), 'pas de clé Serper demandée')
+    assert.equal(await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Lancer UN rayon test').disabled`), false, 'rayon test possible sans Serper')
     assert.ok(!JSON.stringify(e1).includes('secrete'), 'aucune valeur de clé ne revient à l’écran')
     const cfgTexte = fs.readFileSync(path.join(profil, 'config.json'), 'utf8')
     console.log('ok   clés posées', cfgTexte.includes('secrete') ? '(en clair : coffre indisponible sur ce poste de test)' : '(chiffrées)')
@@ -133,8 +139,9 @@ async function lancer({ maison, profil, port, serveur }) {
 
     // credits, then one rayon test
     const cr = (await a.appel('credits')).valeur
-    assert.ok(cr.ok && cr.serper.ok && cr.claude.ok)
-    console.log('ok   contrôle des crédits')
+    assert.ok(cr.ok && cr.serper.utilise === false && cr.claude.ok)
+    assert.equal(faux.serper, 0)
+    console.log('ok   contrôle des crédits : la clé Anthropic seule, aucun appel Serper')
 
     // a source whose pages the night will read, with the cookie set by the site
     const base = `http://127.0.0.1:${port}`
@@ -171,10 +178,17 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(brut.tendances[0].series[0].variationPct, 100, 'courbe capturée sur le réseau de la fenêtre')
     console.log('ok   signaux publics lus par la vraie fenêtre cachée (annonces, courbe Trends capturée)')
     assert.ok(fs.readdirSync(path.join(depot, 'journaux')).length >= 1, 'journal écrit')
-    assert.ok(fs.readdirSync(path.join(depot, 'releves', jour, 'serper')).length === 1, 'relevé Serper étendu (prix, suggestions, images) écrit')
-    const brutSerper = JSON.parse(fs.readFileSync(path.join(depot, 'releves', jour, 'serper', fs.readdirSync(path.join(depot, 'releves', jour, 'serper'))[0]), 'utf8'))
-    assert.ok(brutSerper.shopping.length > 0 && brutSerper.shopping.every((x) => x.prixMin === 129.9), JSON.stringify(brutSerper.shopping[0]).slice(0, 200))
-    console.log('ok   lectures Serper étendues : prix Shopping, suggestions et images relevés')
+    assert.equal(faux.serper, 0, 'rayon test sans un appel Serper'); assert.equal(faux.recherchesWeb.length, 46, 'les 46 recherches faites par Claude')
+    assert.ok(!fs.existsSync(path.join(depot, 'releves', jour, 'serper')), 'pas de relevé Serper')
+    const rapportTest = JSON.parse(fs.readFileSync(path.join(depot, 'rapports', jour, rapports[0], fichiers.find((f) => f.endsWith('.json') && !f.endsWith('.envoi.json'))), 'utf8'))
+    assert.equal(rapportTest.poste.usage.recherchesWeb, 46); assert.ok(rapportTest.poste.fiches.avecImage > 0, JSON.stringify(rapportTest.poste.fiches))
+    console.log('ok   rayon test par la recherche web de Claude : 46 recherches, fiches produits lues, coût noté')
+
+    // Serper stays possible when Max chooses it: key, then the extra readings
+    await a.appel('reglages', { moteurRecherche: 'serper' })
+    const eSerper = (await a.appel('secret', { nom: 'serper', valeur: 'cle-serper-secrete' })).valeur
+    assert.deepEqual(eSerper.secrets, { anthropic: true, serper: true, admin: true }); assert.equal(eSerper.reglages.moteurRecherche, 'serper')
+    assert.ok(!JSON.stringify(eSerper).includes('secrete'), 'aucune valeur de clé ne revient à l’écran')
 
     // the rayons of the night are Max's choice: two only, for a test; zero = nothing runs
     assert.equal(e0.rayonsDuJour.every((x) => x.choisi), true, 'sans choix : les 24 sont cochés')
@@ -192,6 +206,10 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(bilanNuit.attendus, 2); assert.equal(bilanNuit.ok, 2, JSON.stringify(bilanNuit))
     assert.deepEqual(fs.readdirSync(path.join(depot, 'rapports', jour)).sort(), [tous[0].categorie, ...deux].sort(), 'seuls les rayons choisis (plus le rayon test) ont un rapport')
     console.log('ok   nuit sur 2 rayons choisis : 2 rapports, les 21 autres intacts')
+    assert.ok(fs.readdirSync(path.join(depot, 'releves', jour, 'serper')).length === 2, 'relevé Serper étendu (prix, suggestions, images) écrit')
+    const brutSerper = JSON.parse(fs.readFileSync(path.join(depot, 'releves', jour, 'serper', fs.readdirSync(path.join(depot, 'releves', jour, 'serper'))[0]), 'utf8'))
+    assert.ok(brutSerper.shopping.length > 0 && brutSerper.shopping.every((x) => x.prixMin === 129.9), JSON.stringify(brutSerper.shopping[0]).slice(0, 200))
+    console.log('ok   moteur Serper choisi : lectures Serper étendues, prix Shopping, suggestions et images relevés')
     assert.equal(faux.envoyes.length, 3, 'chaque rapport de la nuit est parti vers le site')
     console.log('ok   envoi au site : 3 rapports validés envoyés seuls, rayon et marketing d’un coup')
 

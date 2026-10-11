@@ -3,7 +3,37 @@
 const http = require('node:http')
 const assert = require('node:assert/strict')
 
-const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [] }
+const etat = { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0 }
+
+/**
+ * Fake Anthropic web search (server tool): the content blocks of the real API —
+ * server_tool_use, web_search_tool_result (url, title, page_age, encrypted_content),
+ * then text whose citations carry the verbatim cited_text.
+ */
+function reponseRecherche(j, port) {
+  etat.appelsRecherche++
+  const demandees = String(j.messages[0].content).split('\n').map((l) => (l.match(/^\d+\. (.+)$/) || [])[1]).filter(Boolean)
+  const dejaFaites = j.messages.length > 1 ? j.messages[1].content.filter((b) => b.type === 'server_tool_use').length : 0
+  // 'pause': the first answer runs one search and pauses; the resumed one runs the rest
+  const aFaire = etat.mode === 'pause' && j.messages.length === 1 ? demandees.slice(0, 1) : demandees.slice(dejaFaites)
+  const content = []
+  const citations = []
+  for (const q of aFaire) {
+    const tapee = etat.mode === 'reformule' ? q + ' 2026' : q
+    etat.recherchesWeb.push(tapee)
+    const id = `srvtoolu_${etat.recherchesWeb.length}`
+    content.push({ type: 'server_tool_use', id, name: 'web_search', input: { query: tapee } })
+    if (etat.mode === 'recherche-refusee') { content.push({ type: 'web_search_tool_result', tool_use_id: id, content: { type: 'web_search_tool_result_error', error_code: 'unavailable' } }); continue }
+    const base = 5000 + etat.recherchesWeb.length * 10
+    const liste = Array.from({ length: 6 }, (_, i) => ({ type: 'web_search_result', url: `http://127.0.0.1:${port}/p/${base + i}`, title: `Résultat ${q} ${i}`, encrypted_content: 'Eq…', page_age: '3 octobre 2026' }))
+    content.push({ type: 'web_search_tool_result', tool_use_id: id, content: liste })
+    citations.push({ type: 'web_search_result_location', url: liste[0].url, title: liste[0].title, encrypted_index: 'x', cited_text: `${q} : modèle vendu 49,90 € chez Boutique` })
+  }
+  if (citations.length) content.push({ type: 'text', text: 'Cité.', citations })
+  const pause = etat.mode === 'pause' && j.messages.length === 1
+  return { content, stop_reason: pause ? 'pause_turn' : 'end_turn', usage: { input_tokens: 3000, output_tokens: 200, server_tool_use: { web_search_requests: etat.mode === 'recherche-refusee' ? 0 : aFaire.length } } }
+}
+
 
 function creerServeur() {
   return new Promise((resolve) => {
@@ -108,13 +138,22 @@ function creerServeur() {
         }
         if (req.url.startsWith('/p/')) {
           res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-          return res.end(`<html><head><title>Page ${req.url}</title></head><body><script>x=1</script><p>Produit à 12,90 € ${req.url}</p><a href="/p/lien${req.url.slice(3)}">fiche</a></body></html>`)
+          const n = Number(req.url.slice(3))
+          // product pages of the fake web search: og:image and a schema.org offer, like a real shop
+          const fiche = n >= 5000 ? `<meta property="og:image" content="/img/fiche-${n}.jpg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Modele ${n}","offers":{"@type":"Offer","price":"${(n % 90) + 9.9}","priceCurrency":"EUR"}}</script>` : ''
+          return res.end(`<html><head><title>Page ${req.url}</title>${fiche}</head><body><script>x=1</script><p>Produit à 12,90 € ${req.url}</p><a href="/p/lien${req.url.slice(3)}">fiche</a></body></html>`)
         }
         if (req.url === '/v1/messages') {
           etat.claude++
           const j = JSON.parse(corps)
           if (!etat.creditsClaude) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } })) }
           assert.equal(j.output_config && j.output_config.effort !== undefined, true, 'output_config.effort doit être posé')
+          if (Array.isArray(j.tools) && j.tools.some((t) => t.name === 'web_search')) {
+            assert.equal(j.tools[0].type, 'web_search_20250305')
+            assert.equal(j.tools[0].user_location.country, 'FR')
+            res.writeHead(200, { 'content-type': 'application/json' })
+            return res.end(JSON.stringify(reponseRecherche(j, port)))
+          }
           const user = j.messages[0].content
           let texte
           let arret = 'end_turn'
@@ -140,6 +179,11 @@ function creerServeur() {
               marketplace_prices: { other: [{ merchant: 'Amazon.fr', price: 34, url: u }] },
             }))
             if (etat.mode === 'dix-huit') produits.length = 18
+            if (etat.mode === 'images') {
+              const vraie = (user.split('# IMAGES DES FICHES PRODUITS')[1] || '').split('\n').map((l) => l.split(' | ')[1]).find((x) => /^http/.test(x || ''))
+              produits[0].image_url = vraie || 'Non vérifié'
+              produits[1].image_url = 'https://inventee.example/photo.jpg'
+            }
             texte = JSON.stringify({
               study: { date: 'FAUSSE-DATE', category_name: 'x', theme_slug: 'x' },
               executive_summary: { main_opportunity: 'Une opportunité', best_budget_product: 'A', best_premium_product: 'B', best_marketplace_product: 'C', best_ads_product: 'D', best_bundle: 'E', product_to_avoid: 'F', breakout_candidate: 'G', recommended_test_budget: '200 €' },
@@ -172,6 +216,6 @@ function creerServeur() {
 }
 
 
-function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [] }) }
+function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0 }) }
 
 module.exports = { etat, creerServeur, remise }

@@ -4,11 +4,16 @@
  * report (study + 20 products + marketing prompts), then the two Markdown
  * reports of the contract.
  *
+ * Search engine: `deps.recherche` (Claude's own web search, lib/recherche-claude.js,
+ * run in lots) or, when Max chose it, `deps.serper` (one call per query).
+ *
  * Order of work (the Claude call is LAST, so every guard fires before it spends):
  *   wave 1  ~20 searches on the theme
  *   pages   read up to `plafondPages` pages (plain HTTP, light on a weak PC)
  *   names   model names pulled from what was read (one small Claude call)
  *   wave 2  one search per model name, to reach product pages (capped)
+ *   fiches  the product pages of wave 2 read in plain HTTP: image (og:image) and
+ *           price written by the page itself (schema.org), free of charge
  *   sources readings of the connected data sites (private browser)
  *   write   one Claude call, then validation, then the files
  *
@@ -25,6 +30,9 @@ const { releverSerperEtendu, sectionsPreuvesSerper, urlsVendeurs } = require('./
 
 const PROMPT_PAR_DEFAUT = path.join(__dirname, '..', 'prompts', 'rayon.md')
 const BUDGET_PREUVES = 120_000
+// Searches per Claude call: every result read stays in the context of the next searches of the same call
+// (billed as input), so small lots cost fewer tokens; 3 keeps the per-call overhead low too.
+const TAILLE_LOT = 3
 
 function requetesVague1(theme, categorie, annee) {
   const t = theme
@@ -80,23 +88,42 @@ async function enParallele(items, n, fn) {
  */
 async function executerRayon({ rayon, deps, options = {} }) {
   const { serper, claude, pages, releves, journal, racine } = deps
+  const moteur = deps.recherche || serper
   const plafondPages = options.plafondPages || 25
   const plafondVague2 = options.plafondDeuxiemeVague || 26
+  const plafondFiches = options.plafondFiches === undefined ? 30 : options.plafondFiches
   const annee = rayon.date.slice(0, 4)
   const etiquette = `${rayon.categorie}/${rayon.theme}`
-  const usage = { serper: 0, serperEtendu: 0, claudeEntree: 0, claudeSortie: 0 }
+  const usage = { serper: 0, serperEtendu: 0, recherchesWeb: 0, rechercheEntree: 0, rechercheSortie: 0, rechercheDollars: 0, claudeEntree: 0, claudeSortie: 0 }
   const urlsVues = new Set()
+  const imagesVues = new Set()
   const preuves = []
+
+  // One result list per query, same order. A refusal throws: no silent empty list.
+  async function rechercher(requetes) {
+    const sortie = []
+    if (typeof moteur.chercherLot === 'function') {
+      for (let i = 0; i < requetes.length; i += TAILLE_LOT) {
+        const r = await moteur.chercherLot(requetes.slice(i, i + TAILLE_LOT))
+        usage.recherchesWeb += r.usage.recherches || 0
+        usage.rechercheEntree += r.usage.entree || 0
+        usage.rechercheSortie += r.usage.sortie || 0
+        usage.rechercheDollars = Math.round((usage.rechercheDollars + (r.usage.dollars || 0)) * 1000) / 1000
+        sortie.push(...r.resultats)
+      }
+      return sortie
+    }
+    for (const q of requetes) {
+      sortie.push(await moteur.chercher(q))
+      usage.serper++
+    }
+    return sortie
+  }
 
   // ---- wave 1
   const requetes1 = requetesVague1(rayon.libelleTheme, rayon.libelleCategorie, annee)
-  const resultats1 = []
-  for (const q of requetes1) {
-    const r = await serper.chercher(q) // a refusal throws: no silent empty list
-    usage.serper++
-    resultats1.push({ q, r })
-    for (const x of r) urlsVues.add(x.url)
-  }
+  const resultats1 = (await rechercher(requetes1)).map((r, i) => ({ q: requetes1[i], r }))
+  for (const { r } of resultats1) for (const x of r) urlsVues.add(x.url)
   const total1 = resultats1.reduce((n, x) => n + x.r.length, 0)
   if (!total1) throw new Error(`${etiquette} : première vague sans aucune réponse (garde anti faux succès)`)
   journal.info(`${etiquette} : vague 1`, { requetes: requetes1.length, resultats: total1 })
@@ -143,14 +170,31 @@ async function executerRayon({ rayon, deps, options = {} }) {
   if (!noms.length) throw new Error(`${etiquette} : liste de noms de modèles vide (garde anti faux succès)`)
 
   // ---- wave 2
-  const resultats2 = []
-  for (const n of noms) {
-    const r = await serper.chercher(`${n} prix fiche produit acheter`)
-    usage.serper++
-    resultats2.push({ n, r })
-    for (const x of r) urlsVues.add(x.url)
+  const resultats2 = (await rechercher(noms.map((n) => `${n} prix fiche produit acheter`))).map((r, i) => ({ n: noms[i], r }))
+  for (const { r } of resultats2) for (const x of r) urlsVues.add(x.url)
+  journal.info(`${etiquette} : vague 2`, { modeles: noms.length, recherchesWeb: usage.recherchesWeb, coutRechercheDollars: usage.rechercheDollars })
+
+  // ---- product pages of wave 2 (plain HTTP): image and price the page writes itself
+  const fiches = []
+  if (plafondFiches > 0) {
+    const dejaLues = new Set(lues.map((p) => p.url))
+    const aLire = []
+    for (const { n, r } of resultats2) {
+      for (const x of r.filter((y) => !/\.(pdf|jpg|png)$/i.test(y.url) && !dejaLues.has(y.url)).slice(0, 2)) {
+        dejaLues.add(x.url)
+        aLire.push({ n, url: x.url })
+      }
+    }
+    const lus = await enParallele(aLire.slice(0, plafondFiches), 2, async (x) => ({ ...x, page: await pages(x.url) }))
+    for (const { n, url, page } of lus) {
+      if (!page || !page.lisible) continue
+      urlsVues.add(url)
+      if (page.urlFinale) urlsVues.add(page.urlFinale)
+      if (page.image) imagesVues.add(page.image)
+      if (page.image || page.prix) fiches.push({ n, url: page.urlFinale || url, titre: page.titre, image: page.image || '', prix: page.prix || null })
+    }
+    journal.info(`${etiquette} : fiches produits`, { lues: lus.filter((x) => x.page && x.page.lisible).length, avecImage: fiches.filter((f) => f.image).length, avecPrix: fiches.filter((f) => f.prix).length })
   }
-  journal.info(`${etiquette} : vague 2`, { modeles: noms.length })
 
   // ---- public signals (Google Trends, Meta Ad Library): enrichment, never a reason to fail the rayon
   let signaux = null
@@ -184,6 +228,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
         coupe: serperPlus.coupe,
       })
       for (const u of urlsVendeurs(serperPlus)) urlsVues.add(u)
+      for (const i of serperPlus.images) for (const x of i.images) imagesVues.add(x.image)
     } catch (err) {
       journal.erreur(`${etiquette} : lectures Serper étendues indisponibles`, { raison: String(err.message || err) })
     }
@@ -212,6 +257,14 @@ async function executerRayon({ rayon, deps, options = {} }) {
   const blocSignaux = sectionPreuves(signaux)
   if (blocSignaux) ajouter(blocSignaux)
   for (const b of sectionsPreuvesSerper(serperPlus)) ajouter(b)
+  const avecPrix = fiches.filter((f) => f.prix)
+  if (avecPrix.length) {
+    ajouter('# PRIX LUS SUR LES FICHES PRODUITS (écrits par la page elle-même, données structurées ; prix de vente affiché, pas un prix fournisseur)\n' + avecPrix.map((f) => `- ${f.n} | ${String(f.prix.montant).replace('.', ',')} ${f.prix.devise || '(devise non indiquée)'} | ${f.titre || 'sans titre'} | ${f.url}`).join('\n'))
+  }
+  const avecImage = fiches.filter((f) => f.image)
+  if (avecImage.length) {
+    ajouter('# IMAGES DES FICHES PRODUITS (balise og:image, adresses réelles, autorisées pour image_url)\n' + avecImage.map((f) => `- ${f.n} | ${f.image} | fiche : ${f.url}`).join('\n'))
+  }
   ajouter('# PAGES LUES\n' + lues.filter((p) => p.lisible).map((p) => `## ${p.titre || p.url}\nURL: ${p.url}\n${p.texte.slice(0, 1500)}`).join('\n\n'))
   if (lectures.length) {
     ajouter('# RELEVÉS DES SITES DE DONNÉES CONNECTÉS (sessions de Max)\n' + lectures.map((l) => `## ${l.source} — ${l.url}\n${String(l.texte).slice(0, 3000)}`).join('\n\n'))
@@ -252,13 +305,14 @@ async function executerRayon({ rayon, deps, options = {} }) {
   Object.defineProperty(rapport, '__categorie', { value: rayon.categorie, enumerable: false })
   Object.defineProperty(rapport, '__theme', { value: rayon.theme, enumerable: false })
 
-  const validation = valider(rapport, urlsVues)
+  const validation = valider(rapport, urlsVues, { imagesVues })
   rapport.poste = {
     statut: validation.ok ? 'ok' : 'a_revoir',
     problemes: validation.problemes,
     stats: validation.stats,
     usage,
     signaux: signaux ? { courbes: (signaux.tendances || []).filter((g) => g.statut === 'ok').length, pubsLues: (signaux.pubs || []).filter((p) => p.statut === 'ok' || p.statut === 'aucun').length, pubsDemandees: (signaux.pubs || []).length } : null,
+    fiches: { avecDonnees: fiches.length, avecImage: avecImage.length, avecPrix: avecPrix.length },
     serperPlus: serperPlus ? { requetes: serperPlus.requetes, modelesAvecPrix: serperPlus.shopping.filter((x) => x.prixMin !== null).length, modelesAvecImages: serperPlus.images.filter((x) => x.images.length).length, coupe: serperPlus.coupe } : null,
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),

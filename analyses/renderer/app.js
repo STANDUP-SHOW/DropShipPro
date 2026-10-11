@@ -50,7 +50,8 @@ async function choisirRayons(ids) {
 function vueAccueil() {
   const e = etat
   const cles = e.secrets
-  const toutesCles = cles.anthropic && cles.serper
+  const avecSerper = e.reglages.moteurRecherche === 'serper'
+  const toutesCles = cles.anthropic && (!avecSerper || cles.serper)
   const prog = e.nuit.progression
   const b = e.nuit.dernierBilan
   const faits = e.rayonsDuJour.filter((r) => r.fait).length
@@ -63,11 +64,13 @@ function vueAccueil() {
       h('div', { class: 'carte' },
         h('h2', {}, 'Prêt à travailler ?'),
         h('div', {}, 'Clé Anthropic ', pastille(cles.anthropic ? 'posée' : 'absente', cles.anthropic ? 'bon' : 'mauvais')),
-        h('div', {}, 'Clé Serper ', pastille(cles.serper ? 'posée' : 'absente', cles.serper ? 'bon' : 'mauvais')),
+        avecSerper
+          ? h('div', {}, 'Clé Serper ', pastille(cles.serper ? 'posée' : 'absente', cles.serper ? 'bon' : 'mauvais'))
+          : h('div', {}, 'Recherche web ', pastille('par Claude, sans Serper', 'bon')),
         h('div', {}, 'Clé d’administration du site ', pastille(e.admin.cle ? 'créée' : 'absente', e.admin.cle ? 'bon' : 'mauvais')),
         h('div', {}, 'Sources de données ', pastille(String(e.sources.length), e.sources.length ? 'bon' : '')),
         (!toutesCles || !e.admin.cle) && h('p', {}, h('button', { class: 'btn principal', onclick: () => aller('reglages') }, 'Poser mes clés')),
-        (!toutesCles || !e.admin.cle) && h('p', { class: 'doux petit' }, 'Les trois clés se posent dans Réglages : elles restent chiffrées sur ce PC.'),
+        (!toutesCles || !e.admin.cle) && h('p', { class: 'doux petit' }, avecSerper ? 'Les trois clés se posent dans Réglages : elles restent chiffrées sur ce PC.' : 'La clé Anthropic et la clé d’administration se posent dans Réglages : elles restent chiffrées sur ce PC.'),
       ),
       h('div', { class: 'carte' },
         h('h2', {}, `Aujourd’hui (${e.date})`),
@@ -84,8 +87,8 @@ function vueAccueil() {
         h('button', { class: 'btn', onclick: async () => {
           flash('Contrôle en cours…')
           const r = await appel('credits')
-          if (r) flash(`Anthropic : ${r.claude.ok ? 'OK' : r.claude.message} — Serper : ${r.serper.ok ? 'OK' : r.serper.message}`)
-        } }, 'Contrôler les crédits (1 crédit)'),
+          if (r) flash(`Anthropic : ${r.claude.ok ? 'OK' : r.claude.message}${r.serper.utilise ? ` — Serper : ${r.serper.ok ? 'OK' : r.serper.message}` : ' — recherche web par Claude, sans Serper'}`)
+        } }, avecSerper ? 'Contrôler les crédits (1 crédit Serper)' : 'Contrôler la clé Anthropic'),
         h('button', { class: 'btn principal', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('rayonTest'); if (r && !r.annule) flash(`Rayon test : ${r.statut}`) } }, 'Lancer UN rayon test'),
         h('button', { class: 'btn', disabled: e.nuit.enCours || !toutesCles || !choisis, onclick: async () => { const r = await appel('nuitLancer'); if (r && !r.annule) flash(r.annulee ? `Nuit annulée : ${r.annulee}` : 'Nuit terminée') } }, choisis === total ? 'Lancer la nuit complète' : `Lancer ${choisis} rayon${choisis > 1 ? 's' : ''} sur ${total}`),
         h('button', { class: 'btn danger', disabled: !e.nuit.enCours, onclick: () => appel('nuitArreter') }, 'Arrêter après le rayon en cours'),
@@ -462,38 +465,45 @@ function vueReglages() {
   const caseShopping = h('input', { type: 'checkbox', checked: se.shopping })
   const caseAuto = h('input', { type: 'checkbox', checked: se.autocomplete })
   const caseImages = h('input', { type: 'checkbox', checked: se.images })
+  const avecSerper = r.moteurRecherche === 'serper'
+  const moteur = h('select', {},
+    h('option', { value: 'claude', selected: !avecSerper }, 'Claude (recherche web d’Anthropic, avec la clé Anthropic seule)'),
+    h('option', { value: 'serper', selected: avecSerper }, 'Serper (clé et crédits Serper)'))
   return h('div', {},
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
       h('h2', {}, 'Clés (saisies par vous, chiffrées par Windows, jamais réaffichées)'),
-      cle('anthropic', 'Clé API Anthropic'), cle('serper', 'Clé API Serper'),
+      cle('anthropic', 'Clé API Anthropic'), avecSerper && cle('serper', 'Clé API Serper'),
       blocCleAdmin(),
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Agents'),
       f('modele', 'Modèle Claude', r.modele),
+      h('div', {}, h('label', {}, 'Moteur de recherche web'), moteur),
+      !avecSerper && f('modeleRecherche', 'Modèle des recherches web (vide = le même que ci-dessus)', r.modeleRecherche || ''),
+      !avecSerper && h('p', { class: 'doux petit' }, `Recherche web d’Anthropic : 0,01 $ par recherche, plus la lecture des résultats. Un rayon : ${r.coutParRayon}.`),
       f('espaceAnthropic', 'Identifiant d’espace de travail Anthropic (seulement si l’API répond « not scoped to a workspace »)', r.espaceAnthropic || ''),
       f('heureNuit', 'Heure de la nuit (HH:MM)', r.heureNuit),
       f('plafondPages', 'Pages lues par rayon', r.plafondPages, 'number'),
-      f('plafondDeuxiemeVague', 'Modèles cherchés en deuxième vague (plafond Serper)', r.plafondDeuxiemeVague, 'number'),
+      f('plafondDeuxiemeVague', 'Modèles cherchés en deuxième vague (une recherche web par modèle)', r.plafondDeuxiemeVague, 'number'),
       h('label', {}, h('span', {}, envoi, ' Envoyer chaque rapport validé au site drop-shipper.fr (rayon et marketing, rangés par le site)')),
       h('label', {}, h('span', {}, caseTrends, ' Lire Google Trends (courbe de recherche du thème et des modèles, France 12 mois)')),
       h('label', {}, h('span', {}, caseMeta, ' Lire la Meta Ad Library (annonces actives par modèle)')),
       f('plafondPubs', 'Modèles cherchés dans la Meta Ad Library par rayon', sp.plafondPubsParRayon, 'number'),
       h('p', { class: 'doux petit' }, 'Lectures publiques dans une fenêtre cachée, espacées de 4 s ; le premier blocage ou la première demande de connexion arrête la source pour la nuit. Vérifiez les conditions d’utilisation de ces sites.'),
-      h('label', {}, h('span', {}, caseShopping, ' Serper Shopping : prix et vendeurs réels en France (1 crédit par modèle)')),
-      f('plafondShopping', 'Modèles cherchés dans Shopping par rayon', se.plafondShopping, 'number'),
-      h('label', {}, h('span', {}, caseAuto, ' Serper Autocomplétion : ce que les acheteurs commencent à taper (7 crédits par rayon)')),
-      h('label', {}, h('span', {}, caseImages, ' Serper Images : adresses d’images réelles (1 crédit par modèle)')),
-      f('plafondImages', 'Modèles cherchés dans Images par rayon', se.plafondImages, 'number'),
-      h('p', { class: 'doux petit' }, `Un rayon dépense au plus ${r.creditsSerperParRayon} crédits Serper avec ces réglages.`),
+      avecSerper && h('label', {}, h('span', {}, caseShopping, ' Serper Shopping : prix et vendeurs réels en France (1 crédit par modèle)')),
+      avecSerper && f('plafondShopping', 'Modèles cherchés dans Shopping par rayon', se.plafondShopping, 'number'),
+      avecSerper && h('label', {}, h('span', {}, caseAuto, ' Serper Autocomplétion : ce que les acheteurs commencent à taper (7 crédits par rayon)')),
+      avecSerper && h('label', {}, h('span', {}, caseImages, ' Serper Images : adresses d’images réelles (1 crédit par modèle)')),
+      avecSerper && f('plafondImages', 'Modèles cherchés dans Images par rayon', se.plafondImages, 'number'),
+      avecSerper && h('p', { class: 'doux petit' }, `Un rayon dépense au plus ${r.creditsSerperParRayon} crédits Serper avec ces réglages.`),
       f('apiBase', 'Adresse de l’API', r.apiBase),
       h('p', {}, h('button', { class: 'btn principal', onclick: async () => {
         const x = await appel('reglages', {
-          modele: champs.modele.value.trim(), espaceAnthropic: champs.espaceAnthropic.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
+          modele: champs.modele.value.trim(), moteurRecherche: moteur.value, modeleRecherche: champs.modeleRecherche ? champs.modeleRecherche.value.trim() : undefined, espaceAnthropic: champs.espaceAnthropic.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
           plafondDeuxiemeVague: Number(champs.plafondDeuxiemeVague.value), apiBase: champs.apiBase.value.trim(), envoiAuSite: envoi.checked,
           signauxPublics: { meta: caseMeta.checked, trends: caseTrends.checked, plafondPubsParRayon: Number(champs.plafondPubs.value) },
-          serperEtendu: { shopping: caseShopping.checked, autocomplete: caseAuto.checked, images: caseImages.checked, plafondShopping: Number(champs.plafondShopping.value), plafondImages: Number(champs.plafondImages.value) },
+          serperEtendu: avecSerper ? { shopping: caseShopping.checked, autocomplete: caseAuto.checked, images: caseImages.checked, plafondShopping: Number(champs.plafondShopping.value), plafondImages: Number(champs.plafondImages.value) } : undefined,
         })
         if (x) { etat = x; flash('Réglages enregistrés.') }
       } }, 'Enregistrer les réglages')),
