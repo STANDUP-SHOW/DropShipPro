@@ -553,6 +553,7 @@ function pageFonction(t, index) {
         breadcrumbLd(trail),
       ],
       body: `${crumb(trail)}
+${t.slug === 'auto-shipper' ? '<img src="/marque/autoshipper-complet.png" alt="AutoShipper" width="1400" height="234" style="display:block;height:44px;width:auto;max-width:100%;margin:1rem 0 .5rem">' : ''}
 <p class="badge">${esc(t.eyebrow)}</p>
 <h1>${esc(c.h1)}</h1>
 <div class="card"><p><strong>En bref.</strong> ${esc(c.enBref)}</p></div>

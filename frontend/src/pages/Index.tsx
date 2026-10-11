@@ -259,7 +259,12 @@ export default function Index() {
               { ...S.tarif, surtitre: 'Tarif clair', neon: 'neon-4' },
             ].map((b) => (
               <div key={b.slug} className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{b.surtitre}</p>
+                {/* Le bloc Mode auto porte le logo AutoShipper (11/10/2026) à la place de son surtitre. */}
+                {b.slug === 'auto-shipper' ? (
+                  <img src="/marque/autoshipper-complet.png" alt="AutoShipper" width={1400} height={234} className="h-7 w-auto self-start md:h-8" loading="lazy" />
+                ) : (
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{b.surtitre}</p>
+                )}
                 <h2 className={`neon ${b.neon} mt-3 text-2xl font-extrabold leading-tight md:text-3xl`}>{b.titre}</h2>
                 <p className="texte-neon mt-4 flex-1 text-base md:text-lg">{b.texte}</p>
                 <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
