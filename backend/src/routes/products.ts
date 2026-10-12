@@ -960,8 +960,13 @@ const publishBatchSchema = z.object({
 productsRouter.post('/publish-batch', async (req: AuthedRequest, res) => {
   const parsed = publishBatchSchema.safeParse(req.body)
   if (!parsed.success) {
+    // Le vrai motif : « sélectionnez au moins une annonce » à qui en avait coché
+    // trois cents l'envoyait chercher la mauvaise panne (12/10/2026).
+    const trop = Array.isArray(req.body?.productIds) && req.body.productIds.length > 200
     return res.status(400).json({
-      error: "Sélectionnez au moins une annonce et une plateforme connectable par API.",
+      error: trop
+        ? '200 annonces au plus par envoi : publiez la sélection en plusieurs fois.'
+        : "Sélectionnez au moins une annonce et une plateforme connectable par API.",
     })
   }
 

@@ -176,7 +176,7 @@ le JSON `storefront` est fusionné, jamais remplacé). Banc
 | DropShop IA | Back Office | administration indépendante | disponible, 300 drops |
 | DropShop IA | DropBank | accepter les drops, Premium Member | bientôt |
 | DropShop IA | DropSEO IA | référencement de la boutique | bientôt |
-| DropShop IA | DropMarket | la place de marché DropShipper | bientôt |
+| DropShop IA | DropShop Market | la place de marché DropShipper | incluse (automatique, `marketAuto.ts`) |
 | DropShop IA | Dropshop Cloud | stockage de fichiers volumineux | bientôt |
 | DropShop IA | DropReviews | avis des annonces et de la boutique, avec photos | bientôt |
 | Partenaires exclusifs | iadds | référencement IA | bientôt, EXCLUSIVITÉ |

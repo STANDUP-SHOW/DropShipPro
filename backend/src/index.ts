@@ -51,6 +51,7 @@ import { tourneeAutoMode } from './services/autoAnalyste.js'
 import { tourneeAutopilot } from './services/autopilot.js'
 import { tourneeReecritures } from './services/rewriteBatch.js'
 import { tourneeVentes } from './services/ventesMarketplaces.js'
+import { rattraperBoutiquesSurMarket } from './services/marketAuto.js'
 /*
  * Un processus qui meurt doit dire pourquoi.
  *
@@ -227,6 +228,15 @@ app.listen(port, () => {
  * l API de demarrer, parce qu un referentiel absent degrade l import quand une
  * API morte l arrete tout net.
  */
+/*
+ * Les produits déjà en boutique qui manquent au Market y sont mis (décision de
+ * Max, 12/10/2026 : tout produit de DropShop est sur le Market, sans geste).
+ * Idempotent : ne crée que ce qui manque, respecte le refus du vendeur.
+ */
+rattraperBoutiquesSurMarket()
+  .then((n) => { if (n) console.log(`[market] ${n} produit(s) de boutique mis sur le Market`) })
+  .catch((e) => console.error('[market] rattrapage impossible', e instanceof Error ? e.message : e))
+
 semerCategories()
   .then((r) => console.log(`Référentiel : ${r.categories} catégories, ${r.alias} alias ajoutés`))
   .catch((e) => console.error('semis du referentiel impossible', e))

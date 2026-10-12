@@ -58,7 +58,13 @@ export function PublishTargets({
   // « Mon site » n'est plus une case : ce sont les boutiques du vendeur, une par
   // une et par leur nom. Cocher « Mon site » sans savoir lequel ne voulait rien
   // dire dès qu'il y en avait deux.
-  const sansOwnSite = platforms.filter((p) => p.id !== 'OWN_SITE')
+  //
+  // Le Market non plus, dès qu'il y a une boutique : tout produit publié dans une
+  // boutique y part tout seul (décision de Max, 12/10/2026). La case ne reste que
+  // pour qui n'a pas de boutique.
+  const sansOwnSite = platforms.filter(
+    (p) => p.id !== 'OWN_SITE' && !(shops.length > 0 && p.id === 'DROPSHOP_MARKET'),
+  )
 
   const groupes = [
     {
@@ -168,6 +174,13 @@ export function PublishTargets({
             })}
           </div>
         )}
+        <p className="mt-2 text-[11px] text-gray-500">
+          Chaque produit publié dans une boutique est aussi sur{' '}
+          <Link to="/dropshop-market" className="text-purple-300 underline">
+            DropShop Market
+          </Link>
+          , automatiquement (sauf si vous l'avez désactivé).
+        </p>
         <p className="mt-2 text-[11px] text-gray-500">
           Vos boutiques se nomment et s'ajoutent dans{' '}
           <Link to="/settings" className="text-purple-300 underline">

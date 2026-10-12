@@ -88,7 +88,7 @@ export interface ExtensionDropShop {
   accroche: string
   description: string
   prix: number
-  statut: 'disponible' | 'bientot'
+  statut: 'disponible' | 'incluse' | 'bientot'
   champs: Array<{ cle: string; label: string; type: 'text' | 'password' | 'email'; aide?: string; min?: number }>
   apres?: 'back-office'
   famille: 'dropshop' | 'partenaire'

@@ -22,7 +22,13 @@ interface BatchResult {
  * Only API destinations are offered: Vinted, Leboncoin and Facebook Marketplace
  * have no public API, the extension fills their form one tab at a time and the
  * seller presses « Publier » himself — there is nothing to batch there.
+ *
+ * Sent in packs of LOT products, one request after the other: a whole catalogue
+ * in a single request outlived the proxy timeout and the server caps a request
+ * at 200 listings (12/10/2026, « la liste intégrale ne passe pas »).
  */
+const LOT = 25
+
 export function BulkPublishDialog({
   productIds,
   platforms,
@@ -34,14 +40,24 @@ export function BulkPublishDialog({
   onClose: () => void
   onDone: () => Promise<void> | void
 }) {
-  const batchable = platforms.filter((p) => p.batchable)
+  // A seller with a shop never picks the Market: everything published in the
+  // shop goes there by itself. The destination stays for those without one.
+  const [aUneBoutique, setAUneBoutique] = useState(false)
+  useEffect(() => {
+    api
+      .listShops()
+      .then((l) => setAUneBoutique(l.length > 0))
+      .catch(() => undefined)
+  }, [])
+  const batchable = platforms.filter((p) => p.batchable && !(aUneBoutique && p.id === 'DROPSHOP_MARKET'))
   const manual = platforms.filter((p) => p.integration === 'extension')
 
-  // Pre-selecting the destinations that really publish saves the most common
-  // click (« tout mon catalogue sur ma boutique ») without hiding the others.
+  // Only « Mon site » is pre-selected: pre-checking every live destination sent
+  // the catalogue to sixty channels at once when the seller meant one.
   const [selected, setSelected] = useState<string[]>(
-    batchable.filter((p) => p.integration === 'live').map((p) => p.id),
+    platforms.some((p) => p.id === 'OWN_SITE' && p.batchable) ? ['OWN_SITE'] : [],
   )
+  const [avance, setAvance] = useState<{ fait: number; total: number } | null>(null)
   const [shopId, setShopId] = useState('')
   const [busy, setBusy] = useState(false)
   const [summary, setSummary] = useState<{ published: number; pending: number; failed: number } | null>(null)
@@ -63,25 +79,42 @@ export function BulkPublishDialog({
   const [recap, setRecap] = useState<Awaited<ReturnType<typeof api.publishBatch>>['results'] | null>(null)
 
   async function run() {
-    if (!selected.length || busy) return
+    const destinations = selected.filter((id) => batchable.some((p) => p.id === id))
+    if (!destinations.length || busy) return
     setBusy(true)
     setError(null)
     setResults([])
     setSummary(null)
+    const tous: BatchResult[] = []
     try {
-      const res = await api.publishBatch(productIds, selected, shopId || undefined)
-      setSummary({ published: res.published, pending: res.pending, failed: res.failed })
+      for (let i = 0; i < productIds.length; i += LOT) {
+        setAvance({ fait: i, total: productIds.length })
+        const res = await api.publishBatch(productIds.slice(i, i + LOT), destinations, shopId || undefined)
+        tous.push(...res.results)
+      }
+    } catch (err) {
+      // What already went through is kept and shown: the packs before the
+      // failure are published, and saying « impossible » would hide them.
+      setError(
+        `${err instanceof Error ? err.message : 'Publication en lot impossible'}` +
+          (tous.length ? ` (arrêt après ${new Set(tous.map((r) => r.productId)).size} annonce(s) traitée(s))` : ''),
+      )
+    }
+    if (tous.length) {
+      setSummary({
+        published: tous.filter((r) => r.status === 'PUBLISHED').length,
+        pending: tous.filter((r) => r.status === 'PENDING').length,
+        failed: tous.filter((r) => r.status === 'FAILED').length,
+      })
       // Le recapitulatif complet, pas seulement les echecs : un lot dont rien
       // n echoue mais dont tout attend ne doit pas passer pour une reussite.
-      setRecap(res.results)
+      setRecap(tous)
       // Only the failures are worth listing one by one; the rest is a count.
-      setResults(res.results.filter((r) => r.status === 'FAILED'))
+      setResults(tous.filter((r) => r.status === 'FAILED'))
       await onDone()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Publication en lot impossible')
-    } finally {
-      setBusy(false)
     }
+    setAvance(null)
+    setBusy(false)
   }
 
   return createPortal(
@@ -135,6 +168,16 @@ export function BulkPublishDialog({
           })}
         </div>
 
+        {aUneBoutique && (
+          <p className="mt-3 flex gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-400">
+            <Info size={14} className="mt-0.5 shrink-0 text-purple-300" />
+            <span>
+              Chaque annonce publiée dans votre boutique (« Mon site ») est aussi sur DropShop Market,
+              automatiquement, sauf si vous l'avez désactivé dans DropShop Market.
+            </span>
+          </p>
+        )}
+
         <p className="mt-3 flex gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-400">
           <Info size={14} className="mt-0.5 shrink-0 text-purple-300" />
           <span>
@@ -177,16 +220,20 @@ export function BulkPublishDialog({
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="text-xs text-gray-400">
-            {`${selected.length} destination(s) — ${productIds.length} annonce(s)`}
+            {`${selected.filter((id) => batchable.some((p) => p.id === id)).length} destination(s) — ${productIds.length} annonce(s)`}
           </span>
           <button
             type="button"
             onClick={run}
-            disabled={!selected.length || busy}
+            disabled={!selected.some((id) => batchable.some((p) => p.id === id)) || busy}
             className="btn-gradient inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold disabled:opacity-40"
           >
             <Zap size={16} />
-            {busy ? 'Publication en cours…' : 'Publier le lot'}
+            {busy
+              ? avance && avance.total > LOT
+                ? `Publication… ${avance.fait} / ${avance.total}`
+                : 'Publication en cours…'
+              : 'Publier le lot'}
           </button>
         </div>
       </div>
