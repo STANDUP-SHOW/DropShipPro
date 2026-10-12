@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, apostrophesRendues, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -402,6 +402,21 @@ console.log('\nLe Markdown')
   exige(markdownEnHtml('1. un\n2. deux').startsWith('<ol>'), 'une liste ordonnée')
   exige(markdownEnHtml('### Sous-titre\ntexte').includes('<h3>Sous-titre</h3>'), 'un H3')
   exige(blocsDe('## A\nx\n## B\ny').length === 2, 'le découpage sur les H2')
+}
+
+console.log('\nUne offre par fournisseur, un produit par ligne (édition du 12/10)')
+{
+  const p0 = rapport.produits[0]
+  const offres = [
+    { ...p0, rang: 1, titre: 'Attrape-poils flottant réutilisable', prixVente: 12.99 },
+    { ...p0, rang: 2, titre: 'Attrape-poils flottant  réutilisable', prixVente: 17.99 },
+    { ...p0, rang: 3, titre: 'Boule de séchage en laine', prixVente: null },
+  ]
+  const u = produitsUniques(offres)
+  exige(u.length === 2 && u[0].prixMin === 12.99 && u[0].prixMax === 17.99, 'deux offres du même produit = une entrée, avec l’écart de prix')
+  const html = pageJour('2026-10-12', [{ ...rapport, day: '2026-10-12', produits: offres }])
+  exige((html.match(/Attrape-poils flottant/g) ?? []).length === 1, 'l’édition montre le produit une seule fois')
+  exige(html.includes('12,99 à 17,99 €') && html.includes('2 produits gagnants repérés'), 'son prix en fourchette, le compte en produits distincts')
 }
 
 console.log('\nLes apostrophes perdues (gaming du 07/10)')
