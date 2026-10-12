@@ -907,7 +907,7 @@ export class ReportQuery {
   /**
    * Une ligne de `products` au format de l'écran.
    *
-   * La marge vient de `margin_pct`, sinon des deux prix : la colonne texte
+   * La marge vient des deux prix lus dans le texte, sinon de `margin_pct` entre 0 et 100 ; la colonne texte
    * `margin` est en euros chez MarketSpy (« 105 € (ROI 50 %) ») et la lire comme
    * un pourcentage affichait « marge 105 % ». Les ventes constatées sont celles
    * que le rapport donne (`sales` dans la liste JSON du rayon), jamais calculées.
@@ -920,14 +920,20 @@ export class ReportQuery {
     const achat = plageAchat ? (plageAchat.min + plageAchat.max) / 2 : sur(ReportQuery.nombre(p.buy_price_eur))
     const vente = plageVente ? plageVente.min : sur(ReportQuery.nombre(p.sell_price_eur))
     const pct = /(-?\d+(?:[.,]\d+)?)\s*%/.exec(/roi/i.test(String(p.margin ?? '')) ? '' : String(p.margin ?? ''))
+    // margin_pct was migrated from the same corrupt *_eur columns (-7.5 for « 12-18 € / 29-49 € ») and sometimes as a
+    // markup (200 for 5 € → 15 €): the text prices win, and a stored value outside 0-100 is not a margin (12/10/2026).
+    const venteMilieu = plageVente ? (plageVente.min + plageVente.max) / 2 : null
+    const pctStocke = p.margin_pct != null && Number.isFinite(Number(p.margin_pct)) ? Number(p.margin_pct) : null
     const margePct =
-      p.margin_pct != null && Number.isFinite(Number(p.margin_pct))
-        ? Number(p.margin_pct)
-        : achat !== null && vente !== null && vente > 0
-          ? Number((((vente - achat) / vente) * 100).toFixed(1))
-          : pct
-            ? Number(pct[1].replace(',', '.'))
-            : null
+      plageAchat && venteMilieu
+        ? Number((((venteMilieu - achat!) / venteMilieu) * 100).toFixed(1))
+        : pctStocke !== null && pctStocke > 0 && pctStocke < 100
+          ? pctStocke
+          : achat !== null && vente !== null && vente > 0
+            ? Number((((vente - achat) / vente) * 100).toFixed(1))
+            : pct
+              ? Number(pct[1].replace(',', '.'))
+              : null
     let ventes: string | null = null
     try {
       const liste = JSON.parse(p.produits_json ?? '[]')
