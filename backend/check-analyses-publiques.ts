@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, attribuerAdresses, datesPubliques, empreintePublique, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -283,13 +283,18 @@ console.log('\nQuatrième constat du 12/10/2026 au soir : la date suit le texte 
   const avant = empreintePublique(constat)
   exige(avant === empreintePublique({ ...constat, updatedAt: new Date() }), 'l’empreinte ne dépend pas de la date affichée')
   exige(avant !== empreintePublique({ ...constat, body: constat.body.replace('vanille', 'figue') }), 'un texte public changé change l’empreinte')
-  const premier = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x' }, { id: 'b', updatedAt: donnees, empreinte: 'y', importeDrive: true }], {}, t0)
+  const premier = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x' }, { id: 'b', updatedAt: donnees, empreinte: 'y', texteRefait: true }], {}, t0)
   exige(premier.dates.get('a')?.getTime() === donnees.getTime(), 'vu pour la première fois : la date des données (pas de lastmod du jour pour 87 pages)')
-  exige(premier.dates.get('b')?.getTime() === t0.getTime(), 'un import Drive vu pour la première fois : daté de maintenant, ses filtres viennent de changer')
-  const meme = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x' }, { id: 'b', updatedAt: donnees, empreinte: 'y', importeDrive: true }], premier.connus, t1)
+  exige(premier.dates.get('b')?.getTime() === t0.getTime(), 'un texte MARKETSPY refait le 12/10 vu pour la première fois : daté de maintenant')
+  const meme = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x' }, { id: 'b', updatedAt: donnees, empreinte: 'y', texteRefait: true }], premier.connus, t1)
   exige(!meme.change && meme.dates.get('b')?.getTime() === t0.getTime(), 'rien de changé : la date reste, rien n’est réécrit')
-  const autre = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x2' }, { id: 'b', updatedAt: donnees, empreinte: 'y', importeDrive: true }], premier.connus, t1)
+  const autre = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x2' }, { id: 'b', updatedAt: donnees, empreinte: 'y', texteRefait: true }], premier.connus, t1)
   exige(autre.change && autre.dates.get('a')?.getTime() === t1.getTime() && autre.dates.get('b')?.getTime() === t0.getTime(), 'le texte public d’un rapport change : sa date avance, pas celle des autres')
+  exige(texteRefait({ body: '## Synthèse\nLe marché…' }, true) && !texteRefait({ body: '## Analyse\nRentrée 2026…' }, true) && !texteRefait({ body: '## Synthèse' }, false), 'seul un import MARKETSPY (sans « ## Analyse ») a vu son texte refait le 12/10')
+  const v1 = { 'rayon-2026-10-08-x': { empreinte: 'e', le: '2026-10-12T19:40:31.942Z' }, 'rayon-2026-10-12-y': { empreinte: 'f', le: '2026-10-12T19:40:31.942Z' } }
+  const migres = rendusMigres(v1, new Set(['rayon-2026-10-12-y']))
+  exige(!('rayon-2026-10-08-x' in migres) && migres['rayon-2026-10-12-y']?.le === '2026-10-12T19:40:31.942Z', 'le magasin de #77 oublie la date « maintenant » des anciens imports (07/10, 08/10), garde celle des textes refaits')
+  exige(rendusMigres({ version: 2, rapports: v1 }, new Set())['rayon-2026-10-08-x']?.empreinte === 'e', 'un magasin à jour est lu tel quel')
 }
 
 console.log('\nLa page d’un rapport marketing')
