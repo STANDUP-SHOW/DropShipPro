@@ -755,9 +755,16 @@ export class ReportQuery {
     return categorieDe(id)?.nom ?? id
   }
 
+  private static themeLisible(theme: string): string {
+    if (!/^[a-z0-9]+(-[a-z0-9]+)+$/.test(theme)) return theme
+    const mots = theme.split('-').map((m) => (/^(ia|ai|pc|tv|gps|led|usb)$/.test(m) ? m.toUpperCase() : m))
+    return mots.join(' ').replace(/^\p{Ll}/u, (c) => c.toUpperCase())
+  }
+
   private static nomTheme(categorie: string, theme: string, blob?: any): string {
     const cat: CategorieAgent | null = categorieDe(categorie)
-    return cat?.themes.find((t) => t.id === theme)?.nom ?? blob?.study?.theme_name ?? theme
+    // « ordinateurs-ia-local » shown raw in a breadcrumb: an unknown theme reads as words.
+    return cat?.themes.find((t) => t.id === theme)?.nom ?? blob?.study?.theme_name ?? ReportQuery.themeLisible(theme)
   }
 
   /** Le blob `data` d'un rapport, ou `null` — un JSON illisible ne doit rien casser. */

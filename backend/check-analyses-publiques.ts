@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { titreProduitPublic, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { titreProduitPublic, promptsPublics, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 import { ReportQuery } from './src/services/reportsDb.js'
 
@@ -179,7 +179,7 @@ console.log('\nConstat en ligne du 12/10/2026 au soir : plafonds d’achat, libe
   exige(visible.includes('demande réelle chez les étudiants'), 'une puce garde sa partie publique')
   exige(visible.includes('51 % des achats suivent une panne'), '« achats » des clients et un pourcentage ne sont pas un prix d’achat')
   exige(visible.includes('Négocier : attrape-poils en lot ; lave-linge d’occasion.'), 'les parenthèses de plafond tombent, la phrase reste')
-  exige(visible.includes('Liste de surveillance : séchoir B2B, socles et surélévateurs, balles de laine.'), 'dans une liste, seul l’élément qui nomme un fournisseur tombe')
+  exige(visible.includes('Liste de surveillance : socles et surélévateurs, balles de laine.'), 'dans une liste, seul l’élément qui nomme un fournisseur tombe')
   exige(!/Tableau 5|Premier bon de commande/.test(visible) && visible.includes('Montée en volume'), 'un intertitre ou une annonce dont le tableau est retiré tombe avec lui')
   exige(visible.includes('environ 600 €'), 'le budget de test reste')
 }
@@ -575,6 +575,40 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   exige(jardin.includes('220-240 V') && !/\. : /.test(jardin), 'intro retirée : les puces restent intactes', jardin)
   const r = texteRepare('around 50 €, AUTO-SHIPPER, genériques')
   exige(r === 'environ 50 €, AutoShipper, génériques', 'corrections du texte', r)
+}
+
+{
+  // 12/10/2026, constat des 88 pages : fournisseurs hors liste, prix de gros, marges, récits de blocage, rendus cassés.
+  exige(pourquoiPublic('BUY NOW avec test GPU strict') === 'Acheter maintenant avec test GPU strict', 'verdict anglais composé', pourquoiPublic('BUY NOW avec test GPU strict'))
+  exige(pourquoiPublic('WATCHLIST / plutôt affiliation') === 'À surveiller, plutôt affiliation', 'verdict anglais avec séparateur', pourquoiPublic('WATCHLIST / plutôt affiliation'))
+  const gros = pourquoiPublic('Pro CHR, prix de gros vérifié en direct, marge élevée, format repas de fête')
+  exige(gros === 'Pro CHR, format repas de fête', 'pourquoi : prix de gros et marge retirés', gros)
+  const paren = pourquoiPublic('Signal fort, marge exceptionnelle, à encadrer sur l’usage légal (véhicule pro, anti-vol) pour rester conforme')
+  exige(paren === 'Signal fort, à encadrer sur l’usage légal (véhicule pro, anti-vol) pour rester conforme', 'virgule entre parenthèses : le membre reste entier', paren)
+  exige(pourquoiPublic('Tendance Home, lien vers la plateforme générale') === 'Tendance Home', 'pourquoi : « plateforme générale » retiré')
+  const fournisseurs = sansMentionsPrivees(['Les tendances montent, qui alimentent directement notre produit Eprolo B10 Atomic.', 'Standard à confirmer directement auprès de vidaXL.', 'Les MOQ sont bas.', 'Le prix de gros est affiché.', 'Marge brute de 60 %.', 'Il faut importer en lot.', 'Le marché croît.'].join('\n'))
+  exige(fournisseurs === 'Le marché croît.', 'Eprolo, « auprès de vidaXL », MOQ, prix de gros, marge brute, import en lot', fournisseurs)
+  const blocage = sansMentionsPrivees('Honnêteté d’abord : la Meta Ad Library a bloqué la lecture automatisée ; aucune publicité ne peut donc être citée. La vidéo courte domine.')
+  exige(blocage === 'La vidéo courte domine.', 'récit de blocage et « donc » orphelin retirés', blocage)
+  const libelle = sansMentionsPrivees('Ce qui est établi par les sources : aucune publicité n’a pu être lue, la Meta Ad Library a refusé l’accès. Recommandation : tester deux visuels.')
+  exige(libelle === 'Recommandation : tester deux visuels.', 'libellé sans suite retiré', libelle)
+  const strates = sansMentionsPrivees(['Le marché se lit en deux strates très différentes.', '', '**Strate 1** : prix de gros chez Eprolo à 12 €.', '', '**Strate 2** : les vases design.', '', '**Strate 3** : les objets lumineux.'].join('\n'))
+  exige(!/deux strates|Strate 3/.test(strates) && strates.includes('**Strate 1** : les vases design.'), 'strates : annonce retirée, renumérotées', strates)
+  const gammes = sansMentionsPrivees('**Gammes de prix** : entrée 10-20 € (prix de gros 4 €) ; milieu 30-60 € (MOQ 50) ; haut 90-150 € (marge brute 60 %).\n\nLe marché croît.')
+  exige(!/gros|MOQ|marge/.test(gammes) && gammes.includes('entrée 10-20 €'), 'gammes de prix sans achat', gammes)
+  const puces = sansMentionsPrivees('- accessoires discrets ;\n- casques légers ;')
+  exige(puces === '- Accessoires discrets.\n- Casques légers.', 'puces sans introduction : majuscule et point', puces)
+  const t = texteRepare('Un smartphone complet a moins de 160EUR, droit a la reparation, il y a 3 ans, Pixel 10a. Photo lifestyle éclatante : undefined. Le reste tient.')
+  exige(t === 'Un smartphone complet à moins de 160 €, droit à la réparation, il y a 3 ans, Pixel 10a. Le reste tient.', 'à, EUR, accents, phrase « undefined » retirée', t)
+  exige(texteRepare('Prix | Non vérifié |') === 'Prix | — |', 'cellule « Non vérifié » : tiret')
+  exige(texteRepare('Coque (手机壳 pas cher) solide') === 'Coque solide', 'parenthèse en chinois retirée entière')
+  exige(texteRepare('serait faux pour un import automatisé — l’AUTO-SHIPPER ne doit pas pousser') === 'serait faux : mieux vaut ne pas pousser', 'AutoShipper reformulé')
+  const prompts = promptsPublics(['"# Chargeur Portable - DIMO #"', 'Photo lifestyle : undefined.', 'Produit au centre sur fond neutre, lumière douce', 'Scène verticale d’un bureau lumineux, écran 27 pouces, plante verte, lumière du matin'].map((texte) => ({ texte })))
+  exige(prompts.length === 1 && prompts[0].texte.startsWith('Scène verticale'), 'prompts : titre seul, undefined et gabarit retirés', JSON.stringify(prompts))
+  exige(titreProduitPublic('Oxymètre de pouls LED portable, mention CE/ISO sur la fiche') === 'Oxymètre de pouls LED portable', 'titre : clause sur la fiche retirée')
+  exige(titreProduitPublic('Chaise de table de jardin en gros - Acheter à') === 'Chaise de table de jardin', 'titre : « en gros - Acheter à » retiré')
+  const page = pageRapport({ ...rapport, produits: [{ ...rapport.produits[0], prixVente: 1299 }] })
+  exige(page.includes('1 299,00 €'), 'espace des milliers dans les prix')
 }
 
 if (echecs) {
