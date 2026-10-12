@@ -398,6 +398,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ idToken }),
     }),
+  // DropShipper Desktop : code à usage unique remis à l'application par dropshipper://
+  codeConnexionDesktop: (etat: string) =>
+    request<{ code: string }>('/desktop/code', { method: 'POST', body: JSON.stringify({ etat }) }),
   me: () =>
     request<{ id: string; email: string; shopName?: string; watermarkText?: string; emailVerified?: boolean }>(
       '/auth/me',

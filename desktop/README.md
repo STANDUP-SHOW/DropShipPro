@@ -78,6 +78,10 @@ cd ../backend && npx tsx check-desktop-reel.ts   # l'application empaquetée con
 npm start
 ```
 
+## Connexion Google (0.4.1)
+
+Google refuse sa connexion dans la vue intégrée : sa fenêtre partait dans le navigateur sans retour possible (bloquée sur `accounts.google.com/gsi/transform`, 12/10). « Continuer avec Google » ouvre désormais `drop-shipper.fr/connexion-desktop?etat=…` dans le navigateur du poste ; une fois connecté, le site rend la main par `dropshipper://connexion?code=…&etat=…` (code de 2 minutes, usage unique, `POST /api/desktop/code` puis `/api/desktop/echange`, `backend/src/routes/desktopConnexion.ts`), et la session est posée dans la fenêtre du site. Un état non émis par l'application est refusé (`lib/connexion.js`, banc `npm run check`). Un compte créé par Google n'a pas de mot de passe : « Email ou mot de passe incorrect » est alors normal.
+
 ## Installeurs Windows
 
 `npm run build` produit dans `dist/` : `DropShipper Desktop Setup 0.2.1.exe` (NSIS) et `DropShipper Desktop 0.2.1.msi`. **Non signés** : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même) tant qu'un certificat de signature n'est pas acheté. Sous Windows, `electron-builder` échoue sur des liens symboliques macOS de son cache `winCodeSign` : copier un dossier extrait du cache en `winCodeSign-2.6.0` (fait sur ce poste).

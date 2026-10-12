@@ -412,6 +412,25 @@ async function main() {
   const br = await importGroupe({ api: ar, plateformes: ['FACEBOOK'], plafond: Infinity, margeMin: 35, categories: ['Mode'], dormir: async () => undefined })
   verifier('rayons et marge choisis par le vendeur : transmis au serveur, rayons du jour rendus à l’écran', ar.j.margeMin === 35 && ar.j.categories.join() === 'Mode' && br.rayons.join() === 'Maison,Mode' && br.importes === 3)
 
+  console.log('\nConnexion par le navigateur du poste (Google refusé dans la vue intégrée)')
+  const cx = require('./lib/connexion')
+  let horloge = 1000
+  const etats = cx.creerEtats(() => horloge)
+  const e1 = etats.nouveau()
+  verifier('état tiré au hasard, accepté par le site', /^[A-Za-z0-9_-]{16,128}$/.test(e1) && e1 !== etats.nouveau())
+  verifier('page du site ouverte avec l’état', cx.adresseConnexion('https://www.drop-shipper.fr', e1) === `https://www.drop-shipper.fr/connexion-desktop?etat=${e1}`)
+  verifier('un état émis ici sert une seule fois', etats.consommer(e1) && !etats.consommer(e1))
+  verifier('un état inconnu est refusé (lien forgé)', !etats.consommer('AAAAAAAAAAAAAAAAAAAAAAAA'))
+  const e2 = etats.nouveau()
+  horloge += cx.DUREE_MS + 1
+  verifier('un état expiré est refusé', !etats.consommer(e2))
+  const codeRetour = 'a'.repeat(64)
+  const retour = cx.lireRetour(`dropshipper://connexion?code=${codeRetour}&etat=${e1}`)
+  verifier('retour du site lu', retour && retour.code === codeRetour && retour.etat === e1)
+  verifier('autres adresses dropshipper:// ignorées (partage d’un lien)', cx.lireRetour('dropshipper://partager?url=https://x.fr') === null)
+  verifier('code mal formé refusé', cx.lireRetour(`dropshipper://connexion?code=xyz&etat=${e1}`) === null)
+  verifier('fenêtre Google reconnue, le site non', cx.estConnexionGoogle('https://accounts.google.com/gsi/select?client_id=1') && !cx.estConnexionGoogle('https://www.drop-shipper.fr/login'))
+
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {
     console.error(`\n${echecs} attente(s) manquée(s).`)
