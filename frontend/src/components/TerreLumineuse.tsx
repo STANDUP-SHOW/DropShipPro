@@ -7,8 +7,9 @@ import { useEffect, useRef } from 'react'
  *
  * Dessinée ici, comme VilleDeNuit : la vidéo de référence vient de Pinterest et
  * n'est qu'une référence de style. Le globe est vu depuis l'orbite, l'horizon
- * en haut ; ses lumières s'allument par vagues à partir d'un point (la France
- * d'abord, puis d'autres pays), et des arcs en partent vers le reste du monde.
+ * en haut ; elle tourne, toujours éclairée, et des faisceaux de toutes les
+ * couleurs partent en même temps de plusieurs pays vers plusieurs autres : les
+ * échanges internationaux (Max, 12/10/2026 : plus d'écran noir entre deux vagues).
  *
  * Les terres viennent du tracé Natural Earth déjà utilisé par la carte du
  * tableau de bord (stats/monde-trace.ts), chargé seulement quand le bloc
@@ -177,24 +178,15 @@ export function TerreLumineuse() {
         return { x: cx + R * haut * x, y: cy - R * haut * y2, z: z2 }
       }
 
-      const CYCLE = 13000
-      let origine: Lieu = france
-      let cycle = -1
       let arcs: Arc[] = []
       let dernierArc = 0
       const t0 = performance.now()
+      const MAX_ARCS = mobile ? 14 : 26
 
       const image = (maintenant: number) => {
-        const t = calme ? CYCLE * 0.8 : maintenant - t0
-        const n = Math.floor(t / CYCLE)
-        const tc = t - n * CYCLE
-        if (n !== cycle) {
-          cycle = n
-          if (n > 0) origine = hubs[Math.floor(Math.random() * hubs.length)]
-          arcs = []
-        }
-        // Turns slowly westward; starts with Europe facing the viewer.
-        const rot = -france.lon - 8 + (calme ? 0 : t * 0.0022)
+        const t = calme ? 0 : maintenant - t0
+        // Turns westward, about a full turn a minute and a half; starts with Europe facing the viewer.
+        const rot = -france.lon - 8 + t * 0.004
         const { R, cx, cy } = geometrie()
 
         ctx.clearRect(0, 0, L, H)
@@ -219,35 +211,29 @@ export function TerreLumineuse() {
         ctx.fill()
 
         ctx.globalCompositeOperation = 'lighter'
-        // The wave front reaches the far side of the world in 7 s, then the
-        // lights hold, and dim down before the next wave.
-        const fin = tc > CYCLE - 1600 ? (CYCLE - tc) / 1600 : 1
+        // Every light stays on; each one only twinkles a little.
         for (const p of points) {
           const q = projette(p, rot, R, cx, cy)
           if (q.z <= 0.02 || q.y < -10 || q.y > H + 10) continue
-          const d = distance(p, origine) / Math.PI
-          const allume = Math.min(1, Math.max(0, (tc - d * 7000) / 500))
           const scintille = 0.8 + 0.2 * Math.sin(t * 0.004 + p.phase)
-          const a = (0.12 + 0.88 * allume * fin) * p.force * scintille * Math.min(1, q.z * 3)
+          const a = p.force * scintille * Math.min(1, q.z * 3)
           if (a < 0.03) continue
-          const s = (2.6 + 6 * allume * p.force) * (0.55 + q.z * 0.6)
+          const s = (2.6 + 6 * p.force) * (0.55 + q.z * 0.6)
           ctx.globalAlpha = a
           ctx.drawImage(lutins[p.teinte], q.x - s, q.y - s, s * 2, s * 2)
         }
         ctx.globalAlpha = 1
 
-        // The filaments, lit with the wave.
+        // The filaments, always lit.
         ctx.lineWidth = 0.7
         for (const [teinte, couleur] of [[0, '#5ee7ff'], [1, '#ffb347']] as const) {
           ctx.strokeStyle = couleur
-          ctx.globalAlpha = 0.28 * fin
+          ctx.globalAlpha = 0.28
           ctx.beginPath()
           for (const [i, j] of liens) {
             const a = points[i]
             if ((a.teinte === 0) !== (teinte === 0)) continue
             const b = points[j]
-            const d = distance(a, origine) / Math.PI
-            if (tc < d * 7000 + 300) continue
             const qa = projette(a, rot, R, cx, cy)
             if (qa.z <= 0.05 || qa.y < -10 || qa.y > H + 10) continue
             const qb = projette(b, rot, R, cx, cy)
@@ -258,18 +244,41 @@ export function TerreLumineuse() {
         }
         ctx.globalAlpha = 1
 
-        // Arcs from the origin to lit places.
-        if (!calme && tc > 600 && tc < CYCLE - 2000 && maintenant - dernierArc > 260 && arcs.length < 14) {
-          const vers = hubs[Math.floor(Math.random() * hubs.length)]
-          if (distance(vers, origine) / Math.PI * 7000 < tc) {
-            arcs.push({ de: origine, vers, t0: t, duree: 1600 + Math.random() * 900, teinte: Math.random() < 0.5 ? 2 : Math.random() < 0.5 ? 3 : 0 })
+        // Several beams at once, from several countries to several others,
+        // both ends inside the visible part of the globe.
+        const face = (l: Lieu) => {
+          const q = projette(l, rot, R, cx, cy)
+          return q.z > 0.04 && q.x > L * 0.04 && q.x < L * 0.96 && q.y > H * 0.08 && q.y < H * 0.95
+        }
+        const remplir = (combien: number, age: number) => {
+          // Candidates on screen: the visible country centres, and lit places
+          // (so beams keep flying when an ocean faces us).
+          const vus: Lieu[] = hubs.filter(face)
+          for (let k = 0; k < 300; k++) {
+            const q = points[Math.floor(Math.random() * points.length)]
+            if (face(q)) vus.push(q)
           }
+          if (vus.length < 2) return
+          for (let essai = 0; essai < combien * 12 && combien > 0; essai++) {
+            const de = vus[Math.floor(Math.random() * vus.length)]
+            const vers = vus[Math.floor(Math.random() * vus.length)]
+            const ang = distance(de, vers)
+            if (ang < 0.08 || ang > 1.6) continue
+            const duree = 1500 + Math.random() * 1100
+            arcs.push({ de, vers, t0: t - age * Math.random() * duree, duree, teinte: Math.floor(Math.random() * 4) })
+            combien--
+          }
+        }
+        if (calme && !arcs.length) remplir(MAX_ARCS, 1)
+        else if (!calme && !arcs.length) remplir(Math.ceil(MAX_ARCS / 2), 1)
+        if (!calme && maintenant - dernierArc > 100 && arcs.length < MAX_ARCS) {
+          remplir(1, 0)
           dernierArc = maintenant
         }
-        arcs = arcs.filter((a) => t - a.t0 < a.duree + 600)
+        if (!calme) arcs = arcs.filter((a) => t - a.t0 < a.duree + 600)
         for (const a of arcs) {
-          const p = Math.min(1, (t - a.t0) / a.duree)
-          const fondu = t - a.t0 > a.duree ? 1 - (t - a.t0 - a.duree) / 600 : 1
+          const p = calme ? 1 : Math.min(1, (t - a.t0) / a.duree)
+          const fondu = !calme && t - a.t0 > a.duree ? 1 - (t - a.t0 - a.duree) / 600 : 1
           const ang = distance(a.de, a.vers)
           const N = 40
           const pts: { x: number; y: number; z: number }[] = []
@@ -290,21 +299,28 @@ export function TerreLumineuse() {
           if (pts[pts.length - 1].z < -0.2) continue
           const couleur = TEINTES[a.teinte]
           ctx.strokeStyle = couleur
-          ctx.globalAlpha = 0.35 * fondu
-          ctx.lineWidth = 1
+          ctx.globalAlpha = 0.7 * fondu
+          ctx.lineWidth = 1.4
           ctx.beginPath()
           pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)))
           ctx.stroke()
           // The bright head.
           const tete = pts.slice(Math.max(0, pts.length - 9))
           ctx.globalAlpha = fondu
-          ctx.lineWidth = 2
+          ctx.lineWidth = 2.6
           ctx.shadowColor = couleur
           ctx.shadowBlur = 10
           ctx.beginPath()
           tete.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)))
           ctx.stroke()
           ctx.shadowBlur = 0
+          // A flash where the beam leaves.
+          if (p < 1) {
+            const dep = pts[0]
+            const r = 5 + 9 * (1 - p)
+            ctx.globalAlpha = 0.7 * (1 - p)
+            ctx.drawImage(lutins[a.teinte], dep.x - r, dep.y - r, r * 2, r * 2)
+          }
           if (p >= 1) {
             const fin2 = pts[pts.length - 1]
             const r = 6 + 18 * Math.min(1, (t - a.t0 - a.duree) / 600)
