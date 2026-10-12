@@ -73,6 +73,17 @@ vectorielles (SVG ou Illustrator).
 
 - Accueil React, section `#dropshop` (`Index.tsx`) : logo, signature, titre en
   dégradé, cartes à bordure dégradée, bouton pilule, encart DropShop Market.
-- Pas encore : la page `/fonctions/dropshop-ia/`, l'ancien `dropshop-complet.png`
-  (toujours dans `frontend/public/marque/`, plus référencé par l'accueil), la
-  vitrine et les e-mails DropShop.
+- Les pages publiques de **drop-shop.cloud** (`backend/src/services/marketPages.ts`) :
+  en-tête nuit `#01020f` avec le logo DropShop MARKET et un filet au dégradé,
+  recherche et boutons en pilule dégradée, interrupteur PRIME, héros nuit avec
+  « RAPIDE EUROPE », encart Rapide Europe dans le pied de page, accent violet
+  `#6b3fc4` pour les liens et les prix (lisible sur blanc). Images servies par
+  le Market lui-même sous `/marque/` depuis `backend/marque/` (Railway ne voit
+  que `backend/`).
+- Application : icône du menu et logo d'en-tête (`public/logos/dropshop-icone.png`,
+  `dropshop-entete.png`), écran « Créer ma boutique » (titre et boutons au
+  dégradé, accents violets), écran « DropShop Market ».
+- Page statique `/fonctions/dropshop-ia/` : logo en tête, bouton d'offre en pilule.
+- Pas encore : les e-mails DropShop. La vitrine `/b/<adresse>` et les boutiques
+  écrites par l'IA portent la marque **du vendeur**, pas DropShop : elles n'ont
+  pas à changer.

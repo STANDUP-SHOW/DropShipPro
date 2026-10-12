@@ -92,8 +92,8 @@ export default function CreerBoutique() {
         noms de fichiers et ce qui s'affiche tant qu'ils ne sont pas déposés.
       */}
       <h1 className="flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight">
-        <LogoDropShopEntete size={176} />
-        <span className="bg-gradient-to-r from-emerald-400 via-green-200 to-white bg-clip-text text-transparent">
+        <LogoDropShopEntete size={88} />
+        <span className="texte-dropshop">
           Créer votre boutique, écrite par l'IA
         </span>
       </h1>
@@ -108,7 +108,7 @@ export default function CreerBoutique() {
       {/* ---------- Vos boutiques IA : une case par boutique, modifier ou supprimer ---------- */}
       <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.05] p-5 backdrop-blur">
         <h2 className="flex items-center gap-2 font-bold">
-          <Store size={16} className="text-emerald-300" />
+          <Store size={16} className="text-violet-300" />
           <span>Vos boutiques DropShop</span>
         </h2>
         {hebergees.length > 0 && (
@@ -119,7 +119,7 @@ export default function CreerBoutique() {
               return (
                 <div
                   key={b.id}
-                  className={`flex items-center gap-3 rounded-xl border p-3 transition ${estActive ? 'border-emerald-300/60 bg-emerald-400/10' : 'border-white/10 bg-black/20'}`}
+                  className={`flex items-center gap-3 rounded-xl border p-3 transition ${estActive ? 'border-violet-300/60 bg-violet-400/10' : 'border-white/10 bg-black/20'}`}
                 >
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.08]">
                     {logo ? <img src={logo} alt="" className="max-h-10 max-w-10 object-contain" /> : <span className="text-lg font-black text-gray-400">{b.name.slice(0, 1).toUpperCase()}</span>}
@@ -129,7 +129,7 @@ export default function CreerBoutique() {
                     <p className="truncate text-[11px] text-gray-500">{b.products} annonce(s) · /b/{b.slug ?? '…'}</p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-1">
-                    <button type="button" onClick={() => setChoisie(b.id)} className="rounded-lg border border-emerald-400/40 px-2.5 py-1 text-[11px] font-bold text-emerald-200 hover:bg-emerald-400/10">
+                    <button type="button" onClick={() => setChoisie(b.id)} className="rounded-lg border border-violet-400/40 px-2.5 py-1 text-[11px] font-bold text-violet-200 hover:bg-violet-400/10">
                       {estActive ? 'Ouverte' : 'Modifier'}
                     </button>
                     <button type="button" onClick={() => supprimerBoutique(b)} disabled={busy} className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-gray-400 hover:border-red-400/50 hover:text-red-300 disabled:opacity-40">
@@ -147,13 +147,13 @@ export default function CreerBoutique() {
             onChange={(e) => setNom(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && creer()}
             placeholder={hebergees.length ? 'Ou une nouvelle : Maison Lumea, TechNomade…' : 'Le nom de votre boutique : Maison Lumea, TechNomade…'}
-            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none transition focus:border-emerald-400/70"
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none transition focus:border-violet-400/70"
           />
           <button
             type="button"
             onClick={creer}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 px-4 py-2.5 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-xl border border-violet-400/40 px-4 py-2.5 text-sm font-bold text-violet-200 transition hover:bg-violet-400/10 disabled:opacity-40"
           >
             <Store size={15} />
             <span>{busy ? 'Création…' : 'Nommer la boutique'}</span>
@@ -407,7 +407,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
         {!etat.creee && !enCours ? (
           <section className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
             <h2 className="flex items-center gap-2 font-bold">
-              <ImageIcon size={16} className="text-emerald-300" />
+              <ImageIcon size={16} className="text-violet-300" />
               <span>1. Votre logo</span>
             </h2>
             <p className="mt-1 text-xs text-gray-400">
@@ -433,8 +433,8 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
             </div>
 
             {gammes?.logo ? (
-              <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.05] p-3">
-                <p className="text-sm font-semibold text-emerald-100">Adapter la boutique aux couleurs de votre logo ?</p>
+              <div className="mt-4 rounded-xl border border-violet-400/20 bg-violet-500/[0.05] p-3">
+                <p className="text-sm font-semibold text-violet-100">Adapter la boutique aux couleurs de votre logo ?</p>
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
                   <span>Couleurs lues :</span>
                   {gammes.couleurs.map((c) => (
@@ -450,7 +450,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
                       key={g.id}
                       type="button"
                       onClick={() => setGammeChoisie(gammeChoisie === g.id ? null : (g.id ?? null))}
-                      className={`rounded-xl border p-2.5 text-left transition ${gammeChoisie === g.id ? 'border-emerald-300 bg-emerald-400/10' : 'border-white/10 hover:bg-white/5'}`}
+                      className={`rounded-xl border p-2.5 text-left transition ${gammeChoisie === g.id ? 'border-violet-300 bg-violet-400/10' : 'border-white/10 hover:bg-white/5'}`}
                     >
                       <span className="flex items-center gap-1.5">
                         {(['fond', 'surface', 'accent', 'accent2', 'texte'] as const).map((k) => (
@@ -469,9 +469,9 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
         ) : null}
 
         {!etat.creee && !enCours ? (
-          <section className="rounded-2xl border border-emerald-400/25 bg-emerald-500/[0.06] p-5">
+          <section className="rounded-2xl border border-violet-400/25 bg-violet-500/[0.06] p-5">
             <h2 className="flex items-center gap-2 font-bold">
-              <Wand2 size={16} className="text-emerald-300" />
+              <Wand2 size={16} className="text-violet-300" />
               <span>{`2. Décrivez la boutique de vos rêves pour ${boutique.name}`}</span>
             </h2>
             <p className="mt-1 text-xs text-gray-400">
@@ -483,10 +483,10 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
               onChange={(e) => setBrief(e.target.value)}
               rows={7}
               placeholder="Ex. Une boutique de montres et bijoux en acier pour hommes, ambiance atelier d'horloger : bois sombre, laiton, noir profond, typographie élégante. Clientèle 25-45 ans, urbaine. Je veux un grand héros avec une montre en gros plan, les catégories en cartes, et un ton sobre, sûr de lui, sans superlatifs."
-              className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm leading-relaxed outline-none transition focus:border-emerald-400/70"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm leading-relaxed outline-none transition focus:border-violet-400/70"
             />
             <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
-              <input type="checkbox" checked={modesVisiteur} onChange={(e) => setModesVisiteur(e.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-400" />
+              <input type="checkbox" checked={modesVisiteur} onChange={(e) => setModesVisiteur(e.target.checked)} className="mt-0.5 h-4 w-4 accent-violet-400" />
               <span className="text-xs leading-relaxed text-gray-300">
                 <b className="text-gray-100">Expérience client immersive.</b> Vos visiteurs choisissent l'ambiance de la boutique
                 depuis un sélecteur dans l'en-tête : quatre assemblages de couleurs complets et soignés, dessinés pour votre
@@ -501,7 +501,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
                   type="button"
                   onClick={proposerDirections}
                   disabled={chercheDirections || brief.trim().length < 20}
-                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/40 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-400/10 disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-lg border border-violet-400/40 px-3 py-1.5 text-xs font-bold text-violet-200 hover:bg-violet-400/10 disabled:opacity-40"
                 >
                   {chercheDirections ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                   <span>{chercheDirections ? 'L\'IA compose trois directions…' : directions.length ? 'Trois autres directions' : 'Proposer 3 directions (gratuit, ~30 s)'}</span>
@@ -518,7 +518,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
                         key={d.id}
                         type="button"
                         onClick={() => setDirectionChoisie(choisie ? null : d.id)}
-                        className={`overflow-hidden rounded-xl border text-left transition ${choisie ? 'border-emerald-300 ring-2 ring-emerald-400/40' : 'border-white/10 hover:border-white/30'}`}
+                        className={`overflow-hidden rounded-xl border text-left transition ${choisie ? 'border-violet-300 ring-2 ring-violet-400/40' : 'border-white/10 hover:border-white/30'}`}
                       >
                         <div
                           className="relative px-4 pb-4 pt-5"
@@ -546,7 +546,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
                           <span><b className="text-gray-200">{d.polices.titre}</b> + {d.polices.texte}</span>
                           <span>· matière {d.matiere}</span>
                           <span>· {d.ambiance}</span>
-                          {choisie ? <span className="ml-auto font-bold text-emerald-300">Choisie</span> : <span className="ml-auto">Choisir</span>}
+                          {choisie ? <span className="ml-auto font-bold text-violet-300">Choisie</span> : <span className="ml-auto">Choisir</span>}
                         </div>
                       </button>
                     )
@@ -557,13 +557,13 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-gray-400">
-                <b className="text-emerald-200">{etat.tarifs.creation} drops</b> · {etat.tarifs.incluses} modifications comprises · en ligne en 4 à 6 minutes
+                <b className="text-violet-200">{etat.tarifs.creation} drops</b> · {etat.tarifs.incluses} modifications comprises · en ligne en 4 à 6 minutes
               </span>
               <button
                 type="button"
                 onClick={lancerCreation}
                 disabled={busy || brief.trim().length < 20}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_0_14px_rgba(52,211,153,0.35)] transition hover:brightness-110 disabled:opacity-40"
+                className="btn-dropshop inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-extrabold uppercase tracking-wide text-white shadow-lg shadow-fuchsia-900/30 transition hover:brightness-110 disabled:opacity-40"
               >
                 <Sparkles size={15} />
                 <span>{busy ? 'Lancement…' : 'Créer ma boutique'}</span>
@@ -586,7 +586,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
         {etat.creee && !enCours ? (
           <section className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
             <h2 className="flex items-center gap-2 font-bold">
-              <Wand2 size={16} className="text-emerald-300" />
+              <Wand2 size={16} className="text-violet-300" />
               <span>Demandez une modification</span>
             </h2>
             <p className="mt-1 text-xs text-gray-400">
@@ -599,19 +599,19 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
               onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) lancerModification() }}
               rows={3}
               placeholder="Ce que vous voulez changer…"
-              className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm leading-relaxed outline-none transition focus:border-emerald-400/70"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm leading-relaxed outline-none transition focus:border-violet-400/70"
             />
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-gray-400">
                 {etat.modifsRestantes > 0
-                  ? <><b className="text-emerald-200">{etat.modifsRestantes}</b> modification(s) comprise(s) restante(s)</>
-                  : <><b className="text-emerald-200">{etat.tarifs.modification} drops</b> la modification</>}
+                  ? <><b className="text-violet-200">{etat.modifsRestantes}</b> modification(s) comprise(s) restante(s)</>
+                  : <><b className="text-violet-200">{etat.tarifs.modification} drops</b> la modification</>}
               </span>
               <button
                 type="button"
                 onClick={lancerModification}
                 disabled={busy || demande.trim().length < 3}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-40"
+                className="btn-dropshop inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-40"
               >
                 <Sparkles size={15} />
                 <span>Appliquer</span>
@@ -633,7 +633,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
               <ol className="mt-3 space-y-2">
                 {etat.versions.map((v) => (
                   <li key={v.numero} className="flex items-start gap-3 rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-xs">
-                    <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 font-bold ${v.numero === etat.version ? 'bg-emerald-400/20 text-emerald-200' : 'bg-white/10 text-gray-300'}`}>v{v.numero}</span>
+                    <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 font-bold ${v.numero === etat.version ? 'bg-violet-400/20 text-violet-200' : 'bg-white/10 text-gray-300'}`}>v{v.numero}</span>
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-gray-200">{v.demande}</span>
                       <span className="text-gray-500">{new Date(v.createdAt).toLocaleString('fr-FR')} · {v.modele}</span>
@@ -658,7 +658,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
           <h3 className="flex items-center gap-2 text-sm font-bold">
             <CreditCard size={15} className="text-sky-300" />
             <span>Paiement en ligne</span>
-            <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${etat.stripe ? 'bg-emerald-400/20 text-emerald-200' : 'bg-white/10 text-gray-400'}`}>
+            <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${etat.stripe ? 'bg-violet-400/20 text-violet-200' : 'bg-white/10 text-gray-400'}`}>
               {etat.stripe ? 'Stripe branché' : 'À brancher'}
             </span>
           </h3>
@@ -715,9 +715,9 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
           {etat.adresse ? (
             <code className="min-w-0 flex-1 truncate rounded-md bg-black/30 px-2 py-1 text-[11px] text-gray-300">{etat.adresse}</code>
           ) : <span className="text-xs text-gray-500">Adresse posée à la création</span>}
-          {etat.creee ? <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-bold text-emerald-200">v{etat.version}</span> : null}
+          {etat.creee ? <span className="rounded-full bg-violet-400/15 px-2 py-0.5 text-[11px] font-bold text-violet-200">v{etat.version}</span> : null}
           <button type="button" onClick={copierAdresse} disabled={!etat.adresse} title="Copier l'adresse" className="rounded-md p-1.5 text-gray-400 hover:text-white disabled:opacity-40"><Copy size={15} /></button>
-          {copie ? <span className="text-[11px] text-emerald-300">Copiée</span> : null}
+          {copie ? <span className="text-[11px] text-violet-300">Copiée</span> : null}
           <a href={apercu ?? '#'} target="_blank" rel="noreferrer noopener" className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${apercu ? 'text-purple-200 hover:bg-white/10' : 'pointer-events-none text-gray-600'}`}>
             <ExternalLink size={13} />
             <span>Ouvrir</span>
@@ -740,7 +740,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
             </div>
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center">
-              <Sparkles size={28} className="text-emerald-300" />
+              <Sparkles size={28} className="text-violet-300" />
               <p className="max-w-md text-sm text-gray-300">
                 L'aperçu de votre boutique apparaîtra ici — la vraie page, à sa vraie adresse, en largeur ordinateur ou téléphone.
               </p>
@@ -834,7 +834,7 @@ function Extensions({ shopId, busy }: { shopId: string; busy: boolean }) {
                   {ext.exclusif ? <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-200">EXCLUSIVITÉ</span> : null}
                   {ext.mention ? <span className="rounded-full bg-sky-400/20 px-2 py-0.5 text-[10px] font-black tracking-wider text-sky-200">{ext.mention}</span> : null}
                   {ext.statut === 'bientot' ? <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-400">Bientôt disponible</span> : null}
-                  {ext.installee ? <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[10px] font-bold text-emerald-200">Installée</span> : null}
+                  {ext.installee ? <span className="rounded-full bg-violet-400/20 px-2 py-0.5 text-[10px] font-bold text-violet-200">Installée</span> : null}
                 </p>
                 <p className="text-xs text-gray-400">{ext.accroche}</p>
               </div>
@@ -941,8 +941,8 @@ function Avancement({ travail }: { travail: TravailDropShop }) {
   }
   if (travail.etape === 'termine') {
     return (
-      <section className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.07] p-4">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-200"><CheckCircle2 size={15} /><span>{titre} : en ligne</span></h3>
+      <section className="rounded-2xl border border-violet-400/30 bg-violet-500/[0.07] p-4">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-violet-200"><CheckCircle2 size={15} /><span>{titre} : en ligne</span></h3>
         <p className="mt-1 text-xs text-gray-300">{travail.resume ?? 'Terminé.'} <span className="text-gray-500">({secondes} s)</span></p>
         {typeof travail.cout === 'number' ? (
           <p className="mt-1 text-[11px] text-amber-200/90">
@@ -955,8 +955,8 @@ function Avancement({ travail }: { travail: TravailDropShop }) {
   const etapes: Array<[string, string]> = [['ecriture', 'Écriture'], ['verification', 'Test du parcours'], ['reparation', 'Corrections'], ['finition', 'Finition']]
   const rang = etapes.findIndex(([k]) => k === travail.etape)
   return (
-    <section className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.07] p-4">
-      <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-200">
+    <section className="rounded-2xl border border-violet-400/30 bg-violet-500/[0.07] p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold text-violet-200">
         <Loader2 size={15} className="animate-spin" />
         <span>{titre} en cours — {secondes} s</span>
       </h3>
@@ -966,7 +966,7 @@ function Avancement({ travail }: { travail: TravailDropShop }) {
       </p>
       <ol className="mt-3 flex gap-2">
         {etapes.map(([k, label], i) => (
-          <li key={k} className={`flex-1 rounded-lg border px-2 py-1.5 text-center text-[11px] font-semibold ${i < rang ? 'border-emerald-400/40 text-emerald-200' : i === rang ? 'border-emerald-300 bg-emerald-400/15 text-white' : 'border-white/10 text-gray-500'}`}>
+          <li key={k} className={`flex-1 rounded-lg border px-2 py-1.5 text-center text-[11px] font-semibold ${i < rang ? 'border-violet-400/40 text-violet-200' : i === rang ? 'border-violet-300 bg-violet-400/15 text-white' : 'border-white/10 text-gray-500'}`}>
             {label}
           </li>
         ))}

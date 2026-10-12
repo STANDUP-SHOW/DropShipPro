@@ -553,6 +553,8 @@ function pageFonction(t, index) {
         breadcrumbLd(trail),
       ],
       body: `${crumb(trail)}
+${t.slug === 'dropshop-ia' ? '<img src="/marque/dropshop/logo.png" alt="DropShop" width="1000" height="230" style="display:block;height:56px;width:auto;margin:.5rem 0 1rem">' : ''}
+${t.slug === 'auto-shipper' ? '<img src="/marque/autoshipper-complet.png" alt="AutoShipper" width="1400" height="234" style="display:block;height:44px;width:auto;max-width:100%;margin:1rem 0 .5rem">' : ''}
 <p class="badge">${esc(t.eyebrow)}</p>
 <h1>${esc(c.h1)}</h1>
 <div class="card"><p><strong>En bref.</strong> ${esc(c.enBref)}</p></div>
@@ -565,7 +567,7 @@ function pageFonction(t, index) {
 ${c.sections.map((s) => `<h2>${esc(s.h2)}</h2>\n${s.html}`).join('\n')}
 <div class="gratuit">
 <p class="pitch"><span class="free">120 drops offerts</span> à l'inscription, sans abonnement ni carte : de quoi importer et publier dix annonces.</p>
-<p><a class="cta" href="/register">Créer mon compte gratuit</a> <a class="cta" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''} style="background:none;border:1px solid #ffffff33">${esc(t.offre.label)}</a></p>
+<p><a class="cta" href="/register">Créer mon compte gratuit</a> <a class="cta" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''} style="${t.slug === 'dropshop-ia' ? 'background:linear-gradient(90deg,#07eeb7,#4a98eb 30%,#8c5ed0 50%,#dd2488 70%,#f48e35 90%,#ffc90b);border:0;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.45)' : 'background:none;border:1px solid #ffffff33'}">${esc(t.offre.label)}</a></p>
 <p class="fine">Les prix de chaque action : <a href="/tarifs/">tarifs</a> · L'extension : <a href="${CHROME_STORE_FONCTIONS}" rel="noopener" target="_blank">Chrome Web Store</a></p>
 </div>
 ${faqHtml(c.faq)}

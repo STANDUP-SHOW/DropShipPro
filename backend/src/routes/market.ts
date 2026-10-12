@@ -1,4 +1,6 @@
 import express, { Router, type Request, type Response, type NextFunction } from 'express'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { annonces, arbreMarket, boutiqueUrlDe, marketUrl, marketHosts, type Annonce } from '../services/market.js'
@@ -16,6 +18,14 @@ import { ouvrirPaiementMarket, confirmerCommandeMarket, MarketIndisponible } fro
 export const marketRouter = Router()
 
 const PAR_PAGE = 48
+
+/**
+ * The DropShop brand images (charte du 10/10/2026), served from backend/marque.
+ * Resolved from this module, never from the cwd: src/routes under tsx and
+ * dist/routes in production are both two levels below backend/.
+ */
+const DOSSIER_MARQUE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../marque')
+marketRouter.use('/marque', express.static(DOSSIER_MARQUE, { maxAge: '7d', fallthrough: false, index: false }))
 
 /** Express 4 : un handler async qui lève fait pendre la requête. On attrape tout. */
 function page(fn: (req: Request, res: Response) => Promise<unknown>) {

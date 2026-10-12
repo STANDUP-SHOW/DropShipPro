@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Boxes, Loader2, Search } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Boxes, Download, ExternalLink, Loader2, Search, Send } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
@@ -46,7 +47,46 @@ type Bloc = {
   note: string | null
 }
 
+/** An address reduced to what identifies the page: no query, no hash, no trailing slash. */
+const adresse = (u: string) => u.split(/[?#]/)[0].replace(/\/+$/, '').toLowerCase()
+/** The longest run of digits in an address — the item id at AliExpress, CJ, BigBuy… */
+const numero = (u: string) => (u.match(/\d{8,}/g) ?? []).sort((a, b) => b.length - a.length)[0] ?? null
+
+/** Is this catalogue offer the very product the report pointed at? */
+function estLeProduit(p: Produit, url: string) {
+  if (p.url && adresse(p.url) === adresse(url)) return true
+  if (p.ref.length >= 6 && url.includes(p.ref)) return true
+  const n = numero(url)
+  return Boolean(n && p.url && numero(p.url) === n)
+}
+
+/** A report title is a sentence; supplier search wants a few words. */
+const raccourcir = (titre: string) =>
+  titre
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((m) => m.length > 2)
+    .slice(0, 5)
+    .join(' ')
+
 export default function CataloguesFournisseurs() {
+  /*
+   * « Voir chez nous » depuis un produit gagnant arrive ici avec le produit
+   * (11/10/2026 : la page s'ouvrait sur la sélection du jour, et le vendeur
+   * devait refaire la recherche lui-même). On cherche donc ce produit, on met
+   * son fournisseur en tête et on encadre l'offre — ou on dit qu'elle n'y est
+   * pas, avec de quoi l'importer sur place.
+   */
+  const [params] = useSearchParams()
+  const cible = params.get('q')
+    ? {
+        titre: params.get('q')!,
+        fournisseur: params.get('fournisseur'),
+        url: params.get('url'),
+        mode: params.get('import'),
+      }
+    : null
+  const defile = useRef(false)
+  const [importCible, setImportCible] = useState<'cours' | string | null>(null)
   const [blocs, setBlocs] = useState<Bloc[]>([])
   const [motsCles, setMotsCles] = useState('')
   const [cherche, setCherche] = useState(true)
@@ -70,18 +110,72 @@ export default function CataloguesFournisseurs() {
         rayon ? anciens.map((b) => r.fournisseurs.find((n) => n.id === b.id) ?? b) : r.fournisseurs,
       )
       if (!rayon) setCoches(new Map())
+      return r.fournisseurs
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Lecture des catalogues impossible')
+      return null
     } finally {
       setCherche(false)
     }
   }
 
   useEffect(() => {
-    interroger('')
+    if (!cible) {
+      interroger('')
+      return
+    }
+    // The full title first; if nobody answers, the same search in a few words.
+    setMotsCles(cible.titre)
+    ;(async () => {
+      const r = await interroger(cible.titre)
+      const court = raccourcir(cible.titre)
+      if (r && !r.some((b) => b.produits.length) && court && court !== cible.titre) {
+        setMotsCles(court)
+        await interroger(court)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const total = blocs.reduce((n, b) => n + b.produits.length, 0)
+
+  // The report's supplier first: that is the one the seller came to see.
+  const blocsAffiches = cible?.fournisseur
+    ? [...blocs].sort((a, b) => Number(b.id === cible.fournisseur) - Number(a.id === cible.fournisseur))
+    : blocs
+  const blocCible = cible?.fournisseur ? blocs.find((b) => b.id === cible.fournisseur) ?? null : null
+  const retrouve =
+    cible?.url
+      ? blocsAffiches.flatMap((b) => b.produits.filter((p) => estLeProduit(p, cible.url!)).map((p) => `${b.id}:${p.ref}`))[0] ??
+        null
+      : null
+
+  useEffect(() => {
+    if (!retrouve || defile.current) return
+    defile.current = true
+    document.getElementById(`offre-${retrouve}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [retrouve])
+
+  /** Not in the catalogue: import it from its own address, as the report list does. */
+  async function importerCible() {
+    if (!cible?.url) return
+    setImportCible('cours')
+    try {
+      if (cible.mode === 'extension') {
+        const r = await api.fileImportAjouter([
+          { url: cible.url, titre: cible.titre, fournisseur: blocCible?.label, mode: 'extension', origine: 'catalogues' },
+        ])
+        setImportCible(r.ajoutes ? "Fiche envoyée à l'extension." : "Déjà dans la file de l'extension.")
+      } else {
+        const r = await api.importBatch([cible.url])
+        setImportCible(
+          r.imported ? 'Produit importé : il est dans vos annonces.' : r.results[0]?.error ?? "L'import a échoué.",
+        )
+      }
+    } catch (e) {
+      setImportCible(e instanceof Error ? e.message : "L'import a échoué.")
+    }
+  }
 
   /*
    * L'import est groupé PAR FOURNISSEUR, parce que la référence n'a de sens que
@@ -169,6 +263,51 @@ export default function CataloguesFournisseurs() {
         ) : null}
       </form>
 
+      {cible && !cherche && retrouve ? (
+        <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          Voici « {cible.titre} »{blocCible ? <> chez <b>{blocCible.label}</b></> : null}, encadré ci-dessous. Cochez-le
+          pour l'importer, ou comparez avec les offres des autres fournisseurs.
+        </p>
+      ) : null}
+
+      {cible && !cherche && !retrouve && blocs.length ? (
+        <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          <p>
+            « {cible.titre} » n'apparaît pas tel quel
+            {blocCible ? <> chez <b>{blocCible.label}</b></> : ' dans vos catalogues'}
+            {total ? ' : voici les offres les plus proches.' : '.'}
+          </p>
+          {cible.url ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={importerCible}
+                disabled={importCible === 'cours'}
+                className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {importCible === 'cours' ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : cible.mode === 'extension' ? (
+                  <Send size={12} />
+                ) : (
+                  <Download size={12} />
+                )}
+                {cible.mode === 'extension' ? "Envoyer ce produit à l'extension" : 'Importer ce produit · 12'}
+              </button>
+              <a
+                href={cible.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:border-purple-400/50"
+              >
+                <ExternalLink size={12} /> Voir la fiche du fournisseur
+              </a>
+              {importCible && importCible !== 'cours' ? <span className="text-xs">{importCible}</span> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {bilan ? <p className="mt-3 text-sm text-emerald-300">{bilan}</p> : null}
       {erreur ? <p className="mt-3 text-sm text-red-400">{erreur}</p> : null}
 
@@ -187,7 +326,7 @@ export default function CataloguesFournisseurs() {
       ) : null}
 
       <div className="mt-6 space-y-6">
-        {blocs.map((b) => (
+        {blocsAffiches.map((b) => (
           <section key={b.id}>
             <h2 className="flex items-baseline gap-2 font-bold">
               <span>{b.label}</span>
@@ -221,12 +360,14 @@ export default function CataloguesFournisseurs() {
                 {b.produits.map((p) => {
                   const cle = `${b.id}:${p.ref}`
                   const coche = coches.has(cle)
+                  const cherchee = cle === retrouve
                   return (
                     <label
                       key={cle}
+                      id={`offre-${cle}`}
                       className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
                         coche ? 'border-purple-400/60 bg-purple-500/10' : 'border-white/10 bg-white/[0.04]'
-                      }`}
+                      } ${cherchee ? 'ring-2 ring-emerald-400/70' : ''}`}
                     >
                       <input
                         type="checkbox"
@@ -252,6 +393,11 @@ export default function CataloguesFournisseurs() {
                         <span className="size-16 shrink-0 rounded-lg bg-white/5" />
                       )}
                       <span className="min-w-0 flex-1">
+                        {cherchee ? (
+                          <span className="mb-1 inline-block rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                            le produit du rapport
+                          </span>
+                        ) : null}
                         <span className="line-clamp-3 block text-xs leading-snug">{p.titre}</span>
                         <span className="mt-1 block text-sm font-bold">
                           {p.prix !== null ? `${p.prix.toFixed(2)} ${p.devise}` : 'prix inconnu'}

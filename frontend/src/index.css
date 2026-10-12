@@ -2,17 +2,29 @@
 @import "./theme-clair.css";
 
 @theme {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 html {
   color-scheme: dark;
 }
 
+/* Refonte du 12/10/2026 (mini-charte de design/refonte) : bleu nuit, panneaux
+ * #191E2E, textes #F5F7FA / #B8C0D0, orange pour agir, rose en accent, une
+ * seule police (Onest), ni néon ni halo. Les jetons ci-dessous servent aux
+ * pages qui passeront sur la nouvelle charte une à une. */
+:root {
+  --nuit: #101321; --panneau: #191e2e; --panneau-haut: #21273a;
+  --trait: #2a3147; --trait-fort: #3a4360;
+  --texte: #f5f7fa; --texte-2: #b8c0d0; --texte-3: #8f98ab;
+  --orange: #f28a4b; --orange-survol: #f59d66; --orange-presse: #e07a3c; --rose: #e85290;
+  --r-petit: 8px; --r-moyen: 12px; --r-grand: 16px;
+}
+
 body {
   margin: 0;
-  background: #08070f;
-  color: #e5e7eb;
+  background: var(--nuit);
+  color: var(--texte);
   font-family: var(--font-sans);
 }
 
@@ -20,7 +32,7 @@ body {
  * pages publiques, qui n'ont pas le fond vivant animé, reçoivent le même noir
  * profond avec une lueur violette à peine perceptible. */
 .bg-app-gradient {
-  background: radial-gradient(1100px 700px at 75% -10%, #16102a, #08070f 60%);
+  background: var(--nuit);
 }
 
 /* La charte du 29/09/2026, relevée sur les fichiers de Max (docs/marque/) :
@@ -44,10 +56,16 @@ body {
   color: transparent;
 }
 
-/* Le bouton principal prend le dégradé de l'icône (charte du 29/09/2026). */
+/* Le bouton principal : le dégradé du logo, texte blanc, comme le logo (Max,
+ * 12/10/2026, qui préfère ce dégradé à l'orange plein essayé le matin). La
+ * règle est hors couche : elle passe devant les couleurs des utilitaires. */
 .btn-gradient {
-  background: linear-gradient(90deg, #f28a4b, #e85290);
+  background: linear-gradient(90deg, var(--marque-orange), var(--marque-rose));
+  color: #fff;
+  text-shadow: none;
 }
+.btn-gradient:hover { filter: brightness(1.06); }
+.btn-gradient:active { filter: brightness(0.95); }
 
 /* ── Le « néon survol » des blocs ───────────────────────────────────────────
  * Repris des tuiles du tableau de bord (bordure éteinte au repos, liseré + halo
@@ -92,9 +110,10 @@ body {
      négatif le pose PILE sur la bordure — on dirait qu'elle s'allume. Le halo,
      lui, est en `box-shadow !important` pour passer devant l'ombre inline des
      blocs (le liseré interne du glassmorphism). */
-  outline: 1.5px solid rgba(var(--neon), 0.7);
-  outline-offset: -1.5px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 24px rgba(var(--neon), 0.4) !important;
+  /* Refonte du 12/10/2026 : plus de halo coloré, le bord s'éclaircit seulement. */
+  outline: 1px solid var(--trait-fort);
+  outline-offset: -1px;
+  box-shadow: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   :where([class~="rounded-2xl"], [class~="rounded-xl"], [class~="rounded-3xl"])[class*="bg-white/"][class*="border"],
@@ -133,7 +152,10 @@ optgroup {
  * déformant comme dans l'huile, redescendent, se croisent. Tout est animé au
  * compositeur (transform + opacity) et prefers-reduced-motion fige le décor.
  */
+/* Refonte du 12/10/2026 : le décor est un bleu nuit uni, les gouttes sont éteintes. */
+.fond-vivant { background: var(--nuit) !important; }
 .blob {
+  display: none;
   position: absolute;
   border-radius: 50%;
   filter: blur(28px);
@@ -263,14 +285,18 @@ html[data-theme="light"] { color-scheme: light; }
  * est un empilement d'ombres, pas une image ; sur fond clair elle s'atténue.
  */
 /* Halo renforcé le 25/09/2026 sur la référence de Max : cœur blanc, deux couronnes vives, halo large. */
-.neon { --neon: #fff; color: var(--neon); text-shadow: 0 0 3px #fff, 0 0 10px var(--neon), 0 0 24px var(--neon), 0 0 56px color-mix(in srgb, var(--neon) 45%, transparent); }
+/* Refonte du 12/10/2026 : « enlever tous les effets néons autour des textes »
+ * (Max). Les classes restent posées dans les pages, elles ne font plus que
+ * le blanc de la charte, sans lueur ni couleur par thème. */
+.neon { --neon: var(--texte); color: var(--texte); text-shadow: none; }
 .neon-1 { --neon: #f5ff3d; }
 .neon-2 { --neon: #2ef2ff; }
 .neon-3 { --neon: #ff8a1f; }
 .neon-4 { --neon: #c04dff; }
 .neon-5 { --neon: #39ff7a; }
 .neon-6 { --neon: #ff4fd8; }
-[data-theme="light"] .neon { text-shadow: 0 0 2px color-mix(in srgb, var(--neon) 60%, transparent), 0 0 10px color-mix(in srgb, var(--neon) 25%, transparent); filter: saturate(1.1) brightness(0.85); }
+.neon[class*="neon-"] { --neon: var(--texte); }
+[data-theme="light"] .neon { color: #111827; text-shadow: none; }
 
 /*
  * La frise de logos de l'accueil (FriseLogos.tsx) : la liste est rendue deux
@@ -293,15 +319,11 @@ html[data-theme="light"] { color-scheme: light; }
   align-items: center;
   justify-content: center;
   padding: 16px;
-  border-radius: 22px;
+  border-radius: var(--r-moyen);
   background: #fff;
-  border: 3px solid var(--neon);
-  box-shadow:
-    0 0 4px #fff,
-    0 0 10px var(--neon),
-    0 0 26px var(--neon),
-    0 0 60px color-mix(in srgb, var(--neon) 45%, transparent),
-    inset 0 0 14px color-mix(in srgb, var(--neon) 35%, transparent);
+  /* Refonte du 12/10/2026 : ni bord coloré ni lueur, une carte blanche nette. */
+  border: 1px solid var(--trait);
+  box-shadow: none;
 }
 .frise-piste {
   display: flex;
@@ -329,10 +351,13 @@ html[data-theme="light"] { color-scheme: light; }
  * ne se lisaient pas sur le fond foncé.
  */
 .texte-neon {
-  color: #fff;
-  text-shadow: 0 0 4px rgba(255, 255, 255, 0.55), 0 0 14px rgba(255, 255, 255, 0.25);
+  /* Refonte du 12/10/2026 : texte secondaire de la charte, sans lueur. */
+  color: var(--texte-2);
+  text-shadow: none;
 }
-.texte-neon :is(p, span, li, dd, dt, small, cite) { color: #fff; }
+.texte-neon :is(p, span, li, dd, dt, small, cite) { color: var(--texte-2); }
+[data-theme="light"] .texte-neon,
+[data-theme="light"] .texte-neon :is(p, span, li, dd, dt, small, cite) { color: #374151; }
 
 
 /* ── Charte DropShop et DropShop Market (10/10/2026) ─────────────────────────
@@ -351,4 +376,47 @@ html[data-theme="light"] { color-scheme: light; }
 .cadre-dropshop {
   border: 2px solid transparent;
   background: linear-gradient(#120b20, #120b20) padding-box, var(--dropshop-degrade) border-box;
+}
+
+/* ── L'arrivée sur l'accueil (12/10/2026) ─────────────────────────────────
+ * Le voile : sombre au centre derrière le titre, transparent sur les côtés où
+ * les villes défilent, fondu vers le bleu nuit en bas pour enchaîner la page. */
+.voile-ville {
+  background:
+    radial-gradient(ellipse 42% 46% at 50% 50%, rgba(16, 19, 33, 0.8), rgba(16, 19, 33, 0.4) 60%, rgba(16, 19, 33, 0) 100%),
+    linear-gradient(to bottom, rgba(16, 19, 33, 0.35), rgba(16, 19, 33, 0) 18%, rgba(16, 19, 33, 0) 70%, var(--nuit));
+}
+@media (max-width: 700px) {
+  .voile-ville {
+    background:
+      radial-gradient(ellipse 85% 42% at 50% 46%, rgba(16, 19, 33, 0.72), rgba(16, 19, 33, 0.3) 70%, rgba(16, 19, 33, 0) 100%),
+      linear-gradient(to bottom, rgba(16, 19, 33, 0.4), rgba(16, 19, 33, 0) 25%, rgba(16, 19, 33, 0) 70%, var(--nuit));
+  }
+}
+/* Le traitement de l'image : une lumière rose à gauche, cyan à droite. */
+.lumiere-ville {
+  background: linear-gradient(90deg, rgba(255, 45, 149, 0.22), rgba(255, 45, 149, 0) 38%, rgba(0, 229, 255, 0) 62%, rgba(0, 229, 255, 0.2));
+  mix-blend-mode: screen;
+}
+/* Le titre et ses boutons montent en fondu pendant que la ville sort du sol. */
+.arrivee > * { animation: arrivee 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.arrivee > :nth-child(2) { animation-delay: 0.15s; }
+.arrivee > :nth-child(3) { animation-delay: 0.3s; }
+.arrivee > :nth-child(4) { animation-delay: 0.45s; }
+@keyframes arrivee {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+/* Les illustrations des cases : une légère profondeur au survol. */
+.illu-case { transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.group:hover .illu-case { transform: scale(1.05); }
+/* La pièce Drops du bloc tarif flotte doucement. */
+.drop-flotte { animation: flotte 4.5s ease-in-out infinite; }
+@keyframes flotte {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-8px) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrivee > *, .drop-flotte { animation: none; }
+  .illu-case { transition: none; }
 }

@@ -56,7 +56,7 @@ export function BoutonAutoMode({
         }
         className={
           (actif
-            ? 'border-transparent bg-gradient-to-r from-violet-500 via-fuchsia-500 to-purple-500 text-white shadow-[0_0_18px_rgba(192,86,255,0.45)]'
+            ? 'border-transparent bg-gradient-to-r from-violet-500 via-fuchsia-500 to-purple-500 text-white'
             : 'border-white/15 bg-white/5 text-gray-400 hover:border-fuchsia-400/40 hover:text-fuchsia-200') +
           ` inline-flex items-center gap-1.5 rounded-full border font-bold uppercase tracking-wide transition disabled:opacity-60 ${
             compact ? 'px-2.5 py-1 text-[10px]' : 'px-3.5 py-1.5 text-[11px]'

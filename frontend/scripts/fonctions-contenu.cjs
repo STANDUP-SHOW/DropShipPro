@@ -279,7 +279,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       },
       {
         h2: 'Les extensions, comme les applications d’une boutique',
-        html: `<p>Des extensions s'ajoutent en drops. Le <strong>Back Office</strong> indépendant — une administration propre à la boutique, avec identifiant et mot de passe, pour un associé ou un employé — est disponible pour 300 drops (3 €). D'autres sont annoncées et pas encore ouvertes : DropBank (accepter les drops comme moyen de paiement), DropSEO, DropReviews et DropMarket, la place de marché qui réunira les boutiques DropShop.</p>`,
+        html: `<p>Des extensions s'ajoutent en drops. Le <strong>Back Office</strong> indépendant — une administration propre à la boutique, avec identifiant et mot de passe, pour un associé ou un employé — est disponible pour 300 drops (3 €). D'autres sont annoncées et pas encore ouvertes : DropBank (accepter les drops comme moyen de paiement), DropSEO et DropReviews.</p><p><strong>DropShop Market</strong>, la place de marché qui réunit les boutiques DropShop et les vendeurs DropShipper, est ouverte sur <a href="https://drop-shop.cloud">drop-shop.cloud</a> : inscription gratuite, paiement Stripe sur le compte du vendeur, 5 % par vente.</p>`,
       },
       {
         h2: 'Prix',

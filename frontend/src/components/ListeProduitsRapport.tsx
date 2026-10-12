@@ -261,7 +261,7 @@ export function ListeProduitsRapport({
               <div className="flex shrink-0 flex-wrap gap-1.5">
                 {f.relie && f.id ? (
                   <Link
-                    to={`/catalogues?fournisseur=${encodeURIComponent(f.id)}&q=${encodeURIComponent(p.titre)}`}
+                    to={`/catalogues?fournisseur=${encodeURIComponent(f.id)}&q=${encodeURIComponent(p.titre)}&url=${encodeURIComponent(p.url)}&import=${p.import}`}
                     className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold hover:border-purple-400/50"
                   >
                     <ExternalLink size={12} /> Voir chez nous
