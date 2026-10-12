@@ -34,7 +34,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 
-const { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY } = require('./build-seo.cjs')
+const { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE } = require('./build-seo.cjs')
 const { TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType } = require('./build-llms.cjs')
 const { canaux } = require('./seo-channels.cjs')
 /** L'éditeur (fondateur, SIRET, siège…) : chaque ligne n'apparaît qu'une fois remplie par Max. */
@@ -651,7 +651,7 @@ function completerSitemap(urls) {
   let xml = fs.readFileSync(fichier, 'utf8')
   const lignes = urls
     .filter((u) => !xml.includes(`<loc>${SITE}${u}</loc>`))
-    .map((u) => `  <url><loc>${SITE}${u}</loc><lastmod>${TODAY}</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>`)
+    .map((u) => `  <url><loc>${SITE}${u}</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>`)
   if (lignes.length) xml = xml.replace('</urlset>', () => `${lignes.join('\n')}\n</urlset>`)
   fs.writeFileSync(fichier, xml)
   return (xml.match(/<loc>/g) || []).length
@@ -670,7 +670,7 @@ function ecrireIndexSitemaps() {
     path.join(DIST, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap><loc>${SITE}/sitemap-pages.xml</loc><lastmod>${TODAY}</lastmod></sitemap>
+  <sitemap><loc>${SITE}/sitemap-pages.xml</loc></sitemap>
   <sitemap><loc>${SITE}/analyses/sitemap.xml</loc></sitemap>
 </sitemapindex>
 `,

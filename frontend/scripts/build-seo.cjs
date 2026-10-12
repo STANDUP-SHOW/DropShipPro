@@ -666,12 +666,14 @@ function main() {
   const appUrls = ['/', '/avis', '/confidentialite']
   const urls = [...appUrls, ...pages.map((p) => p.url)]
 
+  // No <lastmod>: the build date changed on every deploy (several a day) for every
+  // page, and Google ignores a lastmod it finds unreliable (Search Console 12/10/2026).
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls
   .map(
     (u) =>
-      `  <url><loc>${SITE}${u}</loc><lastmod>${TODAY}</lastmod><changefreq>monthly</changefreq><priority>${
+      `  <url><loc>${SITE}${u}</loc><changefreq>monthly</changefreq><priority>${
         u === '/' ? '1.0' : u.includes('marketplaces') || u === '/dropshipping/' ? '0.9' : '0.8'
       }</priority></url>`,
   )
