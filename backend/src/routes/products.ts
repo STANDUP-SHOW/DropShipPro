@@ -167,7 +167,31 @@ const captureSchema = z.object({
    * reste instantané.
    */
   differer: z.boolean().optional(),
+  /**
+   * La ligne de la file d'import que cette capture exécute, quand l'extension
+   * la relève depuis sa file. Son état suit l'issue : importée avec l'annonce,
+   * ou refusée avec son motif.
+   */
+  fileId: z.string().max(40).optional(),
 })
+
+/** Records the outcome on the seller's own queue row; a foreign or missing id changes nothing. */
+async function marquerLigneFile(
+  userId: string,
+  fileId: string | undefined,
+  issue: { status: 'IMPORTE'; productId: string } | { status: 'ECHEC'; erreur: string },
+) {
+  if (!fileId) return
+  await prisma.importQueue
+    .updateMany({
+      where: { id: fileId, userId },
+      data:
+        issue.status === 'IMPORTE'
+          ? { status: 'IMPORTE', productId: issue.productId, erreur: null }
+          : { status: 'ECHEC', erreur: issue.erreur.slice(0, 300) },
+    })
+    .catch((err) => console.error('file import: état non enregistré', err))
+}
 
 // Import from the Chrome extension: the page is already rendered in the user's
 // browser, so price, gallery and variants arrive filled in — the things the
@@ -200,7 +224,10 @@ productsRouter.post(
     // en batch (−50 %), donc l'annonce coûte moins qu'une capture à l'unité.
     const cout = data.differer ? DROPS.importLot : DROPS.import
     const credit = await reserveCredits(req.userId!, cout, data.differer ? 'Import en lot' : "Import d'une annonce")
-    if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
+    if (!credit.ok) {
+      await marquerLigneFile(req.userId!, data.fileId, { status: 'ECHEC', erreur: credit.reason ?? 'Solde de drops insuffisant.' })
+      return res.status(402).json({ error: credit.reason, needsCredits: true })
+    }
 
     try {
       const { produit, reecrit, notes } = await importerAdresse(req.userId!, data.sourceUrl, {
@@ -227,10 +254,12 @@ productsRouter.post(
       })
 
       if (!reecrit) await refundCredits(req.userId!, cout)
+      await marquerLigneFile(req.userId!, data.fileId, { status: 'IMPORTE', productId: produit.id })
       res.status(201).json({ ...produit, notes })
     } catch (err) {
       await refundCredits(req.userId!, cout)
       console.error(err)
+      await marquerLigneFile(req.userId!, data.fileId, { status: 'ECHEC', erreur: "Impossible d'enregistrer ce produit." })
       res.status(500).json({ error: "Impossible d'enregistrer ce produit" })
     }
   }),

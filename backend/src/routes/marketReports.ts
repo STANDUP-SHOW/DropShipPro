@@ -27,7 +27,7 @@ import {
  * les blocs sont les sections H2 du Markdown, l'écran les met en cases.
  *
  * **La file d'import** vit aussi ici : le vendeur y dépose un produit ou toute
- * la liste, l'extension viendra la chercher (`/api/extension/file`, à venir).
+ * la liste, l'extension la lit et l'exécute depuis son panneau latéral (« File d'import »).
  */
 export const marketReportsRouter = Router()
 marketReportsRouter.use(requireAuth)
@@ -437,10 +437,43 @@ marketReportsRouter.get('/file', async (req: AuthedRequest, res) => {
   res.json(lignes)
 })
 
+/**
+ * Retire une ligne de la file : en attente, importée ou refusée. Une ligne en
+ * cours de relevé reste, sinon l'extension importerait une annonce que la file
+ * ne montre plus.
+ */
 marketReportsRouter.delete('/file/:id', async (req: AuthedRequest, res) => {
   const { count } = await prisma.importQueue.deleteMany({
-    where: { id: req.params.id, userId: req.userId!, status: 'EN_ATTENTE' },
+    where: { id: req.params.id, userId: req.userId!, status: { in: ['EN_ATTENTE', 'IMPORTE', 'ECHEC'] } },
   })
-  if (!count) return res.status(404).json({ error: 'Rien à retirer : la ligne est absente ou déjà relevée.' })
+  if (!count) return res.status(404).json({ error: 'Rien à retirer : la ligne est absente ou en cours de relevé.' })
+  res.json({ ok: true })
+})
+
+/*
+ * L'exécution par l'extension. Le succès est noté par l'import lui-même
+ * (`/api/products/capture` avec `fileId`) ; ces deux routes couvrent ce qui se
+ * passe AVANT qu'une fiche n'atteigne l'import : le relevé commence, ou la page
+ * n'a pas pu être lue dans le navigateur.
+ */
+marketReportsRouter.post('/file/:id/releve', async (req: AuthedRequest, res) => {
+  const { count } = await prisma.importQueue.updateMany({
+    where: { id: req.params.id, userId: req.userId!, status: { in: ['EN_ATTENTE', 'ECHEC', 'RELEVE'] } },
+    data: { status: 'RELEVE', erreur: null },
+  })
+  if (!count) return res.status(404).json({ error: 'Ligne absente ou déjà importée.' })
+  res.json({ ok: true })
+})
+
+const echecSchema = z.object({ erreur: z.string().min(1).max(300) })
+
+marketReportsRouter.post('/file/:id/echec', async (req: AuthedRequest, res) => {
+  const parsed = echecSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Motif manquant.' })
+  const { count } = await prisma.importQueue.updateMany({
+    where: { id: req.params.id, userId: req.userId!, status: { not: 'IMPORTE' } },
+    data: { status: 'ECHEC', erreur: parsed.data.erreur },
+  })
+  if (!count) return res.status(404).json({ error: 'Ligne absente ou déjà importée.' })
   res.json({ ok: true })
 })

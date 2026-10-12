@@ -136,7 +136,7 @@ export function ListeProduitsRapport({
    * L'onglet n'est ouvert que pour UNE fiche : vingt `window.open` d'affilée
    * sont bloqués par le navigateur, et le vendeur se retrouverait avec un seul
    * onglet ouvert en croyant les avoir tous. Pour une sélection, la file suffit
-   * — l'extension les relève au fur et à mesure de sa navigation.
+   * — le panneau de l'extension ouvre et importe chaque fiche à son tour.
    */
   async function versExtension(lot: ProduitAffiche[], cle: string, ouvrir: boolean) {
     if (!lot.length) return
@@ -150,8 +150,8 @@ export function ListeProduitsRapport({
       dire(
         `${r.ajoutes} fiche(s) envoyée(s) à l'extension${r.dejaEnFile ? `, ${r.dejaEnFile} déjà en file` : ''}. ` +
           (ouvrir && lot.length === 1
-            ? "La fiche s'ouvre dans un onglet : l'extension la relève pendant qu'elle est affichée."
-            : 'Ouvrez les fiches dans votre navigateur, l\'extension les relève au passage.'),
+            ? "La fiche s'ouvre dans un onglet : importez-la avec le bouton de l'extension, ou depuis sa « File d'import du site »."
+            : "Ouvrez le panneau de l'extension, « File d'import du site », puis « Importer »."),
       )
     } catch (e) {
       dire(e instanceof Error ? e.message : "L'envoi n'a pas abouti.")

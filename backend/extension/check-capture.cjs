@@ -100,9 +100,9 @@ global.Image = dom.window.Image
 // Les trois fonctions sont extraites du fichier livré : tester une copie
 // testerait un code qui ne tourne pas.
 const source =
-  fs.readFileSync('C:/Users/maxma/Downloads/DropPost/backend/extension/content/capture.js', 'utf8') +
+  fs.readFileSync(require('path').join(__dirname, 'content', 'capture.js'), 'utf8') +
   '\n' +
-  fs.readFileSync('C:/Users/maxma/Downloads/DropPost/backend/extension/content/image-scan.js', 'utf8')
+  fs.readFileSync(require('path').join(__dirname, 'content', 'image-scan.js'), 'utf8')
 const morceaux = []
 for (const nom of ['collectPageText', 'collectDescription', 'collectVariants', 'dspDeclaredImages', 'dspChromeImages']) {
   /*
