@@ -95,6 +95,50 @@ console.log('\nUn rapport MarketSpy : les produits sont à part, pas dans le cor
   exige(!html.includes('fournisseur.test/secret'), 'toujours sans adresse fournisseur')
 }
 
+console.log('\nUn rapport complet importé (MARKETSPY, 16 sections) : rien de l’achat, dans aucune section')
+{
+  const complet: RapportPublic = {
+    ...rapport,
+    body: [
+      '## Executive Summary',
+      "Le lavage nomade progresse. L'achat unitaire AliExpress est perdant, le lot Alibaba passe. La demande double au printemps.",
+      '## Verdict rapide',
+      '- Mini lave-linge : coût rendu 32 €, vente 89 €.',
+      '- Filtre : à éviter, trop de retours.',
+      '## Analyse sourcing',
+      'Trois usines comparées sur leurs délais.',
+      '## TOP 20 produits gagnants',
+      'Classement du jour.',
+      '',
+      '| Rang | Produit | Source achat | Coût rendu FR | Prix vente cible | Marge nette estimée |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| 1 | Chargeur GaN 65 W 3 ports | Usine | 9,80 € | 24,90 € | 8 € |',
+      '## Battle sheet achat / revente',
+      '| Produit | Fournisseur | URL |',
+      '| --- | --- | --- |',
+      '| Chargeur GaN | Usine X | https://fournisseur.test/secret-battle |',
+      '## Bundles recommandés',
+      '| Bundle | Coût | Prix |',
+      '| --- | --- | --- |',
+      '| Duo | 12 € | 39 € |',
+      '## Sources',
+      '- https://fournisseur.test/secret-source',
+      '## Décision finale',
+      'Tester les trois premiers.',
+    ].join('\n'),
+  }
+  const html = pageRapport(complet)
+  const visible = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
+  exige(!/aliexpress|alibaba/i.test(visible), 'aucun fournisseur nommé dans le texte d’analyse', (/[^.]*(aliexpress|alibaba)[^.]*/i.exec(visible) || [''])[0])
+  exige(visible.includes('Le lavage nomade progresse.') && visible.includes('La demande double au printemps.'), 'le reste de la phrase et du paragraphe est gardé')
+  exige(!/32 €|9,80|coût rendu/i.test(visible), 'aucun coût rendu ni prix d’achat, même dans une puce')
+  exige(visible.includes('Filtre : à éviter'), 'la puce sans chiffre d’achat reste')
+  exige(!/Analyse sourcing|Battle sheet|secret-battle|secret-source|<h2>Sources/.test(visible), 'les sections sourcing, battle sheet et sources restent dans l’espace connecté')
+  exige(!/Marge nette|8 €|Duo/.test(visible), 'ni marge ni coût des bundles')
+  exige((visible.match(/id="produits"/g) || []).length === 1 && visible.includes('Chargeur GaN 65 W 3 ports'), 'le TOP 20 devient la liste bridée, à sa place, une fois')
+  exige(visible.includes('Tester les trois premiers.'), 'la décision finale est publiée')
+}
+
 console.log('\nLa page d’un rapport marketing')
 {
   const html = pageRapport(marketing)

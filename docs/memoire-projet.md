@@ -1635,3 +1635,18 @@ ne garde que son empreinte SHA-256 (`POSTE_ADMIN_SHA256`, Railway). `middleware/
 retirés (déplacé en `/admin/rapports-poste`) ; la page site « Newsletter » retirée (la liste est dans le Poste).
 `ADMIN_EMAIL` ne sert plus qu'à exempter Max du plafond de création DropShop. Banc : `backend/check-admin-poste.ts`.
 Piège : la clé n'est pas une ligne `ApiKey` (`/api/agent` passe par `requireApiKey`) ; elle n'ouvre que `/api/admin`.
+
+## 12/10/2026 — rapports MARKETSPY du Drive : tout le rapport, rien de l'achat en public
+
+Les rapports d'autres agents (dossier Drive de Max, « MARKETSPY AI ») ont 16 sections numérotées (10 à 13
+souvent absentes) et une « Annexe — JSON structuré ». Le lecteur (`rapports-etude.cjs`) n'en gardait que
+l'Executive Summary et le Verdict rapide. Désormais : toutes les sections, dans l'ordre, sans numéro, sous
+leur titre (`sectionsCompletes`) ; l'annexe est lue (`annexeJson`, `produitsAnnexe`) pour ce que les tableaux
+ne disent pas : ventes constatées (`ventesDe`, jamais calculées), score, image, verdict. Verdicts anglais en
+français (`verdictFr`, majuscules seulement). Pages publiques : sections sourcing / battle sheet / sources
+retirées, tout tableau qui parle d'achat, coût, marge, lien retiré, et chaque phrase qui nomme un fournisseur
+ou un chiffre d'achat retirée (`sansMentionsPrivees`) — constaté le 12/10 : « l'achat unitaire AliExpress est
+perdant » était en ligne. `updated_at` ne bouge que si le contenu bouge (le rejeu au démarrage redatait tout
+le sitemap). La marge affichée vient de `margin_pct` ou des prix : la colonne `margin` est en euros chez
+MarketSpy (« marge 105 % » affiché). Liste des produits : un seul bouton d'import, le moins cher (12, ou
+extension 18). Banc : `backend/check-rapports-marketspy.cjs`.

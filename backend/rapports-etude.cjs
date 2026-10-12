@@ -282,6 +282,125 @@ function tableaux(texte) {
 }
 
 /**
+ * English verdicts of other agents (« BUY IF NEGOTIATED ») in French. Longest
+ * phrases first so « BUY IF NEGOTIATED » never becomes « ACHETER IF NEGOTIATED ».
+ * An unknown verdict is left as written rather than half translated.
+ */
+const VERDICTS = [
+  ['strong buy', 'achat prioritaire'],
+  ['buy if negotiated', 'acheter si négocié'],
+  ['buy after test', 'acheter après test'],
+  ['buy small batch', 'acheter en petit lot'],
+  ['test small batch', 'tester en petit lot'],
+  ['test small', 'tester en petit lot'],
+  ['test first', 'tester d’abord'],
+  ['test only', 'tester seulement'],
+  ['buy now', 'acheter maintenant'],
+  ['no go', 'à écarter'],
+  ['no-go', 'à écarter'],
+  ['buy', 'acheter'],
+  ['test', 'tester'],
+  ['watch', 'surveiller'],
+  ['monitor', 'surveiller'],
+  ['hold', 'attendre'],
+  ['wait', 'attendre'],
+  ['avoid', 'éviter'],
+  ['skip', 'écarter'],
+  ['reject', 'écarter'],
+  ['pass', 'passer'],
+  ['maybe', 'à voir'],
+];
+// Case-sensitive on purpose: only UPPERCASE verdicts are translated, « BUY » is a verdict, « buy » in a sentence is prose.
+const MOTIF_VERDICT = new RegExp(
+  `(?<![A-Za-z])(${VERDICTS.map(([en]) => en.toUpperCase().replace(/[-\s]+/g, '[-\\s]+')).join('|')})(?![A-Za-z])`,
+  'g'
+);
+function verdictFr(texte) {
+  if (!texte) return texte;
+  return String(texte).replace(MOTIF_VERDICT, (m) => {
+    const cle = m.toLowerCase().replace(/[-\s]+/g, ' ');
+    const fr = (VERDICTS.find(([en]) => en.replace(/-/g, ' ') === cle) || [])[1];
+    return fr ? fr.toUpperCase() : m;
+  });
+}
+/** A whole cell that is just a verdict: « BUY IF NEGOTIATED » -> « Acheter si négocié ». */
+function verdictCellule(texte) {
+  const t = String(texte || '').trim();
+  if (!t || t !== t.toUpperCase()) return t;
+  const fr = verdictFr(t);
+  return fr === t ? t : fr.charAt(0) + fr.slice(1).toLowerCase();
+}
+
+/**
+ * The « ## Annexe — JSON structuré » block of other agents' files, parsed, or
+ * null. It is read for what the tables do not say (observed sales, scores,
+ * images); a broken or missing annex never blocks the import.
+ */
+function annexeJson(texte) {
+  const lignes = String(texte || '').split(/\r?\n/);
+  const debut = lignes.findIndex((l) => /^##\s+/.test(l) && /^annexe/.test(normTitre(l.replace(/^##\s+/, ''))));
+  if (debut < 0) return null;
+  const reste = lignes.slice(debut + 1).join('\n');
+  const bloc = /```[a-z]*\s*\n([\s\S]*?)```/i.exec(reste);
+  const brut = bloc ? bloc[1] : reste.slice(reste.indexOf('{'));
+  try {
+    const v = JSON.parse(brut.trim());
+    return v && typeof v === 'object' ? v : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** The products array of an annex, wherever the agent put it, or []. */
+function produitsAnnexe(json) {
+  if (!json || typeof json !== 'object') return [];
+  const estProduit = (o) => o && typeof o === 'object' && !Array.isArray(o) &&
+    Object.keys(o).some((k) => /^(product_?name|name|title|produit|nom|titre)$/i.test(k));
+  const candidats = [json, ...Object.values(json).filter((v) => v && typeof v === 'object' && !Array.isArray(v))];
+  for (const o of candidats) {
+    for (const k of ['products', 'top_20', 'top20', 'top_20_products', 'winning_products', 'top_products', 'produits']) {
+      if (Array.isArray(o[k]) && o[k].some(estProduit)) return o[k].filter(estProduit);
+    }
+  }
+  for (const o of candidats) {
+    for (const v of Object.values(o)) if (Array.isArray(v) && v.length >= 3 && v.every(estProduit)) return v;
+  }
+  return [];
+}
+
+const CLE_VENTES = /^(nb |nombre de )?ventes( constatees| observees| mensuelles| estimees)?$|^(observed |monthly |estimated |verified )?(sales|orders|units sold|sold)( count| volume| observed| per month| monthly| 30d)?$|^commandes( constatees)?$|^vendus$/;
+/** Observed sales as the agent wrote them (« 1 200+ / mois »), or null. Never computed. */
+function ventesDe(p) {
+  if (!p || typeof p !== 'object') return null;
+  const lire = (o) => {
+    for (const [k, v] of Object.entries(o)) {
+      if (!CLE_VENTES.test(normTitre(k))) continue;
+      if (typeof v === 'number' && Number.isFinite(v)) return v.toLocaleString('fr-FR');
+      if (typeof v === 'string' && v.trim() && !/^(n\/?a|null|—|-|inconnu|unknown)$/i.test(v.trim())) return v.trim().slice(0, 60);
+    }
+    return null;
+  };
+  const direct = lire(p);
+  if (direct) return direct;
+  for (const v of Object.values(p)) if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const r = lire(v);
+    if (r) return r;
+  }
+  return null;
+}
+
+/** The overall score (0-100) an agent gave a product, or null. */
+function scoreDe(p) {
+  if (!p || typeof p !== 'object') return null;
+  const sc = p.scores && typeof p.scores === 'object' ? p.scores : {};
+  for (const v of [sc.global_opportunity_score, sc.global, p.global_opportunity_score, p.opportunity_score, p.global_score, p.score]) {
+    const n = Number(v);
+    if (v != null && v !== '' && Number.isFinite(n)) return Math.round(n);
+  }
+  return null;
+}
+
+/**
  * Other agents' layout (« MARKETSPY AI », 12/10/2026): the TOP 20 table names
  * its columns (Rang | Produit | Variante | Source achat | Coût rendu FR | Prix
  * vente cible | Marge nette estimée | … | Décision) and carries no link; the
@@ -298,41 +417,70 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
   const iAchat = col(principal, /cout rendu|prix (d )?achat/, /max/);
   const iVente = col(principal, /prix (de )?vente/);
   const iDecision = col(principal, /decision|verdict/);
+  const iScore = col(principal, /^score/);
+  const VENTES = /^(nb |nombre de )?ventes\b|ventes (constatees|observees|mensuelles)|commandes|vendus|\bsold\b|\bsales\b/;
+  const iVentes = col(principal, VENTES, /prix/);
   const cle = (t) => normTitre(texteDeCellule(t));
+  // observed sales may sit in another table (marketplaces), matched on the product name like the supplier
+  const ventesAilleurs = new Map();
   // supplier table(s): any other table with a product column and an URL column
   const fournisseurs = new Map();
   for (const t of tableaux(texteComplet)) {
     if (t === principal) continue;
     const iP = col(t, /^produit/);
     const iU = col(t, /^url\b|lien/);
+    if (iP >= 0 && iU < 0) {
+      const iV = col(t, VENTES, /prix/);
+      if (iV >= 0) for (const c of t.lignes) if (texteDeCellule(c[iV]) && !ventesAilleurs.has(cle(c[iP]))) ventesAilleurs.set(cle(c[iP]), texteDeCellule(c[iV]));
+    }
     if (iP < 0 || iU < 0) continue;
     const iF = col(t, /fournisseur|source/);
+    const iV = col(t, VENTES, /prix/);
     for (const c of t.lignes) {
+      if (iV >= 0 && texteDeCellule(c[iV]) && !ventesAilleurs.has(cle(c[iP]))) ventesAilleurs.set(cle(c[iP]), texteDeCellule(c[iV]));
       const k = cle(c[iP]);
       if (k && !fournisseurs.has(k)) fournisseurs.set(k, { url: urlDeCellule(c[iU]), nom: iF >= 0 ? texteDeCellule(c[iF]) : '' });
     }
   }
+  // the structured annex completes what the tables leave empty, never the reverse
+  const annexe = produitsAnnexe(annexeJson(texteComplet));
+  const deLAnnexe = (rang, titre) =>
+    annexe.find((a) => Number(a.rank ?? a.rang) === rang) ||
+    annexe.find((a) => {
+      const n = normTitre(a.product_name || a.name || a.title || a.produit || a.nom || a.titre);
+      return n && (n === normTitre(titre) || normTitre(titre).startsWith(n) || n.startsWith(normTitre(titre)));
+    }) ||
+    null;
   const out = [];
   for (const c of principal.lignes) {
     const rang = nombre(c[iRang]);
     const titre = texteDeCellule(c[iProduit]);
     if (rang == null || !titre) continue;
     const f = fournisseurs.get(cle(c[iProduit])) || { url: '', nom: '' };
-    const url = f.url || urlDeCellule(c.join(' '));
-    const achat = iAchat >= 0 ? nombre(c[iAchat]) : null;
-    const vente = iVente >= 0 ? nombre(c[iVente]) : null;
+    const a = deLAnnexe(Math.round(rang), titre) || {};
+    const urlAnnexe = /^https?:\/\//.test(String(a.supplier_url || '')) ? String(a.supplier_url) : '';
+    const url = f.url || urlDeCellule(c.join(' ')) || urlAnnexe;
+    const nbA = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
+    const achat = (iAchat >= 0 ? nombre(c[iAchat]) : null) ?? nbA(a.estimated_landed_cost_france ?? a.purchase_price);
+    const vente = (iVente >= 0 ? nombre(c[iVente]) : null) ?? nbA(a.target_selling_price);
+    const scoreTableau = iScore >= 0 ? nombre(c[iScore]) : null;
+    const decision = verdictCellule((iDecision >= 0 ? texteDeCellule(c[iDecision]) : '') || String(a.decision || ''));
     out.push({
       rang: Math.round(rang),
       titre,
-      fournisseur: f.nom || '—',
+      fournisseur: f.nom || [a.supplier_name, a.supplier_platform].filter(Boolean).join(' / ') || '—',
       url,
+      ventes: (iVentes >= 0 ? texteDeCellule(c[iVentes]) : '') || ventesAilleurs.get(cle(c[iProduit])) || ventesDe(a),
+      score: scoreTableau != null ? Math.round(scoreTableau) : scoreDe(a),
+      verdict: decision || null,
+      image: /^https?:\/\//.test(String(a.image_url || '')) ? String(a.image_url) : null,
       achat,
       vente,
       margePct: achat != null && vente != null && vente > 0 ? Number((((vente - achat) / vente) * 100).toFixed(1)) : null,
       margeEur: achat != null && vente != null ? Number((vente - achat).toFixed(2)) : null,
       roiPct: achat != null && vente != null && achat > 0 ? Number((((vente - achat) / achat) * 100).toFixed(1)) : null,
       methode: EN_JS.some((x) => url.toLowerCase().includes(x)) ? 'extension' : 'url',
-      pourquoi: (iDecision >= 0 ? texteDeCellule(c[iDecision]) : '') || '—',
+      pourquoi: decision || '—',
       typeUrl: typeUrl(url),
     });
   }
@@ -431,6 +579,41 @@ function titreDuTexte(texte) {
 }
 
 /**
+ * Every « ## » section of a file, headings kept, in order, without the title
+ * heading (it is the report title), the structured annex (read separately) or
+ * empty sections. Section numbers (« 7. ») are dropped: some are missing (10 to
+ * 13 on 12/10/2026) and a gap reads like a lost section.
+ */
+function sectionsCompletes(texte) {
+  const out = [];
+  let titre = null;
+  let buf = [];
+  let dansCode = false;
+  const ranger = () => {
+    if (titre === null) return;
+    const corps = buf.join('\n').trim();
+    const t = texteDeCellule(titre).replace(/^\d+\s*[.)]\s*/, '').trim();
+    if (corps && !/^annexe/.test(normTitre(t))) out.push(`## ${t}\n${corps}`);
+  };
+  let premier = true;
+  for (const l of String(texte || '').split(/\r?\n/)) {
+    if (/^\s*```/.test(l)) dansCode = !dansCode;
+    const m = dansCode ? null : l.match(/^##\s+(.*?)\s*$/);
+    if (m) {
+      ranger();
+      // the unnumbered first heading is the report title (titreDuTexte), not a section
+      titre = premier && !/^\d/.test(m[1].trim()) && texteDeCellule(m[1]) === titreDuTexte(texte) ? null : m[1];
+      premier = false;
+      buf = [];
+    } else if (titre !== null) {
+      buf.push(l);
+    }
+  }
+  ranger();
+  return out.join('\n\n');
+}
+
+/**
  * Ce que dit le chemin d'un .rayon.md rangé <date>/<categorie>/<theme>.rayon.md
  * (dossier Drive, ou origine gardée dans la surcouche), ou null.
  */
@@ -473,12 +656,10 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
   const nbSources = nombre(fm.sources) != null ? Math.round(nombre(fm.sources)) : 0;
 
   const secRayon = sections(texteRayon);
-  // « Analyse » in ours; other agents open with an executive summary and a quick verdict.
-  const analyse =
-    section(secRayon, 'Analyse') ||
-    [section(secRayon, 'Executive Summary', /executive summary|synthese|resume/), section(secRayon, 'Verdict rapide', /verdict rapide/)]
-      .filter(Boolean)
-      .join('\n\n');
+  // « Analyse » in ours; other agents' files (MARKETSPY, 16 numbered sections)
+  // are kept whole, every section under its own heading and in its order, so
+  // the site shows all of them (12/10/2026: only the first two were kept).
+  const analyse = section(secRayon, 'Analyse') || verdictFr(sectionsCompletes(texteRayon));
   // « 20 produits proposés », « 20 produits proposes », « 12 produits »… :
   // on accepte le titre exact, puis n'importe quel titre parlant de produits.
   const blocProduits = section(secRayon, '20 produits proposes', /produits/);
@@ -537,6 +718,8 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
     reason: p.pourquoi,
     recommendedUrl: '-',
     rank: p.rang,
+    ...(p.ventes ? { sales: p.ventes } : {}),
+    ...(p.score != null ? { score: p.score } : {}),
   }));
 
   const enTete = { date, categorie, theme, titre, agent, sources: nbSources };
@@ -566,14 +749,15 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
       })
     : null;
 
-  const ecrire = (db) => {
+  const ecrire = (db, majLe = null) => {
     // --- le rapport RAYON : l'analyse et les produits
     db.prepare(
       `INSERT INTO reports (id, type, date, categorie, theme, titre, agent, sources, data, updated_at)
-       VALUES (?, 'rayon', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       VALUES (?, 'rayon', ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, agent=excluded.agent,
-         sources=excluded.sources, data=excluded.data, updated_at=CURRENT_TIMESTAMP`
-    ).run(idRayon, date, categorie, theme, titre, agent, nbSources, dataRayon);
+         sources=excluded.sources, data=excluded.data,
+         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+    ).run(idRayon, date, categorie, theme, titre, agent, nbSources, dataRayon, majLe);
 
     const idEnfantR = `rayon-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM products WHERE rayon_report_id = ?`).run(idEnfantR);
@@ -589,9 +773,10 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
       `INSERT INTO products (id, rayon_report_id, title, supplier, supplier_url,
          buy_price, sell_price, margin, import_method, reason, recommended_url,
          product_key, brand, buy_price_eur, sell_price_eur, margin_eur, margin_pct,
-         roi_pct, report_date, categorie, theme, rank, is_product, url_type)
+         roi_pct, report_date, categorie, theme, rank, is_product, url_type,
+         verdict, image_url, score_global)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`
     );
 
     produits.forEach((p) => {
@@ -620,7 +805,10 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
         categorie,
         theme,
         p.rang,
-        p.typeUrl
+        p.typeUrl,
+        p.verdict || null,
+        p.image || null,
+        p.score != null ? p.score : null
       );
     });
 
@@ -628,10 +816,11 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
     if (dataMarketing) {
       db.prepare(
         `INSERT INTO reports (id, type, date, categorie, theme, titre, agent, sources, data, updated_at)
-         VALUES (?, 'marketing', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         VALUES (?, 'marketing', ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
          ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, agent=excluded.agent,
-           sources=excluded.sources, data=excluded.data, updated_at=CURRENT_TIMESTAMP`
-      ).run(idMkt, date, categorie, theme, mkt.titre, mkt.agent, mkt.sources, dataMarketing);
+           sources=excluded.sources, data=excluded.data,
+         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+      ).run(idMkt, date, categorie, theme, mkt.titre, mkt.agent, mkt.sources, dataMarketing, majLe);
 
       const idEnfantM = `marketing-child-${date}-${categorie}-${theme}`;
       db.prepare(`DELETE FROM marketing_reports WHERE id = ?`).run(idEnfantM);
@@ -675,7 +864,7 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
     fiches: produits.filter((p) => p.typeUrl === 'fiche').length,
     urlsDistinctes: new Set(produits.map((p) => p.url).filter((u) => /^https?:\/\//.test(u))).size,
     avecPrix: produits.filter((p) => p.achat != null && p.vente != null).length,
-    avecScore: 0,
+    avecScore: produits.filter((p) => p.score != null).length,
     marketing: !!mkt,
     noteMarketing,
     ecrire,
@@ -730,9 +919,10 @@ function etudeAiMarket(d, origine) {
       sellPrice: eurAi(p.target_selling_price),
       margin: eurAi(net) + (Number.isFinite(roi) && roi ? ` (ROI ${(roi * 100).toFixed(1)} %)` : ''),
       importMethod: methodeImport(p),
-      reason: [p.decision, p.problem_solved, p.target_customer].filter(Boolean).join(' · ') || '—',
+      reason: [verdictCellule(p.decision), p.problem_solved, p.target_customer].filter(Boolean).join(' · ') || '—',
       recommendedUrl: '-',
       rank: p.rank || i + 1,
+      ...(ventesDe(p) ? { sales: ventesDe(p) } : {}),
     };
   });
 
@@ -764,14 +954,15 @@ function etudeAiMarket(d, origine) {
     marketspy: d,
   });
 
-  const ecrire = (db) => {
+  const ecrire = (db, majLe = null) => {
     // --- le rapport RAYON : l'analyse et les 20 produits
     db.prepare(
       `INSERT INTO reports (id, type, date, categorie, theme, titre, agent, sources, data, updated_at)
-       VALUES (?, 'rayon', ?, ?, ?, ?, 'marketspy', ?, ?, CURRENT_TIMESTAMP)
+       VALUES (?, 'rayon', ?, ?, ?, ?, 'marketspy', ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, sources=excluded.sources,
-         data=excluded.data, updated_at=CURRENT_TIMESTAMP`
-    ).run(idRayon, date, categorie, theme, titre, nbSources, dataRayon);
+         data=excluded.data,
+         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+    ).run(idRayon, date, categorie, theme, titre, nbSources, dataRayon, majLe);
 
     const idEnfantR = `rayon-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM products WHERE rayon_report_id = ?`).run(idEnfantR);
@@ -802,7 +993,7 @@ function etudeAiMarket(d, origine) {
       const fournisseur = [p.supplier_name, p.supplier_platform]
         .filter(Boolean)
         .join(' / ');
-      const pourquoi = [p.decision, p.problem_solved, p.target_customer]
+      const pourquoi = [verdictCellule(p.decision), p.problem_solved, p.target_customer]
         .filter(Boolean)
         .join(' · ');
       // le prix de reference d'une place de marche, quand il y en a un
@@ -843,7 +1034,7 @@ function etudeAiMarket(d, origine) {
         theme,
         p.rank != null ? Number(p.rank) : i + 1,
         // --- enrichissements MarketSpy
-        p.decision || null,
+        verdictCellule(p.decision) || null,
         p.url_type || null,
         p.image_url || null,
         p.moq != null ? String(p.moq) : null,
@@ -862,10 +1053,11 @@ function etudeAiMarket(d, origine) {
     // --- le rapport MARKETING : les routes de lecture le cherchent par type
     db.prepare(
       `INSERT INTO reports (id, type, date, categorie, theme, titre, agent, sources, data, updated_at)
-       VALUES (?, 'marketing', ?, ?, ?, ?, 'marketspy', ?, ?, CURRENT_TIMESTAMP)
+       VALUES (?, 'marketing', ?, ?, ?, ?, 'marketspy', ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, sources=excluded.sources,
-         data=excluded.data, updated_at=CURRENT_TIMESTAMP`
-    ).run(idMkt, date, categorie, theme, titre, nbSources, dataMarketing);
+         data=excluded.data,
+         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+    ).run(idMkt, date, categorie, theme, titre, nbSources, dataMarketing, majLe);
 
     const idEnfantM = `marketing-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM marketing_reports WHERE id = ?`).run(idEnfantM);
@@ -918,7 +1110,8 @@ function etudeAiMarket(d, origine) {
 function ecrireEtude(db, etude) {
   db.exec('BEGIN');
   try {
-    etude.ecrire(db);
+    // majLe: when a replayed study was first imported, so a rebuilt base does not redate it.
+    etude.ecrire(db, etude.majLe || null);
     db.exec('COMMIT');
   } catch (err) {
     try { db.exec('ROLLBACK'); } catch (e) {}
@@ -934,4 +1127,5 @@ module.exports = {
   indicesDuChemin,
   etudeAiMarket,
   ecrireEtude,
+  verdictFr,
 };
