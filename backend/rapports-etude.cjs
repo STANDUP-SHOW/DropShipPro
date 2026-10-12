@@ -180,10 +180,21 @@ function blocsDeCode(bloc) {
 function puces(bloc) {
   if (!bloc) return [];
   const lignes = bloc.split(/\r?\n/);
+  // « ### Instagram » then « - Canal secondaire ; visuels avant/après » : the sub-heading names what its bullets are
+  // about, and an item without it read « Canal secondaire » on the page (12/10/2026).
+  let sousTitre = null;
   const p = lignes
-    .filter((l) => /^\s*[-*+]\s+/.test(l))
-    .map((l) => texteDeCellule(l.replace(/^\s*[-*+]\s+/, '')))
-    .filter(Boolean);
+    .flatMap((l) => {
+      const h = /^\s*#{2,6}\s+(?:\d+(?:\.\d+)*\.?\s+)?(.*)$/.exec(l);
+      if (h) {
+        sousTitre = texteDeCellule(h[1].replace(/\*\*/g, '')) || null;
+        return [];
+      }
+      if (!/^\s*[-*+]\s+/.test(l)) return [];
+      const t = texteDeCellule(l.replace(/^\s*[-*+]\s+/, ''));
+      if (!t) return [];
+      return [sousTitre && !t.replace(/\*\*/g, '').toLowerCase().startsWith(sousTitre.toLowerCase()) ? `${sousTitre} : ${t}` : t];
+    });
   if (p.length) return p;
   // No bullets: sub-headings label the paragraph that follows them, table rows
   // become one item each; raw Markdown must never reach an item.

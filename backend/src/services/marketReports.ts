@@ -41,6 +41,8 @@ export interface ProduitRapport {
   fournisseur: string
   url: string
   prixAchat: number | null
+  /** Every purchase amount the row gives (both ends of « 12-18 € »): what public pages must never show. */
+  achats?: number[]
   prixVente: number | null
   margePct: number | null
   /** api | url | extension — décide qui peut importer sans humain. */
