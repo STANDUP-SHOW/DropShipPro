@@ -139,6 +139,50 @@ console.log('\nUn rapport complet importé (MARKETSPY, 16 sections) : rien de l�
   exige(visible.includes('Tester les trois premiers.'), 'la décision finale est publiée')
 }
 
+console.log('\nConstat en ligne du 12/10/2026 au soir : plafonds d’achat, libellés, intertitres orphelins')
+{
+  const constat: RapportPublic = {
+    ...rapport,
+    body: [
+      '## Verdict rapide',
+      '- Produit à éviter : mini lave-vaisselle acheté à l’unité sur AliExpress (n° 9), coût rendu supérieur au prix Cdiscount ; pastilles nettoyantes importées (n° 4), risque chimique.',
+      '- Le « petit lavage » : demande réelle chez les étudiants, mais l’achat unitaire AliExpress est perdant.',
+      '- Opinion : 41 % des acheteurs hésitent, et 51 % des achats suivent une panne.',
+      '## Bundles recommandés',
+      'Ils deviennent plus rentables en lot (voir les prix max d’achat). Le bundle sérénité est rentable.',
+      '',
+      '### Tableau 5 — Plan de test',
+      '',
+      '| Produit | Quantité test | Budget achat |',
+      '| --- | --- | --- |',
+      '| Attrape-poils | 10 | 41,30 € |',
+      '',
+      '### Montée en volume',
+      'Règle : 5 → 10 → 25 unités.',
+      '',
+      'Premier bon de commande chiffré (à valider après devis) :',
+      '',
+      '| Ligne | Coût rendu unitaire |',
+      '| --- | --- |',
+      '| Attrape-poils | ≤ 4,13 € |',
+      '## Décision finale',
+      '- Négocier : mini machine en lot Alibaba (objectif ≤ 12,25 € rendu) ; attrape-poils en lot (≤ 4,13 € le lot de 6 rendu) ; lave-linge d’occasion (≤ 121,36 € pièces et transport compris).',
+      '- Liste de surveillance : séchoir B2B (≤ 10,33 €), socles et surélévateurs, CJ Dropshipping EU, balles de laine.',
+      '- Commander 2 échantillons de répéteurs génériques (17,36 €).',
+      '- Budget test recommandé : environ 600 €.',
+    ].join('\n'),
+  }
+  const visible = pageRapport(constat).replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
+  exige(!/4,13|12,25|121,36|10,33|17,36|41,30|prix max/i.test(visible), 'aucun plafond ni prix d’achat (« ≤ 4,13 € rendu », « prix max d’achat », échantillons)', (/[^>]*(4,13|12,25|121,36|10,33|17,36|prix max)[^<]*/i.exec(visible) || [''])[0])
+  exige(visible.includes('Produit à éviter : pastilles nettoyantes importées (n° 4), risque chimique.'), 'le libellé de la puce reste avec ce qui reste d’elle')
+  exige(visible.includes('demande réelle chez les étudiants'), 'une puce garde sa partie publique')
+  exige(visible.includes('51 % des achats suivent une panne'), '« achats » des clients et un pourcentage ne sont pas un prix d’achat')
+  exige(visible.includes('Négocier : attrape-poils en lot ; lave-linge d’occasion.'), 'les parenthèses de plafond tombent, la phrase reste')
+  exige(visible.includes('Liste de surveillance : séchoir B2B, socles et surélévateurs, balles de laine.'), 'dans une liste, seul l’élément qui nomme un fournisseur tombe')
+  exige(!/Tableau 5|Premier bon de commande/.test(visible) && visible.includes('Montée en volume'), 'un intertitre ou une annonce dont le tableau est retiré tombe avec lui')
+  exige(visible.includes('environ 600 €'), 'le budget de test reste')
+}
+
 console.log('\nLa page d’un rapport marketing')
 {
   const html = pageRapport(marketing)

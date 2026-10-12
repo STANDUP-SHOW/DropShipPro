@@ -287,6 +287,10 @@ function tableaux(texte) {
  * An unknown verdict is left as written rather than half translated.
  */
 const VERDICTS = [
+  ['breakout candidate', 'candidat en décollage'],
+  ["don't buy", 'ne pas acheter'],
+  ['dont buy', 'ne pas acheter'],
+  ['do not buy', 'ne pas acheter'],
   ['strong buy', 'achat prioritaire'],
   ['buy if negotiated', 'acheter si négocié'],
   ['buy after test', 'acheter après test'],
@@ -298,6 +302,8 @@ const VERDICTS = [
   ['buy now', 'acheter maintenant'],
   ['no go', 'à écarter'],
   ['no-go', 'à écarter'],
+  ['watchlist', 'à surveiller'],
+  ['breakout', 'en décollage'],
   ['buy', 'acheter'],
   ['test', 'tester'],
   ['watch', 'surveiller'],
@@ -312,17 +318,35 @@ const VERDICTS = [
 ];
 // Case-sensitive on purpose: only UPPERCASE verdicts are translated, « BUY » is a verdict, « buy » in a sentence is prose.
 const MOTIF_VERDICT = new RegExp(
-  `(?<![A-Za-z])(${VERDICTS.map(([en]) => en.toUpperCase().replace(/[-\s]+/g, '[-\\s]+')).join('|')})(?![A-Za-z])`,
+  `(?<![A-Za-z0-9/._-])(${VERDICTS.map(([en]) => en.toUpperCase().replace(/'/g, "['’]").replace(/[-\s]+/g, '[-\\s]+')).join('|')})(?![A-Za-z0-9/_-])`,
   'g'
 );
 function verdictFr(texte) {
   if (!texte) return texte;
   return String(texte).replace(MOTIF_VERDICT, (m) => {
-    const cle = m.toLowerCase().replace(/[-\s]+/g, ' ');
+    const cle = m.toLowerCase().replace(/’/g, "'").replace(/[-\s]+/g, ' ');
     const fr = (VERDICTS.find(([en]) => en.replace(/-/g, ' ') === cle) || [])[1];
     return fr ? fr.toUpperCase() : m;
+  }).replace(MOTIF_ANGLAIS, (m) => {
+    const fr = ANGLAIS.find(([en]) => en.test(m))[1];
+    return m.charAt(0) === m.charAt(0).toUpperCase() ? fr.charAt(0).toUpperCase() + fr.slice(1) : fr;
   });
 }
+
+/**
+ * English labels with no French reading, whatever their case (« Breakout
+ * candidate : », « Watchlist : », « ## Executive Summary »). Unlike verdicts,
+ * these never mean anything else in a French sentence.
+ */
+const ANGLAIS = [
+  [/^executive summary$/i, 'synthèse'],
+  [/^breakout candidates?$/i, 'candidat en décollage'],
+  [/^watch[-\s]?list$/i, 'liste de surveillance'],
+  [/^social trends$/i, 'tendances sociales'],
+  [/^battle sheet$/i, 'comparatif'],
+  [/^don['’]?t buy$/i, 'ne pas acheter'],
+];
+const MOTIF_ANGLAIS = /(?<![A-Za-z0-9/._-])(executive summary|breakout candidates?|watch[-\s]?list|social trends|battle sheet|don['’]?t buy)(?![A-Za-z0-9/_-])/gi;
 /** A whole cell that is just a verdict: « BUY IF NEGOTIATED » -> « Acheter si négocié ». */
 function verdictCellule(texte) {
   const t = String(texte || '').trim();
@@ -585,6 +609,13 @@ function titreDuTexte(texte) {
  * 13 on 12/10/2026) and a gap reads like a lost section.
  */
 function sectionsCompletes(texte) {
+  const numeros = new Map();
+  for (const m of String(texte || '').matchAll(/^##\s+(\d+)\s*[.)]\s*(.+?)\s*$/gm)) numeros.set(m[1], texteDeCellule(m[2]));
+  const renvois = (corps) =>
+    corps
+      .replace(/(voir\s+)?(?:le\s+fichier\s+)?`?[\w.-]+\.marketing\.md`?,?\s*(?:section\s*\d+)?/gi, (m, voir) => `${voir ?? ''}l'analyse marketing du même jour`)
+      .replace(/\bsections?\s+(\d+)\b/gi, (m, n) => (numeros.has(n) ? `« ${verdictFr(numeros.get(n))} »` : m))
+      .replace(/^(#{3,}\s+)\d+\.\d+\s+/gm, '$1');
   const out = [];
   let titre = null;
   let buf = [];
@@ -593,7 +624,7 @@ function sectionsCompletes(texte) {
     if (titre === null) return;
     const corps = buf.join('\n').trim();
     const t = texteDeCellule(titre).replace(/^\d+\s*[.)]\s*/, '').trim();
-    if (corps && !/^annexe/.test(normTitre(t))) out.push(`## ${t}\n${corps}`);
+    if (corps && !/^annexe/.test(normTitre(t))) out.push(`## ${t}\n${renvois(corps)}`);
   };
   let premier = true;
   for (const l of String(texte || '').split(/\r?\n/)) {
