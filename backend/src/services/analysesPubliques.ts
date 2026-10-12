@@ -376,33 +376,98 @@ const SECTION_PRIVEE = /sourcing|battle|achat|fournisseur|^\s*(\d+\s*[.)]\s*)?so
  */
 const FOURNISSEUR_NOMME =
   /aliexpress|alibaba|\b1688\b|cj\s?drop|cjdropshipping|\btemu\b|\bshein\b|bigbuy|\baccio\b|dhgate|banggood|spocket|zendrop|syncee|vidaxl|made[-\s]in[-\s]china|global\s?sources|taobao|joybuy|lightinthebox|ankorstore|fournisseur/i
-const TERME_ACHAT = /achat|co[uû]t|marge|\broi\b|revient/i
-const MONTANT = /\d\s*(€|eur\b|euros?\b|\$|usd\b|¥|rmb\b|cny\b|%)|(€|\$|us\$|¥)\s*\d/i
-/** A supplier's name, a foreign-currency price, or a buying term next to an amount (« coût rendu 18 € »). */
+// « achat » alone is the shopper's purchase (« 51 % des achats sont déclenchés par une panne »), not ours.
+const TERME_ACHAT = /prix\s*(d['’ ]?)?achat|achat\s*(unitaire|en\s*lot|group[ée]|local)|co[uû]t|marge|\broi\b|revient|\brendu\b|transport compris|[ée]chantillon|\bfret\b/i
+const MONTANT = /\d\s*(€|eur\b|euros?\b)|€\s*\d/i
+const MARGE_PCT = /(marge|\broi\b)[^.;]{0,40}\d\s*%|\d\s*%[^.;]{0,20}(de\s*)?(marge|\broi\b)/i
+/** A ceiling the seller should buy under (« ≤ 4,13 € », « objectif 12,25 € ») is a buying price whatever the words around it. */
+const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif)\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max/i
+/** A supplier's name, a foreign-currency price, a buying ceiling, or a buying term next to an amount (« coût rendu 18 € »). */
 const estPrivee = (texte: string) =>
-  FOURNISSEUR_NOMME.test(texte) || /\d\s*(\$|usd\b|¥|rmb\b|cny\b)|(\$|us\$|¥)\s*\d/i.test(texte) || (TERME_ACHAT.test(texte) && MONTANT.test(texte))
+  FOURNISSEUR_NOMME.test(texte) ||
+  /\d\s*(\$|usd\b|¥|rmb\b|cny\b)|(\$|us\$|¥)\s*\d/i.test(texte) ||
+  PLAFOND.test(texte) ||
+  MARGE_PCT.test(texte) ||
+  (TERME_ACHAT.test(texte) && MONTANT.test(texte))
 
-/** Drops, sentence by sentence, what names a supplier or a buying figure; a line left empty goes. */
+/**
+ * Drops what names a supplier or a buying figure, in the smallest piece that
+ * carries it: a parenthesis first (« attrape-poils en lot (≤ 4,13 € rendu) »
+ * keeps « attrape-poils en lot »), then a sentence or a « ; » clause. A bullet's
+ * label (« Produit à éviter : ») stays with what is left of it; a line left
+ * empty goes.
+ */
 export function sansMentionsPrivees(corps: string): string {
   const sortie: string[] = []
   let dansCode = false
-  for (const ligne of corps.replace(/\r\n/g, '\n').split('\n')) {
-    if (/^\s*```/.test(ligne)) dansCode = !dansCode
-    if (dansCode || !estPrivee(ligne)) {
+  for (const brute of corps.replace(/\r\n/g, '\n').split('\n')) {
+    if (/^\s*```/.test(brute)) dansCode = !dansCode
+    if (dansCode || !estPrivee(brute)) {
+      sortie.push(brute)
+      continue
+    }
+    if (brute.trim().startsWith('|')) continue
+    const ligne = brute.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (estPrivee(dedans) ? '' : m))
+    if (!estPrivee(ligne)) {
       sortie.push(ligne)
       continue
     }
-    if (ligne.trim().startsWith('|')) continue
     const puce = /^(\s*(?:[-*+]|\d+[.)])\s+)/.exec(ligne)?.[1] ?? ''
-    const reste = ligne
-      .slice(puce.length)
+    let texte = ligne.slice(puce.length)
+    const lib = /^([^:;.]{1,140}?)\s?:\s+(.*)$/.exec(texte)
+    const libelle = lib && !estPrivee(lib[1]) ? lib[1] : ''
+    if (libelle) texte = lib![2]
+    // After a label the text is often a list (« À surveiller : a, b, c ») : each item is weighed alone…
+    const reste = texte
       .split(/(?<=[.!?;])\s+/)
-      .filter((phrase) => !estPrivee(phrase))
+      .map((morceau) =>
+        // …unless the first item is the private one: then the rest qualifies it (« …sur AliExpress, coût rendu supérieur… »).
+        libelle && estPrivee(morceau) && !estPrivee(morceau.split(/,\s+(?![^()]*\))/)[0])
+          ? morceau
+              .split(/,\s+(?![^()]*\))/)
+              .filter((element) => !estPrivee(element))
+              .join(', ')
+              .replace(/[^.!?;]$/, (fin) => fin + (/[.!?;]$/.exec(morceau)?.[0] ?? ''))
+          : morceau,
+      )
+      .filter((morceau) => morceau.trim() && !estPrivee(morceau))
       .join(' ')
+      .replace(/[\s;,]+$/, '')
       .trim()
-    if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(puce + reste)
+    if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(`${puce}${libelle ? `${libelle} : ` : ''}${reste}`)
   }
   return sortie.join('\n')
+}
+
+/**
+ * A sub-heading or a lead-in line (« Premier bon de commande chiffré : ») whose
+ * table was removed announced nothing any more (« Tableau 5 — Plan de test »
+ * stood alone on the page, 12/10/2026). It goes with its table.
+ */
+export function sansIntertitresVides(corps: string): string {
+  let lignes = corps.split('\n')
+  for (let change = true; change; ) {
+    change = false
+    const garde: string[] = []
+    for (let i = 0; i < lignes.length; i++) {
+      const l = lignes[i]
+      const titre = /^(#{3,})\s/.exec(l)
+      const annonce = !titre && l.trim() && !/^\s*([-*+]|\d+[.)])\s/.test(l) && /:\s*$/.test(l)
+      if (titre || annonce) {
+        let j = i + 1
+        while (j < lignes.length && !lignes[j].trim()) j++
+        const suivant = j < lignes.length ? /^(#{2,})\s/.exec(lignes[j]) : null
+        const vide = j >= lignes.length || (suivant && (!titre || suivant[1].length <= titre[1].length))
+        if (vide) {
+          change = true
+          continue
+        }
+      }
+      garde.push(l)
+    }
+    lignes = garde
+  }
+  return lignes.join('\n')
 }
 
 export function sansTableauxPrives(corps: string): { corps: string; retires: number } {
@@ -594,7 +659,7 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
         return `<h2 id="produits">${esc(b.titre.replace(/proposés/i, 'gagnants'))}</h2>${tableauProduitsPublic(r.produits)}`
       }
       const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps)
-      const corps = sansMentionsPrivees(sansTableaux)
+      const corps = sansIntertitresVides(sansMentionsPrivees(sansTableaux))
       // Sans produits structurés à montrer à la place, le lecteur sait au moins que la liste existe.
       const garde =
         retires && !r.produits.length

@@ -35,13 +35,16 @@ const annexe = {
 const texte = `## Électroménager — Lavage et séchage
 
 ## 1. Executive Summary
-Le marché du petit lavage nomade progresse.
+Le marché du petit lavage nomade progresse. Budget de test : 600 € (détail en section 15).
 
 ## 2. Verdict rapide
 Lancer le mini lave-linge : BUY. Le filtre : AVOID.
 
 ## 3. Marché actuel
 La demande monte au printemps.
+
+## 6. Analyse publicitaire et social trends
+Voir le fichier \`lavage-sechage.marketing.md\`, section 6.
 
 ## 4. Analyse sourcing
 L'achat unitaire AliExpress est perdant, le lot Alibaba passe.
@@ -100,13 +103,15 @@ try {
   const analyse = data.analysis;
 
   console.log('\nLes sections');
-  for (const t of ['Executive Summary', 'Verdict rapide', 'Marché actuel', 'Analyse sourcing', 'TOP 20 produits gagnants', 'Battle sheet achat / revente', 'Décision finale', 'Sources']) {
+  for (const t of ['Synthèse', 'Verdict rapide', 'Marché actuel', 'Analyse sourcing', 'TOP 20 produits gagnants', 'Comparatif achat / revente', 'Décision finale', 'Sources']) {
     exige(analyse.includes(`## ${t}\n`), `« ${t} » est gardée, sous son titre`);
   }
   exige(!/^## \d/m.test(analyse), 'sans numéro (10 à 13 manquent dans les fichiers : un trou se lirait comme une perte)');
   exige(!/Annexe|"products"/.test(analyse), "l'annexe JSON n'est pas recopiée dans le texte");
   exige(!/^## Électroménager/m.test(analyse), 'le titre du rapport ne devient pas une section');
-  exige(analyse.indexOf('Executive Summary') < analyse.indexOf('Décision finale'), "l'ordre du fichier est gardé");
+  exige(analyse.indexOf('Synthèse') < analyse.indexOf('Décision finale'), "l'ordre du fichier est gardé");
+  exige(analyse.includes('(détail en « Décision finale »)'), 'un renvoi « section 15 » nomme la section, dont le numéro a disparu');
+  exige(analyse.includes("Voir l'analyse marketing du même jour.") && analyse.includes('## Analyse publicitaire et tendances sociales'), 'le renvoi au fichier marketing devient une phrase lisible');
   exige(/ACHETER/.test(analyse) && /ÉVITER/.test(analyse) && !/\bBUY\b|\bAVOID\b/.test(analyse), 'les verdicts du texte en français');
 
   console.log('\nLes produits');
