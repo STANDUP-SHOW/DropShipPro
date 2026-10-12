@@ -788,8 +788,8 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
        VALUES (?, 'rayon', ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, agent=excluded.agent,
          sources=excluded.sources, data=excluded.data,
-         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
-    ).run(idRayon, date, categorie, theme, titre, agent, nbSources, dataRayon, majLe);
+         updated_at=CASE WHEN ? IS NOT NULL THEN excluded.updated_at WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+    ).run(idRayon, date, categorie, theme, titre, agent, nbSources, dataRayon, majLe, majLe);
 
     const idEnfantR = `rayon-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM products WHERE rayon_report_id = ?`).run(idEnfantR);
@@ -851,8 +851,8 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
          VALUES (?, 'marketing', ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
          ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, agent=excluded.agent,
            sources=excluded.sources, data=excluded.data,
-         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
-      ).run(idMkt, date, categorie, theme, mkt.titre, mkt.agent, mkt.sources, dataMarketing, majLe);
+         updated_at=CASE WHEN ? IS NOT NULL THEN excluded.updated_at WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+      ).run(idMkt, date, categorie, theme, mkt.titre, mkt.agent, mkt.sources, dataMarketing, majLe, majLe);
 
       const idEnfantM = `marketing-child-${date}-${categorie}-${theme}`;
       db.prepare(`DELETE FROM marketing_reports WHERE id = ?`).run(idEnfantM);
@@ -993,8 +993,8 @@ function etudeAiMarket(d, origine) {
        VALUES (?, 'rayon', ?, ?, ?, ?, 'marketspy', ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, sources=excluded.sources,
          data=excluded.data,
-         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
-    ).run(idRayon, date, categorie, theme, titre, nbSources, dataRayon, majLe);
+         updated_at=CASE WHEN ? IS NOT NULL THEN excluded.updated_at WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+    ).run(idRayon, date, categorie, theme, titre, nbSources, dataRayon, majLe, majLe);
 
     const idEnfantR = `rayon-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM products WHERE rayon_report_id = ?`).run(idEnfantR);
@@ -1088,8 +1088,8 @@ function etudeAiMarket(d, origine) {
        VALUES (?, 'marketing', ?, ?, ?, ?, 'marketspy', ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
        ON CONFLICT(id) DO UPDATE SET titre=excluded.titre, sources=excluded.sources,
          data=excluded.data,
-         updated_at=CASE WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
-    ).run(idMkt, date, categorie, theme, titre, nbSources, dataMarketing, majLe);
+         updated_at=CASE WHEN ? IS NOT NULL THEN excluded.updated_at WHEN reports.data IS excluded.data AND reports.titre IS excluded.titre THEN reports.updated_at ELSE CURRENT_TIMESTAMP END`
+    ).run(idMkt, date, categorie, theme, titre, nbSources, dataMarketing, majLe, majLe);
 
     const idEnfantM = `marketing-child-${date}-${categorie}-${theme}`;
     db.prepare(`DELETE FROM marketing_reports WHERE id = ?`).run(idEnfantM);
@@ -1142,7 +1142,8 @@ function etudeAiMarket(d, origine) {
 function ecrireEtude(db, etude) {
   db.exec('BEGIN');
   try {
-    // majLe: when a replayed study was first imported, so a rebuilt base does not redate it.
+    // majLe: when a replayed study was imported. A replay dates the row by it, changed data or not:
+    // a reader fix that only adds fields nobody sees in public must not redate the page (12/10/2026).
     etude.ecrire(db, etude.majLe || null);
     db.exec('COMMIT');
   } catch (err) {

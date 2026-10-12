@@ -139,6 +139,18 @@ try {
   db.prepare('DELETE FROM reports WHERE id = ?').run(etude.idRayon);
   lib.ecrireEtude(db, { ...etude, majLe: '2026-10-12 14:05:00' });
   exige(db.prepare('SELECT updated_at u FROM reports WHERE id = ?').get(etude.idRayon).u === '2026-10-12 14:05:00', "une base reconstruite date l'étude de son import, pas du démarrage");
+  db.prepare("UPDATE reports SET updated_at = '2026-10-12 18:17:02' WHERE id = ?").run(etude.idRayon);
+  lib.ecrireEtude(db, { ...etude, majLe: '2026-10-08 09:00:00' });
+  exige(db.prepare('SELECT updated_at u FROM reports WHERE id = ?').get(etude.idRayon).u === '2026-10-08 09:00:00', "une relecture date la ligne de l'import, même déjà redatée par une relecture précédente (07/10 et 08/10 à 18:17)");
+  const ai = lib.etudeAiMarket({ study: { date: '2026-10-08', category_name: 'Informatique', category_id: 'informatique', theme_slug: 'banc-ai', theme_name: 'Banc' }, analysis: 'Texte.', products: [{ rank: 1, product_name: 'P', product_url: 'https://x.test/1' }] }, 'drive:banc/ai.json');
+  if (ai.ok) {
+    lib.ecrireEtude(db, { ...ai, majLe: '2026-10-08 10:00:00' });
+    db.prepare("UPDATE reports SET updated_at = '2026-10-12 18:17:02' WHERE id = ?").run(ai.idRayon);
+    lib.ecrireEtude(db, { ...ai, majLe: '2026-10-08 10:00:00' });
+    exige(db.prepare('SELECT updated_at u FROM reports WHERE id = ?').get(ai.idRayon).u === '2026-10-08 10:00:00', 'de même pour un import aiMARKET');
+    lib.ecrireEtude(db, ai);
+    exige(db.prepare('SELECT updated_at u FROM reports WHERE id = ?').get(ai.idRayon).u === '2026-10-08 10:00:00', 'sans date d’import, le même contenu garde sa date');
+  } else exige(false, 'étude aiMARKET de banc lisible : ' + ai.raison);
 } finally {
   db.close();
   fs.rmSync(tmp, { recursive: true, force: true });
