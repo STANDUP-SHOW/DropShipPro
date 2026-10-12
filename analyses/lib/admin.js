@@ -29,9 +29,9 @@ function expliquer(statut, raison) {
 }
 
 /** One call to /api/admin with the Poste's key. Throws a readable error, never returns an error body as data. */
-async function appelerAdmin({ apiBase, cle, chemin, corps, fetchImpl = fetch }) {
+async function appelerAdmin({ apiBase, cle, chemin, corps, methode, fetchImpl = fetch }) {
   const rep = await fetchImpl(`${apiBase.replace(/\/$/, '')}/api/admin${chemin}`, {
-    method: corps === undefined ? 'GET' : 'POST',
+    method: methode || (corps === undefined ? 'GET' : 'POST'),
     headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json' },
     body: corps === undefined ? undefined : JSON.stringify(corps),
   })
@@ -40,6 +40,8 @@ async function appelerAdmin({ apiBase, cle, chemin, corps, fetchImpl = fetch }) 
   try { donnees = JSON.parse(texte) } catch { /* handled below */ }
   if (!rep.ok) {
     const raison = (donnees && (donnees.error || donnees.message)) || texte.slice(0, 200) || `HTTP ${rep.status}`
+    // 422 = the site refused the data itself and says why in French: shown to Max as it is
+    if (rep.status === 422) throw new Error(raison)
     throw new Error(`Le site a refusé (${rep.status}) : ${expliquer(rep.status, raison)}`)
   }
   if (!donnees || typeof donnees !== 'object') throw new Error(`Réponse du site illisible : ${texte.slice(0, 120)}`)

@@ -81,6 +81,27 @@ function creerServeur() {
             if ((dates || []).includes('2026-10-12')) return json(200, { essai: Boolean(essai), importees: 0, aImporter: 0, doublons: 0, refusees: 1, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-12', rayon: 'mode / sacs', statut: 'refuse', raison: 'marketing seul, sans .rayon.md' }], ignores: [{ date: '2026-10-12', nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] })
             return json(200, { essai: Boolean(essai), importees: essai ? 0 : 1, aImporter: essai ? 1 : 0, doublons: 0, refusees: 0, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-08', rayon: 'jardin / arrosage', statut: essai ? 'apercu' : 'importe', produits: 12, urlsDistinctes: 8, avecPrix: 1, marketing: true }], ignores: [] })
           }
+          if (req.url === '/api/admin/reseaux-sociaux') {
+            // contract of the real route (fil Refonte, 12/10): https, host per network, unknown key refused, "" or null removes
+            const HOTES = { facebook: ['facebook.com'], instagram: ['instagram.com'], whatsapp: ['wa.me', 'whatsapp.com'], x: ['x.com', 'twitter.com'], linkedin: ['linkedin.com'], snapchat: ['snapchat.com'] }
+            etat.reseaux = etat.reseaux || Object.fromEntries(Object.keys(HOTES).map((k) => [k, null]))
+            if (req.method === 'PUT') {
+              const demande = JSON.parse(corps || '{}')
+              for (const [k, v] of Object.entries(demande)) {
+                if (!HOTES[k]) return json(422, { error: `Réseau inconnu : ${k}.` })
+                if (v === null || v === '') continue
+                let u = null; try { u = new URL(v) } catch { /* refused below */ }
+                const hote = u ? u.hostname.replace(/^www\./, '') : ''
+                // messages of backend/src/services/reseauxSociaux.ts
+                if (!u) return json(422, { error: `${k} : « ${v.slice(0, 80)} » n'est pas une adresse web.` })
+                if (u.protocol !== 'https:') return json(422, { error: `${k} : l'adresse doit commencer par https://.` })
+                if (!HOTES[k].some((d) => hote === d || hote.endsWith('.' + d))) return json(422, { error: `${k} : l'adresse doit être sur ${HOTES[k].join(' ou ')}.` })
+              }
+              for (const [k, v] of Object.entries(demande)) etat.reseaux[k] = v || null
+              return json(200, { ok: true, reseaux: etat.reseaux })
+            }
+            return json(200, { reseaux: etat.reseaux, ordre: Object.keys(HOTES) })
+          }
           if (req.url === '/api/admin/affiliation') return json(200, { seuilCentimes: 5000, totaux: { affilies: 1, aVerser: 1, dusCentimes: 6200, dusAVerserCentimes: 6200, versesCentimes: 0 }, affilies: [{ id: 'af1', nom: 'Affilié Test', email: 'af@exemple.test', code: 'TEST10', inscritLe: '2026-10-01T09:00:00Z', filleuls: 3, clics: 40, titulaire: 'A. Test', iban: 'FR7612345678901234567890123', ibanMajLe: null, gainsCentimes: 6200, dusCentimes: 6200, versesCentimes: 0, aVerser: true, versements: [] }] })
           if (req.url === '/api/admin/affiliation/af1/verse' && req.method === 'POST') { etat.versements = (etat.versements || []).concat([JSON.parse(corps || '{}')]); return json(200, { versement: { id: 'v1', montantCentimes: 6200 } }) }
         }
