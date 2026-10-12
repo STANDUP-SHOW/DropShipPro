@@ -52,6 +52,7 @@ import { tourneeAutopilot } from './services/autopilot.js'
 import { tourneeReecritures } from './services/rewriteBatch.js'
 import { tourneeVentes } from './services/ventesMarketplaces.js'
 import { rattraperBoutiquesSurMarket } from './services/marketAuto.js'
+import { marketCleRouter } from './routes/marketCle.js'
 /*
  * Un processus qui meurt doit dire pourquoi.
  *
@@ -152,6 +153,8 @@ app.use('/api/agent', agentRouter)
 app.use('/api/mobile', mobileRouter)
 app.use('/api/market-reports', marketReportsRouter)
 app.use('/api/dropshop', dropshopRouter)
+// Le Market par clé d'API, pour les vendeurs sans boutique (12/10/2026). Avant /api/market.
+app.use('/api/market/v1', marketCleRouter)
 app.use('/api/market', marketApiRouter)
 // Le Back Office des boutiques DropShop (extension) : sa propre session, hors compte marchand.
 app.use('/api/boutique-admin', shopAdminRouter)

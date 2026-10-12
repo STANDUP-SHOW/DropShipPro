@@ -166,3 +166,22 @@ renseigné, sinon sa vitrine `/b/<adresse>` (`boutiqueUrlDe`). Même lien sur la
 page vendeur et dans le schema.org (`seller.url`). Lien suivi, sans `nofollow` :
 c'est voulu, pour le maillage et les backlinks. Un `siteUrl` qui n'est pas en
 http(s) est ignoré.
+
+## Publier par API, sans boutique (12/10/2026)
+
+Décision de Max : qui a une boutique n'a rien à faire (publication automatique
+ci-dessus) ; qui n'en a pas publie par API, avec sa clé `dsp_live_…` (Réglages ›
+Clés d'API). Routes dans `backend/src/routes/marketCle.ts`, montées sur
+`/api/market/v1` (avant `/api/market`) :
+
+| Route | Effet |
+|---|---|
+| `GET /annonces` | ses annonces Market, statut et adresse |
+| `POST /annonces` | crée ou met à jour par `reference` (devient `sourceUrl = api://<reference>`), PUBLISHED tout de suite ; `imagesWatermarked: false` |
+| `POST /publier` | met sur le Market des produits déjà au catalogue (`productIds`, 200 max) |
+| `DELETE /annonces/:reference` | retire l'annonce |
+
+Une annonce retirée par la modération (`error` commençant par « Retirée de
+DropShop Market par la modération ») ne se republie pas par l'API (409) et son
+retrait vendeur garde la ligne. Banc : `backend/check-market-api.ts`. Le MCP pourra
+s'appuyer sur ces routes.

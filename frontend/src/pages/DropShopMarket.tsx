@@ -240,6 +240,22 @@ export default function DropShopMarket() {
         </label>
       </section>
 
+      {/* Sans boutique, on publie par API : routes/marketCle.ts (décision de Max, 12/10/2026). */}
+      <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <h2 className="mb-1 text-lg font-semibold">Pas de boutique DropShop ? Publiez par API</h2>
+        <p className="mb-2 text-xs text-gray-400">
+          Créez une clé dans <Link to="/settings" className="text-purple-300 underline">Réglages</Link> (Clés d'API), puis
+          appelez l'API avec l'en-tête <code>Authorization: Bearer dsp_live_…</code>. Une même <code>reference</code> met
+          l'annonce à jour au lieu de la dupliquer.
+        </p>
+        <pre className="overflow-x-auto rounded-lg bg-black/30 p-3 text-[11px] leading-relaxed text-gray-300">{`GET    ${location.origin}/api/market/v1/annonces
+POST   ${location.origin}/api/market/v1/annonces
+       { "reference": "SKU-1", "titre": "…", "description": "…",
+         "prix": 29.9, "images": ["https://…"], "ean": "…" (facultatif) }
+POST   ${location.origin}/api/market/v1/publier   { "productIds": ["…"] }
+DELETE ${location.origin}/api/market/v1/annonces/SKU-1`}</pre>
+      </section>
+
       <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold"><CreditCard size={18} /> Paiements</h2>
         {!donnees ? (
