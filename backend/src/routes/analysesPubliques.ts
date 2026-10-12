@@ -11,8 +11,10 @@
  * Une page est mise en cache une heure : les rapports arrivent une fois par
  * jour, et un robot qui lit 500 pages ne doit pas faire 500 requêtes.
  */
+import fs from 'node:fs'
+import path from 'node:path'
 import { Router, type Response } from 'express'
-import { generationRapports, ReportQuery } from '../services/reportsDb.js'
+import { CHEMIN_SURCOUCHE, generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
   attribuerAdresses,
@@ -25,6 +27,9 @@ import {
   pageRapport,
   rapportA,
   rapportAncienneAdresse,
+  datesPubliques,
+  empreintePublique,
+  type RendusConnus,
   sitemapXml,
   type RapportPublic,
 } from '../services/analysesPubliques.js'
@@ -72,11 +77,48 @@ export function lignesPubliques(): Ligne[] {
     .filter(adressable)
     .map((l) => ({ ...l, titre: l.une ?? l.titre }))
   attribuerAdresses(tous)
-  memo = tous
-  return tous
+  const dates = datesDuRendu(tous)
+  memo = tous.map((l) => ({ ...l, updatedAt: dates.get(l.id) ?? l.updatedAt }))
+  return memo
+}
+
+/** Kept on the volume, next to the Drive imports: it must outlive a redeploy to tell an unchanged page from a changed one. */
+const CHEMIN_RENDUS = path.join(path.dirname(CHEMIN_SURCOUCHE), 'rendus-publics.json')
+
+function datesDuRendu(tous: Ligne[]): Map<string, Date> {
+  try {
+    let connus: RendusConnus = {}
+    try {
+      connus = JSON.parse(fs.readFileSync(CHEMIN_RENDUS, 'utf8'))
+    } catch {
+      // First run, or no volume: every report starts from its data date (Drive imports aside).
+    }
+    const lignes = tous.flatMap((l) => {
+      const r = versPublicBrut(l.id)
+      return r ? [{ id: l.id, updatedAt: l.updatedAt, importeDrive: l.importeDrive, empreinte: empreintePublique({ ...r, titre: l.titre }) }] : []
+    })
+    const { dates, connus: suivants, change } = datesPubliques(lignes, connus)
+    if (change) {
+      fs.mkdirSync(path.dirname(CHEMIN_RENDUS), { recursive: true })
+      fs.writeFileSync(CHEMIN_RENDUS, JSON.stringify(suivants))
+    }
+    return dates
+  } catch (err) {
+    // A date that cannot follow the text must not take the pages down with it.
+    console.error('[analyses publiques] dates du rendu', err instanceof Error ? err.message : err)
+    return new Map()
+  }
 }
 
 function versPublic(id: string): RapportPublic | null {
+  const r = versPublicBrut(id)
+  if (!r) return null
+  const maj = lignesPubliques().find((l) => l.id === id)?.updatedAt ?? r.updatedAt
+  return { ...r, updatedAt: maj }
+}
+
+/** The report as the page shows it, dated by its data only. */
+function versPublicBrut(id: string): RapportPublic | null {
   const r = rapports().getAnalyse(id)
   if (!r || !adressable(r)) return null
   const prompts =
@@ -86,8 +128,7 @@ function versPublic(id: string): RapportPublic | null {
           .prompts.filter((p) => p.rapportId === id)
           .map((p) => ({ genre: p.genre, format: p.format, texte: p.texte }))
       : []
-  const maj = lignesPubliques().find((l) => l.id === id)?.updatedAt ?? new Date(`${r.day}T06:00:00Z`)
-  return { ...r, titre: r.une ?? r.titre, prompts, updatedAt: maj }
+  return { ...r, titre: r.une ?? r.titre, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
 function html(res: Response, page: string) {
