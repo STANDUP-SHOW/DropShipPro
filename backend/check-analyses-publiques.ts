@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { titreProduitPublic, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -524,6 +524,38 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   exige(apostrophesDuTexte('un produit daccroche au cur du marché, la mise en uvre, à limport') === "un produit d'accroche au cœur du marché, la mise en œuvre, à l'import", 'œ et apostrophes perdus')
   const casques = produitsNettoyes([{ ...rapport.produits[0], titre: 'Casque audio Casque Philips TAH4209', pourquoi: 'Bon à limport' }, { ...rapport.produits[0], titre: 'Casque audio Casque gaming' }])
   exige(casques[0].titre === 'Casque Philips TAH4209' && casques[1].titre === 'Casque gaming' && casques[0].pourquoi === "Bon à l'import", 'libellé doublé retiré, apostrophe rendue', JSON.stringify(casques.map((p) => [p.titre, p.pourquoi])))
+}
+
+{
+  // 12/10/2026, constat en ligne de #86 : les anciennes études.
+  const t = (x: string) => titreProduitPublic(x)
+  exige(t('Ensemble table et chaises de salle à manger - AliExpress Business') === 'Ensemble table et chaises de salle à manger', 'suffixe AliExpress retiré', t('Ensemble table et chaises de salle à manger - AliExpress Business'))
+  exige(t('SHEIN LUNE doudoune imprimé léopard, zip devant') === 'LUNE doudoune imprimé léopard, zip devant', 'SHEIN en tête retiré')
+  exige(t('XIAOMI 17 Ultra — Sourcing alternatif Alibaba') === 'XIAOMI 17 Ultra', 'sourcing alternatif retiré')
+  exige(t('Apple iPhone 15 — Reconditionne sourcing guide') === 'Apple iPhone 15 reconditionné', 'le reconditionné reste')
+  exige(t('Mini-caméra DJI étanche IP68 (fiche BigBuy « Adaptateur Dji »)') === 'Mini-caméra DJI étanche IP68', 'parenthèse fournisseur retirée')
+  exige(t('Claviers en gros - Grossiste et Fournisseur Dropshipping') === 'Claviers', 'page grossiste retirée')
+  exige(t('Trottinette électrique 350 W') === 'Trottinette électrique 350 W', 'un titre sain ne bouge pas')
+  const casques = produitsUniques(produitsNettoyes([{ ...rapport.produits[0], rang: 6, titre: 'Casque audio Philips TAK4206PK/00', prixVente: 99 }, { ...rapport.produits[0], rang: 9, titre: 'Casque Philips TAK4206PK/00', prixVente: 49 }]))
+  exige(casques.length === 1, 'même code modèle : une seule ligne', JSON.stringify(casques.map((p) => p.titre)))
+  exige(produitsUniques(produitsNettoyes([{ ...rapport.produits[0], titre: 'Caméra 4K/60fps A' }, { ...rapport.produits[0], titre: 'Caméra 4K/60fps B' }])).length === 2, 'une caractéristique n’est pas un code modèle')
+  const jargon = sansMentionsPrivees([
+    'Le quota de recherche web (WebSearch) de la session était déjà épuisé (0/200 restant) avant le début de cette recherche ; tout a donc été fait par consultation directe.',
+    '*Note import : les fiches marquées `url` sont à importer à la main, lignes `extension` par l’extension.*',
+    'Les champs purchase_price, estimated_landed_cost_france, marges et ROI valent donc null.',
+    '- Contrefacon flagships sur canaux B2B chinois non verifies',
+    '**Segmentation prix observée en direct sur AliExpress** (prix TTC = coût d’achat) :',
+    '- **< 30 €** : accessoires et étuis (6,59 € à 18,49 €) — marge 54-63 %.',
+    '- **290-500 €** : DJI authentiques — marge resserrée à 24-32 %.',
+    '',
+    '**Ce qui sature.** Les rouleaux nus se vendent à 1-3 € en magasin, avec une marge difficile à défendre. Mieux vaut les proposer en kit complet.',
+    'Le marché croît de 9 %.',
+  ].join('\n'))
+  exige(!/quota|WebSearch|consultation directe|url|purchase|B2B|30 €|290|sature|Mieux vaut/.test(jargon) && jargon.includes('Le marché croît de 9 %.'), 'jargon interne, liste sous intro privée, orphelins', jargon)
+  exige(pourquoiPublic('Bon produit d’appel, prix hors fret international, voir note') === 'Bon produit d’appel', '« voir note » vers une note disparue', pourquoiPublic('Bon produit d’appel, prix hors fret international, voir note'))
+  exige(pourquoiPublic('Micro et Wi-Fi, prix non public sans compte pro, estimé') === 'Micro et Wi-Fi', 'prix non public, compte pro')
+  const idees = texteRepare('- {"idea":"Landing page comparatif flagship 2026","categorie":"facile a tester"}')
+  exige(idees === '- Landing page comparatif flagship 2026 (facile à tester)', 'idées de business en liste lisible', idees)
 }
 
 if (echecs) {
