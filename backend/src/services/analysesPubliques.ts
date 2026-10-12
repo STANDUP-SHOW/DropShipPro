@@ -29,6 +29,7 @@
  *   /analyses/<AAAA-MM-JJ>/                          l'édition du jour : toutes les analyses et leurs produits gagnants
  *   /analyses/sitemap.xml
  */
+import { createHash } from 'node:crypto'
 import { CATEGORIES, categorieDe, type ProduitRapport } from './marketReports.js'
 
 export const SITE = 'https://www.drop-shipper.fr'
@@ -377,11 +378,11 @@ const SECTION_PRIVEE = /sourcing|battle|achat|fournisseur|^\s*(\d+\s*[.)]\s*)?so
 const FOURNISSEUR_NOMME =
   /aliexpress|alibaba|\b1688\b|cj\s?drop|cjdropshipping|\btemu\b|\bshein\b|bigbuy|\baccio\b|dhgate|banggood|spocket|zendrop|syncee|vidaxl|made[-\s]in[-\s]china|global\s?sources|taobao|joybuy|lightinthebox|ankorstore|fournisseur/i
 // « achat » alone is the shopper's purchase (« 51 % des achats sont déclenchés par une panne »), not ours.
-const TERME_ACHAT = /prix\s*(d['’ ]?)?achat|achat\s*(unitaire|en\s*lot|group[ée]|local)|co[uû]t|marge|\broi\b|revient|\brendu\b|transport compris|[ée]chantillon|\bfret\b/i
+const TERME_ACHAT = /prix\s*(d['’ ]?)?achat|achat\s*(unitaire|en\s*lot|group[ée]|local)|co[uû]t|marge|\broi\b|revient|\brendue?s?\b|transport compris|[ée]chantillon|\bfret\b|achat\s*(à|a|de|pour)\s*\d|€\s*d['’]\s*achat|\bachet[ée]e?s?\s+(au|à|en|chez)\b|d[ée]placement/i
 const MONTANT = /\d\s*(€|eur\b|euros?\b)|€\s*\d/i
 const MARGE_PCT = /(marge|\broi\b)[^.;]{0,40}\d\s*%|\d\s*%[^.;]{0,20}(de\s*)?(marge|\broi\b)/i
 /** A ceiling the seller should buy under (« ≤ 4,13 € », « objectif 12,25 € ») is a buying price whatever the words around it. */
-const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif)\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max/i
+const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif|n[ée]goci\w*\s+(sous|à|a|au\s+plus))\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max|\d\s*€\s*nets?\b/i
 /** A supplier's name, a foreign-currency price, a buying ceiling, or a buying term next to an amount (« coût rendu 18 € »). */
 const estPrivee = (texte: string) =>
   FOURNISSEUR_NOMME.test(texte) ||
@@ -397,17 +398,60 @@ const estPrivee = (texte: string) =>
  * label (« Produit à éviter : ») stays with what is left of it; a line left
  * empty goes.
  */
+/**
+ * What a line says about the report's own workings, not the market: a pointer
+ * to a table the page does not show, to another study or to the marketing
+ * file, the share of a test budget spent on stock (« dont 511 € de drones
+ * d'occasion »), a buying qualifier on a budget (« hors frais de port
+ * Alibaba »), an unrepaired buying price in a table (« 50 € (brut) »).
+ */
+function publiable(ligne: string): string {
+  let l = ligne
+    .replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (/bon de commande|plan de test|tableau\s*\d|identique à l['’ ]?étude|étude\s+[A-ZÉ]/i.test(dedans) ? '' : m))
+    .replace(/voir le fichier marketing/gi, (m) => `${m[0]}oir l'analyse marketing du même jour`)
+  if (/budget/i.test(l)) l = l.replace(/,?\s*dont\s+(environ\s+)?\d[^,.;()]*€[^,.;()]*/gi, (m) => (/\s$/.test(m) ? ' ' : '')).replace(/\s+hors\s+[^.;,()]*/gi, (m) => (estPrivee(m) ? (/\s$/.test(m) ? ' ' : '') : m))
+  if (l.trim().startsWith('|')) l = l.replace(/\|[^|]*\(brut\)[^|]*(?=\|)/gi, '| — ')
+  return l
+}
+
+/**
+ * The notes under a bundle table explain costs the page no longer shows
+ * (« Les bundles additionnent les coûts unitaires repris du top 20 ») : those
+ * sentences go, the rest of the note stays.
+ */
+export function sansNotesDeCout(corps: string): string {
+  return corps
+    .split('\n')
+    .map((l) => {
+      if (/^\s*(\||#)/.test(l) || !l.trim()) return l
+      const garde = l.split(/(?<=[.!?])\s+/).filter((phrase) => !/co[uû]ts?\b|rentab|pas\s+compt[ée]/i.test(phrase))
+      return garde.length ? garde.join(' ') : null
+    })
+    .filter((l): l is string => l !== null)
+    .join('\n')
+}
+
+// A bullet's label that names a list (« Éviter : a, b, c ») : each item is weighed alone, the first one too.
+const LIBELLE_LISTE = /^\s*(\*\*)?\s*(éviter|à éviter|liste de surveillance|négocier|acheter maintenant|quantités)/i
+
 export function sansMentionsPrivees(corps: string): string {
   const sortie: string[] = []
   let dansCode = false
+  // A lead-in that counts its list (« Pour un revendeur, trois constats : ») and whether an item of it was dropped.
+  let annonce = -1
+  const recomptees = new Set<number>()
   for (const brute of corps.replace(/\r\n/g, '\n').split('\n')) {
     if (/^\s*```/.test(brute)) dansCode = !dansCode
-    if (dansCode || !estPrivee(brute)) {
-      sortie.push(brute)
+    const estPuce = /^\s*(?:[-*+]|\d+[.)])\s+/.test(brute)
+    if (!dansCode && brute.trim() && !estPuce) annonce = /:\s*$/.test(brute) ? sortie.length : -1
+    // A pointer to a table the public page does not show (« bon de commande en « Bundles » ») goes, the sentence stays.
+    const visible = dansCode ? brute : publiable(brute)
+    if (dansCode || !estPrivee(visible)) {
+      sortie.push(visible)
       continue
     }
-    if (brute.trim().startsWith('|')) continue
-    const ligne = brute.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (estPrivee(dedans) ? '' : m))
+    if (visible.trim().startsWith('|')) continue
+    const ligne = visible.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (estPrivee(dedans) ? '' : m))
     if (!estPrivee(ligne)) {
       sortie.push(ligne)
       continue
@@ -417,24 +461,44 @@ export function sansMentionsPrivees(corps: string): string {
     const lib = /^([^:;.]{1,140}?)\s?:\s+(.*)$/.exec(texte)
     const libelle = lib && !estPrivee(lib[1]) ? lib[1] : ''
     if (libelle) texte = lib![2]
+    // A label that talks margin or buying (« …gardent une marge, faible : environ 3,34 € nets ») makes its amounts private.
+    const prive = (morceau: string) => estPrivee(morceau) || (TERME_ACHAT.test(libelle) && MONTANT.test(morceau))
     // After a label the text is often a list (« À surveiller : a, b, c ») : each item is weighed alone…
-    const reste = texte
-      .split(/(?<=[.!?;])\s+/)
-      .map((morceau) =>
-        // …unless the first item is the private one: then the rest qualifies it (« …sur AliExpress, coût rendu supérieur… »).
-        libelle && estPrivee(morceau) && !estPrivee(morceau.split(/,\s+(?![^()]*\))/)[0])
-          ? morceau
-              .split(/,\s+(?![^()]*\))/)
-              .filter((element) => !estPrivee(element))
-              .join(', ')
-              .replace(/[^.!?;]$/, (fin) => fin + (/[.!?;]$/.exec(morceau)?.[0] ?? ''))
-          : morceau,
-      )
-      .filter((morceau) => morceau.trim() && !estPrivee(morceau))
+    const parListe = (morceau: string) =>
+      morceau
+        .split(/,\s+(?![^()]*\))/)
+        .filter((element) => !prive(element))
+        .join(', ')
+        .replace(/[^.!?;]$/, (fin) => fin + (/[.!?;]$/.exec(morceau)?.[0] ?? ''))
+    const morceaux = texte.split(/(?<=[.!?;])\s+/).map((morceau) => {
+      if (!libelle || !prive(morceau)) return morceau
+      if (LIBELLE_LISTE.test(libelle) || !prive(morceau.split(/,\s+(?![^()]*\))/)[0])) {
+        // …unless the first item is the private one: then the rest qualifies it (« …sur AliExpress, coût rendu supérieur… »),
+        // and a remnant too short to stand (« En boutique. ») goes with it.
+        const garde = parListe(morceau)
+        return LIBELLE_LISTE.test(libelle) || garde.split(/\s+/).length >= 4 ? garde : morceau
+      }
+      return morceau
+    })
+    const premierRetire = !!morceaux.length && (!morceaux[0].trim() || prive(morceaux[0]))
+    const reste = morceaux
+      .filter((morceau) => morceau.trim() && !prive(morceau))
       .join(' ')
       .replace(/[\s;,]+$/, '')
       .trim()
-    if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(`${puce}${libelle ? `${libelle} : ` : ''}${reste}`)
+      .replace(/[^.!?:…]$/, (fin) => fin + '.')
+      .replace(/\s*;\s+(?=[A-ZÀ-Ý])/g, '. ')
+    // A claim in bold (« **Importer des drones ne marche pas** : le Neo 2 coûte… ») stands alone once its figures go,
+    // and what follows a dropped first sentence is a new sentence, not the label's explanation.
+    const affirmation = /\*\*/.test(libelle)
+    const nouvellePhrase = premierRetire && (affirmation || !libelle)
+    if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(`${puce}${libelle ? (nouvellePhrase ? `${libelle}. ` : `${libelle} : `) : ''}${nouvellePhrase ? reste.charAt(0).toUpperCase() + reste.slice(1) : libelle && premierRetire ? reste.replace(/^([A-ZÀ-Ý])(?=[a-zà-ÿ])/, (c) => c.toLowerCase()) : reste}`)
+    else if (affirmation) sortie.push(`${puce}${libelle.replace(/[\s,;]+$/, '')}.`)
+    else if (estPuce && annonce >= 0) recomptees.add(annonce)
+  }
+  // « trois constats » over a list that lost one: the count goes, the words stay.
+  for (const i of recomptees) {
+    sortie[i] = sortie[i].replace(/\b(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|\d+)\s+(?=[a-zà-ÿ])/i, '')
   }
   return sortie.join('\n')
 }
@@ -470,12 +534,18 @@ export function sansIntertitresVides(corps: string): string {
   return lignes.join('\n')
 }
 
-export function sansTableauxPrives(corps: string): { corps: string; retires: number } {
+export function sansTableauxPrives(corps: string, colonnes = false): { corps: string; retires: number } {
   const lignes = corps.replace(/\r\n/g, '\n').split('\n')
   const sortie: string[] = []
   let retires = 0
   for (let i = 0; i < lignes.length; ) {
     if (lignes[i].trim().startsWith('|') && ENTETE_PRIVEE.test(lignes[i])) {
+      const elague = colonnes ? sansColonnesPrivees(lignes, i) : null
+      if (elague) {
+        sortie.push(...elague.lignes)
+        i = elague.fin
+        continue
+      }
       while (i < lignes.length && lignes[i].trim().startsWith('|')) i++
       while (sortie.length && !sortie[sortie.length - 1].trim()) sortie.pop()
       if (sortie.length && /^#{3,}\s.*produits/i.test(sortie[sortie.length - 1])) sortie.pop()
@@ -485,6 +555,25 @@ export function sansTableauxPrives(corps: string): { corps: string; retires: num
     sortie.push(lignes[i++])
   }
   return { corps: sortie.join('\n'), retires }
+}
+
+/**
+ * A bundle table (« Bundle | Contenu | Coût rendu | Prix de vente | Marge | ROI | Cible ») loses its cost
+ * columns, not its rows: the « Meilleur bundle » of the Verdict must still be found on the page.
+ */
+function sansColonnesPrivees(lignes: string[], debut: number): { lignes: string[]; fin: number } | null {
+  let fin = debut
+  while (fin < lignes.length && lignes[fin].trim().startsWith('|')) fin++
+  const cases = (l: string) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim())
+  const entete = cases(lignes[debut])
+  if (!/bundle/i.test(entete[0])) return null
+  const garder = entete.map((t, k) => k === 0 || !ENTETE_PRIVEE.test(t))
+  if (garder.filter(Boolean).length < 3 || fin - debut < 3) return null
+  const sortie = lignes.slice(debut, fin).map((l, n) => {
+    const c = cases(l).filter((_, k) => garder[k])
+    return `| ${(n === 1 ? c.map(() => '---') : c.map((x) => x.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (TERME_ACHAT.test(dedans) || estPrivee(dedans) ? '' : m))).map((x) => (n > 1 && estPrivee(x) ? '—' : x))).join(' | ')} |`
+  })
+  return { lignes: sortie, fin }
 }
 
 /** Le bloc « N produits proposés » : celui qui porte les adresses fournisseur. Jamais rendu tel quel. */
@@ -658,8 +747,8 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
       if (estBlocProduits(b.titre, b.corps)) {
         return `<h2 id="produits">${esc(b.titre.replace(/proposés/i, 'gagnants'))}</h2>${tableauProduitsPublic(r.produits)}`
       }
-      const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps)
-      const corps = sansIntertitresVides(sansMentionsPrivees(sansTableaux))
+      const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps, /bundle/i.test(b.titre))
+      const corps = sansIntertitresVides(sansMentionsPrivees(/bundle/i.test(b.titre) ? sansNotesDeCout(sansTableaux) : sansTableaux))
       // Sans produits structurés à montrer à la place, le lecteur sait au moins que la liste existe.
       const garde =
         retires && !r.produits.length
@@ -920,4 +1009,48 @@ ${[...categories.entries()].map(([id, mod]) => ligne(cheminCategorie(id), mod, '
 ${rapports.map((r) => ligne(cheminRapport(r), r.updatedAt, '0.6', 'monthly')).join('\n')}
 </urlset>
 `
+}
+
+// --- La date de modification ----------------------------------------------------
+
+/**
+ * What a reader sees of a report, as a fingerprint: the page without its own
+ * dates and without its « other reports » links. A filter change that alters
+ * the public text changes it; a redeploy that alters nothing does not.
+ */
+export function empreintePublique(r: RapportPublic): string {
+  const page = pageRapport({ ...r, updatedAt: new Date(0) }, [])
+  return createHash('sha256').update(page).digest('hex').slice(0, 20)
+}
+
+export type RendusConnus = Record<string, { empreinte: string; le: string }>
+
+/**
+ * article:modified_time and the sitemap's lastmod follow the public text, not
+ * only the data (12/10/2026: #76 changed six pages, their date stayed put).
+ * A known fingerprint keeps its date; a new one is dated now. A report seen
+ * for the first time keeps its data date, except a Drive import, whose public
+ * text was rewritten by the filters of that evening.
+ */
+export function datesPubliques(
+  lignes: Array<{ id: string; updatedAt: Date; empreinte: string; importeDrive?: boolean }>,
+  connus: RendusConnus,
+  maintenant = new Date(),
+): { dates: Map<string, Date>; connus: RendusConnus; change: boolean } {
+  const suivants: RendusConnus = {}
+  const dates = new Map<string, Date>()
+  let change = false
+  for (const l of lignes) {
+    const avant = connus[l.id]
+    let le: Date
+    if (avant && avant.empreinte === l.empreinte) le = new Date(avant.le)
+    else {
+      le = avant || l.importeDrive ? maintenant : l.updatedAt
+      change = true
+    }
+    suivants[l.id] = { empreinte: l.empreinte, le: le.toISOString() }
+    dates.set(l.id, l.updatedAt > le ? l.updatedAt : le)
+  }
+  if (Object.keys(connus).some((id) => !(id in suivants))) change = true
+  return { dates, connus: suivants, change }
 }

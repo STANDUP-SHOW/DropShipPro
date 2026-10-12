@@ -1650,3 +1650,4 @@ perdant » était en ligne. `updated_at` ne bouge que si le contenu bouge (le re
 le sitemap). La marge affichée vient de `margin_pct` ou des prix : la colonne `margin` est en euros chez
 MarketSpy (« marge 105 % » affiché). Liste des produits : un seul bouton d'import, le moins cher (12, ou
 extension 18). Banc : `backend/check-rapports-marketspy.cjs`.
+- 12/10 soir : la date de modification d'une page /analyses (article:modified_time, lastmod) suit le texte PUBLIC : empreinte du rendu gardée dans `storage/rendus-publics.json` (volume), `datesPubliques` dans analysesPubliques.ts. Changer un filtre public fait avancer la date des seules pages touchées.
