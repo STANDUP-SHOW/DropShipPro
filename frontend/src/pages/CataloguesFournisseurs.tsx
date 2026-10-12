@@ -263,7 +263,7 @@ export default function CataloguesFournisseurs() {
         const r = await api.fileImportAjouter([
           { url: cible.url, titre: cible.titre, fournisseur: blocCible?.label, mode: 'extension', origine: 'catalogues' },
         ])
-        setImportCible(r.ajoutes ? "Fiche envoyée à l'extension." : "Déjà dans la file de l'extension.")
+        setImportCible(r.ajoutes ? "Fiche envoyée à l'extension : importez-la depuis sa « File d'import du site »." : "Déjà dans la file de l'extension.")
       } else {
         const r = await api.importBatch([cible.url])
         setImportCible(

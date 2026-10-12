@@ -53,6 +53,8 @@ const HOTES = [
 ]
 
 let annonces = null
+/** Lignes de la file d'import du site encore à importer ; `null` tant qu'elle n'est pas lue. */
+let fileAttente = null
 let filtre = ''
 let photoActive = 0
 
@@ -224,6 +226,11 @@ function montrerListe(plateforme) {
       📦 Créer une liste d'import groupé
     </button>
 
+    <!-- Les fiches envoyées depuis le site (rapports, catalogues), à importer ici. -->
+    <button id="ouvrir-file" style="margin:-4px 0 10px;width:100%">
+      📥 File d'import du site${fileAttente ? ` (${fileAttente} à importer)` : ''}
+    </button>
+
     <input id="search" type="search" placeholder="Chercher une annonce…" value="${echapper(filtre)}" />
 
     ${
@@ -266,6 +273,13 @@ function montrerListe(plateforme) {
     await chrome.storage.local.set({ lotOuvert: true })
     montrerLot(app, async () => {
       await chrome.storage.local.remove('lotOuvert')
+      demarrer()
+    })
+  })
+
+  document.getElementById('ouvrir-file').addEventListener('click', () => {
+    montrerFile(app, () => {
+      fileAttente = null
       demarrer()
     })
   })
@@ -370,6 +384,16 @@ async function demarrer() {
     } catch (err) {
       app.innerHTML = `<p class="error">${echapper(err.message)}</p>`
       return
+    }
+  }
+
+  if (fileAttente === null) {
+    try {
+      const file = await appel('/api/market-reports/file')
+      fileAttente = Array.isArray(file) ? file.filter((l) => l.status !== 'IMPORTE').length : 0
+    } catch {
+      // La file est un plus : son absence ne doit pas cacher les annonces.
+      fileAttente = 0
     }
   }
 

@@ -304,6 +304,69 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.local.remove(`job_${tabId}`))
 
+/** Reads the product of one tab, injecting the capture scripts if they are not there yet. */
+async function dspReleverOnglet(tabId) {
+  const demander = () => chrome.tabs.sendMessage(tabId, { type: 'dsp-relever-pour-lot' })
+  return demander().catch(async () => {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [
+        'config.js',
+        'content/fill-helpers.js',
+        'content/image-scan.js',
+        'content/adapters.js',
+        'content/photo-preselect.js',
+        'content/capture.js',
+      ],
+    })
+    // Le monde de la page, pour les variantes : même raison qu'à
+    // l'enregistrement permanent.
+    await chrome.scripting
+      .executeScript({ target: { tabId }, files: ['content/aliexpress-sku.js'], world: 'MAIN' })
+      .catch(() => undefined)
+    return demander()
+  })
+}
+
+/** Resolves once the tab has finished loading, or rejects after `delai` ms. */
+function dspAttendreChargement(tabId, delai) {
+  return new Promise((resolve, reject) => {
+    const fin = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(ecoute)
+      reject(new Error("La page n'a pas fini de charger."))
+    }, delai)
+    function ecoute(id, changement) {
+      if (id !== tabId || changement.status !== 'complete') return
+      clearTimeout(fin)
+      chrome.tabs.onUpdated.removeListener(ecoute)
+      resolve()
+    }
+    chrome.tabs.onUpdated.addListener(ecoute)
+    chrome.tabs
+      .get(tabId)
+      .then((t) => {
+        if (t.status === 'complete') ecoute(tabId, { status: 'complete' })
+      })
+      .catch(() => undefined)
+  })
+}
+
+/** Opens `url` in the foreground, reads its product, closes the tab and gives focus back. */
+async function dspReleverAdresse(url) {
+  const [avant] = await chrome.tabs.query({ active: true, currentWindow: true })
+  const onglet = await chrome.tabs.create({ url, active: true })
+  try {
+    await dspAttendreChargement(onglet.id, 45000)
+    // Le prix et les options des sites en JavaScript arrivent après « complete ».
+    await new Promise((r) => setTimeout(r, 2500))
+    const reponse = await dspReleverOnglet(onglet.id)
+    return reponse ?? { ok: false, error: 'Page muette' }
+  } finally {
+    await chrome.tabs.remove(onglet.id).catch(() => undefined)
+    if (avant?.id) await chrome.tabs.update(avant.id, { active: true }).catch(() => undefined)
+  }
+}
+
 /*
  * Le popup demande l'enregistrement du bouton AVANT de recharger l'onglet.
  *
@@ -464,31 +527,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
    * échec que le vendeur ne saurait pas corriger.
    */
   if (message?.type === 'dsp-relever-onglet') {
-    const tabId = message.tabId
-    const demander = () =>
-      chrome.tabs.sendMessage(tabId, { type: 'dsp-relever-pour-lot' })
-
-    demander()
-      .catch(async () => {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: [
-            'config.js',
-            'content/fill-helpers.js',
-            'content/image-scan.js',
-            'content/adapters.js',
-            'content/photo-preselect.js',
-            'content/capture.js',
-          ],
-        })
-        // Le monde de la page, pour les variantes : même raison qu'à
-        // l'enregistrement permanent.
-        await chrome.scripting
-          .executeScript({ target: { tabId }, files: ['content/aliexpress-sku.js'], world: 'MAIN' })
-          .catch(() => undefined)
-        return demander()
-      })
+    dspReleverOnglet(message.tabId)
       .then((reponse) => sendResponse(reponse ?? { ok: false, error: 'Page muette' }))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || 'Relevé impossible' }))
+    return true
+  }
+
+  /*
+   * Relève une ADRESSE, pour la file d'import : ouvre la fiche, la lit, ferme
+   * l'onglet.
+   *
+   * L'onglet est ouvert au premier plan, pas en arrière-plan : Chrome ne
+   * dessine pas un onglet caché, et AliExpress ou Temu ne montent leur galerie
+   * et leur prix qu'au défilement d'une page dessinée. Le vendeur voit donc les
+   * fiches passer, et un captcha éventuel s'affiche devant lui au lieu d'être
+   * contourné.
+   */
+  if (message?.type === 'dsp-relever-adresse') {
+    dspReleverAdresse(message.url)
+      .then((reponse) => sendResponse(reponse))
       .catch((err) => sendResponse({ ok: false, error: err?.message || 'Relevé impossible' }))
     return true
   }
