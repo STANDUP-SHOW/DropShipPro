@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Plug } from 'lucide-react'
 
-/** L'accent du bloc, repris des blocs du tableau de bord (violet). */
-const ACCENT = '#a78bfa'
+/** L'accent du bloc : le rose de la charte (refonte du 12/10/2026). */
+const ACCENT = '#e85290'
 
 /**
  * Le logo MCP, ou son repli.
@@ -61,7 +61,7 @@ function LogoMCP({ largeur, minimum }: { largeur: number; minimum: number }) {
  * un seul endroit le jour où la première connexion MCP est en ligne.
  *
  * **Refondu le 19/09/2026** sur le modèle des blocs du tableau de bord
- * (`BlocStats`) : verre dépoli pleine largeur, en-tête coloré « Infos MCP »
+ * (`BlocStats`) : panneau pleine largeur (#191E2E depuis le 12/10), en-tête coloré « Infos MCP »
  * avec son icône dans une pastille pleine, filet de la même couleur dessous.
  * Un encadré violet sans titre au milieu d'une page se lisait comme un
  * avertissement ; le même contenu sous un en-tête de section se lit comme une
@@ -71,13 +71,12 @@ function LogoMCP({ largeur, minimum }: { largeur: number; minimum: number }) {
 export function BandeauMCP({ compact = false }: { compact?: boolean }) {
   return (
     <section
-      className={`w-full rounded-2xl border border-white/[0.12] bg-white/[0.05] backdrop-blur-2xl ${
+      className={`w-full rounded-2xl border border-[var(--trait)] bg-[var(--panneau)] ${
         compact ? 'mt-3 p-3' : 'mt-4 p-4'
       }`}
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 40px rgba(0,0,0,0.35)' }}
     >
       <header className="flex items-center gap-2.5 border-b pb-2" style={{ borderColor: `${ACCENT}33` }}>
-        <span className="grid h-6 w-6 place-items-center rounded-md text-black/80" style={{ backgroundColor: ACCENT }}>
+        <span className="grid h-6 w-6 place-items-center rounded-md text-white" style={{ backgroundColor: ACCENT }}>
           <Plug size={14} />
         </span>
         <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: ACCENT }}>
@@ -90,8 +89,8 @@ export function BandeauMCP({ compact = false }: { compact?: boolean }) {
       <div className={`flex items-stretch gap-4 ${compact ? 'mt-2.5' : 'mt-3'}`}>
         <LogoMCP largeur={compact ? 56 : 104} minimum={compact ? 44 : 72} />
         <div className={compact ? 'text-xs leading-relaxed' : 'text-sm leading-relaxed'}>
-          <p className="font-bold text-purple-200">L'avenir des connecteurs est au MCP</p>
-          <p className="mt-1 text-gray-300">
+          <p className="font-bold text-[var(--texte)]">L'avenir des connecteurs est au MCP</p>
+          <p className="mt-1 text-[var(--texte-2)]">
             Le <b>Model Context Protocol</b> est le protocole ouvert par lequel une IA se branche
             directement sur un service — fournisseur, place de marché, régie — sans clé à recopier ni
             formulaire à remplir. <b>Nous étudions et développons actuellement des solutions de
