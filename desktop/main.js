@@ -25,6 +25,7 @@ const { app, BrowserWindow, WebContentsView, ipcMain, safeStorage, shell, Notifi
 const config = require('./lib/config')
 const { client } = require('./lib/api')
 const file = require('./lib/file')
+const connexion = require('./lib/connexion')
 const plafonds = require('./lib/plafonds')
 const { traiter } = require('./lib/executeur')
 const { creerPilote } = require('./lib/pilote-electron')
@@ -60,6 +61,7 @@ let tray = null
 let dernierPresse = null
 let dernierPartage = null
 let liaisonEnCours = false
+const etatsConnexion = connexion.creerEtats()
 /** Plateformes vues sans session : la tournée automatique n'y retourne pas tant que le vendeur n'a pas rouvert la plateforme. */
 const sansSession = new Set()
 
@@ -407,6 +409,42 @@ async function relierDepuisLeSite() {
   }
 }
 
+/** Ouvre la page de connexion du site dans le navigateur du poste ; le retour arrive par dropshipper://connexion. */
+function connecterParLeNavigateur() {
+  shell.openExternal(connexion.adresseConnexion(SITE, etatsConnexion.nouveau()))
+  if (Notification.isSupported()) new Notification({ title: 'DropShipper', body: 'Connexion ouverte dans votre navigateur : connectez-vous, puis autorisez l’ouverture de DropShipper Desktop.' }).show()
+}
+
+/** Échange le code rendu par le site contre une session, posée dans la fenêtre du site ; le poste se relie ensuite tout seul. */
+async function finirConnexion({ code, etat }) {
+  if (fenetre && !fenetre.isDestroyed()) {
+    fenetre.show()
+    fenetre.focus()
+  }
+  if (!etatsConnexion.consommer(etat)) {
+    derniereErreur = 'Lien de connexion inconnu ou expiré : relancez « Continuer avec Google » dans cette fenêtre.'
+    envoyer('etat', instantane())
+    return
+  }
+  try {
+    const r = await fetch(`${cfg.apiBase}/api/desktop/echange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'DropShipperDesktop' },
+      body: JSON.stringify({ code, etat }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || !j.token) throw new Error(j.error || `Connexion impossible (HTTP ${r.status}).`)
+    if (!vueSite.webContents.getURL().startsWith(SITE)) await vueSite.webContents.loadURL(SITE)
+    await vueSite.webContents.executeJavaScript(`localStorage.setItem("droppost_token", ${JSON.stringify(j.token)})`, true)
+    panneauVisible = false
+    placerVues()
+    await vueSite.webContents.loadURL(`${SITE}/dashboard`)
+  } catch (err) {
+    derniereErreur = err.message
+    envoyer('etat', instantane())
+  }
+}
+
 function creerFenetre() {
   fenetre = new BrowserWindow({
     width: 1360,
@@ -423,7 +461,9 @@ function creerFenetre() {
   vueSite = new WebContentsView({ webPreferences: { partition: 'persist:site', contextIsolation: true, nodeIntegration: false, sandbox: true } })
   vueSite.webContents.setWindowOpenHandler(({ url }) => {
     // Le site reste dans la fenêtre ; les liens extérieurs (fournisseurs, places de marché) s'ouvrent dans le navigateur du poste.
-    if (url.startsWith(SITE)) vueSite.webContents.loadURL(url)
+    // « Continuer avec Google » : Google refuse sa connexion ici, elle passe par le navigateur du poste.
+    if (connexion.estConnexionGoogle(url)) connecterParLeNavigateur()
+    else if (url.startsWith(SITE)) vueSite.webContents.loadURL(url)
     else if (file.adresseSure(url)) shell.openExternal(url)
     return { action: 'deny' }
   })
@@ -509,6 +549,8 @@ function surveillerPressePapiers() {
 function traiterArguments(argv) {
   const brut = argv.find((a) => a.startsWith('dropshipper://'))
   if (!brut) return
+  const retour = connexion.lireRetour(brut)
+  if (retour) return finirConnexion(retour)
   try {
     const u = new URL(brut)
     const url = u.searchParams.get('url')

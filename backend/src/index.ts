@@ -7,6 +7,7 @@ import { adminRouter } from './routes/admin.js'
 import { productsRouter } from './routes/products.js'
 import { ordersRouter } from './routes/orders.js'
 import { settingsRouter } from './routes/settings.js'
+import { desktopConnexionRouter } from './routes/desktopConnexion.js'
 import { publicRouter } from './routes/public.js'
 import { betaRouter } from './routes/beta.js'
 import { vitrineRouter } from './routes/vitrine.js'
@@ -141,6 +142,7 @@ app.use('/api/admin', adminRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/settings', settingsRouter)
+app.use('/api/desktop', desktopConnexionRouter)
 // Le retour d'autorisation AliExpress : public, vérifié par état signé.
 app.use('/api/aliexpress', aliexpressAuthRouter)
 // « Connecter mon compte eBay » : départ authentifié, retour public vérifié par état signé.

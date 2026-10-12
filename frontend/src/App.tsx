@@ -60,6 +60,7 @@ import Rayon from './pages/Rayon'
 import Guide from './pages/Guide'
 import Newsletter from './pages/Newsletter'
 import Partager from './pages/Partager'
+import ConnexionDesktop, { connexionDesktopEnAttente } from './pages/ConnexionDesktop'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -75,6 +76,9 @@ function Protected({ children }: { children: React.ReactNode }) {
   // Un partage reçu du téléphone avant la connexion attend ici : il part maintenant.
   const partageEnAttente = lirePartageEnAttente()
   if (partageEnAttente && window.location.pathname !== '/partager') return <Navigate to={`/partager?${partageEnAttente}`} replace />
+  // Une connexion demandée par DropShipper Desktop attend ici : elle reprend maintenant.
+  const desktopEnAttente = connexionDesktopEnAttente()
+  if (desktopEnAttente) return <Navigate to={`/connexion-desktop?${desktopEnAttente}`} replace />
   return <>{children}</>
 }
 
@@ -161,6 +165,7 @@ export default function App() {
           {/* Public : ce que les API marketing débloquent (25/09/2026), lisible avant de créer un compte. */}
           <Route path="/api-power" element={<ApiPower />} />
           <Route path="/partager" element={<Partager />} />
+          <Route path="/connexion-desktop" element={<ConnexionDesktop />} />
           {/* Public : l'espace affilié a ses propres comptes, payés en euros (07/10/2026). */}
           <Route path="/affiliation" element={<AffiliationAccueil />} />
           <Route path="/affiliation/connexion" element={<AffiliationConnexion />} />
