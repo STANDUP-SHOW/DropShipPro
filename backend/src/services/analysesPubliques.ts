@@ -231,7 +231,7 @@ export function titreRapport(r: Pick<RapportPublic, 'titre' | 'type' | 'day' | '
   const n = r.produits.length
   const candidats =
     r.type === 'rayon'
-      ? [...(n ? [`${t} : ${n} produits gagnants (${d})`, `${t} : ${n} produits (${d})`] : []), `${t} (${d})`]
+      ? n ? [`${t} : ${n} produits (${d})`] : [`${t} (${d})`]
       : [`${t} : analyse marketing (${d})`, `${t} : marketing (${d})`, `${t} (${d})`]
   const tient = candidats.find((c) => c.length <= TITRE_MAX)
   if (tient) return tient
@@ -336,7 +336,24 @@ export function markdownEnHtml(texte: string): string {
     if (para.length) sortie.push(`<p>${enLigne(para.join(' '))}</p>`)
     else i++
   }
-  return sortie.join('\n')
+  return sortie.map((l) => (l.trim().startsWith('|') || l.trim().startsWith('```') ? l : parenthesesEquilibrees(l))).join('\n')
+}
+
+/** A dropped clause can take its « ( » with it (« Fiche /item/ vérifiée, à convertir) »): an unmatched parenthesis goes. */
+export function parenthesesEquilibrees(l: string): string {
+  if (!/[()]/.test(l) || l.includes('](')) return l
+  // A numbered item (« 1) ») keeps its marker.
+  const puce = /^\s*(?:\d+|[a-z])\)\s+/i.exec(l)?.[0] ?? ''
+  if (puce) return puce + parenthesesEquilibrees(l.slice(puce.length))
+  const garde = new Set<number>()
+  const ouvertes: number[] = []
+  for (let i = 0; i < l.length; i++) {
+    if (l[i] === '(') ouvertes.push(i)
+    else if (l[i] === ')' && ouvertes.length) { garde.add(ouvertes.pop()!); garde.add(i) }
+    // « 1) », « a) » : an inline enumeration, not a stray parenthesis.
+    else if (l[i] === ')' && /(?:^|[\s(:;,])(?:\d{1,2}|[a-zA-Z])$/.test(l.slice(0, i))) garde.add(i)
+  }
+  return [...l].filter((c, i) => (c !== '(' && c !== ')') || garde.has(i)).join('')
 }
 
 /** Le rapport découpé sur ses H2. */
@@ -685,7 +702,8 @@ export function pourquoiPublic(texte: string | null | undefined): string {
         .map((m) => m.trim().replace(/[.\s]+$/, ''))
         .filter((m) => m && !TRAHIT_ACHAT.test(m))
         .join(', ')
-      return net ? net.charAt(0).toUpperCase() + net.slice(1) : ''
+      const equilibre = parenthesesEquilibrees(net).trim()
+      return equilibre ? equilibre.charAt(0).toUpperCase() + equilibre.slice(1) : ''
     })
     .filter(Boolean)
     .join(' · ')
@@ -968,10 +986,44 @@ export function renvoisRenumerotes(texte: string, produits: ProduitPublic[]): st
     if (!nouveau.has(p.rang)) nouveau.set(p.rang, ordre.indexOf(cle) + 1)
   }
   if ([...nouveau].every(([a, b]) => a === b)) return texte
-  return texte.replace(/\b(n°)\s*(\d{1,2})\b/gi, (m, signe: string, n: string) => {
-    const vers = nouveau.get(Number(n))
-    return vers ? `${signe} ${vers}` : m
+  // « n° 3 à 11 » spans the rows its old ranks became; « n° 4 et 6 » maps each item, merged when they now share a row.
+  return texte.replace(/\bn°\s*(\d{1,2}(?:\s*(?:,|et|ou|à|-|–)\s*\d{1,2})*)\b/gi, (m, suite: string) => {
+    const vers = (n: number) => nouveau.get(n)
+    const morceaux = suite.split(/\s*(,|\bet\b|\bou\b|à|-|–)\s*/)
+    const nombres = morceaux.filter((_, i) => i % 2 === 0).map(Number)
+    const seps = morceaux.filter((_, i) => i % 2 === 1)
+    if (nombres.some((n) => !vers(n))) return m
+    const out: string[] = []
+    for (let i = 0; i < nombres.length; i++) {
+      const sep = seps[i]
+      if (sep && /^(à|-|–)$/.test(sep)) {
+        const lignes: number[] = []
+        for (let k = nombres[i]; k <= nombres[i + 1]; k++) if (vers(k)) lignes.push(vers(k)!)
+        const a = Math.min(...lignes), b = Math.max(...lignes)
+        out.push(a === b ? String(a) : `${a} ${sep} ${b}`)
+        if (seps[i + 1]) out.push(seps[i + 1] === ',' ? ',' : seps[i + 1])
+        i++
+        continue
+      }
+      const v = String(vers(nombres[i]))
+      if (!out.includes(v)) out.push(v)
+      else if (out.length && !/^\d/.test(out[out.length - 1])) out.pop()
+      if (sep) out.push(sep)
+    }
+    while (out.length && !/^\d/.test(out[out.length - 1].split(' ').pop()!)) out.pop()
+    return 'n° ' + out.join(' ').replace(/ ,/g, ',')
   })
+}
+
+/** Rows an old import read wrongly: the table header as a product, a label repeated before the name. */
+export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
+  return produits
+    .filter((p) => !/^(titre|produit|nom|name|title|#)$/i.test(p.titre.trim()))
+    .map((p) => {
+      let t = p.titre
+      for (let k = 0; k < 3; k++) t = t.replace(/^((?:\S+\s+){2,4}?)\1/i, '$1')
+      return t === p.titre ? p : { ...p, titre: t }
+    })
 }
 
 export function produitsUniques(produits: ProduitPublic[]): Array<ProduitPublic & { prixMin: number | null; prixMax: number | null }> {
@@ -1106,6 +1158,12 @@ const VERBES_ELIDES = 'acheter|essayer|offrir|utiliser|installer|attendre|écono
  */
 export function apostrophesRendues(texte: string): string {
   if (!texte || /['’]/.test(texte)) return texte
+  return apostrophesSansGarde(texte)
+}
+
+/** The same rules on any text: they only rejoin a known word glued to l/d/qu, never touch « l'effet ». */
+function apostrophesSansGarde(texte: string): string {
+  if (!texte) return texte
   const elision = new RegExp(`(?<![\\p{L}\\d])(jusqu|lorsqu|puisqu|qu|[lLdD])(${MOTS_ELIDES})(?![\\p{L}\\d])`, 'giu')
   return texte
     .replace(/(?<![\p{L}])(aujourd)(hui)(?![\p{L}])/giu, "$1'$2")
@@ -1129,7 +1187,7 @@ export function apostrophesDuTexte(texte: string): string {
   if (!texte) return texte
   return texte
     .split('\n')
-    .map((l) => (/https?:|www\.|`/.test(l) ? l : apostrophesRendues(l)))
+    .map((l) => l.split(/(`[^`]*`|\S*(?:https?:|www\.)\S*)/).map((morceau, i) => (i % 2 ? morceau : apostrophesSansGarde(morceau))).join(''))
     .join('\n')
 }
 

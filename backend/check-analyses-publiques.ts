@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -431,7 +431,7 @@ console.log('\nUne offre par fournisseur, un produit par ligne (édition du 12/1
   const r2 = { ...rapport, produits }
   const html = pageRapport(r2)
   exige((html.match(/<td>Lecteur OBD2 Vgate iCar Pro 2S<\/td>/g) ?? []).length === 1 && html.includes('39,99 à 44,99 €'), 'la page du rapport : une ligne par produit, prix en fourchette')
-  exige(titreRapport({ ...r2, titre: 'Outillage' }) === 'Outillage : 2 produits gagnants (' + titreRapport({ ...r2, titre: 'Outillage' }).split('(')[1], 'le titre compte les produits distincts')
+  exige(titreRapport({ ...r2, titre: 'Outillage' }) === 'Outillage : 2 produits (' + titreRapport({ ...r2, titre: 'Outillage' }).split('(')[1], 'le titre compte les produits distincts')
   exige(produitsUniques(produits).length === 2 && produitsUniques(produits)[0].prixMax === 44.99, 'regrouper deux fois ne change rien')
 }
 {
@@ -485,6 +485,17 @@ console.log('\nUne offre par fournisseur, un produit par ligne (édition du 12/1
   exige(apostrophesDuTexte('appel à laction final\nCalculateur de coût déncre\nà limport') === "appel à l'action final\nCalculateur de coût d'encre\nà l'import", 'l’action, d’encre, l’import')
 }
 
+{
+  const mk = (ts: string[]) => ts.map((t, i) => ({ ...rapport.produits[0], titre: t, rang: i + 1 }))
+  const prods = mk(['A', 'B', 'G1', 'G1', 'G2', 'G3', 'G4', 'G4', 'G5', 'G6', 'D1', 'D2'])
+  exige(renvoisRenumerotes('GL.iNet (n° 3 à 10), Deco (n° 11 et 12), n° 2 ou 4', prods) === 'GL.iNet (n° 3 à 8), Deco (n° 9 et 10), n° 2 ou 3', 'plages et listes suivent le regroupement')
+  exige(renvoisRenumerotes('(n° 3 et 4)', prods) === '(n° 3)', 'deux offres devenues une ligne : un seul numéro')
+  exige(parenthesesEquilibrees('Fiche /item/ vérifiée, à convertir)') === 'Fiche /item/ vérifiée, à convertir' && parenthesesEquilibrees('a (b) c') === 'a (b) c', 'une parenthèse orpheline s’en va')
+  exige(JSON.stringify(produitsNettoyes(mk(['Titre', 'Casque audio Casque audio Acer GP.HDS11.02D', 'Très très bien'])).map((p) => p.titre)) === '["Casque audio Acer GP.HDS11.02D","Très très bien"]', 'casques de septembre : ni en-tête lu comme produit, ni libellé doublé')
+  exige(apostrophesDuTexte("fiche à préciser à limport, l'effet `x/lannee`") === "fiche à préciser à l'import, l'effet `x/lannee`", 'aussi dans une ligne qui a déjà une apostrophe, jamais dans du code')
+  exige(titreRapport({ ...rapport, titre: 'Informatique — Routeurs, Wi-Fi et réseau', produits: mk(['a', 'b']) }).endsWith(': 2 produits (' + titreRapport({ ...rapport, titre: 'x', produits: mk(['a']) }).split('(')[1]), 'une seule forme de titre, avec le nombre')
+}
+
 console.log('\nLes apostrophes perdues (gaming du 07/10)')
 {
   exige(apostrophesRendues('Manettes gaming : leffet Hall, la manette de lannée') === "Manettes gaming : l'effet Hall, la manette de l'année", 'l’effet, l’année')
@@ -492,7 +503,7 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   exige(apostrophesRendues('son et lumière, la lune, le don') === 'son et lumière, la lune, le don', 'ni son, ni lune, ni don')
   exige(apostrophesRendues("Déjà lannée, l'effet") === "Déjà lannée, l'effet", 'un titre qui a déjà ses apostrophes ne bouge pas')
   exige(apostrophesDuTexte('fin dannée, près dune console, à lécran\n30 jours dessai, ce quil faut savoir avant dacheter') === "fin d'année, près d'une console, à l'écran\n30 jours d'essai, ce qu'il faut savoir avant d'acheter", 'le corps et les prompts aussi, ligne par ligne')
-  exige(apostrophesDuTexte("lavoir communal\nl'effet, dannée\nhttps://x.fr/lannee") === "lavoir communal\nl'effet, dannée\nhttps://x.fr/lannee", 'ni « lavoir », ni une ligne qui a ses apostrophes, ni un lien')
+  exige(apostrophesDuTexte("lavoir communal\nl'effet, dannée\nhttps://x.fr/lannee") === "lavoir communal\nl'effet, d'année\nhttps://x.fr/lannee", 'ni « lavoir », ni « l\'effet » retouché, ni un lien')
   const g = { ...rapport, id: 'gaming-0710', titre: 'Manettes gaming : leffet Hall', une: null, theme: 'manettes', day: '2026-10-07' } as RapportPublic
   attribuerAdresses([g])
   const avant = cheminRapport(g)
