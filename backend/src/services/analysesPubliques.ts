@@ -377,11 +377,11 @@ const SECTION_PRIVEE = /sourcing|battle|achat|fournisseur|^\s*(\d+\s*[.)]\s*)?so
 const FOURNISSEUR_NOMME =
   /aliexpress|alibaba|\b1688\b|cj\s?drop|cjdropshipping|\btemu\b|\bshein\b|bigbuy|\baccio\b|dhgate|banggood|spocket|zendrop|syncee|vidaxl|made[-\s]in[-\s]china|global\s?sources|taobao|joybuy|lightinthebox|ankorstore|fournisseur/i
 // « achat » alone is the shopper's purchase (« 51 % des achats sont déclenchés par une panne »), not ours.
-const TERME_ACHAT = /prix\s*(d['’ ]?)?achat|achat\s*(unitaire|en\s*lot|group[ée]|local)|co[uû]t|marge|\broi\b|revient|\brendu\b|transport compris|[ée]chantillon|\bfret\b/i
+const TERME_ACHAT = /prix\s*(d['’ ]?)?achat|achat\s*(unitaire|en\s*lot|group[ée]|local)|co[uû]t|marge|\broi\b|revient|\brendue?s?\b|transport compris|[ée]chantillon|\bfret\b|achat\s*(à|a|de|pour)\s*\d|€\s*d['’]\s*achat/i
 const MONTANT = /\d\s*(€|eur\b|euros?\b)|€\s*\d/i
 const MARGE_PCT = /(marge|\broi\b)[^.;]{0,40}\d\s*%|\d\s*%[^.;]{0,20}(de\s*)?(marge|\broi\b)/i
 /** A ceiling the seller should buy under (« ≤ 4,13 € », « objectif 12,25 € ») is a buying price whatever the words around it. */
-const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif)\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max/i
+const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif|n[ée]goci\w*\s+(sous|à|a|au\s+plus))\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max|\d\s*€\s*nets?\b/i
 /** A supplier's name, a foreign-currency price, a buying ceiling, or a buying term next to an amount (« coût rendu 18 € »). */
 const estPrivee = (texte: string) =>
   FOURNISSEUR_NOMME.test(texte) ||
@@ -400,14 +400,21 @@ const estPrivee = (texte: string) =>
 export function sansMentionsPrivees(corps: string): string {
   const sortie: string[] = []
   let dansCode = false
+  // A lead-in that counts its list (« Pour un revendeur, trois constats : ») and whether an item of it was dropped.
+  let annonce = -1
+  const recomptees = new Set<number>()
   for (const brute of corps.replace(/\r\n/g, '\n').split('\n')) {
     if (/^\s*```/.test(brute)) dansCode = !dansCode
-    if (dansCode || !estPrivee(brute)) {
-      sortie.push(brute)
+    const estPuce = /^\s*(?:[-*+]|\d+[.)])\s+/.test(brute)
+    if (!dansCode && brute.trim() && !estPuce) annonce = /:\s*$/.test(brute) ? sortie.length : -1
+    // A pointer to a table the public page does not show (« bon de commande en « Bundles » ») goes, the sentence stays.
+    const visible = dansCode ? brute : brute.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (/bon de commande|plan de test|tableau\s*\d/i.test(dedans) ? '' : m))
+    if (dansCode || !estPrivee(visible)) {
+      sortie.push(visible)
       continue
     }
-    if (brute.trim().startsWith('|')) continue
-    const ligne = brute.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (estPrivee(dedans) ? '' : m))
+    if (visible.trim().startsWith('|')) continue
+    const ligne = visible.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (estPrivee(dedans) ? '' : m))
     if (!estPrivee(ligne)) {
       sortie.push(ligne)
       continue
@@ -417,24 +424,31 @@ export function sansMentionsPrivees(corps: string): string {
     const lib = /^([^:;.]{1,140}?)\s?:\s+(.*)$/.exec(texte)
     const libelle = lib && !estPrivee(lib[1]) ? lib[1] : ''
     if (libelle) texte = lib![2]
+    // A label that talks margin or buying (« …gardent une marge, faible : environ 3,34 € nets ») makes its amounts private.
+    const prive = (morceau: string) => estPrivee(morceau) || (TERME_ACHAT.test(libelle) && MONTANT.test(morceau))
     // After a label the text is often a list (« À surveiller : a, b, c ») : each item is weighed alone…
     const reste = texte
       .split(/(?<=[.!?;])\s+/)
       .map((morceau) =>
         // …unless the first item is the private one: then the rest qualifies it (« …sur AliExpress, coût rendu supérieur… »).
-        libelle && estPrivee(morceau) && !estPrivee(morceau.split(/,\s+(?![^()]*\))/)[0])
+        libelle && prive(morceau) && !prive(morceau.split(/,\s+(?![^()]*\))/)[0])
           ? morceau
               .split(/,\s+(?![^()]*\))/)
-              .filter((element) => !estPrivee(element))
+              .filter((element) => !prive(element))
               .join(', ')
               .replace(/[^.!?;]$/, (fin) => fin + (/[.!?;]$/.exec(morceau)?.[0] ?? ''))
           : morceau,
       )
-      .filter((morceau) => morceau.trim() && !estPrivee(morceau))
+      .filter((morceau) => morceau.trim() && !prive(morceau))
       .join(' ')
       .replace(/[\s;,]+$/, '')
       .trim()
     if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(`${puce}${libelle ? `${libelle} : ` : ''}${reste}`)
+    else if (estPuce && annonce >= 0) recomptees.add(annonce)
+  }
+  // « trois constats » over a list that lost one: the count goes, the words stay.
+  for (const i of recomptees) {
+    sortie[i] = sortie[i].replace(/\b(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|\d+)\s+(?=[a-zà-ÿ])/i, '')
   }
   return sortie.join('\n')
 }

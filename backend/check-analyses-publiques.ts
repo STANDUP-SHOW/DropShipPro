@@ -183,6 +183,32 @@ console.log('\nConstat en ligne du 12/10/2026 au soir : plafonds d’achat, libe
   exige(visible.includes('environ 600 €'), 'le budget de test reste')
 }
 
+console.log('\nDeuxième constat du 12/10/2026 au soir : la Synthèse de réseau, les renvois, les achats chiffrés')
+{
+  const constat: RapportPublic = {
+    ...rapport,
+    body: [
+      '## Synthèse',
+      'Pour un revendeur, trois constats :',
+      '',
+      '1. **La revente de routeurs de marque importés ne marche pas** : GL.iNet vend lui-même sur Amazon.',
+      '2. **Seuls les répéteurs génériques importés par lots identiques gardent une marge**, faible : environ 3,34 € nets par lot de 2 (ROI ≈ 24 %), à condition de négocier sous 11,10 € rendus et de valider la conformité radio.',
+      '3. **Le service posé est la vraie piste.**',
+      '## Bundles recommandés',
+      'Le bundle Mini 2 est calculé avec un achat à 180 € (annonce Fly More observée) ; la sacoche n’est pas sourcée et n’est pas comptée.',
+      'Le coffret gravé exclut le coût de gravure (non vérifié) ; l’Apple Watch est comptée à 130 € d’achat.',
+      '## Décision finale',
+      '- Budget test recommandé : environ 600 € (bon de commande en « Bundles recommandés »).',
+    ].join('\n'),
+  }
+  const visible = pageRapport(constat).replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
+  exige(!/3,34|11,10|24 %|180 €|130 €/.test(visible), 'ni le net par lot, ni le plafond de négociation, ni un achat chiffré', (/[^>]*(3,34|11,10|180 €|130 €)[^<]*/.exec(visible) || [''])[0])
+  exige(visible.includes('Pour un revendeur, constats :') && !/trois constats/.test(visible), 'une liste qui perd un point ne l’annonce plus au nombre d’avant')
+  exige(visible.includes('GL.iNet vend lui-même') && visible.includes('vraie piste'), 'les autres points de la Synthèse restent')
+  exige(visible.includes('la sacoche n’est pas sourcée') && visible.includes('coût de gravure'), 'le reste de la phrase reste')
+  exige(visible.includes('environ 600 €') && !/bon de commande/.test(visible), 'un renvoi au bon de commande, retiré de la page, tombe')
+}
+
 console.log('\nLa page d’un rapport marketing')
 {
   const html = pageRapport(marketing)

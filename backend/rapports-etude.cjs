@@ -345,8 +345,9 @@ const ANGLAIS = [
   [/^social trends$/i, 'tendances sociales'],
   [/^battle sheet$/i, 'comparatif'],
   [/^don['’]?t buy$/i, 'ne pas acheter'],
+  [/^breakout$/i, 'en décollage'],
 ];
-const MOTIF_ANGLAIS = /(?<![A-Za-z0-9/._-])(executive summary|breakout candidates?|watch[-\s]?list|social trends|battle sheet|don['’]?t buy)(?![A-Za-z0-9/_-])/gi;
+const MOTIF_ANGLAIS = /(?<![A-Za-z0-9/._-])(executive summary|breakout candidates?|watch[-\s]?list|social trends|battle sheet|don['’]?t buy|breakout)(?![A-Za-z0-9/_-])/gi;
 /** A whole cell that is just a verdict: « BUY IF NEGOTIATED » -> « Acheter si négocié ». */
 function verdictCellule(texte) {
   const t = String(texte || '').trim();
