@@ -235,8 +235,10 @@ export function titreRapport(r: Pick<RapportPublic, 'titre' | 'type' | 'day' | '
       : [`${t} : analyse marketing (${d})`, `${t} : marketing (${d})`, `${t} (${d})`]
   const tient = candidats.find((c) => c.length <= TITRE_MAX)
   if (tient) return tient
-  const place = TITRE_MAX - d.length - 4
-  return `${t.slice(0, place).replace(/[\s,:;—-]+\S*$/, '')}… (${d})`
+  // A long rayon title keeps its count, like the short ones (12/10/2026).
+  const suffixe = r.type === 'rayon' && n ? ` : ${n} produits (${d})` : ` (${d})`
+  const place = TITRE_MAX - suffixe.length - 1
+  return `${t.slice(0, place).replace(/[\s,:;—-]+\S*$/, '')}…${suffixe}`
 }
 
 /** Le résumé d'une ligne de liste : le nombre de produits seulement s'il y en a. */
@@ -692,7 +694,18 @@ export function pourquoiPublic(texte: string | null | undefined): string {
 /** A product as public pages show it: one row per product, the advised price as a span when its offers differ. */
 export type ProduitPublic = ProduitRapport & { prixMin?: number | null; prixMax?: number | null; verdicts?: string }
 
-/** The public « why » of a product; a grouped one lists each verdict with its prices. */
+/** Most favourable first: buy, buy if negotiated, try, watch, do not buy. */
+function rangVerdict(v: string): number {
+  const t = v.split(/\s+·\s+/)[0].toLowerCase()
+  if (/ne pas acheter|éviter|a éviter|à éviter|passer/.test(t)) return 5
+  if (/surveill/.test(t)) return 4
+  if (/tester|décollage|candidat/.test(t)) return 3
+  if (/acheter si|négoci/.test(t)) return 2
+  if (/acheter/.test(t)) return 1
+  return 3.5
+}
+
+/** The public « why » of a product; a grouped one shows the most favourable verdict, « selon l'offre ». */
 function pourquoiAffiche(p: ProduitPublic): string {
   return p.verdicts ?? pourquoiPublic(p.pourquoi)
 }
@@ -760,7 +773,9 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
     .filter((b) => !SECTION_PRIVEE.test(b.titre))
     .map((b) => {
       if (estBlocProduits(b.titre, b.corps)) {
-        return `<h2 id="produits">${esc(b.titre.replace(/proposés/i, 'gagnants'))}</h2>${tableauProduitsPublic(r.produits)}`
+        // One row per product: the heading gives the real count (« TOP 20 » over 16 rows otherwise).
+        const titre = b.titre.replace(/proposés/i, 'gagnants').replace(/\b\d+(?=\s+produits)/i, (n) => (r.produits.length ? String(r.produits.length) : n))
+        return `<h2 id="produits">${esc(titre)}</h2>${tableauProduitsPublic(r.produits)}`
       }
       const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps, /bundle/i.test(b.titre))
       const corps = sansIntertitresVides(sansMentionsPrivees(/bundle/i.test(b.titre) ? sansNotesDeCout(sansTableaux) : sansTableaux))
@@ -940,6 +955,25 @@ ${
  * supplier). The public pages hide the supplier, so those rows read as
  * duplicates: one entry per product, with the span of advised prices.
  */
+/**
+ * The analysis refers to products by their rank (« (n° 18) »). Once offers are
+ * grouped the ranks move: each reference follows its product to its new row.
+ */
+export function renvoisRenumerotes(texte: string, produits: ProduitPublic[]): string {
+  const ordre: string[] = []
+  const nouveau = new Map<number, number>()
+  for (const p of produits) {
+    const cle = slugTitre(p.titre, 200) || p.titre
+    if (!ordre.includes(cle)) ordre.push(cle)
+    if (!nouveau.has(p.rang)) nouveau.set(p.rang, ordre.indexOf(cle) + 1)
+  }
+  if ([...nouveau].every(([a, b]) => a === b)) return texte
+  return texte.replace(/\b(n°)\s*(\d{1,2})\b/gi, (m, signe: string, n: string) => {
+    const vers = nouveau.get(Number(n))
+    return vers ? `${signe} ${vers}` : m
+  })
+}
+
 export function produitsUniques(produits: ProduitPublic[]): Array<ProduitPublic & { prixMin: number | null; prixMax: number | null }> {
   const parCle = new Map<string, ProduitPublic[]>()
   for (const p of produits) {
@@ -949,23 +983,13 @@ export function produitsUniques(produits: ProduitPublic[]): Array<ProduitPublic 
   return [...parCle.values()].map((offres) => {
     const prix = offres.flatMap((o) => [o.prixMin ?? o.prixVente, o.prixMax ?? o.prixVente]).filter((n): n is number => n != null)
     const avecPrix = offres.find((o) => o.prixVente !== null) ?? offres[0]
-    // Offers that disagree keep each verdict with its own prices: never a better one than the report gave for the whole span.
-    const parVerdict = new Map<string, number[]>()
-    for (const o of offres) {
-      const v = pourquoiAffiche(o)
-      parVerdict.set(v, [...(parVerdict.get(v) ?? []), ...[o.prixMin ?? o.prixVente, o.prixMax ?? o.prixVente].filter((n): n is number => n != null)])
-    }
-    const montants = (ns: number[]) => {
-      const u = [...new Set(ns)].sort((a, b) => a - b).map(montantPublic)
-      return u.length ? ` à ${u.length > 1 ? `${u.slice(0, -1).join(', ')} et ${u[u.length - 1]}` : u[0]} €` : ''
-    }
+    // A verdict is about one offer, and offers are hidden in public: the most favourable one, « selon l'offre » when
+    // they disagree (12/10/2026). The per-offer detail stays in the signed-in list.
+    const avis = [...new Set(offres.map((o) => pourquoiAffiche(o)).filter(Boolean))]
+    const meilleur = [...avis].sort((a, b) => rangVerdict(a) - rangVerdict(b))[0]
     const verdicts =
-      parVerdict.size > 1
-        ? [...parVerdict.entries()]
-            .filter(([v]) => v)
-            .sort((a, b) => Math.min(...a[1], Infinity) - Math.min(...b[1], Infinity))
-            .map(([v, ns]) => `${v}${montants(ns)}`)
-            .join(' · ')
+      avis.length > 1 && meilleur
+        ? meilleur.includes(" selon l'offre") ? meilleur : meilleur.replace(/^([^·]*?)(\s+·\s+|$)/, "$1 selon l'offre$2")
         : avecPrix.verdicts
     return { ...avecPrix, rang: Math.min(...offres.map((o) => o.rang)), prixMin: prix.length ? Math.min(...prix) : null, prixMax: prix.length ? Math.max(...prix) : null, verdicts }
   })
@@ -1070,7 +1094,7 @@ const MOTS_ELIDES =
   'intérieur|extérieur|authenticité|esprit|usines?|applications?|éclairages?|ordinateurs?|achat|essentiels?|indispensables?|alimentation|' +
   'arrivée|avenir|autonomie|audio|assistance|hygiène|humidité|odeurs?|ombres?|or|argent|aspirateurs?|espaces?|étés?|édition|élégance|' +
   'efficacité|économies?|émotions?|engouement|envie|ergonomie|équipements?|essor|évolution|excellence|exclusivité|immersion|impact|' +
-  'innovation|intelligence|iphone|ipad|android|amazon|aliexpress|instagram|influence|international|internet|un|une|essais?|écoute|utilisateurs?|acheteurs?|achats?'
+  'innovation|intelligence|iphone|ipad|android|amazon|aliexpress|instagram|influence|international|internet|un|une|essais?|écoute|utilisateurs?|acheteurs?|achats?|actions?|imports?|importations?|exports?|emballages?|étiquettes?|unités?|offres?'
 // Verbs only after d' (« avant dacheter ») : « lavoir » is a word, « l'avoir » never in a title.
 const VERBES_ELIDES = 'acheter|essayer|offrir|utiliser|installer|attendre|économiser|avoir|être|écouter|entretenir|ouvrir|investir|importer|expédier|éviter|améliorer|ajouter'
 
@@ -1085,6 +1109,8 @@ export function apostrophesRendues(texte: string): string {
   const elision = new RegExp(`(?<![\\p{L}\\d])(jusqu|lorsqu|puisqu|qu|[lLdD])(${MOTS_ELIDES})(?![\\p{L}\\d])`, 'giu')
   return texte
     .replace(/(?<![\p{L}])(aujourd)(hui)(?![\p{L}])/giu, "$1'$2")
+    // « coût déncre » : the apostrophe was turned into an accent.
+    .replace(/(?<![\p{L}])([dD])é(ncres?)(?![\p{L}])/gu, "$1'e$2")
     .replace(/(?<![\p{L}])([cCnN])(est)(?![\p{L}])/gu, "$1'$2")
     .replace(/(?<![\p{L}])([sS](?=ils?(?![\p{L}]))|[qQ]u)(ils?|on)(?![\p{L}])/gu, "$1'$2")
     .replace(new RegExp(`(?<![\\p{L}\\d])([dD])(${VERBES_ELIDES})(?![\\p{L}\\d])`, 'gu'), "$1'$2")
@@ -1121,15 +1147,32 @@ export function titreDansListe(r: Pick<RapportPublic, 'titre' | 'type' | 'produi
  * the public text changes it; a redeploy that alters nothing does not.
  */
 export function empreintePublique(r: RapportPublic): string {
-  const page = pageRapport({ ...r, updatedAt: new Date(0) }, [])
-  return createHash('sha256').update(page).digest('hex').slice(0, 20)
+  return empreinteTexte(pageRapport({ ...r, updatedAt: new Date(0) }, []))
+}
+
+/**
+ * What a reader actually sees: the <body> text, without markup, scripts or
+ * structured data. #83 changed the price format of the JSON-LD only and the
+ * HTML fingerprint dated about fifty unchanged pages « now » (12/10/2026).
+ */
+export function texteVisible(html: string): string {
+  const corps = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1] ?? html
+  return corps
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+function empreinteTexte(html: string): string {
+  return createHash('sha256').update(texteVisible(html)).digest('hex').slice(0, 20)
 }
 
 export type RendusConnus = Record<string, { empreinte: string; le: string }>
 
 /** An edition or hub page as a fingerprint: its HTML without its own modification date. */
 export function empreintePage(html: string): string {
-  return createHash('sha256').update(html.replace(/<meta property="article:modified_time"[^>]*>/g, '')).digest('hex').slice(0, 20)
+  return empreinteTexte(html)
 }
 
 /**
@@ -1163,7 +1206,7 @@ export function texteRefait(r: { body: string; type?: string }, importeDrive?: b
  * (version 3) seeded older imports with a data date that a reader replay had
  * moved (18:17). Those entries go, so they start again from their data date.
  */
-export const VERSION_RENDUS = 4
+export const VERSION_RENDUS = 5
 
 export function rendusMigres(brut: unknown, refaits: Set<string>): RendusConnus {
   const o = (brut && typeof brut === 'object' ? brut : {}) as Record<string, any>
