@@ -294,7 +294,9 @@ console.log('\nQuatrième constat du 12/10/2026 au soir : la date suit le texte 
   const v1 = { 'rayon-2026-10-08-x': { empreinte: 'e', le: '2026-10-12T19:40:31.942Z' }, 'rayon-2026-10-12-y': { empreinte: 'f', le: '2026-10-12T19:40:31.942Z' } }
   const migres = rendusMigres(v1, new Set(['rayon-2026-10-12-y']))
   exige(!('rayon-2026-10-08-x' in migres) && migres['rayon-2026-10-12-y']?.le === '2026-10-12T19:40:31.942Z', 'le magasin de #77 oublie la date « maintenant » des anciens imports (07/10, 08/10), garde celle des textes refaits')
-  exige(rendusMigres({ version: 2, rapports: v1 }, new Set())['rayon-2026-10-08-x']?.empreinte === 'e', 'un magasin à jour est lu tel quel')
+  exige(rendusMigres({ version: 3, rapports: v1 }, new Set())['rayon-2026-10-08-x']?.empreinte === 'e', 'un magasin à jour est lu tel quel')
+  exige(!('rayon-2026-10-08-x' in rendusMigres({ version: 2, rapports: v1 }, new Set(['rayon-2026-10-12-y']))), 'le magasin de #78 (version 2) est trié de même')
+  exige(!texteRefait({ body: '## Analyse\nTitre', type: 'marketing' }, true) && !texteRefait({ body: '## Angles\n…', type: 'marketing' }, true), 'un rapport marketing n’a pas vu son texte refait (souche MARKETSPY ou ancien format)')
 }
 
 console.log('\nLa page d’un rapport marketing')

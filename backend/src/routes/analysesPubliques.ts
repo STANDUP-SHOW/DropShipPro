@@ -30,6 +30,7 @@ import {
   datesPubliques,
   empreintePublique,
   rendusMigres,
+  VERSION_RENDUS,
   texteRefait,
   type RendusConnus,
   sitemapXml,
@@ -100,11 +101,11 @@ function datesDuRendu(tous: Ligne[]): Map<string, Date> {
       // First run, or no volume: every report starts from its data date (rebuilt MARKETSPY texts aside).
     }
     const connus: RendusConnus = rendusMigres(brut, new Set(lignes.filter((l) => l.texteRefait).map((l) => l.id)))
-    const migre = !(brut && typeof brut === 'object' && (brut as { version?: number }).version === 2)
+    const migre = !(brut && typeof brut === 'object' && (brut as { version?: number }).version === VERSION_RENDUS)
     const { dates, connus: suivants, change } = datesPubliques(lignes, connus)
     if (change || migre) {
       fs.mkdirSync(path.dirname(CHEMIN_RENDUS), { recursive: true })
-      fs.writeFileSync(CHEMIN_RENDUS, JSON.stringify({ version: 2, rapports: suivants }))
+      fs.writeFileSync(CHEMIN_RENDUS, JSON.stringify({ version: VERSION_RENDUS, rapports: suivants }))
     }
     return dates
   } catch (err) {

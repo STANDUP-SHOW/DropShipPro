@@ -1028,22 +1028,27 @@ export type RendusConnus = Record<string, { empreinte: string; le: string }>
 /**
  * A Drive import whose public text was rebuilt on 12/10/2026: a MARKETSPY file
  * (no « ## Analyse » section, read section by section since #72, then filtered
- * by #73 to #77). An older import is one « Analyse » block that none of it touched.
+ * by #73 to #77). An older import is one « Analyse » block that none of it touched,
+ * and a marketing report is not concerned: a MARKETSPY one is a stub (title only).
  */
-export function texteRefait(r: { body: string }, importeDrive?: boolean): boolean {
-  return !!importeDrive && !/^\s*##\s*Analyse\s*$/m.test(r.body.split('\n').find((l) => l.trim()) ?? '')
+export function texteRefait(r: { body: string; type?: string }, importeDrive?: boolean): boolean {
+  return !!importeDrive && r.type !== 'marketing' && !/^\s*##\s*Analyse\s*$/m.test(r.body.split('\n').find((l) => l.trim()) ?? '')
 }
 
 /**
  * The store of #77 (no version) dated « now » every Drive import seen for the
- * first time, the older ones too (07/10 and 08/10, 12/10/2026 19:40). Those
- * entries go, so they start again from their data date.
+ * first time, the older ones too (07/10 and 08/10, 12/10/2026 19:40), and the
+ * one of #78 (version 2) kept that date for marketing reports. Those entries
+ * go, so they start again from their data date.
  */
+export const VERSION_RENDUS = 3
+
 export function rendusMigres(brut: unknown, refaits: Set<string>): RendusConnus {
   const o = (brut && typeof brut === 'object' ? brut : {}) as Record<string, any>
-  if (o.version === 2 && o.rapports && typeof o.rapports === 'object') return o.rapports as RendusConnus
+  if (o.version === VERSION_RENDUS && o.rapports && typeof o.rapports === 'object') return o.rapports as RendusConnus
+  const entrees = o.version === 2 && o.rapports && typeof o.rapports === 'object' ? o.rapports : o
   const garde: RendusConnus = {}
-  for (const [id, v] of Object.entries(o)) if (v && typeof v === 'object' && typeof v.empreinte === 'string' && refaits.has(id)) garde[id] = v
+  for (const [id, v] of Object.entries(entrees as Record<string, any>)) if (v && typeof v === 'object' && typeof v.empreinte === 'string' && refaits.has(id)) garde[id] = v
   return garde
 }
 
