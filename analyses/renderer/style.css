@@ -27,9 +27,11 @@ input[type=checkbox] { width: auto; }
 .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
 .doux { color: var(--doux); } .petit { font-size: 12px; }
 .journal { font: 12px/1.5 Consolas, monospace; max-height: 60vh; overflow: auto; background: #fff; border: 1px solid var(--ligne); border-radius: 10px; padding: 8px 10px; }
-.journal .erreur { color: var(--mauvais); }
+.journal .erreur, .erreur { color: var(--mauvais); }
 .barre-prog { height: 8px; background: #eee; border-radius: 99px; overflow: hidden; } .barre-prog > div { height: 100%; background: linear-gradient(90deg, var(--orange), var(--rose)); }
 #zone-nav { border: 1px dashed var(--ligne); border-radius: 8px; height: calc(100vh - 250px); min-height: 280px; display: flex; align-items: center; justify-content: center; color: var(--doux); }
 .sources { display: flex; gap: 14px; } .sources > .liste { width: 250px; flex: none; } .sources > .vue { flex: 1; min-width: 0; }
 .source { padding: 8px 10px; border: 1px solid var(--ligne); border-radius: 8px; margin-bottom: 6px; cursor: pointer; background: #fff; }
 .source.actif { border-color: var(--orange); background: #fff6f0; }
+.date-drive { padding: 10px 0; border-bottom: 1px solid var(--ligne); }
+.date-drive .ligne { margin-top: 6px; gap: 6px; }

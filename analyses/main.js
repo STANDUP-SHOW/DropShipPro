@@ -28,6 +28,7 @@ const { creerJournal } = require('./lib/journal')
 const agents = require('./lib/agents')
 const { creerSerper } = require('./lib/serper')
 const { creerClaude } = require('./lib/claude')
+const { creerRechercheClaude, coutDollars } = require('./lib/recherche-claude')
 const { lirePage } = require('./lib/pages')
 const { executerRayon } = require('./lib/rayon')
 const signauxPublics = require('./lib/signaux')
@@ -62,10 +63,13 @@ const sauver = () => config.enregistrer(dossierDonnees(), cfg)
 const secret = (nom) => config.lireSecret(cfg, nom, safeStorage)
 
 // ---- providers (keys read at use time: Max may change them)
+// Serper is only built when Max chose it: without a Serper key the Poste searches with Claude.
+const moteurSerper = () => cfg.moteurRecherche === 'serper'
 function fournisseurs() {
-  const serper = creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined })
   const claude = creerClaude({ cle: secret('anthropic'), modele: cfg.modele, espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
-  return { serper, claude }
+  if (moteurSerper()) return { serper: creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined }), recherche: null, claude }
+  const recherche = creerRechercheClaude({ cle: secret('anthropic'), modele: modeleRecherche(), espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
+  return { serper: null, recherche, claude }
 }
 
 const lecteur = () => veille.lecteurElectron({ BrowserWindow })
@@ -107,8 +111,9 @@ function signauxDuRayon(date) {
   return ({ rayon, noms }) => signauxPublics.releverSignaux({ rayon, noms, lire, config: c, bases, journal, suivi: suiviSignaux, pause })
 }
 
-// Extra Serper readings (Shopping, autocomplete, images); null when Max switched all three off.
+// Extra Serper readings (Shopping, autocomplete, images); null when Max switched all three off or searches with Claude.
 function serperEtenduActif() {
+  if (!moteurSerper()) return null
   const c = { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) }
   return c.shopping || c.autocomplete || c.images ? c : null
 }
@@ -119,13 +124,32 @@ function creditsSerperParRayon() {
   return 20 + (cfg.plafondDeuxiemeVague || 26) + (c ? (c.autocomplete ? 7 : 0) + (c.shopping ? c.plafondShopping : 0) + (c.images ? c.plafondImages : 0) : 0)
 }
 
+// The search lots only run the queries and cite the pages: the cheapest model does it, unless Max names one.
+// (Measured 11/10 with Sonnet 5.5: 505 k input tokens for 46 searches = 1,01 $, more than the searches themselves.)
+const MODELE_RECHERCHE_DEFAUT = 'claude-haiku-5-5'
+const modeleRecherche = () => cfg.modeleRecherche || MODELE_RECHERCHE_DEFAUT
+
+// What one rayon costs, said before Max says yes. Claude search: $0.01 per search (Anthropic's price)
+// plus the tokens of the results read (estimated; the real amount is written in the journal).
+const EUR = (n) => n.toFixed(2).replace('.', ',')
+function coutParRayon(n = 1) {
+  if (moteurSerper()) return `environ ${EUR(n * 0.39)} € chez Anthropic et jusqu’à ${n * creditsSerperParRayon()} crédits Serper`
+  // wave 1 + wave 2 (selling prices) + sourcing on supplier sites (at most 20)
+  const recherches = 20 + (cfg.plafondDeuxiemeVague || 26) + Math.min(20, cfg.plafondDeuxiemeVague || 26)
+  // measured on the first real rayon (electromenager/sols, 11/10): per search ~11 000 tokens read and ~700
+  // written; the report call 69 000 read and 21 000 written
+  const dollars = coutDollars({ recherches, entree: recherches * 11000, sortie: recherches * 700 }, modeleRecherche()) + coutDollars({ entree: 72000, sortie: 21500 }, cfg.modele)
+  return `environ ${EUR(n * dollars * 0.86)} € chez Anthropic, tout compris (${n * recherches} recherches web à 0,01 $ chacune, la lecture des résultats et le rapport ; aucun Serper). Le montant réel s’inscrit dans le journal`
+}
+
 // The rayons of the night, as chosen by Max (all of them until he chooses).
 const rayonsDeLaNuit = (date) => agents.choisirRayons(agents.rayonsDuJour(agents.charger(), date), cfg.rayonsNuit)
 
 function depsRayon(date) {
-  const { serper, claude } = fournisseurs()
+  const { serper, recherche, claude } = fournisseurs()
   return {
     serper,
+    recherche,
     claude,
     signaux: signauxDuRayon(date),
     serperEtendu: serperEtenduActif(),
@@ -141,9 +165,19 @@ function depsRayon(date) {
  * his original one (the one of the n8n agent) without touching the app.
  */
 const fichierPrompt = () => path.join(racine, 'prompts', 'rayon.md')
+// SHA-256 of the prompts shipped by earlier versions: a copy Max never edited is upgraded, an edited one is left alone.
+const PROMPTS_LIVRES = new Set([
+  '121cb3a0bab83bd6afe620ae8e3f8066df8b28ad7a7af948ad953f45fac47b96',
+  'b0b3e1ad096127c0efafabf4ab1d9eb7504509b457d232ac659b083939b506d0',
+  'eefed451c162c5bcc4da39e35ac29f3693f4ad8a7f8ba7ff286f99feebe90716',
+  'bc3eb85696999a9e5b75469082845ec926bc7a3935dcd3abf9747a6d1b050ef0',
+])
 function preparerPrompt() {
   const cible = fichierPrompt()
-  if (!fs.existsSync(cible)) fs.copyFileSync(path.join(__dirname, 'prompts', 'rayon.md'), cible)
+  const source = path.join(__dirname, 'prompts', 'rayon.md')
+  if (!fs.existsSync(cible)) return fs.copyFileSync(source, cible)
+  const empreinte = require('node:crypto').createHash('sha256').update(fs.readFileSync(cible)).digest('hex')
+  if (PROMPTS_LIVRES.has(empreinte)) fs.copyFileSync(source, cible)
 }
 
 function optionsRayon() {
@@ -152,17 +186,19 @@ function optionsRayon() {
     fichierPrompt: fichierPrompt(),
     plafondPages: cfg.plafondPages,
     plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
+    // the bench's fake web lives on 127.0.0.1 and stands for the supplier sites
+    domainesFournisseurs: BANC ? ['127.0.0.1'] : Array.isArray(cfg.domainesFournisseurs) && cfg.domainesFournisseurs.length ? cfg.domainesFournisseurs : undefined,
     modele: cfg.modele,
     envoyer: cfg.envoiAuSite && cleAdmin ? (rapport) => depot.envoyerRapportAuSite({ apiBase: cfg.apiBase, cle: cleAdmin, rapport }) : null,
   }
 }
 
 // ---- hard gate: a costly launch needs Max's explicit yes, in a native dialog
-async function accord(message, detail) {
+async function accord(message, detail, bouton = 'Oui, lancer') {
   if (BANC) return true
   const r = await dialog.showMessageBox(fenetre, {
     type: 'question',
-    buttons: ['Non', 'Oui, lancer'],
+    buttons: ['Non', bouton],
     defaultId: 0,
     cancelId: 0,
     title: 'Accord requis',
@@ -177,11 +213,22 @@ function progression(p) {
   envoyer('progression', p)
 }
 
-async function lancerUnRayon(rayonChoisi) {
+// The rayon Max picked on the dashboard ({categorie, theme} ids, checked against agents.json);
+// without a choice, the first rayon of the day.
+function rayonDuTest(choix, date) {
+  const tous = agents.charger()
+  if (!choix || !choix.categorie) return agents.rayonsDuJour(tous, date)[0]
+  const c = tous.categories.find((x) => x.id === choix.categorie)
+  if (!c) throw new Error('Rayon inconnu : ' + choix.categorie)
+  const t = c.themes.find((x) => x.id === choix.theme) || agents.themeDuJour(c, date)
+  return { categorie: c.id, libelleCategorie: c.nom, theme: t.id, libelleTheme: t.nom, date }
+}
+
+async function lancerUnRayon(choix) {
   if (nuit.enCours) throw new Error('Une exécution est déjà en cours.')
   const date = jourLocal()
-  const rayon = rayonChoisi || agents.rayonsDuJour(agents.charger(), date)[0]
-  const ok = await accord(`Lancer UN rayon test (${rayon.libelleCategorie} › ${rayon.libelleTheme}) ?`, `Coût estimé : environ 0,39 € chez Anthropic et jusqu’à ${creditsSerperParRayon()} crédits Serper.`)
+  const rayon = rayonDuTest(choix, date)
+  const ok = await accord(`Lancer UN rayon test (${rayon.libelleCategorie} › ${rayon.libelleTheme}) ?`, `Coût estimé : ${coutParRayon(1)}.`)
   if (!ok) return { annule: true }
   nuit.enCours = true
   nuit.arret = { demande: false }
@@ -215,7 +262,7 @@ async function lancerLaNuit({ automatique = false } = {}) {
     const n = choisis.length
     const ok = await accord(
       n === 24 ? 'Lancer la nuit complète (24 rayons, un à la fois) ?' : `Lancer ${n} rayon${n > 1 ? 's' : ''} sur 24, un à la fois ?`,
-      `Coût estimé : environ ${(n * 0.39).toFixed(2).replace('.', ',')} € chez Anthropic et jusqu’à ${n * creditsSerperParRayon()} crédits Serper. ${choisis.map((r) => r.libelleCategorie).join(', ')}.${n === 24 ? ' Faites d’abord un rayon test.' : ''}`,
+      `Coût estimé : ${coutParRayon(n)}. ${choisis.map((r) => r.libelleCategorie).join(', ')}.${n === 24 ? ' Faites d’abord un rayon test.' : ''}`,
     )
     if (!ok) return { annule: true }
   }
@@ -328,7 +375,7 @@ function etat() {
     date,
     secrets: config.etatSecrets(cfg),
     reglages: {
-      modele: cfg.modele, espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
+      modele: cfg.modele, modeleRecherche: cfg.modeleRecherche || '', moteurRecherche: moteurSerper() ? 'serper' : 'claude', coutParRayon: coutParRayon(1), espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
       plafondPages: cfg.plafondPages, plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
       signauxPublics: { meta: true, trends: true, plafondPubsParRayon: 6, plafondTendancesParRayon: 2, ...(cfg.signauxPublics || {}) },
       serperEtendu: { ...serperEtendu.PAR_DEFAUT, ...(cfg.serperEtendu || {}) },
@@ -337,6 +384,8 @@ function etat() {
     admin: adminEtat(),
     envoi: { actif: Boolean(cfg.envoiAuSite), cle: Boolean(secret('admin')), apiBase: cfg.apiBase, enAttente: depot.rapportsAEnvoyer(racine).length },
     nuit: { enCours: nuit.enCours, progression: nuit.progression, dernierBilan: nuit.dernierBilan },
+    // every category and its 7 themes, for the rayon test picker
+    catalogue: agents.charger().categories.map((c) => ({ id: c.id, nom: c.nom, themeDuJour: agents.themeDuJour(c, date).id, themes: c.themes.map((t) => ({ id: t.id, nom: t.nom })) })),
     rayonsDuJour: agents.rayonsDuJour(agents.charger(), date).map((r) => ({ ...r, fait: rapportValide(racine, date, r.categorie, r.theme), choisi: !Array.isArray(cfg.rayonsNuit) || cfg.rayonsNuit.includes(r.categorie) })),
     rapports: listeRapports(date),
     sources: cfg.sources.map((s) => ({ ...s, session: etatsSources[s.id] || null })),
@@ -375,15 +424,35 @@ function afficherSource(id, bounds) {
   if (bounds) vueNavigateur.setBounds({ x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.width), height: Math.round(bounds.height) })
 }
 
-// ---- Windows: restart by itself after a crash or a kill (answer to "Docker never came back")
-function chienDeGarde() {
+// ---- Windows: start with the session and restart after a crash, ONLY while the automatic night is on.
+// Until 0.3.5 both were always on and not discreet (12/10, BIGWORK): a scheduled task launched the exe every
+// 10 minutes, each launch brought the window back to the front, and a « Quitter » was undone within 10 minutes.
+// Launches made by the watchdog or at login now carry an argument and stay in the tray.
+const ARG_GARDE = '--garde'
+const ARG_DEMARRAGE = '--demarrage'
+const lancementDiscret = (argv) => [ARG_GARDE, ARG_DEMARRAGE, '--cache'].some((a) => argv.includes(a))
+// written by « Quitter »: the watchdog respects it, a launch by hand or at login removes it
+const fichierArretVolontaire = () => path.join(dossierDonnees(), 'arret-volontaire')
+
+const NOM_LANCEMENT = 'DropShipper Poste d analyses'
+
+function lancementsAutomatiques() {
   if (process.platform !== 'win32' || !app.isPackaged) return
-  // Every 10 minutes: starting a second instance is harmless (single-instance lock) and relaunches a dead one.
-  execFile('schtasks', ['/Create', '/F', '/SC', 'MINUTE', '/MO', '10', '/TN', 'DropShipper Poste d analyses', '/TR', `"${process.execPath}"`], () => {})
+  // 0.3.5 and older wrote a Run entry under the generic name « electron.app.Electron »: always removed
+  app.setLoginItemSettings({ openAtLogin: false })
+  const actif = Boolean(cfg.nuitActivee)
+  app.setLoginItemSettings({ openAtLogin: actif, name: NOM_LANCEMENT, args: [ARG_DEMARRAGE] })
+  // Every 10 minutes: a running Poste only sees a discreet second instance; a dead one comes back in the tray.
+  const tache = actif
+    ? ['/Create', '/F', '/SC', 'MINUTE', '/MO', '10', '/TN', NOM_LANCEMENT, '/TR', `"${process.execPath}" ${ARG_GARDE}`]
+    : ['/Delete', '/F', '/TN', NOM_LANCEMENT]
+  execFile('schtasks', tache, () => {})
 }
 
-function demarrageAuto() {
-  if (process.platform === 'win32' && app.isPackaged) app.setLoginItemSettings({ openAtLogin: true })
+function quitterVolontairement() {
+  try { fs.writeFileSync(fichierArretVolontaire(), new Date().toISOString()) } catch { /* the watchdog will relaunch it, hidden */ }
+  quitter = true
+  app.quit()
 }
 
 // ---- IPC
@@ -393,8 +462,10 @@ function brancher() {
   })
   h('etat', () => etat())
   h('reglages', (r) => {
-    const permis = ['modele', 'espaceAnthropic', 'heureNuit', 'envoiAuSite', 'apiBase', 'plafondPages', 'plafondDeuxiemeVague']
+    const permis = ['modele', 'modeleRecherche', 'moteurRecherche', 'espaceAnthropic', 'heureNuit', 'envoiAuSite', 'apiBase', 'plafondPages', 'plafondDeuxiemeVague']
     for (const k of permis) if (r[k] !== undefined) cfg[k] = r[k]
+    cfg.moteurRecherche = cfg.moteurRecherche === 'serper' ? 'serper' : 'claude'
+    cfg.modeleRecherche = String(cfg.modeleRecherche || '').trim()
     if (!/^\d{2}:\d{2}$/.test(cfg.heureNuit)) throw new Error('Heure invalide (HH:MM).')
     cfg.espaceAnthropic = String(cfg.espaceAnthropic || '').trim()
     if (cfg.espaceAnthropic && !/^[A-Za-z0-9_-]{6,80}$/.test(cfg.espaceAnthropic)) throw new Error('Identifiant d’espace de travail invalide (lettres, chiffres, _ et - seulement).')
@@ -453,6 +524,29 @@ function brancher() {
   // Everything the site knows about its sellers. Kept in memory on the screen only, never written to disk.
   h('admin-utilisateurs', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/utilisateurs' }))
   h('admin-newsletter', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/newsletter' }))
+  // Back-office moved from the site into the Poste (PR #17): Drive import and affiliate payouts, same /api/admin routes.
+  h('admin-drive-lister', ({ adresse }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: { adresse } }))
+  h('admin-drive-importer', async ({ adresse, dates, essai }) => {
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true } })
+    if (!essai) {
+      // The reasons are only in this answer: write them down, or a refusal is a bare count once the screen is closed (12/10/2026).
+      const motifs = (r.lignes || []).filter((x) => x.statut === 'refuse').map((x) => `${x.date} ${x.rayon} : ${x.raison || 'motif non donné par le site'}`)
+      const ignores = (r.ignores || []).map((g) => `${g.date} ${g.nom} : ${g.raison}`)
+      const ligne = { dates: dates.join(', '), importees: r.importees, doublons: r.doublons, refusees: r.refusees, ...(motifs.length ? { motifs } : {}), ...(ignores.length ? { ignores: ignores.slice(0, 50) } : {}) }
+      if (r.importees === 0 && (r.refusees > 0 || !(r.lignes || []).length)) journal.erreur('Import Google Drive : rien importé', ligne)
+      else journal.info('Analyses importées depuis Google Drive', ligne)
+    }
+    return r
+  })
+  h('admin-affiliation', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/affiliation' }))
+  h('admin-affiliation-verser', async ({ id, nom, montant, reference }) => {
+    const ok = await accord(`Enregistrer le virement de ${montant} à ${nom} ?`, 'Ses commissions dues sont soldées et il reçoit un e-mail. Faites d’abord le virement à la banque : ce bouton ne vire rien.', 'Oui, enregistrer')
+    if (!ok) return { annule: true }
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/affiliation/${encodeURIComponent(id)}/verse`, corps: { reference: reference || null } })
+    journal.info('Versement affilié enregistré', { nom, montant })
+    return r
+  })
+  h('copier', (texte) => { clipboard.writeText(String(texte || '')); return true })
   h('secret', ({ nom, valeur }) => {
     // The admin key is made by the app (admin-creer), never typed; it can only be erased.
     if (nom === 'admin' && valeur) throw new Error('La clé d’administration est fabriquée par le Poste : utilisez « Créer la clé ».')
@@ -470,12 +564,13 @@ function brancher() {
     if (actif) {
       const n = rayonsDeLaNuit(jourLocal()).length
       if (!n) throw new Error('Aucun rayon coché : cochez au moins un rayon dans « Rayons du jour ».')
-      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', `Le poste lancera seul ${n === 24 ? 'les 24 rayons' : `les ${n} rayon${n > 1 ? 's' : ''} cochés`} chaque nuit (≈ ${(n * 0.39).toFixed(2).replace('.', ',')} € par nuit). Vous pouvez la couper ici à tout moment.`)
+      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', `Le poste lancera seul ${n === 24 ? 'les 24 rayons' : `les ${n} rayon${n > 1 ? 's' : ''} cochés`} chaque nuit. Coût par nuit : ${coutParRayon(n)}. Il démarrera avec Windows, discrètement dans la zone de notification, et reviendra seul après un plantage. Vous pouvez la couper ici à tout moment.`)
       if (!ok) return etat()
       cfg.accordNuitLe = new Date().toISOString()
     }
     cfg.nuitActivee = Boolean(actif)
     sauver()
+    lancementsAutomatiques()
     return etat()
   })
   h('source-ajouter', (brut) => {
@@ -524,11 +619,13 @@ function creerFenetre() {
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    title: 'DropShipper Poste d’analyses',
-    show: !process.argv.includes('--cache'),
+    title: `DropShipper Poste d’analyses — v${app.getVersion()}`,
+    show: !lancementDiscret(process.argv),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   fenetre.setMenuBarVisibility(false)
+  // Keep the version in the title bar: Max must see at a glance which build he runs.
+  fenetre.on('page-title-updated', (e) => e.preventDefault())
   fenetre.loadFile(path.join(__dirname, 'renderer', 'index.html'))
   fenetre.on('close', (e) => {
     if (!quitter && !BANC) { e.preventDefault(); fenetre.hide() } // the agents keep living in the tray
@@ -545,7 +642,7 @@ function creerTray() {
       { label: 'Ouvrir', click: montrer },
       { label: 'Ouvrir le dossier de dépôt', click: () => shell.openPath(racine) },
       { type: 'separator' },
-      { label: 'Quitter', click: () => { quitter = true; app.quit() } },
+      { label: 'Quitter', click: quitterVolontairement },
     ]))
     tray.on('click', montrer)
   } catch { /* no tray on this system */ }
@@ -581,10 +678,17 @@ function rapportsDuJourTousValides() {
   return agents.rayonsDuJour(agents.charger(), date).every((r) => rapportValide(racine, date, r.categorie, r.theme))
 }
 
-if (!app.requestSingleInstanceLock() && !BANC) {
+const arreteParMax = () => { try { return fs.existsSync(fichierArretVolontaire()) } catch { return false } }
+
+if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
+  // Max chose « Quitter »: the watchdog does not bring the Poste back, the next launch by hand or at login does
+  app.quit()
+} else if (!app.requestSingleInstanceLock() && !BANC) {
   app.quit()
 } else {
-  app.on('second-instance', () => { if (fenetre) { fenetre.show(); fenetre.focus() } })
+  if (!process.argv.includes(ARG_GARDE)) try { fs.rmSync(fichierArretVolontaire(), { force: true }) } catch { /* nothing to remove */ }
+  // only a launch by hand (shortcut, Start menu) brings the window forward
+  app.on('second-instance', (_e, argv) => { if (fenetre && !lancementDiscret(argv)) { fenetre.show(); fenetre.focus() } })
   app.whenReady().then(() => {
     cfg = config.charger(dossierDonnees())
     // 03/10/2026: Max wants EVERY validated report on the site. The old send went to a table no screen read, so
@@ -606,8 +710,7 @@ if (!app.requestSingleInstanceLock() && !BANC) {
     brancher()
     creerFenetre()
     creerTray()
-    demarrageAuto()
-    chienDeGarde()
+    lancementsAutomatiques()
     demarrerPlanificateur()
   })
   app.on('before-quit', () => { quitter = true })

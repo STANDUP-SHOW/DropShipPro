@@ -1,6 +1,6 @@
 'use strict'
 /**
- * The night: credit check first (1 Serper credit + 4 Claude tokens), then the
+ * The night: credit check first (4 Claude tokens, plus 1 Serper credit if Serper is used), then the
  * rayons one at a time (never in parallel: dozens of pages each would saturate
  * the network and draw refusals from the search engines).
  *
@@ -15,12 +15,16 @@ const fs = require('node:fs')
 const { ErreurFournisseur } = require('./erreurs')
 const depot = require('./depot')
 
+// Without Serper (searches made by Claude) only the Anthropic key is checked: a test search would cost
+// a cent for nothing, and a refused web search stops the first rayon with the API's own message.
 async function controleCredits({ serper, claude }) {
-  const res = { serper: { ok: true, message: 'ok' }, claude: { ok: true, message: 'ok' } }
-  try {
-    await serper.chercher('test', { num: 1 })
-  } catch (err) {
-    res.serper = { ok: false, message: String(err.message || err) }
+  const res = { serper: { ok: true, message: serper ? 'ok' : 'non utilisé (recherche par Claude)', utilise: Boolean(serper) }, claude: { ok: true, message: 'ok' } }
+  if (serper) {
+    try {
+      await serper.chercher('test', { num: 1 })
+    } catch (err) {
+      res.serper = { ok: false, message: String(err.message || err), utilise: true }
+    }
   }
   try {
     await claude.message({ utilisateur: 'ok', maxTokens: 4, effort: 'low', flux: false })

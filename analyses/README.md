@@ -20,16 +20,25 @@ installateur » (construit par `.github/workflows/poste-analyses-windows.yml`).
 complémentaires › Exécuter quand même.
 
 L'installateur crée `C:\DropShipper-Analyses\` (rapports, releves, journaux,
-diagnostics, sauvegardes, prompts) et une tâche Windows qui relance l'application
-toutes les 10 minutes si elle est arrêtée. Le désinstaller ne supprime jamais le
-dossier de dépôt.
+diagnostics, sauvegardes, prompts). Le désinstaller ne supprime jamais le dossier de dépôt.
+
+Démarrage avec Windows et relance (0.3.6, 12/10/2026) : seulement quand la nuit automatique est
+activée. Le Poste démarre alors avec la session (`--demarrage`) et une tâche Windows le relance
+toutes les 10 minutes s'il est mort (`--garde`), toujours caché dans la zone de notification ; un
+« Quitter » du menu de la zone est respecté par la tâche. Nuit coupée : ni tâche, ni démarrage
+automatique. Jusqu'à la 0.3.5, la tâche était toujours là et ramenait la fenêtre au premier plan
+toutes les 10 minutes ; la 0.3.6 la supprime au premier démarrage, avec l'ancienne entrée de
+démarrage « electron.app.Electron ».
 
 ## Premier lancement (dans cet ordre)
 
-1. **Réglages** › poser les clés Anthropic et Serper (chiffrées par Windows, jamais réaffichées).
+1. **Réglages** › poser la clé Anthropic (chiffrée par Windows, jamais réaffichée). La clé
+   Serper n'est demandée que si « Moteur de recherche web » vaut Serper (depuis la 0.3.0, le
+   moteur par défaut est la recherche web de Claude : aucun abonnement de plus).
 2. **Sources & navigateur** › ajouter chaque site de données, s'y connecter soi-même dans la fenêtre.
-3. **Tableau de bord** › « Contrôler les crédits » (1 crédit Serper + 4 tokens Claude).
-4. « Lancer UN rayon test » (~0,39 € et ~46 crédits Serper) puis lire le rapport :
+3. **Tableau de bord** › « Contrôler la clé Anthropic » (4 tokens ; + 1 crédit si Serper).
+4. « Lancer UN rayon test » (coût affiché avant l'accord ; le montant réel des recherches est
+   dans le journal et dans `poste.usage` du rapport) puis lire le rapport :
    20 produits, 20 URL `http` distinctes, marges en euros, champs non vérifiés = « Non vérifié ».
 5. Seulement ensuite, avec accord explicite : « Lancer la nuit complète » ou
    « Activer la nuit automatique » (une fenêtre de confirmation s'ouvre à chaque fois).
@@ -38,10 +47,11 @@ Rien ne tourne seul tant que la nuit automatique n'est pas activée.
 
 ## Ce que fait un rayon (`lib/rayon.js`)
 
-20 recherches Serper → lecture de ≤ 25 pages (HTTP simple) → noms de modèles (petit appel Claude)
-→ une recherche par modèle (≤ 26) → lecture des sites de données connectés →
+20 recherches web → lecture de ≤ 25 pages (HTTP simple) → noms de modèles (petit appel Claude)
+→ une recherche par modèle (≤ 26) → lecture des fiches produits trouvées (≤ 30, HTTP simple :
+image `og:image` et prix schema.org écrits par la page) → lecture des sites de données connectés →
 UN appel Claude (`output_config: { effort: 'medium' }`) → validation → fichiers.
-L'appel Claude est le dernier : toutes les gardes (refus Serper, première vague vide,
+L'appel Claude est le dernier : toutes les gardes (recherche refusée, première vague vide,
 liste de modèles vide, réponse vide/tronquée/illisible) lèvent une erreur avant.
 
 Sortie, dans `rapports\AAAA-MM-JJ\<categorie>\` : `<theme>.json` (format MarketSpy,
@@ -67,6 +77,71 @@ rayon. Le relevé brut est gardé dans `releves\AAAA-MM-JJ\signaux\`. Cases à c
 **Vérifié seulement contre de fausses pages** (Google et Meta n'ont pas été appelés depuis le banc) :
 si leur texte ou leur format a changé, les lignes sortent « illisible » et il faut adapter
 `extraireMetaAds` / `extraireTrends`. Conditions d'utilisation de ces sites à vérifier par Max.
+
+## Recherche web sans Serper (`lib/recherche-claude.js`, 0.3.0, 11/10/2026)
+
+Les recherches passent par l'outil serveur `web_search` de l'API Anthropic, avec la clé
+Anthropic : 0,01 $ par recherche (prix Anthropic), plus les tokens des résultats lus, par lots
+de 3 recherches par appel (un résultat lu reste dans le contexte des recherches suivantes du
+même appel, d'où des lots courts). Les URL viennent des blocs `web_search_result` de l'API,
+jamais du texte du modèle ; l'extrait est le `cited_text` des citations (mot pour mot), jamais
+une paraphrase. Un lot où aucune recherche n'aboutit lève une erreur (garde du 23/09). La
+recherche web doit être autorisée dans la console Anthropic (réglage d'organisation).
+Google Shopping, autocomplétion et images n'existent qu'avec Serper : sans lui, prix et images
+viennent des fiches produits lues (balises de la page). Une `image_url` absente des adresses
+relevées est remplacée par « Non vérifié » (`poste.stats.imagesInventees`).
+
+## Sourcing fournisseurs (0.3.1, 11/10/2026)
+
+Premier rayon réel de la 0.3.0 : 20 liens… tous chez des revendeurs français (Darty, Fnac,
+Cdiscount), aucun prix d'achat. Un revendeur donne le prix de VENTE, jamais le fournisseur.
+Depuis la 0.3.1 :
+- le petit appel qui choisit les produits préfère ceux qu'on achète en import ou en marque
+  blanche, et donne pour chacun 3 à 6 mots anglais pour le chercher chez un fournisseur ;
+- une vague « sourcing » (au plus 20 recherches) cherche ces mots sur les seuls sites de
+  `DOMAINES_FOURNISSEURS` (lib/rayon.js : Alibaba, AliExpress, Made-in-China, DHgate, Global
+  Sources, CJ, BigBuy, Banggood, Temu, vidaXL, Syncee, Ankorstore), par le paramètre
+  `allowed_domains` de l'outil de recherche (appliqué par Anthropic) ; avec Serper, filtre
+  sur l'hôte. Liste remplaçable par `domainesFournisseurs` dans config.json ;
+- les pages fournisseurs sont lues en HTTP simple (prix schema.org, souvent absent sur les
+  sites en JavaScript) ; l'extrait cité (« US $4.20-6.80 / piece ») est l'autre source de prix ;
+- la validation retire toute `supplier_url` qui ne vient pas de cette vague
+  (`poste.stats.horsSourcing`, rapport « à revoir », jamais envoyé) et, sans page fournisseur,
+  vide prix d'achat et marges : jamais d'estimation. `poste.sourcing` compte les offres.
+
+## Relance fournisseurs quand les fiches manquent (0.3.5, 11/10/2026)
+
+Rayon test du 11/10 (informatique/mini-pc-bureau) : « à revoir », 14 produits, 13 URL vérifiées,
+1 lien pris chez un revendeur. Cause : les noms de modèles d'un thème se ramènent souvent à
+quelques formulations fournisseur (« mini pc n100 »), donc peu de recherches, des pages
+communes et des pages de recherche (`/w/wholesale-…`, `/showroom/…`) que le rapport ne peut
+pas utiliser ; avec moins de 20 fiches, le modèle rend moins de 20 produits (règle 3 du prompt).
+Depuis la 0.3.5 : les pages de recherche ou de catégorie des sites fournisseurs sont écartées
+(`poste.sourcing.listesEcartees`), une même fiche n'est comptée qu'une fois, et tant qu'il y a
+moins de 30 fiches distinctes (`objectifOffres`), le poste demande d'autres formulations du thème
+(petit appel, effort bas) et relance la vague, deux fois au plus (`relancesSourcing`,
+`poste.sourcing.relances`, vague `sourcing-relance-N` dans la trace). Jusqu'à 30 fiches sont
+lues (`plafondPagesOffres`). Coût d'une relance : environ 20 recherches (0,20 $) plus leurs tokens.
+
+## Sites refusés par la recherche web (0.3.4, 11/10/2026)
+
+Rayon test du 11/10 16:24 (telephonie/objets-connectes) : la vague fournisseurs a reçu un 400
+« The following domains are not accessible to our user agent: ['dhgate.com'] » et tout le
+rayon a échoué sans rapport. Depuis la 0.3.4 : dhgate.com est retiré de la liste ; un site que
+l'API nomme dans ce refus est écarté pour la suite et le lot est redemandé sans lui
+(`poste.sourcing.sitesRefuses`) ; si la vague fournisseurs échoue quand même, le rapport des
+vagues 1 et 2 est écrit « à revoir » (`poste.sourcing.echec`, premier problème), jamais envoyé.
+Les 11 autres sites n'ont pas été essayés un par un contre l'API : un refus s'écarte seul.
+
+## Coût mesuré et trace des recherches (0.3.2, 11/10/2026)
+
+Premier rayon réel (electromenager/sols, Sonnet 5.5 pour tout) : 46 recherches = 0,46 $, mais
+505 000 tokens lus par les lots de recherche = 1,01 $ (+ 0,32 $ écrits), soit 1,79 $ de recherche ;
+rapport 69 000 / 21 000 tokens ≈ 0,35 $. Les lots ne font que lancer les requêtes et citer :
+depuis la 0.3.2 ils tournent par défaut sur Haiku 5.5 (0,10 $ / 0,50 $ le million), champ
+« Modèle des recherches web » vide. Estimation affichée (66 recherches) : environ 0,96 € par
+rayon, 23 € la nuit de 24 — à confirmer au prochain rayon. Chaque requête tapée, son filtre
+de sites et les sites répondus sont écrits dans `releves/<date>/recherches/<rayon>.json`.
 
 ## Lectures Serper étendues (lib/serper-etendu.js, 03/10/2026)
 
