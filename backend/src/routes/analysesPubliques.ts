@@ -24,6 +24,7 @@ import {
   pageJour,
   pageRapport,
   rapportA,
+  rapportAncienneAdresse,
   sitemapXml,
   type RapportPublic,
 } from '../services/analysesPubliques.js'
@@ -198,6 +199,10 @@ analysesPubliquesRouter.get('/:theme/:sujet/', (req, res) => {
         const memes = tous.filter((l) => l.categorie === theme && l.day === m[3] && l.type === (m[2] ? 'marketing' : 'rayon'))
         if (memes.length === 1) return res.redirect(301, cheminRapport(memes[0]))
       }
+      // An imported study titled by its bare theme before 12/10/2026: 301 to its real title.
+      const ancien = rapportAncienneAdresse(demande)
+      const cible = ancien ? tous.find((l) => l.id === ancien) : null
+      if (cible) return res.redirect(301, cheminRapport(cible))
       // Titre retouché depuis (réimport, titre du jour ajouté) : seul rapport de ce thème, on y mène.
       const duTheme = tous.filter((l) => l.theme === theme)
       if (duTheme.length === 1) return res.redirect(301, cheminRapport(duTheme[0]))
