@@ -15,6 +15,7 @@ import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { z } from 'zod'
 import { codeBarresDe } from '../services/productFacts.js'
+import { lireReseaux } from '../services/reseauxSociaux.js'
 
 export const publicRouter = Router()
 
@@ -141,6 +142,20 @@ publicRouter.get('/config', (_req, res) => {
     .replace(/\/$/, '')
   res.set('Cache-Control', 'public, max-age=300')
   res.json({ appUrl })
+})
+
+/**
+ * DropShipper's own social accounts for the footer icons (set from the Poste).
+ * An empty slot is null and shows no icon. Short cache: a change shows within minutes.
+ */
+publicRouter.get('/reseaux-sociaux', async (_req, res) => {
+  try {
+    res.set('Cache-Control', 'public, max-age=300')
+    res.json({ reseaux: await lireReseaux() })
+  } catch (err) {
+    console.error('[reseaux-sociaux] lecture impossible :', err)
+    res.status(500).json({ error: 'Lecture impossible.', motif: err instanceof Error ? err.message : String(err) })
+  }
 })
 
 /**

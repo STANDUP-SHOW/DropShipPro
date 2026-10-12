@@ -8,6 +8,7 @@ const ONGLETS = [
   ['administration', 'Administration'],
   ['drive', 'Import Drive'],
   ['affiliation', 'Affiliation'],
+  ['reseaux', 'Réseaux sociaux'],
   ['reglages', 'Réglages'],
   ['journal', 'Journal'],
 ]
@@ -430,6 +431,54 @@ function vueDrive() {
   )
 }
 
+// ---------------------------------------------------------------- réseaux sociaux du site
+// Icons of the site footer: one only appears when its link is filled. The site validates (https, host of the network).
+const RESEAUX = [
+  ['facebook', 'Facebook', 'https://www.facebook.com/…'],
+  ['instagram', 'Instagram', 'https://www.instagram.com/…'],
+  ['whatsapp', 'WhatsApp', 'https://wa.me/33…'],
+  ['x', 'X (Twitter)', 'https://x.com/…'],
+  ['linkedin', 'LinkedIn', 'https://www.linkedin.com/company/…'],
+  ['snapchat', 'Snapchat', 'https://www.snapchat.com/add/…'],
+]
+const reseaux = { liens: null, champs: {}, erreur: null, enCours: false }
+
+async function chargerReseaux() {
+  reseaux.erreur = null
+  flash('Lecture des liens sur le site…')
+  const x = await appel('adminReseaux')
+  if (x) { reseaux.liens = x.reseaux || {}; reseaux.champs = {}; flash('') }
+}
+
+async function enregistrerReseaux() {
+  const corps = Object.fromEntries(RESEAUX.map(([id]) => [id, (reseaux.champs[id] ?? reseaux.liens[id] ?? '').trim() || null]))
+  reseaux.enCours = true; reseaux.erreur = null; flash('Enregistrement sur le site…')
+  const r = await window.poste.adminReseauxEnregistrer(corps)
+  reseaux.enCours = false
+  if (!r.ok) { reseaux.erreur = r.erreur; flash(''); return }
+  reseaux.liens = r.valeur.reseaux || {}; reseaux.champs = {}
+  flash('Enregistré : le pied de page du site affiche maintenant ces icônes.')
+}
+
+function vueReseaux() {
+  if (!etat.admin.cle) return sansCleAdmin('Réseaux sociaux du site')
+  const l = reseaux.liens
+  return h('div', {},
+    h('h1', {}, 'Réseaux sociaux du site'),
+    h('div', { class: 'carte' },
+      h('p', { class: 'doux petit' }, 'Liens des icônes du pied de page de drop-shipper.fr. Une icône n’apparaît que si son lien est rempli ; videz un champ pour retirer l’icône. Adresse complète en https.'),
+      !l && h('div', { class: 'ligne' }, h('button', { class: 'btn', onclick: chargerReseaux }, 'Afficher les liens du site')),
+      l && RESEAUX.map(([id, nom, exemple]) => h('label', {}, h('span', {}, nom),
+        h('input', { value: reseaux.champs[id] ?? l[id] ?? '', placeholder: exemple, oninput: (ev) => { reseaux.champs[id] = ev.target.value } }))),
+      l && h('div', { class: 'ligne' },
+        h('button', { class: 'btn principal', disabled: reseaux.enCours, onclick: enregistrerReseaux }, 'Enregistrer'),
+        h('button', { class: 'btn', onclick: chargerReseaux }, 'Relire le site')),
+      reseaux.erreur && h('p', { class: 'erreur' }, reseaux.erreur),
+      messageFlash && h('p', { class: 'petit' }, messageFlash),
+    ),
+  )
+}
+
 // ---------------------------------------------------------------- affiliation
 // Payout data (IBAN included) stays in memory on the screen, never written to disk.
 let donneesAffiliation = null
@@ -564,7 +613,7 @@ function rendre() {
   document.getElementById('pied').textContent = etat ? `Version ${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, drive: vueDrive, affiliation: vueAffiliation, reglages: vueReglages, journal: vueJournal }
+  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, drive: vueDrive, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 

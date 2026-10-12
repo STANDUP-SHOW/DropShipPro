@@ -897,6 +897,8 @@ export const api = {
   // Reviews. The listing is public — the home page shows it to visitors with no
   // account — while writing one requires being signed in, which is also what keeps
   // the page from filling with spam.
+  /** DropShipper's social accounts for the footer icons; null = no icon. */
+  reseauxSociaux: () => request<{ reseaux: Record<string, string | null> }>('/public/reseaux-sociaux'),
   listPublicReviews: (limit = 50) =>
     request<{
       reviews: Array<{ id: string; displayName: string; rating: number; comment: string; createdAt: string }>
