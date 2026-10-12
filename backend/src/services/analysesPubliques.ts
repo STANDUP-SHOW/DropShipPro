@@ -1026,14 +1026,36 @@ export function empreintePublique(r: RapportPublic): string {
 export type RendusConnus = Record<string, { empreinte: string; le: string }>
 
 /**
+ * A Drive import whose public text was rebuilt on 12/10/2026: a MARKETSPY file
+ * (no « ## Analyse » section, read section by section since #72, then filtered
+ * by #73 to #77). An older import is one « Analyse » block that none of it touched.
+ */
+export function texteRefait(r: { body: string }, importeDrive?: boolean): boolean {
+  return !!importeDrive && !/^\s*##\s*Analyse\s*$/m.test(r.body.split('\n').find((l) => l.trim()) ?? '')
+}
+
+/**
+ * The store of #77 (no version) dated « now » every Drive import seen for the
+ * first time, the older ones too (07/10 and 08/10, 12/10/2026 19:40). Those
+ * entries go, so they start again from their data date.
+ */
+export function rendusMigres(brut: unknown, refaits: Set<string>): RendusConnus {
+  const o = (brut && typeof brut === 'object' ? brut : {}) as Record<string, any>
+  if (o.version === 2 && o.rapports && typeof o.rapports === 'object') return o.rapports as RendusConnus
+  const garde: RendusConnus = {}
+  for (const [id, v] of Object.entries(o)) if (v && typeof v === 'object' && typeof v.empreinte === 'string' && refaits.has(id)) garde[id] = v
+  return garde
+}
+
+/**
  * article:modified_time and the sitemap's lastmod follow the public text, not
  * only the data (12/10/2026: #76 changed six pages, their date stayed put).
  * A known fingerprint keeps its date; a new one is dated now. A report seen
- * for the first time keeps its data date, except a Drive import, whose public
- * text was rewritten by the filters of that evening.
+ * for the first time keeps its data date, except one whose text was rebuilt on
+ * 12/10/2026 (`texteRefait`: a MARKETSPY import, read section by section since #72).
  */
 export function datesPubliques(
-  lignes: Array<{ id: string; updatedAt: Date; empreinte: string; importeDrive?: boolean }>,
+  lignes: Array<{ id: string; updatedAt: Date; empreinte: string; texteRefait?: boolean }>,
   connus: RendusConnus,
   maintenant = new Date(),
 ): { dates: Map<string, Date>; connus: RendusConnus; change: boolean } {
@@ -1045,7 +1067,7 @@ export function datesPubliques(
     let le: Date
     if (avant && avant.empreinte === l.empreinte) le = new Date(avant.le)
     else {
-      le = avant || l.importeDrive ? maintenant : l.updatedAt
+      le = avant || l.texteRefait ? maintenant : l.updatedAt
       change = true
     }
     suivants[l.id] = { empreinte: l.empreinte, le: le.toISOString() }

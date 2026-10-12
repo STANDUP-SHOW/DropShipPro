@@ -29,6 +29,8 @@ import {
   rapportAncienneAdresse,
   datesPubliques,
   empreintePublique,
+  rendusMigres,
+  texteRefait,
   type RendusConnus,
   sitemapXml,
   type RapportPublic,
@@ -87,20 +89,22 @@ const CHEMIN_RENDUS = path.join(path.dirname(CHEMIN_SURCOUCHE), 'rendus-publics.
 
 function datesDuRendu(tous: Ligne[]): Map<string, Date> {
   try {
-    let connus: RendusConnus = {}
-    try {
-      connus = JSON.parse(fs.readFileSync(CHEMIN_RENDUS, 'utf8'))
-    } catch {
-      // First run, or no volume: every report starts from its data date (Drive imports aside).
-    }
     const lignes = tous.flatMap((l) => {
       const r = versPublicBrut(l.id)
-      return r ? [{ id: l.id, updatedAt: l.updatedAt, importeDrive: l.importeDrive, empreinte: empreintePublique({ ...r, titre: l.titre }) }] : []
+      return r ? [{ id: l.id, updatedAt: l.updatedAt, texteRefait: texteRefait(r, l.importeDrive), empreinte: empreintePublique({ ...r, titre: l.titre }) }] : []
     })
+    let brut: unknown = null
+    try {
+      brut = JSON.parse(fs.readFileSync(CHEMIN_RENDUS, 'utf8'))
+    } catch {
+      // First run, or no volume: every report starts from its data date (rebuilt MARKETSPY texts aside).
+    }
+    const connus: RendusConnus = rendusMigres(brut, new Set(lignes.filter((l) => l.texteRefait).map((l) => l.id)))
+    const migre = !(brut && typeof brut === 'object' && (brut as { version?: number }).version === 2)
     const { dates, connus: suivants, change } = datesPubliques(lignes, connus)
-    if (change) {
+    if (change || migre) {
       fs.mkdirSync(path.dirname(CHEMIN_RENDUS), { recursive: true })
-      fs.writeFileSync(CHEMIN_RENDUS, JSON.stringify(suivants))
+      fs.writeFileSync(CHEMIN_RENDUS, JSON.stringify({ version: 2, rapports: suivants }))
     }
     return dates
   } catch (err) {
