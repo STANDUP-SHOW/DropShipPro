@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -273,7 +273,7 @@ console.log('\nQuatrième constat du 12/10/2026 au soir : la date suit le texte 
     ].join('\n'),
   }
   const visible = pageRapport(constat).replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
-  exige(visible.includes('saison forte : les parfums les plus demandés'), 'après un libellé, la phrase restante prend une minuscule')
+  exige(visible.includes('saison forte : la demande culmine en décembre.') && !/accio/i.test(visible), 'un lien vers un fournisseur perd son adresse et son nom, la phrase reste')
   exige(!/co[uû]ts? unitaires|rentables/.test(visible) && visible.includes('Les prix de vente sont des prix cibles recommandés'), 'les notes des bundles ne parlent plus de coûts qu’on ne voit pas')
   exige(visible.includes('<td>Coffret cocooning</td>'), 'le tableau des bundles reste')
 
@@ -508,6 +508,22 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   attribuerAdresses([g])
   const avant = cheminRapport(g)
   exige(avant.includes('leffet') && cheminRapport({ ...g, titre: apostrophesRendues(g.titre) }) === avant, 'l’adresse garde le titre brut')
+}
+
+{
+  // 12/10/2026, eveil 04/10 : prix d'achat convertis, « à renégocier », texte abîmé.
+  const fuite = sansMentionsPrivees("Chez Les Mômes des Dômes (tapis d'éveil « inspiration Montessori » à 85 €, cf. tableau ci-dessous), la tendance tient.\nBigjigstoys, ~58 € convertis de 49,99 £, taux indicatif.\nPrix converti de 49,99 £ (taux indicatif ≈1,16 €/£).\nProduit fort, à renégocier en gros.\nLe prix d'achat indiqué est donc un prix public observé.\nFlux via le catalogue « api » du grossiste.")
+  exige(!/85 €|£|renégoc|convert|prix d'achat|« api/i.test(fuite), 'ni prix converti, ni « à renégocier », ni prix d’achat dans le corps', fuite)
+  exige(!/CJ/.test(sansMentionsPrivees('Fiche confirmée. À reconfirmer dans votre compte CJ avant mise en vente.')), 'CJ en initiales : le fournisseur quand même')
+  const points = pointsAnnonces("Sur l'approvisionnement, trois points de vigilance importants. Troisièmement, et c'est le point le plus sérieux : la sécurité compte.")
+  exige(points === "Sur l'approvisionnement, un point de vigilance important. La sécurité compte.", 'trois points annoncés, un seul resté', points)
+  exige(pointsAnnonces('Trois risques. Premièrement a. Troisièmement b.') === 'Deux risques. Premièrement a. Deuxièmement b.', 'deux restés : renumérotés')
+  exige(pointsAnnonces('Depuis trois ans. Premièrement a.') === 'Depuis trois ans. Premièrement a.', 'un nombre qui n’annonce pas de points ne bouge pas')
+  const rep = texteRepare('Vendus sur des plateformes低-coût, generalement entre 25 € et 70 €. Selon [Toute-la-France (Noël 2025)](https://www.toute-la-franchise.com/a-qualite) et [Fnac](https://www.fnac.com/x).')
+  exige(rep === 'Vendus sur des plateformes à bas coût, généralement entre 25 € et 70 €. Selon [Toute-la-Franchise (Noël 2025)](https://www.toute-la-franchise.com/a-qualite) et [Fnac](https://www.fnac.com/x).', 'idéogrammes, accents et nom de site réparés, adresses intactes', rep)
+  exige(apostrophesDuTexte('un produit daccroche au cur du marché, la mise en uvre, à limport') === "un produit d'accroche au cœur du marché, la mise en œuvre, à l'import", 'œ et apostrophes perdus')
+  const casques = produitsNettoyes([{ ...rapport.produits[0], titre: 'Casque audio Casque Philips TAH4209', pourquoi: 'Bon à limport' }, { ...rapport.produits[0], titre: 'Casque audio Casque gaming' }])
+  exige(casques[0].titre === 'Casque Philips TAH4209' && casques[1].titre === 'Casque gaming' && casques[0].pourquoi === "Bon à l'import", 'libellé doublé retiré, apostrophe rendue', JSON.stringify(casques.map((p) => [p.titre, p.pourquoi])))
 }
 
 if (echecs) {
