@@ -359,7 +359,51 @@ export function blocsDe(body: string): Array<{ titre: string; corps: string }> {
  * nomme un fournisseur, un prix d'achat ou une adresse est retiré, avec le titre
  * qui l'annonce.
  */
-const ENTETE_PRIVEE = /fournisseur|prix\s*(d['’ ]?)?achat|\burl\b/i
+const ENTETE_PRIVEE = /fournisseur|achat|co[uû]t|marge|\broi\b|prix\s*max|\burl\b|\blien/i
+
+/**
+ * Sections that are about buying, whole (« Analyse sourcing », « Battle sheet
+ * achat / revente », « Sources », which lists supplier pages). Other agents'
+ * full reports carry them since 12/10/2026; they stay in the connected space.
+ */
+const SECTION_PRIVEE = /sourcing|battle|achat|fournisseur|^\s*(\d+\s*[.)]\s*)?sources?\s*$/i
+
+/**
+ * A sentence that names a supplier or a buying figure. The analysis text of an
+ * imported report said « l'achat unitaire AliExpress est perdant » on a public
+ * page (12/10/2026): Max's rule covers every section, not only the « Pourquoi »
+ * column. « Faire » and « Wish » are left out: in French prose they are words.
+ */
+const FOURNISSEUR_NOMME =
+  /aliexpress|alibaba|\b1688\b|cj\s?drop|cjdropshipping|\btemu\b|\bshein\b|bigbuy|\baccio\b|dhgate|banggood|spocket|zendrop|syncee|vidaxl|made[-\s]in[-\s]china|global\s?sources|taobao|joybuy|lightinthebox|ankorstore|fournisseur/i
+const TERME_ACHAT = /achat|co[uû]t|marge|\broi\b|revient/i
+const MONTANT = /\d\s*(€|eur\b|euros?\b|\$|usd\b|¥|rmb\b|cny\b|%)|(€|\$|us\$|¥)\s*\d/i
+/** A supplier's name, a foreign-currency price, or a buying term next to an amount (« coût rendu 18 € »). */
+const estPrivee = (texte: string) =>
+  FOURNISSEUR_NOMME.test(texte) || /\d\s*(\$|usd\b|¥|rmb\b|cny\b)|(\$|us\$|¥)\s*\d/i.test(texte) || (TERME_ACHAT.test(texte) && MONTANT.test(texte))
+
+/** Drops, sentence by sentence, what names a supplier or a buying figure; a line left empty goes. */
+export function sansMentionsPrivees(corps: string): string {
+  const sortie: string[] = []
+  let dansCode = false
+  for (const ligne of corps.replace(/\r\n/g, '\n').split('\n')) {
+    if (/^\s*```/.test(ligne)) dansCode = !dansCode
+    if (dansCode || !estPrivee(ligne)) {
+      sortie.push(ligne)
+      continue
+    }
+    if (ligne.trim().startsWith('|')) continue
+    const puce = /^(\s*(?:[-*+]|\d+[.)])\s+)/.exec(ligne)?.[1] ?? ''
+    const reste = ligne
+      .slice(puce.length)
+      .split(/(?<=[.!?;])\s+/)
+      .filter((phrase) => !estPrivee(phrase))
+      .join(' ')
+      .trim()
+    if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(puce + reste)
+  }
+  return sortie.join('\n')
+}
 
 export function sansTableauxPrives(corps: string): { corps: string; retires: number } {
   const lignes = corps.replace(/\r\n/g, '\n').split('\n')
@@ -380,7 +424,8 @@ export function sansTableauxPrives(corps: string): { corps: string; retires: num
 
 /** Le bloc « N produits proposés » : celui qui porte les adresses fournisseur. Jamais rendu tel quel. */
 function estBlocProduits(titre: string, corps: string): boolean {
-  return /produits/i.test(titre) && corps.trim().startsWith('|')
+  // Other agents open their « TOP 20 produits gagnants » with a sentence before the table.
+  return /produits/i.test(titre) && (corps.trim().startsWith('|') || /^\s*\|/m.test(corps))
 }
 
 // --- Le gabarit ---------------------------------------------------------------
@@ -543,11 +588,13 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
   const blocs = blocsDe(r.body)
     // Le corps d'un rapport marketing MarketSpy n'est qu'une souche (« ## Analyse » puis le titre) : rien à montrer.
     .filter((b) => !(r.type === 'marketing' && b.corps.trim() === r.titre.trim()))
+    .filter((b) => !SECTION_PRIVEE.test(b.titre))
     .map((b) => {
       if (estBlocProduits(b.titre, b.corps)) {
         return `<h2 id="produits">${esc(b.titre.replace(/proposés/i, 'gagnants'))}</h2>${tableauProduitsPublic(r.produits)}`
       }
-      const { corps, retires } = sansTableauxPrives(b.corps)
+      const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps)
+      const corps = sansMentionsPrivees(sansTableaux)
       // Sans produits structurés à montrer à la place, le lecteur sait au moins que la liste existe.
       const garde =
         retires && !r.produits.length

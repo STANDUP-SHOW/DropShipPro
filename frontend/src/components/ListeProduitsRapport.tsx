@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
 import { ExternalLink, Download, Send, Loader2, CheckSquare, Square } from 'lucide-react'
 import { api, type ProduitRapport } from '../lib/api'
+import annuaire from '../data/fournisseurs.json'
 
 /**
  * Les produits d'un rapport : une liste d'annonces à importer, pas un tableau.
@@ -19,6 +19,12 @@ import { api, type ProduitRapport } from '../lib/api'
  * extension, qui la relève dans le navigateur du vendeur. « Importer avec
  * l'extension » ouvre en plus la fiche dans un onglet, parce que c'est ce
  * geste-là qui permet à l'extension de la lire pendant qu'elle est affichée.
+ *
+ * **Un seul bouton d'import par ligne, toujours le moins cher** (Max,
+ * 12/10/2026) : « Importer · 12 » quand la fiche se lit à l'adresse,
+ * « Importer extension · 18 » (6 pour l'agent + 12 pour l'import, autre
+ * couleur) seulement quand elle ne se lit pas. Proposer l'extension à côté
+ * d'un import direct revenait à proposer de payer 18 ce qui en coûte 12.
  */
 export interface ProduitAffiche extends ProduitRapport {
   /** D'où vient la ligne, quand la liste mélange plusieurs rapports. */
@@ -40,6 +46,64 @@ function dateFr(iso: string): string {
 /** La clé d'une ligne : l'adresse suffit, deux rapports peuvent proposer le même produit. */
 const cleDe = (p: ProduitAffiche) => p.url
 
+/** Drops : un import (DROPS.import) et l'agent extension en plus (DROPS.agentExtension), backend/src/services/tarifs.ts. */
+const COUT_IMPORT = 12
+const COUT_EXTENSION = 6 + COUT_IMPORT
+
+type Fiche = { id: string; label: string; domain: string; color: string; logo?: string }
+const FICHES = (annuaire as { fournisseurs: Fiche[] }).fournisseurs
+/** Des noms qui sont aussi des mots (« faire », « also », « wish ») : reconnus par l'adresse ou le nom exact seulement. */
+const MOTS = new Set(['faire', 'also', 'wish', 'joom'])
+const sansAccents = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+/**
+ * Le fournisseur d'une ligne, quand il est reconnu : par l'adresse de la fiche
+ * d'abord (aliexpress.com…), sinon par son nom dans le texte du rapport. Rien
+ * n'est deviné : un fournisseur inconnu garde son nom, sans icône.
+ */
+function ficheFournisseur(p: ProduitRapport): Fiche | null {
+  let hote: string[] = []
+  try {
+    hote = new URL(p.url).hostname.toLowerCase().split('.')
+  } catch {
+    /* no URL: the name only */
+  }
+  const nom = sansAccents(p.fournisseur || '')
+  for (const f of FICHES) {
+    const racine = f.domain.split('.').slice(-2)[0]
+    if (hote.includes(racine)) return f
+  }
+  for (const f of FICHES) {
+    const label = sansAccents(f.label)
+    if (MOTS.has(label) ? nom.trim() === label : new RegExp(`(^|[^a-z0-9])${label.replace(/[^a-z0-9]+/g, '[^a-z0-9]*')}([^a-z0-9]|$)`).test(nom)) return f
+  }
+  return null
+}
+
+function IconeFournisseur({ fiche }: { fiche: Fiche }) {
+  return fiche.logo ? (
+    <img src={fiche.logo} alt="" width={16} height={16} loading="lazy" className="h-4 w-4 shrink-0 rounded-sm bg-white object-contain p-px" />
+  ) : (
+    <span
+      aria-hidden
+      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[9px] font-bold text-white"
+      style={{ background: fiche.color }}
+    >
+      {fiche.label.charAt(0)}
+    </span>
+  )
+}
+
+/** Une case de la ligne : un libellé court au-dessus, la valeur en dessous. */
+function Case({ libelle, children, ton = '' }: { libelle: string; children: React.ReactNode; ton?: string }) {
+  return (
+    <div className="min-w-[4.5rem] rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1">
+      <p className="text-[10px] uppercase tracking-wide text-gray-500">{libelle}</p>
+      <p className={`text-xs font-semibold ${ton}`}>{children}</p>
+    </div>
+  )
+}
+
 export function ListeProduitsRapport({
   produits,
   origine,
@@ -56,33 +120,13 @@ export function ListeProduitsRapport({
   avecProvenance?: boolean
   onMessage?: (texte: string | null) => void
 }) {
-  const [liens, setLiens] = useState<Array<{ supplier: string; connected: boolean }>>([])
-  const [fournisseurs, setFournisseurs] = useState<Array<{ id: string; name: string }>>([])
   const [enCours, setEnCours] = useState<string | null>(null)
   const [coches, setCoches] = useState<Set<string>>(new Set())
   const [message, setMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    api.listSupplierLinks().then(setLiens).catch(() => undefined)
-    api
-      .listSuppliers()
-      .then((s) => setFournisseurs((s as Array<{ id: string; label: string }>).map((x) => ({ id: x.id, name: x.label }))))
-      .catch(() => undefined)
-  }, [])
-
   function dire(texte: string | null) {
     setMessage(texte)
     onMessage?.(texte)
-  }
-
-  /** Le fournisseur d'une ligne, retrouvé par son nom dans l'annuaire — et s'il est relié. */
-  function fournisseurDe(p: ProduitAffiche) {
-    const nom = p.fournisseur.toLowerCase()
-    const f = fournisseurs.find(
-      (x) => x.name.toLowerCase() === nom || nom.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(nom),
-    )
-    const relie = f ? liens.some((l) => l.supplier === f.id && l.connected) : false
-    return { id: f?.id ?? null, relie }
   }
 
   const selection = useMemo(() => produits.filter((p) => coches.has(cleDe(p))), [produits, coches])
@@ -161,6 +205,8 @@ export function ListeProduitsRapport({
   }
 
   const directs = produits.filter((p) => p.import !== 'extension').length
+  const cout = (lot: ProduitAffiche[]) =>
+    lot.reduce((t, p) => t + (p.import === 'extension' ? COUT_EXTENSION : COUT_IMPORT), 0)
 
   if (!produits.length) return null
 
@@ -172,46 +218,27 @@ export function ListeProduitsRapport({
         </span>
         <span className="ml-auto flex flex-wrap gap-2">
           {avecSelection && coches.size > 0 ? (
-            <>
-              <button
-                type="button"
-                disabled={enCours !== null}
-                onClick={() => importer(selection, 'selection')}
-                className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-              >
-                {enCours === 'selection' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                {`Importer la sélection (${coches.size})`}
-              </button>
-              <button
-                type="button"
-                disabled={enCours !== null}
-                onClick={() => versExtension(selection, 'selection', false)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-purple-400/30 bg-purple-400/10 px-3 py-1.5 text-xs font-semibold text-purple-100 hover:border-purple-400/60 disabled:opacity-60"
-              >
-                {enCours === 'selection:ext' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                Importer avec l'extension
-              </button>
-            </>
+            <button
+              type="button"
+              disabled={enCours !== null}
+              onClick={() => importer(selection, 'selection')}
+              title="Chaque fiche part par l'import le moins cher : direct à 12, extension à 18 seulement quand la page ne se lit pas"
+              className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+            >
+              {enCours === 'selection' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+              {`Importer la sélection (${coches.size}) · ${cout(selection)}`}
+            </button>
           ) : (
-            <>
-              <button
-                type="button"
-                disabled={enCours !== null}
-                onClick={() => importer(produits, origine)}
-                className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-              >
-                {enCours === origine ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Tout importer
-              </button>
-              <button
-                type="button"
-                disabled={enCours !== null}
-                onClick={() => versExtension(produits, origine, false)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:border-purple-400/50 disabled:opacity-60"
-              >
-                {enCours === `${origine}:ext` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Tout envoyer à
-                l'extension
-              </button>
-            </>
+            <button
+              type="button"
+              disabled={enCours !== null}
+              onClick={() => importer(produits, origine)}
+              title="Chaque fiche part par l'import le moins cher : direct à 12, extension à 18 seulement quand la page ne se lit pas"
+              className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+            >
+              {enCours === origine ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+              {`Tout importer · ${cout(produits)}`}
+            </button>
           )}
         </span>
       </div>
@@ -222,17 +249,18 @@ export function ListeProduitsRapport({
 
       <ul className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10">
         {produits.map((p) => {
-          const f = fournisseurDe(p)
+          const fiche = ficheFournisseur(p)
           const cle = `${p.rapportId ?? origine}:${p.rang}`
           const coche = coches.has(cleDe(p))
+          const parExtension = p.import === 'extension'
           return (
-            <li key={`${p.url}-${p.rang}`} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center">
+            <li key={`${p.url}-${p.rang}`} className="flex flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center">
               {avecSelection ? (
                 <button
                   type="button"
                   onClick={() => basculer(p)}
                   title="Cocher pour importer en lot"
-                  className="shrink-0 self-start text-gray-400 hover:text-white md:self-center"
+                  className="shrink-0 self-start text-gray-400 hover:text-white lg:self-center"
                 >
                   {coche ? <CheckSquare size={16} className="text-emerald-400" /> : <Square size={16} />}
                 </button>
@@ -242,59 +270,61 @@ export function ListeProduitsRapport({
                 <p className="text-sm font-semibold">
                   <span className="text-gray-500">{p.rang}.</span> {p.titre}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-400">
-                  {p.fournisseur}
-                  {f.relie ? (
-                    <span className="ml-1 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">relié</span>
-                  ) : null}
-                  {' · '}achat {euros(p.prixAchat)} · vente {euros(p.prixVente)}
-                  {p.margePct !== null ? ` · marge ${Math.round(p.margePct)} %` : ''}
-                  {p.pourquoi ? <span className="text-gray-500"> — {p.pourquoi}</span> : null}
-                </p>
+                {p.pourquoi && p.pourquoi !== '—' ? <p className="mt-0.5 text-xs text-gray-500">{p.pourquoi}</p> : null}
                 {avecProvenance && (p.categorieNom || p.day) ? (
                   <p className="mt-0.5 text-[11px] text-gray-500">
                     {[p.categorieNom, p.themeNom, p.day ? dateFr(p.day) : null].filter(Boolean).join(' · ')}
                   </p>
                 ) : null}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Case libelle="Fournisseur">
+                    <span className="inline-flex max-w-[11rem] items-center gap-1.5 truncate">
+                      {fiche ? <IconeFournisseur fiche={fiche} /> : null}
+                      <span className="truncate">{p.fournisseur && p.fournisseur !== '—' ? p.fournisseur : fiche?.label ?? '—'}</span>
+                    </span>
+                  </Case>
+                  <Case libelle="Prix d'achat">{euros(p.prixAchat)}</Case>
+                  <Case libelle="Prix de vente">{euros(p.prixVente)}</Case>
+                  <Case
+                    libelle="Marge"
+                    ton={p.margePct === null ? '' : p.margePct >= 30 ? 'text-emerald-300' : p.margePct < 15 ? 'text-amber-300' : ''}
+                  >
+                    {p.margePct === null ? '—' : `${Math.round(p.margePct)} %`}
+                  </Case>
+                  {p.ventes ? <Case libelle="Ventes constatées">{p.ventes}</Case> : null}
+                  {p.score != null ? <Case libelle="Score">{`${p.score}/100`}</Case> : null}
+                </div>
               </div>
 
-              <div className="flex shrink-0 flex-wrap gap-1.5">
-                {f.relie && f.id ? (
-                  <Link
-                    to={`/catalogues?fournisseur=${encodeURIComponent(f.id)}&q=${encodeURIComponent(p.titre)}&url=${encodeURIComponent(p.url)}&import=${p.import}`}
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold hover:border-purple-400/50"
+              <div className="flex shrink-0 flex-wrap gap-1.5 lg:flex-col lg:items-stretch">
+                <a
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold hover:border-white/30"
+                >
+                  <ExternalLink size={12} /> Voir sur le web
+                </a>
+                {parExtension ? (
+                  <button
+                    type="button"
+                    disabled={enCours !== null}
+                    onClick={() => versExtension([p], cle, true)}
+                    title="Cette page se construit dans le navigateur : la fiche s'ouvre et l'extension l'importe (6 pour l'agent + 12 pour l'import)"
+                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-purple-400/40 bg-purple-500/20 px-2.5 py-1.5 text-xs font-semibold text-purple-100 hover:border-purple-300/70 disabled:opacity-60"
                   >
-                    <ExternalLink size={12} /> Voir chez nous
-                  </Link>
+                    {enCours === `${cle}:ext` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Importer extension · {COUT_EXTENSION}
+                  </button>
                 ) : (
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold hover:border-purple-400/50"
-                  >
-                    <ExternalLink size={12} /> Voir sur le web
-                  </a>
-                )}
-                {p.import !== 'extension' ? (
                   <button
                     type="button"
                     disabled={enCours !== null}
                     onClick={() => importer([p], cle)}
-                    className="btn-gradient inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-60"
+                    className="btn-gradient inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-60"
                   >
-                    {enCours === cle ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Importer · 12
+                    {enCours === cle ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Importer · {COUT_IMPORT}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={enCours !== null}
-                  onClick={() => versExtension([p], cle, true)}
-                  title="Ouvre la fiche et la confie à l'agent extension"
-                  className="inline-flex items-center gap-1 rounded-lg border border-purple-400/30 bg-purple-400/10 px-2.5 py-1.5 text-xs font-semibold text-purple-100 hover:border-purple-400/60 disabled:opacity-60"
-                >
-                  {enCours === `${cle}:ext` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Extension · 6 + 12
-                </button>
+                )}
               </div>
             </li>
           )

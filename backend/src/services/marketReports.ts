@@ -46,6 +46,11 @@ export interface ProduitRapport {
   /** api | url | extension — décide qui peut importer sans humain. */
   import: 'api' | 'url' | 'extension'
   pourquoi: string
+  /** Ventes constatées, telles que le rapport les donne (« 1 200+ / mois »). */
+  ventes?: string | null
+  /** Score global 0-100 de l'agent. */
+  score?: number | null
+  image?: string | null
 }
 
 export interface RapportLu {

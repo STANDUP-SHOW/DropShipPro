@@ -137,6 +137,8 @@ export function appliquerSurcouche(chemin: string, etudes: EtudeImportee[] = lir
       if (deja && !estImportDrive(deja.data)) continue
       const etude = etudeDepuisSurcouche(e)
       if (!etude?.ok) continue
+      // A base rebuilt from the committed file dates the row by its import, not by this start-up (sitemap lastmod).
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(e.importeLe ?? '')) etude.majLe = e.importeLe.slice(0, 19).replace('T', ' ')
       etudeLib.ecrireEtude(db, etude)
       ecrites++
     }
@@ -874,7 +876,8 @@ export class ReportQuery {
       parts.push(ReportQuery.section('Idées de vente', premier(ms?.business_ideas)))
     }
 
-    if (nbProduits > 0) {
+    // A full imported report carries its own « TOP 20 produits » section: the list goes there, not twice.
+    if (nbProduits > 0 && !/^##\s.*produits/im.test(analyse ?? '')) {
       parts.push(`## Produits\nLes ${nbProduits} produits relevés par l'agent, prêts à importer.\n`)
     }
 
@@ -882,12 +885,65 @@ export class ReportQuery {
     return texte || `## Analyse\n${row.titre ?? ''}`
   }
 
+  /** Les colonnes de `products` que l'écran lit, pour produitsDe et getGagnants. */
+  private static readonly COLONNES_PRODUIT = `p.title, p.supplier, p.supplier_url, p.recommended_url, p.buy_price,
+                p.sell_price, p.margin, p.import_method, p.reason, p.margin_pct, p.buy_price_eur,
+                p.sell_price_eur, p.score_global, p.image_url, p.rank, rr.products AS produits_json`
+
+  /**
+   * Une ligne de `products` au format de l'écran.
+   *
+   * La marge vient de `margin_pct`, sinon des deux prix : la colonne texte
+   * `margin` est en euros chez MarketSpy (« 105 € (ROI 50 %) ») et la lire comme
+   * un pourcentage affichait « marge 105 % ». Les ventes constatées sont celles
+   * que le rapport donne (`sales` dans la liste JSON du rayon), jamais calculées.
+   */
+  private static produitDeLigne(p: any, i: number): ProduitRapport {
+    const achat = ReportQuery.nombre(p.buy_price_eur ?? p.buy_price)
+    const vente = ReportQuery.nombre(p.sell_price_eur ?? p.sell_price)
+    const pct = /(-?\d+(?:[.,]\d+)?)\s*%/.exec(/roi/i.test(String(p.margin ?? '')) ? '' : String(p.margin ?? ''))
+    const margePct =
+      p.margin_pct != null && Number.isFinite(Number(p.margin_pct))
+        ? Number(p.margin_pct)
+        : achat !== null && vente !== null && vente > 0
+          ? Number((((vente - achat) / vente) * 100).toFixed(1))
+          : pct
+            ? Number(pct[1].replace(',', '.'))
+            : null
+    let ventes: string | null = null
+    try {
+      const liste = JSON.parse(p.produits_json ?? '[]')
+      const rang = p.rank != null ? Number(p.rank) : null
+      const entree = Array.isArray(liste)
+        ? (rang !== null ? liste.find((x: any) => Number(x?.rank) === rang) : null) ?? liste[i]
+        : null
+      if (entree && entree.title === p.title && entree.sales != null && String(entree.sales).trim()) ventes = String(entree.sales).trim()
+    } catch {
+      /* a malformed list only loses the sales count */
+    }
+    return {
+      rang: i + 1,
+      titre: String(p.title ?? ''),
+      fournisseur: String(p.supplier ?? ''),
+      url: String(p.supplier_url || p.recommended_url || ''),
+      prixAchat: achat,
+      prixVente: vente,
+      margePct,
+      import: (['api', 'url', 'extension'] as const).includes(p.import_method)
+        ? (p.import_method as 'api' | 'url' | 'extension')
+        : 'extension',
+      pourquoi: String(p.reason ?? ''),
+      ventes,
+      score: p.score_global != null && Number.isFinite(Number(p.score_global)) ? Number(p.score_global) : null,
+      image: /^https?:\/\//.test(String(p.image_url ?? '')) ? String(p.image_url) : null,
+    }
+  }
+
   /** Les lignes de la table `products` d'un rapport rayon, au format de l'écran. */
   private produitsDe(reportId: string): ProduitRapport[] {
     const rows = this.db
       .prepare(
-        `SELECT p.title, p.supplier, p.supplier_url, p.recommended_url, p.buy_price,
-                p.sell_price, p.margin, p.import_method, p.reason
+        `SELECT ${ReportQuery.COLONNES_PRODUIT}
            FROM products p
            JOIN rayon_reports rr ON rr.id = p.rayon_report_id
           WHERE rr.report_id = ?
@@ -895,19 +951,7 @@ export class ReportQuery {
       )
       .all(reportId) as any[]
 
-    return rows.map((p, i) => ({
-      rang: i + 1,
-      titre: String(p.title ?? ''),
-      fournisseur: String(p.supplier ?? ''),
-      url: String(p.supplier_url || p.recommended_url || ''),
-      prixAchat: ReportQuery.nombre(p.buy_price),
-      prixVente: ReportQuery.nombre(p.sell_price),
-      margePct: ReportQuery.nombre(p.margin),
-      import: (['api', 'url', 'extension'] as const).includes(p.import_method)
-        ? (p.import_method as 'api' | 'url' | 'extension')
-        : 'extension',
-      pourquoi: String(p.reason ?? ''),
-    }))
+    return rows.map((p, i) => ReportQuery.produitDeLigne(p, i))
   }
 
   /** Le jour le plus récent DÉPOSÉ — jamais l'heure de la machine, qui peut devancer les agents. */
@@ -1112,8 +1156,7 @@ export class ReportQuery {
     const rows = this.db
       .prepare(
         `SELECT r.id AS rapportId, r.date, r.categorie, r.theme, r.data,
-                p.title, p.supplier, p.supplier_url, p.recommended_url,
-                p.buy_price, p.sell_price, p.margin, p.import_method, p.reason
+                ${ReportQuery.COLONNES_PRODUIT}
            FROM products p
            JOIN rayon_reports rr ON rr.id = p.rayon_report_id
            JOIN reports r ON r.id = rr.report_id
@@ -1139,17 +1182,7 @@ export class ReportQuery {
       rayonSansCategorie: false,
       jours,
       produits: rows.map((row, i) => ({
-        rang: i + 1,
-        titre: String(row.title ?? ''),
-        fournisseur: String(row.supplier ?? ''),
-        url: String(row.supplier_url || row.recommended_url || ''),
-        prixAchat: ReportQuery.nombre(row.buy_price),
-        prixVente: ReportQuery.nombre(row.sell_price),
-        margePct: ReportQuery.nombre(row.margin),
-        import: (['api', 'url', 'extension'] as const).includes(row.import_method)
-          ? (row.import_method as 'api' | 'url' | 'extension')
-          : 'extension',
-        pourquoi: String(row.reason ?? ''),
+        ...ReportQuery.produitDeLigne(row, i),
         rapportId: String(row.rapportId),
         day: String(row.date),
         categorie: String(row.categorie),

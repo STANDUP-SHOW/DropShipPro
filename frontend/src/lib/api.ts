@@ -291,6 +291,11 @@ export interface ProduitRapport {
   /** api | url : importable sans navigateur. extension : la page se construit en JavaScript. */
   import: 'api' | 'url' | 'extension'
   pourquoi: string
+  /** Ventes constatées, telles que le rapport les écrit (« 1 200+ / mois ») ; absent si le rapport n'en donne pas. */
+  ventes?: string | null
+  /** Score global 0-100 de l'agent. */
+  score?: number | null
+  image?: string | null
 }
 
 /** Compose une chaîne de requête en sautant ce qui n'est pas renseigné. */
