@@ -60,9 +60,9 @@
         "Trois directions proposées en une minute, une boutique générée en trois — puis modifiée par simples demandes, dix comprises.",
         "Les couleurs de votre logo deviennent la gamme du site ; matière, profondeur, mouvement : le niveau d'une agence.",
         "Catalogue vivant, avis clients, EAN, flux Google Shopping et Meta : tout est branché.",
-        "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews, DropMarket — la place de marché de toutes les boutiques DropShop."
+        "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews. DropShop Market, la place de marché de toutes les boutiques DropShop, est ouverte sur drop-shop.cloud."
       ],
-      "detail": "DropShop IA ne choisit pas un thème dans un catalogue : le modèle écrit la page entière — design, CSS, écrans — à partir de votre description et des couleurs de votre logo, puis un vérificateur la parcourt comme un visiteur (accueil, catégorie, fiche, panier, commande) et fait corriger ce qui manque avant que vous la voyiez. La logique de commerce, elle, ne s'écrit jamais : catalogue, panier, commande, paiement et confirmation vivent dans un moteur commun, donc un panier DropShop ne peut pas « ne plus marcher ». Le paiement va directement sur votre compte Stripe. 350 drops (3,50 €) payés une seule fois, hébergement, trafic et dix modifications compris, sans aucune mention DropShipper sur la boutique. Des extensions s'ajoutent en drops, comme les apps d'une boutique Shopify : le Back Office indépendant est disponible ; DropBank (accepter les drops), DropSEO, DropReviews, Dropshop Cloud et DropMarket — la marketplace géante de toutes les boutiques DropShop — arrivent.",
+      "detail": "DropShop IA ne choisit pas un thème dans un catalogue : le modèle écrit la page entière — design, CSS, écrans — à partir de votre description et des couleurs de votre logo, puis un vérificateur la parcourt comme un visiteur (accueil, catégorie, fiche, panier, commande) et fait corriger ce qui manque avant que vous la voyiez. La logique de commerce, elle, ne s'écrit jamais : catalogue, panier, commande, paiement et confirmation vivent dans un moteur commun, donc un panier DropShop ne peut pas « ne plus marcher ». Le paiement va directement sur votre compte Stripe. 350 drops (3,50 €) payés une seule fois, hébergement, trafic et dix modifications compris, sans aucune mention DropShipper sur la boutique. Des extensions s'ajoutent en drops, comme les apps d'une boutique Shopify : le Back Office indépendant est disponible ; DropBank (accepter les drops), DropSEO et DropReviews arrivent. DropShop Market, la marketplace de toutes les boutiques DropShop, est déjà ouverte sur drop-shop.cloud.",
       "image": "/images/accueil/dropshop-ia.jpg",
       "offre": { "label": "Créer ma boutique", "href": "/register" }
     },
@@ -231,8 +231,9 @@
       },
       "market": {
         "titre": "DropShop Market",
-        "texte": "La place de marché qui réunit toutes les boutiques DropShop.",
-        "badge": "Bientôt"
+        "texte": "La place de marché de toutes les boutiques DropShop et des vendeurs DropShipper, ouverte sur drop-shop.cloud. Inscription gratuite, paiement Stripe sur votre compte, 5 % par vente : vous y publiez vos annonces comme sur n'importe quel canal.",
+        "bouton": "Consulter la marketplace",
+        "href": "https://drop-shop.cloud"
       },
       "extensions": "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews."
     },

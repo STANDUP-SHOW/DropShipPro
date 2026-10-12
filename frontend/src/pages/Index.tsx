@@ -240,12 +240,14 @@ export default function Index() {
               <div className="cadre-dropshop flex flex-col rounded-3xl p-6 md:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <img src="/marque/dropshop/market-europe.png" alt={`${D.market.titre} — Rapide Europe, produits d'importation`} width={720} height={379} className="h-24 w-auto md:h-28" loading="lazy" />
-                  <span className="degrade-dropshop rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider text-white [text-shadow:0_1px_2px_rgba(0,0,0,.45)]">{D.market.badge}</span>
                 </div>
                 <h3 className="sr-only">{D.market.titre}</h3>
                 <p className="texte-neon mt-5 text-base md:text-lg">{D.market.texte}</p>
                 <p className="texte-neon mt-3 flex-1 text-base md:text-lg">{D.extensions}</p>
-                <PlusInfos slug={D.slug} />
+                <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+                  <BoutonDropShop href={D.market.href} label={D.market.bouton} />
+                  <PlusInfos slug={D.slug} />
+                </div>
               </div>
             </div>
           </div>
