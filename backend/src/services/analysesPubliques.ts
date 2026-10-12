@@ -1038,15 +1038,16 @@ export function texteRefait(r: { body: string; type?: string }, importeDrive?: b
 /**
  * The store of #77 (no version) dated « now » every Drive import seen for the
  * first time, the older ones too (07/10 and 08/10, 12/10/2026 19:40), and the
- * one of #78 (version 2) kept that date for marketing reports. Those entries
- * go, so they start again from their data date.
+ * one of #78 (version 2) kept that date for marketing reports; the one of #79
+ * (version 3) seeded older imports with a data date that a reader replay had
+ * moved (18:17). Those entries go, so they start again from their data date.
  */
-export const VERSION_RENDUS = 3
+export const VERSION_RENDUS = 4
 
 export function rendusMigres(brut: unknown, refaits: Set<string>): RendusConnus {
   const o = (brut && typeof brut === 'object' ? brut : {}) as Record<string, any>
   if (o.version === VERSION_RENDUS && o.rapports && typeof o.rapports === 'object') return o.rapports as RendusConnus
-  const entrees = o.version === 2 && o.rapports && typeof o.rapports === 'object' ? o.rapports : o
+  const entrees = typeof o.version === 'number' && o.rapports && typeof o.rapports === 'object' ? o.rapports : o
   const garde: RendusConnus = {}
   for (const [id, v] of Object.entries(entrees as Record<string, any>)) if (v && typeof v === 'object' && typeof v.empreinte === 'string' && refaits.has(id)) garde[id] = v
   return garde
