@@ -356,22 +356,53 @@ export function extraireEditions(texte: string): { resume: string; edits: Editio
  * dont l'extrait est absent ou ambigu fait échouer l'ensemble, avec la liste
  * des fautives — c'est ce qu'on renvoie au modèle pour qu'il corrige.
  */
-export function appliquerEditions(html: string, edits: Edition[]): { html: string; erreurs: string[] } {
+/**
+ * Where an excerpt sits in the page: exactly, or else with whitespace runs
+ * treated as equal. The model recopies indentation and line breaks loosely;
+ * an otherwise exact excerpt failing on a tab killed whole shop creations
+ * (12/10/2026, « Les éditions du modèle ne correspondent pas à la page »).
+ */
+function trouverExtrait(page: string, chercher: string): { debut: number; fin: number } | 'absent' | 'ambigu' {
+  const premiere = page.indexOf(chercher)
+  if (premiere >= 0) {
+    return page.indexOf(chercher, premiere + 1) >= 0 ? 'ambigu' : { debut: premiere, fin: premiere + chercher.length }
+  }
+  const morceaux = chercher.trim().split(/\s+/).filter(Boolean)
+  if (!morceaux.length) return 'absent'
+  const motif = new RegExp(morceaux.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'g')
+  const trouves = [...page.matchAll(motif)]
+  if (!trouves.length) return 'absent'
+  if (trouves.length > 1) return 'ambigu'
+  return { debut: trouves[0].index!, fin: trouves[0].index! + trouves[0][0].length }
+}
+
+/**
+ * Applies the edits. `html` is all-or-nothing (the page is unchanged if one
+ * edit misses); `partiel` carries the edits that did apply, for the repair
+ * pass, which re-checks the page anyway and would rather keep what it fixed.
+ */
+export function appliquerEditions(
+  html: string,
+  edits: Edition[],
+): { html: string; erreurs: string[]; partiel: string; appliquees: number } {
   const erreurs: string[] = []
   let resultat = html
+  let appliquees = 0
   for (const e of edits) {
-    const premiere = resultat.indexOf(e.chercher)
-    if (premiere < 0) {
-      erreurs.push(`Extrait introuvable dans la page : « ${e.chercher.slice(0, 120)}${e.chercher.length > 120 ? '…' : ''} »`)
+    const extrait = `« ${e.chercher.slice(0, 120)}${e.chercher.length > 120 ? '…' : ''} »`
+    const place = trouverExtrait(resultat, e.chercher)
+    if (place === 'absent') {
+      erreurs.push(`Extrait introuvable dans la page : ${extrait}`)
       continue
     }
-    if (resultat.indexOf(e.chercher, premiere + 1) >= 0) {
-      erreurs.push(`Extrait présent plusieurs fois, ambigu : « ${e.chercher.slice(0, 120)}${e.chercher.length > 120 ? '…' : ''} »`)
+    if (place === 'ambigu') {
+      erreurs.push(`Extrait présent plusieurs fois, ambigu : ${extrait}`)
       continue
     }
-    resultat = resultat.slice(0, premiere) + e.remplacer + resultat.slice(premiere + e.chercher.length)
+    resultat = resultat.slice(0, place.debut) + e.remplacer + resultat.slice(place.fin)
+    appliquees++
   }
-  return { html: erreurs.length ? html : resultat, erreurs }
+  return { html: erreurs.length ? html : resultat, erreurs, partiel: resultat, appliquees }
 }
 
 /* ---------- L'appel au modèle ---------- */
@@ -500,7 +531,16 @@ export async function fabriquerSite(
   let verdict = await verifier(html, options)
   for (let n = 1; !verdict.ok && n <= REPARATIONS_MAX; n++) {
     surEtape({ etape: 'reparation', tentative: n })
-    const repare = await reparerSite(html, verdict.echecs, appeler)
+    // A repair round whose edits all miss is one lost round, not a lost shop:
+    // the next round tries again on the same page.
+    let repare: SiteModifie
+    try {
+      repare = await reparerSite(html, verdict.echecs, appeler)
+    } catch (e) {
+      if (!(e instanceof SiteImpossible)) throw e
+      console.warn(`[dropshop] réparation ${n} sans effet : ${e.message}`)
+      continue
+    }
     jetons.entree += repare.jetons.entree
     jetons.sortie += repare.jetons.sortie
     cout += repare.cout
@@ -582,6 +622,7 @@ async function editer(
   appeler: AppelModele,
   modeleEdition: string,
   consigne: string = consigneEdition(),
+  partielAccepte = false,
 ): Promise<SiteModifie> {
   const jetons = { entree: 0, sortie: 0 }
   const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
@@ -607,7 +648,16 @@ async function editer(
     }
     const applique = appliquerEditions(html, editions.edits)
     if (!applique.erreurs.length) return { html: applique.html, resume: editions.resume, modele: modeleEdition, jetons, cout }
-    if (essai === 2) throw new SiteImpossible('Les éditions du modèle ne correspondent pas à la page.', applique.erreurs)
+    if (essai === 2) {
+      // A repair keeps what it managed to fix: the visitor check runs again
+      // right after and asks for the rest.
+      if (partielAccepte && applique.appliquees > 0) {
+        console.warn(`[dropshop] éditions partielles : ${applique.appliquees} appliquée(s), ${applique.erreurs.length} écartée(s)`)
+        return { html: applique.partiel, resume: editions.resume, modele: modeleEdition, jetons, cout }
+      }
+      console.warn('[dropshop] éditions inapplicables : ' + applique.erreurs.slice(0, 3).join(' | '))
+      throw new SiteImpossible('Les éditions du modèle ne correspondent pas à la page.', applique.erreurs)
+    }
     messages.push({ role: 'assistant', content: reponse.texte })
     messages.push({
       role: 'user',
@@ -645,5 +695,5 @@ export async function modifierSite(
 
 export async function reparerSite(html: string, echecs: string[], appeler: AppelModele = appelAnthropic): Promise<SiteModifie> {
   const demande = `Le contrôle du visiteur a relevé ces manques. Corrige-les tous, sans toucher au reste du design :\n${echecs.map((e) => `- ${e}`).join('\n')}`
-  return editer(html, demande, appeler, modele('AI_MODEL_SITE_MODIF', MODELE_RAPIDE))
+  return editer(html, demande, appeler, modele('AI_MODEL_SITE_MODIF', MODELE_RAPIDE), consigneEdition(), true)
 }
