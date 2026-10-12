@@ -26,6 +26,7 @@ import {
   fixerDatesDesPages,
   produitsUniques,
   produitsNettoyes,
+  texteRepare,
   cheminArticleDate,
   cheminCategorie,
   cheminJour,
@@ -234,8 +235,10 @@ function versPublicBrut(id: string): RapportPublic | null {
   // One row per product: the per-offer list (with suppliers) stays in the signed-in space.
   const nettoyes = produitsNettoyes(r.produits)
   const produits = produitsUniques(nettoyes).map((p, i) => ({ ...p, rang: i + 1 }))
-  const texte = (t: string | null) => (t ? apostrophesDuTexte(t) : t)
-  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), body: renvoisRenumerotes(apostrophesDuTexte(r.body), nettoyes), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
+  const texte = (t: string | null) => (t ? texteRepare(apostrophesDuTexte(t)) : t)
+  // « Les 11 produits relevés » over a table of 10 once the doubles are grouped.
+  const body = texteRepare(apostrophesDuTexte(r.body)).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+relevés)/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
+  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), body: renvoisRenumerotes(body, nettoyes), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
 function html(res: Response, page: string) {

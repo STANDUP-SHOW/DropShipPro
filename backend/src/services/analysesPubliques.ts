@@ -403,9 +403,15 @@ const MARGE_PCT = /(marge|\broi\b)[^.;]{0,40}\d\s*%|\d\s*%[^.;]{0,20}(de\s*)?(ma
 /** A ceiling the seller should buy under (« ≤ 4,13 € », « objectif 12,25 € ») is a buying price whatever the words around it. */
 const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif|n[ée]goci\w*\s+(sous|à|a|au\s+plus))\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max|\d\s*€\s*nets?\b/i
 /** A supplier's name, a foreign-currency price, a buying ceiling, or a buying term next to an amount (« coût rendu 18 € »). */
+// A price converted from pounds or dollars, a rate, « à renégocier », « prix d'achat » itself: buying talk (eveil, 12/10/2026).
+const ACHAT_EN_CLAIR = /\b(le|les|ce|ces|nos|notre|un|du)\s+prix\s+d['’ ]?achat|tarif\s+fournisseur|ren[ée]goci|taux\s+(indicatif|de\s+change|approximatif)|convertis?\s+(de|depuis|au)\b|€\s*\/\s*(£|\$)|\bcatalogue\s*«?\s*api\b/i
+// « votre compte CJ », « la veste softshell CJ » : the supplier by its initials, capitals only.
+const CJ_SEUL = /(?<![\p{L}\d])CJ(?![\p{L}\d])/u
 const estPrivee = (texte: string) =>
   FOURNISSEUR_NOMME.test(texte) ||
-  /\d\s*(\$|usd\b|¥|rmb\b|cny\b)|(\$|us\$|¥)\s*\d/i.test(texte) ||
+  CJ_SEUL.test(texte) ||
+  ACHAT_EN_CLAIR.test(texte) ||
+  /\d\s*(\$|usd\b|¥|rmb\b|cny\b|£|gbp\b)|(\$|us\$|¥|£)\s*\d/i.test(texte) ||
   PLAFOND.test(texte) ||
   MARGE_PCT.test(texte) ||
   (TERME_ACHAT.test(texte) && MONTANT.test(texte))
@@ -426,6 +432,10 @@ const estPrivee = (texte: string) =>
  */
 function publiable(ligne: string): string {
   let l = ligne
+    // A link whose address is private keeps its label: removing « (url) » alone left « ([Test Achats]) ».
+    .replace(/\[([^\]]*)\]\(([^()\s]*)\)/g, (m, lab: string, url: string) => (estPrivee(url) ? lab : m))
+    // « (tapis … à 85 €, cf. tableau ci-dessous) » : an amount sent to the private table is a buying price.
+    .replace(/\s*\(([^()]*\d\s*€[^()]*cf\.?\s*tableau[^()]*|[^()]*cf\.?\s*tableau[^()]*\d\s*€[^()]*)\)/gi, '')
     .replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (/bon de commande|plan de test|tableau\s*\d|identique à l['’ ]?étude|étude\s+[A-ZÉ]/i.test(dedans) ? '' : m))
     .replace(/voir le fichier marketing/gi, (m) => `${m[0]}oir l'analyse marketing du même jour`)
   if (/budget/i.test(l)) l = l.replace(/,?\s*dont\s+(environ\s+)?\d[^,.;()]*€[^,.;()]*/gi, (m) => (/\s$/.test(m) ? ' ' : '')).replace(/\s+hors\s+[^.;,()]*/gi, (m) => (estPrivee(m) ? (/\s$/.test(m) ? ' ' : '') : m))
@@ -486,16 +496,21 @@ export function sansMentionsPrivees(corps: string): string {
     const parListe = (morceau: string) =>
       morceau
         .split(/,\s+(?![^()]*\))/)
-        .filter((element) => !prive(element))
+        // « …, ce qui comprime les marges » leans on the clause before it: it goes with it.
+        .filter((element, i, tous) => !prive(element) && !(i > 0 && prive(tous[i - 1]) && /^(ce qui|ce que|ce dont|qui|dont|où)\b/i.test(element)))
         .join(', ')
         .replace(/[^.!?;]$/, (fin) => fin + (/[.!?;]$/.exec(morceau)?.[0] ?? ''))
-    const morceaux = texte.split(/(?<=[.!?;])\s+/).map((morceau) => {
+    // « Dans le détail, <private>, ce qui en fait… » : once the clause and its relative go, the head says nothing.
+    const relativeOrpheline = (morceau: string) =>
+      morceau.split(/,\s+(?![^()]*\))/).some((element, i, tous) => i > 0 && prive(tous[i - 1]) && /^(ce qui|ce que|ce dont|qui|dont|où)\b/i.test(element))
+    // « (ex. Bigjigstoys, ~58 € …) » is one sentence: no cut after an abbreviation.
+    const morceaux = texte.split(/(?<!\b(?:ex|cf|env|réf|vs|ca|etc|p)\.)(?<=[.!?;])\s+/i).map((morceau) => {
       if (!libelle || !prive(morceau)) return morceau
       if (LIBELLE_LISTE.test(libelle) || !prive(morceau.split(/,\s+(?![^()]*\))/)[0])) {
         // …unless the first item is the private one: then the rest qualifies it (« …sur AliExpress, coût rendu supérieur… »),
         // and a remnant too short to stand (« En boutique. ») goes with it.
         const garde = parListe(morceau)
-        return LIBELLE_LISTE.test(libelle) || garde.split(/\s+/).length >= 4 ? garde : morceau
+        return LIBELLE_LISTE.test(libelle) || garde.split(/\s+/).length >= 4 && !relativeOrpheline(morceau) ? garde : morceau
       }
       return morceau
     })
@@ -687,7 +702,7 @@ const ORGANISATION = { '@type': 'Organization', '@id': `${SITE}/#organisation`, 
  * d'un fournisseur. Les agents l'écrivent dans « pourquoi » : la colonne
  * fournisseur retirée ne suffit pas, le texte est filtré au rendu.
  */
-const TRAHIT_ACHAT = /achat|fournisseur|relev|sur la fiche|co[uû]t|usine|grossiste|\$|US\s?\$|¥|yuan|rmb|cny|aliexpress|alibaba|1688|cj\s?drop|cjdropshipping|temu|shein|bigbuy|accio|dhgate|banggood|spocket|zendrop|syncee/i
+const TRAHIT_ACHAT = /achat|fournisseur|relev|sur la fiche|co[uû]t|usine|grossiste|ren[ée]goci|convertis?\s+(de|depuis|au)\b|taux\s+(indicatif|de\s+change|approximatif)|£|catalogue\s*«?\s*api|connecteur officiel|flux manuel|méthodes d['’]import|\$|US\s?\$|¥|yuan|rmb|cny|aliexpress|alibaba|1688|cj\s?drop|cjdropshipping|temu|shein|bigbuy|accio|dhgate|banggood|spocket|zendrop|syncee/i
 
 /** « pourquoi » sans ce qui trahit l'achat : chaque parenthèse et chaque membre de phrase fautif est retiré. Exporté pour le banc. */
 export function pourquoiPublic(texte: string | null | undefined): string {
@@ -696,11 +711,11 @@ export function pourquoiPublic(texte: string | null | undefined): string {
   return texte
     .split(/\s+·\s+/)
     .map((champ) => {
-      const sansParentheses = champ.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (TRAHIT_ACHAT.test(dedans) ? '' : m))
+      const sansParentheses = champ.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (TRAHIT_ACHAT.test(dedans) || CJ_SEUL.test(dedans) ? '' : m))
       const net = sansParentheses
         .split(/\s*[;,]\s+|\s+[—–-]\s+/)
         .map((m) => m.trim().replace(/[.\s]+$/, ''))
-        .filter((m) => m && !TRAHIT_ACHAT.test(m))
+        .filter((m) => m && !TRAHIT_ACHAT.test(m) && !CJ_SEUL.test(m))
         .join(', ')
       const equilibre = parenthesesEquilibrees(net).trim()
       return equilibre ? equilibre.charAt(0).toUpperCase() + equilibre.slice(1) : ''
@@ -796,7 +811,7 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
         return `<h2 id="produits">${esc(titre)}</h2>${tableauProduitsPublic(r.produits)}`
       }
       const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps, /bundle/i.test(b.titre))
-      const corps = sansIntertitresVides(sansMentionsPrivees(/bundle/i.test(b.titre) ? sansNotesDeCout(sansTableaux) : sansTableaux))
+      const corps = sansIntertitresVides(pointsAnnonces(sansMentionsPrivees(/bundle/i.test(b.titre) ? sansNotesDeCout(sansTableaux) : sansTableaux)))
       // Sans produits structurés à montrer à la place, le lecteur sait au moins que la liste existe.
       const garde =
         retires && !r.produits.length
@@ -1022,7 +1037,10 @@ export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
     .map((p) => {
       let t = p.titre
       for (let k = 0; k < 3; k++) t = t.replace(/^((?:\S+\s+){2,4}?)\1/i, '$1')
-      return t === p.titre ? p : { ...p, titre: t }
+      // « Casque audio Casque Philips… » : a two-word label in front of a title that starts with the same word.
+      t = texteRepare(apostrophesDuTexte(t.replace(/^(\p{L}+)\s+\p{L}+\s+(?=\1(?![\p{L}]))/iu, '')))
+      const pourquoi = p.pourquoi ? texteRepare(apostrophesDuTexte(p.pourquoi)) : p.pourquoi
+      return t === p.titre && pourquoi === p.pourquoi ? p : { ...p, titre: t, pourquoi }
     })
 }
 
@@ -1146,7 +1164,7 @@ const MOTS_ELIDES =
   'intérieur|extérieur|authenticité|esprit|usines?|applications?|éclairages?|ordinateurs?|achat|essentiels?|indispensables?|alimentation|' +
   'arrivée|avenir|autonomie|audio|assistance|hygiène|humidité|odeurs?|ombres?|or|argent|aspirateurs?|espaces?|étés?|édition|élégance|' +
   'efficacité|économies?|émotions?|engouement|envie|ergonomie|équipements?|essor|évolution|excellence|exclusivité|immersion|impact|' +
-  'innovation|intelligence|iphone|ipad|android|amazon|aliexpress|instagram|influence|international|internet|un|une|essais?|écoute|utilisateurs?|acheteurs?|achats?|actions?|imports?|importations?|exports?|emballages?|étiquettes?|unités?|offres?'
+  'innovation|intelligence|iphone|ipad|android|amazon|aliexpress|instagram|influence|international|internet|un|une|essais?|écoute|utilisateurs?|acheteurs?|achats?|actions?|imports?|importations?|exports?|emballages?|étiquettes?|unités?|offres?|accroches?|articles?|annonces?|abonnements?'
 // Verbs only after d' (« avant dacheter ») : « lavoir » is a word, « l'avoir » never in a title.
 const VERBES_ELIDES = 'acheter|essayer|offrir|utiliser|installer|attendre|économiser|avoir|être|écouter|entretenir|ouvrir|investir|importer|expédier|éviter|améliorer|ajouter'
 
@@ -1167,6 +1185,9 @@ function apostrophesSansGarde(texte: string): string {
   const elision = new RegExp(`(?<![\\p{L}\\d])(jusqu|lorsqu|puisqu|qu|[lLdD])(${MOTS_ELIDES})(?![\\p{L}\\d])`, 'giu')
   return texte
     .replace(/(?<![\p{L}])(aujourd)(hui)(?![\p{L}])/giu, "$1'$2")
+    // « cur du marché », « mise en uvre » : the œ ligature was dropped.
+    .replace(/(?<![\p{L}])([cC])ur(?=\s+(?:du|de|des|d['’]|de\s+la)(?![\p{L}]))/gu, '$1œur')
+    .replace(/(?<![\p{L}])(mise\s+en\s+|main-d['’]?|chef-d['’]?)uvre(s?)(?![\p{L}])/giu, (m, a: string, pl: string) => a.replace(/d$/, "d'") + 'œuvre' + pl)
     // « coût déncre » : the apostrophe was turned into an accent.
     .replace(/(?<![\p{L}])([dD])é(ncres?)(?![\p{L}])/gu, "$1'e$2")
     .replace(/(?<![\p{L}])([cCnN])(est)(?![\p{L}])/gu, "$1'$2")
@@ -1188,6 +1209,92 @@ export function apostrophesDuTexte(texte: string): string {
   return texte
     .split('\n')
     .map((l) => l.split(/(`[^`]*`|\S*(?:https?:|www\.)\S*)/).map((morceau, i) => (i % 2 ? morceau : apostrophesSansGarde(morceau))).join(''))
+    .join('\n')
+}
+
+// Accents dropped by the writing agent (« generalement »): only words that never exist without them.
+const SANS_ACCENTS: Record<string, string> = {
+  generalement: 'généralement', egalement: 'également', particulierement: 'particulièrement', reellement: 'réellement',
+  legerement: 'légèrement', completement: 'complètement', precisement: 'précisément', regulierement: 'régulièrement',
+  entierement: 'entièrement', premierement: 'premièrement', deuxiemement: 'deuxièmement', troisiemement: 'troisièmement',
+  specifiquement: 'spécifiquement', strategie: 'stratégie', qualite: 'qualité', securite: 'sécurité', deja: 'déjà',
+}
+
+function distance(a: string, b: string): number {
+  const d = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    let diag = d[0]
+    d[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const haut = d[j]
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1))
+      diag = haut
+    }
+  }
+  return d[b.length]
+}
+
+/**
+ * Damage left by the writing agent, fixed for display: CJK characters in a
+ * French text (« plateformes低-coût »), words without their accents, and a link
+ * labelled with a near-miss of its own site (« Toute-la-France » on
+ * toute-la-franchise.com, 12/10/2026).
+ */
+export function texteRepare(texte: string): string {
+  if (!texte) return texte
+  return texte
+    .replace(/\s*低[-\s]?(coût|cout|prix)/g, (_m, mot: string) => ` à bas ${mot === 'prix' ? 'prix' : 'coût'}`)
+    .replace(/\s*[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+[-\s]?/gu, ' ')
+    // Outside addresses: « /qualite-… » in a URL is not a typo.
+    .split(/(\S*(?:https?:|www\.)\S*)/)
+    .map((morceau, k) => (k % 2 ? morceau : morceau.replace(/(?<![\p{L}])(generalement|egalement|particulierement|reellement|legerement|completement|precisement|regulierement|entierement|premierement|deuxiemement|troisiemement|specifiquement|strategie|qualite|securite|deja)(?![\p{L}])/giu, (m) => {
+        const juste = SANS_ACCENTS[m.toLowerCase()]
+        return m[0] === m[0].toUpperCase() ? juste[0].toUpperCase() + juste.slice(1) : juste
+      })))
+    .join('')
+    .replace(/\[([^\]\s]+)([^\]]*)\]\((https?:\/\/(?:www\.)?([a-z0-9-]+)\.[a-z.]+[^()\s]*)\)/gi, (m, lab: string, reste: string, url: string, site: string) => {
+      // « futura-sciences.com » is the address itself, not a near-miss.
+      const a = lab.toLowerCase().replace(/\.[a-z]{2,4}$/, '').replace(/[^a-z0-9]/g, '')
+      const b = site.toLowerCase().replace(/[^a-z0-9]/g, '')
+      if (!/-/.test(lab) || a === b || a.length < 6 || distance(a, b) > 4 || a.slice(0, 4) !== b.slice(0, 4)) return m
+      const nom = site.split('-').map((w, i) => (i === 0 || w.length > 3 ? w[0].toUpperCase() + w.slice(1) : w)).join('-')
+      return `[${nom}${reste}](${url})`
+    })
+}
+
+const ORDINAUX = ['Premièrement', 'Deuxièmement', 'Troisièmement', 'Quatrièmement', 'Cinquièmement']
+const NOMBRES: Record<string, number> = { deux: 2, trois: 3, quatre: 4, cinq: 5 }
+
+/**
+ * « trois points de vigilance. Troisièmement, … » once the private filter took
+ * the first two: the announcement follows what is left, the ordinals are
+ * renumbered, and a single point loses its ordinal (12/10/2026, eveil 04/10).
+ */
+export function pointsAnnonces(corps: string): string {
+  return corps
+    .split('\n')
+    .map((l) => {
+      const annonce = /(?<![\p{L}])(deux|trois|quatre|cinq)\s+(\p{L}+)([^.!?:]*)([.!?:])/iu.exec(l)
+      if (!annonce || !/^(points|risques|axes|leviers|conseils|enjeux|mesures|règles|pistes|erreurs|raisons|conditions|limites|tendances|questions|recommandations|signaux|critères|étapes|chantiers|priorités)$/i.test(annonce[2])) return l
+      const apres = l.slice(annonce.index + annonce[0].length)
+      const presents = ORDINAUX.filter((o) => new RegExp(`(?<![\\p{L}])${o}(?![\\p{L}])`, 'u').test(apres))
+      const annonce_n = NOMBRES[annonce[1].toLowerCase()]
+      if (!presents.length || presents.length >= annonce_n) return l
+      let suite = apres
+      if (presents.length === 1) {
+        suite = suite.replace(new RegExp(`(?<![\\p{L}])${presents[0]},?\\s*(et\\s+c['’]est\\s+le\\s+point\\s+le\\s+plus\\s+\\p{L}+\\s*:\\s*)?(\\p{L})`, 'u'), (_m, _c, x: string) => x.toUpperCase())
+      } else {
+        presents.forEach((o, i) => (suite = suite.replace(new RegExp(`(?<![\\p{L}])${o}(?![\\p{L}])`, 'u'), `\u0000${i}\u0000`)))
+        suite = suite.replace(/\u0000(\d)\u0000/g, (_m, i: string) => ORDINAUX[Number(i)])
+      }
+      const feminin = /^(mesures?|règles?|pistes?|erreurs?|questions?|recommandations?|raisons?|conditions?|limites?|tendances?)$/i.test(annonce[2])
+      const nombre = presents.length === 1 ? (feminin ? 'une' : 'un') : presents.length === 2 ? 'deux' : presents.length === 3 ? 'trois' : 'quatre'
+      const nom = presents.length === 1
+        ? `${annonce[2].replace(/s$/, '')}${annonce[3].replace(/(?<![\p{L}])(\p{L}{3,})s(?![\p{L}])/gu, '$1')}`
+        : `${annonce[2]}${annonce[3]}`
+      const casse = annonce[1][0] === annonce[1][0].toUpperCase() ? nombre[0].toUpperCase() + nombre.slice(1) : nombre
+      return `${l.slice(0, annonce.index)}${casse} ${nom}${annonce[4]}${suite}`
+    })
     .join('\n')
 }
 
