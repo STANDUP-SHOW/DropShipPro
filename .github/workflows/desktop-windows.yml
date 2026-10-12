@@ -50,7 +50,7 @@ jobs:
         run: |
           locale=$(node -p "require('./package.json').version")
           publiee=$(gh release view desktop-dernier --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null \
-            | sed -n 's/.*Version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' | head -1)
+            | sed -n 's/.*Version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' | head -1 || true)
           echo "locale=$locale" >> "$GITHUB_OUTPUT"
           if [ -n "$publiee" ] && ! node -e '
             const n = v => v.split(".").map(Number);
