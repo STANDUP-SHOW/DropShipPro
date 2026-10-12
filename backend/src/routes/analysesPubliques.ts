@@ -19,6 +19,7 @@ import { categorieDe } from '../services/marketReports.js'
 import {
   apostrophesDuTexte,
   apostrophesRendues,
+  promptsPublics,
   attribuerAdresses,
   renvoisRenumerotes,
   texteVisible,
@@ -92,7 +93,7 @@ export function lignesPubliques(): Ligne[] {
   attribuerAdresses(tous)
   const dates = datesDuRendu(tous)
   // Apostrophes restored after attribution: the address keeps the raw title.
-  memo = tous.map((l) => ({ ...l, titre: apostrophesRendues(l.titre), updatedAt: dates.get(l.id) ?? l.updatedAt }))
+  memo = tous.map((l) => ({ ...l, titre: titrePublic(l.titre), updatedAt: dates.get(l.id) ?? l.updatedAt }))
   return memo
 }
 
@@ -106,7 +107,7 @@ function datesDuRendu(tous: Ligne[]): Map<string, Date> {
     const lignes = tous.flatMap((l) => {
       const r = versPublicBrut(l.id)
       if (!r) return []
-      const pub = { ...r, titre: apostrophesRendues(l.titre) }
+      const pub = { ...r, titre: titrePublic(l.titre) }
       publics.set(l.id, { ...pub, updatedAt: new Date(0) })
       return [{ id: l.id, updatedAt: l.updatedAt, texteRefait: texteRefait(r, l.importeDrive), empreinte: empreintePublique(pub) }]
     })
@@ -222,15 +223,21 @@ function versPublic(id: string): RapportPublic | null {
 }
 
 /** The report as the page shows it, dated by its data only. */
+// « smartphones » as a page title: a title starts with a capital.
+const titrePublic = (t: string) => {
+  const r = apostrophesRendues(t)
+  return r ? r.charAt(0).toUpperCase() + r.slice(1) : r
+}
+
 function versPublicBrut(id: string): RapportPublic | null {
   const r = rapports().getAnalyse(id)
   if (!r || !adressable(r)) return null
   const prompts =
     r.type === 'marketing'
-      ? rapports()
+      ? promptsPublics(rapports()
           .getPromptsRapports({ categorie: r.categorie, jour: r.day, limite: 200 })
           .prompts.filter((p) => p.rapportId === id)
-          .map((p) => ({ genre: p.genre, format: p.format, texte: apostrophesDuTexte(p.texte) }))
+          .map((p) => ({ genre: p.genre, format: p.format, texte: apostrophesDuTexte(p.texte) })))
       : []
   // One row per product: the per-offer list (with suppliers) stays in the signed-in space.
   const nettoyes = produitsNettoyes(r.produits)
@@ -238,7 +245,7 @@ function versPublicBrut(id: string): RapportPublic | null {
   const texte = (t: string | null) => (t ? texteRepare(apostrophesDuTexte(t)) : t)
   // « Les 11 produits relevés » over a table of 10 once the doubles are grouped.
   const body = texteRepare(apostrophesDuTexte(r.body)).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+relevés)/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
-  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), body: renvoisRenumerotes(body, nettoyes), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
+  return { ...r, titre: titrePublic(r.une ?? r.titre), body: renvoisRenumerotes(body, nettoyes), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
 function html(res: Response, page: string) {
