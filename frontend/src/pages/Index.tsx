@@ -6,6 +6,7 @@ import { api, isAuthed } from '../lib/api'
 import { CHROME_STORE_URL } from '../lib/extension'
 import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
 import { BoucleTheme } from '../components/BoucleTheme'
+import { VilleDeNuit } from '../components/VilleDeNuit'
 import accueil from '../data/accueil-themes.json'
 import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
 import PiedDePagePublic from '../components/PiedDePagePublic'
@@ -129,13 +130,21 @@ export default function Index() {
       </header>
 
       <main>
-        {/* La promesse en trois lignes (synthèse de Max, 03/10/2026). */}
-        <section className="mx-auto max-w-6xl px-5 pb-12 pt-12 text-center md:px-6 md:pb-20 md:pt-20">
+        {/* La promesse en trois lignes (synthèse de Max, 03/10/2026), posée sur des
+            villes de nuit qui défilent (Max, 12/10/2026). Le voile sombre au centre
+            garde le texte lisible ; les néons restent dans l'image, jamais sur les lettres. */}
+        <section className="relative isolate overflow-hidden">
+          <div className="absolute inset-0 -z-10">
+            <VilleDeNuit />
+            <div className="lumiere-ville absolute inset-0" aria-hidden="true" />
+            <div className="voile-ville absolute inset-0" aria-hidden="true" />
+          </div>
+        <div className="arrivee mx-auto flex min-h-[78svh] max-w-6xl flex-col justify-center px-5 pb-16 pt-14 text-center md:min-h-[86vh] md:px-6 md:pb-24 md:pt-20">
           <h1 className="mx-auto max-w-4xl text-[2.1rem] font-extrabold leading-[1.1] tracking-tight md:text-6xl">
             {accueil.hero.titre.replace(" avec l'IA", '')} <span className="text-gradient-brand">avec l'IA</span>
           </h1>
-          <p className="texte-neon mx-auto mt-5 max-w-3xl text-lg md:mt-6 md:text-2xl">{S.promesse}</p>
-          <p className="mx-auto mt-5 max-w-3xl text-sm font-medium text-purple-200 md:text-base">{S.prix}</p>
+          <p className="mx-auto mt-5 max-w-3xl text-lg text-[#e6e9f0] md:mt-6 md:text-2xl">{S.promesse}</p>
+          <p className="mx-auto mt-5 max-w-3xl text-sm font-medium text-white/85 md:text-base">{S.prix}</p>
           <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <Link
               to={cible}
@@ -158,6 +167,7 @@ export default function Index() {
               Extension Chrome
             </a>
           </div>
+        </div>
         </section>
 
         {/* Comment ça marche : trois étapes. Sur PC chaque étape montre la boucle
@@ -197,12 +207,20 @@ export default function Index() {
                 <li key={x.slug}>
                   <a
                     href={`/fonctions/${x.slug}/`}
-                    className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-purple-400/40 hover:bg-white/[0.06] md:p-6"
+                    className="group flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-white/25 hover:bg-white/[0.06]"
                   >
+                    {/* L'illustration de la case : la boucle animée de son thème (Max, 12/10/2026). */}
+                    <span className="block aspect-[16/9] overflow-hidden border-b border-white/10">
+                      <span className="illu-case block h-full w-full">
+                        <BoucleTheme poster={`/images/accueil/${x.slug}.jpg`} slug={x.slug} alt={x.titre} />
+                      </span>
+                    </span>
+                    <span className="flex flex-1 flex-col p-5 md:p-6">
                     <span className="text-lg font-bold md:text-xl">{x.titre}</span>
                     <span className="texte-neon mt-2 flex-1 text-base">{x.texte}</span>
                     <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-purple-300 group-hover:underline">
                       Plus d'informations <ArrowRight size={15} />
+                    </span>
                     </span>
                   </a>
                 </li>
@@ -268,6 +286,16 @@ export default function Index() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{b.surtitre}</p>
                 )}
                 <h2 className={`neon ${b.neon} mt-3 text-2xl font-extrabold leading-tight md:text-3xl`}>{b.titre}</h2>
+                {/* « Pas d'abonnement » illustré par la pièce et le logo des drops (Max, 12/10/2026). */}
+                {b.slug === 'les-drops' && (
+                  <div className="mt-5 flex items-center gap-4 rounded-2xl border border-[#fdbf06]/25 bg-[#fdbf06]/[0.06] px-4 py-3">
+                    <img src="/marque/drops.png" alt="" width={256} height={256} className="drop-flotte h-14 w-14 shrink-0 md:h-16 md:w-16" loading="lazy" />
+                    <div className="min-w-0">
+                      <img src="/marque/drops-mot.png" alt="Drops" width={249} height={96} className="h-7 w-auto md:h-8" loading="lazy" />
+                      <p className="mt-1 text-sm font-semibold text-[#fdbf06]">La monnaie de DropShipper : chaque action a son prix en drops.</p>
+                    </div>
+                  </div>
+                )}
                 <p className="texte-neon mt-4 flex-1 text-base md:text-lg">{b.texte}</p>
                 <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                   <OffreLien href={b.href} label={b.bouton} />
