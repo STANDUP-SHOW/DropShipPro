@@ -105,7 +105,7 @@ export function Etincelle({ serie, encre }: { serie: number[]; encre: Encre }) {
       <path d={`${trait} L100,${H} L0,${H} Z`} fill={`url(#${gid}a)`} />
       <path d={trait} fill="none" stroke={`url(#${gid}t)`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {/* Le point lumineux des planches, posé sur la dernière valeur. */}
-      <circle cx={fin[0]} cy={fin[1]} r="2.6" fill={encre.a} style={{ filter: `drop-shadow(0 0 3px ${encre.a})` }} />
+      <circle cx={fin[0]} cy={fin[1]} r="2.6" fill={encre.a} />
     </svg>
   )
 }
@@ -250,7 +250,7 @@ export function BarresLigne({ serie, encre, graine = 0 }: { serie: number[]; enc
         const h = Math.max(1.5, v * (H - 8) * 0.85)
         return <rect key={i} x={i * larg + larg * 0.25} y={H - h} width={larg * 0.5} height={h} rx="1.2" fill={neon(i + graine)} opacity="0.5" />
       })}
-      <path d={lisse(pts)} fill="none" stroke={encre.a} strokeWidth="1.7" strokeLinecap="round" style={{ filter: `drop-shadow(0 0 2.5px ${encre.a}88)` }} />
+      <path d={lisse(pts)} fill="none" stroke={encre.a} strokeWidth="1.7" strokeLinecap="round" />
       <circle cx={fin[0]} cy={fin[1]} r="2.4" fill={encre.a} />
     </svg>
   )
@@ -275,7 +275,7 @@ export function Lignes({ serie, encre }: { serie: number[]; encre: Encre }) {
   return (
     <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" className="h-8 w-full" aria-hidden>
       <path d={chemin(brute).map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} fill="none" stroke={encre.de} strokeWidth="1.3" opacity="0.6" />
-      <path d={lisse(ptsMoyenne)} fill="none" stroke={encre.a} strokeWidth="2" strokeLinecap="round" style={{ filter: `drop-shadow(0 0 2.5px ${encre.a}77)` }} />
+      <path d={lisse(ptsMoyenne)} fill="none" stroke={encre.a} strokeWidth="2" strokeLinecap="round" />
       <circle cx={fin[0]} cy={fin[1]} r="2.4" fill={encre.a} />
     </svg>
   )
@@ -632,7 +632,7 @@ export function Curseurs({ parts, graine = 0 }: { parts: Part[]; graine?: number
           <g key={p.label + i}>
             <line x1={x} y1="6" x2={x} y2="58" stroke="currentColor" strokeOpacity="0.12" strokeWidth="2.5" strokeLinecap="round" />
             <line x1={x} y1={y} x2={x} y2="58" stroke={couleur} strokeWidth="2.5" strokeLinecap="round" />
-            <rect x={x - 3.2} y={y - 4.5} width="6.4" height="9" rx="2" fill={couleur} style={{ filter: `drop-shadow(0 0 3px ${couleur})` }} />
+            <rect x={x - 3.2} y={y - 4.5} width="6.4" height="9" rx="2" fill={couleur} />
           </g>
         )
       })}
@@ -682,7 +682,7 @@ export function Jalons({ parts, graine = 0 }: { parts: Part[]; graine?: number }
         const r = 4 + (p.valeur / max) * 4.5
         return (
           <g key={p.label + i}>
-            <circle cx={x} cy="12" r={r} fill={couleur} style={{ filter: `drop-shadow(0 0 3px ${couleur}88)` }} />
+            <circle cx={x} cy="12" r={r} fill={couleur} />
             <circle cx={x} cy="27" r="1.8" fill={couleur} opacity="0.7" />
             <line x1={x} y1={12 + r} x2={x} y2="24" stroke={couleur} strokeWidth="0.8" strokeDasharray="1.5 2" opacity="0.5" />
           </g>
@@ -734,7 +734,7 @@ export function Jauge({ part, encre }: { part: number; encre: Encre }) {
         <Degrade id={gid} {...encre} />
       </defs>
       <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeOpacity="0.08" strokeWidth="6" />
-      <circle cx="32" cy="32" r={r} fill="none" stroke={`url(#${gid})`} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(part * tour).toFixed(1)} ${tour.toFixed(1)}`} transform="rotate(-90 32 32)" style={{ filter: `drop-shadow(0 0 4px ${encre.de}77)` }} />
+      <circle cx="32" cy="32" r={r} fill="none" stroke={`url(#${gid})`} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(part * tour).toFixed(1)} ${tour.toFixed(1)}`} transform="rotate(-90 32 32)" />
     </svg>
   )
 }
@@ -753,7 +753,7 @@ export function AnneauPastille({ part, encre }: { part: number; encre: Encre }) 
       </defs>
       <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeOpacity="0.08" strokeWidth="5" />
       <circle cx="32" cy="32" r={r} fill="none" stroke={`url(#${gid})`} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(part * tour).toFixed(1)} ${tour.toFixed(1)}`} transform="rotate(-90 32 32)" />
-      <circle cx={bout[0].toFixed(1)} cy={bout[1].toFixed(1)} r="4" fill={encre.a} style={{ filter: `drop-shadow(0 0 3px ${encre.de})` }} />
+      <circle cx={bout[0].toFixed(1)} cy={bout[1].toFixed(1)} r="4" fill={encre.a} />
     </svg>
   )
 }
@@ -813,7 +813,7 @@ export function Crante({
             // L'anneau reste dessiné en entier : les crans restants gardent
             // leur couleur, simplement éteinte — jamais noirs.
             opacity={i < pleins ? 1 : 0.28}
-            style={i < pleins ? { filter: `drop-shadow(0 0 3px ${c})` } : undefined}
+            
             strokeWidth="3"
             strokeLinecap="round"
           />
@@ -916,7 +916,7 @@ export function Barre({ part, encre }: { part: number; encre: Encre }) {
       </defs>
       <rect x="0" y="3.2" width="100" height="3.6" rx="1.8" fill="currentColor" fillOpacity="0.08" />
       <rect x="0" y="3.2" width={Math.max(4, part * 100)} height="3.6" rx="1.8" fill={`url(#${gid})`} />
-      <circle cx={x} cy="5" r="3.4" fill="currentColor" stroke={encre.a} strokeWidth="1.6" style={{ filter: `drop-shadow(0 0 3px ${encre.a})` }} />
+      <circle cx={x} cy="5" r="3.4" fill="currentColor" stroke={encre.a} strokeWidth="1.6" />
     </svg>
   )
 }

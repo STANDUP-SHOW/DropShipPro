@@ -89,17 +89,17 @@ export function BlocNotifications() {
             key={t.cle}
             to={t.to}
             title={`${t.label} : ${n}`}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 backdrop-blur-xl transition hover:border-white/[0.18]"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-[var(--trait)] bg-[var(--panneau)] px-3 py-2 transition hover:border-[var(--trait-fort)]"
           >
             <t.icone size={18} style={{ color: actif ? t.teinte : '#6b7280' }} className="shrink-0" />
             <span className="min-w-0 flex-1">
               <span
                 className="block text-lg font-extrabold leading-none"
-                style={{ color: actif ? t.teinte : '#6b7280' }}
+                style={{ color: actif ? 'var(--texte)' : 'var(--texte-3)' }}
               >
                 {n.toLocaleString('fr-FR')}
               </span>
-              <span className="mt-1 block truncate text-[9px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
+              <span className="mt-1 block truncate text-[9px] font-semibold uppercase leading-tight tracking-wide text-[var(--texte-2)]">
                 {t.label}
               </span>
             </span>

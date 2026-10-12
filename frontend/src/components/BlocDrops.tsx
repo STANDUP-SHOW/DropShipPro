@@ -49,7 +49,7 @@ export function BlocDrops() {
     <Link
       to="/credits"
       title={`Portefeuille : ${solde.credits.toLocaleString('fr-FR')} drops${euros ? ` ≈ ${euros} €` : ''} — cliquez pour recharger`}
-      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 backdrop-blur-xl transition hover:border-white/[0.18]"
+      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-[var(--trait)] bg-[var(--panneau)] px-3 py-2 transition hover:border-[var(--trait-fort)]"
     >
       <DropCoin size={22} className="shrink-0" />
       <span className="min-w-0 flex-1">

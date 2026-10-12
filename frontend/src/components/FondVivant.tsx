@@ -14,7 +14,7 @@
  */
 export function FondVivant() {
   return (
-    <div aria-hidden className="fond-vivant fixed inset-0 z-0 overflow-hidden bg-[#08070f]">
+    <div aria-hidden className="fond-vivant fixed inset-0 z-0 overflow-hidden bg-[var(--nuit)]">
       {/* Les gouttes de la lampe : elles partent du bas, montent en s'étirant,
           redescendent — chacune sa colonne, son rythme et son retard. */}
       <span className="blob blob-a" />

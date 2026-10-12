@@ -216,9 +216,9 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   if (tuile.valeur === null) {
     return (
       <div className="flex h-full flex-col rounded-xl p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{tuile.label}</p>
-        <p className="mt-1 text-xl font-bold text-gray-600">—</p>
-        <p className="mt-auto pt-1 text-[10px] leading-snug text-gray-600">{tuile.raison}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--texte-3)]">{tuile.label}</p>
+        <p className="mt-1 text-xl font-bold text-[var(--texte-3)]">—</p>
+        <p className="mt-auto pt-1 text-[10px] leading-snug text-[var(--texte-3)]">{tuile.raison}</p>
       </div>
     )
   }
@@ -264,23 +264,23 @@ export function TuileStat({ tuile, rang, graine = 0, forme }: { tuile: TuileData
   }
 
   const valeurEnDegrade = (taille: string) => (
-    <p className={`break-words bg-gradient-to-r bg-clip-text font-extrabold leading-tight text-transparent ${taille}`} style={{ backgroundImage: `linear-gradient(90deg, ${de}, ${a})` }}>
+    <p className={`break-words font-extrabold leading-tight text-[var(--texte)] ${taille}`}>
       {formatValeur(tuile.valeur!, tuile.unite)}
     </p>
   )
 
   return (
-    // Sans cadre au repos — seule la section porte un bloc. Le liseré néon ne
-    // s'allume qu'au survol (demandé le 04/09/2026), dans la couleur de la
-    // tuile ; la bordure transparente évite tout déplacement au premier hover.
+    // Sans cadre au repos — seule la section porte un bloc. Un liseré discret ne
+    // s'allume qu'au survol (demandé le 04/09/2026), sans halo (charte du
+    // 11/10/2026) ; la bordure transparente évite tout déplacement au survol.
     <div
       data-forme={choisie}
       className="@container flex h-full flex-col overflow-hidden rounded-xl border border-transparent p-3 transition hover:bg-white/[0.02]"
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${de}66`; e.currentTarget.style.boxShadow = `0 0 16px ${de}26` }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = 'none' }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--trait-fort)" }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent' }}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{tuile.label}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--texte-2)]">{tuile.label}</p>
         {typeof tuile.evolution === 'number' ? <Evolution valeur={tuile.evolution} /> : null}
       </div>
 
@@ -380,14 +380,14 @@ export function BlocStats({ bloc, enTete }: { bloc: BlocData; enTete?: ReactNode
     // vivant se devinent au travers.
     <section
       id={`stats-${bloc.id}`}
-      className="rounded-2xl border border-white/[0.12] bg-white/[0.05] p-4 backdrop-blur-2xl"
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 40px rgba(0,0,0,0.35)' }}
+      className="rounded-2xl border border-[var(--trait)] bg-[var(--panneau)] p-4"
+      style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}
     >
-      <header className="flex items-center gap-2.5 border-b pb-2" style={{ borderColor: `${accent}33` }}>
+      <header className="flex items-center gap-2.5 border-b border-[var(--trait)] pb-2">
         <span className="grid h-6 w-6 place-items-center rounded-md text-black/80" style={{ backgroundColor: accent }}>
           <Icone size={14} />
         </span>
-        <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: accent }}>{bloc.titre}</h2>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--texte)]">{bloc.titre}</h2>
         {/* Les commandes de la page (périodes, démo) se posent ici, justifiées
             à droite du titre — demandé le 05/09/2026 pour la Vue générale. */}
         {enTete ? <div className="ml-auto">{enTete}</div> : null}

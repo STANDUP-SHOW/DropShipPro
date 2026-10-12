@@ -117,7 +117,7 @@ function Fleche({ de, vers, poids, couleur }: { de: [number, number]; vers: [num
         strokeWidth={0.7 + poids * 0.9}
         strokeLinecap="round"
         opacity="0.85"
-        style={{ filter: `drop-shadow(0 0 1.5px ${couleur})` }}
+       
       />
       <polygon points={pointe} fill={couleur} />
     </g>
@@ -153,8 +153,8 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
 
   return (
     <section
-      className="rounded-2xl border border-white/[0.12] bg-white/[0.05] p-4 backdrop-blur-2xl"
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 40px rgba(0,0,0,0.35)' }}
+      className="rounded-2xl border border-[var(--trait)] bg-[var(--panneau)] p-4"
+      style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
@@ -194,12 +194,12 @@ export function CarteMonde({ carte }: { carte: CarteData }) {
               stroke="currentColor" strokeOpacity="0.9"
               strokeWidth="0.38"
               strokeLinejoin="round"
-              style={{ filter: 'drop-shadow(0 0 1.6px rgba(255,255,255,0.75))' }}
+             
             />
 
             {/* La France, cœur du trafic, allumée en permanence. */}
             <circle cx={france[0]} cy={france[1]} r="2.6" fill={`${de}44`} />
-            <circle cx={france[0]} cy={france[1]} r="1.2" fill={a} style={{ filter: `drop-shadow(0 0 2px ${de})` }} />
+            <circle cx={france[0]} cy={france[1]} r="1.2" fill={a} />
 
             {/* Tout est trajet : les clients et les fournisseurs convergent
                 vers la France, les livraisons en partent — chacun sa couleur. */}

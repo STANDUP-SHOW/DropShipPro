@@ -118,20 +118,20 @@ export function BandeauJauges() {
    * détail passant dans l'infobulle. Jamais deux lignes.
    */
   const cellule =
-    'flex min-w-[68px] flex-1 shrink-0 flex-col items-center gap-1 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-2 backdrop-blur-xl lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
+    'flex min-w-[68px] flex-1 shrink-0 flex-col items-center gap-1 overflow-hidden rounded-xl border border-[var(--trait)] bg-[var(--panneau)] px-1.5 py-2 lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3'
 
   return (
     // `top-14` sur téléphone : la barre du menu est collée au-dessus, et deux
     // éléments collés à `top-0` se recouvrent. Au-dessus de `md` cette barre
     // n'existe pas, donc les jauges reprennent le haut de l'écran.
-    <div className="sticky top-14 z-20 -mx-4 mb-5 border-b border-white/[0.06] bg-[#08070f]/80 px-4 py-2.5 backdrop-blur-xl md:top-0 md:-mx-8 md:px-8">
+    <div className="sticky top-14 z-20 -mx-4 mb-5 border-b border-[var(--trait)] bg-[var(--nuit)]/95 px-4 py-2.5 md:top-0 md:-mx-8 md:px-8">
       <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
         {blocs.map((b) => (
           <Link
             key={b.label}
             to={b.to}
             title={`${b.label} : ${b.valeur} — ${b.action}`}
-            className={`${cellule} transition hover:border-white/[0.18]`}
+            className={`${cellule} transition hover:border-[var(--trait-fort)]`}
           >
             <span className="order-2 w-9 shrink-0 lg:order-1 [&_svg]:h-auto [&_svg]:w-full">{b.dessin}</span>
             {/* Le titre reste écrit, en blanc, même compressé (05/09/2026) ;
@@ -139,7 +139,7 @@ export function BandeauJauges() {
             <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
               <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">{b.label}</span>
               <span className="hidden truncate text-sm font-bold leading-tight lg:block">{b.valeur}</span>
-              <span className="hidden truncate text-[10px] text-purple-300 lg:block">{b.action}</span>
+              <span className="hidden truncate text-[10px] text-[var(--texte-2)] lg:block">{b.action}</span>
             </span>
           </Link>
         ))}
@@ -153,7 +153,7 @@ export function BandeauJauges() {
           <span className="order-1 w-full min-w-0 text-center lg:order-2 lg:w-auto lg:text-left">
             <span className="block text-[8px] font-bold uppercase leading-tight tracking-wide text-white lg:truncate lg:text-[9px] lg:tracking-wider">Plateforme</span>
             <span className="hidden text-sm font-bold leading-tight lg:block">{jauges.utilisation} %</span>
-            <span className="hidden truncate text-[10px] text-gray-500 lg:block">du potentiel utilisé</span>
+            <span className="hidden truncate text-[10px] text-[var(--texte-3)] lg:block">du potentiel utilisé</span>
           </span>
         </div>
       </div>
