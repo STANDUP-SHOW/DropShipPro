@@ -390,6 +390,26 @@ function faqTarifs() {
   ]
 }
 
+/** La grille rangée par familles ; une ligne qu'aucune famille ne prend part dans « Autres ». */
+function familles() {
+  const regles = [
+    ['Import et annonces', /^Import|réécriture|Contrôle photo/],
+    ['Visuels et publicités', /photo en situation|publicité/],
+    ['Agents et analyses', /Analyse de marché|chef de rayon|agent de comptoir|Agent extension/],
+    ['Mode automatique', /^AUTO-/],
+    ['Boutiques DropShop', /DropShop|Back Office|DropBank/],
+  ]
+  const prises = new Set()
+  const out = regles.map(([titre, re]) => {
+    const lignes = TARIFS.filter((l) => !prises.has(l) && re.test(l[0]))
+    lignes.forEach((l) => prises.add(l))
+    return [titre, lignes]
+  })
+  const reste = TARIFS.filter((l) => !prises.has(l))
+  if (reste.length) out.push(['Autres', reste])
+  return out.filter(([, l]) => l.length)
+}
+
 function pageTarifs() {
   const url = '/tarifs/'
   const trail = [{ name: 'Accueil', url: '/' }, { name: 'Tarifs', url }]
@@ -413,12 +433,14 @@ function pageTarifs() {
       description: `La grille complète de ${NOM} : chaque action a son prix en drops (1 drop = 0,01 €). Aucun abonnement, 120 drops offerts à l'inscription.`,
       jsonLd: [offres, faqLd(faqTarifs()), breadcrumbLd(trail)],
       body: `${crumb(trail)}
+<div class="bandeau-drops"><img src="/marque/drops.png" alt="" width="96" height="96"><div><img class="mot" src="/marque/drops-mot.png" alt="Drops" width="249" height="96"><p><strong>120 drops offerts</strong> à l'inscription. 1 drop = 0,01 €.</p></div></div>
 <h1>Tarifs de ${NOM}</h1>
 <p class="lede">Aucun abonnement, aucun engagement : chaque action a un prix, payé en « drops ». <strong>1 drop = 0,01 €.</strong> 120 drops sont offerts à l'inscription — de quoi importer dix annonces sans payer.</p>
 <h2>Le prix de chaque action</h2>
-<table><thead><tr><th>Action</th><th>Drops</th><th>En euros</th></tr></thead><tbody>
-${TARIFS.map(([nom, drops, euros]) => `<tr><td>${esc(nom)}</td><td>${drops}</td><td>${esc(euros)}</td></tr>`).join('\n')}
-</tbody></table>
+${familles().map(([titre, lignes]) => `<h3>${esc(titre)}</h3>
+<table class="grille"><thead><tr><th>Action</th><th>En euros</th><th>Drops</th></tr></thead><tbody>
+${lignes.map(([nom, drops, euros]) => `<tr><td>${esc(nom)}</td><td class="eur">${esc(euros)}</td><td>${drops}</td></tr>`).join('\n')}
+</tbody></table>`).join('\n')}
 <h2>Les recharges</h2>
 <table><thead><tr><th>Vous payez</th><th>Vous recevez</th><th>Prix du drop</th></tr></thead><tbody>
 ${RECHARGES.map(([prix, drops, unite]) => `<tr><td>${esc(prix)}</td><td>${esc(drops)}</td><td>${esc(unite)}</td></tr>`).join('\n')}
@@ -523,6 +545,25 @@ ${a.opportunites.map((o) => `<h3>${esc(o.titre)} <small>(${esc(libelles.usage[o.
  * du thème, une FAQ balisée FAQPage, les outils gratuits liés et l'appel
  * « 120 drops offerts » (DROPS_INSCRIPTION, backend/src/services/tarifs.ts).
  */
+/** Les trois façons d'importer, avec leur prix tiré de la grille (TARIFS). */
+const prixDe = (motif) => {
+  const ligne = TARIFS.find(([nom]) => motif.test(nom))
+  if (!ligne) throw new Error(`tarif introuvable : ${motif}`)
+  return ligne
+}
+const FACONS_IMPORTER = (() => {
+  const [, unite, euros] = prixDe(/^Importer une annonce/)
+  const [, lot, eurosLot] = prixDe(/^Importer en lot/)
+  const carte = (titre, texte, d, e, suffixe) =>
+    `<div class="card"><h3>${titre}</h3><p>${texte}</p><p class="prix">${e} <span>· ${d} drops${suffixe}</span></p></div>`
+  return `<h2>Ce que coûte un import</h2>
+<div class="cartes">
+${carte('Par l\'adresse', 'Collez le lien d\'une fiche produit : l\'annonce est relevée puis réécrite par l\'IA.', unite, euros, '')}
+${carte('Par l\'extension', 'Sur les sites qui se chargent en JavaScript, l\'extension Chrome relève la fiche dans votre navigateur.', unite, euros, '')}
+${carte('En lot', 'Plusieurs adresses d\'un coup, au tarif réduit.', lot, eurosLot, ' par annonce')}
+</div>`
+})()
+
 function pageFonction(t, index) {
   const url = `/fonctions/${t.slug}/`
   const c = CONTENU[t.slug]
@@ -559,7 +600,9 @@ ${t.slug === 'auto-shipper' ? '<img src="/marque/autoshipper-complet.png" alt="A
 <h1>${esc(c.h1)}</h1>
 <div class="card"><p><strong>En bref.</strong> ${esc(c.enBref)}</p></div>
 <p class="lede">${esc(t.accroche)}</p>
-<img src="${esc(t.image)}" alt="${esc(c.nom)} : ${esc(t.titre)}" loading="lazy" decoding="async" width="1280" height="720" style="display:block;width:100%;height:auto;border-radius:1rem;margin:1.25rem 0" onerror="this.style.display='none'">
+<video class="illu" autoplay muted loop playsinline preload="metadata" poster="${esc(t.image)}" src="${esc(t.image.replace(/\.jpg$/, '.mp4'))}" width="1280" height="720" aria-label="${esc(c.nom)} : ${esc(t.titre)}"></video>
+${t.slug === 'scraping-produits' ? FACONS_IMPORTER : ''}
+<script>if(matchMedia('(prefers-reduced-motion: reduce)').matches)document.querySelectorAll('video.illu').forEach((v)=>{v.autoplay=false;v.pause()})</script>
 <h2>${esc(t.titre)}</h2>
 <p>${esc(t.detail)}</p>
 <h2>Ce que vous obtenez</h2>
@@ -567,7 +610,7 @@ ${t.slug === 'auto-shipper' ? '<img src="/marque/autoshipper-complet.png" alt="A
 ${c.sections.map((s) => `<h2>${esc(s.h2)}</h2>\n${s.html}`).join('\n')}
 <div class="gratuit">
 <p class="pitch"><span class="free">120 drops offerts</span> à l'inscription, sans abonnement ni carte : de quoi importer et publier dix annonces.</p>
-<p><a class="cta" href="/register">Créer mon compte gratuit</a> <a class="cta" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''} style="${t.slug === 'dropshop-ia' ? 'background:linear-gradient(90deg,#07eeb7,#4a98eb 30%,#8c5ed0 50%,#dd2488 70%,#f48e35 90%,#ffc90b);border:0;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.45)' : 'background:none;border:1px solid #ffffff33'}">${esc(t.offre.label)}</a></p>
+<p><a class="cta" href="/register">Créer mon compte gratuit</a> <a class="cta${t.slug === 'dropshop-ia' ? '' : ' second'}" href="${esc(t.offre.href)}"${externe ? ' rel="noopener" target="_blank"' : ''} style="${t.slug === 'dropshop-ia' ? 'background:linear-gradient(90deg,#07eeb7,#4a98eb 30%,#8c5ed0 50%,#dd2488 70%,#f48e35 90%,#ffc90b);border:0;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.45)' : ''}">${esc(t.offre.label)}</a></p>
 <p class="fine">Les prix de chaque action : <a href="/tarifs/">tarifs</a> · L'extension : <a href="${CHROME_STORE_FONCTIONS}" rel="noopener" target="_blank">Chrome Web Store</a></p>
 </div>
 ${faqHtml(c.faq)}
