@@ -58,17 +58,6 @@ function BadgeEmbauche({ actif, to }: { actif: boolean; to?: string }) {
           : 'border-red-500/70 bg-red-500/10 text-red-400') +
         ' flex w-full items-center justify-center gap-2 rounded-xl border-2 px-3 py-2 text-sm font-black uppercase tracking-widest'
       }
-      style={
-        actif
-          ? {
-              textShadow: '0 0 8px rgba(52,211,153,0.9)',
-              boxShadow: '0 0 14px rgba(52,211,153,0.45), inset 0 0 10px rgba(52,211,153,0.12)',
-            }
-          : {
-              textShadow: '0 0 8px rgba(248,113,113,0.9)',
-              boxShadow: '0 0 14px rgba(239,68,68,0.4), inset 0 0 10px rgba(239,68,68,0.12)',
-            }
-      }
     >
       <span className={(actif ? 'bg-emerald-300' : 'bg-red-400') + ' h-2 w-2 animate-pulse rounded-full'} />
       <span>{actif ? 'En poste' : 'À confier'}</span>

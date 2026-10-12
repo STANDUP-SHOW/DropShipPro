@@ -12,7 +12,7 @@ export function BoutonTheme() {
   const sombre = theme === 'dark'
   const moitie = (active: boolean) =>
     `flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${
-      active ? 'btn-gradient text-white shadow-[0_0_14px_rgba(236,72,153,0.35)]' : 'text-gray-400 hover:text-white'
+      active ? 'btn-gradient text-white' : 'text-gray-400 hover:text-white'
     }`
   return (
     <div
