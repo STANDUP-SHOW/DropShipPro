@@ -9,6 +9,7 @@
  */
 const { colonnes } = require('../src/data/pied-de-page.json')
 const ENTREPRISE = require('../src/data/entreprise.json')
+const ICONES = require('../src/data/icones-reseaux.json').reseaux
 
 const esc = (t) =>
   String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -22,6 +23,10 @@ footer .pied a{margin:0;text-decoration:none}
 footer .pied a:hover{color:#f5f7fa;text-decoration:underline}
 .pastille{display:inline-block;margin-left:.35rem;font-size:.62rem;font-weight:700;letter-spacing:.04em;padding:.05rem .4rem;border-radius:999px;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;vertical-align:middle}
 .pied-bas{border-top:1px solid #2a3147;padding-top:1rem;margin-top:.5rem}
+.reseaux-pied{display:flex;flex-wrap:wrap;gap:.75rem;list-style:none;padding:0;margin:0 0 1rem}
+.reseaux-pied[hidden]{display:none}
+footer .reseaux-pied a{display:flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;margin:0;border-radius:999px;border:1px solid #2a3147;background:#191e2e;color:#b8c0d0}
+footer .reseaux-pied a:hover{border-color:#e85290;color:#f5f7fa}
 `
 
 function lien(l) {
@@ -40,11 +45,24 @@ function piedDePage(guides = []) {
   return `<nav class="pied" aria-label="Pied de page">
 ${cols}
 </nav>
+${reseaux()}
 <div class="pied-bas">
 ${guides.length ? `<p>Guides : ${guides.map(([href, label]) => `<a href="${href}">${esc(label)}</a>`).join(' ')}</p>` : ''}
 <p><a href="/">DropShipper IA</a> — logiciel français de dropshipping par IA. Sans abonnement, 1 drop = 0,01 €.</p>
 ${coordonnees()}
 </div>`
+}
+
+/**
+ * DropShipper's social icons (Max, 12/10/2026). The page is written at build
+ * time but the links are set later from the Poste, so the row ships hidden and
+ * a small script fills it from /api/public/reseaux-sociaux: only the accounts
+ * with a link appear, never a dead one. No link at all = the row stays hidden.
+ */
+function reseaux() {
+  const modeles = Object.fromEntries(ICONES.map((r) => [r.id, [r.label, r.d]]))
+  return `<ul class="reseaux-pied" id="reseaux-pied" aria-label="DropShipper sur les réseaux" hidden></ul>
+<script>(function(){var M=${JSON.stringify(modeles)};fetch('/api/public/reseaux-sociaux').then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.reseaux)return;var ul=document.getElementById('reseaux-pied');var n=0;Object.keys(M).forEach(function(k){var u=j.reseaux[k];if(typeof u!=='string'||u.indexOf('https://')!==0)return;var li=document.createElement('li');var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';a.title=M[k][0];a.setAttribute('aria-label','DropShipper sur '+M[k][0]);a.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="'+M[k][1]+'"/></svg>';li.appendChild(a);ul.appendChild(li);n++});if(n)ul.hidden=false}).catch(function(){})})()</script>`
 }
 
 /**

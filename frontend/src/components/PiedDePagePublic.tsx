@@ -1,5 +1,6 @@
 import donnees from '../data/pied-de-page.json'
 import entreprise from '../data/entreprise.json'
+import { ReseauxPied } from './ReseauxPied'
 
 /**
  * Le pied de page des écrans publics React (avis, confidentialité, API Power,
@@ -43,6 +44,10 @@ export default function PiedDePagePublic() {
           </div>
         ))}
       </nav>
+      {/* DropShipper's own accounts: shown only once their link is set from the Poste. */}
+      <div className="mx-auto max-w-5xl px-6 pb-5 empty:hidden">
+        <ReseauxPied />
+      </div>
       <p className="mx-auto max-w-5xl border-t border-white/5 px-6 py-5 text-xs text-gray-500">
         <a href="/" className="hover:text-white">DropShipper IA</a> — logiciel français de dropshipping par IA. Sans abonnement, 1 drop = 0,01 €.
         {/* Same name, address, phone and hours as the Google Business Profile (src/data/entreprise.json). */}

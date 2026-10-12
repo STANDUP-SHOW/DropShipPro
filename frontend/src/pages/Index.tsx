@@ -11,6 +11,7 @@ import accueil from '../data/accueil-themes.json'
 import type { LogoFrise } from '../components/FriseLogos'
 import { HubLiaisons } from '../components/HubLiaisons'
 import { TerreLumineuse } from '../components/TerreLumineuse'
+import { TourneeAutoShipper } from '../components/TourneeAutoShipper'
 import PiedDePagePublic from '../components/PiedDePagePublic'
 import fournisseurs from '../data/fournisseurs.json'
 import canaux from '../data/canaux.json'
@@ -224,6 +225,24 @@ export default function Index() {
                   </a>
                 </li>
               ))}
+              {/* Sixième case : AutoShipper, avec son logo, son dégradé et sa tournée animée (Max, 12/10/2026). */}
+              <li>
+                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                  <span className="filet-autoshipper block h-[3px]" aria-hidden="true" />
+                  <span className="block aspect-[16/9] overflow-hidden border-b border-white/10">
+                    <TourneeAutoShipper />
+                  </span>
+                  <span className="flex flex-1 flex-col p-5 md:p-6">
+                    <img src="/marque/autoshipper-complet.png" alt="AutoShipper" width={1400} height={234} className="h-6 w-auto self-start md:h-7" loading="lazy" />
+                    <h3 className="mt-3 text-lg font-bold md:text-xl">{S.auto.titre}</h3>
+                    <span className="texte-neon mt-2 flex-1 text-base">{S.auto.texte}</span>
+                    <span className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1">
+                      <OffreLien href={S.auto.href} label={S.auto.bouton} />
+                      <PlusInfos slug={S.auto.slug} />
+                    </span>
+                  </span>
+                </div>
+              </li>
             </ul>
           </div>
         </section>
@@ -269,42 +288,45 @@ export default function Index() {
           </div>
         </section>
 
-        {/* Mode auto et tarif : côte à côte sur PC, l'un sous l'autre sur mobile. */}
+        {/* « Pas d'abonnement » seul, sur toute la largeur, la grille tarifaire au bout (Max, 12/10/2026). */}
         <section className="border-t border-white/5 bg-[#0f0a1f]">
-          <div className="mx-auto grid max-w-6xl gap-4 px-5 py-12 md:grid-cols-2 md:gap-6 md:px-6 md:py-20">
-            {[
-              { ...S.auto, surtitre: 'Mode auto', neon: 'neon-3' },
-              { ...S.tarif, surtitre: 'Tarif clair', neon: 'neon-4' },
-            ].map((b) => (
-              <div key={b.slug} className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
-                {/* Le bloc Mode auto porte le logo AutoShipper (11/10/2026) à la place de son surtitre. */}
-                {b.slug === 'auto-shipper' ? (
-                  <img src="/marque/autoshipper-complet.png" alt="AutoShipper" width={1400} height={234} className="h-7 w-auto self-start md:h-8" loading="lazy" />
-                ) : (
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{b.surtitre}</p>
-                )}
-                <h2 className={`neon ${b.neon} mt-3 text-2xl font-extrabold leading-tight md:text-3xl`}>{b.titre}</h2>
-                {/* « Pas d'abonnement » illustré par la pièce et le logo des drops (Max, 12/10/2026). */}
-                {b.slug === 'les-drops' && (
-                  <div className="mt-5 flex items-center gap-4 rounded-2xl border border-[#fdbf06]/25 bg-[#fdbf06]/[0.06] px-4 py-3">
-                    <img src="/marque/drops.png" alt="" width={256} height={256} className="drop-flotte h-14 w-14 shrink-0 md:h-16 md:w-16" loading="lazy" />
-                    <div className="min-w-0">
-                      <img src="/marque/drops-mot.png" alt="Drops" width={249} height={96} className="h-7 w-auto md:h-8" loading="lazy" />
-                      <p className="mt-1 text-sm font-semibold text-[#fdbf06]">La monnaie de DropShipper : chaque action a son prix en drops.</p>
-                    </div>
-                  </div>
-                )}
-                <p className="texte-neon mt-4 flex-1 text-base md:text-lg">{b.texte}</p>
-                <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-                  <OffreLien href={b.href} label={b.bouton} />
-                  <PlusInfos slug={b.slug} />
-                </div>
+          <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
+            <div className="flex flex-col gap-6 rounded-3xl border border-[#fdbf06]/25 bg-[#fdbf06]/[0.04] p-6 md:flex-row md:items-center md:gap-10 md:p-10">
+              <div className="flex shrink-0 items-center gap-4">
+                <img src="/marque/drops.png" alt="" width={256} height={256} className="drop-flotte h-16 w-16 md:h-24 md:w-24" loading="lazy" />
+                <img src="/marque/drops-mot.png" alt="Drops" width={249} height={96} className="h-8 w-auto md:hidden" loading="lazy" />
               </div>
-            ))}
+              <div className="min-w-0 flex-1">
+                <img src="/marque/drops-mot.png" alt="Drops" width={249} height={96} className="hidden h-8 w-auto md:block" loading="lazy" />
+                <h2 className="neon neon-4 mt-0 text-2xl font-extrabold leading-tight md:mt-3 md:text-4xl">{S.tarif.titre}</h2>
+                <p className="mt-2 text-sm font-semibold text-[#fdbf06]">La monnaie de DropShipper : chaque action a son prix en drops.</p>
+                <p className="texte-neon mt-3 text-base md:text-lg">{S.tarif.texte}</p>
+                <PlusInfos slug={S.tarif.slug} />
+              </div>
+              <div className="shrink-0">
+                <OffreLien href={S.tarif.href} label={S.tarif.bouton} />
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Les douze derniers avis. Masqué tant que personne ne s'est exprimé :
+        {/* Le dernier appel, sur la Terre de nuit qui s'illumine (Max, 12/10/2026). */}
+        <section className="relative isolate overflow-hidden border-t border-white/5 bg-[#05070f]">
+          <TerreLumineuse />
+          <div className="voile-terre absolute inset-0" aria-hidden="true" />
+          <div className="relative mx-auto flex min-h-[420px] max-w-4xl flex-col items-center justify-center px-6 py-24 text-center md:min-h-[560px] md:py-32">
+            <h2 className="text-3xl font-extrabold leading-tight md:text-5xl">
+              <span className="block">Prenez l'annonce <span className="texte-dropshop">n'importe où</span>.</span>
+              <span className="block">Publiez-la <span className="texte-dropshop">partout</span>.</span>
+            </h2>
+            <p className="mt-4 text-lg text-[var(--texte-2)]">Compte gratuit, 120 drops offerts, aucun abonnement.</p>
+            <Link to={cible} className="btn-gradient mt-8 inline-flex items-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-lg shadow-purple-900/40 transition hover:opacity-90">
+              Créer mon compte <ArrowRight size={18} />
+            </Link>
+          </div>
+        </section>
+
+        {/* Les douze derniers avis, sous la Terre de nuit, juste avant le pied (Max, 12/10/2026). Masqué tant que personne ne s'est exprimé :
             une section « Avis » vide inspire moins confiance que pas de section. */}
         {reviews.length > 0 && (
           <section className="texte-neon border-t border-white/5 bg-[#0b0714]">
@@ -329,22 +351,6 @@ export default function Index() {
             </div>
           </section>
         )}
-
-        {/* Le dernier appel, sur la Terre de nuit qui s'illumine (Max, 12/10/2026). */}
-        <section className="relative isolate overflow-hidden border-t border-white/5 bg-[#05070f]">
-          <TerreLumineuse />
-          <div className="voile-terre absolute inset-0" aria-hidden="true" />
-          <div className="relative mx-auto flex min-h-[420px] max-w-4xl flex-col items-center justify-center px-6 py-24 text-center md:min-h-[560px] md:py-32">
-            <h2 className="text-3xl font-extrabold leading-tight md:text-5xl">
-              <span className="block">Prenez l'annonce <span className="texte-dropshop">n'importe où</span>.</span>
-              <span className="block">Publiez-la <span className="texte-dropshop">partout</span>.</span>
-            </h2>
-            <p className="mt-4 text-lg text-[var(--texte-2)]">Compte gratuit, 120 drops offerts, aucun abonnement.</p>
-            <Link to={cible} className="btn-gradient mt-8 inline-flex items-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-lg shadow-purple-900/40 transition hover:opacity-90">
-              Créer mon compte <ArrowRight size={18} />
-            </Link>
-          </div>
-        </section>
 
         {/* Crawl path to the static SEO pages: without a link from the home page,
             Google only ever learns about them through the sitemap. Plain <a>, not

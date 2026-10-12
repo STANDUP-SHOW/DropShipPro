@@ -11,6 +11,7 @@ import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../servic
 import { lignesPubliques } from './analysesPubliques.js'
 import { sitemapXml } from '../services/analysesPubliques.js'
 import { annoncerAnalyses, enProduction } from '../services/annonceAnalyses.js'
+import { LienRefuse, RESEAUX, ecrireReseaux, lireReseaux } from '../services/reseauxSociaux.js'
 
 /**
  * L'administration générale du site, tenue par le Poste d'analyses seul (voir
@@ -90,6 +91,35 @@ adminRouter.post('/rapports-poste', (req, res) => {
   } catch (err) {
     if (err instanceof RapportInvalide) return res.status(422).json({ error: err.message })
     console.error('[rapports-poste] écriture impossible :', err)
+    res.status(500).json({ error: 'Écriture impossible sur le serveur.', motif: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+/**
+ * Les comptes sociaux de DropShipper affichés en icônes dans le pied de page
+ * public (Max, 12/10/2026). GET rend les six emplacements ; PUT fusionne ceux
+ * envoyés : { facebook?: "https://…" | null, instagram?, whatsapp?, x?, linkedin?, snapchat? }.
+ * Une valeur vide ou null retire l'icône.
+ */
+adminRouter.get('/reseaux-sociaux', async (_req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store')
+    res.json({ reseaux: await lireReseaux(), ordre: RESEAUX })
+  } catch (err) {
+    res.status(500).json({ error: 'Lecture impossible.', motif: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+adminRouter.put('/reseaux-sociaux', async (req, res) => {
+  const corps = req.body as unknown
+  if (!corps || typeof corps !== 'object' || Array.isArray(corps)) {
+    return res.status(422).json({ error: 'Corps attendu : { facebook?, instagram?, whatsapp?, x?, linkedin?, snapchat? }.' })
+  }
+  try {
+    res.json({ ok: true, reseaux: await ecrireReseaux(corps as Record<string, unknown>) })
+  } catch (err) {
+    if (err instanceof LienRefuse) return res.status(422).json({ error: err.message })
+    console.error('[reseaux-sociaux] écriture impossible :', err)
     res.status(500).json({ error: 'Écriture impossible sur le serveur.', motif: err instanceof Error ? err.message : String(err) })
   }
 })
