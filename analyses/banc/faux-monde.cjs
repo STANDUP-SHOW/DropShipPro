@@ -73,11 +73,12 @@ function creerServeur() {
           if (req.url === '/api/admin/analyses-drive/lister' && req.method === 'POST') {
             const { adresse } = JSON.parse(corps || '{}')
             if (!/drive\.google\.com/.test(adresse || '')) return json(422, { error: 'Adresse de dossier Google Drive non reconnue.' })
-            return json(200, { dossier: 'MARKET-ANALYSES', dates: [{ date: '2026-10-08', etudes: [{ categorie: 'jardin', theme: 'arrosage', fichiers: ['arrosage.rayon.md'], doublons: [], importable: true, dejaEnBase: false }], ignores: [] }] })
+            return json(200, { dossier: 'MARKET-ANALYSES', dates: [{ date: '2026-10-08', etudes: [{ categorie: 'jardin', theme: 'arrosage', fichiers: ['arrosage.rayon.md'], doublons: [], importable: true, dejaEnBase: false }], ignores: [] }, { date: '2026-10-12', etudes: [{ categorie: 'mode', theme: 'sacs', fichiers: ['sacs.marketing.md'], doublons: [], importable: false, dejaEnBase: false }], ignores: [{ nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] }] })
           }
           if (req.url === '/api/admin/analyses-drive/importer' && req.method === 'POST') {
             const { dates, essai } = JSON.parse(corps || '{}')
             etat.importsDrive = (etat.importsDrive || []).concat([{ dates, essai }])
+            if ((dates || []).includes('2026-10-12')) return json(200, { essai: Boolean(essai), importees: 0, aImporter: 0, doublons: 0, refusees: 1, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-12', rayon: 'mode / sacs', statut: 'refuse', raison: 'marketing seul, sans .rayon.md' }], ignores: [{ date: '2026-10-12', nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] })
             return json(200, { essai: Boolean(essai), importees: essai ? 0 : 1, aImporter: essai ? 1 : 0, doublons: 0, refusees: 0, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-08', rayon: 'jardin / arrosage', statut: essai ? 'apercu' : 'importe', produits: 12, urlsDistinctes: 8, avecPrix: 1, marketing: true }], ignores: [] })
           }
           if (req.url === '/api/admin/affiliation') return json(200, { seuilCentimes: 5000, totaux: { affilies: 1, aVerser: 1, dusCentimes: 6200, dusAVerserCentimes: 6200, versesCentimes: 0 }, affilies: [{ id: 'af1', nom: 'Affilié Test', email: 'af@exemple.test', code: 'TEST10', inscritLe: '2026-10-01T09:00:00Z', filleuls: 3, clics: 40, titulaire: 'A. Test', iban: 'FR7612345678901234567890123', ibanMajLe: null, gainsCentimes: 6200, dusCentimes: 6200, versesCentimes: 0, aVerser: true, versements: [] }] })

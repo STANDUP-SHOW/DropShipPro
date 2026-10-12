@@ -344,6 +344,15 @@ function texteAnalyse(d) {
 // ------------------------------------------------------- une etude Markdown
 
 /**
+ * Ce que dit le chemin d'un .rayon.md rangé <date>/<categorie>/<theme>.rayon.md
+ * (dossier Drive, ou origine gardée dans la surcouche), ou null.
+ */
+function indicesDuChemin(chemin) {
+  const m = /(?:^|[\/:])(\d{4}-\d{2}-\d{2})\/([^/]+)\/([^/]+)\.rayon\.md$/i.exec(String(chemin || ''));
+  return m ? { date: m[1], categorie: m[2], theme: m[3] } : null;
+}
+
+/**
  * Lit un couple <theme>.rayon.md / <theme>.marketing.md et rend soit un refus
  * motive, soit une etude prete a ecrire. Ne touche a aucune base : l'ecriture
  * est `ecrireEtude(db, etude)`, appelee par l'importateur en ligne de commande
@@ -353,10 +362,16 @@ function texteAnalyse(d) {
  * `origine` dit d'ou vient le texte (chemin relatif, ou dossier Drive) ; il est
  * range sous `data.markdown` et dans import_log, rien d'autre.
  */
-function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarketing, source = 'taches-planifiees' }) {
-  const fm = frontmatter(texteRayon || '');
-  if (!fm || !fm.date || !fm.categorie || !fm.theme) {
-    return { ok: false, raison: 'frontmatter absent ou incomplet (date, categorie, theme attendus)' };
+function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarketing, source = 'taches-planifiees', indices = null }) {
+  // Other agents' files (« MARKETSPY AI », 12/10/2026) have no YAML header: the
+  // Drive folder they sit in (<date>/<categorie>/<theme>.rayon.md) says the same
+  // three things. The header still wins wherever it is present.
+  const fm = { ...(indices || {}), ...(frontmatter(texteRayon || '') || {}) };
+  if (!fm.date || !fm.categorie || !fm.theme) {
+    return { ok: false, raison: "en-tête « --- » absent ou incomplet (date, categorie, theme attendus)" };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fm.date)) {
+    return { ok: false, raison: `date illisible dans l'en-tête : « ${fm.date} » (AAAA-MM-JJ attendu)` };
   }
 
   // Le frontmatter est la source de verite ; le chemin n'est qu'un indice.
@@ -818,6 +833,7 @@ module.exports = {
   slug,
   frontmatter,
   etudeMarkdown,
+  indicesDuChemin,
   etudeAiMarket,
   ecrireEtude,
 };
