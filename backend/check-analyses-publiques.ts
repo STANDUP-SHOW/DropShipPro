@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -294,7 +294,7 @@ console.log('\nQuatrième constat du 12/10/2026 au soir : la date suit le texte 
   const v1 = { 'rayon-2026-10-08-x': { empreinte: 'e', le: '2026-10-12T19:40:31.942Z' }, 'rayon-2026-10-12-y': { empreinte: 'f', le: '2026-10-12T19:40:31.942Z' } }
   const migres = rendusMigres(v1, new Set(['rayon-2026-10-12-y']))
   exige(!('rayon-2026-10-08-x' in migres) && migres['rayon-2026-10-12-y']?.le === '2026-10-12T19:40:31.942Z', 'le magasin de #77 oublie la date « maintenant » des anciens imports (07/10, 08/10), garde celle des textes refaits')
-  exige(rendusMigres({ version: 4, rapports: v1 }, new Set())['rayon-2026-10-08-x']?.empreinte === 'e', 'un magasin à jour est lu tel quel')
+  exige(rendusMigres({ version: 5, rapports: v1 }, new Set())['rayon-2026-10-08-x']?.empreinte === 'e', 'un magasin à jour est lu tel quel')
   exige(!('rayon-2026-10-08-x' in rendusMigres({ version: 3, rapports: v1 }, new Set(['rayon-2026-10-12-y']))), 'le magasin de #79 (version 3) est trié de même')
   exige(!('rayon-2026-10-08-x' in rendusMigres({ version: 2, rapports: v1 }, new Set(['rayon-2026-10-12-y']))), 'le magasin de #78 (version 2) est trié de même')
   exige(!texteRefait({ body: '## Analyse\nTitre', type: 'marketing' }, true) && !texteRefait({ body: '## Angles\n…', type: 'marketing' }, true), 'un rapport marketing n’a pas vu son texte refait (souche MARKETSPY ou ancien format)')
@@ -448,9 +448,12 @@ console.log('\nUne offre par fournisseur, un produit par ligne (édition du 12/1
     { ...p0, rang: 2, titre: 'Répéteur Wi-Fi générique', prixVente: 39.99, pourquoi: 'Acheter si négocié' },
     { ...p0, rang: 3, titre: 'Répéteur Wi-Fi générique', prixVente: 19.99, pourquoi: 'À surveiller' },
   ])
-  exige(u.length === 1 && u[0].verdicts === 'À surveiller à 19,99 et 29,99 € · Acheter si négocié à 39,99 €', 'des verdicts différents gardent chacun leurs prix : ' + u[0].verdicts)
+  exige(u.length === 1 && u[0].verdicts === "Acheter si négocié selon l'offre", 'en public, un seul verdict, le plus favorable, « selon l’offre » : ' + u[0].verdicts)
   const html = pageJour('2026-10-12', [{ ...rapport, day: '2026-10-12', produits: u }])
-  exige(html.includes('À surveiller à 19,99 et 29,99 € · Acheter si négocié à 39,99 €'), 'l’édition les montre, jamais le seul verdict favorable')
+  exige(html.includes("Acheter si négocié selon l'offre") && !html.includes('À surveiller'), 'l’édition aussi, sans verdict par offre')
+  const vgate = produitsUniques([{ ...p0, rang: 1, titre: 'Vgate', prixVente: 39.99, pourquoi: 'Ne pas acheter' }, { ...p0, rang: 2, titre: 'Vgate', prixVente: 39.99, pourquoi: 'Acheter si négocié · Bon rapport qualité-prix' }])
+  exige(vgate[0].verdicts === "Acheter si négocié selon l'offre · Bon rapport qualité-prix", 'le plus favorable garde sa raison : ' + vgate[0].verdicts)
+  exige(produitsUniques(vgate)[0].verdicts === vgate[0].verdicts, 'regrouper deux fois ne répète pas « selon l’offre »')
   const memes = produitsUniques([{ ...p0, rang: 1, titre: 'X', prixVente: 1, pourquoi: 'À surveiller' }, { ...p0, rang: 2, titre: 'X', prixVente: 2, pourquoi: 'À surveiller' }])
   exige(memes[0].verdicts === undefined, 'un même verdict reste seul')
 }
@@ -462,6 +465,24 @@ console.log('\nUne offre par fournisseur, un produit par ligne (édition du 12/1
   exige(date.includes('2030-01-01T00:00:00.000Z') && empreintePage(date) === empreintePage(jour), 'l’édition prend la date de son texte ; son empreinte ignore sa propre date')
   exige(sitemapXml([rapport]).includes(`/analyses/${rapport.day}/</loc><lastmod>2030-01-01T00:00:00.000Z`), 'le sitemap aussi')
   fixerDatesDesPages(new Map())
+}
+
+{
+  // TOP regroupé : vrai nombre, renvois renumérotés, titre avec le nombre.
+  const p0 = rapport.produits[0]
+  const offres = [
+    { ...p0, rang: 1, titre: 'A', prixVente: 10 }, { ...p0, rang: 2, titre: 'A', prixVente: 12 },
+    { ...p0, rang: 3, titre: 'B', prixVente: 5 }, { ...p0, rang: 4, titre: 'C', prixVente: 7 },
+  ]
+  exige(renvoisRenumerotes('Le meilleur (n° 3), puis n°4 et le n° 2.', offres) === 'Le meilleur (n° 2), puis n° 3 et le n° 1.', 'les renvois « n° X » suivent leur produit')
+  exige(renvoisRenumerotes('voir n° 3', offres.slice(2).map((p, i) => ({ ...p, rang: i + 1 }))) === 'voir n° 3', 'sans regroupement, rien ne bouge')
+  const produits = produitsUniques(offres).map((p, i) => ({ ...p, rang: i + 1 }))
+  const r3 = { ...rapport, produits, body: '## TOP 20 produits proposés\n| # | Produit |\n|---|---|\n| 1 | A |' }
+  exige(pageRapport(r3).includes('<h2 id="produits">TOP 3 produits gagnants</h2>'), 'le h2 du TOP donne le vrai nombre')
+  const long = titreRapport({ ...r3, titre: 'Maison et décoration — Bougies, senteurs et diffuseurs pour la maison' })
+  exige(long.length <= TITRE_MAX && long.includes(': 3 produits ('), 'un titre long garde le nombre : ' + long)
+  exige(empreintePage('<html><head><script type="application/ld+json">{"a":"39.99"}</script></head><body><p>x</p></body></html>') === empreintePage('<html><head><script type="application/ld+json">{"a":"39,99"}</script></head><body><p>x</p></body></html>'), 'l’empreinte ne porte que sur le texte rendu (#83 : JSON-LD seul changé)')
+  exige(apostrophesDuTexte('appel à laction final\nCalculateur de coût déncre\nà limport') === "appel à l'action final\nCalculateur de coût d'encre\nà l'import", 'l’action, d’encre, l’import')
 }
 
 console.log('\nLes apostrophes perdues (gaming du 07/10)')

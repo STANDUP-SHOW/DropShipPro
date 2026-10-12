@@ -20,6 +20,8 @@ import {
   apostrophesDuTexte,
   apostrophesRendues,
   attribuerAdresses,
+  renvoisRenumerotes,
+  texteVisible,
   empreintePage,
   fixerDatesDesPages,
   produitsUniques,
@@ -112,7 +114,9 @@ function datesDuRendu(tous: Ligne[]): Map<string, Date> {
     } catch {
       // First run, or no volume: every report starts from its data date (rebuilt MARKETSPY texts aside).
     }
-    const connus: RendusConnus = rendusMigres(brut, new Set(lignes.filter((l) => l.texteRefait).map((l) => l.id)))
+    const versionLue = brut && typeof brut === 'object' ? (brut as { version?: number }).version : undefined
+    const connus: RendusConnus =
+      versionLue === 4 ? depuisVersion4((brut as { rapports: RendusConnus }).rapports, tous, publics) : rendusMigres(brut, new Set(lignes.filter((l) => l.texteRefait).map((l) => l.id)))
     const migre = !(brut && typeof brut === 'object' && (brut as { version?: number }).version === VERSION_RENDUS)
     const deHub = (id: string) => id.startsWith('/')
     const garder = (hub: boolean) => Object.fromEntries(Object.entries(connus).filter(([id]) => deHub(id) === hub))
@@ -125,7 +129,10 @@ function datesDuRendu(tous: Ligne[]): Map<string, Date> {
       empreinte: empreintePage(html),
       texteRefait: true,
     }))
-    const hubsDates = datesPubliques(hubs, garder(true))
+    const connusHubs = garder(true)
+    // Carried over from version 4 without a fingerprint: adopt the visible one, keep the date.
+    for (const h of hubs) if (connusHubs[h.id]?.empreinte === '') connusHubs[h.id] = { ...connusHubs[h.id], empreinte: h.empreinte }
+    const hubsDates = datesPubliques(hubs, connusHubs)
     fixerDatesDesPages(hubsDates.dates)
     if (rapportsDates.change || hubsDates.change || migre) {
       fs.mkdirSync(path.dirname(CHEMIN_RENDUS), { recursive: true })
@@ -137,6 +144,54 @@ function datesDuRendu(tous: Ligne[]): Map<string, Date> {
     console.error('[analyses publiques] dates du rendu', err instanceof Error ? err.message : err)
     return new Map()
   }
+}
+
+/**
+ * Version 4 hashed the HTML: #83 changed the price format of the JSON-LD alone
+ * and about fifty pages whose text had not moved were dated with its deploy
+ * (12/10/2026 20:27:50Z). Each such page is re-rendered as before #83 (offers
+ * not grouped, text as stored): if what a reader sees is the same, it gets its
+ * earlier date back; pages that really changed keep the deploy's date. Every
+ * entry moves to the visible-text fingerprint without being re-dated.
+ */
+const DEPLOIEMENT_83 = { de: Date.parse('2026-10-12T20:23:00Z'), a: Date.parse('2026-10-12T20:45:00Z') }
+// #81 (20:13:40.800Z) restored the apostrophes of these titles: that date was theirs before #83.
+const DATE_81 = '2026-10-12T20:13:40.800Z'
+function depuisVersion4(anciens: RendusConnus, tous: Ligne[], publics: Map<string, RapportPublic>): RendusConnus {
+  const out: RendusConnus = {}
+  for (const [id, e] of Object.entries(anciens ?? {})) {
+    if (!e || typeof e.empreinte !== 'string') continue
+    if (id.startsWith('/')) {
+      out[id] = { ...e, empreinte: '' }
+      continue
+    }
+    const l = tous.find((x) => x.id === id)
+    const pub = publics.get(id)
+    if (!l || !pub) continue
+    const maintenant = empreintePublique(pub)
+    const le = Date.parse(e.le)
+    if (le >= DEPLOIEMENT_83.de && le <= DEPLOIEMENT_83.a) {
+      const brut = rapports().getAnalyse(id)
+      if (brut) {
+        const avant = pageRapport({ ...pub, body: brut.body, accroche: brut.accroche, extrait: brut.extrait, produits: brut.produits, prompts: pub.prompts.map((p, i) => ({ ...p, texte: promptBrut(id, i) ?? p.texte })) }, [])
+        if (texteVisible(avant) === texteVisible(pageRapport(pub, []))) {
+          const titreBrut = l.une ?? l.titre
+          const date = apostrophesRendues(titreBrut) !== titreBrut ? DATE_81 : l.updatedAt.toISOString()
+          out[id] = { empreinte: maintenant, le: date }
+          continue
+        }
+      }
+    }
+    out[id] = { empreinte: maintenant, le: e.le }
+  }
+  return out
+}
+
+function promptBrut(id: string, i: number): string | null {
+  const r = rapports().getAnalyse(id)
+  if (!r || r.type !== 'marketing') return null
+  const ps = rapports().getPromptsRapports({ categorie: r.categorie, jour: r.day, limite: 200 }).prompts.filter((p) => p.rapportId === id)
+  return ps[i]?.texte ?? null
 }
 
 /** /analyses/, each edition and each category page, rendered as the routes below render them (dates aside). */
@@ -178,7 +233,7 @@ function versPublicBrut(id: string): RapportPublic | null {
   // One row per product: the per-offer list (with suppliers) stays in the signed-in space.
   const produits = produitsUniques(r.produits).map((p, i) => ({ ...p, rang: i + 1 }))
   const texte = (t: string | null) => (t ? apostrophesDuTexte(t) : t)
-  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), body: apostrophesDuTexte(r.body), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
+  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), body: renvoisRenumerotes(apostrophesDuTexte(r.body), r.produits), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
 function html(res: Response, page: string) {
