@@ -38,7 +38,7 @@ export function compterFeuilles(fichier: Buffer): number {
   return nomsFeuilles(entrees(fichier)).length
 }
 
-function entrees(buf: Buffer): Record<string, Buffer> {
+export function entrees(buf: Buffer): Record<string, Buffer> {
   let eocd = -1
   for (let i = buf.length - 22; i >= 0; i--) {
     if (buf.readUInt32LE(i) === 0x06054b50) {
