@@ -10,6 +10,7 @@ import { VilleDeNuit } from '../components/VilleDeNuit'
 import accueil from '../data/accueil-themes.json'
 import type { LogoFrise } from '../components/FriseLogos'
 import { HubLiaisons } from '../components/HubLiaisons'
+import { TerreLumineuse } from '../components/TerreLumineuse'
 import PiedDePagePublic from '../components/PiedDePagePublic'
 import fournisseurs from '../data/fournisseurs.json'
 import canaux from '../data/canaux.json'
@@ -329,10 +330,16 @@ export default function Index() {
           </section>
         )}
 
-        <section className="border-t border-white/5 bg-gradient-to-b from-[#160d2e] to-[#0b0714]">
-          <div className="mx-auto max-w-4xl px-6 py-20 text-center">
-            <h2 className="text-3xl font-extrabold md:text-4xl">Prenez l'annonce n'importe où. Publiez-la partout.</h2>
-            <p className="texte-neon mt-4 text-lg">Compte gratuit, 120 drops offerts, aucun abonnement.</p>
+        {/* Le dernier appel, sur la Terre de nuit qui s'illumine (Max, 12/10/2026). */}
+        <section className="relative isolate overflow-hidden border-t border-white/5 bg-[#05070f]">
+          <TerreLumineuse />
+          <div className="voile-terre absolute inset-0" aria-hidden="true" />
+          <div className="relative mx-auto flex min-h-[420px] max-w-4xl flex-col items-center justify-center px-6 py-24 text-center md:min-h-[560px] md:py-32">
+            <h2 className="text-3xl font-extrabold leading-tight md:text-5xl">
+              <span className="block">Prenez l'annonce <span className="texte-dropshop">n'importe où</span>.</span>
+              <span className="block">Publiez-la <span className="texte-dropshop">partout</span>.</span>
+            </h2>
+            <p className="mt-4 text-lg text-[var(--texte-2)]">Compte gratuit, 120 drops offerts, aucun abonnement.</p>
             <Link to={cible} className="btn-gradient mt-8 inline-flex items-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-lg shadow-purple-900/40 transition hover:opacity-90">
               Créer mon compte <ArrowRight size={18} />
             </Link>
