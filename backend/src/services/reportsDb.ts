@@ -38,6 +38,7 @@ export const CHEMIN_RAPPORTS_DEPOSE = path.join(RACINE_BACKEND, 'storage', 'rapp
 
 let generation = 0
 let cheminActif: string | null = null
+let surcoucheRafraichie = false
 
 /** Bumped by every upload: the routes reopen their handle and recompute their addresses. */
 export function generationRapports(): number {
@@ -122,16 +123,18 @@ export function etudeDepuisSurcouche(e: EtudeImportee): any {
 /**
  * Writes the imported studies into a writable copy of a base. A study whose
  * RAYON report already exists is skipped: our own agents' report for the same
- * shelf and day always wins over an imported one.
+ * shelf and day always wins over an imported one. A row that is itself a
+ * Drive import is rewritten, so a reader fix reaches studies already imported.
  */
 export function appliquerSurcouche(chemin: string, etudes: EtudeImportee[] = lireSurcouche()): number {
   if (!etudes.length) return 0
   const db = new Database(chemin, { fileMustExist: true })
   let ecrites = 0
   try {
-    const existe = db.prepare('SELECT 1 FROM reports WHERE id = ?')
+    const existe = db.prepare('SELECT data FROM reports WHERE id = ?')
     for (const e of etudes) {
-      if (existe.get(e.idRayon)) continue
+      const deja = existe.get(e.idRayon) as { data?: string } | undefined
+      if (deja && !estImportDrive(deja.data)) continue
       const etude = etudeDepuisSurcouche(e)
       if (!etude?.ok) continue
       etudeLib.ecrireEtude(db, etude)
@@ -141,6 +144,16 @@ export function appliquerSurcouche(chemin: string, etudes: EtudeImportee[] = lir
     db.close()
   }
   return ecrites
+}
+
+/** A served row written by a Drive import (markdown or aiMARKET), never one of ours. */
+function estImportDrive(data: string | undefined): boolean {
+  try {
+    const d = JSON.parse(data ?? '{}')
+    return d?.markdown?.source === 'google-drive' || String(d?.markdown?.rayon ?? '').startsWith('drive:')
+  } catch {
+    return false
+  }
 }
 
 function lireOrigine(): { majSource: string } | null {
@@ -179,6 +192,16 @@ export function cheminRapportsActif(): string {
   const majDepose = depose ? (lireOrigine()?.majSource ?? depose.maj) : ''
   if (depose && depose.n > 0 && (!livre || majDepose >= livre.maj)) {
     cheminActif = CHEMIN_RAPPORTS_DEPOSE
+    // Once per start: rewrite the imports already in the served copy with the
+    // reader of this build (a fix to it must not wait for the next upload).
+    if (!surcoucheRafraichie && lireSurcouche().length) {
+      surcoucheRafraichie = true
+      try {
+        installerDepose(CHEMIN_RAPPORTS_DEPOSE, majDepose)
+      } catch (err) {
+        console.error('[rapports] analyses importées non relues', err instanceof Error ? err.message : err)
+      }
+    }
   } else if (livre && lireSurcouche().length) {
     // A newer committed file: rebuild the served copy from it, imports replayed on top.
     try {
@@ -1249,6 +1272,8 @@ export class ReportQuery {
       une: ReportQuery.uneDe(ReportQuery.blob(row.data)),
       extrait: ReportQuery.extraitDe(ReportQuery.blob(row.data), row.analysis),
       updatedAt: new Date(row.updated_at ?? row.created_at ?? `${row.date}T06:00:00Z`),
+      // Drive imports: before 12/10/2026 a header-less one was titled by its bare theme.
+      importeDrive: estImportDrive(row.data ?? undefined),
     }))
   }
 

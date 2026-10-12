@@ -416,6 +416,20 @@ function texteAnalyse(d) {
 
 // ------------------------------------------------------- une etude Markdown
 
+/** The first « ## » heading that is neither numbered nor an appendix, or null. */
+function titreDuTexte(texte) {
+  let dansCode = false;
+  for (const l of String(texte || '').split(/\r?\n/)) {
+    if (/^\s*```/.test(l)) { dansCode = !dansCode; continue; }
+    const m = !dansCode && /^##\s+(.+?)\s*$/.exec(l);
+    if (!m) continue;
+    const t = texteDeCellule(m[1]).replace(/[*_`]/g, '').trim();
+    if (!t || /^\d/.test(t) || /^(annexe|sources?|analyse)\b/i.test(normTitre(t))) continue;
+    return t.slice(0, 140);
+  }
+  return null;
+}
+
 /**
  * Ce que dit le chemin d'un .rayon.md rangé <date>/<categorie>/<theme>.rayon.md
  * (dossier Drive, ou origine gardée dans la surcouche), ou null.
@@ -451,7 +465,10 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
   const date = fm.date;
   const categorie = slug(fm.categorie);
   const theme = slug(fm.theme);
-  const titre = fm.titre || theme;
+  // No header title (other agents' files): the first unnumbered « ## » heading,
+  // « Électroménager — Lavage et séchage », rather than the bare theme slug that
+  // gave /analyses/lavage-sechage/lavage-sechage-2/ (12/10/2026).
+  const titre = fm.titre || titreDuTexte(texteRayon) || theme;
   const agent = fm.agent || `rayon-${categorie}`;
   const nbSources = nombre(fm.sources) != null ? Math.round(nombre(fm.sources)) : 0;
 
@@ -483,7 +500,7 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
       const fmM = frontmatter(tm) || {};
       const sm = sections(tm);
       mkt = {
-        titre: fmM.titre || titre,
+        titre: fmM.titre || titreDuTexte(tm) || titre,
         agent: fmM.agent || `marketing-${categorie}`,
         sources: nombre(fmM.sources) != null ? Math.round(nombre(fmM.sources)) : 0,
         socialPlaces: puces(section(sm, 'Social places', /social/)),
