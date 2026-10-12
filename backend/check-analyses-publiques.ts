@@ -203,10 +203,57 @@ console.log('\nDeuxième constat du 12/10/2026 au soir : la Synthèse de réseau
   }
   const visible = pageRapport(constat).replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
   exige(!/3,34|11,10|24 %|180 €|130 €/.test(visible), 'ni le net par lot, ni le plafond de négociation, ni un achat chiffré', (/[^>]*(3,34|11,10|180 €|130 €)[^<]*/.exec(visible) || [''])[0])
-  exige(visible.includes('Pour un revendeur, constats :') && !/trois constats/.test(visible), 'une liste qui perd un point ne l’annonce plus au nombre d’avant')
+  exige(visible.includes('Pour un revendeur, trois constats :') && visible.includes('gardent une marge</strong>, faible.'), 'un constat en gras reste seul quand ses chiffres partent : la liste garde ses trois points')
   exige(visible.includes('GL.iNet vend lui-même') && visible.includes('vraie piste'), 'les autres points de la Synthèse restent')
-  exige(visible.includes('la sacoche n’est pas sourcée') && visible.includes('coût de gravure'), 'le reste de la phrase reste')
+  exige(visible.includes('La sacoche n’est pas sourcée') && visible.includes('coût de gravure'), 'le reste de la phrase reste')
   exige(visible.includes('environ 600 €') && !/bon de commande/.test(visible), 'un renvoi au bon de commande, retiré de la page, tombe')
+}
+
+console.log('\nTroisième constat du 12/10/2026 au soir : coûts déguisés, phrases coupées, bundles vides, renvois')
+{
+  const constat: RapportPublic = {
+    ...rapport,
+    body: [
+      '## Synthèse',
+      'Pour un revendeur, trois constats :',
+      '',
+      '1. **Le lecteur OBD2 acheté en B2B est la meilleure opportunité** : 14 à 16 $ pièce chez des fournisseurs Alibaba. En boutique, ≈ 6,26 € nets par vente (ROI ≈ 37 %)',
+      '2. **La fabrication maison est la meilleure marge du rayon** : 4,37 € de matières pour une bougie de 180 g. Le frein n’est pas le prix mais la conformité.',
+      '3. **Importer des drones ne marche pas** : le Neo 2 coûte ≈ 270 € rendus ; les drones chinois se heurtent à Cdiscount dès 38,27 €.',
+      '',
+      'Budget de test recommandé : environ 705 €, dont 511 € de drones d’occasion revendables rapidement (détail en « Décision finale »).',
+      'Saisonnalité détaillée : voir le fichier marketing.',
+      '## Prix de revente',
+      '| Produit | Prix bas observé | Prix haut observé | Prix cible retenu |',
+      '|---|---|---|---|',
+      '| Lave-linge d’occasion révisé | 50 € (brut) | 340 € | 199 € |',
+      '## Bundles recommandés',
+      '| Bundle | Contenu | Coût rendu actuel | Prix de vente | Marge nette estimée | ROI | Cible | Plateforme |',
+      '|---|---|---|---|---|---|---|---|',
+      '| DJI Mini 2 d’occasion prêt à voler | DJI Mini 2 contrôlé + Sacoche (non sourcée, exclue du coût) | 180,00 € | 289,00 € | 56,93 € | 32 % | Débutants | Leboncoin |',
+      '',
+      'Les packs posés sont calculés avec le matériel acheté au prix public TTC et 10 € de déplacement (hypothèse). Les prix de vente des packs sont des prix cibles.',
+      '',
+      '### Montée en volume',
+      'Règle de montée en volume (identique à l’étude Smartphones) : 5 → 10 → 25 → 50 unités.',
+      '## Décision finale',
+      '- Éviter : Vgate au détail AliExpress, boosters seuls sur marketplace, revente de TOPDON.',
+      '- Budget test recommandé : environ 245 € hors frais de port Alibaba.',
+    ].join('\n'),
+  }
+  const visible = pageRapport(constat).replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
+  exige(!/511|50 € \(brut\)|10 € de déplacement|180,00|56,93|6,26|4,37|270 €|Alibaba|AliExpress/.test(visible), 'ni part d’achat dans un budget, ni prix brut, ni frais supposés, ni coût de bundle', (/[^>]*(511|brut|déplacement|180,00|56,93|6,26|4,37|270 €|Alibaba|AliExpress)[^<]*/.exec(visible) || [''])[0])
+  exige(visible.includes('meilleure opportunité</strong>.') && !/En boutique\./.test(visible), 'un reste trop court pour tenir seul (« En boutique. ») tombe, le constat reste')
+  exige(visible.includes('meilleure marge du rayon</strong>. Le frein n’est pas le prix'), 'après une première phrase retirée, la suite devient une phrase, pas l’explication du libellé')
+  exige(visible.includes('ne marche pas</strong>. Les drones chinois se heurtent à Cdiscount'), 'avec une majuscule')
+  exige(visible.includes('environ 705 € (détail en'), 'le budget garde son total, sans sa part de stock')
+  exige(visible.includes('Saisonnalité détaillée : voir l’analyse marketing du même jour.') || visible.includes("Saisonnalité détaillée : voir l'analyse marketing du même jour."), 'le fichier marketing devient l’analyse du même jour')
+  exige(visible.includes('<td>Lave-linge d’occasion révisé</td><td>—</td><td>340 €</td>'), 'un prix « brut » sort de son tableau, la ligne reste')
+  exige(visible.includes('<td>DJI Mini 2 d’occasion prêt à voler</td><td>DJI Mini 2 contrôlé + Sacoche</td><td>289,00 €</td>') && !/<th>(Coût|Marge|ROI)/.test(visible), 'le tableau des bundles reste, sans ses colonnes de coût : le « Meilleur bundle » du verdict se retrouve')
+  exige(visible.includes('Les prix de vente des packs sont des prix cibles.'), 'la phrase publique d’après reste')
+  exige(!/Smartphones/.test(visible) && visible.includes('Règle de montée en volume : 5'), 'un renvoi à une autre étude tombe')
+  exige(visible.includes('Éviter : boosters seuls sur marketplace, revente de TOPDON.'), 'une liste « Éviter » perd son seul élément fournisseur, même en tête')
+  exige(visible.includes('Budget test recommandé : environ 245 €.'), 'le budget perd « hors frais de port Alibaba », pas la ligne')
 }
 
 console.log('\nLa page d’un rapport marketing')
