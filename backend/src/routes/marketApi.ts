@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, requireAdmin, type AuthedRequest } from '../middleware/auth.js'
 import { etatCompte, lienInscription, lienTableauDeBord, MarketIndisponible } from '../services/marketStripe.js'
 import { COMMISSION, marketUrl, offresDe } from '../services/market.js'
+import { rattraperBoutiquesSurMarket } from '../services/marketAuto.js'
 
 /**
  * DropShop Market, côté application : l'espace vendeur et l'admin simplifié.
@@ -116,7 +117,9 @@ marketApiRouter.put('/vendeur/auto', requireAuth, async (req: AuthedRequest, res
   if (!parsed.success) return res.status(400).json({ error: 'Demande invalide.' })
   try {
     await prisma.user.update({ where: { id: req.userId! }, data: { marketAuto: parsed.data.actif } })
-    res.json({ ok: true, auto: parsed.data.actif })
+    // Réactiver remet sur le Market ce qui a été mis en boutique entre-temps.
+    const ajoutes = parsed.data.actif ? await rattraperBoutiquesSurMarket(req.userId!) : 0
+    res.json({ ok: true, auto: parsed.data.actif, ajoutes })
   } catch (err) {
     console.error('[market] auto', err instanceof Error ? err.message : err)
     res.status(500).json({ error: "Le réglage n'a pas pu être enregistré.", motif: 'auto' })

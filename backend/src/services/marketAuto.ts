@@ -27,3 +27,38 @@ export async function diffuserSurMarket(productId: string, userId: string): Prom
   })
   return true
 }
+
+/**
+ * Rattrapage : met sur le Market les produits DÉJÀ en boutique qui n'y sont pas.
+ *
+ * La diffusion ci-dessus ne part qu'à la publication sur la boutique ; les
+ * produits publiés avant le 07/10/2026, ou pendant que le vendeur avait coupé
+ * la diffusion, n'y étaient jamais passés. Même règles : refus du vendeur
+ * respecté, aucune ligne Market existante touchée (un retrait reste un retrait).
+ * Idempotent, donc sans risque au démarrage comme à la réactivation.
+ */
+export async function rattraperBoutiquesSurMarket(userId?: string): Promise<number> {
+  const candidates = await prisma.publication.findMany({
+    where: {
+      platform: 'OWN_SITE',
+      status: 'PUBLISHED',
+      product: {
+        ...(userId ? { userId } : {}),
+        user: { marketAuto: true },
+        publications: { none: { platform: 'DROPSHOP_MARKET' } },
+      },
+    },
+    select: { productId: true },
+  })
+  if (!candidates.length) return 0
+  const r = await prisma.publication.createMany({
+    data: candidates.map((c) => ({
+      productId: c.productId,
+      platform: 'DROPSHOP_MARKET' as const,
+      status: 'PUBLISHED' as const,
+      publishedAt: new Date(),
+    })),
+    skipDuplicates: true,
+  })
+  return r.count
+}

@@ -40,8 +40,8 @@ export interface ExtensionCatalogue {
   accroche: string
   description: string
   prix: number
-  /** 'disponible' s'installe ; 'bientot' se montre, sans pop-up. */
-  statut: 'disponible' | 'bientot'
+  /** 'disponible' s'installe ; 'incluse' marche d'office, rien à installer ; 'bientot' se montre, sans pop-up. */
+  statut: 'disponible' | 'incluse' | 'bientot'
   champs: ChampExtension[]
   /** Ce que l'écran propose une fois installée : une adresse à ouvrir, par exemple. */
   apres?: 'back-office'
@@ -106,12 +106,13 @@ export const EXTENSIONS: ExtensionCatalogue[] = [
   },
   {
     id: 'dropmarket',
-    nom: 'DropMarket',
-    accroche: 'La place de marché DropShipper',
+    nom: 'DropShop Market',
+    accroche: 'La place de marché DropShipper, incluse',
+    // Rien à installer : publier dans la boutique suffit (services/marketAuto.ts).
     description:
-      "Votre boutique et ses produits paraissent sur DropMarket, la place de marché de toutes les boutiques DropShop : une vitrine commune, un trafic partagé, et les Premium Members en tête.",
+      "Chaque produit de votre boutique paraît automatiquement sur DropShop Market (drop-shop.cloud), la place de marché de toutes les boutiques DropShop : une vitrine commune et un trafic partagé. Paiement Stripe, 5 % de commission par vente. Désactivable dans l'écran DropShop Market.",
     prix: 0,
-    statut: 'bientot',
+    statut: 'incluse',
     champs: [],
     famille: 'dropshop',
     logo: '/extensions/dropmarket.png',
