@@ -186,7 +186,7 @@ export default function Agents() {
                 <p className="mt-1 text-xs text-gray-500">{cat.hint}</p>
                 {/* `auto-rows-fr` : toutes les rangées à la hauteur de la plus
                     grande carte — les blocs font donc tous la même taille. */}
-                <ul className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <ul className="mt-4 grid grid-cols-1 auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {membres.map((a) => (
                     <AgentCard
                       key={a.key}

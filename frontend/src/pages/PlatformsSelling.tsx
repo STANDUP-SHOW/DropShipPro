@@ -72,7 +72,7 @@ function SocialPlaces() {
         de ses pages (social links) — deux branchements différents.
       </p>
 
-      <div className="mt-5 grid gap-6 lg:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-sky-300">
             <span>Social markets</span>
@@ -221,7 +221,7 @@ export default function PlatformsSelling() {
             {EXPLICATION[integration]}
           </p>
 
-          <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {liste.map((p) => (
               <li key={p.id}>
                 <button

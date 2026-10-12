@@ -203,7 +203,7 @@ export default function BillingPage() {
         <b className="text-gray-300"> plus vous rechargez, moins le drop coûte</b>.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {plans?.packs.map((pack) => {
           // Le prix d'achat du drop pour ce forfait : il baisse sur les gros.
           const prixDrop = pack.amount / 100 / pack.drops

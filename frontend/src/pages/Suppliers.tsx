@@ -93,15 +93,25 @@ export default function Suppliers() {
 
 
       {/*
-        Une liste depliable, et non une grille de cartes.
+        Des lignes depliables sur deux colonnes, et non des cartes.
 
         La carte tronquait la description a deux lignes et cachait la mise en
         garde -- celle qui dit « livre en Inde seulement » ou « aucune place de
         marche n accepte ces produits ». Il fallait ouvrir une fenetre pour la
         lire, et la fenetre cachait a son tour la fiche pendant qu on collait sa
         cle. Tout tient desormais au meme endroit.
+
+        Deux colonnes comme les market places (19/09/2026) : trente-huit
+        fournisseurs sur une colonne font defiler trois ecrans pour en comparer
+        deux. Une seule colonne en dessous de md -- la fiche depliee porte un
+        formulaire de cles, et deux formulaires cote a cote sur un telephone ne
+        se remplissent pas.
+
+        « items-start » est ce qui rend le depliage supportable : sans lui, la
+        grille egalise la hauteur des deux cellules d une rangee et la voisine
+        d une fiche ouverte devient une grande case vide.
       */}
-      <ul className="space-y-2">
+      <ul className="grid items-start gap-2 md:grid-cols-2">
         {classes.map((s) => (
           <SupplierBlock
             key={s.id}

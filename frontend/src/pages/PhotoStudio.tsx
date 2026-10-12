@@ -194,7 +194,7 @@ export default function PhotoStudio() {
                   </p>
                 )}
 
-                <ul className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {photos.map((g) => (
                     <li key={g.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
                       <img

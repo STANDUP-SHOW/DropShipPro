@@ -181,12 +181,17 @@ export function DepartmentChat({
       {error && <p className="px-4 pb-2 text-xs text-red-400">{error}</p>}
 
       <div className="flex gap-2 border-t border-white/10 p-3">
+        {/* `min-w-0` : un champ de saisie a une largeur intrinseque (une
+            vingtaine de caracteres), et `flex-1` ne l'autorise pas a descendre
+            en dessous. Sur un telephone, le champ refusait donc de se reduire
+            et poussait « Envoyer » hors de l'ecran : la question etait
+            redigeable, pas envoyable. */}
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder={listening ? "Parlez…" : `Une question pour ${agentName} ?`}
-          className="flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
         />
         {voiceSupported && (
           <button

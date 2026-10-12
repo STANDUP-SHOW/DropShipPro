@@ -269,7 +269,7 @@ export function WatermarkSettings() {
             choisi. Rien à régler.
           </p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label>
               <span className="text-xs text-gray-400">{`Intensité : ${r.watermarkOpacity} %`}</span>
               <input

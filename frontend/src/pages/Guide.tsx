@@ -175,7 +175,7 @@ export default function Guide() {
       </h2>
       <p className="mt-1 text-sm text-gray-400">Trois façons de faire entrer un produit dans votre catalogue.</p>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-white/10 bg-white/5 p-5">
           <Link2 className="text-purple-300" size={22} />
           <h3 className="mt-3 font-bold">Coller une URL</h3>
@@ -425,7 +425,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
         Vous cliquez, DropShipper IA publie. Ce sont aussi les seules destinations utilisables en
         publication de masse.
       </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {live.map((p) => (
           <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
         ))}
@@ -439,7 +439,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
         identifiants ne sont pas saisis, la publication est enregistrée « en attente » avec la bonne
         catégorie : rien n'est perdu.
       </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {apiReady.map((p) => (
           <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
         ))}
@@ -452,7 +452,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
         Aucune API publique : l'extension ouvre le formulaire de dépôt et le remplit. C'est vous qui
         validez.
       </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {assisted.map((p) => (
           <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
         ))}
@@ -463,7 +463,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
           <h3 className="mt-8 flex items-center gap-2 text-sm font-bold text-red-300">
             <X size={16} /> Pas de publication possible
           </h3>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {unavailable.map((p) => (
               <PlatformCard key={p.id} platform={p} open={openId === p.id} onToggle={() => toggle(p.id)} />
             ))}
@@ -490,7 +490,7 @@ products.forEach((p) => console.log(p.title, p.price, p.currency))`}
         </p>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/5 p-5">
           <h3 className="flex items-center gap-2 font-bold text-emerald-300">
             <Check size={16} /> Fonctionne en lot

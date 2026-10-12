@@ -53,57 +53,58 @@ export function SupplierBlock({
       <button
         type="button"
         onClick={onBasculer}
-        className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-white/[0.08]"
+        className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-white/[0.08]"
       >
         <PlatformLogo
           id={supplier.id}
           label={supplier.label}
           color={supplier.color}
+          size={32}
           domain={supplier.domain}
         />
 
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{supplier.label}</span>
+          <p className="flex flex-wrap items-center gap-1.5">
+            <span className="truncate text-sm font-semibold">{supplier.label}</span>
             {supplier.api ? (
               relie ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] text-emerald-300">
-                  <Check size={10} />
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] text-emerald-300">
+                  <Check size={9} />
                   <span>relié</span>
                 </span>
               ) : (
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-gray-400">
+                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-400">
                   API disponible
                 </span>
               )
             ) : (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-gray-500">
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
                 {CHEMIN[supplier.importPath] ?? supplier.importPath}
               </span>
             )}
             {aCommander > 0 ? (
-              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] text-amber-200">
+              <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-200">
                 {`${aCommander} à commander`}
               </span>
             ) : null}
           </p>
           {/* Repliée, la ligne dit l'origine : c'est elle qui décide du délai,
               donc la première chose qu'on regarde. */}
-          <p className="truncate text-[11px] text-gray-500">{supplier.origine}</p>
+          <p className="truncate text-[10px] text-gray-500">{supplier.origine}</p>
         </div>
 
         <ChevronDown
-          size={16}
+          size={14}
           className={`shrink-0 text-gray-400 transition ${ouvert ? '' : '-rotate-90'}`}
         />
       </button>
 
       {ouvert ? (
-        <div className="border-t border-white/10 p-4">
-          <p className="text-sm leading-relaxed text-gray-300">{supplier.quoi}</p>
+        <div className="border-t border-white/10 p-3">
+          <p className="text-[13px] leading-relaxed text-gray-300">{supplier.quoi}</p>
 
           {supplier.attention ? (
-            <p className="mt-3 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
+            <p className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-2.5 text-xs leading-relaxed text-amber-100">
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
               <span>{supplier.attention}</span>
             </p>

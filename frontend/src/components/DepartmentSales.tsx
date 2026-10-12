@@ -70,7 +70,7 @@ export function DepartmentSales({ departmentId, agentName }: { departmentId: str
           </p>
         ) : (
           <>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <p className="text-xs text-gray-500">Commandes</p>
                 <p className="text-lg font-bold tabular-nums">{total.commandes}</p>
