@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -419,12 +419,59 @@ console.log('\nUne offre par fournisseur, un produit par ligne (édition du 12/1
   exige(html.includes('12,99 à 17,99 €') && html.includes('2 produits gagnants repérés'), 'son prix en fourchette, le compte en produits distincts')
 }
 
+{
+  // The report page as the router serves it: one row per product, the title counts distinct products.
+  const p0 = rapport.produits[0]
+  const offres = [
+    { ...p0, rang: 1, titre: 'Lecteur OBD2 Vgate iCar Pro 2S', prixVente: 39.99 },
+    { ...p0, rang: 2, titre: 'Lecteur OBD2 Vgate iCar Pro 2S', prixVente: 44.99 },
+    { ...p0, rang: 3, titre: 'Testeur de batterie', prixVente: 19.99 },
+  ]
+  const produits = produitsUniques(offres).map((p, i) => ({ ...p, rang: i + 1 }))
+  const r2 = { ...rapport, produits }
+  const html = pageRapport(r2)
+  exige((html.match(/<td>Lecteur OBD2 Vgate iCar Pro 2S<\/td>/g) ?? []).length === 1 && html.includes('39,99 à 44,99 €'), 'la page du rapport : une ligne par produit, prix en fourchette')
+  exige(titreRapport({ ...r2, titre: 'Outillage' }) === 'Outillage : 2 produits gagnants (' + titreRapport({ ...r2, titre: 'Outillage' }).split('(')[1], 'le titre compte les produits distincts')
+  exige(produitsUniques(produits).length === 2 && produitsUniques(produits)[0].prixMax === 44.99, 'regrouper deux fois ne change rien')
+}
+{
+  const m = { ...marketing, titre: rapport.titre, day: rapport.day, categorie: rapport.categorie }
+  const html = pageJour(rapport.day, [m, rapport])
+  exige(html.includes(`>${titreDansListe(m)}</a></h3>`) && html.includes(`>${titreDansListe(rapport)}</a></h3>`) && titreDansListe(m) !== titreDansListe(rapport), 'l’étude et l’analyse marketing du même jour ont chacune leur titre')
+}
+
+{
+  // Répéteur Wi-Fi générique du 12/10: two offers « À surveiller », one « Acheter si négocié ».
+  const p0 = rapport.produits[0]
+  const u = produitsUniques([
+    { ...p0, rang: 1, titre: 'Répéteur Wi-Fi générique', prixVente: 29.99, pourquoi: 'À surveiller' },
+    { ...p0, rang: 2, titre: 'Répéteur Wi-Fi générique', prixVente: 39.99, pourquoi: 'Acheter si négocié' },
+    { ...p0, rang: 3, titre: 'Répéteur Wi-Fi générique', prixVente: 19.99, pourquoi: 'À surveiller' },
+  ])
+  exige(u.length === 1 && u[0].verdicts === 'À surveiller à 19,99 et 29,99 € · Acheter si négocié à 39,99 €', 'des verdicts différents gardent chacun leurs prix : ' + u[0].verdicts)
+  const html = pageJour('2026-10-12', [{ ...rapport, day: '2026-10-12', produits: u }])
+  exige(html.includes('À surveiller à 19,99 et 29,99 € · Acheter si négocié à 39,99 €'), 'l’édition les montre, jamais le seul verdict favorable')
+  const memes = produitsUniques([{ ...p0, rang: 1, titre: 'X', prixVente: 1, pourquoi: 'À surveiller' }, { ...p0, rang: 2, titre: 'X', prixVente: 2, pourquoi: 'À surveiller' }])
+  exige(memes[0].verdicts === undefined, 'un même verdict reste seul')
+}
+{
+  // Editions and hubs are dated by their own text too.
+  const jour = pageJour(rapport.day, [rapport])
+  fixerDatesDesPages(new Map([[`/analyses/${rapport.day}/`, new Date('2030-01-01T00:00:00Z')]]))
+  const date = pageJour(rapport.day, [rapport])
+  exige(date.includes('2030-01-01T00:00:00.000Z') && empreintePage(date) === empreintePage(jour), 'l’édition prend la date de son texte ; son empreinte ignore sa propre date')
+  exige(sitemapXml([rapport]).includes(`/analyses/${rapport.day}/</loc><lastmod>2030-01-01T00:00:00.000Z`), 'le sitemap aussi')
+  fixerDatesDesPages(new Map())
+}
+
 console.log('\nLes apostrophes perdues (gaming du 07/10)')
 {
   exige(apostrophesRendues('Manettes gaming : leffet Hall, la manette de lannée') === "Manettes gaming : l'effet Hall, la manette de l'année", 'l’effet, l’année')
   exige(apostrophesRendues('Ce quon achète aujourdhui : dune autre époque, sil le faut') === "Ce qu'on achète aujourd'hui : d'une autre époque, s'il le faut", 'qu’on, aujourd’hui, d’une, s’il')
   exige(apostrophesRendues('son et lumière, la lune, le don') === 'son et lumière, la lune, le don', 'ni son, ni lune, ni don')
   exige(apostrophesRendues("Déjà lannée, l'effet") === "Déjà lannée, l'effet", 'un titre qui a déjà ses apostrophes ne bouge pas')
+  exige(apostrophesDuTexte('fin dannée, près dune console, à lécran\n30 jours dessai, ce quil faut savoir avant dacheter') === "fin d'année, près d'une console, à l'écran\n30 jours d'essai, ce qu'il faut savoir avant d'acheter", 'le corps et les prompts aussi, ligne par ligne')
+  exige(apostrophesDuTexte("lavoir communal\nl'effet, dannée\nhttps://x.fr/lannee") === "lavoir communal\nl'effet, dannée\nhttps://x.fr/lannee", 'ni « lavoir », ni une ligne qui a ses apostrophes, ni un lien')
   const g = { ...rapport, id: 'gaming-0710', titre: 'Manettes gaming : leffet Hall', une: null, theme: 'manettes', day: '2026-10-07' } as RapportPublic
   attribuerAdresses([g])
   const avant = cheminRapport(g)
