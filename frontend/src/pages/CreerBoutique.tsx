@@ -834,6 +834,7 @@ function Extensions({ shopId, busy }: { shopId: string; busy: boolean }) {
                   {ext.exclusif ? <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-200">EXCLUSIVITÉ</span> : null}
                   {ext.mention ? <span className="rounded-full bg-sky-400/20 px-2 py-0.5 text-[10px] font-black tracking-wider text-sky-200">{ext.mention}</span> : null}
                   {ext.statut === 'bientot' ? <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-400">Bientôt disponible</span> : null}
+                  {ext.statut === 'incluse' ? <span className="rounded-full bg-violet-400/20 px-2 py-0.5 text-[10px] font-bold text-violet-200">Incluse</span> : null}
                   {ext.installee ? <span className="rounded-full bg-violet-400/20 px-2 py-0.5 text-[10px] font-bold text-violet-200">Installée</span> : null}
                 </p>
                 <p className="text-xs text-gray-400">{ext.accroche}</p>
@@ -857,6 +858,8 @@ function Extensions({ shopId, busy }: { shopId: string; busy: boolean }) {
                 <button type="button" onClick={() => { setOuverte(ext); setChamps({}); setErreur(null) }} disabled={busy} className="rounded-lg border border-purple-400/40 px-2.5 py-1 text-xs font-bold text-purple-200 hover:bg-purple-400/10 disabled:opacity-40">
                   Installer · {ext.prix === 0 ? 'gratuit' : `${ext.prix} drops`}
                 </button>
+              ) : ext.statut === 'incluse' ? (
+                <Link to="/dropshop-market" className="text-[11px] text-purple-300 underline">Active d'office, rien à installer : voir mes annonces sur le Market</Link>
               ) : (
                 <span className="text-[11px] text-gray-500">{ext.id === 'dropbank' ? 'Disponible prochainement — les boutiques qui l\'installeront deviendront Premium Members.' : 'Disponible prochainement.'}</span>
               )}

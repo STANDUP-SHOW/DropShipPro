@@ -15,13 +15,13 @@ const esc = (t) =>
 
 const CSS_PIED = `
 .pied{display:grid;gap:1.5rem 2rem;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));padding:.5rem 0 1rem}
-.pied h2{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:#cfc9e8;margin:0 0 .6rem}
+.pied h2{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:#b8c0d0;margin:0 0 .6rem}
 .pied ul{list-style:none;padding:0;margin:0}
 .pied li{margin:.35rem 0}
 footer .pied a{margin:0;text-decoration:none}
-footer .pied a:hover{color:#e9e6f5;text-decoration:underline}
+footer .pied a:hover{color:#f5f7fa;text-decoration:underline}
 .pastille{display:inline-block;margin-left:.35rem;font-size:.62rem;font-weight:700;letter-spacing:.04em;padding:.05rem .4rem;border-radius:999px;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;vertical-align:middle}
-.pied-bas{border-top:1px solid #ffffff12;padding-top:1rem;margin-top:.5rem}
+.pied-bas{border-top:1px solid #2a3147;padding-top:1rem;margin-top:.5rem}
 `
 
 function lien(l) {

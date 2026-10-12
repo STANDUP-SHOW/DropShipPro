@@ -145,8 +145,15 @@ publier mes produits sur DropShop Market » (écran DropShop Market ; colonne
 - On ne crée l'annonce que s'il n'existe aucune ligne Market pour le produit :
   un retrait de la modération (`FAILED`) n'est jamais défait.
 - Désactiver arrête les prochaines diffusions ; ce qui est en ligne y reste.
-- Produits déjà en boutique avant l'activation : `backend/diffuser-boutiques-sur-market.ts`
-  (simulation par défaut, `--ecrire` pour créer). À lancer une fois, après accord de Max.
+- Produits déjà en boutique (avant le 07/10, ou pendant une désactivation) :
+  rattrapés **automatiquement** au démarrage de l'API et à la réactivation
+  (`rattraperBoutiquesSurMarket`, idempotent ; accord de Max le 12/10/2026). Le
+  script `backend/diffuser-boutiques-sur-market.ts` reste pour compter à la main.
+- Qui a une boutique ne voit plus « DropShop Market » parmi les destinations
+  (fiche et lot) : une ligne dit que c'est automatique. La destination reste pour
+  qui n'a pas de boutique.
+- Publication en lot : « Mon site » seul coché par défaut, envoi par paquets de 25
+  (avant : 61 destinations cochées d'office, une seule requête, plafond de 200).
 - Migration `20261007160000_market_auto` : sauvegarde avant fusion (`npm run sauvegarde`).
 - Banc : `backend/check-market-auto.ts`.
 
