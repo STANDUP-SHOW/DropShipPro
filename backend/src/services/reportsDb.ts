@@ -82,7 +82,8 @@ export interface EtudeImportee {
 
 /** Shared with the command-line importers: one reader, one writer, one shape of `data`. */
 const etudeLib = createRequire(import.meta.url)('../../rapports-etude.cjs') as {
-  etudeMarkdown(e: { texteRayon: string; texteMarketing: string | null; origineRayon: string; origineMarketing: string | null; source?: string }): any
+  etudeMarkdown(e: { texteRayon: string; texteMarketing: string | null; origineRayon: string; origineMarketing: string | null; source?: string; indices?: { date: string; categorie: string; theme: string } | null }): any
+  indicesDuChemin(chemin: string): { date: string; categorie: string; theme: string } | null
   etudeAiMarket(d: unknown, origine: string): any
   ecrireEtude(db: Database.Database, etude: any): void
 }
@@ -113,6 +114,8 @@ export function etudeDepuisSurcouche(e: EtudeImportee): any {
         origineRayon: e.origine,
         origineMarketing: e.texteMarketing != null ? e.origine.replace(/\.rayon\.md$/, '.marketing.md') : null,
         source: 'google-drive',
+        // A file with no YAML header is placed by its Drive folder, kept in `origine`.
+        indices: etudeLib.indicesDuChemin(e.origine),
       })
 }
 
