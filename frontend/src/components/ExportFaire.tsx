@@ -40,15 +40,15 @@ export function ExportFaire() {
    * non par un simple lien : l'API vit sur un autre domaine et n'a pas de
    * cookie de session — un `<a href>` arriverait sans jeton et recevrait un 401.
    */
-  async function telecharger() {
-    const r = await fetch(`${apiRoot}/api/products/meta/faire.xlsx?remiseGros=${remise / 100}`, {
+  async function telecharger(format: 'csv' | 'xlsx') {
+    const r = await fetch(`${apiRoot}/api/products/meta/faire.${format}?remiseGros=${remise / 100}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
     if (!r.ok) return
     const url = URL.createObjectURL(await r.blob())
     const a = document.createElement('a')
     a.href = url
-    a.download = `faire-${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.download = `faire-${new Date().toISOString().slice(0, 10)}.${format}`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -102,15 +102,28 @@ export function ExportFaire() {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        onClick={telecharger}
-        disabled={!apercu?.retenus}
-        className="btn-gradient mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-      >
-        <FileDown size={14} />
-        <span>Télécharger le fichier Faire (.xlsx)</span>
-      </button>
+      {/* CSV first: Max's decision for Faire is a CSV export. The XLSX is the
+          official template he supplied on 03/10/2026, filled from row 6. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => telecharger('csv')}
+          disabled={!apercu?.retenus}
+          className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          <FileDown size={14} />
+          <span>Télécharger le fichier Faire (.csv)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => telecharger('xlsx')}
+          disabled={!apercu?.retenus}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+        >
+          <FileDown size={14} />
+          <span>Modèle officiel Faire (.xlsx)</span>
+        </button>
+      </div>
 
       <p className="mt-2 text-[11px] text-gray-500">
         À déposer ensuite dans votre portail marque Faire, <i>Ajouter des produits › Importer une
