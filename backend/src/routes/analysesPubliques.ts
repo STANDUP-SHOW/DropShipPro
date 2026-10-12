@@ -17,10 +17,15 @@ import { Router, type Response } from 'express'
 import { CHEMIN_SURCOUCHE, generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
+  apostrophesDuTexte,
   apostrophesRendues,
   attribuerAdresses,
+  empreintePage,
+  fixerDatesDesPages,
+  produitsUniques,
   cheminArticleDate,
   cheminCategorie,
+  cheminJour,
   cheminRapport,
   pageCategorie,
   pageIndex,
@@ -92,9 +97,14 @@ const CHEMIN_RENDUS = path.join(path.dirname(CHEMIN_SURCOUCHE), 'rendus-publics.
 
 function datesDuRendu(tous: Ligne[]): Map<string, Date> {
   try {
+    fixerDatesDesPages(new Map())
+    const publics = new Map<string, RapportPublic>()
     const lignes = tous.flatMap((l) => {
       const r = versPublicBrut(l.id)
-      return r ? [{ id: l.id, updatedAt: l.updatedAt, texteRefait: texteRefait(r, l.importeDrive), empreinte: empreintePublique({ ...r, titre: apostrophesRendues(l.titre) }) }] : []
+      if (!r) return []
+      const pub = { ...r, titre: apostrophesRendues(l.titre) }
+      publics.set(l.id, { ...pub, updatedAt: new Date(0) })
+      return [{ id: l.id, updatedAt: l.updatedAt, texteRefait: texteRefait(r, l.importeDrive), empreinte: empreintePublique(pub) }]
     })
     let brut: unknown = null
     try {
@@ -104,17 +114,47 @@ function datesDuRendu(tous: Ligne[]): Map<string, Date> {
     }
     const connus: RendusConnus = rendusMigres(brut, new Set(lignes.filter((l) => l.texteRefait).map((l) => l.id)))
     const migre = !(brut && typeof brut === 'object' && (brut as { version?: number }).version === VERSION_RENDUS)
-    const { dates, connus: suivants, change } = datesPubliques(lignes, connus)
-    if (change || migre) {
+    const deHub = (id: string) => id.startsWith('/')
+    const garder = (hub: boolean) => Object.fromEntries(Object.entries(connus).filter(([id]) => deHub(id) === hub))
+    const rapportsDates = datesPubliques(lignes, garder(false))
+    // Editions and hubs: their own text, and never older than their newest report. A hub seen for the first
+    // time is dated now: the store learns them with the change that retitled every list and grouped the products.
+    const hubs = pagesDesHubs(tous, publics).map(({ chemin, html, membres }) => ({
+      id: chemin,
+      updatedAt: membres.reduce((d, id) => { const m = rapportsDates.dates.get(id); return m && m > d ? m : d }, new Date(0)),
+      empreinte: empreintePage(html),
+      texteRefait: true,
+    }))
+    const hubsDates = datesPubliques(hubs, garder(true))
+    fixerDatesDesPages(hubsDates.dates)
+    if (rapportsDates.change || hubsDates.change || migre) {
       fs.mkdirSync(path.dirname(CHEMIN_RENDUS), { recursive: true })
-      fs.writeFileSync(CHEMIN_RENDUS, JSON.stringify({ version: VERSION_RENDUS, rapports: suivants }))
+      fs.writeFileSync(CHEMIN_RENDUS, JSON.stringify({ version: VERSION_RENDUS, rapports: { ...rapportsDates.connus, ...hubsDates.connus } }))
     }
-    return dates
+    return rapportsDates.dates
   } catch (err) {
     // A date that cannot follow the text must not take the pages down with it.
     console.error('[analyses publiques] dates du rendu', err instanceof Error ? err.message : err)
     return new Map()
   }
+}
+
+/** /analyses/, each edition and each category page, rendered as the routes below render them (dates aside). */
+function pagesDesHubs(tous: Ligne[], publics: Map<string, RapportPublic>): Array<{ chemin: string; html: string; membres: string[] }> {
+  const de = (ls: Ligne[]) => ls.map((l) => publics.get(l.id)).filter((r): r is RapportPublic => !!r)
+  const jours = [...new Set(tous.map((l) => l.day))]
+  const comptes = new Map<string, number>()
+  for (const l of tous) comptes.set(l.categorie, (comptes.get(l.categorie) ?? 0) + 1)
+  const out = [{ chemin: '/analyses/', html: pageIndex(de(tous.slice(0, 24)), comptes, jours), membres: tous.map((l) => l.id) }]
+  jours.forEach((j, i) => {
+    const ls = tous.filter((l) => l.day === j)
+    out.push({ chemin: cheminJour(j), html: pageJour(j, de(ls), jours[i + 1], jours[i - 1]), membres: ls.map((l) => l.id) })
+  })
+  for (const c of comptes.keys()) {
+    const ls = tous.filter((l) => l.categorie === c)
+    out.push({ chemin: cheminCategorie(c), html: pageCategorie(c, de(ls.slice(0, 400))), membres: ls.map((l) => l.id) })
+  }
+  return out
 }
 
 function versPublic(id: string): RapportPublic | null {
@@ -133,9 +173,12 @@ function versPublicBrut(id: string): RapportPublic | null {
       ? rapports()
           .getPromptsRapports({ categorie: r.categorie, jour: r.day, limite: 200 })
           .prompts.filter((p) => p.rapportId === id)
-          .map((p) => ({ genre: p.genre, format: p.format, texte: p.texte }))
+          .map((p) => ({ genre: p.genre, format: p.format, texte: apostrophesDuTexte(p.texte) }))
       : []
-  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
+  // One row per product: the per-offer list (with suppliers) stays in the signed-in space.
+  const produits = produitsUniques(r.produits).map((p, i) => ({ ...p, rang: i + 1 }))
+  const texte = (t: string | null) => (t ? apostrophesDuTexte(t) : t)
+  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), body: apostrophesDuTexte(r.body), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
 function html(res: Response, page: string) {

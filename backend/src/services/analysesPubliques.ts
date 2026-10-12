@@ -57,7 +57,7 @@ export interface RapportPublic {
   extrait?: string | null
   accroche: string | null
   body: string
-  produits: ProduitRapport[]
+  produits: ProduitPublic[]
   /** Rapport marketing : ses prompts publicitaires image et vidéo. */
   prompts: PromptPublic[]
   sources: number
@@ -689,16 +689,31 @@ export function pourquoiPublic(texte: string | null | undefined): string {
     .join(' · ')
 }
 
+/** A product as public pages show it: one row per product, the advised price as a span when its offers differ. */
+export type ProduitPublic = ProduitRapport & { prixMin?: number | null; prixMax?: number | null; verdicts?: string }
+
+/** The public « why » of a product; a grouped one lists each verdict with its prices. */
+function pourquoiAffiche(p: ProduitPublic): string {
+  return p.verdicts ?? pourquoiPublic(p.pourquoi)
+}
+
+const montantPublic = (n: number) => n.toFixed(2).replace('.', ',')
+function prixPublic(p: ProduitPublic): string {
+  const min = p.prixMin ?? p.prixVente
+  const max = p.prixMax ?? p.prixVente
+  if (min == null || max == null) return '—'
+  return min === max ? `${montantPublic(min)} €` : `${montantPublic(min)} à ${montantPublic(max)} €`
+}
+
 /** Les produits gagnants, bridés : ni fournisseur, ni prix d'achat, ni marge (son unité varie selon l'agent). */
-function tableauProduitsPublic(produits: ProduitRapport[]): string {
+function tableauProduitsPublic(produits: ProduitPublic[]): string {
   if (!produits.length) return ''
-  const euros = (n: number | null) => (n === null ? '—' : `${n.toFixed(2).replace('.', ',')} €`)
   return `<div class="tableau"><table>
 <thead><tr><th>#</th><th>Produit</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
 <tbody>${produits
     .map(
       (p) =>
-        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${euros(p.prixVente)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`,
+        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${prixPublic(p)}</td><td>${esc(pourquoiAffiche(p))}</td></tr>`,
     )
     .join('')}</tbody></table></div>
 <p class="garde">La fiche fournisseur et le prix d'achat de chaque produit sont réservés aux comptes ${NOM} : <a href="/register">créez un compte</a> pour les ouvrir, les importer en un clic et les publier sur vos places de marché.</p>`
@@ -713,7 +728,7 @@ function produitsLd(r: RapportPublic) {
       '@type': 'ListItem',
       position: p.rang,
       name: p.titre,
-      ...(p.prixVente !== null ? { description: [`Prix de vente conseillé ${p.prixVente.toFixed(2)} €`, pourquoiPublic(p.pourquoi)].filter(Boolean).join(' — ') } : {}),
+      ...(p.prixVente !== null ? { description: [`Prix de vente conseillé ${prixPublic(p)}`, pourquoiAffiche(p)].filter(Boolean).join(' — ') } : {}),
     })),
   }
 }
@@ -853,7 +868,7 @@ ${[...parJour.entries()]
   .map(
     ([jour, liste]) =>
       `<h2>${dateLongue(jour)}</h2><ul class="liste">${liste
-        .map((r) => `<li><a href="${cheminRapport(r)}">${esc(r.titre)}</a><small>${esc(r.themeNom)} · ${resumeRapport(r)}</small></li>`)
+        .map((r) => `<li><a href="${cheminRapport(r)}">${esc(titreDansListe(r))}</a><small>${esc(r.themeNom)} · ${resumeRapport(r)}</small></li>`)
         .join('')}</ul>`,
   )
   .join('\n')}
@@ -894,7 +909,7 @@ ${
   }
 <h2>Les dernières analyses</h2>
 <ul class="liste">${recents
-    .map((r) => `<li><a href="${cheminRapport(r)}">${esc(r.titre)}</a><small>${esc(r.categorieNom)} · ${dateLongue(r.day)} · ${resumeRapport(r)}</small></li>`)
+    .map((r) => `<li><a href="${cheminRapport(r)}">${esc(titreDansListe(r))}</a><small>${esc(r.categorieNom)} · ${dateLongue(r.day)} · ${resumeRapport(r)}</small></li>`)
     .join('')}</ul>
 <h2>Par catégorie</h2>
 <div class="grille">${CATEGORIES.map((c) => {
@@ -925,16 +940,34 @@ ${
  * supplier). The public pages hide the supplier, so those rows read as
  * duplicates: one entry per product, with the span of advised prices.
  */
-export function produitsUniques(produits: ProduitRapport[]): Array<ProduitRapport & { prixMin: number | null; prixMax: number | null }> {
-  const parCle = new Map<string, ProduitRapport[]>()
+export function produitsUniques(produits: ProduitPublic[]): Array<ProduitPublic & { prixMin: number | null; prixMax: number | null }> {
+  const parCle = new Map<string, ProduitPublic[]>()
   for (const p of produits) {
     const cle = slugTitre(p.titre, 200) || p.titre
     parCle.set(cle, [...(parCle.get(cle) ?? []), p])
   }
   return [...parCle.values()].map((offres) => {
-    const prix = offres.map((o) => o.prixVente).filter((n): n is number => n !== null)
+    const prix = offres.flatMap((o) => [o.prixMin ?? o.prixVente, o.prixMax ?? o.prixVente]).filter((n): n is number => n != null)
     const avecPrix = offres.find((o) => o.prixVente !== null) ?? offres[0]
-    return { ...avecPrix, rang: Math.min(...offres.map((o) => o.rang)), prixMin: prix.length ? Math.min(...prix) : null, prixMax: prix.length ? Math.max(...prix) : null }
+    // Offers that disagree keep each verdict with its own prices: never a better one than the report gave for the whole span.
+    const parVerdict = new Map<string, number[]>()
+    for (const o of offres) {
+      const v = pourquoiAffiche(o)
+      parVerdict.set(v, [...(parVerdict.get(v) ?? []), ...[o.prixMin ?? o.prixVente, o.prixMax ?? o.prixVente].filter((n): n is number => n != null)])
+    }
+    const montants = (ns: number[]) => {
+      const u = [...new Set(ns)].sort((a, b) => a - b).map(montantPublic)
+      return u.length ? ` à ${u.length > 1 ? `${u.slice(0, -1).join(', ')} et ${u[u.length - 1]}` : u[0]} €` : ''
+    }
+    const verdicts =
+      parVerdict.size > 1
+        ? [...parVerdict.entries()]
+            .filter(([v]) => v)
+            .sort((a, b) => Math.min(...a[1], Infinity) - Math.min(...b[1], Infinity))
+            .map(([v, ns]) => `${v}${montants(ns)}`)
+            .join(' · ')
+        : avecPrix.verdicts
+    return { ...avecPrix, rang: Math.min(...offres.map((o) => o.rang)), prixMin: prix.length ? Math.min(...prix) : null, prixMax: prix.length ? Math.max(...prix) : null, verdicts }
   })
 }
 
@@ -955,9 +988,6 @@ export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?:
         .map((p) => ({ p, r })),
     )
     .slice(0, 12)
-  const montant = (n: number) => n.toFixed(2).replace('.', ',')
-  const euros = (min: number | null, max: number | null) =>
-    min === null || max === null ? '—' : min === max ? `${montant(min)} €` : `${montant(min)} à ${montant(max)} €`
 
   const body = `${crumb(fil)}
 <h1>Produits gagnants et tendances du ${date}</h1>
@@ -966,14 +996,14 @@ ${
   top.length
     ? `<h2 id="produits">Les produits gagnants du jour</h2><div class="tableau"><table>
 <thead><tr><th>Produit</th><th>Catégorie</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
-<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixMin, p.prixMax)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`).join('')}</tbody></table></div>`
+<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${prixPublic(p)}</td><td>${esc(pourquoiAffiche(p))}</td></tr>`).join('')}</tbody></table></div>`
     : ''
 }
 ${[...parCategorie.values()]
   .map((liste) => {
     const nom = liste[0].categorieNom
     return `<h2>${esc(nom)}</h2>${liste
-      .map((r) => `<h3><a href="${cheminRapport(r)}">${esc(r.titre)}</a></h3>${r.accroche ? `<p>${esc(r.accroche)}</p>` : ''}<p class="meta">${esc(r.themeNom)} · ${resumeRapport(r)}</p>`)
+      .map((r) => `<h3><a href="${cheminRapport(r)}">${esc(titreDansListe(r))}</a></h3>${r.accroche ? `<p>${esc(r.accroche)}</p>` : ''}<p class="meta">${esc(r.themeNom)} · ${resumeRapport(r)}</p>`)
       .join('')}<p><a href="${cheminCategorie(liste[0].categorie)}">Toutes les analyses ${esc(nom.toLowerCase())}</a></p>`
   })
   .join('\n')}
@@ -987,7 +1017,7 @@ ${[...parCategorie.values()]
     title: `Produits gagnants et tendances du ${dateCourte(day)}`,
     description,
     publie: new Date(`${day}T06:00:00Z`),
-    modifie: rapports.reduce((d, r) => (r.updatedAt > d ? r.updatedAt : d), new Date(`${day}T06:00:00Z`)),
+    modifie: datePage(url, rapports.reduce((d, r) => (r.updatedAt > d ? r.updatedAt : d), new Date(`${day}T06:00:00Z`))),
     jsonLd: {
       '@context': 'https://schema.org',
       '@graph': [
@@ -1023,9 +1053,9 @@ export function sitemapXml(rapports: Array<Pick<RapportPublic, 'id' | 'categorie
   const dernier = rapports.reduce((d, r) => (r.updatedAt > d ? r.updatedAt : d), new Date(0))
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${ligne('/analyses/', rapports.length ? dernier : new Date(), '0.8', 'daily')}
-${[...jours.entries()].map(([j, mod]) => ligne(cheminJour(j), mod, '0.7', 'weekly')).join('\n')}
-${[...categories.entries()].map(([id, mod]) => ligne(cheminCategorie(id), mod, '0.7', 'daily')).join('\n')}
+${ligne('/analyses/', rapports.length ? datePage('/analyses/', dernier) : new Date(), '0.8', 'daily')}
+${[...jours.entries()].map(([j, mod]) => ligne(cheminJour(j), datePage(cheminJour(j), mod), '0.7', 'weekly')).join('\n')}
+${[...categories.entries()].map(([id, mod]) => ligne(cheminCategorie(id), datePage(cheminCategorie(id), mod), '0.7', 'daily')).join('\n')}
 ${rapports.map((r) => ligne(cheminRapport(r), r.updatedAt, '0.6', 'monthly')).join('\n')}
 </urlset>
 `
@@ -1040,7 +1070,9 @@ const MOTS_ELIDES =
   'intérieur|extérieur|authenticité|esprit|usines?|applications?|éclairages?|ordinateurs?|achat|essentiels?|indispensables?|alimentation|' +
   'arrivée|avenir|autonomie|audio|assistance|hygiène|humidité|odeurs?|ombres?|or|argent|aspirateurs?|espaces?|étés?|édition|élégance|' +
   'efficacité|économies?|émotions?|engouement|envie|ergonomie|équipements?|essor|évolution|excellence|exclusivité|immersion|impact|' +
-  'innovation|intelligence|iphone|ipad|android|amazon|aliexpress|instagram|influence|international|internet|un|une'
+  'innovation|intelligence|iphone|ipad|android|amazon|aliexpress|instagram|influence|international|internet|un|une|essais?|écoute|utilisateurs?|acheteurs?|achats?'
+// Verbs only after d' (« avant dacheter ») : « lavoir » is a word, « l'avoir » never in a title.
+const VERBES_ELIDES = 'acheter|essayer|offrir|utiliser|installer|attendre|économiser|avoir|être|écouter|entretenir|ouvrir|investir|importer|expédier|éviter|améliorer|ajouter'
 
 /**
  * Some imported titles lost every apostrophe (« Manettes gaming : leffet Hall
@@ -1055,10 +1087,30 @@ export function apostrophesRendues(texte: string): string {
     .replace(/(?<![\p{L}])(aujourd)(hui)(?![\p{L}])/giu, "$1'$2")
     .replace(/(?<![\p{L}])([cCnN])(est)(?![\p{L}])/gu, "$1'$2")
     .replace(/(?<![\p{L}])([sS](?=ils?(?![\p{L}]))|[qQ]u)(ils?|on)(?![\p{L}])/gu, "$1'$2")
+    .replace(new RegExp(`(?<![\\p{L}\\d])([dD])(${VERBES_ELIDES})(?![\\p{L}\\d])`, 'gu'), "$1'$2")
     .replace(elision, (m, avant: string, mot: string) =>
       // « lune » is the moon, never « l'une » in a title.
       /^l$/i.test(avant) && /^une?$/i.test(mot) ? m : `${avant}'${mot}`,
     )
+}
+
+/**
+ * The same, line by line, for a whole text (body, prompts): a line that lost
+ * its apostrophes gets them back, a line with any apostrophe or a link is left
+ * as it is. A report whose text is sound therefore renders unchanged.
+ */
+export function apostrophesDuTexte(texte: string): string {
+  if (!texte) return texte
+  return texte
+    .split('\n')
+    .map((l) => (/https?:|www\.|`/.test(l) ? l : apostrophesRendues(l)))
+    .join('\n')
+}
+
+/** A report's own title in a list where its twin of the same day sits next to it. */
+export function titreDansListe(r: Pick<RapportPublic, 'titre' | 'type' | 'produits'>): string {
+  if (r.type === 'marketing') return `${r.titre} : analyse marketing`
+  return r.produits.length ? `${r.titre} : ${r.produits.length} produits gagnants` : `${r.titre} : analyse de marché`
 }
 
 // --- La date de modification ----------------------------------------------------
@@ -1074,6 +1126,25 @@ export function empreintePublique(r: RapportPublic): string {
 }
 
 export type RendusConnus = Record<string, { empreinte: string; le: string }>
+
+/** An edition or hub page as a fingerprint: its HTML without its own modification date. */
+export function empreintePage(html: string): string {
+  return createHash('sha256').update(html.replace(/<meta property="article:modified_time"[^>]*>/g, '')).digest('hex').slice(0, 20)
+}
+
+/**
+ * Editions and hubs (/analyses/, /analyses/<jour>/, /analyses/<catégorie>/) are
+ * dated by their own text as well as by their reports (12/10/2026: #82 changed
+ * the 12/10 edition, its date stayed put). Set by the router, by address.
+ */
+let datesDesPages = new Map<string, Date>()
+export function fixerDatesDesPages(dates: Map<string, Date>): void {
+  datesDesPages = dates
+}
+function datePage(chemin: string, base: Date): Date {
+  const d = datesDesPages.get(chemin)
+  return d && d > base ? d : base
+}
 
 /**
  * A Drive import whose public text was rebuilt on 12/10/2026: a MARKETSPY file
