@@ -1011,6 +1011,36 @@ ${rapports.map((r) => ligne(cheminRapport(r), r.updatedAt, '0.6', 'monthly')).jo
 `
 }
 
+// --- Les apostrophes perdues ----------------------------------------------------
+
+// Vowel-initial words that follow an elided l', d', qu'… in report titles.
+const MOTS_ELIDES =
+  'effets?|ann[ée]es?|encres?|accès|achats?|usages?|ambiances?|hivers?|été|autres?|offres?|objets?|images?|écrans?|idées?|heures?|histoires?|' +
+  'utilisations?|installations?|entretiens?|expériences?|occasions?|origines?|enfants?|abord|appareils?|outils?|eau|énergies?|air|automne|' +
+  'intérieur|extérieur|authenticité|esprit|usines?|applications?|éclairages?|ordinateurs?|achat|essentiels?|indispensables?|alimentation|' +
+  'arrivée|avenir|autonomie|audio|assistance|hygiène|humidité|odeurs?|ombres?|or|argent|aspirateurs?|espaces?|étés?|édition|élégance|' +
+  'efficacité|économies?|émotions?|engouement|envie|ergonomie|équipements?|essor|évolution|excellence|exclusivité|immersion|impact|' +
+  'innovation|intelligence|iphone|ipad|android|amazon|aliexpress|instagram|influence|international|internet|un|une'
+
+/**
+ * Some imported titles lost every apostrophe (« Manettes gaming : leffet Hall
+ * de lannée »). Puts them back for display only: the address was attributed
+ * from the raw title and stays as it is. A title with any apostrophe is left
+ * untouched, and only known vowel-initial words are rejoined.
+ */
+export function apostrophesRendues(texte: string): string {
+  if (!texte || /['’]/.test(texte)) return texte
+  const elision = new RegExp(`(?<![\\p{L}\\d])(jusqu|lorsqu|puisqu|qu|[lLdD])(${MOTS_ELIDES})(?![\\p{L}\\d])`, 'giu')
+  return texte
+    .replace(/(?<![\p{L}])(aujourd)(hui)(?![\p{L}])/giu, "$1'$2")
+    .replace(/(?<![\p{L}])([cCnN])(est)(?![\p{L}])/gu, "$1'$2")
+    .replace(/(?<![\p{L}])([sS](?=ils?(?![\p{L}]))|[qQ]u)(ils?|on)(?![\p{L}])/gu, "$1'$2")
+    .replace(elision, (m, avant: string, mot: string) =>
+      // « lune » is the moon, never « l'une » in a title.
+      /^l$/i.test(avant) && /^une?$/i.test(mot) ? m : `${avant}'${mot}`,
+    )
+}
+
 // --- La date de modification ----------------------------------------------------
 
 /**

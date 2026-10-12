@@ -17,6 +17,7 @@ import { Router, type Response } from 'express'
 import { CHEMIN_SURCOUCHE, generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
+  apostrophesRendues,
   attribuerAdresses,
   cheminArticleDate,
   cheminCategorie,
@@ -81,7 +82,8 @@ export function lignesPubliques(): Ligne[] {
     .map((l) => ({ ...l, titre: l.une ?? l.titre }))
   attribuerAdresses(tous)
   const dates = datesDuRendu(tous)
-  memo = tous.map((l) => ({ ...l, updatedAt: dates.get(l.id) ?? l.updatedAt }))
+  // Apostrophes restored after attribution: the address keeps the raw title.
+  memo = tous.map((l) => ({ ...l, titre: apostrophesRendues(l.titre), updatedAt: dates.get(l.id) ?? l.updatedAt }))
   return memo
 }
 
@@ -92,7 +94,7 @@ function datesDuRendu(tous: Ligne[]): Map<string, Date> {
   try {
     const lignes = tous.flatMap((l) => {
       const r = versPublicBrut(l.id)
-      return r ? [{ id: l.id, updatedAt: l.updatedAt, texteRefait: texteRefait(r, l.importeDrive), empreinte: empreintePublique({ ...r, titre: l.titre }) }] : []
+      return r ? [{ id: l.id, updatedAt: l.updatedAt, texteRefait: texteRefait(r, l.importeDrive), empreinte: empreintePublique({ ...r, titre: apostrophesRendues(l.titre) }) }] : []
     })
     let brut: unknown = null
     try {
@@ -133,7 +135,7 @@ function versPublicBrut(id: string): RapportPublic | null {
           .prompts.filter((p) => p.rapportId === id)
           .map((p) => ({ genre: p.genre, format: p.format, texte: p.texte }))
       : []
-  return { ...r, titre: r.une ?? r.titre, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
+  return { ...r, titre: apostrophesRendues(r.une ?? r.titre), prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
 function html(res: Response, page: string) {

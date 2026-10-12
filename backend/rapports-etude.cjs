@@ -185,10 +185,40 @@ function puces(bloc) {
     .map((l) => texteDeCellule(l.replace(/^\s*[-*+]\s+/, '')))
     .filter(Boolean);
   if (p.length) return p;
-  return bloc
-    .split(/\r?\n\s*\r?\n/)
-    .map((x) => texteDeCellule(x))
-    .filter(Boolean);
+  // No bullets: sub-headings label the paragraph that follows them, table rows
+  // become one item each; raw Markdown must never reach an item.
+  const out = [];
+  let titre = null;
+  for (const para of bloc.split(/\r?\n\s*\r?\n/)) {
+    const ls = para.split(/\r?\n/).filter((l) => l.trim());
+    if (!ls.length) continue;
+    if (ls.every((l) => l.trim().startsWith('|'))) {
+      const cases = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => texteDeCellule(c));
+      const entetes = cases(ls[0]);
+      for (const l of ls.slice(1)) {
+        if (/^\s*\|?[\s:|-]+\|?\s*$/.test(l)) continue;
+        const c = cases(l);
+        const reste = c
+          .slice(1)
+          .map((v, i) => (v && v !== '—' ? (entetes[i + 1] ? `${entetes[i + 1]} : ${v}` : v) : ''))
+          .filter(Boolean);
+        if (c[0]) out.push(reste.length ? `${titre ? `${titre} : ` : ''}${c[0]} — ${reste.join(' · ')}` : c[0]);
+      }
+      titre = null;
+      continue;
+    }
+    let corps = ls;
+    const h = /^\s*#{2,6}\s+(?:\d+(?:\.\d+)*\.?\s+)?(.*)$/.exec(ls[0]);
+    if (h) {
+      titre = texteDeCellule(h[1].replace(/\*\*/g, ''));
+      corps = ls.slice(1);
+      if (!corps.length) continue;
+    }
+    const texte = texteDeCellule(corps.join(' ').replace(/\*\*/g, ''));
+    if (texte) out.push(titre ? `${titre} : ${texte}` : texte);
+    titre = null;
+  }
+  return out;
 }
 
 /**
@@ -1161,4 +1191,5 @@ module.exports = {
   etudeAiMarket,
   ecrireEtude,
   verdictFr,
+  puces,
 };
