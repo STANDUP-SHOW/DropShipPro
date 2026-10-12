@@ -33,6 +33,8 @@ const { planifier } = lib('planificateur')
 const { ErreurFournisseur } = lib('erreurs')
 const sig = lib('signaux')
 const plus = lib('serper-etendu')
+const rc = lib('recherche-claude')
+const pagesLib = lib('pages')
 
 let ok = 0
 const essais = []
@@ -48,7 +50,8 @@ function monde(srv) {
   const serper = creerSerper({ cle: 'k', url: `http://127.0.0.1:${port}/search` })
   const claude = creerClaude({ cle: 'k', modele: 'm', url: `http://127.0.0.1:${port}/v1/messages` })
   const rayon = { categorie: 'telephonie', libelleCategorie: 'Téléphonie', theme: 'smartphones', libelleTheme: 'Smartphones', date: '2026-10-03' }
-  const deps = { serper, claude, pages: (u) => lirePage(u), releves: async () => [], journal, racine }
+  // the fake web lives on 127.0.0.1: it stands for the supplier sites of the sourcing wave
+  const deps = { serper, claude, pages: (u) => lirePage(u), releves: async () => [], journal, racine, domainesFournisseurs: ['127.0.0.1'] }
   return { racine, journal, serper, claude, rayon, deps, port }
 }
 
@@ -107,8 +110,8 @@ test('rayon complet : 20 produits, 20 URL distinctes vues, marges en euros, fich
   assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
   assert.equal(res.validation.stats.produits, 20)
   assert.equal(res.validation.stats.urlsDistinctes, 20)
-  // 20 wave-1 queries + 26 wave-2 queries: the 46 requests of the n8n agent
-  assert.equal(etat.serper, 46)
+  // 20 wave-1 queries + 26 wave-2 queries (the 46 requests of the n8n agent) + 20 on supplier sites
+  assert.equal(etat.serper, 66)
   assert.equal(etat.claude, 2)
   for (const f of [res.chemins.json, res.chemins.rayon, res.chemins.marketing]) assert.ok(fs.existsSync(f), f)
   assert.ok(res.chemins.json.endsWith(path.join('rapports', '2026-10-03', 'telephonie', 'smartphones.json')))
@@ -428,7 +431,7 @@ test('rayon : prix Shopping, suggestions et images arrivent dans les preuves ; l
   const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
   const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion, serperEtendu: { shopping: true, autocomplete: true, images: true, plafondShopping: 5, plafondImages: 3 } }, options: {} })
   assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
-  assert.equal(etat.serper, 46, 'les 46 requêtes du agent n8n sont inchangées')
+  assert.equal(etat.serper, 66, 'les 46 requêtes du agent n8n plus 20 de sourcing')
   assert.equal(etat.shopping.length, 5); assert.equal(etat.images.length, 3); assert.equal(etat.autocomplete.length, 7)
   assert.match(prompt, /PRIX ET VENDEURS RELEVÉS/); assert.match(prompt, /Boulanger \| 129,90 €/)
   assert.match(prompt, /2 prix lus sur 3 offres, de 129,9 € à 1299 € \(médiane 714,45 €\)/)
@@ -546,6 +549,169 @@ test('dépôt : arborescence créée, écriture atomique, re-dépôt du même jo
   const c = depot.ecrireRapport(racine, { ...base, json: { v: 2 }, rayonMd: 'a2', marketingMd: 'b2' })
   assert.equal(JSON.parse(fs.readFileSync(c.json, 'utf8')).v, 2)
   assert.equal(fs.readdirSync(c.dossier).filter((f) => f.endsWith('.tmp')).length, 0)
+})
+
+// ------------------------------------------------------------------ search without Serper (Claude's web search)
+function mondeClaude(srv) {
+  const m = monde(srv)
+  const recherche = rc.creerRechercheClaude({ cle: 'k', modele: 'claude-sonnet-5-5', url: `http://127.0.0.1:${m.port}/v1/messages`, attenteReprise: 10 })
+  return { ...m, recherche, deps: { ...m.deps, serper: null, recherche } }
+}
+
+test('recherche Claude : une liste par requête, URL tirées des blocs de l’API, extraits = citations mot pour mot, coût compté', async (srv) => {
+  const m = mondeClaude(srv); remise()
+  const r = await m.recherche.chercherLot(['robot cuiseur site:amazon.fr', 'friteuse sans huile', 'blender'])
+  assert.equal(r.resultats.length, 3)
+  assert.ok(!etat.recherchesWeb.some((q) => /site:/.test(q)), 'site: retiré')
+  assert.ok(r.resultats.every((l) => l.length === 6 && l.every((x) => /^http:\/\/127\.0\.0\.1:\d+\/p\/\d+$/.test(x.url))))
+  assert.match(r.resultats[1][0].extrait, /^friteuse sans huile : modèle vendu 49,90 €/)
+  assert.equal(r.resultats[1][1].extrait, '', 'pas de citation = pas d’extrait, jamais de paraphrase')
+  assert.deepEqual(r.resultats[0].questions, [])
+  assert.equal(r.usage.recherches, 3)
+  assert.equal(r.usage.dollars, Math.round((3 * 0.01 + (3000 * 2 + 200 * 10) / 1e6) * 1000) / 1000)
+  assert.equal(etat.appelsRecherche, 1, 'trois recherches, un seul appel')
+  assert.equal((await m.recherche.chercher('robot')).length, 6)
+})
+
+test('recherche Claude : pause_turn reprise, requête reformulée rangée à sa place', async (srv) => {
+  let m = mondeClaude(srv); remise(); etat.mode = 'pause'
+  let r = await m.recherche.chercherLot(['a', 'b', 'c'])
+  assert.equal(etat.appelsRecherche, 2)
+  assert.ok(r.resultats.every((l) => l.length === 6))
+  assert.equal(r.usage.recherches, 3)
+  m = mondeClaude(srv); remise(); etat.mode = 'reformule'
+  r = await m.recherche.chercherLot(['a', 'b'])
+  assert.ok(r.resultats.every((l) => l.length === 6))
+})
+
+test('recherche Claude : recherches toutes en erreur ou crédit épuisé = exception, jamais une liste vide « réussie »', async (srv) => {
+  const m = mondeClaude(srv); remise(); etat.mode = 'recherche-refusee'
+  await assert.rejects(m.recherche.chercherLot(['a', 'b']), (e) => e instanceof ErreurFournisseur && /recherche web sans résultat \(erreurs unavailable\)/.test(e.message))
+  assert.equal(etat.appelsRecherche, 2, 'une seule reprise après une erreur passagère')
+  remise(); etat.creditsClaude = false
+  await assert.rejects(m.recherche.chercherLot(['a']), /credit balance is too low/)
+  remise(); etat.creditsClaude = false
+  await assert.rejects(executerRayon({ rayon: m.rayon, deps: m.deps, options: {} }), (e) => e instanceof ErreurFournisseur)
+  assert.throws(() => rc.creerRechercheClaude({ cle: '', modele: 'm' }), /clé absente/)
+})
+
+test('fiches : image og:image et prix schema.org lus tels que la page les écrit', () => {
+  const html = '<meta property="og:image" content="/i/a.jpg?x=1&amp;y=2"><script type="application/ld+json">[{"@type":"BreadcrumbList"},{"@type":"Product","offers":{"@type":"AggregateOffer","lowPrice":"19,90","priceCurrency":"EUR"}}]</script>'
+  assert.equal(pagesLib.extraireImage(html, 'https://boutique.fr/p/1'), 'https://boutique.fr/i/a.jpg?x=1&y=2')
+  assert.deepEqual(pagesLib.extrairePrix(html), { montant: 19.9, devise: 'EUR' })
+  assert.equal(pagesLib.extrairePrix('<p>Prix : 12,90 €</p>'), null, 'jamais un prix deviné dans le texte')
+  assert.equal(pagesLib.extraireImage('<meta property="og:image" content="javascript:alert(1)">', 'https://a.fr'), '')
+})
+
+test('rayon sans Serper : aucun appel Serper, 66 recherches web en lots, fiches lues, images inventées vidées, rapport conforme', async (srv) => {
+  const m = mondeClaude(srv); remise(); etat.mode = 'images'
+  let prompt = ''
+  const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion }, options: { modele: 'claude-sonnet-5-5' } })
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  assert.equal(etat.serper, 0, 'pas un seul appel Serper')
+  assert.equal(etat.recherchesWeb.length, 66)
+  assert.equal(etat.appelsRecherche, Math.ceil(20 / 3) + Math.ceil(26 / 3) + Math.ceil(20 / 3))
+  assert.match(prompt, /# PRIX LUS SUR LES FICHES PRODUITS[^\n]*\n- Marque Modele 0 \| \d+,?\d* EUR/)
+  assert.match(prompt, /# IMAGES DES FICHES PRODUITS[\s\S]*\/img\/fiche-\d+\.jpg/)
+  assert.match(prompt, /modèle vendu 49,90 € chez Boutique/, 'les citations arrivent dans les preuves')
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.match(j.products[0].image_url, /\/img\/fiche-\d+\.jpg$/, 'image relevée gardée')
+  assert.equal(j.products[1].image_url, NON_VERIFIE, 'image inventée vidée')
+  assert.equal(j.poste.stats.imagesInventees, 1)
+  assert.equal(j.poste.usage.recherchesWeb, 66); assert.equal(j.poste.usage.serper, 0)
+  assert.ok(j.poste.usage.rechercheDollars > 0.66 && j.poste.usage.rechercheDollars < 0.9, String(j.poste.usage.rechercheDollars))
+  assert.ok(j.poste.fiches.avecImage >= 20 && j.poste.fiches.avecPrix >= 20, JSON.stringify(j.poste.fiches))
+})
+
+test('sourcing : recherches limitées aux sites fournisseurs, supplier_url prise là seulement, un revendeur est retiré avec son prix d’achat', async (srv) => {
+  const m = mondeClaude(srv); remise()
+  let prompt = ''
+  const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion, domainesFournisseurs: undefined }, options: {} })
+  // the real list goes to the API's allowed_domains, on the sourcing lots only
+  assert.equal(etat.domainesRecherche.length, Math.ceil(20 / 3))
+  assert.ok(etat.domainesRecherche.every((d) => d.includes('alibaba.com') && d.includes('aliexpress.com') && !d.some((x) => /darty|fnac|cdiscount|boulanger|amazon/.test(x))))
+  assert.ok(etat.recherchesWeb.some((q) => q === 'generic item 0 wholesale supplier price'), 'cherché sous son nom générique')
+  assert.match(prompt, /# OFFRES FOURNISSEURS \(vague sourcing[^\n]*1 USD = 0,86 €\)\n- generic item 0 \| /)
+  assert.match(prompt, /US \$4\.20-6\.80 \/ piece/, 'le prix cité par la page fournisseur arrive dans les preuves')
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  const offres = new Set(prompt.split('# OFFRES FOURNISSEURS')[1].split('\n# ')[0].split('\n').map((l) => l.split(' | ')[3]).filter(Boolean))
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.ok(j.products.every((p) => offres.has(p.supplier_url)), 'chaque lien fournisseur vient de la vague sourcing')
+  const trace = JSON.parse(fs.readFileSync(path.join(m.racine, 'releves', '2026-10-03', 'recherches', 'telephonie_smartphones.json'), 'utf8'))
+  assert.equal(trace.recherches.length, 66, 'chaque requête tapée est gardée pour le diagnostic')
+  assert.ok(trace.recherches.filter((r) => r.vague === 'sourcing').every((r) => r.domaines.includes('alibaba.com') && r.sites.length))
+})
+
+test('sourcing : un rapport qui prend ses liens chez les revendeurs est à revoir, jamais envoyé', async (srv) => {
+  const m = mondeClaude(srv); remise(); etat.mode = 'revendeurs'
+  let envoyes = 0
+  const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
+  assert.equal(res.statut, 'a_revoir'); assert.equal(envoyes, 0)
+  assert.ok(res.validation.stats.horsSourcing > 0, JSON.stringify(res.validation.stats))
+  const r = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.ok(r.products.every((p) => p.supplier_url === NON_VERIFIE ? p.purchase_price === null && p.gross_margin === null : true), 'pas de prix d’achat sans page fournisseur')
+  assert.ok(r.poste.problemes.some((p) => /revendeur/.test(p)))
+  remise()
+  const ok = await executerRayon({ rayon: m.rayon, deps: m.deps, options: {} })
+  assert.equal(ok.statut, 'ok', JSON.stringify(ok.validation))
+  const j = JSON.parse(fs.readFileSync(ok.chemins.json, 'utf8'))
+  assert.equal(j.poste.sourcing.offres, 80); assert.ok(j.poste.sourcing.avecPrixLu >= 20)
+})
+
+test('sourcing : un site refusé par l’API est écarté et la vague continue ; une vague en échec donne un rapport à revoir, pas rien', async (srv) => {
+  const m = mondeClaude(srv); remise()
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, domainesFournisseurs: ['127.0.0.1', 'dhgate.refuse.example'] }, options: {} })
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  assert.equal(etat.refusDomaines, 1, 'refusé une fois, puis plus jamais demandé')
+  assert.ok(etat.domainesRecherche.every((d) => !d.includes('dhgate.refuse.example')))
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.deepEqual(j.poste.sourcing.sitesRefuses, ['dhgate.refuse.example'])
+  assert.equal(j.poste.sourcing.offres, 80)
+
+  remise(); etat.mode = 'sourcing-ko'
+  let envoyes = 0
+  const ko = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
+  assert.equal(ko.statut, 'a_revoir'); assert.equal(envoyes, 0)
+  assert.ok(fs.existsSync(ko.chemins.json), 'le rapport des vagues 1 et 2 est écrit')
+  const k = JSON.parse(fs.readFileSync(ko.chemins.json, 'utf8'))
+  assert.match(k.poste.problemes[0], /^vague fournisseurs en échec : Anthropic/)
+  assert.match(k.poste.sourcing.echec, /allowed_domains: invalid/)
+})
+
+test('sourcing : trop peu de fiches fournisseurs, le poste relance d’autres formulations avant d’écrire, et écarte les pages de recherche', async (srv) => {
+  const m = mondeClaude(srv); remise(); etat.mode = 'sourcing-maigre'
+  let prompt = ''
+  const claudeEspion = { message: async (a) => { if (!/tableau JSON/.test(a.systeme || '')) prompt = a.utilisateur; return m.claude.message(a) } }
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, claude: claudeEspion }, options: {} })
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation))
+  assert.ok(etat.recherchesWeb.includes('other item 0 wholesale supplier price'), 'formulations de relance cherchées')
+  assert.ok(!/\/w\/wholesale-generic/.test(prompt.split('# OFFRES FOURNISSEURS')[1].split('\n# ')[0]), 'page de recherche écartée des offres')
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.equal(j.poste.sourcing.relances, 1)
+  assert.equal(j.poste.sourcing.offres, 6 + 80)
+  assert.ok(j.poste.sourcing.listesEcartees >= 20)
+  assert.equal(new Set(j.products.map((p) => p.supplier_url)).size, 20)
+  const trace = JSON.parse(fs.readFileSync(path.join(m.racine, 'releves', '2026-10-03', 'recherches', 'telephonie_smartphones.json'), 'utf8'))
+  assert.equal(trace.recherches.filter((r) => r.vague === 'sourcing-relance-1').length, 20)
+})
+
+test('sourcing : une fiche fournisseur se distingue d’une page de recherche ou de catégorie', () => {
+  const { estFicheFournisseur } = lib('rayon')
+  for (const u of ['https://www.aliexpress.com/item/1005006.html', 'https://www.alibaba.com/product-detail/Wholesale-Mini-PC-N100_1600.html', 'https://abc.en.made-in-china.com/product/XyZ/China-Mini-PC.html', 'https://cjdropshipping.com/product/mini-pc-p-123.html'])
+    assert.ok(estFicheFournisseur(u), u)
+  for (const u of ['https://www.aliexpress.com/w/wholesale-mini-pc.html', 'https://www.alibaba.com/showroom/mini-pc.html', 'https://www.made-in-china.com/products-search/hot-china-products/Mini_Pc.html', 'https://www.alibaba.com/trade/search?SearchText=mini+pc', 'https://www.aliexpress.com/', 'https://www.aliexpress.com/popular/mini-pc.html'])
+    assert.ok(!estFicheFournisseur(u), u)
+})
+
+test('contrôle des crédits sans Serper : la clé Anthropic seule, aucune recherche dépensée', async (srv) => {
+  const m = mondeClaude(srv); remise()
+  const r = await orch.controleCredits({ serper: null, claude: m.claude })
+  assert.equal(r.ok, true); assert.equal(r.serper.utilise, false)
+  assert.equal(etat.serper, 0); assert.equal(etat.recherchesWeb.length, 0); assert.equal(etat.claude, 1)
+  etat.creditsClaude = false
+  assert.equal((await orch.controleCredits({ serper: null, claude: m.claude })).ok, false)
 })
 
 // ------------------------------------------------------------------ run

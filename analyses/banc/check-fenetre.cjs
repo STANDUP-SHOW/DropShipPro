@@ -47,11 +47,19 @@ async function lancer({ maison, profil, port, serveur }) {
   let n = 0
   const attente = new Map()
   ws.onmessage = (m) => { const j = JSON.parse(m.data); if (j.id && attente.has(j.id)) attente.get(j.id)(j.result || { exceptionDetails: j.error }) }
-  const evaluer = (expression) => new Promise((ok) => {
+  const evaluerUneFois = (expression) => new Promise((ok) => {
     const id = ++n
     attente.set(id, (r) => ok(r.exceptionDetails ? { __erreur: JSON.stringify(r.exceptionDetails).slice(0, 400) } : r.result.value))
     ws.send(JSON.stringify({ id, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true } }))
   })
+  // the window may still be loading its page right after start: a destroyed context is retried, nothing else
+  const evaluer = async (expression) => {
+    for (let k = 0; ; k++) {
+      const r = await evaluerUneFois(expression)
+      if (!(r && r.__erreur && /context was destroyed|Cannot find context/.test(r.__erreur)) || k >= 10) return r
+      await pause(500)
+    }
+  }
   // page `poste.x(arg)` -> { ok, valeur }
   const appel = async (nom, arg) => {
     const r = await evaluer(`window.poste.${nom}(${JSON.stringify(arg === undefined ? null : arg)}).then((r) => JSON.stringify(r))`)
@@ -79,16 +87,23 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.ok(fs.existsSync(path.join(depot, 'prompts', 'rayon.md')), 'prompt modifiable posé dans le dépôt')
     console.log('ok   dossier de dépôt, sous-dossiers et prompt modifiable créés')
 
-    // the screen itself (tabs, nothing missing)
+    // the screen itself (tabs, nothing missing); the first render can land after the IPC answer
+    for (let i = 0; i < 50 && !(await a.evaluer(`document.querySelectorAll('#onglets button').length`)); i++) await pause(200)
     const ecran = await a.evaluer(`JSON.stringify({ onglets: [...document.querySelectorAll('#onglets button')].map((b) => b.textContent), titre: document.querySelector('h1') && document.querySelector('h1').textContent })`)
     const ec = JSON.parse(ecran)
-    assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Administration', 'Réglages', 'Journal'])
-    console.log('ok   écran : 6 onglets,', ec.titre)
+    assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Administration', 'Import Drive', 'Affiliation', 'Réglages', 'Journal'])
+    console.log('ok   écran : 8 onglets,', ec.titre)
 
     // keys: stored, never returned
-    await a.appel('secret', { nom: 'anthropic', valeur: 'cle-anthropic-secrete' })
-    const e1 = (await a.appel('secret', { nom: 'serper', valeur: 'cle-serper-secrete' })).valeur
-    assert.deepEqual(e1.secrets, { anthropic: true, serper: true, admin: false })
+    // default engine: Claude's web search, the Anthropic key alone (no Serper)
+    const e1 = (await a.appel('secret', { nom: 'anthropic', valeur: 'cle-anthropic-secrete' })).valeur
+    assert.deepEqual(e1.secrets, { anthropic: true, serper: false, admin: false })
+    assert.equal(e1.reglages.moteurRecherche, 'claude')
+    await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; rendre() })()`)
+    await pause(300)
+    const accueil = await a.evaluer(`document.body.textContent`)
+    assert.match(accueil, /par Claude, sans Serper/); assert.ok(!/0,39 €/.test(accueil), 'plus l’ancien coût Serper sur la carte de la nuit'); assert.ok(!/Clé Serper/.test(accueil), 'pas de clé Serper demandée')
+    assert.equal(await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Lancer UN rayon test').disabled`), false, 'rayon test possible sans Serper')
     assert.ok(!JSON.stringify(e1).includes('secrete'), 'aucune valeur de clé ne revient à l’écran')
     const cfgTexte = fs.readFileSync(path.join(profil, 'config.json'), 'utf8')
     console.log('ok   clés posées', cfgTexte.includes('secrete') ? '(en clair : coffre indisponible sur ce poste de test)' : '(chiffrées)')
@@ -115,13 +130,31 @@ async function lancer({ maison, profil, port, serveur }) {
     const utilisateurs = (await a.appel('adminUtilisateurs')).valeur
     assert.equal(utilisateurs.total, 2); assert.equal(utilisateurs.utilisateurs[0].email, 'a@exemple.test')
     assert.equal((await a.appel('adminNewsletter')).valeur.total, 1)
+    // back-office moved from the site: Drive import and affiliate payouts, through the same key
+    const liste = (await a.appel('adminDriveLister', { adresse: 'https://drive.google.com/drive/folders/abc' })).valeur
+    assert.equal(liste.dates[0].date, '2026-10-08')
+    assert.ok(!(await a.appel('adminDriveLister', { adresse: 'https://exemple.test/x' })).ok, 'une adresse hors Drive est refusée en clair')
+    assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'], essai: true })).valeur.aImporter, 1)
+    assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'] })).valeur.importees, 1)
+    assert.deepEqual(faux.importsDrive.map((x) => x.essai), [true, false])
+    // a refusal keeps its reason once the screen is closed (12/10/2026: « refusees 2 » and nothing else in the journal)
+    assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-12'] })).valeur.refusees, 1)
+    const journalDrive = fs.readdirSync(path.join(depot, 'journaux')).map((j) => fs.readFileSync(path.join(depot, 'journaux', j), 'utf8')).join('')
+    assert.match(journalDrive, /Import Google Drive : rien importé/); assert.match(journalDrive, /mode \/ sacs : marketing seul, sans \.rayon\.md/)
+    const aff = (await a.appel('adminAffiliation')).valeur
+    assert.equal(aff.affilies[0].code, 'TEST10')
+    assert.ok((await a.appel('adminAffiliationVerser', { id: 'af1', nom: 'Affilié Test', montant: '62,00 €', reference: 'VIR-1' })).ok)
+    assert.equal(faux.versements[0].reference, 'VIR-1')
+    assert.ok(!fs.readFileSync(path.join(profil, 'config.json'), 'utf8').includes('FR7612345678901234567890123'), 'les IBAN ne sont écrits nulle part')
+    console.log('ok   back-office : import Drive (liste, aperçu, import) et versement affilié par la clé du Poste')
     assert.ok(!fs.readFileSync(path.join(profil, 'config.json'), 'utf8').includes('a@exemple.test'), 'les utilisateurs ne sont écrits nulle part')
     console.log('ok   administration : clé fabriquée par le Poste, empreinte seule connue du site, 503 puis 401 puis 200, utilisateurs lus')
 
     // credits, then one rayon test
     const cr = (await a.appel('credits')).valeur
-    assert.ok(cr.ok && cr.serper.ok && cr.claude.ok)
-    console.log('ok   contrôle des crédits')
+    assert.ok(cr.ok && cr.serper.utilise === false && cr.claude.ok)
+    assert.equal(faux.serper, 0)
+    console.log('ok   contrôle des crédits : la clé Anthropic seule, aucun appel Serper')
 
     // a source whose pages the night will read, with the cookie set by the site
     const base = `http://127.0.0.1:${port}`
@@ -158,10 +191,34 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(brut.tendances[0].series[0].variationPct, 100, 'courbe capturée sur le réseau de la fenêtre')
     console.log('ok   signaux publics lus par la vraie fenêtre cachée (annonces, courbe Trends capturée)')
     assert.ok(fs.readdirSync(path.join(depot, 'journaux')).length >= 1, 'journal écrit')
-    assert.ok(fs.readdirSync(path.join(depot, 'releves', jour, 'serper')).length === 1, 'relevé Serper étendu (prix, suggestions, images) écrit')
-    const brutSerper = JSON.parse(fs.readFileSync(path.join(depot, 'releves', jour, 'serper', fs.readdirSync(path.join(depot, 'releves', jour, 'serper'))[0]), 'utf8'))
-    assert.ok(brutSerper.shopping.length > 0 && brutSerper.shopping.every((x) => x.prixMin === 129.9), JSON.stringify(brutSerper.shopping[0]).slice(0, 200))
-    console.log('ok   lectures Serper étendues : prix Shopping, suggestions et images relevés')
+    assert.equal(faux.serper, 0, 'rayon test sans un appel Serper'); assert.equal(faux.recherchesWeb.length, 66, "les 66 recherches faites par Claude, dont 20 chez les fournisseurs")
+    assert.ok(!fs.existsSync(path.join(depot, 'releves', jour, 'serper')), 'pas de relevé Serper')
+    const rapportTest = JSON.parse(fs.readFileSync(path.join(depot, 'rapports', jour, rapports[0], fichiers.find((f) => f.endsWith('.json') && !f.endsWith('.envoi.json'))), 'utf8'))
+    assert.equal(rapportTest.poste.usage.recherchesWeb, 66); assert.ok(rapportTest.poste.sourcing.offres > 0, JSON.stringify(rapportTest.poste.sourcing)); assert.ok(rapportTest.poste.fiches.avecImage > 0, JSON.stringify(rapportTest.poste.fiches))
+    console.log('ok   rayon test par la recherche web de Claude : 66 recherches dont 20 de sourcing, fiches lues, coût noté')
+
+    // the test's rayon is chosen on the dashboard (Max, 11/10): 24 rayons, then the 7 themes of the one picked
+    const eCat = (await a.appel('etat')).valeur
+    const autre = eCat.catalogue.find((c) => c.id !== eCat.rayonsDuJour[0].categorie)
+    const themeAutre = autre.themes.find((t) => t.id !== autre.themeDuJour)
+    await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; onglet = 'accueil'; rendre() })()`)
+    assert.equal(await a.evaluer(`document.querySelectorAll('#test-categorie option').length`), 24, 'les 24 rayons au choix')
+    await a.evaluer(`(() => { const s = document.querySelector('#test-categorie'); s.value = ${JSON.stringify(autre.id)}; s.dispatchEvent(new Event('change')) })()`)
+    assert.equal(await a.evaluer(`document.querySelectorAll('#test-theme option').length`), autre.themes.length, 'les thèmes du rayon choisi')
+    assert.match(await a.evaluer(`document.querySelector('#test-theme').selectedOptions[0].textContent`), /thème du jour/)
+    await a.evaluer(`(() => { const s = document.querySelector('#test-theme'); s.value = ${JSON.stringify(themeAutre.id)}; s.dispatchEvent(new Event('change')) })()`)
+    assert.deepEqual(JSON.parse(await a.evaluer(`JSON.stringify(choixDuTest(etat))`)), { categorie: autre.id, theme: themeAutre.id })
+    const rChoisi = (await a.appel('rayonTest', { categorie: autre.id, theme: themeAutre.id })).valeur
+    assert.equal(rChoisi.statut, 'ok', JSON.stringify(rChoisi))
+    assert.ok(fs.existsSync(path.join(depot, 'rapports', jour, autre.id, themeAutre.id + '.json')), 'le rapport est celui du rayon et du thème choisis')
+    console.log(`ok   rayon test choisi à l’écran : ${autre.nom} › ${themeAutre.nom}`)
+    fs.rmSync(path.join(depot, 'rapports', jour, autre.id), { recursive: true }) // the night checks below count the folders
+
+    // Serper stays possible when Max chooses it: key, then the extra readings
+    await a.appel('reglages', { moteurRecherche: 'serper' })
+    const eSerper = (await a.appel('secret', { nom: 'serper', valeur: 'cle-serper-secrete' })).valeur
+    assert.deepEqual(eSerper.secrets, { anthropic: true, serper: true, admin: true }); assert.equal(eSerper.reglages.moteurRecherche, 'serper')
+    assert.ok(!JSON.stringify(eSerper).includes('secrete'), 'aucune valeur de clé ne revient à l’écran')
 
     // the rayons of the night are Max's choice: two only, for a test; zero = nothing runs
     assert.equal(e0.rayonsDuJour.every((x) => x.choisi), true, 'sans choix : les 24 sont cochés')
@@ -179,8 +236,12 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(bilanNuit.attendus, 2); assert.equal(bilanNuit.ok, 2, JSON.stringify(bilanNuit))
     assert.deepEqual(fs.readdirSync(path.join(depot, 'rapports', jour)).sort(), [tous[0].categorie, ...deux].sort(), 'seuls les rayons choisis (plus le rayon test) ont un rapport')
     console.log('ok   nuit sur 2 rayons choisis : 2 rapports, les 21 autres intacts')
-    assert.equal(faux.envoyes.length, 3, 'chaque rapport de la nuit est parti vers le site')
-    console.log('ok   envoi au site : 3 rapports validés envoyés seuls, rayon et marketing d’un coup')
+    assert.ok(fs.readdirSync(path.join(depot, 'releves', jour, 'serper')).length === 2, 'relevé Serper étendu (prix, suggestions, images) écrit')
+    const brutSerper = JSON.parse(fs.readFileSync(path.join(depot, 'releves', jour, 'serper', fs.readdirSync(path.join(depot, 'releves', jour, 'serper'))[0]), 'utf8'))
+    assert.ok(brutSerper.shopping.length > 0 && brutSerper.shopping.every((x) => x.prixMin === 129.9), JSON.stringify(brutSerper.shopping[0]).slice(0, 200))
+    console.log('ok   moteur Serper choisi : lectures Serper étendues, prix Shopping, suggestions et images relevés')
+    assert.equal(faux.envoyes.length, 4, 'chaque rapport (deux rayons test, deux de la nuit) est parti vers le site')
+    console.log('ok   envoi au site : 4 rapports validés envoyés seuls, rayon et marketing d’un coup')
 
     // a failed sending leaves the report waiting; the button sends it, a refusal is told in clear
     const dossierEnvoi = path.join(depot, 'rapports', jour, deux[0])
@@ -193,7 +254,7 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 1, 'refusé : le rapport reste en attente')
     faux.mode = 'bon'
     const renvoi = (await a.appel('envoyerAuSite')).valeur
-    assert.equal(renvoi.envoyes, 1); assert.equal(faux.envoyes.length, 4)
+    assert.equal(renvoi.envoyes, 1); assert.equal(faux.envoyes.length, 5)
     assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 0)
     console.log('ok   renvoi : refus du site dit en clair, rapport conservé, puis envoyé')
     // the screen: a checkbox per rayon (2 ticked) and the Serper readings in Réglages
@@ -214,7 +275,22 @@ async function lancer({ maison, profil, port, serveur }) {
     console.log('ok   onglet Administration : empreinte visible, clé jamais affichée, utilisateurs listés')
     await a.evaluer(`document.querySelectorAll('#onglets button')[4].click()`)
     await pause(300)
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Lire le dossier').click()`)
+    await pause(800)
+    const texteDrive = await a.evaluer(`document.body.textContent`)
+    assert.match(texteDrive, /2026-10-08/); assert.match(texteDrive, /Importer 1 date\(s\)/)
+    assert.match(texteDrive, /Non importable : mode \/ sacs \(sacs\.marketing\.md\) — marketing seul, sans \.rayon\.md/); assert.match(texteDrive, /Ignoré : mode\/sacs\.sourcing\.md/)
+    await a.evaluer(`document.querySelectorAll('#onglets button')[5].click()`)
+    await pause(300)
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les affiliés').click()`)
+    await pause(800)
+    const texteAff = await a.evaluer(`document.body.textContent`)
+    assert.match(texteAff, /TEST10/); assert.match(texteAff, /FR76 •••• 0123/); assert.ok(!texteAff.includes('FR7612345678901234567890123'), 'IBAN masqué à l’écran')
+    console.log('ok   onglets Import Drive et Affiliation, IBAN masqué')
+    await a.evaluer(`document.querySelectorAll('#onglets button')[6].click()`)
+    await pause(300)
     const texteReglages = await a.evaluer(`document.body.textContent`)
+    assert.match(texteReglages, /Clé API Anthropic/); assert.match(texteReglages, /Clé API Serper/); assert.match(texteReglages, /Clé d’administration du site/)
     assert.match(texteReglages, /Serper Shopping/); assert.match(texteReglages, /crédits Serper avec ces réglages/)
     await a.evaluer(`document.querySelectorAll('#onglets button')[0].click()`)
     console.log('ok   écran : 24 cases à cocher dans « Rapports du jour », réglages Serper visibles')

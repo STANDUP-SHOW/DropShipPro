@@ -30,6 +30,54 @@ function extraireLiens(html, base) {
   return [...liens]
 }
 
+/** og:image / twitter:image of the page, absolute; '' when none. */
+function extraireImage(html, base) {
+  const m = html.match(/<meta[^>]+(?:property|name)\s*=\s*["'](?:og:image(?::secure_url)?|twitter:image)["'][^>]*>/i)
+  if (!m) return ''
+  const c = m[0].match(/content\s*=\s*["']([^"']+)["']/i)
+  if (!c) return ''
+  try {
+    const u = new URL(c[1].replace(/&amp;/g, '&'), base)
+    return /^https?:$/.test(u.protocol) ? u.href : ''
+  } catch { return '' }
+}
+
+/**
+ * Displayed selling price written by the page itself (schema.org Product offer in
+ * JSON-LD, or product:price meta). Never guessed from the visible text.
+ * @returns {{montant:number, devise:string}|null}
+ */
+function extrairePrix(html) {
+  const blocs = html.match(/<script[^>]+application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi) || []
+  for (const b of blocs) {
+    const brut = b.replace(/^<script[^>]*>/i, '').replace(/<\/script>$/i, '')
+    let j
+    try { j = JSON.parse(brut) } catch { continue }
+    const pile = [j]
+    while (pile.length) {
+      const x = pile.pop()
+      if (!x || typeof x !== 'object') continue
+      if (Array.isArray(x)) { pile.push(...x); continue }
+      const prix = x.price !== undefined ? x.price : x.lowPrice
+      if (prix !== undefined && (x['@type'] === 'Offer' || x['@type'] === 'AggregateOffer' || x.priceCurrency)) {
+        const n = Number(String(prix).replace(',', '.'))
+        if (Number.isFinite(n) && n > 0) return { montant: n, devise: String(x.priceCurrency || '') }
+      }
+      for (const v of Object.values(x)) if (v && typeof v === 'object') pile.push(v)
+    }
+  }
+  const meta = html.match(/<meta[^>]+property\s*=\s*["'](?:product:price:amount|og:price:amount)["'][^>]*>/i)
+  if (meta) {
+    const c = meta[0].match(/content\s*=\s*["']([^"']+)["']/i)
+    const n = c ? Number(c[1].replace(',', '.')) : NaN
+    if (Number.isFinite(n) && n > 0) {
+      const d = html.match(/<meta[^>]+property\s*=\s*["'](?:product:price:currency|og:price:currency)["'][^>]*content\s*=\s*["']([^"']+)["']/i)
+      return { montant: n, devise: d ? d[1] : '' }
+    }
+  }
+  return null
+}
+
 async function lirePage(url, { fetchImpl = fetch, delaiMs = 15000, maxCaracteres = 6000 } = {}) {
   const ctrl = new AbortController()
   const minuteur = setTimeout(() => ctrl.abort(), delaiMs)
@@ -53,6 +101,8 @@ async function lirePage(url, { fetchImpl = fetch, delaiMs = 15000, maxCaracteres
       titre: titre ? nettoyer(titre).slice(0, 200) : '',
       texte: nettoyer(html).slice(0, maxCaracteres),
       liens: extraireLiens(html, finale),
+      image: extraireImage(html, finale),
+      prix: extrairePrix(html),
     }
   } catch (err) {
     return { url, lisible: false, raison: err && err.name === 'AbortError' ? 'délai dépassé' : String((err && err.message) || err) }
@@ -61,4 +111,4 @@ async function lirePage(url, { fetchImpl = fetch, delaiMs = 15000, maxCaracteres
   }
 }
 
-module.exports = { lirePage, nettoyer, extraireLiens }
+module.exports = { lirePage, nettoyer, extraireLiens, extraireImage, extrairePrix }

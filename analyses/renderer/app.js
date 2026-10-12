@@ -6,6 +6,8 @@ const ONGLETS = [
   ['rapports', 'Rapports du jour'],
   ['sources', 'Sources & navigateur'],
   ['administration', 'Administration'],
+  ['drive', 'Import Drive'],
+  ['affiliation', 'Affiliation'],
   ['reglages', 'Réglages'],
   ['journal', 'Journal'],
 ]
@@ -13,6 +15,8 @@ let onglet = 'accueil'
 let etat = null
 let sourceChoisie = null
 let messageFlash = ''
+// rayon picked for the test: { categorie, theme } ids (null = first rayon of the day)
+let choixTest = null
 
 function h(tag, attrs, ...enfants) {
   const el = document.createElement(tag)
@@ -26,6 +30,27 @@ function h(tag, attrs, ...enfants) {
   }
   for (const e of enfants.flat()) if (e !== null && e !== undefined && e !== false) el.append(e.nodeType ? e : document.createTextNode(String(e)))
   return el
+}
+
+/** Rayon and theme of the test, defaulting to the first category and its theme of the day. */
+function choixDuTest(e) {
+  const cat = (e.catalogue || []).find((c) => choixTest && c.id === choixTest.categorie) || (e.catalogue || [])[0]
+  if (!cat) return null
+  const theme = cat.themes.find((t) => choixTest && t.id === choixTest.theme) || cat.themes.find((t) => t.id === cat.themeDuJour) || cat.themes[0]
+  return { categorie: cat.id, theme: theme.id }
+}
+
+function vueChoixTest(e) {
+  const choix = choixDuTest(e)
+  if (!choix) return null
+  const cat = e.catalogue.find((c) => c.id === choix.categorie)
+  return h('div', { class: 'ligne' },
+    h('label', { class: 'doux petit' }, 'Rayon du test : '),
+    h('select', { id: 'test-categorie', onchange: (ev) => { choixTest = { categorie: ev.target.value, theme: null }; rendre() } },
+      e.catalogue.map((c) => h('option', { value: c.id, selected: c.id === choix.categorie }, c.nom))),
+    h('select', { id: 'test-theme', onchange: (ev) => { choixTest = { categorie: choix.categorie, theme: ev.target.value }; rendre() } },
+      cat.themes.map((t) => h('option', { value: t.id, selected: t.id === choix.theme }, t.id === cat.themeDuJour ? `${t.nom} (thème du jour)` : t.nom))),
+  )
 }
 
 const pastille = (texte, type) => h('span', { class: `pastille ${type || ''}` }, texte)
@@ -48,7 +73,8 @@ async function choisirRayons(ids) {
 function vueAccueil() {
   const e = etat
   const cles = e.secrets
-  const toutesCles = cles.anthropic && cles.serper
+  const avecSerper = e.reglages.moteurRecherche === 'serper'
+  const toutesCles = cles.anthropic && (!avecSerper || cles.serper)
   const prog = e.nuit.progression
   const b = e.nuit.dernierBilan
   const faits = e.rayonsDuJour.filter((r) => r.fait).length
@@ -61,9 +87,13 @@ function vueAccueil() {
       h('div', { class: 'carte' },
         h('h2', {}, 'Prêt à travailler ?'),
         h('div', {}, 'Clé Anthropic ', pastille(cles.anthropic ? 'posée' : 'absente', cles.anthropic ? 'bon' : 'mauvais')),
-        h('div', {}, 'Clé Serper ', pastille(cles.serper ? 'posée' : 'absente', cles.serper ? 'bon' : 'mauvais')),
+        avecSerper
+          ? h('div', {}, 'Clé Serper ', pastille(cles.serper ? 'posée' : 'absente', cles.serper ? 'bon' : 'mauvais'))
+          : h('div', {}, 'Recherche web ', pastille('par Claude, sans Serper', 'bon')),
+        h('div', {}, 'Clé d’administration du site ', pastille(e.admin.cle ? 'créée' : 'absente', e.admin.cle ? 'bon' : 'mauvais')),
         h('div', {}, 'Sources de données ', pastille(String(e.sources.length), e.sources.length ? 'bon' : '')),
-        !toutesCles && h('p', { class: 'doux petit' }, 'Posez vos clés dans Réglages : elles restent chiffrées sur ce PC.'),
+        (!toutesCles || !e.admin.cle) && h('p', {}, h('button', { class: 'btn principal', onclick: () => aller('reglages') }, 'Poser mes clés')),
+        (!toutesCles || !e.admin.cle) && h('p', { class: 'doux petit' }, avecSerper ? 'Les trois clés se posent dans Réglages : elles restent chiffrées sur ce PC.' : 'La clé Anthropic et la clé d’administration se posent dans Réglages : elles restent chiffrées sur ce PC.'),
       ),
       h('div', { class: 'carte' },
         h('h2', {}, `Aujourd’hui (${e.date})`),
@@ -80,12 +110,13 @@ function vueAccueil() {
         h('button', { class: 'btn', onclick: async () => {
           flash('Contrôle en cours…')
           const r = await appel('credits')
-          if (r) flash(`Anthropic : ${r.claude.ok ? 'OK' : r.claude.message} — Serper : ${r.serper.ok ? 'OK' : r.serper.message}`)
-        } }, 'Contrôler les crédits (1 crédit)'),
-        h('button', { class: 'btn principal', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('rayonTest'); if (r && !r.annule) flash(`Rayon test : ${r.statut}`) } }, 'Lancer UN rayon test'),
+          if (r) flash(`Anthropic : ${r.claude.ok ? 'OK' : r.claude.message}${r.serper.utilise ? ` — Serper : ${r.serper.ok ? 'OK' : r.serper.message}` : ' — recherche web par Claude, sans Serper'}`)
+        } }, avecSerper ? 'Contrôler les crédits (1 crédit Serper)' : 'Contrôler la clé Anthropic'),
+        h('button', { class: 'btn principal', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('rayonTest', choixDuTest(e)); if (r && !r.annule) flash(`Rayon test : ${r.statut}`) } }, 'Lancer UN rayon test'),
         h('button', { class: 'btn', disabled: e.nuit.enCours || !toutesCles || !choisis, onclick: async () => { const r = await appel('nuitLancer'); if (r && !r.annule) flash(r.annulee ? `Nuit annulée : ${r.annulee}` : 'Nuit terminée') } }, choisis === total ? 'Lancer la nuit complète' : `Lancer ${choisis} rayon${choisis > 1 ? 's' : ''} sur ${total}`),
         h('button', { class: 'btn danger', disabled: !e.nuit.enCours, onclick: () => appel('nuitArreter') }, 'Arrêter après le rayon en cours'),
       ),
+      vueChoixTest(e),
       prog && h('p', {}, `En cours : ${prog.courant || '…'} ${prog.index ? `(${prog.index}/${prog.attendus})` : ''}`),
       messageFlash && h('p', { class: 'petit' }, messageFlash),
     ),
@@ -97,7 +128,7 @@ function vueAccueil() {
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Nuit automatique'),
-      h('p', { class: 'doux petit' }, 'À n’activer qu’après un rayon test dont vous avez validé la qualité (20 produits, 20 URL distinctes, marges en euros). Coût : environ 0,39 € par rayon coché (24 rayons ≈ 9,40 €). Les rayons se choisissent dans « Rapports du jour ».'),
+      h('p', { class: 'doux petit' }, `À n’activer qu’après un rayon test dont vous avez validé la qualité (20 produits, 20 URL distinctes, marges en euros). Coût par rayon coché : ${e.reglages.coutParRayon}. Les rayons se choisissent dans « Rapports du jour ».`),
       h('div', { class: 'ligne' },
         h('button', { class: 'btn', onclick: () => appel('nuitAuto', { actif: !e.reglages.nuitActivee }) }, e.reglages.nuitActivee ? 'Désactiver la nuit automatique' : `Activer la nuit automatique à ${e.reglages.heureNuit}`),
       ),
@@ -276,6 +307,177 @@ function vueAdministration() {
   )
 }
 
+// ---------------------------------------------------------------- shared bits
+function aller(id) {
+  if (onglet === 'sources' && id !== 'sources') { appel('navMasquer'); dernierPlace = null }
+  onglet = id; messageFlash = ''; rendre()
+}
+
+// The site admin key: made by the Poste (never typed), its fingerprint goes in Railway once.
+function blocCleAdmin() {
+  const a = etat.admin
+  return h('div', {},
+    h('label', {}, 'Clé d’administration du site (Import Drive, Affiliation, Utilisateurs, envoi des rapports) ', pastille(a.cle ? 'créée' : 'absente', a.cle ? 'bon' : 'mauvais')),
+    h('p', { class: 'doux petit' }, a.cle
+      ? 'Le Poste l’a fabriquée et la garde chiffrée. Le site la reconnaît quand son empreinte est posée dans la variable Railway POSTE_ADMIN_SHA256.'
+      : 'Elle ne se tape pas : le Poste la fabrique. Ensuite, son empreinte se colle une fois dans la variable Railway POSTE_ADMIN_SHA256.'),
+    a.cle && h('div', { class: 'petit' }, 'Empreinte : ', h('code', {}, a.empreinte)),
+    h('div', { class: 'ligne' },
+      !a.cle && h('button', { class: 'btn principal', onclick: async () => { const x = await appel('adminCreer'); if (x) { etat = x; flash('Clé créée. Copiez maintenant l’empreinte dans Railway.') } } }, 'Créer la clé d’administration'),
+      a.cle && h('button', { class: 'btn', onclick: async () => { if (await appel('adminCopier')) flash('Empreinte copiée : collez-la dans la variable Railway POSTE_ADMIN_SHA256.') } }, 'Copier l’empreinte'),
+      a.cle && h('button', { class: 'btn', onclick: async () => { flash('Test en cours…'); const r = await appel('adminTester'); if (r) flash(r.ok ? 'Connecté : le site reconnaît ce Poste comme administrateur.' : 'Réponse inattendue du site.') } }, 'Tester la connexion'),
+    ),
+  )
+}
+
+// Admin tabs need the key: say so instead of showing an empty screen.
+function sansCleAdmin(titre) {
+  return h('div', {}, h('h1', {}, titre),
+    h('div', { class: 'carte' },
+      h('p', {}, 'Cet écran parle au site avec la clé d’administration du Poste, qui n’est pas encore créée.'),
+      h('button', { class: 'btn principal', onclick: () => aller('reglages') }, 'Créer la clé dans Réglages')))
+}
+
+// ---------------------------------------------------------------- import Google Drive
+const ADRESSE_DRIVE = 'https://drive.google.com/drive/folders/17mUuLYxUAzt9PFBNv_SCBdzHlCyEQM1k'
+const drive = { adresse: ADRESSE_DRIVE, liste: null, choisies: new Set(), rapport: null, enCours: null }
+const ATTENDU_DRIVE = 'Pour être importé, un rayon doit avoir dans son dossier de date un fichier <thème>.rayon.md (en-tête date, categorie, theme, puis le tableau des produits), avec ou sans <thème>.marketing.md ; ou un .json aiMARKET qui porte un bloc « study ». Un .marketing.md seul, un .json sans « study » ou une note de sourcing ne s’importent pas.'
+/** Why a study found in the folder cannot be imported, before anything is sent. */
+function motifNonImportable(x) {
+  if (x.importable) return null
+  return x.fichiers.some((f) => /\.marketing\.md$/i.test(f)) ? 'marketing seul, sans .rayon.md' : 'aucun .rayon.md ni .json importable'
+}
+const STATUT_DRIVE = { importe: ['importée', 'bon'], apercu: ['à importer', ''], doublon: ['doublon ignoré', ''], refuse: ['refusée', 'mauvais'] }
+
+async function driveLister() {
+  drive.enCours = 'liste'; drive.rapport = null; flash('Lecture du dossier sur Google Drive (par le site)…')
+  const l = await appel('adminDriveLister', { adresse: drive.adresse })
+  drive.enCours = null
+  if (l) {
+    drive.liste = l
+    // Preselect the dates that hold something new.
+    drive.choisies = new Set(l.dates.filter((d) => d.etudes.some((x) => x.importable && !x.dejaEnBase)).map((d) => d.date))
+    flash('')
+  }
+}
+
+async function driveImporter(essai) {
+  drive.enCours = essai ? 'apercu' : 'import'; flash(essai ? 'Vérification de la qualité…' : 'Import en cours…')
+  const r = await appel('adminDriveImporter', { adresse: drive.adresse, dates: [...drive.choisies], essai })
+  drive.enCours = null
+  if (r) {
+    drive.rapport = r
+    if (!essai) { const l = await appel('adminDriveLister', { adresse: drive.adresse }); if (l) drive.liste = l }
+    flash('')
+  }
+}
+
+function vueDrive() {
+  if (!etat.admin.cle) return sansCleAdmin('Importer des analyses depuis Google Drive')
+  const champ = h('input', { value: drive.adresse, placeholder: 'https://drive.google.com/drive/folders/…', oninput: (ev) => { drive.adresse = ev.target.value } })
+  const l = drive.liste
+  const r = drive.rapport
+  return h('div', {},
+    h('h1', {}, 'Importer des analyses depuis Google Drive'),
+    h('p', { class: 'doux petit' }, 'Analyses faites par d’autres agents, rangées par date (AAAA-MM-JJ) dans un dossier Google Drive public. Le site les lit lui-même et les range dans la même base que les nôtres : les pages publiques n’en montrent ni fournisseur ni prix d’achat. Un rayon que nous avons déjà pour le même jour garde notre analyse.'),
+    h('div', { class: 'carte' },
+      h('label', {}, 'Adresse du dossier Google Drive'),
+      h('div', { class: 'ligne' },
+        h('div', { style: 'flex:1;min-width:260px' }, champ),
+        h('button', { class: 'btn principal', disabled: Boolean(drive.enCours), onclick: driveLister }, drive.enCours === 'liste' ? 'Lecture…' : 'Lire le dossier'),
+      ),
+      messageFlash && h('p', { class: 'petit' }, messageFlash),
+    ),
+    l && h('div', { class: 'carte' },
+      l.dates.length === 0 ? h('p', { class: 'doux' }, 'Aucun dossier daté (AAAA-MM-JJ) dans ce dossier.') : h('div', {},
+        l.dates.map((d) => {
+          const importables = d.etudes.filter((x) => x.importable)
+          const nouvelles = importables.filter((x) => !x.dejaEnBase)
+          return h('div', { class: 'date-drive' },
+            h('label', {}, h('span', {}, h('input', { type: 'checkbox', checked: drive.choisies.has(d.date), onchange: (ev) => { if (ev.target.checked) drive.choisies.add(d.date); else drive.choisies.delete(d.date); rendre() } }),
+              ' ', h('strong', {}, d.date), h('span', { class: 'doux petit' }, `  ${importables.length} rayon(s) · ${nouvelles.length} nouveau(x) · ${d.ignores.length} document(s) non importable(s)`))),
+            h('div', { class: 'ligne' }, d.etudes.map((x) => pastille(`${x.categorie} / ${x.theme}${x.dejaEnBase ? ' (déjà là)' : ''}${x.doublons.length ? ' ×2' : ''}`, !x.importable ? 'mauvais' : x.dejaEnBase ? '' : 'alerte'))),
+            ...d.etudes.filter((x) => !x.importable).map((x) => h('div', { class: 'petit erreur' }, `Non importable : ${x.categorie} / ${x.theme} (${x.fichiers.join(', ') || 'aucun fichier'}) — ${motifNonImportable(x)}`)),
+            ...d.ignores.slice(0, 20).map((g) => h('div', { class: 'petit doux' }, `Ignoré : ${g.nom} — ${g.raison}`)),
+          )
+        }),
+        h('div', { class: 'ligne' },
+          h('button', { class: 'btn', disabled: !drive.choisies.size || Boolean(drive.enCours), onclick: () => driveImporter(true) }, drive.enCours === 'apercu' ? 'Vérification…' : 'Vérifier la qualité'),
+          h('button', { class: 'btn principal', disabled: !drive.choisies.size || Boolean(drive.enCours), onclick: () => driveImporter(false) }, drive.enCours === 'import' ? 'Import en cours…' : `Importer ${drive.choisies.size} date(s)`),
+        ),
+      ),
+    ),
+    r && h('div', { class: 'carte' },
+      h('h2', {}, r.essai
+        ? `Aperçu : ${r.aImporter} rayon(s) à importer, ${r.doublons} doublon(s), ${r.refusees} refusé(s)`
+        : `${r.importees} rayon(s) importé(s), ${r.doublons} doublon(s) ignoré(s), ${r.refusees} refusé(s)`),
+      r.refusees > 0 && h('div', { class: 'erreur' },
+        h('p', {}, `${r.refusees} rayon(s) refusé(s) par le site, rien n’a été écrit pour eux :`),
+        r.lignes.filter((x) => x.statut === 'refuse').map((x) => h('div', { class: 'petit' }, `${x.date} · ${x.rayon} — ${x.raison || 'motif non donné par le site'}`)),
+        h('p', { class: 'petit' }, ATTENDU_DRIVE),
+      ),
+      !r.essai && r.importees === 0 && r.refusees === 0 && !r.lignes.length && h('p', { class: 'erreur' }, `Aucun rayon importable dans les dates choisies. ${ATTENDU_DRIVE}`),
+      h('p', { class: 'doux petit' }, `Contrat (20 produits, 20 adresses, prix sur 18) : ${r.conformes} conforme(s) sur ${r.lignes.filter((x) => x.statut === 'importe' || x.statut === 'apercu').length}${r.rapportsEnBase != null ? ` · ${r.rapportsEnBase} rapports en ligne` : ''}`),
+      h('table', {},
+        h('thead', {}, h('tr', {}, ['Date', 'Rayon', 'Statut', 'Produits', 'Adresses', 'Avec prix', 'Marketing'].map((t) => h('th', {}, t)))),
+        h('tbody', {}, r.lignes.map((x) => h('tr', {},
+          h('td', {}, x.date), h('td', {}, x.rayon),
+          h('td', {}, pastille(...(STATUT_DRIVE[x.statut] || [x.statut, ''])), x.raison ? h('div', { class: 'petit doux' }, x.raison) : null),
+          h('td', {}, x.produits == null ? '—' : String(x.produits)), h('td', {}, x.urlsDistinctes == null ? '—' : String(x.urlsDistinctes)),
+          h('td', {}, x.avecPrix == null ? '—' : String(x.avecPrix)), h('td', {}, x.marketing == null ? '—' : x.marketing ? 'oui' : 'non'))))),
+      r.ignores.length ? h('p', { class: 'doux petit' }, `${r.ignores.length} fichier(s) non importé(s) : `, r.ignores.slice(0, 20).map((g) => `${g.date} · ${g.nom} (${g.raison})`).join(' ; ')) : null,
+    ),
+  )
+}
+
+// ---------------------------------------------------------------- affiliation
+// Payout data (IBAN included) stays in memory on the screen, never written to disk.
+let donneesAffiliation = null
+const euros = (c) => (c / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+const ibanMasque = (iban) => (iban ? `${iban.slice(0, 4)} •••• ${iban.slice(-4)}` : '—')
+
+async function chargerAffiliation() {
+  flash('Lecture des affiliés sur le site…')
+  const x = await appel('adminAffiliation')
+  if (x) { donneesAffiliation = x; flash('') }
+}
+
+function vueAffiliation() {
+  if (!etat.admin.cle) return sansCleAdmin('Affiliation')
+  const d = donneesAffiliation
+  return h('div', {},
+    h('h1', {}, 'Affiliation : versements du mois'),
+    h('div', { class: 'carte' },
+      h('p', { class: 'doux petit' }, '10 % à vie sur chaque recharge du filleul. Virement mensuel dès le seuil, fait à la banque ; « Versé » solde les commissions et prévient l’affilié par e-mail.'),
+      h('div', { class: 'ligne' }, h('button', { class: 'btn', onclick: chargerAffiliation }, d ? 'Actualiser' : 'Afficher les affiliés')),
+      messageFlash && h('p', { class: 'petit' }, messageFlash),
+      d && h('p', {}, `${d.totaux.affilies} affilié(s) · ${d.totaux.aVerser} à verser ce mois (${euros(d.totaux.dusAVerserCentimes)}) · dû au total ${euros(d.totaux.dusCentimes)} · déjà versé ${euros(d.totaux.versesCentimes)} · seuil ${euros(d.seuilCentimes)}`),
+    ),
+    d && d.affilies.length > 0 && h('div', { class: 'carte' },
+      h('table', {},
+        h('thead', {}, h('tr', {}, ['Affilié', 'Code', 'Filleuls', 'Dû', 'Versé', 'IBAN', ''].map((t) => h('th', {}, t)))),
+        h('tbody', {}, d.affilies.map((a) => {
+          const ref = h('input', { placeholder: 'Référence du virement (facultatif)' })
+          return h('tr', {},
+            h('td', {}, a.nom, h('div', { class: 'petit doux' }, a.email)),
+            h('td', {}, a.code),
+            h('td', {}, `${a.filleuls} (${a.clics} clics)`),
+            h('td', {}, euros(a.dusCentimes), ' ', a.aVerser ? pastille('à verser', 'alerte') : null),
+            h('td', {}, euros(a.versesCentimes)),
+            h('td', {}, ibanMasque(a.iban), a.titulaire ? h('div', { class: 'petit doux' }, a.titulaire) : null,
+              a.iban && h('button', { class: 'btn', onclick: async () => { if (await appel('copier', a.iban)) flash(`IBAN de ${a.nom} copié.`) } }, 'Copier l’IBAN')),
+            h('td', {}, a.dusCentimes > 0 && a.iban ? h('div', {}, ref, h('button', { class: 'btn principal', onclick: async () => {
+              const r = await appel('adminAffiliationVerser', { id: a.id, nom: a.nom, montant: euros(a.dusCentimes), reference: ref.value.trim() })
+              if (r && !r.annule) { flash(`Versement de ${a.nom} enregistré.`); await chargerAffiliation() }
+            } }, 'Versé')) : null),
+          )
+        })),
+      ),
+    ),
+    d && d.affilies.length === 0 && h('div', { class: 'carte' }, h('p', { class: 'doux' }, 'Aucun affilié pour l’instant.')),
+  )
+}
+
 // ---------------------------------------------------------------- réglages
 function vueReglages() {
   const e = etat
@@ -301,38 +503,45 @@ function vueReglages() {
   const caseShopping = h('input', { type: 'checkbox', checked: se.shopping })
   const caseAuto = h('input', { type: 'checkbox', checked: se.autocomplete })
   const caseImages = h('input', { type: 'checkbox', checked: se.images })
+  const avecSerper = r.moteurRecherche === 'serper'
+  const moteur = h('select', {},
+    h('option', { value: 'claude', selected: !avecSerper }, 'Claude (recherche web d’Anthropic, avec la clé Anthropic seule)'),
+    h('option', { value: 'serper', selected: avecSerper }, 'Serper (clé et crédits Serper)'))
   return h('div', {},
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
       h('h2', {}, 'Clés (saisies par vous, chiffrées par Windows, jamais réaffichées)'),
-      cle('anthropic', 'Clé API Anthropic'), cle('serper', 'Clé API Serper'),
-      h('p', { class: 'doux petit' }, 'La clé d’administration du site se crée dans l’onglet Administration (le Poste la fabrique lui-même).'),
+      cle('anthropic', 'Clé API Anthropic'), avecSerper && cle('serper', 'Clé API Serper'),
+      blocCleAdmin(),
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Agents'),
       f('modele', 'Modèle Claude', r.modele),
+      h('div', {}, h('label', {}, 'Moteur de recherche web'), moteur),
+      !avecSerper && f('modeleRecherche', 'Modèle des recherches web (vide = Haiku 5.5, le moins cher)', r.modeleRecherche || ''),
+      !avecSerper && h('p', { class: 'doux petit' }, `Recherche web d’Anthropic : 0,01 $ par recherche, plus la lecture des résultats. Un rayon : ${r.coutParRayon}.`),
       f('espaceAnthropic', 'Identifiant d’espace de travail Anthropic (seulement si l’API répond « not scoped to a workspace »)', r.espaceAnthropic || ''),
       f('heureNuit', 'Heure de la nuit (HH:MM)', r.heureNuit),
       f('plafondPages', 'Pages lues par rayon', r.plafondPages, 'number'),
-      f('plafondDeuxiemeVague', 'Modèles cherchés en deuxième vague (plafond Serper)', r.plafondDeuxiemeVague, 'number'),
+      f('plafondDeuxiemeVague', 'Modèles cherchés en deuxième vague (une recherche web par modèle)', r.plafondDeuxiemeVague, 'number'),
       h('label', {}, h('span', {}, envoi, ' Envoyer chaque rapport validé au site drop-shipper.fr (rayon et marketing, rangés par le site)')),
       h('label', {}, h('span', {}, caseTrends, ' Lire Google Trends (courbe de recherche du thème et des modèles, France 12 mois)')),
       h('label', {}, h('span', {}, caseMeta, ' Lire la Meta Ad Library (annonces actives par modèle)')),
       f('plafondPubs', 'Modèles cherchés dans la Meta Ad Library par rayon', sp.plafondPubsParRayon, 'number'),
       h('p', { class: 'doux petit' }, 'Lectures publiques dans une fenêtre cachée, espacées de 4 s ; le premier blocage ou la première demande de connexion arrête la source pour la nuit. Vérifiez les conditions d’utilisation de ces sites.'),
-      h('label', {}, h('span', {}, caseShopping, ' Serper Shopping : prix et vendeurs réels en France (1 crédit par modèle)')),
-      f('plafondShopping', 'Modèles cherchés dans Shopping par rayon', se.plafondShopping, 'number'),
-      h('label', {}, h('span', {}, caseAuto, ' Serper Autocomplétion : ce que les acheteurs commencent à taper (7 crédits par rayon)')),
-      h('label', {}, h('span', {}, caseImages, ' Serper Images : adresses d’images réelles (1 crédit par modèle)')),
-      f('plafondImages', 'Modèles cherchés dans Images par rayon', se.plafondImages, 'number'),
-      h('p', { class: 'doux petit' }, `Un rayon dépense au plus ${r.creditsSerperParRayon} crédits Serper avec ces réglages.`),
+      avecSerper && h('label', {}, h('span', {}, caseShopping, ' Serper Shopping : prix et vendeurs réels en France (1 crédit par modèle)')),
+      avecSerper && f('plafondShopping', 'Modèles cherchés dans Shopping par rayon', se.plafondShopping, 'number'),
+      avecSerper && h('label', {}, h('span', {}, caseAuto, ' Serper Autocomplétion : ce que les acheteurs commencent à taper (7 crédits par rayon)')),
+      avecSerper && h('label', {}, h('span', {}, caseImages, ' Serper Images : adresses d’images réelles (1 crédit par modèle)')),
+      avecSerper && f('plafondImages', 'Modèles cherchés dans Images par rayon', se.plafondImages, 'number'),
+      avecSerper && h('p', { class: 'doux petit' }, `Un rayon dépense au plus ${r.creditsSerperParRayon} crédits Serper avec ces réglages.`),
       f('apiBase', 'Adresse de l’API', r.apiBase),
       h('p', {}, h('button', { class: 'btn principal', onclick: async () => {
         const x = await appel('reglages', {
-          modele: champs.modele.value.trim(), espaceAnthropic: champs.espaceAnthropic.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
+          modele: champs.modele.value.trim(), moteurRecherche: moteur.value, modeleRecherche: champs.modeleRecherche ? champs.modeleRecherche.value.trim() : undefined, espaceAnthropic: champs.espaceAnthropic.value.trim(), heureNuit: champs.heureNuit.value.trim(), plafondPages: Number(champs.plafondPages.value),
           plafondDeuxiemeVague: Number(champs.plafondDeuxiemeVague.value), apiBase: champs.apiBase.value.trim(), envoiAuSite: envoi.checked,
           signauxPublics: { meta: caseMeta.checked, trends: caseTrends.checked, plafondPubsParRayon: Number(champs.plafondPubs.value) },
-          serperEtendu: { shopping: caseShopping.checked, autocomplete: caseAuto.checked, images: caseImages.checked, plafondShopping: Number(champs.plafondShopping.value), plafondImages: Number(champs.plafondImages.value) },
+          serperEtendu: avecSerper ? { shopping: caseShopping.checked, autocomplete: caseAuto.checked, images: caseImages.checked, plafondShopping: Number(champs.plafondShopping.value), plafondImages: Number(champs.plafondImages.value) } : undefined,
         })
         if (x) { etat = x; flash('Réglages enregistrés.') }
       } }, 'Enregistrer les réglages')),
@@ -345,17 +554,17 @@ function vueReglages() {
 // ---------------------------------------------------------------- journal
 function vueJournal() {
   return h('div', {}, h('h1', {}, 'Journal'),
-    h('div', { class: 'journal' }, etat.journal.length ? etat.journal.slice().reverse().map((l) => h('div', { class: l.niveau === 'erreur' ? 'erreur' : '' }, `${l.t.slice(11, 19)}  ${l.message}${l.raison ? ' — ' + l.raison : ''}`)) : 'Rien pour l’instant.'))
+    h('div', { class: 'journal' }, etat.journal.length ? etat.journal.slice().reverse().map((l) => h('div', { class: l.niveau === 'erreur' ? 'erreur' : '' }, `${l.t.slice(11, 19)}  ${l.message}${l.raison ? ' — ' + l.raison : ''}`, ...(Array.isArray(l.motifs) ? l.motifs : []).map((m) => h('div', { class: 'petit' }, `   refusé : ${m}`)))) : 'Rien pour l’instant.'))
 }
 
 // ---------------------------------------------------------------- cadre
 function rendre() {
   const barre = document.getElementById('onglets')
-  barre.replaceChildren(...ONGLETS.map(([id, titre]) => h('button', { class: id === onglet ? 'actif' : '', onclick: () => { if (onglet === 'sources' && id !== 'sources') { appel('navMasquer'); dernierPlace = null } onglet = id; messageFlash = ''; rendre() } }, titre)))
-  document.getElementById('pied').textContent = etat ? `v${etat.version}` : ''
+  barre.replaceChildren(...ONGLETS.map(([id, titre]) => h('button', { class: id === onglet ? 'actif' : '', onclick: () => aller(id) }, titre)))
+  document.getElementById('pied').textContent = etat ? `Version ${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, reglages: vueReglages, journal: vueJournal }
+  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, drive: vueDrive, affiliation: vueAffiliation, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 

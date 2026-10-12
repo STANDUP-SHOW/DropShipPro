@@ -1,6 +1,6 @@
 'use strict'
 /**
- * Local configuration. Secrets (Anthropic, Serper, the Poste's site admin key) are typed
+ * Local configuration. Secrets (Anthropic, Serper if used, the Poste's site admin key) are typed
  * by Max in the app and encrypted by the OS vault (`safeStorage`); without the
  * vault (test bench) they stay in clear in the file — never in the repo.
  */
@@ -11,6 +11,10 @@ const PAR_DEFAUT = {
   depot: null,
   apiBase: 'https://api.drop-shipper.fr',
   modele: 'claude-sonnet-5-5',
+  // Web search engine: 'claude' (Anthropic's web search, Anthropic key only) or 'serper' (Serper key and credits).
+  moteurRecherche: 'claude',
+  // Model of the search lots; '' = same as `modele`.
+  modeleRecherche: '',
   // Anthropic workspace id (not a secret): only for API keys that are not scoped to a workspace.
   espaceAnthropic: '',
   // Night run: OFF until Max switches it on himself, after a validated test.
