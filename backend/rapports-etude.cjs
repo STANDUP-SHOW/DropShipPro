@@ -266,6 +266,79 @@ function tableauProduits(bloc) {
   return out;
 }
 
+/** Every Markdown table of a text: its header names (normalised) and its rows of cells. */
+function tableaux(texte) {
+  const out = [];
+  let courant = null;
+  for (const brut of String(texte || '').split(/\r?\n/)) {
+    const l = brut.trim();
+    if (!l.startsWith('|')) { courant = null; continue; }
+    const cells = l.split('|').slice(1, -1).map((c) => c.trim());
+    if (/^\|[\s:|-]+\|$/.test(l)) continue;
+    if (!courant) { courant = { entetes: cells.map(normTitre), lignes: [] }; out.push(courant); continue; }
+    courant.lignes.push(cells);
+  }
+  return out;
+}
+
+/**
+ * Other agents' layout (« MARKETSPY AI », 12/10/2026): the TOP 20 table names
+ * its columns (Rang | Produit | Variante | Source achat | Coût rendu FR | Prix
+ * vente cible | Marge nette estimée | … | Décision) and carries no link; the
+ * supplier and its URL sit in another table (Produit | Fournisseur | URL | …),
+ * matched on the product name. Columns are found by name, never by position,
+ * and a value that is not there stays empty.
+ */
+function tableauProduitsParEntetes(bloc, texteComplet) {
+  const principal = tableaux(bloc).find((t) => t.entetes.some((e) => /^(rang|#)$/.test(e)) && t.entetes.some((e) => /^produit/.test(e)));
+  if (!principal) return [];
+  const col = (t, motif, sauf) => t.entetes.findIndex((e) => motif.test(e) && !(sauf && sauf.test(e)));
+  const iRang = col(principal, /^(rang|#)$/);
+  const iProduit = col(principal, /^produit/);
+  const iAchat = col(principal, /cout rendu|prix (d )?achat/, /max/);
+  const iVente = col(principal, /prix (de )?vente/);
+  const iDecision = col(principal, /decision|verdict/);
+  const cle = (t) => normTitre(texteDeCellule(t));
+  // supplier table(s): any other table with a product column and an URL column
+  const fournisseurs = new Map();
+  for (const t of tableaux(texteComplet)) {
+    if (t === principal) continue;
+    const iP = col(t, /^produit/);
+    const iU = col(t, /^url\b|lien/);
+    if (iP < 0 || iU < 0) continue;
+    const iF = col(t, /fournisseur|source/);
+    for (const c of t.lignes) {
+      const k = cle(c[iP]);
+      if (k && !fournisseurs.has(k)) fournisseurs.set(k, { url: urlDeCellule(c[iU]), nom: iF >= 0 ? texteDeCellule(c[iF]) : '' });
+    }
+  }
+  const out = [];
+  for (const c of principal.lignes) {
+    const rang = nombre(c[iRang]);
+    const titre = texteDeCellule(c[iProduit]);
+    if (rang == null || !titre) continue;
+    const f = fournisseurs.get(cle(c[iProduit])) || { url: '', nom: '' };
+    const url = f.url || urlDeCellule(c.join(' '));
+    const achat = iAchat >= 0 ? nombre(c[iAchat]) : null;
+    const vente = iVente >= 0 ? nombre(c[iVente]) : null;
+    out.push({
+      rang: Math.round(rang),
+      titre,
+      fournisseur: f.nom || '—',
+      url,
+      achat,
+      vente,
+      margePct: achat != null && vente != null && vente > 0 ? Number((((vente - achat) / vente) * 100).toFixed(1)) : null,
+      margeEur: achat != null && vente != null ? Number((vente - achat).toFixed(2)) : null,
+      roiPct: achat != null && vente != null && achat > 0 ? Number((((vente - achat) / achat) * 100).toFixed(1)) : null,
+      methode: EN_JS.some((x) => url.toLowerCase().includes(x)) ? 'extension' : 'url',
+      pourquoi: (iDecision >= 0 ? texteDeCellule(c[iDecision]) : '') || '—',
+      typeUrl: typeUrl(url),
+    });
+  }
+  return out;
+}
+
 // ---------------------------------------------------- outils aiMARKET
 
 /** Un nombre devient « 245 € » ; ce qui manque devient « — », jamais 0. */
@@ -383,11 +456,19 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
   const nbSources = nombre(fm.sources) != null ? Math.round(nombre(fm.sources)) : 0;
 
   const secRayon = sections(texteRayon);
-  const analyse = section(secRayon, 'Analyse');
+  // « Analyse » in ours; other agents open with an executive summary and a quick verdict.
+  const analyse =
+    section(secRayon, 'Analyse') ||
+    [section(secRayon, 'Executive Summary', /executive summary|synthese|resume/), section(secRayon, 'Verdict rapide', /verdict rapide/)]
+      .filter(Boolean)
+      .join('\n\n');
   // « 20 produits proposés », « 20 produits proposes », « 12 produits »… :
   // on accepte le titre exact, puis n'importe quel titre parlant de produits.
   const blocProduits = section(secRayon, '20 produits proposes', /produits/);
-  const produits = tableauProduits(blocProduits);
+  // Ours puts the supplier URL in the 4th column; a table that names its
+  // columns otherwise is read by header names.
+  const entete = tableaux(blocProduits)[0];
+  const produits = entete && !/url/.test(entete.entetes[3] || '') ? tableauProduitsParEntetes(blocProduits, texteRayon) : tableauProduits(blocProduits);
 
   if (!produits.length) {
     return { ok: false, raison: 'aucune ligne produit lisible dans le tableau' };
