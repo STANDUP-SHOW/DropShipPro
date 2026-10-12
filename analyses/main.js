@@ -538,6 +538,13 @@ function brancher() {
     }
     return r
   })
+  // Links of the site footer (facebook, instagram, whatsapp, x, linkedin, snapchat): the site checks them, the Poste only relays
+  h('admin-reseaux', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/reseaux-sociaux' }))
+  h('admin-reseaux-enregistrer', async (liens) => {
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/reseaux-sociaux', corps: liens, methode: 'PUT' })
+    journal.info('Réseaux sociaux du site enregistrés', { remplis: Object.keys(r.reseaux || {}).filter((k) => r.reseaux[k]).join(', ') || 'aucun' })
+    return r
+  })
   h('admin-affiliation', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/affiliation' }))
   h('admin-affiliation-verser', async ({ id, nom, montant, reference }) => {
     const ok = await accord(`Enregistrer le virement de ${montant} à ${nom} ?`, 'Ses commissions dues sont soldées et il reçoit un e-mail. Faites d’abord le virement à la banque : ce bouton ne vire rien.', 'Oui, enregistrer')

@@ -211,6 +211,13 @@ Avant, le Poste reçoit un refus 404 et garde les rapports en attente.
   de développement, qui n'a pas Wine). Pas de signature de code ni de mise à jour automatique.
 - Configuration minimale visée : 8 Go de mémoire et un SSD, à confirmer sur la vraie machine.
 
+## Réseaux sociaux du site (0.3.8, 12/10/2026)
+
+L'onglet « Réseaux sociaux » règle les icônes du pied de page de drop-shipper.fr (Facebook, Instagram,
+WhatsApp, X, LinkedIn, Snapchat) par `GET` / `PUT /api/admin/reseaux-sociaux` avec la clé du Poste. Le
+site valide (https, hôte du réseau) et son refus (422) s'affiche tel quel, en rouge. Champ vidé = icône
+retirée.
+
 ## Développer
 
 ```bash
