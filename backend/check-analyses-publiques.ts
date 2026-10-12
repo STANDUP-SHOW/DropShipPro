@@ -7,6 +7,7 @@
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
 import { titreProduitPublic, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
+import { ReportQuery } from './src/services/reportsDb.js'
 
 let echecs = 0
 function exige(condition: boolean, nom: string, detail = '') {
@@ -243,7 +244,7 @@ console.log('\nTroisième constat du 12/10/2026 au soir : coûts déguisés, phr
   }
   const visible = pageRapport(constat).replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
   exige(!/511|50 € \(brut\)|10 € de déplacement|180,00|56,93|6,26|4,37|270 €|Alibaba|AliExpress/.test(visible), 'ni part d’achat dans un budget, ni prix brut, ni frais supposés, ni coût de bundle', (/[^>]*(511|brut|déplacement|180,00|56,93|6,26|4,37|270 €|Alibaba|AliExpress)[^<]*/.exec(visible) || [''])[0])
-  exige(visible.includes('meilleure opportunité</strong>.') && !/En boutique\./.test(visible), 'un reste trop court pour tenir seul (« En boutique. ») tombe, le constat reste')
+  exige(!/acheté en B2B|En boutique\./.test(visible), 'un conseil d’achat B2B tombe en entier, et un reste trop court pour tenir seul (« En boutique. ») avec lui')
   exige(visible.includes('meilleure marge du rayon</strong>. Le frein n’est pas le prix'), 'après une première phrase retirée, la suite devient une phrase, pas l’explication du libellé')
   exige(visible.includes('ne marche pas</strong>. Les drones chinois se heurtent à Cdiscount'), 'avec une majuscule')
   exige(visible.includes('environ 705 € (détail en'), 'le budget garde son total, sans sa part de stock')
@@ -556,6 +557,24 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   exige(pourquoiPublic('Micro et Wi-Fi, prix non public sans compte pro, estimé') === 'Micro et Wi-Fi', 'prix non public, compte pro')
   const idees = texteRepare('- {"idea":"Landing page comparatif flagship 2026","categorie":"facile a tester"}')
   exige(idees === '- Landing page comparatif flagship 2026 (facile à tester)', 'idées de business en liste lisible', idees)
+}
+
+{
+  // 12/10/2026, régressions de #87 : fourchettes lues comme une soustraction, accessoire fusionné avec l'appareil.
+  const p = (x: string) => JSON.stringify(ReportQuery.plage(x))
+  exige(p('29-49 €') === '{"min":29,"max":49}' && p('1 299 €') === '{"min":1299,"max":1299}' && p('12 à 15 €') === '{"min":12,"max":15}' && ReportQuery.plage('0') === null, 'fourchettes et milliers', [p('29-49 €'), p('1 299 €'), p('12 à 15 €')].join(' '))
+  const negatif = produitsNettoyes([{ ...rapport.produits[0], prixVente: -10 }])
+  exige(negatif[0].prixVente === null, 'aucun prix public négatif', String(negatif[0].prixVente))
+  const insta = produitsUniques(produitsNettoyes([{ ...rapport.produits[0], titre: 'Insta360 X5' }, { ...rapport.produits[0], titre: 'Perche invisible pour Insta360 X5' }]))
+  exige(insta.length === 2, 'un accessoire ne se fond pas dans l’appareil', JSON.stringify(insta.map((x) => x.titre)))
+  exige(pourquoiPublic('WATCHLIST') === 'Liste de surveillance' || !/WATCHLIST/.test(pourquoiPublic('WATCHLIST')), 'verdict anglais traduit', pourquoiPublic('WATCHLIST'))
+  exige(pourquoiPublic('-') === '', '« - » seul : cellule vide')
+  const enum1 = sansMentionsPrivees('Trois règles : (1) vérifier la tension ; (2) prix d’achat 12 € chez BigBuy ; (3) tester la batterie.\nLe marché croît.')
+  exige(enum1 === 'Le marché croît.', 'énumération (1)(2)(3) amputée : retirée entière', enum1)
+  const jardin = sansMentionsPrivees(['**Pièges fournisseurs identifiés pendant la recherche** :', '- Chez BigBuy, les tarifs distributeur ne s’affichent qu’après connexion compte.', '- Vérifier les tensions (220-240 V constatées sur les fiches).', '- Le poids des barbecues pliants reste raisonnable.'].join('\n'))
+  exige(jardin.includes('220-240 V') && !/\. : /.test(jardin), 'intro retirée : les puces restent intactes', jardin)
+  const r = texteRepare('around 50 €, AUTO-SHIPPER, genériques')
+  exige(r === 'environ 50 €, AutoShipper, génériques', 'corrections du texte', r)
 }
 
 if (echecs) {
