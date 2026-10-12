@@ -161,5 +161,15 @@ exige(lib.verdictFr('BUY IF NEGOTIATED') === 'ACHETER SI NÉGOCIÉ', 'la phrase 
 exige(lib.verdictFr('- Breakout : service posé') === '- En décollage : service posé', '« Breakout : » seul, en tête de puce, se traduit aussi');
 exige(lib.verdictFr('to buy or not') === 'to buy or not', 'la prose en minuscules reste telle quelle');
 
+console.log('\nLes sections marketing sans puces (drones-2 du 12/10)');
+{
+  const it = lib.puces('### 6.1 TikTok\n\nDémos en extérieur, **15 s**, [voir](https://x.y).\n\n### 6.2 Hooks\n\n| Hook | Angle | Plateforme |\n|---|---|---|\n| « Il vole seul » | Autonomie | TikTok |\n| « 4K » | — | Reels |\n\nParagraphe libre.');
+  exige(!it.some((x) => /#|\||\*\*|\]\(/.test(x)), 'aucun intertitre, tableau, gras ni lien Markdown brut dans un élément : ' + JSON.stringify(it));
+  exige(it[0] === 'TikTok : Démos en extérieur, 15 s, voir.', 'l’intertitre étiquette son paragraphe');
+  exige(it[1] === 'Hooks : « Il vole seul » — Angle : Autonomie · Plateforme : TikTok' && it[2] === 'Hooks : « 4K » — Plateforme : Reels', 'une ligne de tableau = un élément, cases vides omises');
+  exige(it[3] === 'Paragraphe libre.' && it.length === 4, 'le paragraphe suivant n’hérite pas de l’intertitre');
+  exige(JSON.stringify(lib.puces('- a\n- b')) === '["a","b"]', 'des puces restent des puces');
+}
+
 console.log(rates ? `\n${rates} attente(s) manquée(s).` : '\nTout est conforme.');
 process.exit(rates ? 1 : 0);

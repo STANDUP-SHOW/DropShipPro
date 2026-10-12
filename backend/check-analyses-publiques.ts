@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, apostrophesRendues, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -402,6 +402,18 @@ console.log('\nLe Markdown')
   exige(markdownEnHtml('1. un\n2. deux').startsWith('<ol>'), 'une liste ordonnée')
   exige(markdownEnHtml('### Sous-titre\ntexte').includes('<h3>Sous-titre</h3>'), 'un H3')
   exige(blocsDe('## A\nx\n## B\ny').length === 2, 'le découpage sur les H2')
+}
+
+console.log('\nLes apostrophes perdues (gaming du 07/10)')
+{
+  exige(apostrophesRendues('Manettes gaming : leffet Hall, la manette de lannée') === "Manettes gaming : l'effet Hall, la manette de l'année", 'l’effet, l’année')
+  exige(apostrophesRendues('Ce quon achète aujourdhui : dune autre époque, sil le faut') === "Ce qu'on achète aujourd'hui : d'une autre époque, s'il le faut", 'qu’on, aujourd’hui, d’une, s’il')
+  exige(apostrophesRendues('son et lumière, la lune, le don') === 'son et lumière, la lune, le don', 'ni son, ni lune, ni don')
+  exige(apostrophesRendues("Déjà lannée, l'effet") === "Déjà lannée, l'effet", 'un titre qui a déjà ses apostrophes ne bouge pas')
+  const g = { ...rapport, id: 'gaming-0710', titre: 'Manettes gaming : leffet Hall', une: null, theme: 'manettes', day: '2026-10-07' } as RapportPublic
+  attribuerAdresses([g])
+  const avant = cheminRapport(g)
+  exige(avant.includes('leffet') && cheminRapport({ ...g, titre: apostrophesRendues(g.titre) }) === avant, 'l’adresse garde le titre brut')
 }
 
 if (echecs) {
