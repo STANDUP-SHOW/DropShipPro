@@ -129,7 +129,7 @@ type Adressable = Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'ty
  */
 let attribuees = new Map<string, string>()
 
-export function attribuerAdresses(rapports: Adressable[]): void {
+function calculerAdresses(rapports: Adressable[]): Map<string, string> {
   const prises = new Set<string>()
   const carte = new Map<string, string>()
   const rang = (r: Adressable) => `${r.day}|${r.type === 'rayon' ? 0 : 1}|${r.id}`
@@ -141,7 +141,28 @@ export function attribuerAdresses(rapports: Adressable[]): void {
     prises.add(choix)
     carte.set(r.id, choix)
   }
-  attribuees = carte
+  return carte
+}
+
+export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: boolean }>): void {
+  attribuees = calculerAdresses(rapports)
+  // Header-less Drive imports were titled by their bare theme until 12/10/2026
+  // (/analyses/lavage-sechage/lavage-sechage-2/). Those addresses were in the
+  // sitemap: replay that attribution and send each one to the current address.
+  anciennes = new Map()
+  if (!rapports.some((r) => r.importeDrive)) return
+  const avant = calculerAdresses(rapports.map((r) => (r.importeDrive ? { ...r, titre: r.theme, une: null, extrait: null } : r)))
+  const actuelles = new Set(attribuees.values())
+  for (const r of rapports) {
+    const ancienne = avant.get(r.id)
+    if (r.importeDrive && ancienne && ancienne !== attribuees.get(r.id) && !actuelles.has(ancienne)) anciennes.set(ancienne, r.id)
+  }
+}
+
+let anciennes = new Map<string, string>()
+/** The report an old Drive-import address (bare theme as title) stood for, if any. */
+export function rapportAncienneAdresse(chemin: string): string | null {
+  return anciennes.get(chemin) ?? null
 }
 
 /** Le rapport qui porte cette adresse, s'il y en a un (après attribuerAdresses). */
