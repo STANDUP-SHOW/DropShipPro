@@ -420,3 +420,109 @@ html[data-theme="light"] { color-scheme: light; }
   .arrivee > *, .drop-flotte { animation: none; }
   .illu-case { transition: none; }
 }
+
+/*
+ * Le bloc « fournisseurs ↔ canaux » de l'accueil (HubLiaisons, Max 12/10/2026) :
+ * tuiles moitié moins grandes que les anciennes frises (75 px, 150 px en long),
+ * quatre pistes qui défilent, l'icône au centre et ses réseaux en orbite. Les
+ * traits de lumière sont dans le canvas ; aucun halo sur les textes.
+ */
+.hub-bloc {
+  background:
+    radial-gradient(60% 50% at 50% 50%, rgba(232, 82, 144, 0.12), transparent 70%),
+    linear-gradient(180deg, #0d1020 0%, var(--nuit) 100%);
+}
+.hub-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+}
+.hub-cote {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  height: 520px;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+}
+.hub-colonne { overflow: hidden; height: 100%; width: 150px; pointer-events: none; }
+.hub-piste {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  animation: hub-vertical 60s linear infinite;
+  will-change: transform;
+}
+.hub-piste[data-sens="bas"] { animation-direction: reverse; }
+@keyframes hub-vertical { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+.hub-tuile {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 75px;
+  height: 75px;
+  padding: 9px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(14px) scale(0.85);
+}
+.hub-tuile-large { width: 150px; }
+.hub-vu .hub-tuile {
+  animation: hub-arrive 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25) forwards;
+  animation-delay: calc(var(--i) * 70ms);
+}
+@keyframes hub-arrive { to { opacity: 1; transform: none; } }
+.hub-centre { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; text-align: center; position: relative; z-index: 20; }
+.hub-compteur { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.hub-compteur strong { font-size: clamp(2.6rem, 5vw, 3.6rem); font-weight: 800; color: var(--texte); }
+.hub-compteur > span { margin-top: 0.3rem; font-size: 0.95rem; font-weight: 600; color: var(--texte-2); }
+.hub-reseaux { font-size: 0.95rem; font-weight: 600; color: var(--texte); }
+.hub-coeur { position: relative; width: 210px; height: 210px; display: grid; place-items: center; }
+.hub-cube {
+  width: 88px;
+  height: 88px;
+  border-radius: 22px;
+  animation: hub-pouls 3.2s ease-in-out infinite;
+}
+@keyframes hub-pouls { 50% { transform: scale(1.05); } }
+.hub-orbite { position: absolute; inset: 0; animation: hub-tourne 40s linear infinite; }
+.hub-orbite li {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: rotate(var(--a)) translateY(-95px) rotate(calc(-1 * var(--a)));
+  margin: -17px 0 0 -17px;
+}
+.hub-orbite-icone { display: block; padding: 2px; border-radius: 10px; background: #fff; animation: hub-tourne 40s linear infinite reverse; }
+@keyframes hub-tourne { to { transform: rotate(360deg); } }
+
+/* Mobile : les fournisseurs en haut, les canaux en bas, en défilement horizontal. */
+@media (max-width: 767px) {
+  .hub-grille { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .hub-cote, .hub-centre { min-width: 0; }
+  .hub-cote {
+    flex-direction: column;
+    height: auto;
+    gap: 0.6rem;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  }
+  .hub-cote-c { order: 3; }
+  .hub-colonne { width: 100%; height: 64px; }
+  .hub-piste { flex-direction: row; width: max-content; height: 100%; animation-name: hub-horizontal; }
+  .hub-tuile { width: 58px; height: 58px; padding: 7px; border-radius: 12px; }
+  .hub-tuile-large { width: 116px; }
+  .hub-coeur { width: 180px; height: 180px; }
+  .hub-orbite li { transform: rotate(var(--a)) translateY(-80px) rotate(calc(-1 * var(--a))); }
+}
+@keyframes hub-horizontal { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-piste, .hub-orbite, .hub-orbite-icone, .hub-cube { animation: none; }
+  .hub-tuile, .hub-vu .hub-tuile { opacity: 1; transform: none; animation: none; }
+}

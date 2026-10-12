@@ -8,21 +8,19 @@ import { ReviewGrid, Stars, type PublicReview } from '../components/Reviews'
 import { BoucleTheme } from '../components/BoucleTheme'
 import { VilleDeNuit } from '../components/VilleDeNuit'
 import accueil from '../data/accueil-themes.json'
-import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
+import type { LogoFrise } from '../components/FriseLogos'
+import { HubLiaisons } from '../components/HubLiaisons'
 import PiedDePagePublic from '../components/PiedDePagePublic'
 import fournisseurs from '../data/fournisseurs.json'
 import canaux from '../data/canaux.json'
 
 /*
- * Les frises de logos (24/09/2026) : sous « fournisseurs », les 38 fournisseurs
- * de droite à gauche ; sous « diffusion », les 314 canaux de l'annuaire sur
- * deux lignes qui vont dans l'autre sens — et en sens contraire l'une de
- * l'autre. Les deux JSON sont engendrés (exporter-fournisseurs.ts,
+ * Les logos (24/09/2026, réunis le 12/10/2026 dans HubLiaisons) : les 38
+ * fournisseurs d'un côté, les 314 canaux de l'annuaire de l'autre. Les deux JSON sont engendrés (exporter-fournisseurs.ts,
  * build-channel-directory.cjs) : rien n'est recopié à la main ici.
  */
 const FOURNISSEURS_FRISE: LogoFrise[] = fournisseurs.fournisseurs.map((f) => ({ id: f.id, label: f.label, logo: f.logo, couleur: f.color, large: f.large }))
-const CANAUX_FRISE: [LogoFrise[], LogoFrise[]] = [[], []]
-canaux.canaux.forEach((c, i) => CANAUX_FRISE[i % 2].push({ id: c.id, label: c.label, logo: c.logo, large: c.large }))
+const CANAUX_FRISE: LogoFrise[] = canaux.canaux.map((c) => ({ id: c.id, label: c.label, logo: c.logo, large: c.large }))
 
 /**
  * La page d'accueil : ce que fait DropShipper IA, thème par thème.
@@ -193,10 +191,10 @@ export default function Index() {
               ))}
             </ol>
           </div>
-          {/* Les frises n'ajoutent aucune marge : elles ne doivent pas écarter les blocs. */}
-          <FriseLogos logos={CANAUX_FRISE[0]} sens="droite" />
-          <FriseLogos logos={CANAUX_FRISE[1]} sens="gauche" />
         </section>
+
+        {/* Les fournisseurs et les canaux réunis dans un seul bloc animé (Max, 12/10/2026). */}
+        <HubLiaisons fournisseurs={FOURNISSEURS_FRISE} canaux={CANAUX_FRISE} />
 
         {/* Ce que l'IA fait pour vous : six lignes, chacune vers sa page. */}
         <section id="ce-que-fait-l-ia" className="scroll-mt-20 border-t border-white/5 bg-gradient-to-b from-[#160d2e] to-[#0b0714]">
@@ -227,7 +225,6 @@ export default function Index() {
               ))}
             </ul>
           </div>
-          <FriseLogos logos={FOURNISSEURS_FRISE} sens="gauche" />
         </section>
 
         {/* DropShop IA : la boutique et sa place de marché (Max, 03/10/2026 : « manque
