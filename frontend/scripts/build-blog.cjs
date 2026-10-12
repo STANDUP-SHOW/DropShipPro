@@ -431,7 +431,7 @@ function completerSitemap(urls) {
   let xml = fs.readFileSync(fichier, 'utf8')
   const lignes = urls
     .filter((u) => !xml.includes(`<loc>${SITE}${u.url}</loc>`))
-    .map((u) => `  <url><loc>${SITE}${u.url}</loc><lastmod>${u.lastmod || TODAY}</lastmod><changefreq>${u.freq}</changefreq><priority>${u.priority}</priority></url>`)
+    .map((u) => `  <url><loc>${SITE}${u.url}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}<changefreq>${u.freq}</changefreq><priority>${u.priority}</priority></url>`)
   if (lignes.length) xml = xml.replace('</urlset>', () => `${lignes.join('\n')}\n</urlset>`)
   fs.writeFileSync(fichier, xml)
   return { fichier: path.basename(fichier), ajoutees: lignes.length }
