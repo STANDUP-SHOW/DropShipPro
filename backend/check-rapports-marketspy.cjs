@@ -146,6 +146,7 @@ try {
 
 console.log('\nLes verdicts');
 exige(lib.verdictFr('BUY IF NEGOTIATED') === 'ACHETER SI NÉGOCIÉ', 'la phrase la plus longue d’abord');
+exige(lib.verdictFr('- Breakout : service posé') === '- En décollage : service posé', '« Breakout : » seul, en tête de puce, se traduit aussi');
 exige(lib.verdictFr('to buy or not') === 'to buy or not', 'la prose en minuscules reste telle quelle');
 
 console.log(rates ? `\n${rates} attente(s) manquée(s).` : '\nTout est conforme.');
