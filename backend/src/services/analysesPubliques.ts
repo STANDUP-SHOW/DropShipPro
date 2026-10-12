@@ -29,6 +29,7 @@
  *   /analyses/<AAAA-MM-JJ>/                          l'édition du jour : toutes les analyses et leurs produits gagnants
  *   /analyses/sitemap.xml
  */
+import { createHash } from 'node:crypto'
 import { CATEGORIES, categorieDe, type ProduitRapport } from './marketReports.js'
 
 export const SITE = 'https://www.drop-shipper.fr'
@@ -413,6 +414,23 @@ function publiable(ligne: string): string {
   return l
 }
 
+/**
+ * The notes under a bundle table explain costs the page no longer shows
+ * (« Les bundles additionnent les coûts unitaires repris du top 20 ») : those
+ * sentences go, the rest of the note stays.
+ */
+export function sansNotesDeCout(corps: string): string {
+  return corps
+    .split('\n')
+    .map((l) => {
+      if (/^\s*(\||#)/.test(l) || !l.trim()) return l
+      const garde = l.split(/(?<=[.!?])\s+/).filter((phrase) => !/co[uû]ts?\b|rentab|pas\s+compt[ée]/i.test(phrase))
+      return garde.length ? garde.join(' ') : null
+    })
+    .filter((l): l is string => l !== null)
+    .join('\n')
+}
+
 // A bullet's label that names a list (« Éviter : a, b, c ») : each item is weighed alone, the first one too.
 const LIBELLE_LISTE = /^\s*(\*\*)?\s*(éviter|à éviter|liste de surveillance|négocier|acheter maintenant|quantités)/i
 
@@ -474,7 +492,7 @@ export function sansMentionsPrivees(corps: string): string {
     // and what follows a dropped first sentence is a new sentence, not the label's explanation.
     const affirmation = /\*\*/.test(libelle)
     const nouvellePhrase = premierRetire && (affirmation || !libelle)
-    if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(`${puce}${libelle ? (nouvellePhrase ? `${libelle}. ` : `${libelle} : `) : ''}${nouvellePhrase ? reste.charAt(0).toUpperCase() + reste.slice(1) : reste}`)
+    if (reste && /[a-zà-ÿ]{3}/i.test(reste)) sortie.push(`${puce}${libelle ? (nouvellePhrase ? `${libelle}. ` : `${libelle} : `) : ''}${nouvellePhrase ? reste.charAt(0).toUpperCase() + reste.slice(1) : libelle && premierRetire ? reste.replace(/^([A-ZÀ-Ý])(?=[a-zà-ÿ])/, (c) => c.toLowerCase()) : reste}`)
     else if (affirmation) sortie.push(`${puce}${libelle.replace(/[\s,;]+$/, '')}.`)
     else if (estPuce && annonce >= 0) recomptees.add(annonce)
   }
@@ -730,7 +748,7 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
         return `<h2 id="produits">${esc(b.titre.replace(/proposés/i, 'gagnants'))}</h2>${tableauProduitsPublic(r.produits)}`
       }
       const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps, /bundle/i.test(b.titre))
-      const corps = sansIntertitresVides(sansMentionsPrivees(sansTableaux))
+      const corps = sansIntertitresVides(sansMentionsPrivees(/bundle/i.test(b.titre) ? sansNotesDeCout(sansTableaux) : sansTableaux))
       // Sans produits structurés à montrer à la place, le lecteur sait au moins que la liste existe.
       const garde =
         retires && !r.produits.length
@@ -991,4 +1009,48 @@ ${[...categories.entries()].map(([id, mod]) => ligne(cheminCategorie(id), mod, '
 ${rapports.map((r) => ligne(cheminRapport(r), r.updatedAt, '0.6', 'monthly')).join('\n')}
 </urlset>
 `
+}
+
+// --- La date de modification ----------------------------------------------------
+
+/**
+ * What a reader sees of a report, as a fingerprint: the page without its own
+ * dates and without its « other reports » links. A filter change that alters
+ * the public text changes it; a redeploy that alters nothing does not.
+ */
+export function empreintePublique(r: RapportPublic): string {
+  const page = pageRapport({ ...r, updatedAt: new Date(0) }, [])
+  return createHash('sha256').update(page).digest('hex').slice(0, 20)
+}
+
+export type RendusConnus = Record<string, { empreinte: string; le: string }>
+
+/**
+ * article:modified_time and the sitemap's lastmod follow the public text, not
+ * only the data (12/10/2026: #76 changed six pages, their date stayed put).
+ * A known fingerprint keeps its date; a new one is dated now. A report seen
+ * for the first time keeps its data date, except a Drive import, whose public
+ * text was rewritten by the filters of that evening.
+ */
+export function datesPubliques(
+  lignes: Array<{ id: string; updatedAt: Date; empreinte: string; importeDrive?: boolean }>,
+  connus: RendusConnus,
+  maintenant = new Date(),
+): { dates: Map<string, Date>; connus: RendusConnus; change: boolean } {
+  const suivants: RendusConnus = {}
+  const dates = new Map<string, Date>()
+  let change = false
+  for (const l of lignes) {
+    const avant = connus[l.id]
+    let le: Date
+    if (avant && avant.empreinte === l.empreinte) le = new Date(avant.le)
+    else {
+      le = avant || l.importeDrive ? maintenant : l.updatedAt
+      change = true
+    }
+    suivants[l.id] = { empreinte: l.empreinte, le: le.toISOString() }
+    dates.set(l.id, l.updatedAt > le ? l.updatedAt : le)
+  }
+  if (Object.keys(connus).some((id) => !(id in suivants))) change = true
+  return { dates, connus: suivants, change }
 }

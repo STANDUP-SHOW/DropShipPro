@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { ancienCheminRapport, attribuerAdresses, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { ancienCheminRapport, attribuerAdresses, datesPubliques, empreintePublique, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 
 let echecs = 0
@@ -205,7 +205,7 @@ console.log('\nDeuxième constat du 12/10/2026 au soir : la Synthèse de réseau
   exige(!/3,34|11,10|24 %|180 €|130 €/.test(visible), 'ni le net par lot, ni le plafond de négociation, ni un achat chiffré', (/[^>]*(3,34|11,10|180 €|130 €)[^<]*/.exec(visible) || [''])[0])
   exige(visible.includes('Pour un revendeur, trois constats :') && visible.includes('gardent une marge</strong>, faible.'), 'un constat en gras reste seul quand ses chiffres partent : la liste garde ses trois points')
   exige(visible.includes('GL.iNet vend lui-même') && visible.includes('vraie piste'), 'les autres points de la Synthèse restent')
-  exige(visible.includes('La sacoche n’est pas sourcée') && visible.includes('coût de gravure'), 'le reste de la phrase reste')
+  exige(!/sacoche|coût de gravure|180 €/.test(visible), 'les notes des bundles qui parlent de ce qui est compté ou non tombent avec leurs chiffres')
   exige(visible.includes('environ 600 €') && !/bon de commande/.test(visible), 'un renvoi au bon de commande, retiré de la page, tombe')
 }
 
@@ -254,6 +254,42 @@ console.log('\nTroisième constat du 12/10/2026 au soir : coûts déguisés, phr
   exige(!/Smartphones/.test(visible) && visible.includes('Règle de montée en volume : 5'), 'un renvoi à une autre étude tombe')
   exige(visible.includes('Éviter : boosters seuls sur marketplace, revente de TOPDON.'), 'une liste « Éviter » perd son seul élément fournisseur, même en tête')
   exige(visible.includes('Budget test recommandé : environ 245 €.'), 'le budget perd « hors frais de port Alibaba », pas la ligne')
+}
+
+console.log('\nQuatrième constat du 12/10/2026 au soir : la date suit le texte public, les notes de coût des bundles')
+{
+  const constat: RapportPublic = {
+    ...rapport,
+    body: [
+      '## Synthèse',
+      'Le rayon entre dans sa saison forte : la demande culmine en décembre ([Accio](https://fr.accio.com/business/bougies-tendance)). Les parfums les plus demandés sont la vanille et le santal.',
+      '## Bundles recommandés',
+      '| Bundle | Contenu | Coût rendu actuel | Prix de vente |',
+      '|---|---|---|---|',
+      '| Coffret cocooning | Lampe + bougie | 12,00 € | 39,99 € |',
+      '',
+      'Les bundles additionnent les coûts unitaires repris du top 20. Les prix de vente sont des prix cibles recommandés, non observés.',
+      'Ils deviennent nettement plus rentables en lot. Seuls le kit studio et le bundle « sérénité » sont rentables dès aujourd’hui.',
+    ].join('\n'),
+  }
+  const visible = pageRapport(constat).replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
+  exige(visible.includes('saison forte : les parfums les plus demandés'), 'après un libellé, la phrase restante prend une minuscule')
+  exige(!/co[uû]ts? unitaires|rentables/.test(visible) && visible.includes('Les prix de vente sont des prix cibles recommandés'), 'les notes des bundles ne parlent plus de coûts qu’on ne voit pas')
+  exige(visible.includes('<td>Coffret cocooning</td>'), 'le tableau des bundles reste')
+
+  const t0 = new Date('2026-10-12T19:00:00Z')
+  const t1 = new Date('2026-10-12T20:00:00Z')
+  const donnees = new Date('2026-10-12T10:00:00Z')
+  const avant = empreintePublique(constat)
+  exige(avant === empreintePublique({ ...constat, updatedAt: new Date() }), 'l’empreinte ne dépend pas de la date affichée')
+  exige(avant !== empreintePublique({ ...constat, body: constat.body.replace('vanille', 'figue') }), 'un texte public changé change l’empreinte')
+  const premier = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x' }, { id: 'b', updatedAt: donnees, empreinte: 'y', importeDrive: true }], {}, t0)
+  exige(premier.dates.get('a')?.getTime() === donnees.getTime(), 'vu pour la première fois : la date des données (pas de lastmod du jour pour 87 pages)')
+  exige(premier.dates.get('b')?.getTime() === t0.getTime(), 'un import Drive vu pour la première fois : daté de maintenant, ses filtres viennent de changer')
+  const meme = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x' }, { id: 'b', updatedAt: donnees, empreinte: 'y', importeDrive: true }], premier.connus, t1)
+  exige(!meme.change && meme.dates.get('b')?.getTime() === t0.getTime(), 'rien de changé : la date reste, rien n’est réécrit')
+  const autre = datesPubliques([{ id: 'a', updatedAt: donnees, empreinte: 'x2' }, { id: 'b', updatedAt: donnees, empreinte: 'y', importeDrive: true }], premier.connus, t1)
+  exige(autre.change && autre.dates.get('a')?.getTime() === t1.getTime() && autre.dates.get('b')?.getTime() === t0.getTime(), 'le texte public d’un rapport change : sa date avance, pas celle des autres')
 }
 
 console.log('\nLa page d’un rapport marketing')
