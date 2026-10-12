@@ -4,6 +4,7 @@
  */
 
 import { Router, type RequestHandler } from 'express'
+import { requireAuth } from '../middleware/auth.js'
 import { cheminRapportsActif, generationRapports, ReportQuery } from '../services/reportsDb.js'
 
 export const reportsPublicRouter = Router()
@@ -18,6 +19,17 @@ const sansCache: RequestHandler = (_req, res, next) => {
   res.set('Cache-Control', 'no-store')
   next()
 }
+
+/**
+ * Report bodies carry the sourcing: supplier names and links, buy prices,
+ * margins. Max's rule: nobody without an account sees them. The public face of
+ * the reports is /analyses (services/analysesPubliques.ts), which filters them;
+ * every screen that reads the routes below sits behind `Protected` and already
+ * sends its token. Found open to anyone on 12/10/2026 — the page filter only
+ * protected the HTML, not this JSON. Only counts, dates and category names stay
+ * open (menu badges, health).
+ */
+const compte = requireAuth as RequestHandler
 
 /**
  * The base is opened on FIRST USE, not at import.
@@ -124,7 +136,7 @@ reportsPublicRouter.get('/reports/dates', sansCache, (_req, res) => {
  *
  * Query params : limit, category, date, type (marketing|rayon)
  */
-reportsPublicRouter.get('/reports/liste', sansCache, (req, res) => {
+reportsPublicRouter.get('/reports/liste', sansCache, compte, (req, res) => {
   try {
     const limit = parseInt((req.query.limit as string) || '10')
     const category = (req.query.category as string) || undefined
@@ -164,7 +176,7 @@ reportsPublicRouter.get('/reports/fresh-categories', sansCache, (_req, res) => {
 })
 
 /** Fresh news : les rapports d'un rayon pour un jour, corps compris. */
-reportsPublicRouter.get('/reports/fresh', sansCache, (req, res) => {
+reportsPublicRouter.get('/reports/fresh', sansCache, compte, (req, res) => {
   try {
     const category = (req.query.category as string) || ''
     const date = (req.query.date as string) || undefined
@@ -182,7 +194,7 @@ reportsPublicRouter.get('/reports/fresh', sansCache, (req, res) => {
 })
 
 /** La liste des analyses, en-têtes seulement. */
-reportsPublicRouter.get('/reports/analyses', sansCache, (req, res) => {
+reportsPublicRouter.get('/reports/analyses', sansCache, compte, (req, res) => {
   try {
     res.json(
       baseRapports().getAnalyses({
@@ -198,7 +210,7 @@ reportsPublicRouter.get('/reports/analyses', sansCache, (req, res) => {
 })
 
 /** Une analyse, corps compris : ce que le dépliage d'une ligne demande. */
-reportsPublicRouter.get('/reports/analyses/:id', sansCache, (req, res) => {
+reportsPublicRouter.get('/reports/analyses/:id', sansCache, compte, (req, res) => {
   try {
     const analyse = baseRapports().getAnalyse(req.params.id)
     if (!analyse) return res.status(404).json({ error: 'Analyse introuvable.' })
@@ -209,7 +221,7 @@ reportsPublicRouter.get('/reports/analyses/:id', sansCache, (req, res) => {
 })
 
 /** Les produits gagnants à plat — sans rayon demandé, tout le dépôt. */
-reportsPublicRouter.get('/reports/gagnants', sansCache, (req, res) => {
+reportsPublicRouter.get('/reports/gagnants', sansCache, compte, (req, res) => {
   try {
     res.json(
       baseRapports().getGagnants({
@@ -224,7 +236,7 @@ reportsPublicRouter.get('/reports/gagnants', sansCache, (req, res) => {
 })
 
 /** Les prompts publicitaires, un par entrée, toujours en texte. */
-reportsPublicRouter.get('/reports/prompts', sansCache, (req, res) => {
+reportsPublicRouter.get('/reports/prompts', sansCache, compte, (req, res) => {
   try {
     res.json(
       baseRapports().getPromptsRapports({
@@ -245,7 +257,7 @@ reportsPublicRouter.get('/reports/prompts', sansCache, (req, res) => {
  *   - category: filter by category (optional)
  *   - limit: number of results (default: 10)
  */
-reportsPublicRouter.get('/markets/trends', sansCache, (req, res) => {
+reportsPublicRouter.get('/markets/trends', sansCache, compte, (req, res) => {
   try {
     const limit = parseInt((req.query.limit as string) || '10')
     const category = (req.query.category as string) || undefined
@@ -264,7 +276,7 @@ reportsPublicRouter.get('/markets/trends', sansCache, (req, res) => {
  *   - category: filter by category (optional)
  *   - date: filter by date (optional)
  */
-reportsPublicRouter.get('/markets/analysis', sansCache, (req, res) => {
+reportsPublicRouter.get('/markets/analysis', sansCache, compte, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
     const date = (req.query.date as string) || undefined
@@ -292,7 +304,7 @@ reportsPublicRouter.get('/markets/analysis', sansCache, (req, res) => {
  *
  * Query params : category (optionnel), date (optionnel), limit (optionnel)
  */
-reportsPublicRouter.get('/products/by-category', sansCache, (req, res) => {
+reportsPublicRouter.get('/products/by-category', sansCache, compte, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
     const date = (req.query.date as string) || undefined
@@ -312,7 +324,7 @@ reportsPublicRouter.get('/products/by-category', sansCache, (req, res) => {
  *   - category: product category (optional)
  *   - type: prompt type: image or video (optional)
  */
-reportsPublicRouter.get('/prompts/all', sansCache, (req, res) => {
+reportsPublicRouter.get('/prompts/all', sansCache, compte, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
     const type = (req.query.type as any) || undefined
@@ -330,7 +342,7 @@ reportsPublicRouter.get('/prompts/all', sansCache, (req, res) => {
  * Query params:
  *   - category: product category (optional)
  */
-reportsPublicRouter.get('/prompts/images', sansCache, (req, res) => {
+reportsPublicRouter.get('/prompts/images', sansCache, compte, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
 
@@ -347,7 +359,7 @@ reportsPublicRouter.get('/prompts/images', sansCache, (req, res) => {
  * Query params:
  *   - category: product category (optional)
  */
-reportsPublicRouter.get('/prompts/videos', sansCache, (req, res) => {
+reportsPublicRouter.get('/prompts/videos', sansCache, compte, (req, res) => {
   try {
     const category = (req.query.category as string) || undefined
 
