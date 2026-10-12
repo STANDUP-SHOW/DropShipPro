@@ -62,57 +62,84 @@ const INTEGRATION_WORDING = {
 }
 
 const CSS = `
-:root{color-scheme:dark}
+:root{color-scheme:dark;--nuit:#101321;--panneau:#191e2e;--panneau-haut:#21273a;--trait:#2a3147;--trait-fort:#3a4360;--texte:#f5f7fa;--texte-2:#b8c0d0;--texte-3:#8f98ab;--orange:#f28a4b;--orange-clair:#f59d66;--rose:#e85290;--drops:#fdbf06}
 *{box-sizing:border-box}
-body{margin:0;background:#140f28;color:#e9e6f5;font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-a{color:#c4b5fd}
-.wrap{max-width:52rem;margin:0 auto;padding:0 1.25rem}
-header{border-bottom:1px solid #ffffff1a}
-header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:1rem;padding-bottom:1rem;gap:1rem}
+body{margin:0;background:var(--nuit);color:var(--texte);font:16px/1.65 "Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--orange-clair);text-underline-offset:3px}
+a:hover{color:var(--texte)}
+.wrap{max-width:56rem;margin:0 auto;padding:0 1.25rem}
+header{border-bottom:1px solid var(--trait);background:var(--nuit);position:sticky;top:0;z-index:5}
+header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:.85rem;padding-bottom:.85rem;gap:1rem}
 .brand{display:flex;align-items:flex-start;gap:5px;height:34px;text-decoration:none;flex:none}
 .brand img{display:block}
 .brand .mot{height:21.8px;width:auto;margin-top:8.3px}
-.cta{display:inline-block;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:600;padding:.7rem 1.15rem;border-radius:.75rem}
+.nav{display:flex;gap:1.1rem;font-size:.92rem;margin-left:auto}
+.nav a{color:var(--texte-2);text-decoration:none}
+.nav a:hover,.nav a[aria-current]{color:var(--texte)}
+@media(max-width:46rem){.nav{display:none}}
+.cta{display:inline-block;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:600;padding:.75rem 1.2rem;border-radius:.75rem}
+.cta:hover{color:#fff;filter:brightness(1.06)}
 .cta.small{padding:.5rem .9rem;font-size:.9rem}
-h1{font-size:1.9rem;line-height:1.25;margin:2rem 0 .5rem}
-h2{font-size:1.25rem;margin:2.25rem 0 .5rem}
-h3{font-size:1rem;margin:1.5rem 0 .35rem}
+.cta.second{background:none;border:1px solid var(--trait-fort);color:var(--texte)}
+.cta.second:hover{border-color:var(--texte-3)}
+h1{font-size:clamp(1.8rem,4.2vw,2.6rem);line-height:1.15;letter-spacing:-.01em;margin:1.5rem 0 .75rem}
+h2{font-size:1.4rem;line-height:1.25;margin:2.75rem 0 .6rem}
+h3{font-size:1.05rem;margin:1.5rem 0 .35rem}
 p{margin:.6rem 0}
-.lede{font-size:1.08rem;color:#cfc9e8}
-.crumb{font-size:.82rem;color:#9d95c0;padding-top:1.25rem}
-.crumb a{color:#9d95c0}
-.badge{display:inline-block;font-size:.75rem;padding:.2rem .6rem;border-radius:999px;border:1px solid #ffffff26;color:#cfc9e8}
-.note{border:1px solid #fb923c4d;background:#f973161a;padding:.85rem 1rem;border-radius:.75rem;font-size:.92rem;color:#fed7aa}
-.card{border:1px solid #ffffff1a;background:#ffffff0d;border-radius:.9rem;padding:1.1rem 1.25rem;margin:1rem 0}
-.couts{border:1px solid #ffffff1a;background:#ffffff08;border-radius:.9rem;overflow:hidden;margin:1rem 0}
-.couts .row{display:grid;grid-template-columns:12rem 1fr;gap:.75rem;padding:.75rem 1.1rem;border-top:1px solid #ffffff12}
+p,li,td{color:var(--texte-2)}
+strong{color:var(--texte)}
+.lede{font-size:1.12rem;color:var(--texte-2)}
+.crumb{font-size:.82rem;color:var(--texte-3);padding-top:1.25rem}
+.crumb a{color:var(--texte-3)}
+.badge{display:inline-block;font-size:.75rem;font-weight:600;padding:.25rem .65rem;border-radius:999px;border:1px solid var(--trait-fort);color:var(--texte-2)}
+.note{border:1px solid var(--trait);border-left:3px solid var(--orange);background:var(--panneau);padding:.85rem 1rem;border-radius:.75rem;font-size:.92rem}
+.card{border:1px solid var(--trait);background:var(--panneau);border-radius:.9rem;padding:1.1rem 1.25rem;margin:1rem 0}
+.couts{border:1px solid var(--trait);background:var(--panneau);border-radius:.9rem;overflow:hidden;margin:1rem 0}
+.couts .row{display:grid;grid-template-columns:12rem 1fr;gap:.75rem;padding:.75rem 1.1rem;border-top:1px solid var(--trait)}
 .couts .row:first-child{border-top:0}
-.couts dt{color:#c4b5fd;font-weight:600;font-size:.9rem;margin:0}
-.couts dd{margin:0;font-size:.95rem}
+.couts dt{color:var(--texte);font-weight:600;font-size:.9rem;margin:0}
+.couts dd{margin:0;font-size:.95rem;color:var(--texte-2)}
 @media(max-width:34rem){.couts .row{grid-template-columns:1fr;gap:.15rem}}
-.fine{font-size:.8rem;color:#9d95c0;margin:.4rem 0 0}
-.gratuit{border:1px solid #34d39940;background:linear-gradient(135deg,#34d39914,#a855f714);border-radius:.9rem;padding:1.1rem 1.25rem;margin:1.25rem 0}
-.gratuit h3{margin:.9rem 0 .2rem;color:#fff}
+.fine{font-size:.82rem;color:var(--texte-3);margin:.4rem 0 0}
+.gratuit{border:1px solid var(--trait);border-left:3px solid var(--drops);background:var(--panneau);border-radius:.9rem;padding:1.1rem 1.25rem;margin:1.5rem 0}
+.gratuit h3{margin:.9rem 0 .2rem;color:var(--texte)}
 .gratuit h3:first-child{margin-top:0}
-.gratuit .pitch{font-weight:700;color:#fff}
-.gratuit .free{background:linear-gradient(90deg,#34d399,#facc15);-webkit-background-clip:text;background-clip:text;color:transparent}
+.gratuit .pitch{font-weight:600;color:var(--texte)}
+.gratuit .free{color:var(--drops)}
 .dir{display:flex;flex-wrap:wrap;gap:.4rem;margin:.8rem 0 0}
-.dir a,.dir span{font-size:.82rem;padding:.32rem .7rem;border-radius:999px;border:1px solid #ffffff1a;background:#ffffff08}
-.dir a{color:#d9d3f0;text-decoration:none}
-.dir a:hover{border-color:#c4b5fd66;background:#c4b5fd1a}
-.dir span{color:#9d95c0}
-.count{font-weight:400;color:#9d95c0;font-size:.85rem}
+.dir a,.dir span{font-size:.82rem;padding:.32rem .7rem;border-radius:999px;border:1px solid var(--trait);background:var(--panneau)}
+.dir a{color:var(--texte-2);text-decoration:none}
+.dir a:hover{border-color:var(--trait-fort);color:var(--texte)}
+.dir span{color:var(--texte-3)}
+.count{font-weight:400;color:var(--texte-3);font-size:.85rem}
 ul{padding-left:1.1rem}
+li::marker{color:var(--orange)}
 table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.93rem}
-th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid #ffffff1a;vertical-align:top}
-th{color:#9d95c0;font-weight:600}
+th,td{text-align:left;padding:.6rem .7rem;border-bottom:1px solid var(--trait);vertical-align:top}
+th{color:var(--texte-3);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
 li{margin:.3rem 0}
 .grid{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));margin:1rem 0}
-.tile{display:flex;align-items:center;gap:.6rem;border:1px solid #ffffff1a;background:#ffffff0d;border-radius:.75rem;padding:.7rem .8rem;text-decoration:none;color:#e9e6f5;font-size:.93rem}
+.tile{display:flex;align-items:center;gap:.6rem;border:1px solid var(--trait);background:var(--panneau);border-radius:.75rem;padding:.75rem .85rem;text-decoration:none;color:var(--texte);font-size:.93rem}
+.tile:hover{border-color:var(--trait-fort);color:var(--texte)}
 .dot{width:1.6rem;height:1.6rem;border-radius:.4rem;flex:none}
-footer{border-top:1px solid #ffffff1a;margin-top:3rem;padding:1.5rem 0;font-size:.85rem;color:#9d95c0}
-footer a{color:#9d95c0;margin-right:1rem}
+.illu{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:1rem;border:1px solid var(--trait);margin:1.25rem 0;background:var(--panneau)}
+.cartes{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));margin:1rem 0}
+.cartes .card{margin:0;display:flex;flex-direction:column;gap:.35rem}
+.cartes .card h3{margin:0}
+.cartes .prix{margin-top:auto;padding-top:.5rem;font-weight:700;color:var(--texte)}
+.cartes .prix span{font-weight:500;color:var(--texte-3);font-size:.85rem}
+footer{border-top:1px solid var(--trait);margin-top:3rem;padding:1.5rem 0;font-size:.85rem;color:var(--texte-3)}
+footer a{color:var(--texte-3);margin-right:1rem}
 .end{margin:2.5rem 0;text-align:center}
+.bandeau-drops{display:flex;align-items:center;gap:1rem;border:1px solid var(--trait);border-left:3px solid var(--drops);background:var(--panneau);border-radius:1rem;padding:1rem 1.25rem;margin:1.25rem 0 0}
+.bandeau-drops>img{width:64px;height:64px;flex:none;animation:flotte 4s ease-in-out infinite}
+.bandeau-drops .mot{height:28px;width:auto;display:block}
+.bandeau-drops p{margin:.35rem 0 0}
+@keyframes flotte{50%{transform:translateY(-5px)}}
+.grille td:nth-child(2),.grille td:nth-child(3),.grille th:nth-child(2),.grille th:nth-child(3){white-space:nowrap;text-align:right}
+.grille td.eur{color:var(--texte);font-weight:600}
+@media(max-width:34rem){.grille{font-size:.86rem}.grille th,.grille td{padding:.5rem .4rem}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `
 
 /**
@@ -140,6 +167,15 @@ const GUIDES = [
   ['/dropshipping-automatique/', 'Dropshipping automatique'],
 ]
 
+/** Le menu court des pages statiques : les mêmes entrées que celui de l'accueil. */
+const NAV_STATIQUE = [
+  ['/fonctions/scraping-produits/', 'Import'],
+  ['/fonctions/annonces-ia/', 'Annonces'],
+  ['/fonctions/dropshop-ia/', 'Boutiques'],
+  ['/fonctions/diffusion/', 'Diffusion'],
+  ['/tarifs/', 'Tarifs'],
+]
+
 function layout({ url, title: titreLong, description, jsonLd, body }) {
   const title = titreCourt(titreLong)
   return `<!doctype html>
@@ -158,12 +194,16 @@ function layout({ url, title: titreLong, description, jsonLd, body }) {
 <meta property="og:url" content="${SITE}${url}">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap">
 <style>${CSS}${CSS_PIED}</style>
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 </head>
 <body>
 <header><div class="wrap">
   <a class="brand" href="/" aria-label="DropShipper IA, accueil"><img src="/marque/dropshipper-icone.png" alt="" width="34" height="34"><img class="mot" src="/marque/dropshipper-mot.png" alt="DropShipper IA" width="120" height="22"></a>
+  <nav class="nav" aria-label="Sections">${NAV_STATIQUE.map(([href, label]) => `<a href="${href}"${href === url ? ' aria-current="page"' : ''}>${label}</a>`).join('')}</nav>
   <a class="cta small" href="/register">Créer un compte</a>
 </div></header>
 <main class="wrap">
