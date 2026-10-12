@@ -730,6 +730,20 @@ export class ReportQuery {
    */
 
   /** Le premier nombre d'un champ texte : « 12-18 € » vaut 12, « — » ne vaut rien. */
+  /** « 29-49 € », « 1 299 », « 39,99 € » : a price or a price range, never a subtraction; nothing at or under zero. */
+  static plage(brut: unknown): { min: number; max: number } | null {
+    const t = String(brut ?? '').replace(/(\d)[\s\u00a0\u202f](?=\d{3}(?!\d))/g, '$1')
+    const lu = (x: string) => Number(x.replace(',', '.'))
+    const r = /(\d+(?:[.,]\d+)?)\s*(?:€|eur)?\s*(?:-|–|à|a)\s*(\d+(?:[.,]\d+)?)/i.exec(t)
+    if (r) {
+      const [a, b] = [lu(r[1]), lu(r[2])]
+      return a > 0 && b >= a ? { min: a, max: b } : a > 0 ? { min: a, max: a } : null
+    }
+    const m = /\d+(?:[.,]\d+)?/.exec(t)
+    const n = m ? lu(m[0]) : NaN
+    return Number.isFinite(n) && n > 0 ? { min: n, max: n } : null
+  }
+
   private static nombre(brut: unknown): number | null {
     const m = /-?\d+(?:[.,]\d+)?/.exec(String(brut ?? '').replace(/\s/g, ''))
     if (!m) return null
@@ -899,8 +913,12 @@ export class ReportQuery {
    * que le rapport donne (`sales` dans la liste JSON du rayon), jamais calculées.
    */
   private static produitDeLigne(p: any, i: number): ProduitRapport {
-    const achat = ReportQuery.nombre(p.buy_price_eur ?? p.buy_price)
-    const vente = ReportQuery.nombre(p.sell_price_eur ?? p.sell_price)
+    // The text column is the source: the migrated *_eur column read « 29-49 € » as -10 and « 1 299 » as 1 (12/10/2026).
+    const plageAchat = ReportQuery.plage(p.buy_price)
+    const plageVente = ReportQuery.plage(p.sell_price)
+    const sur = (n: number | null) => (n !== null && n > 0 ? n : null)
+    const achat = plageAchat ? (plageAchat.min + plageAchat.max) / 2 : sur(ReportQuery.nombre(p.buy_price_eur))
+    const vente = plageVente ? plageVente.min : sur(ReportQuery.nombre(p.sell_price_eur))
     const pct = /(-?\d+(?:[.,]\d+)?)\s*%/.exec(/roi/i.test(String(p.margin ?? '')) ? '' : String(p.margin ?? ''))
     const margePct =
       p.margin_pct != null && Number.isFinite(Number(p.margin_pct))
@@ -928,6 +946,7 @@ export class ReportQuery {
       url: String(p.supplier_url || p.recommended_url || ''),
       prixAchat: achat,
       prixVente: vente,
+      ...(plageVente && plageVente.max > plageVente.min ? { prixMin: plageVente.min, prixMax: plageVente.max } : {}),
       margePct,
       import: (['api', 'url', 'extension'] as const).includes(p.import_method)
         ? (p.import_method as 'api' | 'url' | 'extension')

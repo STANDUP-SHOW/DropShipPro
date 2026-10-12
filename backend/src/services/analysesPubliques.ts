@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 /**
  * Les rapports des agents en PAGES publiques — /analyses/…
  *
@@ -404,10 +405,10 @@ const MARGE_PCT = /(marge|\broi\b)[^.;]{0,40}\d\s*%|\d\s*%[^.;]{0,20}(de\s*)?(ma
 const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif|n[ée]goci\w*\s+(sous|à|a|au\s+plus))\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max|\d\s*€\s*nets?\b/i
 /** A supplier's name, a foreign-currency price, a buying ceiling, or a buying term next to an amount (« coût rendu 18 € »). */
 // A price converted from pounds or dollars, a rate, « à renégocier », « prix d'achat » itself: buying talk (eveil, 12/10/2026).
-const ACHAT_EN_CLAIR = /\b(le|les|ce|ces|nos|notre|un|du)\s+prix\s+d['’ ]?achat|tarif\s+fournisseur|ren[ée]goci|taux\s+(indicatif|de\s+change|approximatif)|convertis?\s+(de|depuis|au)\b|€\s*\/\s*(£|\$)|\bcatalogue\s*«?\s*api\b|prix\s+indiqués?\s+plus\s+bas|lignes?\s+marquées?\s+«\s*estimation|canaux\s+b2b|guide\s+b2b|sourcing\s+alternatif/i
+const ACHAT_EN_CLAIR = /\b(le|les|ce|ces|nos|notre|un|du)\s+prix\s+d['’ ]?achat|tarif\s+fournisseur|ren[ée]goci|taux\s+(indicatif|de\s+change|approximatif)|convertis?\s+(de|depuis|au)\b|€\s*\/\s*(£|\$)|\bcatalogue\s*«?\s*api\b|prix\s+indiqués?\s+plus\s+bas|lignes?\s+marquées?\s+«\s*estimation|canaux\s+b2b|guide\s+b2b|sourcing\s+alternatif|(achetée?s?|achat|lot|tarif|prix|sourcing)\s+(en\s+)?b2b|non\s+chiffré|tarifs?\s+(revendeur|distributeur|public)|sans\s+tarif|compte\s+revendeur|grossistes?\b|distributeurs?\s+agréés|\bsourcing\b/i
 // The agents' own working notes (« quota WebSearch épuisé », « à reclasser en `api` », « purchase_price … null »).
 const JARGON =
-  /websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>/i
+  /conversion\s+usd|usd\s*(→|->|vers)\s*eur|websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|«\s*(url|api|extension)\s*»|import\s+(url|api|extension)|\/item\/|fiche\s+produit\s+générique|\bmaxime\b|rapport\s+rayon|retraité|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>/i
 // « votre compte CJ », « la veste softshell CJ » : the supplier by its initials, capitals only.
 const CJ_SEUL = /(?<![\p{L}\d])CJ(?![\p{L}\d])/u
 const estPrivee = (texte: string) =>
@@ -465,12 +466,16 @@ export function sansNotesDeCout(corps: string): string {
 }
 
 // A bullet's label that names a list (« Éviter : a, b, c ») : each item is weighed alone, the first one too.
-const ANAPHORE = /^(\*\*)?(mieux vaut (les|le|la)|il vaut mieux (les|le|la)|ils\b|elles\b|ces derni|ce dernier|cette derni|celui-ci|celle-ci|ceux-ci|celles-ci|cela\b|ça\b|d['’]où\b|(tout|rien|ils?|elles?|ces?\s+\S+)\s+(a|ont|est|sont)\s+donc\b)/i
+const ANAPHORE = /^(\*\*)?(ces\s|cette\s|cet\s|mieux vaut (les|le|la)|il vaut mieux (les|le|la)|ils\b|elles\b|ces derni|ce dernier|cette derni|celui-ci|celle-ci|ceux-ci|celles-ci|cela\b|ça\b|d['’]où\b|(tout|rien|ils?|elles?|ces?\s+\S+)\s+(a|ont|est|sont)\s+donc\b)/i
 const LIBELLE_LISTE = /^\s*(\*\*)?\s*(éviter|à éviter|liste de surveillance|négocier|acheter maintenant|quantités)/i
 
 // What a cut leaves around it: « 30-100 € . », « explicitement . », « préalable. . ».
 const propre = (t: string) => t.replace(/(\S)\s+([.,])(?=\s|$)/g, '$1$2').replace(/([.!?])(?:\s*\.)+(?=\s|$)/g, '$1')
 
+const STRUCTURE_ANNONCEE =
+  /(?<![\p{L}])(deux|trois|quatre|cinq|six)\s+(étages|paliers|niveaux|segments|familles|axes|points|leviers|risques|tendances|catégories|types|gammes|piliers|raisons|pièges|erreurs|profils|cibles|angles|formats|critères|étapes)(?![\p{L}])/iu
+const ENUMERATION_EN_LIGNE =
+  /\(\s*[1-9]\s*\)[^()]{3,}\(\s*[2-9]\s*\)|(?:^|\s)[1-9]\.\s+\*\*[^*]+\*\*.*\s[2-9]\.\s+\*\*/iu
 const NOTE_DE_METHODE = /^\s*(?:[-*+]\s+)?(?:\*\*|\*)?\s*((limites?|notes?|points?)\s+(de\s+)?méthod|méthodologie|limites?\s+de\s+vérification|note\s+sur\s+la\s+colonne|note\s+import)/i
 
 export function sansMentionsPrivees(corps: string): string {
@@ -488,7 +493,7 @@ export function sansMentionsPrivees(corps: string): string {
     // The agent's method notes (« **Limite méthodologique…** », « **Note sur la colonne Import** ») are about its tools, not the market.
     if (!dansCode && NOTE_DE_METHODE.test(brute)) continue
     if (!dansCode && brute.trim() && !estPuce) introPrivee = false
-    if (!dansCode && brute.trim() && !estPuce) annonce = /:\s*$/.test(brute) ? sortie.length : -1
+    if (!dansCode && brute.trim() && !estPuce) annonce = /:\s*(\*\*)?\s*$/.test(brute) ? sortie.length : -1
     // A pointer to a table the public page does not show (« bon de commande en « Bundles » ») goes, the sentence stays.
     const visible = dansCode ? brute : publiable(brute)
     const avant = sortie.length
@@ -500,6 +505,12 @@ export function sansMentionsPrivees(corps: string): string {
     const ligne = visible.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (estPrivee(dedans) ? '' : m))
     if (!estPrivee(ligne)) {
       sortie.push(propre(ligne))
+      continue
+    }
+    // A paragraph built on an announced count (« trois étages », « (1) … (2) … (3) ») cannot lose a piece and still
+    // read: it goes whole (12/10/2026).
+    if (ENUMERATION_EN_LIGNE.test(ligne)) {
+      if (estPuce && annonce >= 0) recomptees.add(annonce)
       continue
     }
     const puce = /^(\s*(?:[-*+]|\d+[.)])\s+)/.exec(ligne)?.[1] ?? ''
@@ -527,10 +538,17 @@ export function sansMentionsPrivees(corps: string): string {
         // …unless the first item is the private one: then the rest qualifies it (« …sur AliExpress, coût rendu supérieur… »),
         // and a remnant too short to stand (« En boutique. ») goes with it.
         const garde = parListe(morceau)
-        return LIBELLE_LISTE.test(libelle) || garde.split(/\s+/).length >= 4 && !relativeOrpheline(morceau) ? garde : morceau
+        return LIBELLE_LISTE.test(libelle) || (estPuce && garde.split(/\s+/).length >= 4 && !relativeOrpheline(morceau)) ? garde : morceau
       }
       return morceau
     })
+    // « …se structure sur trois étages. » whose étages went: an announcement that lost what follows it goes, with
+    // the whole paragraph (12/10/2026).
+    const iAnnonce = morceaux.findIndex((m) => STRUCTURE_ANNONCEE.test(m))
+    if (iAnnonce >= 0 && morceaux.slice(iAnnonce, iAnnonce + 4).some((m) => !m.trim() || prive(m))) {
+      if (estPuce && annonce >= 0) recomptees.add(annonce)
+      continue
+    }
     const premierRetire = !!morceaux.length && (!morceaux[0].trim() || prive(morceaux[0]))
     // « Mieux vaut les proposer en kit » leans on the sentence before it: it goes with it.
     const reste = morceaux
@@ -549,11 +567,23 @@ export function sansMentionsPrivees(corps: string): string {
     if (reste && /[a-zà-ÿ]{3}/i.test(reste) && !(seulTitre(reste) && !libelle)) sortie.push(propre(`${puce}${libelle ? (nouvellePhrase ? `${libelle}. ` : `${libelle} : `) : ''}${nouvellePhrase ? reste.charAt(0).toUpperCase() + reste.slice(1) : libelle && premierRetire ? reste.replace(/^([A-ZÀ-Ý])(?=[a-zà-ÿ])/, (c) => c.toLowerCase()) : reste}`))
     else if (affirmation && libelle.replace(/\*\*/g, '').trim().split(/\s+/).length >= 6) sortie.push(`${puce}${libelle.replace(/[\s,;]+$/, '')}.`)
     else if (estPuce && annonce >= 0) recomptees.add(annonce)
-    if (!estPuce && /:\s*$/.test(brute) && sortie.length === avant && /prix|co[uû]t|marge|achat|tarif/i.test(brute)) introPrivee = true
+    if (!estPuce && /:\s*(\*\*)?\s*$/.test(brute) && sortie.length === avant && /prix|co[uû]t|marge|achat|tarif/i.test(brute)) introPrivee = true
   }
   // « trois constats » over a list that lost one: the count goes, the words stay.
   for (const i of recomptees) {
+    // The lead-in itself may have gone (« **Pièges fournisseurs…** : »): then index i is an item, not a count to fix.
+    if (i >= sortie.length || !/:\s*(\*\*)?\s*$/.test(sortie[i]) || /^\s*(?:[-*+]|\d+[.)])\s+/.test(sortie[i])) continue
     sortie[i] = sortie[i].replace(/\b(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|\d+)\s+(?=[a-zà-ÿ])/i, '')
+    // « Pièges à éviter : » over a single item left: one sentence, in the singular.
+    let j = i + 1
+    while (j < sortie.length && !sortie[j].trim()) j++
+    const items: number[] = []
+    for (let k = j; k < sortie.length && /^\s*(?:[-*+]|\d+[.)])\s+/.test(sortie[k]); k++) items.push(k)
+    if (items.length === 1) {
+      const tete = sortie[i].replace(/\s*:\s*(\*\*)?\s*$/, (_m, gras?: string) => gras ?? '').replace(/^(\**)(\p{L}{4,})s(?![\p{L}])/u, '$1$2')
+      sortie[i] = `${tete} : ${sortie[items[0]].replace(/^\s*(?:[-*+]|\d+[.)])\s+/, '')}`
+      sortie[items[0]] = ''
+    }
   }
   return sortie.join('\n')
 }
@@ -571,7 +601,7 @@ export function sansIntertitresVides(corps: string): string {
     for (let i = 0; i < lignes.length; i++) {
       const l = lignes[i]
       const titre = /^(#{3,})\s/.exec(l)
-      const annonce = !titre && l.trim() && !/^\s*([-*+]|\d+[.)])\s/.test(l) && /:\s*$/.test(l)
+      const annonce = !titre && l.trim() && !/^\s*([-*+]|\d+[.)])\s/.test(l) && /:\s*(\*\*)?\s*$/.test(l)
       if (titre || annonce) {
         let j = i + 1
         while (j < lignes.length && !lignes[j].trim()) j++
@@ -727,13 +757,23 @@ const TRAHIT_ACHAT = /achat|fournisseur|relev|sur la fiche|co[uû]t|usine|grossi
 
 /** « pourquoi » sans ce qui trahit l'achat : chaque parenthèse et chaque membre de phrase fautif est retiré. Exporté pour le banc. */
 // A pointer to a note the public page does not show, or how the agent read the page.
-const POURQUOI_INTERNE = /voir\s+(la\s+)?note|non\s+vérifiable|rendu\s+js|sans\s+(navigateur|extension)|\bfret\b|prix\s+à\s+(vérifier|valider|reconfirmer)|estimée?s?(?![\p{L}])|estimation|fiche\s+(api|exacte|précise)|\bapi\b|via\s+l['’]extension|manuellement|lisible\s+sans|\bb2b\b|compte\s+professionnel|\bfetch\b|avant\s+import|à\s+re(confirmer|contrôler)|non\s+vérifié/iu
+const POURQUOI_INTERNE = /voir\s+(la\s+)?note|non\s+vérifiable|rendu\s+js|sans\s+(navigateur|extension)|\bfret\b|prix\s+à\s+(vérifier|valider|reconfirmer)|estimée?s?(?![\p{L}])|estimation|fiche\s+(api|exacte|précise)|\bapi\b|via\s+l['’]extension|manuellement|lisible\s+sans|\bb2b\b|compte\s+professionnel|\bfetch\b|avant\s+import|à\s+re(confirmer|contrôler)|non\s+vérifié|sourcing|retraité|import\s+(url|api|extension)|b2b|revendeur|grossiste/iu
+
+// The English verdicts of other agents (« WATCHLIST », « BUY IF NEGOTIATED »), translated as the import does.
+const { verdictFr } = createRequire(import.meta.url)('../../rapports-etude.cjs') as { verdictFr: (t: string) => string }
+function verdictPublic(champ: string): string {
+  const t = champ.trim().replace(/\s+sauf\s+sourcing.*$/i, '')
+  if (!/[A-Z]{3}/.test(t) || t !== t.toUpperCase()) return champ
+  const fr = verdictFr(t)
+  return fr === t || /\b(IF|ONLY|AFTER|DEAL|TESTED|LOCAL)\b/.test(fr) ? champ : fr.charAt(0) + fr.slice(1).toLowerCase()
+}
 
 export function pourquoiPublic(texte: string | null | undefined): string {
   if (!texte) return ''
   // The agents' « · »-separated fields (verdict · reason · audience) are filtered one by one.
   return texte
     .split(/\s+·\s+/)
+    .map(verdictPublic)
     .map((champ) => {
       const sansParentheses = champ.replace(/\s*\(([^()]*)\)/g, (m, dedans: string) => (TRAHIT_ACHAT.test(dedans) || CJ_SEUL.test(dedans) || JARGON.test(dedans) || POURQUOI_INTERNE.test(dedans) ? '' : m))
       const net = sansParentheses
@@ -742,7 +782,7 @@ export function pourquoiPublic(texte: string | null | undefined): string {
         .filter((m) => m && !TRAHIT_ACHAT.test(m) && !CJ_SEUL.test(m) && !JARGON.test(m) && !POURQUOI_INTERNE.test(m))
         .join(', ')
       const equilibre = parenthesesEquilibrees(net).trim()
-      return equilibre ? equilibre.charAt(0).toUpperCase() + equilibre.slice(1) : ''
+      return /\p{L}/u.test(equilibre) ? equilibre.charAt(0).toUpperCase() + equilibre.slice(1) : ''
     })
     .filter(Boolean)
     .join(' · ')
@@ -1090,15 +1130,21 @@ export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
       // « Casque audio Casque Philips… » : a two-word label in front of a title that starts with the same word.
       t = titreProduitPublic(texteRepare(apostrophesDuTexte(t.replace(/^(\p{L}+)\s+\p{L}+\s+(?=\1(?![\p{L}]))/iu, ''))))
       const pourquoi = p.pourquoi ? texteRepare(apostrophesDuTexte(p.pourquoi)) : p.pourquoi
-      return t === p.titre && pourquoi === p.pourquoi ? p : { ...p, titre: t, pourquoi }
+      // A public price at or under zero is a parsing accident, never a price (« -10,00 € », 12/10/2026).
+      const positif = (n: number | null | undefined) => (n != null && n > 0 ? n : null)
+      const prix = { prixVente: positif(p.prixVente), ...(p.prixMin !== undefined ? { prixMin: positif(p.prixMin) } : {}), ...(p.prixMax !== undefined ? { prixMax: positif(p.prixMax) } : {}) }
+      const prixSains = prix.prixVente === p.prixVente && (p.prixMin === undefined || prix.prixMin === p.prixMin) && (p.prixMax === undefined || prix.prixMax === p.prixMax)
+      return t === p.titre && pourquoi === p.pourquoi && prixSains ? p : { ...p, ...prix, titre: t, pourquoi }
     })
 }
 
 function codeModele(titre: string): string | null {
+  // An accessory « pour Insta360 X5 » is not the camera; a brand (« Insta360 ») is not a model code.
+  if (/(?<![\p{L}])(pour|compatible|for|avec)(?![\p{L}])/iu.test(titre)) return null
   const codes = titre
     .split(/[\s,()]+/)
     .map((m) => m.replace(/[.;:]+$/, ''))
-    .filter((m) => /^(?=.*\d)(?=.*[a-z])[a-z0-9\-\/]{6,}$/i.test(m) && !/^\d+([x×]\d+)*(cm|mm|ml|cl|l|go|gb|to|tb|w|mah|pa|hz|m|kg|g|pcs|pièces)$/i.test(m) && !/^\d+[x×]\d+/.test(m) && !/^\d+-in-\d+$/i.test(m) && !/\d(fps|hz|mah|gb|go|tb|to|cm|mm|ml|cl|pcs|w|wh|lm|l|v|a|m|g|kg|p|k|pa|pièces)$/i.test(m) && !/^ip\d+$/i.test(m) && /\d{2}/.test(m) && /[a-z]{2}/i.test(m))
+    .filter((m) => /^(?=.*\d)(?=.*[a-z])[a-z0-9\-\/]{6,}$/i.test(m) && !/^\d+([x×]\d+)*(cm|mm|ml|cl|l|go|gb|to|tb|w|mah|pa|hz|m|kg|g|pcs|pièces)$/i.test(m) && !/^\d+[x×]\d+/.test(m) && !/^\d+-in-\d+$/i.test(m) && !/\d(fps|hz|mah|gb|go|tb|to|cm|mm|ml|cl|pcs|w|wh|lm|l|v|a|m|g|kg|p|k|pa|pièces)$/i.test(m) && !/^ip\d+$/i.test(m) && /\d{2}/.test(m) && /[a-z]{2}/i.test(m) && /\d[a-z]|[a-z][-\/]?\d.*[a-z]/i.test(m) && !/^[a-z]+\d+$/i.test(m))
   return codes.length ? `code:${codes[0].toLowerCase()}` : null
 }
 
@@ -1306,6 +1352,15 @@ function distance(a: string, b: string): number {
 export function texteRepare(texte: string): string {
   if (!texte) return texte
   return texte
+    // « vendu around 50 € », « « QI + »anonymisé », « l'AUTO-SHIPPER », « # Shein/Temu Native Feed 4:5 ».
+    .replace(/(?<![\p{L}])around(?![\p{L}])/gu, 'environ')
+    .replace(/»anonymisée?s?/g, '»')
+    .replace(/AUTO-SHIPPER/g, 'AutoShipper')
+    // « déjà documentées dans le rapport rayon » : the twin report is a page of ours, not something the reader saw.
+    .replace(/,?\s*(déjà\s+)?(documentée?s?|évoquée?s?|identifiée?s?|citée?s?|relevée?s?)\s+dans\s+le\s+rapport\s+rayon/giu, '')
+    .replace(/(?<![\p{L}])gen(ériques?)(?![\p{L}])/gu, 'gén$1')
+    .replace(/(?<![\p{L}])rugueisée?s?(?![\p{L}])/gu, 'renforcé')
+    .replace(/^(#+\s*)(?:(?:shein|temu|aliexpress|alibaba|cj|bigbuy)\s*\/?\s*)+/gim, '$1')
     // « - {"idea":"Landing page…","categorie":"facile a tester"} » : an item the agent left as JSON.
     .replace(/^(\s*[-*]\s+)(\{.*\})\s*$/gm, (m, puce: string, json: string) => {
       try {

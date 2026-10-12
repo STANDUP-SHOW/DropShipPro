@@ -323,6 +323,8 @@ const VERDICTS = [
   ['do not buy', 'ne pas acheter'],
   ['strong buy', 'achat prioritaire'],
   ['buy if negotiated', 'acheter si négocié'],
+  ['buy if local deal', 'acheter si bonne affaire locale'],
+  ['buy if tested', 'acheter après test'],
   ['buy after test', 'acheter après test'],
   ['buy small batch', 'acheter en petit lot'],
   ['test small batch', 'tester en petit lot'],
