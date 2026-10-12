@@ -920,6 +920,24 @@ ${
  * d'achat), et les liens vers les rapports complets. Une page par jour, une
  * adresse lisible, de quoi se faire indexer chaque matin.
  */
+/**
+ * A rayon lists the same product once per offer (MARKETSPY: one row per
+ * supplier). The public pages hide the supplier, so those rows read as
+ * duplicates: one entry per product, with the span of advised prices.
+ */
+export function produitsUniques(produits: ProduitRapport[]): Array<ProduitRapport & { prixMin: number | null; prixMax: number | null }> {
+  const parCle = new Map<string, ProduitRapport[]>()
+  for (const p of produits) {
+    const cle = slugTitre(p.titre, 200) || p.titre
+    parCle.set(cle, [...(parCle.get(cle) ?? []), p])
+  }
+  return [...parCle.values()].map((offres) => {
+    const prix = offres.map((o) => o.prixVente).filter((n): n is number => n !== null)
+    const avecPrix = offres.find((o) => o.prixVente !== null) ?? offres[0]
+    return { ...avecPrix, rang: Math.min(...offres.map((o) => o.rang)), prixMin: prix.length ? Math.min(...prix) : null, prixMax: prix.length ? Math.max(...prix) : null }
+  })
+}
+
 export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?: string, jourSuivant?: string): string {
   const url = cheminJour(day)
   const date = dateLongue(day)
@@ -927,17 +945,19 @@ export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?:
   const rayons = rapports.filter((r) => r.type === 'rayon')
   const parCategorie = new Map<string, RapportPublic[]>()
   for (const r of rapports) parCategorie.set(r.categorie, [...(parCategorie.get(r.categorie) ?? []), r])
-  const produits = rayons.flatMap((r) => r.produits)
+  const produits = rayons.flatMap((r) => produitsUniques(r.produits))
   // Deux par rayon, et d'abord ceux qui ont un prix conseillé : une vitrine du jour, pas un inventaire.
   const top = rayons
     .flatMap((r) =>
-      [...r.produits]
+      produitsUniques(r.produits)
         .sort((x, y) => Number(y.prixVente !== null) - Number(x.prixVente !== null) || x.rang - y.rang)
         .slice(0, 2)
         .map((p) => ({ p, r })),
     )
     .slice(0, 12)
-  const euros = (n: number | null) => (n === null ? '—' : `${n.toFixed(2).replace('.', ',')} €`)
+  const montant = (n: number) => n.toFixed(2).replace('.', ',')
+  const euros = (min: number | null, max: number | null) =>
+    min === null || max === null ? '—' : min === max ? `${montant(min)} €` : `${montant(min)} à ${montant(max)} €`
 
   const body = `${crumb(fil)}
 <h1>Produits gagnants et tendances du ${date}</h1>
@@ -946,7 +966,7 @@ ${
   top.length
     ? `<h2 id="produits">Les produits gagnants du jour</h2><div class="tableau"><table>
 <thead><tr><th>Produit</th><th>Catégorie</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
-<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixVente)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`).join('')}</tbody></table></div>`
+<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${euros(p.prixMin, p.prixMax)}</td><td>${esc(pourquoiPublic(p.pourquoi))}</td></tr>`).join('')}</tbody></table></div>`
     : ''
 }
 ${[...parCategorie.values()]
