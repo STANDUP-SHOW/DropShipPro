@@ -1071,6 +1071,11 @@
       "filename": "maxeda_diy_group.png"
     },
     {
+      "path": "/logos/mcp.png",
+      "name": "Mcp",
+      "filename": "mcp.png"
+    },
+    {
       "path": "/logos/meilleurvendeur.png",
       "name": "Meilleurvendeur",
       "filename": "meilleurvendeur.png"
@@ -3721,6 +3726,6 @@
       "filename": "zooplus-new.svg"
     }
   ],
-  "count": 744,
-  "generated": "2026-09-19T09:43:52.048Z"
+  "count": 745,
+  "generated": "2026-10-12T13:46:16.334Z"
 }
