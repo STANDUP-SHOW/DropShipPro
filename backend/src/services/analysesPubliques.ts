@@ -243,8 +243,8 @@ export function titreRapport(r: Pick<RapportPublic, 'titre' | 'type' | 'day' | '
 }
 
 /** Le résumé d'une ligne de liste : le nombre de produits seulement s'il y en a. */
-function resumeRapport(r: Pick<RapportPublic, 'type' | 'produits'>): string {
-  if (r.type === 'marketing') return 'analyse marketing, prompts image et vidéo'
+function resumeRapport(r: Pick<RapportPublic, 'type' | 'produits'> & { prompts?: RapportPublic['prompts'] }): string {
+  if (r.type === 'marketing') return `analyse marketing${promptsAnnonces(r.prompts ?? [], ', prompts ')}`
   return r.produits.length ? `${r.produits.length} produits gagnants` : 'analyse de marché'
 }
 
@@ -341,6 +341,23 @@ export function markdownEnHtml(texte: string): string {
 }
 
 /** A dropped clause can take its « ( » with it (« Fiche /item/ vérifiée, à convertir) »): an unmatched parenthesis goes. */
+const CONNECTEUR_INITIAL = /^(\s*(?:[-*+]\s+|\d+[.)]\s+)?)(?:mais|ensuite|plus\s+largement|donc|par\s+ailleurs|en\s+revanche)(?:\s*,\s*|\s+)(?=\p{L})/iu
+
+/**
+ * « Plus largement, la mode reste… », « Mais offre une cuisson uniforme » : a connector opening a paragraph or a
+ * cell hung on a sentence that was filtered out. « Budget de test conseillé. Ensuite, … » : a bare label then the
+ * connector, both go. The text starts again with a capital.
+ */
+export function sansConnecteurInitial(l: string): string {
+  if (!l.trim() || /^\s*(#|\|)/.test(l)) return l
+  const etiquette = /^(\s*(?:[-*+]\s+|\d+[.)]\s+)?)([^.!?:]{1,40})\.\s+(?=(?:ensuite|puis|donc)\s*,)/iu.exec(l)
+  if (etiquette && etiquette[2].trim().split(/\s+/).length <= 4) l = etiquette[1] + l.slice(etiquette[0].length)
+  const m = CONNECTEUR_INITIAL.exec(l)
+  if (!m) return l
+  const reste = l.slice(m[0].length)
+  return m[1] + reste.charAt(0).toUpperCase() + reste.slice(1)
+}
+
 export function parenthesesEquilibrees(l: string): string {
   if (!/[()]/.test(l) || l.includes('](')) return l
   // A numbered item (« 1) ») keeps its marker.
@@ -396,7 +413,7 @@ const SECTION_PRIVEE = /sourcing|battle|achat|fournisseur|^\s*(\d+\s*[.)]\s*)?so
  * column. « Faire » and « Wish » are left out: in French prose they are words.
  */
 const FOURNISSEUR_NOMME =
-  /aliexpress|alibaba|\b1688\b|cj\s?drop|cjdropshipping|\btemu\b|\bshein\b|bigbuy|\baccio\b|dhgate|banggood|spocket|zendrop|syncee|vidaxl|made[-\s]in[-\s]china|global\s?sources|taobao|joybuy|lightinthebox|ankorstore|eprolo|webstaurant|printful|printify|hypersku|\bdoba\b|wholesale2b|dropshipzone|grilles?\s+revendeur|(achetée?s?|importée?s?|commandée?s?|à\s+confirmer(\s+directement)?)\s+(auprès\s+de|chez)\s|cité\s+par\s+\p{Lu}|notre\s+produit\s+\p{Lu}\p{L}+\s+\p{Lu}|fournisseur/iu
+  /aliexpress|alibaba|\b1688\b|cj\s?drop|cjdropshipping|\btemu\b|\bshein\b|bigbuy|\baccio\b|dhgate|banggood|spocket|zendrop|syncee|vidaxl|made[-\s]in[-\s]china|global\s?sources|taobao|joybuy|lightinthebox|ankorstore|eprolo|webstaurant|printful|printify|hypersku|\bdoba\b|wholesale2b|dropshipzone|grilles?\s+revendeur|(achetée?s?|importée?s?|commandée?s?|à\s+confirmer(\s+directement)?)\s+(auprès\s+de|chez)\s|cité\s+par\s+\p{Lu}|notre\s+produit\s+\p{Lu}\p{L}+\s+\p{Lu}|fournisseur|salehoo|droppery|printkk|\bacopa\b|innovagoods|annuaires?\s+de\s+grossistes|comptes?\s+distributeur|prix\s+professionnel/iu
 // « achat » alone is the shopper's purchase (« 51 % des achats sont déclenchés par une panne »), not ours.
 const TERME_ACHAT = /prix\s*(d['’ ]?)?achat|achat\s*(unitaire|en\s*lot|group[ée]|local)|co[uû]t|marge|\broi\b|revient|\brendue?s?\b|transport compris|[ée]chantillon|\bfret\b|achat\s*(à|a|de|pour)\s*\d|€\s*d['’]\s*achat|\bachet[ée]e?s?\s+(au|à|en|chez)\b|d[ée]placement/i
 const MONTANT = /\d\s*(€|eur\b|euros?\b)|€\s*\d/i
@@ -408,7 +425,7 @@ const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif|n[ée]goci\w*\s+(so
 const ACHAT_EN_CLAIR = /\b(le|les|ce|ces|nos|notre|un|du)\s+prix\s+d['’ ]?achat|tarif\s+fournisseur|ren[ée]goci|taux\s+(indicatif|de\s+change|approximatif)|convertis?\s+(de|depuis|au)\b|€\s*\/\s*(£|\$)|\bcatalogue\s*«?\s*api\b|prix\s+indiqués?\s+plus\s+bas|lignes?\s+marquées?\s+«\s*estimation|canaux\s+b2b|guide\s+b2b|sourcing\s+alternatif|(achetée?s?|achat|lot|tarif|prix|sourcing)\s+(en\s+)?b2b|non\s+chiffré|tarifs?\s+(revendeur|distributeur|public)|sans\s+tarif|compte\s+revendeur|grossistes?\b|distributeurs?\s+agréés|\bsourcing\b|prix\s+de\s+gros|\bmoq\b|tarifs?\s+palier|palier\s+\d+\s*\+?\s*unités|marges?\s+(brute|nette|en\s+valeur)|(achat|importer|acheter|commander)\s+en\s+lots?\b|(?<!côté\s)\bb2b\b|(prix|tarif|grille|marge|remise|achat)[^.;,]{0,30}\brevendeurs?\b|peu\s+de\s+marge|dégage\s+une\s+marge|\bachet(er|é|ée|és|ées)\s+(à|a)\s+\d/i
 // The agents' own working notes (« quota WebSearch épuisé », « à reclasser en `api` », « purchase_price … null »).
 const JARGON =
-  /conversion\s+usd|usd\s*(→|->|vers)\s*eur|websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|«\s*(url|api|extension)\s*»|import\s+(url|api|extension)|\/item\/|fiche\s+produit\s+générique|\bmaxime\b|rapport\s+rayon|retraité|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>|n['’]ont\s+pas\s+pu\s+être\s+(interrogée?s?|consultée?s?|lue?s?)|refusé\s+l['’]accès|accès\s+automatisé|lecture\s+automatisée|recherche\s+automatisée?|prochain\s+passage\s+de\s+l['’]agent|l['’]agent\s+(marketing|rayon)|vérifier\s+manuellement|par\s+un\s+humain|dommage\s+d['’]inventer|ont\s+bloqué|honnêteté\s+d['’]abord|connexion\s+requise|non\s+vérifiée?s?|non\s+relevée?s?\s+aujourd/i
+  /conversion\s+usd|usd\s*(→|->|vers)\s*eur|websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|«\s*(url|api|extension)\s*»|import\s+(url|api|extension)|\/item\/|fiche\s+produit\s+générique|\bmaxime\b|rapport\s+rayon|retraité|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>|n['’]ont\s+pas\s+pu\s+être\s+(interrogée?s?|consultée?s?|lue?s?)|refusé\s+l['’]accès|accès\s+automatisé|lecture\s+automatisée|recherche\s+automatisée?|prochain\s+passage\s+de\s+l['’]agent|l['’]agent\s+(marketing|rayon)|vérifier\s+manuellement|par\s+un\s+humain|dommage\s+d['’]inventer|ont\s+bloqué|honnêteté\s+d['’]abord|connexion\s+requise|non\s+vérifiée?s?|non\s+relevée?s?\s+aujourd|n['’]avons\s+pas\s+pu|pas\s+pu\s+(accéder|consulter|interroger|vérifier)|n['’]a\s+pu\s+être\s+(vérifiée?s?|consultée?s?|lue?s?)|non\s+accessibles?|que\s+j['’]ai\s+pu|nous\s+le\s+signalons|vérification\s+en\s+direct|connaissance\s+générale\s+du\s+secteur|chargée?\s+en\s+javascript|hors\s+session|lors\s+de\s+cette\s+recherche|sur\s+toute\s+la\s+recherche|résultats?\s+de\s+recherche|^\s*pas\s+de\s+recherche\s*$|comptes?\s+pub(licitaires?)?\s+de\s+(max|drop-?shipper)|depuis\s+le\s+compte\s+publicitaire|limitation\s+de\s+prix\s+public|sources?\s+extension|relevé\s+manuel|les\s+données\s+disponibles\s+ne\s+donnent/i
 // « votre compte CJ », « la veste softshell CJ » : the supplier by its initials, capitals only.
 const CJ_SEUL = /(?<![\p{L}\d])CJ(?![\p{L}\d])/u
 const estPrivee = (texte: string) =>
@@ -620,11 +637,45 @@ export function sansMentionsPrivees(corps: string): string {
   // « **Strate 2 — …** » once « Strate 1 » went: the numbered parts are counted again from 1.
   const PARTIE = /^(\s*(?:[-*+]\s+)?\*\*\s*(?:strate|palier|niveau|étape|segment|bloc|famille)\s+)(\d+)(?=\s*(?:\*\*)?\s*[—–:.-])/i
   let rang = 0
+  let parties: number[] = []
+  // A lone « **Strate 1 — la saisonnalité courte.** » is no series: it melts into the text, without its number.
+  const seule = () => {
+    // « le marché se lit en deux strates » over what is left of them: the announcement goes, the parts stay.
+    if (parties.length) {
+      const ANNONCE = /(?<![\p{L}])(deux|trois|quatre|cinq)\s+(?:\p{L}+\s+)?(strates|paliers|niveaux|étapes|segments|blocs|familles)(?![\p{L}])/iu
+      for (let k = parties[0] - 1; k >= 0 && !/^#{1,3}\s/.test(sortie[k]); k--) {
+        const a = ANNONCE.exec(sortie[k])
+        if (!a) continue
+        if (NOMBRES[a[1].toLowerCase()] > parties.length) {
+          sortie[k] = sortie[k]
+            .split(/(?<=[.!?])\s+/)
+            .filter((p) => !ANNONCE.test(p))
+            .join(' ')
+        }
+        break
+      }
+    }
+    if (parties.length === 1) {
+      const k = parties[0]
+      sortie[k] = sortie[k].replace(
+        /^(\s*(?:[-*+]\s+)?)\*\*\s*(?:strate|palier|niveau|étape|segment|bloc|famille)\s+1\s*(?:[—–:.-]\s*)?(.*?)\s*\*\*\s*:?\s*/i,
+        (_x, puce: string, titre: string) => (titre ? `${puce}**${titre.charAt(0).toUpperCase()}${titre.slice(1)}** ` : puce),
+      )
+      if (!/\*\*/.test(sortie[k].slice(0, 4))) sortie[k] = sortie[k].replace(/^(\s*(?:[-*+]\s+)?)(\p{Ll})/u, (_m, p: string, c: string) => p + c.toUpperCase())
+    }
+    parties = []
+    rang = 0
+  }
   for (let k = 0; k < sortie.length; k++) {
     const m = PARTIE.exec(sortie[k])
-    if (m) sortie[k] = sortie[k].replace(PARTIE, (_x, tete: string) => `${tete}${++rang}`)
-    else if (/^#{1,3}\s/.test(sortie[k])) rang = 0
+    if (m) {
+      sortie[k] = sortie[k].replace(PARTIE, (_x, tete: string) => `${tete}${++rang}`)
+      parties.push(k)
+    } else if (/^#{1,3}\s/.test(sortie[k])) seule()
   }
+  seule()
+  // « Plus largement, la mode… », « Mais offre… » opening a paragraph: the sentence they hung on is gone.
+  for (let k = 0; k < sortie.length; k++) sortie[k] = sansConnecteurInitial(sortie[k])
   // Items with no lead-in (« ## Publicités en cours » then « - une spécialisation… ; ») read as sentences.
   let introduits = false
   for (let k = 0; k < sortie.length; k++) {
@@ -841,7 +892,7 @@ export function pourquoiPublic(texte: string | null | undefined): string {
       const net = membres
         .filter((m, i) => m && !pourquoiPrive(m) && !(m.split(/\s+/).length === 1 && i + 1 < membres.length && pourquoiPrive(membres[i + 1])))
         .join(', ')
-      const equilibre = parenthesesEquilibrees(net).trim()
+      const equilibre = sansConnecteurInitial(parenthesesEquilibrees(net).trim())
       return /\p{L}/u.test(equilibre) ? equilibre.charAt(0).toUpperCase() + equilibre.slice(1) : ''
     })
     .filter(Boolean)
@@ -904,30 +955,9 @@ function produitsLd(r: RapportPublic) {
   }
 }
 
-export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): string {
-  const cat = r.categorieNom
-  const theme = r.themeNom
-  const url = cheminRapport(r)
-  const estRayon = r.type === 'rayon'
-  const title = titreRapport(r)
-  const description =
-    (r.accroche && !(r.type === 'marketing' && !r.prompts.length && /prompts?/i.test(r.accroche)) ? r.accroche : '') ||
-    (estRayon
-      ? r.produits.length
-        ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping, avec prix de vente conseillé.`
-        : `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} : tendances, prix pratiqués, saisonnalité et pistes de produits à importer en dropshipping.`
-      : r.prompts.length
-        ? `Analyse marketing ${theme.toLowerCase()} du ${dateLongue(r.day)} : angles, audiences, prompts publicitaires image et vidéo.`
-        : `Analyse marketing ${theme.toLowerCase()} du ${dateLongue(r.day)} : angles, audiences et réseaux sociaux.`)
-
-  const fil = [
-    { nom: 'Accueil', url: '/' },
-    { nom: 'Analyses de marché', url: '/analyses/' },
-    { nom: cat, url: cheminCategorie(r.categorie) },
-    { nom: `${theme} — ${dateLongue(r.day)}` },
-  ]
-
-  const blocs = blocsDe(r.body)
+/** The report's own sections as the page renders them: the analysis, never the private tables. */
+function blocsPublics(r: RapportPublic): string {
+  return blocsDe(r.body)
     // Le corps d'un rapport marketing MarketSpy n'est qu'une souche (« ## Analyse » puis le titre) : rien à montrer.
     .filter((b) => !(r.type === 'marketing' && b.corps.trim() === r.titre.trim()))
     .filter((b) => !SECTION_PRIVEE.test(b.titre))
@@ -949,6 +979,55 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
       return `${b.titre ? `<h2>${enLigne(b.titre)}</h2>` : ''}${markdownEnHtml(corps)}${garde}`
     })
     .join('\n')
+}
+
+/**
+ * Nothing left to read once the filters ran (outillage-main marketing du 18/09 : every field empty in the data):
+ * the page leaves the sitemap and the lists, and its address leads to the rayon page of the same day.
+ */
+export function corpsVisibleVide(r: RapportPublic): boolean {
+  if (r.produits.length || r.prompts.length) return false
+  return !/\p{L}{2}/u.test(blocsPublics(r).replace(/<h2[^>]*>[\s\S]*?<\/h2>/g, ' ').replace(/<[^>]+>/g, ' '))
+}
+
+/** « image et vidéo » only for the kinds of prompts the page really shows (12/10/2026: one generic image prompt). */
+function promptsAnnonces(prompts: Array<{ genre: string }>, avant: string): string {
+  const image = prompts.some((p) => p.genre === 'image')
+  const video = prompts.some((p) => p.genre === 'video')
+  return image || video ? `${avant}${image && video ? 'image et vidéo' : image ? 'image' : 'vidéo'}` : ''
+}
+
+export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): string {
+  const cat = r.categorieNom
+  const theme = r.themeNom
+  const url = cheminRapport(r)
+  const estRayon = r.type === 'rayon'
+  const title = titreRapport(r)
+  // A price is « advised » on the page only when most rows show one (07/10: 0 prices out of 9).
+  const prixConseilles = r.produits.filter((p) => p.prixVente != null).length * 2 >= r.produits.length
+  const promesseVide =
+    !!r.accroche &&
+    ((r.type === 'marketing' && !r.prompts.length && /prompts?/i.test(r.accroche)) ||
+      (!r.prompts.some((p) => p.genre === 'video') && /prompts?[^.]{0,40}vidéo/i.test(r.accroche)) ||
+      (estRayon && !prixConseilles && /prix\s+(de\s+vente\s+)?conseillé/i.test(r.accroche)))
+  const description =
+    (r.accroche && !promesseVide ? r.accroche : '') ||
+    (estRayon
+      ? r.produits.length
+        ? `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} et ${r.produits.length} produits à importer en dropshipping${prixConseilles ? ', avec prix de vente conseillé' : ''}.`
+        : `Analyse de marché ${theme.toLowerCase()} du ${dateLongue(r.day)} : tendances, prix pratiqués, saisonnalité et pistes de produits à importer en dropshipping.`
+      : r.prompts.length
+        ? `Analyse marketing ${theme.toLowerCase()} du ${dateLongue(r.day)} : angles, audiences${promptsAnnonces(r.prompts, ', prompts publicitaires ')}.`
+        : `Analyse marketing ${theme.toLowerCase()} du ${dateLongue(r.day)} : angles, audiences et réseaux sociaux.`)
+
+  const fil = [
+    { nom: 'Accueil', url: '/' },
+    { nom: 'Analyses de marché', url: '/analyses/' },
+    { nom: cat, url: cheminCategorie(r.categorie) },
+    { nom: `${theme} — ${dateLongue(r.day)}` },
+  ]
+
+  const blocs = blocsPublics(r)
 
   // Un rapport MarketSpy ne porte pas son tableau dans le corps : les produits
   // sont à part, et sans ce bloc la page annonçait « 20 produits gagnants » dans
@@ -980,7 +1059,7 @@ ${blocs}
 ${produitsEnPlus}
 ${prompts('image', "Prompts d'images publicitaires, prêts à coller dans un générateur")}
 ${prompts('video', 'Prompts de vidéos publicitaires')}
-${jumeau ? `<h2>Le même jour</h2><ul class="liste"><li><a href="${cheminRapport(jumeau)}">${esc(jumeau.titre)}</a><small>${jumeau.type === 'rayon' ? 'Analyse de marché et produits gagnants' : 'Analyse marketing : angles et prompts publicitaires'}</small></li></ul>` : ''}
+${jumeau ? `<h2>Le même jour</h2><ul class="liste"><li><a href="${cheminRapport(jumeau)}">${esc(jumeau.titre)}</a><small>${jumeau.type === 'rayon' ? 'Analyse de marché et produits gagnants' : jumeau.prompts.length ? 'Analyse marketing : angles et prompts publicitaires' : 'Analyse marketing : angles et audiences'}</small></li></ul>` : ''}
 ${
   voisins.length
     ? `<h2>Autres analyses ${esc(cat.toLowerCase())}</h2><ul class="liste">${voisins
@@ -1431,7 +1510,106 @@ function distance(a: string, b: string): number {
  */
 // The 07/10 agent's one-size template, the same on printers, stickers and scooters (« autonomie mesurée, coût à la page »).
 const GABARIT_PROMPT =
-  /produit\s+au\s+centre\s+sur\s+fond\s+neutre|démo\s+produit\s+en\s+main|cadre\s+sublimé\s+grâce\s+au\s+produit|autonomie\s+mesurée,\s+coût\s+à\s+la\s+page|inspirational\s+board\s*:\s*scène\s+verticale/i
+  /produit\s+au\s+centre\s+sur\s+fond\s+neutre|démo\s+produit\s+en\s+main|cadre\s+sublimé\s+grâce\s+au\s+produit|autonomie\s+mesurée,\s+coût\s+à\s+la\s+page|inspirational\s+board\s*:\s*scène\s+verticale|[—–-]\s?30\s?%\s+aujourd/i
+
+/**
+ * What a report's own data says is private (12/10/2026, constat de #90) : words alone missed « dès 15,43 € » in a
+ * video prompt (product 15's purchase price) and « vases à moins de 2 € » (five purchases at 1,00 €). Every
+ * purchase amount of the day's products, and every supplier name or domain they carry, is checked in the text.
+ */
+export type DonneesPrivees = { achats: number[]; ventes: number[]; noms: RegExp | null }
+
+// Places where the analyses observe retail prices and where sellers publish: a supplier field naming them is a channel.
+const CANAUX =
+  /^(amazon|ebay|leboncoin|cdiscount|etsy|vinted|faire|fnac|rakuten|manomano|wish|allegro|google|tiktok|facebook|instagram|youtube|pinterest|reddit|shopify|drop-shipper|dropshipper)$/i
+const NOM_GENERIQUE =
+  /^(inconnu|divers|générique|generique|marque|fabricant|n\/?a|autre|autres|plusieurs|extension|url|api|web|site|boutique|shop|store|online|officiel|official|www|fr|com|non|aucun|none|null|undefined|-|—)$/i
+
+function hoteDe(url: string): string | null {
+  try {
+    const h = new URL(url).hostname.toLowerCase().replace(/^www\d?\./, '')
+    return h || null
+  } catch {
+    return null
+  }
+}
+
+export function donneesPrivees(produits: Array<Pick<ProduitRapport, 'titre' | 'fournisseur' | 'url' | 'prixAchat' | 'prixVente' | 'achats'> & { prixMin?: number | null; prixMax?: number | null }>): DonneesPrivees {
+  const achats = new Set<number>()
+  const ventes = new Set<number>()
+  const noms = new Set<string>()
+  // « NVIDIA » as the supplier while the day lists « NVIDIA Jetson AGX » is a brand: the analysis may name it.
+  const titres = produits.map((p) => String(p.titre ?? '')).join(' \n ')
+  // Makers sold under their own name: their official store in the supplier field is still the brand.
+  const FABRICANTS = /^(apple|samsung|xiaomi|google|huawei|honor|oppo|oneplus|motorola|sony|dji|gopro|insta360|nvidia|amd|intel|asus|acer|lenovo|hp|dell|msi|logitech|philips|bosch|dyson|lego|vtech|playmobil|nintendo|microsoft|anker|ugreen|jbl|bose|garmin|fitbit|withings|tefal|seb|moulinex|krups|delonghi|nespresso|ikea)$/i
+  const marque = (nom: string) => FABRICANTS.test(nom.trim().split(/[\s.]/)[0]) || new RegExp(`(?<![\\p{L}\\d])${nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\d])`, 'iu').test(titres)
+  for (const p of produits) {
+    for (const a of [p.prixAchat, ...(p.achats ?? [])]) if (a != null && a > 0) achats.add(a)
+    for (const v of [p.prixVente, p.prixMin, p.prixMax]) if (v != null && v > 0) ventes.add(v)
+    for (const morceau of String(p.fournisseur ?? '').split(/[/,;|()]|\s+[-–—]\s+/)) {
+      const nom = morceau.trim().replace(/\.$/, '')
+      if (nom.length >= 3 && nom.length <= 40 && /\p{L}{3}/u.test(nom) && !NOM_GENERIQUE.test(nom) && !CANAUX.test(nom.split(/[.\s]/)[0]) && !marque(nom)) noms.add(nom)
+    }
+    const hote = hoteDe(String(p.url ?? ''))
+    if (hote) {
+      const labels = hote.split('.')
+      const i = labels.length >= 3 && /^(co|com)$/.test(labels[labels.length - 2]) ? labels.length - 3 : labels.length - 2
+      const racine = labels[Math.max(0, i)]
+      if (racine && racine.length >= 4 && !NOM_GENERIQUE.test(racine) && !CANAUX.test(racine) && !marque(racine)) {
+        noms.add(racine)
+        noms.add(labels.slice(Math.max(0, i)).join('.'))
+      }
+    }
+  }
+  const echappe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')
+  const liste = [...noms].sort((a, b) => b.length - a.length).map(echappe)
+  return {
+    achats: [...achats],
+    ventes: [...ventes],
+    noms: liste.length ? new RegExp(`(?<![\\p{L}\\d])(?:${liste.join('|')})(?![\\p{L}\\d])`, 'iu') : null,
+  }
+}
+
+// « 15,43 € », « 1 299 € », « 12-18 € », « 50 euros » : every amount, both ends of a range.
+const MONTANT_PRIX = /(\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?:\s*(?:[-–]|à)\s*(\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,](\d{1,2}))?)?\s*(?:€|euros?(?![\p{L}])|EUR(?![\p{L}]))/giu
+const nombreDe = (ent: string, dec?: string) => Number(`${ent.replace(/[ \u00a0\u202f]/g, '')}.${dec ?? '0'}`)
+
+/** True when a sentence carries a purchase amount (to 0,50 € near) that is not also a sale price it may show. */
+export function porteUnAchat(phrase: string, d: DonneesPrivees, ventesPermises: number[] = d.ventes): boolean {
+  if (!d.achats.length) return false
+  const minVente = d.ventes.length ? Math.min(...d.ventes) : Infinity
+  for (const m of phrase.matchAll(MONTANT_PRIX)) {
+    const montants = [nombreDe(m[1], m[2]), ...(m[3] ? [nombreDe(m[3], m[4])] : [])]
+    // « un kit à 30-80 € » is a market band: its ends only count when they are the exact purchase figure.
+    const ecart = montants.length > 1 ? 0.01 : 0.5
+    for (const n of montants) {
+      if (ventesPermises.some((v) => Math.abs(v - n) < 0.01)) continue
+      if (d.achats.some((a) => Math.abs(a - n) <= ecart)) return true
+    }
+    // « vases à moins de 2 € » : a ceiling under every sale price, above a purchase price, is the purchase level.
+    const avant = phrase.slice(Math.max(0, (m.index ?? 0) - 25), m.index)
+    if (/(moins\s+de|sous\s+les?|inférieurs?\s+à|<)\s*$/i.test(avant) && montants[0] < minVente && d.achats.some((a) => a < montants[0])) return true
+  }
+  return false
+}
+
+/** The text without the sentences that show the data's purchase amounts or supplier names; a table cell becomes « — ». */
+export function sansDonneesPrivees(texte: string, d: DonneesPrivees, ventesPermises: number[] = d.ventes): string {
+  if (!texte || (!d.achats.length && !d.noms)) return texte
+  const prive = (t: string) => porteUnAchat(t, d, ventesPermises) || (d.noms ? d.noms.test(t) : false)
+  return texte
+    .split('\n')
+    .flatMap((ligne) => {
+      if (/^\s*#{1,6}\s/.test(ligne)) return [ligne]
+      if (/^\s*\|/.test(ligne)) return [ligne.split('|').map((c) => (prive(c) ? ' — ' : c)).join('|')]
+      const tete = /^(\s*(?:[-*+]|\d+[.)])\s+)?/.exec(ligne)![0]
+      const phrases = ligne.slice(tete.length).split(/(?<=[.!?…])\s+(?=[\p{Lu}«"(\d*])/u)
+      const gardees = phrases.filter((p) => !prive(p))
+      if (gardees.length === phrases.length) return [ligne]
+      return gardees.length ? [tete + gardees.join(' ')] : []
+    })
+    .join('\n')
+}
 
 export function promptsPublics<P extends { texte: string }>(prompts: P[]): P[] {
   return prompts
@@ -1501,6 +1679,13 @@ export function texteRepare(texte: string): string {
       const nom = site.split('-').map((w, i) => (i === 0 || w.length > 3 ? w[0].toUpperCase() + w.slice(1) : w)).join('-')
       return `[${nom}${reste}](${url})`
     })
+    // « 1243,14 € », « 1199€ », « entre 200 et 1000 euros » : the French thousands space, and a space before €.
+    .replace(/(?<![\d., ])(\d{1,3})(\d{3})(?=(?:[.,]\d{1,2})?\s?(?:€|euros?(?![\p{L}])))/gu, '$1 $2')
+    .replace(/(\d)€/g, '$1 €')
+    .replace(/^(#{1,6}\s*)Social places\s*$/gim, '$1Réseaux sociaux')
+    .replace(/produits relevés par l['’]agent/g, 'produits retenus')
+    // « (≈310-321 €, IP68/IP69, écran incurvé 14…) » : a member cut mid-figure says nothing.
+    .replace(/,\s*[^,()\n]*\d…(?=\))/g, '')
 }
 
 const ORDINAUX = ['Premièrement', 'Deuxièmement', 'Troisièmement', 'Quatrièmement', 'Cinquièmement']

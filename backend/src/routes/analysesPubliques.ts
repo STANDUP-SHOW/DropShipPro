@@ -19,7 +19,7 @@ import { categorieDe } from '../services/marketReports.js'
 import {
   apostrophesDuTexte,
   apostrophesRendues,
-  promptsPublics,
+  promptsPublics, donneesPrivees, corpsVisibleVide, sansDonneesPrivees, type ProduitPublic,
   attribuerAdresses,
   renvoisRenumerotes,
   texteVisible,
@@ -83,6 +83,8 @@ type Ligne = ReturnType<ReportQuery['getPourSitemap']>[number]
  * déploiement ou un dépôt de l'importateur : une fois par base ouverte suffit.
  */
 let memo: Ligne[] | null = null
+/** Pages with nothing left to read, by id, with their address: out of every list, their URL answers a 301. */
+let pagesVides = new Map<string, Ligne>()
 export function lignesPubliques(): Ligne[] {
   const q = rapports()
   if (memo) return memo
@@ -90,10 +92,18 @@ export function lignesPubliques(): Ligne[] {
     .getPourSitemap()
     .filter(adressable)
     .map((l) => ({ ...l, titre: l.une ?? l.titre }))
+  // Addresses are given over every report, the empty ones included: none of the others moves.
   attribuerAdresses(tous)
-  const dates = datesDuRendu(tous)
+  const vides = new Map<string, Ligne>()
+  for (const l of tous) {
+    const r = versPublicBrut(l.id)
+    if (r && corpsVisibleVide(r)) vides.set(l.id, l)
+  }
+  pagesVides = vides
+  const pleins = tous.filter((l) => !vides.has(l.id))
+  const dates = datesDuRendu(pleins)
   // Apostrophes restored after attribution: the address keeps the raw title.
-  memo = tous.map((l) => ({ ...l, titre: titrePublic(l.titre), updatedAt: dates.get(l.id) ?? l.updatedAt }))
+  memo = pleins.map((l) => ({ ...l, titre: titrePublic(l.titre), updatedAt: dates.get(l.id) ?? l.updatedAt }))
   return memo
 }
 
@@ -232,19 +242,21 @@ const titrePublic = (t: string) => {
 function versPublicBrut(id: string): RapportPublic | null {
   const r = rapports().getAnalyse(id)
   if (!r || !adressable(r)) return null
+  // The day's purchase prices and supplier names, from the data: no public text may show them (12/10/2026).
+  const prive = donneesPrivees([...r.produits, ...rapports().getProduitsDuJour(r.categorie, r.day)])
   const prompts =
     r.type === 'marketing'
       ? promptsPublics(rapports()
           .getPromptsRapports({ categorie: r.categorie, jour: r.day, limite: 200 })
           .prompts.filter((p) => p.rapportId === id)
-          .map((p) => ({ genre: p.genre, format: p.format, texte: apostrophesDuTexte(p.texte) })))
+          .map((p) => ({ genre: p.genre, format: p.format, texte: sansDonneesPrivees(apostrophesDuTexte(p.texte), prive) })))
       : []
   // One row per product: the per-offer list (with suppliers) stays in the signed-in space.
-  const nettoyes = produitsNettoyes(r.produits)
+  const nettoyes = produitsNettoyes(r.produits.map((p) => ({ ...p, pourquoi: sansDonneesPrivees(p.pourquoi, prive, [p.prixVente, (p as ProduitPublic).prixMin, (p as ProduitPublic).prixMax].filter((v): v is number => v != null)) })))
   const produits = produitsUniques(nettoyes).map((p, i) => ({ ...p, rang: i + 1 }))
-  const texte = (t: string | null) => (t ? texteRepare(apostrophesDuTexte(t)) : t)
+  const texte = (t: string | null) => (t ? sansDonneesPrivees(texteRepare(apostrophesDuTexte(t)), prive) : t)
   // « Les 11 produits relevés » over a table of 10 once the doubles are grouped.
-  const body = texteRepare(apostrophesDuTexte(r.body)).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+relevés)/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
+  const body = sansDonneesPrivees(texteRepare(apostrophesDuTexte(r.body)), prive).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+(?:relevés|retenus))/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
   return { ...r, titre: titrePublic(r.une ?? r.titre), body: renvoisRenumerotes(body, nettoyes), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
@@ -330,13 +342,23 @@ analysesPubliquesRouter.get(['/:categorie/:day/:theme/', '/:categorie/:day/:them
   const type = req.path.endsWith('/marketing/') ? 'marketing' : 'rayon'
   if (!SLUG.test(categorie) || !JOUR.test(day) || !SLUG.test(theme)) return introuvable(res)
   try {
-    const ligne = lignesPubliques().find((l) => l.id === `${type}-${day}-${categorie}-${theme}`)
+    const tous = lignesPubliques()
+    const vide = pagesVides.get(`${type}-${day}-${categorie}-${theme}`)
+    if (vide) return res.redirect(301, cheminDuVide(vide, tous))
+    const ligne = tous.find((l) => l.id === `${type}-${day}-${categorie}-${theme}`)
     if (!ligne) return introuvable(res)
     res.redirect(301, cheminRapport(ligne))
   } catch (err) {
     panne(res, err)
   }
 })
+
+/** An empty page leads to the rayon report of its day and theme, else to its category. */
+function cheminDuVide(v: Ligne, tous: Ligne[]): string {
+  const memeJour = tous.filter((l) => l.day === v.day && l.categorie === v.categorie)
+  const cible = memeJour.find((l) => l.type === 'rayon' && l.theme === v.theme) ?? memeJour.find((l) => l.theme === v.theme) ?? memeJour[0]
+  return cible ? cheminRapport(cible) : cheminCategorie(v.categorie)
+}
 
 /** La forme de la PR #25 : « meilleurs-accessoires-…-2026-09-18 » ou « …-marketing-2026-09-18 ». */
 const ARTICLE = /^([a-z0-9-]{1,90}?)(-marketing)?-(\d{4}-\d{2}-\d{2})$/
@@ -366,6 +388,8 @@ analysesPubliquesRouter.get('/:theme/:sujet/', (req, res) => {
       if (duTheme.length === 1) return res.redirect(301, cheminRapport(duTheme[0]))
       return introuvable(res)
     }
+    const vide = pagesVides.get(id)
+    if (vide) return res.redirect(301, cheminDuVide(vide, tous))
     const rapport = versPublic(id)
     if (!rapport) return introuvable(res)
     const autres = tous

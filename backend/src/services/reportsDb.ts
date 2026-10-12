@@ -958,6 +958,7 @@ export class ReportQuery {
       fournisseur: String(p.supplier ?? ''),
       url: String(p.supplier_url || p.recommended_url || ''),
       prixAchat: achat,
+      achats: [...new Set([plageAchat?.min, plageAchat?.max, achat, sur(ReportQuery.nombre(p.buy_price_eur))].filter((n): n is number => n != null && n > 0))],
       prixVente: vente,
       ...(plageVente && plageVente.max > plageVente.min ? { prixMin: plageVente.min, prixMax: plageVente.max } : {}),
       margePct,
@@ -983,6 +984,21 @@ export class ReportQuery {
       )
       .all(reportId) as any[]
 
+    return rows.map((p, i) => ReportQuery.produitDeLigne(p, i))
+  }
+
+  /** Every product of a category's rayon reports that day: a marketing page must not show their purchase prices either. */
+  getProduitsDuJour(categorie: string, jour: string): ProduitRapport[] {
+    const rows = this.db
+      .prepare(
+        `SELECT ${ReportQuery.COLONNES_PRODUIT}
+           FROM products p
+           JOIN rayon_reports rr ON rr.id = p.rayon_report_id
+           JOIN reports r ON r.id = rr.report_id
+          WHERE r.categorie = ? AND r.date = ?
+          ORDER BY p.rowid ASC`,
+      )
+      .all(categorie, jour) as any[]
     return rows.map((p, i) => ReportQuery.produitDeLigne(p, i))
   }
 

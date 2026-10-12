@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { titreProduitPublic, promptsPublics, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { titreProduitPublic, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 import { ReportQuery } from './src/services/reportsDb.js'
 
@@ -609,6 +609,37 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   exige(titreProduitPublic('Chaise de table de jardin en gros - Acheter à') === 'Chaise de table de jardin', 'titre : « en gros - Acheter à » retiré')
   const page = pageRapport({ ...rapport, produits: [{ ...rapport.produits[0], prixVente: 1299 }] })
   exige(page.includes('1 299,00 €'), 'espace des milliers dans les prix')
+}
+
+{
+  // 12/10/2026, constat de #90 : garde-fou fondé sur les données du rapport, pages vides, promesses, phrases bancales.
+  const base = { ...rapport.produits[0], prixMin: undefined, prixMax: undefined }
+  const d = donneesPrivees([
+    { ...base, titre: 'Kit chimie Clementoni', fournisseur: 'Droppery', url: 'https://www.droppery.io/p/123', prixAchat: 15.43, achats: [15.43], prixVente: 26.9 },
+    { ...base, titre: 'Kit ElecFreaks micro:bit', fournisseur: 'ElecFreaks', url: '', prixAchat: 49.9, achats: [49.9], prixVente: 79.9 },
+    { ...base, titre: 'Vase céramique', fournisseur: 'Apple Store', url: 'https://www.apple.com/fr/', prixAchat: 1, achats: [1], prixVente: 6.9 },
+  ])
+  exige(porteUnAchat('Texte final : « La collection STEM · dès 15,43 € ».', d), 'prix d’achat exact dans un prompt')
+  exige(porteUnAchat('Le kit électronique vendu environ 50 €.', d), 'prix d’achat à 0,50 € près')
+  exige(porteUnAchat('Des vases à moins de 2 € inondent le marché.', d), 'plafond sous les prix de vente : niveau d’achat')
+  exige(!porteUnAchat('Un kit à 26,90 € reste accessible.', d), 'un prix de vente du rapport reste permis')
+  exige(!porteUnAchat('Les parents achètent un kit à 30-80 €.', d) && !porteUnAchat('Kits entre 15 et 30 €.', d), 'une fourchette de marché n’est pas un prix d’achat')
+  const noms = sansDonneesPrivees(['Sources : Copyfy.io, droppery.io et YouTube.', 'Droppery livre en 5 jours. ElecFreaks domine le codage.', '| Kit | Droppery |'].join('\n'), d)
+  exige(!/droppery/i.test(noms) && noms.includes('ElecFreaks domine') && noms.includes('| — |'), 'nom et domaine du fournisseur retirés, la marque reste', noms)
+  exige(!d.noms?.test('Apple Store'), 'boutique officielle d’un fabricant : la marque reste')
+  const vide = { ...rapport, type: 'marketing' as const, body: '## Analyse\n\n', produits: [], prompts: [] }
+  exige(corpsVisibleVide(vide) && !corpsVisibleVide(rapport), 'page sans rien à lire repérée')
+  exige(sansConnecteurInitial('Plus largement, la mode reste forte.') === 'La mode reste forte.' && sansConnecteurInitial('- Mais offre une cuisson uniforme') === '- Offre une cuisson uniforme', 'connecteur en tête de bloc retiré')
+  exige(sansConnecteurInitial('Budget de test conseillé. Ensuite, un test de 150 € suffit.') === 'Un test de 150 € suffit.', 'libellé nu puis « Ensuite » retirés')
+  const strate = sansMentionsPrivees(['Intro saison. Le marché se lit en deux strates.', '', '**Strate 1 — vases.** Prix de gros chez Eprolo à 1 €.', '', '**Strate 2 — la saisonnalité courte.** À mettre en ligne dès maintenant.'].join('\n'))
+  exige(!/deux strates|Strate/.test(strate) && strate.includes('**La saisonnalité courte.** À mettre'), 'strate restée seule : sans numéro, annonce retirée', strate)
+  const t = texteRepare('## Social places\nAffiché à 1243,14 €, 1199€, entre 200 et 1000 euros ; Motorola (≈310 €, IP68, écran incurvé 14…) s’impose. Les 20 produits relevés par l’agent.')
+  exige(t.includes('## Réseaux sociaux') && t.includes('1\u00a0243,14 €') && t.includes('1\u00a0199\u00a0€') && t.includes('1\u00a0000 euros') && t.includes('(≈310 €, IP68)') && t.includes('produits retenus'), 'milliers, titre en français, membre coupé, trace de collecte', t)
+  const sansPrix = pageRapport({ ...rapport, accroche: '', produits: rapport.produits.map((p) => ({ ...p, prixVente: null })) })
+  exige(!/avec prix de vente conseillé/.test(sansPrix), 'pas de « prix de vente conseillé » promis sans prix affichés')
+  const unImage = pageRapport({ ...rapport, type: 'marketing', accroche: 'Angles et prompts publicitaires image et vidéo.', produits: [], prompts: [{ genre: 'image', format: '1:1', texte: 'Une scène lumineuse de cuisine avec le produit au premier plan et des enfants qui rient' }] })
+  exige(!/image et vidéo/.test(unImage.split('</head>')[0]) && /prompts publicitaires image\./.test(unImage), 'description : seulement les prompts vraiment affichés')
+  exige(!/salehoo|innovagoods|prix professionnel|compte distributeur/i.test(sansMentionsPrivees('Selon SaleHoo, octobre est creux.\nListe de surveillance : InnovaGoods.\nLe prix professionnel n’est affiché qu’après création d’un compte distributeur.\nLe marché croît.')), 'SaleHoo, InnovaGoods, prix professionnel, compte distributeur')
 }
 
 if (echecs) {
