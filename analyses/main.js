@@ -528,7 +528,14 @@ function brancher() {
   h('admin-drive-lister', ({ adresse }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: { adresse } }))
   h('admin-drive-importer', async ({ adresse, dates, essai }) => {
     const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true } })
-    if (!essai) journal.info('Analyses importées depuis Google Drive', { dates: dates.join(', '), importees: r.importees, refusees: r.refusees })
+    if (!essai) {
+      // The reasons are only in this answer: write them down, or a refusal is a bare count once the screen is closed (12/10/2026).
+      const motifs = (r.lignes || []).filter((x) => x.statut === 'refuse').map((x) => `${x.date} ${x.rayon} : ${x.raison || 'motif non donné par le site'}`)
+      const ignores = (r.ignores || []).map((g) => `${g.date} ${g.nom} : ${g.raison}`)
+      const ligne = { dates: dates.join(', '), importees: r.importees, doublons: r.doublons, refusees: r.refusees, ...(motifs.length ? { motifs } : {}), ...(ignores.length ? { ignores: ignores.slice(0, 50) } : {}) }
+      if (r.importees === 0 && (r.refusees > 0 || !(r.lignes || []).length)) journal.erreur('Import Google Drive : rien importé', ligne)
+      else journal.info('Analyses importées depuis Google Drive', ligne)
+    }
     return r
   })
   h('admin-affiliation', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/affiliation' }))

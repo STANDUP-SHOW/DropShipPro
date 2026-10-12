@@ -137,6 +137,10 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'], essai: true })).valeur.aImporter, 1)
     assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'] })).valeur.importees, 1)
     assert.deepEqual(faux.importsDrive.map((x) => x.essai), [true, false])
+    // a refusal keeps its reason once the screen is closed (12/10/2026: « refusees 2 » and nothing else in the journal)
+    assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-12'] })).valeur.refusees, 1)
+    const journalDrive = fs.readdirSync(path.join(depot, 'journaux')).map((j) => fs.readFileSync(path.join(depot, 'journaux', j), 'utf8')).join('')
+    assert.match(journalDrive, /Import Google Drive : rien importé/); assert.match(journalDrive, /mode \/ sacs : marketing seul, sans \.rayon\.md/)
     const aff = (await a.appel('adminAffiliation')).valeur
     assert.equal(aff.affilies[0].code, 'TEST10')
     assert.ok((await a.appel('adminAffiliationVerser', { id: 'af1', nom: 'Affilié Test', montant: '62,00 €', reference: 'VIR-1' })).ok)
@@ -275,6 +279,7 @@ async function lancer({ maison, profil, port, serveur }) {
     await pause(800)
     const texteDrive = await a.evaluer(`document.body.textContent`)
     assert.match(texteDrive, /2026-10-08/); assert.match(texteDrive, /Importer 1 date\(s\)/)
+    assert.match(texteDrive, /Non importable : mode \/ sacs \(sacs\.marketing\.md\) — marketing seul, sans \.rayon\.md/); assert.match(texteDrive, /Ignoré : mode\/sacs\.sourcing\.md/)
     await a.evaluer(`document.querySelectorAll('#onglets button')[5].click()`)
     await pause(300)
     await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les affiliés').click()`)

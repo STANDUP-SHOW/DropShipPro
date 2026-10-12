@@ -341,6 +341,12 @@ function sansCleAdmin(titre) {
 // ---------------------------------------------------------------- import Google Drive
 const ADRESSE_DRIVE = 'https://drive.google.com/drive/folders/17mUuLYxUAzt9PFBNv_SCBdzHlCyEQM1k'
 const drive = { adresse: ADRESSE_DRIVE, liste: null, choisies: new Set(), rapport: null, enCours: null }
+const ATTENDU_DRIVE = 'Pour être importé, un rayon doit avoir dans son dossier de date un fichier <thème>.rayon.md (en-tête date, categorie, theme, puis le tableau des produits), avec ou sans <thème>.marketing.md ; ou un .json aiMARKET qui porte un bloc « study ». Un .marketing.md seul, un .json sans « study » ou une note de sourcing ne s’importent pas.'
+/** Why a study found in the folder cannot be imported, before anything is sent. */
+function motifNonImportable(x) {
+  if (x.importable) return null
+  return x.fichiers.some((f) => /\.marketing\.md$/i.test(f)) ? 'marketing seul, sans .rayon.md' : 'aucun .rayon.md ni .json importable'
+}
 const STATUT_DRIVE = { importe: ['importée', 'bon'], apercu: ['à importer', ''], doublon: ['doublon ignoré', ''], refuse: ['refusée', 'mauvais'] }
 
 async function driveLister() {
@@ -391,6 +397,8 @@ function vueDrive() {
             h('label', {}, h('span', {}, h('input', { type: 'checkbox', checked: drive.choisies.has(d.date), onchange: (ev) => { if (ev.target.checked) drive.choisies.add(d.date); else drive.choisies.delete(d.date); rendre() } }),
               ' ', h('strong', {}, d.date), h('span', { class: 'doux petit' }, `  ${importables.length} rayon(s) · ${nouvelles.length} nouveau(x) · ${d.ignores.length} document(s) non importable(s)`))),
             h('div', { class: 'ligne' }, d.etudes.map((x) => pastille(`${x.categorie} / ${x.theme}${x.dejaEnBase ? ' (déjà là)' : ''}${x.doublons.length ? ' ×2' : ''}`, !x.importable ? 'mauvais' : x.dejaEnBase ? '' : 'alerte'))),
+            ...d.etudes.filter((x) => !x.importable).map((x) => h('div', { class: 'petit erreur' }, `Non importable : ${x.categorie} / ${x.theme} (${x.fichiers.join(', ') || 'aucun fichier'}) — ${motifNonImportable(x)}`)),
+            ...d.ignores.slice(0, 20).map((g) => h('div', { class: 'petit doux' }, `Ignoré : ${g.nom} — ${g.raison}`)),
           )
         }),
         h('div', { class: 'ligne' },
@@ -403,6 +411,12 @@ function vueDrive() {
       h('h2', {}, r.essai
         ? `Aperçu : ${r.aImporter} rayon(s) à importer, ${r.doublons} doublon(s), ${r.refusees} refusé(s)`
         : `${r.importees} rayon(s) importé(s), ${r.doublons} doublon(s) ignoré(s), ${r.refusees} refusé(s)`),
+      r.refusees > 0 && h('div', { class: 'erreur' },
+        h('p', {}, `${r.refusees} rayon(s) refusé(s) par le site, rien n’a été écrit pour eux :`),
+        r.lignes.filter((x) => x.statut === 'refuse').map((x) => h('div', { class: 'petit' }, `${x.date} · ${x.rayon} — ${x.raison || 'motif non donné par le site'}`)),
+        h('p', { class: 'petit' }, ATTENDU_DRIVE),
+      ),
+      !r.essai && r.importees === 0 && r.refusees === 0 && !r.lignes.length && h('p', { class: 'erreur' }, `Aucun rayon importable dans les dates choisies. ${ATTENDU_DRIVE}`),
       h('p', { class: 'doux petit' }, `Contrat (20 produits, 20 adresses, prix sur 18) : ${r.conformes} conforme(s) sur ${r.lignes.filter((x) => x.statut === 'importe' || x.statut === 'apercu').length}${r.rapportsEnBase != null ? ` · ${r.rapportsEnBase} rapports en ligne` : ''}`),
       h('table', {},
         h('thead', {}, h('tr', {}, ['Date', 'Rayon', 'Statut', 'Produits', 'Adresses', 'Avec prix', 'Marketing'].map((t) => h('th', {}, t)))),
@@ -540,7 +554,7 @@ function vueReglages() {
 // ---------------------------------------------------------------- journal
 function vueJournal() {
   return h('div', {}, h('h1', {}, 'Journal'),
-    h('div', { class: 'journal' }, etat.journal.length ? etat.journal.slice().reverse().map((l) => h('div', { class: l.niveau === 'erreur' ? 'erreur' : '' }, `${l.t.slice(11, 19)}  ${l.message}${l.raison ? ' — ' + l.raison : ''}`)) : 'Rien pour l’instant.'))
+    h('div', { class: 'journal' }, etat.journal.length ? etat.journal.slice().reverse().map((l) => h('div', { class: l.niveau === 'erreur' ? 'erreur' : '' }, `${l.t.slice(11, 19)}  ${l.message}${l.raison ? ' — ' + l.raison : ''}`, ...(Array.isArray(l.motifs) ? l.motifs : []).map((m) => h('div', { class: 'petit' }, `   refusé : ${m}`)))) : 'Rien pour l’instant.'))
 }
 
 // ---------------------------------------------------------------- cadre
