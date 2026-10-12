@@ -424,15 +424,35 @@ function afficherSource(id, bounds) {
   if (bounds) vueNavigateur.setBounds({ x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.width), height: Math.round(bounds.height) })
 }
 
-// ---- Windows: restart by itself after a crash or a kill (answer to "Docker never came back")
-function chienDeGarde() {
+// ---- Windows: start with the session and restart after a crash, ONLY while the automatic night is on.
+// Until 0.3.5 both were always on and not discreet (12/10, BIGWORK): a scheduled task launched the exe every
+// 10 minutes, each launch brought the window back to the front, and a « Quitter » was undone within 10 minutes.
+// Launches made by the watchdog or at login now carry an argument and stay in the tray.
+const ARG_GARDE = '--garde'
+const ARG_DEMARRAGE = '--demarrage'
+const lancementDiscret = (argv) => [ARG_GARDE, ARG_DEMARRAGE, '--cache'].some((a) => argv.includes(a))
+// written by « Quitter »: the watchdog respects it, a launch by hand or at login removes it
+const fichierArretVolontaire = () => path.join(dossierDonnees(), 'arret-volontaire')
+
+const NOM_LANCEMENT = 'DropShipper Poste d analyses'
+
+function lancementsAutomatiques() {
   if (process.platform !== 'win32' || !app.isPackaged) return
-  // Every 10 minutes: starting a second instance is harmless (single-instance lock) and relaunches a dead one.
-  execFile('schtasks', ['/Create', '/F', '/SC', 'MINUTE', '/MO', '10', '/TN', 'DropShipper Poste d analyses', '/TR', `"${process.execPath}"`], () => {})
+  // 0.3.5 and older wrote a Run entry under the generic name « electron.app.Electron »: always removed
+  app.setLoginItemSettings({ openAtLogin: false })
+  const actif = Boolean(cfg.nuitActivee)
+  app.setLoginItemSettings({ openAtLogin: actif, name: NOM_LANCEMENT, args: [ARG_DEMARRAGE] })
+  // Every 10 minutes: a running Poste only sees a discreet second instance; a dead one comes back in the tray.
+  const tache = actif
+    ? ['/Create', '/F', '/SC', 'MINUTE', '/MO', '10', '/TN', NOM_LANCEMENT, '/TR', `"${process.execPath}" ${ARG_GARDE}`]
+    : ['/Delete', '/F', '/TN', NOM_LANCEMENT]
+  execFile('schtasks', tache, () => {})
 }
 
-function demarrageAuto() {
-  if (process.platform === 'win32' && app.isPackaged) app.setLoginItemSettings({ openAtLogin: true })
+function quitterVolontairement() {
+  try { fs.writeFileSync(fichierArretVolontaire(), new Date().toISOString()) } catch { /* the watchdog will relaunch it, hidden */ }
+  quitter = true
+  app.quit()
 }
 
 // ---- IPC
@@ -537,12 +557,13 @@ function brancher() {
     if (actif) {
       const n = rayonsDeLaNuit(jourLocal()).length
       if (!n) throw new Error('Aucun rayon coché : cochez au moins un rayon dans « Rayons du jour ».')
-      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', `Le poste lancera seul ${n === 24 ? 'les 24 rayons' : `les ${n} rayon${n > 1 ? 's' : ''} cochés`} chaque nuit. Coût par nuit : ${coutParRayon(n)}. Vous pouvez la couper ici à tout moment.`)
+      const ok = await accord('Activer la nuit automatique à ' + cfg.heureNuit + ' ?', `Le poste lancera seul ${n === 24 ? 'les 24 rayons' : `les ${n} rayon${n > 1 ? 's' : ''} cochés`} chaque nuit. Coût par nuit : ${coutParRayon(n)}. Il démarrera avec Windows, discrètement dans la zone de notification, et reviendra seul après un plantage. Vous pouvez la couper ici à tout moment.`)
       if (!ok) return etat()
       cfg.accordNuitLe = new Date().toISOString()
     }
     cfg.nuitActivee = Boolean(actif)
     sauver()
+    lancementsAutomatiques()
     return etat()
   })
   h('source-ajouter', (brut) => {
@@ -592,7 +613,7 @@ function creerFenetre() {
     minWidth: 960,
     minHeight: 640,
     title: `DropShipper Poste d’analyses — v${app.getVersion()}`,
-    show: !process.argv.includes('--cache'),
+    show: !lancementDiscret(process.argv),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   fenetre.setMenuBarVisibility(false)
@@ -614,7 +635,7 @@ function creerTray() {
       { label: 'Ouvrir', click: montrer },
       { label: 'Ouvrir le dossier de dépôt', click: () => shell.openPath(racine) },
       { type: 'separator' },
-      { label: 'Quitter', click: () => { quitter = true; app.quit() } },
+      { label: 'Quitter', click: quitterVolontairement },
     ]))
     tray.on('click', montrer)
   } catch { /* no tray on this system */ }
@@ -650,10 +671,17 @@ function rapportsDuJourTousValides() {
   return agents.rayonsDuJour(agents.charger(), date).every((r) => rapportValide(racine, date, r.categorie, r.theme))
 }
 
-if (!app.requestSingleInstanceLock() && !BANC) {
+const arreteParMax = () => { try { return fs.existsSync(fichierArretVolontaire()) } catch { return false } }
+
+if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
+  // Max chose « Quitter »: the watchdog does not bring the Poste back, the next launch by hand or at login does
+  app.quit()
+} else if (!app.requestSingleInstanceLock() && !BANC) {
   app.quit()
 } else {
-  app.on('second-instance', () => { if (fenetre) { fenetre.show(); fenetre.focus() } })
+  if (!process.argv.includes(ARG_GARDE)) try { fs.rmSync(fichierArretVolontaire(), { force: true }) } catch { /* nothing to remove */ }
+  // only a launch by hand (shortcut, Start menu) brings the window forward
+  app.on('second-instance', (_e, argv) => { if (fenetre && !lancementDiscret(argv)) { fenetre.show(); fenetre.focus() } })
   app.whenReady().then(() => {
     cfg = config.charger(dossierDonnees())
     // 03/10/2026: Max wants EVERY validated report on the site. The old send went to a table no screen read, so
@@ -675,8 +703,7 @@ if (!app.requestSingleInstanceLock() && !BANC) {
     brancher()
     creerFenetre()
     creerTray()
-    demarrageAuto()
-    chienDeGarde()
+    lancementsAutomatiques()
     demarrerPlanificateur()
   })
   app.on('before-quit', () => { quitter = true })

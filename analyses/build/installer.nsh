@@ -1,6 +1,6 @@
 ; Custom NSIS steps for electron-builder.
-; The installer creates the deposit folder and the watchdog task; the
-; uninstaller removes the task but NEVER the deposit folder (Max's reports).
+; The installer creates the deposit folder; the uninstaller removes the
+; watchdog task the Poste may have created but NEVER the deposit folder (Max's reports).
 
 !macro customInstall
   CreateDirectory "C:\DropShipper-Analyses"
@@ -10,8 +10,7 @@
   CreateDirectory "C:\DropShipper-Analyses\diagnostics"
   CreateDirectory "C:\DropShipper-Analyses\sauvegardes"
   CreateDirectory "C:\DropShipper-Analyses\prompts"
-  ; watchdog: a second launch every 10 min is harmless (single-instance lock) and relaunches a dead app
-  nsExec::Exec 'schtasks /Create /F /SC MINUTE /MO 10 /TN "DropShipper Poste d analyses" /TR "\"$INSTDIR\${APP_EXECUTABLE_FILENAME}\""'
+  ; no watchdog task here (12/10): the Poste creates it itself, and only while the automatic night is on
 !macroend
 
 !macro customUnInstall

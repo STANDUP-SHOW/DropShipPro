@@ -20,9 +20,15 @@ installateur » (construit par `.github/workflows/poste-analyses-windows.yml`).
 complémentaires › Exécuter quand même.
 
 L'installateur crée `C:\DropShipper-Analyses\` (rapports, releves, journaux,
-diagnostics, sauvegardes, prompts) et une tâche Windows qui relance l'application
-toutes les 10 minutes si elle est arrêtée. Le désinstaller ne supprime jamais le
-dossier de dépôt.
+diagnostics, sauvegardes, prompts). Le désinstaller ne supprime jamais le dossier de dépôt.
+
+Démarrage avec Windows et relance (0.3.6, 12/10/2026) : seulement quand la nuit automatique est
+activée. Le Poste démarre alors avec la session (`--demarrage`) et une tâche Windows le relance
+toutes les 10 minutes s'il est mort (`--garde`), toujours caché dans la zone de notification ; un
+« Quitter » du menu de la zone est respecté par la tâche. Nuit coupée : ni tâche, ni démarrage
+automatique. Jusqu'à la 0.3.5, la tâche était toujours là et ramenait la fenêtre au premier plan
+toutes les 10 minutes ; la 0.3.6 la supprime au premier démarrage, avec l'ancienne entrée de
+démarrage « electron.app.Electron ».
 
 ## Premier lancement (dans cet ordre)
 
