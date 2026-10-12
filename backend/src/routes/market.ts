@@ -50,6 +50,22 @@ function baseAbsolue(req: Request) {
   return hote ? `${proto}://${hote}${req.baseUrl}` : `${marketUrl()}${req.baseUrl}`
 }
 
+/**
+ * Les produits en vedette (repris de la PR #37) : les articles Prime d'abord,
+ * puis les mieux notés (la note pèse avec le nombre d'avis), puis les plus
+ * récents. Douze au plus, pris parmi les soixante dernières annonces : pas de
+ * classement stocké, donc rien à entretenir.
+ */
+async function vedettesDuMarket(): Promise<Annonce[]> {
+  const recentes = await annonces({ limite: 60 })
+  const score = (a: Annonce) => (a.prime ? 1000 : 0) + (a.avis?.moyenne != null ? a.avis.moyenne * Math.log(1 + a.avis.nombre) : 0)
+  return recentes
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => score(y.a) - score(x.a) || x.i - y.i)
+    .slice(0, 12)
+    .map((x) => x.a)
+}
+
 async function liste(req: Request, filtre: Parameters<typeof annonces>[0]) {
   const n = numeroPage(req)
   const res = await annonces({ ...filtre, limite: PAR_PAGE + 1, decalage: (n - 1) * PAR_PAGE })
@@ -64,12 +80,13 @@ function html(res: Response, corps: string, cache = 300) {
 marketRouter.get(
   '/',
   page(async (req, res) => {
-    const [l, { rayons: r }] = await Promise.all([liste(req, {}), arbreMarket()])
+    const [l, { rayons: r }, vedettes] = await Promise.all([liste(req, {}), arbreMarket(), vedettesDuMarket()])
     html(
       res,
       pageListe({
         base: req.baseUrl,
         accueil: true,
+        vedettes: l.page === 1 ? vedettes : [],
         titre: 'DropShop Market : la place de marché des boutiques DropShop',
         h1: 'Les nouveautés des boutiques DropShop',
         intro: 'Des milliers de produits, vendus par des boutiques indépendantes. Livraison comprise, paiement sécurisé par Stripe.',

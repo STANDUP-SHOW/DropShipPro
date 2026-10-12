@@ -106,6 +106,15 @@ h2{font-size:20px;margin:32px 0 12px}
 .carte .p{font-weight:800;font-size:17px;margin-top:auto}.carte .p small{font-weight:500;color:var(--gris);font-size:12px}
 .carte .v{font-size:12px;color:var(--gris)}
 .etoiles{color:#f5a623;letter-spacing:1px}.note{font-size:12px;color:var(--gris)}
+.vedettes{position:relative;margin:0 0 28px}
+.vedettes h2{margin:0 0 12px}
+.vedettes .piste{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:2px 2px 6px}
+.vedettes .piste::-webkit-scrollbar{display:none}
+.vedettes .carte{flex:0 0 190px;scroll-snap-align:start}
+.vedettes .fleche{position:absolute;top:50%;width:42px;height:42px;border-radius:50%;border:0;background:var(--nuit);color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:2}
+.vedettes .fleche.g{left:-12px}.vedettes .fleche.d{right:-12px}
+.vedettes .fleche:hover{background:var(--accent)}
+@media (max-width:640px){.vedettes .fleche{display:none}.vedettes .carte{flex-basis:160px}}
 .avis{border-top:1px solid var(--trait);padding:14px 0}.avis:first-of-type{border-top:0}.avis p{margin:6px 0}
 .avis .ph{display:flex;gap:6px;margin-top:6px}.avis .ph img{width:64px;height:64px;object-fit:cover;border-radius:8px}
 .fil{font-size:13px;color:var(--gris);margin-bottom:12px}.fil a{color:var(--accent)}
@@ -556,6 +565,21 @@ function etatLisible(condition: string): string {
   return { neuf: 'Neuf', reconditionne: 'Reconditionné', occasion: 'Occasion' }[condition] ?? 'Neuf'
 }
 
+/**
+ * Le défilé des produits en vedette, en haut de l'accueil (repris de la PR #37) :
+ * glissement tactile ou flèches, sans bibliothèque. Sans script, le défilé se
+ * fait au doigt ou à la molette ; le défilement automatique respecte
+ * `prefers-reduced-motion`. Moins de quatre produits : rien.
+ */
+export function carrouselVedettes(base: string, vedettes: Annonce[]): string {
+  if (vedettes.length < 4) return ''
+  return `<section class="vedettes" aria-label="Produits en vedette"><h2>En vedette</h2>
+<button type="button" class="fleche g" aria-label="Précédent" data-sens="-1">‹</button>
+<div class="piste">${vedettes.map((a) => carte(base, a)).join('')}</div>
+<button type="button" class="fleche d" aria-label="Suivant" data-sens="1">›</button>
+<script>(function(){var s=document.currentScript.parentNode,p=s.querySelector('.piste'),pas=function(){return Math.max(200,p.clientWidth*.8)},t;function go(d){if(d>0&&p.scrollLeft+p.clientWidth>=p.scrollWidth-4){p.scrollTo({left:0})}else if(d<0&&p.scrollLeft<=4){p.scrollTo({left:p.scrollWidth})}else{p.scrollBy({left:d*pas()})}}s.querySelectorAll('.fleche').forEach(function(b){b.addEventListener('click',function(){go(+b.dataset.sens)})});if(!matchMedia('(prefers-reduced-motion: reduce)').matches){var auto=function(){t=setInterval(function(){go(1)},5000)};s.addEventListener('mouseenter',function(){clearInterval(t)});s.addEventListener('mouseleave',auto);s.addEventListener('touchstart',function(){clearInterval(t)},{passive:true});auto()}})()</script></section>`
+}
+
 export function pageListe(args: {
   base: string
   titre: string
@@ -571,6 +595,8 @@ export function pageListe(args: {
   puces?: { rayon: Rayon; courante: string | null }
   /** Accueil : bandeau Prime et tuiles des 24 catégories. */
   accueil?: boolean
+  /** Accueil : produits en vedette, en défilé avant le bandeau Prime. */
+  vedettes?: Annonce[]
   page: number
   suivante: boolean
   indexable?: boolean
@@ -593,7 +619,7 @@ export function pageListe(args: {
         .join('')}</div>`
     : ''
   const accueil = args.accueil && args.page === 1
-    ? `<a class="bandeau-prime" href="${base}/prime"><span class="prime prime-gros">⚡ PRIME</span><span><b>Livré en 24 h</b><br><span class="muted">Les articles en stock en France, expédiés le jour même.</span></span><span class="btn" style="margin-left:auto">Voir les articles Prime</span></a>${tuilesRayons(base, args.rayons)}<h2>Les nouveautés</h2>`
+    ? `${carrouselVedettes(base, args.vedettes ?? [])}<a class="bandeau-prime" href="${base}/prime"><span class="prime prime-gros">⚡ PRIME</span><span><b>Livré en 24 h</b><br><span class="muted">Les articles en stock en France, expédiés le jour même.</span></span><span class="btn" style="margin-left:auto">Voir les articles Prime</span></a>${tuilesRayons(base, args.rayons)}<h2>Les nouveautés</h2>`
     : ''
   const corps = `${entete}
 ${puces}${accueil}
