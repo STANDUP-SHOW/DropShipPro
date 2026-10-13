@@ -1520,6 +1520,14 @@ export function titreProduitPublic(titre: string): string {
   return net && !PLATEFORME_TITRE.test(net) ? net : net.replace(new RegExp(PLATEFORME_TITRE.source, 'giu'), '').replace(/\s{2,}/g, ' ').trim() || titre
 }
 
+/** « À surveiller » / WATCHLIST as the line's verdict: at the start, or as the last segment after a separator (« Aspirer en profondeur… — À surveiller »); never mid-sentence. */
+const SURVEILLE = '(?:à\\s+surveiller|liste\\s+de\\s+surveillance|watch\\s*-?\\s*list)'
+const SURVEILLE_TETE = new RegExp(`^[^\\p{L}\\d]*${SURVEILLE}`, 'iu')
+const SURVEILLE_FIN = new RegExp(`(?:[—–·;:.|(]|\\s-)\\s*${SURVEILLE}(?:\\s+selon\\s+l['’]offre)?[\\s.)!]*$`, 'iu')
+export function verdictSurveille(v: string | null | undefined): boolean {
+  return SURVEILLE_TETE.test(v ?? '') || SURVEILLE_FIN.test(v ?? '')
+}
+
 export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
   return produits
     .filter((p) => !/^(titre|produit|nom|name|title|#)$/i.test(p.titre.trim()))
@@ -1533,7 +1541,7 @@ export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
       // A « sale price » at or under the line's own purchase price is the cost itself (« Cire de soja 8,00 € », constat de #104).
       const achatMax = Math.max(0, ...achatsDuProduit(p as { prixAchat?: number | null; achats?: number[] }))
       // A watch-list line is not advised for sale, so it has no advised sale price: always « — », whatever its cost (constats de #105, #106).
-      const surveille = [p.pourquoi, (p as { verdict?: string | null }).verdict].some((v) => /^\W*(?:à\s+surveiller|liste\s+de\s+surveillance|watch\s*-?\s*list)/i.test(v ?? ''))
+      const surveille = [p.pourquoi, (p as { verdict?: string | null }).verdict].some(verdictSurveille)
       const positif = (n: number | null | undefined) => (n != null && n > 0 && !(achatMax && n <= achatMax) && !surveille ? n : null)
       const prix = { prixVente: positif(p.prixVente), ...(p.prixMin !== undefined ? { prixMin: positif(p.prixMin) } : {}), ...(p.prixMax !== undefined ? { prixMax: positif(p.prixMax) } : {}) }
       const prixSains = prix.prixVente === p.prixVente && (p.prixMin === undefined || prix.prixMin === p.prixMin) && (p.prixMax === undefined || prix.prixMax === p.prixMax)
@@ -1568,6 +1576,8 @@ export function produitsUniques(produits: ProduitPublic[]): Array<ProduitPublic 
       avis.length > 1 && meilleur
         ? meilleur.includes(" selon l'offre") ? meilleur : meilleur.replace(/^([^·]*?)(\s+·\s+|$)/, "$1 selon l'offre$2")
         : avecPrix.verdicts
+    // When the best offer is only « À surveiller », no offer is advised for sale: no advised price at all (constat de #109).
+    if (verdictSurveille(verdicts ?? pourquoiAffiche(avecPrix))) return { ...avecPrix, rang: Math.min(...offres.map((o) => o.rang)), prixVente: null, prixMin: null, prixMax: null, verdicts }
     return { ...avecPrix, rang: Math.min(...offres.map((o) => o.rang)), prixMin: prix.length ? Math.min(...prix) : null, prixMax: prix.length ? Math.max(...prix) : null, verdicts }
   })
 }
