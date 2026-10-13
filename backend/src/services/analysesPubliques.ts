@@ -1526,7 +1526,9 @@ export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
       t = titreProduitPublic(texteRepare(apostrophesDuTexte(t.replace(/^(\p{L}+)\s+\p{L}+\s+(?=\1(?![\p{L}]))/iu, ''))))
       const pourquoi = p.pourquoi ? texteRepare(apostrophesDuTexte(p.pourquoi)) : p.pourquoi
       // A public price at or under zero is a parsing accident, never a price (« -10,00 € », 12/10/2026).
-      const positif = (n: number | null | undefined) => (n != null && n > 0 ? n : null)
+      // A « sale price » at or under the line's own purchase price is the cost itself (« Cire de soja 8,00 € », constat de #104).
+      const achatMax = Math.max(0, ...achatsDuProduit(p as { prixAchat?: number | null; achats?: number[] }))
+      const positif = (n: number | null | undefined) => (n != null && n > 0 && !(achatMax && n <= achatMax) ? n : null)
       const prix = { prixVente: positif(p.prixVente), ...(p.prixMin !== undefined ? { prixMin: positif(p.prixMin) } : {}), ...(p.prixMax !== undefined ? { prixMax: positif(p.prixMax) } : {}) }
       const prixSains = prix.prixVente === p.prixVente && (p.prixMin === undefined || prix.prixMin === p.prixMin) && (p.prixMax === undefined || prix.prixMax === p.prixMax)
       return t === p.titre && pourquoi === p.pourquoi && prixSains ? p : { ...p, ...prix, titre: t, pourquoi }
@@ -2426,7 +2428,11 @@ export function sansDebris(corps: string): string {
     // took out, with no source left; nothing says they are sale prices, so the line goes (reseau 12/10, constat de #98).
     .replace(/^[^\S\n]*[-*+][^\S\n]+(?:\p{Lu}[^,:;()\[\]\n€]{0,30}?[^\S\n]\d[\d\s]*(?:,\d+)?(?:[^\S\n]*€)?(?:[^\S\n]+à[^\S\n]+\d[\d\s]*(?:,\d+)?)?[^\S\n]*€,[^\S\n]*){2,}\p{Lu}[^,:;()\[\]\n€]{0,30}?[^\S\n]\d[\d\s]*(?:,\d+)?(?:[^\S\n]*€)?(?:[^\S\n]+à[^\S\n]+\d[\d\s]*(?:,\d+)?)?[^\S\n]*€[^\S\n]*\.?[^\S\n]*(?:\n|$)/gmu, '')
     // « parfums. 6, 9 ou 12 € pour un panier mixte (Numerama) » : the amount lost its subject (bougies 12/10); the other pages say it so.
-    .replace(/(^|[.!?][^\S\n]+)(\d+(?:,\s*\d+)*\s+ou\s+\d+\s*€)\s+pour\s+un\s+panier\s+mixte/gmu, '$1Un panier mixte peut payer $2')
+    .replace(/(^[^\S\n]*(?:[-*+][^\S\n]+)?|[.!?][^\S\n]+)(\d+(?:,\s*\d+)*\s+ou\s+\d+\s*€)\s+pour\s+un\s+panier\s+mixte/gmu, '$1Un panier mixte peut payer $2')
+    // « Quantités recommandées : 30 bougies, 15 coffrets » and « ### Montée en volume » (5 → 10 → 25 unités, paliers) :
+    // how much to buy, never public (pages du Poste, constat de #104). The heading goes with its section.
+    .replace(/^[^\S\n]*[-*+][^\S\n]+(?:\*\*)?quantités?\s+recommandées?(?:\*\*)?[^\S\n]*:[^\n]*(?:\n|$)/gimu, '')
+    .replace(/^#{2,4}[^\S\n]+montée\s+en\s+volume[^\n]*\n(?:(?!#)[^\n]*(?:\n|$))*/gimu, '')
     // « Le catalogue dropshipping ci-dessous a été constitué par consultation directe des pages catégories… » : how we sourced (electronique 04/10).
     .replace(/(^|[.!?][^\S\n]+)[^.!?\n]*?constitué\s+par\s+consultation\s+directe[^.!?\n]*[.!?]?[^\S\n]*/gimu, '$1')
     // « Les fiches "extension" doivent être recontrôlées… : la page se construit en JavaScript et les specs… » : our import tooling (sols 04/10).
@@ -2437,6 +2443,10 @@ export function sansDebris(corps: string): string {
 export function texteRepare(texte: string): string {
   if (!texte) return texte
   return fautesDesAgents(texte)
+    // « en stock limité plutôt qu'en gros volume », « avant gros volume », « sets basiques en volume » : how much to
+    // buy (photo-action, électronique, verres 04/10, constat de #104). « le premier segment en volume » stays.
+    .replace(/[^\S\n]+(?:plutôt\s+qu['’]en|avant(?:\s+un)?)\s+(?:très\s+)?gros\s+(?:volumes?|stocks?)(?![\p{L}])/giu, '')
+    .replace(/(?<!vend\p{L}*|segment|marché|recherche|test|(?:marché|part|%)[^.;\n]{0,80})[^\S\n]+en\s+volume(?=[^\S\n]*(?:[,.;]|$))/gimu, '')
     // « vendu around 50 € », « « QI + »anonymisé », « l'AUTO-SHIPPER », « # Shein/Temu Native Feed 4:5 ».
     .replace(/(?<![\p{L}])around(?![\p{L}])/gu, 'environ')
     .replace(/»anonymisée?s?/g, '»')
