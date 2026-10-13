@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { apiBaseUrl } from '../lib/urls.js'
 import { ADMIN_EMAIL, requireAuth, type AuthedRequest } from '../middleware/auth.js'
-import { BOUTIQUE_MODIFS_INCLUSES, DROPS } from '../services/tarifs.js'
+import { BOUTIQUE_MODIFS_ILLIMITEES, DROPS } from '../services/tarifs.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { SiteImpossible } from '../services/siteGenerator.js'
 import { catalogueDe as catalogueExtensionsDe, desinstallerExtension, ExtensionRefusee, installerExtension } from '../services/extensions.js'
@@ -68,7 +68,7 @@ dropshopRouter.get('/:shopId', async (req: AuthedRequest, res) => {
     stripe: Boolean(shop.stripeSecretKey),
     travail: travail ?? (dernier && dernier.fin ? dernier : null),
     versions,
-    tarifs: { creation: DROPS.boutiqueCreation, modification: DROPS.boutiqueModification, incluses: BOUTIQUE_MODIFS_INCLUSES },
+    tarifs: { creation: DROPS.boutiqueCreation, modification: DROPS.boutiqueModification, illimitees: BOUTIQUE_MODIFS_ILLIMITEES },
   })
 })
 

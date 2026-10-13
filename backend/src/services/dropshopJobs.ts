@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { absoluteUrl } from '../lib/urls.js'
 import { reserveCredits, refundCredits } from './billing.js'
 import { resoudre } from './themes.js'
-import { BOUTIQUE_MODIFS_INCLUSES, DROPS } from './tarifs.js'
+import { DROPS } from './tarifs.js'
 import {
   fabriquerSite,
   modifierSite,
@@ -75,9 +75,10 @@ export async function gammesPour(shop: Shop): Promise<{ couleurs: CouleurLogo[];
  * mort : le suivant peut démarrer, et les drops de celui-là sont rendus la
  * première fois qu'on le constate.
  *
- * **Le prix se prend avant, se rend après.** Création : 350 drops (une seule fois, à vie), tout ou
- * rien (`allowed === prix`, leçon de l'AUTO-SHIPPER). Modification : comprise
- * tant qu'il en reste (10 à la création), 10 drops ensuite. Tout échec —
+ * **Le prix se prend avant, se rend après.** Création : 500 drops (une seule fois, à vie), tout ou
+ * rien (`allowed === prix`, leçon de l'AUTO-SHIPPER). Modification : à volonté,
+ * sans drops depuis le 13/10/2026 (`DROPS.boutiqueModification` vaut 0 ; s'il
+ * remonte un jour, le débit ci-dessous reprend tout seul). Tout échec —
  * modèle indisponible, page qui ne passe pas le contrôle, exception — rend ce
  * qui a été pris.
  */
@@ -198,9 +199,8 @@ export async function lancerCreation(shop: Shop, brief: string, outils: Outils =
 export async function lancerModification(shop: Shop, demande: string, outils: Outils = {}): Promise<EtatTravail> {
   if (!shop.siteHtml) throw new TravailRefuse("Cette boutique n'a pas encore été créée par l'IA.", 400)
   if (await travailOuvert(shop)) throw new TravailRefuse('Un travail est déjà en cours sur cette boutique.', 409)
-  let drops = 0
-  if (shop.siteModifsRestantes <= 0) {
-    drops = DROPS.boutiqueModification
+  const drops = DROPS.boutiqueModification
+  if (drops > 0) {
     const credit = await reserveCredits(shop.userId, drops, 'Modification de boutique DropShop IA', shop.id)
     if (!credit.ok || credit.allowed !== drops) {
       if (credit.allowed > 0) await refundCredits(shop.userId, credit.allowed, 'Modification de boutique : débit partiel rendu', shop.id)
@@ -234,18 +234,18 @@ export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): P
       catalogue.direction = etat.options?.direction ?? null
       catalogue.dossierDesign = dossierEnTexte(dossierDesignPour(etat.demande, catalogue.categories.map((c) => c.nom)))
       const fait = await fabriquerSite(etat.demande, catalogue, appeler, verifier, surEtape)
-      await publierVersion(shop.id, fait.html, etat.demande, fait.modele, { brief: etat.demande, modifsRestantes: BOUTIQUE_MODIFS_INCLUSES })
+      await publierVersion(shop.id, fait.html, etat.demande, fait.modele, { brief: etat.demande })
       console.log(`[dropshop] boutique ${shop.id} créée : ${fait.tentatives} passage(s), ${fait.jetons.entree}+${fait.jetons.sortie} jetons, ${fait.cout.toFixed(3)} $`)
       etat.resume = fait.avertissements.length ? `Boutique créée. À surveiller : ${fait.avertissements.join(' ')}` : 'Boutique créée.'
       etat.jetons = fait.jetons
       etat.cout = Math.round(fait.cout * 1000) / 1000
     } else {
-      const actuel = await prisma.shop.findUnique({ where: { id: shop.id }, select: { siteHtml: true, siteModifsRestantes: true } })
+      const actuel = await prisma.shop.findUnique({ where: { id: shop.id }, select: { siteHtml: true } })
       if (!actuel?.siteHtml) throw new SiteImpossible('La boutique a disparu pendant le travail.')
       // Ce que la page a déjà (modes visiteur, logo) doit survivre à la modification.
       const options = { modesVisiteur: /data-mode=/.test(actuel.siteHtml), logo: Boolean(shop.vitrineLogoEntete) }
       const fait = await modifierSite(actuel.siteHtml, etat.demande, appeler, verifier, surEtape, options)
-      await publierVersion(shop.id, fait.html, etat.demande, fait.modele, etat.drops === 0 ? { modifsRestantes: Math.max(0, actuel.siteModifsRestantes - 1) } : {})
+      await publierVersion(shop.id, fait.html, etat.demande, fait.modele, {})
       console.log(`[dropshop] boutique ${shop.id} modifiée : ${fait.jetons.entree}+${fait.jetons.sortie} jetons, ${fait.cout.toFixed(3)} $`)
       etat.resume = fait.resume || 'Modification appliquée.'
       etat.jetons = fait.jetons

@@ -14,7 +14,7 @@ import { MODELE_RAPIDE, MODELE_REDACTION, TARIFS, modele } from './aiModels.js'
  * responsive, modifiable par simple demande — pas un choix dans un catalogue
  * de gabarits.
  *
- * ## Comment ça tient à 3,50 € la boutique, payés une seule fois à vie
+ * ## Comment ça tient à 5 € la boutique, payés une seule fois à vie
  *
  * **Le modèle n'écrit que ce qui est unique** : la page HTML entière — mise en
  * page, CSS, textes, écrans, animations. Il ne réécrit jamais la logique de

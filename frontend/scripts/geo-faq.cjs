@@ -17,7 +17,7 @@ module.exports = ({ nbCanaux, nbFournisseurs }) => [
   },
   {
     q: 'Combien coûte DropShipper IA ?',
-    a: `Il n'y a pas d'abonnement : tout se paie à l'acte en « drops » (1 drop = 0,01 €). Importer une annonce et la faire réécrire par l'IA coûte 12 drops, soit 0,12 € ; 8 drops en import par lot. Une boutique en ligne écrite par l'IA (DropShop IA) coûte 350 drops, soit 3,50 €, payés une seule fois, hébergement compris. 120 drops sont offerts à l'inscription, de quoi importer dix annonces sans payer.`,
+    a: `Il n'y a pas d'abonnement : tout se paie à l'acte en « drops » (1 drop = 0,01 €). Importer une annonce et la faire réécrire par l'IA coûte 12 drops, soit 0,12 € ; 8 drops en import par lot. Une boutique en ligne écrite par l'IA (DropShop IA) coûte 500 drops, soit 5,00 €, payés une seule fois, hébergement et modifications à volonté compris. 120 drops sont offerts à l'inscription, de quoi importer dix annonces sans payer.`,
   },
   {
     q: 'Sur quelles plateformes DropShipper IA publie-t-il les annonces ?',
@@ -37,7 +37,7 @@ module.exports = ({ nbCanaux, nbFournisseurs }) => [
   },
   {
     q: 'Peut-on créer une boutique en ligne avec DropShipper IA ?',
-    a: `Oui. DropShop IA écrit une boutique complète à partir d'une description et du logo du vendeur : design unique et responsive, catalogue, panier, commande, emails, paiement Stripe sur le compte du marchand. Elle coûte 350 drops (3,50 €) payés une seule fois, hébergement et dix modifications compris, sans mention DropShipper sur la boutique. Une vitrine à thèmes, gratuite, reste disponible.`,
+    a: `Oui. DropShop IA écrit une boutique complète à partir d'une description et du logo du vendeur : design unique et responsive, catalogue, panier, commande, emails, paiement Stripe sur le compte du marchand. Elle coûte 500 drops (5 €) payés une seule fois, hébergement et modifications à volonté compris, sans mention DropShipper sur la boutique. Une vitrine à thèmes, gratuite, reste disponible.`,
   },
   {
     q: "L'IA peut-elle importer et publier toute seule ?",

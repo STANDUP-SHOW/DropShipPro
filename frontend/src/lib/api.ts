@@ -127,7 +127,7 @@ export interface EtatDropShop {
   stripe: boolean
   travail: TravailDropShop | null
   versions: Array<{ numero: number; demande: string; modele: string; createdAt: string }>
-  tarifs: { creation: number; modification: number; incluses: number }
+  tarifs: { creation: number; modification: number; illimitees: boolean }
 }
 
 export interface MarketVendeur {
