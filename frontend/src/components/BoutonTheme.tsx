@@ -7,7 +7,7 @@ import { useTheme } from '../lib/theme'
  * Deux moitiés, lune et soleil : celle du thème en cours porte le dégradé de
  * la marque, l'autre attend. Un seul clic suffit, sur n'importe quelle moitié.
  */
-export function BoutonTheme() {
+export function BoutonTheme({ className = 'mb-6' }: { className?: string }) {
   const [theme, basculer] = useTheme()
   const sombre = theme === 'dark'
   const moitie = (active: boolean) =>
@@ -18,7 +18,7 @@ export function BoutonTheme() {
     <div
       role="group"
       aria-label="Thème de l'application"
-      className="mb-6 flex rounded-lg border border-white/10 bg-white/5 p-0.5"
+      className={`${className} flex rounded-lg border border-white/10 bg-white/5 p-0.5`}
     >
       <button type="button" onClick={sombre ? undefined : basculer} aria-pressed={sombre} title="Mode sombre" className={moitie(sombre)}>
         <Moon size={13} /> Sombre

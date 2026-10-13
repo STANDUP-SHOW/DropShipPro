@@ -12,7 +12,7 @@ import { IconeDropShop, TAILLE_ICONE_MARQUE } from './LogoDropShop'
  * charte (voir lib/shopifyAffiliation.ts) — écrire le nom d'un partenaire à ses
  * couleurs est la convention, et c'est ce que font les intégrateurs.
  */
-function IconeShopify({ size = TAILLE_ICONE_MARQUE }: { size?: number }) {
+export function IconeShopify({ size = TAILLE_ICONE_MARQUE }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden className="shrink-0">
       <path

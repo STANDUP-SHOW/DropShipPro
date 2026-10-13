@@ -561,3 +561,21 @@ html[data-theme="light"] { color-scheme: light; }
   .tournee-as-boucle,
   .tournee-as-rouage { animation: none; }
 }
+
+/* L'espace connecté (refonte du 13/10/2026, maquette de Max) : Montserrat
+ * partout, aux tailles de texte d'avant — seule la famille change. Les jetons
+ * de la charte se retournent en thème clair pour la coque et la vue
+ * d'ensemble, qui les lisent. */
+.espace-connecte { font-family: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+[data-theme="light"] .espace-connecte {
+  --nuit: #f5f6fa; --panneau: #ffffff; --panneau-haut: #eef0f5;
+  --trait: #e2e5ec; --trait-fort: #c9cfdb;
+  --texte: #111827; --texte-2: #4b5563; --texte-3: #6b7280;
+}
+
+/* Les cases de la vue d'ensemble : panneau de la charte, filet discret. */
+.case-ds {
+  background: var(--panneau);
+  border: 1px solid var(--trait);
+  border-radius: 16px;
+}

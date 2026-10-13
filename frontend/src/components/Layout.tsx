@@ -1,312 +1,260 @@
-import { Link, useLocation } from 'react-router-dom'
-import { Fragment, useEffect, useState } from 'react'
-import { Package, ShoppingBag, Settings as SettingsIcon, LogOut, BookOpen, Inbox, Truck, Users, Megaphone, Store, Calculator, Boxes, FolderTree, LifeBuoy, ChevronRight, LayoutDashboard, Link2, Puzzle, TrendingUp, Trophy, Newspaper, Search, Menu as MenuIcon, X,
-  Share2,
-  Wand2,
-  Zap,
-} from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { BookOpen, ChevronDown, ChevronRight, LogOut, Menu as MenuIcon, Search, X } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { Logo } from './Logo'
 import { FondVivant } from './FondVivant'
 import { BoutonTheme } from './BoutonTheme'
-import { MenuBoutiques } from './MenuBoutiques'
 import { BandeauJauges } from './BandeauJauges'
 import { BandeauNotifications } from './BandeauNotifications'
 import { PastilleNotif } from './PastilleNotif'
+import { GROUPES, PAGES, RAYONS_BOOST, entreeActive, pageCourante, type GroupeMenu } from './menuEspace'
 import { SECTION_PAR_ADRESSE, titreNouveautes, useNouveautes } from '../lib/nouveautes'
 import { useAuth } from '../lib/auth'
 import { useNeonVarie } from '../lib/neonColors'
 import { api } from '../lib/api'
 
 /**
- * L'icône d'Auto-Shipper : celle de son logo (engrenage et flèches
- * circulaires sur carré rose → orange → jaune, 11/10/2026), découpée du PNG
- * de docs/marque/autoshipper-complet.png.
+ * La coque de l'espace connecté, refaite le 13/10/2026 sur la maquette de Max.
+ *
+ * Le menu tient en six groupes repliables (voir menuEspace.tsx) : seul le
+ * groupe de la page ouverte se déplie de lui-même, les autres restent sur leur
+ * titre — douze sections déroulées poussaient le solde et la déconnexion hors
+ * de l'écran. Les groupes ouverts à la main sont retenus d'une visite à
+ * l'autre.
+ *
+ * Sur l'écran large, une barre légère porte le fil d'Ariane et la recherche de
+ * page (Ctrl K). Les six jauges et la ligne Notifications + Extension restent
+ * en tête de chaque page, comme avant : ce sont nos blocs statistiques.
+ *
+ * Montserrat partout dans l'espace connecté (demande de Max), aux tailles de
+ * texte d'avant : la classe .espace-connecte ne change que la famille.
  */
-function IconeAutoShipper({ size = 16 }: { size?: number }) {
-  return <img src="/marque/autoshipper-icone-64.png" alt="" aria-hidden width={size} height={size} className="shrink-0 rounded-[4px]" />
+
+const CLE_GROUPES = 'menu-groupes-ouverts'
+
+function lireGroupesOuverts(): string[] {
+  try {
+    const brut = localStorage.getItem(CLE_GROUPES)
+    const liste = brut ? JSON.parse(brut) : []
+    return Array.isArray(liste) ? liste.filter((x) => typeof x === 'string') : []
+  } catch {
+    return []
+  }
 }
 
-const NAV = [
-  // Le tableau de bord d abord : l accueil du vendeur, ce sont ses chiffres.
-  { to: '/statistiques', label: 'Dashboard', icon: LayoutDashboard },
-  // La page « Pilote auto » est devenue l'agent AUTO-SHIPPER AI (06/09/2026) ;
-  // son entrée porte l'icône et le dégradé rose → orange → jaune de son logo.
-  { to: '/pilote', label: 'Auto-SHIPPER IA', icon: IconeAutoShipper },
-  { to: '/agents', label: 'Mes agents ADMIN', icon: Users },
-]
+function ecrireGroupesOuverts(ids: string[]) {
+  try {
+    localStorage.setItem(CLE_GROUPES, JSON.stringify(ids))
+  } catch {
+    // Stockage refusé (navigation privée) : le menu s'en passe.
+  }
+}
 
-/**
- * Les sections du menu, dans l'ordre du travail : on source un produit, on le
- * met en vente, on le fait connaître.
- *
- * Trois blocs quasi identiques vivaient recopiés dans le rendu, ce qui rendait
- * l'ajout d'un quatrième mécanique et l'oubli d'un détail probable. Une table,
- * un rendu.
- */
-/*
- * La découpe du 03/09/2026, appliquée telle quelle : acquisition, sourcing,
- * produits, diffusion, marketing, rayons IA, ventes en trois états,
- * livraisons, deux SAV séparés, comptabilité, puis l'outil lui-même.
- *
- * « Autorisation spéciale » en est sortie à la demande — la route reste
- * servie, la porte est côté serveur. L'imprimerie n'apparaît pas : produits
- * seulement.
- */
-const SECTIONS: Array<{
-  titre: string
-  /**
-   * `externe` : l'entrée quitte l'application et s'ouvre dans un autre onglet.
-   */
-  entrees: Array<{ to: string; label: string; icon: React.ElementType; externe?: boolean }>
-}> = [
-  {
-    titre: 'Acquisition produits',
-    entrees: [
-      { to: '/acquisition', label: 'Comment acquérir', icon: Link2 },
-      { to: '/extension', label: 'Extension Chrome', icon: Puzzle },
-    ],
-  },
-  {
-    // La zone Sourcing telle que la découpe la voulait (précisée le
-    // 04/09/2026) : les fournisseurs, puis leurs commandes par état.
-    titre: 'Sourcing',
-    // Les états (en cours, terminées, en SAV) sont des pilules SUR la page :
-    // les répéter dans le menu le doublait pour rien (retirés le 04/09/2026).
-    entrees: [
-      { to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes },
-      // Parcourir le catalogue de ceux qui sont reliés, et importer de là :
-      // la capacité vivait dans les connecteurs sans aucun écran pour y aller.
-      { to: '/catalogues', label: 'Catalogues connectés', icon: Search },
-      { to: '/commandes-fournisseurs', label: 'Commandes fournisseurs', icon: ShoppingBag },
-    ],
-  },
-  {
-    titre: 'Produits',
-    entrees: [
-      { to: '/dashboard', label: 'Mes annonces', icon: Package },
-      { to: '/categories', label: 'Catégories', icon: FolderTree },
-    ],
-  },
-  {
-    titre: 'Diffusion',
-    entrees: [
-      { to: '/plateformes-vente', label: 'Market places', icon: Store },
-      { to: '/mes-sites', label: 'Mes sites', icon: Store },
-      // Notre place de marche (drop-shop.cloud, 03/10/2026) : paiements Stripe, annonces, flux.
-      { to: '/dropshop-market', label: 'DropShop Market', icon: Store },
-      // Les deux boutiques — la nôtre et celle de Shopify — ne sont plus deux
-      // entrées plates : elles ont leur bloc à trois onglets (Créez, Modifier,
-      // Consulter), rendu juste après cette section. Voir MenuBoutiques.tsx.
-    ],
-  },
-  {
-    titre: 'Marketing',
-    entrees: [
-      { to: '/marketing', label: 'Commercialisation', icon: Megaphone },
-      // Sous Commercialisation : les comptes réseaux, les régies et la diffusion
-      // des visuels, sortis du bas de Commercialisation le 19/09/2026.
-      { to: '/reseaux', label: 'Réseaux', icon: Share2 },
-      // Ce que les agents déposent chaque matin côté marketing : l'analyse
-      // réseaux du rayon, et les prompts publicitaires prêts à coller. Deux
-      // vues de la page Réseaux, pointées directement (19/09/2026).
-      { to: '/reseaux?vue=analyses', label: 'Analyses réseaux', icon: Newspaper },
-      { to: '/reseaux?vue=prompts', label: 'Prompts IA', icon: Wand2 },
-      // Ce que les API marketing débloqueront une fois raccordées, et l'état réel
-      // de chaque raccordement (25/09/2026). Page publique, montée ici aussi.
-      { to: '/api-power/', label: 'API Power', icon: Zap },
-    ],
-  },
-  {
-    // La maison des rayons (réunie le 05/09/2026) : « Mes chefs de rayon »
-    // et le déroulant des rayons embauchés sont rendus en tête de section,
-    // avant ces deux entrées — voir le bloc conditionnel du rendu.
-    titre: 'Mes rayons IA',
-    entrees: [
-      { to: '/fresh-news', label: 'Fresh news', icon: Newspaper },
-      { to: '/analyse-marche', label: 'Analyses de marché', icon: TrendingUp },
-      { to: '/produits-gagnants', label: 'Produits gagnants', icon: Trophy },
-    ],
-  },
-  {
-    // Une seule porte : les états (nouvelles, en cours, terminées) sont des
-    // pilules sur la page Commandes elle-même.
-    titre: 'Ventes',
-    entrees: [{ to: '/orders', label: 'Commandes', icon: ShoppingBag }],
-  },
-  {
-    // Une seule porte, comme Ventes : les états sont des onglets sur la page.
-    titre: 'Livraisons',
-    entrees: [{ to: '/livraisons', label: 'Livraisons', icon: Truck }],
-  },
-  {
-    titre: 'SAV clients',
-    entrees: [
-      { to: '/sav', label: 'Service après-vente', icon: LifeBuoy },
-      { to: '/messages', label: 'Messagerie market places', icon: Inbox },
-    ],
-  },
-  {
-    /*
-     * Séparé du SAV clients, et c'est la découpe qui le veut : un litige avec
-     * un acheteur et un litige avec un fournisseur ne se traitent ni au même
-     * moment ni avec les mêmes armes.
-     */
-    titre: 'SAV fournisseurs',
-    entrees: [
-      { to: '/sav-fournisseurs', label: 'Service après-vente', icon: LifeBuoy },
-      { to: '/messagerie-fournisseurs', label: 'Messagerie fournisseurs', icon: Inbox },
-    ],
-  },
-  {
-    titre: 'Comptabilité',
-    entrees: [{ to: '/comptabilite', label: 'Comptabilité', icon: Calculator }],
-  },
-  {
-    titre: 'DropShipper',
-    entrees: [
-      { to: '/settings', label: 'Réglages', icon: SettingsIcon },
-      { to: '/credits', label: 'Mes crédits', icon: DropCoin },
-      { to: '/tickets', label: 'Mes tickets', icon: LifeBuoy },
-      { to: '/guide', label: "Mode d'emploi", icon: BookOpen },
-      { to: '/guide#contact', label: 'Aide & contact', icon: LifeBuoy },
-    ],
-  },
-]
+/** Sans accents ni majuscules : « reglages » trouve « Réglages ». */
+const plat = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-/**
- * Une jauge à son maximum, en dégradé multicolore — l'icône de la ligne
- * « MES RAYONS BOOST ». Lucide ne sait pas peindre un trait en dégradé,
- * d'où ce SVG à nous : l'arc et l'aiguille prennent le même dégradé
- * violet → fuchsia → ambre que le mot BOOST.
- */
-function JaugeMax({ taille = 14 }: { taille?: number }) {
+/** La recherche de page : Ctrl K (ou ⌘ K) l'ouvre, Échap la ferme. */
+function RecherchePage({ ouverte, fermer }: { ouverte: boolean; fermer: () => void }) {
+  const [texte, setTexte] = useState('')
+  const [rang, setRang] = useState(0)
+  const champ = useRef<HTMLInputElement>(null)
+  const naviguer = useNavigate()
+
+  useEffect(() => {
+    if (!ouverte) return
+    setTexte('')
+    setRang(0)
+    // Après la peinture : le champ n'existe pas encore au moment de l'effet.
+    const t = window.setTimeout(() => champ.current?.focus(), 0)
+    return () => window.clearTimeout(t)
+  }, [ouverte])
+
+  const trouvees = useMemo(() => {
+    const q = plat(texte.trim())
+    if (!q) return PAGES
+    return PAGES.filter((p) => plat(`${p.label} ${p.groupe} ${p.mots ?? ''}`).includes(q))
+  }, [texte])
+
+  if (!ouverte) return null
+
+  const aller = (to: string) => {
+    fermer()
+    if (to.startsWith('/api-power')) window.location.href = to
+    else naviguer(to)
+  }
+
   return (
-    <svg width={taille} height={taille} viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-      <defs>
-        <linearGradient id="jauge-boost" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#8b5cf6" />
-          <stop offset="0.5" stopColor="#e879f9" />
-          <stop offset="1" stopColor="#fbbf24" />
-        </linearGradient>
-      </defs>
-      {/* L'arc du cadran, et l'aiguille collée à droite : plein régime. */}
-      <path d="M4 18a8.5 8.5 0 1 1 17 0" stroke="url(#jauge-boost)" strokeWidth="2.6" strokeLinecap="round" />
-      <line x1="12.5" y1="18" x2="19" y2="12" stroke="url(#jauge-boost)" strokeWidth="2.4" strokeLinecap="round" />
-    </svg>
+    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/60 px-4 pt-[12vh]" onClick={fermer}>
+      <div
+        role="dialog"
+        aria-label="Rechercher une page"
+        className="w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--trait)] bg-[var(--panneau)] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 border-b border-[var(--trait)] px-4 py-3">
+          <Search size={16} className="text-gray-400" />
+          <input
+            ref={champ}
+            value={texte}
+            onChange={(e) => {
+              setTexte(e.target.value)
+              setRang(0)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') fermer()
+              else if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setRang((r) => Math.min(r + 1, trouvees.length - 1))
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setRang((r) => Math.max(r - 1, 0))
+              } else if (e.key === 'Enter' && trouvees[rang]) aller(trouvees[rang].to)
+            }}
+            placeholder="Rechercher une page"
+            className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-gray-500 focus:outline-none"
+          />
+          <kbd className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-gray-400">Échap</kbd>
+        </div>
+        <ul className="max-h-[50vh] overflow-y-auto p-2">
+          {trouvees.length === 0 ? <li className="px-3 py-6 text-center text-sm text-gray-400">Aucune page ne porte ce nom.</li> : null}
+          {trouvees.map((p, i) => (
+            <li key={p.to}>
+              <button
+                type="button"
+                onMouseEnter={() => setRang(i)}
+                onClick={() => aller(p.to)}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${
+                  i === rang ? 'bg-white/[0.07] text-white' : 'text-gray-300'
+                }`}
+              >
+                <p.icon size={16} />
+                <span className="flex-1">{p.label}</span>
+                <span className="text-[11px] text-gray-500">{p.groupe}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   )
 }
 
-/** Les entrees du menu qui portent un parametre : elles priment sur leur adresse nue. */
-const PRECISES = SECTIONS.flatMap((s) => s.entrees.map((e) => e.to)).filter((to) => to.includes('?') || to.includes('#'))
-
 export function Layout({ children }: { children: React.ReactNode; large?: boolean }) {
   const { pathname, search, hash } = useLocation()
-  /**
-   * Une entree avec ?etat= ou #ancre n est active que sur sa variante exacte.
-   *
-   * Et l inverse compte autant : une entree sans parametre cede a l entree plus
-   * precise qui, elle, correspond. Sans cette seconde moitie, « Reseaux » et
-   * « Prompts IA » s allumaient ensemble sur /reseaux?vue=prompts, et le menu
-   * disait deux endroits a la fois.
-   */
   const adresseComplete = pathname + search + hash
-  const estActive = (to: string) => {
-    if (to.includes('?') || to.includes('#')) return adresseComplete === to
-    if (pathname !== to) return false
-    return !PRECISES.some((p) => p === adresseComplete && p.startsWith(`${to}?`))
-  }
+  const estActive = (to: string) => entreeActive(to, pathname, adresseComplete)
+  const courante = pageCourante(pathname, adresseComplete)
+
   /*
-   * Les pastilles de nouveautés (19/09/2026, demande de Max) : ce que les
-   * agents ont déposé et que personne n'a encore ouvert, à côté du titre qui y
-   * mène. Le relevé est commun aux cinq entrées — un seul appel — et ouvrir une
-   * entrée éteint la sienne. Voir lib/nouveautes.ts.
+   * Les pastilles de nouveautés (19/09/2026) : ce que les agents ont déposé et
+   * que personne n'a encore ouvert, à côté du titre qui y mène. Un seul relevé
+   * pour les cinq entrées ; ouvrir une entrée éteint la sienne.
    */
   const nouveautes = useNouveautes(adresseComplete)
   const { logout, user } = useAuth()
-  // Peint chaque bloc d'une couleur de néon variée (vert/jaune/bleu/rose/orange/
-  // violet/bleu-ciel), au lieu d'un rose uniforme — et suit les blocs qui se
-  // montent après le chargement des données.
   useNeonVarie()
-  const [solde, setSolde] = useState<{ credits: number; euroParDrop: number } | null>(null)
-  /**
-   * Les rayons confiés, chacun à son nom.
-   *
-   * « Veille » ne disait rien à personne. Un vendeur qui tient quatre rayons
-   * cherche ce que Karim a trouvé, pas la section veille numéro trois.
-   */
+  const [solde, setSolde] = useState<{ credits: number } | null>(null)
+  /** Les rayons confiés, chacun à son nom, pour le déroulant « Mes rayons BOOST ». */
   const [rayons, setRayons] = useState<Array<{ id: string; agentName: string; label: string; emoji: string; pending: number }>>([])
-  /** Le rayon ouvert, s'il y en a un : la liste se déplie alors d'elle-même. */
   const rayonActif = rayons.find((r) => pathname.startsWith(`/rayon/${r.id}`))?.id ?? null
-  /** Ce qui attend, tous rayons confondus — affiché sur le titre replié. */
   const enAttente = rayons.reduce((n, r) => n + r.pending, 0)
 
-  /**
-   * Le menu latéral sur téléphone : un tiroir, fermé par défaut.
-   *
-   * **Il n'y avait rien.** Le menu faisait 224 px de large, `shrink-0`, sans
-   * aucune règle d'écran : sur un téléphone de 375 px il mangeait 60 % de la
-   * largeur, et les 40 % restants devaient contenir la page entière. Rien ne
-   * permettait de le replier — l'application était inutilisable en mobilité,
-   * alors que c'est là qu'un vendeur relève ses commandes.
-   *
-   * Le tiroir se ferme **à chaque changement de page** : sur un écran de
-   * téléphone il recouvre tout, et le laisser ouvert après un clic cacherait
-   * la page qu'on vient de demander. Au-dessus de `md`, il redevient la
-   * colonne fixe d'avant et cet état n'a plus aucun effet.
-   */
+  /** Le tiroir du téléphone, fermé à chaque changement de page. */
   const [menuOuvert, setMenuOuvert] = useState(false)
+  const [recherche, setRecherche] = useState(false)
   useEffect(() => {
     setMenuOuvert(false)
   }, [pathname])
 
   useEffect(() => {
+    const raccourci = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setRecherche((o) => !o)
+      }
+    }
+    window.addEventListener('keydown', raccourci)
+    return () => window.removeEventListener('keydown', raccourci)
+  }, [])
+
+  /*
+   * Les groupes ouverts : ceux que le vendeur a dépliés lui-même, plus celui de
+   * la page en cours (on ne doit jamais être sur une page dont l'entrée est
+   * cachée).
+   */
+  const [ouverts, setOuverts] = useState<string[]>(() => lireGroupesOuverts())
+  const groupeCourant = rayonActif ? 'marketing' : courante?.groupeId
+  const estOuvert = (g: GroupeMenu) => g.id === groupeCourant || ouverts.includes(g.id)
+  const basculer = (g: GroupeMenu) => {
+    setOuverts((liste) => {
+      const suivante = estOuvert(g) ? liste.filter((x) => x !== g.id) : [...liste, g.id]
+      ecrireGroupesOuverts(suivante)
+      return suivante
+    })
+  }
+
+  useEffect(() => {
     api
       .myBilling()
-      /*
-       * Le solde ne s'affiche que s'il est vraiment chiffre.
-       *
-       * Le menu est monte sur TOUTES les pages : `credits` a `undefined` et
-       * c'est `solde.credits.toLocaleString()` qui emporte l'application
-       * entiere, pas seulement le bandeau. Une reponse d'une autre forme doit
-       * faire disparaitre le solde, jamais la page.
-       */
-      .then((b) =>
-        setSolde(
-          Number.isFinite(b?.credits) ? { credits: b.credits, euroParDrop: b?.euroParDrop ?? 0 } : null,
-        ),
-      )
-      .catch(() => {
-        // Ancienne session ou API indisponible : on n'affiche simplement rien.
-      })
+      // Le solde ne s'affiche que s'il est vraiment chiffré : une réponse d'une
+      // autre forme doit faire disparaître le solde, jamais la page.
+      .then((b) => setSolde(Number.isFinite(b?.credits) ? { credits: b.credits } : null))
+      .catch(() => {})
   }, [pathname])
 
   useEffect(() => {
     api
       .listDepartments()
-      // Seuls les rayons dont le chef est embauché (en poste) : un rayon à
-      // l'arrêt se retrouve par « Mes chefs de rayon », pas dans le déroulant.
       .then((list) => setRayons(Array.isArray(list) ? list.filter((r) => r.active) : []))
-      .catch(() => {
-        // Session expirée ou API muette : le menu se passe des rayons.
-      })
+      .catch(() => {})
   }, [pathname])
 
-  return (
-    // Le thème glassmorphism vaut pour toute l'application (04/09/2026) :
-    // fond noir vivant — les gouttes de la lampe à lave — sous des blocs en
-    // verre. `relative` sur l'aside et le main les fait peindre au-dessus.
-    <div className="min-h-screen text-white md:flex">
-      <FondVivant />
+  const classeEntree = (active: boolean) =>
+    `relative flex items-center gap-3 rounded-lg py-2 pl-3 pr-2 text-sm transition ${
+      active
+        ? 'bg-white/[0.07] font-semibold text-white before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-gradient-to-b before:from-[#f28a4b] before:to-[#e85290]'
+        : 'text-gray-400 hover:bg-white/[0.04] hover:text-white'
+    }`
 
-      {/*
-        La barre de téléphone : la seule chose qui reste à l'écran quand le
-        menu est un tiroir. Elle porte les trois gestes qu'on ne doit jamais
-        avoir à chercher — ouvrir le menu, revenir à l'accueil, voir son solde
-        — et rien d'autre : la place manque, et chaque élément ajouté ici
-        repousse la page vers le bas sur tous les écrans.
-      */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/10 bg-[#08070f]/85 px-4 backdrop-blur-xl md:hidden">
+  const deroulantRayons = (
+    <details key={RAYONS_BOOST} className="group/rayons" open={rayonActif !== null}>
+      <summary className={`${classeEntree(false)} cursor-pointer list-none`}>
+        <JaugeMax />
+        <span className="whitespace-nowrap">
+          {'Mes rayons '}
+          <b className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-amber-300 bg-clip-text font-black text-transparent">BOOST</b>
+        </span>
+        <ChevronRight size={12} className="transition-transform group-open/rayons:rotate-90" />
+        <span className="ml-auto text-[11px] text-gray-500">
+          {enAttente > 0 ? `${rayons.length} · ${enAttente}` : rayons.length || ''}
+        </span>
+      </summary>
+      {rayons.length === 0 ? (
+        <Link to="/rayons" className="block py-1.5 pl-10 pr-2 text-xs text-gray-500 hover:text-white">
+          Aucun rayon embauché — voir les chefs de rayon
+        </Link>
+      ) : (
+        rayons.map((r) => (
+          <Link key={r.id} to={`/rayon/${r.id}`} title={`${r.label} — ${r.agentName}`} className={`${classeEntree(pathname.startsWith(`/rayon/${r.id}`))} ml-4`}>
+            <span className="text-base leading-none">{r.emoji}</span>
+            <span className="truncate">{r.label}</span>
+            {r.pending > 0 ? (
+              <span className="ml-auto rounded-full bg-emerald-400/20 px-1.5 text-[11px] text-emerald-300">{r.pending}</span>
+            ) : null}
+          </Link>
+        ))
+      )}
+    </details>
+  )
+
+  return (
+    <div className="espace-connecte min-h-screen text-white md:flex">
+      <FondVivant />
+      <RecherchePage ouverte={recherche} fermer={() => setRecherche(false)} />
+
+      {/* La barre du téléphone : ouvrir le menu, revenir à l'accueil, chercher une page, voir son solde. */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-[var(--trait)] bg-[var(--nuit)]/95 px-4 backdrop-blur-xl md:hidden">
         <button
           type="button"
           onClick={() => setMenuOuvert(true)}
@@ -316,28 +264,25 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
         >
           <MenuIcon size={22} />
         </button>
-        <Link to="/dashboard" className="min-w-0 shrink">
+        <Link to="/statistiques" className="min-w-0 shrink">
           <Logo size={20} />
         </Link>
+        <button
+          type="button"
+          onClick={() => setRecherche(true)}
+          aria-label="Rechercher une page"
+          className="ml-auto rounded-lg p-1.5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+        >
+          <Search size={19} />
+        </button>
         {solde ? (
-          <Link
-            to="/credits"
-            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2 py-1.5"
-          >
+          <Link to="/credits" className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2 py-1.5">
             <DropCoin size={18} className="shrink-0" />
-            <span className="text-xs font-extrabold text-white">
-              {solde.credits.toLocaleString('fr-FR')}
-            </span>
+            <span className="text-xs font-extrabold text-white">{solde.credits.toLocaleString('fr-FR')}</span>
           </Link>
         ) : null}
       </header>
 
-      {/*
-        Le voile. Il assombrit la page ET il ferme le tiroir : sur téléphone,
-        toucher à côté est le geste attendu pour refermer un panneau, et sans
-        lui la seule sortie serait la croix — qu'on ne trouve pas toujours du
-        pouce. `md:hidden` parce qu'au-dessus il n'y a pas de tiroir à fermer.
-      */}
       {menuOuvert ? (
         <button
           type="button"
@@ -348,13 +293,12 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] flex-col overflow-y-auto border-r border-white/10 bg-[#08070f]/95 p-4 backdrop-blur-xl transition-transform duration-200 ease-out md:relative md:z-10 md:w-56 md:max-w-none md:shrink-0 md:translate-x-0 md:overflow-visible md:bg-black/35 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] flex-col overflow-y-auto border-r border-[var(--trait)] bg-[var(--nuit)] p-4 transition-transform duration-200 ease-out md:sticky md:top-0 md:z-10 md:h-screen md:w-64 md:max-w-none md:shrink-0 md:translate-x-0 ${
           menuOuvert ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <Link to="/dashboard" className="min-w-0">
-            {/* 16 : l'icône (40 px) et le mot tiennent dans les 192 px utiles du menu. */}
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <Link to="/statistiques" className="min-w-0">
             <Logo size={16} />
           </Link>
           <button
@@ -366,206 +310,136 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
             <X size={18} />
           </button>
         </div>
-        <BoutonTheme />
-        <nav className="space-y-1 flex-1">
-          {NAV.map((item) => {
-            const active = pathname.startsWith(item.to)
-            return (
-              <Fragment key={item.to}>
-                <Link
-                  to={item.to}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <item.icon size={16} />
-                  {/* Auto-Shipper porte les couleurs de son logo (11/10/2026) :
-                      bold, rose → orange → jaune. */}
-                  {item.to === '/pilote' ? (
-                    <span className="bg-gradient-to-r from-[#e53576] via-[#f27f40] to-[#ffca0a] bg-clip-text font-bold text-transparent">
-                      {item.label}
-                    </span>
-                  ) : (
-                    <span>{item.label}</span>
-                  )}
-                </Link>
 
-                {/* Le portefeuille de drops vivait ici depuis le 10/09/2026. Il
-                    est parti dans le bandeau du haut le 16/09 : un solde n'est
-                    pas une destination de navigation, c'est un chiffre qu'on
-                    surveille en travaillant — et dans un menu devenu tiroir sur
-                    téléphone, il disparaissait entièrement. Voir BlocDrops. */}
-              </Fragment>
+        <nav aria-label="Navigation principale" className="flex-1 space-y-1">
+          {GROUPES.map((groupe) => {
+            const ouvert = estOuvert(groupe)
+            // Replié, le groupe dit tout de même ce qui attend dedans.
+            const attente = groupe.entrees.reduce((n, e) => {
+              const s = SECTION_PAR_ADRESSE[e.to]
+              return n + (s ? nouveautes[s] ?? 0 : 0)
+            }, 0)
+            return (
+              <div key={groupe.id}>
+                <button
+                  type="button"
+                  onClick={() => basculer(groupe)}
+                  aria-expanded={ouvert}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-200 transition hover:bg-white/[0.04] hover:text-white"
+                >
+                  <groupe.icon size={17} style={{ color: groupe.teinte }} />
+                  <span className="flex-1">{groupe.titre}</span>
+                  {!ouvert && attente > 0 ? <PastilleNotif nombre={attente} titre={`${attente} nouveauté(s) dans ${groupe.titre}`} /> : null}
+                  <ChevronDown size={15} className={`text-gray-500 transition-transform ${ouvert ? 'rotate-180' : ''}`} />
+                </button>
+                {ouvert ? (
+                  <div className="mb-2 mt-0.5 space-y-0.5 pl-2">
+                    {groupe.entrees.map((item) => {
+                      if (item.to === RAYONS_BOOST) return deroulantRayons
+                      const section = SECTION_PAR_ADRESSE[item.to]
+                      const pastille = section ? (
+                        <PastilleNotif nombre={nouveautes[section]} titre={titreNouveautes(section, nouveautes[section])} className="ml-auto" />
+                      ) : null
+                      const contenu = (
+                        <>
+                          <item.icon size={16} />
+                          {item.to === '/pilote' ? (
+                            <span className="bg-gradient-to-r from-[#e53576] via-[#f27f40] to-[#ffca0a] bg-clip-text font-bold text-transparent">{item.label}</span>
+                          ) : (
+                            <span className="truncate">{item.label}</span>
+                          )}
+                          {pastille}
+                        </>
+                      )
+                      // API Power est une page publique servie à part : un vrai lien.
+                      return item.to.startsWith('/api-power') ? (
+                        <a key={item.to} href={item.to} className={classeEntree(false)}>
+                          {contenu}
+                        </a>
+                      ) : (
+                        <Link key={item.to} to={item.to} className={classeEntree(estActive(item.to))} aria-current={estActive(item.to) ? 'page' : undefined}>
+                          {contenu}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
             )
           })}
-
-          {SECTIONS.map((section) => (
-            <div key={section.titre} className="mt-6">
-              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                {section.titre}
-              </p>
-
-              {/* Toute l'équipe des rayons au même endroit (05/09/2026) :
-                  « Mes chefs de rayon » en première ligne, le déroulant des
-                  rayons au chef embauché juste dessous — chaque rayon ouvre
-                  sa fiche sur le tchat du chef, ses analyses listées sous la
-                  conversation —, puis les deux pages transverses. */}
-              {section.titre === 'Mes rayons IA' ? (
-                <>
-                  <Link
-                    to="/rayons"
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                      estActive('/rayons')
-                        ? 'bg-purple-500/20 text-white'
-                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <Users size={18} />
-                    <span>Mes chefs de rayon</span>
-                  </Link>
-
-                  {rayons.length > 0 && (
-                    /*
-                      Replié par défaut, et c'est le point.
-                      Vingt-quatre rayons déroulés à la verticale poussaient le
-                      solde de crédits et l'adresse du compte hors de l'écran.
-                      Un rayon actif rouvre la liste tout seul — s'y trouver et
-                      ne pas la voir serait pire que la longueur.
-                    */
-                    <details className="group" open={rayonActif !== null}>
-                      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1 text-[11px] uppercase tracking-wide text-gray-500 hover:text-gray-300">
-                        {/* La jauge au maximum, multicolore : c'est la promesse
-                            de la ligne — des rayons poussés à fond. */}
-                        <JaugeMax />
-                        <span>
-                          {'Mes rayons '}
-                          <b className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-amber-300 bg-clip-text font-black text-transparent">
-                            BOOST
-                          </b>
-                        </span>
-                        <ChevronRight size={10} className="transition-transform group-open:rotate-90" />
-                        <span className="ml-auto normal-case tracking-normal text-gray-600">
-                          {enAttente > 0 ? `${rayons.length} · ${enAttente} en attente` : rayons.length}
-                        </span>
-                      </summary>
-                      {rayons.map((r) => {
-                        const active = pathname.startsWith(`/rayon/${r.id}`)
-                        return (
-                          <Link
-                            key={r.id}
-                            to={`/rayon/${r.id}`}
-                            title={`${r.label} — ${r.agentName}`}
-                            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                              active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                            }`}
-                          >
-                            <span className="text-base leading-none">{r.emoji}</span>
-                            <span className="truncate">{r.label}</span>
-                            {r.pending > 0 && (
-                              <span className="ml-auto rounded-full bg-emerald-400/20 px-1.5 text-[11px] text-emerald-300">
-                                {r.pending}
-                              </span>
-                            )}
-                          </Link>
-                        )
-                      })}
-                    </details>
-                  )}
-                </>
-              ) : null}
-
-              {section.entrees
-                .map((item) => {
-                  const classes = `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                    !item.externe && estActive(item.to)
-                      ? 'bg-purple-500/20 text-white'
-                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                  }`
-
-                  /*
-                   * La pastille des nouveautés, pour les cinq entrées qui
-                   * reçoivent quelque chose des agents. Elle est poussée au
-                   * bout de la ligne (`ml-auto`) plutôt que collée au mot :
-                   * les libellés n'ont pas la même longueur, et cinq pastilles
-                   * alignées se lisent d'un coup d'œil. Elle ne se peint pas à
-                   * zéro — le composant ne rend alors rien du tout.
-                   */
-                  const section = item.externe ? undefined : SECTION_PAR_ADRESSE[item.to]
-                  const pastille = section ? (
-                    <PastilleNotif
-                      nombre={nouveautes[section]}
-                      titre={titreNouveautes(section, nouveautes[section])}
-                      className="ml-auto"
-                    />
-                  ) : null
-
-                  return item.externe ? (
-                    <a key={item.to} href={item.to} target="_blank" rel="noreferrer noopener" className={classes}>
-                      <item.icon size={18} />
-                      <span>{item.label}</span>
-                    </a>
-                  ) : (
-                    <Link key={item.to} to={item.to} className={classes}>
-                      <item.icon size={18} />
-                      <span>{item.label}</span>
-                      {pastille}
-                    </Link>
-                  )
-                })}
-
-              {/* Les deux boutiques, en bas de Diffusion : titre en gras de la
-                  marque, prix à côté, et trois onglets sur le dégradé rose. */}
-              {section.titre === 'Diffusion' ? <MenuBoutiques /> : null}
-            </div>
-          ))}
-
         </nav>
-        <div className="border-t border-white/10 pt-3 text-xs text-gray-400">
-          {/* Le solde vit désormais dans son bloc, sous Dashboard : plus de
-              badge répété ici. */}
-          <p className="truncate">{user?.email}</p>
-          <button onClick={logout} className="mt-2 flex items-center gap-1.5 text-gray-400 hover:text-white">
-            <LogOut size={14} /> Déconnexion
-          </button>
+
+        <div className="mt-4 space-y-2 border-t border-[var(--trait)] pt-4 text-xs text-gray-400">
+          <Link to="/guide" className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.04] hover:text-white">
+            <BookOpen size={14} /> Guide & assistance
+          </Link>
+          <BoutonTheme className="" />
+          {solde ? (
+            <Link
+              to="/credits"
+              className="flex items-center gap-2 rounded-xl border border-[var(--trait)] bg-[var(--panneau)] px-3 py-2.5 text-white transition hover:border-[var(--trait-fort)]"
+            >
+              <DropCoin size={18} className="shrink-0" />
+              <b className="text-sm">{solde.credits.toLocaleString('fr-FR')} drops</b>
+              <ChevronRight size={14} className="ml-auto text-gray-400" />
+            </Link>
+          ) : null}
+          <div className="flex items-center gap-2 px-2 pt-1">
+            <span className="min-w-0 flex-1 truncate">{user?.email}</span>
+            <button onClick={logout} title="Déconnexion" aria-label="Déconnexion" className="rounded-md p-1 text-gray-400 hover:bg-white/10 hover:text-white">
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </aside>
-      {/* `min-w-0` : sans lui, un tableau ou un titre long élargit le `flex-1`
-          au-delà de l'écran et c'est la page ENTIÈRE qui défile de côté.
 
-          `overflow-x-clip` et NON `overflow-x-hidden`, et la nuance coûte cher :
-          `hidden` fait de l'élément une BOÎTE DE DÉFILEMENT, et une boîte de
-          défilement devient le repère de tout `position: sticky` qu'elle
-          contient. Le bandeau des six jauges, réglé sur `top-14` pour passer
-          sous la barre du téléphone, se collait donc à 56 px du haut de `main`
-          — c'est-à-dire à 112 px du haut de l'écran. Résultat sur chaque page :
-          une bande vide de 56 px sous la barre, et un bandeau qui recouvrait
-          les premiers pixels de la page. `clip` rogne exactement pareil sans
-          créer cette boîte, et le repère redevient l'écran. */}
+      {/* `overflow-x-clip` et non `hidden` : `hidden` ferait de main le repère
+          du bandeau des jauges collé en haut (voir l'historique du fichier). */}
       <main className="relative min-w-0 flex-1 overflow-x-clip px-4 pb-6 md:px-8 md:pb-8">
-        {/* Les six jauges, fixes en tête de chaque page : fait sur possible,
-            et la porte vers l'endroit où on agit (04/09/2026). */}
+        {/* La barre légère de l'écran large : où l'on est, et la recherche de page. */}
+        <div className="-mx-8 hidden items-center gap-3 border-b border-[var(--trait)] px-8 py-3 md:flex">
+          <p className="min-w-0 flex-1 truncate text-sm text-gray-400">
+            {courante ? (
+              <>
+                {courante.groupe} <span className="text-gray-600">/</span> <span className="text-white">{courante.label}</span>
+              </>
+            ) : (
+              'Espace vendeur'
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={() => setRecherche(true)}
+            className="flex items-center gap-2 rounded-lg border border-[var(--trait)] bg-[var(--panneau)] px-3 py-1.5 text-sm text-gray-400 transition hover:border-[var(--trait-fort)] hover:text-white"
+          >
+            <Search size={14} /> Rechercher une page
+            <kbd className="rounded border border-white/10 px-1.5 text-[10px]">Ctrl K</kbd>
+          </button>
+        </div>
+        {/* Les six jauges, fixes en tête de chaque page (04/09/2026). */}
         <BandeauJauges />
-        {/*
-          Toutes les pages partagent le cadre du bandeau des six jauges —
-          demandé le 06/09/2026 : « tous les affichages justifiés autour des
-          six boutons du haut ». Le couloir de lecture à 1024 px laissait un
-          tiers d'écran vide en 16/9 pendant que les jauges s'étendaient ;
-          `large` ne distingue plus rien, il reste pour ne rien casser.
-        */}
         <div className="mx-auto max-w-[1800px]">
-          {/*
-            La ligne « Notifications + Extension », sous les six jauges et sur
-            toutes les pages (10/09/2026). Elle remplace l'ancien bandeau
-            d'avertissement d'extension : au Chrome Web Store, une version en
-            retard se met à jour toute seule — plus d'alarme permanente, juste
-            l'état dans le bloc Extension, et le détail au survol.
-          */}
           <BandeauNotifications />
-          {/* Le menu horizontal mobile (Dashboard / Pilote auto / Agents)
-              doublait le menu latéral : retiré le 05/09/2026 à la demande. */}
           {children}
         </div>
       </main>
     </div>
+  )
+}
+
+/** La jauge au maximum, en dégradé : l'icône de « Mes rayons BOOST ». */
+function JaugeMax({ taille = 16 }: { taille?: number }) {
+  return (
+    <svg width={taille} height={taille} viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+      <defs>
+        <linearGradient id="jauge-boost" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#8b5cf6" />
+          <stop offset="0.5" stopColor="#e879f9" />
+          <stop offset="1" stopColor="#fbbf24" />
+        </linearGradient>
+      </defs>
+      <path d="M4 18a8.5 8.5 0 1 1 17 0" stroke="url(#jauge-boost)" strokeWidth="2.6" strokeLinecap="round" />
+      <line x1="12.5" y1="18" x2="19" y2="12" stroke="url(#jauge-boost)" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
   )
 }
