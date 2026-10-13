@@ -1532,10 +1532,9 @@ export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
       // A public price at or under zero is a parsing accident, never a price (« -10,00 € », 12/10/2026).
       // A « sale price » at or under the line's own purchase price is the cost itself (« Cire de soja 8,00 € », constat de #104).
       const achatMax = Math.max(0, ...achatsDuProduit(p as { prixAchat?: number | null; achats?: number[] }))
-      // A watch-list line whose purchase price is unknown, or within 10 % of it, has no advised sale price: in doubt, cut (constat de #105).
-      const surveille = /surveill|watch/i.test(`${p.pourquoi ?? ''} ${(p as { verdict?: string | null }).verdict ?? ''}`)
-      const douteux = (n: number) => surveille && (!achatMax || (n - achatMax) / n < 0.1)
-      const positif = (n: number | null | undefined) => (n != null && n > 0 && !(achatMax && n <= achatMax) && !douteux(n) ? n : null)
+      // A watch-list line is not advised for sale, so it has no advised sale price: always « — », whatever its cost (constats de #105, #106).
+      const surveille = [p.pourquoi, (p as { verdict?: string | null }).verdict].some((v) => /^\W*(?:à\s+surveiller|liste\s+de\s+surveillance|watch\s*-?\s*list)/i.test(v ?? ''))
+      const positif = (n: number | null | undefined) => (n != null && n > 0 && !(achatMax && n <= achatMax) && !surveille ? n : null)
       const prix = { prixVente: positif(p.prixVente), ...(p.prixMin !== undefined ? { prixMin: positif(p.prixMin) } : {}), ...(p.prixMax !== undefined ? { prixMax: positif(p.prixMax) } : {}) }
       const prixSains = prix.prixVente === p.prixVente && (p.prixMin === undefined || prix.prixMin === p.prixMin) && (p.prixMax === undefined || prix.prixMax === p.prixMax)
       return t === p.titre && pourquoi === p.pourquoi && prixSains ? p : { ...p, ...prix, titre: t, pourquoi }
