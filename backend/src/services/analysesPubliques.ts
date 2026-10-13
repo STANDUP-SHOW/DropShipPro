@@ -425,15 +425,19 @@ const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif|n[ée]goci\w*\s+(so
 const ACHAT_EN_CLAIR = /\b(le|les|ce|ces|nos|notre|un|du)\s+prix\s+d['’ ]?achat|tarif\s+fournisseur|ren[ée]goci|taux\s+(indicatif|de\s+change|approximatif)|convertis?\s+(de|depuis|au)\b|€\s*\/\s*(£|\$)|\bcatalogue\s*«?\s*api\b|prix\s+indiqués?\s+plus\s+bas|lignes?\s+marquées?\s+«\s*estimation|canaux\s+b2b|guide\s+b2b|sourcing\s+alternatif|(achetée?s?|achat|lot|tarif|prix|sourcing)\s+(en\s+)?b2b|non\s+chiffré|tarifs?\s+(revendeur|distributeur|public)|sans\s+tarif|compte\s+revendeur|grossistes?\b|distributeurs?\s+agréés|\bsourcing\b|prix\s+de\s+gros|\bmoq\b|tarifs?\s+palier|palier\s+\d+\s*\+?\s*unités|marges?\s+(brute|nette|en\s+valeur)|(achat|importer|acheter|commander)\s+en\s+lots?\b|(?<!côté\s)\bb2b\b|(prix|tarif|grille|marge|remise|achat)[^.;,]{0,30}\brevendeurs?\b|peu\s+de\s+marge|dégage\s+une\s+marge|\bachet(er|é|ée|és|ées)\s+(à|a)\s+\d/i
 // The agents' own working notes (« quota WebSearch épuisé », « à reclasser en `api` », « purchase_price … null »).
 const JARGON =
-  /conversion\s+usd|usd\s*(→|->|vers)\s*eur|websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|«\s*(url|api|extension)\s*»|import\s+(url|api|extension)|\/item\/|fiche\s+produit\s+générique|\bmaxime\b|rapport\s+rayon|retraité|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>|n['’]ont\s+pas\s+pu\s+être\s+(interrogée?s?|consultée?s?|lue?s?)|refusé\s+l['’]accès|accès\s+automatisé|lecture\s+automatisée|recherche\s+automatisée?|prochain\s+passage\s+de\s+l['’]agent|l['’]agent\s+(marketing|rayon)|vérifier\s+manuellement|par\s+un\s+humain|dommage\s+d['’]inventer|ont\s+bloqué|honnêteté\s+d['’]abord|connexion\s+requise|non\s+vérifiée?s?|non\s+relevée?s?\s+aujourd|n['’]avons\s+pas\s+pu|pas\s+pu\s+(accéder|consulter|interroger|vérifier)|n['’]a\s+pu\s+être\s+(vérifiée?s?|consultée?s?|lue?s?)|non\s+accessibles?|que\s+j['’]ai\s+pu|nous\s+le\s+signalons|vérification\s+en\s+direct|connaissance\s+générale\s+du\s+secteur|chargée?\s+en\s+javascript|hors\s+session|lors\s+de\s+cette\s+recherche|sur\s+toute\s+la\s+recherche|résultats?\s+de\s+recherche|^\s*pas\s+de\s+recherche\s*$|comptes?\s+pub(licitaires?)?\s+de\s+(max|drop-?shipper)|depuis\s+le\s+compte\s+publicitaire|limitation\s+de\s+prix\s+public|sources?\s+extension|relevé\s+manuel|les\s+données\s+disponibles\s+ne\s+donnent|à\s+relever\s+dans|(?<![a-zà-ÿ])méthode(?:\s+pour\s+compléter)?\s*:|(?<![a-zà-ÿ])relever\s*:|non\s+relevée?s?(?![a-zà-ÿ])/i
+  /conversion\s+usd|usd\s*(→|->|vers)\s*eur|websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|«\s*(url|api|extension)\s*»|import\s+(url|api|extension)|\/item\/|fiche\s+produit\s+générique|\bmaxime\b|rapport\s+rayon|retraité|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>|n['’]ont\s+pas\s+pu\s+être\s+(interrogée?s?|consultée?s?|lue?s?)|refusé\s+l['’]accès|accès\s+automatisé|lecture\s+automatisée|recherche\s+automatisée?|prochain\s+passage\s+de\s+l['’]agent|l['’]agent\s+(marketing|rayon)|vérifier\s+manuellement|par\s+un\s+humain|dommage\s+d['’]inventer|ont\s+bloqué|honnêteté\s+d['’]abord|connexion\s+requise|non\s+vérifiée?s?|non\s+relevée?s?\s+aujourd|n['’]avons\s+pas\s+pu|pas\s+pu\s+(accéder|consulter|interroger|vérifier)|n['’]a\s+pu\s+être\s+(vérifiée?s?|consultée?s?|lue?s?)|non\s+accessibles?|que\s+j['’]ai\s+pu|nous\s+le\s+signalons|vérification\s+en\s+direct|connaissance\s+générale\s+du\s+secteur|chargée?\s+en\s+javascript|hors\s+session|lors\s+de\s+cette\s+recherche|sur\s+toute\s+la\s+recherche|vue?s?\s+en\s+résultats?\s+de\s+recherche|^\s*pas\s+de\s+recherche\s*$|comptes?\s+pub(licitaires?)?\s+de\s+(max|drop-?shipper)|depuis\s+le\s+compte\s+publicitaire|limitation\s+de\s+prix\s+public|sources?\s+extension|les\s+données\s+disponibles\s+ne\s+donnent|à\s+relever\s+dans|(?<![a-zà-ÿ])méthode(?:\s+pour\s+compléter)?\s*:|(?<![a-zà-ÿ])relever\s*:|non\s+relevée?s?(?![a-zà-ÿ])/i
 // « votre compte CJ », « la veste softshell CJ » : the supplier by its initials, capitals only.
 const CJ_SEUL = /(?<![\p{L}\d])CJ(?![\p{L}\d])/u
-const estPrivee = (texte: string) =>
+const DEVISE = /\d\s*(\$|usd\b|¥|rmb\b|cny\b|£|gbp\b)|(\$|us\$|¥|£)\s*\d/i
+/** « prix TTC consommateur = coût d'achat dropshipping) : 30-100 € » : the sentence calls its own figures a buying cost. */
+const COUT_DROPSHIPPING = /(?:co[uû]ts?\s+d['’]achat|dropshipping)[^.!?]*?\d[\d\s\u00a0]*(?:[.,]\d+)?\s*(?:€|eur\b|euros?\b)/i
+export const estPrivee = (texte: string) =>
+  COUT_DROPSHIPPING.test(texte) ||
   FOURNISSEUR_NOMME.test(texte) ||
   CJ_SEUL.test(texte) ||
   JARGON.test(texte) ||
   ACHAT_EN_CLAIR.test(texte) ||
-  /\d\s*(\$|usd\b|¥|rmb\b|cny\b|£|gbp\b)|(\$|us\$|¥|£)\s*\d/i.test(texte) ||
+  DEVISE.test(texte) ||
   PLAFOND.test(texte) ||
   MARGE_PCT.test(texte) ||
   (TERME_ACHAT.test(texte) && MONTANT.test(texte))
@@ -495,6 +499,53 @@ const ENUMERATION_EN_LIGNE =
   /\(\s*[1-9]\s*\)[^()]{3,}\(\s*[2-9]\s*\)|(?:^|\s)[1-9]\.\s+\*\*[^*]+\*\*.*\s[2-9]\.\s+\*\*/iu
 const NOTE_DE_METHODE = /^\s*(?:[-*+]\s+)?(?:\*\*|\*)?\s*((limites?|notes?|points?)\s+(de\s+)?méthod|méthodologie|limites?\s+de\s+vérification|note\s+sur\s+la\s+colonne|note\s+import)/i
 
+/** Where a sentence turns private: the first span a rule of estPrivee matches, and whether it is a proper name. */
+function mentionPrivee(t: string): { debut: number; fin: number; nom: boolean } | null {
+  const spans: { debut: number; fin: number; nom: boolean }[] = []
+  for (const re of [FOURNISSEUR_NOMME, CJ_SEUL, JARGON, ACHAT_EN_CLAIR, DEVISE, PLAFOND, MARGE_PCT]) {
+    const m = re.exec(t)
+    if (m) spans.push({ debut: m.index, fin: m.index + m[0].length, nom: (re === FOURNISSEUR_NOMME || re === CJ_SEUL) && /^\p{Lu}/u.test(m[0]) })
+  }
+  const terme = TERME_ACHAT.exec(t)
+  const montant = MONTANT.exec(t)
+  if (terme && montant) spans.push({ debut: Math.min(terme.index, montant.index), fin: Math.max(terme.index + terme[0].length, montant.index + montant[0].length), nom: false })
+  return spans.sort((a, b) => a.debut - b.debut)[0] ?? null
+}
+
+/** Which rule makes a text private, for the audit of what the pages lost (recaps/diff-90-92-analyses.md). */
+export function motifPrive(t: string): string | null {
+  const regles: Array<[string, RegExp]> = [['coût d’achat chiffré', COUT_DROPSHIPPING], ['fournisseur nommé', FOURNISSEUR_NOMME], ['fournisseur CJ', CJ_SEUL], ['note de travail de l’agent', JARGON], ['achat en clair', ACHAT_EN_CLAIR], ['devise étrangère', DEVISE], ['plafond d’achat', PLAFOND], ['marge chiffrée', MARGE_PCT]]
+  for (const [nom, re] of regles) {
+    const m = re.exec(t)
+    if (m) return `${nom} (« ${m[0].trim()} »)`
+  }
+  const terme = TERME_ACHAT.exec(t)
+  if (terme && MONTANT.test(t)) return `terme d’achat et montant (« ${terme[0]} »)`
+  return null
+}
+
+/**
+ * A private sentence loses its private clause, not its market facts (13/10/2026, constat de #92) : « Les enseignes …
+ * sont des annonceurs actifs — mention basée sur la connaissance générale du secteur » keeps its first clause. What
+ * is left must pass the same test; else the sentence goes, as before.
+ */
+export function sansMentionPrivee(morceau: string, prive: (t: string) => boolean): string {
+  let t = morceau
+  if (COUT_DROPSHIPPING.test(t)) return ''
+  for (let tour = 0; tour < 6 && prive(t); tour++) {
+    const m = mentionPrivee(t)
+    if (!m) return ''
+    const dansGras = [...t.matchAll(/\*\*[^*]+\*\*/g)].some((g) => (g.index ?? 0) < m.debut && (g.index ?? 0) + g[0].length > m.fin)
+    if (!m.nom && (VERDICT.test(t) || dansGras)) return ''
+    const net = sansSegment(t, m.debut, m.fin, m.nom)
+    if (!net || net === t) return ''
+    t = net
+  }
+  // « Pour **Clementoni**, **Buki** et **VTech**. » is what is left of a sentence, not a sentence.
+  const mots = (x: string) => x.split(/\s+/).filter((w) => /\p{L}{2}/u.test(w)).length
+  return !prive(t) && mots(t) >= 6 && mots(t) >= 0.35 * mots(morceau) ? t : ''
+}
+
 export function sansMentionsPrivees(corps: string): string {
   const sortie: string[] = []
   let dansCode = false
@@ -521,7 +572,7 @@ export function sansMentionsPrivees(corps: string): string {
     const fin = p >= 0 ? sortie[p].split(/(?<=[.!?])\s+/).pop() ?? '' : ''
     suspens = p >= 0 && annonceFinale(fin) ? p : -1
   }
-  for (const brute of corps.replace(/\r\n/g, '\n').split('\n')) {
+  for (let brute of corps.replace(/\r\n/g, '\n').split('\n')) {
     if (/^\s*```/.test(brute)) dansCode = !dansCode
     if (!dansCode && brute.trim()) {
       bilan()
@@ -531,11 +582,28 @@ export function sansMentionsPrivees(corps: string): string {
     // The items under a dropped lead-in (« **Segmentation prix observée sur AliExpress** (…) : ») are its content: they go too.
     if (!dansCode && estPuce && introPrivee) continue
     // The agent's method notes (« **Limite méthodologique…** », « **Note sur la colonne Import** ») are about its tools, not the market.
-    if (!dansCode && NOTE_DE_METHODE.test(brute)) continue
+    if (!dansCode && NOTE_DE_METHODE.test(brute)) {
+      // « Point de méthode : les bibliothèques étaient inaccessibles… . Ce qui est en revanche confirmé par la presse… » :
+      // the note goes, the market facts after it stay (vestes 04/10, constat de #92).
+      const puce = /^(\s*(?:[-*+]|\d+[.)])\s+)/.exec(brute)?.[1] ?? ''
+      const note = /^(?:\*\*)?\s*points?\s+de\s+méthode[^:]{0,60}:\s*(?:\*\*)?\s*/i.exec(brute.slice(puce.length))
+      const phrases = note ? brute.slice(puce.length + note[0].length).split(/(?<=[.!?])\s+(?=\p{Lu})/u) : []
+      let k = 1
+      while (k < phrases.length && estPrivee(phrases[k])) k++
+      const reste = phrases.slice(k).join(' ')
+      if (!note || reste.split(/\s+/).length < 25) continue
+      brute = puce + reste
+    }
     if (!dansCode && brute.trim() && !estPuce) introPrivee = false
     if (!dansCode && brute.trim() && !estPuce) annonce = /:\s*(\*\*)?\s*$/.test(brute) ? sortie.length : -1
     // A pointer to a table the public page does not show (« bon de commande en « Bundles » ») goes, the sentence stays.
     const visible = dansCode ? brute : publiable(brute)
+    // « Segmentation prix … (prix TTC consommateur = coût d'achat dropshipping) : » over bands of prices: every band
+    // below is a buying cost, by the lead-in's own words (photo-action 04/10, constat de #92).
+    if (!dansCode && !estPuce && /:\s*(\*\*)?\s*$/.test(visible) && /co[uû]ts?\s+d['’]achat/i.test(visible)) {
+      introPrivee = true
+      continue
+    }
     const avant = sortie.length
     if (dansCode || !estPrivee(visible)) {
       sortie.push(visible)
@@ -550,6 +618,16 @@ export function sansMentionsPrivees(corps: string): string {
     // A paragraph built on an announced count (« trois étages », « (1) … (2) … (3) ») cannot lose a piece and still
     // read: it goes whole (12/10/2026).
     if (ENUMERATION_EN_LIGNE.test(ligne)) {
+      // …unless each private sentence can lose its private piece, or go alone, and every numbered item keeps its head.
+      const reperes = (t: string) => (t.match(/(?:^|\s)[1-9]\.\s+\*\*|\(\s*[1-9]\s*\)/g) ?? []).length
+      const phrases = ligne
+        .split(/\s+(?=[1-9]\.\s+\*\*)/)
+        .flatMap((item) => item.split(/(?<!^\s*(?:[-*+]\s+)?[1-9]\.)(?<!\b(?:ex|cf|env|réf|vs|ca|etc|p)\.)(?<=[.!?;])\s+/i))
+      const net = phrases.map((p) => (estPrivee(p) ? sansMentionPrivee(p, estPrivee) : p)).filter((p) => p.trim()).join(' ')
+      if (net && !estPrivee(net) && reperes(net) === reperes(ligne)) {
+        sortie.push(propre(net))
+        continue
+      }
       if (estPuce && annonce >= 0) recomptees.add(annonce)
       continue
     }
@@ -576,6 +654,10 @@ export function sansMentionsPrivees(corps: string): string {
     const morceaux = texte.split(/(?<!\b(?:ex|cf|env|réf|vs|ca|etc|p)\.)(?<=[.!?;])\s+/i).map((morceau) => {
       if (!libelle || !prive(morceau)) return morceau
       if (LIBELLE_LISTE.test(libelle) || !prive(morceau.split(/,\s+(?![^()]*\))/)[0])) {
+        // « **Montée en puissance** : nous sommes début octobre, soit … identifiée par SaleHoo — fenêtre idéale… » : the
+        // private piece goes, not every comma item after the first.
+        const leger = LIBELLE_LISTE.test(libelle) ? '' : sansMentionPrivee(morceau, prive)
+        if (leger) return leger
         // …unless the first item is the private one: then the rest qualifies it (« …sur AliExpress, coût rendu supérieur… »),
         // and a remnant too short to stand (« En boutique. ») goes with it.
         const garde = parListe(morceau)
@@ -583,6 +665,7 @@ export function sansMentionsPrivees(corps: string): string {
       }
       return morceau
     })
+    if (!libelle) for (let k = 0; k < morceaux.length; k++) if (morceaux[k].trim() && prive(morceaux[k])) morceaux[k] = sansMentionPrivee(morceaux[k], prive) || morceaux[k]
     // « …se structure sur trois étages. » whose étages went: an announcement that lost what follows it goes, with
     // the whole paragraph (12/10/2026).
     const iAnnonce = morceaux.findIndex((m) => STRUCTURE_ANNONCEE.test(m))
@@ -597,13 +680,20 @@ export function sansMentionsPrivees(corps: string): string {
     }
     const premierRetire = !!morceaux.length && (!morceaux[0].trim() || prive(morceaux[0]))
     // « Mieux vaut les proposer en kit » leans on the sentence before it: it goes with it.
-    const reste = morceaux
+    let reste = morceaux
       .filter((morceau, i) => morceau.trim() && !prive(morceau) && !(i > 0 && prive(morceaux[i - 1]) && (ANAPHORE.test(morceau) || (morceaux.slice(0, i).every((m) => !m.trim() || prive(m)) && /^(\S+\s+){0,7}?(donc|aussi)(?![\p{L}])/iu.test(morceau)))))
       .join(' ')
       .replace(/[\s;,]+$/, '')
       .trim()
       .replace(/[^.!?:…]$/, (fin) => fin + '.')
-      .replace(/\s*;\s+(?=[A-ZÀ-Ý])/g, '. ')
+      // « (Luxus Magazine ; Numéro) » : a list inside brackets keeps its semicolon.
+      .replace(/\s*;\s+(?=[A-ZÀ-Ý])/g, (m: string, i: number, t: string) => ((t.slice(0, i).match(/\(/g)?.length ?? 0) > (t.slice(0, i).match(/\)/g)?.length ?? 0) ? m : '. '))
+    // « Acheter maintenant : avec les fiches de sécurité… ; 3 échantillons… » : the item that went was what « avec »
+    // leaned on; the clause goes with it, the next one stays (bougies 12/10, constat de #92).
+    if (libelle && /^(?:avec|et|mais|ou|dont|puis|ainsi\s+que)\s/i.test(reste)) {
+      const k = reste.indexOf(';')
+      reste = k >= 0 ? reste.slice(k + 1).trim() : ''
+    }
     // A claim in bold (« **Importer des drones ne marche pas** : le Neo 2 coûte… ») stands alone once its figures go,
     // and what follows a dropped first sentence is a new sentence, not the label's explanation.
     const affirmation = /\*\*/.test(libelle)
@@ -612,6 +702,14 @@ export function sansMentionsPrivees(corps: string): string {
     const nouvellePhrase = premierRetire && (affirmation || !libelle || sansLibelle)
     // A bold lead-in alone (« **Ce qui sature.** ») or a bare price band (« **< 30 €** ») says nothing once its text goes.
     const seulTitre = (t: string) => (/^\*\*[^*]+\*\*[.:]?$/.test(t.trim()) && t.trim().split(/\s+/).length < 4) || !/[a-zà-ÿ]{3}/i.test(t.replace(/\*\*/g, '').replace(/€/g, ''))
+    // « (1) … ; (2) … ; (3) … » that lost items: the rest is numbered again, a lone one loses its number.
+    {
+      const marques = reste.match(/\(\s*[1-9]\s*\)/g) ?? []
+      if (marques.length && (texte.match(/\(\s*[1-9]\s*\)/g) ?? []).length > marques.length) {
+        let rang = 0
+        reste = marques.length === 1 ? reste.replace(/\(\s*[1-9]\s*\)\s*/, '') : reste.replace(/\(\s*[1-9]\s*\)/g, () => `(${++rang})`)
+      }
+    }
     if (reste && /[a-zà-ÿ]{3}/i.test(reste) && !(seulTitre(reste) && !libelle)) sortie.push(propre(`${puce}${libelle && !sansLibelle ? (nouvellePhrase ? `${libelle}. ` : `${libelle} : `) : ''}${nouvellePhrase ? reste.charAt(0).toUpperCase() + reste.slice(1) : libelle && premierRetire ? reste.replace(/^([A-ZÀ-Ý])(?=[a-zà-ÿ])/, (c) => c.toLowerCase()) : reste}`))
     else if (affirmation && libelle.replace(/\*\*/g, '').trim().split(/\s+/).length >= 6) sortie.push(`${puce}${libelle.replace(/[\s,;]+$/, '')}.`)
     else if (estPuce && annonce >= 0) recomptees.add(annonce)
@@ -631,7 +729,7 @@ export function sansMentionsPrivees(corps: string): string {
     for (let k = j; k < sortie.length && /^\s*(?:[-*+]|\d+[.)])\s+/.test(sortie[k]); k++) items.push(k)
     if (items.length === 1) {
       const sansDeuxPoints = sortie[i].replace(/\s*:\s*(\*\*)?\s*$/, (_m, gras?: string) => gras ?? '')
-      const tete = compte ? sansDeuxPoints : sansDeuxPoints.replace(/^(\**)(\p{L}{4,})s(?![\p{L}])/u, '$1$2')
+      const tete = compte ? teteRecomptee(sansDeuxPoints, 1) ?? sansDeuxPoints : sansDeuxPoints.replace(/^(\**)(\p{L}{4,})s(?![\p{L}])/u, (_m, g: string, mot: string) => g + mot)
       sortie[i] = `${tete} : ${sortie[items[0]].replace(/^\s*(?:[-*+]|\d+[.)])\s+/, '')}`
       sortie[items[0]] = ''
     }
@@ -692,42 +790,79 @@ export function sansMentionsPrivees(corps: string): string {
   return sortie.join('\n')
 }
 
+/** The nouns a lead-in counts its list with (« trois constats : »); « deux mois », « deux chiffres » are no list. */
+const NOM_DE_LISTE =
+  /^(constats?|points?|raisons?|leviers?|pièges?|familles?|angles?|axes?|signaux|signal|risques?|règles?|pistes?|erreurs?|questions?|recommandations?|conditions?|limites?|tendances?|strates?|étapes?|priorités?|leçons?|catégories?|options?|segments?|profils?|formats?|canaux|canal|critères?|conseils?|arguments?|enseignements?|caractéristiques?|éléments?|idées?|types?|groupes?|usages?|moteurs?|freins?|opportunités?|archétypes?|paliers?|dynamiques?|esthétiques?|blocs?|niveaux?|produits?|mesures?|actions?|sources?|marques?|plateformes?)$/i
+const NOM_FEMININ = /^(mesures?|règles?|pistes?|erreurs?|questions?|recommandations?|raisons?|conditions?|limites?|tendances?|familles?|strates?|étapes?|priorités?|leçons?|catégories?|options?|idées?|opportunités?|caractéristiques?|dynamiques?|esthétiques?|actions?|sources?|marques?|plateformes?)$/i
+const NOMBRE_ANNONCE = /(?<![\p{L}])(?:(les|des|ces|nos|vos|leurs|mes|tes|ses)\s+)?(deux|trois|quatre|cinq|six)\s+(\p{L}{3,})(?![\p{L}])/iu
+const VALEUR_NOMBRE: Record<string, number> = { deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6 }
+
+/**
+ * « Trois familles se détachent » over one family left: « Une famille se détache » (13/10/2026, constat de #92) ; « les
+ * deux sources » becomes « la source », the verb and the adjectives that follow lose their plural.
+ */
+export function teteRecomptee(tete: string, n: number): string | null {
+  const a = NOMBRE_ANNONCE.exec(tete)
+  if (!a || !NOM_DE_LISTE.test(a[3]) || !/[sx]$/i.test(a[3]) || n >= VALEUR_NOMBRE[a[2].toLowerCase()]) return null
+  // The count must lead the colon (« Trois constats pour un revendeur : »), not sit in a sentence further back.
+  const apres = tete.slice(a.index + a[0].length)
+  if (/[.!?;]/.test(apres) || apres.split(/\s+/).filter(Boolean).length > 7) return null
+  const debut = a.index === 0 || /^\W*$/.test(tete.slice(0, a.index).replace(/\*\*/g, ''))
+  if (n >= 2) {
+    const mot = ['', 'un', 'deux', 'trois', 'quatre', 'cinq'][n]
+    const casse = a[2][0] === a[2][0].toUpperCase() ? mot[0].toUpperCase() + mot.slice(1) : mot
+    return tete.slice(0, a.index) + (a[1] ? `${a[1]} ` : '') + casse + ' ' + a[3] + apres
+  }
+  const feminin = NOM_FEMININ.test(a[3])
+  const nom = a[3] === 'signaux' ? 'signal' : a[3] === 'canaux' ? 'canal' : a[3].replace(/s$/i, '')
+  const det = a[1]
+    ? ({ les: feminin ? 'la' : 'le', des: feminin ? 'une' : 'un', ces: feminin ? 'cette' : 'ce', nos: 'notre', vos: 'votre', leurs: 'leur', mes: feminin ? 'ma' : 'mon', tes: feminin ? 'ta' : 'ton', ses: feminin ? 'sa' : 'son' } as Record<string, string>)[a[1].toLowerCase()]
+    : feminin ? 'une' : 'un'
+  const elide = /^(la|le)$/.test(det) && /^[aeéèêiouyh]/i.test(nom) ? "l'" : `${det} `
+  const article = (a[1] ?? a[2])[0] === (a[1] ?? a[2])[0].toUpperCase() || debut ? elide[0].toUpperCase() + elide.slice(1) : elide
+  // « se détachent », « dominent », « sont » : the verb that follows agrees.
+  const VERBES: Record<string, string> = { sont: 'est', ont: 'a', font: 'fait', vont: 'va', peuvent: 'peut', doivent: 'doit', ressortent: 'ressort', sortent: 'sort' }
+  let accord = false
+  const suite = apres.replace(/(\s+)(se\s+|s['’]|en\s+|y\s+|ne\s+)?(\p{L}+)/gu, (m, esp: string, pro: string | undefined, mot: string) => {
+    if (accord) return m
+    const v = VERBES[mot.toLowerCase()]
+    if (v) {
+      accord = true
+      return esp + (pro ?? '') + v
+    }
+    if (/^\p{Ll}{3,}ent$/u.test(mot) && !/ment$/.test(mot)) {
+      accord = true
+      return esp + (pro ?? '') + mot.slice(0, -2)
+    }
+    // « très différentes », « principales » before the verb : the adjective loses its s.
+    if (!pro && /^\p{Ll}{4,}(e?s)$/u.test(mot) && !/^(très|plus|moins|dans|sous|pour|vers|chez|sans|selon|mais|puis|alors)$/.test(mot)) return esp + mot.replace(/s$/, '')
+    return m
+  })
+  return tete.slice(0, a.index) + article + nom + suite
+}
+
 /**
  * « Pour un revendeur, trois constats : » over the two points the data guard left (13/10/2026, outillage 12/10) :
- * the count follows what is left, « un constat » for a single one.
+ * the count follows the bullets left. A count in running text is left alone: sentences are not items (« Deux mois
+ * plus tard, … : » became « Un moi plus tard » at #92).
  */
 export function annoncesRecomptees(corps: string): string {
   const lignes = corps.split('\n')
   const PUCE = /^\s*(?:[-*+]|\d+[.)])\s+/
-  const NOMBRE = /(?<![\p{L}])(deux|trois|quatre|cinq|six)\s+(\p{L}{3,})(?![\p{L}])/iu
-  const VALEUR: Record<string, number> = { deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6 }
-  const MOTS = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six']
   for (let i = 0; i < lignes.length; i++) {
     const l = lignes[i]
-    if (PUCE.test(l) || /^\s*#/.test(l)) continue
+    if (PUCE.test(l) || /^\s*#/.test(l) || !/:\s*(\*\*)?\s*$/.test(l)) continue
     const deuxPoints = l.lastIndexOf(':')
-    if (deuxPoints < 0) continue
-    const tete = l.slice(0, deuxPoints)
-    const a = NOMBRE.exec(tete)
-    if (!a || !/s$/i.test(a[2])) continue
-    const suite = l.slice(deuxPoints + 1).replace(/\*\*/g, '').trim()
     let n = 0
-    if (suite) n = suite.split(/(?<=[.!?])\s+(?=\p{Lu})/u).filter((p) => /\p{L}{3}/u.test(p)).length
-    else {
-      let j = i + 1
-      while (j < lignes.length && !lignes[j].trim()) j++
-      while (j < lignes.length && PUCE.test(lignes[j])) {
-        n++
-        j++
-      }
+    let j = i + 1
+    while (j < lignes.length && !lignes[j].trim()) j++
+    while (j < lignes.length && PUCE.test(lignes[j])) {
+      n++
+      j++
     }
-    const annonce = VALEUR[a[1].toLowerCase()]
-    if (!n || n >= annonce) continue
-    const feminin = /^(mesures|règles|pistes|erreurs|questions|recommandations|raisons|conditions|limites|tendances|familles|strates|étapes|priorités|leçons|catégories|options)$/i.test(a[2])
-    const mot = n === 1 ? (feminin ? 'une' : 'un') : MOTS[n]
-    const casse = a[1][0] === a[1][0].toUpperCase() ? mot[0].toUpperCase() + mot.slice(1) : mot
-    const nom = n === 1 ? a[2].replace(/s$/i, '') : a[2]
-    lignes[i] = `${tete.slice(0, a.index)}${casse} ${nom}${tete.slice(a.index + a[0].length)}${l.slice(deuxPoints)}`
+    if (!n) continue
+    const tete = teteRecomptee(l.slice(0, deuxPoints), n)
+    if (tete != null) lignes[i] = tete + l.slice(deuxPoints)
   }
   return lignes.join('\n')
 }
@@ -978,7 +1113,7 @@ function tableauProduitsPublic(produits: ProduitPublic[]): string {
 <tbody>${produits
     .map(
       (p) =>
-        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${prixPublic(p)}</td><td>${esc(pourquoiAffiche(p))}</td></tr>`,
+        `<tr><td>${p.rang}</td><td>${esc(p.titre)}</td><td>${prixPublic(p)}</td><td>${esc(pourquoiAffiche(p)) || "—"}</td></tr>`,
     )
     .join('')}</tbody></table></div>
 <p class="garde">La fiche fournisseur et le prix d'achat de chaque produit sont réservés aux comptes ${NOM} : <a href="/register">créez un compte</a> pour les ouvrir, les importer en un clic et les publier sur vos places de marché.</p>`
@@ -1393,7 +1528,7 @@ ${
   top.length
     ? `<h2 id="produits">Les produits gagnants du jour</h2><div class="tableau"><table>
 <thead><tr><th>Produit</th><th>Catégorie</th><th>Prix de vente conseillé</th><th>Pourquoi</th></tr></thead>
-<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${prixPublic(p)}</td><td>${esc(pourquoiAffiche(p))}</td></tr>`).join('')}</tbody></table></div>`
+<tbody>${top.map(({ p, r }) => `<tr><td><a href="${cheminRapport(r)}#produits">${esc(p.titre)}</a></td><td>${esc(r.categorieNom)}</td><td>${prixPublic(p)}</td><td>${esc(pourquoiAffiche(p)) || "—"}</td></tr>`).join('')}</tbody></table></div>`
     : ''
 }
 ${[...parCategorie.values()]
@@ -1723,6 +1858,14 @@ function raisonMontant(m: Montant, phrase: string, p: Portee, generale: boolean)
     // An exact figure to the cent is the purchase one, whatever the words around; a round one needs a word of buying.
     const exact = p.achats.find((a) => Math.abs(a - n) < 0.01)
     if (exact != null && !entier(n)) return `${enEuros(n)} = prix d'achat`
+    // « coffret de 12 bougies à environ 8 € », « dès 8 € environ » over that box's purchase at 7,60 € : an approximate
+    // figure within 1 € of the product's own purchase price is that price (13/10/2026, constat de #92).
+    if (n === m.valeurs[0] && (/(?:environ|dès|à\s+partir\s+de)\s*$/i.test(avant) || /^\s*environ(?![\p{L}])/iu.test(phrase.slice(m.fin)))) {
+      const sujet = generale ? sujetDe(phrase.slice(Math.max(0, m.debut - 80), m.debut), p.produits) : null
+      const achats = generale ? (sujet ?? []).flatMap((s) => s.achats) : p.achats
+      const pres = achats.find((a) => Math.abs(a - n) <= 1)
+      if (pres != null) return `${enEuros(n)} approché à 1 € près du prix d'achat ${enEuros(pres)}`
+    }
     if (contexteVente) continue
     if (exact != null && p.large) return `${enEuros(n)} = prix d'achat (${generale ? 'mot d’achat dans la phrase' : 'ligne de ce produit'})`
     const proche = p.large ? p.achats.find((a) => Math.abs(a - n) <= 0.5) : undefined
@@ -1772,6 +1915,22 @@ function sansJeton(phrase: string, debut: number, fin: number): string {
   return typographie(phrase.slice(0, a) + (/^[\p{L}\d]/u.test(suite) ? ' ' : '') + suite)
 }
 
+/**
+ * « période où, selon SaleHoo, la demande… », « la flambée identifiée par SaleHoo » : a source named by its
+ * attribution goes with the words that attribute it, the sentence stays (13/10/2026, constat de #92).
+ */
+function sansAttribution(phrase: string, debut: number, fin: number): string {
+  const avant = /(,\s*)?(?:(?<![\p{L}])(?:selon|d['’]après|(?:\p{L}+(?:é|ée|és|ées)\s+)?par))\s+$/iu.exec(phrase.slice(0, debut))
+  if (!avant) return ''
+  let suite = phrase.slice(fin)
+  // « identifiée par SaleHoo comme la première cause » : the participle carries the rest, it cannot go alone.
+  if (/^\s+(?:qui|que|dont)(?![\p{L}])/u.test(suite)) return ''
+  if (/^\s+comme(?![\p{L}])/u.test(suite) && !/^(?:,\s*)?(?:selon|d['’]après)/iu.test(avant[0])) return ''
+  if (avant[1]) suite = suite.replace(/^\s*,/, '')
+  const net = typographie(phrase.slice(0, avant.index).replace(/\s+$/, '') + (/^[,.;:)]/.test(suite.trimStart()) ? '' : ' ') + suite.trimStart())
+  return /\p{L}{3}/u.test(net) ? net.replace(/^\p{Ll}/u, (c) => (avant.index === 0 ? c.toUpperCase() : c)) : ''
+}
+
 /** Depth of brackets at each index: a clause is cut at its own level, never across a parenthesis. */
 function profondeurs(t: string): number[] {
   const p: number[] = []
@@ -1790,6 +1949,16 @@ function profondeurs(t: string): number[] {
  * sentence. A verdict line or a bold title loses only the amount or the name.
  */
 function sansSegment(phrase: string, debut: number, fin: number, nom = false): string {
+  if (nom) {
+    const net = sansAttribution(phrase, debut, fin)
+    if (net) return net
+    // « le baromètre SaleHoo signale », « certaines fiches Shein qui vendent » : a name after a noun is its tag.
+    const avant = /(?<![\p{L}])(\p{Ll}{3,})\s+$/u.exec(phrase.slice(0, debut))
+    if (avant && !/^(?:de|du|des|les|une|chez|sur|via|par|selon|dans|pour|avec|sans|vers|puisque|que|et|mais|car|quand|lorsque|comme|où|est|sont)$/.test(avant[1])) {
+      const seul = sansJeton(phrase, debut, fin)
+      if (/\p{L}{3}/u.test(seul)) return seul
+    }
+  }
   // « [AliExpress — écrans](https://…) » : a link that names the supplier goes whole, as one item of its list.
   const lien = [...phrase.matchAll(/\[[^\]]*\]\([^)\s]*\)/g)].find((l) => (l.index ?? 0) <= debut && (l.index ?? 0) + l[0].length >= fin)
   if (lien) {
@@ -1867,7 +2036,8 @@ function sansSegment(phrase: string, debut: number, fin: number, nom = false): s
   const vd = virgules.find((s) => s.debut >= fin)
   if (vg || vd) {
     const morceau = coeur.slice(vg?.fin ?? gauche?.fin ?? 0, vd?.debut ?? droite?.debut ?? coeur.length).replace(/\([^)]*\)/g, '')
-    if (morceau.trim().split(/\s+/).length <= 16) {
+    // « …, même si aucune donnée chiffrée n'a pu être vérifiée pour cette fenêtre de recherche — » : a concession goes whole.
+    if (morceau.trim().split(/\s+/).length <= 16 || /^\s*(?:même\s+si|bien\s+que|quoique|faute\s+de|sans\s+que)(?![\p{L}])/iu.test(morceau)) {
       gauche = vg ?? gauche
       droite = vd ?? droite
     }
@@ -1875,13 +2045,17 @@ function sansSegment(phrase: string, debut: number, fin: number, nom = false): s
   // « …mis en avant par certaines fiches Shein qui vendent… » : a name inside a sentence goes alone, not the sentence.
   const nomSeul = () => {
     if (!nom || !/[\p{L}\d,]\s+$/u.test(coeur.slice(0, debut))) return ''
+    if (/(?<![\p{L}])(?:par|selon|d['’]après)\s+$/iu.test(coeur.slice(0, debut))) return ''
+    // « Puisque SaleHoo qualifie ce produit… » : the name is the subject, the sentence cannot lose it.
+    if (/(?:^|[.:;,]\s*|(?<![\p{L}])(?:puisque|que|et|mais|car|si|quand|lorsque|comme|où)\s+)$/iu.test(coeur.slice(0, debut)) && /^\s+\p{Ll}+(?:e|es|ent|it|ait|aient|a|ont|est|sont)(?![\p{L}])/u.test(coeur.slice(fin)) && !/^\s+(?:qui|que)\b/.test(coeur.slice(fin))) return ''
     const net = sansJeton(phrase, debut, fin)
     return /\p{L}{3}/u.test(net.slice(net.lastIndexOf(':') + 1).replace(/\*\*/g, '')) ? net : ''
   }
   if (!gauche && !droite) return nomSeul()
   let reste: string
   if (!gauche) {
-    const suite = coeur.slice(droite!.fin)
+    // « Les données disponibles ne donnent pas…, mais la catégorie plus large est en croissance » : the contrast goes with its first half.
+    const suite = coeur.slice(droite!.fin).replace(/^mais\s+(?=\p{Ll})/u, '')
     // « …en kit : c'est le cœur de la rentabilité » : what is left leans on the clause that went.
     if (/^(c['’]est|ce\s|cela|ça|il\s|elle\s|ils\s|elles\s|qui\s|dont\s|et\s|mais\s|ou\s|donc\s)/i.test(suite)) return ''
     reste = suite.charAt(0).toUpperCase() + suite.slice(1) + ponctuation
@@ -2005,6 +2179,16 @@ export function promptsPublics<P extends { texte: string }>(prompts: P[]): P[] {
     })
 }
 
+/**
+ * The 12/10 marketing pages (-2) as imported: the agent's work instructions (« Relever les annonces actives… »,
+ * « Méthode : facebook.com/ads/library… ») and points that lost their platform label (« Canal secondaire ; … »,
+ * « Pertinent pour… »). Any blank before them counts (a no-break space or a zero-width one did not, online at #92).
+ */
+const CONSIGNES_POSTE =
+  /^[^\S\n]*[\u00ad\u200b-\u200f\u2060\ufeff]*(?:[-*+•][^\S\n]+)?[\u00ad\u200b-\u200f\u2060\ufeff]*(?:\*\*)?(?:à\s+relever\s+dans|relever\s+(?:les\s+annonces|:)|méthode(?:\s+pour\s+compléter)?\s*:|canal\s+(?:secondaire|naturel)|pertinent\s+pour|cible\s+ados|shorts\s+de|tutoriels?\s+«|à\s+contrôler\s+avant\s+le\s+lancement|prix(?:\s+des\s+[^\n.]*)?\s+non\s+relevés?)[^\n]*(?:\n|$)/gimu
+/** The same instructions, once the data guard ran (it may have taken a label that was a supplier's name). */
+export const sansConsignesPoste = (t: string) => t.replace(CONSIGNES_POSTE, '')
+
 export function texteRepare(texte: string): string {
   if (!texte) return texte
   return texte
@@ -2023,7 +2207,7 @@ export function texteRepare(texte: string): string {
     .replace(/(\|[ \t]*)(?:prix\s+)?non\s+relevée?s?\.?(?=[ \t]*\|)/gi, '$1—')
     // The 12/10 marketing pages (-2) as imported: the agent's work instructions and points that lost their
     // platform label (« Canal secondaire ; … », « Pertinent pour… »). Masked until a re-import brings the labels.
-    .replace(/^[ \t]*(?:[-*+][ \t]+)?(?:\*\*)?(?:à\s+relever\s+dans|méthode(?:\s+pour\s+compléter)?\s*:|relever\s*:|canal\s+(?:secondaire|naturel)|pertinent\s+pour|cible\s+ados|shorts\s+de|tutoriels?\s+«|format\s+«|à\s+contrôler\s+avant\s+le\s+lancement|prix(?:\s+des\s+[^\n.]*)?\s+non\s+relevés?)[^\n]*(?:\n|$)/gimu, '')
+    .replace(CONSIGNES_POSTE, '')
     // « Xiaomi le entry-level » (trottinettes 07/10).
     .replace(/\s+le\s+entry-level/gi, ", l'entrée de gamme")
     // « 159EUR », « des 9,90EUR ».
