@@ -58,6 +58,7 @@ const TARIFS = [
   ['Composer une publicité (accroche + visuel)', 20, '0,20 €'],
   ['Analyse de marché, par produit', 30, '0,30 €'],
   ['Question à un chef de rayon (avec recherche web)', 25, '0,25 €'],
+  ['Avis d’un chef de rayon sur un produit (conseil approfondi, cinq recherches)', 40, '0,40 €'],
   ['Question à un agent de comptoir', 5, '0,05 €'],
   ['Contrôle photo par l’IA, par annonce', 10, '0,10 €'],
   ['Agent extension : relever une fiche fournisseur dans votre navigateur', 6, '0,06 €'],
@@ -67,7 +68,6 @@ const TARIFS = [
   ['DropShop IA : création d’une boutique écrite par l’IA (design unique, responsive, panier, emails, Stripe, hébergement, modifications à volonté) — payée une seule fois, à vie, sans filigrane', 500, '5 €'],
   ['DropShop IA : modifications de la boutique, à volonté', 0, 'comprises'],
   ['Extension Back Office d’une boutique DropShop (administration indépendante, identifiant et mot de passe)', 300, '3,00 €'],
-  ['Extension DropBank (la boutique accepte les drops, Premium Member de DropMarket) — bientôt', 0, 'gratuit'],
 ]
 
 const RECHARGES = [
