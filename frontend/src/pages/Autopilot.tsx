@@ -342,10 +342,14 @@ export default function Autopilot() {
         const rayonsAuto = enPoste.filter((r) => r.autoMode).length
         const nR = Math.max(rayonsAuto, 1) // 1 rayon en exemple quand rien n'est en auto-mode
         const produits = s.produitsParRayon
-        // Le coût réel : l'analyse (75) est facturée PAR RAYON (chef en auto-mode),
-        // et chaque produit importé coûte 14. Total end-to-end d'un passage de 12 h.
-        const analyse = 75 * nR
-        const imports = 14 * produits * nR
+        // Ce que le serveur débite vraiment (backend/src/services/tarifs.ts, autopilot.ts) :
+        // la journée (DROPS.autoShipperJour = 100) une fois par 24 h, à la première tournée,
+        // rendue si elle n'importe rien ; chaque produit importé et publié 18
+        // (DROPS.autoShipperImport) ; les analyses des chefs en auto-mode sont gratuites.
+        const JOURNEE = 100
+        const PAR_PRODUIT = 18
+        const analyse = JOURNEE
+        const imports = PAR_PRODUIT * produits * nR
         const total = analyse + imports
         const eur = (d: number) => (d * 0.01).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         const arcEnCiel = 'linear-gradient(90deg,#eab308,#84cc16,#22c55e,#06b6d4,#3b82f6,#8b5cf6,#ec4899,#ef4444)'
@@ -355,7 +359,7 @@ export default function Autopilot() {
               <div>
                 <h2 className="text-lg font-bold">Activer Auto-SHIPPER IA</h2>
                 <p className="mt-0.5 text-xs text-gray-400">
-                  75 drops / passage / rayon / 12 h · 14 drops / produit ·{' '}
+                  100 drops (1 €) la journée · 18 drops / produit · analyses des rayons gratuites ·{' '}
                   <a href="#infos" className="text-yellow-300 underline underline-offset-2">
                     * infos
                   </a>
@@ -403,7 +407,7 @@ export default function Autopilot() {
                 ))}
               </div>
               <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
-                <b>14 drops par produit</b> — comprend la rédaction de l'annonce optimisée, le scraping
+                <b>18 drops par produit</b> importé et publié — comprend la rédaction de l'annonce optimisée, le scraping
                 des photos, l'ajustement du prix de vente au marché (marge respectée) et la sélection
                 géographique.
               </p>
@@ -412,19 +416,19 @@ export default function Autopilot() {
             {/* Le tarif qui s'adapte au réglage. */}
             <div className="mt-4 rounded-xl border border-white/10 bg-black/25 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Coût d'un passage {rayonsAuto > 0 ? `— ${rayonsAuto} rayon(s) en auto-mode` : '(exemple : 1 rayon)'}, toutes les 12 h
+                Coût de la première tournée du jour {rayonsAuto > 0 ? `— ${rayonsAuto} rayon(s) en auto-mode` : '(exemple : 1 rayon)'}
               </p>
               <div className="mt-2 space-y-1 text-sm">
                 <div className="flex justify-between gap-3">
-                  <span className="text-gray-300">Analyse de marché + gagnants — 75 × {nR} rayon(s)</span>
+                  <span className="text-gray-300">La journée AUTO-SHIPPER (une fois par 24 h, rendue si rien n'est importé) — analyses des rayons gratuites</span>
                   <span className="shrink-0 font-semibold text-amber-200">{analyse} drops</span>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <span className="text-gray-300">Imports — 14 × {produits} produit(s) × {nR} rayon(s)</span>
+                  <span className="text-gray-300">Imports — 18 × {produits} produit(s) × {nR} rayon(s)</span>
                   <span className="shrink-0 font-semibold text-amber-200">{imports} drops</span>
                 </div>
                 <div className="flex justify-between gap-3 border-t border-white/10 pt-1.5 text-base font-black">
-                  <span>Total par passage</span>
+                  <span>Total</span>
                   <span className="shrink-0 text-yellow-300">
                     {total} drops <span className="text-xs font-semibold text-gray-400">≈ {eur(total)} €</span>
                   </span>
@@ -547,7 +551,7 @@ export default function Autopilot() {
           </span>
           {s.enabled ? (
             <span className="rounded-full bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-sky-300">
-              un passage par tranche de 12 h — 14 drops par import
+              un passage par tranche de 12 h — 1 € la journée + 18 drops par import
             </span>
           ) : null}
         </label>
@@ -564,7 +568,7 @@ export default function Autopilot() {
               className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
             />
             <p className="mt-1 text-[11px] text-gray-500">
-              {`Plafond de cette version : 50 par jour. Soit ${s.dailyLimit * 14} drops par jour au maximum (14 drops par import auto).`}
+              {`Plafond de cette version : 50 par jour. Soit ${100 + s.dailyLimit * 18} drops par jour au maximum (100 la journée + 18 par import auto).`}
             </p>
           </div>
 
@@ -756,7 +760,7 @@ export default function Autopilot() {
 
         <p className="mt-4 text-xs font-semibold leading-relaxed text-yellow-200">
           Pour l'instant, cette version de DropShipper IA limite la publication auto à 50 annonces
-          par jour — soit 1 500 par mois en mode auto. Tarif du mode auto : 14 drops par import
+          par jour — soit 1 500 par mois en mode auto. Tarif du mode auto : 100 drops (1 €) la journée, plus 18 drops par import
           automatique (reprise des produits gagnants, sélection, publication et archivage du journal
           compris), débités sur votre solde de drops.
         </p>
@@ -767,7 +771,7 @@ export default function Autopilot() {
         <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
         <div className="text-xs leading-relaxed text-amber-100">
           <p>
-            <b>Chaque import consomme des drops</b> (14 en Auto-SHIPPER IA) et remplit votre catalogue. Le plafond quotidien
+            <b>Chaque import consomme des drops</b> (18 en Auto-SHIPPER IA, plus 100 la journée) et remplit votre catalogue. Le plafond quotidien
             est la seule chose qui vous protège d'un agent trop généreux : commencez bas.
           </p>
           <p className="mt-1">
