@@ -104,7 +104,14 @@ const OUTILS = new Set(['a', 'au', 'aux', 'avec', 'd', 'de', 'des', 'du', 'en', 
  *  - sinon le titre seul.
  * « ordinateurs-pour-ia-en-mode-local-egpu-docks-oculink-thunderbolt-5-… ».
  */
-export function sujetRapport(r: Pick<RapportPublic, 'day' | 'theme' | 'titre' | 'une' | 'extrait'>): string {
+// « …-forte-marge-marque-blanche-entree-gamme/ » (smartphones 20/09): a sourcing term has no place in an address either.
+const SUJET_PRIVE = /marques?\s+blanches?|white[-\s]label|private[-\s]label|(?<![\p{L}])(?:oem|odm|moq)(?![\p{L}])|grossistes?|prix\s+de\s+gros|(?<![\p{L}])en\s+gros(?![\p{L}])/giu
+
+export function sujetRapport(r: Pick<RapportPublic, 'day' | 'theme' | 'titre' | 'une' | 'extrait'>, filtre = true): string {
+  if (filtre) {
+    const net = (t: string | null | undefined) => (t ? t.replace(SUJET_PRIVE, ' ') : t)
+    r = { ...r, titre: net(r.titre) ?? r.titre, une: net(r.une) ?? null, extrait: net(r.extrait) ?? null }
+  }
   const annee = r.day.slice(0, 4)
   if (r.une) return nettoyer(slugTitre(r.une, SUJET_MAX), annee) || r.theme
   const titre = nettoyer(slugTitre(r.titre, 70), annee) || r.theme
@@ -131,13 +138,13 @@ type Adressable = Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'ty
  */
 let attribuees = new Map<string, string>()
 
-function calculerAdresses(rapports: Adressable[]): Map<string, string> {
+function calculerAdresses(rapports: Adressable[], filtre = true): Map<string, string> {
   const prises = new Set<string>()
   const carte = new Map<string, string>()
   const rang = (r: Adressable) => `${r.day}|${r.type === 'rayon' ? 0 : 1}|${r.id}`
   const ordre = [...rapports].sort((a, b) => (rang(a) < rang(b) ? -1 : 1))
   for (const r of ordre) {
-    const base = `/analyses/${r.theme}/${sujetRapport(r)}`
+    const base = `/analyses/${r.theme}/${sujetRapport(r, filtre)}`
     let choix = `${base}/`
     for (let n = 2; prises.has(choix); n++) choix = `${base}-${n}/`
     prises.add(choix)
@@ -152,9 +159,15 @@ export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: 
   // (/analyses/lavage-sechage/lavage-sechage-2/). Those addresses were in the
   // sitemap: replay that attribution and send each one to the current address.
   anciennes = new Map()
+  const actuelles = new Set(attribuees.values())
+  // The addresses before the sourcing terms left them (13/10/2026): each one sends to the current address.
+  const brutes = calculerAdresses(rapports, false)
+  for (const r of rapports) {
+    const ancienne = brutes.get(r.id)
+    if (ancienne && ancienne !== attribuees.get(r.id) && !actuelles.has(ancienne)) anciennes.set(ancienne, r.id)
+  }
   if (!rapports.some((r) => r.importeDrive)) return
   const avant = calculerAdresses(rapports.map((r) => (r.importeDrive ? { ...r, titre: r.theme, une: null, extrait: null } : r)))
-  const actuelles = new Set(attribuees.values())
   for (const r of rapports) {
     const ancienne = avant.get(r.id)
     if (r.importeDrive && ancienne && ancienne !== attribuees.get(r.id) && !actuelles.has(ancienne)) anciennes.set(ancienne, r.id)
@@ -162,7 +175,7 @@ export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: 
 }
 
 let anciennes = new Map<string, string>()
-/** The report an old Drive-import address (bare theme as title) stood for, if any. */
+/** The report an old address stood for (a Drive import titled by its bare theme, a sourcing term in the slug), if any. */
 export function rapportAncienneAdresse(chemin: string): string | null {
   return anciennes.get(chemin) ?? null
 }
@@ -233,11 +246,12 @@ export function titreRapport(r: Pick<RapportPublic, 'titre' | 'type' | 'day' | '
   const candidats =
     r.type === 'rayon'
       ? n ? [`${t} : ${n} produits (${d})`] : [`${t} (${d})`]
-      : [`${t} : analyse marketing (${d})`, `${t} : marketing (${d})`, `${t} (${d})`]
+      : [`${t} : marketing (${d})`]
   const tient = candidats.find((c) => c.length <= TITRE_MAX)
   if (tient) return tient
-  // A long rayon title keeps its count, like the short ones (12/10/2026).
-  const suffixe = r.type === 'rayon' && n ? ` : ${n} produits (${d})` : ` (${d})`
+  // A long title keeps its count or its « marketing », like the short ones: drones-2 said « analyse marketing »,
+  // bougies-2 nothing (12 and 13/10/2026).
+  const suffixe = r.type === 'rayon' && n ? ` : ${n} produits (${d})` : r.type === 'marketing' ? ` : marketing (${d})` : ` (${d})`
   const place = TITRE_MAX - suffixe.length - 1
   return `${t.slice(0, place).replace(/[\s,:;—-]+\S*$/, '')}…${suffixe}`
 }
@@ -422,10 +436,10 @@ const MARGE_PCT = /(marge|\broi\b)[^.;]{0,40}\d\s*%|\d\s*%[^.;]{0,20}(de\s*)?(ma
 const PLAFOND = /(≤|<=|⩽|\bmax(imum)?\b|plafond|objectif|n[ée]goci\w*\s+(sous|à|a|au\s+plus))\s*:?\s*\d[\d\s\u00a0]*(?:[.,]\d+)?\s*€|prix\s*max|\d\s*€\s*nets?\b/i
 /** A supplier's name, a foreign-currency price, a buying ceiling, or a buying term next to an amount (« coût rendu 18 € »). */
 // A price converted from pounds or dollars, a rate, « à renégocier », « prix d'achat » itself: buying talk (eveil, 12/10/2026).
-const ACHAT_EN_CLAIR = /\b(le|les|ce|ces|nos|notre|un|du)\s+prix\s+d['’ ]?achat|tarif\s+fournisseur|ren[ée]goci|taux\s+(indicatif|de\s+change|approximatif)|convertis?\s+(de|depuis|au)\b|€\s*\/\s*(£|\$)|\bcatalogue\s*«?\s*api\b|prix\s+indiqués?\s+plus\s+bas|lignes?\s+marquées?\s+«\s*estimation|canaux\s+b2b|guide\s+b2b|sourcing\s+alternatif|(achetée?s?|achat|lot|tarif|prix|sourcing)\s+(en\s+)?b2b|non\s+chiffré|tarifs?\s+(revendeur|distributeur|public)|sans\s+tarif|compte\s+revendeur|grossistes?\b|distributeurs?\s+agréés|\bsourcing\b|prix\s+de\s+gros|\bmoq\b|tarifs?\s+palier|palier\s+\d+\s*\+?\s*unités|marges?\s+(brute|nette|en\s+valeur)|(achat|importer|acheter|commander)\s+en\s+lots?\b|(?<!côté\s)\bb2b\b|(prix|tarif|grille|marge|remise|achat)[^.;,]{0,30}\brevendeurs?\b|peu\s+de\s+marge|dégage\s+une\s+marge|revendeurs?\s+officiels?|\breselling\b|marques?\s+blanches?|white[-\s]label|private[-\s]label|\boem\b|\bodm\b|minimum\s+de\s+commande|\bleur\s+api\b|\d[\d\s\u00a0.]{2,}\s*(?:-|–|à)\s*\d[\d\s\u00a0.]{2,}\s*(?:unités|pièces)|\bachet(er|é|ée|és|ées)\s+(à|a)\s+\d/i
+const ACHAT_EN_CLAIR = /\b(le|les|ce|ces|nos|notre|un|du)\s+prix\s+d['’ ]?achat|tarif\s+fournisseur|ren[ée]goci|taux\s+(indicatif|de\s+change|approximatif)|convertis?\s+(de|depuis|au)\b|€\s*\/\s*(£|\$)|\bcatalogue\s*«?\s*api\b|prix\s+indiqués?\s+plus\s+bas|lignes?\s+marquées?\s+«\s*estimation|canaux\s+b2b|guide\s+b2b|sourcing\s+alternatif|(achetée?s?|achat|lot|tarif|prix|sourcing)\s+(en\s+)?b2b|non\s+chiffré|tarifs?\s+(revendeur|distributeur|public)|sans\s+tarif|compte\s+revendeur|grossistes?\b|distributeurs?\s+agréés|\bsourcing\b|prix\s+de\s+gros|\bmoq\b|tarifs?\s+palier|palier\s+\d+\s*\+?\s*unités|marges?\s+(brute|nette|en\s+valeur)|(achat|importer|acheter|commander)\s+en\s+lots?\b|(?<!côté\s)\bb2b\b|(prix|tarif|grille|marge|remise|achat)[^.;,]{0,30}\brevendeurs?\b|peu\s+de\s+marge|dégage\s+une\s+marge|revendeurs?\s+officiels?|\breselling\b|marques?\s+blanches?|white[-\s]label|private[-\s]label|\boem\b|\bodm\b|minimum\s+de\s+commande|\bleur\s+api\b|\d[\d\s\u00a0.]{2,}\s*(?:-|–|à)\s*\d[\d\s\u00a0.]{2,}\s*(?:unités|pièces)|\bachet(er|é|ée|és|ées)\s+(à|a)\s+\d|(?:publics?|affichée?s?|visibles?|accessibles?)\s+sans\s+(?:compte|connexion)|vérifiables?\s+sans\s+connexion|anti-?bot|hors\s+douane|relevée?s?\s+côté\s+b2b|pas\s+navigables?/i
 // The agents' own working notes (« quota WebSearch épuisé », « à reclasser en `api` », « purchase_price … null »).
 const JARGON =
-  /conversion\s+usd|usd\s*(→|->|vers)\s*eur|websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|«\s*(url|api|extension)\s*»|import\s+(url|api|extension)|\/item\/|fiche\s+produit\s+générique|\bmaxime\b|rapport\s+rayon|retraité|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>|n['’]ont\s+pas\s+pu\s+être\s+(interrogée?s?|consultée?s?|lue?s?)|refusé\s+l['’]accès|accès\s+automatisé|lecture\s+automatisée|recherche\s+automatisée?|prochain\s+passage\s+de\s+l['’]agent|l['’]agent\s+(marketing|rayon)|vérifier\s+manuellement|par\s+un\s+humain|dommage\s+d['’]inventer|ont\s+bloqué|honnêteté\s+d['’]abord|connexion\s+requise|non\s+vérifiée?s?|non\s+relevée?s?\s+aujourd|n['’]avons\s+pas\s+pu|pas\s+pu\s+(accéder|consulter|interroger|vérifier)|n['’]a\s+(?:donc\s+)?pu\s+être\s+(vérifiée?s?|consultée?s?|lue?s?)|non\s+accessibles?|que\s+j['’]ai\s+pu|nous\s+le\s+signalons|vérification\s+en\s+direct|connaissance\s+générale\s+du\s+secteur|chargée?\s+en\s+javascript|hors\s+session|lors\s+de\s+cette\s+recherche|sur\s+toute\s+la\s+recherche|vue?s?\s+en\s+résultats?\s+de\s+recherche|^\s*pas\s+de\s+recherche\s*$|comptes?\s+pub(licitaires?)?\s+de\s+(max|drop-?shipper)|depuis\s+le\s+compte\s+publicitaire|limitation\s+de\s+prix\s+public|sources?\s+extension|les\s+données\s+disponibles\s+ne\s+donnent|à\s+relever\s+dans|(?<![a-zà-ÿ])méthode(?:\s+pour\s+compléter)?\s*:|(?<![a-zà-ÿ])relever\s*:|non\s+relevée?s?(?![a-zà-ÿ])/i
+  /conversion\s+usd|usd\s*(→|->|vers)\s*eur|websearch|quota\s+de\s+recherche|robots\.txt|politique\s+réseau|(de|cette)\s+session|reclass|colonne\s+import|note\s+import|purchase_price|landed_cost|estimated_|\bnull\b|compte\s+pro\b|prix\s+non\s+public|rendu\s+js|navigateur\s+réel|voir\s+(la\s+)?méthodologie|«\s*(url|api|extension)\s*»|import\s+(url|api|extension)|\/item\/|fiche\s+produit\s+générique|\bmaxime\b|rapport\s+rayon|retraité|connexions?\s+api|\bapi\s*\/\s*extension|^\s*(\*\*)?\s*(limite|note|point)s?\s+(de\s+)?méthod|^\s*(\*\*)?\s*méthodologie|`(api|url|extension)`|<code>(api|url|extension)<\/code>|n['’]ont\s+pas\s+pu\s+être\s+(interrogée?s?|consultée?s?|lue?s?)|refusé\s+l['’]accès|accès\s+automatisé|lecture\s+automatisée|recherche\s+automatisée?|prochain\s+passage\s+de\s+l['’]agent|l['’]agent\s+(marketing|rayon)|vérifier\s+manuellement|par\s+un\s+humain|dommage\s+d['’]inventer|ont\s+bloqué|honnêteté\s+d['’]abord|connexion\s+requise|non\s+vérifiée?s?|non\s+relevée?s?\s+aujourd|n['’]avons\s+pas\s+pu|pas\s+pu\s+(accéder|consulter|interroger|vérifier)|n['’]a\s+(?:donc\s+)?pu\s+être\s+(vérifiée?s?|consultée?s?|lue?s?)|non\s+accessibles?|que\s+j['’]ai\s+pu|nous\s+le\s+signalons|vérification\s+en\s+direct|connaissance\s+générale\s+du\s+secteur|chargée?\s+en\s+javascript|hors\s+session|lors\s+de\s+cette\s+recherche|sur\s+toute\s+la\s+recherche|vue?s?\s+en\s+résultats?\s+de\s+recherche|^\s*pas\s+de\s+recherche\s*$|comptes?\s+pub(licitaires?)?\s+de\s+(max|drop-?shipper)|depuis\s+le\s+compte\s+publicitaire|limitation\s+de\s+prix\s+public|sources?\s+extension|les\s+données\s+disponibles\s+ne\s+donnent|à\s+relever\s+dans|(?<![a-zà-ÿ])méthode(?:\s+pour\s+compléter)?\s*:|(?<![a-zà-ÿ])relever\s*:|non\s+relevée?s?(?![a-zà-ÿ])|à\s+valider\s+manuellement|à\s+reconfirmer\s+avant\s+mise\s+en\s+ligne|limite\s+à\s+signaler|la\s+marge\s+indiquée/i
 // « votre compte CJ », « la veste softshell CJ » : the supplier by its initials, capitals only.
 const CJ_SEUL = /(?<![\p{L}\d])CJ(?![\p{L}\d])/u
 const DEVISE = /\d\s*(\$|usd\b|¥|rmb\b|cny\b|£|gbp\b)|(\$|us\$|¥|£)\s*\d/i
@@ -1037,7 +1051,7 @@ const TRAHIT_ACHAT = /achat|fournisseur|relev|sur la fiche|co[uû]t|usine|grossi
 
 /** « pourquoi » sans ce qui trahit l'achat : chaque parenthèse et chaque membre de phrase fautif est retiré. Exporté pour le banc. */
 // A pointer to a note the public page does not show, or how the agent read the page.
-const POURQUOI_INTERNE = /voir\s+(la\s+)?note|non\s+vérifiable|rendu\s+js|sans\s+(navigateur|extension)|\bfret\b|prix\s+à\s+(vérifier|valider|reconfirmer)|estimée?s?(?![\p{L}])|estimation|fiche\s+(api|exacte|précise)|\bapi\b|via\s+l['’]extension|manuellement|lisible\s+sans|\bb2b\b|compte\s+professionnel|\bfetch\b|avant\s+import|à\s+re(confirmer|contrôler)|non\s+vérifié|sourcing|retraité|import\s+(url|api|extension)|b2b|revendeur|grossiste|marges?\b|\bmoq\b|prix\s+de\s+gros|palier|tarif|\bfiches?\b|vérifiée?s?|plateforme\s+générale|à\s+corriger|dès\s+accès|achet\w*\s+(à|a)\s+\d/iu
+const POURQUOI_INTERNE = /voir\s+(la\s+)?note|non\s+vérifiable|rendu\s+js|sans\s+(navigateur|extension)|\bfret\b|prix\s+à\s+(vérifier|valider|reconfirmer)|estimée?s?(?![\p{L}])|estimation|fiche\s+(api|exacte|précise)|\bapi\b|via\s+l['’]extension|manuellement|lisible\s+sans|\bb2b\b|compte\s+professionnel|\bfetch\b|avant\s+import|à\s+re(confirmer|contrôler)|non\s+vérifié|sourcing|retraité|import\s+(url|api|extension)|b2b|revendeur|grossiste|marges?\b|\bmoq\b|prix\s+de\s+gros|palier|tarif|\bfiches?\b|vérifiée?s?|plateforme\s+générale|à\s+corriger|dès\s+accès|achet\w*\s+(à|a)\s+\d|sans\s+compte|au\s+catalogue|(?:cette|ce\s+type\s+de)\s+plateforme|identifiée?\s+par\s+recherche|pas\s+inventée?s?/iu
 
 // The English verdicts of other agents (« WATCHLIST », « BUY IF NEGOTIATED »), translated as the import does.
 const { verdictFr } = createRequire(import.meta.url)('../../rapports-etude.cjs') as { verdictFr: (t: string) => string }
@@ -1470,8 +1484,11 @@ export function titreProduitPublic(titre: string): string {
   titre = titre.replace(/\s+[-—–|]\s+acheter\s+(à|a)\s*$/i, '')
   // « Smartphone générique marque blanche » : a sourcing term, not what the shopper buys (constat de #93).
   titre = titre.replace(/\s*(?:[-—–]\s*)?(?:en\s+)?marque\s+blanche(?![\p{L}])/giu, '')
+  // « Set de verres 6 pièces (lot de 8 sets) » : the carton the seller buys, not what the shopper gets.
+  titre = titre.replace(/\s*\(lot\s+de\s+\d+\s+(?:sets|cartons|colis|packs|boîtes)\)/giu, '')
   if (MARQUE_GROSSISTE.test(titre)) {
-    const net = titre.replace(MARQUE_GROSSISTE, '').replace(/\s+([-—–|,])\s*$/, '').replace(/^\s*[-—–|,]\s*/, '').replace(/\s{2,}/g, ' ').trim()
+    // « Pompe Winuum (Acopa, lot de 4) », « Paddle gonflable vidaXL, noir » : the comma goes with the name.
+    const net = titre.replace(MARQUE_GROSSISTE, '').replace(/\(\s*,\s*/g, '(').replace(/\s+,/g, ',').replace(/\s+([-—–|,])\s*$/, '').replace(/^\s*[-—–|,]\s*/, '').replace(/\s{2,}/g, ' ').trim()
     if (/\p{L}{3}/u.test(net)) titre = net.charAt(0).toUpperCase() + net.slice(1)
   }
   MARQUE_GROSSISTE.lastIndex = 0
@@ -1992,6 +2009,13 @@ function profondeurs(t: string): number[] {
  * sentence. A verdict line or a bold title loses only the amount or the name.
  */
 function sansSegment(phrase: string, debut: number, fin: number, nom = false): string {
+  // « **Strate 3 — la saisonnalité courte.** Les recherches [AliExpress…] » : the bold title is not part of the cut (vases 04/10).
+  // A title ends on its own stop; « **Facebook** reste pertinent… » is a sentence.
+  const titreGras = /^\s*\*\*[^*\n]+[.!?]\*\*[^\S\n]*/.exec(phrase)
+  if (titreGras && debut >= titreGras[0].length) {
+    const suite = sansSegment(phrase.slice(titreGras[0].length), debut - titreGras[0].length, fin - titreGras[0].length, nom)
+    return suite ? titreGras[0] + suite : titreGras[0].trimEnd()
+  }
   if (nom) {
     const net = sansAttribution(phrase, debut, fin)
     if (net) return net
@@ -2107,13 +2131,15 @@ function sansSegment(phrase: string, debut: number, fin: number, nom = false): s
     // « Côté gamme, SaleHoo situe le prix… $, et distingue deux segments », « …chez AliExpress, ce qui transforme la vente » :
     // the next clause leans on the one that went (its subject or its antecedent) : it goes too, up to the next strong
     // break, and what came before the cut stays (constat de #93).
-    const appuie = /^(?:et|mais|ou|donc|puis)\s+(?!(?:les?|la|l['’]|un|une|des|du|de|d['’]|ces?|cette|son|sa|ses|leurs?|nos?|notre|vos?|votre|il|elle|ils|elles|on)\s)|^(?:ce\s+qu|qui\s|dont\s|où\s|et\s+(?:le|la|les)\s+même|(?:des|ces)\s+chiffres|ce\s+chiffre|ce\s+rapport|cette\s+(?:vérification|recherche|méthode))/iu
+    const appuie = /^(?:et|mais|ou|donc|puis)\s+(?!(?:les?|la|l['’]|un|une|des|du|de|d['’]|ces?|cette|son|sa|ses|leurs?|nos?|notre|vos?|votre|il|elle|ils|elles|on)\s)|^(?:ce\s+qu|qui\s|dont\s|où\s|avec\s|et\s+(?:le|la|les)\s+même|(?:des|ces)\s+chiffres|ce\s+chiffre|ce\s+rapport|cette\s+(?:vérification|recherche|méthode))/iu
     while (droite && appuie.test(coeur.slice(droite.fin))) droite = fortes.find((s) => s.debut >= droite!.fin)
     // « Budget test recommandé : environ 245 €. » : a label alone says nothing.
     if (gauche.deuxPoints && !droite && coeur.slice(0, gauche.debut).trim().split(/\s+/).length <= 5) return nomSeul()
     // « Gammes : de 7 € à 40 € en achat, avec des prix de vente… » : the colon stays, the comma goes.
     reste = droite && droite.virgule && !gauche.virgule ? coeur.slice(0, gauche.fin) + coeur.slice(droite.fin) : coeur.slice(0, gauche.debut) + (droite ? coeur.slice(droite.debut) : '') + ponctuation
     if (droite && droite.virgule && !gauche.virgule) reste += ponctuation
+    // « les lunettes basiques, vendues par milliers sur AliExpress à moins d'1 $, créent une guerre » : the apposition goes with both its commas.
+    else if (droite && droite.virgule && gauche.virgule && /^\p{Ll}+(?:ée?s?|ue?s?|ie?s?|ite?s?|ant)\s/u.test(coeur.slice(gauche.fin, debut + 1))) reste = coeur.slice(0, gauche.debut) + ' ' + coeur.slice(droite.fin) + ponctuation
   }
   // « …et le LG 42C54 comme porte d'entrée compacte ; Sony Bravia 8 II est. » : a verb left without what it said.
   if (/(?<![\p{L}])(?:est|sont|reste|restent|devient|deviennent)\s*[.!?…]*\s*$/iu.test(reste)) return ''
@@ -2254,6 +2280,137 @@ export const fautesDesAgents = (t: string) =>
     .replace(/(?<![\p{L}])le\s+liens\s+entre/gu, 'le lien entre')
     .replace(/(?<![\p{L}])une\s+even\s+scène/gu, 'une scène')
     .replace(/(?<![\p{L}])un\s+vrai\s+électron\s+différenciant/gu, 'un vrai élément différenciant')
+
+// The suppliers by name only (not « fournisseur », « grilles revendeur »…): what a sentence can have as its subject.
+const NOMS_FOURNISSEURS = String.raw`(?:aliexpress|alibaba|cj\s?dropshipping|cjdropshipping|(?<![\p{L}\d])CJ(?![\p{L}\d])|temu|shein|bigbuy|dhgate|banggood|spocket|zendrop|syncee|vidaxl|global\s?sources|taobao|joybuy|lightinthebox|ankorstore|eprolo|webstaurant(?:store)?|printful|printify|hypersku|wholesale2b|dropshipzone|droppery|printkk|acopa|innovagoods|super\s?delivery|destockplus|dropizi|webdrop)`
+const NOM_SEUL = new RegExp(`(?<![\\p{L}\\d])${NOMS_FOURNISSEURS}(?![\\p{L}\\d])`, 'giu')
+// « **BigBuy** a été consulté », « [Eprolo](…) — souvent cité… — ne référence pas » : the supplier is the sentence's subject.
+const SUJET_FOURNISSEUR = new RegExp(`^(?:\\(\\d\\)\\s*)?(?:(?:sur|chez|enfin|côté)\\s+[^,]{0,30},\\s*)?(?:\\*\\*|\\[)?${NOMS_FOURNISSEURS}(?:\\*\\*|\\]\\([^)\\s]*\\))?\\s+(?:\\p{Ll}|n['’])`, 'iu')
+
+/**
+ * What the agents wrote about their suppliers (04/10): a sentence whose subject is a supplier goes whole, and in a
+ * paragraph about them (four names or more) every sentence or « ; » clause that names one goes (two names anywhere),
+ * instead of the
+ * guard taking the names and leaving « Enfin — ne référence pas de rideaux » (constat de #94).
+ */
+export function sansPhrasesFournisseurs(texte: string): string {
+  return texte
+    // « se vend entre 8 et 15 € avec des coûts d'achat souvent inférieurs à 1 € » : the sale price stays, the cost goes.
+    .replace(/,?\s+avec\s+(?:des|un)\s+co[uû]ts?\s+d['’]achat\s+[^,.;:\n]*?\d[\d,.\s]*\s*(?:€|\$)/giu, '')
+    // « Autre point de vigilance fournisseur : "antidérapant" est un argument… » : the point is the shopper's.
+    .replace(/(point\s+de\s+vigilance)\s+fournisseurs?\s*:/giu, '$1 :')
+    // « elle nomme directement Temu, Shein et AliExpress comme canaux » : the list says what they are.
+    .replace(new RegExp(`(nomm\\p{L}*\\s+(?:directement\\s+)?)(?:${NOMS_FOURNISSEURS}(?:\\s*,\\s*|\\s+et\\s+))+${NOMS_FOURNISSEURS}(?![\\p{L}\\d])`, 'giu'), (_m, v: string) => `${v}des places de marché en ligne`)
+    .replace(/nommément\s+(des\s+places\s+de\s+marché)/gu, '$1')
+    // « (CHR, restauration) type WebstaurantStore jouent » : the example goes with its word.
+    .replace(new RegExp(`\\s+(?:type|ex\\.|tels?\\s+que)\\s+(?:\\*\\*)?${NOMS_FOURNISSEURS}(?:\\*\\*)?(?=[\\s,.;:)])`, 'giu'), '')
+    .split('\n')
+    .map((ligne) => {
+      // A table, a heading, the list of sources: the guard takes the names out of them.
+      if (/^\s*(?:\||#)/.test(ligne) || /^\s*(?:[-*+]\s+)?(?:\*\*)?sources?\b/i.test(ligne)) return ligne
+      const puce = /^\s*(?:[-*+]|\d{1,2}[.)])\s+/.exec(ligne)?.[0] ?? ''
+      const corps = ligne.slice(puce.length)
+      if (SUJET_FOURNISSEUR.test(corps)) return null
+      // The names a reader sees: not in an address; a name in brackets the guard takes alone.
+      const visibles = (t: string) => (t.replace(/\]\([^)\s]*\)/g, ']').match(NOM_SEUL) ?? []).length
+      // Outside brackets and « — asides — », where the guard takes a name alone.
+      const aPlat = (t: string) => t.replace(/\]\([^)\s]*\)/g, ']').replace(/\([^()]*\)/g, '').replace(/\s[—–]\s[^—–]*\s[—–]\s/g, ' ')
+      const dehors = (t: string) => visibles(aPlat(t))
+      // In the first half of the sentence, where its subject is: at its end, the name is a detail the guard takes.
+      const enTete = (t: string) => {
+        const p = aPlat(t)
+        NOM_SEUL.lastIndex = 0
+        const m = NOM_SEUL.exec(p)
+        NOM_SEUL.lastIndex = 0
+        return !!m && m.index < p.length * 0.5
+      }
+      const dense = visibles(corps) >= 4
+      const unites = corps.split(/((?<=[.!?](?:\*\*)?)\s+|\s+;\s+)/)
+      let net = ''
+      let attente: string | null = null
+      for (let i = 0; i < unites.length; i += 2) {
+        const u = unites[i]
+        // « réserver l'approvisionnement AliExpress/Temu aux tests » : buying advice, whatever the paragraph.
+        if (SUJET_FOURNISSEUR.test(u) || (dehors(u) >= 1 && ((dense && enTete(u)) || /approvisionn/i.test(u)))) {
+          attente ??= unites[i - 1] ?? ''
+          continue
+        }
+        const sep = attente ?? unites[i - 1] ?? ' '
+        attente = null
+        net += net ? sep + u : i ? u.charAt(0).toUpperCase() + u.slice(1) : u
+      }
+      if (attente && /;/.test(attente) && net && !/[.!?]\**$/.test(net)) net += '.'
+      if (net === corps) return ligne
+      // « Pièges : (1) … ; (3) … » once (2) went: numbered again, a lone (1) loses its number.
+      let rang = 0
+      net = net.replace(/\((\d)\)/g, () => `(${++rang})`)
+      if (rang === 1) net = net.replace(/\(1\)\s*/, '')
+      // « **Point de vigilance marque.** » once what it introduced went: a label alone says nothing.
+      return /\p{L}{3}/u.test(net) && !/^\s*\*\*[^*]+\*\*\s*$/.test(net) ? puce + net : null
+    })
+    .filter((l): l is string => l !== null)
+    .join('\n')
+}
+
+/**
+ * « Attrape-poils lot de 6 | 9,18 € | 18,67 € » (lavage 12/10): a « lowest price seen » that no retail price of the
+ * page shows is not a price the reader can check, and is most likely what the seller pays. The cell takes the empty
+ * mark unless the same figure appears elsewhere in the report.
+ */
+export function prixBasSources(corps: string): string {
+  const lignes = corps.split('\n')
+  for (let i = 0; i < lignes.length; i++) {
+    if (!/^\s*\|/.test(lignes[i])) continue
+    const entetes = lignes[i].split('|').slice(1, -1).map((c) => c.trim())
+    const col = entetes.findIndex((c) => /prix\s+bas\s+observé/i.test(c))
+    let fin = i + 1
+    while (fin < lignes.length && /^\s*\|/.test(lignes[fin])) fin++
+    if (col < 0) { i = fin - 1; continue }
+    const ailleurs = [...lignes.slice(0, i), ...lignes.slice(fin)].join('\n')
+    // The table itself, other than this column: « 18,67 € (Cdiscount) » in the next cell is a source too.
+    const tableau = lignes.slice(i, fin).map((l) => l.split('|').filter((_x, j) => j !== col + 1).join('|')).join('\n')
+    for (let k = i + 1; k < fin; k++) {
+      const cellules = lignes[k].split('|')
+      const c = cellules[col + 1]
+      if (c == null || SEPARATEUR_TABLEAU.test(lignes[k])) continue
+      const montants = [...c.matchAll(/(\d{1,3}(?:[ \u00a0]\d{3})*|\d+)(?:[,.](\d{1,2}))?\s*€/g)]
+      if (!montants.length) continue
+      const vu = montants.every((m) => {
+        const entier = m[1].replace(/[ \u00a0]/g, '[ \u00a0]?')
+        const dec = m[2] && !/^0+$/.test(m[2]) ? `[,.]${m[2]}` : '(?:[,.]0{1,2})?'
+        const re = new RegExp(`(?<![\\d,.])${entier}${dec}(?![\\d]|[,.]\\d)`)
+        return re.test(ailleurs) || re.test(tableau)
+      })
+      if (!vu) {
+        cellules[col + 1] = ' — '
+        lignes[k] = cellules.join('|')
+      }
+    }
+    i = fin - 1
+  }
+  return lignes.join('\n')
+}
+
+/**
+ * What the guard left behind once it took a name or a figure (constat de #94): « ; Sony Bravia 8 II est. »,
+ * « Fiche prix (lcd-compare.com). », « vendu par GL.iNet ([Amazon]) », « ELM327 à bas », « et chez le fabricant
+ * français », a line that compares a price to the one it lost (« proches du prix (idealo.de) »).
+ */
+export function sansDebris(corps: string): string {
+  return prixBasSources(corps)
+    // « Acheter maintenant : cire de soja en gros » : the bulk purchase is buying advice; « En gros, … » stays.
+    .replace(/(?<=[\p{L}\d])[^\S\n]+en\s+gros(?=[^\S\n]*(?:[,.;:)]|$)|\s+(?:pour|et|à|chez)(?![\p{L}]))/gimu, '')
+    .replace(/[^\S\n]*;[^\S\n]*[^.;:!?\n]*?[^\S\n](?:est|sont)[^\S\n]*\./giu, '.')
+    .replace(/(^[^\S\n]*(?:[-*+][^\S\n]+)?|[.!?][^\S\n]+)Fiche\s+prix\s*\((?:\[[^\]\n]*\]\([^)\n]*\)|[^)\n]*)\)\.[^\S\n]*/gimu, '$1')
+    .replace(/[^\S\n]*\(\[[^\]\n]+\]\)/g, '')
+    .replace(/(?<![\p{L}])à\s+bas(?=[^\S\n]*(?:avec(?![\p{L}])|[.,;)]|$))/gimu, 'à bas prix')
+    .replace(/[^\S\n]+et\s+chez\s+le\s+fabricant\s+français(?![\p{L}])/giu, '')
+    // « Spécialistes ; pack 6 filtres Neo à 36,99 € » : a one-word label keeps its colon.
+    .replace(/^([^\S\n]*[-*+][^\S\n]+\p{Lu}\p{Ll}+)[^\S\n]*;[^\S\n]+/gmu, '$1 : ')
+    // « Rentables seulement en lot ou à prix négocié… » (drones 12/10): buying advice that lost its subject.
+    .replace(/(^|[.!?][^\S\n]+)Rentables?\s+seulement\s+en\s+lots?[^.!?\n]*[.!?]?[^\S\n]*/gmu, '$1')
+    .replace(/^[^\n]*proches?\s+du\s+prix\s*(?:\((?:\[[^\]\n]*\]\([^)\n]*\)|[^)\n]*)\))?\s*\.?[^\S\n]*(?:\n|$)/gimu, '')
+}
 
 export function texteRepare(texte: string): string {
   if (!texte) return texte
