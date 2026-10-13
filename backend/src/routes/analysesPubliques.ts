@@ -19,7 +19,7 @@ import { categorieDe } from '../services/marketReports.js'
 import {
   apostrophesDuTexte,
   apostrophesRendues,
-  promptsPublics, donneesPrivees, corpsVisibleVide, sansDonneesPrivees, type ProduitPublic,
+  promptsPublics, donneesPrivees, corpsVisibleVide, sansDonneesPrivees, achatsDuProduit, type ProduitPublic,
   attribuerAdresses,
   renvoisRenumerotes,
   texteVisible,
@@ -239,7 +239,7 @@ const titrePublic = (t: string) => {
   return r ? r.charAt(0).toUpperCase() + r.slice(1) : r
 }
 
-function versPublicBrut(id: string): RapportPublic | null {
+export function versPublicBrut(id: string): RapportPublic | null {
   const r = rapports().getAnalyse(id)
   if (!r || !adressable(r)) return null
   // The day's purchase prices and supplier names, from the data: no public text may show them (12/10/2026).
@@ -252,7 +252,7 @@ function versPublicBrut(id: string): RapportPublic | null {
           .map((p) => ({ genre: p.genre, format: p.format, texte: sansDonneesPrivees(apostrophesDuTexte(p.texte), prive) })))
       : []
   // One row per product: the per-offer list (with suppliers) stays in the signed-in space.
-  const nettoyes = produitsNettoyes(r.produits.map((p) => ({ ...p, pourquoi: sansDonneesPrivees(p.pourquoi, prive, [p.prixVente, (p as ProduitPublic).prixMin, (p as ProduitPublic).prixMax].filter((v): v is number => v != null)) })))
+  const nettoyes = produitsNettoyes(r.produits.map((p) => ({ ...p, pourquoi: sansDonneesPrivees(p.pourquoi, prive, { ligne: { achats: achatsDuProduit(p), ventes: [p.prixVente, (p as ProduitPublic).prixMin, (p as ProduitPublic).prixMax].filter((v): v is number => v != null) } }) })))
   const produits = produitsUniques(nettoyes).map((p, i) => ({ ...p, rang: i + 1 }))
   const texte = (t: string | null) => (t ? sansDonneesPrivees(texteRepare(apostrophesDuTexte(t)), prive) : t)
   // « Les 11 produits relevés » over a table of 10 once the doubles are grouped.

@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { titreProduitPublic, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { titreProduitPublic, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, annoncesRecomptees, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 import { ReportQuery } from './src/services/reportsDb.js'
 
@@ -620,7 +620,7 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
     { ...base, titre: 'Vase céramique', fournisseur: 'Apple Store', url: 'https://www.apple.com/fr/', prixAchat: 1, achats: [1], prixVente: 6.9 },
   ])
   exige(porteUnAchat('Texte final : « La collection STEM · dès 15,43 € ».', d), 'prix d’achat exact dans un prompt')
-  exige(porteUnAchat('Le kit électronique vendu environ 50 €.', d), 'prix d’achat à 0,50 € près')
+  exige(porteUnAchat('Le kit électronique acheté environ 50 € chez le fournisseur.', d), 'prix d’achat à 0,50 € près (avec un mot d’achat)')
   exige(porteUnAchat('Des vases à moins de 2 € inondent le marché.', d), 'plafond sous les prix de vente : niveau d’achat')
   exige(!porteUnAchat('Un kit à 26,90 € reste accessible.', d), 'un prix de vente du rapport reste permis')
   exige(!porteUnAchat('Les parents achètent un kit à 30-80 €.', d) && !porteUnAchat('Kits entre 15 et 30 €.', d), 'une fourchette de marché n’est pas un prix d’achat')
@@ -641,6 +641,40 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   exige(!/image et vidéo/.test(unImage.split('</head>')[0]) && /prompts publicitaires image\./.test(unImage), 'description : seulement les prompts vraiment affichés')
   exige(!/salehoo|innovagoods|prix professionnel|compte distributeur/i.test(sansMentionsPrivees('Selon SaleHoo, octobre est creux.\nListe de surveillance : InnovaGoods.\nLe prix professionnel n’est affiché qu’après création d’un compte distributeur.\nLe marché croît.')), 'SaleHoo, InnovaGoods, prix professionnel, compte distributeur')
 }
+
+{
+  // 13/10/2026, constat de #91 : un garde précis, qui coupe le morceau fautif et rien d'autre.
+  const base = { ...rapport.produits[0], prixMin: undefined, prixMax: undefined }
+  const d = donneesPrivees([
+    { ...base, titre: 'Écran portable ZSUS 10,5"', fournisseur: 'AliExpress', url: '', prixAchat: 41, achats: [41], prixVente: 79 },
+    { ...base, titre: 'Écran portable tactile 4K UPERFECT', fournisseur: 'AliExpress', url: '', prixAchat: 184, achats: [184], prixVente: 299 },
+    { ...base, titre: 'Kit chimie Clementoni', fournisseur: 'Droppery', url: 'https://www.droppery.io/p/1', prixAchat: 15.43, achats: [15.43], prixVente: 26.9 },
+    { ...base, titre: 'Support écran pliable', fournisseur: 'AliExpress', url: '', prixAchat: 12, achats: [12], prixVente: 30 },
+  ])
+  exige(!porteUnAchat('Le kit électronique vendu environ 15 €.', d) && porteUnAchat('Le kit s’achète environ 15 € chez le fournisseur.', d), 'prose : à 0,50 € près seulement avec un mot d’achat')
+  exige(!porteUnAchat('Une niche SEO « meilleur support moins de 12 € ».', d) && porteUnAchat('Un kit à 15,43 € dans la vidéo.', d), 'prose : un montant rond n’est pas un prix d’achat, un montant au centime l’est')
+  const cellule = sansDonneesPrivees('| 2 | Support écran pliable | Rentable à 12 € · Pliable partout · Cadeau de Noël |', d)
+  exige(cellule.includes('| Pliable partout · Cadeau de Noël |') && !/12 €/.test(cellule) && sansDonneesPrivees('Un support rentable à 12 € · pliable.', d).includes('12 €'), 'cellule : le segment fautif seul, comparé à sa ligne', cellule)
+  const tableau = sansDonneesPrivees('| Produit | Prix bas 15,43 € | Vente |\n|---|---|---|\n| Kit chimie Clementoni | 15,43 € | 26,90 € |', d)
+  exige(tableau.startsWith('| Produit | Prix bas 15,43 € | Vente |') && tableau.includes('| — |'), 'en-tête jamais filtré, la cellule fautive devient « — »', tableau)
+  const verdict = sansDonneesPrivees('Négocier : kit chimie à 15,43 € chez Droppery, livraison rapide.', d)
+  exige(/^Négocier : kit chimie/.test(verdict) && !/15,43|Droppery/i.test(verdict), 'ligne de verdict : seuls le montant et le nom partent', verdict)
+  const parenthese = sansDonneesPrivees('Les écrans portables USB-C (40-200 €) confirment leur statut : plusieurs références dépassent 2 000 ventes.', d)
+  exige(parenthese === 'Les écrans portables USB-C confirment leur statut : plusieurs références dépassent 2 000 ventes.', 'fourchette des prix d’achat du sujet : la parenthèse part, la phrase reste', parenthese)
+  exige(sansDonneesPrivees('Les écrans portables se vendent de 79 € à 299 €.', d).includes('79 € à 299 €'), 'fourchette des prix de vente : gardée')
+  const liste = sansDonneesPrivees('Pack découverte — coût 15,43 €, vente 26,90 €, panier moyen élevé.', d)
+  exige(liste === 'Pack découverte — vente 26,90 €, panier moyen élevé.', 'élément court d’une liste à virgules', liste)
+  const lien = sansDonneesPrivees('Sources : [Droppery — kits STEM](https://www.droppery.io/kits), [YouTube](https://youtube.com/x).', d)
+  exige(lien === 'Sources : [YouTube](https://youtube.com/x).', 'lien qui nomme le fournisseur : retiré entier', lien)
+  exige(sansDonneesPrivees('Texte final : « La collection STEM · dès 15,43 € ».', d) === 'Texte final : « La collection STEM ».', 'prompt : le montant part, les guillemets restent')
+  exige(annoncesRecomptees('Pour un revendeur, trois constats :\n- Le premier.\n- Le second.') .startsWith('Pour un revendeur, deux constats :') && annoncesRecomptees('Trois constats pour un revendeur : Le frein est la conformité.').startsWith('Un constat pour un revendeur :'), 'annonce chiffrée recomptée')
+  const vide = pageRapport({ ...rapport, type: 'marketing', body: '## Publicités en cours\n\n## Tendances du jour\nLe marché monte vite cette semaine.', produits: [], prompts: [] })
+  exige(!/Publicités en cours/.test(vide) && /Tendances du jour/.test(vide), 'section vidée : cachée avec son titre')
+  const consignes = texteRepare('- À relever dans TikTok Creative Center (France, 7 derniers jours).\n- Méthode : facebook.com/ads/library, pays France.\n- Canal secondaire ; visuels cadeaux et kits.\n- Prix non relevés.\n- TikTok : formats courts en tutoriel.\n| Vinted | non relevé |\nTrottinettes : Xiaomi le entry-level du marché.')
+  exige(consignes.startsWith('- TikTok : formats courts') && consignes.includes('| Vinted | — |') && consignes.includes("Xiaomi, l'entrée de gamme"), 'consignes internes et fragments masqués, « non relevé » en « — »', consignes)
+  exige(titreProduitPublic('Carafe à décanter Acopa 1 L') === 'Carafe à décanter 1 L' && titreProduitPublic('T-shirt brodé col rond - Printful') === 'T-shirt brodé col rond', 'marque maison de grossiste et Printful hors des titres')
+}
+
 
 if (echecs) {
   console.error(`\n${echecs} attente(s) manquée(s).`)
