@@ -27,7 +27,7 @@ const annexe = {
   meta: { category_id: 'electromenager', theme_slug: 'lavage-sechage' },
   products: [
     { rank: 1, product_name: 'Mini lave-linge portable', supplier_name: 'Usine X', observed_sales: '1 200+ / mois', scores: { global_opportunity_score: 82 }, image_url: 'https://img.test/1.jpg', decision: 'BUY' },
-    { rank: 2, product_name: 'Sèche-linge pliable', marketplace_data: { units_sold: 640 }, scores: { global_opportunity_score: 71 }, decision: 'BUY IF NEGOTIATED' },
+    { rank: 2, product_name: 'Sèche-linge pliable', marketplace_data: { units_sold: 640 }, estimated_landed_cost_france: 15.5, target_selling_price: 49, moq: 50, scores: { global_opportunity_score: 71 }, decision: 'BUY IF NEGOTIATED' },
     { rank: 3, product_name: 'Filtre anti-peluches', scores: { global_opportunity_score: 40 }, decision: 'AVOID' },
   ],
 };
@@ -55,8 +55,8 @@ Classement du jour.
 | Rang | Produit | Variante | Source achat | Coût rendu FR | Prix vente cible | Marge nette estimée | Score | Ventes constatées | Décision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Mini lave-linge portable | 3 kg | Usine | 32 € | 89 € | 40 € | 85 | | BUY |
-| 2 | Sèche-linge pliable | — | Usine | 18 € | 49 € | 20 € | | | BUY IF NEGOTIATED |
-| 3 | Filtre anti-peluches | — | Usine | 2 € | 9,90 € | 4 € | | 300 / mois | AVOID |
+| 2 | Sèche-linge pliable | — | Usine | 12–18 € | 45-55 € | 20 € | | | BUY IF NEGOTIATED |
+| 3 | Filtre anti-peluches | — | Usine | 2 € | 9-12 € | 4 € | | 300 / mois | AVOID |
 
 ## 8. Battle sheet achat / revente
 | Produit | Fournisseur | URL | Prix achat |
@@ -123,6 +123,12 @@ try {
   exige(p[0].image_url === 'https://img.test/1.jpg', "l'image de l'annexe");
   exige(p[1].verdict === 'Acheter si négocié' && p[1].reason === 'Acheter si négocié', '« BUY IF NEGOTIATED » devient « Acheter si négocié »');
   exige(p[2].verdict === 'Éviter', '« AVOID » devient « Éviter »');
+  const prix = db
+    .prepare(`SELECT p.buy_price_eur a, p.sell_price_eur v, p.margin_pct m FROM products p JOIN rayon_reports rr ON rr.id = p.rayon_report_id WHERE rr.report_id = ? ORDER BY p.rank`)
+    .all(etude.idRayon);
+  exige(prix[0].a === 32 && prix[0].v === 89, 'sans prix dans l’annexe, le montant unique du tableau');
+  exige(prix[1].a === 15.5 && prix[1].v === 49, 'les nombres de l’annexe priment sur une fourchette du tableau (« 12–18 € » donnait 1218)');
+  exige(prix[2].a === 2 && prix[2].v === null && prix[2].m === null, 'une fourchette sans nombre dans l’annexe reste vide, jamais devinée');
   const ventes = data.products.map((x) => x.sales ?? null);
   exige(ventes[0] === '1 200+ / mois', "ventes de l'annexe quand la case du tableau est vide");
   exige(ventes[1] === (640).toLocaleString('fr-FR'), 'ventes rangées un niveau plus bas dans l’annexe');

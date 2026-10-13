@@ -46,6 +46,12 @@ function nombre(txt) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** The one amount a cell holds (« 1 299 € », « ~8,50 € »), or null when it holds none or several (a range). */
+function montantSeul(cellule) {
+  const montants = texteDeCellule(cellule).match(/\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?/g) || [];
+  return montants.length === 1 ? nombre(montants[0]) : null;
+}
+
 /** Affichage euro a deux decimales, ou tiret quand la valeur manque. */
 function eur(n) {
   return n == null ? '—' : `${Number(n).toFixed(2)} €`;
@@ -528,9 +534,11 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
     const a = deLAnnexe(Math.round(rang), titre) || {};
     const urlAnnexe = /^https?:\/\//.test(String(a.supplier_url || '')) ? String(a.supplier_url) : '';
     const url = f.url || urlDeCellule(c.join(' ')) || urlAnnexe;
-    const nbA = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
-    const achat = (iAchat >= 0 ? nombre(c[iAchat]) : null) ?? nbA(a.estimated_landed_cost_france ?? a.purchase_price);
-    const vente = (iVente >= 0 ? nombre(c[iVente]) : null) ?? nbA(a.target_selling_price);
+    const nbA = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
+    // Prices: the annex numbers first (MARKETSPY writes them as JSON numbers), then a table cell holding one
+    // amount. A cell « 12–18 € » read whole gave 1218 and « 29-49 € » nothing (*_eur columns, 12/10/2026).
+    const achat = nbA(a.estimated_landed_cost_france ?? a.purchase_price) ?? (iAchat >= 0 ? montantSeul(c[iAchat]) : null);
+    const vente = nbA(a.target_selling_price) ?? (iVente >= 0 ? montantSeul(c[iVente]) : null);
     const scoreTableau = iScore >= 0 ? nombre(c[iScore]) : null;
     const decision = verdictCellule((iDecision >= 0 ? texteDeCellule(c[iDecision]) : '') || String(a.decision || ''));
     out.push({
