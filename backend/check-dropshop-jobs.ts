@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { prisma } from './src/lib/prisma.js'
-import { DROPS, BOUTIQUE_MODIFS_INCLUSES } from './src/services/tarifs.js'
+import { DROPS } from './src/services/tarifs.js'
 import {
   executer,
   lancerCreation,
@@ -23,9 +23,9 @@ import type { AppelModele } from './src/services/siteGenerator.js'
  *   cd backend && npx tsx check-dropshop-jobs.ts
  *
  * Attentes, chacune contre une panne qui coûterait de l'argent :
- * - la création débite 200 tout ou rien, publie la version 1, ouvre 10 modifs ;
+ * - la création débite son prix tout ou rien, publie la version 1 ;
  * - sans drops : 402, rien n'est écrit ;
- * - une modification comprise ne coûte rien et décompte ; la 11e coûte 10 ;
+ * - les modifications sont à volonté : ni la 1re ni la 50e ne coûtent rien ;
  * - un modèle qui rend une page cassée deux fois de suite : échec, drops rendus ;
  * - un modèle qui lève : échec, drops rendus, le travail suivant peut partir ;
  * - un travail mort (serveur redémarré) est clos et rendu à la lecture suivante ;
@@ -81,7 +81,7 @@ async function main() {
     let s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
     const j = s.siteJob as unknown as EtatTravail
     attendre('la boutique est publiée en version 1', s.siteVersion === 1 && Boolean(s.siteHtml) && s.siteHtml === EXEMPLE, j.erreur ?? '')
-    attendre('le brief est gardé et 10 modifications sont ouvertes', s.siteBrief?.includes('horloger') === true && s.siteModifsRestantes === BOUTIQUE_MODIFS_INCLUSES)
+    attendre('le brief est gardé', s.siteBrief?.includes('horloger') === true)
     attendre('la version 1 est archivée avec sa demande', (await prisma.siteVersion.count({ where: { shopId: shop.id, numero: 1 } })) === 1)
     attendre('le travail est clos « terminé »', j.etape === 'termine' && Boolean(j.fin))
 
@@ -95,7 +95,7 @@ async function main() {
     await lancerModification(s, 'Change le titre de l\'onglet.', { appeler: rendUneEdition })
     await attendreFin(shop.id)
     s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
-    attendre('une modification comprise ne coûte rien et décompte', (await solde(riche.id)) === 1000 - DROPS.boutiqueCreation && s.siteModifsRestantes === BOUTIQUE_MODIFS_INCLUSES - 1)
+    attendre('une modification ne coûte rien', DROPS.boutiqueModification === 0 && (await solde(riche.id)) === 1000 - DROPS.boutiqueCreation)
     attendre('la page est éditée, version 2', s.siteVersion === 2 && s.siteHtml?.includes('<title>Boutique modifiée</title>') === true)
     attendre('le résumé du modèle est montré au vendeur', (s.siteJob as unknown as EtatTravail).resume === 'Titre changé.')
 
@@ -103,7 +103,7 @@ async function main() {
     s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
     await lancerModification(s, 'Encore le titre.', { appeler: rendUneEdition })
     await attendreFin(shop.id)
-    attendre('au-delà des comprises, une modification coûte 10', (await solde(riche.id)) === 1000 - DROPS.boutiqueCreation - DROPS.boutiqueModification)
+    attendre('même un compteur ancien à zéro ne fait rien payer : modifications à volonté', (await solde(riche.id)) === 1000 - DROPS.boutiqueCreation)
 
     console.log('\n— Échecs rendus —')
     const avant = await solde(riche.id)

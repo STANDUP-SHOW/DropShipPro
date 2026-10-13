@@ -64,8 +64,8 @@ const TARIFS = [
   ['AUTO-SHIPPER : la journée, une tournée par 24 h (analyse, relevé, import, annonces, publications, back-office)', 100, '1,00 €'],
   ['AUTO-SHIPPER : un produit importé et publié automatiquement', 18, '0,18 €'],
   ['AUTO-MODE d’un chef de rayon : analyses et produits gagnants quotidiens', 0, 'gratuit'],
-  ['DropShop IA : création d’une boutique écrite par l’IA (design unique, responsive, panier, emails, Stripe, hébergement, 10 modifications comprises) — payée une seule fois, à vie, sans filigrane', 350, '3,50 €'],
-  ['DropShop IA : une modification au-delà des 10 comprises', 10, '0,10 €'],
+  ['DropShop IA : création d’une boutique écrite par l’IA (design unique, responsive, panier, emails, Stripe, hébergement, modifications à volonté) — payée une seule fois, à vie, sans filigrane', 500, '5 €'],
+  ['DropShop IA : modifications de la boutique, à volonté', 0, 'comprises'],
   ['Extension Back Office d’une boutique DropShop (administration indépendante, identifiant et mot de passe)', 300, '3,00 €'],
   ['Extension DropBank (la boutique accepte les drops, Premium Member de DropMarket) — bientôt', 0, 'gratuit'],
 ]
@@ -137,7 +137,7 @@ const FONCTIONS = [
   {
     titre: 'Boutiques en ligne illimitées',
     lignes: [
-      'DropShop IA : le vendeur décrit la boutique de ses rêves, l’IA l’écrit entièrement (design unique, responsive, panier, commande, emails, paiement Stripe pré-branché), la teste comme un visiteur et la corrige. 350 drops (3,50 €) payés une seule fois, à vie : hébergement, trafic et 10 modifications compris, puis 10 drops la demande. Aucune mention DropShipper sur la boutique.',
+      'DropShop IA : le vendeur décrit la boutique de ses rêves, l’IA l’écrit entièrement (design unique, responsive, panier, commande, emails, paiement Stripe pré-branché), la teste comme un visiteur et la corrige. 500 drops (5 €) payés une seule fois, à vie : hébergement, trafic et modifications à volonté compris. Aucune mention DropShipper sur la boutique.',
       'Chaque modification est une version : le vendeur revient à la version qu’il préfère à tout moment. Une vitrine à thèmes gratuite (50 thèmes) reste disponible sans boutique IA.',
       'Autant de boutiques que le vendeur veut, sans surcoût — une par niche, par produit ou par pays. Là où un abonnement Shopify se paie par boutique.',
       'Aucun second back-office : produits, commandes, stocks, clients, statistiques et comptabilité restent dans DropShipper IA.',
@@ -197,7 +197,7 @@ const DIFFERENCES = [
   ['Réécriture IA incluse dans le prix de l’import, dans la langue du marché', 'Ailleurs, la réécriture IA se paie en crédits séparés et ne traduit pas.'],
   ['Publication vers les places de marché européennes (41 opérateurs Mirakl, Kaufland)', 'Les outils de dropshipping anglophones ne publient que vers Shopify et une poignée de canaux américains.'],
   ['Vinted, Leboncoin et Facebook Marketplace par remplissage assisté', 'Ces plateformes n’ont pas d’API publique d’annonces : aucun concurrent ne les couvre.'],
-  ['Boutiques en ligne illimitées et gratuites', 'Un abonnement Shopify se paie par boutique.'],
+  ['Vitrines à thèmes illimitées et gratuites ; boutique DropShop écrite par l’IA à 5 € une seule fois, modifications à volonté', 'Un abonnement Shopify se paie par boutique et par mois.'],
   ['Paiement à l’acte, sans abonnement', 'Les concurrents facturent de 20 à 300 $ par mois, payés avant la première vente.'],
   ['Une équipe d’agents IA métier', 'Aucun autre outil de dropshipping ne propose de SAV, de comptable ou de juriste assisté par IA.'],
 ]
@@ -221,7 +221,7 @@ Prendre l'annonce n'importe où, la publier partout — et tout piloter depuis u
 - Relevé produits : extension Chrome, adresse collée ou lot entier. Photos, texte, prix, variantes, EAN et avis partent vers l'IA.
 - ${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles : AliExpress, Temu, CJ Dropshipping, BigBuy, vidaXL, Printful, SUPER DELIVERY…
 - Annonces IA en français, sans invention : titre en trois longueurs, description, attributs, mots-clés ; catégorie trouvée sans appel au modèle pour 98 % des annonces.
-- DropShop IA : boutique complète (panier, commande, emails, paiement Stripe) générée en trois minutes, 3,50 € une seule fois, à vie.
+- DropShop IA : boutique complète (panier, commande, emails, paiement Stripe) générée en trois minutes, 5 € une seule fois, à vie, modifications à volonté.
 - Visuels : photo en situation, publicité image avec accroche, prompts vidéo, aux couleurs du logo du vendeur.
 - Réseaux sociaux : publication organique Facebook et Instagram en un clic, sans jamais rejouer les mots de passe.
 - Diffusion : ${canaux.length} canaux référencés (${n.marketplace} places de marché, ${n.comparateur} comparateurs) ; publication directe vers Shopify, eBay, Kaufland et 41 enseignes Mirakl.
@@ -245,7 +245,7 @@ Prendre l'annonce n'importe où, la publier partout — et tout piloter depuis u
 
 ## Prix lisibles par une machine
 
-1 drop = 0.01 EUR. Annonce importée et réécrite = 12 drops = 0.12 EUR. Boutique DropShop IA = 350 drops = 3.50 EUR, payée une fois. AUTO-SHIPPER = 100 drops (1.00 EUR) par jour + 18 drops (0.18 EUR) par produit. Inscription = 120 drops offerts. Recharges : 5 EUR à 150 EUR, jusqu'à -25 %.
+1 drop = 0.01 EUR. Annonce importée et réécrite = 12 drops = 0.12 EUR. Boutique DropShop IA = 500 drops = 5.00 EUR, payée une fois, modifications illimitées. AUTO-SHIPPER = 100 drops (1.00 EUR) par jour + 18 drops (0.18 EUR) par produit. Inscription = 120 drops offerts. Recharges : 5 EUR à 150 EUR, jusqu'à -25 %.
 
 ## Ce qu'elle fait
 
@@ -333,7 +333,7 @@ ${RECHARGES.map(([m, d, p]) => `| ${m} | ${d} | ${p} |`).join('\n')}
 - 500 annonces : 54 €
 - 1 000 annonces : 96 € (72 € en import groupé)
 - 1 000 annonces avec une photo IA chacune, une publicité pour cinq et une analyse de marché pour dix : 278 €
-- Créer et exploiter dix boutiques en ligne : 0 €
+- Créer et exploiter dix vitrines à thèmes : 0 € (dix boutiques DropShop écrites par l'IA : 50 €, une seule fois)
 
 ## Fournisseurs référencés (${FOURNISSEURS.length})
 

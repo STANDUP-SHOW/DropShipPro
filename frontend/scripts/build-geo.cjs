@@ -44,6 +44,7 @@ const ACCUEIL = require('../src/data/accueil-themes.json')
 /** Le texte long des pages /fonctions/ et les outils gratuits /outils/ (chantier SEO du 07/10/2026). */
 const { CONTENU, CHROME_STORE: CHROME_STORE_FONCTIONS } = require('./fonctions-contenu.cjs')
 const { pagesOutils, OUTILS } = require('./build-outils.cjs')
+const { pageFonctionRefonte, pageTarifsRefonte } = require('./pages-refonte.cjs')
 
 const DIST = path.resolve(__dirname, '..', 'dist')
 
@@ -195,7 +196,7 @@ ${ACCUEIL.themes
 <ul>
 <li>${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles, dont 3 reliés par API (prix et stock en temps réel).</li>
 <li>314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.</li>
-<li>Une annonce importée et réécrite par l'IA : 0,12 €. Une boutique en ligne écrite par l'IA : 3,50 €, une seule fois. Aucun abonnement.</li>
+<li>Une annonce importée et réécrite par l'IA : 0,12 €. Une boutique en ligne écrite par l'IA : 5 €, une seule fois, modifications à volonté. Aucun abonnement.</li>
 </ul>
 
 <h2>Ce qui le distingue</h2>
@@ -411,51 +412,8 @@ function familles() {
 }
 
 function pageTarifs() {
-  const url = '/tarifs/'
-  const trail = [{ name: 'Accueil', url: '/' }, { name: 'Tarifs', url }]
-  const offres = {
-    '@context': 'https://schema.org',
-    '@type': 'OfferCatalog',
-    name: `Tarifs de ${NOM}`,
-    url: `${SITE}${url}`,
-    itemListElement: TARIFS.map(([nom, drops]) => ({
-      '@type': 'Offer',
-      name: nom,
-      price: prixEnEuros(drops),
-      priceCurrency: 'EUR',
-    })),
-  }
-  return {
-    url,
-    html: layout({
-      url,
-      title: `Tarifs ${NOM} : 0,12 € l'annonce, sans abonnement`,
-      description: `La grille complète de ${NOM} : chaque action a son prix en drops (1 drop = 0,01 €). Aucun abonnement, 120 drops offerts à l'inscription.`,
-      jsonLd: [offres, faqLd(faqTarifs()), breadcrumbLd(trail)],
-      body: `${crumb(trail)}
-<div class="bandeau-drops"><img src="/marque/drops.png" alt="" width="96" height="96"><div><img class="mot" src="/marque/drops-mot.png" alt="Drops" width="249" height="96"><p><strong>120 drops offerts</strong> à l'inscription. 1 drop = 0,01 €.</p></div></div>
-<h1>Tarifs de ${NOM}</h1>
-<p class="lede">Aucun abonnement, aucun engagement : chaque action a un prix, payé en « drops ». <strong>1 drop = 0,01 €.</strong> 120 drops sont offerts à l'inscription — de quoi importer dix annonces sans payer.</p>
-<h2>Le prix de chaque action</h2>
-${familles().map(([titre, lignes]) => `<h3>${esc(titre)}</h3>
-<table class="grille"><thead><tr><th>Action</th><th>En euros</th><th>Drops</th></tr></thead><tbody>
-${lignes.map(([nom, drops, euros]) => `<tr><td>${esc(nom)}</td><td class="eur">${esc(euros)}</td><td>${drops}</td></tr>`).join('\n')}
-</tbody></table>`).join('\n')}
-<h2>Les recharges</h2>
-<table><thead><tr><th>Vous payez</th><th>Vous recevez</th><th>Prix du drop</th></tr></thead><tbody>
-${RECHARGES.map(([prix, drops, unite]) => `<tr><td>${esc(prix)}</td><td>${esc(drops)}</td><td>${esc(unite)}</td></tr>`).join('\n')}
-</tbody></table>
-<p>Le prix d'une action en drops ne change pas avec la recharge : c'est le drop qui coûte moins cher quand on en achète davantage. Un crédit est rendu quand l'action échoue — une réécriture que le modèle n'a pas faite, une création de boutique qui n'aboutit pas.</p>
-<h2>Ce qui est gratuit</h2>
-<ul>
-<li>L'inscription et 120 drops de bienvenue.</li>
-<li>La vitrine à thèmes, les flux catalogue (Google Shopping, Meta), l'annuaire des ${canaux.length} canaux et des ${FOURNISSEURS.length} fournisseurs.</li>
-<li>L'AUTO-MODE des chefs de rayon : analyses de marché et produits gagnants quotidiens.</li>
-<li>L'extension Chrome, sur le <a href="${CHROME_STORE}">Chrome Web Store</a>.</li>
-</ul>
-${faqHtml(faqTarifs())}`,
-    }),
-  }
+  // Refonte de Max du 13/10/2026 : en-tête animé, blocs, grille dépliable (pages-refonte.cjs).
+  return pageTarifsRefonte({ RECHARGES, familles, faqTarifs })
 }
 
 function pageAPropos(faq) {
@@ -565,6 +523,9 @@ ${carte('En lot', 'Plusieurs adresses d\'un coup, au tarif réduit.', lot, euros
 })()
 
 function pageFonction(t, index) {
+  // Les quatre pages du menu (Import, Annonces, Boutiques, Diffusion) : refonte du 13/10/2026.
+  const refonte = pageFonctionRefonte(t, index)
+  if (refonte) return refonte
   const url = `/fonctions/${t.slug}/`
   const c = CONTENU[t.slug]
   if (!c) throw new Error(`${url} : aucun texte dans fonctions-contenu.cjs`)

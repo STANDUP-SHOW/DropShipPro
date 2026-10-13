@@ -275,7 +275,7 @@
    * voyait donc rien changer : le fichier partait bien, `/theme` le servait
    * bien, et la page n'avait tout simplement aucune balise pour l'afficher.
    * Rien n'échouait, rien ne le disait, et la seule réparation était de
-   * réécrire la boutique — 350 drops pour un logo.
+   * réécrire la boutique entière (350 drops à l'époque) pour un logo.
    *
    * C'est la même règle que pour le panier : ce qui est mécanique appartient au
    * moteur, la page ne décrit que ce qui lui est propre. Une page qui affiche
