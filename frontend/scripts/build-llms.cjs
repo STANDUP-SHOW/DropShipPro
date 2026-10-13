@@ -197,7 +197,7 @@ const DIFFERENCES = [
   ['Réécriture IA incluse dans le prix de l’import, dans la langue du marché', 'Ailleurs, la réécriture IA se paie en crédits séparés et ne traduit pas.'],
   ['Publication vers les places de marché européennes (41 opérateurs Mirakl, Kaufland)', 'Les outils de dropshipping anglophones ne publient que vers Shopify et une poignée de canaux américains.'],
   ['Vinted, Leboncoin et Facebook Marketplace par remplissage assisté', 'Ces plateformes n’ont pas d’API publique d’annonces : aucun concurrent ne les couvre.'],
-  ['Boutiques en ligne illimitées et gratuites', 'Un abonnement Shopify se paie par boutique.'],
+  ['Vitrines à thèmes illimitées et gratuites ; boutique DropShop écrite par l’IA à 5 € une seule fois, modifications à volonté', 'Un abonnement Shopify se paie par boutique et par mois.'],
   ['Paiement à l’acte, sans abonnement', 'Les concurrents facturent de 20 à 300 $ par mois, payés avant la première vente.'],
   ['Une équipe d’agents IA métier', 'Aucun autre outil de dropshipping ne propose de SAV, de comptable ou de juriste assisté par IA.'],
 ]
@@ -333,7 +333,7 @@ ${RECHARGES.map(([m, d, p]) => `| ${m} | ${d} | ${p} |`).join('\n')}
 - 500 annonces : 54 €
 - 1 000 annonces : 96 € (72 € en import groupé)
 - 1 000 annonces avec une photo IA chacune, une publicité pour cinq et une analyse de marché pour dix : 278 €
-- Créer et exploiter dix boutiques en ligne : 0 €
+- Créer et exploiter dix vitrines à thèmes : 0 € (dix boutiques DropShop écrites par l'IA : 50 €, une seule fois)
 
 ## Fournisseurs référencés (${FOURNISSEURS.length})
 
