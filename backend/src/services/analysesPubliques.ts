@@ -1051,7 +1051,7 @@ const TRAHIT_ACHAT = /achat|fournisseur|relev|sur la fiche|co[uû]t|usine|grossi
 
 /** « pourquoi » sans ce qui trahit l'achat : chaque parenthèse et chaque membre de phrase fautif est retiré. Exporté pour le banc. */
 // A pointer to a note the public page does not show, or how the agent read the page.
-const POURQUOI_INTERNE = /voir\s+(la\s+)?note|non\s+vérifiable|rendu\s+js|sans\s+(navigateur|extension)|\bfret\b|prix\s+à\s+(vérifier|valider|reconfirmer)|estimée?s?(?![\p{L}])|estimation|fiche\s+(api|exacte|précise)|\bapi\b|via\s+l['’]extension|manuellement|lisible\s+sans|\bb2b\b|compte\s+professionnel|\bfetch\b|avant\s+import|à\s+re(confirmer|contrôler)|non\s+vérifié|sourcing|retraité|import\s+(url|api|extension)|b2b|revendeur|grossiste|marges?\b|\bmoq\b|prix\s+de\s+gros|palier|tarif|\bfiches?\b|vérifiée?s?|plateforme\s+générale|à\s+corriger|dès\s+accès|achet\w*\s+(à|a)\s+\d|sans\s+compte|au\s+catalogue|(?:cette|ce\s+type\s+de)\s+plateforme|identifiée?\s+par\s+recherche|pas\s+inventée?s?/iu
+const POURQUOI_INTERNE = /voir\s+(la\s+)?note|non\s+vérifiable|rendu\s+js|sans\s+(navigateur|extension)|\bfret\b|prix\s+à\s+(vérifier|valider|reconfirmer)|estimée?s?(?![\p{L}])|estimation|fiche\s+(api|exacte|précise)|\bapi\b|via\s+l['’]extension|manuellement|lisible\s+sans|\bb2b\b|compte\s+professionnel|\bfetch\b|avant\s+import|à\s+re(confirmer|contrôler)|non\s+vérifié|sourcing|retraité|import\s+(url|api|extension)|b2b|revendeur|grossiste|marges?\b|\bmoq\b|prix\s+de\s+gros|palier|tarif|\bfiches?\b|vérifiée?s?|plateforme\s+générale|à\s+corriger|dès\s+accès|achet\w*\s+(à|a)\s+\d|sans\s+compte|au\s+catalogue|(?:cette|ce\s+type\s+de)\s+plateforme|identifiée?\s+par\s+recherche|pas\s+inventée?s?|javascript|non\s+affichable/iu
 
 // The English verdicts of other agents (« WATCHLIST », « BUY IF NEGOTIATED »), translated as the import does.
 const { verdictFr } = createRequire(import.meta.url)('../../rapports-etude.cjs') as { verdictFr: (t: string) => string }
@@ -1159,8 +1159,11 @@ function blocsPublics(r: RapportPublic): string {
         const titre = b.titre.replace(/proposés/i, 'gagnants').replace(/\b\d+(?=\s+produits)/i, (n) => (r.produits.length ? String(r.produits.length) : n))
         return `<h2 id="produits">${esc(titre)}</h2>${tableauProduitsPublic(r.produits)}`
       }
-      const { corps: sansTableaux, retires } = sansTableauxPrives(b.corps, /bundle/i.test(b.titre))
-      const corps = sansOuvertureOrpheline(sansIntertitresVides(sansConsignesPoste(annoncesRecomptees(pointsAnnonces(sansMentionsPrivees(listesEnLigne(/bundle/i.test(b.titre) ? sansNotesDeCout(sansTableaux) : sansTableaux)))))))
+      // « ## Publicités en cours » then « - une spécialisation… ; - des arguments… » : the list continues a sentence
+      // the agent never wrote, and the section opened on bullets (audio marketing 04/10, constat de #98).
+      const suiteDePhrase = /^\s*[-*+][^\S\n]+\p{Ll}[^\n]*;[^\S\n]*\n/u.test(b.corps) ? 'Ce qui ressort :\n\n' : ''
+      const { corps: sansTableaux, retires } = sansTableauxPrives(suiteDePhrase + b.corps, /bundle/i.test(b.titre))
+      const corps = sansConseilEnLot(sansOuvertureOrpheline(sansIntertitresVides(sansConsignesPoste(annoncesRecomptees(pointsAnnonces(sansMentionsPrivees(listesEnLigne(/bundle/i.test(b.titre) ? sansNotesDeCout(sansTableaux) : sansTableaux))))))))
       // Sans produits structurés à montrer à la place, le lecteur sait au moins que la liste existe.
       // « Bundles proposés » whose every line was a cost: no heading over nothing.
       // A section the filters emptied goes with its heading: never a title over nothing (robots-cuiseurs 07/10).
@@ -2302,6 +2305,11 @@ export function sansPhrasesFournisseurs(texte: string): string {
     // « elle nomme directement Temu, Shein et AliExpress comme canaux » : the list says what they are.
     .replace(new RegExp(`(nomm\\p{L}*\\s+(?:directement\\s+)?)(?:${NOMS_FOURNISSEURS}(?:\\s*,\\s*|\\s+et\\s+))+${NOMS_FOURNISSEURS}(?![\\p{L}\\d])`, 'giu'), (_m, v: string) => `${v}des places de marché en ligne`)
     .replace(/nommément\s+(des\s+places\s+de\s+marché)/gu, '$1')
+    // « La fiche « Insta360 GO Ultra » trouvée sur AliExpress ne correspond à… » : the warning stays, not where (photo-action 04/10).
+    .replace(new RegExp(`[^\\S\\n]+(?:trouvée?s?|repérée?s?|vue?s?|listée?s?)\\s+sur\\s+(?:\\*\\*)?${NOMS_FOURNISSEURS}(?:\\*\\*)?(?![\\p{L}\\d])`, 'giu'), '')
+    // « …se banaliser : la page de suivi [FindNiche AliExpress bijoux](…) montre des colliers à 0,99 $ — un signal… » :
+    // the aside that cites a supplier's page goes, the sentence around it stays (colliers 04/10, constat de #98).
+    .replace(new RegExp(`(?<!sources?[^:\\n]{0,30})[^\\S\\n]*:[^\\S\\n]+[^:\\n—\\[\\].]*?\\[[^\\]\\n—]*${NOMS_FOURNISSEURS}[^\\]\\n—]*\\]\\([^)\\n]*\\)[^:\\n—.]*?(?=[^\\S\\n]+—[^\\S\\n])`, 'giu'), '')
     // « (CHR, restauration) type WebstaurantStore jouent » : the example goes with its word.
     .replace(new RegExp(`\\s+(?:type|ex\\.|tels?\\s+que)\\s+(?:\\*\\*)?${NOMS_FOURNISSEURS}(?:\\*\\*)?(?=[\\s,.;:)])`, 'giu'), '')
     .split('\n')
@@ -2396,6 +2404,11 @@ export function prixBasSources(corps: string): string {
  * « Fiche prix (lcd-compare.com). », « vendu par GL.iNet ([Amazon]) », « ELM327 à bas », « et chez le fabricant
  * français », a line that compares a price to the one it lost (« proches du prix (idealo.de) »).
  */
+const RENTABLE_EN_LOT = /(^|[.!?][^\S\n]+)(?:\*\*)?rentables?\s+seulement\s+en\s+lots?[^.!?\n]*[.!?]?[^\S\n]*/gimu
+const RENTABLE_EN_LOT_SUITE = /[^\S\n]*[,;][^\S\n]*rentables?\s+seulement\s+en\s+lots?[^.!?\n]*?(?=[.!?]|$)/gimu
+/** The same cut where the page splits a one-line list: the sentence after it may start there (drones 12/10). */
+export const sansConseilEnLot = (corps: string) => corps.replace(RENTABLE_EN_LOT, '$1').replace(RENTABLE_EN_LOT_SUITE, '')
+
 export function sansDebris(corps: string): string {
   return prixBasSources(corps)
     // « Acheter maintenant : cire de soja en gros » : the bulk purchase is buying advice; « En gros, … » stays.
@@ -2408,7 +2421,16 @@ export function sansDebris(corps: string): string {
     // « Spécialistes ; pack 6 filtres Neo à 36,99 € » : a one-word label keeps its colon.
     .replace(/^([^\S\n]*[-*+][^\S\n]+\p{Lu}\p{Ll}+)[^\S\n]*;[^\S\n]+/gmu, '$1 : ')
     // « Rentables seulement en lot ou à prix négocié… » (drones 12/10): buying advice that lost its subject.
-    .replace(/(^|[.!?][^\S\n]+)Rentables?\s+seulement\s+en\s+lots?[^.!?\n]*[.!?]?[^\S\n]*/gmu, '$1')
+    .replace(RENTABLE_EN_LOT, '$1').replace(RENTABLE_EN_LOT_SUITE, '')
+    // « - Beryl AX 101,99 €, Opal 40,99 €, Mango 30,99 €, Slate 7 165,99 à 240,06 €. » : prices whose seller the guard
+    // took out, with no source left; nothing says they are sale prices, so the line goes (reseau 12/10, constat de #98).
+    .replace(/^[^\S\n]*[-*+][^\S\n]+(?:\p{Lu}[^,:;()\[\]\n€]{0,30}?[^\S\n]\d[\d\s]*(?:,\d+)?(?:[^\S\n]*€)?(?:[^\S\n]+à[^\S\n]+\d[\d\s]*(?:,\d+)?)?[^\S\n]*€,[^\S\n]*){2,}\p{Lu}[^,:;()\[\]\n€]{0,30}?[^\S\n]\d[\d\s]*(?:,\d+)?(?:[^\S\n]*€)?(?:[^\S\n]+à[^\S\n]+\d[\d\s]*(?:,\d+)?)?[^\S\n]*€[^\S\n]*\.?[^\S\n]*(?:\n|$)/gmu, '')
+    // « parfums. 6, 9 ou 12 € pour un panier mixte (Numerama) » : the amount lost its subject (bougies 12/10); the other pages say it so.
+    .replace(/(^|[.!?][^\S\n]+)(\d+(?:,\s*\d+)*\s+ou\s+\d+\s*€)\s+pour\s+un\s+panier\s+mixte/gmu, '$1Un panier mixte peut payer $2')
+    // « Le catalogue dropshipping ci-dessous a été constitué par consultation directe des pages catégories… » : how we sourced (electronique 04/10).
+    .replace(/(^|[.!?][^\S\n]+)[^.!?\n]*?constitué\s+par\s+consultation\s+directe[^.!?\n]*[.!?]?[^\S\n]*/gimu, '$1')
+    // « Les fiches "extension" doivent être recontrôlées… : la page se construit en JavaScript et les specs… » : our import tooling (sols 04/10).
+    .replace(/(^[^\S\n]*(?:(?:[-*+]|\d{1,2}[.)])[^\S\n]+)?|:[^\S\n]*)les\s+fiches\s+["«“]?\s*extension\s*["»”]?[^:\n]*:[^\S\n]*la\s+page\s+se\s+construit\s+en\s+javascript\s+et\s+(\p{L})/gimu, (_m, avant: string, l: string) => avant + (avant.includes(':') ? l : l.toUpperCase()))
     .replace(/^[^\n]*proches?\s+du\s+prix\s*(?:\((?:\[[^\]\n]*\]\([^)\n]*\)|[^)\n]*)\))?\s*\.?[^\S\n]*(?:\n|$)/gimu, '')
 }
 
