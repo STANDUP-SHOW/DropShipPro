@@ -30,6 +30,8 @@ import {
   texteRepare,
   sansConsignesPoste,
   fautesDesAgents,
+  sansDebris,
+  sansPhrasesFournisseurs,
   cheminArticleDate,
   cheminCategorie,
   cheminJour,
@@ -258,7 +260,7 @@ export function versPublicBrut(id: string): RapportPublic | null {
   const produits = produitsUniques(nettoyes).map((p, i) => ({ ...p, rang: i + 1 }))
   const texte = (t: string | null) => (t ? sansDonneesPrivees(texteRepare(apostrophesDuTexte(t)), prive) : t)
   // « Les 11 produits relevés » over a table of 10 once the doubles are grouped.
-  const body = sansConsignesPoste(sansDonneesPrivees(texteRepare(apostrophesDuTexte(r.body)), prive)).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+(?:relevés|retenus))/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
+  const body = sansDebris(sansConsignesPoste(sansDonneesPrivees(texteRepare(sansPhrasesFournisseurs(apostrophesDuTexte(r.body))), prive))).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+(?:relevés|retenus))/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
   return { ...r, titre: titrePublic(r.une ?? r.titre), body: renvoisRenumerotes(body, nettoyes), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
@@ -381,7 +383,7 @@ analysesPubliquesRouter.get('/:theme/:sujet/', (req, res) => {
         const memes = tous.filter((l) => l.categorie === theme && l.day === m[3] && l.type === (m[2] ? 'marketing' : 'rayon'))
         if (memes.length === 1) return res.redirect(301, cheminRapport(memes[0]))
       }
-      // An imported study titled by its bare theme before 12/10/2026: 301 to its real title.
+      // An imported study titled by its bare theme before 12/10/2026, a slug with a sourcing term before 13/10: 301 to its address.
       const ancien = rapportAncienneAdresse(demande)
       const cible = ancien ? tous.find((l) => l.id === ancien) : null
       if (cible) return res.redirect(301, cheminRapport(cible))
