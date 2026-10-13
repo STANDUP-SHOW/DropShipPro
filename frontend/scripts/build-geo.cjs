@@ -44,7 +44,7 @@ const ACCUEIL = require('../src/data/accueil-themes.json')
 /** Le texte long des pages /fonctions/ et les outils gratuits /outils/ (chantier SEO du 07/10/2026). */
 const { CONTENU, CHROME_STORE: CHROME_STORE_FONCTIONS } = require('./fonctions-contenu.cjs')
 const { pagesOutils, OUTILS } = require('./build-outils.cjs')
-const { pageFonctionRefonte, pageTarifsRefonte } = require('./pages-refonte.cjs')
+const { pageFonctionRefonte, pageTarifsRefonte, pageAnnuaire } = require('./pages-refonte.cjs')
 
 const DIST = path.resolve(__dirname, '..', 'dist')
 
@@ -645,7 +645,7 @@ function main() {
   }
   const faq = FAQ()
   ecrireEcransPublics(enrichirAccueil(faq))
-  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), pageApiPower(), ...ACCUEIL.themes.map(pageFonction), ...pagesOutils()]
+  const pages = [pageFaq(faq), pageTarifs(), pageAPropos(faq), pageApiPower(), pageAnnuaire(), ...ACCUEIL.themes.map(pageFonction), ...pagesOutils()]
   pages.forEach(ecrire)
   ecrireRobots()
   fs.writeFileSync(path.join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY)
