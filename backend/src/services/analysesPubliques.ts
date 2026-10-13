@@ -1142,7 +1142,11 @@ function produitsLd(r: RapportPublic) {
       '@type': 'ListItem',
       position: p.rang,
       name: p.titre,
-      ...(p.prixVente !== null ? { description: [`Prix de vente conseillé ${prixPublic(p)}`, pourquoiAffiche(p)].filter(Boolean).join(' — ') } : {}),
+      // A cut price drops only the price, never the line's « pourquoi » (constat de #105).
+      ...(() => {
+        const d = [prixPublic(p) !== '—' ? `Prix de vente conseillé ${prixPublic(p)}` : '', pourquoiAffiche(p)].filter((x) => x && x.trim() !== '—').join(' — ')
+        return d ? { description: d } : {}
+      })(),
     })),
   }
 }
@@ -1528,7 +1532,10 @@ export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
       // A public price at or under zero is a parsing accident, never a price (« -10,00 € », 12/10/2026).
       // A « sale price » at or under the line's own purchase price is the cost itself (« Cire de soja 8,00 € », constat de #104).
       const achatMax = Math.max(0, ...achatsDuProduit(p as { prixAchat?: number | null; achats?: number[] }))
-      const positif = (n: number | null | undefined) => (n != null && n > 0 && !(achatMax && n <= achatMax) ? n : null)
+      // A watch-list line whose purchase price is unknown, or within 10 % of it, has no advised sale price: in doubt, cut (constat de #105).
+      const surveille = /surveill|watch/i.test(`${p.pourquoi ?? ''} ${(p as { verdict?: string | null }).verdict ?? ''}`)
+      const douteux = (n: number) => surveille && (!achatMax || (n - achatMax) / n < 0.1)
+      const positif = (n: number | null | undefined) => (n != null && n > 0 && !(achatMax && n <= achatMax) && !douteux(n) ? n : null)
       const prix = { prixVente: positif(p.prixVente), ...(p.prixMin !== undefined ? { prixMin: positif(p.prixMin) } : {}), ...(p.prixMax !== undefined ? { prixMax: positif(p.prixMax) } : {}) }
       const prixSains = prix.prixVente === p.prixVente && (p.prixMin === undefined || prix.prixMin === p.prixMin) && (p.prixMax === undefined || prix.prixMax === p.prixMax)
       return t === p.titre && pourquoi === p.pourquoi && prixSains ? p : { ...p, ...prix, titre: t, pourquoi }
@@ -2432,7 +2439,11 @@ export function sansDebris(corps: string): string {
     // « Quantités recommandées : 30 bougies, 15 coffrets » and « ### Montée en volume » (5 → 10 → 25 unités, paliers) :
     // how much to buy, never public (pages du Poste, constat de #104). The heading goes with its section.
     .replace(/^[^\S\n]*[-*+][^\S\n]+(?:\*\*)?quantités?\s+recommandées?(?:\*\*)?[^\S\n]*:[^\n]*(?:\n|$)/gimu, '')
-    .replace(/^#{2,4}[^\S\n]+montée\s+en\s+volume[^\n]*\n(?:(?!#)[^\n]*(?:\n|$))*/gimu, '')
+    // « Montée en volume » (5 → 10 → 25 → 50 unités, palier suivant) is a purchase-quantity plan: the section goes with its title,
+    // whether a heading or a bold line, and even once an earlier pass shortened the title to « Montée » (constat de #105).
+    .replace(/^#{2,4}[^\S\n]+(?:\*\*)?montée(?:\s+en\s+volume)?(?:\*\*)?[^\S\n]*:?[^\S\n]*(?:\n|$)(?:(?!#)[^\n]*(?:\n|$))*/gimu, '')
+    .replace(/^[^\S\n]*\*\*montée(?:\s+en\s+volume)?[^\S\n]*:?[^\S\n]*\*\*[^\S\n]*:?[^\n]*(?:\n|$)(?:[^\S\n]*\S[^\n]*(?:\n|$))*/gimu, '')
+    .replace(/^[^\S\n]*(?:[-*+][^\S\n]+|\d{1,2}[.)][^\S\n]+)?[^\n]*(?:règle\s+de\s+montée\s+en\s+volume|palier\s+suivant|\d+\s*→\s*\d+\s*→\s*\d+[^\n]*?(?:unités?|pièces?|à\s+la\s+fois|lot))[^\n]*(?:\n|$)/gimu, '')
     // « Le catalogue dropshipping ci-dessous a été constitué par consultation directe des pages catégories… » : how we sourced (electronique 04/10).
     .replace(/(^|[.!?][^\S\n]+)[^.!?\n]*?constitué\s+par\s+consultation\s+directe[^.!?\n]*[.!?]?[^\S\n]*/gimu, '$1')
     // « Les fiches "extension" doivent être recontrôlées… : la page se construit en JavaScript et les specs… » : our import tooling (sols 04/10).
@@ -2445,8 +2456,8 @@ export function texteRepare(texte: string): string {
   return fautesDesAgents(texte)
     // « en stock limité plutôt qu'en gros volume », « avant gros volume », « sets basiques en volume » : how much to
     // buy (photo-action, électronique, verres 04/10, constat de #104). « le premier segment en volume » stays.
-    .replace(/[^\S\n]+(?:plutôt\s+qu['’]en|avant(?:\s+un)?)\s+(?:très\s+)?gros\s+(?:volumes?|stocks?)(?![\p{L}])/giu, '')
-    .replace(/(?<!vend\p{L}*|segment|marché|recherche|test|(?:marché|part|%)[^.;\n]{0,80})[^\S\n]+en\s+volume(?=[^\S\n]*(?:[,.;]|$))/gimu, '')
+    .replace(/[^\S\n]+(?:plutôt\s+qu['’]en|avant(?:\s+un)?|pensée?s?\s+pour(?:\s+un)?)\s+(?:très\s+)?gros\s+(?:volumes?|stocks?)(?![\p{L}])/giu, '')
+    .replace(/(?<!vend\p{L}*|segment|marché|recherche|test|montée|^#[^\n]*|(?:marché|part|%)[^.;\n]{0,80})[^\S\n]+en\s+volume(?=[^\S\n]*(?:[,.;]|$))/gimu, '')
     // « vendu around 50 € », « « QI + »anonymisé », « l'AUTO-SHIPPER », « # Shein/Temu Native Feed 4:5 ».
     .replace(/(?<![\p{L}])around(?![\p{L}])/gu, 'environ')
     .replace(/»anonymisée?s?/g, '»')
