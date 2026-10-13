@@ -33,6 +33,7 @@ for (const l of lignesPubliques()) {
         const items = suiv && /^(ul|ol)$/.test(suiv.tag) ? (suiv.html.match(/<li/g) || []).length : -1
         const apres = b.t.slice(ann.index + ann[0].length)
         const ordinaux = (apres.match(/premi|deuxi|troisi|quatri|\(\d\)/gi) || []).length
+          + (apres.match(new RegExp(`(?<![\\p{L}])une?\\s+${ann[2].toLowerCase().replace(/[sx]$/, '')}(?![\\p{L}])`, 'giu')) || []).length
         if (!(items === attendu || ordinaux >= attendu || (items === -1 && apres.split(/[.;]/).length > attendu))) pb.push(`annonce ${ann[0]} sans ses éléments: ${b.t.slice(0, 90)}`)
       }
     }

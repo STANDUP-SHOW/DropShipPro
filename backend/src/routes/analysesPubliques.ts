@@ -28,6 +28,7 @@ import {
   produitsUniques,
   produitsNettoyes,
   texteRepare,
+  sansConsignesPoste,
   cheminArticleDate,
   cheminCategorie,
   cheminJour,
@@ -256,7 +257,7 @@ export function versPublicBrut(id: string): RapportPublic | null {
   const produits = produitsUniques(nettoyes).map((p, i) => ({ ...p, rang: i + 1 }))
   const texte = (t: string | null) => (t ? sansDonneesPrivees(texteRepare(apostrophesDuTexte(t)), prive) : t)
   // « Les 11 produits relevés » over a table of 10 once the doubles are grouped.
-  const body = sansDonneesPrivees(texteRepare(apostrophesDuTexte(r.body)), prive).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+(?:relevés|retenus))/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
+  const body = sansConsignesPoste(sansDonneesPrivees(texteRepare(apostrophesDuTexte(r.body)), prive)).replace(/(?<![\p{L}])(les\s+)\d+(\s+produits\s+(?:relevés|retenus))/giu, (m, a: string, b: string) => (produits.length ? `${a}${produits.length}${b}` : m))
   return { ...r, titre: titrePublic(r.une ?? r.titre), body: renvoisRenumerotes(body, nettoyes), accroche: texte(r.accroche), extrait: texte(r.extrait), produits, prompts, updatedAt: new Date(`${r.day}T06:00:00Z`) }
 }
 
