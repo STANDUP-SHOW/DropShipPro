@@ -709,6 +709,6 @@ Sitemap: ${SITE}/sitemap.xml
 
 // build-geo.cjs reprend le gabarit : les pages /faq/, /tarifs/ et /a-propos/
 // doivent avoir le visage des autres, pas un second habillage qui divergerait.
-module.exports = { layout, titreCourt, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY }
+module.exports = { layout, titreCourt, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE, TODAY, GUIDES, NAV_STATIQUE }
 
 if (require.main === module) main()
