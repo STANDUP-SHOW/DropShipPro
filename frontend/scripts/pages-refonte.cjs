@@ -18,7 +18,7 @@
  */
 const { esc, SITE, titreCourt, GUIDES, NAV_STATIQUE } = require('./build-seo.cjs')
 const { piedDePage, CSS_PIED } = require('./pied-de-page.cjs')
-const { TARIFS } = require('./build-llms.cjs')
+const { TARIFS, RECHARGES } = require('./build-llms.cjs')
 const { CONTENU, CHROME_STORE } = require('./fonctions-contenu.cjs')
 const { OUTILS } = require('./build-outils.cjs')
 const { canaux } = require('./seo-channels.cjs')
@@ -65,7 +65,32 @@ const ACCENTS = {
   boutiques: ['#f48e35', '221,36,136'],
   diffusion: ['#f59d66', '232,82,144'],
   tarifs: ['#fdbf06', '253,191,6'],
+  fournisseurs: ['#f6a06b', '246,160,107'],
+  visuels: ['#ef7fb0', '232,82,144'],
+  reseaux: ['#ec6aa0', '232,82,144'],
+  analyses: ['#f28a4b', '242,138,75'],
+  agents: ['#f27aa6', '232,82,144'],
+  autoshipper: ['#f2804a', '232,53,122'],
+  drops: ['#fdbf06', '253,191,6'],
+  fonctions: ['#f28a4b', '242,138,75'],
 }
+const DEGRADE_AUTOSHIPPER = 'linear-gradient(90deg,#e8357a,#f2804a 55%,#ffc20e)'
+
+/** Les fonctions dans l'ordre de l'accueil, avec le nom court du menu et une phrase pour l'annuaire. */
+const COURT = {
+  'scraping-produits': ['Import', 'Du lien fournisseur à votre catalogue.'],
+  fournisseurs: ['Fournisseurs', 'Choisissez votre source et son mode d’import.'],
+  'annonces-ia': ['Annonces', 'Une fiche claire, prête à être relue.'],
+  'dropshop-ia': ['Boutiques', 'Votre univers. Votre boutique.'],
+  'visuels-ia': ['Visuels et pubs', 'Mettez vos produits en scène.'],
+  'reseaux-sociaux': ['Réseaux sociaux', 'Vos produits sur vos réseaux, depuis le même endroit.'],
+  diffusion: ['Diffusion', 'La bonne connexion pour chaque destination.'],
+  'analyses-de-marche': ['Analyses', 'Des pistes quotidiennes pour votre sélection.'],
+  'agents-ia': ['Agents IA', 'Un rôle précis pour chaque besoin.'],
+  'auto-shipper': ['AUTO-SHIPPER', 'Une tournée quotidienne, avec vos limites.'],
+  'les-drops': ['Les drops', 'Comprenez et maîtrisez vos crédits.'],
+}
+const nomCourt = (slug) => COURT[slug]?.[0] ?? CONTENU[slug]?.nom ?? slug
 
 const CSS = `
 :root{color-scheme:dark;--ink:#101321;--surface:#191e2e;--surface-2:#21273a;--trait:#2a3147;--texte:#f5f7fa;--texte-2:#b8c0d0;--texte-3:#8f98ab;--orange:#f28a4b;--rose:#e85290}
@@ -301,6 +326,53 @@ body.reduced .network-demo>svg path{stroke-dasharray:none}
 .bento>.tile:last-child p{margin:0;flex:1;min-width:220px}
 .bento>.price:last-child>strong{margin:0;font-size:54px}
 .bento>.price:last-child>.overline{max-width:160px}
+.dossier,.report,.team,.automation,.wallet{width:92%;margin:0 auto;padding:6px 25px 22px;animation:enter 1s cubic-bezier(.2,.9,.2,1.15) both}
+.dossier .windowbar,.report .windowbar,.team .windowbar,.automation .windowbar,.wallet .windowbar{margin:0 -25px 6px}
+.supplier-list>div,.team-row,.auto-step{display:flex;align-items:center;gap:15px;padding:18px 0;border-bottom:1px solid #ffffff13;animation:enter .8s both;animation-delay:var(--delay,.2s)}
+.supplier-list>div{justify-content:space-between}
+.supplier-list span,.team-row small{font-size:12px;color:var(--texte-2)}
+.supplier-list>div:nth-child(2){animation-delay:.4s}
+.supplier-list>div:nth-child(3){animation-delay:.6s}
+.team-row div{flex:1}
+.team-row small{display:block}
+.team-row i,.auto-step i{font-style:normal;background:rgba(var(--rgb),.1);color:var(--accent);width:42px;height:42px;display:grid;place-items:center;border-radius:12px;flex:none}
+.auto-step b{flex:1;font-weight:500}
+.auto-step span{color:var(--accent);animation:signal 3s infinite;animation-delay:var(--delay)}
+.report-numbers{display:flex;gap:55px;margin:18px 0}
+.report-numbers b{display:block;font-size:60px;line-height:1.1;color:var(--accent);font-weight:600;letter-spacing:-2px}
+.report-numbers small{color:var(--texte-2)}
+.report-bars{height:110px;display:flex;align-items:end;gap:12px;margin:22px 0}
+.report-bars i{flex:1;height:var(--h);border-radius:5px 5px 0 0;background:linear-gradient(var(--accent),var(--rose));transform-origin:bottom;animation:bars 3.5s ease-in-out infinite;animation-delay:var(--delay)}
+.drop-equivalence{display:flex;align-items:baseline;gap:15px;padding:30px 0}
+.drop-equivalence b{font-size:56px;color:var(--accent);letter-spacing:-2px;font-weight:600}
+.drop-equivalence i{font-style:normal;font-size:24px;color:var(--texte-2)}
+.creative-demo{display:flex;align-items:center;gap:15px;position:relative;padding:10px 0 40px}
+.before-photo{width:34%;min-height:210px;background:var(--surface-2);border:1px solid #ffffff20;border-radius:14px;padding:15px;transform:rotate(-5deg);animation:enter .8s both;font-size:12px;color:var(--texte-2);text-align:center}
+.after-photo{width:62%;min-height:340px;background:radial-gradient(at 50% 45%,#68735b,#1c2628 70%);border:1px solid #bacc9860;padding:25px;border-radius:16px;animation:enter 1s .3s both;font-size:12px}
+.after-photo h3{font-size:34px;line-height:1.1;margin:15px 0;font-weight:600}
+.after-photo .lamp{margin:25px auto}
+.before-photo .lamp{margin:40px auto;transform:scale(.75)}
+.creative-demo small{font-size:10px;letter-spacing:2px}
+.tile input,.tile select{max-width:100%;display:block;background:var(--ink);color:var(--texte);border:1px solid #ffffff30;padding:12px;border-radius:9px;margin-top:10px}
+.tile label{display:block;margin-top:20px;font-size:13px;color:var(--texte-2)}
+.function-links{max-width:1400px;margin:0 auto;padding:35px 5%;display:flex;gap:15px 25px;flex-wrap:wrap;border-top:1px solid #ffffff15;font-size:13px;color:var(--texte-2)}
+.function-links a:first-child{color:var(--accent);width:100%;font-weight:600}
+.function-links a:hover{color:var(--texte)}
+.directory{padding-top:55px}
+.directory h1{font-size:clamp(42px,4.9vw,72px);line-height:1.05;letter-spacing:-2px;font-weight:700;margin:20px 0;max-width:950px}
+.directory h1 em{font-style:normal;color:var(--accent)}
+.directory .intro{max-width:670px}
+.directory-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:50px 0}
+.directory-card{position:relative;display:block;border:1px solid #ffffff1e;border-radius:18px;padding:30px;min-height:215px;background:var(--surface);transition:transform .25s,border-color .25s}
+.directory-card.large{grid-column:span 2}
+.directory-card>span{color:var(--card);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase}
+.directory-card h2{font-size:29px;margin:28px 0 12px;font-weight:600;letter-spacing:-.5px}
+.directory-card p{color:var(--texte-2);max-width:80%;font-size:15px;margin:0}
+.directory-card>b{position:absolute;right:30px;bottom:28px;font-size:28px;color:var(--card);font-weight:400}
+.directory-card:hover{transform:translateY(-5px);border-color:var(--card)}
+@keyframes enter{from{opacity:0;transform:translateY(24px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes bars{0%,100%{transform:scaleY(.65);opacity:.6}50%{transform:scaleY(1);opacity:1}}
+@keyframes signal{50%{transform:scale(1.2)}}
 @media(max-width:1050px){.menu{gap:15px}.hero-inner{gap:30px;padding-top:50px;padding-bottom:55px}.hero h1{font-size:48px}.intro{font-size:16px}.demo{height:345px}.written{width:85%}.hub{width:30%;left:35%}.tile{padding:24px}.faq,.article{gap:40px}.source{width:43%}.flight{width:10%}.destination{width:47%}}
 @media(max-width:760px){
 .entete-in{padding:12px 16px;gap:10px;flex-wrap:wrap}
@@ -364,6 +436,25 @@ footer .wrap{padding:0 16px}
 .bento>.tile:last-child h3{margin-bottom:12px}
 .bento>.tile:last-child p{margin:15px 0}
 .bento>.price:last-child>strong{display:block;margin:22px 0}
+.directory{padding-top:36px}
+.directory h1{font-size:44px;letter-spacing:-1.5px}
+.directory-grid{grid-template-columns:minmax(0,1fr);margin:35px 0}
+.directory-card.large{grid-column:auto}
+.directory-card{min-height:0;padding:22px 60px 22px 22px}
+.directory-card h2{font-size:24px;margin:16px 0 8px}
+.directory-card p{max-width:none}
+.directory-card>b{right:22px;bottom:auto;top:50%;translate:0 -50%}
+.function-links{padding:25px 16px}
+.dossier,.report,.team,.automation,.wallet{width:100%;padding:4px 18px 18px}
+.dossier .windowbar,.report .windowbar,.team .windowbar,.automation .windowbar,.wallet .windowbar{margin:0 -18px 6px}
+.report-numbers{gap:30px}
+.report-numbers b{font-size:46px}
+.drop-equivalence{gap:10px}
+.drop-equivalence b{font-size:44px}
+.creative-demo{gap:10px}
+.after-photo{padding:18px;min-height:300px}
+.after-photo h3{font-size:26px}
+.supplier-list span{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}.network-demo>svg path{stroke-dasharray:none}.revealtext{clip-path:none!important}}
 `
@@ -386,6 +477,11 @@ var action=document.querySelector('#action'),quantity=document.querySelector('#q
 if(action&&quantity){var euro=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'});
 function calculate(){var n=quantity.valueAsNumber;if(!isFinite(n)||n<1||n>10000||Math.floor(n)!==n){quantity.setCustomValidity('Choisissez un nombre entier de 1 à 10 000.');document.querySelector('#total').textContent='\\u2014';document.querySelector('#drops').textContent='Quantité : 1 à 10 000';return}quantity.setCustomValidity('');var drops=n*Number(action.value);document.querySelector('#total').textContent=euro.format(drops/100);document.querySelector('#drops').textContent=new Intl.NumberFormat('fr-FR').format(drops)+' drops'}
 action.addEventListener('change',calculate);quantity.addEventListener('input',calculate);calculate()}
+var fr=new Intl.NumberFormat('fr-FR'),eur=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'});
+var auto=document.querySelector('#auto-count');
+if(auto){var jour=Number(auto.dataset.jour),prod=Number(auto.dataset.produit),max=Number(auto.max);auto.addEventListener('input',function(){var n=auto.valueAsNumber,ok=isFinite(n)&&Math.floor(n)===n&&n>=1&&n<=max;auto.setCustomValidity(ok?'':'Choisissez un entier de 1 à '+max+'.');document.querySelector('#auto-euros').textContent=ok?eur.format((jour+n*prod)/100):'\\u2014';document.querySelector('#auto-drops').textContent=ok?fr.format(jour+n*prod)+' drops':'Quantité : 1 à '+max})}
+var recharge=document.querySelector('#recharge');
+if(recharge)recharge.addEventListener('change',function(){var o=recharge.selectedOptions[0];document.querySelector('#credit-drops').textContent=o.dataset.drops;document.querySelector('#credit-unit').textContent=o.dataset.unite+' par drop'});
 })()`
 
 /* ---------- Gabarit ---------- */
@@ -426,6 +522,7 @@ function layout({ url, page, title: titreLong, description, jsonLd, body, degrad
 <main id="main">
 ${body}
 </main>
+${liensFonctions(url)}
 <footer><div class="wrap">
 ${piedDePage(GUIDES)}
 </div></footer>
@@ -433,6 +530,12 @@ ${piedDePage(GUIDES)}
 </body>
 </html>
 `
+}
+
+/** La rangée de liens de la maquette, sous chaque page : l'annuaire puis toutes les fonctions. */
+function liensFonctions(url) {
+  const liens = [...ACCUEIL.themes.map((t) => [`/fonctions/${t.slug}/`, nomCourt(t.slug)]), ['/tarifs/', 'Tarifs']].filter(([href]) => href !== url)
+  return `<nav class="function-links" aria-label="Toutes les fonctions"><a href="/fonctions/">Explorer toutes les fonctions ↗</a>${liens.map(([href, nom]) => `<a href="${href}">${esc(nom)}</a>`).join('')}</nav>`
 }
 
 function crumb(trail) {
@@ -508,15 +611,11 @@ ${c.sections.map((s) => `<h3>${esc(s.h2)}</h3>\n${s.html.replace(/<(\/?)h3>/g, '
 </div></div>`
 }
 
-const SUITE = {
-  'scraping-produits': ['/fonctions/annonces-ia/', 'Annonces'],
-  'annonces-ia': ['/fonctions/dropshop-ia/', 'Boutiques'],
-  'dropshop-ia': ['/fonctions/diffusion/', 'Diffusion'],
-  diffusion: ['/tarifs/', 'Tarifs'],
-  tarifs: ['/fonctions/scraping-produits/', 'Import'],
-}
+/** La fonction suivante dans l'ordre de l'accueil ; après la dernière, les tarifs ; après les tarifs, l'import. */
 function suite(slug) {
-  const [href, nom] = SUITE[slug]
+  const ordre = [...ACCUEIL.themes.map((t) => [`/fonctions/${t.slug}/`, nomCourt(t.slug), t.slug]), ['/tarifs/', 'Tarifs', 'tarifs']]
+  const i = ordre.findIndex(([, , s]) => s === slug)
+  const [href, nom] = ordre[(i + 1) % ordre.length]
   return `<a class="next" href="${href}"><div><span>LA SUITE DU PARCOURS</span><h3>${nom}</h3></div><b aria-hidden="true">↗</b></a>`
 }
 
@@ -584,9 +683,8 @@ function pageAnnonces(t, c) {
 <article class="tile full"><span class="tile-icon" aria-hidden="true">✓</span><h3>Vérifiez avant de publier</h3><p>Complétez les informations manquantes et ajustez le texte. Les exigences de la destination sont contrôlées avant l’envoi.</p><a class="textlink" href="/fonctions/diffusion/">Passer à la diffusion ↗</a></article>
 <article class="tile price"><span class="overline">Import + réécriture</span><strong>${grosPrix(eurosUnite)}</strong><p>Ou ${esc(eurosLot)} par annonce en lot. Une nouvelle réécriture : ${esc(eurosRefaire)}.</p><a class="textlink" href="/tarifs/">Tous les tarifs ↗</a></article>
 </div>`,
+    // Cost and invention questions are already in CONTENU's FAQ, appended after these.
     questions: [
-      { q: 'L’IA invente-t-elle les caractéristiques ?', a: 'Non. Elle s’appuie sur les données de la fiche source ; si la matière est insuffisante, l’annonce reste en brouillon. Relisez toujours le résultat.' },
-      { q: 'La réécriture est-elle facturée en plus de l’import ?', a: `Non. Elle est comprise dans les ${dropsUnite} drops de l’import, ou ${dropsLot} drops par annonce en lot. Refaire ensuite une réécriture coûte ${dropsRefaire} drops.` },
       { q: 'Mes annonces sont-elles optimisées pour le SEO ?', a: 'Oui. Chaque annonce reçoit ses mots-clés, un méta-titre, une méta-description et une catégorie. Le texte est réécrit, jamais recopié du fournisseur, ce que les moteurs de recherche pénalisent.' },
     ],
   }
@@ -622,9 +720,8 @@ function pageBoutiques(t, c) {
 <article class="tile full featured"><span class="tile-icon" aria-hidden="true">◈</span><h3>Vos produits aussi sur DropShop Market</h3><p>DropShop Market, la marketplace des boutiques DropShop, est ouverte : vos produits y gagnent une vitrine de plus, en plus de votre boutique.</p><a class="textlink" href="${MARKET}" rel="noopener" target="_blank">Consulter la marketplace ↗</a></article>
 <article class="tile full"><span class="tile-icon" aria-hidden="true">0 €</span><h3>Une vitrine gratuite, aussi</h3><p>Une vitrine à thèmes, gratuite, reste disponible. Elle est distincte de la boutique écrite par l’IA.</p><a class="textlink" href="/register">Créer mon compte ↗</a></article>
 </div>`,
+    // « Plusieurs boutiques » and « marque DropShipper » are in CONTENU's FAQ: asked once only.
     questions: [
-      { q: 'Puis-je créer plusieurs boutiques ?', a: `Oui. Chaque boutique est facturée séparément${b.uneFois ? ', une seule fois' : ''}. Vous pouvez créer un univers par niche, produit ou marché.` },
-      { q: 'La marque DropShipper apparaît-elle dans la boutique ?', a: 'Non. La boutique porte votre nom, votre logo et vos couleurs, sans mention DropShipper.' },
       { q: 'Existe-t-il une option gratuite ?', a: `Oui : une vitrine à thèmes, gratuite. Elle est distincte de la boutique écrite par l’IA à ${b.prix}.` },
     ],
   }
@@ -663,8 +760,267 @@ function pageDiffusion(t, c) {
   }
 }
 
-const FABRIQUES = { 'scraping-produits': pageImport, 'annonces-ia': pageAnnonces, 'dropshop-ia': pageBoutiques, diffusion: pageDiffusion }
-const PAGE_DE = { 'scraping-produits': 'import', 'annonces-ia': 'annonces', 'dropshop-ia': 'boutiques', diffusion: 'diffusion' }
+/* ---------- Les pages ajoutées par la maquette complète (13/10/2026, 16:25) ---------- */
+
+/** Le contrat des analyses (CLAUDE.md) : 24 rayons, 20 produits chacun, un rapport rayon et un rapport marketing. */
+const RAYONS = 24
+const PAR_RAYON = 20
+/** Plafond d'AUTO-SHIPPER : backend/src/routes/autopilot.ts (dailyLimit max 480 = 24 × 20). */
+const MAX_AUTO = RAYONS * PAR_RAYON
+const API_FOURNISSEURS = ['AliExpress', 'BigBuy', 'CJ Dropshipping']
+
+function pageFournisseurs(t, c) {
+  const n = FOURNISSEURS.length
+  return {
+    hero: {
+      overline: 'Sourcing / Choisir en connaissance de cause',
+      h1: 'Le bon fournisseur.',
+      em: 'Les bonnes conditions.',
+      intro: 'Comparez les modes d’import, les pays d’expédition et les conditions utiles avant de choisir vos produits.',
+      cta: 'Explorer les fournisseurs',
+      demo: `<div class="demo"><div class="window dossier"><div class="windowbar"><span>Votre sourcing</span><span>${n} fournisseurs documentés</span></div><div class="supplier-list">${API_FOURNISSEURS.map((f) => `<div><b>${f}</b><span>Connexion API</span></div>`).join('')}</div><div class="checkline">✓ Prix et stock en temps réel</div><div class="checkline">✓ Import par adresse ou extension</div><div class="checkline">✓ Conditions à lire avant la vente</div></div></div>`,
+    },
+    bento: `${enTeteSection('L’essentiel, simplement', 'Choisissez au-delà du catalogue.', 'Quatre points à regarder : livraison, frais, import et conditions.')}
+<div class="bento">
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">↗</span><h3>Trois fournisseurs connectés par API</h3><p>${API_FOURNISSEURS.join(', ').replace(/, ([^,]*)$/, ' et $1')} : prix et stock remontent en temps réel, et la commande est déposée chez eux sans ressaisie.</p><div class="tokens">${API_FOURNISSEURS.map((f) => `<span>${f}</span>`).join('')}</div></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">${n}</span><h3>Un annuaire documenté</h3><p>D’où part la marchandise, délais, douane, dropshipping autorisé ou non : ce que leurs conditions écrivent, fournisseur par fournisseur.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">⇄</span><h3>Comparez la même référence</h3><p>Ce que demande chaque fournisseur relié, et la marge que cela vous laisse. La comparaison est gratuite.</p></article>
+<article class="tile wide"><span class="tile-icon" aria-hidden="true">⌕</span><h3>Un fournisseur absent ?</h3><p>N’importe quelle boutique en ligne s’importe par l’adresse du produit ou par l’extension Chrome, selon le site.</p><a class="textlink" href="/fonctions/scraping-produits/">Voir les modes d’import ↗</a></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✓</span><h3>Avant de vendre</h3><p>Lisez les conditions propres au fournisseur, notamment l’expédition directe et la reprise des photos.</p></article>
+</div>`,
+    questions: [{ q: 'Mon prix d’achat est-il visible publiquement ?', a: 'Non. Les pages publiques ne montrent ni vos prix d’achat ni vos adresses fournisseur : ils restent dans votre compte.' }],
+  }
+}
+
+function pageVisuels(t, c) {
+  const [, dropsPhoto, eurosPhoto] = ligne(/photo en situation/)
+  const [, dropsPub, eurosPub] = ligne(/publicité/)
+  return {
+    hero: {
+      overline: 'Création / Votre produit, votre marque',
+      h1: 'Le même produit.',
+      em: 'Un autre impact.',
+      intro: 'Créez des photos en situation et des publicités aux couleurs de votre marque. Vérifiez le résultat, puis utilisez le visuel.',
+      cta: 'Créer mes visuels',
+      demo: `<div class="demo creative-demo"><div class="before-photo">${LAMPE}<span>Photo du fournisseur</span></div><div class="after-photo"><small>ALBA STUDIO</small><h3>Éclairez<br>vos instants.</h3>${LAMPE}<span>Publicité illustrative</span></div><div class="floating-label">Photo → décor → accroche</div></div>`,
+    },
+    bento: `${enTeteSection('L’essentiel, simplement', 'De la photo à la publicité.', 'Un outil pour chaque étape de votre création.')}
+<div class="bento">
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">✦</span><h3>Mettez le produit en situation</h3><p>Partez de la photo du fournisseur : le produit reste celui du colis, le décor change. Vérifiez le résultat avant de l’utiliser.</p><div class="tokens"><span>Photo source</span><span>Décor</span><span>Validation</span></div></article>
+<article class="tile price"><span class="overline">Photo en situation</span><strong>${grosPrix(eurosPhoto)}</strong><p>${dropsPhoto} drops par photo.</p><a class="textlink" href="/tarifs/">Tous les tarifs ↗</a></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">◈</span><h3>Vos couleurs, votre identité</h3><p>Palette, mise en page et typographie sont tirées de votre logo. Le contraste du texte est mesuré.</p></article>
+<article class="tile wide"><span class="tile-icon" aria-hidden="true">↗</span><h3>Accroche et visuel ensemble</h3><p>L’IA écrit l’accroche avec un angle imposé et compose le visuel au format du réseau visé. Une publicité complète : ${dropsPub} drops, soit ${esc(eurosPub)}.</p><div class="tokens"><span>Problème</span><span>Bénéfice</span><span>Preuve</span><span>Urgence</span><span>Identité</span><span>Comparaison</span></div></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✓</span><h3>Votre budget reste sous contrôle</h3><p>Les campagnes sont créées en pause. Elles ne démarrent que sur votre demande.</p></article>
+</div>`,
+    questions: [
+      { q: 'La fonction génère-t-elle aussi des vidéos ?', a: 'Les analyses marketing livrent chaque jour des prompts image et vidéo par catégorie, à utiliser dans le générateur de votre choix.' },
+      { q: 'Puis-je ajouter mon logo aux photos ?', a: 'Oui. Votre filigrane, logo ou texte, est posé à l’export sur chaque photo, dans le coin que vous choisissez.' },
+      { q: 'La création d’une publicité inclut-elle sa diffusion payante ?', a: 'Non. Le prix de création est distinct du budget que vous dépensez auprès d’une régie.' },
+    ],
+  }
+}
+
+function pageReseaux(t, c) {
+  const rangs = [['◎', 'Publication organique', 'Visuel, accroche et lien'], ['▦', 'Instagram Shopping', 'Alimenté par le flux catalogue'], ['◇', 'Boutique Facebook', 'Le même flux, tenu à jour'], ['✦', 'Analyse réseaux', 'Ce qui se dit, ce qui se vend']]
+  return {
+    hero: {
+      overline: 'Réseaux sociaux / Depuis le même endroit',
+      h1: 'Vos produits.',
+      em: 'Sur vos réseaux.',
+      emDegrade: true,
+      intro: 'Le visuel, l’accroche et le lien partent d’un clic, sans jamais transmettre vos mots de passe. Vos boutiques Instagram et Facebook suivent votre catalogue.',
+      cta: 'Relier mes réseaux',
+      demo: `<div class="demo"><div class="window team"><div class="windowbar"><span>Vos réseaux</span><span>En organique</span></div>${rangs.map(([i, b, s], k) => `<div class="team-row" style="--delay:${(k * 0.35).toFixed(2)}s"><i>${i}</i><div><b>${b}</b><small>${s}</small></div><span aria-hidden="true">↗</span></div>`).join('')}</div></div>`,
+    },
+    bento: `${enTeteSection('L’essentiel, simplement', 'Un canal de vente, pas seulement de visibilité.', 'Publication, boutiques sociales et analyse, réunies dans votre espace.')}
+<div class="bento">
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">◎</span><h3>Vos comptes restent à vous</h3><p>${esc(t.points[0])}</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">▦</span><h3>Les boutiques sociales</h3><p>${esc(t.points[1])}</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✦</span><h3>Ce qui marche sur les réseaux</h3><p>${esc(t.points[2])}</p></article>
+<article class="tile wide"><span class="tile-icon" aria-hidden="true">✓</span><h3>Une publication, une seule</h3><p>${esc(t.points[3])} Chaque envoi porte sa propre clé.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">↗</span><h3>Les visuels qui vont avec</h3><p>Photos en situation et publicités à vos couleurs, prêtes pour vos réseaux.</p><a class="textlink" href="/fonctions/visuels-ia/">Voir les visuels ↗</a></article>
+</div>`,
+    questions: [],
+  }
+}
+
+function pageAnalyses(t, c) {
+  const [, dropsAnalyse, eurosAnalyse] = ligne(/^Analyse de marché/)
+  const [, , eurosUnite] = ligne(/^Importer une annonce/)
+  const barres = [40, 70, 50, 85, 60, 95, 75, 100]
+  return {
+    hero: {
+      overline: 'Opportunités / Chaque jour',
+      h1: 'Moins de recherche.',
+      em: 'Plus de pistes.',
+      intro: 'Explorez les analyses de marché, les produits sélectionnés et les angles marketing de vos catégories. Importez ceux qui correspondent à votre projet.',
+      cta: 'Explorer avec un compte',
+      demo: `<div class="demo"><div class="window report"><div class="windowbar"><span>Votre veille quotidienne</span><span aria-hidden="true">✦</span></div><div class="report-numbers"><div><b>${RAYONS}</b><small>catégories</small></div><div><b>${RAYONS * 2}</b><small>rapports / jour</small></div></div><div class="report-bars" aria-hidden="true">${barres.map((h, i) => `<i style="--h:${h}%;--delay:${(i * 0.12).toFixed(2)}s"></i>`).join('')}</div><div class="checkline">Un rapport marché + un rapport marketing</div><div class="checkline">${PAR_RAYON} produits proposés par catégorie</div><div class="pill">${MAX_AUTO} propositions par jour</div></div></div>`,
+    },
+    bento: `${enTeteSection('L’essentiel, simplement', 'Comprendre. Sélectionner. Importer.', 'Deux rapports complémentaires pour passer à l’action.')}
+<div class="bento">
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">⌕</span><h3>Le marché et ses produits</h3><p>Chaque jour, pour chaque catégorie : la sélection, les raisons du choix et les prix effectivement trouvés. Un champ introuvable reste vide.</p><a class="textlink" href="/analyses/">Lire les analyses publiques ↗</a></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✦</span><h3>Les angles marketing</h3><p>Audiences, idées de publicités et prompts image ou vidéo pour les réseaux.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">↗</span><h3>Importez votre sélection</h3><p>Depuis votre compte, un clic importe un produit ou un lot, et l’IA écrit l’annonce. ${esc(eurosUnite)} l’annonce.</p></article>
+<article class="tile wide"><span class="tile-icon" aria-hidden="true">◎</span><h3>Un produit précis en tête ?</h3><p>Lancez une analyse ciblée pour explorer les offres concurrentes, les prix pratiqués et le marché.</p><span class="stat">${esc(eurosAnalyse)} <small>/ analyse ciblée · ${dropsAnalyse} drops</small></span></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">0 €</span><h3>La veille en AUTO-MODE</h3><p>L’AUTO-MODE d’un chef de rayon est gratuit. L’import et la publication automatique sont des actions distinctes.</p><a class="textlink" href="/fonctions/auto-shipper/">Voir AUTO-SHIPPER ↗</a></article>
+</div>`,
+    questions: [
+      { q: `Les ${MAX_AUTO} produits proposés sont-ils des ventes garanties ?`, a: 'Non. Ce sont des propositions issues des analyses. Évaluez la demande, la marge et les conditions du fournisseur avant de choisir un produit.' },
+      { q: 'Quelle différence avec AUTO-SHIPPER ?', a: 'L’AUTO-MODE produit la veille, gratuitement. AUTO-SHIPPER va plus loin : il importe et publie les produits selon vos réglages, à son propre tarif.' },
+    ],
+  }
+}
+
+function pageAgents(t, c) {
+  const [, dropsComptoir, eurosComptoir] = ligne(/agent de comptoir/)
+  const [, dropsRayon] = ligne(/chef de rayon/)
+  const [, dropsPhoto, eurosPhoto] = ligne(/^Contrôle photo/)
+  const equipe = [['⌕', 'Chefs de rayon', 'Produits et analyses'], ['◈', 'Iris', 'Contrôle des photos'], ['✦', 'Laurence et Léa', 'Campagnes et visuels'], ['☏', 'Camille', 'Messages et orientation']]
+  return {
+    hero: {
+      overline: 'Assistance / Un rôle pour chaque besoin',
+      h1: 'Les bonnes tâches.',
+      em: 'Les bons agents.',
+      intro: 'Recherche de produits, photos, marketing ou service client : chaque métier a son agent, avec de vrais outils et un plafond annoncé.',
+      cta: 'Découvrir les agents',
+      demo: `<div class="demo"><div class="window team"><div class="windowbar"><span>Votre équipe IA</span><span>Par métier</span></div>${equipe.map(([i, b, s], k) => `<div class="team-row" style="--delay:${(k * 0.35).toFixed(2)}s"><i>${i}</i><div><b>${b}</b><small>${s}</small></div><span aria-hidden="true">↗</span></div>`).join('')}</div></div>`,
+    },
+    bento: `${enTeteSection('L’essentiel, simplement', 'Commencez par votre besoin.', 'Le métier et la tâche avant le nom de l’agent.')}
+<div class="bento">
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">⌕</span><h3>Trouver et analyser</h3><p>Les chefs de rayon cherchent des produits chez les fournisseurs reliés et sondent les prix pratiqués. Une question avec recherche web : ${dropsRayon} drops.</p><a class="textlink" href="/fonctions/analyses-de-marche/">Comprendre les analyses ↗</a></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">◈</span><h3>Contrôler les photos</h3><p>Iris vérifie les images importées : ${dropsPhoto} drops par annonce, soit ${esc(eurosPhoto)}.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✦</span><h3>Préparer le marketing</h3><p>Laurence et Léa accompagnent vos campagnes et vos visuels. Les créations ont leurs propres tarifs.</p></article>
+<article class="tile wide"><span class="tile-icon" aria-hidden="true">☏</span><h3>Accompagner le suivi</h3><p>Camille répond aux messages et oriente vers le bon collègue. Chacun agit dans la limite écrite dans le code, pas dans une consigne.</p><div class="tokens"><span>SAV · Marc</span><span>Facturation · Béatrice</span><span>Comptabilité · Gérard</span><span>Livraisons · Yann</span><span>Droit · Maître Doré</span></div></article>
+<article class="tile price"><span class="overline">Question à un agent de comptoir</span><strong>${grosPrix(eurosComptoir)}</strong><p>${dropsComptoir} drops par question. Le prix d’une action est affiché avant de la lancer.</p><a class="textlink" href="/tarifs/">Tous les tarifs ↗</a></article>
+</div>`,
+    questions: [{ q: 'Le mode automatique est-il compris ?', a: 'L’AUTO-MODE des chefs de rayon est gratuit. AUTO-SHIPPER, qui importe et publie, a son propre tarif.' }],
+  }
+}
+
+function pageAutoShipper(t, c) {
+  const [, jour, eurosJour] = ligne(/^AUTO-SHIPPER : la journée/)
+  const [, produit, eurosProduit] = ligne(/^AUTO-SHIPPER : un produit/)
+  const exemple = 50
+  const etapes = ['Sélection des produits', 'Import et annonce IA', 'Contrôle des photos', 'Diffusion compatible']
+  return {
+    degrade: DEGRADE_AUTOSHIPPER,
+    hero: {
+      overline: 'Automatisation / Vous fixez les limites',
+      h1: 'Une tournée par jour.',
+      em: 'Votre cap, vos limites.',
+      emDegrade: true,
+      intro: 'Choisissez vos catégories, vos destinations et un plafond. AUTO-SHIPPER sélectionne les produits compatibles, prépare les annonces et lance leur diffusion.',
+      cta: 'Préparer mon mode automatique',
+      demo: `<div class="demo"><div class="window automation"><div class="windowbar"><span>Une tournée quotidienne</span><span>24 h</span></div>${etapes.map((e, i) => `<div class="auto-step" style="--delay:${i * 0.5}s"><i>${i + 1}</i><b>${e}</b><span aria-hidden="true">✓</span></div>`).join('')}<div class="pill">Selon vos catégories et votre plafond</div></div></div>`,
+    },
+    bento: `${enTeteSection('L’essentiel, simplement', 'Automatique, avec un cadre clair.', 'Ce qui part seul, ce qui attend votre validation et ce que cela coûte.')}
+<div class="bento">
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">↻</span><h3>Le parcours quotidien</h3><p>La tournée prend les produits des analyses du matin, importe ceux qui sont accessibles sans intervention, écrit les annonces et contrôle les photos.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✓</span><h3>Vous gardez les validations</h3><p>Vinted, Leboncoin et Facebook Marketplace attendent votre validation. Les campagnes publicitaires restent en pause.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">⌕</span><h3>Les produits compatibles seulement</h3><p>Ceux qui demandent une intervention dans le navigateur restent dans la liste, pour vous.</p></article>
+<article class="tile wide featured calculator"><span class="overline">Estimation du coût de la tournée</span><h3>Un plafond qui se comprend.</h3><label for="auto-count">Produits importés et publiés dans la journée</label><input id="auto-count" type="number" min="1" max="${MAX_AUTO}" value="${exemple}" inputmode="numeric" data-jour="${jour}" data-produit="${produit}"><div class="estimate" aria-live="polite"><strong id="auto-euros">${euros(jour + exemple * produit)}</strong><span id="auto-drops">${nombre(jour + exemple * produit)} drops</span></div><p class="footnote">${esc(eurosJour)} la journée + ${esc(eurosProduit)} par produit. Tarif de base, journée rendue si rien n’a été importé. Simulation sans activation.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">↗</span><h3>Commencez par la veille</h3><p>L’AUTO-MODE gratuit produit les analyses. AUTO-SHIPPER est l’étape payante qui importe et publie.</p><a class="textlink" href="/fonctions/analyses-de-marche/">Voir les analyses ↗</a></article>
+</div>`,
+    questions: [],
+  }
+}
+
+function pageDrops(t, c) {
+  const [, dropsUnite] = ligne(/^Importer une annonce/)
+  const [, dropsPhoto] = ligne(/photo en situation/)
+  const b = boutique()
+  const recharges = RECHARGES.map(([prix, drops, unite]) => ({ prix, drops: drops.replace(/\s*drops$/, ''), unite: unite.replace(/\s*\(.*\)$/, '') }))
+  return {
+    hero: {
+      overline: 'Crédits / Payez ce que vous utilisez',
+      h1: 'Du crédit.',
+      em: 'Pas d’abonnement.',
+      intro: 'Rechargez votre compte en drops, puis utilisez-les pour vos actions. Le prix est affiché avant de lancer la demande.',
+      cta: 'Recevoir mes 120 drops',
+      demo: `<div class="demo"><img class="coin" src="/marque/drops.png" alt="" width="96" height="96"><div class="window wallet"><div class="windowbar"><span>Comprendre les drops</span><span aria-hidden="true">✦</span></div><div class="drop-equivalence"><b>100</b><span>drops</span><i aria-hidden="true">⇄</i><b>1 €</b></div><div class="checkline">${dropsUnite} drops → import + annonce IA</div><div class="checkline">${dropsPhoto} drops → photo en situation</div><div class="checkline">${nombre(b.drops)} drops → boutique DropShop${b.uneFois ? ', une fois' : ''}</div><div class="pill">Équivalences au tarif de base</div></div></div>`,
+    },
+    bento: `${enTeteSection('L’essentiel, simplement', 'Un fonctionnement en trois temps.', 'Rechargez, utilisez, suivez votre crédit.')}
+<div class="bento">
+<article class="tile wide featured">${video(t.slug, 'Les drops, la monnaie de DropShipper IA')}<span class="tile-icon" aria-hidden="true">✦</span><h3>120 drops pour commencer</h3><p>Le crédit de bienvenue couvre ${Math.floor(120 / dropsUnite)} imports à ${dropsUnite} drops, réécriture comprise. Aucun abonnement à choisir.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">↗</span><h3>Des recharges de ${esc(recharges[0].prix)} à ${esc(recharges[recharges.length - 1].prix)}</h3><p>Le coût d’une action en drops ne change pas. Les grosses recharges réduisent le prix du drop.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✓</span><h3>Une action échoue ?</h3><p>Les drops sont rendus : réécriture non faite, boutique qui n’aboutit pas, journée d’AUTO-SHIPPER sans import.</p></article>
+<article class="tile wide featured calculator"><span class="overline">Choisir une recharge</span><h3>Voyez ce que vous recevez.</h3><label for="recharge">Montant</label><select id="recharge">${recharges.map((r, i) => `<option data-drops="${esc(r.drops)}" data-unite="${esc(r.unite)}"${i === 0 ? ' selected' : ''}>${esc(r.prix)}</option>`).join('')}</select><div class="estimate" aria-live="polite"><strong id="credit-drops">${esc(recharges[0].drops)}</strong><span>drops</span></div><p id="credit-unit">${esc(recharges[0].unite)} par drop</p><span class="footnote">Comparaison seulement. Aucun achat.</span></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">0 €</span><h3>Ce qui ne coûte rien</h3><p>Extension Chrome, vitrine à thèmes, flux catalogue, annuaire des ${canaux.length} canaux et des ${FOURNISSEURS.length} fournisseurs, AUTO-MODE de veille.</p><a class="textlink" href="/tarifs/">Voir les tarifs ↗</a></article>
+</div>`,
+    questions: [{ q: 'Les drops remplacent-ils le budget publicitaire ?', a: 'Non. Ils paient les actions de la plateforme. Le budget d’une campagne auprès d’une régie est distinct.' }],
+  }
+}
+
+const FABRIQUES = {
+  'scraping-produits': pageImport,
+  fournisseurs: pageFournisseurs,
+  'annonces-ia': pageAnnonces,
+  'dropshop-ia': pageBoutiques,
+  'visuels-ia': pageVisuels,
+  'reseaux-sociaux': pageReseaux,
+  diffusion: pageDiffusion,
+  'analyses-de-marche': pageAnalyses,
+  'agents-ia': pageAgents,
+  'auto-shipper': pageAutoShipper,
+  'les-drops': pageDrops,
+}
+const PAGE_DE = {
+  'scraping-produits': 'import',
+  fournisseurs: 'fournisseurs',
+  'annonces-ia': 'annonces',
+  'dropshop-ia': 'boutiques',
+  'visuels-ia': 'visuels',
+  'reseaux-sociaux': 'reseaux',
+  diffusion: 'diffusion',
+  'analyses-de-marche': 'analyses',
+  'agents-ia': 'agents',
+  'auto-shipper': 'autoshipper',
+  'les-drops': 'drops',
+}
+
+/* ---------- L'annuaire des fonctions ---------- */
+
+const GRANDES = new Set(['scraping-produits', 'diffusion', 'auto-shipper'])
+
+function pageAnnuaire() {
+  const url = '/fonctions/'
+  const trail = [{ name: 'Accueil', url: '/' }, { name: 'Fonctions', url }]
+  const themes = ACCUEIL.themes
+  const titre = 'Les fonctions de DropShipper IA : du premier produit à sa mise en vente'
+  const description = `Les ${themes.length} fonctions de DropShipper IA : import, fournisseurs, annonces IA, boutiques, visuels, réseaux, diffusion, analyses, agents, AUTO-SHIPPER et drops.`
+  return {
+    url,
+    html: layout({
+      url,
+      page: 'fonctions',
+      title: titre,
+      description,
+      jsonLd: [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: titre,
+          url: `${SITE}${url}`,
+          itemListElement: themes.map((t, i) => ({ '@type': 'ListItem', position: i + 1, name: CONTENU[t.slug]?.nom ?? t.eyebrow, url: `${SITE}/fonctions/${t.slug}/` })),
+        },
+        breadcrumbLd(trail),
+      ],
+      body: `<section class="content directory">${crumb(trail)}<div class="overline">DropShipper IA / Votre parcours</div>
+<h1>Du premier produit.<br><em>À sa mise en vente.</em></h1>
+<p class="intro">Un catalogue central. ${themes.length} fonctions pour trouver, préparer, vendre et suivre vos produits.</p>
+<div class="directory-grid">${themes
+        .map((t, i) => {
+          const [accent] = ACCENTS[PAGE_DE[t.slug]] || ACCENTS.fonctions
+          return `<a href="/fonctions/${t.slug}/" class="directory-card${GRANDES.has(t.slug) ? ' large' : ''}" style="--card:${accent}"><span>${String(i + 1).padStart(2, '0')} / ${esc(t.eyebrow)}</span><h2>${esc(CONTENU[t.slug]?.nom ?? t.eyebrow)}</h2><p>${esc(COURT[t.slug]?.[1] ?? t.titre)}</p><b aria-hidden="true">↗</b></a>`
+        })
+        .join('')}</div>
+${outilsBloc()}
+<a class="next" href="/tarifs/"><div><span>CHAQUE ACTION, SON PRIX</span><h3>Voir les tarifs</h3></div><b aria-hidden="true">↗</b></a>
+</section>`,
+    }),
+  }
+}
 
 /** Une des quatre pages du menu, ou null pour les autres fonctions (gabarit inchangé). */
 function pageFonctionRefonte(t, index) {
@@ -673,7 +1029,7 @@ function pageFonctionRefonte(t, index) {
   const url = `/fonctions/${t.slug}/`
   const c = CONTENU[t.slug]
   const p = fab(t, c)
-  const trail = [{ name: 'Accueil', url: '/' }, { name: 'Fonctions', url: '/#' + t.slug }, { name: c.nom, url }]
+  const trail = [{ name: 'Accueil', url: '/' }, { name: 'Fonctions', url: '/fonctions/' }, { name: c.nom, url }]
   const faq = [...p.questions, ...c.faq]
   return {
     url,
@@ -718,6 +1074,13 @@ const libelleCourt = (nom) => nom.replace(/\s*\([^)]*\)/g, '').replace(/\s+—.*
 /** Pas d'étiquette « bientôt » sur le site (décision de Max, 12/10/2026). */
 const enService = (l) => !/bientôt/i.test(l[0])
 
+/** How the two AUTO-SHIPPER lines add up (the maquette's note, figures from the grid). */
+function noteAuto() {
+  const [, jour] = ligne(/^AUTO-SHIPPER : la journée/)
+  const [, produit] = ligne(/^AUTO-SHIPPER : un produit/)
+  return `<p>La journée coûte ${euros(jour)} + ${euros(produit)} par produit importé et publié. Exemple : 50 produits = ${euros(jour + 50 * produit)}.</p>`
+}
+
 function pageTarifsRefonte({ RECHARGES, familles, faqTarifs }) {
   const url = '/tarifs/'
   const trail = [{ name: 'Accueil', url: '/' }, { name: 'Tarifs', url }]
@@ -740,7 +1103,7 @@ ${lignes.map(([nom, drops, eur]) => `<tr><td>${esc(nom)}</td><td class="n">${dro
     ...familles()
       .map(([titre, lignes]) => [titre, lignes.filter(enService)])
       .filter(([, l]) => l.length)
-      .map(([titre, lignes]) => ({ q: titre, html: table(lignes) })),
+      .map(([titre, lignes]) => ({ q: titre, html: table(lignes) + (lignes.some(([nom]) => /^AUTO-SHIPPER : la journée/.test(nom)) ? noteAuto() : '') })),
     {
       q: 'Les recharges et leurs remises',
       html: `<div class="table-scroll"><table><thead><tr><th>Vous payez</th><th>Vous recevez</th><th>Prix du drop</th></tr></thead><tbody>
@@ -786,4 +1149,4 @@ ${suite('tarifs')}
   }
 }
 
-module.exports = { pageFonctionRefonte, pageTarifsRefonte, boutique }
+module.exports = { pageFonctionRefonte, pageTarifsRefonte, pageAnnuaire, boutique }

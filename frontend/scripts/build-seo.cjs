@@ -174,6 +174,7 @@ const NAV_STATIQUE = [
   ['/fonctions/dropshop-ia/', 'Boutiques'],
   ['/fonctions/diffusion/', 'Diffusion'],
   ['/tarifs/', 'Tarifs'],
+  ['/fonctions/', 'Toutes les fonctions ↗'],
 ]
 
 function layout({ url, title: titreLong, description, jsonLd, body }) {

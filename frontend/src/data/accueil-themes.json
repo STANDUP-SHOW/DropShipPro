@@ -57,12 +57,12 @@
       "titre": "Votre boutique, écrite par l'IA — et la marketplace qui va avec",
       "accroche": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique, responsive, avec panier, commande, emails et paiement Stripe sur votre compte. 5 €, une seule fois, à vie, modifications à volonté.",
       "points": [
-        "Trois directions proposées en une minute, une boutique générée en trois — puis modifiée par simples demandes, dix comprises.",
+        "Trois directions proposées en une minute, une boutique générée en trois — puis modifiée par simples demandes, à volonté.",
         "Les couleurs de votre logo deviennent la gamme du site ; matière, profondeur, mouvement : le niveau d'une agence.",
         "Catalogue vivant, avis clients, EAN, flux Google Shopping et Meta : tout est branché.",
-        "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews. DropShop Market, la place de marché de toutes les boutiques DropShop, est ouverte sur drop-shop.cloud."
+        "Extension en drops : un Back Office indépendant, pour un associé ou un employé. DropShop Market, la place de marché de toutes les boutiques DropShop, est ouverte sur drop-shop.cloud."
       ],
-      "detail": "DropShop IA ne choisit pas un thème dans un catalogue : le modèle écrit la page entière — design, CSS, écrans — à partir de votre description et des couleurs de votre logo, puis un vérificateur la parcourt comme un visiteur (accueil, catégorie, fiche, panier, commande) et fait corriger ce qui manque avant que vous la voyiez. La logique de commerce, elle, ne s'écrit jamais : catalogue, panier, commande, paiement et confirmation vivent dans un moteur commun, donc un panier DropShop ne peut pas « ne plus marcher ». Le paiement va directement sur votre compte Stripe. 500 drops (5 €) payés une seule fois, hébergement, trafic et modifications à volonté compris, sans aucune mention DropShipper sur la boutique. Des extensions s'ajoutent en drops, comme les apps d'une boutique Shopify : le Back Office indépendant est disponible ; DropBank (accepter les drops), DropSEO et DropReviews arrivent. DropShop Market, la marketplace de toutes les boutiques DropShop, est déjà ouverte sur drop-shop.cloud.",
+      "detail": "DropShop IA ne choisit pas un thème dans un catalogue : le modèle écrit la page entière — design, CSS, écrans — à partir de votre description et des couleurs de votre logo, puis un vérificateur la parcourt comme un visiteur (accueil, catégorie, fiche, panier, commande) et fait corriger ce qui manque avant que vous la voyiez. La logique de commerce, elle, ne s'écrit jamais : catalogue, panier, commande, paiement et confirmation vivent dans un moteur commun, donc un panier DropShop ne peut pas « ne plus marcher ». Le paiement va directement sur votre compte Stripe. 500 drops (5 €) payés une seule fois, hébergement, trafic et modifications à volonté compris, sans aucune mention DropShipper sur la boutique. Des extensions s'ajoutent en drops, comme les apps d'une boutique Shopify : le Back Office indépendant, une administration propre à la boutique, est disponible. DropShop Market, la marketplace de toutes les boutiques DropShop, est déjà ouverte sur drop-shop.cloud.",
       "image": "/images/accueil/dropshop-ia.jpg",
       "offre": { "label": "Créer ma boutique", "href": "/register" }
     },
@@ -167,7 +167,7 @@
         "Recharges de 5 à 150 € ; le drop coûte moins cher quand on en achète beaucoup, jusqu'à −25 %.",
         "Boutiques à thèmes, flux catalogue, annuaire des canaux et des fournisseurs : gratuits."
       ],
-      "detail": "Les concurrents facturent de 20 à 300 dollars par mois, payés avant la première vente. DropShipper IA se paie à l'acte, en drops : 1 drop vaut 0,01 €, et chaque action a un prix connu avant de cliquer — 12 drops pour importer et faire réécrire une annonce, 8 en lot, 18 pour une image, 20 pour une publicité, 30 pour une analyse de marché par produit, 350 une seule fois pour une boutique écrite par l'IA. Un crédit est rendu quand l'action échoue. Les recharges vont de 5 € (500 drops) à 150 € (20 000 drops, −25 %), et 120 drops sont offerts à l'inscription. Ce qui ne coûte rien : la vitrine à thèmes, les flux Google Shopping et Meta, l'annuaire des 314 canaux et des 38 fournisseurs, les analyses de marché quotidiennes en mode auto.",
+      "detail": "Les concurrents facturent de 20 à 300 dollars par mois, payés avant la première vente. DropShipper IA se paie à l'acte, en drops : 1 drop vaut 0,01 €, et chaque action a un prix connu avant de cliquer — 12 drops pour importer et faire réécrire une annonce, 8 en lot, 18 pour une image, 20 pour une publicité, 30 pour une analyse de marché par produit, 500 une seule fois pour une boutique écrite par l'IA, modifications à volonté comprises. Un crédit est rendu quand l'action échoue. Les recharges vont de 5 € (500 drops) à 150 € (20 000 drops, −25 %), et 120 drops sont offerts à l'inscription. Ce qui ne coûte rien : la vitrine à thèmes, les flux Google Shopping et Meta, l'annuaire des 314 canaux et des 38 fournisseurs, les analyses de marché quotidiennes en mode auto.",
       "image": "/images/accueil/les-drops.jpg",
       "offre": { "label": "Voir la grille tarifaire", "href": "/tarifs/" }
     }
@@ -235,7 +235,7 @@
         "bouton": "Consulter la marketplace",
         "href": "https://drop-shop.cloud"
       },
-      "extensions": "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews."
+      "extensions": "Extension en drops : un Back Office indépendant, avec identifiant et mot de passe, pour un associé ou un employé."
     },
     "auto": {
       "slug": "auto-shipper",
