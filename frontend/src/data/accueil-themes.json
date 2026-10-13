@@ -55,14 +55,14 @@
       "slug": "dropshop-ia",
       "eyebrow": "DropShop IA",
       "titre": "Votre boutique, écrite par l'IA — et la marketplace qui va avec",
-      "accroche": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique, responsive, avec panier, commande, emails et paiement Stripe sur votre compte. 3,50 €, une seule fois, à vie.",
+      "accroche": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique, responsive, avec panier, commande, emails et paiement Stripe sur votre compte. 5 €, une seule fois, à vie, modifications à volonté.",
       "points": [
         "Trois directions proposées en une minute, une boutique générée en trois — puis modifiée par simples demandes, dix comprises.",
         "Les couleurs de votre logo deviennent la gamme du site ; matière, profondeur, mouvement : le niveau d'une agence.",
         "Catalogue vivant, avis clients, EAN, flux Google Shopping et Meta : tout est branché.",
         "Extensions en drops : Back Office indépendant, et bientôt DropBank, DropSEO, DropReviews. DropShop Market, la place de marché de toutes les boutiques DropShop, est ouverte sur drop-shop.cloud."
       ],
-      "detail": "DropShop IA ne choisit pas un thème dans un catalogue : le modèle écrit la page entière — design, CSS, écrans — à partir de votre description et des couleurs de votre logo, puis un vérificateur la parcourt comme un visiteur (accueil, catégorie, fiche, panier, commande) et fait corriger ce qui manque avant que vous la voyiez. La logique de commerce, elle, ne s'écrit jamais : catalogue, panier, commande, paiement et confirmation vivent dans un moteur commun, donc un panier DropShop ne peut pas « ne plus marcher ». Le paiement va directement sur votre compte Stripe. 350 drops (3,50 €) payés une seule fois, hébergement, trafic et dix modifications compris, sans aucune mention DropShipper sur la boutique. Des extensions s'ajoutent en drops, comme les apps d'une boutique Shopify : le Back Office indépendant est disponible ; DropBank (accepter les drops), DropSEO et DropReviews arrivent. DropShop Market, la marketplace de toutes les boutiques DropShop, est déjà ouverte sur drop-shop.cloud.",
+      "detail": "DropShop IA ne choisit pas un thème dans un catalogue : le modèle écrit la page entière — design, CSS, écrans — à partir de votre description et des couleurs de votre logo, puis un vérificateur la parcourt comme un visiteur (accueil, catégorie, fiche, panier, commande) et fait corriger ce qui manque avant que vous la voyiez. La logique de commerce, elle, ne s'écrit jamais : catalogue, panier, commande, paiement et confirmation vivent dans un moteur commun, donc un panier DropShop ne peut pas « ne plus marcher ». Le paiement va directement sur votre compte Stripe. 500 drops (5 €) payés une seule fois, hébergement, trafic et modifications à volonté compris, sans aucune mention DropShipper sur la boutique. Des extensions s'ajoutent en drops, comme les apps d'une boutique Shopify : le Back Office indépendant est disponible ; DropBank (accepter les drops), DropSEO et DropReviews arrivent. DropShop Market, la marketplace de toutes les boutiques DropShop, est déjà ouverte sur drop-shop.cloud.",
       "image": "/images/accueil/dropshop-ia.jpg",
       "offre": { "label": "Créer ma boutique", "href": "/register" }
     },
@@ -160,7 +160,7 @@
       "slug": "les-drops",
       "eyebrow": "Les drops",
       "titre": "Pas d'abonnement : vous payez ce que vous faites",
-      "accroche": "1 drop = 0,01 €. Une annonce importée et réécrite : 12 drops. Une boutique écrite par l'IA : 350 drops, une seule fois. 120 drops offerts à l'inscription — de quoi importer dix annonces sans payer.",
+      "accroche": "1 drop = 0,01 €. Une annonce importée et réécrite : 12 drops. Une boutique écrite par l'IA : 500 drops, une seule fois. 120 drops offerts à l'inscription — de quoi importer dix annonces sans payer.",
       "points": [
         "Aucun engagement, aucune formule : chaque action a son prix, affiché avant.",
         "Un crédit rendu quand l'action échoue — une réécriture que le modèle n'a pas faite, une boutique qui n'aboutit pas.",
@@ -224,8 +224,8 @@
       "titre": "Votre boutique, écrite par l'IA, et la marketplace qui va avec",
       "boutique": {
         "titre": "Créer ma boutique DropShop",
-        "texte": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique et responsive, avec panier, commande et paiement Stripe sur votre compte. Trois directions en une minute, dix modifications comprises.",
-        "prix": "3,50 € une seule fois, à vie",
+        "texte": "Décrivez la boutique, déposez votre logo : l'IA écrit un site complet, unique et responsive, avec panier, commande et paiement Stripe sur votre compte. Trois directions en une minute, modifications à volonté.",
+        "prix": "5 € une seule fois, à vie",
         "bouton": "Créer ma boutique",
         "href": "/register"
       },

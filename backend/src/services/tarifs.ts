@@ -72,14 +72,16 @@ export const DROPS = {
   /**
    * DropShop IA (17/09/2026) : la boutique écrite par le modèle — design
    * unique, responsive, emails, paiement Stripe pré-branché, gestion depuis
-   * DropShipper — et 10 demandes de modification comprises. 350 drops (3,50 €),
-   * payés UNE SEULE FOIS, à vie : création (~0,60 à 0,90 $ de modèle, finition
-   * comprise), hébergement, trafic, et SANS FILIGRANE — aucune mention
-   * DropShipper sur la boutique. 200 → 350 décidé par Max le 17/09 au soir.
+   * DropShipper — et des modifications À VOLONTÉ. 500 drops (5 €), payés UNE
+   * SEULE FOIS, à vie : création (~0,60 à 0,90 $ de modèle, finition comprise),
+   * hébergement, trafic, et SANS FILIGRANE — aucune mention DropShipper sur la
+   * boutique. 200 → 350 décidé par Max le 17/09 au soir ; 350 → 500 avec
+   * modifications illimitées le 13/10/2026 (« le client peut modifier autant
+   * qu'il veut »).
    */
-  boutiqueCreation: 350,
-  /** Une demande de modification de la boutique au-delà des 10 comprises (Haiku, édition ciblée). */
-  boutiqueModification: 10,
+  boutiqueCreation: 500,
+  /** Une demande de modification de la boutique : comprise, à volonté, depuis le 13/10/2026. */
+  boutiqueModification: 0,
   /**
    * Extension « Back Office » d'une boutique DropShop (17/09/2026) : une
    * administration indépendante à l'adresse de la boutique, avec identifiant et
@@ -96,8 +98,8 @@ export const DROPS = {
   extensionDropBank: 0,
 } as const
 
-/** Modifications de boutique comprises dans le prix de création. */
-export const BOUTIQUE_MODIFS_INCLUSES = 10
+/** Modifications de boutique comprises dans le prix de création : sans limite (13/10/2026). */
+export const BOUTIQUE_MODIFS_ILLIMITEES = true
 
 /** Ce que vaut un drop, à l'achat, en euros. Sert à afficher l'équivalent. */
 export const EURO_PAR_DROP = 0.01

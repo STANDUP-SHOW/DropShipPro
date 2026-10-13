@@ -247,16 +247,16 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
 
   'dropshop-ia': {
     nom: 'DropShop IA',
-    h1: "DropShop IA : une boutique en ligne écrite par l'IA, pour 3,50 € une seule fois",
-    title: 'DropShop IA : boutique en ligne créée par l’IA, 3,50 €',
+    h1: "DropShop IA : une boutique en ligne écrite par l'IA, pour 5 € une seule fois",
+    title: 'DropShop IA : boutique en ligne créée par l’IA, 5 €',
     description:
-      "Décrivez votre boutique, déposez votre logo : l'IA écrit un site unique et responsive, avec panier, commande et paiement Stripe. 3,50 € une fois, à vie.",
-    enBref: `DropShop IA écrit une boutique en ligne complète à partir de votre description et de votre logo : design unique et responsive, catalogue, panier, commande, e-mails et paiement Stripe sur votre propre compte. 350 drops (3,50 €) payés une seule fois, hébergement et dix modifications compris, sans aucune mention DropShipper sur la boutique.`,
+      "Décrivez votre boutique, déposez votre logo : l'IA écrit un site unique et responsive, avec panier, commande et paiement Stripe. 5 € une fois, à vie.",
+    enBref: `DropShop IA écrit une boutique en ligne complète à partir de votre description et de votre logo : design unique et responsive, catalogue, panier, commande, e-mails et paiement Stripe sur votre propre compte. 500 drops (5 €) payés une seule fois, hébergement et modifications à volonté compris, sans aucune mention DropShipper sur la boutique.`,
     sections: [
       {
         h2: 'Une boutique écrite, pas un thème choisi dans un catalogue',
         html: `<p>Les constructeurs de boutiques vous font choisir un thème, puis le personnaliser case par case. DropShop IA fait l'inverse : vous décrivez la boutique que vous voulez et déposez votre logo, et le modèle écrit la page entière — design, CSS, écrans — dans les couleurs de votre logo. Trois directions vous sont proposées ; vous en choisissez une, et la boutique est générée.</p>
-<p>Avant que vous la voyiez, un vérificateur la parcourt comme un visiteur : accueil, catégorie, fiche produit, panier, commande. Ce qui manque est corrigé. Ensuite, vous la modifiez par simples demandes en français ; dix modifications sont comprises.</p>`,
+<p>Avant que vous la voyiez, un vérificateur la parcourt comme un visiteur : accueil, catégorie, fiche produit, panier, commande. Ce qui manque est corrigé. Ensuite, vous la modifiez par simples demandes en français, autant que vous voulez, sans payer de plus.</p>`,
       },
       {
         h2: 'Un panier qui ne peut pas casser',
@@ -284,8 +284,8 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       {
         h2: 'Prix',
         html: `<table><thead><tr><th>Action</th><th>Prix</th></tr></thead><tbody>
-<tr><td>Création de la boutique (design unique, responsive, panier, e-mails, Stripe, hébergement, 10 modifications)</td><td>350 drops — 3,50 €, une seule fois</td></tr>
-<tr><td>Une modification au-delà des 10 comprises</td><td>10 drops — 0,10 €</td></tr>
+<tr><td>Création de la boutique (design unique, responsive, panier, e-mails, Stripe, hébergement)</td><td>500 drops — 5 €, une seule fois</td></tr>
+<tr><td>Modifications de la boutique</td><td>À volonté, comprises</td></tr>
 <tr><td>Extension Back Office</td><td>300 drops — 3,00 €</td></tr>
 </tbody></table>
 <p>Si la création n'aboutit pas, les drops sont rendus. Pour comparer avec une boutique existante, le <a href="/outils/detecteur-theme-shopify/">détecteur de thème Shopify</a> dit sur quel thème tourne n'importe quelle boutique Shopify.</p>`,
@@ -294,7 +294,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
     faq: [
       {
         q: 'Combien coûte une boutique DropShop IA ?',
-        a: "350 drops, soit 3,50 €, payés une seule fois : hébergement, trafic et dix modifications compris. Une modification supplémentaire coûte 10 drops (0,10 €). Il n'y a pas d'abonnement.",
+        a: "500 drops, soit 5 €, payés une seule fois : hébergement, trafic et modifications à volonté compris. Il n'y a pas d'abonnement.",
       },
       {
         q: 'Le paiement des clients arrive-t-il sur mon compte ?',
@@ -306,7 +306,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       },
       {
         q: 'Peut-on modifier la boutique après sa création ?',
-        a: "Oui, par simples demandes en français. Dix modifications sont comprises, puis 10 drops la demande. Chaque modification crée une version, et vous pouvez revenir à n'importe laquelle.",
+        a: "Oui, par simples demandes en français, autant que vous voulez : les modifications sont comprises, sans limite. Chaque modification crée une version, et vous pouvez revenir à n'importe laquelle.",
       },
       {
         q: 'Peut-on créer plusieurs boutiques ?',
@@ -683,8 +683,8 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
     h1: 'Les drops : le dropshipping sans abonnement, payé à l’acte',
     title: 'Les drops : dropshipping sans abonnement, 0,01 € le drop',
     description:
-      "Sans abonnement : chaque action a son prix en drops (1 drop = 0,01 €). Une annonce IA : 0,12 €. Une boutique : 3,50 € une fois. 120 drops offerts.",
-    enBref: `Les drops sont la monnaie de DropShipper IA : 1 drop = 0,01 €, sans abonnement ni engagement. Chaque action a un prix affiché avant de cliquer — 12 drops pour une annonce importée et réécrite, 350 drops une seule fois pour une boutique. 120 drops sont offerts à l'inscription, et un crédit est rendu quand une action échoue.`,
+      "Sans abonnement : chaque action a son prix en drops (1 drop = 0,01 €). Une annonce IA : 0,12 €. Une boutique : 5 € une fois. 120 drops offerts.",
+    enBref: `Les drops sont la monnaie de DropShipper IA : 1 drop = 0,01 €, sans abonnement ni engagement. Chaque action a un prix affiché avant de cliquer — 12 drops pour une annonce importée et réécrite, 500 drops une seule fois pour une boutique. 120 drops sont offerts à l'inscription, et un crédit est rendu quand une action échoue.`,
     sections: [
       {
         h2: 'Pourquoi pas d’abonnement',
@@ -699,7 +699,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
 <tr><td>Photo en situation</td><td>18</td><td>0,18 €</td></tr>
 <tr><td>Publicité (accroche + visuel)</td><td>20</td><td>0,20 €</td></tr>
 <tr><td>Analyse de marché, par produit</td><td>30</td><td>0,30 €</td></tr>
-<tr><td>Boutique DropShop IA, une seule fois</td><td>350</td><td>3,50 €</td></tr>
+<tr><td>Boutique DropShop IA, une seule fois</td><td>500</td><td>5 €</td></tr>
 <tr><td>AUTO-SHIPPER, la journée</td><td>100</td><td>1,00 €</td></tr>
 </tbody></table>
 <p>La grille complète, action par action, est sur la page <a href="/tarifs/">Tarifs</a>.</p>`,
@@ -710,7 +710,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       },
       {
         h2: 'Exemple : un premier mois de lancement',
-        html: `<p>Un vendeur qui démarre importe 50 produits en lot (50 × 8 = 400 drops), crée une boutique DropShop IA (350 drops, une seule fois) et compose 20 publicités (20 × 20 = 400 drops). Total : 1 150 drops, soit 11,50 €. Les 120 drops offerts en couvrent une partie ; une recharge de 20 € (2 000 drops) suffit pour le reste du mois, et ce qui n'est pas dépensé reste sur le compte. À titre de comparaison, la plupart des outils de dropshipping se paient au mois, avant la première vente.</p>`,
+        html: `<p>Un vendeur qui démarre importe 50 produits en lot (50 × 8 = 400 drops), crée une boutique DropShop IA (500 drops, une seule fois) et compose 20 publicités (20 × 20 = 400 drops). Total : 1 300 drops, soit 13 €. Les 120 drops offerts en couvrent une partie ; une recharge de 20 € (2 000 drops) suffit pour le reste du mois, et ce qui n'est pas dépensé reste sur le compte. À titre de comparaison, la plupart des outils de dropshipping se paient au mois, avant la première vente.</p>`,
       },
       {
         h2: 'Un crédit rendu quand l’action échoue',

@@ -11,15 +11,15 @@ modifie ensuite par simples demandes.
 
 | Geste | Drops | Ce que ça couvre |
 |---|---|---|
-| Création de boutique | **350** (3,50 €), **une seule fois, à vie** | design unique écrit par Sonnet 5, contrôle du parcours visiteur, réparations, finition, hébergement, trafic, emails de commande, Stripe pré-branché, **10 modifications comprises**, **sans filigrane** : aucune mention DropShipper sur la boutique (décidé le 17/09 au soir, 200 → 350) |
-| Modification (au-delà des 10) | **10** | une demande, appliquée par Haiku 4.5 en éditions ciblées, puis vérifiée |
+| Création de boutique | **500** (5 €), **une seule fois, à vie** | design unique écrit par Sonnet 5, contrôle du parcours visiteur, réparations, finition, hébergement, trafic, emails de commande, Stripe pré-branché, **modifications à volonté** (13/10/2026, avant : 10 comprises), **sans filigrane** : aucune mention DropShipper sur la boutique (décidé le 17/09 au soir, 200 → 350 ; 350 → 500 le 13/10/2026) |
+| Modification | **0**, à volonté | une demande, appliquée par Haiku 4.5 en éditions ciblées, puis vérifiée ; une à la fois (409 si un travail tourne) |
 | Restauration d'une version | 0 | rien n'est écrit par le modèle |
 
 Coût réel d'une création : ~30 000 jetons de sortie de Sonnet 5 (≈ 0,30 $) +
 l'entrée (contrat + squelette + brief, ≈ 12 000 jetons, mis en cache) + une
-réparation Haiku éventuelle (quelques centimes). ≈ 0,35–0,45 € pour 2 €
+réparation Haiku éventuelle (quelques centimes). ≈ 0,35–0,45 € pour 5 €
 encaissés. Une modification : la page entière en entrée (≈ 30 000 jetons Haiku,
-0,03 $) + quelques centaines de jetons de sortie ≈ 0,04 € pour 0,10 €.
+0,03 $) + quelques centaines de jetons de sortie ≈ 0,04 €, comprise dans les 5 €.
 
 ## Comment c'est construit
 

@@ -196,7 +196,7 @@ ${ACCUEIL.themes
 <ul>
 <li>${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles, dont 3 reliés par API (prix et stock en temps réel).</li>
 <li>314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.</li>
-<li>Une annonce importée et réécrite par l'IA : 0,12 €. Une boutique en ligne écrite par l'IA : 3,50 €, une seule fois. Aucun abonnement.</li>
+<li>Une annonce importée et réécrite par l'IA : 0,12 €. Une boutique en ligne écrite par l'IA : 5 €, une seule fois, modifications à volonté. Aucun abonnement.</li>
 </ul>
 
 <h2>Ce qui le distingue</h2>
