@@ -54,7 +54,6 @@ const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'boutiqueCreation', label: 'DropShop IA — création de boutique (5 €, une seule fois, à vie)', detail: 'L’IA écrit votre boutique : design unique, responsive, panier, emails, Stripe pré-branché, hébergement et modifications à volonté' },
   { cle: 'boutiqueModification', label: 'DropShop IA — modification', detail: 'À volonté, comprise dans la création : une demande, appliquée et vérifiée' },
   { cle: 'extensionBackOffice', label: 'Extension Back Office (une boutique)', detail: 'Une administration indépendante à l’adresse de la boutique, avec identifiant et mot de passe' },
-  { cle: 'extensionDropBank', label: 'Extension DropBank (bientôt)', detail: 'Vos clients règlent en drops ; votre boutique devient Premium Member — gratuite' },
 ]
 
 export default function BillingPage() {
