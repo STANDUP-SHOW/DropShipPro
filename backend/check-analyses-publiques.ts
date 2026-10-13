@@ -5,7 +5,7 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { titreProduitPublic, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, annoncesRecomptees, teteRecomptee, sansConsignesPoste, sansMentionPrivee, estPrivee, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { titreProduitPublic, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, annoncesRecomptees, teteRecomptee, sansConsignesPoste, listesEnLigne, sansOuvertureOrpheline, sansMentionPrivee, estPrivee, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
 import { lireRapport } from './src/services/marketReports.js'
 import { ReportQuery } from './src/services/reportsDb.js'
 
@@ -675,6 +675,13 @@ console.log('\nLes apostrophes perdues (gaming du 07/10)')
   exige(sansConsignesPoste('- \u200bCanal secondaire ; x.\n- Relever les annonces actives z.\n- Facebook : ok.') === '- Facebook : ok.', 'consignes -2 masquées, espaces invisibles compris')
   exige(sansMentionsPrivees('**Segmentation prix** (prix TTC = coût d\'achat dropshipping) :\n- **< 30 €** : étuis.\nSuite.').trim() === 'Suite.', 'segmentation déclarée coût d\'achat retirée')
   exige(sansMentionsPrivees('- **Acheter maintenant** : 10 bougies chez AliExpress à 4,50 € d\'achat, avec les fiches ; 3 échantillons de lampes.') === '- **Acheter maintenant** : 3 échantillons de lampes.', 'verdict sans fragment « avec »')
+  // 13/10/2026, constat de #93.
+  exige(sansConsignesPoste('- Meta Ads Library : Relever les annonces actives depuis plus de 30 jours.\n- Facebook : ok.') === '- Facebook : ok.', 'consigne -2 sous une étiquette masquée')
+  exige(listesEnLigne('- 1. **A** : un. 2. **B** : deux. 3. **C** : trois.') === '- 1. **A** : un.\n- 2. **B** : deux.\n- 3. **C** : trois.', 'liste numérotée sur une ligne : un point par ligne')
+  exige(sansOuvertureOrpheline('- Ce qui est en revanche constaté : la demande monte.') === '- Ce qui est constaté : la demande monte.', 'contraste sans rien avant : retiré')
+  exige(!/SUPER DELIVERY|marque blanche|5 000/.test(sansMentionsPrivees('- SUPER DELIVERY et Etsy ont été testés.\n- À revendre uniquement sous marque blanche.\n- Les lots y démarrent à 5 000-100 000 unités.')), 'grossiste, marque blanche, lots en milliers')
+  exige(!/transforme|distingue/.test(sansMentionsPrivees("- La doudoune basique est vendue chez AliExpress à des prix proches, ce qui transforme la vente en guerre des prix.\n- Côté gamme, SaleHoo situe le prix autour de 18 $, et distingue deux segments.")), 'proposition qui s’appuie sur la partie coupée : partie avec elle')
+  exige(titreProduitPublic('Smartphone générique marque blanche — 5G') === 'Smartphone générique — 5G', 'titre sans « marque blanche »')
   const vide = pageRapport({ ...rapport, type: 'marketing', body: '## Publicités en cours\n\n## Tendances du jour\nLe marché monte vite cette semaine.', produits: [], prompts: [] })
   exige(!/Publicités en cours/.test(vide) && /Tendances du jour/.test(vide), 'section vidée : cachée avec son titre')
   const consignes = texteRepare('- À relever dans TikTok Creative Center (France, 7 derniers jours).\n- Méthode : facebook.com/ads/library, pays France.\n- Canal secondaire ; visuels cadeaux et kits.\n- Prix non relevés.\n- TikTok : formats courts en tutoriel.\n| Vinted | non relevé |\nTrottinettes : Xiaomi le entry-level du marché.')

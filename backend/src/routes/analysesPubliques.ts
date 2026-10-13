@@ -29,6 +29,7 @@ import {
   produitsNettoyes,
   texteRepare,
   sansConsignesPoste,
+  fautesDesAgents,
   cheminArticleDate,
   cheminCategorie,
   cheminJour,
@@ -250,7 +251,7 @@ export function versPublicBrut(id: string): RapportPublic | null {
       ? promptsPublics(rapports()
           .getPromptsRapports({ categorie: r.categorie, jour: r.day, limite: 200 })
           .prompts.filter((p) => p.rapportId === id)
-          .map((p) => ({ genre: p.genre, format: p.format, texte: sansDonneesPrivees(apostrophesDuTexte(p.texte), prive) })))
+          .map((p) => ({ genre: p.genre, format: p.format, texte: sansDonneesPrivees(fautesDesAgents(apostrophesDuTexte(p.texte)), prive) })))
       : []
   // One row per product: the per-offer list (with suppliers) stays in the signed-in space.
   const nettoyes = produitsNettoyes(r.produits.map((p) => ({ ...p, pourquoi: sansDonneesPrivees(p.pourquoi, prive, { ligne: { achats: achatsDuProduit(p), ventes: [p.prixVente, (p as ProduitPublic).prixMin, (p as ProduitPublic).prixMax].filter((v): v is number => v != null) } }) })))
