@@ -27,6 +27,7 @@ const DEFAULTS = {
   minMargin: 50,
   requireEuStock: false,
   controleAgent: false,
+  produitsRayons: {},
 }
 
 autopilotRouter.get('/', async (req: AuthedRequest, res) => {
@@ -44,6 +45,7 @@ autopilotRouter.get('/', async (req: AuthedRequest, res) => {
           minMargin: settings.minMargin,
           requireEuStock: settings.requireEuStock,
           controleAgent: settings.controleAgent,
+          produitsRayons: (settings.produitsRayons ?? {}) as Record<string, number>,
         }
       : DEFAULTS,
     lastAutoRunAt: settings?.lastAutoRunAt ?? null,
@@ -78,6 +80,7 @@ const settingsSchema = z.object({
   minMargin: z.number().int().min(0).max(1000),
   requireEuStock: z.boolean(),
   controleAgent: z.boolean().optional(),
+  produitsRayons: z.record(z.string(), z.number().int().min(0).max(10)).optional(),
 })
 
 autopilotRouter.put('/', async (req: AuthedRequest, res) => {

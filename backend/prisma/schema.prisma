@@ -1172,6 +1172,9 @@ model Autopilot {
   /// photos de chaque annonce importee, facture a l annonce. Eteint, les
   /// annonces sont importees en brouillon, jamais publiees sans controle.
   controleAgent  Boolean @default(false)
+  /// Produits repris par rayon, rayon par rayon ({ cle: nombre }, 14/10/2026).
+  /// Un rayon absent suit produitsParRayon.
+  produitsRayons Json?
   /// Dernier passage automatique servi : la garde de la tranche de 12 h.
   lastAutoRunAt  DateTime?
   /// Publie apres import, sur les destinations a API uniquement.

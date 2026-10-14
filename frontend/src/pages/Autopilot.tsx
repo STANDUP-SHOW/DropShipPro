@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { AlertTriangle, ChevronDown, Store, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
+import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
 import { photoAgent } from '../lib/agentsPhotos'
+import canaux from '../data/canaux.json'
 import { api, type ReglagesAutopilot } from '../lib/api'
 
 type Config = Awaited<ReturnType<typeof api.getAutopilot>>
@@ -164,6 +166,12 @@ function Bloc({ titre, enTete, className = '', children }: { titre?: string; enT
 /** Le dégradé du logo AutoShipper (rose → orange → jaune), texte sombre pour le contraste. */
 const BOUTON_AS = 'filet-autoshipper rounded-xl font-black text-[#101321] shadow-[0_0_18px_rgba(242,128,74,0.35)] transition hover:brightness-110 disabled:opacity-50'
 
+/** Pas de plafond choisi : le maximum du serveur (24 rayons × 20 produits). */
+const SANS_LIMITE = 480
+
+/** Les canaux de l'annuaire, pour la frise (le même JSON que l'accueil). */
+const CANAUX: LogoFrise[] = canaux.canaux.map((c) => ({ id: c.id, label: c.label, logo: c.logo, large: c.large }))
+
 const drops = (n: number) => `${n.toLocaleString('fr-FR')} drops`
 const euros = (n: number) => (n * 0.01).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const jourCourt = (j: string | null) => (j ? new Date(`${j}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : null)
@@ -255,16 +263,25 @@ export default function Autopilot() {
     choix.length === config.rayons.filter((r) => r.boost).length && config.rayons.every((r) => r.boost === choix.includes(r.key))
   const produits = s.produitsParRayon
   const nR = rayonsChoisis.length
-  const imports = nR * produits
   const parProduit = t.parProduit + (s.controleAgent ? t.controle : 0)
+  // La facture : chaque rayon coché, avec son propre nombre de produits (le curseur par défaut).
+  const lignes = rayonsChoisis.map((r) => ({ ...r, n: s.produitsRayons?.[r.key] ?? produits }))
+  const demandes = lignes.reduce((n, l) => n + l.n, 0)
+  const limite = s.dailyLimit < SANS_LIMITE
+  const imports = limite ? Math.min(demandes, s.dailyLimit) : demandes
   const total = t.journee + imports * parProduit
   // Ce que les analyses du dernier jour donnent vraiment, rayon par rayon.
-  const importablesDuJour = rayonsChoisis.reduce((n, r) => n + Math.min(produits, r.importables), 0)
+  const importablesDuJour = Math.min(lignes.reduce((n, l) => n + Math.min(l.n, l.importables), 0), imports)
+  const plateformes = s.autoPublish ? config.destinations.filter((d) => s.destinations.includes(d.id)) : []
 
-  /** Les réglages à envoyer : le plafond du jour suit les rayons et le curseur. */
+  /** Les réglages à envoyer, tels quels : le plafond du jour est le choix du vendeur. */
   function reglages(patch: Partial<ReglagesAutopilot> = {}): ReglagesAutopilot {
-    const r = { ...s, ...patch }
-    return { ...r, dailyLimit: Math.min(480, Math.max(1, nR * r.produitsParRayon)) }
+    return { ...s, produitsRayons: s.produitsRayons ?? {}, ...patch }
+  }
+
+  function produitsDuRayon(key: string, n: number) {
+    const v = Math.max(0, Math.min(config!.importablesParRayon, n))
+    save({ produitsRayons: { ...(s.produitsRayons ?? {}), [key]: v } })
   }
 
   function update(patch: Partial<typeof s>) {
@@ -504,7 +521,7 @@ export default function Autopilot() {
               step={1}
               value={produits}
               aria-label="Produits gagnants repris par rayon"
-              onChange={(e) => update({ produitsParRayon: Number(e.target.value) })}
+              onChange={(e) => update({ produitsParRayon: Number(e.target.value), produitsRayons: {} })}
               onMouseUp={() => save()}
               onTouchEnd={() => save()}
               onKeyUp={() => save()}
@@ -516,37 +533,206 @@ export default function Autopilot() {
               <span key={i}>{i + 1}</span>
             ))}
           </div>
+          <p className="mt-2 text-xs text-[var(--texte-3)]">Le même nombre pour chaque rayon ; tu l'ajustes rayon par rayon dans le tarif plus bas.</p>
         </Bloc>
 
-        {/* ---------- 5. Le calcul, et le gros bouton ---------- */}
-        <Bloc titre="Mon tarif du jour" className="lg:col-span-2">
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--texte-2)]">Activation d'Auto-SHIPPER IA, pour 24 heures (analyses des rayons gratuites)</span>
-              <span className="shrink-0 font-semibold text-[var(--texte)]">{drops(t.journee)}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--texte-2)]">{`Imports : ${nR} rayon(s) × ${produits} produit(s) × ${t.parProduit} drops`}</span>
-              <span className="shrink-0 font-semibold text-[var(--texte)]">{drops(imports * t.parProduit)}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--texte-2)]">
-                {s.controleAgent ? `Agent de contrôle : ${imports} annonce(s) × ${t.controle} drops` : 'Agent de contrôle : non activé'}
+        {/* ---------- 5. La publication automatique ---------- */}
+        <Bloc
+          titre="Publication automatique"
+          enTete={<span className="rounded bg-[var(--trait)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--texte)]">Gratuite</span>}
+          className="lg:col-span-2"
+        >
+          <p className="text-sm leading-relaxed text-[var(--texte-2)]">
+            {`${CANAUX.length} canaux de vente. Inscris-toi, crée tes comptes vendeurs, relie-les : DropShipper diffuse. La publication est comprise dans le prix de chaque produit importé, sans aucun drop de plus.`}
+          </p>
+          <div className="-mx-4 mt-3 overflow-hidden md:-mx-5">
+            <FriseLogos logos={CANAUX} />
+          </div>
+
+          <label className="mt-4 flex cursor-pointer items-start gap-3">
+            <input type="checkbox" checked={s.autoPublish} onChange={(e) => update({ autoPublish: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#f2804a]" />
+            <span className="text-sm text-[var(--texte)]">
+              Publier automatiquement après import
+              <span className="mt-0.5 block text-[11px] text-[var(--texte-3)]">
+                Sur les plateformes reliées cochées ci-dessous, sans repasser par toi. Vinted, Leboncoin et Facebook partent par l'application desktop.
               </span>
-              <span className="shrink-0 font-semibold text-[var(--texte)]">{drops(s.controleAgent ? imports * t.controle : 0)}</span>
-            </div>
-            <div className="flex justify-between gap-3 border-t border-[var(--trait)] pt-2 text-base font-black">
-              <span className="text-[var(--texte)]">Total pour 24 heures, au plus</span>
-              <span className="shrink-0 text-[var(--texte)]">
-                {drops(total)} <span className="text-xs font-semibold text-[var(--texte-2)]">{`≈ ${euros(total)} €`}</span>
+            </span>
+          </label>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {config.destinations.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => toggleDestination(d.id)}
+                disabled={!s.autoPublish}
+                className={
+                  s.destinations.includes(d.id) && s.autoPublish
+                    ? 'rounded-full px-3 py-1.5 text-xs font-bold text-white'
+                    : 'rounded-full border border-[var(--trait)] px-3 py-1.5 text-xs text-[var(--texte-2)] disabled:opacity-50'
+                }
+                style={s.destinations.includes(d.id) && s.autoPublish ? { background: d.color } : undefined}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => save()} disabled={occupe === 'reglages'} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40">
+              {occupe === 'reglages' ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+            <Link to="/plateformes-vente" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--texte-2)] hover:underline">
+              <Store size={13} /> Relier une plateforme <ArrowRight size={12} />
+            </Link>
+          </div>
+        </Bloc>
+
+        {/* ---------- 6. Les options ---------- */}
+        <Bloc titre="Options" className="lg:col-span-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" checked={s.requireEuStock} onChange={(e) => save({ requireEuStock: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#f2804a]" />
+              <span className="text-sm text-[var(--texte)]">
+                N'importer que si le stock européen est confirmé
+                <span className="mt-0.5 block text-[11px] text-[var(--texte-3)]">Sévère : la plupart des trouvailles arrivent avec un stock « non vérifié ».</span>
               </span>
+            </label>
+
+            <div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm text-[var(--texte)]">N'importer que si la marge dépasse</span>
+                <span className="text-lg font-black text-[var(--texte)]">{`${s.minMargin} %`}</span>
+              </div>
+              <div className="relative mt-2">
+                <div className="filet-autoshipper pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full" />
+                <input
+                  type="range"
+                  min={0}
+                  max={200}
+                  step={10}
+                  value={Math.min(200, s.minMargin)}
+                  aria-label="Marge minimale"
+                  onChange={(e) => update({ minMargin: Number(e.target.value) })}
+                  onMouseUp={() => save()}
+                  onTouchEnd={() => save()}
+                  onKeyUp={() => save()}
+                  className="relative h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-[var(--texte-3)]">Marge sur le prix d'achat. Un produit sans prix de marché relevé est écarté.</p>
+            </div>
+
+            <div>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={limite}
+                  onChange={(e) => save({ dailyLimit: e.target.checked ? Math.max(1, Math.min(demandes || 10, SANS_LIMITE - 1)) : SANS_LIMITE })}
+                  className="mt-0.5 h-4 w-4 accent-[#f2804a]"
+                />
+                <span className="text-sm text-[var(--texte)]">Limiter le nombre d'imports</span>
+              </label>
+              {limite && (
+                <div className="mt-2 flex items-center gap-2 pl-7">
+                  <input
+                    type="number"
+                    min={1}
+                    max={SANS_LIMITE - 1}
+                    value={s.dailyLimit}
+                    aria-label="Imports maximum par jour"
+                    onChange={(e) => update({ dailyLimit: Math.max(1, Math.min(SANS_LIMITE - 1, Number(e.target.value) || 1)) })}
+                    onBlur={() => save()}
+                    className="w-24 rounded-lg border border-[var(--trait)] bg-transparent px-3 py-1.5 text-sm text-[var(--texte)] outline-none"
+                  />
+                  <span className="text-xs text-[var(--texte-2)]">imports maximum par jour</span>
+                </div>
+              )}
             </div>
           </div>
-          <p className="mt-2 text-xs text-[var(--texte-3)]">
-            {nR
-              ? `D'après les dernières analyses, tes rayons donnent ${importablesDuJour} produit(s) importable(s) à ce réglage. Seul ce qui est importé se paie.`
-              : 'Coche au moins un rayon boost pour lancer Auto-SHIPPER IA.'}
-          </p>
+        </Bloc>
+
+        {/* ---------- 7. Le tarif global, en facture détaillée, et le gros bouton ---------- */}
+        <Bloc titre="Mon tarif global par jour" className="lg:col-span-2">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead>
+                <tr className="border-b border-[var(--trait)] text-left text-[11px] uppercase tracking-wide text-[var(--texte-2)]">
+                  <th className="py-2 font-semibold">Ligne</th>
+                  <th className="py-2 text-center font-semibold">Produits</th>
+                  <th className="py-2 text-right font-semibold">Prix unitaire</th>
+                  <th className="py-2 text-right font-semibold">Montant</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-[var(--trait)]">
+                  <td className="py-2 text-[var(--texte)]">Activation d'Auto-SHIPPER IA, 24 heures</td>
+                  <td className="py-2 text-center text-[var(--texte-2)]">—</td>
+                  <td className="py-2 text-right text-[var(--texte-2)]">{drops(t.journee)}</td>
+                  <td className="py-2 text-right font-semibold text-[var(--texte)]">{drops(t.journee)}</td>
+                </tr>
+                {lignes.map((l) => (
+                  <tr key={l.key} className="border-b border-[var(--trait)]">
+                    <td className="py-2">
+                      <span className="block text-[var(--texte)]">{`${l.emoji} ${l.label}`}</span>
+                      <span className="block text-[11px] text-[var(--texte-3)]">
+                        {l.jour ? `${l.importables} importable(s) dans l'analyse du ${jourCourt(l.jour)}` : 'Pas encore d’analyse déposée'}
+                      </span>
+                    </td>
+                    <td className="py-2">
+                      <span className="flex items-center justify-center gap-1.5">
+                        <button type="button" onClick={() => produitsDuRayon(l.key, l.n - 1)} disabled={l.n <= 0} aria-label={`Un produit de moins pour ${l.label}`} className="h-7 w-7 rounded-lg border border-[var(--trait-fort)] text-[var(--texte)] disabled:opacity-40">
+                          −
+                        </button>
+                        <b className="w-6 text-center text-[var(--texte)]">{l.n}</b>
+                        <button type="button" onClick={() => produitsDuRayon(l.key, l.n + 1)} disabled={l.n >= config.importablesParRayon} aria-label={`Un produit de plus pour ${l.label}`} className="h-7 w-7 rounded-lg border border-[var(--trait-fort)] text-[var(--texte)] disabled:opacity-40">
+                          +
+                        </button>
+                      </span>
+                    </td>
+                    <td className="py-2 text-right text-[var(--texte-2)]">
+                      {s.controleAgent ? `${t.parProduit} + ${t.controle} contrôle` : drops(t.parProduit)}
+                    </td>
+                    <td className="py-2 text-right font-semibold text-[var(--texte)]">{drops(l.n * parProduit)}</td>
+                  </tr>
+                ))}
+                {!lignes.length && (
+                  <tr className="border-b border-[var(--trait)]">
+                    <td colSpan={4} className="py-3 text-center text-xs text-[var(--texte-3)]">
+                      Coche au moins un rayon boost pour composer ta journée.
+                    </td>
+                  </tr>
+                )}
+                {limite && demandes > s.dailyLimit && (
+                  <tr className="border-b border-[var(--trait)]">
+                    <td className="py-2 text-[var(--texte-2)]">{`Plafond choisi : ${s.dailyLimit} imports par jour`}</td>
+                    <td className="py-2 text-center text-[var(--texte-2)]">{`− ${demandes - s.dailyLimit}`}</td>
+                    <td className="py-2 text-right text-[var(--texte-2)]">{drops(parProduit)}</td>
+                    <td className="py-2 text-right font-semibold text-[var(--texte)]">{`− ${drops((demandes - s.dailyLimit) * parProduit)}`}</td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="text-base font-black">
+                  <td className="pt-3 text-[var(--texte)]">Total de la journée, au plus</td>
+                  <td className="pt-3 text-center text-[var(--texte)]">{imports}</td>
+                  <td />
+                  <td className="pt-3 text-right text-[var(--texte)]">
+                    {drops(total)} <span className="text-xs font-semibold text-[var(--texte-2)]">{`≈ ${euros(total)} €`}</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {nR > 0 && (
+            <p className="mt-4 rounded-xl border border-[var(--trait)] p-3 text-sm leading-relaxed text-[var(--texte)]">
+              {plateformes.length
+                ? `À la fin de la journée : jusqu'à ${imports} produit(s) gagnant(s) importé(s) et publié(s) automatiquement sur ${plateformes.length} plateforme(s) (${plateformes.map((p) => p.label).join(', ')}).`
+                : `À la fin de la journée : jusqu'à ${imports} produit(s) gagnant(s) importé(s) dans tes annonces. Coche « Publier automatiquement » pour qu'ils partent aussi sur tes plateformes.`}
+              <span className="mt-1 block text-xs text-[var(--texte-3)]">
+                {`D'après les dernières analyses, ${importablesDuJour} produit(s) sont importables à ce réglage. Seul ce qui est importé se paie ; un produit écarté (marge, stock) ne coûte rien.`}
+              </span>
+            </p>
+          )}
 
           <p className="mt-4 text-sm leading-relaxed text-[var(--texte-2)]">
             Auto-SHIPPER IA importe lui-même les fiches que notre serveur sait lire. Les produits réservés à l'extension Chrome ou à{' '}
@@ -578,68 +764,8 @@ export default function Autopilot() {
           {error && <p className="mt-3 text-center text-sm text-red-400">{error}</p>}
         </Bloc>
 
-        {/* ---------- Réglages fins ---------- */}
-        <Bloc titre="Réglages de publication">
-          <label className="block text-xs text-[var(--texte-2)]">Marge minimale exigée</label>
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              max={1000}
-              value={s.minMargin}
-              onChange={(e) => update({ minMargin: Number(e.target.value) || 0 })}
-              className="w-full rounded-lg border border-[var(--trait)] bg-transparent px-3 py-2 text-sm text-[var(--texte)] outline-none"
-            />
-            <span className="text-sm text-[var(--texte-2)]">%</span>
-          </div>
-          <p className="mt-1 text-[11px] text-[var(--texte-3)]">Un produit sans prix de marché relevé est écarté : sa marge est inconnue.</p>
-
-          <label className="mt-4 flex cursor-pointer items-start gap-3">
-            <input type="checkbox" checked={s.requireEuStock} onChange={(e) => update({ requireEuStock: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#f2804a]" />
-            <span className="text-sm text-[var(--texte)]">
-              N'importer que si le stock européen est confirmé
-              <span className="mt-0.5 block text-[11px] text-[var(--texte-3)]">Sévère : la plupart des trouvailles arrivent avec un stock « non vérifié ».</span>
-            </span>
-          </label>
-
-          <label className="mt-4 flex cursor-pointer items-start gap-3">
-            <input type="checkbox" checked={s.autoPublish} onChange={(e) => update({ autoPublish: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#f2804a]" />
-            <span className="text-sm text-[var(--texte)]">
-              Publier automatiquement après import
-              <span className="mt-0.5 block text-[11px] text-[var(--texte-3)]">Sur les plateformes reliées cochées ci-dessous, sans repasser par toi.</span>
-            </span>
-          </label>
-          {s.autoPublish && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {config.destinations.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => toggleDestination(d.id)}
-                  className={
-                    s.destinations.includes(d.id)
-                      ? 'rounded-full px-3 py-1.5 text-xs font-bold text-white'
-                      : 'rounded-full border border-[var(--trait)] px-3 py-1.5 text-xs text-[var(--texte-2)]'
-                  }
-                  style={s.destinations.includes(d.id) ? { background: d.color } : undefined}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => save()} disabled={occupe === 'reglages'} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40">
-              {occupe === 'reglages' ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-            <Link to="/plateformes-vente" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--texte-2)] hover:underline">
-              <Store size={13} /> Relier une plateforme <ArrowRight size={12} />
-            </Link>
-          </div>
-        </Bloc>
-
         {/* ---------- Le journal ---------- */}
-        <Bloc titre="Ce qu'il a fait">
+        <Bloc titre="Ce qu'il a fait" className="lg:col-span-2">
           <p className="text-xs text-[var(--texte-3)]">Chaque passage, avec le détail de chaque décision.</p>
           {!runs.length && (
             <p className="mt-3 rounded-xl border border-dashed border-[var(--trait-fort)] px-3 py-6 text-center text-xs text-[var(--texte-3)]">
@@ -682,7 +808,7 @@ export default function Autopilot() {
           <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
           <div className="text-xs leading-relaxed text-amber-100">
             <p>
-              {`Chaque import consomme des drops (${t.parProduit} par produit, plus ${t.journee} la journée${s.controleAgent ? ` et ${t.controle} par annonce contrôlée` : ''}) et remplit ton catalogue. Le nombre de produits par rayon est ton plafond du jour : commence bas.`}
+              {`Chaque import consomme des drops (${t.parProduit} par produit, plus ${t.journee} la journée${s.controleAgent ? ` et ${t.controle} par annonce contrôlée` : ''}) et remplit ton catalogue. Le tarif ci-dessus est ton plafond du jour : commence bas.`}
             </p>
             <p className="mt-1">
               Vinted, Leboncoin et Facebook Marketplace ne sont pas publiés par le serveur : ils partent par l'application desktop, depuis ta

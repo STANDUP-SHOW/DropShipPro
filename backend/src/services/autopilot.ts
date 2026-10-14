@@ -95,11 +95,20 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
   // combien Auto-Shipper en reprend par rayon (les plus récents d'abord), avant
   // les autres filtres (marge, stock, plafond du jour).
   const parRayon = settings.produitsParRayon ?? 10
+  // La facture du jour peut fixer un nombre par rayon (14/10/2026) : il prime sur le curseur.
+  const detail = (settings.produitsRayons ?? {}) as Record<string, unknown>
+  const cles = new Map(
+    (await prisma.department.findMany({ where: { userId }, select: { id: true, key: true } })).map((d) => [d.id, d.key]),
+  )
+  const plafondDuRayon = (departmentId: string | null) => {
+    const n = departmentId ? detail[cles.get(departmentId) ?? ''] : undefined
+    return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : parRayon
+  }
   const prisParRayon = new Map<string, number>()
   const retenus = candidates.filter((o) => {
     const cle = o.departmentId ?? 'sans-rayon'
     const deja = prisParRayon.get(cle) ?? 0
-    if (deja >= parRayon) return false
+    if (deja >= plafondDuRayon(o.departmentId)) return false
     prisParRayon.set(cle, deja + 1)
     return true
   })

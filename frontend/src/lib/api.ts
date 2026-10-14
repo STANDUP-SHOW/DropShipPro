@@ -53,6 +53,7 @@ export interface ReglagesAutopilot {
   minMargin: number
   requireEuStock: boolean
   controleAgent: boolean
+  produitsRayons: Record<string, number>
 }
 
 export const apiRoot = API_ROOT
@@ -1646,6 +1647,8 @@ export const api = {
         requireEuStock: boolean
         /** Agent de contrôle de l'AUTO-SHIPPER, facturé à l'annonce. */
         controleAgent: boolean
+        /** Produits repris rayon par rayon (clé du rayon → nombre) ; absent = produitsParRayon. */
+        produitsRayons: Record<string, number>
       }
       lastAutoRunAt: string | null
       destinations: Array<{ id: string; label: string; color: string }>
