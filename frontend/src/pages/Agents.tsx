@@ -176,6 +176,8 @@ export default function Agents() {
   const [ouvert, setOuvert] = useState<string | null>(null)
   /** Les cases dépliées sur leurs tâches ; plusieurs peuvent l'être à la fois. */
   const [deplies, setDeplies] = useState<Set<string>>(() => new Set())
+  /** Le tri par fonction : un seul bloc de boutons groupés (consigne de max, 14/10/2026). */
+  const [fonction, setFonction] = useState<string>('toutes')
 
   function deplier(key: string) {
     setDeplies((actuel) => {
@@ -220,13 +222,34 @@ export default function Agents() {
         {' '}: ils se confient un par un, selon les rayons que vous travaillez.
       </p>
 
+      {roster ? (
+        <div role="group" aria-label="Trier par fonction" className="mt-4 inline-flex flex-wrap rounded-lg border border-white/10 p-0.5">
+          {[{ key: 'toutes', label: 'Toutes les fonctions' }, ...roster.categories].map((c) => {
+            const n = c.key === 'toutes' ? tous.length : tous.filter((a) => a.category === c.key).length
+            if (!n) return null
+            const actif = fonction === c.key
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setFonction(c.key)}
+                aria-pressed={actif}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${actif ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                {`${c.label} · ${n}`}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
       {!roster && !error ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
 
       {roster
         ? roster.categories.map((cat) => {
             const membres = tous.filter((a) => a.category === cat.key)
-            if (!membres.length) return null
+            if (!membres.length || (fonction !== 'toutes' && fonction !== cat.key)) return null
             // L'agent de comptoir dont la conversation est ouverte, s'il est de
             // cette section : son tchat s'affiche en pleine largeur sous la grille.
             const agentOuvert = membres.find((a) => a.key === ouvert && a.family === 'comptoir')
