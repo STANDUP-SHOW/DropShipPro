@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Play, AlertTriangle, Info, Plus, Store, ArrowRight } from 'lucide-react'
+import { AlertTriangle, ChevronDown, Store, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
 import { photoAgent } from '../lib/agentsPhotos'
-import { api } from '../lib/api'
+import { api, type ReglagesAutopilot } from '../lib/api'
 
 type Config = Awaited<ReturnType<typeof api.getAutopilot>>
 type Run = Awaited<ReturnType<typeof api.autopilotRuns>>['runs'][number]
 type Roster = Awaited<ReturnType<typeof api.agentRoster>>
 type Agent = Roster['pipeline'][number]
-type Rayon = Awaited<ReturnType<typeof api.listDepartments>>[number]
 
 const ACTION_STYLE: Record<string, string> = {
   importé: 'text-emerald-300',
@@ -147,34 +146,65 @@ function AnimationAutoShipper() {
   )
 }
 
+/** Une case de la grille, comme celles de la vue d'ensemble (#107). */
+function Bloc({ titre, enTete, className = '', children }: { titre?: string; enTete?: ReactNode; className?: string; children: ReactNode }) {
+  return (
+    <section className={`case-ds flex min-w-0 flex-col p-4 md:p-5 ${className}`}>
+      {titre || enTete ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          {titre ? <h2 className="text-sm font-bold text-[var(--texte)]">{titre}</h2> : <span />}
+          {enTete}
+        </div>
+      ) : null}
+      {children}
+    </section>
+  )
+}
+
+/** Le dégradé du logo AutoShipper (rose → orange → jaune), texte sombre pour le contraste. */
+const BOUTON_AS = 'filet-autoshipper rounded-xl font-black text-[#101321] shadow-[0_0_18px_rgba(242,128,74,0.35)] transition hover:brightness-110 disabled:opacity-50'
+
+const drops = (n: number) => `${n.toLocaleString('fr-FR')} drops`
+const euros = (n: number) => (n * 0.01).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const jourCourt = (j: string | null) => (j ? new Date(`${j}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : null)
+
 /**
- * Auto-SHIPPER IA — le pilote automatique, présenté comme un agent.
+ * Auto-SHIPPER IA — le pilote automatique, en cases (maquette dictée par Max le 14/10/2026).
  *
- * La page suit la fiche de recadrage du 06/09/2026 : l'agent se présente,
- * montre ce qu'il exige pour travailler seul (les agents ADMIN en mode auto,
- * au moins un chef de rayon embauché pour les acquisitions, des places de
- * marché reliées pour la diffusion), puis ses réglages et son journal. Les
- * mises en garde restent en bas — jamais avant les blocs.
+ * Dans l'ordre : l'agent se présente ; ses agents en mode auto et l'agent de
+ * contrôle à sa droite ; le choix des rayons boost ; le curseur des produits
+ * par rayon ; le calcul et le gros bouton d'activation. Les réglages fins, le
+ * journal et les mises en garde restent en bas. Tous les tarifs viennent de
+ * GET /autopilot (services/tarifs.ts), jamais écrits ici.
  */
 export default function Autopilot() {
   const [config, setConfig] = useState<Config | null>(null)
   const [runs, setRuns] = useState<Run[]>([])
   const [roster, setRoster] = useState<Roster | null>(null)
-  const [rayons, setRayons] = useState<Rayon[]>([])
+  const [choix, setChoix] = useState<string[]>([])
+  const [listeOuverte, setListeOuverte] = useState(false)
   const [openRun, setOpenRun] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [running, setRunning] = useState(false)
+  const [occupe, setOccupe] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  function charger() {
+    return api
+      .getAutopilot()
+      .then((c) => {
+        setConfig(c)
+        setChoix(c.rayons.filter((r) => r.boost).map((r) => r.key))
+      })
+      .catch(() => setError('Réglages indisponibles'))
+  }
 
   function loadRuns() {
     api.autopilotRuns().then((r) => setRuns(r.runs)).catch(() => undefined)
   }
 
   useEffect(() => {
-    api.getAutopilot().then(setConfig).catch(() => setError('Réglages indisponibles'))
+    charger()
     api.agentRoster().then(setRoster).catch(() => undefined)
-    api.listDepartments().then(setRayons).catch(() => undefined)
     loadRuns()
   }, [])
 
@@ -188,596 +218,477 @@ export default function Autopilot() {
     })
   }
 
-  async function basculerRayon(id: string, enabled: boolean) {
-    const r = await api.setRayonAuto(id, enabled)
-    setRayons((liste) => liste.map((d) => (d.id === id ? { ...d, autoMode: r.autoMode } : d)))
-  }
-
   if (!config) {
     return (
       <Layout>
-        <p className="text-sm text-gray-500">{error ?? 'Chargement…'}</p>
+        <p className="text-sm text-[var(--texte-2)]">{error ?? 'Chargement…'}</p>
+      </Layout>
+    )
+  }
+
+  // A server older than this page (the minutes between Vercel and Railway deploys) sends no prices: never guess them.
+  if (!config.tarifs || !Array.isArray(config.rayons)) {
+    return (
+      <Layout>
+        <p className="text-sm text-[var(--texte-2)]">Auto-SHIPPER IA est en cours de mise à jour : recharge la page dans deux minutes.</p>
       </Layout>
     )
   }
 
   const s = config.settings
+  const t = config.tarifs
   /*
    * L'avocat, la graphiste et l'agent marketing ne figurent pas ici :
    * l'autonomie d'Auto-SHIPPER IA n'a besoin ni d'un conseil de droit, ni de
-   * photos refaites, ni de publicités pour tourner (06/09/2026). Leurs
-   * fiches restent sur la page Mes agents ADMIN.
-   *
-   * Et Auto-SHIPPER IA (`autopilot`) ne figure pas dans SA PROPRE liste : c'est
-   * lui qui orchestre les autres, il n'a pas à s'y compter (07/09/2026).
+   * photos refaites, ni de publicités pour tourner (06/09/2026). Auto-SHIPPER
+   * IA ne se compte pas lui-même, et l'agent de contrôle a sa propre case :
+   * il se paie à l'annonce (14/10/2026).
    */
-  const HORS_AUTONOMIE = ['avocat', 'photo', 'marketing', 'autopilot']
+  const HORS_AUTONOMIE = ['avocat', 'photo', 'marketing', 'autopilot', 'control']
   const agents: Agent[] = roster
     ? [...roster.pipeline, ...roster.support].filter((a) => !HORS_AUTONOMIE.includes(a.key))
     : []
-  const enPoste = rayons.filter((r) => r.active)
+  const tousEnAuto = agents.length > 0 && agents.every((a) => a.autoMode)
+
+  const rayonsChoisis = config.rayons.filter((r) => choix.includes(r.key))
+  const choixEnregistre =
+    choix.length === config.rayons.filter((r) => r.boost).length && config.rayons.every((r) => r.boost === choix.includes(r.key))
+  const produits = s.produitsParRayon
+  const nR = rayonsChoisis.length
+  const imports = nR * produits
+  const parProduit = t.parProduit + (s.controleAgent ? t.controle : 0)
+  const total = t.journee + imports * parProduit
+  // Ce que les analyses du dernier jour donnent vraiment, rayon par rayon.
+  const importablesDuJour = rayonsChoisis.reduce((n, r) => n + Math.min(produits, r.importables), 0)
+
+  /** Les réglages à envoyer : le plafond du jour suit les rayons et le curseur. */
+  function reglages(patch: Partial<ReglagesAutopilot> = {}): ReglagesAutopilot {
+    const r = { ...s, ...patch }
+    return { ...r, dailyLimit: Math.min(480, Math.max(1, nR * r.produitsParRayon)) }
+  }
 
   function update(patch: Partial<typeof s>) {
     setConfig((c) => (c ? { ...c, settings: { ...c.settings, ...patch } } : c))
   }
 
-  async function save(next = s) {
-    setSaving(true)
-    setError(null)
-    try {
-      await api.saveAutopilot(next)
-      setMessage('Réglages enregistrés')
-      setTimeout(() => setMessage(null), 2000)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function runNow() {
-    setRunning(true)
+  async function agir(nom: string, action: () => Promise<string | void>) {
+    setOccupe(nom)
     setError(null)
     setMessage(null)
     try {
-      const r = await api.runAutopilot()
-      setMessage(
-        `${r.imported} importée(s), ${r.published} publiée(s), ${r.skipped} écartée(s), ${r.failed} en échec.`,
-      )
-      loadRuns()
+      const m = await action()
+      if (m) setMessage(m)
     } catch (e) {
       setError((e as Error).message)
     } finally {
-      setRunning(false)
+      setOccupe(null)
     }
   }
 
+  const save = (patch: Partial<ReglagesAutopilot> = {}) =>
+    agir('reglages', async () => {
+      update(patch)
+      await api.saveAutopilot(reglages(patch))
+      return 'Réglages enregistrés'
+    })
+
+  const activerTousLesAgents = () =>
+    agir('agents', async () => {
+      for (const a of agents.filter((x) => !x.autoMode)) await basculerAgent(a.key, true)
+      return 'Tous les agents sont en mode auto'
+    })
+
+  const enregistrerRayons = () =>
+    agir('rayons', async () => {
+      await api.saveRayonsBoost(choix)
+      await charger()
+      return choix.length ? `${choix.length} rayon(s) boost activé(s)` : 'Plus aucun rayon boost'
+    })
+
+  const activer = () =>
+    agir('activer', async () => {
+      if (!choixEnregistre) await api.saveRayonsBoost(choix)
+      const r = await api.activerAutopilot(reglages({ enabled: true }))
+      await charger()
+      loadRuns()
+      return r.journeeDejaPayee
+        ? "Auto-SHIPPER IA activé. La journée d'aujourd'hui était déjà payée : rien de plus n'est débité."
+        : `Auto-SHIPPER IA activé : ${drops(t.journee)} débités, le premier passage est lancé. Ils sont rendus si rien n'est importé.`
+    })
+
+  const desactiver = () =>
+    agir('activer', async () => {
+      update({ enabled: false })
+      await api.saveAutopilot(reglages({ enabled: false }))
+      return 'Auto-SHIPPER IA désactivé : plus aucune journée ne sera débitée.'
+    })
+
   function toggleDestination(id: string) {
-    const next = s.destinations.includes(id)
-      ? s.destinations.filter((d) => d !== id)
-      : [...s.destinations, id]
+    const next = s.destinations.includes(id) ? s.destinations.filter((d) => d !== id) : [...s.destinations, id]
     update({ destinations: next })
   }
 
+  const iris = photoAgent('control')
+
   return (
     <Layout>
-      {/*
-        Le haut de page en deux colonnes (06/09/2026) : le bloc principal
-        d'Auto-SHIPPER IA justifié à gauche, la grille des agents ADMIN à
-        sa droite — l'empilement ne revient qu'en affichage vertical.
-      */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
-        {/* ---------- Le bloc principal, à gauche ---------- */}
-        <div>
-          {/* Le titre est le logo AutoShipper (11/10/2026, docs/marque) ; le nom
-              reste lisible pour les lecteurs d'écran par l'attribut alt. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* ---------- 1. Auto-SHIPPER, le pilote automatique ---------- */}
+        <Bloc className="lg:row-span-2">
+          {/* Le titre est le logo AutoShipper (11/10/2026, docs/marque). */}
           <h1>
-            <img
-              src="/marque/autoshipper-complet.png"
-              alt="Auto-SHIPPER IA"
-              width={1400}
-              height={234}
-              className="h-9 w-auto max-w-full md:h-11"
-            />
+            <img src="/marque/autoshipper-complet.png" alt="Auto-SHIPPER IA" width={1400} height={234} className="h-9 w-auto max-w-full md:h-11" />
           </h1>
-          <p className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-400">
-            Le pilote automatique
-          </p>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-[var(--texte-2)]">Le pilote automatique</p>
 
           <AnimationAutoShipper />
 
-          {/* L'agent se présente, dans ses mots. */}
-          <p className="text-sm leading-relaxed text-sky-300">
-            Salut, je suis Auto-SHIPPER IA.
-            <br />
-            Je suis capable de gérer pour toi intégralement mon système.
+          <p className="text-base font-semibold text-[var(--texte)]">Salut, je suis Auto-SHIPPER IA.</p>
+          <p className="mt-1 text-sm leading-relaxed text-[var(--texte-2)]">
+            Je travaille pour toi chaque jour, sans que tu aies à intervenir :
           </p>
-          <ul className="mt-4 flex flex-col items-start gap-1.5">
-            {/* La première action, avant les huit métiers : tout part de là. */}
+          <ul className="mt-3 space-y-2 text-sm text-[var(--texte-2)]">
             {[
-              { label: "récupération de l'analyse de marché et des produits gagnants sélectionnés", couleur: '#facc15' },
-              ...SYSTEME,
-            ].map((ligne) => (
-              <li key={ligne.label} className="flex items-center gap-2.5 text-sm text-gray-200">
-                <span
-                  className="mt-0.5 h-3 w-3 shrink-0 self-start rounded-full"
-                  style={{ background: ligne.couleur, boxShadow: `0 0 6px ${ligne.couleur}` }}
-                />
-                <span>{ligne.label}</span>
+              'je reprends les produits gagnants des analyses de tes rayons boost ;',
+              "je lis la fiche du fournisseur, je réécris toute l'annonce avec l'IA, je récupère les photos du produit, je pose la catégorie et le SEO ;",
+              'je fixe le prix de vente au prix constaté sur le marché, et j’écarte ce qui ne tient pas ta marge minimale ;',
+              "je publie sur tes plateformes reliées, et je mets en file Vinted, Leboncoin et Facebook pour l'application desktop ;",
+              'je note chaque décision dans mon journal, pour que tu relises ma nuit au réveil.',
+            ].map((l) => (
+              <li key={l} className="flex gap-2">
+                <span className="filet-autoshipper mt-1.5 h-2 w-2 shrink-0 rounded-full" />
+                <span>{l}</span>
               </li>
             ))}
           </ul>
-        </div>
+        </Bloc>
 
-        {/* ---------- Les agents ADMIN, à droite ---------- */}
-        <section>
-          <p className="text-sm text-gray-300">
-            Pour travailler en totale autonomie, je dois travailler avec :{' '}
-            <b>mes agents ADMIN</b> <span className="font-semibold text-sky-300">en mode auto</span>.
-          </p>
-          <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* ---------- 2. Ses agents en mode auto ---------- */}
+        <Bloc
+          titre="Mes agents en mode auto"
+          enTete={
+            <button
+              type="button"
+              onClick={activerTousLesAgents}
+              disabled={tousEnAuto || occupe === 'agents' || !agents.length}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--marque-rose)] px-3 py-1.5 text-xs font-bold text-white transition hover:brightness-110 disabled:opacity-50"
+            >
+              <Sparkles size={13} />
+              {tousEnAuto ? 'Tous en mode auto ✓' : occupe === 'agents' ? 'Activation…' : 'Activer tous les agents en mode auto'}
+              <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] uppercase">Gratuit</span>
+            </button>
+          }
+        >
+          <p className="text-sm text-[var(--texte-2)]">Pour travailler en totale autonomie, j'ai besoin de mes agents en mode auto.</p>
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {agents.map((a) => (
-              <li key={a.key} className="flex flex-col rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-xl ring-1 ring-white/30">
-                    {photoAgent(a.key) ? <img src={photoAgent(a.key)!} alt={a.name} className="h-full w-full object-cover" /> : <span aria-hidden>{a.emoji}</span>}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{a.name}</p>
-                    <p className="truncate text-[11px] text-gray-500">{a.role}</p>
+              <li key={a.key} className="flex items-center gap-2 rounded-xl border border-[var(--trait)] p-2">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg text-lg ring-1 ring-[var(--trait-fort)]">
+                  {photoAgent(a.key) ? <img src={photoAgent(a.key)!} alt={a.name} className="h-full w-full object-cover" /> : <span aria-hidden>{a.emoji}</span>}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[var(--texte)]">{a.name}</p>
+                  <p className="truncate text-[11px] text-[var(--texte-2)]">{a.role}</p>
+                  <div className="mt-1">
+                    <BoutonAutoMode compact actif={Boolean(a.autoMode)} onBascule={(enabled) => basculerAgent(a.key, enabled)} />
                   </div>
                 </div>
-                <div className="mt-2">
-                  <BoutonAutoMode compact actif={Boolean(a.autoMode)} onBascule={(enabled) => basculerAgent(a.key, enabled)} />
-                </div>
               </li>
             ))}
-            {!agents.length && <li className="text-center text-xs text-gray-500 sm:col-span-2 lg:col-span-3">Chargement de l'équipe…</li>}
+            {!agents.length && <li className="text-xs text-[var(--texte-3)] sm:col-span-2">Chargement de l'équipe…</li>}
           </ul>
-        </section>
-      </div>
+        </Bloc>
 
-      {/* ---------- Activer Auto-SHIPPER IA : le bouton, et le tarif qui s'adapte ---------- */}
-      {(() => {
-        const rayonsAuto = enPoste.filter((r) => r.autoMode).length
-        const nR = Math.max(rayonsAuto, 1) // 1 rayon en exemple quand rien n'est en auto-mode
-        const produits = s.produitsParRayon
-        // Ce que le serveur débite vraiment (backend/src/services/tarifs.ts, autopilot.ts) :
-        // la journée (DROPS.autoShipperJour = 100) une fois par 24 h, à la première tournée,
-        // rendue si elle n'importe rien ; chaque produit importé et publié 18
-        // (DROPS.autoShipperImport) ; les analyses des chefs en auto-mode sont gratuites.
-        const JOURNEE = 100
-        const PAR_PRODUIT = 18
-        const analyse = JOURNEE
-        const imports = PAR_PRODUIT * produits * nR
-        const total = analyse + imports
-        const eur = (d: number) => (d * 0.01).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        const arcEnCiel = 'linear-gradient(90deg,#eab308,#84cc16,#22c55e,#06b6d4,#3b82f6,#8b5cf6,#ec4899,#ef4444)'
-        return (
-          <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold">Activer Auto-SHIPPER IA</h2>
-                <p className="mt-0.5 text-xs text-gray-400">
-                  100 drops (1 €) la journée · 18 drops / produit · analyses des rayons gratuites ·{' '}
-                  <a href="#infos" className="text-yellow-300 underline underline-offset-2">
-                    * infos
-                  </a>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = { ...s, enabled: !s.enabled }
-                  update({ enabled: !s.enabled })
-                  save(next)
-                }}
-                className="rounded-xl bg-gradient-to-r from-sky-500 via-cyan-400 to-yellow-300 px-6 py-3 text-base font-black text-black shadow-[0_0_20px_rgba(56,189,248,0.35)] transition hover:brightness-110"
-              >
-                {s.enabled ? 'Auto-SHIPPER IA activé ✓' : 'Activer Auto-SHIPPER IA'}
+        {/* ---------- 2 bis. L'agent de contrôle, facturé à l'annonce ---------- */}
+        <Bloc>
+          <div className="flex flex-wrap items-start gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-[var(--trait-fort)]">
+              {iris ? <img src={iris} alt="Iris" className="h-full w-full object-cover" /> : <ShieldCheck size={22} className="text-[var(--texte)]" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-bold text-[var(--texte)]">Agent de contrôle</h2>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--texte-2)]">
+                Il regarde chaque photo de l'annonce avant publication et la compare au titre et aux variantes. Il écarte ce qui n'est pas le
+                produit (bannières, produits recommandés, panier) et garde les vraies photos. Une annonce dont les photos sont sûres est publiée ;
+                sinon elle reste en brouillon avec la raison écrite.
+              </p>
+              <p className="mt-2 text-xs text-[var(--texte-3)]">
+                {`Sans lui, les annonces sont importées en brouillon et attendent ta vérification avant toute publication. Rendu si le contrôle n'a pas pu se faire.`}
+              </p>
+            </div>
+          </div>
+          <label className="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[var(--trait)] p-3">
+            <span className="text-sm font-semibold text-[var(--texte)]">
+              {s.controleAgent ? 'Agent de contrôle activé' : "Activer l'agent de contrôle"}
+              <span className="ml-2 font-normal text-[var(--texte-2)]">{`${t.controle} drops par annonce`}</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={s.controleAgent}
+              disabled={occupe === 'reglages'}
+              onChange={(e) => save({ controleAgent: e.target.checked })}
+              className="h-5 w-5 accent-[#f2804a]"
+            />
+          </label>
+        </Bloc>
+
+        {/* ---------- 3. Les rayons boost ---------- */}
+        <Bloc titre="Mes rayons boost" className="lg:col-span-2">
+          <p className="text-sm leading-relaxed text-[var(--texte-2)]">
+            {`Pour chaque rayon, une analyse de marché et une analyse marketing des réseaux sociaux sont réalisées. De ces analyses, 20 produits gagnants sont proposés chaque jour ; parmi eux, jusqu'à ${config.importablesParRayon} sont importables directement par Auto-SHIPPER IA dans tes annonces. L'import comprend la lecture de l'annonce du fournisseur, sa réécriture intégrale par l'IA, la récupération des photos du produit, l'adaptation aux places de marché, le SEO et la catégorie.`}
+          </p>
+          <p className="mt-2 text-sm text-[var(--texte-2)]">
+            Coche tes rayons et active-les : ils deviennent des <b className="text-[var(--texte)]">rayons boost</b>, dont les produits sont ajoutés
+            automatiquement d'après les analyses.
+          </p>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setListeOuverte((o) => !o)}
+              aria-expanded={listeOuverte}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--trait-fort)] px-4 py-3 text-left text-sm font-semibold text-[var(--texte)]"
+            >
+              <span>{nR ? `${nR} rayon(s) coché(s) : ${rayonsChoisis.map((r) => r.label).join(', ')}` : 'Choisir mes rayons'}</span>
+              <ChevronDown size={16} className={`shrink-0 transition ${listeOuverte ? 'rotate-180' : ''}`} />
+            </button>
+            {listeOuverte && (
+              <ul className="mt-2 grid max-h-96 grid-cols-1 gap-1 overflow-y-auto rounded-xl border border-[var(--trait)] p-2 sm:grid-cols-2 xl:grid-cols-3">
+                {config.rayons.map((r) => {
+                  const coche = choix.includes(r.key)
+                  return (
+                    <li key={r.key}>
+                      <label className={`flex cursor-pointer items-start gap-2 rounded-lg p-2 ${coche ? 'bg-[var(--trait)]' : 'hover:bg-[var(--trait)]'}`}>
+                        <input
+                          type="checkbox"
+                          checked={coche}
+                          onChange={() => setChoix((c) => (coche ? c.filter((k) => k !== r.key) : [...c, r.key]))}
+                          className="mt-0.5 h-4 w-4 accent-[#f2804a]"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm text-[var(--texte)]">{`${r.emoji} ${r.label}`}</span>
+                          <span className="block text-[11px] text-[var(--texte-2)]">
+                            {r.jour
+                              ? `Analyse du ${jourCourt(r.jour)} : ${r.produits} gagnant(s), ${r.importables} importable(s)`
+                              : 'Pas encore d’analyse déposée'}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={enregistrerRayons}
+              disabled={choixEnregistre || occupe === 'rayons'}
+              className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            >
+              {occupe === 'rayons' ? 'Activation…' : choixEnregistre ? 'Rayons boost à jour' : 'Activer'}
+            </button>
+            <span className="text-xs text-[var(--texte-3)]">Confier un rayon et le passer en boost est gratuit.</span>
+          </div>
+        </Bloc>
+
+        {/* ---------- 4. Produits gagnants repris par rayon ---------- */}
+        <Bloc titre="Produits gagnants repris par rayon sélectionné" enTete={<span className="text-2xl font-black text-[var(--texte)]">{produits}</span>} className="lg:col-span-2">
+          <div className="relative mt-1">
+            <div className="filet-autoshipper pointer-events-none absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full" />
+            <input
+              type="range"
+              min={1}
+              max={config.importablesParRayon}
+              step={1}
+              value={produits}
+              aria-label="Produits gagnants repris par rayon"
+              onChange={(e) => update({ produitsParRayon: Number(e.target.value) })}
+              onMouseUp={() => save()}
+              onTouchEnd={() => save()}
+              onKeyUp={() => save()}
+              className="relative h-6 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+            />
+          </div>
+          <div className="mt-1 flex justify-between px-0.5 text-[10px] text-[var(--texte-3)]">
+            {Array.from({ length: config.importablesParRayon }, (_, i) => (
+              <span key={i}>{i + 1}</span>
+            ))}
+          </div>
+        </Bloc>
+
+        {/* ---------- 5. Le calcul, et le gros bouton ---------- */}
+        <Bloc titre="Mon tarif du jour" className="lg:col-span-2">
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-[var(--texte-2)]">Activation d'Auto-SHIPPER IA, pour 24 heures (analyses des rayons gratuites)</span>
+              <span className="shrink-0 font-semibold text-[var(--texte)]">{drops(t.journee)}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-[var(--texte-2)]">{`Imports : ${nR} rayon(s) × ${produits} produit(s) × ${t.parProduit} drops`}</span>
+              <span className="shrink-0 font-semibold text-[var(--texte)]">{drops(imports * t.parProduit)}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-[var(--texte-2)]">
+                {s.controleAgent ? `Agent de contrôle : ${imports} annonce(s) × ${t.controle} drops` : 'Agent de contrôle : non activé'}
+              </span>
+              <span className="shrink-0 font-semibold text-[var(--texte)]">{drops(s.controleAgent ? imports * t.controle : 0)}</span>
+            </div>
+            <div className="flex justify-between gap-3 border-t border-[var(--trait)] pt-2 text-base font-black">
+              <span className="text-[var(--texte)]">Total pour 24 heures, au plus</span>
+              <span className="shrink-0 text-[var(--texte)]">
+                {drops(total)} <span className="text-xs font-semibold text-[var(--texte-2)]">{`≈ ${euros(total)} €`}</span>
+              </span>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-[var(--texte-3)]">
+            {nR
+              ? `D'après les dernières analyses, tes rayons donnent ${importablesDuJour} produit(s) importable(s) à ce réglage. Seul ce qui est importé se paie.`
+              : 'Coche au moins un rayon boost pour lancer Auto-SHIPPER IA.'}
+          </p>
+
+          <p className="mt-4 text-sm leading-relaxed text-[var(--texte-2)]">
+            Auto-SHIPPER IA importe lui-même les fiches que notre serveur sait lire. Les produits réservés à l'extension Chrome ou à{' '}
+            <Link to="/application-desktop" className="font-semibold text-[var(--texte)] underline underline-offset-2">
+              l'application desktop
+            </Link>{' '}
+            (Temu, AliExpress, Shein…) ne sont pas importés seuls : tu les importes depuis l'extension ou l'application, qui ont leur propre
+            navigateur.
+          </p>
+
+          <div className="mt-5 flex flex-col items-center gap-2">
+            {s.enabled ? (
+              <>
+                <p className="filet-autoshipper rounded-xl px-6 py-3 text-base font-black text-[#101321]">Auto-SHIPPER IA activé ✓</p>
+                <button type="button" onClick={desactiver} disabled={occupe === 'activer'} className="text-xs text-[var(--texte-2)] underline underline-offset-2">
+                  Désactiver
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={activer} disabled={!nR || occupe === 'activer'} className={`${BOUTON_AS} w-full max-w-xl px-6 py-4 text-lg`}>
+                {occupe === 'activer' ? 'Activation…' : 'Activer Auto-SHIPPER IA 24 heures'}
               </button>
-            </div>
+            )}
+            <p className="max-w-xl text-center text-xs leading-relaxed text-[var(--texte-3)]">
+              {`À l'activation, ${drops(t.journee)} sont pris automatiquement sur ton solde, puis chaque produit importé. La journée est rendue si rien n'est importé, et chaque import en échec est remboursé. Tant qu'il reste activé, Auto-SHIPPER IA repart toutes les 24 heures.`}
+            </p>
+          </div>
+          {message && <p className="mt-3 text-center text-sm text-emerald-300">{message}</p>}
+          {error && <p className="mt-3 text-center text-sm text-red-400">{error}</p>}
+        </Bloc>
 
-            {/* Le curseur multicolore : combien de produits gagnants par rayon (1-10). */}
-            <div className="mt-5">
-              <div className="flex items-baseline justify-between">
-                <label className="text-sm font-semibold">Produits gagnants repris par rayon sélectionné</label>
-                <span className="text-2xl font-black text-amber-400">{produits}</span>
-              </div>
-              <div className="relative mt-2">
-                <div
-                  className="pointer-events-none absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full"
-                  style={{ background: arcEnCiel }}
-                />
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={produits}
-                  onChange={(e) => update({ produitsParRayon: Number(e.target.value) })}
-                  onMouseUp={() => save()}
-                  onTouchEnd={() => save()}
-                  className="relative h-6 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
-                />
-              </div>
-              <div className="mt-1 flex justify-between px-0.5 text-[10px] text-gray-500">
-                {Array.from({ length: 10 }, (_, i) => (
-                  <span key={i}>{i + 1}</span>
-                ))}
-              </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
-                <b>18 drops par produit</b> importé et publié — comprend la rédaction de l'annonce optimisée, le scraping
-                des photos, l'ajustement du prix de vente au marché (marge respectée) et la sélection
-                géographique.
-              </p>
-            </div>
-
-            {/* Le tarif qui s'adapte au réglage. */}
-            <div className="mt-4 rounded-xl border border-white/10 bg-black/25 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Coût de la première tournée du jour {rayonsAuto > 0 ? `— ${rayonsAuto} rayon(s) en auto-mode` : '(exemple : 1 rayon)'}
-              </p>
-              <div className="mt-2 space-y-1 text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="text-gray-300">La journée AUTO-SHIPPER (une fois par 24 h, rendue si rien n'est importé) — analyses des rayons gratuites</span>
-                  <span className="shrink-0 font-semibold text-amber-200">{analyse} drops</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-gray-300">Imports — 18 × {produits} produit(s) × {nR} rayon(s)</span>
-                  <span className="shrink-0 font-semibold text-amber-200">{imports} drops</span>
-                </div>
-                <div className="flex justify-between gap-3 border-t border-white/10 pt-1.5 text-base font-black">
-                  <span>Total</span>
-                  <span className="shrink-0 text-yellow-300">
-                    {total} drops <span className="text-xs font-semibold text-gray-400">≈ {eur(total)} €</span>
-                  </span>
-                </div>
-              </div>
-              {rayonsAuto === 0 ? (
-                <p className="mt-2 text-[11px] text-gray-500">
-                  Activez au moins un rayon en auto-mode (ci-dessous) pour un passage réel.
-                </p>
-              ) : null}
-            </div>
-          </section>
-        )
-      })()}
-
-      {/* 2. Les acquisitions : au moins un chef de rayon. */}
-      <section className="mt-10">
-        <p className="text-center text-sm text-gray-300">
-          Pour faire les acquisitions, <b>au moins un chef de rayon doit être confié</b> (c'est
-          gratuit, il est en poste aussitôt) — c'est lui qui génère{' '}
-          <span className="text-fuchsia-300">la liste de produits à importer chaque jour</span>.
-        </p>
-
-        <p className="mt-5 text-center text-sm font-bold uppercase tracking-wide text-yellow-300">
-          Ajouter rayon automatique
-        </p>
-        <div className="mt-2 flex justify-center">
-          <Link
-            to="/rayons"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-2.5 backdrop-blur transition hover:bg-white/15"
-          >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-purple-600">
-              <Plus size={14} className="text-white" />
-            </span>
-            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-amber-300 bg-clip-text text-sm font-black uppercase tracking-widest text-transparent">
-              Rayons Boost
-            </span>
-          </Link>
-        </div>
-
-        {enPoste.length > 0 && (
-          <ul className="mt-5 space-y-3">
-            {enPoste.map((d) => (
-              <li key={d.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Link
-                    to={`/rayon/${d.id}`}
-                    className="rounded-xl bg-yellow-300 px-3 py-1.5 text-sm font-black uppercase text-black"
-                  >
-                    {d.label}
-                  </Link>
-                  <span className={d.autoMode ? 'text-sm font-semibold text-sky-300' : 'text-sm text-gray-500'}>
-                    {d.autoMode ? 'rayon auto-mode activé' : 'rayon auto-mode désactivé'}
-                  </span>
-                  <span className="ml-auto">
-                    <BoutonAutoMode actif={d.autoMode} onBascule={(enabled) => basculerRayon(d.id, enabled)} />
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap items-start gap-3">
-                  <span className="text-2xl">{d.emoji}</span>
-                  <p className="min-w-0 flex-1 text-xs leading-relaxed text-gray-400">
-                    {`Chaque matin et chaque soir, ${d.agentName} génère une analyse de marché et élabore une liste de produits, en indiquant le prix d'achat constaté et le prix de vente suggéré. Ses réglages vivent dans son rayon ; ses rapports s'archivent dans `}
-                    <Link to="/analyse-marche" className="text-purple-300 underline">
-                      Analyses de marché
-                    </Link>
-                    {', ses listes dans '}
-                    <Link to="/produits-gagnants" className="text-purple-300 underline">
-                      Produits gagnants
-                    </Link>
-                    {'.'}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* 3. La diffusion : des places de marché reliées. */}
-      <section className="mt-10">
-        <p className="text-center text-sm font-bold uppercase tracking-wide text-yellow-300">
-          Ajouter plateforme diffusion auto
-        </p>
-        <div className="mt-2 flex justify-center">
-          <Link
-            to="/plateformes-vente"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white/15"
-          >
-            <Store size={15} />
-            <span>
-              menu markets places <span className="text-emerald-300">reliées</span>
-            </span>
-            <ArrowRight size={13} className="text-gray-400" />
-          </Link>
-        </div>
-        <p className="mx-auto mt-3 max-w-md text-center text-xs leading-relaxed text-gray-400">
-          Pour publier automatiquement vos annonces, <b>les plateformes doivent être reliées</b>. Si
-          la place de marché n'est pas dans la liste ci-dessous, reliez-la depuis le menu Market
-          places.
-        </p>
-      </section>
-
-      {/* 4. Publications auto : les réglages du pilote et son journal. */}
-      <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-        <h2 className="text-center text-lg font-bold text-sky-300">Publications auto</h2>
-
-        <label className="mt-4 flex cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
-            checked={s.enabled}
-            onChange={(e) => {
-              const next = { ...s, enabled: e.target.checked }
-              update({ enabled: e.target.checked })
-              save(next)
-            }}
-            className="h-5 w-5 accent-sky-400"
-          />
-          <span className="font-semibold">
-            {s.enabled ? 'Auto-SHIPPER IA activé' : 'Auto-SHIPPER IA désactivé'}
-          </span>
-          {s.enabled ? (
-            <span className="rounded-full bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-sky-300">
-              un passage par tranche de 12 h — 1 € la journée + 18 drops par import
-            </span>
-          ) : null}
-        </label>
-
-        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs text-gray-400">Imports maximum par jour</label>
+        {/* ---------- Réglages fins ---------- */}
+        <Bloc titre="Réglages de publication">
+          <label className="block text-xs text-[var(--texte-2)]">Marge minimale exigée</label>
+          <div className="mt-1 flex items-center gap-2">
             <input
               type="number"
-              min={1}
-              max={50}
-              value={s.dailyLimit}
-              onChange={(e) => update({ dailyLimit: Number(e.target.value) || 1 })}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
+              min={0}
+              max={1000}
+              value={s.minMargin}
+              onChange={(e) => update({ minMargin: Number(e.target.value) || 0 })}
+              className="w-full rounded-lg border border-[var(--trait)] bg-transparent px-3 py-2 text-sm text-[var(--texte)] outline-none"
             />
-            <p className="mt-1 text-[11px] text-gray-500">
-              {`Plafond de cette version : 50 par jour. Soit ${100 + s.dailyLimit * 18} drops par jour au maximum (100 la journée + 18 par import auto).`}
-            </p>
+            <span className="text-sm text-[var(--texte-2)]">%</span>
           </div>
+          <p className="mt-1 text-[11px] text-[var(--texte-3)]">Un produit sans prix de marché relevé est écarté : sa marge est inconnue.</p>
 
-          <div>
-            <label className="block text-xs text-gray-400">Marge minimale exigée</label>
-            <div className="mt-1 flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={1000}
-                value={s.minMargin}
-                onChange={(e) => update({ minMargin: Number(e.target.value) || 0 })}
-                className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none"
-              />
-              <span className="text-sm text-gray-400">%</span>
+          <label className="mt-4 flex cursor-pointer items-start gap-3">
+            <input type="checkbox" checked={s.requireEuStock} onChange={(e) => update({ requireEuStock: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#f2804a]" />
+            <span className="text-sm text-[var(--texte)]">
+              N'importer que si le stock européen est confirmé
+              <span className="mt-0.5 block text-[11px] text-[var(--texte-3)]">Sévère : la plupart des trouvailles arrivent avec un stock « non vérifié ».</span>
+            </span>
+          </label>
+
+          <label className="mt-4 flex cursor-pointer items-start gap-3">
+            <input type="checkbox" checked={s.autoPublish} onChange={(e) => update({ autoPublish: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[#f2804a]" />
+            <span className="text-sm text-[var(--texte)]">
+              Publier automatiquement après import
+              <span className="mt-0.5 block text-[11px] text-[var(--texte-3)]">Sur les plateformes reliées cochées ci-dessous, sans repasser par toi.</span>
+            </span>
+          </label>
+          {s.autoPublish && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {config.destinations.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => toggleDestination(d.id)}
+                  className={
+                    s.destinations.includes(d.id)
+                      ? 'rounded-full px-3 py-1.5 text-xs font-bold text-white'
+                      : 'rounded-full border border-[var(--trait)] px-3 py-1.5 text-xs text-[var(--texte-2)]'
+                  }
+                  style={s.destinations.includes(d.id) ? { background: d.color } : undefined}
+                >
+                  {d.label}
+                </button>
+              ))}
             </div>
-            <p className="mt-1 text-[11px] text-gray-500">
-              Un produit sans prix marché relevé est écarté : la marge est alors inconnue.
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => save()} disabled={occupe === 'reglages'} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40">
+              {occupe === 'reglages' ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+            <Link to="/plateformes-vente" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--texte-2)] hover:underline">
+              <Store size={13} /> Relier une plateforme <ArrowRight size={12} />
+            </Link>
+          </div>
+        </Bloc>
+
+        {/* ---------- Le journal ---------- */}
+        <Bloc titre="Ce qu'il a fait">
+          <p className="text-xs text-[var(--texte-3)]">Chaque passage, avec le détail de chaque décision.</p>
+          {!runs.length && (
+            <p className="mt-3 rounded-xl border border-dashed border-[var(--trait-fort)] px-3 py-6 text-center text-xs text-[var(--texte-3)]">
+              Aucun passage pour l'instant.
+            </p>
+          )}
+          <ul className="mt-3 max-h-96 space-y-2 overflow-y-auto">
+            {runs.map((r) => (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenRun(openRun === r.id ? null : r.id)}
+                  className="w-full rounded-xl border border-[var(--trait)] p-3 text-left hover:border-[var(--trait-fort)]"
+                >
+                  <p className="text-sm font-semibold text-[var(--texte)]">
+                    {new Date(r.createdAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="text-xs text-[var(--texte-2)]">
+                    {`${r.imported} importée(s) · ${r.published} publiée(s) · ${r.skipped} écartée(s) · ${r.failed} en échec`}
+                  </p>
+                </button>
+                {openRun === r.id && Array.isArray(r.log) && (
+                  <ul className="mt-1 space-y-1 rounded-xl border border-[var(--trait)] p-3">
+                    {r.log.map((line, i) => (
+                      <li key={i} className="flex flex-wrap gap-2 text-xs">
+                        <span className={ACTION_STYLE[line.action] ?? 'text-[var(--texte-2)]'}>{line.action}</span>
+                        <span className="text-[var(--texte)]">{line.titre}</span>
+                        <span className="text-[var(--texte-2)]">{`— ${line.raison}`}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Bloc>
+
+        {/* La mise en garde, toujours en dernier (règle du 05/09/2026). */}
+        <div className="flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 lg:col-span-2">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+          <div className="text-xs leading-relaxed text-amber-100">
+            <p>
+              {`Chaque import consomme des drops (${t.parProduit} par produit, plus ${t.journee} la journée${s.controleAgent ? ` et ${t.controle} par annonce contrôlée` : ''}) et remplit ton catalogue. Le nombre de produits par rayon est ton plafond du jour : commence bas.`}
+            </p>
+            <p className="mt-1">
+              Vinted, Leboncoin et Facebook Marketplace ne sont pas publiés par le serveur : ils partent par l'application desktop, depuis ta
+              propre session.
             </p>
           </div>
-        </div>
-
-        <label className="mt-5 flex cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={s.requireEuStock}
-            onChange={(e) => update({ requireEuStock: e.target.checked })}
-            className="mt-0.5 h-4 w-4 accent-sky-400"
-          />
-          <span className="text-sm">
-            <span>N'importer que si le stock européen est confirmé</span>
-            <span className="mt-0.5 block text-[11px] text-gray-500">
-              Sévère : la plupart des trouvailles arrivent avec un stock « non vérifié ».
-            </span>
-          </span>
-        </label>
-
-        <label className="mt-4 flex cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={s.autoPublish}
-            onChange={(e) => update({ autoPublish: e.target.checked })}
-            className="mt-0.5 h-4 w-4 accent-sky-400"
-          />
-          <span className="text-sm">
-            <span>Publier automatiquement après import</span>
-            <span className="mt-0.5 block text-[11px] text-gray-500">
-              Sur les plateformes reliées cochées ci-dessous, sans repasser par vous.
-            </span>
-          </span>
-        </label>
-
-        {s.autoPublish && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {config.destinations.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => toggleDestination(d.id)}
-                className={
-                  s.destinations.includes(d.id)
-                    ? 'rounded-full px-3 py-1.5 text-xs font-bold text-white'
-                    : 'rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5'
-                }
-                style={
-                  s.destinations.includes(d.id)
-                    ? { background: d.color, boxShadow: `0 0 10px ${d.color}66` }
-                    : undefined
-                }
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => save()}
-            disabled={saving}
-            className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
-          >
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
-          <button
-            type="button"
-            onClick={runNow}
-            disabled={running || !s.enabled}
-            className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-40"
-          >
-            <Play size={14} />
-            <span>{running ? 'Passage en cours…' : 'Lancer un passage maintenant'}</span>
-          </button>
-
-          {message && <span className="text-xs text-emerald-300">{message}</span>}
-          {error && <span className="text-xs text-red-400">{error}</span>}
-        </div>
-
-        {!s.enabled && (
-          <p className="mt-3 flex items-center gap-1 text-xs text-gray-500">
-            <Info size={13} />
-            <span>Activez Auto-SHIPPER IA pour pouvoir lancer un passage.</span>
-          </p>
-        )}
-      </section>
-
-      <section className="mt-8">
-        <h2 className="font-bold">Ce qu'il a fait</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          Chaque passage, avec le détail de chaque décision. Vous devez pouvoir comprendre au réveil
-          ce qui s'est décidé pendant la nuit.
-        </p>
-
-        {!runs.length && (
-          <p className="mt-4 rounded-xl border border-dashed border-white/15 px-3 py-6 text-center text-xs text-gray-500">
-            Aucun passage pour l'instant.
-          </p>
-        )}
-
-        <ul className="mt-4 space-y-2">
-          {runs.map((r) => (
-            <li key={r.id}>
-              <button
-                type="button"
-                onClick={() => setOpenRun(openRun === r.id ? null : r.id)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left hover:bg-white/10"
-              >
-                <p className="text-sm font-semibold">
-                  {new Date(r.createdAt).toLocaleString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {`${r.imported} importée(s) · ${r.published} publiée(s) · ${r.skipped} écartée(s) · ${r.failed} en échec`}
-                </p>
-              </button>
-
-              {openRun === r.id && Array.isArray(r.log) && (
-                <ul className="mt-1 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3">
-                  {r.log.map((line, i) => (
-                    <li key={i} className="flex flex-wrap gap-2 text-xs">
-                      <span className={ACTION_STYLE[line.action] ?? 'text-gray-400'}>
-                        {line.action}
-                      </span>
-                      <span className="text-gray-300">{line.titre}</span>
-                      <span className="text-gray-500">{`— ${line.raison}`}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/*
-        Le bloc infos de la fiche, EN BAS comme toutes les mises en garde
-        (règle du 05/09/2026) : ce que fait un chef en mode auto, ce que fait
-        Auto-SHIPPER IA, les limites et le tarif de cette version.
-      */}
-      <div id="infos" className="mt-8 scroll-mt-6 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-5">
-        <h2 className="font-bold text-yellow-200">Infos</h2>
-
-        <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="text-xs leading-relaxed text-yellow-100/90">
-            <p className="font-semibold text-yellow-200">Quand un chef de rayon passe en mode auto :</p>
-            <ul className="mt-1 list-inside list-disc space-y-0.5">
-              <li>toutes les 12 h, une analyse de marché fournisseurs et produits phares ;</li>
-              <li>une analyse des tendances côté markets places ;</li>
-              <li>une sélection de 10 produits phares à importer ;</li>
-              <li>le classement de chaque liste dans le tableau Produits gagnants.</li>
-            </ul>
-          </div>
-
-          <div className="text-xs leading-relaxed text-yellow-100/90">
-            <p className="font-semibold text-yellow-200">Ce que fait Auto-SHIPPER IA :</p>
-            <ul className="mt-1 list-inside list-disc space-y-0.5">
-              <li>il récupère matin et soir la liste des produits gagnants mise à jour par vos chefs de rayon ;</li>
-              <li>il importe ces articles dans Mes annonces, un par un, avec contrôle des images avant publication ;</li>
-              <li>il ajuste les prix de vente selon votre marge minimale ;</li>
-              <li>il publie vos annonces sur les markets places reliées que vous avez cochées.</li>
-            </ul>
-          </div>
-        </div>
-
-        <p className="mt-4 text-xs font-semibold leading-relaxed text-yellow-200">
-          Pour l'instant, cette version de DropShipper IA limite la publication auto à 50 annonces
-          par jour — soit 1 500 par mois en mode auto. Tarif du mode auto : 100 drops (1 €) la journée, plus 18 drops par import
-          automatique (reprise des produits gagnants, sélection, publication et archivage du journal
-          compris), débités sur votre solde de drops.
-        </p>
-      </div>
-
-      {/* La seule mise en garde légale, toujours en dernier. */}
-      <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
-        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
-        <div className="text-xs leading-relaxed text-amber-100">
-          <p>
-            <b>Chaque import consomme des drops</b> (18 en Auto-SHIPPER IA, plus 100 la journée) et remplit votre catalogue. Le plafond quotidien
-            est la seule chose qui vous protège d'un agent trop généreux : commencez bas.
-          </p>
-          <p className="mt-1">
-            Vinted, Leboncoin et Facebook Marketplace exigent que vous validiez vous-même — publier
-            à votre place enfreindrait leurs conditions et ferait suspendre votre compte vendeur.
-          </p>
         </div>
       </div>
     </Layout>

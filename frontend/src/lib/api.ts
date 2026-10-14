@@ -43,6 +43,18 @@ if (CONFIGURED_API && !usable) {
 const API_ROOT = usable || (isLocal ? '' : FALLBACK_API)
 const BASE = `${API_ROOT}/api`
 
+/** Les réglages du pilote automatique, tels que PUT /autopilot les reçoit. */
+export interface ReglagesAutopilot {
+  enabled: boolean
+  dailyLimit: number
+  produitsParRayon: number
+  autoPublish: boolean
+  destinations: string[]
+  minMargin: number
+  requireEuStock: boolean
+  controleAgent: boolean
+}
+
 export const apiRoot = API_ROOT
 
 /** Resolves a backend-relative path (product photos, /api/public/*) to a full URL. */
@@ -1632,18 +1644,34 @@ export const api = {
         destinations: string[]
         minMargin: number
         requireEuStock: boolean
+        /** Agent de contrôle de l'AUTO-SHIPPER, facturé à l'annonce. */
+        controleAgent: boolean
       }
+      lastAutoRunAt: string | null
       destinations: Array<{ id: string; label: string; color: string }>
+      /** Ce que le serveur débite, en drops (services/tarifs.ts). */
+      tarifs: { journee: number; parProduit: number; controle: number }
+      importablesParRayon: number
+      /** Les 24 rayons : dernier jour d'analyse, gagnants du jour, importables par le pilote. */
+      rayons: Array<{
+        key: string
+        label: string
+        emoji: string
+        jour: string | null
+        produits: number
+        importables: number
+        departmentId: string | null
+        boost: boolean
+      }>
     }>('/autopilot'),
-  saveAutopilot: (settings: {
-    enabled: boolean
-    dailyLimit: number
-    produitsParRayon: number
-    autoPublish: boolean
-    destinations: string[]
-    minMargin: number
-    requireEuStock: boolean
-  }) => request<{ ok: true }>('/autopilot', { method: 'PUT', body: JSON.stringify(settings) }),
+  saveAutopilot: (settings: ReglagesAutopilot) =>
+    request<{ ok: true }>('/autopilot', { method: 'PUT', body: JSON.stringify(settings) }),
+  /** Les rayons boost : cochés = confiés et en AUTO-MODE, les autres en sortent. */
+  saveRayonsBoost: (keys: string[]) =>
+    request<{ ok: true; boost: string[] }>('/autopilot/rayons', { method: 'PUT', body: JSON.stringify({ keys }) }),
+  /** Active AUTO-SHIPPER IA : la journée est débitée et le premier passage part tout de suite. */
+  activerAutopilot: (settings: ReglagesAutopilot) =>
+    request<{ ok: true; journeeDejaPayee: boolean }>('/autopilot/activer', { method: 'POST', body: JSON.stringify(settings) }),
   runAutopilot: () =>
     request<{ imported: number; published: number; skipped: number; failed: number }>(
       '/autopilot/run',

@@ -70,6 +70,13 @@ export const DROPS = {
   /** AUTO-SHIPPER : un produit importé ET publié automatiquement — agent (6) + annonce (12). */
   autoShipperImport: 18,
   /**
+   * AUTO-SHIPPER : l'agent de contrôle, par annonce contrôlée (14/10/2026,
+   * décision de Max) — contrôle visuel des photos contre le titre et les
+   * variantes avant publication. Optionnel : sans lui, l'annonce est importée
+   * en brouillon et attend le vendeur. Rendu si le contrôle n'a pas pu se faire.
+   */
+  autoShipperControle: 15,
+  /**
    * DropShop IA (17/09/2026) : la boutique écrite par le modèle — design
    * unique, responsive, emails, paiement Stripe pré-branché, gestion depuis
    * DropShipper — et des modifications À VOLONTÉ. 500 drops (5 €), payés UNE

@@ -64,6 +64,7 @@ const TARIFS = [
   ['Agent extension : relever une fiche fournisseur dans votre navigateur', 6, '0,06 €'],
   ['AUTO-SHIPPER : la journée, une tournée par 24 h (analyse, relevé, import, annonces, publications, back-office)', 100, '1,00 €'],
   ['AUTO-SHIPPER : un produit importé et publié automatiquement', 18, '0,18 €'],
+  ['AUTO-SHIPPER : agent de contrôle des photos, par annonce (optionnel)', 15, '0,15 €'],
   ['AUTO-MODE d’un chef de rayon : analyses et produits gagnants quotidiens', 0, 'gratuit'],
   ['DropShop IA : création d’une boutique écrite par l’IA (design unique, responsive, panier, emails, Stripe, hébergement, modifications à volonté) — payée une seule fois, à vie, sans filigrane', 500, '5 €'],
   ['DropShop IA : modifications de la boutique, à volonté', 0, 'comprises'],
@@ -227,7 +228,7 @@ Prendre l'annonce n'importe où, la publier partout — et tout piloter depuis u
 - Diffusion : ${canaux.length} canaux référencés (${n.marketplace} places de marché, ${n.comparateur} comparateurs) ; publication directe vers Shopify, eBay, Kaufland et 41 enseignes Mirakl.
 - Analyses de marché : 24 catégories, deux rapports par jour et par catégorie (48 par jour), 20 produits et des prompts publicitaires.
 - Agents IA : annonces, publicité, SAV, comptabilité, juridique — chiffres sourcés, coûts plafonnés.
-- AUTO-SHIPPER (mode auto) : 1 € la journée + 0,18 € par produit importé et publié, journée rendue si rien n'a été importé.
+- AUTO-SHIPPER (mode auto) : 1 € la journée + 0,18 € par produit importé et publié, + 0,15 € par annonce si l'agent de contrôle est activé, journée rendue si rien n'a été importé.
 - Tarifs : aucun abonnement, crédit rendu quand une action échoue ; recharges de 5 à 150 €, jusqu'à −25 %.
 
 ## Liens essentiels
