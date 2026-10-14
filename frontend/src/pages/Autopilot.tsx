@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AlertTriangle, ChevronDown, Store, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
+import { RapportAutoShipper } from '../components/RapportAutoShipper'
 import { FriseLogos, type LogoFrise } from '../components/FriseLogos'
 import { photoAgent } from '../lib/agentsPhotos'
 import canaux from '../data/canaux.json'
@@ -763,6 +764,9 @@ export default function Autopilot() {
           {message && <p className="mt-3 text-center text-sm text-emerald-300">{message}</p>}
           {error && <p className="mt-3 text-center text-sm text-red-400">{error}</p>}
         </Bloc>
+
+        {/* ---------- Le rapport des journées passées ---------- */}
+        <RapportAutoShipper />
 
         {/* ---------- Le journal ---------- */}
         <Bloc titre="Ce qu'il a fait" className="lg:col-span-2">

@@ -56,6 +56,16 @@ export interface ReglagesAutopilot {
   produitsRayons: Record<string, number>
 }
 
+/** Les chiffres d'un rapport AUTO-SHIPPER, en euros pour les montants. */
+export interface RapportAutopilotChiffres {
+  produits: number
+  ventes: number
+  achats: number
+  ca: number
+  marge: number
+  margePct: number | null
+}
+
 export const apiRoot = API_ROOT
 
 /** Resolves a backend-relative path (product photos, /api/public/*) to a full URL. */
@@ -1672,6 +1682,20 @@ export const api = {
   /** Les rayons boost : cochés = confiés et en AUTO-MODE, les autres en sortent. */
   saveRayonsBoost: (keys: string[]) =>
     request<{ ok: true; boost: string[] }>('/autopilot/rayons', { method: 'PUT', body: JSON.stringify({ keys }) }),
+  /** Les jours qui ont au moins un passage AUTO-SHIPPER, du plus récent au plus ancien. */
+  autopilotJours: () => request<{ jours: string[] }>('/autopilot/rapports'),
+  /** Le rapport d'un jour : imports du journal, puis leurs ventes, achats, CA et marge, en tout et par rayon. */
+  autopilotRapport: (jour: string) =>
+    request<{
+      jour: string
+      passages: number
+      importes: number
+      publies: number
+      ecartes: number
+      echecs: number
+      total: RapportAutopilotChiffres
+      rayons: Array<RapportAutopilotChiffres & { key: string; label: string }>
+    }>(`/autopilot/rapports/${jour}`),
   /** Active AUTO-SHIPPER IA : la journée est débitée et le premier passage part tout de suite. */
   activerAutopilot: (settings: ReglagesAutopilot) =>
     request<{ ok: true; journeeDejaPayee: boolean }>('/autopilot/activer', { method: 'POST', body: JSON.stringify(settings) }),

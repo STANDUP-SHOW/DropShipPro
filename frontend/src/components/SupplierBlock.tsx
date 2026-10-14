@@ -156,7 +156,7 @@ function MarcheASuivre({ supplier }: { supplier: Supplier }) {
             {`Copiez l'adresse de la fiche produit chez ${supplier.label}, collez-la dans « Importer un produit ». Le titre, le prix et les photos sont relevés, puis réécrits.`}
           </p>
           <Link
-            to="/dashboard"
+            to="/acquisition"
             className="btn-gradient mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
           >
             Importer un produit
