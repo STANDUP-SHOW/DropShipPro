@@ -165,3 +165,109 @@ autopilotRouter.post('/activer', async (req: AuthedRequest, res) => {
   )
   res.json({ ok: true, journeeDejaPayee: dejaPayee })
 })
+
+/**
+ * Le rapport des journées AUTO-SHIPPER (14/10/2026) : les jours qui ont au moins
+ * un passage, puis, pour un jour, ce que ses imports ont donné depuis — ventes,
+ * achats, chiffre d'affaires, marge — en tout et par rayon boost.
+ *
+ * Un produit est compté pour un jour quand le journal de ce jour le dit
+ * « importé » et que son opportunité a donné lieu à l'import : le journal est
+ * la seule trace écrite de ce que le pilote a fait, pas une estimation.
+ * Les commandes remboursées ne comptent pas.
+ */
+autopilotRouter.get('/rapports', async (req: AuthedRequest, res) => {
+  const jours = await prisma.autopilotRun.findMany({
+    where: { userId: req.userId! },
+    distinct: ['day'],
+    orderBy: { day: 'desc' },
+    select: { day: true },
+    take: 120,
+  })
+  res.json({ jours: jours.map((j) => j.day) })
+})
+
+autopilotRouter.get('/rapports/:jour', async (req: AuthedRequest, res) => {
+  const userId = req.userId!
+  const jour = req.params.jour
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) return res.status(400).json({ error: 'Date invalide' })
+
+  const runs = await prisma.autopilotRun.findMany({ where: { userId, day: jour } })
+  if (!runs.length) return res.status(404).json({ error: 'Aucun passage ce jour-là' })
+
+  const titres = new Set<string>()
+  for (const r of runs) {
+    for (const l of (Array.isArray(r.log) ? r.log : []) as Array<{ titre?: unknown; action?: unknown }>) {
+      if (l?.action === 'importé' && typeof l.titre === 'string' && l.titre !== '—') titres.add(l.titre)
+    }
+  }
+
+  const debut = new Date(`${jour}T00:00:00Z`)
+  const fin = new Date(debut.getTime() + 24 * 3600 * 1000)
+  const opps = titres.size
+    ? await prisma.opportunity.findMany({
+        where: { userId, status: 'IMPORTED', title: { in: [...titres] }, productId: { not: null } },
+        select: { productId: true, departmentId: true },
+      })
+    : []
+  const produits = opps.length
+    ? await prisma.product.findMany({
+        where: { id: { in: opps.map((o) => o.productId!) }, userId, createdAt: { gte: debut, lt: fin } },
+        select: { id: true, title: true, aiTitle: true, price: true, shippingCost: true, sellingPrice: true },
+      })
+    : []
+  const commandes = produits.length
+    ? await prisma.order.findMany({
+        where: { userId, productId: { in: produits.map((p) => p.id) }, status: { not: 'REFUNDED' } },
+        select: { productId: true, amount: true, quantity: true },
+      })
+    : []
+
+  const rayons = await prisma.department.findMany({ where: { userId }, select: { id: true, key: true } })
+  const cleDe = new Map(rayons.map((d) => [d.id, d.key]))
+  const rayonDuProduit = new Map(opps.map((o) => [o.productId!, o.departmentId ? cleDe.get(o.departmentId) ?? null : null]))
+
+  type Somme = { produits: number; ventes: number; achats: number; ca: number }
+  const vide = (): Somme => ({ produits: 0, ventes: 0, achats: 0, ca: 0 })
+  const total = vide()
+  const parRayon = new Map<string, Somme>()
+  const ligne = (key: string | null) => {
+    const k = key ?? 'sans-rayon'
+    if (!parRayon.has(k)) parRayon.set(k, vide())
+    return parRayon.get(k)!
+  }
+  const cout = new Map(produits.map((p) => [p.id, Number(p.price) + Number(p.shippingCost ?? 0)]))
+  for (const p of produits) {
+    total.produits++
+    ligne(rayonDuProduit.get(p.id) ?? null).produits++
+  }
+  for (const c of commandes) {
+    const r = ligne(rayonDuProduit.get(c.productId) ?? null)
+    const achats = (cout.get(c.productId) ?? 0) * c.quantity
+    for (const s of [total, r]) {
+      s.ventes += c.quantity
+      s.ca += Number(c.amount)
+      s.achats += achats
+    }
+  }
+  const arrondi = (n: number) => Math.round(n * 100) / 100
+  const sortie = (s: Somme) => ({
+    produits: s.produits,
+    ventes: s.ventes,
+    achats: arrondi(s.achats),
+    ca: arrondi(s.ca),
+    marge: arrondi(s.ca - s.achats),
+    margePct: s.ca > 0 ? Math.round(((s.ca - s.achats) / s.ca) * 1000) / 10 : null,
+  })
+
+  res.json({
+    jour,
+    passages: runs.length,
+    importes: runs.reduce((n, r) => n + r.imported, 0),
+    publies: runs.reduce((n, r) => n + r.published, 0),
+    ecartes: runs.reduce((n, r) => n + r.skipped, 0),
+    echecs: runs.reduce((n, r) => n + r.failed, 0),
+    total: sortie(total),
+    rayons: [...parRayon.entries()].map(([key, s]) => ({ key, label: findDepartment(key)?.label ?? 'Sans rayon', ...sortie(s) })),
+  })
+})
