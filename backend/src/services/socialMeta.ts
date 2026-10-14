@@ -76,7 +76,7 @@ function configuration() {
   const appSecret = process.env.META_APP_SECRET?.trim()
   if (!appId || !appSecret) {
     throw new SocialError(
-      "L'application Meta n'est pas configurée : META_APP_ID et META_APP_SECRET manquent.",
+      "La connexion Facebook et Instagram n'est pas encore ouverte sur DropShipper : notre application doit d'abord être validée par Meta.",
     )
   }
   return { appId, appSecret }

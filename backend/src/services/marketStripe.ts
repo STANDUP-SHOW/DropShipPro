@@ -22,7 +22,7 @@ export class MarketIndisponible extends Error {}
 
 function stripe(): Stripe {
   const s = getStripe()
-  if (!s) throw new MarketIndisponible("Les paiements Stripe de la plateforme ne sont pas configurés (STRIPE_SECRET_KEY).")
+  if (!s) throw new MarketIndisponible("Les paiements du Market ne sont pas encore ouverts. Réessayez un peu plus tard.")
   return s
 }
 

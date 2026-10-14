@@ -20,6 +20,7 @@ import { publierEcwid, readEcwidCredentials } from './ecwid.js'
 import { publierSquarespace, readSquarespaceCredentials } from './squarespace.js'
 import { imagesPourExport } from './exportImages.js'
 import { connecteurMarche, type ConnecteurMarche } from './marches.js'
+import { attenteApplication } from './marchesApi.js'
 
 /**
  * Records a publication, and actually pushes the product where that is possible.
@@ -252,7 +253,7 @@ async function publierParConnecteur(connecteur: ConnecteurMarche, product: Produ
       update: { targetCategory, status: 'PENDING', error: raison, publishedAt: null },
     })
 
-  if (!connecteur.appConfiguree()) return enAttente(connecteur.manque())
+  if (!connecteur.appConfiguree()) return enAttente(attenteApplication(connecteur))
 
   const credential = await prisma.platformCredential.findUnique({
     where: { userId_platform: { userId: product.userId, platform } },

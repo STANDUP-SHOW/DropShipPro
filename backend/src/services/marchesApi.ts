@@ -88,3 +88,18 @@ export function connecteurMarche(platform: Platform): ConnecteurMarche<any> | un
 export function connecteursMarche(): ConnecteurMarche<any>[] {
   return [...REGISTRE.values()]
 }
+
+const signale = new Set<Platform>()
+
+/**
+ * What a seller reads while OUR application is not yet declared at the
+ * platform. Sellers never see Railway or variable names: they cannot act on
+ * them. The missing variables go to the server log, once per platform.
+ */
+export function attenteApplication(c: ConnecteurMarche<any>): string {
+  if (!signale.has(c.platform)) {
+    signale.add(c.platform)
+    console.warn(`[marches] ${c.label} : ${c.manque()}`)
+  }
+  return `La liaison avec ${c.label} n'est pas encore ouverte sur DropShipper : notre application doit d'abord être validée par ${c.label}. Dès qu'elle l'est, vous reliez votre compte ici en un clic, sans clé à copier.`
+}

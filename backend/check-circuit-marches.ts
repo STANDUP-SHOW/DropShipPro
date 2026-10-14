@@ -92,7 +92,11 @@ const credential = () =>
 try {
   // 1. Rien de déclaré : la diffusion attend, et dit pourquoi.
   let pub = await publishToPlatform(produit.id, 'ALLEGRO')
-  exige(pub.status === 'PENDING' && /ALLEGRO_CLIENT_ID/.test(pub.error ?? ''), "app non déclarée : en attente, avec ce qui manque", pub.error)
+  exige(
+    pub.status === 'PENDING' && /pas encore ouverte/.test(pub.error ?? '') && !/ALLEGRO_CLIENT_ID|Railway/.test(pub.error ?? ''),
+    "app non déclarée : en attente, en mots de vendeur (ni Railway ni nom de variable)",
+    pub.error,
+  )
 
   // 2. App déclarée, compte non relié : en attente, avec le geste.
   appConfiguree = true
