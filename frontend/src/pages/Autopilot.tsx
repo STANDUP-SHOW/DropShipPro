@@ -547,7 +547,8 @@ export default function Autopilot() {
             {`${CANAUX.length} canaux de vente. Inscris-toi, crée tes comptes vendeurs, relie-les : DropShipper diffuse. La publication est comprise dans le prix de chaque produit importé, sans aucun drop de plus.`}
           </p>
           <div className="-mx-4 mt-3 overflow-hidden md:-mx-5">
-            <FriseLogos logos={CANAUX} />
+            <FriseLogos logos={CANAUX.slice(0, Math.ceil(CANAUX.length / 2))} className="frise-demi" />
+            <FriseLogos logos={CANAUX.slice(Math.ceil(CANAUX.length / 2))} sens="droite" className="frise-demi" />
           </div>
 
           <label className="mt-4 flex cursor-pointer items-start gap-3">

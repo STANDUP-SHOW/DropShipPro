@@ -338,6 +338,14 @@ html[data-theme="light"] { color-scheme: light; }
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+/*
+ * Page AutoShipper (Max, 14/10/2026) : logos deux fois plus petits, sur deux
+ * bandes qui vont en sens inverse. Réglage local : l'accueil garde sa frise.
+ */
+.frise-demi { height: 105px; }
+.frise-demi .frise-carte { height: 75px; width: 75px; padding: 8px; }
+.frise-demi .frise-carte.w-\[300px\] { width: 150px; }
+.frise-demi .frise-piste > li { padding-left: 6px; padding-right: 6px; }
 @media (prefers-reduced-motion: reduce) {
   .frise { overflow-x: auto; }
   .frise-piste { animation: none; }
