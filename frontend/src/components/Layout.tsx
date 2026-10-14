@@ -20,7 +20,7 @@ import { api } from '../lib/api'
  * Le menu tient en six groupes repliables (voir menuEspace.tsx) : seul le
  * groupe de la page ouverte se déplie de lui-même, les autres restent sur leur
  * titre — douze sections déroulées poussaient le solde et la déconnexion hors
- * de l'écran. Les groupes ouverts à la main sont retenus d'une visite à
+ * de l'écran. Tous se replient d'un clic, celui de la page ouverte compris. Les groupes ouverts à la main sont retenus d'une visite à
  * l'autre.
  *
  * Sur l'écran large, une barre légère porte le fil d'Ariane et la recherche de
@@ -180,13 +180,16 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
 
   /*
    * Les groupes ouverts : ceux que le vendeur a dépliés lui-même, plus celui de
-   * la page en cours (on ne doit jamais être sur une page dont l'entrée est
-   * cachée).
+   * la page en cours, déplié à l'arrivée sur la page. Ce dernier se replie
+   * quand même d'un clic (14/10 : « Pilotage » restait bloqué ouvert) ; changer
+   * de page le rouvre, puisque chaque page remonte la coque.
    */
   const [ouverts, setOuverts] = useState<string[]>(() => lireGroupesOuverts())
+  const [courantReplie, setCourantReplie] = useState(false)
   const groupeCourant = rayonActif ? 'marketing' : courante?.groupeId
-  const estOuvert = (g: GroupeMenu) => g.id === groupeCourant || ouverts.includes(g.id)
+  const estOuvert = (g: GroupeMenu) => ouverts.includes(g.id) || (g.id === groupeCourant && !courantReplie)
   const basculer = (g: GroupeMenu) => {
+    if (g.id === groupeCourant) setCourantReplie(estOuvert(g))
     setOuverts((liste) => {
       const suivante = estOuvert(g) ? liste.filter((x) => x !== g.id) : [...liste, g.id]
       ecrireGroupesOuverts(suivante)
