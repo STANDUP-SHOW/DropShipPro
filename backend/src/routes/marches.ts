@@ -6,6 +6,7 @@ import { prisma } from '../lib/prisma.js'
 import { frontendUrl } from '../lib/urls.js'
 import { lireEtat, signerEtat } from '../services/oauthEtat.js'
 import { connecteurMarche, connecteursMarche, retourMarche } from '../services/marches.js'
+import { attenteApplication } from '../services/marchesApi.js'
 
 /**
  * Relier un compte vendeur TikTok Shop, Amazon, Allegro, Cdiscount, Etsy ou Wish.
@@ -26,6 +27,9 @@ function plateformeDe(brut: string): Platform | null {
 
 /** Pour chaque place de marché à autorisation : l'app est-elle déclarée, le compte relié ? */
 marchesRouter.get('/', async (req: AuthedRequest, res) => {
+  // Express 4: a throwing async handler leaves the request hanging, and the
+  // screen then shows nothing at all where the "connect" button should be.
+  try {
   const lignes = await prisma.platformCredential.findMany({
     where: { userId: req.userId!, platform: { in: connecteursMarche().map((c) => c.platform) } },
     select: { platform: true, label: true, connected: true },
@@ -37,7 +41,7 @@ marchesRouter.get('/', async (req: AuthedRequest, res) => {
         platform: c.platform,
         label: c.label,
         appConfiguree: c.appConfiguree(),
-        manque: c.appConfiguree() ? null : c.manque(),
+        manque: c.appConfiguree() ? null : attenteApplication(c),
         relie: Boolean(l?.connected),
         compte: l?.label ?? null,
         /** Vrai quand la liaison passe par une redirection chez la plateforme. */
@@ -47,6 +51,10 @@ marchesRouter.get('/', async (req: AuthedRequest, res) => {
       }
     }),
   )
+  } catch (err) {
+    console.error('[marches] état illisible', err)
+    res.status(500).json({ error: "L'état de vos liaisons n'a pas pu être lu. Réessayez dans un instant." })
+  }
 })
 
 /** L'adresse où envoyer le vendeur pour autoriser DropShipper. */
@@ -54,7 +62,7 @@ marchesRouter.post('/:platform/connect', (req: AuthedRequest, res) => {
   const platform = plateformeDe(req.params.platform)
   if (!platform) return res.status(404).json({ error: 'Place de marché inconnue.' })
   const c = connecteurMarche(platform)!
-  if (!c.appConfiguree()) return res.status(503).json({ error: c.manque() })
+  if (!c.appConfiguree()) return res.status(503).json({ error: attenteApplication(c) })
   if (!c.lienAutorisation) return res.status(400).json({ error: `${c.label} se relie en collant vos identifiants, pas par une redirection.` })
   res.json({ url: c.lienAutorisation(signerEtat(req.userId!, platform), retourMarche(platform)) })
 })
@@ -104,7 +112,7 @@ marchesRouter.post('/:platform/saisie', async (req: AuthedRequest, res) => {
   const platform = plateformeDe(req.params.platform)
   const c = platform ? connecteurMarche(platform) : undefined
   if (!platform || !c?.saisie) return res.status(404).json({ error: 'Cette place de marché ne se relie pas par saisie.' })
-  if (!c.appConfiguree()) return res.status(503).json({ error: c.manque() })
+  if (!c.appConfiguree()) return res.status(503).json({ error: attenteApplication(c) })
   const corps = (req.body ?? {}) as Record<string, unknown>
   const params: Record<string, string> = {}
   for (const champ of c.saisie()) {

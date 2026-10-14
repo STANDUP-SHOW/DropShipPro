@@ -66,7 +66,7 @@ function configuration() {
   const appSecret = process.env.PINTEREST_APP_SECRET?.trim()
   if (!appId || !appSecret) {
     throw new SocialError(
-      "L'application Pinterest n'est pas configurée : PINTEREST_APP_ID et PINTEREST_APP_SECRET manquent.",
+      "La connexion Pinterest n'est pas encore ouverte sur DropShipper : notre application doit d'abord être validée par Pinterest.",
     )
   }
   return { appId, appSecret }

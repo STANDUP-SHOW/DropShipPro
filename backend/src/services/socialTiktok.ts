@@ -79,7 +79,7 @@ function configurationTiktok() {
   const clientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim()
   if (!clientKey || !clientSecret) {
     throw new SocialError(
-      "L'application TikTok n'est pas configurée : TIKTOK_CLIENT_KEY et TIKTOK_CLIENT_SECRET manquent.",
+      "La connexion TikTok n'est pas encore ouverte sur DropShipper : notre application doit d'abord être validée par TikTok.",
     )
   }
   return { clientKey, clientSecret }
@@ -90,7 +90,7 @@ function configurationAds() {
   const secret = process.env.TIKTOK_ADS_SECRET?.trim()
   if (!appId || !secret) {
     throw new SocialError(
-      "L'application TikTok Ads n'est pas configurée : TIKTOK_ADS_APP_ID et TIKTOK_ADS_SECRET manquent.",
+      "La connexion TikTok Ads n'est pas encore ouverte sur DropShipper : notre application doit d'abord être validée par TikTok.",
     )
   }
   return { appId, secret }

@@ -29,12 +29,19 @@ export function MarcheAutorisation({
   const [jeton, setJeton] = useState({ refreshToken: '', sellerId: '' })
   const [champs, setChamps] = useState<Record<string, string>>({})
 
+  /** Why the state could not be read: never leave the seller in front of an empty block. */
+  const [lecture, setLecture] = useState<'en cours' | 'ok' | 'echec'>('en cours')
+
   async function relire() {
+    setLecture('en cours')
     try {
       const tous = await api.marchesEtat()
-      setEtat(tous.find((e) => e.platform === platform) ?? null)
+      const trouve = tous.find((e) => e.platform === platform) ?? null
+      setEtat(trouve)
+      setLecture(trouve ? 'ok' : 'echec')
     } catch {
       setEtat(null)
+      setLecture('echec')
     }
   }
 
@@ -97,7 +104,18 @@ export function MarcheAutorisation({
     }
   }
 
-  if (!etat) return null
+  if (!etat) {
+    return lecture === 'en cours' ? (
+      <p className="mt-3 text-xs text-gray-400">{`Lecture de votre liaison ${label}…`}</p>
+    ) : (
+      <p className="mt-3 rounded-lg border border-red-400/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-200">
+        <span>{`L'état de votre liaison ${label} n'a pas pu être lu. `}</span>
+        <button type="button" onClick={() => void relire()} className="underline underline-offset-2">
+          Réessayer
+        </button>
+      </p>
+    )
+  }
   const saisie = etat.saisie ?? []
   const saisieComplete = saisie.every((c) => (champs[c.cle] ?? '').trim())
 
@@ -105,7 +123,7 @@ export function MarcheAutorisation({
     <div className="mt-3 space-y-2 text-xs">
       {!etat.appConfiguree ? (
         <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1.5 text-amber-200">
-          <span className="font-semibold">En attente des clés. </span>
+          <span className="font-semibold">Pas encore ouvert. </span>
           {etat.manque}
         </p>
       ) : etat.relie ? (
