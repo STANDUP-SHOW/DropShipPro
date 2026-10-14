@@ -5,7 +5,7 @@ import { enhanceListing } from './aiEnhancer.js'
 import { rapatrierImages } from './watermark.js'
 import { PHOTOS_PAR_ANNONCE } from './photoLimits.js'
 import { resoudreCategorie } from './categories.js'
-import { reserveCredits } from './billing.js'
+import { refundCredits, reserveCredits } from './billing.js'
 import { DROPS } from './tarifs.js'
 
 /**
@@ -38,7 +38,13 @@ export interface ResultatImport {
 export async function importerDepuisFournisseurs(
   userId: string,
   parFournisseur: Map<string, Map<string, string>>,
-  options: { apiBaseUrl?: string } = {},
+  options: {
+    apiBaseUrl?: string
+    /** Le tarif d'une annonce, en drops : l'import par adresse par défaut, moins depuis un catalogue connecté. */
+    drops?: number
+    /** Le libellé du débit, tel qu'il apparaît dans l'historique du portefeuille. */
+    motif?: string
+  } = {},
 ): Promise<ResultatImport> {
   const resultat: ResultatImport = { importes: 0, echecs: [], deja: 0, nonRelies: [] }
 
@@ -94,7 +100,7 @@ export async function importerDepuisFournisseurs(
 
       // Le crédit est pris avant l'appel : appeler le modèle puis annoncer qu'il
       // n'y avait pas de crédit serait payer pour rien.
-      const credit = await reserveCredits(userId, DROPS.import, 'Import fournisseur')
+      const credit = await reserveCredits(userId, options.drops ?? DROPS.import, options.motif ?? 'Import fournisseur')
       if (!credit.ok) {
         resultat.echecs.push({ ref, raison: 'Crédits épuisés.' })
         break
@@ -188,8 +194,9 @@ export async function importerDepuisFournisseurs(
 
         resultat.importes++
       } catch (err) {
-        // Le crédit est rendu : le vendeur n'a rien reçu.
-        await prisma.user.update({ where: { id: userId }, data: { credits: { increment: 1 } } })
+        // Le crédit est rendu, au prix débité : le vendeur n'a rien reçu. (Il
+        // n'était rendu qu'un drop sur douze avant le 14/10/2026.)
+        await refundCredits(userId, options.drops ?? DROPS.import, `Remboursement : ${options.motif ?? 'Import fournisseur'}`)
 
         const raison = err instanceof SupplierError ? err.message : `Import impossible pour ${ref}.`
         resultat.echecs.push({ ref, raison })

@@ -93,6 +93,42 @@ const serveur = http.createServer((req, res) => {
       })
     }
 
+    // --- Rayons et flux (14/10/2026) ---------------------------------------
+    if (params.method === 'aliexpress.ds.category.get') {
+      return repondre({
+        aliexpress_ds_category_get_response: {
+          resp_result: {
+            result: {
+              categories: {
+                category: [
+                  { category_id: 1, category_name: 'Maison', parent_category_id: 0 },
+                  { category_id: 11, category_name: 'Cuisine', parent_category_id: 1 },
+                  { category_id: 2, category_name: 'Téléphones' },
+                ],
+              },
+            },
+          },
+        },
+      })
+    }
+    if (params.method === 'aliexpress.ds.feedname.get') {
+      return repondre({
+        aliexpress_ds_feedname_get_response: {
+          resp_result: { result: { promos: { promo: [{ promo_name: 'DS bestseller' }, { promo_name: 'DS_NewArrivals' }] } } },
+        },
+      })
+    }
+    if (params.method === 'aliexpress.ds.recommend.feed.get') {
+      const produit = (id: string) => ({ product_id: id, product_title: `Produit ${id}`, target_sale_price: '5.00' })
+      const lignes =
+        params.feed_name === 'DS_NewArrivals'
+          ? [produit('NEUF')]
+          : params.category_id === '1'
+            ? [produit('MAISON')]
+            : [produit('TOP')]
+      return repondre({ aliexpress_ds_recommend_feed_get_response: { result: { products: { traffic_product_d_t_o: lignes } } } })
+    }
+
     // --- Les fiches ----------------------------------------------------------
     switch (params.product_id) {
       case 'NORMAL':
@@ -254,6 +290,18 @@ try {
   }
   exige((incomplet as InstanceType<typeof SupplierError>)?.actionnable === true, 'une liaison incomplète doit être actionnable')
   exige(vus.length === avant, 'une liaison incomplète ne doit déclencher aucun appel réseau')
+
+  // --- Rayons, produits d'un rayon, nouveautés (14/10/2026) ---------------
+  const idsAli = { appKey: 'app-123', appSecret: SECRET, accessToken: jetonCourant }
+  const rayonsAli = await aliexpress.listerRayons!(idsAli)
+  exige(
+    rayonsAli.map((r) => r.label).join(',') === 'Maison,Téléphones',
+    `rayons AliExpress : ${rayonsAli.map((r) => r.label).join(',')}, attendu le premier niveau seul`,
+  )
+  const maison = await aliexpress.produitsDuRayon!('1', idsAli)
+  exige(maison[0]?.ref === 'MAISON', 'le rayon AliExpress doit borner le flux à sa catégorie')
+  const neufsAli = await aliexpress.nouveautes!(idsAli)
+  exige(neufsAli[0]?.ref === 'NEUF', `nouveautés AliExpress : ${neufsAli[0]?.ref}, attendu le flux « new »`)
 
   console.log(echecs === 0 ? 'Connecteur AliExpress : tout passe.' : `${echecs} échec(s).`)
   process.exitCode = echecs === 0 ? 0 : 1

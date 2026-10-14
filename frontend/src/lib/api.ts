@@ -1987,8 +1987,12 @@ export const api = {
       `/settings/shopify/install-url?shop=${encodeURIComponent(shop)}${retour ? `&retour=${encodeURIComponent(retour)}` : ''}`,
     ),
 
-  /** Le catalogue d'un fournisseur relié : ce qu'il sait faire, et ses produits. */
-  supplierCatalog: (supplier: string, q: string, rayon?: string) =>
+  /**
+   * Les catalogues des fournisseurs reliés : recherche par mots-clés, rayon, ou
+   * (sans l'un ni l'autre) leurs nouveautés. `supplier` restreint à un seul ;
+   * `sauf` interroge tous les autres.
+   */
+  supplierCatalog: (o: { supplier?: string; q?: string; rayon?: string; sauf?: string }) =>
     request<{
       /** Un bloc par fournisseur relié : ses offres, ou la raison de son silence. */
       fournisseurs: Array<{
@@ -1996,22 +2000,33 @@ export const api = {
         label: string
         cherche: boolean
         gagnants: boolean
-        /** Son catalogue se parcourt par rayons, faute de recherche. */
-        rayons?: boolean
-        rayonsDisponibles?: Array<{ id: string; label: string }>
+        nouveautes: boolean
+        rayons: boolean
         rayonChoisi?: string | null
         produits: Array<{
           ref: string
           titre: string
           prix: number | null
           devise: string
+          /** Le prix ramené en euros au taux BCE du jour, pour comparer ; null si la devise est inconnue. */
+          prixEur: number | null
           image: string | null
           url: string | null
           entrepot: 'europe' | 'chine' | null
         }>
         note: string | null
       }>
-    }>(`/products/meta/supplier-catalog?supplier=${encodeURIComponent(supplier)}&q=${encodeURIComponent(q)}${rayon ? `&rayon=${encodeURIComponent(rayon)}` : ''}`),
+    }>(
+      `/products/meta/supplier-catalog?${new URLSearchParams(
+        Object.entries(o).filter((e): e is [string, string] => Boolean(e[1])),
+      )}`,
+    ),
+
+  /** Les rayons publiés par l'API de chaque fournisseur relié. */
+  supplierRayons: () =>
+    request<{
+      fournisseurs: Array<{ id: string; label: string; rayons: Array<{ id: string; label: string }>; note: string | null }>
+    }>('/products/meta/supplier-rayons'),
 
   /** Importe les fiches cochées dans un catalogue fournisseur. */
   importCatalogue: (supplier: string, refs: string[]) =>
