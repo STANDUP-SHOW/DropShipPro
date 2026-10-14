@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Link2, Loader2, Layers, Puzzle, Trash2, Copy, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp, Plus } from 'lucide-react'
+import { Loader2, Trash2, Copy, LayoutGrid, List, Radio, CheckSquare, Square, TrendingUp, Plus } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { CategoryMenu } from '../components/CategoryMenu'
 import { AgentBar } from '../components/AgentBar'
 import { VoirPlus, useVoirPlus } from '../components/VoirPlus'
 import { BulkPublishDialog } from '../components/BulkPublishDialog'
 import { BulkActions } from '../components/BulkActions'
-import { BlocSection } from '../components/stats/BlocSection'
-import { api, assetUrl, importSupplierList } from '../lib/api'
-import { CHROME_STORE_URL } from '../lib/extension'
+import { StatsReduites } from '../components/stats/StatsReduites'
+import { api, assetUrl } from '../lib/api'
 import type { PlatformInfo } from '../lib/platforms'
 import { PublishedBadges } from '../components/PublishedBadges'
 import { PrixModifiable } from '../components/PrixModifiable'
@@ -48,14 +47,7 @@ function filtresSauves(): Record<string, any> | null {
 export default function Dashboard() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [url, setUrl] = useState('')
-  const [batchOpen, setBatchOpen] = useState(false)
-  const [batchUrls, setBatchUrls] = useState('')
-  const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [batchSummary, setBatchSummary] = useState<string | null>(null)
-  /** Le détail des échecs, adresse par adresse — le serveur le donnait déjà, personne ne l'affichait. */
-  const [batchEchecs, setBatchEchecs] = useState<Array<{ url: string; error: string }>>([])
   /** Le compte-rendu d'une action en lot. Une action muette laisse croire qu'il ne s'est rien passé. */
   const [avis, setAvis] = useState<string | null>(null)
   // Réglages restaurés au retour d'une fiche (null lors d'une visite normale).
@@ -328,92 +320,6 @@ export default function Dashboard() {
     })
   }
 
-  async function onImport(e: FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setImporting(true)
-    try {
-      await api.importProduct(url)
-      setUrl('')
-      await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Échec de l'import")
-    } finally {
-      setImporting(false)
-    }
-  }
-
-  /**
-   * L'import en lot, une adresse par requête.
-   *
-   * **Deux défauts, et le second faisait tout échouer.**
-   *
-   * Le premier : le serveur rendait une erreur *par adresse*, et l'écran n'en
-   * affichait aucune — « 0 importés, 25 échoués » sans dire pourquoi, ce qui ne
-   * laisse rien à corriger.
-   *
-   * Le second : les vingt-cinq adresses partaient dans **une seule requête**.
-   * Un import prend trente à soixante secondes ; vingt-cinq à la suite font un
-   * quart d'heure, et aucun proxy ne tient une requête ouverte aussi longtemps.
-   * La connexion tombait donc systématiquement — « failed to fetch » — alors
-   * que le serveur, lui, continuait d'importer. Exactement la panne du bouton
-   * « Reprendre », découverte quinze jours plus tôt et corrigée de la même
-   * façon : découper côté client.
-   *
-   * Une adresse par requête tient largement dans le délai, montre l'avancement
-   * pendant que ça tourne, et rend chaque échec lisible avec son adresse.
-   */
-  async function onBatchImport(e: FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setBatchSummary(null)
-    setBatchEchecs([])
-    const urls = batchUrls
-      .split('\n')
-      .map((u) => u.trim())
-      .filter(Boolean)
-      .slice(0, 25)
-    if (!urls.length) return
-
-    setImporting(true)
-    const echecs: Array<{ url: string; error: string }> = []
-    let reussies = 0
-
-    for (const [i, u] of urls.entries()) {
-      setBatchSummary(`Import ${i + 1} sur ${urls.length}…`)
-      try {
-        const res = await api.importBatch([u])
-        const ligne = res.results[0]
-        if (ligne?.ok) reussies++
-        else echecs.push({ url: u, error: ligne?.error || 'Échec sans détail' })
-      } catch (err) {
-        /*
-         * Une adresse qui échoue n'arrête pas le lot.
-         *
-         * Un solde épuisé, lui, l'arrête : les suivantes échoueraient toutes
-         * pour la même raison, et vingt-quatre lignes rouges identiques
-         * cachent la seule qui compte.
-         */
-        const message = err instanceof Error ? err.message : "Échec de l'import"
-        echecs.push({ url: u, error: message })
-        if (/drop|crédit|credit|solde/i.test(message)) {
-          setBatchSummary(`Arrêté à ${i + 1} sur ${urls.length} : ${message}`)
-          break
-        }
-      }
-      // Rechargée au fur et à mesure : le vendeur voit ses annonces arriver au
-      // lieu d'attendre devant une liste inchangée.
-      await load()
-    }
-
-    setBatchEchecs(echecs)
-    setBatchSummary(`${reussies} importée(s), ${echecs.length} en échec sur ${urls.length}.`)
-    // Seules les adresses en échec restent dans le champ : le vendeur corrige
-    // et relance sans retrier à la main celles qui sont déjà passées.
-    setBatchUrls(echecs.map((e) => e.url).join('\n'))
-    setImporting(false)
-  }
-
   async function confirmDelete() {
     if (!pendingDelete) return
     setDeleting(true)
@@ -431,14 +337,6 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      {/* L'agent en charge de ce qui se decide ici : une question posee devant
-          l ecran ne devrait pas obliger a quitter l ecran. */}
-      <AgentBar
-        agentKey="writer"
-        nom="Romain"
-        emoji="✍️"
-        exemple="Demandez à Romain : réécris ce titre pour Leboncoin, il est trop long."
-      />
       {/* Deleting a listing can't be undone, so it goes through a confirmation
           rather than firing on the thumbnail click. */}
       {pendingDelete && (
@@ -476,161 +374,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Les blocs statistiques en tête de Mes annonces : l'acquisition (c'est
-          ici qu'on acquiert) puis le catalogue — produits et stocks. Même
-          adresse, même calcul qu'à l'accueil ; jamais deux chiffres différents. */}
-      <BlocSection id="acquisition" />
-      <BlocSection id="catalogue" />
-
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Importer un produit</h1>
-          <p className="text-gray-400 text-sm mt-1">Collez l'URL d'un produit — Temu, JoyBuy, ou n'importe quel site.</p>
-        </div>
-        <a
-          href={CHROME_STORE_URL}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="inline-flex items-center gap-2 rounded-lg border border-purple-400/40 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 transition"
-          title="Installer depuis le Chrome Web Store — remplit automatiquement les formulaires Vinted, Leboncoin et eBay"
-        >
-          <Puzzle size={16} className="text-purple-300" /> Extension Chrome
-        </a>
-      </div>
-
-      <form onSubmit={onImport} className="mt-5 flex gap-2">
-        <div className="relative flex-1">
-          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-          <input
-            required
-            type="url"
-            placeholder="https://..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="w-full rounded-lg bg-white/10 border border-white/10 pl-9 pr-3 py-2.5 outline-none focus:border-purple-400"
-          />
-        </div>
-        <button disabled={importing} className="btn-gradient rounded-lg px-5 font-semibold disabled:opacity-50 flex items-center gap-2">
-          {importing && <Loader2 className="animate-spin" size={16} />}
-          Importer
-        </button>
-        <button
-          type="button"
-          onClick={() => setBatchOpen((v) => !v)}
-          className="rounded-lg border border-white/10 px-4 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-1.5"
-        >
-          <Layers size={15} /> Lot
-        </button>
-      </form>
-
-      {batchOpen && (
-        <form onSubmit={onBatchImport} className="mt-3 rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-          <p className="text-sm text-gray-400">Une URL par ligne, 25 maximum.</p>
-          <textarea
-            value={batchUrls}
-            onChange={(e) => setBatchUrls(e.target.value)}
-            rows={5}
-            placeholder={'https://...\nhttps://...'}
-            className="w-full rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
-          />
-          <div className="flex items-center gap-3">
-            <button disabled={importing} className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50">
-              Importer le lot
-            </button>
-            {batchSummary && <span className="text-sm text-gray-400">{batchSummary}</span>}
-          </div>
-
-          {/*
-            Chaque échec avec son adresse et sa raison.
-            « 25 échoués » ne se corrige pas ; « cette adresse est une fiche
-            AliExpress, passez par l'extension » se corrige.
-          */}
-          {batchEchecs.length > 0 && (
-            <ul className="space-y-1.5 rounded-lg border border-red-400/25 bg-red-500/5 p-3">
-              {batchEchecs.map((e) => (
-                <li key={e.url} className="text-xs">
-                  <span className="block truncate text-gray-400">{e.url}</span>
-                  <span className="text-red-200">{e.error}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/*
-            L'import d'un export fournisseur.
-            AliExpress Business, comme ses concurrents, exporte une sélection en
-            classeur — identifiants et titres, rien d'autre. Les fiches et les
-            photos sont ensuite demandées à l'API du fournisseur : c'est le seul
-            chemin qui marche sur une liste, puisque ces adresses ne se laissent
-            pas lire par un serveur et que l'extension travaille page par page.
-          */}
-          <div className="border-t border-white/10 pt-3">
-            <p className="text-sm font-medium">Ou importez un fichier exporté par votre fournisseur</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              AliExpress Business, BigBuy, CJ… Le fournisseur doit être relié dans{' '}
-              <Link to="/api-sourcing-connect" className="text-purple-300 underline underline-offset-2">
-                API fournisseurs
-              </Link>{' '}
-              : le fichier ne contient que des références, les photos viennent de son API.
-            </p>
-
-            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm hover:bg-white/10">
-              <input
-                type="file"
-                accept=".xlsx"
-                className="hidden"
-                onChange={async (e) => {
-                  const fichier = e.target.files?.[0]
-                  e.target.value = ''
-                  if (!fichier) return
-                  setError(null)
-                  setBatchSummary(null)
-                  setImporting(true)
-                  try {
-                    const r = await importSupplierList(fichier)
-                    const morceaux = [`${r.importes} importé(s) sur ${r.lues} ligne(s)`]
-                    if (r.deja) morceaux.push(`${r.deja} déjà en catalogue`)
-                    if (r.ignorees) morceaux.push(`${r.ignorees} adresse(s) non reconnue(s)`)
-                    if (r.nonRelies.length) morceaux.push(`non relié : ${r.nonRelies.join(', ')}`)
-                    setBatchSummary(morceaux.join(' · '))
-                    // Une raison d'échec vaut mieux qu'un compte : elle dit quoi faire.
-                    if (r.echecs.length) setError(r.echecs[0].raison)
-                    await load()
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Import du fichier impossible')
-                  } finally {
-                    setImporting(false)
-                  }
-                }}
-              />
-              <span>Choisir un fichier .xlsx</span>
-            </label>
-          </div>
-        </form>
-      )}
-
-      {/* An import runs 30 to 60 seconds — scraping, AI rewrite, then watermarking.
-          Without this the screen looks frozen and people assume it crashed. */}
-      {importing && (
-        <div className="mt-4 rounded-xl border border-purple-400/30 bg-purple-500/5 p-4">
-          <div className="flex items-center gap-3">
-            <Loader2 className="animate-spin text-purple-300 shrink-0" size={20} />
-            <div>
-              <p className="text-sm font-medium">Import en cours — laissez cette page ouverte</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Analyse de la page, réécriture par l'IA, puis filigrane sur les photos. Comptez 30 à 60 secondes.
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-1/3 animate-[loading_1.4s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-purple-400 to-pink-400" />
-          </div>
-        </div>
-      )}
+      {/* Les deux blocs statistiques, réduits (demande de Max du 14/10/2026) :
+          un grand graphique, quelques chiffres, le reste à déplier. L'import par
+          adresse vit désormais dans « Acquérir des produits ». */}
+      <StatsReduites ids={['acquisition', 'catalogue']} />
 
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
 
-      <div className="mt-8">
+      <div className="mt-2">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-lg font-bold">Mes annonces</h2>
@@ -846,9 +597,16 @@ export default function Dashboard() {
         {loading ? (
           <p className="text-gray-400 text-sm mt-4">Chargement...</p>
         ) : visible.length === 0 ? (
-          <p className="text-gray-400 text-sm mt-4">
-            {products.length === 0 ? 'Aucune annonce pour le moment.' : 'Aucune annonce ne correspond à ce filtre.'}
-          </p>
+          products.length === 0 ? (
+            <p className="text-gray-400 text-sm mt-4">
+              <span>Aucune annonce pour le moment. </span>
+              <Link to="/acquisition" className="font-semibold text-[var(--marque-orange)] hover:underline">
+                Importer un produit
+              </Link>
+            </p>
+          ) : (
+            <p className="text-gray-400 text-sm mt-4">Aucune annonce ne correspond à ce filtre.</p>
+          )
         ) : view === 'grid' ? (
           // Quatre annonces par ligne sur un écran 16/9 (06/09/2026).
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
@@ -1030,6 +788,17 @@ export default function Dashboard() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Romain, l'agent de la réécriture, sous la liste : la liste vient d'abord
+          (demande de Max du 14/10/2026). */}
+      <div className="mt-6">
+        <AgentBar
+          agentKey="writer"
+          nom="Romain"
+          emoji="✍️"
+          exemple="Demandez à Romain : réécris ce titre pour Leboncoin, il est trop long."
+        />
       </div>
 
       {bulkOpen && (
