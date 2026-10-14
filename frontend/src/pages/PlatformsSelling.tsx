@@ -221,36 +221,37 @@ export default function PlatformsSelling() {
             {EXPLICATION[integration]}
           </p>
 
-          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Trois par ligne, en cartes comme dans la maquette de Max (14/10/2026). */}
+          <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {liste.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="min-w-0">
                 <button
                   type="button"
                   onClick={() => setOuvert(p)}
-                  className="flex h-full w-full flex-col rounded-xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10"
+                  className="case-ds flex h-full w-full flex-col p-4 text-left transition hover:border-[var(--trait-fort)]"
                 >
-                  <div className="flex items-start gap-3">
-                    <PlatformLogo id={p.id} label={p.label} color={p.color} domain={p.domain} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{p.label}</p>
-                      <span
-                        className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] ${
-                          INTEGRATION_STYLE[p.integration]
-                        }`}
-                      >
-                        {INTEGRATION_LABEL[p.integration]}
-                      </span>
-                    </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <PlatformLogo id={p.id} label={p.label} color={p.color} size={40} domain={p.domain} />
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${INTEGRATION_STYLE[p.integration]}`}
+                    >
+                      {INTEGRATION_LABEL[p.integration]}
+                    </span>
                   </div>
 
-                  <p className="mt-3 flex-1 text-xs leading-relaxed text-gray-500">{p.note}</p>
+                  <h3 className="mt-3 truncate text-base font-bold text-[var(--texte)]">{p.label}</h3>
+                  <p className="mt-1 line-clamp-3 flex-1 text-xs leading-relaxed text-[var(--texte-2)]">{p.note}</p>
 
                   {p.warning ? (
-                    <span className="mt-2 inline-flex items-center gap-1 text-[10px] text-amber-300">
-                      <AlertTriangle size={9} />
-                      <span>à savoir avant de publier</span>
+                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] text-amber-300">
+                      <AlertTriangle size={11} />
+                      <span>À savoir avant de publier</span>
                     </span>
                   ) : null}
+
+                  <span className="mt-3 inline-flex self-start rounded-lg border border-[var(--trait)] px-3 py-1.5 text-xs font-semibold text-[var(--texte)]">
+                    Voir les conditions
+                  </span>
                 </button>
               </li>
             ))}

@@ -292,10 +292,10 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
       titre: 'Fournisseurs',
       tuiles: [
         { id: 'actifs', label: 'Fournisseurs actifs', valeur: parSource.size },
-        { id: 'commandes', label: 'Commandes fournisseur', valeur: cmdFournisseur.length },
+        { id: 'commandes', label: 'Commandes fournisseur', valeur: cmdFournisseur.length, serie: serieParJour(cmdFournisseur.map((o) => ({ quand: o.supplierOrderedAt!, valeur: 1 })), du, au) },
         { id: 'en-cours', label: 'En cours', valeur: cmdFournisseur.filter((o) => o.status === 'ORDERED_FROM_SUPPLIER' || o.status === 'SHIPPED').length },
         { id: 'terminees', label: 'Terminées', valeur: cmdFournisseur.filter((o) => o.status === 'DELIVERED').length },
-        { id: 'achats', label: 'Montant achats', valeur: arrondi(achats, 2), unite: '€' },
+        { id: 'achats', label: 'Montant achats', valeur: arrondi(achats, 2), unite: '€', serie: serieParJour(cmdFournisseur.map((o) => ({ quand: o.supplierOrderedAt!, valeur: num(o.supplierOrderCost) })), du, au) },
         { id: 'meilleur', label: 'Meilleur fournisseur', valeur: meilleur?.[0] ?? null, ...(meilleur ? {} : pasEncore('Aucune vente reliée à un fournisseur.')) },
         { id: 'rentable', label: 'Le plus rentable', valeur: rentable?.[0] ?? null, ...(rentable ? {} : pasEncore('Aucune vente reliée à un fournisseur.')) },
         { id: 'retards', label: 'Retards (10 j+)', valeur: retards.length },

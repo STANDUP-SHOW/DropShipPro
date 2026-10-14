@@ -1,56 +1,46 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Boxes,
-  Check,
-  ShoppingCart,
-  ExternalLink,
-  ChevronDown,
-} from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BandeauMCP } from '../components/BandeauMCP'
-import { BlocSection } from '../components/stats/BlocSection'
-import { AgentBar } from '../components/AgentBar'
 import { SupplierBlock } from '../components/SupplierBlock'
-import { api, assetUrl } from '../lib/api'
+import { StatsFournisseurs } from '../components/fournisseurs/StatsFournisseurs'
+import { BlocSacha } from '../components/fournisseurs/BlocSacha'
+import { api } from '../lib/api'
 
 /**
- * Fournisseurs : d'où viennent les produits, et ce qu'il faut leur commander.
+ * Fournisseurs : d'où viennent les produits, et comment on s'y relie.
  *
- * Ce que ça remplace : deux écrans qui parlaient des mêmes fournisseurs sans se
- * connaître. « Acquisition » disait où trouver un produit, « API Sourcing
- * Connect » disait comment se relier — et le vendeur devait tenir les deux en
- * tête pour décider quoi que ce soit. Chaque fiche porte désormais les deux :
- * ce que le fournisseur vend, comment on l'importe, et où en est le
- * raccordement.
+ * **Refaite le 14/10/2026 à la demande de Max**, d'après sa maquette :
+ * - en haut, le bloc statistique réduit (demi-page, grand graphique, petits
+ *   chiffres, dépliable) et, à sa droite, l'information MCP ;
+ * - la liste complète des fournisseurs, trois par ligne, avec un seul bloc de
+ *   tri groupé ;
+ * - en bas, Sacha (récap de sa fiche, discussion, champ pour écrire ou
+ *   dicter) et, à côté, la demande d'un fournisseur manquant.
  *
- * En dessous, la question du matin : **qu'est-ce que je dois commander, et chez
- * qui**. Rangées par vente, les commandes obligent à rouvrir le site d'un
- * fournisseur, puis d'un autre, puis à revenir au premier — et c'est là que se
- * perdent les colis.
+ * Les ventes à commander ne sont plus ici : elles ont leur rubrique,
+ * « Commandes fournisseurs ». Il en reste le badge « à commander » sur la
+ * carte du fournisseur concerné.
  */
-
-
-
-
 
 type Supplier = Awaited<ReturnType<typeof api.listSuppliers>>[number]
 type Lien = Awaited<ReturnType<typeof api.listSupplierLinks>>[number]
 type ParFournisseur = Awaited<ReturnType<typeof api.ordersBySupplier>>['fournisseurs'][number]
+
+type Filtre = 'tous' | 'api' | 'relies' | 'sans-api'
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [liens, setLiens] = useState<Lien[]>([])
   const [ouvert, setOuvert] = useState<string | null>(null)
   const [ventes, setVentes] = useState<ParFournisseur[]>([])
-  const [erreur, setErreur] = useState<string | null>(null)
+  const [filtre, setFiltre] = useState<Filtre>('tous')
 
   const recharger = () => {
     api.listSupplierLinks().then(setLiens).catch(() => undefined)
     api
       .ordersBySupplier()
       .then((r) => setVentes(r.fournisseurs))
-      .catch(() => setErreur('Impossible de lire vos ventes.'))
+      .catch(() => undefined)
   }
 
   useEffect(() => {
@@ -59,6 +49,7 @@ export default function Suppliers() {
   }, [])
 
   const lienDe = (id: string) => liens.find((l) => l.supplier === id)
+  const estRelie = (id: string) => Boolean(lienDe(id)?.connected)
 
   /** Les fournisseurs classés : ceux qu'on peut relier d'abord. */
   const classes = useMemo(
@@ -66,53 +57,64 @@ export default function Suppliers() {
     [suppliers],
   )
 
-  const aCommander = ventes.reduce((n, f) => n + f.aCommander, 0)
+  const compte: Record<Filtre, number> = {
+    tous: classes.length,
+    api: classes.filter((s) => s.api).length,
+    relies: classes.filter((s) => s.api && estRelie(s.id)).length,
+    'sans-api': classes.filter((s) => !s.api).length,
+  }
+
+  const visibles = classes.filter((s) =>
+    filtre === 'api' ? s.api : filtre === 'relies' ? s.api && estRelie(s.id) : filtre === 'sans-api' ? !s.api : true,
+  )
+
+  const FILTRES: Array<{ id: Filtre; label: string }> = [
+    { id: 'tous', label: 'Tous' },
+    { id: 'api', label: 'API disponible' },
+    { id: 'relies', label: 'Reliés' },
+    { id: 'sans-api', label: 'Sans API' },
+  ]
 
   return (
     <Layout>
-      <BlocSection id="fournisseurs" />
-      {/* L'agent en charge de ce qui se decide ici : une question posee devant
-          l ecran ne devrait pas obliger a quitter l ecran. */}
-      <AgentBar
-        agentKey="scrapper"
-        nom="Sacha"
-        emoji="🔎"
-        exemple="Demandez à Sacha : ce fournisseur est-il fiable pour de l'électronique ?"
-      />
-      <div className="mb-6">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <Boxes size={22} className="text-emerald-400" />
-          <span>Fournisseurs</span>
-        </h1>
-        <p className="mt-1 max-w-3xl text-sm text-gray-400">
-          D'où viennent vos produits, et ce qu'il reste à commander. Une fiche par fournisseur : ce
-          qu'il vend, comment on l'importe, et où en est le raccordement à son API.
-        </p>
-        <BandeauMCP />
+      {/* Statistiques réduites à gauche, information MCP à droite : deux demi-pages. */}
+      <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <StatsFournisseurs />
+        <div className="min-w-0 [&>section]:mt-0 [&>section]:h-full">
+          <BandeauMCP />
+        </div>
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-bold text-[var(--texte)]">
+          Tous les fournisseurs
+          <span className="ml-2 text-xs font-semibold text-[var(--texte-3)]">{compte.tous}</span>
+        </h2>
+        {/* Un seul bloc de tri, boutons rassemblés (règle de Max du 14/10/2026). */}
+        <div role="group" aria-label="Trier les fournisseurs" className="flex flex-wrap gap-1 rounded-xl border border-[var(--trait)] bg-[var(--panneau)] p-1">
+          {FILTRES.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFiltre(f.id)}
+              aria-pressed={filtre === f.id}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                filtre === f.id
+                  ? 'bg-[var(--marque-rose)]/15 text-[var(--texte)] ring-1 ring-[var(--marque-rose)]/50'
+                  : 'text-[var(--texte-2)] hover:text-[var(--texte)]'
+              }`}
+            >
+              {f.label}
+              <span className="ml-1.5 text-[10px] text-[var(--texte-3)]">{compte[f.id]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/*
-        Des lignes depliables sur deux colonnes, et non des cartes.
-
-        La carte tronquait la description a deux lignes et cachait la mise en
-        garde -- celle qui dit « livre en Inde seulement » ou « aucune place de
-        marche n accepte ces produits ». Il fallait ouvrir une fenetre pour la
-        lire, et la fenetre cachait a son tour la fiche pendant qu on collait sa
-        cle. Tout tient desormais au meme endroit.
-
-        Deux colonnes comme les market places (19/09/2026) : trente-huit
-        fournisseurs sur une colonne font defiler trois ecrans pour en comparer
-        deux. Une seule colonne en dessous de md -- la fiche depliee porte un
-        formulaire de cles, et deux formulaires cote a cote sur un telephone ne
-        se remplissent pas.
-
-        « items-start » est ce qui rend le depliage supportable : sans lui, la
-        grille egalise la hauteur des deux cellules d une rangee et la voisine
-        d une fiche ouverte devient une grande case vide.
-      */}
-      <ul className="grid items-start gap-2 md:grid-cols-2">
-        {classes.map((s) => (
+      {/* Trois par ligne sur ordinateur, deux sur tablette, une sur téléphone ;
+          une carte ouverte prend toute la rangée. */}
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {visibles.map((s) => (
           <SupplierBlock
             key={s.id}
             supplier={s}
@@ -124,44 +126,14 @@ export default function Suppliers() {
           />
         ))}
       </ul>
-
-      {/* ---------- Les ventes à commander, fournisseur par fournisseur ---------- */}
-      <section className="mt-10">
-        <h2 className="text-lg font-bold">Ventes à commander</h2>
-        <p className="mt-1 max-w-3xl text-sm text-gray-400">
-          Chaque ligne porte l'adresse de l'acheteur : c'est elle qui part chez le fournisseur, et
-          c'est une faute de frappe dedans qui coûte un colis. Rien n'est payé depuis ici — la
-          commande est déposée et attend votre règlement.
-        </p>
-
-        {erreur ? <p className="mt-3 text-sm text-red-300">{erreur}</p> : null}
-
-        {ventes.length === 0 && !erreur ? (
-          <p className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-gray-400">
-            Aucune vente pour l'instant.
-          </p>
-        ) : null}
-
-        <div className="mt-4 space-y-3">
-          {ventes.map((f) => (
-            <GroupeFournisseur key={f.supplierId} groupe={f} onChange={recharger} />
-          ))}
-        </div>
-      </section>
-
-
-      {/* En bas, jamais avant les blocs — règle du 05/09/2026. */}
-      {/* ---------- Ce qu'il reste à commander ---------- */}
-      {aCommander > 0 ? (
-        <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4">
-          <ShoppingCart size={16} className="mt-0.5 shrink-0 text-amber-300" />
-          <p className="text-sm text-amber-100">
-            {`${aCommander} vente(s) attendent d'être commandées chez leur fournisseur.`}
-          </p>
-        </div>
+      {classes.length > 0 && visibles.length === 0 ? (
+        <p className="case-ds mt-3 p-6 text-center text-sm text-[var(--texte-3)]">Aucun fournisseur dans ce tri.</p>
       ) : null}
 
-      <DemandeFournisseur />
+      <div className="mt-8 grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+        <BlocSacha />
+        <DemandeFournisseur />
+      </div>
     </Layout>
   )
 }
@@ -194,17 +166,17 @@ function DemandeFournisseur() {
   }
 
   return (
-    <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h2 className="text-lg font-bold">Votre fournisseur n'est pas dans la liste ?</h2>
-      <p className="mt-1 max-w-2xl text-sm text-gray-400">
+    <section className="case-ds min-w-0 p-4">
+      <h2 className="text-sm font-bold text-[var(--texte)]">Votre fournisseur n'est pas dans la liste ?</h2>
+      <p className="mt-1 text-xs leading-relaxed text-[var(--texte-2)]">
         Demandez-le : on l'ajoute à l'annuaire, et on le relie si une API est disponible.
       </p>
-      <form onSubmit={envoyer} className="mt-4 flex flex-col gap-2 sm:flex-row">
+      <form onSubmit={envoyer} className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
           value={valeur}
           onChange={(e) => setValeur(e.target.value)}
           placeholder="Nom du fournisseur, ou adresse de son site"
-          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm outline-none focus:border-purple-400"
+          className="min-w-0 flex-1 rounded-xl border border-[var(--trait)] bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[var(--marque-rose)]"
         />
         <button
           type="submit"
@@ -218,147 +190,5 @@ function DemandeFournisseur() {
         <p className={`mt-2 text-sm ${etat.ok ? 'text-emerald-300' : 'text-red-300'}`}>{etat.texte}</p>
       ) : null}
     </section>
-  )
-}
-
-/** Un fournisseur et ses ventes, replié par défaut. */
-function GroupeFournisseur({ groupe, onChange }: { groupe: ParFournisseur; onChange: () => void }) {
-  // Déplié quand il y a quelque chose à faire : c'est ce que le vendeur cherche.
-  const [ouvert, setOuvert] = useState(groupe.aCommander > 0)
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5">
-      <button
-        type="button"
-        onClick={() => setOuvert((o) => !o)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
-      >
-        <ChevronDown
-          size={16}
-          className={`shrink-0 text-gray-400 transition ${ouvert ? '' : '-rotate-90'}`}
-        />
-        <span className="font-semibold">{groupe.label}</span>
-        {groupe.relie ? (
-          <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] text-emerald-300">
-            relié
-          </span>
-        ) : null}
-        <span className="ml-auto text-xs text-gray-400">
-          {groupe.aCommander > 0
-            ? `${groupe.aCommander} à commander sur ${groupe.ventes.length}`
-            : `${groupe.ventes.length} vente(s), tout est commandé`}
-        </span>
-      </button>
-
-      {ouvert ? (
-        <ul className="border-t border-white/10">
-          {groupe.ventes.map((v) => (
-            <LigneVente key={v.id} vente={v} onChange={onChange} />
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  )
-}
-
-function LigneVente({
-  vente,
-  onChange,
-}: {
-  vente: ParFournisseur['ventes'][number]
-  onChange: () => void
-}) {
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-
-  const adresse = (vente.buyerAddress ?? {}) as Record<string, string>
-  const ligneAdresse = [
-    adresse.adresse || adresse.address || adresse.address1,
-    adresse.codePostal || adresse.zip || adresse.postalCode,
-    adresse.ville || adresse.city,
-    adresse.pays || adresse.country,
-  ]
-    .filter(Boolean)
-    .join(', ')
-
-  async function commander() {
-    setBusy(true)
-    setMessage(null)
-    try {
-      const r = await api.orderFromSupplier(vente.id)
-      setMessage(r.message)
-      onChange()
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Commande impossible.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <li className="flex flex-wrap items-start gap-3 border-b border-white/5 px-4 py-3 last:border-0">
-      {vente.produit.image ? (
-        <img
-          src={assetUrl(vente.produit.image)}
-          alt=""
-          className="h-12 w-12 shrink-0 rounded-lg object-cover"
-        />
-      ) : (
-        <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5" />
-      )}
-
-      <div className="min-w-0 flex-1">
-        <Link to={`/products/${vente.produit.id}`} className="text-sm font-medium hover:underline">
-          {vente.produit.titre}
-        </Link>
-        <p className="mt-0.5 text-xs text-gray-400">
-          {`${vente.buyerName} — ${ligneAdresse || 'adresse incomplète'}`}
-        </p>
-        <p className="mt-0.5 text-[11px] text-gray-500">
-          {`${vente.platform} · vendu ${vente.amount.toFixed(2)} ${vente.currency}`}
-          {vente.produit.supplierRef ? ` · réf. ${vente.produit.supplierRef}` : ''}
-        </p>
-        {message ? <p className="mt-1 text-xs text-purple-200">{message}</p> : null}
-        {vente.supplierOrderError && !message ? (
-          <p className="mt-1 text-xs text-amber-300">{vente.supplierOrderError}</p>
-        ) : null}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2">
-        {vente.trackingNumber ? (
-          <Link to="/livraisons" className="text-xs text-purple-300 hover:underline">
-            Suivi
-          </Link>
-        ) : null}
-
-        {vente.supplierOrderId ? (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-400/15 px-3 py-1.5 text-xs text-emerald-300">
-            <Check size={12} />
-            <span>{vente.supplierOrderStatus || 'commandé'}</span>
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={commander}
-            disabled={busy}
-            className="btn-gradient rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-          >
-            {busy ? 'Envoi…' : 'Commander'}
-          </button>
-        )}
-
-        {vente.supplierOrderUrl ? (
-          <a
-            href={vente.supplierOrderUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-gray-400 hover:text-white"
-            title="Régler la commande chez le fournisseur"
-          >
-            <ExternalLink size={14} />
-          </a>
-        ) : null}
-      </div>
-    </li>
   )
 }
