@@ -18,6 +18,12 @@
 export const DROPS = {
   /** Importer une annonce : scraper + réécrire. Coût ~0,021 € → 12. */
   import: 12,
+  /**
+   * Importer un produit depuis un catalogue connecté (14/10/2026, décision de
+   * Max) : la fiche arrive par l'API du fournisseur relié, sans relevé de page ;
+   * seule la recomposition de l'annonce par l'IA est facturée. 5 drops.
+   */
+  importCatalogue: 5,
   /** Importer en lot (par annonce) : réécriture différée en Batch −50 %. ~0,012 €. */
   importLot: 8,
   /** Refaire la réécriture d'une annonce existante. ~0,018 €. */

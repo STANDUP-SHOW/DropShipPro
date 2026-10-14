@@ -201,10 +201,23 @@ const bigbuy: SupplierConnector = {
  * veille tourne au plus une fois par jour, et un jeton périmé en base coûterait
  * un relevé entier.
  */
+/*
+ * Le jeton CJ est gardé en mémoire quelques heures. Une page de catalogue
+ * demande désormais les rayons ET les produits d'un même geste : deux échanges
+ * de jeton en parallèle, alors que CJ bride `getAccessToken` bien plus
+ * sévèrement que le reste de son API.
+ */
+const JETONS_CJ = new Map<string, { jeton: string; expire: number }>()
+const DUREE_JETON_CJ = 6 * 60 * 60 * 1000
+
 async function jetonCj(credentials: Record<string, string>): Promise<string> {
   const email = credentials.email?.trim()
   const key = credentials.apiKey?.trim()
   if (!email || !key) throw new SupplierError('Identifiants CJ Dropshipping incomplets.', true)
+
+  const cle = `${email}\u0000${key}`
+  const garde = JETONS_CJ.get(cle)
+  if (garde && garde.expire > Date.now()) return garde.jeton
 
   const auth = (await appel(`${BASES.cjdropshipping}/authentication/getAccessToken`, {
     method: 'POST',
@@ -216,7 +229,62 @@ async function jetonCj(credentials: Record<string, string>): Promise<string> {
   if (!jeton) {
     throw new SupplierError(auth.message || 'CJ Dropshipping a refusé les identifiants.', true)
   }
+  JETONS_CJ.set(cle, { jeton, expire: Date.now() + DUREE_JETON_CJ })
   return jeton
+}
+
+/** Une ligne de `product/list`, telle que CJ la rend. */
+type LigneCj = { pid?: string; productNameEn?: string; sellPrice?: number | string; productImage?: string; createTime?: string | number }
+
+const ligneCj = (p: LigneCj): SupplierListing => ({
+  ref: p.pid!,
+  titre: p.productNameEn || p.pid!,
+  prix: Number(p.sellPrice) || null,
+  devise: 'USD',
+  image: p.productImage || null,
+  url: `https://www.cjdropshipping.com/product/-p-${p.pid}.html`,
+  entrepot: null,
+})
+
+/** `product/list` avec ces paramètres, réduit aux lignes qui ont un identifiant. */
+async function listeCj(jeton: string, parametres: Record<string, string>): Promise<LigneCj[]> {
+  const reponse = (await appel(`${BASES.cjdropshipping}/product/list?${new URLSearchParams(parametres)}`, {
+    headers: enTetesCj(jeton),
+  })) as { data?: { list?: LigneCj[] } }
+  return (reponse.data?.list ?? []).filter((p) => p.pid)
+}
+
+/**
+ * L'arbre de CJ, à plat : un rayon par catégorie de deuxième niveau, avec les
+ * identifiants de troisième niveau qu'il contient — ce sont ceux-là que
+ * `product/list` accepte. Le premier niveau (« Computer & Office ») est trop
+ * large pour un rayon, le troisième fait des centaines d'entrées.
+ */
+async function arbreCj(jeton: string) {
+  const reponse = (await appel(`${BASES.cjdropshipping}/product/getCategory`, { headers: enTetesCj(jeton) })) as {
+    data?: Array<{
+      categoryFirstName?: string
+      categoryFirstList?: Array<{
+        categorySecondName?: string
+        categorySecondList?: Array<{ categoryId?: string; categoryName?: string }>
+      }>
+    }>
+  }
+  return (reponse.data ?? []).flatMap((premier) =>
+    (premier.categoryFirstList ?? []).flatMap((second) => {
+      const feuilles = (second.categorySecondList ?? []).map((t) => t.categoryId).filter((id): id is string => Boolean(id))
+      if (!second.categorySecondName || !feuilles.length) return []
+      return [
+        {
+          // L'identifiant d'un rayon CJ est son libellé : l'arbre n'en donne
+          // pas d'autre au deuxième niveau, et il est stable chez eux.
+          id: `${premier.categoryFirstName ?? ''} › ${second.categorySecondName}`,
+          label: `${premier.categoryFirstName ?? ''} › ${second.categorySecondName}`,
+          feuilles,
+        },
+      ]
+    }),
+  )
 }
 
 /** Les en-têtes d'un appel CJ authentifié. */
@@ -313,6 +381,57 @@ const cj: SupplierConnector = {
     // On demande large (40) puis on resserre : CJ ne classe pas, donc élaguer
     // sur dix lignes ne laisserait presque rien de juste.
     return gardeLesPertinents(lignes, requete).slice(0, 20)
+  },
+
+  async listerRayons(credentials) {
+    const jeton = await jetonCj(credentials)
+    return (await arbreCj(jeton)).map(({ id, label }) => ({ id, label }))
+  },
+
+  /**
+   * Les produits d'un rayon : ses premières sous-catégories, interrogées
+   * ensemble puis mélangées, pour que le rayon ne se résume pas à la première.
+   */
+  async produitsDuRayon(rayon, credentials) {
+    const jeton = await jetonCj(credentials)
+    const trouve = (await arbreCj(jeton)).find((r) => r.id === rayon)
+    if (!trouve) throw new SupplierError("Ce rayon n'existe plus chez CJ Dropshipping.")
+
+    const listes = await Promise.all(
+      trouve.feuilles.slice(0, 4).map((categoryId) => listeCj(jeton, { categoryId, pageNum: '1', pageSize: '6' })),
+    )
+    const vus = new Set<string>()
+    const sortie: SupplierListing[] = []
+    for (let i = 0; i < 6; i++)
+      for (const l of listes)
+        if (l[i] && !vus.has(l[i].pid!)) {
+          vus.add(l[i].pid!)
+          sortie.push(ligneCj(l[i]))
+        }
+    return sortie
+  },
+
+  /**
+   * Les nouveautés : les produits mis en ligne chez CJ ces trente derniers
+   * jours (`createTimeFrom`). Quand la ligne porte sa date, elle est revérifiée
+   * ici : un paramètre ignoré par l'API ne doit pas faire passer le catalogue
+   * entier pour du neuf.
+   */
+  async nouveautes(credentials) {
+    const jeton = await jetonCj(credentials)
+    const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const lignes = await listeCj(jeton, {
+      createTimeFrom: depuis.toISOString().slice(0, 19).replace('T', ' '),
+      pageNum: '1',
+      pageSize: '20',
+    })
+    return lignes
+      .filter((p) => {
+        if (p.createTime === undefined || p.createTime === null || p.createTime === '') return true
+        const t = typeof p.createTime === 'number' ? p.createTime : Date.parse(String(p.createTime).replace(' ', 'T'))
+        return Number.isNaN(t) || t >= depuis.getTime()
+      })
+      .map(ligneCj)
   },
 
   async fetchVariants(ref, credentials) {

@@ -425,9 +425,96 @@ function texteSeul(html: string): string {
     .trim()
 }
 
+/** Les trois identifiants d'un appel AliExpress, ou le refus qui dit lequel manque. */
+function identifiantsAli(credentials: Record<string, string>) {
+  const appKey = credentials.appKey?.trim()
+  const appSecret = credentials.appSecret?.trim()
+  const accessToken = credentials.accessToken?.trim()
+  if (!appKey || !appSecret || !accessToken) {
+    throw new SupplierError(
+      "Liaison AliExpress incomplète : il faut l'App Key, l'App Secret et le jeton d'accès.",
+      true,
+    )
+  }
+  return { appKey, appSecret, accessToken }
+}
+
+/** Tous les objets d'une réponse qui portent ces deux clés, à n'importe quelle profondeur. */
+function objetsAvec(brut: unknown, a: string, b: string, profondeur = 0): Array<Record<string, unknown>> {
+  if (profondeur > 8 || !brut || typeof brut !== 'object') return []
+  const ici = brut as Record<string, unknown>
+  const soi = !Array.isArray(brut) && ici[a] !== undefined && ici[b] !== undefined ? [ici] : []
+  return [...soi, ...Object.values(ici).flatMap((v) => objetsAvec(v, a, b, profondeur + 1))]
+}
+
+/** Un flux du programme Dropshipping (`ds.recommend.feed.get`), éventuellement borné à une catégorie. */
+async function fluxAli(credentials: Record<string, string>, feed: string, categorie?: string) {
+  const { appKey, appSecret, accessToken } = identifiantsAli(credentials)
+  const params: Record<string, string> = {
+    method: 'aliexpress.ds.recommend.feed.get',
+    app_key: appKey,
+    access_token: accessToken,
+    feed_name: feed,
+    target_currency: credentials.currency?.trim() || 'EUR',
+    target_language: 'FR',
+    country: credentials.shipTo?.trim() || 'FR',
+    page_no: '1',
+    page_size: '20',
+  }
+  if (categorie) params.category_id = categorie
+  return lireListeProduits(await appelSigne(params, appSecret, undefined))
+}
+
+/** Les noms des flux que l'application du vendeur a le droit de lire (`ds.feedname.get`). */
+async function nomsDesFlux(credentials: Record<string, string>): Promise<string[]> {
+  const { appKey, appSecret, accessToken } = identifiantsAli(credentials)
+  const reponse = await appelSigne(
+    { method: 'aliexpress.ds.feedname.get', app_key: appKey, access_token: accessToken },
+    appSecret,
+    undefined,
+  )
+  return objetsAvec(reponse, 'promo_name', 'promo_name')
+    .map((o) => String(o.promo_name ?? ''))
+    .filter(Boolean)
+}
+
 export const aliexpress: SupplierConnector = {
   id: 'aliexpress',
   label: 'AliExpress',
+
+  /**
+   * Les rayons d'AliExpress : ses catégories de premier niveau
+   * (`ds.category.get`), en français.
+   */
+  async listerRayons(credentials) {
+    const { appKey, appSecret, accessToken } = identifiantsAli(credentials)
+    const reponse = await appelSigne(
+      { method: 'aliexpress.ds.category.get', app_key: appKey, access_token: accessToken, language: 'fr' },
+      appSecret,
+      undefined,
+    )
+    const vus = new Set<string>()
+    return objetsAvec(reponse, 'category_id', 'category_name')
+      .filter((c) => !c.parent_category_id || String(c.parent_category_id) === '0')
+      .map((c) => ({ id: String(c.category_id), label: String(c.category_name) }))
+      .filter((c) => c.id && c.label && !vus.has(c.id) && vus.add(c.id))
+  },
+
+  /** Les produits d'un rayon : le flux des meilleures ventes, borné à cette catégorie. */
+  async produitsDuRayon(rayon, credentials) {
+    return fluxAli(credentials, 'DS bestseller', rayon)
+  },
+
+  /**
+   * Les nouveautés : le flux « nouveaux produits » du programme Dropshipping,
+   * cherché parmi les flux que l'application a le droit de lire. S'il n'y en a
+   * pas, la liste est vide : l'écran le dit, plutôt que de rebaptiser les
+   * meilleures ventes.
+   */
+  async nouveautes(credentials) {
+    const flux = (await nomsDesFlux(credentials)).find((n) => /new|nouv/i.test(n))
+    return flux ? fluxAli(credentials, flux) : []
+  },
 
   /**
    * Les produits mis en avant par AliExpress lui-même.

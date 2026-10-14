@@ -191,7 +191,11 @@ export interface SupplierConnector {
   verifier?(credentials: Record<string, string>, ctx?: SupplierContext): Promise<void>
 
   /**
-   * Les rayons du catalogue, quand le fournisseur ne sait pas chercher.
+   * Les rayons du catalogue : son arbre de catégories, premier niveau utile.
+   *
+   * D'abord écrit pour ceux qui ne savent pas chercher (BigBuy). Depuis le
+   * 14/10/2026 (« mes catalogues se parcourent par rayon »), tout fournisseur
+   * dont l'API publie ses catégories l'expose, qu'il sache chercher ou non.
    *
    * **Tous n'ont pas de recherche, et ce n'est pas un oubli.** La spec OpenAPI
    * de BigBuy, lue le 16/09/2026, compte 61 points d'entrée : pas UN ne fait de
@@ -204,6 +208,14 @@ export interface SupplierConnector {
    * ce qu'il déclare au lieu de supposer que tout le monde cherche pareil.
    */
   listerRayons?(credentials: Record<string, string>, ctx?: SupplierContext): Promise<SupplierRayon[]>
+
+  /**
+   * Les nouveautés du fournisseur : ce qu'il vient d'ajouter à son catalogue,
+   * selon SON API (date de mise en ligne, flux « new arrivals »). Un
+   * fournisseur dont l'API ne date pas ses produits ne l'implémente pas :
+   * l'écran le dit au lieu de faire passer ses meilleures ventes pour du neuf.
+   */
+  nouveautes?(credentials: Record<string, string>, ctx?: SupplierContext): Promise<SupplierListing[]>
 
   /** Les produits d'un rayon, page par page. */
   produitsDuRayon?(

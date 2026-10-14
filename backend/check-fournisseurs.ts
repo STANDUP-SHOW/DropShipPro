@@ -60,6 +60,35 @@ const serveur = http.createServer((req, res) => {
       return
     }
     if (req.headers['cj-access-token'] !== 'jeton-valide') return repondre(401, { error: 'unauthorized' })
+    if (url.includes('/product/getCategory')) {
+      return repondre(200, {
+        data: [
+          {
+            categoryFirstName: 'Home & Garden',
+            categoryFirstList: [
+              { categorySecondName: 'Kitchen', categorySecondList: [{ categoryId: 'K1' }, { categoryId: 'K2' }] },
+              { categorySecondName: 'Empty', categorySecondList: [] },
+            ],
+          },
+        ],
+      })
+    }
+    if (url.includes('/product/list')) {
+      const q = new URL(url, BASE).searchParams
+      if (q.get('categoryId') === 'K1') return repondre(200, { data: { list: [{ pid: 'A1', productNameEn: 'Pan', sellPrice: '4.5' }, { pid: 'A2', productNameEn: 'Pot', sellPrice: 6 }] } })
+      if (q.get('categoryId') === 'K2') return repondre(200, { data: { list: [{ pid: 'B1', productNameEn: 'Knife', sellPrice: 3 }] } })
+      if (q.get('createTimeFrom')) {
+        return repondre(200, {
+          data: {
+            list: [
+              { pid: 'N1', productNameEn: 'New lamp', sellPrice: 9, createTime: new Date().toISOString() },
+              { pid: 'OLD', productNameEn: 'Old lamp', sellPrice: 9, createTime: '2020-01-01 10:00:00' },
+            ],
+          },
+        })
+      }
+      return repondre(200, { data: { list: [] } })
+    }
     if (url.includes('pid=VIDE')) return repondre(200, { data: [] })
     return repondre(200, { data: [{ variantSellPrice: 18.4 }, { variantSellPrice: 12.9 }] })
   }
@@ -138,6 +167,20 @@ try {
     (cjErreur as InstanceType<typeof SupplierError>)?.actionnable === true,
     'des identifiants CJ refusés doivent être signalés comme corrigeables',
   )
+
+  // --- CJ : rayons, produits d'un rayon, nouveautés (14/10/2026) ----------
+  const idsCj = { email: 'moi@exemple.fr', apiKey: 'secret' }
+  const rayonsCj = await cj.listerRayons!(idsCj)
+  exige(rayonsCj.length === 1, `rayons CJ : ${rayonsCj.length}, attendu 1 (un rayon sans sous-catégorie ne s'affiche pas)`)
+  exige(rayonsCj[0]?.label === 'Home & Garden › Kitchen', `libellé du rayon CJ : ${rayonsCj[0]?.label}`)
+  const duRayon = await cj.produitsDuRayon!(rayonsCj[0].id, idsCj)
+  exige(
+    duRayon.map((p) => p.ref).join(',') === 'A1,B1,A2',
+    `rayon CJ mélangé entre sous-catégories : ${duRayon.map((p) => p.ref).join(',')}, attendu A1,B1,A2`,
+  )
+  exige(duRayon[0]?.prix === 4.5 && duRayon[0]?.devise === 'USD', 'prix CJ d’un rayon mal lu')
+  const neufs = await cj.nouveautes!(idsCj)
+  exige(neufs.map((p) => p.ref).join(',') === 'N1', `nouveautés CJ : ${neufs.map((p) => p.ref).join(',')}, attendu N1 seul (l'ancien est écarté)`)
 
   console.log(echecs === 0 ? 'Connecteurs fournisseurs : tout passe.' : `${echecs} échec(s).`)
   process.exitCode = echecs === 0 ? 0 : 1

@@ -53,6 +53,7 @@ function parType() {
 const TARIFS = [
   ['Importer une annonce (adresse ou extension)', 12, '0,12 €'],
   ['Importer en lot, par annonce', 8, '0,08 €'],
+  ['Import produit catalogue connecté (recomposition de l’annonce par l’IA)', 5, '0,05 €'],
   ['Refaire la réécriture IA d’une annonce', 10, '0,10 €'],
   ['Générer une photo en situation', 18, '0,18 €'],
   ['Composer une publicité (accroche + visuel)', 20, '0,20 €'],

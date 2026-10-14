@@ -36,6 +36,7 @@ const nombre = (n: number) => n.toLocaleString('fr-FR')
 const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'import', label: 'Importer une annonce', detail: 'Scraper une fiche + la réécrire par l’IA' },
   { cle: 'importLot', label: 'Importer en lot (par annonce)', detail: 'Réécriture groupée, moitié prix' },
+  { cle: 'importCatalogue', label: 'Import produit catalogue connecté', detail: 'Depuis un fournisseur relié : seule la recomposition de l’annonce par l’IA' },
   { cle: 'reecriture', label: 'Réécrire une annonce', detail: 'Reprendre titre, description, attributs' },
   { cle: 'analyse', label: 'Analyse de marché (par produit)', detail: 'Places de marché, annonces en ligne, vendus, prix constaté' },
   { cle: 'analyseSociale', label: 'Analyse réseaux sociaux (par produit)', detail: 'Suggestions, Facebook Ad Library, TikTok Shop' },

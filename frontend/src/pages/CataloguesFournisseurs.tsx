@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Boxes, Check, Download, ExternalLink, Loader2, Plus, Search, Send, Sparkles, Unplug } from 'lucide-react'
+import { ArrowDownWideNarrow, Boxes, Check, Download, ExternalLink, Loader2, Plus, Scale, Search, Send, Sparkles, Unplug } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { AgentBar } from '../components/AgentBar'
-import { BlocSection } from '../components/stats/BlocSection'
 import { PlatformLogo } from '../components/PlatformLogo'
 import { api } from '../lib/api'
 import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
@@ -45,34 +44,46 @@ import { PROPS_SANS_REMPLISSAGE } from '../lib/champSecret'
  * pourtant au fond de la section d'un fournisseur, invisibles tant qu'on
  * n'avait pas fait défiler la page. Ils montent dans le bloc de recherche, à
  * côté du champ — un menu déroulant, les rayons groupés par fournisseur.
+ *
+ * ---
+ *
+ * **Refonte du 14/10/2026, demandée par Max.** Les statistiques fournisseurs
+ * partent sur la page Fournisseurs, où elles vivent déjà. Le bloc de recherche
+ * prend le menu « Tous mes fournisseurs » et le bouton « Comparer les offres »
+ * de sa maquette. Les rayons viennent de l'API de CHAQUE fournisseur relié —
+ * ils n'étaient rapportés que par BigBuy, d'où « aucun de vos catalogues ne se
+ * parcourt par rayons » chez un vendeur relié à AliExpress et CJ. La case
+ * Nouveautés interroge enfin le flux daté de chacun. Les offres arrivent dans
+ * UNE liste, mélangée, chacune avec le nom du fournisseur qui la vend et son
+ * bouton Importer — au tarif du catalogue connecté (`importCatalogue`).
  */
-type Produit = {
-  ref: string
-  titre: string
-  prix: number | null
-  devise: string
-  image: string | null
-  url: string | null
-  entrepot: 'europe' | 'chine' | null
-}
-type Bloc = {
-  id: string
-  label: string
-  cherche: boolean
-  gagnants: boolean
-  rayons?: boolean
-  rayonsDisponibles?: Array<{ id: string; label: string }>
-  rayonChoisi?: string | null
-  produits: Produit[]
-  note: string | null
-}
+type Produit = Awaited<ReturnType<typeof api.supplierCatalog>>['fournisseurs'][number]['produits'][number]
+type Bloc = Awaited<ReturnType<typeof api.supplierCatalog>>['fournisseurs'][number]
 type Fournisseur = Awaited<ReturnType<typeof api.listSuppliers>>[number]
 type Lien = Awaited<ReturnType<typeof api.listSupplierLinks>>[number]
 /** Un rayon, et le fournisseur chez qui il existe : l'un sans l'autre ne s'ouvre pas. */
 type Rayon = { supplier: string; supplierLabel: string; id: string; label: string }
+/** Une offre dans la liste commune : le produit, et qui le vend. */
+type Offre = Produit & { supplier: string; supplierLabel: string; cle: string }
 
-/** Ce qui remplit le tableau de résultats, et qui donc décide de son titre. */
+/** Ce qui remplit la liste, et qui donc décide de son titre. */
 type Mode = { sorte: 'nouveautes' } | { sorte: 'mots'; q: string } | { sorte: 'rayon'; rayon: Rayon }
+/** L'ordre de la liste. « prix » est celui de « Comparer les offres ». */
+type Tri = 'melange' | 'prix' | 'fournisseur'
+
+const TRIS: Array<{ id: Tri; label: string }> = [
+  { id: 'melange', label: 'Mélangées' },
+  { id: 'prix', label: 'Prix le plus bas' },
+  { id: 'fournisseur', label: 'Par fournisseur' },
+]
+
+const euros = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+const prixLisible = (p: Produit) =>
+  p.prix === null
+    ? 'prix inconnu'
+    : p.devise === 'EUR'
+      ? euros(p.prix)
+      : `${p.prix.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${p.devise}`
 
 /** An address reduced to what identifies the page: no query, no hash, no trailing slash. */
 const adresse = (u: string) => u.split(/[?#]/)[0].replace(/\/+$/, '').toLowerCase()
@@ -95,6 +106,27 @@ const raccourcir = (titre: string) =>
     .slice(0, 5)
     .join(' ')
 
+/** The last segment of a rayon label (« Maison › Cuisine » → « Cuisine »): what other suppliers can search. */
+const motsDuRayon = (label: string) => label.split('›').pop()!.trim()
+
+/**
+ * Les offres de tous les blocs en une liste. Mélangées une à une (la première
+ * de chacun, puis la deuxième…) : sans ça, le premier fournisseur à répondre
+ * occuperait tout l'écran et les autres ne se verraient qu'en faisant défiler.
+ */
+function listeCommune(blocs: Bloc[], tri: Tri): Offre[] {
+  const parBloc = blocs.map((b) =>
+    b.produits.map((p) => ({ ...p, supplier: b.id, supplierLabel: b.label, cle: `${b.id}:${p.ref}` })),
+  )
+  if (tri === 'fournisseur') return parBloc.flat()
+  const melange: Offre[] = []
+  const longueur = Math.max(0, ...parBloc.map((l) => l.length))
+  for (let i = 0; i < longueur; i++) for (const l of parBloc) if (l[i]) melange.push(l[i])
+  if (tri === 'melange') return melange
+  // Le prix en euros décide ; une offre sans prix comparable va au fond, jamais en tête.
+  return [...melange].sort((a, b) => (a.prixEur ?? Infinity) - (b.prixEur ?? Infinity))
+}
+
 export default function CataloguesFournisseurs() {
   /*
    * « Voir chez nous » depuis un produit gagnant arrive ici avec le produit
@@ -116,12 +148,18 @@ export default function CataloguesFournisseurs() {
   const [importCible, setImportCible] = useState<'cours' | string | null>(null)
   const [blocs, setBlocs] = useState<Bloc[]>([])
   const [motsCles, setMotsCles] = useState('')
+  const [chez, setChez] = useState('')
   const [mode, setMode] = useState<Mode>({ sorte: 'nouveautes' })
+  const [tri, setTri] = useState<Tri>('melange')
   const [cherche, setCherche] = useState(true)
   const [coches, setCoches] = useState<Map<string, string>>(new Map())
   const [importe, setImporte] = useState(false)
+  /** Ce que l'import d'une offre seule a donné, par offre. */
+  const [unitaires, setUnitaires] = useState<Map<string, 'cours' | string>>(new Map())
   const [bilan, setBilan] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  /** Le tarif d'un import depuis cette page, lu dans la grille du serveur (jamais écrit ici). */
+  const [tarif, setTarif] = useState<number | null>(null)
 
   // Les fiches d'annuaire (logo, domaine, couleur) et l'état des liaisons : la
   // réponse du catalogue ne porte ni l'un ni l'autre.
@@ -129,44 +167,49 @@ export default function CataloguesFournisseurs() {
   const [liens, setLiens] = useState<Lien[]>([])
   const [debranche, setDebranche] = useState<string | null>(null)
 
-  /*
-   * Les rayons sont ACCUMULÉS, jamais remplacés.
-   *
-   * Ils n'arrivent que dans la réponse du fournisseur qui les expose, et une
-   * recherche par mots-clés peut très bien ne pas la rapporter. Vider la liste
-   * à chaque réponse ferait clignoter le menu déroulant — et disparaître, au
-   * moment précis où on vient de s'en servir, la seule façon de parcourir
-   * BigBuy.
-   */
+  /** Les rayons de chaque catalogue relié, et pour ceux qui n'en rendent pas, pourquoi. */
   const [rayons, setRayons] = useState<Rayon[]>([])
+  const [rayonsLus, setRayonsLus] = useState(false)
+  const [rayonsNotes, setRayonsNotes] = useState<Array<{ label: string; note: string }>>([])
 
-  function retenirRayons(recus: Bloc[]) {
-    setRayons((anciens) => {
-      const connus = new Map(anciens.map((r) => [`${r.supplier}:${r.id}`, r]))
-      for (const b of recus)
-        for (const r of b.rayonsDisponibles ?? [])
-          connus.set(`${b.id}:${r.id}`, { supplier: b.id, supplierLabel: b.label, id: r.id, label: r.label })
-      return [...connus.values()]
-    })
+  function chargerRayons() {
+    api
+      .supplierRayons()
+      .then((r) => {
+        setRayons(
+          r.fournisseurs.flatMap((f) => f.rayons.map((x) => ({ supplier: f.id, supplierLabel: f.label, id: x.id, label: x.label }))),
+        )
+        setRayonsNotes(r.fournisseurs.filter((f) => f.note).map((f) => ({ label: f.label, note: f.note! })))
+      })
+      .catch(() => undefined)
+      .finally(() => setRayonsLus(true))
   }
 
-  async function interroger(q: string, rayon?: { supplier: string; id: string }) {
+  /**
+   * Remplit la liste. Un rayon interroge son fournisseur par l'arbre, et — si
+   * le vendeur regarde « tous ses fournisseurs » — cherche le nom du rayon chez
+   * les autres : c'est ainsi qu'un rayon se retrouve chez chacun d'eux.
+   */
+  async function interroger(m: Mode, fournisseur = chez) {
     setCherche(true)
     setBilan(null)
     setErreur(null)
+    setCoches(new Map())
     try {
-      const r = await api.supplierCatalog(rayon?.supplier ?? '', q, rayon?.id)
-      retenirRayons(r.fournisseurs)
-      /*
-       * Un rayon ne recharge QUE son fournisseur : recharger tout le monde
-       * effacerait les résultats que le vendeur est en train de comparer, ce
-       * qui est précisément ce qu'il est venu faire ici.
-       */
-      setBlocs((anciens) =>
-        rayon ? anciens.map((b) => r.fournisseurs.find((n) => n.id === b.id) ?? b) : r.fournisseurs,
-      )
-      if (!rayon) setCoches(new Map())
-      return r.fournisseurs
+      let recus: Bloc[]
+      if (m.sorte === 'rayon') {
+        const [proprietaire, autres] = await Promise.all([
+          api.supplierCatalog({ supplier: m.rayon.supplier, rayon: m.rayon.id }),
+          fournisseur
+            ? Promise.resolve({ fournisseurs: [] as Bloc[] })
+            : api.supplierCatalog({ q: motsDuRayon(m.rayon.label), sauf: m.rayon.supplier }),
+        ])
+        recus = [...proprietaire.fournisseurs, ...autres.fournisseurs]
+      } else {
+        recus = (await api.supplierCatalog({ supplier: fournisseur, q: m.sorte === 'mots' ? m.q : '' })).fournisseurs
+      }
+      setBlocs(recus)
+      return recus
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Lecture des catalogues impossible')
       return null
@@ -179,33 +222,34 @@ export default function CataloguesFournisseurs() {
 
   useEffect(() => {
     api.listSuppliers().then(setFournisseurs).catch(() => undefined)
+    api
+      .listPlans()
+      .then((p) => setTarif(p.tarifs.importCatalogue ?? null))
+      .catch(() => undefined)
     rechargerLiens()
+    chargerRayons()
     if (!cible) {
-      interroger('')
+      interroger({ sorte: 'nouveautes' })
       return
     }
-    setMode({ sorte: 'mots', q: cible.titre })
     // The full title first; if nobody answers, the same search in a few words.
     setMotsCles(cible.titre)
+    setMode({ sorte: 'mots', q: cible.titre })
     ;(async () => {
-      const r = await interroger(cible.titre)
+      const r = await interroger({ sorte: 'mots', q: cible.titre })
       const court = raccourcir(cible.titre)
       if (r && !r.some((b) => b.produits.length) && court && court !== cible.titre) {
         setMotsCles(court)
         setMode({ sorte: 'mots', q: court })
-        await interroger(court)
+        await interroger({ sorte: 'mots', q: court })
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const total = blocs.reduce((n, b) => n + b.produits.length, 0)
-
   /**
    * Les catalogues à montrer en tête : les liaisons reliées, dans l'ordre de
    * l'annuaire. La fiche d'annuaire donne le logo ; la liaison donne l'état.
-   * Un fournisseur relié dont la fiche manquerait garde quand même son bloc —
-   * il est relié, c'est le fait qui compte ici.
    */
   const catalogues = useMemo(
     () =>
@@ -218,6 +262,7 @@ export default function CataloguesFournisseurs() {
         })),
     [liens, fournisseurs, blocs],
   )
+  const nomDe = (id: string) => fournisseurs.find((f) => f.id === id)?.label ?? id
 
   /** Débrancher : les identifiants sont effacés, le catalogue se referme. */
   async function debrancher(id: string, label: string) {
@@ -230,6 +275,7 @@ export default function CataloguesFournisseurs() {
       setBlocs((anciens) => anciens.filter((b) => b.id !== id))
       setRayons((anciens) => anciens.filter((r) => r.supplier !== id))
       setCoches((m) => new Map([...m].filter(([, supplier]) => supplier !== id)))
+      if (chez === id) setChez('')
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Impossible de débrancher ce fournisseur.')
     } finally {
@@ -241,12 +287,11 @@ export default function CataloguesFournisseurs() {
   const blocsAffiches = cible?.fournisseur
     ? [...blocs].sort((a, b) => Number(b.id === cible.fournisseur) - Number(a.id === cible.fournisseur))
     : blocs
+  const offres = useMemo(() => listeCommune(blocsAffiches, tri), [blocsAffiches, tri])
   const blocCible = cible?.fournisseur ? blocs.find((b) => b.id === cible.fournisseur) ?? null : null
-  const retrouve =
-    cible?.url
-      ? blocsAffiches.flatMap((b) => b.produits.filter((p) => estLeProduit(p, cible.url!)).map((p) => `${b.id}:${p.ref}`))[0] ??
-        null
-      : null
+  const retrouve = cible?.url ? offres.find((o) => estLeProduit(o, cible.url!))?.cle ?? null : null
+  const comparables = offres.filter((o) => o.prixEur !== null)
+  const silences = blocsAffiches.filter((b) => b.note)
 
   useEffect(() => {
     if (!retrouve || defile.current) return
@@ -273,6 +318,23 @@ export default function CataloguesFournisseurs() {
     } catch (e) {
       setImportCible(e instanceof Error ? e.message : "L'import a échoué.")
     }
+  }
+
+  /** Une offre seule, par son bouton Importer. */
+  async function importerUne(o: Offre) {
+    setUnitaires((m) => new Map(m).set(o.cle, 'cours'))
+    let message: string
+    try {
+      const r = await api.importCatalogue(o.supplier, [o.ref])
+      message = r.importes
+        ? 'Importé : il est dans vos annonces, en brouillon.'
+        : r.deja
+          ? 'Déjà dans vos annonces : non refacturé.'
+          : r.echecs[0]?.raison ?? "L'import a échoué."
+    } catch (e) {
+      message = e instanceof Error ? e.message : "L'import a échoué."
+    }
+    setUnitaires((m) => new Map(m).set(o.cle, message))
   }
 
   /*
@@ -313,64 +375,78 @@ export default function CataloguesFournisseurs() {
     }
   }
 
+  function chercher(comparer: boolean) {
+    const q = motsCles.trim()
+    if (!q) {
+      setErreur(comparer ? 'Tapez le produit dont vous voulez comparer les offres.' : 'Tapez le nom d’un produit.')
+      return
+    }
+    const m: Mode = { sorte: 'mots', q }
+    setMode(m)
+    if (comparer) setTri('prix')
+    interroger(m)
+  }
+
+  const rayonsVisibles = chez ? rayons.filter((r) => r.supplier === chez) : rayons
+  const suffixeTarif = tarif !== null ? ` · ${tarif} drops` : ''
+
   return (
     <Layout>
-      {/* Le bloc « Fournisseurs » du tableau de bord, en tête : même adresse,
-          même calcul, donc jamais deux chiffres différents selon l'écran. */}
-      <BlocSection id="fournisseurs" />
-
-      {/* L'agent en charge de ce qui se decide ici : choisir un produit à
-          sourcer est une question de marketing, et elle se pose devant les
-          offres — pas après avoir quitté l'écran pour aller la poser. */}
-      <AgentBar
-        agentKey="marketing"
-        nom="Laurence"
-        emoji="📣"
-        exemple="Demandez à Laurence : ce produit se vend-il encore en France ?"
-      />
-
       <div className="mb-5">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <Boxes size={22} className="text-purple-300" />
+          <Boxes size={22} className="text-[#E85290]" />
           <span>Catalogues connectés</span>
         </h1>
-        <p className="mt-1 max-w-3xl text-sm text-gray-400">
-          Un mot-clé, et vous voyez ce que <b>chacun</b> de vos fournisseurs propose pour ce
-          produit — avec son prix d'achat. Cochez ce qui vous intéresse, chez l'un ou chez plusieurs :
-          la fiche arrive réécrite, ses photos réhébergées et signées, sa catégorie posée.
+        <p className="mt-1 max-w-3xl text-sm text-[#B8C0D0]">
+          Cherchez un produit chez tous vos fournisseurs reliés à la fois, comparez leurs offres et
+          importez celle qui vous convient
+          {tarif !== null ? <> : <b className="text-[#F5F7FA]">{tarif} drops</b> l'annonce, seule la recomposition par l'IA est facturée.</> : '.'}
         </p>
       </div>
 
-      {/* ---------- 1. Les catalogues reliés, quatre par ligne ---------- */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {catalogues.map(({ lien, fiche, bloc }) => (
-          <CarteCatalogue
-            key={lien.supplier}
-            id={lien.supplier}
-            label={fiche?.label ?? lien.supplier}
-            color={fiche?.color}
-            domain={fiche?.domain}
-            offres={bloc?.produits.length ?? 0}
-            occupe={debranche === lien.supplier}
-            onDebrancher={() => debrancher(lien.supplier, fiche?.label ?? lien.supplier)}
-          />
-        ))}
+      {/* ---------- 1. Les catalogues reliés ---------- */}
+      <section className="case-ds p-4 sm:p-5">
+        <h2 className="text-lg font-bold">Connectez vos catalogues.</h2>
+        <p className="mt-0.5 text-xs text-[#B8C0D0]">
+          Les fournisseurs reliés par leur API. Débranchez-en un, ou reliez-en un autre.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {catalogues.map(({ lien, fiche, bloc }) => (
+            <CarteCatalogue
+              key={lien.supplier}
+              id={lien.supplier}
+              label={fiche?.label ?? lien.supplier}
+              color={fiche?.color}
+              domain={fiche?.domain}
+              offres={bloc?.produits.length ?? 0}
+              occupe={debranche === lien.supplier}
+              onDebrancher={() => debrancher(lien.supplier, fiche?.label ?? lien.supplier)}
+            />
+          ))}
 
-        {/* En relier un de plus : la case vide dit où aller, là où une grille
-            qui s'arrête laisse croire qu'il n'y a rien d'autre à brancher. */}
-        <Link
-          to="/fournisseurs"
-          className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/15 p-4 text-center text-xs text-gray-400 transition hover:border-purple-400/50 hover:bg-white/[0.04] hover:text-white"
-        >
-          <Plus size={18} />
-          <span>Relier un catalogue</span>
-        </Link>
-      </div>
+          {/* En relier un de plus : la case vide dit où aller, là où une grille
+              qui s'arrête laisse croire qu'il n'y a rien d'autre à brancher. */}
+          <Link
+            to="/fournisseurs"
+            className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/15 p-4 text-center text-xs text-[#B8C0D0] transition hover:border-[#E85290]/60 hover:bg-white/[0.04] hover:text-white"
+          >
+            <Plus size={18} />
+            <span>Relier un catalogue</span>
+          </Link>
+        </div>
+
+        {!catalogues.length && !cherche ? (
+          <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            Aucun fournisseur relié par API pour l'instant. Reliez-en un depuis la page{' '}
+            <b>Fournisseurs</b> : AliExpress, CJ Dropshipping et BigBuy ouvrent leur catalogue.
+          </p>
+        ) : null}
+      </section>
 
       {cible && !cherche && retrouve ? (
         <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-          Voici « {cible.titre} »{blocCible ? <> chez <b>{blocCible.label}</b></> : null}, encadré ci-dessous. Cochez-le
-          pour l'importer, ou comparez avec les offres des autres fournisseurs.
+          Voici « {cible.titre} »{blocCible ? <> chez <b>{blocCible.label}</b></> : null}, encadré ci-dessous. Importez-le,
+          ou comparez avec les offres des autres fournisseurs.
         </p>
       ) : null}
 
@@ -379,7 +455,7 @@ export default function CataloguesFournisseurs() {
           <p>
             « {cible.titre} » n'apparaît pas tel quel
             {blocCible ? <> chez <b>{blocCible.label}</b></> : ' dans vos catalogues'}
-            {total ? ' : voici les offres les plus proches.' : '.'}
+            {offres.length ? ' : voici les offres les plus proches.' : '.'}
           </p>
           {cible.url ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -402,7 +478,7 @@ export default function CataloguesFournisseurs() {
                 href={cible.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:border-purple-400/50"
+                className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:border-[#E85290]/50"
               >
                 <ExternalLink size={12} /> Voir la fiche du fournisseur
               </a>
@@ -412,73 +488,96 @@ export default function CataloguesFournisseurs() {
         </div>
       ) : null}
 
-      {!catalogues.length && !cherche ? (
-        <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Aucun fournisseur relié par API pour l'instant. Reliez-en un depuis{' '}
-          <b>Sourcing › Fournisseurs</b> — AliExpress et CJ Dropshipping savent tous deux ouvrir leur
-          catalogue.
-        </p>
-      ) : null}
-
-      {/* ---------- 2. Le bloc de recherche : trois entrées, un seul tableau ---------- */}
-      <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      {/* ---------- 2. Chercher, comparer, parcourir ---------- */}
+      <section className="case-ds mt-5 p-4 sm:p-5">
+        <h2 className="text-lg font-bold">Cherchez un produit chez vos fournisseurs</h2>
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            setMode({ sorte: 'mots', q: motsCles.trim() })
-            interroger(motsCles)
+            chercher(false)
           }}
-          className="flex flex-wrap items-center gap-2"
+          className="mt-3 flex flex-wrap items-end gap-2"
         >
-          <label className="min-w-0 flex-1">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Cherchez un produit
-            </span>
+          <label className="min-w-[14rem] flex-[2]">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#B8C0D0]">Nom du produit</span>
             <input
               {...PROPS_SANS_REMPLISSAGE}
               value={motsCles}
               onChange={(e) => setMotsCles(e.target.value)}
-              placeholder="écouteurs sans fil, support de téléphone, lampe de bureau…"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none focus:border-purple-400/70"
+              placeholder="écouteurs sans fil, lampe de bureau, sac à dos…"
+              className="w-full rounded-xl border border-white/10 bg-[#101321] px-3 py-2.5 text-sm outline-none focus:border-[#E85290]/70"
             />
+          </label>
+          <label className="min-w-[11rem] flex-1">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#B8C0D0]">Chez</span>
+            <select
+              value={chez}
+              onChange={(e) => {
+                const v = e.target.value
+                setChez(v)
+                // The list follows the menu; a rayon from another supplier no longer applies.
+                const m: Mode = mode.sorte === 'rayon' && v && v !== mode.rayon.supplier ? { sorte: 'nouveautes' } : mode
+                setMode(m)
+                interroger(m, v)
+              }}
+              className="w-full rounded-xl border border-white/10 bg-[#101321] px-3 py-2.5 text-sm outline-none focus:border-[#E85290]/70"
+            >
+              <option value="">Tous mes fournisseurs</option>
+              {catalogues.map(({ lien, fiche }) => (
+                <option key={lien.supplier} value={lien.supplier}>
+                  {fiche?.label ?? lien.supplier}
+                </option>
+              ))}
+            </select>
           </label>
           <button
             disabled={cherche}
-            className="btn-gradient mt-5 inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+            className="btn-gradient inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
           >
-            {cherche ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-            <span>Chercher chez tous</span>
+            {cherche && mode.sorte === 'mots' && tri !== 'prix' ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+            <span>Chercher</span>
+          </button>
+          {/* Comparer : la même recherche, classée par prix ramené en euros. */}
+          <button
+            type="button"
+            onClick={() => chercher(true)}
+            disabled={cherche}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#E85290]/60 px-4 py-2.5 text-sm font-semibold text-[#F5F7FA] transition hover:bg-[#E85290]/15 disabled:opacity-40"
+          >
+            <Scale size={14} />
+            <span>Comparer les offres</span>
           </button>
         </form>
 
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
-          {/* Surfer un rayon, sans mots-clés. Les rayons sont groupés par
-              fournisseur : le même libellé peut exister chez deux d'entre eux
-              et ne désigne pas le même rayon. */}
-          <label className="min-w-0 flex-1">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-400">
+          {/* Surfer un rayon. Groupés par fournisseur : le même libellé peut
+              exister chez deux d'entre eux et ne désigne pas le même rayon. */}
+          <label className="min-w-[14rem] flex-1">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#B8C0D0]">
               Ou surfez sur un rayon
             </span>
             <select
               value={mode.sorte === 'rayon' ? `${mode.rayon.supplier}:${mode.rayon.id}` : ''}
-              disabled={!rayons.length}
+              disabled={!rayonsVisibles.length}
               onChange={(e) => {
                 const choisi = rayons.find((r) => `${r.supplier}:${r.id}` === e.target.value)
                 if (!choisi) return
-                setMode({ sorte: 'rayon', rayon: choisi })
-                interroger('', { supplier: choisi.supplier, id: choisi.id })
+                const m: Mode = { sorte: 'rayon', rayon: choisi }
+                setMode(m)
+                interroger(m)
               }}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm outline-none focus:border-purple-400/70 disabled:opacity-40"
+              className="w-full rounded-xl border border-white/10 bg-[#101321] px-3 py-2.5 text-sm outline-none focus:border-[#E85290]/70 disabled:opacity-40"
             >
               <option value="">
-                {rayons.length ? 'Catégories…' : 'Aucun de vos catalogues ne se parcourt par rayons'}
+                {rayonsVisibles.length
+                  ? 'Choisissez un rayon…'
+                  : rayonsLus
+                    ? 'Aucun rayon rendu par vos catalogues'
+                    : 'Lecture des rayons…'}
               </option>
-              {[...new Set(rayons.map((r) => r.supplier))].map((supplier) => (
-                <optgroup
-                  key={supplier}
-                  label={rayons.find((r) => r.supplier === supplier)!.supplierLabel}
-                >
-                  {rayons
+              {[...new Set(rayonsVisibles.map((r) => r.supplier))].map((supplier) => (
+                <optgroup key={supplier} label={rayonsVisibles.find((r) => r.supplier === supplier)!.supplierLabel}>
+                  {rayonsVisibles
                     .filter((r) => r.supplier === supplier)
                     .map((r) => (
                       <option key={`${r.supplier}:${r.id}`} value={`${r.supplier}:${r.id}`}>
@@ -490,21 +589,22 @@ export default function CataloguesFournisseurs() {
             </select>
           </label>
 
-          {/* Les nouveautés : ce que les fournisseurs mettent en avant EUX-MÊMES
-              (leur flux « meilleures ventes »), pas un classement de notre
-              invention. C'est aussi ce que la page affiche à l'ouverture. */}
+          {/* Les nouveautés : ce que chaque fournisseur vient de mettre en
+              ligne, selon sa propre API. C'est aussi l'ouverture de la page. */}
           <button
             type="button"
             onClick={() => {
               setMotsCles('')
-              setMode({ sorte: 'nouveautes' })
-              interroger('')
+              const m: Mode = { sorte: 'nouveautes' }
+              setMode(m)
+              interroger(m)
             }}
             disabled={cherche}
+            aria-pressed={mode.sorte === 'nouveautes'}
             className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 ${
               mode.sorte === 'nouveautes'
-                ? 'border-purple-400/60 bg-purple-500/20 text-white'
-                : 'border-white/15 text-gray-300 hover:bg-white/5 hover:text-white'
+                ? 'border-transparent bg-gradient-to-r from-[#f28a4b] to-[#e85290] text-white'
+                : 'border-white/15 text-[#B8C0D0] hover:bg-white/5 hover:text-white'
             }`}
           >
             <Sparkles size={14} />
@@ -512,23 +612,20 @@ export default function CataloguesFournisseurs() {
           </button>
         </div>
 
-        <p className="mt-3 text-xs text-gray-500">
-          {mode.sorte === 'nouveautes'
-            ? 'Nouveautés : ce que vos fournisseurs mettent en avant en ce moment.'
-            : mode.sorte === 'rayon'
-              ? `Rayon « ${mode.rayon.label} » chez ${mode.rayon.supplierLabel}.`
-              : `Résultats pour « ${mode.q} », chez tous vos catalogues à la fois.`}
-        </p>
+        {rayonsLus && rayonsNotes.length ? (
+          <p className="mt-2 text-[11px] text-[#B8C0D0]">
+            {rayonsNotes.map((n) => `${n.label} : ${n.note}`).join(' · ')}
+          </p>
+        ) : null}
       </section>
 
       {bilan ? <p className="mt-3 text-sm text-emerald-300">{bilan}</p> : null}
       {erreur ? <p className="mt-3 text-sm text-red-400">{erreur}</p> : null}
 
-      {/* Collante, pour que le bouton d'import reste atteignable quel que soit
-          l'endroit où on a coché. En dessous de la barre de titre du mobile
-          (h-14, z-30), sinon elle passe DERRIÈRE et disparaît. */}
+      {/* Collante, pour que l'import groupé reste atteignable quel que soit
+          l'endroit où on a coché. Sous la barre de titre du mobile (h-14, z-30). */}
       {coches.size ? (
-        <div className="sticky top-16 z-20 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-purple-400/40 bg-[#1b1633] p-3 md:top-2">
+        <div className="sticky top-16 z-20 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-[#E85290]/40 bg-[#191E2E] p-3 md:top-2">
           <span className="text-sm">{`${coches.size} produit(s) coché(s)`}</span>
           <button
             type="button"
@@ -537,93 +634,198 @@ export default function CataloguesFournisseurs() {
             className="btn-gradient ml-auto inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {importe ? <Loader2 size={14} className="animate-spin" /> : null}
-            <span>Importer {coches.size} produit(s)</span>
+            <span>
+              Importer {coches.size} produit(s)
+              {tarif !== null ? ` · ${coches.size * tarif} drops` : ''}
+            </span>
           </button>
         </div>
       ) : null}
 
-      {mode.sorte === 'mots' && mode.q && !cherche && blocs.length && total === 0 ? (
-        <p className="mt-4 text-sm text-gray-400">
-          Aucun de vos fournisseurs n'a de résultat pour « {mode.q} ».
-        </p>
-      ) : null}
+      {/* ---------- 3. La liste commune ---------- */}
+      <section className="mt-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-bold">
+            {mode.sorte === 'nouveautes'
+              ? 'Nouveautés chez vos fournisseurs'
+              : mode.sorte === 'rayon'
+                ? `Rayon « ${mode.rayon.label} »`
+                : tri === 'prix'
+                  ? `Comparaison pour « ${mode.q} »`
+                  : `Résultats pour « ${mode.q} »`}
+          </h2>
+          <span className="text-xs text-[#B8C0D0]">{cherche ? 'lecture…' : `${offres.length} offre(s)`}</span>
 
-      {/* ---------- 3. Les offres, fournisseur par fournisseur ---------- */}
-      <div className="mt-6 space-y-6">
-        {blocsAffiches.map((b) => (
-          <section key={b.id}>
-            <h2 className="flex items-baseline gap-2 font-bold">
-              <span>{b.label}</span>
-              <span className="text-xs font-normal text-gray-500">
-                {b.produits.length
-                  ? `${b.produits.length} offre(s)`
-                  : b.rayonsDisponibles?.length
-                    ? 'se parcourt par rayons'
-                    : ''}
-              </span>
-            </h2>
-            {b.note ? <p className="mt-1 text-xs text-amber-200">{b.note}</p> : null}
+          {/* Le tri, en un seul bloc de boutons (règle de Max du 14/10/2026). */}
+          <div
+            role="group"
+            aria-label="Trier les offres"
+            className="ml-auto inline-flex max-w-full flex-wrap overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
+          >
+            {TRIS.map((t, i) => {
+              const actif = tri === t.id
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTri(t.id)}
+                  aria-pressed={actif}
+                  className={`${i < TRIS.length - 1 ? 'border-r border-white/10 ' : ''}inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold transition ${
+                    actif ? 'bg-gradient-to-r from-[#f28a4b] to-[#e85290] text-white' : 'text-[#B8C0D0] hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  {t.id === 'prix' ? <ArrowDownWideNarrow size={13} /> : null}
+                  <span>{t.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
-            {b.produits.length ? (
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {b.produits.map((p) => {
-                  const cle = `${b.id}:${p.ref}`
-                  const coche = coches.has(cle)
-                  const cherchee = cle === retrouve
-                  return (
-                    <label
-                      key={cle}
-                      id={`offre-${cle}`}
-                      className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
-                        coche ? 'border-purple-400/60 bg-purple-500/10' : 'border-white/10 bg-white/[0.04]'
-                      } ${cherchee ? 'ring-2 ring-emerald-400/70' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={coche}
-                        onChange={(e) =>
-                          setCoches((m) => {
-                            const n = new Map(m)
-                            if (e.target.checked) n.set(cle, b.id)
-                            else n.delete(cle)
-                            return n
-                          })
-                        }
-                        className="mt-1 size-4 shrink-0 accent-purple-500"
-                      />
-                      {p.image ? (
-                        <img
-                          src={p.image}
-                          alt=""
-                          loading="lazy"
-                          className="size-16 shrink-0 rounded-lg bg-white/90 object-contain"
+        {mode.sorte === 'rayon' && !chez ? (
+          <p className="mt-1 text-xs text-[#B8C0D0]">
+            Le rayon chez {mode.rayon.supplierLabel}, et « {motsDuRayon(mode.rayon.label)} » cherché chez vos autres fournisseurs.
+          </p>
+        ) : null}
+
+        {tri === 'prix' && comparables.length > 1 ? (
+          <p className="mt-2 text-xs text-[#B8C0D0]">
+            Du moins cher ({euros(comparables[0].prixEur!)}, {comparables[0].supplierLabel}) au plus cher (
+            {euros(comparables[comparables.length - 1].prixEur!)}, {comparables[comparables.length - 1].supplierLabel}).
+            Prix d'achat ramenés en euros au taux BCE du jour ; frais de port non compris.
+          </p>
+        ) : null}
+
+        {cherche && !offres.length ? (
+          <p className="mt-6 flex items-center gap-2 text-sm text-[#B8C0D0]">
+            <Loader2 size={14} className="animate-spin" /> Lecture des catalogues…
+          </p>
+        ) : null}
+
+        {!cherche && !offres.length && blocs.length ? (
+          <p className="mt-4 text-sm text-[#B8C0D0]">Aucune offre à afficher : la raison de chaque fournisseur est ci-dessous.</p>
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {offres.map((o, rang) => {
+            const coche = coches.has(o.cle)
+            const cherchee = o.cle === retrouve
+            const etat = unitaires.get(o.cle)
+            return (
+              <article
+                key={o.cle}
+                id={`offre-${o.cle}`}
+                className={`case-ds flex flex-col p-3 transition ${coche ? '!border-[#E85290]/70' : ''} ${
+                  cherchee ? 'ring-2 ring-emerald-400/70' : ''
+                }`}
+              >
+                <div className="flex gap-3">
+                  {o.image ? (
+                    <img src={o.image} alt="" loading="lazy" className="size-20 shrink-0 rounded-lg bg-white/90 object-contain" />
+                  ) : (
+                    <span className="grid size-20 shrink-0 place-items-center rounded-lg bg-white/5 text-[10px] text-[#B8C0D0]">sans photo</span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[#F5F7FA]">
+                        <PlatformLogo
+                          id={o.supplier}
+                          label={nomDe(o.supplier)}
+                          color={fournisseurs.find((f) => f.id === o.supplier)?.color}
+                          domain={fournisseurs.find((f) => f.id === o.supplier)?.domain}
+                          size={14}
+                          arrondi="md"
                         />
-                      ) : (
-                        <span className="size-16 shrink-0 rounded-lg bg-white/5" />
-                      )}
-                      <span className="min-w-0 flex-1">
-                        {cherchee ? (
-                          <span className="mb-1 inline-block rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                            le produit du rapport
-                          </span>
-                        ) : null}
-                        <span className="line-clamp-3 block text-xs leading-snug">{p.titre}</span>
-                        <span className="mt-1 block text-sm font-bold">
-                          {p.prix !== null ? `${p.prix.toFixed(2)} ${p.devise}` : 'prix inconnu'}
-                        </span>
-                        {p.entrepot ? (
-                          <span className="mt-0.5 block text-[10px] text-emerald-300">
-                            entrepôt {p.entrepot}
-                          </span>
-                        ) : null}
+                        {o.supplierLabel}
                       </span>
-                    </label>
-                  )
-                })}
-              </div>
-            ) : null}
-          </section>
-        ))}
+                      {tri === 'prix' && o.prixEur !== null && rang === 0 ? (
+                        <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">meilleur prix</span>
+                      ) : null}
+                      {cherchee ? (
+                        <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">le produit du rapport</span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 line-clamp-3 text-xs leading-snug text-[#F5F7FA]" title={o.titre}>
+                      {o.titre}
+                    </p>
+                    <p className="mt-1 text-sm font-bold">
+                      {prixLisible(o)}
+                      {o.devise !== 'EUR' && o.prixEur !== null ? (
+                        <span className="ml-1.5 text-xs font-normal text-[#B8C0D0]">≈ {euros(o.prixEur)}</span>
+                      ) : null}
+                    </p>
+                    {o.entrepot ? (
+                      <p className="mt-0.5 text-[10px] text-emerald-300">entrepôt {o.entrepot === 'europe' ? 'en Europe' : 'en Chine'}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-[#B8C0D0]">
+                    <input
+                      type="checkbox"
+                      checked={coche}
+                      onChange={(e) =>
+                        setCoches((m) => {
+                          const n = new Map(m)
+                          if (e.target.checked) n.set(o.cle, o.supplier)
+                          else n.delete(o.cle)
+                          return n
+                        })
+                      }
+                      className="size-4 accent-[#E85290]"
+                    />
+                    <span>Cocher</span>
+                  </label>
+                  {o.url ? (
+                    <a
+                      href={o.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-[#B8C0D0] hover:text-white"
+                    >
+                      <ExternalLink size={12} /> Voir
+                    </a>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => importerUne(o)}
+                    disabled={etat === 'cours'}
+                    className="btn-gradient ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                  >
+                    {etat === 'cours' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                    <span>Importer{suffixeTarif}</span>
+                  </button>
+                </div>
+                {etat && etat !== 'cours' ? <p className="mt-2 text-[11px] text-[#B8C0D0]">{etat}</p> : null}
+              </article>
+            )
+          })}
+        </div>
+
+        {/* Ce que chaque fournisseur a répondu quand il n'a rien rendu (ou rendu
+            autre chose que demandé) : un catalogue muet ne doit pas passer pour vide. */}
+        {!cherche && silences.length ? (
+          <ul className="mt-4 space-y-1 text-xs text-amber-200">
+            {silences.map((b) => (
+              <li key={b.id}>
+                <b>{b.label}</b> : {b.note}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      {/* L'agent en charge de ce qui se décide ici : choisir un produit à
+          sourcer est une question de marketing, et elle se pose devant les
+          offres — pas après avoir quitté l'écran. */}
+      <div className="mt-8">
+        <AgentBar
+          agentKey="marketing"
+          nom="Laurence"
+          emoji="📣"
+          exemple="Demandez à Laurence : ce produit se vend-il encore en France ?"
+        />
       </div>
     </Layout>
   )
@@ -657,7 +859,7 @@ function CarteCatalogue({
   onDebrancher: () => void
 }) {
   return (
-    <div className="flex min-h-[7.5rem] flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center">
+    <div className="flex min-h-[7.5rem] flex-col items-center gap-2 rounded-2xl border border-white/10 bg-[#101321] p-4 text-center">
       <PlatformLogo id={id} label={label} color={color} domain={domain} size={36} />
       <p className="w-full truncate text-sm font-semibold" title={label}>
         {label}
@@ -668,13 +870,13 @@ function CarteCatalogue({
         <span>Reliée</span>
       </span>
 
-      <p className="text-[10px] text-gray-500">{offres ? `${offres} offre(s) affichée(s)` : '—'}</p>
+      <p className="text-[10px] text-[#B8C0D0]">{offres ? `${offres} offre(s) affichée(s)` : '—'}</p>
 
       <button
         type="button"
         onClick={onDebrancher}
         disabled={occupe}
-        className="mt-auto inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] text-gray-400 transition hover:border-red-400/50 hover:text-red-300 disabled:opacity-40"
+        className="mt-auto inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] text-[#B8C0D0] transition hover:border-red-400/50 hover:text-red-300 disabled:opacity-40"
       >
         {occupe ? <Loader2 size={11} className="animate-spin" /> : <Unplug size={11} />}
         <span>Débrancher</span>

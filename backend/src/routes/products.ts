@@ -40,6 +40,7 @@ import { comptesDe } from '../services/socialGateway.js'
 import { Saturated, importLimiter } from '../lib/concurrency.js'
 import { refundCredits, reserveCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
+import { enEuros } from '../services/devises.js'
 import { analyseProduct } from '../services/marketAnalysis.js'
 import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
 import { importerAdresse } from '../services/productImport.js'
@@ -1981,6 +1982,9 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
   try {
     const motsCles = String(req.query.q ?? '').trim()
     const demande = String(req.query.supplier ?? '').trim()
+    const rayonDemande = String(req.query.rayon ?? '').trim()
+    // Un rayon cherché « chez les autres » : on ne réinterroge pas celui qui le possède.
+    const sauf = String(req.query.sauf ?? '').trim()
 
     // La jointure « liaison reliée + connecteur écrit » vit dans le registre :
     // le studio d'analyses en a besoin aussi, et deux copies divergeraient —
@@ -1989,6 +1993,7 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
       ...f,
       cherche: Boolean(f.connecteur.searchProducts),
       gagnants: Boolean(f.connecteur.winningProducts),
+      nouveautes: Boolean(f.connecteur.nouveautes),
       rayons: Boolean(f.connecteur.listerRayons),
     }))
 
@@ -1998,72 +2003,73 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
      * Demandé le 16/09/2026 : « quand je clique sur écouteurs sans fil, je veux
      * voir les offres AliExpress, les offres CJ et les offres BigBuy ». C'est le
      * geste du sourcing : on ne cherche pas chez un fournisseur, on cherche un
-     * produit et on compare ce que chacun en demande. Un écran qui impose de
-     * choisir d'abord fait refaire la même recherche trois fois et ne permet
-     * jamais la comparaison, qui est justement la décision à prendre.
+     * produit et on compare ce que chacun en demande.
      *
      * En parallèle, et **chaque fournisseur porte son propre sort** : une clé
-     * refusée chez l'un ne doit pas priver le vendeur des deux autres. C'est la
-     * règle déjà posée pour le relevé des prix — un refus qui porte sur la
-     * liaison arrête ce fournisseur-là, pas la tournée entière.
+     * refusée chez l'un ne doit pas priver le vendeur des deux autres.
      */
-    const aInterroger = demande ? fournisseurs.filter((f) => f.id === demande) : fournisseurs
+    const aInterroger = fournisseurs.filter((f) => (demande ? f.id === demande : f.id !== sauf))
 
     const resultats = await Promise.all(
       aInterroger.map(async (f) => {
-        const vitrine = { id: f.id, label: f.label, cherche: f.cherche, gagnants: f.gagnants, rayons: f.rayons }
+        const vitrine = {
+          id: f.id,
+          label: f.label,
+          cherche: f.cherche,
+          gagnants: f.gagnants,
+          nouveautes: f.nouveautes,
+          rayons: f.rayons,
+        }
         try {
-          if (motsCles && f.cherche) {
-            const produits = await f.connecteur.searchProducts!(motsCles, f.creds)
-            return {
-              ...vitrine,
-              produits,
-              note: produits.length ? null : `Aucun résultat pour « ${motsCles} ».`,
+          if (rayonDemande) {
+            if (!f.connecteur.produitsDuRayon) {
+              return { ...vitrine, produits: [], note: 'Son API ne se parcourt pas par rayons.' }
             }
+            const produits = await f.connecteur.produitsDuRayon(rayonDemande, f.creds)
+            return { ...vitrine, produits, rayonChoisi: rayonDemande, note: produits.length ? null : 'Ce rayon est vide chez lui.' }
           }
-          if (!motsCles && f.gagnants) {
+          if (motsCles) {
+            if (!f.cherche) {
+              return {
+                ...vitrine,
+                produits: [],
+                note: f.rayons
+                  ? 'Son catalogue ne se cherche pas par mots-clés — choisissez un de ses rayons.'
+                  : 'Pas de recherche par mots-clés dans son API.',
+              }
+            }
+            const produits = await f.connecteur.searchProducts!(motsCles, f.creds)
+            return { ...vitrine, produits, note: produits.length ? null : `Aucun résultat pour « ${motsCles} ».` }
+          }
+
+          /*
+           * Sans mots-clés ni rayon : les NOUVEAUTÉS, ce que le fournisseur vient
+           * de mettre en ligne selon sa propre API. La case rendait rien du tout
+           * (14/10/2026) : elle n'appelait que les « meilleures ventes »
+           * d'AliExpress, et CJ — qui date ses produits — n'était jamais
+           * interrogé. Un fournisseur sans flux daté le dit ; s'il a des
+           * meilleures ventes, elles s'affichent sous leur vrai nom.
+           */
+          if (f.connecteur.nouveautes) {
+            const produits = await f.connecteur.nouveautes(f.creds)
+            if (produits.length) return { ...vitrine, produits, note: null }
+          }
+          if (f.gagnants) {
             const produits = await f.connecteur.winningProducts!(f.creds)
             return {
               ...vitrine,
               produits,
-              note: produits.length ? null : 'Aucune sélection en ce moment — cherchez par mots-clés.',
+              note: produits.length
+                ? `Pas de flux de nouveautés dans son API : voici ses meilleures ventes du moment.`
+                : 'Aucune nouveauté ni sélection en ce moment — cherchez par mots-clés.',
             }
           }
-          /*
-           * Il ne sait pas chercher : alors on lui demande ses RAYONS.
-           *
-           * BigBuy n'a pas un seul point d'entrée de recherche sur les 61 de sa
-           * spec. Répondre « pas de recherche » et s'arrêter là laisserait le
-           * vendeur devant une section vide alors que son catalogue entier est
-           * lisible — simplement par l'arbre, pas par des mots.
-           */
-          if (f.connecteur.listerRayons) {
-            const rayonDemande = String(req.query.rayon ?? '').trim()
-            if (rayonDemande && f.connecteur.produitsDuRayon) {
-              const produits = await f.connecteur.produitsDuRayon(rayonDemande, f.creds)
-              return {
-                ...vitrine,
-                produits,
-                rayonsDisponibles: await f.connecteur.listerRayons(f.creds),
-                rayonChoisi: rayonDemande,
-                note: produits.length ? null : 'Ce rayon est vide chez lui.',
-              }
-            }
-            return {
-              ...vitrine,
-              produits: [],
-              rayonsDisponibles: await f.connecteur.listerRayons(f.creds),
-              rayonChoisi: null,
-              note: 'Son catalogue ne se cherche pas par mots-clés — choisissez un rayon.',
-            }
-          }
-
           return {
             ...vitrine,
             produits: [],
-            note: motsCles
-              ? 'Pas de recherche par mots-clés dans son API.'
-              : "Pas de sélection à proposer d'office — tapez ce que vous cherchez.",
+            note: f.rayons
+              ? "Son API ne date pas ses produits : pas de nouveautés à montrer. Parcourez ses rayons."
+              : "Son API ne date pas ses produits : tapez ce que vous cherchez.",
           }
         } catch (e) {
           // Le refus du fournisseur est transmis tel quel : « Invalid Token »
@@ -2073,10 +2079,59 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
       }),
     )
 
-    res.json({ fournisseurs: resultats })
+    /*
+     * Le prix ramené en euros, pour comparer : CJ vend en dollars, BigBuy et
+     * AliExpress en euros. Taux BCE du jour (services/devises.ts) ; une devise
+     * inconnue reste sans équivalent plutôt que d'en recevoir un faux.
+     */
+    const avecEuros = await Promise.all(
+      resultats.map(async (b) => ({
+        ...b,
+        produits: await Promise.all(
+          b.produits.map(async (p) => {
+            if (p.prix === null) return { ...p, prixEur: null }
+            const c = await enEuros(p.prix, p.devise)
+            return { ...p, prixEur: c.taux === null ? null : c.montant }
+          }),
+        ),
+      })),
+    )
+
+    res.json({ fournisseurs: avecEuros })
   } catch (e) {
     console.error('catalogue fournisseur', e)
     res.status(500).json({ error: 'Impossible de lire le catalogue fournisseur' })
+  }
+})
+
+/**
+ * Les rayons de chaque catalogue relié, en un appel.
+ *
+ * Séparés de la recherche le 14/10/2026 : ils n'étaient rapportés que par un
+ * fournisseur qui ne savait PAS chercher (BigBuy), si bien qu'un vendeur relié
+ * à AliExpress et CJ lisait « aucun de vos catalogues ne se parcourt par
+ * rayons » alors que leurs deux API publient leur arbre.
+ */
+productsRouter.get('/meta/supplier-rayons', async (req: AuthedRequest, res) => {
+  try {
+    const fournisseurs = await fournisseursRelies(prisma, req.userId!)
+    const sortie = await Promise.all(
+      fournisseurs.map(async (f) => {
+        if (!f.connecteur.listerRayons) {
+          return { id: f.id, label: f.label, rayons: [], note: 'Son API ne publie pas ses rayons.' }
+        }
+        try {
+          const rayons = await f.connecteur.listerRayons(f.creds)
+          return { id: f.id, label: f.label, rayons, note: rayons.length ? null : 'Aucun rayon rendu par son API.' }
+        } catch (e) {
+          return { id: f.id, label: f.label, rayons: [], note: e instanceof Error ? e.message : 'Rayons illisibles.' }
+        }
+      }),
+    )
+    res.json({ fournisseurs: sortie })
+  } catch (e) {
+    console.error('rayons fournisseurs', e)
+    res.status(500).json({ error: 'Impossible de lire les rayons des fournisseurs' })
   }
 })
 
@@ -2103,8 +2158,11 @@ productsRouter.post('/import-catalogue', async (req: AuthedRequest, res) => {
     const parFournisseur = new Map<string, Map<string, string>>([
       [supplier, new Map(liste.map((ref) => [ref, '']))],
     ])
+    // Depuis un catalogue connecté, seule la recomposition de l'annonce est facturée.
     const resultats = await importerDepuisFournisseurs(req.userId!, parFournisseur, {
       apiBaseUrl: apiBaseUrl(req),
+      drops: DROPS.importCatalogue,
+      motif: 'Import catalogue connecté',
     })
     res.json(resultats)
   } catch (e) {
