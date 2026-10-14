@@ -16,6 +16,7 @@ import { reviewImages, applyVerdict } from './controlAgent.js'
 import { extractVariants } from './aiEnhancer.js'
 import { supplierFields } from './suppliers.js'
 import { keepaConfigure, keepaProduit } from './keepa.js'
+import { needsExtension, semerGagnants } from './autoShipperRayons.js'
 
 /**
  * Le pilote automatique.
@@ -53,22 +54,6 @@ export interface RunResult {
   log: RunLine[]
 }
 
-/** Les sites dont la fiche ne se lit pas côté serveur : l'extension est requise. */
-// SUPER DELIVERY n'est pas en JavaScript, mais son prix de gros n'apparaît
-// qu'une fois connecté : le serveur n'y lirait qu'une fiche sans prix.
-// reichelt.com sert un mur « Security Check » (503 + captcha) à tout ce qui n'est pas
-// un navigateur (sondé le 19/09/2026) : le serveur n'y lira jamais une fiche.
-const EXTENSION_ONLY = ['temu.', 'aliexpress.', 'joybuy.', 'shein.', 'superdelivery.', 'reichelt.']
-
-function needsExtension(sourceUrl: string) {
-  try {
-    const host = new URL(sourceUrl).hostname
-    return EXTENSION_ONLY.some((s) => host.includes(s))
-  } catch {
-    return true
-  }
-}
-
 export async function runAutopilot(userId: string): Promise<RunResult> {
   const log: RunLine[] = []
   const result: RunResult = { imported: 0, published: 0, skipped: 0, failed: 0, log }
@@ -93,6 +78,13 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
     return result
   }
 
+  // Les gagnants du jour des rayons boost (rapports des agents) rejoignent la liste.
+  const semes = await semerGagnants(userId).catch((err) => {
+    console.error('auto-shipper : gagnants des rapports non repris', err instanceof Error ? err.message : err)
+    return 0
+  })
+  if (semes) log.push({ titre: '—', action: 'importé', raison: `${semes} produit(s) gagnant(s) des rayons boost ajouté(s) à la liste` })
+
   const candidates = await prisma.opportunity.findMany({
     where: { userId, status: 'NEW' },
     orderBy: { detectedAt: 'desc' },
@@ -103,11 +95,20 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
   // combien Auto-Shipper en reprend par rayon (les plus récents d'abord), avant
   // les autres filtres (marge, stock, plafond du jour).
   const parRayon = settings.produitsParRayon ?? 10
+  // La facture du jour peut fixer un nombre par rayon (14/10/2026) : il prime sur le curseur.
+  const detail = (settings.produitsRayons ?? {}) as Record<string, unknown>
+  const cles = new Map(
+    (await prisma.department.findMany({ where: { userId }, select: { id: true, key: true } })).map((d) => [d.id, d.key]),
+  )
+  const plafondDuRayon = (departmentId: string | null) => {
+    const n = departmentId ? detail[cles.get(departmentId) ?? ''] : undefined
+    return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : parRayon
+  }
   const prisParRayon = new Map<string, number>()
   const retenus = candidates.filter((o) => {
     const cle = o.departmentId ?? 'sans-rayon'
     const deja = prisParRayon.get(cle) ?? 0
-    if (deja >= parRayon) return false
+    if (deja >= plafondDuRayon(o.departmentId)) return false
     prisParRayon.set(cle, deja + 1)
     return true
   })
@@ -178,6 +179,8 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       break
     }
 
+    // L'agent de contrôle se paie à l'annonce, seulement s'il est activé.
+    let controlePaye = 0
     try {
       const scraped = await scrapeProduct(o.sourceUrl)
       const enhanced = await enhanceListing({
@@ -200,12 +203,25 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       )
       const announced = await extractVariants(scraped.pageText)
 
-      // L'AUTO-SHIPPER publie sans que personne ne regarde : l'agent de contrôle
-      // des photos est TOUJOURS lancé ici, quel que soit le réglage du vendeur
-      // (qui, lui, est OFF par défaut depuis le 06/09/2026 pour les imports
-      // manuels où le vendeur choisit ses photos lui-même). Sans ce filet, une
-      // bannière ou un produit recommandé partirait en photo n°1 sans recours.
-      const verdict = await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
+      // L'AUTO-SHIPPER publie sans que personne ne regarde : sans l'agent de
+      // contrôle (option du vendeur, 15 drops l'annonce depuis le 14/10/2026),
+      // aucune photo n'est vérifiée, donc l'annonce reste en brouillon plus bas.
+      // Solde insuffisant : le contrôle est sauté, l'annonce attend le vendeur.
+      let verdict: Awaited<ReturnType<typeof reviewImages>> | null = null
+      if (settings.controleAgent) {
+        const paye = await reserveCredits(userId, DROPS.autoShipperControle, 'Agent de contrôle (AUTO-SHIPPER)')
+        if (paye.ok && paye.allowed === DROPS.autoShipperControle) {
+          controlePaye = paye.allowed
+          verdict = await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
+          // Contrôle impossible (modèle injoignable, photos illisibles) : rien n'a été contrôlé.
+          if (!verdict.checked) {
+            await refundCredits(userId, controlePaye, 'Contrôle AUTO-SHIPPER non effectué')
+            controlePaye = 0
+          }
+        } else if (paye.allowed > 0) {
+          await refundCredits(userId, paye.allowed, 'Contrôle AUTO-SHIPPER non effectué')
+        }
+      }
 
       if (verdict?.checked && verdict.rejected.length) {
         log.push({
@@ -236,7 +252,9 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
        * infiniment mieux qu'une annonce publiée qu'il faudra retirer.
        */
       const photosSures = Boolean(verdict?.checked) && retained.length >= 2
-      const raisonDoute = !verdict?.checked
+      const raisonDoute = !settings.controleAgent
+        ? "agent de contrôle désactivé : photos à vérifier avant publication"
+        : !verdict?.checked
         ? "photos non contrôlées : à vérifier avant publication"
         : retained.length < 2
           ? `photos douteuses : ${retained.length} image(s) retenue(s) sur ${chosen.length}`
@@ -334,6 +352,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       }
     } catch (err) {
       await refundCredits(userId, DROPS.autoShipperImport)
+      if (controlePaye) await refundCredits(userId, controlePaye, 'Contrôle AUTO-SHIPPER rendu')
       result.failed++
       const reason =
         err instanceof ScrapeBlockedError ? err.message : "Import impossible depuis cette adresse"
