@@ -14,22 +14,18 @@ const CHEMIN: Record<string, string> = {
 }
 
 /**
- * Un fournisseur, replié sur une ligne et dépliable sur place.
+ * Un fournisseur, en carte, trois par ligne comme dans la maquette de Max
+ * (14/10/2026), et dépliable sur place.
  *
- * Ce que ça remplace : une grille de cartes qui tronquait la description à deux
- * lignes et cachait la mise en garde — celle qui dit « livre en Inde seulement »
- * ou « aucune place de marché n'accepte ces produits ». Il fallait ouvrir une
- * fenêtre pour la lire, et la fenêtre cachait à son tour la fiche pendant qu'on
- * y collait sa clé.
+ * Repliée, la carte dit l'essentiel : le statut du raccordement, l'origine
+ * (c'est elle qui décide du délai), ce que le fournisseur vend, et si une mise
+ * en garde existe — celle qui dit « livre en Inde seulement » ne doit jamais
+ * se cacher. Ouverte, elle prend toute la largeur de la grille : le formulaire
+ * de clés et la marche à suivre ne se remplissent pas dans un tiers d'écran.
  *
- * Deux cas, et le second était le parent pauvre :
- *
- * **Avec API.** Le dépliage montre ce qu'elle permet, ce qu'il faut pour y
- * accéder, et les champs à remplir — la fiche reste sous les yeux.
- *
- * **Sans API.** Il n'y avait rien : la carte n'était même pas cliquable, comme
- * si le fournisseur n'existait qu'à moitié. Or il s'importe très bien, et c'est
- * exactement ce que le vendeur a besoin de lire.
+ * **Avec API.** Le dépliage montre ce qu'elle permet et les champs à remplir.
+ * **Sans API.** Il montre comment importer quand même : c'est la majorité des
+ * fournisseurs, et ils s'importent très bien.
  */
 export function SupplierBlock({
   supplier,
@@ -49,71 +45,74 @@ export function SupplierBlock({
   const relie = Boolean(lien?.connected)
 
   return (
-    <li className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
-      <button
-        type="button"
-        onClick={onBasculer}
-        className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-white/[0.08]"
-      >
+    <li className={`case-ds flex min-w-0 flex-col p-4 ${ouvert ? 'md:col-span-2 lg:col-span-3' : ''}`}>
+      <div className="flex items-start justify-between gap-3">
         <PlatformLogo
           id={supplier.id}
           label={supplier.label}
           color={supplier.color}
-          size={32}
+          size={40}
           domain={supplier.domain}
         />
-
-        <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-1.5">
-            <span className="truncate text-sm font-semibold">{supplier.label}</span>
-            {supplier.api ? (
-              relie ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] text-emerald-300">
-                  <Check size={9} />
-                  <span>relié</span>
-                </span>
-              ) : (
-                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-400">
-                  API disponible
-                </span>
-              )
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {supplier.api ? (
+            relie ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                <Check size={10} />
+                <span>Relié</span>
+              </span>
             ) : (
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
-                {CHEMIN[supplier.importPath] ?? supplier.importPath}
+              <span className="rounded-md bg-[var(--marque-rose)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--marque-rose)]">
+                API disponible
               </span>
-            )}
-            {aCommander > 0 ? (
-              <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-200">
-                {`${aCommander} à commander`}
-              </span>
-            ) : null}
-          </p>
-          {/* Repliée, la ligne dit l'origine : c'est elle qui décide du délai,
-              donc la première chose qu'on regarde. */}
-          <p className="truncate text-[10px] text-gray-500">{supplier.origine}</p>
+            )
+          ) : (
+            <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--texte-2)]">
+              {CHEMIN[supplier.importPath] ?? supplier.importPath}
+            </span>
+          )}
+          {aCommander > 0 ? (
+            <span className="rounded-md bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+              {`${aCommander} à commander`}
+            </span>
+          ) : null}
         </div>
+      </div>
 
-        <ChevronDown
-          size={14}
-          className={`shrink-0 text-gray-400 transition ${ouvert ? '' : '-rotate-90'}`}
-        />
+      <h3 className="mt-3 text-base font-bold text-[var(--texte)]">{supplier.label}</h3>
+      <p className="text-[11px] text-[var(--texte-3)]">{supplier.origine}</p>
+      <p className={`mt-2 flex-1 text-xs leading-relaxed text-[var(--texte-2)] ${ouvert ? '' : 'line-clamp-3'}`}>
+        {supplier.quoi}
+      </p>
+
+      {supplier.attention ? (
+        ouvert ? (
+          <p className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-2.5 text-xs leading-relaxed text-amber-100">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+            <span>{supplier.attention}</span>
+          </p>
+        ) : (
+          <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-amber-300">
+            <AlertTriangle size={11} />
+            <span>À savoir avant d'importer</span>
+          </p>
+        )
+      ) : null}
+
+      <button
+        type="button"
+        onClick={onBasculer}
+        aria-expanded={ouvert}
+        className="mt-3 inline-flex items-center gap-1 self-start rounded-lg border border-[var(--trait)] px-3 py-1.5 text-xs font-semibold text-[var(--texte)] transition hover:border-[var(--trait-fort)] hover:bg-white/[0.04]"
+      >
+        <span>{ouvert ? 'Réduire' : supplier.api && !relie ? 'Relier mon compte' : supplier.api ? 'Voir le raccordement' : 'Comment importer'}</span>
+        <ChevronDown size={13} className={`transition ${ouvert ? 'rotate-180' : ''}`} />
       </button>
 
       {ouvert ? (
-        <div className="border-t border-white/10 p-3">
-          <p className="text-[13px] leading-relaxed text-gray-300">{supplier.quoi}</p>
-
-          {supplier.attention ? (
-            <p className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-2.5 text-xs leading-relaxed text-amber-100">
-              <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-              <span>{supplier.attention}</span>
-            </p>
-          ) : null}
-
+        <div className="mt-3 border-t border-[var(--trait)] pt-3">
           {supplier.api ? (
-            <div className="mt-4">
-              <FormulaireFournisseur supplier={supplier} lien={lien} onSaved={onSaved} />
-            </div>
+            <FormulaireFournisseur supplier={supplier} lien={lien} onSaved={onSaved} />
           ) : (
             <MarcheASuivre supplier={supplier} />
           )}
@@ -141,7 +140,7 @@ function MarcheASuivre({ supplier }: { supplier: Supplier }) {
   const parAdresse = supplier.importPath !== 'extension'
 
   return (
-    <div className="mt-4 space-y-3">
+    <div className="space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
         Comment importer de ce fournisseur
       </p>
@@ -153,7 +152,7 @@ function MarcheASuivre({ supplier }: { supplier: Supplier }) {
             <span>Par l'adresse du produit</span>
           </p>
           <p className="mt-1 text-xs leading-relaxed text-gray-400">
-            {`Copiez l'adresse de la fiche produit chez ${supplier.label}, collez-la dans « Importer un produit ». Le titre, le prix et les photos sont relevés, puis réécrits.`}
+            {`Copiez l'adresse de la fiche produit chez ${supplier.label}, collez-la dans « Acquérir des produits ». Le titre, le prix et les photos sont relevés, puis réécrits.`}
           </p>
           <Link
             to="/acquisition"
@@ -182,7 +181,7 @@ function MarcheASuivre({ supplier }: { supplier: Supplier }) {
             <li>Cliquez le bouton qui apparaît en bas à droite.</li>
           </ol>
           <Link
-            to="/settings"
+            to="/extension"
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/5"
           >
             Télécharger l'extension
