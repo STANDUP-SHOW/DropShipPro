@@ -203,40 +203,33 @@ export default function Categories() {
             </span>
           </h2>
 
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {ouvert.enfants.map((e) => (
-              <li
-                key={e.id}
-                id={`cat-${e.id}`}
-                className={`rounded-xl border px-3 py-2.5 transition ${
-                  choisie === e.id ? 'border-[var(--marque-rose)] bg-[#e85290]/10' : 'border-white/10 bg-white/5 hover:border-[#e85290]/40'
-                }`}
-              >
-                <p className="text-sm leading-snug">{e.label}</p>
-                <p className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-400">
-                  <span>{e.uses > 0 ? `${e.uses} annonce(s)` : 'aucune annonce'}</span>
-                  {e.origin === 'learned' ? <Appris /> : null}
-                </p>
+              <li key={e.id} id={`cat-${e.id}`}>
+                <CarteRayon
+                  photo={ouvert.id}
+                  icone={ouvert.icone}
+                  titre={e.label}
+                  compte={e.uses > 0 ? `${e.uses} annonce${e.uses > 1 ? 's' : ''}` : 'Aucune annonce'}
+                  allume={choisie === e.id}
+                  apprise={e.origin === 'learned'}
+                />
               </li>
             ))}
           </ul>
         </>
       ) : rayons.length || chargement ? (
         /* --- L'accueil : les rayons en gros blocs -------------------------- */
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rayons.map((r) => (
             <li key={r.id}>
-              <button
-                type="button"
+              <CarteRayon
+                photo={r.id}
+                icone={r.icone}
+                titre={r.label}
+                compte={`${r.enfants.length} sous-catégorie${r.enfants.length > 1 ? 's' : ''}`}
                 onClick={() => choisir(r.id)}
-                className="flex h-full w-full flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-5 text-center transition hover:-translate-y-0.5 hover:border-[#e85290]/50 hover:bg-white/[0.08]"
-              >
-                <span className="text-4xl leading-none">{r.icone ?? '📦'}</span>
-                <span className="text-sm font-medium leading-snug">{r.label}</span>
-                <span className="text-[11px] text-gray-400">
-                  {`${r.enfants.length} sous-catégories`}
-                </span>
-              </button>
+              />
             </li>
           ))}
         </ul>
@@ -246,6 +239,79 @@ export default function Categories() {
         </p>
       )}
     </Layout>
+  )
+}
+
+/**
+ * Le bloc d'un rayon ou d'une catégorie, habillé comme le modèle de Max du
+ * 14/10/2026 : carte sombre, photo du rayon à droite fondue dans le noir,
+ * icône en haut, nom au centre (premier mot, puis le reste en capitales),
+ * compte en petit et barre orange vers rose en bas.
+ *
+ * La photo vient de /images/rayons/<id du rayon>.jpg ; tant qu'elle manque,
+ * la carte reste sombre, sans image de remplacement.
+ */
+function CarteRayon({
+  photo,
+  icone,
+  titre,
+  compte,
+  onClick,
+  allume = false,
+  apprise = false,
+}: {
+  photo: string
+  icone: string | null
+  titre: string
+  compte: string
+  onClick?: () => void
+  allume?: boolean
+  apprise?: boolean
+}) {
+  const [image, setImage] = useState(true)
+  const [premier, ...reste] = titre.split(' ')
+  const contenu = (
+    <>
+      {image ? (
+        <img
+          src={`/images/rayons/${photo}.jpg`}
+          alt=""
+          loading="lazy"
+          onError={() => setImage(false)}
+          className="absolute inset-y-0 right-0 h-full w-[55%] object-cover"
+          style={{ maskImage: 'linear-gradient(to right, transparent, #000 45%)', WebkitMaskImage: 'linear-gradient(to right, transparent, #000 45%)' }}
+        />
+      ) : null}
+      <div className="relative flex h-full w-[62%] flex-col items-center justify-center px-4 pb-6 pt-4 text-center">
+        <span className="text-3xl leading-none" aria-hidden>
+          {icone ?? '📦'}
+        </span>
+        <span className="mt-2 text-lg font-medium leading-tight text-white">
+          {premier}
+          {reste.length ? (
+            <>
+              <br />
+              <span className="uppercase">{reste.join(' ')}</span>
+            </>
+          ) : null}
+        </span>
+        <span className="mt-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--texte-2)]">
+          {compte}
+          {apprise ? <Appris /> : null}
+        </span>
+      </div>
+      <span className="absolute bottom-3 left-5 right-[30%] h-1.5 rounded-full bg-gradient-to-r from-[#f28a4b] to-[#e85290]" aria-hidden />
+    </>
+  )
+  const classe = `relative block h-40 w-full overflow-hidden rounded-2xl border bg-black text-left transition ${
+    allume ? 'border-[var(--marque-rose)] ring-2 ring-[#e85290]/40' : 'border-white/10'
+  }`
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${classe} hover:-translate-y-0.5 hover:border-[#e85290]/60`}>
+      {contenu}
+    </button>
+  ) : (
+    <div className={classe}>{contenu}</div>
   )
 }
 
