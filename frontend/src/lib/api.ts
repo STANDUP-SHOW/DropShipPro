@@ -1673,6 +1673,8 @@ export const api = {
         jour: string | null
         produits: number
         importables: number
+        /** Combien de ces importables partiront par l'extension (ni API, ni application desktop) : ceux-là seuls passent par l'agent de contrôle. Absent : tous. */
+        parExtension?: number
         departmentId: string | null
         boost: boolean
       }>

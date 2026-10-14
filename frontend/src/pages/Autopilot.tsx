@@ -264,13 +264,20 @@ export default function Autopilot() {
     choix.length === config.rayons.filter((r) => r.boost).length && config.rayons.every((r) => r.boost === choix.includes(r.key))
   const produits = s.produitsParRayon
   const nR = rayonsChoisis.length
-  const parProduit = t.parProduit + (s.controleAgent ? t.controle : 0)
+  const parProduit = t.parProduit
   // La facture : chaque rayon coché, avec son propre nombre de produits (le curseur par défaut).
-  const lignes = rayonsChoisis.map((r) => ({ ...r, n: s.produitsRayons?.[r.key] ?? produits }))
+  // L'agent de contrôle ne sert qu'aux produits importés par l'extension (Max, 14/10/2026) :
+  // tant que le serveur ne dit pas lesquels (`parExtension`), il compte sur chaque produit, comme il facture.
+  const lignes = rayonsChoisis.map((r) => {
+    const n = s.produitsRayons?.[r.key] ?? produits
+    return { ...r, n, controles: r.parExtension === undefined ? n : Math.min(n, r.parExtension) }
+  })
   const demandes = lignes.reduce((n, l) => n + l.n, 0)
   const limite = s.dailyLimit < SANS_LIMITE
   const imports = limite ? Math.min(demandes, s.dailyLimit) : demandes
-  const total = t.journee + imports * parProduit
+  const parExtensionConnu = rayonsChoisis.some((r) => r.parExtension !== undefined)
+  const controles = s.controleAgent ? Math.min(imports, lignes.reduce((n, l) => n + l.controles, 0)) : 0
+  const total = t.journee + imports * parProduit + controles * t.controle
   // Ce que les analyses du dernier jour donnent vraiment, rayon par rayon.
   const importablesDuJour = Math.min(lignes.reduce((n, l) => n + Math.min(l.n, l.importables), 0), imports)
   const plateformes = s.autoPublish ? config.destinations.filter((d) => s.destinations.includes(d.id)) : []
@@ -429,6 +436,13 @@ export default function Autopilot() {
                 Il regarde chaque photo de l'annonce avant publication et la compare au titre et aux variantes. Il écarte ce qui n'est pas le
                 produit (bannières, produits recommandés, panier) et garde les vraies photos. Une annonce dont les photos sont sûres est publiée ;
                 sinon elle reste en brouillon avec la raison écrite.
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--texte-2)]">
+                Il sert aux produits importés par l'extension Chrome, pour qui n'a pas l'application desktop. Les produits importés par{' '}
+                <Link to="/application-desktop" className="font-semibold text-[var(--texte)] underline underline-offset-2">
+                  l'application desktop
+                </Link>{' '}
+                ou par un catalogue connecté n'en ont pas besoin, et il ne te coûte rien pour eux.
               </p>
               <p className="mt-2 text-xs text-[var(--texte-3)]">
                 {`Sans lui, les annonces sont importées en brouillon et attendent ta vérification avant toute publication. Rendu si le contrôle n'a pas pu se faire.`}
@@ -691,11 +705,28 @@ export default function Autopilot() {
                       </span>
                     </td>
                     <td className="py-2 text-right text-[var(--texte-2)]">
-                      {s.controleAgent ? `${t.parProduit} + ${t.controle} contrôle` : drops(t.parProduit)}
+                      {drops(t.parProduit)}
                     </td>
                     <td className="py-2 text-right font-semibold text-[var(--texte)]">{drops(l.n * parProduit)}</td>
                   </tr>
                 ))}
+                {lignes.length > 0 && (
+                  <tr className="border-b border-[var(--trait)]">
+                    <td className="py-2">
+                      <span className={`block ${s.controleAgent ? 'text-[var(--texte)]' : 'text-[var(--texte-3)]'}`}>
+                        {s.controleAgent ? 'Agent de contrôle' : 'Agent de contrôle (désactivé)'}
+                      </span>
+                      <span className="block text-[11px] text-[var(--texte-3)]">
+                        {parExtensionConnu
+                          ? "Seulement les annonces importées par l'extension"
+                          : 'Une vérification par annonce importée'}
+                      </span>
+                    </td>
+                    <td className="py-2 text-center text-[var(--texte-2)]">{controles}</td>
+                    <td className="py-2 text-right text-[var(--texte-2)]">{drops(t.controle)}</td>
+                    <td className="py-2 text-right font-semibold text-[var(--texte)]">{drops(controles * t.controle)}</td>
+                  </tr>
+                )}
                 {!lignes.length && (
                   <tr className="border-b border-[var(--trait)]">
                     <td colSpan={4} className="py-3 text-center text-xs text-[var(--texte-3)]">
