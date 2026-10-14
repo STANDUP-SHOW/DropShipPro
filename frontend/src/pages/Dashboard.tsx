@@ -27,6 +27,24 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 /**
+ * Les boutons de tri par état, rassemblés dans un seul bloc (demande de Max du
+ * 14/10/2026) plutôt qu'un menu et des boutons épars. Une annonce « publiée »
+ * a au moins une publication ; les autres sont prêtes (READY) ou à compléter
+ * (DRAFT) selon leur statut.
+ */
+type Statut = 'tous' | 'publie' | 'pret' | 'aCompleter'
+const STATUTS: Array<{ id: Statut; label: string }> = [
+  { id: 'tous', label: 'Toutes' },
+  { id: 'publie', label: 'Publiées' },
+  { id: 'pret', label: 'Prêtes' },
+  { id: 'aCompleter', label: 'À compléter' },
+]
+function statutDe(p: any): Statut {
+  if ((p.publications ?? []).length > 0) return 'publie'
+  return p.status === 'READY' ? 'pret' : p.status === 'DRAFT' ? 'aCompleter' : 'tous'
+}
+
+/**
  * Les réglages de liste (tri, filtres, recherche, vue) mémorisés d'un rendu à
  * l'autre. Relus UNIQUEMENT au retour d'une fiche — quand l'URL porte
  * `?retour=…` : une visite normale de « Mes annonces » repart des réglages par
@@ -53,7 +71,7 @@ export default function Dashboard() {
   // Réglages restaurés au retour d'une fiche (null lors d'une visite normale).
   const [restaure] = useState(filtresSauves)
   const [tri, setTri] = useState<'date' | 'categorie' | 'prix' | 'fournisseur'>(restaure?.tri ?? 'date')
-  const [statut, setStatut] = useState<'tous' | 'publie' | 'nonPublie'>(restaure?.statut ?? 'tous')
+  const [statut, setStatut] = useState<Statut>(STATUTS.some((x) => x.id === restaure?.statut) ? restaure?.statut : 'tous')
   const [fournisseurFiltre, setFournisseurFiltre] = useState<string>(restaure?.fournisseurFiltre ?? '')
   /**
    * N'afficher que les annonces dont le texte n'a pas été réécrit.
@@ -163,11 +181,7 @@ export default function Dashboard() {
     .filter((p) => !needle || `${p.aiTitle ?? ''} ${p.title ?? ''}`.toLowerCase().includes(needle))
     .filter((p) => !fournisseurFiltre || p.sourceSite === fournisseurFiltre)
     .filter((p) => !seulementNonReecrites || p.aiEnhanced === false)
-    .filter((p) => {
-      if (statut === 'tous') return true
-      const publiee = (p.publications ?? []).length > 0
-      return statut === 'publie' ? publiee : !publiee
-    })
+    .filter((p) => statut === 'tous' || statutDe(p) === statut)
     /*
      * Trié sur une copie, jamais sur `products`.
      *
@@ -466,38 +480,6 @@ export default function Dashboard() {
             <option value="fournisseur">Tri : fournisseur</option>
           </select>
 
-          <select
-            value={statut}
-            onChange={(e) => setStatut(e.target.value as typeof statut)}
-            title="Publiées ou non"
-            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400"
-          >
-            <option value="tous">Toutes</option>
-            <option value="publie">Publiées</option>
-            <option value="nonPublie">Non publiées</option>
-          </select>
-
-          {/*
-            Affiché seulement s'il y en a — et alors impossible à manquer.
-            Une annonce non réécrite ressemble en tout point à une bonne dans la
-            liste : même vignette, même prix, même badge. Le seul moyen de les
-            retrouver était de les ouvrir une par une.
-          */}
-          {nonReecrites > 0 && (
-            <button
-              type="button"
-              onClick={() => setSeulementNonReecrites((v) => !v)}
-              aria-pressed={seulementNonReecrites}
-              className={`rounded-xl border px-3 py-2 text-sm transition ${
-                seulementNonReecrites
-                  ? 'border-amber-400/60 bg-amber-500/20 text-amber-100'
-                  : 'border-amber-400/30 bg-amber-500/5 text-amber-200 hover:bg-amber-500/10'
-              }`}
-            >
-              {`⚠ ${nonReecrites} sans réécriture`}
-            </button>
-          )}
-
           {/* Affiché seulement s'il y a un choix à faire : un menu à une seule
               entrée occupe la barre sans rien trancher. */}
           {fournisseurs.length > 1 && (
@@ -514,6 +496,43 @@ export default function Dashboard() {
                 </option>
               ))}
             </select>
+          )}
+        </div>
+
+        {/* Le tri par état, en un seul bloc de boutons groupés, chaque bouton
+            avec son compte. « Sans réécriture » n'apparaît que s'il y en a :
+            une annonce restée au texte du fournisseur ne se voit pas autrement. */}
+        <div role="group" aria-label="Trier par état" className="mt-3 inline-flex max-w-full flex-wrap overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+          {STATUTS.map((x) => {
+            const n = x.id === 'tous' ? products.length : products.filter((p) => statutDe(p) === x.id).length
+            const actif = statut === x.id
+            return (
+              <button
+                key={x.id}
+                type="button"
+                onClick={() => setStatut(x.id)}
+                aria-pressed={actif}
+                className={`border-r border-white/10 px-3.5 py-2 text-sm font-semibold transition ${
+                  actif ? 'bg-gradient-to-r from-[#f28a4b] to-[#e85290] text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <span>{x.label}</span>
+                <span className={`ml-1.5 text-xs ${actif ? 'text-white/80' : 'text-gray-500'}`}>{n}</span>
+              </button>
+            )
+          })}
+          {nonReecrites > 0 && (
+            <button
+              type="button"
+              onClick={() => setSeulementNonReecrites((v) => !v)}
+              aria-pressed={seulementNonReecrites}
+              className={`px-3.5 py-2 text-sm font-semibold transition ${
+                seulementNonReecrites ? 'bg-amber-500/25 text-amber-100' : 'text-amber-200 hover:bg-amber-500/10'
+              }`}
+            >
+              <span>⚠ Sans réécriture</span>
+              <span className="ml-1.5 text-xs opacity-80">{nonReecrites}</span>
+            </button>
           )}
         </div>
 

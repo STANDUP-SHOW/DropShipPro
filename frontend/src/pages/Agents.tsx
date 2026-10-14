@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, ArrowRight } from 'lucide-react'
+import { Users, ArrowRight, ChevronDown } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { api } from '../lib/api'
 import { SupportChat } from '../components/SupportChat'
 import { BoutonAutoMode } from '../components/BoutonAutoMode'
-import { VignetteProfil } from '../components/VignetteProfil'
 import { photoAgent } from '../lib/agentsPhotos'
+import { ficheAgent } from '../lib/agentsTaches'
 
 type Roster = Awaited<ReturnType<typeof api.agentRoster>>
 type Agent = Roster['pipeline'][number]
@@ -33,88 +33,128 @@ const ACCESS_LABEL: Record<string, string> = {
 }
 
 /**
- * Une carte d'agent, à hauteur égale de toutes les autres.
+ * Une case d'agent, rectangulaire, d'après la maquette de max (14/10/2026) :
+ * la fonction en titre, le prénom dessous, la photo à droite et une phrase
+ * courte. « Voir le rôle » déplie la case sur ses tâches, une par ligne.
  *
- * La carte n'est plus un gros bouton : le bouton IA AUTO-MODE vit DEDANS
- * (demandé le 10/09/2026), et un bouton dans un bouton est du HTML invalide.
- * Le pied de fiche — étiquette de prix, interrupteur, action — est collé en bas
- * (`mt-auto`) : avec `auto-rows-fr` sur la grille, toutes les cartes prennent la
- * hauteur de la plus grande, et leurs pieds s'alignent.
- *
- * La conversation d'un agent de comptoir ne s'ouvre plus DANS la grille (elle
- * gonflerait toutes les cartes), mais en pleine largeur SOUS la section.
+ * La grille est en `items-start` : une case dépliée grandit seule, sans
+ * étirer ses voisines de rangée.
  */
 function AgentCard({
   agent,
   ouvert,
+  deplie,
   onOuvrir,
+  onDeplier,
   onAuto,
 }: {
   agent: Agent
   ouvert: boolean
+  deplie: boolean
   onOuvrir: (key: string) => void
+  onDeplier: (key: string) => void
   onAuto: (key: string, enabled: boolean) => Promise<void>
 }) {
   const comptoir = agent.family === 'comptoir'
+  const fiche = ficheAgent(agent.key, agent.does)
+  const photo = photoAgent(agent.key)
+  const idTaches = `taches-${agent.key}`
 
   return (
-    <li className="h-full">
-      <VignetteProfil
-        prenom={agent.name}
-        role={agent.role}
-        emoji={agent.emoji}
-        photo={photoAgent(agent.key)}
-        coin={
-          <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATE_STYLE[agent.state]}`}>
-            {agent.state}
+    <li className="case-ds flex flex-col p-4">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-bold leading-tight">{agent.role}</h3>
+          <p className="mt-0.5 text-xs text-gray-400">{agent.name}</p>
+          <p className="mt-2 min-h-[2.5rem] text-xs leading-relaxed text-gray-300">{fiche.bref}</p>
+        </div>
+        {photo ? (
+          <img
+            src={photo}
+            alt={`Portrait de ${agent.name}`}
+            width={72}
+            height={72}
+            loading="lazy"
+            className="h-[72px] w-[72px] shrink-0 rounded-xl border border-white/10 object-cover"
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="grid h-[72px] w-[72px] shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-3xl"
+          >
+            {agent.emoji}
           </span>
-        }
-      >
-        <p className="text-xs leading-relaxed text-gray-500">{agent.does}</p>
+        )}
+      </div>
 
-        {/* Ce que l'agent ne fait pas : sur du conseil comptable ou juridique,
-            c'est aussi important que ce qu'il fait. */}
-        {agent.caveat ? (
-          <p className="mt-2 rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] leading-relaxed text-gray-400">
-            {agent.caveat}
-          </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className={`rounded-full px-2 py-0.5 text-[11px] ${STATE_STYLE[agent.state]}`}>{agent.state}</span>
+        <span className="rounded-full bg-sky-400/10 px-2 py-0.5 text-[11px] text-sky-300">
+          {ACCESS_LABEL[agent.access] ?? 'Accessible'}
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => onDeplier(agent.key)}
+          aria-expanded={deplie}
+          aria-controls={idTaches}
+          className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:border-white/30"
+        >
+          <span>{deplie ? 'Masquer le rôle' : 'Voir le rôle'}</span>
+          <ChevronDown size={13} className={`transition-transform ${deplie ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* L'action : lui parler (comptoir) ou aller voir son travail (chaîne). */}
+        {comptoir ? (
+          <button
+            type="button"
+            onClick={() => onOuvrir(agent.key)}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--marque-rose)] hover:underline"
+          >
+            <span>{ouvert ? 'Fermer la conversation' : 'Lui parler'}</span>
+            <ArrowRight size={12} />
+          </button>
+        ) : agent.href ? (
+          <Link to={agent.href} className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200">
+            <span>{agent.where}</span>
+            <ArrowRight size={12} />
+          </Link>
+        ) : agent.where ? (
+          <span className="text-xs text-gray-500">{agent.where}</span>
         ) : null}
+      </div>
 
-        {/* Le pied de fiche, collé en bas — c'est lui qui aligne les cartes. */}
-        <div className="mt-auto pt-3">
-          <p className="text-[11px] font-semibold text-sky-300">{ACCESS_LABEL[agent.access] ?? 'Accessible'}</p>
-          {agent.note ? <p className="mt-1 text-[11px] text-amber-300">{agent.note}</p> : null}
+      {deplie ? (
+        <div id={idTaches} className="mt-3 border-t border-white/10 pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Ses tâches</p>
+          <ul className="mt-2 space-y-1.5">
+            {fiche.taches.map((t) => (
+              <li key={t} className="flex gap-2 text-xs leading-relaxed text-gray-300">
+                <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--marque-rose)]" />
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
 
-          {/* Le bouton IA AUTO-MODE fait partie du bloc (10/09/2026). L'avocat
-              ne le propose JAMAIS : il ne se paie qu'à la question, en drops. */}
+          {/* Ce que l'agent ne fait pas : sur du conseil comptable ou juridique,
+              c'est aussi important que ce qu'il fait. */}
+          {agent.caveat ? (
+            <p className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] leading-relaxed text-gray-400">
+              {agent.caveat}
+            </p>
+          ) : null}
+          {agent.note ? <p className="mt-2 text-[11px] text-amber-300">{agent.note}</p> : null}
+
+          {/* L'avocat ne propose JAMAIS l'AUTO-MODE : il ne se paie qu'à la question. */}
           {agent.access !== 'question' ? (
-            <div className="mt-2">
+            <div className="mt-3">
               <BoutonAutoMode compact actif={Boolean(agent.autoMode)} onBascule={(enabled) => onAuto(agent.key, enabled)} />
             </div>
           ) : null}
-
-          {/* L'action : lui parler (comptoir) ou aller voir son travail (chaîne). */}
-          <div className="mt-2">
-            {comptoir ? (
-              <button
-                type="button"
-                onClick={() => onOuvrir(agent.key)}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-300 hover:text-purple-200"
-              >
-                <span>{ouvert ? 'Fermer la conversation' : 'Lui parler'}</span>
-                <ArrowRight size={11} />
-              </button>
-            ) : agent.href ? (
-              <Link to={agent.href} className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-200">
-                <span>{agent.where}</span>
-                <ArrowRight size={11} />
-              </Link>
-            ) : agent.where ? (
-              <span className="text-[11px] text-gray-500">{agent.where}</span>
-            ) : null}
-          </div>
         </div>
-      </VignetteProfil>
+      ) : null}
     </li>
   )
 }
@@ -134,6 +174,19 @@ export default function Agents() {
   const [error, setError] = useState<string | null>(null)
   /** L agent dont la conversation est ouverte, une seule a la fois. */
   const [ouvert, setOuvert] = useState<string | null>(null)
+  /** Les cases dépliées sur leurs tâches ; plusieurs peuvent l'être à la fois. */
+  const [deplies, setDeplies] = useState<Set<string>>(() => new Set())
+  /** Le tri par fonction : un seul bloc de boutons groupés (consigne de max, 14/10/2026). */
+  const [fonction, setFonction] = useState<string>('toutes')
+
+  function deplier(key: string) {
+    setDeplies((actuel) => {
+      const suite = new Set(actuel)
+      if (suite.has(key)) suite.delete(key)
+      else suite.add(key)
+      return suite
+    })
+  }
 
   useEffect(() => {
     api.agentRoster().then(setRoster).catch(() => setError("L'équipe n'a pas pu être chargée"))
@@ -153,22 +206,42 @@ export default function Agents() {
 
   return (
     <Layout>
-      <h1 className="flex items-center gap-2 text-2xl font-bold">
-        <Users size={22} className="text-emerald-400" />
-        <span>Mes agents ADMIN</span>
-      </h1>
-      <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        L'équipe fournie avec l'application : elle importe, réécrit, contrôle, publie, photographie
-        et répond. Vous n'avez rien à installer, et rien à embaucher.
+      <div className="flex items-center gap-2.5">
+        <Users size={22} className="text-[var(--marque-orange)]" />
+        <h1 className="text-xl font-extrabold tracking-wide">MES AGENTS IA</h1>
+      </div>
+      <p className="mt-0.5 max-w-3xl text-xs text-gray-500">
+        L'équipe fournie avec l'application, rangée par fonction : elle importe, réécrit, contrôle,
+        publie, photographie et répond. Ouvrez « Voir le rôle » pour lire les tâches de chacun.
       </p>
-      <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        Les <b>chefs de rayon</b> sont ailleurs, dans{' '}
-        <Link to="/rayons" className="text-purple-300 underline">
+      <p className="mt-1 max-w-3xl text-xs text-gray-500">
+        Les <b className="text-gray-300">chefs de rayon</b> sont dans{' '}
+        <Link to="/rayons" className="text-[var(--marque-rose)] underline">
           Mes rayons
-        </Link>{' '}
-        : ils se confient un par un (gratuitement), dépendent des rayons que vous travaillez
-        vraiment, et leurs actions se paient en drops comme le reste.
+        </Link>
+        {' '}: ils se confient un par un, selon les rayons que vous travaillez.
       </p>
+
+      {roster ? (
+        <div role="group" aria-label="Trier par fonction" className="mt-4 inline-flex flex-wrap rounded-lg border border-white/10 p-0.5">
+          {[{ key: 'toutes', label: 'Toutes les fonctions' }, ...roster.categories].map((c) => {
+            const n = c.key === 'toutes' ? tous.length : tous.filter((a) => a.category === c.key).length
+            if (!n) return null
+            const actif = fonction === c.key
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setFonction(c.key)}
+                aria-pressed={actif}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${actif ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                {`${c.label} · ${n}`}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
 
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
       {!roster && !error ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
@@ -176,23 +249,23 @@ export default function Agents() {
       {roster
         ? roster.categories.map((cat) => {
             const membres = tous.filter((a) => a.category === cat.key)
-            if (!membres.length) return null
+            if (!membres.length || (fonction !== 'toutes' && fonction !== cat.key)) return null
             // L'agent de comptoir dont la conversation est ouverte, s'il est de
             // cette section : son tchat s'affiche en pleine largeur sous la grille.
             const agentOuvert = membres.find((a) => a.key === ouvert && a.family === 'comptoir')
             return (
-              <section key={cat.key} className="mt-8">
-                <h2 className="font-bold">Mes agents {cat.label}</h2>
-                <p className="mt-1 text-xs text-gray-500">{cat.hint}</p>
-                {/* `auto-rows-fr` : toutes les rangées à la hauteur de la plus
-                    grande carte — les blocs font donc tous la même taille. */}
-                <ul className="mt-4 grid grid-cols-1 auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <section key={cat.key} className="mt-6">
+                <h2 className="text-sm font-bold">{cat.label}</h2>
+                <p className="mt-0.5 text-xs text-gray-500">{cat.hint}</p>
+                <ul className="mt-3 grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {membres.map((a) => (
                     <AgentCard
                       key={a.key}
                       agent={a}
                       ouvert={ouvert === a.key}
+                      deplie={deplies.has(a.key)}
                       onOuvrir={(k) => setOuvert((actuel) => (actuel === k ? null : k))}
+                      onDeplier={deplier}
                       onAuto={basculerAuto}
                     />
                   ))}
