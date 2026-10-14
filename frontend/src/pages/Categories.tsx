@@ -286,16 +286,16 @@ function CarteRayon({
         <span className="text-3xl leading-none" aria-hidden>
           {icone ?? '📦'}
         </span>
-        <span className="mt-2 text-lg font-medium leading-tight text-white">
-          {premier}
+        <span className="mt-2 text-lg leading-tight text-white">
+          <span className="font-normal">{premier}</span>
           {reste.length ? (
             <>
               <br />
-              <span className="uppercase">{reste.join(' ')}</span>
+              <span className="font-extrabold uppercase">{reste.join(' ')}</span>
             </>
           ) : null}
         </span>
-        <span className="mt-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--texte-2)]">
+        <span className="mt-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-white">
           {compte}
           {apprise ? <Appris /> : null}
         </span>
@@ -303,7 +303,7 @@ function CarteRayon({
       <span className="absolute bottom-3 left-5 right-[30%] h-1.5 rounded-full bg-gradient-to-r from-[#f28a4b] to-[#e85290]" aria-hidden />
     </>
   )
-  const classe = `relative block h-40 w-full overflow-hidden rounded-2xl border bg-black text-left transition ${
+  const classe = `relative block h-44 w-full overflow-hidden rounded-2xl border bg-black text-left transition ${
     allume ? 'border-[var(--marque-rose)] ring-2 ring-[#e85290]/40' : 'border-white/10'
   }`
   return onClick ? (
