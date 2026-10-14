@@ -265,6 +265,11 @@ export const ALL_AGENTS = [...PIPELINE_AGENTS, ...SUPPORT_AGENTS]
 
 export const SUPPORT_KEYS = SUPPORT_AGENTS.map((a) => a.key)
 
+/**
+ * The agent a seller can talk to. Pipeline agents answer too: their page bar
+ * (Sacha on Fournisseurs, Romain, Olivier) used to get a 404 because only the
+ * desk agents were searched.
+ */
 export function findSupportAgent(key: string) {
-  return SUPPORT_AGENTS.find((a) => a.key === key) ?? null
+  return ALL_AGENTS.find((a) => a.key === key) ?? null
 }
