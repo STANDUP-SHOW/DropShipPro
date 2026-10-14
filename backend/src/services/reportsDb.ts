@@ -1002,6 +1002,28 @@ export class ReportQuery {
     return rows.map((p, i) => ReportQuery.produitDeLigne(p, i))
   }
 
+  /**
+   * A category's products from its most recent rayon report day, with the agent's own
+   * `is_product` flag (a row can be a category page or a search, not a product).
+   * Read by the AUTO-SHIPPER bridge (autoShipperRayons.ts), which decides what it can import alone.
+   */
+  getDernierJourProduits(categorie: string): { jour: string | null; produits: Array<ProduitRapport & { estProduit: boolean }> } {
+    const row = this.db.prepare("SELECT MAX(date) d FROM reports WHERE categorie = ? AND type = 'rayon'").get(categorie) as any
+    const jour = row?.d ? String(row.d) : null
+    if (!jour) return { jour: null, produits: [] }
+    const rows = this.db
+      .prepare(
+        `SELECT ${ReportQuery.COLONNES_PRODUIT}, p.is_product
+           FROM products p
+           JOIN rayon_reports rr ON rr.id = p.rayon_report_id
+           JOIN reports r ON r.id = rr.report_id
+          WHERE r.categorie = ? AND r.date = ? AND r.type = 'rayon'
+          ORDER BY p.rowid ASC`,
+      )
+      .all(categorie, jour) as any[]
+    return { jour, produits: rows.map((p, i) => ({ ...ReportQuery.produitDeLigne(p, i), estProduit: Number(p.is_product) === 1 })) }
+  }
+
   /** Le jour le plus récent DÉPOSÉ — jamais l'heure de la machine, qui peut devancer les agents. */
   getDerniereDate(categorie?: string): string | null {
     const row = categorie

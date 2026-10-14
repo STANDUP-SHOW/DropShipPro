@@ -1168,6 +1168,10 @@ model Autopilot {
   /// Nombre de produits gagnants repris PAR RAYON et par passage (1-10). Chaque
   /// chef en genere 10 ; ce reglage decide combien Auto-Shipper en importe.
   produitsParRayon Int   @default(10)
+  /// Agent de controle de l AUTO-SHIPPER (14/10/2026) : controle visuel des
+  /// photos de chaque annonce importee, facture a l annonce. Eteint, les
+  /// annonces sont importees en brouillon, jamais publiees sans controle.
+  controleAgent  Boolean @default(false)
   /// Dernier passage automatique servi : la garde de la tranche de 12 h.
   lastAutoRunAt  DateTime?
   /// Publie apres import, sur les destinations a API uniquement.
