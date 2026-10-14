@@ -1,22 +1,30 @@
-import type { Platform } from '@prisma/client'
 import { reparerVariantes } from './variantRepair.js'
 import { prisma } from '../lib/prisma.js'
 import { scrapeProduct, ScrapeBlockedError } from './scraper.js'
 import { enhanceListing } from './aiEnhancer.js'
 import { rapatrierImages } from './watermark.js'
-import { publishToPlatform } from './publisher.js'
-import { mettreEnFileDesktop } from './desktopFile.js'
-import { PLATFORMS } from './platforms.js'
 import { reserveCredits, refundCredits } from './billing.js'
 import { DROPS } from './tarifs.js'
 import { resoudreCategorie } from './categories.js'
-import { apiBaseUrl } from '../lib/urls.js'
 import { selectProductImages, PHOTOS_PAR_ANNONCE } from './imageSelect.js'
-import { reviewImages, applyVerdict } from './controlAgent.js'
 import { extractVariants } from './aiEnhancer.js'
 import { supplierFields } from './suppliers.js'
 import { keepaConfigure, keepaProduit } from './keepa.js'
-import { needsExtension, semerGagnants } from './autoShipperRayons.js'
+import { semerGagnants } from './autoShipperRayons.js'
+import { importerDepuisFournisseurs } from './supplierImport.js'
+import {
+  AUTO_PLATFORMS,
+  contexteVoies,
+  enFileDuJour,
+  expirerFileAutoShipper,
+  lectureNavigateur,
+  mettreEnFileAutoShipper,
+  publierAutoShipper,
+  refAliExpress,
+  suiteAutoShipper,
+  voieDe,
+  type LigneJournal,
+} from './autoShipperFile.js'
 
 /**
  * Le pilote automatique.
@@ -37,26 +45,23 @@ import { needsExtension, semerGagnants } from './autoShipperRayons.js'
  *   trouvailles viderait sinon le porte-monnaie du vendeur en une nuit.
  */
 
-/** Les destinations que le pilote peut réellement servir seul. */
-export const AUTO_PLATFORMS = PLATFORMS.filter((p) => p.integration === 'live').map((p) => p.id)
+export { AUTO_PLATFORMS }
 
-export interface RunLine {
-  titre: string
-  action: 'importé' | 'publié' | 'écarté' | 'échec'
-  raison: string
-}
+export type RunLine = LigneJournal
 
 export interface RunResult {
   imported: number
   published: number
   skipped: number
   failed: number
+  /** Products handed to the desktop app or the extension; imported once they read the page. */
+  enFile: number
   log: RunLine[]
 }
 
 export async function runAutopilot(userId: string): Promise<RunResult> {
   const log: RunLine[] = []
-  const result: RunResult = { imported: 0, published: 0, skipped: 0, failed: 0, log }
+  const result: RunResult = { imported: 0, published: 0, skipped: 0, failed: 0, enFile: 0, log }
 
   const settings = await prisma.autopilot.findUnique({ where: { userId } })
   if (!settings || !settings.enabled) {
@@ -66,13 +71,19 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
 
   const day = new Date().toISOString().slice(0, 10)
 
+  // Ce que l'application desktop n'a pas relevé en 24 h est rendu avant de compter le plafond.
+  await expirerFileAutoShipper(userId).catch((err) =>
+    console.error('auto-shipper : file non purgée', err instanceof Error ? err.message : err),
+  )
+
   // Ce qui a déjà été importé aujourd'hui compte dans le plafond : deux passages
   // dans la même journée ne doivent pas le doubler.
   const already = await prisma.autopilotRun.aggregate({
     where: { userId, day },
     _sum: { imported: true },
   })
-  const budget = settings.dailyLimit - (already._sum.imported ?? 0)
+  // Les produits du jour encore en file chez l'application desktop comptent aussi.
+  const budget = settings.dailyLimit - (already._sum.imported ?? 0) - (await enFileDuJour(userId, day))
   if (budget <= 0) {
     log.push({ titre: '—', action: 'écarté', raison: `Plafond du jour atteint (${settings.dailyLimit})` })
     return result
@@ -113,9 +124,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
     return true
   })
 
-  const destinations = (Array.isArray(settings.destinations) ? settings.destinations : [])
-    .filter((d: unknown): d is string => typeof d === 'string')
-    .filter((d: string) => AUTO_PLATFORMS.includes(d as Platform)) as Platform[]
+  const voies = await contexteVoies(userId)
 
   // Combler un prix marché manquant avec Keepa (prix Amazon réel), quand la clé
   // est là — mais borné : un passage ne doit pas brûler tout le quota de tokens.
@@ -123,7 +132,7 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
   let keepaBudget = 20
 
   for (const o of retenus) {
-    if (result.imported >= budget) {
+    if (result.imported + result.enFile >= budget) {
       log.push({ titre: o.title, action: 'écarté', raison: 'Plafond quotidien atteint' })
       result.skipped++
       continue
@@ -165,9 +174,71 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       result.skipped++
       continue
     }
-    if (needsExtension(o.sourceUrl)) {
-      log.push({ titre: o.title, action: 'écarté', raison: "Fiche lisible seulement par l'extension" })
-      result.skipped++
+    /*
+     * Une fiche que seul un navigateur lit (Temu, AliExpress, Shein…) n'est plus
+     * écartée (14/10/2026) : API AliExpress si le vendeur l'a reliée, sinon file
+     * relevée par l'application desktop, sinon file de l'extension.
+     */
+    const voie = voieDe(o.sourceUrl, voies, lectureNavigateur(o))
+    if (voie === 'api') {
+      const ref = refAliExpress(o.sourceUrl)!
+      const avant = result.failed
+      try {
+        const r = await importerDepuisFournisseurs(userId, new Map([['aliexpress', new Map([[ref, o.sourceUrl]])]]), {
+          drops: DROPS.autoShipperImport,
+          motif: 'Import automatique (AUTO-SHIPPER)',
+        })
+        const produit = await prisma.product.findFirst({
+          where: { userId, supplierId: 'aliexpress', supplierRef: ref },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true },
+        })
+        if (r.importes && produit) {
+          result.imported++
+          const bilan = await suiteAutoShipper({ userId, productId: produit.id, opportunityId: o.id, titre: o.title, voie, jour: day, log, ecrireRun: false })
+          result.published += bilan.published
+          result.failed += bilan.failed
+        } else if (r.deja && produit) {
+          await prisma.opportunity.update({ where: { id: o.id }, data: { status: 'IMPORTED', productId: produit.id } })
+          log.push({ titre: o.title, action: 'écarté', raison: 'Déjà dans vos annonces (catalogue AliExpress)' })
+          result.skipped++
+        } else {
+          const raison = r.echecs[0]?.raison ?? 'Import AliExpress impossible'
+          log.push({ titre: o.title, action: 'échec', raison: `API AliExpress : ${raison}` })
+          result.failed++
+          if (raison === 'Crédits épuisés.') break
+        }
+      } catch (err) {
+        if (result.failed === avant) result.failed++
+        log.push({ titre: o.title, action: 'échec', raison: `API AliExpress : ${err instanceof Error ? err.message : 'refus'}` })
+      }
+      continue
+    }
+    if (voie === 'desktop' || voie === 'extension') {
+      const paye = await reserveCredits(userId, DROPS.autoShipperImport, 'Import automatique (AUTO-SHIPPER)')
+      if (!paye.ok || paye.allowed !== DROPS.autoShipperImport) {
+        if (paye.allowed > 0) await refundCredits(userId, paye.allowed, 'Import AUTO-SHIPPER non lancé')
+        log.push({ titre: o.title, action: 'écarté', raison: paye.reason ?? 'Crédits épuisés' })
+        result.skipped++
+        break
+      }
+      try {
+        await mettreEnFileAutoShipper(userId, o, voie)
+        result.enFile++
+        log.push({
+          titre: o.title,
+          action: 'en file',
+          raison:
+            voie === 'desktop'
+              ? `Marge estimée ${margin} % — relevé par l'application desktop dès qu'elle tourne`
+              : `Marge estimée ${margin} % — dans la file de l'extension Chrome (pas d'application desktop sur ce compte)`,
+        })
+      } catch (err) {
+        await refundCredits(userId, DROPS.autoShipperImport, 'Import AUTO-SHIPPER non lancé')
+        log.push({ titre: o.title, action: 'échec', raison: 'Mise en file impossible' })
+        result.failed++
+        console.error('auto-shipper : mise en file', err)
+      }
       continue
     }
 
@@ -179,8 +250,6 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       break
     }
 
-    // L'agent de contrôle se paie à l'annonce, seulement s'il est activé.
-    let controlePaye = 0
     try {
       const scraped = await scrapeProduct(o.sourceUrl)
       const enhanced = await enhanceListing({
@@ -203,36 +272,11 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
       )
       const announced = await extractVariants(scraped.pageText)
 
-      // L'AUTO-SHIPPER publie sans que personne ne regarde : sans l'agent de
-      // contrôle (option du vendeur, 15 drops l'annonce depuis le 14/10/2026),
-      // aucune photo n'est vérifiée, donc l'annonce reste en brouillon plus bas.
-      // Solde insuffisant : le contrôle est sauté, l'annonce attend le vendeur.
-      let verdict: Awaited<ReturnType<typeof reviewImages>> | null = null
-      if (settings.controleAgent) {
-        const paye = await reserveCredits(userId, DROPS.autoShipperControle, 'Agent de contrôle (AUTO-SHIPPER)')
-        if (paye.ok && paye.allowed === DROPS.autoShipperControle) {
-          controlePaye = paye.allowed
-          verdict = await reviewImages({ images: chosen, title: enhanced.title, variants: announced })
-          // Contrôle impossible (modèle injoignable, photos illisibles) : rien n'a été contrôlé.
-          if (!verdict.checked) {
-            await refundCredits(userId, controlePaye, 'Contrôle AUTO-SHIPPER non effectué')
-            controlePaye = 0
-          }
-        } else if (paye.allowed > 0) {
-          await refundCredits(userId, paye.allowed, 'Contrôle AUTO-SHIPPER non effectué')
-        }
-      }
-
-      if (verdict?.checked && verdict.rejected.length) {
-        log.push({
-          titre: o.title,
-          action: 'écarté',
-          raison: `Contrôle : ${verdict.rejected.length} image(s) écartée(s) — ${verdict.rejected[0].reason}`,
-        })
-      }
-
-      const retained = verdict?.checked ? verdict.keep : chosen
-      const variants = reparerVariantes(verdict ? applyVerdict(announced, verdict) : announced).variantes
+      // L'agent de contrôle (15 drops) ne sert qu'aux fiches relevées par l'extension
+      // (règle de max, 14/10/2026 : autoShipperFile.ts) ; une fiche lue ici par le
+      // serveur garde le tri des photos ci-dessus, sans contrôle payé.
+      const retained = chosen
+      const variants = reparerVariantes(announced).variantes
       const images = await rapatrierImages(retained, enhanced.title)
 
       /**
@@ -245,20 +289,14 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
        * place de marché, où elle fait refuser l'annonce ou tuer la vente.
        *
        * On ne cherche donc pas à avoir toujours raison — on refuse de publier
-       * quand on n'est pas sûr. Deux conditions suffisent à douter : le
-       * contrôle visuel n'a pas pu se faire, ou il ne retient pas au moins deux
-       * photos. L'annonce est alors importée quand même, en brouillon, avec la
+       * quand on n'est pas sûr : moins de deux photos retenues suffit à douter
+       * (le contrôle visuel payant est réservé depuis le 14/10/2026 aux fiches
+       * relevées par l'extension, règle de max). L'annonce est alors importée quand même, en brouillon, avec la
        * raison écrite : le vendeur la corrige en trois secondes, ce qui vaut
        * infiniment mieux qu'une annonce publiée qu'il faudra retirer.
        */
-      const photosSures = Boolean(verdict?.checked) && retained.length >= 2
-      const raisonDoute = !settings.controleAgent
-        ? "agent de contrôle désactivé : photos à vérifier avant publication"
-        : !verdict?.checked
-        ? "photos non contrôlées : à vérifier avant publication"
-        : retained.length < 2
-          ? `photos douteuses : ${retained.length} image(s) retenue(s) sur ${chosen.length}`
-          : null
+      const photosSures = retained.length >= 2
+      const raisonDoute = photosSures ? null : `photos douteuses : ${retained.length} image(s) retenue(s) sur ${chosen.length}`
 
       const rangement = await resoudreCategorie({
         sourceCategory: scraped.sourceCategory,
@@ -319,40 +357,13 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
 
       // Le doute n'arrête pas l'import, il arrête la publication : l'annonce
       // attend le vendeur au lieu de partir illustrée n'importe comment.
-      if (settings.autoPublish && destinations.length && photosSures) {
-        if (destinations.includes('OWN_SITE')) {
-          // Une annonce sans boutique n'est servie par aucun flux. La boutique
-          // naît ici comme elle naîtrait à la première publication manuelle.
-          const shop =
-            (await prisma.shop.findFirst({ where: { userId }, orderBy: { createdAt: 'asc' } })) ??
-            (await prisma.shop.create({ data: { userId, name: 'Ma boutique' } }))
-          await prisma.product.update({ where: { id: product.id }, data: { shopId: shop.id } })
-        }
-
-        for (const platform of destinations) {
-          // L'adresse publique est indispensable à Shopify, qui télécharge les
-          // photos lui-même : sans requête entrante, elle vient de l'environnement.
-          const publications = await publishToPlatform(product.id, platform, apiBaseUrl())
-          const ok = publications.status === 'PUBLISHED'
-          if (ok) result.published++
-          log.push({
-            titre: o.title,
-            action: ok ? 'publié' : 'échec',
-            raison: ok ? `Publié sur ${platform}` : `${platform} : ${publications.error ?? 'refus'}`,
-          })
-          if (!ok) result.failed++
-        }
-
-        // Vinted, Leboncoin, Facebook : pas d'API, donc en file pour l'application desktop du vendeur
-        // (si elle existe). Elle publie là où le vendeur a activé l'agent ; ailleurs l'annonce l'attend.
-        const enFile = await mettreEnFileDesktop(userId, product.id)
-        if (enFile.length) {
-          log.push({ titre: o.title, action: 'publié', raison: `En file pour l'application desktop : ${enFile.join(', ')}` })
-        }
+      if (photosSures) {
+        const bilan = await publierAutoShipper(userId, product.id, o.title, settings, log)
+        result.published += bilan.published
+        result.failed += bilan.failed
       }
     } catch (err) {
       await refundCredits(userId, DROPS.autoShipperImport)
-      if (controlePaye) await refundCredits(userId, controlePaye, 'Contrôle AUTO-SHIPPER rendu')
       result.failed++
       const reason =
         err instanceof ScrapeBlockedError ? err.message : "Import impossible depuis cette adresse"
@@ -447,7 +458,9 @@ export async function tourneeAutopilot(
           `auto-shipper : ${pilote.userId} — ${fait.imported} import(s), ${fait.published} publication(s), ${fait.skipped} écarté(s), ${fait.failed} échec(s)`,
         )
         // Une journée qui n'a rien fait n'est pas due — mais la marque reste.
-        if (!journeeDejaPayee && fait.imported === 0 && fait.published === 0) {
+        // Des produits partis vers l'application desktop : la journée attend leur issue
+        // (autoShipperFile.ts la rend si aucun n'arrive).
+        if (!journeeDejaPayee && fait.imported === 0 && fait.published === 0 && !fait.enFile) {
           await refundCredits(pilote.userId, DROPS.autoShipperJour, 'Journée AUTO-SHIPPER sans import')
         }
       } catch (err) {

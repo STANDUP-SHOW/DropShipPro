@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
+import { echecLigneAutoShipper, ligneAutoShipper } from '../services/autoShipperFile.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import {
   CATEGORIES,
@@ -443,6 +444,10 @@ marketReportsRouter.get('/file', async (req: AuthedRequest, res) => {
  * ne montre plus.
  */
 marketReportsRouter.delete('/file/:id', async (req: AuthedRequest, res) => {
+  // Une fiche de l'AUTO-SHIPPER est déjà payée : la retirer la rend.
+  if (await ligneAutoShipper(req.userId!, req.params.id)) {
+    await echecLigneAutoShipper(req.userId!, req.params.id, 'Retiré de la file par le vendeur')
+  }
   const { count } = await prisma.importQueue.deleteMany({
     where: { id: req.params.id, userId: req.userId!, status: { in: ['EN_ATTENTE', 'IMPORTE', 'ECHEC'] } },
   })

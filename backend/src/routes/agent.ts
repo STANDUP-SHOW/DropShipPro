@@ -3,6 +3,13 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireApiKey, requireDesktop, type AgentRequest } from '../middleware/apiKey.js'
 import { importerAdresse } from '../services/productImport.js'
+import { captureSchema } from './products.js'
+import {
+  ORIGINE_AUTOSHIPPER,
+  echecLigneAutoShipper,
+  expirerFileAutoShipper,
+  importerLigneAutoShipper,
+} from '../services/autoShipperFile.js'
 import { reserveCredits, refundCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
@@ -355,6 +362,87 @@ agentRouter.post('/import', requireDesktop as never, async (req: AgentRequest, r
     if (err instanceof ScrapeBlockedError) return res.status(422).json({ error: err.message })
     console.error('agent import', err)
     res.status(502).json({ error: "Cette page n'a pas pu être lue depuis notre serveur." })
+  }
+})
+
+/*
+ * La file AUTO-SHIPPER de l'application desktop (14/10/2026).
+ *
+ * Les gagnants que seul un navigateur lit (Temu, AliExpress, Shein…) sont mis en
+ * file par le pilote, déjà payés. L'application les prend ici, ouvre chaque fiche
+ * dans son navigateur interne (session du vendeur), la relève et l'envoie à
+ * `/capture` : l'import, le contrôle et la publication se font côté serveur, sans
+ * nouveau débit. Un refus rend les drops ; un blocage (vérification anti-robot)
+ * remet la ligne en attente, sans insister.
+ */
+agentRouter.get('/file-autoshipper', requireDesktop as never, async (req: AgentRequest, res) => {
+  try {
+    await expirerFileAutoShipper(req.userId!)
+    // Une ligne « en cours » depuis plus de dix minutes est une application fermée en route.
+    const lignes = await prisma.importQueue.findMany({
+      where: {
+        userId: req.userId!,
+        origine: { startsWith: ORIGINE_AUTOSHIPPER },
+        mode: 'desktop',
+        OR: [{ status: 'EN_ATTENTE' }, { status: 'RELEVE', updatedAt: { lt: new Date(Date.now() - 10 * 60_000) } }],
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+      select: { id: true, url: true, titre: true, fournisseur: true, createdAt: true },
+    })
+    res.json({ lignes })
+  } catch (err) {
+    console.error('agent file-autoshipper', err)
+    res.status(500).json({ error: 'File illisible' })
+  }
+})
+
+agentRouter.post('/file-autoshipper/:id/releve', requireDesktop as never, async (req: AgentRequest, res) => {
+  try {
+    const { count } = await prisma.importQueue.updateMany({
+      where: { id: req.params.id, userId: req.userId!, origine: { startsWith: ORIGINE_AUTOSHIPPER }, status: { in: ['EN_ATTENTE', 'RELEVE'] } },
+      data: { status: 'RELEVE', erreur: null },
+    })
+    if (!count) return res.status(404).json({ error: 'Ligne absente, déjà importée ou rendue.' })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('agent file-autoshipper releve', err)
+    res.status(500).json({ error: 'Ligne non marquée' })
+  }
+})
+
+agentRouter.post('/file-autoshipper/:id/capture', requireDesktop as never, async (req: AgentRequest, res) => {
+  const parsed = captureSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
+  try {
+    const issue = await importerLigneAutoShipper(req.userId!, req.params.id, parsed.data)
+    if (!issue.ok) return res.status(422).json({ error: issue.erreur })
+    res.status(201).json(issue)
+  } catch (err) {
+    console.error('agent file-autoshipper capture', err)
+    res.status(500).json({ error: "L'import n'a pas abouti." })
+  }
+})
+
+agentRouter.post('/file-autoshipper/:id/echec', requireDesktop as never, async (req: AgentRequest, res) => {
+  const parsed = z.object({ erreur: z.string().min(1).max(300), reessayer: z.boolean().optional() }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Motif manquant.' })
+  try {
+    if (parsed.data.reessayer) {
+      // Bloqué (anti-robot, connexion demandée) : la ligne attend le prochain passage, 24 h au plus.
+      const { count } = await prisma.importQueue.updateMany({
+        where: { id: req.params.id, userId: req.userId!, origine: { startsWith: ORIGINE_AUTOSHIPPER }, status: { in: ['EN_ATTENTE', 'RELEVE'] } },
+        data: { status: 'EN_ATTENTE', erreur: parsed.data.erreur },
+      })
+      if (!count) return res.status(404).json({ error: 'Ligne absente, déjà importée ou rendue.' })
+      return res.json({ ok: true, rendu: false })
+    }
+    const fait = await echecLigneAutoShipper(req.userId!, req.params.id, parsed.data.erreur)
+    if (!fait) return res.status(404).json({ error: 'Ligne absente, déjà importée ou rendue.' })
+    res.json({ ok: true, rendu: true })
+  } catch (err) {
+    console.error('agent file-autoshipper echec', err)
+    res.status(500).json({ error: 'Échec non enregistré' })
   }
 })
 

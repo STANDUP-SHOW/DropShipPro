@@ -32,6 +32,8 @@ jobs:
       - run: npm ci
       - name: Banc de la logique
         run: npm run check
+      - name: Banc du relevé AUTO-SHIPPER (vraie fenêtre Electron cachée)
+        run: npm run check:releve
       - name: Installateurs NSIS et MSI
         run: npm run build
       - uses: actions/upload-artifact@v4

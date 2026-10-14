@@ -20,6 +20,18 @@ bouton non reconnu, vérification anti-robot) est dit et la main est rendue. Fic
 fournisseur** : les mots des boutons et des champs sont des données, à compléter au premier
 site qui diffère.
 
+**Import AUTO-SHIPPER des fiches que seul un navigateur lit (0.4.2, 14/10/2026)** : le
+pilote du site met en file (déjà payés) les gagnants de Temu, AliExpress, Shein… que ni
+le serveur ni l'API AliExpress ne lisent. L'application les prend chaque minute
+(`GET /api/agent/file-autoshipper`), ouvre chaque fiche dans une fenêtre cachée (session
+`persist:fournisseur-<hôte>`), la relève avec **les scripts de l'extension eux-mêmes**
+(copiés dans `extraction/` par `copier-extraction.cjs`, monde isolé, doublure de
+`chrome.*`) et l'envoie à `…/capture` : le serveur importe, publie, sans nouveau débit.
+Cinq fiches par passage, 15 s entre deux ; au premier mur anti-robot, le fournisseur est
+en pause une heure et la ligne attend. Fichiers : `lib/file-autoshipper.js` (logique),
+`lib/releveur.js` (fenêtre). Bancs : `npm run check`, `npm run check:releve` (vraie
+fenêtre Electron contre une fiche locale). **Jamais essayé sur un vrai Temu/Shein.**
+
 À gauche, une barre ; à droite, **le site drop-shipper.fr lui-même dans son propre
 navigateur** (session `persist:site`) : tableau de bord, Auto-Shipper, commandes,
 produits gagnants, drops, réglages — la même chose que sur le site, rien de réécrit.

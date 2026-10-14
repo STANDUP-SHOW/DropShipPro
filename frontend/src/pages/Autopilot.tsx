@@ -768,12 +768,13 @@ export default function Autopilot() {
           )}
 
           <p className="mt-4 text-sm leading-relaxed text-[var(--texte-2)]">
-            Auto-SHIPPER IA importe lui-même les fiches que notre serveur sait lire. Les produits réservés à l'extension Chrome ou à{' '}
+            Auto-SHIPPER IA importe seul les gagnants du jour. Les fiches que notre serveur sait lire partent directement ; celles de
+            Temu, AliExpress, Shein… passent par l'API AliExpress si tu l'as reliée dans tes catalogues connectés, sinon par{' '}
             <Link to="/application-desktop" className="font-semibold text-[var(--texte)] underline underline-offset-2">
               l'application desktop
-            </Link>{' '}
-            (Temu, AliExpress, Shein…) ne sont pas importés seuls : tu les importes depuis l'extension ou l'application, qui ont leur propre
-            navigateur.
+            </Link>
+            , qui les relève seule dans son navigateur interne tant qu'elle est ouverte sur ton PC. Sans l'application, elles attendent dans
+            la file de l'extension Chrome. Une fiche qui n'est pas relevée en 24 h t'est remboursée.
           </p>
 
           <div className="mt-5 flex flex-col items-center gap-2">

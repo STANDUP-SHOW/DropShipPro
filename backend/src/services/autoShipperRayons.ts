@@ -12,8 +12,10 @@ import { generationRapports, ReportQuery } from './reportsDb.js'
  * ne lisait que la table Opportunity, que seul l'AUTO-MODE des chefs remplissait.
  *
  * Un « rayon boost » est un rayon confié dont l'AUTO-MODE est levé. Avant chaque
- * passage, ses gagnants du dernier jour déposé que le serveur sait importer
- * seul deviennent des Opportunity : au plus dix par rayon.
+ * passage, ses gagnants du dernier jour déposé deviennent des Opportunity : au
+ * plus dix par rayon. Depuis le 14/10/2026, ceux que seul un navigateur lit
+ * (Temu, AliExpress, Shein…) en font partie : le pilote les fait relever par
+ * l'API AliExpress ou par l'application desktop (autoShipperFile.ts).
  */
 
 /** Au plus dix gagnants d'un rayon repris par le pilote, sur les vingt du jour. */
@@ -38,15 +40,14 @@ export function needsExtension(sourceUrl: string) {
 type ProduitLu = ProduitRapport & { estProduit: boolean }
 
 /**
- * What the server can import with nobody watching: a real product (agent's flag),
- * a readable http link, both prices, a selling price above the buying one.
+ * What the pilot can import with nobody watching: a real product (agent's flag),
+ * an http link, both prices, a selling price above the buying one. Pages that only
+ * a browser reads are included: the API or the desktop app reads them.
  */
 export function estImportable(p: ProduitLu): boolean {
   return (
     p.estProduit &&
     /^https?:\/\//.test(p.url) &&
-    p.import !== 'extension' &&
-    !needsExtension(p.url) &&
     p.prixAchat !== null &&
     p.prixAchat > 0 &&
     p.prixVente !== null &&
@@ -102,7 +103,17 @@ export function gagnantsDuRayon(key: string, q: ReportQuery | null = baseRapport
 export function rayonsAutoShipper(q: ReportQuery | null = baseRapports()) {
   return DEPARTMENTS.map((d) => {
     const g = gagnantsDuRayon(d.key, q)
-    return { key: d.key, label: d.label, emoji: d.emoji, jour: g.jour, produits: g.produits, importables: g.importables.length }
+    // Ceux que seul un navigateur lit : API AliExpress, application desktop ou extension selon le vendeur.
+    const navigateur = g.importables.filter((p) => p.import === 'extension' || needsExtension(p.url))
+    return {
+      key: d.key,
+      label: d.label,
+      emoji: d.emoji,
+      jour: g.jour,
+      produits: g.produits,
+      importables: g.importables.length,
+      navigateur: navigateur.map((p) => p.url),
+    }
   })
 }
 
@@ -130,7 +141,7 @@ export async function semerGagnants(userId: string, q: ReportQuery | null = base
         currency: 'EUR',
         isNew: true,
         notes: p.pourquoi ? p.pourquoi.slice(0, 1000) : null,
-        raw: { rapportsAgents: true, jour: g.jour, fournisseur: p.fournisseur, score: p.score ?? null },
+        raw: { rapportsAgents: true, jour: g.jour, fournisseur: p.fournisseur, score: p.score ?? null, import: p.import ?? null },
       })),
       skipDuplicates: true,
     })

@@ -431,6 +431,42 @@ async function main() {
   verifier('code mal formé refusé', cx.lireRetour(`dropshipper://connexion?code=xyz&etat=${e1}`) === null)
   verifier('fenêtre Google reconnue, le site non', cx.estConnexionGoogle('https://accounts.google.com/gsi/select?client_id=1') && !cx.estConnexionGoogle('https://www.drop-shipper.fr/login'))
 
+  console.log('File AUTO-SHIPPER (relevé dans le navigateur interne)')
+  {
+    const fa = require('./lib/file-autoshipper')
+    const appels = []
+    const lignes = [
+      { id: 'a', url: 'https://www.temu.com/fr/a.html' },
+      { id: 'b', url: 'https://fr.shein.com/b.html' },
+      { id: 'c', url: 'https://www.temu.com/fr/c.html' },
+      { id: 'd', url: 'https://fr.aliexpress.com/item/1005001.html' },
+    ]
+    const faux = {
+      fileAutoShipper: async () => lignes,
+      releveFile: async (id) => appels.push(['releve', id]),
+      captureFile: async (id, payload) => appels.push(['capture', id, payload.title]),
+      echecFile: async (id, erreur, reessayer) => appels.push(['echec', id, reessayer]),
+    }
+    const releves = {
+      'https://www.temu.com/fr/a.html': { bloque: true, raison: 'captcha' },
+      'https://fr.shein.com/b.html': { ok: true, payload: { title: 'Robe' } },
+      'https://fr.aliexpress.com/item/1005001.html': { ok: false, raison: 'Produit non reconnu sur cette page' },
+    }
+    const ouverts = []
+    const attentes = []
+    const pauses = new Map()
+    const b = await fa.passageFile({ api: faux, pauses, relever: async (u) => (ouverts.push(u), releves[u]), attendre: async (ms) => attentes.push(ms), maintenant: () => 1000 })
+    verifier('fiche relevée envoyée à l’import, sans autre débit', appels.some((a) => a[0] === 'capture' && a[1] === 'b' && a[2] === 'Robe') && b.importes === 1)
+    verifier('mur anti-robot : ligne remise en attente, pas rendue', appels.some((a) => a[0] === 'echec' && a[1] === 'a' && a[2] === true) && b.bloques === 1)
+    verifier('fournisseur bloqué : la ligne suivante du même site n’est pas ouverte', !ouverts.includes('https://www.temu.com/fr/c.html') && pauses.get('temu.com') === 1000 + fa.PAUSE_BLOCAGE_MS)
+    verifier('refus net : ligne rendue (drops remboursés côté serveur)', appels.some((a) => a[0] === 'echec' && a[1] === 'd' && a[2] === false) && b.refuses === 1)
+    verifier('rythme fixe entre deux fiches', attentes.length === ouverts.length - 1 && attentes.every((m) => m === fa.ESPACEMENT_MS))
+    const b2 = await fa.passageFile({ api: faux, pauses, relever: async (u) => (ouverts.push(u), releves[u] ?? { ok: true, payload: { title: 'x' } }), attendre: async () => {}, maintenant: () => 2000 })
+    verifier('passage suivant : le fournisseur en pause reste fermé', !ouverts.slice(3).some((u) => u.includes('temu.com')) && b2.bloques === 0)
+    const extraction = require('./lib/releveur.js')
+    verifier('scripts de lecture de l’extension copiés pour l’application', [...extraction.SCRIPTS, extraction.SCRIPT_PAGE].every((n) => fs.existsSync(path.join(extraction.DOSSIER, n))))
+  }
+
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {
     console.error(`\n${echecs} attente(s) manquée(s).`)

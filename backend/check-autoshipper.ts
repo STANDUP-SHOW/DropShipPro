@@ -30,11 +30,11 @@ const JOUR = DROPS.autoShipperJour
 let passages = 0
 const fauxPassage: PassageAutopilot = async () => {
   passages++
-  return { imported: 2, published: 1, skipped: 0, failed: 0, log: [] }
+  return { imported: 2, published: 1, skipped: 0, failed: 0, enFile: 0, log: [] }
 }
 const passageVide: PassageAutopilot = async () => {
   passages++
-  return { imported: 0, published: 0, skipped: 3, failed: 0, log: [] }
+  return { imported: 0, published: 0, skipped: 3, failed: 0, enFile: 0, log: [] }
 }
 const passageEnPanne: PassageAutopilot = async () => {
   passages++

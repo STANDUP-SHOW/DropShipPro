@@ -32,6 +32,8 @@ const { creerPilote } = require('./lib/pilote-electron')
 const { creerPiloteAchat } = require('./lib/pilote-achat')
 const { preparer: preparerAchat } = require('./lib/commande')
 const { traiterLien, importGroupe, importesAujourdhui, plafondImports } = require('./lib/circuit')
+const fileAuto = require('./lib/file-autoshipper')
+const { relever } = require('./lib/releveur')
 
 // Bancs : un profil jetable (config, journal, sessions) au lieu de celui du vendeur.
 if (process.env.DROPSHIPPER_DESKTOP_PROFIL) app.setPath('userData', process.env.DROPSHIPPER_DESKTOP_PROFIL)
@@ -281,17 +283,50 @@ async function tourneeAuto() {
   envoyer('etat', instantane())
 }
 
+// ------------------------------------------------- File AUTO-SHIPPER (relevé seul)
+
+/** Fournisseur → fin de pause, après un mur anti-robot ou une connexion demandée. */
+const pausesFournisseur = new Map()
+let releveEnCours = false
+
+/**
+ * Les produits AUTO-SHIPPER que seul un navigateur lit : relevés ici, sans clic,
+ * dès que l'application tourne (le pilote du site les a mis en file et payés).
+ */
+async function releverFileAutoShipper() {
+  if (!api || releveEnCours) return
+  releveEnCours = true
+  try {
+    const b = await fileAuto.passageFile({ api, relever, pauses: pausesFournisseur })
+    if (b.erreur && !/403/.test(b.erreur)) derniereErreur = b.erreur
+    for (const d of b.details) {
+      plafonds.journaliser(dossier(), { type: 'import-auto', plateforme: d.hote || undefined, raison: `${d.statut}${d.raison ? ` — ${d.raison}` : ''}`.slice(0, 300), resultat: d.statut })
+    }
+    if (Notification.isSupported() && (b.importes || b.bloques)) {
+      const morceaux = []
+      if (b.importes) morceaux.push(`${b.importes} produit${b.importes > 1 ? 's' : ''} importé${b.importes > 1 ? 's' : ''}`)
+      if (b.bloques) morceaux.push(`${b.bloques} bloqué${b.bloques > 1 ? 's' : ''} par une vérification (nouvel essai dans une heure)`)
+      new Notification({ title: 'AUTO-SHIPPER', body: morceaux.join(', ') + '.' }).show()
+    }
+  } finally {
+    releveEnCours = false
+  }
+}
+
 function demarrerSondage() {
   if (minuteur) clearInterval(minuteur)
   sonder()
   lireAnnonces().then(() => envoyer('etat', instantane()))
   lireRayons().then(() => envoyer('etat', instantane()))
+  releverFileAutoShipper().catch((err) => (derniereErreur = err.message))
   // Intervalle FIXE : ni hasard ni rafale. Le serveur en accepte 120 par minute, on en fait une.
   minuteur = setInterval(async () => {
     await sonder()
     await lireRayons()
     await journeeGagnants()
     await tourneeAuto()
+    // Sans attendre : un passage de relevés peut durer quelques minutes.
+    releverFileAutoShipper().catch((err) => (derniereErreur = err.message))
   }, file.INTERVALLE_MS)
 }
 
