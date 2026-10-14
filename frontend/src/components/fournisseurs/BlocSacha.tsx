@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2, Mic, MicOff, Send } from 'lucide-react'
 import { photoAgent } from '../../lib/agentsPhotos'
 import { api, type AgentCardData } from '../../lib/api'
+import { ficheAgent } from '../../lib/agentsTaches'
 
 /**
  * Sacha, l'agent des fournisseurs, en bas de la page Fournisseurs (demande de
  * Max du 14/10/2026) : un récap de sa fiche — son rôle, ses tâches une par
- * ligne —, la vraie discussion avec lui, et dessous le champ pour écrire ou
+ * ligne, la même fiche que Mes agents IA (lib/agentsTaches) —, la vraie discussion avec lui, et dessous le champ pour écrire ou
  * dicter.
  *
  * Tout vient du serveur : la fiche de l'équipe (/chat/agents/roster) et
@@ -41,15 +42,6 @@ function moteurVocal(): Reconnaissance | null {
   m.continuous = false
   m.interimResults = false
   return m
-}
-
-/** Les tâches de la fiche : la liste quand le serveur la donne, sinon les phrases de « ce qu'il fait ». */
-function tachesDe(agent: AgentCardData & { taches?: string[] }): string[] {
-  if (Array.isArray(agent.taches) && agent.taches.length) return agent.taches
-  return agent.does
-    .split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý])/)
-    .map((s) => s.trim())
-    .filter(Boolean)
 }
 
 const ETAT: Record<AgentCardData['state'], { label: string; teinte: string }> = {
@@ -147,7 +139,7 @@ export function BlocSacha({ className = '' }: { className?: string }) {
             <div className="mt-3">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--texte-3)]">Son rôle</p>
               <ul className="mt-1 space-y-1">
-                {tachesDe(agent).map((t) => (
+                {ficheAgent(agent.key, agent.does).taches.map((t) => (
                   <li key={t} className="flex gap-2 text-xs leading-relaxed text-[var(--texte-2)]">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--marque-rose)]" />
                     <span>{t}</span>
