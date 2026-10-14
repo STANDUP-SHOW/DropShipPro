@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Sparkles, ChevronLeft, ChevronDown, FolderTree } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import type { BlocData, TuileData } from '../components/stats/TuileStat'
-import { Anneau, Beignet, Etiquette, Valeur, ecrire, nombre } from '../components/stats/VueEnsemble'
+import { Beignet, Etiquette, Valeur, nombre } from '../components/stats/VueEnsemble'
 import { blocsDemo } from '../lib/statsDemo'
 import { useDemo } from '../lib/demo'
 import { api } from '../lib/api'
@@ -91,7 +91,7 @@ export default function Categories() {
 
   return (
     <Layout>
-      <StatsRayons />
+      <StatsRayons arbre={arbre} />
 
       <div className="mb-5">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
@@ -348,16 +348,19 @@ function Chiffre({ valeur, libelle, allume, vers }: { valeur: number; libelle: s
 }
 
 /**
- * Le bloc statistiques « Rayons et catégories », compressé (demande de Max du
- * 14/10/2026) : un grand bloc à gauche, deux petits à droite de quatre
- * chiffres chacun. Mêmes données que la vue d'ensemble (bloc `rayons` de
- * /stats/tableau, trente jours, mode démonstration compris) ; une tuile sans
- * donnée affiche « — » avec sa raison au survol, rien n'est estimé.
+ * Le bandeau du haut : un grand graphique à gauche, deux blocs à droite.
+ *
+ * Il ne lisait que les ventes des 30 derniers jours : sur un compte sans vente,
+ * tout valait « — » et Max voyait un grand bloc vide (14/10/2026). Il se
+ * remplit maintenant d'abord du référentiel, qui a toujours des chiffres
+ * (24 rayons, leurs sous-catégories, l'usage qu'en font les vendeurs), et les
+ * ventes s'y ajoutent quand il y en a.
  */
-function StatsRayons() {
+function StatsRayons({ arbre }: { arbre: Arbre | null }) {
   const [bloc, setBloc] = useState<BlocData | null>(null)
   const [demo, setDemo] = useState(false)
   const [demoGlobal] = useDemo()
+  const [mesure, setMesure] = useState<'sous' | 'usages'>('sous')
 
   useEffect(() => {
     const au = new Date()
@@ -370,56 +373,110 @@ function StatsRayons() {
         setDemo(demoGlobal)
       })
       .catch(() => {
-        // Les statistiques sont un bandeau, pas la page : leur panne ne doit
-        // jamais empêcher de travailler en dessous.
+        // Les ventes complètent le bandeau ; leur panne ne doit pas le vider.
       })
   }, [demoGlobal])
 
-  if (!bloc) return null
-  const lire = (id: string) => bloc.tuiles.find((t) => t.id === id)
-  const repartition = lire('repartition')
+  if (!arbre) return null
+  const lire = (id: string) => bloc?.tuiles.find((t) => t.id === id)
   const ranges = nombre(lire('produits'))
   const sansRayon = nombre(lire('sans-rayon'))
   const total = (ranges ?? 0) + (sansRayon ?? 0)
   const part = ranges !== null && total ? Math.round((ranges / total) * 100) : null
 
+  const colonnes = [...arbre.arbre]
+    .map((r) => ({ id: r.id, label: r.label, icone: r.icone, sous: r.enfants.length, usages: usagesDe(r) }))
+    .sort((a, b) => b[mesure] - a[mesure] || a.label.localeCompare(b.label, 'fr'))
+  const plafond = Math.max(1, ...colonnes.map((c) => c[mesure]))
+  const usagesTotal = colonnes.reduce((n, c) => n + c.usages, 0)
+  const utilises = colonnes.filter((c) => c.usages > 0).length
+  const plusUtilises = [...colonnes].sort((a, b) => b.usages - a.usages).slice(0, 5).map((c) => ({ label: c.label, valeur: c.usages }))
+  const repartition = lire('repartition')
+  const mesParts = (repartition?.parts ?? []).filter((p) => p.valeur > 0)
+
   return (
     <div className="mb-5">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
         <section className="case-ds flex min-w-0 flex-col p-4 lg:col-span-7">
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-[var(--texte)]">Rayons et catégories</h2>
-            <span className="text-[10px] text-[var(--texte-3)]">30 derniers jours</span>
-          </div>
-          <div className="grid flex-1 grid-cols-1 items-center gap-5 sm:grid-cols-2">
-            <div className="space-y-4">
-              <div>
-                <Etiquette>{repartition?.label ?? 'Catégories distinctes'}</Etiquette>
-                <p title={ecrire(repartition) === '—' ? repartition?.raison : undefined} className="text-5xl font-extrabold leading-tight text-[var(--texte)]">
-                  {ecrire(repartition)}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Anneau pour={part} teinte="#e85290" centre={part === null ? '—' : `${part} %`} taille={96} />
-                <p className="max-w-[12rem] text-xs leading-snug text-[var(--texte-2)]">Part de vos produits rangés dans un rayon.</p>
-              </div>
-            </div>
-            <div className="min-w-0">
-              <Etiquette>Vos produits par rayon</Etiquette>
-              <div className="mt-2">
-                <Beignet parts={repartition?.parts} vide="Aucun produit rangé pour l'instant." />
-              </div>
+            <div className="inline-flex rounded-lg border border-[var(--trait)] p-0.5 text-[11px]">
+              {(
+                [
+                  ['sous', 'Sous-catégories'],
+                  ['usages', 'Annonces rangées'],
+                ] as const
+              ).map(([id, libelle]) => (
+                <button
+                  key={id}
+                  onClick={() => setMesure(id)}
+                  className={`rounded-md px-2.5 py-1 font-semibold ${mesure === id ? 'bg-gradient-to-r from-[#f28a4b] to-[#e85290] text-white' : 'text-[var(--texte-2)] hover:text-[var(--texte)]'}`}
+                >
+                  {libelle}
+                </button>
+              ))}
             </div>
           </div>
+
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MiniChiffre valeur={`${utilises}/${arbre.rayons}`} libelle="Rayons utilisés" />
+            <MiniChiffre valeur={usagesTotal.toLocaleString('fr-FR')} libelle="Annonces rangées" />
+            <MiniChiffre valeur={(arbre.sousCategories / Math.max(1, arbre.rayons)).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} libelle="Sous-cat. par rayon" />
+            <MiniChiffre valeur={arbre.apprises.toLocaleString('fr-FR')} libelle="Apprises à l'usage" />
+          </div>
+
+          {/* Les 24 rayons en colonnes, du plus fourni au moins fourni. */}
+          <div className="flex h-44 items-end gap-[3px]" role="img" aria-label={`${mesure === 'sous' ? 'Sous-catégories' : 'Annonces rangées'} par rayon`}>
+            {colonnes.map((c) => (
+              <div key={c.id} className="group relative flex h-full min-w-0 flex-1 flex-col justify-end" title={`${c.label} : ${c.sous} sous-catégories, ${c.usages.toLocaleString('fr-FR')} annonces rangées`}>
+                <span className="mb-0.5 hidden text-center text-[9px] font-bold text-[var(--texte)] sm:block">{c[mesure] || ''}</span>
+                <div
+                  className="w-full rounded-t-md bg-gradient-to-t from-[#f28a4b] to-[#e85290] opacity-90 transition-opacity group-hover:opacity-100"
+                  style={{ height: `${Math.max(2, (c[mesure] / plafond) * 100)}%` }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 flex gap-[3px]">
+            {colonnes.map((c) => (
+              <span key={c.id} className="min-w-0 flex-1 text-center text-[11px] leading-none" title={c.label} aria-hidden>
+                {c.icone ?? '•'}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-[var(--texte-3)]">
+            {mesure === 'sous'
+              ? `Le plus fourni : ${colonnes[0]?.label} (${colonnes[0]?.sous} sous-catégories). Survolez une colonne pour son détail.`
+              : `${utilises} rayon${utilises > 1 ? 's' : ''} sur ${arbre.rayons} déjà utilisé${utilises > 1 ? 's' : ''} par les vendeurs.`}
+          </p>
         </section>
 
         <div className="grid min-w-0 grid-cols-1 gap-3 lg:col-span-5">
-          <PetitBloc titre="Ventes par rayon" tuiles={[lire('ca'), lire('ventes'), lire('marge'), lire('rentable')]} />
-          <PetitBloc titre="Rangement" tuiles={[lire('rayons'), lire('produits'), lire('sans-rayon'), lire('dominant')]} />
+          <section className="case-ds min-w-0 p-4">
+            <h2 className="mb-3 text-sm font-bold text-[var(--texte)]">{mesParts.length ? 'Vos produits par rayon' : 'Rayons les plus utilisés'}</h2>
+            {mesParts.length ? (
+              <Beignet parts={mesParts} vide="" />
+            ) : (
+              <Beignet parts={plusUtilises} vide="Aucune annonce rangée pour l'instant." />
+            )}
+          </section>
+
+          <section className="case-ds min-w-0 p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-[var(--texte)]">Vos annonces</h2>
+              <span className="text-[10px] text-[var(--texte-3)]">30 derniers jours</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <PetiteCase libelle="À ranger" valeur={arbre.aRanger.annonces.toLocaleString('fr-FR')} allume={arbre.aRanger.annonces > 0} />
+              <PetiteCase libelle="Rangées dans un rayon" valeur={part === null ? (ranges ?? 0).toLocaleString('fr-FR') : `${part} %`} />
+              <PetiteCase libelle="Rayon dominant" t={lire('dominant')} />
+              <PetiteCase libelle="Chiffre d'affaires" t={lire('ca')} />
+            </div>
+          </section>
         </div>
       </div>
       <p className="mt-1.5 text-right text-[10px] text-[var(--texte-3)]">
-        {demo ? 'Chiffres de démonstration — vos ventes les remplaceront. ' : ''}
+        {demo ? 'Ventes de démonstration — les vôtres les remplaceront. ' : ''}
         <Link to="/statistiques" className="text-[var(--marque-orange)] underline-offset-2 hover:underline">
           Vue d'ensemble
         </Link>
@@ -428,21 +485,21 @@ function StatsRayons() {
   )
 }
 
-function PetitBloc({ titre, tuiles }: { titre: string; tuiles: Array<TuileData | undefined> }) {
+function MiniChiffre({ valeur, libelle }: { valeur: string; libelle: string }) {
   return (
-    <section className="case-ds min-w-0 p-4">
-      <h2 className="mb-2 text-sm font-bold text-[var(--texte)]">{titre}</h2>
-      <div className="grid grid-cols-2 gap-2">
-        {tuiles.map((t, i) => (
-          <div key={t?.id ?? i} className="min-w-0 rounded-xl bg-white/[0.03] p-3">
-            <Etiquette>{t?.label ?? '—'}</Etiquette>
-            <div className="truncate">
-              <Valeur t={t} petite />
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+    <div className="min-w-0 rounded-xl bg-white/[0.03] px-3 py-2">
+      <p className="text-xl font-extrabold leading-tight text-[var(--texte)]">{valeur}</p>
+      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-[var(--texte-3)]">{libelle}</p>
+    </div>
+  )
+}
+
+function PetiteCase({ libelle, valeur, t, allume = false }: { libelle: string; valeur?: string; t?: TuileData; allume?: boolean }) {
+  return (
+    <div className={`min-w-0 rounded-xl p-3 ${allume ? 'bg-[#e85290]/15' : 'bg-white/[0.03]'}`}>
+      <Etiquette>{libelle}</Etiquette>
+      <div className="truncate">{valeur !== undefined ? <p className="text-lg font-extrabold text-[var(--texte)]">{valeur}</p> : <Valeur t={t} petite />}</div>
+    </div>
   )
 }
 
