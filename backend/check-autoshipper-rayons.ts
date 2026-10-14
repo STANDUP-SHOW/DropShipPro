@@ -11,7 +11,7 @@ import { ReportQuery, CHEMIN_RAPPORTS_DB } from './src/services/reportsDb.js'
  *
  * Ce qu'il vérifie : les 24 rayons sont décrits ; un rayon boost reçoit au plus
  * dix gagnants, tous lisibles par le serveur (lien http, pas un site réservé à
- * l'extension) avec un prix de vente au-dessus du prix d'achat ; un second
+ * l'extension, lu par l'API ou l'application desktop depuis le 14/10/2026) avec un prix de vente au-dessus du prix d'achat ; un second
  * passage n'ajoute rien ; un rayon qui n'est pas en boost ne reçoit rien.
  */
 
@@ -32,9 +32,13 @@ async function main() {
   if (!plein) return
 
   const g = gagnantsDuRayon(plein.key, q)
+  verifier('chaque importable a un lien http', g.importables.every((p) => /^https?:\/\//.test(p.url)))
+  // Depuis le 14/10/2026, les fiches que seul un navigateur lit en font partie (API, desktop, extension).
+  const navigateur = rayons.reduce((n, r) => n + r.navigateur.length, 0)
+  verifier('les fiches réservées au navigateur ne sont plus écartées', navigateur > 0, `${navigateur} sur les 24 rayons`)
   verifier(
-    'chaque importable a un lien lisible par le serveur',
-    g.importables.every((p) => /^https?:\/\//.test(p.url) && !needsExtension(p.url) && p.import !== 'extension'),
+    'les fiches « navigateur » comptées sont bien celles que le serveur ne lit pas',
+    rayons.every((r) => r.navigateur.every((u) => /^https?:/.test(u))) && rayons.some((r) => r.navigateur.some((u) => needsExtension(u))),
   )
   verifier(
     'chaque importable vend au-dessus de son prix d’achat',

@@ -1675,6 +1675,8 @@ export const api = {
         importables: number
         /** Combien de ces importables partiront par l'extension (ni API, ni application desktop) : ceux-là seuls passent par l'agent de contrôle. Absent : tous. */
         parExtension?: number
+        /** La voie de chaque importable pour ce vendeur : serveur, API AliExpress, application desktop, file de l'extension. */
+        voies?: { serveur: number; api: number; desktop: number; extension: number }
         departmentId: string | null
         boost: boolean
       }>

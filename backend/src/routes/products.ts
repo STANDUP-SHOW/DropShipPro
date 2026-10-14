@@ -7,6 +7,7 @@ import { dupliquerAnnonce } from '../services/listingDuplicate.js'
 import { FORMATS_FLUX } from '../services/channelFeeds.js'
 import { liaisonPour, resumeLiaisons } from '../services/liaisonsCanaux.js'
 import { metaCsv } from '../services/productFeeds.js'
+import { ligneAutoShipper, importerLigneAutoShipper } from '../services/autoShipperFile.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { sendMail } from '../services/mailer.js'
@@ -129,7 +130,7 @@ productsRouter.post(
   }),
 )
 
-const captureSchema = z.object({
+export const captureSchema = z.object({
   sourceUrl: z.string().url(),
   title: z.string().min(1),
   description: z.string().default(''),
@@ -220,6 +221,15 @@ productsRouter.post(
     if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
 
     const data = parsed.data
+
+    // Une fiche que l'AUTO-SHIPPER a mise dans la file de l'extension : déjà payée
+    // à la mise en file, elle suit le circuit du pilote (contrôle, publication).
+    if (await ligneAutoShipper(req.userId!, data.fileId)) {
+      const issue = await importerLigneAutoShipper(req.userId!, data.fileId!, data)
+      if (!issue.ok) return res.status(422).json({ error: issue.erreur })
+      const produit = await prisma.product.findUnique({ where: { id: issue.productId } })
+      return res.status(201).json({ ...produit, notes: [] })
+    }
 
     // Un lot passe par le panneau latéral avec `differer` : sa réécriture part
     // en batch (−50 %), donc l'annonce coûte moins qu'une capture à l'unité.

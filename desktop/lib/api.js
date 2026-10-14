@@ -60,6 +60,13 @@ function client({ apiBase, cle, fetcher = fetch }) {
       appel('POST', `/achats/${encodeURIComponent(id)}/resultat`, statut === 'PREPARED' ? { status: statut, ...(urlOuRaison ? { supplierOrderUrl: urlOuRaison } : {}) } : { status: statut, error: urlOuRaison }),
     /** Le vendeur a payé : la vente passe en « commandée ». */
     achatsPayes: (orderIds, supplierOrderUrl) => appel('POST', '/achats/done', { orderIds, ...(supplierOrderUrl ? { supplierOrderUrl } : {}) }),
+    /** Les produits AUTO-SHIPPER que seul un navigateur lit, déjà payés : à relever ici. Clé desktop. */
+    fileAutoShipper: async () => (await appel('GET', '/file-autoshipper')).lignes || [],
+    releveFile: (id) => appel('POST', `/file-autoshipper/${encodeURIComponent(id)}/releve`, {}),
+    /** La fiche relevée : le serveur importe, contrôle et publie, sans nouveau débit. */
+    captureFile: (id, payload) => appel('POST', `/file-autoshipper/${encodeURIComponent(id)}/capture`, payload),
+    /** `reessayer` : bloqué, la ligne attend ; sinon refusée, les drops sont rendus. */
+    echecFile: (id, erreur, reessayer = false) => appel('POST', `/file-autoshipper/${encodeURIComponent(id)}/echec`, { erreur, reessayer }),
     /** Dit au serveur ce qui s'est passé : PUBLISHED (avec l'adresse) ou FAILED (avec la raison). */
     resultat: (id, statut, urlOuRaison) =>
       appel('POST', `/publications/${encodeURIComponent(id)}/resultat`, statut === 'PUBLISHED' ? { status: statut, ...(urlOuRaison ? { externalUrl: urlOuRaison } : {}) } : { status: statut, error: urlOuRaison }),

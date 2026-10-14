@@ -7,6 +7,7 @@ import { PLATFORMS } from '../services/platforms.js'
 import { rayonsAutoShipper, IMPORTABLES_PAR_RAYON } from '../services/autoShipperRayons.js'
 import { DEPARTMENT_KEYS, findDepartment } from '../services/departments.js'
 import { DROPS } from '../services/tarifs.js'
+import { contexteVoies, voieDe, type VoieImport } from '../services/autoShipperFile.js'
 
 /**
  * Le pilote automatique, côté vendeur.
@@ -33,6 +34,7 @@ const DEFAULTS = {
 autopilotRouter.get('/', async (req: AuthedRequest, res) => {
   const settings = await prisma.autopilot.findUnique({ where: { userId: req.userId! } })
   const departements = await prisma.department.findMany({ where: { userId: req.userId! }, select: { id: true, key: true, autoMode: true } })
+  const ctx = await contexteVoies(req.userId!)
 
   res.json({
     settings: settings
@@ -64,9 +66,15 @@ autopilotRouter.get('/', async (req: AuthedRequest, res) => {
     },
     importablesParRayon: IMPORTABLES_PAR_RAYON,
     // Les 24 rayons, ce que leurs analyses du dernier jour donnent, et lesquels sont en boost.
-    rayons: rayonsAutoShipper().map((r) => {
+    // Comment ce vendeur-là reçoit les produits que seul un navigateur lit (14/10/2026) :
+    // API AliExpress si reliée, sinon application desktop, sinon file de l'extension.
+    voies: ctx,
+    rayons: rayonsAutoShipper().map(({ navigateur, ...r }) => {
       const dep = departements.find((d) => d.key === r.key)
-      return { ...r, departmentId: dep?.id ?? null, boost: Boolean(dep?.autoMode) }
+      // La voie de chaque importable : l'agent de contrôle ne sert qu'à la voie « extension ».
+      const voies: Record<VoieImport, number> = { serveur: r.importables - navigateur.length, api: 0, desktop: 0, extension: 0 }
+      for (const url of navigateur) voies[voieDe(url, ctx, true)]++
+      return { ...r, voies, parExtension: voies.extension, departmentId: dep?.id ?? null, boost: Boolean(dep?.autoMode) }
     }),
   })
 })
