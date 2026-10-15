@@ -217,7 +217,7 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
     `PARTI PRIS IMPOSÉ — ${parti.cle} : ${parti.consigne}`,
     d.hint ? `\nCONSIGNE DU VENDEUR, prioritaire sur tout le reste : ${d.hint}` : '',
     d.pourPublicite
-      ? "\nCette photo servira de fond publicitaire : garde le tiers inférieur dégagé et sans détail important, il recevra le texte de l'offre."
+      ? "\nCette photo servira de visuel publicitaire : imagine une mise en scène de campagne (studio, nature morte graphique, décor épuré) où le produit est la vedette, grand et entier — jamais une pièce de vie où il se perd, jamais une personne au premier plan. La place du texte est réglée ailleurs : ne la décris pas."
       : '',
   ]
     .filter(Boolean)
