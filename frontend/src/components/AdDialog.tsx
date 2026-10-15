@@ -43,6 +43,8 @@ export function AdDialog({
   shopId,
   credits,
   coutParPub = 20,
+  scene,
+  reseau,
   onClose,
   onGenerated,
 }: {
@@ -53,6 +55,10 @@ export function AdDialog({
   credits: number | null
   /** Ce que coûte une publicité, servi par `/visuals/state`. Jamais recalculé ici. */
   coutParPub?: number
+  /** Une scène déjà écrite (le brief du Studio) : le vendeur la relit au lieu de la retaper. */
+  scene?: string
+  /** La destination choisie dans le brief, cochée d'office. */
+  reseau?: string
   onClose: () => void
   onGenerated: (images: unknown[], credits: number) => void
 }) {
@@ -81,12 +87,12 @@ export function AdDialog({
   /** Vide = l'IA choisit. C'est le défaut : Max veut la liberté, pas un formulaire. */
   const [gamme, setGamme] = useState('')
 
-  const [choisis, setChoisis] = useState<Set<string>>(new Set(['instagram']))
+  const [choisis, setChoisis] = useState<Set<string>>(new Set([reseau ?? 'instagram']))
   const [avecPrix, setAvecPrix] = useState(true)
   /** L'IA lit l'annonce, ou le vendeur dicte son message. */
-  const [source, setSource] = useState<'ia' | 'moi'>('ia')
+  const [source, setSource] = useState<'ia' | 'moi'>(scene ? 'moi' : 'ia')
   const [argument, setArgument] = useState('')
-  const [hint, setHint] = useState('')
+  const [hint, setHint] = useState(scene ?? '')
   const [ctaLabel, setCtaLabel] = useState('Commander')
   const [ctaUrl, setCtaUrl] = useState('')
   const [busy, setBusy] = useState(false)
