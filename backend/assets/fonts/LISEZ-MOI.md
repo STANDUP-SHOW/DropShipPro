@@ -17,8 +17,14 @@ publication officielle du projet. Licence dans `LICENCE-DejaVu.txt` : polices
 Bitstream Vera, modifications DejaVu dans le domaine public — redistribution
 autorisee, y compris dans un logiciel commercial.
 
-Deux fichiers et pas dix : le regulier et le gras suffisent a composer une
-publicite, et chaque variante en plus pese 700 Ko dans le depot pour rien.
+**Polices d'affiche (15/10/2026)**, pour que les publicités ne sortent plus
+en police de secours : Anton, Archivo Black, DM Serif Display, Playfair
+Display ExtraBold, Montserrat Medium / ExtraBold / Black. Toutes Google Fonts,
+licence SIL Open Font License 1.1 (texte complet dans
+`OFL-polices-affiche.txt`) : redistribution autorisée, y compris dans un
+logiciel commercial. Fichiers statiques (pas de police variable : librsvg les
+lit mal), pris dans les paquets npm `@expo-google-fonts/*`. Les familles sont
+nommées dans `services/adCharte.ts` (`POLICES`).
 
 ## Remplacer
 

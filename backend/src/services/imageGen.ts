@@ -325,8 +325,23 @@ export async function generateAdVisual(params: {
     '',
     'Le produit doit rester rigoureusement identique aux photos de référence :',
     'même forme, mêmes couleurs, mêmes proportions, mêmes marquages.',
-    "Compose une scène nette et lisible en petit format, avec un arrière-plan qui met le produit en valeur sans le masquer.",
-    zoneReservee(charte.miseEnPage, paysage),
+    '',
+    /*
+     * La direction artistique d'une publicité, pas d'une photo d'ambiance.
+     *
+     * Le 15/10/2026, Max a reçu une pièce de bureau avec un homme de dos et,
+     * posé sur une table, un petit objet qu'on devinait à peine : la consigne
+     * « une scène nette » laissait le modèle composer une photo de vie où le
+     * produit n'est qu'un accessoire. Une publicité montre ce qu'elle vend.
+     */
+    'DIRECTION ARTISTIQUE — une image de campagne publicitaire, pas une photo de vie quotidienne :',
+    "- Le produit est la VEDETTE : entier, net, grand (il occupe au moins la moitié de la hauteur de l'image), vu sous son meilleur angle.",
+    '- Lumière de studio maîtrisée : éclairage principal doux, lumière de contour qui détache le produit du fond, ombre portée réaliste.',
+    "- Décor graphique et épuré au service du produit : fond de couleur ou dégradé, socle, matière, quelques éléments du décor décrit — jamais une pièce encombrée.",
+    "- Aucune personne au premier plan, aucun objet qui passe devant le produit.",
+    "- Qualité photo haut de gamme : netteté parfaite sur le produit, profondeur de champ, couleurs riches.",
+    '',
+    zoneReservee(charte.miseEnPage, paysage, format.height / format.width >= 1.4),
     "N'écris aucun texte, aucun prix, aucun logo, aucune mention de réduction : ils sont ajoutés ensuite, exactement,",
     'à partir des vraies données de la boutique.',
   ]
@@ -349,29 +364,39 @@ export async function generateAdVisual(params: {
 }
 
 /**
- * Où le modèle doit laisser la place, selon la mise en page qui viendra.
+ * Où le modèle doit poser le produit, selon la direction qui viendra.
  *
- * Le texte de l'offre est dessiné APRÈS, par-dessus l'image. Tant qu'il n'y
- * avait qu'une mise en page, une phrase suffisait ; avec quatre, une consigne
- * écrite pour l'une fait poser le produit exactement là où l'autre écrira son
- * titre — et le produit sort coupé en deux, ce qui ne se rattrape pas.
+ * Le texte de l'offre est dessiné APRÈS, par-dessus ou à côté de l'image. Une
+ * consigne écrite pour une direction fait poser le produit exactement là où
+ * l'autre écrira son titre — et le produit sort coupé, ce qui ne se rattrape
+ * pas. Pour « editorial » et « cadre », la photo est recadrée dans une zone :
+ * on demande un produit centré, avec de la marge, que le recadrage garde entier.
  */
-function zoneReservee(mise: MiseEnPage, paysage: boolean): string {
-  if (mise === 'coin') {
+function zoneReservee(mise: MiseEnPage, paysage: boolean, vertical: boolean): string {
+  if (mise === 'affiche') {
+    if (paysage) {
+      return [
+        "COMPOSITION : produit dans la MOITIÉ DROITE de l'image.",
+        "La moitié gauche reste un fond simple et calme (couleur, dégradé, matière unie) : elle recevra une grande accroche.",
+      ].join('\n')
+    }
     return [
-      "Place le produit au CENTRE de l'image, à bonne distance des bords hauts et bas.",
-      "Garde le quart supérieur et le quart inférieur simples et sans détail important : ils recevront le texte de l'offre.",
+      `COMPOSITION : produit centré dans la partie basse de l'image, entre ${vertical ? '35 % et 85 %' : '35 % et 90 %'} de la hauteur, un peu à gauche du centre.`,
+      "Le tiers supérieur reste un fond simple et calme (couleur, dégradé, mur uni, ciel) : il recevra une grande accroche.",
+      "Le coin bas droit reste dégagé : il recevra une pastille ronde.",
     ].join('\n')
   }
-  if (mise === 'carte' && paysage) {
+  if (mise === 'epure') {
     return [
-      "Place le produit dans la MOITIÉ DROITE de l'image, bien dégagé.",
-      "Garde la moitié gauche simple et sans détail important : elle recevra un bloc de texte.",
+      "COMPOSITION : produit au centre, légèrement au-dessus du milieu, avec de l'air autour.",
+      "Le bas de l'image (le cinquième inférieur) reste un sol ou un fond simple : il recevra une ligne de texte.",
+      "Le coin haut droit reste simple : il recevra une étiquette de prix.",
     ].join('\n')
   }
+  // editorial et cadre : la photo sera recadrée dans un panneau ou un cadre.
   return [
-    "Place le produit dans la moitié haute de l'image et garde le tiers inférieur dégagé — une zone simple,",
-    "sans détail important, qui recevra ensuite le texte de l'offre.",
+    "COMPOSITION : produit bien centré, avec une marge confortable sur les quatre côtés,",
+    "car l'image sera recadrée : rien d'important ne doit toucher les bords.",
   ].join('\n')
 }
 

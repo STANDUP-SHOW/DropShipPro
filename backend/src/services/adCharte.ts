@@ -45,19 +45,39 @@ import {
  *    image, pas un avertissement.
  */
 
-/** Les mises en page, dans l'ordre où on les sert. */
-export const MISES_EN_PAGE = ['voile', 'carte', 'bande', 'coin'] as const
+/**
+ * Les mises en page, dans l'ordre où on les sert.
+ *
+ * **Refaites le 15/10/2026, après la capture de Max** (« on ne voit même pas le
+ * produit, toujours un texte avec un bouton dégradé, un aplat »). Les quatre
+ * anciennes (voile, carte, bande, coin) étaient une seule mise en page déclinée :
+ * le même bloc logo-titre-prix-argument-bouton pilule, posé sur un aplat qui
+ * couvrait jusqu'à la moitié de l'image, donc le produit. Les quatre nouvelles
+ * sont quatre directions artistiques : chacune a sa façon de montrer le
+ * produit, de dire le prix et d'appeler au clic, et aucune ne recouvre plus
+ * d'un tiers de l'image.
+ */
+export const MISES_EN_PAGE = ['affiche', 'editorial', 'epure', 'cadre'] as const
 export type MiseEnPage = (typeof MISES_EN_PAGE)[number]
+
+/** Les anciens noms, encore écrits par un modèle ou un banc : ramenés au plus proche. */
+export const ANCIENNES_MISES_EN_PAGE: Record<string, MiseEnPage> = {
+  voile: 'epure',
+  carte: 'editorial',
+  bande: 'cadre',
+  coin: 'affiche',
+}
 
 /** Ce que chaque mise en page donne à voir, pour la consigne du modèle. */
 export const MISES_EN_PAGE_DESCRIPTION: Record<MiseEnPage, string> = {
-  voile:
-    "voile : un dégradé qui monte du bas de l'image, texte posé dessus. Sobre, marche sur toutes les photos, laisse voir la scène.",
-  carte:
-    'carte : un bloc plein aux coins arrondis, posé en bas avec une marge, bordé de la couleur accent. Net, très lisible, allure de fiche produit.',
-  bande:
-    "bande : un bandeau plein sur toute la largeur en bas de l'image, filet d'accent sur son arête. Affirmé, façon affiche.",
-  coin: "coin : l'accroche en haut, l'offre et le bouton en bas, la photo dégagée au milieu. Pensé pour les formats verticaux.",
+  affiche:
+    "affiche : l'accroche en très grand en haut, le produit en vedette au centre, le prix dans une pastille ronde inclinée. Énergique, façon affiche de campagne.",
+  editorial:
+    "editorial : l'image coupée en deux, la photo intacte d'un côté, un panneau de couleur de l'autre avec l'accroche, le prix et le lien. Posé, façon page de magazine.",
+  epure:
+    "epure : la photo seule en plein cadre, une étiquette de prix discrète et une accroche courte dans un coin. Le produit parle seul. Luxe, objets beaux en eux-mêmes.",
+  cadre:
+    "cadre : la photo encadrée d'une large marge de couleur, l'accroche dans la marge du haut, le prix en macaron qui déborde du cadre. Façon couverture ou carte postale.",
 }
 
 /** Les typographies disponibles, avec les seules familles réellement installées. */
@@ -65,68 +85,83 @@ export const TYPOGRAPHIES = ['moderne', 'affirme', 'elegant', 'editorial'] as co
 export type Typographie = (typeof TYPOGRAPHIES)[number]
 
 export interface JeuDePolices {
-  /** La pile du titre, fallbacks compris. */
+  /** La famille du titre (une seule : elle est embarquée, pas devinée). */
   titre: string
-  /** La pile du reste : prix, argument, bouton. */
-  texte: string
   poidsTitre: number
+  /** La famille du prix : le chiffre se lit d'abord, il a sa propre voix. */
+  prix: string
+  poidsPrix: number
+  /** La famille du reste : argument, bouton, enseigne. */
+  texte: string
   /** Vrai quand le titre part en capitales. */
   capitales: boolean
   /** Interlettrage du titre, en fraction de la taille de police. */
   espacement: number
-  /** Largeur moyenne d'un caractère, en fraction de la taille — pour la coupe. */
-  largeurCar: number
+  /** Interligne du titre, en fraction de la taille. */
+  interligne: number
 }
 
 /**
  * Les familles, et pourquoi celles-là.
  *
- * Le serveur n'a que ce que `nixpacks.toml` installe : DejaVu et Liberation.
- * C'est moins pauvre qu'il n'y paraît — les deux paquets embarquent une
- * **serif**, une **sans** et une **condensée**, soit trois voix différentes.
- * Demander une police de plus se paierait en paquets Nix à installer et en
- * déploiement qui casse, pour un gain qu'un vendeur ne nommerait pas.
+ * Jusqu'au 15/10/2026, le serveur n'avait que DejaVu et Liberation — les
+ * polices de secours de Linux. C'est ce qui donnait aux publicités leur air de
+ * formulaire administratif, quelle que soit la mise en page. Les polices
+ * d'affiche sont maintenant livrées avec le dépôt (`assets/fonts`, licence SIL
+ * OFL, Google Fonts) : Anton, Montserrat, Archivo Black, Playfair Display et
+ * DM Serif Display. `fonts.ts` place ce dossier en tête de fontconfig, elles ne
+ * dépendent donc plus de l'image du serveur.
  *
- * Chaque pile finit par une famille générique : une police manquante dégrade
- * en quelque chose de lisible, jamais en carrés.
+ * DejaVu reste en repli dans chaque pile : une police absente dégrade en texte
+ * lisible, jamais en carrés.
  */
+const REPLI = 'DejaVu Sans, Liberation Sans, sans-serif'
+
 export const POLICES: Record<Typographie, JeuDePolices> = {
   moderne: {
-    titre: 'DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif',
-    texte: 'DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif',
-    poidsTitre: 800,
+    titre: `Montserrat, ${REPLI}`,
+    poidsTitre: 900,
+    prix: `Archivo Black, Montserrat, ${REPLI}`,
+    poidsPrix: 400,
+    texte: `Montserrat, ${REPLI}`,
     capitales: false,
-    espacement: -0.012,
-    largeurCar: 0.54,
+    espacement: -0.02,
+    interligne: 1.04,
   },
   affirme: {
-    titre: 'DejaVu Sans Condensed, Liberation Sans Narrow, DejaVu Sans, Arial, sans-serif',
-    texte: 'DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif',
-    poidsTitre: 800,
+    titre: `Anton, ${REPLI}`,
+    poidsTitre: 400,
+    prix: `Anton, ${REPLI}`,
+    poidsPrix: 400,
+    texte: `Montserrat, ${REPLI}`,
     capitales: true,
-    espacement: 0.045,
-    largeurCar: 0.6,
+    espacement: 0.005,
+    interligne: 1.0,
   },
   elegant: {
-    titre: 'DejaVu Serif, Liberation Serif, Georgia, Times New Roman, serif',
-    texte: 'DejaVu Sans, Liberation Sans, Helvetica, Arial, sans-serif',
-    poidsTitre: 700,
+    titre: `Playfair Display, DejaVu Serif, serif`,
+    poidsTitre: 800,
+    prix: `Playfair Display, DejaVu Serif, serif`,
+    poidsPrix: 800,
+    texte: `Montserrat, ${REPLI}`,
     capitales: false,
-    espacement: 0.004,
-    largeurCar: 0.55,
+    espacement: -0.01,
+    interligne: 1.08,
   },
   editorial: {
-    titre: 'Liberation Serif, DejaVu Serif, Georgia, Times New Roman, serif',
-    texte: 'Liberation Sans, DejaVu Sans, Helvetica, Arial, sans-serif',
+    titre: `DM Serif Display, DejaVu Serif, serif`,
     poidsTitre: 400,
+    prix: `DM Serif Display, DejaVu Serif, serif`,
+    poidsPrix: 400,
+    texte: `Montserrat, ${REPLI}`,
     capitales: false,
-    espacement: 0.01,
-    largeurCar: 0.5,
+    espacement: -0.01,
+    interligne: 1.06,
   },
 }
 
 export interface PaletteAd {
-  /** Le fond du bandeau, de la carte ou de la bande. */
+  /** Le fond du panneau, du cadre et des voiles de lecture. */
   fond: string
   /** Le titre et le prix. Contraste vérifié contre `fond`. */
   texte: string
@@ -173,7 +208,7 @@ export const PALETTE_DEFAUT: PaletteAd = {
 
 export const CHARTE_DEFAUT: CharteAd = {
   palette: PALETTE_DEFAUT,
-  miseEnPage: 'voile',
+  miseEnPage: 'affiche',
   typographie: 'moderne',
   gamme: 'Sombre',
   couleursLogo: [],

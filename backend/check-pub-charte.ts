@@ -228,8 +228,8 @@ if (!police) {
   }
 
   console.log('\nLa couleur du logo se retrouve dans les pixels de la publicite :')
-  const verte = await composeAd(fond, 1080, 1080, copy, { ...charteVerte, miseEnPage: 'bande' })
-  const rouge = await composeAd(fond, 1080, 1080, copy, { ...charteRouge, miseEnPage: 'bande' })
+  const verte = await composeAd(fond, 1080, 1080, copy, { ...charteVerte, miseEnPage: 'cadre' })
+  const rouge = await composeAd(fond, 1080, 1080, copy, { ...charteRouge, miseEnPage: 'cadre' })
 
   const vertDansVerte = await partTeinte(verte, teinteDe(charteVerte.palette.accent))
   const vertDansRouge = await partTeinte(rouge, teinteDe(charteVerte.palette.accent))

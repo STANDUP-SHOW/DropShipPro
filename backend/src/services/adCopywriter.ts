@@ -6,7 +6,6 @@ import {
   charteEnTexte,
   normaliserPalette,
   type CharteAd,
-  type MiseEnPage,
   type Typographie,
 } from './adCharte.js'
 import Anthropic from '@anthropic-ai/sdk'
@@ -113,12 +112,12 @@ const CONSIGNE = [
   "Tu conçois UN visuel : l'accroche imprimée par-dessus la photo du produit, et le parti pris graphique qui la porte.",
   '',
   "Réponds UNIQUEMENT par un objet JSON, sans texte autour :",
-  '{"titre":"…","argument":"…","bouton":"…","miseEnPage":"…","typographie":"…","palette":{"fond":"#……","texte":"#……","sourd":"#……","accent":"#……","accent2":"#……"},"note":"…"}',
+  '{"titre":"…","argument":"…","bouton":"…","typographie":"…","palette":{"fond":"#……","texte":"#……","sourd":"#……","accent":"#……","accent2":"#……"},"note":"…"}',
   '',
   'CONTRAINTES DE PLACE, elles ne se négocient pas :',
-  '- titre : 45 caractères maximum. Une phrase, pas une liste de mots-clés.',
-  '- argument : 40 caractères maximum. Un seul bénéfice.',
-  "- bouton : 18 caractères maximum, à l'infinitif ou à l'impératif.",
+  "- titre : 34 caractères maximum, 3 à 6 mots. Il s'imprime en très grand : une formule qui claque, pas une phrase d'annonce.",
+  '- argument : 36 caractères maximum. Un seul bénéfice, concret.',
+  "- bouton : 16 caractères maximum, à l'impératif.",
   '- note : une phrase pour le vendeur, ce que tu as cherché à faire.',
   '',
   'RÈGLES DU TEXTE :',
@@ -131,19 +130,19 @@ const CONSIGNE = [
   "- Pars des couleurs du logo de la boutique : la publicité doit se reconnaître comme la sienne.",
   '- Tu peux en tirer une gamme entière, foncer, éclaircir, chercher une complémentaire.',
   "  Une palette qui n'a aucun rapport avec le logo est un refus de la consigne, pas de l'audace.",
-  '- Le fond est celui du bandeau posé par-dessus la photo : il doit tenir le texte.',
+  "- Le fond est celui du panneau, du cadre ou du voile de lecture : il doit tenir le texte.",
   "- Le titre doit se lire sur le fond : vise un contraste franc, jamais deux tons voisins.",
-  "- L'accent porte le bouton : c'est le point le plus vif de l'image.",
+  "- L'accent porte la pastille du prix et le bouton : c'est le point le plus vif de l'image, choisis-le franc.",
   '- Six chiffres hexadécimaux, toujours : "#1b2430", jamais un nom de couleur.',
   '',
-  'MISE EN PAGE — choisis celle qui sert ce produit et ce réseau :',
+  "MISE EN PAGE — elle est IMPOSÉE dans la fiche (les publicités d'une même demande tournent sur quatre directions). Écris pour elle :",
   ...MISES_EN_PAGE.map((m) => `- ${MISES_EN_PAGE_DESCRIPTION[m]}`),
   '',
   'TYPOGRAPHIE — quatre voix possibles :',
-  '- moderne : sans-serif lourde, contemporaine. Le choix sûr.',
-  "- affirme : condensée en capitales, très serrée. Promotion, sport, outillage, ce qui s'annonce fort.",
-  '- elegant : serif de titre. Bijou, montre, parfum, décoration, gastronomie.',
-  "- editorial : serif légère, presque un magazine. Mode, beauté, art de vivre, ce qui se raconte.",
+  '- moderne : sans-serif noire très grasse (Montserrat Black). High-tech, maison, le choix sûr.',
+  "- affirme : condensée haute en capitales (Anton). Sport, outillage, auto, ce qui s'annonce fort.",
+  '- elegant : serif à fort contraste (Playfair Display). Bijou, montre, parfum, décoration, gastronomie.',
+  "- editorial : serif de magazine (DM Serif Display). Mode, beauté, art de vivre, ce qui se raconte.",
 ].join('\n')
 
 /**
@@ -169,6 +168,7 @@ export async function ecrireAccroche(d: DemandeAccroche): Promise<Accroche | nul
 
   const contexte = [
     `ANGLE IMPOSÉ — ${angle.cle} : ${angle.consigne}`,
+    `MISE EN PAGE IMPOSÉE — ${MISES_EN_PAGE_DESCRIPTION[d.charte.miseEnPage]}`,
     TON[d.platform] ?? '',
     '',
     "L'IDENTITÉ DE LA BOUTIQUE :",
@@ -240,7 +240,7 @@ export async function ecrireAccroche(d: DemandeAccroche): Promise<Accroche | nul
      * se lit, « Rangez enfin votre atel » se remarque.
      */
     return {
-      titre: couperAuMot(ecrit.titre, 45),
+      titre: couperAuMot(ecrit.titre, 40),
       argument: couperAuMot(ecrit.argument ?? '', 40),
       bouton: couperAuMot(ecrit.bouton ?? 'Découvrir', 18),
       angle: angle.cle,
@@ -265,9 +265,15 @@ export function charteProposee(
   depart: CharteAd,
   ecrit: { miseEnPage?: string; typographie?: string; palette?: unknown },
 ): CharteAd {
-  const miseEnPage = MISES_EN_PAGE.includes(ecrit.miseEnPage as MiseEnPage)
-    ? (ecrit.miseEnPage as MiseEnPage)
-    : depart.miseEnPage
+  /*
+   * La mise en page reste celle de la rotation, quoi que le modèle écrive.
+   *
+   * Laissé libre, il choisissait la même pour les six publicités d'une demande
+   * — celle qui lui semblait « sûre » — et Max recevait six fois le même
+   * gabarit (15/10/2026). La variété ne se délègue pas au modèle.
+   */
+  void ecrit.miseEnPage
+  const miseEnPage = depart.miseEnPage
   const typographie = TYPOGRAPHIES.includes(ecrit.typographie as Typographie)
     ? (ecrit.typographie as Typographie)
     : depart.typographie
