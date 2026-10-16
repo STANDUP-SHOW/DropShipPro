@@ -207,9 +207,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
      * le vendeur doit lire. Ne lire que `error` affichait « Erreur 502 » et
      * jetait l'explication : il voyait un code, et ses crédits rendus sans
      * savoir pourquoi.
+     *
+     * Les routes mobiles (/api/mobile, dont le partage de /partager) rendent
+     * leur motif dans `detail` : sans lui, « Erreur 400 » à la place de
+     * « Partage invalide » (16/10/2026).
      */
     const detail = Array.isArray(body.errors) ? body.errors.filter(Boolean).join(' ') : ''
-    const error = new Error(body.error || detail || `Erreur ${res.status}`) as Error & {
+    const motif = typeof body.detail === 'string' ? body.detail : ''
+    const error = new Error(body.error || detail || motif || `Erreur ${res.status}`) as Error & {
       status?: number
     }
     error.status = res.status
