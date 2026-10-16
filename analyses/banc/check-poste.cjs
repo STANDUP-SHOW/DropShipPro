@@ -286,6 +286,19 @@ test('planificateur : rien sans accord, une seule fois par jour, dans la fenêtr
   assert.equal(lanc.length, 2); p.arreter()
 })
 
+test('planificateur : nuit coupée = aucune vérification de session, donc aucune notification', async () => {
+  const gardes = []; const cfg = { nuitActivee: false, heureNuit: '01:00', sources: [{ id: 's', actif: true }] }
+  let maintenant = new Date(2026, 9, 16, 14, 0)
+  const p = planifier({
+    maintenant: () => maintenant, config: () => cfg, nuitEnCours: () => false, dejaFaiteAujourdhui: () => true,
+    lancerNuit: async () => {}, garderSessions: async () => { gardes.push(maintenant.toISOString()) }, journal: { info() {}, erreur() {} }, intervalleMs: 1e9,
+  })
+  assert.equal(await p.tick(), 'rien'); assert.equal(gardes.length, 0)
+  cfg.nuitActivee = true
+  maintenant = new Date(2026, 9, 16, 14, 1); assert.equal(await p.tick(), 'sessions'); assert.equal(gardes.length, 1)
+  p.arreter()
+})
+
 test('sources : normalisation, déconnexion détectée, « robots » n’est pas un blocage', () => {
   const s = sources.normaliser({ nom: 'Ads Library Facebook', urlConnexion: 'https://www.facebook.com/ads/library/', pages: 'https://www.facebook.com/ads/library/?q=robot\n' })
   assert.equal(s.id, 'ads-library-facebook'); assert.equal(s.pages.length, 1); assert.equal(sources.partition(s), 'persist:source-ads-library-facebook')

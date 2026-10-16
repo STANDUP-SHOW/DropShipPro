@@ -87,10 +87,16 @@ async function lectureSources(date) {
   return lectures
 }
 
+// last state notified per source: a lost session is said once, not again at every 30-minute check (16/10/2026)
+const etatsNotifies = {}
 function prevenirSiSession(etats) {
   for (const s of cfg.sources) {
     const e = etats[s.id]
-    if (e && (e.etat === 'deconnecte' || e.etat === 'bloque')) notifier(`Source « ${s.nom} »`, `${e.etat === 'bloque' ? 'Blocage' : 'Session perdue'} : ${e.raison}. Ouvrez l'onglet Sources pour reprendre la main.`)
+    if (!e) continue
+    const avant = etatsNotifies[s.id]
+    etatsNotifies[s.id] = e.etat
+    if (avant === e.etat) continue
+    if (e.etat === 'deconnecte' || e.etat === 'bloque') notifier(`Source « ${s.nom} »`, `${e.etat === 'bloque' ? 'Blocage' : 'Session perdue'} : ${e.raison}. Ouvrez l'onglet Sources pour reprendre la main.`)
   }
 }
 
@@ -711,7 +717,8 @@ if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
     sauver()
     preparerPrompt()
     journal = creerJournal(racine)
-    journal.info('Poste démarré', { version: app.getVersion() })
+    // who launched it: by hand, the watchdog (--garde) or the Windows session (--demarrage); « sans argument » from an old task = 0.3.5 or older
+    journal.info('Poste démarré', { version: app.getVersion(), lancement: process.argv.includes(ARG_GARDE) ? 'tâche de relance' : process.argv.includes(ARG_DEMARRAGE) ? 'ouverture de session Windows' : 'à la main (ou ancienne tâche sans argument)' })
     // Keeps the app (and its timers) running when nobody is looking; the screen may still sleep.
     bloqueurVeille = powerSaveBlocker.start('prevent-app-suspension')
     brancher()

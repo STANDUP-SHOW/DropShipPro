@@ -35,7 +35,8 @@ function planifier({ maintenant, config, nuitEnCours, dejaFaiteAujourdhui, lance
         await lancerNuit()
         return 'nuit'
       }
-      if (!nuitEnCours() && d.getTime() - derniereGarde >= CADENCE_SESSIONS_MS && (cfg.sources || []).some((s) => s.actif)) {
+      // keeping sessions warm only serves the night: with the night off, nothing runs and nothing is notified (16/10/2026)
+      if (cfg.nuitActivee && !nuitEnCours() && d.getTime() - derniereGarde >= CADENCE_SESSIONS_MS && (cfg.sources || []).some((s) => s.actif)) {
         derniereGarde = d.getTime()
         await garderSessions()
         return 'sessions'
