@@ -7,7 +7,7 @@ import { dupliquerAnnonce } from '../services/listingDuplicate.js'
 import { FORMATS_FLUX } from '../services/channelFeeds.js'
 import { liaisonPour, resumeLiaisons } from '../services/liaisonsCanaux.js'
 import { metaCsv } from '../services/productFeeds.js'
-import { ligneAutoShipper, importerLigneAutoShipper } from '../services/autoShipperFile.js'
+import { ligneAutoShipper, importerLigneAutoShipper, refAliExpress } from '../services/autoShipperFile.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { sendMail } from '../services/mailer.js'
@@ -305,7 +305,40 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
   // moitié.
   const results: Array<{ url: string; ok: boolean; product?: unknown; error?: string; notes?: string[] }> = []
 
+  /*
+   * AliExpress item pages never read from our server (an anti-bot wall). When the
+   * seller linked AliExpress, they go through its API instead — the « api » rows
+   * of the winners' lists land here (16/10/2026: they all failed before).
+   */
+  const aliexpressRelie = parsed.data.urls.some((u) => refAliExpress(u))
+    ? Boolean(await prisma.supplierConnection.findFirst({ where: { userId: req.userId!, supplier: 'aliexpress', connected: true }, select: { id: true } }))
+    : false
+
   for (const url of parsed.data.urls) {
+    const ref = aliexpressRelie ? refAliExpress(url) : null
+    if (ref) {
+      try {
+        const r = await importerDepuisFournisseurs(req.userId!, new Map([['aliexpress', new Map([[ref, url]])]]), {
+          apiBaseUrl: apiBaseUrl(req),
+          drops: DROPS.import,
+          motif: "Import d'une annonce",
+        })
+        const product = await prisma.product.findFirst({
+          where: { userId: req.userId!, supplierId: 'aliexpress', supplierRef: ref },
+          orderBy: { createdAt: 'desc' },
+        })
+        if ((r.importes || r.deja) && product) {
+          results.push({ url, ok: true, product, notes: r.deja ? ['Déjà dans vos annonces.'] : ['Importé par votre API AliExpress.'] })
+        } else {
+          results.push({ url, ok: false, error: `API AliExpress : ${r.echecs[0]?.raison ?? 'import impossible'}` })
+        }
+      } catch (err) {
+        console.error(`import-batch aliexpress failed for ${url}`, err)
+        results.push({ url, ok: false, error: 'API AliExpress : import impossible pour le moment.' })
+      }
+      continue
+    }
+
     const credit = await reserveCredits(req.userId!, DROPS.import, "Import d'une annonce")
     if (!credit.ok) {
       results.push({ url, ok: false, error: 'Solde de drops insuffisant pour cette annonce.' })

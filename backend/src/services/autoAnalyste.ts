@@ -199,11 +199,48 @@ export async function genererAnalyse(dep: Department, label: string): Promise<An
     })
     bloc = secours.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'livrer_liste')
   }
+  /*
+   * Max's rule (never an invented link): a winner whose link is not among the
+   * pages the web search actually returned is dropped. Until 16/10/2026 only
+   * the prompt asked for it, and nothing checked.
+   */
+  const lus = liensLus([analyse.content, liste.content])
   const gagnants = ((bloc?.input as { produits?: AnalyseProduite['gagnants'] })?.produits ?? [])
     .filter((p) => p.titre && p.lien && p.prixBas > 0 && p.prixVente > p.prixBas)
+    .filter((p) => lus.has(normaliserLien(p.lien)))
     .slice(0, 10)
 
   return { titre: `Analyse ${label}`, corps, gagnants }
+}
+
+/** A link as compared with search results: no fragment, no tracking parameters, no trailing slash. */
+export function normaliserLien(lien: string): string {
+  try {
+    const u = new URL(lien.trim())
+    u.hash = ''
+    for (const k of [...u.searchParams.keys()]) if (/^(utm_|gclid$|fbclid$)/.test(k)) u.searchParams.delete(k)
+    return `${u.protocol}//${u.host.toLowerCase().replace(/^www\./, '')}${u.pathname.replace(/\/+$/, '')}${u.search}`
+  } catch {
+    return ''
+  }
+}
+
+/** Every page URL the web search returned (results and citations), normalised. */
+export function liensLus(contenus: unknown[][]): Set<string> {
+  const lus = new Set<string>()
+  const ajouter = (u: unknown) => {
+    if (typeof u === 'string' && /^https?:\/\//.test(u)) lus.add(normaliserLien(u))
+  }
+  for (const contenu of contenus) {
+    for (const b of contenu as Array<Record<string, unknown>>) {
+      if (b?.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+        for (const r of b.content as Array<{ url?: unknown }>) ajouter(r?.url)
+      }
+      if (Array.isArray(b?.citations)) for (const c of b.citations as Array<{ url?: unknown }>) ajouter(c?.url)
+    }
+  }
+  lus.delete('')
+  return lus
 }
 
 export type Generateur = typeof genererAnalyse

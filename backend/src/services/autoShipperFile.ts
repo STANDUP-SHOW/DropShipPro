@@ -184,7 +184,7 @@ export async function publierAutoShipper(
   // (si elle existe). Elle publie là où le vendeur a activé l'agent ; ailleurs l'annonce l'attend.
   const enFile = await mettreEnFileDesktop(userId, productId)
   if (enFile.length) {
-    log.push({ titre, action: 'publié', raison: `En file pour l'application desktop : ${enFile.join(', ')}` })
+    log.push({ titre, action: 'en file', raison: `En file pour l'application desktop : ${enFile.join(', ')}` })
   }
   return bilan
 }
