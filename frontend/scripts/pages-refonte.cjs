@@ -765,8 +765,10 @@ function pageDiffusion(t, c) {
 /** Le contrat des analyses (CLAUDE.md) : 24 rayons, 20 produits chacun, un rapport rayon et un rapport marketing. */
 const RAYONS = 24
 const PAR_RAYON = 20
-/** Plafond d'AUTO-SHIPPER : backend/src/routes/autopilot.ts (dailyLimit max 480 = 24 × 20). */
+/** Analyses: 24 × 20 products proposed per day. */
 const MAX_AUTO = RAYONS * PAR_RAYON
+/** AUTO-SHIPPER's real ceiling: 23 boost departments × 10 winners (backend/src/routes/autopilot.ts, 16/10/2026). */
+const MAX_TOURNEE = 23 * 10
 const API_FOURNISSEURS = ['AliExpress', 'BigBuy', 'CJ Dropshipping']
 
 function pageFournisseurs(t, c) {
@@ -901,8 +903,9 @@ function pageAgents(t, c) {
 function pageAutoShipper(t, c) {
   const [, jour, eurosJour] = ligne(/^AUTO-SHIPPER : la journée/)
   const [, produit, eurosProduit] = ligne(/^AUTO-SHIPPER : un produit/)
+  const [, , eurosControle] = ligne(/^AUTO-SHIPPER : agent de contrôle/)
   const exemple = 50
-  const etapes = ['Sélection des produits', 'Import et annonce IA', 'Contrôle des photos', 'Diffusion compatible']
+  const etapes = ['Sélection des produits', 'Import et annonce IA', 'Contrôle des photos, en option', 'Diffusion par vos connecteurs']
   return {
     degrade: DEGRADE_AUTOSHIPPER,
     hero: {
@@ -916,10 +919,10 @@ function pageAutoShipper(t, c) {
     },
     bento: `${enTeteSection('L’essentiel, simplement', 'Automatique, avec un cadre clair.', 'Ce qui part seul, ce qui attend votre validation et ce que cela coûte.')}
 <div class="bento">
-<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">↻</span><h3>Le parcours quotidien</h3><p>La tournée prend les produits des analyses du matin, importe ceux qui sont accessibles sans intervention, écrit les annonces et contrôle les photos.</p></article>
-<article class="tile"><span class="tile-icon" aria-hidden="true">✓</span><h3>Vous gardez les validations</h3><p>Vinted, Leboncoin et Facebook Marketplace attendent votre validation. Les campagnes publicitaires restent en pause.</p></article>
-<article class="tile"><span class="tile-icon" aria-hidden="true">⌕</span><h3>Les produits compatibles seulement</h3><p>Ceux qui demandent une intervention dans le navigateur restent dans la liste, pour vous.</p></article>
-<article class="tile wide featured calculator"><span class="overline">Estimation du coût de la tournée</span><h3>Un plafond qui se comprend.</h3><label for="auto-count">Produits importés et publiés dans la journée</label><input id="auto-count" type="number" min="1" max="${MAX_AUTO}" value="${exemple}" inputmode="numeric" data-jour="${jour}" data-produit="${produit}"><div class="estimate" aria-live="polite"><strong id="auto-euros">${euros(jour + exemple * produit)}</strong><span id="auto-drops">${nombre(jour + exemple * produit)} drops</span></div><p class="footnote">${esc(eurosJour)} la journée + ${esc(eurosProduit)} par produit. Tarif de base, journée rendue si rien n’a été importé. Simulation sans activation.</p></article>
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">↻</span><h3>Le parcours quotidien</h3><p>La tournée prend les produits des analyses du matin, les importe et fait écrire les annonces. Si vous l’activez, l’agent de contrôle vérifie les photos ; sinon les annonces restent en brouillon jusqu’à votre relecture.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">✓</span><h3>Vous gardez les validations</h3><p>Vinted, Leboncoin et Facebook Marketplace passent par l’application desktop, dans votre session et sur votre accord. Les campagnes publicitaires restent en pause.</p></article>
+<article class="tile"><span class="tile-icon" aria-hidden="true">⌕</span><h3>Les produits lus par le navigateur</h3><p>Ceux que seul un navigateur peut relever (Temu, AliExpress, Shein…) sont confiés à l’application desktop ou à l’extension.</p></article>
+<article class="tile wide featured calculator"><span class="overline">Estimation du coût de la tournée</span><h3>Un plafond qui se comprend.</h3><label for="auto-count">Produits importés et publiés dans la journée</label><input id="auto-count" type="number" min="1" max="${MAX_TOURNEE}" value="${exemple}" inputmode="numeric" data-jour="${jour}" data-produit="${produit}"><div class="estimate" aria-live="polite"><strong id="auto-euros">${euros(jour + exemple * produit)}</strong><span id="auto-drops">${nombre(jour + exemple * produit)} drops</span></div><p class="footnote">${esc(eurosJour)} la journée + ${esc(eurosProduit)} par produit, jusqu’à 10 produits par rayon et ${MAX_TOURNEE} par jour. Agent de contrôle en option : ${esc(eurosControle)} par annonce. Tarif de base, journée rendue si rien n’a été importé. Simulation sans activation.</p></article>
 <article class="tile"><span class="tile-icon" aria-hidden="true">↗</span><h3>Commencez par la veille</h3><p>L’AUTO-MODE gratuit produit les analyses. AUTO-SHIPPER est l’étape payante qui importe et publie.</p><a class="textlink" href="/fonctions/analyses-de-marche/">Voir les analyses ↗</a></article>
 </div>`,
     questions: [],
