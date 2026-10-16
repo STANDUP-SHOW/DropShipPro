@@ -81,7 +81,7 @@ autopilotRouter.get('/', async (req: AuthedRequest, res) => {
 
 const settingsSchema = z.object({
   enabled: z.boolean(),
-  dailyLimit: z.number().int().min(1).max(480), // 50 conseillés ; jusqu à 480 (24 catégories × 20 produits) pour qui peut se l offrir (17/09/2026)
+  dailyLimit: z.number().int().min(1).max(480), // 480 = sans plafond choisi ; le vrai maximum est 23 rayons × 10 gagnants = 230 par jour (16/10/2026)
   produitsParRayon: z.number().int().min(1).max(10),
   autoPublish: z.boolean(),
   destinations: z.array(z.string()).max(10),
