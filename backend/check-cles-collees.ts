@@ -88,6 +88,15 @@ try {
   exige(r.statut === 400 && /expiré/.test(r.corps.error ?? '') && !(await enregistre('EBAY')), 'eBay, jeton refusé : dit expiré, rien enregistré', r)
   r = await coller('EBAY', { accessToken: 'bon-jeton' })
   exige(r.statut === 200 && r.corps.connected === true, 'eBay, bon jeton : connecté', r)
+
+  // 16/10/2026 : a platform we cannot test yet stores the key, never says « connecté ».
+  r = await coller('SPARTOO', { apiKey: 'une-cle' })
+  exige(r.statut === 200 && r.corps.connected === false && (r.corps as { enregistre?: boolean }).enregistre === true, 'Spartoo, sans appel possible : clé enregistrée, pas « connecté »', r)
+  await prisma.platformCredential.update({ where: { userId_platform: { userId: vendeur.id, platform: 'SPARTOO' } }, data: { connected: true } })
+  const liste = (await (await vraiFetch(`${base}/credentials`, { headers: { Authorization: `Bearer ${jeton}` } })).json()) as Array<{ platform: string; connected: boolean; enregistre: boolean }>
+  const spartoo = liste.find((c) => c.platform === 'SPARTOO')
+  exige(spartoo?.connected === false && spartoo.enregistre === true, 'Spartoo, ancienne ligne marquée connectée : relue « clé enregistrée »', spartoo)
+  exige(liste.find((c) => c.platform === 'EBAY')?.connected === true, 'eBay, éprouvé : toujours connecté dans la liste')
 } finally {
   await prisma.platformCredential.deleteMany({ where: { userId: vendeur.id } })
   await prisma.user.delete({ where: { id: vendeur.id } })

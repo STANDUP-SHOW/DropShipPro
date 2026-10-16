@@ -99,7 +99,9 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
   const candidates = await prisma.opportunity.findMany({
     where: { userId, status: 'NEW' },
     orderBy: { detectedAt: 'desc' },
-    take: 200,
+    // 23 rayons × 10 gagnants = 230 au plus par jour (16/10/2026) : lire au-delà, sans quoi
+    // la liste tronquée plafonnerait la journée sous ce que le site annonce.
+    take: 500,
   })
 
   // Plafond PAR RAYON : chaque chef génère dix gagnants ; le vendeur choisit

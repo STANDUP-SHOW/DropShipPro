@@ -558,7 +558,7 @@ export default function Autopilot() {
           className="lg:col-span-2"
         >
           <p className="text-sm leading-relaxed text-[var(--texte-2)]">
-            {`${CANAUX.length} canaux de vente. Inscris-toi, crée tes comptes vendeurs, relie-les : DropShipper diffuse. La publication est comprise dans le prix de chaque produit importé, sans aucun drop de plus.`}
+            {`${CANAUX.length} canaux de vente référencés, chacun avec sa façon de s'y relier. Crée tes comptes vendeurs et relie-les : DropShipper publie sur ceux qui sont reliés. Shopify a publié en conditions réelles ; les autres connecteurs sont écrits et attendent ton compte pour leur premier envoi. Vinted, Leboncoin et Facebook passent par l'application desktop. La publication est comprise dans le prix de chaque produit importé, sans aucun drop de plus.`}
           </p>
           <div className="-mx-4 mt-3 overflow-hidden md:-mx-5">
             <FriseLogos logos={CANAUX.slice(0, Math.ceil(CANAUX.length / 2))} className="frise-demi" />

@@ -380,6 +380,23 @@ settingsRouter.get('/shopify/install-url', async (req: AuthedRequest, res) => {
   }
 })
 
+/**
+ * Platforms whose credentials are proven by a real call before being saved
+ * (or, for feeds, declared by the seller: nothing to call, the channel reads
+ * our feed). Anything else (Spartoo, Miinto, Bol…) only stores what was typed:
+ * it must never read « Connecté ».
+ */
+const VERIFIEES = new Set<string>(['SHOPIFY', 'EBAY', 'KAUFLAND', 'WOOCOMMERCE', 'PRESTASHOP', 'MAGENTO', 'DRUPAL_COMMERCE', 'BIGCOMMERCE', 'WIX', 'SHOPWARE', 'ECWID', 'SQUARESPACE', 'OWN_SITE', 'DROPSHOP_MARKET'])
+const FLUX_DECLARES = new Set<string>(['INSTAGRAM', 'GOOGLE_SHOPPING'])
+
+function connexionProuvee(platform: string): boolean {
+  return VERIFIEES.has(platform) || FLUX_DECLARES.has(platform) || estMirakl(platform as never) || connecteursMarche().some((c) => c.platform === platform)
+}
+
+function aDesCles(data: unknown): boolean {
+  return Boolean(data && typeof data === 'object' && Object.keys(data as object).length > 0)
+}
+
 settingsRouter.get('/credentials', async (req: AuthedRequest, res) => {
   const creds = await prisma.platformCredential.findMany({ where: { userId: req.userId! } })
   res.json(
@@ -387,7 +404,10 @@ settingsRouter.get('/credentials', async (req: AuthedRequest, res) => {
       id: c.id,
       platform: c.platform,
       label: c.label,
-      connected: c.connected,
+      // Rows saved before 16/10/2026 may say true without any call: re-read through the same rule.
+      connected: c.connected && connexionProuvee(c.platform),
+      /** Something is stored, whether or not it was ever proven. */
+      enregistre: aDesCles(c.data),
       // Enough to show *which* shop is connected, never the token itself.
       hint: shopDomainOf(c.data),
     })),
@@ -605,10 +625,10 @@ settingsRouter.put('/credentials', async (req: AuthedRequest, res) => {
 
   const cred = await prisma.platformCredential.upsert({
     where: { userId_platform: { userId: req.userId!, platform: parsed.data.platform } },
-    create: { ...parsed.data, data, userId: req.userId!, connected: Object.keys(data).length > 0 },
-    update: { ...parsed.data, data, connected: Object.keys(data).length > 0 },
+    create: { ...parsed.data, data, userId: req.userId!, connected: aDesCles(data) && connexionProuvee(parsed.data.platform) },
+    update: { ...parsed.data, data, connected: aDesCles(data) && connexionProuvee(parsed.data.platform) },
   })
-  res.json({ id: cred.id, platform: cred.platform, label: cred.label, connected: cred.connected })
+  res.json({ id: cred.id, platform: cred.platform, label: cred.label, connected: cred.connected, enregistre: aDesCles(cred.data) })
 })
 
 /**

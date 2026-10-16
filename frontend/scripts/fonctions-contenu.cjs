@@ -591,7 +591,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       },
       {
         h2: 'Les agents et le mode automatique',
-        html: `<p>Les agents sont aussi ceux qui travaillent quand vous ne regardez pas. L'<a href="/fonctions/auto-shipper/">AUTO-SHIPPER</a> s'appuie sur les analyses des chefs de rayon pour choisir les produits, et force le contrôle photo d'Iris puisque personne ne relit. Les <a href="/fonctions/analyses-de-marche/">analyses de marché</a> quotidiennes sont écrites par quarante-huit agents, un agent rayon et un agent marketing par catégorie.</p>`,
+        html: `<p>Les agents sont aussi ceux qui travaillent quand vous ne regardez pas. L'<a href="/fonctions/auto-shipper/">AUTO-SHIPPER</a> s'appuie sur les analyses des chefs de rayon pour choisir les produits, et peut faire vérifier les photos par son agent de contrôle, en option. Les <a href="/fonctions/analyses-de-marche/">analyses de marché</a> quotidiennes sont écrites par quarante-huit agents, un agent rayon et un agent marketing par catégorie.</p>`,
       },
     ],
     faq: [
@@ -621,16 +621,16 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
     title: 'AUTO-SHIPPER IA : dropshipping automatique, 1 € par jour',
     description:
       "Une tournée par jour : l'IA choisit les produits, les importe, écrit les annonces et les publie. 1 € la journée + 0,18 € par produit, plafond réglable.",
-    enBref: `AUTO-SHIPPER IA fait tourner le dropshipping en mode automatique : une fois par jour, il choisit des produits dans les analyses du matin, les importe, fait écrire les annonces, les publie sur vos canaux et contrôle les photos. 100 drops (1 €) la journée, 18 drops par produit publié, rendue si rien n'est importé. Vous fixez le plafond.`,
+    enBref: `AUTO-SHIPPER IA fait tourner le dropshipping en mode automatique : une fois par jour, il choisit des produits dans les analyses du matin, les importe, fait écrire les annonces, les publie sur vos canaux reliés. 100 drops (1 €) la journée, 18 drops par produit publié, 15 de plus par annonce si l'agent de contrôle est activé, rendue si rien n'est importé. Vous fixez le plafond.`,
     sections: [
       {
         h2: 'Une tournée quotidienne, pas un bouton magique',
         html: `<p>L'AUTO-SHIPPER suit chaque jour le même parcours, à heure fixe :</p>
 <ol>
 <li>il lit les produits gagnants du matin dans les catégories que vous avez choisies ;</li>
-<li>il écarte ceux que seul un navigateur peut relever, qui restent dans votre liste ;</li>
-<li>il importe les autres et fait réécrire leurs annonces par l'IA ;</li>
-<li>il passe les photos au contrôle de l'agent Iris, forcé puisque personne ne les regarde ;</li>
+<li>il importe ceux que le serveur sait lire, et confie ceux que seul un navigateur peut relever (Temu, AliExpress, Shein…) à l'application desktop ou à l'extension ;</li>
+<li>il fait réécrire leurs annonces par l'IA ;</li>
+<li>si vous l'avez activé, l'agent de contrôle vérifie les photos ; sans lui, les annonces restent en brouillon jusqu'à votre relecture ;</li>
 <li>il publie sur les destinations réglées, et les agents tiennent le back-office.</li>
 </ol>`,
       },
@@ -641,11 +641,11 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
 <li>Chaque produit importé et publié : <strong>18 drops (0,18 €)</strong>.</li>
 <li>Si rien n'a été importé, la journée est rendue.</li>
 </ul>
-<p>Vous fixez le plafond de produits par jour. Cinquante est le rythme conseillé ; quatre cent quatre-vingts, le maximum autorisé (24 catégories × 20 produits). À cinquante produits, une journée coûte 100 + 50 × 18 = 1 000 drops, soit 10 €.</p>`,
+<p>Vous fixez le nombre de produits, rayon par rayon : jusqu'à dix par rayon boost et par jour, soit 230 au plus sur les 23 rayons. À cinquante produits, une journée coûte 100 + 50 × 18 = 1 000 drops, soit 10 € (plus 15 drops par annonce contrôlée si l'agent de contrôle est activé).</p>`,
       },
       {
         h2: 'Ce qui ne part jamais sans vous',
-        html: `<p>L'AUTO-SHIPPER publie par les voies directes (vos boutiques, Shopify, eBay, Kaufland, les enseignes Mirakl…). Sur Vinted, Leboncoin et Facebook Marketplace, qui n'ont pas d'API publique, l'extension remplit le formulaire et c'est vous qui validez. Les campagnes publicitaires, elles, sont toujours créées en pause : elles dépensent de l'argent, elles attendent votre accord.</p>
+        html: `<p>L'AUTO-SHIPPER publie par les connecteurs que vous avez reliés. Shopify a publié en conditions réelles ; les autres connecteurs (eBay, Kaufland, les enseignes Mirakl…) sont écrits et attendent votre compte vendeur pour leur premier envoi réel. Vinted, Leboncoin et Facebook Marketplace, qui n'ont pas d'API publique, passent par l'application desktop, dans votre propre session et sur votre accord. Les campagnes publicitaires, elles, sont toujours créées en pause : elles dépensent de l'argent, elles attendent votre accord.</p>
 <p>Vous pouvez laisser la plateforme travailler seule et ne revenir que pour valider les publications sensibles.</p>`,
       },
       {
@@ -660,11 +660,11 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
     faq: [
       {
         q: 'Combien coûte l’AUTO-SHIPPER ?',
-        a: "100 drops (1 €) la journée, plus 18 drops (0,18 €) par produit importé et publié. Si rien n'a été importé, la journée est rendue.",
+        a: "100 drops (1 €) la journée, plus 18 drops (0,18 €) par produit importé et publié, et 15 drops (0,15 €) par annonce si vous activez l'agent de contrôle. Si rien n'a été importé, la journée est rendue.",
       },
       {
         q: 'Combien de produits l’AUTO-SHIPPER publie-t-il par jour ?',
-        a: 'Le nombre que vous fixez : cinquante par jour est le rythme conseillé, quatre cent quatre-vingts le maximum autorisé (24 catégories × 20 produits).',
+        a: 'Le nombre que vous fixez, rayon par rayon : jusqu’à dix produits par rayon boost et par jour, soit 230 au plus sur les 23 rayons.',
       },
       {
         q: 'L’AUTO-SHIPPER publie-t-il sur Vinted ou Leboncoin à ma place ?',
