@@ -804,6 +804,7 @@ export const api = {
         total: number
         parVoie: Record<'api' | 'flux' | 'export' | 'extension' | 'aucune', number>
         parEtat: Record<'branche' | 'compte-requis' | 'verifie' | 'famille', number>
+        apiEcrits?: number
       }
       /** Le catalogue en CSV, à télécharger (avec le jeton) et déposer dans un back-office. */
       exportCsv: string

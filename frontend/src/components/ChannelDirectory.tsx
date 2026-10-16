@@ -99,7 +99,7 @@ function FluxProduit({ data }: { data: Data }) {
  *
  * Ce que l'annuaire n'est pas : une promesse. Être listé ne veut pas dire être
  * intégré, et les pastilles le disent sans détour — trois états, parce qu'il y
- * en a trois : reliée, servie par votre flux, ou pas encore branchée.
+ * en a trois : connecteur écrit, servie par votre flux, ou pas encore branchée.
  */
 /** L'ordre d'affichage : ce qui marche aujourd'hui d'abord. */
 function rang(c: Canal): number {
@@ -118,7 +118,7 @@ function Pastille({ c }: { c: Canal }) {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300">
         <Check size={9} />
-        <span>reliée</span>
+        <span>connecteur écrit</span>
       </span>
     )
   }
@@ -126,7 +126,7 @@ function Pastille({ c }: { c: Canal }) {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
         <KeyRound size={9} />
-        <span>votre compte vendeur</span>
+        <span>connecteur à écrire</span>
       </span>
     )
   }
@@ -192,8 +192,7 @@ export function ChannelDirectory() {
       <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500">
         {`${data.total} canaux connus : places de marché, comparateurs, plateformes d'affiliation, régies publicitaires et outils du commerce en ligne. `}
         <b>Chacun a sa voie de liaison</b> — {data.liaisons.parVoie.api} par publication directe
-        ({data.liaisons.parEtat.branche} branchées, {data.liaisons.parEtat['compte-requis']} qui attendent votre compte
-        vendeur), {data.liaisons.parVoie.flux} par votre flux produit, {data.liaisons.parVoie.extension} par l'extension,
+        ({data.liaisons.apiEcrits ?? data.liaisons.parEtat.branche} connecteurs écrits, à relier avec votre compte, {data.liaisons.parEtat['compte-requis']} dont le connecteur reste à écrire), {data.liaisons.parVoie.flux} par votre flux produit, {data.liaisons.parVoie.extension} par l'extension,
         et {data.liaisons.parVoie.aucune} qui ne sont pas des canaux de vente (nous le disons). Cliquez un canal :
         la fenêtre dit quoi faire, et où.
       </p>
@@ -331,7 +330,7 @@ export function ChannelDirectory() {
                 ouvre les explications et le champ de clé.
               */
               <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-xs leading-relaxed text-emerald-100">
-                Cette destination est déjà reliée. Sa clé se règle en cliquant sur son bloc dans la
+                Le connecteur de cette destination est écrit. Votre clé se règle en cliquant sur son bloc dans la
                 liste des places de marché ci-dessus : la fenêtre explique où la trouver et où la
                 coller. Pour publier, passez par la fenêtre « Diffuser » d'une annonce.
               </p>

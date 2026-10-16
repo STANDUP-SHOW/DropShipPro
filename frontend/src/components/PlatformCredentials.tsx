@@ -79,7 +79,7 @@ export function PlatformCredentialForm({
   onSaved,
 }: {
   platform: PlatformInfo
-  cred?: { platform: string; connected: boolean; hint?: string | null }
+  cred?: { platform: string; connected: boolean; enregistre?: boolean; hint?: string | null }
   onSaved?: () => void
 }) {
   const [credError, setCredError] = useState<{ platform: string; text: string } | null>(null)
@@ -121,12 +121,25 @@ export function PlatformCredentialForm({
                 <span>{platform.label}</span>
               </p>
               {platform.automatable && !platform.unavailable ? (
+                /* « Connecté » only after a real call accepted the keys. A feed is
+                   declared by the seller (nothing to call), and a key typed for a
+                   platform we cannot test yet is only stored. */
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs ${
-                    cred?.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'
+                    cred?.connected
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : cred?.enregistre
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-gray-500/20 text-gray-400'
                   }`}
                 >
-                  {cred?.connected ? 'Connecté' : 'Non connecté'}
+                  {cred?.connected
+                    ? platform.integration === 'feed'
+                      ? 'Flux déclaré branché'
+                      : 'Connecté'
+                    : cred?.enregistre
+                      ? 'Clé enregistrée, pas encore vérifiée'
+                      : 'Non connecté'}
                 </span>
               ) : (
                 <span className={`rounded-full px-2 py-0.5 text-xs ${INTEGRATION_STYLE[platform.integration]}`}>
