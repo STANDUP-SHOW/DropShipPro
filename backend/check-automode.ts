@@ -1,5 +1,5 @@
 import { prisma } from './src/lib/prisma.js'
-import { passageAutoMode, tourneeAutoMode, type Generateur } from './src/services/autoAnalyste.js'
+import { liensLus, normaliserLien, passageAutoMode, tourneeAutoMode, type Generateur } from './src/services/autoAnalyste.js'
 import { DROPS } from './src/services/tarifs.js'
 
 /**
@@ -44,6 +44,17 @@ const enPanne: Generateur = async () => {
 }
 
 async function main() {
+  // Un lien de gagnant doit sortir des pages que la recherche a rendues (règle de max, 16/10/2026).
+  const lus = liensLus([
+    [
+      { type: 'web_search_tool_result', content: [{ type: 'web_search_result', url: 'https://www.exemple.fr/produit/42/?utm_source=x#avis' }] },
+      { type: 'text', text: 'voir', citations: [{ url: 'https://boutique.test/fiche?id=7' }] },
+    ],
+  ])
+  verifier('lien rendu par la recherche : gardé (sans www, suivi ni ancre)', lus.has(normaliserLien('https://exemple.fr/produit/42')))
+  verifier('lien cité : gardé, paramètres utiles conservés', lus.has(normaliserLien('https://boutique.test/fiche?id=7')) && !lus.has(normaliserLien('https://boutique.test/fiche?id=8')))
+  verifier('lien composé de tête : écarté', !lus.has(normaliserLien('https://www.exemple.fr/produit/43')))
+
   const user = await prisma.user.create({
     // De quoi payer plusieurs passages : chacun coûte DROPS.autoModePassage.
     data: { email: `banc-automode-${Date.now()}@example.com`, passwordHash: 'x', credits: 500 },
