@@ -442,14 +442,14 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       },
       {
         h2: 'La publication directe, par API',
-        html: `<p>Pour ces destinations, l'annonce part entière — photos, variantes, stock, catégorie — sans rien ressaisir :</p>
+        html: `<p>Pour ces destinations, le connecteur est écrit : une fois vos clés reliées, l'annonce part entière — photos, variantes, stock, catégorie — sans rien ressaisir. Shopify a déjà publié pour de vrai ; les autres n'ont pas encore été éprouvés sur un vrai compte vendeur.</p>
 <ul>
 <li><strong>Shopify</strong>, où DropShipper IA est une application installée dans votre back-office, qui publie photos, variantes, stock et catégorie Google.</li>
 <li><strong>Vos boutiques</strong> WooCommerce, PrestaShop, Magento, Drupal Commerce, BigCommerce, Wix, Shopware, Ecwid et Squarespace.</li>
 <li><strong>eBay</strong> et <strong>Kaufland</strong>.</li>
 <li><strong>41 enseignes opérées sous Mirakl</strong> : E.Leclerc, Carrefour, Auchan, Fnac, La Redoute, Boulanger, Leroy Merlin, Galeries Lafayette, Cultura, Truffaut, El Corte Inglés, MediaMarkt, Worten…</li>
 </ul>
-<p>Six connecteurs supplémentaires sont écrits et attendent votre compte vendeur : Amazon, Cdiscount, TikTok Shop, Etsy, Spartoo et Miinto.</p>`,
+<p>Six autres connecteurs sont écrits et attendent votre compte vendeur : Amazon, Cdiscount, TikTok Shop, Etsy, Allegro et Wish. Spartoo et Miinto n'ont pas encore de connecteur.</p>`,
       },
       {
         h2: 'Le flux produit, pour tout le reste',

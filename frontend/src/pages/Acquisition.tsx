@@ -281,16 +281,19 @@ export default function Acquisition() {
 
         <Case icone={<FileSpreadsheet size={18} className="text-[#fdbf06]" />} titre="Listes exportées">
           <Texte>
-            AliExpress Business, BigBuy, CJ… exportent une sélection en fichier — identifiants, titres, adresses, rien de plus. C'est suffisant
-            si le fournisseur est relié par API : l'identifiant permet alors de demander la fiche complète, photos et prix compris.
+            AliExpress Business exporte une sélection en fichier — identifiants, titres, adresses, rien de plus. C'est suffisant si votre
+            clé AliExpress est reliée : l'identifiant permet alors de demander la fiche complète, photos et prix compris. Les fichiers
+            BigBuy et CJ Dropshipping ne s'importent pas encore : leurs API ne nous rendent pas la fiche complète.
           </Texte>
           <ImportListe />
         </Case>
 
         <Case icone={<Plug size={18} className="text-[#a78bfa]" />} titre="Fournisseurs reliés par API" className="md:col-span-2">
           <Texte>
-            BigBuy, CJ Dropshipping et AliExpress (par clé) se branchent dans la section Sourcing : le catalogue s'interroge directement, les
-            prix et les stocks se relèvent, et les commandes fournisseur peuvent partir toutes seules après une vente.
+            BigBuy, CJ Dropshipping et AliExpress (par clé) se branchent dans la section Sourcing, et leurs rayons se parcourent depuis
+            Catalogues connectés. Ce que chacun sait faire aujourd'hui : AliExpress importe une fiche complète et se cherche par mots-clés ;
+            CJ Dropshipping se cherche par mots-clés, relève ses prix et peut recevoir vos commandes fournisseur après une vente ; BigBuy
+            relève prix et stocks.
           </Texte>
           <Link to="/fournisseurs" className={LIEN}>
             Brancher un fournisseur <ArrowRight size={12} />

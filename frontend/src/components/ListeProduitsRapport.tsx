@@ -46,9 +46,13 @@ function dateFr(iso: string): string {
 /** La clé d'une ligne : l'adresse suffit, deux rapports peuvent proposer le même produit. */
 const cleDe = (p: ProduitAffiche) => p.url
 
-/** Drops : un import (DROPS.import) et l'agent extension en plus (DROPS.agentExtension), backend/src/services/tarifs.ts. */
+/**
+ * Drops : un import (DROPS.import, backend/src/services/tarifs.ts). Par l'extension, le serveur débite le même
+ * import à l'arrivée de la fiche (routes/products.ts, 8 si l'extension l'envoie en lot) : DROPS.agentExtension
+ * n'est débité nulle part, donc il n'est pas affiché (bilan du 16/10/2026, § 3).
+ */
 export const COUT_IMPORT = 12
-export const COUT_EXTENSION = 6 + COUT_IMPORT
+export const COUT_EXTENSION = COUT_IMPORT
 
 /**
  * Importe un lot par le chemin de chaque fiche : direct pour ce qui se lit à
