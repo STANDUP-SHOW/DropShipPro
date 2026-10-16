@@ -124,7 +124,7 @@ async function circuitAuto(nouveaux) {
   const restants = []
   for (let i = 0; i < nouveaux.length; i++) {
     const lien = nouveaux[i]
-    const r = await traiterLien({ api, lien, plateformes, reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux) })
+    const r = await traiterLien({ api, lien, plateformes, reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux), relever })
     plafonds.journaliser(dossier(), { type: 'import', publication: lien.id, produit: r.productId, raison: r.raison, resultat: r.statut })
     if (r.statut === 'sans_solde') {
       derniereErreur = r.raison
@@ -175,6 +175,7 @@ async function journeeGagnants() {
       dejaFaits: importesAujourdhui(plafonds.lireJournal(dossier())),
       margeMin: margeMin(),
       categories: (cfg.circuit && cfg.circuit.categories) || [],
+      relever,
       surProduit: (produit, r) => plafonds.journaliser(dossier(), { type: 'import', publication: produit.url, produit: r.productId, raison: r.raison, resultat: r.statut, reseaux: r.reseaux ? r.reseaux.publies : undefined }),
     })
     plafonds.journaliser(dossier(), { type: 'gagnants', raison: `${bilan.importes} importé(s) sur ${bilan.lus} de la liste du ${bilan.jour}${bilan.sansSolde ? ' — solde de drops vide' : ''}` })
@@ -618,7 +619,7 @@ function brancherIpc() {
     const lien = liens.find((l) => l.id === id)
     if (!lien || !api) return instantane()
     const plateformes = Object.keys(plafonds.PLATEFORMES).filter((p) => cfg.accords[p])
-    const r = await traiterLien({ api, lien, plateformes, reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux) })
+    const r = await traiterLien({ api, lien, plateformes, reseaux: Boolean(cfg.circuit && cfg.circuit.reseaux), relever })
     plafonds.journaliser(dossier(), { type: 'import', publication: lien.id, produit: r.productId, raison: r.raison, resultat: r.statut })
     if (r.statut === 'echec' || r.statut === 'sans_solde') derniereErreur = r.raison
     else liens = liens.filter((l) => l.id !== id)

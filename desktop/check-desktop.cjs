@@ -463,6 +463,23 @@ async function main() {
     verifier('rythme fixe entre deux fiches', attentes.length === ouverts.length - 1 && attentes.every((m) => m === fa.ESPACEMENT_MS))
     const b2 = await fa.passageFile({ api: faux, pauses, relever: async (u) => (ouverts.push(u), releves[u] ?? { ok: true, payload: { title: 'x' } }), attendre: async () => {}, maintenant: () => 2000 })
     verifier('passage suivant : le fournisseur en pause reste fermé', !ouverts.slice(3).some((u) => u.includes('temu.com')) && b2.bloques === 0)
+    // Liens partagés (voie 10 du bilan du 16/10) : Temu, AliExpress, Shein lus ici, pas par le serveur.
+    const { traiterLien } = require('./lib/circuit')
+    const envois = []
+    const apiLien = {
+      importer: async (url, shareId, fiche) => (envois.push({ url, shareId, fiche }), { id: 'p1' }),
+      reclamer: async () => {},
+      mettreEnFile: async () => ({ enFile: [] }),
+    }
+    const lus = []
+    const relire = async (u) => (lus.push(u), u.includes('mur') ? { bloque: true, raison: 'captcha' } : { ok: true, payload: { title: 'Lampe', images: ['https://x/1.jpg', 'https://x/2.jpg'] } })
+    const r1 = await traiterLien({ api: apiLien, lien: { id: 's1', url: 'https://www.temu.com/fr/lampe.html' }, relever: relire })
+    verifier('lien Temu partagé : lu dans le navigateur interne, fiche envoyée au serveur', r1.statut === 'importe' && lus.length === 1 && envois[0].fiche && envois[0].fiche.title === 'Lampe')
+    const r2 = await traiterLien({ api: apiLien, lien: { id: 's2', url: 'https://www.bigbuy.eu/fr/lampe.html' }, relever: relire })
+    verifier('lien lisible par le serveur : pas de fenêtre ouverte', r2.statut === 'importe' && lus.length === 1 && !envois[1].fiche)
+    const r3 = await traiterLien({ api: apiLien, lien: { id: 's3', url: 'https://fr.shein.com/mur.html' }, relever: relire })
+    verifier('vérification anti-robot : rien envoyé, rien débité', r3.statut === 'echec' && envois.length === 2)
+
     const extraction = require('./lib/releveur.js')
     verifier('scripts de lecture de l’extension copiés pour l’application', [...extraction.SCRIPTS, extraction.SCRIPT_PAGE].every((n) => fs.existsSync(path.join(extraction.DOSSIER, n))))
   }

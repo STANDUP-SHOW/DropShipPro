@@ -18,6 +18,21 @@ const PAR_PASSAGE = 5
 const ESPACEMENT_MS = 15_000
 const PAUSE_BLOCAGE_MS = 3600_000
 
+/**
+ * Les sites dont la fiche ne se lit que dans un navigateur : la même liste que le
+ * serveur (backend/src/services/autoShipperRayons.ts, EXTENSION_ONLY).
+ */
+const SITES_NAVIGATEUR = ['temu.', 'aliexpress.', 'joybuy.', 'shein.', 'superdelivery.', 'reichelt.']
+
+function lectureNavigateur(url) {
+  try {
+    const h = new URL(url).hostname
+    return SITES_NAVIGATEUR.some((s) => h.includes(s))
+  } catch {
+    return false
+  }
+}
+
 const hoteDe = (url) => {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
@@ -85,4 +100,4 @@ async function passageFile({ api, relever, pauses = new Map(), attendre = (ms) =
   return bilan
 }
 
-module.exports = { PAR_PASSAGE, ESPACEMENT_MS, PAUSE_BLOCAGE_MS, hoteDe, passageFile }
+module.exports = { PAR_PASSAGE, ESPACEMENT_MS, PAUSE_BLOCAGE_MS, SITES_NAVIGATEUR, lectureNavigateur, hoteDe, passageFile }

@@ -344,14 +344,46 @@ agentRouter.get('/publications', async (req: AgentRequest, res) => {
  * file de publication. Clé de type desktop seulement (`requireDesktop`).
  */
 agentRouter.post('/import', requireDesktop as never, async (req: AgentRequest, res) => {
-  const parsed = z.object({ url: z.string().url().max(2000), shareId: z.string().max(60).optional() }).safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'URL invalide' })
+  const parsed = z
+    .object({
+      url: z.string().url().max(2000),
+      shareId: z.string().max(60).optional(),
+      // La fiche déjà lue par le navigateur interne de l'application (Temu, AliExpress,
+      // Shein… : 16/10/2026). Présente, le serveur ne va pas chercher la page.
+      fiche: captureSchema.omit({ fileId: true, differer: true }).partial({ sourceUrl: true }).optional(),
+    })
+    .safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'URL ou fiche invalide' })
+  const fiche = parsed.data.fiche
 
   const credit = await reserveCredits(req.userId!, DROPS.import, "Import d'une annonce (application desktop)")
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   try {
-    const { produit, reecrit, notes } = await importerAdresse(req.userId!, parsed.data.url)
+    const { produit, reecrit, notes } = await importerAdresse(
+      req.userId!,
+      parsed.data.url,
+      fiche
+        ? {
+            capture: {
+              title: fiche.title,
+              description: fiche.description,
+              price: fiche.price,
+              currency: fiche.currency,
+              images: fiche.images,
+              sourceCategory: fiche.sourceCategory,
+              pageText: fiche.pageText,
+              ean: fiche.ean ?? null,
+              avis: fiche.reviews as never,
+            },
+            releve: {
+              images: fiche.images,
+              variantes: fiche.variants as Record<string, string[]> | undefined,
+              skuAliExpress: (fiche.skuAliExpress ?? null) as never,
+            },
+          }
+        : {},
+    )
     if (!reecrit) await refundCredits(req.userId!, DROPS.import)
     if (parsed.data.shareId) {
       await prisma.sharedLink.updateMany({ where: { id: parsed.data.shareId, userId: req.userId! }, data: { status: 'DONE', claimedAt: new Date() } })
