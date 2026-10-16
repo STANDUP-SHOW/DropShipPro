@@ -36,8 +36,12 @@ export const DROPS = {
   gagnantExtrait: 5,
   /** Produit gagnant extrait ET publié (+ coût d'import habituel). 6 / produit. */
   gagnantPublie: 6,
-  /** Question à un agent de comptoir (hotline, SAV, commercial…), sans recherche. ~0,003 €. */
-  questionComptoir: 5,
+  /**
+   * Question à un agent de comptoir (hotline, SAV, commercial…) : GRATUITE
+   * (modèle du 10/09/2026, routes/reports.ts coutQuestion) ; seul l'avocat se
+   * paie, au tarif questionChef. La clé reste à 0 pour que rien n'affiche un prix.
+   */
+  questionComptoir: 0,
   /** Question à un chef de rayon / avocat / comptable (recherche web bornée). ~0,05 €. */
   questionChef: 25,
   /** Conseil produit approfondi d'un chef (5 recherches). ~0,076 €. */
@@ -61,10 +65,10 @@ export const DROPS = {
   /**
    * L'agent extension : relève UNE fiche fournisseur dans le navigateur du
    * vendeur (file d'import servie par le serveur, exécutée par l'extension), puis
-   * la remet à l'import. Le relevé seul ; la réécriture est l'annonce (12).
-   * Un produit importé par l'agent coûte donc 6 + 12 = 18.
+   * la remet à l'import. Le relevé est compris dans l'import : seul DROPS.import
+   * (12, ou importLot 8) est débité par routes/products.ts.
    */
-  agentExtension: 6,
+  agentExtension: 0,
   /**
    * AUTO-SHIPPER : la journée, 1 €. Débitée une fois par 24 h, à la tournée du
    * jour : analyse, choix des produits, relevé, import, annonces, publications,

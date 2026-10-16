@@ -6,6 +6,8 @@
  * l'annuaire (le premier `channelFeeds` portait `facebook`, `google-ads` —
  * aucun n'existait, l'écran disait « pas reliée » sur des canaux servis).
  */
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { CANAUX } from './src/services/channelDirectory.js'
 import { IDS_VERIFIES, liaisonPour, resumeLiaisons } from './src/services/liaisonsCanaux.js'
 import { BOUTIQUES_DU_VENDEUR, PLATFORMS } from './src/services/platforms.js'
@@ -58,6 +60,25 @@ exige(fnac.voie === 'api' && fnac.etat === 'branche', 'Fnac : rapproché de « F
 const r = resumeLiaisons()
 exige(r.total === CANAUX.length && Object.values(r.parVoie).reduce((t, n) => t + n, 0) === r.total, 'le résumé compte chaque canal une fois')
 console.log(`\n${r.total} canaux : ${JSON.stringify(r.parVoie)} — états ${JSON.stringify(r.parEtat)}`)
+
+// The public pages (build-llms, build-geo) print these counts from a JSON
+// file; it must say what the directory says. `--ecrire` rewrites it.
+const apiEcrits = liaisons.filter((l) => l.liaison.voie === 'api' && l.liaison.etat === 'branche').length
+const resumePublic = {
+  total: r.total,
+  api: r.parVoie.api,
+  apiEcrits,
+  apiNonEcrits: r.parVoie.api - apiEcrits,
+  flux: r.parVoie.flux,
+  export: r.parVoie.export,
+  extension: r.parVoie.extension,
+  aucune: r.parVoie.aucune,
+}
+const fichierPublic = fileURLToPath(new URL('../frontend/src/data/liaisons-resume.json', import.meta.url))
+const attendu = JSON.stringify(resumePublic, null, 2) + '\n'
+if (process.argv.includes('--ecrire')) writeFileSync(fichierPublic, attendu)
+const lu = existsSync(fichierPublic) ? readFileSync(fichierPublic, 'utf8') : ''
+exige(lu === attendu, 'frontend/src/data/liaisons-resume.json dit les mêmes chiffres que l’annuaire (sinon : npx tsx check-liaisons-canaux.ts --ecrire)', lu === attendu ? '' : lu)
 
 if (echecs) {
   console.error(`\n${echecs} attente(s) manquée(s).`)
