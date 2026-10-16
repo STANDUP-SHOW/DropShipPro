@@ -2062,6 +2062,8 @@ productsRouter.get('/meta/supplier-catalog', async (req: AuthedRequest, res) => 
           gagnants: f.gagnants,
           nouveautes: f.nouveautes,
           rayons: f.rayons,
+          // Import par API écrit pour ce fournisseur : seul celui-là a droit au bouton Importer.
+          importe: Boolean(f.connecteur.fetchProduct),
         }
         try {
           if (rayonDemande) {

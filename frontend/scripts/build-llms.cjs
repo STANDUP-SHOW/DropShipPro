@@ -166,8 +166,8 @@ const FONCTIONS = [
   {
     titre: 'Mode automatique (AUTO-SHIPPER)',
     lignes: [
-      'Du fournisseur à la vente sans rien faire : analyse des produits du jour, import, fabrication des annonces, publication sur les places de marché, et les agents gèrent le back-office. 100 drops la journée (1 €), 18 drops par produit importé et publié — 50 produits conseillés par jour, jusqu’à 480.',
-      'Plafond réglable : 50 produits par jour conseillés, jusqu’à 480 (24 catégories × 20 produits) ; contrôle photo forcé puisque personne ne relit.',
+      'Du fournisseur à la vente sans rien faire : analyse des produits du jour, import, fabrication des annonces, publication sur les places de marché, et les agents gèrent le back-office. 100 drops la journée (1 €), 18 drops par produit importé et publié, jusqu’à 10 produits par rayon boost et par jour (230 au plus sur les 23 rayons).',
+      'Plafond réglable, rayon par rayon ; agent de contrôle des photos en option (15 drops par annonce), utile pour les produits importés par l’extension. Sans lui, les annonces restent en brouillon.',
       'Le vendeur peut laisser la plateforme travailler seule et ne revenir que pour valider les publications sensibles.',
     ],
   },

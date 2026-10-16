@@ -64,7 +64,7 @@ type Lien = Awaited<ReturnType<typeof api.listSupplierLinks>>[number]
 /** Un rayon, et le fournisseur chez qui il existe : l'un sans l'autre ne s'ouvre pas. */
 type Rayon = { supplier: string; supplierLabel: string; id: string; label: string }
 /** Une offre dans la liste commune : le produit, et qui le vend. */
-type Offre = Produit & { supplier: string; supplierLabel: string; cle: string }
+type Offre = Produit & { supplier: string; supplierLabel: string; cle: string; importe: boolean }
 
 /** Ce qui remplit la liste, et qui donc décide de son titre. */
 type Mode = { sorte: 'nouveautes' } | { sorte: 'mots'; q: string } | { sorte: 'rayon'; rayon: Rayon }
@@ -116,7 +116,7 @@ const motsDuRayon = (label: string) => label.split('›').pop()!.trim()
  */
 function listeCommune(blocs: Bloc[], tri: Tri): Offre[] {
   const parBloc = blocs.map((b) =>
-    b.produits.map((p) => ({ ...p, supplier: b.id, supplierLabel: b.label, cle: `${b.id}:${p.ref}` })),
+    b.produits.map((p) => ({ ...p, supplier: b.id, supplierLabel: b.label, cle: `${b.id}:${p.ref}`, importe: b.importe !== false })),
   )
   if (tri === 'fournisseur') return parBloc.flat()
   const melange: Offre[] = []
@@ -337,6 +337,23 @@ export default function CataloguesFournisseurs() {
     setUnitaires((m) => new Map(m).set(o.cle, message))
   }
 
+  /** Une offre dont le fournisseur n'a pas d'import par API : sa fiche part dans la file de l'extension. */
+  async function envoyerExtension(o: Offre) {
+    setUnitaires((m) => new Map(m).set(o.cle, 'cours'))
+    let message: string
+    try {
+      const r = await api.fileImportAjouter([
+        { url: o.url!, titre: o.titre, fournisseur: o.supplierLabel, mode: 'extension', origine: 'catalogues' },
+      ])
+      message = r.ajoutes
+        ? "Fiche envoyée à l'extension : importez-la depuis sa « File d'import du site »."
+        : "Déjà dans la file de l'extension."
+    } catch (e) {
+      message = e instanceof Error ? e.message : "L'envoi à l'extension a échoué."
+    }
+    setUnitaires((m) => new Map(m).set(o.cle, message))
+  }
+
   /*
    * L'import est groupé PAR FOURNISSEUR, parce que la référence n'a de sens que
    * chez le sien : deux fournisseurs peuvent porter le même identifiant pour
@@ -400,7 +417,7 @@ export default function CataloguesFournisseurs() {
         <p className="mt-1 max-w-3xl text-sm text-[#B8C0D0]">
           Cherchez un produit chez tous vos fournisseurs reliés à la fois, comparez leurs offres et
           importez celle qui vous convient
-          {tarif !== null ? <> : <b className="text-[#F5F7FA]">{tarif} drops</b> l'annonce, seule la recomposition par l'IA est facturée.</> : '.'}
+          {tarif !== null ? <> : <b className="text-[#F5F7FA]">{tarif} drops</b> l'annonce importée par l'API du fournisseur, seule la recomposition par l'IA est facturée.</> : '.'}
         </p>
       </div>
 
@@ -419,6 +436,7 @@ export default function CataloguesFournisseurs() {
               color={fiche?.color}
               domain={fiche?.domain}
               offres={bloc?.produits.length ?? 0}
+              importe={bloc ? bloc.importe !== false : null}
               occupe={debranche === lien.supplier}
               onDebrancher={() => debrancher(lien.supplier, fiche?.label ?? lien.supplier)}
             />
@@ -761,22 +779,24 @@ export default function CataloguesFournisseurs() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-[#B8C0D0]">
-                    <input
-                      type="checkbox"
-                      checked={coche}
-                      onChange={(e) =>
-                        setCoches((m) => {
-                          const n = new Map(m)
-                          if (e.target.checked) n.set(o.cle, o.supplier)
-                          else n.delete(o.cle)
-                          return n
-                        })
-                      }
-                      className="size-4 accent-[#E85290]"
-                    />
-                    <span>Cocher</span>
-                  </label>
+                  {o.importe ? (
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-[#B8C0D0]">
+                      <input
+                        type="checkbox"
+                        checked={coche}
+                        onChange={(e) =>
+                          setCoches((m) => {
+                            const n = new Map(m)
+                            if (e.target.checked) n.set(o.cle, o.supplier)
+                            else n.delete(o.cle)
+                            return n
+                          })
+                        }
+                        className="size-4 accent-[#E85290]"
+                      />
+                      <span>Cocher</span>
+                    </label>
+                  ) : null}
                   {o.url ? (
                     <a
                       href={o.url}
@@ -787,16 +807,38 @@ export default function CataloguesFournisseurs() {
                       <ExternalLink size={12} /> Voir
                     </a>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => importerUne(o)}
-                    disabled={etat === 'cours'}
-                    className="btn-gradient ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                  >
-                    {etat === 'cours' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                    <span>Importer{suffixeTarif}</span>
-                  </button>
+                  {o.importe ? (
+                    <button
+                      type="button"
+                      onClick={() => importerUne(o)}
+                      disabled={etat === 'cours'}
+                      className="btn-gradient ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                    >
+                      {etat === 'cours' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                      <span>Importer{suffixeTarif}</span>
+                    </button>
+                  ) : o.url ? (
+                    /* No API import written for this supplier (16/10/2026): a button
+                       « Importer » here would promise what the server refuses. The
+                       extension reads the page in the seller's browser instead. */
+                    <button
+                      type="button"
+                      onClick={() => envoyerExtension(o)}
+                      disabled={etat === 'cours'}
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[#F5F7FA] hover:border-[#E85290]/60 disabled:opacity-60"
+                    >
+                      {etat === 'cours' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                      <span>Envoyer à l'extension</span>
+                    </button>
+                  ) : (
+                    <span className="ml-auto text-[11px] text-amber-200">Import par l'API de {o.supplierLabel} pas encore disponible</span>
+                  )}
                 </div>
+                {!o.importe && o.url && !etat ? (
+                  <p className="mt-2 text-[11px] text-[#B8C0D0]">
+                    L'import par l'API de {o.supplierLabel} n'est pas encore écrit : l'extension relève la fiche dans votre navigateur, au tarif d'un import par l'extension.
+                  </p>
+                ) : null}
                 {etat && etat !== 'cours' ? <p className="mt-2 text-[11px] text-[#B8C0D0]">{etat}</p> : null}
               </article>
             )
@@ -846,6 +888,7 @@ function CarteCatalogue({
   color,
   domain,
   offres,
+  importe,
   occupe,
   onDebrancher,
 }: {
@@ -855,6 +898,8 @@ function CarteCatalogue({
   domain?: string | null
   /** Ses offres dans le tableau du moment : la carte dit ce qu'il vient de rendre. */
   offres: number
+  /** Import par API écrit (true), absent (false), ou pas encore su (null). */
+  importe: boolean | null
   occupe: boolean
   onDebrancher: () => void
 }) {
@@ -871,6 +916,11 @@ function CarteCatalogue({
       </span>
 
       <p className="text-[10px] text-[#B8C0D0]">{offres ? `${offres} offre(s) affichée(s)` : '—'}</p>
+      {importe === null ? null : (
+        <p className={`text-[10px] ${importe ? 'text-emerald-300' : 'text-amber-200'}`}>
+          {importe ? 'Import par API' : 'Import par API pas encore écrit'}
+        </p>
+      )}
 
       <button
         type="button"
