@@ -35,7 +35,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const { layout, esc, faqLd, faqHtml, breadcrumbLd, crumb, SITE } = require('./build-seo.cjs')
-const { TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType } = require('./build-llms.cjs')
+const { PHRASE_LIAISONS, TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType } = require('./build-llms.cjs')
 const { canaux } = require('./seo-channels.cjs')
 /** L'éditeur (fondateur, SIRET, siège…) : chaque ligne n'apparaît qu'une fois remplie par Max. */
 const { lignesConnues, adresseLd, etablissementLd, ENTREPRISE } = require('./editeur.cjs')
@@ -195,7 +195,7 @@ ${ACCUEIL.themes
 <h2>En chiffres</h2>
 <ul>
 <li>${FOURNISSEURS.length} fournisseurs référencés avec leurs conditions réelles, dont 3 reliés par API (prix et stock en temps réel).</li>
-<li>314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.</li>
+<li>${PHRASE_LIAISONS}</li>
 <li>Une annonce importée et réécrite par l'IA : 0,12 €. Une boutique en ligne écrite par l'IA : 5 €, une seule fois, modifications à volonté. Aucun abonnement.</li>
 </ul>
 
@@ -442,7 +442,7 @@ function pageAPropos(faq) {
 <tr><th>Pour qui</th><td>Vendeurs en ligne, dropshippers, boutiques qui diffusent sur plusieurs places de marché</td></tr>
 <tr><th>Modèle de prix</th><td>À l'acte, en drops (1 drop = 0,01 €), sans abonnement — voir les <a href="/tarifs/">tarifs</a></td></tr>
 <tr><th>Fournisseurs</th><td>${FOURNISSEURS.length} référencés ; import possible depuis n'importe quelle boutique en ligne</td></tr>
-<tr><th>Canaux de vente</th><td>314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.</td></tr>
+<tr><th>Canaux de vente</th><td>${PHRASE_LIAISONS}</td></tr>
 <tr><th>Extension</th><td><a href="${CHROME_STORE}">Chrome Web Store</a></td></tr>
 ${lignesConnues().filter(([k]) => k !== 'Contact').map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('\n')}
 <tr><th>Contact</th><td><a href="/contact/">contact@drop-shipper.fr</a></td></tr>

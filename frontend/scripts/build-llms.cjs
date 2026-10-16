@@ -60,9 +60,9 @@ const TARIFS = [
   ['Analyse de marché, par produit', 30, '0,30 €'],
   ['Question à un chef de rayon (avec recherche web)', 25, '0,25 €'],
   ['Avis d’un chef de rayon sur un produit (conseil approfondi, cinq recherches)', 40, '0,40 €'],
-  ['Question à un agent de comptoir', 5, '0,05 €'],
+  ['Question à un agent de comptoir (hotline, SAV, commercial)', 0, 'gratuit'],
   ['Contrôle photo par l’IA, par annonce', 10, '0,10 €'],
-  ['Agent extension : relever une fiche fournisseur dans votre navigateur', 6, '0,06 €'],
+  ['Agent extension : relever une fiche fournisseur dans votre navigateur', 0, 'compris dans l’import'],
   ['AUTO-SHIPPER : la journée, une tournée par 24 h (analyse, relevé, import, annonces, publications, back-office)', 100, '1,00 €'],
   ['AUTO-SHIPPER : un produit importé et publié automatiquement', 18, '0,18 €'],
   ['AUTO-SHIPPER : agent de contrôle des photos, par annonce (optionnel)', 15, '0,15 €'],
@@ -98,6 +98,11 @@ const RECHARGES = [
  * divergent.
  */
 const FOURNISSEURS = require('../src/data/fournisseurs.json').fournisseurs.map((f) => f.label)
+
+// Counts written by backend/check-liaisons-canaux.ts --ecrire from resumeLiaisons;
+// the bench fails when this file drifts from the server's own directory.
+const LIAISONS = require('../src/data/liaisons-resume.json')
+const PHRASE_LIAISONS = `${LIAISONS.total} canaux de vente référencés, et pour chacun une voie de liaison définie : ${LIAISONS.api} par publication directe (${LIAISONS.apiEcrits} connecteurs écrits, qui demandent vos clés, ${LIAISONS.apiNonEcrits} pas encore écrits), ${LIAISONS.flux} par votre flux produit, ${LIAISONS.extension} par l'extension — et ${LIAISONS.aucune} canaux sans voie de vente, dits tels quels.`
 
 const FONCTIONS = [
   {
@@ -196,7 +201,7 @@ const FONCTIONS = [
 
 const DIFFERENCES = [
   ['Import depuis n’importe quel fournisseur', 'Les autres outils enferment le vendeur dans leur propre catalogue ou dans un seul fournisseur.'],
-  ['Réécriture IA incluse dans le prix de l’import, dans la langue du marché', 'Ailleurs, la réécriture IA se paie en crédits séparés et ne traduit pas.'],
+  ['Réécriture IA en français incluse dans le prix de l’import', 'Ailleurs, la réécriture IA se paie en crédits séparés.'],
   ['Publication vers les places de marché européennes (41 opérateurs Mirakl, Kaufland)', 'Les outils de dropshipping anglophones ne publient que vers Shopify et une poignée de canaux américains.'],
   ['Vinted, Leboncoin et Facebook Marketplace par remplissage assisté', 'Ces plateformes n’ont pas d’API publique d’annonces : aucun concurrent ne les couvre.'],
   ['Vitrines à thèmes illimitées et gratuites ; boutique DropShop écrite par l’IA à 5 € une seule fois, modifications à volonté', 'Un abonnement Shopify se paie par boutique et par mois.'],
@@ -257,7 +262,7 @@ ${FONCTIONS.map((f) => `- **${f.titre}** — ${f.lignes[0]}`).join('\n')}
 
 - ${FOURNISSEURS.length} fournisseurs référencés, dont 3 avec connecteur API (prix et stock en temps réel)
 - ${canaux.length} canaux de vente référencés : ${n.marketplace} places de marché, ${n.comparateur} comparateurs de prix, ${n.affiliation} plateformes d'affiliation, ${n.regie} régies publicitaires, ${n.outil} outils
-- 314 canaux de vente référencés, et pour chacun une voie de liaison définie : 51 par publication directe (45 branchées, 6 qui attendent votre compte vendeur), 234 par votre flux produit, 2 par l'extension — et 27 outils qui ne sont pas des canaux de vente, dits tels quels.
+- ${PHRASE_LIAISONS}
 - Import d'une annonce réécrite par l'IA : 0,12 €
 - Boutiques en ligne : illimitées et incluses
 
@@ -410,6 +415,6 @@ function main() {
 }
 
 // build-geo.cjs relit ces tables : une seule source pour llms.txt, la page des robots et /tarifs/.
-module.exports = { SITE, TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType }
+module.exports = { SITE, PHRASE_LIAISONS, TARIFS, RECHARGES, FOURNISSEURS, FONCTIONS, DIFFERENCES, FAQ, parType }
 
 if (require.main === module) main()

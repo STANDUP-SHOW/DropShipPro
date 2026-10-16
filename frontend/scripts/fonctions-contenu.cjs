@@ -239,7 +239,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       },
       {
         q: 'Les annonces sont-elles écrites en français ?',
-        a: "Oui, dans la langue du marché visé, quelle que soit la langue de la fiche du fournisseur. La réécriture est comprise dans le prix de l'import.",
+        a: "Oui, toujours en français, quelle que soit la langue de la fiche du fournisseur. La réécriture est comprise dans le prix de l'import.",
       },
     ],
     outils: ['generateur-titre-annonce', 'calculateur-marge'],
@@ -581,7 +581,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       {
         h2: 'Ce que coûte un agent',
         html: `<table><thead><tr><th>Action</th><th>Prix</th></tr></thead><tbody>
-<tr><td>Question à un agent de comptoir</td><td>5 drops — 0,05 €</td></tr>
+<tr><td>Question à un agent de comptoir</td><td>gratuit</td></tr>
 <tr><td>Question à un chef de rayon, avec recherche web</td><td>25 drops — 0,25 €</td></tr>
 <tr><td>Avis d'un chef de rayon sur un produit (fournisseurs, réseaux, places de marché)</td><td>40 drops — 0,40 €</td></tr>
 <tr><td>Contrôle photo par l'IA, par annonce</td><td>10 drops — 0,10 €</td></tr>
@@ -601,7 +601,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       },
       {
         q: 'Combien coûte une question à un agent ?',
-        a: '5 drops (0,05 €) pour un agent de comptoir, 25 drops (0,25 €) pour un chef de rayon avec recherche web. L’AUTO-MODE d’un chef de rayon est gratuit.',
+        a: 'Rien pour un agent de comptoir, 25 drops (0,25 €) pour un chef de rayon avec recherche web. L’AUTO-MODE d’un chef de rayon est gratuit.',
       },
       {
         q: 'Un agent peut-il accorder un remboursement tout seul ?',
