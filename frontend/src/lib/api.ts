@@ -319,6 +319,8 @@ export interface ProduitRapport {
   /** Score global 0-100 de l'agent. */
   score?: number | null
   image?: string | null
+  /** Le verdict de l'agent, brut (« BUY IF NEGOTIATED », « WATCHLIST / … ») ; absent des anciens rapports. */
+  verdict?: string | null
 }
 
 /** Compose une chaîne de requête en sautant ce qui n'est pas renseigné. */
@@ -512,7 +514,7 @@ export const api = {
         sources: number
         produits: number
       }>
-    }>(`/reports/analyses${enQuery({ type: params.type, category: params.categorie, date: params.jour, limit: params.limite })}`),
+    }>(`/reports/analyses${enQuery({ type: params.type, rayon: params.rayon, category: params.categorie, date: params.jour, limit: params.limite })}`),
   analyseRapport: (id: string) =>
     request<{
       id: string
@@ -533,7 +535,7 @@ export const api = {
       rayonSansCategorie: boolean
       jours: string[]
       produits: Array<ProduitRapport & { rapportId: string; day: string; categorie: string; categorieNom: string; theme: string; themeNom: string }>
-    }>(`/reports/gagnants${enQuery({ category: params.categorie, date: params.jour, limit: params.limite })}`),
+    }>(`/reports/gagnants${enQuery({ rayon: params.rayon, category: params.categorie, date: params.jour, limit: params.limite })}`),
   promptsRapports: (params: { rayon?: string; categorie?: string; jour?: string; limite?: number } = {}) =>
     request<{
       rayonSansCategorie: boolean

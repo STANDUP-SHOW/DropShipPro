@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy, ExternalLink, Trash2, Newspaper, Sparkles } from 'lucide-react'
+import { ExternalLink, Trash2, Sparkles } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { GagnantsRapports } from '../components/GagnantsRapports'
+import { CartesGagnants } from '../components/creative/CartesGagnants'
+import { PageCreative, Entete } from '../components/creative/Creative'
+import { Provenance } from '../components/creative/Veille'
 import { api } from '../lib/api'
 import { useDemo } from '../lib/demo'
 import { BandeauDemo } from '../components/ModeDemo'
@@ -54,43 +56,29 @@ export default function ProduitsGagnants() {
 
   return (
     <Layout>
-      <h1 className="flex items-center gap-2 text-2xl font-bold">
-        <Trophy size={22} className="text-amber-300" />
-        <span>Produits gagnants</span>
-      </h1>
-      <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        Deux sources, sur la même page : les vingt produits que les agents relèvent chaque matin pour
-        chaque rayon, et la sélection déposée par vos chefs de rayon en IA AUTO-MODE.
-      </p>
+      <PageCreative>
+        <Entete
+          surtitre="09 / Produits gagnants"
+          ligne1="Repérés par l'IA."
+          ligne2="Choisis par vous."
+          chapo="Comparez le prix, la marge affichée et le verdict avant de retenir un produit. Le nom de la rubrique ne remplace pas l'analyse."
+        />
 
-      {/*
-        Les gagnants du jour, en tête (19/09/2026).
+        {/* Les gagnants des rapports du jour, en cartes (maquette du 16/10/2026, vue 09). */}
+        <CartesGagnants />
 
-        Ils arrivent chaque matin avec le rapport de leur rayon — titre, fournisseur, prix d'achat,
-        prix de vente, marge, et le chemin d'import qui convient à la fiche. Cochez pour importer en
-        lot ; une fiche que seul un navigateur sait lire part à l'agent extension.
-      */}
-      <section className="mt-6">
-        <h2 className="flex items-center gap-2 font-bold">
-          <Newspaper size={16} className="text-emerald-400" />
-          <span>Les gagnants du jour, tous rayons</span>
-        </h2>
-        <p className="mt-1 max-w-3xl text-xs text-gray-500">
-          Vingt produits par rayon et par jour, relevés par les agents. Les mêmes listes se retrouvent
-          dans chaque rayon, bornées à ce qu'il couvre.
-        </p>
-        <GagnantsRapports />
-      </section>
-
-      <h2 className="mt-10 flex items-center gap-2 font-bold">
-        <Sparkles size={16} className="text-amber-300" />
-        <span>La sélection de vos chefs de rayon</span>
-      </h2>
-      <p className="mt-1 max-w-3xl text-xs text-gray-500">
-        Déposée par les rayons en IA AUTO-MODE : dix produits par rayon et par demi-journée, avec le
-        prix le plus bas constaté, un prix de vente possible et les plateformes conseillées.
-      </p>
-
+        <section className="mt-14">
+          <div className="v-titre-section">
+            <div>
+              <h2 className="c-h2">La sélection de vos chefs de rayon</h2>
+              <p>
+                Déposée par les rayons en IA AUTO-MODE : dix produits par rayon et par demi-journée, avec le prix le plus bas constaté, un
+                prix de vente possible et les plateformes conseillées.
+              </p>
+            </div>
+            <Sparkles size={18} className="text-[var(--c-violet)]" />
+          </div>
+          <div className="v-outil mt-4 pt-4">
       {erreur && !demo ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
       {chargement && !demo ? <p className="mt-6 text-sm text-gray-500">Chargement…</p> : null}
 
@@ -188,6 +176,11 @@ export default function ProduitsGagnants() {
         </div>
       )}
 
+          </div>
+        </section>
+
+        <Provenance texte="Rapports des agents · 24 rayons × 20 produits chaque jour" libelle="Voir les rapports dans Fresh news" to="/fresh-news" />
+      </PageCreative>
       <BandeauDemo />
     </Layout>
   )

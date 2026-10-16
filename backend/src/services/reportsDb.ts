@@ -909,7 +909,7 @@ export class ReportQuery {
   /** Les colonnes de `products` que l'écran lit, pour produitsDe et getGagnants. */
   private static readonly COLONNES_PRODUIT = `p.title, p.supplier, p.supplier_url, p.recommended_url, p.buy_price,
                 p.sell_price, p.margin, p.import_method, p.reason, p.margin_pct, p.buy_price_eur,
-                p.sell_price_eur, p.score_global, p.image_url, p.rank, rr.products AS produits_json`
+                p.sell_price_eur, p.score_global, p.image_url, p.rank, p.verdict, rr.products AS produits_json`
 
   /**
    * Une ligne de `products` au format de l'écran.
@@ -967,8 +967,13 @@ export class ReportQuery {
         : 'extension',
       pourquoi: String(p.reason ?? ''),
       ventes,
-      score: p.score_global != null && Number.isFinite(Number(p.score_global)) ? Number(p.score_global) : null,
+      // A score outside 0-100 is a formatting fault upstream (« 62100/100 » seen on 16/10/2026): shown as nothing.
+      score:
+        p.score_global != null && Number.isFinite(Number(p.score_global)) && Number(p.score_global) >= 0 && Number(p.score_global) <= 100
+          ? Number(p.score_global)
+          : null,
       image: /^https?:\/\//.test(String(p.image_url ?? '')) ? String(p.image_url) : null,
+      verdict: typeof p.verdict === 'string' && p.verdict.trim() ? p.verdict.trim() : null,
     }
   }
 
@@ -1110,7 +1115,7 @@ export class ReportQuery {
   }
 
   /** La liste des analyses, en-têtes seulement : le corps se demande au dépliage. */
-  getAnalyses(options: { type?: 'rayon' | 'marketing'; categorie?: string; jour?: string; limite?: number } = {}) {
+  getAnalyses(options: { type?: 'rayon' | 'marketing'; categorie?: string; categories?: string[]; jour?: string; limite?: number } = {}) {
     const where: string[] = []
     const params: any[] = []
     if (options.type) {
@@ -1120,6 +1125,10 @@ export class ReportQuery {
     if (options.categorie) {
       where.push('categorie = ?')
       params.push(options.categorie)
+    } else if (options.categories?.length) {
+      // A chef de rayon reads one or several agent categories (CATEGORIES_PAR_RAYON).
+      where.push(`categorie IN (${options.categories.map(() => '?').join(', ')})`)
+      params.push(...options.categories)
     }
     if (options.jour) {
       where.push('date = ?')
@@ -1211,12 +1220,15 @@ export class ReportQuery {
    * veut la récolte du matin tous rayons confondus, et exiger une catégorie
    * lui répondait « category parameter required » au lieu de ses 162 lignes.
    */
-  getGagnants(options: { categorie?: string; jour?: string; limite?: number } = {}) {
+  getGagnants(options: { categorie?: string; categories?: string[]; jour?: string; limite?: number } = {}) {
     const where: string[] = ["r.type = 'rayon'"]
     const params: any[] = []
     if (options.categorie) {
       where.push('r.categorie = ?')
       params.push(options.categorie)
+    } else if (options.categories?.length) {
+      where.push(`r.categorie IN (${options.categories.map(() => '?').join(', ')})`)
+      params.push(...options.categories)
     }
     if (options.jour) {
       where.push('r.date = ?')
@@ -1236,16 +1248,18 @@ export class ReportQuery {
       )
       .all(...params, Math.min(Math.max(options.limite ?? 500, 1), 2000)) as any[]
 
+    const parJours = options.categorie ? [options.categorie] : options.categories?.length ? options.categories : []
+    const filtreJours = parJours.length ? `WHERE r.categorie IN (${parJours.map(() => '?').join(', ')})` : ''
     const jours = (
       this.db
         .prepare(
           `SELECT DISTINCT r.date FROM reports r
              JOIN rayon_reports rr ON rr.report_id = r.id
              JOIN products p ON p.rayon_report_id = rr.id
-            ${options.categorie ? 'WHERE r.categorie = ?' : ''}
+            ${filtreJours}
             ORDER BY r.date DESC`,
         )
-        .all(...(options.categorie ? [options.categorie] : [])) as any[]
+        .all(...parJours) as any[]
     ).map((r) => String(r.date))
 
     return {

@@ -1,0 +1,511 @@
+/*
+ * « Intelligence & opportunités » (mockup of 16/10/2026, views 06 to 10):
+ * Mon rayon BOOST, Fresh news, Analyses de marché, Produits gagnants, API Power.
+ * Same inked surface and accents as creative.css; every motion stops on the
+ * global pause and under prefers-reduced-motion (rules at the end of creative.css).
+ */
+
+/* ---------- Shared pieces ---------- */
+.v-deux {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 14px;
+}
+.v-deux[data-ratio="news"] { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+@media (max-width: 850px) {
+  .v-deux, .v-deux[data-ratio="news"] { grid-template-columns: 1fr; }
+}
+.v-carte {
+  border: 1px solid #2a292f;
+  border-radius: 16px;
+  background: #141218;
+  padding: 22px;
+}
+.v-chiffre { font-size: 26px; font-weight: 700; color: var(--c-lime); line-height: 1.1; }
+.v-chiffre small { display: block; margin-top: 4px; font-size: 11px; font-weight: 500; color: var(--c-texte-2); }
+.v-lien {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-lime);
+}
+.v-lien:hover { text-decoration: underline; }
+.v-titre-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.v-titre-section p { font-size: 12px; color: var(--c-texte-2); }
+.v-note {
+  border-left: 3px solid var(--c-violet);
+  border-radius: 0 12px 12px 0;
+  background: #141218;
+  padding: 14px 18px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--c-texte-2);
+}
+.v-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--c-trait);
+  padding-top: 18px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6e7590;
+}
+.v-provenance a { font-size: 12px; letter-spacing: 0; text-transform: none; }
+.v-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #4e3c68;
+  border-radius: 14px;
+  background: #211b2d;
+  padding: 14px 18px;
+  font-size: 13px;
+}
+.v-case {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #5b5568;
+  border-radius: 4px;
+  background: #16141d;
+  color: var(--c-lime-encre);
+}
+.v-case[aria-checked="true"] { background: var(--c-lime); border-color: var(--c-lime); }
+
+/* ---------- 06 Mon rayon BOOST ---------- */
+.v-choix-rayon {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #4e3c68;
+  border-radius: 18px;
+  background: #211b2d;
+  padding: 22px 24px;
+}
+@media (max-width: 850px) {
+  .v-choix-rayon { grid-template-columns: 1fr; }
+}
+.v-choix-rayon h2 { font-size: clamp(22px, 3vw, 32px); font-weight: 700; line-height: 1.15; }
+.v-choix-rayon h2 em { font-style: normal; color: var(--c-violet); }
+.v-choix-rayon select { width: 100%; font-size: 15px; padding: 12px 14px; }
+.v-couverture {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 420px;
+  border-radius: 18px;
+  background: radial-gradient(circle at 70% 25%, #6c47bc 0%, #3a2766 45%, #20182b 100%);
+  padding: 28px;
+}
+.v-puce {
+  position: absolute;
+  right: 12%;
+  top: 14%;
+  display: flex;
+  width: 168px;
+  height: 168px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #d9c7ff, #7c5bb9);
+  box-shadow: 0 0 0 10px rgba(217, 199, 255, 0.12), 0 30px 60px rgba(10, 4, 24, 0.55);
+  color: #211431;
+  animation: c-flotte 7s ease-in-out infinite;
+}
+.v-puce b { font-size: 30px; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; max-width: 140px; text-align: center; line-height: 1; overflow-wrap: anywhere; }
+.v-puce span { max-width: 136px; text-align: center; margin-top: 8px; font-size: 8px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+@media (max-width: 620px) {
+  .v-couverture { min-height: 360px; padding: 22px; }
+  .v-puce { width: 120px; height: 120px; right: 8%; top: 10%; }
+  .v-puce b { font-size: 22px; max-width: 100px; }
+}
+.v-couverture h3 { position: relative; font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; line-height: 1.15; max-width: 420px; }
+.v-raccourcis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid var(--c-trait);
+}
+@media (max-width: 1100px) {
+  .v-raccourcis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .v-raccourcis { grid-template-columns: 1fr; }
+}
+.v-raccourcis button,
+.v-raccourcis a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--c-texte);
+}
+.v-raccourcis b { font-size: 11px; color: var(--c-violet); }
+.v-raccourcis svg { margin-left: auto; color: var(--c-texte-2); }
+.v-raccourcis [aria-pressed="true"] { color: var(--c-lime); }
+.v-raccourcis [aria-pressed="true"] svg { color: var(--c-lime); }
+/* The existing rayon tools, kept as they are, on the inked surface. */
+.v-outil { border: 1px solid #2a292f; border-radius: 16px; background: #141218; padding: 4px 20px 20px; }
+
+/* ---------- 07 Fresh news & 08 reports grid ---------- */
+.v-grille {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 1100px) {
+  .v-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .v-grille { grid-template-columns: 1fr; }
+}
+.v-rapport {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #2a292f;
+  border-radius: 16px;
+  background: #16131c;
+  text-align: left;
+  color: var(--c-texte);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.v-grille > .v-rapport:nth-child(3n + 2) { background: #1e1829; }
+.v-rapport:hover { border-color: #4e3c68; transform: translateY(-2px); }
+.v-rapport[aria-pressed="true"] { border-color: var(--c-lime); }
+.v-rapport-image {
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  background: #0b0b0e;
+}
+.v-rapport-image img { width: 100%; height: 100%; object-fit: cover; opacity: 0.78; transition: transform 0.6s ease; }
+.v-rapport:hover .v-rapport-image img { transform: scale(1.05); }
+.v-rapport-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(22, 19, 28, 0.95) 0%, rgba(22, 19, 28, 0.1) 65%);
+}
+.v-rapport-type {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 1;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #15131c;
+}
+.v-rapport-corps { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 16px 18px 18px; }
+.v-rapport-numero { font-size: 34px; font-weight: 600; line-height: 1; color: var(--c-violet); }
+.v-rapport-sur { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-texte-2); }
+.v-rapport-titre { font-size: 16px; font-weight: 700; line-height: 1.3; }
+.v-rapport-pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: 11px;
+  color: var(--c-texte-2);
+}
+
+.v-edition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.v-edition b { color: var(--c-rose); }
+.v-edition span { font-weight: 500; letter-spacing: 0.04em; text-transform: none; color: var(--c-texte-2); }
+.v-une {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 460px;
+  border-radius: 18px;
+  background: #ffa2c7;
+  color: #3b1530;
+  padding: 30px;
+}
+.v-une .c-etiquette { color: #3b1530; }
+.v-filigrane {
+  position: absolute;
+  right: -10px;
+  top: 30px;
+  font-size: clamp(80px, 12vw, 150px);
+  font-weight: 800;
+  line-height: 0.85;
+  text-align: right;
+  text-transform: uppercase;
+  color: rgba(59, 21, 48, 0.12);
+  pointer-events: none;
+}
+.v-une h2 { position: relative; font-size: clamp(34px, 5vw, 62px); font-weight: 800; line-height: 0.98; letter-spacing: -0.02em; max-width: 620px; }
+.v-une h2[data-long="1"] { font-size: clamp(28px, 3.4vw, 44px); line-height: 1.05; }
+.v-une p { position: relative; max-width: 460px; font-size: 14px; line-height: 1.55; }
+.v-une .v-bouton-une {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  border: 1px solid rgba(59, 21, 48, 0.45);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.v-une .v-bouton-une:hover { background: rgba(59, 21, 48, 0.08); }
+@media (max-width: 620px) {
+  .v-une { min-height: 380px; padding: 22px; }
+}
+.v-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 1100px) {
+  .v-notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .v-notes { grid-template-columns: 1fr; }
+}
+.v-notes > article[data-ouvert="1"] { grid-column: 1 / -1; }
+
+/* ---------- 08 Analyses de marché ---------- */
+.v-affiche-marche {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 380px;
+  border-radius: 18px;
+  background: #efb38d;
+  color: #3e2220;
+  padding: 26px;
+}
+.v-affiche-marche::before,
+.v-affiche-marche::after {
+  content: "";
+  position: absolute;
+  right: -120px;
+  top: -80px;
+  width: 420px;
+  height: 420px;
+  border: 46px solid rgba(62, 34, 32, 0.08);
+  border-radius: 999px;
+  pointer-events: none;
+}
+.v-affiche-marche::after { right: -40px; top: 0; width: 260px; height: 260px; border-width: 30px; }
+.v-affiche-marche strong { position: relative; font-size: clamp(52px, 7vw, 92px); font-weight: 800; line-height: 0.9; letter-spacing: -0.03em; }
+.v-affiche-marche .v-etoile { position: absolute; right: 26px; bottom: 60px; font-size: 120px; line-height: 1; color: rgba(62, 34, 32, 0.35); animation: c-orbite 40s linear infinite; }
+.v-perspectives { display: grid; gap: 8px; }
+.v-perspectives button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #2a292f;
+  border-radius: 10px;
+  background: #16141d;
+  padding: 12px 14px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--c-texte);
+}
+.v-perspectives button:hover { border-color: var(--c-lime); }
+.v-perspectives b { font-size: 11px; color: var(--c-rose); }
+.v-perspectives svg { margin-left: auto; color: var(--c-texte-2); }
+
+/* ---------- 09 Produits gagnants ---------- */
+.v-citron {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 20px;
+  border-radius: 18px;
+  background: #d9f66f;
+  color: #26321a;
+  padding: 26px 28px;
+}
+@media (max-width: 850px) {
+  .v-citron { grid-template-columns: 1fr; }
+}
+.v-citron .c-etiquette { color: #26321a; }
+.v-citron .v-geant { font-size: clamp(64px, 9vw, 110px); font-weight: 800; line-height: 0.9; letter-spacing: -0.03em; }
+.v-citron .v-geant small { margin-left: 10px; font-size: 22px; font-weight: 600; letter-spacing: 0; }
+.v-citron .v-etoile-citron { position: absolute; right: 24%; bottom: -40px; font-size: 220px; line-height: 1; color: rgba(38, 50, 26, 0.12); pointer-events: none; animation: c-orbite 50s linear infinite; }
+.v-citron dl { position: relative; display: grid; gap: 14px; align-content: center; }
+.v-citron dt { font-size: 30px; font-weight: 700; line-height: 1; }
+.v-citron dd { font-size: 11px; }
+.v-produit {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #2a292f;
+  border-radius: 16px;
+  background: #15131a;
+}
+.v-produit[data-coche="1"] { border-color: var(--c-lime); }
+.v-affiche-produit {
+  position: relative;
+  display: flex;
+  height: 170px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #1b1626;
+}
+.v-affiche-produit[data-teinte="0"] { background: #b39af9; }
+.v-affiche-produit[data-teinte="1"] { background: #9ed5d1; color: #183b3b; }
+.v-affiche-produit[data-teinte="2"] { background: #ffa2c7; color: #54152d; }
+.v-affiche-produit strong { font-size: 54px; font-weight: 800; letter-spacing: -0.02em; transform: rotate(-4deg); }
+.v-affiche-produit img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #f4f2ee; }
+.v-affiche-produit .v-mention {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.v-affiche-produit .v-sur { position: absolute; left: 12px; top: 10px; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+.v-affiche-produit button { position: absolute; right: 10px; top: 10px; z-index: 1; }
+.v-verdict {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid #4e3c68;
+  border-radius: 6px;
+  background: #211b2d;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #e3d9ff;
+}
+.v-verdict[data-ton="non"] { border-color: #7a2a3a; background: #3a1520; color: #ffb3c1; }
+.v-verdict[data-ton="oui"] { border-color: #4f6a24; background: #233114; color: #d9f66f; }
+.v-trois { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; border-top: 1px solid #2a292f; padding-top: 10px; }
+.v-trois small { display: block; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-texte-2); }
+.v-trois b { font-size: 14px; font-weight: 700; }
+
+/* ---------- 10 API Power ---------- */
+.v-heros-api {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  overflow: hidden;
+  border: 1px solid #42344f;
+  border-radius: 18px;
+  background: #16131e;
+  padding: 28px;
+}
+@media (max-width: 850px) {
+  .v-heros-api { grid-template-columns: 1fr; }
+}
+.v-systeme {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: min(78%, 360px);
+  margin-inline: auto;
+}
+.v-systeme-anneau {
+  position: absolute;
+  border: 1px solid rgba(179, 154, 249, 0.28);
+  border-radius: 999px;
+}
+.v-systeme-tourne { position: absolute; inset: 0; animation: c-orbite 60s linear infinite; }
+.v-systeme-tourne > span {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  border: 1px solid #604d7a;
+  border-radius: 999px;
+  background: #282132;
+  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  animation: c-orbite 60s linear infinite reverse;
+}
+.v-systeme-centre {
+  position: absolute;
+  inset: 36%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #604d7a;
+  border-radius: 999px;
+  background: #1d1727;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--c-violet);
+}
+.v-api {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #2a292f;
+  border-radius: 16px;
+  background: #15131a;
+  padding: 20px;
+}
+.v-api-initiale { font-size: 22px; font-weight: 800; line-height: 1; }
+.v-etat {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  border-left: 2px solid currentColor;
+  padding-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.v-etat[data-etat="ecrit"] { color: #d9f66f; }
+.v-etat[data-etat="flux"] { color: #9ed5d1; }
+.v-etat[data-etat="jeton"] { color: #b39af9; }
+.v-etat[data-etat="prevu"] { color: #b8c0d0; }
+.v-etat[data-etat="ecarte"] { color: #6e7590; }
