@@ -211,6 +211,14 @@ Avant, le Poste reçoit un refus 404 et garde les rapports en attente.
   de développement, qui n'a pas Wine). Pas de signature de code ni de mise à jour automatique.
 - Configuration minimale visée : 8 Go de mémoire et un SSD, à confirmer sur la vraie machine.
 
+## Rien ne s'ouvre seul (0.3.9, 16/10/2026)
+
+L'installeur supprime la tâche « DropShipper Poste d analyses » laissée par une version 0.3.5 ou plus
+ancienne (elle relançait l'exe sans argument toutes les 10 minutes, ce qui ramenait la fenêtre). Nuit
+coupée : plus aucune vérification de session, donc plus de notification « Session perdue » toutes les
+30 minutes ; nuit activée : une notification par changement d'état seulement. Le journal dit qui a
+lancé le Poste (« à la main », « tâche de relance », « ouverture de session Windows »).
+
 ## Réseaux sociaux du site (0.3.8, 12/10/2026)
 
 L'onglet « Réseaux sociaux » règle les icônes du pied de page de drop-shipper.fr (Facebook, Instagram,
