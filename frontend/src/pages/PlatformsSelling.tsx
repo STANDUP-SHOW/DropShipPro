@@ -136,7 +136,7 @@ export default function PlatformsSelling() {
   const [ouvert, setOuvert] = useState<PlatformInfo | null>(null)
   const [recherche, setRecherche] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [creds, setCreds] = useState<Array<{ platform: string; connected: boolean; hint?: string | null }>>([])
+  const [creds, setCreds] = useState<Array<{ platform: string; connected: boolean; enregistre?: boolean; hint?: string | null }>>([])
 
   const chargerCles = () => {
     api.listCredentials().then(setCreds).catch(() => undefined)

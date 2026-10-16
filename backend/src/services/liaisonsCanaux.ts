@@ -27,7 +27,8 @@
  *   aucune     Ce n'est pas un canal de vente (outil d'avis, d'analyse, de
  *              données) ou il n'existe plus. Dit tel quel, jamais « bientôt ».
  *
- * `etat` dit ce qu'on sait : `branche` (ça marche, vérifié en production),
+ * `etat` dit ce qu'on sait : `branche` (le connecteur est écrit : l'appel part ;
+ * éprouvé sur un vrai compte pour Shopify seulement au 16/10/2026),
  * `compte-requis` (l'API existe chez le canal, notre connecteur n'est pas écrit), `verifie`
  * (la voie a été lue dans la documentation du canal), `famille` (la voie de
  * sa famille, non lue canal par canal — et l'écran le dit). Rien n'est promis
@@ -310,7 +311,7 @@ export function liaisonPour(canal: CanalAnnuaire): Liaison {
         voie: 'api',
         etat: 'branche',
         plateforme: plateforme.id,
-        comment: `Reliée : DropShipper IA publie directement sur ${plateforme.label} depuis « Diffuser », avec photos, prix, attributs et catégorie. ${plateforme.note ?? ''}`.trim(),
+        comment: `Connecteur écrit : DropShipper IA envoie directement l'annonce à ${plateforme.label} depuis « Diffuser », avec photos, prix, attributs et catégorie. ${plateforme.note ?? ''}`.trim(),
         doc: plateforme.sellUrl ?? undefined,
       }
     }
@@ -364,17 +365,21 @@ export interface ResumeLiaisons {
   total: number
   parVoie: Record<Voie, number>
   parEtat: Record<EtatLiaison, number>
+  /** Direct-publication channels whose connector is written (the call goes out; not proof it was accepted). */
+  apiEcrits: number
 }
 
 export function resumeLiaisons(): ResumeLiaisons {
   const parVoie: Record<Voie, number> = { api: 0, flux: 0, export: 0, extension: 0, aucune: 0 }
   const parEtat: Record<EtatLiaison, number> = { branche: 0, 'compte-requis': 0, verifie: 0, famille: 0 }
+  let apiEcrits = 0
   for (const c of CANAUX) {
     const l = liaisonPour(c)
     parVoie[l.voie]++
     parEtat[l.etat]++
+    if (l.voie === 'api' && l.etat === 'branche') apiEcrits++
   }
-  return { total: CANAUX.length, parVoie, parEtat }
+  return { total: CANAUX.length, parVoie, parEtat, apiEcrits }
 }
 
 export const IDS_VERIFIES = Object.keys(VERIFIES)

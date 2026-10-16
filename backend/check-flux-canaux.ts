@@ -135,7 +135,7 @@ console.log("\nCe que le vendeur voit")
     'et il remonte au-dessus de ce qui n’est pas branché',
     /function rang\(c: Canal\)/.test(ecran) && /l\.voie === 'flux' \|\| l\.voie === 'export'\) return 2/.test(ecran) && /return 4/.test(ecran),
   )
-  verifier("les cinq voies ont leur pastille", ['reliée', 'votre compte vendeur', 'par votre flux', "par l'extension", 'pas un canal de vente'].every((t) => ecran.includes(t)))
+  verifier("les cinq voies ont leur pastille", ['connecteur écrit', 'connecteur à écrire', 'par votre flux', "par l'extension", 'pas un canal de vente'].every((t) => ecran.includes(t)))
 }
 
 console.log(echecs ? `\n${echecs} échec(s).` : '\nTout passe.')
