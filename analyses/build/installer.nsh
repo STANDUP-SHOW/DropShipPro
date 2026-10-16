@@ -10,7 +10,9 @@
   CreateDirectory "C:\DropShipper-Analyses\diagnostics"
   CreateDirectory "C:\DropShipper-Analyses\sauvegardes"
   CreateDirectory "C:\DropShipper-Analyses\prompts"
-  ; no watchdog task here (12/10): the Poste creates it itself, and only while the automatic night is on
+  ; no watchdog task here (12/10): the Poste creates it itself, and only while the automatic night is on.
+  ; An older version (0.3.5 or before) left a task that brought the window back every 10 minutes: removed now (16/10).
+  nsExec::Exec 'schtasks /Delete /F /TN "DropShipper Poste d analyses"'
 !macroend
 
 !macro customUnInstall
