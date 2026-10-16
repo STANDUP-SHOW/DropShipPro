@@ -63,12 +63,11 @@ console.log(`\n${r.total} canaux : ${JSON.stringify(r.parVoie)} — états ${JSO
 
 // The public pages (build-llms, build-geo) print these counts from a JSON
 // file; it must say what the directory says. `--ecrire` rewrites it.
-const apiEcrits = liaisons.filter((l) => l.liaison.voie === 'api' && l.liaison.etat === 'branche').length
 const resumePublic = {
   total: r.total,
   api: r.parVoie.api,
-  apiEcrits,
-  apiNonEcrits: r.parVoie.api - apiEcrits,
+  apiEcrits: r.apiEcrits,
+  apiNonEcrits: r.parVoie.api - r.apiEcrits,
   flux: r.parVoie.flux,
   export: r.parVoie.export,
   extension: r.parVoie.extension,
