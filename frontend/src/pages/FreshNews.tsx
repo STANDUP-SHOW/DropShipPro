@@ -1,72 +1,79 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Newspaper, Loader2, Lock } from 'lucide-react'
+import { Loader2, Lock, ArrowUpRight, Globe } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { Markdown, blocsDe } from '../components/Markdown'
 import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
+import { PageCreative, Entete } from '../components/creative/Creative'
+import { GrilleRapports, Provenance, dateLongue, liste, melange, pagePublique, type LigneRapport } from '../components/creative/Veille'
 import { api } from '../lib/api'
 
 /**
- * Fresh news — les rapports du jour des 48 agents, présentés comme un journal.
+ * Fresh news — les rapports des 48 agents, présentés comme un journal
+ * (maquette du 16/10/2026, vue 07).
  *
- * **Une seule catégorie à la fois, complète.** Le vendeur choisit son rayon,
- * le jour (aujourd'hui, hier, ou une date des quinze derniers jours) ; en dessous, le rapport se déplie : la une (« Fresh news
- * Téléphonie ! » et l'accroche), les liens vers les blocs, puis les blocs
- * eux-mêmes — chaque section H2 du rapport est une case.
+ * **D'abord la grille des rapports du jour**, dans un ordre mélangé, chacun
+ * illustré par la photo de son rayon et titré par son rapport (demande de Max :
+ * « des blocs aléatoires en grille avec des illustrations »). Un clic ouvre
+ * l'édition du rayon dessous : la une, le rapport, l'angle créatif, l'essentiel
+ * en notes qu'on déplie, puis la liste des produits à importer.
  *
- * **La liste des 20 produits n'est pas un tableau à lire, c'est une liste
+ * **Chaque rapport a sa page publique**, écrite par le générateur SEO du
+ * serveur au dépôt du rapport (garde-fou appliqué) : l'édition y renvoie, elle
+ * n'en fabrique pas une seconde.
+ *
+ * **La liste des produits n'est pas un tableau à lire, c'est une liste
  * d'annonces à importer** — et elle vit dans `ListeProduitsRapport`, partagée
- * avec la page Produits gagnants et les rayons. Elle était écrite ici, et la
- * recopier ailleurs aurait fait deux boutons « Importer » qui ne font pas la
- * même chose selon la page d'où on les clique.
- *
- * Gratuit, réservé aux comptes à ≥ 500 drops : le serveur répond 402 avec le
- * manque, et la page le dit plutôt que de montrer une page vide.
+ * avec la page Produits gagnants et les rayons.
  */
 type Rapports = Awaited<ReturnType<typeof api.freshRapports>>
 type Rapport = Rapports['rapports'][number]
 type Produit = Rapport['produits'][number]
 type Categorie = Awaited<ReturnType<typeof api.freshCategories>>[number]
 
-/*
- * Une charge utile d'une autre forme ne doit JAMAIS faire tomber la page.
- *
- * Le 20/09 les routes rapports ont changé de forme sous les écrans : `d.analyses`,
- * `d.produits`, `d.prompts` sont passés à `undefined`, et le premier `.length`
- * a emporté toute l'application derrière l'ErrorBoundary. Un contrat qui bouge
- * est un état vide à afficher — « aucun rapport » — pas un écran blanc.
- */
-function liste<T>(v: unknown): T[] {
-  return Array.isArray(v) ? (v as T[]) : []
-}
-
-const COULEURS = ['#a855f7,#ec4899', '#22d3ee,#a855f7', '#f59e0b,#ef4444', '#34d399,#22d3ee']
+/** Douze cartes d'abord : la grille d'un jour en porte jusqu'à 48. */
+const PREMIERES = 12
 
 export default function FreshNews() {
   const [params, setParams] = useSearchParams()
   const [categories, setCategories] = useState<Categorie[]>([])
+  const [lignes, setLignes] = useState<LigneRapport[]>([])
+  const [jourGrille, setJourGrille] = useState<string>('')
+  const [tout, setTout] = useState(false)
   const [donnees, setDonnees] = useState<Rapports | null>(null)
   const [porte, setPorte] = useState<{ seuil: number; drops: number; message: string } | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [chargement, setChargement] = useState(false)
+  const [chargementGrille, setChargementGrille] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
+  const [ouverte, setOuverte] = useState<string | null>(null)
+  const edition = useRef<HTMLElement>(null)
 
-  const categorie = params.get('categorie') || categories[0]?.id || ''
+  const categorie = params.get('categorie') || ''
   const jour = params.get('jour') || undefined
 
   useEffect(() => {
     api
       .freshCategories()
       .then((c) => setCategories(liste<Categorie>(c)))
-      .catch(() => setErreur('Impossible de lire les catégories.'))
+      .catch(() => undefined)
+    api
+      .analysesRapports({ limite: 200 })
+      .then((d) => setLignes(liste<LigneRapport>(d?.analyses)))
+      .catch((e: Error) => setErreur(e.message))
+      .finally(() => setChargementGrille(false))
   }, [])
 
   useEffect(() => {
-    if (!categorie) return
+    if (!categorie) {
+      setDonnees(null)
+      return
+    }
     setChargement(true)
     setErreur(null)
     setPorte(null)
+    setOuverte(null)
     api
       .freshRapports(categorie, jour)
       .then((d) => setDonnees(d))
@@ -79,8 +86,12 @@ export default function FreshNews() {
       .finally(() => setChargement(false))
   }, [categorie, jour])
 
-  const cat = categories.find((c) => c.id === categorie)
-  const couleur = COULEURS[Math.max(0, categories.findIndex((c) => c.id === categorie)) % COULEURS.length]
+  /* ---------- La grille : les jours, le jour montré, ses rapports mélangés ---------- */
+  const jours = useMemo(() => [...new Set(lignes.map((l) => l.day))].sort().reverse(), [lignes])
+  const jourMontre = jourGrille || jours[0] || ''
+  const duJour = useMemo(() => melange(lignes.filter((l) => l.day === jourMontre), jourMontre), [lignes, jourMontre])
+  const rayonsDuJour = new Set(duJour.map((l) => l.categorie)).size
+  const visibles = tout ? duJour : duJour.slice(0, PREMIERES)
 
   function choisir(patch: Record<string, string | undefined>) {
     const suivant = new URLSearchParams(params)
@@ -91,160 +102,231 @@ export default function FreshNews() {
     setParams(suivant)
   }
 
-  const rayon = liste<Rapport>(donnees?.rapports).find((r) => r.type === 'rayon')
-  const marketing = liste<Rapport>(donnees?.rapports).find((r) => r.type === 'marketing')
-  const blocs = useMemo(() => {
-    const tous: Array<{ id: string; titre: string; corps: string; rapport: Rapport; produits?: Produit[] }> = []
+  function ouvrir(r: LigneRapport) {
+    choisir({ categorie: r.categorie, jour: r.day })
+    window.setTimeout(() => edition.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+  }
+
+  /* ---------- L'édition ouverte ---------- */
+  const rapports = liste<Rapport>(donnees?.rapports)
+  const rayon = rapports.find((r) => r.type === 'rayon')
+  const marketing = rapports.find((r) => r.type === 'marketing')
+  const produits = liste<Produit>(rayon?.produits)
+  const directs = produits.filter((p) => p.import !== 'extension').length
+  const cat = categories.find((c) => c.id === categorie)
+  const nomRayon = cat?.nom ?? donnees?.categorie?.nom ?? ''
+  const jourEdition = donnees?.jour ?? jour ?? ''
+  const ligneDe = (r?: Rapport) => (r ? lignes.find((l) => l.id === r.id) : undefined)
+  const notes = useMemo(() => {
+    const tous: Array<{ id: string; titre: string; corps: string; type: Rapport['type'] }> = []
     for (const r of [rayon, marketing]) {
       if (!r) continue
       for (const b of blocsDe(r.body ?? '')) {
-        const produitsDuRapport = liste<Produit>(r.produits)
-        const estListe = r.type === 'rayon' && /produits/i.test(b.titre) && produitsDuRapport.length > 0
-        tous.push({ id: `${r.type}-${b.id}`, titre: b.titre || (r.type === 'rayon' ? 'Analyse' : 'Marketing'), corps: b.corps, rapport: r, produits: estListe ? produitsDuRapport : undefined })
+        // The product list has its own block below: as a note it would only repeat it.
+        if (r.type === 'rayon' && /produits/i.test(b.titre) && produits.length > 0) continue
+        tous.push({ id: `${r.type}-${b.id}`, titre: b.titre || (r.type === 'rayon' ? 'Analyse' : 'Marketing'), corps: b.corps, type: r.type })
       }
     }
     return tous
-  }, [rayon, marketing])
+  }, [rayon, marketing, produits.length])
+  const premierMarketing = notes.find((n) => n.type === 'marketing')
 
   return (
     <Layout>
       <BlocSection id="marche" />
+      <PageCreative>
+        <Entete
+          surtitre="07 / Fresh news"
+          ligne1="Le signal du jour."
+          ligne2="Votre prochain angle."
+          chapo="Le marché, les produits et le marketing réunis dans une lecture courte. Puis les détails, quand vous en avez besoin."
+        />
 
-      <h1 className="mt-2 flex items-center gap-2 text-2xl font-bold">
-        <Newspaper size={22} className="text-emerald-400" />
-        <span>Fresh news</span>
-      </h1>
-      <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        Chaque jour, pour chacune des 24 catégories, deux rapports : le marché et ses 20 produits à importer, et le marketing —
-        social places, publicités, tendances, prompts. Offerts à partir de 500 drops en banque.
-      </p>
-
-      {/* ---------- Le sélecteur : rayon, jour, archives ---------- */}
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <select
-          value={categorie}
-          onChange={(e) => choisir({ categorie: e.target.value, jour: undefined })}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400/60"
-        >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id} className="bg-[#1b1633]">{c.nom}</option>
-          ))}
-        </select>
-
-        {donnees?.aujourdhui ? (
-          <>
-            <Pilule actif={(jour ?? donnees.jour) === donnees.aujourdhui} onClick={() => choisir({ jour: donnees.aujourdhui })}>Aujourd'hui</Pilule>
-            <Pilule actif={jour === donnees.hier} onClick={() => choisir({ jour: donnees.hier })}>Hier</Pilule>
-          </>
-        ) : null}
-
-        <select
-          value={jour ?? donnees?.jour ?? ''}
-          onChange={(e) => choisir({ jour: e.target.value || undefined })}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-purple-400/60"
-        >
-          <option value="" className="bg-[#1b1633]">Les 15 derniers jours…</option>
-          {(donnees?.disponibles ?? []).map((d) => (
-            <option key={d} value={d} className="bg-[#1b1633]">{dateFr(d)}</option>
-          ))}
-        </select>
-
-      </div>
-
-      {erreur ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
-      {message ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{message}</p> : null}
-
-      {/* ---------- La porte : 500 drops ---------- */}
-      {porte ? (
-        <div className="mt-6 max-w-2xl rounded-2xl border border-amber-400/30 bg-amber-500/10 p-5">
-          <p className="flex items-center gap-2 font-bold text-amber-100"><Lock size={16} /> Réservé aux comptes à {porte.seuil} drops et plus</p>
-          <p className="mt-2 text-sm text-amber-100/90">
-            Les rapports sont gratuits, mais ils sont pour les vendeurs qui vendent : il vous faut {porte.seuil} drops en banque, vous en avez {porte.drops}.
-          </p>
-          <Link to="/credits" className="btn-gradient mt-4 inline-flex rounded-lg px-4 py-2 text-sm font-semibold">Recharger mes drops</Link>
-        </div>
-      ) : null}
-
-      {chargement ? <p className="mt-6 flex items-center gap-2 text-sm text-gray-400"><Loader2 size={14} className="animate-spin" /> Le journal arrive…</p> : null}
-
-      {/* ---------- La une ---------- */}
-      {donnees && !porte ? (
-        <article className="mt-6">
-          <header className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent p-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">{donnees.jour ? dateFr(donnees.jour) : ''} · {rayon?.theme.nom ?? marketing?.theme.nom ?? ''}</p>
-            <h2
-              className="mt-1 break-words bg-gradient-to-r bg-clip-text text-3xl font-black leading-tight text-transparent sm:text-4xl"
-              style={{ backgroundImage: `linear-gradient(90deg, ${couleur})` }}
-            >
-              Fresh news {cat?.nom ?? donnees.categorie?.nom ?? ''} !
-            </h2>
-            {rayon?.accroche || marketing?.accroche ? (
-              <p className="mt-2 max-w-3xl text-base text-gray-200">{rayon?.accroche ?? marketing?.accroche}</p>
+        {/* ---------- La grille des rapports ---------- */}
+        <section className="mt-10">
+          <div className="v-titre-section">
+            <div>
+              <h2 className="c-h2">{jourMontre ? `Les rapports du ${dateLongue(jourMontre)}` : 'Les rapports du jour'}</h2>
+              <p>
+                {duJour.length
+                  ? `${duJour.length} rapports, ${rayonsDuJour} rayon${rayonsDuJour > 1 ? 's' : ''}, dans un ordre mélangé. Touchez un titre pour ouvrir son édition.`
+                  : 'Chaque jour, deux rapports pour chacun des 24 rayons : le marché et ses 20 produits, et le marketing.'}
+              </p>
+            </div>
+            {jours.length > 1 ? (
+              <label className="flex items-center gap-2 text-xs text-[var(--c-texte-2)]">
+                Jour
+                <select className="c-champ !w-auto" value={jourMontre} onChange={(e) => { setJourGrille(e.target.value); setTout(false) }}>
+                  {jours.map((d) => (
+                    <option key={d} value={d}>{dateLongue(d)}</option>
+                  ))}
+                </select>
+              </label>
             ) : null}
-            {liste(donnees.rapports).length === 0 ? (
-              <p className="mt-3 text-sm text-gray-400">Pas encore de rapport pour ce rayon ce jour-là. Les agents écrivent chaque matin.</p>
-            ) : (
-              <nav className="mt-4 flex flex-wrap gap-2">
-                {blocs.map((b) => (
-                  <a key={b.id} href={`#${b.id}`} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-200 hover:border-purple-400/50">
-                    {b.rapport.type === 'rayon' ? '📈 ' : '📣 '}{b.titre}
-                  </a>
-                ))}
-              </nav>
-            )}
-          </header>
-
-          {/* ---------- Les blocs ---------- */}
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            {blocs.map((b) => (
-              <section
-                key={b.id}
-                id={b.id}
-                className={`scroll-mt-24 rounded-2xl border border-white/10 bg-white/5 p-5 ${b.produits ? 'md:col-span-2' : ''}`}
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3
-                    className="bg-gradient-to-r bg-clip-text text-lg font-extrabold text-transparent"
-                    style={{ backgroundImage: `linear-gradient(90deg, ${couleur})` }}
-                  >
-                    {b.titre}
-                  </h3>
-                  <span className="text-[11px] uppercase tracking-wider text-gray-500">{b.rapport.type === 'rayon' ? 'Marché' : 'Marketing'}</span>
-                </div>
-
-                {b.produits ? (
-                  <ListeProduitsRapport produits={b.produits} origine={b.rapport.id} onMessage={setMessage} />
-                ) : (
-                  <div className="mt-2"><Markdown texte={b.corps} /></div>
-                )}
-              </section>
-            ))}
           </div>
 
-          {rayon || marketing ? (
-            <p className="mt-6 text-xs text-gray-500">
-              Sources consultées par les agents : {(rayon?.sources ?? 0) + (marketing?.sources ?? 0)}. Les liens des produits mènent chez le fournisseur ; les prix sont ceux relevés le jour du rapport.
+          {chargementGrille ? (
+            <p className="mt-6 flex items-center gap-2 text-sm text-[var(--c-texte-2)]"><Loader2 size={14} className="animate-spin" /> Le journal arrive…</p>
+          ) : duJour.length === 0 ? (
+            <p className="mt-6 text-sm text-[var(--c-texte-2)]">Pas encore de rapport déposé. Les agents écrivent chaque matin.</p>
+          ) : (
+            <div className="mt-5">
+              <GrilleRapports rapports={visibles} illustree actif={rayon?.id ?? marketing?.id ?? null} onOuvrir={ouvrir} />
+              {duJour.length > PREMIERES ? (
+                <button type="button" className="c-bouton-sec mt-4" onClick={() => setTout((t) => !t)}>
+                  {tout ? 'Montrer moins de rapports' : `Montrer les ${duJour.length - PREMIERES} autres rapports`}
+                </button>
+              ) : null}
+            </div>
+          )}
+        </section>
+
+        {erreur ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
+        {message ? <p className="mt-4 rounded-xl border border-[var(--c-lime)]/40 bg-[#1d2a10] px-4 py-3 text-sm text-[var(--c-lime)]">{message}</p> : null}
+
+        {/* ---------- La porte : 500 drops, si le serveur la ferme ---------- */}
+        {porte ? (
+          <div className="v-carte mt-8 max-w-2xl">
+            <p className="flex items-center gap-2 font-bold"><Lock size={16} /> Réservé aux comptes à {porte.seuil} drops et plus</p>
+            <p className="mt-2 text-sm text-[var(--c-texte-2)]">
+              Les rapports sont gratuits, mais il vous faut {porte.seuil} drops en banque : vous en avez {porte.drops}.
             </p>
+            <Link to="/credits" className="c-bouton mt-4 w-fit">Recharger mes drops</Link>
+          </div>
+        ) : null}
+
+        <section ref={edition} className="scroll-mt-24">
+          {chargement ? (
+            <p className="mt-10 flex items-center gap-2 text-sm text-[var(--c-texte-2)]"><Loader2 size={14} className="animate-spin" /> L'édition arrive…</p>
           ) : null}
-        </article>
-      ) : null}
+
+          {/* ---------- L'édition d'un rayon ---------- */}
+          {donnees && !porte && !chargement && rapports.length > 0 ? (
+            <article className="mt-14">
+              <div className="v-edition">
+                <b>{`${nomRayon} / ${rayon?.theme.nom ?? marketing?.theme.nom ?? ''}`}</b>
+                <span>{jourEdition ? `Édition disponible · ${dateLongue(jourEdition)}` : null}</span>
+              </div>
+
+              <div className="v-deux mt-4" data-ratio="news">
+                <div className="v-une">
+                  <span className="v-filigrane" aria-hidden>
+                    {jourEdition ? new Date(jourEdition + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }).replace('.', '') : ''}
+                  </span>
+                  <p className="c-etiquette">La une / synthèse de votre rapport</p>
+                  <h2 className="mt-4" data-long={(rayon?.titre || marketing?.titre || '').length > 48 ? '1' : undefined}>{rayon?.titre || marketing?.titre || `Fresh news ${nomRayon}`}</h2>
+                  {rayon?.accroche || marketing?.accroche ? <p className="mt-4">{rayon?.accroche ?? marketing?.accroche}</p> : null}
+                  <div className="relative mt-5 flex flex-wrap gap-2">
+                    <a href="#essentiel" className="v-bouton-une">Lire les points clés <ArrowUpRight size={13} /></a>
+                    {ligneDe(rayon) || rayon ? (
+                      <a href={pagePublique(ligneDe(rayon) ?? { categorie, day: jourEdition, theme: rayon!.theme.id, type: 'rayon' })} target="_blank" rel="noreferrer" className="v-bouton-une">
+                        <Globe size={13} /> Page publique du rapport
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {rayon ? (
+                    <div className="v-carte">
+                      <p className="c-etiquette">Le rapport</p>
+                      <p className="mt-3 text-6xl font-semibold leading-none text-[var(--c-lime)]">{produits.length}</p>
+                      <p className="mt-2 text-xl font-semibold">produits repérés</p>
+                      {produits.length ? (
+                        <p className="mt-2 text-xs text-[var(--c-texte-2)]">
+                          {`${directs} import${directs > 1 ? 's' : ''} direct${directs > 1 ? 's' : ''}, ${produits.length - directs} via l'extension.`}
+                        </p>
+                      ) : null}
+                      {produits.length ? (
+                        <a href="#selection" className="c-bouton-sec mt-4 !text-xs">Voir la sélection <ArrowUpRight size={12} /></a>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {marketing ? (
+                    <div className="v-carte">
+                      <p className="c-etiquette">L'angle créatif</p>
+                      <p className="mt-3 text-xl font-semibold leading-snug">{marketing.titre}</p>
+                      {marketing.accroche ? <p className="mt-2 text-xs leading-relaxed text-[var(--c-texte-2)]">{marketing.accroche}</p> : null}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {premierMarketing ? (
+                          <a href={`#${premierMarketing.id}`} onClick={() => setOuverte(premierMarketing.id)} className="c-bouton-sec !text-xs">
+                            Ouvrir les pistes sociales <ArrowUpRight size={12} />
+                          </a>
+                        ) : null}
+                        <a href={pagePublique(ligneDe(marketing) ?? { categorie, day: jourEdition, theme: marketing.theme.id, type: 'marketing' })} target="_blank" rel="noreferrer" className="c-bouton-sec !text-xs">
+                          <Globe size={12} /> Page publique
+                        </a>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* ---------- L'essentiel ---------- */}
+              {notes.length ? (
+                <section id="essentiel" className="mt-12 scroll-mt-24">
+                  <div className="v-titre-section">
+                    <h2 className="c-h2">L'essentiel, sans le bruit.</h2>
+                    <span className="c-etiquette rounded-md border border-[var(--c-trait)] px-2 py-1">Résumé éditorial</span>
+                  </div>
+                  <div className="v-notes mt-4">
+                    {notes.map((n, i) => {
+                      const ouvert = ouverte === n.id
+                      return (
+                        <article key={n.id} id={n.id} data-ouvert={ouvert ? '1' : '0'} className="v-carte scroll-mt-24">
+                          <p className="c-etiquette !text-[var(--c-lime)]">
+                            {String(i + 1).padStart(2, '0')} / {n.type === 'rayon' ? 'Marché' : 'Marketing'}
+                          </p>
+                          <h3 className="mt-3 text-lg font-semibold leading-snug">{n.titre}</h3>
+                          {ouvert ? (
+                            <div className="mt-3"><Markdown texte={n.corps} /></div>
+                          ) : (
+                            <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-[var(--c-texte-2)]">{extrait(n.corps)}</p>
+                          )}
+                          <button type="button" className="c-bouton-sec mt-4 !text-xs" onClick={() => setOuverte(ouvert ? null : n.id)}>
+                            {ouvert ? 'Replier' : 'Développer'} <ArrowUpRight size={12} />
+                          </button>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
+              {/* ---------- La sélection à importer ---------- */}
+              {rayon && produits.length ? (
+                <section id="selection" className="mt-12 scroll-mt-24">
+                  <h2 className="c-h2">{`Les ${produits.length} produits du rapport`}</h2>
+                  <div className="v-outil mt-4">
+                    <ListeProduitsRapport produits={produits} origine={rayon.id} onMessage={setMessage} />
+                  </div>
+                </section>
+              ) : null}
+
+              <p className="v-note mt-8">
+                {`Cette édition est datée du ${jourEdition ? dateLongue(jourEdition) : 'jour du rapport'}. Les notes reprennent le rapport ; elles ne sont pas une nouvelle vérification de ses sources (${(rayon?.sources ?? 0) + (marketing?.sources ?? 0)} consultées par les agents). Les liens mènent chez le fournisseur ; les prix sont ceux relevés le jour du rapport, à reconfirmer avant import. Chaque rapport a sa page publique, écrite automatiquement pour le référencement, sans prix d'achat, fournisseur ni marge.`}
+              </p>
+            </article>
+          ) : null}
+
+          {donnees && !porte && !chargement && rapports.length === 0 ? (
+            <p className="mt-10 text-sm text-[var(--c-texte-2)]">Pas de rapport pour ce rayon ce jour-là. Les agents écrivent chaque matin.</p>
+          ) : null}
+        </section>
+
+        <Provenance texte="Rapports des agents · deux par jour et par rayon, gratuits" libelle="Toutes les pages publiques des analyses" to="/analyses/" />
+      </PageCreative>
     </Layout>
   )
 }
 
-function Pilule({ actif, onClick, children }: { actif: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-sm font-semibold ${actif ? 'btn-gradient' : 'border border-white/10 bg-white/5 text-gray-200 hover:border-purple-400/50'}`}
-    >
-      {children}
-    </button>
-  )
-}
-
-function dateFr(iso: string): string {
-  const d = new Date(iso + 'T12:00:00Z')
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+/** Le début d'un bloc en texte simple, pour la note repliée. */
+function extrait(corps: string): string {
+  return corps
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^\s*\|.*$/gm, ' ')
+    .replace(/[#*_>`[\]]|\(https?:[^)]*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 260)
 }

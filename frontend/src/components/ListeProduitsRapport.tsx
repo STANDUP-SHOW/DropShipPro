@@ -47,8 +47,38 @@ function dateFr(iso: string): string {
 const cleDe = (p: ProduitAffiche) => p.url
 
 /** Drops : un import (DROPS.import) et l'agent extension en plus (DROPS.agentExtension), backend/src/services/tarifs.ts. */
-const COUT_IMPORT = 12
-const COUT_EXTENSION = 6 + COUT_IMPORT
+export const COUT_IMPORT = 12
+export const COUT_EXTENSION = 6 + COUT_IMPORT
+
+/**
+ * Importe un lot par le chemin de chaque fiche : direct pour ce qui se lit à
+ * l'adresse, file de l'extension pour le reste. Rend la phrase à afficher.
+ * Partagé avec les cartes de la page Produits gagnants : un seul bouton
+ * « Importer », quel que soit l'écran d'où on le clique.
+ */
+export async function importerProduits(lot: ProduitAffiche[], origine: string): Promise<string> {
+  const directs = lot.filter((p) => p.import !== 'extension')
+  const parExtension = lot.filter((p) => p.import === 'extension')
+  let importes = 0
+  let echecs = 0
+  for (let i = 0; i < directs.length; i += 25) {
+    const r = await api.importBatch(directs.slice(i, i + 25).map((p) => p.url))
+    importes += r.imported
+    echecs += r.failed
+  }
+  let enFile = 0
+  if (parExtension.length) {
+    const r = await api.fileImportAjouter(
+      parExtension.map((p) => ({ url: p.url, titre: p.titre, fournisseur: p.fournisseur, mode: 'extension' as const, origine })),
+    )
+    enFile = r.ajoutes
+  }
+  const morceaux: string[] = []
+  if (importes) morceaux.push(`${importes} annonce(s) importée(s)`)
+  if (enFile) morceaux.push(`${enFile} fiche(s) envoyée(s) à l'extension`)
+  if (echecs) morceaux.push(`${echecs} échec(s)`)
+  return morceaux.length ? `${morceaux.join(' · ')}.` : 'Rien à faire : tout était déjà importé ou en file.'
+}
 
 type Fiche = { id: string; label: string; domain: string; color: string; logo?: string }
 const FICHES = (annuaire as { fournisseurs: Fiche[] }).fournisseurs
@@ -146,27 +176,7 @@ export function ListeProduitsRapport({
     setEnCours(cle)
     dire(null)
     try {
-      const directs = lot.filter((p) => p.import !== 'extension')
-      const parExtension = lot.filter((p) => p.import === 'extension')
-      let importes = 0
-      let echecs = 0
-      for (let i = 0; i < directs.length; i += 25) {
-        const r = await api.importBatch(directs.slice(i, i + 25).map((p) => p.url))
-        importes += r.imported
-        echecs += r.failed
-      }
-      let enFile = 0
-      if (parExtension.length) {
-        const r = await api.fileImportAjouter(
-          parExtension.map((p) => ({ url: p.url, titre: p.titre, fournisseur: p.fournisseur, mode: 'extension' as const, origine })),
-        )
-        enFile = r.ajoutes
-      }
-      const morceaux: string[] = []
-      if (importes) morceaux.push(`${importes} annonce(s) importée(s)`)
-      if (enFile) morceaux.push(`${enFile} fiche(s) envoyée(s) à l'extension`)
-      if (echecs) morceaux.push(`${echecs} échec(s)`)
-      dire(morceaux.length ? `${morceaux.join(' · ')}.` : 'Rien à faire : tout était déjà importé ou en file.')
+      dire(await importerProduits(lot, origine))
     } catch (e) {
       dire(e instanceof Error ? e.message : "L'import n'a pas abouti.")
     } finally {

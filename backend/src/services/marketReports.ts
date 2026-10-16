@@ -53,6 +53,8 @@ export interface ProduitRapport {
   /** Score global 0-100 de l'agent. */
   score?: number | null
   image?: string | null
+  /** Le verdict de l'agent, tel qu'il l'écrit (« BUY IF NEGOTIATED », « WATCHLIST / B2B leads »). */
+  verdict?: string | null
 }
 
 export interface RapportLu {

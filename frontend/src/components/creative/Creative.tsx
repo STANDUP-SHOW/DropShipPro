@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Pause, Play, X, ArrowUpRight } from 'lucide-react'
 import './creative.css'
+import './veille.css'
 
 /**
  * Le socle commun des cinq pages marketing (audit « Creative House », 15/10/2026).
@@ -53,21 +54,47 @@ export const VUES_CREATIVES = [
   { n: '05', to: '/rayons', label: 'Chefs de rayon' },
 ] as const
 
+/**
+ * Les vues « Intelligence & opportunités » (maquette du 16/10/2026), après les
+ * cinq vues marketing. « Mon rayon BOOST » n'a pas d'adresse fixe : elle mène au
+ * premier rayon confié, et chaque rayon a la sienne (/rayon/<id>).
+ */
+export const VUES_VEILLE = [
+  { n: '06', to: '/rayons-boost', label: 'Mon rayon BOOST' },
+  { n: '07', to: '/fresh-news', label: 'Fresh news' },
+  { n: '08', to: '/analyse-marche', label: 'Analyses de marché' },
+  { n: '09', to: '/produits-gagnants', label: 'Produits gagnants' },
+  { n: '10', to: '/api-power', label: 'API Power' },
+] as const
+
 function vueCourante(pathname: string, search: string): string {
   const vue = new URLSearchParams(search).get('vue')
   if (pathname === '/reseaux' && vue === 'analyses') return '03'
   if (pathname === '/reseaux' && vue === 'prompts') return '04'
   if (pathname === '/reseaux') return '02'
   if (pathname === '/rayons') return '05'
+  if (pathname === '/rayons-boost' || pathname.startsWith('/rayon/')) return '06'
+  if (pathname === '/fresh-news') return '07'
+  if (pathname === '/analyse-marche') return '08'
+  if (pathname === '/produits-gagnants') return '09'
+  if (pathname.startsWith('/api-power')) return '10'
   return '01'
 }
 
 /** La page entière : la surface encrée, la navigation 01 → 05 et la pause. */
-export function PageCreative({ barre, children }: { barre?: ReactNode; children: ReactNode }) {
+export function PageCreative({ barre, sansNav = false, children }: { barre?: ReactNode; sansNav?: boolean; children: ReactNode }) {
   const [pause, setPause] = useState(lirePause)
   const reduit = useMouvementReduit()
   const { pathname, search } = useLocation()
   const active = vueCourante(pathname, search)
+  const nav = useRef<HTMLElement>(null)
+
+  // Ten views no longer fit on one line: the strip scrolls to the open one.
+  useEffect(() => {
+    const lien = nav.current?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!lien || !nav.current) return
+    nav.current.scrollLeft = Math.max(0, lien.offsetLeft - nav.current.offsetLeft - 24)
+  }, [active])
 
   function basculer() {
     setPause((p) => {
@@ -84,14 +111,25 @@ export function PageCreative({ barre, children }: { barre?: ReactNode; children:
     <PauseContexte.Provider value={{ pause, reduit }}>
       <div className="creative" data-pause={pause ? '1' : '0'}>
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <nav aria-label="Marketing et veille" className="c-nav w-full min-w-0 sm:w-auto sm:flex-1">
+          {sansNav ? null : (
+          <nav ref={nav} aria-label="Marketing et veille" className="c-nav w-full min-w-0 sm:w-auto sm:flex-1">
             {VUES_CREATIVES.map((v) => (
               <Link key={v.n} to={v.to} aria-current={active === v.n ? 'page' : undefined}>
                 <b>{v.n}</b>
                 <span>{v.label}</span>
               </Link>
             ))}
+            <span className="c-nav-separateur" aria-hidden>
+              Intelligence &amp; opportunités
+            </span>
+            {VUES_VEILLE.map((v) => (
+              <Link key={v.n} to={v.to} aria-current={active === v.n ? 'page' : undefined}>
+                <b>{v.n}</b>
+                <span>{v.label}</span>
+              </Link>
+            ))}
           </nav>
+          )}
           {reduit ? null : (
             <button type="button" onClick={basculer} className="c-bouton-sec shrink-0 !py-1.5 !text-xs" aria-pressed={pause}>
               {pause ? <Play size={13} /> : <Pause size={13} />}

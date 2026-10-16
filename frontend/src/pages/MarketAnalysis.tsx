@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { TrendingUp, ExternalLink, Loader2, ArrowLeft, Info, Newspaper } from 'lucide-react'
+import { ExternalLink, Loader2, Info, ArrowUpRight, Globe } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { BlocSection } from '../components/stats/BlocSection'
 import { ReportList } from '../components/ReportList'
 import { StudioAnalyses } from '../components/StudioAnalyses'
-import { AnalysesRapports } from '../components/AnalysesRapports'
+import { Markdown } from '../components/Markdown'
+import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
+import { PageCreative, Entete, Fenetre } from '../components/creative/Creative'
+import { GrilleRapports, Provenance, dateLongue, liste, pagePublique, type LigneRapport } from '../components/creative/Veille'
 import { SelectionAnalyse, PLAFOND_ANALYSE, type Mode } from '../components/SelectionAnalyse'
 import { api } from '../lib/api'
 
@@ -51,6 +54,7 @@ export default function MarketAnalysisPage() {
   const [error, setError] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('mes-annonces')
   const started = useRef(false)
+  const etude = useRef<HTMLElement>(null)
 
   const lancer = useCallback((ids: string[]) => {
     if (!ids.length) return
@@ -74,96 +78,66 @@ export default function MarketAnalysisPage() {
   return (
     <Layout>
       <BlocSection id="marche" />
+      <PageCreative>
+        <Entete
+          surtitre="08 / Analyses de marché"
+          ligne1="Avant de publier."
+          ligne2="Prenez de l'avance."
+          chapo="Concurrents, publicités, boutiques et fournisseurs : choisissez ce que vous souhaitez comprendre avant de passer à l'action."
+        />
 
-      {/* MCP Info Block */}
-      <div className="mb-6 max-w-2xl rounded-2xl border border-white/10 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-blue-500/10 p-6 overflow-hidden">
-        <div className="flex items-center gap-4">
-          <div className="shrink-0">
-            <svg
-              width="64"
-              height="64"
-              viewBox="0 0 64 64"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="text-purple-300"
-            >
-              <rect x="8" y="8" width="48" height="48" rx="8" fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="2" />
-              <circle cx="24" cy="24" r="4" fill="currentColor" />
-              <circle cx="40" cy="24" r="4" fill="currentColor" />
-              <circle cx="32" cy="40" r="4" fill="currentColor" />
-              <line x1="24" y1="28" x2="32" y2="36" stroke="currentColor" strokeWidth="2" />
-              <line x1="40" y1="28" x2="32" y2="36" stroke="currentColor" strokeWidth="2" />
-            </svg>
+        <div className="v-deux mt-8">
+          <div className="v-affiche-marche" aria-hidden>
+            <span className="c-etiquette relative !text-[#3e2220]">DropShipper / Intelligence</span>
+            <strong>
+              LOOK
+              <br />
+              AHEAD.
+            </strong>
+            <span className="v-etoile">✳</span>
+            <span className="c-etiquette relative !text-[#3e2220]">Observer → Comparer → Décider</span>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">Model Context Protocol</h3>
-            <p className="text-sm text-gray-300 mt-1">
-              Les analyses de marché utilisent le protocole MCP pour accéder à vos données en toute sécurité
+
+          <div className="v-carte flex flex-col gap-4">
+            <p className="c-etiquette !text-[var(--c-lime)]">Votre prochaine étude</p>
+            <p className="text-2xl font-semibold leading-tight">
+              Un produit.
+              <br />
+              Quatre perspectives.
+            </p>
+            <div className="v-perspectives">
+              {PERSPECTIVES.map((q, i) => (
+                <button key={q} type="button" onClick={() => etude.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                  <b>{String(i + 1).padStart(2, '0')}</b>
+                  <span>{q}</span>
+                  <ArrowUpRight size={14} />
+                </button>
+              ))}
+            </div>
+            <p className="text-xs leading-relaxed text-[var(--c-texte-2)]">
+              {`À partir d'une annonce importée ou d'une idée de produit. Jusqu'à ${PLAFOND_ANALYSE} annonces par passage. Les analyses passent par le protocole MCP pour accéder à vos données en toute sécurité.`}
             </p>
           </div>
         </div>
-      </div>
 
-      <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white">
-        <ArrowLeft size={15} />
-        <span>Retour à mes annonces</span>
-      </Link>
+        {laissees > 0 && (
+          <p className="mt-6 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {`L'analyse se fait par 5 au maximum : les ${PLAFOND_ANALYSE} premières annonces sont traitées ici. Resélectionnez les ${laissees} restante(s) pour un second passage.`}
+          </p>
+        )}
 
-      <h1 className="mt-4 flex items-center gap-2 text-2xl font-bold">
-        <TrendingUp className="text-purple-300" size={24} />
-        <span>Analyses de marché</span>
-      </h1>
-      <p className="mt-1 max-w-3xl text-sm text-gray-400">
-        Quatre façons de regarder un marché <b>avant</b> de publier : qui vend déjà, qui fait de la
-        publicité, quelles boutiques occupent la niche, et lequel de vos fournisseurs est le moins
-        cher sur la même référence.
-      </p>
-
-      {laissees > 0 && (
-        <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          {`L'analyse se fait par 5 au maximum : les ${PLAFOND_ANALYSE} premières annonces sont traitées ici. Resélectionnez les ${laissees} restante(s) pour un second passage.`}
-        </p>
-      )}
-
-      {/*
-        Le choix de ce qu'on analyse, en tête.
-
-        **Cette page était un cul-de-sac quand on l'ouvrait depuis le menu** :
-        elle ne savait travailler que sur une sélection d'annonces venue de
-        « Mes annonces », et sans sélection elle n'affichait qu'un message
-        expliquant qu'il fallait aller ailleurs. Les deux gestes se posent
-        maintenant ici : une annonce du catalogue, ou un sujet libre — on
-        analyse souvent AVANT d'importer, sinon on paie un catalogue pour
-        découvrir ensuite que la niche est saturée.
-      */}
-      <SelectionAnalyse
-        onLancer={lancer}
-        enCours={running}
-        preselection={productIds}
-        onModeChange={setMode}
-      />
-
-      {mode === 'libre' && <StudioAnalyses />}
-
-      {/*
-        Les analyses quotidiennes des agents, toutes catégories (19/09/2026).
-
-        Elles arrivent chaque matin, une par rayon, et elles n'avaient jusqu'ici
-        qu'une seule vitrine : Fresh news, qui en montre une à la fois, celle du
-        jour. Ici c'est la lecture inverse — la liste par date, qu'on déplie —
-        et c'est la même table, filtrable par rayon.
-      */}
-      <section className="mt-10">
-        <h2 className="flex items-center gap-2 font-bold">
-          <Newspaper size={16} className="text-emerald-400" />
-          <span>Les analyses du jour, rayon par rayon</span>
-        </h2>
-        <p className="mt-1 max-w-3xl text-xs text-gray-500">
-          Une analyse par rayon et par jour, écrite par les agents. Cliquez une ligne pour la lire ;
-          la liste des vingt produits qu'elle porte s'importe depuis l'analyse elle-même.
-        </p>
-        <AnalysesRapports type="rayon" avecFiltreCategorie />
-      </section>
+        {/*
+          Le choix de ce qu'on analyse : une annonce du catalogue, ou un sujet
+          libre — on analyse souvent AVANT d'importer, sinon on paie un
+          catalogue pour découvrir ensuite que la niche est saturée.
+        */}
+        <section ref={etude} className="mt-12 scroll-mt-24">
+          <h2 className="c-h2">Préparer une étude</h2>
+          <div className="v-outil mt-4">
+            <SelectionAnalyse onLancer={lancer} enCours={running} preselection={productIds} onModeChange={setMode} />
+            {mode === 'libre' && <StudioAnalyses />}
+          </div>
+        </section>
 
       {running && (
         <div className="mt-6 rounded-xl border border-purple-400/30 bg-purple-500/5 p-4">
@@ -298,18 +272,138 @@ export default function MarketAnalysisPage() {
         </p>
       )}
 
-      {/* Toutes les analyses consignées : celles des chefs de rayon en
-          IA AUTO-MODE et celles lancées depuis Mes annonces (nommées
-          produits-date-utilisateur). Même table que la rubrique « Mes
-          analyses » de chaque rayon — une écriture, deux vitrines. */}
-      <section className="mt-10">
-        <h2 className="font-bold">Mes analyses</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          Les analyses rédigées par vos chefs de rayon en IA AUTO-MODE, et celles lancées depuis
-          vos annonces. Cliquez une ligne pour la lire, l'exporter ou la partager.
-        </p>
-        <ReportList section="MARKET" triable />
-      </section>
+        {/*
+          Les analyses quotidiennes des agents, toutes catégories : une par
+          rayon et par jour. La grille montre les plus récentes ; une carte
+          ouvre le rapport, sa liste de produits et sa page publique.
+        */}
+        <RapportsAuPremierPlan />
+
+        {/* Toutes les analyses consignées : celles des chefs de rayon en
+            IA AUTO-MODE et celles lancées depuis Mes annonces. Même table que
+            la rubrique « Mes analyses » de chaque rayon. */}
+        <section className="mt-12">
+          <h2 className="c-h2">Mes analyses</h2>
+          <p className="mt-1 text-xs text-[var(--c-texte-2)]">
+            Les analyses rédigées par vos chefs de rayon en IA AUTO-MODE, et celles lancées depuis vos annonces. Cliquez une ligne pour la
+            lire, l'exporter ou la partager.
+          </p>
+          <div className="v-outil mt-4">
+            <ReportList section="MARKET" triable />
+          </div>
+        </section>
+
+        <Provenance texte="Analyses des agents et de vos chefs de rayon" libelle="Toutes les pages publiques des analyses" to="/analyses/" />
+      </PageCreative>
     </Layout>
+  )
+}
+
+const PERSPECTIVES = [
+  'Qui vend déjà ?',
+  'Qui fait de la publicité ?',
+  'Quelles boutiques occupent la niche ?',
+  'Quel fournisseur est le moins cher ?',
+] as const
+
+/** Neuf cartes d'abord (trois rangées), puis le reste à la demande. */
+const CARTES = 9
+
+function RapportsAuPremierPlan() {
+  const [lignes, setLignes] = useState<LigneRapport[]>([])
+  const [categories, setCategories] = useState<Array<{ id: string; nom: string }>>([])
+  const [categorie, setCategorie] = useState('')
+  const [tout, setTout] = useState(false)
+  const [chargement, setChargement] = useState(true)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [ouvert, setOuvert] = useState<LigneRapport | null>(null)
+  const [complet, setComplet] = useState<Awaited<ReturnType<typeof api.analyseRapport>> | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    setChargement(true)
+    setErreur(null)
+    api
+      .analysesRapports({ type: 'rayon', categorie: categorie || undefined, limite: 120 })
+      .then((d) => {
+        setLignes(liste<LigneRapport>(d?.analyses))
+        if (!categorie) setCategories(liste<{ id: string; nom: string }>(d?.categories))
+      })
+      .catch((e: Error) => setErreur(e.message))
+      .finally(() => setChargement(false))
+  }, [categorie])
+
+  useEffect(() => {
+    setComplet(null)
+    setMessage(null)
+    if (!ouvert) return
+    api.analyseRapport(ouvert.id).then(setComplet).catch(() => setComplet(null))
+  }, [ouvert])
+
+  const visibles = tout ? lignes : lignes.slice(0, CARTES)
+
+  return (
+    <section className="mt-14">
+      <div className="v-titre-section">
+        <div>
+          <h2 className="c-h2">Vos rapports, au premier plan.</h2>
+          <p>Une analyse par rayon et par jour, écrite par les agents, la plus récente en tête.</p>
+        </div>
+        {categories.length ? (
+          <label className="flex items-center gap-2 text-xs text-[var(--c-texte-2)]">
+            Rayon
+            <select className="c-champ !w-auto" value={categorie} onChange={(e) => { setCategorie(e.target.value); setTout(false) }}>
+              <option value="">Tous</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.nom}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      {erreur ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
+      {chargement ? (
+        <p className="mt-5 flex items-center gap-2 text-sm text-[var(--c-texte-2)]"><Loader2 size={14} className="animate-spin" /> Chargement…</p>
+      ) : lignes.length === 0 ? (
+        <p className="mt-5 text-sm text-[var(--c-texte-2)]">Aucune analyse déposée pour ce rayon.</p>
+      ) : (
+        <div className="mt-5">
+          <GrilleRapports rapports={visibles} numerotee actif={ouvert?.id} onOuvrir={setOuvert} />
+          {lignes.length > CARTES ? (
+            <button type="button" className="c-bouton-sec mt-4" onClick={() => setTout((t) => !t)}>
+              {tout ? 'Montrer moins de rapports' : `Montrer les ${lignes.length - CARTES} autres rapports`}
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {ouvert ? (
+        <Fenetre titre={`${ouvert.categorieNom} · ${ouvert.titre || ouvert.themeNom}`} onClose={() => setOuvert(null)} large>
+          <p className="mt-1 text-xs text-[var(--c-texte-2)]">
+            {`${dateLongue(ouvert.day)} · ${ouvert.produits} produit${ouvert.produits > 1 ? 's' : ''} dans ce rapport · ${ouvert.sources} source${ouvert.sources > 1 ? 's' : ''}`}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a href={pagePublique(ouvert)} target="_blank" rel="noreferrer" className="c-bouton-sec !text-xs">
+              <Globe size={12} /> Page publique du rapport
+            </a>
+            <Link to={`/fresh-news?categorie=${ouvert.categorie}&jour=${ouvert.day}`} className="c-bouton-sec !text-xs">
+              Lire l'édition Fresh news <ArrowUpRight size={12} />
+            </Link>
+          </div>
+          {complet ? (
+            <>
+              <div className="mt-4"><Markdown texte={complet.body} /></div>
+              {message ? <p className="mt-3 text-xs text-[var(--c-lime)]">{message}</p> : null}
+              {liste(complet.produits).length ? (
+                <ListeProduitsRapport produits={complet.produits} origine={complet.id} onMessage={setMessage} />
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-4 flex items-center gap-2 text-sm text-[var(--c-texte-2)]"><Loader2 size={14} className="animate-spin" /> Le rapport arrive…</p>
+          )}
+        </Fenetre>
+      ) : null}
+    </section>
   )
 }

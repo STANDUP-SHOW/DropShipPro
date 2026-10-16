@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Zap, ExternalLink, Check } from 'lucide-react'
+import { Zap, ExternalLink, Check, ArrowUpRight } from 'lucide-react'
+import { PageCreative, Entete, Fenetre, Filtres } from '../components/creative/Creative'
 import { Logo } from '../components/Logo'
 import { isAuthed } from '../lib/api'
 import apiPower from '../data/api-power.json'
@@ -46,14 +47,6 @@ interface Api {
 const APIS = apiPower.apis as unknown as Api[]
 const LIBELLES = apiPower.libelles as { etat: Record<Etat, string>; usage: Record<string, string>; ecran: Record<string, string> }
 
-const COULEUR_ETAT: Record<Etat, string> = {
-  ecrit: 'border-emerald-400/60 bg-emerald-400/10 text-emerald-200',
-  flux: 'border-sky-400/60 bg-sky-400/10 text-sky-200',
-  jeton: 'border-amber-400/60 bg-amber-400/10 text-amber-200',
-  prevu: 'border-white/20 bg-white/5 text-gray-300',
-  ecarte: 'border-white/10 bg-white/5 text-gray-500',
-}
-
 const EXPLICATION_ETAT: Record<Etat, string> = {
   ecrit: "Le connecteur est écrit et éprouvé sur un faux serveur ; il reste à le confronter au vrai service (vérification d'entreprise, revue de l'application).",
   flux: 'Nous servons déjà le flux que cette API consomme ; elle ajoutera la mise à jour immédiate et la lecture des statuts.',
@@ -65,184 +58,230 @@ const EXPLICATION_ETAT: Record<Etat, string> = {
 export default function ApiPower() {
   const [univers, setUnivers] = useState<Univers | 'tous'>('tous')
   const [usage, setUsage] = useState<string>('tous')
+  const [ouverte, setOuverte] = useState<Api | null>(null)
   const apis = APIS
   const { resume } = apiPower
   const libelles = LIBELLES
   const universList = Object.entries(apiPower.univers) as Array<[Univers, { label: string; color: string }]>
+  const court = (u: Univers) => apiPower.univers[u].label.split(' — ')[0]
+  const connecte = isAuthed()
 
   const visibles = useMemo(
     () =>
       apis.filter((a) => (univers === 'tous' || a.univers === univers) && (usage === 'tous' || a.opportunites.some((o) => o.usage === usage))),
     [apis, univers, usage],
   )
+  // The planets of the hero: every publisher of the register, placed on two rings.
+  const planetes = universList.map(([id], i) => {
+    const n = universList.length
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2
+    const rayon = i % 2 ? 46 : 38
+    return { id, nom: court(id), x: 50 + rayon * Math.cos(angle), y: 50 + rayon * Math.sin(angle) }
+  })
 
   return (
-    <div className="min-h-screen bg-app-gradient text-white">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <div className="min-h-screen bg-[#0b0b0e] text-white">
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-5 sm:px-6">
         <Link to="/">
           <Logo />
         </Link>
         <nav className="flex items-center gap-4 text-sm text-gray-300">
-          <a href="/tarifs/" className="hover:text-white">Tarifs</a>
-          <a href="/faq/" className="hover:text-white">FAQ</a>
+          <a href="/tarifs/" className="hidden hover:text-white sm:inline">Tarifs</a>
+          <a href="/faq/" className="hidden hover:text-white sm:inline">FAQ</a>
           <Link
-            to={isAuthed() ? '/api-links' : '/login'}
+            to={connecte ? '/api-links' : '/login'}
             className="rounded-lg border border-purple-400/40 bg-white/5 px-4 py-2 font-medium transition hover:bg-white/10"
           >
-            {isAuthed() ? 'Mes raccordements' : 'Se connecter'}
+            {connecte ? 'Mes raccordements' : 'Se connecter'}
           </Link>
         </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 pb-24">
-        <section className="pt-8 text-center md:pt-14">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-purple-300">API Power</p>
-          <h1 className="neon neon-2 mx-auto mt-3 max-w-4xl text-4xl font-extrabold leading-tight md:text-6xl">
-            Ce que les API marketing débloquent, une fois connectées
-          </h1>
-          <p className="texte-neon mx-auto mt-6 max-w-3xl text-xl md:text-2xl">
-            Meta, Google, TikTok, Pinterest et les autres exposent des API. Chacune ouvre des gestes précis — publier, mesurer, cibler,
-            répondre — et chaque donnée a une place dans votre back-office. Voici la liste complète, avec l'état réel de chaque raccordement.
-          </p>
-          <dl className="mx-auto mt-10 grid max-w-3xl grid-cols-3 gap-4 text-center">
-            <Compteur n={resume.retenues} label="API retenues" />
-            <Compteur n={resume.opportunites} label="opportunités" />
-            <Compteur n={resume.parEtat.ecrit + resume.parEtat.flux + resume.parEtat.jeton} label="déjà amorcées" />
-          </dl>
-        </section>
+      <main className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+        <PageCreative sansNav={!connecte}>
+          <Entete
+            surtitre="10 / API Power"
+            ligne1="Plus de connexions."
+            ligne2="Plus de possibilités."
+            chapo="Publier, mesurer, diffuser : découvrez ce que chaque service peut apporter et où en est son raccordement. L'état de chaque API est celui du code, pas celui qu'on aimerait."
+          />
 
-        <section className="mt-14 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <h2 className="text-lg font-bold">Lire l'état d'un raccordement</h2>
-          <ul className="mt-3 grid gap-3 md:grid-cols-2">
-            {(Object.keys(libelles.etat) as Etat[]).map((e) => (
-              <li key={e} className="flex gap-3 text-sm">
-                <span className={`mt-0.5 h-fit shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${COULEUR_ETAT[e]}`}>{libelles.etat[e]}</span>
-                <span className="text-gray-300">{EXPLICATION_ETAT[e]}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <div className="sticky top-0 z-10 -mx-6 mt-10 flex flex-wrap items-center gap-2 border-b border-white/10 bg-[#0b0714]/90 px-6 py-3 backdrop-blur">
-          <Filtre actif={univers === 'tous'} onClick={() => setUnivers('tous')}>Tous les éditeurs</Filtre>
-          {universList.map(([id, u]) => (
-            <Filtre key={id} actif={univers === id} onClick={() => setUnivers(id)}>
-              {u.label.split(' — ')[0]}
-            </Filtre>
-          ))}
-          <span className="mx-2 hidden h-5 w-px bg-white/15 md:block" />
-          <Filtre actif={usage === 'tous'} onClick={() => setUsage('tous')}>Tous les usages</Filtre>
-          {Object.entries(libelles.usage).map(([id, label]) => (
-            <Filtre key={id} actif={usage === id} onClick={() => setUsage(id)}>
-              {label}
-            </Filtre>
-          ))}
-        </div>
-
-        <div className="mt-8 space-y-8">
-          {visibles.map((a, i) => (
-            <article key={a.id} id={a.id} className="scroll-mt-24 rounded-3xl border border-white/10 bg-black/20 p-6 md:p-8">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+          {/* ---------- Le héros : l'écosystème ---------- */}
+          <section className="v-heros-api mt-8">
+            <div>
+              <p className="c-etiquette !text-[var(--c-lime)]">L'écosystème DropShipper</p>
+              <p className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
+                Votre studio.
+                <br />
+                Un monde de connexions.
+              </p>
+              <dl className="mt-6 flex flex-wrap gap-8">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">{apiPower.univers[a.univers].label.split(' — ')[0]}</p>
-                  <h2 className={`neon neon-${(i % 6) + 1} mt-1 text-2xl font-extrabold md:text-3xl`}>{a.nom}</h2>
+                  <dt className="text-4xl font-semibold text-[var(--c-lime)]">{resume.retenues}</dt>
+                  <dd className="mt-1 text-xs text-[var(--c-texte-2)]">API retenues</dd>
                 </div>
-                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${COULEUR_ETAT[a.etat]}`}>{libelles.etat[a.etat]}</span>
+                <div>
+                  <dt className="text-4xl font-semibold text-[var(--c-lime)]">{resume.opportunites}</dt>
+                  <dd className="mt-1 text-xs text-[var(--c-texte-2)]">opportunités décrites</dd>
+                </div>
+                <div>
+                  <dt className="text-4xl font-semibold text-[var(--c-violet)]">{resume.parEtat.ecrit + resume.parEtat.flux + resume.parEtat.jeton}</dt>
+                  <dd className="mt-1 text-xs text-[var(--c-texte-2)]">déjà amorcées</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="v-systeme" aria-hidden>
+              <div className="v-systeme-anneau" style={{ inset: '12%' }} />
+              <div className="v-systeme-anneau" style={{ inset: '4%' }} />
+              <div className="v-systeme-centre">
+                <span>POWER</span>
+                <span className="text-xl text-[var(--c-lime)]">✳</span>
               </div>
-              <p className="texte-neon mt-4 text-lg">{a.quoi}</p>
-              {a.existant ? <p className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">{a.existant}</p> : null}
+              <div className="v-systeme-tourne">
+                {planetes.map((p) => (
+                  <span key={p.id} style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+                    {p.nom}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
 
-              {a.opportunites.length ? (
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {a.opportunites.map((o) => (
-                    <div key={o.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-bold">{o.titre}</h3>
-                        <span className="shrink-0 rounded-full bg-purple-500/20 px-2 py-0.5 text-[11px] font-semibold text-purple-200">{libelles.usage[o.usage]}</span>
+          {/* ---------- Choisir l'usage ---------- */}
+          <section className="mt-12">
+            <div className="v-titre-section">
+              <div>
+                <h2 className="c-h2">Choisissez l'usage.</h2>
+                <p>{`${visibles.length} service${visibles.length > 1 ? 's' : ''} sur ${apis.length}, du registre API Power.`}</p>
+              </div>
+              <select className="c-champ !w-auto" value={univers} onChange={(e) => setUnivers(e.target.value as Univers | 'tous')} aria-label="Éditeur">
+                <option value="tous">Tous les éditeurs</option>
+                {universList.map(([id]) => (
+                  <option key={id} value={id}>{court(id)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-3">
+              <Filtres
+                options={[{ id: 'tous', label: 'Tout' }, ...Object.entries(libelles.usage).map(([id, label]) => ({ id, label }))]}
+                valeur={usage}
+                onChange={setUsage}
+              />
+            </div>
+
+            <div className="v-grille mt-5">
+              {visibles.map((a) => {
+                const usages = [...new Set(a.opportunites.map((o) => libelles.usage[o.usage]).filter(Boolean))]
+                return (
+                  <article key={a.id} id={a.id} className="v-api scroll-mt-24">
+                    <div className="flex items-baseline gap-3">
+                      <span className="v-api-initiale" style={{ color: apiPower.univers[a.univers].color === '#111111' ? '#f2f0eb' : apiPower.univers[a.univers].color }}>
+                        {court(a.univers).slice(0, 1)}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-[var(--c-texte-2)]">
+                        {court(a.univers)}
+                        {usages.length ? ` / ${usages.slice(0, 2).join(', ')}` : ''}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-semibold leading-snug">{a.nom}</h3>
+                    <p className="line-clamp-3 text-sm text-[var(--c-texte-2)]">{a.quoi}</p>
+                    <span className="v-etat mt-1" data-etat={a.etat}>{libelles.etat[a.etat]}</span>
+                    <button type="button" className="c-bouton-sec mt-auto justify-center !text-xs" onClick={() => setOuverte(a)}>
+                      Capacités &amp; disponibilité <ArrowUpRight size={12} />
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+            {visibles.length === 0 ? <p className="mt-6 text-sm text-[var(--c-texte-2)]">Aucune API ne correspond à ce filtre.</p> : null}
+          </section>
+
+          {/* ---------- Lire un état ---------- */}
+          <section className="mt-12">
+            <h2 className="c-h2">Lire l'état d'un raccordement</h2>
+            <ul className="mt-4 grid gap-3 md:grid-cols-2">
+              {(Object.keys(libelles.etat) as Etat[]).map((e) => (
+                <li key={e} className="v-carte flex flex-col gap-2 !p-4">
+                  <span className="v-etat" data-etat={e}>{libelles.etat[e]}</span>
+                  <span className="text-sm text-[var(--c-texte-2)]">{EXPLICATION_ETAT[e]}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="v-note mt-6">
+              « Connecteur écrit » ne signifie pas connecté à votre compte. « Jeton accepté » ne signifie pas que les données sont lues.
+              Les états reprennent le registre du code ; ils ne sont pas des tests de connexion.
+            </p>
+          </section>
+
+          <section className="v-carte mt-12 text-center">
+            <Zap className="mx-auto text-[var(--c-lime)]" size={26} />
+            <h2 className="c-h2 mt-3">Vos raccordements se font dans API Connect</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-[var(--c-texte-2)]">
+              Les jetons se collent une fois, ne sont jamais réaffichés, et chaque écran dit ce qui est lu, et ce qui ne l'est pas encore.
+            </p>
+            <Link to={connecte ? '/api-links' : '/register'} className="c-bouton mx-auto mt-6 w-fit">
+              <span>{connecte ? 'Ouvrir API Connect' : 'Créer un compte, 120 drops offerts'}</span>
+              <ArrowUpRight size={15} />
+            </Link>
+          </section>
+
+          {ouverte ? (
+            <Fenetre titre={ouverte.nom} onClose={() => setOuverte(null)} large>
+              <p className="mt-1 text-xs uppercase tracking-wider text-[var(--c-texte-2)]">{`${court(ouverte.univers)} · ${ouverte.editeur}`}</p>
+              <span className="v-etat mt-3" data-etat={ouverte.etat}>{libelles.etat[ouverte.etat]}</span>
+              <p className="mt-2 text-xs text-[var(--c-texte-2)]">{EXPLICATION_ETAT[ouverte.etat]}</p>
+              <p className="mt-4 text-sm leading-relaxed">{ouverte.quoi}</p>
+              {ouverte.existant ? <p className="v-note mt-3">{ouverte.existant}</p> : null}
+              {ouverte.opportunites.length ? (
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {ouverte.opportunites.map((o) => (
+                    <div key={o.id} className="v-carte !p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-semibold">{o.titre}</h3>
+                        <span className="shrink-0 rounded-full border border-[var(--c-trait)] px-2 py-0.5 text-[10px] text-[var(--c-violet)]">{libelles.usage[o.usage]}</span>
                       </div>
-                      <p className="mt-2 text-sm text-gray-300">{o.quoi}</p>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Ce qui remonte</p>
-                      <ul className="mt-1 space-y-1 text-sm text-gray-300">
+                      <p className="mt-2 text-sm text-[var(--c-texte-2)]">{o.quoi}</p>
+                      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--c-texte-2)]">Ce qui remonte</p>
+                      <ul className="mt-1 space-y-1 text-xs">
                         {o.donnees.map((d) => (
                           <li key={d}>{d}</li>
                         ))}
                       </ul>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Vos gestes</p>
-                      <ul className="mt-1 space-y-1 text-sm text-gray-300">
+                      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--c-texte-2)]">Vos gestes</p>
+                      <ul className="mt-1 space-y-1 text-xs">
                         {o.gestes.map((g) => (
                           <li key={g} className="flex gap-2">
-                            <Check size={14} className="mt-0.5 shrink-0 text-emerald-400" />
+                            <Check size={13} className="mt-0.5 shrink-0 text-[var(--c-lime)]" />
                             <span>{g}</span>
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-3 text-xs text-gray-500">
-                        Dans le back-office : <span className="text-gray-300">{libelles.ecran[o.ecran]}</span>
+                      <p className="mt-3 text-xs text-[var(--c-texte-2)]">
+                        Dans le back-office : <span className="text-[var(--c-texte)]">{libelles.ecran[o.ecran]}</span>
                       </p>
                     </div>
                   ))}
                 </div>
               ) : null}
-
-              <details className="mt-5 text-sm text-gray-400">
-                <summary className="cursor-pointer text-gray-300">Prérequis chez {a.editeur}</summary>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {a.prerequis.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ul>
-                <p className="mt-2 flex flex-wrap gap-4">
-                  <a href={a.doc} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-purple-300 hover:underline">
-                    Documentation <ExternalLink size={12} />
-                  </a>
-                  <a href={a.console} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-purple-300 hover:underline">
-                    Console <ExternalLink size={12} />
-                  </a>
-                </p>
-              </details>
-            </article>
-          ))}
-          {visibles.length === 0 ? <p className="text-center text-gray-400">Aucune API ne correspond à ce filtre.</p> : null}
-        </div>
-
-        <section className="mt-16 rounded-3xl border border-purple-400/30 bg-gradient-to-br from-[#160d2e] to-[#0b0714] p-8 text-center">
-          <Zap className="mx-auto text-purple-300" size={28} />
-          <h2 className="neon neon-4 mt-3 text-2xl font-extrabold md:text-3xl">Vos raccordements se font dans API Connect</h2>
-          <p className="texte-neon mx-auto mt-3 max-w-2xl text-lg">
-            Les jetons se collent une fois, ne sont jamais réaffichés, et chaque écran dit ce qui est lu — et ce qui ne l'est pas encore.
-          </p>
-          <Link
-            to={isAuthed() ? '/api-links' : '/register'}
-            className="btn-gradient mt-6 inline-flex items-center gap-2 rounded-xl px-6 py-3 font-semibold"
-          >
-            {isAuthed() ? 'Ouvrir API Connect' : 'Créer un compte — 120 drops offerts'}
-          </Link>
-        </section>
+              <p className="mt-5 text-[10px] font-semibold uppercase tracking-wider text-[var(--c-texte-2)]">{`Prérequis chez ${ouverte.editeur}`}</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
+                {ouverte.prerequis.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+              <p className="mt-4 flex flex-wrap gap-4">
+                <a href={ouverte.doc} target="_blank" rel="noreferrer noopener" className="v-lien">
+                  Documentation <ExternalLink size={12} />
+                </a>
+                <a href={ouverte.console} target="_blank" rel="noreferrer noopener" className="v-lien">
+                  Console <ExternalLink size={12} />
+                </a>
+              </p>
+            </Fenetre>
+          ) : null}
+        </PageCreative>
       </main>
       <PiedDePagePublic />
     </div>
-  )
-}
-
-function Compteur({ n, label }: { n: number; label: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <dt className="neon neon-3 text-3xl font-extrabold md:text-4xl">{n}</dt>
-      <dd className="mt-1 text-xs uppercase tracking-wider text-gray-400">{label}</dd>
-    </div>
-  )
-}
-
-function Filtre({ actif, onClick, children }: { actif: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-        actif ? 'border-purple-400 bg-purple-500/30 text-white' : 'border-white/15 bg-white/5 text-gray-300 hover:bg-white/10'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

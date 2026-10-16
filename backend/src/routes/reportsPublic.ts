@@ -6,6 +6,7 @@
 import { Router, type RequestHandler } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { cheminRapportsActif, generationRapports, ReportQuery } from '../services/reportsDb.js'
+import { CATEGORIES_PAR_RAYON } from '../services/marketReports.js'
 
 export const reportsPublicRouter = Router()
 
@@ -193,13 +194,26 @@ reportsPublicRouter.get('/reports/fresh', sansCache, compte, (req, res) => {
   }
 })
 
+/**
+ * The agent categories a chef de rayon reads (`?rayon=<key>`), null without the parameter.
+ * The rayon screens send the key, but the routes no longer read it: every rayon
+ * listed every category (seen 16/10/2026).
+ */
+function categoriesDemandees(rayon: unknown): string[] | null {
+  if (typeof rayon !== 'string' || !rayon) return null
+  return CATEGORIES_PAR_RAYON[rayon] ?? []
+}
+
 /** La liste des analyses, en-têtes seulement. */
 reportsPublicRouter.get('/reports/analyses', sansCache, compte, (req, res) => {
   try {
+    const rayon = categoriesDemandees(req.query.rayon)
+    if (rayon && !rayon.length) return res.json({ rayonSansCategorie: true, categories: [], analyses: [] })
     res.json(
       baseRapports().getAnalyses({
         type: (req.query.type as 'rayon' | 'marketing') || undefined,
         categorie: (req.query.category as string) || undefined,
+        categories: rayon ?? undefined,
         jour: (req.query.date as string) || undefined,
         limite: req.query.limit ? Number(req.query.limit) : undefined,
       }),
@@ -223,9 +237,12 @@ reportsPublicRouter.get('/reports/analyses/:id', sansCache, compte, (req, res) =
 /** Les produits gagnants à plat — sans rayon demandé, tout le dépôt. */
 reportsPublicRouter.get('/reports/gagnants', sansCache, compte, (req, res) => {
   try {
+    const rayon = categoriesDemandees(req.query.rayon)
+    if (rayon && !rayon.length) return res.json({ rayonSansCategorie: true, jours: [], produits: [] })
     res.json(
       baseRapports().getGagnants({
         categorie: (req.query.category as string) || undefined,
+        categories: rayon ?? undefined,
         jour: (req.query.date as string) || undefined,
         limite: req.query.limit ? Number(req.query.limit) : undefined,
       }),

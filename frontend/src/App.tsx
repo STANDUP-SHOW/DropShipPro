@@ -58,6 +58,7 @@ import Autopilot from './pages/Autopilot'
 import Messages from './pages/Messages'
 import Deliveries from './pages/Deliveries'
 import Rayon from './pages/Rayon'
+import RayonsBoost from './pages/RayonsBoost'
 import Guide from './pages/Guide'
 import Newsletter from './pages/Newsletter'
 import Partager from './pages/Partager'
@@ -225,6 +226,7 @@ export default function App() {
           <Route path="/agents/:key" element={<Protected><SupportAgent /></Protected>} />
           <Route path="/rayons" element={<Protected><Rayons /></Protected>} />
           <Route path="/rayon/:id" element={<Protected><Rayon /></Protected>} />
+          <Route path="/rayons-boost" element={<Protected><RayonsBoost /></Protected>} />
           <Route path="/veille" element={<Protected><Veille /></Protected>} />
           <Route path="/analyse-marche" element={<Protected><MarketAnalysisPage /></Protected>} />
           <Route path="/fresh-news" element={<Protected><FreshNews /></Protected>} />
