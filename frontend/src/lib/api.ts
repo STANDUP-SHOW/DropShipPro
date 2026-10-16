@@ -2008,6 +2008,8 @@ export const api = {
         gagnants: boolean
         nouveautes: boolean
         rayons: boolean
+        /** Son connecteur sait importer une fiche par l'API (fetchProduct). */
+        importe: boolean
         rayonChoisi?: string | null
         produits: Array<{
           ref: string
