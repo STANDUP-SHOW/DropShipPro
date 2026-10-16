@@ -45,8 +45,8 @@ function client({ apiBase, cle, fetcher = fetch }) {
     /** La liste du jour des produits gagnants (une adresse par produit). Clé desktop, comptes ≥ 500 drops. */
     gagnants: ({ margeMin = 20, max = 50, categories = [] } = {}) =>
       appel('GET', `/gagnants?margeMin=${encodeURIComponent(margeMin)}&max=${encodeURIComponent(max)}${categories.length ? `&categories=${encodeURIComponent(categories.join(','))}` : ''}`),
-    /** Importe le produit d'un lien reçu (drops du vendeur, remboursés si rien n'est livré). Clé desktop. */
-    importer: (url, shareId) => appel('POST', '/import', { url, ...(shareId ? { shareId } : {}) }),
+    /** Importe le produit d'un lien reçu (drops du vendeur, remboursés si rien n'est livré). `fiche` : déjà relevée dans le navigateur interne. Clé desktop. */
+    importer: (url, shareId, fiche) => appel('POST', '/import', { url, ...(shareId ? { shareId } : {}), ...(fiche ? { fiche } : {}) }),
     /** Publie un produit sur les réseaux sociaux reliés du vendeur. Clé desktop. */
     publierReseaux: (productId) => appel('POST', '/social', { productId }),
     /** Met un produit en file de publication sur des places à session. Clé desktop. */

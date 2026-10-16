@@ -1,6 +1,6 @@
 {
   "name": "dropshipper-desktop",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "DropShipper Desktop — le compagnon de l'application drop-shipper.fr : sessions marchandes, file de travail, mode automatique encadré.",
   "author": "DropShipper IA <contact@drop-shipper.fr>",
   "main": "main.js",

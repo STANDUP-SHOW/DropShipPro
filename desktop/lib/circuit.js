@@ -10,6 +10,8 @@
  * pas là où rien ne changera — solde de drops vide (stop net, le reste attend le
  * rechargement), page illisible (le lien est classé, l'agent passe au suivant).
  */
+const { lectureNavigateur } = require('./file-autoshipper')
+
 const pause = (ms) => new Promise((ok) => setTimeout(ok, ms))
 
 /** Une erreur qui vaut la peine d'être retentée : le réseau, une panne du serveur. */
@@ -18,8 +20,8 @@ const passagere = (err) => err && (err.statut === 0 || err.statut >= 500) && err
 /**
  * @returns {Promise<{statut: 'en_file'|'importe'|'sans_solde'|'echec', productId?: string, enFile?: string[], raison?: string}>}
  */
-async function traiterLien({ api, lien, plateformes = [], reseaux = false, essais = 3, pauseEssaiMs = 15_000, dormir = pause }) {
-  const r = await importerEtMettreEnFile({ api, lien, plateformes, essais, pauseEssaiMs, dormir })
+async function traiterLien({ api, lien, plateformes = [], reseaux = false, essais = 3, pauseEssaiMs = 15_000, dormir = pause, relever = null }) {
+  const r = await importerEtMettreEnFile({ api, lien, plateformes, essais, pauseEssaiMs, dormir, relever })
   // Les réseaux sociaux : une fois par produit importé, jamais rejoués. Un refus n'annule rien du reste.
   if (reseaux && r.productId && (r.statut === 'en_file' || r.statut === 'importe')) {
     try {
@@ -32,12 +34,33 @@ async function traiterLien({ api, lien, plateformes = [], reseaux = false, essai
   return r
 }
 
-async function importerEtMettreEnFile({ api, lien, plateformes, essais, pauseEssaiMs, dormir }) {
+async function importerEtMettreEnFile({ api, lien, plateformes, essais, pauseEssaiMs, dormir, relever }) {
+  /*
+   * Temu, AliExpress, Shein… : le serveur n'en reçoit qu'une coquille (16/10/2026,
+   * bilan avant le test grandeur nature). La fiche est lue ICI, dans le navigateur
+   * interne, puis envoyée toute relevée : le serveur ne va plus la chercher.
+   */
+  let fiche = null
+  if (relever && lectureNavigateur(lien.url)) {
+    let lu
+    try {
+      lu = await relever(lien.url)
+    } catch (err) {
+      lu = { ok: false, raison: err.message || 'Relevé impossible' }
+    }
+    // Mur anti-robot : on s'arrête là, sans rien débiter ; le lien reste à importer.
+    if (lu.bloque) return { statut: 'echec', raison: `Vérification affichée sur ${new URL(lien.url).hostname} : ouvrez la page vous-même, puis réessayez.` }
+    if (!lu.ok) {
+      if (lien.id) await api.reclamer(lien.id, 'CLAIMED').catch(() => undefined)
+      return { statut: 'echec', raison: lu.raison || 'Fiche illisible.' }
+    }
+    fiche = lu.payload
+  }
   let produit = null
   let derniere = null
   for (let i = 1; i <= essais; i++) {
     try {
-      produit = await api.importer(lien.url, lien.id)
+      produit = await api.importer(lien.url, lien.id, fiche)
       break
     } catch (err) {
       derniere = err
@@ -84,7 +107,7 @@ function plafondImports(config = {}) {
  *
  * @returns {Promise<{jour: string|null, lus: number, importes: number, echecs: number, sansSolde: boolean, plafondAtteint: boolean, rayons: string[], resultats: object[]}>}
  */
-async function importGroupe({ api, plateformes = [], reseaux = false, plafond, dejaFaits = 0, margeMin = 20, categories = [], essais, pauseEssaiMs, dormir, surProduit = () => {} }) {
+async function importGroupe({ api, plateformes = [], reseaux = false, plafond, dejaFaits = 0, margeMin = 20, categories = [], essais, pauseEssaiMs, dormir, surProduit = () => {}, relever = null }) {
   const restant = Math.max(0, plafond - dejaFaits)
   const bilan = { jour: null, lus: 0, importes: 0, echecs: 0, sansSolde: false, plafondAtteint: restant === 0, rayons: [], resultats: [] }
   if (restant === 0) return bilan
@@ -97,7 +120,7 @@ async function importGroupe({ api, plateformes = [], reseaux = false, plafond, d
       bilan.plafondAtteint = true
       break
     }
-    const r = await traiterLien({ api, lien: { url: produit.url }, plateformes, reseaux, essais, pauseEssaiMs, dormir })
+    const r = await traiterLien({ api, lien: { url: produit.url }, plateformes, reseaux, essais, pauseEssaiMs, dormir, relever })
     surProduit(produit, r)
     bilan.resultats.push({ url: produit.url, statut: r.statut })
     if (r.statut === 'sans_solde') {

@@ -85,6 +85,16 @@ async function main() {
     const sansSolde = await appel('POST', '/import', cleDesk.key, { url: 'https://exemple.test/produit' })
     verifier('import sans solde : 402 « drops », rien n’est débité', sansSolde.statut === 402 && (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits === soldeAvant, JSON.stringify(sansSolde.json))
 
+    // Lien Temu partagé : la fiche arrive lue par le navigateur interne (16/10/2026), le serveur ne va pas chercher la page.
+    await prisma.user.update({ where: { id: user.id }, data: { credits: 100 } })
+    const temu = await appel('POST', '/import', cleDesk.key, {
+      url: 'https://www.temu.com/fr/lampe-g-601099512345678.html',
+      fiche: { title: 'Lampe LED pliable', description: 'Trois intensités, USB-C.', price: 6.5, currency: 'EUR', images: ['https://exemple.test/1.jpg', 'https://exemple.test/2.jpg'], sourceCategory: null },
+    })
+    const produitTemu = temu.json.id ? await prisma.product.findUnique({ where: { id: temu.json.id } }) : null
+    verifier('lien Temu avec sa fiche relevée : importé sans lecture serveur', temu.statut === 201 && produitTemu?.title === 'Lampe LED pliable' && Number(produitTemu?.price) === 6.5, JSON.stringify(temu.json).slice(0, 200))
+    await prisma.user.update({ where: { id: user.id }, data: { credits: 0 } })
+
     const tapisFile = await prisma.product.create({ data: { ...base_, title: 'Plaid', description: 'Un plaid.' } })
     const mise = await appel('POST', '/publications', cleDesk.key, { productId: tapisFile.id, platforms: ['VINTED', 'FACEBOOK'] })
     const enFile = await prisma.publication.findMany({ where: { productId: tapisFile.id } })
