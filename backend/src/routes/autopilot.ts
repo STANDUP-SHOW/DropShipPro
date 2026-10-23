@@ -33,7 +33,7 @@ const DEFAULTS = {
 
 autopilotRouter.get('/', async (req: AuthedRequest, res) => {
   const settings = await prisma.autopilot.findUnique({ where: { userId: req.userId! } })
-  const departements = await prisma.department.findMany({ where: { userId: req.userId! }, select: { id: true, key: true, autoMode: true } })
+  const departements = await prisma.department.findMany({ where: { userId: req.userId! }, select: { id: true, key: true, boost: true } })
   const ctx = await contexteVoies(req.userId!)
 
   res.json({
@@ -74,7 +74,7 @@ autopilotRouter.get('/', async (req: AuthedRequest, res) => {
       // La voie de chaque importable : l'agent de contrôle ne sert qu'à la voie « extension ».
       const voies: Record<VoieImport, number> = { serveur: r.importables - navigateur.length, api: 0, desktop: 0, extension: 0 }
       for (const url of navigateur) voies[voieDe(url, ctx, true)]++
-      return { ...r, voies, parExtension: voies.extension, departmentId: dep?.id ?? null, boost: Boolean(dep?.autoMode) }
+      return { ...r, voies, parExtension: voies.extension, departmentId: dep?.id ?? null, boost: Boolean(dep?.boost) }
     }),
   })
 })
@@ -126,8 +126,9 @@ autopilotRouter.get('/runs', async (req: AuthedRequest, res) => {
 
 /**
  * Les rayons boost : les rayons cochés sont confiés s'ils ne l'étaient pas, et
- * leur AUTO-MODE est levé ; les autres rayons confiés le baissent. Confier un
- * rayon et lever son AUTO-MODE sont gratuits (07/09/2026, 17/09/2026).
+ * marqués boost ; les autres rayons confiés perdent la marque. Gratuit : le
+ * boost ne fait que semer les gagnants des rapports. Il ne touche plus à
+ * l'AUTO-MODE du chef, payant depuis le 23/10/2026 (décision de Max).
  */
 autopilotRouter.put('/rayons', async (req: AuthedRequest, res) => {
   const parsed = z.object({ keys: z.array(z.enum(DEPARTMENT_KEYS as [string, ...string[]])).max(DEPARTMENT_KEYS.length) }).safeParse(req.body)
@@ -137,11 +138,11 @@ autopilotRouter.put('/rayons', async (req: AuthedRequest, res) => {
   const confies = await prisma.department.findMany({ where: { userId: req.userId! } })
   for (const key of voulus) {
     if (confies.some((d) => d.key === key)) continue
-    await prisma.department.create({ data: { userId: req.userId!, key, agentName: findDepartment(key)!.agentName, autoMode: true } })
+    await prisma.department.create({ data: { userId: req.userId!, key, agentName: findDepartment(key)!.agentName, boost: true } })
   }
   for (const d of confies) {
     const boost = voulus.has(d.key)
-    if (d.autoMode !== boost) await prisma.department.update({ where: { id: d.id }, data: { autoMode: boost } })
+    if (d.boost !== boost) await prisma.department.update({ where: { id: d.id }, data: { boost } })
   }
   res.json({ ok: true, boost: [...voulus] })
 })

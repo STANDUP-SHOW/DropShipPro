@@ -146,7 +146,7 @@ async function main() {
 
     console.log('\n2. Le rayon boost et le pilote du vendeur')
     const dep = await prisma.department.create({
-      data: { userId: user.id, key: rayon, agentName: 'Agent de banc', autoMode: true },
+      data: { userId: user.id, key: rayon, agentName: 'Agent de banc', boost: true },
     })
     await prisma.autopilot.create({
       data: {
