@@ -309,6 +309,15 @@ async function lancer({ maison, profil, port, serveur }) {
     const texteReglages = await a.evaluer(`document.body.textContent`)
     assert.match(texteReglages, /Clé API Anthropic/); assert.match(texteReglages, /Clé API Serper/); assert.match(texteReglages, /Clé d’administration du site/)
     assert.match(texteReglages, /Serper Shopping/); assert.match(texteReglages, /crédits Serper avec ces réglages/)
+    const essai = async () => { await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Essai mots-clés').click()`); await pause(800); return a.evaluer(`document.body.textContent`) }
+    const nonBranche = await essai()
+    assert.match(nonBranche, /pas branché Variables Railway manquantes : GOOGLE_ADS_SERVICE_ACCOUNT_JSON, GOOGLE_ADS_CUSTOMER_ID\. Les analyses continuent sans les volumes\./)
+    faux.motsClesConfigure = true
+    const branche = await essai()
+    assert.match(branche, /connecté Appel réel réussi : « coque iphone » = 1\s120 recherches par mois\./)
+    assert.deepEqual(faux.appelsMotsCles.slice(-2).map((x) => x.url), ['/api/admin/mots-cles/etat?essai=1', '/api/admin/mots-cles/etat?essai=1'])
+    faux.motsClesConfigure = false
+    console.log('ok   Réglages : bouton « Essai mots-clés », non branché puis connecté sur un appel réel')
     await a.evaluer(`document.querySelectorAll('#onglets button')[0].click()`)
     console.log('ok   écran : 24 cases à cocher dans « Rapports du jour », réglages Serper visibles')
 

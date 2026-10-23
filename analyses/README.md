@@ -211,6 +211,18 @@ Avant, le Poste reçoit un refus 404 et garde les rapports en attente.
   de développement, qui n'a pas Wine). Pas de signature de code ni de mise à jour automatique.
 - Configuration minimale visée : 8 Go de mémoire et un SSD, à confirmer sur la vraie machine.
 
+## Volumes de recherche Google (0.4.0, 23/10/2026)
+
+Pendant l'analyse d'un rayon, le Poste demande au site (routes `/api/admin/mots-cles`, voir
+`docs/mots-cles-google.md`) le volume mensuel en France des modèles repérés et les recherches
+les plus fréquentes du thème. Ces chiffres entrent dans les preuves du grand appel (section
+« DEMANDE GOOGLE ») puis sont rangés avec chaque produit (`products[].search_demand`, plus
+`search_demand_ideas` pour le thème ; `poste.motsCles` dit ce qui s'est passé). Un chiffre que
+Google ne donne pas reste `null`. Tant que le site n'est pas branché (503 `non-configure`, en
+attendant l'accès Basic de Google), un seul appel par rayon, une ligne au journal, et l'analyse
+continue sans les volumes. Réglages › « Essai mots-clés » fait un vrai appel et dit « connecté »
+seulement s'il réussit.
+
 ## Rien ne s'ouvre seul (0.3.9, 16/10/2026)
 
 L'installeur supprime la tâche « DropShipper Poste d analyses » laissée par une version 0.3.5 ou plus

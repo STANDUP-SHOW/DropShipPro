@@ -161,6 +161,8 @@ function depsRayon(date) {
     serperEtendu: serperEtenduActif(),
     pages: (u) => lirePage(u),
     releves: () => lectureSources(date),
+    // Google keyword volumes go through the site (its Railway variables hold Google's key)
+    appelerAdmin: secret('admin') && cfg.apiBase ? ({ chemin, corps }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: secret('admin'), chemin, corps }) : null,
     journal,
     racine,
   }
@@ -542,6 +544,12 @@ function brancher() {
       if (r.importees === 0 && (r.refusees > 0 || !(r.lignes || []).length)) journal.erreur('Import Google Drive : rien importé', ligne)
       else journal.info('Analyses importées depuis Google Drive', ligne)
     }
+    return r
+  })
+  // Google Keyword Planner through the site: one real call (« connecté » = a real call that worked)
+  h('admin-mots-cles-essai', async () => {
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/mots-cles/etat?essai=1' })
+    journal.info('Essai des mots-clés Google', { configure: r.configure, verifie: r.verifie, manque: (r.manque || []).join(', ') || undefined })
     return r
   })
   // Links of the site footer (facebook, instagram, whatsapp, x, linkedin, snapchat): the site checks them, the Poste only relays

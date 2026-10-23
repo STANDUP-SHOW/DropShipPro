@@ -28,6 +28,7 @@ const { valider, cle: cleUrl } = require('./validation')
 const { rayonMd, marketingMd } = require('./rapports-md')
 const depot = require('./depot')
 const { sectionPreuves } = require('./signaux')
+const { lecteurMotsCles } = require('./mots-cles')
 const { releverSerperEtendu, sectionsPreuvesSerper, urlsVendeurs } = require('./serper-etendu')
 
 const PROMPT_PAR_DEFAUT = path.join(__dirname, '..', 'prompts', 'rayon.md')
@@ -371,6 +372,13 @@ async function executerRayon({ rayon, deps, options = {} }) {
     }
   }
 
+  // ---- Google Keyword Planner volumes (via the site): enrichment, never a reason to fail the rayon
+  const motsCles = deps.appelerAdmin ? lecteurMotsCles({ appeler: deps.appelerAdmin, journal, etiquette }) : null
+  if (motsCles) {
+    await motsCles.mesurer(noms)
+    await motsCles.idees([rayon.libelleTheme, `${rayon.libelleTheme} ${rayon.libelleCategorie}`])
+  }
+
   // ---- connected data sites
   const lectures = (releves ? await releves() : []) || []
 
@@ -391,6 +399,8 @@ async function executerRayon({ rayon, deps, options = {} }) {
   if (questions.length || associees.length) {
     ajouter('# QUESTIONS ET RECHERCHES ASSOCIÉES (Google, France)\n' + (questions.length ? '## Questions posées\n' + questions.map((q) => `- ${q}`).join('\n') + '\n' : '') + (associees.length ? '## Recherches associées\n' + associees.map((q) => `- ${q}`).join('\n') : ''))
   }
+  const blocMotsCles = motsCles ? motsCles.section() : ''
+  if (blocMotsCles) ajouter(blocMotsCles)
   const blocSignaux = sectionPreuves(signaux)
   if (blocSignaux) ajouter(blocSignaux)
   for (const b of sectionsPreuvesSerper(serperPlus)) ajouter(b)
@@ -447,6 +457,10 @@ async function executerRayon({ rayon, deps, options = {} }) {
   Object.defineProperty(rapport, '__categorie', { value: rayon.categorie, enumerable: false })
   Object.defineProperty(rapport, '__theme', { value: rayon.theme, enumerable: false })
 
+  let produitsAvecVolume = 0
+  if (motsCles && Array.isArray(rapport.products)) produitsAvecVolume = await motsCles.ranger(rapport.products)
+  if (motsCles && motsCles.etat.idees.length) rapport.search_demand_ideas = motsCles.etat.idees
+
   const validation = valider(rapport, urlsVues, { imagesVues, urlsFournisseurs })
   if (echecSourcing) { validation.ok = false; validation.problemes.unshift(`vague fournisseurs en échec : ${echecSourcing}`) }
   rapport.poste = {
@@ -458,6 +472,7 @@ async function executerRayon({ rayon, deps, options = {} }) {
     fiches: { avecDonnees: fiches.length, avecImage: avecImage.length, avecPrix: avecPrix.length },
     sourcing: { echec: echecSourcing, sitesRefuses: moteur.domainesRefuses ? moteur.domainesRefuses() : [], offres: offres.length, relances, listesEcartees, avecPrixLu: offres.filter((o) => o.prix).length, plateformes: [...new Set(offres.map((o) => o.plateforme))] },
     serperPlus: serperPlus ? { requetes: serperPlus.requetes, modelesAvecPrix: serperPlus.shopping.filter((x) => x.prixMin !== null).length, modelesAvecImages: serperPlus.images.filter((x) => x.images.length).length, coupe: serperPlus.coupe } : null,
+    motsCles: motsCles ? { statut: motsCles.etat.statut, motif: motsCles.etat.motif, demandes: motsCles.etat.demandes, idees: motsCles.etat.idees.length, produitsAvecVolume } : null,
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),
   }

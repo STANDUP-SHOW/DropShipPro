@@ -528,6 +528,32 @@ function vueAffiliation() {
 }
 
 // ---------------------------------------------------------------- réglages
+// Google keyword volumes come through the site; this card only says whether a real call works.
+const motsCles = { resultat: null, erreur: null, enCours: false }
+async function essayerMotsCles() {
+  motsCles.enCours = true; motsCles.resultat = null; motsCles.erreur = null; rendre()
+  const r = await window.poste.adminMotsClesEssai()
+  motsCles.enCours = false
+  if (r.ok) motsCles.resultat = r.valeur; else motsCles.erreur = r.erreur
+  rendre()
+}
+function blocMotsCles() {
+  const r = motsCles.resultat
+  const ex = r && r.exemple
+  const message = motsCles.erreur ? h('p', { class: 'erreur' }, motsCles.erreur)
+    : !r ? null
+    : !r.configure ? h('p', {}, pastille('pas branché', 'mauvais'), ' Variables Railway manquantes : ', (r.manque || []).join(', '), '. Les analyses continuent sans les volumes.')
+    : r.verifie ? h('p', {}, pastille('connecté', 'bon'), ` Appel réel réussi : « ${ex ? ex.texte : 'coque iphone'} » = ${ex && ex.volumeMensuel !== null ? `${ex.volumeMensuel.toLocaleString('fr-FR')} recherches par mois` : 'volume non communiqué'}.`)
+    : h('p', {}, 'Variables posées, appel réel non fait.')
+  return h('div', { class: 'carte' },
+    h('h2', {}, 'Mots-clés Google (Planificateur Google Ads, via le site)'),
+    h('p', { class: 'doux petit' }, 'Pendant l’analyse d’un rayon, le Poste demande au site le volume de recherche mensuel en France de chaque produit et le range avec lui. Sans branchement, l’analyse continue sans ces chiffres.'),
+    !etat.admin.cle ? h('p', { class: 'doux petit' }, 'Il faut d’abord la clé d’administration (ci-dessus).')
+      : h('div', { class: 'ligne' }, h('button', { class: 'btn', disabled: motsCles.enCours, onclick: essayerMotsCles }, motsCles.enCours ? 'Essai en cours…' : 'Essai mots-clés')),
+    message,
+  )
+}
+
 function vueReglages() {
   const e = etat
   const r = e.reglages
@@ -563,6 +589,7 @@ function vueReglages() {
       cle('anthropic', 'Clé API Anthropic'), avecSerper && cle('serper', 'Clé API Serper'),
       blocCleAdmin(),
     ),
+    blocMotsCles(),
     h('div', { class: 'carte' },
       h('h2', {}, 'Agents'),
       f('modele', 'Modèle Claude', r.modele),

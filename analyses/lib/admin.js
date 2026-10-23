@@ -41,8 +41,11 @@ async function appelerAdmin({ apiBase, cle, chemin, corps, methode, fetchImpl = 
   if (!rep.ok) {
     const raison = (donnees && (donnees.error || donnees.message)) || texte.slice(0, 200) || `HTTP ${rep.status}`
     // 422 = the site refused the data itself and says why in French: shown to Max as it is
-    if (rep.status === 422) throw new Error(raison)
-    throw new Error(`Le site a refusé (${rep.status}) : ${expliquer(rep.status, raison)}`)
+    const motif = (donnees && donnees.motif) || null
+    // 422 = the site refused the data itself and says why in French: shown to Max as it is.
+    // A 503 that names its own motif (Google keywords not configured…) is not the admin key's fault.
+    const message = rep.status === 422 ? raison : `Le site a refusé (${rep.status}) : ${motif ? raison : expliquer(rep.status, raison)}`
+    throw Object.assign(new Error(message), { statut: rep.status, motif })
   }
   if (!donnees || typeof donnees !== 'object') throw new Error(`Réponse du site illisible : ${texte.slice(0, 120)}`)
   return donnees
