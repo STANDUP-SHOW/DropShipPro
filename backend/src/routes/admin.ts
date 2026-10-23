@@ -1,4 +1,4 @@
-import express, { Router, type Request } from 'express'
+import express, { Router, type Request, type Response } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { requireAdminPoste } from '../middleware/adminPoste.js'
@@ -12,6 +12,7 @@ import { lignesPubliques } from './analysesPubliques.js'
 import { sitemapXml } from '../services/analysesPubliques.js'
 import { annoncerAnalyses, enProduction } from '../services/annonceAnalyses.js'
 import { LienRefuse, RESEAUX, ecrireReseaux, lireReseaux } from '../services/reseauxSociaux.js'
+import { MotsClesErreur, ideesMotsCles, motsClesManquants, statutDe, volumesMotsCles } from '../services/motsClesGoogle.js'
 
 /**
  * L'administration générale du site, tenue par le Poste d'analyses seul (voir
@@ -242,3 +243,52 @@ adminRouter.post(
     res.status(201).json({ ...depot, adressesPubliques: adresses })
   },
 )
+
+/**
+ * Le Planificateur de mots-clés Google (services/motsClesGoogle.ts), pour les analyses
+ * du Poste : volume de recherche en France, tendance sur 12 mois, concurrence.
+ * Demandé par Max le 23/10/2026. Sans les variables Railway : 503 avec ce qui manque,
+ * et le Poste continue sans ces chiffres.
+ */
+function repondreErreurMotsCles(res: Response, err: unknown, quoi: string) {
+  if (err instanceof MotsClesErreur) return res.status(statutDe(err)).json({ error: err.message, motif: err.motif })
+  console.error(quoi, err)
+  res.status(500).json({ error: `${quoi} : ${err instanceof Error ? err.message : String(err)}`, motif: 'interne' })
+}
+
+/** État du branchement ; `?essai=1` fait un vrai appel (« connecté » = un appel réel réussi). */
+adminRouter.get('/mots-cles/etat', async (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  const manque = motsClesManquants()
+  if (manque.length || req.query.essai !== '1') return res.json({ configure: !manque.length, manque, verifie: false })
+  try {
+    const r = await volumesMotsCles(['coque iphone'])
+    res.json({ configure: true, manque, verifie: true, exemple: r.motsCles[0] ?? null })
+  } catch (err) {
+    repondreErreurMotsCles(res, err, 'essai du Planificateur de mots-clés')
+  }
+})
+
+/** { motsCles: string[] } → volumes, tendance et concurrence de ces mots-clés exacts. */
+adminRouter.post('/mots-cles', async (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  const liste = req.body?.motsCles
+  if (!Array.isArray(liste) || !liste.length) return res.status(400).json({ error: 'Envoyez { motsCles: ["…", …] }.' })
+  try {
+    res.json(await volumesMotsCles(liste))
+  } catch (err) {
+    repondreErreurMotsCles(res, err, 'volumes des mots-clés')
+  }
+})
+
+/** { graines: string[], limite?: number } → idées de mots-clés, triées par volume. */
+adminRouter.post('/mots-cles/idees', async (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  const graines = req.body?.graines
+  if (!Array.isArray(graines) || !graines.length) return res.status(400).json({ error: 'Envoyez { graines: ["…", …], limite?: 50 }.' })
+  try {
+    res.json(await ideesMotsCles(graines, req.body?.limite))
+  } catch (err) {
+    repondreErreurMotsCles(res, err, 'idées de mots-clés')
+  }
+})
