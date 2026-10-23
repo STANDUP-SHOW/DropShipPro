@@ -50,7 +50,7 @@ const ACTIONS: Array<{ cle: string; label: string; detail: string }> = [
   { cle: 'autoShipperJour', label: 'AUTO-SHIPPER IA (la journée, 1 €)', detail: 'Une tournée par 24 h : analyse, relevé, import, annonces, publications, back-office — vous ne faites rien. Jusqu’à 10 produits par rayon boost et par jour, soit 230 au plus sur les 23 rayons.' },
   { cle: 'autoShipperImport', label: 'AUTO-SHIPPER IA (un produit)', detail: 'Importé et publié automatiquement : agent + annonce' },
   { cle: 'autoShipperControle', label: 'AUTO-SHIPPER IA — agent de contrôle (par annonce, optionnel)', detail: 'Vérifie les photos des produits importés par l’extension ; inutile par l’application desktop ou un catalogue connecté' },
-  { cle: 'autoModePassage', label: 'AUTO-MODE d’un chef de rayon', detail: 'Analyses et produits gagnants quotidiens — gratuit' },
+  { cle: 'autoModePassage', label: 'AUTO-MODE d’un chef de rayon', detail: 'Par passage, deux par jour et par rayon activé : une analyse de marché sourcée et ses produits gagnants ; rendu si le passage échoue' },
   { cle: 'boutiqueCreation', label: 'DropShop IA — création de boutique (5 €, une seule fois, à vie)', detail: 'L’IA écrit votre boutique : design unique, responsive, panier, emails, Stripe pré-branché, hébergement et modifications à volonté' },
   { cle: 'boutiqueModification', label: 'DropShop IA — modification', detail: 'À volonté, comprise dans la création : une demande, appliquée et vérifiée' },
   { cle: 'extensionBackOffice', label: 'Extension Back Office (une boutique)', detail: 'Une administration indépendante à l’adresse de la boutique, avec identifiant et mot de passe' },

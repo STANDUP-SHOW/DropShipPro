@@ -56,12 +56,13 @@ export const DROPS = {
   /** Créer une publicité (accroche + visuel composé). ~0,035 €. */
   pub: 20,
   /**
-   * AUTO-MODE d'un chef de rayon : GRATUIT depuis le 17/09/2026. Les analyses de
-   * marché et les produits gagnants viennent des 48 agents locaux
-   * (MARKET-ANALYSES/), qui ne coûtent rien ; le chef reste en mode auto sans
-   * frais d'activation. La clé reste pour l'écran et pour les bancs.
+   * AUTO-MODE d'un chef de rayon, PAR PASSAGE (deux par jour et par rayon
+   * activé). Gratuit du 17/09 au 23/10/2026 ; redevenu payant sur décision de
+   * Max le 23/10/2026, parce qu'un passage gratuit se payait sur sa clé : 2-3
+   * appels Sonnet 5 + jusqu'à 6 recherches web ≈ 0,23 € (estimé sur le code,
+   * pas mesuré) → 115. Rendu si le passage échoue (autoAnalyste.ts).
    */
-  autoModePassage: 0,
+  autoModePassage: 115,
   /**
    * L'agent extension : relève UNE fiche fournisseur dans le navigateur du
    * vendeur (file d'import servie par le serveur, exécutée par l'extension), puis
