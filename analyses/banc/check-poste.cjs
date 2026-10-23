@@ -528,6 +528,44 @@ test('administration : la clé du Poste, son empreinte, et les refus du site dit
   assert.equal((await adminLib.appelerAdmin({ apiBase: base + '/', cle, chemin: '/utilisateurs' })).total, 2)
 })
 
+test('mots-clés Google : non branchés (503) = le rayon continue sans volumes, un seul appel', async (srv) => {
+  const m = monde(srv); remise(); etat.empreinteSite = adminLib.empreinte(CLE_ADMIN)
+  const base = `http://127.0.0.1:${srv.address().port}`
+  const appelerAdmin = ({ chemin, corps }) => adminLib.appelerAdmin({ apiBase: base, cle: CLE_ADMIN, chemin, corps })
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, appelerAdmin }, options: {} })
+  assert.equal(res.statut, 'ok', 'un 503 ne casse rien')
+  assert.equal(etat.appelsMotsCles.length, 1, 'après le premier refus, plus aucun appel pour ce rayon')
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.ok(j.products.every((p) => !p.search_demand)); assert.equal(j.search_demand_ideas, undefined)
+  assert.deepEqual({ statut: j.poste.motsCles.statut, motif: j.poste.motsCles.motif }, { statut: 'non-configure', motif: 'non-configure' })
+  // the admin-key explanation is not glued to a refusal that names its own motif
+  const err = await appelerAdmin({ chemin: '/mots-cles', corps: { motsCles: ['x'] } }).catch((e) => e)
+  assert.equal(err.statut, 503); assert.equal(err.motif, 'non-configure'); assert.ok(!/POSTE_ADMIN_SHA256/.test(err.message), err.message)
+})
+
+test('mots-clés Google : branchés = volumes rangés avec chaque produit, preuve donnée au grand appel, null gardé', async (srv) => {
+  const m = monde(srv); remise(); etat.empreinteSite = adminLib.empreinte(CLE_ADMIN); etat.motsClesConfigure = true
+  const base = `http://127.0.0.1:${srv.address().port}`
+  const appelerAdmin = ({ chemin, corps }) => adminLib.appelerAdmin({ apiBase: base, cle: CLE_ADMIN, chemin, corps })
+  const res = await executerRayon({ rayon: m.rayon, deps: { ...m.deps, appelerAdmin }, options: {} })
+  assert.equal(res.statut, 'ok')
+  const chemins = etat.appelsMotsCles.map((a) => a.url)
+  assert.deepEqual(chemins.slice(0, 2), ['/api/admin/mots-cles', '/api/admin/mots-cles/idees'], 'modèles puis idées, avant le grand appel')
+  assert.ok(etat.appelsMotsCles.every((a) => (a.corps.motsCles || a.corps.graines).every((k) => k === k.toLowerCase() && k.length <= 80)))
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  assert.equal(j.products.filter((p) => p.search_demand && p.search_demand.monthly_searches > 0).length, 20, 'les 20 produits ont leur volume')
+  assert.equal(j.products[0].search_demand.source, 'google_keyword_planner')
+  assert.ok(j.search_demand_ideas.length >= 2)
+  assert.equal(j.poste.motsCles.produitsAvecVolume, 20)
+  assert.match(etat.dernierUtilisateur || '', /# DEMANDE GOOGLE/, 'les volumes sont donnés au grand appel comme preuve')
+  const { lecteurMotsCles, motCleDe } = lib('mots-cles')
+  assert.equal(motCleDe('Coque iPhone 16 — MagSafe, transparente !'), 'coque iphone 16 magsafe transparente')
+  assert.ok(motCleDe('a '.repeat(30)).split(' ').length <= 10)
+  const l = lecteurMotsCles({ appeler: async () => ({ motsCles: [{ texte: 'modèle introuvable', volumeMensuel: null }] }), journal: m.journal, etiquette: 't' })
+  const produits = [{ product_name: 'Modèle introuvable' }]
+  assert.equal(await l.ranger(produits), 0); assert.strictEqual(produits[0].search_demand.monthly_searches, null, 'un chiffre absent reste null, jamais 0')
+})
+
 test('envoi au site : le refus du site est dit en clair, une panne ne perd rien', async (srv) => {
   const m = monde(srv); remise(); etat.empreinteSite = adminLib.empreinte(CLE_ADMIN)
   const base = `http://127.0.0.1:${srv.address().port}`

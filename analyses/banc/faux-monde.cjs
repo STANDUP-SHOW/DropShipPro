@@ -81,6 +81,19 @@ function creerServeur() {
             if ((dates || []).includes('2026-10-12')) return json(200, { essai: Boolean(essai), importees: 0, aImporter: 0, doublons: 0, refusees: 1, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-12', rayon: 'mode / sacs', statut: 'refuse', raison: 'marketing seul, sans .rayon.md' }], ignores: [{ date: '2026-10-12', nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] })
             return json(200, { essai: Boolean(essai), importees: essai ? 0 : 1, aImporter: essai ? 1 : 0, doublons: 0, refusees: 0, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-08', rayon: 'jardin / arrosage', statut: essai ? 'apercu' : 'importe', produits: 12, urlsDistinctes: 8, avecPrix: 1, marketing: true }], ignores: [] })
           }
+          if (req.url.startsWith('/api/admin/mots-cles')) {
+            // contract of backend/src/routes/admin.ts (#148); unconfigured by default, as in production until Google's Basic access
+            etat.appelsMotsCles = (etat.appelsMotsCles || []).concat([{ url: req.url, corps: corps ? JSON.parse(corps) : null }])
+            const ligne = (texte) => ({ texte, volumeMensuel: /introuvable/.test(texte) ? null : 1000 + texte.length * 10, concurrence: 'HIGH', indiceConcurrence: 80, evolution3Mois: 25, enchereBasse: 0.4, enchereHaute: 1.2, tendance: [{ mois: '2026-09', recherches: 1200 }] })
+            if (!etat.motsClesConfigure) {
+              if (req.url.startsWith('/api/admin/mots-cles/etat')) return json(200, { configure: false, manque: ['GOOGLE_ADS_SERVICE_ACCOUNT_JSON', 'GOOGLE_ADS_CUSTOMER_ID'], verifie: false })
+              return json(503, { error: "Le Planificateur de mots-clés Google n'est pas branché : variable(s) Railway manquante(s) GOOGLE_ADS_SERVICE_ACCOUNT_JSON, GOOGLE_ADS_CUSTOMER_ID.", motif: 'non-configure' })
+            }
+            if (req.url.startsWith('/api/admin/mots-cles/etat')) return json(200, req.url.includes('essai=1') ? { configure: true, manque: [], verifie: true, exemple: ligne('coque iphone') } : { configure: true, manque: [], verifie: false })
+            const d = JSON.parse(corps || '{}')
+            if (req.url === '/api/admin/mots-cles') return json(200, { motsCles: (d.motsCles || []).map(ligne), refus: [] })
+            if (req.url === '/api/admin/mots-cles/idees') return json(200, { motsCles: (d.graines || []).flatMap((g) => [ligne(g), ligne(g + ' pas cher')]).slice(0, d.limite || 50), refus: [] })
+          }
           if (req.url === '/api/admin/reseaux-sociaux') {
             // contract of the real route (fil Refonte, 12/10): https, host per network, unknown key refused, "" or null removes
             const HOTES = { facebook: ['facebook.com'], instagram: ['instagram.com'], whatsapp: ['wa.me', 'whatsapp.com'], x: ['x.com', 'twitter.com'], linkedin: ['linkedin.com'], snapchat: ['snapchat.com'] }
@@ -175,6 +188,7 @@ function creerServeur() {
         if (req.url === '/v1/messages') {
           etat.claude++
           const j = JSON.parse(corps)
+          if (!(Array.isArray(j.tools) && j.tools.length)) etat.dernierUtilisateur = JSON.stringify(j.messages || [])
           if (!etat.creditsClaude) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } })) }
           assert.equal(j.output_config && j.output_config.effort !== undefined, true, 'output_config.effort doit être posé')
           if (Array.isArray(j.tools) && j.tools.some((t) => t.name === 'web_search')) {
@@ -255,6 +269,6 @@ function creerServeur() {
 }
 
 
-function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0, domainesRecherche: [], refusDomaines: 0 }) }
+function remise() { Object.assign(etat, { serper: 0, claude: 0, creditsSerper: true, creditsClaude: true, mode: 'bon', requetesSerper: [], pubs: [], tendances: [], shopping: [], autocomplete: [], images: [], envoyes: [], recherchesWeb: [], appelsRecherche: 0, domainesRecherche: [], refusDomaines: 0, motsClesConfigure: false, appelsMotsCles: [] }) }
 
 module.exports = { etat, creerServeur, remise }
