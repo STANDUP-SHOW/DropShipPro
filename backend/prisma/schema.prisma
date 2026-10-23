@@ -1023,9 +1023,10 @@ model Department {
   /// Le mode automatique : toutes les douze heures, une analyse de marche et
   /// dix produits gagnants. Inclus dans le salaire du chef.
   autoMode  Boolean @default(false)
-  /// Rayon boost d'AUTO-SHIPPER (23/10/2026) : reçoit les gagnants des rapports
-  /// (autoShipperRayons.semerGagnants), sans appel au modèle, gratuit. Séparé
-  /// d'autoMode, qui fait écrire une analyse payante par le chef.
+  /// Rayon SÉLECTIONNÉ dans AUTO-SHIPPER (23/10/2026, nom historique « boost ») :
+  /// reçoit les gagnants publics des rapports (semerGagnants), gratuit, et seuls
+  /// ses gagnants sont importés. Le vrai « boost » au sens de Max est autoMode :
+  /// l'analyse personnelle du chef, payante à chaque passage.
   boost     Boolean @default(false)
   /// Fin de l abonnement. Passee cette date l agent ne travaille plus, mais ses
   /// trouvailles restent : le vendeur peut le reprendre sans rien perdre.

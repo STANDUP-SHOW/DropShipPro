@@ -60,6 +60,7 @@ import Deliveries from './pages/Deliveries'
 import Rayon from './pages/Rayon'
 import RayonsBoost from './pages/RayonsBoost'
 import Guide from './pages/Guide'
+import ComprendreRayons from './pages/ComprendreRayons'
 import Newsletter from './pages/Newsletter'
 import Partager from './pages/Partager'
 import ConnexionDesktop, { connexionDesktopEnAttente } from './pages/ConnexionDesktop'
@@ -185,6 +186,7 @@ export default function App() {
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/guide" element={<Protected><Guide /></Protected>} />
+          <Route path="/comprendre-les-rayons" element={<Protected><ComprendreRayons /></Protected>} />
           <Route path="/settings" element={<Protected><Settings /></Protected>} />
           <Route path="/mes-sites" element={<Protected><MySites /></Protected>} />
           <Route path="/fournisseurs" element={<Protected><Suppliers /></Protected>} />

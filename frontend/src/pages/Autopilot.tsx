@@ -181,7 +181,7 @@ const jourCourt = (j: string | null) => (j ? new Date(`${j}T12:00:00Z`).toLocale
  * Auto-SHIPPER IA — le pilote automatique, en cases (maquette dictée par Max le 14/10/2026).
  *
  * Dans l'ordre : l'agent se présente ; ses agents en mode auto et l'agent de
- * contrôle à sa droite ; le choix des rayons boost ; le curseur des produits
+ * contrôle à sa droite ; le choix des rayons sélectionnés ; le curseur des produits
  * par rayon ; le calcul et le gros bouton d'activation. Les réglages fins, le
  * journal et les mises en garde restent en bas. Tous les tarifs viennent de
  * GET /autopilot (services/tarifs.ts), jamais écrits ici.
@@ -327,7 +327,7 @@ export default function Autopilot() {
     agir('rayons', async () => {
       await api.saveRayonsBoost(choix)
       await charger()
-      return choix.length ? `${choix.length} rayon(s) boost activé(s)` : 'Plus aucun rayon boost'
+      return choix.length ? `${choix.length} rayon(s) sélectionné(s)` : 'Plus aucun rayon sélectionné'
     })
 
   const activer = () =>
@@ -374,7 +374,7 @@ export default function Autopilot() {
           </p>
           <ul className="mt-3 space-y-2 text-sm text-[var(--texte-2)]">
             {[
-              'je reprends les produits gagnants des analyses de tes rayons boost ;',
+              'je reprends les produits gagnants des rayons que tu sélectionnes : ceux offerts par DropShipper, et ceux de ton chef si tu as aussi boosté le rayon ;',
               "je lis la fiche du fournisseur, je réécris toute l'annonce avec l'IA, je récupère les photos du produit, je pose la catégorie et le SEO ;",
               'je fixe le prix de vente au prix constaté sur le marché, et j’écarte ce qui ne tient pas ta marge minimale ;',
               "je publie sur tes plateformes reliées, et je mets en file Vinted, Leboncoin et Facebook pour l'application desktop ;",
@@ -464,14 +464,15 @@ export default function Autopilot() {
           </label>
         </Bloc>
 
-        {/* ---------- 3. Les rayons boost ---------- */}
-        <Bloc titre="Mes rayons boost" className="lg:col-span-2">
+        {/* ---------- 3. Les rayons sélectionnés ---------- */}
+        <Bloc titre="Mes rayons sélectionnés" className="lg:col-span-2">
           <p className="text-sm leading-relaxed text-[var(--texte-2)]">
             {`Pour chaque rayon, une analyse de marché et une analyse marketing des réseaux sociaux sont réalisées. De ces analyses, 20 produits gagnants sont proposés chaque jour ; parmi eux, jusqu'à ${config.importablesParRayon} sont importables directement par Auto-SHIPPER IA dans tes annonces. L'import comprend la lecture de l'annonce du fournisseur, sa réécriture intégrale par l'IA, la récupération des photos du produit, l'adaptation aux places de marché, le SEO et la catégorie.`}
           </p>
           <p className="mt-2 text-sm text-[var(--texte-2)]">
-            Coche tes rayons et active-les : ils deviennent des <b className="text-[var(--texte)]">rayons boost</b>, dont les produits sont ajoutés
-            automatiquement d'après les analyses.
+            Coche tes rayons et active-les : leurs produits gagnants sont ajoutés automatiquement d'après les analyses offertes par DropShipper.
+            Si tu <b className="text-[var(--texte)]">boostes</b> aussi un rayon, les produits gagnants de ton chef de rayon s'y ajoutent.{' '}
+            <Link to="/comprendre-les-rayons" className="underline">Comprendre la différence</Link>
           </p>
 
           <div className="mt-4">
@@ -519,9 +520,9 @@ export default function Autopilot() {
               disabled={choixEnregistre || occupe === 'rayons'}
               className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
-              {occupe === 'rayons' ? 'Activation…' : choixEnregistre ? 'Rayons boost à jour' : 'Activer'}
+              {occupe === 'rayons' ? 'Activation…' : choixEnregistre ? 'Rayons à jour' : 'Activer'}
             </button>
-            <span className="text-xs text-[var(--texte-3)]">Confier un rayon et le passer en boost est gratuit.</span>
+            <span className="text-xs text-[var(--texte-3)]">Sélectionner un rayon est gratuit. Le booster (analyse de ton chef) se paie à chaque passage.</span>
           </div>
         </Bloc>
 
@@ -730,7 +731,7 @@ export default function Autopilot() {
                 {!lignes.length && (
                   <tr className="border-b border-[var(--trait)]">
                     <td colSpan={4} className="py-3 text-center text-xs text-[var(--texte-3)]">
-                      Coche au moins un rayon boost pour composer ta journée.
+                      Coche au moins un rayon pour composer ta journée.
                     </td>
                   </tr>
                 )}
