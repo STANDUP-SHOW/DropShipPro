@@ -89,15 +89,19 @@ export async function runAutopilot(userId: string): Promise<RunResult> {
     return result
   }
 
-  // Les gagnants du jour des rayons boost (rapports des agents) rejoignent la liste.
+  // Les gagnants publics du jour des rayons sélectionnés (rapports des agents) rejoignent la liste.
   const semes = await semerGagnants(userId).catch((err) => {
     console.error('auto-shipper : gagnants des rapports non repris', err instanceof Error ? err.message : err)
     return 0
   })
-  if (semes) log.push({ titre: '—', action: 'importé', raison: `${semes} produit(s) gagnant(s) des rayons boost ajouté(s) à la liste` })
+  if (semes) log.push({ titre: '—', action: 'importé', raison: `${semes} produit(s) gagnant(s) des rayons sélectionnés ajouté(s) à la liste` })
 
+  // Only the rayons the seller selected (Department.boost) feed the day (Max,
+  // 23/10/2026): their public winners, plus the winners of their own chef
+  // when the seller also boosts that rayon (paid AUTO-MODE or extraction).
+  const selection = await prisma.department.findMany({ where: { userId, boost: true }, select: { id: true } })
   const candidates = await prisma.opportunity.findMany({
-    where: { userId, status: 'NEW' },
+    where: { userId, status: 'NEW', departmentId: { in: selection.map((d) => d.id) } },
     orderBy: { detectedAt: 'desc' },
     // 23 rayons × 10 gagnants = 230 au plus par jour (16/10/2026) : lire au-delà, sans quoi
     // la liste tronquée plafonnerait la journée sous ce que le site annonce.

@@ -72,8 +72,10 @@ async function compte(etiquette: string, desktop: boolean) {
   await prisma.autopilot.create({
     data: { userId: user.id, enabled: true, dailyLimit: 10, produitsParRayon: 10, autoPublish: false, destinations: [], minMargin: 0, requireEuStock: false, controleAgent: true },
   })
+  // Only selected rayons feed the pilot (23/10/2026).
+  const rayon = await prisma.department.create({ data: { userId: user.id, key: 'electronique', agentName: 'Banc', boost: true } })
   const opp = (url: string, title: string) =>
-    prisma.opportunity.create({ data: { userId: user.id, source: 'banc', sourceUrl: url, title, sourcePrice: 5, marketPrice: 20, currency: 'EUR', isNew: true } })
+    prisma.opportunity.create({ data: { userId: user.id, departmentId: rayon.id, source: 'banc', sourceUrl: url, title, sourcePrice: 5, marketPrice: 20, currency: 'EUR', isNew: true } })
   await opp('https://www.temu.com/fr/lampe-g-601099512345678.html', 'Lampe LED pliable')
   await opp('https://fr.shein.com/robe-p-123456.html', 'Robe d’été')
   return user

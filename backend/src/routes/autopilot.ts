@@ -125,10 +125,11 @@ autopilotRouter.get('/runs', async (req: AuthedRequest, res) => {
 })
 
 /**
- * Les rayons boost : les rayons cochés sont confiés s'ils ne l'étaient pas, et
- * marqués boost ; les autres rayons confiés perdent la marque. Gratuit : le
- * boost ne fait que semer les gagnants des rapports. Il ne touche plus à
- * l'AUTO-MODE du chef, payant depuis le 23/10/2026 (décision de Max).
+ * Les rayons sélectionnés d'AUTO-SHIPPER : les rayons cochés sont confiés s'ils
+ * ne l'étaient pas, et marqués (colonne `boost`, nom historique) ; les autres
+ * perdent la marque. Gratuit : la sélection ne fait que reprendre les gagnants
+ * publics des rapports. Booster un rayon, c'est autre chose : l'analyse
+ * personnelle du chef (AUTO-MODE), payante à chaque passage (Max, 23/10/2026).
  */
 autopilotRouter.put('/rayons', async (req: AuthedRequest, res) => {
   const parsed = z.object({ keys: z.array(z.enum(DEPARTMENT_KEYS as [string, ...string[]])).max(DEPARTMENT_KEYS.length) }).safeParse(req.body)
