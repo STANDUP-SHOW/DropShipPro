@@ -301,6 +301,15 @@ export async function passageAutoMode(
   return { rapportId: rapport.id, gagnants: count }
 }
 
+/*
+ * Failed passages, by department: a passage that fails writes no report, so the
+ * eleven-hour guard below never closes and the 3-hour wake retried it eight
+ * times a day — each time paying the web searches on our key (23/10/2026).
+ * In memory on purpose: a redeploy forgets it, which costs at most one retry.
+ */
+const echecsRecents = new Map<string, number>()
+const PAUSE_APRES_ECHEC = 11 * 3600 * 1000
+
 /** Vrai si le rayon a déjà eu son passage dans les onze dernières heures. */
 async function dejaServi(depId: string): Promise<boolean> {
   const recent = await prisma.report.findFirst({
@@ -344,6 +353,8 @@ export async function tourneeAutoMode(
   let dejaUnPassage = false
   for (const dep of rayons) {
     if (await dejaServi(dep.id)) continue
+    const echec = echecsRecents.get(dep.id)
+    if (echec && Date.now() - echec < PAUSE_APRES_ECHEC) continue
 
     // Le passage se paie d'avance ; sans drops, le rayon est sauté (rien n'est
     // consigné, la garde des onze heures ne se déclenche pas, il retentera).
@@ -362,6 +373,7 @@ export async function tourneeAutoMode(
       // Rien produit : les drops du passage sont rendus. Un rayon en échec ne
       // prive pas les autres ; l'échec se relit ici.
       await refundCredits(dep.userId, DROPS.autoModePassage).catch(() => undefined)
+      echecsRecents.set(dep.id, Date.now())
       console.error(`auto-mode en échec pour ${dep.agentName} (${dep.id})`, err instanceof Error ? err.message : err)
     }
   }
