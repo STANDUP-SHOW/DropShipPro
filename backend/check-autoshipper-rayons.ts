@@ -48,8 +48,8 @@ async function main() {
   const user = await prisma.user.create({ data: { email: `banc-as-rayons-${Date.now()}@example.com`, passwordHash: 'x', credits: 0 } })
   try {
     const autre = DEPARTMENTS.find((d) => d.key !== plein.key)!
-    const boost = await prisma.department.create({ data: { userId: user.id, key: plein.key, agentName: 'Banc', autoMode: true } })
-    await prisma.department.create({ data: { userId: user.id, key: autre.key, agentName: 'Banc 2', autoMode: false } })
+    const boost = await prisma.department.create({ data: { userId: user.id, key: plein.key, agentName: 'Banc', boost: true } })
+    await prisma.department.create({ data: { userId: user.id, key: autre.key, agentName: 'Banc 2', boost: false } })
 
     const n1 = await semerGagnants(user.id, q)
     verifier('le rayon boost reçoit ses importables', n1 === g.importables.length, `${n1} sur ${g.importables.length}`)

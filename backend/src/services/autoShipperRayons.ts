@@ -123,7 +123,7 @@ export function rayonsAutoShipper(q: ReportQuery | null = baseRapports()) {
  * product is never offered twice.
  */
 export async function semerGagnants(userId: string, q: ReportQuery | null = baseRapports()): Promise<number> {
-  const rayons = await prisma.department.findMany({ where: { userId, autoMode: true } })
+  const rayons = await prisma.department.findMany({ where: { userId, boost: true } })
   let semes = 0
   for (const dep of rayons) {
     const g = gagnantsDuRayon(dep.key, q)
