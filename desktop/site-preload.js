@@ -56,4 +56,25 @@ if (estLeSite) {
       return () => ipcRenderer.removeListener('power:etat', f)
     },
   })
+
+  // Comme l'ancienne barre : un lien glissé sur la fenêtre rejoint la liste à importer, au lieu
+  // d'ouvrir la fiche à la place du site. Seulement un lien (pas de fichier), et seulement si la
+  // page ne l'a pas déjà pris (zone de dépôt d'image, par exemple).
+  const lienGlisse = (e) => {
+    const dt = e.dataTransfer
+    if (!dt || (dt.files && dt.files.length)) return ''
+    const texte = dt.getData('text/uri-list') || dt.getData('text/plain') || ''
+    const url = texte.split(/\s+/).find((l) => /^https?:\/\//i.test(l)) || ''
+    return url
+  }
+  window.addEventListener('dragover', (e) => {
+    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('text/uri-list')) e.preventDefault()
+  })
+  window.addEventListener('drop', (e) => {
+    if (e.defaultPrevented) return
+    const url = lienGlisse(e)
+    if (!url) return
+    e.preventDefault()
+    appel('power:partager', url)
+  })
 }
