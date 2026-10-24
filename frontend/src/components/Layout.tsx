@@ -8,6 +8,7 @@ import { BoutonTheme } from './BoutonTheme'
 import { BandeauJauges } from './BandeauJauges'
 import { BandeauNotifications } from './BandeauNotifications'
 import { PastilleNotif } from './PastilleNotif'
+import { MenuPoste } from './desktop/MenuPoste'
 import { GROUPES, PAGES, RAYONS_BOOST, entreeActive, pageCourante, type GroupeMenu } from './menuEspace'
 import { SECTION_PAR_ADRESSE, titreNouveautes, useNouveautes } from '../lib/nouveautes'
 import { useAuth } from '../lib/auth'
@@ -366,6 +367,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                         </Link>
                       )
                     })}
+                    {groupe.id === 'desktop' ? <MenuPoste /> : null}
                   </div>
                 ) : null}
               </div>

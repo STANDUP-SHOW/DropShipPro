@@ -53,13 +53,16 @@ export interface EtatDesktop {
 type Zone = { x: number; y: number; width: number; height: number }
 type Resultat = { ok: boolean; erreur?: string }
 
+/** Les panneaux locaux de l'application (desktop/renderer/index.html). */
+export type SectionPanneau = 'auto' | 'partages' | 'achats' | 'publication' | 'journal'
+
 export interface PontDesktop {
   version: string
   etat(): Promise<EtatDesktop>
   partager(url: string): Promise<Resultat>
   importer(lien: { url: string; id?: string }): Promise<Resultat & { productId?: string | null }>
   capture(actif: boolean): Promise<EtatDesktop>
-  panneau(section: 'partages' | 'achats' | 'publication' | 'journal'): Promise<Resultat>
+  panneau(section: SectionPanneau): Promise<Resultat>
   accorder(id: string): Promise<unknown>
   retirerAccord(id: string): Promise<unknown>
   reprendre(id: string): Promise<unknown>
