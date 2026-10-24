@@ -91,6 +91,11 @@ async function lancer({ maison, profil, port, serveur }) {
     for (let i = 0; i < 50 && !(await a.evaluer(`document.querySelectorAll('#onglets button').length`)); i++) await pause(200)
     const ecran = await a.evaluer(`JSON.stringify({ onglets: [...document.querySelectorAll('#onglets button')].map((b) => b.textContent), titre: document.querySelector('h1') && document.querySelector('h1').textContent })`)
     const ec = JSON.parse(ecran)
+    if (!ec.onglets.length) {
+      // say why the menu is empty instead of a bare deepEqual
+      const diag = await a.evaluer(`(async () => { try { if (typeof etat === 'undefined' || !etat) etat = (await window.poste.etat()).valeur; rendre(); return 'rendu sans erreur, boutons : ' + document.querySelectorAll('#onglets button').length } catch (e) { return 'rendre() lève : ' + (e && e.stack || e) } })()`)
+      console.log('diag menu vide :', diag, '| corps :', JSON.stringify((await a.evaluer(`document.body.innerText.slice(0, 400)`)) || ''))
+    }
     // a new install of KANTIX ANALYSER: its own menu, the DropShipper connector not connected yet
     assert.deepEqual(ec.onglets, ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal'])
     assert.equal(e0.nom, 'KANTIX ANALYSER'); assert.equal(e0.kantix.connecteurs.dropshipper.actif, false); assert.equal(e0.kantix.fournisseurs.length, 11)

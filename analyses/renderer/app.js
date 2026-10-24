@@ -582,6 +582,7 @@ function vueJournal() {
 
 // ---------------------------------------------------------------- cadre
 function rendre() {
+  if (typeof GROUPES_MENU === 'undefined') return // an 'etat' push before kantix.js has loaded
   const barre = document.getElementById('onglets')
   const groupes = etat ? GROUPES_MENU.filter((g) => !g.si || g.si(etat)) : []
   // a page of a connector that was switched off falls back on the analyses
@@ -605,4 +606,5 @@ window.poste.sur('etat', (e) => {
 })
 window.poste.sur('progression', (p) => { if (etat) { etat.nuit.progression = p; if (onglet === 'accueil') rendre() } })
 window.poste.sur('nav', ({ url }) => { const c = document.getElementById('url-nav'); if (c) c.value = url })
-;(async () => { etat = await appel('etat'); rendre() })()
+// kantix.js (menu, pages) loads after this file: the first render waits for every script
+window.addEventListener('DOMContentLoaded', async () => { etat = await appel('etat'); rendre() })
