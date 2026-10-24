@@ -484,6 +484,24 @@ async function main() {
     verifier('scripts de lecture de l’extension copiés pour l’application', [...extraction.SCRIPTS, extraction.SCRIPT_PAGE].every((n) => fs.existsSync(path.join(extraction.DOSSIER, n))))
   }
 
+  console.log('\nDESKTOP POWER (lib/power.js)')
+  const pw = require('./lib/power')
+  const SITE = 'https://www.drop-shipper.fr'
+  verifier('pont : seule une page du site', pw.origineSure(`${SITE}/webshipper`, SITE) && !pw.origineSure('https://www.drop-shipper.fr.evil.test/', SITE) && !pw.origineSure('file:///C:/x', SITE))
+  verifier('barre d’adresse : domaine nu complété', pw.adresseNavigateur('temu.com', SITE) === 'https://temu.com/')
+  verifier('barre d’adresse : des mots cherchés sur Google', pw.adresseNavigateur('mini pc', SITE) === 'https://www.google.com/search?q=mini%20pc')
+  verifier('barre d’adresse : javascript:, file: et le site lui-même refusés', !pw.adresseNavigateur('javascript:alert(1)', SITE) && !pw.adresseNavigateur('file:///C:/a', SITE) && !pw.adresseNavigateur(`${SITE}/settings`, SITE))
+  verifier('profil : jamais une partition inventée', pw.profil('webshipper').partition === 'persist:webshipper' && pw.profil('VINTED').partition === 'persist:vinted' && pw.profil('persist:site') === null && pw.profil('__proto__') === null)
+  const z = pw.zoneSure({ x: -10, y: 50, width: 900, height: 2000 }, { largeur: 800, hauteur: 600, zoom: 1 })
+  verifier('emplacement rogné à la fenêtre', z && z.x === 0 && z.width === 800 && z.height === 550, JSON.stringify(z))
+  verifier('emplacement minuscule ou illisible = caché', pw.zoneSure({ x: 0, y: 0, width: 10, height: 10 }, { largeur: 800, hauteur: 600 }) === null && pw.zoneSure({ x: 'a' }, { largeur: 800, hauteur: 600 }) === null)
+  verifier('zoom de la page appliqué', pw.zoneSure({ x: 10, y: 10, width: 100, height: 100 }, { largeur: 800, hauteur: 600, zoom: 1.25 }).width === 125)
+  verifier('Vinted relié : formulaire de dépôt ouvert sans signe d’absence', pw.etatSession('VINTED', { url: 'https://www.vinted.fr/items/new', texte: 'Ajoute un article', motDePasse: false }) === 'connecte')
+  verifier('Vinted non relié : renvoi à l’inscription', pw.etatSession('VINTED', { url: 'https://www.vinted.fr/member/register', texte: '' }) === 'absent')
+  verifier('Leboncoin non relié : « Connectez-vous ou créez un compte »', pw.etatSession('LEBONCOIN', { url: 'https://www.leboncoin.fr/deposer-une-annonce', texte: 'Connectez-vous ou créez un compte' }) === 'absent')
+  verifier('une page d’accueil ne prouve rien', pw.etatSession('FACEBOOK', { url: 'https://www.facebook.com/marketplace/', texte: 'Marketplace' }) === 'inconnu')
+  verifier('lecture bornée', pw.lecture({ texte: 'x'.repeat(50000) }).texte.length === pw.LECTURE_MAX)
+
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {
     console.error(`\n${echecs} attente(s) manquée(s).`)
