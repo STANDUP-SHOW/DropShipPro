@@ -1,4 +1,39 @@
-# DropShipper Poste d'analyses
+# KANTIX ANALYSER (ex-DropShipper Poste d'analyses)
+
+## KANTIX ANALYSER (0.5.0, 24/10/2026)
+
+Décision de Max (24/10) : l'application devient indépendante de DropShipper et
+produit des analyses pour plusieurs sites (DropShipper, iAgents, Jobber+…),
+pour lui et son équipe. Menu :
+
+- **Projets** : nom, URL, adresse de réception du flux, dossier partagé (local ou
+  Google Drive pour ordinateur, vu comme un dossier local), clé API du projet.
+  Le flux est **poussé** (POST signé HMAC-SHA256, en-têtes `X-Kantix-*`) : un PC
+  derrière une box ne peut pas servir d'adresse publique sans service payant.
+  « Fiche technique » écrit dans le dossier du projet la page à donner au
+  développeur du site (route Express de vérification, aucun secret dedans).
+- **Analyses** : prompt rédigé avec Claude dans un fil (pièces jointes : images,
+  PDF, textes ; `lib/brief.js`), validé puis enregistré ; récurrence une fois /
+  chaque jour à HH:MM / chaque semaine (`lib/recurrence.js`, rattrapage 6 h, un
+  créneau déjà passé ne part jamais à l'enregistrement) ; projet relié ; dossier
+  de sortie. Exécution : `lib/executer-analyse.js`. Un rapport qui cite une URL
+  que le fournisseur n'a pas lue (ni les onglets) est « à revoir » et n'est pas
+  envoyé au flux ; une réponse vide lève une erreur.
+- **Navigateur** : un onglet par site, connexion faite par l'utilisateur, onglets
+  gardés ouverts (inspection toutes les 5 min, alerte à la déconnexion). Jamais
+  de contournement anti-robot.
+- **Clés API** : 11 fournisseurs (`lib/fournisseurs-ia.js` : Anthropic, OpenAI,
+  Gemini, Mistral, DeepSeek, xAI, Groq, OpenRouter, Together, Perplexity, tout
+  service compatible OpenAI), coffre du système, « Tester » = vrai appel.
+- **Connecteurs** : DropShipper (les rayons, échecs, lancement rayon par rayon,
+  tout l'ancien Poste). Actif d'office sur une installation existante.
+
+Les données de l'ancien Poste sont gardées : `userData` reste
+« DropShipper Poste d'analyses », la clé Anthropic devient la clé
+« Anthropic (Poste) » (`lib/kantix.js`, `migrer`). Bancs : `npm run check`
+(dont `banc/check-kantix.cjs`) et `xvfb-run -a node banc/check-fenetre.cjs`.
+
+## Le Poste d'analyses (connecteur DropShipper)
 
 L'application Windows de Max pour son PC dédié (faible configuration, sans carte
 graphique). Elle remplace n8n + Docker : les **agents d'analyse** (les mêmes

@@ -1,6 +1,13 @@
 'use strict'
 /**
- * DropShipper Poste d'analyses — main process.
+ * KANTIX ANALYSER (formerly the DropShipper Poste d'analyses) — main process.
+ *
+ * Since 0.5.0 (24/10/2026) the app is a producer of market analyses for several
+ * projects (sites) of Max and his team: API keys of ~10 providers, projects with
+ * a signed feed and a folder, analyses written with Claude and scheduled, a
+ * browser whose tabs stay open and logged in. DropShipper is one connector among
+ * others: everything below about rayons, the night and the site's admin is the
+ * DropShipper connector, unchanged.
  *
  * One Electron app on a dedicated (weak, GPU-less) Windows PC:
  *  - the agents (lib/rayon.js, lib/orchestrateur.js), ported from n8n, same
@@ -38,16 +45,27 @@ const depot = require('./lib/depot')
 const sourcesLib = require('./lib/sources')
 const veille = require('./lib/veille')
 const { planifier } = require('./lib/planificateur')
+const kantix = require('./lib/kantix')
+const ia = require('./lib/fournisseurs-ia')
+const recurrence = require('./lib/recurrence')
+const fluxLib = require('./lib/flux')
+const briefLib = require('./lib/brief')
+const { executerAnalyse } = require('./lib/executer-analyse')
 
 // A weak PC without a GPU: do not ask Chromium for one.
 app.disableHardwareAcceleration()
 
 const BANC = process.env.DROPSHIPPER_POSTE_BANC === '1'
 if (process.env.DROPSHIPPER_POSTE_PROFIL) app.setPath('userData', process.env.DROPSHIPPER_POSTE_PROFIL)
+// The app was renamed KANTIX ANALYSER (0.5.0): its data folder keeps the old name, or the keys,
+// the settings and every logged-in browser session of the Poste would be lost.
+else app.setPath('userData', path.join(app.getPath('appData'), "DropShipper Poste d'analyses"))
+const NOM_APP = 'KANTIX ANALYSER'
 
 let fenetre = null
 let tray = null
-let vueNavigateur = null
+// browser tabs: one live view per site, kept open between visits (KANTIX, 0.5.0)
+const vues = new Map()
 let sourceAffichee = null
 let cfg = null
 let racine = null
@@ -60,7 +78,15 @@ let bloqueurVeille = null
 
 const dossierDonnees = () => app.getPath('userData')
 const sauver = () => config.enregistrer(dossierDonnees(), cfg)
-const secret = (nom) => config.lireSecret(cfg, nom, safeStorage)
+// The DropShipper connector's Anthropic key is chosen among KANTIX's keys; the old slot stays as a fallback.
+function secret(nom) {
+  if (nom === 'anthropic') {
+    const id = cfg.connecteurs && cfg.connecteurs.dropshipper && cfg.connecteurs.dropshipper.cleId
+    const v = id ? config.lireSecret(cfg, kantix.nomSecretCle(id), safeStorage) : null
+    if (v) return v
+  }
+  return config.lireSecret(cfg, nom, safeStorage)
+}
 
 // ---- providers (keys read at use time: Max may change them)
 // Serper is only built when Max chose it: without a Serper key the Poste searches with Claude.
@@ -96,7 +122,7 @@ function prevenirSiSession(etats) {
     const avant = etatsNotifies[s.id]
     etatsNotifies[s.id] = e.etat
     if (avant === e.etat) continue
-    if (e.etat === 'deconnecte' || e.etat === 'bloque') notifier(`Source « ${s.nom} »`, `${e.etat === 'bloque' ? 'Blocage' : 'Session perdue'} : ${e.raison}. Ouvrez l'onglet Sources pour reprendre la main.`)
+    if (e.etat === 'deconnecte' || e.etat === 'bloque') notifier(`Source « ${s.nom} »`, `${e.etat === 'bloque' ? 'Blocage' : 'Session perdue'} : ${e.raison}. Ouvrez son onglet dans « Navigateur » pour vous reconnecter.`)
   }
 }
 
@@ -378,10 +404,13 @@ function listeRapports(date) {
 function etat() {
   const date = jourLocal()
   return {
+    nom: NOM_APP,
     version: app.getVersion(),
     depot: racine,
     date,
-    secrets: config.etatSecrets(cfg),
+    // « anthropic » = the key the DropShipper connector will use (chosen in KANTIX's keys, or the old slot)
+    secrets: { ...config.etatSecrets(cfg), anthropic: Boolean(secret('anthropic')) },
+    kantix: etatKantix(),
     reglages: {
       modele: cfg.modele, modeleRecherche: cfg.modeleRecherche || '', moteurRecherche: moteurSerper() ? 'serper' : 'claude', coutParRayon: coutParRayon(1), espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
       plafondPages: cfg.plafondPages, plafondDeuxiemeVague: cfg.plafondDeuxiemeVague,
@@ -406,30 +435,75 @@ function envoyer(canal, donnees) {
 }
 function envoyerEtat() { envoyer('etat', etat()) }
 
-// ---- the private browser (one view, one source at a time: light on RAM)
+// ---- the browser: one tab (live view) per site, kept open and logged in (KANTIX 0.5.0).
+// Only the tab on screen is attached to the window; the others stay alive behind it. Their state is read
+// from the page they show (no reload, no extra traffic) at each load and every 5 minutes.
+const INSPECTION = '({ texte: ((document.body && document.body.innerText) || "").slice(0, 20000), pw: !!document.querySelector("input[type=password]"), url: location.href })'
+const CADENCE_ONGLETS_MS = 5 * 60e3
+
+async function inspecterOnglet(id) {
+  const v = vues.get(id)
+  const s = cfg.sources.find((x) => x.id === id)
+  if (!v || !s || v.webContents.isDestroyed() || v.webContents.isLoading()) return
+  try {
+    const page = await v.webContents.executeJavaScript(INSPECTION)
+    const e = sourcesLib.etatSession(s, { url: page.url, texte: page.texte, champMotDePasse: page.pw })
+    etatsSources[id] = { ...e, vuLe: new Date().toISOString() }
+    prevenirSiSession({ [id]: e })
+    envoyerEtat()
+  } catch { /* page in transition */ }
+}
+
+function ouvrirOnglet(s) {
+  if (vues.has(s.id)) return vues.get(s.id)
+  const v = new WebContentsView({ webPreferences: { partition: sourcesLib.partition(s), contextIsolation: true, nodeIntegration: false, sandbox: true } })
+  vues.set(s.id, v)
+  const wc = v.webContents
+  const navigue = (_e, url) => { if (sourceAffichee === s.id) envoyer('nav', { url }) }
+  wc.on('did-navigate', navigue)
+  wc.on('did-navigate-in-page', navigue)
+  wc.on('did-finish-load', () => setTimeout(() => inspecterOnglet(s.id), 1500))
+  wc.on('render-process-gone', () => { vues.delete(s.id); if (sourceAffichee === s.id) sourceAffichee = null; envoyerEtat() })
+  // a link that opens a new window stays in this tab (its session)
+  wc.setWindowOpenHandler(({ url }) => { wc.loadURL(url); return { action: 'deny' } })
+  wc.loadURL(s.urlConnexion).catch(() => {})
+  return v
+}
+
+function fermerOnglet(id) {
+  const v = vues.get(id)
+  if (!v) return
+  try { fenetre.contentView.removeChildView(v) } catch { /* not attached */ }
+  try { v.webContents.close() } catch { /* already gone */ }
+  vues.delete(id)
+  if (sourceAffichee === id) sourceAffichee = null
+}
+
+// hides the tab on screen; it keeps living (and stays logged in)
 function fermerNavigateur() {
-  if (vueNavigateur) {
-    try { fenetre.contentView.removeChildView(vueNavigateur) } catch { /* already gone */ }
-    try { vueNavigateur.webContents.close() } catch { /* already gone */ }
-    vueNavigateur = null
-  }
+  const v = sourceAffichee && vues.get(sourceAffichee)
+  if (v) try { fenetre.contentView.removeChildView(v) } catch { /* not attached */ }
   sourceAffichee = null
 }
 
 function afficherSource(id, bounds) {
   const s = cfg.sources.find((x) => x.id === id)
-  if (!s) throw new Error('Source inconnue.')
-  if (!vueNavigateur || sourceAffichee !== id) {
+  if (!s) throw new Error('Onglet inconnu.')
+  if (sourceAffichee !== id) {
     fermerNavigateur()
-    vueNavigateur = new WebContentsView({ webPreferences: { partition: sourcesLib.partition(s), contextIsolation: true, nodeIntegration: false, sandbox: true } })
-    fenetre.contentView.addChildView(vueNavigateur)
+    fenetre.contentView.addChildView(ouvrirOnglet(s))
     sourceAffichee = id
-    vueNavigateur.webContents.on('did-navigate', (_e, url) => envoyer('nav', { url }))
-    vueNavigateur.webContents.on('did-navigate-in-page', (_e, url) => envoyer('nav', { url }))
-    vueNavigateur.webContents.setWindowOpenHandler(({ url }) => { vueNavigateur.webContents.loadURL(url); return { action: 'deny' } })
-    vueNavigateur.webContents.loadURL(s.urlConnexion)
+    envoyer('nav', { url: vues.get(id).webContents.getURL() || s.urlConnexion })
   }
-  if (bounds) vueNavigateur.setBounds({ x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.width), height: Math.round(bounds.height) })
+  if (bounds) vues.get(id).setBounds({ x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.width), height: Math.round(bounds.height) })
+}
+
+// tabs kept open start with the app, one every 3 s (a weak PC)
+function ouvrirOngletsGardes() {
+  const gardes = cfg.sources.filter((s) => s.actif && s.garderOuvert !== false)
+  gardes.forEach((s, i) => setTimeout(() => { try { ouvrirOnglet(s) } catch { /* window gone */ } }, 2000 + i * 3000))
+  const t = setInterval(() => { for (const id of vues.keys()) inspecterOnglet(id) }, CADENCE_ONGLETS_MS)
+  if (t.unref) t.unref()
 }
 
 // ---- Windows: start with the session and restart after a crash, ONLY while the automatic night is on.
@@ -448,7 +522,8 @@ function lancementsAutomatiques() {
   if (process.platform !== 'win32' || !app.isPackaged) return
   // 0.3.5 and older wrote a Run entry under the generic name « electron.app.Electron »: always removed
   app.setLoginItemSettings({ openAtLogin: false })
-  const actif = Boolean(cfg.nuitActivee)
+  // KANTIX: a scheduled analysis needs the app running too
+  const actif = Boolean(cfg.nuitActivee) || cfg.analyses.some((a) => a.recurrence && a.recurrence.type !== 'aucune')
   app.setLoginItemSettings({ openAtLogin: actif, name: NOM_LANCEMENT, args: [ARG_DEMARRAGE] })
   // Every 10 minutes: a running Poste only sees a discreet second instance; a dead one comes back in the tray.
   const tache = actif
@@ -463,12 +538,401 @@ function quitterVolontairement() {
   app.quit()
 }
 
+// ---- KANTIX ANALYSER: keys, projects, analyses, briefs, connectors (0.5.0)
+const secretCle = (id) => config.lireSecret(cfg, kantix.nomSecretCle(id), safeStorage)
+const secretFlux = (id) => config.lireSecret(cfg, kantix.nomSecretFlux(id), safeStorage)
+// The bench points every provider at its fake server.
+const cleAppelable = (c) => (BANC && process.env.KANTIX_URL_IA ? { ...c, base: process.env.KANTIX_URL_IA } : c)
+const espaceDe = (c) => (c.fournisseur === 'anthropic' ? cfg.espaceAnthropic || '' : '')
+
+// a project or an analysis without its own folder writes under the deposit, so a run never has nowhere to go
+const dossierParDefaut = (projet) => path.join(racine, 'projets', projet.id)
+function dossierDe(analyse, projet) {
+  const d = (analyse && analyse.dossier) || (projet && projet.dossier)
+  return d && d.chemin ? d.chemin : dossierParDefaut(projet)
+}
+
+const executions = { file: [], enCours: null, historique: [] }
+const fichierHistorique = () => path.join(dossierDonnees(), 'executions.json')
+function chargerHistorique() {
+  try { executions.historique = JSON.parse(fs.readFileSync(fichierHistorique(), 'utf8')) } catch { executions.historique = [] }
+}
+function noterExecution(ligne) {
+  executions.historique = [ligne, ...executions.historique].slice(0, 300)
+  try { fs.writeFileSync(fichierHistorique(), JSON.stringify(executions.historique, null, 1)) } catch { /* the journal has it too */ }
+}
+
+async function lireOnglets(ids) {
+  const choisies = cfg.sources.filter((s) => ids.includes(s.id)).map((s) => {
+    const v = vues.get(s.id)
+    const courante = v && !v.webContents.isDestroyed() ? v.webContents.getURL() : ''
+    return { ...s, actif: true, pages: s.pages.length ? s.pages : [courante || s.urlConnexion] }
+  })
+  if (!choisies.length) return { lectures: [], problemes: ['Les onglets de cette analyse n’existent plus.'] }
+  const { lectures, etats } = await veille.releverSources({ sources: choisies, lire: lecteur(), racine, date: jourLocal(), journal })
+  etatsSources = { ...etatsSources, ...etats }
+  prevenirSiSession(etats)
+  const problemes = choisies.filter((s) => etats[s.id] && etats[s.id].etat !== 'connecte').map((s) => `Onglet « ${s.nom} » non lu : ${etats[s.id].etat} — ${etats[s.id].raison}`)
+  return { lectures, problemes }
+}
+
+async function envoyerAuFlux(projet, rapport) {
+  const adresse = projet.flux && projet.flux.adresse
+  if (!adresse) return { statut: 'sans-adresse' }
+  try {
+    const r = await fluxLib.envoyerRapport({ adresse, secret: secretFlux(projet.id), rapport })
+    journal.info(`Flux ${projet.nom} : rapport « ${rapport.analyse.nom} » reçu par le site`, { code: r.statut })
+    return { statut: 'envoye', code: r.statut, le: new Date().toISOString() }
+  } catch (err) {
+    const message = String((err && err.message) || err)
+    journal.erreur(`Flux ${projet.nom} : envoi refusé`, { raison: message })
+    return { statut: 'echec', message, le: new Date().toISOString() }
+  }
+}
+
+async function executerUne(analyseId, creneau, origine) {
+  const a = cfg.analyses.find((x) => x.id === analyseId)
+  if (!a) return
+  const debut = new Date()
+  const ligne = { id: `${analyseId}-${debut.getTime()}`, analyseId, analyse: a.nom, projetId: a.projetId, debut: debut.toISOString(), origine, creneau: creneau ? creneau.toISOString() : null }
+  executions.enCours = { analyseId, nom: a.nom, debut: debut.toISOString() }
+  envoyerEtat()
+  try {
+    const projet = cfg.projets.find((p) => p.id === a.projetId)
+    if (!projet) throw new Error('Projet supprimé : reliez l’analyse à un projet.')
+    const cleInfo = cfg.cles.find((c) => c.id === projet.cleId)
+    if (!cleInfo) throw new Error(`Le projet « ${projet.nom} » n’a pas de clé API (onglet Projets).`)
+    const f = ia.fournisseur(cleInfo.fournisseur)
+    const res = await executerAnalyse({
+      analyse: a,
+      projet,
+      dossierSortie: dossierDe(a, projet),
+      generer: (args) => ia.generer({ ...args, cleInfo: cleAppelable(cleInfo), cle: secretCle(cleInfo.id), espace: espaceDe(cleInfo) }),
+      rechercheDisponible: Boolean(f && f.recherche),
+      lireOnglets,
+      journal,
+    })
+    // « à revoir » never goes to the site by itself (same rule as the DropShipper reports)
+    const flux = res.rapport.statut === 'ok' ? await envoyerAuFlux(projet, res.rapport) : { statut: 'retenu', message: 'rapport à revoir : envoi à faire à la main après lecture' }
+    Object.assign(ligne, { statut: res.rapport.statut, problemes: res.rapport.problemes, fichier: res.fichiers.md, json: res.fichiers.json, flux, usage: res.rapport.moteur.usage, moteur: `${res.rapport.moteur.fournisseur}/${res.rapport.moteur.modele}` })
+    notifier(`Analyse « ${a.nom} »`, res.rapport.statut === 'ok' ? `Rapport validé${flux.statut === 'envoye' ? ' et reçu par le site' : flux.statut === 'echec' ? ', mais le site a refusé le flux' : ''}.` : `Rapport à revoir : ${res.rapport.problemes[0] || ''}`)
+  } catch (err) {
+    const message = String((err && err.message) || err)
+    Object.assign(ligne, { statut: 'erreur', problemes: [message] })
+    journal.erreur(`Analyse « ${a.nom} » échouée`, { raison: message })
+    notifier(`Analyse « ${a.nom} » échouée`, message.slice(0, 180))
+  } finally {
+    ligne.fin = new Date().toISOString()
+    noterExecution(ligne)
+    // the slot is spent even on failure: a broken analysis is retried at the next slot, not every minute
+    a.derniere = { le: ligne.fin, creneau: ligne.creneau, statut: ligne.statut, fichier: ligne.fichier || null }
+    sauver()
+    executions.enCours = null
+    envoyerEtat()
+  }
+}
+
+// one analysis at a time, in the order asked
+async function viderFile() {
+  if (executions.enCours) return
+  while (executions.file.length) {
+    const { id, creneau, origine } = executions.file.shift()
+    await executerUne(id, creneau, origine)
+  }
+}
+function mettreEnFile(id, creneau, origine) {
+  if ((executions.enCours && executions.enCours.analyseId === id) || executions.file.some((x) => x.id === id)) return false
+  executions.file.push({ id, creneau, origine })
+  viderFile()
+  return true
+}
+
+function demarrerPlanificateurAnalyses() {
+  const tick = () => {
+    const maintenant = new Date()
+    for (const a of cfg.analyses) {
+      const c = recurrence.creneauDu(a, maintenant)
+      if (c && mettreEnFile(a.id, c, 'planifiée')) journal.info(`Planificateur : analyse « ${a.nom} » lancée (${recurrence.libelle(a.recurrence)})`)
+    }
+  }
+  const t = setInterval(tick, BANC ? 2000 : 60e3)
+  if (t.unref) t.unref()
+  setTimeout(tick, BANC ? 500 : 15e3)
+}
+
+// Google Drive for desktop shows the Drive as a folder: « Mon Drive » / « My Drive » on a drive letter, or under the home folder.
+function dossiersDrive() {
+  const candidats = []
+  const noms = ['Mon Drive', 'My Drive', 'Mein Ablage', 'Mi unidad']
+  if (process.platform === 'win32') {
+    for (const l of 'DEFGHIJKLMNOPQRSTUVWXYZ') for (const n of noms) candidats.push(`${l}:\\${n}`)
+  }
+  const maison = app.getPath('home')
+  for (const n of noms) candidats.push(path.join(maison, 'Google Drive', n), path.join(maison, n))
+  candidats.push(path.join(maison, 'Google Drive'))
+  return [...new Set(candidats)].filter((c) => { try { return fs.statSync(c).isDirectory() } catch { return false } })
+}
+
+function etatKantix() {
+  const maintenant = new Date()
+  const avecSecret = (nom) => Boolean(cfg.secrets && cfg.secrets[nom])
+  return {
+    fournisseurs: ia.FOURNISSEURS.map(({ id, nom, type, recherche, console: c, modele, base }) => ({ id, nom, type, recherche, console: c, modele, base })),
+    cles: cfg.cles.map((c) => ({ ...c, posee: avecSecret(kantix.nomSecretCle(c.id)), recherche: Boolean((ia.fournisseur(c.fournisseur) || {}).recherche) })),
+    projets: cfg.projets.map((p) => ({ ...p, secretFlux: avecSecret(kantix.nomSecretFlux(p.id)), dossierEffectif: p.dossier && p.dossier.chemin ? p.dossier.chemin : dossierParDefaut(p) })),
+    analyses: cfg.analyses.map((a) => {
+      const p = cfg.projets.find((x) => x.id === a.projetId)
+      return { ...a, quand: recurrence.libelle(a.recurrence), prochaine: (() => { const x = recurrence.prochainCreneau(a.recurrence, maintenant); return x ? x.toISOString() : null })(), dossierEffectif: p ? dossierDe(a, p) : null, enFile: executions.file.some((x) => x.id === a.id) }
+    }),
+    connecteurs: cfg.connecteurs || { dropshipper: { actif: false, cleId: null } },
+    cleBriefId: cfg.cleBriefId || null,
+    enCours: executions.enCours,
+    historique: executions.historique.slice(0, 60),
+    onglets: cfg.sources.map((s) => ({ id: s.id, ouvert: vues.has(s.id) })),
+    jours: recurrence.JOURS,
+  }
+}
+
+// the Anthropic key of the brief: the project's own if it is an Anthropic one, else the one chosen for briefs, else the first
+function cleDuBrief(projet) {
+  const anth = cfg.cles.filter((c) => c.fournisseur === 'anthropic')
+  const p = projet && anth.find((c) => c.id === projet.cleId)
+  return p || anth.find((c) => c.id === cfg.cleBriefId) || anth[0] || null
+}
+
+function brancherKantix(h) {
+  // ---- keys
+  h('cle-enregistrer', (brut) => {
+    const c = kantix.normaliserCle(brut || {}, cfg.cles)
+    const valeur = String((brut && brut.valeur) || '').trim()
+    if (!brut.id && !valeur) throw new Error('Collez la clé API.')
+    if (valeur) { cfg = config.poserSecret(cfg, kantix.nomSecretCle(c.id), valeur, safeStorage); c.verifieeLe = null }
+    cfg.cles = [...cfg.cles.filter((x) => x.id !== c.id), c]
+    sauver()
+    journal.info(`Clé API « ${c.nom} » enregistrée`, { fournisseur: c.fournisseur })
+    return etat()
+  })
+  h('cle-supprimer', async (id) => {
+    const c = cfg.cles.find((x) => x.id === id)
+    if (!c) throw new Error('Clé inconnue.')
+    const projets = cfg.projets.filter((p) => p.cleId === id).map((p) => p.nom)
+    const ok = await accord(`Supprimer la clé « ${c.nom} » ?`, projets.length ? `Projets qui l’utilisent et n’auront plus de clé : ${projets.join(', ')}.` : 'Aucun projet ne l’utilise.', 'Oui, supprimer')
+    if (!ok) return etat()
+    cfg = config.poserSecret(cfg, kantix.nomSecretCle(id), '', safeStorage)
+    cfg.cles = cfg.cles.filter((x) => x.id !== id)
+    for (const p of cfg.projets) if (p.cleId === id) p.cleId = null
+    if (cfg.connecteurs && cfg.connecteurs.dropshipper && cfg.connecteurs.dropshipper.cleId === id) cfg.connecteurs.dropshipper.cleId = null
+    if (cfg.cleBriefId === id) cfg.cleBriefId = null
+    sauver()
+    return etat()
+  })
+  // « connectée » only after a real call that worked: the provider's own model list
+  h('cle-tester', async (id) => {
+    const c = cfg.cles.find((x) => x.id === id)
+    if (!c) throw new Error('Clé inconnue.')
+    const r = await ia.listerModeles({ cleInfo: cleAppelable(c), cle: secretCle(id), espace: espaceDe(c) })
+    c.verifieeLe = new Date().toISOString()
+    c.modelesConnus = r.modeles.slice(0, 300)
+    sauver()
+    journal.info(`Clé API « ${c.nom} » vérifiée`, { modeles: r.modeles.length, nonListable: r.nonListable || undefined })
+    return { ...r, etat: etat() }
+  })
+  h('cle-brief', ({ id }) => { cfg.cleBriefId = id || null; sauver(); return etat() })
+
+  // ---- projects
+  h('projet-enregistrer', (brut) => {
+    const p = kantix.normaliserProjet(brut || {}, cfg.projets, cfg.cles)
+    cfg.projets = [...cfg.projets.filter((x) => x.id !== p.id), p]
+    if (p.dossier.chemin) fs.mkdirSync(p.dossier.chemin, { recursive: true })
+    sauver()
+    journal.info(`Projet « ${p.nom} » enregistré`)
+    return etat()
+  })
+  h('projet-supprimer', async (id) => {
+    const p = cfg.projets.find((x) => x.id === id)
+    if (!p) throw new Error('Projet inconnu.')
+    if (p.connecteur) throw new Error('Ce projet est celui du connecteur DropShipper : coupez le connecteur au lieu de le supprimer.')
+    const liees = cfg.analyses.filter((a) => a.projetId === id)
+    if (liees.length) throw new Error(`Reliez d’abord ces analyses à un autre projet ou supprimez-les : ${liees.map((a) => a.nom).join(', ')}.`)
+    const ok = await accord(`Supprimer le projet « ${p.nom} » ?`, 'Ses rapports déjà écrits restent dans son dossier.', 'Oui, supprimer')
+    if (!ok) return etat()
+    cfg = config.poserSecret(cfg, kantix.nomSecretFlux(id), '', safeStorage)
+    cfg.projets = cfg.projets.filter((x) => x.id !== id)
+    sauver()
+    return etat()
+  })
+  h('projet-secret-generer', async (id) => {
+    const p = cfg.projets.find((x) => x.id === id)
+    if (!p) throw new Error('Projet inconnu.')
+    if (secretFlux(id)) {
+      const ok = await accord('Remplacer le secret du flux ?', `Le site de ${p.nom} refusera les rapports jusqu’à ce que le NOUVEAU secret soit posé de son côté.`, 'Oui, remplacer')
+      if (!ok) return etat()
+    }
+    cfg = config.poserSecret(cfg, kantix.nomSecretFlux(id), kantix.fabriquerSecretFlux(), safeStorage)
+    sauver()
+    journal.info(`Projet « ${p.nom} » : secret du flux créé`)
+    return etat()
+  })
+  h('projet-secret-copier', (id) => {
+    const v = secretFlux(id)
+    if (!v) throw new Error('Pas encore de secret : « Générer le secret ».')
+    clipboard.writeText(v)
+    return true
+  })
+  h('projet-flux-tester', async (id) => {
+    const p = cfg.projets.find((x) => x.id === id)
+    if (!p) throw new Error('Projet inconnu.')
+    const r = await fluxLib.envoyerTest({ adresse: p.flux.adresse, secret: secretFlux(id), projet: p })
+    p.fluxVerifieLe = new Date().toISOString()
+    sauver()
+    journal.info(`Flux ${p.nom} : test reçu par le site`, { code: r.statut })
+    return { ...r, etat: etat() }
+  })
+  // the developer's page, written in the project folder (no secret in it)
+  h('projet-fiche', (id) => {
+    const p = cfg.projets.find((x) => x.id === id)
+    if (!p) throw new Error('Projet inconnu.')
+    const dossier = p.dossier && p.dossier.chemin ? p.dossier.chemin : dossierParDefaut(p)
+    fs.mkdirSync(dossier, { recursive: true })
+    const fichier = path.join(dossier, 'KANTIX-FLUX.md')
+    fs.writeFileSync(fichier, fluxLib.ficheTechnique(p))
+    shell.openPath(fichier)
+    return fichier
+  })
+  h('dossier-choisir', async ({ titre, depart }) => {
+    if (BANC) return process.env.KANTIX_DOSSIER_BANC || null
+    const r = await dialog.showOpenDialog(fenetre, { title: titre || 'Choisir un dossier', defaultPath: depart || undefined, properties: ['openDirectory', 'createDirectory'] })
+    return r.canceled ? null : r.filePaths[0]
+  })
+  h('drive-detecter', () => dossiersDrive())
+  h('dossier-ouvrir', (chemin) => { fs.mkdirSync(chemin, { recursive: true }); return shell.openPath(chemin) })
+  h('fichier-ouvrir', (chemin) => shell.openPath(chemin))
+
+  // ---- analyses
+  h('analyse-enregistrer', async (brut) => {
+    const a = kantix.normaliserAnalyse(brut || {}, cfg.analyses, cfg.projets, cfg.sources)
+    const avant = cfg.analyses.find((x) => x.id === a.id)
+    const nouvelleRecurrence = a.recurrence.type !== 'aucune' && (!avant || JSON.stringify(avant.recurrence) !== JSON.stringify(a.recurrence))
+    if (nouvelleRecurrence) {
+      const ok = await accord(`Planifier « ${a.nom} » : ${recurrence.libelle(a.recurrence)} ?`, 'KANTIX lancera seul cette analyse avec la clé API du projet, tant que l’application est ouverte (zone de notification). Chaque lancement est payé au fournisseur IA et s’inscrit dans le journal. Vous pouvez la passer « à la demande » à tout moment.', 'Oui, planifier')
+      if (!ok) return { annule: true, etat: etat() }
+      a.accordLe = new Date().toISOString()
+    } else if (avant && avant.accordLe) a.accordLe = avant.accordLe
+    cfg.analyses = [...cfg.analyses.filter((x) => x.id !== a.id), a]
+    sauver()
+    lancementsAutomatiques()
+    journal.info(`Analyse « ${a.nom} » enregistrée`, { quand: recurrence.libelle(a.recurrence) })
+    return { id: a.id, etat: etat() }
+  })
+  h('analyse-supprimer', async (id) => {
+    const a = cfg.analyses.find((x) => x.id === id)
+    if (!a) throw new Error('Analyse inconnue.')
+    const ok = await accord(`Supprimer l’analyse « ${a.nom} » ?`, 'Ses rapports déjà écrits restent dans leur dossier.', 'Oui, supprimer')
+    if (!ok) return etat()
+    cfg.analyses = cfg.analyses.filter((x) => x.id !== id)
+    executions.file = executions.file.filter((x) => x.id !== id)
+    sauver()
+    lancementsAutomatiques()
+    return etat()
+  })
+  h('analyse-lancer', async (id) => {
+    const a = cfg.analyses.find((x) => x.id === id)
+    if (!a) throw new Error('Analyse inconnue.')
+    const p = cfg.projets.find((x) => x.id === a.projetId)
+    const c = p && cfg.cles.find((x) => x.id === p.cleId)
+    if (!c) throw new Error('Le projet de cette analyse n’a pas de clé API (onglet Projets).')
+    const ok = await accord(`Lancer « ${a.nom} » maintenant ?`, `Un appel à ${c.nom}${a.rechercheWeb ? ' avec recherche web' : ''}${a.onglets.length ? `, après lecture de ${a.onglets.length} onglet(s)` : ''}. Le coût réel (jetons, recherches) s’inscrit dans le journal.`)
+    if (!ok) return { annule: true }
+    mettreEnFile(id, null, 'à la main')
+    return etat()
+  })
+  // sends a report again (or for the first time after review) to its project's feed
+  h('rapport-envoyer', async (idExecution) => {
+    const l = executions.historique.find((x) => x.id === idExecution)
+    if (!l || !l.json) throw new Error('Rapport introuvable.')
+    const rapport = JSON.parse(fs.readFileSync(l.json, 'utf8'))
+    const projet = cfg.projets.find((p) => p.id === rapport.projet.id)
+    if (!projet) throw new Error('Projet supprimé.')
+    if (rapport.statut !== 'ok') {
+      const ok = await accord('Envoyer un rapport « à revoir » au site ?', `Problèmes relevés : ${(rapport.problemes || []).join(' ; ').slice(0, 600)}`, 'Oui, envoyer')
+      if (!ok) return { annule: true }
+    }
+    l.flux = await envoyerAuFlux(projet, rapport)
+    if (l.flux.statut === 'echec') throw new Error(l.flux.message)
+    if (l.flux.statut === 'sans-adresse') throw new Error('Ce projet n’a pas d’adresse de réception (onglet Projets).')
+    noterExecution({ ...l, id: `${l.id}-renvoi-${Date.now()}`, origine: 'renvoi au site', debut: new Date().toISOString(), fin: new Date().toISOString() })
+    return etat()
+  })
+
+  // ---- brief with Claude
+  h('brief-nouveau', () => briefLib.nouveau(dossierDonnees()))
+  h('brief-charger', (id) => ({ brief: briefLib.charger(dossierDonnees(), id), prompt: briefLib.dernierPrompt(briefLib.charger(dossierDonnees(), id)) }))
+  h('brief-joindre', async () => {
+    if (BANC) return (process.env.KANTIX_PIECES_BANC || '').split('|').filter(Boolean)
+    const r = await dialog.showOpenDialog(fenetre, { title: 'Joindre des documents ou des images', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Documents et images', extensions: Object.keys(briefLib.TYPES).map((x) => x.slice(1)) }] })
+    return r.canceled ? [] : r.filePaths
+  })
+  h('brief-envoyer', async ({ id, texte, fichiers, projetId, cleMoteurId }) => {
+    const racineBriefs = dossierDonnees()
+    const b = briefLib.charger(racineBriefs, id)
+    const pieces = (fichiers || []).map((f) => briefLib.ajouterPiece(racineBriefs, b, f))
+    if (!String(texte || '').trim() && !pieces.length) throw new Error('Écrivez quelque chose ou joignez un document.')
+    const projet = cfg.projets.find((p) => p.id === projetId) || null
+    const cleInfo = cleDuBrief(projet)
+    if (!cleInfo) throw new Error('Le brief se fait avec Claude : ajoutez une clé Anthropic dans « Clés API ».')
+    b.messages.push({ role: 'user', texte: String(texte || '').trim(), pieces, le: new Date().toISOString() })
+    briefLib.enregistrer(racineBriefs, b)
+    const moteur = cfg.cles.find((c) => c.id === (cleMoteurId || (projet && projet.cleId)))
+    const r = await ia.generer({
+      cleInfo: cleAppelable(cleInfo),
+      cle: secretCle(cleInfo.id),
+      espace: espaceDe(cleInfo),
+      modele: cleInfo.modele || briefLib.MODELE_BRIEF,
+      systeme: briefLib.systeme({
+        projet,
+        analysesDuProjet: cfg.analyses.filter((a) => projet && a.projetId === projet.id).map((a) => a.nom),
+        onglets: cfg.sources.map((s) => s.nom),
+        fournisseurMoteur: moteur ? `${moteur.nom}${(ia.fournisseur(moteur.fournisseur) || {}).recherche ? ' (avec recherche web)' : ' (sans recherche web)'}` : '',
+      }),
+      messages: briefLib.messagesPourIA(racineBriefs, b),
+      maxTokens: 16000,
+      cache: true,
+    })
+    if (!r.texte.trim()) throw new Error(`Claude n’a rien répondu (arrêt : ${r.arret || 'inconnu'}). Réessayez.`)
+    b.messages.push({ role: 'assistant', texte: r.texte, le: new Date().toISOString(), usage: r.usage })
+    briefLib.enregistrer(racineBriefs, b)
+    journal.info('Brief : réponse de Claude', { brief: id, usage: r.usage })
+    return { brief: b, prompt: briefLib.dernierPrompt(b) }
+  })
+
+  // ---- connectors
+  h('connecteur-activer', ({ id, actif }) => {
+    if (id !== 'dropshipper') throw new Error('Connecteur inconnu.')
+    cfg.connecteurs = { ...(cfg.connecteurs || {}), dropshipper: { ...((cfg.connecteurs || {}).dropshipper || {}), actif: Boolean(actif) } }
+    if (actif && !cfg.projets.some((p) => p.connecteur === 'dropshipper')) {
+      cfg.projets.push({ id: kantix.idUnique('dropshipper', cfg.projets), nom: 'DropShipper', url: 'https://www.drop-shipper.fr', cleId: cfg.connecteurs.dropshipper.cleId || null, dossier: { type: 'local', chemin: '' }, flux: { adresse: '' }, connecteur: 'dropshipper', creeLe: new Date().toISOString() })
+    }
+    // coupé: the DropShipper night stops too (nothing of DropShipper runs from a disconnected connector)
+    if (!actif && cfg.nuitActivee) { cfg.nuitActivee = false; lancementsAutomatiques() }
+    sauver()
+    journal.info(`Connecteur DropShipper ${actif ? 'connecté' : 'coupé'}`)
+    return etat()
+  })
+  h('connecteur-cle', ({ cleId }) => {
+    if (cleId && !cfg.cles.some((c) => c.id === cleId && c.fournisseur === 'anthropic')) throw new Error('Choisissez une clé Anthropic : les rayons DropShipper cherchent avec la recherche web de Claude.')
+    cfg.connecteurs = { ...(cfg.connecteurs || {}), dropshipper: { ...((cfg.connecteurs || {}).dropshipper || {}), cleId: cleId || null } }
+    sauver()
+    return etat()
+  })
+}
+
 // ---- IPC
 function brancher() {
   const h = (canal, fn) => ipcMain.handle(canal, async (_e, arg) => {
     try { return { ok: true, valeur: await fn(arg) } } catch (err) { return { ok: false, erreur: String((err && err.message) || err) } }
   })
   h('etat', () => etat())
+  brancherKantix(h)
   h('reglages', (r) => {
     const permis = ['modele', 'modeleRecherche', 'moteurRecherche', 'espaceAnthropic', 'heureNuit', 'envoiAuSite', 'apiBase', 'plafondPages', 'plafondDeuxiemeVague']
     for (const k of permis) if (r[k] !== undefined) cfg[k] = r[k]
@@ -595,12 +1059,27 @@ function brancher() {
     return etat()
   })
   h('source-ajouter', (brut) => {
-    const s = sourcesLib.normaliser(brut, cfg.sources)
+    const s = { ...sourcesLib.normaliser(brut, cfg.sources), garderOuvert: brut.garderOuvert !== false }
     cfg.sources = [...cfg.sources.filter((x) => x.id !== s.id), s]
     sauver()
     return etat()
   })
-  h('source-supprimer', (id) => { cfg.sources = cfg.sources.filter((s) => s.id !== id); if (sourceAffichee === id) fermerNavigateur(); sauver(); return etat() })
+  h('source-supprimer', (id) => {
+    cfg.sources = cfg.sources.filter((s) => s.id !== id)
+    for (const a of cfg.analyses) a.onglets = (a.onglets || []).filter((x) => x !== id)
+    fermerOnglet(id)
+    sauver()
+    return etat()
+  })
+  // keep a tab open with the app (default) or open it only when shown
+  h('source-garder', ({ id, garder }) => {
+    const s = cfg.sources.find((x) => x.id === id)
+    if (!s) throw new Error('Onglet inconnu.')
+    s.garderOuvert = Boolean(garder)
+    if (!s.garderOuvert && sourceAffichee !== id) fermerOnglet(id)
+    sauver()
+    return etat()
+  })
   h('source-verifier', async (id) => {
     const s = cfg.sources.find((x) => x.id === id)
     if (!s) throw new Error('Source inconnue.')
@@ -611,11 +1090,12 @@ function brancher() {
     return e
   })
   h('nav-afficher', ({ id, bounds }) => { afficherSource(id, bounds); return true })
-  h('nav-placer', (bounds) => { if (vueNavigateur) vueNavigateur.setBounds({ x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.width), height: Math.round(bounds.height) }); return true })
+  h('nav-placer', (bounds) => { const v = sourceAffichee && vues.get(sourceAffichee); if (v) v.setBounds({ x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.width), height: Math.round(bounds.height) }); return true })
   h('nav-masquer', () => { fermerNavigateur(); return true })
   h('nav-action', ({ action, url }) => {
-    if (!vueNavigateur) return false
-    const wc = vueNavigateur.webContents
+    const v = sourceAffichee && vues.get(sourceAffichee)
+    if (!v) return false
+    const wc = v.webContents
     if (action === 'retour' && wc.canGoBack()) wc.goBack()
     else if (action === 'avance' && wc.canGoForward()) wc.goForward()
     else if (action === 'recharger') wc.reload()
@@ -640,7 +1120,7 @@ function creerFenetre() {
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    title: `DropShipper Poste d’analyses — v${app.getVersion()}`,
+    title: `${NOM_APP} — v${app.getVersion()}`,
     show: !lancementDiscret(process.argv),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
@@ -657,11 +1137,11 @@ function creerTray() {
   try {
     const icone = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 16, height: 16 })
     tray = new Tray(icone)
-    tray.setToolTip('DropShipper Poste d’analyses')
+    tray.setToolTip(NOM_APP)
     const montrer = () => { fenetre.show(); fenetre.focus() }
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'Ouvrir', click: montrer },
-      { label: 'Ouvrir le dossier de dépôt', click: () => shell.openPath(racine) },
+      { label: 'Ouvrir le dossier de données', click: () => shell.openPath(racine) },
       { type: 'separator' },
       { label: 'Quitter', click: quitterVolontairement },
     ]))
@@ -711,7 +1191,11 @@ if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
   // only a launch by hand (shortcut, Start menu) brings the window forward
   app.on('second-instance', (_e, argv) => { if (fenetre && !lancementDiscret(argv)) { fenetre.show(); fenetre.focus() } })
   app.whenReady().then(() => {
+    const installExistante = fs.existsSync(path.join(dossierDonnees(), 'config.json'))
     cfg = config.charger(dossierDonnees())
+    // 0.5.0: the Poste becomes KANTIX ANALYSER; an existing install keeps its DropShipper connector on
+    const mig = kantix.migrer(cfg, { installExistante })
+    cfg = mig.cfg
     // 03/10/2026: Max wants EVERY validated report on the site. The old send went to a table no screen read, so
     // its switch was meaningless; it is now on (one time), the agent key remains his to place.
     if (!cfg.envoiSiteV2) { cfg.envoiAuSite = true; cfg.envoiSiteV2 = true; config.enregistrer(dossierDonnees(), cfg) }
@@ -726,7 +1210,9 @@ if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
     preparerPrompt()
     journal = creerJournal(racine)
     // who launched it: by hand, the watchdog (--garde) or the Windows session (--demarrage); « sans argument » from an old task = 0.3.5 or older
-    journal.info('Poste démarré', { version: app.getVersion(), lancement: process.argv.includes(ARG_GARDE) ? 'tâche de relance' : process.argv.includes(ARG_DEMARRAGE) ? 'ouverture de session Windows' : 'à la main (ou ancienne tâche sans argument)' })
+    if (mig.change) journal.info('KANTIX ANALYSER : configuration du Poste reprise', { connecteurDropShipper: cfg.connecteurs.dropshipper.actif, cles: cfg.cles.length, projets: cfg.projets.length })
+    chargerHistorique()
+    journal.info(`${NOM_APP} démarré`, { version: app.getVersion(), lancement: process.argv.includes(ARG_GARDE) ? 'tâche de relance' : process.argv.includes(ARG_DEMARRAGE) ? 'ouverture de session Windows' : 'à la main (ou ancienne tâche sans argument)' })
     // Keeps the app (and its timers) running when nobody is looking; the screen may still sleep.
     bloqueurVeille = powerSaveBlocker.start('prevent-app-suspension')
     brancher()
@@ -734,6 +1220,8 @@ if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
     creerTray()
     lancementsAutomatiques()
     demarrerPlanificateur()
+    demarrerPlanificateurAnalyses()
+    ouvrirOngletsGardes()
   })
   app.on('before-quit', () => { quitter = true })
   app.on('window-all-closed', () => { if (BANC) app.quit() })

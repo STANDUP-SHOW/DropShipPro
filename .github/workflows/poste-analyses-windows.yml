@@ -1,4 +1,4 @@
-name: Poste d'analyses — installateur Windows
+name: KANTIX ANALYSER (Poste d'analyses) — installateur Windows
 
 # Builds the installer of the Poste d'analyses (analyses/) on a Windows runner,
 # runs both benches first, and publishes the .exe as a pre-release that Max can
@@ -66,8 +66,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete poste-analyses-dernier --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
-          cp dist/*Setup*.exe "dist/DropShipper-Poste-analyses-Setup.exe"
-          gh release create poste-analyses-dernier "dist/DropShipper-Poste-analyses-Setup.exe" \
+          cp dist/*Setup*.exe "dist/KANTIX-ANALYSER-Setup.exe"
+          gh release create poste-analyses-dernier "dist/KANTIX-ANALYSER-Setup.exe" \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
-            --title "Poste d'analyses — dernier installateur (non signé)" \
-            --notes "Version ${{ steps.version.outputs.locale }}. Installateur Windows du Poste d'analyses, construit à partir du commit $GITHUB_SHA. Non signé : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même)."
+            --title "KANTIX ANALYSER (ex-Poste d'analyses) — dernier installateur (non signé)" \
+            --notes "Version ${{ steps.version.outputs.locale }}. Installateur Windows de KANTIX ANALYSER (ex-Poste d'analyses ; installé par-dessus, il garde clés, réglages et sessions), construit à partir du commit $GITHUB_SHA. Non signé : Windows SmartScreen affichera « Éditeur inconnu » (Informations complémentaires › Exécuter quand même)."
