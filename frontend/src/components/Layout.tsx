@@ -337,6 +337,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                 </button>
                 {ouvert ? (
                   <div className="mb-2 mt-0.5 space-y-0.5 pl-2">
+                    {groupe.note && !window.dropshipperDesktop ? <p className="px-3 pb-1 text-[11px] leading-snug text-gray-500">{groupe.note}</p> : null}
                     {groupe.entrees.map((item) => {
                       if (item.to === RAYONS_BOOST) return deroulantRayons
                       const section = SECTION_PAR_ADRESSE[item.to]
