@@ -16,6 +16,12 @@ import Statistiques from './pages/Statistiques'
 import Acquisition from './pages/Acquisition'
 import Extension from './pages/Extension'
 import ApplicationDesktop from './pages/ApplicationDesktop'
+import WebShipper from './pages/desktop/WebShipper'
+import SmartMarket from './pages/desktop/SmartMarket'
+import RemoteShipping from './pages/desktop/RemoteShipping'
+import AdsAnalyser from './pages/desktop/AdsAnalyser'
+import AutoShipperImporter from './pages/desktop/AutoShipperImporter'
+import MarketPlus from './pages/desktop/MarketPlus'
 import CommandesFournisseurs from './pages/CommandesFournisseurs'
 import SavFournisseurs from './pages/SavFournisseurs'
 import SavMessagerie from './pages/SavMessagerie'
@@ -180,6 +186,13 @@ export default function App() {
           <Route path="/acquisition" element={<Protected><Acquisition /></Protected>} />
           <Route path="/extension" element={<Protected><Extension /></Protected>} />
           <Route path="/application-desktop" element={<Protected><ApplicationDesktop /></Protected>} />
+          {/* DESKTOP POWER (24/10/2026) : les pages qui prennent vie dans l'application desktop. */}
+          <Route path="/webshipper" element={<Protected><WebShipper /></Protected>} />
+          <Route path="/smartmarket" element={<Protected><SmartMarket /></Protected>} />
+          <Route path="/remoteshipping" element={<Protected><RemoteShipping /></Protected>} />
+          <Route path="/adsanalyser" element={<Protected><AdsAnalyser /></Protected>} />
+          <Route path="/autoshipper-importer" element={<Protected><AutoShipperImporter /></Protected>} />
+          <Route path="/marketplus" element={<Protected><MarketPlus /></Protected>} />
           <Route path="/commandes-fournisseurs" element={<Protected><CommandesFournisseurs /></Protected>} />
           <Route path="/sav-fournisseurs" element={<Protected><SavFournisseurs /></Protected>} />
           <Route path="/messagerie-fournisseurs" element={<Protected><SavMessagerie /></Protected>} />
