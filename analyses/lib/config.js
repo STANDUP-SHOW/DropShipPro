@@ -32,14 +32,21 @@ const PAR_DEFAUT = {
   // Rayons (category ids) run by the night: null = all of them, a list = only those (e.g. two, to test).
   rayonsNuit: null,
   sources: [],
+  // KANTIX ANALYSER (0.5.0): API keys (public records), projects, analyses, connectors (lib/kantix.js)
+  cles: [],
+  projets: [],
+  analyses: [],
+  connecteurs: null,
+  // key used by the brief with Claude when the project's key is not an Anthropic one
+  cleBriefId: null,
   secrets: {},
 }
 
 function charger(dossier) {
   try {
-    return { ...PAR_DEFAUT, ...JSON.parse(fs.readFileSync(path.join(dossier, 'config.json'), 'utf8')) }
+    return { ...PAR_DEFAUT, cles: [], projets: [], analyses: [], ...JSON.parse(fs.readFileSync(path.join(dossier, 'config.json'), 'utf8')) }
   } catch {
-    return { ...PAR_DEFAUT, sources: [], secrets: {} }
+    return { ...PAR_DEFAUT, sources: [], cles: [], projets: [], analyses: [], secrets: {} }
   }
 }
 
@@ -50,9 +57,11 @@ function enregistrer(dossier, config) {
 
 // 'admin' = the Poste's own admin key for the site (made by the app, never typed, never shown).
 const NOMS_SECRETS = ['anthropic', 'serper', 'admin']
+// KANTIX: one secret per API key (`cle:<id>`) and per project feed (`flux:<id>`)
+const secretConnu = (nom) => NOMS_SECRETS.includes(nom) || /^(cle|flux):[a-z0-9-]{1,90}$/.test(String(nom))
 
 function poserSecret(config, nom, valeur, coffre) {
-  if (!NOMS_SECRETS.includes(nom)) throw new Error(`Secret inconnu : ${nom}`)
+  if (!secretConnu(nom)) throw new Error(`Secret inconnu : ${nom}`)
   const secrets = { ...config.secrets }
   if (!valeur) delete secrets[nom]
   else if (coffre && coffre.isEncryptionAvailable()) secrets[nom] = { chiffre: coffre.encryptString(valeur).toString('base64') }
@@ -72,4 +81,4 @@ function etatSecrets(config) {
   return Object.fromEntries(NOMS_SECRETS.map((n) => [n, Boolean(config.secrets && config.secrets[n])]))
 }
 
-module.exports = { PAR_DEFAUT, charger, enregistrer, poserSecret, lireSecret, etatSecrets, NOMS_SECRETS }
+module.exports = { secretConnu, PAR_DEFAUT, charger, enregistrer, poserSecret, lireSecret, etatSecrets, NOMS_SECRETS }

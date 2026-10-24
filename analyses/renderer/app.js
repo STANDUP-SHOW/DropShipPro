@@ -1,18 +1,8 @@
 'use strict'
 /* The screen. Data is only ever put in with textContent: nothing from a report or a site is parsed as HTML. */
 
-const ONGLETS = [
-  ['accueil', 'Tableau de bord'],
-  ['rapports', 'Rapports du jour'],
-  ['sources', 'Sources & navigateur'],
-  ['administration', 'Administration'],
-  ['drive', 'Import Drive'],
-  ['affiliation', 'Affiliation'],
-  ['reseaux', 'Réseaux sociaux'],
-  ['reglages', 'Réglages'],
-  ['journal', 'Journal'],
-]
-let onglet = 'accueil'
+// the menu (GROUPES_MENU) and the KANTIX screens live in kantix.js
+let onglet = 'analyses'
 let etat = null
 let sourceChoisie = null
 let messageFlash = ''
@@ -195,55 +185,6 @@ function vueRapports() {
 }
 
 // ---------------------------------------------------------------- sources & navigateur
-function vueSources() {
-  const e = etat
-  const choisie = e.sources.find((s) => s.id === sourceChoisie)
-  const zone = h('div', { id: 'zone-nav' }, choisie ? '' : 'Choisissez une source pour l’ouvrir dans le navigateur privé.')
-  const champ = h('input', { id: 'url-nav', placeholder: 'https://…' })
-
-  const liste = h('div', { class: 'liste' },
-    h('h2', {}, 'Vos sources'),
-    e.sources.length === 0 ? h('p', { class: 'doux petit' }, 'Aucune source. Ajoutez une bibliothèque de publicités, un site de tendances…') : null,
-    e.sources.map((s) => h('div', { class: `source ${s.id === sourceChoisie ? 'actif' : ''}`, onclick: () => { sourceChoisie = s.id; rendre() } },
-      h('strong', {}, s.nom), h('br'),
-      s.session ? pastille(s.session.etat === 'connecte' ? 'connectée' : s.session.etat === 'bloque' ? 'bloquée' : s.session.etat === 'deconnecte' ? 'déconnectée' : s.session.etat, s.session.etat === 'connecte' ? 'bon' : 'mauvais') : pastille('non vérifiée', ''),
-      h('div', { class: 'petit doux' }, `${s.pages.length} page(s) relevée(s) chaque nuit`),
-    )),
-    h('h2', {}, 'Ajouter une source'),
-    h('label', {}, 'Nom'), h('input', { id: 'f-nom', placeholder: 'Ex. Ads Library Facebook' }),
-    h('label', {}, 'Adresse de connexion'), h('input', { id: 'f-url', placeholder: 'https://…' }),
-    h('label', {}, 'Pages à relever chaque nuit (une par ligne, facultatif)'), h('textarea', { id: 'f-pages', rows: '3' }),
-    h('label', {}, 'Texte qui prouve la déconnexion (facultatif)'), h('input', { id: 'f-deco', placeholder: 'Ex. Se connecter' }),
-    h('p', {}, h('button', { class: 'btn principal', onclick: async () => {
-      const r = await appel('sourceAjouter', {
-        nom: document.getElementById('f-nom').value,
-        urlConnexion: document.getElementById('f-url').value,
-        pages: document.getElementById('f-pages').value,
-        texteDeconnecte: document.getElementById('f-deco').value,
-      })
-      if (r) { etat = r; messageFlash = ''; rendre() }
-    } }, 'Ajouter')),
-  )
-
-  const vue = h('div', { class: 'vue' },
-    h('h1', {}, choisie ? choisie.nom : 'Navigateur privé'),
-    choisie && h('div', { class: 'ligne' },
-      h('button', { class: 'btn', onclick: () => appel('navAction', { action: 'retour' }) }, '←'),
-      h('button', { class: 'btn', onclick: () => appel('navAction', { action: 'avance' }) }, '→'),
-      h('button', { class: 'btn', onclick: () => appel('navAction', { action: 'recharger' }) }, '↻'),
-      h('div', { style: 'flex:1;min-width:200px' }, champ),
-      h('button', { class: 'btn', onclick: () => appel('navAction', { action: 'aller', url: champ.value }) }, 'Aller'),
-      h('button', { class: 'btn', onclick: async () => { flash('Vérification…'); const r = await appel('sourceVerifier', choisie.id); if (r) flash(`Session : ${r.etat} — ${r.raison}`) } }, 'Vérifier la session'),
-      h('button', { class: 'btn danger', onclick: async () => { if (confirm(`Supprimer la source « ${choisie.nom} » ?`)) { const r = await appel('sourceSupprimer', choisie.id); if (r) { sourceChoisie = null; etat = r; rendre() } } } }, 'Supprimer'),
-    ),
-    choisie && h('p', { class: 'petit doux' }, 'Connectez-vous vous-même dans cette fenêtre : le poste garde la session sur ce PC et vous prévient si le site la coupe. Aucun mot de passe n’est lu ni enregistré.'),
-    messageFlash && h('p', { class: 'petit' }, messageFlash),
-    zone,
-  )
-  queueMicrotask(() => placerNavigateur(zone, choisie))
-  return h('div', { class: 'sources' }, liste, vue)
-}
-
 let dernierPlace = null
 function placerNavigateur(zone, choisie) {
   if (!choisie) { appel('navMasquer'); dernierPlace = null; return }
@@ -252,7 +193,7 @@ function placerNavigateur(zone, choisie) {
   if (dernierPlace !== choisie.id) { dernierPlace = choisie.id; window.poste.navAfficher({ id: choisie.id, bounds }) }
   else window.poste.navPlacer(bounds)
 }
-window.addEventListener('resize', () => { if (onglet === 'sources') rendre() })
+window.addEventListener('resize', () => { if (onglet === 'navigateur') rendre() })
 
 // ---------------------------------------------------------------- administration du site
 // What the site answers about its sellers lives here, in memory, and is never written to disk.
@@ -310,7 +251,7 @@ function vueAdministration() {
 
 // ---------------------------------------------------------------- shared bits
 function aller(id) {
-  if (onglet === 'sources' && id !== 'sources') { appel('navMasquer'); dernierPlace = null }
+  if (onglet === 'navigateur' && id !== 'navigateur') { appel('navMasquer'); dernierPlace = null }
   onglet = id; messageFlash = ''; rendre()
 }
 
@@ -586,7 +527,13 @@ function vueReglages() {
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
       h('h2', {}, 'Clés (saisies par vous, chiffrées par Windows, jamais réaffichées)'),
-      cle('anthropic', 'Clé API Anthropic'), avecSerper && cle('serper', 'Clé API Serper'),
+      h('div', {}, h('label', {}, 'Clé Anthropic des rayons ', pastille(e.secrets.anthropic ? 'posée' : 'absente', e.secrets.anthropic ? 'bon' : 'mauvais')),
+        h('div', { class: 'ligne' },
+          h('div', { style: 'flex:1;min-width:220px' }, h('select', { onchange: async (ev) => { const x = await appel('connecteurCle', { cleId: ev.target.value }); if (x) { etat = x; flash('Clé des rayons enregistrée.') } } },
+            h('option', { value: '' }, e.secrets.anthropic && !e.kantix.connecteurs.dropshipper.cleId ? 'ancienne clé du Poste' : '— choisir —'),
+            e.kantix.cles.filter((c) => c.fournisseur === 'anthropic').map((c) => h('option', { value: c.id, selected: c.id === e.kantix.connecteurs.dropshipper.cleId }, c.nom)))),
+          h('button', { class: 'btn', onclick: () => aller('cles') }, 'Gérer les clés API'))),
+      avecSerper && cle('serper', 'Clé API Serper'),
       blocCleAdmin(),
     ),
     blocMotsCles(),
@@ -636,11 +583,17 @@ function vueJournal() {
 // ---------------------------------------------------------------- cadre
 function rendre() {
   const barre = document.getElementById('onglets')
-  barre.replaceChildren(...ONGLETS.map(([id, titre]) => h('button', { class: id === onglet ? 'actif' : '', onclick: () => aller(id) }, titre)))
+  const groupes = etat ? GROUPES_MENU.filter((g) => !g.si || g.si(etat)) : []
+  // a page of a connector that was switched off falls back on the analyses
+  if (etat && !groupes.some((g) => g.onglets.some(([id]) => id === onglet))) onglet = 'analyses'
+  barre.replaceChildren(...groupes.flatMap((g) => [
+    g.titre ? h('div', { class: 'groupe-menu' }, g.titre) : null,
+    ...g.onglets.map(([id, titre]) => h('button', { class: id === onglet ? 'actif' : '', 'data-onglet': id, onclick: () => aller(id) }, titre)),
+  ].filter(Boolean)))
   document.getElementById('pied').textContent = etat ? `Version ${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { accueil: vueAccueil, rapports: vueRapports, sources: vueSources, administration: vueAdministration, drive: vueDrive, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
+  const vues = { ...VUES_KANTIX, accueil: vueAccueil, rapports: vueRapports, administration: vueAdministration, drive: vueDrive, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 
