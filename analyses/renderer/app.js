@@ -17,6 +17,8 @@ function h(tag, attrs, ...enfants) {
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v)
     else if (k === 'value') el.value = v
     else if (k === 'checked') el.checked = Boolean(v)
+    // the page CSP refuses style attributes; CSSOM assignments are allowed
+    else if (k === 'style') el.style.cssText = v
     else el.setAttribute(k, v === true ? '' : v)
   }
   for (const e of enfants.flat()) if (e !== null && e !== undefined && e !== false) el.append(e.nodeType ? e : document.createTextNode(String(e)))
@@ -530,7 +532,7 @@ function vueReglages() {
       h('div', {}, h('label', {}, 'Clé Anthropic des rayons ', pastille(e.secrets.anthropic ? 'posée' : 'absente', e.secrets.anthropic ? 'bon' : 'mauvais')),
         h('div', { class: 'ligne' },
           h('div', { style: 'flex:1;min-width:220px' }, h('select', { onchange: async (ev) => { const x = await appel('connecteurCle', { cleId: ev.target.value }); if (x) { etat = x; flash('Clé des rayons enregistrée.') } } },
-            h('option', { value: '' }, e.secrets.anthropic && !e.kantix.connecteurs.dropshipper.cleId ? 'ancienne clé du Poste' : '— choisir —'),
+            h('option', { value: '' }, e.secrets.anthropic && !e.kantix.connecteurs.dropshipper.cleId ? 'ancienne clé du Poste' : e.kantix.cles.some((c) => c.fournisseur === 'anthropic') ? '— choisir —' : 'aucune clé Anthropic : « Gérer les clés API »'),
             e.kantix.cles.filter((c) => c.fournisseur === 'anthropic').map((c) => h('option', { value: c.id, selected: c.id === e.kantix.connecteurs.dropshipper.cleId }, c.nom)))),
           h('button', { class: 'btn', onclick: () => aller('cles') }, 'Gérer les clés API'))),
       avecSerper && cle('serper', 'Clé API Serper'),

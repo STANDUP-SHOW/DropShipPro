@@ -67,7 +67,13 @@ async function lancer({ maison, profil, port, serveur }) {
     return JSON.parse(r)
   }
   const quitter = async () => { try { await appel('bancQuitter') } catch { /* closing */ } await Promise.race([fini, pause(8000)]); try { enfant.kill() } catch { /* gone */ } }
-  return { enfant, cdp, evaluer, appel, quitter, sortie: () => sortie }
+  // CAPTURE=<file.png>: one screenshot of the window, to look at the theme without a Windows PC
+  const capturer = (fichier) => new Promise((ok) => {
+    const id = ++n
+    attente.set(id, (r) => { if (r && r.data) fs.writeFileSync(fichier, Buffer.from(r.data, 'base64')); ok() })
+    ws.send(JSON.stringify({ id, method: 'Page.captureScreenshot', params: { format: 'png' } }))
+  })
+  return { enfant, cdp, evaluer, appel, quitter, capturer, sortie: () => sortie }
 }
 
 ;(async () => {
@@ -103,6 +109,7 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(ec2.kantix.connecteurs.dropshipper.actif, true); assert.equal(ec2.kantix.projets[0].connecteur, 'dropshipper')
     await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; rendre() })()`)
     await pause(300)
+    if (process.env.CAPTURE) await a.capturer(process.env.CAPTURE)
     const menu = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('#onglets button')].map((b) => b.textContent))`))
     assert.deepEqual(menu, ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal', 'Tableau de bord', 'Rapports du jour', 'Administration', 'Import Drive', 'Affiliation', 'Réseaux sociaux', 'Réglages'])
     console.log('ok   écran : menu KANTIX, puis les 7 pages DropShipper une fois le connecteur connecté,', ec.titre)

@@ -1121,6 +1121,8 @@ function creerFenetre() {
     minWidth: 960,
     minHeight: 640,
     title: `${NOM_APP} — v${app.getVersion()}`,
+    backgroundColor: '#1E1B2C',
+    icon: path.join(__dirname, 'build', 'icon.png'),
     show: !lancementDiscret(process.argv),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
