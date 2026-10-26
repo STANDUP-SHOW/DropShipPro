@@ -35,6 +35,7 @@ if (estLeSite) {
     retirerAccord: (id) => appel('auto:retirer', id),
     reprendre: (id) => appel('auto:reprendre', id),
     verifierSession: (id) => appel('power:verifier-session', id),
+    rassembler: (demande) => appel('power:rassembler', demande),
     navigateur: {
       ouvrir: (options) => appel('nav:ouvrir', options),
       placer: (zone) => appel('nav:placer', zone),

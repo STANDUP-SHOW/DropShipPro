@@ -110,6 +110,16 @@ async function main() {
   const apres = JSON.parse(await s.evaluer(`window.dropshipperDesktop.navigateur.ouvrir({ profil: 'ads' }).then((r) => JSON.stringify(r.etat))`))
   verifier('masqué puis rappelé sans emplacement : la vue garde sa page, invisible', apres.ouvert === true && apres.visible === false && apres.url === urlTiers, JSON.stringify(apres))
 
+  // SmartMarket : le rassembleur. L'extracteur tourne dans un vrai Chromium, sur des cartes de résultats imitées.
+  const ra = require('./lib/rassembleur')
+  const refusRa = JSON.parse(await s.evaluer(`window.dropshipperDesktop.rassembler({ fournisseur: 'inconnu', q: 'lampe' }).then((r) => JSON.stringify(r))`))
+  verifier('rassembleur : fournisseur inconnu refusé', refusRa.ok === false, JSON.stringify(refusRa))
+  const cartes = '<div id="res">' + [1, 2, 3].map((i) => `<div class="carte"><a href="https://www.temu.com/fr/lampe-${i}-g-60109951234567${i}.html?x=1"><img src="https://img.kwcdn.com/${i}.jpg" alt="Lampe ${i} tactile LED"></a><div>Lampe ${i} tactile LED</div><span>${i},99 €</span></div>`).join('') + '<a href="https://www.temu.com/fr/aide.html">Aide</a></div>'
+  await s.evaluer(`document.body.insertAdjacentHTML('beforeend', ${JSON.stringify(cartes)})`)
+  const bruts = JSON.parse(await s.evaluer(`JSON.stringify((${ra.extracteur.toString()})(${JSON.stringify(ra.SOURCES.temu.fiche.source)}))`))
+  const lues = ra.nettoyer('temu', bruts)
+  verifier('rassembleur : trois offres lues dans la page, titre, photo et prix', lues.length === 3 && lues[1].titre === 'Lampe 2 tactile LED' && lues[1].prixEur === 2.99 && lues[1].image === 'https://img.kwcdn.com/2.jpg', JSON.stringify(lues))
+
   s.ws.close()
   enfant.kill()
   site.close()

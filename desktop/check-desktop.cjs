@@ -502,6 +502,24 @@ async function main() {
   verifier('une page d’accueil ne prouve rien', pw.etatSession('FACEBOOK', { url: 'https://www.facebook.com/marketplace/', texte: 'Marketplace' }) === 'inconnu')
   verifier('lecture bornée', pw.lecture({ texte: 'x'.repeat(50000) }).texte.length === pw.LECTURE_MAX)
 
+  console.log('\nSmartMarket : le rassembleur (lib/rassembleur.js)')
+  const ra = require('./lib/rassembleur')
+  verifier('fournisseur inventé ou mots vides : pas de recherche', ra.adresseRecherche('__proto__', 'x') === null && ra.adresseRecherche('temu', '   ') === null && ra.adresseRecherche('temu', 'x'.repeat(101)) === null)
+  verifier('adresse de recherche Temu encodée', ra.adresseRecherche('temu', 'mini pc') === 'https://www.temu.com/search_result.html?search_key=mini%20pc')
+  verifier('espacement : 20 s entre deux recherches', ra.attente(1000, 11000) === 10000 && ra.attente(1000, 30000) === 0 && ra.attente(null) === 0)
+  verifier('prix en euros lus, jamais devinés', ra.prixEur('Lampe 12,99 €  -40 %') === 12.99 && ra.prixEur('€ 1 234,50') === 1234.5 && ra.prixEur('8.49€') === 8.49 && ra.prixEur('US $12.99') === null && ra.prixEur('') === null)
+  const offres = ra.nettoyer('temu', [
+    { href: 'https://www.temu.com/fr/lampe-led-g-601099512345678.html?_x=1', titre: '', image: 'https://img.kwcdn.com/a.jpg', texte: 'Lampe LED de chevet tactile\n9,99 €\n-50 %' },
+    { href: 'https://www.temu.com/fr/lampe-led-g-601099512345678.html?autre=2', titre: 'Doublon', image: '', texte: '' },
+    { href: 'https://evil.test/x-g-1.html', titre: 'Ailleurs', image: '', texte: '' },
+    { href: 'https://www.temu.com/fr/channel/best-sellers.html', titre: 'Pas une fiche', image: '', texte: '' },
+    { href: 'https://www.temu.com/fr/pince-g-601099599999999.html', titre: 'Pince', image: 'javascript:alert(1)', texte: 'Pince  US$3' },
+  ])
+  verifier('offres : fiches du fournisseur seulement, sans doublon', offres.length === 2, JSON.stringify(offres))
+  verifier('offre : titre repris de la carte, prix et photo lus', offres[0].titre === 'Lampe LED de chevet tactile' && offres[0].prixEur === 9.99 && offres[0].image === 'https://img.kwcdn.com/a.jpg' && offres[0].url === 'https://www.temu.com/fr/lampe-led-g-601099512345678.html')
+  verifier('offre : prix hors euros vide, photo douteuse écartée', offres[1].prixEur === null && offres[1].image === null)
+  verifier('vingt offres au plus', ra.nettoyer('shein', Array.from({ length: 40 }, (_, i) => ({ href: `https://fr.shein.com/robe-p-${i + 1}.html`, titre: 'Robe ' + i }))).length === ra.MAX_PRODUITS)
+
   fs.rmSync(dossier, { recursive: true, force: true })
   if (echecs) {
     console.error(`\n${echecs} attente(s) manquée(s).`)

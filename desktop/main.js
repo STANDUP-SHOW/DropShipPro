@@ -37,6 +37,7 @@ const { traiterLien, importGroupe, importesAujourdhui, plafondImports } = requir
 const fileAuto = require('./lib/file-autoshipper')
 const { relever } = require('./lib/releveur')
 const power = require('./lib/power')
+const rassembleur = require('./lib/rassembleur')
 
 // Bancs : un profil jetable (config, journal, sessions) au lieu de celui du vendeur.
 if (process.env.DROPSHIPPER_DESKTOP_PROFIL) app.setPath('userData', process.env.DROPSHIPPER_DESKTOP_PROFIL)
@@ -444,6 +445,67 @@ function montrerPanneau(section) {
   vuePanneau.webContents.send('section', section)
 }
 
+// ------------------------------------------------- Le rassembleur de SmartMarket
+
+const derniereRecherche = new Map()
+let rassemblementEnCours = false
+const pause = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Ouvre la page de recherche du fournisseur dans une fenêtre cachée, profil WebShipper
+ * (la session du vendeur), et relève les offres affichées. Une seule à la fois, espacées
+ * par fournisseur ; arrêt et message au premier signe de vérification anti-robot.
+ */
+async function rassembler({ fournisseur, q } = {}) {
+  const s = rassembleur.source(fournisseur)
+  const adresse = rassembleur.adresseRecherche(fournisseur, q)
+  if (!s || !adresse) return { ok: false, erreur: 'Recherche refusée.' }
+  if (rassemblementEnCours) return { ok: false, erreur: 'Une recherche est déjà en cours : patientez.' }
+  const reste = rassembleur.attente(derniereRecherche.get(fournisseur))
+  if (reste) return { ok: false, attente: reste, erreur: `Patientez ${Math.ceil(reste / 1000)} s avant une nouvelle recherche chez ${s.nom}.` }
+  rassemblementEnCours = true
+  derniereRecherche.set(fournisseur, Date.now())
+  const win = new BrowserWindow({
+    show: false,
+    width: 1280,
+    height: 900,
+    webPreferences: { partition: power.PROFILS.webshipper.partition, contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
+  })
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  win.webContents.setAudioMuted(true)
+  try {
+    // Une redirection interrompt parfois loadURL (ERR_ABORTED) alors que la page arrive : on attend le chargement, borné.
+    let minuterie = null
+    const charge = await Promise.race([
+      win.loadURL(adresse).then(() => true, () => true),
+      new Promise((r) => (minuterie = setTimeout(() => r(false), 30000))),
+    ])
+    clearTimeout(minuterie)
+    if (!charge) throw new Error('La page de recherche ne répond pas.')
+    await pause(2500)
+    // Les résultats se chargent en descendant, comme pour le vendeur : deux pas, pas plus.
+    for (let i = 0; i < 2; i++) {
+      await win.webContents.executeJavaScript('window.scrollBy(0, window.innerHeight * 2)', true).catch(() => undefined)
+      await pause(1500)
+    }
+    const wc = win.webContents
+    const texte = await wc.executeJavaScript('document.body ? document.body.innerText : ""', true).catch(() => '')
+    const b = plafonds.detecterBlocage({ url: wc.getURL(), titre: wc.getTitle(), texte })
+    if (b.bloque) {
+      plafonds.journaliser(dossier(), { type: 'alerte', raison: `SmartMarket ${s.nom} : ${b.indice}`, url: wc.getURL() })
+      return { ok: false, blocage: true, url: adresse, erreur: `${s.nom} demande une vérification anti-robot. Ouvrez la recherche dans le navigateur ci-dessous et réglez-la vous-même ; l'application ne la contourne jamais.` }
+    }
+    const bruts = await wc.executeJavaScript(`(${rassembleur.extracteur.toString()})(${JSON.stringify(s.fiche.source)})`, true).catch(() => [])
+    const produits = rassembleur.nettoyer(fournisseur, bruts)
+    return { ok: true, url: adresse, produits }
+  } catch (err) {
+    return { ok: false, url: adresse, erreur: err.message || 'Recherche impossible.' }
+  } finally {
+    rassemblementEnCours = false
+    if (!win.isDestroyed()) win.destroy()
+  }
+}
+
 // ------------------------------------------------- Le navigateur intégré (WebShipper)
 
 function etatNav(id) {
@@ -830,6 +892,7 @@ function brancherIpc() {
     montrerPanneau(String(section || 'partages'))
     return { ok: true }
   })
+  duSite('power:rassembler', (demande) => rassembler(demande || {}))
   duSite('power:verifier-session', (id) => verifierSession(String(id)))
   duSite('nav:ouvrir', (options) => ouvrirNav(options || {}))
   duSite('nav:placer', (zone) => {
