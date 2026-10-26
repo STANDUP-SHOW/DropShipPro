@@ -46,6 +46,13 @@ export const DROPS = {
   questionChef: 25,
   /** Conseil produit approfondi d'un chef (5 recherches). ~0,076 €. */
   conseilProduit: 40,
+  /**
+   * AdsAnalyser (DESKTOP POWER, 24/10/2026) : la page de la bibliothèque
+   * publicitaire Facebook ou TikTok ouverte par le vendeur, lue puis analysée —
+   * Sonnet + 3 recherches web au plus ≈ 0,10 $ (estimé sur le code, pas mesuré)
+   * → 50. PROPOSÉ à Max, en attente de sa décision. Rendu si l'analyse échoue.
+   */
+  adsAnalyse: 50,
   /** Générer une image (photo en situation). ~0,033 €. */
   image: 18,
   /**

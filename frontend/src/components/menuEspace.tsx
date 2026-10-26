@@ -14,16 +14,20 @@ import {
   LifeBuoy,
   Link2,
   Megaphone,
+  MonitorDown,
   Monitor,
   MessagesSquare,
   Newspaper,
   Package,
   Plug,
+  ScanSearch,
   Search,
   Settings,
   Share2,
+  Smartphone,
   ShoppingBag,
   ShoppingBasket,
+  Rocket,
   Sparkles,
   Store,
   Ticket,
@@ -76,6 +80,8 @@ export interface EntreeMenu {
 export interface GroupeMenu {
   id: string
   titre: string
+  /** Une ligne sous le titre, groupe ouvert (DESKTOP POWER : l'application à télécharger). */
+  note?: string
   icon: ElementType
   /** La teinte de l'icône du groupe, prise dans les chartes maison. */
   teinte: string
@@ -106,10 +112,26 @@ export const GROUPES: GroupeMenu[] = [
       { to: '/dashboard', label: 'Mes annonces', icon: Package, mots: 'produits fiches' },
       { to: '/acquisition', label: 'Acquérir des produits', icon: Link2, mots: 'comment acquérir import' },
       { to: '/extension', label: 'Extension Chrome', icon: IconeChrome, mots: 'google navigateur' },
-      { to: '/application-desktop', label: 'Application desktop', icon: Monitor, mots: 'dropshipper desktop windows import en lot logiciel' },
       { to: '/fournisseurs', label: 'Fournisseurs', icon: Boxes, mots: 'sourcing' },
       { to: '/catalogues', label: 'Catalogues connectés', icon: Search },
       { to: '/categories', label: 'Catégories', icon: FolderTree },
+    ],
+  },
+  {
+    // DESKTOP POWER (demande de Max du 24/10/2026) : les pages qui vivent dans l'application desktop.
+    id: 'desktop',
+    titre: 'DESKTOP POWER',
+    icon: Monitor,
+    teinte: '#e85290',
+    note: "Téléchargez l'application desktop pour les utiliser.",
+    entrees: [
+      { to: '/application-desktop', label: "Télécharger l'application", icon: MonitorDown, mots: 'dropshipper desktop windows import en lot logiciel installer' },
+      { to: '/webshipper', label: 'WebShipper', icon: Globe, mots: 'navigateur intégré web' },
+      { to: '/smartmarket', label: 'SmartMarket', icon: ScanSearch, mots: 'comparer fournisseurs catalogues temu alibaba aliexpress' },
+      { to: '/remoteshipping', label: 'RemoteShipping', icon: Smartphone, mots: 'téléphone mobile partager liste à importer' },
+      { to: '/adsanalyser', label: 'AdsAnalyser', icon: Megaphone, mots: 'facebook ads library tiktok publicités analyse' },
+      { to: '/autoshipper-importer', label: 'AUTO-SHIPPER Importer', icon: Rocket, mots: 'autoshipper imports lots statistiques' },
+      { to: '/marketplus', label: 'MarketPlus', icon: Store, mots: 'vinted leboncoin facebook marketplace connecter comptes' },
     ],
   },
   {

@@ -49,9 +49,9 @@ const CARTES = [
   },
   {
     icone: Monitor,
-    titre: 'Le site dans sa fenêtre',
+    titre: 'Le site en pleine page, et DESKTOP POWER',
     texte:
-      "À droite, drop-shipper.fr lui-même : tableau de bord, AUTO-SHIPPER, commandes, produits gagnants, drops, réglages. Connectez-vous une fois (avec Google, la connexion passe par votre navigateur) et le poste se relie tout seul à votre compte.",
+      "L'application ouvre drop-shipper.fr lui-même, en pleine page, avec son menu. Connectez-vous une fois (avec Google, la connexion passe par votre navigateur) et le poste se relie tout seul à votre compte. La section DESKTOP POWER du menu y prend vie : WebShipper (le navigateur intégré), SmartMarket, RemoteShipping, AdsAnalyser, AUTO-SHIPPER Importer et MarketPlus.",
   },
 ]
 

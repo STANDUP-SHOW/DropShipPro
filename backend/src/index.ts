@@ -30,6 +30,7 @@ import { reportsRouter, chatRouter } from './routes/reports.js'
 import { studioRouter } from './routes/studio.js'
 import { statsRouter } from './routes/stats.js'
 import { autopilotRouter } from './routes/autopilot.js'
+import { desktopPowerRouter } from './routes/desktopPower.js'
 import { conversationsRouter } from './routes/conversations.js'
 import { supplierConversationsRouter } from './routes/supplierConversations.js'
 import { visualsRouter } from './routes/visuals.js'
@@ -168,6 +169,7 @@ app.use('/api/studio', studioRouter)
 app.use('/api/stats', statsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/autopilot', autopilotRouter)
+app.use('/api/desktop-power', desktopPowerRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/supplier-conversations', supplierConversationsRouter)
 app.use('/api/visuals', visualsRouter)

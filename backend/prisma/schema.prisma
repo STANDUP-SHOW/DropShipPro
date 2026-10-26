@@ -202,6 +202,7 @@ model User {
   apiKeys            ApiKey[]
   opportunities      Opportunity[]
   sharedLinks        SharedLink[]
+  adsAnalyses        AdsAnalyse[]
   signals            Signal[]
   review             Review?
   Department         Department[]
@@ -915,6 +916,33 @@ model Opportunity {
 /// vers l'application companion qui le telechargera. Volontairement distinct
 /// d'Opportunity : ici on ne demande rien de plus qu'une URL — un clic sur
 /// "partager" ne connait ni le prix fournisseur ni le titre exact du produit.
+/// Une analyse AdsAnalyser (DESKTOP POWER, 24/10/2026) : la page de la
+/// bibliotheque publicitaire Facebook ou TikTok que le vendeur a ouverte dans
+/// l application desktop, lue telle qu il la voyait, et le rapport marketing
+/// que l IA en a tire. Ses analyses perso, a cote de celles des agents.
+model AdsAnalyse {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// facebook | tiktok
+  plateforme String
+  /// L adresse de la page analysee, telle que le navigateur integre l avait.
+  url        String
+  titre      String
+  /// Le produit vise, dit par le vendeur (facultatif).
+  produit    String?
+  /// Le rapport en Markdown, sections H2.
+  body       String @db.Text
+  /// Les chiffres releves sur la page, null quand la page ne les montre pas.
+  donnees    Json?
+  /// Ce qui a ete debite, en drops.
+  drops      Int
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 model SharedLink {
   id     String @id @default(cuid())
   userId String
