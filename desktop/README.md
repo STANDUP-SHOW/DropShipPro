@@ -32,16 +32,26 @@ en pause une heure et la ligne attend. Fichiers : `lib/file-autoshipper.js` (log
 `lib/releveur.js` (fenêtre). Bancs : `npm run check`, `npm run check:releve` (vraie
 fenêtre Electron contre une fiche locale). **Jamais essayé sur un vrai Temu/Shein.**
 
-À gauche, une barre ; à droite, **le site drop-shipper.fr lui-même dans son propre
-navigateur** (session `persist:site`) : tableau de bord, Auto-Shipper, commandes,
-produits gagnants, drops, réglages — la même chose que sur le site, rien de réécrit.
+**DESKTOP POWER (0.5.0, 24/10/2026)** : plus de barre à gauche. La fenêtre est **le site
+drop-shipper.fr lui-même, en pleine page, dans son propre navigateur** (session
+`persist:site`), avec son menu. Ses pages DESKTOP POWER (WebShipper, SmartMarket,
+RemoteShipping, AdsAnalyser, AUTO-SHIPPER Importer, MarketPlus) parlent à l'application par
+`window.dropshipperDesktop` (`site-preload.js`), exposé aux seules pages du site et revérifié
+à chaque appel. Elles y posent **un navigateur intégré** : une vraie vue par profil
+(`persist:webshipper`, `persist:ads`, et les partitions de Vinted, Leboncoin, Facebook),
+placée sur l'emplacement réservé dans la page, sans aucun pont. MarketPlus dit une
+plateforme « connectée » seulement quand son formulaire de dépôt s'ouvre sans demander de
+connexion. Décisions dans `lib/power.js` ; bancs : `check-desktop.cjs` (logique) et
+`check-power.cjs` (vraie fenêtre Electron contre un faux site local). Les panneaux locaux
+(partages, commandes fournisseurs, publication, journal) s'ouvrent depuis le site et
+reviennent par « Retour au site ».
 Le vendeur s'y connecte une fois ; **ce poste se relie alors tout seul** (une clé
 desktop est créée avec sa session, gardée chiffrée ici ; aucun mot de passe lu).
 Sous « Sur ce poste » : les produits partagés à importer, la publication par session
 (Vinted, Leboncoin, Facebook) et le journal.
 
 **Partager un produit** vers la liste à importer (la même que celle du mobile) :
-lien collé ou déposé sur la fenêtre, presse-papiers capturé (interrupteur, coupé par
+« Garder pour plus tard » dans WebShipper, presse-papiers capturé (interrupteur, coupé par
 défaut), adresse `dropshipper://partager?url=…`, menu de la zone de notification.
 Fermer la fenêtre ne coupe pas l'agent : il vit dans la zone de notification.
 Le menu « Partager » de Windows lui-même n'est ouvert qu'aux applications du Store

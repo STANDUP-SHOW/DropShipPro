@@ -50,7 +50,7 @@ export const DROPS = {
    * AdsAnalyser (DESKTOP POWER, 24/10/2026) : la page de la bibliothèque
    * publicitaire Facebook ou TikTok ouverte par le vendeur, lue puis analysée —
    * Sonnet + 3 recherches web au plus ≈ 0,10 $ (estimé sur le code, pas mesuré)
-   * → 50. PROPOSÉ à Max, en attente de sa décision. Rendu si l'analyse échoue.
+   * → 50, choisi par Max le 26/10/2026. Rendu si l'analyse échoue.
    */
   adsAnalyse: 50,
   /** Générer une image (photo en situation). ~0,033 €. */

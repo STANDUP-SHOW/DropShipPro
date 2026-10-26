@@ -2,9 +2,11 @@
 /**
  * DropShipper Desktop — le processus principal.
  *
- * - Une fenêtre : une barre à gauche (renderer/coque.html), et à droite LE SITE
- *   drop-shipper.fr lui-même (tableau de bord, Auto-Shipper, commandes, drops…)
- *   dans son propre navigateur, ou les panneaux locaux (renderer/index.html).
+ * - Une fenêtre : LE SITE drop-shipper.fr lui-même, en pleine page, dans son
+ *   propre navigateur (24/10/2026 : plus de barre à gauche, le menu est celui du
+ *   site). Ses pages DESKTOP POWER parlent à l'application par un pont
+ *   (site-preload.js) et y posent un navigateur intégré (lib/power.js) ; les
+ *   panneaux locaux (renderer/index.html) s'ouvrent depuis ces pages.
  *   Le vendeur se connecte au site dans cette fenêtre ; ce poste se relie alors
  *   tout seul (clé desktop créée avec sa session, gardée chiffrée ici).
  * - Partage d'un produit vers la liste à importer : lien collé ou déposé sur la
@@ -34,6 +36,7 @@ const { preparer: preparerAchat } = require('./lib/commande')
 const { traiterLien, importGroupe, importesAujourdhui, plafondImports } = require('./lib/circuit')
 const fileAuto = require('./lib/file-autoshipper')
 const { relever } = require('./lib/releveur')
+const power = require('./lib/power')
 
 // Bancs : un profil jetable (config, journal, sessions) au lieu de celui du vendeur.
 if (process.env.DROPSHIPPER_DESKTOP_PROFIL) app.setPath('userData', process.env.DROPSHIPPER_DESKTOP_PROFIL)
@@ -54,11 +57,15 @@ let occupe = false
 let derniereErreur = null
 let minuteur = null
 const fenetresSession = new Map()
-const SITE = 'https://www.drop-shipper.fr'
-const LARGEUR_BARRE = 220
+// Bancs : un faux site local à la place de la production.
+const SITE = process.env.DROPSHIPPER_SITE || 'https://www.drop-shipper.fr'
 let vueSite = null
 let vuePanneau = null
 let panneauVisible = false
+/** Le navigateur intégré des pages DESKTOP POWER : une vue par profil, une seule visible. */
+const vuesNav = new Map()
+let navActif = null
+let zoneNav = null
 let tray = null
 let dernierPresse = null
 let dernierPartage = null
@@ -78,11 +85,35 @@ function chargerTout() {
 
 function envoyer(canal, donnees) {
   if (vuePanneau && !vuePanneau.webContents.isDestroyed()) vuePanneau.webContents.send(canal, donnees)
-  if (fenetre && !fenetre.isDestroyed()) fenetre.webContents.send('coque', etatCoque())
+  if (vueSite && !vueSite.webContents.isDestroyed()) vueSite.webContents.send('power:etat', etatPower())
 }
 
-function etatCoque() {
-  return { compte: cfg.compte || null, connecte: !!api, nbLiens: liens.length, nbAnnonces: annonces.length, nbAchats: achats.length, capture: Boolean(cfg.capturePressePapiers), dernierPartage }
+/** Ce que voient les pages DESKTOP POWER du site : jamais la clé, jamais un cookie. */
+function etatPower() {
+  const journal = plafonds.lireJournal(dossier())
+  return {
+    version: app.getVersion(),
+    relie: !!api,
+    compte: cfg.compte || null,
+    nbLiens: liens.length,
+    nbAnnonces: annonces.length,
+    nbAchats: achats.length,
+    capture: Boolean(cfg.capturePressePapiers),
+    dernierPartage,
+    erreur: derniereErreur,
+    texteAccord: plafonds.TEXTE_ACCORD,
+    plateformes: Object.entries(plafonds.PLATEFORMES).map(([id, p]) => ({
+      id,
+      nom: p.nom,
+      session: (cfg.sessions && cfg.sessions[id]) || null,
+      verification: power.adresseVerification(id),
+      accord: cfg.accords[id] ? cfg.accords[id].at : null,
+      arret: etat.arrets[id] || null,
+      plafond: plafonds.plafondEffectif(id, cfg),
+      espacementMin: p.espacementMin,
+      decision: plafonds.decision({ plateforme: id, config: cfg, journal, etat }),
+    })),
+  }
 }
 
 function instantane() {
@@ -384,19 +415,26 @@ function ouvrirLien(url) {
 
 // ------------------------------------------------------------- La fenêtre
 
+const CACHE = { x: 0, y: 0, width: 0, height: 0 }
+
 function placerVues() {
   if (!fenetre || fenetre.isDestroyed()) return
   const [largeur, hauteur] = fenetre.getContentSize()
-  const zone = { x: LARGEUR_BARRE, y: 0, width: Math.max(0, largeur - LARGEUR_BARRE), height: hauteur }
-  const cache = { x: 0, y: 0, width: 0, height: 0 }
-  vueSite.setBounds(panneauVisible ? cache : zone)
-  vuePanneau.setBounds(panneauVisible ? zone : cache)
+  const zone = { x: 0, y: 0, width: largeur, height: hauteur }
+  vueSite.setBounds(panneauVisible ? CACHE : zone)
+  vuePanneau.setBounds(panneauVisible ? zone : CACHE)
+  for (const [id, vue] of vuesNav) {
+    const z = !panneauVisible && id === navActif && zoneNav ? power.zoneSure(zoneNav, { largeur, hauteur, zoom: vueSite.webContents.getZoomFactor() }) : null
+    vue.setBounds(z || CACHE)
+  }
 }
 
 function montrerSite(chemin) {
   panneauVisible = false
-  const cible = new URL(chemin, SITE).href
-  if (vueSite.webContents.getURL() !== cible) vueSite.webContents.loadURL(cible)
+  if (chemin) {
+    const cible = new URL(chemin, SITE).href
+    if (vueSite.webContents.getURL() !== cible) vueSite.webContents.loadURL(cible)
+  }
   placerVues()
 }
 
@@ -404,6 +442,143 @@ function montrerPanneau(section) {
   panneauVisible = true
   placerVues()
   vuePanneau.webContents.send('section', section)
+}
+
+// ------------------------------------------------- Le navigateur intégré (WebShipper)
+
+function etatNav(id) {
+  const vue = vuesNav.get(id)
+  if (!vue || vue.webContents.isDestroyed()) return { profil: id, ouvert: false }
+  const wc = vue.webContents
+  return {
+    profil: id,
+    ouvert: true,
+    visible: id === navActif && !!zoneNav,
+    url: wc.getURL(),
+    titre: wc.getTitle(),
+    chargement: wc.isLoading(),
+    peutRetour: wc.navigationHistory.canGoBack(),
+    peutAvancer: wc.navigationHistory.canGoForward(),
+    bloque: vue.bloque || null,
+  }
+}
+
+function signalerNav(id) {
+  if (vueSite && !vueSite.webContents.isDestroyed()) vueSite.webContents.send('nav:etat', etatNav(id))
+}
+
+/**
+ * Une page lue après chaque chargement : un captcha ou un avertissement est DIT à la
+ * page (« vérification demandée : réglez-la vous-même »), jamais contourné.
+ */
+async function lireNav(id) {
+  const vue = vuesNav.get(id)
+  if (!vue || vue.webContents.isDestroyed()) return null
+  const wc = vue.webContents
+  const texte = await wc.executeJavaScript('document.body ? document.body.innerText : ""', true).catch(() => '')
+  const motDePasse = await wc.executeJavaScript('!!document.querySelector(\'input[type="password"]\')', true).catch(() => false)
+  return { url: wc.getURL(), titre: wc.getTitle(), texte, motDePasse }
+}
+
+async function surChargementNav(id) {
+  const page = await lireNav(id)
+  const vue = vuesNav.get(id)
+  if (!page || !vue) return
+  const b = plafonds.detecterBlocage(page)
+  vue.bloque = b.bloque ? b.indice : null
+  const p = power.profil(id)
+  // Le vendeur se connecte à sa place de marché dans ce navigateur : le formulaire de dépôt sans signe d'absence = relié.
+  if (p && p.plateforme) {
+    const e = power.etatSession(p.plateforme, page)
+    if (e !== 'inconnu') noterSession(p.plateforme, e, page.url)
+  }
+  signalerNav(id)
+}
+
+function noterSession(plateforme, e, url) {
+  const avant = cfg.sessions && cfg.sessions[plateforme]
+  const apres = e === 'connecte' ? { connecte: true, verifie: new Date().toISOString() } : { connecte: false, verifie: new Date().toISOString(), url: String(url).slice(0, 200) }
+  cfg = { ...cfg, sessions: { ...(cfg.sessions || {}), [plateforme]: apres } }
+  config.enregistrer(dossier(), cfg)
+  if (e === 'connecte') sansSession.delete(plateforme)
+  if (!avant || avant.connecte !== apres.connecte) {
+    plafonds.journaliser(dossier(), { type: e === 'connecte' ? 'session' : 'session-absente', plateforme, raison: e === 'connecte' ? 'formulaire de dépôt ouvert dans la session' : 'connexion demandée' })
+  }
+  envoyer('etat', instantane())
+}
+
+function vueNav(id) {
+  if (vuesNav.has(id)) return vuesNav.get(id)
+  const p = power.profil(id)
+  // Aucun preload, aucun pont : une page tierce n'a jamais accès à l'application.
+  const vue = new WebContentsView({ webPreferences: { partition: p.partition, contextIsolation: true, nodeIntegration: false, sandbox: true } })
+  const wc = vue.webContents
+  wc.setWindowOpenHandler(({ url }) => {
+    // Les bibliothèques publicitaires ouvrent leurs fiches dans un nouvel onglet : elles restent ici.
+    const sure = power.adresseNavigateur(url, SITE)
+    if (sure) wc.loadURL(sure)
+    return { action: 'deny' }
+  })
+  wc.on('will-navigate', (e, url) => {
+    if (!power.adresseNavigateur(url, SITE)) e.preventDefault()
+  })
+  wc.on('did-start-loading', () => signalerNav(id))
+  wc.on('did-finish-load', () => surChargementNav(id))
+  wc.on('did-navigate-in-page', () => surChargementNav(id))
+  wc.on('page-title-updated', () => signalerNav(id))
+  wc.on('did-fail-load', () => signalerNav(id))
+  fenetre.contentView.addChildView(vue)
+  vuesNav.set(id, vue)
+  return vue
+}
+
+/**
+ * La page demande un navigateur dans son emplacement. L'adresse de départ ne sert que
+ * si la vue n'a encore rien ouvert (revenir sur WebShipper retrouve sa page), sauf
+ * `forcer` (AdsAnalyser passe de Facebook à TikTok).
+ */
+async function ouvrirNav({ profil: id, url, zone, forcer = false } = {}) {
+  const p = power.profil(id)
+  if (!p) return { ok: false, erreur: 'Profil de navigateur inconnu.' }
+  const vue = vueNav(id)
+  navActif = id
+  zoneNav = zone || zoneNav
+  placerVues()
+  const cible = url ? power.adresseNavigateur(url, SITE) : null
+  if (url && !cible) return { ok: false, erreur: 'Adresse refusée.' }
+  if (cible && (forcer || !vue.webContents.getURL()) && cible !== vue.webContents.getURL()) {
+    vue.webContents.loadURL(cible).catch(() => undefined) // une redirection interrompt le chargement : la page est là quand même
+  }
+  return { ok: true, etat: etatNav(id) }
+}
+
+function masquerNav() {
+  zoneNav = null
+  navActif = null
+  placerVues()
+}
+
+const navCourant = () => (navActif && vuesNav.get(navActif)) || null
+
+/**
+ * « Vérifier » sur MarketPlus : le formulaire de dépôt s'ouvre dans la session de la
+ * plateforme, sans être montré, et on lit s'il demande une connexion.
+ */
+async function verifierSession(plateforme) {
+  const cible = power.adresseVerification(plateforme)
+  const p = power.profil(plateforme)
+  if (!cible || !p) return { ok: false, erreur: 'Plateforme inconnue.' }
+  const vue = vueNav(plateforme)
+  try {
+    await vue.webContents.loadURL(cible)
+  } catch {
+    /* redirection vers la connexion : la page est là, on la lit */
+  }
+  await new Promise((ok) => setTimeout(ok, 2500)) // le formulaire se monte après le chargement
+  const page = await lireNav(plateforme)
+  const e = power.etatSession(plateforme, page)
+  if (e !== 'inconnu') noterSession(plateforme, e, page && page.url)
+  return { ok: true, etat: e }
 }
 
 /**
@@ -488,13 +663,23 @@ function creerFenetre() {
     minWidth: 900,
     minHeight: 600,
     title: 'DropShipper Desktop',
-    webPreferences: { preload: path.join(__dirname, 'coque-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+    backgroundColor: '#101321',
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   fenetre.removeMenu()
-  fenetre.loadFile(path.join(__dirname, 'renderer', 'coque.html'))
 
-  // Le site, dans son propre navigateur (session persistante « persist:site », le vendeur s'y connecte lui-même).
-  vueSite = new WebContentsView({ webPreferences: { partition: 'persist:site', contextIsolation: true, nodeIntegration: false, sandbox: true } })
+  // Le site, en pleine page, dans son propre navigateur (session persistante « persist:site », le vendeur s'y connecte
+  // lui-même). Son pont (site-preload.js) n'est exposé qu'à ses propres pages.
+  vueSite = new WebContentsView({
+    webPreferences: {
+      partition: 'persist:site',
+      preload: path.join(__dirname, 'site-preload.js'),
+      additionalArguments: [`--dropshipper-site=${SITE}`, `--dropshipper-version=${app.getVersion()}`],
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
   vueSite.webContents.setWindowOpenHandler(({ url }) => {
     // Le site reste dans la fenêtre ; les liens extérieurs (fournisseurs, places de marché) s'ouvrent dans le navigateur du poste.
     // « Continuer avec Google » : Google refuse sa connexion ici, elle passe par le navigateur du poste.
@@ -509,6 +694,11 @@ function creerFenetre() {
   vueSite.webContents.on('did-navigate-in-page', () => {
     if (!api) relierDepuisLeSite()
   })
+  // Changement de page sur le site : le navigateur intégré se retire, la page suivante le rappelle si elle en a un.
+  vueSite.webContents.on('did-start-navigation', (d) => {
+    if (d.isMainFrame && !d.isSameDocument) masquerNav()
+  })
+  vueSite.webContents.on('did-navigate-in-page', () => masquerNav())
 
   vuePanneau = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } })
   vuePanneau.webContents.loadFile(path.join(__dirname, 'renderer', 'index.html'))
@@ -601,18 +791,87 @@ function traiterArguments(argv) {
 function brancherIpc() {
   ipcMain.handle('etat', () => instantane())
 
-  ipcMain.handle('coque:etat', () => etatCoque())
-  ipcMain.handle('coque:naviguer', (_e, ou) => {
-    if (ou && ou.site) montrerSite(String(ou.site))
-    else montrerPanneau(String((ou && ou.panneau) || 'partages'))
-  })
-  ipcMain.handle('coque:partager', (_e, url) => partagerLien(url, 'desktop'))
-  ipcMain.handle('coque:capture', (_e, actif) => {
+  // Le pont du site (DESKTOP POWER) : chaque appel revérifie qu'il vient d'une page du site.
+  const duSite = (canal, f) =>
+    ipcMain.handle(canal, (e, ...args) => {
+      const origine = (e.senderFrame && e.senderFrame.url) || ''
+      if (e.sender !== vueSite.webContents || !power.origineSure(origine, SITE)) return { ok: false, erreur: 'Refusé : seule une page du site parle à l’application.' }
+      return f(...args)
+    })
+  duSite('power:etat', () => etatPower())
+  duSite('power:partager', (url) => partagerLien(url, 'desktop'))
+  duSite('power:capture', (actif) => {
     cfg = { ...cfg, capturePressePapiers: Boolean(actif) }
     config.enregistrer(dossier(), cfg)
     dernierPresse = clipboard.readText().trim() // ce qui est déjà copié ne compte pas
-    return etatCoque()
+    return etatPower()
   })
+  // WebShipper et RemoteShipping : « Importer » lit la fiche ICI (Temu, Shein… que le serveur ne lit pas), puis
+  // l'annonce rejoint Mes annonces. Aucune mise en file de publication : le vendeur publie depuis Mes annonces.
+  duSite('power:importer', async ({ url, id } = {}) => {
+    if (!api) return { ok: false, erreur: 'Connectez-vous d’abord sur le site, dans cette fenêtre.' }
+    const sure = file.adresseSure(String(url || '').trim())
+    if (!sure || sure.includes('drop-shipper.fr')) return { ok: false, erreur: 'Ce n’est pas une fiche produit.' }
+    try {
+      let lienId = id ? String(id) : null
+      if (!lienId) lienId = (await api.partager(sure, 'desktop')).id
+      dejaVus.add(lienId) // la tournée ne le reprend pas en parallèle
+      const r = await traiterLien({ api, lien: { id: lienId, url: sure }, plateformes: [], relever })
+      plafonds.journaliser(dossier(), { type: 'import', publication: lienId, produit: r.productId, raison: r.raison, resultat: r.statut })
+      liens = liens.filter((l) => l.id !== lienId)
+      envoyer('etat', instantane())
+      if (r.statut === 'echec' || r.statut === 'sans_solde') return { ok: false, erreur: r.raison || 'Import impossible.' }
+      return { ok: true, productId: r.productId || null, statut: r.statut }
+    } catch (err) {
+      return { ok: false, erreur: err.message }
+    }
+  })
+  duSite('power:panneau', (section) => {
+    montrerPanneau(String(section || 'partages'))
+    return { ok: true }
+  })
+  duSite('power:verifier-session', (id) => verifierSession(String(id)))
+  duSite('nav:ouvrir', (options) => ouvrirNav(options || {}))
+  duSite('nav:placer', (zone) => {
+    zoneNav = zone || null
+    placerVues()
+    return { ok: true }
+  })
+  duSite('nav:masquer', () => {
+    masquerNav()
+    return { ok: true }
+  })
+  duSite('nav:aller', (adresse) => {
+    const vue = navCourant()
+    const cible = power.adresseNavigateur(adresse, SITE)
+    if (!vue || !cible) return { ok: false, erreur: vue ? 'Adresse refusée.' : 'Aucun navigateur ouvert.' }
+    vue.webContents.loadURL(cible).catch(() => undefined)
+    return { ok: true }
+  })
+  duSite('nav:retour', () => {
+    const vue = navCourant()
+    if (vue && vue.webContents.navigationHistory.canGoBack()) vue.webContents.navigationHistory.goBack()
+    return { ok: true }
+  })
+  duSite('nav:avancer', () => {
+    const vue = navCourant()
+    if (vue && vue.webContents.navigationHistory.canGoForward()) vue.webContents.navigationHistory.goForward()
+    return { ok: true }
+  })
+  duSite('nav:recharger', () => {
+    const vue = navCourant()
+    if (vue) vue.webContents.reload()
+    return { ok: true }
+  })
+  // AdsAnalyser : la page lue telle que le vendeur la voit (texte visible), pour l'analyse demandée par lui.
+  duSite('nav:lire', async () => {
+    if (!navActif) return { ok: false, erreur: 'Aucune page ouverte.' }
+    const page = await lireNav(navActif)
+    if (!page) return { ok: false, erreur: 'Page illisible.' }
+    return { ok: true, page: power.lecture(page) }
+  })
+  // Le panneau local revient au site.
+  ipcMain.handle('panneau:fermer', () => montrerSite(null))
 
   // « Importer » sur un lien partagé : le circuit, à la demande, même quand le mode automatique est coupé.
   ipcMain.handle('lien:importer', async (_e, id) => {
@@ -751,6 +1010,7 @@ function brancherIpc() {
     cfg = plafonds.accorder(cfg, id)
     config.enregistrer(dossier(), cfg)
     plafonds.journaliser(dossier(), { type: 'accord', plateforme: id })
+    envoyer('etat', instantane())
     return instantane()
   })
 
@@ -758,6 +1018,7 @@ function brancherIpc() {
     cfg = plafonds.retirerAccord(cfg, id)
     config.enregistrer(dossier(), cfg)
     plafonds.journaliser(dossier(), { type: 'accord-retire', plateforme: id })
+    envoyer('etat', instantane())
     return instantane()
   })
 
@@ -765,6 +1026,7 @@ function brancherIpc() {
     etat = plafonds.reprendre(etat, id)
     plafonds.ecrireEtat(dossier(), etat)
     plafonds.journaliser(dossier(), { type: 'reprise', plateforme: id })
+    envoyer('etat', instantane())
     return instantane()
   })
 }

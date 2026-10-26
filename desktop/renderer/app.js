@@ -222,7 +222,10 @@ $('plafond-imports').addEventListener('change', async (e) => rendre(await window
 
 $('marge-min').addEventListener('change', async (e) => rendre(await window.desktop.margeMin(e.target.value)))
 
+document.getElementById('retour-site').addEventListener('click', () => window.desktop.retourSite())
+
 window.desktop.surSection((s) => {
+  if (s === 'auto') return window.scrollTo({ top: 0 })
   const cible = document.getElementById(s === 'journal' ? 'journal-titre' : s === 'achats' ? 'achats-titre' : s)
   if (cible) cible.scrollIntoView({ block: 'start' })
 })

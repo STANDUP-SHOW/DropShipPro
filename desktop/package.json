@@ -1,6 +1,6 @@
 {
   "name": "dropshipper-desktop",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "DropShipper Desktop — le compagnon de l'application drop-shipper.fr : sessions marchandes, file de travail, mode automatique encadré.",
   "author": "DropShipper IA <contact@drop-shipper.fr>",
   "main": "main.js",
@@ -22,7 +22,7 @@
     "appId": "fr.drop-shipper.desktop",
     "productName": "DropShipper Desktop",
     "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "coque-preload.js", "lib/**", "renderer/**", "extraction/**", "build/icon.png"],
+    "files": ["main.js", "preload.js", "site-preload.js", "lib/**", "renderer/**", "extraction/**", "build/icon.png"],
     "win": { "target": ["nsis", "msi"], "icon": "build/icon.png" },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
     "msi": { "oneClick": false }

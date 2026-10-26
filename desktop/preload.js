@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('desktop', {
   importerLien: (id) => ipcRenderer.invoke('lien:importer', id),
   preparerAchat: (id) => ipcRenderer.invoke('achat:preparer', id),
   achatPaye: (id) => ipcRenderer.invoke('achat:paye', id),
+  retourSite: () => ipcRenderer.invoke('panneau:fermer'),
   surEtat: (cb) => ipcRenderer.on('etat', (_e, e) => cb(e)),
   surSection: (cb) => ipcRenderer.on('section', (_e, s) => cb(s)),
 })
