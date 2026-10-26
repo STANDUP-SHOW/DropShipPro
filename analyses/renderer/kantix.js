@@ -450,7 +450,6 @@ function vueCles() {
 function vueConnecteurs() {
   const k = etat.kantix
   const ds = k.connecteurs.dropshipper || {}
-  const anth = k.cles.filter((c) => c.fournisseur === 'anthropic')
   return h('div', {},
     h('h1', {}, 'Connecteurs d’analyses'),
     h('p', { class: 'doux' }, 'Un connecteur branche KANTIX sur les analyses propres à un site, avec leur page : rapports effectués, échecs, lancement à la main.'),
@@ -460,11 +459,12 @@ function vueConnecteurs() {
         h('h2', {}, 'DropShipper analyses ', pastille(ds.actif ? 'connecté' : 'non connecté', ds.actif ? 'bon' : '')),
         h('p', { class: 'petit' }, 'MarketSpy : 24 rayons × 7 thèmes par jour, rapports rayon et marketing, envoi au site drop-shipper.fr, administration du site (utilisateurs, Import Drive, affiliation, réseaux sociaux).'),
         ds.actif && h('div', {},
-          h('label', {}, 'Clé Anthropic des rayons (recherche web de Claude)'),
+          h('label', {}, 'Clé IA des rayons (n’importe quel fournisseur avec recherche web)'),
           h('select', { onchange: (ev) => appelEtat('connecteurCle', { cleId: ev.target.value }, 'Clé du connecteur enregistrée.') },
-            h('option', { value: '' }, etat.secrets.anthropic && !ds.cleId ? 'ancienne clé du Poste' : anth.length ? '— choisir —' : 'aucune clé Anthropic enregistrée'),
-            anth.map((c) => h('option', { value: c.id, selected: c.id === ds.cleId }, c.nom))),
-          !anth.length && h('p', { class: 'petit' }, 'Ajoutez d’abord une clé Anthropic dans ', h('a', { href: '#', onclick: (ev) => { ev.preventDefault(); aller('cles') } }, '« Clés API »'), ' : la liste se remplit avec vos clés.'),
+            h('option', { value: '' }, etat.secrets.anthropic && !ds.cleId ? 'ancienne clé du Poste' : k.cles.length ? '— choisir —' : 'aucune clé enregistrée'),
+            k.cles.map((c) => h('option', { value: c.id, selected: c.id === ds.cleId }, `${c.nom} · ${nomFournisseur(c.fournisseur)}${c.recherche ? '' : ' (sans recherche web : moteur Serper requis)'}`))),
+          !k.cles.length && h('p', { class: 'petit' }, 'Ajoutez d’abord une clé dans ', h('a', { href: '#', onclick: (ev) => { ev.preventDefault(); aller('cles') } }, '« Clés API »'), ' : la liste se remplit avec vos clés.'),
+          h('p', { class: 'petit doux' }, 'Anthropic n’est indispensable que pour le brief d’une nouvelle analyse (rédigé avec Claude). Les rayons tournent avec la clé choisie ici.'),
         ),
         h('div', { class: 'ligne', style: 'margin-top:10px' },
           ds.actif

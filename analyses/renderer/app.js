@@ -79,14 +79,14 @@ function vueAccueil() {
     h('div', { class: 'grille' },
       h('div', { class: 'carte' },
         h('h2', {}, 'Prêt à travailler ?'),
-        h('div', {}, 'Clé Anthropic ', pastille(cles.anthropic ? 'posée' : 'absente', cles.anthropic ? 'bon' : 'mauvais')),
+        h('div', {}, 'Clé IA des rayons ', pastille(cles.anthropic ? (e.cleRayons ? `${e.cleRayons.nom} · ${e.cleRayons.fournisseur}` : 'posée') : 'absente', cles.anthropic ? 'bon' : 'mauvais')),
         avecSerper
           ? h('div', {}, 'Clé Serper ', pastille(cles.serper ? 'posée' : 'absente', cles.serper ? 'bon' : 'mauvais'))
-          : h('div', {}, 'Recherche web ', pastille('par Claude, sans Serper', 'bon')),
+          : h('div', {}, 'Recherche web ', pastille(`par ${e.cleRayons ? e.cleRayons.fournisseur : 'Claude'}, sans Serper`, e.cleRayons && !e.cleRayons.recherche ? 'mauvais' : 'bon')),
         h('div', {}, 'Clé d’administration du site ', pastille(e.admin.cle ? 'créée' : 'absente', e.admin.cle ? 'bon' : 'mauvais')),
         h('div', {}, 'Sources de données ', pastille(String(e.sources.length), e.sources.length ? 'bon' : '')),
         (!toutesCles || !e.admin.cle) && h('p', {}, h('button', { class: 'btn principal', onclick: () => aller('reglages') }, 'Poser mes clés')),
-        (!toutesCles || !e.admin.cle) && h('p', { class: 'doux petit' }, avecSerper ? 'Les trois clés se posent dans Réglages : elles restent chiffrées sur ce PC.' : 'La clé Anthropic et la clé d’administration se posent dans Réglages : elles restent chiffrées sur ce PC.'),
+        (!toutesCles || !e.admin.cle) && h('p', { class: 'doux petit' }, avecSerper ? 'Les trois clés se posent dans Réglages : elles restent chiffrées sur ce PC.' : 'La clé IA des rayons (Connecteurs) et la clé d’administration (Réglages) restent chiffrées sur ce PC.'),
       ),
       h('div', { class: 'carte' },
         h('h2', {}, `Aujourd’hui (${e.date})`),
@@ -103,8 +103,8 @@ function vueAccueil() {
         h('button', { class: 'btn', onclick: async () => {
           flash('Contrôle en cours…')
           const r = await appel('credits')
-          if (r) flash(`Anthropic : ${r.claude.ok ? 'OK' : r.claude.message}${r.serper.utilise ? ` — Serper : ${r.serper.ok ? 'OK' : r.serper.message}` : ' — recherche web par Claude, sans Serper'}`)
-        } }, avecSerper ? 'Contrôler les crédits (1 crédit Serper)' : 'Contrôler la clé Anthropic'),
+          if (r) flash(`${e.cleRayons ? e.cleRayons.fournisseur : 'Anthropic'} : ${r.claude.ok ? 'OK' : r.claude.message}${r.serper.utilise ? ` — Serper : ${r.serper.ok ? 'OK' : r.serper.message}` : ' — recherche web sans Serper'}`)
+        } }, avecSerper ? 'Contrôler les crédits (1 crédit Serper)' : 'Contrôler la clé des rayons'),
         h('button', { class: 'btn principal', disabled: e.nuit.enCours || !toutesCles, onclick: async () => { const r = await appel('rayonTest', choixDuTest(e)); if (r && !r.annule) flash(`Rayon test : ${r.statut}`) } }, 'Lancer UN rayon test'),
         h('button', { class: 'btn', disabled: e.nuit.enCours || !toutesCles || !choisis, onclick: async () => { const r = await appel('nuitLancer'); if (r && !r.annule) flash(r.annulee ? `Nuit annulée : ${r.annulee}` : 'Nuit terminée') } }, choisis === total ? 'Lancer la nuit complète' : `Lancer ${choisis} rayon${choisis > 1 ? 's' : ''} sur ${total}`),
         h('button', { class: 'btn danger', disabled: !e.nuit.enCours, onclick: () => appel('nuitArreter') }, 'Arrêter après le rayon en cours'),
@@ -523,17 +523,17 @@ function vueReglages() {
   const caseImages = h('input', { type: 'checkbox', checked: se.images })
   const avecSerper = r.moteurRecherche === 'serper'
   const moteur = h('select', {},
-    h('option', { value: 'claude', selected: !avecSerper }, 'Claude (recherche web d’Anthropic, avec la clé Anthropic seule)'),
+    h('option', { value: 'claude', selected: !avecSerper }, 'Recherche web de l’IA des rayons (Claude, GPT, Gemini ou Perplexity), sans Serper'),
     h('option', { value: 'serper', selected: avecSerper }, 'Serper (clé et crédits Serper)'))
   return h('div', {},
     h('h1', {}, 'Réglages'),
     h('div', { class: 'carte' },
       h('h2', {}, 'Clés (saisies par vous, chiffrées par Windows, jamais réaffichées)'),
-      h('div', {}, h('label', {}, 'Clé Anthropic des rayons ', pastille(e.secrets.anthropic ? 'posée' : 'absente', e.secrets.anthropic ? 'bon' : 'mauvais')),
+      h('div', {}, h('label', {}, 'Clé IA des rayons ', pastille(e.secrets.anthropic ? 'posée' : 'absente', e.secrets.anthropic ? 'bon' : 'mauvais')),
         h('div', { class: 'ligne' },
           h('div', { style: 'flex:1;min-width:220px' }, h('select', { onchange: async (ev) => { const x = await appel('connecteurCle', { cleId: ev.target.value }); if (x) { etat = x; flash('Clé des rayons enregistrée.') } } },
-            h('option', { value: '' }, e.secrets.anthropic && !e.kantix.connecteurs.dropshipper.cleId ? 'ancienne clé du Poste' : e.kantix.cles.some((c) => c.fournisseur === 'anthropic') ? '— choisir —' : 'aucune clé Anthropic : « Gérer les clés API »'),
-            e.kantix.cles.filter((c) => c.fournisseur === 'anthropic').map((c) => h('option', { value: c.id, selected: c.id === e.kantix.connecteurs.dropshipper.cleId }, c.nom)))),
+            h('option', { value: '' }, e.secrets.anthropic && !e.kantix.connecteurs.dropshipper.cleId ? 'ancienne clé du Poste' : e.kantix.cles.length ? '— choisir —' : 'aucune clé : « Gérer les clés API »'),
+            e.kantix.cles.map((c) => h('option', { value: c.id, selected: c.id === e.kantix.connecteurs.dropshipper.cleId }, `${c.nom} · ${c.fournisseur}`)))),
           h('button', { class: 'btn', onclick: () => aller('cles') }, 'Gérer les clés API'))),
       avecSerper && cle('serper', 'Clé API Serper'),
       blocCleAdmin(),

@@ -29,6 +29,7 @@ async function lancer({ maison, profil, port, serveur }) {
       DROPSHIPPER_POSTE_DEPOT: path.join(maison, 'DropShipper-Analyses'),
       POSTE_URL_META: `http://127.0.0.1:${p}`, POSTE_URL_TRENDS: `http://127.0.0.1:${p}`, POSTE_PAUSE_SIGNAUX_MS: '0',
       POSTE_URL_SERPER: `http://127.0.0.1:${p}/search`, POSTE_URL_CLAUDE: `http://127.0.0.1:${p}/v1/messages`,
+      KANTIX_URL_IA: `http://127.0.0.1:${p}/kantix-ia`,
     },
   })
   let sortie = ''
@@ -327,8 +328,19 @@ async function lancer({ maison, profil, port, serveur }) {
     await a.evaluer(`document.querySelector('#onglets button[data-onglet=reglages]').click()`)
     await pause(300)
     const texteReglages = await a.evaluer(`document.body.textContent`)
-    assert.match(texteReglages, /Clé Anthropic des rayons/); assert.match(texteReglages, /Clé API Serper/); assert.match(texteReglages, /Clé d’administration du site/)
+    assert.match(texteReglages, /Clé IA des rayons/); assert.match(texteReglages, /Clé API Serper/); assert.match(texteReglages, /Clé d’administration du site/)
     assert.match(texteReglages, /Serper Shopping/); assert.match(texteReglages, /crédits Serper avec ces réglages/)
+    // the rayons on another AI (max, 26/10): any key can be chosen; one without web search is refused by name
+    const avecMistral = (await a.appel('cleEnregistrer', { fournisseur: 'mistral', nom: 'Mistral banc', valeur: 'cle-de-banc', modele: 'mistral-large' })).valeur
+    const mistral = avecMistral.kantix.cles.find((c) => c.fournisseur === 'mistral')
+    const choisie = await a.appel('connecteurCle', { cleId: mistral.id })
+    assert.equal(choisie.ok, true, 'une clé non Anthropic se choisit pour les rayons')
+    assert.equal(choisie.valeur.cleRayons.fournisseur, 'Mistral AI')
+    const ctrl = await a.appel('credits')
+    // Serper engine in this bench: the rayon's writing goes through the chosen key's provider (fake server: refused by name, no outbound call)
+    assert.equal(ctrl.valeur.claude.ok, false); assert.match(ctrl.valeur.claude.message, /Mistral AI/)
+    await a.appel('connecteurCle', { cleId: '' }); await a.appel('cleSupprimer', mistral.id)
+    console.log('ok   rayons : clé d’une autre IA choisie, appelée à la place de Claude')
     const essai = async () => { await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Essai mots-clés').click()`); await pause(800); return a.evaluer(`document.body.textContent`) }
     const nonBranche = await essai()
     assert.match(nonBranche, /pas branché Variables Railway manquantes : GOOGLE_ADS_SERVICE_ACCOUNT_JSON, GOOGLE_ADS_CUSTOMER_ID\. Les analyses continuent sans les volumes\./)

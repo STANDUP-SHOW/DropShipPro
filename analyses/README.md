@@ -25,6 +25,7 @@ pour lui et son équipe. Menu :
 - **Clés API** : 11 fournisseurs (`lib/fournisseurs-ia.js` : Anthropic, OpenAI,
   Gemini, Mistral, DeepSeek, xAI, Groq, OpenRouter, Together, Perplexity, tout
   service compatible OpenAI), coffre du système, « Tester » = vrai appel.
+- **Rayons sur n’importe quelle IA** (0.5.2, 26/10) : Anthropic n’est obligatoire que pour le brief d’une nouvelle analyse. Les rayons DropShipper tournent avec la clé choisie dans Connecteurs (par défaut la première clé dont le fournisseur cherche sur le web) : `lib/moteur-generique.js` garde seulement les pages que le fournisseur dit avoir lues. Sans recherche web (Mistral, DeepSeek…), il faut le moteur Serper.
 - **Connecteurs** : DropShipper (les rayons, échecs, lancement rayon par rayon,
   tout l'ancien Poste). Actif d'office sur une installation existante.
 
