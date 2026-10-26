@@ -297,6 +297,37 @@ test('brief : pièces jointes (image, PDF, texte), refus des autres types, promp
   assert.match(brief.systeme({ projet: { nom: 'iAgents' }, onglets: ['Ads'] }), /<prompt>/)
 })
 
+test('rayons avec une autre IA : message au format du rayon ; recherche gardant seulement les pages lues', async () => {
+  const { creerClaudeGenerique, creerRechercheGenerique } = require('../lib/moteur-generique')
+  const appels = []
+  const json = { resultats: [
+    { requete: 'robot aspirateur', pages: [{ titre: 'Lu', url: 'https://boutique.fr/robot-x#avis', extrait: 'Robot X 199 €' }, { titre: 'Inventé', url: 'https://invente.fr/p', extrait: '?' }] },
+    { requete: 'aspirateur sans fil', pages: [{ titre: 'Gemini', url: 'https://www.marque.com/v12', extrait: 'V12 349 €' }] },
+  ] }
+  const generer = async (a) => {
+    appels.push(a)
+    if (!a.rechercheWeb) return { texte: 'rapport', arret: 'end_turn', urls: [], usage: { entree: 10, sortie: 20 }, fournisseur: 'openai', modele: 'gpt-x' }
+    return { texte: 'Voici : ' + JSON.stringify(json), arret: 'end_turn', urls: ['https://boutique.fr/robot-x'], domaines: ['marque.com'], usage: { entree: 5, sortie: 6, recherches: 2 } }
+  }
+  const claude = creerClaudeGenerique({ generer, nom: 'OpenAI (GPT)' })
+  const m = await claude.message({ systeme: 's', utilisateur: 'u', maxTokens: 4, effort: 'low', flux: false })
+  assert.deepEqual([m.texte, m.arret, m.usage.input_tokens, m.usage.output_tokens], ['rapport', 'end_turn', 10, 20])
+  assert.equal(appels[0].maxTokens, 16, 'budget minimal relevé pour les API qui refusent 4 jetons')
+  const r = creerRechercheGenerique({ generer, nom: 'OpenAI (GPT)' })
+  const lot = await r.chercherLot(['robot aspirateur site:amazon.fr', 'aspirateur sans fil'])
+  assert.deepEqual(lot.resultats[0].map((x) => x.titre), ['Lu'], 'une URL que la recherche n’a pas lue est écartée')
+  assert.deepEqual(lot.resultats[1].map((x) => x.titre), ['Gemini'], 'lien de redirection Gemini : vérifié par le site lu')
+  assert.equal(lot.usage.recherches, 2)
+  assert.doesNotMatch(appels[1].messages[0].parties[0].texte, /site:/)
+  const surSites = await r.chercherLot(['robot aspirateur', 'aspirateur sans fil'], { domaines: ['marque.com'] })
+  assert.match(appels[2].messages[0].parties[0].texte, /uniquement sur ces sites : marque\.com/)
+  assert.deepEqual(surSites.resultats.map((l) => l.map((x) => x.titre)), [[], ['Gemini']], 'hors des sites demandés = écarté')
+  const vide = creerRechercheGenerique({ generer: async () => ({ texte: JSON.stringify(json), urls: [], domaines: [], usage: {} }), nom: 'Mistral AI' })
+  await assert.rejects(vide.chercherLot(['robot aspirateur']), /sans résultat vérifiable \(aucune page lue/)
+  const illisible = creerRechercheGenerique({ generer: async () => ({ texte: 'pas de json', urls: ['https://a.fr'], usage: {} }), nom: 'Gemini' })
+  await assert.rejects(illisible.chercherLot(['x']), /réponse sans liste JSON/)
+})
+
 ;(async () => {
   const s = await serveur()
   base = `http://127.0.0.1:${s.address().port}`

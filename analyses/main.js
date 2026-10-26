@@ -47,6 +47,7 @@ const veille = require('./lib/veille')
 const { planifier } = require('./lib/planificateur')
 const kantix = require('./lib/kantix')
 const ia = require('./lib/fournisseurs-ia')
+const moteurGenerique = require('./lib/moteur-generique')
 const recurrence = require('./lib/recurrence')
 const fluxLib = require('./lib/flux')
 const briefLib = require('./lib/brief')
@@ -81,8 +82,8 @@ const sauver = () => config.enregistrer(dossierDonnees(), cfg)
 // The DropShipper connector's Anthropic key is chosen among KANTIX's keys; the old slot stays as a fallback.
 function secret(nom) {
   if (nom === 'anthropic') {
-    const id = cfg.connecteurs && cfg.connecteurs.dropshipper && cfg.connecteurs.dropshipper.cleId
-    const v = id ? config.lireSecret(cfg, kantix.nomSecretCle(id), safeStorage) : null
+    const c = cleRayons()
+    const v = c ? config.lireSecret(cfg, kantix.nomSecretCle(c.id), safeStorage) : null
     if (v) return v
   }
   return config.lireSecret(cfg, nom, safeStorage)
@@ -91,7 +92,24 @@ function secret(nom) {
 // ---- providers (keys read at use time: Max may change them)
 // Serper is only built when Max chose it: without a Serper key the Poste searches with Claude.
 const moteurSerper = () => cfg.moteurRecherche === 'serper'
+// The key chosen for the rayons (Connecteurs › DropShipper): any provider of KANTIX's keys (max, 26/10).
+// Nothing chosen and no old Poste key: the first key whose provider searches the web, so a key typed in « Clés API » is enough.
+function cleRayons() {
+  const id = cfg.connecteurs && cfg.connecteurs.dropshipper && cfg.connecteurs.dropshipper.cleId
+  if (id) return cfg.cles.find((c) => c.id === id) || null
+  if (config.lireSecret(cfg, 'anthropic', safeStorage)) return null
+  return cfg.cles.find((c) => (ia.fournisseur(c.fournisseur) || {}).recherche && config.lireSecret(cfg, kantix.nomSecretCle(c.id), safeStorage)) || null
+}
 function fournisseurs() {
+  const c = cleRayons()
+  if (c && c.fournisseur !== 'anthropic') {
+    const f = ia.fournisseur(c.fournisseur) || { nom: c.fournisseur }
+    const generer = (args) => ia.generer({ ...args, cleInfo: cleAppelable(c), cle: secretCle(c.id), espace: espaceDe(c) })
+    const claude = moteurGenerique.creerClaudeGenerique({ generer, nom: f.nom })
+    if (moteurSerper()) return { serper: creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined }), recherche: null, claude }
+    if (!f.recherche) throw new Error(`La clé « ${c.nom} » (${f.nom}) n’a pas de recherche web : les rayons en ont besoin. Choisissez une clé Anthropic, OpenAI, Gemini ou Perplexity (Connecteurs › DropShipper), ou le moteur Serper.`)
+    return { serper: null, recherche: moteurGenerique.creerRechercheGenerique({ generer, nom: f.nom }), claude }
+  }
   const claude = creerClaude({ cle: secret('anthropic'), modele: cfg.modele, espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
   if (moteurSerper()) return { serper: creerSerper({ cle: secret('serper'), url: process.env.POSTE_URL_SERPER || undefined }), recherche: null, claude }
   const recherche = creerRechercheClaude({ cle: secret('anthropic'), modele: modeleRecherche(), espace: cfg.espaceAnthropic, url: process.env.POSTE_URL_CLAUDE || undefined })
@@ -410,6 +428,8 @@ function etat() {
     date,
     // « anthropic » = the key the DropShipper connector will use (chosen in KANTIX's keys, or the old slot)
     secrets: { ...config.etatSecrets(cfg), anthropic: Boolean(secret('anthropic')) },
+    // the key the rayons run on: its provider name, shown instead of « Anthropic » when another AI was chosen
+    cleRayons: (() => { const c = cleRayons(); const f = c && ia.fournisseur(c.fournisseur); return c ? { nom: c.nom, fournisseur: f ? f.nom : c.fournisseur, recherche: Boolean(f && f.recherche) } : null })(),
     kantix: etatKantix(),
     reglages: {
       modele: cfg.modele, modeleRecherche: cfg.modeleRecherche || '', moteurRecherche: moteurSerper() ? 'serper' : 'claude', coutParRayon: coutParRayon(1), espaceAnthropic: cfg.espaceAnthropic || '', heureNuit: cfg.heureNuit, nuitActivee: cfg.nuitActivee, envoiAuSite: cfg.envoiAuSite, apiBase: cfg.apiBase,
@@ -919,7 +939,7 @@ function brancherKantix(h) {
     return etat()
   })
   h('connecteur-cle', ({ cleId }) => {
-    if (cleId && !cfg.cles.some((c) => c.id === cleId && c.fournisseur === 'anthropic')) throw new Error('Choisissez une clé Anthropic : les rayons DropShipper cherchent avec la recherche web de Claude.')
+    if (cleId && !cfg.cles.some((c) => c.id === cleId)) throw new Error('Clé inconnue : choisissez-en une de l’onglet Clés API.')
     cfg.connecteurs = { ...(cfg.connecteurs || {}), dropshipper: { ...((cfg.connecteurs || {}).dropshipper || {}), cleId: cleId || null } }
     sauver()
     return etat()

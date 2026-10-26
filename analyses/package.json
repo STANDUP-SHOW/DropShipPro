@@ -1,6 +1,6 @@
 {
   "name": "dropshipper-poste-analyses",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "KANTIX ANALYSER — producteur d'analyses de marché pour plusieurs projets : clés IA au choix, brief avec Claude, analyses planifiées, navigateur à onglets connectés, flux signé vers chaque site. DropShipper y est un connecteur.",
   "author": "DropShipper IA <contact@drop-shipper.fr>",
   "main": "main.js",
