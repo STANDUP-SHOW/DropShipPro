@@ -1,13 +1,13 @@
 {
   "name": "dropshipper-poste-analyses",
-  "version": "0.4.0",
-  "description": "Poste d'analyses DropShipper — les agents d'analyse de marché, un navigateur privé à sessions persistantes et le dossier de dépôt des rapports, sur un PC dédié.",
+  "version": "0.5.0",
+  "description": "KANTIX ANALYSER — producteur d'analyses de marché pour plusieurs projets : clés IA au choix, brief avec Claude, analyses planifiées, navigateur à onglets connectés, flux signé vers chaque site. DropShipper y est un connecteur.",
   "author": "DropShipper IA <contact@drop-shipper.fr>",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "check": "node banc/check-poste.cjs",
+    "check": "node banc/check-poste.cjs && node banc/check-kantix.cjs",
     "check:fenetre": "node banc/check-fenetre.cjs",
     "build": "electron-builder --win nsis"
   },
@@ -17,7 +17,7 @@
   },
   "build": {
     "appId": "fr.drop-shipper.poste-analyses",
-    "productName": "DropShipper Poste d'analyses",
+    "productName": "KANTIX ANALYSER",
     "directories": {
       "output": "dist",
       "buildResources": "build"

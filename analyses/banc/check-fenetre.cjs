@@ -91,15 +91,28 @@ async function lancer({ maison, profil, port, serveur }) {
     for (let i = 0; i < 50 && !(await a.evaluer(`document.querySelectorAll('#onglets button').length`)); i++) await pause(200)
     const ecran = await a.evaluer(`JSON.stringify({ onglets: [...document.querySelectorAll('#onglets button')].map((b) => b.textContent), titre: document.querySelector('h1') && document.querySelector('h1').textContent })`)
     const ec = JSON.parse(ecran)
-    assert.deepEqual(ec.onglets, ['Tableau de bord', 'Rapports du jour', 'Sources & navigateur', 'Administration', 'Import Drive', 'Affiliation', 'Réseaux sociaux', 'Réglages', 'Journal'])
-    console.log('ok   écran : 8 onglets,', ec.titre)
+    if (!ec.onglets.length) {
+      // say why the menu is empty instead of a bare deepEqual
+      const diag = await a.evaluer(`(async () => { try { if (typeof etat === 'undefined' || !etat) etat = (await window.poste.etat()).valeur; rendre(); return 'rendu sans erreur, boutons : ' + document.querySelectorAll('#onglets button').length } catch (e) { return 'rendre() lève : ' + (e && e.stack || e) } })()`)
+      console.log('diag menu vide :', diag, '| corps :', JSON.stringify((await a.evaluer(`document.body.innerText.slice(0, 400)`)) || ''))
+    }
+    // a new install of KANTIX ANALYSER: its own menu, the DropShipper connector not connected yet
+    assert.deepEqual(ec.onglets, ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal'])
+    assert.equal(e0.nom, 'KANTIX ANALYSER'); assert.equal(e0.kantix.connecteurs.dropshipper.actif, false); assert.equal(e0.kantix.fournisseurs.length, 11)
+    const ec2 = (await a.appel('connecteurActiver', { id: 'dropshipper', actif: true })).valeur
+    assert.equal(ec2.kantix.connecteurs.dropshipper.actif, true); assert.equal(ec2.kantix.projets[0].connecteur, 'dropshipper')
+    await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; rendre() })()`)
+    await pause(300)
+    const menu = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('#onglets button')].map((b) => b.textContent))`))
+    assert.deepEqual(menu, ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal', 'Tableau de bord', 'Rapports du jour', 'Administration', 'Import Drive', 'Affiliation', 'Réseaux sociaux', 'Réglages'])
+    console.log('ok   écran : menu KANTIX, puis les 7 pages DropShipper une fois le connecteur connecté,', ec.titre)
 
     // keys: stored, never returned
     // default engine: Claude's web search, the Anthropic key alone (no Serper)
     const e1 = (await a.appel('secret', { nom: 'anthropic', valeur: 'cle-anthropic-secrete' })).valeur
     assert.deepEqual(e1.secrets, { anthropic: true, serper: false, admin: false })
     assert.equal(e1.reglages.moteurRecherche, 'claude')
-    await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; rendre() })()`)
+    await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; onglet = 'accueil'; rendre() })()`)
     await pause(300)
     const accueil = await a.evaluer(`document.body.textContent`)
     assert.match(accueil, /par Claude, sans Serper/); assert.ok(!/0,39 €/.test(accueil), 'plus l’ancien coût Serper sur la carte de la nuit'); assert.ok(!/Clé Serper/.test(accueil), 'pas de clé Serper demandée')
@@ -258,14 +271,14 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal((await a.appel('etat')).valeur.envoi.enAttente, 0)
     console.log('ok   renvoi : refus du site dit en clair, rapport conservé, puis envoyé')
     // the screen: a checkbox per rayon (2 ticked) and the Serper readings in Réglages
-    await a.evaluer(`document.querySelectorAll('#onglets button')[1].click()`)
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=rapports]').click()`)
     await pause(300)
     const coches = JSON.parse(await a.evaluer(`JSON.stringify({ cases: document.querySelectorAll('table input[type=checkbox]').length, cochees: document.querySelectorAll('table input[type=checkbox]:checked').length })`))
     assert.deepEqual(coches, { cases: 24, cochees: 2 })
     const enLigne = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('table .pastille')].filter((p) => p.textContent === 'en ligne').length)`))
     assert.equal(enLigne, 3, 'la colonne « Site » montre les 3 rapports en ligne')
     // Administration tab: key created, fingerprint shown (never the key), users listed on demand
-    await a.evaluer(`document.querySelectorAll('#onglets button')[3].click()`)
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=administration]').click()`)
     await pause(300)
     await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les utilisateurs').click()`)
     await pause(800)
@@ -273,21 +286,21 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.match(texteAdmin, /Administrateur unique|administrateur unique/); assert.match(texteAdmin, /[0-9a-f]{64}/); assert.ok(!texteAdmin.includes('dsp_adm_'), 'la clé n’est jamais à l’écran')
     assert.match(texteAdmin, /a@exemple\.test/); assert.match(texteAdmin, /2 compte\(s\), dont 1 adresse/)
     console.log('ok   onglet Administration : empreinte visible, clé jamais affichée, utilisateurs listés')
-    await a.evaluer(`document.querySelectorAll('#onglets button')[4].click()`)
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=drive]').click()`)
     await pause(300)
     await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Lire le dossier').click()`)
     await pause(800)
     const texteDrive = await a.evaluer(`document.body.textContent`)
     assert.match(texteDrive, /2026-10-08/); assert.match(texteDrive, /Importer 1 date\(s\)/)
     assert.match(texteDrive, /Non importable : mode \/ sacs \(sacs\.marketing\.md\) — marketing seul, sans \.rayon\.md/); assert.match(texteDrive, /Ignoré : mode\/sacs\.sourcing\.md/)
-    await a.evaluer(`document.querySelectorAll('#onglets button')[5].click()`)
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=affiliation]').click()`)
     await pause(300)
     await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les affiliés').click()`)
     await pause(800)
     const texteAff = await a.evaluer(`document.body.textContent`)
     assert.match(texteAff, /TEST10/); assert.match(texteAff, /FR76 •••• 0123/); assert.ok(!texteAff.includes('FR7612345678901234567890123'), 'IBAN masqué à l’écran')
     console.log('ok   onglets Import Drive et Affiliation, IBAN masqué')
-    await a.evaluer(`document.querySelectorAll('#onglets button')[6].click()`)
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=reseaux]').click()`)
     await pause(300)
     await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les liens du site').click()`)
     await pause(800)
@@ -304,10 +317,10 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.equal(faux.reseaux.instagram, 'https://www.instagram.com/dropshipper'); assert.equal(faux.reseaux.facebook, null)
     assert.match(await a.evaluer(`document.body.textContent`), /Enregistré : le pied de page du site affiche maintenant ces icônes\./)
     console.log('ok   onglet Réseaux sociaux : 6 champs, refus du site affiché tel quel, lien enregistré par PUT')
-    await a.evaluer(`document.querySelectorAll('#onglets button')[7].click()`)
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=reglages]').click()`)
     await pause(300)
     const texteReglages = await a.evaluer(`document.body.textContent`)
-    assert.match(texteReglages, /Clé API Anthropic/); assert.match(texteReglages, /Clé API Serper/); assert.match(texteReglages, /Clé d’administration du site/)
+    assert.match(texteReglages, /Clé Anthropic des rayons/); assert.match(texteReglages, /Clé API Serper/); assert.match(texteReglages, /Clé d’administration du site/)
     assert.match(texteReglages, /Serper Shopping/); assert.match(texteReglages, /crédits Serper avec ces réglages/)
     const essai = async () => { await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Essai mots-clés').click()`); await pause(800); return a.evaluer(`document.body.textContent`) }
     const nonBranche = await essai()
@@ -318,7 +331,7 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.deepEqual(faux.appelsMotsCles.slice(-2).map((x) => x.url), ['/api/admin/mots-cles/etat?essai=1', '/api/admin/mots-cles/etat?essai=1'])
     faux.motsClesConfigure = false
     console.log('ok   Réglages : bouton « Essai mots-clés », non branché puis connecté sur un appel réel')
-    await a.evaluer(`document.querySelectorAll('#onglets button')[0].click()`)
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=accueil]').click()`)
     console.log('ok   écran : 24 cases à cocher dans « Rapports du jour », réglages Serper visibles')
 
     // night auto: accepted (bench has no dialog) and persisted
