@@ -5,10 +5,13 @@ import { Layout } from '../../components/Layout'
 import { PlatformLogo } from '../../components/PlatformLogo'
 import { BesoinDesktop, EntetePower, NavigateurIntegre } from '../../components/desktop/DesktopPower'
 import { api } from '../../lib/api'
-import { pont, type EtatNavigateur } from '../../lib/desktopPower'
+import { pont, type EtatNavigateur, type OffreRassemblee } from '../../lib/desktopPower'
 
 type Bloc = Awaited<ReturnType<typeof api.supplierCatalog>>['fournisseurs'][number]
-type Produit = Bloc['produits'][number] & { fournisseur: string; fournisseurNom: string }
+type Produit = Bloc['produits'][number] & { fournisseur: string; fournisseurNom: string; web?: boolean }
+
+/** Où en est la recherche dans l'application, fournisseur par fournisseur. */
+type Rassemblement = { etat: 'attente' | 'en-cours' | 'ok' | 'blocage' | 'erreur'; message?: string; produits: Produit[] }
 
 /**
  * Les fournisseurs de SmartMarket. `api` : le catalogue se lit par l'API du
@@ -34,13 +37,13 @@ const euros = (n: number | null) => (n == null ? '—' : n.toLocaleString('fr-FR
  * SmartMarket (DESKTOP POWER, 24/10/2026) : chercher un produit chez plusieurs
  * fournisseurs à la fois, importer d'un clic, comparer les offres cochées.
  *
- * Ce qui est fait aujourd'hui, et rien de plus : les fournisseurs à API
- * (AliExpress, CJ, BigBuy, reliés par le vendeur) s'affichent dans la page ;
- * Temu, Alibaba et Shein s'ouvrent sur leur propre page de recherche dans le
- * navigateur intégré, où « Importer cette fiche » lit la fiche dans
- * l'application. La lecture automatique de leurs pages de résultats (le
- * « rassembleur ») attend la décision de Max du 24/10 : elle ne contournera
- * jamais un captcha.
+ * Voie hybride (choix de Max, 26/10/2026) : les fournisseurs à API (AliExpress,
+ * CJ, BigBuy, reliés par le vendeur) répondent par leur API ; Temu, Alibaba,
+ * Shein (et AliExpress non relié) sont cherchés par le rassembleur de
+ * l'application, sur leur propre page de recherche, dans la session du vendeur
+ * (desktop/lib/rassembleur.js). Au premier signe de vérification anti-robot, il
+ * s'arrête et ouvre la recherche dans le navigateur intégré : le vendeur la
+ * règle lui-même. Jamais de contournement.
  */
 export default function SmartMarket() {
   const p = pont()
@@ -56,6 +59,7 @@ export default function SmartMarket() {
   const [web, setWeb] = useState<IdFournisseur | null>(null)
   const [etatNav, setEtatNav] = useState<EtatNavigateur | null>(null)
   const [messageWeb, setMessageWeb] = useState<string | null>(null)
+  const [rassembles, setRassembles] = useState<Partial<Record<IdFournisseur, Rassemblement>>>({})
 
   const tous = choisis.size === FOURNISSEURS.length
   const basculer = (id: IdFournisseur) =>
@@ -66,6 +70,29 @@ export default function SmartMarket() {
       return n
     })
 
+  // Le rassembleur, un fournisseur après l'autre (l'application n'en lit qu'un à la fois).
+  const rassembler = async (ids: IdFournisseur[], mots: string) => {
+    if (!p || !ids.length) return
+    setRassembles((r) => ({ ...r, ...Object.fromEntries(ids.map((id) => [id, { etat: 'attente', produits: [] }])) }))
+    for (const id of ids) {
+      const f = FOURNISSEURS.find((x) => x.id === id)!
+      setRassembles((r) => ({ ...r, [id]: { etat: 'en-cours', produits: [] } }))
+      const r = await p.rassembler({ fournisseur: id, q: mots }).catch((e: Error) => ({ ok: false, erreur: e.message }) as Awaited<ReturnType<typeof p.rassembler>>)
+      const produitsWeb: Produit[] = (r.produits ?? []).map((o: OffreRassemblee) => ({ ...o, prix: o.prixEur, devise: 'EUR', fournisseur: id, fournisseurNom: f.nom, web: true }))
+      setRassembles((m) => ({
+        ...m,
+        [id]: r.ok
+          ? { etat: 'ok', produits: produitsWeb, message: produitsWeb.length ? undefined : 'aucune offre lisible sur la page de résultats' }
+          : { etat: r.blocage ? 'blocage' : 'erreur', message: r.erreur, produits: [] },
+      }))
+      // Une vérification anti-robot : la recherche s'ouvre dans le navigateur, le vendeur la règle lui-même.
+      if (r.blocage) {
+        setWeb(id)
+        break
+      }
+    }
+  }
+
   const lancer = async (e?: React.FormEvent) => {
     e?.preventDefault()
     const mots = q.trim()
@@ -73,30 +100,35 @@ export default function SmartMarket() {
     setCherche(mots)
     setErreur(null)
     setTableau(false)
-    const sansApi = FOURNISSEURS.filter((f) => !f.api && choisis.has(f.id))
-    if (sansApi.length && !web) setWeb(sansApi[0].id)
-    if (!FOURNISSEURS.some((f) => f.api && choisis.has(f.id))) {
-      setBlocs([])
-      return
-    }
-    setChargement(true)
-    try {
-      const r = await api.supplierCatalog({ q: mots })
-      setBlocs(r.fournisseurs)
-    } catch (err) {
-      setErreur((err as Error).message)
-      setBlocs([])
-    } finally {
-      setChargement(false)
-    }
+    setRassembles({})
+    const sansApi = FOURNISSEURS.filter((f) => !f.api && choisis.has(f.id)).map((f) => f.id)
+    if (!p && sansApi.length && !web) setWeb(sansApi[0])
+    let reliesApi = new Set<string>()
+    if (FOURNISSEURS.some((f) => f.api && choisis.has(f.id))) {
+      setChargement(true)
+      try {
+        const r = await api.supplierCatalog({ q: mots })
+        setBlocs(r.fournisseurs)
+        reliesApi = new Set(r.fournisseurs.map((b) => b.id))
+      } catch (err) {
+        setErreur((err as Error).message)
+        setBlocs([])
+      } finally {
+        setChargement(false)
+      }
+    } else setBlocs([])
+    // AliExpress non relié : le rassembleur le cherche aussi, comme les fournisseurs sans API.
+    const parAppli = [...sansApi, ...(choisis.has('aliexpress') && !reliesApi.has('aliexpress') ? (['aliexpress'] as IdFournisseur[]) : [])]
+    await rassembler(parAppli, mots)
   }
 
   const produits: Produit[] = useMemo(
     () =>
       (blocs ?? [])
         .filter((b) => choisis.has(b.id as IdFournisseur))
-        .flatMap((b) => b.produits.map((x) => ({ ...x, fournisseur: b.id, fournisseurNom: b.label }))),
-    [blocs, choisis],
+        .flatMap((b) => b.produits.map((x) => ({ ...x, fournisseur: b.id, fournisseurNom: b.label } as Produit)))
+        .concat(FOURNISSEURS.filter((f) => choisis.has(f.id)).flatMap((f) => rassembles[f.id]?.produits ?? [])),
+    [blocs, choisis, rassembles],
   )
   const relies = new Set((blocs ?? []).map((b) => b.id))
 
@@ -104,6 +136,13 @@ export default function SmartMarket() {
     const cle = `${x.fournisseur}:${x.ref}`
     setImportes((m) => ({ ...m, [cle]: '…' }))
     try {
+      if (x.web) {
+        // Lue dans l'application (Temu, Shein…), comme « Importer cette fiche ».
+        if (!p || !x.url) throw new Error('Ouvrez l’application desktop.')
+        const r = await p.importer({ url: x.url })
+        setImportes((m) => ({ ...m, [cle]: r.ok ? 'Importé' : r.erreur || 'Refusé' }))
+        return
+      }
       const r = await api.importCatalogue(x.fournisseur, [x.ref])
       setImportes((m) => ({ ...m, [cle]: r.importes ? 'Importé' : r.deja ? 'Déjà importé' : r.echecs[0]?.raison || 'Refusé' }))
     } catch (err) {
@@ -131,7 +170,7 @@ export default function SmartMarket() {
       <EntetePower
         icone={Store}
         titre="SMARTMARKET"
-        chapo="Cherchez un produit chez plusieurs fournisseurs à la fois. AliExpress, CJ et BigBuy s'affichent ici par leur API (reliez-les dans Catalogues connectés) ; Temu, Alibaba et Shein s'ouvrent sur leur propre page de recherche, dans le navigateur de l'application. Cochez des offres et comparez-les."
+        chapo="Cherchez un produit chez plusieurs fournisseurs à la fois. AliExpress, CJ et BigBuy répondent par leur API (reliez-les dans Catalogues connectés) ; Temu, Alibaba et Shein sont lus par l'application, sur leur propre page de recherche, dans votre session. Cochez des offres et comparez-les."
       />
 
       <section className="case-ds p-4">
@@ -218,10 +257,24 @@ export default function SmartMarket() {
         </p>
       ) : null}
       {erreur ? <p className="mt-4 text-xs text-red-300">{erreur}</p> : null}
+      {Object.keys(rassembles).length ? (
+        <ul className="mt-3 space-y-1 text-xs">
+          {FOURNISSEURS.filter((f) => rassembles[f.id]).map((f) => {
+            const r = rassembles[f.id]!
+            return (
+              <li key={f.id} className={r.etat === 'blocage' ? 'text-amber-200' : r.etat === 'erreur' ? 'text-red-300' : 'text-gray-400'}>
+                {r.etat === 'en-cours' ? <Loader2 size={12} className="mr-1 inline animate-spin" /> : null}
+                {f.nom} (lu par l'application) :{' '}
+                {r.etat === 'attente' ? 'en file' : r.etat === 'en-cours' ? 'lecture de la page de recherche…' : r.etat === 'ok' ? r.message || `${r.produits.length} offre(s)` : r.message}
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
 
       {blocs ? (
         <>
-          {FOURNISSEURS.filter((f) => f.api && choisis.has(f.id) && !relies.has(f.id)).map((f) => (
+          {FOURNISSEURS.filter((f) => f.api && choisis.has(f.id) && !relies.has(f.id) && !rassembles[f.id]).map((f) => (
             <p key={f.id} className="mt-3 text-xs text-gray-400">
               {f.nom} n'est pas relié à votre compte :{' '}
               <Link to="/catalogues" className="underline hover:text-white">reliez-le dans Catalogues connectés</Link>
@@ -265,11 +318,11 @@ export default function SmartMarket() {
 
       {FOURNISSEURS.some((f) => !f.api && choisis.has(f.id)) || web ? (
         <section className="mt-6">
-          <h2 className="mb-2 text-sm font-bold">Chez les fournisseurs sans API</h2>
+          <h2 className="mb-2 text-sm font-bold">Leur page de recherche, dans l'application</h2>
           {!p ? (
             <BesoinDesktop ce="Temu, Alibaba et Shein n'ont pas d'API produits : SmartMarket ouvre leur vraie page de recherche dans le navigateur de l'application, où vous importez la fiche d'un clic." />
           ) : !cherche ? (
-            <p className="text-xs text-gray-400">Lancez une recherche : elle s'ouvrira chez chacun d'eux.</p>
+            <p className="text-xs text-gray-400">Lancez une recherche : l'application lit leurs résultats ; vous pouvez aussi ouvrir leur page ici.</p>
           ) : (
             <>
               <div className="mb-2 flex flex-wrap gap-2">

@@ -56,6 +56,16 @@ type Resultat = { ok: boolean; erreur?: string }
 /** Les panneaux locaux de l'application (desktop/renderer/index.html). */
 export type SectionPanneau = 'auto' | 'partages' | 'achats' | 'publication' | 'journal'
 
+/** Une offre relevée par le rassembleur ; prixEur reste null s'il n'est pas affiché en euros. */
+export interface OffreRassemblee {
+  ref: string
+  url: string
+  titre: string
+  image: string | null
+  prixEur: number | null
+  entrepot: null
+}
+
 export interface PontDesktop {
   version: string
   etat(): Promise<EtatDesktop>
@@ -66,6 +76,8 @@ export interface PontDesktop {
   accorder(id: string): Promise<unknown>
   retirerAccord(id: string): Promise<unknown>
   reprendre(id: string): Promise<unknown>
+  /** SmartMarket : la page de recherche du fournisseur lue dans la session du vendeur (desktop/lib/rassembleur.js). */
+  rassembler(demande: { fournisseur: string; q: string }): Promise<Resultat & { blocage?: boolean; url?: string; produits?: OffreRassemblee[] }>
   verifierSession(id: string): Promise<Resultat & { etat?: 'connecte' | 'absent' | 'inconnu' }>
   navigateur: {
     ouvrir(o: { profil: string; url?: string; zone?: Zone; forcer?: boolean }): Promise<Resultat & { etat?: EtatNavigateur }>
