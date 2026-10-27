@@ -26,6 +26,7 @@ pour lui et son équipe. Menu :
   Gemini, Mistral, DeepSeek, xAI, Groq, OpenRouter, Together, Perplexity, tout
   service compatible OpenAI), coffre du système, « Tester » = vrai appel.
 - **Rayons sur n’importe quelle IA** (0.5.2, 26/10) : Anthropic n’est obligatoire que pour le brief d’une nouvelle analyse. Les rayons DropShipper tournent avec la clé choisie dans Connecteurs (par défaut la première clé dont le fournisseur cherche sur le web) : `lib/moteur-generique.js` garde seulement les pages que le fournisseur dit avoir lues. Sans recherche web (Mistral, DeepSeek…), il faut le moteur Serper.
+- **Rapports de rayon complets** (0.5.3, 27/10) : le niveau des études MARKETSPY du 12/10. `prompts/rayon.md` demande 42 champs par produit et les blocs sourcing, marketplaces, tendances sociales, publicité, stratégie, bundles, plan de test, alertes ; `lib/rapports-md.js` en tire les 16 sections, les tableaux (synthèse TOP 20, comparatif sourcing, comparatif marketplaces, scoring, battle sheet financière, plan de test) et l’annexe JSON. Le site reçoit l’étude dans `report_markdown`, lue par `backend/rapports-etude.cjs` comme un rapport du Drive, avec le même filtre public. Toute adresse jamais vue dans les preuves devient « Non vérifié », où qu’elle soit.
 - **Connecteurs** : DropShipper (les rayons, échecs, lancement rayon par rayon,
   tout l'ancien Poste). Actif d'office sur une installation existante.
 

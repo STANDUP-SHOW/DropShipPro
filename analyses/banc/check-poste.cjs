@@ -123,10 +123,28 @@ test('rayon complet : 20 produits, 20 URL distinctes vues, marges en euros, fich
   const md = fs.readFileSync(res.chemins.rayon, 'utf8')
   assert.match(md, /^---\ntype: rayon\ndate: 2026-10-03\ncategorie: telephonie\ntheme: smartphones\n/)
   assert.equal(md.split('\n').filter((l) => /^\| \d+ \|/.test(l)).length, 20)
+  // the full MARKETSPY study (max, 27/10/2026): 16 sections in order, the five tables, the financial battle sheet, the annex
+  const titres = ['1. Executive Summary', '2. Verdict rapide', '3. Marché actuel', '4. Analyse sourcing', '5. Analyse marketplaces', '6. Analyse publicitaire et social trends', '7. TOP 20 produits gagnants', '8. Battle sheet achat / revente', '9. Bundles recommandés', '10. Stratégie marketing', '11. Business ideas', '12. Prompts image ads', '13. Prompts vidéo 30 secondes', '14. Risques et exclusions', '15. Décision finale', '16. Sources', 'Annexe — JSON structuré']
+  const pos = titres.map((t) => md.indexOf(`\n## ${t}\n`))
+  assert.ok(pos.every((x, i) => x > 0 && (i === 0 || x > pos[i - 1])), 'les 16 sections et l’annexe, dans l’ordre : ' + JSON.stringify(titres.filter((_, i) => pos[i] < 0)))
+  for (const entete of ['| Rang | Produit | Variante | Source achat | Coût rendu FR |', '| Produit | Fournisseur | URL | Prix achat | MOQ | Stock EU |', '| Plateforme | Ce que montrent les offres |', '| Produit | Amazon | Cdiscount | Leboncoin | Vinted | Facebook Marketplace |', '| Produit | Demande | Tendance | Marge |', '| Produit | Prix achat | Transport | Coût rendu FR |', '| Bundle | Produits inclus |', '| Canal | Pertinent | Pourquoi |', '| Produit | Quantité test | Budget achat |']) assert.ok(md.includes(entete), entete)
+  assert.match(md, /\| Produit 1 \| 36 € \| 33 € \|/, 'les prix des marketplaces dans le comparatif')
+  const annexe = JSON.parse(md.split('## Annexe — JSON structuré')[1].split('```json')[1].split('```')[0])
+  assert.equal(annexe.products.length, 20)
+  assert.ok(Object.keys(annexe.products[1]).length >= 38, `${Object.keys(annexe.products[1]).length} champs par produit`)
+  assert.ok(Array.isArray(annexe.suppliers) && annexe.suppliers.length && !('poste' in annexe) && !('report_markdown' in annexe))
+  // an address the pages never showed is removed wherever it sits, not only in supplier_url
+  assert.equal(j.products[0].marketplace_prices.amazon.url, 'Non vérifié')
+  assert.ok(!JSON.stringify(j).includes('inventee.example'))
+  assert.ok(j.poste.stats.autresUrlsRetirees >= 2)
+  // what the site reads: the 16 sections, without the annex
+  assert.ok(j.report_markdown.includes('## 8. Battle sheet achat / revente') && !j.report_markdown.includes('Annexe'))
+  assert.ok(j.social_places.length && j.ads_current.length)
   const mk = fs.readFileSync(res.chemins.marketing, 'utf8')
   const ordre = ['## Social places', '## Publicités en cours', '## Tendances du jour', '## Tendances publicitaires', "## Prompts d'images publicitaires", '## Prompts de vidéos publicitaires'].map((t) => mk.indexOf(t))
   assert.ok(ordre.every((x) => x >= 0) && ordre.every((x, i) => i === 0 || x > ordre[i - 1]), 'six sections, dans l’ordre')
   assert.match(mk, /```\n# Facebook 1:1/)
+  assert.match(mk, /## Social places\n\n- TikTok \(tendance forte\) : démos courtes/)
   return res
 })
 
@@ -149,25 +167,31 @@ test('le JSON est lu par l’importer DropShipper (importer-aimarket.cjs --sec)'
   }
 })
 
-test('le Markdown rayon respecte le contrat lu par le serveur (lireRapport)', async (srv) => {
+test('le Markdown rayon est lu par le site comme un rapport MARKETSPY (rapports-etude.cjs) : 16 sections, 20 produits, 20 URL', async (srv) => {
   const m = monde(srv); remise()
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: {} })
-  const racine = path.join(__dirname, '..', '..', 'backend', 'src', 'services', 'marketReports.ts')
-  const script = `import(${JSON.stringify(require('node:url').pathToFileURL(racine).href)}).then((m)=>{const r=m.lireRapport(require('fs').readFileSync(process.argv[1],'utf8'));console.log(JSON.stringify({type:r.type,n:r.produits.length,imp:r.produits.map(p=>p.import)}))}).catch((e)=>{console.log('ERR '+e.message)})`
-  let sortie
-  try {
-    sortie = execFileSync(process.execPath, ['--experimental-strip-types', '--no-warnings', '-e', script, res.chemins.rayon], { encoding: 'utf8' }).trim()
-  } catch (e) {
-    console.log('     (lireRapport non exécutable ici : ' + String(e.message).split('\n')[0] + ')')
-    return
+  const etudeLib = require(path.join(__dirname, '..', '..', 'backend', 'rapports-etude.cjs'))
+  // the .rayon.md file, as importer-markdown.cjs and the Drive import read it
+  const e = etudeLib.etudeMarkdown({ texteRayon: fs.readFileSync(res.chemins.rayon, 'utf8'), texteMarketing: fs.readFileSync(res.chemins.marketing, 'utf8'), origineRayon: 'banc', origineMarketing: 'banc' })
+  assert.ok(e.ok, e.raison)
+  assert.equal(e.produits, 20); assert.equal(e.urlsDistinctes, 20); assert.equal(e.avecScore, 20)
+  // the JSON sent to the site (POST /api/admin/rapports-poste), read by the same module
+  const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
+  const ai = etudeLib.etudeAiMarket(j, 'banc')
+  assert.ok(ai.ok, ai.raison)
+  // better-sqlite3 when backend/ is installed, node:sqlite otherwise (the Windows runner installs analyses/ only)
+  const { db } = etudeLib.ouvrir(':memory:')
+  require(path.join(__dirname, '..', '..', 'backend', 'aimarket-import.cjs')).creerSchema(db)
+  etudeLib.ecrireEtude(db, ai)
+  const data = JSON.parse(db.prepare('SELECT data FROM reports WHERE id = ?').get(ai.idRayon).data)
+  for (const t of ['Synthèse', 'Verdict rapide', 'Marché actuel', 'Analyse sourcing', 'Analyse marketplaces', 'Analyse publicitaire et tendances sociales', 'TOP 20 produits gagnants', 'Comparatif achat / revente', 'Bundles recommandés', 'Stratégie marketing', 'Business ideas', 'Prompts image ads', 'Prompts vidéo 30 secondes', 'Risques et exclusions', 'Décision finale', 'Sources']) {
+    assert.ok(data.analysis.includes(`## ${t}\n`), `section « ${t} » sur le site`)
   }
-  if (sortie.startsWith('ERR')) {
-    // Missing url/prices in a fake world would be refused; the bench's URLs are http so it must read.
-    assert.fail('lireRapport a refusé le rapport : ' + sortie)
-  }
-  const r = JSON.parse(sortie)
-  assert.equal(r.type, 'rayon'); assert.equal(r.n, 20)
-  assert.ok(r.imp.includes('api') && r.imp.includes('extension') && r.imp.includes('url'))
+  assert.ok(!/Annexe|"products"/.test(data.analysis) && !('report_markdown' in data.marketspy))
+  assert.equal(data.products.length, 20)
+  const mk = JSON.parse(db.prepare('SELECT data FROM reports WHERE id = ?').get(ai.idMarketing).data)
+  assert.ok(mk.socialPlaces.length && /TikTok/.test(mk.socialPlaces[0]), 'social places remplies')
+  db.close()
 })
 
 test('URL inventées : remplacées par « Non vérifié », rapport À REVOIR, jamais envoyé au site', async (srv) => {
