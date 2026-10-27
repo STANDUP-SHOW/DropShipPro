@@ -6,7 +6,7 @@ import { ADMIN_EMAIL, requireAuth, type AuthedRequest } from '../middleware/auth
 import { BOUTIQUE_MODIFS_ILLIMITEES, DROPS } from '../services/tarifs.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { SiteImpossible } from '../services/siteGenerator.js'
-import { catalogueDe as catalogueExtensionsDe, desinstallerExtension, ExtensionRefusee, installerExtension } from '../services/extensions.js'
+import { accesProvisoireBackOffice, catalogueDe as catalogueExtensionsDe, desinstallerExtension, ExtensionRefusee, installerExtension } from '../services/extensions.js'
 import {
   directionsPour,
   gammesPour,
@@ -191,6 +191,24 @@ dropshopRouter.post('/:shopId/extensions/:extensionId', async (req: AuthedReques
   try {
     const inst = await installerExtension(shop, req.params.extensionId, parsed.data.champs)
     res.status(201).json({ ok: true, ...inst, adresseAdmin: shop.slug ? `${apiBaseUrl(req)}/b/${shop.slug}/admin` : null })
+  } catch (e) {
+    if (e instanceof ExtensionRefusee) return res.status(e.status).json({ error: e.message })
+    refus(res, e)
+  }
+})
+
+/**
+ * Le bloc « Admin » du studio DropShop Market : adresses de l'admin et de la
+ * boutique, identifiant, mot de passe provisoire (nouveau à chaque appel).
+ */
+dropshopRouter.post('/:shopId/acces-admin', rateLimit({ name: 'dropshop-acces-admin', windowMs: 3600_000, max: 10 }), async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  if (!shop.slug) return res.status(409).json({ error: "Cette boutique n'a pas encore d'adresse." })
+  try {
+    const compte = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! }, select: { email: true } })
+    const acces = await accesProvisoireBackOffice(shop, compte.email)
+    res.json({ adresseAdmin: `${apiBaseUrl(req)}/b/${shop.slug}/admin`, adresseBoutique: `${apiBaseUrl(req)}/b/${shop.slug}`, ...acces })
   } catch (e) {
     if (e instanceof ExtensionRefusee) return res.status(e.status).json({ error: e.message })
     refus(res, e)

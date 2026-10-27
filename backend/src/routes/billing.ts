@@ -77,7 +77,8 @@ billingRouter.get('/transactions', async (req: AuthedRequest, res) => {
 /** Stripe product tax code: « Software as a service (SaaS) - business use ». */
 const TAX_CODE = 'txcd_10103001'
 
-const checkoutSchema = z.object({ planId: z.string() })
+// `retour` : the DropShop Market creation page sends its buyers back to itself.
+const checkoutSchema = z.object({ planId: z.string(), retour: z.enum(['dropshop-market']).optional() })
 
 /**
  * Opens a Stripe Checkout session for a drops recharge.
@@ -129,7 +130,7 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
           // above is what the buyer pays, VAT included, not a base to add tax to.
           tax_behavior: 'inclusive',
           product_data: {
-            name: `DropShipper — ${pack.drops} drops`,
+            name: pack.id === 'dropshop-market' ? 'DropShop Market — création d\'un dropshop avec back-office' : `DropShipper — ${pack.drops} drops`,
             // Required as soon as Managed Payments is on, which it is by default:
             // without it Stripe refuses the session outright.
             tax_code: TAX_CODE,
@@ -145,7 +146,7 @@ billingRouter.post('/checkout', async (req: AuthedRequest, res) => {
     metadata: { userId: user.id, planId: parsed.data.planId },
     // Where the iframe sends the buyer once the payment is done. The session id
     // lets the wallet page confirm the outcome instead of assuming it.
-    return_url: `${appUrl()}/credits?session_id={CHECKOUT_SESSION_ID}`,
+    return_url: `${appUrl()}${parsed.data.retour === 'dropshop-market' ? '/dropshop-market/creer' : '/credits'}?session_id={CHECKOUT_SESSION_ID}`,
   })
 
   // The client secret is what mounts the form; there is no URL to redirect to.

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Sparkles, ArrowRight, ArrowUp, Monitor, Smartphone, ExternalLink, RotateCcw, Plus, Pencil, Bell,
-  CreditCard, CheckCircle2, AlertTriangle, Loader2, ChevronDown, Trash2, Copy, Image as ImageIcon, Puzzle,
+  CreditCard, CheckCircle2, AlertTriangle, Loader2, ChevronDown, Trash2, Copy, Image as ImageIcon, Puzzle, KeyRound,
 } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
@@ -11,6 +11,15 @@ import { IconeDropShop, LogoDropShopEntete } from '../components/LogoDropShop'
 import { api, type DirectionDropShop, type EtatDropShop, type ExtensionDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
 
 type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
+
+/**
+ * Le même studio, ouvert depuis DropShop Market (« Créer mon dropshop »,
+ * 27/10/2026) : rien ne change dans la création, mais la page ne renvoie vers
+ * aucun écran de DropShipper, le prix est celui déjà payé (9,90 €), et le
+ * Back Office laisse place au bloc « Admin » (adresses, identifiant, mot de
+ * passe provisoire). Voir pages/DropShopMarketCreer.tsx.
+ */
+export const ModeMarket = createContext(false)
 
 /**
  * DropShop IA — le studio (17/09/2026).
@@ -27,6 +36,15 @@ type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
  * tourne, et survit à un rechargement puisque l'état vit côté serveur.
  */
 export default function CreerBoutique() {
+  return (
+    <Layout>
+      <StudioBoutiques />
+    </Layout>
+  )
+}
+
+export function StudioBoutiques() {
+  const market = useContext(ModeMarket)
   const [boutiques, setBoutiques] = useState<Boutique[]>([])
   const [choisie, setChoisie] = useState<string | null>(null)
   const [nom, setNom] = useState('')
@@ -44,6 +62,14 @@ export default function CreerBoutique() {
 
   const hebergees = boutiques.filter((b) => (b as { platform?: string | null }).platform === 'dropshipper')
   const active = hebergees.find((b) => b.id === choisie) ?? null
+
+  // Depuis le Market, la boutique payée s'ouvre d'elle-même au premier chargement.
+  const ouverte = useRef(false)
+  useEffect(() => {
+    if (!market || ouverte.current || !hebergees.length) return
+    ouverte.current = true
+    setChoisie(hebergees[0].id)
+  }, [market, hebergees])
 
   /**
    * Supprimer une boutique pour en recréer une autre (demande de Max, 17/09).
@@ -83,7 +109,7 @@ export default function CreerBoutique() {
   }
 
   return (
-    <Layout>
+    <>
       {/*
         La marque en tête, et pas deux lettres (demandé le 19/09/2026).
         Le logo vit dans public/logos : voir LogoDropShop.tsx pour les deux
@@ -169,7 +195,7 @@ export default function CreerBoutique() {
 
       {active && erreur ? <p className="mt-3 text-xs text-red-400">{erreur}</p> : null}
 
-      <p className="mt-8 text-xs text-gray-500">
+      {market ? null : <p className="mt-8 text-xs text-gray-500">
         Vos produits se rangent par boutique à l'import ; commandes dans{' '}
         <Link to="/orders" className="text-purple-300 underline">Commandes</Link> ; logos, filigrane et rayons dans{' '}
         <Link to="/mes-sites" className="inline-flex items-center gap-1 text-purple-300 underline">
@@ -177,8 +203,8 @@ export default function CreerBoutique() {
           <ArrowRight size={11} />
         </Link>
         .
-      </p>
-    </Layout>
+      </p>}
+    </>
   )
 }
 
@@ -241,6 +267,7 @@ function notifierNavigateur(titre: string, corps: string) {
  * droite, et des modifications à volonté.
  */
 function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => void }) {
+  const market = useContext(ModeMarket)
   const [etat, setEtat] = useState<EtatDropShop | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [demande, setDemande] = useState('')
@@ -518,7 +545,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
   const passe = (e: EtapeChat) => ORDRE.indexOf(e) < rang
   const choisie = directions.find((d) => d.id === directionChoisie) ?? null
   const gamme = gammes?.gammes.find((g) => g.id === gammeChoisie) ?? null
-  const prixCreation = `${etat.tarifs.creation} drops (${euros(etat.tarifs.creation)})`
+  const prixCreation = market ? 'Comprise dans vos 9,90 €' : `${etat.tarifs.creation} drops (${euros(etat.tarifs.creation)})`
   const modifsLibres = etat.tarifs.illimitees || etat.tarifs.modification === 0
 
   const notifications = <Toasts toasts={toasts} />
@@ -819,7 +846,7 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
         </div>
         <div className="min-w-0 space-y-4">
           <Chantier nom={boutique.name} etape={travail.etape} />
-          <Extensions shopId={boutique.id} busy={busy} seulement="back-office" />
+          {market ? null : <Extensions shopId={boutique.id} busy={busy} seulement="back-office" />}
         </div>
       </div>
     )
@@ -907,12 +934,14 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
       </div>
       {etat.creee && boutique.products === 0 ? (
         <p className="text-xs text-amber-300/90">
-          Aucune annonce n'est rangée dans cette boutique : la page est belle mais vide. Importez ou rangez des annonces dedans, puis publiez-les sur « Mon site ».
+          {market
+            ? "Aucun produit dans cette boutique pour l'instant : la page est belle mais vide. Ajoutez vos produits, ils seront aussi publiés automatiquement sur DropShop Market."
+            : "Aucune annonce n'est rangée dans cette boutique : la page est belle mais vide. Importez ou rangez des annonces dedans, puis publiez-les sur « Mon site »."}
         </p>
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Extensions shopId={boutique.id} busy={busy} />
+        {market ? (etat.creee ? <BlocAdmin shopId={boutique.id} /> : null) : <Extensions shopId={boutique.id} busy={busy} />}
         <div className="space-y-4">
           <EncartMarket />
           {/* ---------- Stripe ---------- */}
@@ -958,13 +987,13 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
             </button>
           ) : null}
 
-          <section className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+          {market ? null : <section className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
             <button type="button" onClick={() => setVoirClassique((v) => !v)} className="flex w-full items-center gap-2 text-left text-xs font-semibold text-gray-400">
               <span>Ancienne vitrine à thèmes (repli sans boutique IA)</span>
               <ChevronDown size={14} className={`ml-auto transition ${voirClassique ? 'rotate-180' : ''}`} />
             </button>
             {voirClassique ? <div className="mt-3"><VitrineBlock shop={boutique as never} onSaved={onChange} /></div> : null}
-          </section>
+          </section>}
         </div>
       </div>
     </div>
@@ -1090,6 +1119,7 @@ function Toasts({ toasts }: { toasts: Array<{ id: number; texte: string; fin?: b
 
 /** L'encart DropShop Market : où iront les produits de la boutique. */
 function EncartMarket() {
+  const market = useContext(ModeMarket)
   return (
     <section className="cadre-dropshop rounded-2xl p-4">
       <p className="texte-dropshop text-[11px] font-black uppercase tracking-[.2em]">DropShop Market</p>
@@ -1103,8 +1133,119 @@ function EncartMarket() {
           <ExternalLink size={12} />
           <span>Consulter la marketplace</span>
         </a>
-        <Link to="/dropshop-market" className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-semibold text-gray-200 hover:bg-white/5">Mes annonces sur le Market</Link>
-        <Link to="/plateformes-vente" className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-semibold text-gray-200 hover:bg-white/5">Diffuser sur les marketplaces</Link>
+        {market ? null : <>
+          <Link to="/dropshop-market" className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-semibold text-gray-200 hover:bg-white/5">Mes annonces sur le Market</Link>
+          <Link to="/plateformes-vente" className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-semibold text-gray-200 hover:bg-white/5">Diffuser sur les marketplaces</Link>
+        </>}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Le bloc « Admin » d'un dropshop créé depuis le Market : où administrer, où
+ * est la boutique, avec quel identifiant et quel mot de passe provisoire.
+ * Le mot de passe est haché côté serveur et ne se relit pas : on le garde dans
+ * ce navigateur pour le remontrer, et un clic en pose un nouveau.
+ */
+type AccesAdmin = { adresseAdmin: string; adresseBoutique: string; identifiant: string; motDePasse: string }
+
+function BlocAdmin({ shopId }: { shopId: string }) {
+  const cle = `dropshop-admin-${shopId}`
+  const [acces, setAcces] = useState<AccesAdmin | null>(() => {
+    try {
+      const brut = localStorage.getItem(cle)
+      return brut ? (JSON.parse(brut) as AccesAdmin) : null
+    } catch {
+      return null
+    }
+  })
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [copie, setCopie] = useState<string | null>(null)
+  const demande = useRef(false)
+
+  const generer = useCallback(async () => {
+    setEnvoi(true)
+    setErreur(null)
+    try {
+      const r = await api.dropshopAccesAdmin(shopId)
+      setAcces(r)
+      try { localStorage.setItem(cle, JSON.stringify(r)) } catch { /* navigation privée : affiché quand même */ }
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : "Les accès admin n'ont pas pu être préparés.")
+    } finally {
+      setEnvoi(false)
+    }
+  }, [shopId, cle])
+
+  // Première ouverture de la boutique finie : les accès se préparent seuls.
+  useEffect(() => {
+    if (!acces && !demande.current) {
+      demande.current = true
+      generer()
+    }
+  }, [acces, generer])
+
+  function copier(valeur: string) {
+    navigator.clipboard?.writeText(valeur).then(() => {
+      setCopie(valeur)
+      setTimeout(() => setCopie(null), 1500)
+    })
+  }
+
+  const lignes: Array<[string, string, boolean]> = acces
+    ? [
+        ["URL de l'admin", acces.adresseAdmin, true],
+        ['URL de la boutique', acces.adresseBoutique, true],
+        ["Nom d'utilisateur", acces.identifiant, false],
+        ['Mot de passe provisoire', acces.motDePasse, false],
+      ]
+    : []
+
+  return (
+    <section className="cadre-dropshop rounded-2xl p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold">
+        <KeyRound size={15} className="text-violet-200" />
+        <span>Admin</span>
+        <span className="ml-auto rounded-full bg-violet-400/20 px-2 py-0.5 text-[11px] font-bold text-violet-200">Back-office compris</span>
+      </h3>
+      <p className="mt-1 text-xs leading-relaxed text-gray-300">
+        Votre administration simplifiée : commandes et livraisons, produits, textes et frais de port. Les paiements
+        arrivent sur votre compte Stripe, à brancher ci-contre. Changez le mot de passe provisoire après votre première connexion.
+      </p>
+      {acces ? (
+        <dl className="mt-3 space-y-2">
+          {lignes.map(([libelle, valeur, lien]) => (
+            <div key={libelle} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+              <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{libelle}</dt>
+              <dd className="mt-0.5 flex items-center gap-2">
+                {lien ? (
+                  <a href={valeur} target="_blank" rel="noreferrer noopener" className="min-w-0 flex-1 truncate text-sm font-semibold text-violet-200 underline">{valeur}</a>
+                ) : (
+                  <code className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{valeur}</code>
+                )}
+                <button type="button" onClick={() => copier(valeur)} title="Copier" className="shrink-0 rounded-lg border border-white/10 p-1.5 text-gray-300 hover:bg-white/5">
+                  {copie === valeur ? <CheckCircle2 size={13} className="text-emerald-300" /> : <Copy size={13} />}
+                </button>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : envoi ? (
+        <p className="mt-3 inline-flex items-center gap-2 text-xs text-gray-400"><Loader2 size={13} className="animate-spin" /><span>Préparation de vos accès…</span></p>
+      ) : null}
+      {erreur ? <p className="mt-2 text-xs text-red-400">{erreur}</p> : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {acces ? (
+          <a href={acces.adresseAdmin} target="_blank" rel="noreferrer noopener" className="btn-dropshop inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold text-white hover:brightness-110">
+            <ExternalLink size={12} />
+            <span>Ouvrir l'admin</span>
+          </a>
+        ) : null}
+        <button type="button" onClick={generer} disabled={envoi} className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-semibold text-gray-200 hover:bg-white/5 disabled:opacity-40">
+          {acces ? 'Nouveau mot de passe provisoire' : 'Préparer mes accès'}
+        </button>
       </div>
     </section>
   )

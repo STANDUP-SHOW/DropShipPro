@@ -166,3 +166,18 @@ export const PACKS_DROPS: PackDrops[] = [
   { id: 'drops-10000', amount: 8000, drops: 10000 }, // 0,008 €/drop (−20 %)
   { id: 'drops-20000', amount: 15000, drops: 20000 }, // 0,0075 €/drop (−25 %)
 ]
+
+/**
+ * DropShop Market, « Créer un dropshop » sans passer par DropShipper IA
+ * (27/10/2026, demande de Max) : 9,90 € la boutique avec son back-office,
+ * modifications à volonté. Payé comme une recharge : les drops crédités
+ * couvrent exactement la création et l'extension Back Office, que le studio
+ * débite ensuite comme pour tout vendeur. Hors de la grille des recharges
+ * (PACKS_DROPS) : il ne s'affiche pas sur la page Crédits.
+ * Par DropShipper IA, la même boutique coûte 5 € (DROPS.boutiqueCreation).
+ */
+export const PACK_DROPSHOP_MARKET: PackDrops = {
+  id: 'dropshop-market',
+  amount: 990,
+  drops: DROPS.boutiqueCreation + DROPS.extensionBackOffice,
+}
