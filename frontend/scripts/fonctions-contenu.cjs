@@ -618,7 +618,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
   'auto-shipper': {
     nom: 'AUTO-SHIPPER IA',
     h1: 'AUTO-SHIPPER IA : le dropshipping en mode automatique, une tournée par jour',
-    title: 'AUTO-SHIPPER IA : dropshipping automatique, 1 € par jour',
+    title: 'AUTO-SHIPPER IA : une tournée de dropshipping par jour',
     description:
       "Une tournée par jour : l'IA choisit les produits, les importe, écrit les annonces et les publie. 1 € la journée + 0,18 € par produit, plafond réglable.",
     enBref: `AUTO-SHIPPER IA fait tourner le dropshipping en mode automatique : une fois par jour, il choisit des produits dans les analyses du matin, les importe, fait écrire les annonces, les publie sur vos canaux reliés. 100 drops (1 €) la journée, 18 drops par produit publié, 15 de plus par annonce si l'agent de contrôle est activé, rendue si rien n'est importé. Vous fixez le plafond.`,

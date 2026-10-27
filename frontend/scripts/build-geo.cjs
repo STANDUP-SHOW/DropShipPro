@@ -57,8 +57,10 @@ const NOM = 'DropShipper IA'
  * build : un fournisseur ou un canal ajouté change la phrase, jamais un nombre
  * recopié. Titre ≤ 60 caractères (audit du 03/10/2026, banc check-geo.ts) :
  * le « — Import produit, annonces IA, 314 canaux de vente » proposé en faisait 65.
+ * Audit du 27/10/2026 : la requête visée en tête est « logiciel de dropshipping »
+ * (le guide /logiciel-dropshipping/ vise « comment choisir », pour ne pas se concurrencer).
  */
-const TITRE = `${NOM} : import produit, annonces IA, ${canaux.length} canaux`
+const TITRE = `Logiciel de dropshipping automatisé par IA | ${NOM}`
 const DESCRIPTION = `Importez depuis ${FOURNISSEURS.length} fournisseurs, réécrivez vos annonces par IA et publiez sur ${canaux.length} canaux. Sans abonnement : 0,12 € l'annonce. 120 drops offerts.`
 /** Le slogan de l'accueil, repris par Organization et par l'image de partage. */
 const SLOGAN = "Prenez l'annonce n'importe où. Publiez-la partout."
