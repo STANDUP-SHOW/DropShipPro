@@ -523,9 +523,24 @@ model Order {
   variante            String?
   payoutStatus        PayoutStatus @default(PENDING)
   platformBalance     Decimal?     @db.Decimal(10, 2)
+  /// DropShop Market : le numéro de commande montré au client (« DSM-… »),
+  /// commun à toutes les lignes d un même panier payé en une fois.
+  marketNumero        String?
+  /// DropShop Market : le compte client qui a passé la commande (nul pour un invité).
+  marketClientId      String?
+  marketClient        MarketClient? @relation(fields: [marketClientId], references: [id], onDelete: SetNull)
+  /// DropShop Market : le virement Stripe Connect de la part du vendeur. Nul
+  /// tant qu il n a pas eu lieu (vendeur sans paiements actifs : part mise de côté).
+  stripeTransferId    String?
+  /// DropShop Market : quand l acheteur a été prévenu de l expédition (une fois).
+  marketExpeditionAvisAt DateTime?
+  marketRetours       MarketRetour[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([marketNumero])
+  @@index([marketClientId])
 }
 
 /// Avis laisse par un utilisateur sur l application.
@@ -1541,6 +1556,8 @@ model BuyerReview {
 
   published Boolean @default(true)
   empreinte String
+  /// DropShop Market : l acheteur qui a laissé l avis après un achat vérifié.
+  marketClientId String?
 
   createdAt DateTime @default(now())
 
@@ -1913,4 +1930,84 @@ model PushDevice {
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
+}
+
+/// DropShop Market : un compte client (acheteur). Séparé de User, qui est un
+/// vendeur DropShipper : un acheteur n a rien à faire dans l application.
+model MarketClient {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  nom                String
+  passwordHash       String
+  emailConfirmeAt    DateTime?
+  /// Empreintes SHA-256 des jetons envoyés par email : jamais le jeton lui-même.
+  jetonConfirmation  String?   @unique
+  jetonReinit        String?   @unique
+  jetonReinitExpire  DateTime?
+  stripeCustomerId   String?
+  /// Augmentée à chaque changement de mot de passe : les sessions ouvertes tombent.
+  versionSession     Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  adresses  MarketAdresse[]
+  envies    MarketEnvie[]
+  commandes Order[]
+  retours   MarketRetour[]
+}
+
+model MarketAdresse {
+  id         String       @id @default(cuid())
+  clientId   String
+  client     MarketClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  nom        String
+  ligne1     String
+  ligne2     String?
+  codePostal String
+  ville      String
+  pays       String
+  telephone  String?
+  parDefaut  Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+
+  @@index([clientId])
+}
+
+/// La liste d envies d un client : des produits, pas des variantes.
+model MarketEnvie {
+  id        String       @id @default(cuid())
+  clientId  String
+  client    MarketClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  productId String
+  createdAt DateTime     @default(now())
+
+  @@unique([clientId, productId])
+}
+
+/// Une demande de retour (droit de rétractation, produit défectueux…).
+model MarketRetour {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  clientId  String?
+  client    MarketClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  motif     String
+  message   String        @db.Text
+  /// DEMANDE | ACCEPTE | REFUSE | REMBOURSE
+  statut    String        @default("DEMANDE")
+  createdAt DateTime      @default(now())
+
+  @@index([orderId])
+}
+
+/// Un message envoyé au service client du Market (formulaire de contact).
+model MarketContact {
+  id        String   @id @default(cuid())
+  email     String
+  nom       String
+  sujet     String
+  message   String   @db.Text
+  numero    String?
+  clientId  String?
+  createdAt DateTime @default(now())
 }

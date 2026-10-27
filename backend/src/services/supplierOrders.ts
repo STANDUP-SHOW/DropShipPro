@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { prevenirExpeditionMarket } from './marketStripe.js'
 import { SupplierError, findConnector, type SupplierOrderRequest } from './supplierConnectors.js'
 
 /**
@@ -370,6 +371,9 @@ export async function releverSuiviFournisseur(userId: string): Promise<{
             : {}),
         },
       })
+
+      // DropShop Market : l'acheteur est prévenu de l'expédition (une fois).
+      if (suivi.trackingNumber) await prevenirExpeditionMarket(commande.id).catch(() => {})
 
       resultat.misesAJour.push({
         orderId: commande.id,

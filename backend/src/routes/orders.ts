@@ -9,6 +9,7 @@ import { commanderChezFournisseur, releverSuiviFournisseur } from '../services/s
 import { findConnector } from '../services/supplierConnectors.js'
 import { VENTES_CAPTEES, canalPour, noterReleve, passage } from '../services/ventesMarketplaces.js'
 import { importerCommandes } from '../services/importCommandes.js'
+import { prevenirExpeditionMarket } from '../services/marketStripe.js'
 
 export const ordersRouter = Router()
 ordersRouter.use(requireAuth)
@@ -296,6 +297,8 @@ ordersRouter.put('/:id/tracking', async (req: AuthedRequest, res) => {
     },
   })
   if (!count) return res.status(404).json({ error: 'Commande introuvable' })
+  // DropShop Market : l'acheteur est prévenu de l'expédition (une fois).
+  await prevenirExpeditionMarket(req.params.id).catch(() => {})
 
   res.json({ ok: true, tracking: identify(parsed.data.trackingNumber, parsed.data.carrier) })
 })

@@ -63,8 +63,8 @@ que les valeurs ne changent pas. Un titre réécrit redirige en 301.
 - Le vendeur s'inscrit sur le formulaire hébergé de Stripe (identité, IBAN) :
   rien ne passe chez nous. `User.stripeConnectReady` = `charges_enabled`, relu
   chez Stripe à chaque ouverture de l'écran vendeur.
-- Un vendeur sans paiements actifs est **visible** (le référencement se
-  construit) mais son bouton dit « Bientôt disponible ».
+- ~~Un vendeur sans paiements actifs affiche « Bientôt disponible ».~~ Remplacé le
+  27/10/2026 : tout est achetable, voir « Boutique complète » plus bas.
 - La commande (`Order`, plateforme `DROPSHOP_MARKET`, `commission`, `variante`)
   est écrite avant Stripe et effacée s'il refuse. Elle est confirmée au retour
   (`/merci`) **et** par le webhook existant (`/api/billing/webhook`,
@@ -125,9 +125,6 @@ tant qu'elles sont vides, présentes dans le sitemap dès qu'elles ont un produi
 
 ## Pas encore fait (et pourquoi)
 
-- **Panier multi-vendeurs** : l'achat est « acheter maintenant », une offre à
-  la fois. Un panier mêlant plusieurs vendeurs demande le montage « separate
-  charges and transfers » de Stripe ; à faire quand le volume le justifie.
 - **Événements Connect** (`account.updated`) : l'état du compte est relu à
   l'ouverture de l'écran vendeur, ce qui suffit au démarrage.
 - **Avis laissés sur le Market** : pas encore de formulaire après achat ; les
@@ -185,3 +182,43 @@ Une annonce retirée par la modération (`error` commençant par « Retirée de
 DropShop Market par la modération ») ne se republie pas par l'API (409) et son
 retrait vendeur garde la ligne. Banc : `backend/check-market-api.ts`. Le MCP pourra
 s'appuyer sur ces routes.
+
+## Boutique complète « comme Amazon » (27/10/2026)
+
+Demande de max : le Market n'avait ni compte client, ni panier, et tout affichait
+« Bientôt disponible » (aucun vendeur n'avait activé Stripe Connect).
+
+**Décision de max (27/10)** : tout est achetable. Montage Stripe « separate charges
+and transfers » : l'acheteur paie une fois sur le compte plateforme (celui des
+recharges de drops), puis chaque vendeur reçoit par virement Connect sa part moins
+5 % (`transfer_group` = numéro de commande, `source_transaction` = le paiement).
+Un vendeur sans paiements actifs : sa part reste mise de côté et lui est versée
+dès qu'il active (`verserPartsEnAttente`, appelé par `etatCompte` à l'ouverture de
+son écran). Il en est prévenu par email à chaque vente.
+
+| Fichier | Rôle |
+|---|---|
+| `services/marketClients.ts` | comptes clients (table `MarketClient`, à part de `User`), session `dsm_session` (JWT, HttpOnly, SameSite=Lax), confirmation d'email, mot de passe oublié |
+| `services/marketPanier.ts` | panier dans le cookie `dsm_panier` (ids d'offre + quantités ; prix toujours relus en base) |
+| `services/marketStripe.ts` | `ouvrirPaiementPanier`, `confirmerPanier`, virements, `prevenirExpeditionMarket` |
+| `services/marketPagesClient.ts` | pages panier, commande, compte, commandes, suivi, adresses, envies, sécurité, contact |
+| `services/marketLegal.ts` | éditeur (SIRET à `null` tant que max ne l'a pas donné) et textes : CGV, livraison, retours, mentions légales, confidentialité, aide |
+| `routes/marketClient.ts` | toutes les routes client, montées dans `marketRouter` |
+| `check-market-boutique.ts` | le banc (sans base ni Stripe) |
+
+Ce que voit le client : « Ajouter au panier » sur les fiches et les cartes,
+« Acheter maintenant », liste d'envies, panier multi-vendeurs, commande avec ou
+sans compte, numéro `DSM-XXXXXXXX`, emails (bienvenue + confirmation, commande,
+expédition avec suivi, retour), espace client (commandes, récapitulatif
+imprimable, adresses, envies, mot de passe, suppression du compte), suivi sans
+compte (numéro + email), demande de retour en ligne, avis « Achat vérifié »
+(BuyerReview `source = 'market'`, `sourceSite = 'drop-shop.cloud'`, une fois par
+ligne expédiée), filtres et tris (prix, note, Prime), produits voisins, contact
+(copie aux vendeurs de la commande, réponse directe à l'acheteur).
+
+Migration additive `20261027140000_market_clients`. Webhook : `checkout.session.expired`
+efface les commandes non payées (à cocher dans Stripe pour qu'il arrive).
+
+Reste à faire : facture émise par le vendeur (le récapitulatif n'en est pas une),
+remboursement en un clic depuis l'écran vendeur, médiateur de la consommation
+(nom à fournir par max), statuts de retour gérés par le vendeur.
