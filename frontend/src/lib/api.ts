@@ -1029,6 +1029,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ planId, departmentId }),
     }),
+  /** DropShop Market : 9,90 € la création d'un dropshop avec back-office, retour sur /dropshop-market/creer. */
+  startCheckoutDropshopMarket: () =>
+    request<{ clientSecret: string }>('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ planId: 'dropshop-market', retour: 'dropshop-market' }),
+    }),
   confirmPayment: (sessionId: string) =>
     request<{ granted: boolean; alreadyGranted?: boolean; credits?: number; status?: string }>(
       '/billing/confirm',
@@ -1219,6 +1225,9 @@ export const api = {
   dropshopModifier: (shopId: string, demande: string) =>
     request<{ travail: TravailDropShop }>(`/dropshop/${shopId}/modifier`, { method: 'POST', body: JSON.stringify({ demande }) }),
   /* ---------- Extensions d'une boutique DropShop (catalogue, installation payée, retrait) ---------- */
+  /** Le bloc « Admin » : installe le Back Office au besoin et pose un mot de passe provisoire neuf. */
+  dropshopAccesAdmin: (shopId: string) =>
+    request<{ adresseAdmin: string; adresseBoutique: string; identifiant: string; motDePasse: string }>(`/dropshop/${shopId}/acces-admin`, { method: 'POST' }),
   dropshopExtensions: (shopId: string) => request<{ extensions: ExtensionDropShop[]; adresseAdmin: string | null }>(`/dropshop/${shopId}/extensions`),
   dropshopInstallerExtension: (shopId: string, extensionId: string, champs: Record<string, string>) =>
     request<{ ok: true; prixPaye: number; adresseAdmin: string | null }>(`/dropshop/${shopId}/extensions/${extensionId}`, { method: 'POST', body: JSON.stringify({ champs }) }),

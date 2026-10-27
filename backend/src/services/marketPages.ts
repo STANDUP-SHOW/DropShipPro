@@ -660,18 +660,57 @@ export function pageMessage(base: string, titre: string, message: string, action
   })
 }
 
+/**
+ * « Vendre sur DropShop Market » (refonte du 27/10/2026, demande de Max) :
+ * inscription gratuite et 5 % par vente en tête, puis DEUX façons de vendre —
+ * DropShipper IA + DropShop (le dropshop à 5 €), ou un dropshop créé
+ * directement depuis le Market (9,90 €, back-office compris). L'ancien bouton
+ * « Créer mon compte vendeur » menait au même endroit que la première : retiré.
+ */
 export function pageVendre(base: string): string {
-  const inscription = 'https://www.drop-shipper.fr/register?source=dropshop-market'
+  const dropshipper = 'https://www.drop-shipper.fr/register?source=dropshop-market'
+  const creer = 'https://www.drop-shipper.fr/dropshop-market/creer'
   return gabarit({
     base,
     titre: 'Vendre sur DropShop Market : inscription gratuite, 5 % par vente',
-    description: "Publiez vos produits DropShipper sur DropShop Market : inscription gratuite, paiement Stripe, 5 % de commission seulement sur les ventes, annonces Google Shopping par variante.",
+    description: "Vendez sur DropShop Market : inscription gratuite, 5 % du prix de vente seulement. Avec DropShipper IA, ou en créant votre dropshop avec back-office pour 9,90 €.",
     chemin: '/vendre',
-    corps: `<section class="hero"><h1>Vendez sur DropShop Market</h1><p>Inscription gratuite. Vous ne payez que 5 % du prix de chaque vente, prélevés automatiquement par Stripe. Vos produits sont référencés sur Google, une annonce par variante.</p><p style="margin-top:18px"><a class="btn" href="${inscription}">Créer mon compte vendeur</a></p></section>
-<div class="etapes">
-<div class="bloc"><h2 style="margin-top:0">1. Importez</h2><p>Importez vos produits dans DropShipper depuis n'importe quelle boutique : l'IA réécrit les annonces.</p></div>
-<div class="bloc"><h2 style="margin-top:0">2. Publiez</h2><p>Choisissez « DropShop Market » comme destination. Chaque variante obtient sa page et son annonce Google Shopping.</p></div>
-<div class="bloc"><h2 style="margin-top:0">3. Encaissez</h2><p>Activez vos paiements Stripe en quelques minutes. Chaque vente arrive sur votre compte, moins 5 %.</p></div>
+    corps: `<style>
+.solutions{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-top:8px}
+.solution{position:relative;background:var(--carte);border:1px solid var(--trait);border-radius:18px;padding:26px 24px 24px;display:flex;flex-direction:column;overflow:hidden}
+.solution::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:var(--degrade)}
+.solution.dsp::before{background:linear-gradient(90deg,#f28a4b,#e85290)}
+.solution .num{font-size:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--gris)}
+.solution h2{margin:6px 0 10px;font-size:22px}
+.solution ol{margin:0 0 14px;padding-left:20px}.solution li{margin:6px 0}
+.solution .prix-sol{display:flex;align-items:baseline;gap:10px;margin:4px 0 14px}
+.solution .prix-sol b{font-size:34px;letter-spacing:-.02em}
+.solution .prix-sol span{color:var(--gris);font-size:14px}
+.solution .note{background:var(--accent-clair);border-radius:12px;padding:10px 14px;font-size:14px;margin:0 0 16px}
+.solution .pied{margin-top:auto}
+.btn-dsp{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;font-weight:800;font-size:15px;letter-spacing:.04em;text-transform:uppercase;padding:13px 28px;box-shadow:0 6px 18px rgba(232,82,144,.3)}
+.btn-dsp:hover{text-decoration:none;filter:brightness(1.05)}
+</style>
+<section class="hero"><h1>Vendez sur DropShop Market</h1><p><b>Inscription gratuite.</b> Vous ne payez que 5 % du prix de vente, prélevés automatiquement par Stripe sur chaque vente. Vos produits sont référencés sur Google, une annonce par variante.</p></section>
+<h2 style="margin-top:0">Deux façons de vendre sur DropShop Market</h2>
+<div class="solutions">
+<div class="solution dsp">
+<span class="num">Solution 1</span>
+<h2>DropShipper IA + DropShop</h2>
+<ol><li><b>Importez</b> vos produits dans DropShipper IA depuis n'importe quelle boutique : l'IA réécrit les annonces.</li>
+<li><b>Choisissez DropShop Market</b> comme destination. Chaque variante obtient sa page et son annonce Google Shopping.</li>
+<li><b>Encaissez</b> : chaque vente arrive sur votre compte Stripe, moins 5 %.</li></ol>
+<p class="note">Avec DropShipper IA, votre dropshop (boutique écrite par l'IA) ne coûte que <b>5 €</b>. Et vos produits partent aussi vers plus de 315 marketplaces, Shopify et les réseaux sociaux.</p>
+<p class="pied"><a class="btn-dsp" href="${dropshipper}">S'inscrire sur DropShipper IA</a></p>
+</div>
+<div class="solution">
+<span class="num">Solution 2</span>
+<h2>Créer un dropshop</h2>
+<p>Créez directement ici votre boutique en ligne, écrite par l'IA, <b>sans passer par DropShipper IA</b>. Vous racontez votre commerce, l'IA vous propose trois boutiques, vous choisissez, elle l'écrit en quelques minutes.</p>
+<div class="prix-sol"><b>9,90 €</b><span>une seule fois · back-office compris · modifications à volonté</span></div>
+<p class="note">Votre back-office gère les commandes, les livraisons et les paiements Stripe. <b>Les produits publiés dans vos dropshops sont automatiquement publiés sur DropShop Market.</b></p>
+<p class="pied"><a class="btn" href="${creer}">Créer mon dropshop</a></p>
+</div>
 </div>`,
   })
 }
