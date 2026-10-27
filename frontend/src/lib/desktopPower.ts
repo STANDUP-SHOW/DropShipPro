@@ -124,7 +124,12 @@ async function appel<T>(chemin: string, options: RequestInit = {}): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
   })
   const corps = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((corps as { error?: string }).error || `Erreur ${res.status}`)
+  if (!res.ok) {
+    const message = (corps as { error?: string }).error
+    // A bare 404 (no JSON error) means the API server does not have these routes yet.
+    if (!message && res.status === 404) throw new Error("Le serveur n'a pas encore cette fonction : sa mise à jour est en attente. Réessayez un peu plus tard.")
+    throw new Error(message || `Erreur ${res.status}`)
+  }
   return corps as T
 }
 
