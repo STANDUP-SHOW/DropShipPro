@@ -66,7 +66,21 @@ ${JSON.stringify(annexe, null, 2)}
 \`\`\`
 `
 const origine = 'drive:banc/2026-10-12/electromenager/banc-annexe.rayon.md'
-const REPERES = /sentifour|plateformex|7[,.]77|8[,.]88|9[,.]99|(?<!\d)333(?!\d)|13[,.]13|21[,.]21|22[,.]22|31[,.]02|Baisse Sentinelle|Marge Sentinelle/gi
+const REPERES = /sentifour|plateformex|7[,.]77|8[,.]88|9[,.]99|(?<!\d)333(?!\d)|13[,.]13|21[,.]21|22[,.]22|31[,.]02|4[,.]44|66[,.]66|Baisse Sentinelle|Marge Sentinelle/gi
+
+// The Kantix Poste (0.5.3, 27/10/2026) renders the whole MARKETSPY study itself and sends it in
+// report_markdown: the same study, through the Poste's own renderer, must not leak either.
+const kantix = createRequire(import.meta.url)('../analyses/lib/rapports-md.js')
+const complet = kantix.completerPourLeSite({
+  ...annexe,
+  study: { ...annexe.study, theme_slug: 'banc-annexe-kantix', theme_name: 'Banc annexe Kantix' },
+  products: annexe.products.map((p) => ({ ...p, shipping_cost: 4.44, supplier_orders: '500+ vendus', supplier_rating: '4,8', risks: ['transport Sentifour non affiché'] })),
+  sourcing: { platforms: [{ platform: 'Plateformex', findings: 'Sentifour vend en lot à 7,77 €', price_range: '7,77-9,99 €', moq: '333', verdict: 'à négocier' }], synthesis: 'Sentifour pour tout.' },
+  marketplaces: [{ platform: 'Amazon', relevant: true, observed_prices: '39,90 €', competition: '12 offres', opportunity: 'pack' }],
+  social_trends: [{ platform: 'TikTok', observations: 'démos courtes', trend_class: 'forte' }],
+  final_decision: { buy_now: ['Produit repère 1'], test_budget: '300 €' },
+  test_plan: [{ product: 'Produit repère 1', quantity: 20, buy_budget: 66.66, platform: 'Amazon', angle: 'démo', goal: '10 ventes', stop_threshold: 'CPA > 15 €' }],
+})
 
 try {
   fs.mkdirSync(path.dirname(depose), { recursive: true })
@@ -74,9 +88,12 @@ try {
   fs.rmSync(`${depose}.origine.json`, { force: true })
   const md = lib.etudeMarkdown({ texteRayon: texte, texteMarketing: null, origineRayon: origine, origineMarketing: null, source: 'google-drive', indices: lib.indicesDuChemin(origine) })
   const ai = lib.etudeAiMarket({ ...annexe, study: { ...annexe.study, theme_slug: 'banc-annexe-ai', theme_name: 'Banc annexe AI' } }, 'drive:banc/2026-10-12/electromenager/banc-annexe-ai.json')
-  exige(md.ok && ai.ok, 'les deux études de banc sont lues')
+  const kx = lib.etudeAiMarket(complet, 'poste-analyses')
+  exige(md.ok && ai.ok && kx.ok, 'les trois études de banc sont lues')
   const db = new Database(depose)
-  for (const e of [md, ai]) lib.ecrireEtude(db, { ...e, majLe: '2099-01-01 00:00:00' })
+  for (const e of [md, ai, kx]) lib.ecrireEtude(db, { ...e, majLe: '2099-01-01 00:00:00' })
+  const prive = JSON.parse((db.prepare('SELECT data FROM reports WHERE id = ?').get(kx.idRayon) as any).data).analysis
+  exige(['Analyse sourcing', 'Analyse marketplaces', 'TOP 20 produits gagnants', 'Comparatif achat / revente', 'Décision finale'].every((t) => prive.includes(`## ${t}\n`)) && /Sentifour/.test(prive), "côté compte, l'étude du Poste est entière (sourcing compris)")
   db.close()
 
   const { analysesPubliquesRouter, lignesPubliques } = await import('./src/routes/analysesPubliques.js')
@@ -86,6 +103,7 @@ try {
   const srv = app.listen(0)
   const port = (srv.address() as any).port
   const pages = lignesPubliques().filter((l: any) => /banc-annexe/.test(l.id))
+  exige(pages.some((l: any) => /kantix/.test(l.id)), 'la page de l’étude du Poste est publiée')
   exige(pages.length >= 3, `les pages du banc sont publiées (${pages.length})`)
   for (const l of pages) {
     const h = await (await fetch(`http://127.0.0.1:${port}${cheminRapport(l)}`)).text()

@@ -25,7 +25,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { ErreurFournisseur } = require('./erreurs')
 const { valider, cle: cleUrl } = require('./validation')
-const { rayonMd, marketingMd } = require('./rapports-md')
+const { rayonMd, marketingMd, completerPourLeSite } = require('./rapports-md')
 const depot = require('./depot')
 const { sectionPreuves } = require('./signaux')
 const { lecteurMotsCles } = require('./mots-cles')
@@ -435,8 +435,9 @@ async function executerRayon({ rayon, deps, options = {} }) {
     preuves.join('\n\n'),
   ].join('\n')
 
-  // ---- the one big call
-  const rep2 = await claude.message({ systeme, utilisateur, maxTokens: options.maxTokens || 32000, effort: 'medium' })
+  // ---- the one big call: the full MARKETSPY study (20 products x 42 fields, 16 sections) needs
+  // ~25-35k output tokens; 32k truncated it (stop_reason max_tokens)
+  const rep2 = await claude.message({ systeme, utilisateur, maxTokens: options.maxTokens || 64000, effort: 'medium' })
   usage.claudeEntree += rep2.usage.input_tokens || 0
   usage.claudeSortie += rep2.usage.output_tokens || 0
   const nomDiag = `${rayon.date}_${rayon.categorie}_${rayon.theme}`
@@ -476,6 +477,8 @@ async function executerRayon({ rayon, deps, options = {} }) {
     modele: options.modele || null,
     ecritLe: new Date().toISOString(),
   }
+  // the 16-section study and the marketing lists, for the site (rapports-etude.cjs reads them)
+  completerPourLeSite(rapport)
   const chemins = depot.ecrireRapport(racine, {
     date: rayon.date,
     categorie: rayon.categorie,
