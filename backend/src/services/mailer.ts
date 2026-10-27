@@ -38,6 +38,8 @@ interface Mail {
   highlight?: string
   /** Ajoute l'invitation à la newsletter DropShipper avant le pied. */
   newsletter?: boolean
+  /** L'adresse à laquelle « Répondre » écrit (message d'un client au service client). */
+  replyTo?: string
 }
 
 function render({ heading, body, actionLabel, actionUrl, footer, brand, highlight, newsletter }: Mail) {
@@ -151,6 +153,7 @@ export async function sendMail(mail: Mail): Promise<void> {
       html: render(mail),
       // A message with no plain-text alternative lands in spam far more often.
       text: plainText(mail),
+      ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
     })
     return
   }
@@ -168,7 +171,7 @@ export async function sendMail(mail: Mail): Promise<void> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM, to: mail.to, subject: mail.subject, html: render(mail) }),
+    body: JSON.stringify({ from: FROM, to: mail.to, subject: mail.subject, html: render(mail), ...(mail.replyTo ? { reply_to: mail.replyTo } : {}) }),
   })
 
   if (!res.ok) {

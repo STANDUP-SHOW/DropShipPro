@@ -149,6 +149,45 @@ footer a{color:#fff}
 .vide{background:#fff;border:1px dashed var(--trait);border-radius:16px;padding:40px;text-align:center;color:var(--gris)}
 .etapes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
 .etapes .bloc{margin:0}
+a.entete{font-weight:600;font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+a.entete small{display:block;font-size:11px;font-weight:500;opacity:.75;line-height:1}
+.pastille{display:inline-block;min-width:20px;text-align:center;background:var(--degrade);border-radius:999px;padding:1px 6px;font-size:12px;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.carte a.lien{display:flex;flex-direction:column;flex:1}
+.carte a.lien:hover{text-decoration:none}
+.carte form{padding:0 12px 12px}
+.btn-panier{width:100%;border:1.5px solid var(--accent);background:#fff;color:var(--accent);border-radius:999px;padding:7px 10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.btn-panier:hover{background:var(--accent-clair)}
+.btn-second{display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--accent);background:#fff;color:var(--accent);border-radius:999px;font-weight:800;font-size:15px;padding:12px 24px;cursor:pointer;font-family:inherit}
+.btn-second:hover{background:var(--accent-clair);text-decoration:none}
+.lien-bouton{border:0;background:none;color:var(--accent);font:inherit;font-size:14px;cursor:pointer;padding:0;text-decoration:underline}
+.filtres{display:flex;flex-wrap:wrap;gap:10px;align-items:end;background:#fff;border:1px solid var(--trait);border-radius:14px;padding:12px 14px;margin:0 0 18px;font-size:14px}
+.filtres label{display:flex;flex-direction:column;gap:3px;color:var(--gris);font-size:12px}
+.filtres select,.filtres input[type=number]{border:1.5px solid var(--trait);border-radius:10px;padding:7px 9px;font:inherit;font-size:14px;color:var(--encre);background:#fff;width:auto}
+.filtres input[type=number]{width:90px}
+.filtres .coche{flex-direction:row;align-items:center;gap:6px;color:var(--encre);font-size:14px;padding-bottom:8px}
+.formulaire{display:flex;flex-direction:column;gap:12px;max-width:440px}
+.formulaire label{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600}
+.formulaire input,.formulaire select,.formulaire textarea{border:1.5px solid var(--trait);border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;font-weight:400;background:#fff}
+.formulaire textarea{min-height:130px;resize:vertical}
+.erreur{background:#fdecef;border:1px solid #f3b6c4;color:#9b1c3a;border-radius:12px;padding:10px 14px;margin:0 0 14px}
+.succes{background:#e9faf3;border:1px solid #a6e6cb;color:#0b6b46;border-radius:12px;padding:10px 14px;margin:0 0 14px}
+.ligne-panier{display:grid;grid-template-columns:96px 1fr auto;gap:14px;align-items:center;border-top:1px solid var(--trait);padding:14px 0}
+.ligne-panier:first-child{border-top:0}
+.ligne-panier img{width:96px;height:96px;object-fit:contain;background:#fff;border:1px solid var(--trait);border-radius:10px}
+.ligne-panier .q{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ligne-panier select{border:1.5px solid var(--trait);border-radius:8px;padding:5px 8px;font:inherit}
+@media (max-width:640px){.ligne-panier{grid-template-columns:72px 1fr}.ligne-panier img{width:72px;height:72px}.ligne-panier .px{grid-column:2}}
+.deux{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+@media (max-width:820px){.deux{grid-template-columns:1fr}}
+.menu-compte{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 20px}
+.menu-compte a{background:#fff;border:1px solid var(--trait);border-radius:999px;padding:7px 14px;font-size:14px}
+.menu-compte a.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.statut{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--accent-clair);color:var(--accent)}
+.texte-legal{max-width:820px}.texte-legal h2{font-size:18px;margin:26px 0 8px}.texte-legal p,.texte-legal li{font-size:15px}
+footer .cols{display:flex;gap:40px;flex-wrap:wrap}
+@media (max-width:1300px){.vendre{display:none}}
+@media (max-width:640px){a.entete.cmd{display:none}a.entete small{display:none}}
+@media print{header.top,nav.rayons,footer,.non-imprime{display:none!important}body{background:#fff}}
 @media (max-width:640px){header.top{position:static}.vendre{font-size:13px;padding:5px 12px}.logo img{height:36px}form.cherche{flex-basis:100%;order:3}.btn-prime{font-size:13px}}
 `
 
@@ -187,14 +226,22 @@ ${g.head ?? ''}
 </form>
 <a class="btn-prime" href="${base}/prime"><i aria-hidden="true"></i>PRIME 24 h</a>
 <a class="vendre" href="${base}/vendre">Vendre sur DropShop Market</a>
+<a class="entete" href="${base}/compte"><span><small>Bonjour</small>Mon compte</span></a>
+<a class="entete cmd" href="${base}/compte/commandes"><span><small>Retours</small>et commandes</span></a>
+<a class="entete" href="${base}/panier" aria-label="Panier">🛒 Panier <span class="pastille" data-panier>0</span></a>
 </div></header>
+<script>(function(){try{var m=document.cookie.match(/(?:^|; )dsm_panier=([^;]*)/),n=0;if(m)decodeURIComponent(m[1]).split('|').forEach(function(x){var q=parseInt(x.split('~')[1]||'1',10);if(x)n+=q>0?q:1});document.querySelectorAll('[data-panier]').forEach(function(e){e.textContent=n})}catch(e){}})()</script>
 ${navRayons(base, g.rayons ?? [])}
 <main><div class="wrap">
 ${g.corps}
 </div></main>
 <footer><div class="wrap">
 <div><img src="${base}/marque/market-europe.png" alt="DropShop Market — Rapide Europe, produits d'importation" width="640" height="337" style="height:88px;width:auto;margin-bottom:10px" loading="lazy"><br>La place de marché des boutiques DropShop.<br>Paiement sécurisé par Stripe.</div>
-<div><a href="${base}/vendre">Vendre : inscription gratuite</a><br><a href="https://www.drop-shipper.fr/confidentialite">Confidentialité</a><br><a href="${base}/sitemap.xml">Plan du site</a></div>
+<div class="cols">
+<div><b style="color:#fff">Aide</b><br><a href="${base}/aide">Aide et questions</a><br><a href="${base}/contact">Contacter le service client</a><br><a href="${base}/suivi">Suivre une commande</a><br><a href="${base}/retours">Retours et remboursements</a><br><a href="${base}/livraison">Livraison</a></div>
+<div><b style="color:#fff">Votre compte</b><br><a href="${base}/compte">Mon compte</a><br><a href="${base}/compte/commandes">Mes commandes</a><br><a href="${base}/compte/envies">Ma liste d'envies</a><br><a href="${base}/panier">Mon panier</a></div>
+<div><b style="color:#fff">Informations</b><br><a href="${base}/cgv">Conditions générales de vente</a><br><a href="${base}/mentions-legales">Mentions légales</a><br><a href="${base}/confidentialite">Confidentialité et cookies</a><br><a href="${base}/vendre">Vendre : inscription gratuite</a><br><a href="${base}/sitemap.xml">Plan du site</a></div>
+</div>
 </div></footer>
 </body>
 </html>`
@@ -235,7 +282,7 @@ ${v.items
     (x) => `<div class="avis"><div><span class="etoiles">${etoiles(x.etoiles)}</span> <strong>${e(x.auteur)}</strong></div>
 <p>${e(x.texte)}</p>
 ${x.photos.length ? `<div class="ph">${x.photos.map((p) => `<img src="${e(p)}" alt="Photo jointe à l'avis" loading="lazy">`).join('')}</div>` : ''}
-<div class="muted" style="font-size:12px">${[date(x.date), x.origine ? `Avis recueilli sur ${e(x.origine)}` : 'Avis transmis par le vendeur'].filter(Boolean).join(' · ')}</div></div>`,
+<div class="muted" style="font-size:12px">${[date(x.date), x.origine === 'drop-shop.cloud' ? '✓ Achat vérifié sur DropShop Market' : x.origine ? `Avis recueilli sur ${e(x.origine)}` : 'Avis transmis par le vendeur'].filter(Boolean).join(' · ')}</div></div>`,
   )
   .join('')}
 ${v.nombre > v.items.length ? `<p class="muted">${v.items.length} avis les plus récents sur ${v.nombre}.</p>` : ''}</section>`
@@ -244,12 +291,15 @@ ${v.nombre > v.items.length ? `<p class="muted">${v.items.length} avis les plus 
 export function carte(base: string, a: Annonce): string {
   const o = a.offres[0]
   const { prix, variable } = prixDAppel(a)
-  return `<a class="carte" href="${base}${o.cheminProduit}">
+  // Un produit sans choix à faire s'ajoute au panier depuis la liste ; sinon on choisit sur la fiche.
+  const direct = a.offres.length === 1 && o.disponible
+  return `<div class="carte"><a class="lien" href="${base}${o.cheminProduit}">
 <div class="img">${a.prime ? '<span class="prime">⚡ PRIME 24 h</span>' : ''}${o.image ? `<img src="${e(o.image)}" alt="${e(o.titreProduit)}" loading="lazy" width="400" height="400">` : ''}</div>
 <div class="txt"><div class="t">${e(o.titreProduit)}</div>
 <div class="v">${e(a.vendeur.nom)}${a.offres.length > 1 ? ` · ${a.offres.length} variantes` : ''}</div>
 ${a.avis?.nombre && a.avis.moyenne != null ? `<div class="note"><span class="etoiles">${etoiles(a.avis.moyenne)}</span> ${a.avis.moyenne.toLocaleString('fr-FR')} (${a.avis.nombre})</div>` : ''}
-<div class="p">${variable ? '<small>dès </small>' : ''}${e(prixTexte(prix, o.devise))}</div></div></a>`
+<div class="p">${variable ? '<small>dès </small>' : ''}${e(prixTexte(prix, o.devise))}</div></div></a>
+${direct ? `<form method="post" action="${base}/panier/ajouter"><input type="hidden" name="offre" value="${e(o.id)}"><button class="btn-panier" type="submit">Ajouter au panier</button></form>` : `<form method="get" action="${base}${o.cheminProduit}"><button class="btn-panier" type="submit">${o.disponible || a.offres.some((x) => x.disponible) ? 'Choisir une option' : 'Épuisé'}</button></form>`}</div>`
 }
 
 export function grille(base: string, liste: Annonce[], vide = 'Aucun produit pour le moment.'): string {
@@ -469,7 +519,7 @@ function selecteurs(base: string, a: Annonce, courante: Offre | null): string {
 }
 
 /** La fiche produit, ou celle d'une de ses variantes. */
-export function pageProduit(base: string, a: Annonce, courante: Offre | null, rayons: Rayon[] = []): string {
+export function pageProduit(base: string, a: Annonce, courante: Offre | null, rayons: Rayon[] = [], similaires: Annonce[] = []): string {
   const o = courante ?? a.offres[0]
   const aVariantes = Boolean(a.offres[0].cle)
   const choisie = aVariantes ? courante : o
@@ -497,7 +547,9 @@ export function pageProduit(base: string, a: Annonce, courante: Offre | null, ra
       ? Object.entries(a.product.attributes as Record<string, unknown>).filter(([, v]) => typeof v === 'string' || typeof v === 'number')
       : []
 
-  const vendable = a.vendeur.encaisse && (choisie?.disponible ?? true)
+  // Décision de max (27/10/2026) : tout est achetable ; la part d'un vendeur
+  // sans paiements actifs est mise de côté (voir marketStripe.ts).
+  const vendable = choisie?.disponible ?? true
   const images = o.images.slice(0, 12)
 
   const corps = `
@@ -520,11 +572,12 @@ ${
     ? `<form class="achat" method="post" action="${base}/acheter">
 <input type="hidden" name="offre" value="${e(choisie.id)}">
 <label class="muted" style="display:flex;align-items:center;gap:8px">Qté <input type="number" name="quantite" value="1" min="1" max="10"></label>
-<button class="btn" type="submit"${vendable ? '' : ' disabled'}>${vendable ? 'Acheter maintenant' : choisie.disponible ? 'Bientôt disponible' : 'Épuisé'}</button>
+${vendable ? `<button class="btn" type="submit" formaction="${base}/panier/ajouter">Ajouter au panier</button><button class="btn-second" type="submit">Acheter maintenant</button>` : '<button class="btn" type="button" disabled>Épuisé</button>'}
 </form>`
     : `<p class="muted">Sélectionnez ${[...new Set(a.offres.flatMap((x) => Object.keys(x.combo ?? {})))].map((k) => k.toLowerCase()).join(' et ')} pour acheter.</p>`
 }
-<ul class="atouts"><li>Paiement sécurisé par Stripe</li><li>${a.prime ? 'Livraison offerte en 24 h en France métropolitaine' : 'Livraison offerte en France'}</li><li>14 jours pour changer d'avis</li></ul>
+<form method="post" action="${base}/compte/envies/ajouter" style="margin:4px 0 0"><input type="hidden" name="produit" value="${e(a.product.id)}"><button class="lien-bouton" type="submit">♡ Ajouter à ma liste d'envies</button></form>
+<ul class="atouts"><li>Paiement sécurisé par Stripe</li><li>${a.prime ? 'Livraison comprise, en 24 h en France métropolitaine' : 'Livraison comprise'} (<a href="${base}/livraison">détails</a>)</li><li>14 jours pour changer d'avis (<a href="${base}/retours">retours</a>)</li></ul>
 </div>
 </div>
 <section class="bloc"><h2 style="margin-top:0">Description</h2>${paragraphes(description)}
@@ -541,6 +594,7 @@ ${
 }
 ${video ? `<section class="bloc"><h2 style="margin-top:0">Vidéo</h2><video src="${e(video)}"${o.image ? ` poster="${e(o.image)}"` : ''} controls playsinline preload="none" style="width:100%;max-height:70vh;border-radius:12px;background:#000"></video></section>` : ''}
 ${sectionAvis(a)}
+${similaires.length ? `<section style="margin-top:28px"><h2>Dans la même catégorie</h2>${grille(base, similaires)}</section>` : ''}
 <script>document.querySelectorAll('.vignettes button').forEach(function(b){b.addEventListener('click',function(){var p=document.getElementById('principale');if(p)p.src=b.getAttribute('data-src')})})</script>`
 
   return gabarit({
@@ -603,13 +657,37 @@ export function pageListe(args: {
   recherche?: string
   hero?: boolean
   vide?: string
+  /** Les filtres et tris (recherche, catégories, Prime, vendeur). */
+  filtres?: { tri: string; min: number | null; max: number | null; prime: boolean; note4: boolean; actif: boolean }
 }): string {
   const { base } = args
+  const f = args.filtres
+  const requeteFiltres = f?.actif
+    ? [
+        f.tri !== 'nouveautes' ? `tri=${encodeURIComponent(f.tri)}` : '',
+        f.min != null ? `min=${f.min}` : '',
+        f.max != null ? `max=${f.max}` : '',
+        f.prime ? 'prime=1' : '',
+        f.note4 ? 'note4=1' : '',
+      ].filter(Boolean).join('&')
+    : ''
   const lienPage = (n: number) => {
     const chemin = args.chemin ?? `/recherche?q=${encodeURIComponent(args.recherche ?? '')}`
+    const params = [requeteFiltres, n > 1 ? `page=${n}` : ''].filter(Boolean).join('&')
     const sep = chemin.includes('?') ? '&' : '?'
-    return `${base}${chemin}${n > 1 ? `${sep}page=${n}` : ''}`
+    return `${base}${chemin}${params ? `${sep}${params}` : ''}`
   }
+  const action = args.chemin ?? '/recherche'
+  const barreFiltres =
+    f && !args.accueil
+      ? `<form class="filtres" method="get" action="${base}${action.split('?')[0]}">${args.recherche ? `<input type="hidden" name="q" value="${e(args.recherche)}">` : ''}
+<label>Trier par<select name="tri">${[['nouveautes', 'Nouveautés'], ['prix-asc', 'Prix croissant'], ['prix-desc', 'Prix décroissant'], ['notes', 'Mieux notés']].map(([k, t]) => `<option value="${k}"${f.tri === k ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+<label>Prix min (€)<input type="number" name="min" min="0" step="1" value="${f.min ?? ''}"></label>
+<label>Prix max (€)<input type="number" name="max" min="0" step="1" value="${f.max ?? ''}"></label>
+<label class="coche"><input type="checkbox" name="prime" value="1"${f.prime ? ' checked' : ''}> ⚡ Prime 24 h</label>
+<label class="coche"><input type="checkbox" name="note4" value="1"${f.note4 ? ' checked' : ''}> ★★★★ et plus</label>
+<button class="btn-panier" style="width:auto;padding:8px 16px" type="submit">Appliquer</button>${f.actif ? ` <a class="muted" href="${base}${action}">Effacer</a>` : ''}</form>`
+      : ''
   const entete = args.hero
     ? `<section class="hero">${args.accueil ? '<span class="europe">RAPIDE EUROPE</span>' : ''}<h1>${e(args.h1)}</h1>${args.intro ? `<p>${e(args.intro)}</p>` : ''}</section>`
     : `<h1>${e(args.h1)}</h1>${args.intro ? `<p class="muted">${e(args.intro)}</p>` : ''}${args.boutique ? `<p><a class="vendeur" href="${e(args.boutique.url)}" target="_blank" rel="noopener">Visiter la boutique ${e(args.boutique.nom)} ↗</a></p>` : ''}`
@@ -622,7 +700,7 @@ export function pageListe(args: {
     ? `${carrouselVedettes(base, args.vedettes ?? [])}<a class="bandeau-prime" href="${base}/prime"><span class="prime prime-gros">⚡ PRIME</span><span><b>Livré en 24 h</b><br><span class="muted">Les articles en stock en France, expédiés le jour même.</span></span><span class="btn" style="margin-left:auto">Voir les articles Prime</span></a>${tuilesRayons(base, args.rayons)}<h2>Les nouveautés</h2>`
     : ''
   const corps = `${entete}
-${puces}${accueil}
+${puces}${accueil}${barreFiltres}
 ${grille(base, args.annonces, args.vide)}
 ${args.page > 1 || args.suivante ? `<div class="pager">${args.page > 1 ? `<a href="${lienPage(args.page - 1)}" rel="prev">← Précédent</a>` : ''}${args.suivante ? `<a href="${lienPage(args.page + 1)}" rel="next">Suivant →</a>` : ''}</div>` : ''}`
   const html = gabarit({
@@ -671,7 +749,7 @@ export function pageVendre(base: string): string {
 <div class="etapes">
 <div class="bloc"><h2 style="margin-top:0">1. Importez</h2><p>Importez vos produits dans DropShipper depuis n'importe quelle boutique : l'IA réécrit les annonces.</p></div>
 <div class="bloc"><h2 style="margin-top:0">2. Publiez</h2><p>Choisissez « DropShop Market » comme destination. Chaque variante obtient sa page et son annonce Google Shopping.</p></div>
-<div class="bloc"><h2 style="margin-top:0">3. Encaissez</h2><p>Activez vos paiements Stripe en quelques minutes. Chaque vente arrive sur votre compte, moins 5 %.</p></div>
+<div class="bloc"><h2 style="margin-top:0">3. Encaissez</h2><p>Activez vos paiements Stripe en quelques minutes. Chaque vente arrive sur votre compte, moins 5 %. Une vente faite avant l'activation est mise de côté et vous est versée dès que vous activez.</p></div>
 </div>`,
   })
 }

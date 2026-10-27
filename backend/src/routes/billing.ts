@@ -342,6 +342,11 @@ export async function stripeWebhook(req: Request, res: Response) {
 }
 
 async function handleEvent(event: import('stripe').Stripe.Event) {
+  // DropShop Market : un paiement abandonné ne laisse pas de commande fantôme chez les vendeurs.
+  if (event.type === 'checkout.session.expired' && event.data.object.metadata?.market === '1') {
+    await prisma.order.deleteMany({ where: { stripeSessionId: event.data.object.id, platform: 'DROPSHOP_MARKET', paidAt: null } })
+    return
+  }
   // Only one-off drops recharges exist now — a completed checkout grants its pack.
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
