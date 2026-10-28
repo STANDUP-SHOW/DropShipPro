@@ -8,6 +8,8 @@ import { lirePanier, ajouter, modifier, ecrirePanier, MAX_QUANTITE } from './src
 import { nouveauNumero } from './src/services/marketStripe.js'
 import { PAGES_INFO, EDITEUR } from './src/services/marketLegal.js'
 import { pageDetailCommande, type CommandeVue } from './src/services/marketPagesClient.js'
+import { lireIdentite, identiteDe, ventiler, pageFacture, ErreurFacture } from './src/services/marketFactures.js'
+import { prisma } from './src/lib/prisma.js'
 
 /**
  * Éprouve la boutique complète de DropShop Market (27/10/2026) sans base ni
@@ -119,13 +121,60 @@ const commande: CommandeVue = {
   devise: 'EUR',
   adresse: '1 rue A, 75001 Paris, FR',
   lignes: [
-    { id: 'o1', titre: 'Lampe', variante: null, quantite: 1, montant: 30, devise: 'EUR', statut: 'SHIPPED', paye: true, suivi: '6A12345678901', transporteur: null, image: null, chemin: '/p/x/lampe', vendeur: 'Boutique Test', retour: null, avisLaisse: false, peutRetour: true, peutAvis: false },
+    { id: 'o1', titre: 'Lampe', variante: null, quantite: 1, montant: 30, devise: 'EUR', statut: 'SHIPPED', paye: true, suivi: '6A12345678901', transporteur: null, image: null, chemin: '/p/x/lampe', vendeur: 'Boutique Test', retour: null, facture: true, avoir: false, avisLaisse: false, peutRetour: true, peutAvis: false },
   ],
 }
 const invite = pageDetailCommande({ base: '', commande, client: null, preuve: { numero: 'DSM-ABCDEFGH', email: 'a@b.fr' } })
 exige(invite.includes('Demander un retour') && invite.includes('name="numero" value="DSM-ABCDEFGH"'), "l'invité peut demander un retour, preuve jointe")
 exige(invite.includes('6A12345678901') && invite.includes('Suivre le colis'), 'le suivi du colis est affiché')
 exige(!invite.includes('Laisser un avis'), "pas d'avis sans compte (achat vérifié seulement)")
+exige(invite.includes('/facture?ligne=o1&amp;type=facture&amp;numero=DSM-ABCDEFGH&amp;email=a%40b.fr'), "l'invité ouvre la facture du vendeur avec sa preuve")
+commande.lignes[0].retour = { motif: 'rétractation', statut: 'ACCEPTE', reponse: 'Merci', adresseRetour: '3 rue <b>B</b>\n34500 Béziers' }
+const accepte = pageDetailCommande({ base: '', commande, client: null, preuve: { numero: 'DSM-ABCDEFGH', email: 'a@b.fr' } })
+exige(accepte.includes('Retour accepté') && accepte.includes('3 rue &lt;b&gt;B&lt;/b&gt;<br>34500 Béziers'), "retour accepté : l'adresse du vendeur est affichée, échappée")
+commande.lignes[0].retour = { motif: 'rétractation', statut: 'REFUSE', reponse: 'Produit utilisé', adresseRetour: null }
+exige(pageDetailCommande({ base: '', commande, client: null }).includes('Retour refusé par le vendeur : « Produit utilisé »'), 'retour refusé : la raison du vendeur est affichée')
+
+console.log('Factures :')
+const refuse = (brut: unknown, attendu: string) => {
+  try {
+    lireIdentite(brut)
+    exige(false, `identité refusée : ${attendu}`)
+  } catch (e) {
+    exige(e instanceof ErreurFacture, `identité refusée : ${attendu}`)
+  }
+}
+refuse({ raisonSociale: 'X', adresse: '1 rue A 75001 Paris', siret: '123' }, 'SIRET trop court')
+refuse({ raisonSociale: '', adresse: '1 rue A 75001 Paris', siret: '12345678901234' }, 'nom manquant')
+refuse({ raisonSociale: 'X', adresse: '1 rue A 75001 Paris', siret: '12345678901234', regime: 'assujetti', taux: 19 }, 'taux de TVA inexistant')
+refuse({ raisonSociale: 'X', adresse: '1 rue A 75001 Paris', siret: '12345678901234', regime: 'assujetti', taux: 20 }, 'assujetti sans numéro de TVA')
+const franchise = lireIdentite({ raisonSociale: 'Jean <Test>', adresse: '1 rue A\n75001 Paris', siret: '123 456 789 01234' })
+exige(franchise.siret === '12345678901234' && franchise.regime === 'franchise' && franchise.taux === null, 'franchise : SIRET nettoyé, pas de TVA')
+const assujetti = lireIdentite({ raisonSociale: 'SARL Y', adresse: '1 rue A 75001 Paris', siret: '12345678901234', regime: 'assujetti', taux: '5,5', tva: 'FR 12 123456789' })
+exige(assujetti.taux === 5.5 && assujetti.tva === 'FR12123456789', 'assujetti : taux et TVA lus')
+exige(identiteDe(null) === null && identiteDe({ raisonSociale: 'X' }) === null, 'identité incomplète = aucune facture')
+const v = ventiler(120, { regime: 'assujetti', taux: 20 })
+exige(v.ht === 100 && v.tva === 20, `ventilation TTC 120 à 20 % = 100 + 20 (obtenu ${JSON.stringify(v)})`)
+exige(ventiler(30, franchise).tva === 0, 'franchise : TVA nulle')
+
+// pageFacture reads one order: answer it in memory instead of the database.
+const commandeFacturee = {
+  id: 'o1', amount: 36, quantity: 2, paidAt: new Date('2026-10-28'), factureNumero: 'F-2026-00007', factureEmiseAt: new Date('2026-10-28'), avoirNumero: 'A-2026-00008', rembourseAt: new Date('2026-10-30'),
+  marketNumero: 'DSM-ABCDEFGH', buyerName: 'Ana <script>', buyerAddress: { street: '2 rue C', zip: '34000', city: 'Montpellier', country: 'FR' }, variante: 'Rouge',
+  product: { title: 'Lampe', aiTitle: null }, user: { factureIdentite: franchise },
+}
+;(prisma.order as unknown as { findUnique: unknown }).findUnique = async () => commandeFacturee
+const f = (await pageFacture('o1', 'facture')) ?? ''
+exige(f.includes('F-2026-00007') && f.includes('SIRET 12345678901234') && f.includes('Jean &lt;Test&gt;'), 'facture : numéro, SIRET et nom du vendeur (échappé)')
+exige(f.includes('TVA non applicable, art. 293 B du CGI') && f.includes('Ana &lt;script&gt;') && !f.includes('<script>'), 'facture : mention de franchise, acheteur échappé')
+exige(f.includes('18,00') && f.includes('36,00'), 'facture : prix unitaire et total')
+const a = (await pageFacture('o1', 'avoir')) ?? ''
+exige(a.includes('A-2026-00008') && a.includes('Annule la facture F-2026-00007') && a.includes('-36,00'), "avoir : numéro, facture annulée, montant négatif")
+commandeFacturee.user.factureIdentite = assujetti
+const t = (await pageFacture('o1', 'facture')) ?? ''
+exige(t.includes('TVA FR12123456789') && t.includes('TVA 5,5 %') && !t.includes('293 B'), 'facture assujetti : numéro et taux de TVA, pas de franchise')
+commandeFacturee.factureNumero = null as unknown as string
+exige((await pageFacture('o1', 'facture')) === null, 'pas de numéro = pas de facture')
 
 console.log('Routes sans base :')
 const { marketRouter } = await import('./src/routes/market.js')
@@ -151,6 +200,9 @@ try {
   exige(!piege.includes('evil.example'), 'pas de redirection vers un autre site après connexion')
   const faux = await fetch(`http://127.0.0.1:${port}/market/compte/connexion`, { method: 'GET', headers: { cookie: 'dsm_session=faux.jeton.ici' } })
   exige(faux.status === 200, 'un cookie de session falsifié est ignoré')
+  ;(prisma.order as unknown as { findFirst: unknown }).findFirst = async () => null
+  const sansFacture = await get('/facture?ligne=x&numero=DSM-ABCDEFGH&email=a%40b.fr')
+  exige(sansFacture.status === 404, `facture introuvable : 404 lisible (${sansFacture.status})`)
   const robots = await (await get('/robots.txt')).text()
   exige(robots.includes('Disallow: /compte') && robots.includes('Disallow: /panier'), 'robots.txt : pages personnelles non indexées')
 } finally {

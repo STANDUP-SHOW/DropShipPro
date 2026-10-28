@@ -46,6 +46,7 @@ import {
   type LigneVue,
 } from '../services/marketPagesClient.js'
 import { PAGES_INFO, EDITEUR } from '../services/marketLegal.js'
+import { pageFacture } from '../services/marketFactures.js'
 
 /**
  * Le côté client de DropShop Market : panier, commande, compte, suivi,
@@ -384,7 +385,11 @@ async function versCommandes(lignes: LigneBrute[], client: MarketClient | null):
       image: image && image.startsWith('http') ? image : null,
       chemin: offre?.chemin ?? null,
       vendeur: l.product.shop?.name || l.product.user.shopName || 'Vendeur DropShop',
-      retour: l.marketRetours[0] ? MOTIFS[l.marketRetours[0].motif] ?? l.marketRetours[0].motif : null,
+      retour: l.marketRetours[0]
+        ? { motif: MOTIFS[l.marketRetours[0].motif] ?? l.marketRetours[0].motif, statut: l.marketRetours[0].statut, reponse: l.marketRetours[0].reponse, adresseRetour: l.marketRetours[0].adresseRetour }
+        : null,
+      facture: Boolean(l.factureNumero && paye),
+      avoir: Boolean(l.avoirNumero && paye),
       avisLaisse: avis.has(l.id),
       peutRetour: paye && recent && l.status !== 'REFUNDED' && !l.marketRetours.length,
       peutAvis: Boolean(client && l.marketClientId === client.id && (l.status === 'SHIPPED' || l.status === 'DELIVERED') && !avis.has(l.id)),
@@ -625,6 +630,38 @@ async function commandeParPreuve(numero: string, email: string) {
   return (await versCommandes(lignes, null))[0] ?? null
 }
 
+/**
+ * La facture (ou l'avoir) d'une ligne, pour son acheteur : le client connecté
+ * qui l'a passée, ou l'invité qui prouve le numéro de commande et son email.
+ */
+marketClientRouter.get(
+  '/facture',
+  limiteSuivi,
+  page(async (req, res) => {
+    const ligne = String(req.query.ligne ?? '').slice(0, 60)
+    const type = req.query.type === 'avoir' ? 'avoir' : 'facture'
+    const client = await clientConnecte(req)
+    const numero = String(req.query.numero ?? '').trim().toUpperCase().slice(0, 20)
+    const email = normaliserEmail(req.query.email)
+    const o = ligne
+      ? await prisma.order.findFirst({
+          where: {
+            id: ligne,
+            platform: 'DROPSHOP_MARKET',
+            OR: [
+              ...(client ? [{ marketClientId: client.id }] : []),
+              ...(/^DSM-[A-Z0-9]{8}$/.test(numero) && emailValide(email) ? [{ marketNumero: numero, buyerEmail: { equals: email, mode: 'insensitive' as const } }] : []),
+            ],
+          },
+          select: { id: true },
+        })
+      : null
+    const html = o ? await pageFacture(o.id, type) : null
+    if (!html) return perso(res, pageMessage(req.baseUrl, 'Facture introuvable', "Le vendeur n'a pas encore émis de facture pour cet article, ou ce lien ne correspond pas à votre commande.", { libelle: 'Suivre une commande', href: `${req.baseUrl}/suivi` }), 404)
+    res.set('Cache-Control', 'private, no-store').type('html').send(html)
+  }),
+)
+
 marketClientRouter.get(
   '/suivi',
   limiteSuivi,
@@ -673,9 +710,9 @@ marketClientRouter.post(
           to: ligne.user.email,
           subject: `Demande de retour — DropShop Market ${ligne.marketNumero}`,
           heading: 'Un acheteur demande un retour.',
-          body: `${corps}<br><br>Répondez à cet email pour donner à l'acheteur l'adresse de retour. Pour une rétractation, le remboursement (livraison initiale comprise) doit intervenir au plus tard 14 jours après cette demande ; il peut attendre la réception du colis ou la preuve de son envoi.`,
-          actionLabel: 'Voir mes commandes',
-          actionUrl: `${frontendUrl()}/orders`,
+          body: `${corps}<br><br>Acceptez le retour (avec l'adresse où renvoyer le colis) ou refusez-le depuis « Mes ventes » de votre espace DropShop Market ; vous pouvez aussi répondre à cet email. Le remboursement se fait ensuite en un clic au même endroit. Pour une rétractation, le remboursement (livraison initiale comprise) doit intervenir au plus tard 14 jours après cette demande ; il peut attendre la réception du colis ou la preuve de son envoi.`,
+          actionLabel: 'Répondre au retour',
+          actionUrl: `${frontendUrl()}/dropshop-market`,
           footer: 'DropShop Market (drop-shop.cloud) — le service client est en copie.',
           replyTo: acheteur || undefined,
         })
@@ -686,7 +723,7 @@ marketClientRouter.post(
           to: acheteur,
           subject: `DropShop Market — demande de retour reçue (${ligne.marketNumero})`,
           heading: 'Votre demande de retour est enregistrée.',
-          body: `${ligne.quantity} × ${sur(titre)}<br>Motif : ${MOTIFS[motif]}<br><br>Le vendeur vous répond par email avec l'adresse de retour. Une fois le colis renvoyé, vous êtes remboursé au plus tard 14 jours après votre demande (le remboursement peut attendre la réception du colis). Sans réponse du vendeur, écrivez-nous depuis la page de contact : nous suivons votre demande.`,
+          body: `${ligne.quantity} × ${sur(titre)}<br>Motif : ${MOTIFS[motif]}<br><br>Le vendeur vous répond par email avec l'adresse de retour (vous la retrouvez aussi dans le détail de votre commande). Une fois le colis renvoyé, vous êtes remboursé au plus tard 14 jours après votre demande (le remboursement peut attendre la réception du colis). Sans réponse du vendeur, écrivez-nous depuis la page de contact : nous suivons votre demande.`,
           footer: `Numéro de commande : ${ligne.marketNumero}.`,
           brand: 'DropShop Market',
         })
