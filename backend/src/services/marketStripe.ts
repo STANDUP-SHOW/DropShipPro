@@ -7,6 +7,7 @@ import crypto from 'node:crypto'
 import type { MarketClient } from '@prisma/client'
 import { COMMISSION, marketUrl, type Annonce, type Offre } from './market.js'
 import type { LigneResolue } from './marketPanier.js'
+import { emettreAvoir, facturerAutomatiquement } from './marketFactures.js'
 
 /**
  * Les paiements de DropShop Market, par Stripe Connect.
@@ -471,6 +472,9 @@ async function confirmerPanier(s: Stripe, session: Stripe.Checkout.Session): Pro
   const titre = commandes[0].product.aiTitle || commandes[0].product.title
   if (!nouvelles.length) return { paye: true, titre, numero }
 
+  // Les vendeurs qui ont saisi leur identité de facturation : facture émise d'office.
+  await facturerAutomatiquement(nouvelles.map((c) => ({ id: c.id, userId: c.userId })))
+
   // Le carnet d'adresses du client : la première adresse de livraison y entre d'elle-même.
   if (clientId && adresse?.line1) {
     const deja = await prisma.marketAdresse.count({ where: { clientId } }).catch(() => 1)
@@ -559,4 +563,56 @@ export async function prevenirExpeditionMarket(orderId: string) {
   } catch (e) {
     console.error('[market] email d\'expédition non envoyé', e instanceof Error ? e.message : e)
   }
+}
+
+/**
+ * Le remboursement en un clic, depuis l'écran du vendeur (28/10/2026).
+ *
+ * L'acheteur est remboursé de toute la ligne, livraison comprise, sur sa
+ * carte. Si la part du vendeur lui a déjà été virée, le virement est repris
+ * (reversal Connect) ; sinon elle n'est simplement jamais versée. La plateforme
+ * renonce à sa commission sur une vente remboursée. Une facture émise reçoit son
+ * avoir. Idempotent : un double clic ne rembourse pas deux fois.
+ */
+export async function rembourserLigne(orderId: string, userId: string): Promise<{ montant: number }> {
+  const s = stripe()
+  const o = await prisma.order.findFirst({
+    where: { id: orderId, userId, platform: 'DROPSHOP_MARKET' },
+    include: { product: { select: { title: true, aiTitle: true } } },
+  })
+  if (!o || !o.paidAt || !o.stripeSessionId) throw new MarketIndisponible('Vente introuvable ou non payée sur le Market.')
+  if (o.status === 'REFUNDED') throw new MarketIndisponible('Cette vente est déjà remboursée.')
+  const montant = Math.round(Number(o.amount) * 100)
+  const part = montant - Math.round(Number(o.commission ?? 0) * 100)
+
+  const session = await s.checkout.sessions.retrieve(o.stripeSessionId)
+  const pi = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
+  if (!pi) throw new MarketIndisponible('Paiement introuvable chez Stripe.')
+
+  // Reprendre d'abord la part du vendeur : si Stripe la refuse, l'acheteur n'est pas encore remboursé et rien n'est à moitié fait.
+  if (o.stripeTransferId && part > 0) {
+    await s.transfers.createReversal(o.stripeTransferId, { amount: part, metadata: { market: '1', commande: o.id } }, { idempotencyKey: `dsm-reprise-${o.id}` })
+  }
+  const remb = await s.refunds.create({ payment_intent: pi, amount: montant, metadata: { market: '1', commande: o.id } }, { idempotencyKey: `dsm-remboursement-${o.id}` })
+
+  await prisma.order.update({
+    where: { id: o.id },
+    data: { status: 'REFUNDED', stripeRefundId: remb.id, rembourseAt: new Date(), commission: 0, payoutStatus: 'RELEASED' },
+  })
+  await prisma.marketRetour.updateMany({ where: { orderId: o.id, statut: { in: ['DEMANDE', 'ACCEPTE'] } }, data: { statut: 'REMBOURSE', majAt: new Date() } })
+  await emettreAvoir(o.id, userId).catch((e) => console.error('[market] avoir', e instanceof Error ? e.message : e))
+
+  if (o.buyerEmail) {
+    const titre = o.product.aiTitle || o.product.title
+    await sendMail({
+      to: o.buyerEmail,
+      subject: `DropShop Market — remboursement de ${euros(montant / 100)}${o.marketNumero ? ` (${o.marketNumero})` : ''}`,
+      heading: 'Vous êtes remboursé.',
+      body: `Bonjour ${esc(o.buyerName)},<br><br>${o.quantity} × ${esc(titre)}${o.variante ? ` (${esc(o.variante)})` : ''} : <b>${euros(montant / 100)}</b> remboursés sur le moyen de paiement utilisé. Selon votre banque, le montant apparaît sous 5 à 10 jours ouvrés.`,
+      ...(o.marketNumero ? { actionLabel: 'Voir ma commande', actionUrl: `${marketUrl()}/suivi?numero=${encodeURIComponent(o.marketNumero)}&email=${encodeURIComponent(o.buyerEmail)}` } : {}),
+      footer: `DropShop Market — ${o.marketNumero ?? ''}`,
+      brand: 'DropShop Market',
+    }).catch((e) => console.error('[market] email de remboursement', e instanceof Error ? e.message : e))
+  }
+  return { montant: montant / 100 }
 }

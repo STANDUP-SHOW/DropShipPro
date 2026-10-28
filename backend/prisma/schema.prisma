@@ -233,6 +233,11 @@ model User {
   commissionsVersees Commission[]
 
   @@index([affilieId])
+  /// DropShop Market : l identité qui figure sur les factures du vendeur
+  /// (raison sociale, adresse, SIRET, régime de TVA). Saisie par lui.
+  factureIdentite    Json?
+  /// Le dernier numéro de facture de sa série (factures et avoirs confondus).
+  factureCompteur    Int       @default(0)
 }
 
 /// Un abonné à la newsletter DropShipper. Autonome : l'inscription est publique,
@@ -534,6 +539,14 @@ model Order {
   stripeTransferId    String?
   /// DropShop Market : quand l acheteur a été prévenu de l expédition (une fois).
   marketExpeditionAvisAt DateTime?
+  /// DropShop Market : la facture émise au nom du vendeur (numéro de sa série).
+  factureNumero       String?
+  factureEmiseAt      DateTime?
+  /// DropShop Market : l avoir qui annule la facture après un remboursement.
+  avoirNumero         String?
+  /// DropShop Market : le remboursement Stripe fait par le vendeur, en un clic.
+  stripeRefundId      String?
+  rembourseAt         DateTime?
   marketRetours       MarketRetour[]
 
   createdAt DateTime @default(now())
@@ -1995,6 +2008,10 @@ model MarketRetour {
   message   String        @db.Text
   /// DEMANDE | ACCEPTE | REFUSE | REMBOURSE
   statut    String        @default("DEMANDE")
+  /// La réponse du vendeur à l acheteur, et l adresse de retour quand il accepte.
+  reponse       String?   @db.Text
+  adresseRetour String?   @db.Text
+  majAt         DateTime?
   createdAt DateTime      @default(now())
 
   @@index([orderId])

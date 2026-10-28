@@ -222,3 +222,23 @@ efface les commandes non payées (à cocher dans Stripe pour qu'il arrive).
 Reste à faire : facture émise par le vendeur (le récapitulatif n'en est pas une),
 remboursement en un clic depuis l'écran vendeur, médiateur de la consommation
 (nom à fournir par max), statuts de retour gérés par le vendeur.
+
+## Factures, remboursements et retours côté vendeur (28/10/2026)
+
+- **Factures au nom du vendeur** (`services/marketFactures.ts`) : sur une place de marché, c'est le
+  vendeur qui vend. Il saisit son identité dans « Mes ventes » (`User.factureIdentite` : nom ou raison
+  sociale, adresse, SIRET 14 chiffres, franchise « art. 293 B du CGI » ou assujetti avec taux 20 / 10 /
+  5,5 / 2,1 et n° FR). Sans identité complète, aucune facture : on n'invente rien.
+- Numérotation par vendeur, continue et sans trou : `F-AAAA-00001`, l'avoir prend le numéro suivant
+  (`A-…`). Compteur `User.factureCompteur` et numéro posés dans la même transaction.
+- Facture émise automatiquement au paiement (`confirmerPanier`) si l'identité est complète, sinon bouton
+  « Émettre la facture ». Rendue en HTML imprimable (« enregistrer en PDF ») depuis l'identité actuelle.
+  L'acheteur l'ouvre depuis le détail de sa commande (`GET /facture?ligne=…`, client connecté ou
+  invité avec numéro + email).
+- **Remboursement en un clic** (`rembourserLigne`, `POST /api/market/vendeur/commandes/:id/rembourser`) :
+  reprise de la part virée au vendeur (`transfers.createReversal`), remboursement de la ligne entière
+  (`refunds.create`), commission annulée, avoir émis, email à l'acheteur.
+- **Retours** : le vendeur accepte (adresse de retour obligatoire) ou refuse (raison obligatoire) depuis
+  « Mes ventes » (`POST /api/market/vendeur/retours/:id`) ; l'acheteur reçoit un email et voit la
+  réponse et l'adresse dans le détail de sa commande. Statuts : DEMANDE, ACCEPTE, REFUSE, REMBOURSE.
+- Migration additive `20261028130000_market_factures`. Banc : `npx tsx check-market-boutique.ts`.

@@ -201,7 +201,9 @@ export interface LigneVue {
   image: string | null
   chemin: string | null
   vendeur: string
-  retour: string | null
+  retour: { motif: string; statut: string; reponse: string | null; adresseRetour: string | null } | null
+  facture: boolean
+  avoir: boolean
   avisLaisse: boolean
   peutRetour: boolean
   peutAvis: boolean
@@ -236,6 +238,18 @@ ${o.lignes.map((l) => `<div class="ligne-panier" style="grid-template-columns:64
   return page(c, 'Mes commandes', `<h1>Mes commandes</h1>${menuCompte(base, 'commandes')}${corps}`)
 }
 
+function blocRetour(r: NonNullable<LigneVue['retour']>): string {
+  if (r.statut === 'ACCEPTE')
+    return `<p class="succes" style="margin:8px 0 0">Retour accepté (${e(r.motif)}). Renvoyez le produit à :<br><b>${e(r.adresseRetour ?? '').replace(/\n/g, '<br>')}</b>${r.reponse ? `<br>Message du vendeur : « ${e(r.reponse)} »` : ''}<br>Vous êtes remboursé dès réception du colis ou sur preuve d'envoi, au plus tard 14 jours après votre demande.</p>`
+  if (r.statut === 'REFUSE')
+    return `<p class="erreur" style="margin:8px 0 0">Retour refusé par le vendeur : « ${e(r.reponse ?? '')} ». Si vous pensez que c'est une erreur, écrivez-nous depuis la page de contact : nous suivons votre demande.</p>`
+  if (r.statut === 'REMBOURSE') return `<p class="succes" style="margin:8px 0 0">Retour remboursé.</p>`
+  return `<p class="succes" style="margin:8px 0 0">Retour demandé : ${e(r.motif)}. Le vendeur vous répond par email avec l'adresse de retour.</p>`
+}
+
+const lienFacture = (ligne: string, type: 'facture' | 'avoir', preuve?: { numero: string; email: string } | null) =>
+  new URLSearchParams({ ligne, type, ...(preuve ? { numero: preuve.numero, email: preuve.email } : {}) }).toString().replace(/&/g, '&amp;')
+
 /**
  * Le détail d'une commande, pour le client connecté OU pour l'invité qui a
  * donné numéro + email (`preuve`, renvoyée dans chaque formulaire).
@@ -249,7 +263,7 @@ export function pageDetailCommande(c: Commun & { commande: CommandeVue; client: 
 <div>${l.chemin ? `<a href="${base}${l.chemin}"><b>${e(l.titre)}</b></a>` : `<b>${e(l.titre)}</b>`}${l.variante ? `<div class="muted">${e(l.variante)}</div>` : ''}<div class="muted" style="font-size:13px">${l.quantite} × · Vendu et expédié par ${e(l.vendeur)}</div>
 <div style="margin-top:6px"><span class="statut">${e(statutLisible(l.statut, l.paye))}</span></div>
 ${l.suivi ? `<p style="margin:8px 0 0">Suivi : <b>${e(l.suivi)}</b>${l.transporteur ? ` (${e(l.transporteur)})` : ''} · <a href="${e(lienSuivi(l.suivi, l.transporteur))}" target="_blank" rel="noopener">Suivre le colis ↗</a></p>` : l.paye && l.statut !== 'REFUNDED' ? '<p class="muted" style="margin:8px 0 0">Le numéro de suivi apparaîtra ici dès l\'expédition (et vous sera envoyé par email).</p>' : ''}
-${l.retour ? `<p class="succes" style="margin:8px 0 0">Retour demandé : ${e(l.retour)}. Le vendeur vous répond par email avec l'adresse de retour.</p>` : ''}</div>
+${l.retour ? blocRetour(l.retour) : ''}${l.facture || l.avoir ? `<p style="margin:8px 0 0;font-size:13px">${l.facture ? `<a href="${base}/facture?${lienFacture(l.id, 'facture', c.preuve)}" target="_blank" rel="noopener">Facture du vendeur</a>` : ''}${l.facture && l.avoir ? ' · ' : ''}${l.avoir ? `<a href="${base}/facture?${lienFacture(l.id, 'avoir', c.preuve)}" target="_blank" rel="noopener">Avoir (remboursement)</a>` : ''}</p>` : ''}</div>
 <b>${e(prixTexte(l.montant, l.devise))}</b></div>
 ${
   l.peutRetour
