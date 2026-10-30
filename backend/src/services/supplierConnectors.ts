@@ -191,7 +191,83 @@ const bigbuy: SupplierConnector = {
 
     return sortie
   },
+
+  /**
+   * La fiche complète d'un produit BigBuy, pour l'importer par l'API.
+   *
+   * BigBuy range une fiche en quatre morceaux : les prix (`product`), le nom et
+   * la description en français (`productinformation`), la galerie
+   * (`productimages`) et le stock (`productstock`). On demande les quatre
+   * ensemble ; seuls le nom et le prix sont indispensables.
+   */
+  async fetchProduct(ref, credentials) {
+    const key = credentials.apiKey?.trim()
+    if (!key) throw new SupplierError("Aucune clé d'API BigBuy enregistrée.", true)
+    const entetes = enTetesBigbuy(key)
+    const id = encodeURIComponent(ref)
+
+    // Each piece may be missing (a product without photos answers 404 on its
+    // gallery); only the name and the price are required.
+    const facultatif = <T,>(p: Promise<unknown>) =>
+      p.then(
+        (r) => r as T,
+        (err) => {
+          if (err instanceof SupplierError && err.actionnable) throw err
+          return null
+        },
+      )
+    const [produit, informations, galerie, stock] = await Promise.all([
+      facultatif<{ sku?: string; wholesalePrice?: number | string; retailPrice?: number | string; category?: number | string; weight?: number | string }>(
+        appel(`${BASES.bigbuy}/rest/catalog/product/${id}.json`, { headers: entetes }),
+      ),
+      facultatif<InfoBigbuy | InfoBigbuy[]>(
+        appel(`${BASES.bigbuy}/rest/catalog/productinformation/${id}.json?isoCode=fr`, { headers: entetes }),
+      ),
+      facultatif<{ images?: Array<{ url?: string; isCover?: boolean }> }>(
+        appel(`${BASES.bigbuy}/rest/catalog/productimages/${id}.json`, { headers: entetes }),
+      ),
+      facultatif<{ stocks?: Array<{ quantity?: number }> }>(
+        appel(`${BASES.bigbuy}/rest/catalog/productstock/${id}.json`, { headers: entetes }),
+      ),
+    ])
+
+    const info = Array.isArray(informations) ? informations[0] : informations
+    const titre = info?.name?.trim()
+    const prix = Number(produit?.wholesalePrice ?? info?.wholesalePrice ?? produit?.retailPrice)
+    if (!titre || !Number.isFinite(prix) || prix <= 0) {
+      throw new SupplierError(`BigBuy ne rend aucune fiche complète pour la référence ${ref}.`)
+    }
+
+    // The cover photo first, then the rest of the gallery.
+    const images = [...(galerie?.images ?? [])]
+      .sort((a, b) => Number(Boolean(b.isCover)) - Number(Boolean(a.isCover)))
+      .map((i) => i.url ?? '')
+      .filter((u, i, t) => /^https?:\/\//i.test(u) && t.indexOf(u) === i)
+
+    const description = texteHtml(info?.description ?? '')
+    const quantite = stock?.stocks ? stock.stocks.reduce((s, l) => s + (l.quantity ?? 0), 0) : null
+
+    return {
+      ref,
+      title: titre,
+      description: description.slice(0, 4000),
+      price: prix,
+      currency: 'EUR',
+      images,
+      variants: null,
+      pageText: [titre, produit?.weight ? `Poids : ${produit.weight} kg` : '', description]
+        .filter(Boolean)
+        .join('\n')
+        .slice(0, 15000),
+      category: produit?.category !== undefined && produit?.category !== null ? String(produit.category) : null,
+      // An unknown stock is not an empty one.
+      available: quantite === null || quantite > 0,
+    }
+  },
 }
+
+/** What `productinformation` returns, limited to the fields the import reads. */
+type InfoBigbuy = { name?: string; description?: string; wholesalePrice?: number | string }
 
 /**
  * CJ Dropshipping — pensé pour le dropshipping, clé sans validation.
@@ -285,6 +361,58 @@ async function arbreCj(jeton: string) {
       ]
     }),
   )
+}
+
+/** What `product/query` returns, limited to the fields the import reads. */
+interface FicheCj {
+  pid?: string
+  productNameEn?: string
+  productImage?: string | string[]
+  productImageSet?: string[] | string
+  productKeyEn?: string
+  productWeight?: number | string
+  materialNameEn?: string
+  categoryName?: string
+  sellPrice?: number | string
+  description?: string
+  variants?: Array<{
+    vid?: string
+    variantKey?: string
+    variantNameEn?: string
+    variantImage?: string
+    variantSellPrice?: number | string
+  }>
+}
+
+/** A list of URLs, whether CJ sent an array, a JSON-encoded array or a single string. */
+function listeAdresses(brut: unknown): string[] {
+  if (Array.isArray(brut)) return brut.map(String)
+  if (typeof brut !== 'string' || !brut.trim()) return []
+  const t = brut.trim()
+  if (t.startsWith('[')) {
+    try {
+      const l = JSON.parse(t)
+      return Array.isArray(l) ? l.map(String) : []
+    } catch {
+      return []
+    }
+  }
+  return t.split(/[,;]\s*(?=https?:)/)
+}
+
+/** Plain text out of CJ's HTML description. */
+function texteHtml(html: string): string {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<br\s*\/?>|<\/p>|<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\s*\n\s*/g, '\n')
+    .trim()
 }
 
 /** Les en-têtes d'un appel CJ authentifié. */
@@ -432,6 +560,86 @@ const cj: SupplierConnector = {
         return Number.isNaN(t) || t >= depuis.getTime()
       })
       .map(ligneCj)
+  },
+
+  /**
+   * La fiche complète d'un produit CJ, pour l'importer par l'API.
+   *
+   * `product/query` rend le nom, la description, la galerie, la catégorie et
+   * les variantes avec leur prix : tout ce que la chaîne d'import attend, sans
+   * passer par l'extension. Les prix sont en dollars, comme partout chez CJ.
+   */
+  async fetchProduct(ref, credentials) {
+    const jeton = await jetonCj(credentials)
+    const reponse = (await appel(`${BASES.cjdropshipping}/product/query?pid=${encodeURIComponent(ref)}`, {
+      headers: enTetesCj(jeton),
+    })) as { result?: boolean; message?: string; data?: FicheCj | null }
+
+    const fiche = reponse.data
+    const titre = fiche?.productNameEn?.trim()
+    if (!fiche || !titre) {
+      throw new SupplierError(
+        reponse.result === false && reponse.message
+          ? `CJ Dropshipping refuse la fiche ${ref} : ${reponse.message}`
+          : `CJ Dropshipping ne rend aucune fiche pour la référence ${ref}.`,
+      )
+    }
+
+    const variantes = fiche.variants ?? []
+
+    // The gallery comes as an array or as a JSON-encoded string; variant
+    // photos complete it.
+    const images = [
+      ...listeAdresses(fiche.productImageSet),
+      ...listeAdresses(fiche.productImage),
+      ...variantes.map((v) => v.variantImage ?? ''),
+    ].filter((u, i, t) => /^https?:\/\//i.test(u) && t.indexOf(u) === i)
+
+    const prixVariantes = variantes.map((v) => Number(v.variantSellPrice)).filter((p) => Number.isFinite(p) && p > 0)
+    // sellPrice can be a range such as "1.79 -- 2.45": its first number is the floor.
+    const prixFiche = Number(String(fiche.sellPrice ?? '').match(/\d+(?:\.\d+)?/)?.[0])
+    const prix = prixVariantes.length ? Math.min(...prixVariantes) : Number.isFinite(prixFiche) ? prixFiche : 0
+
+    // productKeyEn names the options ("Color-Size") and each variantKey gives
+    // the values in the same order ("Black-XL"). A key that does not split
+    // into as many parts is kept whole rather than guessed.
+    const noms = (fiche.productKeyEn ?? '').split('-').map((n) => n.trim()).filter(Boolean)
+    const options: Record<string, Set<string>> = {}
+    for (const v of variantes) {
+      const cle = (v.variantKey || v.variantNameEn || '').trim()
+      if (!cle) continue
+      const parts = cle.split('-').map((x) => x.trim())
+      if (noms.length > 1 && parts.length === noms.length) {
+        noms.forEach((n, i) => {
+          if (parts[i]) (options[n] ??= new Set()).add(parts[i])
+        })
+      } else {
+        ;(options[noms.length === 1 ? noms[0] : 'Modèle'] ??= new Set()).add(cle)
+      }
+    }
+
+    const description = texteHtml(fiche.description ?? '')
+    const caracteristiques = [
+      fiche.categoryName ? `Catégorie : ${fiche.categoryName}` : '',
+      fiche.materialNameEn ? `Matière : ${fiche.materialNameEn}` : '',
+      fiche.productWeight ? `Poids : ${fiche.productWeight} g` : '',
+    ].filter(Boolean)
+
+    return {
+      ref,
+      title: titre,
+      description: description.slice(0, 4000),
+      price: prix,
+      currency: 'USD',
+      images,
+      variants: Object.keys(options).length
+        ? Object.fromEntries(Object.entries(options).map(([k, v]) => [k, [...v]]))
+        : null,
+      pageText: [titre, ...caracteristiques, description].join('\n').slice(0, 15000),
+      category: fiche.categoryName?.trim() || null,
+      // A product listed with an empty variant list can no longer be ordered.
+      available: !Array.isArray(fiche.variants) || fiche.variants.length > 0,
+    }
   },
 
   async fetchVariants(ref, credentials) {
