@@ -39,6 +39,14 @@ const serveur = http.createServer((req, res) => {
   if (url.startsWith('/bigbuy/')) {
     if (req.headers.authorization !== 'Bearer bonne-cle') return repondre(401, { error: 'unauthorized' })
 
+    // Fiche complète (import par l'API, 30/10/2026).
+    if (url.includes('/product/FICHE.json')) return repondre(200, { sku: 'S-1', wholesalePrice: '12.40', category: 2403, weight: 0.8 })
+    if (url.includes('/productinformation/FICHE')) {
+      return repondre(200, [{ name: 'Lampe de bureau', description: '<p>Bras <b>articulé</b></p><p>LED 5 W</p>' }])
+    }
+    if (url.includes('/productimages/FICHE')) {
+      return repondre(200, { images: [{ url: 'https://img.bb/2.jpg' }, { url: 'https://img.bb/1.jpg', isCover: true }] })
+    }
     if (url.includes('/productstock/EPUISE')) return repondre(200, { stocks: [{ quantity: 0 }] })
     if (url.includes('/productstock/RETIRE')) return repondre(404, { error: 'not found' })
     if (url.includes('/productstock/')) return repondre(200, { stocks: [{ quantity: 3 }, { quantity: 5 }] })
@@ -88,6 +96,25 @@ const serveur = http.createServer((req, res) => {
         })
       }
       return repondre(200, { data: { list: [] } })
+    }
+    if (url.includes('/product/query')) {
+      if (url.includes('pid=ABSENT')) return repondre(200, { result: false, message: 'product not found', data: null })
+      return repondre(200, {
+        result: true,
+        data: {
+          pid: 'F1',
+          productNameEn: 'Desk lamp',
+          productImage: '["https://img.cj/1.jpg","https://img.cj/2.jpg"]',
+          productKeyEn: 'Color-Size',
+          categoryName: 'Lamps',
+          sellPrice: '7.20 -- 9.10',
+          description: '<p>Adjustable <b>arm</b></p><br/>LED',
+          variants: [
+            { vid: 'V1', variantKey: 'Black-S', variantSellPrice: 7.2, variantImage: 'https://img.cj/v1.jpg' },
+            { vid: 'V2', variantKey: 'White-L', variantSellPrice: 9.1, variantImage: 'https://img.cj/1.jpg' },
+          ],
+        },
+      })
     }
     if (url.includes('pid=VIDE')) return repondre(200, { data: [] })
     return repondre(200, { data: [{ variantSellPrice: 18.4 }, { variantSellPrice: 12.9 }] })
@@ -181,6 +208,42 @@ try {
   exige(duRayon[0]?.prix === 4.5 && duRayon[0]?.devise === 'USD', 'prix CJ d’un rayon mal lu')
   const neufs = await cj.nouveautes!(idsCj)
   exige(neufs.map((p) => p.ref).join(',') === 'N1', `nouveautés CJ : ${neufs.map((p) => p.ref).join(',')}, attendu N1 seul (l'ancien est écarté)`)
+
+  // --- Import par l'API : fiche complète CJ et BigBuy (30/10/2026) -------
+  const ficheCj = await cj.fetchProduct!('F1', idsCj)
+  exige(ficheCj.title === 'Desk lamp', `titre CJ : ${ficheCj.title}`)
+  exige(ficheCj.price === 7.2 && ficheCj.currency === 'USD', `prix CJ : ${ficheCj.price} ${ficheCj.currency}, attendu 7,2 USD (variante la moins chère)`)
+  exige(
+    ficheCj.images.join(',') === 'https://img.cj/1.jpg,https://img.cj/2.jpg,https://img.cj/v1.jpg',
+    `galerie CJ : ${ficheCj.images.join(',')}`,
+  )
+  exige(
+    JSON.stringify(ficheCj.variants) === JSON.stringify({ Color: ['Black', 'White'], Size: ['S', 'L'] }),
+    `options CJ : ${JSON.stringify(ficheCj.variants)}`,
+  )
+  exige(ficheCj.description === 'Adjustable arm\nLED', `description CJ : ${JSON.stringify(ficheCj.description)}`)
+  exige(ficheCj.category === 'Lamps', `catégorie CJ : ${ficheCj.category}`)
+  let absentCj: unknown = null
+  try {
+    await cj.fetchProduct!('ABSENT', idsCj)
+  } catch (e) {
+    absentCj = e
+  }
+  exige(/product not found/.test((absentCj as Error)?.message ?? ''), `refus CJ mal relayé : ${(absentCj as Error)?.message}`)
+
+  const ficheBb = await bigbuy.fetchProduct!('FICHE', { apiKey: 'bonne-cle' })
+  exige(ficheBb.title === 'Lampe de bureau', `titre BigBuy : ${ficheBb.title}`)
+  exige(ficheBb.price === 12.4 && ficheBb.currency === 'EUR', `prix BigBuy : ${ficheBb.price} ${ficheBb.currency}`)
+  exige(ficheBb.images.join(',') === 'https://img.bb/1.jpg,https://img.bb/2.jpg', `galerie BigBuy (couverture d'abord) : ${ficheBb.images.join(',')}`)
+  exige(ficheBb.available === true, 'fiche BigBuy en stock marquée indisponible')
+  exige(ficheBb.category === '2403', `catégorie BigBuy : ${ficheBb.category}`)
+  let absentBb: unknown = null
+  try {
+    await bigbuy.fetchProduct!('RETIRE', { apiKey: 'bonne-cle' })
+  } catch (e) {
+    absentBb = e
+  }
+  exige(absentBb instanceof SupplierError, 'une fiche BigBuy introuvable doit lever une SupplierError')
 
   console.log(echecs === 0 ? 'Connecteurs fournisseurs : tout passe.' : `${echecs} échec(s).`)
   process.exitCode = echecs === 0 ? 0 : 1

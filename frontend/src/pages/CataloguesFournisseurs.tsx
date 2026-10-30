@@ -831,12 +831,12 @@ export default function CataloguesFournisseurs() {
                       <span>Envoyer à l'extension</span>
                     </button>
                   ) : (
-                    <span className="ml-auto text-[11px] text-amber-200">Import par l'API de {o.supplierLabel} pas encore disponible</span>
+                    <span className="ml-auto text-[11px] text-amber-200">Import direct indisponible pour {o.supplierLabel}</span>
                   )}
                 </div>
                 {!o.importe && o.url && !etat ? (
                   <p className="mt-2 text-[11px] text-[#B8C0D0]">
-                    L'import par l'API de {o.supplierLabel} n'est pas encore écrit : l'extension relève la fiche dans votre navigateur, au tarif d'un import par l'extension.
+                    {o.supplierLabel} ne permet pas d'importer cette fiche directement : l'extension la relève dans votre navigateur, au tarif d'un import par l'extension.
                   </p>
                 ) : null}
                 {etat && etat !== 'cours' ? <p className="mt-2 text-[11px] text-[#B8C0D0]">{etat}</p> : null}
@@ -918,7 +918,7 @@ function CarteCatalogue({
       <p className="text-[10px] text-[#B8C0D0]">{offres ? `${offres} offre(s) affichée(s)` : '—'}</p>
       {importe === null ? null : (
         <p className={`text-[10px] ${importe ? 'text-emerald-300' : 'text-amber-200'}`}>
-          {importe ? 'Import par API' : 'Import par API pas encore écrit'}
+          {importe ? 'Import par API' : "Import par l'extension"}
         </p>
       )}
 
