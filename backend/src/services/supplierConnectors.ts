@@ -752,8 +752,9 @@ const cj: SupplierConnector = {
 }
 
 import { aliexpress } from './supplierAliexpress.js'
+import { printful, printify } from './supplierImpression.js'
 
-export const CONNECTEURS: SupplierConnector[] = [aliexpress, bigbuy, cj]
+export const CONNECTEURS: SupplierConnector[] = [aliexpress, bigbuy, cj, printful, printify]
 
 export function findConnector(id: string): SupplierConnector | null {
   return CONNECTEURS.find((c) => c.id === id) ?? null
