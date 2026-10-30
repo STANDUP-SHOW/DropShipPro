@@ -17,6 +17,8 @@ const BASE = `http://127.0.0.1:${PORT}`
 
 process.env.BIGBUY_API_BASE = `${BASE}/bigbuy`
 process.env.CJ_API_BASE = `${BASE}/cj`
+process.env.PRINTFUL_API_BASE = `${BASE}/printful`
+process.env.PRINTIFY_API_BASE = `${BASE}/printify`
 
 const { findConnector, SupplierError } = await import('./src/services/supplierConnectors.js')
 
@@ -118,6 +120,51 @@ const serveur = http.createServer((req, res) => {
     }
     if (url.includes('pid=VIDE')) return repondre(200, { data: [] })
     return repondre(200, { data: [{ variantSellPrice: 18.4 }, { variantSellPrice: 12.9 }] })
+  }
+
+  // --- Printful (Catalog API v1) et Printify (boutique), 30/10/2026 ----------
+  if (url.startsWith('/printful/')) {
+    if (req.headers.authorization !== 'Bearer jeton-pf') return repondre(401, { code: 401 })
+    if (url === '/printful/store') return repondre(200, { code: 200, result: { id: 1 } })
+    if (url === '/printful/categories') {
+      return repondre(200, { code: 200, result: { categories: [{ id: 1, parent_id: 0, title: "Vêtements homme" }, { id: 24, parent_id: 1, title: 'T-shirts' }] } })
+    }
+    if (url === '/printful/products?category_id=1') {
+      return repondre(200, { code: 200, result: [{ id: 71, title: 'Unisex Staple T-Shirt', image: 'https://img.pf/71.jpg', currency: 'EUR' }, { id: 9, title: 'Ancien', is_discontinued: true }] })
+    }
+    if (url === '/printful/products/71') {
+      return repondre(200, {
+        code: 200,
+        result: {
+          product: { id: 71, title: 'Unisex Staple T-Shirt', type_name: 'T-Shirt', brand: 'Bella + Canvas', model: '3001', image: 'https://img.pf/71.jpg', currency: 'EUR', description: '<p>Soft <b>cotton</b></p>' },
+          variants: [
+            { id: 4011, name: 'Black / S', color: 'Black', size: 'S', image: 'https://img.pf/4011.jpg', price: '11.50', in_stock: true },
+            { id: 4012, name: 'White / L', color: 'White', size: 'L', image: 'https://img.pf/71.jpg', price: '9.95', in_stock: false },
+          ],
+        },
+      })
+    }
+    return repondre(404, { code: 404, result: 'Not found' })
+  }
+  if (url.startsWith('/printify/')) {
+    if (req.headers.authorization !== 'Bearer jeton-py') return repondre(401, { errors: 'Unauthenticated' })
+    if (url === '/printify/v1/shops.json') return repondre(200, [{ id: 555, title: 'Ma boutique' }])
+    const produit = {
+      id: 'abc',
+      title: 'Mug Café',
+      description: '<p>Céramique 330 ml</p>',
+      tags: ['mug', 'café'],
+      options: [{ name: 'Colors', values: [{ id: 1, title: 'White' }, { id: 2, title: 'Black' }] }],
+      variants: [
+        { id: 11, title: 'White', cost: 516, price: 1200, is_enabled: true, is_available: true },
+        { id: 12, title: 'Black', cost: 420, price: 1200, is_enabled: false, is_available: true },
+        { id: 13, title: 'Black 2', cost: 600, price: 1300, is_enabled: true, is_available: true },
+      ],
+      images: [{ src: 'https://img.py/2.jpg' }, { src: 'https://img.py/1.jpg', is_default: true }],
+    }
+    if (url === '/printify/v1/shops/555/products.json?limit=50') return repondre(200, { current_page: 1, data: [produit] })
+    if (url === '/printify/v1/shops/555/products/abc.json') return repondre(200, produit)
+    return repondre(404, { error: 'not found' })
   }
 
   repondre(404, { error: 'not found' })
@@ -244,6 +291,55 @@ try {
     absentBb = e
   }
   exige(absentBb instanceof SupplierError, 'une fiche BigBuy introuvable doit lever une SupplierError')
+
+  // --- Printful et Printify : import par l'API (30/10/2026) ---------------
+  const pf = findConnector('printful')!
+  const idsPf = { accessToken: 'jeton-pf' }
+  await pf.verifier!(idsPf)
+  let refusPf: unknown = null
+  try {
+    await pf.verifier!({ accessToken: 'faux' })
+  } catch (e) {
+    refusPf = e
+  }
+  exige((refusPf as InstanceType<typeof SupplierError>)?.actionnable === true, 'un jeton Printful refusé doit être actionnable')
+  const rayonsPf = await pf.listerRayons!(idsPf)
+  exige(rayonsPf.map((r) => r.id).join(',') === '1', `rayons Printful : ${rayonsPf.map((r) => r.id).join(',')}, attendu 1 (premier niveau)`)
+  const listePf = await pf.produitsDuRayon!('1', idsPf)
+  exige(listePf.map((p) => p.ref).join(',') === '71', `produits Printful : ${listePf.map((p) => p.ref).join(',')}, attendu 71 (l'arrêté écarté)`)
+  exige(listePf[0]?.prix === null, 'la liste Printful ne doit pas inventer de prix')
+  const fichePf = await pf.fetchProduct!('71', idsPf)
+  exige(fichePf.price === 9.95 && fichePf.currency === 'EUR', `prix Printful : ${fichePf.price} ${fichePf.currency}`)
+  exige(fichePf.images.join(',') === 'https://img.pf/71.jpg,https://img.pf/4011.jpg', `galerie Printful : ${fichePf.images.join(',')}`)
+  exige(JSON.stringify(fichePf.variants) === JSON.stringify({ Couleur: ['Black', 'White'], Taille: ['S', 'L'] }), `options Printful : ${JSON.stringify(fichePf.variants)}`)
+  exige(fichePf.description === 'Soft cotton' && fichePf.available === true, `fiche Printful : ${fichePf.description} / ${fichePf.available}`)
+  const prixPf = await pf.fetchPrices(['71', '404'], idsPf)
+  exige(prixPf[0]?.price === 9.95 && prixPf[1]?.available === false, `relevé Printful : ${JSON.stringify(prixPf)}`)
+
+  const py = findConnector('printify')!
+  const idsPy = { accessToken: 'jeton-py', shopId: '555' }
+  await py.verifier!(idsPy)
+  let mauvaiseBoutique: unknown = null
+  try {
+    await py.verifier!({ accessToken: 'jeton-py', shopId: '999' })
+  } catch (e) {
+    mauvaiseBoutique = e
+  }
+  exige(/999/.test((mauvaiseBoutique as Error)?.message ?? ''), `boutique Printify étrangère acceptée : ${(mauvaiseBoutique as Error)?.message}`)
+  const listePy = await py.produitsDuRayon!('555', idsPy)
+  exige(listePy[0]?.ref === 'abc' && listePy[0]?.prix === 5.16, `liste Printify : ${JSON.stringify(listePy)}`)
+  const fichePy = await py.fetchProduct!('abc', idsPy)
+  // 4.20 belongs to a disabled variant: the cheapest variant on sale is 5.16.
+  exige(fichePy.price === 5.16 && fichePy.currency === 'USD', `coût Printify : ${fichePy.price} ${fichePy.currency}`)
+  exige(fichePy.images.join(',') === 'https://img.py/1.jpg,https://img.py/2.jpg', `galerie Printify : ${fichePy.images.join(',')}`)
+  exige(JSON.stringify(fichePy.variants) === JSON.stringify({ Colors: ['White', 'Black'] }), `options Printify : ${JSON.stringify(fichePy.variants)}`)
+  let sansBoutique: unknown = null
+  try {
+    await py.fetchProduct!('abc', { accessToken: 'jeton-py' })
+  } catch (e) {
+    sansBoutique = e
+  }
+  exige((sansBoutique as InstanceType<typeof SupplierError>)?.actionnable === true, 'Printify sans Shop ID doit être actionnable')
 
   console.log(echecs === 0 ? 'Connecteurs fournisseurs : tout passe.' : `${echecs} échec(s).`)
   process.exitCode = echecs === 0 ? 0 : 1

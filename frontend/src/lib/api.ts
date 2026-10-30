@@ -906,6 +906,8 @@ export const api = {
          * tout seul, et aucun oubli ne peut le faire mentir.
          */
         connecteurEcrit?: boolean
+        /** Ce que le connecteur écrit sait faire, déduit de ses méthodes. */
+        ecrit?: { importe: boolean; commande: boolean; suivi: boolean } | null
         api?: {
           nom: string
           console: string

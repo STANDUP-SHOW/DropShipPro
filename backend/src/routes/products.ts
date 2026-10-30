@@ -1685,7 +1685,18 @@ productsRouter.get('/meta/platforms', (_req, res) => {
  * l'autre sens au premier oubli.
  */
 productsRouter.get('/meta/suppliers', (_req, res) => {
-  res.json(SUPPLIERS.map((s) => ({ ...s, connecteurEcrit: Boolean(findConnector(s.id)) })))
+  res.json(
+    SUPPLIERS.map((s) => {
+      const c = findConnector(s.id)
+      // What the connector really does, so the dialog never promises orders or
+      // tracking a connector that only imports (Printful, Printify: 30/10/2026).
+      return {
+        ...s,
+        connecteurEcrit: Boolean(c),
+        ecrit: c ? { importe: Boolean(c.fetchProduct), commande: Boolean(c.placeOrder), suivi: Boolean(c.fetchTracking) } : null,
+      }
+    }),
+  )
 })
 
 /**
