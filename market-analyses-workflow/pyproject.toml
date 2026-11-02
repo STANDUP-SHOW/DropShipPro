@@ -1,0 +1,10 @@
+[project]
+name = "market-analyses-workflow"
+version = "0.1.0"
+description = "Workflow Mistral : rapports rayon quotidiens MARKET-ANALYSES (24 rayons, thème du jour)"
+requires-python = ">=3.12"
+dependencies = [
+    "mistralai>=1.0.0",
+    "mistralai-workflows[mistralai]>=0.1.0",
+    "pydantic>=2.0.0",
+]
