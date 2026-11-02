@@ -990,7 +990,7 @@ function pageAnnuaire() {
   const url = '/fonctions/'
   const trail = [{ name: 'Accueil', url: '/' }, { name: 'Fonctions', url }]
   const themes = ACCUEIL.themes
-  const titre = 'Les fonctions de DropShipper IA : du premier produit à sa mise en vente'
+  const titre = 'Les fonctions de DropShipper IA, du produit à la vente'
   const description = `Les ${themes.length} fonctions de DropShipper IA : import, fournisseurs, annonces IA, boutiques, visuels, réseaux, diffusion, analyses, agents, AUTO-SHIPPER et drops.`
   return {
     url,

@@ -11,7 +11,7 @@
 module.exports = [
   {
     slug: 'dropshipping',
-    title: 'Dropshipping : comment ça marche, et comment vendre sans stock',
+    title: 'Dropshipping : le principe et comment vendre sans stock',
     description:
       "Le dropshipping expliqué sans promesse creuse : le principe, la marge réelle, les obligations légales en France, et les plateformes où publier.",
     hub: true,
@@ -68,7 +68,7 @@ module.exports = [
   },
   {
     slug: 'logiciel-dropshipping',
-    title: 'Logiciel de dropshipping français : que doit-il faire',
+    title: 'Comment choisir un logiciel de dropshipping en 2026',
     description:
       "Ce qu'un logiciel de dropshipping doit réellement apporter : import produit, réécriture des fiches, filigrane, publication multi-plateformes et calcul de marge.",
     intro:
@@ -328,7 +328,7 @@ module.exports = [
     slug: 'dropshipping-automatique',
     title: 'Dropshipping automatique : le mode Auto-SHIPPER IA',
     description:
-      "Le dropshipping en pilote automatique : sélection des produits gagnants, réécriture, filigrane et publication sans intervention. Ce que l'Auto-SHIPPER IA fait, et ce qu'il coûte.",
+      "Dropshipping en pilote automatique : choix des produits, annonces réécrites, filigrane et publication. Ce que fait l'Auto-SHIPPER IA et ce qu'il coûte.",
     intro:
       "Faire tourner une boutique de dropshipping, c'est répéter les mêmes gestes chaque jour : chercher les produits qui marchent, rédiger, protéger les photos, publier. Le mode Auto-SHIPPER IA enchaîne tout cela sans vous — vous fixez le cadre, il exécute.",
     sections: [
