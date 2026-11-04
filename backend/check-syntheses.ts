@@ -1,0 +1,189 @@
+/**
+ * Banc des synthèses quotidiennes (04/11/2026) : MARKET-ANALYSES/syntheses/<date>/
+ * lu par l'import Drive, sur un faux Drive en mémoire. Aucun réseau, aucune base ;
+ * les synthèses s'écrivent dans un dossier temporaire.
+ *
+ *   npx tsx check-syntheses.ts [--reels <dossier des 4 fichiers du 04/11>]
+ *
+ * Vérifie : le JSON est lu en premier (repli sur les tableaux Markdown), le jour
+ * apparaît dans la liste comme un « rayon » syntheses/synthese-du-jour, un second
+ * import identique est un doublon, et la face publique ne laisse passer ni prix
+ * d'achat, ni marge, ni ROI, ni BUY NOW, ni fournisseur, ni lien.
+ */
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+const TEMP = fs.mkdtempSync(path.join(os.tmpdir(), 'syntheses-'))
+process.env.DOSSIER_SYNTHESES = TEMP
+const { importerDossierDrive, listerDossierDrive } = await import('./src/services/importDrive.js')
+const S = await import('./src/services/synthesesQuotidiennes.js')
+
+let echecs = 0
+function exige(ok: unknown, libelle: string) {
+  if (ok) console.log(`  ok  ${libelle}`)
+  else {
+    echecs++
+    console.log(`  ÉCHEC  ${libelle}`)
+  }
+}
+
+const produit = (cat: string, theme: string, rang: number, nom: string, decision: string, extra: Record<string, unknown> = {}) => ({
+  category_id: cat,
+  category_label: cat === 'animaux' ? 'Animaux' : 'Électroménager',
+  theme_id: theme,
+  theme_label: 'Thème',
+  rank: rang,
+  product_name: nom,
+  variant: 'Cuve inox 304, écran LED',
+  source_achat: 'AliExpress EU / Alibaba',
+  landed_cost: 46.5,
+  target_price: 109.9,
+  net_margin: 31.9,
+  roi: 68.6,
+  score: 86,
+  decision,
+  urls: { aliexpress_fr: 'https://fr.aliexpress.com/w/wholesale-x.html', amazon_fr: 'https://www.amazon.fr/s?k=x' },
+  ...extra,
+})
+const hero = produit('electromenager', 'robots-cuisine', 1, 'Machine à lait végétal chauffante 8-en-1', 'BUY NOW')
+const noir = produit('animaux', 'dressage', 20, 'Manette rétro filaire USB premier prix (< 2 $)', "DON'T BUY", { variant: 'Plastique bas de gamme (< 2 $ achat)' })
+const viral = produit('animaux', 'jeux', 3, 'Balle interactive motorisée USB-C', 'BREAKOUT CANDIDATE')
+const JSON_JOUR = {
+  meta: { study_date: '2026-11-04', total_products: 3 },
+  immediate_priorities: {
+    top_5_launch_now: [hero],
+    hero_products_24_categories: [hero],
+    top_25_buy_now_by_score: [hero],
+    top_20_roi_budget_champions: [viral],
+    top_20_high_ticket_margin: [hero],
+    top_20_breakout_candidates: [viral],
+    regulatory_blacklist_dont_buy: [noir],
+  },
+  all_480_products: [hero, viral, noir],
+}
+const MD_OPPORTUNITES = `# OPPORTUNITÉS (2026-11-04)
+
+## ⚡ 1. TOP 5 PRIORITÉS ABSOLUES DU JOUR
+
+| Priorité | Catégorie & Thème | Produit Gagnant | Coût Rendu FR | Prix Vente | Marge Nette | ROI | Score | Liens |
+| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **#1** | **Bijoux et montres** <br> (\`personnalises-coffrets\`) | **Collier prénom découpé** <br> *Argent 925* | 11,80 € | **39,90 €** | **+16,50 €** | **+139,8 %** | **88/100** | [⚡ Import](https://fr.aliexpress.com/w/wholesale-collier.html) |
+
+## ⛔ 7. LISTE NOIRE (LES 24 PRODUITS « DON'T BUY »)
+
+| Catégorie | Produit à Éviter | Coût Rendu | Prix Vente | Marge Nette | Score | Verdict | Lien |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Sport** | **Shaker plastique 500 ml** <br> *Polypropylène basique* | 3,50 € | 6,90 € | +0,40 € | **31/100** | ❌ **DON'T BUY** | [🔍](https://fr.aliexpress.com/w/wholesale-shaker.html) |
+`
+const MD_GENERALE = `# RAPPORT GÉNÉRAL
+
+## 🧭 1. Synthèse Macro-Commerciale du Jour
+
+1. **Dynamique Q4 :** Les catégories cadeau progressent fortement.
+2. **Marges :** Le ROI moyen dépasse +80 % sur les produits BUY NOW. Les plaids chauffants montent.
+
+---
+
+## 2. Sommaire
+`
+
+type Noeud = { nom: string; enfants?: string[]; texte?: string }
+const DRIVE: Record<string, Noeud> = {
+  racineAAAAAA: { nom: 'MARKET-ANALYSES', enfants: ['synthAAAAAA', 'jourAAAAAAA'] },
+  jourAAAAAAA: { nom: '2026-11-04', enfants: [] },
+  synthAAAAAA: { nom: 'syntheses', enfants: ['indexAAAAAA', 'tableauAAAA', 'synJourAAAA', 'synJour2AAA'] },
+  indexAAAAAA: { nom: 'INDEX_SYNTHESES.md', texte: '# Index' },
+  tableauAAAA: { nom: 'SYNTHESE_aiMARKET_2026-11-04.md', texte: '## Vue d’ensemble stratégique\nTexte du tableau.\n' },
+  synJourAAAA: { nom: '2026-11-04', enfants: ['jsonAAAAAAA', 'oppAAAAAAAA', 'genAAAAAAAA'] },
+  jsonAAAAAAA: { nom: 'opportunites-import-dropshipper.json', texte: JSON.stringify(JSON_JOUR) },
+  oppAAAAAAAA: { nom: 'opportunites-prioritaires.md', texte: MD_OPPORTUNITES },
+  genAAAAAAAA: { nom: 'synthese-generale.md', texte: MD_GENERALE },
+  // A day with no JSON: the Markdown tables stand in.
+  synJour2AAA: { nom: '2026-11-03', enfants: ['opp2AAAAAAA'] },
+  opp2AAAAAAA: { nom: 'opportunites-prioritaires.md', texte: MD_OPPORTUNITES.replace('2026-11-04', '2026-11-03') },
+}
+const ouverts: string[] = []
+globalThis.fetch = (async (entree: string | URL) => {
+  const url = new URL(String(entree))
+  const id = url.searchParams.get('id') ?? ''
+  const n = DRIVE[id]
+  if (!n) return new Response('introuvable', { status: 404 })
+  if (url.pathname === '/embeddedfolderview') {
+    const blocs = (n.enfants ?? []).map((e) => {
+      const c = DRIVE[e]
+      const lien = c.enfants ? `https://drive.google.com/drive/folders/${e}` : `https://drive.google.com/file/d/${e}/view`
+      return `<div class="flip-entry" id="entry-${e}"><a href="${lien}"><div class="flip-entry-title">${c.nom}</div></a></div>`
+    })
+    return new Response(`<html><head><title>${n.nom} - Google Drive</title></head><body>${blocs.join('')}</body></html>`)
+  }
+  ouverts.push(id)
+  return new Response(n.texte ?? '')
+}) as typeof fetch
+
+const PRIVE = /€|\bROI\b|BUY|marge|AliExpress|Alibaba|aliexpress|amazon|http|\$|achat/i
+
+console.log('Liste : la synthèse du jour paraît comme un rayon')
+const liste = await listerDossierDrive('https://drive.google.com/drive/folders/racineAAAAAA')
+const j4 = liste.dates.find((d) => d.date === '2026-11-04')
+const ligneS = j4?.etudes.find((e) => e.categorie === 'syntheses')
+exige(ligneS?.importable && !ligneS.dejaEnBase, '04/11 : syntheses/synthese-du-jour importable, pas encore en base')
+exige(ligneS?.fichiers.includes('SYNTHESE_aiMARKET_2026-11-04.md'), 'le tableau maître daté par son nom (rangé au-dessus des dossiers datés)')
+exige(!j4?.ignores.some((i) => /synth|opportunit|INDEX/i.test(i.nom)), 'aucun fichier de synthèse marqué « format inconnu »')
+exige(liste.dates.some((d) => d.date === '2026-11-03' && d.etudes.some((e) => e.categorie === 'syntheses' && e.importable)), '03/11 : Markdown seul, importable')
+
+console.log('Aperçu puis import')
+const apercu = await importerDossierDrive('racineAAAAAA', ['2026-11-04'], true)
+exige(apercu.syntheses[0]?.statut === 'apercu' && !S.lireSynthese('2026-11-04'), 'aperçu : rien d’écrit')
+ouverts.length = 0
+const r1 = await importerDossierDrive('racineAAAAAA', ['2026-11-04', '2026-11-03'], false)
+const b4 = r1.syntheses.find((b) => b.date === '2026-11-04')!
+const b3 = r1.syntheses.find((b) => b.date === '2026-11-03')!
+exige(b4.statut === 'importe' && b4.format === 'json' && b4.produits === 3, '04/11 importé depuis le JSON (3 produits)')
+exige(!ouverts.includes('oppAAAAAAAA'), 'le Markdown n’est pas ouvert quand le JSON est lisible')
+exige(b4.sections?.listeNoire === 1 && b4.sections.heros === 1 && b4.sections.breakout === 1, 'les sept listes rangées (liste noire, héros, breakout)')
+exige(b3.statut === 'importe' && b3.format === 'markdown' && b3.sections?.top5 === 1 && b3.sections.listeNoire === 1, '03/11 importé depuis les tableaux Markdown')
+exige(r1.lignes.some((l) => l.rayon === 'syntheses/synthese-du-jour' && l.statut === 'importe'), 'une ligne par synthèse dans le bilan')
+const r2 = await importerDossierDrive('racineAAAAAA', ['2026-11-04'], false)
+exige(r2.syntheses[0]?.statut === 'doublon', 'second import identique : doublon')
+const liste2 = await listerDossierDrive('racineAAAAAA')
+exige(liste2.dates.find((d) => d.date === '2026-11-04')?.etudes.find((e) => e.categorie === 'syntheses')?.dejaEnBase, 'puis « déjà là » dans la liste')
+
+console.log('Face publique : rien d’achat, rien de fournisseur')
+const s4 = S.lireSynthese('2026-11-04')!
+const pub = S.synthesePublique(s4)
+const texte = JSON.stringify(pub)
+exige(!PRIVE.test(texte), `aucun prix, ROI, BUY, marge, fournisseur ni lien${PRIVE.test(texte) ? ` (trouvé : ${texte.match(PRIVE)?.[0]})` : ''}`)
+exige(pub.actualites.map((a: any) => a.id).join(',') === 'tendances-du-jour,produits-phares,tendances-reseaux,produits-a-risque,contexte-du-marche', 'cinq actualités dans l’ordre')
+const risque: any = pub.actualites.find((a: any) => a.id === 'produits-a-risque')
+exige(risque.produits[0].nom === 'Manette rétro filaire USB premier prix' && risque.produits[0].variante === 'Plastique bas de gamme', 'la parenthèse « (< 2 $) » coupée, le produit gardé')
+const macro: any = pub.actualites.find((a: any) => a.id === 'contexte-du-marche')
+exige(/cadeau/.test(macro.texte) && /plaids/.test(macro.texte) && !/ROI|BUY/.test(macro.texte), 'macro : la phrase ROI/BUY NOW retirée, le reste gardé')
+exige(pub.compteurs.opportunites === 2 && pub.compteurs.aRisque === 1 && pub.blocs.bandeauPhares.length === 1, 'compteurs et blocs')
+exige(!('buyNow' in pub) && !texte.includes('highTicket'), 'pas de BUY NOW, ROI ni high-ticket en public')
+
+console.log('Face connectée : tout')
+const priv: any = S.synthesePrivee(s4)
+exige(priv.sections.buyNow[0]?.coutRendu === 46.5 && priv.sections.highTicket.length === 1 && priv.produits[0].liens.aliexpress_fr, 'coûts, listes privées et liens de recherche')
+
+const reels = process.argv.indexOf('--reels')
+if (reels > 0) {
+  const dossier = process.argv[reels + 1]
+  const fichier = (motif: RegExp) => fs.readdirSync(dossier).map((f) => path.join(dossier, f)).find((f) => motif.test(f))
+  console.log(`Vrais fichiers : ${dossier}`)
+  const lu = S.lireSyntheseJson(JSON.parse(fs.readFileSync(fichier(/opportunites-import-dropshipper\.json$/)!, 'utf8')))!
+  const md = S.lireSyntheseMarkdown(fs.readFileSync(fichier(/opportunites-prioritaires\.md$/)!, 'utf8'))!
+  exige(lu.date === '2026-11-04' && lu.produits.length === 480, `JSON : 480 produits (${lu.produits.length})`)
+  exige(Object.values(lu.sections).map((v) => v.length).join(',') === '5,24,25,20,20,20,24', `JSON : 5/24/25/20/20/20/24 (${Object.values(lu.sections).map((v) => v.length)})`)
+  exige(Object.values(md.sections).map((v) => v.length).join(',') === '5,24,25,20,20,20,24', `Markdown : mêmes listes (${Object.values(md.sections).map((v) => v.length)})`)
+  const macroReel = S.lireMacro(fs.readFileSync(fichier(/synthese-generale\.md$/)!, 'utf8'))
+  const s: any = { date: lu.date, macro: macroReel, produits: lu.produits, sections: lu.sections }
+  const p = S.synthesePublique(s)
+  const t = JSON.stringify(p)
+  exige(!PRIVE.test(t), `public : aucun prix/ROI/BUY/fournisseur/lien${PRIVE.test(t) ? ` (trouvé : ${t.match(PRIVE)?.[0]})` : ''}`)
+  exige((p.actualites.find((a: any) => a.id === 'produits-a-risque') as any)?.produits.length === 24, 'public : les 24 produits à risque')
+}
+
+fs.rmSync(TEMP, { recursive: true, force: true })
+console.log(echecs ? `\n${echecs} échec(s)` : '\nTout est conforme.')
+process.exit(echecs ? 1 : 0)

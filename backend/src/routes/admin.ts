@@ -8,6 +8,7 @@ import { DepotRefuse, deposerRapports } from '../services/reportsDb.js'
 import { listeVersementsAdmin, verser } from '../services/affiliation.js'
 import { sendMail, appUrl } from '../services/mailer.js'
 import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
+import { importerSynthese } from '../services/synthesesQuotidiennes.js'
 import { lignesPubliques } from './analysesPubliques.js'
 import { sitemapXml } from '../services/analysesPubliques.js'
 import { annoncerAnalyses, enProduction } from '../services/annonceAnalyses.js'
@@ -204,6 +205,26 @@ adminRouter.post('/analyses-drive/importer', async (req: Request, res) => {
   } catch (err) {
     if (err instanceof DriveErreur) return res.status(422).json({ error: err.message })
     console.error('import du dossier Drive', err)
+    res.status(500).json({ error: `Import impossible : ${err instanceof Error ? err.message : String(err)}` })
+  }
+})
+
+/**
+ * Import structuré direct d'une synthèse quotidienne (04/11/2026) : le corps est
+ * le JSON opportunites-import-dropshipper.json lui-même, ou { date, json }. Même
+ * lecteur que l'import Drive ; même jour identique = doublon, contenu changé =
+ * remplacé. `?essai=1` mesure sans rien écrire.
+ */
+adminRouter.post('/syntheses', (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  const corps = req.body ?? {}
+  const json = corps.json ?? corps
+  const date = typeof corps.date === 'string' ? corps.date : undefined
+  try {
+    const bilan = importerSynthese({ date, origine: 'depot-admin', json }, req.query.essai === '1' || corps.essai === true)
+    res.status(bilan.statut === 'refuse' ? 422 : 200).json(bilan)
+  } catch (err) {
+    console.error('import de synthèse', err)
     res.status(500).json({ error: `Import impossible : ${err instanceof Error ? err.message : String(err)}` })
   }
 })

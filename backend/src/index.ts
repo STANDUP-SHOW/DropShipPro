@@ -40,6 +40,7 @@ import { shopifyAppRouter } from './routes/shopifyApp.js'
 import { aliexpressAuthRouter } from './routes/aliexpressAuth.js'
 import { ebayAuthRouter } from './routes/ebayAuth.js'
 import { reportsPublicRouter } from './routes/reportsPublic.js'
+import { synthesesPublicRouter } from './routes/synthesesPublic.js'
 import { outilsPublicsRouter } from './routes/outilsPublics.js'
 import { checkAi } from './services/aiHealth.js'
 import { selfCheck } from './services/selfCheck.js'
@@ -135,6 +136,8 @@ app.get('/api/health/ai', async (_req, res) => {
 
 // Public report endpoints (market analyses, products, prompts, etc.)
 app.use('/api', reportsPublicRouter)
+// Daily syntheses (04/11/2026): public face filtered, full face behind the account.
+app.use('/api', synthesesPublicRouter)
 // Les outils gratuits du site (/outils/) : publics, bornés, sans compte.
 app.use('/api', outilsPublicsRouter)
 
