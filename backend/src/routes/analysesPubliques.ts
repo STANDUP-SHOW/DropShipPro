@@ -15,12 +15,16 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { CHEMIN_SURCOUCHE, generationRapports, ReportQuery } from '../services/reportsDb.js'
+import { datesSyntheses, lireSynthese, synthesePublique } from '../services/synthesesQuotidiennes.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
   apostrophesDuTexte,
   apostrophesRendues,
   promptsPublics, donneesPrivees, corpsVisibleVide, sansDonneesPrivees, achatsDuProduit, type ProduitPublic,
   attribuerAdresses,
+  pageActualite,
+  ID_ACTUALITE,
+  type ActualitePublique,
   BASE,
   adresseSaine,
   renvoisRenumerotes,
@@ -55,6 +59,29 @@ import {
 } from '../services/analysesPubliques.js'
 
 export const analysesPubliquesRouter = Router()
+
+/** The public news of a day's synthesis (already filtered upstream), with the time it was imported; empty when none. */
+function actualitesDu(day: string): { actualites: ActualitePublique[]; modifie: Date } {
+  try {
+    const s = lireSynthese(day)
+    if (!s) return { actualites: [], modifie: new Date(`${day}T06:00:00Z`) }
+    const pub = synthesePublique(s)
+    const actualites = (pub.actualites as unknown as ActualitePublique[]).filter((a) => a && ID_ACTUALITE.test(a.id))
+    const importe = new Date(s.importeLe)
+    return { actualites, modifie: Number.isNaN(importe.getTime()) ? new Date(`${day}T06:00:00Z`) : importe }
+  } catch (err) {
+    console.error('[fresh market news] synthèse illisible', day, err instanceof Error ? err.message : err)
+    return { actualites: [], modifie: new Date(`${day}T06:00:00Z`) }
+  }
+}
+
+function joursSyntheses(): string[] {
+  try {
+    return datesSyntheses()
+  } catch {
+    return []
+  }
+}
 
 /**
  * Mounted on /analyses before the router (Max, 04/11/2026 : la rubrique devient
@@ -343,7 +370,11 @@ analysesPubliquesRouter.get('/sitemap.xml', (_req, res) => {
   try {
     res.type('application/xml')
     res.set('Cache-Control', CACHE)
-    res.send(sitemapXml(lignesPubliques()))
+    const actualites = joursSyntheses().flatMap((date) => {
+      const { actualites: liste, modifie } = actualitesDu(date)
+      return liste.map((a) => ({ date, id: a.id, modifie }))
+    })
+    res.send(sitemapXml(lignesPubliques(), actualites))
   } catch (err) {
     panne(res, err)
   }
@@ -355,7 +386,7 @@ analysesPubliquesRouter.get('/', (_req, res) => {
     const recents = tous.slice(0, 24).map((l) => versPublic(l.id)).filter((r): r is RapportPublic => r !== null)
     const comptes = new Map<string, number>()
     for (const l of tous) comptes.set(l.categorie, (comptes.get(l.categorie) ?? 0) + 1)
-    const jours = [...new Set(tous.map((l) => l.day))]
+    const jours = [...new Set([...tous.map((l) => l.day), ...joursSyntheses()])].sort().reverse()
     html(res, pageIndex(recents, comptes, jours))
   } catch (err) {
     panne(res, err)
@@ -368,7 +399,7 @@ analysesPubliquesRouter.get('/:categorie/', (req, res) => {
     const tous = lignesPubliques()
     // /analyses/2026-09-18/ : l'édition du jour, toutes catégories confondues.
     if (JOUR.test(categorie)) {
-      const jours = [...new Set(tous.map((l) => l.day))]
+      const jours = [...new Set([...tous.map((l) => l.day), ...joursSyntheses()])].sort().reverse()
       const i = jours.indexOf(categorie)
       if (i === -1) return introuvable(res, 'Aucune analyse publiée ce jour-là.')
       const pages = tous
@@ -376,7 +407,7 @@ analysesPubliquesRouter.get('/:categorie/', (req, res) => {
         .map((l) => versPublic(l.id))
         .filter((r): r is RapportPublic => r !== null)
       // jours est trié du plus récent au plus ancien : le suivant est avant, le précédent après.
-      return html(res, pageJour(categorie, pages, jours[i + 1], jours[i - 1]))
+      return html(res, pageJour(categorie, pages, jours[i + 1], jours[i - 1], actualitesDu(categorie).actualites))
     }
     if (!SLUG.test(categorie)) return introuvable(res, 'Catégorie inconnue.')
     const liste = tous.filter((l) => l.categorie === categorie)
@@ -427,6 +458,18 @@ const ARTICLE = /^([a-z0-9-]{1,90}?)(-marketing)?-(\d{4}-\d{2}-\d{2})$/
 
 analysesPubliquesRouter.get('/:theme/:sujet/', (req, res) => {
   const { theme, sujet } = req.params
+  // /fresh-market-news/2026-11-04/tendances-du-jour/ : one news of the day's synthesis.
+  if (JOUR.test(theme) && ID_ACTUALITE.test(sujet)) {
+    if (req.baseUrl !== BASE) return res.redirect(301, `${BASE}${req.path}`)
+    try {
+      const { actualites, modifie } = actualitesDu(theme)
+      const a = actualites.find((x) => x.id === sujet)
+      if (!a) return introuvable(res, 'Aucune actualité de ce nom ce jour-là.')
+      return html(res, pageActualite(theme, a, actualites, modifie))
+    } catch (err) {
+      return panne(res, err)
+    }
+  }
   if (!SLUG.test(theme) || !/^[a-z0-9-]{1,120}$/.test(sujet)) return introuvable(res)
   try {
     const tous = lignesPubliques()
