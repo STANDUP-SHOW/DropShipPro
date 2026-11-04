@@ -124,7 +124,7 @@
       ],
       "detail": "Les analyses ne sont pas un supplément : elles sont ce qui décide quoi vendre. Quarante-huit agents — un agent rayon et un agent marketing pour chacune des vingt-quatre catégories — lisent le web chaque matin sur le thème du jour et rédigent un rapport de marché avec ses vingt produits à importer (fournisseur, prix, marge, pourquoi) et un rapport marketing avec ses angles, ses audiences et ses prompts publicitaires. Les comptes DropShipper IA lisent tout et importent les produits en un clic ; les analyses sont aussi publiées pour tous, sans les adresses fournisseur ni les prix d'achat, dans la rubrique Analyses de marché.",
       "image": "/images/accueil/analyses-de-marche.jpg",
-      "offre": { "label": "Lire les analyses du jour", "href": "/analyses/" }
+      "offre": { "label": "Lire les analyses du jour", "href": "/fresh-market-news/" }
     },
     {
       "slug": "agents-ia",

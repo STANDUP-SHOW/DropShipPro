@@ -179,7 +179,7 @@ export default function ProduitsGagnants() {
           </div>
         </section>
 
-        <Provenance texte="Rapports des agents · 24 rayons × 20 produits chaque jour" libelle="Voir les rapports dans Fresh news" to="/fresh-news" />
+        <Provenance texte="Rapports des agents · 24 rayons × 20 produits chaque jour" libelle="Voir les rapports dans Fresh Market News" to="/fresh-news" />
       </PageCreative>
       <BandeauDemo />
     </Layout>

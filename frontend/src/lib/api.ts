@@ -515,6 +515,10 @@ export const api = {
         theme: string
         themeNom: string
         titre: string
+        /** Le titre du jour (posé par l'agent, sinon tiré du début du rapport), quand il y en a un. */
+        titreDuJour?: string | null
+        /** L'article public du rapport : /analyses/<rayon>/<sous-rayon>/<titre>/. */
+        adresse?: string | null
         accroche: string | null
         sources: number
         produits: number

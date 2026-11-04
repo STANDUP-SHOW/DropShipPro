@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { Router, type Response } from 'express'
+import { Router, type NextFunction, type Request, type Response } from 'express'
 import { CHEMIN_SURCOUCHE, generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
@@ -21,6 +21,8 @@ import {
   apostrophesRendues,
   promptsPublics, donneesPrivees, corpsVisibleVide, sansDonneesPrivees, achatsDuProduit, type ProduitPublic,
   attribuerAdresses,
+  BASE,
+  adresseSaine,
   renvoisRenumerotes,
   texteVisible,
   empreintePage,
@@ -53,6 +55,23 @@ import {
 } from '../services/analysesPubliques.js'
 
 export const analysesPubliquesRouter = Router()
+
+/**
+ * Mounted on /analyses before the router (Max, 04/11/2026 : la rubrique devient
+ * Fresh Market News, /fresh-market-news/…) : the index, a category, an edition
+ * and the 3-segment form go there in 301; the older report forms fall through
+ * to the router, which knows them and sends them to the current address. The
+ * sitemap stays served here too: the Search Console holds this address.
+ */
+export function versFreshMarketNews(req: Request, res: Response, next: NextFunction) {
+  if (req.path === '/sitemap.xml') return next()
+  const segments = req.path.split('/').filter(Boolean)
+  if (segments.length <= 1 || (segments.length === 3 && !JOUR.test(segments[1]))) {
+    const q = req.originalUrl.indexOf('?')
+    return res.redirect(301, `${BASE}${req.path}${q >= 0 ? req.originalUrl.slice(q) : ''}`)
+  }
+  next()
+}
 
 const CACHE = 'public, max-age=3600, stale-while-revalidate=86400'
 const JOUR = /^\d{4}-\d{2}-\d{2}$/
@@ -95,9 +114,12 @@ export function lignesPubliques(): Ligne[] {
   const tous = q
     .getPourSitemap()
     .filter(adressable)
-    .map((l) => ({ ...l, titre: l.une ?? l.titre }))
+    .map((l) => ({ ...l, titre: l.une ?? l.titre, titreOrigine: l.titre }))
   // Addresses are given over every report, the empty ones included: none of the others moves.
-  attribuerAdresses(tous)
+  // An address once given is kept on the volume: a re-import or a new headline never moves it.
+  const registre = lireRegistre()
+  const donnees = attribuerAdresses(tous, registre)
+  ecrireRegistre(registre, donnees)
   const vides = new Map<string, Ligne>()
   for (const l of tous) {
     const r = versPublicBrut(l.id)
@@ -109,6 +131,40 @@ export function lignesPubliques(): Ligne[] {
   // Apostrophes restored after attribution: the address keeps the raw title.
   memo = pleins.map((l) => ({ ...l, titre: titrePublic(l.titre), updatedAt: dates.get(l.id) ?? l.updatedAt }))
   return memo
+}
+
+/** The addresses given, report by report (04/11/2026): kept on the volume so that none ever moves. */
+const CHEMIN_ADRESSES = path.join(path.dirname(CHEMIN_SURCOUCHE), 'adresses-publiques.json')
+
+function lireRegistre(): Map<string, string> {
+  try {
+    const brut = JSON.parse(fs.readFileSync(CHEMIN_ADRESSES, 'utf8'))
+    const carte = new Map<string, string>()
+    for (const [id, a] of Object.entries(brut?.adresses ?? {})) if (typeof a === 'string' && adresseSaine(a)) carte.set(id, a)
+    return carte
+  } catch {
+    return new Map()
+  }
+}
+
+function ecrireRegistre(avant: Map<string, string>, donnees: Map<string, string>): void {
+  // Ids that left the base keep their entry: their report may come back.
+  const tout = new Map(avant)
+  let change = false
+  for (const [id, a] of donnees) {
+    if (!adresseSaine(a) || tout.get(id) === a) continue
+    tout.set(id, a)
+    change = true
+  }
+  if (!change) return
+  try {
+    fs.mkdirSync(path.dirname(CHEMIN_ADRESSES), { recursive: true })
+    const tmp = `${CHEMIN_ADRESSES}.tmp`
+    fs.writeFileSync(tmp, JSON.stringify({ version: 1, adresses: Object.fromEntries([...tout].sort()) }, null, 0))
+    fs.renameSync(tmp, CHEMIN_ADRESSES)
+  } catch (err) {
+    console.error('[analyses publiques] registre des adresses non écrit :', err instanceof Error ? err.message : err)
+  }
 }
 
 /** Kept on the volume, next to the Drive imports: it must outlive a redeploy to tell an unchanged page from a changed one. */
@@ -341,9 +397,11 @@ analysesPubliquesRouter.get('/:categorie/', (req, res) => {
 })
 
 // La toute première adresse, catégorie/date/thème : 301 vers l'adresse actuelle, pour ne perdre ni lien ni indexation.
-analysesPubliquesRouter.get(['/:categorie/:day/:theme/', '/:categorie/:day/:theme/marketing/'], (req, res) => {
+analysesPubliquesRouter.get(['/:categorie/:day/:theme/', '/:categorie/:day/:theme/marketing/'], (req, res, next) => {
   const { categorie, day, theme } = req.params
   const type = req.path.endsWith('/marketing/') ? 'marketing' : 'rayon'
+  // /analyses/<rayon>/<sous-rayon>/<titre>/ : the current address, served below.
+  if (!JOUR.test(day) && !req.path.endsWith('/marketing/')) return next()
   if (!SLUG.test(categorie) || !JOUR.test(day) || !SLUG.test(theme)) return introuvable(res)
   try {
     const tous = lignesPubliques()
@@ -387,21 +445,45 @@ analysesPubliquesRouter.get('/:theme/:sujet/', (req, res) => {
       const ancien = rapportAncienneAdresse(demande)
       const cible = ancien ? tous.find((l) => l.id === ancien) : null
       if (cible) return res.redirect(301, cheminRapport(cible))
+      // /analyses/<rayon>/<sous-rayon>/ : the level above a report, it leads to its rayon.
+      if (tous.some((l) => l.categorie === theme && l.theme === sujet)) return res.redirect(301, cheminCategorie(theme))
       // Titre retouché depuis (réimport, titre du jour ajouté) : seul rapport de ce thème, on y mène.
       const duTheme = tous.filter((l) => l.theme === theme)
       if (duTheme.length === 1) return res.redirect(301, cheminRapport(duTheme[0]))
       return introuvable(res)
     }
-    const vide = pagesVides.get(id)
-    if (vide) return res.redirect(301, cheminDuVide(vide, tous))
-    const rapport = versPublic(id)
-    if (!rapport) return introuvable(res)
-    const autres = tous
-      .filter((l) => l.categorie === rapport.categorie && l.id !== rapport.id)
-      .slice(0, 12)
-      .map((l) => versPublic(l.id))
-      .filter((r): r is RapportPublic => r !== null)
-    html(res, pageRapport(rapport, autres))
+    servirRapport(res, id, tous)
+  } catch (err) {
+    panne(res, err)
+  }
+})
+
+function servirRapport(res: Response, id: string, tous: Ligne[]) {
+  const vide = pagesVides.get(id)
+  if (vide) return res.redirect(301, cheminDuVide(vide, tous))
+  const rapport = versPublic(id)
+  if (!rapport) return introuvable(res)
+  const autres = tous
+    .filter((l) => l.categorie === rapport.categorie && l.id !== rapport.id)
+    .slice(0, 12)
+    .map((l) => versPublic(l.id))
+    .filter((r): r is RapportPublic => r !== null)
+  html(res, pageRapport(rapport, autres))
+}
+
+/** L'adresse actuelle (04/11/2026) : /analyses/<rayon>/<sous-rayon>/<titre du jour>/. */
+analysesPubliquesRouter.get('/:categorie/:theme/:sujet/', (req, res) => {
+  const { categorie, theme, sujet } = req.params
+  if (!SLUG.test(categorie) || !SLUG.test(theme) || !/^[a-z0-9-]{1,120}$/.test(sujet)) return introuvable(res)
+  try {
+    const tous = lignesPubliques()
+    const demande = `${req.baseUrl}${req.path}`
+    const id = rapportA(demande)
+    if (id) return servirRapport(res, id, tous)
+    const ancien = rapportAncienneAdresse(demande)
+    const cible = ancien ? tous.find((l) => l.id === ancien) : null
+    if (cible) return res.redirect(301, cheminRapport(cible))
+    return introuvable(res)
   } catch (err) {
     panne(res, err)
   }

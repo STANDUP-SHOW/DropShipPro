@@ -61,8 +61,8 @@ export const VUES_CREATIVES = [
  */
 export const VUES_VEILLE = [
   { n: '06', to: '/rayons-boost', label: 'Mon rayon BOOST' },
-  { n: '07', to: '/fresh-news', label: 'Fresh news' },
-  { n: '08', to: '/analyse-marche', label: 'Analyses de marché' },
+  { n: '07', to: '/fresh-news', label: 'Fresh Market News' },
+  { n: '08', to: '/analyse-marche', label: 'Mes analyses' },
   { n: '09', to: '/produits-gagnants', label: 'Produits gagnants' },
   { n: '10', to: '/api-power', label: 'API Power' },
 ] as const

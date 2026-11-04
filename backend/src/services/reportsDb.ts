@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
 import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
+import { titreDuJourAuto } from './titreDuJour.js'
 import { createRequire } from 'node:module'
 
 /**
@@ -808,6 +809,28 @@ export class ReportQuery {
   }
 
   /**
+   * Le titre du jour posé par l'agent, sinon celui tiré du début du rapport
+   * quand son titre est générique (« Beauté et soins — Ongles et manucure »,
+   * études KANTIX / Drive) : il devient le titre public et l'adresse (04/11/2026).
+   */
+  static uneOuAuto(row: { titre?: unknown; type?: unknown; categorie?: unknown; theme?: unknown }, blob: any, analyse: unknown): string | null {
+    const posee = ReportQuery.uneDe(blob)
+    if (posee) return posee
+    const categorie = String(row.categorie ?? '')
+    const theme = String(row.theme ?? '')
+    return titreDuJourAuto({
+      titre: String(row.titre ?? ''),
+      type: row.type === 'marketing' ? 'marketing' : 'rayon',
+      categorie,
+      theme,
+      categorieNom: ReportQuery.nomCategorie(categorie),
+      themeNom: ReportQuery.nomTheme(categorie, theme, blob),
+      analyse: typeof analyse === 'string' ? analyse : null,
+      blob,
+    })
+  }
+
+  /**
    * L'extrait percutant d'un rapport, pour son adresse : l'accroche, sinon la
    * ligne « Opportunité principale » de l'analyse. Rien qui parle d'achat, de
    * fournisseur ou de lien : l'adresse est publique.
@@ -1174,12 +1197,19 @@ export class ReportQuery {
           theme: String(row.theme),
           themeNom: ReportQuery.nomTheme(String(row.categorie), String(row.theme), blob),
           titre: String(row.titre ?? ''),
+          /** The title of the day (set by the agent, else drawn from the report's opening): Fresh News shows it. */
+          titreDuJour: ReportQuery.uneOuAuto(row, blob, row.type === 'rayon' ? this.analyseDe(String(row.id)) : null),
           accroche: ReportQuery.accrocheDe(blob),
           sources: Number(row.sources ?? 0),
           produits: compte.get(String(row.id)) ?? 0,
         }
       }),
     }
+  }
+
+  private analyseDe(id: string): string | null {
+    const r = this.db.prepare('SELECT analysis FROM rayon_reports WHERE report_id = ?').get(id) as any
+    return typeof r?.analysis === 'string' ? r.analysis : null
   }
 
   /** Une analyse, corps compris — ce que le dépliage d'une ligne demande. */
@@ -1204,7 +1234,7 @@ export class ReportQuery {
       theme: String(row.theme),
       themeNom: ReportQuery.nomTheme(String(row.categorie), String(row.theme), blob),
       titre: String(row.titre ?? ''),
-      une: ReportQuery.uneDe(blob),
+      une: ReportQuery.uneOuAuto(row, blob, analyse),
       extrait: ReportQuery.extraitDe(blob, analyse),
       accroche: ReportQuery.accrocheDe(blob),
       sources: Number(row.sources ?? 0),
@@ -1386,7 +1416,7 @@ export class ReportQuery {
       categorie: String(row.categorie),
       theme: String(row.theme),
       titre: String(row.titre ?? ''),
-      une: ReportQuery.uneDe(ReportQuery.blob(row.data)),
+      une: ReportQuery.uneOuAuto(row, ReportQuery.blob(row.data), row.analysis),
       extrait: ReportQuery.extraitDe(ReportQuery.blob(row.data), row.analysis),
       updatedAt: new Date(row.updated_at ?? row.created_at ?? `${row.date}T06:00:00Z`),
       // Drive imports: before 12/10/2026 a header-less one was titled by its bare theme.

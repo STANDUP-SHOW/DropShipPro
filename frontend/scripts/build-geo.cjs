@@ -599,7 +599,7 @@ ${ROBOTS_IA.map(([agent, qui]) => `# ${qui}\nUser-agent: ${agent}\nAllow: /`).jo
 # L'index : les pages du site et les analyses de marché des agents (une page par
 # rapport, engendrée par l'API à chaque requête, routes/analysesPubliques.ts).
 Sitemap: ${SITE}/sitemap.xml
-Sitemap: ${SITE}/analyses/sitemap.xml
+Sitemap: ${SITE}/fresh-market-news/sitemap.xml
 
 # Fiche d'identité lisible par les assistants conversationnels (convention
 # llms.txt) : ${SITE}/llms.txt et ${SITE}/llms-full.txt (copie : ${SITE}/ai.txt). En commentaire
@@ -634,7 +634,7 @@ function ecrireIndexSitemaps() {
     `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap><loc>${SITE}/sitemap-pages.xml</loc></sitemap>
-  <sitemap><loc>${SITE}/analyses/sitemap.xml</loc></sitemap>
+  <sitemap><loc>${SITE}/fresh-market-news/sitemap.xml</loc></sitemap>
 </sitemapindex>
 `,
   )

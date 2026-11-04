@@ -55,6 +55,15 @@ export default function MarketAnalysisPage() {
   const [mode, setMode] = useState<Mode>('mes-annonces')
   const started = useRef(false)
   const etude = useRef<HTMLElement>(null)
+  // How many analyses this user has: once there is one, « Mes analyses » leads the page (Max, 04/11/2026).
+  const [nbMiennes, setNbMiennes] = useState<number | null>(null)
+  useEffect(() => {
+    api
+      .listReports('MARKET')
+      .then((d) => setNbMiennes(Array.isArray(d?.reports) ? d.reports.length : 0))
+      .catch(() => setNbMiennes(0))
+  }, [results])
+  const enTete = (nbMiennes ?? 0) > 0
 
   const lancer = useCallback((ids: string[]) => {
     if (!ids.length) return
@@ -80,11 +89,13 @@ export default function MarketAnalysisPage() {
       <BlocSection id="marche" />
       <PageCreative>
         <Entete
-          surtitre="08 / Analyses de marché"
+          surtitre="08 / Mes analyses"
           ligne1="Avant de publier."
           ligne2="Prenez de l'avance."
-          chapo="Concurrents, publicités, boutiques et fournisseurs : choisissez ce que vous souhaitez comprendre avant de passer à l'action."
+          chapo="Vos analyses à vous : celles de vos rayons, de vos produits, toutes celles que vous commandez. Les analyses quotidiennes de DropShipper sont dans Fresh Market News."
         />
+
+        {enTete ? <MesAnalyses premierPlan /> : null}
 
         <div className="v-deux mt-8">
           <div className="v-affiche-marche" aria-hidden>
@@ -273,27 +284,14 @@ export default function MarketAnalysisPage() {
       )}
 
         {/*
-          Les analyses quotidiennes des agents, toutes catégories : une par
-          rayon et par jour. La grille montre les plus récentes ; une carte
-          ouvre le rapport, sa liste de produits et sa page publique.
+          Les analyses quotidiennes des agents (« Vos rapports, au premier plan »)
+          ont quitté cette page le 04/11/2026 : elles vivent dans Fresh Market
+          News. Le bloc est gardé plus bas (RapportsAuPremierPlan), non affiché,
+          en attendant que Max dise où le placer.
         */}
-        <RapportsAuPremierPlan />
+        {enTete ? null : <MesAnalyses />}
 
-        {/* Toutes les analyses consignées : celles des chefs de rayon en
-            IA AUTO-MODE et celles lancées depuis Mes annonces. Même table que
-            la rubrique « Mes analyses » de chaque rayon. */}
-        <section className="mt-12">
-          <h2 className="c-h2">Mes analyses</h2>
-          <p className="mt-1 text-xs text-[var(--c-texte-2)]">
-            Les analyses rédigées par vos chefs de rayon en IA AUTO-MODE, et celles lancées depuis vos annonces. Cliquez une ligne pour la
-            lire, l'exporter ou la partager.
-          </p>
-          <div className="v-outil mt-4">
-            <ReportList section="MARKET" triable />
-          </div>
-        </section>
-
-        <Provenance texte="Analyses des agents et de vos chefs de rayon" libelle="Toutes les pages publiques des analyses" to="/analyses/" />
+        <Provenance texte="Les analyses du jour de DropShipper, rayon par rayon" libelle="Lire Fresh Market News" to="/fresh-market-news/" />
       </PageCreative>
     </Layout>
   )
@@ -306,10 +304,31 @@ const PERSPECTIVES = [
   'Quel fournisseur est le moins cher ?',
 ] as const
 
+/**
+ * Les analyses de l'utilisateur : celles de ses chefs de rayon en IA AUTO-MODE,
+ * celles lancées depuis ses annonces, toute analyse qu'il a commandée. Au
+ * premier plan dès qu'il en a une (Max, 04/11/2026).
+ */
+function MesAnalyses({ premierPlan = false }: { premierPlan?: boolean }) {
+  return (
+    <section className={premierPlan ? 'mt-8' : 'mt-12'}>
+      <h2 className="c-h2">{premierPlan ? 'Mes analyses, au premier plan.' : 'Mes analyses'}</h2>
+      <p className="mt-1 text-xs text-[var(--c-texte-2)]">
+        Vos analyses de rayon, vos analyses de produits, et toutes celles que vous avez commandées. Cliquez une ligne pour la lire, l'exporter ou
+        la partager.
+      </p>
+      <div className="v-outil mt-4">
+        <ReportList section="MARKET" triable />
+      </div>
+    </section>
+  )
+}
+
 /** Neuf cartes d'abord (trois rangées), puis le reste à la demande. */
 const CARTES = 9
 
-function RapportsAuPremierPlan() {
+/** Mis de côté le 04/11/2026 (agents DropShipper, pas l'utilisateur) : Max dira où le replacer. */
+export function RapportsAuPremierPlan() {
   const [lignes, setLignes] = useState<LigneRapport[]>([])
   const [categories, setCategories] = useState<Array<{ id: string; nom: string }>>([])
   const [categorie, setCategorie] = useState('')
@@ -388,7 +407,7 @@ function RapportsAuPremierPlan() {
               <Globe size={12} /> Page publique du rapport
             </a>
             <Link to={`/fresh-news?categorie=${ouvert.categorie}&jour=${ouvert.day}`} className="c-bouton-sec !text-xs">
-              Lire l'édition Fresh news <ArrowUpRight size={12} />
+              Lire l'édition Fresh Market News <ArrowUpRight size={12} />
             </Link>
           </div>
           {complet ? (

@@ -513,7 +513,7 @@ ${TITRE_MAX.map(([d, n]) => `<tr><td>${d}</td><td>${n} caractères</td></tr>`).j
       {
         h2: 'Ce que lit un compte, ce que lit le public',
         html: `<p>Les comptes DropShipper IA lisent tout — fournisseur, prix d'achat, prix de vente conseillé, marge — et importent un produit gagnant en un clic, à l'unité ou en lot. Les rapports se comparent dans le temps : une mémoire commerciale relève ce qui a bougé et lève des alertes.</p>
-<p>Les mêmes analyses sont publiées pour tous dans la rubrique <a href="/analyses/">Analyses de marché</a>, sans les adresses fournisseur ni les prix d'achat : seul le prix de vente conseillé y figure. Une édition du jour les rassemble, façon journal.</p>`,
+<p>Les mêmes analyses sont publiées pour tous dans la rubrique <a href="/fresh-market-news/">Fresh Market News</a>, sans les adresses fournisseur ni les prix d'achat : seul le prix de vente conseillé y figure. Une édition du jour les rassemble, façon journal.</p>`,
       },
       {
         h2: 'Le studio d’analyses, sur un produit précis',
