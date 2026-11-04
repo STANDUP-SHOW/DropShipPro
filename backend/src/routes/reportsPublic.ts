@@ -46,7 +46,7 @@ const compte = requireAuth as RequestHandler
 let baseOuverte: ReportQuery | null = null
 let generationOuverte = -1
 
-function baseRapports(): ReportQuery {
+export function baseRapports(): ReportQuery {
   // A new rapports.db uploaded by the importer: reopen on the next request.
   if (baseOuverte && generationOuverte !== generationRapports()) {
     baseOuverte.close()

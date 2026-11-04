@@ -2,6 +2,38 @@ import { prisma } from '../lib/prisma.js'
 import { EURO_PAR_DROP } from './tarifs.js'
 import { PLATFORMS } from './platforms.js'
 import type { Order, Platform } from '@prisma/client'
+import { baseRapports } from '../routes/reportsPublic.js'
+
+/** « Acheter maintenant », « Acheter si négocié », « BUY », « TOP » : a favourable verdict; « Ne pas acheter », « À surveiller » are not. */
+export function verdictFavorable(v: string | null | undefined): boolean {
+  if (!v) return false
+  const t = v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  if (/ne pas|pas stock|don'?t|do not|\bno\b|avoid|eviter|surveiller|watch/.test(t)) return false
+  return /acheter|\bbuy\b|\btop\b|\bgo\b|recommande|budget test/.test(t)
+}
+
+/** The last day of DropShipper reports: its counts and winners, or null when nothing is imported (or the base is unreadable). */
+function marcheDuJour(): { jourCourt: string; rayon: number; marketing: number; tendances: number; gagnants: Array<{ categorieNom: string; verdict?: string | null }> } | null {
+  try {
+    const q = baseRapports()
+    const jour = q.getDerniereDate()
+    if (!jour) return null
+    const analyses = q.getAnalyses({ jour, limite: 200 }).analyses
+    const gagnants = q.getGagnants({ jour, limite: 2000 }).produits
+    const tendances = q.getMarketingTrends({ date: jour }).reduce((n, m) => n + (Array.isArray(m.dailyTrends) ? m.dailyTrends.length : 0), 0)
+    const [, mois, j] = jour.split('-')
+    return {
+      jourCourt: `${j}/${mois}`,
+      rayon: analyses.filter((a) => a.type === 'rayon').length,
+      marketing: analyses.filter((a) => a.type === 'marketing').length,
+      tendances,
+      gagnants,
+    }
+  } catch (err) {
+    console.error('[statistiques] rapports du jour illisibles :', err instanceof Error ? err.message : err)
+    return null
+  }
+}
 
 /**
  * Le tableau de bord statistiques — quatorze blocs, neuf tuiles chacun.
@@ -572,20 +604,39 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
   }
 
   // --- 13 · Produits gagnants / marché --------------------------------------
+  // Max, 04/11/2026 : « une fois les rapports importés, le bloc doit s'actualiser ».
+  // The daily DropShipper reports (rapports.db + Poste + Drive) feed it: last day deposited.
   {
+    const marche = marcheDuJour()
+    const favorables = marche?.gagnants.filter((p) => verdictFavorable(p.verdict)) ?? []
+    const parRayonFavorable = new Map<string, number>()
+    for (const p of favorables) parRayonFavorable.set(p.categorieNom, (parRayonFavorable.get(p.categorieNom) ?? 0) + 1)
+    const porteur = [...parRayonFavorable.entries()].sort((a, b) => b[1] - a[1])[0]
+    const parRayon = new Map<string, number>()
+    for (const p of marche?.gagnants ?? []) parRayon.set(p.categorieNom, (parRayon.get(p.categorieNom) ?? 0) + 1)
+    const sansRapport = pasEncore('Aucun rapport du jour importé pour le moment.')
     blocs.push({
       id: 'marche',
       numero: '13',
       titre: 'Produits gagnants et marché',
       tuiles: [
-        { id: 'analyses', label: 'Analyses de marché', valeur: produits.filter((p) => p.marketAnalysedAt).length },
-        { id: 'opportunites', label: 'Opportunités relevées', valeur: opportunites },
-        { id: 'gagnants', label: 'Produits gagnants', valeur: null, raison: 'Se compte sur les verdicts des analyses archivées — bientôt.' },
-        { id: 'tendances', label: 'Tendances', ...pasEncore('Vient des enquêtes des agents extérieurs (POST /agent/*).') },
+        marche
+          ? { id: 'analyses', label: `Analyses du ${marche.jourCourt}`, valeur: marche.rayon + marche.marketing, parts: repartition([['Marché', marche.rayon], ['Marketing', marche.marketing]]) }
+          : { id: 'analyses', label: 'Analyses du jour', ...sansRapport },
+        { id: 'mes-analyses', label: 'Mes analyses de marché', valeur: produits.filter((p) => p.marketAnalysedAt).length },
+        { id: 'opportunites', label: 'Opportunités relevées', valeur: opportunites + favorables.length },
+        marche
+          ? { id: 'gagnants', label: 'Produits gagnants du jour', valeur: marche.gagnants.length, parts: repartition([...parRayon.entries()]) }
+          : { id: 'gagnants', label: 'Produits gagnants', ...sansRapport },
+        marche && marche.tendances > 0
+          ? { id: 'tendances', label: 'Tendances du jour', valeur: marche.tendances }
+          : { id: 'tendances', label: 'Tendances', ...pasEncore('Viennent des rapports marketing du jour : aucun importé pour le moment.') },
         { id: 'saisonnalite', label: 'Saisonnalité', ...pasEncore('Demande un an d’historique de ventes.') },
         { id: 'prevision-ventes', label: 'Prévision ventes', ...pasEncore('Demande plusieurs mois d’historique.') },
         { id: 'prevision-ca', label: 'Prévision CA', ...pasEncore('Demande plusieurs mois d’historique.') },
-        { id: 'porteurs', label: 'Marchés porteurs', ...pasEncore('Vient des signaux des agents extérieurs.') },
+        porteur
+          ? { id: 'porteurs', label: 'Marché le plus porteur', valeur: porteur[0], parts: repartition([...parRayonFavorable.entries()]) }
+          : { id: 'porteurs', label: 'Marchés porteurs', ...pasEncore(marche ? 'Aucun produit du jour au verdict favorable.' : 'Aucun rapport du jour importé pour le moment.') },
         { id: 'risque', label: 'Produits à risque', valeur: produits.filter((p) => p.supplierStock === 0).length },
       ],
     })
