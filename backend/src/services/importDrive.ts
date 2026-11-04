@@ -14,6 +14,7 @@
  * (rapports-etude.cjs), so they land with the same `data` shape and are served
  * through the same public filters (no supplier, no purchase price).
  */
+import { createRequire } from 'node:module'
 import {
   ajouterEtudesImportees,
   etudeDepuisSurcouche,
@@ -23,9 +24,16 @@ import {
 
 export class DriveErreur extends Error {}
 
+const etudeLib = createRequire(import.meta.url)('../../rapports-etude.cjs') as {
+  frontmatter(texte: string): Record<string, string> | null
+  slug(s: string): string
+}
+
 const MAX_DOSSIERS = 400
 const MAX_FICHIERS = 2000
 const DELAI_MS = 20_000
+/** Undated reports (no AAAA-MM-JJ folder above them) opened to read their own date. */
+const MAX_SANS_DATE = 60
 
 /** « https://drive.google.com/drive/folders/<id>?usp=sharing », « …?id=<id> » or the bare id. */
 export function idDossierDrive(adresse: string): string {
@@ -86,7 +94,16 @@ export function lireVueEmbarquee(html: string): EntreeDrive[] {
   return out
 }
 
-async function listerUnDossier(id: string): Promise<EntreeDrive[]> {
+/**
+ * The folder's own name, from the embedded view's <title> (« 2026-11-03 », or
+ * « 2026-11-03 - Google Drive »). Empty when the page carries none.
+ */
+export function nomDossierVue(html: string): string {
+  const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]
+  return t ? decoder(t).replace(/\s*[-–—]\s*Google\s+Drive\s*$/i, '').trim() : ''
+}
+
+async function listerUnDossier(id: string): Promise<{ nom: string; entrees: EntreeDrive[] }> {
   const r = await obtenir(`https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(id)}`)
   if (r.status === 404) throw new DriveErreur("Dossier introuvable : vérifiez l'adresse.")
   if (!r.ok) throw new DriveErreur(`Google Drive a répondu ${r.status} sur la liste du dossier.`)
@@ -94,7 +111,7 @@ async function listerUnDossier(id: string): Promise<EntreeDrive[]> {
   if (/accounts\.google\.com\/(ServiceLogin|signin)/.test(html) && !html.includes('flip-entry')) {
     throw new DriveErreur("Ce dossier n'est pas public : partagez-le en « Tous les utilisateurs disposant du lien ».")
   }
-  return lireVueEmbarquee(html)
+  return { nom: nomDossierVue(html), entrees: lireVueEmbarquee(html) }
 }
 
 export interface FichierDrive {
@@ -104,15 +121,21 @@ export interface FichierDrive {
   chemin: string[]
 }
 
-/** Every file under the folder, breadth first, with its folder path. */
+/**
+ * Every file under the folder, breadth first, with its folder path. The path
+ * starts with the pasted folder's own name, so pasting a date folder
+ * (« 2026-11-03 ») places its files as pasting its parent does.
+ */
 export async function listerArbre(racine: string): Promise<FichierDrive[]> {
   const fichiers: FichierDrive[] = []
-  const file: { id: string; chemin: string[] }[] = [{ id: racine, chemin: [] }]
+  const file: { id: string; chemin: string[] | null }[] = [{ id: racine, chemin: null }]
   let dossiers = 0
   while (file.length) {
     const d = file.shift()!
     if (++dossiers > MAX_DOSSIERS) throw new DriveErreur(`Plus de ${MAX_DOSSIERS} dossiers : donnez un sous-dossier plus précis.`)
-    for (const e of await listerUnDossier(d.id)) {
+    const { nom, entrees } = await listerUnDossier(d.id)
+    d.chemin ??= nom ? [nom] : []
+    for (const e of entrees) {
       if (e.dossier) file.push({ id: e.id, chemin: [...d.chemin, e.nom] })
       else fichiers.push({ id: e.id, nom: e.nom, chemin: d.chemin })
       if (fichiers.length > MAX_FICHIERS) throw new DriveErreur(`Plus de ${MAX_FICHIERS} fichiers : donnez un sous-dossier plus précis.`)
@@ -121,7 +144,15 @@ export async function listerArbre(racine: string): Promise<FichierDrive[]> {
   return fichiers
 }
 
+/** Files already opened by `daterSansDossier`, handed once to the import. */
+const telecharges = new Map<string, string>()
+
 async function telecharger(id: string): Promise<string> {
+  const deja = telecharges.get(id)
+  if (deja != null) {
+    telecharges.delete(id)
+    return deja
+  }
   const r = await obtenir(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}`)
   if (!r.ok) throw new DriveErreur(`téléchargement refusé (${r.status})`)
   const texte = await r.text()
@@ -199,9 +230,68 @@ function idRayonIndice(e: EtudeTrouvee): string {
   return `rayon-${e.date}-${e.categorie}-${e.theme}`
 }
 
+/**
+ * Files with no date folder above them (a category folder pasted on its own,
+ * a flat folder): a .rayon.md gives its date and category in its header, an
+ * aiMARKET .json in its « study » block. Each such study (its .rayon.md,
+ * .marketing.md and .json, same folder and theme) moves under that date and
+ * category; what stays undated is returned by name, never silently dropped.
+ */
+export async function daterSansDossier(fichiers: FichierDrive[]): Promise<{ fichiers: FichierDrive[]; sansDate: string[] }> {
+  const dates = (f: FichierDrive) => f.chemin.some((c) => DATE.test(c))
+  const cle = (f: FichierDrive) => `${f.chemin.join('/')}|${genre(f.nom).theme}`
+  const groupes = new Map<string, FichierDrive[]>()
+  for (const f of fichiers) {
+    if (dates(f) || !['rayon', 'marketing', 'json'].includes(genre(f.nom).genre)) continue
+    groupes.set(cle(f), [...(groupes.get(cle(f)) ?? []), f])
+  }
+  const places = new Map<string, string[]>()
+  const sansDate: string[] = []
+  let ouverts = 0
+  for (const [k, groupe] of groupes) {
+    // The .rayon.md first: it is the one imported when both exist.
+    const tete = groupe.find((f) => genre(f.nom).genre === 'rayon') ?? groupe.find((f) => genre(f.nom).genre === 'json')
+    const lieu = tete && ++ouverts <= MAX_SANS_DATE ? await dateDuFichier(tete) : null
+    if (lieu) places.set(k, lieu)
+    else sansDate.push(...groupe.map((f) => [...f.chemin, f.nom].join('/')))
+  }
+  return {
+    fichiers: fichiers.flatMap((f) => (dates(f) ? [f] : places.has(cle(f)) ? [{ ...f, chemin: places.get(cle(f))! }] : [])),
+    sansDate,
+  }
+}
+
+/** [date, category] written inside a report, or null. Keeps the text for the import. */
+async function dateDuFichier(f: FichierDrive): Promise<string[] | null> {
+  try {
+    const texte = await telecharger(f.id)
+    if (telecharges.size > 4 * MAX_SANS_DATE) telecharges.clear() // listed, never imported
+    telecharges.set(f.id, texte)
+    let date = ''
+    let categorie = ''
+    if (genre(f.nom).genre === 'rayon') {
+      const fm = etudeLib.frontmatter(texte) ?? {}
+      date = String(fm.date ?? '')
+      categorie = fm.categorie ? etudeLib.slug(String(fm.categorie)) : ''
+    } else {
+      const s = (JSON.parse(texte) as { study?: { date?: string; category_id?: string; category_name?: string } }).study ?? {}
+      date = String(s.date ?? '')
+      categorie = s.category_id ? String(s.category_id) : s.category_name ? etudeLib.slug(String(s.category_name)) : ''
+    }
+    return DATE.test(date) && categorie ? [date, categorie] : null
+  } catch {
+    return null
+  }
+}
+
+async function lireDossier(racine: string) {
+  const { fichiers, sansDate } = await daterSansDossier(await listerArbre(racine))
+  return { dates: regrouper(fichiers), sansDate }
+}
+
 export async function listerDossierDrive(adresse: string) {
   const racine = idDossierDrive(adresse)
-  const dates = regrouper(await listerArbre(racine))
+  const { dates, sansDate } = await lireDossier(racine)
   const enBase = idsRapportsEnService()
   return {
     dossier: racine,
@@ -217,6 +307,8 @@ export async function listerDossierDrive(adresse: string) {
       })),
       ignores: d.ignores,
     })),
+    /** Report files with no date anywhere (no AAAA-MM-JJ folder, no date inside). */
+    sansDate,
   }
 }
 
@@ -246,7 +338,7 @@ function conforme(e: { produits: number; urlsDistinctes: number; avecPrix: numbe
 export async function importerDossierDrive(adresse: string, dates: string[], essai: boolean) {
   const racine = idDossierDrive(adresse)
   const voulues = new Set(dates)
-  const jours = regrouper(await listerArbre(racine)).filter((d) => voulues.has(d.date))
+  const jours = (await lireDossier(racine)).dates.filter((d) => voulues.has(d.date))
   if (!jours.length) throw new DriveErreur('Aucune des dates choisies dans ce dossier.')
 
   const enBase = idsRapportsEnService()
