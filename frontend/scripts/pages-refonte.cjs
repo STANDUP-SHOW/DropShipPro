@@ -861,7 +861,7 @@ function pageAnalyses(t, c) {
     },
     bento: `${enTeteSection('L’essentiel, simplement', 'Comprendre. Sélectionner. Importer.', 'Deux rapports complémentaires pour passer à l’action.')}
 <div class="bento">
-<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">⌕</span><h3>Le marché et ses produits</h3><p>Chaque jour, pour chaque catégorie : la sélection, les raisons du choix et les prix effectivement trouvés. Un champ introuvable reste vide.</p><a class="textlink" href="/analyses/">Lire les analyses publiques ↗</a></article>
+<article class="tile wide featured">${video(t.slug, `${c.nom} : ${t.titre}`)}<span class="tile-icon" aria-hidden="true">⌕</span><h3>Le marché et ses produits</h3><p>Chaque jour, pour chaque catégorie : la sélection, les raisons du choix et les prix effectivement trouvés. Un champ introuvable reste vide.</p><a class="textlink" href="/fresh-market-news/">Lire les analyses publiques ↗</a></article>
 <article class="tile"><span class="tile-icon" aria-hidden="true">✦</span><h3>Les angles marketing</h3><p>Audiences, idées de publicités et prompts image ou vidéo pour les réseaux.</p></article>
 <article class="tile"><span class="tile-icon" aria-hidden="true">↗</span><h3>Importez votre sélection</h3><p>Depuis votre compte, un clic importe un produit ou un lot, et l’IA écrit l’annonce. ${esc(eurosUnite)} l’annonce.</p></article>
 <article class="tile wide"><span class="tile-icon" aria-hidden="true">◎</span><h3>Un produit précis en tête ?</h3><p>Lancez une analyse ciblée pour explorer les offres concurrentes, les prix pratiqués et le marché.</p><span class="stat">${esc(eurosAnalyse)} <small>/ analyse ciblée · ${dropsAnalyse} drops</small></span></article>

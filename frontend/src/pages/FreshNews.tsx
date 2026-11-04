@@ -137,7 +137,7 @@ export default function FreshNews() {
       <BlocSection id="marche" />
       <PageCreative>
         <Entete
-          surtitre="07 / Fresh news"
+          surtitre="07 / Fresh Market News"
           ligne1="Le signal du jour."
           ligne2="Votre prochain angle."
           chapo="Le marché, les produits et le marketing réunis dans une lecture courte. Puis les détails, quand vous en avez besoin."
@@ -315,7 +315,7 @@ export default function FreshNews() {
           ) : null}
         </section>
 
-        <Provenance texte="Rapports des agents · deux par jour et par rayon, gratuits" libelle="Toutes les pages publiques des analyses" to="/analyses/" />
+        <Provenance texte="Rapports des agents · deux par jour et par rayon, gratuits" libelle="Toutes les pages Fresh Market News" to="/fresh-market-news/" />
       </PageCreative>
     </Layout>
   )

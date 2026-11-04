@@ -65,6 +65,15 @@ export interface RapportPublic {
   updatedAt: Date
 }
 
+/**
+ * La rubrique publique des analyses (Max, 04/11/2026) : « Fresh Market News »,
+ * les analyses de marché fournies chaque jour par DropShipper, à
+ * /fresh-market-news/<rayon>/<sous-rayon>/<titre du jour>/. Tout /analyses/…
+ * d'avant y mène en 301 (routes/analysesPubliques.ts).
+ */
+export const BASE = '/fresh-market-news'
+export const RUBRIQUE = 'Fresh Market News'
+
 export function esc(texte: unknown): string {
   return String(texte ?? '')
     .replace(/&/g, '&amp;')
@@ -146,7 +155,7 @@ let attribuees = new Map<string, string>()
  */
 type Forme = 'rayon' | 'theme'
 function prefixe(r: Adressable, forme: Forme): string {
-  return forme === 'rayon' ? `/analyses/${r.categorie}/${r.theme}/` : `/analyses/${r.theme}/`
+  return forme === 'rayon' ? `${BASE}/${r.categorie}/${r.theme}/` : `/analyses/${r.theme}/`
 }
 
 function calculerAdresses(rapports: Adressable[], filtre = true, forme: Forme = 'rayon', fixees?: Map<string, string>): Map<string, string> {
@@ -177,7 +186,7 @@ function calculerAdresses(rapports: Adressable[], filtre = true, forme: Forme = 
 
 /** An address the sourcing terms never reach, in the current form: the only kind kept from the register. */
 export function adresseSaine(a: string): boolean {
-  return /^\/analyses\/[a-z0-9-]{1,60}\/[a-z0-9-]{1,60}\/[a-z0-9-]{1,120}\/$/.test(a) && !SUJET_PRIVE_SLUG.test(a)
+  return /^\/fresh-market-news\/[a-z0-9-]{1,60}\/[a-z0-9-]{1,60}\/[a-z0-9-]{1,120}\/$/.test(a) && !SUJET_PRIVE_SLUG.test(a)
 }
 const SUJET_PRIVE_SLUG = /(?:^|[/-])(?:marques?-blanches?|white-label|private-label|oem|odm|moq|grossistes?|prix-de-gros|en-gros|fournisseurs?|achats?|aliexpress|alibaba|1688|cjdropshipping)(?=$|[/-])/
 
@@ -228,7 +237,7 @@ export function rapportA(chemin: string): string | null {
  * thème/sujet) redirigent ici en 301 (routes/analysesPubliques.ts).
  */
 export function cheminRapport(r: Adressable): string {
-  return attribuees.get(r.id) ?? `/analyses/${r.categorie}/${r.theme}/${sujetRapport(r)}/`
+  return attribuees.get(r.id) ?? `${BASE}/${r.categorie}/${r.theme}/${sujetRapport(r)}/`
 }
 
 /** La forme du 03/10/2026 au soir (PR #25), gardée pour les redirections. */
@@ -247,11 +256,11 @@ export function ancienCheminRapport(r: Pick<RapportPublic, 'categorie' | 'day' |
 
 /** L'édition d'un jour, comme un journal : /analyses/2026-09-18/. */
 export function cheminJour(day: string): string {
-  return `/analyses/${day}/`
+  return `${BASE}/${day}/`
 }
 
 export function cheminCategorie(id: string): string {
-  return `/analyses/${id}/`
+  return `${BASE}/${id}/`
 }
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
@@ -1063,7 +1072,7 @@ ${o.modifie ? `<meta property="article:modified_time" content="${o.modifie.toISO
 ${o.body}
 <div class="end"><a class="cta" href="/register">Essayer ${NOM} — 120 drops offerts</a></div>
 </main>
-<footer><div class="wrap"><a href="/">Accueil</a><a href="/analyses/">Analyses de marché</a><a href="/tarifs/">Tarifs</a><a href="/faq/">Questions fréquentes</a><a href="/a-propos/">À propos</a></div></footer>
+<footer><div class="wrap"><a href="/">Accueil</a><a href="/fresh-market-news/">Fresh Market News</a><a href="/tarifs/">Tarifs</a><a href="/faq/">Questions fréquentes</a><a href="/a-propos/">À propos</a></div></footer>
 </body>
 </html>
 `
@@ -1302,7 +1311,7 @@ export function pageRapport(r: RapportPublic, autres: RapportPublic[] = []): str
 
   const fil = [
     { nom: 'Accueil', url: '/' },
-    { nom: 'Analyses de marché', url: '/analyses/' },
+    { nom: RUBRIQUE, url: `${BASE}/` },
     { nom: cat, url: cheminCategorie(r.categorie) },
     { nom: `${theme} — ${dateLongue(r.day)}` },
   ]
@@ -1391,7 +1400,7 @@ export function pageCategorie(id: string, rapports: RapportPublic[]): string {
   const cat = categorieDe(id)
   const nom = rapports[0]?.categorieNom ?? nomCategorie(id)
   const url = cheminCategorie(id)
-  const fil = [{ nom: 'Accueil', url: '/' }, { nom: 'Analyses de marché', url: '/analyses/' }, { nom }]
+  const fil = [{ nom: 'Accueil', url: '/' }, { nom: RUBRIQUE, url: `${BASE}/` }, { nom }]
   const parJour = new Map<string, RapportPublic[]>()
   for (const r of [...rapports].sort((a, b) => (a.day < b.day ? 1 : -1))) parJour.set(r.day, [...(parJour.get(r.day) ?? []), r])
 
@@ -1411,7 +1420,7 @@ ${[...parJour.entries()]
 ${
   rapports.length
     ? ''
-    : `<p>Aucune analyse publiée pour cette catégorie pour le moment : les agents de ${NOM} la couvriront dans les prochains jours. En attendant, <a href="/analyses/">les autres catégories</a> sont à jour.</p>`
+    : `<p>Aucune analyse publiée pour cette catégorie pour le moment : les agents de ${NOM} la couvriront dans les prochains jours. En attendant, <a href="/fresh-market-news/">les autres catégories</a> sont à jour.</p>`
 }
 <h2>Comment lire ces analyses</h2>
 <p>Le rapport de marché dit ce qui se vend dans la catégorie, à quel prix, ce qui monte et ce qui recule, puis propose des produits à importer avec leur prix de vente conseillé. Le rapport marketing du même jour dit à qui les vendre et comment : angles, audiences, accroches, et des prompts d'images et de vidéos publicitaires prêts à coller dans un générateur.</p>
@@ -1429,11 +1438,11 @@ ${
 }
 
 export function pageIndex(recents: RapportPublic[], compteParCategorie: Map<string, number>, jours: string[] = []): string {
-  const url = '/analyses/'
-  const fil = [{ nom: 'Accueil', url: '/' }, { nom: 'Analyses de marché' }]
+  const url = `${BASE}/`
+  const fil = [{ nom: 'Accueil', url: '/' }, { nom: RUBRIQUE }]
   const total = [...compteParCategorie.values()].reduce((t, n) => t + n, 0)
   const body = `${crumb(fil)}
-<h1>Analyses de marché et produits gagnants du dropshipping, chaque jour</h1>
+<h1>Fresh Market News : analyses de marché et produits gagnants du dropshipping, chaque jour</h1>
 <p class="lede">${CATEGORIES.length} catégories, deux rapports par jour et par catégorie : le marché et ses produits à importer, le marketing et ses prompts publicitaires. Rédigés par les agents ${NOM}, ${total} rapports publiés à ce jour.</p>
 ${
     jours.length
@@ -1457,9 +1466,9 @@ ${
   }).join('')}</div>`
   return layout({
     url,
-    title: 'Analyses de marché dropshipping et produits gagnants du jour',
+    title: 'Fresh Market News : analyses de marché dropshipping du jour',
     description: `Les analyses de marché quotidiennes de ${NOM} sur ${CATEGORIES.length} catégories : tendances, prix, produits gagnants à importer, angles et prompts publicitaires.`,
-    jsonLd: { '@context': 'https://schema.org', '@graph': [{ '@type': 'CollectionPage', name: 'Analyses de marché', url: `${SITE}${url}`, inLanguage: 'fr-FR', publisher: ORGANISATION }, breadcrumbLd(fil)] },
+    jsonLd: { '@context': 'https://schema.org', '@graph': [{ '@type': 'CollectionPage', name: RUBRIQUE, url: `${SITE}${url}`, inLanguage: 'fr-FR', publisher: ORGANISATION }, breadcrumbLd(fil)] },
     body,
   })
 }
@@ -1626,7 +1635,7 @@ export function produitsUniques(produits: ProduitPublic[]): Array<ProduitPublic 
 export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?: string, jourSuivant?: string): string {
   const url = cheminJour(day)
   const date = dateLongue(day)
-  const fil = [{ nom: 'Accueil', url: '/' }, { nom: 'Analyses de marché', url: '/analyses/' }, { nom: `Édition du ${date}` }]
+  const fil = [{ nom: 'Accueil', url: '/' }, { nom: RUBRIQUE, url: `${BASE}/` }, { nom: `Édition du ${date}` }]
   const rayons = rapports.filter((r) => r.type === 'rayon')
   const parCategorie = new Map<string, RapportPublic[]>()
   for (const r of rapports) parCategorie.set(r.categorie, [...(parCategorie.get(r.categorie) ?? []), r])
@@ -1705,7 +1714,7 @@ export function sitemapXml(rapports: Array<Pick<RapportPublic, 'id' | 'categorie
   const dernier = rapports.reduce((d, r) => (r.updatedAt > d ? r.updatedAt : d), new Date(0))
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${ligne('/analyses/', rapports.length ? datePage('/analyses/', dernier) : new Date(), '0.8', 'daily')}
+${ligne(`${BASE}/`, rapports.length ? datePage(`${BASE}/`, dernier) : new Date(), '0.8', 'daily')}
 ${[...jours.entries()].map(([j, mod]) => ligne(cheminJour(j), datePage(cheminJour(j), mod), '0.7', 'weekly')).join('\n')}
 ${[...categories.entries()].map(([id, mod]) => ligne(cheminCategorie(id), datePage(cheminCategorie(id), mod), '0.7', 'daily')).join('\n')}
 ${rapports.map((r) => ligne(cheminRapport(r), r.updatedAt, '0.6', 'monthly')).join('\n')}

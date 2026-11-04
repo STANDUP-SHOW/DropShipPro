@@ -13,7 +13,7 @@ import { betaRouter } from './routes/beta.js'
 import { vitrineRouter } from './routes/vitrine.js'
 import { marketRouter, marketHostRouter } from './routes/market.js'
 import { marketApiRouter } from './routes/marketApi.js'
-import { analysesPubliquesRouter, lignesPubliques } from './routes/analysesPubliques.js'
+import { analysesPubliquesRouter, lignesPubliques, versFreshMarketNews } from './routes/analysesPubliques.js'
 import { sitemapXml } from './services/analysesPubliques.js'
 import { planifierAnnonce } from './services/annonceAnalyses.js'
 import { reviewsRouter } from './routes/reviews.js'
@@ -188,7 +188,8 @@ app.use('/b', vitrineRouter)
 // Apercu du Market sous l adresse de l API (le domaine drop-shop.cloud le sert a la racine).
 app.use('/market', marketRouter)
 // Les rapports des agents en pages publiques, réécrites par Vercel sous www.drop-shipper.fr/analyses/.
-app.use('/analyses', analysesPubliquesRouter)
+app.use('/fresh-market-news', analysesPubliquesRouter)
+app.use('/analyses', versFreshMarketNews, analysesPubliquesRouter)
 
 /*
  * Le dernier filet : une erreur qui remonte jusqu'ici répond, elle ne pend pas.

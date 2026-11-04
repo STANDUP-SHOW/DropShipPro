@@ -318,14 +318,14 @@ console.log('\nL’archive, l’index, le sitemap')
   const cat = pageCategorie('telephonie', [rapport, marketing])
   exige(cat.includes('18 septembre 2026') && cat.includes(cheminRapport(rapport)) && cat.includes(cheminRapport(marketing)), 'l’archive liste les deux rapports du jour')
   const index = pageIndex([rapport], new Map([['telephonie', 2]]))
-  exige(index.includes('/analyses/telephonie/') && index.includes('2 analyses'), 'l’index compte par catégorie')
+  exige(index.includes('/fresh-market-news/telephonie/') && index.includes('2 analyses'), 'l’index compte par catégorie')
   const xml = sitemapXml([rapport, marketing])
-  exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/</loc>'), 'le sitemap porte l’index')
-  exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/telephonie/</loc>'), 'et la catégorie')
+  exige(xml.includes('<loc>https://www.drop-shipper.fr/fresh-market-news/</loc>'), 'le sitemap porte l’index')
+  exige(xml.includes('<loc>https://www.drop-shipper.fr/fresh-market-news/telephonie/</loc>'), 'et la catégorie')
   exige(xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(rapport)}</loc>`) && xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(marketing)}</loc>`), 'et chaque rapport')
   exige(
-    cheminRapport(rapport) === '/analyses/telephonie/chargeurs-cables/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre/' &&
-      cheminRapport(marketing) === '/analyses/telephonie/chargeurs-cables/vendre-des-chargeurs-gan-angles-et-prompts/',
+    cheminRapport(rapport) === '/fresh-market-news/telephonie/chargeurs-cables/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre/' &&
+      cheminRapport(marketing) === '/fresh-market-news/telephonie/chargeurs-cables/vendre-des-chargeurs-gan-angles-et-prompts/',
     'les adresses se lisent comme des articles : le rayon, le sous-rayon, puis le titre du jour, sans date (04/11/2026)',
     cheminRapport(rapport),
   )
@@ -363,9 +363,9 @@ console.log('\nLe sujet : titre du jour, sinon titre + extrait percutant')
   exige(cheminRapport(renomme) === donnees.get('r1'), 'le registre garde l’adresse donnée', cheminRapport(renomme))
   attribuerAdresses([renomme])
   exige(cheminRapport(renomme) !== donnees.get('r1'), 'sans registre, le titre ferait une nouvelle adresse (d’où le registre)')
-  attribuerAdresses([renomme], new Map([['r1', '/analyses/telephonie/chargeurs-cables/marge-en-gros-chez-le-fournisseur/']]))
+  attribuerAdresses([renomme], new Map([['r1', '/fresh-market-news/telephonie/chargeurs-cables/marge-en-gros-chez-le-fournisseur/']]))
   exige(!cheminRapport(renomme).includes('fournisseur'), 'une adresse privée du registre est écartée', cheminRapport(renomme))
-  exige(!adresseSaine('/analyses/telephonie/chargeurs-cables/prix-de-gros-aliexpress/') && adresseSaine('/analyses/telephonie/chargeurs-cables/le-gan-a-gagne/'), 'adresseSaine refuse les termes de sourcing')
+  exige(!adresseSaine('/fresh-market-news/telephonie/chargeurs-cables/prix-de-gros-aliexpress/') && adresseSaine('/fresh-market-news/telephonie/chargeurs-cables/le-gan-a-gagne/'), 'adresseSaine refuse les termes de sourcing')
   attribuerAdresses([rapport, marketing])
 }
 
@@ -418,18 +418,18 @@ console.log('\nCe que l’audit du 03/10/2026 relevait')
   const vide = pageCategorie('sport', [])
   exige(vide.includes('noindex, follow') && vide.includes('Aucune analyse publiée'), 'une catégorie vide : une vraie page, hors index')
   const index = pageIndex([rapport], new Map([['telephonie', 2]]))
-  exige(index.includes('href="/analyses/telephonie/"') && !index.includes('href="/analyses/sport/"'), 'l’index ne lie pas les catégories vides')
+  exige(index.includes('href="/fresh-market-news/telephonie/"') && !index.includes('href="/fresh-market-news/sport/"'), 'l’index ne lie pas les catégories vides')
 }
 
 console.log('\nL’édition du jour')
 {
   const html = pageJour('2026-09-18', [rapport, marketing], '2026-09-17', '2026-09-19')
   exige(!/9,80|US\$|AliExpress|CJ Dropshipping/.test(html), 'l’édition du jour non plus : ni prix d’achat ni fournisseur')
-  exige(html.includes('<title>Produits gagnants et tendances du 18/09/2026</title>') && html.includes('href="https://www.drop-shipper.fr/analyses/2026-09-18/"'), 'une page par jour, à son adresse')
+  exige(html.includes('<title>Produits gagnants et tendances du 18/09/2026</title>') && html.includes('href="https://www.drop-shipper.fr/fresh-market-news/2026-09-18/"'), 'une page par jour, à son adresse')
   exige(html.includes('Chargeur GaN 65 W 3 ports') && html.includes(`href="${cheminRapport(rapport)}#produits"`), 'les produits gagnants du jour, liés à leur rapport')
   exige(!html.includes('fournisseur.test') && !html.includes('9,80') && !/CJ Dropshipping|BigBuy|Temu/.test(html), 'ni adresse, ni nom de fournisseur, ni prix d’achat')
-  exige(html.includes('/analyses/2026-09-17/') && html.includes('/analyses/2026-09-19/'), 'les éditions voisines')
-  exige(sitemapXml([rapport]).includes('<loc>https://www.drop-shipper.fr/analyses/2026-09-18/</loc>'), 'chaque édition est dans le sitemap')
+  exige(html.includes('/fresh-market-news/2026-09-17/') && html.includes('/fresh-market-news/2026-09-19/'), 'les éditions voisines')
+  exige(sitemapXml([rapport]).includes('<loc>https://www.drop-shipper.fr/fresh-market-news/2026-09-18/</loc>'), 'chaque édition est dans le sitemap')
   exige(pageRapport(rapport).includes('"@type":"NewsArticle"'), 'un rapport se déclare comme une actualité')
 }
 
@@ -498,10 +498,10 @@ console.log('\nUne offre par fournisseur, un produit par ligne (édition du 12/1
 {
   // Editions and hubs are dated by their own text too.
   const jour = pageJour(rapport.day, [rapport])
-  fixerDatesDesPages(new Map([[`/analyses/${rapport.day}/`, new Date('2030-01-01T00:00:00Z')]]))
+  fixerDatesDesPages(new Map([[`/fresh-market-news/${rapport.day}/`, new Date('2030-01-01T00:00:00Z')]]))
   const date = pageJour(rapport.day, [rapport])
   exige(date.includes('2030-01-01T00:00:00.000Z') && empreintePage(date) === empreintePage(jour), 'l’édition prend la date de son texte ; son empreinte ignore sa propre date')
-  exige(sitemapXml([rapport]).includes(`/analyses/${rapport.day}/</loc><lastmod>2030-01-01T00:00:00.000Z`), 'le sitemap aussi')
+  exige(sitemapXml([rapport]).includes(`/fresh-market-news/${rapport.day}/</loc><lastmod>2030-01-01T00:00:00.000Z`), 'le sitemap aussi')
   fixerDatesDesPages(new Map())
 }
 

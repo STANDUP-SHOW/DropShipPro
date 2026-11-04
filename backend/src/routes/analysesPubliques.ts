@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { Router, type Response } from 'express'
+import { Router, type NextFunction, type Request, type Response } from 'express'
 import { CHEMIN_SURCOUCHE, generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
@@ -21,6 +21,7 @@ import {
   apostrophesRendues,
   promptsPublics, donneesPrivees, corpsVisibleVide, sansDonneesPrivees, achatsDuProduit, type ProduitPublic,
   attribuerAdresses,
+  BASE,
   adresseSaine,
   renvoisRenumerotes,
   texteVisible,
@@ -54,6 +55,23 @@ import {
 } from '../services/analysesPubliques.js'
 
 export const analysesPubliquesRouter = Router()
+
+/**
+ * Mounted on /analyses before the router (Max, 04/11/2026 : la rubrique devient
+ * Fresh Market News, /fresh-market-news/…) : the index, a category, an edition
+ * and the 3-segment form go there in 301; the older report forms fall through
+ * to the router, which knows them and sends them to the current address. The
+ * sitemap stays served here too: the Search Console holds this address.
+ */
+export function versFreshMarketNews(req: Request, res: Response, next: NextFunction) {
+  if (req.path === '/sitemap.xml') return next()
+  const segments = req.path.split('/').filter(Boolean)
+  if (segments.length <= 1 || (segments.length === 3 && !JOUR.test(segments[1]))) {
+    const q = req.originalUrl.indexOf('?')
+    return res.redirect(301, `${BASE}${req.path}${q >= 0 ? req.originalUrl.slice(q) : ''}`)
+  }
+  next()
+}
 
 const CACHE = 'public, max-age=3600, stale-while-revalidate=86400'
 const JOUR = /^\d{4}-\d{2}-\d{2}$/

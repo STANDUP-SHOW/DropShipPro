@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/fresh-market-news",
+      "destination": "https://dropshippro-production.up.railway.app/fresh-market-news/"
+    },
+    {
+      "source": "/fresh-market-news/(.*)",
+      "destination": "https://dropshippro-production.up.railway.app/fresh-market-news/$1"
+    },
+    {
       "source": "/analyses",
       "destination": "https://dropshippro-production.up.railway.app/analyses/"
     },
@@ -20,9 +28,18 @@
       "source": "/api/aliexpress/:path*",
       "destination": "https://dropshippro-production.up.railway.app/api/aliexpress/:path*"
     },
-    { "source": "/avis", "destination": "/avis/index.html" },
-    { "source": "/confidentialite", "destination": "/confidentialite/index.html" },
-    { "source": "/register", "destination": "/register/index.html" },
+    {
+      "source": "/avis",
+      "destination": "/avis/index.html"
+    },
+    {
+      "source": "/confidentialite",
+      "destination": "/confidentialite/index.html"
+    },
+    {
+      "source": "/register",
+      "destination": "/register/index.html"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

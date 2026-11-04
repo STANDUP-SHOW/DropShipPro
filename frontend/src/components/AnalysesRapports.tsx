@@ -153,7 +153,7 @@ export function AnalysesRapports({
           <p className="mt-2 text-xs text-gray-500">
             Les agents en écrivent une par rayon et par jour, disponible le matin. La version journal est dans{' '}
             <Link to="/fresh-news" className="text-purple-300 underline">
-              Fresh news
+              Fresh Market News
             </Link>
             .
           </p>

@@ -245,7 +245,7 @@ Prendre l'annonce n'importe où, la publier partout — et tout piloter depuis u
 - [Annonces IA](${SITE}/fonctions/annonces-ia/)
 - [Boutique DropShop IA](${SITE}/fonctions/dropshop-ia/)
 - [Diffusion sur ${canaux.length} canaux](${SITE}/fonctions/diffusion/)
-- [Analyses de marché du jour](${SITE}/analyses/)
+- [Fresh Market News : analyses de marché du jour](${SITE}/fresh-market-news/)
 - [Mode auto (AUTO-SHIPPER)](${SITE}/fonctions/auto-shipper/)
 - [Extension Chrome](https://chromewebstore.google.com/detail/dmhhfboiialjghjkjhfnipjafffpodlk)
 - [À propos et contact](${SITE}/a-propos/)

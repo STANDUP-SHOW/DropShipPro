@@ -33,7 +33,7 @@ async function main() {
   // Deux sitemaps : les pages du site (Vercel) et les analyses des agents (API, une page par rapport).
   const urls = []
   // (/sitemap.xml n'est plus qu'un index qui pointe vers ces deux-là.)
-  for (const chemin of ['/sitemap-pages.xml', '/analyses/sitemap.xml']) {
+  for (const chemin of ['/sitemap-pages.xml', '/fresh-market-news/sitemap.xml']) {
     const reponse = await fetch(`${SITE}${chemin}`)
     if (!reponse.ok) {
       console.error(`${chemin} : ${reponse.status} — ignoré.`)

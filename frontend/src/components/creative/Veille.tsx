@@ -166,7 +166,7 @@ export function Provenance({ texte, libelle, to }: { texte: string; libelle: str
   return (
     <div className="v-provenance mt-12">
       <span>{texte}</span>
-      {to.startsWith('/analyses') || to.startsWith('http') ? (
+      {to.startsWith('/analyses') || to.startsWith('/fresh-market-news') || to.startsWith('http') ? (
         <a href={to} className="v-lien" target={to.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
           {libelle} <ArrowUpRight size={12} />
         </a>

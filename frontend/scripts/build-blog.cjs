@@ -234,7 +234,7 @@ function pageIndex(tous) {
           )
           .join('')}</ul>
 <h2>Pour aller plus loin</h2>
-<p>Les <a href="/analyses/">analyses de marché</a> des agents sont publiées chaque jour, rayon par rayon. Les guides de fond : <a href="/dropshipping/">le dropshipping, comment ça marche</a>, <a href="/vendre-sur-marketplaces/">où vendre</a>, <a href="/logiciel-dropshipping/">ce que doit faire un logiciel de dropshipping</a>.</p>`,
+<p>Les <a href="/fresh-market-news/">analyses de marché</a> des agents sont publiées chaque jour, rayon par rayon. Les guides de fond : <a href="/dropshipping/">le dropshipping, comment ça marche</a>, <a href="/vendre-sur-marketplaces/">où vendre</a>, <a href="/logiciel-dropshipping/">ce que doit faire un logiciel de dropshipping</a>.</p>`,
       }),
     ),
   }
