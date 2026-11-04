@@ -107,8 +107,13 @@ test('migration d’un Poste 0.4 : clé Anthropic reprise, connecteur DropShippe
   assert.equal(cfg.projets[0].connecteur, 'dropshipper')
   assert.equal(kantix.migrer(cfg, { installExistante: true }).change, false)
   const neuf = kantix.migrer({ ...config.PAR_DEFAUT, cles: [], projets: [], analyses: [], secrets: {} }, { installExistante: false }).cfg
-  assert.equal(neuf.connecteurs.dropshipper.actif, false, 'installation neuve : DropShipper non connecté')
-  assert.equal(neuf.projets.length, 0)
+  assert.equal(neuf.connecteurs.dropshipper.actif, true, 'installation neuve : DropShipper branché d’office')
+  assert.equal(neuf.projets.length, 1); assert.equal(neuf.projets[0].connecteur, 'dropshipper'); assert.equal(neuf.projets[0].url, 'https://www.drop-shipper.fr')
+  const coupe = kantix.migrer({ ...config.PAR_DEFAUT, cles: [], projets: [], analyses: [], secrets: {}, connecteurs: { dropshipper: { actif: false, cleId: 'k1' } }, kantixV1: true }, { installExistante: true }).cfg
+  assert.equal(coupe.connecteurs.dropshipper.actif, true, 'un Kantix 0.5.0 à 0.5.4 installé neuf (connecteur coupé) est branché une fois')
+  assert.equal(coupe.connecteurs.dropshipper.cleId, 'k1', 'sa clé des rayons est gardée'); assert.equal(coupe.projets.length, 1)
+  const recoupe = { ...coupe, connecteurs: { dropshipper: { actif: false, cleId: 'k1' } } }
+  assert.equal(kantix.migrer(recoupe, { installExistante: true }).change, false, 'coupé ensuite par Max : reste coupé')
 })
 
 // ------------------------------------------------------------------ providers

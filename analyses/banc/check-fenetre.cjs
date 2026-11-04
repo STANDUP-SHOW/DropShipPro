@@ -103,9 +103,13 @@ async function lancer({ maison, profil, port, serveur }) {
       const diag = await a.evaluer(`(async () => { try { if (typeof etat === 'undefined' || !etat) etat = (await window.poste.etat()).valeur; rendre(); return 'rendu sans erreur, boutons : ' + document.querySelectorAll('#onglets button').length } catch (e) { return 'rendre() lève : ' + (e && e.stack || e) } })()`)
       console.log('diag menu vide :', diag, '| corps :', JSON.stringify((await a.evaluer(`document.body.innerText.slice(0, 400)`)) || ''))
     }
-    // a new install of KANTIX ANALYSER: its own menu, the DropShipper connector not connected yet
-    assert.deepEqual(ec.onglets, ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal'])
-    assert.equal(e0.nom, 'KANTIX ANALYSER'); assert.equal(e0.kantix.connecteurs.dropshipper.actif, false); assert.equal(e0.kantix.fournisseurs.length, 11)
+    // a new install of KANTIX ANALYSER: its own menu plus DropShipper, connected from the start (04/11)
+    const MENU_DSP = ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal', 'Tableau de bord', 'Rapports du jour', 'Administration', 'Import Drive', 'Affiliation', 'Réseaux sociaux', 'Réglages']
+    assert.deepEqual(ec.onglets, MENU_DSP)
+    assert.equal(e0.nom, 'KANTIX ANALYSER'); assert.equal(e0.kantix.connecteurs.dropshipper.actif, true); assert.equal(e0.kantix.fournisseurs.length, 11)
+    assert.equal(e0.kantix.projets.filter((p) => p.connecteur === 'dropshipper').length, 1, 'projet DropShipper créé d’office')
+    const coupe = (await a.appel('connecteurActiver', { id: 'dropshipper', actif: false })).valeur
+    assert.equal(coupe.kantix.connecteurs.dropshipper.actif, false)
     const ec2 = (await a.appel('connecteurActiver', { id: 'dropshipper', actif: true })).valeur
     assert.equal(ec2.kantix.connecteurs.dropshipper.actif, true); assert.equal(ec2.kantix.projets[0].connecteur, 'dropshipper')
     await a.evaluer(`(async () => { etat = (await window.poste.etat()).valeur; rendre() })()`)

@@ -24,7 +24,7 @@ delete process.env.POSTE_ADMIN_SHA256
 
 const { default: express } = await import('express')
 const { adminRouter } = await import('./src/routes/admin.js')
-const { PREFIXE_ADMIN, empreinteDe, empreinteAttendue, cleAdminValide } = await import('./src/middleware/adminPoste.js')
+const { PREFIXE_ADMIN, empreinteDe, empreinteAttendue, empreintesAttendues, cleAdminValide } = await import('./src/middleware/adminPoste.js')
 const { CATEGORIES } = await import('./src/services/marketReports.js')
 
 let echecs = 0
@@ -73,6 +73,18 @@ console.log('\nQui peut entrer')
   const r = await appel('/moi', cle)
   exige(r.statut === 200 && r.corps?.ok === true, 'la bonne clé → 200', JSON.stringify(r.corps))
   exige(!JSON.stringify(r.corps).includes(cle), 'la clé n’est jamais renvoyée')
+}
+
+console.log('\nPlusieurs PC : plusieurs empreintes dans la même variable')
+{
+  const troisieme = `${PREFIXE_ADMIN}${crypto.randomBytes(32).toString('base64url')}`
+  exige(empreintesAttendues({ POSTE_ADMIN_SHA256: ` ${empreinteDe(cle)} , ${empreinteDe(autre).toUpperCase()};abc ` } as NodeJS.ProcessEnv).length === 2, 'virgule, point-virgule, majuscules ; entrée mal formée ignorée')
+  process.env.POSTE_ADMIN_SHA256 = `${empreinteDe(cle)},${empreinteDe(autre)}`
+  exige((await appel('/moi', cle)).statut === 200, 'le premier PC entre')
+  exige((await appel('/moi', autre)).statut === 200, 'le second PC entre')
+  exige((await appel('/moi', troisieme)).statut === 401, 'une clé absente de la liste → 401')
+  process.env.POSTE_ADMIN_SHA256 = empreinteDe(cle)
+  exige((await appel('/moi', autre)).statut === 401, 'empreinte retirée → ce PC ne rentre plus')
 }
 
 console.log('\nDépôt d’un rapport par la clé du Poste')

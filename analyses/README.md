@@ -28,6 +28,7 @@ pour lui et son équipe. Menu :
 - **Rayons sur n’importe quelle IA** (0.5.2, 26/10) : Anthropic n’est obligatoire que pour le brief d’une nouvelle analyse. Les rayons DropShipper tournent avec la clé choisie dans Connecteurs (par défaut la première clé dont le fournisseur cherche sur le web) : `lib/moteur-generique.js` garde seulement les pages que le fournisseur dit avoir lues. Sans recherche web (Mistral, DeepSeek…), il faut le moteur Serper.
 - **Rapports de rayon complets** (0.5.3, 27/10) : le niveau des études MARKETSPY du 12/10. `prompts/rayon.md` demande 42 champs par produit et les blocs sourcing, marketplaces, tendances sociales, publicité, stratégie, bundles, plan de test, alertes ; `lib/rapports-md.js` en tire les 16 sections, les tableaux (synthèse TOP 20, comparatif sourcing, comparatif marketplaces, scoring, battle sheet financière, plan de test) et l’annexe JSON. Le site reçoit l’étude dans `report_markdown`, lue par `backend/rapports-etude.cjs` comme un rapport du Drive, avec le même filtre public. Toute adresse jamais vue dans les preuves devient « Non vérifié », où qu’elle soit.
 - **Import Drive multi-dossiers** (0.5.4, 04/11) : onglet Import Drive, coller le lien d’un dossier Google Drive l’ajoute à la liste (gardée entre deux lancements) ; plusieurs liens d’un coup, doublons ignorés. Chaque dossier est lu par le site, sous-dossiers compris, et ses dates à importer se cochent dossier par dossier.
+- **DropShipper branché d’office** (0.5.5, 04/11) : une installation neuve, ou un 0.5.0 à 0.5.4 installé neuf, a le connecteur DropShipper allumé et son projet, une seule fois (un connecteur coupé ensuite reste coupé). Le site accepte plusieurs empreintes dans `POSTE_ADMIN_SHA256`, séparées par des virgules : chaque PC garde son accès.
 - **Connecteurs** : DropShipper (les rayons, échecs, lancement rayon par rayon,
   tout l'ancien Poste). Actif d'office sur une installation existante.
 
@@ -297,7 +298,7 @@ général du site, pour tous les utilisateurs, et pour lui seul.
 - **Le site** ne connaît que son **empreinte SHA-256**, que Max pose une fois dans la variable Railway
   `POSTE_ADMIN_SHA256` (bouton « Copier l'empreinte »). Sans la variable, `/api/admin` répond 503 :
   pas d'administrateur par défaut. Une clé inconnue : 401. L'ancien accès par e-mail est supprimé.
-- **Remplacer la clé** (PC changé) : « Remplacer la clé », puis poser la nouvelle empreinte dans Railway.
+- **Remplacer la clé** (PC changé) : « Remplacer la clé », puis poser la nouvelle empreinte dans Railway. **Un PC de plus** : sa clé, puis son empreinte ajoutée après une virgule dans la même variable (04/11).
 - **Ce qu'ouvre la clé aujourd'hui** (`backend/src/routes/admin.ts`) : `GET /moi` (test), `GET /utilisateurs`
   (comptes inscrits, jamais de mot de passe), `GET /newsletter`, `POST /rapports-poste` (les rapports).
   Boutiques, contact des utilisateurs, jetons et clés d'API, MCP : à venir, selon l'architecture que Max fournira.

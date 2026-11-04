@@ -115,27 +115,31 @@ function normaliserAnalyse(brut, existantes = [], projets = [], sources = []) {
 
 // ------------------------------------------------------------------ migration of a Poste d'analyses config
 /**
- * Brings a 0.4.x config to KANTIX without losing anything:
- *  - the Anthropic key becomes the key « Anthropic (Poste) » (same encrypted value, old slot kept);
- *  - the DropShipper connector is on for an existing install, off for a new one;
- *  - a « DropShipper » project, linked to the connector.
- * Idempotent: `kantixV1` marks it done.
+ * Brings an older config to the current KANTIX without losing anything:
+ *  - V1 (0.5.0): the Anthropic key of the Poste 0.4 becomes the key « Anthropic (Poste) » (same encrypted value,
+ *    old slot kept);
+ *  - V2 (0.5.5, 04/11): the DropShipper connector is on, with its « DropShipper » project, for a new install as
+ *    for an existing one (a new PC of Max must find DropShipper without a click). Applied once: a connector Max
+ *    cuts afterwards stays cut.
+ * Idempotent: `kantixV1` and `kantixV2` mark each step done. `installExistante` is kept for the caller's log only.
  */
-function migrer(cfg, { installExistante }) {
-  if (cfg.kantixV1) return { cfg, change: false }
-  const c = { ...cfg, cles: [...(cfg.cles || [])], projets: [...(cfg.projets || [])], analyses: [...(cfg.analyses || [])], secrets: { ...(cfg.secrets || {}) } }
-  let cleId = null
-  if (c.secrets.anthropic && !c.cles.some((k) => k.fournisseur === 'anthropic')) {
-    cleId = 'anthropic-poste'
-    c.cles.push({ id: cleId, fournisseur: 'anthropic', nom: 'Anthropic (Poste)', modele: '', base: '', creeLe: new Date().toISOString(), verifieeLe: null })
-    c.secrets[nomSecretCle(cleId)] = c.secrets.anthropic
+function migrer(cfg, _opts = {}) {
+  if (cfg.kantixV1 && cfg.kantixV2) return { cfg, change: false }
+  const c = { ...cfg, cles: [...(cfg.cles || [])], projets: [...(cfg.projets || [])], analyses: [...(cfg.analyses || [])], secrets: { ...(cfg.secrets || {}) }, connecteurs: { ...(cfg.connecteurs || {}) } }
+  if (!cfg.kantixV1 && c.secrets.anthropic && !c.cles.some((k) => k.fournisseur === 'anthropic')) {
+    c.cles.push({ id: 'anthropic-poste', fournisseur: 'anthropic', nom: 'Anthropic (Poste)', modele: '', base: '', creeLe: new Date().toISOString(), verifieeLe: null })
+    c.secrets[nomSecretCle('anthropic-poste')] = c.secrets.anthropic
+    if (!c.connecteurs.dropshipper) c.connecteurs.dropshipper = { actif: true, cleId: 'anthropic-poste' }
   }
-  const actif = Boolean(installExistante)
-  c.connecteurs = { dropshipper: { actif, cleId: cleId || null }, ...(cfg.connecteurs || {}) }
-  if (actif && !c.projets.some((p) => p.connecteur === 'dropshipper')) {
-    c.projets.push({ id: idUnique('dropshipper', c.projets), nom: 'DropShipper', url: 'https://www.drop-shipper.fr', cleId, dossier: { type: 'local', chemin: '' }, flux: { adresse: '' }, connecteur: 'dropshipper', creeLe: new Date().toISOString() })
+  if (!cfg.kantixV2) {
+    const dsp = c.connecteurs.dropshipper || { cleId: null }
+    c.connecteurs.dropshipper = { ...dsp, actif: true }
+    if (!c.projets.some((p) => p.connecteur === 'dropshipper')) {
+      c.projets.push({ id: idUnique('dropshipper', c.projets), nom: 'DropShipper', url: 'https://www.drop-shipper.fr', cleId: dsp.cleId || null, dossier: { type: 'local', chemin: '' }, flux: { adresse: '' }, connecteur: 'dropshipper', creeLe: new Date().toISOString() })
+    }
   }
   c.kantixV1 = true
+  c.kantixV2 = true
   return { cfg: c, change: true }
 }
 
