@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CreditCard, ExternalLink, Copy, Check, Rss, ShieldCheck, Ban } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { VentesMarket } from '../components/market/VentesMarket'
 import { useAuth } from '../lib/auth'
 import { demoAutorise } from '../lib/demo'
 import { api, type MarketVendeur, type MarketAdmin } from '../lib/api'
@@ -271,8 +272,8 @@ DELETE ${location.origin}/api/market/v1/annonces/SKU-1`}</pre>
           <div className="space-y-3">
             <p className="text-sm text-gray-300">
               {stripe?.inscrit
-                ? "Votre inscription Stripe n'est pas terminée. Vos produits sont déjà visibles sur le Market, mais l'achat s'ouvre quand Stripe a validé votre compte."
-                : "Pour vendre, activez vos paiements : Stripe vous demande votre identité et votre IBAN sur son propre formulaire. Rien de cela ne passe par DropShipper."}
+                ? "Votre inscription Stripe n'est pas terminée. Vos produits sont déjà achetables : votre part de chaque vente est mise de côté et vous est versée dès que Stripe a validé votre compte."
+                : "Vos produits sont achetables dès leur publication. Pour recevoir votre part (moins 5 %), activez vos paiements : Stripe vous demande votre identité et votre IBAN sur son propre formulaire. Rien de cela ne passe par DropShipper."}
             </p>
             <button type="button" disabled={enCours} onClick={() => ouvrirStripe(false)} className="btn-dropshop rounded-full px-5 py-2 text-sm font-bold text-white">
               {stripe?.inscrit ? "Terminer l'inscription Stripe" : 'Activer mes paiements (gratuit)'}
@@ -311,16 +312,7 @@ DELETE ${location.origin}/api/market/v1/annonces/SKU-1`}</pre>
 
       <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="mb-3 text-lg font-semibold">Mes ventes</h2>
-        {donnees && donnees.ventes.length === 0 && <p className="text-sm text-gray-400">Aucune vente pour le moment.</p>}
-        {donnees?.ventes.map((o) => (
-          <div key={o.id} className="flex items-center gap-3 border-t border-white/10 py-2 text-sm first:border-t-0">
-            <span className="min-w-0 flex-1 truncate">{o.quantite} × {o.titre}{o.variante ? ` (${o.variante})` : ''}</span>
-            <span className="hidden text-gray-400 md:inline">{o.acheteur}</span>
-            <span>{euros(o.montant)}</span>
-            <span className="text-gray-400">−{euros(o.commission)}</span>
-            <span className="text-gray-400">{date(o.payeeLe)}</span>
-          </div>
-        ))}
+        <VentesMarket />
       </section>
 
       {donnees && (

@@ -23,6 +23,30 @@ function cle(u) {
 }
 
 /**
+ * Every other address of the report (marketplace prices, sources, competitors…) must also have been
+ * seen: an unseen one becomes « Non vérifié ». supplier_url and image_url have their own rules above.
+ * Returns how many were removed (counted in stats; it does not hold the report back).
+ */
+function retirerUrlsNonVues(rapport, vues) {
+  let n = 0
+  const voir = (o) => {
+    if (!o || typeof o !== 'object') return
+    for (const k of Object.keys(o)) {
+      if (k === 'supplier_url' || k === 'image_url' || k === 'poste') continue
+      const v = o[k]
+      if (typeof v === 'string' && /^https?:\/\//i.test(v.trim()) && !vues.has(cle(v.trim()))) {
+        o[k] = NON_VERIFIE
+        n++
+      } else if (v && typeof v === 'object') voir(v)
+    }
+  }
+  voir(rapport)
+  if (Array.isArray(rapport.sources)) rapport.sources = rapport.sources.filter((s) => s !== NON_VERIFIE && !(s && typeof s === 'object' && s.url === NON_VERIFIE))
+  for (const p of Array.isArray(rapport.products) ? rapport.products : []) if (Array.isArray(p.sources)) p.sources = p.sources.filter((s) => s !== NON_VERIFIE)
+  return n
+}
+
+/**
  * @param {object} rapport  parsed MarketSpy JSON (mutated: unverified fields become "Non vérifié")
  * @param {Set<string>} urlsVues  URLs seen in search results or on pages read
  * @param {{imagesVues?: Set<string>, urlsFournisseurs?: Set<string>}} o
@@ -72,6 +96,8 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
     }
   }
 
+  const autresRetirees = retirerUrlsNonVues(rapport, vues)
+
   if (produits.length !== attendus) problemes.push(`${produits.length} produits au lieu de ${attendus}`)
   if (distinctes.size !== attendus) problemes.push(`${distinctes.size} URL vérifiées et distinctes au lieu de ${attendus}`)
   if (invention) problemes.push(`${invention} URL absentes des pages lues, remplacées par « ${NON_VERIFIE} »`)
@@ -87,7 +113,7 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
   return {
     ok: problemes.length === 0,
     problemes,
-    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, margesSuspectes, imagesInventees, horsSourcing, avecPrixAchat: produits.filter((p) => Number(p.purchase_price) > 0).length },
+    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, autresUrlsRetirees: autresRetirees, margesSuspectes, imagesInventees, horsSourcing, avecPrixAchat: produits.filter((p) => Number(p.purchase_price) > 0).length },
   }
 }
 

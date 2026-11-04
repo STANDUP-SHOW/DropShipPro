@@ -1017,24 +1017,34 @@ function etudeAiMarket(d, origine) {
     agent: 'marketspy',
     sources: nbSources,
   };
+  // The Kantix Poste (0.5.3, 27/10/2026) sends the whole MARKETSPY study, 16 sections, in
+  // report_markdown: read like a Drive report (same sections, same public filter), and kept out of
+  // the `marketspy` copy, which would carry it twice.
+  const etudeMd = typeof d.report_markdown === 'string' && d.report_markdown.trim() ? verdictFr(sectionsCompletes(d.report_markdown)) : '';
+  const analyseRayon = etudeMd || texteAnalyse(d);
+  const { report_markdown: _md, ...marketspy } = d;
+  const listeTextes = (v) => { const l = Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()) : []; return l.length ? l : null; };
   const dataRayon = JSON.stringify({
     type: 'rayon',
     ...enTete,
-    analysis: texteAnalyse(d),
+    analysis: analyseRayon,
     products: produitsPourLeSite,
-    marketspy: d,
+    marketspy,
   });
   const cp0 = d.creative_prompts || {};
+  const listesMkt = {
+    socialPlaces: listeTextes(d.social_places) || [],
+    adsCurrent: listeTextes(d.ads_current) || (d.alerts && d.alerts.breakout_products) || [],
+    trendsDaily: listeTextes(d.trends_daily) || (d.market && d.market.current_trends) || [],
+    trendingAds: listeTextes(d.trending_ads) || (d.market && d.market.emerging_trends) || [],
+  };
   const dataMarketing = JSON.stringify({
     type: 'marketing',
     ...enTete,
-    socialPlaces: [],
-    adsCurrent: (d.alerts && d.alerts.breakout_products) || [],
-    trendsDaily: (d.market && d.market.current_trends) || [],
-    trendingAds: (d.market && d.market.emerging_trends) || [],
+    ...listesMkt,
     imagePrompts: cp0.image_ads || [],
     videoPrompts: cp0.short_videos_30s || [],
-    marketspy: d,
+    marketspy,
   });
 
   const ecrire = (db, majLe = null) => {
@@ -1052,7 +1062,7 @@ function etudeAiMarket(d, origine) {
     db.prepare(`DELETE FROM rayon_reports WHERE id = ?`).run(idEnfantR);
     db.prepare(
       `INSERT INTO rayon_reports (id, report_id, analysis, products) VALUES (?, ?, ?, ?)`
-    ).run(idEnfantR, idRayon, texteAnalyse(d), JSON.stringify(produitsPourLeSite));
+    ).run(idEnfantR, idRayon, analyseRayon, JSON.stringify(produitsPourLeSite));
 
     // Les colonnes numeriques et d'identite sont remplies ICI, a l'import :
     // c'est ce qui rend les etudes comparables dans le temps. Les remplir plus
@@ -1152,10 +1162,10 @@ function etudeAiMarket(d, origine) {
     ).run(
       idEnfantM,
       idMkt,
-      JSON.stringify([]),
-      JSON.stringify((d.alerts && d.alerts.breakout_products) || []),
-      JSON.stringify((d.market && d.market.current_trends) || []),
-      JSON.stringify((d.market && d.market.emerging_trends) || []),
+      JSON.stringify(listesMkt.socialPlaces),
+      JSON.stringify(listesMkt.adsCurrent),
+      JSON.stringify(listesMkt.trendsDaily),
+      JSON.stringify(listesMkt.trendingAds),
       JSON.stringify(cp.image_ads || []),
       JSON.stringify(cp.short_videos_30s || [])
     );

@@ -2,7 +2,9 @@ import { Router, type Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, requireAdmin, type AuthedRequest } from '../middleware/auth.js'
-import { etatCompte, lienInscription, lienTableauDeBord, MarketIndisponible } from '../services/marketStripe.js'
+import { etatCompte, lienInscription, lienTableauDeBord, MarketIndisponible, rembourserLigne } from '../services/marketStripe.js'
+import { lireIdentite, identiteDe, emettreFacture, pageFacture, ErreurFacture } from '../services/marketFactures.js'
+import { sendMail } from '../services/mailer.js'
 import { COMMISSION, marketUrl, offresDe } from '../services/market.js'
 import { rattraperBoutiquesSurMarket } from '../services/marketAuto.js'
 
@@ -12,6 +14,7 @@ import { rattraperBoutiquesSurMarket } from '../services/marketAuto.js'
  *   /api/market/vendeur          état (Stripe, annonces, ventes, adresses des flux)
  *   /api/market/vendeur/stripe   lien d'inscription Stripe (création du compte Express)
  *   /api/market/vendeur/stripe/tableau  lien vers le tableau de bord Stripe Express
+ *   /api/market/vendeur/ventes   ventes, retours, factures (28/10/2026)
  *   /api/market/admin            chiffres, vendeurs, dernières ventes (admin seulement)
  *   /api/market/admin/annonces/:id/retirer   retire une annonce du Market
  */
@@ -280,5 +283,152 @@ marketApiRouter.post('/admin/annonces/:productId/retirer', requireAuth, requireA
   } catch (err) {
     console.error('[market] retrait', err instanceof Error ? err.message : err)
     res.status(500).json({ error: "Le retrait n'a pas pu être enregistré.", motif: 'retrait' })
+  }
+})
+
+// ——— Ventes, retours, factures et remboursements du vendeur (28/10/2026) ———
+
+const STATUTS_RETOUR: Record<string, string> = { DEMANDE: 'Demandé', ACCEPTE: 'Accepté', REFUSE: 'Refusé', REMBOURSE: 'Remboursé' }
+const MOTIFS: Record<string, string> = {
+  retractation: 'Rétractation (14 jours)',
+  defectueux: 'Produit défectueux ou abîmé',
+  'non-conforme': 'Produit non conforme',
+  erreur: 'Mauvais article reçu',
+  'non-recu': 'Colis non reçu',
+}
+
+marketApiRouter.get('/vendeur/ventes', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const [user, lignes] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: req.userId! }, select: { factureIdentite: true } }),
+      prisma.order.findMany({
+        where: { userId: req.userId!, platform: 'DROPSHOP_MARKET', paidAt: { not: null } },
+        include: { product: { select: { title: true, aiTitle: true } }, marketRetours: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        orderBy: { paidAt: 'desc' },
+        take: 300,
+      }),
+    ])
+    const identite = identiteDe(user.factureIdentite)
+    res.json({
+      identite: identite ?? (user.factureIdentite as Record<string, unknown> | null) ?? null,
+      identiteComplete: Boolean(identite),
+      ventes: lignes.map((o) => {
+        const r = o.marketRetours[0]
+        return {
+          id: o.id,
+          numero: o.marketNumero,
+          titre: o.product.aiTitle || o.product.title,
+          variante: o.variante,
+          quantite: o.quantity,
+          montant: Number(o.amount),
+          commission: Number(o.commission ?? 0),
+          acheteur: o.buyerName,
+          email: o.buyerEmail,
+          payeeLe: o.paidAt,
+          statut: o.status,
+          suivi: o.trackingNumber,
+          partVersee: Boolean(o.stripeTransferId),
+          facture: o.factureNumero,
+          avoir: o.avoirNumero,
+          rembourseLe: o.rembourseAt,
+          retour: r
+            ? { id: r.id, statut: r.statut, statutLibelle: STATUTS_RETOUR[r.statut] ?? r.statut, motif: MOTIFS[r.motif] ?? r.motif, message: r.message, reponse: r.reponse, adresseRetour: r.adresseRetour, demandeLe: r.createdAt }
+            : null,
+        }
+      }),
+    })
+  } catch (err) {
+    console.error('[market] ventes', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: 'Vos ventes Market n\'ont pas pu être chargées.', motif: 'ventes' })
+  }
+})
+
+marketApiRouter.put('/vendeur/facturation', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const identite = lireIdentite(req.body?.identite)
+    await prisma.user.update({ where: { id: req.userId! }, data: { factureIdentite: identite as unknown as object } })
+    res.json({ identite, identiteComplete: true })
+  } catch (err) {
+    if (err instanceof ErreurFacture) return res.status(400).json({ error: err.message })
+    console.error('[market] facturation', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: "L'identité de facturation n'a pas pu être enregistrée.", motif: 'facturation' })
+  }
+})
+
+marketApiRouter.post('/vendeur/commandes/:id/facture', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    res.json({ numero: await emettreFacture(req.params.id, req.userId!) })
+  } catch (err) {
+    if (err instanceof ErreurFacture) return res.status(409).json({ error: err.message })
+    console.error('[market] facture', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: "La facture n'a pas pu être émise.", motif: 'facture' })
+  }
+})
+
+/** La facture (ou l'avoir) en HTML, pour l'ouvrir et l'imprimer. */
+marketApiRouter.get('/vendeur/commandes/:id/facture', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const o = await prisma.order.findFirst({ where: { id: req.params.id, userId: req.userId! }, select: { id: true } })
+    const html = o ? await pageFacture(o.id, req.query.type === 'avoir' ? 'avoir' : 'facture') : null
+    if (!html) return res.status(404).json({ error: 'Aucune facture pour cette vente.' })
+    res.set('Cache-Control', 'no-store').type('html').send(html)
+  } catch (err) {
+    console.error('[market] lecture facture', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: "La facture n'a pas pu être affichée.", motif: 'lecture-facture' })
+  }
+})
+
+marketApiRouter.post('/vendeur/commandes/:id/rembourser', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    res.json(await rembourserLigne(req.params.id, req.userId!))
+  } catch (err) {
+    if (err instanceof MarketIndisponible) return res.status(409).json({ error: err.message })
+    erreur(res, err, 'remboursement')
+  }
+})
+
+const reponseRetour = z.object({
+  action: z.enum(['accepter', 'refuser']),
+  message: z.string().trim().max(2000).optional().default(''),
+  adresse: z.string().trim().max(500).optional().default(''),
+})
+
+marketApiRouter.post('/vendeur/retours/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const p = reponseRetour.safeParse(req.body)
+  if (!p.success) return res.status(400).json({ error: 'Réponse invalide.' })
+  const { action, message, adresse } = p.data
+  if (action === 'accepter' && adresse.length < 10) return res.status(400).json({ error: "Indiquez l'adresse où l'acheteur doit renvoyer le colis." })
+  if (action === 'refuser' && message.length < 10) return res.status(400).json({ error: "Expliquez à l'acheteur pourquoi vous refusez (10 caractères au moins)." })
+  try {
+    const r = await prisma.marketRetour.findFirst({
+      where: { id: req.params.id, order: { userId: req.userId! } },
+      include: { order: { include: { product: { select: { title: true, aiTitle: true } } } } },
+    })
+    if (!r) return res.status(404).json({ error: 'Demande de retour introuvable.' })
+    if (r.statut === 'REMBOURSE') return res.status(409).json({ error: 'Ce retour est déjà remboursé.' })
+    const statut = action === 'accepter' ? 'ACCEPTE' : 'REFUSE'
+    await prisma.marketRetour.update({ where: { id: r.id }, data: { statut, reponse: message || null, adresseRetour: action === 'accepter' ? adresse : r.adresseRetour, majAt: new Date() } })
+
+    const o = r.order
+    if (o.buyerEmail) {
+      const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      const titre = esc(o.product.aiTitle || o.product.title)
+      await sendMail({
+        to: o.buyerEmail,
+        subject: `DropShop Market — votre demande de retour ${action === 'accepter' ? 'est acceptée' : "n'est pas acceptée"}${o.marketNumero ? ` (${o.marketNumero})` : ''}`,
+        heading: action === 'accepter' ? 'Votre retour est accepté.' : "Le vendeur n'accepte pas ce retour.",
+        body:
+          action === 'accepter'
+            ? `${o.quantity} × ${titre}<br><br>Renvoyez le produit, dans son état d'origine, à cette adresse :<br><b>${esc(adresse).replace(/\n/g, '<br>')}</b>${message ? `<br><br>Message du vendeur : « ${esc(message)} »` : ''}<br><br>Vous êtes remboursé au plus tard 14 jours après votre demande ; le remboursement peut attendre la réception du colis ou la preuve de son envoi. Gardez votre preuve de dépôt.`
+            : `${o.quantity} × ${titre}<br><br>Réponse du vendeur : « ${esc(message)} »<br><br>Si vous pensez que c'est une erreur (rétractation dans les 14 jours, produit défectueux ou non conforme), répondez depuis la page de contact du Market : nous suivons votre demande.`,
+        ...(o.marketNumero ? { actionLabel: 'Voir ma commande', actionUrl: `${marketUrl()}/suivi?numero=${encodeURIComponent(o.marketNumero)}&email=${encodeURIComponent(o.buyerEmail)}` } : {}),
+        footer: 'DropShop Market (drop-shop.cloud).',
+        brand: 'DropShop Market',
+      }).catch((e) => console.error('[market] email de retour', e instanceof Error ? e.message : e))
+    }
+    res.json({ ok: true, statut })
+  } catch (err) {
+    console.error('[market] retour', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: "La réponse n'a pas pu être enregistrée.", motif: 'retour' })
   }
 })

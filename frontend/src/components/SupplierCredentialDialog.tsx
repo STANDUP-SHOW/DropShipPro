@@ -112,9 +112,19 @@ export function FormulaireFournisseur({
         */}
         {supplier.connecteurEcrit ? (
           <p className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">
-            Ce raccordement est <b>actif</b> : une fois relié, {supplier.label} alimente vos fiches —
-            catalogue, prix et stock à jour, commandes déposées depuis ici et numéros de suivi
-            remontés automatiquement.
+            {supplier.ecrit && !supplier.ecrit.commande ? (
+              <>
+                Ce raccordement est <b>actif</b> pour le catalogue : une fois relié, {supplier.label} se
+                parcourt depuis Catalogues connectés et ses fiches s'importent par l'API, prix compris.
+                Les commandes chez {supplier.label} se passent encore depuis son propre espace.
+              </>
+            ) : (
+              <>
+                Ce raccordement est <b>actif</b> : une fois relié, {supplier.label} alimente vos fiches —
+                catalogue, prix et stock à jour, commandes déposées depuis ici et numéros de suivi
+                remontés automatiquement.
+              </>
+            )}
           </p>
         ) : (
           <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">

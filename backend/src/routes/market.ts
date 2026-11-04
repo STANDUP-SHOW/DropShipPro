@@ -2,11 +2,13 @@ import express, { Router, type Request, type Response, type NextFunction } from 
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { prisma } from '../lib/prisma.js'
-import { rateLimit } from '../middleware/rateLimit.js'
 import { annonces, arbreMarket, boutiqueUrlDe, marketUrl, marketHosts, type Annonce } from '../services/market.js'
 import { googleMarketRss, metaMarketCsv, comparateurCsv, googleAdsEditorCsv } from '../services/marketFeeds.js'
 import { pageListe, pageProduit, pageMessage, pageVendre, cheminCategorie } from '../services/marketPages.js'
-import { ouvrirPaiementMarket, confirmerCommandeMarket, MarketIndisponible } from '../services/marketStripe.js'
+import { confirmerCommandeMarket } from '../services/marketStripe.js'
+import { ecrirePanier } from '../services/marketPanier.js'
+import { clientConnecte } from '../services/marketClients.js'
+import { marketClientRouter } from './marketClient.js'
 
 /**
  * DropShop Market, les pages publiques et les flux.
@@ -27,6 +29,9 @@ const PAR_PAGE = 48
 const DOSSIER_MARQUE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../marque')
 marketRouter.use('/marque', express.static(DOSSIER_MARQUE, { maxAge: '7d', fallthrough: false, index: false }))
 
+/** Le côté client : panier, commande, compte, suivi, retours, contact, pages d'information. */
+marketRouter.use(marketClientRouter)
+
 /** Express 4 : un handler async qui lève fait pendre la requête. On attrape tout. */
 function page(fn: (req: Request, res: Response) => Promise<unknown>) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -41,13 +46,6 @@ function page(fn: (req: Request, res: Response) => Promise<unknown>) {
 function numeroPage(req: Request) {
   const n = Number.parseInt(String(req.query.page ?? '1'), 10)
   return Number.isFinite(n) && n > 0 && n < 500 ? n : 1
-}
-
-/** L'adresse absolue du Market tel que l'acheteur le voit (retours de Stripe). */
-function baseAbsolue(req: Request) {
-  const proto = String(req.headers['x-forwarded-proto'] ?? req.protocol).split(',')[0].trim()
-  const hote = String(req.headers['x-forwarded-host'] ?? req.get('host') ?? '').split(',')[0].trim()
-  return hote ? `${proto}://${hote}${req.baseUrl}` : `${marketUrl()}${req.baseUrl}`
 }
 
 /**
@@ -66,10 +64,47 @@ async function vedettesDuMarket(): Promise<Annonce[]> {
     .map((x) => x.a)
 }
 
+/**
+ * Les filtres et tris de recherche, comme sur Amazon : prix, note, Prime, ordre.
+ * Le prix d'une annonce dépend de ses variantes (calculé, pas stocké) : quand un
+ * filtre est posé, on trie en mémoire sur les 2 000 annonces les plus récentes.
+ */
+const TRIS = { nouveautes: 'Nouveautés', 'prix-asc': 'Prix croissant', 'prix-desc': 'Prix décroissant', notes: 'Mieux notés' } as const
+type TriCle = keyof typeof TRIS
+
+function lireFiltres(req: Request) {
+  const nombre = (v: unknown) => {
+    const n = Number.parseFloat(String(v ?? '').replace(',', '.'))
+    return Number.isFinite(n) && n >= 0 ? n : null
+  }
+  const tri = (String(req.query.tri ?? '') in TRIS ? String(req.query.tri) : 'nouveautes') as TriCle
+  const f = { tri, min: nombre(req.query.min), max: nombre(req.query.max), prime: req.query.prime === '1', note4: req.query.note4 === '1' }
+  const actif = f.tri !== 'nouveautes' || f.min != null || f.max != null || f.prime || f.note4
+  return { ...f, actif }
+}
+
+function prixDe(a: Annonce): number {
+  const dispo = a.offres.filter((o) => o.disponible)
+  return Math.min(...(dispo.length ? dispo : a.offres).map((o) => o.prix))
+}
+
 async function liste(req: Request, filtre: Parameters<typeof annonces>[0]) {
   const n = numeroPage(req)
-  const res = await annonces({ ...filtre, limite: PAR_PAGE + 1, decalage: (n - 1) * PAR_PAGE })
-  return { page: n, annonces: res.slice(0, PAR_PAGE), suivante: res.length > PAR_PAGE }
+  const f = lireFiltres(req)
+  if (!f.actif) {
+    const res = await annonces({ ...filtre, limite: PAR_PAGE + 1, decalage: (n - 1) * PAR_PAGE })
+    return { page: n, annonces: res.slice(0, PAR_PAGE), suivante: res.length > PAR_PAGE, filtres: f }
+  }
+  let res = await annonces({ ...filtre, ...(f.prime ? { prime: true } : {}), limite: 2000 })
+  if (f.min != null) res = res.filter((a) => prixDe(a) >= f.min!)
+  if (f.max != null) res = res.filter((a) => prixDe(a) <= f.max!)
+  if (f.note4) res = res.filter((a) => (a.avis?.moyenne ?? 0) >= 4)
+  if (f.tri === 'prix-asc') res.sort((a, b) => prixDe(a) - prixDe(b))
+  if (f.tri === 'prix-desc') res.sort((a, b) => prixDe(b) - prixDe(a))
+  if (f.tri === 'notes') res.sort((a, b) => (b.avis?.moyenne ?? 0) * Math.log(1 + (b.avis?.nombre ?? 0)) - (a.avis?.moyenne ?? 0) * Math.log(1 + (a.avis?.nombre ?? 0)))
+  const debut = (n - 1) * PAR_PAGE
+  // Une page filtrée n'est pas indexée : c'est une vue, pas un contenu.
+  return { page: n, annonces: res.slice(debut, debut + PAR_PAGE), suivante: res.length > debut + PAR_PAGE, filtres: f, indexable: false }
 }
 
 function html(res: Response, corps: string, cache = 300) {
@@ -226,8 +261,11 @@ async function ficheProduit(req: Request, res: Response) {
   }
   const attendu = courante ? courante.chemin : annonce.offres[0].cheminProduit
   if (decodeURIComponent(req.path) !== attendu) return res.redirect(301, `${req.baseUrl}${attendu}`)
-  const { rayons: r } = await arbreMarket()
-  html(res, pageProduit(req.baseUrl, annonce, courante, r))
+  const [{ rayons: r }, voisins] = await Promise.all([
+    arbreMarket(),
+    annonce.categorie ? annonces({ categoryIds: [annonce.categorie.id], limite: 9 }) : Promise.resolve([] as Annonce[]),
+  ])
+  html(res, pageProduit(req.baseUrl, annonce, courante, r, voisins.filter((a) => a.product.id !== annonce.product.id).slice(0, 8)))
 }
 
 marketRouter.get('/p/:id', page(ficheProduit))
@@ -236,31 +274,6 @@ marketRouter.get('/p/:id/:slug/:variante', page(ficheProduit))
 
 marketRouter.get('/vendre', (req, res) => html(res, pageVendre(req.baseUrl), 3600))
 
-/** L'achat : une offre, une quantité, et l'acheteur part chez Stripe. */
-marketRouter.post(
-  '/acheter',
-  express.urlencoded({ extended: false, limit: '4kb' }),
-  rateLimit({ name: 'market-achat', windowMs: 3600_000, max: 30 }),
-  page(async (req, res) => {
-    const id = String(req.body?.offre ?? '').slice(0, 80)
-    const quantite = Math.min(10, Math.max(1, Number.parseInt(String(req.body?.quantite ?? '1'), 10) || 1))
-    const productId = id.split('-')[0]
-    const [annonce] = productId ? await annonces({ productId, limite: 1 }) : []
-    const offre = annonce?.offres.find((o) => o.id === id)
-    if (!annonce || !offre) return res.status(404).type('html').send(pageMessage(req.baseUrl, 'Produit introuvable', "Ce produit n'est plus en vente."))
-    if (!offre.disponible) return res.status(409).type('html').send(pageMessage(req.baseUrl, 'Variante épuisée', 'Cette variante est épuisée. Choisissez-en une autre.', { libelle: 'Revenir au produit', href: `${req.baseUrl}${offre.cheminProduit}` }))
-    try {
-      const url = await ouvrirPaiementMarket({ annonce, offre, quantite, base: baseAbsolue(req) })
-      res.redirect(303, url)
-    } catch (err) {
-      if (err instanceof MarketIndisponible) {
-        return res.status(409).type('html').send(pageMessage(req.baseUrl, 'Vente pas encore ouverte', err.message, { libelle: 'Revenir au produit', href: `${req.baseUrl}${offre.chemin}` }))
-      }
-      throw err
-    }
-  }),
-)
-
 marketRouter.get(
   '/merci',
   page(async (req, res) => {
@@ -268,11 +281,19 @@ marketRouter.get(
     res.set('Cache-Control', 'no-store')
     if (!/^cs_[A-Za-z0-9_]+$/.test(session)) return res.status(400).type('html').send(pageMessage(req.baseUrl, 'Commande introuvable', 'Le lien de confirmation est incomplet.'))
     const r = await confirmerCommandeMarket(session)
+    if (r.paye && req.query.panier === '1') ecrirePanier(req, res, [])
     if (!r.paye) {
       return res.type('html').send(pageMessage(req.baseUrl, 'Paiement en attente', "Stripe ne nous a pas encore confirmé le paiement. Vous recevrez un email dès qu'il le sera.", { libelle: "Retour à l'accueil", href: `${req.baseUrl}/` }))
     }
+    const client = await clientConnecte(req)
+    const suivi = r.numero ? (client ? `${req.baseUrl}/compte/commandes/${encodeURIComponent(r.numero)}` : `${req.baseUrl}/suivi`) : `${req.baseUrl}/`
     res.type('html').send(
-      pageMessage(req.baseUrl, 'Merci pour votre commande !', `Votre paiement${r.titre ? ` pour « ${r.titre} »` : ''} est confirmé. Le vendeur prépare votre colis ; un email de confirmation vous a été envoyé.`, { libelle: 'Continuer mes achats', href: `${req.baseUrl}/` }),
+      pageMessage(
+        req.baseUrl,
+        'Merci pour votre commande !',
+        `${r.numero ? `Commande ${r.numero} : votre` : 'Votre'} paiement est confirmé. Chaque vendeur prépare son colis et vous recevrez le numéro de suivi par email. Un email de confirmation vous a été envoyé.`,
+        { libelle: r.numero ? 'Suivre ma commande' : 'Continuer mes achats', href: suivi },
+      ),
     )
   }),
 )
@@ -281,7 +302,7 @@ marketRouter.get(
 
 marketRouter.get('/robots.txt', (_req, res) => {
   res.type('text/plain').set('Cache-Control', 'public, max-age=86400')
-  res.send(`User-agent: *\nAllow: /\nDisallow: /recherche\nDisallow: /acheter\nDisallow: /merci\n\nSitemap: ${marketUrl()}/sitemap.xml\n`)
+  res.send(`User-agent: *\nAllow: /\nDisallow: /recherche\nDisallow: /acheter\nDisallow: /merci\nDisallow: /panier\nDisallow: /commande\nDisallow: /compte\nDisallow: /suivi\n\nSitemap: ${marketUrl()}/sitemap.xml\n`)
 })
 
 marketRouter.get(
@@ -289,7 +310,7 @@ marketRouter.get(
   page(async (_req, res) => {
     const [liste, { rayons: r }] = await Promise.all([annonces({ limite: 5000 }), arbreMarket()])
     const vendeurs = new Set(liste.map((a) => a.vendeur.slug).filter((s): s is string => Boolean(s)))
-    const urls: Array<{ loc: string; lastmod?: Date; image?: string | null }> = [{ loc: '/' }, { loc: '/prime' }, { loc: '/vendre' }]
+    const urls: Array<{ loc: string; lastmod?: Date; image?: string | null }> = [{ loc: '/' }, { loc: '/prime' }, { loc: '/vendre' }, ...['aide', 'contact', 'livraison', 'retours', 'cgv', 'mentions-legales', 'confidentialite'].map((p) => ({ loc: `/${p}` }))]
     // Seules les catégories qui ont des annonces : une page vide n'a rien à faire dans le plan du site.
     const pleines = new Set(liste.flatMap((a) => (a.categorie ? [a.categorie.id, a.categorie.rayon.id] : [])))
     for (const x of r) {

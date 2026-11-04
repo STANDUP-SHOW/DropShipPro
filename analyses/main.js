@@ -1213,6 +1213,8 @@ if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
   // only a launch by hand (shortcut, Start menu) brings the window forward
   app.on('second-instance', (_e, argv) => { if (fenetre && !lancementDiscret(argv)) { fenetre.show(); fenetre.focus() } })
   app.whenReady().then(() => {
+    // Windows taskbar: same AppUserModelID as the installer shortcut (appId), so the running window groups under the shortcut and shows its Kantix icon
+    if (process.platform === 'win32') app.setAppUserModelId('fr.drop-shipper.poste-analyses')
     const installExistante = fs.existsSync(path.join(dossierDonnees(), 'config.json'))
     cfg = config.charger(dossierDonnees())
     // 0.5.0: the Poste becomes KANTIX ANALYSER; an existing install keeps its DropShipper connector on

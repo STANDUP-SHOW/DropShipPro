@@ -118,23 +118,6 @@ export const GROUPES: GroupeMenu[] = [
     ],
   },
   {
-    // DESKTOP POWER (demande de Max du 24/10/2026) : les pages qui vivent dans l'application desktop.
-    id: 'desktop',
-    titre: 'DESKTOP POWER',
-    icon: Monitor,
-    teinte: '#e85290',
-    note: "Téléchargez l'application desktop pour les utiliser.",
-    entrees: [
-      { to: '/application-desktop', label: "Télécharger l'application", icon: MonitorDown, mots: 'dropshipper desktop windows import en lot logiciel installer' },
-      { to: '/webshipper', label: 'WebShipper', icon: Globe, mots: 'navigateur intégré web' },
-      { to: '/smartmarket', label: 'SmartMarket', icon: ScanSearch, mots: 'comparer fournisseurs catalogues temu alibaba aliexpress' },
-      { to: '/remoteshipping', label: 'RemoteShipping', icon: Smartphone, mots: 'téléphone mobile partager liste à importer' },
-      { to: '/adsanalyser', label: 'AdsAnalyser', icon: Megaphone, mots: 'facebook ads library tiktok publicités analyse' },
-      { to: '/autoshipper-importer', label: 'AUTO-SHIPPER Importer', icon: Rocket, mots: 'autoshipper imports lots statistiques' },
-      { to: '/marketplus', label: 'MarketPlus', icon: Store, mots: 'vinted leboncoin facebook marketplace connecter comptes' },
-    ],
-  },
-  {
     id: 'canaux',
     titre: 'Canaux de vente',
     icon: ArrowUpRight,
@@ -193,6 +176,23 @@ export const GROUPES: GroupeMenu[] = [
       { to: '/tickets', label: 'Mes tickets', icon: Ticket, mots: 'assistance' },
       { to: '/guide', label: "Mode d'emploi", icon: BookOpen, mots: 'guide' },
       { to: '/guide#contact', label: 'Aide & contact', icon: LifeBuoy },
+    ],
+  },
+  {
+    // DESKTOP POWER (demande de Max du 24/10/2026) : les pages qui vivent dans l'application desktop.
+    id: 'desktop',
+    titre: 'DESKTOP POWER',
+    icon: Monitor,
+    teinte: '#e85290',
+    note: "Téléchargez l'application desktop pour les utiliser.",
+    entrees: [
+      { to: '/application-desktop', label: "Télécharger l'application", icon: MonitorDown, mots: 'dropshipper desktop windows import en lot logiciel installer' },
+      { to: '/webshipper', label: 'WebShipper', icon: Globe, mots: 'navigateur intégré web' },
+      { to: '/smartmarket', label: 'SmartMarket', icon: ScanSearch, mots: 'comparer fournisseurs catalogues temu alibaba aliexpress' },
+      { to: '/remoteshipping', label: 'RemoteShipping', icon: Smartphone, mots: 'téléphone mobile partager liste à importer' },
+      { to: '/adsanalyser', label: 'AdsAnalyser', icon: Megaphone, mots: 'facebook ads library tiktok publicités analyse' },
+      { to: '/autoshipper-importer', label: 'AUTO-SHIPPER Importer', icon: Rocket, mots: 'autoshipper imports lots statistiques' },
+      { to: '/marketplus', label: 'MarketPlus', icon: Store, mots: 'vinted leboncoin facebook marketplace connecter comptes' },
     ],
   },
 ]

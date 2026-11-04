@@ -241,7 +241,7 @@ module.exports = [
     name: 'Etsy',
     color: '#f56400',
     integration: 'api-ready',
-    title: 'Vendre sur Etsy : ce qui est autorisé, ce qui ferme la boutique',
+    title: 'Vendre sur Etsy : ce qui est permis, ce qui est banni',
     description:
       "Vendre sur Etsy : API publique en libre-service, mais un règlement qui interdit la revente de produits manufacturés. À lire avant d'ouvrir une boutique.",
     intro:

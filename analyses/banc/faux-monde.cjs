@@ -229,7 +229,13 @@ function creerServeur() {
               gross_margin: etat.mode === 'marge-pct' ? 280 : 15, net_margin_estimated: etat.mode === 'marge-pct' ? 280 : 12, roi_estimated: 0.9,
               decision: 'tester', problem_solved: 'gain de temps', target_customer: 'familles',
               scores: { global_opportunity_score: 70, demand_score: 70, trend_score: 60, margin_score: 60, supplier_score: 60, competition_score: 50, ads_potential_score: 60, risk_score: 30 },
-              marketplace_prices: { other: [{ merchant: 'Amazon.fr', price: 34, url: u }] },
+              marketplace_prices: { amazon: { price: 36, url: i === 0 ? 'https://inventee.example/amazon-1' : u }, cdiscount: 33, leboncoin: null, vinted: null, facebook_marketplace: null, other: [{ merchant: 'Amazon.fr', price: 34, url: u }] },
+              // the rest of the 42 fields of the full MARKETSPY study (27/10/2026)
+              segment: 'milieu', supplier_country: 'CN', supplier_rating: '4,8', supplier_reviews: '1 200', supplier_orders: `${(i + 1) * 100}+ vendus`,
+              warehouse: 'Chine', shipping_cost: 2, vat_included: false, warranty: '1 an', delivery_time: '8-12 j',
+              low_selling_price: 25 + i, high_selling_price: 39 + i, estimated_fees: 4, estimated_ads_cost: 6, estimated_return_risk_cost: 1,
+              maximum_buy_price: 14 + i, recommended_test_quantity: 20, competition_level: 'moyenne', differentiation: 'pack accessoires',
+              risks: ['transport non affiché'], sources: [u],
             }))
             if (etat.mode === 'dix-huit') produits.length = 18
             if (etat.mode === 'images') {
@@ -243,9 +249,18 @@ function creerServeur() {
               market: { current_trends: ['t1'], emerging_trends: ['e1'], declining_trends: ['d1'], seasonality: ['s1'], innovations: ['i1'], risks: ['r1'] },
               products: produits,
               bundles: [{ bundle_name: 'Pack', estimated_cost: 20, estimated_selling_price: 50, estimated_margin: 30, recommended_platform: 'Amazon' }],
-              business_ideas: ['idée'], alerts: { breakout_products: ['Produit 1'] },
+              business_ideas: ['idée'], alerts: { breakout_products: ['Produit 1'], supplier_price_drops: ['baisse'], high_margin_opportunities: ['marge'], saturated_products: ['Produit 9'], products_to_avoid: ['Produit 4'] },
               creative_prompts: { image_ads: ['# Facebook 1:1\nUne image'], short_videos_30s: ['# TikTok 9:16 — 15 s\nUne vidéo'] },
-              sources: [{ url: distinctes[0], title: 'Une source' }],
+              sources: [{ url: distinctes[0], title: 'Une source' }, { url: 'https://inventee.example/source', title: 'Source inventée' }],
+              sourcing: { platforms: [{ platform: 'AliExpress', findings: 'offres en lot', price_range: '10-29 €', moq: '1', eu_stock: 'non vérifié', delivery: '8-12 j', reliability: 'bonne', verdict: 'à négocier' }], synthesis: 'Le lot passe.' },
+              marketplaces: [{ platform: 'Amazon', relevant: true, observed_prices: '30-45 €', competition: '12 offres', opportunity: 'pack' }],
+              resale_synthesis: 'Revente réaliste entre 30 et 40 €.',
+              social_trends: [{ platform: 'TikTok', observations: 'démos courtes', trend_class: 'forte' }],
+              ads_intelligence: { platforms_checked: ['Meta Ads Library'], winning_angles: ['avant/après'], long_running_ads_patterns: ['UGC 30 s'], creative_patterns: ['démo'], hooks: ['« Ne l’achète pas avant… »'], offers: ['-20 %'], claims_to_avoid: ['allégation médicale'] },
+              marketing_strategy: { positioning: ['problème-solution'], targets: ['familles'], channels: [{ channel: 'Amazon', relevant: true, why: 'volume' }], ads: ['Meta'], seo: ['guide'], marketplace: ['Amazon'] },
+              risks_exclusions: ['produits sans CE écartés'],
+              final_decision: { buy_now: ['Produit 1'], negotiate: ['Produit 2'], watchlist: ['Produit 3'], avoid: ['Produit 4'], test_budget: '300 €', quantities: '20 unités' },
+              test_plan: [{ product: 'Produit 1', quantity: 20, buy_budget: 240, platform: 'Amazon', angle: 'avant/après', goal: '10 ventes', stop_threshold: 'CPA > 15 €' }],
             })
           }
           if (j.stream === false) {

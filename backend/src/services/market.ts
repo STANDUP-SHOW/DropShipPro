@@ -292,6 +292,8 @@ export { etatPour, codeBarresDe }
 
 interface FiltreAnnonces {
   productId?: string
+  /** Plusieurs produits d'un coup (panier, liste d'envies). */
+  productIds?: string[]
   shopSlug?: string
   recherche?: string
   /** Les catégories admises (un rayon = toutes ses catégories). */
@@ -316,6 +318,7 @@ export async function annonces(filtre: FiltreAnnonces = {}): Promise<Annonce[]> 
       platform: 'DROPSHOP_MARKET',
       status: 'PUBLISHED',
       ...(filtre.productId ? { productId: filtre.productId } : {}),
+      ...(filtre.productIds ? { productId: { in: filtre.productIds } } : {}),
       product: {
         ...(filtre.shopSlug ? { shop: { slug: filtre.shopSlug } } : {}),
         ...(filtre.categoryIds ? { categoryId: { in: filtre.categoryIds } } : {}),
