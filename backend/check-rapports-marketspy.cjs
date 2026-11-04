@@ -178,5 +178,49 @@ console.log('\nLes sections marketing sans puces (drones-2 du 12/10)');
   exige(JSON.stringify(lib.puces('- a\n- b')) === '["a","b"]', 'des puces restent des puces');
 }
 
+console.log('\nLes fournisseurs sous un nom raccourci (04/11)');
+{
+  const t = `## Téléphonie — Supports, cardans et accessoires
+
+## 1. Executive Summary
+Texte.
+
+## 7. TOP 20 produits gagnants — Tableau 1 (Synthèse TOP 20)
+
+| # | Produit | Prix de vente conseillé | Verdict |
+|---|---|---|---|
+| 1 | **Trépied suivi IA 360° autonome** | 49,90 € | **acheter maintenant** |
+| 2 | **Support voiture MagSafe Qi2 CryoBoost** | 54,90 € | **acheter maintenant** |
+| 3 | **Poignée photo MagSafe Bluetooth** | 29,90 € | **acheter maintenant** |
+
+### Tableau 2 — Sourcing
+
+| Produit | Plateforme | Lien fournisseur | Prix d'achat |
+|---|---|---|---|
+| 1. Trépied suivi IA 360° | AliExpress | [fiche](https://fr.aliexpress.com/item/1005001.html) | 9,50 € |
+| 2. Support CryoBoost | CJ Dropshipping | https://cjdropshipping.com/product/p-2.html | 12 € |
+| Poignée photo MagSafe | Alibaba | https://www.alibaba.com/product-detail/p3.html | 6 € |
+`;
+  const e = lib.etudeMarkdown({ texteRayon: t, texteMarketing: null, origineRayon: 'drive:d/2026-11-04/telephonie/accessoires.rayon.md', source: 'google-drive', indices: lib.indicesDuChemin('drive:d/2026-11-04/telephonie/accessoires.rayon.md') });
+  exige(e.ok && e.produits === 3, 'les 3 produits lus' + (e.ok ? '' : ' : ' + e.raison));
+  exige(e.ok && e.urlsDistinctes === 3, 'les 3 liens fournisseur retrouvés (rang « 1. », rang « 2. », début du nom)');
+  if (e.ok) {
+    const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'banc-marketspy-'));
+    const base2 = path.join(tmp2, 'rapports.db');
+    fs.copyFileSync(path.join(__dirname, 'rapports.db'), base2);
+    const db2 = new Database(base2);
+    try {
+      lib.ecrireEtude(db2, e);
+      const ps = JSON.parse(db2.prepare('SELECT data FROM reports WHERE id = ?').get(e.idRayon).data).products;
+      exige(ps[0].supplier === 'AliExpress' && JSON.stringify(ps[0]).includes('https://fr.aliexpress.com/item/1005001.html'), 'nom et lien du fournisseur du n° 1 : ' + JSON.stringify(ps[0]));
+      exige(ps[2].supplier === 'Alibaba', 'le n° 3 retrouvé par le début de son nom');
+      exige(ps[0].buyPrice !== '—', 'le prix d’achat du tableau de sourcing est repris : ' + ps[0].buyPrice);
+    } finally {
+      db2.close();
+      fs.rmSync(tmp2, { recursive: true, force: true });
+    }
+  }
+}
+
 console.log(rates ? `\n${rates} attente(s) manquée(s).` : '\nTout est conforme.');
 process.exit(rates ? 1 : 0);

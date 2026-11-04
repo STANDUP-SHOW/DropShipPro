@@ -485,10 +485,10 @@ function scoreDe(p) {
  * and a value that is not there stays empty.
  */
 function tableauProduitsParEntetes(bloc, texteComplet) {
-  const principal = tableaux(bloc).find((t) => t.entetes.some((e) => /^(rang|#)$/.test(e)) && t.entetes.some((e) => /^produit/.test(e)));
+  const principal = tableaux(bloc).find((t) => t.entetes.some((e) => /^(rang|#|n|no)?$/.test(e)) && t.entetes.some((e) => /^produit/.test(e)));
   if (!principal) return [];
   const col = (t, motif, sauf) => t.entetes.findIndex((e) => motif.test(e) && !(sauf && sauf.test(e)));
-  const iRang = col(principal, /^(rang|#)$/);
+  const iRang = col(principal, /^(rang|#|n|no)?$/); // a « # » header normalises to ""
   const iProduit = col(principal, /^produit/);
   const iAchat = col(principal, /cout rendu|prix (d )?achat/, /max/);
   const iVente = col(principal, /prix (de )?vente/);
@@ -501,23 +501,42 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
   const ventesAilleurs = new Map();
   // supplier table(s): any other table with a product column and an URL column
   const fournisseurs = new Map();
+  // The same table keyed by rank: other agents shorten the names there (« 1. Trépied suivi IA 360° »
+  // for « Trépied suivi IA 360° autonome », 04/11/2026), so the name alone matched nothing.
+  const fournisseursParRang = new Map();
   for (const t of tableaux(texteComplet)) {
     if (t === principal) continue;
     const iP = col(t, /^produit/);
-    const iU = col(t, /^url\b|lien/);
+    const iU = col(t, /^url\b|lien|fiche/);
+    const iR = col(t, /^(rang|#|n|no)?$/);
     if (iP >= 0 && iU < 0) {
       const iV = col(t, VENTES, /prix/);
       if (iV >= 0) for (const c of t.lignes) if (texteDeCellule(c[iV]) && !ventesAilleurs.has(cle(c[iP]))) ventesAilleurs.set(cle(c[iP]), texteDeCellule(c[iV]));
     }
     if (iP < 0 || iU < 0) continue;
-    const iF = col(t, /fournisseur|source/);
+    const iF = col(t, /fournisseur|source|plateforme/);
+    const iA = col(t, /cout rendu|prix (d )?achat/, /max/);
     const iV = col(t, VENTES, /prix/);
     for (const c of t.lignes) {
       if (iV >= 0 && texteDeCellule(c[iV]) && !ventesAilleurs.has(cle(c[iP]))) ventesAilleurs.set(cle(c[iP]), texteDeCellule(c[iV]));
       const k = cle(c[iP]);
-      if (k && !fournisseurs.has(k)) fournisseurs.set(k, { url: urlDeCellule(c[iU]), nom: iF >= 0 ? texteDeCellule(c[iF]) : '' });
+      const f = { url: urlDeCellule(c[iU]), nom: iF >= 0 ? texteDeCellule(c[iF]) : '', achat: iA >= 0 ? montantSeul(c[iA]) : null };
+      if (k && !fournisseurs.has(k)) fournisseurs.set(k, f);
+      const rangLigne = iR >= 0 ? nombre(c[iR]) : nombre((texteDeCellule(c[iP]).match(/^(\d{1,2})\s*[.)]\s/) || [])[1]);
+      if (rangLigne != null && !fournisseursParRang.has(Math.round(rangLigne))) fournisseursParRang.set(Math.round(rangLigne), f);
     }
   }
+  /** Exact name, then rank, then a name that starts the other (« Trépied suivi IA 360° » ⊂ « … autonome »). */
+  const fournisseurDe = (rang, cellule) => {
+    const k = cle(cellule);
+    if (fournisseurs.has(k)) return fournisseurs.get(k);
+    if (fournisseursParRang.has(rang)) return fournisseursParRang.get(rang);
+    for (const [n, f] of fournisseurs) {
+      const court = n.replace(/^\d{1,2}\s+/, '');
+      if (court.length >= 8 && (k.startsWith(court) || court.startsWith(k))) return f;
+    }
+    return null;
+  };
   // the structured annex completes what the tables leave empty, never the reverse
   const annexe = produitsAnnexe(annexeJson(texteComplet));
   const deLAnnexe = (rang, titre) =>
@@ -532,14 +551,14 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
     const rang = nombre(c[iRang]);
     const titre = texteDeCellule(c[iProduit]);
     if (rang == null || !titre) continue;
-    const f = fournisseurs.get(cle(c[iProduit])) || { url: '', nom: '' };
+    const f = fournisseurDe(Math.round(rang), c[iProduit]) || { url: '', nom: '' };
     const a = deLAnnexe(Math.round(rang), titre) || {};
     const urlAnnexe = /^https?:\/\//.test(String(a.supplier_url || '')) ? String(a.supplier_url) : '';
     const url = f.url || urlDeCellule(c.join(' ')) || urlAnnexe;
     const nbA = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
     // Prices: the annex numbers first (MARKETSPY writes them as JSON numbers), then a table cell holding one
     // amount. A cell « 12–18 € » read whole gave 1218 and « 29-49 € » nothing (*_eur columns, 12/10/2026).
-    const achat = nbA(a.estimated_landed_cost_france ?? a.purchase_price) ?? (iAchat >= 0 ? montantSeul(c[iAchat]) : null);
+    const achat = nbA(a.estimated_landed_cost_france ?? a.purchase_price) ?? (iAchat >= 0 ? montantSeul(c[iAchat]) : null) ?? f.achat ?? null;
     const vente = nbA(a.target_selling_price) ?? (iVente >= 0 ? montantSeul(c[iVente]) : null);
     const scoreTableau = iScore >= 0 ? nombre(c[iScore]) : null;
     const decision = verdictCellule((iDecision >= 0 ? texteDeCellule(c[iDecision]) : '') || String(a.decision || ''));
