@@ -400,6 +400,7 @@ console.log('\nL’édition du jour')
 console.log('\nLe Markdown')
 {
   exige(markdownEnHtml('| a | b |\n|---|---|\n| 1 | 2 |').includes('<td>2</td>'), 'un tableau')
+  exige(!/<table|<h3>/.test(markdownEnHtml('### Tableau 5 — Plan de test\n| Produit | Quantité test |\n|---|---|\n\nSuite.')) && markdownEnHtml('### Tableau 5 — Plan de test\n| Produit | Quantité test |\n|---|---|\n\nSuite.').includes('Suite.'), 'un tableau sans ligne part avec son intertitre (04/11)')
   exige(markdownEnHtml('1. un\n2. deux').startsWith('<ol>'), 'une liste ordonnée')
   exige(markdownEnHtml('### Sous-titre\ntexte').includes('<h3>Sous-titre</h3>'), 'un H3')
   exige(blocsDe('## A\nx\n## B\ny').length === 2, 'le découpage sur les H2')

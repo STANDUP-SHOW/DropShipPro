@@ -327,6 +327,12 @@ export function markdownEnHtml(texte: string): string {
       const cellules = (r: string) => r.split('|').slice(1, -1).map((c) => c.trim())
       const entetes = cellules(rangs[0])
       const corps = rangs.slice(2).map(cellules)
+      // A table with no row left (« Tableau 5 — Plan de test opérationnel », 04/11/2026) shows
+      // nothing but its headers: it goes, with the sub-heading that announced it.
+      if (!corps.length) {
+        if (sortie.length && sortie[sortie.length - 1].startsWith('<h3>')) sortie.pop()
+        continue
+      }
       sortie.push(
         `<div class="tableau"><table><thead><tr>${entetes.map((e) => `<th>${enLigne(e)}</th>`).join('')}</tr></thead><tbody>${corps
           .map((r) => `<tr>${r.map((c) => `<td>${enLigne(c)}</td>`).join('')}</tr>`)
