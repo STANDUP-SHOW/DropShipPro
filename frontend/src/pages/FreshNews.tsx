@@ -7,6 +7,7 @@ import { Markdown, blocsDe } from '../components/Markdown'
 import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
 import { PageCreative, Entete } from '../components/creative/Creative'
 import { GrilleRapports, Provenance, dateLongue, liste, melange, pagePublique, type LigneRapport } from '../components/creative/Veille'
+import { SynthesesDuJour } from '../components/creative/SynthesesDuJour'
 import { api } from '../lib/api'
 
 /**
@@ -142,6 +143,9 @@ export default function FreshNews() {
           ligne2="Votre prochain angle."
           chapo="Le marché, les produits et le marketing réunis dans une lecture courte. Puis les détails, quand vous en avez besoin."
         />
+
+        {/* ---------- La synthèse du jour : compteurs, phares, tendances, actualités ---------- */}
+        <SynthesesDuJour />
 
         {/* ---------- La grille des rapports ---------- */}
         <section className="mt-10">
