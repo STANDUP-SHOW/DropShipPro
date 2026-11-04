@@ -5,6 +5,8 @@
 
 import { Router, type RequestHandler } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { lignesPubliques } from './analysesPubliques.js'
+import { cheminRapport } from '../services/analysesPubliques.js'
 import { cheminRapportsActif, generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { CATEGORIES_PAR_RAYON } from '../services/marketReports.js'
 
@@ -204,20 +206,29 @@ function categoriesDemandees(rayon: unknown): string[] | null {
   return CATEGORIES_PAR_RAYON[rayon] ?? []
 }
 
+/** The public article of a report (/analyses/<rayon>/<sous-rayon>/<titre>/), or null when it has none (empty page, unnamed row). */
+function adressePublique(id: string): string | null {
+  try {
+    const l = lignesPubliques().find((x) => x.id === id)
+    return l ? cheminRapport(l) : null
+  } catch {
+    return null
+  }
+}
+
 /** La liste des analyses, en-têtes seulement. */
 reportsPublicRouter.get('/reports/analyses', sansCache, compte, (req, res) => {
   try {
     const rayon = categoriesDemandees(req.query.rayon)
     if (rayon && !rayon.length) return res.json({ rayonSansCategorie: true, categories: [], analyses: [] })
-    res.json(
-      baseRapports().getAnalyses({
-        type: (req.query.type as 'rayon' | 'marketing') || undefined,
-        categorie: (req.query.category as string) || undefined,
-        categories: rayon ?? undefined,
-        jour: (req.query.date as string) || undefined,
-        limite: req.query.limit ? Number(req.query.limit) : undefined,
-      }),
-    )
+    const donnees = baseRapports().getAnalyses({
+      type: (req.query.type as 'rayon' | 'marketing') || undefined,
+      categorie: (req.query.category as string) || undefined,
+      categories: rayon ?? undefined,
+      jour: (req.query.date as string) || undefined,
+      limite: req.query.limit ? Number(req.query.limit) : undefined,
+    })
+    res.json({ ...donnees, analyses: donnees.analyses.map((a) => ({ ...a, adresse: adressePublique(a.id) })) })
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch analyses', motif: motif(error) })
   }

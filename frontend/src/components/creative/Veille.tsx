@@ -17,6 +17,8 @@ export interface LigneRapport {
   theme: string
   themeNom: string
   titre: string
+  titreDuJour?: string | null
+  adresse?: string | null
   accroche: string | null
   sources: number
   produits: number
@@ -44,7 +46,8 @@ export function dateCourte(iso: string): string {
  * première forme, catégorie/date/thème : le serveur la renvoie en 301 vers
  * l'adresse actuelle de l'article, quel que soit son titre du jour.
  */
-export function pagePublique(r: Pick<LigneRapport, 'categorie' | 'day' | 'theme' | 'type'>): string {
+export function pagePublique(r: Pick<LigneRapport, 'categorie' | 'day' | 'theme' | 'type'> & { adresse?: string | null }): string {
+  if (r.adresse) return r.adresse
   return `/analyses/${r.categorie}/${r.day}/${r.theme}/${r.type === 'marketing' ? 'marketing/' : ''}`
 }
 
@@ -58,10 +61,16 @@ export function melange<T extends { id: string }>(lignes: T[], graine: string): 
   return [...lignes].sort((a, b) => poids(a.id) - poids(b.id))
 }
 
+/** Le titre d'une carte : le titre du jour, sinon celui du rapport, sinon le sous-rayon. */
+export function titreCarte(r: Pick<LigneRapport, 'titreDuJour' | 'titre' | 'themeNom'>): string {
+  return r.titreDuJour || r.titre || r.themeNom
+}
+
 export function GrilleRapports({
   rapports,
   numerotee = false,
   illustree = false,
+  article = false,
   actif,
   onOuvrir,
 }: {
@@ -70,6 +79,11 @@ export function GrilleRapports({
   numerotee?: boolean
   /** La photo du rayon en tête de carte (Fresh news). */
   illustree?: boolean
+  /**
+   * Fresh news (Max, 04/11/2026) : la carte mène à l'article public du rapport,
+   * sa page propre ; le bouton « Édition » ouvre les produits dans l'espace.
+   */
+  article?: boolean
   actif?: string | null
   onOuvrir: (r: LigneRapport) => void
 }) {
@@ -77,6 +91,46 @@ export function GrilleRapports({
     <div className="v-grille">
       {rapports.map((r, i) => {
         const photo = illustree ? photoSecteur({ categorie: r.categorie }) : null
+        const titre = titreCarte(r)
+        const image = illustree ? (
+          <div className="v-rapport-image">
+            {photo ? <img src={photo} alt="" loading="lazy" /> : null}
+            <span className="v-rapport-type" style={{ background: r.type === 'rayon' ? ACCENTS[0] : ACCENTS[1] }}>
+              {r.type === 'rayon' ? 'Marché' : 'Marketing'}
+            </span>
+          </div>
+        ) : null
+        const compte =
+          r.type === 'rayon'
+            ? `${r.produits} produit${r.produits > 1 ? 's' : ''} dans le rapport`
+            : `${r.sources} source${r.sources > 1 ? 's' : ''} consultée${r.sources > 1 ? 's' : ''}`
+        const sous = titre !== r.themeNom && r.themeNom ? <span className="text-xs text-[var(--c-texte-2)]">{r.themeNom}</span> : null
+        if (article) {
+          return (
+            <div key={r.id} className="v-rapport v-rapport-lien" data-actif={actif === r.id ? 'oui' : undefined}>
+              {image}
+              <div className="v-rapport-corps">
+                {numerotee ? <span className="v-rapport-numero">{String(i + 1).padStart(2, '0')}</span> : null}
+                <span className="v-rapport-sur">
+                  {r.categorieNom} / {dateLongue(r.day)}
+                </span>
+                <a className="v-rapport-titre v-rapport-article" href={pagePublique(r)} target="_blank" rel="noreferrer">
+                  {titre}
+                </a>
+                {sous}
+                <span className="v-rapport-pied">
+                  <span>{compte}</span>
+                  <button type="button" className="v-rapport-edition" onClick={() => onOuvrir(r)}>
+                    Édition
+                  </button>
+                  <span className="c-fleche !h-7 !w-7">
+                    <ArrowUpRight size={13} />
+                  </span>
+                </span>
+              </div>
+            </div>
+          )
+        }
         return (
           <button
             key={r.id}
@@ -85,29 +139,16 @@ export function GrilleRapports({
             aria-pressed={actif === r.id}
             onClick={() => onOuvrir(r)}
           >
-            {illustree ? (
-              <div className="v-rapport-image">
-                {photo ? <img src={photo} alt="" loading="lazy" /> : null}
-                <span className="v-rapport-type" style={{ background: r.type === 'rayon' ? ACCENTS[0] : ACCENTS[1] }}>
-                  {r.type === 'rayon' ? 'Marché' : 'Marketing'}
-                </span>
-              </div>
-            ) : null}
+            {image}
             <div className="v-rapport-corps">
               {numerotee ? <span className="v-rapport-numero">{String(i + 1).padStart(2, '0')}</span> : null}
               <span className="v-rapport-sur">
                 {r.categorieNom} / {dateLongue(r.day)}
               </span>
-              <span className="v-rapport-titre">{r.titre || r.themeNom}</span>
-              {r.titre && r.themeNom && r.titre !== r.themeNom ? (
-                <span className="text-xs text-[var(--c-texte-2)]">{r.themeNom}</span>
-              ) : null}
+              <span className="v-rapport-titre">{titre}</span>
+              {sous}
               <span className="v-rapport-pied">
-                <span>
-                  {r.type === 'rayon'
-                    ? `${r.produits} produit${r.produits > 1 ? 's' : ''} dans le rapport`
-                    : `${r.sources} source${r.sources > 1 ? 's' : ''} consultée${r.sources > 1 ? 's' : ''}`}
-                </span>
+                <span>{compte}</span>
                 <span className="c-fleche !h-7 !w-7">
                   <ArrowUpRight size={13} />
                 </span>

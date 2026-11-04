@@ -117,6 +117,7 @@ export default function FreshNews() {
   const nomRayon = cat?.nom ?? donnees?.categorie?.nom ?? ''
   const jourEdition = donnees?.jour ?? jour ?? ''
   const ligneDe = (r?: Rapport) => (r ? lignes.find((l) => l.id === r.id) : undefined)
+  const titreUne = ligneDe(rayon)?.titreDuJour || rayon?.titre || ligneDe(marketing)?.titreDuJour || marketing?.titre || ''
   const notes = useMemo(() => {
     const tous: Array<{ id: string; titre: string; corps: string; type: Rapport['type'] }> = []
     for (const r of [rayon, marketing]) {
@@ -149,7 +150,7 @@ export default function FreshNews() {
               <h2 className="c-h2">{jourMontre ? `Les rapports du ${dateLongue(jourMontre)}` : 'Les rapports du jour'}</h2>
               <p>
                 {duJour.length
-                  ? `${duJour.length} rapports, ${rayonsDuJour} rayon${rayonsDuJour > 1 ? 's' : ''}, dans un ordre mélangé. Touchez un titre pour ouvrir son édition.`
+                  ? `${duJour.length} rapports, ${rayonsDuJour} rayon${rayonsDuJour > 1 ? 's' : ''}, dans un ordre mélangé. Chaque carte ouvre l'article du rapport, sur sa page ; « Édition » montre ses produits à importer.`
                   : 'Chaque jour, deux rapports pour chacun des 24 rayons : le marché et ses 20 produits, et le marketing.'}
               </p>
             </div>
@@ -171,7 +172,7 @@ export default function FreshNews() {
             <p className="mt-6 text-sm text-[var(--c-texte-2)]">Pas encore de rapport déposé. Les agents écrivent chaque matin.</p>
           ) : (
             <div className="mt-5">
-              <GrilleRapports rapports={visibles} illustree actif={rayon?.id ?? marketing?.id ?? null} onOuvrir={ouvrir} />
+              <GrilleRapports rapports={visibles} illustree article actif={rayon?.id ?? marketing?.id ?? null} onOuvrir={ouvrir} />
               {duJour.length > PREMIERES ? (
                 <button type="button" className="c-bouton-sec mt-4" onClick={() => setTout((t) => !t)}>
                   {tout ? 'Montrer moins de rapports' : `Montrer les ${duJour.length - PREMIERES} autres rapports`}
@@ -214,7 +215,7 @@ export default function FreshNews() {
                     {jourEdition ? new Date(jourEdition + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }).replace('.', '') : ''}
                   </span>
                   <p className="c-etiquette">La une / synthèse de votre rapport</p>
-                  <h2 className="mt-4" data-long={(rayon?.titre || marketing?.titre || '').length > 48 ? '1' : undefined}>{rayon?.titre || marketing?.titre || `Fresh news ${nomRayon}`}</h2>
+                  <h2 className="mt-4" data-long={titreUne.length > 48 ? '1' : undefined}>{titreUne || `Fresh news ${nomRayon}`}</h2>
                   {rayon?.accroche || marketing?.accroche ? <p className="mt-4">{rayon?.accroche ?? marketing?.accroche}</p> : null}
                   <div className="relative mt-5 flex flex-wrap gap-2">
                     <a href="#essentiel" className="v-bouton-une">Lire les points clés <ArrowUpRight size={13} /></a>
@@ -245,7 +246,7 @@ export default function FreshNews() {
                   {marketing ? (
                     <div className="v-carte">
                       <p className="c-etiquette">L'angle créatif</p>
-                      <p className="mt-3 text-xl font-semibold leading-snug">{marketing.titre}</p>
+                      <p className="mt-3 text-xl font-semibold leading-snug">{ligneDe(marketing)?.titreDuJour || marketing.titre}</p>
                       {marketing.accroche ? <p className="mt-2 text-xs leading-relaxed text-[var(--c-texte-2)]">{marketing.accroche}</p> : null}
                       <div className="mt-4 flex flex-wrap gap-2">
                         {premierMarketing ? (

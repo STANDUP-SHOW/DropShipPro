@@ -125,7 +125,7 @@ export function sujetRapport(r: Pick<RapportPublic, 'day' | 'theme' | 'titre' | 
   return nettoyer(slugTitre(`${titre}-${reste}`, SUJET_MAX), annee) || titre
 }
 
-type Adressable = Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait'>
+type Adressable = Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait'> & { /** The stored title, before the title of the day replaced it. */ titreOrigine?: string }
 
 /**
  * Les adresses attribuées, rapport par rapport. Ni catégorie ni date dans
@@ -138,13 +138,35 @@ type Adressable = Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'ty
  */
 let attribuees = new Map<string, string>()
 
-function calculerAdresses(rapports: Adressable[], filtre = true): Map<string, string> {
+/**
+ * La forme de l'adresse. Depuis le 04/11/2026 (Max : « /beauté et soins/ongles
+ * et manucure/la transition vers le fast and safe DIY ») : le rayon, le
+ * sous-rayon, puis le titre du jour — /analyses/beaute-soins/ongles-manucure/<titre>/.
+ * La forme du 03/10 au 04/11 (thème/sujet, sans le rayon) redirige ici en 301.
+ */
+type Forme = 'rayon' | 'theme'
+function prefixe(r: Adressable, forme: Forme): string {
+  return forme === 'rayon' ? `/analyses/${r.categorie}/${r.theme}/` : `/analyses/${r.theme}/`
+}
+
+function calculerAdresses(rapports: Adressable[], filtre = true, forme: Forme = 'rayon', fixees?: Map<string, string>): Map<string, string> {
   const prises = new Set<string>()
   const carte = new Map<string, string>()
   const rang = (r: Adressable) => `${r.day}|${r.type === 'rayon' ? 0 : 1}|${r.id}`
   const ordre = [...rapports].sort((a, b) => (rang(a) < rang(b) ? -1 : 1))
+  // An address once given keeps its report, whatever its title becomes later (re-import, new headline).
+  if (fixees) {
+    for (const r of ordre) {
+      const f = fixees.get(r.id)
+      if (f && f.startsWith(prefixe(r, forme)) && adresseSaine(f) && !prises.has(f)) {
+        prises.add(f)
+        carte.set(r.id, f)
+      }
+    }
+  }
   for (const r of ordre) {
-    const base = `/analyses/${r.theme}/${sujetRapport(r, filtre)}`
+    if (carte.has(r.id)) continue
+    const base = `${prefixe(r, forme)}${sujetRapport(r, filtre)}`
     let choix = `${base}/`
     for (let n = 2; prises.has(choix); n++) choix = `${base}-${n}/`
     prises.add(choix)
@@ -153,25 +175,38 @@ function calculerAdresses(rapports: Adressable[], filtre = true): Map<string, st
   return carte
 }
 
-export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: boolean }>): void {
-  attribuees = calculerAdresses(rapports)
-  // Header-less Drive imports were titled by their bare theme until 12/10/2026
-  // (/analyses/lavage-sechage/lavage-sechage-2/). Those addresses were in the
-  // sitemap: replay that attribution and send each one to the current address.
+/** An address the sourcing terms never reach, in the current form: the only kind kept from the register. */
+export function adresseSaine(a: string): boolean {
+  return /^\/analyses\/[a-z0-9-]{1,60}\/[a-z0-9-]{1,60}\/[a-z0-9-]{1,120}\/$/.test(a) && !SUJET_PRIVE_SLUG.test(a)
+}
+const SUJET_PRIVE_SLUG = /(?:^|[/-])(?:marques?-blanches?|white-label|private-label|oem|odm|moq|grossistes?|prix-de-gros|en-gros|fournisseurs?|achats?|aliexpress|alibaba|1688|cjdropshipping)(?=$|[/-])/
+
+/**
+ * Attribue les adresses ; `fixees` = les adresses déjà données (registre gardé
+ * sur le volume) : elles ne bougent plus. Rend la carte id → adresse, à garder.
+ */
+export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: boolean }>, fixees?: Map<string, string>): Map<string, string> {
+  attribuees = calculerAdresses(rapports, true, 'rayon', fixees)
   anciennes = new Map()
   const actuelles = new Set(attribuees.values())
-  // The addresses before the sourcing terms left them (13/10/2026): each one sends to the current address.
-  const brutes = calculerAdresses(rapports, false)
-  for (const r of rapports) {
-    const ancienne = brutes.get(r.id)
-    if (ancienne && ancienne !== attribuees.get(r.id) && !actuelles.has(ancienne)) anciennes.set(ancienne, r.id)
+  const ancienne = (carte: Map<string, string>) => {
+    for (const r of rapports) {
+      const a = carte.get(r.id)
+      if (a && a !== attribuees.get(r.id) && !actuelles.has(a) && !anciennes.has(a)) anciennes.set(a, r.id)
+    }
   }
-  if (!rapports.some((r) => r.importeDrive)) return
-  const avant = calculerAdresses(rapports.map((r) => (r.importeDrive ? { ...r, titre: r.theme, une: null, extrait: null } : r)))
-  for (const r of rapports) {
-    const ancienne = avant.get(r.id)
-    if (r.importeDrive && ancienne && ancienne !== attribuees.get(r.id) && !actuelles.has(ancienne)) anciennes.set(ancienne, r.id)
+  // The theme/subject addresses (03/10 to 04/11/2026), with the title of the day and without it.
+  ancienne(calculerAdresses(rapports, true, 'theme'))
+  ancienne(calculerAdresses(rapports.map((r) => ({ ...r, une: null, titre: r.titreOrigine ?? r.titre })), true, 'theme'))
+  // The addresses before the sourcing terms left them (13/10/2026).
+  ancienne(calculerAdresses(rapports, false, 'theme'))
+  // Header-less Drive imports were titled by their bare theme until 12/10/2026 (/analyses/lavage-sechage/lavage-sechage-2/).
+  if (rapports.some((r) => r.importeDrive)) {
+    ancienne(calculerAdresses(rapports.map((r) => (r.importeDrive ? { ...r, titre: r.theme, une: null, extrait: null } : r)), true, 'theme'))
   }
+  // Addresses of this form given before (register), now held by nobody: they lead to their report.
+  if (fixees) for (const [id, a] of fixees) if (!actuelles.has(a) && !anciennes.has(a) && attribuees.has(id)) anciennes.set(a, id)
+  return attribuees
 }
 
 let anciennes = new Map<string, string>()
@@ -187,13 +222,13 @@ export function rapportA(chemin: string): string | null {
 }
 
 /**
- * L'adresse d'un rapport, comme un article : le thème, puis le sujet —
- * /analyses/interieur/meilleurs-accessoires-d-interieur-pour-voiture/.
- * Les formes précédentes (catégorie/date/thème, puis catégorie/sujet-date)
- * redirigent ici en 301 (routes/analysesPubliques.ts).
+ * L'adresse d'un rapport, comme un article : le rayon, le sous-rayon, puis le
+ * titre du jour — /analyses/auto-moto/interieur/meilleurs-accessoires-d-interieur-pour-voiture/.
+ * Les formes précédentes (catégorie/date/thème, catégorie/sujet-date, puis
+ * thème/sujet) redirigent ici en 301 (routes/analysesPubliques.ts).
  */
 export function cheminRapport(r: Adressable): string {
-  return attribuees.get(r.id) ?? `/analyses/${r.theme}/${sujetRapport(r)}/`
+  return attribuees.get(r.id) ?? `/analyses/${r.categorie}/${r.theme}/${sujetRapport(r)}/`
 }
 
 /** La forme du 03/10/2026 au soir (PR #25), gardée pour les redirections. */

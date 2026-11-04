@@ -5,7 +5,8 @@
  * (le tableau des produits, avec ses adresses, est dans le corps Markdown).
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
-import { titreProduitPublic, verdictSurveille, sansDebris, sansConseilEnLot, sansPhrasesFournisseurs, prixBasSources, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, annoncesRecomptees, teteRecomptee, sansConsignesPoste, listesEnLigne, sansOuvertureOrpheline, sansMentionPrivee, estPrivee, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { titreProduitPublic, verdictSurveille, sansDebris, sansConseilEnLot, sansPhrasesFournisseurs, prixBasSources, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, annoncesRecomptees, teteRecomptee, sansConsignesPoste, listesEnLigne, sansOuvertureOrpheline, sansMentionPrivee, estPrivee, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, rapportAncienneAdresse, adresseSaine, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
+import { titreDuJourAuto, titreGenerique, enTitre } from './src/services/titreDuJour.js'
 import { lireRapport } from './src/services/marketReports.js'
 import { ReportQuery } from './src/services/reportsDb.js'
 
@@ -323,9 +324,9 @@ console.log('\nL’archive, l’index, le sitemap')
   exige(xml.includes('<loc>https://www.drop-shipper.fr/analyses/telephonie/</loc>'), 'et la catégorie')
   exige(xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(rapport)}</loc>`) && xml.includes(`<loc>https://www.drop-shipper.fr${cheminRapport(marketing)}</loc>`), 'et chaque rapport')
   exige(
-    cheminRapport(rapport) === '/analyses/chargeurs-cables/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre/' &&
-      cheminRapport(marketing) === '/analyses/chargeurs-cables/vendre-des-chargeurs-gan-angles-et-prompts/',
-    'les adresses se lisent comme des articles : le thème, puis le sujet, ni catégorie ni date',
+    cheminRapport(rapport) === '/analyses/telephonie/chargeurs-cables/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre/' &&
+      cheminRapport(marketing) === '/analyses/telephonie/chargeurs-cables/vendre-des-chargeurs-gan-angles-et-prompts/',
+    'les adresses se lisent comme des articles : le rayon, le sous-rayon, puis le titre du jour, sans date (04/11/2026)',
     cheminRapport(rapport),
   )
   exige(ancienCheminRapport(rapport) === '/analyses/telephonie/2026-09-18/chargeurs-cables/', 'la première adresse reste calculable, pour la redirection')
@@ -353,7 +354,42 @@ console.log('\nLe sujet : titre du jour, sinon titre + extrait percutant')
   attribuerAdresses([j3, j1, j2])
   exige(cheminRapport(j1) === avant[0] && cheminRapport(j2) === avant[1] && cheminRapport(j3).endsWith('-3/'), 'une adresse publiée ne bouge plus')
   exige(rapportA(avant[1]) === 'r2', 'et chaque adresse mène à son rapport')
+  exige(rapportAncienneAdresse('/analyses/chargeurs-cables/chargeurs-gan-et-cables-tresses-ce-qui-se-vend-en-septembre/') === 'r1', 'la forme thème/sujet (03/10 au 04/11) mène au rapport, pour la 301')
+
+  // Registre : une adresse donnée ne bouge plus, même quand le titre du jour change (réimport, titre ajouté).
+  const donnees = attribuerAdresses([j1])
+  const renomme = { ...j1, une: 'Un tout autre titre pour le même rapport' }
+  attribuerAdresses([renomme], donnees)
+  exige(cheminRapport(renomme) === donnees.get('r1'), 'le registre garde l’adresse donnée', cheminRapport(renomme))
+  attribuerAdresses([renomme])
+  exige(cheminRapport(renomme) !== donnees.get('r1'), 'sans registre, le titre ferait une nouvelle adresse (d’où le registre)')
+  attribuerAdresses([renomme], new Map([['r1', '/analyses/telephonie/chargeurs-cables/marge-en-gros-chez-le-fournisseur/']]))
+  exige(!cheminRapport(renomme).includes('fournisseur'), 'une adresse privée du registre est écartée', cheminRapport(renomme))
+  exige(!adresseSaine('/analyses/telephonie/chargeurs-cables/prix-de-gros-aliexpress/') && adresseSaine('/analyses/telephonie/chargeurs-cables/le-gan-a-gagne/'), 'adresseSaine refuse les termes de sourcing')
   attribuerAdresses([rapport, marketing])
+}
+
+console.log('\nLe titre du jour tiré du début du rapport (04/11/2026)')
+{
+  const analyse = [
+    '## Executive Summary',
+    '',
+    'Le rayon vit la transition vers le fast & safe DIY : les kits gel sans lampe UV et les press-on réutilisables captent la demande de novembre, portée par TikTok. Marge brute moyenne de 62 %.',
+    '',
+    '**Opportunité principale** : kits press-on à 14,90 € chez AliExpress',
+  ].join('\n')
+  const base = { titre: 'Beauté et soins — Ongles et manucure', type: 'rayon' as const, categorieNom: 'Beauté et soins', themeNom: 'Ongles et manucure', analyse }
+  exige(titreGenerique(base.titre, base.categorieNom, base.themeNom), '« Rayon — Sous-rayon » est un titre générique')
+  exige(!titreGenerique('PetTok, le transfo avant/après', 'Animaux', 'Toilettage'), 'un titre de une ne l’est pas')
+  const t = titreDuJourAuto(base)
+  exige(t === 'Le rayon vit la transition vers le fast & safe DIY', 'la première proposition de la synthèse', t)
+  exige(titreDuJourAuto({ ...base, titre: 'PetTok, le transfo avant/après' }) === null, 'un titre original reste le titre')
+  const prive = titreDuJourAuto({ ...base, analyse: '## Synthèse\n\nAcheter en gros à 3 € chez le fournisseur.\n\n**Opportunité principale** : le retour des housses tricotées vintage' })
+  exige(prive === 'Le retour des housses tricotées vintage', 'une phrase de sourcing n’est jamais un titre : on passe à la suivante', prive)
+  exige(titreDuJourAuto({ ...base, analyse: '## Synthèse\n\nMarge de 40 % sur AliExpress.' }) === null, 'sans phrase propre, le rapport garde son titre')
+  const long = enTitre("La demande pour les lampes de luminothérapie s'envole avec le changement d'heure et la baisse de luminosité qui touche l'Europe du Nord")
+  exige(!!long && long.length <= 90 && !/\s(et|la|de)$/.test(long), 'coupé à un mot, sans mot-outil pendant', long ?? '')
+  exige(sujetRapport({ ...rapport, une: t }) === 'le-rayon-vit-la-transition-vers-le-fast-safe-diy', 'il fait l’adresse', sujetRapport({ ...rapport, une: t }))
 }
 
 console.log('\nLe robot IndexNow')
