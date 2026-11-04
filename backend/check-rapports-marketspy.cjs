@@ -222,5 +222,54 @@ Texte.
   }
 }
 
+console.log('\nLes liens écrits autrement (04/11)');
+{
+  const t = `## Téléphonie — Supports
+
+## 1. Executive Summary
+Texte.
+
+## 7. TOP 20 produits gagnants
+
+| # | Produit | Prix de vente conseillé | Verdict |
+|---|---|---|---|
+| 1 | Trépied IA | 49,90 € | acheter maintenant |
+| 2 | Support CryoBoost | 54,90 € | acheter maintenant |
+| 3 | Poignée photo | 29,90 € | acheter maintenant |
+| 4 | Anneau MagSafe | 14,90 € | acheter maintenant |
+
+| # | Produit | Plateforme | Lien |
+|---|---|---|---|
+| 1 | Trépied IA | \`AliExpress\` | \`https://fr.aliexpress.com/item/1005001.html\` |
+| 2 | Support CryoBoost | AliExpress | fr.aliexpress.com/item/1005002.html |
+| 3 | Poignée photo | AliExpress | [fr.aliexpress.com](https://fr.aliexpress.com) |
+| 4 | Anneau MagSafe | AliExpress | https://fr.aliexpress.com/item/1005004.html. |
+
+## Annexe — JSON structuré
+\`\`\`json
+{ "products": [ { "rank": 3, "product_name": "Poignée photo", "supplier_url": "https://fr.aliexpress.com/item/1005003.html" } ] }
+\`\`\`
+`;
+  const e = lib.etudeMarkdown({ texteRayon: t, texteMarketing: null, origineRayon: 'drive:d/2026-11-04/telephonie/accessoires.rayon.md', source: 'google-drive', indices: lib.indicesDuChemin('drive:d/2026-11-04/telephonie/accessoires.rayon.md') });
+  if (!e.ok) exige(false, 'lu : ' + e.raison);
+  else {
+    const tmp3 = fs.mkdtempSync(path.join(os.tmpdir(), 'banc-marketspy-'));
+    const base3 = path.join(tmp3, 'rapports.db');
+    fs.copyFileSync(path.join(__dirname, 'rapports.db'), base3);
+    const db3 = new Database(base3);
+    try {
+      lib.ecrireEtude(db3, e);
+      const u = JSON.parse(db3.prepare('SELECT data FROM reports WHERE id = ?').get(e.idRayon).data).products.map((p) => p.supplierUrl);
+      exige(u[0] === 'https://fr.aliexpress.com/item/1005001.html', 'lien entre « ` » sans les « ` » : ' + u[0]);
+      exige(u[1] === 'https://fr.aliexpress.com/item/1005002.html', 'lien sans « https:// » complété : ' + u[1]);
+      exige(u[2] === 'https://fr.aliexpress.com/item/1005003.html', 'domaine seul remplacé par la fiche de l’annexe : ' + u[2]);
+      exige(u[3] === 'https://fr.aliexpress.com/item/1005004.html', 'point final retiré : ' + u[3]);
+    } finally {
+      db3.close();
+      fs.rmSync(tmp3, { recursive: true, force: true });
+    }
+  }
+}
+
 console.log(rates ? `\n${rates} attente(s) manquée(s).` : '\nTout est conforme.');
 process.exit(rates ? 1 : 0);
