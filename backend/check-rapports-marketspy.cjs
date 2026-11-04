@@ -56,7 +56,7 @@ Classement du jour.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Mini lave-linge portable | 3 kg | Usine | 32 € | 89 € | 40 € | 85 | | BUY |
 | 2 | Sèche-linge pliable | — | Usine | 12–18 € | 45-55 € | 20 € | | | BUY IF NEGOTIATED |
-| 3 | Filtre anti-peluches | — | Usine | 2 € | 9-12 € | 4 € | | 300 / mois | AVOID |
+| 3 | **Filtre anti-peluches** | — | Usine | 2 € | 9-12 € | 4 € | | 300 / mois | AVOID |
 
 ## 8. Battle sheet achat / revente
 | Produit | Fournisseur | URL | Prix achat |
@@ -129,6 +129,7 @@ try {
   exige(prix[0].a === 32 && prix[0].v === 89, 'sans prix dans l’annexe, le montant unique du tableau');
   exige(prix[1].a === 15.5 && prix[1].v === 49, 'les nombres de l’annexe priment sur une fourchette du tableau (« 12–18 € » donnait 1218)');
   exige(prix[2].a === 2 && prix[2].v === null && prix[2].m === null, 'une fourchette sans nombre dans l’annexe reste vide, jamais devinée');
+  exige(!data.products.some((x) => /\*\*/.test(JSON.stringify(x))), 'aucun « ** » de mise en gras dans les produits (04/11)');
   const ventes = data.products.map((x) => x.sales ?? null);
   exige(ventes[0] === '1 200+ / mois', "ventes de l'annexe quand la case du tableau est vide");
   exige(ventes[1] === (640).toLocaleString('fr-FR'), 'ventes rangées un niveau plus bas dans l’annexe');

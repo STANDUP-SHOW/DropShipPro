@@ -72,6 +72,8 @@ function urlDeCellule(cellule) {
 function texteDeCellule(cellule) {
   return String(cellule || '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // Other agents bold whole cells (« **Trépied IA 360°** », 04/11/2026): emphasis is markup, not text.
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
     .replace(/\s+/g, ' ')
     .trim();
 }
