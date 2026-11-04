@@ -62,10 +62,26 @@ function eur(n) {
  * On prend la premiere adresse http du libelle, et rien d'autre.
  */
 function urlDeCellule(cellule) {
-  const m = String(cellule || '').match(/\((https?:\/\/[^)\s]+)\)/);
+  // Code marks around a link (« `https://…` », 04/11/2026) are markup, never part of the address.
+  const c = String(cellule || '').replace(/`/g, ' ');
+  const m = c.match(/\((https?:\/\/[^)\s]+)\)/);
   if (m) return m[1];
-  const brut = String(cellule || '').match(/https?:\/\/[^\s)|]+/);
-  return brut ? brut[0] : '';
+  const brut = c.match(/https?:\/\/[^\s)|<>"]+/);
+  if (brut) return brut[0].replace(/[.,;:!?»]+$/, '');
+  // An address written without its scheme (« fr.aliexpress.com/item/1005….html »): only with a path,
+  // a bare domain says where to look, not which product.
+  const nu = c.match(/(?:^|[\s(])((?:[a-z0-9-]+\.)+[a-z]{2,}\/[^\s)|<>"]+)/i);
+  return nu ? `https://${nu[1].replace(/[.,;:!?»]+$/, '')}` : '';
+}
+
+/** A product page rather than a site's front door: an address with a path. */
+function aUnChemin(u) {
+  try {
+    const p = new URL(u).pathname;
+    return p.length > 1;
+  } catch {
+    return false;
+  }
 }
 
 /** Le texte visible d'une cellule, liens Markdown aplatis. */
@@ -74,6 +90,7 @@ function texteDeCellule(cellule) {
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     // Other agents bold whole cells (« **Trépied IA 360°** », 04/11/2026): emphasis is markup, not text.
     .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/`([^`]*)`/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -554,7 +571,10 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
     const f = fournisseurDe(Math.round(rang), c[iProduit]) || { url: '', nom: '' };
     const a = deLAnnexe(Math.round(rang), titre) || {};
     const urlAnnexe = /^https?:\/\//.test(String(a.supplier_url || '')) ? String(a.supplier_url) : '';
-    const url = f.url || urlDeCellule(c.join(' ')) || urlAnnexe;
+    // The most precise address wins: a bare « https://fr.aliexpress.com » in one table loses to a
+    // product page found in another or in the annex.
+    const candidats = [f.url, urlDeCellule(c.join(' ')), urlAnnexe].filter(Boolean);
+    const url = candidats.find(aUnChemin) || candidats[0] || '';
     const nbA = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
     // Prices: the annex numbers first (MARKETSPY writes them as JSON numbers), then a table cell holding one
     // amount. A cell « 12–18 € » read whole gave 1218 and « 29-49 € » nothing (*_eur columns, 12/10/2026).
