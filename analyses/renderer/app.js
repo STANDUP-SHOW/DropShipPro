@@ -283,9 +283,12 @@ function sansCleAdmin(titre) {
 }
 
 // ---------------------------------------------------------------- import Google Drive
+// Several public folders, kept on this computer: pasting a link adds one. Each is read
+// with all its sub-folders by the site; the folder pasted can be a parent, a date or a category.
 const ADRESSE_DRIVE = 'https://drive.google.com/drive/folders/17mUuLYxUAzt9PFBNv_SCBdzHlCyEQM1k'
-const drive = { adresse: ADRESSE_DRIVE, liste: null, choisies: new Set(), rapport: null, enCours: null }
-const ATTENDU_DRIVE = 'Pour être importé, un rayon doit avoir dans son dossier de date un fichier <thème>.rayon.md (en-tête date, categorie, theme, puis le tableau des produits), avec ou sans <thème>.marketing.md ; ou un .json aiMARKET qui porte un bloc « study ». Un .marketing.md seul, un .json sans « study » ou une note de sourcing ne s’importent pas.'
+const CLE_DOSSIERS_DRIVE = 'kantix.dossiersDrive'
+const drive = { dossiers: lireDossiersDrive(), ajout: '', listes: {}, choisies: {}, rapports: [], enCours: null }
+const ATTENDU_DRIVE = 'Pour être importé, un rayon doit avoir un fichier <thème>.rayon.md (le tableau des produits), avec ou sans <thème>.marketing.md, ou un .json aiMARKET qui porte un bloc « study ». Sa date vient du dossier AAAA-MM-JJ qui le contient, sinon de son en-tête (date, categorie). Un .marketing.md seul, un .json sans « study » ou une note de sourcing ne s’importent pas.'
 /** Why a study found in the folder cannot be imported, before anything is sent. */
 function motifNonImportable(x) {
   if (x.importable) return null
@@ -293,84 +296,163 @@ function motifNonImportable(x) {
 }
 const STATUT_DRIVE = { importe: ['importée', 'bon'], apercu: ['à importer', ''], doublon: ['doublon ignoré', ''], refuse: ['refusée', 'mauvais'] }
 
-async function driveLister() {
-  drive.enCours = 'liste'; drive.rapport = null; flash('Lecture du dossier sur Google Drive (par le site)…')
-  const l = await appel('adminDriveLister', { adresse: drive.adresse })
-  drive.enCours = null
-  if (l) {
-    drive.liste = l
-    // Preselect the dates that hold something new.
-    drive.choisies = new Set(l.dates.filter((d) => d.etudes.some((x) => x.importable && !x.dejaEnBase)).map((d) => d.date))
-    flash('')
-  }
+/** The folder id of a Drive link (same patterns as the site), or null. */
+function idDrive(adresse) {
+  const a = String(adresse || '').trim()
+  const m = a.match(/\/folders\/([A-Za-z0-9_-]{10,})/) || a.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || a.match(/^([A-Za-z0-9_-]{10,})$/)
+  return m ? m[1] : null
+}
+function lireDossiersDrive() {
+  try {
+    const l = JSON.parse(localStorage.getItem(CLE_DOSSIERS_DRIVE) || 'null')
+    if (Array.isArray(l) && l.length) return l.filter((a) => typeof a === 'string' && idDrive(a))
+  } catch { /* no saved list: the default folder */ }
+  return [ADRESSE_DRIVE]
+}
+function garderDossiersDrive() {
+  try { localStorage.setItem(CLE_DOSSIERS_DRIVE, JSON.stringify(drive.dossiers)) } catch { /* kept for this session only */ }
 }
 
-async function driveImporter(essai) {
-  drive.enCours = essai ? 'apercu' : 'import'; flash(essai ? 'Vérification de la qualité…' : 'Import en cours…')
-  const r = await appel('adminDriveImporter', { adresse: drive.adresse, dates: [...drive.choisies], essai })
-  drive.enCours = null
-  if (r) {
-    drive.rapport = r
-    if (!essai) { const l = await appel('adminDriveLister', { adresse: drive.adresse }); if (l) drive.liste = l }
-    flash('')
+async function driveListerUn(adresse) {
+  const l = await appel('adminDriveLister', { adresse })
+  if (!l) return false
+  drive.listes[adresse] = l
+  // Preselect the dates that hold something new.
+  drive.choisies[adresse] = new Set(l.dates.filter((d) => d.etudes.some((x) => x.importable && !x.dejaEnBase)).map((d) => d.date))
+  return true
+}
+
+async function driveLister(adresses = drive.dossiers) {
+  drive.enCours = 'liste'; drive.rapports = []
+  let erreurs = 0
+  for (const [i, a] of adresses.entries()) {
+    flash(`Lecture du dossier ${i + 1} sur ${adresses.length} sur Google Drive (par le site)…`)
+    if (!(await driveListerUn(a))) erreurs++
   }
+  drive.enCours = null
+  if (!erreurs) flash('')
+}
+
+async function driveAjouter() {
+  // Several links pasted at once (one per line, or separated by spaces) are all added.
+  const liens = drive.ajout.split(/[\s,;]+/).filter(Boolean)
+  const connus = new Set(drive.dossiers.map(idDrive))
+  const nouveaux = []
+  for (const l of liens) {
+    const id = idDrive(l)
+    if (!id) { flash(`Lien non reconnu : ${l} (attendu : https://drive.google.com/drive/folders/…)`); return }
+    if (!connus.has(id)) { connus.add(id); nouveaux.push(l.trim()) }
+  }
+  drive.ajout = ''
+  if (!nouveaux.length) { flash('Ce dossier est déjà dans la liste.'); return }
+  drive.dossiers.push(...nouveaux)
+  garderDossiersDrive()
+  await driveLister(nouveaux)
+}
+
+function driveRetirer(adresse) {
+  drive.dossiers = drive.dossiers.filter((a) => a !== adresse)
+  delete drive.listes[adresse]; delete drive.choisies[adresse]
+  garderDossiersDrive()
+  rendre()
+}
+
+const datesChoisies = () => drive.dossiers.reduce((n, a) => n + (drive.choisies[a]?.size || 0), 0)
+
+async function driveImporter(essai) {
+  const cibles = drive.dossiers.filter((a) => drive.choisies[a]?.size)
+  drive.enCours = essai ? 'apercu' : 'import'; drive.rapports = []
+  for (const [i, adresse] of cibles.entries()) {
+    flash(`${essai ? 'Vérification de la qualité' : 'Import'} : dossier ${i + 1} sur ${cibles.length}…`)
+    const r = await appel('adminDriveImporter', { adresse, dates: [...drive.choisies[adresse]], essai })
+    if (!r) { drive.enCours = null; return }
+    drive.rapports.push({ adresse, ...r })
+    if (!essai) await driveListerUn(adresse)
+  }
+  drive.enCours = null
+  flash('')
+}
+
+/** One folder's dates, as the site found them. */
+function vueDossierDrive(adresse) {
+  const l = drive.listes[adresse]
+  const choisies = drive.choisies[adresse] || new Set()
+  return h('div', { class: 'carte' },
+    h('div', { class: 'ligne' },
+      h('div', { style: 'flex:1;min-width:260px;word-break:break-all' }, h('strong', {}, adresse)),
+      h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveLister([adresse]).then(rendre) }, 'Relire'),
+      h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveRetirer(adresse) }, 'Retirer'),
+    ),
+    !l ? h('p', { class: 'doux petit' }, 'Pas encore lu.') : h('div', {},
+      l.dates.length === 0 && h('p', { class: 'doux' }, 'Aucun rapport daté dans ce dossier ni dans ses sous-dossiers.'),
+      l.dates.map((d) => {
+        const importables = d.etudes.filter((x) => x.importable)
+        const nouvelles = importables.filter((x) => !x.dejaEnBase)
+        return h('div', { class: 'date-drive' },
+          h('label', {}, h('span', {}, h('input', { type: 'checkbox', checked: choisies.has(d.date), onchange: (ev) => { if (ev.target.checked) choisies.add(d.date); else choisies.delete(d.date); drive.choisies[adresse] = choisies; rendre() } }),
+            ' ', h('strong', {}, d.date), h('span', { class: 'doux petit' }, `  ${importables.length} rayon(s) · ${nouvelles.length} nouveau(x) · ${d.ignores.length} document(s) non importable(s)`))),
+          h('div', { class: 'ligne' }, d.etudes.map((x) => pastille(`${x.categorie} / ${x.theme}${x.dejaEnBase ? ' (déjà là)' : ''}${x.doublons.length ? ' ×2' : ''}`, !x.importable ? 'mauvais' : x.dejaEnBase ? '' : 'alerte'))),
+          ...d.etudes.filter((x) => !x.importable).map((x) => h('div', { class: 'petit erreur' }, `Non importable : ${x.categorie} / ${x.theme} (${x.fichiers.join(', ') || 'aucun fichier'}) — ${motifNonImportable(x)}`)),
+          ...d.ignores.slice(0, 20).map((g) => h('div', { class: 'petit doux' }, `Ignoré : ${g.nom} — ${g.raison}`)),
+        )
+      }),
+      (l.sansDate || []).length ? h('p', { class: 'petit erreur' }, `${l.sansDate.length} rapport(s) sans date (ni dossier AAAA-MM-JJ au-dessus, ni date dans le fichier) : `, l.sansDate.slice(0, 10).join(' ; '), '. Collez plutôt le dossier qui contient leur dossier daté.') : null,
+    ),
+  )
+}
+
+function vueRapportDrive(r) {
+  return h('div', { class: 'carte' },
+    h('p', { class: 'doux petit', style: 'word-break:break-all' }, r.adresse),
+    h('h2', {}, r.essai
+      ? `Aperçu : ${r.aImporter} rayon(s) à importer, ${r.doublons} doublon(s), ${r.refusees} refusé(s)`
+      : `${r.importees} rayon(s) importé(s), ${r.doublons} doublon(s) ignoré(s), ${r.refusees} refusé(s)`),
+    r.refusees > 0 && h('div', { class: 'erreur' },
+      h('p', {}, `${r.refusees} rayon(s) refusé(s) par le site, rien n’a été écrit pour eux :`),
+      r.lignes.filter((x) => x.statut === 'refuse').map((x) => h('div', { class: 'petit' }, `${x.date} · ${x.rayon} — ${x.raison || 'motif non donné par le site'}`)),
+      h('p', { class: 'petit' }, ATTENDU_DRIVE),
+    ),
+    !r.essai && r.importees === 0 && r.refusees === 0 && !r.lignes.length && h('p', { class: 'erreur' }, `Aucun rayon importable dans les dates choisies. ${ATTENDU_DRIVE}`),
+    h('p', { class: 'doux petit' }, `Contrat (20 produits, 20 adresses, prix sur 18) : ${r.conformes} conforme(s) sur ${r.lignes.filter((x) => x.statut === 'importe' || x.statut === 'apercu').length}${r.rapportsEnBase != null ? ` · ${r.rapportsEnBase} rapports en ligne` : ''}`),
+    h('table', {},
+      h('thead', {}, h('tr', {}, ['Date', 'Rayon', 'Statut', 'Produits', 'Adresses', 'Avec prix', 'Marketing'].map((t) => h('th', {}, t)))),
+      h('tbody', {}, r.lignes.map((x) => h('tr', {},
+        h('td', {}, x.date), h('td', {}, x.rayon),
+        h('td', {}, pastille(...(STATUT_DRIVE[x.statut] || [x.statut, ''])), x.raison ? h('div', { class: 'petit doux' }, x.raison) : null),
+        h('td', {}, x.produits == null ? '—' : String(x.produits)), h('td', {}, x.urlsDistinctes == null ? '—' : String(x.urlsDistinctes)),
+        h('td', {}, x.avecPrix == null ? '—' : String(x.avecPrix)), h('td', {}, x.marketing == null ? '—' : x.marketing ? 'oui' : 'non'))))),
+    r.ignores.length ? h('p', { class: 'doux petit' }, `${r.ignores.length} fichier(s) non importé(s) : `, r.ignores.slice(0, 20).map((g) => `${g.date} · ${g.nom} (${g.raison})`).join(' ; ')) : null,
+  )
 }
 
 function vueDrive() {
   if (!etat.admin.cle) return sansCleAdmin('Importer des analyses depuis Google Drive')
-  const champ = h('input', { value: drive.adresse, placeholder: 'https://drive.google.com/drive/folders/…', oninput: (ev) => { drive.adresse = ev.target.value } })
-  const l = drive.liste
-  const r = drive.rapport
+  const champ = h('input', {
+    value: drive.ajout, placeholder: 'Collez le lien du dossier Google Drive dont vous souhaitez importer les analyses',
+    oninput: (ev) => { drive.ajout = ev.target.value },
+    onkeydown: (ev) => { if (ev.key === 'Enter' && !drive.enCours) driveAjouter() },
+    // A pasted link is added at once.
+    onpaste: () => setTimeout(() => { if (!drive.enCours && idDrive(drive.ajout.split(/\s+/)[0])) driveAjouter() }, 0),
+  })
+  const n = datesChoisies()
   return h('div', {},
     h('h1', {}, 'Importer des analyses depuis Google Drive'),
-    h('p', { class: 'doux petit' }, 'Analyses faites par d’autres agents, rangées par date (AAAA-MM-JJ) dans un dossier Google Drive public. Le site les lit lui-même et les range dans la même base que les nôtres : les pages publiques n’en montrent ni fournisseur ni prix d’achat. Un rayon que nous avons déjà pour le même jour garde notre analyse.'),
+    h('p', { class: 'doux petit' }, 'Analyses faites par d’autres agents, dans des dossiers Google Drive publics (« Tous les utilisateurs disposant du lien »). Chaque dossier est lu avec tous ses sous-dossiers : collez un dossier parent, un dossier daté (AAAA-MM-JJ) ou un dossier de catégorie. Le site les range dans la même base que les nôtres : les pages publiques n’en montrent ni fournisseur ni prix d’achat. Un rayon que nous avons déjà pour le même jour garde notre analyse.'),
     h('div', { class: 'carte' },
-      h('label', {}, 'Adresse du dossier Google Drive'),
+      h('label', {}, 'Ajouter un dossier Google Drive'),
       h('div', { class: 'ligne' },
         h('div', { style: 'flex:1;min-width:260px' }, champ),
-        h('button', { class: 'btn principal', disabled: Boolean(drive.enCours), onclick: driveLister }, drive.enCours === 'liste' ? 'Lecture…' : 'Lire le dossier'),
+        h('button', { class: 'btn principal', disabled: Boolean(drive.enCours), onclick: driveAjouter }, 'Ajouter'),
+        h('button', { class: 'btn', disabled: Boolean(drive.enCours) || !drive.dossiers.length, onclick: () => driveLister() }, drive.enCours === 'liste' ? 'Lecture…' : `Lire les ${drive.dossiers.length} dossier(s)`),
       ),
       messageFlash && h('p', { class: 'petit' }, messageFlash),
     ),
-    l && h('div', { class: 'carte' },
-      l.dates.length === 0 ? h('p', { class: 'doux' }, 'Aucun dossier daté (AAAA-MM-JJ) dans ce dossier.') : h('div', {},
-        l.dates.map((d) => {
-          const importables = d.etudes.filter((x) => x.importable)
-          const nouvelles = importables.filter((x) => !x.dejaEnBase)
-          return h('div', { class: 'date-drive' },
-            h('label', {}, h('span', {}, h('input', { type: 'checkbox', checked: drive.choisies.has(d.date), onchange: (ev) => { if (ev.target.checked) drive.choisies.add(d.date); else drive.choisies.delete(d.date); rendre() } }),
-              ' ', h('strong', {}, d.date), h('span', { class: 'doux petit' }, `  ${importables.length} rayon(s) · ${nouvelles.length} nouveau(x) · ${d.ignores.length} document(s) non importable(s)`))),
-            h('div', { class: 'ligne' }, d.etudes.map((x) => pastille(`${x.categorie} / ${x.theme}${x.dejaEnBase ? ' (déjà là)' : ''}${x.doublons.length ? ' ×2' : ''}`, !x.importable ? 'mauvais' : x.dejaEnBase ? '' : 'alerte'))),
-            ...d.etudes.filter((x) => !x.importable).map((x) => h('div', { class: 'petit erreur' }, `Non importable : ${x.categorie} / ${x.theme} (${x.fichiers.join(', ') || 'aucun fichier'}) — ${motifNonImportable(x)}`)),
-            ...d.ignores.slice(0, 20).map((g) => h('div', { class: 'petit doux' }, `Ignoré : ${g.nom} — ${g.raison}`)),
-          )
-        }),
-        h('div', { class: 'ligne' },
-          h('button', { class: 'btn', disabled: !drive.choisies.size || Boolean(drive.enCours), onclick: () => driveImporter(true) }, drive.enCours === 'apercu' ? 'Vérification…' : 'Vérifier la qualité'),
-          h('button', { class: 'btn principal', disabled: !drive.choisies.size || Boolean(drive.enCours), onclick: () => driveImporter(false) }, drive.enCours === 'import' ? 'Import en cours…' : `Importer ${drive.choisies.size} date(s)`),
-        ),
-      ),
+    ...drive.dossiers.map(vueDossierDrive),
+    drive.dossiers.length > 0 && h('div', { class: 'ligne' },
+      h('button', { class: 'btn', disabled: !n || Boolean(drive.enCours), onclick: () => driveImporter(true) }, drive.enCours === 'apercu' ? 'Vérification…' : 'Vérifier la qualité'),
+      h('button', { class: 'btn principal', disabled: !n || Boolean(drive.enCours), onclick: () => driveImporter(false) }, drive.enCours === 'import' ? 'Import en cours…' : `Importer ${n} date(s)`),
     ),
-    r && h('div', { class: 'carte' },
-      h('h2', {}, r.essai
-        ? `Aperçu : ${r.aImporter} rayon(s) à importer, ${r.doublons} doublon(s), ${r.refusees} refusé(s)`
-        : `${r.importees} rayon(s) importé(s), ${r.doublons} doublon(s) ignoré(s), ${r.refusees} refusé(s)`),
-      r.refusees > 0 && h('div', { class: 'erreur' },
-        h('p', {}, `${r.refusees} rayon(s) refusé(s) par le site, rien n’a été écrit pour eux :`),
-        r.lignes.filter((x) => x.statut === 'refuse').map((x) => h('div', { class: 'petit' }, `${x.date} · ${x.rayon} — ${x.raison || 'motif non donné par le site'}`)),
-        h('p', { class: 'petit' }, ATTENDU_DRIVE),
-      ),
-      !r.essai && r.importees === 0 && r.refusees === 0 && !r.lignes.length && h('p', { class: 'erreur' }, `Aucun rayon importable dans les dates choisies. ${ATTENDU_DRIVE}`),
-      h('p', { class: 'doux petit' }, `Contrat (20 produits, 20 adresses, prix sur 18) : ${r.conformes} conforme(s) sur ${r.lignes.filter((x) => x.statut === 'importe' || x.statut === 'apercu').length}${r.rapportsEnBase != null ? ` · ${r.rapportsEnBase} rapports en ligne` : ''}`),
-      h('table', {},
-        h('thead', {}, h('tr', {}, ['Date', 'Rayon', 'Statut', 'Produits', 'Adresses', 'Avec prix', 'Marketing'].map((t) => h('th', {}, t)))),
-        h('tbody', {}, r.lignes.map((x) => h('tr', {},
-          h('td', {}, x.date), h('td', {}, x.rayon),
-          h('td', {}, pastille(...(STATUT_DRIVE[x.statut] || [x.statut, ''])), x.raison ? h('div', { class: 'petit doux' }, x.raison) : null),
-          h('td', {}, x.produits == null ? '—' : String(x.produits)), h('td', {}, x.urlsDistinctes == null ? '—' : String(x.urlsDistinctes)),
-          h('td', {}, x.avecPrix == null ? '—' : String(x.avecPrix)), h('td', {}, x.marketing == null ? '—' : x.marketing ? 'oui' : 'non'))))),
-      r.ignores.length ? h('p', { class: 'doux petit' }, `${r.ignores.length} fichier(s) non importé(s) : `, r.ignores.slice(0, 20).map((g) => `${g.date} · ${g.nom} (${g.raison})`).join(' ; ')) : null,
-    ),
+    ...drive.rapports.map(vueRapportDrive),
   )
 }
 
