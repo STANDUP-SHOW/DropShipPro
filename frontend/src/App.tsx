@@ -44,6 +44,7 @@ import MarketAnalysisPage from './pages/MarketAnalysis'
 import FreshNews from './pages/FreshNews'
 import ProduitsGagnants from './pages/ProduitsGagnants'
 import CreerBoutique from './pages/CreerBoutique'
+import DropShopMarketCreer from './pages/DropShopMarketCreer'
 import DropShopMarket from './pages/DropShopMarket'
 import BoutiqueShopify from './pages/BoutiqueShopify'
 import CataloguesFournisseurs from './pages/CataloguesFournisseurs'
@@ -246,6 +247,7 @@ export default function App() {
           <Route path="/analyse-marche" element={<Protected><MarketAnalysisPage /></Protected>} />
           <Route path="/fresh-news" element={<Protected><FreshNews /></Protected>} />
           <Route path="/produits-gagnants" element={<Protected><ProduitsGagnants /></Protected>} />
+          <Route path="/dropshop-market/creer" element={<DropShopMarketCreer />} />
           <Route path="/dropshop-market" element={<Protected><DropShopMarket /></Protected>} />
           <Route path="/creer-boutique" element={<Protected><CreerBoutique /></Protected>} />
           <Route path="/boutique-shopify" element={<Protected><BoutiqueShopify /></Protected>} />

@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { Prisma, type Shop } from '@prisma/client'
@@ -254,6 +255,37 @@ export async function catalogueDe(shop: Shop) {
       identifiant: e.id === 'back-office' && typeof config.identifiant === 'string' ? config.identifiant : undefined,
     }
   })
+}
+
+/** Sans 0/O ni 1/l/I : un mot de passe provisoire se recopie à la main. */
+const ALPHABET_PROVISOIRE = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+function motDePasseProvisoire(): string {
+  return Array.from({ length: 12 }, () => ALPHABET_PROVISOIRE[randomInt(ALPHABET_PROVISOIRE.length)]).join('')
+}
+
+/**
+ * Le bloc « Admin » d'un dropshop créé depuis DropShop Market (27/10/2026) :
+ * l'identifiant et un mot de passe provisoire du Back Office, montrés une fois.
+ * Pas installé : on l'installe (300 drops, couverts par les 9,90 € du Market)
+ * avec l'email du compte pour identifiant. Déjà installé : on garde
+ * l'identifiant et on remplace le mot de passe, puisque le haché ne se relit pas.
+ */
+export async function accesProvisoireBackOffice(shop: Shop, identifiantParDefaut: string): Promise<{ identifiant: string; motDePasse: string }> {
+  const motDePasse = motDePasseProvisoire()
+  const inst = await prisma.shopExtension.findUnique({ where: { shopId_extensionId: { shopId: shop.id, extensionId: 'back-office' } } })
+  if (!inst) {
+    const identifiant = identifiantParDefaut.trim().toLowerCase()
+    await installerExtension(shop, 'back-office', { identifiant, motDePasse })
+    return { identifiant, motDePasse }
+  }
+  const config = (inst.config ?? {}) as { identifiant?: string }
+  const identifiant = config.identifiant || identifiantParDefaut.trim().toLowerCase()
+  await prisma.shopExtension.update({
+    where: { id: inst.id },
+    data: { config: { ...config, identifiant, motDePasseHash: await bcrypt.hash(motDePasse, 10) } },
+  })
+  return { identifiant, motDePasse }
 }
 
 /* ---------- Le Back Office : session propre à la boutique ---------- */

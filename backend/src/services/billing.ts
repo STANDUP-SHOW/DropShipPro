@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { prisma } from '../lib/prisma.js'
-import { PACKS_DROPS, DROPS_INSCRIPTION, type PackDrops } from './tarifs.js'
+import { PACKS_DROPS, PACK_DROPSHOP_MARKET, DROPS_INSCRIPTION, type PackDrops } from './tarifs.js'
 import { commissionnerRecharge } from './affiliation.js'
 
 /**
@@ -31,7 +31,7 @@ export function getStripe(): Stripe | null {
 }
 
 export function findPack(id: string): PackDrops | undefined {
-  return PACKS_DROPS.find((p) => p.id === id)
+  return [...PACKS_DROPS, PACK_DROPSHOP_MARKET].find((p) => p.id === id)
 }
 
 export interface CreditCheck {
@@ -121,7 +121,8 @@ export async function grantPack(userId: string, pack: PackDrops, sessionId: stri
   await prisma.payment.create({
     data: { userId, planId: pack.id, amount, credits: pack.drops, stripeSessionId: sessionId },
   })
-  await inscrireMouvement(userId, pack.drops, apres.credits, `Recharge de ${pack.drops} drops`, sessionId)
+  const motif = pack.id === 'dropshop-market' ? `DropShop Market : création d'un dropshop avec back-office (${pack.drops} drops)` : `Recharge de ${pack.drops} drops`
+  await inscrireMouvement(userId, pack.drops, apres.credits, motif, sessionId)
   await commissionnerRecharge(userId, sessionId, amount)
 }
 
