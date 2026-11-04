@@ -21,6 +21,7 @@ import {
   idsRapportsEnService,
   type EtudeImportee,
 } from './reportsDb.js'
+import { importerSynthese, lireSynthese, roleSynthese, type BilanSynthese, type RoleSynthese } from './synthesesQuotidiennes.js'
 
 export class DriveErreur extends Error {}
 
@@ -188,20 +189,44 @@ export interface DateTrouvee {
   etudes: EtudeTrouvee[]
   /** Documents with no place on the site (sourcing notes and the like). */
   ignores: { nom: string; raison: string }[]
+  /** The day's synthesis files (MARKET-ANALYSES/syntheses/<date>/…), by role. */
+  syntheses: Partial<Record<RoleSynthese, FichierDrive>>
 }
+
+/** Under a « syntheses » folder, or named as one of the agent's synthesis files. */
+function estSynthese(f: FichierDrive): RoleSynthese | null {
+  const role = roleSynthese(f.nom)
+  if (role) return role
+  return f.chemin.some((c) => /^synth[eè]ses?$/i.test(c)) && /\.(json|md)$/i.test(f.nom) ? 'index' : null
+}
+
+/** A pseudo-study for the day's synthesis, so the screens list and pre-select it like a shelf. */
+export const RAYON_SYNTHESE = { categorie: 'syntheses', theme: 'synthese-du-jour' }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
 /** Studies grouped by date folder, then by category folder and theme. */
 export function regrouper(fichiers: FichierDrive[]): DateTrouvee[] {
   const parDate = new Map<string, DateTrouvee>()
+  const jourDe = (date: string) => {
+    if (!parDate.has(date)) parDate.set(date, { date, etudes: [], ignores: [], syntheses: {} })
+    return parDate.get(date)!
+  }
   for (const f of fichiers) {
+    const role = estSynthese(f)
+    if (role) {
+      // « SYNTHESE_aiMARKET_2026-11-04.md » may sit above the date folders: its name dates it.
+      const dateS = f.chemin.find((c) => DATE.test(c)) ?? f.nom.match(/\d{4}-\d{2}-\d{2}/)?.[0]
+      if (!dateS || role === 'index') continue // INDEX_SYNTHESES.md: a table of contents, nothing to import
+      const s = jourDe(dateS).syntheses
+      if (!s[role]) s[role] = f
+      continue
+    }
     const i = f.chemin.findIndex((c) => DATE.test(c))
     if (i < 0) continue // prompts/, notes at the root…
     const date = f.chemin[i]
     const categorie = f.chemin[i + 1] ?? ''
-    if (!parDate.has(date)) parDate.set(date, { date, etudes: [], ignores: [] })
-    const jour = parDate.get(date)!
+    const jour = jourDe(date)
     const g = genre(f.nom)
     const nomComplet = [...f.chemin.slice(i + 1), f.nom].join('/')
     if (g.genre === 'sourcing') {
@@ -242,7 +267,7 @@ export async function daterSansDossier(fichiers: FichierDrive[]): Promise<{ fich
   const cle = (f: FichierDrive) => `${f.chemin.join('/')}|${genre(f.nom).theme}`
   const groupes = new Map<string, FichierDrive[]>()
   for (const f of fichiers) {
-    if (dates(f) || !['rayon', 'marketing', 'json'].includes(genre(f.nom).genre)) continue
+    if (dates(f) || estSynthese(f) || !['rayon', 'marketing', 'json'].includes(genre(f.nom).genre)) continue
     groupes.set(cle(f), [...(groupes.get(cle(f)) ?? []), f])
   }
   const places = new Map<string, string[]>()
@@ -256,7 +281,7 @@ export async function daterSansDossier(fichiers: FichierDrive[]): Promise<{ fich
     else sansDate.push(...groupe.map((f) => [...f.chemin, f.nom].join('/')))
   }
   return {
-    fichiers: fichiers.flatMap((f) => (dates(f) ? [f] : places.has(cle(f)) ? [{ ...f, chemin: places.get(cle(f))! }] : [])),
+    fichiers: fichiers.flatMap((f) => (dates(f) || estSynthese(f) ? [f] : places.has(cle(f)) ? [{ ...f, chemin: places.get(cle(f))! }] : [])),
     sansDate,
   }
 }
@@ -297,14 +322,27 @@ export async function listerDossierDrive(adresse: string) {
     dossier: racine,
     dates: dates.map((d) => ({
       date: d.date,
-      etudes: d.etudes.map((e) => ({
-        categorie: e.categorie,
-        theme: e.theme,
-        fichiers: [e.rayon, e.marketing, e.json].filter(Boolean).map((f) => f!.nom),
-        doublons: e.doublons.map((f) => f.nom),
-        importable: !!e.rayon || !!e.json,
-        dejaEnBase: enBase.has(idRayonIndice(e)),
-      })),
+      etudes: [
+        ...d.etudes.map((e) => ({
+          categorie: e.categorie,
+          theme: e.theme,
+          fichiers: [e.rayon, e.marketing, e.json].filter(Boolean).map((f) => f!.nom),
+          doublons: e.doublons.map((f) => f.nom),
+          importable: !!e.rayon || !!e.json,
+          dejaEnBase: enBase.has(idRayonIndice(e)),
+        })),
+        ...(Object.keys(d.syntheses).length
+          ? [
+              {
+                ...RAYON_SYNTHESE,
+                fichiers: Object.values(d.syntheses).map((f) => f!.nom),
+                doublons: [] as string[],
+                importable: !!(d.syntheses.json || d.syntheses.opportunites),
+                dejaEnBase: !!lireSynthese(d.date),
+              },
+            ]
+          : []),
+      ],
       ignores: d.ignores,
     })),
     /** Report files with no date anywhere (no AAAA-MM-JJ folder, no date inside). */
@@ -347,7 +385,19 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
   const nouvelles: EtudeImportee[] = []
   const ignores: { date: string; nom: string; raison: string }[] = []
 
+  const syntheses: BilanSynthese[] = []
   for (const jour of jours) {
+    const bilanS = await importerSyntheseDuJour(jour, racine, essai)
+    if (bilanS) {
+      syntheses.push(bilanS)
+      lignes.push({
+        date: jour.date,
+        rayon: `${RAYON_SYNTHESE.categorie}/${RAYON_SYNTHESE.theme}`,
+        statut: bilanS.statut,
+        raison: bilanS.raison,
+        produits: bilanS.produits,
+      })
+    }
     for (const i of jour.ignores) ignores.push({ date: jour.date, ...i })
     for (const t of jour.etudes) {
       const nomRayon = `${t.categorie}/${t.theme}`
@@ -422,13 +472,46 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
   const bilan = essai ? null : ajouterEtudesImportees(nouvelles)
   return {
     essai,
-    importees: essai ? 0 : nouvelles.length,
+    importees: essai ? 0 : nouvelles.length + syntheses.filter((x) => x.statut === 'importe').length,
     aImporter: nouvelles.length,
     doublons: lignes.filter((l) => l.statut === 'doublon').length,
     refusees: lignes.filter((l) => l.statut === 'refuse').length,
     conformes: lignes.filter((l) => (l.statut === 'importe' || l.statut === 'apercu') && l.conforme).length,
     rapportsEnBase: bilan?.reports ?? null,
+    syntheses,
     lignes,
     ignores,
   }
+}
+
+/** The day's synthesis, JSON first, the Markdown tables as a fallback. Null when the day has none. */
+async function importerSyntheseDuJour(jour: DateTrouvee, racine: string, essai: boolean): Promise<BilanSynthese | null> {
+  const s = jour.syntheses
+  if (!s.json && !s.opportunites) return Object.keys(s).length ? { date: jour.date, statut: 'refuse', raison: 'ni opportunites-import-dropshipper.json ni opportunites-prioritaires.md' } : null
+  const lire = async (f?: FichierDrive) => {
+    if (!f) return null
+    try {
+      return await telecharger(f.id)
+    } catch {
+      return null
+    }
+  }
+  let json: unknown
+  const brut = await lire(s.json)
+  if (brut) {
+    try {
+      json = JSON.parse(brut)
+    } catch {
+      json = undefined
+    }
+  }
+  // The Markdown tables are only opened when the JSON is missing or unreadable.
+  const opportunitesMd = json === undefined ? await lire(s.opportunites) : null
+  const generaleMd = await lire(s.generale)
+  const tableauMd = generaleMd ? null : await lire(s.tableau)
+  const principal = s.json ?? s.opportunites!
+  return importerSynthese(
+    { date: jour.date, origine: `drive:${racine}/${[...principal.chemin, principal.nom].join('/')}`, json, opportunitesMd, generaleMd, tableauMd },
+    essai,
+  )
 }
