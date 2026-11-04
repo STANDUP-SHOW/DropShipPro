@@ -1632,7 +1632,107 @@ export function produitsUniques(produits: ProduitPublic[]): Array<ProduitPublic 
   })
 }
 
-export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?: string, jourSuivant?: string): string {
+/**
+ * Les actualités du jour, tirées de la synthèse quotidienne (services/synthesesQuotidiennes.ts,
+ * face publique déjà filtrée : ni prix d'achat, ni marge, ni ROI, ni fournisseur, ni lien).
+ * Une page par actualité et par jour (Max, 04/11/2026 : plusieurs Fresh Market News par jour) :
+ * /fresh-market-news/2026-11-04/tendances-du-jour/. Elles ne recopient aucun rapport :
+ * elles croisent les 24 rayons et renvoient vers chacun.
+ */
+export interface ProduitActualite {
+  nom: string
+  variante: string
+  categorie: string
+  categorieLabel: string
+  theme?: string
+  themeLabel?: string
+  rang?: number | null
+}
+export interface ActualitePublique {
+  id: string
+  titre: string
+  chapo: string
+  produits?: ProduitActualite[]
+  texte?: string
+}
+
+export const ID_ACTUALITE = /^[a-z0-9-]{1,60}$/
+
+export function cheminActualite(day: string, id: string): string {
+  return `${BASE}/${day}/${id}/`
+}
+
+function resumeActualite(a: ActualitePublique): string {
+  if (a.produits?.length) return `${a.produits.length} produit${a.produits.length > 1 ? 's' : ''}`
+  return 'le contexte du jour'
+}
+
+// The synthesis face is filtered upstream; a second pass costs nothing and keeps the rule in one place here too.
+const ACHAT_ACTUALITE = /\b(buy|roi|achat|achet|marge|co[uû]t|landed|sourcing|grossiste|fournisseur|high[\s-]*ticket)\b|€|https?:|www\./i
+function produitsSurs(produits: ProduitActualite[]): ProduitActualite[] {
+  return produits
+    .filter((p) => p.nom && !ACHAT_ACTUALITE.test(p.nom))
+    .map((p) => ({ ...p, variante: p.variante && !ACHAT_ACTUALITE.test(p.variante) ? p.variante : '' }))
+}
+
+export function pageActualite(day: string, a: ActualitePublique, autres: ActualitePublique[] = [], modifie?: Date): string {
+  const url = cheminActualite(day, a.id)
+  const date = dateLongue(day)
+  const fil = [{ nom: 'Accueil', url: '/' }, { nom: RUBRIQUE, url: `${BASE}/` }, { nom: `Édition du ${date}`, url: cheminJour(day) }, { nom: a.titre }]
+  const produits = produitsSurs(a.produits ?? [])
+  const lien = (p: ProduitActualite) => (categorieDe(p.categorie) ? `<a href="${cheminCategorie(p.categorie)}">${esc(p.categorieLabel || p.categorie)}</a>` : esc(p.categorieLabel || p.categorie))
+  const corps = produits.length
+    ? `<div class="tableau"><table>
+<thead><tr><th>#</th><th>Produit</th><th>Rayon</th><th>Détail</th></tr></thead>
+<tbody>${produits.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.nom)}</td><td>${lien(p)}${p.themeLabel ? `<br><small>${esc(p.themeLabel)}</small>` : ''}</td><td>${esc(p.variante) || '—'}</td></tr>`).join('')}</tbody></table></div>`
+    : a.texte
+      ? markdownEnHtml(a.texte)
+      : ''
+  const suite = autres.filter((x) => x.id !== a.id)
+  const body = `${crumb(fil)}
+<h1>${esc(a.titre)} — ${esc(date)}</h1>
+${a.chapo ? `<p class="lede">${esc(a.chapo)}</p>` : ''}
+${corps}
+${
+  suite.length
+    ? `<h2>Les autres actualités du ${esc(date)}</h2><div class="grille">${suite.map((x) => `<a href="${cheminActualite(day, x.id)}">${esc(x.titre)}<small>${esc(resumeActualite(x))}</small></a>`).join('')}</div>`
+    : ''
+}
+<p class="meta"><a href="${cheminJour(day)}">L'édition complète du ${esc(date)}</a> · <a href="${BASE}/">${RUBRIQUE}</a></p>`
+  const titre = `${a.titre} (${dateCourte(day)})`
+  const description = (a.chapo || `${a.titre} : l'actualité du marché du ${date} par les agents ${NOM}.`).slice(0, 300)
+  const publie = new Date(`${day}T06:00:00Z`)
+  return layout({
+    url,
+    title: titre.length <= TITRE_MAX ? titre : `${titre.slice(0, TITRE_MAX - 1).replace(/\s+\S*$/, '')}…`,
+    description,
+    publie,
+    modifie: modifie ?? publie,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'NewsArticle',
+          headline: a.titre,
+          description,
+          url: `${SITE}${url}`,
+          inLanguage: 'fr-FR',
+          datePublished: publie.toISOString(),
+          dateModified: (modifie ?? publie).toISOString(),
+          author: ORGANISATION,
+          publisher: ORGANISATION,
+          ...(produits.length
+            ? { mainEntity: { '@type': 'ItemList', numberOfItems: produits.length, itemListElement: produits.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.nom })) } }
+            : {}),
+        },
+        breadcrumbLd(fil),
+      ],
+    },
+    body,
+  })
+}
+
+export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?: string, jourSuivant?: string, actualites: ActualitePublique[] = []): string {
   const url = cheminJour(day)
   const date = dateLongue(day)
   const fil = [{ nom: 'Accueil', url: '/' }, { nom: RUBRIQUE, url: `${BASE}/` }, { nom: `Édition du ${date}` }]
@@ -1653,6 +1753,13 @@ export function pageJour(day: string, rapports: RapportPublic[], jourPrecedent?:
   const body = `${crumb(fil)}
 <h1>Produits gagnants et tendances du ${date}</h1>
 <p class="lede">L'édition du jour des agents ${NOM} : ${parCategorie.size} catégorie${parCategorie.size > 1 ? 's' : ''} analysée${parCategorie.size > 1 ? 's' : ''}, ${rapports.length} rapport${rapports.length > 1 ? 's' : ''}${produits.length ? `, ${produits.length} produits gagnants repérés` : ''}.</p>
+${
+  actualites.length
+    ? `<h2 id="actualites">Les actualités du jour</h2><div class="grille">${actualites
+        .map((a) => `<a href="${cheminActualite(day, a.id)}">${esc(a.titre)}<small>${esc(resumeActualite(a))}</small></a>`)
+        .join('')}</div>`
+    : ''
+}
 ${
   top.length
     ? `<h2 id="produits">Les produits gagnants du jour</h2><div class="tableau"><table>
@@ -1689,7 +1796,10 @@ ${[...parCategorie.values()]
           inLanguage: 'fr-FR',
           datePublished: `${day}T06:00:00Z`,
           publisher: ORGANISATION,
-          hasPart: rapports.map((r) => ({ '@type': 'NewsArticle', headline: r.titre, url: `${SITE}${cheminRapport(r)}` })),
+          hasPart: [
+            ...actualites.map((a) => ({ '@type': 'NewsArticle', headline: a.titre, url: `${SITE}${cheminActualite(day, a.id)}` })),
+            ...rapports.map((r) => ({ '@type': 'NewsArticle', headline: r.titre, url: `${SITE}${cheminRapport(r)}` })),
+          ],
         },
         breadcrumbLd(fil),
       ],
@@ -1698,14 +1808,14 @@ ${[...parCategorie.values()]
   })
 }
 
-export function sitemapXml(rapports: Array<Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait' | 'updatedAt'>>): string {
+export function sitemapXml(rapports: Array<Pick<RapportPublic, 'id' | 'categorie' | 'day' | 'theme' | 'type' | 'titre' | 'une' | 'extrait' | 'updatedAt'>>, actualites: Array<{ date: string; id: string; modifie: Date }> = []): string {
   const categories = new Map<string, Date>()
   for (const r of rapports) {
     const d = categories.get(r.categorie)
     if (!d || d < r.updatedAt) categories.set(r.categorie, r.updatedAt)
   }
   const jours = new Map<string, Date>()
-  for (const r of rapports) {
+  for (const r of [...rapports.map((x) => ({ day: x.day, updatedAt: x.updatedAt })), ...actualites.map((a) => ({ day: a.date, updatedAt: a.modifie }))]) {
     const d = jours.get(r.day)
     if (!d || d < r.updatedAt) jours.set(r.day, r.updatedAt)
   }
@@ -1718,6 +1828,7 @@ ${ligne(`${BASE}/`, rapports.length ? datePage(`${BASE}/`, dernier) : new Date()
 ${[...jours.entries()].map(([j, mod]) => ligne(cheminJour(j), datePage(cheminJour(j), mod), '0.7', 'weekly')).join('\n')}
 ${[...categories.entries()].map(([id, mod]) => ligne(cheminCategorie(id), datePage(cheminCategorie(id), mod), '0.7', 'daily')).join('\n')}
 ${rapports.map((r) => ligne(cheminRapport(r), r.updatedAt, '0.6', 'monthly')).join('\n')}
+${actualites.map((a) => ligne(cheminActualite(a.date, a.id), a.modifie, '0.6', 'monthly')).join('\n')}
 </urlset>
 `
 }

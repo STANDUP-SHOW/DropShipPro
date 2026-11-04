@@ -497,6 +497,12 @@ export const api = {
       `/reports/fresh?category=${encodeURIComponent(categorie)}${jour ? `&date=${jour}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
     ),
   /*
+   * Les synthèses quotidiennes, face publique (ni prix d'achat, ni fournisseur,
+   * ni marge, ni ROI) : compteurs, actualités du jour (chacune a sa page
+   * /fresh-market-news/<date>/<id>/) et blocs animés.
+   */
+  syntheses: () => request<{ dates: string[]; derniere: SynthesePublique | null }>('/syntheses'),
+  /*
    * Le classement des rapports : les mêmes lignes que Fresh news, vues depuis
    * un rayon, depuis le menu global ou depuis Réseaux. Le périmètre se dit par
    * `rayon` (la clé d'un chef de rayon) ou par `categorie` (une catégorie
@@ -2469,4 +2475,24 @@ export interface AffiliationAdmin {
     aVerser: boolean
     versements: Array<{ id: string; montantCentimes: number; reference: string | null; createdAt: string }>
   }>
+}
+
+export interface ElementBlocSynthese {
+  nom: string
+  rayon: string
+  categorie: string
+}
+
+export interface SynthesePublique {
+  date: string
+  compteurs: {
+    rayons: number
+    produitsAnalyses: number
+    opportunites: number
+    aRisque: number
+    produitsPhares: number
+    tendancesReseaux: number
+  }
+  actualites: Array<{ id: string; titre: string; chapo: string; produits?: Array<{ nom: string; categorieLabel: string }>; texte?: string }>
+  blocs: { bandeauPhares: ElementBlocSynthese[]; carrouselTendances: ElementBlocSynthese[] }
 }

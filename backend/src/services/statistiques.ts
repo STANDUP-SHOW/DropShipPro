@@ -3,6 +3,7 @@ import { EURO_PAR_DROP } from './tarifs.js'
 import { PLATFORMS } from './platforms.js'
 import type { Order, Platform } from '@prisma/client'
 import { baseRapports } from '../routes/reportsPublic.js'
+import { compteurs as compteursSynthese, datesSyntheses, lireSynthese } from './synthesesQuotidiennes.js'
 
 /** « Acheter maintenant », « Acheter si négocié », « BUY », « TOP » : a favourable verdict; « Ne pas acheter », « À surveiller » are not. */
 export function verdictFavorable(v: string | null | undefined): boolean {
@@ -31,6 +32,20 @@ function marcheDuJour(): { jourCourt: string; rayon: number; marketing: number; 
     }
   } catch (err) {
     console.error('[statistiques] rapports du jour illisibles :', err instanceof Error ? err.message : err)
+    return null
+  }
+}
+
+/** The counters of the last daily synthesis (Drive import, PR #176), or null when none is imported. */
+function syntheseDuJour(): (ReturnType<typeof compteursSynthese> & { jourCourt: string }) | null {
+  try {
+    const jour = datesSyntheses()[0]
+    const s = jour ? lireSynthese(jour) : null
+    if (!s) return null
+    const [, mois, j] = s.date.split('-')
+    return { ...compteursSynthese(s), jourCourt: `${j}/${mois}` }
+  } catch (err) {
+    console.error('[statistiques] synthèse du jour illisible :', err instanceof Error ? err.message : err)
     return null
   }
 }
@@ -608,6 +623,8 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
   // The daily DropShipper reports (rapports.db + Poste + Drive) feed it: last day deposited.
   {
     const marche = marcheDuJour()
+    const synthese = syntheseDuJour()
+    const sansStock = produits.filter((p) => p.supplierStock === 0).length
     const favorables = marche?.gagnants.filter((p) => verdictFavorable(p.verdict)) ?? []
     const parRayonFavorable = new Map<string, number>()
     for (const p of favorables) parRayonFavorable.set(p.categorieNom, (parRayonFavorable.get(p.categorieNom) ?? 0) + 1)
@@ -622,22 +639,32 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
       tuiles: [
         marche
           ? { id: 'analyses', label: `Analyses du ${marche.jourCourt}`, valeur: marche.rayon + marche.marketing, parts: repartition([['Marché', marche.rayon], ['Marketing', marche.marketing]]) }
-          : { id: 'analyses', label: 'Analyses du jour', ...sansRapport },
+          : synthese
+            ? { id: 'analyses', label: `Rayons analysés du ${synthese.jourCourt}`, valeur: synthese.rayons }
+            : { id: 'analyses', label: 'Analyses du jour', ...sansRapport },
         { id: 'mes-analyses', label: 'Mes analyses de marché', valeur: produits.filter((p) => p.marketAnalysedAt).length },
-        { id: 'opportunites', label: 'Opportunités relevées', valeur: opportunites + favorables.length },
+        synthese && synthese.opportunites > 0
+          ? { id: 'opportunites', label: 'Opportunités relevées', valeur: opportunites + synthese.opportunites, parts: repartition([['Les miennes', opportunites], [`Synthèse du ${synthese.jourCourt}`, synthese.opportunites]]) }
+          : { id: 'opportunites', label: 'Opportunités relevées', valeur: opportunites + favorables.length },
         marche
           ? { id: 'gagnants', label: 'Produits gagnants du jour', valeur: marche.gagnants.length, parts: repartition([...parRayon.entries()]) }
-          : { id: 'gagnants', label: 'Produits gagnants', ...sansRapport },
+          : synthese
+            ? { id: 'gagnants', label: `Produits analysés du ${synthese.jourCourt}`, valeur: synthese.produitsAnalyses }
+            : { id: 'gagnants', label: 'Produits gagnants', ...sansRapport },
         marche && marche.tendances > 0
           ? { id: 'tendances', label: 'Tendances du jour', valeur: marche.tendances }
-          : { id: 'tendances', label: 'Tendances', ...pasEncore('Viennent des rapports marketing du jour : aucun importé pour le moment.') },
+          : synthese && synthese.tendancesReseaux > 0
+            ? { id: 'tendances', label: `Tendances réseaux du ${synthese.jourCourt}`, valeur: synthese.tendancesReseaux }
+            : { id: 'tendances', label: 'Tendances', ...pasEncore('Viennent des rapports marketing du jour : aucun importé pour le moment.') },
         { id: 'saisonnalite', label: 'Saisonnalité', ...pasEncore('Demande un an d’historique de ventes.') },
         { id: 'prevision-ventes', label: 'Prévision ventes', ...pasEncore('Demande plusieurs mois d’historique.') },
         { id: 'prevision-ca', label: 'Prévision CA', ...pasEncore('Demande plusieurs mois d’historique.') },
         porteur
           ? { id: 'porteurs', label: 'Marché le plus porteur', valeur: porteur[0], parts: repartition([...parRayonFavorable.entries()]) }
           : { id: 'porteurs', label: 'Marchés porteurs', ...pasEncore(marche ? 'Aucun produit du jour au verdict favorable.' : 'Aucun rapport du jour importé pour le moment.') },
-        { id: 'risque', label: 'Produits à risque', valeur: produits.filter((p) => p.supplierStock === 0).length },
+        synthese && synthese.aRisque > 0
+          ? { id: 'risque', label: 'Produits à risque', valeur: sansStock + synthese.aRisque, parts: repartition([['Mes produits sans stock', sansStock], [`À éviter (${synthese.jourCourt})`, synthese.aRisque]]) }
+          : { id: 'risque', label: 'Produits à risque', valeur: sansStock },
       ],
     })
   }
