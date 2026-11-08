@@ -8,7 +8,7 @@ import { DepotRefuse, deposerRapports } from '../services/reportsDb.js'
 import { listeVersementsAdmin, verser } from '../services/affiliation.js'
 import { sendMail, appUrl } from '../services/mailer.js'
 import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
-import { importerSynthese } from '../services/synthesesQuotidiennes.js'
+import { importerSynthese, noterImports } from '../services/synthesesQuotidiennes.js'
 import { lignesPubliques } from './analysesPubliques.js'
 import { sitemapXml } from '../services/analysesPubliques.js'
 import { annoncerAnalyses, enProduction } from '../services/annonceAnalyses.js'
@@ -221,7 +221,9 @@ adminRouter.post('/syntheses', (req: Request, res) => {
   const json = corps.json ?? corps
   const date = typeof corps.date === 'string' ? corps.date : undefined
   try {
-    const bilan = importerSynthese({ date, origine: 'depot-admin', json }, req.query.essai === '1' || corps.essai === true)
+    const essai = req.query.essai === '1' || corps.essai === true
+    const bilan = importerSynthese({ date, origine: 'depot-admin', json }, essai)
+    if (!essai) noterImports([bilan])
     res.status(bilan.statut === 'refuse' ? 422 : 200).json(bilan)
   } catch (err) {
     console.error('import de synthèse', err)

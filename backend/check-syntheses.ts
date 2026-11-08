@@ -93,6 +93,13 @@ const DRIVE: Record<string, Noeud> = {
   racineAAAAAA: { nom: 'MARKET-ANALYSES', enfants: ['synthAAAAAA', 'jourAAAAAAA'] },
   jourAAAAAAA: { nom: '2026-11-04', enfants: [] },
   synthAAAAAA: { nom: 'syntheses', enfants: ['indexAAAAAA', 'tableauAAAA', 'synJourAAAA', 'synJour2AAA'] },
+  // 05/11 : the synthesis sits in the day folder next to the shelves, written as a Google Doc, its JSON fenced.
+  racine2AAAA: { nom: 'MARKET-ANALYSES', enfants: ['jour5AAAAAA', 'jour6AAAAAA'] },
+  jour5AAAAAA: { nom: '2026-11-05', enfants: ['gdocJsonAAA'] },
+  gdocJsonAAA: { nom: 'opportunites-import-dropshipper.json', texte: 'GDOC:Voici le flux :\n```json\n' + JSON.stringify({ ...JSON_JOUR, meta: { study_date: '2026-11-05' } }) + '\n```\n' },
+  // 06/11 : a file Google will not hand out — the refusal names it.
+  jour6AAAAAA: { nom: '2026-11-06', enfants: ['fermeAAAAAA'] },
+  fermeAAAAAA: { nom: 'opportunites-import-dropshipper.json', texte: 'PRIVE' },
   indexAAAAAA: { nom: 'INDEX_SYNTHESES.md', texte: '# Index' },
   tableauAAAA: { nom: 'SYNTHESE_aiMARKET_2026-11-04.md', texte: '## Vue d’ensemble stratégique\nTexte du tableau.\n' },
   synJourAAAA: { nom: '2026-11-04', enfants: ['jsonAAAAAAA', 'oppAAAAAAAA', 'genAAAAAAAA'] },
@@ -106,7 +113,7 @@ const DRIVE: Record<string, Noeud> = {
 const ouverts: string[] = []
 globalThis.fetch = (async (entree: string | URL) => {
   const url = new URL(String(entree))
-  const id = url.searchParams.get('id') ?? ''
+  const id = url.searchParams.get('id') ?? url.pathname.match(/\/document\/d\/([^/]+)/)?.[1] ?? ''
   const n = DRIVE[id]
   if (!n) return new Response('introuvable', { status: 404 })
   if (url.pathname === '/embeddedfolderview') {
@@ -118,7 +125,13 @@ globalThis.fetch = (async (entree: string | URL) => {
     return new Response(`<html><head><title>${n.nom} - Google Drive</title></head><body>${blocs.join('')}</body></html>`)
   }
   ouverts.push(id)
-  return new Response(n.texte ?? '')
+  const t = n.texte ?? ''
+  if (t === 'PRIVE') return new Response('<!doctype html><html>connexion</html>')
+  if (t.startsWith('GDOC:')) {
+    // uc?export=download on a Google Doc answers a page; only the docs export gives the text.
+    return url.hostname === 'docs.google.com' ? new Response(t.slice(5)) : new Response('<!doctype html><html>doc</html>')
+  }
+  return new Response(t)
 }) as typeof fetch
 
 const PRIVE = /€|\bROI\b|BUY|marge|AliExpress|Alibaba|aliexpress|amazon|http|\$|achat/i
@@ -148,6 +161,16 @@ const r2 = await importerDossierDrive('racineAAAAAA', ['2026-11-04'], false)
 exige(r2.syntheses[0]?.statut === 'doublon', 'second import identique : doublon')
 const liste2 = await listerDossierDrive('racineAAAAAA')
 exige(liste2.dates.find((d) => d.date === '2026-11-04')?.etudes.find((e) => e.categorie === 'syntheses')?.dejaEnBase, 'puis « déjà là » dans la liste')
+
+console.log('Synthèse rangée avec les rayons, en Google Doc, JSON entre balises')
+const r5 = await importerDossierDrive('racine2AAAA', ['2026-11-05', '2026-11-06'], false)
+const b5 = r5.syntheses.find((b) => b.date === '2026-11-05')
+exige(b5?.statut === 'importe' && b5.produits === 3, `05/11 importé par l’export Google Docs (${b5?.statut} ${b5?.raison ?? ''})`)
+const b6 = r5.syntheses.find((b) => b.date === '2026-11-06')
+exige(b6?.statut === 'refuse' && /opportunites-import-dropshipper\.json : Google a renvoyé une page/.test(b6.raison ?? ''), `06/11 refusé en nommant le fichier et la cause (${b6?.raison})`)
+
+exige(S.lireJournal().some((l) => l.date === '2026-11-06' && l.statut === 'refuse' && /Google a renvoyé une page/.test(l.raison)), 'le refus est gardé au journal (GET /api/syntheses-etat)')
+exige(!S.datesSyntheses().includes('_journal'), 'le journal n’est pas pris pour un jour')
 
 console.log('Face publique : rien d’achat, rien de fournisseur')
 const s4 = S.lireSynthese('2026-11-04')!

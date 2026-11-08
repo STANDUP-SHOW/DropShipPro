@@ -11,7 +11,7 @@
  */
 import { Router, type RequestHandler } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { datesSyntheses, lireSynthese, synthesePrivee, synthesePublique } from '../services/synthesesQuotidiennes.js'
+import { datesSyntheses, lireJournal, lireSynthese, synthesePrivee, synthesePublique } from '../services/synthesesQuotidiennes.js'
 
 export const synthesesPublicRouter = Router()
 
@@ -31,6 +31,11 @@ synthesesPublicRouter.get('/syntheses', sansCache, (_req, res) => {
     console.error('[syntheses] liste', err)
     res.status(500).json({ error: 'Synthèses illisibles.', motif: err instanceof Error ? err.message : String(err) })
   }
+})
+
+/** What the last imports did, refusals and their reasons included (no file content). */
+synthesesPublicRouter.get('/syntheses-etat', sansCache, (_req, res) => {
+  res.json({ dates: datesSyntheses(), imports: lireJournal().map((l) => ({ ...l, raison: l.raison.replace(/\(début : «[^»]*»\)/g, '').trim() })) })
 })
 
 synthesesPublicRouter.get('/syntheses/:date', sansCache, (req, res) => {
