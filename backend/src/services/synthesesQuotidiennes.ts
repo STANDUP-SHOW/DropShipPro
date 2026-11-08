@@ -120,8 +120,17 @@ function liensDe(urls: unknown): Record<string, string> {
   return out
 }
 
+/** The first key matching, whatever the agent's spelling (« product_name », « nom_produit », « Produit »…). */
+function champMotif(o: Record<string, unknown>, motif: RegExp): unknown {
+  for (const [k, v] of Object.entries(o)) if (motif.test(k) && v != null && v !== '' && typeof v !== 'object') return v
+  return undefined
+}
+
 function produitJson(o: Record<string, unknown>): ProduitSynthese | null {
-  const nom = texte(champ(o, 'product_name', 'name', 'nom', 'title'))
+  const nom =
+    texte(champ(o, 'product_name', 'name', 'nom', 'title')) ||
+    texte(champMotif(o, /^(product|produit|nom|titre)[\s_-]*(name|nom|produit)?$/i)) ||
+    texte((o.urls as Record<string, unknown> | undefined)?.clean_name)
   if (!nom) return null
   const categorieLabel = texte(champ(o, 'category_label', 'category_name', 'categorie'))
   const categorie = texte(champ(o, 'category_id')) || slug(categorieLabel)
@@ -158,24 +167,29 @@ export function lireSyntheseJson(json: unknown): Omit<Synthese, 'importeLe' | 'o
     if (!parId.has(p.id)) parId.set(p.id, p)
     return parId.get(p.id)!.id
   }
-  const tous = Object.entries(racine).find(([k, v]) => Array.isArray(v) && /all|produits|products|catalog/i.test(k))?.[1] as unknown[] | undefined
-  for (const o of tous ?? []) {
-    const p = o && typeof o === 'object' ? produitJson(o as Record<string, unknown>) : null
-    if (p) ajouter(p)
+  // Every array of objects, at any depth: its key says whether it is a list (« top_5_launch_now ») or the catalogue.
+  const tableaux: Array<[string, unknown[]]> = []
+  const parcourir = (v: unknown, cle: string, profondeur: number) => {
+    if (profondeur > 4 || !v || typeof v !== 'object') return
+    if (Array.isArray(v)) {
+      if (v.some((x) => x && typeof x === 'object' && !Array.isArray(x))) tableaux.push([cle, v])
+      return
+    }
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) parcourir(x, k, profondeur + 1)
   }
+  parcourir(racine, '', 0)
   const sections = sectionsVides()
-  const listes = (racine.immediate_priorities ?? racine.priorites ?? racine.sections ?? racine) as Record<string, unknown>
-  for (const [k, v] of Object.entries(listes)) {
-    if (!Array.isArray(v) || v === tous) continue
-    const cle = sectionDe(k)
-    if (!cle) continue
+  for (const [k, v] of tableaux) {
+    const cle = /all|tous|toutes|produits|products|catalog/i.test(k) && !/top|hero|black|noire|breakout/i.test(k) ? null : sectionDe(k)
     for (const o of v) {
       const p = o && typeof o === 'object' ? produitJson(o as Record<string, unknown>) : null
-      if (p && !sections[cle].includes(p.id)) sections[cle].push(ajouter(p))
+      if (!p) continue
+      const id = ajouter(p)
+      if (cle && !sections[cle].includes(id)) sections[cle].push(id)
     }
   }
   if (!parId.size) return null
-  const date = texte(champ(meta, 'study_date', 'date')) || texte(racine.date)
+  const date = texte(champ(meta, 'study_date', 'date')) || texte(racine.date) || texte(champMotif(meta, /date/i))
   return { date: DATE.test(date) ? date : '', format: 'json', produits: [...parId.values()], sections }
 }
 
@@ -494,4 +508,36 @@ export function roleSynthese(nom: string): RoleSynthese | null {
   if (/^SYNTHESE_.*\.md$/i.test(nom)) return 'tableau'
   if (/^INDEX_SYNTHESES.*\.md$/i.test(nom)) return 'index'
   return null
+}
+
+// ------------------------------------------------------------ journal
+
+const CHEMIN_JOURNAL = () => path.join(DOSSIER_SYNTHESES, '_journal.json')
+
+/**
+ * The last imports' outcomes, refusals included (08/11/2026: syntheses listed
+ * but never stored, and nothing on the site said why). Readable without the
+ * admin key through GET /api/syntheses-etat: dates, statuses and reasons only,
+ * no file content.
+ */
+export function noterImports(bilans: BilanSynthese[]) {
+  if (!bilans.length) return
+  try {
+    const avant = lireJournal()
+    const quand = new Date().toISOString()
+    const tout = [...bilans.map((b) => ({ quand, date: b.date, statut: b.statut, raison: b.raison ?? '', produits: b.produits ?? null })), ...avant].slice(0, 60)
+    fs.mkdirSync(DOSSIER_SYNTHESES, { recursive: true })
+    fs.writeFileSync(CHEMIN_JOURNAL(), JSON.stringify(tout))
+  } catch (err) {
+    console.error('[syntheses] journal', err)
+  }
+}
+
+export function lireJournal(): Array<{ quand: string; date: string; statut: string; raison: string; produits: number | null }> {
+  try {
+    const l = JSON.parse(fs.readFileSync(CHEMIN_JOURNAL(), 'utf8'))
+    return Array.isArray(l) ? l : []
+  } catch {
+    return []
+  }
 }

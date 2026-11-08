@@ -21,7 +21,7 @@ import {
   idsRapportsEnService,
   type EtudeImportee,
 } from './reportsDb.js'
-import { importerSynthese, lireSynthese, roleSynthese, type BilanSynthese, type RoleSynthese } from './synthesesQuotidiennes.js'
+import { importerSynthese, lireSynthese, noterImports, roleSynthese, type BilanSynthese, type RoleSynthese } from './synthesesQuotidiennes.js'
 
 export class DriveErreur extends Error {}
 
@@ -155,10 +155,15 @@ async function telecharger(id: string): Promise<string> {
     return deja
   }
   const r = await obtenir(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}`)
+  const texte = r.ok ? await r.text() : ''
+  if (r.ok && !/^\s*<!doctype html|^\s*<html/i.test(texte)) return texte.replace(/^﻿/, '')
+  // A file written by an agent through Google's own tools can be a Google Doc that keeps its « .md » or
+  // « .json » title: no download for those, only an export as plain text.
+  const d = await obtenir(`https://docs.google.com/document/d/${encodeURIComponent(id)}/export?format=txt`)
+  const doc = d.ok ? await d.text() : ''
+  if (d.ok && doc.trim() && !/^\s*<!doctype html|^\s*<html/i.test(doc)) return doc.replace(/^﻿/, '')
   if (!r.ok) throw new DriveErreur(`téléchargement refusé (${r.status})`)
-  const texte = await r.text()
-  if (/^\s*<!doctype html|^\s*<html/i.test(texte)) throw new DriveErreur('Google a renvoyé une page au lieu du fichier')
-  return texte.replace(/^﻿/, '')
+  throw new DriveErreur('Google a renvoyé une page au lieu du fichier (fichier non public ?)')
 }
 
 // ------------------------------------------------------------- regroupement
@@ -469,6 +474,7 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
     }
   }
 
+  if (!essai) noterImports(syntheses)
   const bilan = essai ? null : ajouterEtudesImportees(nouvelles)
   return {
     essai,
@@ -488,30 +494,45 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
 async function importerSyntheseDuJour(jour: DateTrouvee, racine: string, essai: boolean): Promise<BilanSynthese | null> {
   const s = jour.syntheses
   if (!s.json && !s.opportunites) return Object.keys(s).length ? { date: jour.date, statut: 'refuse', raison: 'ni opportunites-import-dropshipper.json ni opportunites-prioritaires.md' } : null
+  const motifs: string[] = []
   const lire = async (f?: FichierDrive) => {
     if (!f) return null
     try {
       return await telecharger(f.id)
-    } catch {
+    } catch (err) {
+      motifs.push(`${f.nom} : ${err instanceof Error ? err.message : String(err)}`)
       return null
     }
   }
   let json: unknown
   const brut = await lire(s.json)
   if (brut) {
-    try {
-      json = JSON.parse(brut)
-    } catch {
-      json = undefined
-    }
+    json = jsonTolerant(brut)
+    if (json === undefined) motifs.push(`${s.json!.nom} : JSON illisible (début : « ${brut.trim().slice(0, 60)} »)`)
   }
   // The Markdown tables are only opened when the JSON is missing or unreadable.
   const opportunitesMd = json === undefined ? await lire(s.opportunites) : null
   const generaleMd = await lire(s.generale)
   const tableauMd = generaleMd ? null : await lire(s.tableau)
   const principal = s.json ?? s.opportunites!
-  return importerSynthese(
+  const bilan = importerSynthese(
     { date: jour.date, origine: `drive:${racine}/${[...principal.chemin, principal.nom].join('/')}`, json, opportunitesMd, generaleMd, tableauMd },
     essai,
   )
+  if (bilan.statut === 'refuse' && motifs.length) bilan.raison = `${bilan.raison} — ${motifs.join(' ; ')}`
+  return bilan
+}
+
+/** JSON as an agent may write it: inside a ```json fence, or after a sentence. */
+export function jsonTolerant(brut: string): unknown {
+  const essais = [brut, brut.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1], brut.slice(brut.indexOf('{'), brut.lastIndexOf('}') + 1)]
+  for (const t of essais) {
+    if (!t?.trim()) continue
+    try {
+      return JSON.parse(t)
+    } catch {
+      /* next */
+    }
+  }
+  return undefined
 }
