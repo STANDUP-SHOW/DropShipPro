@@ -38,7 +38,6 @@ import {
   Users,
   Wand2,
   Wrench,
-  Zap,
 } from 'lucide-react'
 import { DropCoin } from './DropCoin'
 import { IconeChrome } from './IconeChrome'
@@ -46,9 +45,10 @@ import { IconeDropShop } from './LogoDropShop'
 import { IconeShopify } from './MenuBoutiques'
 
 /**
- * Le menu de l'espace connecté, rassemblé en six groupes (maquette de Max du
- * 13/10/2026) : Pilotage, Catalogue, Canaux de vente, Marketing & veille,
- * Opérations, Gestion. Chaque entrée garde son icône — demandé expressément
+ * Le menu de l'espace connecté, rassemblé en groupes (maquette de Max du
+ * 13/10/2026, remodelée le 08/11) : Pilotage, Catalogue, Canaux de vente,
+ * Marketing, aiMarket Analyses, DropBOOSTER, Opérations, Gestion, DESKTOP POWER.
+ * API Power n'est plus au menu (lien gardé sur la page d'accueil). Chaque entrée garde son icône — demandé expressément
  * pour Mes annonces, Acquérir et l'extension, qui porte le logo de Chrome.
  *
  * Une seule table sert au menu latéral, au fil d'Ariane de la barre du haut et
@@ -132,20 +132,37 @@ export const GROUPES: GroupeMenu[] = [
   },
   {
     id: 'marketing',
-    titre: 'Marketing & veille',
-    icon: Sparkles,
+    titre: 'Marketing',
+    icon: Megaphone,
     teinte: '#fdbf06',
     entrees: [
       { to: '/marketing', label: 'Studio publicitaire', icon: Megaphone, mots: 'commercialisation publicité' },
       { to: '/reseaux', label: 'Réseaux & régies', icon: Share2, mots: 'réseaux sociaux' },
-      { to: '/reseaux?vue=analyses', label: 'Analyses réseaux', icon: ChartColumn },
-      { to: '/reseaux?vue=prompts', label: 'Prompts IA', icon: Wand2 },
+    ],
+  },
+  {
+    // aiMarket Analyses (demande de Max du 08/11/2026) : ce que DropShipper livre chaque jour.
+    id: 'aimarket',
+    titre: 'aiMarket Analyses',
+    icon: Newspaper,
+    teinte: '#07eeb7',
+    entrees: [
+      { to: '/fresh-news', label: 'Fresh Market News', icon: Newspaper, mots: 'veille fresh news analyses du jour' },
+      { to: '/reseaux?vue=analyses', label: 'Network News', icon: ChartColumn, mots: 'analyses réseaux' },
+      { to: '/reseaux?vue=prompts', label: 'Prompts GAGNANTS', icon: Wand2, mots: 'prompts ia' },
+      { to: '/produits-gagnants', label: 'Produits GAGNANTS', icon: Trophy, mots: 'gagnants' },
+    ],
+  },
+  {
+    // DropBOOSTER (08/11/2026) : les analyses personnelles, celles des chefs de rayon embauchés.
+    id: 'dropbooster',
+    titre: 'DropBOOSTER',
+    icon: Rocket,
+    teinte: '#c084fc',
+    entrees: [
       { to: '/rayons', label: 'Chefs de rayon', icon: UserRound, mots: 'mes chefs de rayon' },
       { to: RAYONS_BOOST, label: 'Mes rayons BOOST', icon: Sparkles },
-      { to: '/fresh-news', label: 'Fresh Market News', icon: Newspaper, mots: 'veille fresh news analyses du jour' },
       { to: '/analyse-marche', label: 'Mes analyses', icon: TrendingUp, mots: 'analyse de marché' },
-      { to: '/produits-gagnants', label: 'Produits gagnants', icon: Trophy },
-      { to: '/api-power/', label: 'API Power', icon: Zap },
     ],
   },
   {
