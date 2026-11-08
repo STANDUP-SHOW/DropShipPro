@@ -3,7 +3,7 @@ import { EURO_PAR_DROP } from './tarifs.js'
 import { PLATFORMS } from './platforms.js'
 import type { Order, Platform } from '@prisma/client'
 import { baseRapports } from '../routes/reportsPublic.js'
-import { compteurs as compteursSynthese, datesSyntheses, lireSynthese } from './synthesesQuotidiennes.js'
+import { compteurs as compteursSynthese, datesSyntheses, lireSynthese, SYNTHESES_PUBLIEES } from './synthesesQuotidiennes.js'
 
 /** « Acheter maintenant », « Acheter si négocié », « BUY », « TOP » : a favourable verdict; « Ne pas acheter », « À surveiller » are not. */
 export function verdictFavorable(v: string | null | undefined): boolean {
@@ -38,6 +38,8 @@ function marcheDuJour(): { jourCourt: string; rayon: number; marketing: number; 
 
 /** The counters of the last daily synthesis (Drive import, PR #176), or null when none is imported. */
 function syntheseDuJour(): (ReturnType<typeof compteursSynthese> & { jourCourt: string }) | null {
+  // Max, 08/11/2026 : syntheses stay in KANTIX (admin), not on the site, connected space included.
+  if (!SYNTHESES_PUBLIEES) return null
   try {
     const jour = datesSyntheses()[0]
     const s = jour ? lireSynthese(jour) : null

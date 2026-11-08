@@ -541,3 +541,53 @@ export function lireJournal(): Array<{ quand: string; date: string; statut: stri
     return []
   }
 }
+
+// ------------------------------------------------------- publication
+
+/**
+ * Max, 08/11/2026 : « les synthèses du jour, finalement, on ne va pas les
+ * publier sur le site en ligne ». They live in KANTIX only (admin back office,
+ * DropShipper project, « Synthèses AIMARKET »). Every public reader (Fresh
+ * Market News pages, sitemap, dashboard counters) asks this first.
+ */
+export const SYNTHESES_PUBLIEES = false
+
+// ------------------------------------------- import dans un compte vendeur
+
+export interface ProduitACreer {
+  sourceUrl: string
+  sourceSite: string | null
+  sourceCategory: string | null
+  title: string
+  description: string
+  price: number
+  sellingPrice: number
+}
+
+/**
+ * The listing a chosen winner becomes in a seller's catalogue (Max, 08/11:
+ * « importer les produits gagnants passés au crible sur mon compte utilisateur
+ * au choix »). The file gives no product page, no photo: the listing keeps the
+ * search page it was found through as its source, the landed cost as the
+ * supplier price and the target price as the selling price — the seller
+ * completes it like a hand-made listing.
+ */
+export function produitACreer(p: ProduitSynthese): ProduitACreer {
+  const source = p.liens.sourcing_primary || p.liens.dropshipper_import || p.liens.aliexpress_fr || Object.values(p.liens)[0] || ''
+  let site: string | null = null
+  try {
+    site = source ? new URL(source).hostname.replace(/^www\./, '') : null
+  } catch {
+    site = null
+  }
+  const lignes = [p.variante, p.themeLabel && `Rayon : ${p.categorieLabel} › ${p.themeLabel}`].filter(Boolean)
+  return {
+    sourceUrl: source,
+    sourceSite: site,
+    sourceCategory: p.categorieLabel || p.categorie || null,
+    title: p.nom.slice(0, 200),
+    description: lignes.join('\n\n'),
+    price: p.coutRendu ?? 0,
+    sellingPrice: p.prixVente ?? 0,
+  }
+}
