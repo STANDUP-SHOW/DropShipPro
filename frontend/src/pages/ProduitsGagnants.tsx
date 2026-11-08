@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Trash2, Sparkles } from 'lucide-react'
 import { Layout } from '../components/Layout'
-import { CartesGagnants } from '../components/creative/CartesGagnants'
+import { ListeGagnants } from '../components/creative/ListeGagnants'
 import { PageCreative, Entete } from '../components/creative/Creative'
 import { Provenance } from '../components/creative/Veille'
 import { api } from '../lib/api'
@@ -64,8 +64,8 @@ export default function ProduitsGagnants() {
           chapo="Comparez le prix, la marge affichée et le verdict avant de retenir un produit. Le nom de la rubrique ne remplace pas l'analyse."
         />
 
-        {/* Les gagnants des rapports du jour, en cartes (maquette du 16/10/2026, vue 09). */}
-        <CartesGagnants />
+        {/* Les gagnants des rapports du jour, en liste comme Mes annonces (Max, 08/11/2026). */}
+        <ListeGagnants />
 
         <section className="mt-14">
           <div className="v-titre-section">
