@@ -8,7 +8,7 @@ import { StudioAnalyses } from '../components/StudioAnalyses'
 import { Markdown } from '../components/Markdown'
 import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
 import { PageCreative, Entete, Fenetre } from '../components/creative/Creative'
-import { GrilleRapports, Provenance, dateLongue, liste, pagePublique, type LigneRapport } from '../components/creative/Veille'
+import { GrilleRapports, Provenance, dateLongue, liste, pagePublique, versLecture, type LigneRapport } from '../components/creative/Veille'
 import { SelectionAnalyse, PLAFOND_ANALYSE, type Mode } from '../components/SelectionAnalyse'
 import { api } from '../lib/api'
 
@@ -403,9 +403,9 @@ export function RapportsAuPremierPlan() {
             {`${dateLongue(ouvert.day)} · ${ouvert.produits} produit${ouvert.produits > 1 ? 's' : ''} dans ce rapport · ${ouvert.sources} source${ouvert.sources > 1 ? 's' : ''}`}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <a href={pagePublique(ouvert)} target="_blank" rel="noreferrer" className="c-bouton-sec !text-xs">
-              <Globe size={12} /> Page publique du rapport
-            </a>
+            <Link className="c-bouton-sec !text-xs" to={versLecture(pagePublique(ouvert))}>
+              <Globe size={12} /> Lire l'article
+            </Link>
             <Link to={`/fresh-news?categorie=${ouvert.categorie}&jour=${ouvert.day}`} className="c-bouton-sec !text-xs">
               Lire l'édition Fresh Market News <ArrowUpRight size={12} />
             </Link>

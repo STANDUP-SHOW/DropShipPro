@@ -1031,29 +1031,29 @@ function estBlocProduits(titre: string, corps: string): boolean {
 
 const CSS = `
 :root{color-scheme:dark}*{box-sizing:border-box}
-body{margin:0;background:#140f28;color:#e9e6f5;font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-a{color:#c4b5fd}.wrap{max-width:52rem;margin:0 auto;padding:0 1.25rem}
+body{margin:0;background:#101321;color:#d7dcea;font:16px/1.7 Onest,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:#f58ab3;text-underline-offset:3px}.wrap{max-width:52rem;margin:0 auto;padding:0 1.25rem}
 header{border-bottom:1px solid #ffffff1a}header .wrap{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;gap:1rem}
 .brand{display:flex;align-items:flex-start;gap:5px;height:34px;text-decoration:none;flex:none}
 .brand img{display:block}
 .brand .mot{height:21.8px;width:auto;margin-top:8.3px}
 .cta{display:inline-block;background:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:600;padding:.7rem 1.15rem;border-radius:.75rem}
 .cta.small{padding:.5rem .9rem;font-size:.9rem}
-h1{font-size:1.8rem;line-height:1.25;margin:1.5rem 0 .5rem}h2{font-size:1.25rem;margin:2.25rem 0 .5rem}h3{font-size:1rem;margin:1.5rem 0 .35rem}
-p{margin:.6rem 0}.lede{font-size:1.08rem;color:#cfc9e8}.meta{font-size:.85rem;color:#9d95c0}
-.crumb{font-size:.82rem;color:#9d95c0;padding-top:1.25rem}.crumb a{color:#9d95c0}
-.tableau{overflow-x:auto;margin:1rem 0;border:1px solid #ffffff1a;border-radius:.75rem}
-table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid #ffffff12;vertical-align:top}th{color:#9d95c0;font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.03em}
+h1{font-size:clamp(1.7rem,3.4vw,2.4rem);line-height:1.15;font-weight:800;letter-spacing:-.02em;color:#f5f7fa;margin:1.25rem 0 .75rem}h2{font-size:1.3rem;color:#f5f7fa;margin:2.5rem 0 .6rem;padding-top:1.4rem;border-top:1px solid #262c3f}h3{font-size:1.05rem;color:#f5f7fa;margin:1.5rem 0 .4rem}strong,b{color:#f5f7fa}
+p{margin:.6rem 0}.lede{font-size:1.12rem;color:#f5f7fa}.meta{font-size:.85rem;color:#8b93a7}
+.crumb{font-size:.82rem;color:#8b93a7;padding-top:1.5rem}.crumb a{color:#8b93a7;text-decoration:none}
+.tableau{overflow-x:auto;margin:1.1rem 0;border:1px solid #2a3147;border-radius:1rem;background:#191e2e}
+table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid #ffffff12;vertical-align:top}th{color:#b8c0d0;background:#161b2a;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}td,th{padding:.7rem .85rem}
 .prompt{margin:1rem 0;border:1px solid #a855f740;background:#0000004d;border-radius:.75rem;overflow:hidden}
 .prompt figcaption{padding:.4rem .8rem;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#d8b4fe;border-bottom:1px solid #ffffff12}
 .prompt pre{margin:0;padding:.75rem .9rem;white-space:pre-wrap;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#f3f0ff}
 .garde{border:1px solid #34d39940;background:#34d39912;border-radius:.75rem;padding:.85rem 1rem;margin:1rem 0;font-size:.92rem}
 .liste{list-style:none;padding:0;margin:1rem 0;display:grid;gap:.6rem}
-.liste li{border:1px solid #ffffff1a;background:#ffffff0d;border-radius:.75rem;padding:.75rem .9rem}
-.liste a{text-decoration:none;color:#fff;font-weight:600}.liste small{display:block;color:#9d95c0;margin-top:.15rem}
+.liste li{border:1px solid #262c3f;background:#191e2e;border-radius:.9rem;padding:.8rem 1rem}
+.liste a{text-decoration:none;color:#f5f7fa;font-weight:700}.liste small{display:block;color:#8b93a7;margin-top:.15rem}
 .grille{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));margin:1rem 0}
-.grille a{display:block;border:1px solid #ffffff1a;background:#ffffff0d;border-radius:.75rem;padding:.7rem .85rem;text-decoration:none;color:#e9e6f5}
-.grille a small,.grille span small{display:block;color:#9d95c0}
+.grille a{display:block;border:1px solid #262c3f;background:#191e2e;border-radius:.9rem;padding:.75rem .9rem;text-decoration:none;color:#f5f7fa}
+.grille a small,.grille span small{display:block;color:#8b93a7}
 .grille .vide{display:block;border:1px dashed #ffffff1a;border-radius:.75rem;padding:.7rem .85rem;color:#9d95c0}
 footer{border-top:1px solid #ffffff1a;margin-top:3rem;padding:1.5rem 0;font-size:.85rem;color:#9d95c0}footer a{color:#9d95c0;margin-right:1rem}
 .end{margin:2.5rem 0;text-align:center}
@@ -1063,8 +1063,9 @@ footer{border-top:1px solid #ffffff1a;margin-top:3rem;padding:1.5rem 0;font-size
  * Max, 08/11/2026: a signed-in seller who lands on a public page saw « Créer un
  * compte » and « réservés aux comptes ». The page stays the same for visitors
  * and crawlers (SEO and guard-rail untouched); a signed-in browser (the token
- * the app keeps on the same origin) gets « Mon espace » and a way back to the
- * full analysis inside the app, and the members-only notices go.
+ * the app keeps on the same origin) is sent to /lecture/<same address>, the
+ * article inside the app's shell (08/11: « ces pages doivent comporter les
+ * menus ») ; with ?public=1 it stays, with « Mon espace » and no members-only notice.
  */
 const CSS_CONNECTE = `html[data-connecte] .garde{display:none}
 .bandeau-connecte{margin:1.25rem 0 0;padding:.85rem 1rem;border:1px solid #e8529066;border-radius:.75rem;background:#e852901a;font-size:.95rem}.bandeau-connecte a{font-weight:700}`
@@ -1090,8 +1091,9 @@ ${o.publie ? `<meta property="article:published_time" content="${o.publie.toISOS
 ${o.modifie ? `<meta property="article:modified_time" content="${o.modifie.toISOString()}">` : ''}
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
 <link rel="alternate" type="text/plain" href="${SITE}/llms.txt" title="Description pour les assistants IA">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;700;800&display=swap">
 <style>${CSS}${CSS_CONNECTE}</style>
-<script>try{if(localStorage.getItem('droppost_token'))document.documentElement.setAttribute('data-connecte','1')}catch(e){}</script>
+<script>try{if(localStorage.getItem('droppost_token')){if(location.pathname.indexOf('/fresh-market-news')===0&&location.search.indexOf('public=1')<0){location.replace('/lecture'+location.pathname+location.hash)}document.documentElement.setAttribute('data-connecte','1')}}catch(e){}</script>
 <script type="application/ld+json">${JSON.stringify(o.jsonLd)}</script>
 </head>
 <body>

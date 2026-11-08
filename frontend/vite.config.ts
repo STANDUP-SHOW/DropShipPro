@@ -16,6 +16,8 @@ export default defineConfig({
       // Regex on purpose: a plain '/api' prefix also caught /api-power, the
       // public page, and proxied it to the backend (502 in preview, 25/09/2026).
       '^/api/': 'http://localhost:4000',
+      // Fresh Market News articles, read inside the app (/lecture/...).
+      '^/fresh-market-news(/|$)': 'http://localhost:4000',
     },
   },
 })
