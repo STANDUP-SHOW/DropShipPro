@@ -64,6 +64,8 @@ else app.setPath('userData', path.join(app.getPath('appData'), "DropShipper Post
 const NOM_APP = 'KANTIX ANALYSER'
 
 let fenetre = null
+const connexion = require('./lib/connexionCompte')
+const connexionCompte = connexion.creerAttente({ ouvrir: (lien) => shell.openExternal(lien), apiBase: () => cfg.apiBase })
 let tray = null
 // browser tabs: one live view per site, kept open between visits (KANTIX, 0.5.0)
 const vues = new Map()
@@ -1017,6 +1019,14 @@ function brancher() {
   h('admin-utilisateurs', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/utilisateurs' }))
   h('admin-newsletter', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/newsletter' }))
   // Back-office moved from the site into the Poste (PR #17): Drive import and affiliate payouts, same /api/admin routes.
+  // Synthèses AIMARKET (08/11/2026): read only here, never on the site; winners imported onto a chosen seller account.
+  // Routes of the site (#179): GET /syntheses {dates, imports}, GET /syntheses/:date, POST /syntheses-compte, POST /syntheses/:date/importer-compte.
+  h('admin-syntheses', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/syntheses' }))
+  h('admin-synthese', ({ date }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/syntheses/${encodeURIComponent(date)}` }))
+  h('admin-synthese-compte', ({ email }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/syntheses-compte', corps: { email } }))
+  h('admin-synthese-importer', ({ date, email, ids, essai }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/syntheses/${encodeURIComponent(date)}/importer-compte`, corps: { email, ids, essai: essai === true } }))
+  // « Connecter avec Google »: sign-in in Max's own browser, only the account's e-mail comes back (lib/connexionCompte.js)
+  h('compte-connecter', () => connexionCompte.attendre())
   h('admin-drive-lister', ({ adresse }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: { adresse } }))
   h('admin-drive-importer', async ({ adresse, dates, essai }) => {
     const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true } })
@@ -1211,7 +1221,17 @@ if (!BANC && process.argv.includes(ARG_GARDE) && arreteParMax()) {
 } else {
   if (!process.argv.includes(ARG_GARDE)) try { fs.rmSync(fichierArretVolontaire(), { force: true }) } catch { /* nothing to remove */ }
   // only a launch by hand (shortcut, Start menu) brings the window forward
-  app.on('second-instance', (_e, argv) => { if (fenetre && !lancementDiscret(argv)) { fenetre.show(); fenetre.focus() } })
+  app.on('second-instance', (_e, argv) => {
+    // kantix://connexion?… from the browser (Windows starts a second instance with the address in argv)
+    const retour = connexion.adresseDansArgv(argv)
+    if (retour) { connexionCompte.recevoir(retour); if (fenetre) { fenetre.show(); fenetre.focus() } return }
+    if (fenetre && !lancementDiscret(argv)) { fenetre.show(); fenetre.focus() }
+  })
+  app.on('open-url', (e, adresse) => { e.preventDefault(); connexionCompte.recevoir(adresse) })
+  if (!BANC) {
+    if (process.defaultApp && process.argv[1]) app.setAsDefaultProtocolClient(connexion.PROTOCOLE, process.execPath, [path.resolve(process.argv[1])])
+    else app.setAsDefaultProtocolClient(connexion.PROTOCOLE)
+  }
   app.whenReady().then(() => {
     // Windows taskbar: same AppUserModelID as the installer shortcut (appId), so the running window groups under the shortcut and shows its Kantix icon
     if (process.platform === 'win32') app.setAppUserModelId('fr.drop-shipper.poste-analyses')
