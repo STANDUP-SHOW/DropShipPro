@@ -18,11 +18,9 @@ import { api } from '../lib/api'
 /**
  * La coque de l'espace connecté, refaite le 13/10/2026 sur la maquette de Max.
  *
- * Le menu tient en six groupes repliables (voir menuEspace.tsx) : seul le
- * groupe de la page ouverte se déplie de lui-même, les autres restent sur leur
- * titre — douze sections déroulées poussaient le solde et la déconnexion hors
- * de l'écran. Tous se replient d'un clic, celui de la page ouverte compris. Les groupes ouverts à la main sont retenus d'une visite à
- * l'autre.
+ * Le menu est un accordéon (demande de Max du 08/11/2026) : un seul groupe
+ * ouvert à la fois. Ouvrir un groupe referme les autres ; changer de page
+ * n'ouvre que le groupe de la page. Le groupe ouvert se replie d'un clic.
  *
  * Sur l'écran large, une barre légère porte le fil d'Ariane et la recherche de
  * page (Ctrl K). Les six jauges et la ligne Notifications + Extension restent
@@ -31,26 +29,6 @@ import { api } from '../lib/api'
  * Montserrat partout dans l'espace connecté (demande de Max), aux tailles de
  * texte d'avant : la classe .espace-connecte ne change que la famille.
  */
-
-const CLE_GROUPES = 'menu-groupes-ouverts'
-
-function lireGroupesOuverts(): string[] {
-  try {
-    const brut = localStorage.getItem(CLE_GROUPES)
-    const liste = brut ? JSON.parse(brut) : []
-    return Array.isArray(liste) ? liste.filter((x) => typeof x === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-function ecrireGroupesOuverts(ids: string[]) {
-  try {
-    localStorage.setItem(CLE_GROUPES, JSON.stringify(ids))
-  } catch {
-    // Stockage refusé (navigation privée) : le menu s'en passe.
-  }
-}
 
 /** Sans accents ni majuscules : « reglages » trouve « Réglages ». */
 const plat = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -81,8 +59,7 @@ function RecherchePage({ ouverte, fermer }: { ouverte: boolean; fermer: () => vo
 
   const aller = (to: string) => {
     fermer()
-    if (to.startsWith('/api-power')) window.location.href = to
-    else naviguer(to)
+    naviguer(to)
   }
 
   return (
@@ -180,23 +157,16 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
   }, [])
 
   /*
-   * Les groupes ouverts : ceux que le vendeur a dépliés lui-même, plus celui de
-   * la page en cours, déplié à l'arrivée sur la page. Ce dernier se replie
-   * quand même d'un clic (14/10 : « Pilotage » restait bloqué ouvert) ; changer
-   * de page le rouvre, puisque chaque page remonte la coque.
+   * L'accordéon : un seul groupe ouvert, celui de la page à l'arrivée. Un clic
+   * sur un autre titre l'ouvre et referme le précédent ; un clic sur le titre
+   * ouvert le replie (14/10 : « Pilotage » ne devait pas rester bloqué ouvert).
    */
-  const [ouverts, setOuverts] = useState<string[]>(() => lireGroupesOuverts())
-  const [courantReplie, setCourantReplie] = useState(false)
-  const groupeCourant = rayonActif ? 'marketing' : courante?.groupeId
-  const estOuvert = (g: GroupeMenu) => ouverts.includes(g.id) || (g.id === groupeCourant && !courantReplie)
-  const basculer = (g: GroupeMenu) => {
-    if (g.id === groupeCourant) setCourantReplie(estOuvert(g))
-    setOuverts((liste) => {
-      const suivante = estOuvert(g) ? liste.filter((x) => x !== g.id) : [...liste, g.id]
-      ecrireGroupesOuverts(suivante)
-      return suivante
-    })
-  }
+  const groupeCourant = rayonActif ? 'dropbooster' : courante?.groupeId
+  const [ouvert, setOuvert] = useState<string | null>(groupeCourant ?? null)
+  useEffect(() => {
+    if (groupeCourant) setOuvert(groupeCourant)
+  }, [groupeCourant])
+  const basculer = (g: GroupeMenu) => setOuvert((o) => (o === g.id ? null : g.id))
 
   useEffect(() => {
     api
@@ -317,7 +287,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
 
         <nav aria-label="Navigation principale" className="flex-1 space-y-1">
           {GROUPES.map((groupe) => {
-            const ouvert = estOuvert(groupe)
+            const deplie = ouvert === groupe.id
             // Replié, le groupe dit tout de même ce qui attend dedans.
             const attente = groupe.entrees.reduce((n, e) => {
               const s = SECTION_PAR_ADRESSE[e.to]
@@ -328,15 +298,20 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                 <button
                   type="button"
                   onClick={() => basculer(groupe)}
-                  aria-expanded={ouvert}
+                  aria-expanded={deplie}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-200 transition hover:bg-white/[0.04] hover:text-white"
                 >
                   <groupe.icon size={17} style={{ color: groupe.teinte }} />
                   <span className="flex-1">{groupe.titre}</span>
-                  {!ouvert && attente > 0 ? <PastilleNotif nombre={attente} titre={`${attente} nouveauté(s) dans ${groupe.titre}`} /> : null}
-                  <ChevronDown size={15} className={`text-gray-500 transition-transform ${ouvert ? 'rotate-180' : ''}`} />
+                  {!deplie && attente > 0 ? <PastilleNotif nombre={attente} titre={`${attente} nouveauté(s) dans ${groupe.titre}`} /> : null}
+                  <ChevronDown size={15} className={`text-gray-500 transition-transform duration-200 ${deplie ? 'rotate-180' : ''}`} />
                 </button>
-                {ouvert ? (
+                {/* Replié en douceur : la hauteur glisse de 0 à son contenu. */}
+                <div
+                  inert={!deplie}
+                  className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${deplie ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+                >
+                  <div className="min-h-0 overflow-hidden">
                   <div className="mb-2 mt-0.5 space-y-0.5 pl-2">
                     {groupe.note && !window.dropshipperDesktop ? <p className="px-3 pb-1 text-[11px] leading-snug text-gray-500">{groupe.note}</p> : null}
                     {groupe.entrees.map((item) => {
@@ -356,12 +331,7 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                           {pastille}
                         </>
                       )
-                      // API Power est une page publique servie à part : un vrai lien.
-                      return item.to.startsWith('/api-power') ? (
-                        <a key={item.to} href={item.to} className={classeEntree(false)}>
-                          {contenu}
-                        </a>
-                      ) : (
+                      return (
                         <Link key={item.to} to={item.to} className={classeEntree(estActive(item.to))} aria-current={estActive(item.to) ? 'page' : undefined}>
                           {contenu}
                         </Link>
@@ -369,7 +339,8 @@ export function Layout({ children }: { children: React.ReactNode; large?: boolea
                     })}
                     {groupe.id === 'desktop' ? <MenuPoste /> : null}
                   </div>
-                ) : null}
+                  </div>
+                </div>
               </div>
             )
           })}
