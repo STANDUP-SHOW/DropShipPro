@@ -6,7 +6,7 @@ import { BlocSection } from '../components/stats/BlocSection'
 import { Markdown, blocsDe } from '../components/Markdown'
 import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
 import { PageCreative, Entete } from '../components/creative/Creative'
-import { GrilleRapports, Provenance, dateLongue, liste, melange, pagePublique, type LigneRapport } from '../components/creative/Veille'
+import { GrilleRapports, Provenance, dateLongue, liste, melange, pagePublique, versLecture, type LigneRapport } from '../components/creative/Veille'
 import { api } from '../lib/api'
 
 /**
@@ -150,7 +150,7 @@ export default function FreshNews() {
               <h2 className="c-h2">{jourMontre ? `Les rapports du ${dateLongue(jourMontre)}` : 'Les rapports du jour'}</h2>
               <p>
                 {duJour.length
-                  ? `${duJour.length} rapports, ${rayonsDuJour} rayon${rayonsDuJour > 1 ? 's' : ''}, dans un ordre mélangé. Chaque carte ouvre l'analyse complète ci-dessous, avec ses produits à importer ; « Page publique » montre l'article publié pour le référencement.`
+                  ? `${duJour.length} rapports, ${rayonsDuJour} rayon${rayonsDuJour > 1 ? 's' : ''}, dans un ordre mélangé. Chaque carte ouvre l'analyse complète ci-dessous, avec ses produits à importer ; « Lire l'article » ouvre l'article mis en page.`
                   : 'Chaque jour, deux rapports pour chacun des 24 rayons : le marché et ses 20 produits, et le marketing.'}
               </p>
             </div>
@@ -220,9 +220,9 @@ export default function FreshNews() {
                   <div className="relative mt-5 flex flex-wrap gap-2">
                     <a href="#essentiel" className="v-bouton-une">Lire les points clés <ArrowUpRight size={13} /></a>
                     {ligneDe(rayon) || rayon ? (
-                      <a href={pagePublique(ligneDe(rayon) ?? { categorie, day: jourEdition, theme: rayon!.theme.id, type: 'rayon' })} target="_blank" rel="noreferrer" className="v-bouton-une">
-                        <Globe size={13} /> Page publique du rapport
-                      </a>
+                      <Link className="v-bouton-une" to={versLecture(pagePublique(ligneDe(rayon) ?? { categorie, day: jourEdition, theme: rayon!.theme.id, type: 'rayon' }))}>
+                        <Globe size={13} /> Lire l'article
+                      </Link>
                     ) : null}
                   </div>
                 </div>
@@ -254,9 +254,9 @@ export default function FreshNews() {
                             Ouvrir les pistes sociales <ArrowUpRight size={12} />
                           </a>
                         ) : null}
-                        <a href={pagePublique(ligneDe(marketing) ?? { categorie, day: jourEdition, theme: marketing.theme.id, type: 'marketing' })} target="_blank" rel="noreferrer" className="c-bouton-sec !text-xs">
-                          <Globe size={12} /> Page publique
-                        </a>
+                        <Link className="c-bouton-sec !text-xs" to={versLecture(pagePublique(ligneDe(marketing) ?? { categorie, day: jourEdition, theme: marketing.theme.id, type: 'marketing' }))}>
+                          <Globe size={12} /> Lire l'article
+                        </Link>
                       </div>
                     </div>
                   ) : null}

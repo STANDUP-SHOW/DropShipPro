@@ -42,6 +42,7 @@ import ApiPower from './pages/ApiPower'
 import BillingPage from './pages/Billing'
 import MarketAnalysisPage from './pages/MarketAnalysis'
 import FreshNews from './pages/FreshNews'
+import LectureRapport from './pages/LectureRapport'
 import ProduitsGagnants from './pages/ProduitsGagnants'
 import CreerBoutique from './pages/CreerBoutique'
 import DropShopMarketCreer from './pages/DropShopMarketCreer'
@@ -246,6 +247,7 @@ export default function App() {
           <Route path="/veille" element={<Protected><Veille /></Protected>} />
           <Route path="/analyse-marche" element={<Protected><MarketAnalysisPage /></Protected>} />
           <Route path="/fresh-news" element={<Protected><FreshNews /></Protected>} />
+          <Route path="/lecture/*" element={<Protected><LectureRapport /></Protected>} />
           <Route path="/produits-gagnants" element={<Protected><ProduitsGagnants /></Protected>} />
           <Route path="/dropshop-market/creer" element={<DropShopMarketCreer />} />
           <Route path="/dropshop-market" element={<Protected><DropShopMarket /></Protected>} />

@@ -46,6 +46,11 @@ export function dateCourte(iso: string): string {
  * première forme, catégorie/date/thème : le serveur la renvoie en 301 vers
  * l'adresse actuelle de l'article, quel que soit son titre du jour.
  */
+/** A Fresh Market News address, read inside the connected space (menus kept, 08/11/2026). */
+export function versLecture(adresse: string): string {
+  return /^\/fresh-market-news(?:\/|$)/.test(adresse) ? `/lecture${adresse}` : adresse
+}
+
 export function pagePublique(r: Pick<LigneRapport, 'categorie' | 'day' | 'theme' | 'type'> & { adresse?: string | null }): string {
   if (r.adresse) return r.adresse
   return `/analyses/${r.categorie}/${r.day}/${r.theme}/${r.type === 'marketing' ? 'marketing/' : ''}`
@@ -81,8 +86,8 @@ export function GrilleRapports({
   illustree?: boolean
   /**
    * Fresh Market News : la carte ouvre l'analyse complète dans l'espace (Max,
-   * 08/11/2026 : garder les menus du site et l'accès d'un connecté) ; « Page
-   * publique » ouvre l'article SEO dans un autre onglet.
+   * 08/11/2026 : garder les menus du site et l'accès d'un connecté) ; « Lire
+   * l'article » ouvre l'article dans l'espace (/lecture/...).
    */
   article?: boolean
   actif?: string | null
@@ -121,9 +126,9 @@ export function GrilleRapports({
                 {sous}
                 <span className="v-rapport-pied">
                   <span>{compte}</span>
-                  <a className="v-rapport-edition" href={pagePublique(r)} target="_blank" rel="noreferrer">
-                    Page publique
-                  </a>
+                  <Link className="v-rapport-edition" to={versLecture(pagePublique(r))}>
+                    Lire l'article
+                  </Link>
                   <span className="c-fleche !h-7 !w-7">
                     <ArrowUpRight size={13} />
                   </span>
@@ -167,12 +172,12 @@ export function Provenance({ texte, libelle, to }: { texte: string; libelle: str
   return (
     <div className="v-provenance mt-12">
       <span>{texte}</span>
-      {to.startsWith('/analyses') || to.startsWith('/fresh-market-news') || to.startsWith('http') ? (
+      {to.startsWith('/analyses') || to.startsWith('http') ? (
         <a href={to} className="v-lien" target={to.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
           {libelle} <ArrowUpRight size={12} />
         </a>
       ) : (
-        <Link to={to} className="v-lien">
+        <Link to={versLecture(to)} className="v-lien">
           {libelle} <ArrowUpRight size={12} />
         </Link>
       )}
