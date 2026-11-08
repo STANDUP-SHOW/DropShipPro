@@ -746,6 +746,68 @@ function indicesDuChemin(chemin) {
   return m ? { date: m[1], categorie: m[2], theme: m[3] } : null;
 }
 
+
+// ------------------------------------------------- doublons d'un rapport
+
+/** A title compared whole (variants kept apart: an accessory is never merged with its device). */
+function cleTitre(t) {
+  return String(t || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9+]+/g, ' ')
+    .trim();
+}
+
+/**
+ * The same product twice in one report (Max, 08/11/2026 : « des doubles ») :
+ * same whole title at the same address, or once with no address. The row with
+ * the most filled fields stays, at the place of the first one.
+ */
+function dedoublonner(liste, titreDe, urlDe) {
+  const gardes = [];
+  let retires = 0;
+  const plein = (p) => Object.values(p).filter((v) => v != null && v !== '' && v !== '—').length;
+  for (const p of liste) {
+    const t = cleTitre(titreDe(p));
+    const u = String(urlDe(p) || '');
+    const i = t ? gardes.findIndex((g) => cleTitre(titreDe(g)) === t && (String(urlDe(g) || '') === u || !u || !urlDe(g))) : -1;
+    if (i < 0) {
+      gardes.push(p);
+      continue;
+    }
+    retires++;
+    if (plein(p) > plein(gardes[i])) gardes[i] = p;
+  }
+  return { produits: gardes, retires };
+}
+
+/** Product row ids from the rank, made unique when an agent repeats a rank (a repeat aborted the whole import). */
+function idsProduits(prefixe, rangs) {
+  const pris = new Set();
+  return rangs.map((r, i) => {
+    let id = `${prefixe}-p${String(r || i + 1).padStart(2, '0')}`;
+    if (pris.has(id)) id = `${prefixe}-p${String(i + 1).padStart(2, '0')}-${i + 1}`;
+    pris.add(id);
+    return id;
+  });
+}
+
+/** What a report says about its addresses: how many products have none, how many only a search or a home page. */
+function mesureAdresses(urls) {
+  const http = urls.filter((u) => /^https?:\/\//.test(String(u || '')));
+  const compte = new Map();
+  for (const u of http) compte.set(u, (compte.get(u) || 0) + 1);
+  return {
+    sansAdresse: urls.length - http.length,
+    fiches: http.filter((u) => typeUrl(u) === 'fiche').length,
+    recherches: http.filter((u) => typeUrl(u) !== 'fiche').length,
+    adressesRepetees: [...compte.values()].filter((n) => n > 1).reduce((a, n) => a + n - 1, 0),
+  };
+}
+
+// ------------------------------------------------------ une etude Markdown
+
 /**
  * Lit un couple <theme>.rayon.md / <theme>.marketing.md et rend soit un refus
  * motive, soit une etude prete a ecrire. Ne touche a aucune base : l'ecriture
@@ -790,7 +852,8 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
   // Ours puts the supplier URL in the 4th column; a table that names its
   // columns otherwise is read by header names.
   const entete = tableaux(blocProduits)[0];
-  const produits = entete && !/url/.test(entete.entetes[3] || '') ? tableauProduitsParEntetes(blocProduits, texteRayon) : tableauProduits(blocProduits);
+  const lus = entete && !/url/.test(entete.entetes[3] || '') ? tableauProduitsParEntetes(blocProduits, texteRayon) : tableauProduits(blocProduits);
+  const { produits, retires: doublonsRetires } = dedoublonner(lus, (p) => p.titre, (p) => p.url);
 
   if (!produits.length) {
     return { ok: false, raison: 'aucune ligne produit lisible dans le tableau' };
@@ -903,10 +966,11 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`
     );
 
-    produits.forEach((p) => {
+    const ids = idsProduits(idEnfantR, produits.map((p) => p.rang));
+    produits.forEach((p, i) => {
       const cle = cleProduit(p.titre);
       insProd.run(
-        `${idEnfantR}-p${String(p.rang).padStart(2, '0')}`,
+        ids[i],
         idEnfantR,
         p.titre,
         p.fournisseur,
@@ -985,7 +1049,8 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
     idMarketing: mkt ? idMkt : null,
     sources: nbSources,
     produits: produits.length,
-    fiches: produits.filter((p) => p.typeUrl === 'fiche').length,
+    ...mesureAdresses(produits.map((p) => p.url)),
+    doublonsRetires,
     urlsDistinctes: new Set(produits.map((p) => p.url).filter((u) => /^https?:\/\//.test(u))).size,
     avecPrix: produits.filter((p) => p.achat != null && p.vente != null).length,
     avecScore: produits.filter((p) => p.score != null).length,
@@ -1016,7 +1081,11 @@ function etudeAiMarket(d, origine) {
   // Les fichiers n8n, sans category_id, gardent la regle d'origine.
   const categorie = s.category_id ? String(s.category_id) : slug(s.category_name);
   const theme = slug(s.theme_slug);
-  const produits = Array.isArray(d.products) ? d.products : [];
+  const { produits, retires: doublonsRetires } = dedoublonner(
+    Array.isArray(d.products) ? d.products : [],
+    (p) => [p && p.product_name, p && p.variant].filter(Boolean).join(' — '),
+    (p) => p && p.supplier_url,
+  );
   const nbSources = Array.isArray(d.sources) ? d.sources.length : 0;
 
   const idRayon = `rayon-${date}-${categorie}-${theme}`;
@@ -1122,6 +1191,7 @@ function etudeAiMarket(d, origine) {
                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
+    const ids = idsProduits(idEnfantR, produits.map((p) => p.rank));
     produits.forEach((p, i) => {
       const titreP = [p.product_name, p.variant].filter(Boolean).join(' — ');
       const fournisseur = [p.supplier_name, p.supplier_platform]
@@ -1138,7 +1208,7 @@ function etudeAiMarket(d, origine) {
         refUrl = mp.other[0].merchant;
       }
       insProd.run(
-        `${idEnfantR}-p${String(p.rank || i + 1).padStart(2, '0')}`,
+        ids[i],
         idEnfantR,
         titreP || 'Sans titre',
         fournisseur || '—',
@@ -1230,7 +1300,8 @@ function etudeAiMarket(d, origine) {
     idMarketing: idMkt,
     sources: nbSources,
     produits: produits.length,
-    fiches: produits.filter((p) => typeUrl(p.supplier_url) === 'fiche').length,
+    ...mesureAdresses(produits.map((p) => p.supplier_url)),
+    doublonsRetires,
     urlsDistinctes: new Set(urls).size,
     avecPrix: produits.filter((p) => (p.purchase_price != null || p.estimated_landed_cost_france != null) && p.target_selling_price != null).length,
     avecScore: produits.filter((p) => p.scores && p.scores.global_opportunity_score != null).length,
@@ -1262,6 +1333,7 @@ module.exports = {
   indicesDuChemin,
   etudeAiMarket,
   ecrireEtude,
+  dedoublonner,
   verdictFr,
   puces,
 };

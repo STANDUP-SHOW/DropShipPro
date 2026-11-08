@@ -1651,3 +1651,20 @@ le sitemap). La marge affichée vient de `margin_pct` ou des prix : la colonne `
 MarketSpy (« marge 105 % » affiché). Liste des produits : un seul bouton d'import, le moins cher (12, ou
 extension 18). Banc : `backend/check-rapports-marketspy.cjs`.
 - 12/10 soir : la date de modification d'une page /analyses (article:modified_time, lastmod) suit le texte PUBLIC : empreinte du rendu gardée dans `storage/rendus-publics.json` (volume), `datesPubliques` dans analysesPubliques.ts. Changer un filtre public fait avancer la date des seules pages touchées.
+
+## Import Drive : qualité et doublons (08/11/2026)
+
+max : « manques url, doubles, rapports en double, incomplets, mal rangés, pas clairs ».
+- Un rang répété dans un tableau (deux lignes « 3 ») donnait deux fois le même `products.id` :
+  la clé primaire faisait échouer TOUT l'import (et le rejeu de la surcouche). Les ids sont
+  désormais rendus uniques (`idsProduits`), et le rejeu saute une étude fautive en la nommant.
+- Un même produit deux fois dans un rapport (même titre entier, même adresse ou sans adresse) est
+  retiré à la lecture (`dedoublonner`, rapports-etude.cjs) ; un titre différent n'est jamais fusionné.
+- Plusieurs fichiers pour un même rayon et un même jour (trois dossiers « 2026-11-02 » dans le Drive) :
+  la version la plus complète (`completude`) est gardée, plus la première listée. Un réimport
+  remplace un import Drive moins complet ; un rapport de nos agents n'est jamais remplacé.
+- Seuil (`SEUIL_IMPORT`) : moins de 10 produits ou aucune adresse source = refusé, motif nommé.
+- Chaque ligne porte ses manques (`notes`, joints dans `raison` que KANTIX affiche), le fichier
+  d'origine, et `resume` résume l'import en phrases. Banc : `npx tsx check-import-qualite.ts`.
+- Constaté en ligne le 08/11 (sitemap) : ~35 pages rayon sous 20 produits, et des titres d'adresse
+  vides de sens (« en-ce-samedi-07-novembre » sur 19 pages) — titreDuJour.ts, fil SEO prévenu.

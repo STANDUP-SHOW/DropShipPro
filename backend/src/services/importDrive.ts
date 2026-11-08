@@ -19,6 +19,8 @@ import {
   ajouterEtudesImportees,
   etudeDepuisSurcouche,
   idsRapportsEnService,
+  lireSurcouche,
+  rayonsEnService,
   type EtudeImportee,
 } from './reportsDb.js'
 import { importerSynthese, lireSynthese, noterImports, roleSynthese, type BilanSynthese, type RoleSynthese } from './synthesesQuotidiennes.js'
@@ -368,6 +370,16 @@ export interface LigneRapport {
   avecScore?: number
   marketing?: boolean
   conforme?: boolean
+  /** Products whose address is a product page; the others point to a search or a home page. */
+  fiches?: number
+  /** Products with no source address at all. */
+  sansAdresse?: number
+  /** Same product twice in the file, removed at import. */
+  doublonsRetires?: number
+  /** The Drive file the line comes from, from the pasted folder. */
+  fichier?: string
+  /** Each point of `raison`, apart (incomplete, misfiled, replaced…). */
+  notes?: string[]
 }
 
 /**
@@ -378,17 +390,76 @@ function conforme(e: { produits: number; urlsDistinctes: number; avecPrix: numbe
   return e.produits >= 20 && e.urlsDistinctes >= 20 && e.avecPrix >= 18
 }
 
+/**
+ * Below this a report is refused, named, never published (Max, 08/11/2026 :
+ * « incomplets », « d'autres sans source ») : a shelf of 20 that brings fewer
+ * than 10 products, or not one address to check them against.
+ */
+export const SEUIL_IMPORT = { produits: 10, adresses: 1 }
+
+/** How complete a study is, to keep the best of two versions of the same shelf and day. */
+export function completude(e: { produits: number; urlsDistinctes: number; avecPrix: number; avecScore?: number; marketing?: boolean; fiches?: number }): number {
+  return (conforme(e) ? 10_000 : 0) + e.urlsDistinctes * 40 + (e.fiches ?? 0) * 10 + e.avecPrix * 8 + (e.avecScore ?? 0) * 4 + e.produits * 2 + (e.marketing ? 1 : 0)
+}
+
+/** What a measured study lacks against the contract, in words, empty when nothing. */
+export function manques(e: { produits: number; urlsDistinctes: number; avecPrix: number; marketing?: boolean; sansAdresse?: number; fiches?: number; doublonsRetires?: number }): string[] {
+  const out: string[] = []
+  if (e.produits < 20) out.push(`incomplet : ${e.produits} produits sur 20`)
+  if (e.sansAdresse) out.push(`${e.sansAdresse} produit(s) sans adresse source`)
+  const recherches = e.urlsDistinctes - Math.min(e.urlsDistinctes, e.fiches ?? e.urlsDistinctes)
+  if (recherches > 0) out.push(`${recherches} adresse(s) de recherche ou d'accueil, pas de fiche produit`)
+  if (e.produits - (e.sansAdresse ?? 0) > e.urlsDistinctes) out.push(`${e.produits - (e.sansAdresse ?? 0) - e.urlsDistinctes} adresse(s) reprise(s) pour plusieurs produits`)
+  if (e.avecPrix < Math.min(18, e.produits)) out.push(`prix sur ${e.avecPrix} produit(s) seulement`)
+  if (e.doublonsRetires) out.push(`${e.doublonsRetires} produit(s) en double retiré(s)`)
+  if (e.marketing === false) out.push('sans volet marketing')
+  return out
+}
+
+type Candidat = { fichier: FichierDrive; source: EtudeImportee; etude: any }
+
+/** Opens one report file of a shelf (its .marketing.md with it) and reads it; a refusal is returned in words. */
+async function lireCandidat(f: FichierDrive, marketing: FichierDrive | null, racine: string, jour: string, categorie: string): Promise<Candidat | string> {
+  const origine = `drive:${racine}/${jour}/${categorie}/${f.nom}`
+  let source: EtudeImportee
+  try {
+    if (genre(f.nom).genre === 'rayon') {
+      const texteRayon = await telecharger(f.id)
+      const texteMarketing = marketing ? await telecharger(marketing.id) : null
+      source = { idRayon: '', format: 'markdown', origine, importeLe: new Date().toISOString(), texteRayon, texteMarketing }
+    } else {
+      const json = jsonTolerant(await telecharger(f.id))
+      if (json === undefined) return 'JSON illisible'
+      if (!(json as { study?: unknown })?.study) return 'JSON hors schéma aiMARKET (pas de bloc study) et pas de .rayon.md'
+      source = { idRayon: '', format: 'aimarket', origine, importeLe: new Date().toISOString(), json }
+    }
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err)
+  }
+  let etude: any
+  try {
+    etude = etudeDepuisSurcouche(source)
+  } catch (err) {
+    return `illisible (${err instanceof Error ? err.message : String(err)})`
+  }
+  if (!etude?.ok) return etude?.raison ?? 'illisible'
+  source.idRayon = etude.idRayon
+  return { fichier: f, source, etude }
+}
+
 export async function importerDossierDrive(adresse: string, dates: string[], essai: boolean) {
   const racine = idDossierDrive(adresse)
   const voulues = new Set(dates)
   const jours = (await lireDossier(racine)).dates.filter((d) => voulues.has(d.date))
   if (!jours.length) throw new DriveErreur('Aucune des dates choisies dans ce dossier.')
 
-  const enBase = idsRapportsEnService()
-  const vues = new Set<string>()
+  const enBase = rayonsEnService()
+  const surcouche = new Map(lireSurcouche().map((e) => [e.idRayon, e]))
+  /** Kept for import, by RAYON id: the best version met in this folder so far. */
+  const retenues = new Map<string, { c: Candidat; ligne: LigneRapport }>()
   const lignes: LigneRapport[] = []
-  const nouvelles: EtudeImportee[] = []
   const ignores: { date: string; nom: string; raison: string }[] = []
+  const chemin = (f: FichierDrive) => [...f.chemin, f.nom].join('/')
 
   const syntheses: BilanSynthese[] = []
   for (const jour of jours) {
@@ -406,88 +477,158 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
     for (const i of jour.ignores) ignores.push({ date: jour.date, ...i })
     for (const t of jour.etudes) {
       const nomRayon = `${t.categorie}/${t.theme}`
-      for (const d of t.doublons) {
-        ignores.push({ date: jour.date, nom: `${t.categorie}/${d.nom}`, raison: 'second fichier pour le même rayon ce jour-là : le premier est gardé' })
+      // Every report file of the shelf that day — the .rayon.md first, an aiMARKET .json only without one —
+      // and the most complete is kept, not the first listed (three « 2026-11-02 » folders seen on 08/11/2026).
+      const rayons = [t.rayon, ...t.doublons].filter((f): f is FichierDrive => !!f && genre(f.nom).genre === 'rayon')
+      const jsons = [t.json, ...t.doublons].filter((f): f is FichierDrive => !!f && genre(f.nom).genre === 'json')
+      const fichiers = rayons.length ? rayons : jsons
+      if (rayons.length) for (const j of jsons) ignores.push({ date: jour.date, nom: chemin(j), raison: 'le .rayon.md du même rayon est importé à sa place' })
+      for (const m of t.doublons.filter((f) => genre(f.nom).genre === 'marketing')) {
+        ignores.push({ date: jour.date, nom: chemin(m), raison: 'second volet marketing pour le même rayon ce jour-là : le premier est gardé' })
       }
-      let source: EtudeImportee | null = null
-      try {
-        if (t.rayon) {
-          const texteRayon = await telecharger(t.rayon.id)
-          const texteMarketing = t.marketing ? await telecharger(t.marketing.id) : null
-          source = {
-            idRayon: '',
-            format: 'markdown',
-            origine: `drive:${racine}/${jour.date}/${t.categorie}/${t.rayon.nom}`,
-            importeLe: new Date().toISOString(),
-            texteRayon,
-            texteMarketing,
-          }
-          if (t.json) ignores.push({ date: jour.date, nom: `${t.categorie}/${t.json.nom}`, raison: 'le .rayon.md du même rayon est importé à sa place' })
-        } else if (t.json) {
-          let json: unknown
-          try {
-            json = JSON.parse(await telecharger(t.json.id))
-          } catch (err) {
-            if (err instanceof DriveErreur) throw err
-            throw new DriveErreur('JSON illisible')
-          }
-          if (!(json as { study?: unknown })?.study) {
-            lignes.push({ date: jour.date, rayon: nomRayon, statut: 'refuse', raison: "JSON hors schéma aiMARKET (pas de bloc study) et pas de .rayon.md" })
-            continue
-          }
-          source = { idRayon: '', format: 'aimarket', origine: `drive:${racine}/${jour.date}/${t.categorie}/${t.json.nom}`, importeLe: new Date().toISOString(), json }
-        } else {
-          lignes.push({ date: jour.date, rayon: nomRayon, statut: 'refuse', raison: 'marketing seul, sans .rayon.md' })
+      if (!fichiers.length) {
+        lignes.push({ date: jour.date, rayon: nomRayon, statut: 'refuse', raison: 'marketing seul, sans .rayon.md', fichier: t.marketing ? chemin(t.marketing) : undefined })
+        continue
+      }
+      const lus: Candidat[] = []
+      for (const f of fichiers) {
+        const c = await lireCandidat(f, t.marketing, racine, jour.date, t.categorie)
+        if (typeof c === 'string') lignes.push({ date: jour.date, rayon: nomRayon, statut: 'refuse', raison: c, fichier: chemin(f) })
+        else lus.push(c)
+      }
+      lus.sort((a, b) => completude(b.etude) - completude(a.etude))
+      for (const c of lus) {
+        const e = c.etude
+        const rayon = `${e.categorie}/${e.theme}`
+        const mesure = {
+          produits: e.produits,
+          urlsDistinctes: e.urlsDistinctes,
+          avecPrix: e.avecPrix,
+          avecScore: e.avecScore,
+          marketing: e.marketing,
+          conforme: conforme(e),
+          fiches: e.fiches,
+          sansAdresse: e.sansAdresse,
+          doublonsRetires: e.doublonsRetires,
+          fichier: chemin(c.fichier),
+        }
+        const ligne = (statut: LigneRapport['statut'], notes: string[]): LigneRapport => ({
+          date: e.date,
+          rayon,
+          statut,
+          ...mesure,
+          notes,
+          raison: notes.join(' · ') || undefined,
+        })
+        const notes = manques(e)
+        // Misfiled: the header says where the report belongs, the folder only hints.
+        if (t.categorie && e.categorie !== etudeLib.slug(t.categorie)) notes.unshift(`rangé dans le dossier « ${t.categorie} », l'en-tête dit « ${e.categorie} » : classé sous ${e.categorie}`)
+        if (e.date !== jour.date) notes.unshift(`rangé dans le dossier du ${jour.date}, l'en-tête dit ${e.date} : classé au ${e.date}`)
+
+        if (e.produits < SEUIL_IMPORT.produits || e.urlsDistinctes < SEUIL_IMPORT.adresses) {
+          const motif = e.urlsDistinctes < SEUIL_IMPORT.adresses ? 'aucune adresse source : rien ne permet de vérifier ces produits' : `${e.produits} produits seulement (au moins ${SEUIL_IMPORT.produits} attendus)`
+          lignes.push(ligne('refuse', [`sous le seuil d'import : ${motif}`, ...notes]))
           continue
         }
-      } catch (err) {
-        lignes.push({ date: jour.date, rayon: nomRayon, statut: 'refuse', raison: err instanceof Error ? err.message : String(err) })
-        continue
+        const deja = retenues.get(e.idRayon)
+        if (deja) {
+          if (completude(e) > completude(deja.c.etude)) {
+            // A fuller copy met later in the folder takes the place of the one kept so far.
+            deja.ligne.statut = 'doublon'
+            deja.ligne.notes = [`une version plus complète du même rayon est gardée (${chemin(c.fichier)})`, ...(deja.ligne.notes ?? [])]
+            deja.ligne.raison = deja.ligne.notes.join(' · ')
+          } else {
+            lignes.push(ligne('doublon', [`même rayon, même jour que ${deja.ligne.fichier} : la version la plus complète est gardée`, ...notes]))
+            continue
+          }
+        }
+        const enService = enBase.get(e.idRayon)
+        if (enService && !enService.importDrive) {
+          lignes.push(ligne('doublon', ['déjà en ligne, écrit par nos agents : le leur est gardé', ...notes]))
+          continue
+        }
+        if (enService) {
+          const ancienne = surcouche.get(e.idRayon)
+          let avant: any = null
+          try {
+            avant = ancienne ? etudeDepuisSurcouche(ancienne) : null
+          } catch {
+            avant = null
+          }
+          if (avant?.ok && completude(avant) >= completude(e)) {
+            lignes.push(ligne('doublon', [`déjà importé, aussi complet ou plus (${avant.produits} produits, ${avant.urlsDistinctes} adresses) : rien n'est changé`, ...notes]))
+            continue
+          }
+          notes.unshift(avant?.ok ? `remplace la version déjà en ligne, moins complète (${avant.produits} produits, ${avant.urlsDistinctes} adresses)` : 'remplace la version déjà en ligne')
+        }
+        // Another theme of the same shelf the same day: shown, the shelf may well be studied twice.
+        const autres = [...enBase.entries(), ...[...retenues.values()].map((r) => [r.c.etude.idRayon, r.c.etude] as const)]
+          .filter(([id, x]) => id !== e.idRayon && x.date === e.date && x.categorie === e.categorie)
+          .map(([, x]) => x.theme)
+        if (autres.length) notes.push(`le rayon ${e.categorie} a déjà ce jour-là : ${[...new Set(autres)].join(', ')}`)
+        const l = ligne(essai ? 'apercu' : 'importe', notes)
+        lignes.push(l)
+        retenues.set(e.idRayon, { c, ligne: l })
       }
-
-      const etude = etudeDepuisSurcouche(source)
-      if (!etude?.ok) {
-        lignes.push({ date: jour.date, rayon: nomRayon, statut: 'refuse', raison: etude?.raison ?? 'illisible' })
-        continue
-      }
-      source.idRayon = etude.idRayon
-      const mesure = {
-        produits: etude.produits,
-        urlsDistinctes: etude.urlsDistinctes,
-        avecPrix: etude.avecPrix,
-        avecScore: etude.avecScore,
-        marketing: etude.marketing,
-        conforme: conforme(etude),
-      }
-      const rayon = `${etude.categorie}/${etude.theme}`
-      if (enBase.has(etude.idRayon)) {
-        lignes.push({ date: etude.date, rayon, statut: 'doublon', raison: 'déjà en base : la nôtre est gardée', ...mesure })
-        continue
-      }
-      if (vues.has(etude.idRayon)) {
-        lignes.push({ date: etude.date, rayon, statut: 'doublon', raison: 'deux fois dans ce dossier : la première est gardée', ...mesure })
-        continue
-      }
-      vues.add(etude.idRayon)
-      nouvelles.push(source)
-      lignes.push({ date: etude.date, rayon, statut: essai ? 'apercu' : 'importe', ...mesure })
     }
   }
 
+  const nouvelles = [...retenues.values()].map((r) => r.c.source)
   if (!essai) noterImports(syntheses)
   const bilan = essai ? null : ajouterEtudesImportees(nouvelles)
-  return {
+  const gardees = lignes.filter((l) => l.statut === 'importe' || l.statut === 'apercu')
+  const somme = (k: 'doublonsRetires' | 'sansAdresse') => gardees.reduce((a, l) => a + (l[k] ?? 0), 0)
+  const resultat = {
     essai,
     importees: essai ? 0 : nouvelles.length + syntheses.filter((x) => x.statut === 'importe').length,
     aImporter: nouvelles.length,
+    remplacees: gardees.filter((l) => l.notes?.some((n) => n.startsWith('remplace'))).length,
     doublons: lignes.filter((l) => l.statut === 'doublon').length,
     refusees: lignes.filter((l) => l.statut === 'refuse').length,
-    conformes: lignes.filter((l) => (l.statut === 'importe' || l.statut === 'apercu') && l.conforme).length,
+    conformes: gardees.filter((l) => l.conforme).length,
+    incompletes: gardees.filter((l) => !l.conforme).length,
+    malRangees: gardees.filter((l) => l.notes?.some((n) => n.startsWith('rangé'))).length,
+    produitsEnDoubleRetires: somme('doublonsRetires'),
+    produitsSansAdresse: somme('sansAdresse'),
     rapportsEnBase: bilan?.reports ?? null,
     syntheses,
-    lignes,
+    // Most useful first: refused, then incomplete, then the rest, each by date and shelf.
+    lignes: lignes.sort((a, b) => ordre(a) - ordre(b) || b.date.localeCompare(a.date) || a.rayon.localeCompare(b.rayon)),
     ignores,
   }
+  return { ...resultat, resume: resumeImport(resultat) }
+}
+
+function ordre(l: LigneRapport): number {
+  if (l.statut === 'refuse') return 0
+  if ((l.statut === 'importe' || l.statut === 'apercu') && !l.conforme) return 1
+  if (l.statut === 'importe' || l.statut === 'apercu') return 2
+  return 3
+}
+
+/** The import in a few sentences, what the screen shows above the table. */
+export function resumeImport(r: {
+  essai: boolean
+  aImporter: number
+  remplacees: number
+  doublons: number
+  refusees: number
+  conformes: number
+  incompletes: number
+  malRangees: number
+  produitsEnDoubleRetires: number
+  produitsSansAdresse: number
+}): string[] {
+  const out = [
+    `${r.aImporter} rapport(s) ${r.essai ? 'à importer' : 'importé(s)'} : ${r.conformes} conforme(s) au contrat (20 produits, 20 adresses, prix sur 18), ${r.incompletes} incomplet(s).`,
+  ]
+  if (r.remplacees) out.push(`${r.remplacees} remplace(nt) une version déjà en ligne moins complète.`)
+  if (r.doublons) out.push(`${r.doublons} doublon(s) écarté(s) : pour un même rayon et un même jour, seule la version la plus complète est gardée.`)
+  if (r.refusees) out.push(`${r.refusees} refusé(s), motif donné ligne par ligne.`)
+  if (r.malRangees) out.push(`${r.malRangees} mal rangé(s) dans le Drive, classé(s) d'après leur en-tête.`)
+  if (r.produitsEnDoubleRetires) out.push(`${r.produitsEnDoubleRetires} produit(s) en double retiré(s) dans les rapports gardés.`)
+  if (r.produitsSansAdresse) out.push(`${r.produitsSansAdresse} produit(s) sans adresse source : gardés, champ laissé vide (jamais inventé).`)
+  return out
 }
 
 /** The day's synthesis, JSON first, the Markdown tables as a fallback. Null when the day has none. */
