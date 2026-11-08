@@ -43,6 +43,48 @@ export function titreGenerique(titre: string, ...noms: Array<string | null | und
   return !m.length || m.every((x) => permis.has(x) || /^\d+$/.test(x))
 }
 
+/*
+ * Max, 08/11/2026 (« pas clairs »): « En ce samedi 07 novembre », « TikTok non
+ * vérifié aujourd'hui », « 20 fiches produit vérifiées » became addresses. A
+ * sentence that only dates the report, speaks of its checks or counts its
+ * sheets says nothing of the market: its date opening goes, and what is left
+ * must still say something, else the next sentence is tried.
+ */
+const MOIS = 'janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre'
+const JOURS = 'lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche'
+/** Words that only date or frame a sentence. */
+const CADRE = new Set(
+  `${MOIS}|${JOURS}|ce|cet|cette|ces|en|debut|mi|fin|aujourd|hui|semaine|mois|annee|matin|soir|jour|jours|journee|date|le|la|les|l|du|de|des|d|et|au|aux|a|un|une|ici|maintenant|actuellement|edition|point|bilan|resume|synthese|executive|summary`.split('|'),
+)
+/** The report speaking of itself: its checks, its sheets, its sources. */
+const META = /\bv[ée]rifi|\bfiches?\b|\bsources?\b|\brelev[ée]|\bconsult[ée]|\bnon\s+disponibles?\b|\bindisponibles?\b|\bdonn[ée]es\b|\bscores?\b|\bverdicts?\b|\bcolonnes?\b|\bimport(?:é|e)?s?\b|\bm[ée]thodolog/i
+const OUVERTURE_DATEE = new RegExp(
+  `^\\s*(?:(?:en|pour|le)\\s+)?(?:(?:ce|cet|cette)\\s+)?(?:(?:${JOURS})\\s+)?(?:\\d{1,2}(?:er)?\\s+)?(?:(?:d[ée]but|mi|fin)[\\s-]+(?:de\\s+|d['’])?)?(?:${MOIS.replace(/e/g, '[eéèê]').replace(/u/g, '[uû]')})?(?:\\s+\\d{4})?\\s*[,:—–-]\\s*`,
+  'i',
+)
+const AUJOURDHUI = /^\s*(?:aujourd['’]hui|ce\s+(?:jour|matin)|cette\s+semaine|ce\s+mois-ci|en\s+ce\s+moment|actuellement)\s*[,:—–-]\s*/i
+
+/** « En ce samedi 07 novembre, la demande… » → « la demande… ». */
+export function sansOuvertureDatee(t: string): string {
+  let avant = ''
+  let r = t
+  while (r !== avant) {
+    avant = r
+    const m = OUVERTURE_DATEE.exec(r)
+    // Only when the opening actually held a date word: « En bref, » is not a date.
+    if (m && m[0].trim().length > 1 && mots(m[0]).some((x) => CADRE.has(x) && !['en', 'ce', 'cet', 'cette', 'le', 'la', 'de', 'd', 'pour'].includes(x) || /^\d+$/.test(x))) r = r.slice(m[0].length)
+    r = r.replace(AUJOURDHUI, '')
+  }
+  return r.trim()
+}
+
+/** A title (or an address subject) that only dates, frames, counts or checks: nothing of the day's market. */
+export function titreSansSens(t: string): boolean {
+  if (META.test(t.replace(/-/g, ' '))) return true
+  const utiles = mots(t).filter((x) => !CADRE.has(x) && !NEUTRES.has(x) && !/^\d+(?:er|e|eme)?$/.test(x) && x.length > 1)
+  return utiles.length < 2
+}
+
 const MAX = 90
 const MIN = 18
 
@@ -57,7 +99,7 @@ function propre(t: string): string {
 
 /** La première proposition d'une phrase, coupée à un mot si elle reste trop longue. */
 export function enTitre(phrase: string): string | null {
-  let t = propre(phrase)
+  let t = sansOuvertureDatee(propre(phrase))
   // The first sentence only.
   t = t.split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0].replace(/[.!?…]+$/, '').trim()
   if (t.length > MAX) {
@@ -81,7 +123,7 @@ export function enTitre(phrase: string): string | null {
   // Brackets left open by the cut.
   if ((t.match(/\(/g) ?? []).length > (t.match(/\)/g) ?? []).length) t = t.replace(/\s*\([^)]*$/, '')
   t = t.replace(/[«"“]\s*$/, '').trim()
-  if (t.length < MIN || PRIVE.test(t)) return null
+  if (t.length < MIN || PRIVE.test(t) || titreSansSens(t)) return null
   return t.replace(/^\p{Ll}/u, (c) => c.toUpperCase())
 }
 
@@ -149,7 +191,7 @@ export interface SourceTitre {
  * qu'aucune phrase propre ne s'y prête.
  */
 export function titreDuJourAuto(s: SourceTitre): string | null {
-  if (!titreGenerique(s.titre, s.categorieNom, s.themeNom, s.theme, s.categorie, s.blob?.study?.category_name, s.blob?.study?.theme_name)) return null
+  if (!titreGenerique(s.titre, s.categorieNom, s.themeNom, s.theme, s.categorie, s.blob?.study?.category_name, s.blob?.study?.theme_name) && !titreSansSens(s.titre)) return null
   const phrases: string[] = []
   const e = s.blob?.executive_summary
   if (typeof e?.summary === 'string') phrases.push(...e.summary.split(/(?<=[.!?])\s+(?=\p{Lu})/u))

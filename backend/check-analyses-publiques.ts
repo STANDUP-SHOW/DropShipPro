@@ -6,7 +6,7 @@
  */
 import { aAnnoncer } from './src/services/annonceAnalyses.js'
 import { titreProduitPublic, verdictSurveille, sansDebris, sansConseilEnLot, sansPhrasesFournisseurs, prixBasSources, promptsPublics, donneesPrivees, sansDonneesPrivees, porteUnAchat, corpsVisibleVide, sansConnecteurInitial, annoncesRecomptees, teteRecomptee, sansConsignesPoste, listesEnLigne, sansOuvertureOrpheline, sansMentionPrivee, estPrivee, pourquoiPublic, pointsAnnonces, texteRepare, sansMentionsPrivees, ancienCheminRapport, parenthesesEquilibrees, produitsNettoyes, renvoisRenumerotes, empreintePage, fixerDatesDesPages, apostrophesDuTexte, titreDansListe, apostrophesRendues, produitsUniques, attribuerAdresses, datesPubliques, empreintePublique, rendusMigres, texteRefait, blocsDe, cheminArticleDate, cheminRapport, rapportA, rapportAncienneAdresse, adresseSaine, sujetRapport, markdownEnHtml, pageCategorie, pageIndex, pageJour, pageRapport, sitemapXml, titreRapport, TITRE_MAX, type RapportPublic } from './src/services/analysesPubliques.js'
-import { titreDuJourAuto, titreGenerique, enTitre } from './src/services/titreDuJour.js'
+import { titreDuJourAuto, titreGenerique, enTitre, titreSansSens } from './src/services/titreDuJour.js'
 import { lireRapport } from './src/services/marketReports.js'
 import { ReportQuery } from './src/services/reportsDb.js'
 
@@ -366,6 +366,15 @@ console.log('\nLe sujet : titre du jour, sinon titre + extrait percutant')
   attribuerAdresses([renomme], new Map([['r1', '/fresh-market-news/telephonie/chargeurs-cables/marge-en-gros-chez-le-fournisseur/']]))
   exige(!cheminRapport(renomme).includes('fournisseur'), 'une adresse privée du registre est écartée', cheminRapport(renomme))
   exige(!adresseSaine('/fresh-market-news/telephonie/chargeurs-cables/prix-de-gros-aliexpress/') && adresseSaine('/fresh-market-news/telephonie/chargeurs-cables/le-gan-a-gagne/'), 'adresseSaine refuse les termes de sourcing')
+  // 08/11/2026 : « en-ce-samedi-07-novembre » donné à 19 pages. Le sujet vide de sens est recalculé, l'ancien redirige.
+  const vide = '/fresh-market-news/telephonie/chargeurs-cables/en-ce-samedi-07-novembre/'
+  const reparee = attribuerAdresses([j1], new Map([['r1', vide]]))
+  exige(reparee.get('r1') !== vide && !/samedi|novembre/.test(reparee.get('r1') ?? ''), 'un sujet qui n’est qu’une date est recalculé', reparee.get('r1'))
+  exige(rapportAncienneAdresse(vide) === 'r1', 'et l’ancienne adresse mène au rapport, pour la 301')
+  attribuerAdresses([j1], new Map(), new Map([[vide, 'r1']]))
+  exige(rapportAncienneAdresse(vide) === 'r1', 'une adresse retirée du registre garde sa 301 après un redémarrage')
+  const dateSeule = attribuerAdresses([{ ...j1, une: null, titre: 'En ce samedi 07 novembre', extrait: null }])
+  exige(!/samedi|novembre/.test(dateSeule.get('r1') ?? ''), 'un titre qui n’est qu’une date ne fait jamais l’adresse', dateSeule.get('r1'))
   attribuerAdresses([rapport, marketing])
 }
 
@@ -389,6 +398,17 @@ console.log('\nLe titre du jour tiré du début du rapport (04/11/2026)')
   exige(titreDuJourAuto({ ...base, analyse: '## Synthèse\n\nMarge de 40 % sur AliExpress.' }) === null, 'sans phrase propre, le rapport garde son titre')
   const long = enTitre("La demande pour les lampes de luminothérapie s'envole avec le changement d'heure et la baisse de luminosité qui touche l'Europe du Nord")
   exige(!!long && long.length <= 90 && !/\s(et|la|de)$/.test(long), 'coupé à un mot, sans mot-outil pendant', long ?? '')
+  // 08/11/2026 : une date, une mention de vérification ou un compteur ne sont pas des titres.
+  for (const vide of ['En ce samedi 07 novembre.', "TikTok non vérifié aujourd'hui", '20 fiches produit vérifiées', 'En ce début novembre']) {
+    exige(enTitre(vide) === null && titreSansSens(vide), 'pas un titre : ' + vide)
+  }
+  const date = enTitre('En ce samedi 07 novembre, la demande de vernis semi-permanents à domicile explose avant les fêtes.')
+  exige(date === 'La demande de vernis semi-permanents à domicile explose avant les fêtes', 'l’ouverture datée tombe, la suite fait le titre', date ?? '')
+  const enBref = enTitre('En bref, les casques gaming sans fil dominent la saison')
+  exige(enBref === 'En bref, les casques gaming sans fil dominent la saison', 'une ouverture sans date reste', enBref ?? '')
+  const suivante = titreDuJourAuto({ ...base, analyse: '## Synthèse\n\nEn ce samedi 07 novembre. 20 fiches produit vérifiées. Les vernis gel à domicile prennent le relais des salons.' })
+  exige(suivante === 'Les vernis gel à domicile prennent le relais des salons', 'on passe à la phrase qui dit quelque chose', suivante ?? '')
+  exige(titreDuJourAuto({ ...base, titre: 'En ce samedi 07 novembre', analyse: '## Synthèse\n\nLes vernis gel à domicile prennent le relais des salons.' }) === 'Les vernis gel à domicile prennent le relais des salons', 'un titre posé qui n’est qu’une date est remplacé')
   exige(sujetRapport({ ...rapport, une: t }) === 'le-rayon-vit-la-transition-vers-le-fast-safe-diy', 'il fait l’adresse', sujetRapport({ ...rapport, une: t }))
 }
 

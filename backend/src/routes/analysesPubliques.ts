@@ -148,7 +148,7 @@ export function lignesPubliques(): Ligne[] {
   // Addresses are given over every report, the empty ones included: none of the others moves.
   // An address once given is kept on the volume: a re-import or a new headline never moves it.
   const registre = lireRegistre()
-  const donnees = attribuerAdresses(tous, registre)
+  const donnees = attribuerAdresses(tous, registre, retirees)
   ecrireRegistre(registre, donnees)
   const vides = new Map<string, Ligne>()
   for (const l of tous) {
@@ -166,13 +166,19 @@ export function lignesPubliques(): Ligne[] {
 /** The addresses given, report by report (04/11/2026): kept on the volume so that none ever moves. */
 const CHEMIN_ADRESSES = path.join(path.dirname(CHEMIN_SURCOUCHE), 'adresses-publiques.json')
 
+/** Retired addresses (address → report id): a subject replaced keeps its 301 across restarts. */
+let retirees = new Map<string, string>()
+
 function lireRegistre(): Map<string, string> {
   try {
     const brut = JSON.parse(fs.readFileSync(CHEMIN_ADRESSES, 'utf8'))
     const carte = new Map<string, string>()
     for (const [id, a] of Object.entries(brut?.adresses ?? {})) if (typeof a === 'string' && adresseSaine(a)) carte.set(id, a)
+    retirees = new Map()
+    for (const [a, id] of Object.entries(brut?.retirees ?? {})) if (typeof id === 'string' && adresseSaine(a)) retirees.set(a, id)
     return carte
   } catch {
+    retirees = new Map()
     return new Map()
   }
 }
@@ -183,6 +189,9 @@ function ecrireRegistre(avant: Map<string, string>, donnees: Map<string, string>
   let change = false
   for (const [id, a] of donnees) {
     if (!adresseSaine(a) || tout.get(id) === a) continue
+    const avant = tout.get(id)
+    if (avant) retirees.set(avant, id)
+    retirees.delete(a)
     tout.set(id, a)
     change = true
   }
@@ -190,7 +199,7 @@ function ecrireRegistre(avant: Map<string, string>, donnees: Map<string, string>
   try {
     fs.mkdirSync(path.dirname(CHEMIN_ADRESSES), { recursive: true })
     const tmp = `${CHEMIN_ADRESSES}.tmp`
-    fs.writeFileSync(tmp, JSON.stringify({ version: 1, adresses: Object.fromEntries([...tout].sort()) }, null, 0))
+    fs.writeFileSync(tmp, JSON.stringify({ version: 1, adresses: Object.fromEntries([...tout].sort()), retirees: Object.fromEntries([...retirees].sort()) }, null, 0))
     fs.renameSync(tmp, CHEMIN_ADRESSES)
   } catch (err) {
     console.error('[analyses publiques] registre des adresses non écrit :', err instanceof Error ? err.message : err)

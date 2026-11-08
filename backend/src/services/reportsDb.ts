@@ -9,7 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
 import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
-import { titreDuJourAuto } from './titreDuJour.js'
+import { titreDuJourAuto, titreSansSens } from './titreDuJour.js'
 import { createRequire } from 'node:module'
 
 /**
@@ -842,7 +842,8 @@ export class ReportQuery {
    */
   static uneOuAuto(row: { titre?: unknown; type?: unknown; categorie?: unknown; theme?: unknown }, blob: any, analyse: unknown): string | null {
     const posee = ReportQuery.uneDe(blob)
-    if (posee) return posee
+    // The agent's own headline wins, unless it only dates or counts (« En ce samedi 07 novembre »).
+    if (posee && !titreSansSens(posee)) return posee
     const categorie = String(row.categorie ?? '')
     const theme = String(row.theme ?? '')
     return titreDuJourAuto({
