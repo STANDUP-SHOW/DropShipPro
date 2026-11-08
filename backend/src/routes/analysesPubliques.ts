@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import { CHEMIN_SURCOUCHE, generationRapports, ReportQuery } from '../services/reportsDb.js'
-import { datesSyntheses, lireSynthese, synthesePublique } from '../services/synthesesQuotidiennes.js'
+import { datesSyntheses, lireSynthese, synthesePublique, SYNTHESES_PUBLIEES } from '../services/synthesesQuotidiennes.js'
 import { categorieDe } from '../services/marketReports.js'
 import {
   apostrophesDuTexte,
@@ -62,6 +62,8 @@ export const analysesPubliquesRouter = Router()
 
 /** The public news of a day's synthesis (already filtered upstream), with the time it was imported; empty when none. */
 function actualitesDu(day: string): { actualites: ActualitePublique[]; modifie: Date } {
+  // Max, 08/11/2026 : syntheses stay in KANTIX, never on the public site.
+  if (!SYNTHESES_PUBLIEES) return { actualites: [], modifie: new Date(`${day}T06:00:00Z`) }
   try {
     const s = lireSynthese(day)
     if (!s) return { actualites: [], modifie: new Date(`${day}T06:00:00Z`) }
@@ -76,6 +78,7 @@ function actualitesDu(day: string): { actualites: ActualitePublique[]; modifie: 
 }
 
 function joursSyntheses(): string[] {
+  if (!SYNTHESES_PUBLIEES) return []
   try {
     return datesSyntheses()
   } catch {

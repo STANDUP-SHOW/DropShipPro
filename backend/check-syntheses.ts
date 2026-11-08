@@ -185,6 +185,14 @@ exige(/cadeau/.test(macro.texte) && /plaids/.test(macro.texte) && !/ROI|BUY/.tes
 exige(pub.compteurs.opportunites === 2 && pub.compteurs.aRisque === 1 && pub.blocs.bandeauPhares.length === 1, 'compteurs et blocs')
 exige(!('buyNow' in pub) && !texte.includes('highTicket'), 'pas de BUY NOW, ROI ni high-ticket en public')
 
+console.log('Non publiées (Max, 08/11) : réservées à KANTIX')
+exige(S.SYNTHESES_PUBLIEES === false, 'SYNTHESES_PUBLIEES vaut false')
+const { synthesesPublicRouter } = await import('./src/routes/synthesesPublic.js')
+const chemins = (synthesesPublicRouter as any).stack.map((c: any) => c.route?.path).filter(Boolean)
+exige(chemins.join(',') === '/syntheses-etat', `seule la santé de l’import reste publique (${chemins.join(',')})`)
+const aCreer = S.produitACreer(s4.produits[0])
+exige(aCreer.title === s4.produits[0].nom && aCreer.price === 46.5 && aCreer.sellingPrice === 109.9 && /aliexpress/.test(aCreer.sourceUrl), 'un gagnant choisi devient une annonce : titre, coût, prix de vente, source')
+
 console.log('Face connectée : tout')
 const priv: any = S.synthesePrivee(s4)
 exige(priv.sections.buyNow[0]?.coutRendu === 46.5 && priv.sections.highTicket.length === 1 && priv.produits[0].liens.aliexpress_fr, 'coûts, listes privées et liens de recherche')

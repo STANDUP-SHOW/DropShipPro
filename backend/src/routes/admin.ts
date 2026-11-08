@@ -8,7 +8,8 @@ import { DepotRefuse, deposerRapports } from '../services/reportsDb.js'
 import { listeVersementsAdmin, verser } from '../services/affiliation.js'
 import { sendMail, appUrl } from '../services/mailer.js'
 import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
-import { importerSynthese, noterImports } from '../services/synthesesQuotidiennes.js'
+import { datesSyntheses, importerSynthese, lireJournal, lireSynthese, noterImports, produitACreer, synthesePrivee } from '../services/synthesesQuotidiennes.js'
+import { GoogleAuthError, verifierIdTokenGoogle } from '../services/googleAuth.js'
 import { lignesPubliques } from './analysesPubliques.js'
 import { sitemapXml } from '../services/analysesPubliques.js'
 import { annoncerAnalyses, enProduction } from '../services/annonceAnalyses.js'
@@ -215,6 +216,90 @@ adminRouter.post('/analyses-drive/importer', async (req: Request, res) => {
  * lecteur que l'import Drive ; même jour identique = doublon, contenu changé =
  * remplacé. `?essai=1` mesure sans rien écrire.
  */
+/**
+ * KANTIX › DropShipper › « Synthèses AIMARKET » (Max, 08/11/2026) : the
+ * syntheses are read here only, never on the public site.
+ */
+adminRouter.get('/syntheses', (_req, res) => {
+  res.set('Cache-Control', 'no-store')
+  res.json({ dates: datesSyntheses(), imports: lireJournal() })
+})
+
+adminRouter.get('/syntheses/:date', (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  const date = String(req.params.date)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Date attendue : AAAA-MM-JJ.' })
+  const s = lireSynthese(date)
+  if (!s) return res.status(404).json({ error: 'Aucune synthèse importée pour ce jour.' })
+  res.json(synthesePrivee(s))
+})
+
+/** The seller account named by its e-mail, or by a Google sign-in (ID token of the site's Google client). */
+async function compteVise(corps: Record<string, unknown>): Promise<{ id: string; email: string; shopName: string | null } | { erreur: string; statut: number }> {
+  let email = typeof corps.email === 'string' ? corps.email.trim().toLowerCase() : ''
+  if (!email && typeof corps.idTokenGoogle === 'string') {
+    try {
+      email = (await verifierIdTokenGoogle(corps.idTokenGoogle)).email
+    } catch (err) {
+      return { erreur: err instanceof GoogleAuthError ? err.message : 'Connexion Google impossible.', statut: 401 }
+    }
+  }
+  if (!email) return { erreur: 'Indiquez l’e-mail du compte, ou connectez-le avec Google.', statut: 400 }
+  const u = await prisma.user.findUnique({ where: { email }, select: { id: true, email: true, shopName: true } })
+  if (!u) return { erreur: `Aucun compte DropShipper pour ${email}.`, statut: 404 }
+  return u
+}
+
+/** Which account the winners would go to, before importing. */
+adminRouter.post('/syntheses-compte', async (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  try {
+    const c = await compteVise(req.body ?? {})
+    if ('erreur' in c) return res.status(c.statut).json({ error: c.erreur })
+    const produits = await prisma.product.count({ where: { userId: c.id } })
+    res.json({ compte: { email: c.email, boutique: c.shopName }, produits })
+  } catch (err) {
+    console.error('compte des synthèses', err)
+    res.status(500).json({ error: 'Compte illisible, réessayez.' })
+  }
+})
+
+/**
+ * Max, 08/11/2026 : « importer les produits gagnants passés au crible sur mon
+ * compte utilisateur au choix ». Body : { email | idTokenGoogle, ids: [id du
+ * produit dans la synthèse], essai? }. Free (an admin act, no drop debited).
+ * A product the account already holds (same title, same source) is skipped.
+ */
+adminRouter.post('/syntheses/:date/importer-compte', async (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  const date = String(req.params.date)
+  const s = /^\d{4}-\d{2}-\d{2}$/.test(date) ? lireSynthese(date) : null
+  if (!s) return res.status(404).json({ error: 'Aucune synthèse importée pour ce jour.' })
+  const ids: string[] = Array.isArray(req.body?.ids) ? req.body.ids.filter((x: unknown) => typeof x === 'string').slice(0, 500) : []
+  if (!ids.length) return res.status(400).json({ error: 'Choisissez au moins un produit.' })
+  try {
+    const c = await compteVise(req.body ?? {})
+    if ('erreur' in c) return res.status(c.statut).json({ error: c.erreur })
+    const parId = new Map(s.produits.map((p) => [p.id, p]))
+    const choisis = ids.map((id) => parId.get(id)).filter((p): p is NonNullable<typeof p> => !!p)
+    const inconnus = ids.length - choisis.length
+    const existants = await prisma.product.findMany({ where: { userId: c.id }, select: { title: true, sourceUrl: true } })
+    const deja = new Set(existants.map((e) => `${e.title}|${e.sourceUrl}`))
+    const aCreer = choisis.map(produitACreer).filter((p) => !deja.has(`${p.title}|${p.sourceUrl}`))
+    const doublons = choisis.length - aCreer.length
+    if (req.body?.essai === true) return res.json({ compte: c.email, essai: true, aImporter: aCreer.length, doublons, inconnus })
+    for (const p of aCreer) {
+      await prisma.product.create({
+        data: { userId: c.id, ...p, images: [], imagesWatermarked: false },
+      })
+    }
+    res.json({ compte: c.email, importes: aCreer.length, doublons, inconnus })
+  } catch (err) {
+    console.error('import des gagnants de synthèse', err)
+    res.status(500).json({ error: `Import impossible : ${err instanceof Error ? err.message : String(err)}` })
+  }
+})
+
 adminRouter.post('/syntheses', (req: Request, res) => {
   res.set('Cache-Control', 'no-store')
   const corps = req.body ?? {}

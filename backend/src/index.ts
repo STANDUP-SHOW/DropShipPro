@@ -136,7 +136,7 @@ app.get('/api/health/ai', async (_req, res) => {
 
 // Public report endpoints (market analyses, products, prompts, etc.)
 app.use('/api', reportsPublicRouter)
-// Daily syntheses (04/11/2026): public face filtered, full face behind the account.
+// Daily syntheses: import health only. The syntheses themselves are read in KANTIX (admin), never on the site (08/11/2026).
 app.use('/api', synthesesPublicRouter)
 // Les outils gratuits du site (/outils/) : publics, bornés, sans compte.
 app.use('/api', outilsPublicsRouter)
