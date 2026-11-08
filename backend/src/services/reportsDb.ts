@@ -136,12 +136,18 @@ export function appliquerSurcouche(chemin: string, etudes: EtudeImportee[] = lir
     for (const e of etudes) {
       const deja = existe.get(e.idRayon) as { data?: string } | undefined
       if (deja && !estImportDrive(deja.data)) continue
-      const etude = etudeDepuisSurcouche(e)
-      if (!etude?.ok) continue
-      // A base rebuilt from the committed file dates the row by its import, not by this start-up (sitemap lastmod).
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(e.importeLe ?? '')) etude.majLe = e.importeLe.slice(0, 19).replace('T', ' ')
-      etudeLib.ecrireEtude(db, etude)
-      ecrites++
+      // One unreadable study is skipped and named, never the whole replay (a repeated rank in a
+      // report used to abort it on the products' primary key, 08/11/2026).
+      try {
+        const etude = etudeDepuisSurcouche(e)
+        if (!etude?.ok) continue
+        // A base rebuilt from the committed file dates the row by its import, not by this start-up (sitemap lastmod).
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(e.importeLe ?? '')) etude.majLe = e.importeLe.slice(0, 19).replace('T', ' ')
+        etudeLib.ecrireEtude(db, etude)
+        ecrites++
+      } catch (err) {
+        console.error('[rapports] analyse importée non écrite', e.idRayon, err instanceof Error ? err.message : err)
+      }
     }
   } finally {
     db.close()
@@ -222,9 +228,29 @@ export function cheminRapportsActif(): string {
 
 /** The studies already in the served base, by RAYON report id. */
 export function idsRapportsEnService(): Set<string> {
+  return new Set(rayonsEnService().keys())
+}
+
+export interface RayonEnService {
+  date: string
+  categorie: string
+  theme: string
+  /** Written by a Drive import (replaceable by a fuller one), never one of our agents' reports. */
+  importDrive: boolean
+}
+
+/** The RAYON reports in the served base, by id, with their shelf and whether a Drive import wrote them. */
+export function rayonsEnService(): Map<string, RayonEnService> {
   const db = new Database(cheminRapportsActif(), { readonly: true, fileMustExist: true })
   try {
-    return new Set((db.prepare("SELECT id FROM reports WHERE type = 'rayon'").all() as { id: string }[]).map((r) => r.id))
+    const lignes = db.prepare("SELECT id, date, categorie, theme, data FROM reports WHERE type = 'rayon'").all() as {
+      id: string
+      date: string
+      categorie: string
+      theme: string
+      data: string
+    }[]
+    return new Map(lignes.map((r) => [r.id, { date: r.date, categorie: r.categorie, theme: r.theme, importDrive: estImportDrive(r.data) }]))
   } finally {
     db.close()
   }
@@ -232,15 +258,16 @@ export function idsRapportsEnService(): Set<string> {
 
 /**
  * Adds imported studies to the served base and to the replay list. The caller
- * has already dropped the ones the base holds.
+ * has already dropped the ones the base holds, except a Drive import it chose
+ * to replace by a fuller version: that one takes the old one's place in the list.
  */
 export function ajouterEtudesImportees(etudes: EtudeImportee[]): { reports: number } {
   if (!etudes.length) return { reports: resumeBase(cheminRapportsActif())?.n ?? 0 }
   const actif = cheminRapportsActif()
   const majSource = actif === CHEMIN_RAPPORTS_DEPOSE ? (lireOrigine()?.majSource ?? resumeBase(actif)?.maj ?? '') : (resumeBase(actif)?.maj ?? '')
   installerDepose(actif, majSource, etudes)
-  const dejaGardees = new Set(lireSurcouche().map((e) => e.idRayon))
-  const liste = [...lireSurcouche(), ...etudes.filter((e) => !dejaGardees.has(e.idRayon))]
+  const remplacees = new Set(etudes.map((e) => e.idRayon))
+  const liste = [...lireSurcouche().filter((e) => !remplacees.has(e.idRayon)), ...etudes]
   ecrireFichierAtomique(CHEMIN_SURCOUCHE, JSON.stringify({ version: 1, etudes: liste }))
   cheminActif = null
   generation++
