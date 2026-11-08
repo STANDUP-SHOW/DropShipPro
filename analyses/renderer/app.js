@@ -456,6 +456,148 @@ function vueDrive() {
   )
 }
 
+// ---------------------------------------------------------------- Synthèses AIMARKET (08/11/2026)
+// Max's decision: the daily syntheses are no longer published on the site. They are read here only, and the
+// winners he picks are imported onto the seller account of his choice, as drafts.
+const SECTIONS_SYNTHESE = [
+  ['tous', 'Tous les produits'], ['top5', 'Top 5 du jour'], ['heros', 'Produits héros'], ['buyNow', 'Buy now'],
+  ['roi', 'Champions ROI'], ['highTicket', 'High ticket'], ['breakout', 'Breakout (tendances)'], ['listeNoire', 'Liste noire (à ne pas acheter)'],
+]
+const synth = { jours: null, imports: [], date: null, detail: null, section: 'top5', choisis: {}, email: '', comptes: null, compte: null, bilan: null, enCours: null }
+
+async function synthCharger() {
+  synth.enCours = 'liste'; rendre()
+  const r = await appel('adminSyntheses')
+  synth.enCours = null
+  synth.jours = r ? r.dates || [] : []
+  synth.imports = r ? r.imports || [] : []
+  if (!synth.date && synth.jours[0]) return synthOuvrir(synth.jours[0])
+  rendre()
+}
+
+async function synthOuvrir(date) {
+  synth.date = date; synth.detail = null; synth.choisis = {}; synth.bilan = null; synth.enCours = 'jour'; rendre()
+  const d = await appel('adminSynthese', { date })
+  synth.enCours = null
+  if (d) {
+    synth.detail = d
+    if (!(d.sections[synth.section] || []).length && synth.section !== 'tous') synth.section = 'tous'
+  }
+  rendre()
+}
+
+async function synthComptes() {
+  synth.enCours = 'comptes'; rendre()
+  const u = await appel('adminUtilisateurs')
+  synth.enCours = null
+  synth.comptes = u ? u.utilisateurs || [] : null
+  rendre()
+}
+
+function produitsSection() {
+  const d = synth.detail
+  if (!d) return []
+  return synth.section === 'tous' ? d.produits : d.sections[synth.section] || []
+}
+
+// The account that receives the winners: checked on the site before anything is imported
+async function synthVerifierCompte() {
+  synth.enCours = 'compte'; synth.compte = null; rendre()
+  const c = await appel('adminSyntheseCompte', { email: synth.email.trim().toLowerCase() })
+  synth.enCours = null
+  if (c) synth.compte = c
+  rendre()
+}
+
+async function synthGoogle() {
+  synth.enCours = 'google'; synth.compte = null; synth.bilan = null
+  flash('Connexion dans votre navigateur : connectez-vous au compte DropShipper (Google ou mot de passe), puis revenez ici.')
+  const r = await appel('compteConnecter')
+  synth.enCours = null
+  if (r) { synth.email = r.email; flash(''); return synthVerifierCompte() }
+  rendre()
+}
+
+const idsChoisis = () => Object.keys(synth.choisis).filter((id) => synth.choisis[id])
+
+async function synthImporter(essai) {
+  const ids = idsChoisis()
+  if (!essai && !confirm(`Importer ${ids.length} produit(s) en brouillon sur le compte ${synth.email.trim()} ?`)) return
+  synth.enCours = essai ? 'essai' : 'import'; synth.bilan = null; rendre()
+  const b = await appel('adminSyntheseImporter', { date: synth.date, email: synth.email.trim().toLowerCase(), ids, essai })
+  synth.enCours = null
+  if (b) synth.bilan = { ...b, essai: b.essai === true, nombre: b.essai === true ? b.aImporter : b.importes }
+  rendre()
+}
+
+const euro = (n) => (n === null || n === undefined ? '—' : `${Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`)
+
+function vueSyntheses() {
+  if (!etat.admin.cle) return sansCleAdmin('Synthèses AIMARKET')
+  if (synth.jours === null && !synth.enCours) setTimeout(synthCharger, 0)
+  const d = synth.detail
+  const liste = produitsSection()
+  const listeNoire = new Set(d ? (d.sections.listeNoire || []).map((p) => p.id) : [])
+  const n = idsChoisis().length
+  const adresseOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(synth.email.trim())
+  const compte = synth.compte && synth.compte.compte.email === synth.email.trim().toLowerCase() ? synth.compte : null
+  const refus = synth.imports.filter((i) => i.statut === 'refuse').slice(0, 5)
+  return h('div', {},
+    h('h1', {}, 'Synthèses AIMARKET'),
+    h('p', { class: 'doux petit' }, 'Les synthèses du jour ne sont pas publiées sur le site : elles se lisent ici seulement. Cochez les produits gagnants passés au crible, choisissez le compte DropShipper qui les reçoit, puis importez. Chaque produit devient une annonce en brouillon sur ce compte, sans photo, gratuitement. Les liens de la synthèse sont des pages de recherche, pas des fiches produit. Un produit déjà sur ce compte n’est pas recréé.'),
+    messageFlash && h('p', { class: 'petit' }, messageFlash),
+    h('div', { class: 'carte' },
+      h('div', { class: 'ligne' },
+        h('strong', {}, 'Jours disponibles'),
+        h('button', { class: 'btn', disabled: Boolean(synth.enCours), onclick: synthCharger }, synth.enCours === 'liste' ? 'Lecture…' : 'Actualiser')),
+      synth.jours && !synth.jours.length && h('p', { class: 'doux petit' }, 'Aucune synthèse importée sur le site pour l’instant.'),
+      synth.jours && synth.jours.length > 0 && h('div', { class: 'ligne' }, ...synth.jours.slice(0, 14).map((j) => h('button', {
+        class: j === synth.date ? 'btn principal' : 'btn', disabled: Boolean(synth.enCours), onclick: () => synthOuvrir(j),
+      }, j))),
+      refus.length > 0 && h('details', {}, h('summary', { class: 'petit' }, `${refus.length} import(s) refusé(s) récemment`),
+        h('ul', { class: 'petit' }, ...refus.map((i) => h('li', {}, `${i.date} (${String(i.quand || '').slice(0, 16).replace('T', ' ')}) : ${i.raison}`))))),
+    synth.enCours === 'jour' && h('p', { class: 'doux' }, 'Lecture de la synthèse…'),
+    d && h('div', { class: 'carte' },
+      h('div', { class: 'ligne' },
+        h('strong', {}, `Synthèse du ${d.date}`),
+        h('span', { class: 'doux petit' }, `${d.compteurs.produitsAnalyses} produits · ${d.compteurs.opportunites} opportunités · ${d.compteurs.rayons} rayons · ${d.compteurs.aRisque} à risque`)),
+      d.macro && h('details', {}, h('summary', { class: 'petit' }, 'Lecture macro du jour'), h('p', { class: 'petit' }, d.macro)),
+      h('div', { class: 'ligne' },
+        h('select', { onchange: (ev) => { synth.section = ev.target.value; rendre() } },
+          ...SECTIONS_SYNTHESE.map(([k, l]) => h('option', { value: k, selected: k === synth.section }, `${l} (${k === 'tous' ? d.produits.length : (d.sections[k] || []).length})`))),
+        h('button', { class: 'btn', onclick: () => { for (const p of liste) if (!listeNoire.has(p.id)) synth.choisis[p.id] = true; rendre() } }, 'Cocher la section'),
+        h('button', { class: 'btn', disabled: !n, onclick: () => { synth.choisis = {}; rendre() } }, 'Tout décocher'),
+        h('span', { class: 'petit' }, `${n} produit(s) coché(s)`)),
+      synth.section === 'listeNoire' && h('p', { class: 'petit' }, 'Liste noire : produits que la synthèse déconseille d’acheter. Ils ne se cochent pas avec « Cocher la section ».'),
+      h('table', {},
+        h('thead', {}, h('tr', {}, ['', 'Produit', 'Rayon', 'Décision', 'Score', 'Coût rendu', 'Prix visé', 'Marge'].map((t) => h('th', {}, t)))),
+        h('tbody', {}, ...liste.map((p) => h('tr', {},
+          h('td', {}, h('input', { type: 'checkbox', checked: Boolean(synth.choisis[p.id]), onchange: (ev) => { synth.choisis[p.id] = ev.target.checked; rendre() } })),
+          h('td', {}, p.nom, p.variante && h('div', { class: 'doux petit' }, p.variante)),
+          h('td', { class: 'petit' }, [p.categorieLabel, p.themeLabel].filter(Boolean).join(' › ')),
+          h('td', { class: 'petit' }, listeNoire.has(p.id) ? pastille(p.decision || 'liste noire', 'mauvais') : p.decision || '—'),
+          h('td', {}, p.score === null ? '—' : String(p.score)),
+          h('td', {}, euro(p.coutRendu)), h('td', {}, euro(p.prixVente)), h('td', {}, euro(p.margeNette)))))),
+    ),
+    d && h('div', { class: 'carte' },
+      h('label', {}, 'Compte DropShipper qui reçoit les produits'),
+      h('div', { class: 'ligne' },
+        h('div', { style: 'flex:1;min-width:260px' }, h('input', { type: 'email', list: 'kantix-comptes', value: synth.email, placeholder: 'Adresse du compte (ex. vendeur@gmail.com)', oninput: (ev) => { synth.email = ev.target.value; synth.bilan = null; synth.compte = null } })),
+        h('button', { class: 'btn', disabled: !adresseOk || Boolean(synth.enCours), onclick: synthVerifierCompte }, synth.enCours === 'compte' ? 'Vérification…' : 'Vérifier le compte'),
+        h('button', { class: 'btn', disabled: Boolean(synth.enCours), onclick: synthComptes }, synth.enCours === 'comptes' ? 'Lecture…' : 'Choisir parmi les comptes'),
+        h('button', { class: 'btn', disabled: Boolean(synth.enCours), onclick: synthGoogle }, synth.enCours === 'google' ? 'En attente du navigateur…' : 'Connecter avec Google')),
+      h('datalist', { id: 'kantix-comptes' }, ...(synth.comptes || []).map((c) => h('option', { value: c.email }, c.shopName || c.email))),
+      synth.comptes && h('p', { class: 'doux petit' }, `${synth.comptes.length} compte(s) chargé(s) : commencez à taper l’adresse pour choisir.`),
+      compte && h('p', { class: 'petit' }, pastille('compte trouvé', 'bon'), ` ${compte.compte.boutique || compte.compte.email} · ${compte.produits} annonce(s) déjà sur ce compte`),
+      h('p', { class: 'doux petit' }, 'Désignez le compte par son adresse, ou « Connecter avec Google » : la page de connexion du site s’ouvre dans votre navigateur (Google refuse sa connexion dans une application), et seule l’adresse du compte revient ici. L’import se fait avec la clé d’administration ; aucun mot de passe ne passe par KANTIX.'),
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn', disabled: !n || !adresseOk || Boolean(synth.enCours), onclick: () => synthImporter(true) }, synth.enCours === 'essai' ? 'Vérification…' : 'Vérifier (rien n’est écrit)'),
+        h('button', { class: 'btn principal', disabled: !n || !adresseOk || Boolean(synth.enCours), onclick: () => synthImporter(false) }, synth.enCours === 'import' ? 'Import en cours…' : `Importer ${n} produit(s) sur ce compte`)),
+      synth.bilan && h('p', {}, synth.bilan.essai ? 'Vérification : ' : 'Import terminé : ',
+        `${synth.bilan.nombre} ${synth.bilan.essai ? 'à importer' : 'importé(s) en brouillon'}, ${synth.bilan.doublons} déjà sur le compte, ${synth.bilan.inconnus} introuvable(s) dans la synthèse — compte ${synth.bilan.compte}.`)),
+  )
+}
+
 // ---------------------------------------------------------------- réseaux sociaux du site
 // Icons of the site footer: one only appears when its link is filled. The site validates (https, host of the network).
 const RESEAUX = [
@@ -678,7 +820,7 @@ function rendre() {
   document.getElementById('pied').textContent = etat ? `Version ${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { ...VUES_KANTIX, accueil: vueAccueil, rapports: vueRapports, administration: vueAdministration, drive: vueDrive, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
+  const vues = { ...VUES_KANTIX, accueil: vueAccueil, rapports: vueRapports, administration: vueAdministration, drive: vueDrive, syntheses: vueSyntheses, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 

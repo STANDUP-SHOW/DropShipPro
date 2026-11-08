@@ -70,6 +70,24 @@ function creerServeur() {
           if (req.url === '/api/admin/moi') return json(200, { ok: true, administrateur: 'poste-analyses' })
           if (req.url === '/api/admin/utilisateurs') return json(200, { total: 2, verifies: 1, abonnesNewsletter: 1, limite: 500, utilisateurs: [{ id: 'u1', email: 'a@exemple.test', shopName: 'Boutique A', plan: 'FREE', credits: 120, emailVerifiedAt: '2026-10-01T10:00:00Z', createdAt: '2026-10-01T09:00:00Z' }, { id: 'u2', email: 'b@exemple.test', shopName: null, plan: 'FREE', credits: 0, emailVerifiedAt: null, createdAt: '2026-10-02T09:00:00Z' }] })
           if (req.url === '/api/admin/newsletter') return json(200, { total: 1, subscribers: [{ id: 'n1', email: 'n@exemple.test', source: 'site', createdAt: '2026-10-02T09:00:00Z' }] })
+          // Synthèses AIMARKET, contract of backend/src/routes/admin.ts (#179)
+          const produitSynth = (id, nom, decision) => ({ id, categorie: 'electromenager', categorieLabel: 'Électroménager', theme: 'robots', themeLabel: 'Robots cuisine', rang: 1, nom, variante: 'Inox', score: 86, decision, coutRendu: 46.5, prixVente: 109.9, margeNette: 31.9, roi: 68.6, liens: { aliexpress_fr: 'https://fr.aliexpress.com/w/wholesale-x.html' } })
+          if (req.url === '/api/admin/syntheses') return json(200, { dates: ['2026-11-07'], imports: [{ quand: '2026-11-07T06:00:00Z', date: '2026-11-06', statut: 'refuse', raison: 'aucun produit lisible', produits: null }] })
+          if (req.url === '/api/admin/syntheses/2026-11-07') {
+            const p1 = produitSynth('s1', 'Machine à lait végétal', 'BUY NOW'); const p2 = produitSynth('s2', 'Gadget douteux', "DON'T BUY")
+            return json(200, { date: '2026-11-07', compteurs: { rayons: 1, produitsAnalyses: 2, opportunites: 1, aSurveiller: 0, aRisque: 1, produitsPhares: 1, tendancesReseaux: 0 }, macro: 'Lecture macro.', sections: { top5: [p1], heros: [p1], buyNow: [p1], roi: [], highTicket: [], breakout: [], listeNoire: [p2] }, produits: [p1, p2] })
+          }
+          if (req.url === '/api/admin/syntheses-compte' && req.method === 'POST') {
+            const { email } = JSON.parse(corps || '{}')
+            if (email !== 'a@exemple.test') return json(404, { error: `Aucun compte DropShipper pour ${email}.` })
+            return json(200, { compte: { email, boutique: 'Boutique A' }, produits: 3 })
+          }
+          if (req.url === '/api/admin/syntheses/2026-11-07/importer-compte' && req.method === 'POST') {
+            const c = JSON.parse(corps || '{}')
+            etat.importsSynthese = (etat.importsSynthese || []).concat([c])
+            const n = c.ids.filter((id) => ['s1', 's2'].includes(id)).length
+            return json(200, c.essai ? { compte: c.email, essai: true, aImporter: n, doublons: 0, inconnus: c.ids.length - n } : { compte: c.email, importes: n, doublons: 0, inconnus: c.ids.length - n })
+          }
           if (req.url === '/api/admin/analyses-drive/lister' && req.method === 'POST') {
             const { adresse } = JSON.parse(corps || '{}')
             if (!/drive\.google\.com/.test(adresse || '')) return json(422, { error: 'Adresse de dossier Google Drive non reconnue.' })

@@ -328,6 +328,39 @@ test('rayons avec une autre IA : message au format du rayon ; recherche gardant 
   await assert.rejects(illisible.chercherLot(['x']), /réponse sans liste JSON/)
 })
 
+test('Connecter avec Google : page du site dans le navigateur, code à usage unique, seule l’adresse revient', async () => {
+  const cc = lib('connexionCompte.js')
+  const lien = new URL(cc.lienConnexion('e'.repeat(32)))
+  assert.equal(lien.origin + lien.pathname, 'https://www.drop-shipper.fr/connexion-desktop')
+  assert.equal(lien.searchParams.get('app'), 'kantix')
+  assert.equal(cc.adresseDansArgv(['kantix.exe', '--x', 'kantix://connexion?code=1']), 'kantix://connexion?code=1')
+  assert.equal(cc.lireRetour('dropshipper://connexion?code=' + 'a'.repeat(64) + '&etat=' + 'e'.repeat(32)), null, 'une autre application ne compte pas')
+  const appels = []
+  const fetchImpl = async (url, init = {}) => {
+    appels.push({ url, init })
+    const corps = (o, ok = true, status = 200) => ({ ok, status, text: async () => JSON.stringify(o) })
+    if (url.endsWith('/api/desktop/echange')) return JSON.parse(init.body).code === 'b'.repeat(64) ? corps({ error: 'Code de connexion expiré ou déjà utilisé.' }, false, 401) : corps({ token: 'jeton-session' })
+    if (url.endsWith('/api/auth/me')) return corps({ email: 'Max@Gmail.com', shopName: 'Ma boutique' })
+    return corps({}, false, 404)
+  }
+  let ouvert = null
+  const att = cc.creerAttente({ ouvrir: (l) => { ouvert = l }, apiBase: () => 'https://api.exemple.test/', fetchImpl, dureeMs: 2000 })
+  const p = att.attendre()
+  const etat = new URL(ouvert).searchParams.get('etat')
+  assert.equal(await att.recevoir(`kantix://connexion?code=${'a'.repeat(64)}&etat=${'z'.repeat(32)}`), false, 'un état qui n’est pas le nôtre est ignoré')
+  assert.equal(await att.recevoir(`kantix://connexion?code=${'a'.repeat(64)}&etat=${etat}`), true)
+  const r = await p
+  assert.deepEqual(r, { email: 'max@gmail.com', boutique: 'Ma boutique' })
+  assert.ok(!JSON.stringify(r).includes('jeton'), 'le jeton de session ne sort jamais')
+  assert.equal(appels[1].init.headers.Authorization, 'Bearer jeton-session')
+  const p2 = att.attendre()
+  const etat2 = new URL(ouvert).searchParams.get('etat')
+  att.recevoir(`kantix://connexion?code=${'b'.repeat(64)}&etat=${etat2}`)
+  await assert.rejects(p2, /expiré ou déjà utilisé/)
+  const lent = cc.creerAttente({ ouvrir: () => {}, apiBase: () => 'https://api.exemple.test', fetchImpl, dureeMs: 20 })
+  await assert.rejects(lent.attendre(), /Pas de retour du navigateur/)
+})
+
 ;(async () => {
   const s = await serveur()
   base = `http://127.0.0.1:${s.address().port}`
