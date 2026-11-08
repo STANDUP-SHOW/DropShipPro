@@ -80,8 +80,9 @@ export function GrilleRapports({
   /** La photo du rayon en tête de carte (Fresh news). */
   illustree?: boolean
   /**
-   * Fresh news (Max, 04/11/2026) : la carte mène à l'article public du rapport,
-   * sa page propre ; le bouton « Édition » ouvre les produits dans l'espace.
+   * Fresh Market News : la carte ouvre l'analyse complète dans l'espace (Max,
+   * 08/11/2026 : garder les menus du site et l'accès d'un connecté) ; « Page
+   * publique » ouvre l'article SEO dans un autre onglet.
    */
   article?: boolean
   actif?: string | null
@@ -114,15 +115,15 @@ export function GrilleRapports({
                 <span className="v-rapport-sur">
                   {r.categorieNom} / {dateLongue(r.day)}
                 </span>
-                <a className="v-rapport-titre v-rapport-article" href={pagePublique(r)} target="_blank" rel="noreferrer">
+                <button type="button" className="v-rapport-titre v-rapport-article text-left" onClick={() => onOuvrir(r)}>
                   {titre}
-                </a>
+                </button>
                 {sous}
                 <span className="v-rapport-pied">
                   <span>{compte}</span>
-                  <button type="button" className="v-rapport-edition" onClick={() => onOuvrir(r)}>
-                    Édition
-                  </button>
+                  <a className="v-rapport-edition" href={pagePublique(r)} target="_blank" rel="noreferrer">
+                    Page publique
+                  </a>
                   <span className="c-fleche !h-7 !w-7">
                     <ArrowUpRight size={13} />
                   </span>

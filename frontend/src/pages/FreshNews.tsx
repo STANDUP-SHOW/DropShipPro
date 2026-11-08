@@ -7,7 +7,6 @@ import { Markdown, blocsDe } from '../components/Markdown'
 import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
 import { PageCreative, Entete } from '../components/creative/Creative'
 import { GrilleRapports, Provenance, dateLongue, liste, melange, pagePublique, type LigneRapport } from '../components/creative/Veille'
-import { SynthesesDuJour } from '../components/creative/SynthesesDuJour'
 import { api } from '../lib/api'
 
 /**
@@ -144,9 +143,6 @@ export default function FreshNews() {
           chapo="Le marché, les produits et le marketing réunis dans une lecture courte. Puis les détails, quand vous en avez besoin."
         />
 
-        {/* ---------- La synthèse du jour : compteurs, phares, tendances, actualités ---------- */}
-        <SynthesesDuJour />
-
         {/* ---------- La grille des rapports ---------- */}
         <section className="mt-10">
           <div className="v-titre-section">
@@ -154,7 +150,7 @@ export default function FreshNews() {
               <h2 className="c-h2">{jourMontre ? `Les rapports du ${dateLongue(jourMontre)}` : 'Les rapports du jour'}</h2>
               <p>
                 {duJour.length
-                  ? `${duJour.length} rapports, ${rayonsDuJour} rayon${rayonsDuJour > 1 ? 's' : ''}, dans un ordre mélangé. Chaque carte ouvre l'article du rapport, sur sa page ; « Édition » montre ses produits à importer.`
+                  ? `${duJour.length} rapports, ${rayonsDuJour} rayon${rayonsDuJour > 1 ? 's' : ''}, dans un ordre mélangé. Chaque carte ouvre l'analyse complète ci-dessous, avec ses produits à importer ; « Page publique » montre l'article publié pour le référencement.`
                   : 'Chaque jour, deux rapports pour chacun des 24 rayons : le marché et ses 20 produits, et le marketing.'}
               </p>
             </div>
