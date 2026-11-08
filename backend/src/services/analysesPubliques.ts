@@ -1043,7 +1043,18 @@ footer{border-top:1px solid #ffffff1a;margin-top:3rem;padding:1.5rem 0;font-size
 .end{margin:2.5rem 0;text-align:center}
 `
 
-function layout(o: { url: string; title: string; description: string; jsonLd: unknown; body: string; publie?: Date; modifie?: Date; indexable?: boolean }): string {
+/*
+ * Max, 08/11/2026: a signed-in seller who lands on a public page saw « Créer un
+ * compte » and « réservés aux comptes ». The page stays the same for visitors
+ * and crawlers (SEO and guard-rail untouched); a signed-in browser (the token
+ * the app keeps on the same origin) gets « Mon espace » and a way back to the
+ * full analysis inside the app, and the members-only notices go.
+ */
+const CSS_CONNECTE = `html[data-connecte] .garde{display:none}
+.bandeau-connecte{margin:1.25rem 0 0;padding:.85rem 1rem;border:1px solid #e8529066;border-radius:.75rem;background:#e852901a;font-size:.95rem}.bandeau-connecte a{font-weight:700}`
+
+function layout(o: { url: string; title: string; description: string; jsonLd: unknown; body: string; publie?: Date; modifie?: Date; indexable?: boolean; espace?: string }): string {
+  const espace = o.espace ?? '/fresh-news'
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -1063,16 +1074,18 @@ ${o.publie ? `<meta property="article:published_time" content="${o.publie.toISOS
 ${o.modifie ? `<meta property="article:modified_time" content="${o.modifie.toISOString()}">` : ''}
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
 <link rel="alternate" type="text/plain" href="${SITE}/llms.txt" title="Description pour les assistants IA">
-<style>${CSS}</style>
+<style>${CSS}${CSS_CONNECTE}</style>
+<script>try{if(localStorage.getItem('droppost_token'))document.documentElement.setAttribute('data-connecte','1')}catch(e){}</script>
 <script type="application/ld+json">${JSON.stringify(o.jsonLd)}</script>
 </head>
 <body>
-<header><div class="wrap"><a class="brand" href="/" aria-label="${NOM}, accueil"><img src="${SITE}/marque/dropshipper-icone.png" alt="" width="34" height="34"><img class="mot" src="${SITE}/marque/dropshipper-mot.png" alt="${NOM}" width="120" height="22"></a><a class="cta small" href="/register">Créer un compte</a></div></header>
+<header><div class="wrap"><a class="brand" href="/" aria-label="${NOM}, accueil"><img src="${SITE}/marque/dropshipper-icone.png" alt="" width="34" height="34"><img class="mot" src="${SITE}/marque/dropshipper-mot.png" alt="${NOM}" width="120" height="22"></a><a class="cta small" id="cta-haut" href="/register">Créer un compte</a></div></header>
 <main class="wrap">
 ${o.body}
-<div class="end"><a class="cta" href="/register">Essayer ${NOM} — 120 drops offerts</a></div>
+<div class="end"><a class="cta" id="cta-bas" href="/register">Essayer ${NOM} — 120 drops offerts</a></div>
 </main>
 <footer><div class="wrap"><a href="/">Accueil</a><a href="/fresh-market-news/">Fresh Market News</a><a href="/tarifs/">Tarifs</a><a href="/faq/">Questions fréquentes</a><a href="/a-propos/">À propos</a></div></footer>
+<script>(function(){if(!document.documentElement.hasAttribute('data-connecte'))return;var e=${JSON.stringify(espace).replace(/</g, '\\u003c')};var h=document.getElementById('cta-haut');if(h){h.href='/dashboard';h.textContent='Mon espace'}var b=document.getElementById('cta-bas');if(b){b.href=e;b.textContent="Ouvrir l'analyse complète dans mon espace"}var m=document.querySelector('main');if(m){var p=document.createElement('p');p.className='bandeau-connecte';p.appendChild(document.createTextNode('Vous êtes connecté : prix, fournisseurs et produits à importer sont dans votre espace. '));var a=document.createElement('a');a.href=e;a.textContent="Ouvrir l'analyse complète";p.appendChild(a);m.insertBefore(p,m.firstChild)}})()</script>
 </body>
 </html>
 `
@@ -1361,6 +1374,7 @@ ${
 
   return layout({
     url,
+    espace: `/fresh-news?categorie=${encodeURIComponent(r.categorie)}&jour=${r.day}`,
     title,
     description,
     modifie: r.updatedAt,
