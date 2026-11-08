@@ -32,6 +32,7 @@ import { createRequire } from 'node:module'
  */
 import { createHash } from 'node:crypto'
 import { CATEGORIES, categorieDe, type ProduitRapport } from './marketReports.js'
+import { titreSansSens } from './titreDuJour.js'
 
 export const SITE = 'https://www.drop-shipper.fr'
 const NOM = 'DropShipper IA'
@@ -167,7 +168,8 @@ function calculerAdresses(rapports: Adressable[], filtre = true, forme: Forme = 
   if (fixees) {
     for (const r of ordre) {
       const f = fixees.get(r.id)
-      if (f && f.startsWith(prefixe(r, forme)) && adresseSaine(f) && !prises.has(f)) {
+      // Max, 08/11/2026: « en-ce-samedi-07-novembre » was given to 19 pages; such a subject is recomputed (the old one 301s).
+      if (f && f.startsWith(prefixe(r, forme)) && adresseSaine(f) && !prises.has(f) && !sujetSansSens(f)) {
         prises.add(f)
         carte.set(r.id, f)
       }
@@ -175,13 +177,25 @@ function calculerAdresses(rapports: Adressable[], filtre = true, forme: Forme = 
   }
   for (const r of ordre) {
     if (carte.has(r.id)) continue
-    const base = `${prefixe(r, forme)}${sujetRapport(r, filtre)}`
+    let sujet = sujetRapport(r, filtre)
+    if (forme === 'rayon' && titreSansSens(sujet)) {
+      // The theme, then the punchy extract: still more telling than a date or a count.
+      const repli = sujetRapport({ ...r, une: null, titre: r.theme.replace(/-/g, ' ') }, filtre)
+      sujet = titreSansSens(repli) && !r.extrait ? r.theme : repli
+    }
+    const base = `${prefixe(r, forme)}${sujet}`
     let choix = `${base}/`
     for (let n = 2; prises.has(choix); n++) choix = `${base}-${n}/`
     prises.add(choix)
     carte.set(r.id, choix)
   }
   return carte
+}
+
+/** The last segment of an address only dates, counts or checks (« en-ce-samedi-07-novembre », « 20-fiches-produit-verifiees »). */
+export function sujetSansSens(adresse: string): boolean {
+  const sujet = adresse.replace(/\/$/, '').split('/').pop() ?? ''
+  return titreSansSens(sujet.replace(/-\d+$/, ''))
 }
 
 /** An address the sourcing terms never reach, in the current form: the only kind kept from the register. */
@@ -194,7 +208,7 @@ const SUJET_PRIVE_SLUG = /(?:^|[/-])(?:marques?-blanches?|white-label|private-la
  * Attribue les adresses ; `fixees` = les adresses déjà données (registre gardé
  * sur le volume) : elles ne bougent plus. Rend la carte id → adresse, à garder.
  */
-export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: boolean }>, fixees?: Map<string, string>): Map<string, string> {
+export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: boolean }>, fixees?: Map<string, string>, retirees?: Map<string, string>): Map<string, string> {
   attribuees = calculerAdresses(rapports, true, 'rayon', fixees)
   anciennes = new Map()
   const actuelles = new Set(attribuees.values())
@@ -215,6 +229,8 @@ export function attribuerAdresses(rapports: Array<Adressable & { importeDrive?: 
   }
   // Addresses of this form given before (register), now held by nobody: they lead to their report.
   if (fixees) for (const [id, a] of fixees) if (!actuelles.has(a) && !anciennes.has(a) && attribuees.has(id)) anciennes.set(a, id)
+  // Addresses retired from the register (a meaningless subject replaced): they keep leading to their report.
+  if (retirees) for (const [a, id] of retirees) if (!actuelles.has(a) && !anciennes.has(a) && attribuees.has(id)) anciennes.set(a, id)
   return attribuees
 }
 
