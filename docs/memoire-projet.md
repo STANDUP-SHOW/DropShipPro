@@ -1668,3 +1668,13 @@ max : « manques url, doubles, rapports en double, incomplets, mal rangés, pas 
   d'origine, et `resume` résume l'import en phrases. Banc : `npx tsx check-import-qualite.ts`.
 - Constaté en ligne le 08/11 (sitemap) : ~35 pages rayon sous 20 produits, et des titres d'adresse
   vides de sens (« en-ce-samedi-07-novembre » sur 19 pages) — titreDuJour.ts, fil SEO prévenu.
+
+## Import Drive : rapports du 9 au 12/11 invisibles (12/11/2026)
+
+Les 48 rapports par jour étaient bien sur le Drive (dossier « rapports » 12YW-…, listé public depuis
+MAX-PC), les synthèses du 9 au 12 bien importées ; aucun rapport après le 08/11. Lire tout le dossier
+« rapports » demande ~226 listes (9 jours × 24 rayons) une par une (95 s depuis MAX-PC). Une page que
+Google rend sans liste (freinage d'un serveur qui lit trop) était lue comme un dossier VIDE : les jours
+listés en dernier disparaissaient sans erreur. Cause la plus probable, non observée côté Railway.
+Corrigé : une page sans « flip-entries » est relue (3 reprises), puis l'erreur nomme le dossier ;
+4 listes en parallèle ; listes gardées 15 min ; un import ne lit que les dossiers datés choisis.

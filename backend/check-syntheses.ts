@@ -122,7 +122,7 @@ globalThis.fetch = (async (entree: string | URL) => {
       const lien = c.enfants ? `https://drive.google.com/drive/folders/${e}` : `https://drive.google.com/file/d/${e}/view`
       return `<div class="flip-entry" id="entry-${e}"><a href="${lien}"><div class="flip-entry-title">${c.nom}</div></a></div>`
     })
-    return new Response(`<html><head><title>${n.nom} - Google Drive</title></head><body>${blocs.join('')}</body></html>`)
+    return new Response(`<html><head><title>${n.nom} - Google Drive</title></head><body><div class="flip-entries">${blocs.join('')}</div></body></html>`)
   }
   ouverts.push(id)
   const t = n.texte ?? ''
