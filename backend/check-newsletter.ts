@@ -53,6 +53,19 @@ const r = await fetch(`${base}/newsletter/desinscription?e=a%40exemple.test&t=fa
 exige(r.status === 400 && (await r.text()).includes('Lien invalide'), 'lien modifié : 400 et page lisible, rien écrit')
 serveur.close()
 
+// welcome e-mail imported in Kantix: refused without the confirmation link, then read back
+const os = await import('node:os'); const pathMod = await import('node:path'); const fsMod = await import('node:fs')
+const eb = await import('./src/services/emailBienvenue.js')
+const chemin = pathMod.join(fsMod.mkdtempSync(pathMod.join(os.tmpdir(), 'bienvenue-')), 'emails', 'bienvenue.json')
+let refuse = false
+try { await eb.ecrireBienvenue('Bienvenue', '<html><body><a href="https://x">ok</a></body></html>', chemin) } catch (e) { refuse = e instanceof eb.ModeleRefuse }
+exige(refuse && (await eb.lireBienvenue(chemin)) === null, 'modèle de bienvenue sans {{lien_confirmation}} refusé, rien écrit')
+await eb.ecrireBienvenue('Bienvenue', '<html><body><a href="{{lien_confirmation}}">Confirmer</a></body></html>', chemin)
+exige((await eb.lireBienvenue(chemin))?.sujet === 'Bienvenue', 'modèle de bienvenue enregistré puis relu')
+exige(eb.texteDeHtml('<p><a href="https://l">Confirmer</a></p>') === 'Confirmer (https://l)', 'version texte garde le lien')
+await eb.effacerBienvenue(chemin)
+exige((await eb.lireBienvenue(chemin)) === null, 'retour au message intégré')
+
 if (echecs) { console.error(`${echecs} contrôle(s) en échec`); process.exit(1) }
 console.log('newsletter : tout est conforme')
 process.exit(0)

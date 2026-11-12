@@ -6,7 +6,12 @@ import { RapportInvalide } from '../services/marketReports.js'
 import { enregistrerRapportPoste } from '../services/rapportsPoste.js'
 import { DepotRefuse, deposerRapports } from '../services/reportsDb.js'
 import { listeVersementsAdmin, verser } from '../services/affiliation.js'
-import { sendMail, appUrl } from '../services/mailer.js'
+import { sendMail, sendRawMail, appUrl } from '../services/mailer.js'
+import { MARQUE_CONFIRMATION, ModeleRefuse, ecrireBienvenue, effacerBienvenue, lireBienvenue, texteDeHtml } from '../services/emailBienvenue.js'
+
+const echapperHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+/** A plain message typed in Kantix, as paragraphs for the site's e-mail template. */
+const paragraphes = (texte: string) => texte.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${echapperHtml(p).replace(/\n/g, '<br>')}</p>`).join('')
 import * as newsletter from '../services/newsletter.js'
 import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
 import { datesSyntheses, importerSynthese, lireJournal, lireSynthese, noterImports, produitACreer, synthesePrivee } from '../services/synthesesQuotidiennes.js'
@@ -128,12 +133,11 @@ adminRouter.post('/utilisateurs/:id/ecrire', async (req, res) => {
   try {
     const u = await prisma.user.findUnique({ where: { id: req.params.id }, select: { email: true } })
     if (!u) return res.status(404).json({ error: 'Compte introuvable.' })
-    const echapper = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const corps = message.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${echapper(p).replace(/\n/g, '<br>')}</p>`).join('')
+    const corps = paragraphes(message)
     await sendMail({
       to: u.email,
       subject: sujet,
-      heading: echapper(sujet),
+      heading: echapperHtml(sujet),
       body: corps,
       footer: 'Message envoyé par l’équipe DropShipper IA.',
       ...(repondreA ? { replyTo: repondreA } : {}),
@@ -190,6 +194,111 @@ adminRouter.post('/newsletter/envoyer', async (req, res) => {
   } catch (err) {
     console.error('envoi de la newsletter impossible', err)
     res.status(500).json({ error: 'Envoi de la newsletter impossible.', motif: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+/**
+ * Section Email de Kantix (12/11/2026) : l'e-mail de bienvenue importé en HTML,
+ * un e-mail libre à n'importe quelle adresse (répondre à un client qui a écrit
+ * dans la boîte de Max), et les messages des vendeurs (tickets) avec réponse.
+ */
+adminRouter.get('/emails/bienvenue', async (_req, res) => {
+  res.set('Cache-Control', 'no-store')
+  const m = await lireBienvenue()
+  res.json({ modele: m, marque: MARQUE_CONFIRMATION })
+})
+adminRouter.put('/emails/bienvenue', async (req, res) => {
+  const b = (req.body ?? {}) as { sujet?: unknown; html?: unknown }
+  try {
+    const m = await ecrireBienvenue(b.sujet, b.html)
+    res.json({ ok: true, modele: { sujet: m.sujet, majAt: m.majAt, taille: m.html.length } })
+  } catch (err) {
+    if (err instanceof ModeleRefuse) return res.status(422).json({ error: err.message })
+    console.error('e-mail de bienvenue non enregistré', err)
+    res.status(500).json({ error: 'Enregistrement impossible sur le serveur.', motif: err instanceof Error ? err.message : String(err) })
+  }
+})
+adminRouter.delete('/emails/bienvenue', async (_req, res) => {
+  await effacerBienvenue()
+  res.json({ ok: true })
+})
+
+const ADRESSE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** { a, sujet, message?, html?, repondreA? } : un texte (mis en page aux couleurs du site) ou un HTML importé. */
+adminRouter.post('/emails/ecrire', async (req, res) => {
+  const b = (req.body ?? {}) as { a?: unknown; sujet?: unknown; message?: unknown; html?: unknown; repondreA?: unknown }
+  const a = String(b.a ?? '').trim()
+  const sujet = String(b.sujet ?? '').trim().slice(0, 200)
+  const message = String(b.message ?? '').trim().slice(0, 20_000)
+  const html = String(b.html ?? '')
+  const repondreA = String(b.repondreA ?? '').trim()
+  if (!ADRESSE.test(a)) return res.status(422).json({ error: 'L’adresse du destinataire n’est pas une adresse e-mail.' })
+  if (!sujet || (!message && html.trim().length < 20)) return res.status(422).json({ error: 'Il faut un objet et un message (ou un fichier HTML).' })
+  if (repondreA && !ADRESSE.test(repondreA)) return res.status(422).json({ error: 'L’adresse de réponse n’est pas une adresse e-mail.' })
+  if (html.length > newsletter.MAX_HTML) return res.status(422).json({ error: 'Le fichier HTML est trop lourd (1,8 Mo au plus).' })
+  try {
+    if (html.trim()) await sendRawMail({ to: a, subject: sujet, html, text: texteDeHtml(html), ...(repondreA ? { replyTo: repondreA } : {}) })
+    else await sendMail({ to: a, subject: sujet, heading: echapperHtml(sujet), body: paragraphes(message), footer: 'Message envoyé par l’équipe DropShipper IA.', ...(repondreA ? { replyTo: repondreA } : {}) })
+    res.json({ ok: true, a })
+  } catch (err) {
+    console.error('e-mail libre non envoyé', err)
+    res.status(502).json({ error: 'Envoi impossible.', motif: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+/** Les tickets des vendeurs, les plus récents d'abord (statut facultatif : OUVERT, EN_COURS, RESOLU, REFUSE). */
+adminRouter.get('/tickets', async (req, res) => {
+  const statut = String(req.query.statut ?? '').toUpperCase()
+  try {
+    const tickets = await prisma.ticket.findMany({
+      where: ['OUVERT', 'EN_COURS', 'RESOLU', 'REFUSE'].includes(statut) ? { status: statut } : {},
+      orderBy: { updatedAt: 'desc' },
+      take: 200,
+      select: { id: true, subject: true, kind: true, status: true, createdAt: true, updatedAt: true, user: { select: { email: true } }, _count: { select: { messages: true } } },
+    })
+    res.json({ tickets: tickets.map((t) => ({ id: t.id, sujet: t.subject, genre: t.kind, statut: t.status, email: t.user.email, messages: t._count.messages, createdAt: t.createdAt, updatedAt: t.updatedAt })) })
+  } catch (err) {
+    console.error('lecture des tickets impossible', err)
+    res.status(503).json({ error: 'Service momentanément indisponible' })
+  }
+})
+adminRouter.get('/tickets/:id', async (req, res) => {
+  try {
+    const t = await prisma.ticket.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, subject: true, kind: true, status: true, createdAt: true, user: { select: { email: true } }, messages: { orderBy: { createdAt: 'asc' }, select: { author: true, agentKey: true, body: true, createdAt: true } } },
+    })
+    if (!t) return res.status(404).json({ error: 'Ticket introuvable.' })
+    res.json({ id: t.id, sujet: t.subject, genre: t.kind, statut: t.status, email: t.user.email, createdAt: t.createdAt, messages: t.messages })
+  } catch (err) {
+    console.error('lecture du ticket impossible', err)
+    res.status(503).json({ error: 'Service momentanément indisponible' })
+  }
+})
+/** Réponse de l'équipe : écrite dans le ticket (le vendeur la lit dans son espace) et envoyée par e-mail. */
+adminRouter.post('/tickets/:id/repondre', async (req, res) => {
+  const b = (req.body ?? {}) as { message?: unknown; statut?: unknown }
+  const message = String(b.message ?? '').trim().slice(0, 4000)
+  const statut = String(b.statut ?? '').toUpperCase()
+  if (!message) return res.status(422).json({ error: 'Le message est vide.' })
+  try {
+    const t = await prisma.ticket.findUnique({ where: { id: req.params.id }, select: { id: true, subject: true, user: { select: { email: true } } } })
+    if (!t) return res.status(404).json({ error: 'Ticket introuvable.' })
+    await prisma.$transaction([
+      prisma.ticketMessage.create({ data: { ticketId: t.id, author: 'agent', agentKey: null, body: message } }),
+      prisma.ticket.update({ where: { id: t.id }, data: { status: ['OUVERT', 'EN_COURS', 'RESOLU', 'REFUSE'].includes(statut) ? statut : 'EN_COURS' } }),
+    ])
+    let emailEnvoye = true
+    try {
+      await sendMail({ to: t.user.email, subject: `Réponse à votre demande : ${t.subject}`.slice(0, 200), heading: echapperHtml(t.subject), body: paragraphes(message), actionLabel: 'Voir la conversation', actionUrl: `${appUrl()}/tickets`, footer: 'Réponse de l’équipe DropShipper IA.' })
+    } catch (err) {
+      emailEnvoye = false
+      console.error('e-mail de réponse au ticket non envoyé', err)
+    }
+    res.json({ ok: true, emailEnvoye })
+  } catch (err) {
+    console.error('réponse au ticket impossible', err)
+    res.status(500).json({ error: 'Réponse impossible.', motif: err instanceof Error ? err.message : String(err) })
   }
 })
 

@@ -5,7 +5,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { signToken, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { issueToken, consumeToken } from '../services/authTokens.js'
-import { sendMail, appUrl } from '../services/mailer.js'
+import { sendMail, sendRawMail, appUrl } from '../services/mailer.js'
+import { MARQUE_CONFIRMATION, lireBienvenue, texteDeHtml } from '../services/emailBienvenue.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import {
   verifierIdTokenGoogle,
@@ -60,6 +61,18 @@ authRouter.post('/register', rateLimit({ name: 'register', windowMs: 3600_000, m
 
 async function sendVerificationEmail(userId: string, email: string) {
   const token = await issueToken(userId, 'EMAIL_VERIFICATION')
+  // Welcome e-mail imported in Kantix (12/11/2026): used when present, it always carries the link.
+  const modele = await lireBienvenue()
+  if (modele) {
+    const lien = `${appUrl()}/verify-email?token=${token}`
+    try {
+      await sendRawMail({ to: email, subject: modele.sujet, html: modele.html.split(MARQUE_CONFIRMATION).join(lien), text: texteDeHtml(modele.html.split(MARQUE_CONFIRMATION).join(lien)) })
+      return
+    } catch (err) {
+      // the built-in message below still goes out: a signup must never stay without its link
+      console.error('e-mail de bienvenue importé non envoyé, message intégré à la place', err)
+    }
+  }
   await sendMail({
     to: email,
     subject: 'Bienvenue sur DropShipper IA — confirmez votre adresse',
