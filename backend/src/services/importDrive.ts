@@ -106,15 +106,45 @@ export function nomDossierVue(html: string): string {
   return t ? decoder(t).replace(/\s*[-–—]\s*Google\s+Drive\s*$/i, '').trim() : ''
 }
 
-async function listerUnDossier(id: string): Promise<{ nom: string; entrees: EntreeDrive[] }> {
-  const r = await obtenir(`https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(id)}`)
-  if (r.status === 404) throw new DriveErreur("Dossier introuvable : vérifiez l'adresse.")
-  if (!r.ok) throw new DriveErreur(`Google Drive a répondu ${r.status} sur la liste du dossier.`)
-  const html = await r.text()
-  if (/accounts\.google\.com\/(ServiceLogin|signin)/.test(html) && !html.includes('flip-entry')) {
-    throw new DriveErreur("Ce dossier n'est pas public : partagez-le en « Tous les utilisateurs disposant du lien ».")
+/** Pauses between two tries of a listing Google did not render (throttled, busy). */
+const REPRISES_MS = [1_500, 5_000, 12_000]
+/** Folders listed in parallel: fast enough for nine days × 24 shelves, gentle enough for Google. */
+const EN_PARALLELE = 4
+/** A listing is kept this long: the import right after a reading does not ask Google again. */
+const CACHE_MS = 15 * 60_000
+const vues = new Map<string, { le: number; nom: string; entrees: EntreeDrive[] }>()
+const attendre = (ms: number) => new Promise((r) => setTimeout(r, process.env.DRIVE_SANS_ATTENTE ? 0 : ms))
+
+/**
+ * One folder's listing. A page that is not a folder view (no « flip-entries »
+ * list, even empty) is NOT an empty folder: Google answers so when it throttles
+ * a server that asks too often. Read as empty, it silently dropped every
+ * folder listed after it — the reports of 9 to 12/11/2026 vanished from the
+ * reading while the small synthesis folder still listed. It is retried, then named.
+ */
+async function listerUnDossier(id: string, ou = ''): Promise<{ nom: string; entrees: EntreeDrive[] }> {
+  const garde = vues.get(id)
+  if (garde && Date.now() - garde.le < CACHE_MS) return garde
+  let motif = ''
+  for (let essai = 0; essai <= REPRISES_MS.length; essai++) {
+    if (essai) await attendre(REPRISES_MS[essai - 1])
+    const r = await obtenir(`https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(id)}`)
+    if (r.status === 404) throw new DriveErreur(`Dossier introuvable${ou ? ` (${ou})` : ''} : vérifiez l'adresse.`)
+    const html = r.ok ? await r.text() : ''
+    if (r.ok && /accounts\.google\.com\/(ServiceLogin|signin)/.test(html) && !html.includes('flip-entry')) {
+      throw new DriveErreur(`Ce dossier n'est pas public${ou ? ` (${ou})` : ''} : partagez-le en « Tous les utilisateurs disposant du lien ».`)
+    }
+    if (r.ok && html.includes('flip-entries')) {
+      const vue = { le: Date.now(), nom: nomDossierVue(html), entrees: lireVueEmbarquee(html) }
+      vues.set(id, vue)
+      if (vues.size > 5_000) vues.clear()
+      return vue
+    }
+    motif = r.ok ? 'page sans liste de fichiers' : `réponse ${r.status}`
   }
-  return { nom: nomDossierVue(html), entrees: lireVueEmbarquee(html) }
+  throw new DriveErreur(
+    `Google Drive n'a pas rendu la liste du dossier ${ou ? `« ${ou} »` : id} (${motif}, ${REPRISES_MS.length + 1} essais) : il freine les lectures trop nombreuses. Relancez dans quelques minutes ; rien n'a été importé à moitié.`,
+  )
 }
 
 export interface FichierDrive {
@@ -128,21 +158,33 @@ export interface FichierDrive {
  * Every file under the folder, breadth first, with its folder path. The path
  * starts with the pasted folder's own name, so pasting a date folder
  * (« 2026-11-03 ») places its files as pasting its parent does.
+ * `dateVoulue`, when given, skips the date folders (AAAA-MM-JJ) it refuses:
+ * an import of one day no longer reads the nine others.
  */
-export async function listerArbre(racine: string): Promise<FichierDrive[]> {
+export async function listerArbre(racine: string, dateVoulue?: (date: string) => boolean): Promise<FichierDrive[]> {
   const fichiers: FichierDrive[] = []
-  const file: { id: string; chemin: string[] | null }[] = [{ id: racine, chemin: null }]
+  let niveau: { id: string; chemin: string[] | null }[] = [{ id: racine, chemin: null }]
   let dossiers = 0
-  while (file.length) {
-    const d = file.shift()!
-    if (++dossiers > MAX_DOSSIERS) throw new DriveErreur(`Plus de ${MAX_DOSSIERS} dossiers : donnez un sous-dossier plus précis.`)
-    const { nom, entrees } = await listerUnDossier(d.id)
-    d.chemin ??= nom ? [nom] : []
-    for (const e of entrees) {
-      if (e.dossier) file.push({ id: e.id, chemin: [...d.chemin, e.nom] })
-      else fichiers.push({ id: e.id, nom: e.nom, chemin: d.chemin })
-      if (fichiers.length > MAX_FICHIERS) throw new DriveErreur(`Plus de ${MAX_FICHIERS} fichiers : donnez un sous-dossier plus précis.`)
+  while (niveau.length) {
+    const suivant: typeof niveau = []
+    for (let i = 0; i < niveau.length; i += EN_PARALLELE) {
+      const lot = niveau.slice(i, i + EN_PARALLELE)
+      dossiers += lot.length
+      if (dossiers > MAX_DOSSIERS) throw new DriveErreur(`Plus de ${MAX_DOSSIERS} dossiers : donnez un sous-dossier plus précis.`)
+      const lus = await Promise.all(lot.map((d) => listerUnDossier(d.id, d.chemin?.join('/') ?? '')))
+      lot.forEach((d, k) => {
+        const { nom, entrees } = lus[k]
+        const chemin = d.chemin ?? (nom ? [nom] : [])
+        for (const e of entrees) {
+          if (e.dossier) {
+            if (dateVoulue && DATE.test(e.nom) && !dateVoulue(e.nom)) continue
+            suivant.push({ id: e.id, chemin: [...chemin, e.nom] })
+          } else fichiers.push({ id: e.id, nom: e.nom, chemin })
+          if (fichiers.length > MAX_FICHIERS) throw new DriveErreur(`Plus de ${MAX_FICHIERS} fichiers : donnez un sous-dossier plus précis.`)
+        }
+      })
     }
+    niveau = suivant
   }
   return fichiers
 }
@@ -316,8 +358,8 @@ async function dateDuFichier(f: FichierDrive): Promise<string[] | null> {
   }
 }
 
-async function lireDossier(racine: string) {
-  const { fichiers, sansDate } = await daterSansDossier(await listerArbre(racine))
+async function lireDossier(racine: string, dateVoulue?: (date: string) => boolean) {
+  const { fichiers, sansDate } = await daterSansDossier(await listerArbre(racine, dateVoulue))
   return { dates: regrouper(fichiers), sansDate }
 }
 
@@ -450,7 +492,7 @@ async function lireCandidat(f: FichierDrive, marketing: FichierDrive | null, rac
 export async function importerDossierDrive(adresse: string, dates: string[], essai: boolean) {
   const racine = idDossierDrive(adresse)
   const voulues = new Set(dates)
-  const jours = (await lireDossier(racine)).dates.filter((d) => voulues.has(d.date))
+  const jours = (await lireDossier(racine, (d) => voulues.has(d))).dates.filter((d) => voulues.has(d.date))
   if (!jours.length) throw new DriveErreur('Aucune des dates choisies dans ce dossier.')
 
   const enBase = rayonsEnService()
