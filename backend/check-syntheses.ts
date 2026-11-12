@@ -153,7 +153,7 @@ const r1 = await importerDossierDrive('racineAAAAAA', ['2026-11-04', '2026-11-03
 const b4 = r1.syntheses.find((b) => b.date === '2026-11-04')!
 const b3 = r1.syntheses.find((b) => b.date === '2026-11-03')!
 exige(b4.statut === 'importe' && b4.format === 'json' && b4.produits === 3, '04/11 importé depuis le JSON (3 produits)')
-exige(!ouverts.includes('oppAAAAAAAA'), 'le Markdown n’est pas ouvert quand le JSON est lisible')
+exige(ouverts.includes('oppAAAAAAAA'), 'le Markdown est lu aussi : il complète les listes que le JSON n’a pas (09/11)')
 exige(b4.sections?.listeNoire === 1 && b4.sections.heros === 1 && b4.sections.breakout === 1, 'les sept listes rangées (liste noire, héros, breakout)')
 exige(b3.statut === 'importe' && b3.format === 'markdown' && b3.sections?.top5 === 1 && b3.sections.listeNoire === 1, '03/11 importé depuis les tableaux Markdown')
 exige(r1.lignes.some((l) => l.rayon === 'syntheses/synthese-du-jour' && l.statut === 'importe'), 'une ligne par synthèse dans le bilan')
@@ -197,6 +197,76 @@ console.log('Face connectée : tout')
 const priv: any = S.synthesePrivee(s4)
 exige(priv.sections.buyNow[0]?.coutRendu === 46.5 && priv.sections.highTicket.length === 1 && priv.produits[0].liens.aliexpress_fr, 'coûts, listes privées et liens de recherche')
 
+console.log('Format du 09/11 : héros imbriqués, top 25, liens à plat, listes complétées par le Markdown')
+{
+  const liens = (n: string) => ({
+    sourcing_url: `https://www.bigbuy.eu/fr/search/result?q=${n}`,
+    aliexpress_import_url: `https://fr.aliexpress.com/w/wholesale-${n}.html`,
+    amazon_url: `https://www.amazon.fr/s?k=${n}`,
+  })
+  const frigo = { name: 'Mini-réfrigérateur cosmétique 10L', variant: '10L, miroir LED', landed_cost: 39, target_price: 89.9, net_margin: 17.2, roi: 44.1, score: 88, verdict: 'BUY NOW', ...liens('frigo') }
+  const lacets = { name: 'Lacets élastiques autobloquants', variant: 'Fils tressés 100 cm', landed_cost: 1.8, target_price: 8.9, net_margin: 4.5, roi: 250, score: 90, verdict: 'BUY NOW', ...liens('lacets') }
+  const json = {
+    metadata: { date: '2026-11-12', total_products_analyzed: 480 },
+    hero_products_by_category: [
+      { category_id: 'electromenager', category_name: 'Électroménager', theme_id: 'gros-froid', theme_name: 'Réfrigérateurs', hero_product: frigo },
+      { category_id: 'chaussures-maroquinerie', category_name: 'Chaussures et maroquinerie', theme_id: 'baskets', theme_name: 'Baskets', hero_product: lacets },
+    ],
+    top_25_immediate_opportunities: [
+      { rank: 1, category_id: 'chaussures-maroquinerie', category_name: 'Chaussures et maroquinerie', ...lacets },
+      { rank: 2, category_id: 'electromenager', category_name: 'Électroménager', ...frigo },
+    ],
+  }
+  const md = `# OPPORTUNITÉS PRIORITAIRES IMMÉDIATES - aiMARKET (2026-11-12)
+
+## 🚀 1. TOP 5 PRIORITÉS ABSOLUES DU JOUR (À LANCER IMMÉDIATEMENT)
+
+| Priorité | Catégorie & Thème | Produit Gagnant | Coût Rendu FR | Prix Vente | Marge Nette | ROI | Score | Liens Actifs Directs |
+| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **#1** | **Chaussures et maroquinerie** <br> (\`baskets\`) | **Lacets élastiques autobloquants** <br> *Fils tressés 100 cm* | 1.80 € | **8.90 €** | **+4.50 €** | **+250.0 %** | **90/100** | [Import](https://fr.aliexpress.com/w/wholesale-lacets.html) |
+
+## 🏆 2. LES 24 « HERO PRODUCTS » (N°1 DE CHACUNE DES 24 CATÉGORIES)
+
+| N° Cat. | Catégorie (\`theme_id\`) | Hero Product (Rang #1) | Coût Rendu FR | Prix Vente | Marge Nette | ROI | Score | Décision | URLs |
+| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **01** | **Électroménager** <br> (\`gros-froid\`) | **Mini-réfrigérateur cosmétique 10L** <br> *10L, miroir LED* | 39.00 € | **89.90 €** | **+17.20 €** | **+44.1 %** | **88/100** | **BUY NOW** | [Import](https://fr.aliexpress.com/w/wholesale-frigo.html) |
+
+## 💎 3. TOP 25 DES MEILLEURES OPPORTUNITÉS « BUY NOW » TOUTES CATÉGORIES
+
+| Rang Global | Catégorie | Produit | Coût Rendu FR | Prix Vente | Marge Nette | ROI | Score | URLs |
+| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **#1** | **Chaussures et maroquinerie** | **Lacets élastiques autobloquants** | 1.80 € | **8.90 €** | **+4.50 €** | **+250.0 %** | **90/100** | [Import](https://fr.aliexpress.com/w/wholesale-lacets.html) |
+
+## 🔥 4. TOP BREAKOUT CANDIDATES (PÉPITES À FORT POTENTIEL DE CROISSANCE)
+
+| Catégorie | Produit Pépite | Coût Rendu FR | Prix Vente | Marge Nette | ROI | Score | Angle de Différenciation & URLs Actives |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Électroménager** | **Machine à glaçons sphériques** | 25.50 € | **69.90 €** | +17.40 € | +68.2 % | **87/100** | *Bloc alu CNC* <br> [AliExpress](https://fr.aliexpress.com/w/wholesale-glacons.html) |
+
+## ⛔ 5. LISTE NOIRE RÉGLEMENTAIRE & PRODUITS À ÉVITER FORMELLEMENT
+
+| Catégorie | Produit à Éviter | Score | Motif d'Exclusion & Alerte Réglementaire |
+| :--- | :--- | :---: | :--- |
+| **Électroménager** | **Désodorisant frigo bille charbon** | **39/100** | Écrasé par le discount physique. |
+`
+  const lu = S.lireSyntheseJson(json)!
+  exige(lu && lu.date === '2026-11-12' && lu.produits.length === 2, `JSON : 2 produits distincts, héros et top 25 fusionnés (${lu?.produits.length})`)
+  exige(lu.sections.heros.length === 2 && lu.sections.buyNow.length === 2, `JSON : héros ${lu.sections.heros.length}, top 25 ${lu.sections.buyNow.length}`)
+  const frigoLu = lu.produits.find((p) => /frig/i.test(p.nom))!
+  exige(frigoLu.theme === 'gros-froid' && frigoLu.rang === 2 && frigoLu.decision === 'BUY NOW', 'héros + top 25 : thème, rang et décision réunis')
+  exige(S.produitACreer(frigoLu).sourceUrl.startsWith('https://www.bigbuy.eu/'), 'liens à plat lus (sourcing_url)')
+  const mdLu = S.lireSyntheseMarkdown(md)!
+  exige(mdLu.produits.find((p) => /frig/i.test(p.nom))?.categorieLabel === 'Électroménager', 'Markdown : la colonne Catégorie, pas « N° Cat. »')
+  const a = S.assembler(lu, mdLu)!
+  const n = Object.fromEntries(Object.entries(a.sections).map(([k, v]) => [k, v.length]))
+  exige(n.top5 === 1 && n.heros === 2 && n.buyNow === 2 && n.breakout === 1 && n.listeNoire === 1 && n.roi === 3 && n.highTicket === 3, `toutes les listes remplies (${JSON.stringify(n)})`)
+  exige(a.produits.length === 4 && a.sections.top5[0] === a.sections.buyNow[0], `le Markdown rejoint les produits du JSON (${a.produits.length} produits)`)
+  exige(a.sectionsCalculees.join() === 'roi,highTicket', `seules ROI et high ticket sont classées par nous (${a.sectionsCalculees})`)
+  exige(!a.sections.roi.some((id) => a.sections.listeNoire.includes(id)), 'la liste noire ne monte jamais dans un classement')
+  const b = S.importerSynthese({ date: '2026-11-12', origine: 'banc', json, opportunitesMd: md }, false)
+  exige(b.statut === 'importe' && S.lireSynthese('2026-11-12')?.lecteur === S.LECTEUR_SYNTHESE, 'import : version du lecteur notée')
+}
+
 const reels = process.argv.indexOf('--reels')
 if (reels > 0) {
   const dossier = process.argv[reels + 1]
@@ -204,6 +274,16 @@ if (reels > 0) {
   console.log(`Vrais fichiers : ${dossier}`)
   const lu = S.lireSyntheseJson(JSON.parse(fs.readFileSync(fichier(/opportunites-import-dropshipper\.json$/)!, 'utf8')))!
   const md = S.lireSyntheseMarkdown(fs.readFileSync(fichier(/opportunites-prioritaires\.md$/)!, 'utf8'))!
+  if (lu.date >= '2026-11-09') {
+    // 09/11 format: heroes + top 25 in the JSON, the rest in the Markdown.
+    const a = S.assembler(lu, md)!
+    const n = Object.entries(a.sections).map(([k, v]) => `${k}=${v.length}`).join(' ')
+    console.log(`  ${lu.date} : ${a.produits.length} produits ; ${n} ; classées par nous : ${a.sectionsCalculees.join(', ') || 'aucune'}`)
+    exige(Object.values(a.sections).every((v) => v.length > 0), 'aucune liste vide')
+    exige(a.produits.every((p) => p.nom && p.categorieLabel), 'chaque produit a un nom et un rayon')
+    fs.rmSync(TEMP, { recursive: true, force: true })
+    process.exit(echecs ? 1 : 0)
+  }
   exige(lu.date === '2026-11-04' && lu.produits.length === 480, `JSON : 480 produits (${lu.produits.length})`)
   exige(Object.values(lu.sections).map((v) => v.length).join(',') === '5,24,25,20,20,20,24', `JSON : 5/24/25/20/20/20/24 (${Object.values(lu.sections).map((v) => v.length)})`)
   exige(Object.values(md.sections).map((v) => v.length).join(',') === '5,24,25,20,20,20,24', `Markdown : mêmes listes (${Object.values(md.sections).map((v) => v.length)})`)

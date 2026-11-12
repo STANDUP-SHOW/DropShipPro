@@ -26,7 +26,7 @@ import {
   rayonsEnService,
   type EtudeImportee,
 } from './reportsDb.js'
-import { importerSynthese, lireSynthese, noterImports, roleSynthese, type BilanSynthese, type RoleSynthese } from './synthesesQuotidiennes.js'
+import { importerSynthese, LECTEUR_SYNTHESE, lireSynthese, noterImports, roleSynthese, type BilanSynthese, type RoleSynthese } from './synthesesQuotidiennes.js'
 
 export class DriveErreur extends Error {}
 
@@ -470,7 +470,8 @@ export async function listerDossierDrive(adresse: string) {
                 fichiers: Object.values(d.syntheses).map((f) => f!.nom),
                 doublons: [] as string[],
                 importable: !!(d.syntheses.json || d.syntheses.opportunites),
-                dejaEnBase: !!lireSynthese(d.date),
+                // Read by an older reader (lists missing): offered again.
+                dejaEnBase: lireSynthese(d.date)?.lecteur === LECTEUR_SYNTHESE,
               },
             ]
           : []),
@@ -776,8 +777,8 @@ async function importerSyntheseDuJour(jour: DateTrouvee, racine: string, essai: 
     json = jsonTolerant(brut)
     if (json === undefined) motifs.push(`${s.json!.nom} : JSON illisible (début : « ${brut.trim().slice(0, 60)} »)`)
   }
-  // The Markdown tables are only opened when the JSON is missing or unreadable.
-  const opportunitesMd = json === undefined ? await lire(s.opportunites) : null
+  // The Markdown tables complete the JSON: since the 09/11 the top 5, breakout and blacklist are only there.
+  const opportunitesMd = await lire(s.opportunites)
   const generaleMd = await lire(s.generale)
   const tableauMd = generaleMd ? null : await lire(s.tableau)
   const principal = s.json ?? s.opportunites!
