@@ -185,3 +185,53 @@ export async function sendMail(mail: Mail): Promise<void> {
 export function appUrl(): string {
   return (process.env.FRONTEND_URL ?? 'http://localhost:5173').split(',')[0].trim().replace(/\/$/, '')
 }
+
+/** A message whose HTML is already complete (newsletter imported in Kantix): no template around it. */
+export interface RawMail {
+  to: string
+  subject: string
+  html: string
+  text: string
+  /** Extra headers (List-Unsubscribe…). */
+  headers?: Record<string, string>
+  replyTo?: string
+}
+
+/**
+ * Sends a finished HTML message. Unlike sendMail it never falls back to the log:
+ * a newsletter that "went out" to the console must not be counted as sent.
+ */
+export async function sendRawMail(mail: RawMail): Promise<void> {
+  const transport = getSmtp()
+  if (transport) {
+    await transport.sendMail({
+      from: FROM,
+      to: mail.to,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+      ...(mail.headers ? { headers: mail.headers } : {}),
+      ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
+    })
+    return
+  }
+  const key = process.env.RESEND_API_KEY?.trim()
+  if (!key) throw new Error("Aucun envoi d'e-mail configuré sur le site (ni SMTP_HOST ni RESEND_API_KEY).")
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: FROM,
+      to: mail.to,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+      ...(mail.headers ? { headers: mail.headers } : {}),
+      ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
+    }),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Envoi de l'email impossible (${res.status}) ${detail.slice(0, 200)}`)
+  }
+}

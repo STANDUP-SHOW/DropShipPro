@@ -16,6 +16,7 @@ import { rateLimit } from '../middleware/rateLimit.js'
 import { z } from 'zod'
 import { codeBarresDe } from '../services/productFacts.js'
 import { lireReseaux } from '../services/reseauxSociaux.js'
+import { desinscrire, jetonValide } from '../services/newsletter.js'
 
 export const publicRouter = Router()
 
@@ -55,6 +56,8 @@ publicRouter.post(
         create: { email, source: parsed.data.source ?? 'site' },
         update: {},
       })
+      // a new subscription cancels an earlier « se désinscrire »
+      await prisma.newsletterDesinscription.deleteMany({ where: { email } })
     } catch (err) {
       console.error('inscription newsletter impossible', err)
       return res.status(502).json({ error: "L'inscription n'a pas pu être enregistrée, réessayez." })
@@ -62,6 +65,40 @@ publicRouter.post(
     res.status(201).json({ ok: true })
   },
 )
+
+/**
+ * Lien « se désinscrire » de chaque newsletter (12/11/2026). GET = le clic dans
+ * l'e-mail, qui rend une petite page ; POST = le désabonnement en un clic des
+ * messageries (en-tête List-Unsubscribe-Post). Le jeton est une signature de
+ * l'adresse : impossible de désinscrire quelqu'un d'autre.
+ */
+const pageDesinscription = (titre: string, texte: string) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${titre}</title></head>
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#101321;color:#F5F7FA;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:16px">
+<div style="max-width:440px;background:#191E2E;border-radius:16px;padding:32px;text-align:center"><h1 style="font-size:21px;margin:0 0 12px">${titre}</h1><p style="color:#B8C0D0;line-height:1.6;margin:0 0 22px">${texte}</p>
+<a href="https://www.drop-shipper.fr" style="display:inline-block;background-color:#e85290;background-image:linear-gradient(90deg,#f28a4b,#e85290);color:#fff;text-decoration:none;font-weight:700;padding:11px 24px;border-radius:10px">DropShipper IA</a></div></body></html>`
+
+async function traiterDesinscription(req: import('express').Request, res: import('express').Response, source: string) {
+  const email = String(req.query.e ?? '').trim().toLowerCase()
+  const jeton = String(req.query.t ?? '')
+  res.set('Cache-Control', 'no-store')
+  try {
+    if (!email || !jetonValide(email, jeton)) {
+      return res.status(400).type('html').send(pageDesinscription('Lien invalide', 'Ce lien de désinscription est incomplet ou a été modifié. Utilisez le lien exact reçu dans l’e-mail.'))
+    }
+    await desinscrire(email, source)
+  } catch (err) {
+    console.error('désinscription newsletter impossible', err)
+    return res.status(503).type('html').send(pageDesinscription('Réessayez dans un instant', 'Le service est momentanément indisponible : votre désinscription n’a pas pu être enregistrée.'))
+  }
+  res.type('html').send(pageDesinscription('Vous êtes désinscrit', 'Vous ne recevrez plus la newsletter DropShipper IA. Les e-mails liés à votre compte (mot de passe, commandes) continuent d’arriver.'))
+}
+
+publicRouter.get('/newsletter/desinscription', rateLimit({ name: 'desinscription', windowMs: 60_000, max: 30 }), (req, res) => {
+  void traiterDesinscription(req, res, 'lien')
+})
+publicRouter.post('/newsletter/desinscription', rateLimit({ name: 'desinscription', windowMs: 60_000, max: 30 }), (req, res) => {
+  void traiterDesinscription(req, res, 'un-clic')
+})
 
 // Packages the Chrome extension folder on the fly so the app can offer it as a
 // download. Unauthenticated on purpose: it's just client code, and a plain <a>

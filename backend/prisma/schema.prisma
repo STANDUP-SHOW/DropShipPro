@@ -250,6 +250,16 @@ model NewsletterSubscriber {
   source    String?
 }
 
+/// Adresses qui ont refusé la newsletter (lien « se désinscrire », 12/11/2026).
+/// Lue avant chaque envoi depuis Kantix : une adresse ici ne reçoit plus rien,
+/// qu'elle soit abonnée, vendeur inscrit ou les deux. Une réinscription l'en retire.
+model NewsletterDesinscription {
+  email     String   @id
+  createdAt DateTime @default(now())
+  /// « lien », « un-clic » (en-tête List-Unsubscribe) ou « kantix ».
+  source    String?
+}
+
 enum AuthTokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION
