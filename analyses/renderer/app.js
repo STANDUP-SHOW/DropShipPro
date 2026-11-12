@@ -232,22 +232,131 @@ function vueAdministration() {
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Utilisateurs inscrits'),
-      h('div', { class: 'ligne' }, h('button', { class: 'btn', disabled: !a.cle, onclick: chargerAdmin }, d ? 'Actualiser' : 'Afficher les utilisateurs')),
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn', disabled: !a.cle, onclick: chargerAdmin }, d ? 'Actualiser' : 'Afficher les utilisateurs'),
+        d && h('button', { class: 'btn principal', disabled: !selection.size, onclick: () => { nl.cible = 'selection'; aller('newsletter') } }, `Envoyer la newsletter aux ${selection.size} sélectionné(s)`),
+        d && selection.size > 0 && h('button', { class: 'btn', onclick: () => { selection.clear(); rendre() } }, 'Désélectionner')),
       d && h('div', {},
         h('p', {}, `${d.total} compte(s), dont ${d.verifies} adresse(s) confirmée(s) ; ${d.abonnesNewsletter} abonné(s) à la newsletter.`, d.total > d.utilisateurs.length ? ` Les ${d.utilisateurs.length} plus récents sont listés.` : ''),
         h('table', {},
-          h('thead', {}, h('tr', {}, ['Inscrit le', 'E-mail', 'Boutique', 'Offre', 'Drops', 'Adresse'].map((t) => h('th', {}, t)))),
+          h('thead', {}, h('tr', {},
+            h('th', {}, h('input', { type: 'checkbox', title: 'Tout sélectionner', checked: d.utilisateurs.length > 0 && d.utilisateurs.every((u) => selection.has(u.id)), onchange: (ev) => { d.utilisateurs.forEach((u) => (ev.target.checked ? selection.add(u.id) : selection.delete(u.id))); rendre() } })),
+            ['Inscrit le', 'E-mail', 'Boutique', 'Offre', 'Drops', 'Adresse', 'Newsletter', ''].map((t) => h('th', {}, t)))),
           h('tbody', {}, d.utilisateurs.map((u) => h('tr', {},
+            h('td', {}, h('input', { type: 'checkbox', checked: selection.has(u.id), onchange: (ev) => { ev.target.checked ? selection.add(u.id) : selection.delete(u.id); rendre() } })),
             h('td', {}, dateCourte(u.createdAt)), h('td', {}, u.email), h('td', {}, u.shopName || '—'), h('td', {}, String(u.plan || '—')), h('td', {}, String(u.credits)),
-            h('td', {}, u.emailVerifiedAt ? pastille('confirmée', 'bon') : pastille('non confirmée', ''))))),
-        ),
+            h('td', {}, u.emailVerifiedAt ? pastille('confirmée', 'bon') : pastille('non confirmée', '')),
+            h('td', {}, u.desinscrit ? pastille('désinscrit', 'mauvais') : u.newsletter ? pastille('abonné', 'bon') : '—'),
+            h('td', { class: 'actions-ligne' },
+              h('button', { class: 'icone', title: `Écrire à ${u.email}`, onclick: () => { ecrireA = u; brouillon = { sujet: '', message: '', repondreA: brouillon.repondreA }; rendre() } }, '✉'),
+              h('button', { class: 'icone danger', title: `Supprimer ${u.email}`, onclick: () => supprimerUtilisateur(u) }, '✕')))))),
       ),
+      ecrireA && h('div', { class: 'carte' },
+        h('h2', {}, `Écrire à ${ecrireA.email}`),
+        h('label', {}, 'Objet'), h('input', { value: brouillon.sujet, oninput: (ev) => { brouillon.sujet = ev.target.value } }),
+        h('label', {}, 'Message (mis en page aux couleurs de DropShipper)'), h('textarea', { rows: 8, oninput: (ev) => { brouillon.message = ev.target.value } }, brouillon.message),
+        h('label', {}, 'Adresse de réponse (facultatif : là où arrivera sa réponse)'), h('input', { value: brouillon.repondreA, placeholder: 'contact@…', oninput: (ev) => { brouillon.repondreA = ev.target.value } }),
+        h('div', { class: 'ligne', style: 'margin-top:10px' },
+          h('button', { class: 'btn principal', onclick: envoyerMessage }, 'Envoyer'),
+          h('button', { class: 'btn', onclick: () => { ecrireA = null; rendre() } }, 'Annuler'))),
       d && d.newsletter && h('div', {},
-        h('h2', {}, `Newsletter (${d.newsletter.total})`),
+        h('h2', {}, `Abonnés à la newsletter (${d.newsletter.total})`),
         h('table', {}, h('tbody', {}, d.newsletter.subscribers.slice(0, 200).map((s) => h('tr', {}, h('td', {}, dateCourte(s.createdAt)), h('td', {}, s.email), h('td', {}, s.source || '—'))))),
       ),
-      h('p', { class: 'doux petit' }, 'Ces données personnelles restent à l’écran, elles ne sont écrites nulle part sur ce PC. Contacter les utilisateurs, voir les boutiques, générer des jetons et des clés d’API, connexion MCP : à venir, selon l’architecture que vous fournirez.'),
+      h('p', { class: 'doux petit' }, 'Ces données personnelles restent à l’écran, elles ne sont écrites nulle part sur ce PC. ✉ écrit à un utilisateur, ✕ supprime son compte (avec accord), les cases servent à envoyer la newsletter à une sélection (onglet Newsletter).'),
     ),
+  )
+}
+
+// ---- users: selection, message, deletion (12/11/2026)
+const selection = new Set()
+let ecrireA = null
+let brouillon = { sujet: '', message: '', repondreA: '' }
+
+async function supprimerUtilisateur(u) {
+  const r = await appel('adminUtilisateurSupprimer', { id: u.id, email: u.email })
+  if (!r || r.annule) return
+  selection.delete(u.id)
+  if (ecrireA && ecrireA.id === u.id) ecrireA = null
+  donneesAdmin.utilisateurs = donneesAdmin.utilisateurs.filter((x) => x.id !== u.id)
+  donneesAdmin.total -= 1
+  flash(`Compte ${u.email} supprimé du site.`)
+}
+
+async function envoyerMessage() {
+  if (!brouillon.sujet.trim() || !brouillon.message.trim()) return flash('Il faut un objet et un message.')
+  flash('Envoi du message…')
+  const r = await appel('adminUtilisateurEcrire', { id: ecrireA.id, ...brouillon })
+  if (r) { ecrireA = null; brouillon = { sujet: '', message: '', repondreA: brouillon.repondreA }; flash(`Message envoyé à ${r.email}.`) }
+}
+
+// ---------------------------------------------------------------- newsletter (12/11/2026)
+// The imported HTML stays in memory; nothing about the recipients is written on this PC.
+let nl = { nom: '', html: '', sujet: '', avertissements: [], essai: '', cible: 'abonnes', bilan: null, essaiFait: '' }
+// The real send stays locked until a test of THIS file with THIS subject reached someone (Kantix thread, 12/11/2026).
+const empreinteNl = () => `${nl.nom}|${nl.sujet.trim()}|${nl.html.length}|${nl.html.slice(0, 200)}|${nl.html.slice(-200)}`
+
+async function importerNewsletter() {
+  const r = await appel('newsletterImporter')
+  if (!r) return
+  nl = { ...nl, nom: r.nom, html: r.html, sujet: nl.sujet || r.titre, avertissements: r.avertissements, bilan: null }
+  flash(`« ${r.nom} » importé (${Math.round(r.taille / 1024)} Ko).`)
+}
+
+async function envoyerNewsletter(essai) {
+  if (!nl.sujet.trim()) return flash('Il faut un objet.')
+  if (!essai && nl.essaiFait !== empreinteNl()) return flash('Envoyez d’abord un essai de ce fichier avec cet objet.')
+  if (essai && !nl.essai.trim()) return flash('Indiquez l’adresse qui reçoit l’essai.')
+  const nombre = nl.cible === 'abonnes' ? (donneesAdmin && donneesAdmin.newsletter ? donneesAdmin.newsletter.total : null) : selection.size
+  flash(essai ? 'Envoi de l’essai…' : 'Envoi de la newsletter… (100 adresses par lot, ne fermez pas Kantix)')
+  const r = await appel('newsletterEnvoyer', { sujet: nl.sujet.trim(), html: nl.html, cible: nl.cible, ids: [...selection], essai: essai ? nl.essai.trim() : '', nombre })
+  if (!r || r.annule) { if (r) flash(''); return }
+  nl.bilan = { ...r, essai }
+  if (essai && r.envoyes) nl.essaiFait = empreinteNl()
+  flash(essai ? (r.envoyes ? `Essai envoyé à ${nl.essai}.` : 'L’essai n’est pas parti.') : `${r.envoyes} envoyée(s) sur ${r.destinataires}.`)
+}
+
+function vueNewsletter() {
+  const a = etat.admin
+  const d = donneesAdmin
+  const abonnes = d && d.newsletter ? d.newsletter.total : null
+  const pret = a.cle && nl.html && nl.sujet.trim()
+  const essaiValide = pret && nl.essaiFait === empreinteNl()
+  return h('div', {},
+    h('h1', {}, 'Newsletter de drop-shipper.fr'),
+    !a.cle && h('p', { class: 'bandeau-alerte' }, 'Créez d’abord la clé d’administration (onglet Administration).'),
+    h('div', { class: 'carte' },
+      h('h2', {}, '1. Le fichier'),
+      h('p', { class: 'doux petit' }, 'Importez la newsletter déjà mise en page (fichier .html, images hébergées en https). Écrivez {{desinscription}} là où doit aller le lien de désinscription ; sans cette marque, le site ajoute le lien en bas de chaque e-mail.'),
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn', onclick: importerNewsletter }, nl.html ? 'Importer un autre fichier' : 'Importer le fichier HTML'),
+        nl.html && h('span', {}, nl.nom),
+        nl.html && h('button', { class: 'btn', onclick: () => appel('newsletterApercu', { html: nl.html }) }, 'Aperçu')),
+      nl.avertissements.length > 0 && h('ul', { class: 'petit' }, nl.avertissements.map((t) => h('li', {}, t))),
+      h('label', {}, 'Objet de l’e-mail'),
+      h('input', { value: nl.sujet, placeholder: 'Les nouveautés DropShipper de novembre', oninput: (ev) => { nl.sujet = ev.target.value; const b = document.getElementById('envoi-nl'); if (b) b.disabled = true } }),
+    ),
+    h('div', { class: 'carte' },
+      h('h2', {}, '2. Un essai d’abord'),
+      h('div', { class: 'ligne' },
+        h('input', { value: nl.essai, placeholder: 'votre adresse', style: 'max-width:320px', oninput: (ev) => { nl.essai = ev.target.value } }),
+        h('button', { class: 'btn', disabled: !pret, onclick: () => envoyerNewsletter(true) }, 'Envoyer un essai')),
+    ),
+    h('div', { class: 'carte' },
+      h('h2', {}, '3. Les destinataires'),
+      !d && h('p', { class: 'doux petit' }, 'Cliquez « Afficher les utilisateurs » dans l’onglet Administration pour voir les nombres et sélectionner des comptes.'),
+      h('label', { class: 'case' }, h('input', { type: 'radio', name: 'cible', checked: nl.cible === 'abonnes', onchange: () => { nl.cible = 'abonnes'; rendre() } }), ` Tous les abonnés à la newsletter${abonnes !== null ? ` (${abonnes})` : ''}`),
+      h('label', { class: 'case' }, h('input', { type: 'radio', name: 'cible', checked: nl.cible === 'selection', onchange: () => { nl.cible = 'selection'; rendre() } }), ` Les utilisateurs sélectionnés (${selection.size})`),
+      h('p', { class: 'doux petit' }, 'Les adresses qui se sont désinscrites sont toujours écartées par le site, quelle que soit la liste.'),
+      h('div', { class: 'ligne' },
+        h('button', { id: 'envoi-nl', class: 'btn principal', disabled: !essaiValide || (nl.cible === 'selection' && !selection.size), onclick: () => envoyerNewsletter(false) }, 'Envoyer la newsletter'),
+        pret && !essaiValide && h('span', { class: 'doux petit' }, 'Envoyez d’abord un essai de ce fichier avec cet objet.')),
+    ),
+    messageFlash && h('p', { class: 'petit' }, messageFlash),
+    nl.bilan && h('div', { class: 'carte' },
+      h('h2', {}, nl.bilan.essai ? 'Résultat de l’essai' : 'Résultat de l’envoi'),
+      h('p', {}, `${nl.bilan.envoyes} envoyée(s) sur ${nl.bilan.destinataires}`, nl.bilan.desinscritsEcartes ? ` ; ${nl.bilan.desinscritsEcartes} adresse(s) désinscrite(s) écartée(s)` : '', nl.bilan.nbEchecs ? ` ; ${nl.bilan.nbEchecs} échec(s).` : '.'),
+      nl.bilan.echecs.length > 0 && h('ul', { class: 'petit erreur' }, nl.bilan.echecs.slice(0, 20).map((x) => h('li', {}, `${x.email} : ${x.raison}`)))),
   )
 }
 
@@ -820,7 +929,7 @@ function rendre() {
   document.getElementById('pied').textContent = etat ? `Version ${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { ...VUES_KANTIX, accueil: vueAccueil, rapports: vueRapports, administration: vueAdministration, drive: vueDrive, syntheses: vueSyntheses, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
+  const vues = { ...VUES_KANTIX, accueil: vueAccueil, rapports: vueRapports, administration: vueAdministration, newsletter: vueNewsletter, drive: vueDrive, syntheses: vueSyntheses, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 

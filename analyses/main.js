@@ -247,6 +247,16 @@ function optionsRayon() {
   }
 }
 
+/** What an imported newsletter will lose on the way (images on this PC, scripts). Same rules as the site's. */
+function avertissementsNewsletter(html) {
+  const out = []
+  const locales = [...html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]).filter((s) => !/^(https?:|data:|cid:)/i.test(s))
+  if (locales.length) out.push(`${locales.length} image(s) pointent vers un fichier de ce PC (${locales.slice(0, 2).join(', ')}) : les destinataires ne les verront pas. Mettez-les en ligne et utilisez leur adresse https.`)
+  if (/<script/i.test(html)) out.push('Le fichier contient du JavaScript : les messageries le retirent.')
+  if (!html.includes('{{desinscription}}')) out.push('Pas de marque {{desinscription}} : le site ajoutera en bas un lien « Se désinscrire de la newsletter » (obligatoire).')
+  return out
+}
+
 // ---- hard gate: a costly launch needs Max's explicit yes, in a native dialog
 async function accord(message, detail, bouton = 'Oui, lancer') {
   if (BANC) return true
@@ -1018,6 +1028,50 @@ function brancher() {
   // Everything the site knows about its sellers. Kept in memory on the screen only, never written to disk.
   h('admin-utilisateurs', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/utilisateurs' }))
   h('admin-newsletter', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/newsletter' }))
+  // Users and newsletter (12/11/2026): delete a (test) account, write to one seller, send an imported HTML newsletter.
+  h('admin-utilisateur-supprimer', async ({ id, email }) => {
+    const ok = await accord(`Supprimer le compte ${email} ?`, 'Le compte et tout ce qui lui appartient (produits, annonces, boutiques, commandes, drops) sont effacés de la base du site, ainsi que son abonnement à la newsletter. C’est définitif.', 'Oui, supprimer')
+    if (!ok) return { annule: true }
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/utilisateurs/${encodeURIComponent(id)}/supprimer`, corps: { email } })
+    journal.info('Compte supprimé sur le site', { id })
+    return r
+  })
+  h('admin-utilisateur-ecrire', ({ id, sujet, message, repondreA }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/utilisateurs/${encodeURIComponent(id)}/ecrire`, corps: { sujet, message, repondreA } }))
+  // The HTML file is read here (the page never sees the disk) and kept in memory only.
+  h('newsletter-importer', async () => {
+    const r = await dialog.showOpenDialog(fenetre, { title: 'Newsletter prête à envoyer', properties: ['openFile'], filters: [{ name: 'Page HTML', extensions: ['html', 'htm'] }] })
+    if (r.canceled || !r.filePaths[0]) return null
+    const fichier = r.filePaths[0]
+    const html = fs.readFileSync(fichier, 'utf8')
+    if (html.length > 1_800_000) throw new Error('Fichier trop lourd (1,8 Mo au plus) : hébergez les images en ligne au lieu de les intégrer.')
+    const titre = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]
+    return { nom: path.basename(fichier), html, taille: html.length, titre: titre ? titre.replace(/\s+/g, ' ').trim() : '', avertissements: avertissementsNewsletter(html) }
+  })
+  // Preview in its own window, scripts off: the page's CSP would strip the newsletter's inline styles.
+  h('newsletter-apercu', ({ html }) => {
+    const w = new BrowserWindow({ width: 760, height: 900, parent: fenetre, title: 'Aperçu de la newsletter', backgroundColor: '#ffffff', autoHideMenuBar: true, webPreferences: { javascript: false, sandbox: true, contextIsolation: true } })
+    w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' } })
+    w.webContents.on('will-navigate', (ev, url) => { ev.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url) })
+    w.loadURL(`data:text/html;charset=utf-8;base64,${Buffer.from(String(html || '')).toString('base64')}`)
+    return true
+  })
+  h('newsletter-envoyer', async ({ sujet, html, cible, ids, essai, nombre }) => {
+    const corps = { sujet, html, cible, ids, essai }
+    if (!essai) {
+      const qui = cible === 'abonnes' ? (typeof nombre === 'number' ? `aux ${nombre} abonné(s) de la newsletter` : 'à tous les abonnés de la newsletter') : `aux ${nombre} utilisateur(s) sélectionné(s)`
+      const ok = await accord(`Envoyer « ${sujet} » ${qui} ?`, 'Chaque exemplaire porte son lien de désinscription ; les adresses désinscrites sont écartées par le site. Un envoi parti ne se rattrape pas.', 'Oui, envoyer')
+      if (!ok) return { annule: true }
+    }
+    const total = { destinataires: 0, envoyes: 0, nbEchecs: 0, echecs: [], desinscritsEcartes: 0, lots: 1 }
+    for (let lot = 0; lot < total.lots; lot++) {
+      const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/newsletter/envoyer', corps: { ...corps, lot } })
+      Object.assign(total, { destinataires: r.destinataires, lots: r.lots, desinscritsEcartes: r.desinscritsEcartes })
+      total.envoyes += r.envoyes; total.nbEchecs += r.nbEchecs; total.echecs.push(...r.echecs)
+      if (!r.ok) break // the site sent nothing in this lot (no mail provider, quota): stop
+    }
+    if (!essai) journal[total.envoyes ? 'info' : 'erreur'](`Newsletter « ${sujet} » : ${total.envoyes} envoyée(s) sur ${total.destinataires}`, { echecs: total.nbEchecs, desinscritsEcartes: total.desinscritsEcartes })
+    return total
+  })
   // Back-office moved from the site into the Poste (PR #17): Drive import and affiliate payouts, same /api/admin routes.
   // Synthèses AIMARKET (08/11/2026): read only here, never on the site; winners imported onto a chosen seller account.
   // Routes of the site (#179): GET /syntheses {dates, imports}, GET /syntheses/:date, POST /syntheses-compte, POST /syntheses/:date/importer-compte.
