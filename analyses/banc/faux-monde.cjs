@@ -69,6 +69,27 @@ function creerServeur() {
           if (!cle.startsWith('dsp_adm_') || require('node:crypto').createHash('sha256').update(cle).digest('hex') !== etat.empreinteSite) return json(401, { error: 'Clé d’administration inconnue.' })
           if (req.url === '/api/admin/moi') return json(200, { ok: true, administrateur: 'poste-analyses' })
           if (req.url === '/api/admin/utilisateurs') return json(200, { total: 2, verifies: 1, abonnesNewsletter: 1, limite: 500, utilisateurs: [{ id: 'u1', email: 'a@exemple.test', shopName: 'Boutique A', plan: 'FREE', credits: 120, emailVerifiedAt: '2026-10-01T10:00:00Z', createdAt: '2026-10-01T09:00:00Z' }, { id: 'u2', email: 'b@exemple.test', shopName: null, plan: 'FREE', credits: 0, emailVerifiedAt: null, createdAt: '2026-10-02T09:00:00Z' }] })
+          // users and newsletter (12/11/2026), contract of backend/src/routes/admin.ts
+          const mUtil = req.url.match(/^\/api\/admin\/utilisateurs\/([^/]+)\/(supprimer|ecrire)$/)
+          if (mUtil && req.method === 'POST') {
+            const c = JSON.parse(corps || '{}')
+            const email = mUtil[1] === 'u1' ? 'a@exemple.test' : 'b@exemple.test'
+            if (mUtil[2] === 'supprimer') { if (c.email !== email) return json(422, { error: 'L’e-mail ne correspond pas à ce compte : rien n’a été supprimé.' }); etat.supprimes = [...(etat.supprimes || []), mUtil[1]]; return json(200, { ok: true, id: mUtil[1], email }) }
+            if (!c.sujet || !c.message) return json(422, { error: 'Il faut un objet et un message.' })
+            etat.messages = [...(etat.messages || []), { id: mUtil[1], ...c }]; return json(200, { ok: true, email })
+          }
+          if (req.url === '/api/admin/emails/bienvenue') return json(200, { modele: null, marque: '{{lien_confirmation}}' })
+          if (req.url.startsWith('/api/admin/tickets?') || req.url === '/api/admin/tickets') return json(200, { tickets: [{ id: 't1', sujet: 'Ma pub ne sort pas', genre: 'pub', statut: 'OUVERT', email: 'a@exemple.test', messages: 2, createdAt: '2026-11-10T09:00:00Z', updatedAt: '2026-11-11T09:00:00Z' }] })
+          if (req.url === '/api/admin/emails/ecrire' && req.method === 'POST') { const c = JSON.parse(corps || '{}'); etat.emailsLibres = [...(etat.emailsLibres || []), c]; return json(200, { ok: true, a: c.a }) }
+          if (req.url === '/api/admin/newsletter/envoyer' && req.method === 'POST') {
+            const c = JSON.parse(corps || '{}')
+            etat.envoisNewsletter = [...(etat.envoisNewsletter || []), { cible: c.cible, essai: c.essai, lot: c.lot, ids: c.ids, html: c.html.length }]
+            // 150 subscribers, one opted out: 149 in two lots of 100
+            const destinataires = c.essai ? 1 : c.cible === 'abonnes' ? 149 : c.ids.length
+            const lots = Math.ceil(destinataires / 100)
+            const envoyes = Math.min(100, destinataires - c.lot * 100)
+            return json(200, { ok: true, essai: Boolean(c.essai), destinataires, lot: c.lot, lots, envoyes, echecs: [], nbEchecs: 0, desinscritsEcartes: c.essai ? 0 : 1 })
+          }
           if (req.url === '/api/admin/newsletter') return json(200, { total: 1, subscribers: [{ id: 'n1', email: 'n@exemple.test', source: 'site', createdAt: '2026-10-02T09:00:00Z' }] })
           // Synthèses AIMARKET, contract of backend/src/routes/admin.ts (#179)
           const produitSynth = (id, nom, decision) => ({ id, categorie: 'electromenager', categorieLabel: 'Électroménager', theme: 'robots', themeLabel: 'Robots cuisine', rang: 1, nom, variante: 'Inox', score: 86, decision, coutRendu: 46.5, prixVente: 109.9, margeNette: 31.9, roi: 68.6, liens: { aliexpress_fr: 'https://fr.aliexpress.com/w/wholesale-x.html' } })
