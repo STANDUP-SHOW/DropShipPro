@@ -104,7 +104,7 @@ async function lancer({ maison, profil, port, serveur }) {
       console.log('diag menu vide :', diag, '| corps :', JSON.stringify((await a.evaluer(`document.body.innerText.slice(0, 400)`)) || ''))
     }
     // a new install of KANTIX ANALYSER: its own menu, the DropShipper connector not connected yet
-    assert.deepEqual(ec.onglets, ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal'])
+    assert.deepEqual(ec.onglets, ['Projets', 'Analyses', 'Email', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal'])
     assert.equal(e0.nom, 'KANTIX ANALYSER'); assert.equal(e0.kantix.connecteurs.dropshipper.actif, false); assert.equal(e0.kantix.fournisseurs.length, 11)
     const ec2 = (await a.appel('connecteurActiver', { id: 'dropshipper', actif: true })).valeur
     assert.equal(ec2.kantix.connecteurs.dropshipper.actif, true); assert.equal(ec2.kantix.projets[0].connecteur, 'dropshipper')
@@ -112,7 +112,7 @@ async function lancer({ maison, profil, port, serveur }) {
     await pause(300)
     if (process.env.CAPTURE) await a.capturer(process.env.CAPTURE)
     const menu = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('#onglets button')].map((b) => b.textContent))`))
-    assert.deepEqual(menu, ['Projets', 'Analyses', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal', 'Tableau de bord', 'Rapports du jour', 'Administration', 'Newsletter', 'Import Drive', 'Synthèses AIMARKET', 'Affiliation', 'Réseaux sociaux', 'Réglages'])
+    assert.deepEqual(menu, ['Projets', 'Analyses', 'Email', 'Navigateur', 'Clés API', 'Connecteurs', 'Journal', 'Tableau de bord', 'Rapports du jour', 'Administration', 'Import Drive', 'Synthèses AIMARKET', 'Affiliation', 'Réseaux sociaux', 'Réglages'])
     console.log('ok   écran : menu KANTIX, puis les 8 pages DropShipper une fois le connecteur connecté,', ec.titre)
 
     // keys: stored, never returned
@@ -333,11 +333,25 @@ async function lancer({ maison, profil, port, serveur }) {
     await pause(200)
     assert.match(await a.evaluer(`document.body.textContent`), /Envoyer la newsletter aux 2 sélectionné\(s\)/)
     await a.capturer(path.join(os.tmpdir(), 'kantix-utilisateurs.png'))
-    await a.evaluer(`document.querySelector('#onglets button[data-onglet=newsletter]').click()`)
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => /^Envoyer la newsletter aux/.test(b.textContent)).click()`)
+    await pause(300)
+    assert.match(await a.evaluer(`document.querySelector('[data-email].actif').textContent`), /Newsletter/)
+    await a.capturer(path.join(os.tmpdir(), 'kantix-newsletter.png'))
+    for (const [id, attendu] of [['bienvenue', /lien_confirmation/], ['ecrire', /Écrire ou répondre/], ['messages', /Messages des vendeurs/]]) {
+      await a.evaluer(`document.querySelector('[data-email=${id}]').click()`)
+      await pause(500)
+      assert.match(await a.evaluer(`document.body.textContent`), attendu)
+      await a.capturer(path.join(os.tmpdir(), `kantix-email-${id}.png`))
+    }
+    await a.evaluer(`document.querySelector('#onglets button[data-onglet=email]').click()`)
+    await pause(300)
+    const sousOnglets = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('[data-email]')].map((b) => b.textContent))`))
+    assert.deepEqual(sousOnglets, ['Utilisateurs', 'Newsletter', 'E-mail de bienvenue', 'Écrire / répondre', 'Messages des vendeurs'])
+    assert.match(await a.evaluer(`document.querySelector('select').selectedOptions[0].textContent`), /DropShipper/, 'le projet DropShipper est choisi')
+    await a.evaluer(`document.querySelector('[data-email=newsletter]').click()`)
     await pause(300)
     const texteNl = await a.evaluer(`document.body.textContent`)
     assert.match(texteNl, /Importer le fichier HTML/); assert.match(texteNl, /Les utilisateurs sélectionnés \(2\)/); assert.match(texteNl, /Tous les abonnés à la newsletter \(1\)/)
-    await a.capturer(path.join(os.tmpdir(), 'kantix-newsletter.png'))
     assert.equal(await a.evaluer(`document.getElementById('envoi-nl').disabled`), true, 'pas d’envoi réel sans fichier ni essai')
     console.log('ok   onglets Administration et Newsletter : croix, enveloppe, sélection reprise par la newsletter')
     console.log('ok   onglet Administration : empreinte visible, clé jamais affichée, utilisateurs listés')

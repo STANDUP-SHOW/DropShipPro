@@ -1055,6 +1055,18 @@ function brancher() {
     w.loadURL(`data:text/html;charset=utf-8;base64,${Buffer.from(String(html || '')).toString('base64')}`)
     return true
   })
+  // Section Email (12/11/2026): welcome e-mail kept on the site, free e-mail to any address, sellers' tickets.
+  h('email-bienvenue', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/emails/bienvenue' }))
+  h('email-bienvenue-enregistrer', ({ sujet, html }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/emails/bienvenue', corps: { sujet, html }, methode: 'PUT' }))
+  h('email-bienvenue-effacer', async () => {
+    const ok = await accord('Revenir à l’e-mail de bienvenue intégré ?', 'Le modèle importé est effacé du site ; les nouveaux inscrits reçoivent de nouveau le message de bienvenue d’origine.', 'Oui, effacer')
+    if (!ok) return { annule: true }
+    return admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/emails/bienvenue', methode: 'DELETE' })
+  })
+  h('email-ecrire', ({ a, sujet, message, html, repondreA }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/emails/ecrire', corps: { a, sujet, message, html, repondreA } }))
+  h('tickets', ({ statut } = {}) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/tickets${statut ? `?statut=${encodeURIComponent(statut)}` : ''}` }))
+  h('ticket', ({ id }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/tickets/${encodeURIComponent(id)}` }))
+  h('ticket-repondre', ({ id, message, statut }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/tickets/${encodeURIComponent(id)}/repondre`, corps: { message, statut } }))
   h('newsletter-envoyer', async ({ sujet, html, cible, ids, essai, nombre }) => {
     const corps = { sujet, html, cible, ids, essai }
     if (!essai) {

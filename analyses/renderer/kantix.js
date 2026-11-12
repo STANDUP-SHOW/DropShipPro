@@ -478,7 +478,7 @@ function vueConnecteurs() {
 
 // ---------------------------------------------------------------- menu
 const GROUPES_MENU = [
-  { titre: null, onglets: [['projets', 'Projets'], ['analyses', 'Analyses'], ['navigateur', 'Navigateur'], ['cles', 'Clés API'], ['connecteurs', 'Connecteurs'], ['journal', 'Journal']] },
-  { titre: 'DropShipper', si: (e) => e.kantix.connecteurs.dropshipper && e.kantix.connecteurs.dropshipper.actif, onglets: [['accueil', 'Tableau de bord'], ['rapports', 'Rapports du jour'], ['administration', 'Administration'], ['newsletter', 'Newsletter'], ['drive', 'Import Drive'], ['syntheses', 'Synthèses AIMARKET'], ['affiliation', 'Affiliation'], ['reseaux', 'Réseaux sociaux'], ['reglages', 'Réglages']] },
+  { titre: null, onglets: [['projets', 'Projets'], ['analyses', 'Analyses'], ['email', 'Email'], ['navigateur', 'Navigateur'], ['cles', 'Clés API'], ['connecteurs', 'Connecteurs'], ['journal', 'Journal']] },
+  { titre: 'DropShipper', si: (e) => e.kantix.connecteurs.dropshipper && e.kantix.connecteurs.dropshipper.actif, onglets: [['accueil', 'Tableau de bord'], ['rapports', 'Rapports du jour'], ['administration', 'Administration'], ['drive', 'Import Drive'], ['syntheses', 'Synthèses AIMARKET'], ['affiliation', 'Affiliation'], ['reseaux', 'Réseaux sociaux'], ['reglages', 'Réglages']] },
 ]
 const VUES_KANTIX = { projets: vueProjets, analyses: vueAnalyses, navigateur: vueNavigateur, cles: vueCles, connecteurs: vueConnecteurs }

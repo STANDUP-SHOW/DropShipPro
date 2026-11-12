@@ -78,6 +78,9 @@ function creerServeur() {
             if (!c.sujet || !c.message) return json(422, { error: 'Il faut un objet et un message.' })
             etat.messages = [...(etat.messages || []), { id: mUtil[1], ...c }]; return json(200, { ok: true, email })
           }
+          if (req.url === '/api/admin/emails/bienvenue') return json(200, { modele: null, marque: '{{lien_confirmation}}' })
+          if (req.url.startsWith('/api/admin/tickets?') || req.url === '/api/admin/tickets') return json(200, { tickets: [{ id: 't1', sujet: 'Ma pub ne sort pas', genre: 'pub', statut: 'OUVERT', email: 'a@exemple.test', messages: 2, createdAt: '2026-11-10T09:00:00Z', updatedAt: '2026-11-11T09:00:00Z' }] })
+          if (req.url === '/api/admin/emails/ecrire' && req.method === 'POST') { const c = JSON.parse(corps || '{}'); etat.emailsLibres = [...(etat.emailsLibres || []), c]; return json(200, { ok: true, a: c.a }) }
           if (req.url === '/api/admin/newsletter/envoyer' && req.method === 'POST') {
             const c = JSON.parse(corps || '{}')
             etat.envoisNewsletter = [...(etat.envoisNewsletter || []), { cible: c.cible, essai: c.essai, lot: c.lot, ids: c.ids, html: c.html.length }]

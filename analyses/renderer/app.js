@@ -230,11 +230,19 @@ function vueAdministration() {
       ),
       messageFlash && h('p', { class: 'petit' }, messageFlash),
     ),
-    h('div', { class: 'carte' },
+    carteUtilisateurs(),
+  )
+}
+
+// The users of the DropShipper project: shown in Administration and in Email › Utilisateurs.
+function carteUtilisateurs() {
+  const a = etat.admin
+  const d = donneesAdmin
+  return h('div', { class: 'carte' },
       h('h2', {}, 'Utilisateurs inscrits'),
       h('div', { class: 'ligne' },
         h('button', { class: 'btn', disabled: !a.cle, onclick: chargerAdmin }, d ? 'Actualiser' : 'Afficher les utilisateurs'),
-        d && h('button', { class: 'btn principal', disabled: !selection.size, onclick: () => { nl.cible = 'selection'; aller('newsletter') } }, `Envoyer la newsletter aux ${selection.size} sélectionné(s)`),
+        d && h('button', { class: 'btn principal', disabled: !selection.size, onclick: () => { nl.cible = 'selection'; mail.vue = 'newsletter'; aller('email') } }, `Envoyer la newsletter aux ${selection.size} sélectionné(s)`),
         d && selection.size > 0 && h('button', { class: 'btn', onclick: () => { selection.clear(); rendre() } }, 'Désélectionner')),
       d && h('div', {},
         h('p', {}, `${d.total} compte(s), dont ${d.verifies} adresse(s) confirmée(s) ; ${d.abonnesNewsletter} abonné(s) à la newsletter.`, d.total > d.utilisateurs.length ? ` Les ${d.utilisateurs.length} plus récents sont listés.` : ''),
@@ -263,9 +271,8 @@ function vueAdministration() {
         h('h2', {}, `Abonnés à la newsletter (${d.newsletter.total})`),
         h('table', {}, h('tbody', {}, d.newsletter.subscribers.slice(0, 200).map((s) => h('tr', {}, h('td', {}, dateCourte(s.createdAt)), h('td', {}, s.email), h('td', {}, s.source || '—'))))),
       ),
-      h('p', { class: 'doux petit' }, 'Ces données personnelles restent à l’écran, elles ne sont écrites nulle part sur ce PC. ✉ écrit à un utilisateur, ✕ supprime son compte (avec accord), les cases servent à envoyer la newsletter à une sélection (onglet Newsletter).'),
-    ),
-  )
+      h('p', { class: 'doux petit' }, 'Ces données personnelles restent à l’écran, elles ne sont écrites nulle part sur ce PC. ✉ écrit à un utilisateur, ✕ supprime son compte (avec accord), les cases servent à envoyer la newsletter à une sélection (Email › Newsletter).'),
+    )
 }
 
 // ---- users: selection, message, deletion (12/11/2026)
@@ -316,15 +323,13 @@ async function envoyerNewsletter(essai) {
   flash(essai ? (r.envoyes ? `Essai envoyé à ${nl.essai}.` : 'L’essai n’est pas parti.') : `${r.envoyes} envoyée(s) sur ${r.destinataires}.`)
 }
 
-function vueNewsletter() {
+function blocNewsletter() {
   const a = etat.admin
   const d = donneesAdmin
   const abonnes = d && d.newsletter ? d.newsletter.total : null
   const pret = a.cle && nl.html && nl.sujet.trim()
   const essaiValide = pret && nl.essaiFait === empreinteNl()
   return h('div', {},
-    h('h1', {}, 'Newsletter de drop-shipper.fr'),
-    !a.cle && h('p', { class: 'bandeau-alerte' }, 'Créez d’abord la clé d’administration (onglet Administration).'),
     h('div', { class: 'carte' },
       h('h2', {}, '1. Le fichier'),
       h('p', { class: 'doux petit' }, 'Importez la newsletter déjà mise en page (fichier .html, images hébergées en https). Écrivez {{desinscription}} là où doit aller le lien de désinscription ; sans cette marque, le site ajoute le lien en bas de chaque e-mail.'),
@@ -344,7 +349,7 @@ function vueNewsletter() {
     ),
     h('div', { class: 'carte' },
       h('h2', {}, '3. Les destinataires'),
-      !d && h('p', { class: 'doux petit' }, 'Cliquez « Afficher les utilisateurs » dans l’onglet Administration pour voir les nombres et sélectionner des comptes.'),
+      !d && h('p', { class: 'doux petit' }, 'Ouvrez l’onglet Utilisateurs pour voir les nombres et sélectionner des comptes.'),
       h('label', { class: 'case' }, h('input', { type: 'radio', name: 'cible', checked: nl.cible === 'abonnes', onchange: () => { nl.cible = 'abonnes'; rendre() } }), ` Tous les abonnés à la newsletter${abonnes !== null ? ` (${abonnes})` : ''}`),
       h('label', { class: 'case' }, h('input', { type: 'radio', name: 'cible', checked: nl.cible === 'selection', onchange: () => { nl.cible = 'selection'; rendre() } }), ` Les utilisateurs sélectionnés (${selection.size})`),
       h('p', { class: 'doux petit' }, 'Les adresses qui se sont désinscrites sont toujours écartées par le site, quelle que soit la liste.'),
@@ -357,6 +362,157 @@ function vueNewsletter() {
       h('h2', {}, nl.bilan.essai ? 'Résultat de l’essai' : 'Résultat de l’envoi'),
       h('p', {}, `${nl.bilan.envoyes} envoyée(s) sur ${nl.bilan.destinataires}`, nl.bilan.desinscritsEcartes ? ` ; ${nl.bilan.desinscritsEcartes} adresse(s) désinscrite(s) écartée(s)` : '', nl.bilan.nbEchecs ? ` ; ${nl.bilan.nbEchecs} échec(s).` : '.'),
       nl.bilan.echecs.length > 0 && h('ul', { class: 'petit erreur' }, nl.bilan.echecs.slice(0, 20).map((x) => h('li', {}, `${x.email} : ${x.raison}`)))),
+  )
+}
+
+// ---------------------------------------------------------------- section Email (12/11/2026)
+// Pick a project, then its users, newsletter, welcome e-mail, free e-mail and sellers' messages.
+// Only a project linked by a connector has users here: today DropShipper (admin key of this Kantix).
+const mail = { projet: null, vue: 'utilisateurs' }
+let bienvenue = { charge: false, actuel: null, nom: '', html: '', sujet: '', avertissements: [] }
+let libre = { a: '', sujet: '', message: '', repondreA: '', nom: '', html: '' }
+let tickets = { liste: null, statut: 'OUVERT', ouvert: null, reponse: '', nouveauStatut: 'RESOLU' }
+
+const SOUS_VUES_EMAIL = [['utilisateurs', 'Utilisateurs'], ['newsletter', 'Newsletter'], ['bienvenue', 'E-mail de bienvenue'], ['ecrire', 'Écrire / répondre'], ['messages', 'Messages des vendeurs']]
+
+function vueEmail() {
+  const k = etat.kantix
+  const projets = k.projets || []
+  const choisi = projets.find((p) => p.id === mail.projet) || projets.find((p) => p.connecteur === 'dropshipper') || projets[0] || null
+  if (choisi) mail.projet = choisi.id
+  const relie = choisi && choisi.connecteur === 'dropshipper'
+  return h('div', {},
+    h('div', { class: 'ligne entete' },
+      h('h1', {}, 'Email'),
+      projets.length > 0 && h('div', { class: 'ligne' }, h('span', { class: 'doux petit' }, 'Projet'),
+        h('select', { style: 'width:auto;min-width:220px', onchange: (ev) => { mail.projet = ev.target.value; rendre() } }, projets.map((p) => h('option', { value: p.id, selected: p.id === mail.projet }, p.nom))))),
+    !choisi && h('div', { class: 'carte' }, 'Créez d’abord un projet (onglet Projets).'),
+    choisi && !relie && h('div', { class: 'carte' },
+      h('h2', {}, `${choisi.nom} : pas encore d’utilisateurs ici`),
+      h('p', { class: 'doux' }, 'Kantix lit les utilisateurs d’un projet par son connecteur. Aujourd’hui seul DropShipper en a un (Connecteurs › DropShipper analyses, puis la clé d’administration). Les autres projets auront leur section Email quand leur site aura la même porte d’administration.')),
+    relie && !etat.admin.cle && h('p', { class: 'bandeau-alerte' }, 'Créez d’abord la clé d’administration (DropShipper › Administration).'),
+    relie && etat.admin.cle && h('div', {},
+      h('div', { class: 'onglets-nav' }, SOUS_VUES_EMAIL.map(([id, titre]) => h('button', { class: `onglet-nav ${mail.vue === id ? 'actif' : ''}`, 'data-email': id, onclick: () => ouvrirSousVue(id) }, titre))),
+      mail.vue === 'utilisateurs' ? carteUtilisateurs()
+        : mail.vue === 'newsletter' ? blocNewsletter()
+          : mail.vue === 'bienvenue' ? blocBienvenue()
+            : mail.vue === 'ecrire' ? blocEcrire()
+              : blocMessages(),
+      mail.vue !== 'newsletter' && messageFlash && h('p', { class: 'petit' }, messageFlash)),
+  )
+}
+
+function ouvrirSousVue(id) {
+  mail.vue = id; messageFlash = ''; rendre()
+  if (id === 'utilisateurs' && !donneesAdmin) chargerAdmin()
+  if (id === 'bienvenue' && !bienvenue.charge) chargerBienvenue()
+  if (id === 'messages' && !tickets.liste) chargerTickets()
+}
+
+// ---- welcome e-mail
+async function chargerBienvenue() {
+  const r = await appel('emailBienvenue')
+  if (r) { bienvenue.charge = true; bienvenue.actuel = r.modele; if (r.modele && !bienvenue.html) { bienvenue.sujet = r.modele.sujet } rendre() }
+}
+
+function blocBienvenue() {
+  const b = bienvenue
+  const manqueLien = b.html && !b.html.includes('{{lien_confirmation}}')
+  return h('div', {},
+    h('div', { class: 'carte' },
+      h('h2', {}, 'E-mail envoyé à chaque nouvel inscrit'),
+      h('p', {}, b.actuel ? ['En service : votre modèle importé, « ', b.actuel.sujet, ` » (enregistré le ${dateCourte(b.actuel.majAt)}).`] : 'En service : le message de bienvenue intégré au site.'),
+      h('p', { class: 'doux petit' }, 'Cet e-mail porte le lien qui active le compte : écrivez {{lien_confirmation}} dans le href du bouton « Confirmer mon adresse ». Sans cette marque, le site refuse le fichier. Si un envoi du modèle échoue, le message intégré part à sa place : un inscrit n’est jamais laissé sans son lien.'),
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn', onclick: async () => { const r = await appel('newsletterImporter'); if (r) { Object.assign(bienvenue, { nom: r.nom, html: r.html, sujet: bienvenue.sujet || r.titre, avertissements: r.avertissements.filter((t) => !t.includes('{{desinscription}}')) }); rendre() } } }, b.html ? 'Importer un autre fichier' : 'Importer le fichier HTML'),
+        b.html && h('span', {}, b.nom),
+        (b.html || (b.actuel && b.actuel.html)) && h('button', { class: 'btn', onclick: () => appel('newsletterApercu', { html: b.html || b.actuel.html }) }, b.html ? 'Aperçu' : 'Aperçu du modèle en service'),
+        b.actuel && h('button', { class: 'btn danger', onclick: async () => { const r = await appel('emailBienvenueEffacer'); if (r && !r.annule) { bienvenue = { ...bienvenue, actuel: null }; flash('Retour au message de bienvenue intégré.') } } }, 'Revenir au message intégré')),
+      manqueLien && h('p', { class: 'erreur petit' }, 'Ce fichier ne contient pas {{lien_confirmation}} : ajoutez-le au bouton de confirmation avant d’enregistrer.'),
+      b.avertissements.length > 0 && h('ul', { class: 'petit' }, b.avertissements.map((t) => h('li', {}, t))),
+      h('label', {}, 'Objet de l’e-mail'),
+      h('input', { value: b.sujet, placeholder: 'Bienvenue sur DropShipper IA — confirmez votre adresse', oninput: (ev) => { b.sujet = ev.target.value } }),
+      h('div', { class: 'ligne', style: 'margin-top:10px' },
+        h('button', { class: 'btn principal', disabled: !b.html || manqueLien, onclick: async () => {
+          if (!b.sujet.trim()) return flash('Il faut un objet.')
+          const r = await appel('emailBienvenueEnregistrer', { sujet: b.sujet.trim(), html: b.html })
+          if (r) { bienvenue = { ...bienvenue, actuel: { sujet: r.modele.sujet, majAt: r.modele.majAt, html: b.html }, nom: '', html: '' }; flash('Modèle enregistré : les prochains inscrits le recevront.') }
+        } }, 'Utiliser pour les nouveaux inscrits')),
+    ),
+  )
+}
+
+// ---- free e-mail (answer a customer who wrote to your mailbox)
+async function envoyerLibre() {
+  const l = libre
+  if (!l.a.trim() || !l.sujet.trim() || (!l.message.trim() && !l.html)) return flash('Il faut un destinataire, un objet et un message (ou un fichier HTML).')
+  flash('Envoi…')
+  const r = await appel('emailEcrire', { a: l.a.trim(), sujet: l.sujet.trim(), message: l.html ? '' : l.message, html: l.html, repondreA: l.repondreA.trim() })
+  if (r) { libre = { a: '', sujet: '', message: '', repondreA: l.repondreA, nom: '', html: '' }; flash(`E-mail envoyé à ${r.a}.`) }
+}
+
+function blocEcrire() {
+  const l = libre
+  return h('div', { class: 'carte' },
+    h('h2', {}, 'Écrire ou répondre à une adresse'),
+    h('p', { class: 'doux petit' }, 'Pour répondre à un client qui vous a écrit : collez son adresse et votre réponse. Le message part par l’envoi d’e-mails du site, mis en page aux couleurs de DropShipper, ou tel quel si vous importez un fichier HTML. Pour qu’il vous réponde, indiquez votre adresse de réponse.'),
+    h('label', {}, 'À'), h('input', { value: l.a, placeholder: 'client@exemple.fr', oninput: (ev) => { l.a = ev.target.value } }),
+    h('label', {}, 'Objet'), h('input', { value: l.sujet, placeholder: 'Re : votre question', oninput: (ev) => { l.sujet = ev.target.value } }),
+    l.html
+      ? h('div', { class: 'ligne', style: 'margin-top:10px' }, h('span', {}, `Fichier HTML : ${l.nom}`), h('button', { class: 'btn', onclick: () => appel('newsletterApercu', { html: l.html }) }, 'Aperçu'), h('button', { class: 'btn', onclick: () => { l.html = ''; l.nom = ''; rendre() } }, 'Écrire un texte à la place'))
+      : [h('label', {}, 'Message'), h('textarea', { rows: 10, oninput: (ev) => { l.message = ev.target.value } }, l.message),
+        h('div', { class: 'ligne', style: 'margin-top:6px' }, h('button', { class: 'btn', onclick: async () => { const r = await appel('newsletterImporter'); if (r) { l.html = r.html; l.nom = r.nom; if (!l.sujet) l.sujet = r.titre; rendre() } } }, 'Importer un fichier HTML à la place'))],
+    h('label', {}, 'Adresse de réponse (là où arrivera sa réponse)'), h('input', { value: l.repondreA, placeholder: 'contact@…', oninput: (ev) => { l.repondreA = ev.target.value } }),
+    h('div', { class: 'ligne', style: 'margin-top:10px' }, h('button', { class: 'btn principal', onclick: envoyerLibre }, 'Envoyer')),
+  )
+}
+
+// ---- sellers' messages (support tickets of the site)
+const LIBELLES_STATUT = { OUVERT: 'ouvert', EN_COURS: 'en cours', RESOLU: 'résolu', REFUSE: 'refusé' }
+async function chargerTickets() {
+  const r = await appel('tickets', { statut: tickets.statut })
+  if (r) { tickets.liste = r.tickets; rendre() }
+}
+async function ouvrirTicket(id) {
+  const r = await appel('ticket', { id })
+  if (r) { tickets.ouvert = r; tickets.reponse = ''; rendre() }
+}
+
+function blocMessages() {
+  const t = tickets
+  if (t.ouvert) {
+    const o = t.ouvert
+    return h('div', { class: 'carte' },
+      h('div', { class: 'ligne entete' }, h('h2', {}, o.sujet), h('button', { class: 'btn', onclick: () => { t.ouvert = null; chargerTickets() } }, '← Tous les messages')),
+      h('p', { class: 'doux petit' }, `${o.email} · ${o.genre} · ${LIBELLES_STATUT[o.statut] || o.statut} · ouvert le ${dateCourte(o.createdAt)}`),
+      h('div', { class: 'fil' }, o.messages.map((m) => h('div', { class: `bulle ${m.author === 'vendeur' ? 'claude' : 'moi'}` },
+        h('div', { class: 'doux petit' }, `${m.author === 'vendeur' ? o.email : m.agentKey ? `agent IA (${m.agentKey})` : 'vous'} · ${String(m.createdAt).slice(0, 16).replace('T', ' ')}`),
+        h('div', { class: 'texte-bulle' }, m.body)))),
+      h('label', {}, 'Votre réponse (écrite dans son espace et envoyée par e-mail)'),
+      h('textarea', { rows: 6, oninput: (ev) => { t.reponse = ev.target.value } }, t.reponse),
+      h('div', { class: 'ligne', style: 'margin-top:10px' },
+        h('span', { class: 'doux petit' }, 'Statut après réponse'),
+        h('select', { style: 'width:auto', onchange: (ev) => { t.nouveauStatut = ev.target.value } }, Object.entries(LIBELLES_STATUT).map(([v, l]) => h('option', { value: v, selected: v === t.nouveauStatut }, l))),
+        h('button', { class: 'btn principal', onclick: async () => {
+          if (!t.reponse.trim()) return flash('Le message est vide.')
+          const r = await appel('ticketRepondre', { id: o.id, message: t.reponse, statut: t.nouveauStatut })
+          if (r) { flash(r.emailEnvoye ? 'Réponse envoyée.' : 'Réponse écrite dans son espace, mais l’e-mail n’est pas parti.'); ouvrirTicket(o.id) }
+        } }, 'Répondre')),
+    )
+  }
+  return h('div', { class: 'carte' },
+    h('div', { class: 'ligne entete' },
+      h('h2', {}, 'Messages des vendeurs'),
+      h('div', { class: 'ligne' },
+        h('select', { style: 'width:auto', onchange: (ev) => { t.statut = ev.target.value; chargerTickets() } }, [['', 'tous'], ...Object.entries(LIBELLES_STATUT)].map(([v, l]) => h('option', { value: v, selected: v === t.statut }, l))),
+        h('button', { class: 'btn', onclick: chargerTickets }, 'Actualiser'))),
+    h('p', { class: 'doux petit' }, 'Les demandes que les vendeurs ouvrent depuis leur espace (Aide). Les agents IA y répondent d’abord ; votre réponse s’ajoute à la conversation et part aussi par e-mail.'),
+    !t.liste ? h('p', { class: 'doux' }, 'Chargement…')
+      : !t.liste.length ? h('p', { class: 'doux' }, 'Aucun message.')
+        : h('table', {},
+          h('thead', {}, h('tr', {}, ['Dernier échange', 'Vendeur', 'Objet', 'Statut', 'Messages'].map((x) => h('th', {}, x)))),
+          h('tbody', {}, t.liste.map((x) => h('tr', { class: 'cliquable', onclick: () => ouvrirTicket(x.id) },
+            h('td', {}, dateCourte(x.updatedAt)), h('td', {}, x.email), h('td', {}, x.sujet), h('td', {}, pastille(LIBELLES_STATUT[x.statut] || x.statut, x.statut === 'OUVERT' ? 'alerte' : x.statut === 'RESOLU' ? 'bon' : '')), h('td', {}, String(x.messages)))))),
   )
 }
 
@@ -929,7 +1085,7 @@ function rendre() {
   document.getElementById('pied').textContent = etat ? `Version ${etat.version}` : ''
   const contenu = document.getElementById('contenu')
   if (!etat) { contenu.replaceChildren(h('p', {}, 'Chargement…')); return }
-  const vues = { ...VUES_KANTIX, accueil: vueAccueil, rapports: vueRapports, administration: vueAdministration, newsletter: vueNewsletter, drive: vueDrive, syntheses: vueSyntheses, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
+  const vues = { ...VUES_KANTIX, email: vueEmail, accueil: vueAccueil, rapports: vueRapports, administration: vueAdministration, drive: vueDrive, syntheses: vueSyntheses, affiliation: vueAffiliation, reseaux: vueReseaux, reglages: vueReglages, journal: vueJournal }
   contenu.replaceChildren(vues[onglet]())
 }
 
