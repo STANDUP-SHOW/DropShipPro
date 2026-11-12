@@ -7,6 +7,7 @@ import { enregistrerRapportPoste } from '../services/rapportsPoste.js'
 import { DepotRefuse, deposerRapports } from '../services/reportsDb.js'
 import { listeVersementsAdmin, verser } from '../services/affiliation.js'
 import { sendMail, appUrl } from '../services/mailer.js'
+import * as newsletter from '../services/newsletter.js'
 import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
 import { datesSyntheses, importerSynthese, lireJournal, lireSynthese, noterImports, produitACreer, synthesePrivee } from '../services/synthesesQuotidiennes.js'
 import { GoogleAuthError, verifierIdTokenGoogle } from '../services/googleAuth.js'
@@ -70,10 +71,125 @@ adminRouter.get('/utilisateurs', async (_req, res) => {
       }),
       prisma.newsletterSubscriber.count(),
     ])
-    res.json({ total, verifies, abonnesNewsletter: abonnes, limite: LIMITE_UTILISATEURS, utilisateurs })
+    // Newsletter state of each listed seller, so Kantix can show who will get it (12/11/2026).
+    const emails = utilisateurs.map((u) => u.email.toLowerCase())
+    const [inscrits, refus] = await Promise.all([
+      prisma.newsletterSubscriber.findMany({ where: { email: { in: emails } }, select: { email: true } }),
+      prisma.newsletterDesinscription.findMany({ where: { email: { in: emails } }, select: { email: true } }),
+    ])
+    const abonne = new Set(inscrits.map((x) => x.email))
+    const desinscrit = new Set(refus.map((x) => x.email))
+    res.json({
+      total, verifies, abonnesNewsletter: abonnes, limite: LIMITE_UTILISATEURS,
+      utilisateurs: utilisateurs.map((u) => ({ ...u, newsletter: abonne.has(u.email.toLowerCase()), desinscrit: desinscrit.has(u.email.toLowerCase()) })),
+    })
   } catch (err) {
     console.error('lecture des utilisateurs impossible', err)
     res.status(503).json({ error: 'Service momentanément indisponible' })
+  }
+})
+
+/**
+ * Supprime un compte vendeur (comptes de test, demande RGPD) — Kantix, 12/11/2026.
+ *
+ * Le corps doit redonner l'e-mail du compte : une erreur d'identifiant ne peut
+ * pas effacer quelqu'un d'autre. Tout ce qui appartient au compte part avec lui
+ * (relations en cascade du schéma) ; les commandes d'abord, parce que leur lien
+ * vers le produit est en RESTRICT. L'abonnement newsletter de cette adresse est
+ * retiré aussi. Irréversible : Kantix demande l'accord avant d'appeler.
+ */
+adminRouter.post('/utilisateurs/:id/supprimer', async (req, res) => {
+  const email = String((req.body as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase()
+  try {
+    const u = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, email: true } })
+    if (!u) return res.status(404).json({ error: 'Compte introuvable (déjà supprimé ?).' })
+    if (!email || u.email.toLowerCase() !== email) return res.status(422).json({ error: 'L’e-mail ne correspond pas à ce compte : rien n’a été supprimé.' })
+    await prisma.$transaction([
+      prisma.order.deleteMany({ where: { userId: u.id } }),
+      prisma.user.delete({ where: { id: u.id } }),
+      prisma.newsletterSubscriber.deleteMany({ where: { email } }),
+    ])
+    console.log(`[admin] compte supprimé depuis Kantix : ${u.id}`)
+    res.json({ ok: true, id: u.id, email: u.email })
+  } catch (err) {
+    console.error('suppression du compte impossible', err)
+    res.status(500).json({ error: 'Suppression impossible sur le serveur : rien n’a été effacé.', motif: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+/** Un message personnel à un vendeur, mis en page aux couleurs du site. Pas une newsletter : pas de lien de désinscription. */
+adminRouter.post('/utilisateurs/:id/ecrire', async (req, res) => {
+  const b = (req.body ?? {}) as { sujet?: unknown; message?: unknown; repondreA?: unknown }
+  const sujet = String(b.sujet ?? '').trim().slice(0, 200)
+  const message = String(b.message ?? '').trim().slice(0, 20_000)
+  const repondreA = String(b.repondreA ?? '').trim()
+  if (!sujet || !message) return res.status(422).json({ error: 'Il faut un objet et un message.' })
+  if (repondreA && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(repondreA)) return res.status(422).json({ error: 'L’adresse de réponse n’est pas une adresse e-mail.' })
+  try {
+    const u = await prisma.user.findUnique({ where: { id: req.params.id }, select: { email: true } })
+    if (!u) return res.status(404).json({ error: 'Compte introuvable.' })
+    const echapper = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const corps = message.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${echapper(p).replace(/\n/g, '<br>')}</p>`).join('')
+    await sendMail({
+      to: u.email,
+      subject: sujet,
+      heading: echapper(sujet),
+      body: corps,
+      footer: 'Message envoyé par l’équipe DropShipper IA.',
+      ...(repondreA ? { replyTo: repondreA } : {}),
+    })
+    res.json({ ok: true, email: u.email })
+  } catch (err) {
+    console.error('envoi du message impossible', err)
+    res.status(502).json({ error: 'Envoi impossible.', motif: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+/**
+ * Envoi d'une newsletter préparée dans Kantix : HTML complet importé par Max.
+ * { sujet, html, cible: 'abonnes' | 'selection', ids?: [userId], essai?: email, lot?: n }
+ * Envoyée par lots de 100 (liste triée par adresse) : Kantix appelle lot 0, 1, 2…
+ * jusqu'à `lots`, ce qui garde chaque requête courte et montre l'avancement.
+ * `essai` envoie un seul exemplaire à cette adresse (contrôle avant le vrai envoi).
+ * Les adresses désinscrites sont toujours retirées ; chaque exemplaire porte son
+ * lien de désinscription.
+ */
+const LOT_NEWSLETTER = 100
+adminRouter.post('/newsletter/envoyer', async (req, res) => {
+  const b = (req.body ?? {}) as { sujet?: unknown; html?: unknown; cible?: unknown; ids?: unknown; essai?: unknown; lot?: unknown }
+  const sujet = String(b.sujet ?? '').trim().slice(0, 200)
+  const html = String(b.html ?? '')
+  const essai = String(b.essai ?? '').trim()
+  if (!sujet) return res.status(422).json({ error: 'Il faut un objet.' })
+  if (html.trim().length < 20) return res.status(422).json({ error: 'Le fichier HTML est vide.' })
+  if (html.length > newsletter.MAX_HTML) return res.status(422).json({ error: 'Le fichier HTML est trop lourd (1,8 Mo au plus) : hébergez les images au lieu de les intégrer.' })
+  try {
+    let liste: newsletter.Destinataire[]
+    if (essai) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(essai)) return res.status(422).json({ error: 'L’adresse d’essai n’est pas une adresse e-mail.' })
+      liste = [{ email: essai }]
+    } else if (b.cible === 'abonnes') {
+      liste = (await prisma.newsletterSubscriber.findMany({ select: { email: true } })).map((x) => ({ email: x.email }))
+    } else if (b.cible === 'selection') {
+      const ids = Array.isArray(b.ids) ? b.ids.map(String).slice(0, newsletter.MAX_DESTINATAIRES) : []
+      if (!ids.length) return res.status(422).json({ error: 'Aucun utilisateur sélectionné.' })
+      liste = (await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, email: true } })).map((u) => ({ email: u.email, userId: u.id }))
+    } else return res.status(422).json({ error: 'Cible inconnue : « abonnes » ou « selection ».' })
+
+    const { garder, exclus } = essai ? { garder: liste, exclus: [] as string[] } : await newsletter.filtrerDesinscrits(liste)
+    if (garder.length > newsletter.MAX_DESTINATAIRES) return res.status(422).json({ error: `Plus de ${newsletter.MAX_DESTINATAIRES} destinataires : envoi refusé, découpez la liste.` })
+    if (!garder.length) return res.status(422).json({ error: exclus.length ? 'Tous les destinataires se sont désinscrits.' : 'Aucun destinataire.' })
+    garder.sort((x, y) => x.email.localeCompare(y.email))
+    const lots = Math.ceil(garder.length / LOT_NEWSLETTER)
+    const lot = Math.max(0, Math.floor(Number(b.lot) || 0))
+    if (lot >= lots) return res.status(422).json({ error: `Lot ${lot + 1} inexistant (${lots} lot(s)).` })
+    const tranche = garder.slice(lot * LOT_NEWSLETTER, (lot + 1) * LOT_NEWSLETTER)
+    const bilan = await newsletter.envoyer(essai ? `[Essai] ${sujet}` : sujet, html, tranche)
+    console.log(`[admin] newsletter « ${sujet} » lot ${lot + 1}/${lots} : ${bilan.envoyes} envoyé(s), ${bilan.echecs.length} échec(s), ${exclus.length} désinscrit(s) écarté(s)${essai ? ' (essai)' : ''}`)
+    res.json({ ok: bilan.envoyes > 0, essai: Boolean(essai), destinataires: garder.length, lot, lots, envoyes: bilan.envoyes, echecs: bilan.echecs.slice(0, 50), nbEchecs: bilan.echecs.length, desinscritsEcartes: exclus.length })
+  } catch (err) {
+    console.error('envoi de la newsletter impossible', err)
+    res.status(500).json({ error: 'Envoi de la newsletter impossible.', motif: err instanceof Error ? err.message : String(err) })
   }
 })
 
