@@ -14,6 +14,11 @@
  * margin, ROI, score, decision and `urls` (search pages on AliExpress, CJ,
  * BigBuy, Alibaba, Amazon, Cdiscount — not product pages).
  *
+ * Since the 09/11 the JSON is lighter: `metadata`, `hero_products_by_category`
+ * (the product nested in `hero_product`) and `top_25_immediate_opportunities`,
+ * links flat (`sourcing_url`, `aliexpress_import_url`…). The top 5, breakout and
+ * blacklist then come from opportunites-prioritaires.md (`assembler`).
+ *
  * One file per day in storage/syntheses/. Same content again = duplicate,
  * changed content = replaced (the agent may rerun its day).
  *
@@ -64,16 +69,23 @@ export interface Synthese {
   macro: string
   produits: ProduitSynthese[]
   sections: Record<CleSection, string[]>
+  /** Version of the reader that built it: an older one is offered again for import. */
+  lecteur?: number
+  /** Lists the files did not carry, ranked here from the day's own figures (never invented). */
+  sectionsCalculees?: CleSection[]
 }
+
+/** 2 (12/11/2026): the 09/11 format (hero_product nested, top_25_immediate_opportunities, flat *_url), JSON + Markdown merged. */
+export const LECTEUR_SYNTHESE = 2
 
 const SECTIONS: Array<{ cle: CleSection; motif: RegExp }> = [
   { cle: 'top5', motif: /top[\s_-]*5|launch[\s_-]*now|priorit/i },
   { cle: 'heros', motif: /hero/i },
-  { cle: 'buyNow', motif: /buy[\s_-]*now/i },
+  { cle: 'buyNow', motif: /buy[\s_-]*now|top[\s_-]*25|immediate/i },
   { cle: 'roi', motif: /\broi\b|_roi_|roi_|champions/i },
   { cle: 'highTicket', motif: /high[\s_-]*ticket/i },
   { cle: 'breakout', motif: /breakout|viral|tiktok/i },
-  { cle: 'listeNoire', motif: /black[\s_-]*list|dont[\s_-]*buy|don'?t[\s_-]*buy|liste[\s_-]*noire|exclu/i },
+  { cle: 'listeNoire', motif: /black[\s_-]*list|dont[\s_-]*buy|don'?t[\s_-]*buy|liste[\s_-]*noire|exclu|[ée]viter/i },
 ]
 
 function sectionDe(nom: string): CleSection | null {
@@ -111,12 +123,14 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-function liensDe(urls: unknown): Record<string, string> {
+/** `urls: {…}` (04/11 format) and the flat `sourcing_url`, `aliexpress_import_url`… (09/11 format). */
+function liensDe(o: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {}
-  if (!urls || typeof urls !== 'object') return out
-  for (const [k, v] of Object.entries(urls as Record<string, unknown>)) {
-    if (typeof v === 'string' && /^https?:\/\//i.test(v.trim())) out[k] = v.trim()
+  const prendre = (k: string, v: unknown) => {
+    if (typeof v === 'string' && /^https?:\/\//i.test(v.trim())) out[k] ??= v.trim()
   }
+  if (o.urls && typeof o.urls === 'object') for (const [k, v] of Object.entries(o.urls as Record<string, unknown>)) prendre(k, v)
+  for (const [k, v] of Object.entries(o)) if (/_url$/i.test(k)) prendre(k.replace(/_url$/i, ''), v)
   return out
 }
 
@@ -126,11 +140,20 @@ function champMotif(o: Record<string, unknown>, motif: RegExp): unknown {
   return undefined
 }
 
-function produitJson(o: Record<string, unknown>): ProduitSynthese | null {
-  const nom =
-    texte(champ(o, 'product_name', 'name', 'nom', 'title')) ||
-    texte(champMotif(o, /^(product|produit|nom|titre)[\s_-]*(name|nom|produit)?$/i)) ||
-    texte((o.urls as Record<string, unknown> | undefined)?.clean_name)
+const NOM_PRODUIT = /^(product|produit|nom|titre)[\s_-]*(name|nom|produit)?$/i
+const nomDe = (o: Record<string, unknown>) =>
+  texte(champ(o, 'product_name', 'name', 'nom', 'title')) ||
+  texte(champMotif(o, NOM_PRODUIT)) ||
+  texte((o.urls as Record<string, unknown> | undefined)?.clean_name)
+
+function produitJson(entree: Record<string, unknown>): ProduitSynthese | null {
+  // 09/11 format: { category_id, theme_id, hero_product: { name, … } } — the product sits one level down.
+  let o = entree
+  if (!nomDe(o)) {
+    const enfant = Object.values(o).find((v) => v && typeof v === 'object' && !Array.isArray(v) && nomDe(v as Record<string, unknown>))
+    if (enfant) o = { ...entree, ...(enfant as Record<string, unknown>) }
+  }
+  const nom = nomDe(o)
   if (!nom) return null
   const categorieLabel = texte(champ(o, 'category_label', 'category_name', 'categorie'))
   const categorie = texte(champ(o, 'category_id')) || slug(categorieLabel)
@@ -138,7 +161,7 @@ function produitJson(o: Record<string, unknown>): ProduitSynthese | null {
   const theme = texte(champ(o, 'theme_id')) || slug(themeLabel)
   const rang = nombre(champ(o, 'rank', 'rang'))
   return {
-    id: `${categorie}/${theme}/${rang ?? slug(nom)}`,
+    id: `${categorie}/${slug(nom)}`,
     categorie,
     categorieLabel,
     theme,
@@ -153,7 +176,29 @@ function produitJson(o: Record<string, unknown>): ProduitSynthese | null {
     prixVente: nombre(champ(o, 'target_price', 'target_price_str')),
     margeNette: nombre(champ(o, 'net_margin', 'net_margin_str')),
     roi: nombre(champ(o, 'roi', 'roi_str')),
-    liens: liensDe(o.urls),
+    liens: liensDe(o),
+  }
+}
+
+/**
+ * One product seen in several lists (hero, top 25, catalogue) is one product: same rayon, same name.
+ * Fields missing on the first sighting are filled by the next ones. Same name, other variant = another product.
+ */
+function fusionner(parId: Map<string, ProduitSynthese>, p: ProduitSynthese): string {
+  for (let n = 1; ; n++) {
+    const id = n === 1 ? p.id : `${p.id}-${n}`
+    const deja = parId.get(id)
+    if (!deja) {
+      parId.set(id, { ...p, id })
+      return id
+    }
+    if (deja.variante && p.variante && slug(deja.variante) !== slug(p.variante)) continue
+    for (const k of Object.keys(p) as Array<keyof ProduitSynthese>) {
+      const v = deja[k]
+      if (k === 'liens') deja.liens = { ...p.liens, ...deja.liens }
+      else if (v === null || v === '') (deja as unknown as Record<string, unknown>)[k] = p[k]
+    }
+    return id
   }
 }
 
@@ -161,12 +206,9 @@ function produitJson(o: Record<string, unknown>): ProduitSynthese | null {
 export function lireSyntheseJson(json: unknown): Omit<Synthese, 'importeLe' | 'origine' | 'empreinte' | 'macro'> | null {
   if (!json || typeof json !== 'object') return null
   const racine = json as Record<string, unknown>
-  const meta = (racine.meta ?? {}) as Record<string, unknown>
+  const meta = (racine.meta ?? racine.metadata ?? {}) as Record<string, unknown>
   const parId = new Map<string, ProduitSynthese>()
-  const ajouter = (p: ProduitSynthese) => {
-    if (!parId.has(p.id)) parId.set(p.id, p)
-    return parId.get(p.id)!.id
-  }
+  const ajouter = (p: ProduitSynthese) => fusionner(parId, p)
   // Every array of objects, at any depth: its key says whether it is a list (« top_5_launch_now ») or the catalogue.
   const tableaux: Array<[string, unknown[]]> = []
   const parcourir = (v: unknown, cle: string, profondeur: number) => {
@@ -231,7 +273,8 @@ export function lireSyntheseMarkdown(md: string): Omit<Synthese, 'importeLe' | '
     const nom = sansGras(brutProduit.split(/<br\s*\/?>/i)[0] ?? '')
     if (!nom) continue
     const variante = sansGras((brutProduit.split(/<br\s*\/?>/i)[1] ?? '').replace(/^\s*\*|\*\s*$/g, ''))
-    const brutCat = col(/cat/)
+    // « Catégorie (`theme_id`) » rather than « N° Cat. » (the hero table has both).
+    const brutCat = col(/cat[ée]gor/) || col(/cat/)
     const categorieLabel = sansGras(brutCat.split(/<br\s*\/?>|\(/i)[0] ?? '')
     const theme = brutCat.match(/`([a-z0-9-]+)`/)?.[1] ?? ''
     const liens: Record<string, string> = {}
@@ -240,10 +283,8 @@ export function lireSyntheseMarkdown(md: string): Omit<Synthese, 'importeLe' | '
       liens[host] ??= m[2]
     }
     const categorie = slug(categorieLabel)
-    const id = `${categorie}/${theme || slug(nom)}/${slug(nom)}`
-    if (!parId.has(id)) {
-      parId.set(id, {
-        id,
+    const id = fusionner(parId, {
+        id: `${categorie}/${slug(nom)}`,
         categorie,
         categorieLabel,
         theme,
@@ -260,7 +301,6 @@ export function lireSyntheseMarkdown(md: string): Omit<Synthese, 'importeLe' | '
         roi: nombre(col(/\broi\b/)),
         liens,
       })
-    }
     if (!sections[cle].includes(id)) sections[cle].push(id)
   }
   if (!parId.size) return null
@@ -324,22 +364,82 @@ export interface BilanSynthese {
   format?: 'json' | 'markdown'
   produits?: number
   sections?: Record<CleSection, number>
+  sectionsCalculees?: CleSection[]
+}
+
+type Lue = Omit<Synthese, 'importeLe' | 'origine' | 'empreinte' | 'macro'>
+
+const DEFAVORABLE = /DON'?T|NE PAS|[ÉE]VITER|AVOID|SKIP/i
+
+/**
+ * The JSON and the Markdown tables of the same day, merged (12/11/2026). Since the 09/11 the JSON only
+ * carries the heroes and the top 25: the top 5, breakout and blacklist live in opportunites-prioritaires.md.
+ * A list neither file carries (ROI champions, high ticket) is ranked from the day's products, by ROI and by
+ * net margin; a missing top 5 is the head of the top 25. Nothing is made up: only the order is ours.
+ */
+export function assembler(json: Lue | null, md: Lue | null): (Lue & { sectionsCalculees: CleSection[] }) | null {
+  const base = json ?? md
+  if (!base) return null
+  const parId = new Map(base.produits.map((p) => [p.id, { ...p }]))
+  const sections = Object.fromEntries(Object.entries(base.sections).map(([k, v]) => [k, [...v]])) as Record<CleSection, string[]>
+  if (json && md) {
+    // The Markdown names a rayon by its label, the JSON by its id: one product = same name.
+    const parNom = new Map<string, string>()
+    for (const p of parId.values()) if (!parNom.has(slug(p.nom))) parNom.set(slug(p.nom), p.id)
+    const idRayon = new Map([...parId.values()].map((p) => [slug(p.categorieLabel), p.categorie]))
+    const mdParId = new Map(md.produits.map((p) => [p.id, p]))
+    const idDe = (p: ProduitSynthese) => {
+      const connu = parNom.get(slug(p.nom))
+      if (connu) {
+        const d = parId.get(connu)!
+        for (const k of ['decision', 'theme', 'variante'] as const) if (!d[k] && p[k]) d[k] = p[k]
+        return connu
+      }
+      const categorie = idRayon.get(p.categorie) ?? p.categorie
+      const id = fusionner(parId, { ...p, categorie, id: `${categorie}/${slug(p.nom)}` })
+      parNom.set(slug(p.nom), id)
+      return id
+    }
+    // Only the lists the JSON lacks are taken from the Markdown (and only their products join).
+    for (const cle of Object.keys(sections) as CleSection[]) {
+      if (sections[cle].length) continue
+      sections[cle] = [...new Set(md.sections[cle].map((id) => idDe(mdParId.get(id)!)))]
+    }
+  }
+  const calculees: CleSection[] = []
+  const noire = new Set(sections.listeNoire)
+  const retenus = [...parId.values()].filter((p) => !noire.has(p.id) && !DEFAVORABLE.test(p.decision))
+  const classer = (cle: CleSection, cleTri: (p: ProduitSynthese) => number | null, n: number) => {
+    if (sections[cle].length) return
+    const l = retenus.filter((p) => cleTri(p) !== null).sort((a, b) => cleTri(b)! - cleTri(a)! || (b.score ?? 0) - (a.score ?? 0))
+    if (!l.length) return
+    sections[cle] = l.slice(0, n).map((p) => p.id)
+    calculees.push(cle)
+  }
+  if (!sections.top5.length && sections.buyNow.length) {
+    sections.top5 = sections.buyNow.slice(0, 5)
+    calculees.push('top5')
+  }
+  classer('roi', (p) => p.roi, 20)
+  classer('highTicket', (p) => p.margeNette, 20)
+  return { date: base.date || json?.date || md?.date || '', format: base.format, produits: [...parId.values()], sections, sectionsCalculees: calculees }
 }
 
 /** Builds the day from its files, JSON first, and writes it unless `essai`. */
 export function importerSynthese(src: SourcesSynthese, essai: boolean): BilanSynthese {
-  const lue = (src.json != null ? lireSyntheseJson(src.json) : null) ?? (src.opportunitesMd ? lireSyntheseMarkdown(src.opportunitesMd) : null)
+  const lue = assembler(src.json != null ? lireSyntheseJson(src.json) : null, src.opportunitesMd ? lireSyntheseMarkdown(src.opportunitesMd) : null)
   const date = src.date && DATE.test(src.date) ? src.date : lue?.date ?? ''
   if (!lue) return { date, statut: 'refuse', raison: 'aucun produit lisible (ni JSON, ni tableaux de opportunites-prioritaires.md)' }
   if (!DATE.test(date)) return { date, statut: 'refuse', raison: 'date introuvable (ni dossier daté, ni meta.study_date)' }
   if (lue.date && lue.date !== date) return { date, statut: 'refuse', raison: `le fichier dit ${lue.date}, le dossier ${date}` }
   const macro = (src.generaleMd && lireMacro(src.generaleMd)) || (src.tableauMd && lireMacro(src.tableauMd)) || ''
-  const corps = { produits: lue.produits, sections: lue.sections, macro }
+  const corps = { produits: lue.produits, sections: lue.sections, macro, lecteur: LECTEUR_SYNTHESE, sectionsCalculees: lue.sectionsCalculees }
   const empreinte = crypto.createHash('sha256').update(JSON.stringify(corps)).digest('hex')
   const mesure = {
     format: lue.format,
     produits: lue.produits.length,
     sections: Object.fromEntries(Object.entries(lue.sections).map(([k, v]) => [k, v.length])) as Record<CleSection, number>,
+    sectionsCalculees: lue.sectionsCalculees,
   }
   const avant = lireSynthese(date)
   if (avant?.empreinte === empreinte) return { date, statut: 'doublon', raison: 'déjà importée, identique', ...mesure }
@@ -573,7 +673,7 @@ export interface ProduitACreer {
  * completes it like a hand-made listing.
  */
 export function produitACreer(p: ProduitSynthese): ProduitACreer {
-  const source = p.liens.sourcing_primary || p.liens.dropshipper_import || p.liens.aliexpress_fr || Object.values(p.liens)[0] || ''
+  const source = p.liens.sourcing_primary || p.liens.sourcing || p.liens.dropshipper_import || p.liens.aliexpress_import || p.liens.aliexpress_fr || Object.values(p.liens)[0] || ''
   let site: string | null = null
   try {
     site = source ? new URL(source).hostname.replace(/^www\./, '') : null
