@@ -15,6 +15,9 @@
  * through the same public filters (no supplier, no purchase price).
  */
 import { createRequire } from 'node:module'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   ajouterEtudesImportees,
   etudeDepuisSurcouche,
@@ -122,12 +125,21 @@ const attendre = (ms: number) => new Promise((r) => setTimeout(r, process.env.DR
  * folder listed after it — the reports of 9 to 12/11/2026 vanished from the
  * reading while the small synthesis folder still listed. It is retried, then named.
  */
+/** What the readings of this process met, for the reading journal (/api/analyses-drive-etat). */
+const compteurs = { dossiers: 0, reprises: 0, videsDates: 0 }
+
 async function listerUnDossier(id: string, ou = ''): Promise<{ nom: string; entrees: EntreeDrive[] }> {
   const garde = vues.get(id)
   if (garde && Date.now() - garde.le < CACHE_MS) return garde
+  // A date folder is never empty once the agent has written it: an empty one is read again.
+  const jour = DATE.test(ou.split('/').pop() ?? '')
   let motif = ''
+  compteurs.dossiers++
   for (let essai = 0; essai <= REPRISES_MS.length; essai++) {
-    if (essai) await attendre(REPRISES_MS[essai - 1])
+    if (essai) {
+      compteurs.reprises++
+      await attendre(REPRISES_MS[essai - 1])
+    }
     const r = await obtenir(`https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(id)}`)
     if (r.status === 404) throw new DriveErreur(`Dossier introuvable${ou ? ` (${ou})` : ''} : vérifiez l'adresse.`)
     const html = r.ok ? await r.text() : ''
@@ -136,6 +148,11 @@ async function listerUnDossier(id: string, ou = ''): Promise<{ nom: string; entr
     }
     if (r.ok && html.includes('flip-entries')) {
       const vue = { le: Date.now(), nom: nomDossierVue(html), entrees: lireVueEmbarquee(html) }
+      if (jour && !vue.entrees.length && essai < REPRISES_MS.length) {
+        motif = 'dossier daté rendu vide'
+        continue
+      }
+      if (jour && !vue.entrees.length) compteurs.videsDates++
       vues.set(id, vue)
       if (vues.size > 5_000) vues.clear()
       return vue
@@ -145,6 +162,70 @@ async function listerUnDossier(id: string, ou = ''): Promise<{ nom: string; entr
   throw new DriveErreur(
     `Google Drive n'a pas rendu la liste du dossier ${ou ? `« ${ou} »` : id} (${motif}, ${REPRISES_MS.length + 1} essais) : il freine les lectures trop nombreuses. Relancez dans quelques minutes ; rien n'a été importé à moitié.`,
   )
+}
+
+// ---------------------------------------------------------- reading journal
+
+export interface LectureDrive {
+  quand: string
+  action: 'lister' | 'importer'
+  dossier: string
+  /** Folders asked to Google, retries, date folders that stayed empty after the retries. */
+  dossiersLus: number
+  reprises: number
+  videsDates: number
+  fichiers: number
+  /** Each date found and how many shelves (reports) it holds; the day's synthesis apart. */
+  dates: { date: string; rayons: number; synthese: boolean }[]
+  secondes: number
+  erreur?: string
+}
+
+const CHEMIN_LECTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'storage', 'drive-lectures.json')
+
+export function lireLectures(): LectureDrive[] {
+  try {
+    const l = JSON.parse(fs.readFileSync(CHEMIN_LECTURES, 'utf8'))
+    return Array.isArray(l) ? l : []
+  } catch {
+    return []
+  }
+}
+
+function noterLecture(l: LectureDrive) {
+  try {
+    fs.mkdirSync(path.dirname(CHEMIN_LECTURES), { recursive: true })
+    fs.writeFileSync(CHEMIN_LECTURES, JSON.stringify([l, ...lireLectures()].slice(0, 40), null, 1))
+  } catch (err) {
+    console.error('[drive] journal des lectures non écrit', err instanceof Error ? err.message : err)
+  }
+}
+
+/** Runs one reading and writes what it found (or the error) to the journal, without file contents. */
+async function journalise<T extends { dates: DateTrouvee[]; nbFichiers: number }>(action: LectureDrive['action'], dossier: string, lire: () => Promise<T>): Promise<T> {
+  const debut = Date.now()
+  const avant = { ...compteurs }
+  const ligne = (): Omit<LectureDrive, 'fichiers' | 'dates'> => ({
+    quand: new Date().toISOString(),
+    action,
+    dossier,
+    dossiersLus: compteurs.dossiers - avant.dossiers,
+    reprises: compteurs.reprises - avant.reprises,
+    videsDates: compteurs.videsDates - avant.videsDates,
+    secondes: Math.round((Date.now() - debut) / 1000),
+  })
+  try {
+    const r = await lire()
+    noterLecture({
+      ...ligne(),
+      fichiers: r.nbFichiers,
+      dates: r.dates.map((d) => ({ date: d.date, rayons: d.etudes.length, synthese: Object.keys(d.syntheses).length > 0 })),
+    })
+    return r
+  } catch (err) {
+    noterLecture({ ...ligne(), fichiers: 0, dates: [], erreur: err instanceof Error ? err.message : String(err) })
+    throw err
+  }
 }
 
 export interface FichierDrive {
@@ -359,8 +440,10 @@ async function dateDuFichier(f: FichierDrive): Promise<string[] | null> {
 }
 
 async function lireDossier(racine: string, dateVoulue?: (date: string) => boolean) {
-  const { fichiers, sansDate } = await daterSansDossier(await listerArbre(racine, dateVoulue))
-  return { dates: regrouper(fichiers), sansDate }
+  return journalise(dateVoulue ? 'importer' : 'lister', racine, async () => {
+    const { fichiers, sansDate } = await daterSansDossier(await listerArbre(racine, dateVoulue))
+    return { dates: regrouper(fichiers), sansDate, nbFichiers: fichiers.length }
+  })
 }
 
 export async function listerDossierDrive(adresse: string) {

@@ -9,6 +9,7 @@ import { lignesPubliques } from './analysesPubliques.js'
 import { cheminRapport } from '../services/analysesPubliques.js'
 import { cheminRapportsActif, generationRapports, ReportQuery } from '../services/reportsDb.js'
 import { CATEGORIES_PAR_RAYON } from '../services/marketReports.js'
+import { lireLectures } from '../services/importDrive.js'
 
 export const reportsPublicRouter = Router()
 
@@ -396,6 +397,16 @@ reportsPublicRouter.get('/prompts/videos', sansCache, compte, (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch video prompts', motif: motif(error) })
   }
+})
+
+/**
+ * GET /analyses-drive-etat
+ * Last Drive folder reads (listing or import): folder id, dates and shelves found,
+ * retries, errors. No file content, so it can stay public and lets us see what the
+ * server really saw when the back office says the folder is empty.
+ */
+reportsPublicRouter.get('/analyses-drive-etat', sansCache, (_req, res) => {
+  res.json({ lectures: lireLectures() })
 })
 
 /**
