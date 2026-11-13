@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { echecLigneAutoShipper, ligneAutoShipper } from '../services/autoShipperFile.js'
+import { mettreEnFileImport } from '../services/fileImport.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import {
   CATEGORIES,
@@ -393,7 +394,7 @@ const ajoutSchema = z.object({
         url: z.string().url(),
         titre: z.string().max(200).optional(),
         fournisseur: z.string().max(80).optional(),
-        mode: z.enum(['api', 'url', 'extension']).optional(),
+        mode: z.enum(['api', 'url', 'extension', 'desktop']).optional(),
         origine: z.string().max(60).optional(),
       }),
     )
@@ -401,31 +402,53 @@ const ajoutSchema = z.object({
     .max(500),
 })
 
-/** Dépose un produit ou une liste dans la file. Une adresse déjà en attente n'est pas doublée. */
+/**
+ * Dépose un produit ou une liste dans la file. Une adresse déjà en attente n'est pas doublée.
+ *
+ * Une fiche à lire au navigateur (`extension` ou `desktop`) part au navigateur
+ * interne de l'application desktop quand le compte en a une, sinon à l'extension
+ * (services/fileImport.ts). Les autres modes sont gardés tels quels.
+ */
 marketReportsRouter.post('/file', async (req: AuthedRequest, res) => {
   const parsed = ajoutSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Liste invalide (1 à 500 adresses).' })
 
-  const enAttente = await prisma.importQueue.findMany({
-    where: { userId: req.userId!, status: { in: ['EN_ATTENTE', 'RELEVE'] } },
-    select: { url: true },
-  })
-  const deja = new Set(enAttente.map((e) => e.url))
-  const neufs = parsed.data.produits.filter((p) => !deja.has(p.url))
+  const navigateur = parsed.data.produits.filter((p) => !p.mode || p.mode === 'extension' || p.mode === 'desktop')
+  const autres = parsed.data.produits.filter((p) => p.mode === 'api' || p.mode === 'url')
 
-  if (neufs.length) {
-    await prisma.importQueue.createMany({
-      data: neufs.map((p) => ({
-        userId: req.userId!,
-        url: p.url,
-        titre: p.titre ?? null,
-        fournisseur: p.fournisseur ?? null,
-        mode: p.mode ?? 'extension',
-        origine: p.origine ?? null,
-      })),
-    })
+  let ajoutes = 0
+  let mode: 'desktop' | 'extension' = 'extension'
+  // Une liste vient d'un seul écran, donc d'une seule origine.
+  const parOrigine = new Map<string | null, typeof navigateur>()
+  for (const p of navigateur) parOrigine.set(p.origine ?? null, [...(parOrigine.get(p.origine ?? null) ?? []), p])
+  for (const [origine, lot] of parOrigine) {
+    const r = await mettreEnFileImport(req.userId!, lot, origine)
+    ajoutes += r.ajoutes
+    mode = r.mode
   }
-  res.status(201).json({ ajoutes: neufs.length, dejaEnFile: parsed.data.produits.length - neufs.length })
+
+  if (autres.length) {
+    const enAttente = await prisma.importQueue.findMany({
+      where: { userId: req.userId!, status: { in: ['EN_ATTENTE', 'RELEVE'] } },
+      select: { url: true },
+    })
+    const deja = new Set(enAttente.map((e) => e.url))
+    const neufs = autres.filter((p) => !deja.has(p.url))
+    if (neufs.length) {
+      await prisma.importQueue.createMany({
+        data: neufs.map((p) => ({
+          userId: req.userId!,
+          url: p.url,
+          titre: p.titre ?? null,
+          fournisseur: p.fournisseur ?? null,
+          mode: p.mode!,
+          origine: p.origine ?? null,
+        })),
+      })
+    }
+    ajoutes += neufs.length
+  }
+  res.status(201).json({ ajoutes, dejaEnFile: parsed.data.produits.length - ajoutes, voie: mode })
 })
 
 /** La file du vendeur, la plus récente en tête. */

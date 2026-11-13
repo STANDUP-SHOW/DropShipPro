@@ -71,15 +71,23 @@ export async function importerProduits(lot: ProduitAffiche[], origine: string): 
     echecs += r.failed
   }
   let enFile = 0
+  let voie: 'desktop' | 'extension' = 'extension'
   if (parExtension.length) {
+    // Le serveur choisit : navigateur interne de l'application desktop si le compte en a une, sinon l'extension.
     const r = await api.fileImportAjouter(
       parExtension.map((p) => ({ url: p.url, titre: p.titre, fournisseur: p.fournisseur, mode: 'extension' as const, origine })),
     )
     enFile = r.ajoutes
+    voie = r.voie ?? 'extension'
   }
   const morceaux: string[] = []
   if (importes) morceaux.push(`${importes} annonce(s) importée(s)`)
-  if (enFile) morceaux.push(`${enFile} fiche(s) envoyée(s) à l'extension`)
+  if (enFile)
+    morceaux.push(
+      voie === 'desktop'
+        ? `${enFile} fiche(s) confiée(s) à l'application desktop, qui les relève seule dans son navigateur interne`
+        : `${enFile} fiche(s) envoyée(s) à l'extension`,
+    )
   if (echecs) morceaux.push(`${echecs} échec(s)`)
   return morceaux.length ? `${morceaux.join(' · ')}.` : 'Rien à faire : tout était déjà importé ou en file.'
 }
@@ -204,6 +212,14 @@ export function ListeProduitsRapport({
       const r = await api.fileImportAjouter(
         lot.map((p) => ({ url: p.url, titre: p.titre, fournisseur: p.fournisseur, mode: p.import, origine })),
       )
+      if (r.voie === 'desktop') {
+        // L'application desktop relève la file seule : pas d'onglet à ouvrir, rien à cliquer.
+        dire(
+          `${r.ajoutes} fiche(s) confiée(s) à l'application desktop${r.dejaEnFile ? `, ${r.dejaEnFile} déjà en file` : ''}. ` +
+            "Son navigateur interne les relève seul, sans clic, tant qu'elle est ouverte ; elles arrivent dans « Mes annonces ».",
+        )
+        return
+      }
       if (ouvrir && lot.length === 1) window.open(lot[0].url, '_blank', 'noopener,noreferrer')
       dire(
         `${r.ajoutes} fiche(s) envoyée(s) à l'extension${r.dejaEnFile ? `, ${r.dejaEnFile} déjà en file` : ''}. ` +

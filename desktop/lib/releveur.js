@@ -20,6 +20,9 @@ const MONDE = 1207
 const DOSSIER = path.join(__dirname, '..', 'extraction')
 const SCRIPTS = ['config.js', 'fill-helpers.js', 'image-scan.js', 'adapters.js', 'photo-preselect.js', 'capture.js']
 const SCRIPT_PAGE = 'aliexpress-sku.js'
+/** Search page → the result carrying the winner's name (same rule as the server's `pertinent`). */
+const SCRIPT_RECHERCHE = 'recherche.js'
+const { estRecherche } = require(path.join(DOSSIER, SCRIPT_RECHERCHE))
 
 const partitionDe = (hote) => `persist:fournisseur-${String(hote).toLowerCase().replace(/^www\./, '').replace(/[^a-z0-9.-]/g, '')}`
 
@@ -69,8 +72,35 @@ function charger(win, url, delai) {
   })
 }
 
-/** Reads one product page; `{ ok, payload }`, `{ bloque, raison }` or `{ ok: false, raison }`. */
-async function relever(url, { delaiChargement = 45_000, delaiReleve = 90_000 } = {}) {
+/**
+ * On a search page, finds the first result carrying `nom` and opens it in the same
+ * window. `{ ok: true, url }`, `{ bloque, raison }` or `{ ok: false, raison }`.
+ */
+async function ouvrirResultat(win, nom, delaiChargement) {
+  // Les résultats arrivent en JavaScript après le chargement : trois essais espacés.
+  let choix = null
+  for (let i = 0; i < 3 && !choix?.url; i++) {
+    await pause(2500)
+    const texte = await win.webContents.executeJavaScript('document.body ? document.body.innerText.slice(0, 4000) : ""', true)
+    const b = plafonds.detecterBlocage({ url: win.webContents.getURL(), titre: win.getTitle(), texte })
+    if (b.bloque) return { bloque: true, raison: `vérification affichée (« ${b.indice} »)` }
+    choix = await win.webContents.executeJavaScriptInIsolatedWorld(MONDE, [
+      { code: lire(SCRIPT_RECHERCHE), url: `dsp://extraction/${SCRIPT_RECHERCHE}` },
+      { code: `window.__dspRecherche.choisirResultat(${JSON.stringify(String(nom))})` },
+    ])
+  }
+  if (!choix?.url) {
+    return { ok: false, raison: `Aucun résultat de la recherche ne porte le nom « ${String(nom).slice(0, 80)} » (${choix?.vus ?? 0} fiche(s) vue(s)).` }
+  }
+  await charger(win, choix.url, delaiChargement)
+  return { ok: true, url: choix.url }
+}
+
+/**
+ * Reads one product page; `{ ok, payload }`, `{ bloque, raison }` or `{ ok: false, raison }`.
+ * `nom`: when `url` is a supplier SEARCH page, the product to pick in its results.
+ */
+async function relever(url, { nom = null, delaiChargement = 45_000, delaiReleve = 90_000 } = {}) {
   const hote = new URL(url).hostname
   const win = new BrowserWindow({
     show: false,
@@ -81,6 +111,11 @@ async function relever(url, { delaiChargement = 45_000, delaiReleve = 90_000 } =
   })
   try {
     await charger(win, url, delaiChargement)
+    if (estRecherche(url)) {
+      if (!nom) return { ok: false, raison: "Lien de recherche sans nom de produit : rien à choisir." }
+      const r = await ouvrirResultat(win, nom, delaiChargement)
+      if (!r.ok) return r
+    }
     // Le prix et les options des sites en JavaScript arrivent après le chargement.
     await pause(2500)
     const texte = await win.webContents.executeJavaScript('document.body ? document.body.innerText.slice(0, 4000) : ""', true)
@@ -102,4 +137,4 @@ async function relever(url, { delaiChargement = 45_000, delaiReleve = 90_000 } =
   }
 }
 
-module.exports = { relever, partitionDe, SCRIPTS, SCRIPT_PAGE, DOSSIER }
+module.exports = { relever, partitionDe, SCRIPTS, SCRIPT_PAGE, SCRIPT_RECHERCHE, DOSSIER }

@@ -1,4 +1,4 @@
-importScripts('config.js')
+importScripts('config.js', 'content/recherche.js')
 
 // Clears any queued listing when the extension starts, so a listing selected in a
 // previous session never gets injected unexpectedly into a form opened later.
@@ -352,11 +352,42 @@ function dspAttendreChargement(tabId, delai) {
 }
 
 /** Opens `url` in the foreground, reads its product, closes the tab and gives focus back. */
-async function dspReleverAdresse(url) {
+/**
+ * Sur une page de RECHERCHE (gagnant de synthèse, 13/11/2026) : prend le premier
+ * résultat qui porte `nom` (content/recherche.js) et l'ouvre dans le même onglet.
+ * Aucun résultat pertinent : refus avec son motif, jamais un produit au hasard.
+ */
+async function dspOuvrirResultat(tabId, nom) {
+  let choix = null
+  for (let i = 0; i < 3 && !choix?.url; i++) {
+    // Les résultats arrivent en JavaScript après « complete ».
+    await new Promise((r) => setTimeout(r, 2500))
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content/recherche.js'] })
+    const [r] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (n) => globalThis.__dspRecherche.choisirResultat(n),
+      args: [String(nom)],
+    })
+    choix = r?.result ?? null
+  }
+  if (!choix?.url) {
+    return { ok: false, error: `Aucun résultat de la recherche ne porte le nom « ${String(nom).slice(0, 80)} » (${choix?.vus ?? 0} fiche(s) vue(s)).` }
+  }
+  await chrome.tabs.update(tabId, { url: choix.url })
+  await dspAttendreChargement(tabId, 45000)
+  return { ok: true }
+}
+
+async function dspReleverAdresse(url, nom = null) {
   const [avant] = await chrome.tabs.query({ active: true, currentWindow: true })
   const onglet = await chrome.tabs.create({ url, active: true })
   try {
     await dspAttendreChargement(onglet.id, 45000)
+    if (globalThis.__dspRecherche.estRecherche(url)) {
+      if (!nom) return { ok: false, error: 'Lien de recherche sans nom de produit : rien à choisir.' }
+      const r = await dspOuvrirResultat(onglet.id, nom)
+      if (!r.ok) return r
+    }
     // Le prix et les options des sites en JavaScript arrivent après « complete ».
     await new Promise((r) => setTimeout(r, 2500))
     const reponse = await dspReleverOnglet(onglet.id)
@@ -544,7 +575,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
    * contourné.
    */
   if (message?.type === 'dsp-relever-adresse') {
-    dspReleverAdresse(message.url)
+    dspReleverAdresse(message.url, typeof message.nom === 'string' ? message.nom : null)
       .then((reponse) => sendResponse(reponse))
       .catch((err) => sendResponse({ ok: false, error: err?.message || 'Relevé impossible' }))
     return true

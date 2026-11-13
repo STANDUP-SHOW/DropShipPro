@@ -8,6 +8,7 @@ import { FORMATS_FLUX } from '../services/channelFeeds.js'
 import { liaisonPour, resumeLiaisons } from '../services/liaisonsCanaux.js'
 import { metaCsv } from '../services/productFeeds.js'
 import { ligneAutoShipper, importerLigneAutoShipper, refAliExpress } from '../services/autoShipperFile.js'
+import { coutLigne, ligneFileSite, releveConforme } from '../services/fileImport.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { sendMail } from '../services/mailer.js'
@@ -233,8 +234,18 @@ productsRouter.post(
 
     // Un lot passe par le panneau latéral avec `differer` : sa réécriture part
     // en batch (−50 %), donc l'annonce coûte moins qu'une capture à l'unité.
-    const cout = data.differer ? DROPS.importLot : DROPS.import
-    const credit = await reserveCredits(req.userId!, cout, data.differer ? 'Import en lot' : "Import d'une annonce")
+    // Une ligne de la file : un gagnant de synthèse est gratuit, et un lien de recherche
+    // doit avoir mené à une fiche qui porte le nom du produit (services/fileImport.ts).
+    const ligneFile = data.fileId ? await ligneFileSite(req.userId!, data.fileId) : null
+    if (ligneFile) {
+      const ecart = releveConforme(ligneFile, data)
+      if (ecart) {
+        await marquerLigneFile(req.userId!, data.fileId, { status: 'ECHEC', erreur: ecart })
+        return res.status(422).json({ error: ecart })
+      }
+    }
+    const cout = ligneFile ? coutLigne(ligneFile.origine, data.differer) : data.differer ? DROPS.importLot : DROPS.import
+    const credit = cout > 0 ? await reserveCredits(req.userId!, cout, data.differer ? 'Import en lot' : "Import d'une annonce") : { ok: true as const }
     if (!credit.ok) {
       await marquerLigneFile(req.userId!, data.fileId, { status: 'ECHEC', erreur: credit.reason ?? 'Solde de drops insuffisant.' })
       return res.status(402).json({ error: credit.reason, needsCredits: true })
@@ -264,11 +275,11 @@ productsRouter.post(
         differerReecriture: data.differer,
       })
 
-      if (!reecrit) await refundCredits(req.userId!, cout)
+      if (!reecrit && cout > 0) await refundCredits(req.userId!, cout)
       await marquerLigneFile(req.userId!, data.fileId, { status: 'IMPORTE', productId: produit.id })
       res.status(201).json({ ...produit, notes })
     } catch (err) {
-      await refundCredits(req.userId!, cout)
+      if (cout > 0) await refundCredits(req.userId!, cout)
       console.error(err)
       await marquerLigneFile(req.userId!, data.fileId, { status: 'ECHEC', erreur: "Impossible d'enregistrer ce produit." })
       res.status(500).json({ error: "Impossible d'enregistrer ce produit" })

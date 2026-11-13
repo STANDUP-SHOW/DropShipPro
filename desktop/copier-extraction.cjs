@@ -17,6 +17,7 @@ const FICHIERS = {
   'photo-preselect.js': 'content/photo-preselect.js',
   'capture.js': 'content/capture.js',
   'aliexpress-sku.js': 'content/aliexpress-sku.js',
+  'recherche.js': 'content/recherche.js',
 }
 
 fs.mkdirSync(CIBLE, { recursive: true })
