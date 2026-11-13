@@ -160,7 +160,21 @@ exige(r1.lignes.some((l) => l.rayon === 'syntheses/synthese-du-jour' && l.statut
 const r2 = await importerDossierDrive('racineAAAAAA', ['2026-11-04'], false)
 exige(r2.syntheses[0]?.statut === 'doublon', 'second import identique : doublon')
 const liste2 = await listerDossierDrive('racineAAAAAA')
-exige(liste2.dates.find((d) => d.date === '2026-11-04')?.etudes.find((e) => e.categorie === 'syntheses')?.dejaEnBase, 'puis « déjà là » dans la liste')
+exige(!liste2.dates.some((d) => d.date === '2026-11-04') && liste2.datesDejaImportees >= 1, `puis masquée à la relecture : seules les nouveautés (${liste2.datesDejaImportees} jour(s) déjà importé(s))`)
+const liste2t = await listerDossierDrive('racineAAAAAA', true)
+exige(liste2t.dates.find((d) => d.date === '2026-11-04')?.etudes.find((e) => e.categorie === 'syntheses')?.dejaEnBase, '« déjà là » avec la liste complète (tout)')
+{
+  // A synthesis stored by an older reader is read again at the next reread, never offered as new.
+  const f = path.join(TEMP, '2026-11-04.json')
+  const ancienne = JSON.parse(fs.readFileSync(f, 'utf8'))
+  delete ancienne.lecteur
+  ancienne.sections.top5 = []
+  fs.writeFileSync(f, JSON.stringify(ancienne))
+  const l3 = await listerDossierDrive('racineAAAAAA')
+  const relue = S.lireSynthese('2026-11-04')
+  exige(l3.synthesesRelues.some((x) => x.date === '2026-11-04') && relue?.lecteur === S.LECTEUR_SYNTHESE && relue.sections.top5.length > 0, 'ancienne lecture relue en silence, listes refaites')
+  exige(!l3.dates.some((d) => d.date === '2026-11-04'), 'et non proposée comme nouvelle')
+}
 
 console.log('Synthèse rangée avec les rayons, en Google Doc, JSON entre balises')
 const r5 = await importerDossierDrive('racine2AAAA', ['2026-11-05', '2026-11-06'], false)

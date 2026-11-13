@@ -446,38 +446,59 @@ async function lireDossier(racine: string, dateVoulue?: (date: string) => boolea
   })
 }
 
-export async function listerDossierDrive(adresse: string) {
+/**
+ * The folder as the site sees it. Max (13/11): a reread shows only what is new, to tick and import;
+ * days whose shelves and synthesis are all on the site are left out (`tout` shows them again).
+ * A synthesis stored by an older reader is quietly read again from its files here, so it never
+ * comes back as « new » just because the reader changed.
+ */
+export async function listerDossierDrive(adresse: string, tout = false) {
   const racine = idDossierDrive(adresse)
   const { dates, sansDate } = await lireDossier(racine)
   const enBase = idsRapportsEnService()
+  const relues: BilanSynthese[] = []
+  for (const d of dates) {
+    const stockee = lireSynthese(d.date)
+    if (!stockee || stockee.lecteur === LECTEUR_SYNTHESE || !(d.syntheses.json || d.syntheses.opportunites)) continue
+    const b = await importerSyntheseDuJour(d, racine, false).catch(() => null)
+    if (b) relues.push(b)
+  }
+  if (relues.length) noterImports(relues)
+  const toutes = dates.map((d) => ({
+    date: d.date,
+    etudes: [
+      ...d.etudes.map((e) => ({
+        categorie: e.categorie,
+        theme: e.theme,
+        fichiers: [e.rayon, e.marketing, e.json].filter(Boolean).map((f) => f!.nom),
+        doublons: e.doublons.map((f) => f.nom),
+        importable: !!e.rayon || !!e.json,
+        dejaEnBase: enBase.has(idRayonIndice(e)),
+      })),
+      ...(Object.keys(d.syntheses).length
+        ? [
+            {
+              ...RAYON_SYNTHESE,
+              fichiers: Object.values(d.syntheses).map((f) => f!.nom),
+              doublons: [] as string[],
+              importable: !!(d.syntheses.json || d.syntheses.opportunites),
+              dejaEnBase: !!lireSynthese(d.date),
+            },
+          ]
+        : []),
+    ],
+    ignores: d.ignores,
+  }))
+  const nouvelles = toutes
+    .map((d) => ({ ...d, etudes: d.etudes.filter((x) => !(x.importable && x.dejaEnBase)) }))
+    .filter((d) => d.etudes.some((x) => x.importable))
   return {
     dossier: racine,
-    dates: dates.map((d) => ({
-      date: d.date,
-      etudes: [
-        ...d.etudes.map((e) => ({
-          categorie: e.categorie,
-          theme: e.theme,
-          fichiers: [e.rayon, e.marketing, e.json].filter(Boolean).map((f) => f!.nom),
-          doublons: e.doublons.map((f) => f.nom),
-          importable: !!e.rayon || !!e.json,
-          dejaEnBase: enBase.has(idRayonIndice(e)),
-        })),
-        ...(Object.keys(d.syntheses).length
-          ? [
-              {
-                ...RAYON_SYNTHESE,
-                fichiers: Object.values(d.syntheses).map((f) => f!.nom),
-                doublons: [] as string[],
-                importable: !!(d.syntheses.json || d.syntheses.opportunites),
-                // Read by an older reader (lists missing): offered again.
-                dejaEnBase: lireSynthese(d.date)?.lecteur === LECTEUR_SYNTHESE,
-              },
-            ]
-          : []),
-      ],
-      ignores: d.ignores,
-    })),
+    dates: tout ? toutes : nouvelles,
+    /** Days left out because everything in them is already on the site. */
+    datesDejaImportees: tout ? 0 : toutes.length - nouvelles.length,
+    /** Syntheses read again because the reader changed (12/11: lists of the 09/11 format). */
+    synthesesRelues: relues.map((b) => ({ date: b.date, statut: b.statut })),
     /** Report files with no date anywhere (no AAAA-MM-JJ folder, no date inside). */
     sansDate,
   }

@@ -442,7 +442,7 @@ export function importerSynthese(src: SourcesSynthese, essai: boolean): BilanSyn
     sectionsCalculees: lue.sectionsCalculees,
   }
   const avant = lireSynthese(date)
-  if (avant?.empreinte === empreinte) return { date, statut: 'doublon', raison: 'déjà importée, identique', ...mesure }
+  if (avant?.empreinte === empreinte && avant.lecteur === LECTEUR_SYNTHESE) return { date, statut: 'doublon', raison: 'déjà importée, identique', ...mesure }
   if (!essai) {
     const synthese: Synthese = { date, importeLe: new Date().toISOString(), origine: src.origine, format: lue.format, empreinte, ...corps }
     fs.mkdirSync(DOSSIER_SYNTHESES, { recursive: true })

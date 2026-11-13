@@ -408,7 +408,7 @@ adminRouter.post('/analyses-drive/lister', async (req: Request, res) => {
   const adresse = adresseDe(req)
   if (!adresse) return res.status(400).json({ error: 'Collez l’adresse d’un dossier Google Drive public.' })
   try {
-    res.json(await listerDossierDrive(adresse))
+    res.json(await listerDossierDrive(adresse, req.body?.tout === true))
   } catch (err) {
     if (err instanceof DriveErreur) return res.status(422).json({ error: err.message })
     console.error('liste du dossier Drive', err)
