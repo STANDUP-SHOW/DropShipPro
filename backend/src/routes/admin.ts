@@ -15,6 +15,7 @@ const paragraphes = (texte: string) => texte.split(/\n{2,}/).map((p) => `<p styl
 import * as newsletter from '../services/newsletter.js'
 import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
 import { datesSyntheses, importerSynthese, lireJournal, lireSynthese, noterImports, produitACreer, synthesePrivee } from '../services/synthesesQuotidiennes.js'
+import { mettreEnFileImport, modeFileNavigateur } from '../services/fileImport.js'
 import { etatCompletion, fournisseursCherchables, lancerCompletion, type Tache } from '../services/synthesesCompletion.js'
 import { GoogleAuthError, verifierIdTokenGoogle } from '../services/googleAuth.js'
 import { lignesPubliques } from './analysesPubliques.js'
@@ -532,9 +533,30 @@ adminRouter.post('/syntheses/:date/importer-compte', async (req: Request, res) =
       ? 'Rien à importer ni à compléter : ces produits sont déjà complets sur ce compte.'
       : fournisseurs.length
         ? `Photos et description en cours de recherche chez ${nomsFournisseurs.join(' puis ')} pour ${aCompleter} annonce(s) : elles se remplissent dans les minutes qui suivent (brouillons, à relire avant publication).`
-        : `Rien n'a été importé : aucun fournisseur n'est relié par API sur ce compte (AliExpress ou CJ Dropshipping), et la synthèse ne donne qu'un nom, un prix et des pages de recherche. Aucune annonce vide n'est créée. Reliez AliExpress ou CJ dans Sourcing › Fournisseurs sur ce compte, puis relancez l'import ; le relevé par le navigateur de l'application desktop arrive ensuite.`
+        : null
+    // Without a supplier API: the browser reads the product (desktop app's internal browser, else the extension).
+    // The line carries the SEARCH page and the winner's exact name; the reader keeps only a result bearing that name.
+    const lignes = fournisseurs.length
+      ? []
+      : [...aCreer.map(({ produit }) => produit), ...aReprendre.map((t) => t.produit)]
+          .map((p) => ({ url: p.liens.aliexpress_import || p.liens.aliexpress_fr || p.liens.aliexpress || '', titre: p.nom, fournisseur: 'aliexpress' }))
+          .filter((l) => /^https?:\/\//.test(l.url))
+    const sansLien = fournisseurs.length ? 0 : aCompleter - lignes.length
+    const voie = (mode: string) => (mode === 'desktop' ? 'le navigateur interne de l’application desktop' : 'l’extension Chrome (file d’import du site)')
     if (req.body?.essai === true) {
-      return res.json({ compte: c.email, essai: true, aImporter: aCreer.length, aCompleter, doublons, inconnus, fournisseurs: nomsFournisseurs, message })
+      const mode = fournisseurs.length ? null : await modeFileNavigateur(c.id)
+      return res.json({
+        compte: c.email, essai: true, aImporter: aCreer.length, aCompleter, doublons, inconnus, fournisseurs: nomsFournisseurs,
+        message: message ?? `${lignes.length} produit(s) partiront vers ${voie(mode!)}, qui cherchera chaque produit par son nom et relèvera sa fiche.${sansLien ? ` ${sansLien} sans lien AliExpress dans la synthèse.` : ''}`,
+      })
+    }
+    if (!fournisseurs.length && aCompleter) {
+      const file = await mettreEnFileImport(c.id, lignes, `synthese:${date}`)
+      return res.json({
+        compte: c.email, importes: 0, doublons, inconnus, aCompleter, completionEnCours: 0, fournisseurs: [],
+        enFile: file.ajoutes, dejaEnFile: file.dejaEnFile, mode: file.mode,
+        message: `${file.ajoutes} produit(s) envoyé(s) à ${voie(file.mode)}${file.dejaEnFile ? ` (${file.dejaEnFile} déjà en file)` : ''} : chaque produit est cherché par son nom puis relevé avec ses photos et sa description. Aucune annonce n'est créée avant.${sansLien ? ` ${sansLien} produit(s) sans lien AliExpress dans la synthèse, non envoyé(s).` : ''}${aReprendre.length ? ` Les ${aReprendre.length} annonce(s) vides créées avant le 13/11 peuvent être supprimées une fois les fiches arrivées.` : ''}`,
+      })
     }
     // No listing is created before it is complete (Max, 13/11: « ni photo, ni description, ni rien »).
     const taches: Tache[] = [...aReprendre, ...aCreer.map(({ produit }) => ({ produit }))]
@@ -547,7 +569,7 @@ adminRouter.post('/syntheses/:date/importer-compte', async (req: Request, res) =
       aCompleter,
       completionEnCours: completion ? completion.total : 0,
       fournisseurs: nomsFournisseurs,
-      message,
+      message: message ?? '',
     })
   } catch (err) {
     console.error('import des gagnants de synthèse', err)
