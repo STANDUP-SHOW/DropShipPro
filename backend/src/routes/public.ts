@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { mentionsDes, origineAffichee } from '../services/avisAcheteurs.js'
 import { imagesPourExport } from '../services/exportImages.js'
 import archiver from 'archiver'
 import path from 'path'
@@ -271,6 +272,7 @@ async function avisPublies(ids: string[]) {
     where: { productId: { in: ids }, published: true },
     orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
   })
+  const mentions = await mentionsDes(lignes.map((l) => l.userId))
   for (const a of lignes) {
     const e = parProduit.get(a.productId) ?? { ...vide(), somme: 0 }
     e.count++
@@ -282,7 +284,7 @@ async function avisPublies(ids: string[]) {
         text: a.text,
         photos: Array.isArray(a.photos) ? a.photos : [],
         date: a.reviewedAt,
-        origine: a.sourceSite,
+        origine: origineAffichee(a, mentions.get(a.userId)),
       })
     }
     e.average = Math.round((e.somme / e.count) * 10) / 10

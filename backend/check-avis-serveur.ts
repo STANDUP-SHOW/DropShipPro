@@ -3,7 +3,7 @@
  * page DÉCLARE en JSON-LD — et rien d'autre. Sans base : lecture pure.
  */
 import { avisJsonLd } from './src/services/scraper.js'
-import { normaliser } from './src/services/avisAcheteurs.js'
+import { normaliser, origineAffichee, ORIGINE_GENERIQUE } from './src/services/avisAcheteurs.js'
 
 let echecs = 0
 function exige(c: boolean, nom: string, detail = '') {
@@ -26,6 +26,14 @@ exige(propres[0]?.stars === 5 && propres[0]?.author === 'Inès', '4,6 sur 5 → 
 exige(propres[1]?.stars === 4, '8 sur 10 ramené à 4 sur 5', `lu ${propres[1]?.stars}`)
 exige(avisJsonLd({ review: { author: 'Seul', reviewRating: { ratingValue: 3 }, reviewBody: 'Un seul avis, pas une liste.' } }).length === 1, 'un avis unique (objet) est lu')
 exige(avisJsonLd(null).length === 0 && avisJsonLd({}).length === 0, 'pas de produit, pas d’avis')
+
+// La mention sous un avis du fournisseur : jamais absente, le site seulement si le vendeur le choisit.
+const ali = { source: 'extension', sourceSite: 'aliexpress.com' }
+exige(origineAffichee(ali, 'generique') === ORIGINE_GENERIQUE && origineAffichee(ali, undefined) === ORIGINE_GENERIQUE, 'par défaut : mention générique, sans nommer le fournisseur')
+exige(origineAffichee(ali, 'site') === 'aliexpress.com', 'au choix : le nom du site')
+exige(origineAffichee(ali, 'aucune') === ORIGINE_GENERIQUE, 'une valeur inconnue ne retire pas la mention')
+exige(origineAffichee({ source: 'market', sourceSite: 'drop-shop.cloud' }, 'generique') === 'drop-shop.cloud', 'un achat vérifié sur DropShop Market garde sa mention')
+exige(origineAffichee({ source: 'csv', sourceSite: null }, 'site') === null, 'un fichier du vendeur reste « transmis par le vendeur »')
 
 if (echecs) {
   console.error(`\n${echecs} attente(s) manquée(s).`)

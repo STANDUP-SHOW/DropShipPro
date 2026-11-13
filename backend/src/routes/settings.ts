@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { MENTIONS_AVIS } from '../services/avisAcheteurs.js'
 import { selfCheck } from '../services/selfCheck.js'
 import { z } from 'zod'
 import multer from 'multer'
@@ -89,6 +90,24 @@ settingsRouter.patch('/profile', async (req: AuthedRequest, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Champs invalides' })
   const user = await prisma.user.update({ where: { id: req.userId! }, data: parsed.data })
   res.json({ id: user.id, email: user.email, controlAgent: user.controlAgent, shopName: user.shopName, watermarkText: user.watermarkText, watermarkEnabled: user.watermarkEnabled, watermarkImage: user.watermarkImage, watermarkScale: user.watermarkScale, watermarkOpacity: user.watermarkOpacity, watermarkPosition: user.watermarkPosition, watermarkMode: user.watermarkMode, shopKey: user.shopKey })
+})
+
+/**
+ * La mention sous les avis relevés chez le fournisseur, sur les boutiques.
+ * 'generique' par défaut ; 'site' nomme le site (aliexpress.com…). Pas de
+ * troisième valeur : un avis du fournisseur sans mention passerait pour un avis
+ * des clients de la boutique (voir origineAffichee).
+ */
+settingsRouter.get('/avis-mention', async (req: AuthedRequest, res) => {
+  const u = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! }, select: { avisFournisseurMention: true } })
+  res.json({ mention: u.avisFournisseurMention })
+})
+
+settingsRouter.put('/avis-mention', async (req: AuthedRequest, res) => {
+  const parsed = z.object({ mention: z.enum(MENTIONS_AVIS) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Mention inconnue' })
+  await prisma.user.update({ where: { id: req.userId! }, data: { avisFournisseurMention: parsed.data.mention } })
+  res.json({ mention: parsed.data.mention })
 })
 
 // JPEG is accepted now that a flat light background is cleared on upload: most

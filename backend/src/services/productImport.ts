@@ -386,9 +386,7 @@ export async function importerAdresse(
     try {
       const propres = avisBruts.map(normaliser).filter((a): a is AvisPropre => !('refus' in a))
       const depot = await enregistrerAvis(produit, propres, { source: 'extension', sourceSite: scraped.sourceSite })
-      // Publiés d'office (published = true) avec la mention de leur origine : le dire tel quel.
-      if (depot.ajoutes)
-        notes.push(`${depot.ajoutes} avis d'acheteurs relevés sur ${scraped.sourceSite}, affichés avec la mention « Avis recueilli sur ${scraped.sourceSite} » — masquables un par un depuis l'annonce.`)
+      if (depot.ajoutes) notes.push(`${depot.ajoutes} avis d'acheteurs importés avec l'annonce.`)
     } catch (err) {
       console.error('[avis] relevé non enregistré', err)
     }

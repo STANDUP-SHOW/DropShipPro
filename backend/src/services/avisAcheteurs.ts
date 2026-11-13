@@ -266,3 +266,30 @@ export function synthese(notes: number[]): SyntheseAvis {
     repartition,
   }
 }
+
+/**
+ * Ce que la boutique écrit après « Avis recueilli sur … » (13/11/2026).
+ *
+ * Un avis relevé chez le fournisseur ne vient pas des clients de la boutique :
+ * le présenter comme tel est une pratique commerciale trompeuse (et le garde-fou
+ * « rien de mensonger » du projet). Le vendeur choisit seulement la forme :
+ * le nom du site, ou par défaut une mention vraie qui ne nomme pas le fournisseur.
+ * Les avis de DropShop Market (achat vérifié), d'un fichier ou d'une saisie
+ * gardent leur origine telle quelle.
+ */
+export const MENTIONS_AVIS = ['generique', 'site'] as const
+export type MentionAvis = (typeof MENTIONS_AVIS)[number]
+export const ORIGINE_GENERIQUE = 'le site du fournisseur du produit, non vérifié par la boutique'
+
+export function origineAffichee(avis: { source: string; sourceSite: string | null }, mention: string | null | undefined): string | null {
+  if (!avis.sourceSite || avis.source === 'market') return avis.sourceSite
+  return mention === 'site' ? avis.sourceSite : ORIGINE_GENERIQUE
+}
+
+/** La mention choisie par chaque vendeur, en une requête. */
+export async function mentionsDes(userIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(userIds)]
+  if (!ids.length) return new Map()
+  const lignes = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, avisFournisseurMention: true } })
+  return new Map(lignes.map((l) => [l.id, l.avisFournisseurMention]))
+}
