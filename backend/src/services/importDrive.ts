@@ -446,6 +446,49 @@ async function lireDossier(racine: string, dateVoulue?: (date: string) => boolea
   })
 }
 
+/** Same files as the study already imported (the Drive copy was not rewritten since). */
+function memeSource(a: EtudeImportee, b: { texteRayon?: string; texteMarketing?: string | null; json?: unknown }): boolean {
+  if (a.texteRayon !== undefined || b.texteRayon !== undefined) return a.texteRayon === b.texteRayon && (a.texteMarketing ?? null) === (b.texteMarketing ?? null)
+  return JSON.stringify(a.json) === JSON.stringify(b.json)
+}
+
+/**
+ * Days already imported whose Drive files were rewritten afterwards (13/11: the reports redone at
+ * 17h17 with the right URLs). Only the most recent days are opened, file by file, against the copy
+ * the site keeps; a changed shelf or synthesis is offered again.
+ */
+async function reecritsDepuisImport(dates: DateTrouvee[], combien = 2): Promise<Set<string>> {
+  const surcouche = new Map(lireSurcouche().map((e) => [e.idRayon, e]))
+  const changes = new Set<string>()
+  const recents = [...dates].sort((a, b) => b.date.localeCompare(a.date)).slice(0, combien)
+  const taches: Array<() => Promise<void>> = []
+  for (const d of recents) {
+    for (const e of d.etudes) {
+      const ancienne = surcouche.get(idRayonIndice(e))
+      if (!ancienne) continue
+      taches.push(async () => {
+        if (e.rayon && ancienne.texteRayon !== undefined) {
+          const texteRayon = await telecharger(e.rayon.id)
+          const texteMarketing = e.marketing ? await telecharger(e.marketing.id) : null
+          if (!memeSource(ancienne, { texteRayon, texteMarketing })) changes.add(idRayonIndice(e))
+        } else if (e.json && ancienne.json !== undefined) {
+          const json = jsonTolerant(await telecharger(e.json.id))
+          if (json !== undefined && !memeSource(ancienne, { json })) changes.add(idRayonIndice(e))
+        }
+      })
+    }
+    if (lireSynthese(d.date) && (d.syntheses.json || d.syntheses.opportunites)) {
+      taches.push(async () => {
+        const b = await importerSyntheseDuJour(d, '', true)
+        if (b && b.statut === 'apercu') changes.add(`synthese-${d.date}`)
+      })
+    }
+  }
+  // A few at a time: Drive answers slowly when asked too much at once.
+  for (let i = 0; i < taches.length; i += 8) await Promise.all(taches.slice(i, i + 8).map((t) => t().catch(() => undefined)))
+  return changes
+}
+
 /**
  * The folder as the site sees it. Max (13/11): a reread shows only what is new, to tick and import;
  * days whose shelves and synthesis are all on the site are left out (`tout` shows them again).
@@ -464,6 +507,7 @@ export async function listerDossierDrive(adresse: string, tout = false) {
     if (b) relues.push(b)
   }
   if (relues.length) noterImports(relues)
+  const reecrits = await reecritsDepuisImport(dates)
   const toutes = dates.map((d) => ({
     date: d.date,
     etudes: [
@@ -473,7 +517,9 @@ export async function listerDossierDrive(adresse: string, tout = false) {
         fichiers: [e.rayon, e.marketing, e.json].filter(Boolean).map((f) => f!.nom),
         doublons: e.doublons.map((f) => f.nom),
         importable: !!e.rayon || !!e.json,
-        dejaEnBase: enBase.has(idRayonIndice(e)),
+        dejaEnBase: enBase.has(idRayonIndice(e)) && !reecrits.has(idRayonIndice(e)),
+        /** Already on the site, but its Drive file was rewritten since: importing replaces it. */
+        reecrit: reecrits.has(idRayonIndice(e)),
       })),
       ...(Object.keys(d.syntheses).length
         ? [
@@ -482,7 +528,8 @@ export async function listerDossierDrive(adresse: string, tout = false) {
               fichiers: Object.values(d.syntheses).map((f) => f!.nom),
               doublons: [] as string[],
               importable: !!(d.syntheses.json || d.syntheses.opportunites),
-              dejaEnBase: !!lireSynthese(d.date),
+              dejaEnBase: !!lireSynthese(d.date) && !reecrits.has(`synthese-${d.date}`),
+              reecrit: reecrits.has(`synthese-${d.date}`),
             },
           ]
         : []),
@@ -702,11 +749,17 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
           } catch {
             avant = null
           }
-          if (avant?.ok && completude(avant) >= completude(e)) {
-            lignes.push(ligne('doublon', [`déjà importé, aussi complet ou plus (${avant.produits} produits, ${avant.urlsDistinctes} adresses) : rien n'est changé`, ...notes]))
+          // 13/11: a report rewritten the same day (URLs corrected) replaces the one on the site when it is
+          // as complete; identical content, or a poorer rewrite, changes nothing.
+          if (ancienne && memeSource(ancienne, c.source)) {
+            lignes.push(ligne('doublon', ["déjà importé, identique : rien n'est changé", ...notes]))
             continue
           }
-          notes.unshift(avant?.ok ? `remplace la version déjà en ligne, moins complète (${avant.produits} produits, ${avant.urlsDistinctes} adresses)` : 'remplace la version déjà en ligne')
+          if (avant?.ok && completude(avant) > completude(e)) {
+            lignes.push(ligne('doublon', [`déjà importé, plus complet (${avant.produits} produits, ${avant.urlsDistinctes} adresses) : rien n'est changé`, ...notes]))
+            continue
+          }
+          notes.unshift(avant?.ok ? `remplace la version déjà en ligne (${avant.produits} produits, ${avant.urlsDistinctes} adresses) par la version réécrite` : 'remplace la version déjà en ligne')
         }
         // Another theme of the same shelf the same day: shown, the shelf may well be studied twice.
         const autres = [...enBase.entries(), ...[...retenues.values()].map((r) => [r.c.etude.idRayon, r.c.etude] as const)]
