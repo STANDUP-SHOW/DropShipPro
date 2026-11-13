@@ -110,8 +110,11 @@ function creerServeur() {
             return json(200, c.essai ? { compte: c.email, essai: true, aImporter: n, doublons: 0, inconnus: c.ids.length - n } : { compte: c.email, importes: n, doublons: 0, inconnus: c.ids.length - n })
           }
           if (req.url === '/api/admin/analyses-drive/lister' && req.method === 'POST') {
-            const { adresse } = JSON.parse(corps || '{}')
+            const { adresse, tout } = JSON.parse(corps || '{}')
             if (!/drive\.google\.com/.test(adresse || '')) return json(422, { error: 'Adresse de dossier Google Drive non reconnue.' })
+            etat.listesDrive = (etat.listesDrive || []).concat([{ adresse, tout: tout === true }])
+            // #193: a folder with nothing new answers no date, and how many were hidden
+            if (/rien-de-neuf/.test(adresse) && tout !== true) return json(200, { dossier: 'MARKET-ANALYSES', dates: [], datesDejaImportees: 3, synthesesRelues: [] })
             return json(200, { dossier: 'MARKET-ANALYSES', dates: [{ date: '2026-10-08', etudes: [{ categorie: 'jardin', theme: 'arrosage', fichiers: ['arrosage.rayon.md'], doublons: [], importable: true, dejaEnBase: false }], ignores: [] }, { date: '2026-10-12', etudes: [{ categorie: 'mode', theme: 'sacs', fichiers: ['sacs.marketing.md'], doublons: [], importable: false, dejaEnBase: false }], ignores: [{ nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] }] })
           }
           if (req.url === '/api/admin/analyses-drive/importer' && req.method === 'POST') {

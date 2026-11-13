@@ -166,6 +166,17 @@ async function lancer({ maison, profil, port, serveur }) {
     const liste = (await a.appel('adminDriveLister', { adresse: 'https://drive.google.com/drive/folders/abc' })).valeur
     assert.equal(liste.dates[0].date, '2026-10-08')
     assert.ok(!(await a.appel('adminDriveLister', { adresse: 'https://exemple.test/x' })).ok, 'une adresse hors Drive est refusée en clair')
+    // #193: nothing new = « Rien de nouveau », and « Tout afficher » asks the whole folder
+    const neuf = 'https://drive.google.com/drive/folders/rien-de-neuf'
+    await a.evaluer(`(async () => { await driveListerUn('${neuf}'); const t = document.createElement('div'); t.id = 'banc-neuf'; t.append(vueDossierDrive('${neuf}')); document.body.append(t) })()`)
+    await pause(200)
+    assert.match(await a.evaluer(`document.getElementById('banc-neuf').textContent`), /Rien de nouveau : 3 jour\(s\) déjà importé\(s\)/)
+    assert.ok(await a.evaluer(`[...document.querySelectorAll('#banc-neuf button')].some((b) => b.textContent === 'Tout afficher')`), 'bouton « Tout afficher » présent')
+    await a.evaluer(`(async () => { document.getElementById('banc-neuf').remove(); await driveLister(['${neuf}'], true) })()`)
+    await pause(400)
+    assert.deepEqual(faux.listesDrive.filter((x) => x.adresse === neuf).map((x) => x.tout), [false, true])
+    assert.equal(JSON.parse(await a.evaluer(`JSON.stringify(drive.listes['${neuf}'].dates.length)`)), 2, 'Tout afficher relit le dossier complet')
+    await a.evaluer(`rendre()`)
     assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'], essai: true })).valeur.aImporter, 1)
     assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'] })).valeur.importees, 1)
     assert.deepEqual(faux.importsDrive.map((x) => x.essai), [true, false])

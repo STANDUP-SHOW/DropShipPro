@@ -578,8 +578,9 @@ function garderDossiersDrive() {
   try { localStorage.setItem(CLE_DOSSIERS_DRIVE, JSON.stringify(drive.dossiers)) } catch { /* kept for this session only */ }
 }
 
-async function driveListerUn(adresse) {
-  const l = await appel('adminDriveLister', { adresse })
+// Since #193 the site only lists what is still to import; tout = true asks for the whole folder.
+async function driveListerUn(adresse, tout = false) {
+  const l = await appel('adminDriveLister', { adresse, tout })
   if (!l) return false
   drive.listes[adresse] = l
   // Preselect the dates that hold something new.
@@ -587,12 +588,12 @@ async function driveListerUn(adresse) {
   return true
 }
 
-async function driveLister(adresses = drive.dossiers) {
+async function driveLister(adresses = drive.dossiers, tout = false) {
   drive.enCours = 'liste'; drive.rapports = []
   let erreurs = 0
   for (const [i, a] of adresses.entries()) {
     flash(`Lecture du dossier ${i + 1} sur ${adresses.length} sur Google Drive (par le site)…`)
-    if (!(await driveListerUn(a))) erreurs++
+    if (!(await driveListerUn(a, tout))) erreurs++
   }
   drive.enCours = null
   if (!erreurs) flash('')
@@ -649,7 +650,9 @@ function vueDossierDrive(adresse) {
       h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveRetirer(adresse) }, 'Retirer'),
     ),
     !l ? h('p', { class: 'doux petit' }, 'Pas encore lu.') : h('div', {},
-      l.dates.length === 0 && h('p', { class: 'doux' }, 'Aucun rapport daté dans ce dossier ni dans ses sous-dossiers.'),
+      l.dates.length === 0 && h('p', { class: 'doux' }, l.datesDejaImportees > 0 ? `Rien de nouveau : ${l.datesDejaImportees} jour(s) déjà importé(s).` : 'Aucun rapport daté dans ce dossier ni dans ses sous-dossiers.'),
+      l.dates.length > 0 && l.datesDejaImportees > 0 && h('p', { class: 'doux petit' }, `${l.datesDejaImportees} jour(s) déjà importé(s) masqué(s).`),
+      l.datesDejaImportees > 0 && h('div', { class: 'ligne' }, h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveLister([adresse], true).then(rendre) }, 'Tout afficher')),
       l.dates.map((d) => {
         const importables = d.etudes.filter((x) => x.importable)
         const nouvelles = importables.filter((x) => !x.dejaEnBase)
