@@ -1093,7 +1093,7 @@ function brancher() {
   h('admin-synthese-importer', ({ date, email, ids, essai }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/syntheses/${encodeURIComponent(date)}/importer-compte`, corps: { email, ids, essai: essai === true } }))
   // « Connecter avec Google »: sign-in in Max's own browser, only the account's e-mail comes back (lib/connexionCompte.js)
   h('compte-connecter', () => connexionCompte.attendre())
-  h('admin-drive-lister', ({ adresse }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: { adresse } }))
+  h('admin-drive-lister', ({ adresse, tout }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: tout === true ? { adresse, tout: true } : { adresse } }))
   h('admin-drive-importer', async ({ adresse, dates, essai }) => {
     const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true } })
     if (!essai) {
