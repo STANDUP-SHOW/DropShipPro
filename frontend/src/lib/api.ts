@@ -703,6 +703,10 @@ export const api = {
     request<DepotAvis>(`/products/${productId}/avis`, { method: 'POST', body: JSON.stringify(avis) }),
   avisPublier: (productId: string, avisId: string, published: boolean) =>
     request<{ ok: true }>(`/products/${productId}/avis/${avisId}`, { method: 'PATCH', body: JSON.stringify({ published }) }),
+  /** La mention sous les avis relevés chez le fournisseur, sur les boutiques : générique (défaut) ou nom du site. */
+  avisMention: () => request<{ mention: 'generique' | 'site' }>('/settings/avis-mention'),
+  avisMentionChoisir: (mention: 'generique' | 'site') =>
+    request<{ mention: 'generique' | 'site' }>('/settings/avis-mention', { method: 'PUT', body: JSON.stringify({ mention }) }),
   /** `avisId` vaut « tous » pour repartir d'un fichier corrigé. */
   avisRetirer: (productId: string, avisId: string) =>
     request<{ retires: number }>(`/products/${productId}/avis/${avisId}`, { method: 'DELETE' }),

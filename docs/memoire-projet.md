@@ -931,6 +931,13 @@ Trois conséquences, toutes appliquées :
   `check-avis.ts` et `check-avis-extension.cjs` (structure réelle recopiée).
   Vérifié sur Amazon seulement : Temu et AliExpress obfusquent leurs classes, le
   relevé par nom de bloc n'y trouvera peut-être rien — le CSV est là pour ça.
+  **13/11/2026** : AliExpress ne relevait aucun avis (avis chargés à part, étoiles
+  en icônes). Extension 1.41.0 / desktop 0.5.2 : feedback.aliexpress.com (1re
+  page) + icônes pleines comptées ; l'import par adresse garde le JSON-LD
+  `review`. Mention sous un avis fournisseur = `User.avisFournisseurMention`
+  ('generique' par défaut : « le site du fournisseur du produit, non vérifié par
+  la boutique », ou 'site') via `origineAffichee` ; max voulait « sans mention »,
+  refusé (trompeur), aucune troisième valeur. Non constaté sur vrai AliExpress.
 
 - **Une page écrite une fois ne peut pas apprendre un logo déposé après (19/09/2026).**
   Le marchand téléverse le logo d'en-tête de sa boutique DropShop : le fichier

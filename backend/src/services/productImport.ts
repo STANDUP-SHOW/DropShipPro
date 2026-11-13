@@ -374,12 +374,19 @@ export async function importerAdresse(
     },
   })
 
-  // Les avis relevés sur la fiche suivent l'annonce. Un échec ici ne défait pas l'import.
-  if (options.capture?.avis?.length) {
+  /*
+   * Les avis relevés sur la fiche suivent l'annonce. Un échec ici ne défait pas l'import.
+   *
+   * Ceux de l'extension ou du desktop (la page dessinée), sinon ceux que la page
+   * déclare en JSON-LD quand le serveur l'a lue lui-même (13/11/2026 : l'import
+   * par adresse n'en gardait aucun, même déclarés).
+   */
+  const avisBruts: AvisBrut[] = options.capture ? (options.capture.avis ?? []) : ((scraped as { reviews?: AvisBrut[] }).reviews ?? [])
+  if (avisBruts.length) {
     try {
-      const propres = options.capture.avis.map(normaliser).filter((a): a is AvisPropre => !('refus' in a))
+      const propres = avisBruts.map(normaliser).filter((a): a is AvisPropre => !('refus' in a))
       const depot = await enregistrerAvis(produit, propres, { source: 'extension', sourceSite: scraped.sourceSite })
-      if (depot.ajoutes) notes.push(`${depot.ajoutes} avis d'acheteurs relevés sur la fiche — à relire avant de les afficher.`)
+      if (depot.ajoutes) notes.push(`${depot.ajoutes} avis d'acheteurs importés avec l'annonce.`)
     } catch (err) {
       console.error('[avis] relevé non enregistré', err)
     }

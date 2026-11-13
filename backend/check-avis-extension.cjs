@@ -104,6 +104,47 @@ console.log('\nCe que la page déclare : JSON-LD et microdonnées')
   verifier('un avis en microdonnées', avis.length === 1 && avis[0].stars === 4 && avis[0].author === 'Léa', JSON.stringify(avis[0] || null))
 }
 
+console.log('\nAliExpress : étoiles en icônes, avis servis à part (13/11/2026)')
+{
+  // Structure d'un avis de fiche AliExpress : classes « list--itemReview--… »,
+  // une icône comet par étoile, pleine ou vide, et aucun texte de note.
+  const etoiles = (n) => [1, 2, 3, 4, 5].map((i) => `<span class="comet-icon comet-icon-${i <= n ? 'starreviewfilled' : 'starreview'}"><svg></svg></span>`).join('')
+  const avisAli = (nom, note, corps) => `
+    <div class="list--itemBox--abc12">
+      <div class="list--itemHead--x1"><div class="stars--box--def34">${etoiles(note)}</div><span class="list--itemSku--x2">Couleur : Noir</span></div>
+      <div class="list--itemReview--ghi56">${corps}</div>
+      <div class="list--itemInfo--x3"><span>${nom}</span> | <span>12 oct. 2026</span></div>
+    </div>`
+  const w = monter(`<div class="reviews--wrap--zz">
+    <div class="header--summary--x"><span>4.7</span>${etoiles(5)}<span>1 204 avis</span></div>
+    ${avisAli('M***e', 5, 'Reçu en dix jours, conforme à la photo et bien emballé.')}
+    ${avisAli('J***n', 3, 'Fonctionne mais la batterie tient moins que prévu.')}
+  </div>`)
+  const avis = w.__dspReleverAvis()
+  verifier('deux avis lus par leurs icônes pleines', avis.length === 2 && avis.map((a) => a.stars).join() === '5,3', JSON.stringify(avis.map((a) => [a.stars, a.text.slice(0, 20)])))
+  verifier('ni le résumé (moyenne + compteur) ni la liste ne sont un avis', !avis.some((a) => /1 204|4\.7/.test(a.text)))
+
+  const servis = w.__dspAvisFeedbackAliExpress({
+    data: {
+      evaViewList: [
+        { buyerName: 'L***a', buyerEval: 100, buyerFeedback: 'Very good', buyerTranslationFeedback: 'Très bien, conforme.', evalDate: '02 oct. 2026', images: ['//ae01.alicdn.com/kf/S1.jpg'] },
+        { buyerName: 'P***l', buyerEval: 60, buyerFeedback: 'Correct sans plus pour ce prix.' },
+        { buyerName: 'X***x', buyerEval: 'n/a', buyerFeedback: 'Note illisible : écarté.' },
+      ],
+    },
+  })
+  verifier('note sur 100 ramenée sur 5', servis[0].stars === 5 && servis[1].stars === 3)
+  verifier('le texte affiché par AliExpress, la photo en https', servis[0].text === 'Très bien, conforme.' && servis[0].photos[0] === 'https://ae01.alicdn.com/kf/S1.jpg')
+  verifier('une note illisible ne vaut pas 5', servis[2].stars === null)
+  const fusion = w.__dspReleverAvis(servis)
+  verifier(
+    'les avis servis passent en tête, par le même tri (illisible écarté), puis ceux de la page',
+    fusion.length === 4 && fusion[0].author === 'L***a' && !fusion.some((a) => /illisible/.test(a.text)),
+    `relevés : ${fusion.length}`,
+  )
+  verifier('une réponse inattendue ne rend rien', w.__dspAvisFeedbackAliExpress({ data: null }).length === 0 && w.__dspAvisFeedbackAliExpress(null).length === 0)
+}
+
 console.log('\nUne page sans avis ni code-barres ne rend rien')
 {
   const w = monter('<h1>Un produit</h1><p class="description">Une description qui parle de review dans son texte, sans note.</p><div class="comment-form"><label>Votre commentaire</label><textarea></textarea></div>')

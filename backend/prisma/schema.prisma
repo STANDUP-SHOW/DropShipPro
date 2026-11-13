@@ -148,6 +148,11 @@ model User {
   /// débite ce champ ; une recharge le crédite. Il compte des drops, plus des
   /// « crédits annonce ». 120 offerts à l'inscription. La publication est gratuite.
   credits              Int     @default(120)
+  /// La mention sous les avis relevés chez le fournisseur, sur les boutiques
+  /// (13/11/2026) : 'generique' (par défaut, sans nommer le site) ou 'site'
+  /// (« Avis recueilli sur aliexpress.com »). Jamais aucune : un avis venu
+  /// d'ailleurs présenté comme un avis de la boutique est trompeur.
+  avisFournisseurMention String @default("generique")
   /// Préférences de notification de l'application mobile (API Link, 29/09/2026).
   /// Nul = les valeurs par défaut du contrat (voir routes/mobile.ts).
   mobilePrefs          Json?
