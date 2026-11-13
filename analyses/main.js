@@ -1090,6 +1090,8 @@ function brancher() {
   h('admin-syntheses', () => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/syntheses' }))
   h('admin-synthese', ({ date }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/syntheses/${encodeURIComponent(date)}` }))
   h('admin-synthese-compte', ({ email }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/syntheses-compte', corps: { email } }))
+  // #195: the listings are completed in the background from the account's supplier APIs; this reads the progress
+  h('admin-synthese-completion', ({ email }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/syntheses-completion?email=${encodeURIComponent(email)}` }))
   h('admin-synthese-importer', ({ date, email, ids, essai }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: `/syntheses/${encodeURIComponent(date)}/importer-compte`, corps: { email, ids, essai: essai === true } }))
   // « Connecter avec Google »: sign-in in Max's own browser, only the account's e-mail comes back (lib/connexionCompte.js)
   h('compte-connecter', () => connexionCompte.attendre())
