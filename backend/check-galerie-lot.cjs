@@ -33,8 +33,9 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   url: 'https://www.temu.com/fr/chaussures.html',
 })
 const w = dom.window
+const ecouteurs = []
 w.chrome = {
-  runtime: { onMessage: { addListener() {} }, sendMessage() {}, getURL: (p) => p, id: 'test' },
+  runtime: { onMessage: { addListener: (f) => ecouteurs.push(f) }, sendMessage() {}, getURL: (p) => p, id: 'test' },
   storage: { local: { get: async () => ({}), set: async () => {}, remove: async () => {} } },
 }
 w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} })
@@ -112,10 +113,45 @@ if (typeof galerie === 'function') {
   verifier('AliExpress : les 1000×1000 restent, le parasite 640 sort', gardeAli.length === 4 && !gardeAli.includes('parasite.jpg'))
 }
 
-console.log('')
-if (echecs) {
-  console.log(`${echecs} attente(s) non tenue(s).`)
-  process.exitCode = 1
-} else {
-  console.log('Isolation de galerie en lot : tout passe.')
+const parFormat = w.__dspGalerieParFormat
+verifier('galerieParFormat exposé', typeof parFormat === 'function')
+if (typeof parFormat === 'function') {
+  console.log('\nAdaptateur muet sur une fiche : le format tranche (13/11/2026)')
+  const img = (url, width, height) => ({ url, width, height })
+  const fiche = [
+    img('g1.jpg', 800, 800), img('g2.jpg', 800, 800), img('g3.jpg', 800, 800), img('g4.jpg', 800, 800),
+    img('reco.jpg', 450, 450), img('banniere.jpg', 1600, 500),
+  ]
+  const g = parFormat(fiche).map((i) => i.url)
+  verifier('la galerie 800×800 est retenue sans l\'adaptateur', g.length === 4 && g.every((u) => /^g\d/.test(u)))
+  const flou = [img('a.jpg', 800, 800), img('b.jpg', 900, 900), img('c.jpg', 1000, 1000), img('d.jpg', 640, 640), img('e.jpg', 800, 800)]
+  verifier('aucun format franc : rien (le lot refuse plutôt que deviner)', parFormat(flou).length === 0)
 }
+
+;(async () => {
+  console.log('\nUne page Temu qui n\'est pas une fiche : refus nommé, avant tout relevé')
+  const reponse = await new Promise((resolve) => {
+    let rendu = false
+    for (const f of ecouteurs) {
+      const r = f({ type: 'dsp-relever-pour-lot' }, {}, (x) => {
+        rendu = true
+        resolve(x)
+      })
+      if (r === true) break
+    }
+    setTimeout(() => !rendu && resolve(null), 3000)
+  })
+  verifier(
+    'le motif dit que ce n\'est pas une fiche produit',
+    reponse && reponse.ok === false && /n'ouvre pas une fiche produit Temu/.test(reponse.error),
+    reponse ? reponse.error : 'pas de réponse',
+  )
+
+  console.log('')
+  if (echecs) {
+    console.log(`${echecs} attente(s) non tenue(s).`)
+    process.exitCode = 1
+  } else {
+    console.log('Isolation de galerie en lot : tout passe.')
+  }
+})()

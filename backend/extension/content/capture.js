@@ -1959,7 +1959,47 @@
   }
   self.__dspGalerieDominante = galerieDominante
 
+  /**
+   * La galerie par son format, ou rien : la version stricte de `galerieDominante`.
+   *
+   * Sert quand l'adaptateur du site n'a pas reconnu assez de photos (AliExpress
+   * et Temu changent leur page sans prévenir). Au moins trois grandes images du
+   * même format sur une FICHE, c'est la galerie : le panier et les
+   * recommandations sont à d'autres tailles. Pas de format franc : `[]`, et le
+   * lot refuse plutôt que d'importer des photos au hasard.
+   */
+  function galerieParFormat(images) {
+    const grandes = images.filter((i) => Math.min(i.width || 0, i.height || 0) >= MIN_SIDE)
+    const compte = new Map()
+    for (const i of grandes) {
+      const cle = `${i.width}x${i.height}`
+      compte.set(cle, (compte.get(cle) || 0) + 1)
+    }
+    const dominant = [...compte.entries()].sort((a, b) => b[1] - a[1])[0]
+    if (!dominant || dominant[1] < 3) return []
+    return grandes.filter((i) => `${i.width}x${i.height}` === dominant[0])
+  }
+  self.__dspGalerieParFormat = galerieParFormat
+
   async function releverPourLot() {
+    /*
+     * Une fiche, ou rien (13/11/2026 : 50 refus sur 57 dans la file de max).
+     *
+     * Les liens des rapports mènent souvent à une page de RECHERCHE ou de
+     * CATÉGORIE (AliExpress /w/wholesale-…, inbusiness.aliexpress.com/category/…)
+     * ou à une adresse qui n'existe pas. Sur une telle page l'adaptateur ne
+     * reconnaît aucune galerie, et le refus disait « photos pas reconnues avec
+     * certitude » : vrai, mais il cachait la cause. On la dit, avant tout
+     * défilement.
+     */
+    const adapterPage = typeof dspAdapterFor === 'function' ? dspAdapterFor() : null
+    if (adapterPage?.ficheStricte && adapterPage.productUrl && !adapterPage.productUrl.test(location.href)) {
+      throw new Error(
+        `Ce lien n'ouvre pas une fiche produit ${adapterPage.label} (page de recherche, de catégorie ou introuvable) : ` +
+          'il n’y a pas de photos de ce produit à importer.',
+      )
+    }
+
     /*
      * Les photos AVANT le reste, et c'est l'ordre qui compte.
      *
@@ -1976,8 +2016,25 @@
      */
     const trouve = await collectImages()
 
-    const payload = await buildPayload()
+    let payload = await buildPayload()
     if (!payload.title) throw new Error('Produit non reconnu sur cette page')
+
+    /*
+     * Un texte maigre : la fiche n'a pas fini de se monter (13/11/2026, cinq
+     * annonces sur sept sorties sans réécriture). AliExpress et Temu chargent
+     * description et caractéristiques au défilement, parfois après lui. Une
+     * seconde lecture, après un nouveau passage jusqu'en bas et une pause,
+     * plutôt qu'un import que le serveur refusera faute de matière.
+     */
+    if ((payload.pageText || '').length < 2500 && (payload.description || '').length < 200) {
+      for (const y of [0.5, 1]) {
+        window.scrollTo(0, document.body.scrollHeight * y)
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+      await new Promise((r) => setTimeout(r, 2000))
+      const relu = await buildPayload()
+      if ((relu.pageText || '').length > (payload.pageText || '').length) payload = relu
+    }
 
     const produits = Array.isArray(trouve) ? trouve : (trouve?.produits ?? [])
     const certaines = Array.isArray(trouve) ? [] : (trouve?.certaines ?? [])
@@ -2001,7 +2058,22 @@
      * étape, un lot de chaussures ressortait avec des tondeuses. `galerieDominante`
      * ne garde que le format le plus représenté, c'est-à-dire la galerie.
      */
-    const retenues = galerieDominante(base)
+    let retenues = galerieDominante(base)
+
+    /*
+     * L'adaptateur n'a pas reconnu assez de photos : le format de la galerie
+     * tranche à sa place (13/11/2026). C'était un refus systématique — « 0 sûre(s)
+     * sur 5 », import manuel exigé — alors que la galerie d'une fiche se
+     * reconnaît à son format, sans dépendre des noms de classes du jour.
+     */
+    let parFormat = false
+    if (adaptateur && certaines.length < 3) {
+      const galerie = galerieParFormat(produits)
+      if (galerie.length >= 3) {
+        retenues = galerie
+        parFormat = true
+      }
+    }
     payload.images = retenues.slice(0, PHOTOS_MAX).map((i) => i.url)
 
     /*
@@ -2018,7 +2090,7 @@
       )
     }
 
-    if (adaptateur && certaines.length < 3) {
+    if (adaptateur && certaines.length < 3 && !parFormat) {
       throw new Error(
         `Les photos de ce site ne sont pas reconnues avec certitude (${certaines.length} sûre(s) sur ` +
           `${produits.length} trouvée(s)) : elles risquent de ne pas être celles du produit. ` +

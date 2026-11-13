@@ -47,4 +47,44 @@ assert.equal(vide.url, null, 'aucun pertinent : rien de choisi')
 assert.equal(vide.vus, 3, 'trois fiches vues')
 n += 2
 
+// versRecherche (13/11/2026) : catégorie ou adresse sans fiche → recherche du nom chez le même fournisseur
+assert.equal(
+  R.versRecherche('https://inbusiness.aliexpress.com/category/fr/d%C3%A9coration-int%C3%A9rieure.html', 'Lampe LED de chevet'),
+  'https://fr.aliexpress.com/w/wholesale-lampe-led-chevet.html',
+  'catégorie AliExpress → recherche',
+)
+assert.equal(
+  R.versRecherche('https://www.temu.com/fr/produit/etagere-metallique-avec-tiroirs', 'Étagère métallique avec tiroirs'),
+  'https://www.temu.com/search_result.html?search_key=%C3%89tag%C3%A8re%20m%C3%A9tallique%20avec%20tiroirs',
+  'adresse Temu sans fiche → recherche',
+)
+ok(R.estRecherche(R.versRecherche('https://www.temu.com/fr/produit/x', 'Lampe de bureau')), 'la recherche Temu produite est reconnue')
+ok(R.estRecherche(R.versRecherche('https://fr.shein.com/Women-Dresses-c-1727.html', 'Robe longue fleurie')), 'la recherche Shein produite est reconnue')
+ok(R.versRecherche('https://fr.aliexpress.com/item/1005006123456789.html', 'Lampe') === null, 'fiche AliExpress gardée')
+ok(R.versRecherche('https://www.temu.com/lampe-g-601099512345678.html', 'Lampe') === null, 'fiche Temu gardée')
+ok(R.versRecherche('https://www.temu.com/goods.html?goods_id=601099512345678', 'Lampe') === null, 'fiche Temu goods.html gardée')
+ok(R.versRecherche('https://fr.aliexpress.com/w/wholesale-lampe.html', 'Lampe de chevet') === null, 'recherche gardée')
+ok(R.versRecherche('https://www.bigbuy.eu/fr/lampe.html', 'Lampe de chevet') === null, 'autre site : inchangé')
+ok(R.versRecherche('https://inbusiness.aliexpress.com/category/x.html', '') === null, 'sans nom : inchangé')
+
+// Même règle côté serveur (services/fileImport.ts) : les deux doivent rester d'accord.
+const { execFileSync } = require('node:child_process')
+const urls = [
+  ['https://inbusiness.aliexpress.com/category/fr/x.html', 'Lampe LED de chevet'],
+  ['https://www.temu.com/fr/produit/etagere-metallique-avec-tiroirs', 'Étagère métallique avec tiroirs'],
+  ['https://fr.shein.com/Women-Dresses-c-1727.html', 'Robe longue fleurie'],
+  ['https://fr.aliexpress.com/item/1005006123456789.html', 'Lampe'],
+  ['https://www.temu.com/goods.html?goods_id=601099512345678', 'Lampe'],
+  ['https://www.bigbuy.eu/fr/lampe.html', 'Lampe'],
+]
+const serveur = JSON.parse(
+  execFileSync('npx', ['tsx', '-e', `import('./src/services/fileImport.ts').then(m=>console.log(JSON.stringify(${JSON.stringify(urls)}.map(([u,t])=>m.versRecherche(u,t)))))`], {
+    cwd: __dirname,
+    encoding: 'utf8',
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL_BANC || 'postgresql://banc:banc@127.0.0.1:1/banc' },
+  }).trim().split('\n').pop(),
+)
+assert.deepEqual(serveur, urls.map(([u, t]) => R.versRecherche(u, t)), 'serveur et navigateurs donnent la même adresse')
+n++
+
 console.log(`check-recherche-gagnant : ${n} vérifications passées`)

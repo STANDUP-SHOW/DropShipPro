@@ -144,3 +144,33 @@ export function substanceSource(input: {
       'Rouvrez la fiche, faites-la défiler jusqu’en bas, puis relancez la réécriture depuis l’annonce.',
   }
 }
+
+/**
+ * A product title without the marketplace's own words (max, 13/11/2026: an
+ * import came out titled « VGGate Icar Pro 2 AliExpress Best Deal, Verified »).
+ *
+ * The browser reads `og:title` or the tab title, where AliExpress, Temu or
+ * Shein append their name and selling badges. Only those words go: the
+ * product's own words are never touched, and a title that would end up empty
+ * is kept as it was.
+ */
+const BRUIT_TITRE: RegExp[] = [
+  // « … - AliExpress 44 », « … | Temu France », « … – SHEIN FR »: the site's suffix after a separator.
+  /\s*[-|–—:]\s*(?:aliexpress|temu|shein|dhgate|banggood|alibaba(?:\.com)?)\b.*$/i,
+  /\b(?:sur\s+)?aliexpress(?:\.\w+)?(?:\s+\d+)?\b/gi,
+  /\b(?:temu|shein)(?:\s+(?:france|fr))?\b/gi,
+  /\b(?:best\s+deals?|verified|top\s+(?:deals?|sales?)|hot\s+sales?|big\s+sales?|free\s+shipping|livraison\s+gratuite|meilleures?\s+offres?)\b/gi,
+]
+
+export function titrePropre(titre: string): string {
+  const brut = String(titre ?? '').replace(/\s+/g, ' ').trim()
+  let t = brut
+  for (const rx of BRUIT_TITRE) t = t.replace(rx, ' ')
+  t = t
+    .replace(/\s+([,;.!])/g, '$1')
+    .replace(/([,;:|–—-]\s*){2,}/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s,;:|–—-]+|[\s,;:|–—-]+$/g, '')
+    .trim()
+  return t.length >= 3 ? t : brut
+}

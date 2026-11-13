@@ -5,6 +5,7 @@ import { DROPS } from './tarifs.js'
 import { importerAdresse } from './productImport.js'
 import { ORIGINE_AUTOSHIPPER, type ReleveNavigateur } from './autoShipperFile.js'
 import { pertinent } from './synthesesCompletion.js'
+import { substanceSource } from './sourceQuality.js'
 
 /**
  * La file d'import du site, relevée par le NAVIGATEUR INTERNE du desktop quand
@@ -46,6 +47,58 @@ export function estPageRecherche(url: string): boolean {
   }
 }
 
+/** A product sheet of AliExpress, Temu or Shein, by its address (recherche.js, `estFicheAdresse`). */
+export function estFicheConnue(url: string): boolean {
+  try {
+    const u = new URL(url)
+    const h = u.hostname
+    const p = u.pathname
+    if (h.includes('aliexpress.')) return /\/item\/\d{6,}/.test(p)
+    if (h.includes('temu.')) return /-g-\d{6,}\.html/.test(p) || /goods\.html/.test(p) || u.searchParams.has('goods_id')
+    if (h.includes('shein.')) return /-p-\d{5,}/.test(p)
+    return false
+  } catch {
+    return false
+  }
+}
+
+const MOTS_VIDES = new Set([
+  'avec', 'pour', 'sans', 'dans', 'des', 'les', 'une', 'aux', 'and', 'with', 'for', 'the', 'pack', 'lot', 'set', 'mini', 'pro', 'max', 'plus', 'new',
+])
+const motsDe = (t: string) =>
+  t
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter((m) => m.length > 2 && !MOTS_VIDES.has(m))
+
+/**
+ * A link of AliExpress, Temu or Shein that is neither a sheet nor a search
+ * (a category page, an address that leads nowhere) becomes that site's SEARCH
+ * for the product's name (max, 13/11/2026: 50 refusals out of 57). Opened as
+ * is, such a page shows other products and the browser rightly refuses it;
+ * the search lets the browser take the first result carrying the name. Null
+ * when the link is fine or no name is known. Same rule as the browsers'
+ * (backend/extension/content/recherche.js, `versRecherche`): keep both in step.
+ */
+export function versRecherche(url: string, nom: string | null | undefined): string | null {
+  const termes = motsDe(String(nom ?? ''))
+  if (!termes.length) return null
+  let h: string
+  try {
+    h = new URL(url).hostname
+  } catch {
+    return null
+  }
+  if (estPageRecherche(url) || estFicheConnue(url)) return null
+  const texte = String(nom).replace(/\s+/g, ' ').trim().slice(0, 120)
+  if (h.includes('aliexpress.')) return `https://fr.aliexpress.com/w/wholesale-${encodeURIComponent(termes.join('-'))}.html`
+  if (h.includes('temu.')) return `https://www.temu.com/search_result.html?search_key=${encodeURIComponent(texte)}`
+  if (h.includes('shein.')) return `https://fr.shein.com/pdsearch/${encodeURIComponent(texte)}/`
+  return null
+}
+
 /** Origine des gagnants de synthèse posés depuis KANTIX : import gratuit. */
 export const ORIGINE_SYNTHESE = 'synthese:'
 
@@ -74,7 +127,9 @@ export async function mettreEnFileImport(userId: string, produits: LigneAPoser[]
   })
   const deja = new Set(enAttente.map((e) => e.url))
   const neufs: LigneAPoser[] = []
-  for (const p of produits) {
+  for (const brut of produits) {
+    // Une page de catégorie ou une adresse sans fiche : la recherche du nom chez le même fournisseur.
+    const p = { ...brut, url: versRecherche(brut.url, brut.titre) ?? brut.url }
     if (deja.has(p.url)) continue
     deja.add(p.url)
     neufs.push(p)
@@ -110,11 +165,27 @@ export function domaineDe(url: string): string {
  * The page a browser read may stand for the queued line: same supplier, and for
  * a search line, a result that carries the product's name.
  */
-export function releveConforme(ligne: { url: string; titre: string | null }, releve: { sourceUrl: string; title: string }): string | null {
+export function releveConforme(
+  ligne: { url: string; titre: string | null },
+  releve: { sourceUrl: string; title: string; description?: string | null; pageText?: string | null },
+): string | null {
   if (domaineDe(releve.sourceUrl) !== domaineDe(ligne.url)) return "La page relevée n'est pas chez le fournisseur de la ligne."
   if (estPageRecherche(ligne.url)) {
     if (estPageRecherche(releve.sourceUrl)) return "C'est la page de recherche qui a été relevée, pas une fiche."
     if (ligne.titre && !pertinent(ligne.titre, releve.title)) return `La fiche relevée ne porte pas le nom « ${ligne.titre.slice(0, 80)} ».`
+  }
+  /*
+   * A sheet read before it finished loading (max, 13/11/2026: five of seven
+   * listings came out un-rewritten). The rewrite would be refused for lack of
+   * text anyway, yet the listing was created, its options and category read by
+   * the model: API spent on an import that failed. Refused here, BEFORE any
+   * drop or model call; the line can simply be run again.
+   */
+  if (releve.description !== undefined || releve.pageText !== undefined) {
+    const substance = substanceSource({ title: releve.title, description: releve.description ?? '', pageText: releve.pageText ?? '' })
+    if (!substance.assezPourEcrire) {
+      return "La fiche n'avait pas fini de charger : presque aucun texte relevé. Rien n'a été importé ni facturé, aucun appel IA ; relancez la ligne."
+    }
   }
   return null
 }

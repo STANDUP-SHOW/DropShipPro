@@ -59,6 +59,47 @@
     return false
   }
 
+  /** A product sheet of a site this file knows, by its full address. */
+  function estFicheAdresse(url) {
+    try {
+      const u = new URL(url)
+      if (u.hostname.includes('temu.') && (/goods\.html/.test(u.pathname) || u.searchParams.has('goods_id'))) return true
+      return estFiche(u.pathname, u.hostname)
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * A link of a known site that is neither a sheet nor a search (13/11/2026).
+   *
+   * Report winners often carry a CATEGORY page (inbusiness.aliexpress.com/
+   * category/…) or an address that names the product but leads nowhere
+   * (temu.com/fr/produit/<nom>). Opened as is, the page shows other products'
+   * photos and the import is rightly refused (« 0 sûre(s) sur 5 »). With the
+   * product's name, the same site's SEARCH is the honest way to its sheet:
+   * the first result that carries the name, or a refusal. Returns the search
+   * address, or null when the link is fine (sheet, search, other site) or no
+   * name is known. Same rule on the server (services/fileImport.ts).
+   */
+  function versRecherche(url, nom) {
+    const termes = mots(nom)
+    if (!termes.length) return null
+    let u
+    try {
+      u = new URL(url)
+    } catch {
+      return null
+    }
+    const h = u.hostname
+    if (estRecherche(url) || estFicheAdresse(url)) return null
+    const texte = String(nom).replace(/\s+/g, ' ').trim().slice(0, 120)
+    if (h.includes('aliexpress.')) return `https://fr.aliexpress.com/w/wholesale-${encodeURIComponent(termes.join('-'))}.html`
+    if (h.includes('temu.')) return `https://www.temu.com/search_result.html?search_key=${encodeURIComponent(texte)}`
+    if (h.includes('shein.')) return `https://fr.shein.com/pdsearch/${encodeURIComponent(texte)}/`
+    return null
+  }
+
   /** Visible text of a result card: the link's own text, else its title/alt, else its card's text. */
   function texteResultat(a) {
     const propre = (a.innerText || a.textContent || '').trim()
@@ -96,7 +137,7 @@
     return { url: null, vus: vus.size }
   }
 
-  const api = { mots, pertinent, estRecherche, estFiche, choisirResultat }
+  const api = { mots, pertinent, estRecherche, estFiche, estFicheAdresse, versRecherche, choisirResultat }
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   else racine.__dspRecherche = api
 })(typeof globalThis !== 'undefined' ? globalThis : this)

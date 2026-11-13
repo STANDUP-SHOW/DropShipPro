@@ -53,6 +53,9 @@ function motifLisible(message) {
   if (/Receiving end does not exist|Could not establish connection/i.test(m)) {
     return "La page n'a pas répondu à l'extension. Ouvrez-la une fois, puis relancez."
   }
+  if (/showing error page/i.test(m)) {
+    return "La page du fournisseur s'est ouverte en erreur (réseau, fiche retirée ou blocage du site) : rien n'a été importé ni facturé."
+  }
   return m || 'Relevé impossible'
 }
 
