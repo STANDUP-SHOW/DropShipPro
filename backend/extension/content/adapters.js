@@ -64,6 +64,9 @@
       key: 'aliexpress',
       label: 'AliExpress',
       matches: (host) => /aliexpress\./i.test(host),
+      // La forme d'une fiche : une page de recherche ou de catégorie n'est pas un produit (13/11/2026).
+      productUrl: /\/item\/\d{6,}/i,
+      ficheStricte: true,
       /**
        * La galerie vit dans un objet d'état dont le chemin change d'un
        * déploiement à l'autre. On cherche donc la clé, pas le chemin.
@@ -89,6 +92,8 @@
       key: 'temu',
       label: 'Temu',
       matches: (host) => /temu\./i.test(host),
+      productUrl: /-g-\d{6,}\.html|\/goods\.html|[?&]goods_id=\d/i,
+      ficheStricte: true,
       /**
        * Temu vide délibérément ses modules d'état — galleryModule et
        * setSpecModule sont des objets vides jusque dans le rendu serveur. Le DOM

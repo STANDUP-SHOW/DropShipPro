@@ -1,3 +1,4 @@
+import { titrePropre } from './sourceQuality.js'
 import type { Product, User } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { scrapeProduct } from './scraper.js'
@@ -130,6 +131,8 @@ export async function importerAdresse(
         chromeImages: [] as string[],
       }
     : await scrapeProduct(url)
+  // Le nom du site et ses badges (« AliExpress Best Deal, Verified ») ne font pas partie du produit.
+  scraped.title = titrePropre(scraped.title)
   const user: User = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
 
   /*

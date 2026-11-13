@@ -379,6 +379,8 @@ async function dspOuvrirResultat(tabId, nom) {
 }
 
 async function dspReleverAdresse(url, nom = null) {
+  // Une page de catégorie ou une adresse sans fiche d'un site connu : sa recherche par le nom.
+  if (nom) url = globalThis.__dspRecherche.versRecherche(url, nom) || url
   const [avant] = await chrome.tabs.query({ active: true, currentWindow: true })
   const onglet = await chrome.tabs.create({ url, active: true })
   try {
@@ -390,7 +392,33 @@ async function dspReleverAdresse(url, nom = null) {
     }
     // Le prix et les options des sites en JavaScript arrivent après « complete ».
     await new Promise((r) => setTimeout(r, 2500))
-    const reponse = await dspReleverOnglet(onglet.id)
+    let reponse
+    try {
+      reponse = await dspReleverOnglet(onglet.id)
+    } catch (e) {
+      /*
+       * « Frame with ID 0 is showing error page » : Chrome affiche sa page
+       * d'erreur (réseau coupé, page retirée, blocage passager du site) et
+       * refuse d'y injecter le relevé. Une seule nouvelle tentative, après
+       * rechargement — rien n'a encore été envoyé au serveur, donc ni drop ni
+       * appel IA (13/11/2026).
+       */
+      if (!/error page|ERR_|net::/i.test(String(e?.message))) throw e
+      await chrome.tabs.reload(onglet.id)
+      await dspAttendreChargement(onglet.id, 45000)
+      await new Promise((r) => setTimeout(r, 4000))
+      try {
+        reponse = await dspReleverOnglet(onglet.id)
+      } catch (e2) {
+        if (!/error page|ERR_|net::/i.test(String(e2?.message))) throw e2
+        return {
+          ok: false,
+          error:
+            "La page du fournisseur s'est ouverte en erreur, deux fois (réseau, fiche retirée ou blocage du site) : " +
+            'rien n’a été importé ni facturé.',
+        }
+      }
+    }
     return reponse ?? { ok: false, error: 'Page muette' }
   } finally {
     await chrome.tabs.remove(onglet.id).catch(() => undefined)
