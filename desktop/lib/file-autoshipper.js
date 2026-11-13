@@ -70,7 +70,8 @@ async function passageFile({ api, relever, pauses = new Map(), attendre = (ms) =
     }
     let r
     try {
-      r = await relever(ligne.url)
+      // Un gagnant de synthèse n'a qu'un lien de recherche : son nom choisit le résultat.
+      r = await relever(ligne.url, { nom: ligne.titre || null })
     } catch (err) {
       r = { ok: false, raison: err.message || 'Relevé impossible' }
     }
