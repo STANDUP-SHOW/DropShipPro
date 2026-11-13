@@ -170,7 +170,8 @@ export function releveConforme(
   releve: { sourceUrl: string; title: string; description?: string | null; pageText?: string | null },
 ): string | null {
   if (domaineDe(releve.sourceUrl) !== domaineDe(ligne.url)) return "La page relevée n'est pas chez le fournisseur de la ligne."
-  if (estPageRecherche(ligne.url)) {
+  // A line queued before the conversion is opened as its search too (versRecherche): same check.
+  if (estPageRecherche(ligne.url) || versRecherche(ligne.url, ligne.titre)) {
     if (estPageRecherche(releve.sourceUrl)) return "C'est la page de recherche qui a été relevée, pas une fiche."
     if (ligne.titre && !pertinent(ligne.titre, releve.title)) return `La fiche relevée ne porte pas le nom « ${ligne.titre.slice(0, 80)} ».`
   }

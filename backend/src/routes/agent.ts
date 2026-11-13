@@ -11,7 +11,7 @@ import {
   importerLigneAutoShipper,
   ligneAutoShipper,
 } from '../services/autoShipperFile.js'
-import { estPageRecherche, importerLigneFile, ligneFileSite } from '../services/fileImport.js'
+import { estPageRecherche, importerLigneFile, ligneFileSite, versRecherche } from '../services/fileImport.js'
 import { reserveCredits, refundCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
@@ -435,7 +435,12 @@ agentRouter.get('/file-autoshipper', requireDesktop as never, async (req: AgentR
       select: { id: true, url: true, titre: true, fournisseur: true, createdAt: true, origine: true },
     })
     res.json({
-      lignes: lignes.map(({ origine, ...l }) => ({ ...l, autoShipper: Boolean(origine?.startsWith(ORIGINE_AUTOSHIPPER)), recherche: estPageRecherche(l.url) })),
+      lignes: lignes.map(({ origine, ...l }) => {
+        const autoShipper = Boolean(origine?.startsWith(ORIGINE_AUTOSHIPPER))
+        // Une ligne posée avant la conversion (page de catégorie, adresse sans fiche) : sa recherche du nom.
+        const url = autoShipper ? l.url : (versRecherche(l.url, l.titre) ?? l.url)
+        return { ...l, url, autoShipper, recherche: estPageRecherche(url) }
+      }),
     })
   } catch (err) {
     console.error('agent file-autoshipper', err)
