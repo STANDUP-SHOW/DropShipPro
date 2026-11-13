@@ -15,6 +15,7 @@ const paragraphes = (texte: string) => texte.split(/\n{2,}/).map((p) => `<p styl
 import * as newsletter from '../services/newsletter.js'
 import { DriveErreur, importerDossierDrive, listerDossierDrive } from '../services/importDrive.js'
 import { datesSyntheses, importerSynthese, lireJournal, lireSynthese, noterImports, produitACreer, synthesePrivee } from '../services/synthesesQuotidiennes.js'
+import { etatCompletion, fournisseursCherchables, lancerCompletion, type Tache } from '../services/synthesesCompletion.js'
 import { GoogleAuthError, verifierIdTokenGoogle } from '../services/googleAuth.js'
 import { lignesPubliques } from './analysesPubliques.js'
 import { sitemapXml } from '../services/analysesPubliques.js'
@@ -508,21 +509,64 @@ adminRouter.post('/syntheses/:date/importer-compte', async (req: Request, res) =
     const parId = new Map(s.produits.map((p) => [p.id, p]))
     const choisis = ids.map((id) => parId.get(id)).filter((p): p is NonNullable<typeof p> => !!p)
     const inconnus = ids.length - choisis.length
-    const existants = await prisma.product.findMany({ where: { userId: c.id }, select: { title: true, sourceUrl: true } })
-    const deja = new Set(existants.map((e) => `${e.title}|${e.sourceUrl}`))
-    const aCreer = choisis.map(produitACreer).filter((p) => !deja.has(`${p.title}|${p.sourceUrl}`))
-    const doublons = choisis.length - aCreer.length
-    if (req.body?.essai === true) return res.json({ compte: c.email, essai: true, aImporter: aCreer.length, doublons, inconnus })
-    for (const p of aCreer) {
-      await prisma.product.create({
-        data: { userId: c.id, ...p, images: [], imagesWatermarked: false },
-      })
+    const existants = await prisma.product.findMany({
+      where: { userId: c.id },
+      select: { id: true, title: true, sourceUrl: true, images: true, supplierRef: true },
+    })
+    const deja = new Map(existants.map((e) => [`${e.title}|${e.sourceUrl}`, e]))
+    const nus = (e: (typeof existants)[number]) => !e.supplierRef && (!Array.isArray(e.images) || e.images.length === 0)
+    const aCreer: Array<{ produit: (typeof choisis)[number]; donnees: ReturnType<typeof produitACreer> }> = []
+    // A winner already imported bare (no photo, no supplier sheet: the 13/11 case) is completed, not skipped.
+    const aReprendre: Tache[] = []
+    for (const produit of choisis) {
+      const donnees = produitACreer(produit)
+      const existant = deja.get(`${donnees.title}|${donnees.sourceUrl}`)
+      if (!existant) aCreer.push({ produit, donnees })
+      else if (nus(existant)) aReprendre.push({ productId: existant.id, produit })
     }
-    res.json({ compte: c.email, importes: aCreer.length, doublons, inconnus })
+    const doublons = choisis.length - aCreer.length
+    const fournisseurs = await fournisseursCherchables(c.id)
+    const nomsFournisseurs = fournisseurs.map((f) => f.connecteur.label)
+    const aCompleter = aCreer.length + aReprendre.length
+    const message = !aCompleter
+      ? 'Rien à importer ni à compléter : ces produits sont déjà complets sur ce compte.'
+      : fournisseurs.length
+        ? `Photos et description en cours de recherche chez ${nomsFournisseurs.join(' puis ')} pour ${aCompleter} annonce(s) : elles se remplissent dans les minutes qui suivent (brouillons, à relire avant publication).`
+        : `Aucun fournisseur relié par API sur ce compte (AliExpress ou CJ Dropshipping) : la synthèse ne donne qu'un nom, un prix et des pages de recherche, donc ${aCompleter} annonce(s) restent sans photo ni description. Reliez AliExpress ou CJ dans Sourcing › Fournisseurs sur ce compte, puis relancez l'import : les annonces déjà créées seront complétées.`
+    if (req.body?.essai === true) {
+      return res.json({ compte: c.email, essai: true, aImporter: aCreer.length, aCompleter, doublons, inconnus, fournisseurs: nomsFournisseurs, message })
+    }
+    const taches: Tache[] = [...aReprendre]
+    for (const { produit, donnees } of aCreer) {
+      const cree = await prisma.product.create({
+        data: { userId: c.id, ...donnees, images: [], imagesWatermarked: false },
+        select: { id: true },
+      })
+      taches.push({ productId: cree.id, produit })
+    }
+    const completion = fournisseurs.length && taches.length ? lancerCompletion(c.id, c.email, taches, fournisseurs) : null
+    res.json({
+      compte: c.email,
+      importes: aCreer.length,
+      doublons,
+      inconnus,
+      aCompleter,
+      completionEnCours: completion ? completion.total : 0,
+      fournisseurs: nomsFournisseurs,
+      message,
+    })
   } catch (err) {
     console.error('import des gagnants de synthèse', err)
     res.status(500).json({ error: `Import impossible : ${err instanceof Error ? err.message : String(err)}` })
   }
+})
+
+/** Where the background completion of the last import stands, for one account. */
+adminRouter.get('/syntheses-completion', (req: Request, res) => {
+  res.set('Cache-Control', 'no-store')
+  const email = String(req.query.email ?? '').trim().toLowerCase()
+  if (!email) return res.status(400).json({ error: 'Indiquez l’e-mail du compte.' })
+  res.json({ completion: etatCompletion(email) })
 })
 
 adminRouter.post('/syntheses', (req: Request, res) => {
