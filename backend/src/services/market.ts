@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { mentionsDes, origineAffichee } from './avisAcheteurs.js'
 import type { Product, Shop } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { absoluteUrl, apiBaseUrl } from '../lib/urls.js'
@@ -175,6 +176,7 @@ async function avisDe(ids: string[], detail: boolean): Promise<Map<string, AvisA
       orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
       take: 20,
     })
+    const mentions = await mentionsDes(lignes.map((l) => l.userId))
     for (const l of lignes) {
       par.get(l.productId)?.items.push({
         etoiles: l.stars,
@@ -182,7 +184,7 @@ async function avisDe(ids: string[], detail: boolean): Promise<Map<string, AvisA
         texte: l.text,
         photos: (Array.isArray(l.photos) ? l.photos : []).filter((p): p is string => typeof p === 'string').map((p) => absoluteUrl(p)).filter((p) => p.startsWith('http')).slice(0, 4),
         date: l.reviewedAt,
-        origine: l.sourceSite,
+        origine: origineAffichee(l, mentions.get(l.userId)),
       })
     }
   }

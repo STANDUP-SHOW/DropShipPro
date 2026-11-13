@@ -1136,6 +1136,20 @@
       }
     }
 
+    // Des étoiles DESSINÉES : une icône par étoile pleine, sans texte ni libellé.
+    // C'est ce que fait AliExpress (comet-icon-starreviewfilled) et la plupart des
+    // widgets à police d'icônes ou en SVG. On ne compte que les feuilles « pleines » ;
+    // plus de cinq, c'est une liste entière (plusieurs avis), pas une note.
+    const icones = [...bloc.querySelectorAll('[class*="star" i]')].filter((el) => {
+      const c = el.getAttribute('class') || ''
+      return (
+        /fill|full|active|selected|checked|(?:^|[-_\s])on(?:$|[-_\s])/i.test(c) &&
+        !/empty|half|outline|unfill|blank|gr[ae]y|disabled/i.test(c) &&
+        !el.querySelector('[class*="star" i]')
+      )
+    })
+    if (icones.length >= 1 && icones.length <= 5) return icones.length
+
     // Des étoiles écrites en caractères : ★★★★☆.
     const pleines = (bloc.textContent.match(/★/g) || []).length
     const vides = (bloc.textContent.match(/☆/g) || []).length
@@ -1165,7 +1179,7 @@
    * note n'est pas repris : noter un avis à la place de son auteur l'inventerait.
    * Seuls les avis AFFICHÉS sont lus — pas de pagination forcée, pas de clic.
    */
-  function collectReviews() {
+  function collectReviews(supplementaires = []) {
     const avis = []
     const vus = new Set()
     const ajouter = (a) => {
@@ -1182,6 +1196,9 @@
         date: a.date || undefined,
       })
     }
+
+    // Ceux que la source sert à part (AliExpress) : déjà structurés, lus en premier.
+    for (const a of supplementaires) ajouter(a)
 
     for (const p of produitsJsonLd()) {
       const liste = Array.isArray(p.review) ? p.review : p.review ? [p.review] : []
@@ -1229,9 +1246,18 @@
       /^\s*\d(?:[.,]\d)?\s*(?:étoiles?|etoiles?|stars?|sterne)?\s*(?:sur|out of|von|de|\/)\s*5(?:\s*(?:étoiles?|etoiles?|stars?|sterne))?\s*$/i
     const COMPTEUR = /^[\d\s.,  ]+(?:évaluations?|evaluations?|avis|notes?|ratings?|reviews?|commentaires?|bewertungen|votes?)\b.{0,20}$/i
     const lus = new Map()
-    for (const el of candidats) {
-      const note = noteDuBloc(el)
-      if (!note) continue
+    for (const nomme of candidats) {
+      let el = nomme
+      let note = noteDuBloc(el)
+      // Le TEXTE porte le nom « review », pas le bloc de l'avis (AliExpress :
+      // list--itemReview-- ne contient que le corps, les étoiles sont à côté).
+      // Le bloc de l'avis est alors un parent proche ; une liste entière, elle,
+      // porte plus de cinq étoiles pleines et ne donne pas de note.
+      for (let i = 0; !note && i < 2 && el.parentElement && el.parentElement !== document.body; i++) {
+        el = el.parentElement
+        note = noteDuBloc(el)
+      }
+      if (!note || lus.has(el)) continue
       // Le nom est une FEUILLE courte : chez Amazon le premier « profile » est le
       // lien entier, avatar et <noscript> compris.
       const auteurEl = [
@@ -1286,9 +1312,83 @@
     return avis
   }
 
+  /**
+   * Les avis d'une fiche AliExpress, tels qu'AliExpress les sert (13/11/2026).
+   *
+   * Sur AliExpress les avis ne sont pas dans la page au moment du relevé : ils
+   * arrivent de feedback.aliexpress.com quand on descend jusqu'à eux, et leurs
+   * étoiles sont des icônes sans texte. Le relevé par blocs n'y trouvait rien —
+   * d'où des annonces AliExpress toujours sans avis. On demande la première page
+   * de ces avis (vingt au plus), la même que la page affiche, au service worker
+   * (permission *.aliexpress.com) ; sans lui (navigateur interne du desktop), à
+   * la page elle-même. Un échec rend une liste vide : le relevé par blocs reste.
+   *
+   * `buyerEval` est une note sur 100 (100 = 5 étoiles) ; illisible → l'avis est
+   * écarté par ajouter(), jamais noté 5 par défaut. Le texte est celui
+   * qu'AliExpress affiche (sa traduction quand il en donne une, sinon l'original).
+   */
+  function avisDepuisFeedbackAliExpress(json) {
+    const liste = json?.data?.evaViewList
+    if (!Array.isArray(liste)) return []
+    return liste.map((v) => {
+      const sur100 = Number(v?.buyerEval)
+      const note = Number.isFinite(sur100) ? Math.round(sur100 / 20) : null
+      const photos = (Array.isArray(v?.images) ? v.images : [])
+        .map((u) => (typeof u === 'string' ? u : u?.url || u?.imgUrl || ''))
+        .map((u) => (u.startsWith('//') ? `https:${u}` : u))
+        .filter((u) => /^https:/.test(u))
+        .slice(0, 6)
+      return {
+        stars: note >= 1 && note <= 5 ? note : null,
+        author: typeof v?.buyerName === 'string' ? v.buyerName : '',
+        text: String(v?.buyerTranslationFeedback || v?.buyerFeedback || ''),
+        photos,
+        date: typeof v?.evalDate === 'string' ? v.evalDate : undefined,
+      }
+    })
+  }
+
+  async function avisAliExpress() {
+    if (!/(^|\.)aliexpress\.[a-z.]+$/i.test(location.hostname)) return []
+    const id = (location.pathname.match(/\/item\/(\d{6,20})\.html/) || [])[1]
+    if (!id) return []
+    const lang = /^en/i.test(document.documentElement.lang || '') ? 'en_US' : 'fr_FR'
+    const delai = (ms) => new Promise((_, rejeter) => setTimeout(() => rejeter(new Error('délai')), ms))
+    try {
+      const r = await Promise.race([chrome.runtime.sendMessage({ type: 'dsp-avis-aliexpress', productId: id, lang }), delai(8000)])
+      if (r?.ok) return avisDepuisFeedbackAliExpress(r.data)
+    } catch {
+      // Pas de service worker (navigateur interne du desktop) : la page demande elle-même.
+    }
+    try {
+      const res = await Promise.race([
+        fetch(
+          `https://feedback.aliexpress.com/pc/searchEvaluation.do?productId=${id}&lang=${lang}&country=FR&page=1&pageSize=20&filter=all&sort=complex_default`,
+          { credentials: 'include' },
+        ),
+        delai(8000),
+      ])
+      if (res.ok) return avisDepuisFeedbackAliExpress(await res.json())
+    } catch {
+      // Refusé ou trop lent : le relevé par blocs fera ce qu'il peut.
+    }
+    return []
+  }
+
+  async function releverAvis() {
+    let servis = []
+    try {
+      servis = await avisAliExpress()
+    } catch {
+      servis = []
+    }
+    return collectReviews(servis)
+  }
+
   // Exposés pour le banc check-avis.ts / check-avis-extension.cjs.
   self.__dspReleverEan = collectEan
   self.__dspReleverAvis = collectReviews
+  self.__dspAvisFeedbackAliExpress = avisDepuisFeedbackAliExpress
 
   async function buildPayload() {
     // Pas de défilement ici : collectImages() vient de le faire, et le refaire
@@ -1319,7 +1419,7 @@
       pageText: collectPageText(),
       // Le code-barres déclaré et les avis affichés : le serveur revérifie et borne les deux.
       ean: collectEan(),
-      reviews: collectReviews(),
+      reviews: await releverAvis(),
     }
   }
 

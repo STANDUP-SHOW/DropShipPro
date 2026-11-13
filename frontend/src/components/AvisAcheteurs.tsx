@@ -36,6 +36,11 @@ export function AvisAcheteurs({ productId }: { productId: string }) {
   const [saisie, setSaisie] = useState(false)
   const [brouillon, setBrouillon] = useState({ stars: 5, author: '', text: '' })
   const fichier = useRef<HTMLInputElement>(null)
+  const [mention, setMention] = useState<'generique' | 'site' | null>(null)
+
+  useEffect(() => {
+    api.avisMention().then((r) => setMention(r.mention)).catch(() => setMention(null))
+  }, [])
 
   async function charger() {
     const r = await api.avisProduit(productId)
@@ -247,6 +252,25 @@ export function AvisAcheteurs({ productId }: { productId: string }) {
             Tout supprimer pour repartir d'un fichier corrigé
           </button>
         </>
+      )}
+
+      {mention && avis.some((a) => a.source === 'extension' && a.sourceSite) && (
+        <label className="mt-4 block text-[11px] text-gray-400">
+          Sous les avis relevés chez le fournisseur, vos clients lisent
+          <select
+            value={mention}
+            disabled={occupe}
+            onChange={(e) => {
+              const choix = e.target.value as 'generique' | 'site'
+              api.avisMentionChoisir(choix).then((r) => setMention(r.mention)).catch(() => setMessage({ ton: 'erreur', texte: 'Réglage non enregistré.' }))
+            }}
+            className="ml-2 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-gray-200"
+          >
+            <option value="generique">« Avis recueilli sur le site du fournisseur du produit, non vérifié par la boutique »</option>
+            <option value="site">« Avis recueilli sur {avis.find((a) => a.sourceSite)?.sourceSite} »</option>
+          </select>
+          <span className="mt-1 block text-gray-500">Réglage valable pour toutes vos annonces. Une mention reste obligatoire : ces avis ne viennent pas de vos clients.</span>
+        </label>
       )}
     </div>
   )

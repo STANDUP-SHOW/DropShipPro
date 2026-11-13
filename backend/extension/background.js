@@ -478,6 +478,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true
   }
 
+  /*
+   * Les avis d'une fiche AliExpress (13/11/2026).
+   *
+   * AliExpress n'écrit pas ses avis dans la page : il les charge à part, depuis
+   * feedback.aliexpress.com, quand on descend jusqu'à eux. Le content script ne
+   * peut pas les demander lui-même (autre origine), le service worker si : il a
+   * la permission *.aliexpress.com. Une seule adresse, un identifiant numérique :
+   * ce n'est pas un relais ouvert, et c'est la requête que fait la page.
+   */
+  if (message?.type === 'dsp-avis-aliexpress') {
+    const id = String(message.productId || '')
+    const lang = message.lang === 'en_US' ? 'en_US' : 'fr_FR'
+    if (!/^\d{6,20}$/.test(id)) {
+      sendResponse({ ok: false })
+      return
+    }
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `https://feedback.aliexpress.com/pc/searchEvaluation.do?productId=${id}&lang=${lang}&country=FR&page=1&pageSize=20&filter=all&sort=complex_default`,
+          { credentials: 'include' },
+        )
+        sendResponse(res.ok ? { ok: true, data: await res.json() } : { ok: false, status: res.status })
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err?.message || err) })
+      }
+    })()
+    return true
+  }
+
   // Proxy for content scripts: see apiFetch() in config.js for why they can't
   // call the API themselves.
   if (message?.type === 'dsp-api-fetch') {

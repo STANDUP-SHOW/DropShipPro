@@ -36,6 +36,38 @@ export interface ScrapedProduct {
    * variante, quel que soit le produit.
    */
   pageText: string
+  /**
+   * Les avis d'acheteurs que la page DÉCLARE (JSON-LD `review` du produit).
+   *
+   * Seulement ceux-là : le serveur ne voit pas la page dessinée, et deviner un
+   * avis dans le HTML brut reviendrait à l'inventer. WooCommerce et beaucoup de
+   * boutiques Shopify (applications d'avis) les déclarent ainsi.
+   */
+  reviews?: Array<{ stars?: number | string; author?: string; text?: string; date?: string }>
+}
+
+/** Les avis déclarés en JSON-LD sur le produit, bruts : avisAcheteurs.normaliser() trie. */
+export function avisJsonLd(produit: any): NonNullable<ScrapedProduct['reviews']> {
+  const liste = Array.isArray(produit?.review) ? produit.review : produit?.review ? [produit.review] : []
+  return liste.slice(0, 60).flatMap((r: any) => {
+    if (!r || typeof r !== 'object') return []
+    const auteur = typeof r.author === 'string' ? r.author : Array.isArray(r.author) ? r.author[0]?.name : r.author?.name
+    const note = r.reviewRating?.ratingValue
+    const meilleure = Number(r.reviewRating?.bestRating)
+    // Une note sur 10 ou sur 100 ramenée sur 5 ; sans échelle déclarée, on la lit sur 5.
+    const stars =
+      note != null && Number.isFinite(Number(note)) && Number.isFinite(meilleure) && meilleure > 5
+        ? (Number(note) / meilleure) * 5
+        : note
+    const text = r.reviewBody || r.description || ''
+    if (typeof text !== 'string' || stars == null) return []
+    return [{
+      stars: typeof stars === 'number' || typeof stars === 'string' ? stars : undefined,
+      author: typeof auteur === 'string' ? auteur.slice(0, 200) : undefined,
+      text: text.slice(0, 8000),
+      date: typeof r.datePublished === 'string' ? r.datePublished.slice(0, 40) : undefined,
+    }]
+  })
 }
 
 function absoluteUrl(src: string, base: string): string {
@@ -249,6 +281,7 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     // Le corps de la fiche, débarrassé des scripts et des styles : c'est là que
     // se lisent les tailles et les couleurs, qu'aucune balise ne déclare.
     pageText: $('main').text().trim() || $('body').text().trim(),
+    reviews: avisJsonLd(jsonLdProduct),
   }
 
   // Sites like Temu and JoyBuy answer scrapers with a bot wall or an empty JS
