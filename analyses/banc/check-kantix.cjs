@@ -21,7 +21,8 @@ const kantix = lib('kantix')
 const config = lib('config')
 const ia = lib('fournisseurs-ia')
 const flux = lib('flux')
-const { executerAnalyse, urlsDuTexte } = lib('executer-analyse')
+const { executerAnalyse, urlsDuTexte, estFicheProduit, CONTRAT } = lib('executer-analyse')
+const liensProduit = lib('verifier-liens')
 const brief = lib('brief')
 const { creerJournal } = lib('journal')
 
@@ -273,6 +274,91 @@ test('analyse sans aucune source (ni recherche ni onglet) : à revoir ; Gemini v
   const g = await executerAnalyse({ analyse: { ...ANALYSE, onglets: [] }, projet: PROJET, dossierSortie: racine, rechercheDisponible: true, journal, lireOnglets: async () => ({ lectures: [], problemes: [] }), generer: async () => ({ texte: RAPPORT(['https://e.example/page']), arret: 'end_turn', urls: ['https://vertexaisearch.cloud.google.com/r'], domaines: ['e.example'], fournisseur: 'gemini', modele: 'm' }) })
   assert.equal(g.rapport.statut, 'ok', g.rapport.problemes.join(' | '))
   assert.deepEqual(urlsDuTexte('voir https://x.example/a). et [b](https://y.example/b)'), ['https://x.example/a', 'https://y.example/b'])
+})
+
+// ------------------------------------------------------------------ product links (13/11)
+const PAGES = {
+  'https://fr.aliexpress.com/item/1005001.html': '<html><head><meta property="og:title" content="Réchaud de camping pliable au gaz, 3000 W"></head></html>',
+  'https://fr.aliexpress.com/item/1005002.html': '<html><head><title>Tapis de sol autogonflant | AliExpress</title></head></html>',
+  'https://www.amazon.fr/dp/B0SHARED01': '<title>Table basse en bois</title>',
+  'https://www.amazon.fr/dp/B0LENT0001': null,
+  'https://www.amazon.fr/dp/B0TUYAU001': '<title>Tuyaux d&#39;arrosage extensibles 30 m</title>',
+}
+const fauxFetch = (lus = []) => async (url) => {
+  lus.push(url)
+  const html = PAGES[url]
+  if (html === null) return { ok: false, status: 503, text: async () => '' }
+  if (html === undefined) return { ok: false, status: 404, text: async () => '' }
+  return { ok: true, status: 200, text: async () => html }
+}
+
+test('liens produit : titre conforme gardé, autre produit retiré, lien partagé retiré, page illisible retirée', async () => {
+  const donnees = { produits: [
+    { product_name: 'Réchaud de camping pliable', sourcing_url: 'https://fr.aliexpress.com/item/1005001.html', image_url: 'https://img.example/a.jpg' },
+    { product_name: 'Réchaud de camping portable', sourcing_url: 'https://fr.aliexpress.com/item/1005002.html' },
+    { product_name: 'Table basse', urls: { amazon: 'https://www.amazon.fr/dp/B0SHARED01' } },
+    { product_name: 'Tuyau d’arrosage extensible', urls: { amazon: 'https://www.amazon.fr/dp/B0SHARED01', autre: 'https://www.amazon.fr/dp/B0TUYAU001' } },
+    { product_name: 'Surchemise flanelle', amazon_url: 'https://www.amazon.fr/dp/B0LENT0001', search_url: 'https://fr.aliexpress.com/w/wholesale-surchemise.html' },
+  ] }
+  const lus = []
+  const b = await liensProduit.verifierLiens(donnees, { fetchImpl: fauxFetch(lus) })
+  const [p1, p2, p3, p4, p5] = donnees.produits
+  assert.equal(p1.sourcing_url, 'https://fr.aliexpress.com/item/1005001.html')
+  assert.equal(p1.url_status, 'verifie'); assert.match(p1.url_page_title, /Réchaud de camping/)
+  assert.equal(p1.image_url, 'https://img.example/a.jpg')
+  assert.equal(p2.sourcing_url, ''); assert.equal(p2.url_status, 'non_verifie')
+  assert.match(p2.search_url, /^https:\/\/fr\.aliexpress\.com\/w\/wholesale-R/)
+  assert.equal(p3.urls.amazon, ''); assert.equal(p4.urls.amazon, '')
+  assert.equal(p4.urls.autre, 'https://www.amazon.fr/dp/B0TUYAU001', 'pluriel « tuyaux » accepté')
+  assert.equal(p4.url_status, 'non_verifie')
+  assert.equal(p5.amazon_url, ''); assert.equal(p5.search_url, 'https://fr.aliexpress.com/w/wholesale-surchemise.html')
+  assert.ok(!lus.includes('https://www.amazon.fr/dp/B0SHARED01'), 'un lien partagé n’est même pas ouvert')
+  assert.ok(!lus.some((u) => u.includes('img.example')))
+  assert.equal(b.verifies, 2); assert.equal(b.doublons, 2); assert.equal(b.nonLus, 1); assert.equal(b.retires, 4)
+  const md = liensProduit.corrigerMarkdown('Fiche : https://fr.aliexpress.com/item/1005002.html et https://fr.aliexpress.com/item/1005001.html', b.remplacements)
+  assert.ok(!md.includes('1005002'))
+  assert.ok(md.includes('https://fr.aliexpress.com/item/1005001.html'))
+  assert.match(md, /recherche, lien non vérifié/)
+  assert.equal(liensProduit.titreDeHtml('<meta content="A &amp; B" property="og:title">'), 'A & B')
+  assert.ok(liensProduit.titreCorrespond('Coussins de sol', 'Coussin de sol XXL'))
+  assert.ok(!liensProduit.titreCorrespond('Réchaud de camping', 'Tapis de sol'))
+})
+
+test('analyse : lien produit inventé retiré du .json et du .md ; fiche produit jamais validée par son seul domaine', async () => {
+  const { racine, journal } = preparer()
+  assert.match(CONTRAT, /direct_product_pages_only/)
+  assert.match(CONTRAT, /Un champ vide vaut mieux qu’un lien vraisemblable/)
+  assert.ok(estFicheProduit('https://fr.aliexpress.com/item/1005002.html'))
+  assert.ok(estFicheProduit('https://www.amazon.fr/Table-basse/dp/B0X'))
+  assert.ok(!estFicheProduit('https://fr.aliexpress.com/w/wholesale-table.html'))
+  const bon = 'https://fr.aliexpress.com/item/1005001.html'
+  const faux = 'https://fr.aliexpress.com/item/1005002.html'
+  const donnees = { produits: [{ product_name: 'Réchaud de camping pliable', sourcing_url: bon }, { product_name: 'Réchaud de camping portable', sourcing_url: faux }] }
+  const texte = `# Gagnants\n\nRéchaud : ${bon}\n\nAutre : ${faux}\n\n${'Analyse. '.repeat(30)}\n\n\`\`\`json\n${JSON.stringify({ titre: 'G', resume: 'r', donnees, sources: [bon, faux] })}\n\`\`\``
+  const lus = []
+  // Gemini-like: the provider only says which domains it read
+  const res = await executerAnalyse({
+    analyse: { ...ANALYSE, onglets: [] }, projet: PROJET, dossierSortie: racine, rechercheDisponible: true, journal, fetchImpl: fauxFetch(lus),
+    lireOnglets: async () => ({ lectures: [], problemes: [] }),
+    generer: async () => ({ texte, arret: 'end_turn', urls: [bon], domaines: ['fr.aliexpress.com'], fournisseur: 'gemini', modele: 'm' }),
+  })
+  assert.equal(res.rapport.donnees.produits[0].url_status, 'verifie')
+  assert.equal(res.rapport.donnees.produits[1].sourcing_url, '')
+  assert.equal(res.rapport.donnees.produits[1].url_status, 'non_verifie')
+  assert.ok(!res.rapport.markdown.includes(faux))
+  assert.ok(!fs.readFileSync(res.fichiers.md, 'utf8').includes(faux))
+  assert.deepEqual(res.rapport.sources, [bon])
+  assert.equal(res.rapport.liens.retires, 1)
+  assert.ok(res.rapport.problemes.some((p) => /1 lien\(s\) produit retiré\(s\) sur 2/.test(p)))
+  assert.equal(res.rapport.statut, 'ok', res.rapport.problemes.join(' | '))
+  // a product page known only by its domain is not « read »
+  const res2 = await executerAnalyse({
+    analyse: { ...ANALYSE, onglets: [] }, projet: PROJET, dossierSortie: racine, rechercheDisponible: true, journal, fetchImpl: fauxFetch(),
+    lireOnglets: async () => ({ lectures: [], problemes: [] }),
+    generer: async () => ({ texte: RAPPORT(['https://fr.aliexpress.com/item/999.html']), arret: 'end_turn', urls: [], domaines: ['fr.aliexpress.com'], fournisseur: 'gemini', modele: 'm' }),
+  })
+  assert.equal(res2.rapport.statut, 'a-revoir')
+  assert.ok(res2.rapport.problemes.some((p) => /item\/999/.test(p)))
 })
 
 // ------------------------------------------------------------------ brief
