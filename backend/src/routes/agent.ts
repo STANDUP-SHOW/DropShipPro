@@ -9,7 +9,9 @@ import {
   echecLigneAutoShipper,
   expirerFileAutoShipper,
   importerLigneAutoShipper,
+  ligneAutoShipper,
 } from '../services/autoShipperFile.js'
+import { estPageRecherche, importerLigneFile, ligneFileSite } from '../services/fileImport.js'
 import { reserveCredits, refundCredits } from '../services/billing.js'
 import { DROPS } from '../services/tarifs.js'
 import { ScrapeBlockedError } from '../services/scraper.js'
@@ -411,18 +413,30 @@ agentRouter.get('/file-autoshipper', requireDesktop as never, async (req: AgentR
   try {
     await expirerFileAutoShipper(req.userId!)
     // Une ligne « en cours » depuis plus de dix minutes est une application fermée en route.
+    const enAttente = [{ status: 'EN_ATTENTE' as const }, { status: 'RELEVE' as const, updatedAt: { lt: new Date(Date.now() - 10 * 60_000) } }]
     const lignes = await prisma.importQueue.findMany({
       where: {
         userId: req.userId!,
-        origine: { startsWith: ORIGINE_AUTOSHIPPER },
-        mode: 'desktop',
-        OR: [{ status: 'EN_ATTENTE' }, { status: 'RELEVE', updatedAt: { lt: new Date(Date.now() - 10 * 60_000) } }],
+        AND: [
+          { OR: enAttente },
+          {
+            OR: [
+              // AUTO-SHIPPER : seules les lignes payées pour le desktop (celles de l'extension ont l'agent de contrôle).
+              { origine: { startsWith: ORIGINE_AUTOSHIPPER }, mode: 'desktop' },
+              // La file du site (gagnants, rapports, catalogues, synthèses) : le desktop qui tourne relève tout ce qui se lit au navigateur.
+              { origine: null, mode: { in: ['desktop', 'extension'] } },
+              { NOT: { origine: { startsWith: ORIGINE_AUTOSHIPPER } }, mode: { in: ['desktop', 'extension'] } },
+            ],
+          },
+        ],
       },
       orderBy: { createdAt: 'asc' },
       take: 20,
-      select: { id: true, url: true, titre: true, fournisseur: true, createdAt: true },
+      select: { id: true, url: true, titre: true, fournisseur: true, createdAt: true, origine: true },
     })
-    res.json({ lignes })
+    res.json({
+      lignes: lignes.map(({ origine, ...l }) => ({ ...l, autoShipper: Boolean(origine?.startsWith(ORIGINE_AUTOSHIPPER)), recherche: estPageRecherche(l.url) })),
+    })
   } catch (err) {
     console.error('agent file-autoshipper', err)
     res.status(500).json({ error: 'File illisible' })
@@ -431,9 +445,13 @@ agentRouter.get('/file-autoshipper', requireDesktop as never, async (req: AgentR
 
 agentRouter.post('/file-autoshipper/:id/releve', requireDesktop as never, async (req: AgentRequest, res) => {
   try {
+    // Toute ligne du vendeur encore à faire ; une ligne de la file du site passe en mode desktop (elle n'est plus « à l'extension »).
+    const ligne = await prisma.importQueue.findFirst({ where: { id: req.params.id, userId: req.userId!, status: { in: ['EN_ATTENTE', 'RELEVE'] } }, select: { origine: true } })
+    if (!ligne) return res.status(404).json({ error: 'Ligne absente, déjà importée ou rendue.' })
+    const autoShipper = Boolean(ligne.origine?.startsWith(ORIGINE_AUTOSHIPPER))
     const { count } = await prisma.importQueue.updateMany({
-      where: { id: req.params.id, userId: req.userId!, origine: { startsWith: ORIGINE_AUTOSHIPPER }, status: { in: ['EN_ATTENTE', 'RELEVE'] } },
-      data: { status: 'RELEVE', erreur: null },
+      where: { id: req.params.id, userId: req.userId!, status: { in: ['EN_ATTENTE', 'RELEVE'] } },
+      data: autoShipper ? { status: 'RELEVE', erreur: null } : { status: 'RELEVE', erreur: null, mode: 'desktop' },
     })
     if (!count) return res.status(404).json({ error: 'Ligne absente, déjà importée ou rendue.' })
     res.json({ ok: true })
@@ -447,6 +465,12 @@ agentRouter.post('/file-autoshipper/:id/capture', requireDesktop as never, async
   const parsed = captureSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Données de produit invalides' })
   try {
+    if (!(await ligneAutoShipper(req.userId!, req.params.id))) {
+      // Une ligne de la file du site : même import et même prix que la capture de l'extension.
+      const issue = await importerLigneFile(req.userId!, req.params.id, parsed.data)
+      if (!issue.ok) return res.status(issue.statut).json({ error: issue.erreur })
+      return res.status(201).json(issue)
+    }
     const issue = await importerLigneAutoShipper(req.userId!, req.params.id, parsed.data)
     if (!issue.ok) return res.status(422).json({ error: issue.erreur })
     res.status(201).json(issue)
@@ -460,6 +484,15 @@ agentRouter.post('/file-autoshipper/:id/echec', requireDesktop as never, async (
   const parsed = z.object({ erreur: z.string().min(1).max(300), reessayer: z.boolean().optional() }).safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Motif manquant.' })
   try {
+    if (await ligneFileSite(req.userId!, req.params.id)) {
+      // File du site : rien n'a été payé. Bloqué → la ligne attend le prochain passage ; refus → échec avec son motif.
+      const { count } = await prisma.importQueue.updateMany({
+        where: { id: req.params.id, userId: req.userId!, status: { in: ['EN_ATTENTE', 'RELEVE'] } },
+        data: { status: parsed.data.reessayer ? 'EN_ATTENTE' : 'ECHEC', erreur: parsed.data.erreur },
+      })
+      if (!count) return res.status(404).json({ error: 'Ligne absente ou déjà importée.' })
+      return res.json({ ok: true, rendu: false })
+    }
     if (parsed.data.reessayer) {
       // Bloqué (anti-robot, connexion demandée) : la ligne attend le prochain passage, 24 h au plus.
       const { count } = await prisma.importQueue.updateMany({

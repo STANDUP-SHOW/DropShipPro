@@ -575,8 +575,9 @@ export const api = {
   nouveautesRapports: () =>
     request<Record<string, Array<{ jour: string; nombre: number }>>>('/reports/nouveautes'),
   // La file d'import exécutée par l'agent extension.
-  fileImportAjouter: (produits: Array<{ url: string; titre?: string; fournisseur?: string; mode?: 'api' | 'url' | 'extension'; origine?: string }>) =>
-    request<{ ajoutes: number; dejaEnFile: number }>('/market-reports/file', { method: 'POST', body: JSON.stringify({ produits }) }),
+  /** `voie` : 'desktop' quand le compte a l'application (son navigateur interne relève la file), sinon 'extension'. */
+  fileImportAjouter: (produits: Array<{ url: string; titre?: string; fournisseur?: string; mode?: 'api' | 'url' | 'extension' | 'desktop'; origine?: string }>) =>
+    request<{ ajoutes: number; dejaEnFile: number; voie?: 'desktop' | 'extension' }>('/market-reports/file', { method: 'POST', body: JSON.stringify({ produits }) }),
   fileImport: () =>
     request<Array<{ id: string; url: string; titre: string | null; fournisseur: string | null; mode: string; status: string; erreur: string | null; productId: string | null; createdAt: string }>>(
       '/market-reports/file',

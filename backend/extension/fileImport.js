@@ -202,7 +202,8 @@ async function montrerFile(hote, surRetour) {
 
     let releve
     try {
-      releve = await chrome.runtime.sendMessage({ type: 'dsp-relever-adresse', url: ligne.url })
+      // `nom` : un gagnant de synthèse n'a qu'un lien de recherche, son nom choisit le résultat.
+      releve = await chrome.runtime.sendMessage({ type: 'dsp-relever-adresse', url: ligne.url, nom: ligne.titre || null })
     } catch (e) {
       releve = { ok: false, error: e?.message }
     }
