@@ -166,6 +166,17 @@ async function lancer({ maison, profil, port, serveur }) {
     const liste = (await a.appel('adminDriveLister', { adresse: 'https://drive.google.com/drive/folders/abc' })).valeur
     assert.equal(liste.dates[0].date, '2026-10-08')
     assert.ok(!(await a.appel('adminDriveLister', { adresse: 'https://exemple.test/x' })).ok, 'une adresse hors Drive est refusée en clair')
+    // #193: nothing new = « Rien de nouveau », and « Tout afficher » asks the whole folder
+    const neuf = 'https://drive.google.com/drive/folders/rien-de-neuf'
+    await a.evaluer(`(async () => { await driveListerUn('${neuf}'); const t = document.createElement('div'); t.id = 'banc-neuf'; t.append(vueDossierDrive('${neuf}')); document.body.append(t) })()`)
+    await pause(200)
+    assert.match(await a.evaluer(`document.getElementById('banc-neuf').textContent`), /Rien de nouveau : 3 jour\(s\) déjà importé\(s\)/)
+    assert.ok(await a.evaluer(`[...document.querySelectorAll('#banc-neuf button')].some((b) => b.textContent === 'Tout afficher')`), 'bouton « Tout afficher » présent')
+    await a.evaluer(`(async () => { document.getElementById('banc-neuf').remove(); await driveLister(['${neuf}'], true) })()`)
+    await pause(400)
+    assert.deepEqual(faux.listesDrive.filter((x) => x.adresse === neuf).map((x) => x.tout), [false, true])
+    assert.equal(JSON.parse(await a.evaluer(`JSON.stringify(drive.listes['${neuf}'].dates.length)`)), 2, 'Tout afficher relit le dossier complet')
+    await a.evaluer(`rendre()`)
     assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'], essai: true })).valeur.aImporter, 1)
     assert.equal((await a.appel('adminDriveImporter', { adresse: 'https://drive.google.com/drive/folders/abc', dates: ['2026-10-08'] })).valeur.importees, 1)
     assert.deepEqual(faux.importsDrive.map((x) => x.essai), [true, false])
@@ -190,10 +201,17 @@ async function lancer({ maison, profil, port, serveur }) {
     assert.match(await a.evaluer(`document.body.textContent`), /compte trouvé Boutique A · 3 annonce\(s\)/)
     await a.evaluer(`synthImporter(true)`)
     await pause(300)
-    assert.match(await a.evaluer(`document.body.textContent`), /Vérification : 1 à importer, 0 déjà sur le compte, 0 introuvable/)
+    assert.match(await a.evaluer(`document.body.textContent`), /Vérification : Photos et description en cours de recherche chez AliExpress pour 1 annonce\(s\)/)
     await a.evaluer(`(async () => { window.confirm = () => true; await synthImporter(false) })()`)
     await pause(300)
-    assert.match(await a.evaluer(`document.body.textContent`), /Import terminé : 1 importé\(s\) en brouillon/)
+    assert.match(await a.evaluer(`document.body.textContent`), /Import : Photos et description en cours/)
+    assert.match(await a.evaluer(`document.body.textContent`), /Complétion en cours : 0 annonce\(s\) créée\(s\)/)
+    assert.ok(faux.lecturesCompletion >= 1, 'la complétion est relue')
+    faux.completion = { ...faux.completion, completes: 1, fin: new Date().toISOString() }
+    await a.evaluer(`synthSuivre('a@exemple.test')`)
+    await pause(300)
+    assert.match(await a.evaluer(`document.body.textContent`), /Complétion terminée : 1 annonce\(s\) créée\(s\) et complétée\(s\)/)
+    assert.ok(!/en brouillon, sans photo/.test(await a.evaluer(`document.body.textContent`)), 'plus de promesse d’annonce vide')
     assert.deepEqual(faux.importsSynthese.map((x) => [x.email, x.ids, x.essai]), [['a@exemple.test', ['s1'], true], ['a@exemple.test', ['s1'], false]])
     console.log('ok   Synthèses AIMARKET : jours, refus nommés, liste noire jamais cochée en lot, compte vérifié, essai puis import')
     const aff = (await a.appel('adminAffiliation')).valeur

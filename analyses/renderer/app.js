@@ -578,8 +578,9 @@ function garderDossiersDrive() {
   try { localStorage.setItem(CLE_DOSSIERS_DRIVE, JSON.stringify(drive.dossiers)) } catch { /* kept for this session only */ }
 }
 
-async function driveListerUn(adresse) {
-  const l = await appel('adminDriveLister', { adresse })
+// Since #193 the site only lists what is still to import; tout = true asks for the whole folder.
+async function driveListerUn(adresse, tout = false) {
+  const l = await appel('adminDriveLister', { adresse, tout })
   if (!l) return false
   drive.listes[adresse] = l
   // Preselect the dates that hold something new.
@@ -587,12 +588,12 @@ async function driveListerUn(adresse) {
   return true
 }
 
-async function driveLister(adresses = drive.dossiers) {
+async function driveLister(adresses = drive.dossiers, tout = false) {
   drive.enCours = 'liste'; drive.rapports = []
   let erreurs = 0
   for (const [i, a] of adresses.entries()) {
     flash(`Lecture du dossier ${i + 1} sur ${adresses.length} sur Google Drive (par le site)…`)
-    if (!(await driveListerUn(a))) erreurs++
+    if (!(await driveListerUn(a, tout))) erreurs++
   }
   drive.enCours = null
   if (!erreurs) flash('')
@@ -649,7 +650,9 @@ function vueDossierDrive(adresse) {
       h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveRetirer(adresse) }, 'Retirer'),
     ),
     !l ? h('p', { class: 'doux petit' }, 'Pas encore lu.') : h('div', {},
-      l.dates.length === 0 && h('p', { class: 'doux' }, 'Aucun rapport daté dans ce dossier ni dans ses sous-dossiers.'),
+      l.dates.length === 0 && h('p', { class: 'doux' }, l.datesDejaImportees > 0 ? `Rien de nouveau : ${l.datesDejaImportees} jour(s) déjà importé(s).` : 'Aucun rapport daté dans ce dossier ni dans ses sous-dossiers.'),
+      l.dates.length > 0 && l.datesDejaImportees > 0 && h('p', { class: 'doux petit' }, `${l.datesDejaImportees} jour(s) déjà importé(s) masqué(s).`),
+      l.datesDejaImportees > 0 && h('div', { class: 'ligne' }, h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveLister([adresse], true).then(rendre) }, 'Tout afficher')),
       l.dates.map((d) => {
         const importables = d.etudes.filter((x) => x.importable)
         const nouvelles = importables.filter((x) => !x.dejaEnBase)
@@ -728,7 +731,7 @@ const SECTIONS_SYNTHESE = [
   ['tous', 'Tous les produits'], ['top5', 'Top 5 du jour'], ['heros', 'Produits héros'], ['buyNow', 'Buy now'],
   ['roi', 'Champions ROI'], ['highTicket', 'High ticket'], ['breakout', 'Breakout (tendances)'], ['listeNoire', 'Liste noire (à ne pas acheter)'],
 ]
-const synth = { jours: null, imports: [], date: null, detail: null, section: 'top5', choisis: {}, email: '', comptes: null, compte: null, bilan: null, enCours: null }
+const synth = { jours: null, imports: [], date: null, detail: null, section: 'top5', choisis: {}, email: '', comptes: null, compte: null, bilan: null, completion: null, enCours: null }
 
 async function synthCharger() {
   synth.enCours = 'liste'; rendre()
@@ -783,15 +786,36 @@ async function synthGoogle() {
   rendre()
 }
 
+// Background completion (#195): read every 15 s until the site says it is over
+let minuteurCompletion = null
+async function synthSuivre(email) {
+  clearTimeout(minuteurCompletion)
+  const r = await appel('adminSyntheseCompletion', { email })
+  if (synth.email.trim().toLowerCase() !== email) return
+  synth.completion = r ? r.completion : null
+  rendre()
+  if (synth.completion && !synth.completion.fin) minuteurCompletion = setTimeout(() => synthSuivre(email), 15000)
+}
+
+function vueCompletion(c) {
+  const faits = c.completes + c.sansResultat + (c.echecs || []).length
+  return h('div', { class: 'carte' },
+    h('p', {}, h('strong', {}, c.fin ? 'Complétion terminée : ' : 'Complétion en cours : '),
+      `${c.completes} annonce(s) créée(s) et complétée(s), ${c.sansResultat} sans résultat chez les fournisseurs${(c.echecs || []).length ? `, ${c.echecs.length} échec(s)` : ''} — ${faits} sur ${c.total}.`),
+    !c.fin && h('p', { class: 'doux petit' }, 'Relu toutes les 15 secondes.'),
+    (c.echecs || []).length > 0 && h('ul', { class: 'petit' }, ...c.echecs.map((e) => h('li', {}, `${e.titre} : ${e.raison}`))))
+}
+
 const idsChoisis = () => Object.keys(synth.choisis).filter((id) => synth.choisis[id])
 
 async function synthImporter(essai) {
   const ids = idsChoisis()
-  if (!essai && !confirm(`Importer ${ids.length} produit(s) en brouillon sur le compte ${synth.email.trim()} ?`)) return
+  if (!essai && !confirm(`Importer ${ids.length} produit(s) sur le compte ${synth.email.trim()} ? Chaque annonce n’est créée qu’une fois complétée (photos, description) chez un fournisseur relié au compte.`)) return
   synth.enCours = essai ? 'essai' : 'import'; synth.bilan = null; rendre()
   const b = await appel('adminSyntheseImporter', { date: synth.date, email: synth.email.trim().toLowerCase(), ids, essai })
   synth.enCours = null
-  if (b) synth.bilan = { ...b, essai: b.essai === true, nombre: b.essai === true ? b.aImporter : b.importes }
+  if (b) synth.bilan = { ...b, essai: b.essai === true }
+  if (b && !essai && b.completionEnCours > 0) synthSuivre(synth.email.trim().toLowerCase())
   rendre()
 }
 
@@ -809,7 +833,7 @@ function vueSyntheses() {
   const refus = synth.imports.filter((i) => i.statut === 'refuse').slice(0, 5)
   return h('div', {},
     h('h1', {}, 'Synthèses AIMARKET'),
-    h('p', { class: 'doux petit' }, 'Les synthèses du jour ne sont pas publiées sur le site : elles se lisent ici seulement. Cochez les produits gagnants passés au crible, choisissez le compte DropShipper qui les reçoit, puis importez. Chaque produit devient une annonce en brouillon sur ce compte, sans photo, gratuitement. Les liens de la synthèse sont des pages de recherche, pas des fiches produit. Un produit déjà sur ce compte n’est pas recréé.'),
+    h('p', { class: 'doux petit' }, 'Les synthèses du jour ne sont pas publiées sur le site : elles se lisent ici seulement. Cochez les produits gagnants passés au crible, choisissez le compte DropShipper qui les reçoit, puis importez. Aucune annonce vide n’est créée : chaque produit est complété (photos, description, fiche) chez AliExpress ou CJ s’ils sont reliés par API sur ce compte, puis devient un brouillon à relire ; sinon le site refuse et dit pourquoi. Les liens de la synthèse sont des pages de recherche, pas des fiches produit. Un produit déjà sur ce compte n’est pas recréé.'),
     messageFlash && h('p', { class: 'petit' }, messageFlash),
     h('div', { class: 'carte' },
       h('div', { class: 'ligne' },
@@ -847,7 +871,7 @@ function vueSyntheses() {
     d && h('div', { class: 'carte' },
       h('label', {}, 'Compte DropShipper qui reçoit les produits'),
       h('div', { class: 'ligne' },
-        h('div', { style: 'flex:1;min-width:260px' }, h('input', { type: 'email', list: 'kantix-comptes', value: synth.email, placeholder: 'Adresse du compte (ex. vendeur@gmail.com)', oninput: (ev) => { synth.email = ev.target.value; synth.bilan = null; synth.compte = null } })),
+        h('div', { style: 'flex:1;min-width:260px' }, h('input', { type: 'email', list: 'kantix-comptes', value: synth.email, placeholder: 'Adresse du compte (ex. vendeur@gmail.com)', oninput: (ev) => { synth.email = ev.target.value; synth.bilan = null; synth.compte = null; synth.completion = null; clearTimeout(minuteurCompletion) } })),
         h('button', { class: 'btn', disabled: !adresseOk || Boolean(synth.enCours), onclick: synthVerifierCompte }, synth.enCours === 'compte' ? 'Vérification…' : 'Vérifier le compte'),
         h('button', { class: 'btn', disabled: Boolean(synth.enCours), onclick: synthComptes }, synth.enCours === 'comptes' ? 'Lecture…' : 'Choisir parmi les comptes'),
         h('button', { class: 'btn', disabled: Boolean(synth.enCours), onclick: synthGoogle }, synth.enCours === 'google' ? 'En attente du navigateur…' : 'Connecter avec Google')),
@@ -858,8 +882,10 @@ function vueSyntheses() {
       h('div', { class: 'ligne' },
         h('button', { class: 'btn', disabled: !n || !adresseOk || Boolean(synth.enCours), onclick: () => synthImporter(true) }, synth.enCours === 'essai' ? 'Vérification…' : 'Vérifier (rien n’est écrit)'),
         h('button', { class: 'btn principal', disabled: !n || !adresseOk || Boolean(synth.enCours), onclick: () => synthImporter(false) }, synth.enCours === 'import' ? 'Import en cours…' : `Importer ${n} produit(s) sur ce compte`)),
-      synth.bilan && h('p', {}, synth.bilan.essai ? 'Vérification : ' : 'Import terminé : ',
-        `${synth.bilan.nombre} ${synth.bilan.essai ? 'à importer' : 'importé(s) en brouillon'}, ${synth.bilan.doublons} déjà sur le compte, ${synth.bilan.inconnus} introuvable(s) dans la synthèse — compte ${synth.bilan.compte}.`)),
+      synth.bilan && h('div', {},
+        h('p', {}, h('strong', {}, synth.bilan.essai ? 'Vérification : ' : 'Import : '), synth.bilan.message || ''),
+        h('p', { class: 'doux petit' }, `${synth.bilan.aCompleter ?? 0} à compléter, ${synth.bilan.doublons} déjà complet(s) sur le compte, ${synth.bilan.inconnus} introuvable(s) dans la synthèse — compte ${synth.bilan.compte}${(synth.bilan.fournisseurs || []).length ? ` · fournisseurs : ${synth.bilan.fournisseurs.join(', ')}` : ''}.`)),
+      synth.completion && vueCompletion(synth.completion)),
   )
 }
 
