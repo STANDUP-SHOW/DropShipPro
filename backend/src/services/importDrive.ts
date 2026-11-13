@@ -457,6 +457,21 @@ function memeSource(a: EtudeImportee, b: { texteRayon?: string; texteMarketing?:
  * 17h17 with the right URLs). Only the most recent days are opened, file by file, against the copy
  * the site keeps; a changed shelf or synthesis is offered again.
  */
+/** Whether the import would take this rewrite (same threshold): a rewrite it would refuse is not offered again. */
+function importable(source: { texteRayon?: string; texteMarketing?: string | null; json?: unknown }): boolean {
+  try {
+    const base = { idRayon: '', origine: '', importeLe: '' }
+    const e: any = etudeDepuisSurcouche(
+      source.texteRayon !== undefined
+        ? { ...base, format: 'markdown', texteRayon: source.texteRayon, texteMarketing: source.texteMarketing ?? null }
+        : { ...base, format: 'aimarket', json: source.json },
+    )
+    return !!e?.ok && e.produits >= SEUIL_IMPORT.produits && e.urlsDistinctes >= SEUIL_IMPORT.adresses
+  } catch {
+    return false
+  }
+}
+
 async function reecritsDepuisImport(dates: DateTrouvee[], combien = 2): Promise<Set<string>> {
   const surcouche = new Map(lireSurcouche().map((e) => [e.idRayon, e]))
   const changes = new Set<string>()
@@ -470,10 +485,10 @@ async function reecritsDepuisImport(dates: DateTrouvee[], combien = 2): Promise<
         if (e.rayon && ancienne.texteRayon !== undefined) {
           const texteRayon = await telecharger(e.rayon.id)
           const texteMarketing = e.marketing ? await telecharger(e.marketing.id) : null
-          if (!memeSource(ancienne, { texteRayon, texteMarketing })) changes.add(idRayonIndice(e))
+          if (!memeSource(ancienne, { texteRayon, texteMarketing }) && importable({ texteRayon, texteMarketing })) changes.add(idRayonIndice(e))
         } else if (e.json && ancienne.json !== undefined) {
           const json = jsonTolerant(await telecharger(e.json.id))
-          if (json !== undefined && !memeSource(ancienne, { json })) changes.add(idRayonIndice(e))
+          if (json !== undefined && !memeSource(ancienne, { json }) && importable({ json })) changes.add(idRayonIndice(e))
         }
       })
     }
@@ -749,17 +764,15 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
           } catch {
             avant = null
           }
-          // 13/11: a report rewritten the same day (URLs corrected) replaces the one on the site when it is
-          // as complete; identical content, or a poorer rewrite, changes nothing.
+          // 13/11: a report rewritten on Drive is the author's correction (URLs redone at 17h17) and always
+          // replaces the copy on the site once it passes the threshold above. Judging it by completeness kept
+          // the morning copy (more addresses, but wrong ones) and offered the shelf again after every import.
           if (ancienne && memeSource(ancienne, c.source)) {
             lignes.push(ligne('doublon', ["déjà importé, identique : rien n'est changé", ...notes]))
             continue
           }
-          if (avant?.ok && completude(avant) > completude(e)) {
-            lignes.push(ligne('doublon', [`déjà importé, plus complet (${avant.produits} produits, ${avant.urlsDistinctes} adresses) : rien n'est changé`, ...notes]))
-            continue
-          }
-          notes.unshift(avant?.ok ? `remplace la version déjà en ligne (${avant.produits} produits, ${avant.urlsDistinctes} adresses) par la version réécrite` : 'remplace la version déjà en ligne')
+          const moins = avant?.ok && completude(avant) > completude(e) ? ' (l’ancienne avait plus d’adresses ou de fiches : la réécriture fait foi)' : ''
+          notes.unshift(avant?.ok ? `remplace la version déjà en ligne (${avant.produits} produits, ${avant.urlsDistinctes} adresses) par la version réécrite${moins}` : 'remplace la version déjà en ligne')
         }
         // Another theme of the same shelf the same day: shown, the shelf may well be studied twice.
         const autres = [...enBase.entries(), ...[...retenues.values()].map((r) => [r.c.etude.idRayon, r.c.etude] as const)]
