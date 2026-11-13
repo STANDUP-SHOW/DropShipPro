@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
 import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
 import { titreDuJourAuto, titreSansSens } from './titreDuJour.js'
+import { lienAOuvrir } from './lienVerifie.js'
 import { createRequire } from 'node:module'
 
 /**
@@ -960,7 +961,8 @@ export class ReportQuery {
   /** Les colonnes de `products` que l'écran lit, pour produitsDe et getGagnants. */
   private static readonly COLONNES_PRODUIT = `p.title, p.supplier, p.supplier_url, p.recommended_url, p.buy_price,
                 p.sell_price, p.margin, p.import_method, p.reason, p.margin_pct, p.buy_price_eur,
-                p.sell_price_eur, p.score_global, p.image_url, p.rank, p.verdict, rr.products AS produits_json`
+                p.sell_price_eur, p.score_global, p.image_url, p.rank, p.verdict, rr.products AS produits_json,
+                r.data AS rapport_data`
 
   /**
    * Une ligne de `products` au format de l'écran.
@@ -1003,17 +1005,24 @@ export class ReportQuery {
     } catch {
       /* a malformed list only loses the sales count */
     }
+    // A Drive-imported report's product page is the agent's, unverified: it opens as the search for the
+    // name (13/11/2026, 14 AliExpress links out of 24 led to another product; lienVerifie.ts).
+    const urlAnnoncee = String(p.supplier_url || p.recommended_url || '')
+    const url = estImportDrive(p.rapport_data ?? undefined) ? lienAOuvrir(urlAnnoncee, String(p.title ?? '')) : urlAnnoncee
     return {
       rang: i + 1,
       titre: String(p.title ?? ''),
       fournisseur: String(p.supplier ?? ''),
-      url: String(p.supplier_url || p.recommended_url || ''),
+      url,
       prixAchat: achat,
       achats: [...new Set([plageAchat?.min, plageAchat?.max, achat, sur(ReportQuery.nombre(p.buy_price_eur))].filter((n): n is number => n != null && n > 0))],
       prixVente: vente,
       ...(plageVente && plageVente.max > plageVente.min ? { prixMin: plageVente.min, prixMax: plageVente.max } : {}),
       margePct,
-      import: (['api', 'url', 'extension'] as const).includes(p.import_method)
+      // A search page is read by the browser (it takes the first result bearing the name), never by the server.
+      import: url !== urlAnnoncee && /aliexpress\.|temu\.|shein\./.test(url)
+        ? 'extension'
+        : (['api', 'url', 'extension'] as const).includes(p.import_method)
         ? (p.import_method as 'api' | 'url' | 'extension')
         : 'extension',
       pourquoi: String(p.reason ?? ''),
@@ -1035,6 +1044,7 @@ export class ReportQuery {
         `SELECT ${ReportQuery.COLONNES_PRODUIT}
            FROM products p
            JOIN rayon_reports rr ON rr.id = p.rayon_report_id
+           JOIN reports r ON r.id = rr.report_id
           WHERE rr.report_id = ?
           ORDER BY p.rowid ASC`,
       )

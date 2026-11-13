@@ -31,6 +31,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { estPrivee, pourquoiPublic, sansMentionsPrivees } from './analysesPubliques.js'
+import { lienAOuvrir } from './lienVerifie.js'
 
 const RACINE_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 /** On the Railway volume (storage/). `DOSSIER_SYNTHESES` only for the bench, never in production. */
@@ -56,8 +57,13 @@ export interface ProduitSynthese {
   prixVente: number | null
   margeNette: number | null
   roi: number | null
-  /** Search pages, never invented product pages: what the file gives, as is. */
+  /**
+   * The links to open. A product page the agent did not prove it opened (`url_page_title` carrying the
+   * name) is replaced by the same site's search for the name (lienVerifie.ts, 13/11/2026).
+   */
   liens: Record<string, string>
+  /** The file's own links, kept when they were replaced (to show the agent what it wrote). */
+  liensAnnonces?: Record<string, string>
 }
 
 export interface Synthese {
@@ -76,7 +82,7 @@ export interface Synthese {
 }
 
 /** 2 (12/11/2026): the 09/11 format (hero_product nested, top_25_immediate_opportunities, flat *_url), JSON + Markdown merged. */
-export const LECTEUR_SYNTHESE = 2
+export const LECTEUR_SYNTHESE = 3
 
 const SECTIONS: Array<{ cle: CleSection; motif: RegExp }> = [
   { cle: 'top5', motif: /top[\s_-]*5|launch[\s_-]*now|priorit/i },
@@ -176,8 +182,19 @@ function produitJson(entree: Record<string, unknown>): ProduitSynthese | null {
     prixVente: nombre(champ(o, 'target_price', 'target_price_str')),
     margeNette: nombre(champ(o, 'net_margin', 'net_margin_str')),
     roi: nombre(champ(o, 'roi', 'roi_str')),
-    liens: liensDe(o),
+    ...liensSurs(liensDe(o), nom, texte(champ(o, 'url_page_title', 'page_title', 'verified_title'))),
   }
+}
+
+/** Unverified product pages become the search for the name (lienVerifie.ts); the originals are kept aside. */
+function liensSurs(liens: Record<string, string>, nom: string, titrePage: string): Pick<ProduitSynthese, 'liens' | 'liensAnnonces'> {
+  const surs: Record<string, string> = {}
+  const annonces: Record<string, string> = {}
+  for (const [k, v] of Object.entries(liens)) {
+    surs[k] = lienAOuvrir(v, nom, titrePage || null)
+    if (surs[k] !== v) annonces[k] = v
+  }
+  return Object.keys(annonces).length ? { liens: surs, liensAnnonces: annonces } : { liens: surs }
 }
 
 /**
@@ -195,7 +212,7 @@ function fusionner(parId: Map<string, ProduitSynthese>, p: ProduitSynthese): str
     if (deja.variante && p.variante && slug(deja.variante) !== slug(p.variante)) continue
     for (const k of Object.keys(p) as Array<keyof ProduitSynthese>) {
       const v = deja[k]
-      if (k === 'liens') deja.liens = { ...p.liens, ...deja.liens }
+      if (k === 'liens' || k === 'liensAnnonces') (deja as any)[k] = { ...(p[k] ?? {}), ...(deja[k] ?? {}) }
       else if (v === null || v === '') (deja as unknown as Record<string, unknown>)[k] = p[k]
     }
     return id
@@ -299,7 +316,7 @@ export function lireSyntheseMarkdown(md: string): Omit<Synthese, 'importeLe' | '
         prixVente: nombre(col(/prix/)),
         margeNette: nombre(col(/marge/)),
         roi: nombre(col(/\broi\b/)),
-        liens,
+        ...liensSurs(liens, nom, ''),
       })
     if (!sections[cle].includes(id)) sections[cle].push(id)
   }
