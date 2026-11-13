@@ -70,7 +70,8 @@ export async function fournisseursCherchables(userId: string) {
 }
 
 export interface Tache {
-  productId: string
+  /** A bare draft left by the first version of this import (13/11), filled in place. Absent: the listing is created complete. */
+  productId?: string
   produit: ProduitSynthese
 }
 
@@ -101,6 +102,8 @@ async function completerUne(userId: string, t: Tache, fournisseurs: Awaited<Retu
       const lignes = await connecteur.searchProducts!(t.produit.nom, creds, contexte)
       const choix = meilleurResultat(t.produit.nom, lignes)
       if (!choix) continue
+      const deja = await prisma.product.findFirst({ where: { userId, supplierId: connecteur.id, supplierRef: choix.ref }, select: { id: true } })
+      if (deja) return 'déjà sur le compte (même fiche fournisseur)'
       const fiche = await connecteur.fetchProduct!(choix.ref, creds, contexte)
       if (!fiche.images.length && !fiche.description.trim()) continue
 
@@ -116,35 +119,38 @@ async function completerUne(userId: string, t: Tache, fournisseurs: Awaited<Retu
       // The synthesis' target price stays the selling price when it is above the real buying price.
       const vente = t.produit.prixVente && t.produit.prixVente > fiche.price ? t.produit.prixVente : fiche.price * 1.5
 
+      const data = {
+        sourceUrl: choix.url || t.produit.liens.aliexpress_import || t.produit.liens.aliexpress_fr || '',
+        sourceSite: connecteur.id,
+        supplierId: connecteur.id,
+        supplierRef: choix.ref,
+        supplierPrice: fiche.price || undefined,
+        supplierCheckedAt: new Date(),
+        sourceCategory: fiche.category ?? undefined,
+        categoryId: rangement.categoryId,
+        description: fiche.description,
+        aiTitle: enrichi.title,
+        aiDescription: enrichi.description,
+        titleVariants: enrichi.titleVariants ?? undefined,
+        price: fiche.price,
+        sellingPrice: Math.round(vente * 100) / 100,
+        currency: fiche.currency,
+        images: photos.length ? photos : fiche.images,
+        imagesWatermarked: false,
+        variants: reparerVariantes(fiche.variants).variantes,
+        metaTitle: enrichi.metaTitle,
+        metaDescription: enrichi.metaDescription,
+        metaKeywords: enrichi.metaKeywords,
+        bulletPoints: enrichi.bulletPoints?.length ? enrichi.bulletPoints : undefined,
+        attributes: Object.keys(enrichi.attributes ?? {}).length ? enrichi.attributes : undefined,
+      }
+      if (!t.productId) {
+        // Never created before it is complete: no bare listing, ever (Max, 13/11).
+        await prisma.product.create({ data: { userId, title: fiche.title, status: 'DRAFT', ...data } })
+        return 'complete'
+      }
       // Still a bare draft? The seller may have edited or deleted it meanwhile.
-      const { count } = await prisma.product.updateMany({
-        where: { id: t.productId, userId, supplierRef: null },
-        data: {
-          sourceUrl: choix.url || t.produit.liens.aliexpress_import || t.produit.liens.aliexpress_fr || undefined,
-          sourceSite: connecteur.id,
-          supplierId: connecteur.id,
-          supplierRef: choix.ref,
-          supplierPrice: fiche.price || undefined,
-          supplierCheckedAt: new Date(),
-          sourceCategory: fiche.category ?? undefined,
-          categoryId: rangement.categoryId,
-          description: fiche.description,
-          aiTitle: enrichi.title,
-          aiDescription: enrichi.description,
-          titleVariants: enrichi.titleVariants ?? undefined,
-          price: fiche.price,
-          sellingPrice: Math.round(vente * 100) / 100,
-          currency: fiche.currency,
-          images: photos.length ? photos : fiche.images,
-          imagesWatermarked: false,
-          variants: reparerVariantes(fiche.variants).variantes,
-          metaTitle: enrichi.metaTitle,
-          metaDescription: enrichi.metaDescription,
-          metaKeywords: enrichi.metaKeywords,
-          bulletPoints: enrichi.bulletPoints?.length ? enrichi.bulletPoints : undefined,
-          attributes: Object.keys(enrichi.attributes ?? {}).length ? enrichi.attributes : undefined,
-        },
-      })
+      const { count } = await prisma.product.updateMany({ where: { id: t.productId, userId, supplierRef: null }, data })
       return count ? 'complete' : 'annonce modifiée ou supprimée entre-temps'
     } catch (err) {
       derniereErreur = err instanceof SupplierError ? `${connecteur.label} : ${err.message}` : `${connecteur.label} : ${err instanceof Error ? err.message : String(err)}`

@@ -515,13 +515,13 @@ adminRouter.post('/syntheses/:date/importer-compte', async (req: Request, res) =
     })
     const deja = new Map(existants.map((e) => [`${e.title}|${e.sourceUrl}`, e]))
     const nus = (e: (typeof existants)[number]) => !e.supplierRef && (!Array.isArray(e.images) || e.images.length === 0)
-    const aCreer: Array<{ produit: (typeof choisis)[number]; donnees: ReturnType<typeof produitACreer> }> = []
+    const aCreer: Array<{ produit: (typeof choisis)[number] }> = []
     // A winner already imported bare (no photo, no supplier sheet: the 13/11 case) is completed, not skipped.
     const aReprendre: Tache[] = []
     for (const produit of choisis) {
       const donnees = produitACreer(produit)
       const existant = deja.get(`${donnees.title}|${donnees.sourceUrl}`)
-      if (!existant) aCreer.push({ produit, donnees })
+      if (!existant) aCreer.push({ produit })
       else if (nus(existant)) aReprendre.push({ productId: existant.id, produit })
     }
     const doublons = choisis.length - aCreer.length
@@ -532,22 +532,16 @@ adminRouter.post('/syntheses/:date/importer-compte', async (req: Request, res) =
       ? 'Rien à importer ni à compléter : ces produits sont déjà complets sur ce compte.'
       : fournisseurs.length
         ? `Photos et description en cours de recherche chez ${nomsFournisseurs.join(' puis ')} pour ${aCompleter} annonce(s) : elles se remplissent dans les minutes qui suivent (brouillons, à relire avant publication).`
-        : `Aucun fournisseur relié par API sur ce compte (AliExpress ou CJ Dropshipping) : la synthèse ne donne qu'un nom, un prix et des pages de recherche, donc ${aCompleter} annonce(s) restent sans photo ni description. Reliez AliExpress ou CJ dans Sourcing › Fournisseurs sur ce compte, puis relancez l'import : les annonces déjà créées seront complétées.`
+        : `Rien n'a été importé : aucun fournisseur n'est relié par API sur ce compte (AliExpress ou CJ Dropshipping), et la synthèse ne donne qu'un nom, un prix et des pages de recherche. Aucune annonce vide n'est créée. Reliez AliExpress ou CJ dans Sourcing › Fournisseurs sur ce compte, puis relancez l'import ; le relevé par le navigateur de l'application desktop arrive ensuite.`
     if (req.body?.essai === true) {
       return res.json({ compte: c.email, essai: true, aImporter: aCreer.length, aCompleter, doublons, inconnus, fournisseurs: nomsFournisseurs, message })
     }
-    const taches: Tache[] = [...aReprendre]
-    for (const { produit, donnees } of aCreer) {
-      const cree = await prisma.product.create({
-        data: { userId: c.id, ...donnees, images: [], imagesWatermarked: false },
-        select: { id: true },
-      })
-      taches.push({ productId: cree.id, produit })
-    }
+    // No listing is created before it is complete (Max, 13/11: « ni photo, ni description, ni rien »).
+    const taches: Tache[] = [...aReprendre, ...aCreer.map(({ produit }) => ({ produit }))]
     const completion = fournisseurs.length && taches.length ? lancerCompletion(c.id, c.email, taches, fournisseurs) : null
     res.json({
       compte: c.email,
-      importes: aCreer.length,
+      importes: 0,
       doublons,
       inconnus,
       aCompleter,
