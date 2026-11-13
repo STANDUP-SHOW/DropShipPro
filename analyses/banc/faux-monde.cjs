@@ -107,7 +107,15 @@ function creerServeur() {
             const c = JSON.parse(corps || '{}')
             etat.importsSynthese = (etat.importsSynthese || []).concat([c])
             const n = c.ids.filter((id) => ['s1', 's2'].includes(id)).length
-            return json(200, c.essai ? { compte: c.email, essai: true, aImporter: n, doublons: 0, inconnus: c.ids.length - n } : { compte: c.email, importes: n, doublons: 0, inconnus: c.ids.length - n })
+            // contract of #195: nothing created bare, completion in the background
+            const message = `Photos et description en cours de recherche chez AliExpress pour ${n} annonce(s).`
+            if (c.essai) return json(200, { compte: c.email, essai: true, aImporter: n, aCompleter: n, doublons: 0, inconnus: c.ids.length - n, fournisseurs: ['AliExpress'], message })
+            etat.completion = { total: n, completes: 0, sansResultat: 0, echecs: [], debut: new Date().toISOString(), fin: null }
+            return json(200, { compte: c.email, importes: 0, aCompleter: n, completionEnCours: n, doublons: 0, inconnus: c.ids.length - n, fournisseurs: ['AliExpress'], message })
+          }
+          if (req.url.startsWith('/api/admin/syntheses-completion?email=')) {
+            etat.lecturesCompletion = (etat.lecturesCompletion || 0) + 1
+            return json(200, { completion: etat.completion || null })
           }
           if (req.url === '/api/admin/analyses-drive/lister' && req.method === 'POST') {
             const { adresse, tout } = JSON.parse(corps || '{}')
