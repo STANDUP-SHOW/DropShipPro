@@ -10,6 +10,7 @@
  * sans date est nommé au lieu de disparaître.
  */
 process.env.DRIVE_SANS_ATTENTE = "1"
+process.env.DRIVE_DELAI_MS = "400"
 import { daterSansDossier, listerArbre, nomDossierVue, regrouper } from './src/services/importDrive.js'
 
 let echecs = 0
@@ -46,12 +47,17 @@ const DRIVE: Record<string, Noeud> = {
   r10AAAAAAAA: { nom: 'chats.rayon.md', texte: '## x\n' },
   bloqueAAAAA: { nom: 'rapports', enfants: ['jBloqueAAAA'] },
   jBloqueAAAA: { nom: '2026-11-11', enfants: [] },
+  // 14/11/2026: Google sends the headers of a file, then never the end of its body.
+  plateFigeAA: { nom: 'maison', enfants: ['figeRayonAA'] },
+  figeRayonAA: { nom: 'lampes.rayon.md', texte: '---\ndate: 2026-11-14\n---\n' },
 }
 /** Folder ids Google « throttles »: how many more answers without a list each still gives. */
 const freins: Record<string, number> = { cat09AAAAAA: 2, jBloqueAAAA: 99 }
 
 const ouverts: string[] = []
-globalThis.fetch = (async (entree: string | URL) => {
+/** Bodies that start and never end, as a real fetch they stop when the request is aborted. */
+const figes = new Set(['figeRayonAA'])
+globalThis.fetch = (async (entree: string | URL, init?: RequestInit) => {
   const url = new URL(String(entree))
   const id = url.searchParams.get('id') ?? ''
   const n = DRIVE[id]
@@ -69,6 +75,16 @@ globalThis.fetch = (async (entree: string | URL) => {
     return new Response(`<html><head><title>${n.nom} - Google Drive</title></head><body><div class="flip-entries">${blocs.join('')}</div></body></html>`)
   }
   ouverts.push(id)
+  if (figes.has(id)) {
+    const signal = init?.signal
+    const corps = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('---\n'))
+        signal?.addEventListener('abort', () => c.error(new DOMException('aborted', 'AbortError')))
+      },
+    })
+    return new Response(corps)
+  }
   return new Response(n.texte ?? '')
 }) as typeof fetch
 
@@ -111,6 +127,15 @@ try {
   erreur = e instanceof Error ? e.message : String(e)
 }
 exige(erreur.includes('rapports/2026-11-11') && erreur.includes('freine'), `liste jamais rendue : erreur qui nomme le dossier, pas un dossier vide (« ${erreur.slice(0, 90)}… »)`)
+
+console.log('Fichier dont Google ne finit jamais le corps (14/11/2026)')
+const debutFige = Date.now()
+const fige = await Promise.race([
+  daterSansDossier(await listerArbre('plateFigeAA')).then((r) => r),
+  new Promise<null>((ok) => setTimeout(() => ok(null), 5_000)),
+])
+exige(fige !== null && Date.now() - debutFige < 3_000, `la lecture s'arrête au délai au lieu de pendre (${Date.now() - debutFige} ms)`)
+exige(fige?.sansDate.some((f) => f.endsWith('lampes.rayon.md')), 'le fichier figé est nommé, pas perdu en silence')
 
 if (echecs) {
   console.log(`\n${echecs} échec(s)`)

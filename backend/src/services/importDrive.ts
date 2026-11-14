@@ -37,7 +37,8 @@ const etudeLib = createRequire(import.meta.url)('../../rapports-etude.cjs') as {
 
 const MAX_DOSSIERS = 400
 const MAX_FICHIERS = 2000
-const DELAI_MS = 20_000
+/** Read at each request: the bench sets it after the imports are hoisted. */
+const delaiMs = () => Number(process.env.DRIVE_DELAI_MS) || 20_000
 /** Undated reports (no AAAA-MM-JJ folder above them) opened to read their own date. */
 const MAX_SANS_DATE = 60
 
@@ -49,13 +50,19 @@ export function idDossierDrive(adresse: string): string {
   return m[1]
 }
 
-async function obtenir(url: string): Promise<Response> {
+/**
+ * One Drive request, body included, under one deadline (14/11/2026: the timer used to stop at the
+ * headers, and a body Google never finished sending held the import on « Import en cours » for good).
+ */
+async function obtenir(url: string): Promise<{ ok: boolean; status: number; texte: string }> {
   const ctrl = new AbortController()
-  const minuteur = setTimeout(() => ctrl.abort(), DELAI_MS)
+  const minuteur = setTimeout(() => ctrl.abort(), delaiMs())
   try {
-    return await fetch(url, { redirect: 'follow', signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (DropShipper import)' } })
+    const r = await fetch(url, { redirect: 'follow', signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (DropShipper import)' } })
+    return { ok: r.ok, status: r.status, texte: r.ok ? await r.text() : '' }
   } catch (err) {
-    throw new DriveErreur(`Google Drive ne répond pas (${err instanceof Error ? err.message : String(err)}).`)
+    const motif = ctrl.signal.aborted ? `aucune réponse complète en ${delaiMs() / 1000} s` : err instanceof Error ? err.message : String(err)
+    throw new DriveErreur(`Google Drive ne répond pas (${motif}).`)
   } finally {
     clearTimeout(minuteur)
   }
@@ -142,7 +149,7 @@ async function listerUnDossier(id: string, ou = ''): Promise<{ nom: string; entr
     }
     const r = await obtenir(`https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(id)}`)
     if (r.status === 404) throw new DriveErreur(`Dossier introuvable${ou ? ` (${ou})` : ''} : vérifiez l'adresse.`)
-    const html = r.ok ? await r.text() : ''
+    const html = r.texte
     if (r.ok && /accounts\.google\.com\/(ServiceLogin|signin)/.test(html) && !html.includes('flip-entry')) {
       throw new DriveErreur(`Ce dossier n'est pas public${ou ? ` (${ou})` : ''} : partagez-le en « Tous les utilisateurs disposant du lien ».`)
     }
@@ -280,12 +287,12 @@ async function telecharger(id: string): Promise<string> {
     return deja
   }
   const r = await obtenir(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}`)
-  const texte = r.ok ? await r.text() : ''
+  const texte = r.texte
   if (r.ok && !/^\s*<!doctype html|^\s*<html/i.test(texte)) return texte.replace(/^﻿/, '')
   // A file written by an agent through Google's own tools can be a Google Doc that keeps its « .md » or
   // « .json » title: no download for those, only an export as plain text.
   const d = await obtenir(`https://docs.google.com/document/d/${encodeURIComponent(id)}/export?format=txt`)
-  const doc = d.ok ? await d.text() : ''
+  const doc = d.texte
   if (d.ok && doc.trim() && !/^\s*<!doctype html|^\s*<html/i.test(doc)) return doc.replace(/^﻿/, '')
   if (!r.ok) throw new DriveErreur(`téléchargement refusé (${r.status})`)
   throw new DriveErreur('Google a renvoyé une page au lieu du fichier (fichier non public ?)')
