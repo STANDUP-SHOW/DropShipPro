@@ -395,6 +395,23 @@ async function lancer({ maison, profil, port, serveur }) {
     await a.evaluer(`[...document.querySelectorAll('button')].filter((b) => b.textContent === 'Retirer')[1].click()`)
     await pause(300)
     assert.match(await a.evaluer(`document.body.textContent`), /Lire les 1 dossier\(s\)/)
+    // 14/11: a site that never answers leaves « Import en cours… » with a « Débloquer » button; one request per date
+    faux.driveLent = true
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Importer 1 date(s)').click()`)
+    await pause(400)
+    assert.match(await a.evaluer(`document.body.textContent`), /Import en cours…/); assert.match(await a.evaluer(`document.body.textContent`), /date 1 sur 1 \(2026-10-08\)/)
+    await a.evaluer(`document.getElementById('drive-debloquer').click()`)
+    await pause(300)
+    const debloque = await a.evaluer(`document.body.textContent`)
+    assert.match(debloque, /Importer 1 date\(s\)/); assert.match(debloque, /Écran débloqué/)
+    assert.equal(await a.evaluer(`Boolean(document.getElementById('drive-debloquer'))`), false)
+    faux.driveLent = false
+    const avantDrive = faux.importsDrive.length
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Importer 1 date(s)').click()`)
+    await pause(800)
+    assert.match(await a.evaluer(`document.body.textContent`), /1 rayon\(s\) importé\(s\)/)
+    assert.deepEqual(faux.importsDrive.slice(avantDrive).map((x) => x.dates), [['2026-10-08']])
+    console.log('ok   import Drive : une requête par date, « Débloquer » quand le site ne répond pas')
     await a.evaluer(`document.querySelector('#onglets button[data-onglet=affiliation]').click()`)
     await pause(300)
     await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Afficher les affiliés').click()`)

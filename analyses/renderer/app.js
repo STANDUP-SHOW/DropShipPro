@@ -625,18 +625,45 @@ function driveRetirer(adresse) {
 
 const datesChoisies = () => drive.dossiers.reduce((n, a) => n + (drive.choisies[a]?.size || 0), 0)
 
+// One request per date (14/11/2026): a long import shows where it is, and none waits on the site more than 5 minutes.
+// « Débloquer » frees the screen at once; an answer that arrives after it is dropped.
 async function driveImporter(essai) {
   const cibles = drive.dossiers.filter((a) => drive.choisies[a]?.size)
-  drive.enCours = essai ? 'apercu' : 'import'; drive.rapports = []
-  for (const [i, adresse] of cibles.entries()) {
-    flash(`${essai ? 'Vérification de la qualité' : 'Import'} : dossier ${i + 1} sur ${cibles.length}…`)
-    const r = await appel('adminDriveImporter', { adresse, dates: [...drive.choisies[adresse]], essai })
-    if (!r) { drive.enCours = null; return }
-    drive.rapports.push({ adresse, ...r })
+  const tour = (drive.tour || 0) + 1
+  drive.tour = tour
+  drive.enCours = essai ? 'apercu' : 'import'; drive.rapports = []; drive.depuis = Date.now()
+  const total = cibles.reduce((n, a) => n + drive.choisies[a].size, 0)
+  let fait = 0
+  for (const adresse of cibles) {
+    const dates = [...drive.choisies[adresse]].sort()
+    const cumul = { adresse, importees: 0, doublons: 0, refusees: 0, lignes: [], ignores: [], erreurs: [] }
+    for (const date of dates) {
+      fait++
+      drive.etape = `${essai ? 'Vérification' : 'Import'} : date ${fait} sur ${total} (${date})`
+      flash(drive.etape)
+      const r = await window.poste.adminDriveImporter({ adresse, dates: [date], essai })
+      if (drive.tour !== tour) return
+      if (!r.ok) { cumul.erreurs.push(`${date} : ${r.erreur}`); continue }
+      const v = r.valeur || {}
+      cumul.lignes.push(...(v.lignes || [])); cumul.ignores.push(...(v.ignores || []))
+      // counts add up date after date; anything else (rapportsEnBase, essai…) is the latest answer's
+      for (const [k, x] of Object.entries(v)) {
+        if (k === 'lignes' || k === 'ignores') continue
+        cumul[k] = typeof x === 'number' && k !== 'rapportsEnBase' ? (Number(cumul[k]) || 0) + x : x
+      }
+    }
+    drive.rapports.push(cumul)
     if (!essai) await driveListerUn(adresse)
+    if (drive.tour !== tour) return
   }
-  drive.enCours = null
+  drive.enCours = null; drive.etape = ''
   flash('')
+}
+
+function driveDebloquer() {
+  drive.tour = (drive.tour || 0) + 1
+  drive.enCours = null; drive.etape = ''
+  flash('Écran débloqué. Si le site finissait encore un import, cliquez « Relire » dans un moment avant de relancer.')
 }
 
 /** One folder's dates, as the site found them. */
@@ -675,12 +702,13 @@ function vueRapportDrive(r) {
     h('h2', {}, r.essai
       ? `Aperçu : ${r.aImporter} rayon(s) à importer, ${r.doublons} doublon(s), ${r.refusees} refusé(s)`
       : `${r.importees} rayon(s) importé(s), ${r.doublons} doublon(s) ignoré(s), ${r.refusees} refusé(s)`),
+    (r.erreurs || []).length > 0 && h('div', { class: 'erreur' }, r.erreurs.map((e) => h('div', { class: 'petit' }, `Date non traitée — ${e}`))),
     r.refusees > 0 && h('div', { class: 'erreur' },
       h('p', {}, `${r.refusees} rayon(s) refusé(s) par le site, rien n’a été écrit pour eux :`),
       r.lignes.filter((x) => x.statut === 'refuse').map((x) => h('div', { class: 'petit' }, `${x.date} · ${x.rayon} — ${x.raison || 'motif non donné par le site'}`)),
       h('p', { class: 'petit' }, ATTENDU_DRIVE),
     ),
-    !r.essai && r.importees === 0 && r.refusees === 0 && !r.lignes.length && h('p', { class: 'erreur' }, `Aucun rayon importable dans les dates choisies. ${ATTENDU_DRIVE}`),
+    !r.essai && r.importees === 0 && r.refusees === 0 && !r.lignes.length && !(r.erreurs || []).length && h('p', { class: 'erreur' }, `Aucun rayon importable dans les dates choisies. ${ATTENDU_DRIVE}`),
     h('p', { class: 'doux petit' }, `Contrat (20 produits, 20 adresses, prix sur 18) : ${r.conformes} conforme(s) sur ${r.lignes.filter((x) => x.statut === 'importe' || x.statut === 'apercu').length}${r.rapportsEnBase != null ? ` · ${r.rapportsEnBase} rapports en ligne` : ''}`),
     h('table', {},
       h('thead', {}, h('tr', {}, ['Date', 'Rayon', 'Statut', 'Produits', 'Adresses', 'Avec prix', 'Marketing'].map((t) => h('th', {}, t)))),
@@ -719,6 +747,7 @@ function vueDrive() {
     drive.dossiers.length > 0 && h('div', { class: 'ligne' },
       h('button', { class: 'btn', disabled: !n || Boolean(drive.enCours), onclick: () => driveImporter(true) }, drive.enCours === 'apercu' ? 'Vérification…' : 'Vérifier la qualité'),
       h('button', { class: 'btn principal', disabled: !n || Boolean(drive.enCours), onclick: () => driveImporter(false) }, drive.enCours === 'import' ? 'Import en cours…' : `Importer ${n} date(s)`),
+      drive.enCours && h('button', { class: 'btn', id: 'drive-debloquer', onclick: driveDebloquer }, 'Débloquer'),
     ),
     ...drive.rapports.map(vueRapportDrive),
   )

@@ -128,6 +128,8 @@ function creerServeur() {
           if (req.url === '/api/admin/analyses-drive/importer' && req.method === 'POST') {
             const { dates, essai } = JSON.parse(corps || '{}')
             etat.importsDrive = (etat.importsDrive || []).concat([{ dates, essai }])
+            // 14/11: a site that never answers (Kantix must not wait forever, « Débloquer » frees the screen)
+            if (etat.driveLent) return
             if ((dates || []).includes('2026-10-12')) return json(200, { essai: Boolean(essai), importees: 0, aImporter: 0, doublons: 0, refusees: 1, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-12', rayon: 'mode / sacs', statut: 'refuse', raison: 'marketing seul, sans .rayon.md' }], ignores: [{ date: '2026-10-12', nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] })
             return json(200, { essai: Boolean(essai), importees: essai ? 0 : 1, aImporter: essai ? 1 : 0, doublons: 0, refusees: 0, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-08', rayon: 'jardin / arrosage', statut: essai ? 'apercu' : 'importe', produits: 12, urlsDistinctes: 8, avecPrix: 1, marketing: true }], ignores: [] })
           }
