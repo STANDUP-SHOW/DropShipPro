@@ -29,13 +29,27 @@ function expliquer(statut, raison) {
 }
 
 /** One call to /api/admin with the Poste's key. Throws a readable error, never returns an error body as data. */
-async function appelerAdmin({ apiBase, cle, chemin, corps, methode, fetchImpl = fetch }) {
-  const rep = await fetchImpl(`${apiBase.replace(/\/$/, '')}/api/admin${chemin}`, {
-    method: methode || (corps === undefined ? 'GET' : 'POST'),
-    headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json' },
-    body: corps === undefined ? undefined : JSON.stringify(corps),
-  })
-  const texte = await rep.text()
+/** No call to the site waits forever (14/11/2026: a Drive import « en cours » for 20 minutes, nothing moving). */
+const DELAI_ADMIN_MS = 90 * 1000
+
+async function appelerAdmin({ apiBase, cle, chemin, corps, methode, fetchImpl = fetch, delaiMs = DELAI_ADMIN_MS }) {
+  const ctrl = new AbortController()
+  const minuteur = setTimeout(() => ctrl.abort(), delaiMs)
+  let rep, texte
+  try {
+    rep = await fetchImpl(`${apiBase.replace(/\/$/, '')}/api/admin${chemin}`, {
+      method: methode || (corps === undefined ? 'GET' : 'POST'),
+      headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json' },
+      body: corps === undefined ? undefined : JSON.stringify(corps),
+      signal: ctrl.signal,
+    })
+    texte = await rep.text()
+  } catch (err) {
+    if (ctrl.signal.aborted) throw Object.assign(new Error(`Le site n’a pas répondu en ${Math.round(delaiMs / 1000)} s : opération arrêtée. Le site a peut-être fini de son côté : relisez avant de relancer.`), { delai: true })
+    throw err
+  } finally {
+    clearTimeout(minuteur)
+  }
   let donnees = null
   try { donnees = JSON.parse(texte) } catch { /* handled below */ }
   if (!rep.ok) {
@@ -51,4 +65,4 @@ async function appelerAdmin({ apiBase, cle, chemin, corps, methode, fetchImpl = 
   return donnees
 }
 
-module.exports = { PREFIXE, fabriquerCle, empreinte, appelerAdmin, expliquer }
+module.exports = { DELAI_ADMIN_MS, PREFIXE, fabriquerCle, empreinte, appelerAdmin, expliquer }

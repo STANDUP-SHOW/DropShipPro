@@ -1097,7 +1097,7 @@ function brancher() {
   h('compte-connecter', () => connexionCompte.attendre())
   h('admin-drive-lister', ({ adresse, tout }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: tout === true ? { adresse, tout: true } : { adresse } }))
   h('admin-drive-importer', async ({ adresse, dates, essai }) => {
-    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true } })
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true }, delaiMs: 5 * 60 * 1000 })
     if (!essai) {
       // The reasons are only in this answer: write them down, or a refusal is a bare count once the screen is closed (12/10/2026).
       const motifs = (r.lignes || []).filter((x) => x.statut === 'refuse').map((x) => `${x.date} ${x.rayon} : ${x.raison || 'motif non donné par le site'}`)

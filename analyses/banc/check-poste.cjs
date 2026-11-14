@@ -550,6 +550,10 @@ test('administration : la clé du Poste, son empreinte, et les refus du site dit
   etat.empreinteSite = adminLib.empreinte(cle)
   assert.deepEqual(await adminLib.appelerAdmin({ apiBase: base, cle, chemin: '/moi' }), { ok: true, administrateur: 'poste-analyses' })
   assert.equal((await adminLib.appelerAdmin({ apiBase: base + '/', cle, chemin: '/utilisateurs' })).total, 2)
+  // 14/11: a site that never answers is given up after the delay, said in French
+  const jamais = (_u, init) => new Promise((_r, rejeter) => init.signal.addEventListener('abort', () => rejeter(Object.assign(new Error('aborted'), { name: 'AbortError' }))))
+  await assert.rejects(adminLib.appelerAdmin({ apiBase: base, cle, chemin: '/moi', fetchImpl: jamais, delaiMs: 30 }), /n’a pas répondu en 0 s : opération arrêtée/)
+  assert.equal(adminLib.DELAI_ADMIN_MS, 90000)
 })
 
 test('mots-clés Google : non branchés (503) = le rayon continue sans volumes, un seul appel', async (srv) => {
