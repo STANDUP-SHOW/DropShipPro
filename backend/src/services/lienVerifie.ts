@@ -76,3 +76,14 @@ export function lienAOuvrir(url: string, nom: string | null | undefined, titrePa
   if (titrePage && titrePorteLeNom(titrePage, String(nom ?? ''))) return url
   return rechercheDuNom(url, nom) ?? url
 }
+
+/**
+ * The rayons' rule since 16/11/2026 (max: « lien vérifié ou rien »): a product link of the agent's files
+ * is shown only when the agent wrote the title of the page it opened (`url_page_title`) and that title
+ * carries the product's name. Otherwise there is no link at all: no search built by us, no guess.
+ * The search fallback of `lienAOuvrir` made every unverified product look linked (« wholesale-… »).
+ */
+export function lienVerifieOuRien(url: string, nom: string | null | undefined, titrePage?: string | null): string {
+  if (!url || !/^https?:\/\//.test(url)) return ''
+  return titrePage && titrePorteLeNom(titrePage, String(nom ?? '')) ? url : ''
+}

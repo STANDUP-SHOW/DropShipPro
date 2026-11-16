@@ -312,7 +312,10 @@ export interface ProduitRapport {
   rang: number
   titre: string
   fournisseur: string
+  /** Vide quand rien ne prouve que l'agent a ouvert la page (« lien vérifié ou rien », 16/11/2026). */
   url: string
+  /** L'agent a donné une adresse, retenue faute de preuve qu'il l'a ouverte. */
+  lienNonVerifie?: boolean
   prixAchat: number | null
   prixVente: number | null
   margePct: number | null

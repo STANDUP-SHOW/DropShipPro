@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
 import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
 import { titreDuJourAuto, titreSansSens } from './titreDuJour.js'
-import { lienAOuvrir } from './lienVerifie.js'
+import { lienVerifieOuRien } from './lienVerifie.js'
 import { createRequire } from 'node:module'
 
 /**
@@ -1012,6 +1012,7 @@ export class ReportQuery {
               ? Number(pct[1].replace(',', '.'))
               : null
     let ventes: string | null = null
+    let titrePage: string | null = null
     try {
       const liste = JSON.parse(p.produits_json ?? '[]')
       const rang = p.rank != null ? Number(p.rank) : null
@@ -1019,13 +1020,15 @@ export class ReportQuery {
         ? (rang !== null ? liste.find((x: any) => Number(x?.rank) === rang) : null) ?? liste[i]
         : null
       if (entree && entree.title === p.title && entree.sales != null && String(entree.sales).trim()) ventes = String(entree.sales).trim()
+      if (entree && entree.title === p.title && typeof entree.urlPageTitle === 'string' && entree.urlPageTitle.trim()) titrePage = entree.urlPageTitle.trim()
     } catch {
       /* a malformed list only loses the sales count */
     }
-    // A Drive-imported report's product page is the agent's, unverified: it opens as the search for the
-    // name (13/11/2026, 14 AliExpress links out of 24 led to another product; lienVerifie.ts).
+    // A Drive-imported report's product page is the agent's: shown only when the agent wrote the title of the
+    // page it opened and that title carries the name, otherwise no link at all (13/11/2026, 14 AliExpress
+    // links out of 24 led to another product; 16/11/2026, « lien vérifié ou rien »; lienVerifie.ts).
     const urlAnnoncee = String(p.supplier_url || p.recommended_url || '')
-    const url = estImportDrive(p.rapport_data ?? undefined) ? lienAOuvrir(urlAnnoncee, String(p.title ?? '')) : urlAnnoncee
+    const url = estImportDrive(p.rapport_data ?? undefined) ? lienVerifieOuRien(urlAnnoncee, String(p.title ?? ''), titrePage) : urlAnnoncee
     return {
       rang: i + 1,
       titre: String(p.title ?? ''),
@@ -1036,10 +1039,9 @@ export class ReportQuery {
       prixVente: vente,
       ...(plageVente && plageVente.max > plageVente.min ? { prixMin: plageVente.min, prixMax: plageVente.max } : {}),
       margePct,
-      // A search page is read by the browser (it takes the first result bearing the name), never by the server.
-      import: url !== urlAnnoncee && /aliexpress\.|temu\.|shein\./.test(url)
-        ? 'extension'
-        : (['api', 'url', 'extension'] as const).includes(p.import_method)
+      // The agent named a page nobody proved it opened: the line says so instead of linking it.
+      ...(urlAnnoncee && !url ? { lienNonVerifie: true } : {}),
+      import: (['api', 'url', 'extension'] as const).includes(p.import_method)
         ? (p.import_method as 'api' | 'url' | 'extension')
         : 'extension',
       pourquoi: String(p.reason ?? ''),

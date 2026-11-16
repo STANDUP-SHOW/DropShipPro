@@ -501,6 +501,10 @@ function scoreDe(p) {
  * matched on the product name. Columns are found by name, never by position,
  * and a value that is not there stays empty.
  */
+// The title of the page the agent opened (« url_page_title », « Titre de la page »): the only proof a
+// product link was read, not composed (lienVerifie.ts, 16/11/2026).
+const TITRE_PAGE = /url page title|page title|titre (de la |du )?(page|fiche)|titre lu/;
+
 function tableauProduitsParEntetes(bloc, texteComplet) {
   const principal = tableaux(bloc).find((t) => t.entetes.some((e) => /^(rang|#|n|no)?$/.test(e)) && t.entetes.some((e) => /^produit/.test(e)));
   if (!principal) return [];
@@ -513,6 +517,7 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
   const iScore = col(principal, /^score/);
   const VENTES = /^(nb |nombre de )?ventes\b|ventes (constatees|observees|mensuelles)|commandes|vendus|\bsold\b|\bsales\b/;
   const iVentes = col(principal, VENTES, /prix/);
+  const iTitrePage = col(principal, TITRE_PAGE);
   const cle = (t) => normTitre(texteDeCellule(t));
   // observed sales may sit in another table (marketplaces), matched on the product name like the supplier
   const ventesAilleurs = new Map();
@@ -524,7 +529,8 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
   for (const t of tableaux(texteComplet)) {
     if (t === principal) continue;
     const iP = col(t, /^produit/);
-    const iU = col(t, /^url\b|lien|fiche/);
+    const iU = col(t, /^url\b|lien|fiche/, TITRE_PAGE);
+    const iT = col(t, TITRE_PAGE);
     const iR = col(t, /^(rang|#|n|no)?$/);
     if (iP >= 0 && iU < 0) {
       const iV = col(t, VENTES, /prix/);
@@ -537,7 +543,7 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
     for (const c of t.lignes) {
       if (iV >= 0 && texteDeCellule(c[iV]) && !ventesAilleurs.has(cle(c[iP]))) ventesAilleurs.set(cle(c[iP]), texteDeCellule(c[iV]));
       const k = cle(c[iP]);
-      const f = { url: urlDeCellule(c[iU]), nom: iF >= 0 ? texteDeCellule(c[iF]) : '', achat: iA >= 0 ? montantSeul(c[iA]) : null };
+      const f = { url: urlDeCellule(c[iU]), nom: iF >= 0 ? texteDeCellule(c[iF]) : '', achat: iA >= 0 ? montantSeul(c[iA]) : null, titrePage: iT >= 0 ? texteDeCellule(c[iT]) : '' };
       if (k && !fournisseurs.has(k)) fournisseurs.set(k, f);
       const rangLigne = iR >= 0 ? nombre(c[iR]) : nombre((texteDeCellule(c[iP]).match(/^(\d{1,2})\s*[.)]\s/) || [])[1]);
       if (rangLigne != null && !fournisseursParRang.has(Math.round(rangLigne))) fournisseursParRang.set(Math.round(rangLigne), f);
@@ -575,6 +581,12 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
     // product page found in another or in the annex.
     const candidats = [f.url, urlDeCellule(c.join(' ')), urlAnnexe].filter(Boolean);
     const url = candidats.find(aUnChemin) || candidats[0] || '';
+    // The page title goes with the address it was read from: the table's when the table's address won.
+    const titrePage =
+      (url === f.url && f.titrePage) ||
+      (iTitrePage >= 0 && url !== urlAnnexe ? texteDeCellule(c[iTitrePage]) : '') ||
+      (url === urlAnnexe ? String(a.url_page_title || a.page_title || '').trim() : '') ||
+      '';
     const nbA = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
     // Prices: the annex numbers first (MARKETSPY writes them as JSON numbers), then a table cell holding one
     // amount. A cell « 12–18 € » read whole gave 1218 and « 29-49 € » nothing (*_eur columns, 12/10/2026).
@@ -599,6 +611,7 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
       methode: EN_JS.some((x) => url.toLowerCase().includes(x)) ? 'extension' : 'url',
       pourquoi: decision || '—',
       typeUrl: typeUrl(url),
+      ...(titrePage ? { titrePage } : {}),
     });
   }
   return out;
@@ -889,7 +902,8 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
   // Ours puts the supplier URL in the 4th column; a table that names its
   // columns otherwise is read by header names.
   const entete = tableaux(blocProduits)[0];
-  const lus = entete && !/url/.test(entete.entetes[3] || '') ? tableauProduitsParEntetes(blocProduits, texteRayon) : tableauProduits(blocProduits);
+  // A page-title column is only read by header names.
+  const lus = entete && (!/url/.test(entete.entetes[3] || '') || entete.entetes.some((e) => TITRE_PAGE.test(e))) ? tableauProduitsParEntetes(blocProduits, texteRayon) : tableauProduits(blocProduits);
   const { produits, retires: doublonsRetires } = dedoublonner(lus, (p) => p.titre, (p) => p.url);
 
   if (!produits.length) {
@@ -945,6 +959,7 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
     rank: p.rang,
     ...(p.ventes ? { sales: p.ventes } : {}),
     ...(p.score != null ? { score: p.score } : {}),
+    ...(p.titrePage ? { urlPageTitle: p.titrePage } : {}),
   }));
 
   const enTete = { date, categorie, theme, titre, agent, sources: nbSources };
