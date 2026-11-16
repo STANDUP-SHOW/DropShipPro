@@ -679,7 +679,11 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
 
   const syntheses: BilanSynthese[] = []
   for (const jour of jours) {
-    const bilanS = await importerSyntheseDuJour(jour, racine, essai)
+    // A synthesis that throws must not take the day down silently: its reason goes to the journal
+    // (16/11/2026: the 14 and 15 were read but never stored, and /syntheses-etat said nothing).
+    const bilanS = await importerSyntheseDuJour(jour, racine, essai).catch(
+      (err): BilanSynthese => ({ date: jour.date, statut: 'refuse', raison: `synthèse illisible : ${err instanceof Error ? err.message : String(err)}` }),
+    )
     if (bilanS) {
       syntheses.push(bilanS)
       lignes.push({
