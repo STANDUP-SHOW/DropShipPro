@@ -54,6 +54,7 @@ import { tourneeAutoMode } from './services/autoAnalyste.js'
 import { tourneeAutopilot } from './services/autopilot.js'
 import { tourneeReecritures } from './services/rewriteBatch.js'
 import { tourneeVentes } from './services/ventesMarketplaces.js'
+import { tourneeJetonsAliexpress } from './services/aliexpressJetons.js'
 import { rattraperBoutiquesSurMarket } from './services/marketAuto.js'
 import { marketCleRouter } from './routes/marketCle.js'
 /*
@@ -307,6 +308,12 @@ setTimeout(() => {
  * premier passage vient vite (30 s) : un lot importé juste avant un
  * redéploiement ne doit pas attendre le prochain grand cycle.
  */
+// Les jetons AliExpress autorisés, gardés en vie (le rafraîchissement meurt en deux jours sans appel).
+setInterval(() => {
+  tourneeJetonsAliexpress().catch((e) => console.error('tournée des jetons AliExpress impossible', e))
+}, 3 * 3600 * 1000)
+setTimeout(() => tourneeJetonsAliexpress().catch((e) => console.error('tournée des jetons AliExpress impossible', e)), 3 * 60_000)
+
 // Les ventes des places de marché (Shopify d'abord) et le renvoi du suivi,
 // toutes les quinze minutes (auto-fulfillment, 29/09/2026).
 setInterval(() => {

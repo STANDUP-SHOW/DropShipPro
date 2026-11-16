@@ -146,6 +146,11 @@ async function renouveler(
   return { accessToken: reponse.access_token, refreshToken: reponse.refresh_token }
 }
 
+/** The renewal, for the keep-alive round (aliexpressJetons.ts). */
+export function renouvelerJetonAliexpress(appKey: string, appSecret: string, refreshToken: string | undefined) {
+  return renouveler(appKey, appSecret, refreshToken)
+}
+
 /**
  * A signed business call that renews an expired access token once and retries.
  *

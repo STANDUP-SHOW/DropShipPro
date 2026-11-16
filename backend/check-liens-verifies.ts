@@ -48,6 +48,15 @@ const pR = lue?.produits.find((p) => p.nom === rechaud)
 const pT = lue?.produits.find((p) => p.nom === thermo)
 ok(!!pR && /wholesale/.test(pR.liens.sourcing) && pR.liensAnnonces?.sourcing === 'https://fr.aliexpress.com/item/1005012830855581.html', 'synthèse : lien non vérifié remplacé, original gardé')
 ok(!!pT && pT.liens.sourcing === 'https://fr.aliexpress.com/item/1005008686214269.html' && !pT.liensAnnonces, 'synthèse : lien vérifié gardé')
+// 16/11: a name cut in the middle of an emoji at 120 units threw « URI malformed » and the Drive import refused the 14th and the 15th.
+const nomEmoji = 'x'.repeat(119) + '\u{1F525} fin'
+let sansErreur = true
+try {
+  lienAOuvrir('https://www.amazon.fr/dp/B0BQDSNJS4', nomEmoji)
+} catch {
+  sansErreur = false
+}
+ok(sansErreur, 'un nom coupé au milieu d’un emoji ne fait plus lever « URI malformed »')
 ok(LECTEUR_SYNTHESE >= 3, 'lecteur 3 : les synthèses déjà importées sont relues')
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\nTout est conforme.')
