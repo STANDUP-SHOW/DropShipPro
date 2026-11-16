@@ -699,10 +699,9 @@ function nombreDeSources(fm, texte) {
 function corpsMarketing(texte) {
   const complet = sectionsCompletes(texte).trim();
   if (complet) return complet.slice(0, 60000);
-  return String(texte || '')
+  return sansBlocsJson(String(texte || '')
     .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
-    .replace(/^\s*#\s+.*\r?\n/, '')
-    .trim()
+    .replace(/^\s*#\s+.*\r?\n/, ''))
     .slice(0, 60000);
 }
 
@@ -728,6 +727,14 @@ function titreDuTexte(texte) {
  * empty sections. Section numbers (« 7. ») are dropped: some are missing (10 to
  * 13 on 12/10/2026) and a gap reads like a lost section.
  */
+/** Fenced code blocks that hold data (JSON, or cost/margin fields), not a prompt: removed from a readable body. */
+function sansBlocsJson(texte) {
+  return String(texte || '')
+    .replace(/```[^\n]*\n([\s\S]*?)```/g, (bloc, dedans) =>
+      /^\s*[\[{]/.test(dedans) || /landed_cost|purchase_price|buy_price|supplier|net_margin|roi_percentage|"margin/i.test(dedans) ? '' : bloc)
+    .trim();
+}
+
 function sectionsCompletes(texte) {
   const numeros = new Map();
   for (const m of String(texte || '').matchAll(/^##\s+(\d+)\s*[.)]\s*(.+?)\s*$/gm)) numeros.set(m[1], texteDeCellule(m[2]));
@@ -744,7 +751,10 @@ function sectionsCompletes(texte) {
     if (titre === null) return;
     const corps = buf.join('\n').trim();
     const t = texteDeCellule(titre).replace(/^\d+\s*[.)]\s*/, '').trim();
-    if (corps && !/^annexe/.test(normTitre(t))) out.push(`## ${t}\n${renvois(corps)}`);
+    // The structured JSON annex carries buying costs, margins and ROI: never part of the readable body
+    // (16/11/2026: « Bloc JSON structuré final » shown on a public marketing page).
+    const net = sansBlocsJson(corps);
+    if (net && !/^annexe|\bjson\b/.test(normTitre(t))) out.push(`## ${t}\n${renvois(net)}`);
   };
   let premier = true;
   for (const l of String(texte || '').split(/\r?\n/)) {

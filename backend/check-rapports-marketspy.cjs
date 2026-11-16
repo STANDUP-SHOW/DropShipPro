@@ -284,6 +284,19 @@ TikTok domine avec les vidéos de dashcam en situation (https://www.tiktok.com/t
 
 ## 3. Calendrier
 Black Friday : pic attendu.
+
+## 4. Prompts image
+\`\`\`
+Photo studio d'une dashcam sur pare-brise
+\`\`\`
+\`\`\`json
+{ "landed_cost_france": 42, "roi_percentage": 77 }
+\`\`\`
+
+## 5. Bloc JSON structuré final
+\`\`\`
+{ "products": [ { "landed_cost_france": 42 } ] }
+\`\`\`
 `;
   const e = lib.etudeMarkdown({ texteRayon: texte, texteMarketing: tm, origineRayon: 'drive:dossier/2026-10-12/electromenager/lavage-sechage.rayon.md', origineMarketing: 'drive:dossier/2026-10-12/electromenager/lavage-sechage.marketing.md', source: 'google-drive', indices: lib.indicesDuChemin('drive:dossier/2026-10-12/electromenager/lavage-sechage.rayon.md') });
   exige(e.ok && e.marketing, 'le volet est lu' + (e.ok ? ' ' + (e.noteMarketing || '') : ' : ' + e.raison));
@@ -297,6 +310,8 @@ Black Friday : pic attendu.
     const d = JSON.parse(ligne.data);
     exige(/## Plateformes qui portent la catégorie/.test(d.analysis || ''), 'sa première section est gardée');
     exige(/## Calendrier\nBlack Friday/.test(d.analysis || ''), 'sa dernière section est gardée');
+    exige(!/landed_cost|roi_percentage|Bloc JSON/.test(d.analysis || ''), 'ni coût d’achat, ni marge, ni bloc JSON dans le corps lisible');
+    exige(/Photo studio d'une dashcam/.test(d.analysis || ''), 'le prompt en bloc de code est gardé');
     exige(ligne.sources === 2, 'ses sources sont comptées par les liens cités : ' + ligne.sources);
   } finally {
     db4.close();
