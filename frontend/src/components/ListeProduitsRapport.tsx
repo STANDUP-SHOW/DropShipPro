@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ExternalLink, Download, Send, Loader2, CheckSquare, Square } from 'lucide-react'
 import { api, type ProduitRapport } from '../lib/api'
 import annuaire from '../data/fournisseurs.json'
+import { aliexpressRelie, avecVoieApi, useAvecVoieApi } from '../lib/voieImport'
 
 /**
  * Les produits d'un rapport : une liste d'annonces à importer, pas un tableau.
@@ -62,8 +63,8 @@ export const COUT_EXTENSION = COUT_IMPORT
  * « Importer », quel que soit l'écran d'où on le clique.
  */
 export async function importerProduits(tout: ProduitAffiche[], origine: string): Promise<string> {
-  // Nothing to import without a verified page.
-  const lot = tout.filter((p) => p.url)
+  // Nothing to import without a verified page. AliExpress pages go through the seller's API when it is linked.
+  const lot = avecVoieApi(tout.filter((p) => p.url), await aliexpressRelie())
   const directs = lot.filter((p) => p.import !== 'extension')
   const parExtension = lot.filter((p) => p.import === 'extension')
   let importes = 0
@@ -150,7 +151,7 @@ function Case({ libelle, children, ton = '' }: { libelle: string; children: Reac
 }
 
 export function ListeProduitsRapport({
-  produits,
+  produits: bruts,
   origine,
   avecSelection = false,
   avecProvenance = false,
@@ -165,6 +166,7 @@ export function ListeProduitsRapport({
   avecProvenance?: boolean
   onMessage?: (texte: string | null) => void
 }) {
+  const produits = useAvecVoieApi(bruts)
   const [enCours, setEnCours] = useState<string | null>(null)
   const [coches, setCoches] = useState<Set<string>>(new Set())
   const [message, setMessage] = useState<string | null>(null)

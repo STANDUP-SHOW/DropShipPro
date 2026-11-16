@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckSquare, Eye, ExternalLink, Loader2, Lock, Search, Square } from 'lucide-react'
 import { COUT_EXTENSION, COUT_IMPORT, importerProduits, type ProduitAffiche } from '../ListeProduitsRapport'
+import { useAvecVoieApi } from '../../lib/voieImport'
 import { Fenetre } from './Creative'
 import { dateLongue, liste, lireVerdict, type FamilleVerdict } from './Veille'
 import { api } from '../../lib/api'
@@ -101,7 +102,8 @@ function Marge({ pct }: { pct: number | null | undefined }) {
 
 export function ListeGagnants() {
   const sauve = reglagesSauves()
-  const [produits, setProduits] = useState<Gagnant[]>([])
+  const [bruts, setProduits] = useState<Gagnant[]>([])
+  const produits = useAvecVoieApi(bruts)
   const [jours, setJours] = useState<string[]>([])
   const [jour, setJour] = useState<string>('')
   const [categorie, setCategorie] = useState<string>(sauve.categorie ?? '')

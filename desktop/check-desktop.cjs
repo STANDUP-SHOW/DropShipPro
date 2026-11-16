@@ -430,6 +430,8 @@ async function main() {
   verifier('autres adresses dropshipper:// ignorées (partage d’un lien)', cx.lireRetour('dropshipper://partager?url=https://x.fr') === null)
   verifier('code mal formé refusé', cx.lireRetour(`dropshipper://connexion?code=xyz&etat=${e1}`) === null)
   verifier('fenêtre Google reconnue, le site non', cx.estConnexionGoogle('https://accounts.google.com/gsi/select?client_id=1') && !cx.estConnexionGoogle('https://www.drop-shipper.fr/login'))
+  verifier("page d'autorisation AliExpress envoyée au navigateur du poste", cx.sortieDuSite('https://api-sg.aliexpress.com/oauth/authorize?response_type=code&client_id=1', 'https://www.drop-shipper.fr'))
+  verifier('le site et son API restent dans la fenêtre', !cx.sortieDuSite('https://www.drop-shipper.fr/fournisseurs', 'https://www.drop-shipper.fr') && !cx.sortieDuSite('https://api.drop-shipper.fr/api/x', 'https://www.drop-shipper.fr') && !cx.sortieDuSite('dropshipper://connexion', 'https://www.drop-shipper.fr'))
 
   console.log('File AUTO-SHIPPER (relevé dans le navigateur interne)')
   {

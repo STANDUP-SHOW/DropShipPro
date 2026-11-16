@@ -8,6 +8,7 @@ import { ListeProduitsRapport } from '../components/ListeProduitsRapport'
 import { PageCreative, Entete } from '../components/creative/Creative'
 import { GrilleRapports, Provenance, dateLongue, liste, melange, pagePublique, versLecture, type LigneRapport } from '../components/creative/Veille'
 import { api } from '../lib/api'
+import { useAvecVoieApi } from '../lib/voieImport'
 
 /**
  * Fresh news — les rapports des 48 agents, présentés comme un journal
@@ -111,7 +112,7 @@ export default function FreshNews() {
   const rapports = liste<Rapport>(donnees?.rapports)
   const rayon = rapports.find((r) => r.type === 'rayon')
   const marketing = rapports.find((r) => r.type === 'marketing')
-  const produits = liste<Produit>(rayon?.produits)
+  const produits = useAvecVoieApi(useMemo(() => liste<Produit>(rayon?.produits), [rayon]))
   const directs = produits.filter((p) => p.import !== 'extension').length
   const cat = categories.find((c) => c.id === categorie)
   const nomRayon = cat?.nom ?? donnees?.categorie?.nom ?? ''
