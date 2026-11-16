@@ -979,11 +979,63 @@ export function sansIntertitresVides(corps: string): string {
   return lignes.join('\n')
 }
 
+/** The amounts of a table cell (« 61.66 €–74.64 € », « **64,90 €** »), links and emphasis ignored. */
+function montantsCellule(cellule: string): number[] {
+  const t = cellule.replace(/\]\([^)]*\)/g, ']').replace(/[*_`[\]]/g, '')
+  return [...t.matchAll(/(\d+(?:[.,]\d{1,2})?)\s*€/g)].map((m) => Number(m[1].replace(',', '.'))).filter((n) => n > 0)
+}
+
+/**
+ * A price table computed by formula, not read on any page (16/11/2026: the agent's « Comparatif marketplaces »
+ * gave every Amazon price as exactly 0.95–1.15 × the advised price, Cdiscount 0.90–1.05, Leboncoin 0.55–0.70).
+ * Max's rule « rien d'inventé »: such a table never reaches a public page. Detected when, against the advised /
+ * target price column, one other price column keeps the same ratio(s) on every row (3 rows at least).
+ */
+export function estTableauCalcule(lignesTableau: string[]): boolean {
+  const cases = (l: string) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim())
+  const entete = cases(lignesTableau[0] ?? '').map((t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())
+  const iRef = entete.findIndex((t) => /prix (cible|conseille|de vente|recommande)|^cible$/.test(t))
+  if (iRef < 0) return false
+  const lignes = lignesTableau.slice(1).filter((l) => !/^\|[\s:|-]+\|?$/.test(l.trim())).map(cases)
+  if (lignes.length < 3) return false
+  for (let k = 0; k < entete.length; k++) {
+    if (k === iRef) continue
+    let modele: number[] | null = null
+    let pareil = 0
+    for (const c of lignes) {
+      const ref = montantsCellule(c[iRef] ?? '')[0]
+      const m = montantsCellule(c[k] ?? '')
+      if (!ref || !m.length) {
+        modele = null
+        break
+      }
+      const r = m.map((x) => x / ref)
+      if (!modele) modele = r
+      if (r.length !== modele.length || r.some((x, j) => Math.abs(x - modele![j]) > 0.006)) break
+      pareil++
+    }
+    if (modele && pareil === lignes.length) return true
+  }
+  return false
+}
+
 export function sansTableauxPrives(corps: string, colonnes = false): { corps: string; retires: number } {
   const lignes = corps.replace(/\r\n/g, '\n').split('\n')
   const sortie: string[] = []
   let retires = 0
   for (let i = 0; i < lignes.length; ) {
+    // A computed price table goes whole, with its own heading when nothing else stands under it.
+    if (lignes[i].trim().startsWith('|') && (i === 0 || !lignes[i - 1].trim().startsWith('|'))) {
+      let fin = i
+      while (fin < lignes.length && lignes[fin].trim().startsWith('|')) fin++
+      if (estTableauCalcule(lignes.slice(i, fin))) {
+        i = fin
+        while (sortie.length && !sortie[sortie.length - 1].trim()) sortie.pop()
+        if (sortie.length && /^#{3,}\s/.test(sortie[sortie.length - 1])) sortie.pop()
+        retires++
+        continue
+      }
+    }
     if (lignes[i].trim().startsWith('|') && ENTETE_PRIVEE.test(lignes[i])) {
       const elague = colonnes ? sansColonnesPrivees(lignes, i) : null
       if (elague) {
