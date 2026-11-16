@@ -44,7 +44,8 @@ function dateFr(iso: string): string {
 }
 
 /** La clé d'une ligne : l'adresse suffit, deux rapports peuvent proposer le même produit. */
-const cleDe = (p: ProduitAffiche) => p.url
+// A line without a verified link (« lien vérifié ou rien », 16/11/2026) is keyed by its rank.
+const cleDe = (p: ProduitAffiche) => p.url || `sans-lien:${p.rapportId ?? ''}:${p.rang}`
 
 /**
  * Drops : un import (DROPS.import, backend/src/services/tarifs.ts). Par l'extension, le serveur débite le même
@@ -60,7 +61,9 @@ export const COUT_EXTENSION = COUT_IMPORT
  * Partagé avec les cartes de la page Produits gagnants : un seul bouton
  * « Importer », quel que soit l'écran d'où on le clique.
  */
-export async function importerProduits(lot: ProduitAffiche[], origine: string): Promise<string> {
+export async function importerProduits(tout: ProduitAffiche[], origine: string): Promise<string> {
+  // Nothing to import without a verified page.
+  const lot = tout.filter((p) => p.url)
   const directs = lot.filter((p) => p.import !== 'extension')
   const parExtension = lot.filter((p) => p.import === 'extension')
   let importes = 0
@@ -284,8 +287,10 @@ export function ListeProduitsRapport({
           const coche = coches.has(cleDe(p))
           const parExtension = p.import === 'extension'
           return (
-            <li key={`${p.url}-${p.rang}`} className="flex flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center">
-              {avecSelection ? (
+            <li key={`${cleDe(p)}-${p.rang}`} className="flex flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center">
+              {avecSelection && !p.url ? (
+                <span className="w-4 shrink-0" aria-hidden />
+              ) : avecSelection ? (
                 <button
                   type="button"
                   onClick={() => basculer(p)}
@@ -326,6 +331,14 @@ export function ListeProduitsRapport({
                 </div>
               </div>
 
+              {!p.url ? (
+                <p
+                  className="shrink-0 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-200 lg:max-w-[12rem]"
+                  title="L'agent n'a pas prouvé avoir ouvert la fiche (titre de la page absent ou différent) : aucune adresse n'est affichée plutôt qu'une adresse douteuse."
+                >
+                  Lien non vérifié : fiche à retrouver
+                </p>
+              ) : (
               <div className="flex shrink-0 flex-wrap gap-1.5 lg:flex-col lg:items-stretch">
                 <a
                   href={p.url}
@@ -356,6 +369,7 @@ export function ListeProduitsRapport({
                   </button>
                 )}
               </div>
+              )}
             </li>
           )
         })}

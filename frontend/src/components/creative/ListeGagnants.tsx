@@ -211,7 +211,8 @@ export function ListeGagnants() {
 
   const visibles = tries.slice(0, montres)
   const selectionnables = visibles.filter((p) => !estImporte(p))
-  const selection = tries.filter((p) => coches.has(cle(p)) && !estImporte(p))
+  // A winner without a verified link (« lien vérifié ou rien », 16/11/2026) has nothing to import.
+  const selection = tries.filter((p) => coches.has(cle(p)) && !estImporte(p) && p.url)
   const toutCoche = selectionnables.length > 0 && selectionnables.every((p) => coches.has(cle(p)))
   const cout = (lot: Gagnant[]) => lot.reduce((t, p) => t + (p.import === 'extension' ? COUT_EXTENSION : COUT_IMPORT), 0)
   const nombreDe = (f: FamilleVerdict | 'tous') =>
@@ -439,10 +440,19 @@ export function ListeGagnants() {
                     <button type="button" onClick={() => setExamine(p)} title="Examiner" aria-label={`Examiner ${p.titre}`} className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white">
                       <Eye size={15} />
                     </button>
+                    {!p.url ? (
+                      <span
+                        className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200"
+                        title="L'agent n'a pas prouvé avoir ouvert la fiche : aucune adresse plutôt qu'une adresse douteuse."
+                      >
+                        Lien non vérifié
+                      </span>
+                    ) : (
                     <a href={p.url} target="_blank" rel="noopener noreferrer" title="Voir la fiche source" aria-label={`Fiche source de ${p.titre}`} className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white">
                       <ExternalLink size={15} />
                     </a>
-                    {importe ? (
+                    )}
+                    {!p.url ? null : importe ? (
                       <span className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[var(--c-texte-2)]">Déjà importé</span>
                     ) : (
                       <button
@@ -500,10 +510,14 @@ export function ListeGagnants() {
               .join(' · ')}
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
+            {!examine.url ? (
+              <span className="c-bouton-sec !text-xs opacity-80">Lien non vérifié par l'agent : fiche à retrouver</span>
+            ) : (
             <a href={examine.url} target="_blank" rel="noopener noreferrer" className="c-bouton-sec !text-xs">
               <ExternalLink size={12} /> Consulter la référence source
             </a>
-            {estImporte(examine) ? (
+            )}
+            {!examine.url ? null : estImporte(examine) ? (
               <span className="c-bouton-sec !text-xs opacity-70">Déjà dans Mes annonces</span>
             ) : (
               <button type="button" className="c-bouton !text-xs" disabled={enCours !== null} onClick={() => importer([examine], cle(examine))}>

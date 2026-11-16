@@ -39,7 +39,10 @@ export interface ProduitRapport {
   rang: number
   titre: string
   fournisseur: string
+  /** Empty when the agent's page was never proved opened (lienVerifie.ts, « lien vérifié ou rien »). */
   url: string
+  /** The agent named a page, withheld because nothing proves it opened it. */
+  lienNonVerifie?: boolean
   prixAchat: number | null
   /** Every purchase amount the row gives (both ends of « 12-18 € »): what public pages must never show. */
   achats?: number[]
