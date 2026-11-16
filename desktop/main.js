@@ -718,6 +718,9 @@ async function finirConnexion({ code, etat }) {
   }
 }
 
+/** An authorization page went to the computer's browser: reload the site when the window is used again. */
+let rechargerAuRetour = false
+
 function creerFenetre() {
   fenetre = new BrowserWindow({
     width: 1360,
@@ -750,6 +753,17 @@ function creerFenetre() {
     else if (file.adresseSure(url)) shell.openExternal(url)
     return { action: 'deny' }
   })
+  // The site leaving for another site in the same window (authorization pages): the computer's browser takes it, and the
+  // site reloads when the seller comes back, so the page shows the link it has just made.
+  vueSite.webContents.on('will-navigate', (e, url) => {
+    if (!connexion.sortieDuSite(url, SITE)) return
+    e.preventDefault()
+    if (connexion.estConnexionGoogle(url)) return connecterParLeNavigateur()
+    const sure = file.adresseSure(url)
+    if (!sure) return
+    shell.openExternal(sure)
+    rechargerAuRetour = true
+  })
   vueSite.webContents.on('did-finish-load', () => {
     if (!api) relierDepuisLeSite()
   })
@@ -768,6 +782,11 @@ function creerFenetre() {
   fenetre.contentView.addChildView(vueSite)
   fenetre.contentView.addChildView(vuePanneau)
   fenetre.on('resize', placerVues)
+  fenetre.on('focus', () => {
+    if (!rechargerAuRetour) return
+    rechargerAuRetour = false
+    vueSite.webContents.reload()
+  })
   fenetre.on('close', (e) => {
     // Fermer la fenêtre ne coupe pas l'agent : l'application reste dans la zone de notification.
     if (!app.quitter) {

@@ -59,4 +59,21 @@ function estConnexionGoogle(url) {
   }
 }
 
-module.exports = { creerEtats, adresseConnexion, lireRetour, estConnexionGoogle, DUREE_MS }
+/**
+ * A page of the site sending its own window to another site (AliExpress, eBay, Shopify, Stripe… authorization pages).
+ * Inside the app these pages break: AliExpress' « Buyer login » opens its sign-in in a new window, which goes to the
+ * computer's browser, and the authorization left in the app never learns it happened (Max, 16/11/2026). They open in
+ * the computer's browser instead, where the whole round trip happens in one place.
+ */
+function sortieDuSite(url, site) {
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
+    const hote = new URL(site).hostname.replace(/^www\./, '')
+    return u.hostname !== hote && !u.hostname.endsWith(`.${hote}`)
+  } catch {
+    return false
+  }
+}
+
+module.exports = { creerEtats, adresseConnexion, lireRetour, estConnexionGoogle, sortieDuSite, DUREE_MS }
