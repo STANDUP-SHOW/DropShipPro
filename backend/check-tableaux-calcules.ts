@@ -32,6 +32,9 @@ ok(!/61\.66|amazon\.fr/.test(r.corps) && r.retires === 1, 'le tableau calculé e
 ok(/Texte avant\./.test(r.corps) && /Texte après\./.test(r.corps) && !/Tableau 3/.test(r.corps), 'le texte autour reste')
 ok(/59,99/.test(sansTableauxPrives(lu).corps), 'un tableau relevé reste publié')
 
+const v3 = publiable('- **Candidat en décollage (**[🛒 Amazon FR](https://www.amazon.fr/dp/B0CRB1Z5VQ)**) (*Score 86/100* — Sèche-cheveux.')
+ok(!/\(\s*\)|\(\*\*\)/.test(v3) && /Sèche-cheveux/.test(v3), 'aucune parenthèse vide laissée : ' + v3)
+
 // Les fiches marchandes non vérifiées du « Verdict rapide » (16/11/2026)
 const v1 = publiable('- **Meilleur produit marketplace ([🛒 Amazon FR](https://www.amazon.fr/dp/B0FDH61LP4) — Bonnet de nuit en soie.')
 ok(!/amazon\.fr\/dp|Amazon FR/.test(v1) && /Bonnet de nuit en soie/.test(v1), 'lien amazon.fr/dp et son libellé de boutique retirés : ' + v1)

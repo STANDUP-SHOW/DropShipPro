@@ -557,7 +557,9 @@ export function publiable(ligne: string): string {
     .replace(/\[([^\]]*)\]\(([^()\s]*)\)/g, (m, lab: string, url: string) =>
       estFicheMarchande(url) ? (/^[\s\p{Extended_Pictographic}\uFE0F]*(amazon|cdiscount|fnac|ebay|etsy|temu|shein|aliexpress|fiche|lien|voir|ici)\b[\s\p{L}.]{0,12}$/iu.test(lab) ? '' : lab) : m,
     )
-    .replace(/\(\s*[—–-]\s*/g, '(')
+    // What the removed shop link leaves: « (** — » or « (**) ».
+    .replace(/\s*\(\s*(?:\*\*|__)?\s*(?:\*\*|__)?\s*\)/g, '')
+    .replace(/\(\s*(?:\*\*|__)?\s*[—–-]\s*/g, '(')
     // A link whose address is private keeps its label: removing « (url) » alone left « ([Test Achats]) ».
     .replace(/\[([^\]]*)\]\(([^()\s]*)\)/g, (m, lab: string, url: string) => (estPrivee(url) ? lab : m))
     // « (tapis … à 85 €, cf. tableau ci-dessous) » : an amount sent to the private table is a buying price.
