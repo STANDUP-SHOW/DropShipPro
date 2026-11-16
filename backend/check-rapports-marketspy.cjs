@@ -271,5 +271,38 @@ Texte.
   }
 }
 
+console.log('\nUn volet marketing aux titres libres (15-16/11)');
+{
+  const tm = `# Automobile — veille marketing du 16/11
+
+## 1. Plateformes qui portent la catégorie
+TikTok domine avec les vidéos de dashcam en situation (https://www.tiktok.com/tag/dashcam).
+
+## 2. Angles publicitaires qui convertissent
+- Preuve par l'accident évité, vue sur https://www.facebook.com/ads/library/?q=dashcam
+- Comparatif nuit / jour
+
+## 3. Calendrier
+Black Friday : pic attendu.
+`;
+  const e = lib.etudeMarkdown({ texteRayon: texte, texteMarketing: tm, origineRayon: 'drive:dossier/2026-10-12/electromenager/lavage-sechage.rayon.md', origineMarketing: 'drive:dossier/2026-10-12/electromenager/lavage-sechage.marketing.md', source: 'google-drive', indices: lib.indicesDuChemin('drive:dossier/2026-10-12/electromenager/lavage-sechage.rayon.md') });
+  exige(e.ok && e.marketing, 'le volet est lu' + (e.ok ? ' ' + (e.noteMarketing || '') : ' : ' + e.raison));
+  const tmp4 = fs.mkdtempSync(path.join(os.tmpdir(), 'banc-marketspy-'));
+  const base4 = path.join(tmp4, 'rapports.db');
+  fs.copyFileSync(path.join(__dirname, 'rapports.db'), base4);
+  const db4 = new Database(base4);
+  try {
+    lib.ecrireEtude(db4, e);
+    const ligne = db4.prepare('SELECT sources, data FROM reports WHERE id = ?').get(e.idMarketing);
+    const d = JSON.parse(ligne.data);
+    exige(/## Plateformes qui portent la catégorie/.test(d.analysis || ''), 'sa première section est gardée');
+    exige(/## Calendrier\nBlack Friday/.test(d.analysis || ''), 'sa dernière section est gardée');
+    exige(ligne.sources === 2, 'ses sources sont comptées par les liens cités : ' + ligne.sources);
+  } finally {
+    db4.close();
+    fs.rmSync(tmp4, { recursive: true, force: true });
+  }
+}
+
 console.log(rates ? `\n${rates} attente(s) manquée(s).` : '\nTout est conforme.');
 process.exit(rates ? 1 : 0);

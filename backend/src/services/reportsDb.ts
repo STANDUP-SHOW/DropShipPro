@@ -904,6 +904,7 @@ export class ReportQuery {
      * l'importeur. Les ajouter par-dessus une analyse qui porte déjà ses
      * titres `##` afficherait deux fois les mêmes tendances.
      */
+    const avantSections = parts.length
     if (!/^##\s/m.test(analyse ?? '')) {
       /*
        * Trois formes de `data` ont existé, et il faut lire les trois.
@@ -947,6 +948,22 @@ export class ReportQuery {
         ),
       )
       parts.push(ReportQuery.section('Idées de vente', premier(ms?.business_ideas)))
+    }
+
+    /*
+     * A marketing file written by another agent has its own headings, none of
+     * the four above: its whole body is kept in `analysis` by the importer
+     * (16/11/2026, the 15 and 16 November pages showed only their title).
+     */
+    if (
+      row.type === 'marketing' &&
+      !redige &&
+      !parts.slice(avantSections).some(Boolean) &&
+      typeof blob?.analysis === 'string' &&
+      blob.analysis.trim()
+    ) {
+      const corpsLibre = blob.analysis.trim()
+      parts.push(/^##\s/m.test(corpsLibre) ? `${corpsLibre}\n` : `## Analyse\n${corpsLibre}\n`)
     }
 
     // A full imported report carries its own « TOP 20 produits » section: the list goes there, not twice.
