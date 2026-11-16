@@ -129,6 +129,10 @@ const serveur = http.createServer((req, res) => {
       return repondre({ aliexpress_ds_recommend_feed_get_response: { result: { products: { traffic_product_d_t_o: lignes } } } })
     }
 
+    if (params.method === 'aliexpress.ds.text.search') {
+      return repondre({ aliexpress_ds_text_search_response: { data: { products: { selection_search_product: [{ itemId: 'NORMAL', title: 'Lampe de bureau LED' }] } } } })
+    }
+
     // --- Les fiches ----------------------------------------------------------
     switch (params.product_id) {
       case 'NORMAL':
@@ -237,6 +241,22 @@ try {
     (enregistre as unknown as Record<string, string>)?.refreshToken === 'refresh-suivant',
     'le nouveau jeton de rafraîchissement n’est pas conservé',
   )
+
+  // --- Recherche et fiche renouvellent aussi le jeton (16/11/2026) ---------
+  jetonCourant = 'jeton-valide'
+  {
+    const creds: Record<string, string> = { appKey: 'app-123', appSecret: SECRET, accessToken: 'jeton-perime', refreshToken: 'refresh-valide' }
+    let sauve: Record<string, string> | null = null
+    const ctx = { async saveCredentials(p: Record<string, string>) { sauve = p } }
+    const trouves = await aliexpress.searchProducts!('lampe de bureau', creds, ctx)
+    exige(trouves[0]?.ref === 'NORMAL', 'la recherche échoue sur un jeton expiré au lieu de le renouveler : ' + JSON.stringify(trouves))
+    exige((sauve as any)?.accessToken === 'jeton-renouvele', 'le jeton renouvelé par la recherche n’est pas réenregistré')
+    exige(creds.accessToken === 'jeton-renouvele', 'le jeton renouvelé ne sert pas aux appels suivants du lot')
+    jetonCourant = 'jeton-trois'
+    let erreurFiche: unknown = null
+    try { await aliexpress.fetchProduct!('NORMAL', { appKey: 'app-123', appSecret: SECRET, accessToken: 'jeton-perime', refreshToken: 'refresh-valide' }, ctx) } catch (e) { erreurFiche = e }
+    exige(!(erreurFiche && /expired/i.test(String((erreurFiche as Error).message))), 'la fiche échoue sur un jeton expiré au lieu de le renouveler : ' + String(erreurFiche))
+  }
 
   // --- Sans jeton de rafraîchissement : un message qui dit quoi faire -------
   jetonCourant = 'jeton-valide'

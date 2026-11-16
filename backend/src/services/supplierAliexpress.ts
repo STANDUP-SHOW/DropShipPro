@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto'
-import { SupplierError, type SupplierConnector, type SupplierListing, type SupplierPrice } from './supplierTypes.js'
+import { SupplierError, type SupplierConnector, type SupplierContext, type SupplierListing, type SupplierPrice } from './supplierTypes.js'
 
 /**
  * AliExpress — le plus gros fournisseur du catalogue, et le plus exigeant.
@@ -144,6 +144,39 @@ async function renouveler(
 
   if (!reponse.access_token) return null
   return { accessToken: reponse.access_token, refreshToken: reponse.refresh_token }
+}
+
+/**
+ * A signed business call that renews an expired access token once and retries.
+ *
+ * Only fetchPrices did it: the search and the product sheet failed on the first
+ * expired token (16/11/2026, synthesis completion: « 4 échecs », none filled).
+ * The renewed token is written back on `credentials` so the following calls
+ * of the same batch use it, and saved for the next run.
+ */
+async function appelAvecJeton(
+  params: Record<string, string>,
+  credentials: Record<string, string>,
+  ctx?: SupplierContext,
+): Promise<unknown> {
+  const appKey = credentials.appKey!.trim()
+  const appSecret = credentials.appSecret!.trim()
+  try {
+    return await appelSigne({ ...params, access_token: credentials.accessToken!.trim() }, appSecret, undefined)
+  } catch (err) {
+    if (!(err instanceof JetonExpire)) throw err
+    const frais = await renouveler(appKey, appSecret, credentials.refreshToken?.trim())
+    if (!frais) {
+      throw new SupplierError(
+        "Le jeton d'accès AliExpress a expiré et n'a pas pu être renouvelé. Réautorisez l'application dans API Sourcing Connect.",
+        true,
+      )
+    }
+    credentials.accessToken = frais.accessToken
+    if (frais.refreshToken) credentials.refreshToken = frais.refreshToken
+    await ctx?.saveCredentials({ accessToken: frais.accessToken, ...(frais.refreshToken ? { refreshToken: frais.refreshToken } : {}) })
+    return appelSigne({ ...params, access_token: frais.accessToken }, appSecret, undefined)
+  }
 }
 
 /*
@@ -589,7 +622,7 @@ export const aliexpress: SupplierConnector = {
    * une conversion maison sur un prix déjà converti donnerait deux taux
    * différents pour le même produit selon le chemin emprunté.
    */
-  async searchProducts(motsCles, credentials) {
+  async searchProducts(motsCles, credentials, ctx) {
     const appKey = credentials.appKey?.trim()
     const appSecret = credentials.appSecret?.trim()
     const accessToken = credentials.accessToken?.trim()
@@ -600,11 +633,10 @@ export const aliexpress: SupplierConnector = {
       )
     }
 
-    const reponse = (await appelSigne(
+    const reponse = (await appelAvecJeton(
       {
         method: 'aliexpress.ds.text.search',
         app_key: appKey,
-        access_token: accessToken,
         keyWord: motsCles,
         local: 'fr_FR',
         countryCode: credentials.shipTo?.trim() || 'FR',
@@ -625,8 +657,8 @@ export const aliexpress: SupplierConnector = {
          * pertinent ; appliqué à la recherche, il la remplace.
          */
       },
-      appSecret,
-      undefined,
+      credentials,
+      ctx,
     )) as Record<string, unknown>
 
     return lireListeProduits(reponse)
@@ -715,7 +747,7 @@ export const aliexpress: SupplierConnector = {
    * chaîne d'import télécharge et réhéberge ensuite comme celles d'un import
    * ordinaire.
    */
-  async fetchProduct(ref, credentials) {
+  async fetchProduct(ref, credentials, ctx) {
     const appKey = credentials.appKey?.trim()
     const appSecret = credentials.appSecret?.trim()
     const accessToken = credentials.accessToken?.trim()
@@ -727,18 +759,17 @@ export const aliexpress: SupplierConnector = {
       )
     }
 
-    const json = (await appelSigne(
+    const json = (await appelAvecJeton(
       {
         method: 'aliexpress.ds.product.get',
         app_key: appKey,
-        access_token: accessToken,
         product_id: ref,
         ship_to_country: credentials.shipTo?.trim() || 'FR',
         target_currency: credentials.currency?.trim() || 'EUR',
         target_language: 'fr',
       },
-      appSecret,
-      undefined,
+      credentials,
+      ctx,
     )) as FicheComplete
 
     const resultat = json.aliexpress_ds_product_get_response?.result

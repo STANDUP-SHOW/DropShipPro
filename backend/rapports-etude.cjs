@@ -679,6 +679,33 @@ function texteAnalyse(d) {
 }
 
 
+/** Distinct http(s) URLs cited in a text: the sources an agent consulted when
+ * its header does not count them (16/11/2026: « 0 sources » on full reports). */
+function urlsCitees(texte) {
+  const vues = new Set();
+  for (const m of String(texte || '').matchAll(/https?:\/\/[^\s<>()\[\]"'`|]+/g)) vues.add(m[0].replace(/[.,;:!?*_]+$/, ''));
+  return vues.size;
+}
+
+/** Header count of sources, else the distinct URLs of the text. */
+function nombreDeSources(fm, texte) {
+  const n = nombre(fm && fm.sources);
+  return n != null && n > 0 ? Math.round(n) : urlsCitees(texte);
+}
+
+/** The body of a marketing file, whatever its headings (other agents write
+ * their own sections; 15-16/11/2026 they came out empty because only four fixed
+ * headings were read). Front-matter and the « # » title are dropped. */
+function corpsMarketing(texte) {
+  const complet = sectionsCompletes(texte).trim();
+  if (complet) return complet.slice(0, 60000);
+  return String(texte || '')
+    .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+    .replace(/^\s*#\s+.*\r?\n/, '')
+    .trim()
+    .slice(0, 60000);
+}
+
 // ------------------------------------------------------- une etude Markdown
 
 /** The first « ## » heading that is neither numbered nor an appendix, or null. */
@@ -839,7 +866,7 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
   // gave /analyses/lavage-sechage/lavage-sechage-2/ (12/10/2026).
   const titre = fm.titre || titreDuTexte(texteRayon) || theme;
   const agent = fm.agent || `rayon-${categorie}`;
-  const nbSources = nombre(fm.sources) != null ? Math.round(nombre(fm.sources)) : 0;
+  const nbSources = nombreDeSources(fm, texteRayon);
 
   const secRayon = sections(texteRayon);
   // « Analyse » in ours; other agents' files (MARKETSPY, 16 numbered sections)
@@ -870,7 +897,8 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
       mkt = {
         titre: fmM.titre || titreDuTexte(tm) || titre,
         agent: fmM.agent || `marketing-${categorie}`,
-        sources: nombre(fmM.sources) != null ? Math.round(nombre(fmM.sources)) : 0,
+        sources: nombreDeSources(fmM, tm),
+        analysis: corpsMarketing(tm),
         socialPlaces: puces(section(sm, 'Social places', /social/)),
         adsCurrent: puces(section(sm, 'Publicites en cours', /publicites en cours/)),
         trendsDaily: puces(section(sm, 'Tendances du jour', /tendances du jour/)),
@@ -932,6 +960,7 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
         trendingAds: mkt.trendingAds,
         imagePrompts: mkt.imagePrompts,
         videoPrompts: mkt.videoPrompts,
+        analysis: mkt.analysis,
         markdown: { marketing: origineMarketing, source },
       })
     : null;
