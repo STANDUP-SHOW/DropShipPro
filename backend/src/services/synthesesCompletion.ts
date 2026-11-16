@@ -54,6 +54,13 @@ export function pertinent(nom: string, titre: string): boolean {
   return communs >= 1 && communs >= Math.ceil(attendus.length / 2)
 }
 
+/** The first four meaningful words of a long name, as typed; null when the name is already short. */
+export function requeteCourte(nom: string): string | null {
+  const m = mots(nom)
+  if (m.length <= 4) return null
+  return m.slice(0, 4).join(' ')
+}
+
 export function meilleurResultat(nom: string, lignes: SupplierListing[]): SupplierListing | null {
   return lignes.find((l) => l.ref && pertinent(nom, l.titre)) ?? null
 }
@@ -99,8 +106,12 @@ async function completerUne(userId: string, t: Tache, fournisseurs: Awaited<Retu
       },
     }
     try {
-      const lignes = await connecteur.searchProducts!(t.produit.nom, creds, contexte)
-      const choix = meilleurResultat(t.produit.nom, lignes)
+      let choix = meilleurResultat(t.produit.nom, await connecteur.searchProducts!(t.produit.nom, creds, contexte))
+      // The synthesis names are long (« Caméra d'action 4K 60fps étanche 30m stabilisation EIS double
+      // écran »): searched whole, the supplier often returns nothing close. Retried with the head of the
+      // name; the result must still share half of the FULL name's words (pertinent), so no looser match.
+      const court = requeteCourte(t.produit.nom)
+      if (!choix && court) choix = meilleurResultat(t.produit.nom, await connecteur.searchProducts!(court, creds, contexte))
       if (!choix) continue
       const deja = await prisma.product.findFirst({ where: { userId, supplierId: connecteur.id, supplierRef: choix.ref }, select: { id: true } })
       if (deja) return 'déjà sur le compte (même fiche fournisseur)'

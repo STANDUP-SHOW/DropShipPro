@@ -33,6 +33,19 @@ export function titrePorteLeNom(titrePage: string | null | undefined, nom: strin
   return mots.filter((m) => t.includes(` ${m} `)).length * 2 >= mots.length
 }
 
+/**
+ * The name as a search query: spaces folded, 120 UTF-16 units at most, and never half an emoji.
+ * 16/11/2026: `.slice(0, 120)` cut a surrogate pair, `encodeURIComponent` threw « URI malformed »
+ * and the whole synthesis of the 14th and the 15th was refused by the Drive import.
+ */
+export function texteRecherche(nom: string | null | undefined): string {
+  return String(nom ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120)
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
+}
+
 /** The search of a supplier site for a name; null for a site we cannot search or a name without words. */
 export function rechercheDuNom(url: string, nom: string | null | undefined): string | null {
   const termes = motsDuNom(String(nom ?? ''))
@@ -43,7 +56,7 @@ export function rechercheDuNom(url: string, nom: string | null | undefined): str
   } catch {
     return null
   }
-  const texte = String(nom).replace(/\s+/g, ' ').trim().slice(0, 120)
+  const texte = texteRecherche(nom)
   if (h.includes('aliexpress.')) return `https://fr.aliexpress.com/w/wholesale-${encodeURIComponent(termes.join('-'))}.html`
   if (h.includes('temu.')) return `https://www.temu.com/search_result.html?search_key=${encodeURIComponent(texte)}`
   if (h.includes('shein.')) return `https://fr.shein.com/pdsearch/${encodeURIComponent(texte)}/`

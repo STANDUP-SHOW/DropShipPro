@@ -6,6 +6,7 @@ import { importerAdresse } from './productImport.js'
 import { ORIGINE_AUTOSHIPPER, type ReleveNavigateur } from './autoShipperFile.js'
 import { pertinent } from './synthesesCompletion.js'
 import { substanceSource } from './sourceQuality.js'
+import { texteRecherche } from './lienVerifie.js'
 
 /**
  * La file d'import du site, relevée par le NAVIGATEUR INTERNE du desktop quand
@@ -92,7 +93,7 @@ export function versRecherche(url: string, nom: string | null | undefined): stri
     return null
   }
   if (estPageRecherche(url) || estFicheConnue(url)) return null
-  const texte = String(nom).replace(/\s+/g, ' ').trim().slice(0, 120)
+  const texte = texteRecherche(nom)
   if (h.includes('aliexpress.')) return `https://fr.aliexpress.com/w/wholesale-${encodeURIComponent(termes.join('-'))}.html`
   if (h.includes('temu.')) return `https://www.temu.com/search_result.html?search_key=${encodeURIComponent(texte)}`
   if (h.includes('shein.')) return `https://fr.shein.com/pdsearch/${encodeURIComponent(texte)}/`

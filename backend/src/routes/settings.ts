@@ -784,7 +784,8 @@ settingsRouter.get('/supplier-links', async (req: AuthedRequest, res) => {
 
 const supplierLinkSchema = z.object({
   supplier: z.string().trim().min(1).max(40),
-  data: z.record(z.string().trim().min(1).max(500)),
+  // An empty field is « unchanged », not an error: the dialog never shows saved values back.
+  data: z.record(z.string().trim().max(500)),
 })
 
 settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
@@ -799,9 +800,28 @@ settingsRouter.put('/supplier-links', async (req: AuthedRequest, res) => {
   // Les champs sont ceux que le fournisseur nomme : un formulaire qui enverrait
   // autre chose se trompe de fournisseur.
   const attendus = new Set(fournisseur.api.champs.map((c) => c.cle))
-  const data = Object.fromEntries(
-    Object.entries(parsed.data.data).filter(([cle]) => attendus.has(cle)),
+  const saisis = Object.fromEntries(
+    Object.entries(parsed.data.data).filter(([cle, v]) => attendus.has(cle) && v !== ''),
   )
+  /*
+   * **Ce qui n'est pas ressaisi est gardé.**
+   *
+   * 16/11/2026 (max : « catalogues reliés non reliés ») : la fenêtre ne réaffiche jamais
+   * les valeurs enregistrées, et l'enregistrement REMPLAÇAIT tout. Retaper l'App Key et
+   * l'App Secret AliExpress (ce que fait « Autoriser sur AliExpress » avant de partir)
+   * effaçait le jeton obtenu par l'autorisation et son jeton de rafraîchissement : la
+   * liaison repassait « non reliée ». Les anciennes valeurs restent donc, sauf les jetons
+   * d'autorisation quand la clé d'application change (ils appartiennent à l'ancienne).
+   */
+  const avant = await prisma.supplierConnection.findUnique({
+    where: { userId_supplier: { userId: req.userId!, supplier: fournisseur.id } },
+  })
+  const anciennes = Object.fromEntries(
+    Object.entries((avant?.data ?? {}) as Record<string, unknown>).filter(([, v]) => typeof v === 'string' && v),
+  ) as Record<string, string>
+  const autreApp = Boolean(saisis.appKey && anciennes.appKey && saisis.appKey !== anciennes.appKey)
+  if (autreApp) for (const cle of ['accessToken', 'refreshToken', 'autoriseLe', 'renouveleLe']) delete anciennes[cle]
+  const data: Record<string, string> = { ...anciennes, ...saisis }
   const manquants = fournisseur.api.champs
     .filter((c) => !c.optionnel && !data[c.cle])
     .map((c) => c.label)
