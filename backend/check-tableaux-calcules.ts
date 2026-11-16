@@ -4,7 +4,7 @@
  *
  *   npx tsx check-tableaux-calcules.ts
  */
-import { estTableauCalcule, sansTableauxPrives } from './src/services/analysesPubliques.js'
+import { estTableauCalcule, sansTableauxPrives, publiable, estFicheMarchande } from './src/services/analysesPubliques.js'
 
 let echecs = 0
 const ok = (cond: boolean, msg: string) => {
@@ -31,6 +31,14 @@ const r = sansTableauxPrives(`## Comparatif\n\nTexte avant.\n\n${calcule}\n\nTex
 ok(!/61\.66|amazon\.fr/.test(r.corps) && r.retires === 1, 'le tableau calculé et son titre sont retirés')
 ok(/Texte avant\./.test(r.corps) && /Texte après\./.test(r.corps) && !/Tableau 3/.test(r.corps), 'le texte autour reste')
 ok(/59,99/.test(sansTableauxPrives(lu).corps), 'un tableau relevé reste publié')
+
+// Les fiches marchandes non vérifiées du « Verdict rapide » (16/11/2026)
+const v1 = publiable('- **Meilleur produit marketplace ([🛒 Amazon FR](https://www.amazon.fr/dp/B0FDH61LP4) — Bonnet de nuit en soie.')
+ok(!/amazon\.fr\/dp|Amazon FR/.test(v1) && /Bonnet de nuit en soie/.test(v1), 'lien amazon.fr/dp et son libellé de boutique retirés : ' + v1)
+const v2 = publiable('Voir [le bonnet en soie](https://fr.aliexpress.com/item/1005.html) ici.')
+ok(/le bonnet en soie/.test(v2) && !/aliexpress/.test(v2), 'lien de fiche retiré, libellé descriptif gardé : ' + v2)
+ok(/\(https:\/\/www\.ifop\.com\/etude\)/.test(publiable('Source : [Ifop](https://www.ifop.com/etude).')), 'un lien de source reste')
+ok(!estFicheMarchande('https://www.amazon.fr/s?k=bonnet'), 'une recherche Amazon n’est pas une fiche')
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\nTout est conforme.')
 process.exit(echecs ? 1 : 0)

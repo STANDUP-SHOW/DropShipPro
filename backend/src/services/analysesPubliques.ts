@@ -536,8 +536,28 @@ export const estPrivee = (texte: string) =>
  * d'occasion »), a buying qualifier on a budget (« hors frais de port
  * Alibaba »), an unrepaired buying price in a table (« 50 € (brut) »).
  */
-function publiable(ligne: string): string {
+/** A product sheet on a marketplace or supplier site (amazon.fr/dp/…, /item/…, -g-…html): never shown unverified. */
+export function estFicheMarchande(url: string): boolean {
+  try {
+    const u = new URL(url)
+    const h = u.hostname
+    const p = u.pathname
+    if (/(^|\.)amazon\./.test(h)) return /\/(dp|gp\/product)\//.test(p)
+    if (/aliexpress\.|alibaba\.|temu\.|shein\.|cdiscount\.|ebay\.|etsy\.|cjdropshipping\./.test(h)) return !/^\/?$/.test(p) && !/wholesale|search|\/s$|\/w\//.test(p)
+    return false
+  } catch {
+    return false
+  }
+}
+
+export function publiable(ligne: string): string {
   let l = ligne
+    // A product page of a marketplace written by the agent was never proved opened (16/11/2026: « Verdict
+    // rapide » linking amazon.fr/dp/… ): no link on a public page; a label that only names the shop goes too.
+    .replace(/\[([^\]]*)\]\(([^()\s]*)\)/g, (m, lab: string, url: string) =>
+      estFicheMarchande(url) ? (/^[\s\p{Extended_Pictographic}\uFE0F]*(amazon|cdiscount|fnac|ebay|etsy|temu|shein|aliexpress|fiche|lien|voir|ici)\b[\s\p{L}.]{0,12}$/iu.test(lab) ? '' : lab) : m,
+    )
+    .replace(/\(\s*[—–-]\s*/g, '(')
     // A link whose address is private keeps its label: removing « (url) » alone left « ([Test Achats]) ».
     .replace(/\[([^\]]*)\]\(([^()\s]*)\)/g, (m, lab: string, url: string) => (estPrivee(url) ? lab : m))
     // « (tapis … à 85 €, cf. tableau ci-dessous) » : an amount sent to the private table is a buying price.
