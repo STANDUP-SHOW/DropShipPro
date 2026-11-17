@@ -425,7 +425,7 @@ adminRouter.post('/analyses-drive/importer', async (req: Request, res) => {
   if (!adresse) return res.status(400).json({ error: 'Collez l’adresse d’un dossier Google Drive public.' })
   if (!dates.length) return res.status(400).json({ error: 'Choisissez au moins une date.' })
   try {
-    const rapport = await importerDossierDrive(adresse, dates, req.body?.essai === true)
+    const rapport = await importerDossierDrive(adresse, dates, req.body?.essai === true, req.body?.forcer === true)
     if (rapport.importees && enProduction()) {
       annoncerAnalyses(sitemapXml(lignesPubliques())).catch((e) => console.error('[indexnow] annonce impossible', e instanceof Error ? e.message : e))
     }
