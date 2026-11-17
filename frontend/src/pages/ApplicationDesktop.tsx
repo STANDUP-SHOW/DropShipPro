@@ -33,7 +33,7 @@ const CARTES = [
     icone: Share2,
     titre: 'Envoyer un produit vers votre liste',
     texte:
-      "Collez ou déposez un lien sur la fenêtre, ou passez par le menu de la zone de notification : le produit rejoint la liste à importer, la même que celle de votre téléphone. La capture du presse-papiers existe aussi, coupée par défaut.",
+      "Collez ou déposez un lien sur la fenêtre, ou passez par le menu de la zone de notification : le produit rejoint la liste à importer, la même que celle de votre téléphone.",
   },
   {
     icone: AppWindow,

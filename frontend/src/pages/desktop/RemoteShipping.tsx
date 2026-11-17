@@ -4,7 +4,7 @@ import { Check, ExternalLink, Loader2, PackagePlus, Smartphone, Trash2 } from 'l
 import { Layout } from '../../components/Layout'
 import { EntetePower } from '../../components/desktop/DesktopPower'
 import { api } from '../../lib/api'
-import { dpApi, pont, useDesktop, type Partage } from '../../lib/desktopPower'
+import { dpApi, pont, type Partage } from '../../lib/desktopPower'
 
 const STATUTS: Record<Partage['statut'], string> = { NEW: 'À importer', CLAIMED: 'Pris par l’application', DONE: 'Fait' }
 
@@ -23,11 +23,10 @@ export default function RemoteShipping() {
   const [erreur, setErreur] = useState<string | null>(null)
   const [etats, setEtats] = useState<Record<string, string>>({})
   const [voirFaits, setVoirFaits] = useState(false)
-  const etat = useDesktop()
   const [lien, setLien] = useState('')
   const [retour, setRetour] = useState<string | null>(null)
 
-  // Comme l'ancienne barre de l'application : coller un lien, ou capturer les liens copiés.
+  // Coller un lien depuis ce PC : un geste explicite, jamais une copie surveillée.
   const partager = async (texte: string) => {
     const url = texte.trim().split(/\s+/)[0]
     if (!p || !url) return
@@ -91,10 +90,6 @@ export default function RemoteShipping() {
             placeholder="Ajouter un lien depuis ce PC : https://… (Entrée)"
             className="flex-1 rounded-lg border border-[var(--trait)] bg-[var(--nuit)] px-3 py-1.5 text-white outline-none focus:border-[var(--marque-rose)]"
           />
-          <label className="flex items-center gap-2 text-gray-300">
-            <input type="checkbox" checked={Boolean(etat?.capture)} onChange={(e) => p.capture(e.target.checked)} />
-            Capturer les liens copiés
-          </label>
           {retour ? <span className="text-gray-400">{retour}</span> : null}
         </section>
       ) : null}

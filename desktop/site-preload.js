@@ -29,7 +29,6 @@ if (estLeSite) {
     etat: () => appel('power:etat'),
     partager: (url) => appel('power:partager', url),
     importer: (lien) => appel('power:importer', lien),
-    capture: (actif) => appel('power:capture', actif),
     panneau: (section) => appel('power:panneau', section),
     accorder: (id) => appel('auto:accorder', id),
     retirerAccord: (id) => appel('auto:retirer', id),
