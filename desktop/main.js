@@ -68,7 +68,6 @@ const vuesNav = new Map()
 let navActif = null
 let zoneNav = null
 let tray = null
-let dernierPresse = null
 let dernierPartage = null
 let liaisonEnCours = false
 const etatsConnexion = connexion.creerEtats()
@@ -79,6 +78,11 @@ const dossier = () => app.getPath('userData')
 
 function chargerTout() {
   cfg = config.charger(dossier())
+  // The removed clipboard capture: forget it in an old config.
+  if (cfg.capturePressePapiers) {
+    cfg = { ...cfg, capturePressePapiers: false }
+    config.enregistrer(dossier(), cfg)
+  }
   etat = plafonds.lireEtat(dossier())
   const cle = config.lireCle(cfg, safeStorage)
   api = cle ? client({ apiBase: cfg.apiBase, cle }) : null
@@ -99,7 +103,7 @@ function etatPower() {
     nbLiens: liens.length,
     nbAnnonces: annonces.length,
     nbAchats: achats.length,
-    capture: Boolean(cfg.capturePressePapiers),
+    capture: false,
     dernierPartage,
     erreur: derniereErreur,
     texteAccord: plafonds.TEXTE_ACCORD,
@@ -841,16 +845,9 @@ async function partagerLien(texte, origine = 'desktop') {
   }
 }
 
-/** Le presse-papiers, lu à intervalle fixe quand le vendeur l'a demandé : un lien copié devient un partage. */
-function surveillerPressePapiers() {
-  setInterval(() => {
-    if (!cfg.capturePressePapiers || !api) return
-    const texte = clipboard.readText().trim()
-    if (!texte || texte === dernierPresse) return
-    dernierPresse = texte
-    if (/^https?:\/\/\S+$/i.test(texte) && !texte.includes('drop-shipper.fr')) partagerLien(texte, 'presse-papiers')
-  }, 1500)
-}
+// Plus de surveillance du presse-papiers (17/11/2026) : un Ctrl+C sur un site ajoutait le lien à la
+// liste à importer, que le mode tout automatique importait aussitôt. Rien ne s'ajoute sans un geste
+// explicite du vendeur : coller, déposer, « Partager le lien copié » dans la zone de notification.
 
 /** `dropshipper://partager?url=…` : depuis un raccourci, un autre programme, ou le site. */
 function traiterArguments(argv) {
@@ -881,12 +878,8 @@ function brancherIpc() {
     })
   duSite('power:etat', () => etatPower())
   duSite('power:partager', (url) => partagerLien(url, 'desktop'))
-  duSite('power:capture', (actif) => {
-    cfg = { ...cfg, capturePressePapiers: Boolean(actif) }
-    config.enregistrer(dossier(), cfg)
-    dernierPresse = clipboard.readText().trim() // ce qui est déjà copié ne compte pas
-    return etatPower()
-  })
+  // Un site d'avant le 17/11 peut encore demander la capture : elle n'existe plus, on répond l'état.
+  duSite('power:capture', () => etatPower())
   // WebShipper et RemoteShipping : « Importer » lit la fiche ICI (Temu, Shein… que le serveur ne lit pas), puis
   // l'annonce rejoint Mes annonces. Aucune mise en file de publication : le vendeur publie depuis Mes annonces.
   duSite('power:importer', async ({ url, id } = {}) => {
@@ -1132,7 +1125,6 @@ if (!app.requestSingleInstanceLock()) {
     brancherIpc()
     creerFenetre()
     creerTray()
-    surveillerPressePapiers()
     if (api) demarrerSondage()
     traiterArguments(process.argv)
   })

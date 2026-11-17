@@ -44,7 +44,6 @@ export interface EtatDesktop {
   nbLiens: number
   nbAnnonces: number
   nbAchats: number
-  capture: boolean
   erreur: string | null
   texteAccord: string
   plateformes: PlateformeSession[]
@@ -71,7 +70,6 @@ export interface PontDesktop {
   etat(): Promise<EtatDesktop>
   partager(url: string): Promise<Resultat>
   importer(lien: { url: string; id?: string }): Promise<Resultat & { productId?: string | null }>
-  capture(actif: boolean): Promise<EtatDesktop>
   panneau(section: SectionPanneau): Promise<Resultat>
   accorder(id: string): Promise<unknown>
   retirerAccord(id: string): Promise<unknown>
