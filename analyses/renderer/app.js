@@ -641,7 +641,7 @@ async function driveImporter(essai) {
       fait++
       drive.etape = `${essai ? 'Vérification' : 'Import'} : date ${fait} sur ${total} (${date})`
       flash(drive.etape)
-      const r = await window.poste.adminDriveImporter({ adresse, dates: [date], essai })
+      const r = await window.poste.adminDriveImporter({ adresse, dates: [date], essai, forcer: drive.forcer === true })
       if (drive.tour !== tour) return
       if (!r.ok) { cumul.erreurs.push(`${date} : ${r.erreur}`); continue }
       const v = r.valeur || {}
@@ -679,7 +679,7 @@ function vueDossierDrive(adresse) {
     !l ? h('p', { class: 'doux petit' }, 'Pas encore lu.') : h('div', {},
       l.dates.length === 0 && h('p', { class: 'doux' }, l.datesDejaImportees > 0 ? `Rien de nouveau : ${l.datesDejaImportees} jour(s) déjà importé(s).` : 'Aucun rapport daté dans ce dossier ni dans ses sous-dossiers.'),
       l.dates.length > 0 && l.datesDejaImportees > 0 && h('p', { class: 'doux petit' }, `${l.datesDejaImportees} jour(s) déjà importé(s) masqué(s).`),
-      l.datesDejaImportees > 0 && h('div', { class: 'ligne' }, h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveLister([adresse], true).then(rendre) }, 'Tout afficher')),
+      l.datesDejaImportees > 0 && h('div', { class: 'ligne' }, h('button', { class: 'btn', disabled: Boolean(drive.enCours), onclick: () => driveLister([adresse], true).then(rendre) }, 'Tout afficher (pour réimporter un jour)')),
       l.dates.map((d) => {
         const importables = d.etudes.filter((x) => x.importable)
         const nouvelles = importables.filter((x) => !x.dejaEnBase)
@@ -746,7 +746,10 @@ function vueDrive() {
     ...drive.dossiers.map(vueDossierDrive),
     drive.dossiers.length > 0 && h('div', { class: 'ligne' },
       h('button', { class: 'btn', disabled: !n || Boolean(drive.enCours), onclick: () => driveImporter(true) }, drive.enCours === 'apercu' ? 'Vérification…' : 'Vérifier la qualité'),
-      h('button', { class: 'btn principal', disabled: !n || Boolean(drive.enCours), onclick: () => driveImporter(false) }, drive.enCours === 'import' ? 'Import en cours…' : `Importer ${n} date(s)`),
+      h('button', { class: 'btn principal', disabled: !n || Boolean(drive.enCours), onclick: () => driveImporter(false) }, drive.enCours === 'import' ? 'Import en cours…' : drive.forcer ? `Réimporter ${n} date(s)` : `Importer ${n} date(s)`),
+      // 17/11/2026 (max): files regenerated on Drive after an import must be able to replace what the site has.
+      h('label', { class: 'petit', title: 'Relit les fichiers du Drive des dates cochées et remplace ce que le site a déjà, même une copie identique. Les liens restent contrôlés (titre de la page).' },
+        h('input', { type: 'checkbox', checked: drive.forcer === true, disabled: Boolean(drive.enCours), onchange: (ev) => { drive.forcer = ev.target.checked; rendre() } }), ' Réimporter même ce qui est déjà en ligne'),
       drive.enCours && h('button', { class: 'btn', id: 'drive-debloquer', onclick: driveDebloquer }, 'Débloquer'),
     ),
     ...drive.rapports.map(vueRapportDrive),

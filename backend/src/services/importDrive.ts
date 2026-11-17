@@ -479,7 +479,7 @@ function importable(source: { texteRayon?: string; texteMarketing?: string | nul
   }
 }
 
-async function reecritsDepuisImport(dates: DateTrouvee[], combien = 2): Promise<Set<string>> {
+async function reecritsDepuisImport(dates: DateTrouvee[], combien = 3): Promise<Set<string>> {
   const surcouche = new Map(lireSurcouche().map((e) => [e.idRayon, e]))
   const changes = new Set<string>()
   const recents = [...dates].sort((a, b) => b.date.localeCompare(a.date)).slice(0, combien)
@@ -490,9 +490,15 @@ async function reecritsDepuisImport(dates: DateTrouvee[], combien = 2): Promise<
       if (!ancienne) continue
       taches.push(async () => {
         if (e.rayon && ancienne.texteRayon !== undefined) {
-          const texteRayon = await telecharger(e.rayon.id)
+          // Every .rayon.md of the shelf that day: a rewrite saved as a second file counts too (17/11/2026).
           const texteMarketing = e.marketing ? await telecharger(e.marketing.id) : null
-          if (!memeSource(ancienne, { texteRayon, texteMarketing }) && importable({ texteRayon, texteMarketing })) changes.add(idRayonIndice(e))
+          for (const f of [e.rayon, ...e.doublons.filter((d) => genre(d.nom).genre === 'rayon')]) {
+            const texteRayon = await telecharger(f.id)
+            if (!memeSource(ancienne, { texteRayon, texteMarketing }) && importable({ texteRayon, texteMarketing })) {
+              changes.add(idRayonIndice(e))
+              break
+            }
+          }
         } else if (e.json && ancienne.json !== undefined) {
           const json = jsonTolerant(await telecharger(e.json.id))
           if (json !== undefined && !memeSource(ancienne, { json }) && importable({ json })) changes.add(idRayonIndice(e))
@@ -663,7 +669,11 @@ async function lireCandidat(f: FichierDrive, marketing: FichierDrive | null, rac
   return { fichier: f, source, etude }
 }
 
-export async function importerDossierDrive(adresse: string, dates: string[], essai: boolean) {
+/**
+ * `forcer` (17/11/2026, max: the 15 and 16 regenerated at 19h50 were « déjà importés »): the chosen days are read
+ * again and every shelf replaces the copy on the site, even an identical one, so a reimport is never a no-op.
+ */
+export async function importerDossierDrive(adresse: string, dates: string[], essai: boolean, forcer = false) {
   const racine = idDossierDrive(adresse)
   const voulues = new Set(dates)
   const jours = (await lireDossier(racine, (d) => voulues.has(d))).dates.filter((d) => voulues.has(d.date))
@@ -676,6 +686,11 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
   const lignes: LigneRapport[] = []
   const ignores: { date: string; nom: string; raison: string }[] = []
   const chemin = (f: FichierDrive) => [...f.chemin, f.nom].join('/')
+  /** 1 for a file identical to the copy already on the site: a rewrite of the same shelf always goes first. */
+  const ancien = (c: Candidat) => {
+    const stockee = surcouche.get(c.etude.idRayon)
+    return stockee && memeSource(stockee, c.source) ? 1 : 0
+  }
 
   const syntheses: BilanSynthese[] = []
   for (const jour of jours) {
@@ -716,7 +731,9 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
         if (typeof c === 'string') lignes.push({ date: jour.date, rayon: nomRayon, statut: 'refuse', raison: c, fichier: chemin(f) })
         else lus.push(c)
       }
-      lus.sort((a, b) => completude(b.etude) - completude(a.etude))
+      // A file that differs from the copy on the site is the agent's rewrite: it goes before the old one, whatever
+      // their completeness (17/11/2026: the regenerated files sat next to the morning ones and lost to them).
+      lus.sort((a, b) => ancien(a) - ancien(b) || completude(b.etude) - completude(a.etude))
       for (const c of lus) {
         const e = c.etude
         const rayon = `${e.categorie}/${e.theme}`
@@ -752,13 +769,13 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
         }
         const deja = retenues.get(e.idRayon)
         if (deja) {
-          if (completude(e) > completude(deja.c.etude)) {
+          if (ancien(c) < ancien(deja.c) || (ancien(c) === ancien(deja.c) && completude(e) > completude(deja.c.etude))) {
             // A fuller copy met later in the folder takes the place of the one kept so far.
             deja.ligne.statut = 'doublon'
             deja.ligne.notes = [`une version plus complète du même rayon est gardée (${chemin(c.fichier)})`, ...(deja.ligne.notes ?? [])]
             deja.ligne.raison = deja.ligne.notes.join(' · ')
           } else {
-            lignes.push(ligne('doublon', [`même rayon, même jour que ${deja.ligne.fichier} : la version la plus complète est gardée`, ...notes]))
+            lignes.push(ligne('doublon', [ancien(c) ? `copie déjà en ligne : la réécriture ${deja.ligne.fichier} la remplace` : `même rayon, même jour que ${deja.ligne.fichier} : la version la plus complète est gardée`, ...notes]))
             continue
           }
         }
@@ -778,7 +795,7 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
           // 13/11: a report rewritten on Drive is the author's correction (URLs redone at 17h17) and always
           // replaces the copy on the site once it passes the threshold above. Judging it by completeness kept
           // the morning copy (more addresses, but wrong ones) and offered the shelf again after every import.
-          if (ancienne && memeSource(ancienne, c.source)) {
+          if (ancienne && memeSource(ancienne, c.source) && !forcer) {
             lignes.push(ligne('doublon', ["déjà importé, identique : rien n'est changé", ...notes]))
             continue
           }

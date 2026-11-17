@@ -126,8 +126,8 @@ function creerServeur() {
             return json(200, { dossier: 'MARKET-ANALYSES', dates: [{ date: '2026-10-08', etudes: [{ categorie: 'jardin', theme: 'arrosage', fichiers: ['arrosage.rayon.md'], doublons: [], importable: true, dejaEnBase: false }], ignores: [] }, { date: '2026-10-12', etudes: [{ categorie: 'mode', theme: 'sacs', fichiers: ['sacs.marketing.md'], doublons: [], importable: false, dejaEnBase: false }], ignores: [{ nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] }] })
           }
           if (req.url === '/api/admin/analyses-drive/importer' && req.method === 'POST') {
-            const { dates, essai } = JSON.parse(corps || '{}')
-            etat.importsDrive = (etat.importsDrive || []).concat([{ dates, essai }])
+            const { dates, essai, forcer } = JSON.parse(corps || '{}')
+            etat.importsDrive = (etat.importsDrive || []).concat([{ dates, essai, ...(forcer ? { forcer } : {}) }])
             // 14/11: a site that never answers (Kantix must not wait forever, « Débloquer » frees the screen)
             if (etat.driveLent) return
             if ((dates || []).includes('2026-10-12')) return json(200, { essai: Boolean(essai), importees: 0, aImporter: 0, doublons: 0, refusees: 1, conformes: 0, rapportsEnBase: 88, lignes: [{ date: '2026-10-12', rayon: 'mode / sacs', statut: 'refuse', raison: 'marketing seul, sans .rayon.md' }], ignores: [{ date: '2026-10-12', nom: 'mode/sacs.sourcing.md', raison: 'note de sourcing : aucun emplacement sur le site' }] })

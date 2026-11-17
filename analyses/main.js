@@ -1096,8 +1096,9 @@ function brancher() {
   // « Connecter avec Google »: sign-in in Max's own browser, only the account's e-mail comes back (lib/connexionCompte.js)
   h('compte-connecter', () => connexionCompte.attendre())
   h('admin-drive-lister', ({ adresse, tout }) => admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/lister', corps: tout === true ? { adresse, tout: true } : { adresse } }))
-  h('admin-drive-importer', async ({ adresse, dates, essai }) => {
-    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true }, delaiMs: 5 * 60 * 1000 })
+  // `forcer` (17/11/2026): the chosen days replace what the site has, even an identical copy
+  h('admin-drive-importer', async ({ adresse, dates, essai, forcer }) => {
+    const r = await admin.appelerAdmin({ apiBase: cfg.apiBase, cle: cleAdminOuErreur(), chemin: '/analyses-drive/importer', corps: { adresse, dates, essai: essai === true, ...(forcer === true ? { forcer: true } : {}) }, delaiMs: 5 * 60 * 1000 })
     if (!essai) {
       // The reasons are only in this answer: write them down, or a refusal is a bare count once the screen is closed (12/10/2026).
       const motifs = (r.lignes || []).filter((x) => x.statut === 'refuse').map((x) => `${x.date} ${x.rayon} : ${x.raison || 'motif non donné par le site'}`)
