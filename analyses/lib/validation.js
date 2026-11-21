@@ -65,6 +65,7 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
   let invention = 0
   let margesSuspectes = 0
   let imagesInventees = 0
+  let decisionsCorrigees = 0
 
   for (const p of produits) {
     if (fournisseurs && estHttp(p.supplier_url) && vues.has(cle(p.supplier_url)) && !fournisseurs.has(cle(p.supplier_url))) {
@@ -94,6 +95,18 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
         p[champ] = null
       }
     }
+    // A negative margin is never a buy, an unsourced price never backs one (21/11/2026: « achat 79,90 €,
+    // vente 27,90 €, acheter, 90/100 » reached the site). The site applies the same rule (coherencePrix.ts).
+    const achat = Number(p.estimated_landed_cost_france ?? p.purchase_price)
+    const nette = p.net_margin_estimated == null ? NaN : Number(p.net_margin_estimated)
+    const favorable = /^(BUY|BREAKOUT)/i.test(String(p.decision || '').trim())
+    const negative = (Number.isFinite(achat) && achat > 0 && Number.isFinite(vente) && vente > 0 && vente <= achat) || (Number.isFinite(nette) && nette < 0)
+    const sansPrix = !(Number(p.purchase_price) > 0)
+    if (favorable && (negative || sansPrix)) {
+      decisionsCorrigees++
+      p.decision = negative ? "DON'T BUY" : 'WATCHLIST'
+      if (Number(p.global_opportunity_score) > 20) p.global_opportunity_score = 20
+    }
   }
 
   const autresRetirees = retirerUrlsNonVues(rapport, vues)
@@ -102,6 +115,7 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
   if (distinctes.size !== attendus) problemes.push(`${distinctes.size} URL vérifiées et distinctes au lieu de ${attendus}`)
   if (invention) problemes.push(`${invention} URL absentes des pages lues, remplacées par « ${NON_VERIFIE} »`)
   if (horsSourcing) problemes.push(`${horsSourcing} lien(s) fournisseur pris chez un revendeur et non sur un site fournisseur, retiré(s)`)
+  if (decisionsCorrigees) problemes.push(`${decisionsCorrigees} décision(s) d'achat à marge négative ou sans prix fournisseur, ramenée(s) à DON'T BUY / WATCHLIST`)
   if (margesSuspectes) problemes.push(`${margesSuspectes} marge(s) supérieure(s) au prix de vente (pourcentage ?), vidée(s)`)
   for (const k of ['study', 'executive_summary', 'market', 'creative_prompts']) {
     if (!rapport[k] || typeof rapport[k] !== 'object') problemes.push(`bloc « ${k} » absent`)
@@ -113,7 +127,7 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
   return {
     ok: problemes.length === 0,
     problemes,
-    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, autresUrlsRetirees: autresRetirees, margesSuspectes, imagesInventees, horsSourcing, avecPrixAchat: produits.filter((p) => Number(p.purchase_price) > 0).length },
+    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, autresUrlsRetirees: autresRetirees, margesSuspectes, imagesInventees, horsSourcing, decisionsCorrigees, avecPrixAchat: produits.filter((p) => Number(p.purchase_price) > 0).length },
   }
 }
 
