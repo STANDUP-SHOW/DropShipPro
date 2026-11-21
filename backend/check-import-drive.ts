@@ -51,6 +51,21 @@ const DRIVE: Record<string, Noeud> = {
   plateFigeAA: { nom: 'maison', enfants: ['figeRayonAA'] },
   figeRayonAA: { nom: 'lampes.rayon.md', texte: '---\ndate: 2026-11-14\n---\n' },
 }
+// 21/11/2026: 20 days × 24 shelves = 500 folders, past MAX_DOSSIERS (« Plus de 400 dossiers »).
+const longJours: string[] = []
+for (let j = 1; j <= 20; j++) {
+  const jid = `long${String(j).padStart(7, '0')}`
+  const cats: string[] = []
+  for (let c = 1; c <= 24; c++) {
+    const cid = `${jid}c${String(c).padStart(2, '0')}`
+    cats.push(cid)
+    DRIVE[cid] = { nom: `cat${c}`, enfants: [`${cid}r`] }
+    DRIVE[`${cid}r`] = { nom: 'theme.rayon.md', texte: '## x\n' }
+  }
+  DRIVE[jid] = { nom: `2026-11-${String(j).padStart(2, '0')}`, enfants: cats }
+  longJours.push(jid)
+}
+DRIVE.longRacineA = { nom: 'rapports', enfants: longJours }
 /** Folder ids Google « throttles »: how many more answers without a list each still gives. */
 const freins: Record<string, number> = { cat09AAAAAA: 2, jBloqueAAAA: 99 }
 
@@ -103,6 +118,11 @@ const jour = regrouper(await listerArbre('jourAAAAAAA'))
 exige(jour.length === 1 && jour[0].date === '2026-11-03' && jour[0].etudes[0]?.theme === 'smartphones', 'mêmes études qu’en collant le parent')
 
 console.log('Dossier de catégorie collé seul (aucun dossier daté)')
+const long = regrouper(await listerArbre('longRacineA'))
+exige(long.length === 10 && long[0].date === '2026-11-20' && long[9].date === '2026-11-11', `500 dossiers : la liste rend les 10 jours les plus récents au lieu d'échouer (${long.length})`)
+const ancien = regrouper(await listerArbre('longRacineA', (d) => d === '2026-11-02'))
+exige(ancien.length === 1 && ancien[0].etudes.length === 24, 'un jour plus ancien reste importable en le nommant')
+
 const arbre = await listerArbre('plateAAAAAA')
 const { fichiers, sansDate } = await daterSansDossier(arbre)
 const dates = regrouper(fichiers)

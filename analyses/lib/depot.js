@@ -92,8 +92,12 @@ function lireEnvoi(racine, date, categorie, theme) {
   }
 }
 
-/** Validated reports (statut ok) of the last `jours` days that the site has not received yet. */
-function rapportsAEnvoyer(racine, { jours = 7 } = {}) {
+/**
+ * Reports of the last `jours` days that the site has not received yet. Max (21/11/2026): every
+ * report goes, complete or not — the problems found travel with it as notes, they never hold it
+ * back. `cibles` (Set of « date/categorie/theme ») limits to a selection, sent again even if sent.
+ */
+function rapportsAEnvoyer(racine, { jours = 7, cibles = null } = {}) {
   const sortie = []
   let dates = []
   try { dates = fs.readdirSync(path.join(racine, 'rapports')).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse().slice(0, jours) } catch { return sortie }
@@ -105,10 +109,11 @@ function rapportsAEnvoyer(racine, { jours = 7 } = {}) {
       try { fichiers = fs.readdirSync(path.join(racine, 'rapports', date, categorie)).filter((f) => f.endsWith('.json') && !f.endsWith('.envoi.json')) } catch { continue }
       for (const f of fichiers) {
         const theme = f.replace(/\.json$/, '')
+        if (cibles && !cibles.has(`${date}/${categorie}/${theme}`)) continue
         let rapport
         try { rapport = JSON.parse(fs.readFileSync(path.join(racine, 'rapports', date, categorie, f), 'utf8')) } catch { continue }
-        if (!rapport.poste || rapport.poste.statut !== 'ok') continue
-        if (lireEnvoi(racine, date, categorie, theme)) continue
+        if (!rapport.poste || !Array.isArray(rapport.products) || !rapport.products.length) continue
+        if (!cibles && lireEnvoi(racine, date, categorie, theme)) continue
         sortie.push({ date, categorie, theme, rapport })
       }
     }
@@ -116,4 +121,14 @@ function rapportsAEnvoyer(racine, { jours = 7 } = {}) {
   return sortie
 }
 
-module.exports = { cheminsRapport, ecrireRapport, rapportExiste, ecrireDiagnostic, envoyerRapportAuSite, marquerEnvoye, lireEnvoi, rapportsAEnvoyer }
+/** Removes a report from this PC (json, both Markdown files, sent-state). Never touches the site. */
+function supprimerRapport(racine, date, categorie, theme) {
+  const c = cheminsRapport(racine, date, categorie, theme)
+  let n = 0
+  for (const f of [c.json, c.rayon, c.marketing, cheminEnvoi(racine, date, categorie, theme)]) {
+    try { fs.unlinkSync(f); n++ } catch { /* already gone */ }
+  }
+  return n
+}
+
+module.exports = { supprimerRapport, cheminsRapport, ecrireRapport, rapportExiste, ecrireDiagnostic, envoyerRapportAuSite, marquerEnvoye, lireEnvoi, rapportsAEnvoyer }

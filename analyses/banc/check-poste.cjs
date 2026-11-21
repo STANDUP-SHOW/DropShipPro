@@ -194,7 +194,7 @@ test('le Markdown rayon est lu par le site comme un rapport MARKETSPY (rapports-
   db.close()
 })
 
-test('URL inventées : remplacées par « Non vérifié », rapport À REVOIR, jamais envoyé au site', async (srv) => {
+test('URL inventées : remplacées par « Non vérifié », rapport À REVOIR, envoyé quand même (Max, 21/11)', async (srv) => {
   const m = monde(srv); remise(); etat.mode = 'url-inventee'
   let envoyes = 0
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
@@ -202,7 +202,7 @@ test('URL inventées : remplacées par « Non vérifié », rapport À REVOIR, j
   assert.equal(res.validation.stats.inventions, 4)
   const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
   assert.equal(j.products.filter((p) => p.supplier_url === NON_VERIFIE).length, 4)
-  assert.equal(envoyes, 0)
+  assert.equal(envoyes, 1, 'un rapport incomplet part aussi : ses manques sont notés, jamais bloquants')
   assert.equal(orch.rapportValide(m.racine, '2026-10-03', 'telephonie', 'smartphones'), false)
 })
 
@@ -532,10 +532,17 @@ test('envoi au site : le rapport complet part une fois, rayon et marketing d’u
   await envoyer(attente[0].rapport)
   depot.marquerEnvoye(m.racine, attente[0].date, attente[0].categorie, attente[0].theme, { rapportEcritLe: attente[0].rapport.poste.ecritLe, reponse: null })
   assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0)
-  // a report « à revoir » never goes
+  // Max, 21/11/2026: a report « à revoir » goes too
   remise(); etat.mode = 'url-inventee'
   await executerRayon({ rayon: { ...m.rayon, theme: 'coques-protection', libelleTheme: 'Coques' }, deps: m.deps, options: {} })
-  assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0, 'un rapport à revoir n’est jamais proposé à l’envoi')
+  assert.equal(depot.rapportsAEnvoyer(m.racine).length, 1, 'un rapport incomplet est proposé à l’envoi comme les autres')
+  // a selection is sent again even when already sent
+  const choix = depot.rapportsAEnvoyer(m.racine, { cibles: new Set(['2026-10-03/telephonie/smartphones']) })
+  assert.equal(choix.length, 1, 'un rapport déjà en ligne, sélectionné, repart'); assert.equal(choix[0].theme, 'smartphones')
+  // « Supprimer » removes it from this PC only
+  assert.ok(depot.supprimerRapport(m.racine, '2026-10-03', 'telephonie', 'coques-protection') >= 3)
+  assert.equal(depot.rapportsAEnvoyer(m.racine).length, 0, 'supprimé : plus rien à envoyer')
+  assert.ok(!fs.existsSync(depot.cheminsRapport(m.racine, '2026-10-03', 'telephonie', 'coques-protection').json))
 })
 
 test('administration : la clé du Poste, son empreinte, et les refus du site dits en clair', async (srv) => {
@@ -723,11 +730,11 @@ test('sourcing : recherches limitées aux sites fournisseurs, supplier_url prise
   assert.ok(trace.recherches.filter((r) => r.vague === 'sourcing').every((r) => r.domaines.includes('alibaba.com') && r.sites.length))
 })
 
-test('sourcing : un rapport qui prend ses liens chez les revendeurs est à revoir, jamais envoyé', async (srv) => {
+test('sourcing : un rapport qui prend ses liens chez les revendeurs est à revoir, envoyé quand même (Max, 21/11)', async (srv) => {
   const m = mondeClaude(srv); remise(); etat.mode = 'revendeurs'
   let envoyes = 0
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
-  assert.equal(res.statut, 'a_revoir'); assert.equal(envoyes, 0)
+  assert.equal(res.statut, 'a_revoir'); assert.equal(envoyes, 1)
   assert.ok(res.validation.stats.horsSourcing > 0, JSON.stringify(res.validation.stats))
   const r = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
   assert.ok(r.products.every((p) => p.supplier_url === NON_VERIFIE ? p.purchase_price === null && p.gross_margin === null : true), 'pas de prix d’achat sans page fournisseur')
@@ -752,7 +759,7 @@ test('sourcing : un site refusé par l’API est écarté et la vague continue ;
   remise(); etat.mode = 'sourcing-ko'
   let envoyes = 0
   const ko = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
-  assert.equal(ko.statut, 'a_revoir'); assert.equal(envoyes, 0)
+  assert.equal(ko.statut, 'a_revoir'); assert.equal(envoyes, 1)
   assert.ok(fs.existsSync(ko.chemins.json), 'le rapport des vagues 1 et 2 est écrit')
   const k = JSON.parse(fs.readFileSync(ko.chemins.json, 'utf8'))
   assert.match(k.poste.problemes[0], /^vague fournisseurs en échec : Anthropic/)
