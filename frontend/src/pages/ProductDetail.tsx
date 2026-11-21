@@ -164,6 +164,33 @@ export default function ProductDetail() {
     load()
   }, [id])
 
+  /*
+   * Réécriture en cours (lot, ou relance automatique après un modèle muet) :
+   * la fiche se complète toute seule, on la relit jusqu'à ce qu'elle arrive.
+   */
+  const reecritureEnCours = Boolean(product?.rewritePending)
+  useEffect(() => {
+    if (!id || !reecritureEnCours) return
+    const minuterie = window.setInterval(async () => {
+      const p = await api.getProduct(id).catch(() => null)
+      if (p && !p.rewritePending) setProduct(p)
+    }, 20000)
+    return () => window.clearInterval(minuterie)
+  }, [id, reecritureEnCours])
+
+  const [relance, setRelance] = useState<{ enCours: boolean; erreur: string | null }>({ enCours: false, erreur: null })
+  async function relancerReecriture() {
+    if (!id) return
+    setRelance({ enCours: true, erreur: null })
+    try {
+      await api.reecrireAnnonce(id)
+      setRelance({ enCours: false, erreur: null })
+      await load()
+    } catch (e) {
+      setRelance({ enCours: false, erreur: e instanceof Error ? e.message : 'La réécriture n’a pas abouti.' })
+    }
+  }
+
   useEffect(() => {
     api.listCategories().then((r) => setCatalog(r.categories))
     api.listPlatforms().then(setPlatforms)
@@ -365,31 +392,43 @@ export default function ProductDetail() {
         </button>
       </div>
 
-      {product.aiEnhanced === false && (
+      {product.rewritePending ? (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-sky-400/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">
+          <RefreshCw size={15} className="shrink-0 animate-spin" />
+          <p>
+            Réécriture par l'IA en cours : l'annonce porte pour l'instant le texte du fournisseur et se
+            complète toute seule dans quelques minutes. Rien à faire de votre côté.
+          </p>
+        </div>
+      ) : product.aiEnhanced === false ? (
         <div className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
           <p>
-            La réécriture par l'IA n'a pas pu aboutir : la fiche source a été relevée avec trop peu
-            de texte — souvent parce que la page n'avait pas fini de charger au moment de la capture,
-            fréquent sur AliExpress et Temu en import groupé. Le texte source a été conservé tel quel,
-            et <b>aucun drop n'a été décompté</b>.
+            Cette annonce porte encore le texte du fournisseur : la réécriture par l'IA n'a pas abouti, et{' '}
+            <b>aucun drop n'a été décompté</b>.
           </p>
-          <p className="mt-1.5 text-orange-200/90">
-            Pour la refaire proprement : rouvrez la fiche, laissez-la se charger entièrement (faites
-            défiler jusqu'aux caractéristiques), puis réimportez-la à l'unité avec le bouton
-            <b> « + Ajouter à DropShipper IA »</b> de l'extension.
-          </p>
-          <a
-            href={product.sourceUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-orange-400/40 bg-orange-400/15 px-3 py-2 text-xs font-semibold text-orange-100 hover:bg-orange-400/25"
-          >
-            <RefreshCw size={14} />
-            <span>Ré-importer cette fiche{product.sourceSite ? ` sur ${product.sourceSite}` : ''}</span>
-            <ExternalLink size={12} />
-          </a>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={relancerReecriture}
+              disabled={relance.enCours}
+              className="inline-flex items-center gap-2 rounded-lg border border-orange-400/40 bg-orange-400/15 px-3 py-2 text-xs font-semibold text-orange-100 hover:bg-orange-400/25 disabled:opacity-60"
+            >
+              <Sparkles size={14} />
+              <span>{relance.enCours ? 'Réécriture…' : 'Relancer la réécriture IA'}</span>
+            </button>
+            <a
+              href={product.sourceUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-orange-100/90 hover:bg-white/5"
+            >
+              <ExternalLink size={12} />
+              <span>Voir la fiche{product.sourceSite ? ` sur ${product.sourceSite}` : ''}</span>
+            </a>
+          </div>
+          {relance.erreur && <p className="mt-2 text-orange-100/90">{relance.erreur}</p>}
         </div>
-      )}
+      ) : null}
 
       {/* ---------- Barre d'état, collée en haut au défilement ---------- */}
       <div className="sticky top-0 z-30 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#1b1633]/95 px-4 py-3 backdrop-blur">

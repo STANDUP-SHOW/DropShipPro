@@ -383,8 +383,9 @@ agentRouter.post('/import', requireDesktop as never, async (req: AgentRequest, r
               variantes: fiche.variants as Record<string, string[]> | undefined,
               skuAliExpress: (fiche.skuAliExpress ?? null) as never,
             },
+            cout: DROPS.import,
           }
-        : {},
+        : { cout: DROPS.import },
     )
     if (!reecrit) await refundCredits(req.userId!, DROPS.import)
     if (parsed.data.shareId) {

@@ -234,6 +234,30 @@ async function montrerLot(hote, surRetour) {
         await apiFetch('/api/products/capture', { method: 'POST', body: { ...entree.payload, differer: true } })
         faits++
       } catch (e) {
+        /*
+         * Relevé trop maigre, refusé par le serveur AVANT tout drop et tout appel
+         * IA (21/11/2026). La fiche est relue automatiquement — ouverte, défilée,
+         * rechargée au besoin — puis renvoyée une fois. Le vendeur n'a pas à la
+         * rouvrir lui-même.
+         */
+        if (/fini de charger|texte/i.test(String(e?.message)) && entree.url) {
+          bouton.textContent = `Relecture ${i + 1} sur ${liste.length}…`
+          const relu = await chrome.runtime
+            .sendMessage({ type: 'dsp-relever-adresse', url: entree.url })
+            .catch((err) => ({ ok: false, error: err?.message }))
+          if (relu?.ok) {
+            try {
+              await apiFetch('/api/products/capture', { method: 'POST', body: { ...relu.payload, differer: true } })
+              faits++
+              continue
+            } catch (e2) {
+              echecs.push({ ...entree, raison: e2?.message || 'Échec' })
+              continue
+            }
+          }
+          echecs.push({ ...entree, raison: relu?.error || e?.message || 'Échec' })
+          continue
+        }
         echecs.push({ ...entree, raison: e?.message || 'Échec' })
       }
     }

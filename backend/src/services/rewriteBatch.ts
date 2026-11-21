@@ -37,6 +37,9 @@ function defautClient(): Anthropic | null {
 /** Le plafond d'un batch : large, mais borné — Anthropic accepte bien plus. */
 const PAR_BATCH = 100
 
+/** Passages au batch avant d'abandonner une réécriture (et de rendre le crédit). */
+export const TENTATIVES_MAX = 3
+
 export interface ClientBatch {
   messages: {
     batches: {
@@ -134,16 +137,32 @@ async function appliquerResultat(ligne: {
   // Périmètre du banc : ne jamais toucher un job hors du compte visé.
   if (seulement && job.userId !== seulement) return
 
-  const entree = job.entree as unknown as EntreeReecriture
+  const entree = job.entree as unknown as EntreeReecriture & { _cout?: number; _tentatives?: number }
 
   const echouer = async (raison: string) => {
-    // Comme le chemin synchrone quand la réécriture rate : texte source gardé,
-    // crédit rendu, raison écrite. L'annonce existe déjà, on lève juste le
-    // drapeau « en cours » et on rend le crédit qui n'a rien produit.
+    /*
+     * Un échec du modèle (erreur, expiration, réponse illisible) n'est pas
+     * définitif : la même entrée repart au batch suivant, jusqu'à
+     * TENTATIVES_MAX passages (21/11/2026 : l'annonce restait brute et le
+     * vendeur devait la réimporter à la main). Le compteur voyage dans
+     * l'entrée, sans colonne de plus.
+     */
+    const tentatives = (entree._tentatives ?? 1) + 1
+    if (tentatives <= TENTATIVES_MAX) {
+      await prisma.rewriteJob.update({
+        where: { id: job.id },
+        data: { statut: 'en_attente', batchId: null, entree: { ...entree, _tentatives: tentatives } as object },
+      })
+      console.error(`reecriture batch : ${job.productId} non réécrit (${raison}), relancé (passage ${tentatives}/${TENTATIVES_MAX})`)
+      return
+    }
+    // Échec définitif, comme le chemin synchrone : texte source gardé, crédit
+    // rendu. Le montant pris à l'import (`_cout`) ; 1 pour les anciennes entrées.
     await prisma.product.update({ where: { id: job.productId }, data: { rewritePending: false } }).catch(() => undefined)
-    await refundCredits(job.userId, 1).catch(() => undefined)
+    const rendu = entree._cout ?? 1
+    if (rendu > 0) await refundCredits(job.userId, rendu).catch(() => undefined)
     await prisma.rewriteJob.update({ where: { id: job.id }, data: { statut: 'echec' } })
-    console.error(`reecriture batch : ${job.productId} non réécrit (${raison}), crédit rendu`)
+    console.error(`reecriture batch : ${job.productId} non réécrit (${raison}), ${rendu} drop(s) rendu(s)`)
   }
 
   if (ligne.result.type !== 'succeeded') {

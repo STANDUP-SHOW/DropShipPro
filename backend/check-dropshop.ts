@@ -154,6 +154,16 @@ async function main() {
   const e = extraireHtml('Bla\n```html\n<!doctype html>\n<html><body>x</body></html>\n```\nfin')
   attendre('le bloc html est extrait du doctype à </html>', e === '<!doctype html>\n<html><body>x</body></html>\n')
   attendre('sans doctype, rien n\'est extrait', extraireHtml('<div>rien</div>') === null)
+  // 21/11/2026 : une page coupée au plafond de sortie passait pour une page, et la boutique mourait sur « Unexpected end of input ».
+  attendre('une page coupée (sans </html>) est refusée', extraireHtml('```html\n<!doctype html>\n<html><body><script>function f() {') === null)
+  attendre('un bloc html non refermé mais complet est lu', extraireHtml('```html\n<!doctype html>\n<html><body>x</body></html>') === '<!doctype html>\n<html><body>x</body></html>\n')
+  const j1 = extraireEditions('Voici :\n```json\n{"resume":"ok","edits":[{"chercher":"a","remplacer":"b"}]}```')
+  attendre("un bloc json refermé sans retour à la ligne est lu", j1 !== null && j1.edits.length === 1)
+  const j2 = extraireEditions('```\n{"resume":"ok","edits":[{"chercher":"a","remplacer":"b"}]}\n```')
+  attendre('un bloc sans étiquette json est lu', j2 !== null && j2.edits.length === 1)
+  const j3 = extraireEditions('Je change le CSS { color: red } puis :\n```json\n{"resume":"ok","edits":[{"chercher":"a { x }","remplacer":"b"}]}\n```\nVoilà.')
+  attendre('des accolades dans le texte autour ne gênent plus', j3 !== null && j3.edits[0].chercher === 'a { x }')
+  attendre("une réponse sans éditions reste refusée", extraireEditions('Je ne peux pas.') === null)
 
   console.log(echecs ? `\n${echecs} attente(s) non tenue(s).` : '\nMoteur DropShop : tout passe.')
   process.exit(echecs ? 1 : 0)
