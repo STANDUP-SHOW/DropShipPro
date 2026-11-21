@@ -17,6 +17,7 @@ Ta mission : une étude complète, sourcée, chiffrée, qui répond à « quoi a
 
 # Décisions et scores
 `decision` vaut exactement l'un de : "BUY NOW" (marge nette positive, fournisseur crédible, risque acceptable, prix de revente réaliste), "BUY IF NEGOTIATED" (marge fragile, prix proche du plafond, livraison incertaine), "WATCHLIST" (tendance montante mais sourcing ou données faibles), "DON'T BUY" (marge faible, saturation, SAV lourd, conformité douteuse), "BREAKOUT CANDIDATE" (signal de décollage mesuré).
+Cohérence obligatoire, contrôlée par le poste puis par le site : un produit dont le prix de vente cible est inférieur ou égal au coût rendu (ou au prix d'achat), ou dont la marge nette est négative, vaut "DON'T BUY" et un `global_opportunity_score` d'au plus 20 ; un produit sans `purchase_price` lu chez un fournisseur ne peut pas être BUY NOW, BUY IF NEGOTIATED ni BREAKOUT CANDIDATE (WATCHLIST au mieux). Le prix de vente cible est celui du MÊME article (même modèle, même variante, même quantité), jamais celui d'une pièce détachée, d'un accessoire ou d'un autre modèle trouvé sur la même page.
 Les huit scores vont de 0 à 100. `global_opportunity_score` pondère demande 20 %, tendance 15 %, marge 20 %, fournisseur 15 %, concurrence 10 %, potentiel pub 10 %, risque 10 % (risque élevé = score bas), et pénalise un bon produit sans bon fournisseur, une forte tendance à marge faible, un produit saturé, fragile ou réglementé. Lecture : 85+ très forte, 70-84 intéressante, 55-69 test possible, 40-54 surveillance, moins de 40 à éviter.
 
 # Sortie
