@@ -281,6 +281,33 @@ console.log('Format du 09/11 : héros imbriqués, top 25, liens à plat, listes 
   exige(b.statut === 'importe' && S.lireSynthese('2026-11-12')?.lecteur === S.LECTEUR_SYNTHESE, 'import : version du lecteur notée')
 }
 
+// 20/11/2026 format (real excerpt): supplier, sourcing_url, purchase_price as « 8,41 € », no landed cost nor margin.
+{
+  const json = {
+    meta: { study_date: '2026-11-20', currency: 'EUR' },
+    top_25_verified_opportunities: [
+      { rank: 1, category_id: 'beaute', category_name: 'Beauté et soins', name: 'Brosse pour le corps brossage à sec soies naturelles manche long', supplier: 'DHgate', sourcing_url: 'https://fr.dhgate.com/product/lymphatic-contour-face-and-body-brushes-the/1089546190.html', url_page_title: 'Brosses pour le contour lymphatique du visage et du corps brossage à sec Brosse pour le corps', purchase_price: '8,41 €', target_price: 18.9, score: 90, verdict: 'acheter' },
+      { rank: 2, category_id: 'animaux', category_name: 'Animaux', name: 'Manteau hiver imperméable chien doublé polaire harnais', supplier: 'DHgate', sourcing_url: 'https://fr.dhgate.com/product/x/1.html', purchase_price: '35,86 €', target_price: 29.9, score: 90, verdict: 'acheter' },
+    ],
+  }
+  const md = `# Opportunités Prioritaires Vérifiées
+## Top 25 immediate
+| Rang | Catégorie | Produit | Fournisseur | Lien vérifié | Titre de la page | Prix de vente | Score | Verdict |
+|---:|---|---|---|---|---|---:|---:|---|
+| 1 | Beauté et soins | Brosse pour le corps brossage à sec soies naturelles manche long | DHgate | https://fr.dhgate.com/product/lymphatic-contour-face-and-body-brushes-the/1089546190.html | Brosses | 18.90 € | 90 | acheter |
+`
+  const a = S.assembler(S.lireSyntheseJson(json), S.lireSyntheseMarkdown(md))!
+  const brosse = a.produits.find((p) => p.nom.startsWith('Brosse'))!
+  const manteau = a.produits.find((p) => p.nom.startsWith('Manteau'))!
+  exige(brosse.source === 'DHgate' && brosse.prixAchat === 8.41 && brosse.prixVente === 18.9, `20/11 : fournisseur et prix d'achat lus (${brosse.source}, ${brosse.prixAchat})`)
+  exige(brosse.margeBrute === 10.49, `20/11 : marge brute = prix visé − prix d'achat (${brosse.margeBrute})`)
+  exige(manteau.margeBrute === -5.96, `20/11 : marge négative gardée telle quelle (${manteau.margeBrute})`)
+  exige(brosse.coutRendu === null && brosse.margeNette === null, '20/11 : rien d\'inventé pour le coût rendu ni la marge nette')
+  exige(Object.keys(brosse.liens).length === 1, '20/11 : lien fournisseur gardé')
+  const seulMd = S.lireSyntheseMarkdown(md)!.produits[0]
+  exige(seulMd.source === 'DHgate' && seulMd.prixVente === 18.9 && seulMd.prixAchat === null, `20/11 Markdown : fournisseur lu, prix de vente pas pris pour un prix d'achat (${seulMd.prixVente}/${seulMd.prixAchat})`)
+}
+
 const reels = process.argv.indexOf('--reels')
 if (reels > 0) {
   const dossier = process.argv[reels + 1]
