@@ -54,8 +54,12 @@ export interface ProduitSynthese {
   decision: string
   source: string
   coutRendu: number | null
+  /** The supplier's own price on the page the agent opened (`purchase_price`, 20/11 format), shipping not included. */
+  prixAchat: number | null
   prixVente: number | null
   margeNette: number | null
+  /** Target price minus purchase price, computed here when both are in the file (shipping, fees and VAT not included). */
+  margeBrute: number | null
   roi: number | null
   /**
    * The links to open. A product page the agent did not prove it opened (`url_page_title` carrying the
@@ -81,8 +85,8 @@ export interface Synthese {
   sectionsCalculees?: CleSection[]
 }
 
-/** 2 (12/11/2026): the 09/11 format (hero_product nested, top_25_immediate_opportunities, flat *_url), JSON + Markdown merged. */
-export const LECTEUR_SYNTHESE = 3
+/** 4 (21/11/2026): supplier, purchase_price and the gross margin of the 20/11 format. 2 (12/11/2026): the 09/11 format (hero_product nested, top_25_immediate_opportunities, flat *_url), JSON + Markdown merged. */
+export const LECTEUR_SYNTHESE = 4
 
 const SECTIONS: Array<{ cle: CleSection; motif: RegExp }> = [
   { cle: 'top5', motif: /top[\s_-]*5|launch[\s_-]*now|priorit/i },
@@ -177,10 +181,12 @@ function produitJson(entree: Record<string, unknown>): ProduitSynthese | null {
     variante: texte(champ(o, 'variant', 'variante')),
     score: nombre(champ(o, 'score', 'score_str')),
     decision: texte(champ(o, 'decision', 'verdict')),
-    source: texte(champ(o, 'source_achat', 'source')),
+    source: texte(champ(o, 'supplier', 'fournisseur', 'source_achat', 'source')),
     coutRendu: nombre(champ(o, 'landed_cost', 'landed_cost_str')),
+    prixAchat: nombre(champ(o, 'purchase_price', 'purchase_price_str', 'prix_achat', 'supplier_price')),
     prixVente: nombre(champ(o, 'target_price', 'target_price_str')),
     margeNette: nombre(champ(o, 'net_margin', 'net_margin_str')),
+    margeBrute: null,
     roi: nombre(champ(o, 'roi', 'roi_str')),
     ...liensSurs(liensDe(o), nom, texte(champ(o, 'url_page_title', 'page_title', 'verified_title'))),
   }
@@ -311,10 +317,12 @@ export function lireSyntheseMarkdown(md: string): Omit<Synthese, 'importeLe' | '
         variante,
         score: nombre(col(/score/)),
         decision: sansGras(col(/d[ée]cision|verdict|statut/)).replace(/^[^A-Za-z]+/, '').replace(/\s*\(.*$/, ''),
-        source: '',
+        source: sansGras(col(/fournisseur|supplier/)),
         coutRendu: nombre(col(/co[uû]t/)),
-        prixVente: nombre(col(/prix/)),
+        prixAchat: nombre(col(/prix d['’]achat|achat|purchase/)),
+        prixVente: nombre(col(/prix de vente|prix vis|target/) || col(/^prix(?!.*achat)/)),
         margeNette: nombre(col(/marge/)),
+        margeBrute: null,
         roi: nombre(col(/\broi\b/)),
         ...liensSurs(liens, nom, ''),
       })
@@ -422,6 +430,10 @@ export function assembler(json: Lue | null, md: Lue | null): (Lue & { sectionsCa
       if (sections[cle].length) continue
       sections[cle] = [...new Set(md.sections[cle].map((id) => idDe(mdParId.get(id)!)))]
     }
+  }
+  // Gross margin: only from the file's own two prices, never estimated.
+  for (const p of parId.values()) {
+    p.margeBrute = p.prixVente !== null && p.prixAchat !== null ? Math.round((p.prixVente - p.prixAchat) * 100) / 100 : null
   }
   const calculees: CleSection[] = []
   const noire = new Set(sections.listeNoire)
@@ -704,7 +716,7 @@ export function produitACreer(p: ProduitSynthese): ProduitACreer {
     sourceCategory: p.categorieLabel || p.categorie || null,
     title: p.nom.slice(0, 200),
     description: lignes.join('\n\n'),
-    price: p.coutRendu ?? 0,
+    price: p.coutRendu ?? p.prixAchat ?? 0,
     sellingPrice: p.prixVente ?? 0,
   }
 }
