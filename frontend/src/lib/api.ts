@@ -1089,7 +1089,7 @@ export const api = {
     request<{
       cards: Array<{ id: string; brand: string; last4: string; expMonth: number | null; expYear: number | null }>
     }>('/billing/payment-methods'),
-  createSetupIntent: () => request<{ clientSecret: string }>('/billing/setup-intent', { method: 'POST' }),
+  createSetupIntent: () => request<{ clientSecret: string; livemode?: boolean }>('/billing/setup-intent', { method: 'POST' }),
   deleteCard: (id: string) => request(`/billing/payment-methods/${id}`, { method: 'DELETE' }),
   openBillingPortal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
 

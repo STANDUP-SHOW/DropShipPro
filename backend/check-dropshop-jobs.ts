@@ -65,7 +65,7 @@ async function solde(userId: string) {
 
 async function main() {
   const t = Date.now()
-  const riche = await prisma.user.create({ data: { email: `banc-dropshop-${t}@example.com`, passwordHash: 'x', credits: 1000 } })
+  const riche = await prisma.user.create({ data: { email: `banc-dropshop-${t}@example.com`, passwordHash: 'x', credits: 3000 } })
   const pauvre = await prisma.user.create({ data: { email: `banc-dropshop-pauvre-${t}@example.com`, passwordHash: 'x', credits: 50 } })
   const tous = [riche.id, pauvre.id]
   try {
@@ -74,7 +74,7 @@ async function main() {
 
     console.log('— Création —')
     let etat = await lancerCreation(shop, 'Une boutique de montres élégantes et d\'écouteurs, ambiance atelier horloger.', { appeler: rendLeSquelette })
-    attendre('le prix est pris à la commande, tout ou rien', (await solde(riche.id)) === 1000 - DROPS.boutiqueCreation)
+    attendre('le prix est pris à la commande, tout ou rien', (await solde(riche.id)) === 3000 - DROPS.boutiqueCreation)
     attendre('le travail est visible en cours', (await travailOuvert({ ...shop, siteJob: etat as never }))?.etape !== undefined)
     // On attend la fin du travail lancé en arrière-plan.
     await attendreFin(shop.id)
@@ -95,7 +95,7 @@ async function main() {
     await lancerModification(s, 'Change le titre de l\'onglet.', { appeler: rendUneEdition })
     await attendreFin(shop.id)
     s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
-    attendre('une modification ne coûte rien', DROPS.boutiqueModification === 0 && (await solde(riche.id)) === 1000 - DROPS.boutiqueCreation)
+    attendre('une modification ne coûte rien', DROPS.boutiqueModification === 0 && (await solde(riche.id)) === 3000 - DROPS.boutiqueCreation)
     attendre('la page est éditée, version 2', s.siteVersion === 2 && s.siteHtml?.includes('<title>Boutique modifiée</title>') === true)
     attendre('le résumé du modèle est montré au vendeur', (s.siteJob as unknown as EtatTravail).resume === 'Titre changé.')
 
@@ -103,7 +103,7 @@ async function main() {
     s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
     await lancerModification(s, 'Encore le titre.', { appeler: rendUneEdition })
     await attendreFin(shop.id)
-    attendre('même un compteur ancien à zéro ne fait rien payer : modifications à volonté', (await solde(riche.id)) === 1000 - DROPS.boutiqueCreation)
+    attendre('même un compteur ancien à zéro ne fait rien payer : modifications à volonté', (await solde(riche.id)) === 3000 - DROPS.boutiqueCreation)
 
     console.log('\n— Échecs rendus —')
     const avant = await solde(riche.id)
@@ -122,6 +122,59 @@ async function main() {
     const j2 = s2.siteJob as unknown as EtatTravail
     attendre('une page cassée deux fois : échec nommé, drops rendus, rien publié', j2.etape === 'echec' && (j2.echecs?.some((e) => /data-commande/.test(e)) ?? false) && (await solde(riche.id)) === avant2 && !s2.siteHtml, j2.erreur)
 
+    console.log('\n— Page coupée au plafond de sortie (21/11/2026) —')
+    // Le modèle rend d'abord une page coupée en plein script, puis une page entière.
+    let appels = 0
+    const coupeeUneFois: AppelModele = async (d) => {
+      if (/Page actuelle/.test(d.messages[0].content)) return rendUneEdition(d)
+      appels++
+      if (appels === 1) return { texte: '```html\n' + EXEMPLE.slice(0, Math.floor(EXEMPLE.length * 0.7)), entree: 10, sortie: 48_000, tronque: true }
+      return rendLeSquelette(d)
+    }
+    const shop3 = await prisma.shop.create({ data: { userId: riche.id, name: 'Banc coupé', platform: 'dropshipper', slug: `banc-coupe-${t}` } })
+    const avant5 = await solde(riche.id)
+    await lancerCreation(shop3, 'Une boutique dont la première écriture sort coupée.', { appeler: coupeeUneFois })
+    await attendreFin(shop3.id)
+    const s3 = await prisma.shop.findUniqueOrThrow({ where: { id: shop3.id } })
+    attendre('une écriture coupée est refaite, la boutique est créée entière', (s3.siteJob as unknown as EtatTravail).etape === 'termine' && Boolean(s3.siteHtml && /<\/html>\s*$/.test(s3.siteHtml) && s3.siteHtml.length > EXEMPLE.length * 0.9) && appels === 2, `${(s3.siteJob as unknown as EtatTravail).etape} ${appels} ${s3.siteHtml?.length} ${(s3.siteJob as unknown as EtatTravail).erreur ?? ''}`)
+    attendre('et le prix n\'est pris qu\'une fois', (await solde(riche.id)) === avant5 - DROPS.boutiqueCreation)
+
+    const toujoursCoupee: AppelModele = async () => ({ texte: '```html\n' + EXEMPLE.slice(0, 2000), entree: 10, sortie: 48_000, tronque: true })
+    const shop4 = await prisma.shop.create({ data: { userId: riche.id, name: 'Banc coupé 2', platform: 'dropshipper', slug: `banc-coupe2-${t}` } })
+    const avant6 = await solde(riche.id)
+    await lancerCreation(shop4, 'Une boutique dont toutes les écritures sortent coupées.', { appeler: toujoursCoupee })
+    await attendreFin(shop4.id)
+    const s4 = await prisma.shop.findUniqueOrThrow({ where: { id: shop4.id } })
+    attendre('toujours coupée : échec, rien publié, drops rendus une fois', (s4.siteJob as unknown as EtatTravail).etape === 'echec' && !s4.siteHtml && (await solde(riche.id)) === avant6)
+    attendre('le client peut réessayer aussitôt, au même prix', (await travailOuvert(s4)) === null && (await solde(riche.id)) >= DROPS.boutiqueCreation)
+
+    // Une modification dont la refonte entière sort coupée : on redemande des éditions.
+    let tour = 0
+    const refonteCoupee: AppelModele = async (d) => {
+      tour++
+      if (tour === 1) return { texte: '```html\n' + EXEMPLE.slice(0, 3000), entree: 10, sortie: 48_000, tronque: true }
+      return rendUneEdition({ ...d, messages: [d.messages[0]] })
+    }
+    s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
+    const versionAvant = s.siteVersion
+    await lancerModification(s, 'Refais toute la page.', { appeler: refonteCoupee })
+    await attendreFin(shop.id)
+    s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
+    attendre('une refonte coupée n\'est pas publiée : la modification passe par des éditions', (s.siteJob as unknown as EtatTravail).etape === 'termine' && s.siteVersion === versionAvant + 1 && s.siteHtml?.includes('</html>') === true, (s.siteJob as unknown as EtatTravail).erreur)
+
+    console.log('\n— Remboursement jamais en double —')
+    const vieux = new Date(Date.now() - DELAI_TRAVAIL_MORT_MS - 1000).toISOString()
+    const mort2: EtatTravail = { type: 'creation', etape: 'ecriture', tentative: 1, demande: 'x', debut: vieux, drops: 500 }
+    await prisma.shop.update({ where: { id: shop4.id }, data: { siteJob: mort2 as never } })
+    const avant7 = await solde(riche.id)
+    const lu = await prisma.shop.findUniqueOrThrow({ where: { id: shop4.id } })
+    // Deux onglets relisent l'état au même instant.
+    await Promise.all([travailOuvert(lu), travailOuvert(lu), travailOuvert(lu)])
+    attendre('un travail mort lu trois fois à la fois n\'est rendu qu\'une fois', (await solde(riche.id)) === avant7 + 500)
+    // Le processus qui le portait se réveille et échoue à son tour : rien de plus.
+    await executer(lu, { ...mort2 }, { appeler: leve })
+    attendre('le travail clos ailleurs qui échoue ensuite ne rend rien de plus', (await solde(riche.id)) === avant7 + 500)
+
     console.log('\n— Travail mort —')
     const mort: EtatTravail = { type: 'modification', etape: 'ecriture', tentative: 1, demande: 'x', debut: new Date(Date.now() - DELAI_TRAVAIL_MORT_MS - 1000).toISOString(), drops: 10 }
     await prisma.shop.update({ where: { id: shop.id }, data: { siteJob: mort as never } })
@@ -132,9 +185,10 @@ async function main() {
     console.log('\n— Restauration —')
     s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
     const avant4 = await solde(riche.id)
+    const neuve = s.siteVersion + 1
     const v = await restaurerVersion(s, 1)
     s = await prisma.shop.findUniqueOrThrow({ where: { id: shop.id } })
-    attendre('la version 1 est remise telle quelle, en version neuve, sans débit', v === 4 && s.siteVersion === 4 && s.siteHtml === EXEMPLE && (await solde(riche.id)) === avant4)
+    attendre('la version 1 est remise telle quelle, en version neuve, sans débit', v === neuve && s.siteVersion === neuve && s.siteHtml === EXEMPLE && (await solde(riche.id)) === avant4)
   } finally {
     await prisma.user.deleteMany({ where: { id: { in: tous } } })
     await prisma.$disconnect()
@@ -155,7 +209,6 @@ async function attendreFin(shopId: string) {
   throw new Error('le travail ne finit pas')
 }
 
-void executer
 main().catch(async (e) => {
   console.error(e)
   await prisma.$disconnect()

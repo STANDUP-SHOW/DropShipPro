@@ -127,7 +127,8 @@ async function main() {
       pageText: 'Caractéristiques : acier inoxydable, mouvement automatique, étanche 50 m.',
     })
     await prisma.rewriteJob.create({ data: { userId: user.id, productId: bon.id, entree: entree(bon) } })
-    await prisma.rewriteJob.create({ data: { userId: user.id, productId: rate.id, entree: entree(rate) } })
+    // `_cout` : les 8 drops d'un import en lot, rendus si la réécriture échoue pour de bon.
+    await prisma.rewriteJob.create({ data: { userId: user.id, productId: rate.id, entree: { ...entree(rate), _cout: 8 } } })
 
     console.log('La soumission')
     const reponses = new Map<string, { ok: true; titre: string } | { ok: false }>([
@@ -155,17 +156,29 @@ async function main() {
     const bulletPoints = bonApres.bulletPoints as unknown as string[]
     verifier('ses arguments et attributs sont posés', Array.isArray(bulletPoints) && bulletPoints.length === 2)
 
-    const rateApres = await prisma.product.findUniqueOrThrow({ where: { id: rate.id } })
-    verifier('l\'annonce en échec garde son texte source', rateApres.aiEnhanced === false && rateApres.aiTitle === 'Bracelet cuir marron')
-    verifier('et n\'est plus « en cours » non plus', rateApres.rewritePending === false)
+    console.log('\nLa relance automatique (21/11/2026)')
+    let rateApres = await prisma.product.findUniqueOrThrow({ where: { id: rate.id } })
+    verifier('après un premier échec, l\'annonce reste « en cours »', rateApres.rewritePending === true)
+    let jobRateApres = await prisma.rewriteJob.findUniqueOrThrow({ where: { id: jobRate.id } })
+    verifier('et son job repart en attente, passage 2', jobRateApres.statut === 'en_attente' && (jobRateApres.entree as { _tentatives?: number })._tentatives === 2)
+    verifier('aucun crédit rendu tant qu\'on réessaie', (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits === 10)
+
+    await tourneeReecritures(client, user.id)
+    await tourneeReecritures(client, user.id)
+    verifier('trois batchs en tout (deux relances)', compteur.crees === 3, `${compteur.crees} batch(s)`)
+
+    rateApres = await prisma.product.findUniqueOrThrow({ where: { id: rate.id } })
+    verifier('au troisième échec, l\'annonce garde son texte source', rateApres.aiEnhanced === false && rateApres.aiTitle === 'Bracelet cuir marron')
+    verifier('et n\'est plus « en cours »', rateApres.rewritePending === false)
 
     const apres = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
-    verifier('le crédit de l\'échec est rendu, celui du succès gardé', apres.credits === 11, `crédits : ${apres.credits}`)
+    verifier('les 8 drops de l\'échec sont rendus, une seule fois', apres.credits === 18, `crédits : ${apres.credits}`)
 
     console.log('\nLes états des jobs')
     const jobsApres = await prisma.rewriteJob.findMany({ where: { userId: user.id } })
     verifier('le job réussi est « fait »', jobsApres.find((j) => j.id === jobBon.id)?.statut === 'fait')
-    verifier('le job en échec est « echec »', jobsApres.find((j) => j.id === jobRate.id)?.statut === 'echec')
+    jobRateApres = jobsApres.find((j) => j.id === jobRate.id)!
+    verifier('le job en échec est « echec »', jobRateApres.statut === 'echec')
 
     console.log('\nLa garde de rejeu')
     // Un second passage ne doit rien retoucher : tout est fait/echec.

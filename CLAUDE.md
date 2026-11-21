@@ -77,6 +77,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - Vercel ne build pas ? `curl -s https://api.github.com/repos/STANDUP-SHOW/DropShipPro/commits/<sha>/status` (plafond Hobby).
 - Content scripts : tout appel API passe par le service worker (`apiFetch`).
 - `imagesWatermarked` vaut `true` par défaut : tout bloc de création pose `false`.
+- Seuil « texte relevé suffisant » : une seule règle, `substanceSource` (serveur) recopiée dans `capture.js`, banc `check-seuil-texte.ts`. Un échec IA ne s'affiche jamais comme « fiche trop maigre » sans preuve (21/11).
 - Un faux serveur de banc écrit le contrat **en dur** ; un banc synthétique qui
   passe ne prouve pas la réalité (Temu, Shopify taxonomie).
 - « Connecté » seulement après un appel réel réussi ; un libellé ne promet que ce qu'une ligne d'envoi fait (03/10 : `api-ready` affiché « connecteur écrit » sans code). Clés des apps : `docs/connecteurs-a-declarer.md`.
@@ -86,6 +87,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - Pubs du Studio (`adComposer.ts`, 15/10) : polices d'affiche embarquées (`backend/assets/fonts`, OFL), texte mesuré et ajusté (jamais coupé), aucune direction ne couvre plus d'un tiers de la photo. Banc visuel : `npx tsx check-pub-rendu.ts <photo> --sortie <dossier>`.
 - JSX : ne pas juxtaposer plusieurs expressions texte dont une chaîne vide.
 - Ne pas pousser pendant qu'une création DropShop tourne (`Shop.siteJob` sans `fin`).
+- Sortie de modèle : jamais accepter une page sans `</html>` ni une réponse `stop_reason: max_tokens` (21/11 : boutique coupée, « Unexpected end of input ») ; plafond = `sortieMax(modèle)`. Un remboursement de travail passe par `poserSiOuvert` (une seule fois).
 
 ## Rapports des 48 agents (`backend/rapports.db`)
 

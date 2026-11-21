@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 const appeler = (canal) => (arg) => ipcRenderer.invoke(canal, arg)
 const CANAUX = ['etat', 'reglages', 'secret', 'credits', 'rayon-test', 'envoyer-au-site', 'nuit-lancer', 'nuit-arreter', 'nuit-auto', 'rayons-nuit', 'admin-creer', 'admin-copier', 'admin-tester', 'admin-utilisateurs', 'admin-newsletter', 'admin-utilisateur-supprimer', 'admin-utilisateur-ecrire', 'newsletter-importer', 'newsletter-apercu', 'newsletter-envoyer', 'email-bienvenue', 'email-bienvenue-enregistrer', 'email-bienvenue-effacer', 'email-ecrire', 'tickets', 'ticket', 'ticket-repondre', 'admin-drive-lister', 'admin-drive-importer', 'admin-syntheses', 'admin-synthese', 'admin-synthese-compte', 'admin-synthese-importer', 'admin-synthese-completion', 'compte-connecter', 'admin-affiliation', 'admin-affiliation-verser', 'admin-reseaux', 'admin-reseaux-enregistrer', 'admin-mots-cles-essai', 'copier',
   'source-ajouter', 'source-supprimer', 'source-verifier', 'source-garder', 'nav-afficher', 'nav-placer', 'nav-masquer', 'nav-action',
-  'depot-ouvrir', 'rapport-ouvrir', 'banc-quitter',
+  'depot-ouvrir', 'rapport-ouvrir', 'rapports-supprimer', 'banc-quitter',
   // KANTIX ANALYSER (0.5.0)
   'cle-enregistrer', 'cle-supprimer', 'cle-tester', 'cle-brief',
   'projet-enregistrer', 'projet-supprimer', 'projet-secret-generer', 'projet-secret-copier', 'projet-flux-tester', 'projet-fiche',

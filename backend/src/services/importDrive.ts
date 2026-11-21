@@ -41,6 +41,13 @@ const MAX_FICHIERS = 2000
 const delaiMs = () => Number(process.env.DRIVE_DELAI_MS) || 20_000
 /** Undated reports (no AAAA-MM-JJ folder above them) opened to read their own date. */
 const MAX_SANS_DATE = 60
+/**
+ * A listing without a chosen date reads only the most recent date folders: the agent adds one
+ * a day (date + 24 shelves = 25 folders), and past 16 days the whole tree broke MAX_DOSSIERS
+ * (21/11/2026 : « Plus de 400 dossiers », the 18-21/11 reports never shown). Older days are
+ * imported already; an import names its dates and still reaches any of them.
+ */
+const DATES_LISTEES = 10
 
 /** « https://drive.google.com/drive/folders/<id>?usp=sharing », « …?id=<id> » or the bare id. */
 export function idDossierDrive(adresse: string): string {
@@ -261,8 +268,13 @@ export async function listerArbre(racine: string, dateVoulue?: (date: string) =>
       if (dossiers > MAX_DOSSIERS) throw new DriveErreur(`Plus de ${MAX_DOSSIERS} dossiers : donnez un sous-dossier plus précis.`)
       const lus = await Promise.all(lot.map((d) => listerUnDossier(d.id, d.chemin?.join('/') ?? '')))
       lot.forEach((d, k) => {
-        const { nom, entrees } = lus[k]
+        const { nom, entrees: toutes } = lus[k]
         const chemin = d.chemin ?? (nom ? [nom] : [])
+        let entrees = toutes
+        if (!dateVoulue) {
+          const recentes = new Set(toutes.filter((e) => e.dossier && DATE.test(e.nom)).map((e) => e.nom).sort().reverse().slice(0, DATES_LISTEES))
+          entrees = toutes.filter((e) => !(e.dossier && DATE.test(e.nom)) || recentes.has(e.nom))
+        }
         for (const e of entrees) {
           if (e.dossier) {
             if (dateVoulue && DATE.test(e.nom) && !dateVoulue(e.nom)) continue
@@ -613,11 +625,11 @@ function conforme(e: { produits: number; urlsDistinctes: number; avecPrix: numbe
 }
 
 /**
- * Below this a report is refused, named, never published (Max, 08/11/2026 :
- * « incomplets », « d'autres sans source ») : a shelf of 20 that brings fewer
- * than 10 products, or not one address to check them against.
+ * Max, 21/11/2026 : « tu importes » — every readable report goes in, whatever its count of
+ * products or addresses; what it lacks is written in its notes (`manques`), never a refusal.
+ * Only a report with no product at all is left out: there is nothing to show.
  */
-export const SEUIL_IMPORT = { produits: 10, adresses: 1 }
+export const SEUIL_IMPORT = { produits: 1, adresses: 0 }
 
 /** How complete a study is, to keep the best of two versions of the same shelf and day. */
 export function completude(e: { produits: number; urlsDistinctes: number; avecPrix: number; avecScore?: number; marketing?: boolean; fiches?: number }): number {
@@ -763,8 +775,7 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
         if (e.date !== jour.date) notes.unshift(`rangé dans le dossier du ${jour.date}, l'en-tête dit ${e.date} : classé au ${e.date}`)
 
         if (e.produits < SEUIL_IMPORT.produits || e.urlsDistinctes < SEUIL_IMPORT.adresses) {
-          const motif = e.urlsDistinctes < SEUIL_IMPORT.adresses ? 'aucune adresse source : rien ne permet de vérifier ces produits' : `${e.produits} produits seulement (au moins ${SEUIL_IMPORT.produits} attendus)`
-          lignes.push(ligne('refuse', [`sous le seuil d'import : ${motif}`, ...notes]))
+          lignes.push(ligne('refuse', ['aucun produit lisible dans ce rapport', ...notes]))
           continue
         }
         const deja = retenues.get(e.idRayon)

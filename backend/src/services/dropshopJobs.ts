@@ -123,15 +123,33 @@ export async function travailOuvert(shop: Pick<Shop, 'id' | 'userId' | 'siteJob'
   if (!j || j.fin) return null
   const age = Date.now() - new Date(j.debut).getTime()
   if (age < DELAI_TRAVAIL_MORT_MS || enCours.has(shop.id)) return j
-  // Mort avec le processus : on le clôt, on rend.
+  // Mort avec le processus : on le clôt, on rend — une seule fois, même si
+  // deux onglets relisent l'état au même instant (la clôture est atomique).
   const clos: EtatTravail = { ...j, etape: 'echec', fin: new Date().toISOString(), erreur: 'Le travail a été interrompu par un redémarrage du serveur. Vos drops ont été rendus.' }
-  await prisma.shop.update({ where: { id: shop.id }, data: { siteJob: clos as unknown as Prisma.InputJsonValue } })
-  if (j.drops > 0) await refundCredits(shop.userId, j.drops, 'Boutique DropShop : travail interrompu, drops rendus', shop.id)
+  if (await poserSiOuvert(shop.id, j.debut, clos) && j.drops > 0) {
+    await refundCredits(shop.userId, j.drops, 'Boutique DropShop : travail interrompu, drops rendus', shop.id)
+  }
   return null
 }
 
 async function poserEtat(shopId: string, etat: EtatTravail) {
   await prisma.shop.update({ where: { id: shopId }, data: { siteJob: etat as unknown as Prisma.InputJsonValue } })
+}
+
+/**
+ * Writes the job state only if the stored job is still THIS one (same `debut`)
+ * and still open (no `fin`). Returns whether it wrote.
+ *
+ * This is what makes a refund happen once. Without it, a job could be closed
+ * and refunded twice: by `travailOuvert` (declared dead) and by `executer`
+ * (still alive in another process during a Railway overlap, or after a
+ * restart resumed it), or reopened by a late progress write after closing.
+ */
+export async function poserSiOuvert(shopId: string, debut: string, etat: EtatTravail): Promise<boolean> {
+  const n = await prisma.$executeRaw`
+    UPDATE "Shop" SET "siteJob" = ${JSON.stringify(etat)}::jsonb
+    WHERE "id" = ${shopId} AND "siteJob"->>'debut' = ${debut} AND ("siteJob"->>'fin') IS NULL`
+  return n === 1
 }
 
 /** Ce que le modèle reçoit du commerce. */
@@ -218,10 +236,13 @@ export async function lancerModification(shop: Shop, demande: string, outils: Ou
 export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): Promise<void> {
   const appeler = outils.appeler ?? appelAnthropic
   const verifier = outils.verifier ?? verifierEnfant
+  // The job's identity: a restart that resumes it gives it a new `debut`, and
+  // from then on this run may no longer write, close or refund it.
+  const cle = etat.debut
   const surEtape = (e: Etape) => {
     etat.etape = e.etape
     etat.tentative = e.tentative
-    poserEtat(shop.id, etat).catch(() => undefined)
+    poserSiOuvert(shop.id, cle, etat).catch(() => undefined)
   }
   try {
     if (etat.type === 'creation') {
@@ -253,18 +274,21 @@ export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): P
     }
     etat.etape = 'termine'
     etat.fin = new Date().toISOString()
-    await poserEtat(shop.id, etat)
+    if (!(await poserSiOuvert(shop.id, cle, etat))) console.warn(`[dropshop] travail ${shop.id} déjà clos ailleurs : fin non réécrite`)
   } catch (e) {
     etat.etape = 'echec'
     etat.fin = new Date().toISOString()
     etat.erreur = e instanceof SiteImpossible ? e.message : "Le service d'écriture n'a pas répondu. Vos drops ont été rendus."
     if (e instanceof SiteImpossible && e.echecs.length) etat.echecs = e.echecs.slice(0, 12)
     if (!(e instanceof SiteImpossible)) console.error('[dropshop] travail', e instanceof Error ? e.message : e)
-    if (etat.drops > 0) {
+    if (etat.drops > 0) etat.erreur += etat.erreur.includes('rendus') ? '' : ' Vos drops ont été rendus.'
+    // Close first, refund only if this run is the one that closed it: never twice.
+    const clos = await poserSiOuvert(shop.id, cle, etat)
+    if (clos && etat.drops > 0) {
       await refundCredits(shop.userId, etat.drops, etat.type === 'creation' ? 'Création de boutique échouée, drops rendus' : 'Modification de boutique échouée, drops rendus', shop.id)
-      etat.erreur += etat.erreur.includes('rendus') ? '' : ' Vos drops ont été rendus.'
+    } else if (!clos) {
+      console.warn(`[dropshop] travail ${shop.id} déjà clos ailleurs : aucun second remboursement`)
     }
-    await poserEtat(shop.id, etat)
   } finally {
     enCours.delete(shop.id)
   }
@@ -310,11 +334,13 @@ export async function reprendreTravauxOrphelins(outils: Outils = {}): Promise<nu
   for (const shop of shops) {
     const etat = travailDe(shop)
     if (!etat || etat.fin || enCours.has(shop.id)) continue
+    const ancien = etat.debut
     etat.etape = 'ecriture'
     etat.tentative = 1
     etat.debut = new Date().toISOString()
     etat.resume = 'Repris après un redémarrage du serveur.'
-    await poserEtat(shop.id, etat)
+    // Taking it over is atomic too: two starting processes never both resume it.
+    if (!(await poserSiOuvert(shop.id, ancien, etat))) continue
     enCours.add(shop.id)
     repris++
     console.log(`[dropshop] reprise du travail ${etat.type} de la boutique ${shop.id} après redémarrage`)

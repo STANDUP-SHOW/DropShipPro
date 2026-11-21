@@ -371,7 +371,7 @@ let envoiEnCours = false
  * site replaces a re-sent one. A failure never loses a report: it stays on disk
  * and is retried at the end of the next run or by the button.
  */
-async function envoyerEnAttente() {
+async function envoyerEnAttente({ cibles = null } = {}) {
   if (envoiEnCours) return { envoyes: 0, echecs: [], occupe: true }
   const cle = secret('admin')
   if (!cfg.envoiAuSite) return { envoyes: 0, echecs: [], raison: 'L’envoi au site est coupé dans Réglages.' }
@@ -379,7 +379,7 @@ async function envoyerEnAttente() {
   envoiEnCours = true
   const bilan = { envoyes: 0, echecs: [] }
   try {
-    for (const r of depot.rapportsAEnvoyer(racine)) {
+    for (const r of depot.rapportsAEnvoyer(racine, { cibles })) {
       try {
         const reponse = await depot.envoyerRapportAuSite({ apiBase: cfg.apiBase, cle, rapport: r.rapport })
         depot.marquerEnvoye(racine, r.date, r.categorie, r.theme, { rapportEcritLe: r.rapport.poste.ecritLe, reponse })
@@ -418,7 +418,7 @@ function listeRapports(date) {
   try {
     const base = path.join(racine, 'rapports', date)
     for (const c of fs.readdirSync(base)) {
-      for (const f of fs.readdirSync(path.join(base, c)).filter((x) => x.endsWith('.json'))) {
+      for (const f of fs.readdirSync(path.join(base, c)).filter((x) => x.endsWith('.json') && !x.endsWith('.envoi.json'))) {
         try {
           const j = JSON.parse(fs.readFileSync(path.join(base, c, f), 'utf8'))
           const theme = f.replace(/\.json$/, '')
@@ -1141,7 +1141,21 @@ function brancher() {
     return controleCredits({ serper, claude })
   })
   h('rayon-test', (r) => lancerUnRayon(r))
-  h('envoyer-au-site', () => envoyerEnAttente())
+  h('envoyer-au-site', (arg) => {
+    // A selection from « Rapports du jour »: those reports go (again), complete or not.
+    const cibles = arg && Array.isArray(arg.rapports) ? new Set(arg.rapports.map((r) => `${r.date || jourLocal()}/${r.categorie}/${r.theme}`)) : null
+    return envoyerEnAttente({ cibles })
+  })
+  h('rapports-supprimer', ({ rapports }) => {
+    let n = 0
+    for (const r of Array.isArray(rapports) ? rapports : []) {
+      if (!/^[\w-]+$/.test(String(r.categorie)) || !/^[\w-]+$/.test(String(r.theme))) continue
+      if (depot.supprimerRapport(racine, r.date || jourLocal(), r.categorie, r.theme)) n++
+    }
+    journal.info(`${n} rapport(s) supprimé(s) de ce PC depuis « Rapports du jour »`)
+    envoyerEtat()
+    return { supprimes: n }
+  })
   h('nuit-lancer', () => lancerLaNuit())
   h('nuit-arreter', () => { nuit.arret.demande = true; return true })
   h('nuit-auto', async ({ actif }) => {

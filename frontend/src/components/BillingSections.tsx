@@ -160,11 +160,12 @@ export function Invoices({ payments = [] }: { payments?: Paiement[] }) {
 }
 
 /** The card form itself — mounted inside our page, filled inside Stripe's iframe. */
-function AddCardForm({ onDone }: { onDone: () => void }) {
+function AddCardForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const stripe = useStripe()
   const elements = useElements()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pret, setPret] = useState(false)
 
   return (
     <form
@@ -191,14 +192,30 @@ function AddCardForm({ onDone }: { onDone: () => void }) {
       }}
       className="mt-4"
     >
-      <PaymentElement />
+      {/* Without onLoadError a refused form stays an empty box and nothing says why. */}
+      <PaymentElement
+        onReady={() => setPret(true)}
+        onLoadError={() =>
+          setError("Le formulaire de carte n'a pas pu s'afficher. Rechargez la page, puis réessayez.")
+        }
+      />
+      {!pret && !error && <p className="text-sm text-gray-400">Chargement du formulaire sécurisé…</p>}
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-      <button
-        disabled={!stripe || busy}
-        className="btn-gradient mt-4 rounded-lg px-5 py-2 text-sm font-semibold disabled:opacity-40"
-      >
-        {busy ? 'Enregistrement…' : 'Enregistrer la carte'}
-      </button>
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          disabled={!stripe || !pret || busy}
+          className="btn-gradient rounded-lg px-5 py-2 text-sm font-semibold disabled:opacity-40"
+        >
+          {busy ? 'Enregistrement…' : 'Enregistrer la carte'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-white/5"
+        >
+          Annuler
+        </button>
+      </div>
     </form>
   )
 }
@@ -208,6 +225,7 @@ export function PaymentMethods({ stripePromise }: { stripePromise: Promise<Strip
   const [cards, setCards] = useState<Awaited<ReturnType<typeof api.listCards>>['cards']>([])
   const [setupSecret, setSetupSecret] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [ouverture, setOuverture] = useState(false)
 
   async function load() {
     const { cards } = await api.listCards()
@@ -262,27 +280,57 @@ export function PaymentMethods({ stripePromise }: { stripePromise: Promise<Strip
             <AddCardForm
               onDone={async () => {
                 setSetupSecret(null)
-                await load()
+                await load().catch(() => undefined)
               }}
+              onCancel={() => setSetupSecret(null)}
             />
           </Elements>
         </div>
       ) : (
         <button
           type="button"
+          disabled={ouverture}
           onClick={async () => {
             setError(null)
+            /*
+             * Every way this can fail must say so. Before 21/11/2026 a click
+             * could end with no form and no message (key missing, request
+             * hanging, Stripe.js blocked): the button seemed dead.
+             */
+            if (!stripePromise) {
+              setError("L'ajout de carte est indisponible pour le moment : le paiement n'est pas configuré sur le site.")
+              return
+            }
+            setOuverture(true)
             try {
-              const { clientSecret } = await api.createSetupIntent()
-              setSetupSecret(clientSecret)
+              const [stripeJs, intent] = await Promise.all([
+                stripePromise.catch(() => null),
+                Promise.race([
+                  api.createSetupIntent(),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('Le serveur de paiement ne répond pas. Réessayez dans un instant.')), 20000),
+                  ),
+                ]),
+              ])
+              if (!stripeJs) throw new Error("Le module de paiement sécurisé n'a pas pu se charger (bloqueur de publicité ?).")
+              if (!intent.clientSecret) throw new Error("L'ajout de carte n'a pas pu démarrer.")
+              const cleLive = String(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '').startsWith('pk_live')
+              if (typeof intent.livemode === 'boolean' && intent.livemode !== cleLive) {
+                // Test key on one side, live key on the other: Stripe would refuse the form silently.
+                console.error('[carte] clé publique et clé secrète Stripe de modes différents')
+                throw new Error("L'ajout de carte est indisponible pour le moment (configuration du paiement en cours).")
+              }
+              setSetupSecret(intent.clientSecret)
             } catch (err) {
               setError(err instanceof Error ? err.message : 'Ajout impossible')
+            } finally {
+              setOuverture(false)
             }
           }}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
         >
           <Plus size={14} />
-          <span>Ajouter une carte</span>
+          <span>{ouverture ? 'Ouverture…' : 'Ajouter une carte'}</span>
         </button>
       )}
 

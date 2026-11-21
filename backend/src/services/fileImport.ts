@@ -253,6 +253,7 @@ export async function importerLigneFile(
         variantes: releve.variants as Record<string, string[]> | undefined,
         skuAliExpress: (releve.skuAliExpress ?? null) as never,
       },
+      cout,
     })
     if (!reecrit && cout > 0) await refundCredits(userId, cout)
     await prisma.importQueue.update({ where: { id: ligne.id }, data: { status: 'IMPORTE', productId: produit.id, erreur: null } })

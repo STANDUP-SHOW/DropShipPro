@@ -130,15 +130,43 @@ function vueAccueil() {
 }
 
 // ---------------------------------------------------------------- rapports
+// Reports ticked in « Rapports du jour » (« categorie/theme » of today), for the action bar.
+const selRapports = new Set()
+
+async function rapportsAction(action) {
+  const e = etat
+  const choisis = e.rapports.filter((x) => selRapports.has(`${x.categorie}/${x.theme}`)).map((x) => ({ date: e.date, categorie: x.categorie, theme: x.theme }))
+  if (!choisis.length) return
+  if (action === 'consulter') {
+    for (const r of choisis) await appel('rapportOuvrir', { ...r, type: 'rayon' })
+    return
+  }
+  if (action === 'importer') {
+    flash(`Import de ${choisis.length} rapport(s) sur le site…`)
+    const r = await appel('envoyerAuSite', { rapports: choisis })
+    if (r) flash(r.raison || `${r.envoyes} rapport(s) importé(s) sur le site${r.echecs.length ? `, ${r.echecs.length} refusé(s) : ${r.echecs[0].message}` : ''}.`)
+    return
+  }
+  if (action === 'supprimer') {
+    if (!confirm(`Supprimer ${choisis.length} rapport(s) de ce PC ? Ce qui est déjà en ligne sur le site y reste.`)) return
+    const r = await appel('rapportsSupprimer', { rapports: choisis })
+    if (r) { selRapports.clear(); flash(`${r.supprimes} rapport(s) supprimé(s) de ce PC.`) }
+  }
+}
+
 function vueRapports() {
   const e = etat
+  const ecrits = e.rapports.map((x) => `${x.categorie}/${x.theme}`)
+  for (const k of [...selRapports]) if (!ecrits.includes(k)) selRapports.delete(k)
+  const n = selRapports.size
+  const cocher = (k, oui) => { if (oui) selRapports.add(k); else selRapports.delete(k); rendre() }
   return h('div', {},
     h('h1', {}, `Rapports du ${e.date}`),
     h('div', { class: 'ligne' }, h('button', { class: 'btn', onclick: () => appel('depotOuvrir') }, 'Ouvrir le dossier de dépôt'), h('span', { class: 'doux petit' }, e.depot)),
     h('div', { class: 'carte' },
       h('h2', {}, 'Envoi au site drop-shipper.fr'),
       h('p', { class: 'doux petit' }, e.envoi.actif && e.envoi.cle
-        ? 'Chaque rapport validé part seul sur le site, rayon et marketing d’un coup : le site range chacun à sa place (Analyses, Produits gagnants, Prompts, Fresh news). Un rapport « à revoir » ne part jamais.'
+        ? 'Chaque rapport écrit part sur le site, rayon et marketing d’un coup, complet ou non : ce qui manque est seulement noté.'
         : !e.envoi.actif ? 'L’envoi au site est coupé (Réglages). Les rapports restent sur ce PC.'
         : 'Il manque la clé d’administration du Poste (onglet Administration) : rien ne part tant qu’elle est absente.'),
       h('div', { class: 'ligne' },
@@ -146,35 +174,45 @@ function vueRapports() {
           flash('Envoi en cours…')
           const r = await appel('envoyerAuSite')
           if (r) flash(r.raison || `${r.envoyes} rapport(s) envoyé(s) au site${r.echecs.length ? `, ${r.echecs.length} refusé(s) : ${r.echecs[0].message}` : ''}.`)
-        } }, e.envoi.enAttente ? `Envoyer les ${e.envoi.enAttente} rapport(s) validé(s) en attente` : 'Rien en attente'),
+        } }, e.envoi.enAttente ? `Envoyer les ${e.envoi.enAttente} rapport(s) pas encore en ligne` : 'Tout est en ligne'),
         h('span', { class: 'doux petit' }, `Adresse : ${e.envoi.apiBase}`),
       ),
     ),
     h('div', { class: 'carte' },
       h('h2', {}, 'Rayons de la nuit'),
-      h('p', { class: 'doux petit' }, 'Cochez les rayons que la nuit doit analyser (par exemple deux seulement pour tester). Sans choix, les 24 sont lancés. Un rayon déjà validé aujourd’hui est sauté.'),
+      h('p', { class: 'doux petit' }, 'La colonne « Nuit » dit quels rayons la nuit analyse (par exemple deux seulement pour tester). Sans choix, les 24 sont lancés. Un rayon déjà fait aujourd’hui est sauté.'),
       h('div', { class: 'ligne' },
-        h('button', { class: 'btn', onclick: () => choisirRayons(null) }, 'Tout cocher'),
-        h('button', { class: 'btn', onclick: () => choisirRayons([]) }, 'Tout décocher'),
-        h('button', { class: 'btn', onclick: () => choisirRayons(e.rayonsDuJour.filter((r) => !r.fait).map((r) => r.categorie)) }, 'Cocher ceux pas encore validés'),
-        h('span', { class: 'doux petit' }, `${e.rayonsDuJour.filter((r) => r.choisi).length} coché(s) sur ${e.rayonsDuJour.length}`),
+        h('button', { class: 'btn', onclick: () => choisirRayons(null) }, 'Tous dans la nuit'),
+        h('button', { class: 'btn', onclick: () => choisirRayons([]) }, 'Aucun dans la nuit'),
+        h('button', { class: 'btn', onclick: () => choisirRayons(e.rayonsDuJour.filter((r) => !r.fait).map((r) => r.categorie)) }, 'Seulement ceux pas encore faits'),
+        h('span', { class: 'doux petit' }, `${e.rayonsDuJour.filter((r) => r.choisi).length} sur ${e.rayonsDuJour.length} dans la nuit`),
       ),
     ),
     h('div', { class: 'carte' },
+      h('div', { class: 'ligne' },
+        h('button', { class: 'btn', disabled: !ecrits.length, onclick: () => { if (n === ecrits.length) selRapports.clear(); else ecrits.forEach((k) => selRapports.add(k)); rendre() } }, n && n === ecrits.length ? 'Tout désélectionner' : 'Tout sélectionner'),
+        h('button', { class: 'btn principal', disabled: !n || !e.envoi.cle, title: e.envoi.cle ? '' : 'Clé d’administration absente (onglet Administration)', onclick: () => rapportsAction('importer') }, `Importer sur le site (${n})`),
+        h('button', { class: 'btn', disabled: !n, onclick: () => rapportsAction('consulter') }, `Consulter (${n})`),
+        h('button', { class: 'btn danger', disabled: !n, onclick: () => rapportsAction('supprimer') }, `Supprimer (${n})`),
+        h('span', { class: 'doux petit' }, n ? `${n} rapport(s) sélectionné(s)` : 'Cochez des rapports pour les importer, les consulter ou les supprimer.'),
+      ),
+      messageFlash && h('p', { class: 'petit' }, messageFlash),
       h('table', {},
-        h('thead', {}, h('tr', {}, ['Nuit', 'Catégorie', 'Thème du jour', 'État', 'Site', 'Produits', ''].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['', 'Catégorie', 'Thème du jour', 'État', 'Site', 'Produits', 'Nuit', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, e.rayonsDuJour.map((r) => {
           const rap = e.rapports.find((x) => x.categorie === r.categorie && x.theme === r.theme)
+          const k = `${r.categorie}/${r.theme}`
           return h('tr', {},
-            h('td', {}, h('input', { type: 'checkbox', checked: r.choisi, title: 'Inclure ce rayon dans la nuit', onchange: (ev) => {
-              const ids = e.rayonsDuJour.filter((x) => (x.categorie === r.categorie ? ev.target.checked : x.choisi)).map((x) => x.categorie)
-              choisirRayons(ids)
-            } })),
+            h('td', {}, rap ? h('input', { type: 'checkbox', checked: selRapports.has(k), title: 'Sélectionner ce rapport', onchange: (ev) => cocher(k, ev.target.checked) }) : null),
             h('td', {}, r.libelleCategorie),
             h('td', {}, r.libelleTheme),
-            h('td', {}, rap ? pastille(rap.statut === 'ok' ? 'validé' : 'à revoir', rap.statut === 'ok' ? 'bon' : 'alerte') : pastille('pas encore', ''), rap && rap.problemes.length ? h('div', { class: 'petit doux' }, rap.problemes.join(' · ')) : null),
-            h('td', {}, !rap ? '—' : rap.statut !== 'ok' ? pastille('non envoyé', 'alerte') : rap.envoyeLe ? pastille('en ligne', 'bon') : pastille('pas envoyé', 'mauvais')),
+            h('td', {}, rap ? pastille(rap.statut === 'ok' ? 'complet' : 'incomplet', rap.statut === 'ok' ? 'bon' : 'alerte') : pastille('pas encore', ''), rap && rap.problemes.length ? h('div', { class: 'petit doux' }, rap.problemes.join(' · ')) : null),
+            h('td', {}, !rap ? '—' : rap.envoyeLe ? pastille('en ligne', 'bon') : pastille('pas envoyé', 'mauvais')),
             h('td', {}, rap ? String(rap.produits) : '—'),
+            h('td', {}, h('label', { class: 'petit', title: 'Inclure ce rayon dans la nuit' }, h('input', { type: 'checkbox', checked: r.choisi, onchange: (ev) => {
+              const ids = e.rayonsDuJour.filter((x) => (x.categorie === r.categorie ? ev.target.checked : x.choisi)).map((x) => x.categorie)
+              choisirRayons(ids)
+            } }), ' nuit')),
             h('td', {}, rap ? h('div', { class: 'ligne' },
               h('button', { class: 'btn', onclick: () => appel('rapportOuvrir', { categorie: r.categorie, theme: r.theme, type: 'rayon' }) }, 'Rayon'),
               h('button', { class: 'btn', onclick: () => appel('rapportOuvrir', { categorie: r.categorie, theme: r.theme, type: 'marketing' }) }, 'Marketing'),
@@ -852,6 +890,16 @@ async function synthImporter(essai) {
 }
 
 const euro = (n) => (n === null || n === undefined ? '—' : `${Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`)
+// The supplier page of a product: the sourcing link first (21/11 format), else the first link of the file.
+const lienFournisseur = (p) => (p.liens && (p.liens.sourcing || p.liens.sourcing_primary || Object.values(p.liens)[0])) || ''
+const hoteDe = (u) => { try { return u ? new URL(u).hostname.replace(/^(www|fr)\./, '') : '' } catch { return '' } }
+// Net margin when the file gives one; else target price minus purchase price (computed by the site, shipping and fees not included).
+function celluleMarge(p) {
+  const nette = p.margeNette ?? null
+  const m = nette ?? p.margeBrute ?? null
+  if (m === null) return '—'
+  return h('span', {}, m < 0 ? pastille(euro(m), 'mauvais') : euro(m), nette === null && h('div', { class: 'doux petit' }, 'brute, hors port et frais'))
+}
 
 function vueSyntheses() {
   if (!etat.admin.cle) return sansCleAdmin('Synthèses AIMARKET')
@@ -891,14 +939,17 @@ function vueSyntheses() {
         h('span', { class: 'petit' }, `${n} produit(s) coché(s)`)),
       synth.section === 'listeNoire' && h('p', { class: 'petit' }, 'Liste noire : produits que la synthèse déconseille d’acheter. Ils ne se cochent pas avec « Cocher la section ».'),
       h('table', {},
-        h('thead', {}, h('tr', {}, ['', 'Produit', 'Rayon', 'Décision', 'Score', 'Coût rendu', 'Prix visé', 'Marge'].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['', 'Produit', 'Rayon', 'Décision', 'Score', 'Fournisseur', 'Prix d’achat', 'Prix visé', 'Marge'].map((t) => h('th', {}, t)))),
         h('tbody', {}, ...liste.map((p) => h('tr', {},
           h('td', {}, h('input', { type: 'checkbox', checked: Boolean(synth.choisis[p.id]), onchange: (ev) => { synth.choisis[p.id] = ev.target.checked; rendre() } })),
           h('td', {}, p.nom, p.variante && h('div', { class: 'doux petit' }, p.variante)),
           h('td', { class: 'petit' }, [p.categorieLabel, p.themeLabel].filter(Boolean).join(' › ')),
           h('td', { class: 'petit' }, listeNoire.has(p.id) ? pastille(p.decision || 'liste noire', 'mauvais') : p.decision || '—'),
           h('td', {}, p.score === null ? '—' : String(p.score)),
-          h('td', {}, euro(p.coutRendu)), h('td', {}, euro(p.prixVente)), h('td', {}, euro(p.margeNette)))))),
+          h('td', { class: 'petit' }, p.source || hoteDe(lienFournisseur(p)) || '—',
+            lienFournisseur(p) && h('div', {}, h('button', { class: 'btn', title: lienFournisseur(p), onclick: async () => { if (await appel('copier', lienFournisseur(p))) flash('Lien du fournisseur copié.') } }, 'Copier le lien'))),
+          h('td', {}, euro(p.prixAchat ?? p.coutRendu), p.prixAchat == null && p.coutRendu != null && h('div', { class: 'doux petit' }, 'coût rendu')),
+          h('td', {}, euro(p.prixVente)), h('td', {}, celluleMarge(p)))))),
     ),
     d && h('div', { class: 'carte' },
       h('label', {}, 'Compte DropShipper qui reçoit les produits'),

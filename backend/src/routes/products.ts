@@ -9,6 +9,7 @@ import { liaisonPour, resumeLiaisons } from '../services/liaisonsCanaux.js'
 import { metaCsv } from '../services/productFeeds.js'
 import { ligneAutoShipper, importerLigneAutoShipper, refAliExpress } from '../services/autoShipperFile.js'
 import { coutLigne, ligneFileSite, releveConforme } from '../services/fileImport.js'
+import { substanceSource } from '../services/sourceQuality.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { sendMail } from '../services/mailer.js'
@@ -98,7 +99,7 @@ productsRouter.post(
     if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
     try {
-      const { produit, reecrit, notes } = await importerAdresse(req.userId!, parsed.data.url)
+      const { produit, reecrit, notes } = await importerAdresse(req.userId!, parsed.data.url, { cout: DROPS.import })
 
       // La reecriture est ce que le credit paie. Modele injoignable : l annonce
       // est gardee -- les photos et le prix valent d etre pris -- mais elle est
@@ -243,6 +244,19 @@ productsRouter.post(
         await marquerLigneFile(req.userId!, data.fileId, { status: 'ECHEC', erreur: ecart })
         return res.status(422).json({ error: ecart })
       }
+    } else if (data.differer) {
+      /*
+       * Un lot du panneau latéral, hors file (21/11/2026) : sa fiche relevée trop
+       * tôt passait quand même, et l'annonce naissait sans réécriture avec un
+       * message demandant au vendeur de tout refaire. Refusée ici, AVANT tout
+       * drop et tout appel IA ; l'extension relit alors la fiche toute seule.
+       */
+      const substance = substanceSource({ title: data.title, description: data.description ?? '', pageText: data.pageText ?? '' })
+      if (!substance.assezPourEcrire) {
+        return res.status(422).json({
+          error: "La fiche n'avait pas fini de charger : presque aucun texte relevé. Rien n'a été importé ni facturé, aucun appel IA.",
+        })
+      }
     }
     const cout = ligneFile ? coutLigne(ligneFile.origine, data.differer) : data.differer ? DROPS.importLot : DROPS.import
     const credit = cout > 0 ? await reserveCredits(req.userId!, cout, data.differer ? 'Import en lot' : "Import d'une annonce") : { ok: true as const }
@@ -273,6 +287,7 @@ productsRouter.post(
         // (en file), donc le crédit n'est pas rendu ici — le planificateur le
         // rendra si le batch échoue.
         differerReecriture: data.differer,
+        cout,
       })
 
       if (!reecrit && cout > 0) await refundCredits(req.userId!, cout)
@@ -371,6 +386,7 @@ productsRouter.post('/import-batch', async (req: AuthedRequest, res) => {
     try {
       const { produit, reecrit, notes } = await importerAdresse(req.userId!, url, {
         shopId: parsed.data.shopId,
+        cout: DROPS.import,
       })
       if (!reecrit) await refundCredits(req.userId!, DROPS.import)
       results.push({ url, ok: true, product: produit, notes })
@@ -653,6 +669,15 @@ productsRouter.post('/:id/reecrire', async (req: AuthedRequest, res) => {
     where: { id: req.params.id, userId: req.userId! },
   })
   if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
+
+  // Une fiche relevée sans texte ne se réécrit pas : le dire, sans débiter ni appeler le modèle.
+  if (!substanceSource({ title: produit.title, description: produit.description ?? '' }).assezPourEcrire) {
+    return res.status(422).json({
+      error:
+        "Le texte relevé sur la fiche du fournisseur est trop maigre pour être réécrit sans inventer. Réimportez la fiche : " +
+        "l'extension attend désormais qu'elle soit chargée. Aucun drop n'a été pris.",
+    })
+  }
 
   const credit = await reserveCredits(req.userId!, DROPS.reecriture, "Réécriture d'une annonce")
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })

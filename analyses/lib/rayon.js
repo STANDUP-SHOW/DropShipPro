@@ -489,7 +489,8 @@ async function executerRayon({ rayon, deps, options = {} }) {
   })
   journal.info(`${etiquette} : rapport écrit (${rapport.poste.statut})`, { ...validation.stats, problemes: validation.problemes, usage })
 
-  if (validation.ok && options.envoyer) {
+  // Max (21/11/2026): every written report goes to the site; its problems travel with it.
+  if (options.envoyer) {
     try {
       const reponse = await options.envoyer(rapport)
       depot.marquerEnvoye(racine, rayon.date, rayon.categorie, rayon.theme, { rapportEcritLe: rapport.poste.ecritLe, reponse: reponse || null })

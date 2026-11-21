@@ -338,7 +338,46 @@ const titrePublic = (t: string) => {
   return r ? r.charAt(0).toUpperCase() + r.slice(1) : r
 }
 
+/**
+ * Renders kept across imports (21/11/2026): every import changed the base generation and the next
+ * public request rebuilt all ~900 pages at about 30 ms each, in one synchronous block — the API
+ * froze for a minute or more. A page depends on its own row and on the rows of its shelf and day
+ * (purchase prices and suppliers to hide, prompts): it is rendered again only when one of those
+ * changed. A deploy starts with an empty cache.
+ */
+const rendus = new Map<string, { cle: string; r: RapportPublic | null }>()
+let signatures: { generation: number; parId: Map<string, string> } | null = null
+function signatureDe(id: string): string | null {
+  const q = rapports()
+  if (!signatures || signatures.generation !== generationOuverte) {
+    const lignes = q.getPourSitemap()
+    const parJour = new Map<string, string[]>()
+    for (const l of lignes) {
+      const k = `${l.categorie}|${l.day}`
+      const liste = parJour.get(k) ?? []
+      liste.push(`${l.id}@${l.updatedAt.getTime()}`)
+      parJour.set(k, liste)
+    }
+    const groupe = new Map([...parJour].map(([k, v]) => [k, v.sort().join(',')]))
+    const parId = new Map<string, string>()
+    for (const l of lignes) parId.set(l.id, `${l.id}@${l.updatedAt.getTime()}#${groupe.get(`${l.categorie}|${l.day}`)}`)
+    signatures = { generation: generationOuverte, parId }
+  }
+  return signatures.parId.get(id) ?? null
+}
+
 export function versPublicBrut(id: string): RapportPublic | null {
+  const cle = signatureDe(id)
+  if (cle) {
+    const connu = rendus.get(id)
+    if (connu && connu.cle === cle) return connu.r
+  }
+  const r = rendrePublicBrut(id)
+  if (cle) rendus.set(id, { cle, r })
+  return r
+}
+
+function rendrePublicBrut(id: string): RapportPublic | null {
   const r = rapports().getAnalyse(id)
   if (!r || !adressable(r)) return null
   // The day's purchase prices and supplier names, from the data: no public text may show them (12/10/2026).

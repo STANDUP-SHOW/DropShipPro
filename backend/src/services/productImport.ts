@@ -100,6 +100,13 @@ export interface OptionsImport {
    * LOT, ou l attente est acceptable ; l import a l unite reste instantane.
    */
   differerReecriture?: boolean
+  /**
+   * Les drops pris par l'appelant pour cet import. Connu : une réécriture qui
+   * échoue faute de réponse du modèle est relancée automatiquement en batch au
+   * lieu d'être abandonnée, et le batch rend ce montant si elle échoue pour de
+   * bon (21/11/2026). Absent : comportement d'avant, l'appelant rend le crédit.
+   */
+  cout?: number
 }
 
 /**
@@ -300,9 +307,22 @@ export async function importerAdresse(
    */
   // La réécriture est en file (lot différé) : l'annonce porte le texte source
   // pour l'instant, la vraie sortie arrive par batch. Ce n'est pas un échec.
-  const reecritureEnFile = Boolean(planDiffere?.faire)
+  /*
+   * Le modèle n'a pas répondu alors que la fiche avait de quoi être réécrite
+   * (erreur, quota, délai) : la réécriture repart toute seule par le batch,
+   * qui réessaie jusqu'à trois fois. Avant le 21/11/2026, l'annonce restait
+   * brute et le vendeur devait tout refaire à la main.
+   */
+  const planRelance =
+    !planDiffere && options.cout !== undefined && !enhanced.enhanced ? planifierReecriture(entreeReecriture) : null
+  const relanceAuto = planRelance?.faire ? planRelance.entree : null
+  const reecritureEnFile = Boolean(planDiffere?.faire) || Boolean(relanceAuto)
 
-  if (reecritureEnFile) {
+  if (relanceAuto) {
+    notes.unshift(
+      `La réécriture IA n'a pas répondu${enhanced.raison ? ` (${enhanced.raison})` : ''} : elle est relancée automatiquement et l'annonce se complétera dans quelques minutes.`,
+    )
+  } else if (reecritureEnFile) {
     notes.unshift(
       "Réécriture en cours : l'annonce porte le texte du fournisseur et se complétera dans quelques minutes.",
     )
@@ -397,9 +417,15 @@ export async function importerAdresse(
    * La réécriture différée est déposée après la création de l'annonce : elle a
    * besoin de son `productId`. Le planificateur la regroupera dans un batch.
    */
-  if (planDiffere?.faire) {
+  const entreeJob = planDiffere?.faire ? planDiffere.entree : relanceAuto
+  if (entreeJob) {
     await prisma.rewriteJob.create({
-      data: { userId, productId: produit.id, entree: planDiffere.entree as object },
+      data: {
+        userId,
+        productId: produit.id,
+        // `_cout` : ce que le batch rend si la réécriture échoue pour de bon (rewriteBatch.ts).
+        entree: { ...entreeJob, ...(options.cout !== undefined ? { _cout: options.cout } : {}) } as object,
+      },
     })
   }
 
