@@ -92,7 +92,7 @@ function creerServeur() {
           }
           if (req.url === '/api/admin/newsletter') return json(200, { total: 1, subscribers: [{ id: 'n1', email: 'n@exemple.test', source: 'site', createdAt: '2026-10-02T09:00:00Z' }] })
           // Synthèses AIMARKET, contract of backend/src/routes/admin.ts (#179)
-          const produitSynth = (id, nom, decision) => ({ id, categorie: 'electromenager', categorieLabel: 'Électroménager', theme: 'robots', themeLabel: 'Robots cuisine', rang: 1, nom, variante: 'Inox', score: 86, decision, coutRendu: 46.5, prixVente: 109.9, margeNette: 31.9, roi: 68.6, liens: { aliexpress_fr: 'https://fr.aliexpress.com/w/wholesale-x.html' } })
+          const produitSynth = (id, nom, decision) => ({ id, categorie: 'electromenager', categorieLabel: 'Électroménager', theme: 'robots', themeLabel: 'Robots cuisine', rang: 1, nom, variante: 'Inox', score: 86, decision, coutRendu: null, prixAchat: 46.5, source: 'DHgate', prixVente: 109.9, margeNette: null, margeBrute: 63.4, roi: 68.6, liens: { aliexpress_fr: 'https://fr.aliexpress.com/w/wholesale-x.html' } })
           if (req.url === '/api/admin/syntheses') return json(200, { dates: ['2026-11-07'], imports: [{ quand: '2026-11-07T06:00:00Z', date: '2026-11-06', statut: 'refuse', raison: 'aucun produit lisible', produits: null }] })
           if (req.url === '/api/admin/syntheses/2026-11-07') {
             const p1 = produitSynth('s1', 'Machine à lait végétal', 'BUY NOW'); const p2 = produitSynth('s2', 'Gadget douteux', "DON'T BUY")
