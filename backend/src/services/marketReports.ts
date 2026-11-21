@@ -58,6 +58,13 @@ export interface ProduitRapport {
   image?: string | null
   /** Le verdict de l'agent, tel qu'il l'écrit (« BUY IF NEGOTIATED », « WATCHLIST / B2B leads »). */
   verdict?: string | null
+  /** Set when the prices contradict the verdict (coherencePrix.ts): the verdict and score shown were corrected. */
+  incoherence?: 'vente-sous-achat' | 'marge-negative' | 'prix-non-source'
+  /** No verified page behind the prices: shown « non sourcé », no margin, no favourable verdict. */
+  prixNonSource?: boolean
+  /** The agent's own verdict and score, kept when they were overridden. */
+  verdictAgent?: string | null
+  scoreAgent?: number | null
 }
 
 export interface RapportLu {

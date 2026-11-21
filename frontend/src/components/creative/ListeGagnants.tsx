@@ -97,7 +97,7 @@ function PastilleVerdict({ brut }: { brut: string | null | undefined }) {
 
 function Marge({ pct }: { pct: number | null | undefined }) {
   if (pct == null) return <span className="text-gray-500">—</span>
-  const ton = pct >= 100 ? 'bg-emerald-500/20 text-emerald-300' : pct >= 40 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-white/10 text-gray-300'
+  const ton = pct < 0 ? 'bg-red-500/15 text-red-300' : pct >= 100 ? 'bg-emerald-500/20 text-emerald-300' : pct >= 40 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-white/10 text-gray-300'
   return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${ton}`}>{`${Math.round(pct)} %`}</span>
 }
 
@@ -438,8 +438,8 @@ export function ListeGagnants() {
                     </p>
                   </button>
                   <span className="shrink-0 lg:w-28"><PastilleVerdict brut={p.verdict} /></span>
-                  <span className="shrink-0 text-sm text-gray-300 lg:w-20 lg:text-right" title="Prix d'achat repris du rapport">{euros(p.prixAchat)}</span>
-                  <span className="shrink-0 text-sm font-semibold text-emerald-300 lg:w-20 lg:text-right" title="Prix de vente indiqué">{euros(p.prixVente)}</span>
+                  <span className={`shrink-0 text-sm lg:w-20 lg:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'text-gray-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : "Prix d'achat repris du rapport"}>{euros(p.prixAchat)}</span>
+                  <span className={`shrink-0 text-sm lg:w-20 lg:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'font-semibold text-emerald-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : 'Prix de vente indiqué'}>{euros(p.prixVente)}</span>
                   <span className="shrink-0 text-sm lg:w-16 lg:text-right"><Marge pct={p.margePct} /></span>
                   <span className="shrink-0 text-xs text-[var(--c-texte-2)] lg:w-12 lg:text-right" title="Score de l'agent sur 100">{p.score == null ? '—' : <><span className="lg:hidden">Score </span>{p.score}</>}</span>
                   <div className="flex w-full shrink-0 items-center justify-end gap-1 lg:w-[236px]">
@@ -493,7 +493,7 @@ export function ListeGagnants() {
       )}
 
       <p className="v-note mt-6">
-        {`Prix et marges repris du rapport, à reconfirmer avant import. La marge affichée n'est pas un bénéfice net. Import direct : ${COUT_IMPORT} drops ; par l'extension, quand la fiche ne se lit que dans un navigateur : ${COUT_EXTENSION} drops. Un produit déjà dans Mes annonces n'est pas réimporté.`}
+        {`Prix et marges repris du rapport, à reconfirmer avant import. Un prix en gris italique est non sourcé : aucune page vérifiée ne le montre, il ne compte ni dans la marge ni dans le verdict. La marge affichée n'est pas un bénéfice net. Import direct : ${COUT_IMPORT} drops ; par l'extension, quand la fiche ne se lit que dans un navigateur : ${COUT_EXTENSION} drops. Un produit déjà dans Mes annonces n'est pas réimporté.`}
       </p>
 
       {examine ? (
@@ -505,13 +505,25 @@ export function ListeGagnants() {
               .join(' · ')}
           </p>
           <div className="v-trois mt-4">
-            <p><small>Achat</small><b>{euros(examine.prixAchat)}</b></p>
-            <p><small>Vente indiquée</small><b>{euros(examine.prixVente)}</b></p>
+            <p><small>{examine.prixNonSource ? 'Achat (non sourcé)' : 'Achat'}</small><b>{euros(examine.prixAchat)}</b></p>
+            <p><small>{examine.prixNonSource ? 'Vente (non sourcée)' : 'Vente indiquée'}</small><b>{euros(examine.prixVente)}</b></p>
             <p><small>Marge affichée</small><b>{examine.margePct == null ? '—' : `${Math.round(examine.margePct)} %`}</b></p>
           </div>
+          {examine.incoherence ? (
+            <p className="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
+              {examine.incoherence === 'vente-sous-achat'
+                ? `Données à vérifier : le prix de vente indiqué est inférieur ou égal au prix d'achat. C'est sans doute le prix d'un autre article (pièce détachée, autre modèle).`
+                : examine.incoherence === 'marge-negative'
+                  ? 'Marge négative : ce produit ne peut pas être recommandé à l’achat.'
+                  : `Prix non sourcés : aucune page vérifiée ne montre ces prix. Ils ne comptent ni dans la marge ni dans le verdict.`}
+              {examine.verdictAgent || examine.scoreAgent != null
+                ? ` L'agent avait écrit : ${[examine.verdictAgent ? `« ${lireVerdict(examine.verdictAgent)?.libelle ?? examine.verdictAgent} »` : null, examine.scoreAgent != null ? `score ${examine.scoreAgent}/100` : null].filter(Boolean).join(', ')}.`
+                : null}
+            </p>
+          ) : null}
           {examine.pourquoi && examine.pourquoi !== '—' ? <p className="mt-4 text-sm leading-relaxed">{examine.pourquoi}</p> : null}
           <p className="mt-3 text-xs text-[var(--c-texte-2)]">
-            {[examine.ventes ? `Ventes constatées : ${examine.ventes}` : null, examine.score != null ? `Score de l'agent : ${examine.score}/100` : null]
+            {[examine.ventes ? `Ventes constatées : ${examine.ventes}` : null, examine.score != null ? (examine.scoreAgent != null ? `Score plafonné : ${examine.score}/100` : `Score de l'agent : ${examine.score}/100`) : null]
               .filter(Boolean)
               .join(' · ')}
           </p>

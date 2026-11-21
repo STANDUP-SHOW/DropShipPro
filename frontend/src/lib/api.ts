@@ -347,6 +347,13 @@ export interface ProduitRapport {
   image?: string | null
   /** Le verdict de l'agent, brut (« BUY IF NEGOTIATED », « WATCHLIST / … ») ; absent des anciens rapports. */
   verdict?: string | null
+  /** Prix contraires au verdict (achat ≥ vente, marge négative) ou non sourcés : verdict et score corrigés par le serveur. */
+  incoherence?: 'vente-sous-achat' | 'marge-negative' | 'prix-non-source'
+  /** Aucune page vérifiée derrière les prix : affichés « non sourcé », sans marge ni verdict favorable. */
+  prixNonSource?: boolean
+  /** Ce que l'agent avait écrit, quand le serveur l'a corrigé. */
+  verdictAgent?: string | null
+  scoreAgent?: number | null
 }
 
 /** Compose une chaîne de requête en sautant ce qui n'est pas renseigné. */

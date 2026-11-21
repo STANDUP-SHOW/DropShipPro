@@ -160,6 +160,12 @@ Pour chaque rayon, compte avant d'écrire le fichier :
 - **au moins 10 adresses de fiche** (et non de plateforme).
 - **un prix d'achat et un prix de vente sur au moins 18 des 20.**
 - **score, verdict et image sur au moins 16 des 20**, dans le `.json`.
+- **aucun BUY NOW / BUY IF NEGOTIATED / BREAKOUT à marge négative** (21/11/2026) : prix de
+  vente ≤ prix d'achat ou coût rendu, ou marge nette négative = `DON'T BUY` et score ≤ 20.
+  Sans prix fournisseur lu sur sa fiche : WATCHLIST au mieux. Le prix de vente est celui du
+  MÊME article (même modèle, même variante), jamais une pièce détachée ou un autre modèle de
+  la page. Le site corrige de lui-même ces lignes en « Données à vérifier » : elles ne
+  comptent plus comme des gagnants.
 
 Si un compte n'y est pas, retourne chercher. Si après une nouvelle tentative il
 n'y est toujours pas, écris quand même le rapport, puis **dis-le explicitement
