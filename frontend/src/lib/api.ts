@@ -599,10 +599,13 @@ export const api = {
   fileImportAjouter: (produits: Array<{ url: string; titre?: string; fournisseur?: string; mode?: 'api' | 'url' | 'extension' | 'desktop'; origine?: string }>) =>
     request<{ ajoutes: number; dejaEnFile: number; voie?: 'desktop' | 'extension' }>('/market-reports/file', { method: 'POST', body: JSON.stringify({ produits }) }),
   fileImport: () =>
-    request<Array<{ id: string; url: string; titre: string | null; fournisseur: string | null; mode: string; status: string; erreur: string | null; productId: string | null; createdAt: string }>>(
+    request<Array<{ id: string; url: string; titre: string | null; fournisseur: string | null; mode: string; origine: string | null; status: string; erreur: string | null; productId: string | null; createdAt: string; updatedAt?: string }>>(
       '/market-reports/file',
     ),
   fileImportRetirer: (id: string) => request<{ ok: true }>(`/market-reports/file/${id}`, { method: 'DELETE' }),
+  /** Marque une ligne refusée, avec son motif (un relevé interrompu, par exemple). */
+  fileImportEchec: (id: string, erreur: string) =>
+    request<{ ok: true }>(`/market-reports/file/${id}/echec`, { method: 'POST', body: JSON.stringify({ erreur }) }),
   importProduct: (url: string) => request('/products/import', { method: 'POST', body: JSON.stringify({ url }) }),
   importBatch: (urls: string[]) =>
     request<{ results: Array<{ url: string; ok: boolean; error?: string }>; imported: number; failed: number }>(

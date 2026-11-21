@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { SuiviFileImport } from './SuiviFileImport'
 import { ExternalLink, Download, Send, Loader2, CheckSquare, Square } from 'lucide-react'
 import { api, type ProduitRapport } from '../lib/api'
 import annuaire from '../data/fournisseurs.json'
@@ -90,7 +91,7 @@ export async function importerProduits(tout: ProduitAffiche[], origine: string):
     morceaux.push(
       voie === 'desktop'
         ? `${enFile} fiche(s) confiée(s) à l'application desktop, qui les relève seule dans son navigateur interne`
-        : `${enFile} fiche(s) envoyée(s) à l'extension`,
+        : `${enFile} fiche(s) envoyée(s) à l'extension : elles s'importent quand vous lancez sa « File d'import du site » (suivi ci-dessous)`,
     )
   if (echecs) morceaux.push(`${echecs} échec(s)`)
   return morceaux.length ? `${morceaux.join(' · ')}.` : 'Rien à faire : tout était déjà importé ou en file.'
@@ -170,9 +171,11 @@ export function ListeProduitsRapport({
   const [enCours, setEnCours] = useState<string | null>(null)
   const [coches, setCoches] = useState<Set<string>>(new Set())
   const [message, setMessage] = useState<string | null>(null)
+  const [envois, setEnvois] = useState(0)
 
   function dire(texte: string | null) {
     setMessage(texte)
+    if (texte) setEnvois((n) => n + 1)
     onMessage?.(texte)
   }
 
@@ -281,6 +284,7 @@ export function ListeProduitsRapport({
       {message ? (
         <p className="mt-2 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">{message}</p>
       ) : null}
+      <SuiviFileImport origine={origine} rafraichir={envois} />
 
       <ul className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10">
         {produits.map((p) => {
