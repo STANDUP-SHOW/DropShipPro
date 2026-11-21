@@ -373,6 +373,23 @@ export interface AnalysesDriveRapport {
   ignores: Array<{ date: string; nom: string; raison: string }>
 }
 
+export interface ProduitBoutique {
+  id: string
+  titre: string
+  prix: number
+  image: string | null
+  dansBoutique: boolean
+  autreBoutique: string | null
+  vendable: boolean
+}
+
+export interface PaiementsBoutique {
+  cleMarchand: boolean
+  plateforme: boolean
+  compte: { inscrit: boolean; actif: boolean; detailsEnvoyes: boolean; virements: boolean; erreur?: boolean }
+  enAttente: { ventes: number; montant: number }
+}
+
 export const api = {
   /** DropShop Market (drop-shop.cloud) : l espace vendeur — Stripe Connect, annonces, ventes, flux. */
   marketVendeur: () => request<MarketVendeur>('/market/vendeur'),
@@ -1254,6 +1271,13 @@ export const api = {
   dropshopStripe: (shopId: string, secretKey: string) =>
     request<{ ok: true; test: boolean }>(`/dropshop/${shopId}/stripe`, { method: 'PUT', body: JSON.stringify({ secretKey }) }),
   dropshopStripeRetirer: (shopId: string) => request<{ ok: true }>(`/dropshop/${shopId}/stripe`, { method: 'DELETE' }),
+  /** Les produits du vendeur et ce qui est en vente dans cette boutique (21/11/2026). */
+  dropshopProduits: (shopId: string) => request<{ produits: ProduitBoutique[] }>(`/dropshop/${shopId}/produits`),
+  dropshopProduitsMaj: (shopId: string, corps: { ajouter?: string[]; retirer?: string[]; tous?: boolean }) =>
+    request<{ ajoutes: number; retires: number; sansPrix: number; produits: ProduitBoutique[] }>(`/dropshop/${shopId}/produits`, { method: 'POST', body: JSON.stringify(corps) }),
+  /** Le paiement de la boutique : clé du marchand, ou Stripe plateforme reversé au vendeur. */
+  dropshopPaiements: (shopId: string) => request<PaiementsBoutique>(`/dropshop/${shopId}/paiements`),
+  dropshopPaiementsActiver: (shopId: string) => request<{ url: string }>(`/dropshop/${shopId}/paiements/activer`, { method: 'POST' }),
 
   createShop: (data: { name: string; platform?: string; sectors?: string[]; siteUrl?: string | null }) =>
     request<{ id: string; name: string; shopKey: string }>('/settings/shops', {

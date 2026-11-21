@@ -26,7 +26,9 @@ export function getStripe(): Stripe | null {
   if (stripe) return stripe
   const key = process.env.STRIPE_SECRET_KEY?.trim()
   if (!key) return null
-  stripe = new Stripe(key)
+  // Bancs only: a fake Stripe server on localhost (check-boutique-paiement.ts). Never set in production.
+  const banc = process.env.STRIPE_BANC_PORT && process.env.NODE_ENV !== 'production' ? Number(process.env.STRIPE_BANC_PORT) : 0
+  stripe = banc ? new Stripe(key, { host: '127.0.0.1', port: banc, protocol: 'http' }) : new Stripe(key)
   return stripe
 }
 

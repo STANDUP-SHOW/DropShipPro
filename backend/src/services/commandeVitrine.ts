@@ -57,8 +57,13 @@ export async function notifierCommande(args: {
   lignes: LigneCommande[]
   port: number
   paye: boolean
+  /** Où l'argent est arrivé : sur la clé du marchand (défaut) ou sur le Stripe plateforme, à reverser. */
+  encaissement?: 'marchand' | 'plateforme'
 }) {
   const { shop, acheteur, lignes, port, paye } = args
+  const encaisse = args.encaissement === 'plateforme'
+    ? 'Paiement reçu par carte. Il vous est reversé par Stripe (frais Stripe déduits) ; si vos paiements ne sont pas encore activés, activez-les depuis « Créer ma boutique » pour le recevoir.'
+    : 'Paiement reçu sur votre compte Stripe.'
   const resume = recap(lignes, port)
   const adresse = `${acheteur.street}, ${acheteur.zip} ${acheteur.city}, ${acheteur.country}`
   try {
@@ -78,7 +83,7 @@ export async function notifierCommande(args: {
         to: marchand.email,
         subject: `Nouvelle commande sur ${shop.name}${paye ? ' (payée)' : ''}`,
         heading: `${acheteur.name} vient de commander sur ${shop.name}.`,
-        body: `${resume}\n\nAcheteur : ${acheteur.name}${acheteur.email ? ` — ${acheteur.email}` : ''}${acheteur.phone ? ` — ${acheteur.phone}` : ''}\nLivraison : ${adresse}\n\n${paye ? 'Paiement reçu sur votre compte Stripe.' : 'Commande sans paiement en ligne : à encaisser selon vos conditions.'}`,
+        body: `${resume}\n\nAcheteur : ${acheteur.name}${acheteur.email ? ` — ${acheteur.email}` : ''}${acheteur.phone ? ` — ${acheteur.phone}` : ''}\nLivraison : ${adresse}\n\n${paye ? encaisse : 'Commande sans paiement en ligne : à encaisser selon vos conditions.'}`,
         actionLabel: 'Voir mes commandes',
         actionUrl: `${frontendUrl()}/orders`,
         footer: 'Cette commande vient de votre boutique DropShop hébergée par DropShipper IA.',

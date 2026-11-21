@@ -217,6 +217,24 @@ Le port n'est pas stocké par commande (le modèle `Order` est par ligne) : il
 est facturé chez Stripe et rappelé dans les emails. À revoir si le back-office
 doit l'afficher.
 
+## Le paiement sans clé du marchand (21/11/2026)
+
+Constat de max : « boutiques créées = coquilles vides, aucun moyen de paiement ». Personne ne colle une
+`sk_live_` en créant sa boutique : toutes encaissaient « sans paiement ». Désormais, sans clé du marchand,
+l'acheteur paie par carte sur le **Stripe plateforme** (celui des drops) : `services/paiementBoutique.ts`,
+session marquée `metadata.boutique = '1'` (aiguillée par le webhook, jamais `planId`), confirmée au retour
+et par le webhook, puis **virée au vendeur par Stripe Connect** (même compte Express que le Market,
+« Activer mes paiements » dans le studio). Décision de max (21/11) : **aucune commission**, seuls les frais
+Stripe réels (lus sur la transaction) sont retenus. Vendeur pas encore activé : part mise de côté, email,
+versée à l'activation (`verserPartsBoutiqueEnAttente`, appelée par `etatCompte`). Marqueur d'une
+commande payée ainsi : `Order.commission` non nulle (0). La clé du marchand reste possible et passe devant.
+
+**Les produits** : une boutique créée recevait zéro produit (il fallait publier un par un sur « Mon site »
+en choisissant la boutique). `services/boutiqueProduits.ts` : à la création, une boutique vide reçoit
+les produits du vendeur qui ne sont en vente dans aucune autre de ses boutiques ; le studio liste tous ses
+produits (« Mettre en vente mes N produits », ou un par un). Sans prix de vente, un produit n'est jamais
+mis en vente.
+
 ## Ce que le vendeur voit
 
 `/creer-boutique` : il nomme ou choisit sa boutique hébergée, décrit celle de
@@ -231,6 +249,7 @@ versions restent).
 ```bash
 cd backend && npx tsx check-dropshop.ts        # moteur + vérificateur + éditions
 cd backend && npx tsx check-dropshop-jobs.ts   # prix, remboursements, versions (vraie base, comptes jetables, faux modèle)
+DATABASE_URL=postgresql://postgres@localhost:5544/dsp npx tsx check-boutique-paiement.ts  # parcours client réel dans Chromium : produits, panier, commande, paiement, virement (base locale jetable, faux Stripe)
 ```
 
 ## Reste à faire

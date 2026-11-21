@@ -12,6 +12,7 @@ import { prixDAppel, prixDeVente, type LigneTarif } from '../services/printPrici
 import { resoudre, enVariablesCss, themeConnu } from '../services/themes.js'
 import { absoluteUrl, apiBaseUrl } from '../lib/urls.js'
 import { notifierCommande, ouvrirPaiement, paiementConfirme } from '../services/commandeVitrine.js'
+import { COMMISSION_BOUTIQUE, confirmerPaiementBoutique, ouvrirPaiementPlateforme, paiementPlateformeOuvert } from '../services/paiementBoutique.js'
 import { prisma } from '../lib/prisma.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { z } from 'zod'
@@ -377,7 +378,7 @@ publicRouter.get('/shops/:shopKey/products', async (req, res) => {
     shop: { name: shop.name },
     // Ce que la boutique fait à la commande : « stripe » quand le marchand a
     // branché sa clé, « sans » sinon. Le moteur adapte le bouton (« Payer … »).
-    paiement: shop.stripeSecretKey ? 'stripe' : 'sans',
+    paiement: shop.stripeSecretKey || paiementPlateformeOuvert() ? 'stripe' : 'sans',
     count: publications.length,
     products: await Promise.all(
       publications.map((p) =>
@@ -763,13 +764,30 @@ publicRouter.post(
       ),
     )
 
+    const retour = parsed.data.retour ?? `${apiBaseUrl(req)}/b/${shop.slug ?? ''}`
+
     if (!shop.stripeSecretKey) {
-      void notifierCommande({ shop, acheteur, lignes, port, paye: false })
-      return res.status(201).json({ ok: true, commandes: creees.length, paiement: null })
+      // Sans clé du marchand : paiement par carte sur le Stripe plateforme, reversé au vendeur
+      // (services/paiementBoutique.ts). Seulement si la plateforme n'a pas de Stripe : commande sans paiement.
+      if (!paiementPlateformeOuvert()) {
+        void notifierCommande({ shop, acheteur, lignes, port, paye: false })
+        return res.status(201).json({ ok: true, commandes: creees.length, paiement: null })
+      }
+      try {
+        const paiement = await ouvrirPaiementPlateforme({ shop, lignes, port, acheteur, retour, commandes: creees.map((c) => c.id) })
+        await prisma.order.updateMany({
+          where: { id: { in: creees.map((c) => c.id) } },
+          data: { stripeSessionId: paiement.sessionId, commission: COMMISSION_BOUTIQUE, ...(buyer.email ? { buyerEmail: buyer.email } : {}) },
+        })
+        return res.status(201).json({ ok: true, commandes: creees.length, paiement: paiement.url })
+      } catch (e) {
+        console.error('[checkout vitrine] Stripe plateforme', e instanceof Error ? e.message : e)
+        await prisma.order.deleteMany({ where: { id: { in: creees.map((c) => c.id) } } })
+        return res.status(502).json({ error: 'Le paiement en ligne de cette boutique est indisponible pour le moment. Réessayez dans un instant.' })
+      }
     }
 
     try {
-      const retour = parsed.data.retour ?? `${apiBaseUrl(req)}/b/${shop.slug ?? ''}`
       const paiement = await ouvrirPaiement({
         cle: shop.stripeSecretKey,
         boutique: shop.name,
@@ -798,9 +816,20 @@ publicRouter.post(
 publicRouter.get('/shops/:shopKey/checkout/:sessionId', async (req, res) => {
   const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey } })
   if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
-  if (!shop.stripeSecretKey) return res.json({ paye: false })
   const sessionId = req.params.sessionId
   if (!/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return res.status(400).json({ error: 'Session invalide' })
+  if (!shop.stripeSecretKey) {
+    if (!paiementPlateformeOuvert()) return res.json({ paye: false })
+    // La session doit être celle de CETTE boutique : on ne confirme pas la commande d'une autre.
+    const nombre = await prisma.order.count({ where: { stripeSessionId: sessionId, userId: shop.userId } })
+    if (!nombre) return res.json({ paye: false })
+    try {
+      return res.json({ paye: await confirmerPaiementBoutique(sessionId) })
+    } catch (e) {
+      console.error('[checkout vitrine] confirmation plateforme', e instanceof Error ? e.message : e)
+      return res.status(502).json({ paye: false, error: 'La confirmation du paiement est indisponible.' })
+    }
+  }
   try {
     const paye = await paiementConfirme(shop.stripeSecretKey, sessionId)
     if (!paye) return res.json({ paye: false })

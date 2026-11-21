@@ -8,7 +8,7 @@ import { Layout } from '../components/Layout'
 import { VitrineBlock } from '../components/VitrineBlock'
 import { DropCoin } from '../components/DropCoin'
 import { IconeDropShop, LogoDropShopEntete } from '../components/LogoDropShop'
-import { api, type DirectionDropShop, type EtatDropShop, type ExtensionDropShop, type GammeDropShop, type TravailDropShop } from '../lib/api'
+import { api, type DirectionDropShop, type EtatDropShop, type ExtensionDropShop, type GammeDropShop, type PaiementsBoutique, type ProduitBoutique, type TravailDropShop } from '../lib/api'
 
 type Boutique = Awaited<ReturnType<typeof api.listShops>>[number]
 
@@ -932,53 +932,22 @@ function Studio({ boutique, onChange }: { boutique: Boutique; onChange: () => vo
           onCopier={copierAdresse}
         />
       </div>
-      {etat.creee && boutique.products === 0 ? (
-        <p className="text-xs text-amber-300/90">
-          {market
-            ? "Aucun produit dans cette boutique pour l'instant : la page est belle mais vide. Ajoutez vos produits, ils seront aussi publiés automatiquement sur DropShop Market."
-            : "Aucune annonce n'est rangée dans cette boutique : la page est belle mais vide. Importez ou rangez des annonces dedans, puis publiez-les sur « Mon site »."}
-        </p>
-      ) : null}
+      <BlocProduits shopId={boutique.id} onChange={onChange} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {market ? (etat.creee ? <BlocAdmin shopId={boutique.id} /> : null) : <Extensions shopId={boutique.id} busy={busy} />}
         <div className="space-y-4">
           <EncartMarket />
-          {/* ---------- Stripe ---------- */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <h3 className="flex items-center gap-2 text-sm font-bold">
-              <CreditCard size={15} className="text-sky-300" />
-              <span>Paiement en ligne</span>
-              <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${etat.stripe ? 'bg-violet-400/20 text-violet-200' : 'bg-white/10 text-gray-400'}`}>
-                {etat.stripe ? 'Stripe branché' : 'À brancher'}
-              </span>
-            </h3>
-            <p className="mt-1 text-xs text-gray-400">
-              Vos clients paient par carte chez Stripe, <b className="text-gray-200">sur votre compte</b> — l'argent
-              arrive chez vous, nous ne prenons rien. Collez la clé secrète de votre compte Stripe (Développeurs › Clés
-              API, elle commence par <code className="rounded bg-black/30 px-1">sk_live_</code>). Sans clé, la boutique
-              enregistre la commande et vous encaissez comme vous voulez.
-            </p>
-            {etat.stripe ? (
-              <button type="button" onClick={debrancherStripe} disabled={busy} className="mt-3 text-xs text-gray-400 underline hover:text-gray-200">
-                Débrancher Stripe
-              </button>
-            ) : (
-              <div className="mt-3 flex gap-2">
-                <input
-                  type="password"
-                  value={cle}
-                  onChange={(e) => setCle(e.target.value)}
-                  placeholder="sk_live_…"
-                  autoComplete="off"
-                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none transition focus:border-sky-400/70"
-                />
-                <button type="button" onClick={brancherStripe} disabled={busy || !cle.trim()} className="rounded-xl border border-sky-400/40 px-3 py-2 text-xs font-bold text-sky-200 hover:bg-sky-400/10 disabled:opacity-40">
-                  Brancher
-                </button>
-              </div>
-            )}
-          </section>
+          {/* ---------- Paiement ---------- */}
+          <BlocPaiement
+            shopId={boutique.id}
+            cleBranchee={etat.stripe}
+            cle={cle}
+            setCle={setCle}
+            busy={busy}
+            onBrancher={brancherStripe}
+            onDebrancher={debrancherStripe}
+          />
 
           {etat.creee ? (
             <button type="button" onClick={retirer} disabled={busy || enCours} className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-300 disabled:opacity-40">
@@ -1540,6 +1509,208 @@ function Avancement({ travail }: { travail: TravailDropShop }) {
         ))}
       </ol>
       <p className="mt-2 text-[11px] text-gray-500">Vous pouvez quitter cette page : le travail continue, et la version se met en ligne toute seule.</p>
+    </section>
+  )
+}
+
+/**
+ * Les produits en vente dans la boutique (21/11/2026 : les boutiques créées
+ * étaient vides). Tous les produits du vendeur, cochés quand ils sont en
+ * vente ici ; un clic les met ou les retire.
+ */
+function BlocProduits({ shopId, onChange }: { shopId: string; onChange: () => void }) {
+  const [produits, setProduits] = useState<ProduitBoutique[] | null>(null)
+  const [occupe, setOccupe] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [ouvert, setOuvert] = useState(false)
+
+  useEffect(() => {
+    api.dropshopProduits(shopId).then((r) => setProduits(r.produits)).catch((e) => setMessage(e instanceof Error ? e.message : 'Produits illisibles'))
+  }, [shopId])
+
+  async function maj(corps: { ajouter?: string[]; retirer?: string[]; tous?: boolean }) {
+    setOccupe(true)
+    setMessage(null)
+    try {
+      const r = await api.dropshopProduitsMaj(shopId, corps)
+      setProduits(r.produits)
+      if (r.sansPrix) setMessage(`${r.sansPrix} produit${r.sansPrix > 1 ? 's' : ''} sans prix de vente : fixez un prix pour ${r.sansPrix > 1 ? 'les' : 'le'} mettre en vente.`)
+      onChange()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Mise à jour impossible')
+    } finally {
+      setOccupe(false)
+    }
+  }
+
+  if (!produits) {
+    return <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs text-gray-400">{message ?? 'Chargement des produits…'}</section>
+  }
+  const enVente = produits.filter((p) => p.dansBoutique)
+  const ajoutables = produits.filter((p) => !p.dansBoutique && p.vendable)
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <h3 className="flex flex-wrap items-center gap-2 text-sm font-bold">
+        <span>Produits en vente</span>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${enVente.length ? 'bg-emerald-400/15 text-emerald-200' : 'bg-amber-400/15 text-amber-200'}`}>
+          {enVente.length} en vente
+        </span>
+        {ajoutables.length ? (
+          <button type="button" onClick={() => maj({ tous: true })} disabled={occupe} className="btn-dropshop ml-auto rounded-xl px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+            {occupe ? 'Ajout…' : `Mettre en vente mes ${ajoutables.length} produits`}
+          </button>
+        ) : null}
+      </h3>
+      {produits.length === 0 ? (
+        <p className="mt-2 text-xs text-amber-200/90">
+          Vous n'avez encore aucun produit. Importez-en depuis{' '}
+          <Link to="/dashboard" className="underline">vos annonces</Link> ou les{' '}
+          <Link to="/produits-gagnants" className="underline">produits gagnants du jour</Link> : ils apparaîtront ici, et en un clic dans votre boutique.
+        </p>
+      ) : enVente.length === 0 ? (
+        <p className="mt-2 text-xs text-amber-200/90">Votre boutique n'a aucun produit à vendre : mettez-en en vente pour que vos clients puissent commander.</p>
+      ) : (
+        <p className="mt-1 text-xs text-gray-400">Vos clients voient ces produits, les ajoutent au panier et paient par carte. Ils sont aussi publiés sur DropShop Market.</p>
+      )}
+      {message ? <p className="mt-2 text-xs text-amber-200">{message}</p> : null}
+      {produits.length ? (
+        <>
+          <button type="button" onClick={() => setOuvert((o) => !o)} className="mt-3 flex items-center gap-1 text-xs font-semibold text-gray-300">
+            <span>{ouvert ? 'Masquer la liste' : 'Choisir produit par produit'}</span>
+            <ChevronDown size={14} className={`transition ${ouvert ? 'rotate-180' : ''}`} />
+          </button>
+          {ouvert ? (
+            <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto pr-1">
+              {produits.map((p) => (
+                <li key={p.id} className="flex items-center gap-2 rounded-xl bg-black/20 px-2 py-1.5 text-xs">
+                  {p.image ? <img src={p.image} alt="" className="h-8 w-8 shrink-0 rounded object-cover" /> : <span className="h-8 w-8 shrink-0 rounded bg-white/5" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-gray-200">{p.titre}</span>
+                    <span className="text-gray-500">
+                      {p.vendable ? p.prix.toFixed(2).replace('.', ',') + ' €' : 'Sans prix de vente'}
+                      {p.autreBoutique ? ` · en vente sur ${p.autreBoutique}` : ''}
+                    </span>
+                  </span>
+                  {p.dansBoutique ? (
+                    <button type="button" disabled={occupe} onClick={() => maj({ retirer: [p.id] })} className="rounded-lg border border-white/15 px-2 py-1 text-gray-300 hover:bg-white/5 disabled:opacity-40">Retirer</button>
+                  ) : (
+                    <button type="button" disabled={occupe || !p.vendable} onClick={() => maj({ ajouter: [p.id] })} className="rounded-lg border border-emerald-400/40 px-2 py-1 text-emerald-200 hover:bg-emerald-400/10 disabled:opacity-40">Mettre en vente</button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  )
+}
+
+/**
+ * Le paiement de la boutique. Par défaut, l'acheteur paie par carte sur le
+ * Stripe de DropShipper et la vente est virée au vendeur (frais Stripe déduits,
+ * aucune commission : décision de max du 21/11/2026) dès qu'il a activé ses
+ * paiements. Sa propre clé Stripe reste possible.
+ */
+function BlocPaiement(props: {
+  shopId: string
+  cleBranchee: boolean
+  cle: string
+  setCle: (v: string) => void
+  busy: boolean
+  onBrancher: () => void
+  onDebrancher: () => void
+}) {
+  const { shopId, cleBranchee } = props
+  const [etat, setEtat] = useState<PaiementsBoutique | null>(null)
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [voirCle, setVoirCle] = useState(false)
+
+  useEffect(() => {
+    api.dropshopPaiements(shopId).then(setEtat).catch((e) => setErreur(e instanceof Error ? e.message : 'État du paiement illisible'))
+  }, [shopId, cleBranchee])
+
+  async function activer() {
+    setOccupe(true)
+    setErreur(null)
+    try {
+      const { url } = await api.dropshopPaiementsActiver(shopId)
+      window.location.href = url
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Stripe ne répond pas')
+      setOccupe(false)
+    }
+  }
+
+  const carteActive = cleBranchee || Boolean(etat?.plateforme)
+  const actif = Boolean(etat?.compte.actif)
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold">
+        <CreditCard size={15} className="text-sky-300" />
+        <span>Paiement par carte</span>
+        <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${carteActive ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/10 text-gray-400'}`}>
+          {etat || cleBranchee ? (carteActive ? 'Actif' : 'Indisponible') : '…'}
+        </span>
+      </h3>
+      {cleBranchee ? (
+        <>
+          <p className="mt-1 text-xs text-gray-400">Vos clients paient par carte <b className="text-gray-200">sur votre propre compte Stripe</b> : l'argent arrive directement chez vous.</p>
+          <button type="button" onClick={props.onDebrancher} disabled={props.busy} className="mt-3 text-xs text-gray-400 underline hover:text-gray-200">
+            Débrancher ma clé Stripe
+          </button>
+        </>
+      ) : etat && !etat.plateforme ? (
+        <p className="mt-1 text-xs text-amber-200">Le paiement par carte n'est pas disponible pour le moment : les commandes sont enregistrées sans paiement. Branchez votre clé Stripe ci-dessous pour encaisser.</p>
+      ) : (
+        <>
+          <p className="mt-1 text-xs text-gray-400">
+            Vos clients paient par carte dès maintenant. Chaque vente vous est virée par Stripe,{' '}
+            <b className="text-gray-200">frais Stripe déduits, sans commission</b>.
+          </p>
+          {etat ? (
+            actif ? (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-200"><CheckCircle2 size={13} /> Paiements activés : vos ventes vous sont virées automatiquement.</p>
+            ) : (
+              <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-xs text-amber-100">
+                <p>
+                  Pour recevoir l'argent de vos ventes, activez vos paiements (formulaire Stripe, gratuit, quelques minutes).
+                  {etat.enAttente.ventes ? <b> {etat.enAttente.montant.toFixed(2).replace('.', ',')} € de ventes vous attendent.</b> : null}
+                </p>
+                <button type="button" onClick={activer} disabled={occupe} className="btn-dropshop mt-2 rounded-xl px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+                  {occupe ? 'Ouverture de Stripe…' : 'Activer mes paiements'}
+                </button>
+              </div>
+            )
+          ) : null}
+        </>
+      )}
+      {erreur ? <p className="mt-2 text-xs text-red-300">{erreur}</p> : null}
+      {cleBranchee ? null : (
+        <div className="mt-3">
+          <button type="button" onClick={() => setVoirCle((v) => !v)} className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300">
+            <span>Encaisser plutôt sur mon propre compte Stripe</span>
+            <ChevronDown size={12} className={`transition ${voirCle ? 'rotate-180' : ''}`} />
+          </button>
+          {voirCle ? (
+            <div className="mt-2 flex gap-2">
+              <input
+                type="password"
+                value={props.cle}
+                onChange={(e) => props.setCle(e.target.value)}
+                placeholder="sk_live_…"
+                autoComplete="off"
+                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none transition focus:border-sky-400/70"
+              />
+              <button type="button" onClick={props.onBrancher} disabled={props.busy || !props.cle.trim()} className="rounded-xl border border-sky-400/40 px-3 py-2 text-xs font-bold text-sky-200 hover:bg-sky-400/10 disabled:opacity-40">
+                Brancher
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
     </section>
   )
 }
