@@ -65,7 +65,7 @@ export function rechercheDuNom(url: string, nom: string | null | undefined): str
 }
 
 /** A product sheet (or any non-search page) of a site `rechercheDuNom` can search. */
-export function estPageProduit(url: string): boolean {
+function estPageProduit(url: string): boolean {
   try {
     const u = new URL(url)
     const h = u.hostname

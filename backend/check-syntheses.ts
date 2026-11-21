@@ -43,7 +43,7 @@ const produit = (cat: string, theme: string, rang: number, nom: string, decision
   roi: 68.6,
   score: 86,
   decision,
-  urls: { aliexpress_fr: 'https://fr.aliexpress.com/w/wholesale-x.html', amazon_fr: 'https://www.amazon.fr/s?k=x' },
+  urls: { aliexpress_fr: 'https://fr.aliexpress.com/w/wholesale-x.html', amazon_fr: 'https://www.amazon.fr/s?k=x', bigbuy: 'https://www.bigbuy.eu/fr/machine-x.html' },
   ...extra,
 })
 const hero = produit('electromenager', 'robots-cuisine', 1, 'Machine à lait végétal chauffante 8-en-1', 'BUY NOW')
@@ -273,9 +273,9 @@ console.log('Format du 09/11 : héros imbriqués, top 25, liens à plat, listes 
   exige(mdLu.produits.find((p) => /frig/i.test(p.nom))?.categorieLabel === 'Électroménager', 'Markdown : la colonne Catégorie, pas « N° Cat. »')
   const a = S.assembler(lu, mdLu)!
   const n = Object.fromEntries(Object.entries(a.sections).map(([k, v]) => [k, v.length]))
-  exige(n.top5 === 1 && n.heros === 2 && n.buyNow === 2 && n.breakout === 1 && n.listeNoire === 1 && n.roi === 3 && n.highTicket === 3, `toutes les listes remplies (${JSON.stringify(n)})`)
+  exige(n.top5 === 1 && n.heros === 2 && n.buyNow === 2 && n.breakout === 1 && n.listeNoire === 1 && n.roi === 0 && n.highTicket === 0, `listes du fichier remplies ; ROI et high ticket vides : aucun prix sourcé (pages de recherche seules, 21/11/2026) (${JSON.stringify(n)})`)
   exige(a.produits.length === 4 && a.sections.top5[0] === a.sections.buyNow[0], `le Markdown rejoint les produits du JSON (${a.produits.length} produits)`)
-  exige(a.sectionsCalculees.join() === 'roi,highTicket', `seules ROI et high ticket sont classées par nous (${a.sectionsCalculees})`)
+  exige(a.sectionsCalculees.length === 0 && a.produits.filter((p) => p.prixVente !== null).every((p) => p.prixNonSource && /vérifier/i.test(p.decision)), `rien n'est classé par nous sur des prix non sourcés, tout est « Données à vérifier » (${a.sectionsCalculees})`)
   exige(!a.sections.roi.some((id) => a.sections.listeNoire.includes(id)), 'la liste noire ne monte jamais dans un classement')
   const b = S.importerSynthese({ date: '2026-11-12', origine: 'banc', json, opportunitesMd: md }, false)
   exige(b.statut === 'importe' && S.lireSynthese('2026-11-12')?.lecteur === S.LECTEUR_SYNTHESE, 'import : version du lecteur notée')

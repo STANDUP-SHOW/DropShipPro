@@ -31,7 +31,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { estPrivee, pourquoiPublic, sansMentionsPrivees } from './analysesPubliques.js'
-import { estPageProduit, lienAOuvrir } from './lienVerifie.js'
+import { lienAOuvrir } from './lienVerifie.js'
 import { coherencePrix } from './coherencePrix.js'
 
 const RACINE_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -372,6 +372,11 @@ export function lireSynthese(date: string): Synthese | null {
   return { ...s, produits, sections: sectionsCoherentes(s.sections, produits) }
 }
 
+/** A search results page (« wholesale », « search_key », « ?q= »…), which proves no price. */
+function estRecherche(url: string): boolean {
+  return /wholesale|search|pdsearch|SearchText|[?&](q|k|kw|keyword|keywords|query)=|\/s(\?|\/|$)/i.test(url)
+}
+
 /** The lists that advise buying never carry a product whose prices contradict it. */
 const SECTIONS_FAVORABLES: CleSection[] = ['top5', 'buyNow', 'roi', 'highTicket', 'breakout']
 export function sectionsCoherentes(sections: Record<CleSection, string[]>, produits: ProduitSynthese[]): Record<CleSection, string[]> {
@@ -396,8 +401,8 @@ export function produitCoherent(p: ProduitSynthese): ProduitSynthese {
     margePct: p.margeNette !== null && p.margeNette < 0 ? -1 : null,
     verdict: p.decision || null,
     score: p.score,
-    // A search page proves no price: only a product page the agent was shown to open does (lienVerifie.ts).
-    source: Object.entries(p.liens ?? {}).some(([k, v]) => !p.liensAnnonces?.[k] && estPageProduit(v)),
+    // A search page proves no price: only a page the agent opened and kept (not replaced by a search) does.
+    source: Object.entries(p.liens ?? {}).some(([k, v]) => !p.liensAnnonces?.[k] && /^https?:\/\//.test(v) && !estRecherche(v)),
   })
   if (!c.incoherence) return p
   return {
