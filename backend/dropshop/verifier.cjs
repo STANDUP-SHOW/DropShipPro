@@ -123,7 +123,8 @@ async function monter(page, echecs) {
         const u = String(url)
         if (u.endsWith('/theme')) return reponds(200, THEME)
         if (u.endsWith('/products')) return reponds(200, PRODUITS)
-        if (u.endsWith('/checkout')) return reponds(201, { ok: true, commandes: 1, paiement: null })
+        // The server always opens a payment (or refuses) since 21/11/2026; a hash address stands in for Stripe here.
+        if (u.endsWith('/checkout')) return reponds(201, { ok: true, commandes: 1, paiement: '#/merci' })
         return Promise.reject(new Error('adresse inattendue : ' + u))
       }
     },
@@ -268,10 +269,9 @@ async function parcours(page, echecs, avertissements) {
       const corps = JSON.parse(envoi.options.body)
       verifier(() => corps.buyer && corps.buyer.name === 'Alice Martin' && corps.buyer.zip === '34000' && corps.lignes && corps.lignes[0].productId === 'p1' && corps.lignes[0].quantity === 1, 'La commande envoyée ne porte pas les bonnes coordonnées ou lignes.')
       await attendre(() => w.location.hash === '#/merci', 1500)
-      verifier(() => w.location.hash === '#/merci', 'Après la commande, le moteur mène à #/merci.')
+      verifier(() => w.location.hash === '#/merci', 'Après la commande, le moteur mène au paiement (ici #/merci).')
       await patienter(40)
       verifier(() => app().textContent.trim().length > 20, 'L\'écran merci doit remercier l\'acheteur (c.merci.nombre articles).')
-      verifier(() => JSON.parse(w.localStorage.getItem('dropshop-panier-cle-test') || '[]').length === 0, 'Après une commande sans paiement en ligne, le panier est vidé par le moteur.')
     }
   }
 
