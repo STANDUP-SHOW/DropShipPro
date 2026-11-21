@@ -181,12 +181,12 @@ function lireOrigine(): { majSource: string } | null {
  * what gets compared with the committed file, never the imported rows (they
  * are dated by their import, and would shadow a newer push).
  */
-function installerDepose(source: string, majSource: string, nouvelles: EtudeImportee[] = []) {
+function installerDepose(source: string, majSource: string, nouvelles: EtudeImportee[] = [], seulementNouvelles = false) {
   const provisoire = `${CHEMIN_RAPPORTS_DEPOSE}.${process.pid}.construction`
   fs.mkdirSync(path.dirname(CHEMIN_RAPPORTS_DEPOSE), { recursive: true })
   fs.copyFileSync(source, provisoire)
   try {
-    appliquerSurcouche(provisoire, [...lireSurcouche(), ...nouvelles])
+    appliquerSurcouche(provisoire, seulementNouvelles ? nouvelles : [...lireSurcouche(), ...nouvelles])
     fs.renameSync(provisoire, CHEMIN_RAPPORTS_DEPOSE)
   } finally {
     if (fs.existsSync(provisoire)) fs.rmSync(provisoire)
@@ -266,7 +266,9 @@ export function ajouterEtudesImportees(etudes: EtudeImportee[]): { reports: numb
   if (!etudes.length) return { reports: resumeBase(cheminRapportsActif())?.n ?? 0 }
   const actif = cheminRapportsActif()
   const majSource = actif === CHEMIN_RAPPORTS_DEPOSE ? (lireOrigine()?.majSource ?? resumeBase(actif)?.maj ?? '') : (resumeBase(actif)?.maj ?? '')
-  installerDepose(actif, majSource, etudes)
+  // The served upload already holds every earlier import: write only the new ones on top. Replaying the
+  // whole overlay (500+ studies by 21/11/2026) on each import froze the API for minutes (21/11, 15h48).
+  installerDepose(actif, majSource, etudes, actif === CHEMIN_RAPPORTS_DEPOSE)
   const remplacees = new Set(etudes.map((e) => e.idRayon))
   const liste = [...lireSurcouche().filter((e) => !remplacees.has(e.idRayon)), ...etudes]
   ecrireFichierAtomique(CHEMIN_SURCOUCHE, JSON.stringify({ version: 1, etudes: liste }))
