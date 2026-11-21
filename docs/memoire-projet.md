@@ -1685,3 +1685,10 @@ Google rend sans liste (freinage d'un serveur qui lit trop) était lue comme un 
 listés en dernier disparaissaient sans erreur. Cause la plus probable, non observée côté Railway.
 Corrigé : une page sans « flip-entries » est relue (3 reprises), puis l'erreur nomme le dossier ;
 4 listes en parallèle ; listes gardées 15 min ; un import ne lit que les dossiers datés choisis.
+
+
+## 21/11/2026 — Première boutique d'un vrai client : création puis modifications échouées
+
+Symptômes : création échouée à la fin (drops rendus), puis « La modification casse la boutique… Uncaught SyntaxError: Unexpected end of input » et « Le modèle n'a pas rendu d'éditions applicables ».
+Cause : `max_tokens: 48_000` pour une boutique entière, alors que Sonnet 5 réfléchit par défaut sur le même budget. La page sortait coupée en plein script ; `extraireHtml` l'acceptait sans `</html>` ; le vérificateur la refusait ; les réparations par éditions ne pouvaient pas recréer la moitié manquante. En modification, Haiku tentait une refonte entière, coupée elle aussi, et la réponse ne contenait alors aucun bloc d'éditions lisible.
+Correctif : `sortieMax()` (128 000 pour Sonnet 5, 64 000 pour Haiku 4.5), `stop_reason === 'max_tokens'` remonté (`tronque`), une page sans `</html>` refusée, une écriture coupée refaite une fois, une refonte coupée remplacée par une demande d'éditions, `extraireEditions` lit tout bloc plausible. Remboursement : `poserSiOuvert` (UPDATE conditionnel sur `debut` et absence de `fin`) ferme le travail atomiquement ; seul celui qui ferme rembourse. Avant, deux onglets qui relisaient un travail mort, ou un travail repris après redémarrage, pouvaient rembourser deux fois. Bancs : check-dropshop.ts, check-dropshop-jobs.ts.

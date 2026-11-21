@@ -141,7 +141,7 @@ export async function proposerDirections(brief: string, catalogue: CatalogueBout
     modele: modele('AI_MODEL_SITE_DIRECTIONS', MODELE_REDACTION),
     system: CONSIGNE_DIRECTIONS,
     messages: [{ role: 'user', content: ficheCommerce(brief, { ...catalogue, dossierDesign: catalogue.dossierDesign?.slice(0, 3500) }) }],
-    max_tokens: 3500,
+    max_tokens: 16_000,
   })
   const directions = extraireDirections(reponse.texte)
   if (!directions.length) throw new SiteImpossible("Le modèle n'a pas rendu de directions lisibles.")
@@ -160,7 +160,24 @@ export interface AppelModele {
     system: string
     messages: Array<{ role: 'user' | 'assistant'; content: string }>
     max_tokens: number
-  }): Promise<{ texte: string; entree: number; sortie: number }>
+  }): Promise<{ texte: string; entree: number; sortie: number; tronque?: boolean }>
+}
+
+/**
+ * Le plafond de sortie d'un appel, selon le modèle.
+ *
+ * **21/11/2026, première vraie boutique d'un client : création échouée, puis
+ * modification échouée** sur « SyntaxError: Unexpected end of input ». Une
+ * boutique entière (CSS, écrans, modes visiteur) dépasse vite les 48 000
+ * jetons qu'on accordait — et Sonnet 5 réfléchit par défaut, sur le même
+ * budget. La page sortait coupée au milieu d'un script ; `extraireHtml`
+ * l'acceptait sans `</html>`, le vérificateur la refusait, et trois
+ * réparations par éditions ne pouvaient pas recréer la moitié manquante.
+ * On donne maintenant au modèle tout ce qu'il peut écrire (en flux, sans
+ * risque de délai) : on ne paie que les jetons réellement produits.
+ */
+export function sortieMax(modeleUtilise: string): number {
+  return /haiku-4|sonnet-4|opus-4-[015]\b/.test(modeleUtilise) ? 64_000 : 128_000
 }
 
 export interface Verificateur {
@@ -326,8 +343,11 @@ export function extraireHtml(texte: string): string | null {
   const brut = bloc ? bloc[1] : texte
   const debut = brut.search(/<!doctype html>/i)
   if (debut < 0) return null
-  const fin = brut.lastIndexOf('</html>')
-  return (fin > debut ? brut.slice(debut, fin + '</html>'.length) : brut.slice(debut)).trim() + '\n'
+  // No closing tag = a page cut short. Never hand it on as a page: its last
+  // script ends mid-statement and the whole shop dies on « Unexpected end of input ».
+  const fin = brut.toLowerCase().lastIndexOf('</html>')
+  if (fin <= debut) return null
+  return brut.slice(debut, fin + '</html>'.length).trim() + '\n'
 }
 
 export interface Edition {
@@ -335,20 +355,33 @@ export interface Edition {
   remplacer: string
 }
 
+/**
+ * Reads the model's edits. 21/11/2026 : « Le modèle n'a pas rendu d'éditions
+ * applicables » on a real shop — only a ```json block whose closing fence sat
+ * right after a newline was read. Every plausible place is now tried, in order:
+ * ```json blocks (closed or not), any other fenced block, then the outermost
+ * braces of the whole answer. The first one that parses with an `edits` array wins.
+ */
 export function extraireEditions(texte: string): { resume: string; edits: Edition[] } | null {
-  const bloc = /```json\s*\n([\s\S]*?)\n```/i.exec(texte)
-  const brut = bloc ? bloc[1] : texte.match(/\{[\s\S]*\}/)?.[0]
-  if (!brut) return null
-  try {
-    const obj = JSON.parse(brut) as { resume?: unknown; edits?: unknown }
-    if (!Array.isArray(obj.edits)) return null
-    const edits = obj.edits
-      .filter((e): e is Edition => Boolean(e) && typeof (e as Edition).chercher === 'string' && typeof (e as Edition).remplacer === 'string')
-      .filter((e) => e.chercher.length > 0)
-    return { resume: typeof obj.resume === 'string' ? obj.resume : '', edits }
-  } catch {
-    return null
+  const candidats: string[] = []
+  for (const m of texte.matchAll(/```json[^\n]*\n([\s\S]*?)(?:\n?```|$)/gi)) candidats.push(m[1])
+  for (const m of texte.matchAll(/```(?!html)[a-z]*[^\n]*\n([\s\S]*?)\n?```/gi)) candidats.push(m[1])
+  const debut = texte.indexOf('{')
+  const fin = texte.lastIndexOf('}')
+  if (debut >= 0 && fin > debut) candidats.push(texte.slice(debut, fin + 1))
+  for (const brut of candidats) {
+    try {
+      const obj = JSON.parse(brut.trim()) as { resume?: unknown; edits?: unknown }
+      if (!obj || !Array.isArray(obj.edits)) continue
+      const edits = obj.edits
+        .filter((e): e is Edition => Boolean(e) && typeof (e as Edition).chercher === 'string' && typeof (e as Edition).remplacer === 'string')
+        .filter((e) => e.chercher.length > 0)
+      return { resume: typeof obj.resume === 'string' ? obj.resume : '', edits }
+    } catch {
+      /* try the next place */
+    }
   }
+  return null
 }
 
 /**
@@ -435,7 +468,7 @@ export const appelAnthropic: AppelModele = async (d) => {
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('')
-  return { texte, entree: reponse.usage.input_tokens, sortie: reponse.usage.output_tokens }
+  return { texte, entree: reponse.usage.input_tokens, sortie: reponse.usage.output_tokens, tronque: reponse.stop_reason === 'max_tokens' }
 }
 
 /* ---------- La vérification, dans un processus enfant à l'environnement vide ---------- */
@@ -513,16 +546,22 @@ export async function fabriquerSite(
   let cout = 0
 
   surEtape({ etape: 'ecriture', tentative: 1 })
-  const reponse = await appeler({
-    modele: modeleCreation,
-    system: consigneCreation(),
-    messages: [{ role: 'user', content: ficheCommerce(brief, catalogue) }],
-    max_tokens: 48_000,
-  })
-  jetons.entree += reponse.entree
-  jetons.sortie += reponse.sortie
-  cout += coutAppel(modeleCreation, reponse.entree, reponse.sortie)
-  let html = extraireHtml(reponse.texte)
+  // A page cut short (output ceiling) cannot be repaired by targeted edits:
+  // the missing half is not there to edit. One fresh write, then give up.
+  let html: string | null = null
+  for (let ecriture = 1; ecriture <= 2 && !html; ecriture++) {
+    const reponse = await appeler({
+      modele: modeleCreation,
+      system: consigneCreation(),
+      messages: [{ role: 'user', content: ficheCommerce(brief, catalogue) }],
+      max_tokens: sortieMax(modeleCreation),
+    })
+    jetons.entree += reponse.entree
+    jetons.sortie += reponse.sortie
+    cout += coutAppel(modeleCreation, reponse.entree, reponse.sortie)
+    html = reponse.tronque ? null : extraireHtml(reponse.texte)
+    if (!html) console.warn(`[dropshop] écriture ${ecriture} inutilisable : ${reponse.tronque ? 'coupée au plafond de sortie' : 'page incomplète'} (${reponse.sortie} jetons)`)
+  }
   if (!html) throw new SiteImpossible("Le modèle n'a pas rendu une page HTML complète.")
 
   const options: OptionsSite = { modesVisiteur: Boolean(catalogue.modesVisiteur), logo: Boolean(catalogue.logoEntete) }
@@ -630,20 +669,31 @@ async function editer(
   ]
   let cout = 0
   for (let essai = 1; essai <= 2; essai++) {
-    const reponse = await appeler({ modele: modeleEdition, system: consigne, messages, max_tokens: 48_000 })
+    const reponse = await appeler({ modele: modeleEdition, system: consigne, messages, max_tokens: sortieMax(modeleEdition) })
     jetons.entree += reponse.entree
     jetons.sortie += reponse.sortie
     cout += coutAppel(modeleEdition, reponse.entree, reponse.sortie)
 
-    // Une refonte entière est acceptée quand le modèle la juge nécessaire.
+    // A whole-page rewrite cut at the output ceiling is lost, not « a refonte »:
+    // ask for targeted edits instead, which are short.
+    if (reponse.tronque) {
+      if (essai === 2) throw new SiteImpossible("La réponse du modèle a été coupée avant la fin : la boutique est restée telle quelle.")
+      console.warn(`[dropshop] réponse coupée au plafond de sortie (${reponse.sortie} jetons), on redemande des éditions`)
+      messages.push({ role: 'assistant', content: reponse.texte })
+      messages.push({ role: 'user', content: 'Ta réponse a été coupée avant la fin. Ne réécris pas la page entière : réponds uniquement par le bloc ```json d\'éditions ciblées (chercher / remplacer), le plus court possible.' })
+      continue
+    }
+
+    // Une refonte entière est acceptée quand le modèle la juge nécessaire — et complète.
     const entier = /```html/i.test(reponse.texte) ? extraireHtml(reponse.texte) : null
     if (entier) return { html: entier, resume: 'Boutique refondue.', modele: modeleEdition, jetons, cout }
 
     const editions = extraireEditions(reponse.texte)
     if (!editions || !editions.edits.length) {
-      if (essai === 2) throw new SiteImpossible("Le modèle n'a pas rendu d'éditions applicables.")
+      if (essai === 2) throw new SiteImpossible("L'IA n'a pas su appliquer cette demande sous une forme utilisable. Votre boutique est restée telle quelle : reformulez la demande ou découpez-la en plus petites étapes.")
+      console.warn(`[dropshop] réponse sans éditions lisibles (${reponse.sortie} jetons) : ${reponse.texte.slice(0, 160).replace(/\s+/g, ' ')}`)
       messages.push({ role: 'assistant', content: reponse.texte })
-      messages.push({ role: 'user', content: 'Ta réponse ne contient pas de bloc ```json avec des "edits". Réponds au format demandé.' })
+      messages.push({ role: 'user', content: 'Ta réponse ne contient pas de bloc ```json lisible avec des "edits" (JSON valide : guillemets et retours à la ligne échappés). Réponds uniquement par ce bloc, au format demandé.' })
       continue
     }
     const applique = appliquerEditions(html, editions.edits)

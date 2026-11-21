@@ -86,6 +86,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - Pubs du Studio (`adComposer.ts`, 15/10) : polices d'affiche embarquées (`backend/assets/fonts`, OFL), texte mesuré et ajusté (jamais coupé), aucune direction ne couvre plus d'un tiers de la photo. Banc visuel : `npx tsx check-pub-rendu.ts <photo> --sortie <dossier>`.
 - JSX : ne pas juxtaposer plusieurs expressions texte dont une chaîne vide.
 - Ne pas pousser pendant qu'une création DropShop tourne (`Shop.siteJob` sans `fin`).
+- Sortie de modèle : jamais accepter une page sans `</html>` ni une réponse `stop_reason: max_tokens` (21/11 : boutique coupée, « Unexpected end of input ») ; plafond = `sortieMax(modèle)`. Un remboursement de travail passe par `poserSiOuvert` (une seule fois).
 
 ## Rapports des 48 agents (`backend/rapports.db`)
 
