@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckSquare, Eye, ExternalLink, Loader2, Lock, Search, Square } from 'lucide-react'
 import { COUT_EXTENSION, COUT_IMPORT, importerProduits, type ProduitAffiche } from '../ListeProduitsRapport'
@@ -83,16 +83,69 @@ function Miniature({ p }: { p: Gagnant }) {
   )
 }
 
+function tonVerdict(famille: FamilleVerdict | null): string {
+  return famille === 'acheter'
+    ? 'bg-emerald-500/15 text-emerald-300'
+    : famille === 'non'
+      ? 'bg-red-500/15 text-red-300'
+      : 'bg-amber-500/15 text-amber-200'
+}
+
+/** Full verdict (examination window): wraps, never overflows. */
 function PastilleVerdict({ brut }: { brut: string | null | undefined }) {
   const v = lireVerdict(brut)
   if (!v) return <span className="text-xs text-gray-500">—</span>
-  const ton =
-    v.famille === 'acheter'
-      ? 'bg-emerald-500/15 text-emerald-300'
-      : v.famille === 'non'
-        ? 'bg-red-500/15 text-red-300'
-        : 'bg-amber-500/15 text-amber-200'
-  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${ton}`}>{v.libelle}</span>
+  return <span className={`inline-block max-w-full whitespace-normal break-words rounded-lg px-2 py-1 text-[11px] font-semibold leading-snug ${tonVerdict(v.famille)}`}>{v.libelle}</span>
+}
+
+/*
+ * Verdict inside a list row (21/11/2026: an agent's verdict can be a whole
+ * paragraph; kept on one line it ran over the Achat, Vente, Marge and Score
+ * columns). Two lines at most, full text in the tooltip, and « voir plus »
+ * when it is actually cut, which opens the examination window.
+ */
+function VerdictLigne({ brut, onVoirPlus }: { brut: string | null | undefined; onVoirPlus: () => void }) {
+  const v = lireVerdict(brut)
+  const ref = useRef<HTMLSpanElement>(null)
+  const [coupe, setCoupe] = useState(false)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const mesurer = () => setCoupe(el.scrollHeight > el.clientHeight + 1)
+    mesurer()
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(mesurer)
+    ro?.observe(el)
+    return () => ro?.disconnect()
+  }, [v?.libelle])
+  if (!v) return <span className="text-xs text-gray-500">—</span>
+  return (
+    <span className="flex min-w-0 flex-col items-start gap-0.5">
+      <span
+        ref={ref}
+        title={v.libelle}
+        className={`line-clamp-2 max-w-full break-words rounded-lg px-2 py-0.5 text-[11px] font-semibold leading-snug ${tonVerdict(v.famille)}`}
+      >
+        {v.libelle}
+      </span>
+      {coupe ? (
+        <button type="button" onClick={onVoirPlus} className="px-2 text-[10px] text-[var(--c-texte-2)] underline-offset-2 hover:text-white hover:underline">
+          voir plus
+        </button>
+      ) : null}
+    </span>
+  )
+}
+
+/*
+ * One template for the header and every row, so columns always line up.
+ * Applied from 62rem of LIST width (container query): below that the row
+ * becomes a card with labelled figures instead of squeezed columns.
+ */
+const GRILLE = '@min-[62rem]:grid @min-[62rem]:grid-cols-[18px_44px_minmax(10rem,1fr)_11rem_5rem_5rem_4rem_3rem_236px]'
+
+/** Small label in front of a figure, only in the card layout. */
+function Etiquette({ children }: { children: string }) {
+  return <span className="mr-1 text-[10px] font-normal uppercase tracking-wide text-gray-500 @min-[62rem]:hidden">{children}</span>
 }
 
 function Marge({ pct }: { pct: number | null | undefined }) {
@@ -397,18 +450,19 @@ export function ListeGagnants() {
           {duJour.length ? 'Aucun produit ne répond à ces filtres.' : "Aucun produit gagnant déposé pour l'instant. Les agents en déposent vingt par rayon et par jour, le matin."}
         </p>
       ) : (
-        <div className="mt-3 overflow-hidden rounded-xl border border-white/10 bg-white/5">
-          {/* En-têtes de colonnes, sur grand écran seulement. */}
-          <div className="hidden items-center gap-3 border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-wide text-gray-500 lg:flex">
-            <span className="w-[18px]" />
-            <span className="w-11" />
-            <span className="flex-1">Produit</span>
-            <span className="w-28">Verdict</span>
-            <span className="w-20 text-right">Achat</span>
-            <span className="w-20 text-right">Vente</span>
-            <span className="w-16 text-right">Marge</span>
-            <span className="w-12 text-right">Score</span>
-            <span className="w-[236px]" />
+        <div className="@container mt-3 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+          {/* En-têtes de colonnes : seulement quand la liste a la place d'un vrai tableau
+              (largeur de la liste, pas de l'écran : le menu de gauche en mange une partie). */}
+          <div className={`hidden items-center gap-x-3 border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-wide text-gray-500 ${GRILLE}`}>
+            <span />
+            <span />
+            <span>Produit</span>
+            <span>Verdict</span>
+            <span className="text-right">Achat</span>
+            <span className="text-right">Vente</span>
+            <span className="text-right">Marge</span>
+            <span className="text-right">Score</span>
+            <span />
           </div>
           <div className="divide-y divide-white/5">
             {visibles.map((p) => {
@@ -416,7 +470,7 @@ export function ListeGagnants() {
               const coche = coches.has(cle(p)) && !importe
               const prix = p.import === 'extension' ? COUT_EXTENSION : COUT_IMPORT
               return (
-                <div key={cle(p)} className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 transition lg:flex-nowrap ${coche ? 'bg-[#E85290]/10' : 'hover:bg-white/[0.03]'}`}>
+                <div key={cle(p)} className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 transition ${GRILLE} ${coche ? 'bg-[#E85290]/10' : 'hover:bg-white/[0.03]'}`}>
                   <button
                     type="button"
                     aria-pressed={coche}
@@ -429,7 +483,7 @@ export function ListeGagnants() {
                     {coche ? <CheckSquare size={18} /> : <Square size={18} />}
                   </button>
                   <Miniature p={p} />
-                  <button type="button" onClick={() => setExamine(p)} className="min-w-0 flex-1 basis-[calc(100%-6.5rem)] text-left lg:basis-0" title={p.titre}>
+                  <button type="button" onClick={() => setExamine(p)} className="min-w-0 flex-1 basis-[calc(100%-6.5rem)] text-left" title={p.titre}>
                     <p className="truncate text-sm font-medium hover:underline">{p.titre}</p>
                     <p className="truncate text-[11px] text-[var(--c-texte-2)]">
                       {[p.categorieNom, p.themeNom, p.fournisseur && p.fournisseur !== '—' ? p.fournisseur : null, tousLesJours ? dateCourte(p.day) : null]
@@ -437,12 +491,12 @@ export function ListeGagnants() {
                         .join(' · ')}
                     </p>
                   </button>
-                  <span className="shrink-0 lg:w-28"><PastilleVerdict brut={p.verdict} /></span>
-                  <span className={`shrink-0 text-sm lg:w-20 lg:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'text-gray-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : "Prix d'achat repris du rapport"}>{euros(p.prixAchat)}</span>
-                  <span className={`shrink-0 text-sm lg:w-20 lg:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'font-semibold text-emerald-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : 'Prix de vente indiqué'}>{euros(p.prixVente)}</span>
-                  <span className="shrink-0 text-sm lg:w-16 lg:text-right"><Marge pct={p.margePct} /></span>
-                  <span className="shrink-0 text-xs text-[var(--c-texte-2)] lg:w-12 lg:text-right" title="Score de l'agent sur 100">{p.score == null ? '—' : <><span className="lg:hidden">Score </span>{p.score}</>}</span>
-                  <div className="flex w-full shrink-0 items-center justify-end gap-1 lg:w-[236px]">
+                  <span className="w-full min-w-0 @min-[62rem]:w-auto"><VerdictLigne brut={p.verdict} onVoirPlus={() => setExamine(p)} /></span>
+                  <span className={`shrink-0 whitespace-nowrap text-sm @min-[62rem]:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'text-gray-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : "Prix d'achat repris du rapport"}><Etiquette>Achat</Etiquette>{euros(p.prixAchat)}</span>
+                  <span className={`shrink-0 whitespace-nowrap text-sm @min-[62rem]:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'font-semibold text-emerald-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : 'Prix de vente indiqué'}><Etiquette>Vente</Etiquette>{euros(p.prixVente)}</span>
+                  <span className="shrink-0 whitespace-nowrap text-sm @min-[62rem]:text-right"><Etiquette>Marge</Etiquette><Marge pct={p.margePct} /></span>
+                  <span className="shrink-0 whitespace-nowrap text-xs text-[var(--c-texte-2)] @min-[62rem]:text-right" title="Score de l'agent sur 100"><Etiquette>Score</Etiquette>{p.score == null ? '—' : p.score}</span>
+                  <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
                     <button type="button" onClick={() => setExamine(p)} title="Examiner" aria-label={`Examiner ${p.titre}`} className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white">
                       <Eye size={15} />
                     </button>
