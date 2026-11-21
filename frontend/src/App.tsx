@@ -29,6 +29,7 @@ import ProductDetail from './pages/ProductDetail'
 import Orders from './pages/Orders'
 import Settings from './pages/Settings'
 import MySites from './pages/MySites'
+import Portefeuille from './pages/Portefeuille'
 import Suppliers from './pages/Suppliers'
 import AfterSales from './pages/AfterSales'
 import BetaAccess from './pages/BetaAccess'
@@ -208,6 +209,7 @@ export default function App() {
           <Route path="/autorisation-speciale" element={<Protected><BetaAccess /></Protected>} />
           <Route path="/sav" element={<Protected><AfterSales /></Protected>} />
           <Route path="/credits" element={<Protected><BillingPage /></Protected>} />
+          <Route path="/portefeuille" element={<Protected><Portefeuille /></Protected>} />
           {/* Ancien chemin gardé : les liens et signets existants tombent sur le portefeuille. */}
           <Route path="/abonnement" element={<Protected><BillingPage /></Protected>} />
           <Route path="/livraisons" element={<Protected><Deliveries /></Protected>} />

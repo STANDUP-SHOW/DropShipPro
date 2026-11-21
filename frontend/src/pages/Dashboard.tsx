@@ -12,6 +12,7 @@ import { api, assetUrl } from '../lib/api'
 import type { PlatformInfo } from '../lib/platforms'
 import { PublishedBadges } from '../components/PublishedBadges'
 import { PrixModifiable } from '../components/PrixModifiable'
+import { estFournisseur } from '../lib/sourcesFournisseurs'
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -161,7 +162,8 @@ export default function Dashboard() {
    * liste figée proposerait des sources qu'il n'utilise pas tout en oubliant
    * celles qu'il utilise.
    */
-  const fournisseurs = [...new Set(products.map((p) => p.sourceSite).filter(Boolean))].sort() as string[]
+  // Hors outils, code et pages d'inscription (claude.ai, github.com… : 21/11/2026).
+  const fournisseurs = [...new Set(products.map((p) => p.sourceSite).filter(estFournisseur))].sort() as string[]
 
   /** Combien d'annonces portent encore le texte du fournisseur. */
   const nonReecrites = products.filter((p) => p.aiEnhanced === false).length

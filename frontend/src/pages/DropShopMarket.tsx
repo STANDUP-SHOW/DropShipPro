@@ -278,6 +278,7 @@ DELETE ${location.origin}/api/market/v1/annonces/SKU-1`}</pre>
             <button type="button" disabled={enCours} onClick={() => ouvrirStripe(false)} className="btn-dropshop rounded-full px-5 py-2 text-sm font-bold text-white">
               {stripe?.inscrit ? "Terminer l'inscription Stripe" : 'Activer mes paiements (gratuit)'}
             </button>
+            <a href="/portefeuille" className="ml-3 text-sm underline">Voir mon portefeuille</a>
           </div>
         )}
       </section>

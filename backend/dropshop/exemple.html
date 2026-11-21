@@ -49,7 +49,7 @@
           '<a href="' + c.lien.panier + '">Panier (' + c.panier.nombre + ')</a>' +
           '</div>' + (c.boutique.annonce ? '<div class="wrap">' + c.html(c.boutique.annonce) + '</div>' : '') + '</header>' +
           '<main class="wrap">' + contenu + '</main>' +
-          '<footer class="wrap"><p>© ' + c.html(c.boutique.nom) + '</p></footer>'
+          '<footer class="wrap"><p>© ' + c.html(c.boutique.nom) + '</p><p><a href="' + c.lien.mentions + '">Mentions légales</a> · <a href="' + c.lien.cgv + '">Conditions de vente</a> · <a href="' + c.lien.retours + '">Livraison et retours</a> · <a href="' + c.lien.contact + '">Contact</a></p></footer>'
       },
 
       accueil: function (c) {

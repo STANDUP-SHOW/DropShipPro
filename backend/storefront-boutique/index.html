@@ -525,18 +525,29 @@
             '<input name="street" required minlength="3" placeholder="Adresse" />' +
             '<div class="deux"><input name="zip" required placeholder="Code postal" /><input name="city" required placeholder="Ville" /></div>' +
             '<input name="phone" placeholder="Téléphone (facultatif)" />' +
-            '<button class="cta" style="margin-top:6px" type="submit" id="commander">Passer commande</button>' +
+            '<button class="cta" style="margin-top:6px" type="submit" id="commander">Payer par carte</button>' +
+            '<p class="note-livraison">En payant, vous acceptez les <a href="#/infos/cgv">conditions de vente</a>.</p>' +
             '<p class="note-livraison" id="erreur-commande" hidden></p>' +
             '</form></section>'
           )
         }
 
-        function pageMerci(brut) {
-          var n = Math.max(1, Number(brut) || 1)
+        var etatPaiement = null
+        function pageMerci() {
+          if (etatPaiement === 'attente') return '<section class="bloc wrap"><p class="chargement">Confirmation du paiement…</p></section>'
+          if (etatPaiement !== 'paye') {
+            return (
+              '<section class="bloc wrap"><div class="ok-commande">' +
+              '<b>Paiement non confirmé</b>' +
+              '<p style="color:var(--muted)">Aucun paiement n\'a été reçu pour cette commande. Votre panier est conservé : vous pouvez réessayer.</p>' +
+              '<a class="cta" href="#/panier">Revenir au panier</a>' +
+              '</div></section>'
+            )
+          }
           return (
             '<section class="bloc wrap"><div class="ok-commande">' +
             '<b>Merci pour votre commande ! 🎉</b>' +
-            '<p style="color:var(--muted)">' + n + ' article(s) commandé(s). ' + texte(nomBoutique) + ' la prépare — vous serez contacté pour la livraison.</p>' +
+            '<p style="color:var(--muted)">Paiement reçu. ' + texte(nomBoutique) + ' prépare votre commande ; un email de confirmation vous est envoyé si vous avez donné votre adresse.</p>' +
             '<a class="cta" href="#/boutique">Revenir à la boutique</a>' +
             '</div></section>'
           )
@@ -551,12 +562,16 @@
           else if (morceaux[0] === 'boutique') page.innerHTML = pageListe(null, '')
           else if (morceaux[0] === 'c') page.innerHTML = pageListe(decodeURIComponent(morceaux[1] || ''), '')
           else if (morceaux[0] === 'p') page.innerHTML = pageProduit(decodeURIComponent(morceaux[1] || ''))
-          else if (morceaux[0] === 'panier') page.innerHTML = pagePanier()
-          else if (morceaux[0] === 'merci') page.innerHTML = pageMerci(decodeURIComponent(morceaux[1] || '1'))
+          else if (morceaux[0] === 'panier' || morceaux[0] === 'commande') page.innerHTML = pagePanier()
+          else if (morceaux[0] === 'merci') page.innerHTML = pageMerci()
+          else if (morceaux[0] === 'infos' && window.DropShopInfos) {
+            page.innerHTML = window.DropShopInfos.rendre(morceaux[1] || '', infosVitrine) || pageAccueil()
+          }
           else page.innerHTML = pageAccueil()
           window.scrollTo(0, 0)
           rendreNav(morceaux[0] || '')
           brancher()
+          if (window.DropShopInfos) window.DropShopInfos.reparer(document.getElementById('page'))
         }
 
         function rendreNav(actif) {
@@ -618,7 +633,7 @@
               var fd = new FormData(form)
               bouton.disabled = true
               bouton.textContent = 'Envoi…'
-              fetch(CONF.api + '/api/public/shops/' + CONF.shopKey + '/orders', {
+              fetch(CONF.api + '/api/public/shops/' + CONF.shopKey + '/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -631,20 +646,21 @@
                     phone: fd.get('phone') || undefined,
                   },
                   lignes: lirePanier(),
+                  retour: location.origin + location.pathname,
                 }),
               })
                 .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, corps: j } }) })
                 .then(function (r) {
                   if (!r.ok) throw new Error(r.corps && r.corps.error ? r.corps.error : 'La commande n\'a pas pu partir.')
-                  var n = lirePanier().reduce(function (s, l) { return s + l.quantity }, 0)
-                  ecrirePanier([])
-                  location.hash = '#/merci/' + n
+                  // Paiement par carte chez Stripe ; le panier se vide au retour, une fois payé (21/11/2026).
+                  if (!r.corps.paiement) throw new Error('Le paiement en ligne de cette boutique est momentanément indisponible : aucune commande n\'a été passée.')
+                  location.href = r.corps.paiement
                 })
                 .catch(function (e) {
                   erreur.hidden = false
                   erreur.textContent = e.message
                   bouton.disabled = false
-                  bouton.textContent = 'Passer commande'
+                  bouton.textContent = 'Payer par carte'
                 })
             })
           }
@@ -659,13 +675,18 @@
             '<div><b>Catégories</b>' +
             rayons().slice(0, 6).map(function (r) { return '<a href="#/c/' + encodeURIComponent(r[0]) + '">' + texte(r[0]) + '</a>' }).join('') +
             '</div>' +
-            '<div><b>Service client</b><p>Retours offerts sous 14 jours</p><p>Livraison suivie</p><p>Paiement sécurisé</p></div>'
+            '<div><b>Service client</b>' +
+            '<a href="#/infos/contact">Nous contacter</a>' +
+            '<a href="#/infos/livraison-retours">Livraison et retours</a>' +
+            '<a href="#/infos/cgv">Conditions de vente</a>' +
+            '<a href="#/infos/mentions-legales">Mentions légales</a></div>'
           document.getElementById('fin').innerHTML =
             '<span>© ' + new Date().getFullYear() + ' ' + texte(nomBoutique) + '</span><span>Boutique propulsée par DropShipper IA</span>'
         }
 
         /* ---------- Chargement ---------- */
         var base = CONF.api + '/api/public/shops/' + CONF.shopKey
+        var infosVitrine = null
         var essai = new URLSearchParams(location.search).get('theme')
         Promise.all([
           fetch(base + '/theme' + (essai ? '?theme=' + encodeURIComponent(essai) : '')).then(function (r) { return r.json() }),
@@ -711,6 +732,22 @@
             }
 
             rendrePied()
+            if (window.DropShopInfos) {
+              window.DropShopInfos.charger(base).then(function (j) { infosVitrine = j || { pages: {} }; if (/^#\/infos\//.test(location.hash)) route() })
+              window.DropShopInfos.brancher(base, route)
+            }
+            var session = new URLSearchParams(location.search).get('session_id')
+            if (session) {
+              etatPaiement = 'attente'
+              fetch(base + '/checkout/' + encodeURIComponent(session))
+                .then(function (r) { return r.json() })
+                .then(function (j) { etatPaiement = j && j.paye ? 'paye' : 'non'; if (etatPaiement === 'paye') ecrirePanier([]) })
+                .catch(function () { etatPaiement = 'non' })
+                .then(function () {
+                  try { history.replaceState(null, '', location.pathname + '#/merci') } catch (e) {}
+                  route()
+                })
+            }
             route()
           })
           .catch(function () {

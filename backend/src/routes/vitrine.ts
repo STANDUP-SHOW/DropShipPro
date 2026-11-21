@@ -65,6 +65,22 @@ function moteurDropShop(): string | null {
 }
 
 /**
+ * Pages légales, contact et réparations au rendu (`dropshop/infos.js`, 21/11/2026),
+ * insérés dans le <head> des deux sortes de vitrine. Sans le fichier, la
+ * vitrine reste servie : on journalise, on ne casse pas la boutique.
+ */
+const CHEMINS_INFOS = [path.join('dropshop', 'infos.js'), path.join('..', 'dropshop', 'infos.js')]
+
+function scriptInfos(): string {
+  const trouve = CHEMINS_INFOS.map((c) => path.resolve(c)).find((c) => existsSync(c))
+  if (!trouve) {
+    console.error('dropshop/infos.js introuvable, cherche dans', CHEMINS_INFOS.map((c) => path.resolve(c)))
+    return ''
+  }
+  return `<script>${readFileSync(trouve, 'utf8').replace(/<\/script/gi, '<\\/script')}</script>`
+}
+
+/**
  * Le Back Office d'une boutique (extension « Back Office ») : `/b/<slug>/admin`.
  * La page n'est servie que si l'extension est installée ; sinon 404, comme si
  * l'adresse n'existait pas — rien n'annonce une porte qui n'est pas là.
@@ -112,7 +128,7 @@ vitrineRouter.get('/:slug', async (req, res) => {
     const moteurInline = `<script>${moteur.replace(/<\/script/gi, '<\\/script')}</script>`
     let page = boutique.siteHtml.replace(/<script[^>]+src=["']\/dropshop\/sdk\.js["'][^>]*><\/script>/i, () => moteurInline)
     if (!page.includes(moteurInline)) page = page.replace('</body>', `${moteurInline}\n</body>`)
-    page = page.replace('</head>', `${config}\n</head>`)
+    page = page.replace('</head>', () => `${config}\n${scriptInfos()}\n</head>`)
     res.type('html')
     // Court : le vendeur qui vient de modifier sa boutique veut la voir tout de suite.
     res.set('Cache-Control', 'public, max-age=30')
@@ -148,7 +164,7 @@ vitrineRouter.get('/:slug', async (req, res) => {
   // Court : le vendeur qui change son thème veut le voir tout de suite, mais
   // la page elle-même est identique pour tous et vaut d'être mise en cache.
   res.set('Cache-Control', 'public, max-age=60')
-  res.send(page.replace('</head>', `${config}\n  </head>`))
+  res.send(page.replace('</head>', () => `${config}\n${scriptInfos()}\n  </head>`))
 })
 
 export { pourScript }

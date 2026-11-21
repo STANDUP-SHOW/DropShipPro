@@ -105,12 +105,13 @@ const PRODUITS = {
 
 /* ---------- Montage ---------- */
 
-async function ouvrirVitrine({ surCommande, api = 'https://api.test', panne = false } = {}) {
+async function ouvrirVitrine({ surCommande, api = 'https://api.test', panne = false, url = 'https://api.test/b/france-robotique', paye = false, avant } = {}) {
   const appels = []
   const dom = new JSDOM(PAGE, {
     runScripts: 'dangerously',
-    url: 'https://api.test/b/france-robotique',
+    url,
     beforeParse(w) {
+      if (avant) avant(w)
       w.BOUTIQUE = { api, shopKey: 'cle-test' }
       w.scrollTo = () => {}
       w.fetch = (url, options = {}) => {
@@ -119,8 +120,10 @@ async function ouvrirVitrine({ surCommande, api = 'https://api.test', panne = fa
         const reponds = (status, corps) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(corps) })
         if (String(url).includes('/theme')) return reponds(200, THEME)
         if (String(url).endsWith('/products')) return reponds(200, PRODUITS)
-        if (String(url).endsWith('/orders')) {
-          const commande = surCommande ? surCommande(url, options) : { status: 201, corps: { ok: true, commandes: 1 } }
+        // Since 21/11/2026 the themed shop pays by card: /checkout opens a payment (a hash stands in for Stripe).
+        if (String(url).includes('/checkout/cs_')) return reponds(200, { paye })
+        if (String(url).endsWith('/checkout')) {
+          const commande = surCommande ? surCommande(url, options) : { status: 201, corps: { ok: true, commandes: 1, paiement: '#/merci' } }
           return reponds(commande.status, commande.corps)
         }
         return Promise.reject(new Error('adresse inattendue : ' + url))
@@ -247,7 +250,7 @@ async function main() {
   const achat = await ouvrirVitrine({
     surCommande: (url, options) => {
       recu = { url, corps: JSON.parse(options.body), contentType: (options.headers || {})['Content-Type'] }
-      return { status: 201, corps: { ok: true, commandes: 1 } }
+      return { status: 201, corps: { ok: true, commandes: 1, paiement: '#/merci' } }
     },
   })
   await aller(achat.w, '#/p/p3')
@@ -264,19 +267,27 @@ async function main() {
   form.dispatchEvent(new achat.w.Event('submit', { bubbles: true, cancelable: true }))
   await attendre(() => achat.w.location.hash.startsWith('#/merci'))
   verifierSansLever('la commande part à la bonne adresse en JSON', () =>
-    recu && recu.url === 'https://api.test/api/public/shops/cle-test/orders' && recu.contentType === 'application/json')
+    recu && recu.url === 'https://api.test/api/public/shops/cle-test/checkout' && recu.contentType === 'application/json' && recu.corps.retour === 'https://api.test/b/france-robotique')
   verifierSansLever('le corps porte l\'acheteur complet et les lignes', () => {
-    // Le contrat de POST /shops/:shopKey/orders, écrit en dur : buyer
+    // Le contrat de POST /shops/:shopKey/checkout, écrit en dur : buyer
     // {name, street, zip, city, email?} et lignes [{productId, quantity}].
     const b = recu.corps.buyer
     return b.name === 'Jean Testeur' && b.street === '12 rue des Bancs' && b.zip === '34000' &&
       b.city === 'Montpellier' && b.email === 'jean@test.fr' &&
       recu.corps.lignes.length === 1 && recu.corps.lignes[0].productId === 'p3' && recu.corps.lignes[0].quantity === 2
   })
-  verifierSansLever('après commande : merci affiché et panier vidé', () =>
-    achat.d.getElementById('page').textContent.includes('Merci pour votre commande') &&
-    JSON.parse(achat.w.localStorage.getItem('vitrine-panier-cle-test')).length === 0 &&
-    achat.d.getElementById('compte-panier').textContent === '0')
+  verifierSansLever('sans paiement confirmé : pas de « merci », panier gardé', () =>
+    achat.d.getElementById('page').textContent.includes('Paiement non confirmé') &&
+    JSON.parse(achat.w.localStorage.getItem('vitrine-panier-cle-test')).length === 1)
+  const retour = await ouvrirVitrine({
+    url: 'https://api.test/b/france-robotique?session_id=cs_banc#/merci',
+    paye: true,
+    avant: (w) => w.localStorage.setItem('vitrine-panier-cle-test', JSON.stringify([{ productId: 'p3', quantity: 2 }])),
+  })
+  await attendre(() => retour.d.getElementById('page').textContent.includes('Merci pour votre commande'))
+  verifierSansLever('retour de Stripe payé : merci affiché et panier vidé', () =>
+    retour.d.getElementById('page').textContent.includes('Merci pour votre commande') &&
+    JSON.parse(retour.w.localStorage.getItem('vitrine-panier-cle-test')).length === 0)
 
   const refus = await ouvrirVitrine({
     surCommande: () => ({ status: 400, corps: { error: 'Un produit du panier n\'est plus disponible' } }),
