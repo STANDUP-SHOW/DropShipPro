@@ -5,6 +5,9 @@ import { apiBaseUrl } from '../lib/urls.js'
 import { ADMIN_EMAIL, requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { BOUTIQUE_MODIFS_ILLIMITEES, DROPS } from '../services/tarifs.js'
 import { rateLimit } from '../middleware/rateLimit.js'
+import { mettreEnBoutique, produitsDuStudio, remplirSiVide, retirerDeBoutique } from '../services/boutiqueProduits.js'
+import { etatCompte, lienInscription } from '../services/marketStripe.js'
+import { paiementPlateformeOuvert } from '../services/paiementBoutique.js'
 import { SiteImpossible } from '../services/siteGenerator.js'
 import { accesProvisoireBackOffice, catalogueDe as catalogueExtensionsDe, desinstallerExtension, ExtensionRefusee, installerExtension } from '../services/extensions.js'
 import {
@@ -129,6 +132,8 @@ dropshopRouter.post('/:shopId/creer', async (req: AuthedRequest, res) => {
   const parsed = briefSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Brief invalide' })
   try {
+    // Une boutique ne naît plus vide : les produits libres du vendeur y entrent (boutiqueProduits.ts).
+    await remplirSiVide(req.userId!, shop.id).catch((e) => console.error('[dropshop] remplissage', e instanceof Error ? e.message : e))
     const etat = await lancerCreation(shop, parsed.data.description, {}, { gamme: parsed.data.gamme ?? null, modesVisiteur: Boolean(parsed.data.modesVisiteur), direction: parsed.data.direction ?? null })
     res.status(202).json({ travail: etat })
   } catch (e) {
@@ -248,4 +253,79 @@ dropshopRouter.delete('/:shopId/stripe', async (req: AuthedRequest, res) => {
   if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
   await prisma.shop.update({ where: { id: shop.id }, data: { stripeSecretKey: null } })
   res.json({ ok: true })
+})
+
+/**
+ * Les produits de la boutique : tous ceux du vendeur, avec ce qui est en vente
+ * ici. Le studio les met ou les retire d'un clic (21/11/2026 : boutiques vides).
+ */
+dropshopRouter.get('/:shopId/produits', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  try {
+    res.json({ produits: await produitsDuStudio(req.userId!, shop.id) })
+  } catch (e) {
+    refus(res, e)
+  }
+})
+
+const produitsSchema = z.object({
+  ajouter: z.array(z.string().min(1)).max(500).default([]),
+  retirer: z.array(z.string().min(1)).max(500).default([]),
+  tous: z.boolean().optional(),
+})
+
+dropshopRouter.post('/:shopId/produits', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  const parsed = produitsSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Liste de produits invalide' })
+  try {
+    let ajouter = parsed.data.ajouter
+    if (parsed.data.tous) {
+      const liste = await produitsDuStudio(req.userId!, shop.id)
+      ajouter = liste.filter((p) => !p.dansBoutique && p.vendable).map((p) => p.id)
+    }
+    const { ajoutes, sansPrix } = await mettreEnBoutique(req.userId!, shop.id, ajouter)
+    const retires = await retirerDeBoutique(req.userId!, shop.id, parsed.data.retirer)
+    res.json({ ajoutes, retires, sansPrix, produits: await produitsDuStudio(req.userId!, shop.id) })
+  } catch (e) {
+    refus(res, e)
+  }
+})
+
+/**
+ * Le paiement de la boutique. Sans clé du marchand, l'acheteur paie sur le
+ * Stripe plateforme et la vente est reversée au vendeur (paiementBoutique.ts) :
+ * il n'a qu'à activer ses paiements (Stripe Connect, formulaire Stripe).
+ */
+dropshopRouter.get('/:shopId/paiements', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  const compte = await etatCompte(req.userId!).catch((e) => {
+    console.error('[dropshop] état Stripe', e instanceof Error ? e.message : e)
+    return { inscrit: false, actif: false, detailsEnvoyes: false, virements: false, erreur: true }
+  })
+  const enAttente = await prisma.order.aggregate({
+    where: { userId: req.userId!, platform: 'OWN_SITE', commission: { not: null }, paidAt: { not: null }, stripeTransferId: null, status: { not: 'REFUNDED' } },
+    _sum: { amount: true },
+    _count: true,
+  })
+  res.json({
+    cleMarchand: Boolean(shop.stripeSecretKey),
+    plateforme: paiementPlateformeOuvert(),
+    compte,
+    enAttente: { ventes: enAttente._count, montant: Number(enAttente._sum.amount ?? 0) },
+  })
+})
+
+dropshopRouter.post('/:shopId/paiements/activer', async (req: AuthedRequest, res) => {
+  const shop = await boutiqueDe(req)
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  try {
+    res.json({ url: await lienInscription(req.userId!, '/creer-boutique') })
+  } catch (e) {
+    console.error('[dropshop] inscription Stripe', e instanceof Error ? e.message : e)
+    res.status(502).json({ error: "Stripe ne répond pas pour le moment. Réessayez dans un instant." })
+  }
 })

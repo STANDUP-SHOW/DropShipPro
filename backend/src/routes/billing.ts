@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 import { PACKS, SIGNUP_CREDITS, appUrl, findPack, getStripe, grantPack } from '../services/billing.js'
 import { confirmerCommandeMarket } from '../services/marketStripe.js'
+import { confirmerPaiementBoutique } from '../services/paiementBoutique.js'
 import { DROPS, EURO_PAR_DROP, USD_PAR_DROP } from '../services/tarifs.js'
 
 export const billingRouter = Router()
@@ -348,12 +349,21 @@ async function handleEvent(event: import('stripe').Stripe.Event) {
     await prisma.order.deleteMany({ where: { stripeSessionId: event.data.object.id, platform: 'DROPSHOP_MARKET', paidAt: null } })
     return
   }
+  if (event.type === 'checkout.session.expired' && event.data.object.metadata?.boutique === '1') {
+    await prisma.order.deleteMany({ where: { stripeSessionId: event.data.object.id, platform: 'OWN_SITE', paidAt: null } })
+    return
+  }
   // Only one-off drops recharges exist now — a completed checkout grants its pack.
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
     // DropShop Market : une vente payée, pas une recharge (voir services/marketStripe.ts).
     if (session.metadata?.market === '1') {
       await confirmerCommandeMarket(session.id)
+      return
+    }
+    // Boutique DropShop payée sur le Stripe plateforme (services/paiementBoutique.ts).
+    if (session.metadata?.boutique === '1') {
+      await confirmerPaiementBoutique(session.id)
       return
     }
     const userId = session.metadata?.userId

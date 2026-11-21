@@ -8,6 +8,7 @@ import type { MarketClient } from '@prisma/client'
 import { COMMISSION, marketUrl, type Annonce, type Offre } from './market.js'
 import type { LigneResolue } from './marketPanier.js'
 import { emettreAvoir, facturerAutomatiquement } from './marketFactures.js'
+import { verserPartsBoutiqueEnAttente } from './paiementBoutique.js'
 
 /**
  * Les paiements de DropShop Market, par Stripe Connect.
@@ -40,7 +41,7 @@ export function commissionCentimes(totalCentimes: number): number {
  * formulaire Stripe. Un compte déjà créé n'est jamais recréé : on renvoie un
  * nouveau lien d'inscription sur le même.
  */
-export async function lienInscription(userId: string): Promise<string> {
+export async function lienInscription(userId: string, chemin = '/dropshop-market'): Promise<string> {
   const s = stripe()
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, stripeConnectId: true } })
 
@@ -58,7 +59,7 @@ export async function lienInscription(userId: string): Promise<string> {
     await prisma.user.update({ where: { id: user.id }, data: { stripeConnectId: compte } })
   }
 
-  const retour = `${frontendUrl()}/dropshop-market`
+  const retour = `${frontendUrl()}${chemin}`
   const lien = await s.accountLinks.create({
     account: compte,
     type: 'account_onboarding',
@@ -83,6 +84,8 @@ export async function etatCompte(userId: string) {
   }
   // Les ventes faites avant l'activation : leur part attendait, on la verse.
   if (actif) await verserPartsEnAttente(userId).catch((e) => console.error('[market] parts en attente', e instanceof Error ? e.message : e))
+  // Et celles de ses boutiques DropShop payées sur le Stripe plateforme.
+  if (actif) await verserPartsBoutiqueEnAttente(userId).catch((e) => console.error('[boutique] parts en attente', e instanceof Error ? e.message : e))
   return {
     inscrit: true,
     actif,
