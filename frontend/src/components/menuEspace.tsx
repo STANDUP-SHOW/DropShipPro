@@ -35,6 +35,7 @@ import {
   Trophy,
   Truck,
   UserRound,
+  Wallet,
   Users,
   Wand2,
   Wrench,
@@ -187,6 +188,7 @@ export const GROUPES: GroupeMenu[] = [
     teinte: '#b8c0d0',
     entrees: [
       { to: '/comptabilite', label: 'Comptabilité', icon: Calculator },
+      { to: '/portefeuille', label: 'Mon portefeuille', icon: Wallet, mots: 'wallet ventes argent virement iban paiements stripe encaissement' },
       { to: '/credits', label: 'Mes crédits', icon: DropCoin, mots: 'drops solde factures' },
       { to: '/settings', label: 'Réglages', icon: Settings, mots: 'compte' },
       { to: '/api-links', label: 'Connexions avancées', icon: Plug, mots: 'api clés' },

@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js'
 import { SUPPLIERS } from '../services/suppliers.js'
 import { CANAUX } from '../services/channelDirectory.js'
 import { DEPARTMENTS } from '../services/departments.js'
+import { estFournisseur } from '../services/sourcesFournisseurs.js'
 
 /**
  * Le tableau de bord statistiques.
@@ -37,15 +38,26 @@ const RESEAUX_VISES = 8
 
 statsRouter.get('/jauges', async (req: AuthedRequest, res) => {
   const userId = req.userId!
-  const [annonces, fournisseurs, marketplaces, agents, sociaux] = await Promise.all([
+  /*
+   * Mêmes définitions que les pages où mène chaque jauge (21/11/2026, constaté en
+   * ligne : « Agents IA 24 / 23 », « Market places 1 » contre 3 sur /plateformes-vente,
+   * « Fournisseurs 3 » contre 22 sur /fournisseurs) :
+   * - fournisseurs : les sites d'où viennent ses produits (hors outils, code, inscriptions),
+   * - marketplaces : reliées OU portant au moins une annonce publiée,
+   * - agents : un rayon distinct du catalogue compte une fois.
+   */
+  const [annonces, sources, reliees, publiees, rayons, sociaux] = await Promise.all([
     prisma.product.count({ where: { userId } }),
-    prisma.supplierConnection.count({ where: { userId, connected: true } }),
-    prisma.platformCredential.count({ where: { userId, connected: true } }),
-    // Les rayons confiés : plus d'abonnement (07/09/2026), un rayon confié est
-    // toujours en poste. La jauge compte donc tous les rayons du vendeur.
-    prisma.department.count({ where: { userId } }),
+    prisma.product.findMany({ where: { userId, sourceSite: { not: null } }, select: { sourceSite: true }, distinct: ['sourceSite'] }),
+    prisma.platformCredential.findMany({ where: { userId, connected: true }, select: { platform: true } }),
+    prisma.publication.findMany({ where: { status: 'PUBLISHED', product: { userId } }, select: { platform: true }, distinct: ['platform'] }),
+    prisma.department.findMany({ where: { userId }, select: { key: true } }),
     prisma.socialAccount.count({ where: { userId } }),
   ])
+  const fournisseurs = new Set(sources.map((p) => p.sourceSite).filter(estFournisseur).map((s) => s.toLowerCase().replace(/^www\./, ''))).size
+  const marketplaces = new Set([...reliees, ...publiees].map((p) => p.platform)).size
+  const cles = new Set(DEPARTMENTS.map((d) => d.key))
+  const agents = new Set(rayons.map((r) => r.key).filter((k) => cles.has(k))).size
 
   const jauges = {
     annonces: { fait: annonces, total: PLAFOND_ANNONCES },

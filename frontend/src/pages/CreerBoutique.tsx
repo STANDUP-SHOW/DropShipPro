@@ -1672,7 +1672,7 @@ function BlocPaiement(props: {
           </p>
           {etat ? (
             actif ? (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-200"><CheckCircle2 size={13} /> Paiements activés : vos ventes vous sont virées automatiquement.</p>
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-200"><CheckCircle2 size={13} /> Paiements activés : vos ventes vous sont virées automatiquement. <a href="/portefeuille" className="underline">Mon portefeuille</a></p>
             ) : (
               <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-xs text-amber-100">
                 <p>
@@ -1682,6 +1682,7 @@ function BlocPaiement(props: {
                 <button type="button" onClick={activer} disabled={occupe} className="btn-dropshop mt-2 rounded-xl px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">
                   {occupe ? 'Ouverture de Stripe…' : 'Activer mes paiements'}
                 </button>
+                <a href="/portefeuille" className="ml-3 text-xs underline">Voir mon portefeuille</a>
               </div>
             )
           ) : null}

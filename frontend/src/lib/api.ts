@@ -224,6 +224,24 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json()
 }
 
+/** Le portefeuille du vendeur (routes/portefeuille.ts). */
+export interface Portefeuille {
+  mode: 'test' | 'reel' | null
+  compte: { inscrit: boolean; actif: boolean; detailsEnvoyes: boolean; virements: boolean; manque?: string[]; erreur?: boolean }
+  solde: { enAttente: number; verse: number; chezVous: number; surCompte: { disponible: number; enCours: number } | null }
+  ventes: Array<{
+    id: string
+    date: string
+    canal: string
+    titre: string
+    quantite: number
+    montant: number
+    commission: number
+    part: number
+    statut: 'versee' | 'en-attente' | 'chez-vous' | 'remboursee'
+  }>
+}
+
 /** L'avis d'un chef de rayon sur un produit, en trois volets. */
 export interface ProductReview {
   id: string
@@ -1281,6 +1299,11 @@ export const api = {
   /** Le paiement de la boutique : clé du marchand, ou Stripe plateforme reversé au vendeur. */
   dropshopPaiements: (shopId: string) => request<PaiementsBoutique>(`/dropshop/${shopId}/paiements`),
   dropshopPaiementsActiver: (shopId: string) => request<{ url: string }>(`/dropshop/${shopId}/paiements/activer`, { method: 'POST' }),
+  /** Le portefeuille du vendeur : ventes des vitrines et du Market, solde en attente et sur Stripe (21/11/2026). */
+  portefeuille: () => request<Portefeuille>('/portefeuille'),
+  portefeuilleActiver: () => request<{ url: string }>('/portefeuille/activer', { method: 'POST' }),
+  portefeuilleRetirer: () => request<{ ok: true; montant: number; arrivee: string | null }>('/portefeuille/retirer', { method: 'POST' }),
+  portefeuilleStripe: () => request<{ url: string }>('/portefeuille/stripe', { method: 'POST' }),
 
   createShop: (data: { name: string; platform?: string; sectors?: string[]; siteUrl?: string | null }) =>
     request<{ id: string; name: string; shopKey: string }>('/settings/shops', {

@@ -56,7 +56,8 @@ c.produit(id)  c.parCategorie(slug)  c.rechercher(texte)  c.categorieDe(produit)
 c.panier       { lignes: [{ produit, quantite, total }], nombre, sousTotal, port, total, vide }
 c.prix(n)      « 24,90 € »      c.html(s)  échappe une chaîne (OBLIGATOIRE sur tout texte du catalogue)
 c.photo(produit, i)   adresse de la photo i (0 par défaut), ou '' s'il n'y en a pas — prévoir ce cas
-c.lien         { accueil: '#/', boutique: '#/boutique', categorie(slug), produit(id), panier: '#/panier', commande: '#/commande', recherche(q) }
+c.lien         { accueil: '#/', boutique: '#/boutique', categorie(slug), produit(id), panier: '#/panier', commande: '#/commande', recherche(q),
+                 mentions, cgv, retours, contact }   (pages légales servies par le moteur : #/infos/<page>)
 c.route        { page, param }
 c.commande     { erreur, envoi, paiement: 'stripe' | 'sans' }   erreur à afficher si présente ; envoi = désactiver le bouton
 c.merci        { nombre, paye, attente }   attente = paiement en cours de confirmation
@@ -75,6 +76,8 @@ Le moteur branche ces attributs lui-même. La page n'écrit AUCUN `onclick`, `ad
 ```
 
 Les liens sont de simples `<a href="#/…">` : `#/` `#/boutique` `#/c/<slug>` `#/p/<id>` `#/panier` `#/commande`.
+
+**Pied de page obligatoire** : des liens vers `c.lien.mentions` (Mentions légales), `c.lien.cgv` (Conditions de vente), `c.lien.retours` (Livraison et retours) et `c.lien.contact` (Contact). Le moteur rend ces pages lui-même, dans ton `cadre` : n'écris pas leur contenu. Jamais de lien de service client vers `#/boutique` ou `#`. Pas de promesse que la boutique ne tient pas (« SAV France », « retours offerts »…) : le texte du service client renvoie à ces pages.
 
 ## Interdits (la page est refusée)
 

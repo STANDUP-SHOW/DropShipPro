@@ -20,6 +20,7 @@ import { reviewsRouter } from './routes/reviews.js'
 import { agentRouter } from './routes/agent.js'
 import { mobileRouter } from './routes/mobile.js'
 import { dropshopRouter } from "./routes/dropshop.js"
+import { portefeuilleRouter } from "./routes/portefeuille.js"
 import { reprendreTravauxOrphelins } from "./services/dropshopJobs.js"
 import { shopAdminRouter } from "./routes/shopAdmin.js"
 import { marketReportsRouter } from './routes/marketReports.js'
@@ -160,6 +161,7 @@ app.use('/api/agent', agentRouter)
 app.use('/api/mobile', mobileRouter)
 app.use('/api/market-reports', marketReportsRouter)
 app.use('/api/dropshop', dropshopRouter)
+app.use('/api/portefeuille', portefeuilleRouter)
 // Le Market par clé d'API, pour les vendeurs sans boutique (12/10/2026). Avant /api/market.
 app.use('/api/market/v1', marketCleRouter)
 app.use('/api/market', marketApiRouter)

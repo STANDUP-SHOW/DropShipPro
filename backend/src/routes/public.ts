@@ -19,6 +19,8 @@ import { z } from 'zod'
 import { codeBarresDe } from '../services/productFacts.js'
 import { lireReseaux } from '../services/reseauxSociaux.js'
 import { desinscrire, jetonValide } from '../services/newsletter.js'
+import { infosVitrine } from '../services/vitrineLegal.js'
+import { sendMail } from '../services/mailer.js'
 
 export const publicRouter = Router()
 
@@ -606,77 +608,70 @@ const commandeVitrineSchema = z.object({
   lignes: z.array(ligneCommandeSchema).min(1).max(20),
 })
 
+/*
+ * L'ancienne commande sans paiement : refusée depuis le 21/11/2026.
+ * Elle enregistrait une commande « à encaisser par le marchand » que personne
+ * n'encaissait (constaté en ligne). Toute vitrine passe par `/checkout`, qui
+ * ouvre le paiement par carte ou refuse.
+ */
+publicRouter.post('/shops/:shopKey/orders', (_req, res) => {
+  res.status(410).json({ error: 'Cette page de commande est périmée : rechargez la boutique pour payer par carte.' })
+})
+
+/*
+ * Les pages légales et le contact d'une vitrine (21/11/2026) : mentions
+ * légales, CGV, livraison et retours, écrites par services/vitrineLegal.ts.
+ */
+publicRouter.get('/shops/:shopKey/infos', async (req, res) => {
+  const shop = await prisma.shop.findUnique({
+    where: { shopKey: req.params.shopKey },
+    select: { name: true, stripeSecretKey: true, themeId: true, themeTokens: true, storefront: true, logo: true, vitrineLogoEntete: true, vitrineLogoAccueil: true, user: { select: { factureIdentite: true } } },
+  })
+  if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
+  const contenu = resoudre(shop).contenu
+  res.set('Cache-Control', 'public, max-age=60')
+  res.json(
+    infosVitrine({
+      nom: shop.name,
+      factureIdentite: shop.user.factureIdentite,
+      paiement: shop.stripeSecretKey ? 'marchand' : paiementPlateformeOuvert() ? 'plateforme' : 'indisponible',
+      fraisPort: Number(contenu.fraisPort) || 0,
+      portOffertDes: Number(contenu.portOffertDes) || 0,
+    }),
+  )
+})
+
+const contactSchema = z.object({
+  nom: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(200),
+  sujet: z.string().trim().max(120).optional(),
+  message: z.string().trim().min(5).max(4000),
+})
+
+/** Le formulaire de contact d'une vitrine : transmis au vendeur, il répond directement à l'acheteur. */
 publicRouter.post(
-  '/shops/:shopKey/orders',
-  rateLimit({ name: 'commande-vitrine', windowMs: 3600_000, max: 20 }),
+  '/shops/:shopKey/contact',
+  rateLimit({ name: 'contact-vitrine', windowMs: 3600_000, max: 5 }),
   async (req, res) => {
-    const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey } })
+    const shop = await prisma.shop.findUnique({ where: { shopKey: req.params.shopKey }, select: { name: true, user: { select: { email: true } } } })
     if (!shop) return res.status(404).json({ error: 'Boutique introuvable' })
-
-    const parsed = commandeVitrineSchema.safeParse(req.body)
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Commande incomplète : vérifiez vos coordonnées et votre panier.' })
+    const parsed = contactSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'Indiquez votre nom, un email valide et votre message.' })
+    const m = parsed.data
+    try {
+      await sendMail({
+        to: shop.user.email,
+        replyTo: m.email,
+        subject: `[${shop.name}] ${m.sujet || "Message d'un client"}`.slice(0, 180),
+        heading: `Message d'un client de ${shop.name}`,
+        body: `De : ${m.nom} (${m.email})\n\n${m.message}\n\nRépondez simplement à cet email : votre réponse part chez le client.`,
+        footer: 'Message envoyé depuis la page Contact de votre boutique, par DropShipper IA.',
+      })
+      res.json({ ok: true })
+    } catch (e) {
+      console.error('[contact vitrine]', e instanceof Error ? e.message : e)
+      res.status(502).json({ error: "Le message n'a pas pu partir. Réessayez dans un instant." })
     }
-
-    // Seuls les produits réellement en vitrine de CETTE boutique se commandent.
-    const publiees = await prisma.publication.findMany({
-      where: {
-        platform: 'OWN_SITE',
-        status: 'PUBLISHED',
-        productId: { in: parsed.data.lignes.map((l) => l.productId) },
-        product: { shopId: shop.id },
-      },
-      include: { product: true },
-    })
-    const parProduit = new Map(publiees.map((p) => [p.productId, p.product]))
-    const introuvable = parsed.data.lignes.find((l) => !parProduit.has(l.productId))
-    if (introuvable) {
-      return res.status(400).json({ error: "Un article du panier n'est plus disponible dans cette boutique." })
-    }
-
-    const { buyer } = parsed.data
-    const adresse = {
-      street: buyer.street,
-      zip: buyer.zip,
-      city: buyer.city,
-      country: buyer.country || 'France',
-      ...(buyer.phone ? { phone: buyer.phone } : {}),
-      ...(buyer.email ? { email: buyer.email } : {}),
-    }
-
-    const creees = await prisma.$transaction(
-      parsed.data.lignes.map((l) => {
-        const produit = parProduit.get(l.productId)!
-        // Le prix vient de la base : celui affiché par la vitrine au moment T.
-        const unitaire = Number(produit.sellingPrice ?? produit.price)
-        return prisma.order.create({
-          data: {
-            userId: shop.userId,
-            productId: l.productId,
-            platform: 'OWN_SITE',
-            status: 'NEW',
-            buyerName: buyer.name,
-            buyerAddress: adresse,
-            amount: Math.round(unitaire * l.quantity * 100) / 100,
-            currency: produit.currency ?? 'EUR',
-            quantity: l.quantity,
-          },
-          select: { id: true },
-        })
-      }),
-    )
-
-    const lignes = parsed.data.lignes.map((l) => {
-      const produit = parProduit.get(l.productId)!
-      const unitaire = Number(produit.sellingPrice ?? produit.price)
-      return { titre: produit.aiTitle || produit.title, quantite: l.quantity, prixUnitaire: unitaire, total: Math.round(unitaire * l.quantity * 100) / 100 }
-    })
-    const contenu = resoudre(shop).contenu
-    const sousTotal = lignes.reduce((s, l) => s + l.total, 0)
-    const port = sousTotal >= contenu.portOffertDes ? 0 : contenu.fraisPort
-    void notifierCommande({ shop, acheteur: { ...buyer, country: adresse.country }, lignes, port, paye: false })
-
-    res.status(201).json({ ok: true, commandes: creees.length })
   },
 )
 
@@ -745,6 +740,11 @@ publicRouter.post(
     const sousTotal = lignes.reduce((s, l) => s + l.total, 0)
     const port = sousTotal >= contenu.portOffertDes ? 0 : contenu.fraisPort
 
+    // Jamais de commande sans encaissement (21/11/2026) : sans Stripe, on refuse AVANT d'écrire.
+    if (!shop.stripeSecretKey && !paiementPlateformeOuvert()) {
+      return res.status(503).json({ error: "Le paiement en ligne de cette boutique est momentanément indisponible : aucune commande n'a été passée. Réessayez plus tard." })
+    }
+
     const creees = await prisma.$transaction(
       lignes.map((l) =>
         prisma.order.create({
@@ -769,10 +769,6 @@ publicRouter.post(
     if (!shop.stripeSecretKey) {
       // Sans clé du marchand : paiement par carte sur le Stripe plateforme, reversé au vendeur
       // (services/paiementBoutique.ts). Seulement si la plateforme n'a pas de Stripe : commande sans paiement.
-      if (!paiementPlateformeOuvert()) {
-        void notifierCommande({ shop, acheteur, lignes, port, paye: false })
-        return res.status(201).json({ ok: true, commandes: creees.length, paiement: null })
-      }
       try {
         const paiement = await ouvrirPaiementPlateforme({ shop, lignes, port, acheteur, retour, commandes: creees.map((c) => c.id) })
         await prisma.order.updateMany({

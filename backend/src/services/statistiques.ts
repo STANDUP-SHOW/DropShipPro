@@ -3,6 +3,10 @@ import { EURO_PAR_DROP } from './tarifs.js'
 import { PLATFORMS } from './platforms.js'
 import type { Order, Platform } from '@prisma/client'
 import { baseRapports } from '../routes/reportsPublic.js'
+import { estFournisseur } from './sourcesFournisseurs.js'
+
+/** Un site source ramené à son hôte, sans www : « www.temu.com » et « temu.com » sont un seul fournisseur. */
+const hote = (s: string) => s.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[/:].*$/, '').replace(/^www\./, '')
 import { compteurs as compteursSynthese, datesSyntheses, lireSynthese, SYNTHESES_PUBLIEES } from './synthesesQuotidiennes.js'
 
 /** « Acheter maintenant », « Acheter si négocié », « BUY », « TOP » : a favourable verdict; « Ne pas acheter », « À surveiller » are not. */
@@ -299,8 +303,8 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
         {
           id: 'sources',
           label: 'Fournisseurs sources',
-          valeur: new Set(produits.map((p) => p.sourceSite).filter(Boolean)).size,
-          parts: repartition([...produits.reduce((m, p) => (p.sourceSite ? m.set(p.sourceSite, (m.get(p.sourceSite) ?? 0) + 1) : m), new Map<string, number>()).entries()]),
+          valeur: new Set(produits.map((p) => p.sourceSite).filter(estFournisseur).map(hote)).size,
+          parts: repartition([...produits.reduce((m, p) => (estFournisseur(p.sourceSite) ? m.set(hote(p.sourceSite), (m.get(hote(p.sourceSite)) ?? 0) + 1) : m), new Map<string, number>()).entries()]),
         },
         { id: 'categories', label: 'Catégories', valeur: new Set(produits.map((p) => p.categoryId).filter(Boolean)).size },
         { id: 'evolution', label: 'Évolution acquisition', valeur: evolution(acquis.length, acquisAvant.length), unite: '%', ...(acquisAvant.length ? {} : pasEncore('Pas de période précédente à comparer.')) },
@@ -316,14 +320,15 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
     const achats = cmdFournisseur.reduce((s, o) => s + num(o.supplierOrderCost), 0)
     const parSource = new Map<string, { produits: number; ca: number; marge: number }>()
     for (const p of produits) {
-      if (!p.sourceSite) continue
-      const l = parSource.get(p.sourceSite) ?? { produits: 0, ca: 0, marge: 0 }
+      if (!estFournisseur(p.sourceSite)) continue
+      const l = parSource.get(hote(p.sourceSite)) ?? { produits: 0, ca: 0, marge: 0 }
       l.produits += 1
-      parSource.set(p.sourceSite, l)
+      parSource.set(hote(p.sourceSite), l)
     }
     for (const o of commandes) {
-      const site = produitParId.get(o.productId)?.sourceSite
-      if (!site) continue
+      const brut = produitParId.get(o.productId)?.sourceSite
+      if (!estFournisseur(brut)) continue
+      const site = hote(brut)
       const l = parSource.get(site) ?? { produits: 0, ca: 0, marge: 0 }
       l.ca += num(o.amount)
       l.marge += num(o.amount) - coutFournisseur(o, coutDe)
@@ -384,7 +389,9 @@ export async function tableauDeBord(userId: string, du: Date, au: Date): Promise
 
   // --- 05 · Marketplaces ----------------------------------------------------
   {
-    const actives = new Set(publiees.map((p) => p.platform))
+    // Reliées OU portant une annonce publiée : la même définition que la jauge du bandeau (21/11/2026).
+    const reliees = await prisma.platformCredential.findMany({ where: { userId, connected: true }, select: { platform: true } })
+    const actives = new Set([...publiees.map((p) => p.platform), ...reliees.map((p) => p.platform)])
     const sansVenteMk = [...actives].filter((m) => !parPlateforme.has(m))
     blocs.push({
       id: 'marketplaces',

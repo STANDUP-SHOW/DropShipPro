@@ -62,6 +62,8 @@
   var etatMerci = { nombre: 0, paye: false, attente: false }
   var pageCourante = null
   var pret = false
+  var infos = null
+  var INFOS = window.DropShopInfos || null
 
   /* ---------- Outils ---------- */
   function html(v) {
@@ -212,6 +214,7 @@
     if (h === '/panier') return { page: 'panier', param: null, params: params }
     if (h === '/commande') return { page: 'commande', param: null, params: params }
     if (h === '/merci') return { page: 'merci', param: null, params: params }
+    if ((m = /^\/infos\/([a-z-]+)$/.exec(h))) return { page: 'infos', param: m[1], params: params }
     return { page: 'introuvable', param: h, params: params }
   }
   var lien = {
@@ -222,6 +225,11 @@
     panier: '#/panier',
     commande: '#/commande',
     recherche: function (q) { return '#/boutique?q=' + encodeURIComponent(q || '') },
+    infos: function (slug) { return '#/infos/' + slug },
+    mentions: '#/infos/mentions-legales',
+    cgv: '#/infos/cgv',
+    retours: '#/infos/livraison-retours',
+    contact: '#/infos/contact',
   }
 
   function contexte(route) {
@@ -359,6 +367,13 @@
         case 'panier': contenu = ecran('panier', c); break
         case 'commande': contenu = c.panier.vide && !etatCommande.envoi ? ecran('panier', c) : ecran('commande', c); break
         case 'merci': contenu = ecran('merci', c); break
+        case 'infos': {
+          // Pages légales et contact : celles de la page si elle les écrit, sinon celles du moteur.
+          contenu = typeof ecrans.infos === 'function' && infos ? ecran('infos', c, infos.pages && infos.pages[route.param] && { slug: route.param, titre: infos.pages[route.param].titre, html: infos.pages[route.param].html }) : null
+          if (!contenu && INFOS) contenu = INFOS.rendre(route.param, infos)
+          if (!contenu) contenu = ecran('introuvable', c)
+          break
+        }
         default: contenu = ecran('introuvable', c)
       }
       app.innerHTML = typeof ecrans.cadre === 'function' ? ecrans.cadre(c, contenu || '', route.page) : contenu || ''
@@ -369,12 +384,14 @@
     // Après l'écriture de la page, jamais avant : on regarde ce qu'elle affiche
     // réellement pour ne poser que ce qui manque.
     try { poserLogos(c, route) } catch (e) { if (window.console) console.error('[dropshop] logos', e) }
+    try { if (INFOS) INFOS.reparer(app) } catch (e) { if (window.console) console.error('[dropshop] infos', e) }
     if (pageCourante !== route.page + '/' + route.param) {
       pageCourante = route.page + '/' + route.param
       try { window.scrollTo(0, 0) } catch (e) {}
     }
     var titre = c.boutique.nom
     if (route.page === 'produit' && parId(route.param)) titre = parId(route.param).title + ' — ' + titre
+    if (route.page === 'infos' && infos && infos.pages && infos.pages[route.param]) titre = infos.pages[route.param].titre + ' — ' + titre
     document.title = titre
     apresRendu.forEach(function (fn) { try { fn(route.page, c) } catch (e) { if (window.console) console.error('[dropshop] apres', e) } })
   }
@@ -392,7 +409,7 @@
       if (champ && champ.value) q = Number(champ.value)
       ajouter(id, q || 1)
       var libelle = t.getAttribute('data-ajoute') || 'Ajouté ✓'
-      var avant = t.innerHTML
+      var avant = t.innerHTML.replace(/^(\s*)["']\s*\/?>\s*/, '$1')
       t.innerHTML = html(libelle)
       setTimeout(function () { if (t.isConnected) t.innerHTML = avant }, 1200)
       rendre()
@@ -446,10 +463,8 @@
           location.href = r.corps.paiement
           return
         }
-        etatMerci = { nombre: panierVue().nombre, paye: false, attente: false }
-        ecrirePanier([])
-        etatCommande.envoi = false
-        location.hash = '#/merci'
+        // Jamais de « merci » sans paiement (21/11/2026) : le serveur ouvre toujours un paiement ou refuse.
+        throw new Error('Le paiement en ligne de cette boutique est momentanément indisponible : aucune commande n\'a été passée.')
       })
       .catch(function (err) {
         etatCommande.envoi = false
@@ -493,6 +508,10 @@
         if (apparence.boutique[k]) apparence.boutique[k] = photoAbsolue(apparence.boutique[k])
       })
       pret = true
+      if (INFOS) {
+        INFOS.charger(base).then(function (j) { infos = j || { pages: {} }; rendre() })
+        INFOS.brancher(base, rendre)
+      }
     })
   }
 
@@ -523,6 +542,6 @@
     prix: prix,
     html: html,
     lien: lien,
-    version: '1.0',
+    version: '1.1',
   }
 })()

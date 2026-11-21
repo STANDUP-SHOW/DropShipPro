@@ -146,7 +146,7 @@ async function verserSession(s: Stripe, sessionId: string): Promise<void> {
         heading: 'Activez vos paiements pour recevoir cette vente.',
         body: `Un client vient de payer une commande sur votre boutique. Votre part, ${euros(part)} (frais Stripe déduits), est mise de côté.\n\nActivez vos paiements (formulaire Stripe, gratuit, quelques minutes) : elle vous sera virée aussitôt, comme toutes les ventes suivantes.`,
         actionLabel: 'Activer mes paiements',
-        actionUrl: `${frontendUrl()}/creer-boutique`,
+        actionUrl: `${frontendUrl()}/portefeuille`,
         footer: 'Message envoyé par DropShipper IA pour votre boutique DropShop.',
       }).catch(() => {})
     }
