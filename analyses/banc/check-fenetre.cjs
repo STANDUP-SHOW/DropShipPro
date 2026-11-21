@@ -338,10 +338,23 @@ async function lancer({ maison, profil, port, serveur }) {
     // the screen: a checkbox per rayon (2 ticked) and the Serper readings in Réglages
     await a.evaluer(`document.querySelector('#onglets button[data-onglet=rapports]').click()`)
     await pause(300)
-    const coches = JSON.parse(await a.evaluer(`JSON.stringify({ cases: document.querySelectorAll('table input[type=checkbox]').length, cochees: document.querySelectorAll('table input[type=checkbox]:checked').length })`))
-    assert.deepEqual(coches, { cases: 24, cochees: 2 })
+    const coches = JSON.parse(await a.evaluer(`JSON.stringify({ nuit: document.querySelectorAll('table label input[type=checkbox]').length, nuitCochees: document.querySelectorAll('table label input[type=checkbox]:checked').length, rapports: document.querySelectorAll('table input[title="Sélectionner ce rapport"]').length })`))
+    assert.deepEqual(coches, { nuit: 24, nuitCochees: 2, rapports: 3 }, 'une case « nuit » par rayon, une case de sélection par rapport écrit')
     const enLigne = JSON.parse(await a.evaluer(`JSON.stringify([...document.querySelectorAll('table .pastille')].filter((p) => p.textContent === 'en ligne').length)`))
     assert.equal(enLigne, 3, 'la colonne « Site » montre les 3 rapports en ligne')
+    // Max, 21/11/2026: ticked reports get Importer / Consulter / Supprimer
+    const boutons = () => a.evaluer(`JSON.stringify([...document.querySelectorAll('button')].filter((b) => /^(Importer sur le site|Consulter|Supprimer) \\(/.test(b.textContent)).map((b) => [b.textContent, b.disabled]))`).then(JSON.parse)
+    assert.deepEqual(await boutons(), [['Importer sur le site (0)', true], ['Consulter (0)', true], ['Supprimer (0)', true]], 'trois actions, inactives sans sélection')
+    await a.evaluer(`document.querySelector('table input[title="Sélectionner ce rapport"]').click()`)
+    await pause(200)
+    assert.deepEqual(await boutons(), [['Importer sur le site (1)', false], ['Consulter (1)', false], ['Supprimer (1)', false]], 'un rapport coché : les trois actions s’ouvrent')
+    const avantImport = faux.envoyes.length
+    await a.evaluer(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Importer sur le site (1)').click()`)
+    await pause(800)
+    assert.equal(faux.envoyes.length, avantImport + 1, 'Importer renvoie au site le rapport coché, même déjà en ligne')
+    assert.match(await a.evaluer(`document.body.textContent`), /1 rapport\(s\) importé\(s\) sur le site/)
+    await a.capturer(path.join(os.tmpdir(), 'kantix-rapports-du-jour.png'))
+    console.log('ok   Rapports du jour : cases de sélection, Importer / Consulter / Supprimer, import du rapport coché')
     // Administration tab: key created, fingerprint shown (never the key), users listed on demand
     await a.evaluer(`document.querySelector('#onglets button[data-onglet=administration]').click()`)
     await pause(300)

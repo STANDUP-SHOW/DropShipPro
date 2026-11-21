@@ -613,11 +613,11 @@ function conforme(e: { produits: number; urlsDistinctes: number; avecPrix: numbe
 }
 
 /**
- * Below this a report is refused, named, never published (Max, 08/11/2026 :
- * « incomplets », « d'autres sans source ») : a shelf of 20 that brings fewer
- * than 10 products, or not one address to check them against.
+ * Max, 21/11/2026 : « tu importes » — every readable report goes in, whatever its count of
+ * products or addresses; what it lacks is written in its notes (`manques`), never a refusal.
+ * Only a report with no product at all is left out: there is nothing to show.
  */
-export const SEUIL_IMPORT = { produits: 10, adresses: 1 }
+export const SEUIL_IMPORT = { produits: 1, adresses: 0 }
 
 /** How complete a study is, to keep the best of two versions of the same shelf and day. */
 export function completude(e: { produits: number; urlsDistinctes: number; avecPrix: number; avecScore?: number; marketing?: boolean; fiches?: number }): number {
@@ -763,8 +763,7 @@ export async function importerDossierDrive(adresse: string, dates: string[], ess
         if (e.date !== jour.date) notes.unshift(`rangé dans le dossier du ${jour.date}, l'en-tête dit ${e.date} : classé au ${e.date}`)
 
         if (e.produits < SEUIL_IMPORT.produits || e.urlsDistinctes < SEUIL_IMPORT.adresses) {
-          const motif = e.urlsDistinctes < SEUIL_IMPORT.adresses ? 'aucune adresse source : rien ne permet de vérifier ces produits' : `${e.produits} produits seulement (au moins ${SEUIL_IMPORT.produits} attendus)`
-          lignes.push(ligne('refuse', [`sous le seuil d'import : ${motif}`, ...notes]))
+          lignes.push(ligne('refuse', ['aucun produit lisible dans ce rapport', ...notes]))
           continue
         }
         const deja = retenues.get(e.idRayon)
