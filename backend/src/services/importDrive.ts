@@ -41,6 +41,13 @@ const MAX_FICHIERS = 2000
 const delaiMs = () => Number(process.env.DRIVE_DELAI_MS) || 20_000
 /** Undated reports (no AAAA-MM-JJ folder above them) opened to read their own date. */
 const MAX_SANS_DATE = 60
+/**
+ * A listing without a chosen date reads only the most recent date folders: the agent adds one
+ * a day (date + 24 shelves = 25 folders), and past 16 days the whole tree broke MAX_DOSSIERS
+ * (21/11/2026 : « Plus de 400 dossiers », the 18-21/11 reports never shown). Older days are
+ * imported already; an import names its dates and still reaches any of them.
+ */
+const DATES_LISTEES = 10
 
 /** « https://drive.google.com/drive/folders/<id>?usp=sharing », « …?id=<id> » or the bare id. */
 export function idDossierDrive(adresse: string): string {
@@ -261,8 +268,13 @@ export async function listerArbre(racine: string, dateVoulue?: (date: string) =>
       if (dossiers > MAX_DOSSIERS) throw new DriveErreur(`Plus de ${MAX_DOSSIERS} dossiers : donnez un sous-dossier plus précis.`)
       const lus = await Promise.all(lot.map((d) => listerUnDossier(d.id, d.chemin?.join('/') ?? '')))
       lot.forEach((d, k) => {
-        const { nom, entrees } = lus[k]
+        const { nom, entrees: toutes } = lus[k]
         const chemin = d.chemin ?? (nom ? [nom] : [])
+        let entrees = toutes
+        if (!dateVoulue) {
+          const recentes = new Set(toutes.filter((e) => e.dossier && DATE.test(e.nom)).map((e) => e.nom).sort().reverse().slice(0, DATES_LISTEES))
+          entrees = toutes.filter((e) => !(e.dossier && DATE.test(e.nom)) || recentes.has(e.nom))
+        }
         for (const e of entrees) {
           if (e.dossier) {
             if (dateVoulue && DATE.test(e.nom) && !dateVoulue(e.nom)) continue
