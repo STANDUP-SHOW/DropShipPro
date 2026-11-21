@@ -371,7 +371,8 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour ni bloc de code, avec ce f
 }
 
 async function callModel(anthropic: Anthropic, input: EntreeReecriture): Promise<EnhancedListing> {
-  const message = await anthropic.messages.create(construireRequete(input))
+  // Bounded: the SDK default (10 min, 2 retries) left an import « en réécriture » for half an hour (21/11/2026).
+  const message = await anthropic.messages.create(construireRequete(input), { timeout: 120_000, maxRetries: 1 })
   logCost('reecriture', MODEL_ENHANCE, message.usage)
   return interpreter(message, input)
 }

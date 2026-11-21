@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { refundCredits } from './billing.js'
-import { construireRequete, interpreter, type EntreeReecriture } from './aiEnhancer.js'
+import { construireRequete, enhanceListing, interpreter, passthroughDe, type EnhancedListing, type EntreeReecriture } from './aiEnhancer.js'
 
 /**
  * La réécriture des annonces importées en LOT, groupée pour moitié prix.
@@ -61,11 +61,96 @@ export interface ClientBatch {
  * Injectable (`passage`/`client`) pour le banc, qui remplace l'API Batch par un
  * faux serveur au contrat écrit en dur.
  */
-export async function tourneeReecritures(injecte?: ClientBatch, seulement?: string): Promise<void> {
+export async function tourneeReecritures(
+  injecte?: ClientBatch,
+  seulement?: string,
+  direct: (entree: EntreeReecriture) => Promise<EnhancedListing> = enhanceListing,
+): Promise<void> {
   const c = (injecte ?? defautClient()) as ClientBatch | null
   if (!c) return
-  await soumettreEnAttente(c, seulement)
+  await soumettreEnAttente(c, seulement).catch((err) =>
+    console.error('reecriture batch : soumission impossible', err instanceof Error ? err.message : err),
+  )
   await appliquerFinis(c, seulement)
+  await finirEnDirect(seulement, direct)
+}
+
+/**
+ * Au-delà de ce délai, une réécriture n'attend plus le batch.
+ *
+ * 21/11/2026 : cinq annonces d'un lot sont restées « en réécriture » une
+ * demi-heure. Le batch d'Anthropic rend « en secondes à minutes », mais sans
+ * promesse : il peut aussi prendre des heures, ou ne jamais partir si la
+ * soumission échoue. Un vendeur ne doit pas attendre ça. Passé ce délai, la
+ * réécriture est faite par un appel direct (prix plein, une fois), et l'annonce
+ * finit réécrite ou en échec visible, jamais suspendue.
+ */
+export const DELAI_BATCH_MS = 5 * 60_000
+
+async function finirEnDirect(
+  seulement: string | undefined,
+  direct: (entree: EntreeReecriture) => Promise<EnhancedListing>,
+): Promise<void> {
+  const enRetard = await prisma.rewriteJob.findMany({
+    where: {
+      OR: [
+        { statut: { in: ['en_attente', 'soumis'] }, createdAt: { lt: new Date(Date.now() - DELAI_BATCH_MS) } },
+        // Un appel direct interrompu (redémarrage du serveur) est repris plus tard.
+        { statut: 'direct', createdAt: { lt: new Date(Date.now() - 6 * DELAI_BATCH_MS) } },
+      ],
+      ...(seulement ? { userId: seulement } : {}),
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 20,
+  })
+  for (const job of enRetard) {
+    // Réservé avant l'appel : un résultat de batch arrivé entre-temps ne s'appliquera pas deux fois.
+    const pris = await prisma.rewriteJob.updateMany({
+      where: { id: job.id, statut: job.statut },
+      data: { statut: 'direct' },
+    })
+    if (!pris.count) continue
+    const entree = job.entree as unknown as EntreeReecriture & { _cout?: number }
+    let enhanced: EnhancedListing
+    try {
+      enhanced = await direct(entree)
+    } catch (err) {
+      enhanced = { ...passthroughDe(entree), raison: err instanceof Error ? err.message : 'appel impossible' }
+    }
+    if (enhanced.enhanced) {
+      await appliquerReecriture(job.id, job.productId, enhanced)
+    } else {
+      await echecDefinitif(job.id, job.userId, job.productId, entree._cout, `appel direct : ${enhanced.raison ?? 'sans réponse'}`)
+    }
+  }
+}
+
+async function appliquerReecriture(jobId: string, productId: string, enhanced: EnhancedListing): Promise<void> {
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      aiTitle: enhanced.title,
+      aiDescription: enhanced.description,
+      metaTitle: enhanced.metaTitle,
+      metaDescription: enhanced.metaDescription,
+      metaKeywords: enhanced.metaKeywords,
+      titleVariants: enhanced.titleVariants as unknown as object,
+      bulletPoints: enhanced.bulletPoints,
+      attributes: enhanced.attributes as unknown as object,
+      aiEnhanced: true,
+      rewritePending: false,
+    },
+  })
+  await prisma.rewriteJob.update({ where: { id: jobId }, data: { statut: 'fait' } })
+}
+
+/** Texte source gardé, drapeau « en cours » levé, crédit pris rendu (1 pour les anciennes entrées). */
+async function echecDefinitif(jobId: string, userId: string, productId: string, cout: number | undefined, raison: string): Promise<void> {
+  await prisma.product.update({ where: { id: productId }, data: { rewritePending: false } }).catch(() => undefined)
+  const rendu = cout ?? 1
+  if (rendu > 0) await refundCredits(userId, rendu).catch(() => undefined)
+  await prisma.rewriteJob.update({ where: { id: jobId }, data: { statut: 'echec' } })
+  console.error(`reecriture : ${productId} non réécrit (${raison}), ${rendu} drop(s) rendu(s)`)
 }
 
 /**
@@ -156,13 +241,7 @@ async function appliquerResultat(ligne: {
       console.error(`reecriture batch : ${job.productId} non réécrit (${raison}), relancé (passage ${tentatives}/${TENTATIVES_MAX})`)
       return
     }
-    // Échec définitif, comme le chemin synchrone : texte source gardé, crédit
-    // rendu. Le montant pris à l'import (`_cout`) ; 1 pour les anciennes entrées.
-    await prisma.product.update({ where: { id: job.productId }, data: { rewritePending: false } }).catch(() => undefined)
-    const rendu = entree._cout ?? 1
-    if (rendu > 0) await refundCredits(job.userId, rendu).catch(() => undefined)
-    await prisma.rewriteJob.update({ where: { id: job.id }, data: { statut: 'echec' } })
-    console.error(`reecriture batch : ${job.productId} non réécrit (${raison}), ${rendu} drop(s) rendu(s)`)
+    await echecDefinitif(job.id, job.userId, job.productId, entree._cout, `batch : ${raison}`)
   }
 
   if (ligne.result.type !== 'succeeded') {
@@ -176,20 +255,5 @@ async function appliquerResultat(ligne: {
     return
   }
 
-  await prisma.product.update({
-    where: { id: job.productId },
-    data: {
-      aiTitle: enhanced.title,
-      aiDescription: enhanced.description,
-      metaTitle: enhanced.metaTitle,
-      metaDescription: enhanced.metaDescription,
-      metaKeywords: enhanced.metaKeywords,
-      titleVariants: enhanced.titleVariants as unknown as object,
-      bulletPoints: enhanced.bulletPoints,
-      attributes: enhanced.attributes as unknown as object,
-      aiEnhanced: true,
-      rewritePending: false,
-    },
-  })
-  await prisma.rewriteJob.update({ where: { id: job.id }, data: { statut: 'fait' } })
+  await appliquerReecriture(job.id, job.productId, enhanced)
 }

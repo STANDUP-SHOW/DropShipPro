@@ -18,6 +18,7 @@
  */
 import { prisma } from './src/lib/prisma.js'
 import { tourneeReecritures, type ClientBatch } from './src/services/rewriteBatch.js'
+import { passthroughDe } from './src/services/aiEnhancer.js'
 
 let echecs = 0
 function verifier(nom: string, ok: boolean, detail = '') {
@@ -186,6 +187,47 @@ async function main() {
     await tourneeReecritures(client, user.id)
     const creditsApres = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits
     verifier('un second passage ne re-rend ni ne re-débite rien', creditsApres === creditsAvant)
+
+    console.log('\nLe délai garanti (21/11/2026 : cinq annonces « en réécriture » une demi-heure)')
+    // Un batch qui ne finit jamais, et une soumission qui échoue : rien ne doit rester suspendu.
+    const lent: ClientBatch = {
+      messages: {
+        batches: {
+          async create() {
+            throw new Error('soumission refusée')
+          },
+          async retrieve() {
+            return { processing_status: 'in_progress' }
+          },
+          async *results() {},
+        },
+      },
+    }
+    const vite = await faireProduit('Lampe de bureau LED')
+    const muet = await faireProduit('Tapis de yoga liège')
+    const recent = await faireProduit('Gourde inox isotherme')
+    const ilYa = new Date(Date.now() - 6 * 60_000)
+    const jVite = await prisma.rewriteJob.create({ data: { userId: user.id, productId: vite.id, entree: { ...entree(vite), _cout: 8 }, createdAt: ilYa } })
+    const jMuet = await prisma.rewriteJob.create({ data: { userId: user.id, productId: muet.id, entree: { ...entree(muet), _cout: 8 }, createdAt: ilYa } })
+    const jRecent = await prisma.rewriteJob.create({ data: { userId: user.id, productId: recent.id, entree: { ...entree(recent), _cout: 8 } } })
+    const creditsAvantDelai = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits
+    const appels: string[] = []
+    await tourneeReecritures(lent, user.id, async (e) => {
+      appels.push(e.title)
+      if (e.title.startsWith('Tapis')) return { ...passthroughDe(e), raison: 'erreur 529 — surchargé' }
+      return { ...passthroughDe(e), title: `${e.title} — réécrit`, description: 'Description réécrite.', enhanced: true }
+    })
+    verifier('une soumission refusée ne fait pas tomber la tournée', true)
+    verifier('seules les réécritures en retard passent en appel direct', appels.length === 2 && !appels.some((t) => t.startsWith('Gourde')), appels.join(', '))
+    const pVite = await prisma.product.findUniqueOrThrow({ where: { id: vite.id } })
+    verifier('l\'annonce en retard est réécrite et n\'est plus « en cours »', pVite.aiEnhanced && !pVite.rewritePending && /réécrit/.test(pVite.aiTitle ?? ''))
+    const pMuet = await prisma.product.findUniqueOrThrow({ where: { id: muet.id } })
+    verifier('l\'annonce dont le modèle se tait finit en échec visible', !pMuet.aiEnhanced && !pMuet.rewritePending)
+    const creditsApresDelai = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).credits
+    verifier('ses 8 drops sont rendus', creditsApresDelai === creditsAvantDelai + 8, `${creditsAvantDelai} → ${creditsApresDelai}`)
+    const etats = await prisma.rewriteJob.findMany({ where: { id: { in: [jVite.id, jMuet.id, jRecent.id] } } })
+    const etat = (id: string) => etats.find((j) => j.id === id)?.statut
+    verifier('états : fait, echec, et la récente toujours en attente', etat(jVite.id) === 'fait' && etat(jMuet.id) === 'echec' && etat(jRecent.id) === 'en_attente', `${etat(jVite.id)}, ${etat(jMuet.id)}, ${etat(jRecent.id)}`)
   } finally {
     await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined)
   }
