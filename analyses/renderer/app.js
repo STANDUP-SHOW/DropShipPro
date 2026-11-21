@@ -890,6 +890,16 @@ async function synthImporter(essai) {
 }
 
 const euro = (n) => (n === null || n === undefined ? '—' : `${Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`)
+// The supplier page of a product: the sourcing link first (21/11 format), else the first link of the file.
+const lienFournisseur = (p) => (p.liens && (p.liens.sourcing || p.liens.sourcing_primary || Object.values(p.liens)[0])) || ''
+const hoteDe = (u) => { try { return u ? new URL(u).hostname.replace(/^(www|fr)\./, '') : '' } catch { return '' } }
+// Net margin when the file gives one; else target price minus purchase price (computed by the site, shipping and fees not included).
+function celluleMarge(p) {
+  const nette = p.margeNette ?? null
+  const m = nette ?? p.margeBrute ?? null
+  if (m === null) return '—'
+  return h('span', {}, m < 0 ? pastille(euro(m), 'mauvais') : euro(m), nette === null && h('div', { class: 'doux petit' }, 'brute, hors port et frais'))
+}
 
 function vueSyntheses() {
   if (!etat.admin.cle) return sansCleAdmin('Synthèses AIMARKET')
@@ -929,14 +939,17 @@ function vueSyntheses() {
         h('span', { class: 'petit' }, `${n} produit(s) coché(s)`)),
       synth.section === 'listeNoire' && h('p', { class: 'petit' }, 'Liste noire : produits que la synthèse déconseille d’acheter. Ils ne se cochent pas avec « Cocher la section ».'),
       h('table', {},
-        h('thead', {}, h('tr', {}, ['', 'Produit', 'Rayon', 'Décision', 'Score', 'Coût rendu', 'Prix visé', 'Marge'].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['', 'Produit', 'Rayon', 'Décision', 'Score', 'Fournisseur', 'Prix d’achat', 'Prix visé', 'Marge'].map((t) => h('th', {}, t)))),
         h('tbody', {}, ...liste.map((p) => h('tr', {},
           h('td', {}, h('input', { type: 'checkbox', checked: Boolean(synth.choisis[p.id]), onchange: (ev) => { synth.choisis[p.id] = ev.target.checked; rendre() } })),
           h('td', {}, p.nom, p.variante && h('div', { class: 'doux petit' }, p.variante)),
           h('td', { class: 'petit' }, [p.categorieLabel, p.themeLabel].filter(Boolean).join(' › ')),
           h('td', { class: 'petit' }, listeNoire.has(p.id) ? pastille(p.decision || 'liste noire', 'mauvais') : p.decision || '—'),
           h('td', {}, p.score === null ? '—' : String(p.score)),
-          h('td', {}, euro(p.coutRendu)), h('td', {}, euro(p.prixVente)), h('td', {}, euro(p.margeNette)))))),
+          h('td', { class: 'petit' }, p.source || hoteDe(lienFournisseur(p)) || '—',
+            lienFournisseur(p) && h('div', {}, h('button', { class: 'btn', title: lienFournisseur(p), onclick: async () => { if (await appel('copier', lienFournisseur(p))) flash('Lien du fournisseur copié.') } }, 'Copier le lien'))),
+          h('td', {}, euro(p.prixAchat ?? p.coutRendu), p.prixAchat == null && p.coutRendu != null && h('div', { class: 'doux petit' }, 'coût rendu')),
+          h('td', {}, euro(p.prixVente)), h('td', {}, celluleMarge(p)))))),
     ),
     d && h('div', { class: 'carte' },
       h('label', {}, 'Compte DropShipper qui reçoit les produits'),
