@@ -419,6 +419,18 @@ async function dspReleverAdresse(url, nom = null) {
         }
       }
     }
+    /*
+     * Fiche relue quatre fois sans texte : elle ne s'est pas montée (21/11/2026,
+     * « la réécriture n'a pas pu aboutir » en import groupé). Un rechargement
+     * et une lecture de plus, automatiquement : rien n'a été envoyé au serveur,
+     * donc ni drop ni appel IA. Le vendeur n'a rien à refaire à la main.
+     */
+    if (reponse && !reponse.ok && reponse.maigre) {
+      await chrome.tabs.reload(onglet.id)
+      await dspAttendreChargement(onglet.id, 45000).catch(() => undefined)
+      await new Promise((r) => setTimeout(r, 5000))
+      reponse = await dspReleverOnglet(onglet.id).catch((e) => ({ ok: false, error: e?.message || 'Relevé impossible' }))
+    }
     return reponse ?? { ok: false, error: 'Page muette' }
   } finally {
     await chrome.tabs.remove(onglet.id).catch(() => undefined)

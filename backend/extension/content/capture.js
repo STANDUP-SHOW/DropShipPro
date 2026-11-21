@@ -891,10 +891,23 @@
    * bavarde.
    */
   function collectPageText() {
-    const main =
-      document.querySelector('main') ||
-      document.querySelector('[class*="detail" i]') ||
-      document.body
+    /*
+     * The block that carries the sheet, not the first one whose class says
+     * « detail » (21/11/2026: on AliExpress that first match can be a small
+     * header, and the whole read came back with a few words). The longest of
+     * the candidates wins; when none carries a real text, the whole body.
+     */
+    const candidats = [document.querySelector('main'), ...[...document.querySelectorAll('[class*="detail" i]')].slice(0, 40)]
+    let main = null
+    let longueur = 0
+    for (const el of candidats) {
+      const n = (el?.innerText || '').length
+      if (n > longueur) {
+        main = el
+        longueur = n
+      }
+    }
+    if (!main || longueur < 1500) main = document.body
 
     const tableaux = []
     for (const table of document.querySelectorAll('table, dl, [class*="spec" i], [class*="param" i], [class*="attribute" i]')) {
@@ -908,8 +921,17 @@
     }
 
     const corps = (main.innerText || '').replace(/\n{2,}/g, '\n')
+    // Descriptions mounted in an open shadow root (AliExpress) are invisible to innerText.
+    const ombres = []
+    for (const el of document.querySelectorAll('*')) {
+      if (!el.shadowRoot) continue
+      const t = [...el.shadowRoot.children].map((c) => c.innerText || '').join('\n').trim()
+      if (t.length > 40) ombres.push(t)
+      if (ombres.length >= 4) break
+    }
+    const ombre = ombres.length ? `\n${ombres.join('\n')}` : ''
     const entete = tableaux.length ? `CARACTÉRISTIQUES\n${tableaux.join('\n\n')}\n\n` : ''
-    return `${entete}${corps}`.slice(0, 15000)
+    return `${entete}${corps}${ombre}`.slice(0, 15000)
   }
 
   /**
@@ -2081,6 +2103,52 @@
   }
   self.__dspGalerieParFormat = galerieParFormat
 
+  /*
+   * Le seuil du serveur, recopié (backend/src/services/sourceQuality.ts) :
+   * une description qui apporte au moins huit mots que le titre n'a pas, ou un
+   * texte de page qui en apporte trente. Deux seuils différents faisaient
+   * accepter ici une fiche que le serveur refusait ensuite (21/11/2026).
+   * check-capture.cjs vérifie que les deux copies rendent le même verdict.
+   */
+  const MOTS_VIDES_SERVEUR = new Set(
+    ('avec pour dans sans plus tout tous toute toutes cette votre notre nous vous elle leur leurs être etre faire fait sont ' +
+      'très tres chez sous aussi produit produits article articles offres offre prix achat acheter vente livraison gratuite ' +
+      'gratuit boutique magasin magasinez économiser economiser incroyables incroyable trouvez dernière derniere ligne promo ' +
+      'promotion soldes remise connexion panier compte aide cookies confidentialité confidentialite sécurité securite ' +
+      'vérification verification accepter refuser paramètres parametres').split(' '),
+  )
+  const ACCROCHES_SERVEUR = [
+    /trouvez\s+(?:des\s+offres|bague|[^.]{0,60})\s*(?:incroyables?)?\s+sur\b/i,
+    /magasinez\s+sur\s+\w+/i,
+    /find\s+(?:great|amazing)\s+deals\s+on\b/i,
+    /shop\s+(?:on|at)\s+\w+\s+(?:for|to)\s+save/i,
+    /achetez\s+[^.]{0,80}\s+à\s+petit\s+prix/i,
+    /smarter\s+shopping,?\s+better\s+living/i,
+    /qui\s+fait\s+[^.]{0,40}\s+de\s+notre\s+derni[eè]re/i,
+  ]
+  function motsUtilesTexte(texte) {
+    const out = new Set()
+    for (const brut of String(texte || '').toLowerCase().split(/[^a-zà-öø-ÿ0-9]+/)) {
+      if (brut.length < 4 || MOTS_VIDES_SERVEUR.has(brut)) continue
+      out.add(brut)
+    }
+    return out
+  }
+  function apportTexte(texte, titre) {
+    const duTitre = motsUtilesTexte(titre)
+    let n = 0
+    for (const mot of motsUtilesTexte(texte)) if (!duTitre.has(mot)) n++
+    return n
+  }
+  function substanceSuffisante(payload) {
+    const titre = payload?.title || ''
+    const description = String(payload?.description || '').trim()
+    const creuse =
+      description.length < 40 || ACCROCHES_SERVEUR.some((rx) => rx.test(description)) || apportTexte(description, titre) < 8
+    return !creuse || apportTexte(payload?.pageText || '', titre) >= 30
+  }
+  self.__dspSubstanceSuffisante = substanceSuffisante
+
   async function releverPourLot() {
     /*
      * Une fiche, ou rien (13/11/2026 : 50 refus sur 57 dans la file de max).
@@ -2121,19 +2189,32 @@
 
     /*
      * Un texte maigre : la fiche n'a pas fini de se monter (13/11/2026, cinq
-     * annonces sur sept sorties sans réécriture). AliExpress et Temu chargent
-     * description et caractéristiques au défilement, parfois après lui. Une
-     * seconde lecture, après un nouveau passage jusqu'en bas et une pause,
-     * plutôt qu'un import que le serveur refusera faute de matière.
+     * annonces sur sept sorties sans réécriture ; encore le 21/11). AliExpress
+     * et Temu chargent description et caractéristiques au défilement, parfois
+     * longtemps après lui. On relit tant que le texte ne passe pas LE MÊME
+     * seuil que le serveur (`substanceSuffisante`, copie de sourceQuality.ts),
+     * jusqu'à quatre fois, en redescendant la page à chaque passage. Toujours
+     * maigre au bout : refus marqué `maigre`, que le service worker traite en
+     * rechargeant la page une fois. Rien n'est envoyé au serveur : ni drop ni IA.
      */
-    if ((payload.pageText || '').length < 2500 && (payload.description || '').length < 200) {
-      for (const y of [0.5, 1]) {
+    for (let passage = 0; passage < 4 && !substanceSuffisante(payload); passage++) {
+      for (const y of [0.25, 0.5, 0.75, 1]) {
         window.scrollTo(0, document.body.scrollHeight * y)
-        await new Promise((r) => setTimeout(r, 1500))
+        await new Promise((r) => setTimeout(r, 900))
       }
-      await new Promise((r) => setTimeout(r, 2000))
+      await new Promise((r) => setTimeout(r, 1500 + passage * 1000))
       const relu = await buildPayload()
-      if ((relu.pageText || '').length > (payload.pageText || '').length) payload = relu
+      const avant = apportTexte(`${payload.description || ''}\n${payload.pageText || ''}`, payload.title)
+      const apres = apportTexte(`${relu.description || ''}\n${relu.pageText || ''}`, relu.title || payload.title)
+      if (relu.title && apres >= avant) payload = relu
+    }
+    if (!substanceSuffisante(payload)) {
+      const e = new Error(
+        "La fiche ne s'est pas chargée entièrement : presque aucun texte lisible après plusieurs lectures " +
+          '(page lente, vérification du site ou fiche vide). Rien n’a été importé ni facturé.',
+      )
+      e.maigre = true
+      throw e
     }
 
     const produits = Array.isArray(trouve) ? trouve : (trouve?.produits ?? [])
@@ -2212,7 +2293,7 @@
     if (message?.type !== 'dsp-relever-pour-lot') return
     releverPourLot()
       .then((payload) => repondre({ ok: true, payload }))
-      .catch((e) => repondre({ ok: false, error: e?.message || 'Relevé impossible' }))
+      .catch((e) => repondre({ ok: false, error: e?.message || 'Relevé impossible', maigre: Boolean(e?.maigre) }))
     return true
   })
 
