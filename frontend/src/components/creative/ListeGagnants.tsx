@@ -6,6 +6,7 @@ import { useAvecVoieApi } from '../../lib/voieImport'
 import { Fenetre } from './Creative'
 import { dateLongue, liste, lireVerdict, type FamilleVerdict } from './Veille'
 import { api } from '../../lib/api'
+import { SuiviFileImport } from '../SuiviFileImport'
 
 /**
  * Les produits gagnants des rapports, en LISTE (demande de Max du 08/11/2026).
@@ -119,6 +120,7 @@ export function ListeGagnants() {
   const [chargement, setChargement] = useState(true)
   const [enCours, setEnCours] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [envois, setEnvois] = useState(0)
   const [erreur, setErreur] = useState<string | null>(null)
   const [porte, setPorte] = useState<{ seuil: number; drops: number } | null>(null)
 
@@ -255,6 +257,7 @@ export function ListeGagnants() {
     setMessage(null)
     try {
       setMessage(await importerProduits(aFaire, 'gagnants'))
+      setEnvois((n) => n + 1)
       setCoches((c) => {
         const s = new Set(c)
         for (const p of aFaire) s.delete(cle(p))
@@ -383,6 +386,7 @@ export function ListeGagnants() {
         </div>
       ) : null}
       {message ? <p className="mt-3 text-sm text-[var(--c-lime)]">{message}</p> : null}
+      <SuiviFileImport origine="gagnants" rafraichir={envois} />
 
       {/* ---------- La liste ---------- */}
       {erreur ? <p className="mt-4 text-sm text-red-400">{erreur}</p> : null}
