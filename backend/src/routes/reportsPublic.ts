@@ -410,6 +410,62 @@ reportsPublicRouter.get('/analyses-drive-etat', sansCache, (_req, res) => {
 })
 
 /**
+ * GET /reports-incoherences
+ * Audit of every rayon report (ReportQuery.auditRapports, 21/11/2026): how many are coherent, how many prices
+ * are sourced, which agents write the worst data. Counts, places and titles only, never a price: readable
+ * without a key, like /reports-health. `?jour=AAAA-MM-JJ` limits it to one day.
+ */
+reportsPublicRouter.get('/reports-incoherences', sansCache, (req, res) => {
+  try {
+    const jour = typeof req.query.jour === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.jour) ? req.query.jour : null
+    const rapports = baseRapports()
+      .auditRapports()
+      .filter((r) => !jour || r.jour === jour)
+    const somme = (cle: keyof (typeof rapports)[number], l = rapports) => l.reduce((n, r) => n + (Number(r[cle]) || 0), 0)
+    const parAgent = new Map<string, typeof rapports>()
+    for (const r of rapports) parAgent.set(r.agent, [...(parAgent.get(r.agent) ?? []), r])
+    const agents = [...parAgent.entries()]
+      .map(([agent, l]) => ({
+        agent,
+        rapports: l.length,
+        coherents: l.filter((r) => r.aVerifier === 0).length,
+        lignes: somme('lignes', l),
+        aVerifier: somme('aVerifier', l),
+        prixSources: somme('prixSources', l),
+        prixNonSources: somme('prixNonSources', l),
+        venteSousAchat: somme('venteSousAchat', l),
+        achatConseilleContredit: somme('achatConseilleContredit', l),
+        partAVerifier: somme('lignes', l) ? Math.round((somme('aVerifier', l) / somme('lignes', l)) * 100) : 0,
+      }))
+      .sort((a, b) => b.partAVerifier - a.partAVerifier || b.aVerifier - a.aVerifier)
+    const dates = rapports.map((r) => r.jour).sort()
+    res.json({
+      rapports: rapports.length,
+      coherents: rapports.filter((r) => r.aVerifier === 0).length,
+      premierJour: dates[0] ?? null,
+      dernierJour: dates[dates.length - 1] ?? null,
+      lignes: somme('lignes'),
+      lignesAVerifier: somme('aVerifier'),
+      prix: { sources: somme('prixSources'), nonSources: somme('prixNonSources'), absents: somme('sansPrix') },
+      motifs: {
+        venteSousAchat: somme('venteSousAchat'),
+        margeNegative: somme('margeNegative'),
+        achatConseilleContredit: somme('achatConseilleContredit'),
+        scoreEleveMargeNegative: somme('scoreEleveMargeNegative'),
+        ecartMarge: somme('ecartMarge'),
+        venteRepetee: somme('venteRepetee'),
+        sansFournisseur: somme('sansFournisseur'),
+        sansLien: somme('sansLien'),
+      },
+      agents,
+      detail: rapports,
+    })
+  } catch (error) {
+    res.status(500).json({ error: 'Lecture impossible', motif: motif(error) })
+  }
+})
+
+/**
  * GET /reports-health
  * Health check endpoint for reports database
  */

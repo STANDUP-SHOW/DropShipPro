@@ -32,6 +32,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { estPrivee, pourquoiPublic, sansMentionsPrivees } from './analysesPubliques.js'
 import { lienAOuvrir } from './lienVerifie.js'
+import { coherencePrix } from './coherencePrix.js'
 
 const RACINE_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 /** On the Railway volume (storage/). `DOSSIER_SYNTHESES` only for the bench, never in production. */
@@ -61,6 +62,13 @@ export interface ProduitSynthese {
   /** Target price minus purchase price, computed here when both are in the file (shipping, fees and VAT not included). */
   margeBrute: number | null
   roi: number | null
+  /** Set when the prices contradict the decision (coherencePrix.ts): decision and score were corrected. */
+  incoherence?: 'vente-sous-achat' | 'marge-negative' | 'prix-non-source'
+  /** No verified product page behind the prices (search pages only): shown « non sourcé ». */
+  prixNonSource?: boolean
+  /** The agent's own decision and score, kept when they were overridden. */
+  decisionAgent?: string
+  scoreAgent?: number | null
   /**
    * The links to open. A product page the agent did not prove it opened (`url_page_title` carrying the
    * name) is replaced by the same site's search for the name (lienVerifie.ts, 13/11/2026).
@@ -353,10 +361,59 @@ function cheminJour(date: string): string {
 }
 
 export function lireSynthese(date: string): Synthese | null {
+  let s: Synthese
   try {
-    return JSON.parse(fs.readFileSync(cheminJour(date), 'utf8')) as Synthese
+    s = JSON.parse(fs.readFileSync(cheminJour(date), 'utf8')) as Synthese
   } catch {
     return null
+  }
+  // Days stored before the coherence rule are corrected when read, never rewritten (21/11/2026).
+  const produits = (s.produits ?? []).map(produitCoherent)
+  return { ...s, produits, sections: sectionsCoherentes(s.sections, produits) }
+}
+
+/** A search results page (« wholesale », « search_key », « ?q= »…), which proves no price. */
+function estRecherche(url: string): boolean {
+  return /wholesale|search|pdsearch|SearchText|[?&](q|k|kw|keyword|keywords|query)=|\/s(\?|\/|$)/i.test(url)
+}
+
+/** The lists that advise buying never carry a product whose prices contradict it. */
+const SECTIONS_FAVORABLES: CleSection[] = ['top5', 'buyNow', 'roi', 'highTicket', 'breakout']
+export function sectionsCoherentes(sections: Record<CleSection, string[]>, produits: ProduitSynthese[]): Record<CleSection, string[]> {
+  // Contradicted prices leave the lists; unsourced ones stay, flagged « Données à vérifier ».
+  const exclus = new Set(produits.filter((p) => p.incoherence === 'vente-sous-achat' || p.incoherence === 'marge-negative').map((p) => p.id))
+  if (!exclus.size || !sections) return sections
+  return Object.fromEntries(
+    Object.entries(sections).map(([k, ids]) => [k, SECTIONS_FAVORABLES.includes(k as CleSection) ? ids.filter((id) => !exclus.has(id)) : ids]),
+  ) as Record<CleSection, string[]>
+}
+
+/**
+ * A negative margin is never a buy (21/11/2026): the purchase price (or, without it, the landed cost) at or
+ * above the target price, or a negative net margin, replaces a favourable decision and caps the score.
+ */
+export function produitCoherent(p: ProduitSynthese): ProduitSynthese {
+  if (p.incoherence) return p
+  const achat = p.prixAchat ?? p.coutRendu
+  const c = coherencePrix({
+    achat,
+    vente: p.prixVente,
+    margePct: p.margeNette !== null && p.margeNette < 0 ? -1 : null,
+    verdict: p.decision || null,
+    score: p.score,
+    // A search page proves no price: only a page the agent opened and kept (not replaced by a search) does.
+    source: Object.entries(p.liens ?? {}).some(([k, v]) => !p.liensAnnonces?.[k] && /^https?:\/\//.test(v) && !estRecherche(v)),
+  })
+  if (!c.incoherence) return p
+  return {
+    ...p,
+    decision: c.verdict ?? '',
+    score: c.score,
+    incoherence: c.incoherence,
+    // An unsourced price is not a fact: no margin is computed from it.
+    ...(c.prixNonSource ? { prixNonSource: true, margeBrute: null } : {}),
+    ...(c.verdictAgent ? { decisionAgent: c.verdictAgent } : {}),
+    ...(c.scoreAgent != null ? { scoreAgent: c.scoreAgent } : {}),
   }
 }
 
@@ -394,7 +451,7 @@ export interface BilanSynthese {
 
 type Lue = Omit<Synthese, 'importeLe' | 'origine' | 'empreinte' | 'macro'>
 
-const DEFAVORABLE = /DON'?T|NE PAS|[ÉE]VITER|AVOID|SKIP/i
+const DEFAVORABLE = /DON'?T|NE PAS|[ÉE]VITER|AVOID|SKIP|V[ÉE]RIFIER/i
 
 /**
  * The JSON and the Markdown tables of the same day, merged (12/11/2026). Since the 09/11 the JSON only
@@ -432,9 +489,11 @@ export function assembler(json: Lue | null, md: Lue | null): (Lue & { sectionsCa
     }
   }
   // Gross margin: only from the file's own two prices, never estimated.
-  for (const p of parId.values()) {
+  for (const [id, p] of parId) {
     p.margeBrute = p.prixVente !== null && p.prixAchat !== null ? Math.round((p.prixVente - p.prixAchat) * 100) / 100 : null
+    parId.set(id, produitCoherent(p))
   }
+  Object.assign(sections, sectionsCoherentes(sections, [...parId.values()]))
   const calculees: CleSection[] = []
   const noire = new Set(sections.listeNoire)
   const retenus = [...parId.values()].filter((p) => !noire.has(p.id) && !DEFAVORABLE.test(p.decision))

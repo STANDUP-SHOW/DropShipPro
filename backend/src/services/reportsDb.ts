@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketReports.js'
+import { coherencePrix, margeDesPrix, verdictDefavorable } from './coherencePrix.js'
 import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
 import { titreDuJourAuto, titreSansSens } from './titreDuJour.js'
 import { lienVerifieOuRien } from './lienVerifie.js'
@@ -1040,7 +1041,6 @@ export class ReportQuery {
       achats: [...new Set([plageAchat?.min, plageAchat?.max, achat, sur(ReportQuery.nombre(p.buy_price_eur))].filter((n): n is number => n != null && n > 0))],
       prixVente: vente,
       ...(plageVente && plageVente.max > plageVente.min ? { prixMin: plageVente.min, prixMax: plageVente.max } : {}),
-      margePct,
       // The agent named a page nobody proved it opened: the line says so instead of linking it.
       ...(urlAnnoncee && !url ? { lienNonVerifie: true } : {}),
       import: (['api', 'url', 'extension'] as const).includes(p.import_method)
@@ -1048,14 +1048,101 @@ export class ReportQuery {
         : 'extension',
       pourquoi: String(p.reason ?? ''),
       ventes,
-      // A score outside 0-100 is a formatting fault upstream (« 62100/100 » seen on 16/10/2026): shown as nothing.
-      score:
-        p.score_global != null && Number.isFinite(Number(p.score_global)) && Number(p.score_global) >= 0 && Number(p.score_global) <= 100
-          ? Number(p.score_global)
-          : null,
       image: /^https?:\/\//.test(String(p.image_url ?? '')) ? String(p.image_url) : null,
-      verdict: typeof p.verdict === 'string' && p.verdict.trim() ? p.verdict.trim() : null,
+      // A negative margin is never a buy (21/11/2026, « achat 79,90 €, vente 27,90 €, acheter, 90/100 »).
+      ...coherencePrix({
+        achat,
+        vente,
+        margePct,
+        // A price is a fact only with a page behind it (the verified one for a Drive import, 16/11/2026).
+        source: /^https?:\/\//.test(url),
+        verdict: typeof p.verdict === 'string' && p.verdict.trim() ? p.verdict.trim() : null,
+        // A score outside 0-100 is a formatting fault upstream (« 62100/100 » seen on 16/10/2026): shown as nothing.
+        score:
+          p.score_global != null && Number.isFinite(Number(p.score_global)) && Number(p.score_global) >= 0 && Number(p.score_global) <= 100
+            ? Number(p.score_global)
+            : null,
+      }),
     }
+  }
+
+  /**
+   * Audit of every rayon report (21/11/2026, « chaque ligne du rapport est fausse », « invention des prix
+   * partout »): per report, what the coherence rule corrects and what else looks wrong. No price is returned,
+   * only counts, places and what the agent had written. A line is « à vérifier » when its prices contradict
+   * the verdict, have no verified page behind them, repeat another line's sale price (3 lines or more), or
+   * when the agent's own margin is more than 10 points from the one its prices give, or it names no supplier.
+   */
+  auditRapports(): Array<{
+    rapportId: string; jour: string; categorie: string; theme: string; agent: string
+    lignes: number; aVerifier: number; prixSources: number; prixNonSources: number; sansPrix: number
+    venteSousAchat: number; margeNegative: number; achatConseilleContredit: number; scoreEleveMargeNegative: number
+    ecartMarge: number; venteRepetee: number; sansFournisseur: number; sansLien: number
+    exemples: Array<{ rang: number; titre: string; motifs: string[]; verdictAgent: string | null; scoreAgent: number | null }>
+  }> {
+    const rows = this.db
+      .prepare(
+        `SELECT r.id AS rapportId, r.date, r.categorie, r.theme, r.agent, ${ReportQuery.COLONNES_PRODUIT}
+           FROM products p
+           JOIN rayon_reports rr ON rr.id = p.rayon_report_id
+           JOIN reports r ON r.id = rr.report_id
+          ORDER BY r.date DESC, r.categorie ASC, p.rowid ASC`,
+      )
+      .all() as any[]
+    const parRapport = new Map<string, any[]>()
+    for (const row of rows) parRapport.set(row.rapportId, [...(parRapport.get(row.rapportId) ?? []), row])
+    const sortie = []
+    for (const [rapportId, lignes] of parRapport) {
+      const produits = lignes.map((row, i) => ({ row, p: ReportQuery.produitDeLigne(row, i) }))
+      const ventes = new Map<number, number>()
+      for (const { p } of produits) if (p.prixVente) ventes.set(p.prixVente, (ventes.get(p.prixVente) ?? 0) + 1)
+      const bilan = {
+        rapportId, jour: String(lignes[0].date), categorie: String(lignes[0].categorie), theme: String(lignes[0].theme),
+        agent: String(lignes[0].agent ?? '') || 'inconnu',
+        lignes: produits.length, aVerifier: 0, prixSources: 0, prixNonSources: 0, sansPrix: 0,
+        venteSousAchat: 0, margeNegative: 0, achatConseilleContredit: 0, scoreEleveMargeNegative: 0,
+        ecartMarge: 0, venteRepetee: 0, sansFournisseur: 0, sansLien: 0,
+        exemples: [] as Array<{ rang: number; titre: string; motifs: string[]; verdictAgent: string | null; scoreAgent: number | null }>,
+      }
+      for (const { row, p } of produits) {
+        const motifs: string[] = []
+        const aPrix = Boolean(p.prixAchat || p.prixVente)
+        if (!aPrix) bilan.sansPrix++
+        else if (p.prixNonSource) bilan.prixNonSources++
+        else bilan.prixSources++
+        if (p.prixNonSource) motifs.push('prix non sourcé')
+        if (!p.url) bilan.sansLien++
+        const verdictAgent = p.verdictAgent ?? p.verdict ?? null
+        const scoreAgent = p.scoreAgent ?? p.score ?? null
+        if (p.incoherence === 'vente-sous-achat' || p.incoherence === 'marge-negative') {
+          if (p.incoherence === 'vente-sous-achat') bilan.venteSousAchat++
+          else bilan.margeNegative++
+          motifs.push(p.incoherence === 'vente-sous-achat' ? 'vente ≤ achat' : 'marge négative')
+          if (p.verdictAgent && !verdictDefavorable(p.verdictAgent)) bilan.achatConseilleContredit++
+          if (scoreAgent != null && scoreAgent >= 70) bilan.scoreEleveMargeNegative++
+        }
+        const margeAgent = row.margin_pct != null && Number.isFinite(Number(row.margin_pct)) ? Number(row.margin_pct) : null
+        const margeDeux = margeDesPrix(p.prixAchat, p.prixVente)
+        if (margeAgent !== null && margeDeux !== null && margeAgent > 0 && margeAgent < 100 && Math.abs(margeAgent - margeDeux) > 10) {
+          bilan.ecartMarge++
+          motifs.push(`marge de l'agent ${Math.round(margeAgent)} % ≠ ${Math.round(margeDeux)} % recalculée`)
+        }
+        if (p.prixVente && (ventes.get(p.prixVente) ?? 0) >= 3) {
+          bilan.venteRepetee++
+          motifs.push('même prix de vente que 2 autres lignes ou plus')
+        }
+        if (!p.fournisseur.trim() || p.fournisseur.trim() === '—') {
+          bilan.sansFournisseur++
+          motifs.push('fournisseur absent')
+        }
+        if (motifs.length) {
+          bilan.aVerifier++
+          if (bilan.exemples.length < 5) bilan.exemples.push({ rang: p.rang, titre: p.titre, motifs, verdictAgent, scoreAgent })
+        }
+      }
+      sortie.push(bilan)
+    }
+    return sortie
   }
 
   /** Les lignes de la table `products` d'un rapport rayon, au format de l'écran. */

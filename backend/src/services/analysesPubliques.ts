@@ -1692,12 +1692,17 @@ export function produitsNettoyes(produits: ProduitPublic[]): ProduitPublic[] {
       for (let k = 0; k < 3; k++) t = t.replace(/^((?:\S+\s+){2,4}?)\1/i, '$1')
       // « Casque audio Casque Philips… » : a two-word label in front of a title that starts with the same word.
       t = titreProduitPublic(texteRepare(apostrophesDuTexte(t.replace(/^(\p{L}+)\s+\p{L}+\s+(?=\1(?![\p{L}]))/iu, ''))))
-      const pourquoi = p.pourquoi ? texteRepare(apostrophesDuTexte(p.pourquoi)) : p.pourquoi
+      // Prices that contradict the verdict, or that no verified page backs (coherencePrix.ts, 21/11/2026): no
+      // advised price in public; a contradicted « buy » is not repeated, the line only says it is to be checked.
+      const ecart = (p as { incoherence?: string }).incoherence
+      const incoherent = Boolean(ecart)
+      const contredit = ecart === 'vente-sous-achat' || ecart === 'marge-negative'
+      const pourquoi = contredit ? 'À vérifier' : p.pourquoi ? texteRepare(apostrophesDuTexte(p.pourquoi)) : p.pourquoi
       // A public price at or under zero is a parsing accident, never a price (« -10,00 € », 12/10/2026).
       // A « sale price » at or under the line's own purchase price is the cost itself (« Cire de soja 8,00 € », constat de #104).
       const achatMax = Math.max(0, ...achatsDuProduit(p as { prixAchat?: number | null; achats?: number[] }))
       // A watch-list line is not advised for sale, so it has no advised sale price: always « — », whatever its cost (constats de #105, #106).
-      const surveille = [p.pourquoi, (p as { verdict?: string | null }).verdict].some(verdictSurveille)
+      const surveille = incoherent || [p.pourquoi, (p as { verdict?: string | null }).verdict].some(verdictSurveille)
       const positif = (n: number | null | undefined) => (n != null && n > 0 && !(achatMax && n <= achatMax) && !surveille ? n : null)
       const prix = { prixVente: positif(p.prixVente), ...(p.prixMin !== undefined ? { prixMin: positif(p.prixMin) } : {}), ...(p.prixMax !== undefined ? { prixMax: positif(p.prixMax) } : {}) }
       const prixSains = prix.prixVente === p.prixVente && (p.prixMin === undefined || prix.prixMin === p.prixMin) && (p.prixMax === undefined || prix.prixMax === p.prixMax)

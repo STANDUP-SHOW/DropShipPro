@@ -202,6 +202,8 @@ const VERDICTS: Array<{ motif: RegExp; libelle: string; famille: FamilleVerdict 
   { motif: /^WATCHLIST/i, libelle: 'À surveiller', famille: 'surveiller' },
   { motif: /^ne pas acheter/i, libelle: 'Ne pas acheter', famille: 'non' },
   { motif: /^à surveiller/i, libelle: 'À surveiller', famille: 'surveiller' },
+  // Set by the server when the prices contradict the agent (coherencePrix.ts, 21/11/2026).
+  { motif: /^(données )?à vérifier/i, libelle: '', famille: 'surveiller' },
   { motif: /^acheter/i, libelle: '', famille: 'acheter' },
   { motif: /^n[ée]gocier/i, libelle: '', famille: 'acheter' },
   { motif: /^budget test/i, libelle: '', famille: 'acheter' },
