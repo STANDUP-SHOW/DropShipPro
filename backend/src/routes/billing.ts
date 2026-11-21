@@ -8,6 +8,12 @@ import { DROPS, EURO_PAR_DROP, USD_PAR_DROP } from '../services/tarifs.js'
 
 export const billingRouter = Router()
 
+/** Stripe's own reason, for the logs — never shown raw to the customer. */
+function stripeMotif(err: unknown): string {
+  const e = err as { type?: string; code?: string; message?: string }
+  return [e.type, e.code, e.message].filter(Boolean).join(' · ') || String(err)
+}
+
 /**
  * Public : la grille de recharges et les tarifs des actions, montrés avant même
  * la connexion.
@@ -244,7 +250,14 @@ billingRouter.get('/payment-methods', async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
   if (!stripe || !user.stripeCustomerId) return res.json({ cards: [] })
 
-  const methods = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: 'card' })
+  let methods
+  try {
+    methods = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: 'card' })
+  } catch (err) {
+    // A customer from another Stripe account or mode: nothing to list here.
+    console.error('[billing] payment-methods:', stripeMotif(err))
+    return res.json({ cards: [] })
+  }
   res.json({
     cards: methods.data.map((m) => ({
       id: m.id,
@@ -264,18 +277,41 @@ billingRouter.get('/payment-methods', async (req: AuthedRequest, res) => {
  */
 billingRouter.post('/setup-intent', async (req: AuthedRequest, res) => {
   const stripe = getStripe()
-  if (!stripe) return res.status(503).json({ error: 'Paiement indisponible pour le moment.' })
-
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
-  let customerId = user.stripeCustomerId
-  if (!customerId) {
-    const customer = await stripe.customers.create({ email: user.email, metadata: { userId: user.id } })
-    customerId = customer.id
-    await prisma.user.update({ where: { id: user.id }, data: { stripeCustomerId: customerId } })
+  if (!stripe) {
+    return res.status(503).json({
+      error: "L'ajout de carte est indisponible : le paiement n'est pas configuré sur le serveur.",
+    })
   }
 
-  const intent = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' })
-  res.json({ clientSecret: intent.client_secret })
+  /*
+   * Express 4 does not catch a rejected async handler: before 21/11/2026 any
+   * Stripe error here left the request hanging and the button did nothing at
+   * all. Every failure now answers, with a sentence the customer can read.
+   */
+  try {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
+
+    const nouveauClient = async () => {
+      const customer = await stripe.customers.create({ email: user.email, metadata: { userId: user.id } })
+      await prisma.user.update({ where: { id: user.id }, data: { stripeCustomerId: customer.id } })
+      return customer.id
+    }
+
+    let customerId = user.stripeCustomerId ?? (await nouveauClient())
+    let intent
+    try {
+      intent = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' })
+    } catch (err) {
+      // A customer id left by another Stripe account or by test mode: start a fresh one.
+      if ((err as { code?: string }).code !== 'resource_missing') throw err
+      customerId = await nouveauClient()
+      intent = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' })
+    }
+    res.json({ clientSecret: intent.client_secret, livemode: intent.livemode })
+  } catch (err) {
+    console.error('[billing] setup-intent:', stripeMotif(err))
+    res.status(502).json({ error: "L'ajout de carte n'a pas pu démarrer. Réessayez dans un instant." })
+  }
 })
 
 billingRouter.delete('/payment-methods/:id', async (req: AuthedRequest, res) => {
@@ -283,11 +319,15 @@ billingRouter.delete('/payment-methods/:id', async (req: AuthedRequest, res) => 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
   if (!stripe || !user.stripeCustomerId) return res.status(404).json({ error: 'Carte introuvable' })
 
-  const method = await stripe.paymentMethods.retrieve(req.params.id)
-  if (method.customer !== user.stripeCustomerId) return res.status(403).json({ error: 'Carte introuvable' })
-
-  await stripe.paymentMethods.detach(req.params.id)
-  res.status(204).send()
+  try {
+    const method = await stripe.paymentMethods.retrieve(req.params.id)
+    if (method.customer !== user.stripeCustomerId) return res.status(403).json({ error: 'Carte introuvable' })
+    await stripe.paymentMethods.detach(req.params.id)
+    res.status(204).send()
+  } catch (err) {
+    console.error('[billing] detach:', stripeMotif(err))
+    res.status(502).json({ error: "La carte n'a pas pu être supprimée. Réessayez dans un instant." })
+  }
 })
 
 /** Stripe's own portal: card change, invoices. */
@@ -298,11 +338,16 @@ billingRouter.post('/portal', async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId! } })
   if (!user.stripeCustomerId) return res.status(400).json({ error: 'Aucun paiement enregistré.' })
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: user.stripeCustomerId,
-    return_url: `${appUrl()}/credits`,
-  })
-  res.json({ url: session.url })
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: user.stripeCustomerId,
+      return_url: `${appUrl()}/credits`,
+    })
+    res.json({ url: session.url })
+  } catch (err) {
+    console.error('[billing] portal:', stripeMotif(err))
+    res.status(502).json({ error: 'Le portail de paiement est indisponible. Réessayez dans un instant.' })
+  }
 })
 
 /**
