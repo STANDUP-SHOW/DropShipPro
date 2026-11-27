@@ -52,6 +52,43 @@ function montantSeul(cellule) {
   return montants.length === 1 ? nombre(montants[0]) : null;
 }
 
+/** The one amount of a cell with its sign (« +231.78 € », « -12,5 € », « +4031.0 % »), or null. */
+function montantSigne(cellule) {
+  const t = texteDeCellule(cellule).replace(/[  ]/g, ' ');
+  const montants = t.match(/[-+−]?\s?\d{1,3}(?:[ ]\d{3})+(?:[.,]\d+)?|[-+−]?\s?\d+(?:[.,]\d+)?/g) || [];
+  if (montants.length !== 1) return null;
+  const n = Number(montants[0].replace(/\s/g, '').replace('−', '-').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** The first number of a cell (« 92/100 » → 92), or null. */
+function premierNombre(cellule) {
+  const m = texteDeCellule(cellule).match(/-?\d+(?:[.,]\d+)?/);
+  return m ? Number(m[0].replace(',', '.')) : null;
+}
+
+/** Every Markdown link of a table row, with its label, in the order written. */
+function liensDeLigne(cellules) {
+  const out = [];
+  const vus = new Set();
+  for (const m of cellules.join(' | ').matchAll(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g)) {
+    const libelle = texteDeCellule(m[1]).replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    const cle = `${libelle}|${m[2]}`;
+    if (vus.has(cle)) continue;
+    vus.add(cle);
+    out.push({ libelle, url: m[2] });
+  }
+  return out;
+}
+
+function hoteDe(u) {
+  try {
+    return new URL(u).hostname.replace(/^(www|fr)\./, '');
+  } catch (e) {
+    return '';
+  }
+}
+
 /** Affichage euro a deux decimales, ou tiret quand la valeur manque. */
 function eur(n) {
   return n == null ? '—' : `${Number(n).toFixed(2)} €`;
@@ -337,7 +374,8 @@ function tableaux(texte) {
   const out = [];
   let courant = null;
   for (const brut of String(texte || '').split(/\r?\n/)) {
-    const l = brut.trim();
+    // A « | » inside the italic page title after « <br> » (« *Yoga … | 478 Lumière* », 27/11/2026) is text, not a column.
+    const l = brut.trim().replace(/(<br\s*\/?>\s*\*)([^*]*)(\*)/gi, (m, a, b, c) => a + b.replace(/\|/g, '¦') + c);
     if (!l.startsWith('|')) { courant = null; continue; }
     const cells = l.split('|').slice(1, -1).map((c) => c.trim());
     if (/^\|[\s:|-]+\|$/.test(l)) continue;
@@ -512,9 +550,17 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
   const iRang = col(principal, /^(rang|#|n|no)?$/); // a « # » header normalises to ""
   const iProduit = col(principal, /^produit/);
   const iAchat = col(principal, /cout rendu|prix (d )?achat/, /max/);
-  const iVente = col(principal, /prix (de )?vente/);
+  // 27/11/2026 layout: « Prix achat réel | Coût rendu FR | Prix marché réel (linked to the marketplace) |
+  // Marge nette estimée | ROI ». Each is kept as the agent wrote it, never recomputed over it.
+  const iAchatReel = col(principal, /prix (d )?achat|^achat/, /max/);
+  const iRendu = col(principal, /cout rendu|rendu fr|landed/);
+  const iVente = col(principal, /prix (de )?vente|prix (du )?marche|^marche|prix cible|prix conseille/);
+  const iMargeNette = col(principal, /^marge/, /%|pct|pourcent/);
+  const iRoi = col(principal, /^roi\b/);
+  const iVariante = col(principal, /^variante/);
+  const iFournisseurP = col(principal, /^fournisseur|^source achat/);
   const iDecision = col(principal, /decision|verdict/);
-  const iScore = col(principal, /^score/);
+  const iScore = col(principal, /^score|global score/);
   const VENTES = /^(nb |nombre de )?ventes\b|ventes (constatees|observees|mensuelles)|commandes|vendus|\bsold\b|\bsales\b/;
   const iVentes = col(principal, VENTES, /prix/);
   const iTitrePage = col(principal, TITRE_PAGE);
@@ -526,8 +572,10 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
   // The same table keyed by rank: other agents shorten the names there (« 1. Trépied suivi IA 360° »
   // for « Trépied suivi IA 360° autonome », 04/11/2026), so the name alone matched nothing.
   const fournisseursParRang = new Map();
+  // The main table is found again in the whole text as another object: compared by content, not identity.
+  const memeTableau = (t) => t.entetes.join("|") === principal.entetes.join("|") && JSON.stringify(t.lignes[0]) === JSON.stringify(principal.lignes[0]);
   for (const t of tableaux(texteComplet)) {
-    if (t === principal) continue;
+    if (t === principal || memeTableau(t)) continue;
     const iP = col(t, /^produit/);
     const iU = col(t, /^url\b|lien|fiche/, TITRE_PAGE);
     const iT = col(t, TITRE_PAGE);
@@ -537,7 +585,7 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
       if (iV >= 0) for (const c of t.lignes) if (texteDeCellule(c[iV]) && !ventesAilleurs.has(cle(c[iP]))) ventesAilleurs.set(cle(c[iP]), texteDeCellule(c[iV]));
     }
     if (iP < 0 || iU < 0) continue;
-    const iF = col(t, /fournisseur|source|plateforme/);
+    const iF = col(t, /^fournisseur|fournisseur principal|^source|plateforme/) >= 0 ? col(t, /^fournisseur|fournisseur principal|^source|plateforme/) : col(t, /fournisseur|source|plateforme/, /titre/);
     const iA = col(t, /cout rendu|prix (d )?achat/, /max/);
     const iV = col(t, VENTES, /prix/);
     for (const c of t.lignes) {
@@ -572,9 +620,12 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
   const out = [];
   for (const c of principal.lignes) {
     const rang = nombre(c[iRang]);
-    const titre = texteDeCellule(c[iProduit]);
+    // « [**Name**](url) <br> *Title of the supplier page* » (26/11/2026): the name alone, the rest is the page title.
+    const morceauxProduit = String(c[iProduit] || '').split(/<br\s*\/?>/i).map(texteDeCellule).map((x) => x.replace(/^\*+|\*+$/g, '').trim());
+    const titre = morceauxProduit[0] || '';
+    const titreDansProduit = morceauxProduit.slice(1).join(' ').trim();
     if (rang == null || !titre) continue;
-    const f = fournisseurDe(Math.round(rang), c[iProduit]) || { url: '', nom: '' };
+    const f = fournisseurDe(Math.round(rang), titre) || { url: '', nom: '' };
     const a = deLAnnexe(Math.round(rang), titre) || {};
     const urlAnnexe = /^https?:\/\//.test(String(a.supplier_url || '')) ? String(a.supplier_url) : '';
     // The most precise address wins: a bare « https://fr.aliexpress.com » in one table loses to a
@@ -582,9 +633,15 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
     const candidats = [f.url, urlDeCellule(c.join(' ')), urlAnnexe].filter(Boolean);
     const url = candidats.find(aUnChemin) || candidats[0] || '';
     // The page title goes with the address it was read from: the table's when the table's address won.
+    // « Variante / Titre Fiche Fournisseur » (27/11/2026): the variant, then « <br> *the supplier page's title* ».
+    const morceauxVariante = iVariante >= 0 ? String(c[iVariante] || '').split(/<br\s*\/?>/i).map(texteDeCellule).map((s) => s.replace(/^\*+|\*+$/g, '').trim()) : [];
+    const variante = morceauxVariante[0] || '';
+    const titreDansVariante = iVariante >= 0 && iVariante === iTitrePage ? morceauxVariante.slice(1).join(' ').trim() : '';
     const titrePage =
       (url === f.url && f.titrePage) ||
-      (iTitrePage >= 0 && url !== urlAnnexe ? texteDeCellule(c[iTitrePage]) : '') ||
+      (titreDansVariante && url !== urlAnnexe ? titreDansVariante : '') ||
+      (titreDansProduit && url !== urlAnnexe ? titreDansProduit : '') ||
+      (iTitrePage >= 0 && iTitrePage !== iVariante && url !== urlAnnexe ? texteDeCellule(c[iTitrePage]) : '') ||
       (url === urlAnnexe ? String(a.url_page_title || a.page_title || '').trim() : '') ||
       '';
     const nbA = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
@@ -592,22 +649,42 @@ function tableauProduitsParEntetes(bloc, texteComplet) {
     // amount. A cell « 12–18 € » read whole gave 1218 and « 29-49 € » nothing (*_eur columns, 12/10/2026).
     const achat = nbA(a.estimated_landed_cost_france ?? a.purchase_price) ?? (iAchat >= 0 ? montantSeul(c[iAchat]) : null) ?? f.achat ?? null;
     const vente = nbA(a.target_selling_price) ?? (iVente >= 0 ? montantSeul(c[iVente]) : null);
-    const scoreTableau = iScore >= 0 ? nombre(c[iScore]) : null;
-    const decision = verdictCellule((iDecision >= 0 ? texteDeCellule(c[iDecision]) : '') || String(a.decision || ''));
+    // The agent's own figures, as written (27/11/2026: « Achat Réel 1.57 € | Rendu FR 5.75 € | Marché 279.45 € |
+    // Marge Nette +231.78 € | ROI +4031.0 % »).
+    const achatReel = iAchatReel >= 0 && iAchatReel !== iRendu ? montantSigne(c[iAchatReel]) : null;
+    const coutRendu = nbA(a.estimated_landed_cost_france) ?? (iRendu >= 0 ? montantSigne(c[iRendu]) : null);
+    const margeNette = nbA(a.estimated_net_margin) ?? (iMargeNette >= 0 ? montantSigne(c[iMargeNette]) : null);
+    const roiAgent = iRoi >= 0 ? montantSigne(c[iRoi]) : null;
+    const lienMarche = iVente >= 0 ? urlDeCellule(c[iVente]) : '';
+    const liens = liensDeLigne(c);
+    const marche = lienMarche ? (liens.find((l) => l.url === lienMarche && l.libelle && !/^\d/.test(l.libelle)) || {}).libelle || hoteDe(lienMarche) : '';
+    const fournisseurLigne = iFournisseurP >= 0 ? texteDeCellule(String(c[iFournisseurP] || '').split(/<br\s*\/?>/i)[0]) : '';
+    // « 92/100 » or « **92 / 100** »: the first number, never the digits glued together (« 92100 »).
+    const scoreTableau = iScore >= 0 ? premierNombre(c[iScore]) : null;
+    // The verdict as the agent wrote it (« BREAKOUT CANDIDATE »), kept raw; the French reading only for « pourquoi ».
+    const verdictBrut = ((iDecision >= 0 ? texteDeCellule(c[iDecision]).replace(/^[^A-Za-zÀ-ÿ]+/, '') : '') || String(a.decision || '')).trim();
+    const decision = verdictCellule(verdictBrut);
     out.push({
       rang: Math.round(rang),
       titre,
-      fournisseur: f.nom || [a.supplier_name, a.supplier_platform].filter(Boolean).join(' / ') || '—',
+      ...(variante ? { variante } : {}),
+      ...(achatReel != null ? { achatReel } : {}),
+      ...(coutRendu != null ? { coutRendu } : {}),
+      ...(margeNette != null ? { margeNette } : {}),
+      ...(roiAgent != null ? { roiAgent } : {}),
+      ...(lienMarche ? { lienMarche, marche } : {}),
+      ...(liens.length ? { liens } : {}),
+      fournisseur: f.nom || fournisseurLigne || [a.supplier_name, a.supplier_platform].filter(Boolean).join(' / ') || '—',
       url,
-      ventes: (iVentes >= 0 ? texteDeCellule(c[iVentes]) : '') || ventesAilleurs.get(cle(c[iProduit])) || ventesDe(a),
+      ventes: (iVentes >= 0 ? texteDeCellule(c[iVentes]) : '') || ventesAilleurs.get(cle(titre)) || ventesDe(a),
       score: scoreTableau != null ? Math.round(scoreTableau) : scoreDe(a),
-      verdict: decision || null,
+      verdict: verdictBrut || null,
       image: /^https?:\/\//.test(String(a.image_url || '')) ? String(a.image_url) : null,
       achat,
       vente,
-      margePct: achat != null && vente != null && vente > 0 ? Number((((vente - achat) / vente) * 100).toFixed(1)) : null,
-      margeEur: achat != null && vente != null ? Number((vente - achat).toFixed(2)) : null,
-      roiPct: achat != null && vente != null && achat > 0 ? Number((((vente - achat) / achat) * 100).toFixed(1)) : null,
+      margePct: margeNette != null && vente != null && vente > 0 ? Number(((margeNette / vente) * 100).toFixed(1)) : achat != null && vente != null && vente > 0 ? Number((((vente - achat) / vente) * 100).toFixed(1)) : null,
+      margeEur: margeNette != null ? margeNette : achat != null && vente != null ? Number((vente - achat).toFixed(2)) : null,
+      roiPct: roiAgent != null ? roiAgent : achat != null && vente != null && achat > 0 ? Number((((vente - achat) / achat) * 100).toFixed(1)) : null,
       methode: EN_JS.some((x) => url.toLowerCase().includes(x)) ? 'extension' : 'url',
       pourquoi: decision || '—',
       typeUrl: typeUrl(url),
@@ -898,7 +975,14 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
   const analyse = section(secRayon, 'Analyse') || verdictFr(sectionsCompletes(texteRayon));
   // « 20 produits proposés », « 20 produits proposes », « 12 produits »… :
   // on accepte le titre exact, puis n'importe quel titre parlant de produits.
-  const blocProduits = section(secRayon, '20 produits proposes', /produits/);
+  // 27/11/2026: « ## 2. Verdict rapide (Liens Fiches Produits …) » came before « ## 8. Sélection des 20
+  // Produits » and has no table: the first section naming products WITH a product table wins, else the whole text.
+  const aUnTableauProduits = (b) => tableaux(b).some((t) => t.entetes.some((e) => /^(rang|#|n|no)?$/.test(e)) && t.entetes.some((e) => /^produit/.test(e)));
+  const blocDirect = section(secRayon, '20 produits proposes', /produits/);
+  const blocProduits = tableaux(blocDirect).length
+    ? blocDirect
+    : [...secRayon.entries()].find(([k, v]) => /produits/.test(k) && aUnTableauProduits(v))?.[1] ??
+      (aUnTableauProduits(texteRayon) ? texteRayon : blocDirect);
   // Ours puts the supplier URL in the 4th column; a table that names its
   // columns otherwise is read by header names.
   const entete = tableaux(blocProduits)[0];
@@ -960,6 +1044,16 @@ function etudeMarkdown({ texteRayon, texteMarketing, origineRayon, origineMarket
     ...(p.ventes ? { sales: p.ventes } : {}),
     ...(p.score != null ? { score: p.score } : {}),
     ...(p.titrePage ? { urlPageTitle: p.titrePage } : {}),
+    // The agent's row kept whole (27/11/2026, max: « je n'ai plus ni les prix, ni les liens ») — private side only.
+    ...(p.variante ? { variant: p.variante } : {}),
+    ...(p.achatReel != null ? { supplierPrice: p.achatReel } : {}),
+    ...(p.coutRendu != null ? { landedCost: p.coutRendu } : {}),
+    ...(p.vente != null ? { marketPrice: p.vente } : {}),
+    ...(p.lienMarche ? { marketUrl: p.lienMarche, marketplace: p.marche } : {}),
+    ...(p.margeNette != null ? { netMargin: p.margeNette } : {}),
+    ...(p.roiAgent != null ? { roi: p.roiAgent } : {}),
+    ...(p.verdict ? { verdict: p.verdict } : {}),
+    ...(p.liens ? { links: p.liens } : {}),
   }));
 
   const enTete = { date, categorie, theme, titre, agent, sources: nbSources };

@@ -1,14 +1,10 @@
 /**
- * Price coherence of a winning product (21/11/2026).
+ * Price coherence of a winning product (21/11/2026, revised 27/11/2026).
  *
- * An agent wrote « Éclairage extérieur, Cdiscount : achat 79,90 €, vente 27,90 €, verdict acheter, score 90 » :
- * a negative margin can never be a buy, and max found prices invented « partout ». So the agent's verdict
- * and score are never shown as facts when the line contradicts them:
- *  - both prices known, sale ≤ purchase: the sale price is most likely another item's → « Données à vérifier »;
- *  - only a negative margin known → « Ne pas acheter »;
- *  - prices with no verified page behind them (`source: false`): « non sourcé », no margin computed from them,
- *    no favourable verdict.
- * Each time the score is capped, and the agent's own words are kept aside (`verdictAgent`, `scoreAgent`).
+ * Until 27/11 a line whose prices contradicted the agent got another verdict (« Données à vérifier »,
+ * « Ne pas acheter »), a score capped at 20, and prices called « non sourcés » whenever our link check failed.
+ * Max (27/11): the agent's report must be shown as it is. Now the agent's verdict and score always stand;
+ * a contradiction is only flagged.
  */
 
 /** A score above this would read as a recommendation; an incoherent line never gets more. */
@@ -55,32 +51,16 @@ export function coherencePrix(l: {
   margePct: number | null | undefined
   verdict: string | null | undefined
   score: number | null | undefined
+  /** Kept for callers; no longer changes anything (27/11/2026). */
   source?: boolean
 }): LigneCoherente {
+  // 27/11/2026, max: « comment te permettre d'écrire ne pas acheter ? L'agent n'a jamais écrit ça ». The verdict
+  // and the score shown are ALWAYS the agent's, as written. A line whose own prices contradict a favourable
+  // verdict is not flagged either (max, 27/11: no rule of ours, no warning): nothing is replaced, capped or hidden.
   const deuxPrix = margeDesPrix(l.achat, l.vente)
-  // The caller already prefers the prices it trusts (text over migrated columns): its margin stands.
-  const margeLue = l.margePct ?? deuxPrix
+  const margePct = l.margePct ?? deuxPrix
   const verdict = l.verdict ?? null
   const score = l.score ?? null
-  const aDesPrix = (l.achat != null && l.achat > 0) || (l.vente != null && l.vente > 0) || margeLue !== null
-  const nonSource = l.source === false && aDesPrix
-  const venteSousAchat = deuxPrix !== null && l.vente! <= l.achat!
-  const negative = !venteSousAchat && margeLue !== null && margeLue < 0
-  // An unsourced price is not a fact: no margin is computed from it.
-  const margePct = nonSource && !venteSousAchat && !negative ? null : margeLue
-  const incoherence: Incoherence | null = venteSousAchat ? 'vente-sous-achat' : negative ? 'marge-negative' : nonSource ? 'prix-non-source' : null
-  if (!incoherence) return { margePct, verdict, score }
-  const plafond = score === null ? null : Math.min(score, SCORE_MAX_INCOHERENT)
-  const impose = incoherence === 'vente-sous-achat' ? VERDICT_PRIX_INCOHERENT : incoherence === 'marge-negative' ? VERDICT_MARGE_NEGATIVE : VERDICT_NON_SOURCE
-  // An agent that already said not to buy keeps its words; only a favourable (or missing) verdict is replaced.
-  const force = verdictDefavorable(verdict) ? verdict : impose
-  return {
-    margePct,
-    verdict: force,
-    score: plafond,
-    incoherence,
-    ...(nonSource ? { prixNonSource: true } : {}),
-    ...(verdict !== null && verdict !== force ? { verdictAgent: verdict } : {}),
-    ...(score !== null && score !== plafond ? { scoreAgent: score } : {}),
-  }
+  // Max (27/11/2026): « ce ne sont pas nos règles ». Nothing is flagged, replaced or capped.
+  return { margePct, verdict, score }
 }

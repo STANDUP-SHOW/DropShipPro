@@ -11,7 +11,6 @@ import { categorieDe, type CategorieAgent, type ProduitRapport } from './marketR
 import { coherencePrix, margeDesPrix, verdictDefavorable } from './coherencePrix.js'
 import { assurerBasePoste, CHEMIN_RAPPORTS_POSTE_DB } from './rapportsPoste.js'
 import { titreDuJourAuto, titreSansSens } from './titreDuJour.js'
-import { lienVerifieOuRien } from './lienVerifie.js'
 import { createRequire } from 'node:module'
 
 /**
@@ -1016,6 +1015,8 @@ export class ReportQuery {
               : null
     let ventes: string | null = null
     let titrePage: string | null = null
+    // The agent's own row, as the import kept it (27/11/2026): its figures and links, never recomputed.
+    let ligneAgent: any = null
     try {
       const liste = JSON.parse(p.produits_json ?? '[]')
       const rang = p.rank != null ? Number(p.rank) : null
@@ -1024,25 +1025,38 @@ export class ReportQuery {
         : null
       if (entree && entree.title === p.title && entree.sales != null && String(entree.sales).trim()) ventes = String(entree.sales).trim()
       if (entree && entree.title === p.title && typeof entree.urlPageTitle === 'string' && entree.urlPageTitle.trim()) titrePage = entree.urlPageTitle.trim()
+      if (entree && entree.title === p.title) ligneAgent = entree
     } catch {
       /* a malformed list only loses the sales count */
     }
-    // A Drive-imported report's product page is the agent's: shown only when the agent wrote the title of the
-    // page it opened and that title carries the name, otherwise no link at all (13/11/2026, 14 AliExpress
-    // links out of 24 led to another product; 16/11/2026, « lien vérifié ou rien »; lienVerifie.ts).
-    const urlAnnoncee = String(p.supplier_url || p.recommended_url || '')
-    const url = estImportDrive(p.rapport_data ?? undefined) ? lienVerifieOuRien(urlAnnoncee, String(p.title ?? ''), titrePage) : urlAnnoncee
+    // The agent's link is shown as the agent wrote it (27/11/2026, max: « j'ai vérifié les liens de l'agent,
+    // tout fonctionne »). The 16/11 rule « lien vérifié ou rien » hid it whenever the agent's page title did
+    // not carry the name: it is gone. The title the agent read stays beside the link, for anyone to compare.
+    const url = /^https?:\/\//.test(String(p.supplier_url || '')) ? String(p.supplier_url) : /^https?:\/\//.test(String(p.recommended_url || '')) ? String(p.recommended_url) : ''
+    // Rows stored before 27/11/2026 carry « Name <br> *supplier page title* » as their title: the name alone is shown.
+    const [titreSeul, ...resteTitre] = String(p.title ?? '').split(/<br\s*\/?>/i).map((x) => x.replace(/^[\s*]+|[\s*]+$/g, '').trim())
+    if (!titrePage && resteTitre.join(' ').trim()) titrePage = resteTitre.join(' ').trim()
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+    const liensAgent = Array.isArray(ligneAgent?.links)
+      ? (ligneAgent.links as any[]).filter((l) => l && /^https?:\/\//.test(String(l.url))).map((l) => ({ libelle: String(l.libelle ?? ''), url: String(l.url) }))
+      : []
     return {
       rang: i + 1,
-      titre: String(p.title ?? ''),
+      titre: titreSeul,
       fournisseur: String(p.supplier ?? ''),
       url,
       prixAchat: achat,
-      achats: [...new Set([plageAchat?.min, plageAchat?.max, achat, sur(ReportQuery.nombre(p.buy_price_eur))].filter((n): n is number => n != null && n > 0))],
+      achats: [...new Set([plageAchat?.min, plageAchat?.max, achat, sur(ReportQuery.nombre(p.buy_price_eur)), num(ligneAgent?.supplierPrice), num(ligneAgent?.landedCost)].filter((n): n is number => n != null && n > 0))],
       prixVente: vente,
       ...(plageVente && plageVente.max > plageVente.min ? { prixMin: plageVente.min, prixMax: plageVente.max } : {}),
-      // The agent named a page nobody proved it opened: the line says so instead of linking it.
-      ...(urlAnnoncee && !url ? { lienNonVerifie: true } : {}),
+      ...(titrePage ? { titrePage } : {}),
+      ...(typeof ligneAgent?.variant === 'string' && ligneAgent.variant ? { variante: ligneAgent.variant } : {}),
+      ...(num(ligneAgent?.supplierPrice) !== null ? { prixAchatFournisseur: num(ligneAgent.supplierPrice)! } : {}),
+      ...(num(ligneAgent?.landedCost) !== null ? { coutRendu: num(ligneAgent.landedCost)! } : {}),
+      ...(num(ligneAgent?.netMargin) !== null ? { margeNette: num(ligneAgent.netMargin)! } : {}),
+      ...(num(ligneAgent?.roi) !== null ? { roi: num(ligneAgent.roi)! } : {}),
+      ...(typeof ligneAgent?.marketUrl === 'string' && /^https?:\/\//.test(ligneAgent.marketUrl) ? { lienMarche: ligneAgent.marketUrl, marche: String(ligneAgent.marketplace ?? '') } : {}),
+      ...(liensAgent.length ? { liens: liensAgent } : {}),
       import: (['api', 'url', 'extension'] as const).includes(p.import_method)
         ? (p.import_method as 'api' | 'url' | 'extension')
         : 'extension',

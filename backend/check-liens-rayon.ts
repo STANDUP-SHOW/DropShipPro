@@ -79,8 +79,9 @@ try {
   const par = (m: RegExp) => g.find((p: any) => m.test(p.titre))
   ok(g.length === 3, `3 produits servis (${g.length})`)
   ok(par(/Peigne/)?.url === 'https://fr.aliexpress.com/item/1005010339715196.html' && !par(/Peigne/)?.lienNonVerifie, 'n° 1 : titre conforme → lien direct servi')
-  ok(par(/Médiator/)?.url === '' && par(/Médiator/)?.lienNonVerifie === true, 'n° 2 : titre d’un autre produit → aucun lien, marqué non vérifié')
-  ok(par(/Capodastre/)?.url === '' && par(/Capodastre/)?.lienNonVerifie === true, 'n° 3 : pas de titre → aucun lien, marqué non vérifié')
+  // 27/11/2026, max : « j'ai vérifié les liens de l'agent, tout fonctionne » — le lien de l'agent est servi, sans marque.
+  ok(/^https:\/\//.test(par(/Médiator/)?.url ?? '') && !par(/Médiator/)?.lienNonVerifie, 'n° 2 : titre d’un autre produit → le lien de l’agent servi tel quel')
+  ok(/^https:\/\//.test(par(/Capodastre/)?.url ?? '') && !par(/Capodastre/)?.lienNonVerifie, 'n° 3 : pas de titre → le lien de l’agent servi tel quel')
   ok(!g.some((p: any) => /wholesale|\/s\?k=/.test(p.url)), 'aucune recherche fabriquée par le site')
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true })

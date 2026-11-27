@@ -31,7 +31,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { estPrivee, pourquoiPublic, sansMentionsPrivees } from './analysesPubliques.js'
-import { lienAOuvrir } from './lienVerifie.js'
 import { coherencePrix } from './coherencePrix.js'
 
 const RACINE_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -62,6 +61,10 @@ export interface ProduitSynthese {
   /** Target price minus purchase price, computed here when both are in the file (shipping, fees and VAT not included). */
   margeBrute: number | null
   roi: number | null
+  /** The marketplace the market price was read on (« Cdiscount FR »), and the titles of the pages the agent opened. */
+  marche?: string
+  titreFournisseur?: string
+  titreMarche?: string
   /** Set when the prices contradict the decision (coherencePrix.ts): decision and score were corrected. */
   incoherence?: 'vente-sous-achat' | 'marge-negative' | 'prix-non-source'
   /** No verified product page behind the prices (search pages only): shown « non sourcé ». */
@@ -94,7 +97,7 @@ export interface Synthese {
 }
 
 /** 4 (21/11/2026): supplier, purchase_price and the gross margin of the 20/11 format. 2 (12/11/2026): the 09/11 format (hero_product nested, top_25_immediate_opportunities, flat *_url), JSON + Markdown merged. */
-export const LECTEUR_SYNTHESE = 4
+export const LECTEUR_SYNTHESE = 5
 
 const SECTIONS: Array<{ cle: CleSection; motif: RegExp }> = [
   { cle: 'top5', motif: /top[\s_-]*5|launch[\s_-]*now|priorit/i },
@@ -190,25 +193,25 @@ function produitJson(entree: Record<string, unknown>): ProduitSynthese | null {
     score: nombre(champ(o, 'score', 'score_str')),
     decision: texte(champ(o, 'decision', 'verdict')),
     source: texte(champ(o, 'supplier', 'fournisseur', 'source_achat', 'source')),
-    coutRendu: nombre(champ(o, 'landed_cost', 'landed_cost_str')),
-    prixAchat: nombre(champ(o, 'purchase_price', 'purchase_price_str', 'prix_achat', 'supplier_price')),
-    prixVente: nombre(champ(o, 'target_price', 'target_price_str')),
-    margeNette: nombre(champ(o, 'net_margin', 'net_margin_str')),
+    // 27/11/2026 names: buy_eur, landed_eur, sell_eur, net_margin_eur, roi_pct (the older ones still read).
+    coutRendu: nombre(champ(o, 'landed_cost', 'landed_cost_str', 'landed_eur', 'landed_cost_eur')),
+    prixAchat: nombre(champ(o, 'purchase_price', 'purchase_price_str', 'prix_achat', 'supplier_price', 'buy_eur', 'buy_price_eur')),
+    prixVente: nombre(champ(o, 'target_price', 'target_price_str', 'sell_eur', 'sell_price_eur', 'market_price_eur')),
+    margeNette: nombre(champ(o, 'net_margin', 'net_margin_str', 'net_margin_eur')),
     margeBrute: null,
-    roi: nombre(champ(o, 'roi', 'roi_str')),
-    ...liensSurs(liensDe(o), nom, texte(champ(o, 'url_page_title', 'page_title', 'verified_title'))),
+    roi: nombre(champ(o, 'roi', 'roi_str', 'roi_pct')),
+    ...(texte(champ(o, 'marketplace')) ? { marche: texte(champ(o, 'marketplace')) } : {}),
+    ...(texte(champ(o, 'supplier_title', 'url_page_title', 'page_title')) ? { titreFournisseur: texte(champ(o, 'supplier_title', 'url_page_title', 'page_title')) } : {}),
+    ...(texte(champ(o, 'marketplace_title')) ? { titreMarche: texte(champ(o, 'marketplace_title')) } : {}),
+    liens: liensDe(o),
   }
 }
 
 /** Unverified product pages become the search for the name (lienVerifie.ts); the originals are kept aside. */
-function liensSurs(liens: Record<string, string>, nom: string, titrePage: string): Pick<ProduitSynthese, 'liens' | 'liensAnnonces'> {
-  const surs: Record<string, string> = {}
-  const annonces: Record<string, string> = {}
-  for (const [k, v] of Object.entries(liens)) {
-    surs[k] = lienAOuvrir(v, nom, titrePage || null)
-    if (surs[k] !== v) annonces[k] = v
-  }
-  return Object.keys(annonces).length ? { liens: surs, liensAnnonces: annonces } : { liens: surs }
+function liensSurs(liens: Record<string, string>, _nom: string, _titrePage: string): Pick<ProduitSynthese, 'liens' | 'liensAnnonces'> {
+  // 27/11/2026, max: « j'ai vérifié les liens de l'agent, tout fonctionne ». The agent's links are kept as
+  // written; they were replaced by a search for the name when the agent's page title did not carry it.
+  return { liens: { ...liens } }
 }
 
 /**
@@ -301,7 +304,8 @@ export function lireSyntheseMarkdown(md: string): Omit<Synthese, 'importeLe' | '
       return i >= 0 ? c[i] ?? '' : ''
     }
     const brutProduit = col(/produit|hero/)
-    const nom = sansGras(brutProduit.split(/<br\s*\/?>/i)[0] ?? '')
+    // « [**Name**](supplier page) » (27/11/2026): the link's text is the name.
+    const nom = sansGras((brutProduit.split(/<br\s*\/?>/i)[0] ?? '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1'))
     if (!nom) continue
     const variante = sansGras((brutProduit.split(/<br\s*\/?>/i)[1] ?? '').replace(/^\s*\*|\*\s*$/g, ''))
     // « Catégorie (`theme_id`) » rather than « N° Cat. » (the hero table has both).
@@ -326,9 +330,9 @@ export function lireSyntheseMarkdown(md: string): Omit<Synthese, 'importeLe' | '
         score: nombre(col(/score/)),
         decision: sansGras(col(/d[ée]cision|verdict|statut/)).replace(/^[^A-Za-z]+/, '').replace(/\s*\(.*$/, ''),
         source: sansGras(col(/fournisseur|supplier/)),
-        coutRendu: nombre(col(/co[uû]t/)),
-        prixAchat: nombre(col(/prix d['’]achat|achat|purchase/)),
-        prixVente: nombre(col(/prix de vente|prix vis|target/) || col(/^prix(?!.*achat)/)),
+        coutRendu: nombre(sansGras(col(/co[uû]t|rendu/))),
+        prixAchat: nombre(sansGras(col(/prix d['’]achat|achat|purchase/))),
+        prixVente: nombre(sansGras(col(/prix de vente|prix vis|target|march[ée]/) || col(/^prix(?!.*achat)/)).replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')),
         margeNette: nombre(col(/marge/)),
         margeBrute: null,
         roi: nombre(col(/\broi\b/)),
@@ -380,7 +384,8 @@ function estRecherche(url: string): boolean {
 /** The lists that advise buying never carry a product whose prices contradict it. */
 const SECTIONS_FAVORABLES: CleSection[] = ['top5', 'buyNow', 'roi', 'highTicket', 'breakout']
 export function sectionsCoherentes(sections: Record<CleSection, string[]>, produits: ProduitSynthese[]): Record<CleSection, string[]> {
-  // Contradicted prices leave the lists; unsourced ones stay, flagged « Données à vérifier ».
+  // 27/11/2026: the agent's lists are shown as the agent made them; a contradiction is only flagged on the line.
+  return sections
   const exclus = new Set(produits.filter((p) => p.incoherence === 'vente-sous-achat' || p.incoherence === 'marge-negative').map((p) => p.id))
   if (!exclus.size || !sections) return sections
   return Object.fromEntries(
@@ -404,17 +409,8 @@ export function produitCoherent(p: ProduitSynthese): ProduitSynthese {
     // A search page proves no price: only a page the agent opened and kept (not replaced by a search) does.
     source: Object.entries(p.liens ?? {}).some(([k, v]) => !p.liensAnnonces?.[k] && /^https?:\/\//.test(v) && !estRecherche(v)),
   })
-  if (!c.incoherence) return p
-  return {
-    ...p,
-    decision: c.verdict ?? '',
-    score: c.score,
-    incoherence: c.incoherence,
-    // An unsourced price is not a fact: no margin is computed from it.
-    ...(c.prixNonSource ? { prixNonSource: true, margeBrute: null } : {}),
-    ...(c.verdictAgent ? { decisionAgent: c.verdictAgent } : {}),
-    ...(c.scoreAgent != null ? { scoreAgent: c.scoreAgent } : {}),
-  }
+  // The agent's decision and score stand (27/11/2026); a contradiction is only flagged.
+  return c.incoherence ? { ...p, incoherence: c.incoherence } : p
 }
 
 export function datesSyntheses(): string[] {
