@@ -84,8 +84,51 @@
       imageHost: /aliexpress-media\.com$/i,
       pathHint: '/kf/',
       /** Les suffixes de redimensionnement s'enlèvent pour retrouver l'original. */
-      fullSize: (url) => url.replace(/\.jpg_[^/]*$/i, '.jpg').replace(/_\d+x\d+q?\d*/gi, ''),
+      fullSize: (url) => url.replace(/\.(jpe?g|png|webp)_[^/]*$/i, '.$1').replace(/_\d+x\d+q?\d*/gi, ''),
       variantSelector: '[class*="sku--wrap"] [data-sku-col], [class*="sku--wrap"] img',
+      /**
+       * Une photo AliExpress, quel que soit son habillage : la même vit sous
+       * « /kf/S…X.jpg_80x80.jpg » (vignette) et « /kf/S…X/Titre-du-produit.jpg »
+       * (JSON). Sans cette clé, elle comptait pour deux (27/11/2026).
+       */
+      cle: (url) => url.match(/\/kf\/([A-Za-z0-9]{16,})/)?.[1] ?? null,
+      /**
+       * Le texte du produit, et seulement lui (27/11/2026, relevé sur le vrai site).
+       *
+       * La fiche range ses caractéristiques sous #nav-specification et la
+       * description du vendeur sous #nav-description (dans une racine fantôme).
+       * Lire la page entière ramenait le menu, le client connecté, les avis,
+       * « plus à aimer » et les panneaux d'autres extensions du navigateur.
+       */
+      lireTexte() {
+        const spec = document.querySelector('#nav-specification')
+        const zone = document.querySelector('#nav-description')
+        if (!spec && !zone) return null
+        const morceaux = []
+        if (zone) {
+          morceaux.push(zone.innerText || '')
+          for (const el of zone.querySelectorAll('*')) {
+            if (!el.shadowRoot) continue
+            for (const c of el.shadowRoot.children) {
+              if (c.tagName === 'STYLE' || c.tagName === 'SCRIPT') continue
+              morceaux.push(c.innerText || '')
+            }
+          }
+        }
+        // Les libellés de l'onglet (« Présentation », « report »…) ne sont pas du texte produit.
+        const propre = (t) =>
+          t
+            .split('\n')
+            .map((l) => l.trim())
+            .filter((l) => l && !/^(?:présentation|description|détails|report|signaler|voir plus|voir moins|view more|show more)$/i.test(l))
+            .join('\n')
+        return {
+          description: propre(morceaux.join('\n')).slice(0, 8000),
+          caracteristiques: propre(spec?.innerText || '').slice(0, 6000),
+        }
+      },
+      /** La page montre-t-elle un produit ? Sa galerie est dessinée ; une page « introuvable » n'en a pas. */
+      ficheAffichee: () => Boolean(document.querySelector('[class*="slider--img"] img, [class*="magnifier--wrap"] img')),
     },
 
     {

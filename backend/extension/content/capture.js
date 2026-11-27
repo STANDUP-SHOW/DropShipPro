@@ -877,6 +877,91 @@
    * page would be wasteful, so this keeps the region between the title and the
    * description, where pickers live.
    */
+
+  /*
+   * Ce qui, sur la page, n'est pas la fiche (27/11/2026).
+   *
+   * Une fiche AliExpress ou Temu porte autour du produit des dizaines d'autres
+   * produits (« plus à aimer », « vous aimerez aussi »), les avis, les menus, le
+   * nom du client connecté. Lus avec le reste, ils partaient à l'IA avec la
+   * consigne de relever « toutes les caractéristiques » : l'annonce mélangeait
+   * le produit et ses voisins (lot de 5 raté devant des clients, 21/11).
+   *
+   * La règle ne dépend d'aucun nom de classe du jour : une carte de produit
+   * voisin est un bloc qui mène vers UNE AUTRE fiche du même site. On remonte
+   * depuis le lien tant que le bloc ne mène qu'à ce produit-là.
+   */
+  function idFiche(href) {
+    try {
+      const u = new URL(href, location.href)
+      const ali = u.pathname.match(/\/item\/(\d{6,})/)
+      if (ali) return `ali:${ali[1]}`
+      const temu = u.pathname.match(/-g-(\d{6,})\.html/) || u.search.match(/[?&]goods_id=(\d{6,})/)
+      if (temu) return `temu:${temu[1]}`
+    } catch {
+      // Une adresse illisible ne désigne aucune fiche.
+    }
+    return null
+  }
+
+  const HORS_FICHE =
+    'header, nav, footer, aside, [role="banner"], [role="navigation"], [role="contentinfo"], ' +
+    '[class*="review" i], [id*="review" i], [class*="feedback" i], [id*="feedback" i], ' +
+    '[class*="recommend" i], [id*="recommend" i], [class*="cookie" i], [id*="cookie" i], [class*="consent" i], ' +
+    '[id^="dsp-"], [class^="dsp-"]'
+
+  function marquerHorsFiche() {
+    const marques = []
+    const marquer = (el) => {
+      if (!el || el === document.body || el === document.documentElement || el.hasAttribute('data-dsp-hors')) return
+      el.setAttribute('data-dsp-hors', '')
+      marques.push(el)
+    }
+    for (const el of document.querySelectorAll(HORS_FICHE)) marquer(el)
+
+    const ici = idFiche(location.href)
+    if (ici) {
+      const cartes = new Set()
+      for (const a of document.querySelectorAll('a[href]')) {
+        const autre = idFiche(a.href)
+        if (!autre || autre === ici || a.closest('[data-dsp-hors]')) continue
+        let carte = a
+        for (let p = a.parentElement, n = 0; p && p !== document.body && n < 12; p = p.parentElement, n++) {
+          const ids = new Set()
+          for (const x of p.querySelectorAll('a[href]')) {
+            const id = idFiche(x.href)
+            if (id) ids.add(id)
+            if (ids.size > 1) break
+          }
+          if (ids.size > 1 || ids.has(ici)) break
+          carte = p
+        }
+        cartes.add(carte)
+      }
+      for (const c of cartes) marquer(c)
+    }
+    return () => {
+      for (const el of marques) el.removeAttribute('data-dsp-hors')
+    }
+  }
+  self.__dspMarquerHorsFiche = marquerHorsFiche
+
+  /** Le temps d'une lecture, le hors-fiche est masqué : `innerText` ne lit pas ce qui ne s'affiche pas. */
+  function lireSansHorsFiche(lire) {
+    const restaurer = marquerHorsFiche()
+    const style = document.createElement('style')
+    style.textContent = '[data-dsp-hors]{display:none!important}'
+    document.documentElement.appendChild(style)
+    try {
+      return lire()
+    } finally {
+      style.remove()
+      restaurer()
+    }
+  }
+  self.__dspLireSansHorsFiche = lireSansHorsFiche
+
+
   /**
    * Le texte de la fiche, caractéristiques techniques comprises.
    *
@@ -897,20 +982,17 @@
      * header, and the whole read came back with a few words). The longest of
      * the candidates wins; when none carries a real text, the whole body.
      */
-    const candidats = [document.querySelector('main'), ...[...document.querySelectorAll('[class*="detail" i]')].slice(0, 40)]
-    let main = null
-    let longueur = 0
-    for (const el of candidats) {
-      const n = (el?.innerText || '').length
-      if (n > longueur) {
-        main = el
-        longueur = n
-      }
-    }
-    if (!main || longueur < 1500) main = document.body
+    /*
+     * The whole page minus what is not the sheet (`lireSansHorsFiche` hides
+     * neighbours, reviews and menus while this runs). Picking « the longest
+     * [class*=detail] block » (21/11) took the recommendations with it; « the
+     * first one » (before) took a tiny header.
+     */
+    const main = document.body
 
     const tableaux = []
     for (const table of document.querySelectorAll('table, dl, [class*="spec" i], [class*="param" i], [class*="attribute" i]')) {
+      if (table.closest('[data-dsp-hors]')) continue
       const texte = (table.innerText || '').replace(/\n{2,}/g, '\n').trim()
       // Deux lignes au moins, sinon c'est une étiquette isolée ; et pas un
       // pavé entier, qui serait la page elle-même reprise deux fois.
@@ -924,7 +1006,8 @@
     // Descriptions mounted in an open shadow root (AliExpress) are invisible to innerText.
     const ombres = []
     for (const el of document.querySelectorAll('*')) {
-      if (!el.shadowRoot) continue
+      // Custom elements are other extensions' panels (ChatGPT sidebar: 650 000 characters, 27/11/2026).
+      if (!el.shadowRoot || el.tagName.includes('-') || el.closest('[data-dsp-hors]')) continue
       const t = [...el.shadowRoot.children].map((c) => c.innerText || '').join('\n').trim()
       if (t.length > 40) ombres.push(t)
       if (ombres.length >= 4) break
@@ -955,6 +1038,7 @@
     let meilleur = ''
     for (const selecteur of candidats) {
       for (const el of document.querySelectorAll(selecteur)) {
+        if (el.closest('[data-dsp-hors]')) continue
         const texte = (el.innerText || '').replace(/\n{2,}/g, '\n').trim()
         // Le plus long l'emporte : les sites imbriquent plusieurs conteneurs
         // « description », dont le plus externe porte le texte complet.
@@ -1022,6 +1106,19 @@
 
       const valeurs = [...group.querySelectorAll('button, li, [role="option"], [role="radio"], img[alt]')].map(
         (el) => el.getAttribute('aria-label') || el.getAttribute('alt') || el.textContent.trim(),
+      )
+      ajouter(nom, valeurs)
+    }
+
+    // AliExpress draws each option row as [data-sku-row] with [data-sku-col] cells; the row
+    // title is a span (« Couleur : BLEU CIEL ») or a button (« Taille(FR) »). Read as displayed.
+    for (const ligne of document.querySelectorAll('[data-sku-row]')) {
+      const bloc = ligne.closest('[class*="sku-item--property"]')
+      const titre = bloc?.querySelector('[class*="sku-item--title"]')?.textContent || ''
+      const nom = titre.split(/[:：]/)[0].replace(/\u00a0/g, ' ').trim()
+      if (!nom || nom.length > 40) continue
+      const valeurs = [...ligne.querySelectorAll('[data-sku-col]')].map(
+        (c) => c.querySelector('img[alt]')?.getAttribute('alt') || c.getAttribute('title') || c.textContent.trim(),
       )
       ajouter(nom, valeurs)
     }
@@ -1412,16 +1509,46 @@
   self.__dspReleverAvis = collectReviews
   self.__dspAvisFeedbackAliExpress = avisDepuisFeedbackAliExpress
 
+  /*
+   * Le texte que le site range lui-même à part, quand son adaptateur sait le
+   * lire (AliExpress : caractéristiques et description du vendeur). Il remplace
+   * la lecture de toute la page, qui ramenait voisins, avis, menus et panneaux
+   * d'autres extensions (27/11/2026).
+   */
+  function texteDuSite(titre) {
+    const adapter = typeof dspAdapterFor === 'function' ? dspAdapterFor() : null
+    let lu = null
+    try {
+      lu = adapter?.lireTexte?.() ?? null
+    } catch {
+      lu = null
+    }
+    if (!lu || (!lu.description && !lu.caracteristiques)) return null
+    return {
+      description: lu.description,
+      pageText: [
+        titre,
+        lu.caracteristiques ? `CARACTÉRISTIQUES\n${lu.caracteristiques}` : '',
+        lu.description ? `DESCRIPTION\n${lu.description}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+        .slice(0, 15000),
+    }
+  }
+
   async function buildPayload() {
     // Pas de défilement ici : collectImages() vient de le faire, et le refaire
     // coûtait une seconde et demie pour rien.
+    const titre =
+      document.querySelector('meta[property="og:title"]')?.content ||
+      document.querySelector('h1')?.textContent?.trim() ||
+      document.title
+    const site = texteDuSite(titre)
     return {
       sourceUrl: location.href,
-      title:
-        document.querySelector('meta[property="og:title"]')?.content ||
-        document.querySelector('h1')?.textContent?.trim() ||
-        document.title,
-      description: collectDescription(),
+      title: titre,
+      description: site ? site.description : lireSansHorsFiche(collectDescription),
       price: collectPrice(),
       // `price` est calculé juste avant : collectPrice y pose la devise du prix retenu.
       currency: devisePrix || (/\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR'),
@@ -1438,7 +1565,7 @@
        * sans republier l extension.
        */
       skuAliExpress: await releverSkuAliExpress(),
-      pageText: collectPageText(),
+      pageText: site ? site.pageText : lireSansHorsFiche(collectPageText),
       // Le code-barres déclaré et les avis affichés : le serveur revérifie et borne les deux.
       ean: collectEan(),
       reviews: await releverAvis(),
@@ -2081,27 +2208,6 @@
   }
   self.__dspGalerieDominante = galerieDominante
 
-  /**
-   * La galerie par son format, ou rien : la version stricte de `galerieDominante`.
-   *
-   * Sert quand l'adaptateur du site n'a pas reconnu assez de photos (AliExpress
-   * et Temu changent leur page sans prévenir). Au moins trois grandes images du
-   * même format sur une FICHE, c'est la galerie : le panier et les
-   * recommandations sont à d'autres tailles. Pas de format franc : `[]`, et le
-   * lot refuse plutôt que d'importer des photos au hasard.
-   */
-  function galerieParFormat(images) {
-    const grandes = images.filter((i) => Math.min(i.width || 0, i.height || 0) >= MIN_SIDE)
-    const compte = new Map()
-    for (const i of grandes) {
-      const cle = `${i.width}x${i.height}`
-      compte.set(cle, (compte.get(cle) || 0) + 1)
-    }
-    const dominant = [...compte.entries()].sort((a, b) => b[1] - a[1])[0]
-    if (!dominant || dominant[1] < 3) return []
-    return grandes.filter((i) => `${i.width}x${i.height}` === dominant[0])
-  }
-  self.__dspGalerieParFormat = galerieParFormat
 
   /*
    * Le seuil du serveur, recopié (backend/src/services/sourceQuality.ts) :
@@ -2169,6 +2275,26 @@
     }
 
     /*
+     * Une fiche introuvable n'est pas une fiche (27/11/2026, constaté sur le vrai
+     * site) : AliExpress rend « Désolé, la page que vous essayez d'atteindre n'a
+     * pu être trouvée » à l'adresse d'un article retiré, en gardant son titre
+     * dans les balises et des dizaines de produits recommandés dessous. Le relevé
+     * sortait « réussi » : trois photos, un prix, et les recommandations comme
+     * description.
+     */
+    const debut = (document.body?.innerText || '').slice(0, 5000)
+    const introuvable =
+      /n['’]a pu être trouvée|page (?:introuvable|not found)|this (?:item|product) is no longer available|cet article n['’]est plus disponible|ce produit n['’]est plus disponible/i.test(
+        debut,
+      ) || (adapterPage?.ficheAffichee && !adapterPage.ficheAffichee())
+    if (introuvable) {
+      throw new Error(
+        `Cette fiche ${adapterPage?.label ?? ''} est introuvable ou retirée par le vendeur (la page n'affiche pas le produit) : ` +
+          'rien n’a été importé ni facturé.',
+      )
+    }
+
+    /*
      * Les photos AVANT le reste, et c'est l'ordre qui compte.
      *
      * `collectImages()` fait défiler toute la fiche pour déclencher le chargement
@@ -2230,52 +2356,54 @@
      * personne ne relit. Quand l'adaptateur en trouve au moins trois, on s'en
      * tient à lui.
      */
-    const base = certaines.length >= 3 ? certaines : produits
-
     /*
-     * Puis on isole la galerie par son format — le filet qui manquait.
+     * Les photos, sans devinette (27/11/2026).
      *
-     * L'adaptateur seul ne suffit pas sur Temu (même CDN pour tout) : sans cette
-     * étape, un lot de chaussures ressortait avec des tondeuses. `galerieDominante`
-     * ne garde que le format le plus représenté, c'est-à-dire la galerie.
+     * Sur un site qui a son adaptateur (AliExpress, Temu…), la galerie est
+     * celle que la page déclare et affiche : son JSON et ses vignettes de
+     * galerie, dans leur ordre, une fois chacune. Rien d'autre n'y entre, et
+     * aucun filtre ne la réordonne : le filtre « format dominant » jetait la
+     * photo principale d'AliExpress (1000×1000) au profit des suivantes
+     * (800×800), constaté le 27/11 sur une vraie fiche. Une photo n'est écartée
+     * que si elle a été mesurée et qu'elle est trop petite pour une annonce.
+     *
+     * Moins de trois photos reconnues : refus. Le 13/11, ce refus avait été
+     * remplacé par « le format le plus fréquent de la page » — sur AliExpress,
+     * ce sont les produits recommandés, importés sans un mot.
      */
-    let retenues = galerieDominante(base)
-
-    /*
-     * L'adaptateur n'a pas reconnu assez de photos : le format de la galerie
-     * tranche à sa place (13/11/2026). C'était un refus systématique — « 0 sûre(s)
-     * sur 5 », import manuel exigé — alors que la galerie d'une fiche se
-     * reconnaît à son format, sans dépendre des noms de classes du jour.
-     */
-    let parFormat = false
-    if (adaptateur && certaines.length < 3) {
-      const galerie = galerieParFormat(produits)
-      if (galerie.length >= 3) {
-        retenues = galerie
-        parFormat = true
+    let retenues = []
+    if (adaptateur && adapterPage) {
+      const cle = (u) => (adapterPage.cle ? adapterPage.cle(u) : null) || photoIdentity(u)
+      const vues = new Set()
+      const liste = []
+      for (const u of dspAdapterImages(adapterPage)) {
+        const k = cle(u)
+        if (vues.has(k)) continue
+        vues.add(k)
+        liste.push(u)
       }
+      const mesures = await Promise.all(liste.slice(0, PHOTOS_MAX + 5).map(async (u) => ({ u, m: await measure(u) })))
+      retenues = mesures.filter(({ m }) => !m || Math.min(m.width, m.height) >= MIN_SIDE).map(({ u }) => u)
+    } else {
+      const base = certaines.length >= 3 ? certaines : produits
+      retenues = galerieDominante(base).map((i) => i.url)
     }
-    payload.images = retenues.slice(0, PHOTOS_MAX).map((i) => i.url)
+    payload.images = retenues.slice(0, PHOTOS_MAX)
 
-    /*
-     * Un relevé trop maigre ou trop incertain est refusé, pas ajouté.
-     *
-     * Deux cas, une seule conduite : dire non maintenant plutôt que de laisser
-     * une annonce borgne — ou pleine d'images étrangères — entrer dans le
-     * catalogue et n'être découverte qu'après l'import.
-     */
-    if (payload.images.length <= 1) {
+    if (adaptateur && payload.images.length < 3) {
       throw new Error(
-        "Une seule photo trouvée : la galerie n'est probablement pas encore chargée. " +
-          'Faites défiler la fiche jusqu’aux photos, puis réessayez.',
+        `Les photos de ce produit ne sont pas reconnues avec certitude sur cette page ${adaptateur} ` +
+          `(${payload.images.length} trouvée(s)) : rien n’a été importé ni facturé. ` +
+          'Importez cette fiche avec le bouton de la page, qui vous laisse les choisir.',
       )
     }
-
-    if (adaptateur && certaines.length < 3 && !parFormat) {
+    if (payload.images.length <= 1) {
       throw new Error(
-        `Les photos de ce site ne sont pas reconnues avec certitude (${certaines.length} sûre(s) sur ` +
-          `${produits.length} trouvée(s)) : elles risquent de ne pas être celles du produit. ` +
-          'Importez cette fiche avec le bouton de la page, qui vous laisse les choisir.',
+        adaptateur
+          ? `Les photos de ce produit ne sont pas reconnues avec certitude sur cette page ${adaptateur} : ` +
+              'rien n’a été importé ni facturé. Importez cette fiche avec le bouton de la page, qui vous laisse les choisir.'
+          : "Une seule photo trouvée : la galerie n'est probablement pas encore chargée. " +
+              'Faites défiler la fiche jusqu’aux photos, puis réessayez.',
       )
     }
 
