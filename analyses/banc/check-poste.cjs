@@ -133,10 +133,10 @@ test('rayon complet : 20 produits, 20 URL distinctes vues, marges en euros, fich
   assert.equal(annexe.products.length, 20)
   assert.ok(Object.keys(annexe.products[1]).length >= 38, `${Object.keys(annexe.products[1]).length} champs par produit`)
   assert.ok(Array.isArray(annexe.suppliers) && annexe.suppliers.length && !('poste' in annexe) && !('report_markdown' in annexe))
-  // an address the pages never showed is removed wherever it sits, not only in supplier_url
-  assert.equal(j.products[0].marketplace_prices.amazon.url, 'Non vérifié')
-  assert.ok(!JSON.stringify(j).includes('inventee.example'))
-  assert.ok(j.poste.stats.autresUrlsRetirees >= 2)
+  // the agent's addresses are kept as written, even one the pages never showed (Max, 27/11: « tout tel quel »)
+  assert.equal(j.products[0].marketplace_prices.amazon.url, 'https://inventee.example/amazon-1')
+  assert.ok(j.products.every((p) => p.supplier_url !== NON_VERIFIE), 'aucun lien fournisseur remplacé par « Non vérifié »')
+  assert.ok(j.poste.stats.autresUrlsNonLues >= 2)
   // what the site reads: the 16 sections, without the annex
   assert.ok(j.report_markdown.includes('## 8. Battle sheet achat / revente') && !j.report_markdown.includes('Annexe'))
   assert.ok(j.social_places.length && j.ads_current.length)
@@ -194,23 +194,23 @@ test('le Markdown rayon est lu par le site comme un rapport MARKETSPY (rapports-
   db.close()
 })
 
-test('URL inventées : remplacées par « Non vérifié », rapport À REVOIR, envoyé quand même (Max, 21/11)', async (srv) => {
+test('URL jamais lues : gardées telles quelles, comptées seulement, rapport envoyé (Max, 27/11)', async (srv) => {
   const m = monde(srv); remise(); etat.mode = 'url-inventee'
   let envoyes = 0
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
-  assert.equal(res.statut, 'a_revoir')
+  assert.equal(res.statut, 'ok', JSON.stringify(res.validation.problemes))
   assert.equal(res.validation.stats.inventions, 4)
   const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
-  assert.equal(j.products.filter((p) => p.supplier_url === NON_VERIFIE).length, 4)
-  assert.equal(envoyes, 1, 'un rapport incomplet part aussi : ses manques sont notés, jamais bloquants')
-  assert.equal(orch.rapportValide(m.racine, '2026-10-03', 'telephonie', 'smartphones'), false)
+  assert.equal(j.products.filter((p) => p.supplier_url === NON_VERIFIE).length, 0)
+  assert.equal(envoyes, 1)
 })
 
-test('marge en pourcentage (280 pour un prix de 30 €) : vidée et signalée', async (srv) => {
+test('marge en pourcentage (280 pour un prix de 30 €) : gardée telle quelle, comptée seulement', async (srv) => {
   const m = monde(srv); remise(); etat.mode = 'marge-pct'
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: {} })
-  assert.equal(res.statut, 'a_revoir')
-  assert.ok(res.validation.problemes.some((p) => /marge/.test(p)))
+  assert.equal(res.statut, 'ok')
+  assert.ok(res.validation.stats.margesSuspectes > 0)
+  assert.equal(JSON.parse(fs.readFileSync(res.chemins.json, 'utf8')).products[0].gross_margin, 280)
 })
 
 test('18 produits au lieu de 20 : à revoir', async (srv) => {
@@ -619,29 +619,11 @@ test('envoi au site : le refus du site est dit en clair, une panne ne perd rien'
   assert.equal(etat.envoyes.length, 1)
 })
 
-test('validation : une URL absente des pages lues n’est jamais conservée', () => {
+test('validation : une URL absente des pages lues est gardée telle quelle', () => {
   const r = { study: {}, executive_summary: {}, market: {}, creative_prompts: { image_ads: ['a'], short_videos_30s: ['b'] }, products: [{ supplier_url: 'https://vu.fr/a/', target_selling_price: 30, net_margin_estimated: 10 }, { supplier_url: 'https://pasvu.fr/b', target_selling_price: 30 }] }
   const v = valider(r, new Set(['https://vu.fr/a']), { attendus: 2 })
-  assert.equal(r.products[0].supplier_url, 'https://vu.fr/a/'); assert.equal(r.products[1].supplier_url, NON_VERIFIE)
-  assert.equal(v.stats.urlsDistinctes, 1); assert.equal(v.ok, false)
-})
-
-test('validation : un « acheter » à marge négative ou sans prix fournisseur est ramené à DON\'T BUY / WATCHLIST', () => {
-  const base = { study: {}, executive_summary: {}, market: {}, creative_prompts: { image_ads: ['a'], short_videos_30s: ['b'] } }
-  const r = { ...base, products: [
-    { supplier_url: 'https://vu.fr/a', purchase_price: 79.9, target_selling_price: 27.9, decision: 'BUY NOW', global_opportunity_score: 90 },
-    { supplier_url: 'https://vu.fr/b', decision: 'BREAKOUT CANDIDATE', target_selling_price: 30, global_opportunity_score: 80 },
-    { supplier_url: 'https://vu.fr/c', purchase_price: 10, target_selling_price: 30, net_margin_estimated: -2, decision: 'BUY IF NEGOTIATED', global_opportunity_score: 15 },
-    { supplier_url: 'https://vu.fr/d', purchase_price: 10, estimated_landed_cost_france: 14, target_selling_price: 35, net_margin_estimated: 9, decision: 'BUY NOW', global_opportunity_score: 88 },
-  ] }
-  const v = valider(r, new Set(['https://vu.fr/a', 'https://vu.fr/b', 'https://vu.fr/c', 'https://vu.fr/d']), { attendus: 4 })
-  const [a, b, c, d] = r.products
-  assert.equal(a.decision, "DON'T BUY"); assert.equal(a.global_opportunity_score, 20)
-  assert.equal(b.decision, 'WATCHLIST'); assert.equal(b.global_opportunity_score, 20)
-  assert.equal(c.decision, "DON'T BUY"); assert.equal(c.global_opportunity_score, 15, 'un score déjà bas reste tel quel')
-  assert.equal(d.decision, 'BUY NOW'); assert.equal(d.global_opportunity_score, 88, 'un achat cohérent ne bouge pas')
-  assert.equal(v.stats.decisionsCorrigees, 3)
-  assert.ok(v.problemes.some((x) => x.includes('3 décision(s)')))
+  assert.equal(r.products[0].supplier_url, 'https://vu.fr/a/'); assert.equal(r.products[1].supplier_url, 'https://pasvu.fr/b')
+  assert.equal(v.stats.urlsDistinctes, 1); assert.equal(v.stats.inventions, 1); assert.equal(v.ok, true)
 })
 
 test('dépôt : arborescence créée, écriture atomique, re-dépôt du même jour remplace', () => {
@@ -721,7 +703,7 @@ test('rayon sans Serper : aucun appel Serper, 66 recherches web en lots, fiches 
   assert.match(prompt, /modèle vendu 49,90 € chez Boutique/, 'les citations arrivent dans les preuves')
   const j = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
   assert.match(j.products[0].image_url, /\/img\/fiche-\d+\.jpg$/, 'image relevée gardée')
-  assert.equal(j.products[1].image_url, NON_VERIFIE, 'image inventée vidée')
+  assert.notEqual(j.products[1].image_url, NON_VERIFIE, 'image de l’agent gardée')
   assert.equal(j.poste.stats.imagesInventees, 1)
   assert.equal(j.poste.usage.recherchesWeb, 66); assert.equal(j.poste.usage.serper, 0)
   assert.ok(j.poste.usage.rechercheDollars > 0.66 && j.poste.usage.rechercheDollars < 0.9, String(j.poste.usage.rechercheDollars))
@@ -748,15 +730,14 @@ test('sourcing : recherches limitées aux sites fournisseurs, supplier_url prise
   assert.ok(trace.recherches.filter((r) => r.vague === 'sourcing').every((r) => r.domaines.includes('alibaba.com') && r.sites.length))
 })
 
-test('sourcing : un rapport qui prend ses liens chez les revendeurs est à revoir, envoyé quand même (Max, 21/11)', async (srv) => {
+test('sourcing : un lien pris chez un revendeur est gardé avec son prix, compté seulement (Max, 27/11)', async (srv) => {
   const m = mondeClaude(srv); remise(); etat.mode = 'revendeurs'
   let envoyes = 0
   const res = await executerRayon({ rayon: m.rayon, deps: m.deps, options: { envoyer: async () => { envoyes++ } } })
-  assert.equal(res.statut, 'a_revoir'); assert.equal(envoyes, 1)
+  assert.equal(res.statut, 'ok'); assert.equal(envoyes, 1)
   assert.ok(res.validation.stats.horsSourcing > 0, JSON.stringify(res.validation.stats))
   const r = JSON.parse(fs.readFileSync(res.chemins.json, 'utf8'))
-  assert.ok(r.products.every((p) => p.supplier_url === NON_VERIFIE ? p.purchase_price === null && p.gross_margin === null : true), 'pas de prix d’achat sans page fournisseur')
-  assert.ok(r.poste.problemes.some((p) => /revendeur/.test(p)))
+  assert.ok(r.products.every((p) => p.supplier_url !== NON_VERIFIE && p.purchase_price !== null), 'lien et prix de l’agent gardés')
   remise()
   const ok = await executerRayon({ rayon: m.rayon, deps: m.deps, options: {} })
   assert.equal(ok.statut, 'ok', JSON.stringify(ok.validation))

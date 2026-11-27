@@ -113,20 +113,8 @@ if (typeof galerie === 'function') {
   verifier('AliExpress : les 1000×1000 restent, le parasite 640 sort', gardeAli.length === 4 && !gardeAli.includes('parasite.jpg'))
 }
 
-const parFormat = w.__dspGalerieParFormat
-verifier('galerieParFormat exposé', typeof parFormat === 'function')
-if (typeof parFormat === 'function') {
-  console.log('\nAdaptateur muet sur une fiche : le format tranche (13/11/2026)')
-  const img = (url, width, height) => ({ url, width, height })
-  const fiche = [
-    img('g1.jpg', 800, 800), img('g2.jpg', 800, 800), img('g3.jpg', 800, 800), img('g4.jpg', 800, 800),
-    img('reco.jpg', 450, 450), img('banniere.jpg', 1600, 500),
-  ]
-  const g = parFormat(fiche).map((i) => i.url)
-  verifier('la galerie 800×800 est retenue sans l\'adaptateur', g.length === 4 && g.every((u) => /^g\d/.test(u)))
-  const flou = [img('a.jpg', 800, 800), img('b.jpg', 900, 900), img('c.jpg', 1000, 1000), img('d.jpg', 640, 640), img('e.jpg', 800, 800)]
-  verifier('aucun format franc : rien (le lot refuse plutôt que deviner)', parFormat(flou).length === 0)
-}
+// galerieParFormat (13/11) was removed on 27/11: on an adapter site, an unsure gallery is refused,
+// never chosen by format. The real-page bench check-lot-reel.cjs covers it.
 
 ;(async () => {
   console.log('\nUne page Temu qui n\'est pas une fiche : refus nommé, avant tout relevé')

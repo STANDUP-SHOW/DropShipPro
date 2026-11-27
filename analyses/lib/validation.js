@@ -22,38 +22,28 @@ function cle(u) {
   }
 }
 
-/**
- * Every other address of the report (marketplace prices, sources, competitors…) must also have been
- * seen: an unseen one becomes « Non vérifié ». supplier_url and image_url have their own rules above.
- * Returns how many were removed (counted in stats; it does not hold the report back).
- */
-function retirerUrlsNonVues(rapport, vues) {
+/** How many other addresses of the report (marketplace prices, sources…) were not among the pages read. Counted only. */
+function compterUrlsNonVues(rapport, vues) {
   let n = 0
   const voir = (o) => {
     if (!o || typeof o !== 'object') return
     for (const k of Object.keys(o)) {
       if (k === 'supplier_url' || k === 'image_url' || k === 'poste') continue
       const v = o[k]
-      if (typeof v === 'string' && /^https?:\/\//i.test(v.trim()) && !vues.has(cle(v.trim()))) {
-        o[k] = NON_VERIFIE
-        n++
-      } else if (v && typeof v === 'object') voir(v)
+      if (typeof v === 'string' && /^https?:\/\//i.test(v.trim()) && !vues.has(cle(v.trim()))) n++
+      else if (v && typeof v === 'object') voir(v)
     }
   }
   voir(rapport)
-  if (Array.isArray(rapport.sources)) rapport.sources = rapport.sources.filter((s) => s !== NON_VERIFIE && !(s && typeof s === 'object' && s.url === NON_VERIFIE))
-  for (const p of Array.isArray(rapport.products) ? rapport.products : []) if (Array.isArray(p.sources)) p.sources = p.sources.filter((s) => s !== NON_VERIFIE)
   return n
 }
 
 /**
- * @param {object} rapport  parsed MarketSpy JSON (mutated: unverified fields become "Non vérifié")
+ * The agent's report is kept exactly as written (Max, 27/11/2026: « tout tel quel ») : no link, price,
+ * margin, image, decision or score is changed or blanked here. The counts below are statistics only.
+ * @param {object} rapport  parsed MarketSpy JSON (never mutated)
  * @param {Set<string>} urlsVues  URLs seen in search results or on pages read
  * @param {{imagesVues?: Set<string>, urlsFournisseurs?: Set<string>}} o
- *   imagesVues: an image_url must be one of these real addresses (an unseen one is blanked and counted
- *   in stats; it does not hold the report back).
- *   urlsFournisseurs: a supplier_url must come from the sourcing wave (supplier sites); a retailer page
- *   (Darty, Fnac…) is blanked with its purchase price: it is where the product is sold, not bought.
  */
 function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFournisseurs = null } = {}) {
   const problemes = []
@@ -65,58 +55,24 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
   let invention = 0
   let margesSuspectes = 0
   let imagesInventees = 0
-  let decisionsCorrigees = 0
 
   for (const p of produits) {
-    if (fournisseurs && estHttp(p.supplier_url) && vues.has(cle(p.supplier_url)) && !fournisseurs.has(cle(p.supplier_url))) {
-      horsSourcing++
-      p.supplier_url = NON_VERIFIE
-      p.url_type = 'non_verifie'
+    if (estHttp(p.supplier_url)) {
+      if (vues.has(cle(p.supplier_url))) distinctes.add(cle(p.supplier_url))
+      else invention++
+      if (fournisseurs && vues.has(cle(p.supplier_url)) && !fournisseurs.has(cle(p.supplier_url))) horsSourcing++
     }
-    if (estHttp(p.supplier_url) && vues.has(cle(p.supplier_url))) {
-      distinctes.add(cle(p.supplier_url))
-    } else {
-      if (estHttp(p.supplier_url)) invention++
-      p.supplier_url = NON_VERIFIE
-      p.url_type = 'non_verifie'
-    }
-    // no supplier page, no purchase price: it could only come from a retailer or from nowhere
-    if (fournisseurs && !estHttp(p.supplier_url)) for (const k of ['purchase_price', 'estimated_landed_cost_france', 'gross_margin', 'net_margin_estimated', 'roi_estimated']) p[k] = null
-    if (p.image_url && !estHttp(p.image_url)) p.image_url = NON_VERIFIE
-    else if (imagesVues && estHttp(p.image_url) && !imagesVues.has(p.image_url)) {
-      imagesInventees++
-      p.image_url = NON_VERIFIE
-    }
+    if (imagesVues && estHttp(p.image_url) && !imagesVues.has(p.image_url)) imagesInventees++
     const vente = Number(p.target_selling_price)
     for (const champ of ['gross_margin', 'net_margin_estimated']) {
       const m = Number(p[champ])
-      if (Number.isFinite(m) && Number.isFinite(vente) && vente > 0 && m > vente) {
-        margesSuspectes++
-        p[champ] = null
-      }
-    }
-    // A negative margin is never a buy, an unsourced price never backs one (21/11/2026: « achat 79,90 €,
-    // vente 27,90 €, acheter, 90/100 » reached the site). The site applies the same rule (coherencePrix.ts).
-    const achat = Number(p.estimated_landed_cost_france ?? p.purchase_price)
-    const nette = p.net_margin_estimated == null ? NaN : Number(p.net_margin_estimated)
-    const favorable = /^(BUY|BREAKOUT)/i.test(String(p.decision || '').trim())
-    const negative = (Number.isFinite(achat) && achat > 0 && Number.isFinite(vente) && vente > 0 && vente <= achat) || (Number.isFinite(nette) && nette < 0)
-    const sansPrix = !(Number(p.purchase_price) > 0)
-    if (favorable && (negative || sansPrix)) {
-      decisionsCorrigees++
-      p.decision = negative ? "DON'T BUY" : 'WATCHLIST'
-      if (Number(p.global_opportunity_score) > 20) p.global_opportunity_score = 20
+      if (Number.isFinite(m) && Number.isFinite(vente) && vente > 0 && m > vente) margesSuspectes++
     }
   }
 
-  const autresRetirees = retirerUrlsNonVues(rapport, vues)
+  const autresNonVues = compterUrlsNonVues(rapport, vues)
 
   if (produits.length !== attendus) problemes.push(`${produits.length} produits au lieu de ${attendus}`)
-  if (distinctes.size !== attendus) problemes.push(`${distinctes.size} URL vérifiées et distinctes au lieu de ${attendus}`)
-  if (invention) problemes.push(`${invention} URL absentes des pages lues, remplacées par « ${NON_VERIFIE} »`)
-  if (horsSourcing) problemes.push(`${horsSourcing} lien(s) fournisseur pris chez un revendeur et non sur un site fournisseur, retiré(s)`)
-  if (decisionsCorrigees) problemes.push(`${decisionsCorrigees} décision(s) d'achat à marge négative ou sans prix fournisseur, ramenée(s) à DON'T BUY / WATCHLIST`)
-  if (margesSuspectes) problemes.push(`${margesSuspectes} marge(s) supérieure(s) au prix de vente (pourcentage ?), vidée(s)`)
   for (const k of ['study', 'executive_summary', 'market', 'creative_prompts']) {
     if (!rapport[k] || typeof rapport[k] !== 'object') problemes.push(`bloc « ${k} » absent`)
   }
@@ -127,7 +83,7 @@ function valider(rapport, urlsVues, { attendus = 20, imagesVues = null, urlsFour
   return {
     ok: problemes.length === 0,
     problemes,
-    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, autresUrlsRetirees: autresRetirees, margesSuspectes, imagesInventees, horsSourcing, decisionsCorrigees, avecPrixAchat: produits.filter((p) => Number(p.purchase_price) > 0).length },
+    stats: { produits: produits.length, urlsDistinctes: distinctes.size, inventions: invention, autresUrlsRetirees: 0, autresUrlsNonLues: autresNonVues, margesSuspectes, imagesInventees, horsSourcing, avecPrixAchat: produits.filter((p) => Number(p.purchase_price) > 0).length },
   }
 }
 
