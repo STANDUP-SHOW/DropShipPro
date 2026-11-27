@@ -86,6 +86,14 @@
       /** Les suffixes de redimensionnement s'enlèvent pour retrouver l'original. */
       fullSize: (url) => url.replace(/\.jpg_[^/]*$/i, '.jpg').replace(/_\d+x\d+q?\d*/gi, ''),
       variantSelector: '[class*="sku--wrap"] [data-sku-col], [class*="sku--wrap"] img',
+      /**
+       * Une photo AliExpress, quel que soit son habillage : la même vit sous
+       * « /kf/S…X.jpg_80x80.jpg » (vignette) et « /kf/S…X/Titre-du-produit.jpg »
+       * (JSON). Sans cette clé, elle comptait pour deux (27/11/2026).
+       */
+      cle: (url) => url.match(/\/kf\/([A-Za-z0-9]{16,})/)?.[1] ?? null,
+      /** La page montre-t-elle un produit ? Sa galerie est dessinée ; une page « introuvable » n'en a pas. */
+      ficheAffichee: () => Boolean(document.querySelector('[class*="slider--img"] img, [class*="magnifier--wrap"] img')),
     },
 
     {

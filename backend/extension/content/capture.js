@@ -907,7 +907,8 @@
   const HORS_FICHE =
     'header, nav, footer, aside, [role="banner"], [role="navigation"], [role="contentinfo"], ' +
     '[class*="review" i], [id*="review" i], [class*="feedback" i], [id*="feedback" i], ' +
-    '[class*="recommend" i], [id*="recommend" i]'
+    '[class*="recommend" i], [id*="recommend" i], [class*="cookie" i], [id*="cookie" i], [class*="consent" i], ' +
+    '[id^="dsp-"], [class^="dsp-"]'
 
   function marquerHorsFiche() {
     const marques = []
@@ -960,74 +961,6 @@
   }
   self.__dspLireSansHorsFiche = lireSansHorsFiche
 
-  /** Marque le hors-fiche sans le masquer : la galerie ancrée a besoin de la mise en page réelle. */
-  function lireSansHorsFicheMarque(lire) {
-    const restaurer = marquerHorsFiche()
-    try {
-      return lire()
-    } finally {
-      restaurer()
-    }
-  }
-
-  /*
-   * La galerie, retrouvée à partir de la grande photo du produit (27/11/2026).
-   *
-   * Le 13/11, l'adaptateur AliExpress ne reconnaissait plus la galerie (« 0 sûre
-   * sur 5 ») et le refus avait été remplacé par une devinette : « le format le
-   * plus fréquent de la page ». Sur AliExpress, ce sont les produits
-   * recommandés. D'où des photos d'autres produits, importées sans un mot.
-   *
-   * Ce qui ne change pas d'une refonte à l'autre : en haut de la fiche, la plus
-   * grande image affichée est celle du produit, et ses vignettes vivent dans le
-   * même bloc. On remonte depuis elle jusqu'au premier bloc qui en porte au
-   * moins trois du même serveur, sans sortir du haut de la page.
-   */
-  function galerieAncree(adapter) {
-    const hautMax = window.innerHeight * 1.4
-    const visibles = []
-    for (const img of document.querySelectorAll('img')) {
-      if (img.closest('[data-dsp-hors]')) continue
-      const r = img.getBoundingClientRect()
-      if (!r.width || !r.height) continue
-      const haut = r.top + window.scrollY
-      if (haut > hautMax) continue
-      visibles.push({ img, r, aire: r.width * r.height })
-    }
-    const principale = visibles.filter((v) => Math.min(v.r.width, v.r.height) >= 200).sort((a, b) => b.aire - a.aire)[0]
-    if (!principale) return []
-    const source = (img) => {
-      const u = bestSource(img)
-      return u && u.startsWith('//') ? `https:${u}` : u
-    }
-    let hote = ''
-    try {
-      hote = new URL(source(principale.img)).host
-    } catch {
-      return []
-    }
-    const plein = (u) => (adapter?.fullSize ? adapter.fullSize(u) : u)
-
-    for (let bloc = principale.img.parentElement, n = 0; bloc && bloc !== document.body && n < 10; bloc = bloc.parentElement, n++) {
-      const rb = bloc.getBoundingClientRect()
-      if (rb.height > window.innerHeight * 2) break
-      const urls = []
-      for (const img of bloc.querySelectorAll('img')) {
-        const u = source(img)
-        if (!u || !u.startsWith('http') || JUNK.test(u.replace(/_\d+x\d+[^/]*$/, ''))) continue
-        try {
-          if (new URL(u).host !== hote) continue
-        } catch {
-          continue
-        }
-        urls.push(plein(u))
-      }
-      const uniques = [...new Map(urls.map((u) => [photoIdentity(u), u])).values()]
-      if (uniques.length >= 3) return uniques.slice(0, PHOTOS_MAX)
-    }
-    return []
-  }
-  self.__dspGalerieAncree = galerieAncree
 
   /**
    * Le texte de la fiche, caractéristiques techniques comprises.
@@ -2231,27 +2164,6 @@
   }
   self.__dspGalerieDominante = galerieDominante
 
-  /**
-   * La galerie par son format, ou rien : la version stricte de `galerieDominante`.
-   *
-   * Sert quand l'adaptateur du site n'a pas reconnu assez de photos (AliExpress
-   * et Temu changent leur page sans prévenir). Au moins trois grandes images du
-   * même format sur une FICHE, c'est la galerie : le panier et les
-   * recommandations sont à d'autres tailles. Pas de format franc : `[]`, et le
-   * lot refuse plutôt que d'importer des photos au hasard.
-   */
-  function galerieParFormat(images) {
-    const grandes = images.filter((i) => Math.min(i.width || 0, i.height || 0) >= MIN_SIDE)
-    const compte = new Map()
-    for (const i of grandes) {
-      const cle = `${i.width}x${i.height}`
-      compte.set(cle, (compte.get(cle) || 0) + 1)
-    }
-    const dominant = [...compte.entries()].sort((a, b) => b[1] - a[1])[0]
-    if (!dominant || dominant[1] < 3) return []
-    return grandes.filter((i) => `${i.width}x${i.height}` === dominant[0])
-  }
-  self.__dspGalerieParFormat = galerieParFormat
 
   /*
    * Le seuil du serveur, recopié (backend/src/services/sourceQuality.ts) :
@@ -2319,6 +2231,26 @@
     }
 
     /*
+     * Une fiche introuvable n'est pas une fiche (27/11/2026, constaté sur le vrai
+     * site) : AliExpress rend « Désolé, la page que vous essayez d'atteindre n'a
+     * pu être trouvée » à l'adresse d'un article retiré, en gardant son titre
+     * dans les balises et des dizaines de produits recommandés dessous. Le relevé
+     * sortait « réussi » : trois photos, un prix, et les recommandations comme
+     * description.
+     */
+    const debut = (document.body?.innerText || '').slice(0, 5000)
+    const introuvable =
+      /n['’]a pu être trouvée|page (?:introuvable|not found)|this (?:item|product) is no longer available|cet article n['’]est plus disponible|ce produit n['’]est plus disponible/i.test(
+        debut,
+      ) || (adapterPage?.ficheAffichee && !adapterPage.ficheAffichee())
+    if (introuvable) {
+      throw new Error(
+        `Cette fiche ${adapterPage?.label ?? ''} est introuvable ou retirée par le vendeur (la page n'affiche pas le produit) : ` +
+          'rien n’a été importé ni facturé.',
+      )
+    }
+
+    /*
      * Les photos AVANT le reste, et c'est l'ordre qui compte.
      *
      * `collectImages()` fait défiler toute la fiche pour déclencher le chargement
@@ -2381,33 +2313,46 @@
      * tient à lui.
      */
     /*
-     * Les photos : celles que l'adaptateur du site reconnaît, recoupées avec la
-     * galerie ancrée sur la grande photo du produit. Jamais de devinette
-     * (27/11/2026) : la « galerie par format » du 13/11 prenait les produits
-     * recommandés quand l'adaptateur était muet.
+     * Les photos, sans devinette (27/11/2026).
      *
-     * - adaptateur sûr (≥ 3) et d'accord avec la galerie ancrée : on le garde ;
-     * - adaptateur muet, ou qui désigne d'autres photos que celles affichées en
-     *   haut de la fiche (son JSON peut être celui d'un produit voisin) : la
-     *   galerie ancrée ;
-     * - ni l'un ni l'autre : refus, la fiche s'importe à l'unité en choisissant.
+     * Sur un site qui a son adaptateur (AliExpress, Temu…), la galerie est
+     * celle que la page déclare et affiche : son JSON et ses vignettes de
+     * galerie, dans leur ordre, une fois chacune. Rien d'autre n'y entre, et
+     * aucun filtre ne la réordonne : le filtre « format dominant » jetait la
+     * photo principale d'AliExpress (1000×1000) au profit des suivantes
+     * (800×800), constaté le 27/11 sur une vraie fiche. Une photo n'est écartée
+     * que si elle a été mesurée et qu'elle est trop petite pour une annonce.
+     *
+     * Moins de trois photos reconnues : refus. Le 13/11, ce refus avait été
+     * remplacé par « le format le plus fréquent de la page » — sur AliExpress,
+     * ce sont les produits recommandés, importés sans un mot.
      */
-    const ancree = lireSansHorsFicheMarque(() => galerieAncree(adapterPage))
-    const identitesAncrees = new Set(ancree.map(photoIdentity))
-    const accord = certaines.some((i) => identitesAncrees.has(photoIdentity(i.url)))
-    let retenues
-    if (certaines.length >= 3 && (accord || ancree.length < 3)) {
-      retenues = galerieDominante(certaines).map((i) => i.url)
-    } else if (ancree.length >= 3) {
-      retenues = ancree
-    } else if (!adaptateur && produits.length) {
-      // Site sans adaptateur : le classement générique, filtré par format, comme avant.
-      retenues = galerieDominante(produits).map((i) => i.url)
+    let retenues = []
+    if (adaptateur && adapterPage) {
+      const cle = (u) => (adapterPage.cle ? adapterPage.cle(u) : null) || photoIdentity(u)
+      const vues = new Set()
+      const liste = []
+      for (const u of dspAdapterImages(adapterPage)) {
+        const k = cle(u)
+        if (vues.has(k)) continue
+        vues.add(k)
+        liste.push(u)
+      }
+      const mesures = await Promise.all(liste.slice(0, PHOTOS_MAX + 5).map(async (u) => ({ u, m: await measure(u) })))
+      retenues = mesures.filter(({ m }) => !m || Math.min(m.width, m.height) >= MIN_SIDE).map(({ u }) => u)
     } else {
-      retenues = []
+      const base = certaines.length >= 3 ? certaines : produits
+      retenues = galerieDominante(base).map((i) => i.url)
     }
     payload.images = retenues.slice(0, PHOTOS_MAX)
 
+    if (adaptateur && payload.images.length < 3) {
+      throw new Error(
+        `Les photos de ce produit ne sont pas reconnues avec certitude sur cette page ${adaptateur} ` +
+          `(${payload.images.length} trouvée(s)) : rien n’a été importé ni facturé. ` +
+          'Importez cette fiche avec le bouton de la page, qui vous laisse les choisir.',
+      )
+    }
     if (payload.images.length <= 1) {
       throw new Error(
         adaptateur
