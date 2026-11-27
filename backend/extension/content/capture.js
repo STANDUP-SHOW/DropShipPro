@@ -1110,6 +1110,19 @@
       ajouter(nom, valeurs)
     }
 
+    // AliExpress draws each option row as [data-sku-row] with [data-sku-col] cells; the row
+    // title is a span (« Couleur : BLEU CIEL ») or a button (« Taille(FR) »). Read as displayed.
+    for (const ligne of document.querySelectorAll('[data-sku-row]')) {
+      const bloc = ligne.closest('[class*="sku-item--property"]')
+      const titre = bloc?.querySelector('[class*="sku-item--title"]')?.textContent || ''
+      const nom = titre.split(/[:：]/)[0].replace(/\u00a0/g, ' ').trim()
+      if (!nom || nom.length > 40) continue
+      const valeurs = [...ligne.querySelectorAll('[data-sku-col]')].map(
+        (c) => c.querySelector('img[alt]')?.getAttribute('alt') || c.getAttribute('title') || c.textContent.trim(),
+      )
+      ajouter(nom, valeurs)
+    }
+
     return Object.keys(variants).length ? variants : null
   }
 

@@ -84,7 +84,7 @@
       imageHost: /aliexpress-media\.com$/i,
       pathHint: '/kf/',
       /** Les suffixes de redimensionnement s'enlèvent pour retrouver l'original. */
-      fullSize: (url) => url.replace(/\.jpg_[^/]*$/i, '.jpg').replace(/_\d+x\d+q?\d*/gi, ''),
+      fullSize: (url) => url.replace(/\.(jpe?g|png|webp)_[^/]*$/i, '.$1').replace(/_\d+x\d+q?\d*/gi, ''),
       variantSelector: '[class*="sku--wrap"] [data-sku-col], [class*="sku--wrap"] img',
       /**
        * Une photo AliExpress, quel que soit son habillage : la même vit sous
@@ -111,7 +111,7 @@
             if (!el.shadowRoot) continue
             for (const c of el.shadowRoot.children) {
               if (c.tagName === 'STYLE' || c.tagName === 'SCRIPT') continue
-              morceaux.push(c.innerText || c.textContent || '')
+              morceaux.push(c.innerText || '')
             }
           }
         }
