@@ -92,6 +92,35 @@
        * (JSON). Sans cette clé, elle comptait pour deux (27/11/2026).
        */
       cle: (url) => url.match(/\/kf\/([A-Za-z0-9]{16,})/)?.[1] ?? null,
+      /**
+       * Le texte du produit, et seulement lui (27/11/2026, relevé sur le vrai site).
+       *
+       * La fiche range ses caractéristiques sous #nav-specification et la
+       * description du vendeur sous #nav-description (dans une racine fantôme).
+       * Lire la page entière ramenait le menu, le client connecté, les avis,
+       * « plus à aimer » et les panneaux d'autres extensions du navigateur.
+       */
+      lireTexte() {
+        const spec = document.querySelector('#nav-specification')
+        const zone = document.querySelector('#nav-description')
+        if (!spec && !zone) return null
+        const morceaux = []
+        if (zone) {
+          morceaux.push(zone.innerText || '')
+          for (const el of zone.querySelectorAll('*')) {
+            if (!el.shadowRoot) continue
+            for (const c of el.shadowRoot.children) {
+              if (c.tagName === 'STYLE' || c.tagName === 'SCRIPT') continue
+              morceaux.push(c.innerText || c.textContent || '')
+            }
+          }
+        }
+        const propre = (t) => t.replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim()
+        return {
+          description: propre(morceaux.join('\n')).replace(/^Description\s*/i, '').slice(0, 8000),
+          caracteristiques: propre(spec?.innerText || '').replace(/^Détails\s*/i, '').slice(0, 6000),
+        }
+      },
       /** La page montre-t-elle un produit ? Sa galerie est dessinée ; une page « introuvable » n'en a pas. */
       ficheAffichee: () => Boolean(document.querySelector('[class*="slider--img"] img, [class*="magnifier--wrap"] img')),
     },

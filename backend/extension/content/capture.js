@@ -1006,7 +1006,8 @@
     // Descriptions mounted in an open shadow root (AliExpress) are invisible to innerText.
     const ombres = []
     for (const el of document.querySelectorAll('*')) {
-      if (!el.shadowRoot || el.closest('[data-dsp-hors]')) continue
+      // Custom elements are other extensions' panels (ChatGPT sidebar: 650 000 characters, 27/11/2026).
+      if (!el.shadowRoot || el.tagName.includes('-') || el.closest('[data-dsp-hors]')) continue
       const t = [...el.shadowRoot.children].map((c) => c.innerText || '').join('\n').trim()
       if (t.length > 40) ombres.push(t)
       if (ombres.length >= 4) break
@@ -1495,16 +1496,46 @@
   self.__dspReleverAvis = collectReviews
   self.__dspAvisFeedbackAliExpress = avisDepuisFeedbackAliExpress
 
+  /*
+   * Le texte que le site range lui-même à part, quand son adaptateur sait le
+   * lire (AliExpress : caractéristiques et description du vendeur). Il remplace
+   * la lecture de toute la page, qui ramenait voisins, avis, menus et panneaux
+   * d'autres extensions (27/11/2026).
+   */
+  function texteDuSite(titre) {
+    const adapter = typeof dspAdapterFor === 'function' ? dspAdapterFor() : null
+    let lu = null
+    try {
+      lu = adapter?.lireTexte?.() ?? null
+    } catch {
+      lu = null
+    }
+    if (!lu || (!lu.description && !lu.caracteristiques)) return null
+    return {
+      description: lu.description,
+      pageText: [
+        titre,
+        lu.caracteristiques ? `CARACTÉRISTIQUES\n${lu.caracteristiques}` : '',
+        lu.description ? `DESCRIPTION\n${lu.description}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+        .slice(0, 15000),
+    }
+  }
+
   async function buildPayload() {
     // Pas de défilement ici : collectImages() vient de le faire, et le refaire
     // coûtait une seconde et demie pour rien.
+    const titre =
+      document.querySelector('meta[property="og:title"]')?.content ||
+      document.querySelector('h1')?.textContent?.trim() ||
+      document.title
+    const site = texteDuSite(titre)
     return {
       sourceUrl: location.href,
-      title:
-        document.querySelector('meta[property="og:title"]')?.content ||
-        document.querySelector('h1')?.textContent?.trim() ||
-        document.title,
-      description: lireSansHorsFiche(collectDescription),
+      title: titre,
+      description: site ? site.description : lireSansHorsFiche(collectDescription),
       price: collectPrice(),
       // `price` est calculé juste avant : collectPrice y pose la devise du prix retenu.
       currency: devisePrix || (/\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR'),
@@ -1521,7 +1552,7 @@
        * sans republier l extension.
        */
       skuAliExpress: await releverSkuAliExpress(),
-      pageText: lireSansHorsFiche(collectPageText),
+      pageText: site ? site.pageText : lireSansHorsFiche(collectPageText),
       // Le code-barres déclaré et les avis affichés : le serveur revérifie et borne les deux.
       ean: collectEan(),
       reviews: await releverAvis(),
