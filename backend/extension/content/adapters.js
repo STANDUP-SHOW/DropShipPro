@@ -115,10 +115,16 @@
             }
           }
         }
-        const propre = (t) => t.replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim()
+        // Les libellés de l'onglet (« Présentation », « report »…) ne sont pas du texte produit.
+        const propre = (t) =>
+          t
+            .split('\n')
+            .map((l) => l.trim())
+            .filter((l) => l && !/^(?:présentation|description|détails|report|signaler|voir plus|voir moins|view more|show more)$/i.test(l))
+            .join('\n')
         return {
-          description: propre(morceaux.join('\n')).replace(/^Description\s*/i, '').slice(0, 8000),
-          caracteristiques: propre(spec?.innerText || '').replace(/^Détails\s*/i, '').slice(0, 6000),
+          description: propre(morceaux.join('\n')).slice(0, 8000),
+          caracteristiques: propre(spec?.innerText || '').slice(0, 6000),
         }
       },
       /** La page montre-t-elle un produit ? Sa galerie est dessinée ; une page « introuvable » n'en a pas. */
