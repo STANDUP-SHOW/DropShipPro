@@ -877,6 +877,158 @@
    * page would be wasteful, so this keeps the region between the title and the
    * description, where pickers live.
    */
+
+  /*
+   * Ce qui, sur la page, n'est pas la fiche (27/11/2026).
+   *
+   * Une fiche AliExpress ou Temu porte autour du produit des dizaines d'autres
+   * produits (« plus à aimer », « vous aimerez aussi »), les avis, les menus, le
+   * nom du client connecté. Lus avec le reste, ils partaient à l'IA avec la
+   * consigne de relever « toutes les caractéristiques » : l'annonce mélangeait
+   * le produit et ses voisins (lot de 5 raté devant des clients, 21/11).
+   *
+   * La règle ne dépend d'aucun nom de classe du jour : une carte de produit
+   * voisin est un bloc qui mène vers UNE AUTRE fiche du même site. On remonte
+   * depuis le lien tant que le bloc ne mène qu'à ce produit-là.
+   */
+  function idFiche(href) {
+    try {
+      const u = new URL(href, location.href)
+      const ali = u.pathname.match(/\/item\/(\d{6,})/)
+      if (ali) return `ali:${ali[1]}`
+      const temu = u.pathname.match(/-g-(\d{6,})\.html/) || u.search.match(/[?&]goods_id=(\d{6,})/)
+      if (temu) return `temu:${temu[1]}`
+    } catch {
+      // Une adresse illisible ne désigne aucune fiche.
+    }
+    return null
+  }
+
+  const HORS_FICHE =
+    'header, nav, footer, aside, [role="banner"], [role="navigation"], [role="contentinfo"], ' +
+    '[class*="review" i], [id*="review" i], [class*="feedback" i], [id*="feedback" i], ' +
+    '[class*="recommend" i], [id*="recommend" i]'
+
+  function marquerHorsFiche() {
+    const marques = []
+    const marquer = (el) => {
+      if (!el || el === document.body || el === document.documentElement || el.hasAttribute('data-dsp-hors')) return
+      el.setAttribute('data-dsp-hors', '')
+      marques.push(el)
+    }
+    for (const el of document.querySelectorAll(HORS_FICHE)) marquer(el)
+
+    const ici = idFiche(location.href)
+    if (ici) {
+      const cartes = new Set()
+      for (const a of document.querySelectorAll('a[href]')) {
+        const autre = idFiche(a.href)
+        if (!autre || autre === ici || a.closest('[data-dsp-hors]')) continue
+        let carte = a
+        for (let p = a.parentElement, n = 0; p && p !== document.body && n < 12; p = p.parentElement, n++) {
+          const ids = new Set()
+          for (const x of p.querySelectorAll('a[href]')) {
+            const id = idFiche(x.href)
+            if (id) ids.add(id)
+            if (ids.size > 1) break
+          }
+          if (ids.size > 1 || ids.has(ici)) break
+          carte = p
+        }
+        cartes.add(carte)
+      }
+      for (const c of cartes) marquer(c)
+    }
+    return () => {
+      for (const el of marques) el.removeAttribute('data-dsp-hors')
+    }
+  }
+  self.__dspMarquerHorsFiche = marquerHorsFiche
+
+  /** Le temps d'une lecture, le hors-fiche est masqué : `innerText` ne lit pas ce qui ne s'affiche pas. */
+  function lireSansHorsFiche(lire) {
+    const restaurer = marquerHorsFiche()
+    const style = document.createElement('style')
+    style.textContent = '[data-dsp-hors]{display:none!important}'
+    document.documentElement.appendChild(style)
+    try {
+      return lire()
+    } finally {
+      style.remove()
+      restaurer()
+    }
+  }
+  self.__dspLireSansHorsFiche = lireSansHorsFiche
+
+  /** Marque le hors-fiche sans le masquer : la galerie ancrée a besoin de la mise en page réelle. */
+  function lireSansHorsFicheMarque(lire) {
+    const restaurer = marquerHorsFiche()
+    try {
+      return lire()
+    } finally {
+      restaurer()
+    }
+  }
+
+  /*
+   * La galerie, retrouvée à partir de la grande photo du produit (27/11/2026).
+   *
+   * Le 13/11, l'adaptateur AliExpress ne reconnaissait plus la galerie (« 0 sûre
+   * sur 5 ») et le refus avait été remplacé par une devinette : « le format le
+   * plus fréquent de la page ». Sur AliExpress, ce sont les produits
+   * recommandés. D'où des photos d'autres produits, importées sans un mot.
+   *
+   * Ce qui ne change pas d'une refonte à l'autre : en haut de la fiche, la plus
+   * grande image affichée est celle du produit, et ses vignettes vivent dans le
+   * même bloc. On remonte depuis elle jusqu'au premier bloc qui en porte au
+   * moins trois du même serveur, sans sortir du haut de la page.
+   */
+  function galerieAncree(adapter) {
+    const hautMax = window.innerHeight * 1.4
+    const visibles = []
+    for (const img of document.querySelectorAll('img')) {
+      if (img.closest('[data-dsp-hors]')) continue
+      const r = img.getBoundingClientRect()
+      if (!r.width || !r.height) continue
+      const haut = r.top + window.scrollY
+      if (haut > hautMax) continue
+      visibles.push({ img, r, aire: r.width * r.height })
+    }
+    const principale = visibles.filter((v) => Math.min(v.r.width, v.r.height) >= 200).sort((a, b) => b.aire - a.aire)[0]
+    if (!principale) return []
+    const source = (img) => {
+      const u = bestSource(img)
+      return u && u.startsWith('//') ? `https:${u}` : u
+    }
+    let hote = ''
+    try {
+      hote = new URL(source(principale.img)).host
+    } catch {
+      return []
+    }
+    const plein = (u) => (adapter?.fullSize ? adapter.fullSize(u) : u)
+
+    for (let bloc = principale.img.parentElement, n = 0; bloc && bloc !== document.body && n < 10; bloc = bloc.parentElement, n++) {
+      const rb = bloc.getBoundingClientRect()
+      if (rb.height > window.innerHeight * 2) break
+      const urls = []
+      for (const img of bloc.querySelectorAll('img')) {
+        const u = source(img)
+        if (!u || !u.startsWith('http') || JUNK.test(u.replace(/_\d+x\d+[^/]*$/, ''))) continue
+        try {
+          if (new URL(u).host !== hote) continue
+        } catch {
+          continue
+        }
+        urls.push(plein(u))
+      }
+      const uniques = [...new Map(urls.map((u) => [photoIdentity(u), u])).values()]
+      if (uniques.length >= 3) return uniques.slice(0, PHOTOS_MAX)
+    }
+    return []
+  }
+  self.__dspGalerieAncree = galerieAncree
+
   /**
    * Le texte de la fiche, caractéristiques techniques comprises.
    *
@@ -897,20 +1049,17 @@
      * header, and the whole read came back with a few words). The longest of
      * the candidates wins; when none carries a real text, the whole body.
      */
-    const candidats = [document.querySelector('main'), ...[...document.querySelectorAll('[class*="detail" i]')].slice(0, 40)]
-    let main = null
-    let longueur = 0
-    for (const el of candidats) {
-      const n = (el?.innerText || '').length
-      if (n > longueur) {
-        main = el
-        longueur = n
-      }
-    }
-    if (!main || longueur < 1500) main = document.body
+    /*
+     * The whole page minus what is not the sheet (`lireSansHorsFiche` hides
+     * neighbours, reviews and menus while this runs). Picking « the longest
+     * [class*=detail] block » (21/11) took the recommendations with it; « the
+     * first one » (before) took a tiny header.
+     */
+    const main = document.body
 
     const tableaux = []
     for (const table of document.querySelectorAll('table, dl, [class*="spec" i], [class*="param" i], [class*="attribute" i]')) {
+      if (table.closest('[data-dsp-hors]')) continue
       const texte = (table.innerText || '').replace(/\n{2,}/g, '\n').trim()
       // Deux lignes au moins, sinon c'est une étiquette isolée ; et pas un
       // pavé entier, qui serait la page elle-même reprise deux fois.
@@ -924,7 +1073,7 @@
     // Descriptions mounted in an open shadow root (AliExpress) are invisible to innerText.
     const ombres = []
     for (const el of document.querySelectorAll('*')) {
-      if (!el.shadowRoot) continue
+      if (!el.shadowRoot || el.closest('[data-dsp-hors]')) continue
       const t = [...el.shadowRoot.children].map((c) => c.innerText || '').join('\n').trim()
       if (t.length > 40) ombres.push(t)
       if (ombres.length >= 4) break
@@ -955,6 +1104,7 @@
     let meilleur = ''
     for (const selecteur of candidats) {
       for (const el of document.querySelectorAll(selecteur)) {
+        if (el.closest('[data-dsp-hors]')) continue
         const texte = (el.innerText || '').replace(/\n{2,}/g, '\n').trim()
         // Le plus long l'emporte : les sites imbriquent plusieurs conteneurs
         // « description », dont le plus externe porte le texte complet.
@@ -1421,7 +1571,7 @@
         document.querySelector('meta[property="og:title"]')?.content ||
         document.querySelector('h1')?.textContent?.trim() ||
         document.title,
-      description: collectDescription(),
+      description: lireSansHorsFiche(collectDescription),
       price: collectPrice(),
       // `price` est calculé juste avant : collectPrice y pose la devise du prix retenu.
       currency: devisePrix || (/\$/.test(document.body.innerText.slice(0, 3000)) ? 'USD' : 'EUR'),
@@ -1438,7 +1588,7 @@
        * sans republier l extension.
        */
       skuAliExpress: await releverSkuAliExpress(),
-      pageText: collectPageText(),
+      pageText: lireSansHorsFiche(collectPageText),
       // Le code-barres déclaré et les avis affichés : le serveur revérifie et borne les deux.
       ean: collectEan(),
       reviews: await releverAvis(),
@@ -2230,52 +2380,41 @@
      * personne ne relit. Quand l'adaptateur en trouve au moins trois, on s'en
      * tient à lui.
      */
-    const base = certaines.length >= 3 ? certaines : produits
-
     /*
-     * Puis on isole la galerie par son format — le filet qui manquait.
+     * Les photos : celles que l'adaptateur du site reconnaît, recoupées avec la
+     * galerie ancrée sur la grande photo du produit. Jamais de devinette
+     * (27/11/2026) : la « galerie par format » du 13/11 prenait les produits
+     * recommandés quand l'adaptateur était muet.
      *
-     * L'adaptateur seul ne suffit pas sur Temu (même CDN pour tout) : sans cette
-     * étape, un lot de chaussures ressortait avec des tondeuses. `galerieDominante`
-     * ne garde que le format le plus représenté, c'est-à-dire la galerie.
+     * - adaptateur sûr (≥ 3) et d'accord avec la galerie ancrée : on le garde ;
+     * - adaptateur muet, ou qui désigne d'autres photos que celles affichées en
+     *   haut de la fiche (son JSON peut être celui d'un produit voisin) : la
+     *   galerie ancrée ;
+     * - ni l'un ni l'autre : refus, la fiche s'importe à l'unité en choisissant.
      */
-    let retenues = galerieDominante(base)
-
-    /*
-     * L'adaptateur n'a pas reconnu assez de photos : le format de la galerie
-     * tranche à sa place (13/11/2026). C'était un refus systématique — « 0 sûre(s)
-     * sur 5 », import manuel exigé — alors que la galerie d'une fiche se
-     * reconnaît à son format, sans dépendre des noms de classes du jour.
-     */
-    let parFormat = false
-    if (adaptateur && certaines.length < 3) {
-      const galerie = galerieParFormat(produits)
-      if (galerie.length >= 3) {
-        retenues = galerie
-        parFormat = true
-      }
+    const ancree = lireSansHorsFicheMarque(() => galerieAncree(adapterPage))
+    const identitesAncrees = new Set(ancree.map(photoIdentity))
+    const accord = certaines.some((i) => identitesAncrees.has(photoIdentity(i.url)))
+    let retenues
+    if (certaines.length >= 3 && (accord || ancree.length < 3)) {
+      retenues = galerieDominante(certaines).map((i) => i.url)
+    } else if (ancree.length >= 3) {
+      retenues = ancree
+    } else if (!adaptateur && produits.length) {
+      // Site sans adaptateur : le classement générique, filtré par format, comme avant.
+      retenues = galerieDominante(produits).map((i) => i.url)
+    } else {
+      retenues = []
     }
-    payload.images = retenues.slice(0, PHOTOS_MAX).map((i) => i.url)
+    payload.images = retenues.slice(0, PHOTOS_MAX)
 
-    /*
-     * Un relevé trop maigre ou trop incertain est refusé, pas ajouté.
-     *
-     * Deux cas, une seule conduite : dire non maintenant plutôt que de laisser
-     * une annonce borgne — ou pleine d'images étrangères — entrer dans le
-     * catalogue et n'être découverte qu'après l'import.
-     */
     if (payload.images.length <= 1) {
       throw new Error(
-        "Une seule photo trouvée : la galerie n'est probablement pas encore chargée. " +
-          'Faites défiler la fiche jusqu’aux photos, puis réessayez.',
-      )
-    }
-
-    if (adaptateur && certaines.length < 3 && !parFormat) {
-      throw new Error(
-        `Les photos de ce site ne sont pas reconnues avec certitude (${certaines.length} sûre(s) sur ` +
-          `${produits.length} trouvée(s)) : elles risquent de ne pas être celles du produit. ` +
-          'Importez cette fiche avec le bouton de la page, qui vous laisse les choisir.',
+        adaptateur
+          ? `Les photos de ce produit ne sont pas reconnues avec certitude sur cette page ${adaptateur} : ` +
+              'rien n’a été importé ni facturé. Importez cette fiche avec le bouton de la page, qui vous laisse les choisir.'
+          : "Une seule photo trouvée : la galerie n'est probablement pas encore chargée. " +
+              'Faites défiler la fiche jusqu’aux photos, puis réessayez.',
       )
     }
 

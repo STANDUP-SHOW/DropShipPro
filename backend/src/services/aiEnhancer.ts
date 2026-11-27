@@ -106,6 +106,11 @@ Règles :
   mentions « livraison gratuite », ses libellés de navigation. Le vendeur a ses
   propres conditions, et une promesse qui n'est pas la sienne se retourne contre
   lui au premier litige.
+- Le texte de la page relevé autour de la fiche peut contenir AUTRE CHOSE que le
+  produit : produits recommandés (« vous aimerez aussi », « plus à aimer »), avis
+  d'acheteurs, menus du site, nom du client connecté. Tout ce qui ne décrit pas
+  le produit du titre source est ignoré : une caractéristique lue sur un produit
+  voisin, recopiée dans l'annonce, est un mensonge au client. Dans le doute, omets.
 - Reformule entièrement : les marketplaces pénalisent le contenu dupliqué.
 - Titre : 60 à 130 caractères, structure "Type de produit + caractéristiques clés +
   matière + public". Les mots les plus recherchés en premier. Pas de MAJUSCULES
@@ -349,7 +354,7 @@ Catégorie : ${input.category ?? 'inconnue'}
 Description source : ${input.description || '(aucune description)'}
 ${
   input.pageText?.trim()
-    ? `\nTexte complet de la fiche fournisseur — c'est là que se trouvent les caractéristiques techniques, souvent en liste ou en tableau. Relève-les toutes :\n${input.pageText.slice(0, 12000)}\n`
+    ? `\nTexte de la fiche fournisseur — c'est là que se trouvent les caractéristiques techniques, souvent en liste ou en tableau. Relève toutes celles DU PRODUIT DU TITRE SOURCE, et seulement celles-là (ignore les produits recommandés, les avis et les menus que ce texte peut contenir) :\n${input.pageText.slice(0, 12000)}\n`
     : ''
 }
 
