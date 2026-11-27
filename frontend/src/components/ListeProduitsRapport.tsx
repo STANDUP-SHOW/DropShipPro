@@ -324,27 +324,24 @@ export function ListeProduitsRapport({
                       <span className="truncate">{p.fournisseur && p.fournisseur !== '—' ? p.fournisseur : fiche?.label ?? '—'}</span>
                     </span>
                   </Case>
-                  <Case libelle="Prix d'achat">{euros(p.prixAchat)}</Case>
-                  <Case libelle="Prix de vente">{euros(p.prixVente)}</Case>
-                  <Case
-                    libelle="Marge"
-                    ton={p.margePct === null ? '' : p.margePct >= 30 ? 'text-emerald-300' : p.margePct < 15 ? 'text-amber-300' : ''}
-                  >
-                    {p.margePct === null ? '—' : `${Math.round(p.margePct)} %`}
+                  <Case libelle="Prix d'achat">{euros(p.prixAchatFournisseur ?? p.prixAchat)}</Case>
+                  {p.coutRendu != null ? <Case libelle="Coût rendu FR">{euros(p.coutRendu)}</Case> : null}
+                  <Case libelle={p.marche ? `Marché (${p.marche})` : 'Prix de vente'}>
+                    {p.lienMarche ? <a href={p.lienMarche} target="_blank" rel="noopener noreferrer" className="underline">{euros(p.prixVente)}</a> : euros(p.prixVente)}
                   </Case>
+                  {p.margeNette != null ? (
+                    <Case libelle="Marge nette" ton={p.margeNette < 0 ? 'text-red-300' : 'text-emerald-300'}>{euros(p.margeNette)}</Case>
+                  ) : (
+                    <Case libelle="Marge">{p.margePct === null ? '—' : `${Math.round(p.margePct)} %`}</Case>
+                  )}
+                  {p.roi != null ? <Case libelle="ROI">{`${p.roi} %`}</Case> : null}
+                  {p.verdict ? <Case libelle="Verdict">{p.verdict}</Case> : null}
                   {p.ventes ? <Case libelle="Ventes constatées">{p.ventes}</Case> : null}
                   {p.score != null ? <Case libelle="Score">{`${p.score}/100`}</Case> : null}
                 </div>
               </div>
 
-              {!p.url ? (
-                <p
-                  className="shrink-0 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-200 lg:max-w-[12rem]"
-                  title="L'agent n'a pas prouvé avoir ouvert la fiche (titre de la page absent ou différent) : aucune adresse n'est affichée plutôt qu'une adresse douteuse."
-                >
-                  Lien non vérifié : fiche à retrouver
-                </p>
-              ) : (
+              {!p.url ? null : (
               <div className="flex shrink-0 flex-wrap gap-1.5 lg:flex-col lg:items-stretch">
                 <a
                   href={p.url}

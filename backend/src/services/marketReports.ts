@@ -39,10 +39,23 @@ export interface ProduitRapport {
   rang: number
   titre: string
   fournisseur: string
-  /** Empty when the agent's page was never proved opened (lienVerifie.ts, « lien vérifié ou rien »). */
+  /** The agent's link, as written (27/11/2026: never withheld any more). */
   url: string
   /** The agent named a page, withheld because nothing proves it opened it. */
   lienNonVerifie?: boolean
+  /** The title of the page the agent says it opened, as it wrote it. */
+  titrePage?: string
+  variante?: string
+  /** The agent's own figures (27/11/2026 layout): supplier price, landed cost in France, net margin, ROI %. Private side only. */
+  prixAchatFournisseur?: number
+  coutRendu?: number
+  margeNette?: number
+  roi?: number
+  /** The marketplace page the market price was read on, and its name (« Cdiscount FR »). */
+  lienMarche?: string
+  marche?: string
+  /** Every link of the agent's row, with its label. */
+  liens?: Array<{ libelle: string; url: string }>
   prixAchat: number | null
   /** Every purchase amount the row gives (both ends of « 12-18 € »): what public pages must never show. */
   achats?: number[]

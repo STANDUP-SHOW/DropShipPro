@@ -1,5 +1,5 @@
 /**
- * Banc : une marge négative n'est jamais un « acheter » (21/11/2026).
+ * Banc : le verdict et le score de l'agent ne sont jamais remplacés (27/11/2026 ; la règle du 21/11 est retirée).
  *
  * Cas réel collé par max : « Jardin et extérieur · Éclairage extérieur · 17 novembre 2026 · Cdiscount »,
  * achat 79,90 €, vente indiquée 27,90 €, marge -186 %, verdict « acheter », score 90/100.
@@ -26,20 +26,13 @@ function exige(ok: unknown, libelle: string) {
   }
 }
 
+// 27/11/2026, max : « ce ne sont pas nos règles ». Le verdict, le score et les prix de l'agent restent les siens.
 console.log('Règle')
 const cas = C.coherencePrix({ achat: 79.9, vente: 27.9, margePct: null, verdict: 'Acheter', score: 90 })
-exige(cas.margePct === -186.4, `marge recalculée des deux prix : ${cas.margePct} %`)
-exige(cas.verdict === C.VERDICT_PRIX_INCOHERENT, `verdict forcé : ${cas.verdict}`)
-exige(cas.score === C.SCORE_MAX_INCOHERENT, `score plafonné : ${cas.score}`)
-exige(cas.verdictAgent === 'Acheter' && cas.scoreAgent === 90, "ce qu'a écrit l'agent est gardé à part")
-const negatif = C.coherencePrix({ achat: null, vente: null, margePct: -12, verdict: 'BUY NOW', score: 70 })
-exige(negatif.verdict === C.VERDICT_MARGE_NEGATIVE && negatif.score === 20, 'marge négative sans prix : « Ne pas acheter »')
-const dejaNon = C.coherencePrix({ achat: 30, vente: 20, margePct: null, verdict: "DON'T BUY", score: 10 })
-exige(dejaNon.verdict === "DON'T BUY" && !dejaNon.verdictAgent, "un « ne pas acheter » de l'agent reste le sien")
+exige(cas.margePct === -186.4, `marge des deux prix : ${cas.margePct} %`)
+exige(cas.verdict === 'Acheter' && cas.score === 90 && !cas.incoherence, `verdict et score de l'agent gardés : ${cas.verdict}, ${cas.score}`)
 const nonSource = C.coherencePrix({ achat: 10, vente: 30, margePct: 66.7, verdict: 'BUY NOW', score: 88, source: false })
-exige(nonSource.prixNonSource && nonSource.margePct === null && nonSource.verdict === C.VERDICT_NON_SOURCE && nonSource.score === 20, 'prix sans page vérifiée : non sourcé, sans marge, sans verdict favorable')
-const sain = C.coherencePrix({ achat: 10, vente: 30, margePct: 66.7, verdict: 'BUY NOW', score: 88, source: true })
-exige(sain.verdict === 'BUY NOW' && sain.score === 88 && !sain.incoherence, 'une ligne saine ne change pas')
+exige(nonSource.verdict === 'BUY NOW' && nonSource.score === 88 && nonSource.margePct === 66.7 && !nonSource.prixNonSource, 'jamais « non sourcé »')
 
 console.log('Ligne de rapport')
 const ligne = (ReportQuery as any).produitDeLigne(
@@ -47,8 +40,7 @@ const ligne = (ReportQuery as any).produitDeLigne(
   0,
 )
 exige(ligne.prixAchat === 79.9 && ligne.prixVente === 27.9, 'prix lus')
-exige(Math.round(ligne.margePct) === -186, `marge affichée ${ligne.margePct} %`)
-exige(ligne.verdict === C.VERDICT_PRIX_INCOHERENT && ligne.score === 20 && ligne.incoherence === 'vente-sous-achat', 'verdict et score corrigés')
+exige(ligne.verdict === 'Acheter' && ligne.score === 90 && !ligne.incoherence && ligne.url === 'https://www.cdiscount.com/f-1.html', 'verdict, score et lien de l’agent servis tels quels')
 
 console.log('Synthèses')
 const p = S.produitCoherent({
@@ -56,9 +48,9 @@ const p = S.produitCoherent({
   nom: 'Projecteur', variante: '', score: 90, decision: 'BUY NOW', source: 'Cdiscount', coutRendu: null, prixAchat: 79.9,
   prixVente: 27.9, margeNette: null, margeBrute: -52, roi: null, liens: {},
 })
-exige(p.decision === C.VERDICT_PRIX_INCOHERENT && p.score === 20 && p.decisionAgent === 'BUY NOW', 'décision et score corrigés')
+exige(p.decision === 'BUY NOW' && p.score === 90 && !p.incoherence, 'décision et score de l’agent gardés')
 const sections = S.sectionsCoherentes({ top5: [p.id], heros: [p.id], buyNow: [p.id], roi: [], highTicket: [], breakout: [], listeNoire: [] }, [p])
-exige(!sections.top5.length && !sections.buyNow.length && sections.heros.length === 1, 'retiré des listes « à acheter »')
+exige(sections.top5.length === 1 && sections.buyNow.length === 1 && sections.heros.length === 1, 'les listes de l’agent restent les siennes')
 
 // Inventaire du rapports.db versionné (la base en ligne se lit par GET /api/reports-incoherences).
 console.log('Audit de rapports.db (versionné)')

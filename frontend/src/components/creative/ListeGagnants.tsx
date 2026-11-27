@@ -492,22 +492,15 @@ export function ListeGagnants() {
                     </p>
                   </button>
                   <span className="w-full min-w-0 @min-[62rem]:w-auto"><VerdictLigne brut={p.verdict} onVoirPlus={() => setExamine(p)} /></span>
-                  <span className={`shrink-0 whitespace-nowrap text-sm @min-[62rem]:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'text-gray-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : "Prix d'achat repris du rapport"}><Etiquette>Achat</Etiquette>{euros(p.prixAchat)}</span>
-                  <span className={`shrink-0 whitespace-nowrap text-sm @min-[62rem]:text-right ${p.prixNonSource ? 'italic text-gray-500' : 'font-semibold text-emerald-300'}`} title={p.prixNonSource ? 'Prix non sourcé : aucune page vérifiée ne le montre' : 'Prix de vente indiqué'}><Etiquette>Vente</Etiquette>{euros(p.prixVente)}</span>
-                  <span className="shrink-0 whitespace-nowrap text-sm @min-[62rem]:text-right"><Etiquette>Marge</Etiquette><Marge pct={p.margePct} /></span>
+                  <span className="shrink-0 whitespace-nowrap text-sm text-gray-300 @min-[62rem]:text-right" title={p.coutRendu != null ? `Prix d'achat du rapport · coût rendu France ${euros(p.coutRendu)}` : "Prix d'achat repris du rapport"}><Etiquette>Achat</Etiquette>{euros(p.prixAchat)}</span>
+                  <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-emerald-300 @min-[62rem]:text-right" title={p.marche ? `Prix relevé par l'agent sur ${p.marche}` : 'Prix de vente du rapport'}><Etiquette>Vente</Etiquette>{p.lienMarche ? <a href={p.lienMarche} target="_blank" rel="noopener noreferrer" className="hover:underline">{euros(p.prixVente)}</a> : euros(p.prixVente)}</span>
+                  <span className="shrink-0 whitespace-nowrap text-sm @min-[62rem]:text-right" title={p.margeNette != null ? `Marge nette de l'agent${p.roi != null ? ` · ROI ${p.roi} %` : ''}` : undefined}><Etiquette>Marge</Etiquette>{p.margeNette != null ? <span className={p.margeNette < 0 ? 'text-red-300' : 'text-emerald-300'}>{euros(p.margeNette)}</span> : <Marge pct={p.margePct} />}</span>
                   <span className="shrink-0 whitespace-nowrap text-xs text-[var(--c-texte-2)] @min-[62rem]:text-right" title="Score de l'agent sur 100"><Etiquette>Score</Etiquette>{p.score == null ? '—' : p.score}</span>
                   <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
                     <button type="button" onClick={() => setExamine(p)} title="Examiner" aria-label={`Examiner ${p.titre}`} className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white">
                       <Eye size={15} />
                     </button>
-                    {!p.url ? (
-                      <span
-                        className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200"
-                        title="L'agent n'a pas prouvé avoir ouvert la fiche : aucune adresse plutôt qu'une adresse douteuse."
-                      >
-                        Lien non vérifié
-                      </span>
-                    ) : (
+                    {!p.url ? null : (
                     <a href={p.url} target="_blank" rel="noopener noreferrer" title="Voir la fiche source" aria-label={`Fiche source de ${p.titre}`} className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white">
                       <ExternalLink size={15} />
                     </a>
@@ -547,7 +540,7 @@ export function ListeGagnants() {
       )}
 
       <p className="v-note mt-6">
-        {`Prix et marges repris du rapport, à reconfirmer avant import. Un prix en gris italique est non sourcé : aucune page vérifiée ne le montre, il ne compte ni dans la marge ni dans le verdict. La marge affichée n'est pas un bénéfice net. Import direct : ${COUT_IMPORT} drops ; par l'extension, quand la fiche ne se lit que dans un navigateur : ${COUT_EXTENSION} drops. Un produit déjà dans Mes annonces n'est pas réimporté.`}
+        {`Prix, marges, scores, verdicts et liens sont ceux du rapport de l'agent, tels qu'il les a écrits. Import direct : ${COUT_IMPORT} drops ; par l'extension, quand la fiche ne se lit que dans un navigateur : ${COUT_EXTENSION} drops. Un produit déjà dans Mes annonces n'est pas réimporté.`}
       </p>
 
       {examine ? (
@@ -559,32 +552,29 @@ export function ListeGagnants() {
               .join(' · ')}
           </p>
           <div className="v-trois mt-4">
-            <p><small>{examine.prixNonSource ? 'Achat (non sourcé)' : 'Achat'}</small><b>{euros(examine.prixAchat)}</b></p>
-            <p><small>{examine.prixNonSource ? 'Vente (non sourcée)' : 'Vente indiquée'}</small><b>{euros(examine.prixVente)}</b></p>
-            <p><small>Marge affichée</small><b>{examine.margePct == null ? '—' : `${Math.round(examine.margePct)} %`}</b></p>
+            <p><small>Achat</small><b>{euros(examine.prixAchatFournisseur ?? examine.prixAchat)}</b></p>
+            {examine.coutRendu != null ? <p><small>Coût rendu France</small><b>{euros(examine.coutRendu)}</b></p> : null}
+            <p><small>{examine.marche ? `Marché (${examine.marche})` : 'Vente'}</small><b>{examine.lienMarche ? <a href={examine.lienMarche} target="_blank" rel="noopener noreferrer" className="underline">{euros(examine.prixVente)}</a> : euros(examine.prixVente)}</b></p>
+            <p><small>{examine.margeNette != null ? 'Marge nette' : 'Marge'}</small><b>{examine.margeNette != null ? euros(examine.margeNette) : examine.margePct == null ? '—' : `${Math.round(examine.margePct)} %`}</b></p>
+            {examine.roi != null ? <p><small>ROI</small><b>{`${examine.roi} %`}</b></p> : null}
           </div>
-          {examine.incoherence ? (
-            <p className="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
-              {examine.incoherence === 'vente-sous-achat'
-                ? `Données à vérifier : le prix de vente indiqué est inférieur ou égal au prix d'achat. C'est sans doute le prix d'un autre article (pièce détachée, autre modèle).`
-                : examine.incoherence === 'marge-negative'
-                  ? 'Marge négative : ce produit ne peut pas être recommandé à l’achat.'
-                  : `Prix non sourcés : aucune page vérifiée ne montre ces prix. Ils ne comptent ni dans la marge ni dans le verdict.`}
-              {examine.verdictAgent || examine.scoreAgent != null
-                ? ` L'agent avait écrit : ${[examine.verdictAgent ? `« ${lireVerdict(examine.verdictAgent)?.libelle ?? examine.verdictAgent} »` : null, examine.scoreAgent != null ? `score ${examine.scoreAgent}/100` : null].filter(Boolean).join(', ')}.`
-                : null}
-            </p>
+          {examine.variante ? <p className="mt-3 text-xs text-[var(--c-texte-2)]">{examine.variante}</p> : null}
+          {examine.titrePage ? <p className="mt-1 text-xs text-[var(--c-texte-2)]">{`Titre de la fiche fournisseur relevé par l'agent : « ${examine.titrePage} »`}</p> : null}
+          {examine.liens && examine.liens.length ? (
+            <ul className="mt-3 space-y-1 text-xs">
+              {examine.liens.map((l) => (
+                <li key={l.libelle + l.url}><a href={l.url} target="_blank" rel="noopener noreferrer" className="underline break-all">{l.libelle || l.url}</a></li>
+              ))}
+            </ul>
           ) : null}
           {examine.pourquoi && examine.pourquoi !== '—' ? <p className="mt-4 text-sm leading-relaxed">{examine.pourquoi}</p> : null}
           <p className="mt-3 text-xs text-[var(--c-texte-2)]">
-            {[examine.ventes ? `Ventes constatées : ${examine.ventes}` : null, examine.score != null ? (examine.scoreAgent != null ? `Score plafonné : ${examine.score}/100` : `Score de l'agent : ${examine.score}/100`) : null]
+            {[examine.ventes ? `Ventes constatées : ${examine.ventes}` : null, examine.score != null ? `Score de l'agent : ${examine.score}/100` : null]
               .filter(Boolean)
               .join(' · ')}
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {!examine.url ? (
-              <span className="c-bouton-sec !text-xs opacity-80">Lien non vérifié par l'agent : fiche à retrouver</span>
-            ) : (
+            {!examine.url ? null : (
             <a href={examine.url} target="_blank" rel="noopener noreferrer" className="c-bouton-sec !text-xs">
               <ExternalLink size={12} /> Consulter la référence source
             </a>

@@ -330,10 +330,8 @@ export interface ProduitRapport {
   rang: number
   titre: string
   fournisseur: string
-  /** Vide quand rien ne prouve que l'agent a ouvert la page (« lien vérifié ou rien », 16/11/2026). */
+  /** Le lien de l'agent, tel qu'il l'a écrit. */
   url: string
-  /** L'agent a donné une adresse, retenue faute de preuve qu'il l'a ouverte. */
-  lienNonVerifie?: boolean
   prixAchat: number | null
   prixVente: number | null
   margePct: number | null
@@ -347,13 +345,16 @@ export interface ProduitRapport {
   image?: string | null
   /** Le verdict de l'agent, brut (« BUY IF NEGOTIATED », « WATCHLIST / … ») ; absent des anciens rapports. */
   verdict?: string | null
-  /** Prix contraires au verdict (achat ≥ vente, marge négative) ou non sourcés : verdict et score corrigés par le serveur. */
-  incoherence?: 'vente-sous-achat' | 'marge-negative' | 'prix-non-source'
-  /** Aucune page vérifiée derrière les prix : affichés « non sourcé », sans marge ni verdict favorable. */
-  prixNonSource?: boolean
-  /** Ce que l'agent avait écrit, quand le serveur l'a corrigé. */
-  verdictAgent?: string | null
-  scoreAgent?: number | null
+  /** Les chiffres et liens de la ligne de l'agent, tels qu'il les a écrits (27/11/2026). */
+  titrePage?: string
+  variante?: string
+  prixAchatFournisseur?: number
+  coutRendu?: number
+  margeNette?: number
+  roi?: number
+  lienMarche?: string
+  marche?: string
+  liens?: Array<{ libelle: string; url: string }>
 }
 
 /** Compose une chaîne de requête en sautant ce qui n'est pas renseigné. */
