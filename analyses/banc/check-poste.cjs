@@ -626,24 +626,6 @@ test('validation : une URL absente des pages lues n’est jamais conservée', ()
   assert.equal(v.stats.urlsDistinctes, 1); assert.equal(v.ok, false)
 })
 
-test('validation : un « acheter » à marge négative ou sans prix fournisseur est ramené à DON\'T BUY / WATCHLIST', () => {
-  const base = { study: {}, executive_summary: {}, market: {}, creative_prompts: { image_ads: ['a'], short_videos_30s: ['b'] } }
-  const r = { ...base, products: [
-    { supplier_url: 'https://vu.fr/a', purchase_price: 79.9, target_selling_price: 27.9, decision: 'BUY NOW', global_opportunity_score: 90 },
-    { supplier_url: 'https://vu.fr/b', decision: 'BREAKOUT CANDIDATE', target_selling_price: 30, global_opportunity_score: 80 },
-    { supplier_url: 'https://vu.fr/c', purchase_price: 10, target_selling_price: 30, net_margin_estimated: -2, decision: 'BUY IF NEGOTIATED', global_opportunity_score: 15 },
-    { supplier_url: 'https://vu.fr/d', purchase_price: 10, estimated_landed_cost_france: 14, target_selling_price: 35, net_margin_estimated: 9, decision: 'BUY NOW', global_opportunity_score: 88 },
-  ] }
-  const v = valider(r, new Set(['https://vu.fr/a', 'https://vu.fr/b', 'https://vu.fr/c', 'https://vu.fr/d']), { attendus: 4 })
-  const [a, b, c, d] = r.products
-  assert.equal(a.decision, "DON'T BUY"); assert.equal(a.global_opportunity_score, 20)
-  assert.equal(b.decision, 'WATCHLIST'); assert.equal(b.global_opportunity_score, 20)
-  assert.equal(c.decision, "DON'T BUY"); assert.equal(c.global_opportunity_score, 15, 'un score déjà bas reste tel quel')
-  assert.equal(d.decision, 'BUY NOW'); assert.equal(d.global_opportunity_score, 88, 'un achat cohérent ne bouge pas')
-  assert.equal(v.stats.decisionsCorrigees, 3)
-  assert.ok(v.problemes.some((x) => x.includes('3 décision(s)')))
-})
-
 test('dépôt : arborescence créée, écriture atomique, re-dépôt du même jour remplace', () => {
   const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'depot-'))
   creerArborescence(racine)

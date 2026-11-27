@@ -1240,6 +1240,8 @@ function creerFenetre() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   fenetre.setMenuBarVisibility(false)
+  // a web link of the page (market price of a synthesis…) opens in the default browser, never inside Kantix
+  fenetre.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' } })
   // Keep the version in the title bar: Max must see at a glance which build he runs.
   fenetre.on('page-title-updated', (e) => e.preventDefault())
   fenetre.loadFile(path.join(__dirname, 'renderer', 'index.html'))

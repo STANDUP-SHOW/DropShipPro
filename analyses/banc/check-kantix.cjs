@@ -249,18 +249,17 @@ test('analyse validée : liens lus seulement, onglet lu, fichiers .md et .json �
   assert.match(res.fichiers.md, /veille-prix[\\/]2026-10-24[\\/]0000\.md$/)
 })
 
-test('analyse à revoir : un lien jamais lu, un onglet déconnecté ; réponse vide = échec sans fichier', async () => {
+test('analyse : un lien jamais lu reste tel quel, un onglet déconnecté est noté ; réponse vide = échec sans fichier', async () => {
   const { racine, journal } = preparer()
   const res = await executerAnalyse({
     analyse: ANALYSE, projet: PROJET, dossierSortie: racine, rechercheDisponible: true, journal,
     lireOnglets: async () => ({ lectures: [], problemes: ['Onglet « Ads » non lu : deconnecte — champ mot de passe affiché'] }),
     generer: async () => ({ texte: RAPPORT(['https://a.example/p1', 'https://invente.example/x']), arret: 'end_turn', urls: ['https://a.example/p1'], usage: {}, fournisseur: 'openai', modele: 'm' }),
   })
-  assert.equal(res.rapport.statut, 'a-revoir')
-  assert.ok(res.rapport.problemes.some((p) => /invente\.example/.test(p)))
+  assert.equal(res.rapport.statut, 'ok')
+  assert.ok(!res.rapport.problemes.some((p) => /invente\.example/.test(p)), 'aucune note sur un lien de l’agent')
   assert.ok(res.rapport.problemes.some((p) => /déconnecte|deconnecte/.test(p)))
-  assert.deepEqual(res.rapport.sources, ['https://a.example/p1'])
-  assert.match(fs.readFileSync(res.fichiers.md, 'utf8'), /À revoir/)
+  assert.deepEqual(res.rapport.sources, ['https://a.example/p1', 'https://invente.example/x'])
   const vide = preparer()
   await assert.rejects(() => executerAnalyse({ analyse: { ...ANALYSE, onglets: [] }, projet: PROJET, dossierSortie: vide.racine, rechercheDisponible: false, journal: vide.journal, lireOnglets: async () => ({ lectures: [], problemes: [] }), generer: async () => ({ texte: '', arret: 'max_tokens', urls: [] }) }), /Réponse vide/)
   assert.deepEqual(fs.readdirSync(vide.racine).filter((f) => f !== 'journaux'), [])
@@ -324,10 +323,9 @@ test('liens produit : titre conforme gardé, autre produit retiré, lien partag�
   assert.ok(!liensProduit.titreCorrespond('Réchaud de camping', 'Tapis de sol'))
 })
 
-test('analyse : lien produit inventé retiré du .json et du .md ; fiche produit jamais validée par son seul domaine', async () => {
+test('analyse : les liens produit de l’agent sont gardés tels quels (27/11) ', async () => {
   const { racine, journal } = preparer()
-  assert.match(CONTRAT, /direct_product_pages_only/)
-  assert.match(CONTRAT, /Un champ vide vaut mieux qu’un lien vraisemblable/)
+  assert.match(CONTRAT, /restituée telle quelle/)
   assert.ok(estFicheProduit('https://fr.aliexpress.com/item/1005002.html'))
   assert.ok(estFicheProduit('https://www.amazon.fr/Table-basse/dp/B0X'))
   assert.ok(!estFicheProduit('https://fr.aliexpress.com/w/wholesale-table.html'))
@@ -342,23 +340,13 @@ test('analyse : lien produit inventé retiré du .json et du .md ; fiche produit
     lireOnglets: async () => ({ lectures: [], problemes: [] }),
     generer: async () => ({ texte, arret: 'end_turn', urls: [bon], domaines: ['fr.aliexpress.com'], fournisseur: 'gemini', modele: 'm' }),
   })
-  assert.equal(res.rapport.donnees.produits[0].url_status, 'verifie')
-  assert.equal(res.rapport.donnees.produits[1].sourcing_url, '')
-  assert.equal(res.rapport.donnees.produits[1].url_status, 'non_verifie')
-  assert.ok(!res.rapport.markdown.includes(faux))
-  assert.ok(!fs.readFileSync(res.fichiers.md, 'utf8').includes(faux))
-  assert.deepEqual(res.rapport.sources, [bon])
-  assert.equal(res.rapport.liens.retires, 1)
-  assert.ok(res.rapport.problemes.some((p) => /1 lien\(s\) produit retiré\(s\) sur 2/.test(p)))
+  assert.equal(res.rapport.donnees.produits[1].sourcing_url, faux, 'le lien de l’agent reste')
+  assert.equal(res.rapport.donnees.produits[1].url_status, undefined, 'aucun « non vérifié » posé par nous')
+  assert.ok(res.rapport.markdown.includes(faux) && !res.rapport.markdown.includes('lien non vérifié'))
+  assert.ok(fs.readFileSync(res.fichiers.md, 'utf8').includes(faux))
+  assert.deepEqual(res.rapport.sources, [bon, faux])
+  assert.equal(res.rapport.liens, null)
   assert.equal(res.rapport.statut, 'ok', res.rapport.problemes.join(' | '))
-  // a product page known only by its domain is not « read »
-  const res2 = await executerAnalyse({
-    analyse: { ...ANALYSE, onglets: [] }, projet: PROJET, dossierSortie: racine, rechercheDisponible: true, journal, fetchImpl: fauxFetch(),
-    lireOnglets: async () => ({ lectures: [], problemes: [] }),
-    generer: async () => ({ texte: RAPPORT(['https://fr.aliexpress.com/item/999.html']), arret: 'end_turn', urls: [], domaines: ['fr.aliexpress.com'], fournisseur: 'gemini', modele: 'm' }),
-  })
-  assert.equal(res2.rapport.statut, 'a-revoir')
-  assert.ok(res2.rapport.problemes.some((p) => /item\/999/.test(p)))
 })
 
 // ------------------------------------------------------------------ brief

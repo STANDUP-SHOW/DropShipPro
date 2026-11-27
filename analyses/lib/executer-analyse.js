@@ -13,7 +13,6 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { identifiant } = require('./sources')
-const { verifierLiens, corrigerMarkdown } = require('./verifier-liens')
 
 const MAX_PAGE = 20000
 const MAX_LECTURES = 120000
@@ -21,7 +20,7 @@ const MAX_LECTURES = 120000
 const CONTRAT = [
   'Tu es le moteur d’analyses de KANTIX ANALYSER. Tu exécutes la consigne ci-dessous, seul, sans pouvoir poser de question : fais au mieux avec ce que tu peux lire.',
   'Règles absolues : n’invente jamais une URL, un prix, un chiffre, un avis ou une date. Une donnée non trouvée s’écrit « Non vérifié ». Chaque chiffre est suivi de l’URL exacte de la page où tu l’as lu. N’utilise que des URL que tu as réellement lues (recherche web ou pages fournies).',
-  'Liens produit (règle qui prime sur toute consigne contraire, même « direct_product_pages_only ») : n’écris le lien d’une fiche produit (AliExpress, Amazon, CJ, Temu, eBay, boutique…) que si tu as réellement ouvert cette page pendant cette analyse, et recopie l’adresse lue telle quelle. Ne compose jamais un lien à partir d’un identifiant d’article AliExpress, d’un ASIN ou d’un numéro de produit. Jamais le même lien pour deux produits différents. Si tu n’as pas lu la fiche, laisse le champ du lien vide, mets dans "search_url" une recherche AliExpress du nom du produit et "url_status": "non_verifie". Un champ vide vaut mieux qu’un lien vraisemblable. Chaque lien produit est ensuite ouvert et son titre comparé au nom du produit : un lien qui mène ailleurs est retiré.',
+  'Liens produit : recopie l’adresse de chaque fiche produit telle que tu l’as lue pendant cette analyse (AliExpress, Amazon, CJ, Temu, eBay, boutique…). Elle est restituée telle quelle dans le rapport.',
   'Sortie : le rapport complet en Markdown, puis, en dernier, un bloc ```json contenant un seul objet { "titre": "…", "resume": "trois phrases au plus", "donnees": { … les données structurées demandées par la consigne … }, "sources": ["https://…", …] }.',
 ].join('\n')
 
@@ -109,32 +108,18 @@ async function executerAnalyse({ analyse, projet, dossierSortie, generer, recher
   let { markdown } = bloc
   if (!objet) problemes.push('Annexe JSON absente ou illisible : données structurées vides.')
 
-  // every product link of the data is opened: a page about something else, or a link shared by two products, is removed
-  let liens = null
-  const recherches = new Set()
-  if (objet && objet.donnees && typeof objet.donnees === 'object') {
-    journal.info(`Analyse « ${analyse.nom} » : vérification des liens produit`)
-    const b = await verifierLiens(objet.donnees, { fetchImpl })
-    if (b.remplacements.size) {
-      markdown = corrigerMarkdown(markdown, b.remplacements)
-      if (Array.isArray(objet.sources)) objet.sources = objet.sources.filter((u) => !b.remplacements.has(u))
-    }
-    for (const v of b.remplacements.values()) recherches.add(v)
-    liens = { verifies: b.verifies, retires: b.retires, doublons: b.doublons, nonLus: b.nonLus, details: b.details }
-    if (b.retires) problemes.push(`${b.retires} lien(s) produit retiré(s) sur ${b.retires + b.verifies} (${b.doublons} donné(s) pour deux produits, ${b.nonLus} page(s) illisible(s), le reste menait à un autre produit) : remplacés par une recherche, url_status « non_verifie ». Détail dans « liens » du .json.`)
-  }
+  // The agent's links are kept exactly as written (Max, 27/11/2026: « le rapport de l'agent tel quel » ;
+  // no link is replaced by a search page any more, no product is marked « non vérifié » by us).
+  const liens = null
 
   // every link must be one the provider read or a page of a tab
   const connues = new Set([...(r.urls || []), ...lectures.map((l) => l.url)].map(normUrl))
   const citees = [...new Set([...urlsDuTexte(markdown), ...((objet && Array.isArray(objet.sources) && objet.sources) || []).filter((u) => /^https?:\/\//.test(u))])]
   const domaines = new Set(r.domaines || [])
-  const lue = (u) => connues.has(normUrl(u)) || (!estFicheProduit(u) && domaines.size > 0 && domaines.has(hote(u)))
-  const inconnues = citees.filter((u) => !lue(u) && !recherches.has(u))
-  if (inconnues.length) problemes.push(`${inconnues.length} lien(s) cité(s) sans trace d’une lecture : ${inconnues.slice(0, 8).join(' ; ')}${inconnues.length > 8 ? ' …' : ''}`)
   if (!connues.size && !domaines.size) problemes.push('Aucune page lue (ni recherche web ni onglet) : le rapport ne repose sur aucune source.')
 
-  // removed links are already neutralised: they leave a note, not a failed report
-  const statut = r.arret === 'max_tokens' || inconnues.length || (!connues.size && !domaines.size) || !objet ? 'a-revoir' : 'ok'
+  // a link of the agent is never judged by us: it neither fails the report nor leaves a note
+  const statut = r.arret === 'max_tokens' || (!connues.size && !domaines.size) || !objet ? 'a-revoir' : 'ok'
   const rapport = {
     kantix: 1,
     projet: { id: projet.id, nom: projet.nom, url: projet.url || '' },
@@ -147,7 +132,7 @@ async function executerAnalyse({ analyse, projet, dossierSortie, generer, recher
     resume: (objet && objet.resume) || '',
     markdown,
     donnees: (objet && objet.donnees) || {},
-    sources: citees.filter((u) => lue(u) && !recherches.has(u)),
+    sources: citees,
     liens,
     lues: [...(r.urls || [])],
     moteur: { fournisseur: r.fournisseur, modele: r.modele, recherche, usage: r.usage },

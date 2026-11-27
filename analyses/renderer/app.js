@@ -891,14 +891,16 @@ async function synthImporter(essai) {
 
 const euro = (n) => (n === null || n === undefined ? '—' : `${Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`)
 // The supplier page of a product: the sourcing link first (21/11 format), else the first link of the file.
-const lienFournisseur = (p) => (p.liens && (p.liens.sourcing || p.liens.sourcing_primary || Object.values(p.liens)[0])) || ''
+const lienFournisseur = (p) => (p.liens && (p.liens.supplier || p.liens.sourcing || p.liens.sourcing_primary || Object.values(p.liens).find((u) => u && u !== p.liens.marketplace))) || ''
+const lienMarche = (p) => (p.liens && p.liens.marketplace) || ''
+const pourcent = (n) => (n === null || n === undefined || !Number.isFinite(Number(n)) ? '—' : `${Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`)
 const hoteDe = (u) => { try { return u ? new URL(u).hostname.replace(/^(www|fr)\./, '') : '' } catch { return '' } }
 // Net margin when the file gives one; else target price minus purchase price (computed by the site, shipping and fees not included).
 function celluleMarge(p) {
   const nette = p.margeNette ?? null
   const m = nette ?? p.margeBrute ?? null
   if (m === null) return '—'
-  return h('span', {}, m < 0 ? pastille(euro(m), 'mauvais') : euro(m), nette === null && h('div', { class: 'doux petit' }, 'brute, hors port et frais'))
+  return h('span', {}, euro(m), nette === null && h('div', { class: 'doux petit' }, 'brute'))
 }
 
 function vueSyntheses() {
@@ -913,7 +915,7 @@ function vueSyntheses() {
   const refus = synth.imports.filter((i) => i.statut === 'refuse').slice(0, 5)
   return h('div', {},
     h('h1', {}, 'Synthèses AIMARKET'),
-    h('p', { class: 'doux petit' }, 'Les synthèses du jour ne sont pas publiées sur le site : elles se lisent ici seulement. Cochez les produits gagnants passés au crible, choisissez le compte DropShipper qui les reçoit, puis importez. Aucune annonce vide n’est créée : chaque produit est complété (photos, description, fiche) chez AliExpress ou CJ s’ils sont reliés par API sur ce compte, puis devient un brouillon à relire ; sinon le site refuse et dit pourquoi. Les liens de la synthèse sont des pages de recherche, pas des fiches produit. Un produit déjà sur ce compte n’est pas recréé.'),
+    h('p', { class: 'doux petit' }, 'Les synthèses du jour ne sont pas publiées sur le site : elles se lisent ici seulement. Cochez les produits gagnants passés au crible, choisissez le compte DropShipper qui les reçoit, puis importez. Aucune annonce vide n’est créée : chaque produit est complété (photos, description, fiche) chez AliExpress ou CJ s’ils sont reliés par API sur ce compte, puis devient un brouillon à relire ; sinon le site refuse et dit pourquoi. Un produit déjà sur ce compte n’est pas recréé.'),
     messageFlash && h('p', { class: 'petit' }, messageFlash),
     h('div', { class: 'carte' },
       h('div', { class: 'ligne' },
@@ -939,7 +941,7 @@ function vueSyntheses() {
         h('span', { class: 'petit' }, `${n} produit(s) coché(s)`)),
       synth.section === 'listeNoire' && h('p', { class: 'petit' }, 'Liste noire : produits que la synthèse déconseille d’acheter. Ils ne se cochent pas avec « Cocher la section ».'),
       h('table', {},
-        h('thead', {}, h('tr', {}, ['', 'Produit', 'Rayon', 'Décision', 'Score', 'Fournisseur', 'Prix d’achat', 'Prix visé', 'Marge'].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['', 'Produit', 'Rayon', 'Décision', 'Score', 'Fournisseur', 'Prix d’achat', 'Coût rendu FR', 'Marché', 'Marge nette', 'ROI'].map((t) => h('th', {}, t)))),
         h('tbody', {}, ...liste.map((p) => h('tr', {},
           h('td', {}, h('input', { type: 'checkbox', checked: Boolean(synth.choisis[p.id]), onchange: (ev) => { synth.choisis[p.id] = ev.target.checked; rendre() } })),
           h('td', {}, p.nom, p.variante && h('div', { class: 'doux petit' }, p.variante)),
@@ -948,8 +950,11 @@ function vueSyntheses() {
           h('td', {}, p.score === null ? '—' : String(p.score)),
           h('td', { class: 'petit' }, p.source || hoteDe(lienFournisseur(p)) || '—',
             lienFournisseur(p) && h('div', {}, h('button', { class: 'btn', title: lienFournisseur(p), onclick: async () => { if (await appel('copier', lienFournisseur(p))) flash('Lien du fournisseur copié.') } }, 'Copier le lien'))),
-          h('td', {}, euro(p.prixAchat ?? p.coutRendu), p.prixAchat == null && p.coutRendu != null && h('div', { class: 'doux petit' }, 'coût rendu')),
-          h('td', {}, euro(p.prixVente)), h('td', {}, celluleMarge(p)))))),
+          h('td', {}, euro(p.prixAchat)),
+          h('td', {}, euro(p.coutRendu)),
+          h('td', {}, euro(p.prixVente), (p.marche || lienMarche(p)) && h('div', { class: 'petit' }, lienMarche(p) ? h('a', { href: lienMarche(p), target: '_blank', title: p.titreMarche || lienMarche(p) }, p.marche || hoteDe(lienMarche(p))) : p.marche)),
+          h('td', {}, celluleMarge(p)),
+          h('td', {}, pourcent(p.roi)))))),
     ),
     d && h('div', { class: 'carte' },
       h('label', {}, 'Compte DropShipper qui reçoit les produits'),
