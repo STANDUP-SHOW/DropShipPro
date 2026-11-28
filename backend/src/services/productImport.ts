@@ -365,6 +365,8 @@ export async function importerAdresse(
       categoryId: rangement.categoryId,
       title: scraped.title,
       description: scraped.description,
+      // Gardé pour pouvoir refaire la réécriture plus tard avec la même matière.
+      sourceText: scraped.pageText?.trim() ? scraped.pageText.slice(0, 20000) : null,
       aiTitle: enhanced.title,
       aiDescription: enhanced.description,
       price: prixAchat,

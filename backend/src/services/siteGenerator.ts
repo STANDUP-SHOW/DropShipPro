@@ -161,6 +161,8 @@ export interface AppelModele {
     system: string
     messages: Array<{ role: 'user' | 'assistant'; content: string }>
     max_tokens: number
+    /** Thinking effort, only where Max chose one (28/11/2026: the shop write, « medium »). */
+    effort?: 'medium'
   }): Promise<{ texte: string; entree: number; sortie: number; tronque?: boolean }>
 }
 
@@ -465,6 +467,7 @@ export const appelAnthropic: AppelModele = async (d) => {
     max_tokens: d.max_tokens,
     system: [{ type: 'text', text: d.system, cache_control: { type: 'ephemeral' } }],
     messages: d.messages,
+    ...(d.effort ? { output_config: { effort: d.effort } } : {}),
   })
   const reponse = await flux.finalMessage()
   const texte = reponse.content
@@ -558,6 +561,14 @@ export async function fabriquerSite(
       system: consigneCreation(),
       messages: [{ role: 'user', content: ficheCommerce(brief, catalogue) }],
       max_tokens: sortieMax(modeleCreation),
+      /*
+       * 28/11/2026, choix de Max : réflexion moyenne pour l'écriture de la page.
+       * Sonnet 5 réfléchit par défaut et sa réflexion est payée comme de la
+       * sortie : c'est elle qui poussait les pages au-delà de 48 000 jetons.
+       * Seule l'écriture change ; réparations, finition et directions restent
+       * telles quelles.
+       */
+      effort: 'medium',
     })
     jetons.entree += reponse.entree
     jetons.sortie += reponse.sortie
