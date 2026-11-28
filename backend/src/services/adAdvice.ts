@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import type { Product } from '@prisma/client'
 import { MODELE_RAISONNEMENT } from './chatBudget.js'
 import { DROPS } from './tarifs.js'
@@ -76,7 +77,7 @@ export interface DemandeAvis {
  * exception rend facile à oublier en chemin.
  */
 export async function redigerAvisPublicitaire(d: DemandeAvis): Promise<string | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) return null
 
   const marge = d.prixVente - d.prixAchat - d.port
@@ -99,7 +100,7 @@ export async function redigerAvisPublicitaire(d: DemandeAvis): Promise<string | 
     .join('\n')
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const reponse = await client.messages.create({
       model: MODELE_RAISONNEMENT,
       max_tokens: 700,

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { prisma } from '../lib/prisma.js'
 import { findSupportAgent } from './agentRoster.js'
 import { DEPARTMENTS } from './departments.js'
@@ -474,7 +475,7 @@ export async function askSupportAgent(
   const profile = findSupportAgent(key)
   if (!profile) return { content: "Cet agent n'existe pas.", route: null, failed: true }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) {
     return {
       content: "L'assistant est momentanément indisponible. Réessayez dans quelques minutes.",
@@ -485,7 +486,7 @@ export async function askSupportAgent(
 
   try {
     const context = await contextFor(key, userId)
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const response = await client.messages.create({
       // Sonnet des qu un outil est branche : croiser des sources est ce qu un
       // petit modele fait le moins bien. Haiku sur les questions de fait.

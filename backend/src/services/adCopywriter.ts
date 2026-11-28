@@ -1,4 +1,5 @@
 import { MODELE_PUISSANT, modele } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import {
   MISES_EN_PAGE,
   MISES_EN_PAGE_DESCRIPTION,
@@ -159,7 +160,7 @@ const CONSIGNE = [
  * rien, mais il doit le savoir.
  */
 export async function ecrireAccroche(d: DemandeAccroche): Promise<Accroche | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) return null
 
   // Le premier angle non encore servi pour ce produit.
@@ -193,7 +194,7 @@ export async function ecrireAccroche(d: DemandeAccroche): Promise<Accroche | nul
     .join('\n')
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const reponse = await client.messages.create({
       /*
        * Opus, et c'est une dépense assumée.

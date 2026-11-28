@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { MODELE_RAPIDE, modele } from './aiModels.js'
 
 /**
@@ -43,11 +44,11 @@ export async function traduireEnAnglais(texte: string): Promise<string> {
     return propre
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) return propre
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const reponse = await client.messages.create({
       model: modele('AI_MODEL_CATEGORY', MODELE_RAPIDE),
       max_tokens: 40,

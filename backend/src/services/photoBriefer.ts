@@ -1,4 +1,5 @@
 import { MODELE_PUISSANT, modele } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 
 /**
@@ -193,7 +194,7 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
     partiPris: parti.cle,
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
+  const apiKey = cleIA()
   if (!apiKey) return repli
 
   /*
@@ -224,7 +225,7 @@ export async function ecrireBrief(d: DemandeBrief): Promise<Brief> {
     .join('\n')
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const reponse = await client.messages.create({
       /*
        * Opus, depuis le 19/09/2026, et c'est une dépense assumée.

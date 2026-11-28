@@ -1,4 +1,5 @@
 import { MODELE_REDACTION } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import sharp from 'sharp'
 import Anthropic from '@anthropic-ai/sdk'
 import { systemeCachable } from './chatBudget.js'
@@ -119,7 +120,7 @@ export async function reviewImages(params: {
     checked: false,
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey || !params.images.length) return untouched
 
   const thumbs = (await Promise.all(params.images.slice(0, MAX_IMAGES).map(thumbnail))).filter(
@@ -132,7 +133,7 @@ export async function reviewImages(params: {
     .join(' — ')
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 1200,

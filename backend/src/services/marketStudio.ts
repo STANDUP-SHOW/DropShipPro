@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { MODELE_REDACTION, modele } from './aiModels.js'
 import { systemeCachable } from './chatBudget.js'
 import type { SupplierListing } from './supplierTypes.js'
@@ -87,10 +88,10 @@ export async function demanderAuModele(
   question: string,
   pays: string,
 ): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
+  const apiKey = cleIA()
   if (!apiKey) throw new Error("Les analyses ne sont pas disponibles sur ce serveur.")
 
-  const message = await new Anthropic({ apiKey }).messages.create({
+  const message = await clientIA().messages.create({
     model: MODEL,
     max_tokens: 4000,
     system: systemeCachable(consigne),

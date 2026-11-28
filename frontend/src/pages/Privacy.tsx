@@ -97,7 +97,7 @@ export default function Privacy() {
           <ul className="list-inside list-disc space-y-1 text-gray-400">
             <li>Railway, qui héberge l'API et la base de données ;</li>
             <li>Vercel, qui héberge le site ;</li>
-            <li>Anthropic, dont l'IA réécrit le texte de vos annonces ;</li>
+            <li>Google (Gemini), dont l'IA réécrit le texte de vos annonces et crée les images ;</li>
             <li>Resend, qui achemine les emails de vérification et de mot de passe oublié ;</li>
             <li>
               les plateformes que vous connectez vous-même, telles que Shopify, et uniquement pour y

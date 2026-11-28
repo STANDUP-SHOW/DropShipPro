@@ -75,8 +75,8 @@ console.log(`  (${PARTIS_PRIS.length} verifies)`)
 
 // --- Le repli sans clé -------------------------------------------------------
 
-const cleInitiale = process.env.ANTHROPIC_API_KEY
-delete process.env.ANTHROPIC_API_KEY
+const cleInitiale = process.env.GOOGLE_AI_API_KEY
+delete process.env.GOOGLE_AI_API_KEY
 
 console.log("\nSans cle, le brief retombe sur le parti pris et varie quand meme :")
 const sansCle: string[] = []
@@ -88,8 +88,8 @@ for (let i = 0; i < 4; i++) {
 }
 exige(new Set(sansCle).size === 4, `${new Set(sansCle).size} scenes distinctes sur 4 sans cle`)
 
-if (cleInitiale === undefined) delete process.env.ANTHROPIC_API_KEY
-else process.env.ANTHROPIC_API_KEY = cleInitiale
+if (cleInitiale === undefined) delete process.env.GOOGLE_AI_API_KEY
+else process.env.GOOGLE_AI_API_KEY = cleInitiale
 
 // --- La mise en consigne -----------------------------------------------------
 

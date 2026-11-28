@@ -1,4 +1,5 @@
 import { MODELE_REDACTION, MODELE_RAPIDE, TARIFS, modele } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { trimToWords } from './channelCopy.js'
 import { substanceSource } from './sourceQuality.js'
@@ -6,8 +7,8 @@ import { systemeCachable } from './chatBudget.js'
 
 let client: Anthropic | null = null
 function getClient() {
-  if (!process.env.ANTHROPIC_API_KEY) return null
-  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  if (!cleIA()) return null
+  if (!client) client = clientIA()
   return client
 }
 

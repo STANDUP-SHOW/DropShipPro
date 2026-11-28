@@ -1,4 +1,5 @@
 import { MODELE_REDACTION } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { systemeCachable } from './chatBudget.js'
 import { DROPS } from './tarifs.js'
@@ -162,10 +163,10 @@ const SYSTEM = [
 ].join('\n')
 
 export async function adviseOnProduct(url: string, rayon: string): Promise<ProductAdvice> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
+  const apiKey = cleIA()
   if (!apiKey) throw new Error("L'assistant est momentanément indisponible.")
 
-  const client = new Anthropic({ apiKey })
+  const client = clientIA()
   const message = await client.messages.create({
     model: MODEL,
     max_tokens: 3000,
