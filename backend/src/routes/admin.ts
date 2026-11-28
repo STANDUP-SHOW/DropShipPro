@@ -7,6 +7,7 @@ import { enregistrerRapportPoste } from '../services/rapportsPoste.js'
 import { DepotRefuse, deposerRapports } from '../services/reportsDb.js'
 import { listeVersementsAdmin, verser } from '../services/affiliation.js'
 import { sendMail, sendRawMail, appUrl } from '../services/mailer.js'
+import { bilanCoutsIA, jourDeParis } from '../services/journalIA.js'
 import { MARQUE_CONFIRMATION, ModeleRefuse, ecrireBienvenue, effacerBienvenue, lireBienvenue, texteDeHtml } from '../services/emailBienvenue.js'
 
 const echapperHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -40,6 +41,21 @@ adminRouter.use(requireAdminPoste)
 /** De quoi vérifier la clé fraîchement posée, sans rien écrire : « connecté » = un appel réel réussi. */
 adminRouter.get('/moi', (_req, res) => {
   res.json({ ok: true, administrateur: 'poste-analyses' })
+})
+
+/**
+ * Ce que l'IA a coûté un jour donné (28/11/2026), en regard des drops débités
+ * et rendus par compte : un appel payé sans débit se lit ici le jour même.
+ * `?jour=AAAA-MM-JJ` (jour de Paris), aujourd'hui par défaut.
+ */
+adminRouter.get('/couts-ia', async (req: Request, res: Response) => {
+  const jour = typeof req.query.jour === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.jour) ? req.query.jour : jourDeParis()
+  try {
+    res.set('Cache-Control', 'no-store').json(await bilanCoutsIA(jour))
+  } catch (err) {
+    console.error('bilan des coûts IA impossible', err)
+    res.status(500).json({ error: 'Bilan des coûts IA impossible.', motif: err instanceof Error ? err.message : String(err) })
+  }
 })
 
 /** La liste des abonnés à la newsletter, du plus récent au plus ancien. */

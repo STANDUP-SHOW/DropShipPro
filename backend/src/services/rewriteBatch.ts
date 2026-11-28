@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { refundCredits } from './billing.js'
+import { avecContexteIA, noterResultatLot } from './journalIA.js'
 import { construireRequete, enhanceListing, interpreter, passthroughDe, type EnhancedListing, type EntreeReecriture } from './aiEnhancer.js'
 
 /**
@@ -45,6 +46,7 @@ export interface ClientBatch {
     batches: {
       create(body: { requests: Array<{ custom_id: string; params: unknown }> }): Promise<{ id: string }>
       retrieve(id: string): Promise<{ processing_status: string }>
+      cancel?(id: string): Promise<unknown>
       results(id: string): AsyncIterable<{
         custom_id: string
         result:
@@ -72,7 +74,7 @@ export async function tourneeReecritures(
     console.error('reecriture batch : soumission impossible', err instanceof Error ? err.message : err),
   )
   await appliquerFinis(c, seulement)
-  await finirEnDirect(seulement, direct)
+  await finirEnDirect(seulement, direct, c)
 }
 
 /**
@@ -90,6 +92,7 @@ export const DELAI_BATCH_MS = 5 * 60_000
 async function finirEnDirect(
   seulement: string | undefined,
   direct: (entree: EntreeReecriture) => Promise<EnhancedListing>,
+  c?: ClientBatch,
 ): Promise<void> {
   const enRetard = await prisma.rewriteJob.findMany({
     where: {
@@ -103,6 +106,19 @@ async function finirEnDirect(
     orderBy: { createdAt: 'asc' },
     take: 20,
   })
+  /*
+   * 28/11/2026 : un job « soumis » repris en direct restait aussi dans son
+   * batch, qui finissait par être facturé — la même réécriture payée deux fois
+   * (moitié prix + prix plein), le résultat du batch ignoré. Le batch est donc
+   * annulé avant l'appel direct : ce qu'Anthropic n'a pas encore traité n'est
+   * pas facturé.
+   */
+  const aAnnuler = [...new Set(enRetard.filter((j) => j.statut === 'soumis' && j.batchId).map((j) => j.batchId as string))]
+  for (const id of aAnnuler) {
+    await c?.messages.batches.cancel?.(id).catch((err) =>
+      console.error(`reecriture batch : annulation de ${id} impossible`, err instanceof Error ? err.message : err),
+    )
+  }
   for (const job of enRetard) {
     // Réservé avant l'appel : un résultat de batch arrivé entre-temps ne s'appliquera pas deux fois.
     const pris = await prisma.rewriteJob.updateMany({
@@ -113,7 +129,7 @@ async function finirEnDirect(
     const entree = job.entree as unknown as EntreeReecriture & { _cout?: number }
     let enhanced: EnhancedListing
     try {
-      enhanced = await direct(entree)
+      enhanced = await avecContexteIA({ userId: job.userId, fonction: 'rewriteBatch.direct' }, () => direct(entree))
     } catch (err) {
       enhanced = { ...passthroughDe(entree), raison: err instanceof Error ? err.message : 'appel impossible' }
     }
@@ -164,7 +180,9 @@ async function echecDefinitif(jobId: string, userId: string, productId: string, 
  */
 async function soumettreEnAttente(c: ClientBatch, seulement?: string): Promise<void> {
   const enAttente = await prisma.rewriteJob.findMany({
-    where: { statut: 'en_attente', ...(seulement ? { userId: seulement } : {}) },
+    // Only fresh jobs: an older one goes straight to the direct call in the same
+    // round (finirEnDirect), and batching it too paid it twice (28/11/2026).
+    where: { statut: 'en_attente', createdAt: { gte: new Date(Date.now() - DELAI_BATCH_MS) }, ...(seulement ? { userId: seulement } : {}) },
     take: PAR_BATCH,
     orderBy: { createdAt: 'asc' },
   })
@@ -218,6 +236,10 @@ async function appliquerResultat(ligne: {
   // Le custom_id EST l'id du job : un batch peut renvoyer des résultats déjà
   // appliqués (rejoué), donc on ne traite que ce qui est encore « soumis ».
   const job = await prisma.rewriteJob.findUnique({ where: { id: ligne.custom_id } })
+  // Billed by Anthropic whatever we do with it: journaled before any filter.
+  if (ligne.result.type === 'succeeded' && (!seulement || job?.userId === seulement)) {
+    await noterResultatLot(job?.userId ?? null, ligne.result.message)
+  }
   if (!job || job.statut !== 'soumis') return
   // Périmètre du banc : ne jamais toucher un job hors du compte visé.
   if (seulement && job.userId !== seulement) return
@@ -226,7 +248,7 @@ async function appliquerResultat(ligne: {
 
   const echouer = async (raison: string) => {
     /*
-     * Un échec du modèle (erreur, expiration, réponse illisible) n'est pas
+     * Un échec SANS réponse (erreur, expiration, annulation : rien de facturé) n'est pas
      * définitif : la même entrée repart au batch suivant, jusqu'à
      * TENTATIVES_MAX passages (21/11/2026 : l'annonce restait brute et le
      * vendeur devait la réimporter à la main). Le compteur voyage dans
@@ -251,7 +273,14 @@ async function appliquerResultat(ligne: {
 
   const enhanced = interpreter(ligne.result.message, entree)
   if (!enhanced.enhanced) {
-    await echouer(enhanced.raison ?? 'réponse illisible')
+    /*
+     * Le modèle a répondu : la réponse est PAYÉE, même inutilisable. La
+     * relancer refaisait payer la même entrée jusqu'à trois fois (et chaque
+     * relance, déjà vieille de plus de cinq minutes, partait en plus en appel
+     * direct au prix plein) pour la même réponse. Échec définitif, crédit
+     * rendu, une seule facture (28/11/2026).
+     */
+    await echecDefinitif(job.id, job.userId, job.productId, entree._cout, `batch : ${enhanced.raison ?? 'réponse illisible'}`)
     return
   }
 
