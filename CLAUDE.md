@@ -89,6 +89,7 @@ vidé la production le 01/09/2026 — dix jours de données perdus).
 - JSX : ne pas juxtaposer plusieurs expressions texte dont une chaîne vide.
 - Ne pas pousser pendant qu'une création DropShop tourne (`Shop.siteJob` sans `fin`).
 - Coût IA (28/11) : tout appel Anthropic/Gemini passe par `fetch`, journalisé dans `AppelIA` (`services/journalIA.ts`, à importer avant tout client) ; bilan jour × compte vs drops : `GET /api/admin/couts-ia`. Un échec rend les drops mais l'appel reste payé : ne jamais relancer une réponse déjà payée.
+- IA = Gemini depuis le 28/11 (décision de max : plus jamais de crédit Claude) : tout appel passe par `services/ia.ts` (`clientIA()`/`cleIA()`, clé `GOOGLE_AI_API_KEY`) ; jamais `new Anthropic` ; Anthropic seulement si `IA_FOURNISSEUR=anthropic`. Banc `check-ia-gemini.ts`.
 - Sortie de modèle : jamais accepter une page sans `</html>` ni une réponse `stop_reason: max_tokens` (21/11 : boutique coupée, « Unexpected end of input ») ; plafond = `sortieMax(modèle)`. Un remboursement de travail passe par `poserSiOuvert` (une seule fois).
 
 ## Rapports des 48 agents (`backend/rapports.db`)

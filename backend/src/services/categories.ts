@@ -1,4 +1,5 @@
 import { MODELE_RAPIDE, modele } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { accorderAuGenre, genreDe, lireTitre, sourceSansValeur, type Genre } from './categoryLexicon.js'
@@ -438,7 +439,7 @@ export async function apprendreDuVendeur(
  * marquée `learned` pour qu'on puisse la relire.
  */
 async function placerParIA(d: DemandeCategorie): Promise<{ id: string; path: string } | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) return null
 
   const toutes = await prisma.category.findMany({
@@ -477,7 +478,7 @@ async function placerParIA(d: DemandeCategorie): Promise<{ id: string; path: str
     .join('\n')
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const reponse = await client.messages.create({
       // Haiku suffit : c'est un choix dans une liste fermée, pas un
       // raisonnement. Et le référentiel, long, est mis en cache — il est

@@ -1,4 +1,5 @@
 import { MODELE_RAPIDE, modele } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { catalogueThemes, themesPour, themeConnu, THEME_PAR_DEFAUT } from './themes.js'
 
@@ -97,7 +98,7 @@ Règles :
  * vendeur son crédit **et** son texte.
  */
 export async function composerVitrine(d: DemandeVitrine): Promise<VitrineProposee | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
+  const apiKey = cleIA()
   if (!apiKey) throw new VitrineImpossible("Le service d'écriture n'est pas configuré sur ce serveur.")
 
   const possibles = themesPour([...d.rayons, ...motsCles(d.description)])
@@ -117,7 +118,7 @@ export async function composerVitrine(d: DemandeVitrine): Promise<VitrinePropose
     .filter(Boolean)
     .join('\n')
 
-  const client = new Anthropic({ apiKey })
+  const client = clientIA()
   const reponse = await client.messages.create({
     // Haiku suffit : un choix dans une liste fermée et quatre phrases sous
     // contrainte. Les instructions ne changent jamais, donc mises en cache.

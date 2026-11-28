@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { prisma } from '../lib/prisma.js'
 import { refundCredits } from './billing.js'
 import { avecContexteIA, noterResultatLot } from './journalIA.js'
@@ -30,8 +31,8 @@ import { construireRequete, enhanceListing, interpreter, passthroughDe, type Enh
 
 let client: Anthropic | null = null
 function defautClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null
-  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  if (!cleIA()) return null
+  if (!client) client = clientIA()
   return client
 }
 
@@ -216,6 +217,19 @@ async function appliquerFinis(c: ClientBatch, seulement?: string): Promise<void>
       etat = await c.messages.batches.retrieve(batchId)
     } catch (err) {
       console.error(`reecriture batch : état illisible pour ${batchId}`, err instanceof Error ? err.message : err)
+      continue
+    }
+    /*
+     * Lot Gemini perdu (résultats gardés en mémoire, serveur redémarré entre
+     * la soumission et la lecture) : les annonces repartent au lot suivant.
+     * Le crédit déjà réservé reste attaché à l'annonce, rendu si elle échoue pour de bon.
+     */
+    if (etat.processing_status === 'perdu') {
+      const remis = await prisma.rewriteJob.updateMany({
+        where: { statut: 'soumis', batchId, ...(seulement ? { userId: seulement } : {}) },
+        data: { statut: 'en_attente', batchId: null },
+      })
+      console.error(`reecriture batch : lot ${batchId} perdu au redémarrage, ${remis.count} annonce(s) remise(s) en attente`)
       continue
     }
     // Toujours en cours : on repassera. Anthropic garde les résultats 29 jours.

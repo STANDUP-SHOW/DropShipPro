@@ -64,12 +64,16 @@ function fichiers(dossier, sortie = []) {
   return sortie
 }
 
-const MOTIF = /'(claude-[a-z0-9.-]+)'/g
+// Text models (Gemini since 28/11/2026, Claude kept only for the disabled guard).
+// Image models (-image) belong to imageGen.ts and its own cascade.
+const MOTIF = /'((?:claude|gemini)-[a-z0-9.-]+)'/g
+const BLOC_GARDE = /export const (?:EQUIVALENT_CLAUDE|TARIFS_CLAUDE)[\s\S]*?\n\}/g
 
 const trouves = []
 for (const fichier of fichiers(path.join(__dirname, 'src'))) {
-  const source = fs.readFileSync(fichier, 'utf8')
+  const source = fs.readFileSync(fichier, 'utf8').replace(BLOC_GARDE, '')
   for (const m of source.matchAll(MOTIF)) {
+    if (m[1].endsWith('-image')) continue
     trouves.push({ fichier: path.relative(__dirname, fichier), nom: m[1] })
   }
 }

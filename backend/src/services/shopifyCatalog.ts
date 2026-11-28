@@ -29,6 +29,7 @@
  * mille produits d'une même catégorie coûtent cette recherche une fois.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { MODELE_RAPIDE, modele } from './aiModels.js'
 
 /** Un appel GraphQL déjà authentifié. Passé en paramètre : le banc en fournit un faux. */
@@ -293,10 +294,10 @@ type Feuille = { id: string; fullName: string }
  * n'est jamais un motif d'échec de publication.
  */
 async function demanderAuModele(consigne: string, question: string, jetons: number): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) return ''
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const reponse = await client.messages.create({
       // Haiku : traduire deux mots et choisir dans une liste fermée ne demande
       // aucun raisonnement. Et cet appel n'a lieu qu'UNE fois par catégorie,

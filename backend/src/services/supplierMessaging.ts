@@ -1,4 +1,5 @@
 import { MODELE_REDACTION } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { sendMail, mailIsConfigured } from './mailer.js'
@@ -80,7 +81,7 @@ export async function draftSupplierMessage(
   })
   if (!conversation) return null
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) return null
 
   const product = conversation.productId
@@ -124,7 +125,7 @@ export async function draftSupplierMessage(
     .join('\n\n')
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const response = await client.messages.create({
       model: MODELE_REDACTION,
       max_tokens: 600,

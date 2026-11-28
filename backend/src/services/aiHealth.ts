@@ -1,5 +1,5 @@
-import { MODELE_REDACTION } from './aiModels.js'
-import Anthropic from '@anthropic-ai/sdk'
+import { MODELE_REDACTION, cascadeGemini } from './aiModels.js'
+import { cleIA, clientIA, fournisseurIA } from './ia.js'
 
 /**
  * Is the AI actually reachable with the configured key?
@@ -52,7 +52,7 @@ export function raisonIa(): string | null {
  * hébergeurs affichent les leurs, et pour la même raison.
  */
 export function empreinteCle(): string | null {
-  const cle = process.env.ANTHROPIC_API_KEY?.trim()
+  const cle = cleIA()
   if (!cle) return null
   return `${cle.slice(0, 7)}…${cle.slice(-4)} (${cle.length} caractères)`
 }
@@ -75,11 +75,43 @@ export async function checkAi(): Promise<AiStatus> {
 }
 
 async function probe(): Promise<AiStatus> {
-  const key = process.env.ANTHROPIC_API_KEY?.trim()
+  const key = cleIA()
   if (!key) return 'cle-absente'
 
+  /*
+   * Gemini (28/11/2026) : la sonde lit la fiche du modèle chez Google, ce qui
+   * ne coûte rien et répond la même chose qu'une génération sur une clé
+   * absente, refusée ou un modèle retiré. Aucun jeton n'est dépensé pour le
+   * diagnostic.
+   */
+  if (fournisseurIA() === 'gemini') {
+    let detail = ''
+    let statut = 0
+    try {
+      for (const m of cascadeGemini(MODELE_REDACTION)) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}`, {
+          headers: { 'x-goog-api-key': key },
+          signal: AbortSignal.timeout(8000),
+        })
+        if (res.ok) {
+          derniereRaison = m === MODELE_REDACTION ? null : `${MODELE_REDACTION} absent chez Google, ${m} utilisé`
+          return 'ok'
+        }
+        statut = res.status
+        detail = (await res.text().catch(() => '')).slice(0, 300)
+        if (statut !== 404) break
+      }
+    } catch (err) {
+      detail = err instanceof Error ? err.message : String(err)
+    }
+    derniereRaison = `Gemini statut ${statut || 'aucun'} — ${detail || 'sans message'}`
+    console.error(`[ia] sonde en échec — ${derniereRaison}`)
+    if (statut === 401 || statut === 403 || (statut === 400 && /API_KEY_INVALID|API key not valid/i.test(detail))) return 'cle-refusee'
+    return 'injoignable'
+  }
+
   try {
-    const client = new Anthropic({ apiKey: key })
+    const client = clientIA()
     await client.messages.create({
       model: MODELE_REDACTION,
       max_tokens: 4,

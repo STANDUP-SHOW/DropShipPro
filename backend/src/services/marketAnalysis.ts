@@ -1,4 +1,5 @@
 import { MODELE_REDACTION, modele } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { systemeCachable } from './chatBudget.js'
 import type { Product } from '@prisma/client'
@@ -78,8 +79,8 @@ Règles absolues :
   Un vendeur préfère l'apprendre avant d'avoir publié.`
 
 function client(): Anthropic | null {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
-  return apiKey ? new Anthropic({ apiKey }) : null
+  const apiKey = cleIA()
+  return apiKey ? clientIA() : null
 }
 
 /** Reads the outermost JSON object, the model sometimes wrapping it in prose. */

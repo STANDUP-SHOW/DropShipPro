@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { DEPARTMENTS, findDepartment, type DepartmentProfile } from './departments.js'
 import { choisirModele, messagesPour, systemeCachable } from './chatBudget.js'
 import { catalogueDuRayon, catalogueEnTexte } from './departmentCatalog.js'
@@ -75,7 +76,7 @@ export async function askDepartment(
     return { content: "Ce rayon n'existe plus.", billed: false, failed: true }
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) {
     return {
       content: "L'assistant est momentanément indisponible. Réessayez dans quelques minutes.",
@@ -104,7 +105,7 @@ export async function askDepartment(
   }
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     /*
      * L'inspection web, en plus des outils maison — la capacité que Mika
      * avait montrée dans ses rapports (analyse de marché, avis produit) sans

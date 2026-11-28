@@ -40,7 +40,10 @@ assert.deepEqual([f.modele, f.entree, f.sortie, f.cacheLu, f.arret], ['claude-so
 assert.equal(j.coutUsd('anthropic', { ...f, cacheLu: 0, entree: 0 }), 1.28)
 assert.equal(j.coutUsd('anthropic-lot', { ...f, cacheLu: 0, entree: 0 }), 0.64)
 assert.equal(j.coutUsd('anthropic', { ...u, entree: 0, sortie: 0, cacheLu: 0, cacheEcrit: 0 }), 0.03)
-assert.equal(j.coutUsd('google', u), null)
+// Google (28/11/2026): its own row, search at 14 $ per 1,000; a model without a row (images) stays null
+assert.equal(j.coutUsd('google', { ...u, modele: 'gemini-3.1-flash-lite', entree: 1_000_000, sortie: 0, cacheLu: 0, cacheEcrit: 0, recherches: 0 }), 0.25)
+assert.equal(j.coutUsd('google', { ...u, modele: 'gemini-3.8-flash', entree: 0, sortie: 0, cacheLu: 0, cacheEcrit: 0, recherches: 2 }), 0.028)
+assert.equal(j.coutUsd('google', { ...u, modele: 'gemini-3.1-flash-image' }), null)
 
 // Caller read from the stack
 assert.equal(j.appelantDansLaPile('Error\n    at x (file:///app/node_modules/@anthropic-ai/sdk/client.js:1:1)\n    at async enhanceListing (file:///app/dist/services/aiEnhancer.js:283:21)'), 'aiEnhancer.enhanceListing')

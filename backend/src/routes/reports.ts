@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { cleIA } from '../services/ia.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
@@ -217,7 +218,7 @@ chatRouter.get('/agents/roster', async (req: AuthedRequest, res) => {
   ])
 
   const autopilot = await prisma.autopilot.findUnique({ where: { userId: req.userId! } })
-  const iaReady = Boolean(process.env.ANTHROPIC_API_KEY)
+  const iaReady = Boolean(cleIA())
 
   const statusOf = (key: string): { state: 'actif' | 'inactif' | 'indisponible'; note: string | null } => {
     if (!iaReady && key !== 'scrapper' && key !== 'seller') {

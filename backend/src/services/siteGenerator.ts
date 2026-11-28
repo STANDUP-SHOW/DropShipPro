@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
@@ -179,6 +180,8 @@ export interface AppelModele {
  * risque de délai) : on ne paie que les jetons réellement produits.
  */
 export function sortieMax(modeleUtilise: string): number {
+  // Gemini: 65,536 output tokens, thinking included; ia.ts adds up to 16,384 of thinking on top (medium).
+  if (modeleUtilise.startsWith('gemini-')) return 48_000
   return /haiku-4|sonnet-4|opus-4-[015]\b/.test(modeleUtilise) ? 64_000 : 128_000
 }
 
@@ -454,9 +457,9 @@ export function coutAppel(modeleUtilise: string, entree: number, sortie: number)
 }
 
 export const appelAnthropic: AppelModele = async (d) => {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
+  const apiKey = cleIA()
   if (!apiKey) throw new SiteImpossible("Le service d'écriture n'est pas configuré sur ce serveur.")
-  const client = new Anthropic({ apiKey })
+  const client = clientIA()
   // En flux : une boutique fait des dizaines de milliers de jetons, et l'appel
   // bloquant refuse ce qu'il estime trop long.
   const flux = client.messages.stream({

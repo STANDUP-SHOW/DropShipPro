@@ -156,8 +156,11 @@ export function usageGoogle(corps: string, modeleUrl: string | null): Usage {
   try {
     const j = JSON.parse(corps)
     const m = j.usageMetadata ?? {}
-    acc.entree = m.promptTokenCount ?? 0
-    acc.sortie = m.candidatesTokenCount ?? 0
+    acc.entree = (m.promptTokenCount ?? 0) + (m.toolUsePromptTokenCount ?? 0)
+    // Thinking tokens are billed as output by Google.
+    acc.sortie = (m.candidatesTokenCount ?? 0) + (m.thoughtsTokenCount ?? 0)
+    acc.cacheLu = m.cachedContentTokenCount ?? 0
+    acc.recherches = j.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length ?? 0
     acc.arret = j.candidates?.[0]?.finishReason ?? null
   } catch {
     /* idem */
@@ -168,11 +171,18 @@ export function usageGoogle(corps: string, modeleUrl: string | null): Usage {
 /**
  * Cost in dollars from the grid of aiModels.ts. Cache reads at a tenth, cache
  * writes at 1.25 × input, web search 10 $ per 1,000 (Anthropic's prices), batch
- * at half price. Google: null — the grid has no Gemini price, and a price that
- * is not in the code is not invented here.
+ * at half price. Google (28/11/2026): its own rows of the grid, search at
+ * 14 $ per 1,000 queries (the 5,000 free monthly queries are ignored: an upper
+ * bound); a model without a row (images) stays null — no invented price.
  */
 export function coutUsd(f: Fournisseur, u: Usage): number | null {
-  if (f === 'google') return null
+  if (f === 'google') {
+    const g = u.modele ? TARIFS[u.modele] : undefined
+    if (!g) return null
+    // cachedContentTokenCount is included in promptTokenCount: no double count.
+    const total = (u.entree * g.in + u.sortie * g.out) / 1_000_000 + u.recherches * 0.014
+    return Math.round(total * 1_000_000) / 1_000_000
+  }
   const t = (u.modele && TARIFS[u.modele.replace(/-\d{8}$/, '')]) || TARIFS[MODELE_REDACTION]
   const jetons = (u.entree * t.in + u.cacheLu * t.in * 0.1 + u.cacheEcrit * t.in * 1.25 + u.sortie * t.out) / 1_000_000
   const total = (f === 'anthropic-lot' ? jetons / 2 : jetons) + u.recherches * 0.01

@@ -18,59 +18,58 @@
  */
 
 /**
- * Le modèle qui écrit et qui juge.
- *
- * Sonnet et non Opus, et c'est une décision de coût déjà prise et documentée :
- * l'application revend une intelligence qu'elle achète, et un abonnement à
- * quinze euros ne supporte pas le tarif Opus sur chaque import. Sonnet 5 est
- * d'ailleurs moins cher que le Sonnet 4.5 qu'il remplace — 2 $/10 $ le million
- * contre 3 $/15 $.
+ * **28/11/2026 : le site passe de Claude à Gemini** (décision de max, plus
+ * aucun crédit API Anthropic). Noms lus le 28/11 dans la liste officielle des
+ * modèles de Google (ai.google.dev/gemini-api/docs/models), tous « Stable » :
+ * un modèle « Preview » peut être arrêté sans préavis — c'est arrivé à
+ * `gemini-3-pro-preview`.
  */
-export const MODELE_REDACTION = 'claude-sonnet-5'
+
+/** Le modèle qui écrit et qui juge : le Flash stable le plus récent. */
+export const MODELE_REDACTION = 'gemini-3.8-flash'
+
+/** Le modèle des tâches courtes et mécaniques (catégories, options, traductions). */
+export const MODELE_RAPIDE = 'gemini-3.1-flash-lite'
 
 /**
- * Le modèle des tâches courtes et mécaniques.
- *
- * Lecture d'options dans un texte, questions de fait : la réponse est courte et
- * contrainte, la puissance n'y change rien. Toujours servi, rien à changer.
+ * Le modèle des travaux où l'erreur coûte cher (analyse de marché, pubs,
+ * brief photo). Le même Flash : `gemini-4-argon` est servi mais son prix
+ * n'était pas publié le 28/11, et `gemini-3.1-pro-preview` n'est qu'en
+ * préversion. On peut l'imposer par `AI_MODEL_ANALYSIS` / `AI_MODEL_ADCOPY`.
  */
-export const MODELE_RAPIDE = 'claude-haiku-4-5'
+export const MODELE_PUISSANT = 'gemini-3.8-flash'
 
 /**
- * Le modèle des travaux où l'erreur coûte cher.
- *
- * L'analyse de marché lance de vraies recherches et rend un verdict sur lequel
- * le vendeur fixe un prix : elle est facturée trois crédits, et c'est le seul
- * endroit où le tarif Opus se justifie.
- */
-export const MODELE_PUISSANT = 'claude-opus-5'
-
-/**
- * Ce que le tarif coûte, pour le calcul de budget.
- *
- * En dollars par million de jetons. Ces chiffres servent à `chatBudget.ts` :
- * une table qui ne connaît pas le modèle réellement appelé rend un budget faux,
- * donc une marge fausse.
- */
-/**
- * Les modèles réellement servis par l'API Anthropic.
- *
- * Liste tenue à la main — c'est le geste normal quand Anthropic publie une
- * génération. Elle sert à deux choses : `check-modeles.cjs` refuse tout nom
- * absent d'ici, et `modele()` ci-dessous refuse qu'une variable
- * d'environnement périmée casse l'application.
+ * Les modèles réellement servis, tels que la liste de Google les nommait le
+ * 28/11/2026. `check-modeles.cjs` refuse tout nom absent d'ici, et
+ * `modele()` ignore une variable d'environnement qui n'y figure pas.
  */
 export const MODELES_SERVIS = new Set([
-  'claude-fable-5-1',
-  'claude-fable-5',
-  'claude-opus-5',
-  'claude-opus-4-8',
-  'claude-opus-4-7',
-  'claude-opus-4-6',
-  'claude-sonnet-5',
-  'claude-sonnet-4-6',
-  'claude-haiku-4-5',
+  'gemini-4-argon',
+  'gemini-3.8-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.1-pro-preview',
 ])
+
+/**
+ * Du plus voulu au plus sûr : un nom retiré rend un 404 (non facturé) et
+ * l'appel passe au suivant au lieu d'arrêter tout le site (panne du 02/09).
+ */
+export function cascadeGemini(voulu: string): string[] {
+  const suite = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
+  return [voulu, ...suite.filter((m) => m !== voulu)]
+}
+
+/**
+ * La garde Anthropic (`IA_FOURNISSEUR=anthropic`, coupée par défaut) : le
+ * modèle Claude qui remplacerait chaque modèle Gemini.
+ */
+export const EQUIVALENT_CLAUDE: Record<string, string> = {
+  'gemini-3.8-flash': 'claude-sonnet-5',
+  'gemini-3.1-flash-lite': 'claude-haiku-4-5',
+}
 
 /**
  * Le modèle d'une tâche, en tenant compte d'une éventuelle variable
@@ -114,8 +113,26 @@ export function modelesEffectifs(): Record<string, string> {
   }
 }
 
-export const TARIFS: Record<string, { in: number; out: number }> = {
+/**
+ * En dollars par million de jetons, grille payante de Google lue le 28/11/2026
+ * (ai.google.dev/gemini-api/docs/pricing). La recherche Google est à part :
+ * 5 000 requêtes gratuites par mois, puis 14 $ les 1 000.
+ *
+ * `gemini-3.8-flash` n'avait pas encore sa ligne sur la page ce jour-là : on
+ * compte au prix de `gemini-3.1-pro-preview` (2 $ / 12 $), le plus cher des
+ * prix publiés de la famille — un plafond prudent, à remplacer par le vrai
+ * prix dès qu'il est publié. Jamais un chiffre plus bas que la réalité.
+ */
+/** Anthropic's grid, kept for the disabled guard and for the cost of past calls in AppelIA. */
+export const TARIFS_CLAUDE: Record<string, { in: number; out: number }> = {
   'claude-sonnet-5': { in: 2, out: 10 },
   'claude-haiku-4-5': { in: 1, out: 5 },
   'claude-opus-5': { in: 5, out: 25 },
+}
+
+export const TARIFS: Record<string, { in: number; out: number }> = {
+  'gemini-3.8-flash': { in: 2, out: 12 },
+  'gemini-3.1-flash-lite': { in: 0.25, out: 1.5 },
+  'gemini-3.1-pro-preview': { in: 2, out: 12 },
+  ...TARIFS_CLAUDE,
 }

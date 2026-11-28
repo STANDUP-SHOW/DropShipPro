@@ -1,4 +1,5 @@
 import { MODELE_REDACTION } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import type { Platform } from '@prisma/client'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
@@ -101,7 +102,7 @@ export async function draftReply(
   })
   if (!conversation) return null
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) return null
 
   const profile = conversation.department ? findDepartment(conversation.department.key) : null
@@ -131,7 +132,7 @@ export async function draftReply(
   ].join('\n')
 
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const response = await client.messages.create({
       model: MODELE_REDACTION,
       max_tokens: 600,

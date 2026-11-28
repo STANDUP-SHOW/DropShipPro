@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { cleIA, clientIA } from './ia.js'
 import { avecContexteIA } from './journalIA.js'
 import type { Department } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
@@ -91,9 +92,9 @@ const CONSIGNE_LISTE =
 
 /** Le générateur réel : Sonnet avec la recherche web. Injectable au banc. */
 export async function genererAnalyse(dep: Department, label: string): Promise<AnalyseProduite> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   if (!apiKey) throw new Error("Le service d'intelligence artificielle ne répond pas.")
-  const client = new Anthropic({ apiKey })
+  const client = clientIA()
 
   const consigne = [
     `Tu es ${dep.agentName}, chef du rayon « ${label} » d'une application de dropshipping française.`,
@@ -113,12 +114,27 @@ export async function genererAnalyse(dep: Department, label: string): Promise<An
     tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4, user_location: { type: 'approximate', country: 'FR' } }],
     messages: [{ role: 'user', content: `Rédige l'analyse de marché du rayon ${label} de ce jour.` }],
   })
-  const corps = analyse.content
+  const texteSeul = analyse.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n')
     .trim()
-  if (!corps) throw new Error("L'analyse est revenue vide.")
+  if (!texteSeul) throw new Error("L'analyse est revenue vide.")
+  /*
+   * Gemini (28/11/2026) rend ses sources à part du texte, et ne recopie pas
+   * toujours leurs adresses dans la prose. Les pages que la recherche a
+   * réellement lues sont ajoutées en fin d'analyse — jamais une adresse qui
+   * n'en vient pas.
+   */
+  const pagesLues = [...liensLus([analyse.content])].length
+    ? (analyse.content as unknown as Array<{ type: string; content?: Array<{ url?: string; title?: string }> }>)
+        .filter((b) => b.type === 'web_search_tool_result' && Array.isArray(b.content))
+        .flatMap((b) => b.content ?? [])
+        .filter((r) => typeof r.url === 'string' && !texteSeul.includes(r.url))
+    : []
+  const corps = pagesLues.length
+    ? `${texteSeul}\n\n**Sources consultées**\n${pagesLues.map((r) => `- [${r.title || new URL(r.url!).hostname}](${r.url})`).join('\n')}`
+    : texteSeul
 
   /*
    * Constaté en production le 04/09/2026 : la recherche web peut répondre

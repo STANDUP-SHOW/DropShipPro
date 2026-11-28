@@ -1,4 +1,5 @@
 import { MODELE_REDACTION, modele } from './aiModels.js'
+import { cleIA, clientIA } from './ia.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '../lib/prisma.js'
 import { systemeCachable } from './chatBudget.js'
@@ -151,7 +152,7 @@ const MARQUEUR_AVOIR = /\[AVOIR:(\d{1,3})\]/i
  * était voulu.
  */
 export async function repondre(ticketId: string, agent: CleAgent): Promise<void> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = cleIA()
   const { ticket, produit, image } = await dossier(ticketId)
 
   if (!apiKey) {
@@ -212,7 +213,7 @@ export async function repondre(ticketId: string, agent: CleAgent): Promise<void>
 
   let texte = ''
   try {
-    const client = new Anthropic({ apiKey })
+    const client = clientIA()
     const reponse = await client.messages.create({
       // Sonnet : il s'agit d'arbitrer, pas de renseigner. C'est exactement le
       // cas où le petit modèle coûterait moins cher et déciderait moins bien.
