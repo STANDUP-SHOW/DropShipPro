@@ -244,7 +244,13 @@ productsRouter.post(
         await marquerLigneFile(req.userId!, data.fileId, { status: 'ECHEC', erreur: ecart })
         return res.status(422).json({ error: ecart })
       }
-    } else if (data.differer) {
+    } else {
+      /*
+       * 28/11/2026 : la même règle vaut à l'unité. Une capture maigre partait
+       * quand même : la lecture des options et le rangement appelaient le
+       * modèle, la réécriture était sautée, et l'import rendait ses drops —
+       * des appels payés pour une annonce brute que le vendeur devait refaire.
+       */
       /*
        * Un lot du panneau latéral, hors file (21/11/2026) : sa fiche relevée trop
        * tôt passait quand même, et l'annonce naissait sans réécriture avec un

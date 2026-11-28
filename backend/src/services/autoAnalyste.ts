@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { avecContexteIA } from './journalIA.js'
 import type { Department } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { findDepartment } from './departments.js'
@@ -367,7 +368,7 @@ export async function tourneeAutoMode(
     try {
       if (dejaUnPassage && pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs))
       dejaUnPassage = true
-      const fait = await passageAutoMode(dep, generer)
+      const fait = await avecContexteIA({ userId: dep.userId, fonction: 'autoAnalyste.passageAutoMode' }, () => passageAutoMode(dep, generer))
       console.log(`auto-mode : ${dep.agentName} — rapport ${fait.rapportId}, ${fait.gagnants} gagnant(s)`)
     } catch (err) {
       // Rien produit : les drops du passage sont rendus. Un rayon en échec ne

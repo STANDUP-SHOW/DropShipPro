@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import type { Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma.js'
+import { poserUtilisateurIA } from '../services/journalIA.js'
 
 export interface AgentRequest extends Request {
   userId?: string
@@ -52,6 +53,7 @@ export async function requireApiKey(req: AgentRequest, res: Response, next: Next
   }
 
   req.userId = record.userId
+  poserUtilisateurIA(record.userId)
   req.apiKeyId = record.id
   req.cleDesktop = record.prefix.startsWith(PREFIX_DESKTOP)
 

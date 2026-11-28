@@ -1,4 +1,5 @@
 import { Prisma, type Shop } from '@prisma/client'
+import { avecContexteIA } from './journalIA.js'
 import { prisma } from '../lib/prisma.js'
 import { absoluteUrl } from '../lib/urls.js'
 import { reserveCredits, refundCredits } from './billing.js'
@@ -234,6 +235,11 @@ export async function lancerModification(shop: Shop, demande: string, outils: Ou
 
 /** Le travail lui-même. Exporté pour que le banc l'attende au lieu de scruter. */
 export async function executer(shop: Shop, etat: EtatTravail, outils: Outils): Promise<void> {
+  // Background work: the AI journal must know whose shop it is and what it is.
+  return avecContexteIA({ userId: shop.userId, fonction: `dropshop.${etat.type}` }, () => executerDans(shop, etat, outils))
+}
+
+async function executerDans(shop: Shop, etat: EtatTravail, outils: Outils): Promise<void> {
   const appeler = outils.appeler ?? appelAnthropic
   const verifier = outils.verifier ?? verifierEnfant
   // The job's identity: a restart that resumes it gives it a new `debut`, and
