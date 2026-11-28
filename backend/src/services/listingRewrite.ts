@@ -1,5 +1,7 @@
 import type { Product } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 import { enhanceListing } from './aiEnhancer.js'
+import { substanceSource } from './sourceQuality.js'
 
 /**
  * Refaire la réécriture d'une annonce déjà importée, sans retourner sur la page.
@@ -28,17 +30,50 @@ import { enhanceListing } from './aiEnhancer.js'
 export interface Reecriture {
   /** Faux quand le modèle n'a pas répondu : rien n'a changé, rien n'est facturé. */
   reecrit: boolean
+  /** Pourquoi rien n'a été réécrit, dit au vendeur tel quel. */
+  raison?: string
   /** Ce qu'il faut écrire en base, ou `null` s'il n'y a rien à changer. */
   champs: Record<string, unknown> | null
   /** Ce qui a bougé, dit au vendeur. */
   changements: string[]
 }
 
-export async function reecrireAnnonce(produit: Product): Promise<Reecriture> {
+/**
+ * Le texte de la fiche fournisseur gardé pour cette annonce.
+ *
+ * 28/11/2026 : le bouton « Réécrire » échouait sur presque toutes les annonces
+ * AliExpress. Sur ces fiches la description relevée est vide : toute la matière
+ * est dans le corps de la page (`pageText`), que l'import envoyait au modèle
+ * mais ne gardait pas. La réécriture repartait donc du seul titre, et la garde
+ * « texte trop maigre » la refusait à chaque fois (constaté sur 3 des 4 fiches
+ * AliExpress réelles du banc). Désormais `sourceText` est gardé à l'import ;
+ * pour les annonces plus anciennes importées en lot, la file de réécriture en
+ * avait gardé une copie.
+ */
+export async function texteDeLaFiche(produit: Product): Promise<string | null> {
+  if (produit.sourceText?.trim()) return produit.sourceText
+  const job = await prisma.rewriteJob.findUnique({ where: { productId: produit.id }, select: { entree: true } })
+  const page = (job?.entree as { pageText?: unknown } | null)?.pageText
+  return typeof page === 'string' && page.trim() ? page : null
+}
+
+/** Ce qui empêche la réécriture, AVANT tout drop et tout appel au modèle ; `null` si elle peut partir. */
+export function refusAvantAppel(produit: Product, pageText: string | null): string | null {
+  const ok = substanceSource({ title: produit.title, description: produit.description ?? '', pageText }).assezPourEcrire
+  if (ok) return null
+  return pageText
+    ? "La fiche du fournisseur relevée à l'import contient trop peu de texte pour être réécrite sans inventer. " +
+        'Réimportez-la depuis la fiche ouverte et défilée jusqu’en bas. Aucun drop n’a été pris.'
+    : "Le texte de la fiche du fournisseur n'a pas été gardé pour cette annonce (importée avant le 28/11/2026) : " +
+        'seul le titre est connu, la réécrire inventerait. Réimportez-la depuis la fiche. Aucun drop n’a été pris.'
+}
+
+export async function reecrireAnnonce(produit: Product, pageText?: string | null): Promise<Reecriture> {
   const source = {
     title: produit.title,
     description: produit.description,
     category: produit.sourceCategory,
+    pageText: pageText === undefined ? await texteDeLaFiche(produit) : pageText,
   }
 
   /*
@@ -50,9 +85,14 @@ export async function reecrireAnnonce(produit: Product): Promise<Reecriture> {
    * passage.
    */
   const reecrite = await enhanceListing(source)
-  if (!reecrite.enhanced) return { reecrit: false, champs: null, changements: [] }
+  if (!reecrite.enhanced) {
+    return { reecrit: false, champs: null, changements: [], raison: reecrite.raison ?? "L'IA n'a pas répondu." }
+  }
 
   const champs: Record<string, unknown> = {
+    // Sans ce drapeau, l'annonce réécrite gardait le bandeau « la réécriture n'a pas abouti ».
+    aiEnhanced: true,
+    rewritePending: false,
     aiTitle: reecrite.title,
     aiDescription: reecrite.description,
     metaTitle: reecrite.metaTitle,

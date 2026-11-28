@@ -1707,3 +1707,8 @@ Mes annonces. Le serveur refuse désormais cette source (`services/partagesPress
 `POST /import` avec un `shareId` de cette source → 410 sans débit. Nettoyage : `npx tsx nettoyer-presse-papiers.ts`
 (sec par défaut, `--ecrire`) ne retient que les produits dont l'adresse source est exactement un lien presse-papiers,
 créés après lui, sans commande ni publication réussie. Banc : `check-presse-papiers.ts` (base jetable).
+
+
+## 28/11/2026 — Le bouton « Réécrire » refusait presque toutes les annonces AliExpress
+
+Constaté sur les fiches AliExpress réelles du banc (`bancs-reels/fiches`) : 3 sur 4 ont une description relevée vide ; toute la matière est dans `pageText`. L'import l'envoyait au modèle sans la garder, donc « Réécrire » (unitaire : 422 « trop maigre » ; en lot : « L'IA n'a pas répondu », faux) repartait du seul titre et la garde `substanceSource` refusait. Et une réécriture réussie laissait `aiEnhanced=false` : le bandeau « la réécriture n'a pas abouti » restait. Les correctifs du 21/11 (#225, #229) portaient sur l'import en lot, pas sur ce bouton. Correctif : colonne `Product.sourceText`, repli sur `RewriteJob.entree.pageText` pour les anciens lots, refus motivé avant tout drop, raison réelle de l'échec affichée, `aiEnhanced: true` après réussite. Les annonces importées à l'unité avant le 28/11 n'ont plus leur texte : elles se réimportent.

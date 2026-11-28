@@ -323,6 +323,9 @@ model Product {
   description   String  @db.Text
   aiTitle       String?
   aiDescription String? @db.Text
+  /// Le texte de la fiche fournisseur relevé à l'import (28/11/2026). Sans lui, « Réécrire »
+  /// ne voyait que le titre : sur AliExpress la description est vide, tout est dans la page.
+  sourceText    String? @db.Text
 
   // price = supplier cost (scraped when available, otherwise entered by hand).
   // shippingCost is what the supplier charges to ship; sellingPrice is what the

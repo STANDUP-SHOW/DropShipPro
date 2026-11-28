@@ -49,7 +49,7 @@ import { PHOTOS_PAR_ANNONCE } from '../services/imageSelect.js'
 import { importerAdresse } from '../services/productImport.js'
 import { scoreListing } from '../services/listingScore.js'
 import { optimiserAnnonce } from '../services/listingOptimizer.js'
-import { reecrireAnnonce } from '../services/listingRewrite.js'
+import { reecrireAnnonce, refusAvantAppel, texteDeLaFiche } from '../services/listingRewrite.js'
 import { avisDepuisCsv, enregistrerAvis, normaliser as normaliserAvis, synthese } from '../services/avisAcheteurs.js'
 import { eanValide } from '../services/productFacts.js'
 import { findConnector, fournisseursRelies } from '../services/supplierConnectors.js'
@@ -503,6 +503,16 @@ productsRouter.post('/lot', async (req: AuthedRequest, res) => {
    */
   if (action === 'reecrire') {
     for (const resume of annonces) {
+      // Refus sans drop ni appel IA quand la fiche n'a pas de quoi être réécrite (voir /:id/reecrire).
+      const produit = await prisma.product.findUnique({ where: { id: resume.id } })
+      if (!produit) continue
+      const pageText = await texteDeLaFiche(produit)
+      const refus = refusAvantAppel(produit, pageText)
+      if (refus) {
+        echecs.push({ id: resume.id, titre: resume.aiTitle || resume.title, raison: refus })
+        continue
+      }
+
       const credit = await reserveCredits(req.userId!, DROPS.reecriture, "Réécriture d'une annonce")
       if (!credit.ok) {
         echecs.push({
@@ -516,14 +526,14 @@ productsRouter.post('/lot', async (req: AuthedRequest, res) => {
       }
 
       try {
-        const produit = await prisma.product.findUniqueOrThrow({ where: { id: resume.id } })
-        const { reecrit, champs } = await reecrireAnnonce(produit)
+        const { reecrit, champs, raison } = await reecrireAnnonce(produit, pageText)
         if (!reecrit || !champs) {
           await refundCredits(req.userId!, DROPS.reecriture)
+          console.error(`[reecriture] ${resume.id} non réécrite : ${raison}`)
           echecs.push({
             id: resume.id,
             titre: resume.aiTitle || resume.title,
-            raison: "L'IA n'a pas répondu.",
+            raison: `La réécriture n'a pas abouti (${raison}). Aucun drop pris.`,
           })
           continue
         }
@@ -676,24 +686,22 @@ productsRouter.post('/:id/reecrire', async (req: AuthedRequest, res) => {
   })
   if (!produit) return res.status(404).json({ error: 'Produit introuvable' })
 
-  // Une fiche relevée sans texte ne se réécrit pas : le dire, sans débiter ni appeler le modèle.
-  if (!substanceSource({ title: produit.title, description: produit.description ?? '' }).assezPourEcrire) {
-    return res.status(422).json({
-      error:
-        "Le texte relevé sur la fiche du fournisseur est trop maigre pour être réécrit sans inventer. Réimportez la fiche : " +
-        "l'extension attend désormais qu'elle soit chargée. Aucun drop n'a été pris.",
-    })
-  }
+  // Une fiche sans matière ne se réécrit pas : le dire, sans débiter ni appeler le modèle.
+  // Le texte de la page gardé à l'import compte : c'est lui qui porte la fiche AliExpress.
+  const pageText = await texteDeLaFiche(produit)
+  const refus = refusAvantAppel(produit, pageText)
+  if (refus) return res.status(422).json({ error: refus })
 
   const credit = await reserveCredits(req.userId!, DROPS.reecriture, "Réécriture d'une annonce")
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })
 
   try {
-    const { reecrit, champs, changements } = await reecrireAnnonce(produit)
+    const { reecrit, champs, changements, raison } = await reecrireAnnonce(produit, pageText)
     if (!reecrit || !champs) {
       await refundCredits(req.userId!, DROPS.reecriture)
+      console.error(`[reecriture] ${produit.id} non réécrite : ${raison}`)
       return res.status(503).json({
-        error: "L'IA ne répond pas pour le moment. Rien n'a été modifié, aucun crédit n'a été pris.",
+        error: `La réécriture n'a pas abouti (${raison}). Rien n'a été modifié, aucun drop n'a été pris.`,
       })
     }
 
