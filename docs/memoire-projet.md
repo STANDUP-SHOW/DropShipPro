@@ -1692,3 +1692,18 @@ Corrigé : une page sans « flip-entries » est relue (3 reprises), puis l'erreu
 Symptômes : création échouée à la fin (drops rendus), puis « La modification casse la boutique… Uncaught SyntaxError: Unexpected end of input » et « Le modèle n'a pas rendu d'éditions applicables ».
 Cause : `max_tokens: 48_000` pour une boutique entière, alors que Sonnet 5 réfléchit par défaut sur le même budget. La page sortait coupée en plein script ; `extraireHtml` l'acceptait sans `</html>` ; le vérificateur la refusait ; les réparations par éditions ne pouvaient pas recréer la moitié manquante. En modification, Haiku tentait une refonte entière, coupée elle aussi, et la réponse ne contenait alors aucun bloc d'éditions lisible.
 Correctif : `sortieMax()` (128 000 pour Sonnet 5, 64 000 pour Haiku 4.5), `stop_reason === 'max_tokens'` remonté (`tronque`), une page sans `</html>` refusée, une écriture coupée refaite une fois, une refonte coupée remplacée par une demande d'éditions, `extraireEditions` lit tout bloc plausible. Remboursement : `poserSiOuvert` (UPDATE conditionnel sur `debut` et absence de `fin`) ferme le travail atomiquement ; seul celui qui ferme rembourse. Avant, deux onglets qui relisaient un travail mort, ou un travail repris après redémarrage, pouvaient rembourser deux fois. Bancs : check-dropshop.ts, check-dropshop-jobs.ts.
+
+## 28/11/2026 — 100 $ d'API consommés pendant les tests du 21 au 25/11
+
+Max : son seul compte a travaillé, moins de 10 € de drops dépensés, 100 $ de crédit Anthropic partis, « jetons toujours rendus ». Récap pour le ticket : `/mnt/project-files/recaps/credits-api-21-25-novembre.md`.
+Constaté dans le code : aucun journal des appels IA ; la règle « échec = drops rendus » partout alors que l'appel est payé ; modifications et directions DropShop gratuites ; seconde écriture DropShop après une page coupée au plafond (128 k jetons) ; réécriture en lot relancée sur une réponse payée mais inutilisable, et un job « soumis » repris en appel direct pendant que son batch continuait (payé deux fois) ; capture unitaire maigre payant options + rangement avant de rendre les drops. Aucun appel ne règle `effort`/`thinking` (réflexion de Sonnet 5 payée en sortie).
+Correctif : `services/journalIA.ts` enveloppe `fetch` (importé juste après dotenv dans index.ts ; le SDK capture fetch à la construction), table `AppelIA` (migration additive 20261128090000), contexte compte/route par AsyncLocalStorage (middleware APRÈS express.json, sinon le contexte se perd), résultats de batch notés par `noterResultatLot`. Fin des relances payées ; batch annulé avant l'appel direct ; capture maigre refusée avant tout appel. Pas de plafond (décision de Max). KANTIX n'est PAS établi comme cause : rien sur le Drive les 22-24/11, dépôts en bloc (script Antigravity).
+## 28/11/2026 — Ctrl+C devenu produit : refus côté serveur
+
+La capture du presse-papiers est retirée du desktop depuis 0.5.4 (#217), mais une application installée avant continue
+d'envoyer chaque adresse copiée (`SharedLink.source = 'presse-papiers'`), que le mode tout automatique importait dans
+Mes annonces. Le serveur refuse désormais cette source (`services/partagesPressePapiers.ts`) : `POST /api/agent/share`
+→ 410, les liens déjà en file ne sont plus rendus (`GET /share`, `/desktop-power/partages`, `/mobile/products/shared`),
+`POST /import` avec un `shareId` de cette source → 410 sans débit. Nettoyage : `npx tsx nettoyer-presse-papiers.ts`
+(sec par défaut, `--ecrire`) ne retient que les produits dont l'adresse source est exactement un lien presse-papiers,
+créés après lui, sans commande ni publication réussie. Banc : `check-presse-papiers.ts` (base jetable).

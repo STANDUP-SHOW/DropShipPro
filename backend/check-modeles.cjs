@@ -67,7 +67,7 @@ function fichiers(dossier, sortie = []) {
 // Text models (Gemini since 28/11/2026, Claude kept only for the disabled guard).
 // Image models (-image) belong to imageGen.ts and its own cascade.
 const MOTIF = /'((?:claude|gemini)-[a-z0-9.-]+)'/g
-const BLOC_GARDE = /export const EQUIVALENT_CLAUDE[\s\S]*?\n\}/
+const BLOC_GARDE = /export const (?:EQUIVALENT_CLAUDE|TARIFS_CLAUDE)[\s\S]*?\n\}/g
 
 const trouves = []
 for (const fichier of fichiers(path.join(__dirname, 'src'))) {

@@ -1,4 +1,6 @@
 import 'dotenv/config'
+// Must come before anything that builds an Anthropic client: it wraps fetch.
+import { middlewareContexteIA } from './services/journalIA.js'
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
@@ -113,6 +115,9 @@ app.use('/api/shopify', express.raw({ type: 'application/json' }), shopifyAppRou
 // Avant express.json : les pages du Market n ont pas de corps JSON.
 app.use(marketHostRouter)
 app.use(express.json({ limit: '2mb' }))
+// Every request carries its AI-call context (route, then user once authenticated).
+// After the body parser: its stream callbacks would drop the async context.
+app.use(middlewareContexteIA)
 
 // Watermarked photos are public assets pulled into third-party listing forms, so
 // they're readable from any origin (unlike the authenticated API routes above).

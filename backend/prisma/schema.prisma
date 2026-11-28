@@ -2043,3 +2043,35 @@ model MarketContact {
   clientId  String?
   createdAt DateTime @default(now())
 }
+
+/// Un appel payant à une IA (Anthropic, Google), journalisé au moment où il part
+/// (28/11/2026 : 100 $ d'API dépensés sans que personne ne sache par quoi).
+/// Écrit par services/journalIA.ts, qui voit TOUS les appels sortants.
+model AppelIA {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  /// Jour de Paris, AAAA-MM-JJ : la journée telle que Max la lit.
+  jour        String
+  fournisseur String
+  modele      String?
+  /// Le service et la fonction qui ont appelé (lu dans la pile), ou le libellé posé.
+  fonction    String
+  /// La route HTTP en cours, vide pour une tournée de fond.
+  route       String?
+  userId      String?
+  entree      Int      @default(0)
+  sortie      Int      @default(0)
+  cacheLu     Int      @default(0)
+  cacheEcrit  Int      @default(0)
+  recherches  Int      @default(0)
+  /// Coût d'après la grille d'aiModels.ts ; null quand la grille ne connaît pas le tarif (images Google).
+  coutUsd     Float?
+  /// Statut HTTP de la réponse (0 = pas de réponse).
+  statut      Int
+  /// Arrêt du modèle (end_turn, max_tokens…) quand la réponse le dit.
+  arret       String?
+  dureeMs     Int      @default(0)
+
+  @@index([jour])
+  @@index([userId, jour])
+}

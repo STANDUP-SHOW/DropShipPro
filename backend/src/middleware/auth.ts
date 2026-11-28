@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../lib/prisma.js'
+import { poserUtilisateurIA } from '../services/journalIA.js'
 
 const JWT_SECRET = process.env.JWT_SECRET!
 
@@ -53,6 +54,7 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
     return res.status(503).json({ error: 'Service momentanément indisponible' })
   }
   req.userId = userId
+  poserUtilisateurIA(userId)
   next()
 }
 

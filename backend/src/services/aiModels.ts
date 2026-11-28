@@ -123,8 +123,16 @@ export function modelesEffectifs(): Record<string, string> {
  * prix publiés de la famille — un plafond prudent, à remplacer par le vrai
  * prix dès qu'il est publié. Jamais un chiffre plus bas que la réalité.
  */
+/** Anthropic's grid, kept for the disabled guard and for the cost of past calls in AppelIA. */
+export const TARIFS_CLAUDE: Record<string, { in: number; out: number }> = {
+  'claude-sonnet-5': { in: 2, out: 10 },
+  'claude-haiku-4-5': { in: 1, out: 5 },
+  'claude-opus-5': { in: 5, out: 25 },
+}
+
 export const TARIFS: Record<string, { in: number; out: number }> = {
   'gemini-3.8-flash': { in: 2, out: 12 },
   'gemini-3.1-flash-lite': { in: 0.25, out: 1.5 },
   'gemini-3.1-pro-preview': { in: 2, out: 12 },
+  ...TARIFS_CLAUDE,
 }

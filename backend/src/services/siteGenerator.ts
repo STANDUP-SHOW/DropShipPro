@@ -178,6 +178,8 @@ export interface AppelModele {
  * risque de délai) : on ne paie que les jetons réellement produits.
  */
 export function sortieMax(modeleUtilise: string): number {
+  // Gemini: 65,536 output tokens, thinking included; ia.ts adds 4,096 of thinking on top.
+  if (modeleUtilise.startsWith('gemini-')) return 60_000
   return /haiku-4|sonnet-4|opus-4-[015]\b/.test(modeleUtilise) ? 64_000 : 128_000
 }
 
@@ -562,6 +564,14 @@ export async function fabriquerSite(
     cout += coutAppel(modeleCreation, reponse.entree, reponse.sortie)
     html = reponse.tronque ? null : extraireHtml(reponse.texte)
     if (!html) console.warn(`[dropshop] écriture ${ecriture} inutilisable : ${reponse.tronque ? 'coupée au plafond de sortie' : 'page incomplète'} (${reponse.sortie} jetons)`)
+    /*
+     * Coupée au plafond : la même consigne, au même plafond, sur le même
+     * catalogue, se coupe encore. La seconde écriture coûtait jusqu'à 128 000
+     * jetons de sortie de plus pour le même échec, et les 500 drops étaient
+     * rendus — l'appel restait payé (28/11/2026). On ne réécrit qu'une page
+     * rendue incomplète SANS avoir touché le plafond.
+     */
+    if (reponse.tronque) break
   }
   if (!html) throw new SiteImpossible("Le modèle n'a pas rendu une page HTML complète.")
 
