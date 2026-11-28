@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { horsPressePapiers } from '../services/partagesPressePapiers.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
@@ -31,7 +32,7 @@ const jourParis = (d: Date) => d.toLocaleDateString('fr-CA', { timeZone: 'Europe
 
 desktopPowerRouter.get('/partages', async (req: AuthedRequest, res) => {
   try {
-    const liens = await prisma.sharedLink.findMany({ where: { userId: req.userId! }, orderBy: { createdAt: 'desc' }, take: 200 })
+    const liens = await prisma.sharedLink.findMany({ where: { userId: req.userId!, ...horsPressePapiers }, orderBy: { createdAt: 'desc' }, take: 200 })
     res.json({
       partages: liens.map((l) => ({ id: l.id, url: l.url, titre: l.title, note: l.note, source: l.source, statut: l.status, cree: l.createdAt.toISOString(), pris: l.claimedAt?.toISOString() ?? null })),
     })
