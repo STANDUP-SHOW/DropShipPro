@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { horsPressePapiers, MESSAGE_PRESSE_PAPIERS, SOURCE_PRESSE_PAPIERS } from '../services/partagesPressePapiers.js'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireApiKey, requireDesktop, type AgentRequest } from '../middleware/apiKey.js'
@@ -249,6 +250,8 @@ agentRouter.post('/share', async (req: AgentRequest, res) => {
   }
 
   const { url, title, note, source } = parsed.data
+  // An app installed before 0.5.4 still sends every Ctrl+C: never a product (28/11/2026).
+  if (source === SOURCE_PRESSE_PAPIERS) return res.status(410).json({ error: MESSAGE_PRESSE_PAPIERS })
   const data = { title: title ?? null, note: note ?? null, source: source || 'mobile' }
 
   // Repartager le même lien remonte les infos (titre, note) sans dupliquer la
@@ -270,6 +273,7 @@ agentRouter.get('/share', async (req: AgentRequest, res) => {
   const items = await prisma.sharedLink.findMany({
     where: {
       userId: req.userId!,
+      ...horsPressePapiers,
       ...(status && valid.includes(status) ? { status: status as 'NEW' } : {}),
     },
     orderBy: { createdAt: 'desc' },
@@ -357,6 +361,10 @@ agentRouter.post('/import', requireDesktop as never, async (req: AgentRequest, r
     .safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'URL ou fiche invalide' })
   const fiche = parsed.data.fiche
+  if (parsed.data.shareId) {
+    const lien = await prisma.sharedLink.findFirst({ where: { id: parsed.data.shareId, userId: req.userId! }, select: { source: true } })
+    if (lien?.source === SOURCE_PRESSE_PAPIERS) return res.status(410).json({ error: MESSAGE_PRESSE_PAPIERS })
+  }
 
   const credit = await reserveCredits(req.userId!, DROPS.import, "Import d'une annonce (application desktop)")
   if (!credit.ok) return res.status(402).json({ error: credit.reason, needsCredits: true })

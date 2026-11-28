@@ -28,6 +28,7 @@
  * l'adresse où il règle lui-même.
  */
 import { Router, type Response, type NextFunction } from 'express'
+import { horsPressePapiers } from '../services/partagesPressePapiers.js'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
@@ -530,7 +531,7 @@ mobileRouter.post(
 mobileRouter.get(
   '/products/shared',
   route(async (req, res) => {
-    const liens = await prisma.sharedLink.findMany({ where: { userId: req.userId! }, orderBy: { createdAt: 'desc' }, take: 200 })
+    const liens = await prisma.sharedLink.findMany({ where: { userId: req.userId!, ...horsPressePapiers }, orderBy: { createdAt: 'desc' }, take: 200 })
     res.json({ items: liens.map(partagePublic) })
   }),
 )
