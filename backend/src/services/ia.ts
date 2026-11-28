@@ -237,6 +237,10 @@ function systemeTexte(system: Params['system']): string {
   return system.map((b) => b.text).join('\n\n')
 }
 
+type Niveau = 'low' | 'medium' | 'high'
+/** Room for thinking on top of the answer budget the service planned (Google counts both in maxOutputTokens). */
+const MARGE_REFLEXION: Record<Niveau, number> = { low: 4096, medium: 16_384, high: 24_576 }
+
 interface Corps {
   body: Record<string, unknown>
   avecRecherche: boolean
@@ -254,6 +258,13 @@ function corpsGemini(p: Params): Corps {
   if (recherche) tools.push({ googleSearch: {} })
   if (fonctions.length) tools.push({ functionDeclarations: fonctions })
 
+  /*
+   * output_config.effort (Anthropic) → thinkingLevel (Gemini 3: low, medium,
+   * high). Only where a service set it (28/11: the DropShop page write, max's
+   * choice « medium ») ; low everywhere else.
+   */
+  const effort = (p as { output_config?: { effort?: string } }).output_config?.effort
+  const niveau: Niveau = effort === 'medium' || effort === 'high' ? effort : 'low'
   const body: Record<string, unknown> = {
     contents: contenusGemini(p.messages),
     generationConfig: {
@@ -263,8 +274,8 @@ function corpsGemini(p: Params): Corps {
        * avalé par la réflexion) : on la règle au plus bas et on ajoute sa marge
        * au-dessus de ce que le service avait prévu pour sa réponse.
        */
-      maxOutputTokens: Math.min(65_536, p.max_tokens + 4096),
-      thinkingConfig: { thinkingLevel: 'low' },
+      maxOutputTokens: Math.min(65_536, p.max_tokens + MARGE_REFLEXION[niveau]),
+      thinkingConfig: { thinkingLevel: niveau },
       ...(typeof p.temperature === 'number' ? { temperature: p.temperature } : {}),
     },
   }

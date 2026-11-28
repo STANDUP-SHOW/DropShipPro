@@ -61,6 +61,12 @@ ok('le texte revient en bloc text', m1.content[0]?.type === 'text' && (m1.conten
 ok('stop_reason end_turn', m1.stop_reason === 'end_turn')
 ok('jetons de réflexion comptés en sortie', m1.usage.output_tokens === 8 && m1.usage.input_tokens === 12)
 
+// 2b. output_config.effort medium → thinkingLevel medium, larger margin.
+appels = []
+reponses = [{ status: 200, json: { candidates: [{ content: { parts: [{ text: 'page' }] }, finishReason: 'STOP' }] } }]
+await c.messages.create({ model: 'gemini-3.8-flash', max_tokens: 48_000, output_config: { effort: 'medium' }, messages: [{ role: 'user', content: 'x' }] } as any)
+ok('effort medium → thinkingLevel medium, plafond ≤ 65 536', appels[0].body.generationConfig.thinkingConfig.thinkingLevel === 'medium' && appels[0].body.generationConfig.maxOutputTokens === 48_000 + 16_384)
+
 // 3. MAX_TOKENS → max_tokens (garde du JSON coupé).
 reponses = [{ status: 200, json: { candidates: [{ content: { parts: [{ text: '{"a":' }] }, finishReason: 'MAX_TOKENS' }] } }]
 const m2 = await c.messages.create({ model: 'gemini-3.8-flash', max_tokens: 10, messages: [{ role: 'user', content: 'x' }] })

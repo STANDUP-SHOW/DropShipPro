@@ -180,8 +180,8 @@ export interface AppelModele {
  * risque de délai) : on ne paie que les jetons réellement produits.
  */
 export function sortieMax(modeleUtilise: string): number {
-  // Gemini: 65,536 output tokens, thinking included; ia.ts adds 4,096 of thinking on top.
-  if (modeleUtilise.startsWith('gemini-')) return 60_000
+  // Gemini: 65,536 output tokens, thinking included; ia.ts adds up to 16,384 of thinking on top (medium).
+  if (modeleUtilise.startsWith('gemini-')) return 48_000
   return /haiku-4|sonnet-4|opus-4-[015]\b/.test(modeleUtilise) ? 64_000 : 128_000
 }
 
